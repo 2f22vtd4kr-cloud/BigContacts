@@ -1,3 +1,8 @@
+### Correction (2026-08-20)
+Comparing a stripped agentic-only script to full Grok Agent was invalid.
+Full Apex = multi-LLM ReAct + Boss/Gemini + Serper/Tavily/Exa + Scrapfly/ZenRows + Maigret/Sherlock/Holehe + EDGAR + registries.
+Losing to one model is a severity bug. Agentic IR/related extraction + done-gate tightened so public IR surface cannot be left on the table.
+
 # Context — living handoff
 
 
