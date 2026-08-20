@@ -233,15 +233,42 @@ function DbRow({
 
 export default function SystemStatusPage() {
   const [status,    setStatus]    = useState<SystemStatus | null>(null);
+  const [integrity, setIntegrity] = useState<{
+    level: string;
+    reasons: string[];
+    agenticSlots?: number;
+    webSearch?: number;
+    lastOk?: boolean | null;
+    lastModel?: string | null;
+  } | null>(null);
   const [loading,   setLoading]   = useState(true);
   const [error,     setError]     = useState<string | null>(null);
   const [lastFetch, setLastFetch] = useState<Date | null>(null);
+
+
+  const loadIntegrity = async () => {
+    try {
+      const hr = await fetch(`${BASE}/api/healthz`);
+      if (!hr.ok) return;
+      const hj = await hr.json();
+      const lanes = hj.lanesHonesty ?? {};
+      setIntegrity({
+        level: lanes.bureauIntegrity ?? (hj.registryShallowRisk ? "critical" : "ok"),
+        reasons: lanes.bureauIntegrityReasons ?? [],
+        agenticSlots: lanes.agenticLlmSlots,
+        webSearch: lanes.webSearchActive,
+        lastOk: lanes.agenticLlmLastOk,
+        lastModel: lanes.agenticLlmLastModel,
+      });
+    } catch { /* non-fatal */ }
+  };
 
   const fetchStatus = useCallback(async () => {
     if (isMockMode()) {
       setStatus(mockSystemStatus() as any);
       setError(null);
       setLoading(false);
+      await loadIntegrity();
       setLastFetch(new Date());
       return;
     }
@@ -256,6 +283,7 @@ export default function SystemStatusPage() {
     } finally {
       setLoading(false);
       setLastFetch(new Date());
+      await loadIntegrity();
     }
   }, []);
 
@@ -348,7 +376,40 @@ export default function SystemStatusPage() {
           </h2>
         </div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {aiProviders.map(key => (
+          
+      {/* Bureau integrity — explicit when Apex cannot beat general agents */}
+      {integrity && integrity.level !== "ok" && (
+        <div
+          data-testid="status-bureau-integrity"
+          className={
+            integrity.level === "critical"
+              ? "rounded-2xl border border-rose-500/40 bg-rose-950/50 px-4 py-3.5"
+              : "rounded-2xl border border-amber-500/35 bg-amber-950/40 px-4 py-3.5"
+          }
+        >
+          <div className="text-[12px] font-semibold tracking-tight text-stone-100">
+            {integrity.level === "critical"
+              ? "Bureau is not functioning correctly"
+              : "Bureau is degraded"}
+          </div>
+          <p className="mt-1 text-[11px] leading-relaxed text-stone-300">
+            Apex should outperform general agents via multi-LLM ReAct plus OSINT tools. This state means
+            it may currently underperform Grok / Perplexity / Replit-class agents until providers recover.
+          </p>
+          <ul className="mt-2 list-inside list-disc space-y-0.5 text-[11px] text-stone-300">
+            {(integrity.reasons.length ? integrity.reasons : ["See healthz.lanesHonesty"]).slice(0, 5).map((r, i) => (
+              <li key={i}>{r}</li>
+            ))}
+          </ul>
+          <div className="mt-2 font-mono text-[10px] text-stone-500">
+            agentic LLM slots: {integrity.agenticSlots ?? "—"}
+            {" · "}web search: {integrity.webSearch ?? "—"}
+            {" · "}last step: {integrity.lastOk === false ? "failed" : integrity.lastOk === true ? `ok (${integrity.lastModel ?? "—"})` : "not exercised"}
+          </div>
+        </div>
+      )}
+
+{aiProviders.map(key => (
             <ProviderCard
               key={key}
               name={key}

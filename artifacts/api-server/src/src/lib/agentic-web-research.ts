@@ -2121,16 +2121,56 @@ export async function runAgenticWebResearch(input: {
     });
     const llm = await llmStep(prompt);
     if (!llm) {
-      return {
-        status: i === 0 ? "unavailable" : "completed",
-        model: modelUsed,
-        iterations: i,
-        searches,
-        visits,
-        findings,
-        trajectory: history,
-        error: i === 0 ? "No Gemini/Groq key available for agentic loop" : undefined,
-      };
+      // All chat LLMs failed this step — do NOT abort the bureau. Run deterministic
+      // search/visit so OSINT tools still produce surface vs a general agent.
+      history.push(`step${i + 1}: llm_all_failed — deterministic recovery`);
+      modelUsed = modelUsed === "none" ? "deterministic" : modelUsed;
+      const co = input.companyName || name;
+      if (searches === 0) {
+        const q = input.companyName
+          ? `"${name}" "${input.companyName}" (contact OR "DEF 14A" OR proxy OR President)`
+          : `"${name}" (contact OR email OR phone OR LinkedIn)`;
+        searches++;
+        history.push(`step${i + 1}: det_search ${q}`);
+        const sr = await toolWebSearch(q);
+        for (const u of sr.urls) {
+          if (u.startsWith("http") && !candidateUrls.includes(u)) candidateUrls.push(u);
+        }
+        seedCompanyContactPaths(sr.urls);
+        const peopleHits = findingsFromPeopleSnippet(sr.text, sr.urls, input.companyName || name);
+        if (peopleHits.length) findings = mergeFindings(findings, peopleHits);
+        const snippetEmails = findingsFromSearchSnippet(sr.text, sr.urls, input.companyName || name);
+        if (snippetEmails.length) findings = mergeFindings(findings, snippetEmails);
+        lastObservation =
+          `DETERMINISTIC SEARCH (no LLM): ${q}\nURLs: ${sr.urls.slice(0, 8).join(" | ")}\n\n${sr.text.slice(0, MAX_OBS)}`;
+      }
+      if (candidateUrls.some((u) => !visitedUrls.has(u))) {
+        await forceVisitNext(`step${i + 1}`);
+      } else if (input.companyName && searches < 3) {
+        const q2 = `"${co}" (site:sec.gov) (DEF 14A OR proxy)`;
+        searches++;
+        history.push(`step${i + 1}: det_sec_search ${q2}`);
+        const sr2 = await toolWebSearch(q2);
+        for (const u of sr2.urls) {
+          if (u.startsWith("http") && !candidateUrls.includes(u)) candidateUrls.push(u);
+        }
+        await forceVisitNext(`step${i + 1}`);
+      }
+      if (i >= maxIter - 1 || (searches >= 3 && visits >= 2)) {
+        return {
+          status: findings.length ? "completed" : "error",
+          model: modelUsed,
+          iterations: i + 1,
+          searches,
+          visits,
+          findings,
+          trajectory: history,
+          error: findings.length
+            ? undefined
+            : "All agentic LLMs failed; deterministic recovery produced no findings",
+        };
+      }
+      continue;
     }
     modelUsed = llm.model;
     const action = parseAction(llm.raw);
