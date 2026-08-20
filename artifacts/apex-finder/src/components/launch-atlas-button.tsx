@@ -15,7 +15,7 @@ const VARIANT_CLASS: Record<Variant, string> = {
   primary:
     "atlas-launch-glow h-12 w-full sm:w-auto px-7 text-sm tracking-tight",
   header:
-    "h-9 w-9 sm:w-auto sm:px-3.5 text-[11px] font-bold tracking-wide rounded-full bg-[#00e68a]/12 text-[#a7f3d0] border border-[#00e68a]/40 hover:bg-[#00e68a]/20 hover:border-[#34f5a0]/50 active:scale-[0.97] active:brightness-95",
+    "h-9 w-9 sm:w-auto sm:px-3.5 text-[11px] font-bold tracking-wide rounded-full bg-[#9CFF1A]/12 text-[#d4ff8a] border border-[#9CFF1A]/40 hover:bg-[#9CFF1A]/20 hover:border-[#b8ff4d]/50 active:scale-[0.97] active:brightness-95",
   reactor:
     "atlas-launch-glow h-11 w-full sm:w-auto px-5 text-xs",
   ghost:
@@ -24,13 +24,13 @@ const VARIANT_CLASS: Record<Variant, string> = {
 
 const VARIANT_RUNNING: Record<Variant, string> = {
   primary:
-    "h-12 w-full sm:w-auto px-7 text-sm tracking-tight rounded-xl border border-[#00e68a]/45 bg-[#00e68a]/15 text-[#a7f3d0] shadow-[0_0_28px_rgba(0,230,138,0.2)]",
+    "h-12 w-full sm:w-auto px-7 text-sm tracking-tight rounded-xl border border-[#9CFF1A]/45 bg-[#9CFF1A]/15 text-[#d4ff8a] shadow-[0_0_28px_rgba(156,255,26,0.2)]",
   header:
-    "h-9 w-9 sm:w-auto sm:px-3.5 text-[11px] font-bold tracking-wide rounded-full bg-[#00e68a]/18 text-[#a7f3d0] border border-[#00e68a]/50",
+    "h-9 w-9 sm:w-auto sm:px-3.5 text-[11px] font-bold tracking-wide rounded-full bg-[#9CFF1A]/18 text-[#d4ff8a] border border-[#9CFF1A]/50",
   reactor:
-    "h-11 w-full sm:w-auto px-5 text-xs rounded-xl border border-[#00e68a]/45 bg-[#00e68a]/15 text-[#a7f3d0]",
+    "h-11 w-full sm:w-auto px-5 text-xs rounded-xl border border-[#9CFF1A]/45 bg-[#9CFF1A]/15 text-[#d4ff8a]",
   ghost:
-    "h-10 px-4 text-xs font-semibold rounded-xl border border-[#00e68a]/35 bg-[#00e68a]/10 text-[#a7f3d0]",
+    "h-10 px-4 text-xs font-semibold rounded-xl border border-[#9CFF1A]/35 bg-[#9CFF1A]/10 text-[#d4ff8a]",
 };
 
 const VARIANT_STOP: Record<Variant, string> = {
@@ -130,7 +130,7 @@ export function LaunchAtlasButton({
             : "Launch Apex Atlas research pipeline"
         }
         className={cn(
-          "atlas-pressable inline-flex items-center justify-center gap-2 rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60 disabled:opacity-60 disabled:cursor-not-allowed",
+          "atlas-pressable inline-flex items-center justify-center gap-2 rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime-400/60 disabled:opacity-60 disabled:cursor-not-allowed",
           running ? VARIANT_RUNNING[variant] : VARIANT_CLASS[variant],
           flash && "atlas-click-flash",
           className,

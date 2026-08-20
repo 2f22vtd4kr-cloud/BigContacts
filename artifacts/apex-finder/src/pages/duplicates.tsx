@@ -47,24 +47,24 @@ async function apiFetch<T>(path: string, opts?: RequestInit): Promise<T> {
 }
 
 function scoreColor(score: number) {
-  if (score >= 0.8) return "text-[#34f5a0]";
-  if (score >= 0.6) return "text-[#00e68a]";
+  if (score >= 0.8) return "text-[#b8ff4d]";
+  if (score >= 0.6) return "text-[#9CFF1A]";
   return "text-muted-foreground";
 }
 
 function typeColor(type: string) {
   switch (type) {
-    case "HNWI": return "bg-[#00e68a]/15 text-[#a7f3d0]";
+    case "HNWI": return "bg-[#9CFF1A]/15 text-[#d4ff8a]";
     case "Corporation": return "bg-purple-500/20 text-purple-300";
-    case "Trust": return "bg-[#00e68a]/20 text-[#a7f3d0]";
-    case "Gatekeeper": return "bg-[#00e68a]/20 text-[#a7f3d0]";
+    case "Trust": return "bg-[#9CFF1A]/20 text-[#d4ff8a]";
+    case "Gatekeeper": return "bg-[#9CFF1A]/20 text-[#d4ff8a]";
     default: return "bg-muted text-muted-foreground";
   }
 }
 
 function confidenceLabel(tokens: number): { label: string; color: string } {
   if (tokens >= 4) return { label: "High confidence", color: "text-red-400" };
-  if (tokens >= 3) return { label: "Medium confidence", color: "text-[#00e68a]" };
+  if (tokens >= 3) return { label: "Medium confidence", color: "text-[#9CFF1A]" };
   return { label: "Low confidence", color: "text-muted-foreground" };
 }
 
@@ -118,13 +118,13 @@ function CandidateRow({
   if (dismissed) return null;
 
   return (
-    <div className="border border-border/70 rounded-2xl bg-card/50 overflow-hidden shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] hover:border-emerald-400/25 transition-colors">
+    <div className="border border-border/70 rounded-2xl bg-card/50 overflow-hidden shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] hover:border-lime-400/25 transition-colors">
       {/* Summary row */}
       <button
         className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-muted/30 transition-colors"
         onClick={() => setExpanded(e => !e)}
       >
-        <Copy className="h-3.5 w-3.5 text-[#00e68a] flex-shrink-0" />
+        <Copy className="h-3.5 w-3.5 text-[#9CFF1A] flex-shrink-0" />
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium truncate">
             {formatEntityName(candidate.entityA.name)}
@@ -192,7 +192,7 @@ function MergeToast({ state, message }: { state: MergeState; message: string }) 
     <div className={cn(
       "fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-4 py-2.5 rounded-lg shadow-lg border text-sm font-mono",
       state === "merging" && "bg-card border-border text-muted-foreground",
-      state === "done" && "bg-[#1a1505]/80 border-[#00e68a]/40 text-[#a7f3d0]",
+      state === "done" && "bg-[#1a1505]/80 border-[#9CFF1A]/40 text-[#d4ff8a]",
       state === "error" && "bg-red-950/80 border-red-600/40 text-red-300",
     )}>
       {state === "merging" && <RefreshCw className="h-3.5 w-3.5 animate-spin" />}
@@ -207,12 +207,12 @@ function SameSourceClusterRow({ cluster }: { cluster: SameSourceCluster }) {
   const [expanded, setExpanded] = useState(false);
 
   return (
-    <div className="border border-border/70 rounded-2xl bg-card/50 overflow-hidden shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] hover:border-emerald-400/25 transition-colors">
+    <div className="border border-border/70 rounded-2xl bg-card/50 overflow-hidden shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] hover:border-lime-400/25 transition-colors">
       <button
         className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-muted/30 transition-colors"
         onClick={() => setExpanded(value => !value)}
       >
-        <Layers3 className="h-3.5 w-3.5 text-[#00e68a] flex-shrink-0" />
+        <Layers3 className="h-3.5 w-3.5 text-[#9CFF1A] flex-shrink-0" />
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium truncate">{formatEntityName(cluster.name)}</p>
           <p className="text-xs text-muted-foreground mt-0.5 font-mono">
@@ -375,7 +375,7 @@ export default function DuplicatesPage() {
       <div className="flex-shrink-0 px-4 md:px-6 py-4 border-b border-border bg-card/50">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="min-w-0"><h1 className="text-sm md:text-base font-semibold tracking-tight flex items-center gap-2 text-foreground">
-              <Copy className="h-4 w-4 text-[#00e68a]" aria-hidden />
+              <Copy className="h-4 w-4 text-[#9CFF1A]" aria-hidden />
               Duplicate review
             </h1>
             <p className="text-xs text-muted-foreground mt-0.5">
@@ -409,7 +409,7 @@ export default function DuplicatesPage() {
           onClick={() => setActiveTab("same-source")}
           className={cn(
             "min-h-[40px] px-3 py-2 text-xs font-mono border-b-2 transition-colors",
-            activeTab === "same-source" ? "border-[#00e68a] text-stone-300" : "border-transparent text-muted-foreground hover:text-foreground",
+            activeTab === "same-source" ? "border-[#9CFF1A] text-stone-300" : "border-transparent text-muted-foreground hover:text-foreground",
           )}
         >
           Same-source clusters
@@ -434,7 +434,7 @@ export default function DuplicatesPage() {
 
         {activeTab === "cross-registry" && !loading && !error && candidates.length === 0 && (
           <div className="flex flex-col items-center justify-center py-20 text-center">
-            <CheckCircle2 className="h-8 w-8 text-[#34f5a0] mb-3" />
+            <CheckCircle2 className="h-8 w-8 text-[#b8ff4d] mb-3" />
             <p className="text-sm font-medium text-foreground">No duplicate candidates found</p>
             <p className="text-xs text-muted-foreground mt-1 font-mono">All entity names have distinct token signatures</p>
           </div>
@@ -442,7 +442,7 @@ export default function DuplicatesPage() {
 
         {activeTab === "cross-registry" && !loading && !error && candidates.length > 0 && visible.length === 0 && (
           <div className="flex flex-col items-center justify-center py-20 text-center">
-            <CheckCircle2 className="h-8 w-8 text-[#34f5a0] mb-3" />
+            <CheckCircle2 className="h-8 w-8 text-[#b8ff4d] mb-3" />
             <p className="text-sm font-medium text-foreground">All {candidates.length} pairs reviewed</p>
             <p className="text-xs text-muted-foreground mt-1 font-mono">
               {merged.size} merged · {dismissed.size} dismissed
@@ -459,7 +459,7 @@ export default function DuplicatesPage() {
             <div className="flex items-center gap-4 text-xs font-mono text-muted-foreground pb-2 border-b border-border/50">
               <span>{candidates.length} total candidates</span>
               <span>·</span>
-              <span className="text-[#34f5a0]">{merged.size} merged this session</span>
+              <span className="text-[#b8ff4d]">{merged.size} merged this session</span>
               <span>·</span>
               <span>{dismissed.size} dismissed</span>
             </div>
@@ -495,7 +495,7 @@ export default function DuplicatesPage() {
 
         {activeTab === "same-source" && !sameSourceLoading && !sameSourceError && sameSourceClusters.length === 0 && (
           <div className="flex flex-col items-center justify-center py-20 text-center">
-            <CheckCircle2 className="h-8 w-8 text-[#34f5a0] mb-3" />
+            <CheckCircle2 className="h-8 w-8 text-[#b8ff4d] mb-3" />
             <p className="text-sm font-medium text-foreground">No same-source name clusters found</p>
             <p className="text-xs text-muted-foreground mt-1 font-mono">Exact names are unique within each registry</p>
           </div>

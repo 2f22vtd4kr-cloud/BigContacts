@@ -70,12 +70,12 @@ export function BureauIntegrityBanner() {
       className={
         critical
           ? "border-b border-rose-500/40 bg-rose-950/90 px-3 py-2.5 text-rose-50 sm:px-5"
-          : "border-b border-emerald-500/35 bg-emerald-950/80 px-3 py-2.5 text-emerald-50 sm:px-5"
+          : "border-b border-lime-500/35 bg-lime-950/80 px-3 py-2.5 text-lime-50 sm:px-5"
       }
     >
       <div className="mx-auto flex max-w-[1400px] items-start gap-2.5">
         <AlertTriangle
-          className={`mt-0.5 h-4 w-4 shrink-0 ${critical ? "text-rose-300" : "text-emerald-300"}`}
+          className={`mt-0.5 h-4 w-4 shrink-0 ${critical ? "text-rose-300" : "text-lime-300"}`}
           aria-hidden
         />
         <div className="min-w-0 flex-1">

@@ -110,14 +110,14 @@ const HYBRID_PIPELINE = "Atlas ranks public records, expands the query, then exp
 
 function roleIcon(role: string) {
   if (role === "TARGET") return <Target className="w-3 h-3 text-primary" />;
-  if (role === "GATEKEEPER") return <Shield className="w-3 h-3 text-[#00e68a]" />;
+  if (role === "GATEKEEPER") return <Shield className="w-3 h-3 text-[#9CFF1A]" />;
   if (role === "ASSET") return <GitBranch className="w-3 h-3 text-secondary" />;
   return <ChevronRight className="w-3 h-3 text-muted-foreground" />;
 }
 
 function roleColor(role: string) {
   if (role === "TARGET") return "border-primary/40 bg-primary/5 text-primary";
-  if (role === "GATEKEEPER") return "border-[#00e68a]/40 bg-[#00e68a]/5 text-[#00e68a]";
+  if (role === "GATEKEEPER") return "border-[#9CFF1A]/40 bg-[#9CFF1A]/5 text-[#9CFF1A]";
   if (role === "ASSET") return "border-secondary/30 bg-secondary/5 text-secondary";
   return "border-border bg-muted/10 text-muted-foreground";
 }
@@ -138,13 +138,13 @@ function actionLabel(action: string) {
 
 function getWarmthColor(score: number) {
   if (score >= 0.75) return "text-primary font-bold";
-  if (score >= 0.5) return "text-[#00e68a]";
+  if (score >= 0.5) return "text-[#9CFF1A]";
   return "text-muted-foreground";
 }
 
 function getActionColor(action: string) {
   if (action === "GATEKEEPER LOCKED") return "text-primary font-bold";
-  if (action === "TARGET IDENTIFIED") return "text-[#00e68a]";
+  if (action === "TARGET IDENTIFIED") return "text-[#9CFF1A]";
   return "text-secondary";
 }
 
@@ -174,16 +174,16 @@ function EvidenceLedger({ sessionId }: { sessionId: number | null }) {
             const disputed = item.status === "disputed";
             const rejected = item.status === "rejected";
             const statusColor = supported
-              ? "text-[#34f5a0]"
+              ? "text-[#b8ff4d]"
               : disputed
                 ? "text-rose-400"
                 : rejected
                   ? "text-stone-400"
-                  : "text-[#00e68a]";
+                  : "text-[#9CFF1A]";
             return (
               <div key={item.id} className="rounded border border-border/70 bg-background/50 p-3">
                 <div className="flex items-start gap-2">
-                  {supported ? <FileCheck2 className="w-3.5 h-3.5 text-[#34f5a0] mt-0.5 shrink-0" /> : <CircleAlert className={cn("w-3.5 h-3.5 mt-0.5 shrink-0", disputed ? "text-rose-400" : rejected ? "text-stone-400" : "text-[#00e68a]")} />}
+                  {supported ? <FileCheck2 className="w-3.5 h-3.5 text-[#b8ff4d] mt-0.5 shrink-0" /> : <CircleAlert className={cn("w-3.5 h-3.5 mt-0.5 shrink-0", disputed ? "text-rose-400" : rejected ? "text-stone-400" : "text-[#9CFF1A]")} />}
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="text-[10px] uppercase tracking-wider font-mono text-muted-foreground">{item.claimType}</span>
@@ -196,7 +196,7 @@ function EvidenceLedger({ sessionId }: { sessionId: number | null }) {
                       <span>·</span>
                       <span>{new Date(item.observedAt).toLocaleDateString()}</span>
                       <span>·</span>
-                      <span className={item.freshnessScore >= 0.7 ? "text-[#34f5a0]" : item.freshnessScore >= 0.35 ? "text-[#00e68a]" : "text-rose-400"}>
+                      <span className={item.freshnessScore >= 0.7 ? "text-[#b8ff4d]" : item.freshnessScore >= 0.35 ? "text-[#9CFF1A]" : "text-rose-400"}>
                         {item.freshnessScore >= 0.7 ? "current" : item.freshnessScore >= 0.35 ? "aging" : "stale"} evidence
                       </span>
                       {item.sourceUrl && <a href={item.sourceUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline"><ExternalLink className="w-3 h-3" /> source</a>}
@@ -237,7 +237,7 @@ function Scorecard({ score }: { score: ResearchScorecard | null }) {
         {items.map(([label, value, hint]) => (
           <div key={label} className="rounded border border-border/70 bg-card/50 p-2" title={hint}>
             <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-mono">{label}</div>
-            <div className={cn("text-lg font-mono mt-1", value >= 0.7 ? "text-[#34f5a0]" : value >= 0.4 ? "text-[#00e68a]" : "text-muted-foreground")}>{Math.round(value * 100)}</div>
+            <div className={cn("text-lg font-mono mt-1", value >= 0.7 ? "text-[#b8ff4d]" : value >= 0.4 ? "text-[#9CFF1A]" : "text-muted-foreground")}>{Math.round(value * 100)}</div>
             <div className="h-1 rounded bg-muted mt-1 overflow-hidden"><div className="h-full bg-current rounded" style={{ width: `${Math.round(value * 100)}%` }} /></div>
           </div>
         ))}
@@ -251,9 +251,9 @@ function CandidateFunnelPanel({ funnel }: { funnel: CandidateFunnel | null }) {
   const states: Array<[string, number, string]> = [
     ["Discovered", funnel.discovered, "text-muted-foreground"],
     ["Source-linked", funnel.sourceLinked, "text-stone-300"],
-    ["Needs check", funnel.attributionReview, "text-[#a7f3d0]"],
-    ["Corroborated", funnel.independentlyCorroborated, "text-emerald-300"],
-    ["Verified contact", funnel.verifiedDirectRoute, "text-[#a7f3d0]"],
+    ["Needs check", funnel.attributionReview, "text-[#d4ff8a]"],
+    ["Corroborated", funnel.independentlyCorroborated, "text-lime-300"],
+    ["Verified contact", funnel.verifiedDirectRoute, "text-[#d4ff8a]"],
     ["Rejected", funnel.rejected, "text-rose-300"],
   ];
   const stateLabel = (state: string) => state.replaceAll("_", " ");
@@ -295,7 +295,7 @@ function CandidateFunnelPanel({ funnel }: { funnel: CandidateFunnel | null }) {
                 <span className="text-xs text-foreground break-all">{candidate.value}</span>
                 <span className="text-[10px] text-muted-foreground ml-auto">{stateLabel(candidate.state)}</span>
                 {candidate.conflictCount > 0 && <span className="text-[10px] text-rose-300">conflict</span>}
-                {candidate.exactClaimObserved && <span className="text-[10px] text-[#a7f3d0]">exact claim</span>}
+                {candidate.exactClaimObserved && <span className="text-[10px] text-[#d4ff8a]">exact claim</span>}
               </div>
               <div className="text-[10px] font-mono text-muted-foreground mt-1 flex flex-wrap gap-x-2 gap-y-0.5">
                 <span>{candidate.scopes.join(", ") || "unscoped"}</span>
@@ -322,33 +322,33 @@ function IntroPathPanel({ candidate }: { candidate: IntroPathCandidate | null })
     <div className="border-t border-border/50 bg-[#0B0F19] px-4 md:px-5 py-4 flex-shrink-0">
       <div className="flex items-start justify-between gap-3 mb-3">
         <div>
-          <h3 className="text-xs font-mono text-[#a7f3d0] uppercase tracking-widest flex items-center gap-2">
+          <h3 className="text-xs font-mono text-[#d4ff8a] uppercase tracking-widest flex items-center gap-2">
             <Shield className="w-3.5 h-3.5" /> Intro Path Candidate
           </h3>
           <p className="text-[11px] text-muted-foreground mt-1">
             One bounded, review-only route from durable evidence. This is not verified contact or authorization.
           </p>
         </div>
-        <span className="text-[10px] font-mono text-[#a7f3d0]/80 whitespace-nowrap">manual review</span>
+        <span className="text-[10px] font-mono text-[#d4ff8a]/80 whitespace-nowrap">manual review</span>
       </div>
       {!candidate ? (
         <div className="rounded border border-dashed border-border p-3 text-xs text-muted-foreground font-mono">
           No proven introduction path was found yet.
         </div>
       ) : (
-        <div className="rounded border border-[#00e68a]/30 bg-[#00e68a]/5 p-3 space-y-2">
+        <div className="rounded border border-[#9CFF1A]/30 bg-[#9CFF1A]/5 p-3 space-y-2">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-[10px] uppercase tracking-wider font-mono text-[#a7f3d0]">{candidate.routeKind.replaceAll("_", " ")}</span>
+            <span className="text-[10px] uppercase tracking-wider font-mono text-[#d4ff8a]">{candidate.routeKind.replaceAll("_", " ")}</span>
             <span className="text-xs font-semibold text-foreground">{candidate.route.label}</span>
           </div>
           <div className="flex flex-wrap items-center gap-2 text-xs font-mono">
-            {candidate.route.vectorType === "email" ? <Mail className="w-3 h-3 text-[#a7f3d0]" /> : <Phone className="w-3 h-3 text-[#a7f3d0]" />}
+            {candidate.route.vectorType === "email" ? <Mail className="w-3 h-3 text-[#d4ff8a]" /> : <Phone className="w-3 h-3 text-[#d4ff8a]" />}
             <span className="break-all text-foreground">{candidate.route.value}</span>
             {candidate.route.personName && <span className="text-muted-foreground">· {candidate.route.personName}</span>}
             {candidate.route.role && <span className="text-muted-foreground">· {candidate.route.role}</span>}
           </div>
           <p className="text-[11px] leading-relaxed text-muted-foreground">{candidate.whyItMayHelp}</p>
-          <div className="text-[11px] leading-relaxed text-[#a7f3d0]/80">
+          <div className="text-[11px] leading-relaxed text-[#d4ff8a]/80">
             <strong>Next manual action:</strong> {candidate.nextManualAction}
           </div>
           <div className="flex flex-wrap gap-2 text-[10px] font-mono text-muted-foreground">
@@ -396,8 +396,8 @@ function PathNodeContact({ node }: { node: PathStep }) {
             className={cn(
               "inline-flex max-w-full items-center gap-1 rounded border px-1.5 py-0.5 font-mono text-[10px] transition-opacity hover:opacity-100",
               isOrg
-                ? "border-[#00e68a]/35 bg-[#00e68a]/10 text-[#a7f3d0]"
-                : "border-[#00e68a]/35 bg-[#00e68a]/10 text-[#a7f3d0]",
+                ? "border-[#9CFF1A]/35 bg-[#9CFF1A]/10 text-[#d4ff8a]"
+                : "border-[#9CFF1A]/35 bg-[#9CFF1A]/10 text-[#d4ff8a]",
             )}
             title={isOrg ? `REACH · org — ${email}` : `REACH · personal — ${email}`}
             onClick={(e) => e.stopPropagation()}
@@ -409,7 +409,7 @@ function PathNodeContact({ node }: { node: PathStep }) {
         {node.contactPhone && (
           <a
             href={`tel:${node.contactPhone}`}
-            className="inline-flex items-center gap-1 rounded border border-[#00e68a]/35 bg-[#00e68a]/10 px-1.5 py-0.5 font-mono text-[10px] text-[#a7f3d0] transition-opacity hover:opacity-100"
+            className="inline-flex items-center gap-1 rounded border border-[#9CFF1A]/35 bg-[#9CFF1A]/10 px-1.5 py-0.5 font-mono text-[10px] text-[#d4ff8a] transition-opacity hover:opacity-100"
             title={`REACH · personal — ${node.contactPhone}`}
             onClick={(e) => e.stopPropagation()}
           >
@@ -549,7 +549,7 @@ export default function IntelTerminal() {
           {pathScore > 0 && (
             <span className={cn(
               "ml-auto text-[10px] font-mono px-2 py-0.5 rounded border",
-              pathScore >= 0.7 ? "text-primary border-primary/40 bg-primary/5" : "text-[#00e68a] border-[#00e68a]/30 bg-[#00e68a]/5"
+              pathScore >= 0.7 ? "text-primary border-primary/40 bg-primary/5" : "text-[#9CFF1A] border-[#9CFF1A]/30 bg-[#9CFF1A]/5"
             )}>
               PATH: {(pathScore * 100).toFixed(0)}/100
             </span>
@@ -614,7 +614,7 @@ export default function IntelTerminal() {
         </button>
 
         {sessionId && !isComputing && (
-          <div className="text-[10px] font-mono text-stone-300 border border-[#00e68a]/30 bg-[#00e68a]/5 rounded px-2 py-1.5 text-center">
+          <div className="text-[10px] font-mono text-stone-300 border border-[#9CFF1A]/30 bg-[#9CFF1A]/5 rounded px-2 py-1.5 text-center">
             <Shield className="w-3 h-3 inline mr-1.5 align-[-2px]" />
             Evidence collected — identity, ownership, and reachability are still under review
           </div>
@@ -714,7 +714,7 @@ export default function IntelTerminal() {
                 "px-2 py-0.5 rounded border text-[10px] font-mono flex-shrink-0 ml-2",
                 pathScore >= 0.7
                   ? "text-primary border-primary/40 bg-primary/5"
-                  : "text-[#00e68a] border-[#00e68a]/30 bg-[#00e68a]/5"
+                  : "text-[#9CFF1A] border-[#9CFF1A]/30 bg-[#9CFF1A]/5"
               )}
             >
               {(pathScore * 100).toFixed(0)}/100
@@ -736,12 +736,12 @@ export default function IntelTerminal() {
           {terminalLog.map((log, i) => (
             <div key={i} className="animate-in fade-in slide-in-from-bottom-1 duration-150">
               <div className="flex items-start gap-x-2 overflow-x-auto pb-0.5 scrollbar-none">
-                <span className="text-[#00e68a] whitespace-nowrap flex-shrink-0">[{log.step.toString().padStart(4, "0")}]</span>
+                <span className="text-[#9CFF1A] whitespace-nowrap flex-shrink-0">[{log.step.toString().padStart(4, "0")}]</span>
                 <span className={cn(getActionColor(log.action), "whitespace-nowrap flex-shrink-0")}>[{actionLabel(log.action)}]</span>
                 <span className="text-purple-400 whitespace-nowrap flex-shrink-0">[{log.registry}]</span>
                 <span className="text-foreground whitespace-nowrap flex-shrink-0">{log.target}</span>
                 <span className="text-xs text-muted-foreground whitespace-nowrap flex-shrink-0">({log.targetType})</span>
-                <span className="text-[#00e68a] whitespace-nowrap flex-shrink-0" title="Path strength score">score={log.uctScore.toFixed(3)}</span>
+                <span className="text-[#9CFF1A] whitespace-nowrap flex-shrink-0" title="Path strength score">score={log.uctScore.toFixed(3)}</span>
                 <span className={cn(getWarmthColor(log.warmthScore), "whitespace-nowrap flex-shrink-0")}>
                   W={Math.round(log.warmthScore * 100)}%
                 </span>

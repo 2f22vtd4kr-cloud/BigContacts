@@ -425,32 +425,32 @@ type FunnelData = {
 const OUTCOME_META: Record<string, { label: string; color: string; barColor: string; description: string }> = {
   direct_contact_candidate: {
     label: "Direct Contact",
-    color: "text-[#34f5a0]",
-    barColor: "bg-[#00e68a]",
+    color: "text-[#b8ff4d]",
+    barColor: "bg-[#9CFF1A]",
     description: "Person-level email or phone found in public sources",
   },
   direct_contact_verified: {
     label: "Verified Contact",
-    color: "text-[#a7f3d0]",
-    barColor: "bg-[#34f5a0]",
+    color: "text-[#d4ff8a]",
+    barColor: "bg-[#b8ff4d]",
     description: "Validated person-level contact with full attribution",
   },
   social_only: {
     label: "Social Only",
-    color: "text-[#00e68a]",
-    barColor: "bg-[#00e68a]",
+    color: "text-[#9CFF1A]",
+    barColor: "bg-[#9CFF1A]",
     description: "LinkedIn/Twitter/Telegram found — eligible for direct-contact follow-up (J1)",
   },
   evidence_only: {
     label: "Evidence Only",
-    color: "text-[#00e68a]",
-    barColor: "bg-[#00e68a]",
+    color: "text-[#9CFF1A]",
+    barColor: "bg-[#9CFF1A]",
     description: "Website or address found — eligible for social/direct-contact follow-up",
   },
   organization_contact: {
     label: "Org Contact",
-    color: "text-emerald-400",
-    barColor: "bg-emerald-500",
+    color: "text-lime-400",
+    barColor: "bg-lime-500",
     description: "Company phone/inbox found (not personal)",
   },
   none: {
@@ -501,7 +501,7 @@ function FunnelPanel() {
   ];
 
   return (
-    <div className="rounded-2xl border border-[#00e68a]/10 bg-card/40 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] flex flex-col gap-3">
+    <div className="rounded-2xl border border-[#9CFF1A]/10 bg-card/40 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] flex flex-col gap-3">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Filter className="h-4 w-4 text-primary" />
@@ -520,7 +520,7 @@ function FunnelPanel() {
       </div>
 
       {!data ? (
-        <div className="rounded-lg border border-[#00e68a]/12 bg-muted/20 px-3 py-2">
+        <div className="rounded-lg border border-[#9CFF1A]/12 bg-muted/20 px-3 py-2">
           <p className="text-xs font-mono text-muted-foreground">
             {loadError ? "Funnel data is unavailable right now." : "Loading funnel data…"}
           </p>
@@ -535,9 +535,9 @@ function FunnelPanel() {
           {/* Conversion summary */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {[
-              { label: "Direct Contact", value: (((data.conversionRate?.toDirectCandidate) ?? 0) * 100).toFixed(2) + "%", color: "text-[#34f5a0]" },
-              { label: "Social Only",    value: (((data.conversionRate?.toSocialOnly)     ?? 0) * 100).toFixed(1) + "%",  color: "text-[#00e68a]" },
-              { label: "Evidence Only",  value: (((data.conversionRate?.toEvidenceOnly)   ?? 0) * 100).toFixed(1) + "%",  color: "text-[#00e68a]" },
+              { label: "Direct Contact", value: (((data.conversionRate?.toDirectCandidate) ?? 0) * 100).toFixed(2) + "%", color: "text-[#b8ff4d]" },
+              { label: "Social Only",    value: (((data.conversionRate?.toSocialOnly)     ?? 0) * 100).toFixed(1) + "%",  color: "text-[#9CFF1A]" },
+              { label: "Evidence Only",  value: (((data.conversionRate?.toEvidenceOnly)   ?? 0) * 100).toFixed(1) + "%",  color: "text-[#9CFF1A]" },
               { label: "Not Enriched",   value: (((data.conversionRate?.notEnriched)      ?? 0) * 100).toFixed(1) + "%",  color: "text-muted-foreground" },
             ].map(s => (
               <div key={s.label} className="text-center">
@@ -548,7 +548,7 @@ function FunnelPanel() {
           </div>
 
           {/* Outcome bars */}
-          <div className="space-y-2 border-t border-[#00e68a]/08 pt-3">
+          <div className="space-y-2 border-t border-[#9CFF1A]/08 pt-3">
             {OUTCOME_ORDER.map(key => {
               const meta = OUTCOME_META[key];
               const count = data.outcomes[key] ?? 0;
@@ -582,7 +582,7 @@ function FunnelPanel() {
 
           {/* By entity type (compact) */}
           {Object.keys(data.byEntityType).length > 0 && (
-            <div className="border-t border-[#00e68a]/08 pt-3">
+            <div className="border-t border-[#9CFF1A]/08 pt-3">
               <p className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest mb-2">By Entity Type</p>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                 {Object.entries(data.byEntityType).map(([type, outcomes]) => {
@@ -590,12 +590,12 @@ function FunnelPanel() {
                   const direct = (outcomes["direct_contact_candidate"] ?? 0) + (outcomes["direct_contact_verified"] ?? 0);
                   const social = outcomes["social_only"] ?? 0;
                   return (
-                    <div key={type} className="rounded-lg border border-[#00e68a]/08 p-2">
+                    <div key={type} className="rounded-lg border border-[#9CFF1A]/08 p-2">
                       <div className="text-[10px] font-mono font-bold text-foreground mb-1">{type}</div>
-                      <div className="text-[10px] font-mono text-[#34f5a0]">
+                      <div className="text-[10px] font-mono text-[#b8ff4d]">
                         {typeTotal > 0 ? ((direct / typeTotal) * 100).toFixed(1) : "0.0"}% direct
                       </div>
-                      <div className="text-[10px] font-mono text-[#00e68a]">
+                      <div className="text-[10px] font-mono text-[#9CFF1A]">
                         {typeTotal > 0 ? ((social / typeTotal) * 100).toFixed(1) : "0.0"}% social
                       </div>
                       <div className="text-[9px] font-mono text-muted-foreground">{typeTotal.toLocaleString()} total</div>
@@ -630,13 +630,13 @@ function RegistryMatrixPanel() {
   }, []);
 
   return (
-    <section className="rounded-2xl border border-[#00e68a]/10 bg-card/40 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+    <section className="rounded-2xl border border-[#9CFF1A]/10 bg-card/40 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
       <div className="flex items-center gap-2 mb-3">
-        <Globe className="h-4 w-4 text-emerald-400" />
-        <span className="text-sm font-semibold font-mono uppercase tracking-widest text-emerald-400">
+        <Globe className="h-4 w-4 text-lime-400" />
+        <span className="text-sm font-semibold font-mono uppercase tracking-widest text-lime-400">
           Registry Coverage Matrix
         </span>
-        <span className="text-[9px] font-mono bg-emerald-500/10 text-emerald-400 px-1.5 py-0.5 rounded uppercase tracking-wider">J2</span>
+        <span className="text-[9px] font-mono bg-lime-500/10 text-lime-400 px-1.5 py-0.5 rounded uppercase tracking-wider">J2</span>
       </div>
       {!loading && sources.length > 0 && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 mb-3">
@@ -644,29 +644,29 @@ function RegistryMatrixPanel() {
             {
               label: "Random mix",
               value: sources.filter((s) => s.runtimeMode === "random_mix").length,
-              color: "text-[#a7f3d0]",
+              color: "text-[#d4ff8a]",
               detail: "shuffled into discovery",
             },
             {
               label: "Explicit only",
               value: sources.filter((s) => s.runtimeMode === "explicit_only").length,
-              color: "text-[#a7f3d0]",
+              color: "text-[#d4ff8a]",
               detail: "select when needed",
             },
             {
               label: "Bulk only",
               value: sources.filter((s) => s.runtimeMode === "bulk_only").length,
-              color: "text-emerald-300",
+              color: "text-lime-300",
               detail: "periodic imports",
             },
             {
               label: "Production reviewed",
               value: sources.filter((s) => s.productionReviewStatus === "reviewed_for_production").length,
-              color: "text-emerald-300",
+              color: "text-lime-300",
               detail: "public-release checked",
             },
           ].map((item) => (
-            <div key={item.label} className="rounded-lg border border-[#00e68a]/10 bg-muted/10 px-2.5 py-2">
+            <div key={item.label} className="rounded-lg border border-[#9CFF1A]/10 bg-muted/10 px-2.5 py-2">
               <div className={`text-lg font-bold font-mono ${item.color}`}>{item.value}</div>
               <div className="text-[9px] font-mono uppercase tracking-wider text-foreground">{item.label}</div>
               <div className="text-[9px] font-mono text-muted-foreground">{item.detail}</div>
@@ -680,7 +680,7 @@ function RegistryMatrixPanel() {
         <>
       <div className="hidden md:block overflow-x-auto">
         <table className="w-full text-left text-[10px] font-mono">
-          <thead className="text-muted-foreground uppercase tracking-wider border-b border-[#00e68a]/10">
+          <thead className="text-muted-foreground uppercase tracking-wider border-b border-[#9CFF1A]/10">
             <tr>
               <th className="py-2 pr-3">Registry</th>
               <th className="py-2 pr-3">Jurisdiction</th>
@@ -693,15 +693,15 @@ function RegistryMatrixPanel() {
             {sources.map((source) => (
               <tr key={source.id} className="border-b border-border/30 last:border-0 align-top">
                 <td className="py-2 pr-3 font-semibold text-foreground whitespace-nowrap">{source.label}</td>
-                <td className="py-2 pr-3 text-emerald-300 whitespace-nowrap">{source.jurisdiction}</td>
+                <td className="py-2 pr-3 text-lime-300 whitespace-nowrap">{source.jurisdiction}</td>
                 <td className="py-2 pr-3 whitespace-nowrap">
                   <span className={cn(
                     "inline-flex items-center gap-1 rounded px-1.5 py-0.5",
                     source.runtimeMode === "random_mix"
-                      ? "bg-[#00e68a]/10 text-[#a7f3d0]"
+                      ? "bg-[#9CFF1A]/10 text-[#d4ff8a]"
                       : source.runtimeMode === "bulk_only"
-                        ? "bg-emerald-400/10 text-emerald-300"
-                        : "bg-[#00e68a]/10 text-[#a7f3d0]",
+                        ? "bg-lime-400/10 text-lime-300"
+                        : "bg-[#9CFF1A]/10 text-[#d4ff8a]",
                   )}>
                     {source.runtimeMode === "random_mix" && <Shuffle className="h-3 w-3" />}
                     {source.runtimeMode === "random_mix" ? "random mix" : source.runtimeMode === "bulk_only" ? "bulk only" : "explicit only"}
@@ -709,7 +709,7 @@ function RegistryMatrixPanel() {
                 </td>
                 <td className={cn(
                   "py-2 whitespace-nowrap",
-                  source.productionReviewStatus === "reviewed_for_production" ? "text-emerald-300" : "text-muted-foreground",
+                  source.productionReviewStatus === "reviewed_for_production" ? "text-lime-300" : "text-muted-foreground",
                 )}>
                   {source.productionReviewStatus === "reviewed_for_production"
                     ? "production reviewed"
@@ -726,11 +726,11 @@ function RegistryMatrixPanel() {
                     {expandedId === source.id ? "hide" : "inspect"}
                   </button>
                   {expandedId === source.id && (
-                    <div className="mt-2 min-w-[280px] max-w-[440px] rounded-lg border border-[#00e68a]/10 bg-muted/10 p-2.5 text-muted-foreground">
+                    <div className="mt-2 min-w-[280px] max-w-[440px] rounded-lg border border-[#9CFF1A]/10 bg-muted/10 p-2.5 text-muted-foreground">
                       <p>{source.runtimeNote}</p>
                       <p className="mt-1 text-foreground/80">{source.personOfficerFields}</p>
                       <p className="mt-1">{source.accessMethod} · {source.freshness}</p>
-                      {source.notes && <p className="mt-1 text-[#a7f3d0]/80">{source.notes}</p>}
+                      {source.notes && <p className="mt-1 text-[#d4ff8a]/80">{source.notes}</p>}
                     </div>
                   )}
                 </td>
@@ -743,7 +743,7 @@ function RegistryMatrixPanel() {
       {/* Mobile card list */}
       <div className="md:hidden space-y-2">
         {sources.map((source) => (
-          <div key={source.id} className="rounded-lg border border-[#00e68a]/08 p-3 space-y-1">
+          <div key={source.id} className="rounded-lg border border-[#9CFF1A]/08 p-3 space-y-1">
               <button
                 onClick={() => setExpandedId(expandedId === source.id ? null : source.id)}
                 className="w-full flex items-center justify-between text-left"
@@ -752,8 +752,8 @@ function RegistryMatrixPanel() {
                 {expandedId === source.id ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
               </button>
               <div className="flex items-center gap-2 text-[10px] font-mono">
-                <span className="text-emerald-300">{source.jurisdiction}</span>
-                <span className={source.runtimeMode === "random_mix" ? "text-[#a7f3d0]" : source.runtimeMode === "bulk_only" ? "text-emerald-300" : "text-[#a7f3d0]"}>
+                <span className="text-lime-300">{source.jurisdiction}</span>
+                <span className={source.runtimeMode === "random_mix" ? "text-[#d4ff8a]" : source.runtimeMode === "bulk_only" ? "text-lime-300" : "text-[#d4ff8a]"}>
                   {source.runtimeMode === "random_mix" ? "random mix" : source.runtimeMode === "bulk_only" ? "bulk only" : "explicit only"}
                 </span>
               </div>
@@ -800,10 +800,10 @@ function IdentityResolutionPanel() {
   const rejected  = stats?.candidates?.rejected  ?? 0;
 
   return (
-    <section className="rounded-2xl border border-[#00e68a]/10 bg-card/40 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+    <section className="rounded-2xl border border-[#9CFF1A]/10 bg-card/40 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
       <div className="flex items-center gap-2 mb-3">
-        <UserCheck className="h-4 w-4 text-emerald-400" />
-        <span className="text-sm font-semibold font-mono uppercase tracking-widest text-emerald-400">
+        <UserCheck className="h-4 w-4 text-lime-400" />
+        <span className="text-sm font-semibold font-mono uppercase tracking-widest text-lime-400">
           Identity Resolution
         </span>
         <p className="text-[10px] font-mono text-muted-foreground">
@@ -812,12 +812,12 @@ function IdentityResolutionPanel() {
       </div>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { label: "Bundles",       value: stats?.bundles ?? "—", color: "text-emerald-300" },
-          { label: "Pending",       value: pending,               color: "text-[#a7f3d0]" },
-          { label: "Confirmed",     value: confirmed,             color: "text-[#a7f3d0]" },
+          { label: "Bundles",       value: stats?.bundles ?? "—", color: "text-lime-300" },
+          { label: "Pending",       value: pending,               color: "text-[#d4ff8a]" },
+          { label: "Confirmed",     value: confirmed,             color: "text-[#d4ff8a]" },
           { label: "Rejected",      value: rejected,              color: "text-muted-foreground" },
         ].map((item) => (
-          <div key={item.label} className="rounded-lg border border-[#00e68a]/10 bg-muted/10 px-3 py-2">
+          <div key={item.label} className="rounded-lg border border-[#9CFF1A]/10 bg-muted/10 px-3 py-2">
             <div className={`text-lg font-bold font-mono ${item.color}`}>
               {typeof item.value === "number" ? item.value.toLocaleString() : item.value}
             </div>
@@ -899,11 +899,11 @@ function ToolStatusBadge({ ready, label }: { ready: boolean; label?: string }) {
     <span
       className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-semibold ${
         ready
-          ? "bg-[#00e68a]/15 text-[#34f5a0]"
+          ? "bg-[#9CFF1A]/15 text-[#b8ff4d]"
           : "bg-rose-500/15 text-rose-400"
       }`}
     >
-      <span className={`h-1.5 w-1.5 rounded-full ${ready ? "bg-[#34f5a0]" : "bg-rose-400"}`} />
+      <span className={`h-1.5 w-1.5 rounded-full ${ready ? "bg-[#b8ff4d]" : "bg-rose-400"}`} />
       {label ?? (ready ? "Ready" : "Not installed")}
     </span>
   );
@@ -914,7 +914,7 @@ function UsageBadge({ usage }: { usage: "auto" | "on-demand" }) {
     <span
       className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-mono uppercase tracking-wider ${
         usage === "auto"
-          ? "bg-[#00e68a]/10 text-[#00e68a]"
+          ? "bg-[#9CFF1A]/10 text-[#9CFF1A]"
           : "bg-muted/60 text-muted-foreground"
       }`}
     >
@@ -962,16 +962,16 @@ function PythonToolsPanel() {
     : false;
 
   return (
-    <section className="rounded-2xl border border-[#00e68a]/10 bg-card/40 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] space-y-4">
+    <section className="rounded-2xl border border-[#9CFF1A]/10 bg-card/40 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] space-y-4">
 
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Terminal className="h-4 w-4 text-emerald-400" />
-          <span className="text-sm font-semibold font-mono uppercase tracking-widest text-emerald-400">
+          <Terminal className="h-4 w-4 text-lime-400" />
+          <span className="text-sm font-semibold font-mono uppercase tracking-widest text-lime-400">
             Python OSINT Tools
           </span>
-          <span className="text-[9px] font-mono bg-emerald-500/10 text-emerald-400 px-1.5 py-0.5 rounded uppercase tracking-wider">Phase L</span>
+          <span className="text-[9px] font-mono bg-lime-500/10 text-lime-400 px-1.5 py-0.5 rounded uppercase tracking-wider">Phase L</span>
         </div>
         <button
           onClick={load}
@@ -986,18 +986,18 @@ function PythonToolsPanel() {
       {/* Health summary bar */}
       <div className={`rounded-lg border px-3 py-2.5 space-y-1.5 ${
         !checked
-          ? "border-[#00e68a]/08 bg-muted/10"
+          ? "border-[#9CFF1A]/08 bg-muted/10"
           : allReady
-            ? "border-[#00e68a]/30 bg-[#00e68a]/5"
-            : "border-[#00e68a]/30 bg-[#00e68a]/5"
+            ? "border-[#9CFF1A]/30 bg-[#9CFF1A]/5"
+            : "border-[#9CFF1A]/30 bg-[#9CFF1A]/5"
       }`}>
         {/* Count row — always one line */}
         <div className="flex items-center gap-2">
           <span className={`h-2 w-2 rounded-full flex-shrink-0 ${
-            !checked ? "bg-muted-foreground/30" : allReady ? "bg-[#00e68a]" : "bg-[#00e68a] animate-pulse"
+            !checked ? "bg-muted-foreground/30" : allReady ? "bg-[#9CFF1A]" : "bg-[#9CFF1A] animate-pulse"
           }`} />
           <span className={`text-xs font-semibold font-mono ${
-            !checked ? "text-muted-foreground" : allReady ? "text-[#34f5a0]" : "text-[#00e68a]"
+            !checked ? "text-muted-foreground" : allReady ? "text-[#b8ff4d]" : "text-[#9CFF1A]"
           }`}>
             {!checked ? "Checking…" : `${readyCount} / ${totalCount} tools ready`}
             {allReady && " — all operational"}
@@ -1007,7 +1007,7 @@ function PythonToolsPanel() {
         {needsInstallScript && (
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-[10px] font-mono text-muted-foreground">Run:</span>
-            <code className="text-[10px] font-mono text-[#a7f3d0] bg-muted/60 px-2 py-0.5 rounded select-all">
+            <code className="text-[10px] font-mono text-[#d4ff8a] bg-muted/60 px-2 py-0.5 rounded select-all">
               bash scripts/install-python-tools.sh
             </code>
           </div>
@@ -1018,9 +1018,9 @@ function PythonToolsPanel() {
       <div className="space-y-2">
 
         {/* GLiNER — microservice */}
-        <div className="rounded-lg border border-[#00e68a]/08 bg-muted/5 p-3">
+        <div className="rounded-lg border border-[#9CFF1A]/08 bg-muted/5 p-3">
           <div className="flex items-start gap-3">
-            <Cpu className="h-4 w-4 text-emerald-300 mt-0.5 flex-shrink-0" />
+            <Cpu className="h-4 w-4 text-lime-300 mt-0.5 flex-shrink-0" />
             <div className="flex-1 min-w-0 space-y-1">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-xs font-semibold text-foreground">{GLINER_META.label}</span>
@@ -1032,13 +1032,13 @@ function PythonToolsPanel() {
               </div>
               <p className="text-[10px] font-mono text-muted-foreground leading-relaxed">{GLINER_META.desc}</p>
               <div className="flex flex-wrap items-center gap-3 pt-0.5">
-                <span className="text-[9px] font-mono text-[#00e68a]/80">{GLINER_META.usageNote}</span>
+                <span className="text-[9px] font-mono text-[#9CFF1A]/80">{GLINER_META.usageNote}</span>
                 <span className="text-[9px] font-mono text-muted-foreground/60">{GLINER_META.fallback}</span>
               </div>
               {checked && !status?.gliner?.available && (
                 <div className="mt-1.5 flex items-center gap-1.5">
                   <span className="text-[9px] font-mono text-muted-foreground">Start:</span>
-                  <code className="text-[9px] font-mono text-[#00e68a]/90 bg-muted/60 px-1.5 py-0.5 rounded select-all">
+                  <code className="text-[9px] font-mono text-[#9CFF1A]/90 bg-muted/60 px-1.5 py-0.5 rounded select-all">
                     {GLINER_META.startCommand}
                   </code>
                 </div>
@@ -1052,7 +1052,7 @@ function PythonToolsPanel() {
           const meta = TOOL_META[key]!;
           const ready = status?.tools[key] ?? false;
           return (
-            <div key={key} className="rounded-lg border border-[#00e68a]/08 bg-muted/5 p-3">
+            <div key={key} className="rounded-lg border border-[#9CFF1A]/08 bg-muted/5 p-3">
               <div className="flex items-start gap-3">
                 <Terminal className="h-4 w-4 text-muted-foreground/50 mt-0.5 flex-shrink-0" />
                 <div className="flex-1 min-w-0 space-y-1">
@@ -1125,21 +1125,21 @@ function SourceQualityPanel() {
   useEffect(() => { load(); }, []);
 
   const outcomeColor: Record<string, string> = {
-    direct_contact_verified: "text-[#34f5a0]",
-    direct_contact_candidate: "text-[#a7f3d0]",
-    social_only: "text-emerald-300",
+    direct_contact_verified: "text-[#b8ff4d]",
+    direct_contact_candidate: "text-[#d4ff8a]",
+    social_only: "text-lime-300",
     organization_contact: "text-rose-300",
     evidence_only: "text-stone-300",
     none: "text-muted-foreground",
   };
 
   return (
-    <section className="rounded-2xl border border-[#00e68a]/10 bg-card/40 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] space-y-4">
+    <section className="rounded-2xl border border-[#9CFF1A]/10 bg-card/40 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] space-y-4">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <BarChart3 className="h-4 w-4 text-emerald-400" />
+          <BarChart3 className="h-4 w-4 text-lime-400" />
           <div>
-            <span className="text-sm font-semibold font-mono uppercase tracking-widest text-emerald-400">
+            <span className="text-sm font-semibold font-mono uppercase tracking-widest text-lime-400">
               J9 Source Quality
             </span>
             <p className="text-[10px] font-mono text-muted-foreground mt-0.5">
@@ -1150,7 +1150,7 @@ function SourceQualityPanel() {
         <button
           onClick={load}
           disabled={loading}
-          className="rounded-lg px-3 py-2 text-xs font-semibold border border-[#00e68a]/12 text-muted-foreground hover:text-foreground disabled:opacity-50"
+          className="rounded-lg px-3 py-2 text-xs font-semibold border border-[#9CFF1A]/12 text-muted-foreground hover:text-foreground disabled:opacity-50"
         >
           {loading ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : "Refresh"}
         </button>
@@ -1164,7 +1164,7 @@ function SourceQualityPanel() {
           <p className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider mb-2">Contact outcome distribution</p>
           <div className="flex flex-wrap gap-2">
             {data.outcomeSummary.map(({ outcome, count, pct }) => (
-              <div key={outcome} className="rounded-lg border border-[#00e68a]/10 bg-muted/10 px-3 py-2 min-w-[100px]">
+              <div key={outcome} className="rounded-lg border border-[#9CFF1A]/10 bg-muted/10 px-3 py-2 min-w-[100px]">
                 <div className={`text-base font-bold font-mono ${outcomeColor[outcome] ?? "text-foreground"}`}>
                   {Number(count).toLocaleString()}
                 </div>
@@ -1182,10 +1182,10 @@ function SourceQualityPanel() {
       {data?.bySource && data.bySource.length > 0 && (
         <div>
           <p className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider mb-2">Evidence by source</p>
-          <div className="overflow-x-auto rounded-lg border border-[#00e68a]/08">
+          <div className="overflow-x-auto rounded-lg border border-[#9CFF1A]/08">
             <table className="w-full text-[10px] font-mono">
               <thead>
-                <tr className="border-b border-[#00e68a]/08 bg-muted/10">
+                <tr className="border-b border-[#9CFF1A]/08 bg-muted/10">
                   {["Source", "Entities", "Evidence", "Verified", "Candidate", "Reliability", "Directness"].map(h => (
                     <th key={h} className="px-3 py-2 text-left text-[9px] uppercase tracking-wider text-muted-foreground font-medium">{h}</th>
                   ))}
@@ -1197,9 +1197,9 @@ function SourceQualityPanel() {
                     <td className="px-3 py-1.5 text-foreground font-medium">{row.source}</td>
                     <td className="px-3 py-1.5 text-muted-foreground">{row.entities_covered.toLocaleString()}</td>
                     <td className="px-3 py-1.5 text-muted-foreground">{row.total_evidence.toLocaleString()}</td>
-                    <td className="px-3 py-1.5 text-[#34f5a0]">{row.verified_count.toLocaleString()}</td>
-                    <td className="px-3 py-1.5 text-[#a7f3d0]">{row.candidate_count.toLocaleString()}</td>
-                    <td className="px-3 py-1.5 text-emerald-300">{(row.avg_reliability ?? 0).toFixed(2)}</td>
+                    <td className="px-3 py-1.5 text-[#b8ff4d]">{row.verified_count.toLocaleString()}</td>
+                    <td className="px-3 py-1.5 text-[#d4ff8a]">{row.candidate_count.toLocaleString()}</td>
+                    <td className="px-3 py-1.5 text-lime-300">{(row.avg_reliability ?? 0).toFixed(2)}</td>
                     <td className="px-3 py-1.5 text-stone-300">{(row.avg_directness ?? 0).toFixed(2)}</td>
                   </tr>
                 ))}
@@ -1230,7 +1230,7 @@ function SourceQualityPanel() {
 
 function SourceCard({ src }: { src: SourceDef }) {
   return (
-    <div className="rounded-2xl border border-[#00e68a]/10 bg-card/40 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] flex flex-col gap-2.5">
+    <div className="rounded-2xl border border-[#9CFF1A]/10 bg-card/40 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] flex flex-col gap-2.5">
       <div className="flex items-start gap-3">
         <div className="rounded-lg p-2 flex-shrink-0" style={{ background: src.bg }}>
           <src.Icon className="h-4 w-4" style={{ color: src.color }} />
@@ -1267,7 +1267,7 @@ function SourceCard({ src }: { src: SourceDef }) {
       </div>
 
       {src.note && (
-        <p className="text-[11px] font-mono text-muted-foreground/60 border-l-2 border-[#00e68a]/12 pl-2">
+        <p className="text-[11px] font-mono text-muted-foreground/60 border-l-2 border-[#9CFF1A]/12 pl-2">
           {src.note}
         </p>
       )}
@@ -1291,7 +1291,7 @@ function CollapsibleSection({
   accent?: string;
 }) {
   return (
-    <details open={defaultOpen} className="group rounded-2xl border border-[#00e68a]/12 bg-card/25 overflow-hidden">
+    <details open={defaultOpen} className="group rounded-2xl border border-[#9CFF1A]/12 bg-card/25 overflow-hidden">
       <summary className="list-none cursor-pointer select-none px-4 py-3 flex items-center gap-3 hover:bg-muted/20 transition-colors">
         <Icon className={cn("h-4 w-4 flex-shrink-0", accent)} />
         <div className="min-w-0 flex-1">
@@ -1300,7 +1300,7 @@ function CollapsibleSection({
         </div>
         <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform group-open:rotate-180" />
       </summary>
-      <div className="border-t border-[#00e68a]/10 p-3 md:p-4 space-y-4">
+      <div className="border-t border-[#9CFF1A]/10 p-3 md:p-4 space-y-4">
         {children}
       </div>
     </details>
@@ -1316,7 +1316,7 @@ export default function DataSources() {
   return (
     <div className="flex flex-col h-full">
       {/* Page header */}
-      <div className="flex-shrink-0 px-4 md:px-6 py-4 border-b border-[#00e68a]/12 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex-shrink-0 px-4 md:px-6 py-4 border-b border-[#9CFF1A]/12 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3 min-w-0">
           <Database className="h-5 w-5 text-primary flex-shrink-0" aria-hidden />
           <p className="text-[12px] text-muted-foreground leading-snug min-w-0">
@@ -1324,7 +1324,7 @@ export default function DataSources() {
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <span className="h-2 w-2 rounded-full bg-[#00e68a]" aria-hidden />
+          <span className="h-2 w-2 rounded-full bg-[#9CFF1A]" aria-hidden />
           <span className="text-xs font-mono text-muted-foreground">Catalogue</span>
         </div>
       </div>
@@ -1336,7 +1336,7 @@ export default function DataSources() {
           subtitle="Which sources can participate in the shuffled target-discovery mix"
           icon={Shuffle}
           defaultOpen
-          accent="text-[#a7f3d0]"
+          accent="text-[#d4ff8a]"
         >
           <RegistryMatrixPanel />
         </CollapsibleSection>
@@ -1346,7 +1346,7 @@ export default function DataSources() {
           subtitle="Contact funnel, identity review, and source attribution"
           icon={BarChart3}
           defaultOpen
-          accent="text-emerald-300"
+          accent="text-lime-300"
         >
           <FunnelPanel />
           <IdentityResolutionPanel />
@@ -1383,7 +1383,7 @@ export default function DataSources() {
           title="Extended OSINT tools"
           subtitle={`${[...ingestors, ...enrichers].filter(s => s.phase === 11).length} tools · runtime checks and optional enrichers`}
           icon={Cpu}
-          accent="text-emerald-300"
+          accent="text-lime-300"
         >
           <PythonToolsPanel />
           <div className="grid gap-3 grid-cols-1 lg:grid-cols-2">

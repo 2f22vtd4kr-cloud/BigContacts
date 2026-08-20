@@ -101,10 +101,10 @@ interface StepCardProps {
 function StepCard({ icon: Icon, name, description, status, metric, detail, durationMs }: StepCardProps) {
   return (
     <div className={cn(
-      "border border-[#00e68a]/12 rounded-2xl bg-card/30 p-3 sm:p-4 transition-all duration-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]",
-      status === "idle"    && "border-[#00e68a]/12 bg-card/20 opacity-50",
-      status === "running" && "border-primary/50 bg-primary/5 shadow-[0_0_15px_rgba(0,230,138,0.1)]",
-      status === "done"    && "border-[#00e68a]/30 bg-[#00e68a]/5",
+      "border border-[#9CFF1A]/12 rounded-2xl bg-card/30 p-3 sm:p-4 transition-all duration-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]",
+      status === "idle"    && "border-[#9CFF1A]/12 bg-card/20 opacity-50",
+      status === "running" && "border-primary/50 bg-primary/5 shadow-[0_0_15px_rgba(156,255,26,0.1)]",
+      status === "done"    && "border-[#9CFF1A]/30 bg-[#9CFF1A]/5",
     )}>
       <div className="flex items-start justify-between mb-2 gap-2">
         <div className="flex items-center gap-2 min-w-0">
@@ -112,12 +112,12 @@ function StepCard({ icon: Icon, name, description, status, metric, detail, durat
             "w-6 h-6 rounded flex items-center justify-center shrink-0",
             status === "idle"    && "bg-muted",
             status === "running" && "bg-primary/20",
-            status === "done"    && "bg-[#00e68a]/20",
+            status === "done"    && "bg-[#9CFF1A]/20",
           )}>
             {status === "running" ? (
               <Loader2 className="w-3.5 h-3.5 text-primary animate-spin" />
             ) : status === "done" ? (
-              <CheckCircle2 className="w-3.5 h-3.5 text-[#00e68a]" />
+              <CheckCircle2 className="w-3.5 h-3.5 text-[#9CFF1A]" />
             ) : (
               <Icon className="w-3.5 h-3.5 text-muted-foreground" />
             )}
@@ -126,7 +126,7 @@ function StepCard({ icon: Icon, name, description, status, metric, detail, durat
             "text-xs font-mono font-bold uppercase tracking-wider truncate",
             status === "idle"    && "text-muted-foreground",
             status === "running" && "text-primary",
-            status === "done"    && "text-[#34f5a0]",
+            status === "done"    && "text-[#b8ff4d]",
           )}>
             {name}
           </span>
@@ -158,16 +158,16 @@ function ResultCard({ result }: { result: SearchResult }) {
   const [expandedScores, setExpandedScores] = useState(false);
 
   const confColor =
-    result.confidence === "high"   ? "text-[#34f5a0] border-[#00e68a]/30 bg-[#00e68a]/10" :
-    result.confidence === "medium" ? "text-[#00e68a] border-[#00e68a]/30 bg-[#00e68a]/10" :
-                                     "text-muted-foreground border-[#00e68a]/12 bg-card/30";
+    result.confidence === "high"   ? "text-[#b8ff4d] border-[#9CFF1A]/30 bg-[#9CFF1A]/10" :
+    result.confidence === "medium" ? "text-[#9CFF1A] border-[#9CFF1A]/30 bg-[#9CFF1A]/10" :
+                                     "text-muted-foreground border-[#9CFF1A]/12 bg-card/30";
 
   const score = (result.bayesianScore ?? 0) * 100;
 
   return (
     <div className={cn(
       "border rounded-lg p-4 transition-all",
-      result.isHot ? "border-[#00e68a]/30 bg-[#00e68a]/5" : "border-[#00e68a]/12 bg-card/30",
+      result.isHot ? "border-[#9CFF1A]/30 bg-[#9CFF1A]/5" : "border-[#9CFF1A]/12 bg-card/30",
       "hover:border-primary/30 hover:bg-primary/5",
     )}>
       {/* Header */}
@@ -175,7 +175,7 @@ function ResultCard({ result }: { result: SearchResult }) {
         <div className="flex-1 min-w-0 mr-3">
           <div className="flex items-center gap-2 mb-1 min-w-0">
             <span className="text-xs font-mono text-muted-foreground shrink-0">#{result.rank}</span>
-            {result.isHot && <Zap className="w-3 h-3 text-[#00e68a] shrink-0" />}
+            {result.isHot && <Zap className="w-3 h-3 text-[#9CFF1A] shrink-0" />}
             <h3 className="font-bold text-sm text-foreground line-clamp-1">{result.name}</h3>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -194,9 +194,9 @@ function ResultCard({ result }: { result: SearchResult }) {
         <div className="flex flex-col items-end gap-1.5 shrink-0">
           <div className={cn(
             "text-xs font-mono font-bold rounded px-2 py-0.5",
-            score >= 75 ? "text-[#34f5a0] bg-[#00e68a]/10 border border-[#00e68a]/30" :
+            score >= 75 ? "text-[#b8ff4d] bg-[#9CFF1A]/10 border border-[#9CFF1A]/30" :
             score >= 55 ? "text-primary bg-primary/10 border border-primary/20" :
-                          "text-muted-foreground bg-muted border border-[#00e68a]/12",
+                          "text-muted-foreground bg-muted border border-[#9CFF1A]/12",
           )} title="Bayesian score">
             {score.toFixed(0)}
           </div>
@@ -219,10 +219,10 @@ function ResultCard({ result }: { result: SearchResult }) {
 
       {/* Score breakdown */}
       <div className="space-y-1.5 mb-3">
-        <ScoreBar label="Keywords" value={result.scores.bm25}      color="bg-[#00e68a]" title="Keyword match (BM25)" />
+        <ScoreBar label="Keywords" value={result.scores.bm25}      color="bg-[#9CFF1A]" title="Keyword match (BM25)" />
         <ScoreBar label="Meaning"  value={result.scores.semantic}   color="bg-[#059669]" title="Semantic similarity" />
         <div className={cn("space-y-1.5", !expandedScores && "hidden sm:block")}>
-          <ScoreBar label="Links"    value={result.scores.graph}      color="bg-[#00e68a]" title="Graph / relationship strength" />
+          <ScoreBar label="Links"    value={result.scores.graph}      color="bg-[#9CFF1A]" title="Graph / relationship strength" />
           <ScoreBar label="Similar"  value={result.scores.embedding ?? 0} color="bg-purple-400" title="Embedding similarity" />
           <ScoreBar label="Combined" value={result.scores.rrf * 10}   color="bg-primary" title="Final fused rank (RRF)" />
         </div>
@@ -243,7 +243,7 @@ function ResultCard({ result }: { result: SearchResult }) {
       </button>
 
       {expanded && (
-        <div className="mt-2 text-xs font-mono text-muted-foreground bg-background/50 border border-[#00e68a]/12 rounded p-2 leading-relaxed">
+        <div className="mt-2 text-xs font-mono text-muted-foreground bg-background/50 border border-[#9CFF1A]/12 rounded p-2 leading-relaxed">
           {result.reasoning}
         </div>
       )}
@@ -356,7 +356,7 @@ export default function DeepSearch() {
     <div className="flex flex-col h-full overflow-hidden">
 
       {/* ── Header — page title lives in global chrome ── */}
-      <div className="flex-shrink-0 border-b border-[#00e68a]/12 bg-card/50 px-4 sm:px-6 py-4">
+      <div className="flex-shrink-0 border-b border-[#9CFF1A]/12 bg-card/50 px-4 sm:px-6 py-4">
         <div className="flex items-center gap-3 mb-2">
           <Network className="w-4 h-4 text-primary shrink-0" aria-hidden />
           <p className="text-[12px] text-muted-foreground leading-snug">
@@ -379,7 +379,7 @@ export default function DeepSearch() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="e.g. US private jet owners in Texas, British directors…"
-              className="w-full bg-background border border-[#00e68a]/12 rounded-lg pl-10 pr-4 h-[48px] md:h-auto md:py-2.5 text-sm font-mono text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-primary/40 transition-colors"
+              className="w-full bg-background border border-[#9CFF1A]/12 rounded-lg pl-10 pr-4 h-[48px] md:h-auto md:py-2.5 text-sm font-mono text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-primary/40 transition-colors"
             />
           </div>
           <button
@@ -389,7 +389,7 @@ export default function DeepSearch() {
               "flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg font-mono text-xs uppercase tracking-wider font-bold transition-all shrink-0",
               loading || !query.trim()
                 ? "bg-muted text-muted-foreground cursor-not-allowed"
-                : "bg-primary text-primary-foreground hover:bg-primary/90 shadow-[0_0_15px_rgba(0,230,138,0.3)]",
+                : "bg-primary text-primary-foreground hover:bg-primary/90 shadow-[0_0_15px_rgba(156,255,26,0.3)]",
             )}
           >
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
@@ -405,7 +405,7 @@ export default function DeepSearch() {
               "flex min-h-[36px] items-center gap-1.5 px-3 py-1.5 rounded-lg border font-mono text-xs uppercase tracking-wider transition-all",
               filtersOpen || activeFilterCount > 0
                 ? "bg-primary/10 border-primary/50 text-primary"
-                : "border-[#00e68a]/12 text-muted-foreground hover:text-foreground",
+                : "border-[#9CFF1A]/12 text-muted-foreground hover:text-foreground",
             )}
           >
             <SlidersHorizontal className="w-3 h-3" />
@@ -428,7 +428,7 @@ export default function DeepSearch() {
 
         {/* Filter panel */}
         {filtersOpen && (
-          <div className="mt-3 p-4 bg-background border border-[#00e68a]/12 rounded-lg space-y-4">
+          <div className="mt-3 p-4 bg-background border border-[#9CFF1A]/12 rounded-lg space-y-4">
             {/* Asset types */}
             <div>
               <div className="text-xs font-mono text-muted-foreground uppercase tracking-widest mb-2">Asset Type</div>
@@ -441,7 +441,7 @@ export default function DeepSearch() {
                       "px-2.5 py-1 rounded border text-xs font-mono font-bold uppercase transition-all",
                       filterAssetTypes.includes(t)
                         ? "bg-secondary/20 border-secondary text-secondary"
-                        : "border-[#00e68a]/12 text-muted-foreground hover:border-secondary/50",
+                        : "border-[#9CFF1A]/12 text-muted-foreground hover:border-secondary/50",
                     )}
                   >
                     {t}
@@ -461,8 +461,8 @@ export default function DeepSearch() {
                     className={cn(
                       "px-2.5 py-1 rounded border text-xs font-mono font-bold uppercase transition-all",
                       filterSources.includes(j.value)
-                        ? "bg-[#00e68a]/20 border-[#00e68a] text-[#00e68a]"
-                        : "border-[#00e68a]/12 text-muted-foreground hover:border-[#00e68a]/50",
+                        ? "bg-[#9CFF1A]/20 border-[#9CFF1A] text-[#9CFF1A]"
+                        : "border-[#9CFF1A]/12 text-muted-foreground hover:border-[#9CFF1A]/50",
                     )}
                   >
                     {j.label}
@@ -515,7 +515,7 @@ export default function DeepSearch() {
               <button
                 key={ex}
                 onClick={() => { setQuery(ex); run(ex); }}
-                className="text-xs font-mono text-muted-foreground border border-[#00e68a]/12 bg-card/25 rounded-xl px-3 py-1.5 hover:border-emerald-400/40 hover:text-emerald-100 transition-colors"
+                className="text-xs font-mono text-muted-foreground border border-[#9CFF1A]/12 bg-card/25 rounded-xl px-3 py-1.5 hover:border-lime-400/40 hover:text-lime-100 transition-colors"
               >
                 {ex}
               </button>
@@ -537,9 +537,9 @@ export default function DeepSearch() {
 
         {/* Empty DB notice */}
         {result?.isEmpty && (
-          <div className="m-6 flex items-center gap-3 border border-[#00e68a]/30 bg-[#00e68a]/5 rounded-lg p-4">
-            <AlertCircle className="w-4 h-4 text-[#00e68a] flex-shrink-0" />
-            <span className="text-xs font-mono text-[#00e68a]">
+          <div className="m-6 flex items-center gap-3 border border-[#9CFF1A]/30 bg-[#9CFF1A]/5 rounded-lg p-4">
+            <AlertCircle className="w-4 h-4 text-[#9CFF1A] flex-shrink-0" />
+            <span className="text-xs font-mono text-[#9CFF1A]">
               No matches yet. Try a broader query, or load registry data from Data Sources first.
             </span>
           </div>
@@ -550,7 +550,7 @@ export default function DeepSearch() {
           <div className="flex flex-col md:flex-row h-full overflow-hidden">
 
             {/* Left: pipeline steps */}
-            <div className="w-full md:w-80 xl:w-96 flex-shrink-0 max-h-[270px] md:max-h-none md:border-r border-[#00e68a]/12 p-4 sm:p-5 overflow-y-auto">
+            <div className="w-full md:w-80 xl:w-96 flex-shrink-0 max-h-[270px] md:max-h-none md:border-r border-[#9CFF1A]/12 p-4 sm:p-5 overflow-y-auto">
               <div className="text-xs font-mono text-muted-foreground uppercase tracking-widest mb-4">
                 Agent Pipeline
               </div>
@@ -604,7 +604,7 @@ export default function DeepSearch() {
               </div>
 
               {result && (
-                <div className="pt-3 border-t border-[#00e68a]/12">
+                <div className="pt-3 border-t border-[#9CFF1A]/12">
                   <div className="text-xs font-mono text-muted-foreground space-y-1">
                     <div className="flex justify-between">
                       <span>Total time</span>
@@ -628,7 +628,7 @@ export default function DeepSearch() {
               {loading && !result && (
                 <div className="space-y-3">
                   {[1, 2, 3].map((i) => (
-                    <div key={i} className="border border-[#00e68a]/12 bg-card/30 rounded-lg p-4 animate-pulse">
+                    <div key={i} className="border border-[#9CFF1A]/12 bg-card/30 rounded-lg p-4 animate-pulse">
                       <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center gap-2 w-1/2">
                           <div className="w-6 h-4 bg-muted rounded shrink-0"></div>
@@ -658,9 +658,9 @@ export default function DeepSearch() {
                       {result.results.length} result{result.results.length !== 1 ? "s" : ""} — best matches first
                     </div>
                     <div className="flex items-center gap-3 text-xs font-mono text-muted-foreground">
-                      <span className="flex items-center gap-1" title="Keyword match"><span className="w-2 h-2 rounded-full bg-[#00e68a] inline-block" />Keywords</span>
+                      <span className="flex items-center gap-1" title="Keyword match"><span className="w-2 h-2 rounded-full bg-[#9CFF1A] inline-block" />Keywords</span>
                       <span className="flex items-center gap-1" title="Semantic similarity"><span className="w-2 h-2 rounded-full bg-[#059669] inline-block" />Meaning</span>
-                      <span className="hidden sm:flex items-center gap-1" title="Graph links"><span className="w-2 h-2 rounded-full bg-[#00e68a] inline-block" />Links</span>
+                      <span className="hidden sm:flex items-center gap-1" title="Graph links"><span className="w-2 h-2 rounded-full bg-[#9CFF1A] inline-block" />Links</span>
                     </div>
                   </div>
 
@@ -678,7 +678,7 @@ export default function DeepSearch() {
         {/* Initial state */}
         {!loading && !result && !error && (
           <div className="flex flex-col items-center justify-center h-full text-center px-6 py-12">
-            <div className="grid h-14 w-14 place-items-center rounded-2xl border border-[#00e68a]/12 bg-card/40 mb-4">
+            <div className="grid h-14 w-14 place-items-center rounded-2xl border border-[#9CFF1A]/12 bg-card/40 mb-4">
               <Search className="w-6 h-6 text-muted-foreground/70" aria-hidden />
             </div>
             <h2 className="text-sm font-semibold text-foreground">Search the public surface</h2>
@@ -688,13 +688,13 @@ export default function DeepSearch() {
             <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
               <a
                 href="/data-sources"
-                className="inline-flex min-h-[36px] items-center rounded-lg border border-[#00e68a]/12 bg-card/50 px-3 py-1.5 text-[11px] font-semibold text-foreground hover:border-primary/40"
+                className="inline-flex min-h-[36px] items-center rounded-lg border border-[#9CFF1A]/12 bg-card/50 px-3 py-1.5 text-[11px] font-semibold text-foreground hover:border-primary/40"
               >
                 Load registries
               </a>
               <a
                 href="/reactor"
-                className="inline-flex min-h-[36px] items-center rounded-lg border border-emerald-400/30 bg-emerald-400/10 px-3 py-1.5 text-[11px] font-semibold text-emerald-100 hover:border-yellow-300/50"
+                className="inline-flex min-h-[36px] items-center rounded-lg border border-lime-400/30 bg-lime-400/10 px-3 py-1.5 text-[11px] font-semibold text-lime-100 hover:border-yellow-300/50"
               >
                 Open live reactor
               </a>

@@ -2,26 +2,27 @@
 @source "./**/*.{tsx,ts,jsx,js}";
 @source "./*.{tsx,ts}";
 
-/* ─── Apex Atlas — luminescent mint-green on near-black ─── */
+/* ─── Apex Atlas — neon lime primary on slate navy (user palette) ─── */
 @theme {
   --font-sans: "Instrument Sans", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, monospace;
   --font-display: "Instrument Sans", ui-sans-serif, system-ui, sans-serif;
 
-  --color-background: #070b0a;
-  --color-foreground: #e8f5ef;
-  --color-card: #0c1210;
-  --color-border: #1a2e24;
-  --color-muted: #8ba89a;
-  --color-muted-foreground: #5c7368;
-  --color-primary: #00e68a;
-  --color-secondary: #3d5248;
-  --color-accent: #34f5a0;
-  --color-sidebar: #070b0a;
-  --color-sidebar-foreground: #e8f5ef;
-  --color-sidebar-border: rgba(0, 230, 138, 0.08);
-  --color-sidebar-accent: rgba(0, 230, 138, 0.10);
-  --color-sidebar-accent-foreground: #a7f3d0;
+  --color-background: #111827;
+  --color-foreground: #F8FAFC;
+  --color-card: #161f2e;
+  --color-border: #1e293b;
+  --color-muted: #94a3b8;
+  --color-muted-foreground: #64748b;
+  --color-primary: #9CFF1A;
+  --color-secondary: #00B3B8;
+  --color-accent: #b8ff4d;
+  --color-destructive: #FF4D6D;
+  --color-sidebar: #111827;
+  --color-sidebar-foreground: #F8FAFC;
+  --color-sidebar-border: rgba(156, 255, 26, 0.10);
+  --color-sidebar-accent: rgba(156, 255, 26, 0.12);
+  --color-sidebar-accent-foreground: #9CFF1A;
 }
 
 
@@ -29,13 +30,13 @@ html, body, #root { min-height: 100%; }
 
 body {
   margin: 0;
-  background: #070b0a;
-  color: #e8f5ef;
+  background: #111827;
+  color: #F8FAFC;
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
   scrollbar-width: thin;
-  scrollbar-color: rgba(0, 230, 138, 0.4) #070b0a;
+  scrollbar-color: rgba(156, 255, 26, 0.45) #111827;
 }
 
 .font-display { font-family: var(--font-display); }
@@ -43,7 +44,7 @@ body {
 
 /* Film grain (very subtle) */
 .atlas-noise {
-  background-color: #070b0a;
+  background-color: #111827;
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.028'/%3E%3C/svg%3E");
 }
 
@@ -90,9 +91,9 @@ body {
 
 /* Brief gold flash after click (add class via JS or :active + animation) */
 @keyframes atlas-click-flash {
-  0% { box-shadow: 0 0 0 0 rgba(234, 179, 8, 0.45); }
-  40% { box-shadow: 0 0 0 6px rgba(234, 179, 8, 0.18); }
-  100% { box-shadow: 0 0 0 0 rgba(234, 179, 8, 0); }
+  0% { box-shadow: 0 0 0 0 rgba(156, 255, 26, 0.45); }
+  40% { box-shadow: 0 0 0 6px rgba(156, 255, 26, 0.18); }
+  100% { box-shadow: 0 0 0 0 rgba(156, 255, 26, 0); }
 }
 .atlas-click-flash {
   animation: atlas-click-flash 420ms cubic-bezier(0.2, 1, 0.32, 1);
@@ -100,7 +101,7 @@ body {
 
 /* Cards */
 .atlas-card {
-  background: #0c0c0c;
+  background: #0d1219;
   border: 1px solid #2a2a2a;
   border-radius: 12px;
   box-shadow:
@@ -111,22 +112,22 @@ body {
     box-shadow 220ms cubic-bezier(0.2, 1, 0.32, 1);
 }
 .atlas-card:hover {
-  border-color: rgba(234, 179, 8, 0.32);
+  border-color: rgba(156, 255, 26, 0.32);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.04),
     0 12px 40px rgba(0, 0, 0, 0.55),
-    0 0 28px rgba(234, 179, 8, 0.07);
+    0 0 28px rgba(156, 255, 26, 0.07);
 }
 
 /* Primary CTA */
 .atlas-launch-glow {
-  background: linear-gradient(135deg, #34f5a0 0%, #00e68a 55%, #059669 100%);
-  color: #0a0a0a;
+  background: linear-gradient(135deg, #b8ff4d 0%, #9CFF1A 55%, #65a30d 100%);
+  color: #0d1219;
   font-weight: 700;
   border: 1px solid rgba(253, 224, 71, 0.45);
   box-shadow:
-    0 0 0 1px rgba(234, 179, 8, 0.2),
-    0 0 32px rgba(234, 179, 8, 0.35),
+    0 0 0 1px rgba(156, 255, 26, 0.2),
+    0 0 32px rgba(156, 255, 26, 0.35),
     0 4px 16px rgba(0, 0, 0, 0.45);
   transition: box-shadow 220ms ease, transform 135ms ease, filter 180ms ease;
 }
@@ -134,7 +135,7 @@ body {
   filter: brightness(1.05);
   box-shadow:
     0 0 0 1px rgba(253, 224, 71, 0.4),
-    0 0 48px rgba(234, 179, 8, 0.45),
+    0 0 48px rgba(156, 255, 26, 0.45),
     0 6px 20px rgba(0, 0, 0, 0.5);
 }
 .atlas-launch-glow:active {
@@ -142,7 +143,7 @@ body {
   filter: brightness(0.94);
   box-shadow:
     0 0 0 1px rgba(253, 224, 71, 0.35),
-    0 0 20px rgba(234, 179, 8, 0.28),
+    0 0 20px rgba(156, 255, 26, 0.28),
     inset 0 2px 8px rgba(0, 0, 0, 0.25);
 }
 .atlas-launch-glow.atlas-click-flash {
@@ -155,7 +156,7 @@ body {
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(90deg, transparent, rgba(234, 179, 8, 0.11), transparent);
+  background: linear-gradient(90deg, transparent, rgba(156, 255, 26, 0.11), transparent);
   animation: atlas-shimmer 1.5s ease-in-out infinite;
   pointer-events: none;
 }
@@ -170,15 +171,15 @@ body {
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(90deg, transparent, rgba(234, 179, 8, 0.1), transparent);
+  background: linear-gradient(90deg, transparent, rgba(156, 255, 26, 0.1), transparent);
   animation: atlas-shimmer 1.5s ease-in-out infinite;
 }
 
 /* Chips / dots / dividers */
 .atlas-chip-yellow {
-  border: 1px solid rgba(234, 179, 8, 0.35);
-  background: rgba(234, 179, 8, 0.1);
-  color: #a7f3d0;
+  border: 1px solid rgba(156, 255, 26, 0.35);
+  background: rgba(156, 255, 26, 0.1);
+  color: #d4ff8a;
   border-radius: 999px;
   font-family: var(--font-mono);
   font-size: 10px;
@@ -190,57 +191,57 @@ body {
   width: 8px;
   height: 8px;
   border-radius: 999px;
-  background: #00e68a;
-  box-shadow: 0 0 10px rgba(234, 179, 8, 0.55);
+  background: #9CFF1A;
+  box-shadow: 0 0 10px rgba(156, 255, 26, 0.55);
 }
 .atlas-live-dot-pulse {
   animation: atlas-live-pulse 1.8s ease-in-out infinite;
 }
 .atlas-divider {
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(234, 179, 8, 0.28), transparent);
+  background: linear-gradient(90deg, transparent, rgba(156, 255, 26, 0.28), transparent);
   border: 0;
 }
 
 .atlas-panel {
-  background: #0c0c0c;
+  background: #0d1219;
   border: 1px solid #2a2a2a;
   border-radius: 12px;
 }
 .atlas-panel-glow:hover {
-  border-color: rgba(234, 179, 8, 0.3);
-  box-shadow: 0 0 24px rgba(234, 179, 8, 0.08);
+  border-color: rgba(156, 255, 26, 0.3);
+  box-shadow: 0 0 24px rgba(156, 255, 26, 0.08);
 }
 
 .atlas-focus-ring:focus-visible {
-  outline: 2px solid #00e68a;
+  outline: 2px solid #9CFF1A;
   outline-offset: 3px;
 }
 
 .atlas-scroll {
   scrollbar-width: thin;
-  scrollbar-color: rgba(0, 230, 138, 0.4) #070b0a;
+  scrollbar-color: rgba(156, 255, 26, 0.45) #111827;
 }
 
 /* Sidebar active rail */
 .atlas-nav-active {
-  background: rgba(234, 179, 8, 0.12);
-  color: #a7f3d0;
-  border-color: rgba(234, 179, 8, 0.25);
-  box-shadow: inset 3px 0 0 #00e68a;
+  background: rgba(156, 255, 26, 0.12);
+  color: #d4ff8a;
+  border-color: rgba(156, 255, 26, 0.25);
+  box-shadow: inset 3px 0 0 #9CFF1A;
 }
 
 
 /* Selection */
 ::selection {
-  background: rgba(234, 179, 8, 0.35);
-  color: #e8f5ef;
+  background: rgba(156, 255, 26, 0.35);
+  color: #F8FAFC;
 }
 
 /* Ambient gold wash behind hero / CTA clusters */
 .atlas-ambient-gold {
   background:
-    radial-gradient(ellipse 70% 55% at 75% 35%, rgba(234, 179, 8, 0.11), transparent 58%),
+    radial-gradient(ellipse 70% 55% at 75% 35%, rgba(156, 255, 26, 0.11), transparent 58%),
     radial-gradient(ellipse 45% 35% at 15% 85%, rgba(250, 204, 21, 0.05), transparent 52%);
 }
 
@@ -248,20 +249,20 @@ body {
 .atlas-rim {
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.04),
-    0 0 0 1px rgba(234, 179, 8, 0.18),
+    0 0 0 1px rgba(156, 255, 26, 0.18),
     0 12px 36px rgba(0, 0, 0, 0.5);
 }
 
 /* Stat / metric tile icon lift on hover */
 .atlas-card:hover .atlas-stat-icon {
-  color: #00e68a;
+  color: #9CFF1A;
   opacity: 0.9;
   transition: color 180ms ease, opacity 180ms ease;
 }
 
 /* Empty state dashed panel */
 .atlas-empty {
-  border: 1px dashed rgba(234, 179, 8, 0.22);
+  border: 1px dashed rgba(156, 255, 26, 0.22);
   background: rgba(12, 12, 12, 0.6);
   border-radius: 12px;
 }
@@ -272,21 +273,21 @@ body {
   height: 8px;
 }
 .atlas-scroll::-webkit-scrollbar-track {
-  background: #0a0a0a;
+  background: #0d1219;
 }
 .atlas-scroll::-webkit-scrollbar-thumb {
-  background: rgba(234, 179, 8, 0.35);
+  background: rgba(156, 255, 26, 0.35);
   border-radius: 999px;
 }
 .atlas-scroll::-webkit-scrollbar-thumb:hover {
-  background: rgba(234, 179, 8, 0.55);
+  background: rgba(156, 255, 26, 0.55);
 }
 
 
 /* Secondary outline CTA — gold on hover, never competes with launch */
 .atlas-outline-btn {
   border: 1px solid #2a2a2a;
-  background: #0c0c0c;
+  background: #0d1219;
   color: #e7e5e4;
   border-radius: 12px;
   transition:
@@ -300,25 +301,25 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 .atlas-outline-btn:hover {
-  border-color: rgba(234, 179, 8, 0.45);
-  background: rgba(234, 179, 8, 0.08);
-  color: #a7f3d0;
-  box-shadow: 0 0 20px rgba(234, 179, 8, 0.08);
+  border-color: rgba(156, 255, 26, 0.45);
+  background: rgba(156, 255, 26, 0.08);
+  color: #d4ff8a;
+  box-shadow: 0 0 20px rgba(156, 255, 26, 0.08);
 }
 .atlas-outline-btn:active {
   transform: scale(0.97);
   filter: brightness(0.95);
-  border-color: rgba(234, 179, 8, 0.55);
+  border-color: rgba(156, 255, 26, 0.55);
   box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.3);
 }
 
 
 /* Soft gold hairline — use instead of pure white/gray rules */
 .atlas-hairline {
-  border-color: rgba(234, 179, 8, 0.1);
+  border-color: rgba(156, 255, 26, 0.1);
 }
 .atlas-hairline-strong {
-  border-color: rgba(234, 179, 8, 0.18);
+  border-color: rgba(156, 255, 26, 0.18);
 }
 
 
@@ -337,14 +338,14 @@ button:not(:disabled):active:not(.atlas-launch-glow):not(.atlas-outline-btn):not
 /* Horizontal chip rows — scrollable on narrow viewports */
 .atlas-h-scroll {
   scrollbar-width: thin;
-  scrollbar-color: rgba(234, 179, 8, 0.3) transparent;
+  scrollbar-color: rgba(156, 255, 26, 0.3) transparent;
   -webkit-overflow-scrolling: touch;
 }
 .atlas-h-scroll::-webkit-scrollbar {
   height: 3px;
 }
 .atlas-h-scroll::-webkit-scrollbar-thumb {
-  background: rgba(234, 179, 8, 0.35);
+  background: rgba(156, 255, 26, 0.35);
   border-radius: 999px;
 }
 
@@ -376,7 +377,7 @@ button:not(:disabled):active:not(.atlas-launch-glow):not(.atlas-outline-btn):not
   font-weight: 600;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: #00e68a;
+  color: #9CFF1A;
 }
 
 @media (prefers-reduced-motion: reduce) {
