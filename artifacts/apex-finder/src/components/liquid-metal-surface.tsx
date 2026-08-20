@@ -34,15 +34,15 @@ void main(){
   col=mix(col, vec3(.88,.9,.94), smoothstep(.55,.95,h)*.45);
   col+=vec3(spec*1.35);
   float phase=h*3.5+t*.18;
-  vec3 filmA=vec3(.6,.2,.85), filmB=vec3(.1,.55,.95), filmC=vec3(.35,.8,.4);
+  vec3 filmA=vec3(.4,.25,.55), filmB=vec3(.2,.4,.65), filmC=vec3(.3,.5,.4);
   float f=fract(phase);
   vec3 film=f<.33?mix(filmA,filmB,f/.33):f<.66?mix(filmB,filmC,(f-.33)/.33):mix(filmC,filmA,(f-.66)/.34);
   float mask=smoothstep(.18,.5,h)*(1.-smoothstep(.68,.95,h));
   mask*=.5+.5*sin(h*10.+t*1.5);
-  col=mix(col, col+film*.8, mask*.75);
+  col=mix(col, col+film*.45, mask*.5);
   float fres=pow(1.-max(N.z,0.),2.3);
-  col+=vec3(.7,.75,1.)*fres*.45;
-  col+=film*fres*.25;
+  col+=vec3(.55,.6,.8)*fres*.25;
+  col+=film*fres*.12;
   float edge=smoothstep(0.,.08,uv.x)*smoothstep(1.,.92,uv.x)*smoothstep(0.,.15,uv.y)*smoothstep(1.,.85,uv.y);
   col*=.6+.4*edge;
   gl_FragColor=vec4(col,1.);
@@ -90,7 +90,9 @@ function BaseOilCanvas() {
     if (!ctx) return;
     const frame2 = (now: number) => {
       if (dead) return;
-      const w = Math.max(2, canvas.clientWidth | 0), h = Math.max(2, canvas.clientHeight | 0);
+      const dpr = Math.min(devicePixelRatio || 1, 2);
+      const w = Math.max(2, Math.floor(canvas.clientWidth * dpr));
+      const h = Math.max(2, Math.floor(canvas.clientHeight * dpr));
       canvas.width = w; canvas.height = h;
       const t = (now - start) / 1000;
       const img = ctx.createImageData(w, h); const d = img.data;

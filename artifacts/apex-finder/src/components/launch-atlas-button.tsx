@@ -140,7 +140,6 @@ export function LaunchAtlasButton({
         {(variant === "primary" || variant === "reactor") && !running && (
           <>
             <LiquidMetalSurface />
-            <span className="atlas-liquid-rim" aria-hidden />
           </>
         )}
         <span className={cn(
