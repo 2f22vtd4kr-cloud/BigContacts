@@ -183,6 +183,16 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="atlas-noise flex min-h-[100dvh] min-h-[100svh] overflow-hidden bg-background text-foreground">
+      <svg aria-hidden="true" width="0" height="0" style={{ position: "absolute", width: 0, height: 0, overflow: "hidden" }}>
+        <defs>
+          <filter id="atlas-liquid-distort" x="-25%" y="-25%" width="150%" height="150%" colorInterpolationFilters="sRGB">
+            <feTurbulence type="fractalNoise" baseFrequency="0.02 0.03" numOctaves="3" seed="11" result="noise">
+              <animate attributeName="baseFrequency" dur="8s" values="0.02 0.03;0.03 0.02;0.015 0.035;0.02 0.03" repeatCount="indefinite" />
+            </feTurbulence>
+            <feDisplacementMap in="SourceGraphic" in2="noise" scale="12" xChannelSelector="R" yChannelSelector="G" />
+          </filter>
+        </defs>
+      </svg>
       <div className="hidden md:flex"><Sidebar /></div>
       {sidebarOpen && (
         <div className="fixed inset-0 z-50 flex md:hidden">
