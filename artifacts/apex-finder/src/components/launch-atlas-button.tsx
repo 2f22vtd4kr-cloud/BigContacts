@@ -8,6 +8,7 @@ import {
   type LaunchAtlasOptions,
 } from "@/lib/launch-atlas";
 import { useAtlasRun } from "@/lib/use-atlas-run";
+import { LiquidMetalSurface } from "@/components/liquid-metal-surface";
 
 type Variant = "primary" | "header" | "reactor" | "ghost";
 
@@ -138,8 +139,7 @@ export function LaunchAtlasButton({
       >
         {(variant === "primary" || variant === "reactor") && !running && (
           <>
-            <span className="atlas-liquid-mesh" aria-hidden />
-            <span className="atlas-liquid-sheen" aria-hidden />
+            <LiquidMetalSurface />
             <span className="atlas-liquid-rim" aria-hidden />
           </>
         )}
