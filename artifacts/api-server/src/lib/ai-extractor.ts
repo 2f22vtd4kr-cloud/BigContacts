@@ -1,18 +1,18 @@
 /**
  * AI Extractor — Multi-source AI extraction layer for contact & person intelligence
  *
- * Five AI sources fire in parallel at Phase 0 of the enrichment pipeline:
+ * Search and extraction providers support the enrichment pipeline:
  *
  *   SEARCH / RESEARCH (return structured answers directly):
  *   - Perplexity Sonar Pro — live web-search model; synthesises from real sources
- *   - Gemini 2.0 Flash-Lite — Google Search grounding; lower-quota model, different index from Perplexity
+ *   - Gemini is intentionally absent from this search layer; it is text-only for Boss planning/review
  *
  *   SEARCH + GROQ EXTRACTION (return raw text excerpts, Groq extracts structure):
  *   - Tavily              — AI-native search; 7 live sources per query
  *   - Exa                 — neural/semantic retrieval; strong for people & company lookups
  *
  *   TEXT EXTRACTION (reads accumulated scraped text from all other phases):
- *   - Groq llama-3.3-70b  — free, 6 000 req/day, 32k context; pulls out anything regex missed:
+ *   - Groq GPT-OSS-120B  — free, 6 000 req/day, 32k context; pulls out anything regex missed:
  *       emails in obfuscated form, phone numbers, social handles, owner names in any language
  *
  * Every source falls back silently if its key is unset or quota is hit.
@@ -26,13 +26,19 @@ import {
 } from "./contact-validation";
 import { formatReachabilityDirective, type ReachabilityDirective } from "./reachability-realism";
 import { canonicalizeUrl } from "./evidence-ledger";
+import {
+import { GROQ_DEFAULT_MODEL as GROQ_MODEL, GROQ_CHAT_MODELS } from "./groq-models";
+  adjudicateFinalTargetReview,
+  buildFinalTargetReviewPrompt,
+  type FinalTargetReviewInput,
+  type FinalTargetReviewResult,
+} from "./final-target-review";
 
 const GROQ_API        = "https://api.groq.com/openai/v1/chat/completions";
-const GROQ_MODEL      = "llama-3.3-70b-versatile";
-const GROQ_MODEL_FAST = "llama-3.1-8b-instant";
+const GROQ_MODEL_FAST = "openai/gpt-oss-20b";
 
 const OPENROUTER_API       = "https://openrouter.ai/api/v1/chat/completions";
-const OPENROUTER_MODEL     = "meta-llama/llama-3.3-70b-instruct"; // fast + free-tier friendly
+const OPENROUTER_MODEL     = "openai/gpt-oss-120b"; // align with Groq-hosted replacement
 const PERPLEXITY_MODEL     = "perplexity/sonar-pro";               // via OpenRouter: live web-search (fallback only)
 const PERPLEXITY_FALLBACK  = "perplexity/sonar";                   // via OpenRouter: cheaper fallback
 
@@ -41,20 +47,17 @@ const PERPLEXITY_DIRECT_API      = "https://api.perplexity.ai/chat/completions";
 const PERPLEXITY_DIRECT_MODEL    = "sonar-pro";   // model name WITHOUT the "perplexity/" prefix when calling directly
 const PERPLEXITY_DIRECT_FALLBACK = "sonar";       // cheaper direct fallback
 
-// Gemini Flash-Lite with Google Search Grounding — lowest-credit grounded model;
-// searches Google in real-time without paying for a larger Gemini tier.
-const GEMINI_MODEL = "gemini-2.0-flash-lite";
-const GEMINI_API   = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
-const GEMINI_MAX_OUTPUT_TOKENS = 1600;
-
 // Tavily — AI-native search API; returns clean excerpts; structure extracted by Groq
 const TAVILY_API = "https://api.tavily.com/search";
 
 // Exa — neural/semantic search API; excels at people + company lookups
 const EXA_API = "https://api.exa.ai/search";
 
-// Track which keys hit rate-limits. Map<key, expiresAtMs> — keys auto-recover after 5 min.
+// Track temporary 429 cooldowns separately from provider/account quota exhaustion.
+// Quota-exhausted keys are skipped until the API process restarts or the daily
+// circuit-breaker expires; this prevents a dead pool from retrying every slot.
 const EXHAUSTED_TTL_MS = 5 * 60 * 1000;
+const PROVIDER_QUOTA_TTL_MS = 24 * 60 * 60 * 1000;
 
 function isExhausted(map: Map<string, number>, key: string): boolean {
   const exp = map.get(key);
@@ -63,12 +66,26 @@ function isExhausted(map: Map<string, number>, key: string): boolean {
   return true;
 }
 
+function retryAfterMs(response: Response, fallbackMs = EXHAUSTED_TTL_MS): number {
+  const value = response.headers.get("retry-after");
+  if (!value) return fallbackMs;
+  const seconds = Number(value);
+  if (Number.isFinite(seconds) && seconds >= 0) {
+    return Math.min(Math.max(seconds * 1000, 1_000), 15 * 60 * 1000);
+  }
+  const timestamp = Date.parse(value);
+  if (Number.isFinite(timestamp)) {
+    return Math.min(Math.max(timestamp - Date.now(), 1_000), 15 * 60 * 1000);
+  }
+  return fallbackMs;
+}
+
 // IMPORTANT: each provider uses a SEPARATE exhaustion map — a 429 on one must NOT block others.
 const _exhaustedGroqKeys              = new Map<string, number>();
 const _exhaustedORKeys                = new Map<string, number>(); // for llama text extraction only
 const _exhaustedPerplexityKeys        = new Map<string, number>(); // for OpenRouter-routed Sonar only
 const _exhaustedPerplexityDirectKeys  = new Map<string, number>(); // for direct Perplexity API only
-const _exhaustedGeminiKeys            = new Map<string, number>(); // for Gemini Flash grounded search
+const _quotaExhaustedTavilyKeys       = new Map<string, number>(); // provider/account quota response
 const _exhaustedTavilyKeys            = new Map<string, number>(); // for Tavily search API
 const _exhaustedExaKeys               = new Map<string, number>(); // for Exa neural search API
 
@@ -94,17 +111,15 @@ function getPerplexityDirectKeys(): string[] {
   return names.map(k => process.env[k] ?? "").filter(k => k.length > 0);
 }
 
-/** Returns all Gemini API keys (GEMINI_API_KEY, GEMINI_API_KEY_1 … _10). */
-function getGeminiKeys(): string[] {
-  const names = ["GEMINI_API_KEY"];
-  for (let i = 1; i <= 10; i++) names.push(`GEMINI_API_KEY_${i}`);
-  return names.map(k => process.env[k] ?? "").filter(k => k.length > 0);
-}
-
 /** Returns all Tavily API keys (TAVILY_API_KEY, TAVILY_API_KEY_1 … _8). */
 function getTavilyKeys(): string[] {
-  const names = ["TAVILY_API_KEY"];
-  for (let i = 1; i <= 8; i++) names.push(`TAVILY_API_KEY_${i}`);
+  // The newest slot is intentionally first so a freshly added quota pool is
+  // used before older account-exhausted slots. The 432 circuit-breaker below
+  // suppresses old exhausted slots after their first observed rejection.
+  const names = ["TAVILY_API_KEY_6", "TAVILY_API_KEY"];
+  for (let i = 1; i <= 8; i++) {
+    if (i !== 6) names.push(`TAVILY_API_KEY_${i}`);
+  }
   return names.map(k => process.env[k] ?? "").filter(k => k.length > 0);
 }
 
@@ -122,28 +137,6 @@ function getExaKeys(): string[] {
     }
   }
   return out;
-}
-
-// Provider calls can arrive in parallel within one research target (for example,
-// Tavily and Exa both hand excerpts to Groq). Starting every call at slot 0
-// defeats key rotation and makes freshly-created pools look quota-exhausted.
-// Advance the starting slot synchronously before the first await so concurrent
-// callers receive different keys.
-const keyCursors = {
-  groq: 0,
-  gemini: 0,
-  tavily: 0,
-  exa: 0,
-};
-
-function roundRobinKeys(
-  keys: string[],
-  provider: keyof typeof keyCursors,
-): string[] {
-  if (keys.length < 2) return keys;
-  const start = keyCursors[provider] % keys.length;
-  keyCursors[provider] = (start + 1) % keys.length;
-  return [...keys.slice(start), ...keys.slice(0, start)];
 }
 
 /** Personal contact vector for a named owner/founder discovered in text */
@@ -171,6 +164,57 @@ export interface OwnerResolution extends OwnerContact {
   sourceUrls: string[];
 }
 
+export interface DiscoveryPersonCandidate {
+  name: string;
+  role: string | null;
+  organization: string | null;
+  basis: string | null;
+  sourceUrls: string[];
+  instagram: string | null;
+  twitter: string | null;
+  linkedin: string | null;
+  attributionStatus: "unverified" | "ambiguous" | "probable";
+}
+
+/** Run the final target-scoped publication review through the existing
+ * server-side provider pool. Any provider failure is a review outcome. */
+export async function runFinalTargetReview(
+  input: FinalTargetReviewInput,
+): Promise<FinalTargetReviewResult> {
+  const prompt = buildFinalTargetReviewPrompt(input);
+  for (const key of getGroqKeys()) {
+    if (isExhausted(_exhaustedGroqKeys, key)) continue;
+    try {
+      const response = await fetch(GROQ_API, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: GROQ_MODEL,
+          messages: [{ role: "user", content: prompt }],
+          temperature: 0,
+          max_tokens: 700,
+          response_format: { type: "json_object" },
+        }),
+        signal: AbortSignal.timeout(20_000),
+      });
+      if (response.status === 429) {
+        _exhaustedGroqKeys.set(key, Date.now() + EXHAUSTED_TTL_MS);
+        continue;
+      }
+      if (!response.ok) continue;
+      const data = await response.json() as any;
+      const raw = data?.choices?.[0]?.message?.content ?? "";
+      const json = extractJsonObject(raw);
+      if (!json) continue;
+      return adjudicateFinalTargetReview(input, JSON.parse(json), "groq-final-review");
+    } catch {
+      // Try the next configured key. Exhaustion or malformed output is
+      // deliberately not converted into a publishable fallback.
+    }
+  }
+  return adjudicateFinalTargetReview(input, {}, "unavailable-final-review");
+}
+
 export interface AIExtractResult {
   // ── Org-level contact vectors (for the entity being researched) ─────────
   email:     string | null;
@@ -182,9 +226,11 @@ export interface AIExtractResult {
   owners:        string[];        // flat list of owner names (backward compat)
   ownerContacts: OwnerContact[];  // structured per-owner data with personal handles
   ownerResolutions: OwnerResolution[]; // role + ownership basis; never auto-merged
+  /** Broad leads retained for review and bounded follow-up; never trusted contact state. */
+  discoveryCandidates: DiscoveryPersonCandidate[];
   ownershipSummary: string | null;
   ownershipSources: string[];
-  source:    "groq-llama-70b" | "groq-llama-8b" | "openrouter" | "perplexity-sonar" | "gemini-flash" | "tavily" | "exa" | "none";
+  source:    "groq-llama-70b" | "groq-llama-8b" | "openrouter" | "perplexity-sonar" | "tavily" | "exa" | "none";
   citations: string[];            // URLs the model actually searched — use as evidence sources
   reachability?: {
     status: "direct" | "intermediary" | "bounded" | "research_only" | "unknown";
@@ -198,6 +244,118 @@ export interface AIExtractResult {
   searchGaps?: string[];
 }
 
+export type AIResearchLane =
+  | "official_records"
+  | "people_press"
+  | "contact_routes"
+  | "semantic_discovery";
+
+export type TargetSubjectKind =
+  | "person"
+  | "legal_entity"
+  | "brand"
+  | "operating_asset"
+  | "property_vehicle"
+  | "unknown";
+
+export interface AIResearchContext {
+  tradingName?: string | null;
+  city?: string | null;
+  /** Prevents a shared brand/trading name from being treated as one legal subject. */
+  subjectKind?: TargetSubjectKind;
+  /** Compact public disambiguation notes; never raw residence text. */
+  disambiguationNotes?: string[];
+  /** Explicit C/O, operator, parent, or management-company leads. */
+  relatedOrganizations?: string[];
+  reachability?: ReachabilityDirective;
+  /**
+   * Entity-record anchors such as registry IDs, source registries, or a
+   * verified business category. These are disambiguation context, not proof.
+   */
+  anchors?: string[];
+  /**
+   * Candidate domains discovered by the pipeline. They are leads only until
+   * the page is fetched and the target relationship is confirmed.
+   */
+  candidateDomains?: string[];
+  /** Gives each provider a distinct research job instead of repeating one query. */
+  lane?: AIResearchLane;
+}
+
+/**
+ * Build a provider-specific search query from the same target fingerprint used
+ * by the structured prompt. Keeping this in one place prevents Tavily and Exa
+ * from drifting back to generic "owner contact" searches.
+ */
+export function buildProviderSearchQuery(
+  entityName: string,
+  entityType: string,
+  country: string | null,
+  context: AIResearchContext = {},
+): string {
+  const quoted = (value: string | null | undefined): string | null => {
+    const clean = value?.trim().replace(/\s+/g, " ");
+    return clean ? `"${clean.slice(0, 120)}"` : null;
+  };
+  const parts = [quoted(entityName)];
+  if (context.tradingName && context.tradingName !== entityName) parts.push(quoted(context.tradingName));
+  if (context.city) parts.push(quoted(context.city));
+  if (country) parts.push(quoted(country));
+  parts.push(...(context.relatedOrganizations ?? [])
+    .map((organization) => quoted(organization))
+    .filter((organization): organization is string => Boolean(organization))
+    .slice(0, 2));
+
+  const anchors = (context.anchors ?? [])
+    .map((anchor) => anchor.trim().replace(/\s+/g, " "))
+    .filter(Boolean)
+    .slice(0, 3);
+  parts.push(...anchors.map((anchor) => quoted(anchor)));
+  parts.push(...(context.disambiguationNotes ?? [])
+    .map((note) => quoted(note))
+    .filter((note): note is string => Boolean(note))
+    .slice(0, 3));
+  if (context.subjectKind) parts.push(`subject:${context.subjectKind}`);
+
+  const laneTerms: Record<AIResearchLane, string> = {
+    official_records: "official team people registry filing director officer",
+    people_press: "founder owner director partner executive interview profile",
+    contact_routes: "public email direct contact LinkedIn authorized intermediary",
+    semantic_discovery: "ownership control parent operating company principal",
+  };
+  const domains = (context.candidateDomains ?? [])
+    .map((domain) => domain.trim().replace(/^https?:\/\//i, "").replace(/\/.*$/, "").toLowerCase())
+    .filter(Boolean)
+    .slice(0, 3);
+
+  // Official-records lane: prefer exact-domain leadership pages (Campione lesson —
+  // independent research won by going straight to the official site, not press noise).
+  if ((context.lane ?? "people_press") === "official_records") {
+    if (domains.length > 0) {
+      parts.unshift(domains.map((domain) => `site:${domain}`).join(" OR "));
+      parts.push("leadership OR management OR team OR \"about us\" OR \"chi siamo\" OR contact OR direttorio");
+    } else {
+      parts.push("official website domain homepage");
+      parts.push("leadership OR management OR team OR \"about us\" OR contact");
+    }
+  }
+
+  parts.push(laneTerms[context.lane ?? "people_press"]);
+  if (entityType === "Corporation" || entityType === "Trust") {
+    parts.push("company organization");
+  } else {
+    parts.push("individual identity");
+  }
+  if (context.reachability?.mode === "research_only") {
+    parts.push("identity verification no viable access assumption");
+  }
+  // Keep site: filters even outside official_records when domains are known.
+  if (domains.length > 0 && (context.lane ?? "people_press") !== "official_records") {
+    parts.push(domains.map((domain) => `site:${domain}`).join(" OR "));
+  }
+  return parts.filter((part): part is string => Boolean(part)).join(" ");
+}
+
 function bindResolutionsToCitations(
   parsed: AIExtractResult,
   citations: string[],
@@ -207,21 +365,38 @@ function bindResolutionsToCitations(
       .map((url) => [canonicalizeUrl(url), url] as const)
       .filter((entry): entry is readonly [string, string] => Boolean(entry[0])),
   );
-  return parsed.ownerResolutions.map((owner) => ({
-    ...owner,
-    sourceUrls: owner.sourceUrls
+  // Fail-closed claim binding: drop contact vectors that cannot be tied to a
+  // provider-returned citation URL. Name + role may remain as review leads.
+  return parsed.ownerResolutions.map((owner) => {
+    const boundUrls = owner.sourceUrls
       .map((url) => {
         const canonical = canonicalizeUrl(url);
         return canonical ? citationByCanonicalUrl.get(canonical) : undefined;
       })
-      .filter((url): url is string => Boolean(url)),
-  }));
+      .filter((url): url is string => Boolean(url));
+    const hasCite = boundUrls.length > 0;
+    // When the provider returned zero citations, keep model-supplied http URLs
+    // only if they look real; still strip contact fields without any URL.
+    const fallbackUrls = citations.length === 0
+      ? owner.sourceUrls.filter((url) => /^https?:\/\//i.test(url)).slice(0, 8)
+      : boundUrls;
+    const urls = hasCite ? boundUrls : fallbackUrls;
+    const grounded = urls.length > 0;
+    return {
+      ...owner,
+      sourceUrls: urls,
+      email: grounded ? owner.email : null,
+      linkedin: grounded ? owner.linkedin : null,
+      instagram: grounded ? owner.instagram : null,
+      twitter: grounded ? owner.twitter : null,
+    };
+  });
 }
 
 const EMPTY: AIExtractResult = {
   email: null, phone: null, linkedin: null,
   instagram: null, twitter: null,
-  owners: [], ownerContacts: [], ownerResolutions: [],
+  owners: [], ownerContacts: [], ownerResolutions: [], discoveryCandidates: [],
   ownershipSummary: null, ownershipSources: [],
   source: "none",
   citations: [],
@@ -275,11 +450,11 @@ UNTRUSTED SOURCE TEXT END
 Return ONLY valid JSON — no explanation, no markdown:
 {
   "ownershipSummary": "one sentence stating the strongest ownership/control finding, or 'Ownership not established in the supplied text.'",
-  "email": "venue/org contact email or null",
+  "email": "${isOrg ? "venue/org contact email or null" : "personal/direct email for the named individual only, or null"}",
   "phone": "full international number with country code (e.g. +33 4 93 43 03 43) or null",
   "linkedin": "${isOrg ? "https://linkedin.com/company/... org page or null" : "https://linkedin.com/in/profile or null"}",
   "instagram": "${isOrg ? "venue/brand Instagram URL (e.g. https://instagram.com/baolicannes) or null" : "personal Instagram URL or null"}",
-  "twitter": "venue/org Twitter/X URL or null",
+  "twitter": "${isOrg ? "venue/org Twitter/X URL or null" : "personal Twitter/X URL or null"}",
   "ownerResolutions": [
     {
       "name": "Full Name (First Last minimum)",
@@ -291,6 +466,19 @@ Return ONLY valid JSON — no explanation, no markdown:
       "twitter": "personal Twitter/X URL or null",
       "linkedin": "personal LinkedIn /in/ profile URL or null",
       "email": "personal or direct email if explicitly stated or null"
+    }
+  ],
+  "discoveryCandidates": [
+    {
+      "name": "Full Name",
+      "role": "exactly stated role or null",
+      "organization": "exactly stated related organization or null",
+      "basis": "short exact relationship or search-card context, or null",
+      "sourceUrls": ["https://source-url.example/profile"],
+      "instagram": "personal Instagram URL or null",
+      "twitter": "personal Twitter/X URL or null",
+      "linkedin": "personal LinkedIn /in/ profile URL or null",
+      "attributionStatus": "unverified | ambiguous | probable"
     }
   ],
   "identityAssessment": "confirmed | probable | ambiguous | not_established",
@@ -306,16 +494,20 @@ Rules:
 - If sources conflict, return the conflicting field as null and explain the uncertainty in the ownershipSummary/basis
 - ownershipSummary must explicitly say when ownership is not established
 - ownerResolutions is the primary output; return named people even when they are only directors/operators, but label those roles honestly
+- discoveryCandidates is the broad recall lane: retain plausible named people and personal handles from search cards, professional pages, social results, and related-company context even when target attribution is not established. These are review-only.
+- Never use discoveryCandidates to promote an entity contact, infer ownership, or claim personal identity. Return [] when no plausible person lead exists.
 - basis must be a short quote or faithful paraphrase from the text, never an invented explanation
 - sourceUrls must contain only URLs explicitly present in the text; return [] when none are present
 - email/phone: prefer the primary business/venue contact (reservations@, contact@, info@)
 - phone: must have ≥7 digits; include country code when present
 - instagram/twitter (top level): the venue or org account (handle matches the business name)
-- ownerResolutions: max 8 people; full name required (at least First + Last)
+- ownerResolutions: max 12 people; full name required (at least First + Last)
   * instagram/twitter in ownerResolutions: their PERSONAL handles (not the venue account)
     e.g. if text says "Christophe Caucino (@christoph_cau)" → instagram: "https://instagram.com/christoph_cau"
   * linkedin in ownerContacts: /in/ profiles only (not /company/)
   * email in ownerContacts: personal or named email only (not info@ or reservations@)
+- identityAssessment is "confirmed" only when at least two independent target anchors agree; otherwise use "probable", "ambiguous", or "not_established"
+- negativeFindings and searchGaps must be factual and concise; return [] when none are material
 - Return null for any field not found; return [] for ownerResolutions if none found
 - Do NOT invent anything not stated in the text`;
 }
@@ -488,6 +680,34 @@ function parseAIResponse(raw: string, source: AIExtractResult["source"]): AIExtr
         });
       }
     }
+    const discoveryCandidates: DiscoveryPersonCandidate[] = [];
+    if (Array.isArray(parsed["discoveryCandidates"])) {
+      for (const rawCandidate of parsed["discoveryCandidates"]) {
+        if (!rawCandidate || typeof rawCandidate !== "object") continue;
+        const candidate = rawCandidate as Record<string, unknown>;
+        const name = clean(candidate.name);
+        if (!name) continue;
+        const attributionStatus = ["unverified", "ambiguous", "probable"].includes(String(candidate.attributionStatus))
+          ? String(candidate.attributionStatus) as DiscoveryPersonCandidate["attributionStatus"]
+          : "unverified";
+        const normalized: DiscoveryPersonCandidate = {
+          name,
+          role: clean(candidate.role),
+          organization: clean(candidate.organization),
+          basis: clean(candidate.basis),
+          sourceUrls: Array.isArray(candidate.sourceUrls)
+            ? candidate.sourceUrls.filter((url): url is string => typeof url === "string" && /^https?:\/\//i.test(url)).slice(0, 8)
+            : [],
+          instagram: sanitizePublicSocialUrl(candidate.instagram, "instagram", "person"),
+          twitter: sanitizePublicSocialUrl(candidate.twitter, "twitter", "person"),
+          linkedin: sanitizePublicSocialUrl(candidate.linkedin, "linkedin", "person"),
+          attributionStatus,
+        };
+        if (!discoveryCandidates.some((existing) => existing.name.toLowerCase() === normalized.name.toLowerCase())) {
+          discoveryCandidates.push(normalized);
+        }
+      }
+    }
 
     if (owners.length === 0 && Array.isArray(parsed["owners"])) {
       for (const o of parsed["owners"]) {
@@ -511,6 +731,24 @@ function parseAIResponse(raw: string, source: AIExtractResult["source"]): AIExtr
             : [],
         }
       : { status: "unknown" as const, viableRoute: false, evidence: [] };
+    // Fail-closed: owner contact vectors without any source URL become name-only leads.
+    for (let i = 0; i < ownerResolutions.length; i++) {
+      const o = ownerResolutions[i]!;
+      if (!o.sourceUrls || o.sourceUrls.length === 0) {
+        ownerResolutions[i] = {
+          ...o,
+          email: null,
+          linkedin: null,
+          instagram: null,
+          twitter: null,
+        };
+        const c = ownerContacts[i];
+        if (c && c.name === o.name) {
+          ownerContacts[i] = { ...c, email: null, linkedin: null, instagram: null, twitter: null };
+        }
+      }
+    }
+
     return {
       email:         rawTopEmail && !isPlaceholderEmail(rawTopEmail)
         ? sanitizePublicEmail(rawTopEmail)
@@ -523,9 +761,10 @@ function parseAIResponse(raw: string, source: AIExtractResult["source"]): AIExtr
       ),
       instagram:     sanitizePublicSocialUrl(normIG(parsed["instagram"]), "instagram", "person"),
       twitter:       sanitizePublicSocialUrl(normTW(parsed["twitter"]), "twitter", "person"),
-      owners:        owners.slice(0, 5),
-      ownerContacts: ownerContacts.slice(0, 5),
-      ownerResolutions: ownerResolutions.slice(0, 8),
+      owners:        owners.slice(0, 12),
+      ownerContacts: ownerContacts.slice(0, 12),
+      ownerResolutions: ownerResolutions.slice(0, 16),
+      discoveryCandidates: discoveryCandidates.slice(0, 24),
       ownershipSummary: clean(parsed["ownershipSummary"]),
       ownershipSources: Array.isArray(parsed["sources"])
         ? parsed["sources"]
@@ -659,7 +898,7 @@ export function buildPerplexityPrompt(
   entityName: string,
   entityType: string,
   country: string | null,
-  context: { tradingName?: string | null; city?: string | null; reachability?: ReachabilityDirective } = {},
+  context: AIResearchContext = {},
 ): string {
   const ctx = country ? ` in ${country}` : "";
   const publicName = context.tradingName && context.tradingName !== entityName
@@ -675,10 +914,42 @@ export function buildPerplexityPrompt(
     ? `\nSCOPE LOCK: You are researching ONLY the ${locationCtx}-based ${isOrg ? "company/institution" : "individual"} named ${publicName}. If any other entity (retailer, sports team, consumer brand, government body, etc.) shares this name or a similar name, IGNORE it entirely. Do NOT mix data from different entities. All output must relate exclusively to the ${locationCtx} entity.`
     : "";
   const realism = formatReachabilityDirective(context.reachability);
+  const lane = context.lane ?? "people_press";
+  const laneInstruction: Record<AIResearchLane, string> = {
+    official_records:
+      "Prioritize official team/people pages, filings, registries, legal notices, and first-party organizational pages. Prefer exact titles and registration identifiers over broad biography pages. If this is a special-purpose, property, holding, or zero-employee vehicle, resolve its parent fund/operator and inspect the parent's official leadership/contact page before concluding that no decision-maker route exists.",
+    people_press:
+      "Prioritize named-person relationships in reputable reporting, interviews, conference biographies, and official team pages. Resolve the person-to-target link before looking for contact vectors. For a special-purpose or property vehicle, follow the explicit parent/operator relationship to the people who make decisions for the asset.",
+    contact_routes:
+      "Prioritize explicit public contact routes: named-person pages, official team biographies, direct public emails, personal professional profiles, and explicitly corroborated authorized intermediaries. For a special-purpose, property, holding, or zero-employee vehicle, search the official parent/operator team and contact pages for named executives. Do not substitute organization switchboards.",
+    semantic_discovery:
+      "Prioritize ownership/control relationships, parent and operating entities, distinctive business language, and people who recur in the target's source set. Treat semantic similarity as discovery only until page-level evidence confirms it. Parent-group resolution is a required discovery step for SPVs and property vehicles.",
+  };
+  const anchors = (context.anchors ?? [])
+    .map((anchor) => anchor.trim())
+    .filter(Boolean)
+    .slice(0, 6);
+  const candidateDomains = (context.candidateDomains ?? [])
+    .map((domain) => domain.trim().toLowerCase().replace(/^https?:\/\//, "").replace(/\/.*$/, ""))
+    .filter(Boolean)
+    .slice(0, 4);
+  const anchorBlock = anchors.length > 0
+    ? `\nKnown target-record anchors (use for disambiguation; they are not independently verified evidence):\n${anchors.map((anchor) => `- ${anchor}`).join("\n")}`
+    : "\nNo additional target-record anchors were supplied. Do not invent them.";
+  const domainBlock = candidateDomains.length > 0
+    ? `\nCandidate domains surfaced by the pipeline (leads only; verify before attributing claims): ${candidateDomains.join(", ")}`
+    : "";
+  const disambiguationBlock = [
+    context.subjectKind ? `\nTarget subject kind: ${context.subjectKind}` : "",
+    ...(context.disambiguationNotes ?? []).slice(0, 5).map((note) => `\nDisambiguation note: ${note}`),
+  ].join("");
 
-  return `You are conducting Phase 0 OSINT for ${publicName}${ctx}. Goal: find every named human decision-maker and their evidence-backed contact path.${city}${disambig}
+  return `You are conducting Phase 0 OSINT for ${publicName}${ctx}. Goal: find every named human decision-maker and their evidence-backed contact path.${city}${disambig}${disambiguationBlock}
 
 ${realism}
+
+RESEARCH LANE — ${lane}:
+${laneInstruction[lane]}${anchorBlock}${domainBlock}
 
 RESEARCH CONTRACT — apply this before extracting any person or contact:
 - Establish the target fingerprint first: exact legal/trading name plus location, domain, registry identifier, business category, or another distinctive anchor. If fewer than two independent anchors agree, set identityAssessment to "ambiguous" or "not_established" and keep claims review-only.
@@ -690,6 +961,9 @@ RESEARCH CONTRACT — apply this before extracting any person or contact:
 - Record useful negative findings and search gaps instead of filling them with assumptions.
 
 ${isOrg ? `This is a company/business/institution. Execute this research in order:
+
+STEP 0 — CORPORATE-STRUCTURE HANDOFF (highest priority for special-purpose vehicles):
+Determine whether the exact target is a special-purpose, property, holding company, subsidiary, or zero-employee vehicle. If so, identify the explicitly linked parent fund, operating company, or management group and search that parent's official team/contact pages. Return the named executives who can make decisions for the target, while keeping their relationship as "parent/operator executive" or "associated_person" unless direct control is proven. Do not stop at the SPV's statutory officers.
 
 STEP 1 — NAMED DECISION-MAKERS (highest priority for contact purposes):
 Find ALL named partners, principals, and executives. For venture capital / private equity / investment firms specifically:
@@ -746,11 +1020,11 @@ For an individual, also investigate whether a named assistant, chief of staff, f
 Return ONLY this JSON — no preamble, no explanation, no markdown:
 {
   "ownershipSummary": "one sentence stating the strongest ownership/control finding, or 'Ownership not established in the supplied sources.'",
-  "email": "general org contact email or null",
+  "email": "${isOrg ? "general organization contact email or null" : "personal/direct email for the named individual only, or null"}",
   "phone": "+XX XXX XXX or null",
   "linkedin": "${isOrg ? "https://linkedin.com/company/... org page or null" : "https://linkedin.com/in/profile or null"}",
-  "instagram": "org Instagram URL or null",
-  "twitter": "org Twitter/X URL or null",
+  "instagram": "${isOrg ? "organization Instagram URL or null" : "personal Instagram URL or null"}",
+  "twitter": "${isOrg ? "org Twitter/X URL or null" : "personal Twitter/X URL or null"}",
   "ownerResolutions": [
     {
       "name": "First Last",
@@ -779,6 +1053,7 @@ Return ONLY this JSON — no preamble, no explanation, no markdown:
 Hard requirements:
 - Return up to 12 named HUMAN individuals — sector/strategy heads and executives first, then owners.
 - Named executives with director_officer role are MORE valuable than institutional shareholders for contact purposes. Always include them even when the beneficial owner is a state body or holding company.
+- For a property/SPV target, named executives of an explicitly linked parent/operator group are valuable decision-maker candidates even when they are not statutory officers of the SPV. Preserve the parent/operator relationship and exact source URL.
 - Never construct or infer direct individual emails from a naming pattern.
 - ownershipSummary must not describe an inferred email pattern as evidence.
 - Social accounts, press visibility, wealth, assets, and public biographies are not access evidence.
@@ -843,7 +1118,7 @@ Return ONLY this JSON — no preamble:
 }
 
 Hard requirements:
-- Return up to 8 sector/strategy heads.
+- Return up to 12 sector/strategy heads.
 - Do NOT repeat names already in the executive committee (CEO/Co-CEO/Chairman/President).
 - Never construct or infer direct emails from a verified or guessed pattern.
 `;
@@ -858,9 +1133,9 @@ export async function researchWithPerplexity(
   entityName: string,
   entityType: string,
   country: string | null = null,
-  context: { tradingName?: string | null; city?: string | null; reachability?: ReachabilityDirective } = {},
+  context: AIResearchContext = {},
 ): Promise<AIExtractResult> {
-  logger.info({ entityName, entityType, country }, "Phase 0: firing Perplexity Sonar research");
+  logger.info({ entityName, entityType, country, lane: context.lane ?? "people_press" }, "Phase 0: firing Perplexity Sonar research");
   const prompt = buildPerplexityPrompt(entityName, entityType, country, context);
 
   /** Shared response parser — same for both direct and OpenRouter paths. */
@@ -869,7 +1144,7 @@ export async function researchWithPerplexity(
     label: string,
   ): AIExtractResult | null {
     const raw: string = data?.choices?.[0]?.message?.content ?? "";
-    const citations: string[] = Array.isArray(data?.citations) ? data.citations.slice(0, 8) : [];
+    const citations: string[] = Array.isArray(data?.citations) ? data.citations.slice(0, 12) : [];
     logger.info({ entityName, rawLen: raw.length, citations: citations.length, label }, "Phase 0: Perplexity raw response received");
 
     const jsonObject = extractJsonObject(raw);
@@ -890,7 +1165,7 @@ export async function researchWithPerplexity(
     );
     return {
       ...parsed, citations,
-      ownershipSources: citations.slice(0, 8),
+      ownershipSources: citations.slice(0, 12),
       ownerResolutions: bindResolutionsToCitations(parsed, citations),
     };
   }
@@ -929,6 +1204,15 @@ export async function researchWithPerplexity(
         if (resp.status === 402) {
           logger.warn({ label }, "Phase 0: direct Perplexity insufficient credits — trying cheaper model");
           continue; // try sonar fallback on same key
+        }
+        if (resp.status === 401 || resp.status === 403) {
+          const errText = await resp.text().catch(() => "");
+          _exhaustedPerplexityDirectKeys.set(directKey, Date.now() + EXHAUSTED_TTL_MS);
+          logger.warn(
+            { status: resp.status, err: errText.slice(0, 200), label },
+            "Phase 0: direct Perplexity key temporarily suppressed after auth/quota response",
+          );
+          break;
         }
         if (!resp.ok) {
           const errText = await resp.text().catch(() => "");
@@ -1028,104 +1312,9 @@ export async function researchWithPerplexity(
 }
 
 /**
- * Fire a live Gemini Flash research query with Google Search Grounding.
- * Gemini searches Google in real-time — complementary to Perplexity (different search index).
- * Uses the same buildPerplexityPrompt so JSON schema is identical; results merge cleanly.
- * Returns structured contact + owner data with grounding URLs Gemini actually visited.
- */
-export async function researchWithGemini(
-  entityName: string,
-  entityType: string,
-  country: string | null = null,
-  context: { tradingName?: string | null; city?: string | null; reachability?: ReachabilityDirective } = {},
-): Promise<AIExtractResult> {
-  const keys = getGeminiKeys();
-  if (keys.length === 0) return EMPTY;
-
-  logger.info({ entityName, entityType, country }, `Phase 0 [${GEMINI_MODEL}]: firing Gemini grounded search`);
-  const prompt = buildPerplexityPrompt(entityName, entityType, country, context);
-
-  for (const key of keys) {
-    if (isExhausted(_exhaustedGeminiKeys, key)) continue;
-    try {
-      const resp = await fetch(`${GEMINI_API}?key=${key}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ role: "user", parts: [{ text: prompt }] }],
-          tools: [{ google_search: {} }],
-          generationConfig: { temperature: 0.1, maxOutputTokens: GEMINI_MAX_OUTPUT_TOKENS },
-        }),
-        signal: AbortSignal.timeout(35_000),
-      });
-
-      if (resp.status === 429) {
-        _exhaustedGeminiKeys.set(key, Date.now() + EXHAUSTED_TTL_MS);
-        logger.warn(`Phase 0 [${GEMINI_MODEL}]: rate limit — key exhausted 5 min`);
-        continue;
-      }
-      if (resp.status === 403) {
-        const errText = await resp.text().catch(() => "");
-        logger.warn({ err: errText.slice(0, 200) }, `Phase 0 [${GEMINI_MODEL}]: quota/auth error — skipping key`);
-        continue;
-      }
-      if (!resp.ok) {
-        const errText = await resp.text().catch(() => "");
-        logger.warn({ status: resp.status, err: errText.slice(0, 300) }, `Phase 0 [${GEMINI_MODEL}]: API error`);
-        continue;
-      }
-
-      const data = await resp.json() as any;
-      const raw: string = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
-
-      // Extract grounding citations from groundingMetadata
-      const chunks: any[] = data?.candidates?.[0]?.groundingMetadata?.groundingChunks ?? [];
-      const citations: string[] = chunks
-        .map((c: any) => c?.web?.uri)
-        .filter((u: unknown): u is string => typeof u === "string" && /^https?:\/\//i.test(u))
-        .slice(0, 8);
-
-      logger.info(
-        { entityName, rawLen: raw.length, citations: citations.length },
-        `Phase 0 [${GEMINI_MODEL}]: raw response received`,
-      );
-
-      const jsonObject = extractJsonObject(raw);
-      if (!jsonObject) {
-        logger.warn({ raw: raw.slice(0, 300) }, `Phase 0 [${GEMINI_MODEL}]: no JSON block in response`);
-        continue;
-      }
-
-      const parsed = parseAIResponse(jsonObject, "gemini-flash");
-      if (!parsed) continue;
-
-      logger.info(
-        {
-          entityName, hasEmail: !!parsed.email, hasPhone: !!parsed.phone,
-          hasLinkedIn: !!parsed.linkedin, owners: parsed.owners.length, citations: citations.length,
-        },
-        `Phase 0 [${GEMINI_MODEL}]: research complete`,
-      );
-
-      return {
-        ...parsed,
-        citations,
-        ownershipSources: citations.slice(0, 8),
-        ownerResolutions: bindResolutionsToCitations(parsed, citations),
-      };
-    } catch (err: any) {
-      logger.warn({ err: err?.message }, `Phase 0 [${GEMINI_MODEL}]: call threw`);
-    }
-  }
-
-  logger.warn({ entityName }, `Phase 0 [${GEMINI_MODEL}]: no usable data — all keys failed`);
-  return EMPTY;
-}
-
-/**
  * Fire a Tavily AI-native search then extract structured contacts via Groq.
  * Tavily returns clean, LLM-ready excerpts from up to 7 live web sources.
- * Those excerpts are fed into Groq (llama-3.3-70b) using the same ownership/
+ * Those excerpts are fed into Groq (gpt-oss-120b) using the same ownership/
  * contact extraction prompt as the rest of the pipeline.
  * Key rotation supports TAVILY_API_KEY through TAVILY_API_KEY_8.
  * Returns source: "tavily" with Tavily result URLs as citations.
@@ -1134,31 +1323,25 @@ export async function researchWithTavily(
   entityName: string,
   entityType: string,
   country: string | null = null,
-  context: { tradingName?: string | null; city?: string | null; reachability?: ReachabilityDirective } = {},
+  context: AIResearchContext = {},
 ): Promise<AIExtractResult> {
   const keys = getTavilyKeys();
   if (keys.length === 0) return EMPTY;
 
-  // Build a targeted OSINT search query
-  const queryParts: string[] = [entityName];
-  if (context.tradingName && context.tradingName !== entityName) queryParts.push(context.tradingName);
-  if (context.city) queryParts.push(context.city);
-  if (country) queryParts.push(country);
-  queryParts.push(context.reachability?.mode === "research_only"
-    ? "identity control authorized intermediary route no viable route"
-    : "owner contact email phone authorized intermediary");
-  const query = queryParts.join(" ");
+  const query = buildProviderSearchQuery(entityName, entityType, country, context);
 
-  logger.info({ entityName, entityType, country, query }, "Phase 0 [tavily]: firing Tavily search");
+  logger.info({ entityName, entityType, country, lane: context.lane ?? "contact_routes", query }, "Phase 0 [tavily]: firing Tavily search");
 
-  for (const key of roundRobinKeys(keys, "tavily")) {
+  for (const key of keys) {
     if (isExhausted(_exhaustedTavilyKeys, key)) continue;
     try {
       const resp = await fetch(TAVILY_API, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Authorization": `Bearer ${key}`,
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({
-          api_key: key,
           query,
           search_depth: "advanced",
           include_answer: true,
@@ -1169,12 +1352,22 @@ export async function researchWithTavily(
       });
 
       if (resp.status === 429) {
-        _exhaustedTavilyKeys.set(key, Date.now() + EXHAUSTED_TTL_MS);
-        logger.warn("Phase 0 [tavily]: rate limit — key exhausted 5 min");
+        const cooldownMs = retryAfterMs(resp);
+        _exhaustedTavilyKeys.set(key, Date.now() + cooldownMs);
+        logger.warn({ cooldownMs }, "Phase 0 [tavily]: temporary rate limit — key cooling down");
         continue;
       }
-      if (resp.status === 401 || resp.status === 403) {
-        logger.warn({ status: resp.status }, "Phase 0 [tavily]: auth error — skipping key");
+      if (resp.status === 401 || resp.status === 403 || resp.status === 432) {
+        const errText = await resp.text().catch(() => "");
+        if (resp.status === 432) {
+          _quotaExhaustedTavilyKeys.set(key, Date.now() + PROVIDER_QUOTA_TTL_MS);
+        }
+        logger.warn(
+          { status: resp.status, quotaExhausted: resp.status === 432, err: errText.slice(0, 200) },
+          resp.status === 432
+            ? "Phase 0 [tavily]: account quota exhausted; suppressing this key until the next daily refresh"
+            : "Phase 0 [tavily]: provider rejected request; key remains configured",
+        );
         continue;
       }
       if (!resp.ok) {
@@ -1191,7 +1384,7 @@ export async function researchWithTavily(
       const citations: string[] = (data.results ?? [])
         .map(r => r.url)
         .filter((u): u is string => typeof u === "string" && /^https?:\/\//i.test(u))
-        .slice(0, 8);
+        .slice(0, 12);
 
       // Combine Tavily's synthesised answer + top per-source excerpts
       const textParts: string[] = [];
@@ -1226,7 +1419,7 @@ export async function researchWithTavily(
         ...extracted,
         source: "tavily",
         citations,
-        ownershipSources: citations.slice(0, 8),
+        ownershipSources: citations.slice(0, 12),
         ownerResolutions: bindResolutionsToCitations(extracted, citations),
       };
     } catch (err: any) {
@@ -1242,7 +1435,7 @@ export async function researchWithTavily(
  * Fire an Exa neural/semantic search then extract structured contacts via Groq.
  * Exa's neural index excels at people + company lookups — different retrieval
  * model from both Perplexity (sonar) and Tavily (BM25-hybrid).
- * Returns clean per-source excerpts fed into Groq (llama-3.3-70b).
+ * Returns clean per-source excerpts fed into Groq (gpt-oss-120b).
  * Key rotation supports EXA_API_KEY through EXA_API_KEY_8.
  * Returns source: "exa" with Exa result URLs as citations.
  */
@@ -1250,24 +1443,17 @@ export async function researchWithExa(
   entityName: string,
   entityType: string,
   country: string | null = null,
-  context: { tradingName?: string | null; city?: string | null; reachability?: ReachabilityDirective } = {},
+  context: AIResearchContext = {},
 ): Promise<AIExtractResult> {
   const keys = getExaKeys();
   if (keys.length === 0) return EMPTY;
 
-  // Build a targeted OSINT search query — Exa's autoprompt will further refine it
-  const queryParts: string[] = [entityName];
-  if (context.tradingName && context.tradingName !== entityName) queryParts.push(context.tradingName);
-  if (context.city) queryParts.push(context.city);
-  if (country) queryParts.push(country);
-  queryParts.push(context.reachability?.mode === "research_only"
-    ? "identity control authorized intermediary route no viable route"
-    : "owner contact email authorized intermediary");
-  const query = queryParts.join(" ");
+  // Build a targeted OSINT search query — Exa's autoprompt will further refine it.
+  const query = buildProviderSearchQuery(entityName, entityType, country, context);
 
-  logger.info({ entityName, entityType, country, query }, "Phase 0 [exa]: firing Exa neural search");
+  logger.info({ entityName, entityType, country, lane: context.lane ?? "semantic_discovery", query }, "Phase 0 [exa]: firing Exa neural search");
 
-  for (const key of roundRobinKeys(keys, "exa")) {
+  for (const key of keys) {
     if (isExhausted(_exhaustedExaKeys, key)) continue;
     try {
       const resp = await fetch(EXA_API, {
@@ -1308,11 +1494,11 @@ export async function researchWithExa(
       const citations: string[] = (data.results ?? [])
         .map(r => r.url)
         .filter((u): u is string => typeof u === "string" && /^https?:\/\//i.test(u))
-        .slice(0, 8);
+        .slice(0, 12);
 
       // Concatenate per-source excerpts — Exa returns page text, not a synthesised answer
       const textParts: string[] = [];
-      for (const r of (data.results ?? []).slice(0, 7)) {
+      for (const r of (data.results ?? []).slice(0, 10)) {
         if (r.text) textParts.push(`[${r.title ?? r.url}]\n${r.text}`);
       }
       const text = textParts.join("\n\n");
@@ -1341,7 +1527,7 @@ export async function researchWithExa(
         ...extracted,
         source: "exa",
         citations,
-        ownershipSources: citations.slice(0, 8),
+        ownershipSources: citations.slice(0, 12),
         ownerResolutions: bindResolutionsToCitations(extracted, citations),
       };
     } catch (err: any) {
@@ -1357,8 +1543,8 @@ export async function researchWithExa(
  * Main extraction entry point.
  *
  * Strategy (in order):
- *   1. Each Groq key (GROQ_API_KEY, _2, _3) — tries llama-3.3-70b first, then llama-3.1-8b-instant
- *   2. Each OpenRouter key (OPENROUTER_API_KEY, _2) — llama-3.3-70b-instruct
+ *   1. Each Groq key (GROQ_API_KEY, _2, _3) — tries gpt-oss-120b first, then llama-3.1-8b-instant
+ *   2. Each OpenRouter key (OPENROUTER_API_KEY, _2) — gpt-oss-120b-instruct
  *
  * A key that returns 429 is marked exhausted for 5 minutes, then auto-recovers.
  * Falls back silently to EMPTY if all providers are exhausted or unavailable.
@@ -1375,9 +1561,7 @@ export async function extractWithAI(
 
   try {
     // ── 1. Try all Groq keys ────────────────────────────────────────────────
-    // Start at a rotating slot so parallel extraction calls do not all spend
-    // their first attempt against GROQ_API_KEY.
-    for (const key of roundRobinKeys(getGroqKeys(), "groq")) {
+    for (const key of getGroqKeys()) {
       if (isExhausted(_exhaustedGroqKeys, key)) continue;
 
       // Primary model
@@ -1417,7 +1601,7 @@ export async function extractWithAI(
 
 export interface AIKeySlot {
   index:     number;
-  state:     "active" | "exhausted" | "missing";
+  state:     "active" | "rate_limited" | "missing";
   expiresAt: string | null;
 }
 
@@ -1431,7 +1615,11 @@ export interface AIKeyStatus {
 
 /**
  * Returns a per-slot snapshot of every AI provider key pool:
- * active, exhausted (with expiry timestamp), or missing (env var not set).
+ * active, temporary rate_limited (with expiry timestamp), or missing.
+ *
+ * "Active" means configured and not in a temporary 429 cooldown. It does not
+ * claim that the provider account has remaining credits; account-level usage
+ * errors must never be converted into per-key exhaustion.
  */
 export function getAIKeyStatus(): AIKeyStatus {
   const now = Date.now();
@@ -1440,11 +1628,14 @@ export function getAIKeyStatus(): AIKeyStatus {
     envName:   string,
     exhausted: Map<string, number>,
     index:     number,
+    quotaExhausted?: Map<string, number>,
   ): AIKeySlot {
     const val = process.env[envName];
     if (!val) return { index, state: "missing", expiresAt: null };
+    const quotaExp = quotaExhausted?.get(val);
+    if (quotaExp && quotaExp > now) return { index, state: "rate_limited", expiresAt: new Date(quotaExp).toISOString() };
     const exp = exhausted.get(val);
-    if (exp && exp > now) return { index, state: "exhausted", expiresAt: new Date(exp).toISOString() };
+    if (exp && exp > now) return { index, state: "rate_limited", expiresAt: new Date(exp).toISOString() };
     return { index, state: "active", expiresAt: null };
   }
 
@@ -1457,8 +1648,8 @@ export function getAIKeyStatus(): AIKeyStatus {
   return {
     groq:       groqNames.map((n, i) => slotState(n, _exhaustedGroqKeys,             i)),
     perplexity: pplxNames.map((n, i) => slotState(n, _exhaustedPerplexityDirectKeys, i)),
-    gemini:     gemNames .map((n, i) => slotState(n, _exhaustedGeminiKeys,           i)),
-    tavily:     tavNames .map((n, i) => slotState(n, _exhaustedTavilyKeys,           i)),
+    gemini:     gemNames .map((n, i) => slotState(n, new Map(),                            i)),
+    tavily:     tavNames .map((n, i) => slotState(n, _exhaustedTavilyKeys,           i, _quotaExhaustedTavilyKeys)),
     exa:        exaNames .map((n, i) => slotState(n, _exhaustedExaKeys,              i)),
   };
 }

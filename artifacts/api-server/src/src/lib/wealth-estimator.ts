@@ -9,7 +9,7 @@
  *
  * Strategy:
  *   1. Build a rich context block from all entity fields + assets + notes
- *   2. Send to Groq (llama-3.3-70b) with a hard-mandate prompt
+ *   2. Send to Groq (gpt-oss-120b) with a hard-mandate prompt
  *   3. Fallback to Gemini if Groq fails / rate-limited
  *   4. Parse a JSON { pointEstimate, low, high, confidence, reasoning } response
  *   5. Write estimatedNetWorth = pointEstimate to DB; skip if already set
@@ -193,7 +193,7 @@ async function callGroq(prompt: string): Promise<WealthEstimate[]> {
     method: "POST",
     headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
     body: JSON.stringify({
-      model: "llama-3.3-70b-versatile",
+      model: "openai/gpt-oss-120b",
       messages: [{ role: "user", content: prompt }],
       temperature: 0.1,
       max_tokens: 4096,

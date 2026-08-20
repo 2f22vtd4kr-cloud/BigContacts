@@ -12,7 +12,7 @@
  *   - Exa                 — neural/semantic retrieval; strong for people & company lookups
  *
  *   TEXT EXTRACTION (reads accumulated scraped text from all other phases):
- *   - Groq llama-3.3-70b  — free, 6 000 req/day, 32k context; pulls out anything regex missed:
+ *   - Groq GPT-OSS-120B  — free, 6 000 req/day, 32k context; pulls out anything regex missed:
  *       emails in obfuscated form, phone numbers, social handles, owner names in any language
  *
  * Every source falls back silently if its key is unset or quota is hit.
@@ -27,6 +27,7 @@ import {
 import { formatReachabilityDirective, type ReachabilityDirective } from "./reachability-realism";
 import { canonicalizeUrl } from "./evidence-ledger";
 import {
+import { GROQ_DEFAULT_MODEL as GROQ_MODEL, GROQ_CHAT_MODELS } from "./groq-models";
   adjudicateFinalTargetReview,
   buildFinalTargetReviewPrompt,
   type FinalTargetReviewInput,
@@ -34,11 +35,10 @@ import {
 } from "./final-target-review";
 
 const GROQ_API        = "https://api.groq.com/openai/v1/chat/completions";
-const GROQ_MODEL      = "llama-3.3-70b-versatile";
-const GROQ_MODEL_FAST = "llama-3.1-8b-instant";
+const GROQ_MODEL_FAST = "openai/gpt-oss-20b";
 
 const OPENROUTER_API       = "https://openrouter.ai/api/v1/chat/completions";
-const OPENROUTER_MODEL     = "meta-llama/llama-3.3-70b-instruct"; // fast + free-tier friendly
+const OPENROUTER_MODEL     = "openai/gpt-oss-120b"; // align with Groq-hosted replacement
 const PERPLEXITY_MODEL     = "perplexity/sonar-pro";               // via OpenRouter: live web-search (fallback only)
 const PERPLEXITY_FALLBACK  = "perplexity/sonar";                   // via OpenRouter: cheaper fallback
 
@@ -1314,7 +1314,7 @@ export async function researchWithPerplexity(
 /**
  * Fire a Tavily AI-native search then extract structured contacts via Groq.
  * Tavily returns clean, LLM-ready excerpts from up to 7 live web sources.
- * Those excerpts are fed into Groq (llama-3.3-70b) using the same ownership/
+ * Those excerpts are fed into Groq (gpt-oss-120b) using the same ownership/
  * contact extraction prompt as the rest of the pipeline.
  * Key rotation supports TAVILY_API_KEY through TAVILY_API_KEY_8.
  * Returns source: "tavily" with Tavily result URLs as citations.
@@ -1435,7 +1435,7 @@ export async function researchWithTavily(
  * Fire an Exa neural/semantic search then extract structured contacts via Groq.
  * Exa's neural index excels at people + company lookups — different retrieval
  * model from both Perplexity (sonar) and Tavily (BM25-hybrid).
- * Returns clean per-source excerpts fed into Groq (llama-3.3-70b).
+ * Returns clean per-source excerpts fed into Groq (gpt-oss-120b).
  * Key rotation supports EXA_API_KEY through EXA_API_KEY_8.
  * Returns source: "exa" with Exa result URLs as citations.
  */
@@ -1543,8 +1543,8 @@ export async function researchWithExa(
  * Main extraction entry point.
  *
  * Strategy (in order):
- *   1. Each Groq key (GROQ_API_KEY, _2, _3) — tries llama-3.3-70b first, then llama-3.1-8b-instant
- *   2. Each OpenRouter key (OPENROUTER_API_KEY, _2) — llama-3.3-70b-instruct
+ *   1. Each Groq key (GROQ_API_KEY, _2, _3) — tries gpt-oss-120b first, then llama-3.1-8b-instant
+ *   2. Each OpenRouter key (OPENROUTER_API_KEY, _2) — gpt-oss-120b-instruct
  *
  * A key that returns 429 is marked exhausted for 5 minutes, then auto-recovers.
  * Falls back silently to EMPTY if all providers are exhausted or unavailable.

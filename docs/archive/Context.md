@@ -1,6 +1,13 @@
 # Context — living handoff
 
 ## Session 2026-08-20 (bureau integrity + multi-LLM failover)
+
+### Groq model migration (2026-08-20)
+Groq decommissioned **Llama 3.3 70B Versatile** on **2026-08-16**. This key only serves:
+`openai/gpt-oss-120b`, `qwen/qwen3.6-27b`, `openai/gpt-oss-20b` (+ compound/whisper).
+Canonical list: `artifacts/api-server/src/src/lib/groq-models.ts`. All hard-coded
+`llama-3.3-70b-versatile` call sites migrated. Primary = GPT OSS 120B; fallbacks = Qwen3.6 27B, GPT OSS 20B.
+
 - **- **Serper** counts toward webSearchActive (agentic SERP primary). `/api/system/status` includes `lanesHonesty` + `bureauIntegrity`.
 Deterministic recovery:** if all agentic LLMs fail mid-loop, SERP+visit+proxy extract still run (no silent empty bureau).
 - **System status** page shows the same integrity panel as the global banner.

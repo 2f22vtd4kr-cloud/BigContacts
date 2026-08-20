@@ -21,6 +21,7 @@ import {
 } from "./wallet-seed";
 import { lookupDomainSurface, findingsFromDomainSurface } from "./domain-surface";
 import { setAgenticLlmHealth, getAgenticLlmHealth } from "./agentic-llm-health";
+import { GROQ_CHAT_MODELS } from "./groq-models";
 export { getAgenticLlmHealth };
 
 export type AgenticFinding = {
@@ -755,16 +756,7 @@ function parseAction(raw: string): AgentAction | null {
   return null;
 }
 
-/** Prefer strong chat models; fall through when a key's org does not host a given id. */
-const GROQ_CHAT_MODELS = [
-  process.env.GROQ_MODEL,
-  "llama-3.3-70b-versatile",
-  "llama-3.1-70b-versatile",
-  "llama-3.3-70b-specdec",
-  "openai/gpt-oss-120b",
-  "openai/gpt-oss-20b",
-  "llama-3.1-8b-instant",
-].filter((m): m is string => Boolean(m && m.trim()));
+/** GROQ_CHAT_MODELS from ./groq-models — post Llama 3.3 70B decommission (2026-08-16). */
 
 async function callGroqJson(prompt: string): Promise<{ model: string; raw: string } | null> {
   const keys = ["GROQ_API_KEY", ...Array.from({ length: 5 }, (_, i) => `GROQ_API_KEY_${i + 1}`)]
@@ -874,7 +866,7 @@ async function callNvidiaJson(prompt: string): Promise<{ model: string; raw: str
   const models = [
     process.env.NVIDIA_AGENTIC_MODEL,
     "meta/llama-3.1-70b-instruct",
-    "meta/llama-3.3-70b-instruct",
+    "meta/llama-3.1-70b-instruct",
     "mistralai/mistral-large-2-instruct",
   ].filter((m): m is string => Boolean(m && m.trim()));
   for (const model of models) {

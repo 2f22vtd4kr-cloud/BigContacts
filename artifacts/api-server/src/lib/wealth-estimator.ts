@@ -9,7 +9,7 @@
  *
  * Strategy:
  *   1. Build a rich context block from all entity fields + assets + notes
- *   2. Send to Groq (llama-3.3-70b) with a hard-mandate prompt
+ *   2. Send to Groq (gpt-oss-120b) with a hard-mandate prompt
  *   3. Fallback to Gemini if Groq fails / rate-limited
  *   4. Parse a JSON { pointEstimate, low, high, confidence, reasoning } response
  *   5. Write estimatedNetWorth = pointEstimate to DB; skip if already set
@@ -72,6 +72,20 @@ function buildContextBlock(e: EntityContext): string {
   if (e.nationality) lines.push(`NATIONALITY: ${e.nationality}`);
   if (e.knownResidences) lines.push(`KNOWN RESIDENCES: ${e.knownResidences}`);
   if (e.linkedinHeadline) lines.push(`LINKEDIN HEADLINE: ${e.linkedinHeadline}`);
+  // Public wallet mentions in notes/metadata are wealth evidence (not contact data)
+  const blob = `${e.notes || ""}\n${e.metadata || ""}`;
+  const wallets = blob.match(/\b(?:0x[a-fA-F0-9]{40}|bc1[a-zA-HJ-NP-Z0-9]{25,62})\b/g);
+  if (wallets?.length) {
+    lines.push(`PUBLIC WALLET MENTIONS (attribution-required; on-chain value is a wealth signal when holder is this person): ${[...new Set(wallets)].slice(0, 5).join(", ")}`);
+  }
+  // Formal probed balance (from wallet-seed.probeWalletBalance) when present in metadata
+  try {
+    const meta = e.metadata ? JSON.parse(e.metadata) as Record<string, unknown> : {};
+    const probed = meta.walletBalanceUsd ?? meta.walletUsdApprox ?? meta.probedWalletUsd;
+    if (typeof probed === "number" && probed > 0) {
+      lines.push(`PROBED PUBLIC WALLET USD (fail-closed Ethplorer/etc; only after holder attribution): ~$${Math.round(probed).toLocaleString()}`);
+    }
+  } catch { /* ignore */ }
 
   // Source registries are a strong signal for wealth tier
   if (e.sourceRegistries) {
@@ -179,7 +193,7 @@ async function callGroq(prompt: string): Promise<WealthEstimate[]> {
     method: "POST",
     headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
     body: JSON.stringify({
-      model: "llama-3.3-70b-versatile",
+      model: "openai/gpt-oss-120b",
       messages: [{ role: "user", content: prompt }],
       temperature: 0.1,
       max_tokens: 4096,
@@ -209,9 +223,7 @@ async function callGemini(prompt: string): Promise<WealthEstimate[]> {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
-        // Keep wealth backfill on the lower-credit Flash-Lite path and avoid
-        // spending tokens on unnecessarily long reasoning responses.
-        generationConfig: { temperature: 0.1, maxOutputTokens: 2048 },
+        generationConfig: { temperature: 0.1, maxOutputTokens: 4096 },
       }),
       signal: AbortSignal.timeout(45_000),
     }

@@ -1,4 +1,5 @@
 import type { Entity } from "@workspace/db";
+import { GROQ_DEFAULT_MODEL, GROQ_CHAT_MODELS } from "./groq-models";
 import { logger } from "./logger";
 import { buildApexAtlasBossPlanPrompt } from "./case-bureau-prompt";
 import { extractWalletSeedsFromText, buildWalletSeedPlan, formatWalletSeedPlanForPrompt, objectiveLooksWalletFirst } from "./wallet-seed";
@@ -512,38 +513,40 @@ async function generateGroqBossText(prompt: string): Promise<GeminiTextGeneratio
   }
   let lastError = "Groq Boss fallback returned no text.";
   for (const key of keys) {
-    try {
-      const resp = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "llama-3.3-70b-versatile",
-          temperature: 0.2,
-          max_tokens: 4096,
-          response_format: { type: "json_object" },
-          messages: [
-            {
-              role: "system",
-              content:
-                "You are the Boss Investigator for a public-web research bureau. Reply with ONE JSON object only. Never invent contacts, people, or URLs.",
-            },
-            { role: "user", content: prompt },
-          ],
-        }),
-        signal: AbortSignal.timeout(45_000),
-      });
-      if (!resp.ok) {
-        lastError = `Groq Boss HTTP ${resp.status}`;
-        continue;
+    for (const model of GROQ_CHAT_MODELS) {
+      try {
+        const resp = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model,
+            temperature: 0.2,
+            max_tokens: 4096,
+            response_format: { type: "json_object" },
+            messages: [
+              {
+                role: "system",
+                content:
+                  "You are the Boss Investigator for a public-web research bureau. Reply with ONE JSON object only. Never invent contacts, people, or URLs.",
+              },
+              { role: "user", content: prompt },
+            ],
+          }),
+          signal: AbortSignal.timeout(45_000),
+        });
+        if (!resp.ok) {
+          lastError = `Groq Boss ${model} HTTP ${resp.status}`;
+          continue;
+        }
+        const data = (await resp.json()) as { choices?: Array<{ message?: { content?: string } }> };
+        const raw = data.choices?.[0]?.message?.content?.trim() ?? "";
+        if (raw) return { model, raw, error: null };
+      } catch (err: any) {
+        lastError = err?.message ?? "Groq Boss fallback failed.";
       }
-      const data = (await resp.json()) as { choices?: Array<{ message?: { content?: string } }> };
-      const raw = data.choices?.[0]?.message?.content?.trim() ?? "";
-      if (raw) return { model: "llama-3.3-70b-versatile", raw, error: null };
-    } catch (err: any) {
-      lastError = err?.message ?? "Groq Boss fallback failed.";
     }
   }
-  return { model: "llama-3.3-70b-versatile", raw: null, error: lastError };
+  return { model: GROQ_DEFAULT_MODEL, raw: null, error: lastError };
 }
 
 export async function getGeminiBossStatus(): Promise<GeminiBossStatus> {

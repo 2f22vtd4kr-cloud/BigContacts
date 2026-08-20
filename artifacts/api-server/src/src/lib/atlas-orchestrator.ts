@@ -1242,7 +1242,7 @@ Only include assets with a SPECIFIC identifier. If nothing concrete is mentioned
             method: "POST",
             headers: { "Content-Type": "application/json", "Authorization": `Bearer ${groqKey}` },
             body: JSON.stringify({
-              model: "llama-3.3-70b-versatile",
+              model: "openai/gpt-oss-120b",
               messages: [{ role: "user", content: prompt }],
               temperature: 0, max_tokens: 1024,
             }),

@@ -28,7 +28,7 @@ function getGroqKeysLive(): string[] {
  * Filter a batch of candidate name strings down to those that are genuine
  * human person full names. Returns the subset that passes LLM validation.
  *
- * Uses llama-3.1-8b-instant (fast + cheap) — we only need binary yes/no.
+ * Uses openai/gpt-oss-20b (fast + cheap) — we only need binary yes/no.
  * Batches up to 60 names per call to minimise API round trips.
  * Fail-closed for *broad web discovery*: no Groq → no candidates from search noise.
  * Registry officer/director admission uses a deterministic fallback (see western-hnwi).
@@ -232,7 +232,7 @@ async function requestIndexGate(
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "llama-3.3-70b-versatile",
+        model: "openai/gpt-oss-120b",
         messages: [{ role: "user", content: prompt }],
         temperature: 0,
         max_tokens: 512,

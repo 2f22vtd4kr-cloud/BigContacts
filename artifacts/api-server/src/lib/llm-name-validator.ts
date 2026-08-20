@@ -1,8 +1,8 @@
 /**
  * LLM-Backed Name Validator
  *
- * Replaces brittle hand-written regex rules with a Groq LLaMA call that
- * answers a single question: "Is this a human person's full name?"
+ * Provides Groq LLaMA admission gates for broad discovery and name-only
+ * ingestion. Discovery uses the source context as well as the candidate name.
  *
  * Usage pattern:
  *   1. Regex pre-filter (fast, removes obvious corporate/fund names)
@@ -10,43 +10,121 @@
  *      "Reducing Marginal", "Please Appoint A", abstract concept pairs)
  *
  * The LLM call is fail-closed for broad discovery: if Groq is unavailable or
- * returns malformed output, only candidates that pass the deterministic safety
- * gate are retained. A provider outage must never turn search noise into HNWI
- * records.
+ * returns malformed output, no candidates are retained. A provider outage
+ * must never turn search noise into HNWI records.
  */
 
 import { logger } from "./logger";
 
 const _groqKeyNames = ["GROQ_API_KEY"];
 for (let i = 1; i <= 10; i++) _groqKeyNames.push(`GROQ_API_KEY_${i}`);
-const GROQ_KEYS = _groqKeyNames.map(k => process.env[k]).filter(Boolean) as string[];
+
+/** Read Groq keys at call time so a restarted process with secrets works. */
+function getGroqKeysLive(): string[] {
+  return _groqKeyNames.map((k) => process.env[k] ?? "").filter((k) => k.length > 0);
+}
 
 /**
  * Filter a batch of candidate name strings down to those that are genuine
  * human person full names. Returns the subset that passes LLM validation.
  *
- * Uses llama-3.1-8b-instant (fast + cheap) — we only need binary yes/no.
+ * Uses openai/gpt-oss-20b (fast + cheap) — we only need binary yes/no.
  * Batches up to 60 names per call to minimise API round trips.
- * Fail-open: returns all candidates on any error.
+ * Fail-closed for *broad web discovery*: no Groq → no candidates from search noise.
+ * Registry officer/director admission uses a deterministic fallback (see western-hnwi).
  */
 export async function filterHumanNamesWithLLM(candidates: string[]): Promise<string[]> {
   if (candidates.length === 0) return [];
   const safeCandidates = candidates.filter(isDeterministicallySafeHumanName);
-  if (GROQ_KEYS.length === 0) {
-    logger.debug("llm-name-validator: no GROQ keys — deterministic safety gate only");
-    return safeCandidates;
+  const groqKeys = getGroqKeysLive();
+  if (groqKeys.length === 0) {
+    const det = safeCandidates;
+    logger.warn({ kept: det.length }, "llm-name-validator: no GROQ keys — deterministic human-name fallback");
+    return det;
   }
 
   const results: string[] = [];
   const BATCH = 60;
 
-  for (let i = 0; i < candidates.length; i += BATCH) {
+  for (let i = 0; i < safeCandidates.length; i += BATCH) {
     const batch = safeCandidates.slice(i, i + BATCH);
     const valid = await _validateBatch(batch);
     results.push(...valid);
   }
 
   return results;
+}
+
+export interface DiscoveryCandidateForLLM {
+  name: string;
+  snippet: string;
+  query: string;
+}
+
+/**
+ * Validate a discovery candidate against the evidence that produced it.
+ *
+ * This is intentionally separate from filterHumanNamesWithLLM: a plausible
+ * full name is not enough for HNWI admission. The model must see the source
+ * context and confirm that the exact person is attributed to a qualifying
+ * ownership, wealth, principal, founder, investor, or equivalent claim.
+ */
+export async function validateDiscoveryCandidatesWithLLM(
+  candidates: DiscoveryCandidateForLLM[],
+): Promise<string[]> {
+  const safe = candidates.filter(candidate =>
+    isDeterministicallySafeHumanName(candidate.name),
+  );
+  if (safe.length === 0) return [];
+  if (getGroqKeysLive().length === 0) {
+    const det = safe.filter(c => isDeterministicallySafeHumanName(c.name)).map(c => c.name);
+    logger.warn({ kept: det.length }, "llm-discovery-validator: no GROQ keys — deterministic fallback");
+    return det;
+  }
+
+  const accepted: string[] = [];
+  const BATCH = 20;
+  for (let i = 0; i < safe.length; i += BATCH) {
+    const batch = safe.slice(i, i + BATCH);
+    const prompt = `You are the final admission gate for a private-wealth OSINT database.
+
+Return only the 1-based indices of candidates that pass ALL requirements:
+1. The exact candidate name is a real, currently living human individual.
+2. The source context explicitly attributes the qualifying claim to that exact person,
+   not merely to a nearby company, venue, family, article author, employee, or other person.
+3. The claim is a genuine ownership, beneficial ownership, founder, principal, investor,
+   major shareholder, property/yacht/aircraft ownership, family-office, wealth, or
+   equivalent principal claim.
+4. The source context is not a recipe, editorial page, navigation/UI fragment, job listing,
+   staff directory, service page, fictional/cultural reference, or generic organization text.
+5. The query geography and source context are consistent enough to identify a real target;
+   do not infer geography or wealth from the query alone.
+
+Reject obvious false names such as role fragments ("Rocco Forte Deputy"), recipe/editorial
+phrases ("Creamy Cucumber", "Tomato Salad"), venues, companies, titles, and names whose
+only evidence is that someone else owns a business. When uncertain, reject. This is an
+admission gate, not a lead generator.
+
+Candidates:
+${batch.map((candidate, index) => [
+  `${index + 1}. NAME: "${candidate.name}"`,
+  `QUERY: "${candidate.query}"`,
+  `SOURCE CONTEXT: "${candidate.snippet.slice(0, 1800)}"`,
+].join("\n")).join("\n\n")}
+
+Respond ONLY with a compact JSON array of passing 1-based indices.`;
+
+    const validIndices = await requestIndexGate(prompt, batch.length, "discovery");
+    if (validIndices == null) {
+      // Provider failure: keep only deterministically safe names (still no invention)
+      const det = batch.filter(c => isDeterministicallySafeHumanName(c.name)).map(c => c.name);
+      logger.warn({ kept: det.length, total: batch.length }, "discovery-validator: Groq provider failure — deterministic fallback");
+      accepted.push(...det);
+    } else {
+      accepted.push(...validIndices.map(index => batch[index - 1]!.name));
+    }
+  }
+  return accepted;
 }
 
 const NON_PERSON_WORDS = new Set([
@@ -59,9 +137,15 @@ const NON_PERSON_WORDS = new Set([
   "investor", "investors", "beneficial", "joint", "venture", "decree",
   "board", "committee", "city", "county", "lake", "river", "valley",
   "park", "place", "house", "estate", "view", "profile", "contact",
+  "recipe", "recipes", "salad", "cucumber", "tomato", "kitchen",
+  "month", "january", "february", "march", "april", "may", "june",
+  "july", "august", "september", "october", "november", "december",
+  "advisor", "associate", "chairman", "chief", "deputy", "director",
+  "executive", "founder", "general", "manager", "officer", "operator",
+  "owner", "partner", "president", "principal", "trustee", "vice",
 ]);
 
-function isDeterministicallySafeHumanName(value: string): boolean {
+export function isDeterministicallySafeHumanName(value: string): boolean {
   const name = value.trim().replace(/\s+/g, " ");
   if (name.length < 5 || name.length > 80 || /[\d\n\r\t]/.test(name)) return false;
   const words = name.split(" ");
@@ -75,7 +159,9 @@ function isDeterministicallySafeHumanName(value: string): boolean {
 }
 
 async function _validateBatch(names: string[]): Promise<string[]> {
-  const key = GROQ_KEYS[Math.floor(Math.random() * GROQ_KEYS.length)];
+  const _keys = getGroqKeysLive();
+  if (_keys.length === 0) return [];
+  const key = _keys[Math.floor(Math.random() * _keys.length)];
 
   const prompt = `You are a quality gate for a private-wealth OSINT database. Your job: decide whether each name is a REAL, CURRENTLY LIVING private individual who could plausibly be a high-net-worth research target.
 
@@ -109,7 +195,36 @@ Respond ONLY with a compact JSON array of the 1-based indices of names that pass
 If ALL pass, respond with all indices. If ALL fail, respond with [].
 Output nothing else.`;
 
-  try {
+  const validIndices = await requestIndexGate(prompt, names.length, "name");
+  // null ⇒ provider failure: deterministic human-name gate only (registry-safe fallback)
+  if (validIndices == null) {
+    const det = names.filter(isDeterministicallySafeHumanName);
+    logger.warn({ kept: det.length, total: names.length }, "llm-name-validator: Groq provider failure — deterministic fallback");
+    return det;
+  }
+  const accepted = validIndices
+    .map(i => names[i - 1])
+    .filter(Boolean);
+
+  const rejected = names.filter(n => !accepted.includes(n));
+  if (rejected.length > 0) {
+    logger.info({ rejected }, "llm-name-validator: rejected non-human names");
+  }
+
+  return accepted;
+}
+
+async function requestIndexGate(
+  prompt: string,
+  candidateCount: number,
+  gateName: string,
+): Promise<number[]> {
+  const keys = getGroqKeysLive();
+  if (keys.length === 0) return null as unknown as number[];
+  const start = Math.floor(Math.random() * keys.length);
+  for (let attempt = 0; attempt < keys.length; attempt++) {
+    const key = keys[(start + attempt) % keys.length]!;
+    try {
     const resp = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -117,42 +232,42 @@ Output nothing else.`;
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "llama-3.3-70b-versatile",
+        model: "openai/gpt-oss-120b",
         messages: [{ role: "user", content: prompt }],
         temperature: 0,
-        max_tokens: 256,
+        max_tokens: 512,
       }),
       signal: AbortSignal.timeout(20_000),
     });
 
     if (!resp.ok) {
-      logger.debug({ status: resp.status }, "llm-name-validator: Groq non-OK — deterministic gate only");
-      return names.filter(isDeterministicallySafeHumanName);
+      if (resp.status === 429 || resp.status === 401 || resp.status === 403) {
+        logger.warn({ status: resp.status, gateName, attempt: attempt + 1 }, "llm validator: Groq key unavailable — trying next key");
+        continue;
+      }
+      logger.warn({ status: resp.status, gateName }, "llm validator: Groq non-OK — rejecting candidates fail-closed");
+      return [];
     }
-
     const data = await resp.json() as { choices?: Array<{ message?: { content?: string } }> };
     const text = (data.choices?.[0]?.message?.content ?? "").trim();
-
     const match = text.match(/\[[\d,\s]*\]/);
     if (!match) {
-      logger.debug({ text }, "llm-name-validator: no JSON array in response — deterministic gate only");
-      return names.filter(isDeterministicallySafeHumanName);
+      logger.warn({ gateName }, "llm validator: no JSON array — rejecting candidates fail-closed");
+      return [];
     }
-
-    const validIndices: number[] = JSON.parse(match[0]);
-    const accepted = validIndices
-      .filter(i => i >= 1 && i <= names.length)
-      .map(i => names[i - 1])
-      .filter(Boolean);
-
-    const rejected = names.filter(n => !accepted.includes(n));
-    if (rejected.length > 0) {
-      logger.info({ rejected }, "llm-name-validator: rejected non-human names");
+    const parsed: unknown = JSON.parse(match[0]);
+    if (!Array.isArray(parsed) || !parsed.every(index => Number.isInteger(index))) {
+      logger.warn({ gateName }, "llm validator: malformed index array — rejecting candidates fail-closed");
+      return [];
     }
-
-    return accepted;
-  } catch (err: any) {
-    logger.debug({ err: err?.message }, "llm-name-validator: error — deterministic gate only");
-    return names.filter(isDeterministicallySafeHumanName);
+    return (parsed as number[]).filter(index => index >= 1 && index <= candidateCount);
+    } catch (err: any) {
+      logger.warn({ err: err?.message, gateName, attempt: attempt + 1 }, "llm validator: request failed — trying next key");
+      if (attempt === keys.length - 1) {
+        return null as unknown as number[];
+      }
+    }
   }
+  logger.warn({ gateName }, "llm validator: all Groq keys unavailable — provider failure (not content reject)");
+  return null as unknown as number[]; // signal provider failure to callers
 }
