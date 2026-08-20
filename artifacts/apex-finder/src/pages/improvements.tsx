@@ -74,7 +74,7 @@ const PERSONA_META: Record<PersonaId, { label: string; Icon: React.FC<any>; colo
   hybrid_architecture_auditor: { label: "Hybrid Architecture Auditor", Icon: GitBranch,   color: "#F97316", bg: "rgba(249,115,22,0.1)"   },
   user_operator:               { label: "User / Principal Operator",   Icon: User,         color: "#F43F5E", bg: "rgba(244,63,94,0.1)"    },
   development_team:            { label: "Development Team",            Icon: Code2,        color: "#14B8A6", bg: "rgba(20,184,166,0.1)"   },
-  osint_specialists_team:      { label: "OSINT Specialists Team",      Icon: SearchCheck,  color: "#EAB308", bg: "rgba(234,179,8,0.1)"    },
+  osint_specialists_team:      { label: "OSINT Specialists Team",      Icon: SearchCheck,  color: "#EAB308", bg: "rgba(232,93,26,0.1)"    },
 };
 
 const ALL_PERSONAS = Object.keys(PERSONA_META) as PersonaId[];
@@ -152,7 +152,7 @@ function PersonaCard({ personaId, stats, activeFilter, onClick }: {
         "group relative flex flex-col gap-2.5 overflow-hidden rounded-2xl border p-4 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] transition-all",
         isActive
           ? "ring-1 ring-current"
-          : "border-border/70 bg-card/30 hover:border-yellow-400/25 hover:bg-card/50"
+          : "border-border/70 bg-card/30 hover:border-orange-400/25 hover:bg-card/50"
       )}
       style={isActive ? { borderColor: meta.color, background: meta.bg } : undefined}
     >
@@ -169,10 +169,10 @@ function PersonaCard({ personaId, stats, activeFilter, onClick }: {
         <span className="font-display text-2xl font-bold tracking-tight" style={{ color: meta.color }}>{total}</span>
         <div className="flex flex-col items-end gap-0.5 pb-0.5">
           {pending > 0 && (
-            <span className="font-mono text-[10px] text-[#fde047]/90">{pending} pending</span>
+            <span className="font-mono text-[10px] text-[#fdba74]/90">{pending} pending</span>
           )}
           {applied > 0 && (
-            <span className="font-mono text-[10px] text-[#facc15]/90">{applied} applied</span>
+            <span className="font-mono text-[10px] text-[#f97316]/90">{applied} applied</span>
           )}
           {pending === 0 && applied === 0 && (
             <span className="font-mono text-[10px] text-muted-foreground/60">idle</span>
@@ -196,9 +196,9 @@ function PriorityBadge({ priority }: { priority: Priority }) {
 }
 
 function StatusBadge({ status }: { status: LogStatus }) {
-  if (status === "applied")   return <span className="text-[10px] font-mono text-[#facc15] flex items-center gap-1"><CheckCircle2 className="h-3 w-3" />Applied</span>;
+  if (status === "applied")   return <span className="text-[10px] font-mono text-[#f97316] flex items-center gap-1"><CheckCircle2 className="h-3 w-3" />Applied</span>;
   if (status === "dismissed") return <span className="text-[10px] font-mono text-muted-foreground flex items-center gap-1"><XCircle className="h-3 w-3" />Dismissed</span>;
-  return <span className="text-[10px] font-mono text-[#eab308] flex items-center gap-1"><Clock className="h-3 w-3" />Pending</span>;
+  return <span className="text-[10px] font-mono text-[#e85d1a] flex items-center gap-1"><Clock className="h-3 w-3" />Pending</span>;
 }
 
 function LogCard({ log, onStatusChange }: {
@@ -250,7 +250,7 @@ function LogCard({ log, onStatusChange }: {
             <>
               <button
                 onClick={e => { e.stopPropagation(); onStatusChange(log.id, "applied"); }}
-                className="text-[#eab308] hover:text-[#facc15] transition-colors p-1"
+                className="text-[#e85d1a] hover:text-[#f97316] transition-colors p-1"
                 title="Mark applied"
               >
                 <CheckCircle2 className="h-4 w-4" />
@@ -299,7 +299,7 @@ function JobProgressBar({ job }: { job: JobState }) {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           {isRunning && <RefreshCw className="h-4 w-4 text-primary animate-spin" />}
-          {isDone    && <CheckCircle2 className="h-4 w-4 text-[#eab308]" />}
+          {isDone    && <CheckCircle2 className="h-4 w-4 text-[#e85d1a]" />}
           {isFailed  && <AlertTriangle className="h-4 w-4 text-red-500" />}
           <span className="text-sm font-medium">
             {isRunning ? "Running persona loop…" : isDone ? "Loop complete" : "Loop failed"}
@@ -311,7 +311,7 @@ function JobProgressBar({ job }: { job: JobState }) {
       <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
         <div
           className={cn("h-full rounded-full transition-all duration-500",
-            isDone ? "bg-[#eab308]" : isFailed ? "bg-red-500" : "bg-primary")}
+            isDone ? "bg-[#e85d1a]" : isFailed ? "bg-red-500" : "bg-primary")}
           style={{ width: `${job.progress}%` }}
         />
       </div>
@@ -319,7 +319,7 @@ function JobProgressBar({ job }: { job: JobState }) {
       <p className="text-xs text-muted-foreground font-mono">{job.message}</p>
 
       {isDone && (
-        <p className="text-xs text-[#facc15] font-mono">
+        <p className="text-xs text-[#f97316] font-mono">
           <><CheckCircle2 className="mr-1 inline-block h-3 w-3" />{job.inserted} suggestions generated</>
           {job.errors > 0 && ` · ${job.errors} errors`}
         </p>
@@ -567,7 +567,7 @@ export default function ImprovementsPage() {
               "flex min-h-[40px] items-center gap-2 px-3.5 py-2 text-xs font-semibold font-mono rounded-xl transition-colors border",
               remediationState === "starting" || remediationState === "running"
                 ? "border-border text-muted-foreground cursor-not-allowed"
-                : "border-[#eab308]/40 text-[#facc15] hover:bg-[#eab308]/10"
+                : "border-[#e85d1a]/40 text-[#f97316] hover:bg-[#e85d1a]/10"
             )}
             title="Apply only deterministic state fixes supported by stored evidence"
           >
@@ -583,7 +583,7 @@ export default function ImprovementsPage() {
               "flex min-h-[40px] items-center gap-2 px-3.5 py-2 text-xs font-semibold font-mono rounded-xl transition-colors border",
               cleanupState === "starting" || cleanupState === "running"
                 ? "border-border text-muted-foreground cursor-not-allowed"
-                : "border-[#eab308]/40 text-[#eab308] hover:bg-[#eab308]/10"
+                : "border-[#e85d1a]/40 text-[#e85d1a] hover:bg-[#e85d1a]/10"
             )}
             title="Dismiss repeated findings while retaining the newest copy"
           >
@@ -614,18 +614,18 @@ export default function ImprovementsPage() {
             className={cn(
               "flex flex-col gap-2 rounded-2xl border px-4 py-3.5 text-xs sm:flex-row sm:items-start",
               /mock mode/i.test(error)
-                ? "border-yellow-400/25 bg-yellow-500/[0.06] text-yellow-100"
+                ? "border-orange-400/25 bg-orange-500/[0.06] text-orange-100"
                 : "border-red-800/30 bg-red-950/20 text-red-300"
             )}
             role="alert"
             data-testid="alert-persona-api"
           >
-            <AlertTriangle className={cn("h-4 w-4 flex-shrink-0", /mock mode/i.test(error) ? "text-yellow-300" : "text-red-400")} aria-hidden />
+            <AlertTriangle className={cn("h-4 w-4 flex-shrink-0", /mock mode/i.test(error) ? "text-orange-300" : "text-red-400")} aria-hidden />
             <div className="min-w-0 space-y-1">
-              <div className={cn("font-semibold", /mock mode/i.test(error) ? "text-yellow-50" : "text-red-200")}>
+              <div className={cn("font-semibold", /mock mode/i.test(error) ? "text-orange-50" : "text-red-200")}>
                 {/mock mode/i.test(error) ? "Demo mode — persona loop runs on api-server" : "Persona review needs the research API"}
               </div>
-              <p className={cn("leading-relaxed", /mock mode/i.test(error) ? "text-yellow-100/80" : "text-red-300/90")}>{error}</p>
+              <p className={cn("leading-relaxed", /mock mode/i.test(error) ? "text-orange-100/80" : "text-red-300/90")}>{error}</p>
               {apiOffline && (
                 <p className="leading-relaxed text-red-300/70">
                   In production, <span className="font-mono">api-server</span> runs deterministic personas, writes improvement logs, and applies safe fixes via the job queue. The static UI only triggers and displays that work — it does not run LLMs in the browser.

@@ -23,9 +23,9 @@ export const REACTOR_CSS = `
   --reactor-pause: ${REACTOR_PAUSE_MS}ms;
   --reactor-shimmer: ${REACTOR_SHIMMER_MS}ms;
   --reactor-ease: ${REACTOR_EASE};
-  --reactor-yellow: #eab308;
-  --reactor-amber: #facc15;
-  --reactor-gold: #fde047;
+  --reactor-yellow: #e85d1a;
+  --reactor-amber: #f97316;
+  --reactor-gold: #fdba74;
   --reactor-canvas: #050505;
   --reactor-desk: #0a0a0a;
   --reactor-border: #2e2e2e;
@@ -50,8 +50,8 @@ input:focus-visible,
   color: #fef9c3;
   box-shadow: 0 0 32px rgba(240, 180, 41, 0.22), inset 0 1px 0 rgba(253, 224, 71, 0.12);
 }
-.reactor-reach-label { color: #fde047; letter-spacing: 0.16em; }
-.reactor-live-label { color: #facc15; text-shadow: 0 0 12px rgba(234, 179, 8, 0.5); }
+.reactor-reach-label { color: #fdba74; letter-spacing: 0.16em; }
+.reactor-live-label { color: #f97316; text-shadow: 0 0 12px rgba(234, 179, 8, 0.5); }
 [data-testid="mobile-workstage-swipe"]:focus-visible {
   outline: 2px solid var(--reactor-yellow);
   outline-offset: 3px;
@@ -80,7 +80,7 @@ input:focus-visible,
 .reactor-reach[data-settled="true"] {
   animation: reachSettle 520ms var(--reactor-ease, cubic-bezier(0.22,1,0.36,1)) both;
 }
-.reactor-done-label { color: #fde047; letter-spacing: 0.14em; text-shadow: 0 0 10px rgba(234, 179, 8, 0.35); }
+.reactor-done-label { color: #fdba74; letter-spacing: 0.14em; text-shadow: 0 0 10px rgba(234, 179, 8, 0.35); }
 .reactor-fail-label { color: #fecdd3; letter-spacing: 0.14em; }
 .reactor-archive-panel {
   border-color: rgba(64, 64, 64, 0.9) !important;

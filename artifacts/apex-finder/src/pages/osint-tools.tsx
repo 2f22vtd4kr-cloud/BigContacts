@@ -51,14 +51,14 @@ const CATEGORY_LABELS: Record<string, string> = {
 
 // Category colours (priority mapping for HNWI research)
 const CATEGORY_COLOR: Record<string, string> = {
-  public_records:   "text-[#facc15] border-[#eab308]/30 bg-[#facc15]/5",
-  companies:        "text-[#eab308] border-[#eab308]/30 bg-[#eab308]/5",
-  people:           "text-yellow-400 border-yellow-400/30 bg-yellow-400/5",
-  transport:        "text-[#eab308] border-[#eab308]/30 bg-[#eab308]/5",
+  public_records:   "text-[#f97316] border-[#e85d1a]/30 bg-[#f97316]/5",
+  companies:        "text-[#e85d1a] border-[#e85d1a]/30 bg-[#e85d1a]/5",
+  people:           "text-orange-400 border-orange-400/30 bg-orange-400/5",
+  transport:        "text-[#e85d1a] border-[#e85d1a]/30 bg-[#e85d1a]/5",
   geolocation_mapping: "text-orange-400 border-orange-400/30 bg-orange-400/5",
   dark_web_data_breaches: "text-red-400 border-red-400/30 bg-red-400/5",
   social_media:     "text-pink-400 border-pink-400/30 bg-pink-400/5",
-  search:           "text-yellow-400 border-[#eab308]/30 bg-yellow-400/5",
+  search:           "text-orange-400 border-[#e85d1a]/30 bg-orange-400/5",
 };
 
 function categoryColor(cat: string) {
@@ -167,7 +167,7 @@ export default function OsintToolsDirectory() {
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="flex-shrink-0 px-4 md:px-6 py-4 border-b border-border flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
-        <BookOpen className="h-5 w-5 text-yellow-400 flex-shrink-0" aria-hidden />
+        <BookOpen className="h-5 w-5 text-orange-400 flex-shrink-0" aria-hidden />
         <div className="flex-1 min-w-0">
           <p className="text-xs text-muted-foreground leading-snug">
             {totalTools > 0 ? `${totalTools.toLocaleString()} tools` : "Loading…"} · tomvaillant/osint-tool-database · HuggingFace
@@ -177,7 +177,7 @@ export default function OsintToolsDirectory() {
           href="https://huggingface.co/datasets/tomvaillant/osint-tool-database"
           target="_blank"
           rel="noreferrer"
-          className="flex items-center gap-1 text-[10px] font-mono text-muted-foreground hover:text-yellow-400 transition-colors flex-shrink-0"
+          className="flex items-center gap-1 text-[10px] font-mono text-muted-foreground hover:text-orange-400 transition-colors flex-shrink-0"
         >
           <ExternalLink className="w-3 h-3" />
           HuggingFace
@@ -193,7 +193,7 @@ export default function OsintToolsDirectory() {
             value={query}
             onChange={e => handleQuery(e.target.value)}
             placeholder="Search tools…"
-            className="w-full min-h-[40px] pl-8 pr-3 py-1.5 text-xs font-mono bg-card border border-border rounded-lg text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-yellow-400/50"
+            className="w-full min-h-[40px] pl-8 pr-3 py-1.5 text-xs font-mono bg-card border border-border rounded-lg text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-orange-400/50"
           />
         </div>
 
@@ -203,7 +203,7 @@ export default function OsintToolsDirectory() {
           <select
             value={category}
             onChange={e => handleCategory(e.target.value)}
-            className="min-h-[40px] pl-8 pr-6 py-1.5 text-xs font-mono bg-card border border-border rounded-lg text-foreground focus:outline-none focus:border-yellow-400/50 appearance-none cursor-pointer"
+            className="min-h-[40px] pl-8 pr-6 py-1.5 text-xs font-mono bg-card border border-border rounded-lg text-foreground focus:outline-none focus:border-orange-400/50 appearance-none cursor-pointer"
           >
             <option value="">All categories</option>
             {categories.map(c => (
@@ -224,7 +224,7 @@ export default function OsintToolsDirectory() {
                 "min-h-[32px] text-[9px] font-mono uppercase tracking-widest px-2 py-1 rounded border transition-colors",
                 category === c.name
                   ? categoryColor(c.name)
-                  : "text-muted-foreground border-border hover:border-yellow-400/30 hover:text-yellow-400"
+                  : "text-muted-foreground border-border hover:border-orange-400/30 hover:text-orange-400"
               )}
             >
               {categoryLabel(c.name)}
@@ -245,7 +245,7 @@ export default function OsintToolsDirectory() {
       <div className="flex-1 overflow-y-auto px-4 md:px-6 py-4">
         {loading && (
           <div className="flex items-center justify-center py-16">
-            <RefreshCw className="w-5 h-5 text-yellow-400 animate-spin" />
+            <RefreshCw className="w-5 h-5 text-orange-400 animate-spin" />
           </div>
         )}
 
@@ -282,7 +282,7 @@ export default function OsintToolsDirectory() {
                   <button
                     onClick={() => setPage(p => Math.max(1, p - 1))}
                     disabled={page === 1}
-                    className="text-[10px] font-mono px-2.5 py-1 rounded border border-border text-muted-foreground hover:text-yellow-400 hover:border-yellow-400/30 disabled:opacity-40 transition-colors"
+                    className="text-[10px] font-mono px-2.5 py-1 rounded border border-border text-muted-foreground hover:text-orange-400 hover:border-orange-400/30 disabled:opacity-40 transition-colors"
                   >
                     ← Prev
                   </button>
@@ -297,8 +297,8 @@ export default function OsintToolsDirectory() {
                         className={cn(
                           "text-[10px] font-mono px-2 py-1 rounded border transition-colors",
                           p === page
-                            ? "border-yellow-400/40 text-yellow-400 bg-yellow-400/5"
-                            : "border-border text-muted-foreground hover:text-yellow-400 hover:border-yellow-400/30"
+                            ? "border-orange-400/40 text-orange-400 bg-orange-400/5"
+                            : "border-border text-muted-foreground hover:text-orange-400 hover:border-orange-400/30"
                         )}
                       >
                         {p}
@@ -308,7 +308,7 @@ export default function OsintToolsDirectory() {
                   <button
                     onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                     disabled={page === totalPages}
-                    className="text-[10px] font-mono px-2.5 py-1 rounded border border-border text-muted-foreground hover:text-yellow-400 hover:border-yellow-400/30 disabled:opacity-40 transition-colors"
+                    className="text-[10px] font-mono px-2.5 py-1 rounded border border-border text-muted-foreground hover:text-orange-400 hover:border-orange-400/30 disabled:opacity-40 transition-colors"
                   >
                     Next →
                   </button>
@@ -329,7 +329,7 @@ function ToolCard({ tool }: { tool: OsintTool }) {
   })();
 
   return (
-    <div className="rounded-xl border border-border bg-card/60 p-4 flex flex-col gap-2 hover:border-yellow-400/30 transition-colors group">
+    <div className="rounded-xl border border-border bg-card/60 p-4 flex flex-col gap-2 hover:border-orange-400/30 transition-colors group">
       {/* Category badge */}
       <div className="flex items-center justify-between gap-2">
         <span className={cn(
@@ -361,7 +361,7 @@ function ToolCard({ tool }: { tool: OsintTool }) {
           href={tool.tool_url}
           target="_blank"
           rel="noreferrer"
-          className="flex items-center gap-1 text-[10px] font-mono text-yellow-400/60 hover:text-yellow-400 transition-colors flex-shrink-0"
+          className="flex items-center gap-1 text-[10px] font-mono text-orange-400/60 hover:text-orange-400 transition-colors flex-shrink-0"
         >
           Open <ExternalLink className="w-3 h-3" />
         </a>

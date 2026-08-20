@@ -47,22 +47,22 @@ const STATE_COPY: Record<WorkspaceState, {
     label: "ATLAS RESEARCHING",
     shortLabel: "LIVE",
     detail: "Live research is running on a target.",
-    className: "text-yellow-300",
-    dotClassName: "bg-yellow-300 shadow-[0_0_8px_rgba(103,232,249,0.7)]",
+    className: "text-orange-300",
+    dotClassName: "bg-orange-300 shadow-[0_0_8px_rgba(103,232,249,0.7)]",
   },
   "researching-degraded": {
     label: "ATLAS ACTIVE",
     shortLabel: "ACTIVE",
     detail: "Research is running; some tools are temporarily limited.",
-    className: "text-[#fde047]",
-    dotClassName: "bg-[#eab308] shadow-[0_0_8px_rgba(234,179,8,0.55)]",
+    className: "text-[#fdba74]",
+    dotClassName: "bg-[#e85d1a] shadow-[0_0_8px_rgba(232,93,26,0.55)]",
   },
   queued: {
     label: "ATLAS STANDBY",
     shortLabel: "QUEUE",
     detail: "Next research cycle is queued.",
-    className: "text-[#fde047]",
-    dotClassName: "bg-[#eab308] shadow-[0_0_8px_rgba(234,179,8,0.55)]",
+    className: "text-[#fdba74]",
+    dotClassName: "bg-[#e85d1a] shadow-[0_0_8px_rgba(232,93,26,0.55)]",
   },
   ready: {
     label: "WORKSPACE READY",
@@ -75,8 +75,8 @@ const STATE_COPY: Record<WorkspaceState, {
     label: "WORKSPACE DEGRADED",
     shortLabel: "WARN",
     detail: "App is up, but one or more research services need attention.",
-    className: "text-[#fde047]",
-    dotClassName: "bg-[#eab308] shadow-[0_0_8px_rgba(234,179,8,0.55)]",
+    className: "text-[#fdba74]",
+    dotClassName: "bg-[#e85d1a] shadow-[0_0_8px_rgba(232,93,26,0.55)]",
   },
   offline: {
     label: "WORKSPACE OFFLINE",
@@ -238,8 +238,8 @@ export function WorkspaceStatus() {
         data-testid="button-workspace-status"
         className={cn(
           "group flex h-8 items-center gap-1 rounded-lg border px-1.5 transition-colors sm:h-9 sm:max-w-[230px] sm:gap-2 sm:px-3",
-          "border-[#eab308]/15 bg-background/70 hover:border-primary/40 hover:bg-muted/50",
-          (state === "degraded" || state === "researching-degraded" || state === "offline") && "border-[#eab308]/30",
+          "border-[#e85d1a]/15 bg-background/70 hover:border-primary/40 hover:bg-muted/50",
+          (state === "degraded" || state === "researching-degraded" || state === "offline") && "border-[#e85d1a]/30",
         )}
       >
         <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", copy.dotClassName, state === "researching" && "animate-pulse")} />
@@ -295,7 +295,7 @@ export function WorkspaceStatus() {
             <div className="rounded-lg border border-border/60 bg-background/70 px-3 py-2.5">
               <div className="flex items-center justify-between gap-3">
                 <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-muted-foreground/60">Research engine</span>
-                  <span className={cn("font-mono text-[10px] font-bold", active ? (providerDegraded ? "text-[#fde047]" : "text-yellow-300") : schedulerEnabled ? "text-[#fde047]" : "text-muted-foreground")}>
+                  <span className={cn("font-mono text-[10px] font-bold", active ? (providerDegraded ? "text-[#fdba74]" : "text-orange-300") : schedulerEnabled ? "text-[#fdba74]" : "text-muted-foreground")}>
                   {active ? (providerDegraded ? "ACTIVE · PARTIAL COVERAGE" : "DISCOVERING + ENRICHING") : schedulerEnabled ? "QUEUED" : "READY"}
                 </span>
               </div>
@@ -307,13 +307,13 @@ export function WorkspaceStatus() {
             <div className="grid grid-cols-2 gap-2">
               <div className="rounded-lg border border-border/60 px-3 py-2">
                 <div className="font-mono text-[9px] uppercase tracking-widest text-muted-foreground/55">Services</div>
-                <div className={cn("mt-1 font-mono text-[11px] font-bold", servicesHealthy ? "text-primary" : "text-[#fde047]")}>
+                <div className={cn("mt-1 font-mono text-[11px] font-bold", servicesHealthy ? "text-primary" : "text-[#fdba74]")}>
                   {servicesHealthy ? "API · DB · REDIS OK" : "ATTENTION NEEDED"}
                 </div>
               </div>
               <div className="rounded-lg border border-border/60 px-3 py-2">
                 <div className="font-mono text-[9px] uppercase tracking-widest text-muted-foreground/55">AI capacity</div>
-                <div className={cn("mt-1 font-mono text-[11px] font-bold", summary.active > 0 ? "text-primary" : "text-[#fde047]")}>
+                <div className={cn("mt-1 font-mono text-[11px] font-bold", summary.active > 0 ? "text-primary" : "text-[#fdba74]")}>
                   WEB {summary.active}/{summary.configured || "—"}
                 </div>
               </div>
@@ -321,7 +321,7 @@ export function WorkspaceStatus() {
             <div className="rounded-lg border border-border/60 bg-background/70 px-3 py-2.5">
               <div className="flex items-center justify-between gap-3">
                 <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-muted-foreground/60">Database / persistence</span>
-                <span className={cn("font-mono text-[10px] font-bold", servicesHealthy ? "text-primary" : "text-[#fde047]")}>
+                <span className={cn("font-mono text-[10px] font-bold", servicesHealthy ? "text-primary" : "text-[#fdba74]")}>
                   {databaseState}
                 </span>
               </div>

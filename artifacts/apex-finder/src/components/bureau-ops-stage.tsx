@@ -346,9 +346,9 @@ function SourceLinkRow({ links }: { links?: Array<{ title?: string; url: string 
               href={l.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="reactor-pressable group flex items-center gap-1.5 rounded-md border border-[#eab308]/15 bg-[#0a0a0a]/80 px-2 py-1 text-[10px] text-stone-300 hover:border-[#eab308]/40 hover:text-[#fef9c3]"
+              className="reactor-pressable group flex items-center gap-1.5 rounded-md border border-[#e85d1a]/15 bg-[#0a0a0a]/80 px-2 py-1 text-[10px] text-stone-300 hover:border-[#e85d1a]/40 hover:text-[#fef9c3]"
             >
-              <span className="shrink-0 text-[9px] text-[#eab308]/90">↗</span>
+              <span className="shrink-0 text-[9px] text-[#e85d1a]/90">↗</span>
               <span className="min-w-0 truncate font-medium">{l.title || host}</span>
               <span className="ml-auto shrink-0 font-mono text-[8px] text-stone-500 group-hover:text-stone-400">{host}</span>
             </a>
@@ -378,7 +378,7 @@ function StoryLine({
   }
   const kind = m[1].toLowerCase();
   const prefixColor =
-    kind === "now" ? "text-yellow-300" : kind === "failed" ? "text-rose-300" : "text-yellow-200";
+    kind === "now" ? "text-orange-300" : kind === "failed" ? "text-rose-300" : "text-orange-200";
   return (
     <div className={`${clamp ? "line-clamp-2" : ""} ${className}`.trim()}>
       <span className={`font-bold ${prefixColor}`}>{m[1]}:</span>
@@ -392,7 +392,7 @@ function WindowChrome({
   title,
   urlBar,
   children,
-  accent = "#eab308",
+  accent = "#e85d1a",
   live,
   compact,
   terminal,
@@ -441,12 +441,12 @@ function WindowChrome({
         style={{ background: `linear-gradient(90deg, transparent, ${accent}66, transparent)` }}
       />
       <div
-        className={`flex items-center gap-2 border-b border-[#eab308]/10 ${compact ? "px-2.5 py-1.5" : "px-3 py-2"}`}
+        className={`flex items-center gap-2 border-b border-[#e85d1a]/10 ${compact ? "px-2.5 py-1.5" : "px-3 py-2"}`}
         style={{ background: "rgba(10,10,10,0.92)" }}
       >
         {/* Method tile — replaces decorative traffic lights */}
         <div
-          className="grid shrink-0 place-items-center rounded-md border border-[#eab308]/25 bg-[#eab308]/10 text-[#fde047]"
+          className="grid shrink-0 place-items-center rounded-md border border-[#e85d1a]/25 bg-[#e85d1a]/10 text-[#fdba74]"
           style={{ width: compact ? 22 : 26, height: compact ? 22 : 26 }}
           aria-hidden
         >
@@ -463,23 +463,23 @@ function WindowChrome({
           </span>
           {live && (
             <span
-              className="relative inline-flex shrink-0 items-center gap-1.5 rounded-full border border-[#eab308]/50 bg-[#eab308]/15 px-2 py-0.5 shadow-[0_0_12px_rgba(234,179,8,0.25)]"
+              className="relative inline-flex shrink-0 items-center gap-1.5 rounded-full border border-[#e85d1a]/50 bg-[#e85d1a]/15 px-2 py-0.5 shadow-[0_0_12px_rgba(232,93,26,0.25)]"
               aria-label="Tool is live"
             >
               <span className="relative flex h-2 w-2">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#eab308] opacity-70" />
-                <span className="relative inline-flex h-2 w-2 rounded-full bg-[#eab308] shadow-[0_0_8px_#eab308]" />
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#e85d1a] opacity-70" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-[#e85d1a] shadow-[0_0_8px_#e85d1a]" />
               </span>
-              <span className="font-mono text-[9px] font-bold uppercase tracking-wider text-[#fde047]">LIVE</span>
+              <span className="font-mono text-[9px] font-bold uppercase tracking-wider text-[#fdba74]">LIVE</span>
             </span>
           )}
           {!live && terminal === "done" && (
             <span
-              className="inline-flex shrink-0 items-center gap-1 rounded-full border border-[#eab308]/35 bg-[#eab308]/10 px-2 py-0.5"
+              className="inline-flex shrink-0 items-center gap-1 rounded-full border border-[#e85d1a]/35 bg-[#e85d1a]/10 px-2 py-0.5"
               aria-label="Tool complete"
             >
-              <span className="h-1.5 w-1.5 rounded-full bg-[#eab308]" />
-              <span className="font-mono text-[9px] font-bold uppercase tracking-wider text-[#fde047]/90">DONE</span>
+              <span className="h-1.5 w-1.5 rounded-full bg-[#e85d1a]" />
+              <span className="font-mono text-[9px] font-bold uppercase tracking-wider text-[#fdba74]/90">DONE</span>
             </span>
           )}
           {!live && terminal === "failed" && (
@@ -494,9 +494,9 @@ function WindowChrome({
         </div>
       </div>
       {urlBar != null && (
-        <div className={`relative border-b border-[#eab308]/08 bg-[#0c0c0c] ${compact ? "px-2.5 py-1.5" : "px-3 py-2"}`}>
+        <div className={`relative border-b border-[#e85d1a]/08 bg-[#0c0c0c] ${compact ? "px-2.5 py-1.5" : "px-3 py-2"}`}>
           <div
-            className="flex items-center gap-1.5 rounded-full bg-[#1e293b] px-2.5 py-1 border border-[#eab308]/08 overflow-hidden"
+            className="flex items-center gap-1.5 rounded-full bg-[#1e293b] px-2.5 py-1 border border-[#e85d1a]/08 overflow-hidden"
             aria-label={live ? `Live query or URL: ${urlBar}` : `Query or URL: ${urlBar}`}
           >
             <span className="text-[9px] text-stone-500 shrink-0" aria-hidden>{"\uD83D\uDD12"}</span>
@@ -506,7 +506,7 @@ function WindowChrome({
                 aria-hidden
                 className="pointer-events-none absolute inset-y-0 left-0 w-1/3 opacity-40"
                 style={{
-                  background: "linear-gradient(90deg, transparent, rgba(234,179,8,0.35), transparent)",
+                  background: "linear-gradient(90deg, transparent, rgba(232,93,26,0.35), transparent)",
                   animation: motionOrNone(`reactorShimmer ${REACTOR_SHIMMER_MS}ms ease-in-out infinite`),
                 }}
               />
@@ -527,7 +527,7 @@ function GoogleScene({ scene, compact }: { scene: Scene; compact?: boolean }) {
       title="Google Search"
       method="google"
       live={scene.live} terminal={scene.terminal}
-      accent="#eab308"
+      accent="#e85d1a"
       compact={compact}
       favicon={<ProviderIcon kind="google" size={compact ? 12 : 14} />}
       urlBar={`google.com/search?q=${encodeURIComponent(q).slice(0, 48)}`}
@@ -542,12 +542,12 @@ function GoogleScene({ scene, compact }: { scene: Scene; compact?: boolean }) {
                 <span className="inline-block w-0.5 h-3.5 bg-stone-200 ml-0.5 animate-pulse align-middle" />
               )}
             </span>
-            <span className="text-[10px] text-[#facc15]/80 font-mono shrink-0">Search</span>
+            <span className="text-[10px] text-[#f97316]/80 font-mono shrink-0">Search</span>
           </div>
         </div>
         {(scene.resultLines.length ? scene.resultLines : ["Looking through public search results…"]).slice(0, compact ? 2 : 3).map((line, i) => (
-          <div key={i} className="rounded-lg bg-[#111827] border border-[#eab308]/08 px-2.5 py-1.5">
-            <div className="text-[9px] text-yellow-500/80 font-mono mb-0.5">finding {i + 1}</div>
+          <div key={i} className="rounded-lg bg-[#111827] border border-[#e85d1a]/08 px-2.5 py-1.5">
+            <div className="text-[9px] text-orange-500/80 font-mono mb-0.5">finding {i + 1}</div>
             <div className={`text-stone-200 leading-snug ${compact ? "text-[11px]" : "text-[12px]"}`}>{line}</div>
           </div>
         ))}
@@ -568,24 +568,24 @@ function BrowserScene({ scene, compact }: { scene: Scene; compact?: boolean }) {
       title={scene.subtitle || (url ? "Public page" : "Public sources")}
       method="browser"
       live={scene.live} terminal={scene.terminal}
-      accent="#eab308"
+      accent="#e85d1a"
       compact={compact}
       favicon={<ProviderIcon kind="browser" size={compact ? 12 : 14} />}
       urlBar={url || "awaiting verified URL from live fetch…"}
     >
       <div className="space-y-1.5">
         {contactHit && (
-          <div className="rounded-md border border-yellow-400/40 bg-yellow-500/10 px-2 py-1 text-[9px] font-mono uppercase tracking-[0.16em] text-yellow-200">
+          <div className="rounded-md border border-orange-400/40 bg-orange-500/10 px-2 py-1 text-[9px] font-mono uppercase tracking-[0.16em] text-orange-200">
             Contact found · reachable vector
           </div>
         )}
-        <div className="text-[9px] font-mono uppercase tracking-widest text-[#eab308]">On the page</div>
+        <div className="text-[9px] font-mono uppercase tracking-widest text-[#e85d1a]">On the page</div>
         <div className={`rounded-lg border p-2.5 font-mono text-[11px] leading-relaxed space-y-1 ${
-          contactHit ? "border-yellow-500/30 bg-[#1a1508] text-stone-200" : "border-[#eab308]/20 bg-[#0c0c0c] text-stone-300"
+          contactHit ? "border-orange-500/30 bg-[#1a1008] text-stone-200" : "border-[#e85d1a]/20 bg-[#0c0c0c] text-stone-300"
         }`}>
           {lines.map((l, i) => (
             <div key={i}>
-              {/@|mailto:/i.test(l) ? <span className="text-yellow-200 font-semibold">{l}</span> : l}
+              {/@|mailto:/i.test(l) ? <span className="text-orange-200 font-semibold">{l}</span> : l}
             </div>
           ))}
         </div>
@@ -602,7 +602,7 @@ function PromptScene({ scene, compact }: { scene: Scene; compact?: boolean }) {
       title={`${providerLabel(scene.provider)} · extract`}
       method="prompt"
       live={scene.live} terminal={scene.terminal}
-      accent="#eab308"
+      accent="#e85d1a"
       compact={compact}
       favicon={<ProviderIcon kind={scene.provider} size={compact ? 12 : 14} />}
     >
@@ -624,12 +624,12 @@ function DomainScene({ scene, compact }: { scene: Scene; compact?: boolean }) {
       title="RDAP / WHOIS"
       method="domain"
       live={scene.live} terminal={scene.terminal}
-      accent="#eab308"
+      accent="#e85d1a"
       compact={compact}
       favicon={<ProviderIcon kind="domain" size={compact ? 12 : 14} />}
       urlBar="rdap · whoisjson"
     >
-      <pre className={`font-mono text-yellow-100/90 leading-relaxed whitespace-pre-wrap ${compact ? "text-[10px]" : "text-[11px]"}`}>
+      <pre className={`font-mono text-orange-100/90 leading-relaxed whitespace-pre-wrap ${compact ? "text-[10px]" : "text-[11px]"}`}>
         {(scene.resultLines.length ? scene.resultLines : ["Checking domain registration details…"]).join("\n")}
       </pre>
     </WindowChrome>
@@ -645,28 +645,28 @@ function SerpScene({ scene, compact }: { scene: Scene; compact?: boolean }) {
       title={`${providerLabel(scene.provider)} · web search`}
       method="serp"
       live={scene.live} terminal={scene.terminal}
-      accent="#eab308"
+      accent="#e85d1a"
       compact={compact}
       favicon={<ProviderIcon kind={scene.provider} size={compact ? 12 : 14} />}
       urlBar={`search · ${q.slice(0, 40)}`}
     >
       <div className="space-y-3">
-        <div className="flex items-center gap-2 rounded-full border border-yellow-500/30 bg-[#0a0a0a] px-3 py-2.5">
+        <div className="flex items-center gap-2 rounded-full border border-orange-500/30 bg-[#0a0a0a] px-3 py-2.5">
           <ProviderIcon kind={scene.provider} size={16} />
-          <span className="min-w-0 flex-1 truncate text-[13px] text-yellow-50">
+          <span className="min-w-0 flex-1 truncate text-[13px] text-orange-50">
             {typed}
             {scene.live && typed.length < q.length && (
               <span className="ml-0.5 inline-block h-3.5 w-0.5 animate-pulse bg-yellow-200 align-middle" />
             )}
           </span>
-          <span className="shrink-0 rounded-full bg-yellow-500/20 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-yellow-300">
+          <span className="shrink-0 rounded-full bg-orange-500/20 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-orange-300">
             Search
           </span>
         </div>
         <div className="space-y-2">
           {hits.slice(0, compact ? 3 : 4).map((l, i) => (
-            <div key={i} className="rounded-lg border border-[#eab308]/08 bg-[#0a0a0a] px-3 py-2">
-              <div className="mb-0.5 text-[9px] font-mono text-yellow-500/80">finding {i + 1}</div>
+            <div key={i} className="rounded-lg border border-[#e85d1a]/08 bg-[#0a0a0a] px-3 py-2">
+              <div className="mb-0.5 text-[9px] font-mono text-orange-500/80">finding {i + 1}</div>
               <div className="text-[12px] leading-snug text-stone-200">{l}</div>
             </div>
           ))}
@@ -682,11 +682,11 @@ function FootprintScene({ scene, compact }: { scene: Scene; compact?: boolean })
       title="Username footprint"
       method="footprint"
       live={scene.live} terminal={scene.terminal}
-      accent="#eab308"
+      accent="#e85d1a"
       compact={compact}
       favicon={<ProviderIcon kind="sherlock" size={compact ? 12 : 14} />}
     >
-      <div className={`font-mono text-yellow-100/90 space-y-1 ${compact ? "text-[10px]" : "text-[11px]"}`}>
+      <div className={`font-mono text-orange-100/90 space-y-1 ${compact ? "text-[10px]" : "text-[11px]"}`}>
         {(scene.resultLines.length ? scene.resultLines : ["Checking public profiles and sites…"]).map((l, i) => (
           <div key={i}>{"\u25B8"} {l}</div>
         ))}
@@ -701,13 +701,13 @@ function BureauScene({ scene, compact }: { scene: Scene; compact?: boolean }) {
       title={scene.title}
       method="bureau"
       live={scene.live} terminal={scene.terminal}
-      accent="#eab308"
+      accent="#e85d1a"
       compact={compact}
       favicon={<ProviderIcon kind="bureau" size={compact ? 12 : 14} />}
     >
       <div className="space-y-1">
         {scene.targetName && (
-          <div className="text-[9px] font-mono text-yellow-400/80 uppercase tracking-wider">{scene.targetName}</div>
+          <div className="text-[9px] font-mono text-orange-400/80 uppercase tracking-wider">{scene.targetName}</div>
         )}
         {(scene.resultLines.length ? scene.resultLines : [scene.subtitle || "Working on this target…"]).map((l, i) => (
           <div key={i} className={`text-stone-200 leading-snug ${compact ? "text-[11px]" : "text-[12px]"}`}>
@@ -981,7 +981,7 @@ function MobileWorkstage({
   return (
     <div
       ref={rootRef}
-      className="space-y-2.5 select-none rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-yellow-400/80 focus-visible:ring-offset-2 focus-visible:ring-offset-[#050505]"
+      className="space-y-2.5 select-none rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-orange-400/80 focus-visible:ring-offset-2 focus-visible:ring-offset-[#050505]"
       style={{ touchAction: "pan-y", overscrollBehaviorX: "contain" }}
       data-testid="mobile-workstage-swipe"
       tabIndex={0}
@@ -1005,7 +1005,7 @@ function MobileWorkstage({
           <StoryLine story={scene.story} className="text-[12px] font-medium leading-snug tracking-tight text-stone-100 line-clamp-2" />
           <SourceLinkRow links={scene.links} />
           <div className="mt-0.5 flex items-center gap-1.5 font-mono text-[9px] text-stone-500">
-            <span className={scene.live ? "text-[#eab308]" : "text-stone-500"}>
+            <span className={scene.live ? "text-[#e85d1a]" : "text-stone-500"}>
               {scene.live ? "Now" : scene.terminal === "failed" ? "Fail" : "Done"}
             </span>
             <span className="tabular-nums text-stone-600">{safeIdx + 1}/{scenes.length}</span>
@@ -1036,7 +1036,7 @@ function MobileWorkstage({
           className="h-full rounded-full"
           style={{
             width: `${((safeIdx + 1) / Math.max(scenes.length, 1)) * 100}%`,
-            background: scene.live ? "linear-gradient(90deg,#eab308,#facc15)" : "#57534e",
+            background: scene.live ? "linear-gradient(90deg,#e85d1a,#f97316)" : "#57534e",
             transition: `width ${REACTOR_UI_MS * 2}ms ease-out`,
           }}
         />
@@ -1066,7 +1066,7 @@ function MobileWorkstage({
         <div className="flex items-center justify-between gap-2">
           <button
             type="button"
-            className="reactor-pressable min-h-[40px] min-w-[64px] rounded-lg border border-[#eab308]/15 bg-[#0c0c0c] px-2.5 py-1 font-mono text-[10px] text-stone-300 hover:border-[#eab308]/40 hover:text-[#fde047] disabled:pointer-events-none disabled:opacity-25"
+            className="reactor-pressable min-h-[40px] min-w-[64px] rounded-lg border border-[#e85d1a]/15 bg-[#0c0c0c] px-2.5 py-1 font-mono text-[10px] text-stone-300 hover:border-[#e85d1a]/40 hover:text-[#fdba74] disabled:pointer-events-none disabled:opacity-25"
             disabled={safeIdx <= 0}
             onClick={goPrev}
             aria-label="Previous scene"
@@ -1091,8 +1091,8 @@ function MobileWorkstage({
                 style={{
                   width: i === safeIdx ? 16 : 6,
                   height: 6,
-                  background: i === safeIdx ? (s.live ? "#eab308" : "#a8a29e") : "#44403c",
-                  boxShadow: i === safeIdx && s.live ? "0 0 8px #eab308aa" : undefined,
+                  background: i === safeIdx ? (s.live ? "#e85d1a" : "#a8a29e") : "#44403c",
+                  boxShadow: i === safeIdx && s.live ? "0 0 8px #e85d1aaa" : undefined,
                   minWidth: i === safeIdx ? 16 : 6,
                 }}
               />
@@ -1100,7 +1100,7 @@ function MobileWorkstage({
           </div>
           <button
             type="button"
-            className="reactor-pressable min-h-[40px] min-w-[64px] rounded-lg border border-[#eab308]/15 bg-[#0c0c0c] px-2.5 py-1 font-mono text-[10px] text-stone-300 hover:border-[#eab308]/40 hover:text-[#fde047] disabled:pointer-events-none disabled:opacity-25"
+            className="reactor-pressable min-h-[40px] min-w-[64px] rounded-lg border border-[#e85d1a]/15 bg-[#0c0c0c] px-2.5 py-1 font-mono text-[10px] text-stone-300 hover:border-[#e85d1a]/40 hover:text-[#fdba74] disabled:pointer-events-none disabled:opacity-25"
             disabled={safeIdx >= scenes.length - 1}
             onClick={goNext}
             aria-label="Next scene"
@@ -1113,7 +1113,7 @@ function MobileWorkstage({
       {paused && scenes.some((s) => s.live) && (
         <button
           type="button"
-          className="reactor-pressable mx-auto flex items-center justify-center gap-1.5 rounded-full border border-[#eab308]/40 bg-[#eab308]/10 px-3 py-1 text-center font-mono text-[9px] uppercase tracking-wider text-[#fde047]"
+          className="reactor-pressable mx-auto flex items-center justify-center gap-1.5 rounded-full border border-[#e85d1a]/40 bg-[#e85d1a]/10 px-3 py-1 text-center font-mono text-[9px] uppercase tracking-wider text-[#fdba74]"
           data-testid="status-reading-pause"
           onClick={() => {
             setPaused(false);
@@ -1123,7 +1123,7 @@ function MobileWorkstage({
           }}
           aria-label="Resume auto-advance"
         >
-          <span className="h-1.5 w-1.5 rounded-full bg-[#eab308]" aria-hidden />
+          <span className="h-1.5 w-1.5 rounded-full bg-[#e85d1a]" aria-hidden />
           {`Paused · ${pauseLeft}s · resume`}
         </button>
       )}
@@ -1150,18 +1150,18 @@ function MobileWorkstage({
               aria-current={i === safeIdx ? "true" : undefined}
               aria-label={`Scene ${i + 1}: ${s.title}${s.live ? ", live" : ""}`}
               style={{
-                borderColor: i === safeIdx ? "#eab30899" : s.live ? "#eab30844" : "#ffffff10",
-                background: i === safeIdx ? "#eab30814" : "#0a0a0a",
+                borderColor: i === safeIdx ? "#e85d1a99" : s.live ? "#e85d1a44" : "#ffffff10",
+                background: i === safeIdx ? "#e85d1a14" : "#0a0a0a",
               }}
             >
-              <span className={`font-mono text-[8px] tabular-nums ${i === safeIdx ? "text-[#eab308]" : "text-stone-600"}`}>
+              <span className={`font-mono text-[8px] tabular-nums ${i === safeIdx ? "text-[#e85d1a]" : "text-stone-600"}`}>
                 {i + 1}
               </span>
               <ActivityGlyphMini kind={s.kind} live={s.live} terminal={s.terminal} />
               <span className={`max-w-[72px] truncate font-mono text-[9px] uppercase tracking-wider ${i === safeIdx ? "text-stone-100" : "text-stone-500"}`}>
                 {s.title}
               </span>
-              {s.live && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#eab308]" aria-hidden />}
+              {s.live && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#e85d1a]" aria-hidden />}
             </button>
           ))}
         </div>
@@ -1201,7 +1201,7 @@ export function BureauOpsStage({
 
   if (!scenes.length) {
     return (
-      <div className={`rounded-xl border border-dashed border-[#eab308]/20 bg-[#0c0c0c]/50 ${compact ? "p-3" : "p-5"}`}>
+      <div className={`rounded-xl border border-dashed border-[#e85d1a]/20 bg-[#0c0c0c]/50 ${compact ? "p-3" : "p-5"}`}>
         <div className="text-[10px] font-mono uppercase tracking-[0.2em] text-stone-500 mb-1">{title}</div>
         <div className="text-[12px] text-stone-400">Idle — tool windows appear here when Atlas runs a step.</div>
       </div>
@@ -1226,7 +1226,7 @@ export function BureauOpsStage({
     <div className="space-y-3">
       <div className="flex items-end justify-between gap-3 flex-wrap">
         <div>
-          <div className="text-[10px] font-mono uppercase tracking-[0.2em] text-yellow-400/90">{title}</div>
+          <div className="text-[10px] font-mono uppercase tracking-[0.2em] text-orange-400/90">{title}</div>
         </div>
         <div className="text-[9px] font-mono text-stone-500 tabular-nums">{scenes.length}</div>
       </div>
@@ -1247,16 +1247,16 @@ export function BureauOpsStage({
               }}
               className="reactor-pressable shrink-0 rounded-lg border px-2.5 py-2 max-w-[200px] text-left min-h-[52px]"
               style={{
-                borderColor: selected ? "#eab30866" : s.live ? "#eab30840" : "#ffffff18",
-                background: selected ? "#eab30814" : "#ffffff08",
-                boxShadow: selected ? "0 0 12px rgba(234,179,8,0.12)" : undefined,
+                borderColor: selected ? "#e85d1a66" : s.live ? "#e85d1a40" : "#ffffff18",
+                background: selected ? "#e85d1a14" : "#ffffff08",
+                boxShadow: selected ? "0 0 12px rgba(232,93,26,0.12)" : undefined,
               }}
             >
               <div className="flex items-center gap-1.5 mb-0.5">
                 <span className="text-[9px] font-mono text-stone-500">{i + 1}</span>
                 <ActivityGlyphMini kind={s.kind} live={s.live} terminal={s.terminal} />
                 <span className="text-[9px] font-mono text-stone-300 truncate">{s.title}</span>
-                {s.live && <span className="text-[8px] text-yellow-200 font-mono font-bold">LIVE</span>}
+                {s.live && <span className="text-[8px] text-orange-200 font-mono font-bold">LIVE</span>}
               </div>
               <StoryLine story={s.story} className="text-[10px] text-stone-300 leading-snug" />
             </button>
@@ -1279,7 +1279,7 @@ export function BureauOpsStage({
                 transform: dim ? "scale(0.985)" : "scale(1)",
                 transition: "opacity 220ms ease, transform 220ms ease",
                 filter: dim ? "saturate(0.7)" : undefined,
-                outline: focused ? "1px solid rgba(234,179,8,0.35)" : undefined,
+                outline: focused ? "1px solid rgba(232,93,26,0.35)" : undefined,
                 borderRadius: 8,
                 scrollMarginTop: 12,
               }}

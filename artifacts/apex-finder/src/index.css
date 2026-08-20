@@ -2,26 +2,26 @@
 @source "./**/*.{tsx,ts,jsx,js}";
 @source "./*.{tsx,ts}";
 
-/* ─── Apex Atlas — black & gold design system ─── */
+/* ─── Apex Atlas — Stalker rust / orange design system ─── */
 @theme {
   --font-sans: "Instrument Sans", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, monospace;
   --font-display: "Instrument Sans", ui-sans-serif, system-ui, sans-serif;
 
-  --color-background: #050505;
-  --color-foreground: #fafaf9;
-  --color-card: #0c0c0c;
-  --color-border: #2a2a2a;
-  --color-muted: #a8a29e;
-  --color-muted-foreground: #78716c;
-  --color-primary: #eab308;
-  --color-secondary: #57534e;
-  --color-accent: #facc15;
-  --color-sidebar: #050505;
-  --color-sidebar-foreground: #fafaf9;
-  --color-sidebar-border: rgba(255, 255, 255, 0.04);
-  --color-sidebar-accent: rgba(234, 179, 8, 0.08);
-  --color-sidebar-accent-foreground: #fde047;
+  --color-background: #0a0e14;
+  --color-foreground: #e8e6e1;
+  --color-card: #0f141c;
+  --color-border: #2a323c;
+  --color-muted: #9a958c;
+  --color-muted-foreground: #6b7280;
+  --color-primary: #e85d1a;
+  --color-secondary: #4a5560;
+  --color-accent: #f97316;
+  --color-sidebar: #0a0e14;
+  --color-sidebar-foreground: #e8e6e1;
+  --color-sidebar-border: rgba(232, 93, 26, 0.08);
+  --color-sidebar-accent: rgba(232, 93, 26, 0.10);
+  --color-sidebar-accent-foreground: #fdba74;
 }
 
 
@@ -29,13 +29,13 @@ html, body, #root { min-height: 100%; }
 
 body {
   margin: 0;
-  background: #050505;
-  color: #fafaf9;
+  background: #0a0e14;
+  color: #e8e6e1;
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
   scrollbar-width: thin;
-  scrollbar-color: rgba(234, 179, 8, 0.35) #0a0a0a;
+  scrollbar-color: rgba(232, 93, 26, 0.4) #0a0e14;
 }
 
 .font-display { font-family: var(--font-display); }
@@ -43,7 +43,7 @@ body {
 
 /* Film grain (very subtle) */
 .atlas-noise {
-  background-color: #050505;
+  background-color: #0a0e14;
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.028'/%3E%3C/svg%3E");
 }
 
@@ -120,7 +120,7 @@ body {
 
 /* Primary CTA */
 .atlas-launch-glow {
-  background: linear-gradient(135deg, #facc15 0%, #eab308 55%, #ca8a04 100%);
+  background: linear-gradient(135deg, #f97316 0%, #e85d1a 55%, #c2410c 100%);
   color: #0a0a0a;
   font-weight: 700;
   border: 1px solid rgba(253, 224, 71, 0.45);
@@ -178,7 +178,7 @@ body {
 .atlas-chip-yellow {
   border: 1px solid rgba(234, 179, 8, 0.35);
   background: rgba(234, 179, 8, 0.1);
-  color: #fde047;
+  color: #fdba74;
   border-radius: 999px;
   font-family: var(--font-mono);
   font-size: 10px;
@@ -190,7 +190,7 @@ body {
   width: 8px;
   height: 8px;
   border-radius: 999px;
-  background: #eab308;
+  background: #e85d1a;
   box-shadow: 0 0 10px rgba(234, 179, 8, 0.55);
 }
 .atlas-live-dot-pulse {
@@ -213,28 +213,28 @@ body {
 }
 
 .atlas-focus-ring:focus-visible {
-  outline: 2px solid #eab308;
+  outline: 2px solid #e85d1a;
   outline-offset: 3px;
 }
 
 .atlas-scroll {
   scrollbar-width: thin;
-  scrollbar-color: rgba(234, 179, 8, 0.35) #0a0a0a;
+  scrollbar-color: rgba(232, 93, 26, 0.4) #0a0e14;
 }
 
 /* Sidebar active rail */
 .atlas-nav-active {
   background: rgba(234, 179, 8, 0.12);
-  color: #fde047;
+  color: #fdba74;
   border-color: rgba(234, 179, 8, 0.25);
-  box-shadow: inset 3px 0 0 #eab308;
+  box-shadow: inset 3px 0 0 #e85d1a;
 }
 
 
 /* Selection */
 ::selection {
   background: rgba(234, 179, 8, 0.35);
-  color: #fafaf9;
+  color: #e8e6e1;
 }
 
 /* Ambient gold wash behind hero / CTA clusters */
@@ -254,7 +254,7 @@ body {
 
 /* Stat / metric tile icon lift on hover */
 .atlas-card:hover .atlas-stat-icon {
-  color: #eab308;
+  color: #e85d1a;
   opacity: 0.9;
   transition: color 180ms ease, opacity 180ms ease;
 }
@@ -302,7 +302,7 @@ body {
 .atlas-outline-btn:hover {
   border-color: rgba(234, 179, 8, 0.45);
   background: rgba(234, 179, 8, 0.08);
-  color: #fde047;
+  color: #fdba74;
   box-shadow: 0 0 20px rgba(234, 179, 8, 0.08);
 }
 .atlas-outline-btn:active {
@@ -376,7 +376,7 @@ button:not(:disabled):active:not(.atlas-launch-glow):not(.atlas-outline-btn):not
   font-weight: 600;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: #eab308;
+  color: #e85d1a;
 }
 
 @media (prefers-reduced-motion: reduce) {

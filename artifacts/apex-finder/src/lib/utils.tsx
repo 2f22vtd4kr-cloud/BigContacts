@@ -6,14 +6,14 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function getScoreColor(score: number) {
-  if (score >= 0.8) return "text-[#eab308] border-[#eab308]/50 bg-[#eab308]/10";
-  if (score >= 0.5) return "text-[#fde047] border-[#eab308]/35 bg-[#eab308]/10";
+  if (score >= 0.8) return "text-[#e85d1a] border-[#e85d1a]/50 bg-[#e85d1a]/10";
+  if (score >= 0.5) return "text-[#fdba74] border-[#e85d1a]/35 bg-[#e85d1a]/10";
   return "text-muted-foreground border-border bg-muted";
 }
 
 export function getScoreBarColor(score: number) {
-  if (score >= 0.8) return "bg-[#eab308]";
-  if (score >= 0.5) return "bg-[#ca8a04]";
+  if (score >= 0.8) return "bg-[#e85d1a]";
+  if (score >= 0.5) return "bg-[#c2410c]";
   return "bg-muted-foreground";
 }
 
@@ -55,19 +55,19 @@ export function AccessScoreBadge({ score }: { score: number | null | undefined }
     tip = "No public contact path found yet";
   } else if (pct < 30) {
     label = "Hard to reach";
-    colorClass = "text-[#fde047] border-[#eab308]/40 bg-[#eab308]/10";
+    colorClass = "text-[#fdba74] border-[#e85d1a]/40 bg-[#e85d1a]/10";
     tip = `Reachability ${pct}/100 — thin public path`;
   } else if (pct < 60) {
     label = "Possible";
-    colorClass = "text-[#facc15] border-[#eab308]/35 bg-[#eab308]/10";
+    colorClass = "text-[#f97316] border-[#e85d1a]/35 bg-[#e85d1a]/10";
     tip = `Reachability ${pct}/100 — some public route exists`;
   } else if (pct < 85) {
     label = "Easy to reach";
-    colorClass = "text-yellow-200 border-yellow-400/30 bg-yellow-400/10";
+    colorClass = "text-orange-200 border-orange-400/30 bg-orange-400/10";
     tip = `Reachability ${pct}/100 — solid public contact path`;
   } else {
     label = "Direct path";
-    colorClass = "text-[#fde047] border-[#eab308]/35 bg-[#eab308]/12";
+    colorClass = "text-[#fdba74] border-[#e85d1a]/35 bg-[#e85d1a]/12";
     tip = `Reachability ${pct}/100 — direct attributable contact`;
   }
 
@@ -99,19 +99,19 @@ export function ConfidenceBadge({ score }: { score: number | null | undefined })
     tip = "No contact evidence on file";
   } else if (pct < 30) {
     label = "Thin evidence";
-    colorClass = "text-[#fde047] border-[#eab308]/40 bg-[#eab308]/10";
+    colorClass = "text-[#fdba74] border-[#e85d1a]/40 bg-[#e85d1a]/10";
     tip = `Contact quality ${pct}/100 — weak or sparse public evidence`;
   } else if (pct < 60) {
     label = "Partial evidence";
-    colorClass = "text-[#facc15] border-[#eab308]/35 bg-[#eab308]/10";
+    colorClass = "text-[#f97316] border-[#e85d1a]/35 bg-[#e85d1a]/10";
     tip = `Contact quality ${pct}/100 — some public contact data, not fully confirmed`;
   } else if (pct < 85) {
     label = "Solid evidence";
-    colorClass = "text-yellow-200 border-yellow-400/30 bg-yellow-400/10";
+    colorClass = "text-orange-200 border-orange-400/30 bg-orange-400/10";
     tip = `Contact quality ${pct}/100 — strong public contact evidence`;
   } else {
     label = "Confirmed";
-    colorClass = "text-[#fde047] border-[#eab308]/35 bg-[#eab308]/12";
+    colorClass = "text-[#fdba74] border-[#e85d1a]/35 bg-[#e85d1a]/12";
     tip = `Contact quality ${pct}/100 — verified attributable contact`;
   }
 

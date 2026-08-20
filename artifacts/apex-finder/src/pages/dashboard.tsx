@@ -104,7 +104,7 @@ function LeadCard({ lead, index }: { lead: any; index: number }) {
     <Link
       href={`/profile/${lead.entityId}`}
       data-testid={`card-entity-${lead.entityId}`}
-      className="atlas-card atlas-pressable group relative flex min-w-0 flex-col overflow-hidden p-3.5 sm:p-5 hover:-translate-y-0.5 focus-visible:border-[#eab308]"
+      className="atlas-card atlas-pressable group relative flex min-w-0 flex-col overflow-hidden p-3.5 sm:p-5 hover:-translate-y-0.5 focus-visible:border-[#e85d1a]"
     >
       <div className="absolute right-0 top-0 h-24 w-24 rounded-bl-[100px] bg-primary/[0.03] transition-colors group-hover:bg-primary/[0.08]" />
       <div className="relative flex items-start gap-3">
@@ -123,8 +123,8 @@ function LeadCard({ lead, index }: { lead: any; index: number }) {
         {index < 3 && (
           <span className={`relative rounded-full border px-2 py-1 font-mono text-[8px] uppercase tracking-[0.13em] ${
             contactReady
-              ? "border-[#eab308]/35 bg-[#eab308]/10 text-[#fde047]"
-              : "border-[#eab308]/12 bg-muted/60 text-muted-foreground"
+              ? "border-[#e85d1a]/35 bg-[#e85d1a]/10 text-[#fdba74]"
+              : "border-[#e85d1a]/12 bg-muted/60 text-muted-foreground"
           }`}>
             {contactReady ? "Reachable" : "Review"}
           </span>
@@ -145,36 +145,36 @@ function LeadCard({ lead, index }: { lead: any; index: number }) {
       </div>
 
       <div className="relative mt-4 sm:mt-6 grid grid-cols-2 gap-2 sm:gap-3">
-        <div className="rounded-lg border border-[#eab308]/10 bg-background/45 px-2.5 py-2 sm:px-3 sm:py-2.5">
+        <div className="rounded-lg border border-[#e85d1a]/10 bg-background/45 px-2.5 py-2 sm:px-3 sm:py-2.5">
           <div className="font-mono text-[9px] uppercase tracking-[0.14em] text-muted-foreground">Contact quality</div>
           <div className={`mt-1 font-mono text-base sm:text-lg font-bold ${scoreTone(confidence)}`} data-testid={`text-confidence-${lead.entityId}`}>{scorePercent(confidence)}</div>
           <div className="mt-0.5 text-[10px] text-muted-foreground hidden sm:block">How solid the contact evidence is</div>
         </div>
-        <div className="rounded-lg border border-[#eab308]/10 bg-background/45 px-2.5 py-2 sm:px-3 sm:py-2.5 transition-colors group-hover:border-primary/20">
+        <div className="rounded-lg border border-[#e85d1a]/10 bg-background/45 px-2.5 py-2 sm:px-3 sm:py-2.5 transition-colors group-hover:border-primary/20">
           <div className="font-mono text-[9px] uppercase tracking-[0.14em] text-muted-foreground">Reachability</div>
           <div className={`mt-1 font-mono text-base sm:text-lg font-bold ${scoreTone(access)}`} data-testid={`text-access-${lead.entityId}`}>{scorePercent(access)}</div>
           <div className="mt-0.5 text-[10px] text-muted-foreground hidden sm:block">How realistically they can be reached</div>
         </div>
       </div>
 
-      <div className="relative mt-3 sm:mt-4 flex items-center justify-between border-t border-[#eab308]/10 pt-3 text-[11px] font-mono">
+      <div className="relative mt-3 sm:mt-4 flex items-center justify-between border-t border-[#e85d1a]/10 pt-3 text-[11px] font-mono">
         <span className="text-muted-foreground">{compactMoney(lead.estimatedNetWorth)}</span>
         <span className="text-muted-foreground">{lead.assetCount ?? 0} public assets</span>
       </div>
       {lead.email && (
-        <div className="relative mt-3 truncate rounded-md border border-[#eab308]/30 bg-[#eab308]/10 px-2 py-1 font-mono text-[10px] text-[#fde047]" title={lead.email}>
+        <div className="relative mt-3 truncate rounded-md border border-[#e85d1a]/30 bg-[#e85d1a]/10 px-2 py-1 font-mono text-[10px] text-[#fdba74]" title={lead.email}>
           <span className="opacity-70">Email · </span>{lead.email}
         </div>
       )}
       <div className="relative mt-3 flex items-center gap-2 text-[10px]">
         <span className={`grid h-5 w-5 place-items-center rounded-full ${
           contactReady
-            ? "bg-[#eab308]/10 text-[#fde047] border border-[#eab308]/30"
-            : "bg-muted text-muted-foreground border border-[#eab308]/12"
+            ? "bg-[#e85d1a]/10 text-[#fdba74] border border-[#e85d1a]/30"
+            : "bg-muted text-muted-foreground border border-[#e85d1a]/12"
         }`}>
           {contactReady ? <ShieldCheck className="h-3 w-3" /> : <FileSearch className="h-3 w-3" />}
         </span>
-        <span className={contactReady ? "font-mono text-[10px] uppercase tracking-[0.1em] text-[#fde047]/90" : "font-mono text-[10px] uppercase tracking-[0.1em] text-muted-foreground"}>
+        <span className={contactReady ? "font-mono text-[10px] uppercase tracking-[0.1em] text-[#fdba74]/90" : "font-mono text-[10px] uppercase tracking-[0.1em] text-muted-foreground"}>
           {contactReady ? "Contact path found" : "Contact path incomplete"}
         </span>
         <ArrowUpRight className="ml-auto h-3.5 w-3.5 text-muted-foreground transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
@@ -202,8 +202,8 @@ function ErrorState({ onRetry }: { onRetry: () => void }) {
 
 function EmptyLeads() {
   return (
-    <div className="atlas-empty rounded-2xl border border-dashed border-[#eab308]/18 bg-[#0a0a0a] px-6 py-14 text-center sm:py-16">
-      <div className="mx-auto grid h-12 w-12 place-items-center rounded-full border border-[#eab308]/30 bg-[#eab308]/10 text-[#eab308]">
+    <div className="atlas-empty rounded-2xl border border-dashed border-[#e85d1a]/18 bg-[#0a0a0a] px-6 py-14 text-center sm:py-16">
+      <div className="mx-auto grid h-12 w-12 place-items-center rounded-full border border-[#e85d1a]/30 bg-[#e85d1a]/10 text-[#e85d1a]">
         <Radar className="h-5 w-5" />
       </div>
       <h2 className="mt-5 font-display text-lg font-semibold tracking-tight text-stone-100">No priority profiles yet</h2>
@@ -211,7 +211,7 @@ function EmptyLeads() {
         Launch Atlas or discover entities from public registries. Only real research results appear here — never demo data.
       </p>
       <div className="mt-6 flex flex-col items-stretch justify-center gap-2 sm:flex-row sm:items-center">
-        <Link href="/search" data-testid="link-empty-discover" className="atlas-pressable inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-[#eab308] px-4 py-2.5 text-xs font-bold text-black hover:brightness-105">
+        <Link href="/search" data-testid="link-empty-discover" className="atlas-pressable inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-[#e85d1a] px-4 py-2.5 text-xs font-bold text-black hover:brightness-105">
           <Search className="h-3.5 w-3.5" /> Discover entities
         </Link>
         <Link href="/reactor" data-testid="link-empty-reactor" className="atlas-outline-btn atlas-pressable inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-xs font-semibold">
@@ -235,7 +235,7 @@ export default function Dashboard() {
     <div className="atlas-page pb-12">
       <section className="atlas-enter atlas-ambient-gold relative flex flex-col gap-8 py-8 md:flex-row md:items-end md:justify-between md:py-12">
         <div className="max-w-2xl">
-          <div className="mb-4 flex items-center gap-2.5 font-mono text-[10px] uppercase tracking-[0.2em] text-[#eab308]">
+          <div className="mb-4 flex items-center gap-2.5 font-mono text-[10px] uppercase tracking-[0.2em] text-[#e85d1a]">
             <span className="atlas-live-dot atlas-live-dot-pulse" aria-hidden />
             Research desk
           </div>
@@ -265,10 +265,10 @@ export default function Dashboard() {
         <div
           role="status"
           data-testid="banner-registry-shallow-risk"
-          className="mt-4 flex flex-col gap-2 rounded-xl border border-[#eab308]/30 bg-[#eab308]/10 px-4 py-3 text-sm text-[#fef3c7] sm:flex-row sm:items-center sm:justify-between"
+          className="mt-4 flex flex-col gap-2 rounded-xl border border-[#e85d1a]/30 bg-[#e85d1a]/10 px-4 py-3 text-sm text-[#fef3c7] sm:flex-row sm:items-center sm:justify-between"
         >
           <div className="flex items-start gap-2">
-            <CircleAlert className="mt-0.5 h-4 w-4 shrink-0 text-[#fde047]" />
+            <CircleAlert className="mt-0.5 h-4 w-4 shrink-0 text-[#fdba74]" />
             <p className="text-[13px] leading-5">
               <span className="font-semibold">Registry-shallow risk.</span>{" "}
               No active web-search provider slots — discovery may stay filings-only until keys are live and the API is restarted.
@@ -276,7 +276,7 @@ export default function Dashboard() {
           </div>
           <Link
             href="/status"
-            className="inline-flex h-9 shrink-0 items-center justify-center rounded-lg border border-[#eab308]/40 bg-[#eab308]/10 px-3 text-xs font-semibold text-[#fef3c7] hover:bg-[#eab308]/20"
+            className="inline-flex h-9 shrink-0 items-center justify-center rounded-lg border border-[#e85d1a]/40 bg-[#e85d1a]/10 px-3 text-xs font-semibold text-[#fef3c7] hover:bg-[#e85d1a]/20"
           >
             Open system status
           </Link>
@@ -304,9 +304,9 @@ export default function Dashboard() {
             key={item.href}
             href={item.href}
             data-testid={item.testId}
-            className="atlas-pressable group rounded-xl border border-[#eab308]/14 bg-[#0c0c0c]/80 px-3 py-3.5 transition-colors hover:border-[#eab308]/40 hover:bg-[#0c0c0c] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#eab308]/50"
+            className="atlas-pressable group rounded-xl border border-[#e85d1a]/14 bg-[#0c0c0c]/80 px-3 py-3.5 transition-colors hover:border-[#e85d1a]/40 hover:bg-[#0c0c0c] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e85d1a]/50"
           >
-            <div className="font-mono text-[9px] uppercase tracking-[0.16em] text-stone-500 group-hover:text-[#eab308]">{item.label}</div>
+            <div className="font-mono text-[9px] uppercase tracking-[0.16em] text-stone-500 group-hover:text-[#e85d1a]">{item.label}</div>
             <div className="mt-1 text-[12px] font-medium text-stone-200">{item.detail}</div>
           </Link>
         ))}
@@ -333,15 +333,15 @@ export default function Dashboard() {
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">{leads.map((lead: any, index: number) => <LeadCard key={lead.entityId} lead={lead} index={index} />)}</div>}
       </section>
 
-      <section className="atlas-enter mt-10 grid gap-4 border-t border-[#eab308]/10 pt-7 md:grid-cols-[1fr_auto]" style={{ animationDelay: "210ms" }}>
+      <section className="atlas-enter mt-10 grid gap-4 border-t border-[#e85d1a]/10 pt-7 md:grid-cols-[1fr_auto]" style={{ animationDelay: "210ms" }}>
         <div>
           <div className="atlas-section-label flex items-center gap-2"><ShieldCheck className="h-3 w-3" /> Evidence, not guesses</div>
           <p className="mt-2 max-w-xl text-sm leading-6 text-stone-400">Open a profile for registries, ownership, assets, and public contact channels — then decide what deserves attention.</p>
         </div>
         <div className="flex items-center gap-3 text-xs text-muted-foreground md:justify-end">
-          <span className="grid h-8 w-8 place-items-center rounded-lg border border-[#eab308]/12 bg-card"><Mail className="h-3.5 w-3.5" /></span>
-          <span className="grid h-8 w-8 place-items-center rounded-lg border border-[#eab308]/12 bg-card"><Phone className="h-3.5 w-3.5" /></span>
-          <span className="grid h-8 w-8 place-items-center rounded-lg border border-[#eab308]/12 bg-card"><FileSearch className="h-3.5 w-3.5" /></span>
+          <span className="grid h-8 w-8 place-items-center rounded-lg border border-[#e85d1a]/12 bg-card"><Mail className="h-3.5 w-3.5" /></span>
+          <span className="grid h-8 w-8 place-items-center rounded-lg border border-[#e85d1a]/12 bg-card"><Phone className="h-3.5 w-3.5" /></span>
+          <span className="grid h-8 w-8 place-items-center rounded-lg border border-[#e85d1a]/12 bg-card"><FileSearch className="h-3.5 w-3.5" /></span>
         </div>
       </section>
     </div>

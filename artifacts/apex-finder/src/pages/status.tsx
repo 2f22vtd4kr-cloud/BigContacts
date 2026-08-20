@@ -92,11 +92,11 @@ const OPEN_RESEARCH_LABELS = {
 } as const;
 
 const PROVIDER_COLORS: Record<string, string> = {
-  groq:       "from-[#eab308]/15 border-[#eab308]/30",
-  perplexity: "from-[#eab308]/12 border-[#eab308]/28",
-  gemini:     "from-[#ca8a04]/15 border-[#ca8a04]/30",
-  tavily:     "from-[#facc15]/15 border-[#facc15]/30",
-  exa:        "from-[#eab308]/20 border-[#eab308]/30",
+  groq:       "from-[#e85d1a]/15 border-[#e85d1a]/30",
+  perplexity: "from-[#e85d1a]/12 border-[#e85d1a]/28",
+  gemini:     "from-[#c2410c]/15 border-[#c2410c]/30",
+  tavily:     "from-[#f97316]/15 border-[#f97316]/30",
+  exa:        "from-[#e85d1a]/20 border-[#e85d1a]/30",
 };
 
 function SlotBar({ slots }: { slots: AIKeySlot[] }) {
@@ -119,8 +119,8 @@ function SlotBar({ slots }: { slots: AIKeySlot[] }) {
           title={`Slot ${slot.index + 1}: ${slot.state}${slot.expiresAt ? ` · resets ${new Date(slot.expiresAt).toLocaleTimeString()}` : ""}`}
           className={cn(
             "h-full flex-1 border-r border-background/40 last:border-r-0 transition-colors",
-            slot.state === "active" && "bg-[#eab308] shadow-[0_0_8px_rgba(234,179,8,0.45)]",
-            slot.state === "rate_limited" && "bg-[#eab308]/90 animate-pulse",
+            slot.state === "active" && "bg-[#e85d1a] shadow-[0_0_8px_rgba(232,93,26,0.45)]",
+            slot.state === "rate_limited" && "bg-[#e85d1a]/90 animate-pulse",
             slot.state === "missing" && "bg-muted/50",
           )}
         />
@@ -139,21 +139,21 @@ function ProviderCard({ name, slots }: { name: keyof AIKeyStatus; slots: AIKeySl
 
   const tone =
     active > 0
-      ? "border-[#eab308]/25 bg-gradient-to-br from-yellow-500/[0.07] via-[#0c0c0c] to-[#0a0a0a]"
+      ? "border-[#e85d1a]/25 bg-gradient-to-br from-orange-500/[0.07] via-[#0c0c0c] to-[#0a0a0a]"
       : rateLimited > 0
-        ? "border-[#eab308]/25 bg-gradient-to-br from-[#eab308]/[0.07] via-[#0c0c0c] to-[#0a0a0a]"
-        : "border-[#eab308]/12 bg-card/30";
+        ? "border-[#e85d1a]/25 bg-gradient-to-br from-[#e85d1a]/[0.07] via-[#0c0c0c] to-[#0a0a0a]"
+        : "border-[#e85d1a]/12 bg-card/30";
 
   return (
     <article
       className={cn(
-        "group relative min-w-0 max-w-full overflow-hidden rounded-2xl border border-[#2a2a2a] p-3.5 sm:p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] backdrop-blur-sm transition-all hover:border-[#eab308]/30 hover:shadow-[0_0_24px_rgba(234,179,8,0.06)]",
+        "group relative min-w-0 max-w-full overflow-hidden rounded-2xl border border-[#2a2a2a] p-3.5 sm:p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] backdrop-blur-sm transition-all hover:border-[#e85d1a]/30 hover:shadow-[0_0_24px_rgba(232,93,26,0.06)]",
         tone,
         configured === 0 && "opacity-55",
       )}
       data-testid={`provider-card-${name}`}
     >
-      <div className="pointer-events-none absolute -right-6 -top-6 h-20 w-20 rounded-full bg-[#eab308]/5 blur-2xl transition-opacity group-hover:opacity-100" />
+      <div className="pointer-events-none absolute -right-6 -top-6 h-20 w-20 rounded-full bg-[#e85d1a]/5 blur-2xl transition-opacity group-hover:opacity-100" />
       <div className="relative flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="font-display text-[13px] font-semibold tracking-tight text-foreground">
@@ -167,10 +167,10 @@ function ProviderCard({ name, slots }: { name: keyof AIKeyStatus; slots: AIKeySl
           className={cn(
             "shrink-0 rounded-md border px-2 py-0.5 font-mono text-[9px] font-bold uppercase tracking-[0.12em]",
             active > 0
-              ? "border-[#eab308]/35 bg-[#eab308]/10 text-[#fde047]"
+              ? "border-[#e85d1a]/35 bg-[#e85d1a]/10 text-[#fdba74]"
               : rateLimited > 0
-                ? "border-[#eab308]/35 bg-[#eab308]/10 text-[#fde047]"
-                : "border-[#eab308]/10 bg-muted/20 text-muted-foreground",
+                ? "border-[#e85d1a]/35 bg-[#e85d1a]/10 text-[#fdba74]"
+                : "border-[#e85d1a]/10 bg-muted/20 text-muted-foreground",
           )}
         >
           {active > 0 ? `${active} live` : rateLimited > 0 ? "cooldown" : "empty"}
@@ -180,16 +180,16 @@ function ProviderCard({ name, slots }: { name: keyof AIKeyStatus; slots: AIKeySl
       <div className="relative mt-4 space-y-2">
         <SlotBar slots={slots} />
         <div className="flex items-center justify-between gap-2 font-mono text-[10px] text-muted-foreground">
-          <span className="text-[#fde047]/90">
+          <span className="text-[#fdba74]/90">
             {active}/{total} live
           </span>
           <span className="truncate text-right">
-            {rateLimited > 0 && <span className="text-[#fde047]/90">{rateLimited} cooling · </span>}
+            {rateLimited > 0 && <span className="text-[#fdba74]/90">{rateLimited} cooling · </span>}
             {missing > 0 && (
               <span className="text-muted-foreground/55">{missing} empty (no key)</span>
             )}
             {missing === 0 && rateLimited === 0 && active > 0 && (
-              <span className="text-[#fde047]/80">pool full</span>
+              <span className="text-[#fdba74]/80">pool full</span>
             )}
           </span>
         </div>
@@ -208,7 +208,7 @@ function DbRow({
 }) {
   const ok = status === "ok" || status === "ready";
   return (
-    <div className="flex items-center justify-between rounded-lg border border-[#eab308]/10 px-4 py-3">
+    <div className="flex items-center justify-between rounded-lg border border-[#e85d1a]/10 px-4 py-3">
       <div className="flex items-center gap-3">
         <Icon className={cn("h-4 w-4", ok ? "text-primary" : "text-destructive")} />
         <span className="font-mono text-[12px] text-foreground">{label}</span>
@@ -332,7 +332,7 @@ export default function SystemStatusPage() {
           )}
           <button
             onClick={fetchStatus}
-            className="atlas-outline-btn atlas-pressable flex min-h-[40px] w-full sm:w-auto items-center justify-center gap-2 rounded-lg px-3 py-1.5 font-mono text-[11px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400/50"
+            className="atlas-outline-btn atlas-pressable flex min-h-[40px] w-full sm:w-auto items-center justify-center gap-2 rounded-lg px-3 py-1.5 font-mono text-[11px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400/50"
           >
             <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
             Refresh
@@ -345,13 +345,13 @@ export default function SystemStatusPage() {
         <div className={cn(
           "flex min-w-0 flex-col gap-2 rounded-2xl border px-3 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:px-5",
           totalActive > 0
-            ? "border-[#eab308]/25 bg-gradient-to-r from-yellow-500/[0.08] to-transparent"
+            ? "border-[#e85d1a]/25 bg-gradient-to-r from-orange-500/[0.08] to-transparent"
             : "border-destructive/30 bg-destructive/5",
         )}>
           <div className="flex min-w-0 items-start gap-3">
             <div className={cn(
               "mt-1.5 h-2 w-2 shrink-0 rounded-full",
-              totalActive > 0 ? "bg-[#eab308] shadow-[0_0_8px_rgba(234,179,8,0.7)]" : "bg-destructive",
+              totalActive > 0 ? "bg-[#e85d1a] shadow-[0_0_8px_rgba(232,93,26,0.7)]" : "bg-destructive",
             )} />
             <span className="min-w-0 text-[13px] font-semibold leading-snug tracking-tight text-stone-100 break-words">
               {totalActive > 0
@@ -396,7 +396,7 @@ export default function SystemStatusPage() {
           className={
             integrity.level === "critical"
               ? "rounded-2xl border border-rose-500/40 bg-rose-950/50 px-4 py-3.5"
-              : "rounded-2xl border border-amber-500/35 bg-amber-950/40 px-4 py-3.5"
+              : "rounded-2xl border border-orange-500/35 bg-orange-950/40 px-4 py-3.5"
           }
         >
           <div className="text-[12px] font-semibold tracking-tight text-stone-100">
@@ -445,7 +445,7 @@ export default function SystemStatusPage() {
             status?.openResearch?.state === "ready"
               ? "bg-primary/15 text-primary"
               : status?.openResearch?.state === "incomplete"
-                ? "bg-[#eab308]/15 text-[#eab308]"
+                ? "bg-[#e85d1a]/15 text-[#e85d1a]"
                 : "bg-muted/30 text-muted-foreground",
           )}>
             {OPEN_RESEARCH_LABELS[status?.openResearch?.state ?? "unavailable"]}
@@ -462,8 +462,8 @@ export default function SystemStatusPage() {
               className={cn(
                 "flex items-center justify-between gap-3 rounded-2xl border px-4 py-3.5 transition-colors",
                 item.configured
-                  ? "border-[#eab308]/20 bg-yellow-500/[0.06]"
-                  : "border-[#eab308]/10 bg-card/25",
+                  ? "border-[#e85d1a]/20 bg-orange-500/[0.06]"
+                  : "border-[#e85d1a]/10 bg-card/25",
               )}
             >
               <div className="min-w-0">
@@ -474,8 +474,8 @@ export default function SystemStatusPage() {
                 className={cn(
                   "shrink-0 rounded-md border px-2 py-0.5 font-mono text-[9px] font-bold uppercase tracking-[0.12em]",
                   item.configured
-                    ? "border-[#eab308]/30 bg-[#eab308]/10 text-[#fef08a]"
-                    : "border-[#eab308]/12 bg-muted/20 text-muted-foreground",
+                    ? "border-[#e85d1a]/30 bg-[#e85d1a]/10 text-[#fef08a]"
+                    : "border-[#e85d1a]/12 bg-muted/20 text-muted-foreground",
                 )}
               >
                 {item.configured ? "ready" : "off"}
@@ -483,7 +483,7 @@ export default function SystemStatusPage() {
             </div>
           ))}
         </div>
-        <div className="mt-2 rounded-lg border border-[#eab308]/10 px-4 py-3">
+        <div className="mt-2 rounded-lg border border-[#e85d1a]/10 px-4 py-3">
           <div className="flex flex-wrap items-center justify-between gap-2 font-mono text-[10px]">
             <span className="text-muted-foreground">Bounded smolagents adapter</span>
             <span className={status?.openResearch?.adapter?.available ? "text-primary" : "text-muted-foreground"}>
@@ -499,7 +499,7 @@ export default function SystemStatusPage() {
               : "Mistral web search not configured"}
           </div>
         </div>
-        <div className="mt-3 rounded-lg border border-[#eab308]/10 px-4 py-3">
+        <div className="mt-3 rounded-lg border border-[#e85d1a]/10 px-4 py-3">
           <div className="flex flex-wrap items-center justify-between gap-2 font-mono text-[10px]">
             <span className="text-muted-foreground">Gemini Boss</span>
             <span className={status?.geminiBoss?.configured ? "text-primary" : "text-muted-foreground"}>
@@ -512,7 +512,7 @@ export default function SystemStatusPage() {
               : "Gemini Boss text-planning model not configured"}
           </div>
         </div>
-        <div className="mt-3 rounded-lg border border-[#eab308]/10 px-4 py-3">
+        <div className="mt-3 rounded-lg border border-[#e85d1a]/10 px-4 py-3">
           <div className="flex flex-wrap items-center justify-between gap-2 font-mono text-[10px]">
             <span className="text-muted-foreground">Boss's right-hand advisor</span>
             <span className={status?.bureauReasoning?.configured ? "text-primary" : "text-muted-foreground"}>
@@ -569,10 +569,10 @@ export default function SystemStatusPage() {
                 className={cn(
                   "rounded-lg border px-3 py-3 text-center",
                   slot.quotaExhausted
-                    ? "border-[#eab308]/30 bg-[#eab308]/5"
+                    ? "border-[#e85d1a]/30 bg-[#e85d1a]/5"
                     : slot.status === "ready"
                     ? "border-primary/30 bg-primary/5"
-                    : "border-[#eab308]/10 bg-muted/10",
+                    : "border-[#e85d1a]/10 bg-muted/10",
                 )}
               >
                 <div className="mb-1 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground/60">
@@ -580,14 +580,14 @@ export default function SystemStatusPage() {
                 </div>
                 <div className="flex items-center justify-center gap-1.5">
                   {slot.quotaExhausted
-                    ? <WifiOff className="h-3.5 w-3.5 text-[#eab308]" />
+                    ? <WifiOff className="h-3.5 w-3.5 text-[#e85d1a]" />
                     : slot.status === "ready"
                     ? <CheckCircle2 className="h-3.5 w-3.5 text-primary" />
                     : <Clock className="h-3.5 w-3.5 text-muted-foreground" />
                   }
                   <span className={cn(
                     "font-mono text-[10px] font-bold uppercase",
-                    slot.quotaExhausted ? "text-[#eab308]" :
+                    slot.quotaExhausted ? "text-[#e85d1a]" :
                     slot.status === "ready" ? "text-primary" : "text-muted-foreground",
                   )}>
                     {slot.quotaExhausted ? "quota" : slot.status}
@@ -603,12 +603,12 @@ export default function SystemStatusPage() {
       </section>
 
       {/* Legend */}
-      <div className="flex flex-wrap gap-4 border-t border-[#eab308]/08 pt-5 font-mono text-[10px] text-muted-foreground/60">
+      <div className="flex flex-wrap gap-4 border-t border-[#e85d1a]/08 pt-5 font-mono text-[10px] text-muted-foreground/60">
         <div className="flex items-center gap-1.5">
           <div className="h-3 w-3 rounded-full bg-primary" /> Active — key operational
         </div>
         <div className="flex items-center gap-1.5">
-          <div className="h-3 w-3 rounded-full bg-[#eab308]" /> Temporary cooldown — provider returned 429 (auto-recovers)
+          <div className="h-3 w-3 rounded-full bg-[#e85d1a]" /> Temporary cooldown — provider returned 429 (auto-recovers)
         </div>
         <div className="flex items-center gap-1.5">
           <div className="h-3 w-3 rounded-full border border-muted/50 bg-muted/20" /> Missing — secret not configured
