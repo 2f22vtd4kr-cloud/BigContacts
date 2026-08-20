@@ -63,17 +63,48 @@ function pickTool(e: OpsEvent): string {
   return String(e.activeToolId || e.toolIds?.[0] || e.stage || e.kind || "");
 }
 
+function isInternalLanePrompt(s: string): boolean {
+  return /LANE\s*[–-]\s*people_press|RESEARCH (LANE|CONTRACT)|REALISM\s*\/\s*REACHABILITY|Phase 0 OSINT|You are conducting/i.test(s);
+}
+
+function cleanQueryText(s: string): string {
+  return s
+    .replace(/\\n/g, " ")
+    .replace(/\n/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function extractQuery(e: OpsEvent): string | undefined {
-  const blob = [e.inputSummary, e.resultSummary, e.stage, e.raw, e.prompt].filter(Boolean).join(" ");
+  // Never surface internal research-contract / lane prompts as the search box query
+  const safeParts = [e.inputSummary, e.resultSummary, e.stage, e.raw]
+    .filter((x): x is string => Boolean(x) && !isInternalLanePrompt(String(x)));
+  const blob = safeParts.join(" ");
   const m =
     blob.match(/Query:\s*([^\n|]+)/i) ||
     blob.match(/search(?:ing)?\s+(?:for\s+)?["\u201c]?([^"\u201d\n]{8,140})/i) ||
     blob.match(/site:[^\s]+[^\n]{0,80}/i);
-  if (m?.[1]) return m[1].trim();
-  if (/discover|serp|search|tavily|perplexity|google|gemini|serper/i.test(pickTool(e) + (e.stage || ""))) {
-    return e.targetName ? `${e.targetName} owner email contact` : undefined;
+  if (m?.[1] && !isInternalLanePrompt(m[1])) return cleanQueryText(m[1]);
+  // Prefer short operator inputSummary when it is a real complementary_lane / resolve_identity line
+  if (e.inputSummary && !isInternalLanePrompt(e.inputSummary)) {
+    const ins = cleanQueryText(e.inputSummary);
+    if (ins.length >= 6 && ins.length <= 120 && !/^the .+ is still uncovered$/i.test(ins)) {
+      // "resolve_identity: Name" / "official_routes: domain" → usable
+      const stripped = ins.replace(/^(resolve_identity|official_routes|complementary_lane|contact_routes):\s*/i, "").trim();
+      if (stripped.length >= 3) return stripped.length <= 100 ? stripped : stripped.slice(0, 97) + "…";
+    }
+  }
+  if (/discover|serp|search|tavily|perplexity|google|gemini|serper|exa/i.test(pickTool(e) + (e.stage || ""))) {
+    return e.targetName ? `${e.targetName} contact email phone` : undefined;
   }
   return undefined;
+}
+
+/** Provider was attempted but is offline / missing / returned nothing usable. */
+function providerUnavailable(e: OpsEvent): boolean {
+  const blob = `${e.resultSummary || ""} ${e.inputSummary || ""} ${e.status || ""}`;
+  return /no usable result|not configured|provider availability|quota|missing key|api key|returned no usable|0 citation/i.test(blob)
+    && /perplexity|perp0|groq|provider/i.test(`${pickTool(e)} ${blob}`);
 }
 
 function extractUrl(e: OpsEvent): string | undefined {
@@ -209,8 +240,16 @@ function toScene(e: OpsEvent, index: number): Scene {
   const tool = pickTool(e);
   const provider = detectProviderKind(`${tool} ${e.stage || ""} ${e.resultSummary || ""}`);
   const status = String(e.status || "active");
-  const live = !/complete|done|success/i.test(status);
-  const terminal: "done" | "failed" | null = /fail|error|blocked/i.test(status) ? "failed" : (!live ? "done" : null);
+  const unavailable = providerUnavailable(e);
+  // Do not show LIVE chrome for missing/offline providers (e.g. Perplexity with 0 keys)
+  let live = !/complete|done|success/i.test(status) && !unavailable;
+  if (unavailable && !/complete|done|success/i.test(status)) {
+    // Force terminal failed so UI shows OFF / failed instead of LIVE theater
+  }
+  const terminal: "done" | "failed" | null = unavailable || /fail|error|blocked/i.test(status)
+    ? "failed"
+    : (!live ? "done" : null);
+  if (unavailable) live = false;
   const query = extractQuery(e);
   const url = extractUrl(e);
   const resultLines = [
@@ -239,6 +278,18 @@ function toScene(e: OpsEvent, index: number): Scene {
     /scrapfly|zenrows|visit|fetch|mailto|contact-attribution|contact-facts|browser|webdisc|inhouse/i.test(toolBlob)
   ) kind = "browser";
 
+  // Honest labeling when provider is not configured / returned nothing
+  let honestSubtitle = e.resultSummary || undefined;
+  if (unavailable) {
+    const tool = pickTool(e);
+    if (/perp|perplexity/i.test(tool)) {
+      honestSubtitle = "Perplexity not configured or returned no result — not a live search";
+      kind = "serp";
+    } else if (/groq/i.test(tool) && /rate.?limit|no usable/i.test(`${e.resultSummary||""}`)) {
+      honestSubtitle = "Groq unavailable or rate-limited";
+    }
+  }
+
   const title =
     kind === "boss" ? "Boss"
       : kind === "case" ? "Case file"
@@ -252,22 +303,33 @@ function toScene(e: OpsEvent, index: number): Scene {
       : kind === "serp" ? providerLabel(provider)
       : e.stage || "Bureau";
 
+  // Never put research-contract prompts in the search chrome
+  const safePrompt =
+    e.prompt && !isInternalLanePrompt(e.prompt) && kind === "prompt"
+      ? e.prompt
+      : undefined;
+  const lines = resultLines.slice(0, 3);
+  if (unavailable && honestSubtitle) {
+    lines.unshift(honestSubtitle);
+  }
   return {
     id: `${e.timestamp || index}-${tool}-${index}`,
     kind,
     provider,
-    title,
-    subtitle: e.stage,
-    query,
+    title: unavailable && /perp|perplexity/i.test(tool) ? "Perplexity · offline" : title,
+    subtitle: unavailable ? (honestSubtitle || e.stage) : e.stage,
+    query: unavailable ? (e.targetName ? `${e.targetName} (provider offline)` : query) : query,
     url,
-    prompt: e.prompt,
-    resultLines: resultLines.slice(0, 3),
-    status,
+    prompt: safePrompt,
+    resultLines: lines.slice(0, 4),
+    status: unavailable ? "failed" : status,
     targetName: e.targetName,
     timestamp: e.timestamp,
     live,
     terminal,
-    story: storyFor(kind, e, query),
+    story: unavailable
+      ? (honestSubtitle || "Provider offline or returned no usable result")
+      : storyFor(kind, e, query),
     links: (e.links && e.links.length
       ? e.links
       : (e.sourceUrls ?? []).map((url) => ({ url }))

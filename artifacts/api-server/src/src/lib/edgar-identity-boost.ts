@@ -31,12 +31,76 @@ function normalizePersonKey(name: string): string {
     .trim();
 }
 
+/** SEC / EDGAR chrome that matches Title Case but is never a person. */
+const SEC_CHROME_NAMES = new Set(
+  [
+    "home skip",
+    "menu close",
+    "menu close search",
+    "united states",
+    "filer management",
+    "filer management portal",
+    "filer support",
+    "next forms",
+    "next forms index",
+    "next forms index filer support",
+    "lookup public",
+    "lookup public dissemination",
+    "lookup public dissemination service",
+    "public dissemination",
+    "public dissemination service",
+    "resources data",
+    "research data",
+    "markets data",
+    "markets data taxonomies",
+    "markets data taxonomies statistics",
+    "compliance rules",
+    "exemptive letters",
+    "exemptive letters self",
+    "regulatory organization",
+    "regulatory organization rulemaking",
+    "regulatory organization rulemaking public petitions",
+    "forms index",
+    "edgar search",
+    "company search",
+    "full text",
+    "full text search",
+    "advanced search",
+    "latest filings",
+    "current events",
+    "header footer",
+  ].map((s) => s.toLowerCase()),
+);
+
 function looksLikePersonName(name: string): boolean {
   const t = name.trim();
   if (t.length < 5 || t.length > 80) return false;
   if (!/^[A-Z][a-zA-Z.'\-]+(?:\s+[A-Z][a-zA-Z.'\-]+){1,4}$/.test(t)) return false;
-  if (/\b(Inc|LLC|Ltd|Corp|Company|Trust|Fund|Holdings|Group|Bank)\b/i.test(t)) return false;
+  if (/\b(Inc|LLC|Ltd|Corp|Company|Trust|Fund|Holdings|Group|Bank|Search|Menu|Portal|Index|Forms|Skip|Close|Lookup|Resources|Research|Markets|Compliance|Regulatory|Exemptive|Dissemination|Statistics|Taxonomies|Petitions|Rulemaking|Support|Service|Header|Footer)\b/i.test(t)) {
+    return false;
+  }
+  const key = normalizePersonKey(t);
+  if (SEC_CHROME_NAMES.has(key)) return false;
+  // Reject if any token is pure chrome vocabulary
+  for (const tok of key.split(" ")) {
+    if (
+      /^(home|skip|menu|close|search|filer|forms|index|lookup|public|dissemination|resources|research|markets|data|compliance|rules|exemptive|letters|self|regulatory|organization|rulemaking|petitions|portal|support|service|united|states|header|footer|next|full|text|advanced|latest|filings|current|events)$/i.test(
+        tok,
+      )
+    ) {
+      return false;
+    }
+  }
   return true;
+}
+
+/** True when HTML looks like a DEF 14A / proxy body, not EDGAR chrome/index. */
+function looksLikeProxyDocument(html: string): boolean {
+  const h = html.slice(0, 80_000);
+  if (/EDGAR Filing Documents|browse-edgar|Full-Text Search|Company Search/i.test(h) && !/DEF 14A|beneficial ownership|named executive|has been .+ President|Board of Directors/i.test(h)) {
+    return false;
+  }
+  return /DEF\s*14A|proxy statement|beneficial ownership|Board of Directors|named executive officer|has been .{5,40} (President|Director|Chairman|CEO)/i.test(h);
 }
 
 /** Extract director/officer bio line for target from proxy HTML. */
@@ -220,8 +284,11 @@ export async function boostEdgarIdentity(opts: {
       out.streetAddress = out.streetAddress ?? addr.street;
       out.cityState = out.cityState ?? addr.cityState;
     }
-    for (const p of extractRelatedNames(body, opts.personName)) {
-      if (!out.relatedPeople.includes(p)) out.relatedPeople.push(p);
+    // Never mine related names from EDGAR search/index chrome pages
+    if (looksLikeProxyDocument(body)) {
+      for (const p of extractRelatedNames(body, opts.personName)) {
+        if (!out.relatedPeople.includes(p)) out.relatedPeople.push(p);
+      }
     }
     if (out.roleHeadline && out.streetAddress && out.relatedPeople.length >= 3) break;
   }
