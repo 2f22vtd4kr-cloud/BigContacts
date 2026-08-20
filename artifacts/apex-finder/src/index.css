@@ -120,67 +120,78 @@ body {
     0 0 28px rgba(156, 255, 26, 0.07);
 }
 
-/* Primary CTA — liquid chrome / mercury mirror (ref: iridescent distortion) */
+/* Primary CTA — mercury mirror (sharp chrome, not soft aurora) */
 .atlas-launch-glow {
   position: relative;
   isolation: isolate;
   overflow: hidden;
-  color: #f8fafc;
+  color: #f4f7fb;
   font-weight: 700;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.03em;
   text-shadow:
-    0 1px 2px rgba(0, 0, 0, 0.85),
-    0 0 12px rgba(0, 0, 0, 0.45);
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  border-radius: 14px;
-  /* Dark liquid metal base — not flat lime */
+    0 1px 2px rgba(0, 0, 0, 0.9),
+    0 0 8px rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 999px;
+  /* Polished dark chrome — hard bands, not soft color wash */
   background:
-    linear-gradient(160deg,
-      #2a3344 0%,
-      #0f141c 22%,
-      #1a2230 45%,
-      #0c1018 68%,
-      #243044 100%);
-  background-size: 180% 180%;
+    linear-gradient(
+      105deg,
+      #0a0c10 0%,
+      #1c222c 12%,
+      #8b93a0 18%,
+      #e8ecf2 22%,
+      #3a4250 28%,
+      #0d1016 40%,
+      #2a3140 52%,
+      #c5ccd6 58%,
+      #4a5362 64%,
+      #0a0c10 78%,
+      #1a2030 88%,
+      #6a7382 94%,
+      #0a0c10 100%
+    );
+  background-size: 280% 100%;
   box-shadow:
-    0 0 0 1px rgba(156, 255, 26, 0.15),
-    0 0 40px rgba(120, 80, 255, 0.28),
-    0 0 28px rgba(156, 255, 26, 0.18),
-    0 8px 24px rgba(0, 0, 0, 0.55),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2),
-    inset 0 -2px 8px rgba(0, 0, 0, 0.5);
-  transition:
-    box-shadow 240ms ease,
-    transform 140ms cubic-bezier(0.2, 1, 0.32, 1),
-    filter 180ms ease;
-  animation: atlas-chrome-base 10s ease-in-out infinite;
+    0 0 0 1px rgba(255, 255, 255, 0.12),
+    0 4px 20px rgba(0, 0, 0, 0.65),
+    0 0 24px rgba(180, 120, 255, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    inset 0 -2px 6px rgba(0, 0, 0, 0.55);
+  animation: atlas-chrome-sweep 5.5s linear infinite;
+  transition: transform 140ms cubic-bezier(0.2, 1, 0.32, 1), box-shadow 200ms ease, filter 160ms ease;
 }
 
-/* Liquid distortion mesh — heavy warp layer */
+/* High-frequency liquid warp of the metal surface */
 .atlas-launch-glow .atlas-liquid-mesh {
   position: absolute;
-  inset: -30%;
+  inset: -40%;
   z-index: 0;
   pointer-events: none;
   background:
-    radial-gradient(ellipse 50% 40% at 20% 30%, rgba(186, 120, 255, 0.7) 0%, transparent 55%),
-    radial-gradient(ellipse 45% 50% at 80% 70%, rgba(60, 220, 255, 0.65) 0%, transparent 55%),
-    radial-gradient(ellipse 40% 35% at 55% 20%, rgba(255, 255, 255, 0.5) 0%, transparent 50%),
-    radial-gradient(ellipse 55% 40% at 30% 80%, rgba(156, 255, 26, 0.35) 0%, transparent 55%),
-    radial-gradient(ellipse 35% 40% at 70% 40%, rgba(255, 60, 140, 0.4) 0%, transparent 50%),
-    conic-gradient(from 120deg at 50% 50%,
-      rgba(180, 100, 255, 0.25),
-      rgba(60, 220, 255, 0.2),
-      rgba(156, 255, 26, 0.15),
-      rgba(255, 80, 160, 0.2),
-      rgba(180, 100, 255, 0.25));
-  mix-blend-mode: screen;
-  opacity: 0.9;
+    repeating-linear-gradient(
+      100deg,
+      transparent 0px,
+      rgba(255, 255, 255, 0.04) 1px,
+      transparent 3px,
+      transparent 14px
+    ),
+    radial-gradient(ellipse 30% 60% at 25% 40%, rgba(255, 255, 255, 0.25) 0%, transparent 55%),
+    radial-gradient(ellipse 25% 50% at 75% 60%, rgba(255, 255, 255, 0.18) 0%, transparent 50%),
+    linear-gradient(
+      160deg,
+      rgba(255, 255, 255, 0.08) 0%,
+      transparent 35%,
+      transparent 65%,
+      rgba(0, 0, 0, 0.25) 100%
+    );
   filter: url(#atlas-liquid-distort);
-  animation: atlas-liquid-mesh-drift 6s ease-in-out infinite;
+  opacity: 0.95;
+  mix-blend-mode: overlay;
+  animation: atlas-liquid-mesh-drift 4.5s ease-in-out infinite;
 }
 
-/* Mercury specular + chromatic fringe */
+/* Thin chromatic fringe only (purple/cyan) — not a color fill */
 .atlas-launch-glow .atlas-liquid-sheen {
   position: absolute;
   inset: 0;
@@ -189,29 +200,22 @@ body {
   border-radius: inherit;
   background:
     linear-gradient(
-      118deg,
+      100deg,
       transparent 0%,
-      transparent 30%,
-      rgba(255, 255, 255, 0.55) 46%,
-      rgba(200, 160, 255, 0.35) 50%,
-      rgba(80, 230, 255, 0.3) 54%,
-      transparent 68%,
+      transparent 42%,
+      rgba(255, 255, 255, 0.7) 49%,
+      rgba(200, 170, 255, 0.35) 51%,
+      rgba(80, 220, 255, 0.3) 53%,
+      transparent 60%,
       transparent 100%
-    ),
-    linear-gradient(
-      200deg,
-      rgba(255, 255, 255, 0.12) 0%,
-      transparent 40%,
-      transparent 70%,
-      rgba(120, 80, 255, 0.15) 100%
     );
-  background-size: 240% 100%, 100% 100%;
+  background-size: 200% 100%;
   mix-blend-mode: soft-light;
-  animation: atlas-liquid-specular 3.8s ease-in-out infinite;
-  opacity: 0.95;
+  animation: atlas-liquid-specular 3.2s ease-in-out infinite;
+  opacity: 0.9;
 }
 
-/* Organic white edge glow (like AR silhouette) */
+/* Hard white rim — AR silhouette edge */
 .atlas-launch-glow .atlas-liquid-rim {
   position: absolute;
   inset: 0;
@@ -219,11 +223,11 @@ body {
   pointer-events: none;
   border-radius: inherit;
   box-shadow:
-    inset 0 0 0 1px rgba(255, 255, 255, 0.35),
-    inset 0 0 18px rgba(255, 255, 255, 0.08),
-    0 0 12px rgba(186, 120, 255, 0.35),
-    0 0 20px rgba(60, 220, 255, 0.2);
-  animation: atlas-liquid-rim-pulse 4s ease-in-out infinite;
+    inset 0 0 0 1.5px rgba(255, 255, 255, 0.55),
+    inset 0 0 12px rgba(255, 255, 255, 0.06),
+    0 0 0 1px rgba(160, 120, 255, 0.25),
+    0 0 14px rgba(80, 200, 255, 0.15);
+  animation: atlas-liquid-rim-pulse 3.5s ease-in-out infinite;
 }
 
 .atlas-launch-glow > .atlas-liquid-label {
@@ -235,55 +239,54 @@ body {
 }
 
 .atlas-launch-glow:hover {
-  filter: brightness(1.08) saturate(1.2);
+  filter: brightness(1.12) contrast(1.08);
   box-shadow:
     0 0 0 1px rgba(255, 255, 255, 0.35),
-    0 0 56px rgba(140, 90, 255, 0.4),
-    0 0 36px rgba(60, 220, 255, 0.3),
-    0 0 24px rgba(156, 255, 26, 0.25),
-    0 8px 28px rgba(0, 0, 0, 0.6),
-    inset 0 1px 0 rgba(255, 255, 255, 0.35);
+    0 6px 28px rgba(0, 0, 0, 0.7),
+    0 0 32px rgba(160, 120, 255, 0.22),
+    0 0 20px rgba(60, 220, 255, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  animation-duration: 3.2s;
 }
 .atlas-launch-glow:hover .atlas-liquid-mesh {
-  animation-duration: 3.5s;
+  animation-duration: 2.8s;
   opacity: 1;
 }
 .atlas-launch-glow:hover .atlas-liquid-sheen {
-  animation-duration: 2.4s;
+  animation-duration: 2s;
 }
 
 .atlas-launch-glow:active {
-  transform: scale(0.97);
-  filter: brightness(0.95);
+  transform: scale(0.975);
+  filter: brightness(0.92);
   box-shadow:
-    0 0 0 1px rgba(255, 255, 255, 0.2),
-    0 0 20px rgba(120, 80, 255, 0.3),
-    inset 0 3px 12px rgba(0, 0, 0, 0.45);
+    0 0 0 1px rgba(255, 255, 255, 0.25),
+    inset 0 3px 14px rgba(0, 0, 0, 0.6);
 }
 
 .atlas-launch-glow.atlas-click-flash {
   animation: atlas-click-flash 480ms cubic-bezier(0.2, 1, 0.32, 1);
 }
 
-@keyframes atlas-chrome-base {
-  0%, 100% { background-position: 0% 40%; }
-  50% { background-position: 100% 60%; }
+@keyframes atlas-chrome-sweep {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 100% 50%; }
 }
 @keyframes atlas-liquid-mesh-drift {
-  0%   { transform: translate3d(-6%, -4%, 0) scale(1.12) rotate(-2deg); }
-  33%  { transform: translate3d(5%, 3%, 0) scale(1.18) rotate(3deg); }
-  66%  { transform: translate3d(2%, -5%, 0) scale(1.1) rotate(-1deg); }
-  100% { transform: translate3d(-6%, -4%, 0) scale(1.12) rotate(-2deg); }
+  0%   { transform: translate3d(-8%, -5%, 0) scale(1.15) rotate(-3deg); }
+  40%  { transform: translate3d(6%, 4%, 0) scale(1.22) rotate(2deg); }
+  100% { transform: translate3d(-8%, -5%, 0) scale(1.15) rotate(-3deg); }
 }
 @keyframes atlas-liquid-specular {
-  0%   { background-position: -20% 0%, 0% 0%; opacity: 0.7; }
-  45%  { background-position: 70% 0%, 100% 0%; opacity: 1; }
-  100% { background-position: 140% 0%, 0% 0%; opacity: 0.7; }
+  0%   { background-position: -30% 0%; opacity: 0.65; }
+  50%  { background-position: 80% 0%; opacity: 1; }
+  100% { background-position: 160% 0%; opacity: 0.65; }
 }
 @keyframes atlas-liquid-rim-pulse {
-  0%, 100% { opacity: 0.85; filter: brightness(1); }
-  50% { opacity: 1; filter: brightness(1.15); }
+  0%, 100% { opacity: 0.9; }
+  50% { opacity: 1; }
 }
+
 
 
 /* Shimmer loading */
