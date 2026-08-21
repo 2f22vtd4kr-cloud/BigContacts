@@ -656,6 +656,47 @@ async function enrichEntityFullCircle(atlasJobId: string, entity: EntityRow): Pr
       return;
     }
 
+    // ── Deceased gate (public bio) — do not run full OSINT as live HNWI ───────
+    try {
+      const { probeDeceasedPublic } = await import("./deceased-probe");
+      const dead = await probeDeceasedPublic(name);
+      if (dead.deceased && dead.confidence >= 70) {
+        logger.warn({ entityId: id, name, note: dead.note }, "[Atlas] Deceased probe positive — marking evidence-only");
+        await setAtlasTelemetry(atlasJobId, {
+          stage: "DECEASED GATE",
+          status: "active",
+          targetName: name,
+          targetType: entity.type,
+          toolIds: ["wikipedia"],
+          activeToolId: "wikipedia",
+          actor: "registry",
+          methodKind: "registry",
+          story: `Public record indicates ${name} is deceased — not a live outreach target`,
+          inputSummary: dead.note ?? "Wikipedia death cue",
+          links: dead.sourceUrl ? [{ title: "Public biography", url: dead.sourceUrl }] : [],
+        }, id);
+        await db.update(entitiesTable).set({
+          contactOutcome: "evidence_only",
+          contactConfidence: 0,
+          cookedAt: new Date(),
+          updatedAt: new Date(),
+          notes: sql`CASE WHEN ${entitiesTable.notes} IS NULL OR ${entitiesTable.notes} = '' THEN ${"DECEASED (public bio): " + (dead.note ?? "death cue")} ELSE ${entitiesTable.notes} || E'\n' || ${"DECEASED (public bio): " + (dead.note ?? "death cue")} END`,
+          metadata: sql`COALESCE(${entitiesTable.metadata}::jsonb, '{}'::jsonb) || ${JSON.stringify({
+            deceased: true,
+            deceasedProbe: {
+              confidence: dead.confidence,
+              note: dead.note,
+              sourceUrl: dead.sourceUrl,
+              at: new Date().toISOString(),
+            },
+          })}::jsonb`,
+        }).where(eq(entitiesTable.id, id));
+        return;
+      }
+    } catch (err: any) {
+      logger.debug({ entityId: id, err: err?.message }, "[Atlas] deceased probe skipped");
+    }
+
     // ── Early EDGAR / proxy identity boost (before long AI web OSINT) ─────────
     // Recovers President/Director role, street address, and related officers from
     // DEF 14A so comparison targets are not lost when Phase J later times out.
