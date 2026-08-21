@@ -98,6 +98,49 @@ describe("final target review", () => {
     });
 
     expect(disposition.disposition).toBe("contact_route_found");
-    expect(disposition.nextAction).toContain("manual access review");
+    expect(disposition.nextAction.toLowerCase()).toContain("approved");
+  });
+
+  it("lets the model promote related SEC address material without inventing", () => {
+    const result = adjudicateFinalTargetReview(
+      baseInput({
+        candidates: [{
+          key: "address|2099 Pennsylvania",
+          vectorType: "address",
+          value: "2099 Pennsylvania Avenue NW, Washington, DC 20006",
+          providers: ["edgar"],
+          sourceDomains: ["sec.gov"],
+          sourceUrls: ["https://www.sec.gov/example"],
+          scopes: ["target_person"],
+          personNames: ["Frank H Pearl"],
+          state: "person_candidate",
+          conflictCount: 0,
+          exactClaimObserved: true,
+          blockedSourceUrls: [],
+        }],
+        evidence: [{
+          vectorType: "address",
+          value: "2099 Pennsylvania Avenue NW, Washington, DC 20006",
+          source: "edgar",
+          sourceUrl: "https://www.sec.gov/example",
+          validationStatus: "candidate",
+        }],
+      }),
+      {
+        decision: "publish",
+        approvedContactValues: [],
+        approvedRelatedValues: ["2099 Pennsylvania Avenue NW, Washington, DC 20006"],
+        relatedDescriptions: ["SEC reporting address"],
+        cardSummary: "Frank H. Pearl is tied to Perseus via SEC beneficial ownership filings.",
+        roleHeadline: "10% owner / Perseus control person",
+        reasons: ["Exact address from SEC filing evidence."],
+      },
+      "test",
+    );
+
+    expect(result.decision).toBe("publish");
+    expect(result.approvedRelatedValues).toEqual(["2099 Pennsylvania Avenue NW, Washington, DC 20006"]);
+    expect(result.roleHeadline).toContain("Perseus");
+    expect(result.cardSummary).toContain("Pearl");
   });
 });

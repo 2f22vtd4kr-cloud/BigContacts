@@ -1390,17 +1390,31 @@ Only include assets with a SPECIFIC identifier. If nothing concrete is mentioned
       instagramHandle: baselineContacts.instagramHandle ?? (publish ? normalizeHandle(approvedInstagram) : null),
       twitterHandle: baselineContacts.twitterHandle ?? (publish ? normalizeHandle(approvedTwitter) : null),
     };
+    // LLM-controlled card narrative (related findings + summary + role)
+    const relatedLines = (finalReview.approvedRelatedValues ?? []).map((value, i) => {
+      const desc = finalReview.relatedDescriptions?.[i];
+      return desc ? `${desc}: ${value}` : value;
+    });
+    const llmNoteBlocks = [
+      finalReview.cardSummary?.trim(),
+      relatedLines.length ? `Related findings:\n${relatedLines.map((l) => `• ${l}`).join("\n")}` : null,
+      finalReview.reasons?.length ? `Reviewer: ${finalReview.reasons.slice(0, 3).join("; ")}` : null,
+    ].filter(Boolean) as string[];
     const {
       atlasTargetOutcome: _previousTargetOutcome,
       atlasLastError: _previousLastError,
       atlasTimeoutAt: _previousTimeoutAt,
       ...priorMetadata
     } = safeJson<Record<string, unknown>>(reviewEntity?.metadata ?? entity.metadata, {});
-    const cleanNotes = String(reviewEntity?.notes ?? "")
+    const priorNotes = String(reviewEntity?.notes ?? "")
       .split("\n")
       .filter((line) => !line.startsWith("Atlas timeout review:"))
+      .filter((line) => !line.startsWith("Related findings:"))
+      .filter((line) => !line.startsWith("Reviewer:"))
       .join("\n")
-      .trim() || null;
+      .trim();
+    const cleanNotes = [priorNotes, ...llmNoteBlocks].filter(Boolean).join("\n\n").trim() || null;
+    const roleHeadline = finalReview.roleHeadline?.trim() || null;
     const reviewMetadata = {
       ...priorMetadata,
       atlasTargetOutcome: "completed_review",
@@ -1409,6 +1423,9 @@ Only include assets with a SPECIFIC identifier. If nothing concrete is mentioned
       atlasResearchDisposition: researchDisposition.disposition,
       atlasNextAction: researchDisposition.nextAction,
       atlasReviewableCandidateCount: reviewableCandidateCount,
+      llmCardSummary: finalReview.cardSummary ?? null,
+      llmRoleHeadline: roleHeadline,
+      llmRelatedFindings: relatedLines,
     };
     await db.update(entitiesTable).set({
       email: finalContacts.email,
@@ -1416,11 +1433,13 @@ Only include assets with a SPECIFIC identifier. If nothing concrete is mentioned
       linkedinUrl: finalContacts.linkedinUrl,
       instagramHandle: finalContacts.instagramHandle,
       twitterHandle: finalContacts.twitterHandle,
+      // Role line on card when LLM supplies one and we don't already have a headline
+      linkedinHeadline: roleHeadline || (reviewEntity as { linkedinHeadline?: string | null })?.linkedinHeadline || null,
       notes: cleanNotes,
       metadata: JSON.stringify(reviewMetadata),
       updatedAt: new Date(),
     }).where(eq(entitiesTable.id, id));
-    entity = { ...entity, ...finalContacts };
+    entity = { ...entity, ...finalContacts, linkedinHeadline: roleHeadline || entity.linkedinHeadline };
 
     // Only exact values selected by the final reviewer become verified. A
     // reviewer rejection is durable; an unavailable/uncertain review remains
