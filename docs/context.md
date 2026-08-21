@@ -5,22 +5,23 @@
 
 ## Prep for next Replit run (2026-08-21)
 
-**Current tip:** pending — done_rejected is soft hint only (no force search)  
-**Prior tip:** `cd8d929` — zero force-continues before llmStep
+**Current tip:** `0aebbb4` — FREE_REACT_STEPS=12; no force-visit until after free floor; soft stagnation  
+**Prior:** `6c71d46` soft done-reject · `cd8d929` force-hops don't skip LLM
 
-### Tip: pull latest main (FREE_REACT_STEPS=12; free dig before any force-visit; soft stagnation).
+### Tip chain (bureau research integrity — recent)
 | Commit | Point |
 |--------|--------|
-| `02759c3` | apex-runtime agentic off dead Llama 3.3; GROQ_CHAT_MODELS rotation |
-| `ebf53c8` | runtime groq-models.ts shared list |
-| `00eded5` | Overnight script off Llama 3.3 70B |
-| *(this)* | FREE_REACT_STEPS=5; MAX_ITER 20; force-hops deferred; pass default 18 |
+| `0aebbb4` | Free floor **12**; force-visit only after free steps; stagnation hint |
+| `6c71d46` | done_rejected = soft hint only |
+| `cd8d929` / `63f66c5` | Force-hops never skip llmStep |
+| `f80e257` / `1603c5f` | Boss free tool+query; adaptive assignment |
+| `1fb783a` | Final review Boss → right-hand → Groq |
+| `23d965c` / `a07fbe6` | Serper → Tavily → Exa → DDG |
+| `02759c3` | Off dead Llama 3.3 |
 
 ### Why single Grok previously beat the bureau
-Force-hop blocks ran *before* free ReAct each iteration and burned the 12–14 step budget.
-Models never got enough free turns to dig. Fix: first 5 steps are free multi-LLM ReAct only;
-force-hops fill gaps after. Keys (Serper + Groq + Tavily/Exa + browsers) must be set or
-bureauIntegrity goes critical and you are comparing a crippled desk to a full agent.
+Force-hops ran before free ReAct and burned the step budget. Models never got enough free turns.
+Fix: first **12** steps are free multi-LLM ReAct; gap-fill only after. Keys (Serper + Groq + Tavily/Exa + browsers) must be live or bureauIntegrity goes critical.
 
 ### Philosophy (do not regress)
 - **Final card review = Gemini Boss primary, NVIDIA right-hand secondary, Groq only as capacity fallback.**
