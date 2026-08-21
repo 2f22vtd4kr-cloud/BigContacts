@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
-import { Crosshair, Loader2, Radar, Square } from "lucide-react";
+import { Crosshair, Loader2, Square } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   launchAtlasPipeline,
@@ -146,12 +146,11 @@ export function LaunchAtlasButton({
           (variant === "primary" || variant === "reactor") && !running && "atlas-liquid-label",
           "inline-flex items-center gap-2",
         )}>
-          {busy || run.active ? (
+          {(busy || run.active) && (
             <Loader2 className="h-4 w-4 animate-spin shrink-0" aria-hidden />
-          ) : variant === "header" ? (
+          )}
+          {variant === "header" && !busy && !run.active && (
             <Crosshair className="h-3.5 w-3.5 shrink-0" aria-hidden />
-          ) : (
-            <Radar className="h-4 w-4 animate-pulse shrink-0" aria-hidden />
           )}
           <span
             className={cn(
