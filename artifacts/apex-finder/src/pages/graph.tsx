@@ -51,7 +51,7 @@ export default function GraphViewer() {
     return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
   });
 
-  // On initial load with no ?entity= param, pick the most-connected entity instead of #1
+  // On initial load with no ?entity= param, pick a hub — or any entity from the list
   useEffect(() => {
     if (!entityIdFromUrl && targetId === 0) {
       if (isMockMode()) {
@@ -70,6 +70,14 @@ export default function GraphViewer() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // If hub-entity returned null, fall back to first listed entity so the graph is never blank
+  useEffect(() => {
+    if (targetId > 0 || entityIdFromUrl) return;
+    const list = (allEntitiesRaw as any)?.entities ?? allEntitiesRaw;
+    const first = Array.isArray(list) ? list[0] : null;
+    if (first?.id) setTargetId(Number(first.id));
+  }, [allEntitiesRaw, targetId, entityIdFromUrl]);
 
   useEffect(() => {
     if (entityIdFromUrl) {
@@ -215,35 +223,91 @@ export default function GraphViewer() {
 
   const gData = useMemo(() => {
     // Guard against undefined AND against error-response objects like { error: "Entity not found" }
-    if (!graphData || !Array.isArray((graphData as any)?.nodes)) return { nodes: [], links: [] };
     const ASSET_TYPES = new Set(["RealEstate", "Aviation", "Marine", "PrivateClub"]);
-    const filteredNodes = (graphData as any).nodes.filter((n: any) => {
+    let rawNodes: any[] = Array.isArray((graphData as any)?.nodes) ? (graphData as any).nodes : [];
+    let rawEdges: any[] = Array.isArray((graphData as any)?.edges) ? (graphData as any).edges : [];
+
+    // Sparse bureau: no / few relationships → always show people as a constellation
+    // so the graph is never a blank black screen.
+    const list = (allEntities as any)?.entities ?? allEntities;
+    const people = Array.isArray(list) ? list.slice(0, 48) : [];
+    if (rawNodes.length <= 1 && people.length > 0) {
+      rawNodes = people.map((e: any) => ({
+        id: String(e.id),
+        label: e.name,
+        nodeType: e.type || "HNWI",
+        type: e.type || "HNWI",
+        isTarget: Number(e.id) === targetId,
+        isCentral: Number(e.id) === targetId,
+        bayesianScore: e.bayesianScore ?? 0,
+        contactConfidence: e.contactConfidence ?? 0,
+      }));
+      if (targetId > 0 && !rawNodes.some((n) => String(n.id) === String(targetId))) {
+        rawNodes.unshift({
+          id: String(targetId),
+          label: displayEntityName || `Entity #${targetId}`,
+          nodeType: "HNWI",
+          type: "HNWI",
+          isTarget: true,
+          isCentral: true,
+          bayesianScore: 0,
+          contactConfidence: 0,
+        });
+      }
+      rawEdges = [];
+    } else if (rawNodes.length === 0 && targetId > 0) {
+      rawNodes = [{
+        id: String(targetId),
+        label: displayEntityName || `Entity #${targetId}`,
+        nodeType: "HNWI",
+        type: "HNWI",
+        isTarget: true,
+        isCentral: true,
+        bayesianScore: 0,
+        contactConfidence: 0,
+      }];
+      rawEdges = [];
+    }
+
+    const filteredNodes = rawNodes.filter((n: any) => {
       if (n.isTarget) return true;
       if (minScore > 0 && !ASSET_TYPES.has(n.nodeType) && n.bayesianScore != null && n.bayesianScore * 100 < minScore) return false;
       if (assetTypeFilter && ASSET_TYPES.has(n.nodeType) && n.nodeType !== assetTypeFilter) return false;
       return true;
     });
-    const filteredIds = new Set(filteredNodes.map((n: any) => n.id));
+    const filteredIds = new Set(filteredNodes.map((n: any) => String(n.id)));
     return {
       nodes: filteredNodes.map((n: any) => ({ ...n, val: n.isTarget ? 3 : n.isCentral ? 2 : 1 })),
-      links: ((graphData as any).edges ?? [])
-        .filter((e: any) => filteredIds.has(e.source) && filteredIds.has(e.target))
+      links: rawEdges
+        .filter((e: any) => filteredIds.has(String(e.source)) && filteredIds.has(String(e.target)))
         .map((e: any) => ({
-          source: e.source,
-          target: e.target,
+          source: String(e.source),
+          target: String(e.target),
           label: e.label,
           strength: e.strength,
           evidenceStatus: e.evidenceStatus,
           provenanceScore: e.provenanceScore,
         })),
     };
-  }, [graphData, minScore, assetTypeFilter]);
+  }, [graphData, minScore, assetTypeFilter, allEntities, targetId, displayEntityName]);
 
   useEffect(() => {
-    if (gData.nodes.length && fgRef.current) {
-      setTimeout(() => fgRef.current?.zoomToFit(400, 50), 500);
-    }
-  }, [gData]);
+    if (!gData.nodes.length || !fgRef.current) return;
+    // Gentle fit — never extreme zoom-in on a single HNWI
+    const pad = gData.nodes.length <= 3 ? 160 : gData.nodes.length <= 8 ? 100 : 60;
+    const t = window.setTimeout(() => {
+      try {
+        fgRef.current?.zoomToFit(500, pad);
+        const z = (fgRef.current as any)?.zoom;
+        if (typeof z === "function") {
+          const cur = z();
+          // Hard cap — one selected person must not fill the viewport
+          if (typeof cur === "number" && cur > 2.2) z(2.2, 280);
+        }
+      } catch { /* non-fatal */ }
+    }, 350);
+    return () => window.clearTimeout(t);
+  }, [gData, targetId]);
 
   function nodeColor(node: any): string {
     if (node.isTarget) return "hsl(160, 84%, 39%)";
@@ -647,33 +711,33 @@ export default function GraphViewer() {
       )}
 
       {/* ── Loading ── */}
-      {isLoading && allEntities !== undefined && allEntities.length > 0 && (
+      {(isLoading || (width === 0 && gData.nodes.length === 0)) && (
         <div className="absolute inset-0 flex flex-col items-center justify-center z-0 gap-2 text-primary font-mono text-sm tracking-widest uppercase">
           <div className="h-8 w-8 rounded-full border-2 border-primary/30 border-t-primary animate-spin" aria-hidden />
           <span className="animate-pulse">Mapping graph…</span>
         </div>
       )}
 
-      {/* ── Empty state — entity exists but has no graph connections ── */}
-      {!isLoading && allEntities !== undefined && allEntities.length > 0 && gData.nodes.length === 0 && (
+      {/* ── Empty state — nothing to draw ── */}
+      {!isLoading && width > 0 && gData.nodes.length === 0 && (
         <div className="absolute inset-0 flex flex-col items-center justify-center z-0 px-6 text-center space-y-3">
           <Network className="w-10 h-10 text-muted-foreground/30" aria-hidden />
-          <div className="text-sm font-medium text-foreground">No graph data for this entity</div>
-          <p className="text-xs text-muted-foreground max-w-sm">Relationships appear after research attaches related people and corporate links.</p>
-          <Link href="/reactor" className="inline-flex min-h-[36px] items-center rounded-lg border border-lime-400/30 bg-lime-400/10 px-3 py-1.5 text-[11px] font-semibold text-lime-100">Open live reactor</Link>
+          <div className="text-sm font-medium text-foreground">No people on the graph yet</div>
+          <p className="text-xs text-muted-foreground max-w-sm">
+            Open the ledger and pick someone, or run Atlas so discovery fills the desk.
+          </p>
+          <div className="flex flex-wrap justify-center gap-2">
+            <Link href="/profiles" className="inline-flex min-h-[36px] items-center rounded-lg border border-primary/30 bg-primary/10 px-3 py-1.5 text-[11px] font-semibold text-primary">Open ledger</Link>
+            <Link href="/reactor" className="inline-flex min-h-[36px] items-center rounded-lg border border-lime-400/30 bg-lime-400/10 px-3 py-1.5 text-[11px] font-semibold text-lime-100">Live reactor</Link>
+          </div>
         </div>
       )}
 
-      {/* ── Single-node state — target loaded but no edges/neighbours yet ── */}
-      {!isLoading && gData.nodes.length === 1 && gData.links.length === 0 && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center z-10 pointer-events-none">
-          <div className="bg-card/90 border border-[#9CFF1A]/12 rounded-lg px-6 py-5 flex flex-col items-center gap-3 max-w-xs text-center shadow-xl">
-            <Network className="w-8 h-8 text-muted-foreground opacity-40" />
-            <p className="text-sm font-mono text-foreground">No connections mapped yet</p>
-            <p className="text-xs font-mono text-muted-foreground/70 leading-relaxed">
-              Run the relationship auto-detect or CH enricher to build edges for this entity.
-            </p>
-          </div>
+      {/* ── Sparse graph note (constellation, no edges) ── */}
+      {!isLoading && gData.nodes.length >= 2 && gData.links.length === 0 && (
+        <div className="pointer-events-none absolute bottom-20 left-1/2 z-10 max-w-[90%] -translate-x-1/2 rounded-lg border border-[#9CFF1A]/15 bg-card/90 px-3 py-2 text-center shadow-lg md:bottom-8">
+          <p className="text-[11px] font-medium text-foreground">People on desk — no links mapped yet</p>
+          <p className="text-[10px] text-muted-foreground">Relationships appear after research connects them.</p>
         </div>
       )}
 

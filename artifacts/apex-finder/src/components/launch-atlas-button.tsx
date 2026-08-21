@@ -37,13 +37,13 @@ const VARIANT_RUNNING: Record<Variant, string> = {
 };
 
 const CTRL =
-  "atlas-pressable inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-full px-3 text-[11px] font-bold tracking-wide transition-all focus-visible:outline-none focus-visible:ring-2 disabled:opacity-60";
+  "atlas-pressable relative z-10 inline-flex h-9 min-w-[4.5rem] shrink-0 items-center justify-center gap-1.5 rounded-full px-3.5 text-[11px] font-bold tracking-wide transition-all focus-visible:outline-none focus-visible:ring-2 disabled:opacity-60";
 const CTRL_PAUSE =
-  "border border-amber-400/40 bg-amber-500/10 text-amber-100 hover:bg-amber-500/20 focus-visible:ring-amber-400/40";
+  "border border-amber-400/45 bg-[#1a1408] text-amber-100 hover:bg-amber-500/20 focus-visible:ring-amber-400/40";
 const CTRL_RESUME =
-  "border border-[#9CFF1A]/45 bg-[#9CFF1A]/12 text-[#9CFF1A] hover:bg-[#9CFF1A]/20 focus-visible:ring-lime-400/40";
+  "border border-[#9CFF1A]/45 bg-[#0f1a08] text-[#9CFF1A] hover:bg-[#9CFF1A]/20 focus-visible:ring-lime-400/40";
 const CTRL_STOP =
-  "border border-rose-400/40 bg-rose-500/10 text-rose-200 hover:bg-rose-500/20 focus-visible:ring-rose-400/40";
+  "border border-rose-400/45 bg-[#1a0c10] text-rose-200 hover:bg-rose-500/20 focus-visible:ring-rose-400/40";
 
 export function LaunchAtlasButton({
   variant = "primary",
@@ -138,11 +138,11 @@ export function LaunchAtlasButton({
           ? "Atlas live"
           : "Atlas researching…";
 
-  /** Shared control strip: Pause/Resume + Stop with real gaps (no pile-up). */
+  /** Shared control strip: Pause/Resume + Stop with real gaps (no pile-up, no green launch). */
   const controls = inFlight ? (
     <div
       className={cn(
-        "flex shrink-0 items-center gap-2 sm:gap-2.5",
+        "relative z-20 flex shrink-0 flex-nowrap items-center gap-2 sm:gap-2.5",
         variant === "header" ? "flex-row" : "flex-row flex-wrap",
       )}
       role="group"

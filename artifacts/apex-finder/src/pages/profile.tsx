@@ -307,7 +307,14 @@ export default function ApexProfile() {
   const params = useParams<{ id: string }>();
   const entityId = parseInt(params.id ?? "0", 10);
 
-  const { data: entityFromApi, isLoading, refetch: refetchEntity } = useGetEntity(entityId);
+  const {
+    data: entityFromApi,
+    isLoading,
+    isFetching,
+    isError,
+    isFetched,
+    refetch: refetchEntity,
+  } = useGetEntity(entityId);
   const mockEntity = isMockMode()
     ? (MOCK_ENTITIES.find((e) => e.id === entityId) ?? MOCK_ENTITIES[0])
     : null;
@@ -445,20 +452,39 @@ export default function ApexProfile() {
   }, [entityId]);
 
   // ── Loading / error states ─────────────────────────────────────────────────
+  // Prefer loading over "not found" whenever a fetch is in flight or we have not
+  // settled yet — avoids the flash of error before the card appears.
+  const stillLoading =
+    !mockEntity &&
+    entityId > 0 &&
+    (isLoading || isFetching || (!entityFromApi && !isFetched) || (!entityFromApi && !isError && !isFetched));
 
-  if (isLoading && !mockEntity) {
+  if (entityId <= 0) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <Loader2 className="w-6 h-6 animate-spin text-primary" />
+      <div className="flex h-full flex-col items-center justify-center gap-3 px-4">
+        <p className="font-mono text-sm text-muted-foreground">No profile selected.</p>
+        <Link href="/profiles" className="text-xs font-mono text-primary hover:underline">← Back to Ledger</Link>
+      </div>
+    );
+  }
+
+  if (stillLoading || (!entity && !isError && !isFetched)) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-3 px-4" data-testid="profile-loading">
+        <Loader2 className="h-7 w-7 animate-spin text-primary" aria-hidden />
+        <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-muted-foreground">
+          Loading profile…
+        </p>
+        <p className="text-[11px] text-stone-500">Fetching public records for this person</p>
       </div>
     );
   }
   if (!entity) {
     return (
-      <div className="flex flex-col items-center justify-center h-full gap-3">
+      <div className="flex flex-col items-center justify-center h-full gap-3 px-4" data-testid="profile-not-found">
         <AlertCircle className="w-8 h-8 text-destructive" />
         <p className="font-mono text-sm text-muted-foreground">Entity not found.</p>
-        <Link href="/entities" className="text-xs font-mono text-primary hover:underline">← Back to Ledger</Link>
+        <Link href="/profiles" className="text-xs font-mono text-primary hover:underline">← Back to Ledger</Link>
       </div>
     );
   }

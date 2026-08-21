@@ -210,14 +210,15 @@ export function Layout({ children }: { children: React.ReactNode }) {
       <main className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
         <div className="atlas-grid pointer-events-none absolute inset-0" />
         <header className="relative z-20 flex h-14 shrink-0 items-center gap-2 border-b border-[#9CFF1A]/08 bg-[#111827]/95 pl-[max(1.125rem,env(safe-area-inset-left))] pr-[max(0.875rem,env(safe-area-inset-right))] pt-[env(safe-area-inset-top)] backdrop-blur-lg sm:gap-2.5 sm:px-5 md:h-16 md:px-6">
-          <div className="mr-2 flex min-w-0 items-center md:mr-0">
+          <div className="mr-1 flex min-w-0 items-center md:mr-0">
+            {/* Outline home on mobile so it never collides with Pause/Stop pills */}
             <Link
               href="/"
               aria-label="Apex Atlas home"
               data-testid="link-mobile-apex-atlas-home"
-              className="ml-1 grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#9CFF1A] text-black shadow-[0_0_16px_rgba(156,255,26,0.32)] focus-visible:ring-2 focus-visible:ring-lime-400/50 md:hidden"
+              className="ml-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-[#9CFF1A]/35 bg-transparent text-[#9CFF1A] focus-visible:ring-2 focus-visible:ring-lime-400/50 md:hidden"
             >
-              <Crosshair className="h-4 w-4" />
+              <Crosshair className="h-3.5 w-3.5" />
             </Link>
             <div className="ml-2.5 hidden min-w-0 md:block">
               <div className="font-mono text-[9px] uppercase tracking-[0.2em] text-stone-500">
@@ -228,12 +229,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
               </div>
             </div>
           </div>
-          <div className="ml-auto flex min-w-0 items-center justify-end gap-2 sm:gap-2.5">
+          <div className="ml-auto flex min-w-0 flex-nowrap items-center justify-end gap-2 sm:gap-2.5">
             {location !== "/" && !isReactorRoute && (
-              <LaunchAtlasButton
-                variant="header"
-                className="!h-8 !w-8 !shrink-0 !gap-0 !px-0 sm:!h-9 sm:!w-auto sm:!gap-2 sm:!px-3 sm:!text-[11px]"
-              />
+              <LaunchAtlasButton variant="header" />
             )}
             <div className="flex shrink-0 items-center justify-end gap-2 sm:gap-2.5">
               <WorkspaceStatus />
