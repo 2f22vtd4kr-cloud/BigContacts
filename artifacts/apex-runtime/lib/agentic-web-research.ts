@@ -1579,6 +1579,8 @@ export async function runAgenticWebResearch(input: {
 
     // If company is locked but no company-host URL is queued yet, search the company surface
     // before visiting partner/blog SERP hits (prevents Team-Financial-style first visits).
+    let scriptedHop = false;
+
     if (i >= FREE_REACT_STEPS && 
       searches >= 1
       && visits === 0
@@ -1625,7 +1627,7 @@ export async function runAgenticWebResearch(input: {
       && i < maxIter - 1
     ) {
       const forced = await forceVisitNext(`step${i + 1}`);
-      if (forced) continue;
+      if (forced) { scriptedHop = true; }
     }
     // Phones without org email is a common mid-market gap vs general agents.
     // Force an email-focused SERP + re-seed contact paths once.
@@ -1689,7 +1691,7 @@ export async function runAgenticWebResearch(input: {
       && i < maxIter - 1
     ) {
       const forced = await forceVisitNext(`step${i + 1}`);
-      if (forced) continue;
+      if (forced) { scriptedHop = true; }
     }
     // Mid-market gap: Facebook About often lists info@ when the corporate /contact page does not.
     // Fail-closed: only admit emails that appear in SERP snippet text (never invent mailboxes).
@@ -1918,7 +1920,7 @@ export async function runAgenticWebResearch(input: {
         }
       }
       const forced = await forceVisitNext(`step${i + 1}`);
-      if (forced) continue;
+      if (forced) { scriptedHop = true; }
     }
     // Registry footprint hop (OpenCorporates / EDGAR / BBB) once after related search
     if (i >= FREE_REACT_STEPS && 
@@ -1965,7 +1967,7 @@ export async function runAgenticWebResearch(input: {
         }
       }
       const forced = await forceVisitNext(`step${i + 1}`);
-      if (forced) continue;
+      if (forced) { scriptedHop = true; }
     }
     // Visit remaining high-rank pages after related search
     if (
@@ -1975,7 +1977,7 @@ export async function runAgenticWebResearch(input: {
       && i < maxIter - 1
     ) {
       const forced = await forceVisitNext(`step${i + 1}`);
-      if (forced) continue;
+      if (forced) { scriptedHop = true; }
     }
     // After free ReAct has had room: if visits produced zero findings, force one high-rank page
     if (
@@ -1986,7 +1988,7 @@ export async function runAgenticWebResearch(input: {
       && i < maxIter - 1
     ) {
       const forced = await forceVisitNext(`step${i + 1}`);
-      if (forced) continue;
+      if (forced) { scriptedHop = true; }
     }
 
     const prompt = buildStepPrompt({

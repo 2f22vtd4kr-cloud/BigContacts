@@ -5,8 +5,8 @@
 
 ## Prep for next Replit run (2026-08-21)
 
-**Current tip:** pending — scripted hops no longer skip LLM; Boss writes agentic brief  
-**Prior tip:** `f80e257` — free Boss tool+query
+**Current tip:** pending — all agentic force-hops yield to LLM same step  
+**Prior tip:** `63f66c5` — scriptedHop + Boss agentic brief
 
 ### Tip chain (bureau research integrity)
 | Commit | Point |
