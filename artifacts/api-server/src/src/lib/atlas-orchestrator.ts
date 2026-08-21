@@ -1675,6 +1675,35 @@ Only include assets with a SPECIFIC identifier. If nothing concrete is mentioned
           || String(entity.notes).match(/\b([A-Z][A-Za-z0-9&.,' -]{2,60}\s+(?:Manufacturing|Holdings|Corporation|Company|Inc\.?|LLC|Ltd\.?|Co\.?|LLP|PLC|AG|SA)\b)/);
         if (fromNotes?.[1]) companyNameForSecondary = fromNotes[1].trim().slice(0, 120);
       }
+
+      // Boss + right-hand assign the next focus before secondary/agentic surface work
+      try {
+        const { resolveGeminiBossModel, generateGeminiBossText } = await import("./case-bureau");
+        const selection = await resolveGeminiBossModel();
+        if (selection?.model) {
+          const brief = await generateGeminiBossText(
+            selection,
+            `You are Gemini Boss directing Apex Atlas full-circle research for "${name}" (${entity.type}).
+NVIDIA is your right-hand. In 2-4 sentences: what public surface to recover next (contacts, officers, filings, domain pages)?
+Never invent specific emails, phones, or people. Return plain text only.`,
+          );
+          if (brief.raw?.trim()) {
+            await setAtlasTelemetry(atlasJobId, {
+              stage: "BOSS DIRECTIVE",
+              status: "active",
+              targetName: name,
+              targetType: entity.type,
+              actor: "boss",
+              methodKind: "boss",
+              story: brief.raw.trim().slice(0, 400),
+              inputSummary: `Boss model ${brief.model} assigned next research focus`,
+            }, id);
+          }
+        }
+      } catch {
+        /* non-fatal — tools still run */
+      }
+
       const secondary = await expandSecondaryPublicSurface({
         entityId: id,
         name,

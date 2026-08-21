@@ -409,6 +409,232 @@ async function runProvider(
   return researchWithPerplexity(subject, type, input.country, context);
 }
 
+
+/** Legal next-step options Boss may choose — same bounds as the rule director. */
+function listLegalAdaptiveOptions(
+  state: AdaptiveResearchState,
+  maxActions: number,
+): AdaptiveAction[] {
+  const options: AdaptiveAction[] = [];
+  const hasAction = (kind: AdaptiveActionKind) => state.completedActions.includes(kind);
+  const subject = state.targetName;
+  const depth = state.depth;
+  const maxPerson = depth.maxPersonFollowUps;
+  const maxDomain = depth.maxDomainFollowUps;
+
+  if (state.completedActions.length >= maxActions || state.noProgressPasses >= depth.noProgressLimit) {
+    options.push({
+      kind: "stop_review",
+      lane: null,
+      subject,
+      reason: "budget or no-progress limit",
+      signature: `stop:${state.completedActions.length}:${state.noProgressPasses}`,
+    });
+    return options;
+  }
+
+  if (state.identityAssessment !== "confirmed" && !hasAction("resolve_identity")) {
+    options.push({
+      kind: "resolve_identity",
+      lane: "official_records",
+      subject,
+      reason: "identity not confirmed",
+      signature: `identity:${subject}`,
+    });
+  }
+  if (state.relatedOrganizations.length > 0 && !hasAction("resolve_structure")) {
+    options.push({
+      kind: "resolve_structure",
+      lane: "semantic_discovery",
+      subject: state.relatedOrganizations[0]!,
+      reason: "resolve operator/parent structure",
+      signature: `structure:${state.relatedOrganizations[0]!.toLowerCase()}`,
+    });
+  }
+  const isOrg = state.targetType === "Corporation" || state.targetType === "Trust";
+  if (isOrg && state.candidateDomains.length === 0 && !hasAction("official_routes")) {
+    options.push({
+      kind: "official_routes",
+      lane: "contact_routes",
+      subject,
+      reason: "discover official domain",
+      signature: `official-discover:${subject}`,
+    });
+  }
+  if (!hasAction("identify_people")) {
+    options.push({
+      kind: "identify_people",
+      lane: "people_press",
+      subject,
+      reason: "identify named officers/owners",
+      signature: `people:${subject}`,
+    });
+  }
+  if (!hasAction("official_routes") || state.candidateDomains.length > 0) {
+    const dom = state.candidateDomains.find((d) => !state.followedDomains.includes(d)) || subject;
+    options.push({
+      kind: "official_routes",
+      lane: "contact_routes",
+      subject: dom,
+      reason: "official contact routes / domain pages",
+      signature: `official:${String(dom).toLowerCase()}`,
+    });
+  }
+  const nextPerson = state.discoveredPeople.find((p) => !state.followedPeople.includes(p));
+  if (nextPerson && state.followedPeople.length < maxPerson) {
+    options.push({
+      kind: "follow_person",
+      lane: "people_press",
+      subject: nextPerson,
+      reason: "follow named person lead",
+      signature: `person:${nextPerson.toLowerCase()}`,
+    });
+  }
+  const nextDomain = state.candidateDomains.find((d) => !state.followedDomains.includes(d));
+  if (nextDomain && state.followedDomains.length < maxDomain) {
+    options.push({
+      kind: "official_routes",
+      lane: "contact_routes",
+      subject: nextDomain,
+      reason: "follow official domain",
+      signature: `official:${nextDomain}`,
+    });
+  }
+  if (!hasAction("complementary_lane")) {
+    options.push({
+      kind: "complementary_lane",
+      lane: "semantic_discovery",
+      subject,
+      reason: "complementary semantic / registry surface",
+      signature: `complementary:${subject}`,
+    });
+  }
+  if (!hasAction("verify_exact_claim") && state.claimUrls > 0) {
+    options.push({
+      kind: "verify_exact_claim",
+      lane: "official_records",
+      subject,
+      reason: "verify exact claim pages",
+      signature: `verify:${subject}`,
+    });
+  }
+  options.push({
+    kind: "stop_review",
+    lane: null,
+    subject,
+    reason: "Boss may stop if public surface is exhausted",
+    signature: `stop:boss:${state.completedActions.length}`,
+  });
+  // de-dupe by signature
+  const seen = new Set<string>();
+  return options.filter((o) => {
+    if (seen.has(o.signature)) return false;
+    seen.add(o.signature);
+    return true;
+  });
+}
+
+function parseBossAdaptiveChoice(
+  raw: string,
+  options: AdaptiveAction[],
+): AdaptiveAction | null {
+  const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)```/i)?.[1]?.trim();
+  const source = fenced || raw.trim();
+  const start = source.indexOf("{");
+  const end = source.lastIndexOf("}");
+  if (start < 0 || end <= start) return null;
+  try {
+    const parsed = JSON.parse(source.slice(start, end + 1)) as Record<string, unknown>;
+    const kind = String(parsed.kind ?? "").trim() as AdaptiveActionKind;
+    const subject = typeof parsed.subject === "string" ? parsed.subject.trim() : "";
+    const reason = typeof parsed.reason === "string" ? parsed.reason.trim().slice(0, 240) : "";
+    const match =
+      options.find((o) => o.kind === kind && (!subject || o.subject.toLowerCase() === subject.toLowerCase()))
+      || options.find((o) => o.kind === kind);
+    if (!match) return null;
+    return {
+      ...match,
+      reason: reason || match.reason,
+      subject: subject || match.subject,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Boss (Gemini) assigns the next adaptive step; NVIDIA right-hand advises if Boss is busy.
+ * Falls back to the rule director so the loop never stalls.
+ */
+async function selectNextAdaptiveActionWithBoss(
+  state: AdaptiveResearchState,
+  maxActions: number,
+): Promise<{ action: AdaptiveAction; assignedBy: "gemini-boss" | "nvidia-right-hand" | "rules" }> {
+  const options = listLegalAdaptiveOptions(state, maxActions);
+  if (options.length === 0) {
+    return {
+      action: selectNextAdaptiveAction(state, maxActions),
+      assignedBy: "rules",
+    };
+  }
+
+  const prompt = `You are Gemini Boss, Head Investigator for Apex Atlas.
+Your right-hand (NVIDIA) may advise; YOU assign the single next research step and tool lane.
+Pick ONE option from LEGAL OPTIONS only. Do not invent subjects, contacts, or URLs.
+
+TARGET: ${state.targetName} (${state.targetType})
+COUNTRY: ${state.country ?? "unknown"}
+IDENTITY: ${state.identityAssessment ?? "unknown"} — ${state.identityBasis ?? ""}
+COMPLETED ACTIONS: ${state.completedActions.join(", ") || "(none)"}
+COMPLETED LANES: ${state.completedLanes.join(", ") || "(none)"}
+DISCOVERED PEOPLE: ${state.discoveredPeople.slice(0, 8).join("; ") || "(none)"}
+CANDIDATE DOMAINS: ${state.candidateDomains.slice(0, 8).join("; ") || "(none)"}
+RELATED ORGS: ${state.relatedOrganizations.slice(0, 6).join("; ") || "(none)"}
+EVIDENCE COUNT: ${state.evidenceCount} · CLAIM URLS: ${state.claimUrls} · NO-PROGRESS PASSES: ${state.noProgressPasses}
+DEPTH: ${state.depth.depth}
+
+LEGAL OPTIONS (pick exactly one kind+subject from this list):
+${JSON.stringify(options.map((o) => ({ kind: o.kind, subject: o.subject, lane: o.lane, reason: o.reason })), null, 2)}
+
+Return ONLY JSON:
+{"kind":"<one kind>","subject":"<exact subject from options>","reason":"<why this is the highest-leverage next step>"}`;
+
+  // 1) Boss
+  try {
+    const { resolveGeminiBossModel, generateGeminiBossText } = await import("./case-bureau");
+    const selection = await resolveGeminiBossModel();
+    if (selection?.model) {
+      const out = await generateGeminiBossText(selection, prompt);
+      if (out.raw) {
+        const choice = parseBossAdaptiveChoice(out.raw, options);
+        if (choice) return { action: choice, assignedBy: "gemini-boss" };
+      }
+    }
+  } catch {
+    /* fall through */
+  }
+
+  // 2) Right-hand
+  try {
+    const { runNvidiaNimFinalReview } = await import("./nvidia-nim-case-reasoning");
+    const nv = await runNvidiaNimFinalReview(
+      "You are the right-hand advisor to Gemini Boss. Assign the single next adaptive research step.\n\n" + prompt,
+    );
+    if (nv.status === "completed" && nv.raw) {
+      const choice = parseBossAdaptiveChoice(nv.raw, options);
+      if (choice) return { action: choice, assignedBy: "nvidia-right-hand" };
+    }
+  } catch {
+    /* fall through */
+  }
+
+  return {
+    action: selectNextAdaptiveAction(state, maxActions),
+    assignedBy: "rules",
+  };
+}
+
+
 export async function runAdaptiveResearchDirector(
   input: AdaptiveResearchDirectorInput,
 ): Promise<AdaptiveResearchDirectorResult> {
@@ -425,9 +651,12 @@ export async function runAdaptiveResearchDirector(
   const maxActions = Math.max(1, Math.min(budget, ABSOLUTE_ADAPTIVE_ACTION_CAP));
 
   for (;;) {
-    const action = selectNextAdaptiveAction(state, maxActions);
+    const { action, assignedBy } = await selectNextAdaptiveActionWithBoss(state, maxActions);
     if (action.kind === "stop_review") {
-      actions.push(action);
+      actions.push({
+        ...action,
+        reason: `${action.reason} [assigned:${assignedBy}]`,
+      });
       break;
     }
     if (seenSignatures.has(action.signature)) {
@@ -436,8 +665,14 @@ export async function runAdaptiveResearchDirector(
       continue;
     }
     seenSignatures.add(action.signature);
-    actions.push(action);
-    await input.onStep?.({ action, status: "active" });
+    actions.push({
+      ...action,
+      reason: `${action.reason} [assigned:${assignedBy}]`,
+    });
+    await input.onStep?.({
+      action: { ...action, reason: `${action.reason} [assigned:${assignedBy}]` },
+      status: "active",
+    });
 
     const provider = providerForAction(action);
     let result: AIExtractResult;

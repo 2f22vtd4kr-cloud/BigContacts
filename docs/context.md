@@ -5,8 +5,8 @@
 
 ## Prep for next Replit run (2026-08-21)
 
-**Current tip:** pending — final review = Gemini Boss → NVIDIA right-hand → Groq  
-**Prior tip:** `e05221f` — Groq rotation only (superseded for primary path)
+**Current tip:** pending — Boss/right-hand assign each adaptive research step  
+**Prior tip:** `1fb783a` — final review Boss → NVIDIA → Groq
 
 ### Tip chain (bureau research integrity)
 | Commit | Point |
@@ -24,6 +24,7 @@ bureauIntegrity goes critical and you are comparing a crippled desk to a full ag
 
 ### Philosophy (do not regress)
 - **Final card review = Gemini Boss primary, NVIDIA right-hand secondary, Groq only as capacity fallback.**
+- **Adaptive research steps = Boss assigns next action/tool from legal options; NVIDIA advises; rules only if both unavailable.**
 
 - **No LLM funneling** — ReAct, not GROK-PARITY playbooks / force-hops.
 - **Tool-side facts** — SEC notice phones, Form 3/4 addresses, deceased probe = extractors, not model babysitting.
