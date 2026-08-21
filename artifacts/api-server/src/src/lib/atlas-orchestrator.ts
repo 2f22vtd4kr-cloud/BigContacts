@@ -714,8 +714,8 @@ async function enrichEntityFullCircle(atlasJobId: string, entity: EntityRow): Pr
           activeToolId: "edgar-proxy",
           actor: "registry",
           methodKind: "registry",
-          story: `Now: Pulling SEC DEF 14A / proxy for ${companyName}`,
-          inputSummary: `Issuer ${companyName} — DEF 14A / proxy role + address + related officers`,
+          story: `Now: Reading SEC filings for ${name} — proxy, Form 3/4, SC 13D/G notice lines`,
+          inputSummary: `Issuer ${companyName} — DEF 14A role/address + Form 3/4 + SC 13 notice phone`,
           links: [{ title: "SEC EDGAR search", url: `https://efts.sec.gov/LATEST/search-index?q=${encodeURIComponent('"' + companyName.slice(0, 80) + '"')}&forms=DEF+14A` }],
         }, id);
         const { boostEdgarIdentity } = await import("./edgar-identity-boost");
@@ -733,21 +733,35 @@ async function enrichEntityFullCircle(atlasJobId: string, entity: EntityRow): Pr
         const headline = boost.roleHeadline
           ? boost.roleHeadline.slice(0, 280)
           : entity.linkedinHeadline;
-        if (boost.roleHeadline || boost.streetAddress || boost.relatedPeople.length) {
+        if (boost.roleHeadline || boost.streetAddress || boost.noticePhone || boost.relatedPeople.length) {
+          const phoneUpdate =
+            boost.noticePhone && !(entity as { phone?: string | null }).phone
+              ? { phone: boost.noticePhone }
+              : {};
           await db.update(entitiesTable).set({
             linkedinHeadline: headline ?? entity.linkedinHeadline,
             knownResidences: newResidence ?? entity.knownResidences,
+            ...phoneUpdate,
             notes: noteExtra
               ? sql`CASE WHEN ${entitiesTable.notes} IS NULL OR ${entitiesTable.notes} = '' THEN ${noteExtra} ELSE ${entitiesTable.notes} || E'\n' || ${noteExtra} END`
               : entity.notes,
-            contactMethod: boost.streetAddress
-              ? `Public company / proxy surface — ${boost.streetAddress}${boost.cityState ? ", " + boost.cityState : ""} (SEC DEF 14A / proxy). Validate before outreach.`
+            contactMethod: boost.noticePhone
+              ? `SEC notice-line phone — ${boost.noticePhone} (reporting person / authorized notices). Validate before outreach.`
+              : boost.streetAddress
+              ? `Public company / proxy surface — ${boost.streetAddress}${boost.cityState ? ", " + boost.cityState : ""} (SEC DEF 14A / Form 3/4). Validate before outreach.`
               : entity.contactMethod,
+            contactOutcome: boost.noticePhone
+              ? "direct_contact_candidate"
+              : (entity as { contactOutcome?: string | null }).contactOutcome,
+            contactConfidence: boost.noticePhone
+              ? Math.max(Number((entity as { contactConfidence?: number | null }).contactConfidence ?? 0), 55)
+              : (entity as { contactConfidence?: number | null }).contactConfidence,
             metadata: sql`COALESCE(${entitiesTable.metadata}::jsonb, '{}'::jsonb) || ${JSON.stringify({
               edgarIdentityBoost: {
                 roleHeadline: boost.roleHeadline,
                 streetAddress: boost.streetAddress,
                 cityState: boost.cityState,
+                noticePhone: boost.noticePhone,
                 relatedPeople: boost.relatedPeople.slice(0, 12),
                 sourceUrls: boost.sourceUrls.slice(0, 8),
                 at: new Date().toISOString(),
@@ -755,6 +769,25 @@ async function enrichEntityFullCircle(atlasJobId: string, entity: EntityRow): Pr
             })}::jsonb`,
             updatedAt: new Date(),
           }).where(eq(entitiesTable.id, id));
+          if (boost.noticePhone) {
+            try {
+              await db.insert(contactEvidenceTable).values({
+                entityId: id,
+                vectorType: "phone",
+                value: boost.noticePhone,
+                source: "EDGAR-Notice-Phone",
+                sourceUrl: boost.sourceUrls[0] ?? null,
+                metadata: JSON.stringify({
+                  scope: "candidate",
+                  mark: "notice_line",
+                  label: "SEC notices-and-communications / Form 3/4",
+                }),
+                validationStatus: "candidate",
+              } as any);
+            } catch {
+              /* duplicate */
+            }
+          }
           // Persist related names as review-only evidence (not Personal contacts).
           for (const rel of boost.relatedPeople.slice(0, 8)) {
             try {

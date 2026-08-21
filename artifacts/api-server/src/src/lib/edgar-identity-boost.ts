@@ -12,6 +12,8 @@ export type EdgarIdentityBoost = {
   roleHeadline: string | null;
   streetAddress: string | null;
   cityState: string | null;
+  /** SC 13D/G / Form 3/4 notice-line phone for the reporting person */
+  noticePhone: string | null;
   relatedPeople: string[];
   sourceUrls: string[];
   notes: string[];
@@ -102,6 +104,87 @@ function looksLikeProxyDocument(html: string): boolean {
   }
   return /DEF\s*14A|proxy statement|beneficial ownership|Board of Directors|named executive officer|has been .{5,40} (President|Director|Chairman|CEO)/i.test(h);
 }
+
+
+/** "Pickup Todd M" / "GUND GORDON" → search-friendly display forms */
+export function normalizePersonNameForSearch(raw: string): string[] {
+  const t = raw.replace(/,/g, " ").replace(/\s+/g, " ").trim();
+  if (!t) return [];
+  const variants = new Set<string>([t]);
+  const parts = t.split(/\s+/).filter(Boolean);
+  if (parts.length >= 2 && /^[A-Z]{2,}$/.test(parts[0]) && parts.slice(1).every((p) => /^[A-Z]/i.test(p))) {
+    const last = parts[0].charAt(0) + parts[0].slice(1).toLowerCase();
+    const rest = parts.slice(1).map((p) =>
+      p.length <= 2 ? p.toUpperCase() : p.charAt(0) + p.slice(1).toLowerCase(),
+    );
+    variants.add([...rest, last].join(" "));
+    if (rest[0]) variants.add([rest[0], last].join(" "));
+  }
+  variants.add(
+    parts
+      .map((p) =>
+        p.length <= 2 && /^[A-Za-z]+$/.test(p)
+          ? p.toUpperCase()
+          : p.charAt(0).toUpperCase() + p.slice(1).toLowerCase(),
+      )
+      .join(" "),
+  );
+  return [...variants].filter((v) => v.length >= 3);
+}
+
+/** Notice-line phone + address from SC 13D/G or Form 3/4 plain text. */
+export function parseFilingPersonContacts(text: string): {
+  phone: string | null;
+  street: string | null;
+  cityState: string | null;
+} {
+  if (!text || text.length < 60) return { phone: null, street: null, cityState: null };
+  const plain = text.replace(/\r/g, "\n").replace(/[ \t]+/g, " ");
+  let phone: string | null = null;
+  let street: string | null = null;
+  let cityState: string | null = null;
+
+  const noticeBlock = plain.match(
+    /(?:Name,\s*Address\s+and\s+Telephone\s+Number\s+of\s+Person\s+Authorized\s+to\s+Receive\s+Notices[^\n]{0,80})([\s\S]{20,600}?)(?:Date\s+of\s+Event|CUSIP|SCHEDULE\s+13|Item\s+1)/i,
+  );
+  const block = noticeBlock?.[1] ?? plain.slice(0, 8000);
+
+  const phoneMatch =
+    block.match(/\b(\+?1[\s\-.]?)?\(?\d{3}\)?[\s\-.]?\d{3}[\s\-.]?\d{4}\b/) ||
+    plain.match(/(?:Telephone|Phone|Tel\.?)[^\d]{0,24}(\(?\d{3}\)?[\s\-.]?\d{3}[\s\-.]?\d{4})/i);
+  if (phoneMatch) {
+    const dig = (phoneMatch[0] ?? "").replace(/\D/g, "");
+    if (dig.length >= 10 && dig.length <= 15) phone = phoneMatch[0]!.trim();
+  }
+
+  const form4Addr = plain.match(
+    /(?:Reporting\s+Owner\s+(?:Name\/?Address|Address)|Address\s+of\s+Reporting\s+Person)[^\n]{0,40}[:\s]*\n?([^\n]{8,80})\n([^\n]{6,60})/i,
+  );
+  if (form4Addr) {
+    street = form4Addr[1].trim();
+    const cs = form4Addr[2].trim();
+    if (/[A-Z]{2}\s*\d{5}/.test(cs) || /,\s*[A-Z]{2}\b/.test(cs)) cityState = cs;
+  }
+
+  const item2 = plain.match(
+    /Item\s*2\s*\(b\)[^\n]{0,100}(?:Address[^\n]{0,80})?[:\s]*([^\n]{10,120})/i,
+  );
+  if (item2 && !street) {
+    const line = item2[1].trim();
+    if (/\d/.test(line) && line.length > 12) street = line;
+  }
+
+  const full = plain.match(
+    /\b(\d{1,5}\s+[A-Za-z0-9 .'#\-]{4,50}(?:Street|St|Avenue|Ave|Road|Rd|Drive|Dr|Boulevard|Blvd|Lane|Ln|Way|Court|Ct|NW|NE|SW|SE)\.?[^\n]{0,40})[,\n]\s*([A-Za-z .]+,?\s*[A-Z]{2}\s*\d{5}(?:-\d{4})?)/i,
+  );
+  if (full && !street) {
+    street = full[1].trim();
+    cityState = full[2].trim();
+  }
+
+  return { phone, street, cityState };
+}
+
 
 /** Extract director/officer bio line for target from proxy HTML. */
 function extractRoleFromProxyHtml(html: string, targetName: string): string | null {
@@ -206,11 +289,13 @@ export async function boostEdgarIdentity(opts: {
     roleHeadline: null,
     streetAddress: null,
     cityState: null,
+    noticePhone: null,
     relatedPeople: [],
     sourceUrls: [],
     notes: [],
   };
   const company = (opts.companyName ?? "").trim();
+  const nameVariants = normalizePersonNameForSearch(opts.personName);
   if (!company || company.length < 3) return out;
 
   const eftsUrl =
@@ -250,7 +335,43 @@ export async function boostEdgarIdentity(opts: {
     logger.warn({ err: err?.message, company }, "[edgar-identity-boost] EFTS query failed");
   }
 
-  htmlUrls = [...new Set(htmlUrls)].slice(0, 6);
+  htmlUrls = [...new Set(htmlUrls)].slice(0, 4);
+
+  // Person-centric filings (Form 3/4, SC 13D/G) — notice phones & reporting addresses
+  for (const nq of nameVariants.slice(0, 2)) {
+    try {
+      const personEfts =
+        `https://efts.sec.gov/LATEST/search-index` +
+        `?q=${encodeURIComponent('"' + nq.slice(0, 80) + '"')}` +
+        `&forms=SC+13D,SC+13G,3,4` +
+        `&dateRange=custom&startdt=1995-01-01&from=0`;
+      const resp2 = await fetch(personEfts, {
+        headers: EDGAR_HEADERS,
+        signal: AbortSignal.timeout(12_000),
+      });
+      if (!resp2.ok) continue;
+      const data2 = (await resp2.json()) as any;
+      const hits2: any[] = data2?.hits?.hits ?? [];
+      for (const hit of hits2.slice(0, 4)) {
+        const src = hit?._source ?? {};
+        const path = src?.file_path ?? src?.url ?? null;
+        if (typeof path === "string" && path.includes("Archives")) {
+          htmlUrls.push(path.startsWith("http") ? path : `https://www.sec.gov${path}`);
+        }
+        const cik = String(src?.ciks?.[0] ?? src?.cik ?? "").replace(/^0+/, "");
+        const accession = String(src?.adsh ?? "");
+        if (cik && accession) {
+          htmlUrls.push(
+            `https://www.sec.gov/Archives/edgar/data/${cik}/${accession.replace(/-/g, "")}/${accession}-index.htm`,
+          );
+        }
+      }
+    } catch {
+      /* non-fatal */
+    }
+  }
+
+  htmlUrls = [...new Set(htmlUrls)].slice(0, 10);
   if (htmlUrls.length === 0 && opts.existingEdgarUrl) {
     htmlUrls.push(opts.existingEdgarUrl);
   }
@@ -279,6 +400,10 @@ export async function boostEdgarIdentity(opts: {
     if (!out.roleHeadline) {
       out.roleHeadline = extractRoleFromProxyHtml(body, opts.personName);
     }
+    const filingContacts = parseFilingPersonContacts(body);
+    if (!out.noticePhone && filingContacts.phone) out.noticePhone = filingContacts.phone;
+    if (!out.streetAddress && filingContacts.street) out.streetAddress = filingContacts.street;
+    if (!out.cityState && filingContacts.cityState) out.cityState = filingContacts.cityState;
     if (!out.streetAddress || !out.cityState) {
       const addr = extractAddressFromProxyHtml(body);
       out.streetAddress = out.streetAddress ?? addr.street;
@@ -293,6 +418,9 @@ export async function boostEdgarIdentity(opts: {
     if (out.roleHeadline && out.streetAddress && out.relatedPeople.length >= 3) break;
   }
 
+  if (out.noticePhone) {
+    out.notes.push(`Notice phone from SC 13D/G or Form 3/4: ${out.noticePhone}`);
+  }
   if (out.roleHeadline) {
     out.notes.push(`Proxy role: ${out.roleHeadline}`);
   }
@@ -313,6 +441,7 @@ export async function boostEdgarIdentity(opts: {
       company,
       role: !!out.roleHeadline,
       address: !!out.streetAddress,
+      noticePhone: !!out.noticePhone,
       related: out.relatedPeople.length,
       sources: out.sourceUrls.length,
     },
