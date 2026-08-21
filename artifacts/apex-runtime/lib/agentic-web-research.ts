@@ -2084,13 +2084,13 @@ export async function runAgenticWebResearch(input: {
         `Invent a precise query now (person + company + city/state or EDGAR/phone/address).`;
       continue;
     }
-    // Reject empty done when we never visited but still have SERP URLs to open
     if (action.findings.length === 0 && findings.length === 0 && visits === 0 && candidateUrls.length > 0 && i < maxIter - 1) {
       history.push(`step${i + 1}: done_rejected (need visit before empty done; ${candidateUrls.length} URLs queued)`);
-      await forceVisitNext(`step${i + 1}`);
+      lastObservation =
+        `You returned done with zero findings and zero visits, but ${candidateUrls.length} URL(s) are queued. ` +
+        `Choose action=visit on the best company contact/about page (or web_search if the queue looks wrong).`;
       continue;
     }
-    // Reject done if about/contact still queued and primary surface incomplete (Grok would open them)
     if (
       action.action === "done"
       && i < maxIter - 2
@@ -2098,7 +2098,8 @@ export async function runAgenticWebResearch(input: {
       && (!hasOrgEmail() || !hasRelatedPerson())
     ) {
       history.push(`step${i + 1}: done_rejected (about/contact still queued)`);
-      await forceVisitNext(`step${i + 1}`);
+      lastObservation =
+        `About/contact/leadership pages remain unvisited. Open the highest-value one with action=visit before done.`;
       continue;
     }
     // Reject done until company-domain org email search attempted (when company locked)
@@ -2110,38 +2111,25 @@ export async function runAgenticWebResearch(input: {
       && visits >= 1
       && i < maxIter - 2
     ) {
-      history.push(`step${i + 1}: done_rejected (org-email hop required)`);
+      history.push(`step${i + 1}: done_rejected (org email still missing)`);
       // fall through to force_org_email block on next loop by not setting done
       orgEmailSearchDone = false;
       lastObservation =
-        `Need company-domain org email (info@/contact@) for ${input.companyName}. Search and visit contact/Facebook pages before done.`;
+        `Still missing a company-domain org email for ${input.companyName}. Search or visit contact pages — your choice of query and URL.`;
       continue;
     }
-    // Reject done before related-people hop when primary surface already found
     if (
-      hasOrgEmailOrPhone()
+      action.action === "done"
+      && hasOrgEmailOrPhone()
       && i >= FREE_REACT_STEPS
       && !relatedPeopleSearchDone
       && i < maxIter - 2
     ) {
-      history.push(`step${i + 1}: done_rejected (related-people hop required)`);
       relatedPeopleSearchDone = true;
-      const co = input.companyName || name;
-      const q = `"${co}" (BBB OR owner OR "co-owner" OR "co-founder" OR partner OR "principal contact" OR officers OR president OR "managing partner" OR "general manager" OR OpenCorporates OR EDGAR)`;
-      searches++;
-      history.push(`step${i + 1}: force_related_search ${q}`);
-      const sr = await toolWebSearch(q);
-      for (const u of sr.urls) {
-        if (/^https?:\/\//i.test(u) && !candidateUrls.includes(u)) candidateUrls.push(u);
-      }
-      const peopleHits2 = findingsFromPeopleSnippet(sr.text, sr.urls, input.companyName || name);
-      if (peopleHits2.length) {
-        findings = mergeFindings(findings, peopleHits2);
-        history.push(`step${i + 1}: serp_people_findings=${peopleHits2.length}`);
-      }
+      history.push(`step${i + 1}: done_rejected (related people still open)`);
       lastObservation =
-        `Primary surface found. RELATED PEOPLE search:\nURLs: ${sr.urls.slice(0, 8).join(" | ")}\n\n${sr.text.slice(0, MAX_OBS)}\n\n` +
-        `Visit BBB/about/team pages. Emit EVERY visible PERSON (owners, co-founders, officers) with personName+role+any role-email. Apex must hold more people-contacts than a general agent. Then you may done.`;
+        `Org surface found, but named officers/owners are still missing. ` +
+        `Search or visit about/team/BBB/registry pages for people. You invent the query — not a fixed checklist.`;
       continue;
     }
     // Apex objective: do not finish with org surface but zero related persons when people were visible

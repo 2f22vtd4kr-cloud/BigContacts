@@ -5,8 +5,8 @@
 
 ## Prep for next Replit run (2026-08-21)
 
-**Current tip:** pending — all agentic force-hops yield to LLM same step  
-**Prior tip:** `63f66c5` — scriptedHop + Boss agentic brief
+**Current tip:** pending — done_rejected is soft hint only (no force search)  
+**Prior tip:** `cd8d929` — zero force-continues before llmStep
 
 ### Tip chain (bureau research integrity)
 | Commit | Point |
