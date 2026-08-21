@@ -5,8 +5,8 @@
 
 ## Prep for next Replit run (2026-08-21)
 
-**Current tip:** pending — discovery/verify budgets + hard timeout match free-ReAct floor  
-**Prior tip:** `be3c645` — FREE_REACT_STEPS=5; force-hops deferred
+**Current tip:** pending — agentic Serper→Tavily→DDG search chain + MAX_OBS 5k  
+**Prior tip:** `f753023` — call-site budgets match free-ReAct floor
 
 ### Tip chain (bureau research integrity)
 | Commit | Point |

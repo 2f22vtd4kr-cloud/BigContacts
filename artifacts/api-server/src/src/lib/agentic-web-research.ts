@@ -51,7 +51,7 @@ type AgentAction =
   | { action: "done"; findings: AgenticFinding[]; thought?: string };
 
 const MAX_ITER = 20;
-const MAX_OBS = 3_500;
+const MAX_OBS = 5_000;
 /** First N steps are free ReAct only — force-hops must not starve the multi-LLM loop
  *  (root cause of single-agent Grok beating the bureau on the same target). */
 const FREE_REACT_STEPS = 5;
@@ -120,10 +120,60 @@ async function toolWebSearchSerper(query: string): Promise<{ text: string; urls:
   }
 }
 
+
+async function toolWebSearchTavily(query: string): Promise<{ text: string; urls: string[] } | null> {
+  const keys = ["TAVILY_API_KEY", ...Array.from({ length: 8 }, (_, i) => `TAVILY_API_KEY_${i + 1}`)]
+    .map((n) => process.env[n] ?? "")
+    .filter((k) => k.length > 0);
+  if (!keys.length) return null;
+  for (const key of keys) {
+    try {
+      const resp = await fetch("https://api.tavily.com/search", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${key}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          query,
+          search_depth: "advanced",
+          include_answer: true,
+          max_results: 8,
+          include_raw_content: false,
+        }),
+        signal: AbortSignal.timeout(18_000),
+      });
+      if (!resp.ok) continue;
+      const data = (await resp.json()) as {
+        answer?: string;
+        results?: Array<{ title?: string; url?: string; content?: string }>;
+      };
+      const urls: string[] = [];
+      const parts: string[] = [];
+      if (data.answer) parts.push(data.answer);
+      for (const row of data.results ?? []) {
+        if (row.url && /^https?:\/\//i.test(row.url)) urls.push(row.url);
+        if (row.title || row.content) parts.push([row.title, row.content].filter(Boolean).join(" — "));
+      }
+      if (!urls.length && !parts.length) continue;
+      const text = filterPassagesForQuery(parts.join("\n"), query, { maxChars: MAX_OBS });
+      return { text, urls: [...new Set(urls)].slice(0, 10) };
+    } catch (err: any) {
+      logger.debug({ err: err?.message, query }, "agentic tavily search failed");
+      continue;
+    }
+  }
+  return null;
+}
+
 async function toolWebSearch(query: string): Promise<{ text: string; urls: string[] }> {
-  // Prefer Serper when keyed (stable SERP + real result URLs); DDG HTML is a free fallback.
+  // Prefer Serper (stable SERP URLs), then Tavily (keyed advanced search), then DDG HTML.
+  // Single-provider starvation is why a general agent can beat the bureau on the same surface.
   const serper = await toolWebSearchSerper(query);
   if (serper && serper.urls.length > 0) return serper;
+
+  const tavily = await toolWebSearchTavily(query);
+  if (tavily && (tavily.urls.length > 0 || tavily.text.length > 40)) return tavily;
 
   const url = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}&kl=us-en`;
   try {
@@ -135,7 +185,7 @@ async function toolWebSearch(query: string): Promise<{ text: string; urls: strin
         "Accept-Language": "en-US,en;q=0.9",
       },
     });
-    if (!resp.ok) return serper ?? { text: "", urls: [] };
+    if (!resp.ok) return tavily ?? serper ?? { text: "", urls: [] };
     const html = await resp.text();
     const urls: string[] = [];
     for (const m of html.matchAll(/uddg=([^&"]+)/g)) {
@@ -150,11 +200,11 @@ async function toolWebSearch(query: string): Promise<{ text: string; urls: strin
     }
     const text = filterPassagesForQuery(stripHtml(html), query, { maxChars: MAX_OBS });
     const out = { text, urls: [...new Set(urls)].slice(0, 10) };
-    if (out.urls.length === 0 && serper) return serper;
+    if (out.urls.length === 0 && (tavily || serper)) return tavily ?? serper!;
     return out;
   } catch (err: any) {
     logger.debug({ err: err?.message, query }, "agentic web_search failed");
-    return serper ?? { text: "", urls: [] };
+    return tavily ?? serper ?? { text: "", urls: [] };
   }
 }
 
@@ -2195,8 +2245,14 @@ export async function runAgenticWebResearch(input: {
       const forced = await forceVisitNext(`step${i + 1}`);
       if (forced) continue;
     }
-    // After a visit still zero findings and unused URLs remain, force one more high-rank page
-    if (visits >= 1 && findings.length === 0 && searches >= 1 && i < maxIter - 1) {
+    // After free ReAct has had room: if visits produced zero findings, force one high-rank page
+    if (
+      i >= FREE_REACT_STEPS
+      && visits >= 1
+      && findings.length === 0
+      && searches >= 1
+      && i < maxIter - 1
+    ) {
       const forced = await forceVisitNext(`step${i + 1}`);
       if (forced) continue;
     }
