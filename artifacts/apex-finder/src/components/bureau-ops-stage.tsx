@@ -64,7 +64,9 @@ function pickTool(e: OpsEvent): string {
 }
 
 function isInternalLanePrompt(s: string): boolean {
-  return /LANE\s*[–-]\s*people_press|RESEARCH (LANE|CONTRACT)|REALISM\s*\/\s*REACHABILITY|Phase 0 OSINT|You are conducting/i.test(s);
+  return /LANE\s*[–-]\s*people_press|RESEARCH (LANE|CONTRACT)|REALISM\s*\/\s*REACHABILITY|Phase 0 OSINT|You are conducting/i.test(s)
+    || /query template|domain target|search query template|HNWI target\s*[·•]|0 domain target|AI PROVIDER FAN|PROVIDER FA\b/i.test(s)
+    || /complementary_lane|resolve_identity|official_routes|contact_routes:\s*|people_press/i.test(s);
 }
 
 function cleanQueryText(s: string): string {
@@ -76,7 +78,7 @@ function cleanQueryText(s: string): string {
 }
 
 function extractQuery(e: OpsEvent): string | undefined {
-  // Never surface internal research-contract / lane prompts as the search box query
+  // Never surface internal research-contract / lane prompts / template meta as the search box query
   const safeParts = [e.inputSummary, e.resultSummary, e.stage, e.raw]
     .filter((x): x is string => Boolean(x) && !isInternalLanePrompt(String(x)));
   const blob = safeParts.join(" ");
@@ -85,26 +87,57 @@ function extractQuery(e: OpsEvent): string | undefined {
     blob.match(/search(?:ing)?\s+(?:for\s+)?["\u201c]?([^"\u201d\n]{8,140})/i) ||
     blob.match(/site:[^\s]+[^\n]{0,80}/i);
   if (m?.[1] && !isInternalLanePrompt(m[1])) return cleanQueryText(m[1]);
-  // Prefer short operator inputSummary when it is a real complementary_lane / resolve_identity line
+  // Prefer short operator inputSummary when it is a real human query — not template inventory
   if (e.inputSummary && !isInternalLanePrompt(e.inputSummary)) {
     const ins = cleanQueryText(e.inputSummary);
     if (ins.length >= 6 && ins.length <= 120 && !/^the .+ is still uncovered$/i.test(ins)) {
-      // "resolve_identity: Name" / "official_routes: domain" → usable
       const stripped = ins.replace(/^(resolve_identity|official_routes|complementary_lane|contact_routes):\s*/i, "").trim();
-      if (stripped.length >= 3) return stripped.length <= 100 ? stripped : stripped.slice(0, 97) + "…";
+      if (stripped.length >= 3 && !isInternalLanePrompt(stripped)) {
+        return stripped.length <= 100 ? stripped : stripped.slice(0, 97) + "…";
+      }
     }
   }
-  if (/discover|serp|search|tavily|perplexity|google|gemini|serper|exa/i.test(pickTool(e) + (e.stage || ""))) {
+  // Fallback: honest synthetic query from target name only (never template meta)
+  if (/discover|serp|search|tavily|perplexity|google|gemini|serper|exa|perp/i.test(pickTool(e) + (e.stage || ""))) {
     return e.targetName ? `${e.targetName} contact email phone` : undefined;
   }
   return undefined;
 }
 
-/** Provider was attempted but is offline / missing / returned nothing usable. */
-function providerUnavailable(e: OpsEvent): boolean {
+/** Slot counts from /api/healthz — 0 means not configured / not usable. */
+export type ProviderSlotMap = Partial<Record<string, number>>;
+
+/**
+ * Provider was attempted but is offline / missing / returned nothing usable.
+ * Prefer live healthz slot counts over telemetry theater.
+ */
+function providerUnavailable(e: OpsEvent, slots?: ProviderSlotMap | null): boolean {
+  const tool = `${pickTool(e)} ${e.toolIds?.join(" ") || ""}`;
+  const isPerp = /perp|perplexity/i.test(tool);
+  const isGroq = /\bgroq\b/i.test(tool);
+  const isTavily = /\btavily\b/i.test(tool);
+  const isExa = /\bexa\b/i.test(tool);
+  const isSerper = /\bserper|serpapi\b/i.test(tool);
+
+  // Hard truth from healthz: zero slots ⇒ never LIVE
+  if (slots) {
+    if (isPerp && (slots.perplexity ?? 0) <= 0) return true;
+    if (isGroq && (slots.groq ?? 0) <= 0) return true;
+    if (isTavily && (slots.tavily ?? 0) <= 0) return true;
+    if (isExa && (slots.exa ?? 0) <= 0) return true;
+    if (isSerper && (slots.serper ?? 0) <= 0) return true;
+  }
+
   const blob = `${e.resultSummary || ""} ${e.inputSummary || ""} ${e.status || ""}`;
-  return /no usable result|not configured|provider availability|quota|missing key|api key|returned no usable|0 citation/i.test(blob)
-    && /perplexity|perp0|groq|provider/i.test(`${pickTool(e)} ${blob}`);
+  if (/no usable result|not configured|provider availability|quota|missing key|api key|returned no usable|0 citation|rate.?limit/i.test(blob)
+    && /perplexity|perp0|groq|provider/i.test(tool + blob)) {
+    return true;
+  }
+  // Fan-out telemetry that only lists template inventory — not a real search
+  if (isPerp && /query template|0 domain target|HNWI target/i.test(blob) && !(e.sourceUrls && e.sourceUrls.length)) {
+    return true;
+  }
+  return false;
 }
 
 function extractUrl(e: OpsEvent): string | undefined {
@@ -236,11 +269,11 @@ function storyFor(kind: SceneKind, e: OpsEvent, query?: string): string {
   return `${prefix} ${body}`;
 }
 
-function toScene(e: OpsEvent, index: number): Scene {
+function toScene(e: OpsEvent, index: number, slots: ProviderSlotMap | null = null): Scene {
   const tool = pickTool(e);
   const provider = detectProviderKind(`${tool} ${e.stage || ""} ${e.resultSummary || ""}`);
   const status = String(e.status || "active");
-  const unavailable = providerUnavailable(e);
+  const unavailable = providerUnavailable(e, slots);
   // Do not show LIVE chrome for missing/offline providers (e.g. Perplexity with 0 keys)
   let live = !/complete|done|success/i.test(status) && !unavailable;
   if (unavailable && !/complete|done|success/i.test(status)) {
@@ -1247,10 +1280,43 @@ export function BureauOpsStage({
   onEdgeSwipe?: (dir: "prev" | "next") => void;
   jumpToLiveSignal?: number;
 }) {
+  // Live provider slot counts — never paint LIVE for a zero-slot provider (e.g. Perplexity)
+  const [providerSlots, setProviderSlots] = React.useState<ProviderSlotMap | null>(null);
+  React.useEffect(() => {
+    let cancelled = false;
+    const load = () => {
+      fetch("/api/healthz")
+        .then(async (r) => {
+          const t = await r.text();
+          if (t.trimStart().startsWith("<")) return null;
+          try { return JSON.parse(t); } catch { return null; }
+        })
+        .then((d) => {
+          if (cancelled || !d?.providers) return;
+          setProviderSlots({
+            perplexity: Number(d.providers.perplexity) || 0,
+            groq: Number(d.providers.groq) || 0,
+            tavily: Number(d.providers.tavily) || 0,
+            exa: Number(d.providers.exa) || 0,
+            serper: Number(d.providers.serper) || 0,
+            gemini: Number(d.providers.gemini) || 0,
+            mistral: Number(d.providers.mistral) || 0,
+            nvidiaNim: Number(d.providers.nvidiaNim) || 0,
+          });
+        })
+        .catch(() => {});
+    };
+    load();
+    const id = window.setInterval(load, 15000);
+    return () => { cancelled = true; window.clearInterval(id); };
+  }, []);
+
   const scenes = useMemo(() => {
-    const list = (events || []).map(toScene).filter((s) => s.resultLines.length || s.query || s.prompt || s.url);
+    const list = (events || [])
+      .map((e, i) => toScene(e, i, providerSlots))
+      .filter((s) => s.resultLines.length || s.query || s.prompt || s.url);
     return list.slice(0, maxScenes);
-  }, [events, maxScenes]);
+  }, [events, maxScenes, providerSlots]);
 
   // Hooks must run unconditionally (before any early return).
   const [focusId, setFocusId] = React.useState<string | null>(null);
