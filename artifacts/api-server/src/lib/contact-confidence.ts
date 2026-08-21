@@ -161,18 +161,17 @@ export function computeContactOutcome(entity: {
       (emailStr ? isGenericEmailPrefix(emailLocal) : false);
 
     // L1: organisational phone detection
-    // EDGAR phones are SEC-filer switchboards; CH phones are company main lines.
+    // Issuer/filer switchboards — never personal. Notice-line phones use
+    // EDGAR-Notice-Phone and may promote to direct_contact_candidate.
     const isOrgPhone =
       entity.phoneSource === "EDGAR-Phone" ||
-      entity.phoneSource === "CompaniesHouse-Phone";
+      entity.phoneSource === "CompaniesHouse-Phone" ||
+      entity.phoneSource === "EDGAR-Issuer-Phone";
 
-    // If the only contact vector is an org phone (no email at all) → org_contact
-    if (isOrgPhone && !emailStr) return "organization_contact";
-
-    // Generic email → org_contact regardless of whether a phone also exists
+    if (isOrgPhone) return "organization_contact";
     if (isGenericEmail) return "organization_contact";
 
-    // Personal email/phone (or unknown source without generic prefix)
+    // Personal / notice-line / unknown source without generic prefix
     return "direct_contact_candidate";
   }
 

@@ -253,11 +253,12 @@ export function computeContactOutcome(entity: {
     return "none";
   }
 
-  // Registry phones are organization switchboards/main lines, even when a
-  // separate validation step marked the number as reachable.
+  // Registry / issuer switchboards — never personal. Notice-line phones are
+  // person-associated candidates (EDGAR-Notice-Phone) and may promote higher.
   const isOrgPhone =
     entity.phoneSource === "EDGAR-Phone" ||
-    entity.phoneSource === "CompaniesHouse-Phone";
+    entity.phoneSource === "CompaniesHouse-Phone" ||
+    entity.phoneSource === "EDGAR-Issuer-Phone";
   const heuristicEmail = isHeuristicEmailEvidence(entity);
 
   // Verified personal contact — highest priority

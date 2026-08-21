@@ -594,21 +594,79 @@ async function queryGLEIF(companyName: string): Promise<GLEIFResult | null> {
 }
 
 // ── Source 6: SEC EDGAR EFTS full-text search ─────────────────────────────────
-interface EDGARResult {
-  companyName: string | null;
-  cik: string | null;
-  filingType: string | null;
-  email: string | null;
-  phone: string | null;
-  address: string | null;
-  recordUrl: string | null;
+/** Pull notice-line phone + address from SC 13D/G plain text (reporting person, not issuer). */
+export function parseSc13NoticeContacts(text: string): { phone: string | null; address: string | null } {
+  if (!text || text.length < 80) return { phone: null, address: null };
+  const plain = text.replace(/\r/g, "\n").replace(/[ \t]+/g, " ");
+  let phone: string | null = null;
+  let address: string | null = null;
+
+  // Classic header: Name / Street / City ST ZIP / phone — under notices-and-communications
+  const noticeBlock = plain.match(
+    /(?:Name,\s*Address\s+and\s+Telephone\s+Number\s+of\s+Person\s+Authorized\s+to\s+Receive\s+Notices[^\n]{0,80})([\s\S]{20,500}?)(?:Date\s+of\s+Event|CUSIP|SCHEDULE\s+13|Item\s+1)/i,
+  );
+  const block = noticeBlock?.[1] ?? plain.slice(0, 6000);
+
+  const phoneMatch =
+    block.match(/\b(\+?1[\s\-.]?)?\(?\d{3}\)?[\s\-.]?\d{3}[\s\-.]?\d{4}\b/) ||
+    plain.match(
+      /(?:Telephone|Phone|Tel\.?)[^\d]{0,20}(\(?\d{3}\)?[\s\-.]?\d{3}[\s\-.]?\d{4})/i,
+    );
+  if (phoneMatch) {
+    const raw = (phoneMatch[0] ?? phoneMatch[1] ?? "").replace(/[^\d+]/g, "");
+    if (raw.replace(/\D/g, "").length >= 10) phone = phoneMatch[0]!.trim();
+  }
+
+  // Item 2(b) principal business / residence address of reporting person
+  const addrMatch = plain.match(
+    /Item\s*2\s*\(b\)[^\n]{0,80}(?:Address[^\n]{0,60})?[:\s]*([^\n]{12,160})/i,
+  ) || plain.match(
+    /(?:principal\s+business\s+(?:office|address)|Address\s+of\s+Principal\s+Business)[:\s]*([^\n]{12,160})/i,
+  );
+  if (addrMatch?.[1]) {
+    address = addrMatch[1].replace(/\s+/g, " ").trim().slice(0, 180);
+  }
+
+  // Street + City ST ZIP near the phone in notice block
+  if (!address && phone) {
+    const near = block.match(
+      /(\d{1,5}\s+[A-Za-z0-9.\s]{3,40}(?:Street|St|Avenue|Ave|Road|Rd|Drive|Dr|Boulevard|Blvd|Lane|Ln)[^\n]{0,40}[A-Z]{2}\s+\d{5}(?:-\d{4})?)/,
+    );
+    if (near?.[1]) address = near[1].replace(/\s+/g, " ").trim().slice(0, 180);
+  }
+
+  return { phone, address };
+}
+
+async function fetchEdgarFilingText(adshOrUrl: string): Promise<string | null> {
+  try {
+    // Prefer archives URL when we only have accession-style id
+    const url = adshOrUrl.startsWith("http")
+      ? adshOrUrl
+      : `https://www.sec.gov/Archives/edgar/data/${adshOrUrl}`;
+    const resp = await fetch(url, {
+      signal: timeout(12_000),
+      headers: {
+        "User-Agent": "ApexFinder Research research@apexfinder.private",
+        Accept: "text/html,text/plain,*/*",
+      },
+    });
+    if (!resp.ok) return null;
+    const text = await resp.text();
+    return text.slice(0, 400_000);
+  } catch {
+    return null;
+  }
 }
 
 async function queryEDGAR(name: string): Promise<EDGARResult | null> {
   try {
-    // Full-text search in SEC filings for the entity name
+    // Prefer SC 13D/G hits — those carry reporting-person notice phones
     const q = `"${name.replace(/"/g, "")}"`;
-    const url = `https://efts.sec.gov/LATEST/search-index?q=${encodeURIComponent(q)}&dateRange=custom&startdt=2020-01-01&enddt=2026-12-31`;
+    const forms = "forms=SC%2013D%2CSC%2013G%2CSC%2013D%2FA%2CSC%2013G%2FA";
+    const url =
+      `https://efts.sec.gov/LATEST/search-index?q=${encodeURIComponent(q)}` +
+      `&dateRange=custom&startdt=2018-01-01&enddt=2026-12-31&${forms}`;
     const resp = await fetch(url, {
       signal: timeout(15_000),
       headers: {
@@ -621,39 +679,71 @@ async function queryEDGAR(name: string): Promise<EDGARResult | null> {
     const hits: any[] = data?.hits?.hits ?? [];
     if (!hits.length) return null;
 
-    const hit = hits[0]?._source;
+    const hit = hits[0]?._source ?? {};
     const ciks: string[] = hit?.ciks ?? [];
-    if (!ciks.length) return null;
+    const cik = (ciks[0] ?? "").replace(/^0+/, "") || null;
+    const formType = hit?.form_type ?? hit?.form ?? null;
+    const displayUrl: string | null =
+      hit?.display_names?.[0] && cik
+        ? `https://www.sec.gov/edgar/browse/?CIK=${cik}`
+        : cik
+          ? `https://www.sec.gov/edgar/browse/?CIK=${cik}`
+          : null;
 
-    // Fetch company facts to find address/phone
-    const cik = ciks[0]!.replace(/^0+/, "");
-    const factsResp = await fetch(`https://data.sec.gov/submissions/CIK${cik.padStart(10, "0")}.json`, {
-      signal: timeout(10_000),
-      headers: { "User-Agent": "ApexFinder Research research@apexfinder.private", Accept: "application/json" },
-    });
-    if (!factsResp.ok) {
-      return {
-        companyName: hit?.entity_name ?? null,
-        cik,
-        filingType: hit?.form_type ?? null,
-        email: null,
-        phone: null,
-        address: null,
-        recordUrl: `https://www.sec.gov/edgar/browse/?CIK=${cik}`,
-      };
+    // Build a primary document URL when EFTS provides file_url / adsh
+    const fileUrl: string | null =
+      hit?.file_url ||
+      hit?.url ||
+      (hit?.adsh && cik
+        ? `https://www.sec.gov/Archives/edgar/data/${cik}/${String(hit.adsh).replace(/-/g, "")}/${hit.adsh}.txt`
+        : null);
+
+    let noticePhone: string | null = null;
+    let noticeAddress: string | null = null;
+    if (fileUrl) {
+      const body = await fetchEdgarFilingText(fileUrl);
+      if (body) {
+        const parsed = parseSc13NoticeContacts(body);
+        noticePhone = parsed.phone;
+        noticeAddress = parsed.address;
+      }
     }
-    const facts = await factsResp.json() as any;
-    const bizAddr = facts?.addresses?.business ?? {};
-    const addressParts = [bizAddr.street1, bizAddr.street2, bizAddr.city, bizAddr.stateOrCountry, bizAddr.zipCode].filter(Boolean);
+
+    // Issuer structured phone — org only (never personal)
+    let issuerPhone: string | null = null;
+    let issuerAddress: string | null = null;
+    let companyName: string | null = hit?.entity_name ?? null;
+    if (cik) {
+      const factsResp = await fetch(
+        `https://data.sec.gov/submissions/CIK${cik.padStart(10, "0")}.json`,
+        {
+          signal: timeout(10_000),
+          headers: {
+            "User-Agent": "ApexFinder Research research@apexfinder.private",
+            Accept: "application/json",
+          },
+        },
+      );
+      if (factsResp.ok) {
+        const facts = await factsResp.json() as any;
+        companyName = facts?.name ?? companyName;
+        issuerPhone = facts?.phone ?? null;
+        const bizAddr = facts?.addresses?.business ?? {};
+        const parts = [bizAddr.street1, bizAddr.street2, bizAddr.city, bizAddr.stateOrCountry, bizAddr.zipCode].filter(Boolean);
+        issuerAddress = parts.length ? parts.join(", ") : null;
+      }
+    }
 
     return {
-      companyName: facts?.name ?? hit?.entity_name ?? null,
+      companyName,
       cik,
-      filingType:  hit?.form_type ?? null,
-      email:       null,  // SEC filings rarely have email in structured form
-      phone:       facts?.phone ?? null,
-      address:     addressParts.length ? addressParts.join(", ") : null,
-      recordUrl:   `https://www.sec.gov/edgar/browse/?CIK=${cik}`,
+      filingType: formType,
+      email: null,
+      phone: issuerPhone,
+      noticePhone,
+      address: noticeAddress ?? issuerAddress,
+      noticeAddress,
+      recordUrl: fileUrl ?? displayUrl,
     };
   } catch (err: any) {
     logger.debug({ err: err.message }, "EDGAR EFTS search failed");
@@ -1524,7 +1614,16 @@ export async function enrichInHouse(entity: InHouseEnrichInput): Promise<InHouse
     const edgar = await queryEDGAR(name);
     if (edgar) {
       result.sourceHits["EDGAR"] = true;
-      setPhone(edgar.phone, 65, "EDGAR-Phone", edgar.recordUrl);
+      if (edgar.noticePhone) {
+        setPhone(edgar.noticePhone, 72, "EDGAR-Notice-Phone", edgar.recordUrl);
+        addSource("EDGAR-Notice-Phone");
+      } else if (edgar.phone) {
+        setPhone(edgar.phone, 55, "EDGAR-Phone", edgar.recordUrl);
+        addSource("EDGAR-Issuer-Phone");
+      }
+      if (edgar.noticeAddress) {
+        addSource("EDGAR-Notice-Address");
+      }
       if (!result.website && edgar.companyName && isCorp) {
         const guessed = guessCompanyDomain(edgar.companyName, bizCity);
         if (guessed.length && !knownDomain) knownDomain = guessed[0]!;

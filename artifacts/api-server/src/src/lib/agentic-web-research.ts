@@ -1215,9 +1215,9 @@ function findingsFromIrAndRelatedBlocks(
       });
     }
   }
-  // SC13-style residential
+  // SC13-style residential / reporting-person address
   for (const m of plain.matchAll(
-    /(?:address\s+is|resides\s+at|The\s+Reporting\s+Person'?s\s+address\s+is)\s+([^.]{12,140})/gi,
+    /(?:address\s+is|resides\s+at|The\s+Reporting\s+Person'?s\s+address\s+is|Item\s*2\s*\(b\)[^:]{0,40}:)\s*([^.]{12,140})/gi,
   )) {
     const addr = m[1]!.replace(/\s+/g, " ").trim().slice(0, 160);
     if (seen.has("a:" + addr)) continue;
@@ -1227,10 +1227,30 @@ function findingsFromIrAndRelatedBlocks(
       value: addr,
       personName: targetName,
       role: "residential_address",
-      scope: "organization",
+      scope: "candidate",
       sourceUrls: [sourceUrl],
-      note: `Residential/reporting address on ${sourceUrl}`,
+      note: `Reporting-person address on ${sourceUrl}`,
     });
+  }
+
+  // SC 13D/G notices-and-communications phone (reporting person — not issuer)
+  const noticePhoneRe =
+    /(?:Notices\s+and\s+Communications|Authorized\s+to\s+Receive\s+Notices)[\s\S]{0,400}?(\(?\d{3}\)?[\s.\-]\d{3}[\s.\-]\d{4})/i;
+  const npm = plain.match(noticePhoneRe) || page.match(noticePhoneRe);
+  if (npm?.[1]) {
+    const v = npm[1].replace(/\s+/g, " ").trim();
+    if (!seen.has("p:" + v)) {
+      seen.add("p:" + v);
+      out.push({
+        vectorType: "phone",
+        value: v,
+        personName: targetName,
+        role: "sc13_notice",
+        scope: "candidate",
+        sourceUrls: [sourceUrl],
+        note: `SC13 notices-and-communications phone for ${targetName} on ${sourceUrl}`,
+      });
+    }
   }
   return out;
 }
