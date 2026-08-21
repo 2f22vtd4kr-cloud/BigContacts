@@ -452,12 +452,16 @@ export default function ApexProfile() {
   }, [entityId]);
 
   // ── Loading / error states ─────────────────────────────────────────────────
-  // Prefer loading over "not found" whenever a fetch is in flight or we have not
-  // settled yet — avoids the flash of error before the card appears.
-  const stillLoading =
+  // Only show "not found" after a settled failure. Anything else → loading.
+  // (Prevents the flash of error while the profile request is still open.)
+  const settledMiss =
     !mockEntity &&
     entityId > 0 &&
-    (isLoading || isFetching || (!entityFromApi && !isFetched) || (!entityFromApi && !isError && !isFetched));
+    isFetched &&
+    !isLoading &&
+    !isFetching &&
+    !entityFromApi &&
+    isError;
 
   if (entityId <= 0) {
     return (
@@ -468,7 +472,7 @@ export default function ApexProfile() {
     );
   }
 
-  if (stillLoading || (!entity && !isError && !isFetched)) {
+  if (!entity && !settledMiss) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 px-4" data-testid="profile-loading">
         <Loader2 className="h-7 w-7 animate-spin text-primary" aria-hidden />

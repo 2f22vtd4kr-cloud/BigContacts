@@ -100,24 +100,25 @@ body {
   animation: atlas-click-flash 420ms cubic-bezier(0.2, 1, 0.32, 1);
 }
 
-/* Cards */
+/* Cards — soft edge into page (no hard ink rectangle) */
 .atlas-card {
   background: #0d1219;
-  border: 1px solid #2a2a2a;
-  border-radius: 12px;
+  border: 1px solid rgba(42, 42, 42, 0.75);
+  border-radius: 14px;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.03),
-    0 10px 32px rgba(0, 0, 0, 0.5);
+    0 10px 32px rgba(0, 0, 0, 0.42),
+    0 0 0 1px rgba(156, 255, 26, 0.035);
   transition:
     border-color 180ms ease,
     box-shadow 220ms cubic-bezier(0.2, 1, 0.32, 1);
 }
 .atlas-card:hover {
-  border-color: rgba(156, 255, 26, 0.32);
+  border-color: rgba(156, 255, 26, 0.28);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.04),
-    0 12px 40px rgba(0, 0, 0, 0.55),
-    0 0 28px rgba(156, 255, 26, 0.07);
+    0 12px 40px rgba(0, 0, 0, 0.5),
+    0 0 28px rgba(156, 255, 26, 0.06);
 }
 
 /* Primary CTA — iridescent oil-slick (purple / cyan / magenta), not brand lime */
@@ -242,24 +243,16 @@ body {
   position: absolute;
   left: 0;
   right: 0;
-  bottom: 0;
-  height: 48px;
+  bottom: -1px;
+  height: 72px;
   pointer-events: none;
   background: linear-gradient(
     180deg,
     transparent 0%,
-    rgba(10, 14, 20, 0.35) 45%,
-    rgba(10, 14, 20, 0.85) 100%
+    rgba(10, 14, 20, 0.25) 40%,
+    rgba(10, 14, 20, 0.75) 75%,
+    rgba(10, 14, 20, 1) 100%
   );
-}
-.atlas-soft-edge::after {
-  content: "";
-  position: absolute;
-  left: 8%;
-  right: 8%;
-  bottom: 0;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(156, 255, 26, 0.14), transparent);
 }
 
 .atlas-panel {
@@ -297,13 +290,13 @@ body {
   color: #F8FAFC;
 }
 
-/* Ambient gold wash behind hero / CTA clusters — masked so edges dissolve */
+/* Ambient wash — elliptical dissolve, no rectangular hard corners */
 .atlas-ambient-gold {
   background:
-    radial-gradient(ellipse 70% 55% at 75% 35%, rgba(156, 255, 26, 0.11), transparent 58%),
-    radial-gradient(ellipse 45% 35% at 15% 85%, rgba(250, 204, 21, 0.05), transparent 52%);
-  -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 72%, transparent 100%);
-  mask-image: linear-gradient(180deg, #000 0%, #000 72%, transparent 100%);
+    radial-gradient(ellipse 85% 70% at 70% 30%, rgba(156, 255, 26, 0.1), transparent 70%),
+    radial-gradient(ellipse 55% 45% at 20% 80%, rgba(250, 204, 21, 0.045), transparent 65%);
+  -webkit-mask-image: radial-gradient(ellipse 95% 85% at 50% 40%, #000 15%, transparent 72%);
+  mask-image: radial-gradient(ellipse 95% 85% at 50% 40%, #000 15%, transparent 72%);
 }
 
 /* Soft gold rim utility */

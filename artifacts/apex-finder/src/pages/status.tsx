@@ -99,30 +99,33 @@ const PROVIDER_COLORS: Record<string, string> = {
   exa:        "from-[#9CFF1A]/20 border-[#9CFF1A]/30",
 };
 
-function SlotBar({ slots }: { slots: AIKeySlot[] }) {
-  if (!slots.length) {
+function SlotBar({ active, cooling }: { active: number; cooling: number }) {
+  const n = Math.max(active + cooling, 1);
+  // Only draw keys that exist — never a fixed grid of empty slots.
+  const cells = [
+    ...Array.from({ length: active }, () => "active" as const),
+    ...Array.from({ length: cooling }, () => "cool" as const),
+  ];
+  if (active === 0 && cooling === 0) {
     return (
-      <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted/40">
-        <div className="h-full w-0 rounded-full bg-muted" />
-      </div>
+      <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted/35" role="img" aria-label="No keys" />
     );
   }
   return (
     <div
-      className="flex h-1.5 w-full overflow-hidden rounded-full bg-muted/30"
+      className="flex h-1.5 w-full max-w-[12rem] overflow-hidden rounded-full bg-muted/25"
       role="img"
-      aria-label={`${slots.filter((s) => s.state === "active").length} of ${slots.length} slots active`}
+      aria-label={`${active} live${cooling ? `, ${cooling} cooling` : ""}`}
     >
-      {slots.map((slot) => (
+      {cells.map((kind, i) => (
         <div
-          key={slot.index}
-          title={`Slot ${slot.index + 1}: ${slot.state}${slot.expiresAt ? ` · resets ${new Date(slot.expiresAt).toLocaleTimeString()}` : ""}`}
+          key={`${kind}-${i}`}
           className={cn(
-            "h-full flex-1 border-r border-background/40 last:border-r-0 transition-colors",
-            slot.state === "active" && "bg-[#9CFF1A] shadow-[0_0_8px_rgba(156,255,26,0.45)]",
-            slot.state === "rate_limited" && "bg-[#9CFF1A]/90 animate-pulse",
-            slot.state === "missing" && "bg-muted/50",
+            "h-full flex-1 border-r border-background/30 last:border-r-0",
+            kind === "active" && "bg-[#9CFF1A] shadow-[0_0_8px_rgba(156,255,26,0.45)]",
+            kind === "cool" && "bg-[#9CFF1A]/70 animate-pulse",
           )}
+          style={{ minWidth: `${Math.max(12, 100 / n)}%`, maxWidth: "100%" }}
         />
       ))}
     </div>
@@ -132,35 +135,36 @@ function SlotBar({ slots }: { slots: AIKeySlot[] }) {
 function ProviderCard({ name, slots }: { name: keyof AIKeyStatus; slots: AIKeySlot[] }) {
   const active = slots.filter((s) => s.state === "active").length;
   const rateLimited = slots.filter((s) => s.state === "rate_limited").length;
-  const missing = slots.filter((s) => s.state === "missing").length;
   const configured = slots.filter((s) => s.state !== "missing").length;
-  const total = Math.max(slots.length, 1);
-  const health = active / total;
 
   const tone =
     active > 0
-      ? "border-[#9CFF1A]/25 bg-gradient-to-br from-lime-500/[0.07] via-[#0d1219] to-[#0d1219]"
+      ? "border-[#9CFF1A]/25 bg-gradient-to-br from-lime-500/[0.07] via-[#0d1219] to-transparent"
       : rateLimited > 0
-        ? "border-[#9CFF1A]/25 bg-gradient-to-br from-[#9CFF1A]/[0.07] via-[#0d1219] to-[#0d1219]"
+        ? "border-[#9CFF1A]/25 bg-gradient-to-br from-[#9CFF1A]/[0.07] via-[#0d1219] to-transparent"
         : "border-[#9CFF1A]/12 bg-card/30";
 
   return (
     <article
       className={cn(
-        "group relative min-w-0 max-w-full overflow-hidden rounded-2xl border border-[#2a2a2a] p-3.5 sm:p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] backdrop-blur-sm transition-all hover:border-[#9CFF1A]/30 hover:shadow-[0_0_24px_rgba(156,255,26,0.06)]",
+        "group relative min-w-0 max-w-full overflow-hidden rounded-2xl border border-[#2a2a2a]/80 p-3.5 sm:p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] backdrop-blur-sm transition-all hover:border-[#9CFF1A]/30",
         tone,
         configured === 0 && "opacity-55",
       )}
       data-testid={`provider-card-${name}`}
     >
-      <div className="pointer-events-none absolute -right-6 -top-6 h-20 w-20 rounded-full bg-[#9CFF1A]/5 blur-2xl transition-opacity group-hover:opacity-100" />
+      <div className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-[#9CFF1A]/[0.06] blur-3xl" />
       <div className="relative flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="font-display text-[13px] font-semibold tracking-tight text-foreground">
             {PROVIDER_LABELS[name]}
           </div>
           <div className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground/70">
-            {configured} of {total} slots have keys
+            {configured === 0
+              ? "No keys configured"
+              : configured === 1
+                ? "1 key configured"
+                : `${configured} keys configured`}
           </div>
         </div>
         <span
@@ -178,20 +182,20 @@ function ProviderCard({ name, slots }: { name: keyof AIKeyStatus; slots: AIKeySl
       </div>
 
       <div className="relative mt-4 space-y-2">
-        <SlotBar slots={slots} />
-        <div className="flex items-center justify-between gap-2 font-mono text-[10px] text-muted-foreground">
-          <span className="text-[#d4ff8a]/90">
-            {active}/{total} live
-          </span>
-          <span className="truncate text-right">
-            {rateLimited > 0 && <span className="text-[#d4ff8a]/90">{rateLimited} cooling · </span>}
-            {missing > 0 && (
-              <span className="text-muted-foreground/55">{missing} empty (no key)</span>
-            )}
-            {missing === 0 && rateLimited === 0 && active > 0 && (
-              <span className="text-[#d4ff8a]/80">pool full</span>
-            )}
-          </span>
+        <SlotBar active={active} cooling={rateLimited} />
+        <div className="font-mono text-[10px] text-muted-foreground">
+          {active > 0 && (
+            <span className="text-[#d4ff8a]/90">
+              {active} live now
+              {rateLimited > 0 ? ` · ${rateLimited} cooling` : ""}
+            </span>
+          )}
+          {active === 0 && rateLimited > 0 && (
+            <span className="text-[#d4ff8a]/90">{rateLimited} cooling — will return</span>
+          )}
+          {active === 0 && rateLimited === 0 && (
+            <span className="text-muted-foreground/55">Add a key in Secrets, then restart API</span>
+          )}
         </div>
       </div>
     </article>
@@ -430,7 +434,7 @@ export default function SystemStatusPage() {
           ))}
         </div>
         <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground/70">
-          Each bar is a key slot for that provider. Gold = live key in use; grey = empty (no secret). “2/11 live” means two keys configured out of eleven possible slots — empty slots are normal. Scrapfly, Companies House, Serper, Zenrows and similar tools appear under Open research / tools below, not in these five AI pool rows.
+          Each bar shows only keys you have set. Green = live right now. Cooling keys are dimmer. Empty secret slots are not shown — there is no fixed “out of 11”. Scrapfly, Companies House, Serper, Zenrows and similar tools appear under Open research / tools below.
         </p>
       </section>
 

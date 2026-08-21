@@ -1253,42 +1253,50 @@ function MobileWorkstage({
         </div>
       </div>
 
-      {/* One nav only: dots (swipe still works). No Prev/Next + strip pile-up. */}
+      {/* Step position — past = dim, current = labeled, no mystery middle glow */}
       {scenes.length > 1 && (
-        <div className="flex items-center justify-center gap-1.5 py-0.5" role="tablist" aria-label="Past and current steps">
-          {scenes.map((s, i) => {
-            const accent = s.phaseTone === "discovery" ? "#c084fc" : "#9CFF1A";
-            return (
-              <button
-                key={s.id}
-                type="button"
-                role="tab"
-                aria-label={`Step ${i + 1}: ${s.title}${s.live ? " (happening now)" : " (done)"}`}
-                aria-current={i === safeIdx ? "true" : undefined}
-                aria-selected={i === safeIdx}
-                onClick={() => {
-                  pauseForReading(REACTOR_PAUSE_MS);
-                  setSlideDir(i > safeIdx ? 1 : -1);
-                  setIdx(i);
-                }}
-                className="reactor-pressable rounded-full touch-manipulation transition-[width,background,box-shadow] duration-150"
-                style={{
-                  width: i === safeIdx ? 18 : 7,
-                  height: 7,
-                  background: i === safeIdx ? (s.live ? accent : "#a8a29e") : "#44403c",
-                  boxShadow: i === safeIdx && s.live ? `0 0 8px ${accent}aa` : undefined,
-                  minWidth: i === safeIdx ? 18 : 7,
-                }}
-              />
-            );
-          })}
+        <div className="flex flex-col items-center gap-1.5 py-0.5">
+          <div className="flex items-center justify-center gap-1.5" role="tablist" aria-label="Past and current steps">
+            {scenes.map((s, i) => {
+              const isHere = i === safeIdx;
+              const accent = s.phaseTone === "discovery" ? "#c084fc" : "#9CFF1A";
+              return (
+                <button
+                  key={s.id}
+                  type="button"
+                  role="tab"
+                  aria-label={`Step ${i + 1} of ${scenes.length}: ${s.title}${s.live ? " happening now" : " done"}`}
+                  aria-current={isHere ? "true" : undefined}
+                  aria-selected={isHere}
+                  onClick={() => {
+                    pauseForReading(REACTOR_PAUSE_MS);
+                    setSlideDir(i > safeIdx ? 1 : -1);
+                    setIdx(i);
+                  }}
+                  className="reactor-pressable rounded-full touch-manipulation transition-[width,background,box-shadow] duration-150"
+                  style={{
+                    width: isHere ? 16 : 6,
+                    height: 6,
+                    background: isHere ? accent : i < safeIdx ? "#57534e" : "#3f3f46",
+                    boxShadow: isHere ? `0 0 6px ${accent}88` : undefined,
+                    minWidth: isHere ? 16 : 6,
+                    opacity: isHere ? 1 : 0.7,
+                  }}
+                />
+              );
+            })}
+          </div>
+          <p className="font-mono text-[9px] tabular-nums text-stone-500">
+            Step {safeIdx + 1} of {scenes.length}
+            {scene.live ? " · happening now" : " · already done"}
+          </p>
         </div>
       )}
 
-      {paused && scenes.some((s) => s.live) && (
+      {paused && (
         <button
           type="button"
-          className="reactor-pressable mx-auto flex items-center justify-center gap-1.5 rounded-full border border-[#9CFF1A]/40 bg-[#9CFF1A]/10 px-3 py-1 text-center font-mono text-[9px] uppercase tracking-wider text-[#d4ff8a]"
+          className="reactor-pressable mx-auto flex items-center justify-center gap-1.5 rounded-full border border-stone-500/40 bg-stone-900/80 px-3 py-1.5 text-center font-mono text-[9px] text-stone-300"
           data-testid="status-reading-pause"
           onClick={() => {
             setPaused(false);
@@ -1296,10 +1304,9 @@ function MobileWorkstage({
             setPauseLeft(0);
             if (pauseTimerRef.current) window.clearTimeout(pauseTimerRef.current);
           }}
-          aria-label="Resume auto-advance"
+          aria-label="Continue to next step"
         >
-          <span className="h-1.5 w-1.5 rounded-full bg-[#9CFF1A]" aria-hidden />
-          {`Paused · ${pauseLeft}s · tap to continue`}
+          {`Holding this step · continues in ${pauseLeft}s · tap to skip ahead`}
         </button>
       )}
     </div>
