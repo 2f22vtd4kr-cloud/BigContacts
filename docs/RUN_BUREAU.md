@@ -139,3 +139,8 @@ Replace `12345` with the entity id from the ledger.
 This overwrites issuer/CH switchboard phones when a notice-line phone is found, and leaves true `EDGAR-Notice-Phone` values protected.  
 Alternatively: delete the stale card and re-discover the target.
 
+
+
+## Research depth
+
+For parity smokes vs plain Grok: `RESEARCH_DEPTH=standard` or `deep`. Default `fast` is bulk-cheap and under-digs.

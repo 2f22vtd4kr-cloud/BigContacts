@@ -5,7 +5,7 @@
 
 ## Prep for next Replit run (2026-08-21)
 
-**Current tip:** pending — FREE_REACT=6 + NVIDIA model list  
+**Current tip:** `92c383f` — FREE_REACT=6 + NVIDIA model list  
 **Prior tip:** `23d965c` — Exa chain + gate early forceVisit starvation
 
 ### Tip chain (bureau research integrity)
@@ -66,6 +66,7 @@ Public URL must serve desk HTML; API `/api/*`; dist at `apex-finder/dist/public`
 ### Research parity checklist (vs single Grok agent)
 1. Pull tip ≥ `23d965c` (prefer latest main).
 2. Secrets: SERPER + TAVILY + EXA + GROQ minimum; Gemini/Mistral/NVIDIA preferred.
+2b. `RESEARCH_DEPTH=standard` (or deep) for parity smokes — Replit `fast` under-digs vs Grok.
 3. Scrapfly or ZenRows for CF/social shells.
 4. Status: `bureauIntegrity=ok` (Serper counted + ≥1 agentic LLM slot).
 5. Smoke the same brief you would give plain Grok; compare contact surface, not UI polish.

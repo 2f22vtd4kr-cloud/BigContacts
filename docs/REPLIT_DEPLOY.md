@@ -43,9 +43,17 @@ Existing `.replit` runs **parallel** workflows:
 **Safe defaults already in `.replit` `[userenv.shared]`:**
 - `ENABLE_AUTO_PIPELINE=false` — do not flip on until operator explicitly wants continuous runs
 - `REDIS_URL=redis://localhost:6379`
-- `RESEARCH_DEPTH=fast` for lighter first boots
+- `RESEARCH_DEPTH=standard` for research-parity smokes vs a single Grok agent (`fast` is bulk-cheap and can under-dig)
 
 After changing **any** secret: **restart API Server** so provider slot counts refresh (`/api/healthz`).
+
+**Research integrity (do not skip):**
+1. Pull `main` tip ≥ `92c383f` (free-ReAct + Serper→Tavily→Exa + budgets).
+2. Secrets must include **SERPER_API_KEY** + **GROQ_API_KEY** minimum; Tavily, Exa, Gemini, Mistral, NVIDIA, Scrapfly/ZenRows strongly recommended.
+3. Set `RESEARCH_DEPTH=standard` (or `deep`) for head-to-head vs plain Grok — `fast` is for bulk cost control.
+4. Open status / `GET /api/healthz` — `bureauIntegrity` must be **ok** before Launch.
+5. Stale cards: re-cook with `POST /api/ingest/atlas-run` `{ "singleTargetId": <id> }`.
+
 
 ---
 
@@ -76,7 +84,7 @@ Map **one secret name → one value**. Never commit values to git.
 |--------|---------|
 | `TAVILY_API_KEY` | SERP / discovery (also `_1`… slots) |
 | `EXA_API_KEY` / keys as coded | Semantic search |
-| `SERPER_API_KEY` | Serper (python tools / Maigret path) |
+| `SERPER_API_KEY` | **Critical** — primary agentic ReAct SERP (also python/Maigret) |
 | `SCRAPFLY_API_KEY` | JS-rendered page fetch |
 | `ZENROWS_API_KEY` | Alternate fetch |
 | `WHOISJSON_API_KEY` or `WHOISJSON_KEY` | Domain WHOIS |
