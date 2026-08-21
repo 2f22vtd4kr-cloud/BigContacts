@@ -5,20 +5,22 @@
 
 ## Prep for next Replit run (2026-08-21)
 
-**Current tip:** `35f8e99` — document singleTargetId re-cook for notice-phone upgrade  
-**Prior tip:** `00eded5` — migrate overnight script off decommissioned Llama 3.3 70B
+**Current tip:** pending — free-ReAct floor so bureau does not lose to single Grok agent  
+**Prior tip:** `02759c3` — migrate apex-runtime agentic off dead Llama 3.3 70B
 
-### Tip chain (bureau contact quality)
+### Tip chain (bureau research integrity)
 | Commit | Point |
 |--------|--------|
-| `2e5d85d` | EDGAR notice-line phone over issuer switchboard |
-| `da4b247` | Final-review deterministic fallback + deceased cook gate |
-| `fc64840` | Form 3/4 + SC13 in early EDGAR boost; name search variants for EFTS only |
-| `59f81c6` | Notice-phone → direct_contact_candidate; phoneSource on boost |
-| `87c7635` | Never demote notice phone to issuer/CH switchboard |
-| `5eb31eb` | Reactor NOW badges, workspace · separator, mock spoken stories |
-| `00eded5` | Overnight script off Llama 3.3 70B (model fallback only) |
-| `35f8e99` | Document singleTargetId re-cook path (RUN_BUREAU §7) |
+| `02759c3` | apex-runtime agentic off dead Llama 3.3; GROQ_CHAT_MODELS rotation |
+| `ebf53c8` | runtime groq-models.ts shared list |
+| `00eded5` | Overnight script off Llama 3.3 70B |
+| *(this)* | FREE_REACT_STEPS=5; MAX_ITER 20; force-hops deferred; pass default 18 |
+
+### Why single Grok previously beat the bureau
+Force-hop blocks ran *before* free ReAct each iteration and burned the 12–14 step budget.
+Models never got enough free turns to dig. Fix: first 5 steps are free multi-LLM ReAct only;
+force-hops fill gaps after. Keys (Serper + Groq + Tavily/Exa + browsers) must be set or
+bureauIntegrity goes critical and you are comparing a crippled desk to a full agent.
 
 ### Philosophy (do not regress)
 - **No LLM funneling** — ReAct, not GROK-PARITY playbooks / force-hops.

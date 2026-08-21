@@ -110,7 +110,7 @@ export async function runBureauAgenticWebPass(input: {
       companyName: input.companyName ?? null,
       objective: input.objective
         ?? `Find publicly documented contact routes for ${name}${input.companyName ? ` related to ${input.companyName}` : ""}. Multi-hop. Visit primary pages. Never invent.`,
-      maxIterations: input.maxIterations ?? 12,
+      maxIterations: input.maxIterations ?? 18,
       hardTimeoutMs: 150_000,
     });
 

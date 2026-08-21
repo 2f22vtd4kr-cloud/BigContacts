@@ -50,8 +50,11 @@ type AgentAction =
   | { action: "visit"; url: string; thought?: string }
   | { action: "done"; findings: AgenticFinding[]; thought?: string };
 
-const MAX_ITER = 14;
+const MAX_ITER = 20;
 const MAX_OBS = 3_500;
+/** First N steps are free ReAct only — force-hops must not starve the multi-LLM loop
+ *  (root cause of single-agent Grok beating the bureau on the same target). */
+const FREE_REACT_STEPS = 5;
 
 function randomUA(): string {
   const uas = [
@@ -1557,7 +1560,7 @@ export async function runAgenticWebResearch(input: {
     return { status: "unavailable", model: "none", iterations: 0, searches: 0, visits: 0, findings: [], trajectory: [], error: "empty target" };
   }
 
-  const maxIter = Math.min(input.maxIterations ?? MAX_ITER, 14);
+  const maxIter = Math.min(input.maxIterations ?? MAX_ITER, 24);
   const hardTimeoutMs = Math.max(30_000, input.hardTimeoutMs ?? 150_000);
   const startedAt = Date.now();
   let objective = input.objective
@@ -1797,7 +1800,7 @@ export async function runAgenticWebResearch(input: {
 
     // If company is locked but no company-host URL is queued yet, search the company surface
     // before visiting partner/blog SERP hits (prevents Team-Financial-style first visits).
-    if (
+    if (i >= FREE_REACT_STEPS && 
       searches >= 1
       && visits === 0
       && input.companyName
@@ -1848,6 +1851,7 @@ export async function runAgenticWebResearch(input: {
     if (
       (hasOrgPhone() || hasOrgEmailOrPhone() || visits >= 1)
       && !hasOrgEmail()
+      && i >= FREE_REACT_STEPS
       && !orgEmailSearchDone
       && i < maxIter - 2
     ) {
@@ -1907,7 +1911,7 @@ export async function runAgenticWebResearch(input: {
     }
     // Mid-market gap: Facebook About often lists info@ when the corporate /contact page does not.
     // Fail-closed: only admit emails that appear in SERP snippet text (never invent mailboxes).
-    if (
+    if (i >= FREE_REACT_STEPS && 
       input.companyName
       && !hasOrgEmail()
       && orgEmailSearchDone
@@ -1945,7 +1949,7 @@ export async function runAgenticWebResearch(input: {
     }
     // When website domain is known but org email still missing, search exact quoted mailboxes.
     // Admit ONLY if the address appears in SERP text (fail-closed — no synthetic info@).
-    if (
+    if (i >= FREE_REACT_STEPS && 
       !hasOrgEmail()
       && findings.some((f) => f.vectorType === "website")
       && !history.some((h) => h.includes("force_domain_mailbox_search"))
@@ -1984,6 +1988,7 @@ export async function runAgenticWebResearch(input: {
     // After primary surface: force a related-people SERP hop (BBB / officers) once
     if (
       hasOrgEmailOrPhone()
+      && i >= FREE_REACT_STEPS
       && !relatedPeopleSearchDone
       && i < maxIter - 2
     ) {
@@ -2034,6 +2039,7 @@ export async function runAgenticWebResearch(input: {
     // Ownership / founder / acquisition hop — Atlas goal is contacts that lead to controlling people
     if (
       relatedPeopleSearchDone
+      && i >= FREE_REACT_STEPS
       && !ownershipSearchDone
       && i < maxIter - 2
     ) {
@@ -2074,7 +2080,7 @@ export async function runAgenticWebResearch(input: {
     }
 
     // Current CEO / President hop — founders already on ledger must NOT skip sitting executives
-    if (
+    if (i >= FREE_REACT_STEPS && 
       (relatedPeopleSearchDone || ownershipSearchDone)
       && !history.some((h) => h.includes("force_current_exec_search"))
       && i < maxIter - 2
@@ -2133,7 +2139,7 @@ export async function runAgenticWebResearch(input: {
       if (forced) continue;
     }
     // Registry footprint hop (OpenCorporates / EDGAR / BBB) once after related search
-    if (
+    if (i >= FREE_REACT_STEPS && 
       relatedPeopleSearchDone
       && !(findings.some((f) => (f.sourceUrls || []).some((u) => /opencorporates|sec\.gov|bbb\.org|companieshouse/i.test(u))))
       && i < maxIter - 2
@@ -2365,6 +2371,7 @@ export async function runAgenticWebResearch(input: {
     if (
       input.companyName
       && !hasOrgEmail()
+      && i >= FREE_REACT_STEPS
       && !orgEmailSearchDone
       && visits >= 1
       && i < maxIter - 2
@@ -2379,6 +2386,7 @@ export async function runAgenticWebResearch(input: {
     // Reject done before related-people hop when primary surface already found
     if (
       hasOrgEmailOrPhone()
+      && i >= FREE_REACT_STEPS
       && !relatedPeopleSearchDone
       && i < maxIter - 2
     ) {
