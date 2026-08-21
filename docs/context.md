@@ -26,7 +26,7 @@
 - **LLMs decide relatedness and card content** — no forced playbooks; fail-closed admission only on exact evidence values.
 
 ### Known gaps still open
-1. **Re-cook path** — existing ledger cards keep old issuer phones until a re-enrich / force-reprocess is added or cards are deleted + re-run.
+1. **Re-cook path** — documented: `POST /api/ingest/atlas-run` with `{ "singleTargetId": <id> }` re-runs full-circle (incl. EDGAR notice-phone boost). See `docs/RUN_BUREAU.md` §7. Or delete stale card + rediscover.
 2. Desktop reactor density (graph + inspector + scene cards) — still usable but can feel busy.
 3. Mobile header a11y may concatenate chip labels; visual chips already use shortLabel + · + DB.
 4. Perplexity optional (0 keys OK); healthz-backed — never paint LIVE with 0 slots.

@@ -117,3 +117,25 @@ After import + secrets + install + schema + both services healthy:
 > Poll `/api/ingest/atlas-status` until inactive or operator stops via `DELETE /api/ingest/atlas-lock`.  
 > Do not change the body shape or invent another entrypoint.
 
+---
+
+## 7. Re-cook one existing ledger card (notice-phone upgrade)
+
+Old cards may still hold issuer switchboard phones from before the EDGAR notice-line protection.  
+There is no separate “re-enrich” job — use the single-target path, which re-runs `enrichEntityFullCircle` (including early EDGAR boost + phoneSource protection):
+
+```http
+POST /api/ingest/atlas-run
+Content-Type: application/json
+
+{
+  "singleTargetId": 12345,
+  "runResearch": true,
+  "targetTimeoutMs": 420000
+}
+```
+
+Replace `12345` with the entity id from the ledger.  
+This overwrites issuer/CH switchboard phones when a notice-line phone is found, and leaves true `EDGAR-Notice-Phone` values protected.  
+Alternatively: delete the stale card and re-discover the target.
+
