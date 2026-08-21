@@ -42,11 +42,14 @@ const __appDir = path.dirname(fileURLToPath(import.meta.url));
 
 function resolveFrontendDist(): string | null {
   const candidates = [
+    // Vite build.outDir is dist/public (see apex-finder/vite.config.ts)
+    path.resolve(__appDir, "../../../apex-finder/dist/public"),
+    path.resolve(__appDir, "../../../../artifacts/apex-finder/dist/public"),
+    path.resolve(process.cwd(), "artifacts/apex-finder/dist/public"),
+    path.resolve(process.cwd(), "../apex-finder/dist/public"),
+    path.resolve(process.cwd(), "apex-finder/dist/public"),
     path.resolve(__appDir, "../../../apex-finder/dist"),
-    path.resolve(__appDir, "../../../../artifacts/apex-finder/dist"),
     path.resolve(process.cwd(), "artifacts/apex-finder/dist"),
-    path.resolve(process.cwd(), "../apex-finder/dist"),
-    path.resolve(process.cwd(), "apex-finder/dist"),
     path.resolve(process.cwd(), "dist/public"),
   ];
   for (const dir of candidates) {

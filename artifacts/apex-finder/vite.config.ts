@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'vite';
 
-import runtimeErrorOverlay from '@replit/vite-plugin-runtime-error-modal';
+// optional on Replit only — loaded dynamically below when REPL_ID is set
 
 const rawPort = process.env.PORT ?? "23695";
 const parsedPort = Number(rawPort);
