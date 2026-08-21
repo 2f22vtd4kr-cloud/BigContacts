@@ -54,7 +54,7 @@ const MAX_ITER = 20;
 const MAX_OBS = 5_000;
 /** First N steps are free ReAct only — force-hops must not starve the multi-LLM loop
  *  (root cause of single-agent Grok beating the bureau on the same target). */
-const FREE_REACT_STEPS = 8;
+const FREE_REACT_STEPS = 10;
 
 function randomUA(): string {
   const uas = [
@@ -1895,9 +1895,12 @@ export async function runAgenticWebResearch(input: {
       };
     }
 
+    // At most one scripted gap-fill per iteration — then the LLM always gets to reason.
+    let scriptedHop = false;
+
     // If company is locked but no company-host URL is queued yet, search the company surface
     // before visiting partner/blog SERP hits (prevents Team-Financial-style first visits).
-    if (i >= FREE_REACT_STEPS && 
+    if (!scriptedHop && i >= FREE_REACT_STEPS && 
       searches >= 1
       && visits === 0
       && input.companyName
@@ -1923,14 +1926,14 @@ export async function runAgenticWebResearch(input: {
         history.push(`step${i + 1}: serp_email_findings=${snippetEmails.length}`);
       }
       lastObservation =
-        `COMPANY SURFACE search:\nURLs: ${sr.urls.slice(0, 8).join(" | ")}\n\n${sr.text.slice(0, MAX_OBS)}`;
-      continue;
+        `COMPANY SURFACE search:\nURLs: ${sr.urls.slice(0, 8).join(" | ")}\n\n${sr.text.slice(0, MAX_OBS)}\n\n[HINT] Prefer visiting company contact/about pages next.`;
+      scriptedHop = true;
     }
     // Only force a visit after the model had free steps to choose one.
     // Trained models should decide when to open pages — not a fixed script on search #1.
-    if (i >= 3 && searches >= 1 && visits === 0 && candidateUrls.length > 0) {
+    if (!scriptedHop && i >= 3 && searches >= 1 && visits === 0 && candidateUrls.length > 0) {
       await forceVisitNext(`step${i + 1}`);
-      continue;
+      scriptedHop = true; // LLM still reasons over the visit observation this step
     }
     // After free ReAct floor: keep opening high-rank company pages until org email/phone
     // (ungated, this burned the free multi-LLM dig after the first search+visit)
@@ -1942,8 +1945,10 @@ export async function runAgenticWebResearch(input: {
       && candidateUrls.some((u) => !visitedUrls.has(u) && rankVisitUrl(u) <= 3)
       && i < maxIter - 1
     ) {
-      const forced = await forceVisitNext(`step${i + 1}`);
-      if (forced) continue;
+      if (!scriptedHop) {
+        const forced = await forceVisitNext(`step${i + 1}`);
+        if (forced) scriptedHop = true;
+      }
     }
     // Phones without org email is a common mid-market gap vs general agents.
     // Force an email-focused SERP + re-seed contact paths once.
@@ -2007,7 +2012,7 @@ export async function runAgenticWebResearch(input: {
       && i < maxIter - 1
     ) {
       const forced = await forceVisitNext(`step${i + 1}`);
-      if (forced) continue;
+      if (forced) { scriptedHop = true; }
     }
     // Mid-market gap: Facebook About often lists info@ when the corporate /contact page does not.
     // Fail-closed: only admit emails that appear in SERP snippet text (never invent mailboxes).
@@ -2236,7 +2241,7 @@ export async function runAgenticWebResearch(input: {
         }
       }
       const forced = await forceVisitNext(`step${i + 1}`);
-      if (forced) continue;
+      if (forced) { scriptedHop = true; }
     }
     // Registry footprint hop (OpenCorporates / EDGAR / BBB) once after related search
     if (i >= FREE_REACT_STEPS && 
@@ -2283,7 +2288,7 @@ export async function runAgenticWebResearch(input: {
         }
       }
       const forced = await forceVisitNext(`step${i + 1}`);
-      if (forced) continue;
+      if (forced) { scriptedHop = true; }
     }
     // Visit remaining high-rank pages after related search
     if (
@@ -2293,7 +2298,7 @@ export async function runAgenticWebResearch(input: {
       && i < maxIter - 1
     ) {
       const forced = await forceVisitNext(`step${i + 1}`);
-      if (forced) continue;
+      if (forced) { scriptedHop = true; }
     }
     // After free ReAct has had room: if visits produced zero findings, force one high-rank page
     if (
@@ -2304,7 +2309,7 @@ export async function runAgenticWebResearch(input: {
       && i < maxIter - 1
     ) {
       const forced = await forceVisitNext(`step${i + 1}`);
-      if (forced) continue;
+      if (forced) { scriptedHop = true; }
     }
 
     const prompt = buildStepPrompt({

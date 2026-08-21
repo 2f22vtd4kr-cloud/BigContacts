@@ -52,7 +52,7 @@ const MAX_ITER = 20;
 const MAX_OBS = 5_000;
 /** First N steps are free ReAct only — force-hops must not starve the multi-LLM loop
  *  (root cause of single-agent Grok beating the bureau on the same target). */
-const FREE_REACT_STEPS = 8;
+const FREE_REACT_STEPS = 10;
 
 function randomUA(): string {
   const uas = [
@@ -1612,7 +1612,7 @@ export async function runAgenticWebResearch(input: {
     // Trained models should decide when to open pages — not a fixed script on search #1.
     if (i >= 3 && searches >= 1 && visits === 0 && candidateUrls.length > 0) {
       await forceVisitNext(`step${i + 1}`);
-      continue;
+      // fall through — LLM reasons on the visit observation
     }
     // After free ReAct floor: keep opening high-rank company pages until org email/phone
     // (ungated, this burned the free multi-LLM dig after the first search+visit)

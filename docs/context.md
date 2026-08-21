@@ -5,8 +5,8 @@
 
 ## Prep for next Replit run (2026-08-21)
 
-**Current tip:** pending — free LLM research (not enum scripts)  
-**Prior tip:** `1603c5f` — Boss step assignment (still too scripted)
+**Current tip:** pending — scripted hops no longer skip LLM; Boss writes agentic brief  
+**Prior tip:** `f80e257` — free Boss tool+query
 
 ### Tip chain (bureau research integrity)
 | Commit | Point |

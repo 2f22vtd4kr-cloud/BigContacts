@@ -630,11 +630,34 @@ export async function expandSecondaryPublicSurface(input: {
     // Grok Agent + live search/visit tools. Fail-closed: findings need sourceUrls.
     try {
       const { runAgenticWebResearch } = await import("./agentic-web-research");
+      // Boss-written objective when available — free researcher brief, not a fixed playbook line
+      let objective =
+        `Find public contact routes and related people for ${name}` +
+        `${input.companyName ? ` / ${input.companyName}` : ""}. ` +
+        `Discover official domain, contact pages, org phones/emails, named officers. Multi-hop. Never invent.`;
+      try {
+        const { resolveGeminiBossModel, generateGeminiBossText } = await import("./case-bureau");
+        const selection = await resolveGeminiBossModel();
+        if (selection?.model) {
+          const brief = await generateGeminiBossText(
+            selection,
+            `You are Gemini Boss briefing a web research agent on target "${name}"` +
+              `${input.companyName ? ` (company: ${input.companyName})` : ""}.\n` +
+              `Write a short research objective (2-5 sentences): what to discover, which surfaces to open, ` +
+              `how to dig for officers and contacts. No invented emails/phones/names. Plain text only.`,
+          );
+          if (brief.raw && brief.raw.trim().length > 40) {
+            objective = brief.raw.trim().slice(0, 900);
+          }
+        }
+      } catch {
+        /* keep default objective */
+      }
       const agentic = await runAgenticWebResearch({
         targetName: name,
         companyName: input.companyName ?? null,
-        objective: `Find public contact routes and related org surface for ${name}${input.companyName ? ` / ${input.companyName}` : ""}. Multi-hop. Visit company contact pages. Never invent.`,
-        maxIterations: 16,
+        objective,
+        maxIterations: 18,
       });
       logger.info(
         { entityId: input.entityId, status: agentic.status, model: agentic.model, searches: agentic.searches, visits: agentic.visits, findings: agentic.findings.length },
