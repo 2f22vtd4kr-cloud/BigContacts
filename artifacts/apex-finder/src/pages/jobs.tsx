@@ -47,7 +47,7 @@ const JOB_DEFS: Array<Omit<Job, "status"|"jobId"|"progress"|"inserted"|"skipped"
 
 // ─── Utility ──────────────────────────────────────────────────────────────────
 function statusIcon(status: Job["status"]) {
-  if (status === "running" || status === "queued") return <Loader2 className="w-3.5 h-3.5 animate-spin text-[#9CFF1A]" />;
+  if (status === "running" || status === "queued" || status === "paused") return <Loader2 className="w-3.5 h-3.5 animate-spin text-[#9CFF1A]" />;
   if (status === "done") return <CheckCircle2 className="w-3.5 h-3.5 text-[#b8ff4d]" />;
   if (status === "failed") return <XCircle className="w-3.5 h-3.5 text-red-400" />;
   if (status === "cancelled") return <XCircle className="w-3.5 h-3.5 text-muted-foreground" />;
@@ -55,7 +55,7 @@ function statusIcon(status: Job["status"]) {
 }
 
 function statusColor(status: Job["status"]) {
-  if (status === "running" || status === "queued") return "text-[#9CFF1A]";
+  if (status === "running" || status === "queued" || status === "paused") return "text-[#9CFF1A]";
   if (status === "done") return "text-[#b8ff4d]";
   if (status === "failed") return "text-red-400";
   if (status === "cancelled") return "text-muted-foreground";
@@ -81,7 +81,7 @@ function elapsed(iso?: string) {
 // ─── Ingestor Card ────────────────────────────────────────────────────────────
 function IngestorCard({ job, onTrigger }: { job: Job; onTrigger: (id: string) => void }) {
   const [open, setOpen] = useState(false);
-  const isActive = job.status === "running" || job.status === "queued";
+  const isActive = job.status === "running" || job.status === "queued" || job.status === "paused";
 
   return (
     <div className={cn("rounded-2xl border border-[#9CFF1A]/10 bg-card/30 overflow-hidden shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] transition-colors", isActive && "border-lime-400/30 bg-lime-500/[0.04]")} data-testid={`card-job-${job.id}`}>
@@ -413,7 +413,7 @@ function DuplicatesTab() {
 
 // ─── Live Activity tab ────────────────────────────────────────────────────────
 function LiveActivityTab({ jobs }: { jobs: Job[] }) {
-  const active = jobs.filter(j => j.status === "running" || j.status === "queued");
+  const active = jobs.filter(j => j.status === "running" || j.status === "queued" || j.status === "paused");
   const recent = jobs.filter(j => j.status === "done" || j.status === "failed" || j.status === "cancelled").slice(0, 10);
   const idle = jobs.filter(j => j.status === "idle");
 

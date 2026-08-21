@@ -16,7 +16,7 @@ async function safeRedis<T>(fn: (rc: import("ioredis").Redis) => Promise<T>, fal
   return withPermanentClient(fn, fallback);
 }
 
-export type JobStatus = "queued" | "running" | "done" | "failed" | "cancelled";
+export type JobStatus = "queued" | "running" | "paused" | "done" | "failed" | "cancelled";
 
 export interface JobState {
   jobId: string;

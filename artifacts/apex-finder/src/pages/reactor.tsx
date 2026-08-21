@@ -106,7 +106,20 @@ function parseAtlasEventLog(raw: unknown) {
       const event = JSON.parse(payload);
       return { ...event, timestamp, raw: text };
     } catch {
-      return { kind: "log", resultSummary: text, timestamp, raw: text };
+      // Unparsed job lines often dump DIRECTOR + JSON — keep raw, never as resultSummary
+      if (/ATLAS_EVENT|DIRECTOR\s+20\d{2}-|"kind"\s*:\s*"telemetry"/i.test(text)) {
+        return { kind: "log", resultSummary: "Working on this person", timestamp, raw: text };
+      }
+      const cleaned = text
+        .replace(/^\d{4}-\d{2}-\d{2}T[\d:.Z+-]+\s*/, "")
+        .replace(/^DIRECTOR\s+\S+\s*/i, "")
+        .trim();
+      return {
+        kind: "log",
+        resultSummary: cleaned.length > 8 && cleaned.length < 160 ? cleaned : "Working on this person",
+        timestamp,
+        raw: text,
+      };
     }
   }).filter((event) => event.kind === "telemetry" || event.kind === "log");
 }
@@ -2140,9 +2153,13 @@ export default function IntelligenceReactorPage() {
       let nextAtlasState: AtlasLiveState | null = null;
 
       // ── Atlas job (step + content-aware for 21-source pipeline) ─────────────
-       if (atlasData?.jobId && ["running", "done", "failed"].includes(atlasData.status)) {
+       if (atlasData?.jobId && ["running", "paused", "done", "failed"].includes(atlasData.status)) {
         const msg: string = atlasData.message ?? "";
-         const runStatus = atlasData.status === "failed" ? "failed" : atlasData.status === "done" ? "done" : "running";
+         const runStatus =
+           atlasData.status === "failed" ? "failed"
+           : atlasData.status === "done" ? "done"
+           : atlasData.status === "paused" ? "running" // keep desk live while paused
+           : "running";
         const structured = parseAtlasLiveState(
           msg,
           Number(atlasData.atlasPhase ?? atlasData.progress ?? 0),
@@ -2192,6 +2209,10 @@ export default function IntelligenceReactorPage() {
           const detail = plainMsg(msg);
           labels.push(`▶ ${detail.slice(0, 70)}`);
           setLivePhaseDetail(detail);
+        }
+        if (atlasData.status === "paused") {
+          setLivePhaseDetail((prev) => prev ? `Paused — ${prev}` : "Paused — waiting for resume");
+          labels.push("⏸ Paused");
         }
          if (atlasTelemetry?.activeToolId) {
            nodes.add(atlasTelemetry.activeToolId);

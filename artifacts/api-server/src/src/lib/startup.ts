@@ -64,7 +64,7 @@ async function clearGhostJobs(): Promise<void> {
       const startedAtMs = job?.startedAt ? Date.parse(job.startedAt) : NaN;
       const predatesProcess =
         Number.isFinite(startedAtMs) && startedAtMs < PROCESS_BOOT_MS;
-      if (predatesProcess && (job?.status === "running" || job?.status === "queued")) {
+      if (predatesProcess && (job?.status === "running" || job?.status === "queued" || job?.status === "paused")) {
         await updateJob(jobId, {
           status: "failed",
           message: "Research job stopped before it finished (server restarted or process ended). Tap Launch Atlas or refresh to start again.",
