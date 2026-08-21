@@ -267,24 +267,27 @@ export function computeContactOutcome(entity: {
   }
 
   if (emailStr || phoneStr) {
-    // L1: organisational email detection
-    // Check explicit flag first (set by K2 enricher), then fall back to pattern check
-    // on the stored email value (handles existing DB records in the backfill path).
     const emailLocal = emailStr ? (emailStr.split("@")[0] ?? "") : "";
     const isGenericEmail =
       entity.isGenericPrefix === true ||
       (emailStr ? isGenericEmailPrefix(emailLocal) : false);
 
-    // L1: organisational phone detection
-    // EDGAR phones are SEC-filer switchboards; CH phones are company main lines.
-    // If the only contact vector is an org phone (no email at all) → org_contact
-    if (isOrgPhone && !emailStr) return "organization_contact";
+    // Reporting-person notice line (SC 13D/G / Form 3/4) — person-associated candidate
+    const isNoticePhone =
+      entity.phoneSource === "EDGAR-Notice-Phone" ||
+      entity.phoneSource === "EDGAR-Notice";
 
-    // Generic email → org_contact regardless of whether a phone also exists
-    if (isGenericEmail || isOrgPhone) return "organization_contact";
+    // Issuer / company switchboards only (never personal)
+    if (isOrgPhone && !isNoticePhone) {
+      if (!emailStr || isGenericEmail) return "organization_contact";
+      // Personal email + issuer phone: still treat as org route for the phone vector
+      return "organization_contact";
+    }
+
+    if (isGenericEmail && !isNoticePhone) return "organization_contact";
     if (heuristicEmail) return "evidence_only";
 
-    // Personal email/phone (or unknown source without generic prefix)
+    // Notice phone and/or non-generic email/phone → direct candidate
     return "direct_contact_candidate";
   }
 

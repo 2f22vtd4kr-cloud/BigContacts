@@ -757,6 +757,7 @@ async function enrichEntityFullCircle(atlasJobId: string, entity: EntityRow): Pr
               ? Math.max(Number((entity as { contactConfidence?: number | null }).contactConfidence ?? 0), 55)
               : (entity as { contactConfidence?: number | null }).contactConfidence,
             metadata: sql`COALESCE(${entitiesTable.metadata}::jsonb, '{}'::jsonb) || ${JSON.stringify({
+              phoneSource: boost.noticePhone ? "EDGAR-Notice-Phone" : undefined,
               edgarIdentityBoost: {
                 roleHeadline: boost.roleHeadline,
                 streetAddress: boost.streetAddress,
