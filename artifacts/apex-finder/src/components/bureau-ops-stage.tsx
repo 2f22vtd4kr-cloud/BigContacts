@@ -66,7 +66,25 @@ function pickTool(e: OpsEvent): string {
 function isInternalLanePrompt(s: string): boolean {
   return /LANE\s*[–-]\s*people_press|RESEARCH (LANE|CONTRACT)|REALISM\s*\/\s*REACHABILITY|Phase 0 OSINT|You are conducting/i.test(s)
     || /query template|domain target|search query template|HNWI target\s*[·•]|0 domain target|AI PROVIDER FAN|PROVIDER FA\b/i.test(s)
-    || /complementary_lane|resolve_identity|official_routes|contact_routes:\s*|people_press/i.test(s);
+    || /complementary_lane|resolve_identity|official_routes|contact_routes:\s*|people_press/i.test(s)
+    || /ATLAS_EVENT|DIRECTOR\s+20\d{2}-|\"kind\"\s*:\s*\"telemetry\"/i.test(s);
+}
+
+/** Strip job-log / telemetry dumps from operator-facing story lines. */
+function sanitizeStoryText(s: string | undefined): string | undefined {
+  if (!s) return undefined;
+  let t = s.replace(/\s+/g, " ").trim();
+  if (/ATLAS_EVENT|\"kind\"\s*:\s*\"telemetry\"/i.test(t)) {
+    // Prefer target name fragments over raw log
+    const name = t.match(/(?:targetName|TARGET)[\"':\s]+([A-Za-z][A-Za-z .'-]{2,60})/i);
+    if (name?.[1]) return `researching ${name[1].trim()}`;
+    return "researching target";
+  }
+  // Drop leading ISO + DIRECTOR noise
+  t = t.replace(/^DIRECTOR\s+\d{4}-\d{2}-\d{2}T[^\s]+\s*/i, "");
+  t = t.replace(/^\d{4}-\d{2}-\d{2}T[\d:.Z+-]+\s*/i, "");
+  if (t.length > 160) t = t.slice(0, 157) + "…";
+  return t;
 }
 
 function cleanQueryText(s: string): string {
@@ -182,7 +200,9 @@ function extractUrl(e: OpsEvent): string | undefined {
  * Pattern: "Now: …" while live, "Done: …" when finished.
  */
 function storyFor(kind: SceneKind, e: OpsEvent, query?: string): string {
-  if (e.story && e.story.trim().length >= 8) return e.story.trim();
+  if (e.story && e.story.trim().length >= 8) {
+    return sanitizeStoryText(e.story.trim()) || e.story.trim();
+  }
   if (e.caseUpdate && e.caseUpdate.trim()) {
     const live = !/complete|done|success/i.test(String(e.status || "active"));
     return `${live ? "Now" : "Done"}: Case update — ${e.caseUpdate.trim().slice(0, 160)}`;
@@ -463,21 +483,23 @@ function StoryLine({
   className?: string;
   clamp?: boolean;
 }) {
-  const m = story.match(/^(Now|Done|Failed):\s*(.*)$/i);
+  const cleaned = sanitizeStoryText(story) || story;
+  const m = cleaned.match(/^(Now|Done|Failed):\s*(.*)$/i);
   if (!m) {
     return (
       <div className={`${clamp ? "line-clamp-2" : ""} ${className}`.trim()}>
-        {story}
+        {cleaned}
       </div>
     );
   }
   const kind = m[1].toLowerCase();
   const prefixColor =
     kind === "now" ? "text-lime-300" : kind === "failed" ? "text-rose-300" : "text-lime-200";
+  const body = sanitizeStoryText(m[2]) || m[2];
   return (
     <div className={`${clamp ? "line-clamp-2" : ""} ${className}`.trim()}>
       <span className={`font-bold ${prefixColor}`}>{m[1]}:</span>
-      {m[2] ? <span> {m[2]}</span> : null}
+      {body ? <span> {body}</span> : null}
     </div>
   );
 }
@@ -1138,7 +1160,7 @@ function MobileWorkstage({
       </div>
 
       <div
-        className="min-h-[180px] sm:min-h-[220px]"
+        className="h-[200px] sm:h-[220px] overflow-hidden"
         style={{
           transform: dragX ? `translate3d(${dragX}px,0,0)` : undefined,
           transition: dragX ? "none" : `transform ${REACTOR_UI_MS}ms ease-out`,
@@ -1147,6 +1169,7 @@ function MobileWorkstage({
       >
         <div
           key={scene.id}
+          className="h-full overflow-y-auto overscroll-contain"
           style={{
             animation: dragX
               ? undefined

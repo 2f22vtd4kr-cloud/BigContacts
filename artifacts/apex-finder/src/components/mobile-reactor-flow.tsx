@@ -669,7 +669,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
           ) : liveEvents.length > 0 && !forceLiveEmpty ? (
             <section
               key={showHistory ? "history" : "live"}
-              className={`rounded-2xl border p-3 ${
+              className={`flex h-[min(58vh,420px)] flex-col overflow-hidden rounded-2xl border p-3 ${
                 showHistory
                   ? "reactor-archive-panel border-stone-500/35"
                   : "border-[#9CFF1A]/25 bg-[#111827] shadow-[0_0_48px_rgba(240,180,41,0.1)]"
@@ -776,25 +776,27 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
                   {historyQuery.trim() ? `No steps match “${historyQuery.trim()}”.` : `No ${historyFilter} steps in this archive. Try All.`}
                 </div>
               )}
-              <BureauOpsStage
-                events={liveEvents as any}
-                compact
-                maxScenes={showHistory ? 12 : 6}
-                title=""
-                jumpToLiveSignal={jumpToLiveSignal}
-                onEdgeSwipe={(dir) => {
-                  if (dir === "prev" && !showHistory) {
-                    setShowHistory(true);
-                    setEdgeHint("Opened history archive");
-                    window.setTimeout(() => setEdgeHint(null), 1800);
-                  }
-                  if (dir === "next" && showHistory) {
-                    setShowHistory(false);
-                    setEdgeHint("Back to live desk");
-                    window.setTimeout(() => setEdgeHint(null), 1800);
-                  }
-                }}
-              />
+              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+                <BureauOpsStage
+                  events={liveEvents as any}
+                  compact
+                  maxScenes={showHistory ? 12 : 6}
+                  title=""
+                  jumpToLiveSignal={jumpToLiveSignal}
+                  onEdgeSwipe={(dir) => {
+                    if (dir === "prev" && !showHistory) {
+                      setShowHistory(true);
+                      setEdgeHint("Opened history archive");
+                      window.setTimeout(() => setEdgeHint(null), 1800);
+                    }
+                    if (dir === "next" && showHistory) {
+                      setShowHistory(false);
+                      setEdgeHint("Back to live desk");
+                      window.setTimeout(() => setEdgeHint(null), 1800);
+                    }
+                  }}
+                />
+              </div>
             </section>
           ) : (
             <div
