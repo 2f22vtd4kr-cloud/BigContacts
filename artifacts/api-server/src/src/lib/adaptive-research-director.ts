@@ -410,133 +410,97 @@ async function runProvider(
 }
 
 
-/** Legal next-step options Boss may choose — same bounds as the rule director. */
-function listLegalAdaptiveOptions(
-  state: AdaptiveResearchState,
-  maxActions: number,
-): AdaptiveAction[] {
-  const options: AdaptiveAction[] = [];
-  const hasAction = (kind: AdaptiveActionKind) => state.completedActions.includes(kind);
-  const subject = state.targetName;
-  const depth = state.depth;
-  const maxPerson = depth.maxPersonFollowUps;
-  const maxDomain = depth.maxDomainFollowUps;
 
-  if (state.completedActions.length >= maxActions || state.noProgressPasses >= depth.noProgressLimit) {
-    options.push({
+/**
+ * Free Boss assignment — models reason over case state like a human researcher.
+ * Tools are available capabilities, not a forced script ladder.
+ * Mapping to AdaptiveAction is only for the existing executor; Boss is not
+ * asked to pick from an enum menu.
+ */
+function mapBossToolToAction(
+  tool: string,
+  query: string,
+  state: AdaptiveResearchState,
+): AdaptiveAction | null {
+  const q = (query || state.targetName).trim().slice(0, 200);
+  if (!q) return null;
+  const t = tool.toLowerCase().replace(/[\s-]+/g, "_");
+
+  if (t === "stop" || t === "done" || t === "stop_review") {
+    return {
       kind: "stop_review",
       lane: null,
-      subject,
-      reason: "budget or no-progress limit",
-      signature: `stop:${state.completedActions.length}:${state.noProgressPasses}`,
-    });
-    return options;
+      subject: state.targetName,
+      reason: q || "Boss judged public surface sufficient or exhausted",
+      signature: `stop:boss-free:${state.completedActions.length}:${q.slice(0, 40)}`,
+    };
   }
-
-  if (state.identityAssessment !== "confirmed" && !hasAction("resolve_identity")) {
-    options.push({
-      kind: "resolve_identity",
-      lane: "official_records",
-      subject,
-      reason: "identity not confirmed",
-      signature: `identity:${subject}`,
-    });
-  }
-  if (state.relatedOrganizations.length > 0 && !hasAction("resolve_structure")) {
-    options.push({
-      kind: "resolve_structure",
-      lane: "semantic_discovery",
-      subject: state.relatedOrganizations[0]!,
-      reason: "resolve operator/parent structure",
-      signature: `structure:${state.relatedOrganizations[0]!.toLowerCase()}`,
-    });
-  }
-  const isOrg = state.targetType === "Corporation" || state.targetType === "Trust";
-  if (isOrg && state.candidateDomains.length === 0 && !hasAction("official_routes")) {
-    options.push({
-      kind: "official_routes",
-      lane: "contact_routes",
-      subject,
-      reason: "discover official domain",
-      signature: `official-discover:${subject}`,
-    });
-  }
-  if (!hasAction("identify_people")) {
-    options.push({
-      kind: "identify_people",
+  if (t.includes("person") || t.includes("people") || t === "follow_person" || t === "identify_people") {
+    const person =
+      state.discoveredPeople.find((p) => q.toLowerCase().includes(p.toLowerCase()))
+      || (q !== state.targetName ? q : state.discoveredPeople[0])
+      || q;
+    return {
+      kind: q === state.targetName || !state.discoveredPeople.length ? "identify_people" : "follow_person",
       lane: "people_press",
-      subject,
-      reason: "identify named officers/owners",
-      signature: `people:${subject}`,
-    });
+      subject: person,
+      reason: q,
+      signature: `person-free:${person.toLowerCase().slice(0, 80)}`,
+    };
   }
-  if (!hasAction("official_routes") || state.candidateDomains.length > 0) {
-    const dom = state.candidateDomains.find((d) => !state.followedDomains.includes(d)) || subject;
-    options.push({
+  if (t.includes("domain") || t.includes("official") || t.includes("contact") || t.includes("website")) {
+    const domain =
+      state.candidateDomains.find((d) => q.toLowerCase().includes(d.toLowerCase()))
+      || state.candidateDomains.find((d) => !state.followedDomains.includes(d))
+      || q;
+    return {
       kind: "official_routes",
       lane: "contact_routes",
-      subject: dom,
-      reason: "official contact routes / domain pages",
-      signature: `official:${String(dom).toLowerCase()}`,
-    });
+      subject: domain,
+      reason: q,
+      signature: `official-free:${String(domain).toLowerCase().slice(0, 80)}`,
+    };
   }
-  const nextPerson = state.discoveredPeople.find((p) => !state.followedPeople.includes(p));
-  if (nextPerson && state.followedPeople.length < maxPerson) {
-    options.push({
-      kind: "follow_person",
-      lane: "people_press",
-      subject: nextPerson,
-      reason: "follow named person lead",
-      signature: `person:${nextPerson.toLowerCase()}`,
-    });
+  if (t.includes("identity") || t.includes("registry") || t.includes("filing") || t.includes("structure")) {
+    return {
+      kind: t.includes("structure") ? "resolve_structure" : "resolve_identity",
+      lane: t.includes("structure") ? "semantic_discovery" : "official_records",
+      subject: state.relatedOrganizations[0] || state.targetName,
+      reason: q,
+      signature: `identity-free:${q.slice(0, 60).toLowerCase()}`,
+    };
   }
-  const nextDomain = state.candidateDomains.find((d) => !state.followedDomains.includes(d));
-  if (nextDomain && state.followedDomains.length < maxDomain) {
-    options.push({
-      kind: "official_routes",
-      lane: "contact_routes",
-      subject: nextDomain,
-      reason: "follow official domain",
-      signature: `official:${nextDomain}`,
-    });
-  }
-  if (!hasAction("complementary_lane")) {
-    options.push({
-      kind: "complementary_lane",
-      lane: "semantic_discovery",
-      subject,
-      reason: "complementary semantic / registry surface",
-      signature: `complementary:${subject}`,
-    });
-  }
-  if (!hasAction("verify_exact_claim") && state.claimUrls > 0) {
-    options.push({
+  if (t.includes("verify") || t.includes("claim") || t.includes("source")) {
+    return {
       kind: "verify_exact_claim",
       lane: "official_records",
-      subject,
-      reason: "verify exact claim pages",
-      signature: `verify:${subject}`,
-    });
+      subject: q,
+      reason: q,
+      signature: `verify-free:${q.slice(0, 60).toLowerCase()}`,
+    };
   }
-  options.push({
-    kind: "stop_review",
-    lane: null,
-    subject,
-    reason: "Boss may stop if public surface is exhausted",
-    signature: `stop:boss:${state.completedActions.length}`,
-  });
-  // de-dupe by signature
-  const seen = new Set<string>();
-  return options.filter((o) => {
-    if (seen.has(o.signature)) return false;
-    seen.add(o.signature);
-    return true;
-  });
+  if (t.includes("exa") || t.includes("semantic") || t.includes("complement")) {
+    return {
+      kind: "complementary_lane",
+      lane: "semantic_discovery",
+      subject: q,
+      reason: q,
+      signature: `semantic-free:${q.slice(0, 60).toLowerCase()}`,
+    };
+  }
+  // Default: broad research on the query (Tavily/Perplexity via identify_people or complementary)
+  return {
+    kind: "complementary_lane",
+    lane: "semantic_discovery",
+    subject: q,
+    reason: q,
+    signature: `free:${t}:${q.slice(0, 60).toLowerCase()}`,
+  };
 }
 
-function parseBossAdaptiveChoice(
+function parseFreeBossStep(
   raw: string,
-  options: AdaptiveAction[],
+  state: AdaptiveResearchState,
 ): AdaptiveAction | null {
   const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)```/i)?.[1]?.trim();
   const source = fenced || raw.trim();
@@ -545,17 +509,29 @@ function parseBossAdaptiveChoice(
   if (start < 0 || end <= start) return null;
   try {
     const parsed = JSON.parse(source.slice(start, end + 1)) as Record<string, unknown>;
-    const kind = String(parsed.kind ?? "").trim() as AdaptiveActionKind;
-    const subject = typeof parsed.subject === "string" ? parsed.subject.trim() : "";
-    const reason = typeof parsed.reason === "string" ? parsed.reason.trim().slice(0, 240) : "";
-    const match =
-      options.find((o) => o.kind === kind && (!subject || o.subject.toLowerCase() === subject.toLowerCase()))
-      || options.find((o) => o.kind === kind);
-    if (!match) return null;
+    const stop = parsed.stop === true || String(parsed.tool ?? "").toLowerCase() === "stop";
+    const thought = typeof parsed.thought === "string" ? parsed.thought.trim().slice(0, 400) : "";
+    const tool = typeof parsed.tool === "string" ? parsed.tool.trim() : stop ? "stop" : "";
+    const query =
+      (typeof parsed.query === "string" && parsed.query.trim())
+      || (typeof parsed.subject === "string" && parsed.subject.trim())
+      || (typeof parsed.focus === "string" && parsed.focus.trim())
+      || "";
+    if (stop) {
+      return {
+        kind: "stop_review",
+        lane: null,
+        subject: state.targetName,
+        reason: thought || query || "Boss stopped",
+        signature: `stop:boss-free:${state.completedActions.length}`,
+      };
+    }
+    if (!tool && !query) return null;
+    const action = mapBossToolToAction(tool || "search", query || state.targetName, state);
+    if (!action) return null;
     return {
-      ...match,
-      reason: reason || match.reason,
-      subject: subject || match.subject,
+      ...action,
+      reason: thought ? `${thought}${query ? ` → ${query}` : ""}`.slice(0, 280) : action.reason,
     };
   } catch {
     return null;
@@ -563,50 +539,64 @@ function parseBossAdaptiveChoice(
 }
 
 /**
- * Boss (Gemini) assigns the next adaptive step; NVIDIA right-hand advises if Boss is busy.
- * Falls back to the rule director so the loop never stalls.
+ * Let trained models research: free thought + tool + query.
+ * Not an enum menu. Rules only if Boss and right-hand both fail to produce a step.
  */
 async function selectNextAdaptiveActionWithBoss(
   state: AdaptiveResearchState,
   maxActions: number,
 ): Promise<{ action: AdaptiveAction; assignedBy: "gemini-boss" | "nvidia-right-hand" | "rules" }> {
-  const options = listLegalAdaptiveOptions(state, maxActions);
-  if (options.length === 0) {
+  if (state.completedActions.length >= maxActions || state.noProgressPasses >= state.depth.noProgressLimit) {
     return {
       action: selectNextAdaptiveAction(state, maxActions),
       assignedBy: "rules",
     };
   }
 
-  const prompt = `You are Gemini Boss, Head Investigator for Apex Atlas.
-Your right-hand (NVIDIA) may advise; YOU assign the single next research step and tool lane.
-Pick ONE option from LEGAL OPTIONS only. Do not invent subjects, contacts, or URLs.
+  const prompt = `You are the lead researcher for Apex Atlas — same job as a strong general agent (Grok-class), not a script.
+Understand the target, decide what is still unknown, and choose the single highest-leverage next research move.
+You have tools. You do NOT pick from a fixed investigation script. Reason freely.
 
-TARGET: ${state.targetName} (${state.targetType})
+TARGET: ${state.targetName}
+TYPE: ${state.targetType}
 COUNTRY: ${state.country ?? "unknown"}
-IDENTITY: ${state.identityAssessment ?? "unknown"} — ${state.identityBasis ?? ""}
-COMPLETED ACTIONS: ${state.completedActions.join(", ") || "(none)"}
-COMPLETED LANES: ${state.completedLanes.join(", ") || "(none)"}
-DISCOVERED PEOPLE: ${state.discoveredPeople.slice(0, 8).join("; ") || "(none)"}
-CANDIDATE DOMAINS: ${state.candidateDomains.slice(0, 8).join("; ") || "(none)"}
-RELATED ORGS: ${state.relatedOrganizations.slice(0, 6).join("; ") || "(none)"}
-EVIDENCE COUNT: ${state.evidenceCount} · CLAIM URLS: ${state.claimUrls} · NO-PROGRESS PASSES: ${state.noProgressPasses}
-DEPTH: ${state.depth.depth}
+IDENTITY SO FAR: ${state.identityAssessment ?? "unknown"} — ${state.identityBasis ?? "n/a"}
+ALREADY DONE: ${state.completedActions.join(", ") || "nothing yet"}
+LANES USED: ${state.completedLanes.join(", ") || "none"}
+PEOPLE FOUND: ${state.discoveredPeople.slice(0, 10).join("; ") || "none yet"}
+DOMAINS FOUND: ${state.candidateDomains.slice(0, 10).join("; ") || "none yet"}
+RELATED ORGS: ${state.relatedOrganizations.slice(0, 8).join("; ") || "none"}
+EVIDENCE SCORE: ${state.evidenceCount} · claim URLs: ${state.claimUrls} · empty passes: ${state.noProgressPasses}
 
-LEGAL OPTIONS (pick exactly one kind+subject from this list):
-${JSON.stringify(options.map((o) => ({ kind: o.kind, subject: o.subject, lane: o.lane, reason: o.reason })), null, 2)}
+AVAILABLE TOOLS (use any that fit):
+- search_people — find officers, owners, executives, related persons
+- search_official — company domain, contact pages, org phones/emails
+- search_identity — registries, filings, exact legal identity
+- search_structure — parent/operator/C/O relationships
+- follow_person — dig a named person already in PEOPLE FOUND (or a clear new name)
+- follow_domain — dig a domain already in DOMAINS FOUND
+- verify_sources — re-check claim pages / citations
+- semantic_search — broad/semantic web discovery (Exa-style)
+- stop — only when public contact surface is recovered or clearly exhausted
+
+Never invent emails, phones, or people. Prefer primary company pages and filings over aggregators.
 
 Return ONLY JSON:
-{"kind":"<one kind>","subject":"<exact subject from options>","reason":"<why this is the highest-leverage next step>"}`;
+{
+  "thought": "your reasoning about gaps and what a strong researcher would do next",
+  "tool": "one tool name from the list",
+  "query": "concrete search subject or query string",
+  "stop": false
+}`;
 
-  // 1) Boss
+  // 1) Boss — free reasoning
   try {
     const { resolveGeminiBossModel, generateGeminiBossText } = await import("./case-bureau");
     const selection = await resolveGeminiBossModel();
     if (selection?.model) {
       const out = await generateGeminiBossText(selection, prompt);
       if (out.raw) {
-        const choice = parseBossAdaptiveChoice(out.raw, options);
+        const choice = parseFreeBossStep(out.raw, state);
         if (choice) return { action: choice, assignedBy: "gemini-boss" };
       }
     }
@@ -614,26 +604,26 @@ Return ONLY JSON:
     /* fall through */
   }
 
-  // 2) Right-hand
+  // 2) Right-hand — same free brief
   try {
     const { runNvidiaNimFinalReview } = await import("./nvidia-nim-case-reasoning");
     const nv = await runNvidiaNimFinalReview(
-      "You are the right-hand advisor to Gemini Boss. Assign the single next adaptive research step.\n\n" + prompt,
+      "You are the right-hand researcher advising Gemini Boss. Reason freely; choose the next tool and query.\n\n" + prompt,
     );
     if (nv.status === "completed" && nv.raw) {
-      const choice = parseBossAdaptiveChoice(nv.raw, options);
+      const choice = parseFreeBossStep(nv.raw, state);
       if (choice) return { action: choice, assignedBy: "nvidia-right-hand" };
     }
   } catch {
     /* fall through */
   }
 
+  // 3) Last resort only — hard-coded ladder
   return {
     action: selectNextAdaptiveAction(state, maxActions),
     assignedBy: "rules",
   };
 }
-
 
 export async function runAdaptiveResearchDirector(
   input: AdaptiveResearchDirectorInput,

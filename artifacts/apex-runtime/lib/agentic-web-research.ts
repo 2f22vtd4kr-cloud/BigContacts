@@ -52,7 +52,7 @@ const MAX_ITER = 20;
 const MAX_OBS = 5_000;
 /** First N steps are free ReAct only — force-hops must not starve the multi-LLM loop
  *  (root cause of single-agent Grok beating the bureau on the same target). */
-const FREE_REACT_STEPS = 6;
+const FREE_REACT_STEPS = 8;
 
 function randomUA(): string {
   const uas = [
@@ -920,7 +920,7 @@ function buildStepPrompt(input: {
   lastObservation: string;
 }): string {
   return `You are running an AGENTIC web research loop for Apex Atlas.
-GROK IS THE FLOOR, NOT THE CEILING. Recover at least every public org vector Grok would (phone, address, info@/sales@, named officers on contact/about pages).
+You are a trained web researcher (Grok-class). Reason freely over observations — not a fixed script. GROK IS THE FLOOR, NOT THE CEILING. Recover at least every public org vector Grok would (phone, address, info@/sales@, named officers on contact/about pages).
 Then MAXIMIZE attributable RELATED PERSON contacts: owners, presidents, CEOs, founders, co-founders, officers — with personName + role + any role-email or direct phone visible on primary sources.
 Apex's objective is to hold MORE strongly-sourced people-contacts than a general agent. Never invent. Never mark org inboxes Personal.
 Registries, browser escalate, and bureau tools layer on top of this web loop.
@@ -1608,9 +1608,9 @@ export async function runAgenticWebResearch(input: {
         `COMPANY SURFACE search:\nURLs: ${sr.urls.slice(0, 8).join(" | ")}\n\n${sr.text.slice(0, MAX_OBS)}`;
       continue;
     }
-    // Force-visit as soon as we have SERP URLs and zero visits (parity with general agents).
-    // Prefer high-rank contact/about/terms pages; do not wait for a second search.
-    if (searches >= 1 && visits === 0 && candidateUrls.length > 0) {
+    // Only force a visit after the model had free steps to choose one.
+    // Trained models should decide when to open pages — not a fixed script on search #1.
+    if (i >= 3 && searches >= 1 && visits === 0 && candidateUrls.length > 0) {
       await forceVisitNext(`step${i + 1}`);
       continue;
     }
