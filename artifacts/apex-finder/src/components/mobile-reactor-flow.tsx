@@ -245,7 +245,18 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
     }
     return list;
   }, [deskEvents, showHistory, historyFilter, historyQuery]);
-  const liveEvents = showHistory ? filteredDeskEvents : deskEvents.slice(-6);
+  // Live desk: only steps for the current target (no Wanzek steps while viewing Scripps)
+  const liveEvents = React.useMemo(() => {
+    if (showHistory) return filteredDeskEvents;
+    const current =
+      atlasState?.atlasTelemetry?.targetName
+      || atlasState?.targetName
+      || [...deskEvents].reverse().find((e: any) => e?.targetName && !/complete|done/i.test(String(e?.status || "")))?.targetName;
+    const scoped = current
+      ? deskEvents.filter((e: any) => !e?.targetName || e.targetName === current)
+      : deskEvents;
+    return scoped.slice(-6);
+  }, [showHistory, filteredDeskEvents, deskEvents, atlasState?.atlasTelemetry?.targetName, atlasState?.targetName]);
 
   // Discrete polite announcements: arming → first scene → REACH (no per-tick spam)
   React.useEffect(() => {

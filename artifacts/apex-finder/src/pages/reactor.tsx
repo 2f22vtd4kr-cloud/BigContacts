@@ -2164,15 +2164,34 @@ export default function IntelligenceReactorPage() {
          // The parent message is real progress text. It is not a tool/activity
          // event, so it must not light individual Atlas nodes by keyword.
         const stepMatch = msg.match(/\[(\d+)\/(\d+)\]/);
+        const plainMsg = (raw: string) => {
+          let t = raw.replace(/\s+/g, " ").trim();
+          if (/ATLAS_EVENT|DIRECTOR\s+20\d{2}-|\"kind\"\s*:\s*\"telemetry\"/i.test(t)) {
+            return "Working on this person";
+          }
+          t = t.replace(/^Phase\s+\d+\/[^:]+:\s*/i, "");
+          t = t.replace(/^[🤖\s]+/, "");
+          // Internal phase codes → spoken English
+          t = t
+            .replace(/PHASE\s*J\s*[·•-]?\s*J4\s*DOMAIN\s*RESOLUTION/i, "Checking websites for this person")
+            .replace(/ADAPTIVE\s+RESEARCH\s+DIRECTOR/i, "Choosing what to research next")
+            .replace(/AI\s+ENSEMBLE\s+ADJUDICATION/i, "Reviewing what we found")
+            .replace(/EDGAR\s+PROXY\s+IDENTITY/i, "Reading company filings")
+            .replace(/IN-?HOUSE\s+OSINT/i, "Running contact tools")
+            .replace(/SOCIAL\s*\+\s*MESSENGER/i, "Checking social profiles")
+            .replace(/AI\s+WEB\s+OSINT/i, "Searching the public web");
+          return t.slice(0, 90) || "Research in progress";
+        };
         if (stepMatch) {
           const stepN  = parseInt(stepMatch[1], 10);
           const total  = parseInt(stepMatch[2], 10);
-          const detail = msg.slice(stepMatch[0].length).trim().replace(/…$/, "");
+          const detail = plainMsg(msg.slice(stepMatch[0].length).trim().replace(/…$/, ""));
           labels.push(`▶ [${stepN}/${total}] ${detail.slice(0, 65)}`);
-          setLivePhaseDetail(`Step ${stepN}/${total} — ${detail.slice(0, 80)}`);
+          setLivePhaseDetail(`Step ${stepN} of ${total} — ${detail.slice(0, 80)}`);
         } else {
-          labels.push(`▶ Atlas — ${msg.replace(/^Phase \d+\/[^:]+:\s*/i, "").slice(0, 70)}`);
-          setLivePhaseDetail(msg.slice(0, 90));
+          const detail = plainMsg(msg);
+          labels.push(`▶ ${detail.slice(0, 70)}`);
+          setLivePhaseDetail(detail);
         }
          if (atlasTelemetry?.activeToolId) {
            nodes.add(atlasTelemetry.activeToolId);

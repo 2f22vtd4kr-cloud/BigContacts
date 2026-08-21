@@ -46,6 +46,8 @@ type Scene = {
   provider: ProviderKind;
   title: string;
   subtitle?: string;
+  /** discovery = purple neon tone; research = lime */
+  phaseTone: "discovery" | "research";
   query?: string;
   url?: string;
   prompt?: string;
@@ -63,28 +65,61 @@ function pickTool(e: OpsEvent): string {
   return String(e.activeToolId || e.toolIds?.[0] || e.stage || e.kind || "");
 }
 
+function isLogGarbage(s: string): boolean {
+  return /ATLAS_EVENT|\"kind\"\s*:\s*\"telemetry\"|DIRECTOR\s+20\d{2}-|^\s*\{[\s\S]*\"stage\"|query template|0 domain target|HNWI target\s*[·•]/i.test(s)
+    || /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(s) && /ATLAS|DIRECTOR|telemetry|toolIds/i.test(s);
+}
+
 function isInternalLanePrompt(s: string): boolean {
   return /LANE\s*[–-]\s*people_press|RESEARCH (LANE|CONTRACT)|REALISM\s*\/\s*REACHABILITY|Phase 0 OSINT|You are conducting/i.test(s)
     || /query template|domain target|search query template|HNWI target\s*[·•]|0 domain target|AI PROVIDER FAN|PROVIDER FA\b/i.test(s)
     || /complementary_lane|resolve_identity|official_routes|contact_routes:\s*|people_press/i.test(s)
-    || /ATLAS_EVENT|DIRECTOR\s+20\d{2}-|\"kind\"\s*:\s*\"telemetry\"/i.test(s);
+    || isLogGarbage(s);
 }
 
 /** Strip job-log / telemetry dumps from operator-facing story lines. */
 function sanitizeStoryText(s: string | undefined): string | undefined {
   if (!s) return undefined;
   let t = s.replace(/\s+/g, " ").trim();
-  if (/ATLAS_EVENT|\"kind\"\s*:\s*\"telemetry\"/i.test(t)) {
-    // Prefer target name fragments over raw log
+  if (isLogGarbage(t)) {
     const name = t.match(/(?:targetName|TARGET)[\"':\s]+([A-Za-z][A-Za-z .'-]{2,60})/i);
-    if (name?.[1]) return `researching ${name[1].trim()}`;
-    return "researching target";
+    if (name?.[1]) return `working on ${name[1].trim()}`;
+    return undefined; // caller falls back to plain storyFor body
   }
   // Drop leading ISO + DIRECTOR noise
   t = t.replace(/^DIRECTOR\s+\d{4}-\d{2}-\d{2}T[^\s]+\s*/i, "");
   t = t.replace(/^\d{4}-\d{2}-\d{2}T[\d:.Z+-]+\s*/i, "");
-  if (t.length > 160) t = t.slice(0, 157) + "…";
+  t = t.replace(/^researching\s*[“"]?/i, "").replace(/[”"]\s*$/, "");
+  if (isLogGarbage(t) || t.length < 4) return undefined;
+  if (t.length > 140) t = t.slice(0, 137) + "…";
   return t;
+}
+
+/** Human stage label — spoken English, never internal codes. */
+function humanStageTitle(stage: string | undefined, tool: string): string {
+  const s = `${stage || ""} ${tool || ""}`.toLowerCase();
+  if (/discover|ingest|western|hnwi.?pool|broad.?categor/i.test(s)) return "Finding new people";
+  if (/edgar|proxy|sec\b|13d|13g|form\s*[34]/i.test(s)) return "Reading company filings";
+  if (/companies.?house|opencorporates|registry/i.test(s)) return "Checking company records";
+  if (/domain|whois|rdap|dns/i.test(s)) return "Checking websites";
+  if (/adaptive|director|research director/i.test(s)) return "Choosing next research step";
+  if (/tavily|exa|serper|serp|web.?search|provider fan/i.test(s)) return "Searching the web";
+  if (/social|messenger|linkedin|sherlock|maigret/i.test(s)) return "Checking social profiles";
+  if (/in-?house|osint|holehe/i.test(s)) return "Running contact tools";
+  if (/ensemble|adjudic|final.?review|persona/i.test(s)) return "Reviewing what we found";
+  if (/contact.?route|email|phone|mailto/i.test(s)) return "Looking for contact details";
+  if (/enrich|phase\s*j|attribution/i.test(s)) return "Deepening the case file";
+  if (/graph|relationship/i.test(s)) return "Linking people and companies";
+  if (stage && stage.length < 40 && !isLogGarbage(stage)) {
+    return stage.replace(/[_·]+/g, " ").replace(/\s+/g, " ").trim();
+  }
+  return "Working on this target";
+}
+
+function isDiscoveryPhase(stage: string | undefined, tool: string, methodKind?: string): boolean {
+  const s = `${stage || ""} ${tool || ""} ${methodKind || ""}`.toLowerCase();
+  return /discover|ingest|western.?hnwi|broad.?categor|phase\s*[01]\b|pre-?run|pool/i.test(s)
+    && !/enrich|contact|email|phone|final.?review|persona|phase\s*j/i.test(s);
 }
 
 function cleanQueryText(s: string): string {
@@ -196,36 +231,47 @@ function extractUrl(e: OpsEvent): string | undefined {
 }
 
 /**
- * First-glance operator story. Short, plain English.
+ * First-glance operator story. Short, plain spoken English.
  * Pattern: "Now: …" while live, "Done: …" when finished.
+ * Never surfaces ATLAS_EVENT / DIRECTOR log dumps.
  */
 function storyFor(kind: SceneKind, e: OpsEvent, query?: string): string {
-  if (e.story && e.story.trim().length >= 8) {
-    return sanitizeStoryText(e.story.trim()) || e.story.trim();
-  }
-  if (e.caseUpdate && e.caseUpdate.trim()) {
-    const live = !/complete|done|success/i.test(String(e.status || "active"));
-    return `${live ? "Now" : "Done"}: Case update — ${e.caseUpdate.trim().slice(0, 160)}`;
-  }
-  if (e.actor === "boss") {
-    const live = !/complete|done|success/i.test(String(e.status || "active"));
-    return `${live ? "Now" : "Done"}: Boss ${live ? "briefing investigators" : "issued investigator instructions"}${e.targetName ? ` · ${e.targetName}` : ""}`;
-  }
-  const t = (e.targetName || "this target").trim();
-  const tool = pickTool(e);
-  const blob = `${tool} ${e.stage || ""} ${e.resultSummary || ""} ${e.inputSummary || ""}`;
-  const q = (query || "").trim();
-  const shortQ = q.length > 56 ? q.slice(0, 53) + "…" : q;
   const live = !/complete|done|success/i.test(String(e.status || "active"));
   const failed = /fail|error|blocked/i.test(String(e.status || ""));
   const prefix = failed ? "Failed:" : live ? "Now:" : "Done:";
+  const t = (e.targetName || "this person").trim();
+
+  if (e.story && e.story.trim().length >= 8) {
+    const cleaned = sanitizeStoryText(e.story.trim());
+    if (cleaned && !isLogGarbage(cleaned)) {
+      // Avoid double "Now: Now:"
+      const body = cleaned.replace(/^(Now|Done|Failed):\s*/i, "");
+      return `${prefix} ${body}`;
+    }
+  }
+  if (e.caseUpdate && e.caseUpdate.trim() && !isLogGarbage(e.caseUpdate)) {
+    return `${prefix} updating the case file — ${e.caseUpdate.trim().slice(0, 140)}`;
+  }
+  if (e.actor === "boss") {
+    return `${prefix} ${live ? "boss is briefing the team on" : "boss briefed the team on"} ${t}`;
+  }
+
+  const tool = pickTool(e);
+  const blob = `${tool} ${e.stage || ""} ${e.resultSummary || ""} ${e.inputSummary || ""}`;
+  const qRaw = (query || "").trim();
+  const q = qRaw && !isLogGarbage(qRaw) && !isInternalLanePrompt(qRaw) ? qRaw : "";
+  const shortQ = q.length > 48 ? q.slice(0, 45) + "…" : q;
+
+  // Prefer plain result summary when it reads like English
+  const rs = (e.resultSummary || "").trim();
+  if (rs && rs.length >= 12 && rs.length <= 140 && !isLogGarbage(rs) && !isInternalLanePrompt(rs)) {
+    return `${prefix} ${rs.charAt(0).toLowerCase()}${rs.slice(1)}`;
+  }
 
   let body: string;
   switch (kind) {
     case "google":
-      body = shortQ
-        ? `searching Google for “${shortQ}”`
-        : `searching Google for ${t}`;
+      body = shortQ ? `searching Google for “${shortQ}”` : `searching Google for ${t}`;
       break;
     case "browser": {
       const url = extractUrl(e);
@@ -246,41 +292,53 @@ function storyFor(kind: SceneKind, e: OpsEvent, query?: string): string {
       break;
     }
     case "prompt":
-      body = /persona|quality|review/i.test(blob)
-        ? `checking contacts really belong to ${t}`
-        : `writing down proven contacts for ${t}`;
+      body = /persona|quality|review|adjudic/i.test(blob)
+        ? `checking whether contacts really belong to ${t}`
+        : `writing down what we can prove about ${t}`;
       break;
     case "domain":
-      body = `checking who owns the website for ${t}`;
+      body = `checking which websites belong to ${t}`;
       break;
     case "footprint":
-      body = `checking if ${t} appears on other sites`;
+      body = `checking whether ${t} shows up on other sites`;
       break;
-    case "serp": {
-      if (shortQ) {
-        body = `searching the web for “${shortQ}”`;
-      } else if (/email|contact|phone|owner|ceo|president/i.test(blob)) {
-        body = `searching the web for contacts for ${t}`;
-      } else {
-        body = `searching the web for ${t}`;
-      }
+    case "registry":
+      body = `reading official filings about ${t}`;
       break;
-    }
+    case "serp":
+      body = shortQ
+        ? `searching the web for “${shortQ}”`
+        : /email|contact|phone|owner|ceo|president/i.test(blob)
+          ? `searching the web for ways to reach ${t}`
+          : `searching the web for ${t}`;
+      break;
+    case "boss":
+      body = `boss is directing research on ${t}`;
+      break;
+    case "case":
+      body = `updating the case file for ${t}`;
+      break;
     default: {
-      if (/opencorporates|companies.?house|sec\b|edgar|sam\.gov|registry|corporate/i.test(blob)) {
-        body = `searching a company registry for ${t}`;
+      if (/adaptive|director/i.test(blob)) {
+        body = live
+          ? `deciding what to check next for ${t}`
+          : `chose the next research step for ${t}`;
+      } else if (/opencorporates|companies.?house|sec\b|edgar|sam\.gov|registry|corporate/i.test(blob)) {
+        body = `searching company records for ${t}`;
       } else if (/whois|rdap|dns|domain/i.test(blob)) {
         body = `checking domain records for ${t}`;
       } else if (/linkedin/i.test(blob)) {
         body = `looking up ${t} on LinkedIn`;
+      } else if (/social|messenger/i.test(blob)) {
+        body = `checking social profiles for ${t}`;
+      } else if (/in-?house|osint/i.test(blob)) {
+        body = `running contact-discovery tools for ${t}`;
       } else if (/wealth|net.?worth|hnwi/i.test(blob)) {
         body = `looking up public background on ${t}`;
       } else if (/graph|relationship|link/i.test(blob)) {
         body = `linking people and companies around ${t}`;
-      } else if (shortQ) {
-        body = `researching “${shortQ}”`;
       } else {
-        body = `researching ${t}`;
+        body = `${humanStageTitle(e.stage, tool).toLowerCase()} — ${t}`;
       }
       break;
     }
@@ -343,35 +401,46 @@ function toScene(e: OpsEvent, index: number, slots: ProviderSlotMap | null = nul
     }
   }
 
+  const discovery = isDiscoveryPhase(e.stage, tool, e.methodKind);
   const title =
-    kind === "boss" ? "Boss"
+    unavailable && /perp|perplexity/i.test(tool) ? "Search offline"
+      : kind === "boss" ? "Team briefing"
       : kind === "case" ? "Case file"
-      : kind === "registry" ? "Registry"
-      : kind === "persona" ? "Persona review"
+      : kind === "registry" ? "Official records"
+      : kind === "persona" ? "Contact check"
       : kind === "google" ? "Web search"
-      : kind === "browser" ? "Fetch page"
-      : kind === "prompt" ? "Extract"
-      : kind === "domain" ? "Domain"
-      : kind === "footprint" ? "Footprint"
-      : kind === "serp" ? providerLabel(provider)
-      : e.stage || "Bureau";
+      : kind === "browser" ? "Reading a page"
+      : kind === "prompt" ? "Writing findings"
+      : kind === "domain" ? "Website check"
+      : kind === "footprint" ? "Profile search"
+      : kind === "serp" ? (providerLabel(provider) === "Unknown" ? "Web search" : providerLabel(provider))
+      : humanStageTitle(e.stage, tool);
 
   // Never put research-contract prompts in the search chrome
   const safePrompt =
     e.prompt && !isInternalLanePrompt(e.prompt) && kind === "prompt"
       ? e.prompt
       : undefined;
-  const lines = resultLines.slice(0, 3);
+  const lines = resultLines
+    .map((line) => sanitizeStoryText(line) || (isLogGarbage(line) ? null : line))
+    .filter((line): line is string => Boolean(line) && !isInternalLanePrompt(line))
+    .slice(0, 3);
   if (unavailable && honestSubtitle) {
     lines.unshift(honestSubtitle);
   }
+  const safeQuery = query && !isLogGarbage(query) && !isInternalLanePrompt(query)
+    ? query
+    : (e.targetName ? `${e.targetName}` : undefined);
   return {
     id: `${e.timestamp || index}-${tool}-${index}`,
     kind,
     provider,
-    title: unavailable && /perp|perplexity/i.test(tool) ? "Perplexity · offline" : title,
-    subtitle: unavailable ? (honestSubtitle || e.stage) : e.stage,
-    query: unavailable ? (e.targetName ? `${e.targetName} (provider offline)` : query) : query,
+    title,
+    subtitle: unavailable
+      ? (honestSubtitle || "This search tool is offline")
+      : (discovery ? "Discovery" : "Research"),
+    phaseTone: discovery ? "discovery" : "research",
+    query: unavailable ? (e.targetName ? `${e.targetName} (search offline)` : safeQuery) : safeQuery,
     url,
     prompt: safePrompt,
     resultLines: lines.slice(0, 4),
@@ -381,8 +450,8 @@ function toScene(e: OpsEvent, index: number, slots: ProviderSlotMap | null = nul
     live,
     terminal,
     story: unavailable
-      ? (honestSubtitle || "Provider offline or returned no usable result")
-      : storyFor(kind, e, query),
+      ? (honestSubtitle || "This search tool is offline or returned nothing useful")
+      : storyFor(kind, e, safeQuery),
     links: (e.links && e.links.length
       ? e.links
       : (e.sourceUrls ?? []).map((url) => ({ url }))
@@ -1140,20 +1209,24 @@ function MobileWorkstage({
         )}
       </div>
 
-      {/* Slim progress under story */}
+      {/* Slim progress under story — purple = discovery, lime = research */}
       <div
         className={`relative overflow-hidden rounded-full bg-stone-800 ${scene.live ? "h-1" : "h-0.5"}`}
         role="progressbar"
         aria-valuenow={safeIdx + 1}
         aria-valuemin={1}
         aria-valuemax={Math.max(scenes.length, 1)}
-        aria-label={`Scene ${safeIdx + 1} of ${scenes.length}`}
+        aria-label={`Step ${safeIdx + 1} of ${scenes.length}`}
       >
         <div
           className="h-full rounded-full"
           style={{
             width: `${((safeIdx + 1) / Math.max(scenes.length, 1)) * 100}%`,
-            background: scene.live ? "linear-gradient(90deg,#9CFF1A,#b8ff4d)" : "#57534e",
+            background: !scene.live
+              ? "#57534e"
+              : scene.phaseTone === "discovery"
+                ? "linear-gradient(90deg,#a855f7,#c084fc)"
+                : "linear-gradient(90deg,#9CFF1A,#b8ff4d)",
             transition: `width ${REACTOR_UI_MS * 2}ms ease-out`,
           }}
         />
@@ -1180,24 +1253,17 @@ function MobileWorkstage({
         </div>
       </div>
 
+      {/* One nav only: dots (swipe still works). No Prev/Next + strip pile-up. */}
       {scenes.length > 1 && (
-        <div className="flex items-center justify-between gap-2">
-          <button
-            type="button"
-            className="reactor-pressable min-h-[40px] min-w-[64px] rounded-lg border border-[#9CFF1A]/15 bg-[#0d1219] px-2.5 py-1 font-mono text-[10px] text-stone-300 hover:border-[#9CFF1A]/40 hover:text-[#d4ff8a] disabled:pointer-events-none disabled:opacity-25"
-            disabled={safeIdx <= 0}
-            onClick={goPrev}
-            aria-label="Previous scene"
-          >
-            ← Prev
-          </button>
-          <div className="flex max-w-[40%] flex-wrap items-center justify-center gap-1" role="tablist" aria-label="Scene position">
-            {scenes.map((s, i) => (
+        <div className="flex items-center justify-center gap-1.5 py-0.5" role="tablist" aria-label="Past and current steps">
+          {scenes.map((s, i) => {
+            const accent = s.phaseTone === "discovery" ? "#c084fc" : "#9CFF1A";
+            return (
               <button
                 key={s.id}
                 type="button"
                 role="tab"
-                aria-label={`Scene ${i + 1}${s.live ? " live" : ""}`}
+                aria-label={`Step ${i + 1}: ${s.title}${s.live ? " (happening now)" : " (done)"}`}
                 aria-current={i === safeIdx ? "true" : undefined}
                 aria-selected={i === safeIdx}
                 onClick={() => {
@@ -1207,24 +1273,15 @@ function MobileWorkstage({
                 }}
                 className="reactor-pressable rounded-full touch-manipulation transition-[width,background,box-shadow] duration-150"
                 style={{
-                  width: i === safeIdx ? 16 : 6,
-                  height: 6,
-                  background: i === safeIdx ? (s.live ? "#9CFF1A" : "#a8a29e") : "#44403c",
-                  boxShadow: i === safeIdx && s.live ? "0 0 8px #9CFF1Aaa" : undefined,
-                  minWidth: i === safeIdx ? 16 : 6,
+                  width: i === safeIdx ? 18 : 7,
+                  height: 7,
+                  background: i === safeIdx ? (s.live ? accent : "#a8a29e") : "#44403c",
+                  boxShadow: i === safeIdx && s.live ? `0 0 8px ${accent}aa` : undefined,
+                  minWidth: i === safeIdx ? 18 : 7,
                 }}
               />
-            ))}
-          </div>
-          <button
-            type="button"
-            className="reactor-pressable min-h-[40px] min-w-[64px] rounded-lg border border-[#9CFF1A]/15 bg-[#0d1219] px-2.5 py-1 font-mono text-[10px] text-stone-300 hover:border-[#9CFF1A]/40 hover:text-[#d4ff8a] disabled:pointer-events-none disabled:opacity-25"
-            disabled={safeIdx >= scenes.length - 1}
-            onClick={goNext}
-            aria-label="Next scene"
-          >
-            Next →
-          </button>
+            );
+          })}
         </div>
       )}
 
@@ -1242,47 +1299,8 @@ function MobileWorkstage({
           aria-label="Resume auto-advance"
         >
           <span className="h-1.5 w-1.5 rounded-full bg-[#9CFF1A]" aria-hidden />
-          {`Paused · ${pauseLeft}s · resume`}
+          {`Paused · ${pauseLeft}s · tap to continue`}
         </button>
-      )}
-
-      {/* Compact step strip — one line per step, no story body */}
-      {scenes.length > 1 && (
-        <div
-          className="atlas-h-scroll flex gap-1 overflow-x-auto overscroll-x-contain touch-pan-x pb-0.5 pr-4"
-          style={{
-            maskImage: "linear-gradient(90deg, transparent, #000 8px, #000 calc(100% - 8px), transparent)",
-            WebkitMaskImage: "linear-gradient(90deg, transparent, #000 8px, #000 calc(100% - 8px), transparent)",
-          }}
-        >
-          {scenes.map((s, i) => (
-            <button
-              key={s.id}
-              type="button"
-              onClick={() => {
-                pauseForReading(REACTOR_PAUSE_MS);
-                setSlideDir(i > safeIdx ? 1 : -1);
-                setIdx(i);
-              }}
-              className="reactor-pressable flex h-8 shrink-0 items-center gap-1 rounded-md border px-2 transition-[border-color,background] duration-150"
-              aria-current={i === safeIdx ? "true" : undefined}
-              aria-label={`Scene ${i + 1}: ${s.title}${s.live ? ", live" : ""}`}
-              style={{
-                borderColor: i === safeIdx ? "#9CFF1A99" : s.live ? "#9CFF1A44" : "#ffffff10",
-                background: i === safeIdx ? "#9CFF1A14" : "#0d1219",
-              }}
-            >
-              <span className={`font-mono text-[8px] tabular-nums ${i === safeIdx ? "text-[#9CFF1A]" : "text-stone-600"}`}>
-                {i + 1}
-              </span>
-              <ActivityGlyphMini kind={s.kind} live={s.live} terminal={s.terminal} />
-              <span className={`max-w-[72px] truncate font-mono text-[9px] uppercase tracking-wider ${i === safeIdx ? "text-stone-100" : "text-stone-500"}`}>
-                {s.title}
-              </span>
-              {s.live && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#9CFF1A]" aria-hidden />}
-            </button>
-          ))}
-        </div>
       )}
     </div>
   );
@@ -1335,10 +1353,19 @@ export function BureauOpsStage({
   }, []);
 
   const scenes = useMemo(() => {
-    const list = (events || [])
+    const raw = events || [];
+    // Prefer the current target so the strip is not a mix of past people
+    const liveName = [...raw].reverse().find((e) =>
+      e.targetName && !/complete|done|success/i.test(String(e.status || "active")),
+    )?.targetName;
+    const scoped = liveName
+      ? raw.filter((e) => !e.targetName || e.targetName === liveName)
+      : raw;
+    const list = scoped
       .map((e, i) => toScene(e, i, providerSlots))
-      .filter((s) => s.resultLines.length || s.query || s.prompt || s.url);
-    return list.slice(0, maxScenes);
+      .filter((s) => s.story || s.resultLines.length || s.query || s.prompt || s.url);
+    // Chronological: last N steps only (past + current — never invented future)
+    return list.slice(-maxScenes);
   }, [events, maxScenes, providerSlots]);
 
   // Hooks must run unconditionally (before any early return).
