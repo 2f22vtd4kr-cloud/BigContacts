@@ -1517,8 +1517,31 @@ export async function enrichInHouse(entity: InHouseEnrichInput): Promise<InHouse
     details?: Record<string, unknown>,
   ) => {
     if (!phone) return;
-    // Allow override when the new source has higher confidence (website > EDGAR)
-    if (result.phone && confidence <= result.phoneConfidence) return;
+    const isNotice = source === "EDGAR-Notice-Phone" || source === "EDGAR-Notice";
+    const isIssuer =
+      source === "EDGAR-Phone" ||
+      source === "EDGAR-Issuer-Phone" ||
+      source === "CompaniesHouse-Phone";
+    // Never replace a notice-line phone with issuer/switchboard
+    if (
+      result.phone &&
+      (result.phoneSource === "EDGAR-Notice-Phone" || result.phoneSource === "EDGAR-Notice") &&
+      isIssuer
+    ) {
+      return;
+    }
+    // Notice line may replace issuer switchboard even at similar confidence
+    if (
+      result.phone &&
+      isNotice &&
+      (result.phoneSource === "EDGAR-Phone" ||
+        result.phoneSource === "EDGAR-Issuer-Phone" ||
+        result.phoneSource === "CompaniesHouse-Phone")
+    ) {
+      // fall through — allow replace
+    } else if (result.phone && confidence <= result.phoneConfidence) {
+      return;
+    }
     const normalized = normalizePhone(phone);
     if (!normalized) return;
     result.phone = normalized;

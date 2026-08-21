@@ -734,10 +734,26 @@ async function enrichEntityFullCircle(atlasJobId: string, entity: EntityRow): Pr
           ? boost.roleHeadline.slice(0, 280)
           : entity.linkedinHeadline;
         if (boost.roleHeadline || boost.streetAddress || boost.noticePhone || boost.relatedPeople.length) {
+          const existingPhoneSrc = String(
+            (entity as { phoneSource?: string | null }).phoneSource ??
+              (typeof earlyMeta.phoneSource === "string" ? earlyMeta.phoneSource : "") ??
+              "",
+          );
+          const existingIsIssuer =
+            existingPhoneSrc === "EDGAR-Phone" ||
+            existingPhoneSrc === "EDGAR-Issuer-Phone" ||
+            existingPhoneSrc === "CompaniesHouse-Phone" ||
+            !existingPhoneSrc;
           const phoneUpdate =
-            boost.noticePhone && !(entity as { phone?: string | null }).phone
-              ? { phone: boost.noticePhone }
-              : {};
+            boost.noticePhone &&
+            (!(entity as { phone?: string | null }).phone || existingIsIssuer)
+              ? {
+                  phone: boost.noticePhone,
+                  phoneSource: "EDGAR-Notice-Phone" as const,
+                }
+              : boost.noticePhone
+                ? { phoneSource: "EDGAR-Notice-Phone" as const }
+                : {};
           await db.update(entitiesTable).set({
             linkedinHeadline: headline ?? entity.linkedinHeadline,
             knownResidences: newResidence ?? entity.knownResidences,
