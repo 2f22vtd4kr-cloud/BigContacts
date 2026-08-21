@@ -164,6 +164,49 @@ async function toolWebSearchTavily(query: string): Promise<{ text: string; urls:
   return null;
 }
 
+
+async function toolWebSearchExa(query: string): Promise<{ text: string; urls: string[] } | null> {
+  const keys = ["EXA_API_KEY", "EXA_1", "EXA_2", ...Array.from({ length: 8 }, (_, i) => `EXA_API_KEY_${i + 1}`)]
+    .map((n) => process.env[n] ?? "")
+    .filter((k) => k.length > 0);
+  if (!keys.length) return null;
+  for (const key of keys) {
+    try {
+      const resp = await fetch("https://api.exa.ai/search", {
+        method: "POST",
+        headers: {
+          "x-api-key": key,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          query,
+          type: "auto",
+          numResults: 8,
+          contents: { text: { maxCharacters: 1200 } },
+        }),
+        signal: AbortSignal.timeout(18_000),
+      });
+      if (!resp.ok) continue;
+      const data = (await resp.json()) as {
+        results?: Array<{ title?: string; url?: string; text?: string }>;
+      };
+      const urls: string[] = [];
+      const parts: string[] = [];
+      for (const row of data.results ?? []) {
+        if (row.url && /^https?:\/\//i.test(row.url)) urls.push(row.url);
+        if (row.title || row.text) parts.push([row.title, row.text].filter(Boolean).join(" — "));
+      }
+      if (!urls.length && !parts.length) continue;
+      const text = filterPassagesForQuery(parts.join("\n"), query, { maxChars: MAX_OBS });
+      return { text, urls: [...new Set(urls)].slice(0, 10) };
+    } catch (err: any) {
+      logger.debug({ err: err?.message, query }, "agentic exa search failed");
+      continue;
+    }
+  }
+  return null;
+}
+
 async function toolWebSearch(query: string): Promise<{ text: string; urls: string[] }> {
   // Prefer Serper (stable SERP URLs), then Tavily (keyed advanced search), then DDG HTML.
   // Single-provider starvation is why a general agent can beat the bureau on the same surface.
@@ -172,6 +215,9 @@ async function toolWebSearch(query: string): Promise<{ text: string; urls: strin
 
   const tavily = await toolWebSearchTavily(query);
   if (tavily && (tavily.urls.length > 0 || tavily.text.length > 40)) return tavily;
+
+  const exa = await toolWebSearchExa(query);
+  if (exa && (exa.urls.length > 0 || exa.text.length > 40)) return exa;
 
   const url = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}&kl=us-en`;
   try {
@@ -183,7 +229,7 @@ async function toolWebSearch(query: string): Promise<{ text: string; urls: strin
         "Accept-Language": "en-US,en;q=0.9",
       },
     });
-    if (!resp.ok) return tavily ?? serper ?? { text: "", urls: [] };
+    if (!resp.ok) return exa ?? tavily ?? serper ?? { text: "", urls: [] };
     const html = await resp.text();
     const urls: string[] = [];
     for (const m of html.matchAll(/uddg=([^&"]+)/g)) {
@@ -198,11 +244,11 @@ async function toolWebSearch(query: string): Promise<{ text: string; urls: strin
     }
     const text = filterPassagesForQuery(stripHtml(html), query, { maxChars: MAX_OBS });
     const out = { text, urls: [...new Set(urls)].slice(0, 10) };
-    if (out.urls.length === 0 && (tavily || serper)) return tavily ?? serper!;
+    if (out.urls.length === 0 && (exa || tavily || serper)) return exa ?? tavily ?? serper!;
     return out;
   } catch (err: any) {
     logger.debug({ err: err?.message, query }, "agentic web_search failed");
-    return tavily ?? serper ?? { text: "", urls: [] };
+    return exa ?? tavily ?? serper ?? { text: "", urls: [] };
   }
 }
 
@@ -1568,9 +1614,11 @@ export async function runAgenticWebResearch(input: {
       await forceVisitNext(`step${i + 1}`);
       continue;
     }
-    // Keep opening high-rank company pages until we have org email/phone or no URLs left
+    // After free ReAct floor: keep opening high-rank company pages until org email/phone
+    // (ungated, this burned the free multi-LLM dig after the first search+visit)
     if (
-      visits >= 1
+      i >= FREE_REACT_STEPS
+      && visits >= 1
       && searches >= 1
       && !hasOrgEmailOrPhone()
       && candidateUrls.some((u) => !visitedUrls.has(u) && rankVisitUrl(u) <= 3)
@@ -1631,9 +1679,10 @@ export async function runAgenticWebResearch(input: {
       }
       continue;
     }
-    // Still missing email: keep force-visiting contact-ranked pages
+    // Still missing email: keep force-visiting contact-ranked pages (post free floor)
     if (
-      hasOrgPhone()
+      i >= FREE_REACT_STEPS
+      && hasOrgPhone()
       && !hasOrgEmail()
       && orgEmailSearchDone
       && candidateUrls.some((u) => !visitedUrls.has(u) && rankVisitUrl(u) <= 2)

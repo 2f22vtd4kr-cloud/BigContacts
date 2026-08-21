@@ -5,8 +5,8 @@
 
 ## Prep for next Replit run (2026-08-21)
 
-**Current tip:** pending — agentic Serper→Tavily→DDG search chain + MAX_OBS 5k  
-**Prior tip:** `f753023` — call-site budgets match free-ReAct floor
+**Current tip:** pending — Exa in agentic chain + gate early forceVisit loops  
+**Prior tip:** `a07fbe6` — Serper→Tavily→DDG + MAX_OBS 5k
 
 ### Tip chain (bureau research integrity)
 | Commit | Point |
