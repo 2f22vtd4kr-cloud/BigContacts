@@ -234,8 +234,32 @@ body {
 }
 .atlas-divider {
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(156, 255, 26, 0.28), transparent);
+  background: linear-gradient(90deg, transparent, rgba(156, 255, 26, 0.22), transparent);
   border: 0;
+}
+/* Soft vertical fade so section backgrounds don't end in a hard straight edge */
+.atlas-soft-edge {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 48px;
+  pointer-events: none;
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    rgba(10, 14, 20, 0.35) 45%,
+    rgba(10, 14, 20, 0.85) 100%
+  );
+}
+.atlas-soft-edge::after {
+  content: "";
+  position: absolute;
+  left: 8%;
+  right: 8%;
+  bottom: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(156, 255, 26, 0.14), transparent);
 }
 
 .atlas-panel {
@@ -273,11 +297,13 @@ body {
   color: #F8FAFC;
 }
 
-/* Ambient gold wash behind hero / CTA clusters */
+/* Ambient gold wash behind hero / CTA clusters — masked so edges dissolve */
 .atlas-ambient-gold {
   background:
     radial-gradient(ellipse 70% 55% at 75% 35%, rgba(156, 255, 26, 0.11), transparent 58%),
     radial-gradient(ellipse 45% 35% at 15% 85%, rgba(250, 204, 21, 0.05), transparent 52%);
+  -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 72%, transparent 100%);
+  mask-image: linear-gradient(180deg, #000 0%, #000 72%, transparent 100%);
 }
 
 /* Soft gold rim utility */

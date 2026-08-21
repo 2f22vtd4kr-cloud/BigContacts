@@ -189,25 +189,26 @@ export function WorkspaceStatus() {
   const schedulerEnabled = Boolean(atlas?.scheduler?.enabled);
   const schedulerActive = Boolean(atlas?.scheduler?.active);
   const noAiCapacity = Boolean(system && summary.configured > 0 && summary.active === 0);
-  const providerDegraded = summary.rateLimited > 0;
+  // Only treat keys as "degraded" when every configured slot is cooling — partial
+  // rate-limits while some keys are still LIVE should not WARN the whole desk.
+  const allKeysCooling = Boolean(
+    summary.configured > 0 && summary.active === 0 && summary.rateLimited >= summary.configured,
+  );
+  const providerDegraded = allKeysCooling || noAiCapacity;
   const state: WorkspaceState = loading && !atlas && !system
     ? "loading"
     : error && !atlas && !system
       ? "offline"
       : active
         ? // Job running: never show generic WARN — use LIVE / LIVE·LTD
-          noAiCapacity
+          providerDegraded
             ? "researching-degraded"
-            : providerDegraded
-              ? "researching-degraded"
-              : "researching"
+            : "researching"
         : schedulerEnabled && schedulerActive
           ? "queued"
-          : noAiCapacity || !servicesHealthy
+          : !servicesHealthy || providerDegraded
             ? "degraded"
-            : providerDegraded
-              ? "degraded"
-              : "ready";
+            : "ready";
   const copy = STATE_COPY[state];
   const Icon = state === "researching" || state === "researching-degraded"
     ? Radio

@@ -62,22 +62,28 @@ function StatTile({
   detail,
   icon: Icon,
   testId,
+  href,
 }: {
   label: string;
   value: string | number;
   detail: string;
   icon: typeof Users;
   testId: string;
+  href: string;
 }) {
   return (
-    <div className="atlas-card p-4" data-testid={testId}>
+    <Link
+      href={href}
+      data-testid={testId}
+      className="atlas-card atlas-pressable group block p-4 transition-colors hover:border-[#9CFF1A]/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9CFF1A]/50"
+    >
       <div className="flex items-center justify-between">
-        <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">{label}</span>
-        <Icon className="atlas-stat-icon h-4 w-4 text-muted-foreground/50 transition-colors" />
+        <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground group-hover:text-[#9CFF1A]">{label}</span>
+        <Icon className="atlas-stat-icon h-4 w-4 text-muted-foreground/50 transition-colors group-hover:text-[#9CFF1A]/80" />
       </div>
       <div className="mt-3 font-display text-2xl font-semibold tracking-tight text-foreground">{value}</div>
       <div className="mt-1 text-[11px] text-muted-foreground">{detail}</div>
-    </div>
+    </Link>
   );
 }
 
@@ -257,7 +263,7 @@ export default function Dashboard() {
             </Link>
           </div>
         </div>
-        <div className="atlas-divider absolute bottom-0 left-0 right-0" aria-hidden />
+        <div className="atlas-soft-edge" aria-hidden />
       </section>
 
       {/* Registry-shallow risk — when no live web-search provider slots are active */}
@@ -313,10 +319,10 @@ export default function Dashboard() {
       </section>
 
       <section className="atlas-enter grid grid-cols-2 gap-2.5 py-6 md:grid-cols-4 md:gap-3" style={{ animationDelay: "70ms" }}>
-        <StatTile label="Entities" value={stats?.totalEntities ?? "—"} detail="people · companies · trusts" icon={Users} testId="stat-total-entities" />
-        <StatTile label="Priority" value={stats?.hotLeadsCount ?? "—"} detail="strongest contact paths" icon={Sparkles} testId="stat-hot-leads" />
-        <StatTile label="Assets" value={stats?.totalAssets ?? "—"} detail="linked public evidence" icon={Database} testId="stat-total-assets" />
-        <StatTile label="Links" value={stats?.totalRelationships ?? "—"} detail="known relationships" icon={Network} testId="stat-total-relationships" />
+        <StatTile href="/profiles" label="Entities" value={stats?.totalEntities ?? "—"} detail="people · companies · trusts" icon={Users} testId="stat-total-entities" />
+        <StatTile href="/profiles" label="Priority" value={stats?.hotLeadsCount ?? "—"} detail="strongest contact paths" icon={Sparkles} testId="stat-hot-leads" />
+        <StatTile href="/profiles" label="Assets" value={stats?.totalAssets ?? "—"} detail="linked public evidence" icon={Database} testId="stat-total-assets" />
+        <StatTile href="/network" label="Links" value={stats?.totalRelationships ?? "—"} detail="known relationships" icon={Network} testId="stat-total-relationships" />
       </section>
 
       <section className="atlas-enter pt-3" style={{ animationDelay: "140ms" }}>
