@@ -5,8 +5,8 @@
 
 ## Prep for next Replit run (2026-08-21)
 
-**Current tip:** `00eded5` — migrate overnight script off decommissioned Llama 3.3 70B  
-**Prior tip:** `5eb31eb` — reactor NOW badges, workspace chips, Replit-prep context
+**Current tip:** `35f8e99` — document singleTargetId re-cook for notice-phone upgrade  
+**Prior tip:** `00eded5` — migrate overnight script off decommissioned Llama 3.3 70B
 
 ### Tip chain (bureau contact quality)
 | Commit | Point |
@@ -18,6 +18,7 @@
 | `87c7635` | Never demote notice phone to issuer/CH switchboard |
 | `5eb31eb` | Reactor NOW badges, workspace · separator, mock spoken stories |
 | `00eded5` | Overnight script off Llama 3.3 70B (model fallback only) |
+| `35f8e99` | Document singleTargetId re-cook path (RUN_BUREAU §7) |
 
 ### Philosophy (do not regress)
 - **No LLM funneling** — ReAct, not GROK-PARITY playbooks / force-hops.
