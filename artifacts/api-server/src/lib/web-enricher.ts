@@ -2327,7 +2327,7 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
     await jitteredDelay(700);
   }
 
-  // ── Phase 7: AI extraction pass (Groq llama-3.3-70b) ──────────────────
+  // ── Phase 7: AI extraction pass (extractWithAI / GROQ_CHAT_MODELS) ─────
   // Runs over all accumulated search + page text. Catches what regex missed:
   // obfuscated emails, international phones, inline social handles, owner names.
   if (allSearchText.length > 100) {

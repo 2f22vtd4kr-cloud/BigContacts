@@ -20,6 +20,7 @@ import {
   objectiveLooksWalletFirst,
 } from "./wallet-seed";
 import { lookupDomainSurface, findingsFromDomainSurface } from "./domain-surface";
+import { GROQ_CHAT_MODELS } from "./groq-models";
 
 export type AgenticFinding = {
   vectorType: "email" | "phone" | "linkedin" | "website" | "other" | "social";
@@ -758,33 +759,36 @@ async function callGroqJson(prompt: string): Promise<{ model: string; raw: strin
     .map((n) => process.env[n] ?? "")
     .filter((k) => k.length > 0);
   if (!keys.length) return null;
+  // GROQ_CHAT_MODELS — post Llama 3.3 70B decommission (2026-08-16). Never hard-code dead ids.
   for (const key of keys) {
-    try {
-      const resp = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "llama-3.3-70b-versatile",
-          temperature: 0.25,
-          max_tokens: 2048,
-          response_format: { type: "json_object" },
-          messages: [
-            {
-              role: "system",
-              content:
-                "You are an elite OSINT web research agent. You operate in a ReAct loop. Reply with ONE JSON object only.",
-            },
-            { role: "user", content: prompt },
-          ],
-        }),
-        signal: AbortSignal.timeout(40_000),
-      });
-      if (!resp.ok) continue;
-      const data = await resp.json() as { choices?: Array<{ message?: { content?: string } }> };
-      const raw = data.choices?.[0]?.message?.content?.trim() ?? "";
-      if (raw) return { model: "llama-3.3-70b-versatile", raw };
-    } catch {
-      continue;
+    for (const model of GROQ_CHAT_MODELS) {
+      try {
+        const resp = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model,
+            temperature: 0.25,
+            max_tokens: 2048,
+            response_format: { type: "json_object" },
+            messages: [
+              {
+                role: "system",
+                content:
+                  "You are an elite OSINT web research agent. You operate in a ReAct loop. Reply with ONE JSON object only.",
+              },
+              { role: "user", content: prompt },
+            ],
+          }),
+          signal: AbortSignal.timeout(40_000),
+        });
+        if (!resp.ok) continue; // model_not_found / access → try next model
+        const data = await resp.json() as { choices?: Array<{ message?: { content?: string } }> };
+        const raw = data.choices?.[0]?.message?.content?.trim() ?? "";
+        if (raw) return { model, raw };
+      } catch {
+        continue;
+      }
     }
   }
   return null;
