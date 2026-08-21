@@ -26,8 +26,8 @@ import {
 } from "./contact-validation";
 import { formatReachabilityDirective, type ReachabilityDirective } from "./reachability-realism";
 import { canonicalizeUrl } from "./evidence-ledger";
-import {
 import { GROQ_DEFAULT_MODEL as GROQ_MODEL, GROQ_CHAT_MODELS } from "./groq-models";
+import {
   adjudicateFinalTargetReview,
   buildFinalTargetReviewPrompt,
   type FinalTargetReviewInput,
@@ -176,13 +176,62 @@ export interface DiscoveryPersonCandidate {
   attributionStatus: "unverified" | "ambiguous" | "probable";
 }
 
-/** Run the final target-scoped publication review through the existing
- * server-side provider pool. Any provider failure is a review outcome. */
+/** Final card publication review: Boss (Gemini) primary → NVIDIA right-hand → Groq.
+ * Deterministic adjudicator always fail-closes on exact eligible values. */
 export async function runFinalTargetReview(
   input: FinalTargetReviewInput,
 ): Promise<FinalTargetReviewResult> {
   const prompt = buildFinalTargetReviewPrompt(input);
-  // Rotate models + keys — a single decommissioned/capacity model must not zero the card.
+  const bossPrompt =
+    "You are Gemini Boss, Head Investigator for Apex Atlas final card publication.\n" +
+    "Your right-hand (NVIDIA) may advise; you decide publish/review/reject using ONLY exact values supplied below.\n" +
+    "Never invent contacts, people, addresses, or URLs.\n\n" +
+    prompt;
+
+  // 1) Boss — Gemini
+  try {
+    const { resolveGeminiBossModel, generateGeminiBossText } = await import("./case-bureau");
+    const selection = await resolveGeminiBossModel();
+    if (selection?.model) {
+      const out = await generateGeminiBossText(selection, bossPrompt);
+      if (out.raw) {
+        const json = extractJsonObject(out.raw);
+        if (json) {
+          try {
+            return adjudicateFinalTargetReview(
+              input,
+              JSON.parse(json),
+              `gemini-boss-final-review:${out.model}`,
+            );
+          } catch { /* fall through */ }
+        }
+      }
+    }
+  } catch (err: any) {
+    logger.debug({ err: err?.message }, "final-review Gemini Boss unavailable");
+  }
+
+  // 2) Right-hand — NVIDIA NIM
+  try {
+    const { runNvidiaNimFinalReview } = await import("./nvidia-nim-case-reasoning");
+    const nv = await runNvidiaNimFinalReview(bossPrompt);
+    if (nv.status === "completed" && nv.raw) {
+      const json = extractJsonObject(nv.raw);
+      if (json) {
+        try {
+          return adjudicateFinalTargetReview(
+            input,
+            JSON.parse(json),
+            `nvidia-right-hand-final-review:${nv.model}`,
+          );
+        } catch { /* fall through */ }
+      }
+    }
+  } catch (err: any) {
+    logger.debug({ err: err?.message }, "final-review NVIDIA right-hand unavailable");
+  }
+
+  // 3) Groq capacity fallback (multi-model)
   const models = [...new Set([GROQ_MODEL, ...GROQ_CHAT_MODELS, GROQ_MODEL_FAST].filter(Boolean))];
   for (const key of getGroqKeys()) {
     if (isExhausted(_exhaustedGroqKeys, key)) continue;
@@ -193,7 +242,14 @@ export async function runFinalTargetReview(
           headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
           body: JSON.stringify({
             model,
-            messages: [{ role: "user", content: prompt }],
+            messages: [
+              {
+                role: "system",
+                content:
+                  "You are covering final card review because Gemini Boss and NVIDIA right-hand were unavailable. ONE JSON object only. Never invent.",
+              },
+              { role: "user", content: prompt },
+            ],
             temperature: 0,
             max_tokens: 700,
             response_format: { type: "json_object" },
@@ -202,21 +258,23 @@ export async function runFinalTargetReview(
         });
         if (response.status === 429) {
           _exhaustedGroqKeys.set(key, Date.now() + EXHAUSTED_TTL_MS);
-          break; // next key
+          break;
         }
-        if (!response.ok) continue; // try next model on same key
+        if (!response.ok) continue;
         const data = await response.json() as any;
         const raw = data?.choices?.[0]?.message?.content ?? "";
         const json = extractJsonObject(raw);
         if (!json) continue;
-        return adjudicateFinalTargetReview(input, JSON.parse(json), `groq-final-review:${model}`);
+        return adjudicateFinalTargetReview(input, JSON.parse(json), `groq-final-review-fallback:${model}`);
       } catch {
-        // Try next model / key. Deterministic adjudicator still runs if all fail.
+        // next model/key
       }
     }
   }
+
   return adjudicateFinalTargetReview(input, {}, "unavailable-final-review");
 }
+
 
 export interface AIExtractResult {
   // ── Org-level contact vectors (for the entity being researched) ─────────

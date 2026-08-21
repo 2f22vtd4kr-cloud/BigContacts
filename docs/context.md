@@ -5,8 +5,8 @@
 
 ## Prep for next Replit run (2026-08-21)
 
-**Current tip:** pending — final-review Groq model rotation  
-**Prior tip:** `4d38824` — Replit RESEARCH_DEPTH=standard for parity
+**Current tip:** pending — final review = Gemini Boss → NVIDIA right-hand → Groq  
+**Prior tip:** `e05221f` — Groq rotation only (superseded for primary path)
 
 ### Tip chain (bureau research integrity)
 | Commit | Point |
@@ -23,6 +23,8 @@ force-hops fill gaps after. Keys (Serper + Groq + Tavily/Exa + browsers) must be
 bureauIntegrity goes critical and you are comparing a crippled desk to a full agent.
 
 ### Philosophy (do not regress)
+- **Final card review = Gemini Boss primary, NVIDIA right-hand secondary, Groq only as capacity fallback.**
+
 - **No LLM funneling** — ReAct, not GROK-PARITY playbooks / force-hops.
 - **Tool-side facts** — SEC notice phones, Form 3/4 addresses, deceased probe = extractors, not model babysitting.
 - **Losing to one web agent on public SEC surface = severity bug.**
