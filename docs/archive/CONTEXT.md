@@ -1,3 +1,6 @@
+### 2026-08-21 Replit-prep
+Bureau notice-phone path on main through 87c7635. Reactor UI polish + mock stories. Apex Atlas = this monorepo product only.
+
 # Apex Atlas / BigContacts — Full Context (for any new Grok session)
 
 **Product names:** Apex Atlas · ApexFinder Pro · BigContacts  

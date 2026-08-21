@@ -1,3 +1,44 @@
+# Context — living handoff (Apex Atlas / BigContacts)
+
+**Repo:** https://github.com/2f22vtd4kr-cloud/BigContacts · **Branch:** `main`  
+**Product:** Apex Atlas research bureau (NOT Steam “Atlas Reactor”, NOT physics ATLAS).
+
+## Prep for next Replit run (2026-08-21)
+
+### Tip chain (bureau contact quality)
+| Commit | Point |
+|--------|--------|
+| `2e5d85d` | EDGAR notice-line phone over issuer switchboard |
+| `da4b247` | Final-review deterministic fallback + deceased cook gate |
+| `fc64840` | Form 3/4 + SC13 in early EDGAR boost; name search variants for EFTS only |
+| `59f81c6` | Notice-phone → direct_contact_candidate; phoneSource on boost |
+| `87c7635` | Never demote notice phone to issuer/CH switchboard |
+| *(pending UI)* | Reactor NOW badges, workspace · separator, mock spoken stories |
+
+### Philosophy (do not regress)
+- **No LLM funneling** — ReAct, not GROK-PARITY playbooks / force-hops.
+- **Tool-side facts** — SEC notice phones, Form 3/4 addresses, deceased probe = extractors, not model babysitting.
+- **Losing to one web agent on public SEC surface = severity bug.**
+
+### Known gaps still open
+1. Re-cook existing ledger cards after pull (old issuer phones stay until re-enrich).
+2. Desktop reactor can still feel dense (graph + inspector + scene cards).
+3. Mobile header a11y may concatenate chip labels; visual chips use shortLabel + · + DB.
+4. Perplexity optional (0 keys OK); never paint LIVE with 0 slots.
+5. Full monorepo boot in ephemeral sandbox is unreliable — **Replit is acceptance environment**.
+
+### Replit secrets (exactly 5 Redis, 2 Exa)
+REDIS_URL_1…5, GROQ, GEMINI, MISTRAL, NVIDIA_NIM, TAVILY, SERPER, SERPAPI, EXA_API_KEY_1/2, SCRAPFLY, ZENROWS, COMPANIES_HOUSE, WHOISJSON, HF_TOKEN.  
+Managed DATABASE_URL. ENABLE_AUTO_PIPELINE=false.  
+Public URL must serve desk HTML; API `/api/*`; dist at `apex-finder/dist/public`.
+
+### Canonical run
+`docs/RUN_BUREAU.md` · POST `/api/ingest/atlas-run` with `CANONICAL_ATLAS_LAUNCH_BODY`.  
+Pause/Resume/Stop: atlas-pause, atlas-resume, DELETE atlas-lock.
+
+---
+
+
 ### LLM card promotion (2026-08-21)
 Final target review is LLM-controlled: the model evaluates whether findings are related to the HNWI (contacts, addresses, roles, related orgs) and writes cardSummary, roleHeadline, and relatedDescriptions. Adjudication still fail-closed (exact values only from candidates/evidence — no invention). Tip: 4684c92.
 

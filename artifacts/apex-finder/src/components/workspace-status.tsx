@@ -262,6 +262,9 @@ export function WorkspaceStatus() {
         <span className={cn("hidden truncate font-mono text-[10px] font-bold tracking-[0.1em] sm:inline", copy.className)}>
           {copy.label}
         </span>
+        <span className="text-stone-600 font-mono text-[9px] sm:text-[10px]" aria-hidden>
+          ·
+        </span>
         <span
           className={cn(
             "shrink-0 font-mono text-[9px] font-bold tabular-nums sm:text-[10px]",

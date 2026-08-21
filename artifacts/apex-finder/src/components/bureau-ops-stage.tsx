@@ -113,7 +113,7 @@ function humanStageTitle(stage: string | undefined, tool: string): string {
   if (stage && stage.length < 40 && !isLogGarbage(stage)) {
     return stage.replace(/[_·]+/g, " ").replace(/\s+/g, " ").trim();
   }
-  return "Working on this target";
+  return "Working on this person";
 }
 
 function isDiscoveryPhase(stage: string | undefined, tool: string, methodKind?: string): boolean {
@@ -656,7 +656,9 @@ function WindowChrome({
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#9CFF1A] opacity-70" />
                 <span className="relative inline-flex h-2 w-2 rounded-full bg-[#9CFF1A] shadow-[0_0_8px_#9CFF1A]" />
               </span>
-              <span className="font-mono text-[9px] font-bold uppercase tracking-wider text-[#d4ff8a]">LIVE</span>
+              <span className="shrink-0 rounded px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase tracking-wider text-[#111827] bg-[#9CFF1A]">
+                NOW
+              </span>
             </span>
           )}
           {!live && terminal === "done" && (
@@ -895,7 +897,7 @@ function BureauScene({ scene, compact }: { scene: Scene; compact?: boolean }) {
         {scene.targetName && (
           <div className="text-[9px] font-mono text-lime-400/80 uppercase tracking-wider">{scene.targetName}</div>
         )}
-        {(scene.resultLines.length ? scene.resultLines : [scene.subtitle || "Working on this target…"]).map((l, i) => (
+        {(scene.resultLines.length ? scene.resultLines : [scene.subtitle || "Working on this person…"]).map((l, i) => (
           <div key={i} className={`text-stone-200 leading-snug ${compact ? "text-[11px]" : "text-[12px]"}`}>
             {l}
           </div>
@@ -1437,11 +1439,15 @@ export function BureauOpsStage({
                 boxShadow: selected ? "0 0 12px rgba(156,255,26,0.12)" : undefined,
               }}
             >
-              <div className="flex items-center gap-1.5 mb-0.5">
-                <span className="text-[9px] font-mono text-stone-500">{i + 1}</span>
+              <div className="flex items-center gap-1.5 mb-0.5 min-w-0">
+                <span className="text-[9px] font-mono text-stone-500 shrink-0">{i + 1}</span>
                 <ActivityGlyphMini kind={s.kind} live={s.live} terminal={s.terminal} />
-                <span className="text-[9px] font-mono text-stone-300 truncate">{s.title}</span>
-                {s.live && <span className="text-[8px] text-lime-200 font-mono font-bold">LIVE</span>}
+                <span className="text-[9px] font-mono text-stone-300 truncate min-w-0">{s.title}</span>
+                {s.live && (
+                  <span className="shrink-0 rounded px-1 py-px text-[8px] font-mono font-bold tracking-wide text-[#111827] bg-[#9CFF1A]">
+                    NOW
+                  </span>
+                )}
               </div>
               <StoryLine story={s.story} className="text-[10px] text-stone-300 leading-snug" />
             </button>
