@@ -51,9 +51,9 @@ const STATE_COPY: Record<WorkspaceState, {
     dotClassName: "bg-lime-300 shadow-[0_0_8px_rgba(103,232,249,0.7)]",
   },
   "researching-degraded": {
-    label: "ATLAS ACTIVE",
-    shortLabel: "ACTIVE",
-    detail: "Research is running; some tools are temporarily limited.",
+    label: "ATLAS LIVE · LIMITED",
+    shortLabel: "LIVE",
+    detail: "Research is running; some AI/search keys are rate-limited or offline.",
     className: "text-[#d4ff8a]",
     dotClassName: "bg-[#9CFF1A] shadow-[0_0_8px_rgba(156,255,26,0.55)]",
   },
@@ -177,10 +177,13 @@ export function WorkspaceStatus() {
     system?.databases.upstash.length &&
     system.databases.upstash.every((slot) => slot.status === "ready" || slot.status === "ok"),
   );
+  const localRedisHealthy = Boolean(
+    system?.databases.localRedis.status === "ready" || system?.databases.localRedis.status === "ok",
+  );
+  // Permanent Upstash is enough for bureau jobs; local Redis is optional cache on Replit.
   const servicesHealthy = Boolean(
     system?.databases.postgres.status === "ok" &&
-    (system?.databases.localRedis.status === "ready" || system?.databases.localRedis.status === "ok") &&
-    upstashHealthy,
+    (upstashHealthy || localRedisHealthy),
   );
   const active = Boolean(atlas?.active);
   const schedulerEnabled = Boolean(atlas?.scheduler?.enabled);
@@ -192,12 +195,19 @@ export function WorkspaceStatus() {
     : error && !atlas && !system
       ? "offline"
       : active
-        ? noAiCapacity || !servicesHealthy ? "degraded" : providerDegraded ? "researching-degraded" : "researching"
+        ? // Job running: never show generic WARN — use LIVE / LIVE·LTD
+          noAiCapacity
+            ? "researching-degraded"
+            : providerDegraded
+              ? "researching-degraded"
+              : "researching"
         : schedulerEnabled && schedulerActive
           ? "queued"
-          : noAiCapacity || !servicesHealthy || providerDegraded
+          : noAiCapacity || !servicesHealthy
             ? "degraded"
-            : "ready";
+            : providerDegraded
+              ? "degraded"
+              : "ready";
   const copy = STATE_COPY[state];
   const Icon = state === "researching" || state === "researching-degraded"
     ? Radio

@@ -111,6 +111,31 @@ export function LaunchAtlasButton({
         ? "Atlas live"
         : "Atlas researching…";
 
+  // Header while running: single Stop control only (no green icon + Stop pile-up on mobile)
+  if (variant === "header" && run.active) {
+    return (
+      <button
+        type="button"
+        onClick={handleStop}
+        disabled={stopping}
+        data-testid="button-stop-apex-atlas"
+        aria-label="Stop Atlas research"
+        className={cn(
+          "atlas-pressable inline-flex items-center justify-center gap-1.5 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400/50 disabled:opacity-60",
+          VARIANT_STOP.header,
+          className,
+        )}
+      >
+        {stopping ? (
+          <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+        ) : (
+          <Square className="h-3 w-3 fill-current" aria-hidden />
+        )}
+        <span className="text-[11px] font-bold">{stopping ? "…" : "Stop"}</span>
+      </button>
+    );
+  }
+
   return (
     <div
       className={cn(
@@ -163,7 +188,7 @@ export function LaunchAtlasButton({
         </span>
       </button>
 
-      {run.active && (
+      {run.active && variant !== "header" && (
         <button
           type="button"
           onClick={handleStop}
