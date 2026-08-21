@@ -1252,7 +1252,7 @@ export async function runAgenticWebResearch(input: {
   }
 
   const maxIter = Math.min(input.maxIterations ?? MAX_ITER, 24);
-  const hardTimeoutMs = Math.max(30_000, input.hardTimeoutMs ?? 150_000);
+  const hardTimeoutMs = Math.max(30_000, input.hardTimeoutMs ?? 210_000);
   const startedAt = Date.now();
   let objective = input.objective
     ?? `Find publicly documented contact routes (email, phone, LinkedIn, website, related people) for ${name}${input.companyName ? ` related to ${input.companyName}` : ""}. Be thorough and creative.`;

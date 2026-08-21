@@ -634,7 +634,7 @@ export async function expandSecondaryPublicSurface(input: {
         targetName: name,
         companyName: input.companyName ?? null,
         objective: `Find public contact routes and related org surface for ${name}${input.companyName ? ` / ${input.companyName}` : ""}. Multi-hop. Visit company contact pages. Never invent.`,
-        maxIterations: 8,
+        maxIterations: 16,
       });
       logger.info(
         { entityId: input.entityId, status: agentic.status, model: agentic.model, searches: agentic.searches, visits: agentic.visits, findings: agentic.findings.length },

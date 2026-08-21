@@ -5,8 +5,8 @@
 
 ## Prep for next Replit run (2026-08-21)
 
-**Current tip:** pending — free-ReAct floor so bureau does not lose to single Grok agent  
-**Prior tip:** `02759c3` — migrate apex-runtime agentic off dead Llama 3.3 70B
+**Current tip:** pending — discovery/verify budgets + hard timeout match free-ReAct floor  
+**Prior tip:** `be3c645` — FREE_REACT_STEPS=5; force-hops deferred
 
 ### Tip chain (bureau research integrity)
 | Commit | Point |
@@ -35,10 +35,32 @@ bureauIntegrity goes critical and you are comparing a crippled desk to a full ag
 4. Perplexity optional (0 keys OK); healthz-backed — never paint LIVE with 0 slots.
 5. Full monorepo boot in ephemeral sandbox is unreliable — **Replit is acceptance environment**.
 
-### Replit secrets (exactly 5 Redis, 2 Exa)
-REDIS_URL_1…5, GROQ, GEMINI, MISTRAL, NVIDIA_NIM, TAVILY, SERPER, SERPAPI, EXA_API_KEY_1/2, SCRAPFLY, ZENROWS, COMPANIES_HOUSE, WHOISJSON, HF_TOKEN.  
-Managed DATABASE_URL. ENABLE_AUTO_PIPELINE=false.  
+### Replit secrets (exact names the code reads)
+| Secret | Required for parity |
+|--------|---------------------|
+| `REDIS_URL_1` … `REDIS_URL_5` | Yes (5 permanent Upstash slots) |
+| `GROQ_API_KEY` | Yes — preferred ReAct lane |
+| `SERPER_API_KEY` | Yes — agentic SERP (without it, integrity → critical) |
+| `GEMINI_API_KEY` | Strongly recommended (Boss + agentic fallback) |
+| `MISTRAL_API_KEY` | Recommended agentic fallback |
+| `NVIDIA_NIM_API_KEY` or `NVIDIA_API_KEY` | Recommended agentic fallback |
+| `TAVILY_API_KEY` | Recommended (broad discovery / integrity web count) |
+| `EXA_API_KEY` or `EXA_1` + `EXA_2` | Recommended |
+| `SCRAPFLY_API_KEY` | Recommended browser escalate |
+| `ZENROWS_API_KEY` | Recommended browser escalate |
+| `COMPANIES_HOUSE_API_KEY` | UK surface |
+| `WHOISJSON_API_KEY` | Domain surface |
+| `HF_TOKEN` | Python/deep tools |
+| `DATABASE_URL` | Managed Postgres |
+| `ENABLE_AUTO_PIPELINE` | `false` |
+
+Optional: `SERPAPI_API_KEY`, `PERPLEXITY_API_KEY` (0 keys OK — never paint LIVE).  
 Public URL must serve desk HTML; API `/api/*`; dist at `apex-finder/dist/public`.
+
+### Boot gate (do not research until green)
+1. `GET /api/health` or status page — `bureauIntegrity` = **ok**
+2. Serper + ≥1 agentic LLM slot configured
+3. Only then smoke a hard target vs the same brief in plain Grok
 
 ### Canonical run
 `docs/RUN_BUREAU.md` · POST `/api/ingest/atlas-run` with `CANONICAL_ATLAS_LAUNCH_BODY`.  

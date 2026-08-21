@@ -913,7 +913,7 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
             : "Multi-hop agentic search. Visit primary pages and related-people pages. Never invent contacts.",
         ].filter(Boolean).join("\n"),
         caseId,
-        maxIterations: 12,
+        maxIterations: 18,
       });
       workingFile = await persistDiscoveryCheckpoint(caseId, openingIteration, workingFile, {
         lane: "broad-web",
@@ -2171,7 +2171,7 @@ router.post("/research/bureau/cases/:caseId/run-next-pass", async (req, res): Pr
           "Visit official contact/about/team pages. Never invent contacts.",
         ].join("\n"),
         caseId,
-        maxIterations: 8,
+        maxIterations: 14,
       });
       workingFile = await persistDiscoveryCheckpoint(caseId, iteration, workingFile, {
         lane: "broad-web",
@@ -3543,7 +3543,7 @@ router.post("/research/cases/:entityId/advance", async (req, res): Promise<void>
         caseId: current.id,
         entityId: params.data.entityId,
         persist: true,
-        maxIterations: 8,
+        maxIterations: 14,
       });
 
       await db.insert(researchCaseEventsTable).values({
