@@ -1,6 +1,6 @@
 /**
- * Launch CTA — large-scale gasoline / oil-slick surface.
- * Broad slow waves, app lime (#9CFF1A) iridescence, no micro-noise grain.
+ * Launch CTA — large-scale oil-slick / iridescent surface.
+ * Broad slow waves, purple–magenta–cyan film (not brand lime).
  */
 import { useEffect, useRef } from "react";
 
@@ -56,31 +56,35 @@ void main() {
   float diff = max(dot(N, normalize(vec3(0.2, 0.6, 0.85))), 0.0);
   float spec = pow(max(dot(N, normalize(vec3(0.2, 0.6, 0.85) + vec3(0., 0., 1.))), 0.0), 28.0);
 
-  /* deep oil base */
-  vec3 col = mix(vec3(0.04, 0.07, 0.05), vec3(0.12, 0.18, 0.12), diff * 0.7 + blob * 0.25);
+  /* deep oil / wet metal base (near-black, cool) */
+  vec3 col = mix(vec3(0.03, 0.03, 0.05), vec3(0.10, 0.09, 0.14), diff * 0.7 + blob * 0.25);
 
-  /* broad chrome highlight band */
-  col = mix(col, vec3(0.55, 0.72, 0.48), smoothstep(0.45, 0.88, blob) * 0.35);
-  col += vec3(spec * 0.9);
+  /* broad chrome highlight */
+  col = mix(col, vec3(0.55, 0.58, 0.65), smoothstep(0.45, 0.88, blob) * 0.32);
+  col += vec3(spec * 0.95);
 
-  /* app lime gasoline film — large phase, not rainbow stripes */
-  float phase = blob * 2.0 + t * 0.12;
+  /* Iridescent oil film — purple / magenta / cyan / violet (reference-style разноцветное) */
+  float phase = blob * 2.2 + t * 0.14;
   float f = fract(phase);
-  vec3 lime   = vec3(0.61, 1.0, 0.10);   /* #9CFF1A-ish */
-  vec3 deepG  = vec3(0.12, 0.35, 0.08);
-  vec3 amber  = vec3(0.45, 0.55, 0.12);
-  vec3 film = f < 0.45
-    ? mix(deepG, lime, f / 0.45)
-    : mix(lime, amber, (f - 0.45) / 0.55);
+  vec3 violet  = vec3(0.55, 0.22, 0.95);
+  vec3 magenta = vec3(0.95, 0.28, 0.72);
+  vec3 cyan    = vec3(0.25, 0.85, 0.95);
+  vec3 blue    = vec3(0.20, 0.40, 0.95);
+  vec3 film;
+  if (f < 0.25) film = mix(violet, magenta, f / 0.25);
+  else if (f < 0.5) film = mix(magenta, cyan, (f - 0.25) / 0.25);
+  else if (f < 0.75) film = mix(cyan, blue, (f - 0.5) / 0.25);
+  else film = mix(blue, violet, (f - 0.75) / 0.25);
 
-  float mask = smoothstep(0.22, 0.48, blob) * (1.0 - smoothstep(0.72, 0.95, blob));
-  mask *= 0.55 + 0.45 * sin(blob * 4.5 + t * 0.9);
-  col = mix(col, col * 0.35 + film * 0.95, mask * 0.72);
+  float mask = smoothstep(0.20, 0.48, blob) * (1.0 - smoothstep(0.70, 0.94, blob));
+  mask *= 0.55 + 0.45 * sin(blob * 4.2 + t * 0.85);
+  col = mix(col, col * 0.28 + film * 1.05, mask * 0.78);
 
-  /* soft fresnel with green edge */
+  /* chromatic fresnel edge — white + purple fringe */
   float fres = pow(1.0 - max(N.z, 0.0), 2.0);
-  col += lime * fres * 0.22;
-  col += vec3(0.2, 0.25, 0.18) * fres * 0.15;
+  col += vec3(0.9, 0.92, 1.0) * fres * 0.28;
+  col += violet * fres * 0.18;
+  col += cyan * fres * 0.12;
 
   /* gentle vignette so text stays readable in center */
   float edge = smoothstep(0.0, 0.12, uv.x) * smoothstep(1.0, 0.88, uv.x)
@@ -189,22 +193,23 @@ function BaseOilCanvas() {
               Math.cos(v * 2.0 - t * 0.28 + Math.sin(u * 1.6 + t * 0.22)) *
               0.5 +
             0.5;
-          let r = 10 + n * 30;
-          let g = 18 + n * 55;
-          let b = 12 + n * 28;
+          /* cool oil base + iridescent purple/cyan film */
+          let r = 12 + n * 28;
+          let g = 10 + n * 22;
+          let b = 18 + n * 40;
           if (n > 0.28 && n < 0.78) {
             const k = (n - 0.28) / 0.5;
-            r += 40 * k;
-            g += 140 * k;
-            b += 20 * k;
+            r += (80 + 60 * Math.sin(t + k * 4)) * k;
+            g += (40 + 90 * Math.cos(t * 0.8 + k * 3)) * k;
+            b += (120 + 40 * Math.sin(t * 1.1 + k * 2)) * k;
           }
           const spec = Math.max(
             0,
             1 - Math.abs(v - 0.4 - Math.sin(u * 1.4 + t * 0.4) * 0.12) * 6,
           );
-          r += spec * 90;
-          g += spec * 140;
-          b += spec * 70;
+          r += spec * 110;
+          g += spec * 100;
+          b += spec * 130;
           const i = (y * w + x) * 4;
           d[i] = Math.min(255, r | 0);
           d[i + 1] = Math.min(255, g | 0);

@@ -120,25 +120,25 @@ body {
     0 0 28px rgba(156, 255, 26, 0.07);
 }
 
-/* Primary CTA — large-scale green gasoline-spill surface */
+/* Primary CTA — iridescent oil-slick (purple / cyan / magenta), not brand lime */
 .atlas-launch-glow {
   position: relative;
   isolation: isolate;
   overflow: hidden;
-  color: #ecfccb; /* lime-100 — readable on dark oil + green film */
+  color: #f4f0ff; /* soft white-lilac — readable on dark oil + iridescent film */
   font-weight: 700;
   letter-spacing: 0.04em;
   text-shadow:
     0 1px 2px rgba(0, 0, 0, 0.95),
     0 0 10px rgba(0, 0, 0, 0.85),
-    0 0 18px rgba(20, 40, 10, 0.7);
+    0 0 18px rgba(40, 20, 60, 0.75);
   border: none;
   border-radius: 999px;
-  background: #0a1208; /* deep green-black underfill while canvas boots */
+  background: #0a0a12; /* deep cool underfill while canvas boots */
   box-shadow:
     0 4px 22px rgba(0, 0, 0, 0.55),
-    0 0 28px rgba(156, 255, 26, 0.14),
-    inset 0 1px 0 rgba(156, 255, 26, 0.18);
+    0 0 28px rgba(140, 80, 255, 0.18),
+    inset 0 1px 0 rgba(180, 160, 255, 0.22);
   transition: transform 140ms cubic-bezier(0.2, 1, 0.32, 1), box-shadow 200ms ease, filter 160ms ease;
 }
 
@@ -159,12 +159,12 @@ body {
 }
 
 .atlas-launch-glow:hover {
-  filter: brightness(1.06) contrast(1.04);
+  filter: brightness(1.08) contrast(1.05);
   box-shadow:
-    0 0 0 1px rgba(156, 255, 26, 0.35),
+    0 0 0 1px rgba(160, 120, 255, 0.4),
     0 6px 28px rgba(0, 0, 0, 0.65),
-    0 0 36px rgba(156, 255, 26, 0.22),
-    inset 0 1px 0 rgba(236, 252, 203, 0.25);
+    0 0 36px rgba(80, 200, 255, 0.2),
+    inset 0 1px 0 rgba(220, 200, 255, 0.28);
 }
 
 .atlas-launch-glow:active {
