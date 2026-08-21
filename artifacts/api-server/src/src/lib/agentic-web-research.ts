@@ -1697,6 +1697,9 @@ export async function runAgenticWebResearch(input: {
   const candidateUrls: string[] = [];
   const visitedUrls = new Set<string>();
   const domainSurfaceDone = new Set<string>(); // one RDAP/WhoisJSON hop per primary domain
+  /** Cap gap-fill scripts so free LLM research keeps the majority of the budget. */
+  const MAX_SCRIPTED_HOPS = 4;
+  let scriptedHopsUsed = 0;
 
   const isAggregatorHost = (u: string): boolean =>
     /zoominfo|rocketreach|adapt\.io|signalhire|contactout|growjo|apollo\.io|clearbit|hunter\.io|mibarry|chamber|yelp|dnb\.com|bloomberg\.com\/profile|crunchbase|pitchbook|linkedin\.com\/company|mapquest|bbb\.org|yellowpages|superpages|manta\.com|bizapedia|opencorporates|equilar|prospeo|thebluebook|dot\.report/i.test(
@@ -1897,10 +1900,11 @@ export async function runAgenticWebResearch(input: {
 
     // At most one scripted gap-fill per iteration — then the LLM always gets to reason.
     let scriptedHop = false;
+    const canScript = scriptedHopsUsed < MAX_SCRIPTED_HOPS;
 
     // If company is locked but no company-host URL is queued yet, search the company surface
     // before visiting partner/blog SERP hits (prevents Team-Financial-style first visits).
-    if (!scriptedHop && i >= FREE_REACT_STEPS && 
+    if (!scriptedHop && canScript && i >= FREE_REACT_STEPS && 
       searches >= 1
       && visits === 0
       && input.companyName
@@ -1927,13 +1931,13 @@ export async function runAgenticWebResearch(input: {
       }
       lastObservation =
         `COMPANY SURFACE search:\nURLs: ${sr.urls.slice(0, 8).join(" | ")}\n\n${sr.text.slice(0, MAX_OBS)}\n\n[HINT] Prefer visiting company contact/about pages next.`;
-      scriptedHop = true;
+      scriptedHop = true; scriptedHopsUsed++;
     }
     // After free ReAct floor only: if the model never visited, open one high-rank URL
     // as a soft gap-fill — then the LLM still reasons on that observation.
-    if (!scriptedHop && i >= FREE_REACT_STEPS && searches >= 1 && visits === 0 && candidateUrls.length > 0) {
+    if (!scriptedHop && canScript && i >= FREE_REACT_STEPS && searches >= 1 && visits === 0 && candidateUrls.length > 0) {
       await forceVisitNext(`step${i + 1}`);
-      scriptedHop = true;
+      scriptedHop = true; scriptedHopsUsed++;
     }
     // After free ReAct floor: keep opening high-rank company pages until org email/phone
     // (ungated, this burned the free multi-LLM dig after the first search+visit)
@@ -1947,7 +1951,7 @@ export async function runAgenticWebResearch(input: {
     ) {
       if (!scriptedHop) {
         const forced = await forceVisitNext(`step${i + 1}`);
-        if (forced) scriptedHop = true;
+        if (forced) { scriptedHop = true; scriptedHopsUsed++; }
       }
     }
     // Phones without org email is a common mid-market gap vs general agents.
@@ -1977,7 +1981,7 @@ export async function runAgenticWebResearch(input: {
       }
       lastObservation =
         `SEARCH results for org email: ${q}\nURLs: ${sr.urls.slice(0, 8).join(" | ")}\n\n${sr.text.slice(0, MAX_OBS)}\n\n` +
-        `NEXT: visit company /contact /contact-us pages. Emit EMAIL findings (info@, contact@) with exact sourceUrl. Do not invent.`;
+        `[GAP] Org email still thin — if useful, search or visit contact pages; only emit emails visible in observations with sourceUrl.`;
       // Prefer Facebook company page when present (common host for info@ on SMBs)
       const fbFirst = [...new Set(candidateUrls)]
         .filter((u) => !visitedUrls.has(u) && /facebook\.com\//i.test(u))
@@ -2001,7 +2005,7 @@ export async function runAgenticWebResearch(input: {
           candidateUrls.unshift(contactFirst);
         }
       }
-      scriptedHop = true; // gap-fill done — LLM still reasons this step
+      scriptedHop = true; scriptedHopsUsed++; // gap-fill — LLM still reasons this step
     }
     // Still missing email: keep force-visiting contact-ranked pages (post free floor)
     if (
@@ -2014,11 +2018,11 @@ export async function runAgenticWebResearch(input: {
       && i < maxIter - 1
     ) {
       const forced = await forceVisitNext(`step${i + 1}`);
-      if (forced) { scriptedHop = true; }
+      if (forced) { scriptedHop = true; scriptedHopsUsed++; }
     }
     // Mid-market gap: Facebook About often lists info@ when the corporate /contact page does not.
     // Fail-closed: only admit emails that appear in SERP snippet text (never invent mailboxes).
-    if (i >= FREE_REACT_STEPS && 
+    if (canScript && i >= FREE_REACT_STEPS && 
       input.companyName
       && !hasOrgEmail()
       && orgEmailSearchDone
@@ -2051,12 +2055,12 @@ export async function runAgenticWebResearch(input: {
       }
       lastObservation =
         `FACEBOOK company search:\nURLs: ${sr.urls.slice(0, 6).join(" | ")}\n\n${sr.text.slice(0, MAX_OBS)}\n\n` +
-        `NEXT: visit Facebook/About or company /contact. Emit EMAIL only if visible with exact sourceUrl.`;
-      scriptedHop = true; // gap-fill done — LLM still reasons this step
+        `[GAP] Optional: Facebook About or company contact may list org inboxes — only emit what is visible with sourceUrl.`;
+      scriptedHop = true; scriptedHopsUsed++; // gap-fill — LLM still reasons this step
     }
     // When website domain is known but org email still missing, search exact quoted mailboxes.
     // Admit ONLY if the address appears in SERP text (fail-closed — no synthetic info@).
-    if (i >= FREE_REACT_STEPS && 
+    if (canScript && i >= FREE_REACT_STEPS && 
       !hasOrgEmail()
       && findings.some((f) => f.vectorType === "website")
       && !history.some((h) => h.includes("force_domain_mailbox_search"))
@@ -2087,9 +2091,9 @@ export async function runAgenticWebResearch(input: {
         seedCompanyContactPaths(sr.urls.length ? sr.urls : [`https://${domain}`]);
         lastObservation =
           `DOMAIN MAILBOX search:\n${q}\nURLs: ${sr.urls.slice(0, 8).join(" | ")}\n\n${sr.text.slice(0, MAX_OBS)}\n\n` +
-          `NEXT: visit company contact pages. Emit EMAIL only if visible in observation with sourceUrl.`;
+          `[GAP] Optional contact-page follow-up — emit EMAIL only when visible with sourceUrl.`;
         await forceVisitNext(`step${i + 1}`);
-        scriptedHop = true; // gap-fill done — LLM still reasons this step
+        scriptedHop = true; scriptedHopsUsed++; // gap-fill — LLM still reasons this step
       }
     }
     // After primary surface: force a related-people SERP hop (BBB / officers) once
@@ -2139,8 +2143,8 @@ export async function runAgenticWebResearch(input: {
       }
       lastObservation =
         `SEARCH results for related people: ${q}\nURLs: ${sr.urls.slice(0, 8).join(" | ")}\n\n${sr.text.slice(0, MAX_OBS)}\n\n` +
-        `NEXT: visit BBB profile (browser escalate if CF) and company /dealer /team pages. Emit PERSON findings with personName+role. Do not invent names.`;
-      scriptedHop = true; // gap-fill done — LLM still reasons this step
+        `[GAP] Related people still thin — BBB/team/dealer pages may help; invent your own next query or visit. Never invent names.`;
+      scriptedHop = true; scriptedHopsUsed++; // gap-fill — LLM still reasons this step
     }
 
     // Ownership / founder / acquisition hop — Atlas goal is contacts that lead to controlling people
@@ -2181,13 +2185,13 @@ export async function runAgenticWebResearch(input: {
       }
       lastObservation =
         `OWNERSHIP / FOUNDER search: ${q}\nURLs: ${sr.urls.slice(0, 8).join(" | ")}\n\n${sr.text.slice(0, MAX_OBS)}\n\n` +
-        `NEXT: visit founder/acquisition pages and any company PDF contact sheets. Emit PERSON+role and named emails with sourceUrls.`;
+        `[GAP] Ownership/succession surface still thin — choose your own search or visit. Emit people only when visible with sourceUrls.`;
       await forceVisitNext(`step${i + 1}`);
-      scriptedHop = true; // gap-fill done — LLM still reasons this step
+      scriptedHop = true; scriptedHopsUsed++; // gap-fill — LLM still reasons this step
     }
 
     // Current CEO / President hop — founders already on ledger must NOT skip sitting executives
-    if (i >= FREE_REACT_STEPS && 
+    if (canScript && i >= FREE_REACT_STEPS && 
       (relatedPeopleSearchDone || ownershipSearchDone)
       && !history.some((h) => h.includes("force_current_exec_search"))
       && i < maxIter - 2
@@ -2221,9 +2225,9 @@ export async function runAgenticWebResearch(input: {
       }
       lastObservation =
         `CURRENT EXEC search: ${q}\nURLs: ${sr.urls.slice(0, 8).join(" | ")}\n\n${sr.text.slice(0, MAX_OBS)}\n\n` +
-        `NEXT: visit CEO/president appointment or leadership pages. Emit PERSON+role for current executives with sourceUrls.`;
+        `[GAP] Current executives still thin — leadership pages may help; you choose the tool and query.`;
       await forceVisitNext(`step${i + 1}`);
-      scriptedHop = true; // gap-fill done — LLM still reasons this step
+      scriptedHop = true; scriptedHopsUsed++; // gap-fill — LLM still reasons this step
     }
 
     // Prefer BBB when anti-bot fetch is configured (Scrapfly/ZenRows) — Principal Contacts live there
@@ -2244,10 +2248,10 @@ export async function runAgenticWebResearch(input: {
         }
       }
       const forced = await forceVisitNext(`step${i + 1}`);
-      if (forced) { scriptedHop = true; }
+      if (forced) { scriptedHop = true; scriptedHopsUsed++; }
     }
     // Registry footprint hop (OpenCorporates / EDGAR / BBB) once after related search
-    if (!scriptedHop && i >= FREE_REACT_STEPS && 
+    if (!scriptedHop && canScript && i >= FREE_REACT_STEPS && 
       relatedPeopleSearchDone
       && !(findings.some((f) => (f.sourceUrls || []).some((u) => /opencorporates|sec\.gov|bbb\.org|companieshouse/i.test(u))))
       && i < maxIter - 2
@@ -2269,7 +2273,7 @@ export async function runAgenticWebResearch(input: {
       lastObservation =
         `REGISTRY / BBB search:\nURLs: ${sr.urls.slice(0, 8).join(" | ")}\n\n${sr.text.slice(0, MAX_OBS)}\n\n` +
         `Visit registry or BBB pages for officers and legal name. Do not invent IDs.`;
-      scriptedHop = true; // gap-fill done — LLM still reasons this step
+      scriptedHop = true; scriptedHopsUsed++; // gap-fill — LLM still reasons this step
     }
     // Prefer /dealer /team pages after related search
     if (
@@ -2292,7 +2296,7 @@ export async function runAgenticWebResearch(input: {
         }
       }
       const forced = await forceVisitNext(`step${i + 1}`);
-      if (forced) { scriptedHop = true; }
+      if (forced) { scriptedHop = true; scriptedHopsUsed++; }
     }
     // Visit remaining high-rank pages after related search
     if (
@@ -2302,7 +2306,7 @@ export async function runAgenticWebResearch(input: {
       && i < maxIter - 1
     ) {
       const forced = await forceVisitNext(`step${i + 1}`);
-      if (forced) { scriptedHop = true; }
+      if (forced) { scriptedHop = true; scriptedHopsUsed++; }
     }
     // After free ReAct has had room: if visits produced zero findings, force one high-rank page
     if (
@@ -2313,7 +2317,7 @@ export async function runAgenticWebResearch(input: {
       && i < maxIter - 1
     ) {
       const forced = await forceVisitNext(`step${i + 1}`);
-      if (forced) { scriptedHop = true; }
+      if (forced) { scriptedHop = true; scriptedHopsUsed++; }
     }
 
     // Soft stagnation: if the last searches repeated the same query, nudge the model.

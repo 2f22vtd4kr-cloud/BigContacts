@@ -5,7 +5,7 @@
 
 ## Prep for next Replit run (2026-08-21)
 
-**Current tip:** `0aebbb4` — FREE_REACT_STEPS=12; no force-visit until after free floor; soft stagnation  
+**Current tip:** pull main — FREE_REACT=12; max 4 scripted gap-fills; soft [GAP] hints (no NEXT: playbook orders)  
 **Prior:** `6c71d46` soft done-reject · `cd8d929` force-hops don't skip LLM
 
 ### Tip chain (bureau research integrity — recent)
