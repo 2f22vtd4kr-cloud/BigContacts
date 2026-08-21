@@ -36,7 +36,9 @@ export function useAtlasRun(pollMs: number = POLL_MS) {
       const active = Boolean(
         data?.active ||
           data?.status === "running" ||
+          data?.status === "paused" ||
           data?.runStatus === "running" ||
+          data?.runStatus === "paused" ||
           data?.scheduler?.active,
       );
       setRun({

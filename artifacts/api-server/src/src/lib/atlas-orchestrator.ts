@@ -22,7 +22,7 @@
 import { db, entitiesTable, assetsTable, contactEvidenceTable } from "@workspace/db";
 import { sql, eq, and, desc, inArray } from "drizzle-orm";
 import { logger } from "./logger";
-import { updateJob, clearJobFields, createJob, setActiveJob, ownsActiveJob, clearActiveJobIfOwned, appendJobLog } from "./job-queue";
+import { updateJob, clearJobFields, createJob, setActiveJob, ownsActiveJob, clearActiveJobIfOwned, appendJobLog, getJob } from "./job-queue";
 import { runWesternHnwiIngestion } from "./western-hnwi-ingestion";
 import { runFaaIngestion } from "./faa-ingestor";
 import { runLandRegistryIngestion } from "./land-registry-ingestor";
@@ -509,6 +509,22 @@ class AtlasCancelledError extends Error {
 async function ensureAtlasActive(atlasJobId: string, entityId?: number): Promise<void> {
   if (!(await ownsActiveJob("atlas-run", atlasJobId))) {
     throw new AtlasCancelledError();
+  }
+  // Honor operator Pause: hold between targets until Resume or Stop.
+  // Stop clears the active lock → ownsActiveJob fails → cancel.
+  for (;;) {
+    const job = await getJob(atlasJobId);
+    if (!job || job.status === "failed" || job.status === "cancelled") {
+      throw new AtlasCancelledError();
+    }
+    if (job.status === "paused") {
+      await new Promise((r) => setTimeout(r, 1200));
+      if (!(await ownsActiveJob("atlas-run", atlasJobId))) {
+        throw new AtlasCancelledError();
+      }
+      continue;
+    }
+    break;
   }
   if (entityId != null && targetWasTimedOut(atlasJobId, entityId)) {
     throw new AtlasTargetTimeoutError(entityId, "target enrichment", DEFAULT_TARGET_TIMEOUT_MS);

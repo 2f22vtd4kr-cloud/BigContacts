@@ -228,14 +228,14 @@ export function Layout({ children }: { children: React.ReactNode }) {
               </div>
             </div>
           </div>
-          <div className="ml-auto flex min-w-0 items-center justify-end gap-1.5 sm:gap-2">
+          <div className="ml-auto flex min-w-0 items-center justify-end gap-2 sm:gap-2.5">
             {location !== "/" && !isReactorRoute && (
               <LaunchAtlasButton
                 variant="header"
                 className="!h-8 !w-8 !shrink-0 !gap-0 !px-0 sm:!h-9 sm:!w-auto sm:!gap-2 sm:!px-3 sm:!text-[11px]"
               />
             )}
-            <div className="flex shrink-0 items-center justify-end gap-1 sm:gap-2">
+            <div className="flex shrink-0 items-center justify-end gap-2 sm:gap-2.5">
               <WorkspaceStatus />
               <ApiKeyHealth />
             </div>

@@ -22,8 +22,14 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
   const existing = await getActiveJob("atlas-run");
   if (existing) {
     const job = await getJob(existing);
-    if (job?.status === "running") {
-      res.status(409).json({ error: "Atlas pipeline already running.", jobId: existing, status: job });
+    if (job?.status === "running" || job?.status === "paused") {
+      res.status(409).json({
+        error: job.status === "paused"
+          ? "Atlas pipeline is paused. Resume or stop it before starting a new run."
+          : "Atlas pipeline already running.",
+        jobId: existing,
+        status: job,
+      });
       return;
     }
   }
@@ -96,6 +102,48 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
     options: opts,
     message: `Atlas pipeline started (job: ${atlasJobId}). Poll ${`/api/ingest/job/${atlasJobId}`} for progress.`,
   });
+});
+
+// ── POST /ingest/atlas-pause ──────────────────────────────────────────────────
+router.post("/ingest/atlas-pause", async (req: Request, res: Response): Promise<void> => {
+  const activeJobId = await getActiveJob("atlas-run");
+  const bodyJobId = typeof req.body?.jobId === "string" ? req.body.jobId : "";
+  const jobId = activeJobId ?? bodyJobId;
+  if (!jobId) {
+    res.status(404).json({ ok: false, message: "No active Atlas job to pause." });
+    return;
+  }
+  const job = await getJob(jobId);
+  if (!job || (job.status !== "running" && job.status !== "paused")) {
+    res.status(409).json({ ok: false, message: "Atlas job is not running.", jobId, status: job?.status });
+    return;
+  }
+  await updateJob(jobId, {
+    status: "paused",
+    message: job.message ? `Paused — ${job.message}` : "Paused by operator.",
+  } as any);
+  res.json({ ok: true, jobId, status: "paused", message: "Atlas paused between targets. Resume to continue." });
+});
+
+// ── POST /ingest/atlas-resume ─────────────────────────────────────────────────
+router.post("/ingest/atlas-resume", async (req: Request, res: Response): Promise<void> => {
+  const activeJobId = await getActiveJob("atlas-run");
+  const bodyJobId = typeof req.body?.jobId === "string" ? req.body.jobId : "";
+  const jobId = activeJobId ?? bodyJobId;
+  if (!jobId) {
+    res.status(404).json({ ok: false, message: "No active Atlas job to resume." });
+    return;
+  }
+  const job = await getJob(jobId);
+  if (!job || job.status !== "paused") {
+    res.status(409).json({ ok: false, message: "Atlas job is not paused.", jobId, status: job?.status });
+    return;
+  }
+  await updateJob(jobId, {
+    status: "running",
+    message: "Resumed — continuing research…",
+  } as any);
+  res.json({ ok: true, jobId, status: "running", message: "Atlas resumed." });
 });
 
 // ── DELETE /ingest/atlas-lock ─────────────────────────────────────────────────
