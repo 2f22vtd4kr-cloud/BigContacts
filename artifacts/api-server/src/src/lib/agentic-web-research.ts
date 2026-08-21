@@ -54,7 +54,7 @@ const MAX_ITER = 20;
 const MAX_OBS = 5_000;
 /** First N steps are free ReAct only — force-hops must not starve the multi-LLM loop
  *  (root cause of single-agent Grok beating the bureau on the same target). */
-const FREE_REACT_STEPS = 10;
+const FREE_REACT_STEPS = 12;
 
 function randomUA(): string {
   const uas = [
@@ -1929,11 +1929,11 @@ export async function runAgenticWebResearch(input: {
         `COMPANY SURFACE search:\nURLs: ${sr.urls.slice(0, 8).join(" | ")}\n\n${sr.text.slice(0, MAX_OBS)}\n\n[HINT] Prefer visiting company contact/about pages next.`;
       scriptedHop = true;
     }
-    // Only force a visit after the model had free steps to choose one.
-    // Trained models should decide when to open pages — not a fixed script on search #1.
-    if (!scriptedHop && i >= 3 && searches >= 1 && visits === 0 && candidateUrls.length > 0) {
+    // After free ReAct floor only: if the model never visited, open one high-rank URL
+    // as a soft gap-fill — then the LLM still reasons on that observation.
+    if (!scriptedHop && i >= FREE_REACT_STEPS && searches >= 1 && visits === 0 && candidateUrls.length > 0) {
       await forceVisitNext(`step${i + 1}`);
-      scriptedHop = true; // LLM still reasons over the visit observation this step
+      scriptedHop = true;
     }
     // After free ReAct floor: keep opening high-rank company pages until org email/phone
     // (ungated, this burned the free multi-LLM dig after the first search+visit)
@@ -2314,6 +2314,25 @@ export async function runAgenticWebResearch(input: {
     ) {
       const forced = await forceVisitNext(`step${i + 1}`);
       if (forced) { scriptedHop = true; }
+    }
+
+    // Soft stagnation: if the last searches repeated the same query, nudge the model.
+    {
+      const recentSearches = history
+        .map((h) => {
+          const m = h.match(/web_search\s+(.+)$/i) || h.match(/force_\w+_search\s+(.+)$/i);
+          return m ? m[1]!.trim().toLowerCase() : null;
+        })
+        .filter(Boolean) as string[];
+      if (recentSearches.length >= 2) {
+        const a = recentSearches[recentSearches.length - 1]!;
+        const b = recentSearches[recentSearches.length - 2]!;
+        if (a === b && a.length > 8 && !/stagnation/i.test(lastObservation)) {
+          lastObservation =
+            `${lastObservation}\n\n[STAGNATION] The same search query just ran twice. ` +
+            `Change the query, visit a queued URL, or done with whatever findings you have — do not repeat the identical search.`;
+        }
+      }
     }
 
     const prompt = buildStepPrompt({

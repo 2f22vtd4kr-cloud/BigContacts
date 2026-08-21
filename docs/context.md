@@ -8,7 +8,7 @@
 **Current tip:** pending — done_rejected is soft hint only (no force search)  
 **Prior tip:** `cd8d929` — zero force-continues before llmStep
 
-### Tip chain (bureau research integrity)
+### Tip: pull latest main (FREE_REACT_STEPS=12; free dig before any force-visit; soft stagnation).
 | Commit | Point |
 |--------|--------|
 | `02759c3` | apex-runtime agentic off dead Llama 3.3; GROQ_CHAT_MODELS rotation |
@@ -93,7 +93,7 @@ Pause/Resume/Stop: atlas-pause, atlas-resume, DELETE atlas-lock.
 
 
 ### LLM card promotion (2026-08-21)
-Final target review is LLM-controlled: the model evaluates whether findings are related to the HNWI (contacts, addresses, roles, related orgs) and writes cardSummary, roleHeadline, and relatedDescriptions. Adjudication still fail-closed (exact values only from candidates/evidence — no invention). Tip: 4684c92.
+Final target review is LLM-controlled: the model evaluates whether findings are related to the HNWI (contacts, addresses, roles, related orgs) and writes cardSummary, roleHeadline, and relatedDescriptions. Adjudication still fail-closed (exact values only from candidates/evidence — no invention). Tip: pull latest main (FREE_REACT_STEPS=12; free dig before any force-visit; soft stagnation).
 
 ### Canonical bureau run
 See **docs/RUN_BUREAU.md**. "Run Apex Atlas / bureau" = POST `/api/ingest/atlas-run` with `CANONICAL_ATLAS_LAUNCH_BODY` (`atlas-launch-defaults.ts`). UI + `scripts/run-bureau.sh` match. ENABLE_AUTO_PIPELINE stays false unless explicitly requested.
@@ -127,7 +127,7 @@ Deterministic recovery:** if all agentic LLMs fail mid-loop, SERP+visit+proxy ex
 - **System status** page shows the same integrity panel as the global banner.
 
 
-**Tip:** `main` — multi-LLM agentic failover + bureau integrity banner (this commit).
+**Tip: pull latest main (FREE_REACT_STEPS=12; free dig before any force-visit; soft stagnation).
 
 ### Why Apex "lost" vs Replit/Grok Agent (not a month of regressions)
 1. **Groq model hard-coded** to `llama-3.3-70b-versatile` which this API key cannot use → agentic ReAct control plane dead. Fixed: model fallback + **Mistral + Gemini + NVIDIA** chain (`agentic-web-research.ts`).
