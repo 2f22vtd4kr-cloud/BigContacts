@@ -182,34 +182,37 @@ export async function runFinalTargetReview(
   input: FinalTargetReviewInput,
 ): Promise<FinalTargetReviewResult> {
   const prompt = buildFinalTargetReviewPrompt(input);
+  // Rotate models + keys — a single decommissioned/capacity model must not zero the card.
+  const models = [...new Set([GROQ_MODEL, ...GROQ_CHAT_MODELS, GROQ_MODEL_FAST].filter(Boolean))];
   for (const key of getGroqKeys()) {
     if (isExhausted(_exhaustedGroqKeys, key)) continue;
-    try {
-      const response = await fetch(GROQ_API, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: GROQ_MODEL,
-          messages: [{ role: "user", content: prompt }],
-          temperature: 0,
-          max_tokens: 700,
-          response_format: { type: "json_object" },
-        }),
-        signal: AbortSignal.timeout(20_000),
-      });
-      if (response.status === 429) {
-        _exhaustedGroqKeys.set(key, Date.now() + EXHAUSTED_TTL_MS);
-        continue;
+    for (const model of models) {
+      try {
+        const response = await fetch(GROQ_API, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model,
+            messages: [{ role: "user", content: prompt }],
+            temperature: 0,
+            max_tokens: 700,
+            response_format: { type: "json_object" },
+          }),
+          signal: AbortSignal.timeout(20_000),
+        });
+        if (response.status === 429) {
+          _exhaustedGroqKeys.set(key, Date.now() + EXHAUSTED_TTL_MS);
+          break; // next key
+        }
+        if (!response.ok) continue; // try next model on same key
+        const data = await response.json() as any;
+        const raw = data?.choices?.[0]?.message?.content ?? "";
+        const json = extractJsonObject(raw);
+        if (!json) continue;
+        return adjudicateFinalTargetReview(input, JSON.parse(json), `groq-final-review:${model}`);
+      } catch {
+        // Try next model / key. Deterministic adjudicator still runs if all fail.
       }
-      if (!response.ok) continue;
-      const data = await response.json() as any;
-      const raw = data?.choices?.[0]?.message?.content ?? "";
-      const json = extractJsonObject(raw);
-      if (!json) continue;
-      return adjudicateFinalTargetReview(input, JSON.parse(json), "groq-final-review");
-    } catch {
-      // Try the next configured key. Exhaustion or malformed output is
-      // deliberately not converted into a publishable fallback.
     }
   }
   return adjudicateFinalTargetReview(input, {}, "unavailable-final-review");
@@ -1543,8 +1546,8 @@ export async function researchWithExa(
  * Main extraction entry point.
  *
  * Strategy (in order):
- *   1. Each Groq key (GROQ_API_KEY, _2, _3) — tries gpt-oss-120b first, then llama-3.1-8b-instant
- *   2. Each OpenRouter key (OPENROUTER_API_KEY, _2) — gpt-oss-120b-instruct
+ *   1. Each Groq key (GROQ_API_KEY, _2, _3) — GROQ_DEFAULT_MODEL then GROQ_MODEL_FAST (gpt-oss-20b)
+ *   2. Each OpenRouter key (OPENROUTER_API_KEY, _2) — gpt-oss-120b
  *
  * A key that returns 429 is marked exhausted for 5 minutes, then auto-recovers.
  * Falls back silently to EMPTY if all providers are exhausted or unavailable.

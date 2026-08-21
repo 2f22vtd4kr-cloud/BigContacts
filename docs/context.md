@@ -5,8 +5,8 @@
 
 ## Prep for next Replit run (2026-08-21)
 
-**Current tip:** `92c383f` — FREE_REACT=6 + NVIDIA model list  
-**Prior tip:** `23d965c` — Exa chain + gate early forceVisit starvation
+**Current tip:** pending — final-review Groq model rotation  
+**Prior tip:** `4d38824` — Replit RESEARCH_DEPTH=standard for parity
 
 ### Tip chain (bureau research integrity)
 | Commit | Point |
