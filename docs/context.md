@@ -5,6 +5,9 @@
 
 ## Prep for next Replit run (2026-08-21)
 
+**Current tip:** `00eded5` — migrate overnight script off decommissioned Llama 3.3 70B  
+**Prior tip:** `5eb31eb` — reactor NOW badges, workspace chips, Replit-prep context
+
 ### Tip chain (bureau contact quality)
 | Commit | Point |
 |--------|--------|
@@ -13,18 +16,20 @@
 | `fc64840` | Form 3/4 + SC13 in early EDGAR boost; name search variants for EFTS only |
 | `59f81c6` | Notice-phone → direct_contact_candidate; phoneSource on boost |
 | `87c7635` | Never demote notice phone to issuer/CH switchboard |
-| *(pending UI)* | Reactor NOW badges, workspace · separator, mock spoken stories |
+| `5eb31eb` | Reactor NOW badges, workspace · separator, mock spoken stories |
+| `00eded5` | Overnight script off Llama 3.3 70B (model fallback only) |
 
 ### Philosophy (do not regress)
 - **No LLM funneling** — ReAct, not GROK-PARITY playbooks / force-hops.
 - **Tool-side facts** — SEC notice phones, Form 3/4 addresses, deceased probe = extractors, not model babysitting.
 - **Losing to one web agent on public SEC surface = severity bug.**
+- **LLMs decide relatedness and card content** — no forced playbooks; fail-closed admission only on exact evidence values.
 
 ### Known gaps still open
-1. Re-cook existing ledger cards after pull (old issuer phones stay until re-enrich).
-2. Desktop reactor can still feel dense (graph + inspector + scene cards).
-3. Mobile header a11y may concatenate chip labels; visual chips use shortLabel + · + DB.
-4. Perplexity optional (0 keys OK); never paint LIVE with 0 slots.
+1. **Re-cook path** — existing ledger cards keep old issuer phones until a re-enrich / force-reprocess is added or cards are deleted + re-run.
+2. Desktop reactor density (graph + inspector + scene cards) — still usable but can feel busy.
+3. Mobile header a11y may concatenate chip labels; visual chips already use shortLabel + · + DB.
+4. Perplexity optional (0 keys OK); healthz-backed — never paint LIVE with 0 slots.
 5. Full monorepo boot in ephemeral sandbox is unreliable — **Replit is acceptance environment**.
 
 ### Replit secrets (exactly 5 Redis, 2 Exa)
@@ -35,6 +40,14 @@ Public URL must serve desk HTML; API `/api/*`; dist at `apex-finder/dist/public`
 ### Canonical run
 `docs/RUN_BUREAU.md` · POST `/api/ingest/atlas-run` with `CANONICAL_ATLAS_LAUNCH_BODY`.  
 Pause/Resume/Stop: atlas-pause, atlas-resume, DELETE atlas-lock.
+
+### Acceptance checklist (next clean Replit boot)
+1. Pull tip, set secrets, `ENABLE_AUTO_PIPELINE=false`.
+2. Clear ledger (or delete stale cards that still hold issuer switchboard phones).
+3. Bounded discovery-first smoke → Gund / Feinberg / Pearl-class targets.
+4. Confirm notice-line phones land as `EDGAR-Notice-Phone` / direct_contact_candidate.
+5. Reactor: plain spoken "Now:" steps, no "PAUSED 7s", no fake Perplexity LIVE, spaced header Pause/Resume.
+6. Launch CTA: gasoline-spill iridescent, readable etched type, no heavy drop-shadow.
 
 ---
 
