@@ -5,8 +5,8 @@
 
 ## Prep for next Replit run (2026-08-21)
 
-**Current tip:** pending — Exa in agentic chain + gate early forceVisit loops  
-**Prior tip:** `a07fbe6` — Serper→Tavily→DDG + MAX_OBS 5k
+**Current tip:** pending — FREE_REACT=6 + NVIDIA model list  
+**Prior tip:** `23d965c` — Exa chain + gate early forceVisit starvation
 
 ### Tip chain (bureau research integrity)
 | Commit | Point |
@@ -61,6 +61,16 @@ Public URL must serve desk HTML; API `/api/*`; dist at `apex-finder/dist/public`
 1. `GET /api/health` or status page — `bureauIntegrity` = **ok**
 2. Serper + ≥1 agentic LLM slot configured
 3. Only then smoke a hard target vs the same brief in plain Grok
+
+
+### Research parity checklist (vs single Grok agent)
+1. Pull tip ≥ `23d965c` (prefer latest main).
+2. Secrets: SERPER + TAVILY + EXA + GROQ minimum; Gemini/Mistral/NVIDIA preferred.
+3. Scrapfly or ZenRows for CF/social shells.
+4. Status: `bureauIntegrity=ok` (Serper counted + ≥1 agentic LLM slot).
+5. Smoke the same brief you would give plain Grok; compare contact surface, not UI polish.
+6. Re-cook stale cards: `POST /api/ingest/atlas-run` with `{ "singleTargetId": <id> }`.
+
 
 ### Canonical run
 `docs/RUN_BUREAU.md` · POST `/api/ingest/atlas-run` with `CANONICAL_ATLAS_LAUNCH_BODY`.  

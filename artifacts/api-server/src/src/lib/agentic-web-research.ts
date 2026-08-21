@@ -54,7 +54,7 @@ const MAX_ITER = 20;
 const MAX_OBS = 5_000;
 /** First N steps are free ReAct only — force-hops must not starve the multi-LLM loop
  *  (root cause of single-agent Grok beating the bureau on the same target). */
-const FREE_REACT_STEPS = 5;
+const FREE_REACT_STEPS = 6;
 
 function randomUA(): string {
   const uas = [
@@ -964,9 +964,10 @@ async function callNvidiaJson(prompt: string): Promise<{ model: string; raw: str
   if (!key) return null;
   const models = [
     process.env.NVIDIA_AGENTIC_MODEL,
-    "meta/llama-3.1-70b-instruct",
+    "meta/llama-3.3-70b-instruct",
     "meta/llama-3.1-70b-instruct",
     "mistralai/mistral-large-2-instruct",
+    "google/gemma-2-27b-it",
   ].filter((m): m is string => Boolean(m && m.trim()));
   for (const model of models) {
     try {
@@ -1648,7 +1649,7 @@ export async function runAgenticWebResearch(input: {
   companyName?: string | null;
   objective?: string;
   maxIterations?: number;
-  /** Hard wall-clock timeout (ms). On expiry return whatever findings were already accumulated. Default 150s. */
+  /** Hard wall-clock timeout (ms). On expiry return whatever findings were already accumulated. Default 210s. */
   hardTimeoutMs?: number;
 }): Promise<AgenticWebResearchResult> {
   const name = input.targetName.trim();

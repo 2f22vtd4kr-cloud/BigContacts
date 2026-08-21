@@ -52,7 +52,7 @@ const MAX_ITER = 20;
 const MAX_OBS = 5_000;
 /** First N steps are free ReAct only — force-hops must not starve the multi-LLM loop
  *  (root cause of single-agent Grok beating the bureau on the same target). */
-const FREE_REACT_STEPS = 5;
+const FREE_REACT_STEPS = 6;
 
 function randomUA(): string {
   const uas = [
@@ -1339,7 +1339,7 @@ export async function runAgenticWebResearch(input: {
   companyName?: string | null;
   objective?: string;
   maxIterations?: number;
-  /** Hard wall-clock timeout (ms). On expiry return whatever findings were already accumulated. Default 150s. */
+  /** Hard wall-clock timeout (ms). On expiry return whatever findings were already accumulated. Default 210s. */
   hardTimeoutMs?: number;
 }): Promise<AgenticWebResearchResult> {
   const name = input.targetName.trim();
