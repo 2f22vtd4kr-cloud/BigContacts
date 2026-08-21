@@ -249,9 +249,29 @@ export function LaunchAtlasButton({
             className={cn(
               "truncate max-w-[14rem] sm:max-w-none",
               variant === "header" && "hidden sm:inline",
+              (variant === "primary" || variant === "reactor") && !inFlight && "atlas-liquid-type",
             )}
+            aria-hidden={false}
           >
-            {inFlight ? runningLabel : idleLabel}
+            {(variant === "primary" || variant === "reactor") && !inFlight
+              ? (idleLabel).split("").map((ch, i) =>
+                  ch === " " ? (
+                    <span key={`s-${i}`} className="atlas-liquid-char is-space">
+                      {"\u00a0"}
+                    </span>
+                  ) : (
+                    <span
+                      key={`${ch}-${i}`}
+                      className="atlas-liquid-char"
+                      style={{ animationDelay: `${i * 0.07}s` }}
+                    >
+                      {ch}
+                    </span>
+                  ),
+                )
+              : inFlight
+                ? runningLabel
+                : idleLabel}
           </span>
         </span>
       </button>

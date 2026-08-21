@@ -126,13 +126,10 @@ body {
   position: relative;
   isolation: isolate;
   overflow: hidden;
-  color: #f4f0ff; /* soft white-lilac — readable on dark oil + iridescent film */
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-shadow:
-    0 1px 2px rgba(0, 0, 0, 0.95),
-    0 0 10px rgba(0, 0, 0, 0.85),
-    0 0 18px rgba(40, 20, 60, 0.75);
+  color: #f7f4ff;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-shadow: none; /* no muddy underlay — type is etched into the surface */
   border: none;
   border-radius: 999px;
   background: #0a0a12; /* deep cool underfill while canvas boots */
@@ -149,14 +146,62 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* rim removed */
-
 .atlas-launch-glow > .atlas-liquid-label {
   position: relative;
   z-index: 2;
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
+}
+
+/* Type cut into the oil film — light face, soft etch, gentle wave per letter */
+.atlas-liquid-type {
+  display: inline-flex;
+  align-items: baseline;
+  font-family: inherit;
+  font-weight: 650;
+  font-size: inherit;
+  letter-spacing: 0.055em;
+  line-height: 1;
+  -webkit-font-smoothing: antialiased;
+}
+.atlas-liquid-char {
+  display: inline-block;
+  color: rgba(252, 250, 255, 0.94);
+  /* etched metal: thin highlight above, hairline depth below — not a blob shadow */
+  text-shadow:
+    0 0.5px 0 rgba(255, 255, 255, 0.45),
+    0 -0.5px 0 rgba(20, 10, 40, 0.35);
+  mix-blend-mode: soft-light;
+  /* second pass for readability on dark oil */
+  -webkit-text-stroke: 0.2px rgba(255, 255, 255, 0.12);
+  animation: atlas-liquid-char-wave 5.2s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+.atlas-liquid-char.is-space {
+  width: 0.28em;
+  text-shadow: none;
+  -webkit-text-stroke: 0;
+  mix-blend-mode: normal;
+}
+@keyframes atlas-liquid-char-wave {
+  0%, 100% {
+    transform: translate3d(0, 0, 0) scale(1);
+    opacity: 0.92;
+  }
+  40% {
+    transform: translate3d(0, -0.6px, 0) scale(1.015);
+    opacity: 1;
+  }
+  70% {
+    transform: translate3d(0, 0.35px, 0) scale(0.995);
+    opacity: 0.95;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .atlas-liquid-char {
+    animation: none;
+  }
 }
 
 .atlas-launch-glow:hover {

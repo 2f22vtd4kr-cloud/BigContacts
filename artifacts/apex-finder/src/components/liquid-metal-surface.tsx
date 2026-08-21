@@ -86,13 +86,13 @@ void main() {
   col += violet * fres * 0.18;
   col += cyan * fres * 0.12;
 
-  /* gentle vignette so text stays readable in center */
-  float edge = smoothstep(0.0, 0.12, uv.x) * smoothstep(1.0, 0.88, uv.x)
-             * smoothstep(0.0, 0.18, uv.y) * smoothstep(1.0, 0.82, uv.y);
-  col *= 0.72 + 0.28 * edge;
-  /* darken mid band slightly for label contrast */
-  float mid = 1.0 - smoothstep(0.25, 0.5, abs(uv.y - 0.5));
-  col *= 1.0 - mid * 0.18;
+  /* soft vignette only — keep center bright so etched type needs no muddy shadow */
+  float edge = smoothstep(0.0, 0.1, uv.x) * smoothstep(1.0, 0.9, uv.x)
+             * smoothstep(0.0, 0.14, uv.y) * smoothstep(1.0, 0.86, uv.y);
+  col *= 0.82 + 0.18 * edge;
+  /* slight mid calm (not a dark band under the label) */
+  float mid = 1.0 - smoothstep(0.22, 0.48, abs(uv.y - 0.5));
+  col *= 1.0 - mid * 0.08;
 
   gl_FragColor = vec4(col, 1.0);
 }
