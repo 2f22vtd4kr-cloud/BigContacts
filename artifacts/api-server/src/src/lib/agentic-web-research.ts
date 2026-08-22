@@ -2025,9 +2025,9 @@ export async function runAgenticWebResearch(input: {
       history.push(`step${i + 1}: parse_fail — retry once`);
       const repair = await llmStep(
         `Your previous reply was not valid action JSON.\n` +
-        `Reply with ONE object only, e.g. {"action":"web_search","query":"..."} ` +
-        `or {"action":"visit","url":"https://..."} or {"action":"footprint_email","email":"..."} ` +
-        `or {"action":"footprint_username","username":"..."} or {"action":"done","findings":[...]}.\n` +
+        `Reply with ONE action object only. Allowed actions: web_search, visit, browser_fetch, ` +
+        `footprint_email, footprint_username, domain_lookup, harvest_domain, registry_search, reverse_whois, done.\n` +
+        `Example: {"action":"web_search","query":"...","thought":"..."}\n` +
         `Target: ${name}. Objective: ${objective.slice(0, 400)}\n` +
         `Last observation (trim):\n${lastObservation.slice(0, 1200)}\n` +
         `Bad reply was:\n${llm.raw.slice(0, 500)}`,
