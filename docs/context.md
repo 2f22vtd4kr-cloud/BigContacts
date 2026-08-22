@@ -6,7 +6,7 @@
 
 ## Prep for next Replit run (2026-08-22 evening)
 
-**Current tip:** `…` agent-first enrich — skip parallel AI OSINT when target agent already wrote the card; 300s dig budget.
+**Current tip:** `04bfa68` — agent-first enrich; skip parallel AI OSINT when card ready; 300s dig budget.
 
 ### Product contract (non-negotiable)
 | Rule | Meaning |
