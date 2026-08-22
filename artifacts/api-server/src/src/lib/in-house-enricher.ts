@@ -1520,11 +1520,16 @@ export async function enrichInHouse(entity: InHouseEnrichInput): Promise<InHouse
       source === "EDGAR-Phone" ||
       source === "EDGAR-Issuer-Phone" ||
       source === "CompaniesHouse-Phone";
-    // Never replace a notice-line phone with issuer/switchboard
+    const isAgentic =
+      typeof result.phoneSource === "string" &&
+      /^agentic-web/i.test(result.phoneSource);
+    // Never replace dig-promoted or notice-line phones with issuer switchboard
     if (
       result.phone &&
-      (result.phoneSource === "EDGAR-Notice-Phone" || result.phoneSource === "EDGAR-Notice") &&
-      isIssuer
+      isIssuer &&
+      (isAgentic ||
+        result.phoneSource === "EDGAR-Notice-Phone" ||
+        result.phoneSource === "EDGAR-Notice")
     ) {
       return;
     }
