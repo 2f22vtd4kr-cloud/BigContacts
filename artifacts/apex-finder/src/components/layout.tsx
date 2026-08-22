@@ -209,7 +209,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       )}
       <main className="relative flex min-w-0 flex-1 flex-col overflow-hidden">
         <div className="atlas-grid pointer-events-none absolute inset-0" />
-        <header className="relative z-20 flex h-14 shrink-0 items-center gap-2 border-b border-[#9CFF1A]/08 bg-[#111827]/95 pl-[max(1.125rem,env(safe-area-inset-left))] pr-[max(0.875rem,env(safe-area-inset-right))] pt-[env(safe-area-inset-top)] backdrop-blur-lg sm:gap-2.5 sm:px-5 md:h-16 md:px-6">
+        <header className="relative z-30 flex min-h-14 shrink-0 items-center gap-1.5 border-b border-[#9CFF1A]/08 bg-[#111827]/95 pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))] pt-[max(0.25rem,env(safe-area-inset-top))] backdrop-blur-lg sm:gap-2.5 sm:px-5 md:h-16 md:px-6">
           <div className="mr-1 flex min-w-0 items-center md:mr-0">
             {/* Outline home on mobile so it never collides with Pause/Stop pills */}
             <Link

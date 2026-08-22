@@ -2,7 +2,7 @@ import { getGetEntityGraphQueryKey, useGetEntityGraph, useListEntities, useCreat
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState, useMemo, useCallback, Component, type ReactNode, type ErrorInfo } from "react";
 import { useSearch, useLocation, Link } from "wouter";
-import ForceGraph2D, { ForceGraphMethods } from "react-force-graph-2d";
+import type { ForceGraphMethods } from "react-force-graph-2d";
 import { Network, ZoomIn, ZoomOut, Maximize, X, Search, ChevronDown, Filter, Shield, Plus, Link2, Loader2, ArrowLeft } from "lucide-react";
 import { cn, formatCurrency, formatEntityName, ScoreBadge } from "@/lib/utils";
 import { isMockMode, MOCK_ENTITIES } from "@/lib/dev-mock-data";
@@ -67,6 +67,21 @@ class GraphErrorBoundary extends Component<{ children: ReactNode }, { error: str
 }
 
 function GraphViewerInner() {
+  const [ForceGraph2D, setForceGraph2D] = useState<typeof import("react-force-graph-2d").default | null>(null);
+  const [graphLoadError, setGraphLoadError] = useState<string | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    import("react-force-graph-2d")
+      .then((mod) => {
+        if (!cancelled) setForceGraph2D(() => mod.default);
+      })
+      .catch((err: Error) => {
+        if (!cancelled) setGraphLoadError(err?.message || "Failed to load graph library");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   const search = useSearch();
   const [, setLocation] = useLocation();
   const params = useMemo(() => new URLSearchParams(search), [search]);
@@ -769,7 +784,20 @@ function GraphViewerInner() {
       )}
 
       {/* ── Force Graph ── */}
-      {width > 0 && gData.nodes.length > 0 && (
+      {graphLoadError && (
+        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-2 bg-background/90 px-4 text-center">
+          <Network className="h-8 w-8 text-muted-foreground" />
+          <p className="font-mono text-sm text-foreground">Connections graph unavailable</p>
+          <p className="text-[12px] text-muted-foreground">{graphLoadError}</p>
+          <Link href="/profiles" className="atlas-outline-btn rounded-lg px-3 py-1.5 font-mono text-[11px]">Back to ledger</Link>
+        </div>
+      )}
+      {!ForceGraph2D && !graphLoadError && width > 0 && (
+        <div className="absolute inset-0 z-20 flex items-center justify-center bg-background/80">
+          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+        </div>
+      )}
+      {ForceGraph2D && width > 0 && gData.nodes.length > 0 && (
         <ForceGraph2D
           ref={fgRef}
           width={width}
@@ -794,14 +822,13 @@ function GraphViewerInner() {
           onNodeRightClick={(node, event) => {
             event.preventDefault();
             const n = node as any;
-            if (!n.id?.startsWith("e:")) return; // only entity nodes
+            if (!n.id?.startsWith("e:")) return;
             setCtxMenu({ x: event.clientX, y: event.clientY, nodeId: n.id, nodeName: n.label ?? n.id });
           }}
           backgroundColor="transparent"
           nodeCanvasObjectMode={() => "replace"}
           nodeCanvasObject={(node, ctx, globalScale) => {
             const n = node as any;
-            // Draw the filled node circle ourselves (prevents library from rendering any default text inside)
             const baseR = n.isTarget ? 3 : n.isCentral ? 2 : 1;
             const r = Math.sqrt(baseR) * 6;
             ctx.beginPath();
@@ -814,11 +841,11 @@ function GraphViewerInner() {
           linkCanvasObjectMode={() => "after"}
           linkCanvasObject={(link: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
             if (!link.label || globalScale < 4.0) return;
-            const start = link.source;
-            const end = link.target;
-            if (!start || !end || typeof start !== "object" || typeof end !== "object") return;
-            const midX = ((start as any).x + (end as any).x) / 2;
-            const midY = ((start as any).y + (end as any).y) / 2;
+            const startN = link.source;
+            const endN = link.target;
+            if (!startN || !endN || typeof startN !== "object" || typeof endN !== "object") return;
+            const midX = ((startN as any).x + (endN as any).x) / 2;
+            const midY = ((startN as any).y + (endN as any).y) / 2;
             const fontSize = Math.min(3.5, 14 / globalScale);
             ctx.save();
             ctx.font = `${fontSize}px monospace`;

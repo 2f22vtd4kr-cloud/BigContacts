@@ -185,7 +185,11 @@ export function WorkspaceStatus() {
     system?.databases.postgres.status === "ok" &&
     (upstashHealthy || localRedisHealthy),
   );
-  const active = Boolean(atlas?.active);
+  const active = Boolean(
+    atlas?.active ||
+    atlas?.status === "running" ||
+    atlas?.status === "paused"
+  );
   const schedulerEnabled = Boolean(atlas?.scheduler?.enabled);
   const schedulerActive = Boolean(atlas?.scheduler?.active);
   const noAiCapacity = Boolean(system && summary.configured > 0 && summary.active === 0);

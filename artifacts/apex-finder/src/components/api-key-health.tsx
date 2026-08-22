@@ -1,6 +1,8 @@
 /**
  * Compact header chip: API key / provider health.
  * Soft-fails offline so the shell still renders.
+ * Falls back to /api/healthz when /api/system/status is slow or fails —
+ * so Overview never shows KEYS OFF while the ledger shows 5 LIVE.
  */
 import { useEffect, useState } from "react";
 import { KeyRound, Loader2 } from "lucide-react";
@@ -12,9 +14,30 @@ const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
 type ChipState = "loading" | "ok" | "degraded" | "offline";
 
+async function countLiveFromHealthz(): Promise<number | null> {
+  try {
+    const r = await fetch(`${BASE}/api/healthz`, { cache: "no-store" });
+    if (!r.ok) return null;
+    const j = await r.json();
+    const p = j.providers ?? {};
+    const lanes = j.lanesHonesty ?? {};
+    // Prefer explicit provider counts; fall back to lanes
+    let n = 0;
+    for (const k of ["groq", "gemini", "tavily", "exa", "mistral", "nvidiaNim", "serper"] as const) {
+      const v = p[k] ?? lanes[k];
+      if (typeof v === "number" && v > 0) n += v;
+    }
+    if (n === 0 && typeof lanes.webSearchActive === "number") n += lanes.webSearchActive;
+    if (n === 0 && typeof lanes.agenticLlmSlots === "number") n += lanes.agenticLlmSlots;
+    return n;
+  } catch {
+    return null;
+  }
+}
+
 export function ApiKeyHealth({ className }: { className?: string }) {
   const [state, setState] = useState<ChipState>("loading");
-  const [label, setLabel] = useState("KEYS…");
+  const [label, setLabel] = useState("KEYS");
 
   useEffect(() => {
     let cancelled = false;
@@ -23,22 +46,33 @@ export function ApiKeyHealth({ className }: { className?: string }) {
         const status = await fetchSystemStatus(BASE || "");
         if (cancelled) return;
         const summary = summarizeApiKeys(status);
-        if (summary.active > 0 && summary.rateLimited === 0) {
-          setState("ok");
+        if (summary.active > 0) {
+          setState(summary.rateLimited > 0 ? "degraded" : "ok");
           setLabel(`${summary.active} LIVE`);
-        } else if (summary.active > 0) {
-          // Some keys live, some limited — show live count, not cryptic LTD
-          setState("degraded");
-          setLabel(`${summary.active} LIVE`);
-        } else if (summary.configured > 0 || summary.rateLimited > 0) {
+          return;
+        }
+        if (summary.configured > 0 || summary.rateLimited > 0) {
           setState("degraded");
           setLabel("LIMITED");
-        } else {
-          setState("offline");
-          setLabel("KEYS OFF");
+          return;
         }
+        // system/status returned but no AI pool slots — try healthz (Serper/Mistral/NVIDIA live)
+        const hz = await countLiveFromHealthz();
+        if (cancelled) return;
+        if (hz != null && hz > 0) {
+          setState("ok");
+          setLabel(`${hz} LIVE`);
+          return;
+        }
+        setState("offline");
+        setLabel("KEYS OFF");
       } catch {
-        if (!cancelled) {
+        const hz = await countLiveFromHealthz();
+        if (cancelled) return;
+        if (hz != null && hz > 0) {
+          setState("ok");
+          setLabel(`${hz} LIVE`);
+        } else {
           setState("offline");
           setLabel("KEYS OFF");
         }
