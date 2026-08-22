@@ -663,9 +663,15 @@ Return ONLY JSON:
     /* fall through */
   }
 
-  // 4) True last resort — budget/stop only via rules (not a research playbook)
+  // 4) True last resort — stop, do not run hard-coded research ladder
   return {
-    action: selectNextAdaptiveAction(state, maxActions),
+    action: {
+      kind: "stop_review",
+      lane: null,
+      subject: state.targetName,
+      reason: "Boss, right-hand, and Groq unavailable — stop rather than script research",
+      signature: `stop:no-model:${state.completedActions.length}`,
+    },
     assignedBy: "rules",
   };
 }
