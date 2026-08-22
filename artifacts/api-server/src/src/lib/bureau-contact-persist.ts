@@ -9,6 +9,7 @@ import { sanitizePublicEmail, sanitizePublicPhone, isTrashContactValue } from ".
 import { logger } from "./logger";
 import { resolveResearchDepth } from "./research-depth";
 import { publishBureauEvent } from "./bureau-live-log";
+import { computeContactOutcome } from "./contact-confidence";
 import { apexOrientationCompact } from "./apex-bureau-orientation";
 
 export type BureauContactLike = {
@@ -260,7 +261,6 @@ export async function persistBureauContactsForEntity(
   if (!rows.length) return 0;
   try {
     await db.insert(contactEvidenceTable).values(rows).onConflictDoNothing();
-    return rows.length;
   } catch (err) {
     logger.warn(
       { err: err instanceof Error ? err.message : String(err), entityId, count: rows.length },
@@ -268,6 +268,184 @@ export async function persistBureauContactsForEntity(
     );
     return 0;
   }
+
+  // Dig bag → card: promote best non-issuer phone/email onto the entity so
+  // free agentic findings are not stranded as evidence_only while EDGAR-Phone stays.
+  try {
+    await promoteBureauContactsToEntityCard(entityId, items, source);
+  } catch (err) {
+    logger.debug(
+      { err: err instanceof Error ? err.message : String(err), entityId },
+      "promoteBureauContactsToEntityCard skipped",
+    );
+  }
+  return rows.length;
+}
+
+const ISSUER_PHONE_SOURCES = new Set([
+  "EDGAR-Phone",
+  "EDGAR-Issuer-Phone",
+  "CompaniesHouse-Phone",
+]);
+
+function isGenericLocal(email: string): boolean {
+  const local = (email.split("@")[0] ?? "").toLowerCase();
+  return /^(info|contact|office|press|hello|admin|sales|support|enquir(?:y|ies)|ir|media)$/i.test(local);
+}
+
+/**
+ * Promote the best dig-sourced phone/email onto entities.* when better than
+ * issuer switchboard (EDGAR-Phone) or empty. Never invents — only values in items.
+ */
+async function promoteBureauContactsToEntityCard(
+  entityId: number,
+  items: readonly BureauContactLike[],
+  source: string,
+): Promise<void> {
+  const entRows = await db
+    .select({
+      id: entitiesTable.id,
+      type: entitiesTable.type,
+      email: entitiesTable.email,
+      phone: entitiesTable.phone,
+      phoneSource: entitiesTable.phoneSource,
+      linkedinUrl: entitiesTable.linkedinUrl,
+      twitterHandle: entitiesTable.twitterHandle,
+      instagramHandle: entitiesTable.instagramHandle,
+      telegramHandle: entitiesTable.telegramHandle,
+      personalWebsite: entitiesTable.personalWebsite,
+      metadata: entitiesTable.metadata,
+    })
+    .from(entitiesTable)
+    .where(eq(entitiesTable.id, entityId))
+    .limit(1);
+  const ent = entRows[0];
+  if (!ent) return;
+
+  let bestPhone: { value: string; source: string } | null = null;
+  let bestEmail: { value: string; source: string } | null = null;
+  let bestLinkedin: string | null = null;
+  let bestWebsite: string | null = null;
+
+  for (const item of items) {
+    if (String(item.state ?? "").toLowerCase() === "rejected") continue;
+    const vt = String(item.vectorType ?? "").toLowerCase();
+    const value = typeof item.value === "string" ? item.value.trim() : "";
+    if (!value) continue;
+    const scope = String(item.scope ?? item.tier ?? "").toLowerCase();
+    const orgish =
+      scope.includes("organization") ||
+      scope.includes("org") ||
+      scope.includes("issuer");
+    const urls = Array.isArray(item.sourceUrls)
+      ? item.sourceUrls.filter((u) => typeof u === "string" && /^https?:\/\//i.test(u))
+      : [];
+    const hasUrl = urls.length > 0;
+    const srcLabel =
+      source.startsWith("secondary") || source.includes("agentic")
+        ? "agentic-web"
+        : source.slice(0, 40);
+
+    if (vt === "phone" || vt === "tel") {
+      // Prefer non-org; still allow firm HQ from dig over blank/issuer
+      const score = (orgish ? 1 : 3) + (hasUrl ? 1 : 0);
+      const prev = bestPhone ? (bestPhone.source.includes("org") ? 1 : 3) : -1;
+      if (!bestPhone || score >= prev) {
+        bestPhone = { value, source: orgish ? `${srcLabel}-org` : srcLabel };
+      }
+    } else if (vt === "email") {
+      if (isGenericLocal(value) && orgish) continue;
+      const score = (isGenericLocal(value) || orgish ? 1 : 3) + (hasUrl ? 1 : 0);
+      if (!bestEmail || score >= 2) {
+        bestEmail = { value, source: orgish || isGenericLocal(value) ? `${srcLabel}-org` : srcLabel };
+      }
+    } else if (vt === "linkedin" && value.includes("linkedin.com") && !bestLinkedin) {
+      bestLinkedin = value.startsWith("http") ? value : `https://${value.replace(/^\/+/, "")}`;
+    } else if ((vt === "website" || vt === "domain") && !bestWebsite) {
+      bestWebsite = value.startsWith("http") ? value : `https://${value.replace(/^\/+/, "")}`;
+    }
+  }
+
+  const curPhoneSrc = String(ent.phoneSource ?? "");
+  const issuerLocked = ISSUER_PHONE_SOURCES.has(curPhoneSrc);
+  const patch: Record<string, unknown> = { updatedAt: new Date() };
+  let changed = false;
+
+  if (bestPhone) {
+    const allowPhone =
+      !ent.phone ||
+      issuerLocked ||
+      curPhoneSrc === "" ||
+      curPhoneSrc === "EDGAR-Phone";
+    if (allowPhone && bestPhone.value !== ent.phone) {
+      patch.phone = bestPhone.value;
+      patch.phoneSource = bestPhone.source.endsWith("-org")
+        ? "agentic-web-org"
+        : "agentic-web";
+      changed = true;
+    }
+  }
+
+  if (bestEmail) {
+    const allowEmail = !ent.email || issuerLocked;
+    if (allowEmail && bestEmail.value !== ent.email) {
+      patch.email = bestEmail.value;
+      changed = true;
+    }
+  }
+
+  if (bestLinkedin && !ent.linkedinUrl) {
+    patch.linkedinUrl = bestLinkedin;
+    changed = true;
+  }
+
+  let meta: Record<string, unknown> = {};
+  try {
+    meta = ent.metadata ? (JSON.parse(ent.metadata) as Record<string, unknown>) : {};
+  } catch {
+    meta = {};
+  }
+  if (bestEmail) {
+    meta.emailSource = bestEmail.source.endsWith("-org") ? "agentic-web-org" : "agentic-web";
+  }
+  if (bestWebsite && !meta.website && !ent.personalWebsite) {
+    meta.website = bestWebsite;
+    patch.personalWebsite = bestWebsite;
+  }
+  if (bestWebsite || bestEmail) {
+    patch.metadata = JSON.stringify(meta);
+    changed = true;
+  }
+
+  if (!changed) return;
+
+  const outcome = computeContactOutcome({
+    type: ent.type,
+    email: (patch.email as string) ?? ent.email,
+    phone: (patch.phone as string) ?? ent.phone,
+    phoneSource: (patch.phoneSource as string) ?? ent.phoneSource,
+    emailSource: typeof meta.emailSource === "string" ? meta.emailSource : null,
+    linkedinUrl: (patch.linkedinUrl as string) ?? ent.linkedinUrl,
+    twitterHandle: ent.twitterHandle,
+    instagramHandle: ent.instagramHandle,
+    telegramHandle: ent.telegramHandle,
+    website: typeof meta.website === "string" ? meta.website : ent.personalWebsite,
+    metadata: (patch.metadata as string) ?? ent.metadata,
+  });
+  patch.contactOutcome = outcome;
+
+  await db.update(entitiesTable).set(patch).where(eq(entitiesTable.id, entityId));
+  logger.info(
+    {
+      entityId,
+      phone: patch.phone,
+      email: patch.email,
+      phoneSource: patch.phoneSource,
+      contactOutcome: outcome,
+      source,
+    },
+    "[Bureau] Promoted dig contacts onto entity card",
+  );
 }
 
 type DiscoveryCandidateContactSource = {
