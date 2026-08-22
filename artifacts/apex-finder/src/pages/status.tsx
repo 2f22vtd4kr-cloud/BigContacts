@@ -359,7 +359,10 @@ export default function SystemStatusPage() {
             )} />
             <span className="min-w-0 text-[13px] font-semibold leading-snug tracking-tight text-stone-100 break-words">
               {totalActive > 0
-                ? `${totalActive} AI pool slot${totalActive === 1 ? "" : "s"} live (Groq · Perplexity · Gemini · Tavily · Exa)`
+                ? `${totalActive} AI pool slot${totalActive === 1 ? "" : "s"} live (${aiProviders
+                    .filter((k) => (status.ai[k]?.filter((s) => s.state === "active").length ?? 0) > 0)
+                    .map((k) => PROVIDER_LABELS[k] ?? k)
+                    .join(" · ")})`
                 : "No AI pool keys live — check Secrets and restart API"}
             </span>
           </div>

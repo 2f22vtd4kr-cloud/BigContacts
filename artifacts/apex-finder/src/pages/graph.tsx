@@ -1,6 +1,6 @@
 import { getGetEntityGraphQueryKey, useGetEntityGraph, useListEntities, useCreateRelationship } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useEffect, useRef, useState, useMemo, useCallback } from "react";
+import { useEffect, useRef, useState, useMemo, useCallback, Component, type ReactNode, type ErrorInfo } from "react";
 import { useSearch, useLocation, Link } from "wouter";
 import ForceGraph2D, { ForceGraphMethods } from "react-force-graph-2d";
 import { Network, ZoomIn, ZoomOut, Maximize, X, Search, ChevronDown, Filter, Shield, Plus, Link2, Loader2, ArrowLeft } from "lucide-react";
@@ -39,7 +39,34 @@ function useGraphContainerSize() {
   return size;
 }
 
-export default function GraphViewer() {
+
+/** Prevent force-graph / WebGL failures from blanking the entire desk shell. */
+class GraphErrorBoundary extends Component<{ children: ReactNode }, { error: string | null }> {
+  state = { error: null as string | null };
+  static getDerivedStateFromError(err: Error) {
+    return { error: err?.message || "Graph failed to render" };
+  }
+  componentDidCatch(err: Error, info: ErrorInfo) {
+    console.error("[GraphViewer]", err, info);
+  }
+  render() {
+    if (this.state.error) {
+      return (
+        <div className="flex min-h-[50vh] flex-col items-center justify-center gap-3 px-6 text-center">
+          <Network className="h-8 w-8 text-muted-foreground" />
+          <p className="font-mono text-sm text-foreground">Connections view could not start</p>
+          <p className="max-w-md text-[12px] text-muted-foreground">{this.state.error}</p>
+          <Link href="/profiles" className="atlas-outline-btn rounded-lg px-3 py-1.5 font-mono text-[11px]">
+            Back to ledger
+          </Link>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+function GraphViewerInner() {
   const search = useSearch();
   const [, setLocation] = useLocation();
   const params = useMemo(() => new URLSearchParams(search), [search]);
@@ -1046,5 +1073,13 @@ export default function GraphViewer() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+export default function GraphViewer() {
+  return (
+    <GraphErrorBoundary>
+      <GraphViewerInner />
+    </GraphErrorBoundary>
   );
 }
