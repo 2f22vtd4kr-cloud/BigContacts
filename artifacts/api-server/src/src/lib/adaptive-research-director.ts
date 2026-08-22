@@ -545,7 +545,7 @@ function parseFreeBossStep(
 async function selectNextAdaptiveActionWithBoss(
   state: AdaptiveResearchState,
   maxActions: number,
-): Promise<{ action: AdaptiveAction; assignedBy: "gemini-boss" | "nvidia-right-hand" | "rules" }> {
+): Promise<{ action: AdaptiveAction; assignedBy: "gemini-boss" | "nvidia-right-hand" | "groq" | "rules" }> {
   if (state.completedActions.length >= maxActions || state.noProgressPasses >= state.depth.noProgressLimit) {
     return {
       action: selectNextAdaptiveAction(state, maxActions),
@@ -618,7 +618,52 @@ Return ONLY JSON:
     /* fall through */
   }
 
-  // 3) Last resort only — hard-coded ladder
+  // 3) Groq free step — still model-led, not the rules ladder
+  try {
+    const keys = ["GROQ_API_KEY", ...Array.from({ length: 5 }, (_, i) => `GROQ_API_KEY_${i + 1}`)]
+      .map((n) => process.env[n] ?? "")
+      .filter((k) => k.length > 0);
+    if (keys.length) {
+      const { GROQ_CHAT_MODELS } = await import("./groq-models");
+      outer: for (const key of keys) {
+        for (const model of GROQ_CHAT_MODELS) {
+          try {
+            const resp = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+              method: "POST",
+              headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+              body: JSON.stringify({
+                model,
+                temperature: 0.3,
+                max_tokens: 1024,
+                response_format: { type: "json_object" },
+                messages: [
+                  {
+                    role: "system",
+                    content:
+                      "You are a free web research director. Reply with ONE JSON object only: thought, tool, query, stop.",
+                  },
+                  { role: "user", content: prompt },
+                ],
+              }),
+              signal: AbortSignal.timeout(35_000),
+            });
+            if (!resp.ok) continue;
+            const data = (await resp.json()) as { choices?: Array<{ message?: { content?: string } }> };
+            const raw = data.choices?.[0]?.message?.content?.trim() ?? "";
+            if (!raw) continue;
+            const choice = parseFreeBossStep(raw, state);
+            if (choice) return { action: choice, assignedBy: "groq" };
+          } catch {
+            continue;
+          }
+        }
+      }
+    }
+  } catch {
+    /* fall through */
+  }
+
+  // 4) True last resort — budget/stop only via rules (not a research playbook)
   return {
     action: selectNextAdaptiveAction(state, maxActions),
     assignedBy: "rules",
