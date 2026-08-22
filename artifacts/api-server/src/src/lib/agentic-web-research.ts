@@ -1903,6 +1903,7 @@ export async function runAgenticWebResearch(input: {
           const email = m[1]!.toLowerCase().replace(/[),.;]+$/, "");
           if (!email.includes("@")) continue;
           if (/example\.|sentry\.|schema\.|wixpress|cloudflare|wordpress|github\.com|google\.com/i.test(email)) continue;
+          if (!src.length || !/^https?:\/\//i.test(src[0] || "")) continue; // fail-closed: need page URL
           if (input.companyName && !isCompanyAlignedEmail(email, input.companyName, src[0])) continue;
           if (findings.some((f) => f.vectorType === "email" && f.value === email)) continue;
           const local = email.split("@")[0] || "";
