@@ -1185,8 +1185,8 @@ export function buildDiscoveryCaseFile(input: {
   const bossPremise = walletFirst
     ? (
         walletPlanText
-          ? `Wallet-first discovery.\n${walletPlanText}\nAfter holder attribution, maximize people-contacts. Fail-closed. Match docs/GOLDEN_STANDARD_CASE_REFERENCE.md shape after person lock.`
-          : "Wallet-first discovery. Attribute any crypto-wallet holder from public sources before contact hops. Reject exchange/mixer/treasuries. Never invent holder or contacts. Match docs/GOLDEN_STANDARD_CASE_REFERENCE.md after attribution."
+          ? `Wallet-first discovery.\n${walletPlanText}\nAfter holder attribution, maximize people-contacts. Fail-closed. After person lock, recover public people-contacts with exact source URLs.`
+          : "Wallet-first discovery. Attribute any crypto-wallet holder from public sources before contact hops. Reject exchange/mixer/treasuries. Never invent holder or contacts. After attribution, recover public people-contacts with exact source URLs."
       )
     : "Start broad. Discover realistic public-world investor routes before resolving any one target in depth. " +
       "Company-first public surface: recover org contact routes and related people from primary sources with exact URLs. Never invent contacts. Never mark org inboxes Personal.";

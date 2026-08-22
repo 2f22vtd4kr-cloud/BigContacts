@@ -1642,16 +1642,43 @@ export async function runAgenticWebResearch(input: {
     });
     const llm = await llmStep(prompt);
     if (!llm) {
-      return {
-        status: i === 0 ? "unavailable" : "completed",
-        model: modelUsed,
-        iterations: i,
-        searches,
-        visits,
-        findings,
-        trajectory: history,
-        error: i === 0 ? "No Gemini/Groq key available for agentic loop" : undefined,
-      };
+      // All chat LLMs failed — thin deterministic recovery (not a research playbook).
+      history.push(`step${i + 1}: llm_all_failed — deterministic recovery`);
+      modelUsed = modelUsed === "none" ? "deterministic" : modelUsed;
+      if (searches === 0) {
+        const q = input.companyName ? `"${name}" "${input.companyName}"` : `"${name}"`;
+        searches++;
+        history.push(`step${i + 1}: det_search ${q}`);
+        const sr = await toolWebSearch(q);
+        for (const u of sr.urls) {
+          if (u.startsWith("http") && !candidateUrls.includes(u)) candidateUrls.push(u);
+        }
+        seedCompanyContactPaths(sr.urls);
+        const peopleHits = findingsFromPeopleSnippet(sr.text, sr.urls, input.companyName || name);
+        if (peopleHits.length) findings = mergeFindings(findings, peopleHits);
+        const snippetEmails = findingsFromSearchSnippet(sr.text, sr.urls, input.companyName || name);
+        if (snippetEmails.length) findings = mergeFindings(findings, snippetEmails);
+        lastObservation =
+          `DETERMINISTIC SEARCH (no LLM): ${q}\nURLs: ${sr.urls.slice(0, 8).join(" | ")}\n\n${sr.text.slice(0, MAX_OBS)}`;
+      }
+      if (candidateUrls.some((u) => !visitedUrls.has(u))) {
+        await detVisitNext(`step${i + 1}`);
+      }
+      if (i >= maxIter - 1 || (searches >= 2 && visits >= 1) || findings.length > 0) {
+        return {
+          status: findings.length ? "completed" : (i === 0 ? "unavailable" : "error"),
+          model: modelUsed,
+          iterations: i + 1,
+          searches,
+          visits,
+          findings,
+          trajectory: history,
+          error: findings.length
+            ? undefined
+            : (i === 0 ? "No agentic LLM key available" : "All agentic LLMs failed; recovery produced no findings"),
+        };
+      }
+      continue;
     }
     modelUsed = llm.model;
     let action = parseAction(llm.raw);

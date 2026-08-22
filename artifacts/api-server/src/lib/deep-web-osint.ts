@@ -327,73 +327,23 @@ async function scrapePage(url: string): Promise<ScrapeResult> {
 // ─── Query Builder ────────────────────────────────────────────────────────────
 
 function buildQueries(entity: DeepWebOsintInput): string[] {
+  // Seed only — not a contact/registry playbook.
   const meta = safeJson<Record<string, unknown>>(entity.metadata, {});
   const name = normaliseName(entity.name.trim());
   if (!name || name.length < 4) return [];
-
-  // Skip address-named HMLR entries (e.g. "23 High Street London")
   if (/^\d+\s/.test(name) || /\b(flat|house|cottage|manor|farm|apartment)\s+\d/i.test(name)) return [];
 
-  const isIndividual = entity.type === "HNWI" || entity.type === "Gatekeeper" ||
-    /^[A-Z][a-z]+ [A-Z]/.test(name);
-  const isCorp = !isIndividual;
-
-  const queries: string[] = [];
-
-  if (isIndividual) {
-    // Core contact queries
-    queries.push(`"${name}" email contact`);
-    queries.push(`"${name}" linkedin`);
-
-    // Aviation context — N-number and aircraft type are strong identifiers
-    const nNumber = typeof meta["nNumber"] === "string" ? meta["nNumber"] as string : null;
-    if (nNumber) {
-      queries.push(`"${nNumber}" aircraft owner contact email`);
-      queries.push(`"${name}" pilot aviation email`);
-    }
-
-    // Company / filing context
-    const companyName = typeof meta["companyName"] === "string" ? (meta["companyName"] as string).trim() : null;
-    if (companyName && companyName !== name) {
-      queries.push(`"${name}" "${companyName.substring(0, 40)}" contact`);
-    } else if (typeof meta["formType"] === "string") {
-      // EDGAR-sourced entity — professional investor context
-      queries.push(`"${name}" investor director SEC contact email`);
-    }
-
-    // Geographic context — narrows to the right person
-    const bizLocation = typeof meta["bizLocation"] === "string" ? meta["bizLocation"] as string : null;
-    const residences = safeJson<string | string[]>(entity.knownResidences, []);
-    const firstResidence = Array.isArray(residences) ? residences[0] : residences;
-    const geoContext = bizLocation || (typeof firstResidence === "string" ? firstResidence : null);
-    if (geoContext) {
-      const city = geoContext.split(",")[0]?.trim();
-      if (city && city.length > 2 && city !== name) {
-        queries.push(`"${name}" "${city}" contact email phone`);
-      }
-    }
+  const queries: string[] = [`"${name}"`];
+  const companyName = typeof meta["companyName"] === "string" ? (meta["companyName"] as string).trim() : null;
+  const nNumber = typeof meta["nNumber"] === "string" ? (meta["nNumber"] as string) : null;
+  if (companyName && companyName !== name) queries.push(`"${name}" "${companyName.substring(0, 48)}"`);
+  if (nNumber) queries.push(`"${nNumber}"`);
+  const bizLocation = typeof meta["bizLocation"] === "string" ? (meta["bizLocation"] as string) : null;
+  if (bizLocation) {
+    const city = bizLocation.split(",")[0]?.trim();
+    if (city && city.length > 2) queries.push(`"${name}" "${city}"`);
   }
-
-  if (isCorp) {
-    // Strip legal suffix for cleaner search
-    const clean = name
-      .replace(/\b(llc|ltd|limited|corp|corporation|inc|incorporated|group|holdings|trust|co)\b\.?$/gi, "")
-      .trim();
-
-    queries.push(`"${name}" CEO director email contact`);
-    queries.push(`"${clean}" registered office contact phone`);
-    queries.push(`"${name}" head office address`);
-
-    // CH-registered companies
-    const chId = typeof meta["chId"] === "string" ? meta["chId"] as string : null;
-    if (chId || /uk|ltd|plc/i.test(entity.sourceRegistries ?? "")) {
-      queries.push(`site:companies-house.gov.uk "${clean}"`);
-    }
-
-    queries.push(`"${name}" management team email`);
-  }
-
-  return queries.slice(0, 7);
+  return [...new Set(queries)].slice(0, 4);
 }
 
 // ─── Cross-validation scoring ─────────────────────────────────────────────────
