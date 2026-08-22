@@ -343,15 +343,11 @@ export async function enrichEntityOsint(entity: EntityOsintInput): Promise<Osint
     if (typeof meta.companyName === "string" && meta.companyName.trim()) companyName = meta.companyName.trim();
   } catch { /* ignore */ }
 
-  // Step 1: LinkedIn — person, person+company, company
+  // Step 1: LinkedIn seed search
   try {
     const liQueries = isIndividual
-      ? [
-          companyName ? `"${name}" "${companyName}" site:linkedin.com/in` : null,
-          `"${name}" site:linkedin.com/in`,
-          `${name} linkedin profile`,
-        ].filter(Boolean) as string[]
-      : [`"${name}" company linkedin`, `${name} linkedin`];
+      ? ([companyName ? `"${name}" "${companyName}"` : null, `"${name}"`].filter(Boolean) as string[])
+      : [`"${name}"`];
     for (const liQuery of liQueries) {
       if (result.linkedinUrl) break;
       const ddgResult = await ddgInstantAnswer(liQuery);
@@ -366,15 +362,11 @@ export async function enrichEntityOsint(entity: EntityOsintInput): Promise<Osint
 
   await sleep(300);
 
-  // Step 2: Multi-angle email/contact HTML search (Grok-parity person+company first)
+  // Step 2: Seed contact search (plain name/company — not a platform checklist)
   try {
     const emailQueries = isIndividual
-      ? [
-          companyName ? `"${name}" "${companyName}" (email OR contact OR phone)` : null,
-          `"${name}" email contact site:linkedin.com OR site:bloomberg.com OR site:crunchbase.com`,
-          companyName ? `"${companyName}" (contact OR "about us" OR team) (email OR phone)` : null,
-        ].filter(Boolean) as string[]
-      : [`"${name}" contact email official`, `"${name}" ("about us" OR team OR leadership) contact`];
+      ? ([companyName ? `"${name}" "${companyName}"` : null, `"${name}"`].filter(Boolean) as string[])
+      : [`"${name}"`];
     for (const emailQuery of emailQueries) {
       const html = await ddgHtmlSearch(emailQuery, locale);
       if (!html) { await sleep(250); continue; }
@@ -3248,7 +3240,7 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
 
         // ── Targeted personal LinkedIn search ───────────────────────────────
         try {
-          const liQuery = `"${personName}" site:linkedin.com/in`;
+          const liQuery = `"${personName}"`;
           const liSr = await duckduckgoSearch(liQuery, locale);
           result.queriesFired++;
           const liUrl = extractLinkedIn(liSr.text)
