@@ -897,32 +897,7 @@ export async function expandSecondaryPublicSurface(input: {
 
     // Agentic ReAct loop — LLM invents queries/visits (not a playbook). Same model class as
     // Live search/visit tools. Fail-closed: findings need sourceUrls.
-    // Free target agent: model owns the dig; card is the answer (not only evidence bag)
-    try {
-      const { runTargetContactAgent } = await import("./target-contact-agent");
-      const agent = await runTargetContactAgent({
-        entityId: input.entityId,
-        targetName: name,
-        companyName: input.companyName ?? null,
-        jobId: input.jobId,
-      });
-      logger.info(
-        {
-          entityId: input.entityId,
-          status: agent.status,
-          model: agent.model,
-          findings: agent.findings,
-          phone: agent.phone,
-          outcome: agent.contactOutcome,
-        },
-        "[Atlas] Target contact agent finished",
-      );
-      if (agent.phone) out.phone = true;
-      if (agent.email) out.email = true;
-    } catch (err: any) {
-      logger.warn({ entityId: input.entityId, err: err?.message }, "[Atlas] Target contact agent skipped (non-fatal)");
-    }
-
+    // Deterministic secondary tools only here — free dig is runTargetContactAgent in enrichEntityFullCircle.
     // Always persist + promote (empty vectors still rehydrate from contact_evidence)
     await persistBureauContactsForEntity(
       input.entityId,
