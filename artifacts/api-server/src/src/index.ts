@@ -3,6 +3,7 @@ import { logger } from "./lib/logger";
 import { connectRedis, connectPermanentRedis, disconnectRedis } from "./lib/redis";
 import { coldStartRecovery } from "./lib/startup";
 import { getAIKeyStatus } from "./lib/ai-extractor";
+import { buildLanesHonestySnapshot } from "./lib/lanes-honesty";
 
 const rawPort = process.env["PORT"] ?? "8080";
 const parsedPort = Number(rawPort);
@@ -36,6 +37,7 @@ const server = app.listen(port, (err) => {
     const status = getAIKeyStatus();
     const countActive = (slots: Array<{ state: string }>) =>
       slots.filter((s) => s.state === "active").length;
+    const lanes = buildLanesHonestySnapshot();
     logger.info(
       {
         groq: countActive(status.groq),
@@ -43,17 +45,24 @@ const server = app.listen(port, (err) => {
         perplexity: countActive(status.perplexity),
         tavily: countActive(status.tavily),
         exa: countActive(status.exa),
+        serper: lanes.serper,
+        mistral: lanes.mistral,
+        nvidiaNim: lanes.nvidiaNim,
+        agenticLlmSlots: lanes.agenticLlmSlots,
+        webSearchActive: lanes.webSearchActive,
+        bureauIntegrity: lanes.bureauIntegrity,
       },
       "AI provider keys loaded (active slots)",
     );
-    if (
-      countActive(status.groq) === 0 &&
-      countActive(status.gemini) === 0 &&
-      countActive(status.tavily) === 0 &&
-      countActive(status.exa) === 0
-    ) {
+    if (lanes.bureauIntegrity === "critical") {
       logger.warn(
-        "No AI/search provider keys active in this process — OSINT depth will be registry-only until secrets are present and API is restarted",
+        { reasons: lanes.bureauIntegrityReasons },
+        "bureauIntegrity=critical — do not compare research quality until search + agentic LLM slots are live (restart API after adding secrets)",
+      );
+    } else if (lanes.bureauIntegrity === "degraded") {
+      logger.warn(
+        { reasons: lanes.bureauIntegrityReasons },
+        "bureauIntegrity=degraded — some lanes missing",
       );
     }
   } catch (e: any) {

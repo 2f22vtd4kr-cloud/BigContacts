@@ -39,8 +39,11 @@ let lastRequestAt = 0;
 let requestQueue = Promise.resolve();
 
 function getMistralKey(): string | null {
-  const value = process.env.MISTRAL_API_KEY?.trim();
-  return value || null;
+  return (
+    process.env.MISTRAL_API_KEY?.trim()
+    || process.env.MISTRAL_KEY?.trim()
+    || null
+  );
 }
 
 export function getMistralWebSearchStatus() {
