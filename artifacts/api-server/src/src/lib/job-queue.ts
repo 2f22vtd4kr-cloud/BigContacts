@@ -65,6 +65,12 @@ export type AutoPipelineSchedulerStatus = {
 };
 
 const JOB_TTL = 60 * 60 * 24 * 7;
+/** Process-local fallback when permanent Redis is exhausted/disconnected. */
+const memoryJobs = new Map<string, JobState>();
+const memoryLogs = new Map<string, string[]>();
+const memoryLatestByType = new Map<string, string>();
+const memoryActiveByType = new Map<string, string>();
+
 const LOG_CAP = 200;
 const AUTO_PIPELINE_SCHEDULER_KEY = "apex:autopipeline:scheduler";
 
@@ -79,15 +85,38 @@ export async function createJob(type: string): Promise<string> {
     startedAt: new Date().toISOString(),
     message: "Queued",
   };
-  await safeRedis(async rc => {
+  memoryJobs.set(jobId, { ...state });
+  memoryLatestByType.set(type, jobId);
+  const wrote = await safeRedis(async rc => {
     await rc.hset(jk(jobId), state as any);
     await rc.expire(jk(jobId), JOB_TTL);
     await rc.set(`apex:latestjob:${type}`, jobId, "EX", JOB_TTL);
-  }, undefined);
+    return true;
+  }, false as boolean);
+  if (!wrote) {
+    logger.warn({ jobId, type }, "createJob: permanent Redis unavailable — using in-memory job state");
+  }
   return jobId;
 }
 
 export async function updateJob(jobId: string, patch: Partial<JobState>): Promise<void> {
+  const prev = memoryJobs.get(jobId);
+  if (prev) memoryJobs.set(jobId, { ...prev, ...patch });
+  else if (patch.jobId || patch.type) {
+    memoryJobs.set(jobId, {
+      jobId,
+      type: String(patch.type ?? "unknown"),
+      status: (patch.status as JobStatus) ?? "running",
+      progress: Number(patch.progress ?? 0),
+      inserted: Number(patch.inserted ?? 0),
+      skipped: Number(patch.skipped ?? 0),
+      errors: Number(patch.errors ?? 0),
+      total: Number(patch.total ?? 0),
+      startedAt: String(patch.startedAt ?? new Date().toISOString()),
+      message: String(patch.message ?? ""),
+      ...patch,
+    } as JobState);
+  }
   const flat: Record<string, string> = {};
   for (const [k, v] of Object.entries(patch)) if (v !== undefined) flat[k] = String(v);
   await safeRedis(async rc => {
@@ -106,6 +135,9 @@ export async function clearJobFields(jobId: string, fields: string[]): Promise<v
 
 export async function appendJobLog(jobId: string, line: string): Promise<void> {
   const ts = `${new Date().toISOString()} ${line}`;
+  const mem = memoryLogs.get(jobId) ?? [];
+  mem.unshift(ts);
+  memoryLogs.set(jobId, mem.slice(0, LOG_CAP));
   await safeRedis(async rc => {
     await rc.lpush(lk(jobId), ts);
     await rc.ltrim(lk(jobId), 0, LOG_CAP - 1);
@@ -119,7 +151,9 @@ export async function appendJobLog(jobId: string, line: string): Promise<void> {
 
 export async function getJob(jobId: string): Promise<JobState | null> {
   const raw = await safeRedis(rc => rc.hgetall(jk(jobId)), null);
-  if (!raw || Object.keys(raw).length === 0) return null;
+  if (!raw || Object.keys(raw).length === 0) {
+    return memoryJobs.get(jobId) ?? null;
+  }
   return {
     jobId: raw["jobId"] ?? jobId,
     type: raw["type"] ?? "unknown",
@@ -155,7 +189,9 @@ export async function getJob(jobId: string): Promise<JobState | null> {
 }
 
 export async function getJobLog(jobId: string): Promise<string[]> {
-  return safeRedis(rc => rc.lrange(lk(jobId), 0, LOG_CAP - 1), []);
+  const fromRedis = await safeRedis(rc => rc.lrange(lk(jobId), 0, LOG_CAP - 1), null as string[] | null);
+  if (fromRedis && fromRedis.length) return fromRedis;
+  return memoryLogs.get(jobId) ?? [];
 }
 
 const DEDUP_KEY = "apex:dedup:hnwi";
@@ -204,11 +240,15 @@ export async function batchMarkSeen(keys: string[]): Promise<void> {
 }
 
 export async function setActiveJob(type: string, jobId: string): Promise<void> {
+  memoryActiveByType.set(type, jobId);
+  memoryLatestByType.set(type, jobId);
   await safeRedis(rc => rc.set(`apex:activejob:${type}`, jobId, "EX", JOB_TTL), null);
 }
 
 export async function getActiveJob(type: string): Promise<string | null> {
-  return safeRedis(rc => rc.get(`apex:activejob:${type}`), null);
+  const fromRedis = await safeRedis(rc => rc.get(`apex:activejob:${type}`), null as string | null);
+  if (fromRedis) return fromRedis;
+  return memoryActiveByType.get(type) ?? null;
 }
 
 export async function getLatestJob(type: string): Promise<JobState | null> {
@@ -241,6 +281,10 @@ export async function getLatestJob(type: string): Promise<JobState | null> {
     await rc.set(pointerKey, latestId, "EX", JOB_TTL);
     return getJob(latestId);
   }, null);
+  // Memory fallback when permanent Redis is down
+  const mid = memoryLatestByType.get(type);
+  if (mid) return getJob(mid);
+  return null;
 }
 
 export async function updateAutoPipelineScheduler(
@@ -278,6 +322,7 @@ export async function getAutoPipelineScheduler(): Promise<AutoPipelineSchedulerS
 }
 
 export async function clearActiveJob(type: string): Promise<void> {
+  memoryActiveByType.delete(type);
   await safeRedis(rc => rc.del(`apex:activejob:${type}`), null);
 }
 

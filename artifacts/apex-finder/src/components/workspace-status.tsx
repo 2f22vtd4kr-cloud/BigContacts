@@ -278,11 +278,19 @@ export function WorkspaceStatus() {
       </button>
 
       {open && (
+        <>
+        {/* Backdrop closes panel without blocking Launch forever */}
+        <button
+          type="button"
+          className="fixed inset-0 z-40 bg-black/40 sm:bg-transparent"
+          aria-label="Close workspace status"
+          onClick={() => setOpen(false)}
+        />
         <div
           id="workspace-status-panel"
           role="dialog"
           aria-label="Whole workspace status"
-          className="fixed left-2 right-2 top-[4.5rem] z-50 max-h-[calc(100dvh-6rem)] overflow-y-auto rounded-xl border border-border bg-popover p-4 shadow-2xl shadow-black/50 backdrop-blur-xl sm:absolute sm:left-auto sm:right-0 sm:top-[calc(100%+0.5rem)] sm:max-h-none sm:w-[min(390px,calc(100vw-2rem))]"
+          className="absolute right-0 top-[calc(100%+0.4rem)] z-50 max-h-[min(70dvh,520px)] w-[min(390px,calc(100vw-1rem))] overflow-y-auto rounded-xl border border-border bg-popover p-4 shadow-2xl shadow-black/50 backdrop-blur-xl"
         >
           <div className="flex items-start justify-between gap-4 border-b border-border/60 pb-3">
             <div className="flex min-w-0 items-start gap-2.5">
@@ -295,6 +303,14 @@ export function WorkspaceStatus() {
                 <p className="mt-1 max-w-[260px] text-[11px] leading-4 text-muted-foreground">{copy.detail}</p>
               </div>
             </div>
+            <button
+              type="button"
+              className="shrink-0 rounded-md px-2 py-1 font-mono text-[10px] text-muted-foreground hover:bg-muted hover:text-foreground"
+              onClick={() => setOpen(false)}
+              aria-label="Close"
+            >
+              Close
+            </button>
             <div className="shrink-0 text-right">
               <div className={cn("font-mono text-xl font-bold", copy.className)}>
                 {active ? phaseLabel(atlas) : schedulerEnabled ? "AUTO" : "—"}
@@ -357,6 +373,7 @@ export function WorkspaceStatus() {
             </div>
           </div>
         </div>
+        </>
       )}
     </div>
   );
