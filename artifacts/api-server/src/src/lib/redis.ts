@@ -85,6 +85,9 @@ export async function connectRedis(): Promise<void> {
  * Reads REDIS_URL_1, REDIS_URL_2, … REDIS_URL_9 in order; stops at first missing key.
  */
 export async function connectPermanentRedis(): Promise<void> {
+  // Fresh connect: do not inherit sticky exhausted from a previous process lifetime
+  _quotaExhaustedSlots.clear();
+
   for (let i = 1; i <= 9; i++) {
     const url = process.env[`REDIS_URL_${i}`];
     if (!url) break;
@@ -144,6 +147,50 @@ export function isSlotQuotaExhausted(slot: number): boolean {
   return _quotaExhaustedSlots.has(slot - 1);
 }
 
+/** Clear sticky exhausted flags (e.g. after daily reset or false mark). */
+export function clearQuotaExhaustedSlots(): void {
+  if (_quotaExhaustedSlots.size === 0) return;
+  _quotaExhaustedSlots.clear();
+  logger.info("Cleared sticky Redis quota-exhausted slot flags");
+}
+
+let _lastQuotaRecoverAt = 0;
+
+/**
+ * Re-probe slots marked exhausted. Upstash "max requests" is often daily and
+ * recovers; our flag was sticky for the whole process and lied as 0/5 forever.
+ * Throttled to avoid hammering.
+ */
+export async function tryRecoverExhaustedSlots(): Promise<number> {
+  if (_quotaExhaustedSlots.size === 0) return 0;
+  const now = Date.now();
+  if (now - _lastQuotaRecoverAt < 30_000) return 0;
+  _lastQuotaRecoverAt = now;
+  let recovered = 0;
+  for (const idx of [..._quotaExhaustedSlots]) {
+    const client = _permanentClients[idx];
+    if (!client || client.status !== "ready") continue;
+    try {
+      const pong = await Promise.race([
+        client.ping(),
+        new Promise<string>((_, rej) => setTimeout(() => rej(new Error("ping-timeout")), 2500)),
+      ]);
+      if (String(pong).toUpperCase() === "PONG") {
+        _quotaExhaustedSlots.delete(idx);
+        recovered += 1;
+        logger.info({ slot: idx + 1 }, "Redis slot recovered from sticky exhausted flag");
+      }
+    } catch (err: any) {
+      if (String(err?.message || "").includes("max requests limit exceeded")) {
+        // still truly capped
+        continue;
+      }
+      // other errors: leave marked, do not clear
+    }
+  }
+  return recovered;
+}
+
 /**
  * Mark a specific client instance as quota-exhausted.
  * Call this when a command-level ReplyError "max requests limit exceeded" is caught
@@ -169,6 +216,10 @@ export async function withPermanentClient<T>(
   command: RedisCommand<T>,
   fallback: T,
 ): Promise<T> {
+  // Opportunistic recovery of sticky "exhausted" flags before picking a client
+  if (_quotaExhaustedSlots.size > 0) {
+    void tryRecoverExhaustedSlots();
+  }
   const attempted = new Set<Redis>();
   for (;;) {
     const client = getPermanentClient();
