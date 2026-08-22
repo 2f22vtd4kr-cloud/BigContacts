@@ -75,6 +75,7 @@ export async function runBureauAgenticWebPass(input: {
   maxIterations?: number;
   entityId?: number;
   persist?: boolean;
+  shouldCancel?: () => boolean | Promise<boolean>;
 }): Promise<BureauAgenticPassResult> {
   const name = (input.targetName ?? "").trim();
   if (name.length < 2) {
@@ -112,6 +113,7 @@ export async function runBureauAgenticWebPass(input: {
         ?? `Find publicly documented contact routes for ${name}${input.companyName ? ` related to ${input.companyName}` : ""}. Multi-hop. Visit primary pages. Never invent.`,
       maxIterations: input.maxIterations ?? 18,
       hardTimeoutMs: 210_000,
+      shouldCancel: input.shouldCancel,
     });
 
     const contactEvidence = findingsToContactEvidence(agentic.findings);

@@ -1735,6 +1735,8 @@ export async function runAgenticWebResearch(input: {
   maxIterations?: number;
   /** Hard wall-clock timeout (ms). On expiry return whatever findings were already accumulated. Default 210s. */
   hardTimeoutMs?: number;
+  /** Operator stop — checked each ReAct step. */
+  shouldCancel?: () => boolean | Promise<boolean>;
 }): Promise<AgenticWebResearchResult> {
   const name = input.targetName.trim();
   if (name.length < 2) {
@@ -1745,7 +1747,7 @@ export async function runAgenticWebResearch(input: {
   const hardTimeoutMs = Math.max(30_000, input.hardTimeoutMs ?? 210_000);
   const startedAt = Date.now();
   let objective = input.objective
-    ?? `Find publicly documented contact routes (email, phone, LinkedIn, website, related people) for ${name}${input.companyName ? ` related to ${input.companyName}` : ""}. Be thorough and creative.`;
+    ?? `Find publicly documented contact routes for ${name}${input.companyName ? ` related to ${input.companyName}` : ""}. Be thorough and creative; invent queries and use OSINT tools when useful. Never invent contacts.`;
 
   // Wallet-first seed: if objective/target carries a wallet, prepend fail-closed attribution plan
   {
@@ -1945,6 +1947,27 @@ export async function runAgenticWebResearch(input: {
       };
     }
 
+    if (input.shouldCancel) {
+      try {
+        const cancel = await input.shouldCancel();
+        if (cancel) {
+          history.push(`step${i + 1}: cancelled_by_operator findings=${findings.length}`);
+          salvageEmailsFromHistory();
+          return {
+            status: "completed",
+            model: modelUsed,
+            iterations: i,
+            searches,
+            visits,
+            findings,
+            trajectory: history,
+            error: "cancelled by operator (partial findings preserved)",
+          };
+        }
+      } catch {
+        /* ignore cancel probe errors */
+      }
+    }
 
     // Model-led only. detVisitNext only on all-LLM-fail recovery.
 
@@ -2173,11 +2196,18 @@ export async function runAgenticWebResearch(input: {
         const hr = await runTheHarvester(action.domain);
         const emails = (hr.emails ?? []).slice(0, 20);
         const hosts = (hr.hosts ?? hr.subdomains ?? []).slice(0, 15);
+        for (const h of hosts) {
+          const host = String(h).replace(/^https?:\/\//i, "").replace(/\/.*$/, "").trim();
+          if (!host || !host.includes(".")) continue;
+          const u = `https://${host}`;
+          if (!candidateUrls.includes(u)) candidateUrls.push(u);
+        }
         lastObservation =
           `HARVEST_DOMAIN ${action.domain}\n` +
           (hr.error ? `Error: ${hr.error}\n` : "") +
           `Emails (${emails.length}): ${emails.join(", ") || "none"}\n` +
-          `Hosts (${hosts.length}): ${hosts.join(", ") || "none"}`;
+          `Hosts (${hosts.length}): ${hosts.join(", ") || "none"}` +
+          (hosts.length ? " (queued for optional visit)" : "");
         for (const e of emails) {
           const clean = sanitizePublicEmail(e);
           if (!clean || isTrashContactValue("email", clean)) continue;

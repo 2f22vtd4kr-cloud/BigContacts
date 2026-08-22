@@ -60,3 +60,4 @@
 - Final review: Gemini → NVIDIA final-card → capacity fallback
 - Fail-closed contacts (http(s) sources); salvage requires page URL
 - Scripts only if **all** dig LLMs fail a step
+- Dig loop honors operator cancel between steps (partial findings kept)
