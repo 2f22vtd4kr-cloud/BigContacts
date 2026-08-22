@@ -246,18 +246,46 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
     }
     return list;
   }, [deskEvents, showHistory, historyFilter, historyQuery]);
-  // Live desk: only steps for the current target (no Wanzek steps while viewing Scripps)
+  // Live desk: current target only; drop stale "done" windows; inject telemetry when bureau tail is old
   const liveEvents = React.useMemo(() => {
     if (showHistory) return filteredDeskEvents;
     const current =
       atlasState?.atlasTelemetry?.targetName
       || atlasState?.targetName
       || [...deskEvents].reverse().find((e: any) => e?.targetName && !/complete|done/i.test(String(e?.status || "")))?.targetName;
-    const scoped = current
+    const now = Date.now();
+    let scoped = current
       ? deskEvents.filter((e: any) => !e?.targetName || e.targetName === current)
       : deskEvents;
-    return scoped.slice(-6);
-  }, [showHistory, filteredDeskEvents, deskEvents, atlasState?.atlasTelemetry?.targetName, atlasState?.targetName]);
+    // While Atlas is live, ignore events older than 3 minutes so "Window 6 of 6 · done" from an hour ago dies
+    if (isLive) {
+      scoped = scoped.filter((e: any) => {
+        if (!e?.timestamp) return true;
+        const ts = Date.parse(String(e.timestamp));
+        if (!Number.isFinite(ts)) return true;
+        return now - ts < 180_000;
+      });
+    }
+    const out = scoped.slice(-6);
+    // If live but desk only has finished/stale steps, surface the live phase as one active window
+    const tel = atlasState?.atlasTelemetry as any;
+    const allDone = out.length > 0 && out.every((e: any) => /complete|done|success/i.test(String(e?.status || "")));
+    if (isLive && tel?.targetName && (out.length === 0 || allDone)) {
+      out.push({
+        timestamp: new Date().toISOString(),
+        kind: "log",
+        stage: tel.stage || atlasState?.detail || "Research",
+        status: "active",
+        targetName: tel.targetName,
+        activeToolId: tel.activeToolId,
+        toolIds: Array.isArray(tel.toolIds) ? tel.toolIds : [],
+        inputSummary: tel.inputSummary,
+        resultSummary: tel.resultSummary,
+        story: tel.story || tel.inputSummary || tel.stage,
+      } as any);
+    }
+    return out;
+  }, [showHistory, filteredDeskEvents, deskEvents, atlasState?.atlasTelemetry, atlasState?.targetName, atlasState?.detail, isLive]);
 
   // Discrete polite announcements: arming → first scene → REACH (no per-tick spam)
   React.useEffect(() => {

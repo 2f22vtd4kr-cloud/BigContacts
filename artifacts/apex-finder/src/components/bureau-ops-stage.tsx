@@ -1231,7 +1231,14 @@ function MobileWorkstage({
   }, [goNext, goPrev, pauseForReading, paused, scenes.length]);
 
 
-  if (!scene) return null;
+  if (!scene) {
+    return (
+      <div className="rounded-lg border border-stone-700/50 bg-stone-900/40 px-3 py-4 text-center" data-testid="desk-empty">
+        <p className="font-mono text-[11px] text-stone-400">No live tool windows yet</p>
+        <p className="mt-1 text-[10px] text-stone-600">Waiting for search, visit, or registry steps…</p>
+      </div>
+    );
+  }
 
   return (
     <div
