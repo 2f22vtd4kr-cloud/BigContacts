@@ -721,6 +721,7 @@ function WindowChrome({
 function GoogleScene({ scene, compact }: { scene: Scene; compact?: boolean }) {
   const q = scene.query || scene.targetName || "owner contact email";
   const typed = useTyped(q, scene.live, 44);
+  const hits = (scene.resultLines.length ? scene.resultLines : ["Looking through public search results…"]).slice(0, compact ? 2 : 3);
   return (
     <WindowChrome
       title="Google Search"
@@ -731,10 +732,11 @@ function GoogleScene({ scene, compact }: { scene: Scene; compact?: boolean }) {
       favicon={<ProviderIcon kind="google" size={compact ? 12 : 14} />}
       urlBar={`google.com/search?q=${encodeURIComponent(q).slice(0, 48)}`}
     >
-      <div className="space-y-2">
+      <div className="space-y-2.5">
+        {/* Search box — browser imitation */}
         <div className="flex items-center gap-2">
           <ProviderIcon kind="google" size={compact ? 18 : 22} />
-          <div className="flex-1 rounded-full border border-stone-600 bg-[#141414] px-3 py-2 flex items-center gap-2 min-w-0">
+          <div className="flex-1 rounded-full border border-stone-600 bg-[#141414] px-3 py-2 flex items-center gap-2 min-w-0 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
             <span className={`text-stone-100 flex-1 truncate ${compact ? "text-[12px]" : "text-[13px]"}`}>
               {typed}
               {scene.live && typed.length < q.length && (
@@ -744,12 +746,22 @@ function GoogleScene({ scene, compact }: { scene: Scene; compact?: boolean }) {
             <span className="text-[10px] text-[#b8ff4d]/80 font-mono shrink-0">Search</span>
           </div>
         </div>
-        {(scene.resultLines.length ? scene.resultLines : ["Looking through public search results…"]).slice(0, compact ? 2 : 3).map((line, i) => (
-          <div key={i} className="rounded-lg bg-[#111827] border border-[#9CFF1A]/08 px-2.5 py-1.5">
-            <div className="text-[9px] text-lime-500/80 font-mono mb-0.5">finding {i + 1}</div>
-            <div className={`text-stone-200 leading-snug ${compact ? "text-[11px]" : "text-[12px]"}`}>{line}</div>
-          </div>
-        ))}
+        {/* SERP-style result cards */}
+        <div className="space-y-2 border-t border-white/5 pt-2">
+          {hits.map((line, i) => (
+            <div key={i} className="group rounded-md px-1 py-1 hover:bg-white/[0.03]">
+              <div className={`font-medium leading-snug text-[#8ab4f8] ${compact ? "text-[12px]" : "text-[13px]"}`}>
+                {line.slice(0, 90)}{line.length > 90 ? "…" : ""}
+              </div>
+              <div className="mt-0.5 font-mono text-[9px] text-emerald-500/70 truncate">
+                public source · result {i + 1}
+              </div>
+              {!compact && line.length > 40 && (
+                <div className="mt-0.5 text-[11px] leading-snug text-stone-400 line-clamp-2">{line}</div>
+              )}
+            </div>
+          ))}
+        </div>
       </div>
     </WindowChrome>
   );
@@ -1290,7 +1302,12 @@ function MobileWorkstage({
               : motionOrNone(`${slideDir === 1 ? "sceneSlideLeft" : "sceneSlideRight"} ${REACTOR_SCENE_MS}ms cubic-bezier(0.22,1,0.36,1) both`),
           }}
         >
-          <SceneCard scene={scene} compact />
+          {scene.narration ? (
+            <div className="sticky top-0 z-10 -mx-0.5 mb-2 backdrop-blur-sm">
+              <RightHandNarration text={scene.narration} compact />
+            </div>
+          ) : null}
+          <SceneCard scene={{ ...scene, narration: undefined }} compact />
         </div>
       </div>
 
@@ -1411,9 +1428,33 @@ export function BureauOpsStage({
       : raw;
     const list = scoped
       .map((e, i) => toScene(e, i, providerSlots))
-      .filter((s) => s.story || s.resultLines.length || s.query || s.prompt || s.url);
+      .filter((s) => s.story || s.resultLines.length || s.query || s.prompt || s.url || s.narration);
+
+    // Fold right-hand narration events onto the previous tool scene so the
+    // desk shows AI voice *on* the Google/browser/registry chrome (desktop + mobile).
+    const folded: Scene[] = [];
+    for (const s of list) {
+      const isNarrationOnly =
+        Boolean(s.narration)
+        && (s.kind === "boss" || s.title === "Team briefing")
+        && !s.query
+        && !s.url
+        && !s.prompt
+        && s.resultLines.length === 0;
+      if (isNarrationOnly && folded.length > 0) {
+        const prev = folded[folded.length - 1]!;
+        folded[folded.length - 1] = {
+          ...prev,
+          narration: s.narration || prev.narration,
+          story: s.narration || prev.story,
+        };
+        continue;
+      }
+      folded.push(s);
+    }
+
     // Chronological: last N steps only (past + current — never invented future)
-    return list.slice(-maxScenes);
+    return folded.slice(-maxScenes);
   }, [events, maxScenes, providerSlots]);
 
   // Hooks must run unconditionally (before any early return).
@@ -1429,7 +1470,7 @@ export function BureauOpsStage({
     return (
       <div className={`rounded-xl border border-dashed border-[#9CFF1A]/20 bg-[#0d1219]/50 ${compact ? "p-3" : "p-5"}`}>
         <div className="text-[10px] font-mono uppercase tracking-[0.2em] text-stone-500 mb-1">{title}</div>
-        <div className="text-[12px] text-stone-400">Idle — tool windows appear here when Atlas runs a step.</div>
+        <div className="text-[12px] text-stone-400">Idle — tool windows and right-hand live narration appear here when Atlas runs a step (desktop + mobile).</div>
       </div>
     );
   }
@@ -1482,13 +1523,18 @@ export function BureauOpsStage({
                 <span className="text-[9px] font-mono text-stone-500 shrink-0">{i + 1}</span>
                 <ActivityGlyphMini kind={s.kind} live={s.live} terminal={s.terminal} />
                 <span className="text-[9px] font-mono text-stone-300 truncate min-w-0">{s.title}</span>
+                {s.narration && (
+                  <span className="shrink-0 rounded px-1 py-px text-[7px] font-mono font-bold tracking-wide text-violet-100 bg-violet-500/40 border border-violet-300/30" title="Right-hand narration">
+                    RH
+                  </span>
+                )}
                 {s.live && (
                   <span className="shrink-0 rounded px-1 py-px text-[8px] font-mono font-bold tracking-wide text-[#111827] bg-[#9CFF1A]">
                     NOW
                   </span>
                 )}
               </div>
-              <StoryLine story={s.story} className="text-[10px] text-stone-300 leading-snug" />
+              <StoryLine story={s.narration || s.story} className="text-[10px] text-stone-300 leading-snug" />
             </button>
           );
         })}

@@ -843,9 +843,9 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
               </div>
               <div className="mt-2 max-w-xs text-[12px] leading-relaxed text-stone-500">
                 {isLive
-                  ? "Atlas is running. Lines below will say what it is doing — like “Now: searching Google for …”."
+                  ? "Atlas is running. Tool windows and right-hand live narration will appear as each step happens."
                   : showHistory
-                    ? "When Atlas runs, every search, page read, and extraction for this target is archived here for review."
+                    ? "When Atlas runs, every search, page read, extraction, and right-hand narration for this target is archived here."
                     : atlasState?.runStatus === "done"
                       ? "Summary metrics are above. Open History after the next run to review each tool step."
                       : "When Atlas runs, each line starts with Now or Done so you can see the work at a glance."}

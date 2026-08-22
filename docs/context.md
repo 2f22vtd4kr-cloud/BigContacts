@@ -6,7 +6,16 @@
 
 ## Prep for next Replit run (2026-08-22)
 
-**Current tip:** latest `main` — multi-stage audit (browser_fetch visits, whois queue, fail-closed salvage, integrity soft gate). See `docs/PRE_REPLIT_GO.md`.
+**Current tip:** `586fc86`+ — right-hand **live adaptive narration** on Reactor Live Desk (desktop + mobile). Free research path + integrity gate unchanged. See `docs/PRE_REPLIT_GO.md`.
+
+### Reactor Live Desk (desktop + mobile)
+- **Who narrates:** right-hand (NVIDIA), **not** Boss — Boss stays on orchestration.
+- **What:** short adaptive under-the-hood prose (1–2 sentences) per research step; rate-limited, non-blocking.
+- **Where:** violet **“Right-hand · live”** on each tool scene; narration folds onto Google / browser / SERP / registry / footprint chrome.
+- **Desktop:** Live Desk grid + step rail shows **RH** pip when narration is present.
+- **Mobile:** same scenes via swipeable workstage; sticky narration strip while scrolling the tool window.
+- **Data:** `publishBureauEvent` → `scheduleBureauLiveNarration` → `BUREAU|` log lines → Reactor `parseAtlasEventLog` → `BureauOpsStage`.
+- **Requires:** `NVIDIA_NIM_API_KEY` (or alias) for narration; tool chrome still works without it.
 
 ### What “free research” means (non-negotiable)
 - **Agentic ReAct:** the model chooses every `web_search` / `visit` / `done`. No `force_*` gap-fill machine.
@@ -22,6 +31,7 @@
 ### Tip chain (free research — 2026-08-22)
 | Commit | Point |
 |--------|--------|
+| `586fc86`+ | **Reactor:** right-hand live adaptive narration; desk scenes desktop+mobile |
 | latest | **registry_search** + **domain_lookup** as model-chosen tools; free investigator prompt
 | `a4c1345` / `d99c151` | footprint tools; wallet seeds; budget-exit salvage
 | `42e3134` | deep-web Bing seed queries
