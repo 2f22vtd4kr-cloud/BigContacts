@@ -254,11 +254,7 @@ async function scrapeContactEmail(website: string): Promise<ContactPageResult> {
       tld === "de" || tld === "at" ? "de-DE,de;q=0.9,en;q=0.8" :
       tld === "it" ? "it-IT,it;q=0.9,en;q=0.8" :
       tld === "es" ? "es-ES,es;q=0.9,en;q=0.8" : "en-US,en;q=0.9";
-    const paths = [
-      "", "/contact", "/contact-us", "/about", "/team", "/equipe",
-      "/nous-contacter", "/kontakt", "/impressum", "/contatti", "/contacto",
-      "/about-us", "/who-we-are", "/management", "/staff",
-    ];
+    const paths = ["", "/contact", "/about", "/team"];
     let found: ContactPageResult = { email: null, linkedinUrl: null, instagramUrl: null, twitterUrl: null };
     for (const path of paths) {
       try {
@@ -1977,6 +1973,7 @@ export function buildDeepWebQueries(
   city: string | null,
   country: string | null,
 ): { queries: string[]; domainTargets: string[] } {
+  // Seed queries only — not a research playbook. Agentic ReAct invents the real dig.
   const legalName = normaliseName(entity.name.trim());
   if (!legalName || legalName.length < 4) return { queries: [], domainTargets: [] };
 
@@ -1984,123 +1981,32 @@ export function buildDeepWebQueries(
     return { queries: [], domainTargets: [] };
   }
 
-  const isIndividual = entity.type === "HNWI" || entity.type === "Gatekeeper" ||
-    /^[A-Z][a-z]+ [A-Z]/.test(legalName);
-  const isCorp = !isIndividual;
   const meta = safeJson<Record<string, unknown>>(entity.metadata, {});
-  const relatedOrganizations = extractRelatedOrganizationNames(
-    entity.knownResidences,
-    entity.metadata,
-    entity.notes,
-  );
-
   const queries: string[] = [];
   const domainTargets: string[] = [];
 
-  const isFrench  = country === "FR" || country === "BE" || country === "MC";
-  const isGerman  = country === "DE" || country === "AT" || country === "CH";
-  const isItalian = country === "IT";
-  const isSpanish = country === "ES";
-
-  if (isIndividual) {
-    queries.push(`"${legalName}" email contact`);
-    queries.push(`"${legalName}" linkedin`);
-
-    const nNumber = typeof meta["nNumber"] === "string" ? meta["nNumber"] as string : null;
-    if (nNumber) {
-      queries.push(`"${nNumber}" aircraft owner contact email`);
-      queries.push(`"${legalName}" pilot aviation email`);
-    }
-
-    const companyName = typeof meta["companyName"] === "string" ? (meta["companyName"] as string).trim() : null;
-    if (companyName && companyName !== legalName) {
-      queries.push(`"${legalName}" "${companyName.substring(0, 40)}" contact`);
-    } else if (typeof meta["formType"] === "string") {
-      queries.push(`"${legalName}" investor director SEC contact email`);
-    }
-
-    if (city && city !== legalName) {
-      queries.push(`"${legalName}" ${city} contact email phone`);
-    }
-
-    if (isFrench) {
-      queries.push(`"${legalName}" contact email France`);
-    }
+  const trade = (tradingName || legalName).trim();
+  queries.push(`"${trade}"`);
+  if (trade !== legalName) queries.push(`"${legalName}"`);
+  if (city && city.length > 2 && !trade.toLowerCase().includes(city.toLowerCase())) {
+    queries.push(`"${trade}" "${city}"`);
   }
+  const companyName = typeof meta["companyName"] === "string" ? (meta["companyName"] as string).trim() : null;
+  if (companyName && companyName !== legalName && companyName !== trade) {
+    queries.push(`"${legalName}" "${companyName.substring(0, 40)}"`);
+  }
+  const nNumber = typeof meta["nNumber"] === "string" ? (meta["nNumber"] as string) : null;
+  if (nNumber) queries.push(`"${nNumber}"`);
 
-  if (isCorp) {
-    // Use TRADING name for all queries — not the raw legal name
-    // Legal name ("BAOLI SAS") never appears in press, venue guides, or social profiles
-    // Trading name ("Baoli Cannes") is what the public knows
-
-    // Guard: when the trading name already contains the city ("Baoli Cannes"),
-    // don't generate "${tradingName} ${city}" queries — they produce "Baoli Cannes Cannes …"
-    const tradingHasCity = !!(city && tradingName.toLowerCase().includes(city.toLowerCase()));
-
-    // A legal property/holding vehicle often has no useful public team page.
-    // Resolve the parent/operator before spending the rest of the budget on
-    // generic directories; this is the path that surfaces real decision-makers.
-    for (const related of relatedOrganizations) {
-      queries.push(`"${related}" official team leadership management contact`);
-      queries.push(`"${related}" CEO director executive email phone`);
-      queries.push(`"${legalName}" "${related}" operator parent management`);
-      domainTargets.push(...guessRelatedOrganizationDomains(related, country, city));
-    }
-    // Primary target searches follow the structure handoff. Keeping these
-    // after the operator branch prevents a legal SPV's generic directory hits
-    // from consuming the bounded query budget first.
-    if (tradingName !== legalName) {
-      queries.push(`"${tradingName}" contact email`);
-      if (city && !tradingHasCity) queries.push(`"${tradingName}" ${city} contact email`);
-    }
-    // Always include legal name as fallback for corporate directory hits
-    queries.push(`"${legalName}" contact email`);
-    queries.push(`"${legalName}" parent company operating company fund manager executive contact`);
-    queries.push(`"${tradingName}" parent group CEO director email phone`);
-
-    // City-context queries (high yield for local hospitality/venue targets)
-    if (city && !tradingHasCity) {
-      queries.push(`${tradingName} ${city} email réservations contact`);
-      queries.push(`${tradingName} ${city} owner founder manager`);
-    }
-
-    // Language-specific templates
-    if (isFrench) {
-      queries.push(`"${tradingName}" contact réservations email`);
-      queries.push(`"${tradingName}" propriétaire fondateur dirigeant`);
-      if (city && !tradingHasCity) queries.push(`${tradingName} ${city} fondateur email`);
-    }
-    if (isGerman) {
-      queries.push(`"${tradingName}" Kontakt email Inhaber Geschäftsführer`);
-      queries.push(`"${tradingName}" Gründer Eigentümer`);
-    }
-    if (isItalian) {
-      queries.push(`"${tradingName}" contatti email fondatore titolare`);
-    }
-    if (isSpanish) {
-      queries.push(`"${tradingName}" contacto email fundador propietario`);
-    }
-
-    // English fallback
-    queries.push(`"${tradingName}" CEO owner founder contact`);
-
-    // LinkedIn company page — surfaces /company/<slug> URL via snippet
-    queries.push(`"${tradingName}" linkedin`);
-
-    // VC / PE firms: explicitly search for partners and GPs by name
-    queries.push(`"${tradingName}" general partner managing partner team`);
-    queries.push(`"${tradingName}" partners founders site:crunchbase.com OR site:pitchbook.com OR site:linkedin.com`);
-
-    // Domain guessing — add to direct scrape targets, not search queries
+  try {
     const domains = guessCompanyDomainWithCity(legalName, city);
-    domainTargets.push(...domains.slice(0, 4));
+    domainTargets.push(...domains.slice(0, 3));
+  } catch {
+    /* optional */
   }
 
   return {
-    // Structure and operator queries must run before generic contact queries.
-    // The first ten searches are the useful research plan, not an arbitrary
-    // provider-shaped sample.
-    queries: [...new Set(queries)].slice(0, 20),
+    queries: [...new Set(queries)].slice(0, 5),
     domainTargets: [...new Set(domainTargets)],
   };
 }
