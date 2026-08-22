@@ -1031,14 +1031,29 @@ async function llmStep(prompt: string): Promise<{ model: string; raw: string } |
   return null;
 }
 
+function formatFindingsBag(findings: AgenticFinding[]): string {
+  if (!findings.length) return "(none yet)";
+  return findings
+    .slice(0, 20)
+    .map((f) => {
+      const who = f.personName ? ` person=${f.personName}` : "";
+      const role = f.role ? ` role=${f.role}` : "";
+      const src = f.sourceUrls[0] ? ` src=${f.sourceUrls[0]}` : "";
+      return `- ${f.vectorType}: ${f.value}${who}${role} (${f.scope})${src}`;
+    })
+    .join("\n");
+}
+
 function buildStepPrompt(input: {
   targetName: string;
   companyName?: string | null;
   objective: string;
   history: string[];
   lastObservation: string;
+  findings?: AgenticFinding[];
 }): string {
   // Keep this short. Models already know how to research; do not ship a playbook.
+  const bag = formatFindingsBag(input.findings ?? []);
   return `You are running an agentic web research loop for Apex Atlas.
 You have the same class of research ability as a strong general agent, plus live tools below.
 Invent your own queries and visits from the objective and observations. No fixed search checklist.
@@ -1053,9 +1068,12 @@ TOOLS (exactly one JSON action per turn):
 3) {"action":"done","findings":[{"vectorType":"email|phone|linkedin|website|social|other","value":"...","personName":null,"role":null,"scope":"organization|candidate","sourceUrls":["https://exact-page"],"note":"..."}],"thought":"..."}
 
 Rules:
-- Never invent emails, phones, people, or URLs. Only values visible in observations, each with a real sourceUrl.
+- Never invent emails, phones, people, or URLs. Only values visible in observations or FINDINGS SO FAR, each with a real sourceUrl.
 - Prefer primary sources over aggregators (ZoomInfo, RocketReach, etc.).
-- When finished, action=done with all findings collected.
+- When finished, action=done. You may pass findings:[] if FINDINGS SO FAR already holds the contacts — the runtime keeps the bag.
+
+FINDINGS SO FAR (already extracted — do not drop these):
+${bag}
 
 TRAJECTORY SO FAR (recent):
 ${(input.history.length > 14 ? input.history.slice(-14) : input.history).join("\n") || "(start)"}
@@ -2345,6 +2363,7 @@ export async function runAgenticWebResearch(input: {
       objective,
       history,
       lastObservation,
+      findings,
     });
     const llm = await llmStep(prompt);
     if (!llm) {
