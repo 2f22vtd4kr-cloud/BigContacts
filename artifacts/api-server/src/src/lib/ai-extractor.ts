@@ -247,7 +247,7 @@ export async function runFinalTargetReview(
               {
                 role: "system",
                 content:
-                  "You are covering final card review because Gemini Boss and NVIDIA right-hand were unavailable. ONE JSON object only. Never invent.",
+                  apexOrientationFor("boss") + "\nCovering final card review because Boss and right-hand were unavailable. ONE JSON object only. Never invent.",
               },
               { role: "user", content: prompt },
             ],
@@ -456,7 +456,11 @@ function buildPrompt(text: string, entityName: string, entityType: string, count
   const truncated = text.slice(0, 7000);
   const isOrg = entityType === "Corporation" || entityType === "Trust";
 
-  return `You are the ownership-resolution lead for an OSINT intelligence platform. Analyze this web text about "${entityName}"${ctx} (${entityType}).
+  return `${apexOrientationFor("investigator")}
+
+---
+
+You are the ownership-resolution lead. Analyze this web text about "${entityName}"${ctx} (${entityType}).
 
 PRIMARY OBJECTIVE — WHO OWNS, CONTROLS, OR RUNS THIS ENTITY?
 Do not stop at an organisation email or phone number. Identify every named person explicitly connected to this entity and classify the connection:

@@ -1,6 +1,7 @@
 import { logger } from "./logger";
 import { buildWebSearchSubQueries } from "./web-search-queries";
 import { filterClaimUrls } from "./passage-filter";
+import { apexOrientationFor } from "./apex-bureau-orientation";
 
 const MISTRAL_CONVERSATIONS_API = "https://api.mistral.ai/v1/conversations";
 const DEFAULT_MISTRAL_WEB_SEARCH_MODEL = "mistral-medium-latest";
@@ -219,7 +220,10 @@ export async function runMistralWebSearch(input: {
     };
   }
 
-  const prompt = `You are a bounded public-web research specialist supporting an investigatory bureau.
+  const prompt = `${apexOrientationFor("investigator")}
+
+---
+
 Mission: ${input.objective}
 Motivation: ${input.motivation}
 Geography: ${input.geography || "not specified"}

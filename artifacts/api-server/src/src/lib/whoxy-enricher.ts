@@ -49,7 +49,14 @@ export interface WhoxyResult {
 }
 
 function getApiKey(): string | null {
-  return process.env["WHOXY_API_KEY"] ?? null;
+  // Accept common Replit / operator aliases
+  return (
+    process.env["WHOXY_API_KEY"]?.trim()
+    || process.env["WHOXY_KEY"]?.trim()
+    || process.env["Whoxy_Key"]?.trim()
+    || process.env["WHOXY"]?.trim()
+    || null
+  );
 }
 
 /**

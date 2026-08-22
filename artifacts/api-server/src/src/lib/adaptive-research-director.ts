@@ -499,7 +499,7 @@ Return ONLY JSON:
   try {
     const { runNvidiaNimFinalReview } = await import("./nvidia-nim-case-reasoning");
     const nv = await runNvidiaNimFinalReview(
-      "You are the right-hand researcher advising Gemini Boss. Reason freely; choose the next tool and query.\n\n" + prompt,
+      apexOrientationFor("right_hand") + "\n\n---\n\nReason freely; choose the next tool and query.\n\n" + prompt,
     );
     if (nv.status === "completed" && nv.raw) {
       const choice = parseFreeBossStep(nv.raw, state);
@@ -531,7 +531,7 @@ Return ONLY JSON:
                   {
                     role: "system",
                     content:
-                      "You are a free web research director. Reply with ONE JSON object only: thought, tool, query, stop.",
+                      apexOrientationFor("boss") + "\nReply with ONE JSON object only: thought, tool, query, stop.",
                   },
                   { role: "user", content: prompt },
                 ],

@@ -1,3 +1,4 @@
+import { apexOrientationCompact } from "./apex-bureau-orientation";
 /**
  * LLM Wealth Estimator
  *
@@ -137,7 +138,9 @@ function buildWealthPrompt(entities: EntityContext[]): string {
     `--- ENTITY ${i + 1} ---\n${buildContextBlock(e)}`
   ).join("\n\n");
 
-  return `You are a private wealth analyst with access to global public registries, SEC filings, corporate databases, and property records. Your task is to produce a MANDATORY calibrated net worth estimate for each entity below.
+  return `${apexOrientationCompact("investigator")}
+
+You are estimating public-record wealth signals only (not inventing contacts). Produce a MANDATORY calibrated net worth estimate for each entity below.
 
 CRITICAL RULES — READ BEFORE ANSWERING:
 1. You MUST produce a dollar estimate for EVERY entity. No exceptions.
