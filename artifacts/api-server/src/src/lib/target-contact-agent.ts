@@ -167,9 +167,36 @@ export async function runTargetContactAgent(input: {
       website: typeof meta.website === "string" ? meta.website : ent.personalWebsite,
       metadata: ent.metadata,
     });
+    const methodParts: string[] = [];
+    if (ent.phone) {
+      methodParts.push(
+        `Phone ${ent.phone} (${ent.phoneSource ?? "dig"}). Validate before outreach.`,
+      );
+    }
+    if (ent.email) {
+      methodParts.push(`Email ${ent.email}. Validate before outreach.`);
+    }
+    if (ent.linkedinUrl) {
+      methodParts.push(`LinkedIn ${ent.linkedinUrl}`);
+    }
+    const confidence =
+      outcome === "direct_contact_candidate"
+        ? 70
+        : outcome === "organization_contact"
+          ? 55
+          : outcome === "evidence_only"
+            ? 35
+            : 20;
     await db
       .update(entitiesTable)
-      .set({ contactOutcome: outcome, updatedAt: new Date() })
+      .set({
+        contactOutcome: outcome,
+        contactConfidence: confidence,
+        ...(methodParts.length
+          ? { contactMethod: methodParts.join(" · ").slice(0, 500) }
+          : {}),
+        updatedAt: new Date(),
+      })
       .where(eq(entitiesTable.id, input.entityId));
   }
 

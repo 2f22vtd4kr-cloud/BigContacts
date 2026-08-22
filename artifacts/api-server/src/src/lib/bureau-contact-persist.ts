@@ -462,12 +462,16 @@ async function promoteBureauContactsToEntityCard(
 
   const curPhoneSrc = String(ent.phoneSource ?? "");
   const issuerLocked = ISSUER_PHONE_SOURCES.has(curPhoneSrc);
+  const outcomeNow = String((ent as { contactOutcome?: string | null }).contactOutcome ?? "");
+  const weakOutcome =
+    !outcomeNow ||
+    outcomeNow === "none" ||
+    outcomeNow === "evidence_only" ||
+    outcomeNow === "organization_contact";
   const patch: Record<string, unknown> = { updatedAt: new Date() };
   let changed = false;
 
   if (bestPhone) {
-    const outcome = String((ent as { contactOutcome?: string | null }).contactOutcome ?? "");
-    const weakOutcome = !outcome || outcome === "none" || outcome === "evidence_only" || outcome === "organization_contact";
     const allowPhone =
       !ent.phone ||
       issuerLocked ||
@@ -487,7 +491,13 @@ async function promoteBureauContactsToEntityCard(
   }
 
   if (bestEmail) {
-    const allowEmail = !ent.email || issuerLocked;
+    const curLocal = (ent.email ?? "").split("@")[0]?.toLowerCase() ?? "";
+    const curGeneric = /^(info|contact|office|press|hello|admin|sales|support|ir|media)$/i.test(curLocal);
+    const allowEmail =
+      !ent.email ||
+      issuerLocked ||
+      weakOutcome ||
+      (curGeneric && !bestEmail.source.endsWith("-org"));
     if (allowEmail && bestEmail.value !== ent.email) {
       patch.email = bestEmail.value;
       changed = true;
