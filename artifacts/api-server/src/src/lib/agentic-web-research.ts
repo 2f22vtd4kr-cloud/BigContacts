@@ -53,7 +53,7 @@ type AgentAction =
 const MAX_ITER = 20;
 const MAX_OBS = 5_000;
 /** First N steps are free ReAct only — force-hops must not starve the multi-LLM loop
- *  (root cause of single-agent Grok beating the bureau on the same target). */
+ *  (so multi-hop agentic does not under-recover vs a strong single agent). */
 
 function randomUA(): string {
   const uas = [
@@ -305,7 +305,7 @@ function extractContactFactsFromHtml(html: string): string {
     push(`PERSON: ${m[1]!.trim()} ${last} — co-founder`);
     push(`PERSON: ${m[2]!.trim()} ${last} — co-founder`);
   }
-  // About-page ownership narrative (Grok reads these; Apex must emit PERSON findings)
+  // About-page ownership narrative (emit PERSON findings when present)
   // "founder Harold A. Biddle" / "founded by John Smith"
   for (const m of html.matchAll(
     /\b(?:founder|founded by|co-founder)\s+([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z]+)+)\b/gi,
@@ -357,7 +357,7 @@ function extractContactFactsFromHtml(html: string): string {
       push(`PERSON: ${name} — ${role}`);
     }
   }
-  // Ownership transfer: "sold the business to Karl Niemela" / "acquired by John Smith" (Grok reads these)
+  // Ownership transfer: "sold the business to …" / "acquired by …" on public pages
   for (const m of html.matchAll(
     /\b(?:sold(?:\s+the\s+business)?\s+to|acquired\s+by|purchased\s+by|bought\s+by)\s+([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z]+)+)\b/gi,
   )) {
@@ -419,7 +419,7 @@ function extractContactFactsFromHtml(html: string): string {
       push(`PERSON: ${name} — ${role}`);
     }
   }
-  // Heading adjacency: "## Nelson Reyes\n### President and Chief Executive Officer" (Grok reads structure)
+  // Heading adjacency: name heading then role heading on the same page
   // Allow one newline between name and title — common on about/who-we-are pages.
   for (const m of html.matchAll(
     /(?:<h[1-4][^>]*>|\n)\s*([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z]+)+)\s*(?:<\/h[1-4]>)?\s*(?:\n|<br\s*\/?>|\s)*\s*(?:<h[1-4][^>]*>)?\s*((?:President|CEO|Chief Executive Officer|Owner|Founder|Vice President|VP|CFO|Chief Financial Officer|COO|Chief Operating Officer|Director|Principal|Treasurer|Chairman|Executive Chairman)[^<\n]{0,50})/gi,
@@ -1121,7 +1121,7 @@ function isCompanyAlignedEmail(email: string, companyName?: string | null, pageU
       || domain.includes(token.slice(0, Math.min(4, token.length)))
     )) return true;
     // Brand-short domains: "Accurate Manufacturing" → acc-mfg.com / "Custom Machine" → cmi79.com
-    // Grok keeps tlindblom@acc-mfg.com; Apex must not drop on full-name vs short-domain mismatch.
+    // Keep company-aligned emails even when local-part is a short name vs full legal name.
     const words = companyName.toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length >= 3 && !/^(and|the|inc|llc|corp|company|co|ltd|of)$/i.test(w));
     if (words.length >= 1 && domFlat.length >= 3 && domFlat.length <= 20) {
       const prefixes = words.map((w) => w.slice(0, 3));
