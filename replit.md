@@ -26,6 +26,35 @@ review-only and are never auto-merged or used to promote contacts.
 
 ---
 
+## Target contact agent (2026-08-22) — card is the answer
+
+**Tip on `main`:** `7efcea8` (or later). Pull + **restart API** before judging research quality.
+
+### Contract
+- **Per person:** `runTargetContactAgent` runs early in Atlas entity enrich (`atlas-orchestrator` → stage **TARGET CONTACT AGENT**).
+- **Loop:** free ReAct in `agentic-web-research.ts` — model invents queries, visits pages, uses OSINT tools; no force-hop playbook.
+- **Output:** best public phone/email/LinkedIn promoted onto `entities.*` + `contactOutcome` updated. Evidence rows are provenance, not the product.
+- **Promote:** host-scored (`sec.gov` preferred; directory/wrong-issuer trash rejected). EDGAR issuer phones must not overwrite `agentic-web`.
+- **Rehydrate without re-dig:** `POST /api/entities/rehydrate-contacts` `{ "limit": 50 }` or `{ "entityId": N }`.
+- **Stuck jobs:** status poll auto-fails Atlas runs older than 90 minutes; `POST /api/ingest/atlas-stop` or `DELETE /api/ingest/atlas-lock`.
+
+### Operator sequence
+1. `git pull origin main`
+2. Restart **API Server** workflow (esbuild rebuild)
+3. Rebuild UI if needed: `pnpm --filter @workspace/apex-finder run build`
+4. Stop any zombie job → optional rehydrate → one Launch
+5. Confirm cards show dig-backed phones (not only empty / permanent EDGAR-Phone when evidence exists)
+
+### Desk UI honesty
+- Header keys: ApiKeyHealth falls back to `/api/healthz` so Overview and ledger agree.
+- Status page lists only **live** AI pools (no empty Perplexity in the live banner).
+- Connections/Network: lazy force-graph + ErrorBoundary (never pure black shell).
+
+### Living handoff
+Full tip chain and philosophy: **`docs/context.md`**.
+
+---
+
 ## Workflows (Replit-managed)
 
 | Workflow | Command | Must run? |

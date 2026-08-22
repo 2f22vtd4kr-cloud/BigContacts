@@ -4,21 +4,52 @@
 **API build entry:** `artifacts/api-server/src/src` (esbuild). Top-level `src/lib` is a thin scaffold — do not edit it for research logic.  
 **Product:** Apex Atlas research bureau (NOT Steam “Atlas Reactor”, NOT physics ATLAS).
 
-## Prep for next Replit run (2026-08-22)
+## Prep for next Replit run (2026-08-22 evening)
 
-**Current tip:** `f49b7c5` UI gate + dig→card rehydrate from contact_evidence; agentic phones protected from EDGAR issuer overwrite.
+**Current tip:** `7efcea8` — **Target contact agent**: free ReAct dig owns each person; **card is the answer** (not evidence-only bag).
 
-### Reactor Live Desk (desktop + mobile)
-- **Who narrates:** right-hand (NVIDIA), **not** Boss — Boss stays on orchestration.
-- **What:** short adaptive under-the-hood prose (1–2 sentences) per research step; rate-limited, non-blocking.
-- **Where:** violet **“Right-hand · live”** on each tool scene; narration folds onto Google / browser / SERP / registry / footprint chrome.
-- **Desktop:** Live Desk grid + step rail shows **RH** pip when narration is present.
-- **Mobile:** same scenes via swipeable workstage; sticky narration strip while scrolling the tool window.
-- **Data:** `publishBureauEvent` → `scheduleBureauLiveNarration` → `BUREAU|` log lines → Reactor `parseAtlasEventLog` → `BureauOpsStage`.
-- **Requires:** `NVIDIA_NIM_API_KEY` (or alias) for narration; tool chrome still works without it.
+### Product contract (non-negotiable)
+| Rule | Meaning |
+|------|---------|
+| Model owns the dig | `runTargetContactAgent` → `runAgenticWebResearch` (ReAct). Model chooses `web_search` / `visit` / tools / `done`. |
+| Card is the answer | Findings **persist + promote** to `entities.phone` / `email` / `linkedin` / `contactOutcome` in the same pass. |
+| Evidence bag is secondary | `contact_evidence` stores provenance; it must not be the only place good digs land. |
+| No issuer clobber | EDGAR issuer switchboard must **not** overwrite `agentic-web` phones. |
+| Host-scored promote | Prefer `sec.gov` / primary hosts; reject LeadIQ / wrong-company 1-800 / directory trash. |
+| One dig per entity | Target agent runs once early in `enrichEntityFullCircle`; secondary surface is deterministic only. |
+
+### Key modules
+| Path | Role |
+|------|------|
+| `artifacts/api-server/src/src/lib/target-contact-agent.ts` | Dig → persist → promote → outcome |
+| `artifacts/api-server/src/src/lib/agentic-web-research.ts` | Free ReAct loop + strong contact objective |
+| `artifacts/api-server/src/src/lib/bureau-contact-persist.ts` | Persist evidence; host-scored promote; rehydrate |
+| `artifacts/api-server/src/src/lib/atlas-orchestrator.ts` | Early **TARGET CONTACT AGENT** stage per entity |
+| `POST /api/entities/rehydrate-contacts` | Promote existing evidence → cards without re-dig |
+| `POST /api/ingest/atlas-stop` + status zombie clear | Stop stuck runs; auto-fail jobs >90m |
+
+### UI gate (desk must not lie)
+| Tip | Point |
+|-----|--------|
+| `f16d96e` / `f49b7c5` | Honest status live-pool list; graph ErrorBoundary + lazy force-graph; ApiKeyHealth falls back to `/api/healthz`; workspace treats running/paused as LIVE |
+| Network | Never pure black — load error or graph |
+| Header | Overview and ledger show the **same** LIVE / keys state |
+
+### Operator boot (Replit)
+```bash
+git pull origin main   # 7efcea8 or later
+# restart API Server workflow (required for target agent)
+pnpm --filter @workspace/apex-finder run build   # if UI still on old tip
+# Stop any stuck Atlas job (or wait for zombie auto-clear on status poll)
+# Optional without full Launch:
+curl -sS -X POST "$HOST/api/entities/rehydrate-contacts" \
+  -H "Content-Type: application/json" -d '{"limit":50}'
+# Then one clean Launch
+```
 
 ### What “free research” means (non-negotiable)
 - **Agentic ReAct:** the model chooses every `web_search` / `visit` / `done`. No `force_*` gap-fill machine.
+- **Target contact agent:** for each person, dig is not optional theater — best public contact path lands on the **card**.
 - **Done:** only soft-rejected on pure no-op (zero searches, visits, and findings). Auto-extracted CONTACT FACTS count.
 - **Adaptive director:** Gemini Boss → NVIDIA right-hand → capacity fallback → **stop**. Rules path is stop-only (no dig ladder).
 - **OSINT lanes:** thin **seed** queries only (`"name"`, `"name" "company"`, geo) — not LinkedIn/BBB/Facebook/SEC menus.
@@ -28,7 +59,19 @@
 - **Det recovery:** only when **all** chat LLMs fail — one plain name search + optional visit.
 - **API build entry:** `artifacts/api-server/src/src` (esbuild). Outer `src/lib` is scaffold; keep it seed-only so tests do not re-teach old scripts.
 
-### Tip chain (free research — 2026-08-22)
+### Tip chain (target agent + card — 2026-08-22 evening)
+| Commit | Point |
+|--------|--------|
+| `7efcea8` | Single target-agent dig per entity (no double ReAct) |
+| `e1d03ef` | **feat:** `runTargetContactAgent` + early enrich stage + chat-style objective |
+| `d28e597` | Always rehydrate dig evidence onto cards after secondary/enrich |
+| `fd7f85a` | Zombie auto-clear (>90m); `POST /api/ingest/atlas-stop` |
+| `67da81b` | Host-scored dig phones; `POST /api/entities/rehydrate-contacts` |
+| `48acae2` | Promote merges contact_evidence; protect agentic phones from EDGAR |
+| `f49b7c5` | UI: keys/LIVE sync; lazy graph; honest status |
+| `f16d96e` | Status banner only lists live providers; graph ErrorBoundary |
+
+### Tip chain (free research — earlier 2026-08-22)
 | Commit | Point |
 |--------|--------|
 | `586fc86`+ | **Reactor:** right-hand live adaptive narration; desk scenes desktop+mobile |
