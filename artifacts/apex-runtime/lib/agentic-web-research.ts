@@ -52,7 +52,6 @@ const MAX_ITER = 20;
 const MAX_OBS = 5_000;
 /** First N steps are free ReAct only — force-hops must not starve the multi-LLM loop
  *  (root cause of single-agent Grok beating the bureau on the same target). */
-const FREE_REACT_STEPS = 12;
 
 function randomUA(): string {
   const uas = [
@@ -1472,11 +1471,10 @@ export async function runAgenticWebResearch(input: {
   let searches = 0;
   let visits = 0;
   let findings: AgenticFinding[] = [];
-  // URLs seen in SERP — used to force visits when the LLM only searches
+  // URLs seen in SERP — SERP URL queue for model visits
   const candidateUrls: string[] = [];
   const visitedUrls = new Set<string>();
   const domainSurfaceDone = new Set<string>(); // one RDAP/WhoisJSON hop per primary domain
-  /** Cap gap-fill scripts so free LLM research keeps the majority of the budget. */
 
   const isAggregatorHost = (u: string): boolean =>
     /zoominfo|rocketreach|adapt\.io|signalhire|contactout|growjo|apollo\.io|clearbit|hunter\.io|mibarry|chamber|yelp|dnb\.com|bloomberg\.com\/profile|crunchbase|pitchbook|linkedin\.com\/company|mapquest|bbb\.org|yellowpages|superpages|manta\.com|bizapedia|opencorporates|equilar|prospeo|thebluebook|dot\.report/i.test(
@@ -1587,28 +1585,6 @@ export async function runAgenticWebResearch(input: {
     return true;
   };
 
-  const emailMatchesCompany = (email: string): boolean => {
-    // Delegate to shared alignment (brand mail domains like cmi79 on company pages)
-    return isCompanyAlignedEmail(email, input.companyName, findings.find((f) => f.vectorType === "email" && f.value === email)?.sourceUrls?.[0]);
-  };
-  const hasOrgEmail = () =>
-    findings.some((f) => {
-      if (f.vectorType !== "email") return false;
-      if (!input.companyName) return true;
-      const src = (f.sourceUrls || [])[0];
-      return isCompanyAlignedEmail(f.value, input.companyName, src);
-    });
-  const hasOrgPhone = () => findings.some((f) => f.vectorType === "phone");
-  const hasOrgEmailOrPhone = () => hasOrgEmail() || hasOrgPhone();
-  const hasRelatedPerson = () =>
-    findings.some(
-      (f) =>
-        f.personName
-        && f.personName.toLowerCase() !== name.toLowerCase()
-        && f.personName.trim().split(/\s+/).length >= 2
-        // Any named person distinct from the target counts (Owner/President/CEO/etc.)
-        // Previous gate required note~"related" or role==related_contact and missed BBB principals.
-    );
   const salvageEmailsFromHistory = () => {
     // Classic org + any company-aligned email seen in trajectory (LLM may drop; regex backstop)
     const classicRe = /\b((?:info|contact|sales|office|support|hello|admin|service|parts|inquiries)@[a-z0-9.-]+\.[a-z]{2,})\b/gi;
@@ -1641,9 +1617,6 @@ export async function runAgenticWebResearch(input: {
     }
   };
 
-  let relatedPeopleSearchDone = false;
-  let ownershipSearchDone = false;
-  let orgEmailSearchDone = false;
 
   for (let i = 0; i < maxIter; i++) {
     // Hard wall-clock timeout: materialize whatever agentic already found and exit.
@@ -1769,64 +1742,13 @@ export async function runAgenticWebResearch(input: {
       continue;
     }
 
-    // done — reject empty early exits so we never finish with searches=0
-    const minSearches = 2;
-    if (searches < minSearches && action.findings.length === 0 && findings.length === 0 && i < maxIter - 1) {
-      history.push(`step${i + 1}: done_rejected (need >=${minSearches} searches before empty done; have ${searches})`);
+
+    // done — only soft-reject pure no-ops (zero work + zero findings). Model owns when to finish.
+    if (action.findings.length === 0 && findings.length === 0 && searches === 0 && visits === 0 && i < maxIter - 1) {
+      history.push(`step${i + 1}: done_rejected (no research yet)`);
       lastObservation =
-        `You returned done with zero findings after only ${searches} search(es). ` +
-        `You MUST run web_search on the exact TARGET${input.companyName ? ` + "${input.companyName}"` : ""} first. ` +
-        `Invent a precise query now (person + company + city/state or EDGAR/phone/address).`;
-      continue;
-    }
-    if (action.findings.length === 0 && findings.length === 0 && visits === 0 && candidateUrls.length > 0 && i < maxIter - 1) {
-      history.push(`step${i + 1}: done_rejected (need visit before empty done; ${candidateUrls.length} URLs queued)`);
-      lastObservation =
-        `You returned done with zero findings and zero visits, but ${candidateUrls.length} URL(s) are queued. ` +
-        `Choose action=visit on the best company contact/about page (or web_search if the queue looks wrong).`;
-      continue;
-    }
-    if (
-      action.action === "done"
-      && i < maxIter - 2
-      && findings.length === 0
-      && candidateUrls.some((u) => !visitedUrls.has(u) && /\/(about|contact|leadership|team|corporate-locations)/i.test(u) && rankVisitUrl(u) <= 3)
-      && (!hasOrgEmail() || !hasRelatedPerson())
-    ) {
-      history.push(`step${i + 1}: done_rejected (about/contact still queued)`);
-      lastObservation =
-        `About/contact/leadership pages remain unvisited and findings are still empty. ` +
-        `Visit one if useful, or search again — your judgment.`;
-      continue;
-    }
-    if (
-      input.companyName
-      && !hasOrgEmail()
-      && i >= FREE_REACT_STEPS
-      && !orgEmailSearchDone
-      && visits >= 1
-      && i < maxIter - 2
-      && findings.length === 0
-    ) {
-      history.push(`step${i + 1}: done_rejected (org email still missing)`);
-      lastObservation =
-        `Still missing a company-domain org email for ${input.companyName}. Search or visit contact pages — your choice of query and URL.`;
-      continue;
-    }
-    // One soft nudge for related people — never block finishing when org/contact surface exists.
-    if (
-      action.action === "done"
-      && hasOrgEmailOrPhone()
-      && !hasRelatedPerson()
-      && i >= FREE_REACT_STEPS
-      && !relatedPeopleSearchDone
-      && i < maxIter - 2
-    ) {
-      relatedPeopleSearchDone = true;
-      history.push(`step${i + 1}: done_soft_hint (related people optional)`);
-      lastObservation =
-        `Org email/phone is on hand. Named officers are still thin — optional: one more search/visit for president/owner/CEO, ` +
-        `or action=done now with current findings. Your judgment.`;
+        `You returned done with no searches, visits, or findings. ` +
+        `Run web_search or visit a page for "${name}"${input.companyName ? ` / "${input.companyName}"` : ""} — your query.`;
       continue;
     }
     findings = mergeFindings(findings, action.findings);
@@ -1844,9 +1766,8 @@ export async function runAgenticWebResearch(input: {
       findings,
       trajectory: history,
     };
-  }
 
-  salvageEmailsFromHistory();
+    salvageEmailsFromHistory();
   return {
     status: "completed",
     model: modelUsed,
