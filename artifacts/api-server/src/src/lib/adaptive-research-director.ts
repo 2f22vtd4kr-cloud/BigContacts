@@ -465,24 +465,15 @@ DOMAINS FOUND: ${state.candidateDomains.slice(0, 10).join("; ") || "none yet"}
 RELATED ORGS: ${state.relatedOrganizations.slice(0, 8).join("; ") || "none"}
 EVIDENCE SCORE: ${state.evidenceCount} · claim URLs: ${state.claimUrls} · empty passes: ${state.noProgressPasses}
 
-AVAILABLE TOOLS (use any that fit):
-- search_people — find officers, owners, executives, related persons
-- search_official — company domain, contact pages, org phones/emails
-- search_identity — registries, filings, exact legal identity
-- search_structure — parent/operator/C/O relationships
-- follow_person — dig a named person already in PEOPLE FOUND (or a clear new name)
-- follow_domain — dig a domain already in DOMAINS FOUND
-- verify_sources — re-check claim pages / citations
-- semantic_search — broad/semantic web discovery (Exa-style)
-- stop — only when public contact surface is recovered or clearly exhausted
+You invent the next move. Describe it in free text — not a fixed checklist.
 
 Never invent emails, phones, or people. Prefer primary company pages and filings over aggregators.
 
 Return ONLY JSON:
 {
   "thought": "your reasoning about gaps and what a strong researcher would do next",
-  "tool": "one tool name from the list",
-  "query": "concrete search subject or query string",
+  "tool": "short label for the move (e.g. search, visit, person, domain, stop)",
+  "query": "concrete search subject, person name, domain, or query string",
   "stop": false
 }`;
 

@@ -6,7 +6,7 @@
 
 ## Prep for next Replit run (2026-08-22)
 
-**Current tip:** `f55e604` — **free research path** (adaptive rules = stop-only; models own dig)
+**Current tip:** latest main — **free research path** (adaptive rules stop-only; Boss free brief not a tool menu)
 
 ### What “free research” means (non-negotiable)
 - **Agentic ReAct:** the model chooses every `web_search` / `visit` / `done`. No `force_*` gap-fill machine.

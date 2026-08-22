@@ -106,7 +106,7 @@ Coordination rules (mandatory):
 Write investigator prompts that are human-like, adaptive, and multi-angle. Embed these angles when relevant:
 ${creative}
 
-Also enforce in every investigatorPrompt:
+Also encourage in every investigatorPrompt (goals, not a script):
 - Explicitly name still-pending vectors when the selected action is contact or footprint related.
 - Require exact public values only — never invent contacts, names, or URLs.
 - Instruct investigators to RETURN every public contact found (personal and organization). Do not suppress organization routes; the UI marks verified personal separately.
