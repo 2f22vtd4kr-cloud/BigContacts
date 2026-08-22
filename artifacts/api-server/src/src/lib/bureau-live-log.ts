@@ -103,7 +103,31 @@ export async function publishBureauEvent(
   }, undefined).catch((err: any) => {
     logger.debug({ err: err?.message }, "bureau-live-log publish failed (non-fatal)");
   });
-    // Right-hand adaptive narration for Reactor (non-blocking; never delays research)
+
+  // Mirror into Atlas job log so Reactor atlas-status eventLog sees dig steps
+  if (event.jobId) {
+    void import("./job-queue")
+      .then(({ appendJobLog }) =>
+        appendJobLog(
+          event.jobId!,
+          `BUREAU|${JSON.stringify({
+            actor: event.actor,
+            kind: event.kind,
+            title: event.title,
+            targetName: event.targetName,
+            provider: event.provider,
+            why: event.why,
+            ask: event.ask,
+            responseSummary: event.responseSummary,
+            timestamp: event.timestamp,
+            narration: event.kind === "narration" ? event.title : undefined,
+          })}`,
+        ),
+      )
+      .catch(() => {});
+  }
+
+  // Right-hand adaptive narration for Reactor (non-blocking; never delays research)
   if (event.kind !== "narration") {
     try {
       const { scheduleBureauLiveNarration } = await import("./bureau-live-narration");

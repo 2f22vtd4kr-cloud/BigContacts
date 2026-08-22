@@ -73,6 +73,8 @@ export async function runBureauAgenticWebPass(input: {
   companyName?: string | null;
   objective?: string;
   caseId?: string | number;
+  /** Atlas job id — mirrors live steps into job log for Reactor */
+  jobId?: string;
   maxIterations?: number;
   entityId?: number;
   persist?: boolean;
@@ -98,6 +100,7 @@ export async function runBureauAgenticWebPass(input: {
     kind: "search",
     title: "Agentic web pass",
     caseId: input.caseId != null ? String(input.caseId) : undefined,
+    jobId: input.jobId,
     targetName: name,
     provider: "agentic-react",
     why: input.objective?.slice(0, 240) ?? "Boss-selected web investigation",
@@ -126,6 +129,7 @@ export async function runBureauAgenticWebPass(input: {
         void publishBureauEvent({
           actor: step.action === "registry_search" ? "registry" : "web",
           kind,
+          jobId: input.jobId,
           title:
             step.action === "web_search" ? `Web search · ${step.query || ""}`.slice(0, 120)
             : step.action === "visit" ? `Reading page · ${(step.url || "").slice(0, 80)}`
@@ -164,6 +168,7 @@ export async function runBureauAgenticWebPass(input: {
       kind: "extract",
       title: `Agentic web · ${agentic.findings.length} findings${agentic.status === "timeout" ? " (timeout)" : ""}`,
       caseId: input.caseId != null ? String(input.caseId) : undefined,
+      jobId: input.jobId,
       targetName: name,
       provider: agentic.model,
       why: `searches=${agentic.searches} visits=${agentic.visits} iters=${agentic.iterations}`,

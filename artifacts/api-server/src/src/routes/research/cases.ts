@@ -913,6 +913,7 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
             : "Multi-hop agentic search. Invent queries and use OSINT tools when useful. Never invent contacts.",
         ].filter(Boolean).join("\n"),
         caseId,
+        jobId,
         maxIterations: resolveResearchDepth().agenticMaxIterations,
         shouldCancel: async () => {
           const job = await getJob(jobId);

@@ -6,7 +6,7 @@
 
 ## Prep for next Replit run (2026-08-22)
 
-**Current tip:** live dig steps publish to Reactor via `onLiveStep` → `publishBureauEvent` → right-hand narration (search/visit/registry/footprint/…). Pull latest main before Replit.
+**Current tip:** `main` — dig `onLiveStep` → `publishBureauEvent` (+ job log mirror when `jobId` set) → Reactor Live Desk + right-hand narration.
 
 ### Reactor Live Desk (desktop + mobile)
 - **Who narrates:** right-hand (NVIDIA), **not** Boss — Boss stays on orchestration.
