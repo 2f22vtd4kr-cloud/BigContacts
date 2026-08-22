@@ -270,6 +270,7 @@ export const GEMINI_BOSS_MODEL_PENDING = "auto-low-cost-pending";
 const GEMINI_MODELS_API = "https://generativelanguage.googleapis.com/v1beta/models";
 const GEMINI_KEY_NAMES = [
   "GEMINI_API_KEY",
+  "GEMINI_KEY",
   ...Array.from({ length: 13 }, (_, index) => `GEMINI_API_KEY_${index + 1}`),
 ];
 

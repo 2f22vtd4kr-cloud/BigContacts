@@ -933,7 +933,7 @@ async function callGroqJson(prompt: string): Promise<{ model: string; raw: strin
               {
                 role: "system",
                 content:
-                  "You are an elite OSINT web research agent. You operate in a ReAct loop. Reply with ONE JSON object only.",
+                  apexOrientationFor("dig_agent") + "\nReply with ONE JSON object only for this ReAct step.",
               },
               { role: "user", content: prompt },
             ],
@@ -1022,7 +1022,6 @@ async function callNvidiaJson(prompt: string): Promise<{ model: string; raw: str
     process.env.NVIDIA_AGENTIC_MODEL,
     process.env.NVIDIA_NIM_MODEL,
     "z-ai/glm-5.2",
-    "meta/llama-3.3-70b-instruct",
     "meta/llama-3.1-70b-instruct",
     "mistralai/mistral-large-2-instruct",
     "google/gemma-2-27b-it",
