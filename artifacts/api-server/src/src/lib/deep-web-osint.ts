@@ -649,8 +649,8 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
     if (i < queries.length - 1) await jitteredDelay(900);
   }
 
-  // ── Phase 2: Bing on top 2 most specific queries (different index) ────────
-  const bingQueries = queries.filter(q => /email|contact|linkedin|phone|site:/i.test(q)).slice(0, 4);
+  // ── Phase 2: Bing on the same seed queries (different index) — no keyword playbook ─
+  const bingQueries = queries.slice(0, 3);
   for (let i = 0; i < bingQueries.length; i++) {
     const query = bingQueries[i]!;
     const label = `Bing[q${i + 1}]`;

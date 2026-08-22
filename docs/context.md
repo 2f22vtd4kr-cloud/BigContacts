@@ -6,7 +6,7 @@
 
 ## Prep for next Replit run (2026-08-22)
 
-**Current tip:** latest main — **free research path** (adaptive rules stop-only; Boss free brief not a tool menu; right-hand soft guidance)
+**Current tip:** latest main — **free research path** (adaptive stop-only; Boss free brief; soft right-hand; deep-web Bing uses seeds not keyword filter)
 
 ### What “free research” means (non-negotiable)
 - **Agentic ReAct:** the model chooses every `web_search` / `visit` / `done`. No `force_*` gap-fill machine.
@@ -22,6 +22,7 @@
 ### Tip chain (free research — 2026-08-22)
 | Commit | Point |
 |--------|--------|
+| `77ad67f` | Soft right-hand primary-source guidance (no "force" language)
 | `c15c711` | Boss adaptive brief is free move (no AVAILABLE TOOLS menu) |
 | `aa392b8` / `f55e604` | Adaptive rules path **stop-only** — no dig ladder |
 | `0eb33d3` / `fcafa0b` | Adaptive ladder marked legacy stop/budget |
