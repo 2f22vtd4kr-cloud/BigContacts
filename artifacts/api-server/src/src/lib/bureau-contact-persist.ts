@@ -319,6 +319,7 @@ async function promoteBureauContactsToEntityCard(
       email: entitiesTable.email,
       phone: entitiesTable.phone,
       phoneSource: entitiesTable.phoneSource,
+      contactOutcome: entitiesTable.contactOutcome,
       linkedinUrl: entitiesTable.linkedinUrl,
       twitterHandle: entitiesTable.twitterHandle,
       instagramHandle: entitiesTable.instagramHandle,
@@ -451,9 +452,12 @@ async function promoteBureauContactsToEntityCard(
   let changed = false;
 
   if (bestPhone) {
+    const outcome = String((ent as { contactOutcome?: string | null }).contactOutcome ?? "");
+    const weakOutcome = !outcome || outcome === "none" || outcome === "evidence_only" || outcome === "organization_contact";
     const allowPhone =
       !ent.phone ||
       issuerLocked ||
+      weakOutcome ||
       curPhoneSrc === "" ||
       curPhoneSrc === "EDGAR-Phone" ||
       curPhoneSrc === "EDGAR-Issuer-Phone" ||
@@ -963,14 +967,28 @@ export async function expandSecondaryPublicSurface(input: {
       logger.warn({ entityId: input.entityId, err: err?.message }, "[Atlas] Agentic web research skipped (non-fatal)");
     }
 
-    if (vectors.length) {
-      await persistBureauContactsForEntity(input.entityId, vectors, "secondary-public-surface");
+    // Always persist + promote (empty vectors still rehydrate from contact_evidence)
+    await persistBureauContactsForEntity(
+      input.entityId,
+      vectors,
+      "secondary-public-surface",
+    );
+    try {
+      await rehydrateEntityCardFromEvidence(input.entityId);
+    } catch {
+      /* non-fatal */
     }
   } catch (err) {
     logger.warn(
       { err: err instanceof Error ? err.message : String(err), entityId: input.entityId, name },
       "Secondary public surface expansion failed (non-fatal)",
     );
+    // Last chance: still try card promotion from any durable evidence
+    try {
+      await rehydrateEntityCardFromEvidence(input.entityId);
+    } catch {
+      /* non-fatal */
+    }
   }
   return out;
 }

@@ -63,6 +63,7 @@ import { runTargetResearch } from "./target-research";
 import {
   expandSecondaryPublicSurface,
   persistBureauContactsForEntity,
+  rehydrateEntityCardFromEvidence,
 } from "./bureau-contact-persist";
 
 // ── Jurisdiction → approximate coordinates lookup (for asset geocoding) ───────
@@ -1720,6 +1721,13 @@ Never invent specific emails, phones, or people. Return plain text only.`,
       logger.info({ entityId: id, name, secondary }, "[Atlas] Secondary public surface expansion done");
     } catch (err: any) {
       logger.warn({ entityId: id, err: err?.message }, "[Atlas] Secondary expansion skipped (non-fatal)");
+    }
+
+    // Guarantee dig evidence lands on the card (even if secondary path was thin)
+    try {
+      await rehydrateEntityCardFromEvidence(id);
+    } catch (err: any) {
+      logger.debug({ entityId: id, err: err?.message }, "[Atlas] Card rehydrate skipped");
     }
 
     // Registry org anchors from EDGAR/CH metadata — durable related surface, not Personal.
