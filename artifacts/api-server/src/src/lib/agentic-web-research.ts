@@ -2511,12 +2511,14 @@ export async function runAgenticWebResearch(input: {
     if (
       action.action === "done"
       && i < maxIter - 2
+      && findings.length === 0
       && candidateUrls.some((u) => !visitedUrls.has(u) && /\/(about|contact|leadership|team|corporate-locations)/i.test(u) && rankVisitUrl(u) <= 3)
       && (!hasOrgEmail() || !hasRelatedPerson())
     ) {
       history.push(`step${i + 1}: done_rejected (about/contact still queued)`);
       lastObservation =
-        `About/contact/leadership pages remain unvisited. Open the highest-value one with action=visit before done. ` +
+        `About/contact/leadership pages remain unvisited and findings are still empty. ` +
+        `Visit one if useful, or search again — your judgment. ` +
         `Queued sample: ${candidateUrls.filter((u) => !visitedUrls.has(u) && /\/(about|contact|leadership|team)/i.test(u)).slice(0, 4).join(" | ")}`;
       continue;
     }
@@ -2527,39 +2529,28 @@ export async function runAgenticWebResearch(input: {
       && !orgEmailSearchDone
       && visits >= 1
       && i < maxIter - 2
+      && findings.length === 0
     ) {
       history.push(`step${i + 1}: done_rejected (org email still missing)`);
       lastObservation =
         `Still missing a company-domain org email for ${input.companyName}. ` +
-        `Search or visit contact/Facebook pages for info@ / contact@ / sales@ — your choice of query and URL. Then done.`;
+        `Search or visit contact/Facebook pages — your choice — or done if other findings are enough.`;
       continue;
     }
+    // One soft nudge for related people — never block finishing when org/contact surface exists.
     if (
       action.action === "done"
       && hasOrgEmailOrPhone()
+      && !hasRelatedPerson()
       && i >= FREE_REACT_STEPS
       && !relatedPeopleSearchDone
       && i < maxIter - 2
     ) {
       relatedPeopleSearchDone = true;
-      history.push(`step${i + 1}: done_rejected (related people still open)`);
+      history.push(`step${i + 1}: done_soft_hint (related people optional)`);
       lastObservation =
-        `Org surface found, but named officers/owners are still missing. ` +
-        `Search or visit about/team/BBB/registry pages for people (president, owner, CEO, founder). ` +
-        `Emit personName+role (+ role-email when visible). You invent the query — not a fixed checklist.`;
-      continue;
-    }
-    if (
-      action.action === "done"
-      && hasOrgEmailOrPhone()
-      && !hasRelatedPerson()
-      && i < maxIter - 1
-    ) {
-      history.push(`step${i + 1}: done_rejected (need related person)`);
-      lastObservation =
-        `You returned done with org phone/email but ZERO related persons. ` +
-        `Re-read observations or run another search/visit for Owner/President/CEO/Founder/officer. ` +
-        `Emit PERSON findings with personName+role when visible. Your judgment on the next tool.`;
+        `Org email/phone is on hand. Named officers are still thin — optional: one more search/visit for president/owner/CEO, ` +
+        `or action=done now with current findings. Your judgment.`;
       continue;
     }
     findings = mergeFindings(findings, action.findings);
