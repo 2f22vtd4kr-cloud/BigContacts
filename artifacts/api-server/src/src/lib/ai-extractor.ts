@@ -378,41 +378,16 @@ export function buildProviderSearchQuery(
     .slice(0, 3));
   if (context.subjectKind) parts.push(`subject:${context.subjectKind}`);
 
-  const laneTerms: Record<AIResearchLane, string> = {
-    official_records: "official team people registry filing director officer",
-    people_press: "founder owner director partner executive interview profile",
-    contact_routes: "public email direct contact LinkedIn authorized intermediary",
-    semantic_discovery: "ownership control parent operating company principal",
-  };
+  // Prefer known domains as context; do not append fixed OR keyword playbooks.
   const domains = (context.candidateDomains ?? [])
     .map((domain) => domain.trim().replace(/^https?:\/\//i, "").replace(/\/.*$/, "").toLowerCase())
     .filter(Boolean)
     .slice(0, 3);
-
-  // Official-records lane: prefer exact-domain leadership pages (Campione lesson —
-  // independent research won by going straight to the official site, not press noise).
-  if ((context.lane ?? "people_press") === "official_records") {
-    if (domains.length > 0) {
-      parts.unshift(domains.map((domain) => `site:${domain}`).join(" OR "));
-      parts.push("leadership OR management OR team OR \"about us\" OR \"chi siamo\" OR contact OR direttorio");
-    } else {
-      parts.push("official website domain homepage");
-      parts.push("leadership OR management OR team OR \"about us\" OR contact");
-    }
+  if (domains.length > 0) {
+    parts.push(domains[0]!);
   }
-
-  parts.push(laneTerms[context.lane ?? "people_press"]);
   if (entityType === "Corporation" || entityType === "Trust") {
-    parts.push("company organization");
-  } else {
-    parts.push("individual identity");
-  }
-  if (context.reachability?.mode === "research_only") {
-    parts.push("identity verification no viable access assumption");
-  }
-  // Keep site: filters even outside official_records when domains are known.
-  if (domains.length > 0 && (context.lane ?? "people_press") !== "official_records") {
-    parts.push(domains.map((domain) => `site:${domain}`).join(" OR "));
+    parts.push("company");
   }
   return parts.filter((part): part is string => Boolean(part)).join(" ");
 }
