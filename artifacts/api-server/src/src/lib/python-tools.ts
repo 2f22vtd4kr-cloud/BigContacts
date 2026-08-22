@@ -430,14 +430,20 @@ export async function runOpenDeepResearch(
   };
   const script = findWorkspaceScript("open_deep_research.py");
   if (!script) return { ...base, error: "Open Deep Research adapter script not found." };
-  if (!process.env.HF_TOKEN || !process.env.SERPER_API_KEY) {
-    return { ...base, error: "HF_TOKEN and SERPER_API_KEY are not configured." };
+  const serperKey = [
+    process.env.SERPER_API_KEY,
+    process.env.SERPER_API_KEY_2,
+    process.env.SERPER_API_KEY_3,
+    process.env.SERPER_KEY,
+  ].map((k) => (k ?? "").trim()).find(Boolean);
+  if (!process.env.HF_TOKEN || !serperKey) {
+    return { ...base, error: "HF_TOKEN and SERPER_API_KEY (or SERPER_KEY) are not configured." };
   }
 
   const timeoutMs = Math.min(Math.max(options.timeoutMs ?? 90_000, 30_000), 180_000);
   const subprocess = await runSubprocess(PYTHON_BIN, [script, prompt.slice(0, 12_000)], timeoutMs, {
     HF_TOKEN: process.env.HF_TOKEN,
-    SERPER_API_KEY: process.env.SERPER_API_KEY,
+    SERPER_API_KEY: serperKey,
     HF_DEEP_RESEARCH_MODEL: process.env.HF_DEEP_RESEARCH_MODEL || "Qwen/Qwen2.5-7B-Instruct",
   });
   if (subprocess.exitCode === -1) {

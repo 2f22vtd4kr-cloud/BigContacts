@@ -42,7 +42,12 @@ router.get("/system/status", async (_req, res) => {
     const ai = getAIKeyStatus();
     const pythonTools = await checkPythonToolsAvailability();
     const huggingFaceConfigured = Boolean(process.env.HF_TOKEN);
-    const serperConfigured = Boolean(process.env.SERPER_API_KEY);
+    const serperConfigured = [
+      process.env.SERPER_API_KEY,
+      process.env.SERPER_API_KEY_2,
+      process.env.SERPER_API_KEY_3,
+      process.env.SERPER_KEY,
+    ].some((k) => Boolean(k?.trim()));
     const openResearchReady = huggingFaceConfigured && serperConfigured && pythonTools.openDeepResearch;
     const openResearch = {
       state: openResearchReady

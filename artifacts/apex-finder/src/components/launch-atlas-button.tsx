@@ -77,10 +77,29 @@ export function LaunchAtlasButton({
       if (navigateToReactor) setLocation("/reactor");
       return;
     }
+    // Soft gate: warn when bureau integrity is critical (still allow launch)
+    try {
+      const hr = await fetch(`${import.meta.env.BASE_URL.replace(/\/$/, "")}/api/healthz`, {
+        credentials: "same-origin",
+      });
+      if (hr.ok) {
+        const hj = await hr.json();
+        const level = hj.bureauIntegrity ?? hj.lanesHonesty?.bureauIntegrity;
+        if (level === "critical") {
+          const reasons = (hj.bureauIntegrityReasons ?? hj.lanesHonesty?.bureauIntegrityReasons ?? [])
+            .slice(0, 2)
+            .join("; ");
+          setStatus(
+            `bureauIntegrity=critical — research will underperform. ${reasons || "Check secrets + restart API."} Launching anyway…`,
+          );
+        }
+      }
+    } catch {
+      /* healthz optional — still launch */
+    }
     setFlash(true);
     window.setTimeout(() => setFlash(false), 480);
     setBusy(true);
-    setStatus(null);
     const result = await launchAtlasPipeline(opts);
     setBusy(false);
     setStatus(result.message);
