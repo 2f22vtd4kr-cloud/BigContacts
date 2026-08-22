@@ -2170,12 +2170,16 @@ router.post("/research/bureau/cases/:caseId/run-next-pass", async (req, res): Pr
         targetName: directions[0] ?? workingFile.humanBrief.objective.slice(0, 120),
         companyName: null,
         objective: [
-          "Boss-directed verification pass — agentic multi-hop web research.",
+          "Boss-directed verification — free agentic multi-hop. Invent queries; use OSINT tools when useful.",
           ...directions.slice(0, 6),
-          "Visit official contact/about/team pages. Never invent contacts.",
+          "Prefer primary pages when URLs are known. Never invent contacts.",
         ].join("\n"),
         caseId,
         maxIterations: resolveResearchDepth().agenticMaxIterations,
+        shouldCancel: async () => {
+          const job = await getJob(jobId);
+          return !job || job.status === "failed" || job.status === "cancelled";
+        },
       });
       workingFile = await persistDiscoveryCheckpoint(caseId, iteration, workingFile, {
         lane: "broad-web",
@@ -3542,7 +3546,7 @@ router.post("/research/cases/:entityId/advance", async (req, res): Promise<void>
         objective: [
           bossPlan.investigatorPrompt ?? action.purpose,
           action.rationale,
-          "Boss-selected web action — agentic multi-hop on top of Atlas secondary tools. Never invent contacts.",
+          "Boss-selected web action — free agentic multi-hop with OSINT tools when useful. Never invent contacts.",
         ].filter(Boolean).join("\n"),
         caseId: current.id,
         entityId: params.data.entityId,

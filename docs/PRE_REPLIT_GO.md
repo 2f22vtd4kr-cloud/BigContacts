@@ -1,7 +1,7 @@
 # Pre-Replit GO — Apex Atlas
 
 **Branch:** `main`  
-**Pull tip:** latest `main` (multi-stage audit: free ReAct, orientation, integrity gate, fail-closed salvage, browser_fetch metrics)
+**Pull tip:** latest `main` (depth budgets, dig/verify cancel, soft free objectives) (multi-stage audit: free ReAct, orientation, integrity gate, fail-closed salvage, browser_fetch metrics)
 
 ## Ready when
 
