@@ -118,7 +118,7 @@ export const MIXED_DISCOVERY_POOL: MixedDiscoverySlot[] = [
     exampleQueries: [
       '"Dubai" ("tech company" OR "technology") (founder OR CEO OR principal) profile',
       '"Dubai" ("investment company" OR "family office") (founder OR managing partner)',
-      "Dubai free zone technology company owner founder",
+      "Dubai free zone technology company",
     ],
     geography: "United Arab Emirates",
   },
@@ -162,7 +162,7 @@ export const MIXED_DISCOVERY_POOL: MixedDiscoverySlot[] = [
     label: "Web: European operators / venue & estate principals",
     category: 6,
     exampleQueries: [
-      "European (hotel OR resort OR estate) owner founder director profile",
+      "European (hotel OR resort OR estate) company profile",
       "Italy France Germany (company owner OR principal) investment profile",
     ],
     geography: "European Union",

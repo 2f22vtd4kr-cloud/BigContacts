@@ -1877,16 +1877,13 @@ export async function runAgenticWebResearch(input: {
     }
 
 
-    // Model-led only: no force_company / force_org_email / force_facebook / force_related /
-    // force_ownership / force_exec / force_registry / auto force_visit gap-fills.
-    // Those scripts stole turns from trained models. LLM chooses search/visit/done every step.
-    // detVisitNext remains only for all-LLM-fail recovery when all LLMs fail (below).
+    // Model-led only. detVisitNext only on all-LLM-fail recovery.
 
     // Soft stagnation: if the last searches repeated the same query, nudge the model.
     {
       const recentSearches = history
         .map((h) => {
-          const m = h.match(/web_search\s+(.+)$/i) || h.match(/force_\w+_search\s+(.+)$/i);
+          const m = h.match(/web_search\s+(.+)$/i) || h.match(/det_search\s+(.+)$/i) || h.match(/search\s+(.+)$/i);
           return m ? m[1]!.trim().toLowerCase() : null;
         })
         .filter(Boolean) as string[];

@@ -1629,8 +1629,7 @@ export async function runAgenticWebResearch(input: {
       };
     }
 
-    // Model-led only: no force_* gap-fill scripts. LLM chooses every search/visit/done.
-    // detVisitNext remains available for optional future recovery only.
+    // Model-led only. detVisitNext only on all-LLM-fail recovery.
 
     const prompt = buildStepPrompt({
       targetName: name,
