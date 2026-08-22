@@ -1458,8 +1458,16 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
   const adaptive = Boolean(isLive && liveNodes && liveNodes.size > 0);
   const atlasFailed = atlasState?.runStatus === "failed";
   const atlasDone = atlasState?.runStatus === "done";
-  const schedulerCountdown = formatSchedulerCountdown(schedulerWaitRemaining(scheduler, schedulerNow));
-  const waitingForNextCycle = Boolean(!isLive && !atlasFailed && schedulerCountdown);
+  const schedulerRemainingMs = schedulerWaitRemaining(
+    typeof scheduler === "object" && scheduler
+      ? (scheduler as any).nextTriggerAt ?? (scheduler as any).nextAt
+      : null,
+  );
+  const schedulerCountdown = formatSchedulerCountdown(schedulerRemainingMs);
+  // "0s" is a non-empty string — must not show NEXT CYCLE QUEUED when nothing is scheduled
+  const waitingForNextCycle = Boolean(
+    !isLive && !atlasFailed && schedulerRemainingMs > 0 && scheduler?.enabled,
+  );
   const atlasStatusColor = atlasFailed ? "#fb7185" : waitingForNextCycle ? "#fbbf24" : atlasDone ? "#b8ff4d" : isLive ? "#9CFF1A" : "#b8ff4d";
   const [deskOn, setDeskOn] = useState(true);
   const { deskEvents, latestNarration } = useBureauLiveDesk(atlasState?.eventLog as any, { enabled: true });

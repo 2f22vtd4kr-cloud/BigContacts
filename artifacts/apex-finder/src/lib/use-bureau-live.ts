@@ -27,11 +27,20 @@ export type BureauDeskEvent = {
 
 function mapBureauPayload(parsed: any): BureauDeskEvent {
   const isNarration = parsed?.kind === "narration" || parsed?.actor === "right_hand";
+  // Age-out LIVE chrome: only recent events stay "active". Stale Redis tails must not
+  // keep the desk showing NOW after Atlas is idle.
+  let status = "done";
+  try {
+    const ts = parsed?.timestamp ? Date.parse(String(parsed.timestamp)) : NaN;
+    if (Number.isFinite(ts) && Date.now() - ts < 90_000) status = "active";
+  } catch {
+    status = "done";
+  }
   return {
     timestamp: parsed?.timestamp,
     kind: parsed?.kind || (isNarration ? "narration" : "log"),
     stage: parsed?.title,
-    status: "active",
+    status,
     targetName: parsed?.targetName,
     activeToolId: parsed?.provider,
     toolIds: parsed?.provider ? [String(parsed.provider)] : [],

@@ -360,6 +360,13 @@ function toScene(e: OpsEvent, index: number, slots: ProviderSlotMap | null = nul
   const unavailable = providerUnavailable(e, slots);
   // Do not show LIVE chrome for missing/offline providers (e.g. Perplexity with 0 keys)
   let live = !/complete|done|success/i.test(status) && !unavailable;
+  // Stale events must not stay LIVE forever (Redis tail / job idle)
+  try {
+    const ts = e.timestamp ? Date.parse(String(e.timestamp)) : NaN;
+    if (!Number.isFinite(ts) || Date.now() - ts > 90_000) live = false;
+  } catch {
+    live = false;
+  }
   if (unavailable && !/complete|done|success/i.test(status)) {
     // Force terminal failed so UI shows OFF / failed instead of LIVE theater
   }
@@ -1284,7 +1291,7 @@ function MobileWorkstage({
         aria-valuenow={safeIdx + 1}
         aria-valuemin={1}
         aria-valuemax={Math.max(scenes.length, 1)}
-        aria-label={`Step ${safeIdx + 1} of ${scenes.length}`}
+        aria-label={`Recent tool window ${safeIdx + 1} of ${scenes.length}`}
       >
         <div
           className="h-full rounded-full"
@@ -1338,7 +1345,7 @@ function MobileWorkstage({
                   key={s.id}
                   type="button"
                   role="tab"
-                  aria-label={`Step ${i + 1} of ${scenes.length}: ${s.title}${s.live ? " happening now" : " done"}`}
+                  aria-label={`Tool window ${i + 1} of ${scenes.length}: ${s.title}${s.live ? " live" : " done"}`}
                   aria-current={isHere ? "true" : undefined}
                   aria-selected={isHere}
                   onClick={() => {
@@ -1360,8 +1367,8 @@ function MobileWorkstage({
             })}
           </div>
           <p className="font-mono text-[9px] tabular-nums text-stone-500">
-            Step {safeIdx + 1} of {scenes.length}
-            {scene.live ? " · happening now" : " · already done"}
+            Window {safeIdx + 1} of {scenes.length}
+            {scene.live ? " · live" : " · done"}
           </p>
         </div>
       )}
@@ -1469,7 +1476,17 @@ export function BureauOpsStage({
     }
 
     // Chronological: last N steps only (past + current — never invented future)
-    return folded.slice(-maxScenes);
+    const capped = folded.slice(-maxScenes);
+    // At most one LIVE window: the freshest active scene
+    let liveSeen = false;
+    for (let i = capped.length - 1; i >= 0; i--) {
+      if (capped[i].live && !liveSeen) {
+        liveSeen = true;
+      } else if (capped[i].live) {
+        capped[i] = { ...capped[i], live: false, terminal: capped[i].terminal ?? "done" };
+      }
+    }
+    return capped;
   }, [events, maxScenes, providerSlots]);
 
   // Hooks must run unconditionally (before any early return).

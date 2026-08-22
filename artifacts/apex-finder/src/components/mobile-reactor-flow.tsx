@@ -308,8 +308,13 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [showHistory, deskEvents.length]);
-  const schedulerCountdown = formatSchedulerCountdown(schedulerWaitRemaining(scheduler, schedulerNow));
-  const waitingForNextCycle = Boolean(!isLive && schedulerCountdown);
+  const schedulerRemainingMs = schedulerWaitRemaining(
+    typeof scheduler === "object" && scheduler ? (scheduler as any).nextTriggerAt ?? (scheduler as any).nextAt : scheduler,
+  );
+  const schedulerCountdown = formatSchedulerCountdown(schedulerRemainingMs);
+  const waitingForNextCycle = Boolean(
+    !isLive && schedulerRemainingMs > 0 && Boolean((scheduler as any)?.enabled),
+  );
   const statusLabel = atlasState?.runStatus === "failed"
     ? "Failed"
     : atlasState?.runStatus === "done"
