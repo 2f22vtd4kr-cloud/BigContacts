@@ -191,7 +191,7 @@ export async function enrichEntityOsint(entity: EntityOsintInput): Promise<Osint
   // ── Step 2: Email via DDG HTML deep search ────────────────────────────────
   try {
     const emailQuery = isIndividual
-      ? `"${name}" email contact site:linkedin.com OR site:bloomberg.com OR site:crunchbase.com`
+      ? `"${name}"`
       : `"${name}" contact email official`;
     const html = await ddgHtmlSearch(emailQuery);
     if (html) {

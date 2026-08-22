@@ -1,11 +1,12 @@
 # Context — living handoff (Apex Atlas / BigContacts)
 
 **Repo:** https://github.com/2f22vtd4kr-cloud/BigContacts · **Branch:** `main`  
+**API build entry:** `artifacts/api-server/src/src` (esbuild). Top-level `src/lib` is a thin scaffold — do not edit it for research logic.  
 **Product:** Apex Atlas research bureau (NOT Steam “Atlas Reactor”, NOT physics ATLAS).
 
 ## Prep for next Replit run (2026-08-22)
 
-**Current tip:** `4456b1b` — pull latest `main` before any Replit boot
+**Current tip:** `5cb6949` (and newer) — free research path · prior was: `4456b1b` — pull latest `main` before any Replit boot
 
 ### Tip chain (bureau research integrity)
 | Commit | Point |

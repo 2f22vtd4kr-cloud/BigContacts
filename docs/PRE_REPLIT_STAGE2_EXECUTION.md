@@ -17,7 +17,7 @@
 | Atlas HTTP contract | `routes/atlas.ts` | **Intact** — POST run, DELETE lock, GET status |
 | Discovery-first defaults | atlas-run body | **Intact** — `discoveryFirst`, skipFaa when discovery, researchLimit |
 | Grok-is-floor mandates | `investigator-prompt-guide.ts`, `case-bureau.ts`, NIM reasoning | **Intact** |
-| Refuse-done / force related-people | prompt guide + case bureau | **Intact** |
+| Refuse-done / force related-people | removed — model-led done | **Gone (free research)** |
 
 **Commit policy:** UI/offline hardening only in recent tips. No drive-by edits to agentic loop, extraction mandate, or orchestrator phase graph.
 
@@ -96,7 +96,7 @@ Prompt used for Grok-style pass: *Find important related people and how to conta
 - `agentic-web-research.ts` extraction / CONTACT FACTS  
 - `atlas-orchestrator.ts` phase order  
 - `contact-validation.ts` gates  
-- Prompt mandates (“Grok is the floor”, refuse-done)  
+- Prompt mandates removed (no Grok-is-floor / refuse-done scripts)  
 - Job queue / atlas-lock semantics  
 
 UI-only and deploy-wiring changes only unless a real research bug is proven with a live run.

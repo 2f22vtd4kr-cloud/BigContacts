@@ -150,7 +150,7 @@ export async function discoverSocialPresence(entity: {
   const name = entity.name.trim();
 
   // ── Step 1: LinkedIn via DuckDuckGo ──────────────────────────────────────
-  const liResults = await ddgHtmlSearch(`"${name}" site:linkedin.com/in`);
+  const liResults = await ddgHtmlSearch(`"${name}"`);
   const liUrl = extractLinkedInUrl(liResults);
   if (liUrl) {
     result.linkedinUrl = liUrl;

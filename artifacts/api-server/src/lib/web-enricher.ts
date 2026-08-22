@@ -328,7 +328,7 @@ export async function enrichEntityOsint(entity: EntityOsintInput): Promise<Osint
   // Step 2: Email via DDG HTML deep search (locale-aware)
   try {
     const emailQuery = isIndividual
-      ? `"${name}" email contact site:linkedin.com OR site:bloomberg.com OR site:crunchbase.com`
+      ? `"${name}"`
       : `"${name}" contact email official`;
     const html = await ddgHtmlSearch(emailQuery, locale);
     if (html) {
@@ -1408,109 +1408,33 @@ export function buildDeepWebQueries(
   city: string | null,
   country: string | null,
 ): { queries: string[]; domainTargets: string[] } {
+  // Seed only — matches production src/src tree. Agentic ReAct invents the dig.
   const legalName = normaliseName(entity.name.trim());
   if (!legalName || legalName.length < 4) return { queries: [], domainTargets: [] };
-
   if (/^\d+\s/.test(legalName) || /\b(flat|house|cottage|manor|farm|apartment)\s+\d/i.test(legalName)) {
     return { queries: [], domainTargets: [] };
   }
-
-  const isIndividual = entity.type === "HNWI" || entity.type === "Gatekeeper" ||
-    /^[A-Z][a-z]+ [A-Z]/.test(legalName);
-  const isCorp = !isIndividual;
   const meta = safeJson<Record<string, unknown>>(entity.metadata, {});
-
   const queries: string[] = [];
   const domainTargets: string[] = [];
-
-  const isFrench  = country === "FR" || country === "BE" || country === "MC";
-  const isGerman  = country === "DE" || country === "AT" || country === "CH";
-  const isItalian = country === "IT";
-  const isSpanish = country === "ES";
-
-  if (isIndividual) {
-    queries.push(`"${legalName}" email contact`);
-    queries.push(`"${legalName}" linkedin`);
-
-    const nNumber = typeof meta["nNumber"] === "string" ? meta["nNumber"] as string : null;
-    if (nNumber) {
-      queries.push(`"${nNumber}" aircraft owner contact email`);
-      queries.push(`"${legalName}" pilot aviation email`);
-    }
-
-    const companyName = typeof meta["companyName"] === "string" ? (meta["companyName"] as string).trim() : null;
-    if (companyName && companyName !== legalName) {
-      queries.push(`"${legalName}" "${companyName.substring(0, 40)}" contact`);
-    } else if (typeof meta["formType"] === "string") {
-      queries.push(`"${legalName}" investor director SEC contact email`);
-    }
-
-    if (city && city !== legalName) {
-      queries.push(`"${legalName}" ${city} contact email phone`);
-    }
-
-    if (isFrench) {
-      queries.push(`"${legalName}" contact email France`);
-    }
+  const trade = (tradingName || legalName).trim();
+  queries.push(`"${trade}"`);
+  if (trade !== legalName) queries.push(`"${legalName}"`);
+  if (city && city.length > 2 && !trade.toLowerCase().includes(city.toLowerCase())) {
+    queries.push(`"${trade}" "${city}"`);
   }
-
-  if (isCorp) {
-    // Use TRADING name for all queries — not the raw legal name
-    // Legal name ("BAOLI SAS") never appears in press, venue guides, or social profiles
-    // Trading name ("Baoli Cannes") is what the public knows
-
-    // Guard: when the trading name already contains the city ("Baoli Cannes"),
-    // don't generate "${tradingName} ${city}" queries — they produce "Baoli Cannes Cannes …"
-    const tradingHasCity = !!(city && tradingName.toLowerCase().includes(city.toLowerCase()));
-
-    // Primary: trading name + city + contact keywords
-    if (tradingName !== legalName) {
-      queries.push(`"${tradingName}" contact email`);
-      if (city && !tradingHasCity) queries.push(`"${tradingName}" ${city} contact email`);
-    }
-    // Always include legal name as fallback for corporate directory hits
-    queries.push(`"${legalName}" contact email`);
-
-    // City-context queries (high yield for local hospitality/venue targets)
-    if (city && !tradingHasCity) {
-      queries.push(`${tradingName} ${city} email réservations contact`);
-      queries.push(`${tradingName} ${city} owner founder manager`);
-    }
-
-    // Language-specific templates
-    if (isFrench) {
-      queries.push(`"${tradingName}" contact réservations email`);
-      queries.push(`"${tradingName}" propriétaire fondateur dirigeant`);
-      if (city && !tradingHasCity) queries.push(`${tradingName} ${city} fondateur email`);
-    }
-    if (isGerman) {
-      queries.push(`"${tradingName}" Kontakt email Inhaber Geschäftsführer`);
-      queries.push(`"${tradingName}" Gründer Eigentümer`);
-    }
-    if (isItalian) {
-      queries.push(`"${tradingName}" contatti email fondatore titolare`);
-    }
-    if (isSpanish) {
-      queries.push(`"${tradingName}" contacto email fundador propietario`);
-    }
-
-    // English fallback
-    queries.push(`"${tradingName}" CEO owner founder contact`);
-
-    // LinkedIn company page — surfaces /company/<slug> URL via snippet
-    queries.push(`"${tradingName}" linkedin`);
-
-    // VC / PE firms: explicitly search for partners and GPs by name
-    queries.push(`"${tradingName}" general partner managing partner team`);
-    queries.push(`"${tradingName}" partners founders site:crunchbase.com OR site:pitchbook.com OR site:linkedin.com`);
-
-    // Domain guessing — add to direct scrape targets, not search queries
+  const companyName = typeof meta["companyName"] === "string" ? (meta["companyName"] as string).trim() : null;
+  if (companyName && companyName !== legalName && companyName !== trade) {
+    queries.push(`"${legalName}" "${companyName.substring(0, 40)}"`);
+  }
+  const nNumber = typeof meta["nNumber"] === "string" ? (meta["nNumber"] as string) : null;
+  if (nNumber) queries.push(`"${nNumber}"`);
+  try {
     const domains = guessCompanyDomainWithCity(legalName, city);
-    domainTargets.push(...domains.slice(0, 4));
-  }
-
+    domainTargets.push(...domains.slice(0, 3));
+  } catch { /* optional */ }
   return {
-    queries: [...new Set(queries)].slice(0, 10),
+    queries: [...new Set(queries)].slice(0, 5),
     domainTargets: [...new Set(domainTargets)],
   };
 }
@@ -2189,8 +2113,8 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
         // contact vector without an explicit identity-resolution decision.
         try {
           const personQuery = city
-            ? `"${personName}" "${trading}" "${city}" owner founder director email linkedin`
-            : `"${personName}" "${trading}" owner founder director email linkedin`;
+            ? `"${personName}" "${trading}" "${city}"`
+            : `"${personName}" "${trading}"`;
           const sr = await duckduckgoSearch(personQuery, locale);
           result.queriesFired++;
           collectSearchResult(sr, label, "person_candidate", personName);
@@ -2203,7 +2127,7 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
         const pressLocale = isFrench ? "fr_FR" : locale;
         const pressQuery  = isFrench
           ? `"${personName}" "${trading}" OR "${city ?? ""}" fondateur propriétaire`
-          : `"${personName}" "${trading}" owner founder`;
+          : `"${personName}" "${trading}"`;
         try {
           const pr = await pressEngine(pressQuery, pressLocale);
           result.queriesFired++;
@@ -2245,7 +2169,7 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
 
         // ── Targeted personal LinkedIn search ───────────────────────────────
         try {
-          const liQuery = `"${personName}" site:linkedin.com/in`;
+          const liQuery = `"${personName}"`;
           const liSr = await duckduckgoSearch(liQuery, locale);
           result.queriesFired++;
           const liUrl = extractLinkedIn(liSr.text)

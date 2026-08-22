@@ -15,7 +15,7 @@
 
 - Lane: **company-first** (no wallet string → wallet plan not injected).  
 - `bossPremise` written immediately with non-negotiable rules:  
-  > Grok is the floor. Apex maximises attributable people-contacts (owners, officers, founders + role emails/phones). Never invent contacts. Never mark org inboxes (info@, sales@, etc.) as Personal. Trash-phone gate stays on. Refuse done while org surface exists and zero related persons are attached.  
+  > Evidence quality bar: maximise attributable people-contacts (owners, officers, founders + role emails/phones) from primary sources. Never invent contacts. Never mark org inboxes (info@, sales@, etc.) as Personal. Trash-phone gate stays on. Models choose when research is complete — no forced refuse-done script.  
 - `openQuestions` seeded:  
   1. Primary company domain + contact surface  
   2. Leadership / team / about directories  
@@ -82,7 +82,7 @@ ORG SURFACE LOCKED
 - org emails: … (organization scope)
 ```
 
-Because org surface exists and related-person count = 0 → **refuse-done** fires. Loop continues.
+Org surface without related people is a gap the model should notice; it is not a hard refuse-done script.
 
 ---
 
@@ -134,7 +134,7 @@ HNWI-path contacts are the subset of related persons carrying ownership / partne
 
 **Boss (Gemini)**  
 - Watches trajectory continuously.  
-- On every refuse-done, re-issues SURFACE MANDATE and demands related-people hop if not yet executed.  
+- Soft gap hints only — models invent the next search/visit; no SURFACE MANDATE force-hop.  
 - Never instructs erasure of related persons.  
 - Updates `bossPremise` and openQuestions as surface expands.
 
@@ -197,6 +197,6 @@ Display order: **Personal (if any) → Company · related (HNWI-path first) → 
 - Every contact requires http(s) sourceUrl.  
 - Refuse done while org surface exists and zero related persons attached.  
 - Trajectory salvage for any company-aligned email the LLM drops.  
-- Grok is the floor; any Grok-only public person that Apex misses is a severe bug.
+- Parity bar: any public person a strong general agent finds that Apex misses on the same surface is a severity bug.
 
 This document is the textbook. Boss and right-hand should treat it as the reference shape for every comparable mid-market public-surface case.

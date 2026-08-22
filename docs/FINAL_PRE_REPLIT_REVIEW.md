@@ -49,7 +49,7 @@ This sandbox could not keep a durable Postgres + linked `pnpm` api-server proces
 | `contact-validation.ts` | Trash / placeholder gates | Intact |
 | `bureau-contact-persist` / `presented-contacts` | Persist filters | Intact |
 | `routes/atlas.ts` | Launch / Stop / status | Intact |
-| Investigator prompts | Grok-is-floor, refuse-done | Intact |
+| Investigator prompts | free research, no force scripts | Updated |
 
 **Do not** refactor these on first Replit boot unless a live job proves a bug.
 
