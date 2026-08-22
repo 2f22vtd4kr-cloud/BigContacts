@@ -6,7 +6,7 @@
 
 ## Prep for next Replit run (2026-08-22)
 
-**Current tip:** `24ee41b` — **free research path** (code + context + RUN_BUREAU + stage2 docs aligned)
+**Current tip:** `1894981` — **free research path** (code + context + RUN_BUREAU + stage2 docs aligned)
 
 ### What “free research” means (non-negotiable)
 - **Agentic ReAct:** the model chooses every `web_search` / `visit` / `done`. No `force_*` gap-fill machine.
