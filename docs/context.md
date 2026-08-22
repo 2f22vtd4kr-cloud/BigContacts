@@ -6,7 +6,7 @@
 
 ## Prep for next Replit run (2026-08-22)
 
-**Current tip:** `ff24e34`+ — Reactor Live Desk verified with real screenshots (desktop+mobile scenarios in `screenshots/green/reactor-qa-*.png`).
+**Current tip:** `012ae40`+ — Reactor Live Desk screenshots + broader tool narration (footprint/domain/harvest/browser) + provider-specific scene titles.
 
 ### Reactor Live Desk (desktop + mobile)
 - **Who narrates:** right-hand (NVIDIA), **not** Boss — Boss stays on orchestration.

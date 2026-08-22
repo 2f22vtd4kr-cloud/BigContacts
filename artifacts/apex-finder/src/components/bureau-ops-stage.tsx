@@ -389,7 +389,8 @@ function toScene(e: OpsEvent, index: number, slots: ProviderSlotMap | null = nul
   else if (e.methodKind === "search" || provider === "google" || /\bgoogle\b/i.test(toolBlob)) kind = "google";
   else if (e.methodKind === "search" || ["serp", "serper", "serpapi", "tavily", "exa", "perplexity"].includes(provider) || /tavily|exa|perplexity|serper|serpapi|web.?search/i.test(tool)) kind = "serp";
   else if (e.methodKind === "extract" || provider === "prompt" || e.prompt || /groq|llm|extract|gemini/i.test(tool)) kind = "prompt";
-  else if (e.methodKind === "footprint" || provider === "sherlock" || provider === "maigret" || /footprint|holehe|sherlock|maigret/i.test(toolBlob)) kind = "footprint";
+  else if (e.methodKind === "footprint" || provider === "sherlock" || provider === "maigret" || provider === "holehe" || /footprint|holehe|sherlock|maigret|harvest/i.test(toolBlob)) kind = "footprint";
+  else if (/browser_fetch|scrapfly|zenrows/i.test(toolBlob)) kind = "browser";
   else if (
     e.methodKind === "fetch" ||
     provider === "browser" ||
@@ -859,7 +860,7 @@ function SerpScene({ scene, compact }: { scene: Scene; compact?: boolean }) {
       accent="#9CFF1A"
       compact={compact}
       favicon={<ProviderIcon kind={scene.provider} size={compact ? 12 : 14} />}
-      urlBar={`search · ${q.slice(0, 40)}`}
+      urlBar={`${providerLabel(scene.provider).toLowerCase()} · ${q.slice(0, 36)}`}
     >
       <div className="space-y-3">
         <div className="flex items-center gap-2 rounded-full border border-lime-500/30 bg-[#0d1219] px-3 py-2.5">
@@ -888,14 +889,20 @@ function SerpScene({ scene, compact }: { scene: Scene; compact?: boolean }) {
 }
 
 function FootprintScene({ scene, compact }: { scene: Scene; compact?: boolean }) {
+  const p = (scene.provider || scene.tool || "").toLowerCase();
+  const title = /holehe/i.test(p) ? "Email footprint · Holehe"
+    : /maigret/i.test(p) ? "Username dossier · Maigret"
+    : /harvester|theharvester/i.test(p) ? "Domain harvest · theHarvester"
+    : /sherlock/i.test(p) ? "Username footprint · Sherlock"
+    : "Public footprint check";
   return (
     <WindowChrome
-      title="Username footprint"
+      title={title}
       method="footprint"
       live={scene.live} terminal={scene.terminal}
       accent="#9CFF1A"
       compact={compact}
-      favicon={<ProviderIcon kind="sherlock" size={compact ? 12 : 14} />}
+      favicon={<ProviderIcon kind={/holehe/i.test(p) ? "holehe" : "sherlock"} size={compact ? 12 : 14} />}
     >
       <div className={`font-mono text-lime-100/90 space-y-1 ${compact ? "text-[10px]" : "text-[11px]"}`}>
         {(scene.resultLines.length ? scene.resultLines : ["Checking public profiles and sites…"]).map((l, i) => (

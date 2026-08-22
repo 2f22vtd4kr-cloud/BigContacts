@@ -17,6 +17,7 @@ const MAX_IN_FLIGHT = 1;
 const NARRATABLE = new Set([
   "search",
   "page-fetch",
+  "fetch",
   "extract",
   "plan",
   "decision",
@@ -25,6 +26,14 @@ const NARRATABLE = new Set([
   "gate",
   "assignment",
   "observation",
+  "footprint",
+  "domain",
+  "harvest",
+  "whois",
+  "browser",
+  "web_search",
+  "visit",
+  "boss",
 ]);
 
 function shouldNarrate(event: BureauLiveEvent): boolean {
@@ -35,6 +44,7 @@ function shouldNarrate(event: BureauLiveEvent): boolean {
   // Tool / web / registry activity without kind
   if (event.actor === "web" || event.actor === "tool" || event.actor === "registry") return true;
   if (event.actor === "boss" && /plan|decision|assign/i.test(event.title + (event.kind || ""))) return true;
+  if (event.provider && /serper|tavily|exa|scrapfly|zenrows|holehe|maigret|sherlock|edgar|whois|harvester|whoxy/i.test(event.provider)) return true;
   return Boolean(event.why || event.ask || event.responseSummary);
 }
 
