@@ -16,7 +16,7 @@
 | Persist path filters trash | `bureau-contact-persist.ts`, `presented-contacts.ts` | **Intact** |
 | Atlas HTTP contract | `routes/atlas.ts` | **Intact** — POST run, DELETE lock, GET status |
 | Discovery-first defaults | atlas-run body | **Intact** — `discoveryFirst`, skipFaa when discovery, researchLimit |
-| Grok-is-floor mandates | `investigator-prompt-guide.ts`, `case-bureau.ts`, NIM reasoning | **Intact** |
+| Grok-is-floor mandates | removed from prompts | **Gone (free research)** |
 | Refuse-done / force related-people | removed — model-led done | **Gone (free research)** |
 
 **Commit policy:** UI/offline hardening only in recent tips. No drive-by edits to agentic loop, extraction mandate, or orchestrator phase graph.
@@ -57,7 +57,7 @@ Prompt used for Grok-style pass: *Find important related people and how to conta
 ### What Apex is built to do on the same target (code path, not a live run here)
 1. Seed company → fetch about/contact/team (multi-hop mandate in agentic prompt).  
 2. **CONTACT FACTS** deterministic block from page text (mailto + person/role lines).  
-3. LLM EXTRACTION MANDATE with Grok-as-floor (named officers, compound titles).  
+3. Free agentic extraction of named officers and compound titles when pages are visited.  
 4. `isTrashContactValue` / placeholder filters — these addresses **should pass**.  
 5. Persist with Personal vs org-mailbox distinction.  
 6. Refuse-done until related people attached.
@@ -65,8 +65,8 @@ Prompt used for Grok-style pass: *Find important related people and how to conta
 **Scoreboard (honest):**
 | Dimension | Grok Agent (this pass) | Apex (architecture expectation) |
 |-----------|------------------------|----------------------------------|
-| Named principals | 4–5 | ≥ Grok if pages fetched |
-| Direct domain emails | 4 | ≥ Grok via CONTACT FACTS |
+| Named principals | 4–5 | Match strong general agent if pages fetched |
+| Direct domain emails | 4 | Match strong general agent via CONTACT FACTS |
 | Invented/trash | 0 | 0 (gates) |
 | Live run in this sandbox | N/A | **Blocked — no API keys/DB** |
 

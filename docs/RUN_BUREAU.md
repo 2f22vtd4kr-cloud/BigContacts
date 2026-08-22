@@ -32,6 +32,8 @@ Do **not** invent alternate startups, random scripts, or partial pipelines.
    - `GET /api/healthz` → 200
    - Redis connected
    - `lanesHonesty.bureauIntegrity` is not `critical` (or operator acknowledges degraded)
+8. Research path: **free ReAct** (see `docs/context.md`). Trajectory should show model-invented
+   `web_search` / `visit` / `done` — not `force_*` lines. Tip: pull latest `main`.
 
 ---
 

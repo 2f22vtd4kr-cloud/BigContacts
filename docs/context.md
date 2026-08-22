@@ -6,7 +6,7 @@
 
 ## Prep for next Replit run (2026-08-22)
 
-**Current tip:** `1d137cd` — **free research path** documented in this file (code tip `92273c9`+)
+**Current tip:** `4bc3bf7`+ — **free research path** (see sections below; keep docs in sync on every cut)
 
 ### What “free research” means (non-negotiable)
 - **Agentic ReAct:** the model chooses every `web_search` / `visit` / `done`. No `force_*` gap-fill machine.
@@ -54,7 +54,7 @@ Force-hops and GROK-PARITY checklists ran **before/instead of** free ReAct, burn
 **Now:** multi-LLM free ReAct owns the dig; tools extract on visited HTML; Boss plans without numbered search scripts.
 
 ### Boot gate (do not research until green)
-1. Pull **`1d137cd`** or newer
+1. Pull **latest `main`** (free research path in this file)
 2. Secrets: `SERPER_API_KEY` + `GROQ_API_KEY` minimum; `TAVILY` + `EXA_*` + Gemini + NVIDIA + Mistral preferred
 3. `RESEARCH_DEPTH=standard` (or `deep`) for parity smokes — `fast` under-digs
 4. `GET /api/healthz` → `bureauIntegrity` = **ok**

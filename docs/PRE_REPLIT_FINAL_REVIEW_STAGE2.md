@@ -81,7 +81,7 @@ Confirm still imported on ingest / cases / enrich paths:
 - `isTrashPhone`
 - `isPlaceholderEmail`
 - `isTrashContactValue`
-- force-attach org phones only as **organization** routes
+- bag-attach org phones only as **organization** routes
 
 ### B4 Pass / fail
 Any trash row in ledger after a production-style run = **P0**, fix before Replit.
@@ -129,7 +129,7 @@ For each live/history scene during S2-A (or replay history):
 
 ## S2-E — Natural comparison protocol (Apex vs Grok Agent)
 
-**Purpose:** Prove Apex is not behind a cold general agent on attributable contacts. Any Grok edge = severe pipeline bug.
+**Purpose:** Prove Apex is not behind a cold general agent on attributable contacts. Any strong-agent edge on the same public surface = severe pipeline bug.
 
 ### E1 Fair rules (non-negotiable)
 1. **Same target string only** — company or person name shared; no pasting Apex results into Grok.
