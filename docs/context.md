@@ -6,12 +6,12 @@
 
 ## Prep for next Replit run (2026-08-22)
 
-**Current tip:** `fcafa0b` — **free research path** (pull latest main; this file is the handoff)
+**Current tip:** `f55e604` — **free research path** (adaptive rules = stop-only; models own dig)
 
 ### What “free research” means (non-negotiable)
 - **Agentic ReAct:** the model chooses every `web_search` / `visit` / `done`. No `force_*` gap-fill machine.
 - **Done:** only soft-rejected on pure no-op (zero searches, visits, and findings). Auto-extracted CONTACT FACTS count.
-- **Adaptive director:** Gemini Boss → NVIDIA right-hand → Groq free step → **stop** (never the hard-coded research ladder as a dig playbook).
+- **Adaptive director:** Gemini Boss → NVIDIA right-hand → Groq free step → **stop**. Rules path is stop-only (no dig ladder).
 - **OSINT lanes:** thin **seed** queries only (`"name"`, `"name" "company"`, geo) — not LinkedIn/BBB/Facebook/SEC menus.
 - **Path crawls:** `/contact` `/about` `/team` only — not multilingual path playbooks.
 - **Prompts:** no “Grok is the floor”, no refuse-done, no force-related-people mandates.
