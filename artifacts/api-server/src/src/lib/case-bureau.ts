@@ -1189,7 +1189,7 @@ export function buildDiscoveryCaseFile(input: {
           : "Wallet-first discovery. Attribute any crypto-wallet holder from public sources before contact hops. Reject exchange/mixer/treasuries. Never invent holder or contacts. Match docs/GOLDEN_STANDARD_CASE_REFERENCE.md after attribution."
       )
     : "Start broad. Discover realistic public-world investor routes before resolving any one target in depth. " +
-      "Company-first public surface: match docs/GOLDEN_STANDARD_CASE_REFERENCE.md — mixed-randomised sources → org lock → force related-people → refuse-done until people attached → Personal vs Company·related vs org-mailbox; HNWI-path owners/partners flagged. Grok is the floor.";
+      "Company-first public surface: recover org contact routes and related people from primary sources with exact URLs. Never invent contacts. Never mark org inboxes Personal.";
   return {
     version: 3,
     caseType: "discovery",

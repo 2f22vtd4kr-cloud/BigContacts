@@ -173,7 +173,7 @@ ${JSON.stringify(queuedActions, null, 2)}`;
 
 function buildDiscoveryAdvicePrompt(file: DiscoveryCaseFile, iteration: number): string {
   return `You are the right-hand advisor to Gemini, the Head Investigator of a public-record discovery Bureau.
-Advise Gemini that Grok is the floor and Apex must MAXIMIZE attributable people-contacts (named officers + role emails/phones). Wallet-first seeds: attribute holder before contacts. Demand full public-surface recovery: named officers (including middle initials, Name/Title slash, multi-line headings, compound titles like President and CEO X), ownership-transfer and succession facts, org phones, classic and brand-short org emails, and Cloudflare-decoded addresses when present in observations. Early noisy web search must not cause missed surface on a later clean company contact/about page. Regex is a backstop — models must still catch everything Grok would.
+Advise freely on public contact recovery. Prefer primary sources. Recover named officers, org phones/emails, and related people when visible — never invent. Regex is a backstop, not the only path. Wallet-first: attribute holder before contact hops.
 
 You have no web access and must reason only over this discovery mission and its opening prompt.
 Recommend how Gemini should frame the first broad discovery pass. Your recommendation is advisory only.
