@@ -1071,7 +1071,7 @@ async function queryCRTsh(domain: string): Promise<string[]> {
 async function queryWaybackMachine(domain: string): Promise<{ email: string | null; sourceUrl: string | null }> {
   try {
     // Find archived contact/about/team pages
-    const paths = ["contact", "about", "team", "contact-us", "about-us"];
+    const paths = ["contact", "about", "team"];
     for (const path of paths) {
       const cdxUrl = `https://web.archive.org/cdx/search/cdx?url=${domain}/${path}*&output=json&fl=original,timestamp&limit=3&filter=statuscode:200&collapse=urlkey`;
       const cdxResp = await fetch(cdxUrl, { signal: timeout(10_000), headers: HEADERS });
@@ -1320,9 +1320,7 @@ async function duckduckgoNewsEmail(name: string): Promise<{ email: string | null
 
 // ── Source 20: Company contact page scraper ────────────────────────────────────
 async function scrapeContactPage(domain: string): Promise<{ email: string | null; phone: string | null; linkedinUrl: string | null; address: string | null; sourceUrl: string | null }> {
-  const paths = ["/contact", "/about", "/team", "/contact-us", "/about-us",
-                 "/leadership", "/our-team", "/executive-team", "/management-team",
-                 "/people", "/who-we-are", "/"];
+  const paths = ["/contact", "/about", "/team"];
   for (const path of paths) {
     try {
       const resp = await fetch(`https://${domain}${path}`, {

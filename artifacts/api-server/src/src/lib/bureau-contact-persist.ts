@@ -774,13 +774,7 @@ async function lookupLeadershipPages(website: string, personName: string): Promi
   } catch {
     return [];
   }
-  const paths = [
-    "/contact", "/contact-us", "/contactus", "/about", "/about-us",
-    "/team", "/leadership", "/our-team", "/people", "/company",
-    "/management", "/executives", "/locations",
-    // Org-email often lives on legal/terms pages (e.g. info@hastingsmfg.com)
-    "/terms", "/terms-and-conditions", "/terms-of-use", "/privacy", "/legal",
-  ];
+  const paths = ["/contact", "/about", "/team"];
   const found: string[] = [];
   for (const path of paths) {
     if (found.length >= 8) break;
@@ -983,7 +977,7 @@ async function lookupPublicXProfile(name: string): Promise<string | null> {
 
 /** Wayback CDX archived contact/about/team pages for a domain. Never invents contacts. */
 async function lookupWaybackContactPages(domain: string): Promise<string[]> {
-  const paths = ["contact", "about", "team", "contact-us", "about-us", "leadership"];
+  const paths = ["contact", "about", "team"];
   const found: string[] = [];
   for (const path of paths) {
     if (found.length >= 3) break;
