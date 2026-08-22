@@ -6,117 +6,77 @@
 
 ## Prep for next Replit run (2026-08-22)
 
-**Current tip:** `05bfc01` — free research path (force scripts stripped from agentic + OSINT lanes)
+**Current tip:** `92273c9` — **free research path** (force-hop scripts removed; models invent queries/visits)
 
-### Tip chain (bureau research integrity)
+### What “free research” means (non-negotiable)
+- **Agentic ReAct:** the model chooses every `web_search` / `visit` / `done`. No `force_*` gap-fill machine.
+- **Done:** only soft-rejected on pure no-op (zero searches, visits, and findings). Auto-extracted CONTACT FACTS count.
+- **Adaptive director:** Gemini Boss → NVIDIA right-hand → Groq free step → **stop** (never the hard-coded research ladder as a dig playbook).
+- **OSINT lanes:** thin **seed** queries only (`"name"`, `"name" "company"`, geo) — not LinkedIn/BBB/Facebook/SEC menus.
+- **Path crawls:** `/contact` `/about` `/team` only — not multilingual path playbooks.
+- **Prompts:** no “Grok is the floor”, no refuse-done, no force-related-people mandates.
+- **Bag attach:** recovered org emails/phones stay visible on company rows (`bag-attach`) — that is UI visibility, not a research script.
+- **Det recovery:** only when **all** chat LLMs fail — one plain name search + optional visit.
+- **API build entry:** `artifacts/api-server/src/src` (esbuild). Outer `src/lib` is scaffold; keep it seed-only so tests do not re-teach old scripts.
+
+### Tip chain (free research — 2026-08-22)
 | Commit | Point |
 |--------|--------|
-| `d6c3e9a` | Runtime llmStep **Groq → Mistral → Gemini → NVIDIA** (parity with api-server) |
-| `f8b3997` | **FINDINGS SO FAR** in step prompt; kill runtime GROK-PARITY playbook |
-| `d3af833` | Stop infinite done-reject for missing related persons |
-| `c72d8c2` | Accept `done` when auto-extracted CONTACT FACTS already exist |
-| `fce2cb1` | One JSON parse retry; trajectory window (last 14) |
-| `ca65bb7` / `222c0c7` | Soft SERP notes; **MAX_SCRIPTED_HOPS ≤ 3** |
-| `0aebbb4` | **FREE_REACT_STEPS = 12**; no force-visit until after free floor |
-| `6c71d46` / `cd8d929` | Soft done-reject; force-hops never skip `llmStep` |
-| `f80e257` / `1603c5f` / `1fb783a` | Boss free tool+query; adaptive + final review Boss → right-hand → Groq |
-| `23d965c` / `a07fbe6` | Agentic SERP: **Serper → Tavily → Exa → DDG** |
+| `7eb69a5` | **Deleted** force_* gap-fills (~838 lines) from agentic loop |
+| `7bc9dc6` | Done only rejected on pure no-op |
+| `073bba6` | Adaptive: Groq free step before rules; soft Boss checklist |
+| `15744d6` | Agentic path seeds slimmed; det recovery simplified |
+| `80802aa` / `5f81341` | Shared + web-enricher query menus → seed-only |
+| `0184ac7` / `c483877` | deep-web / enrichEntityOsint platform scripts stripped |
+| `2b6cf78` | Adaptive last resort **stops** (no rules dig ladder) |
+| `4456b1b` | footprint / social-discovery / Mistral: plain name seeds |
+| `f22653b` | Contact path crawls slimmed; investigator guide de-scripted |
+| `6a9f54b` | **Zero** “Grok is the floor” in `src` Boss/right-hand prompts |
+| `5cb6949` | ai-extractor fixed lane keyword playbooks removed |
+| `e4efa55` / `aa55e20` / `05bfc01` | Scaffold `src/lib` aligned seed-only; runtime det recovery |
+| `0de2a59` | Trajectory no longer matches `force_*`; discovery bait softened |
+| `3ae7fcc` | Golden standard = **evidence quality bar**, not force-hop mandate |
+| `e0be24d`–`92273c9` | bag-attach rename; residual Grok-centric comments stripped |
+
+### Earlier integrity tips (still relevant)
+| Commit | Point |
+|--------|--------|
+| `d6c3e9a` | Runtime llmStep **Groq → Mistral → Gemini → NVIDIA** |
+| `f8b3997` | **FINDINGS SO FAR** in step prompt |
+| `d3af833` / `c72d8c2` | Soft done; accept bag findings |
+| `0aebbb4` | Free ReAct step budget raised (historical force floor removed later) |
+| `23d965c` / `a07fbe6` | SERP: **Serper → Tavily → Exa → DDG** |
 | `02759c3` | Off dead Llama 3.3 |
 
-### Why single Grok previously beat the bureau
-Force-hops ran **before** free ReAct and burned the step budget; runtime still had GROK-PARITY scripts; empty `done` rejected real auto-extracted facts; related-person gates looped forever.
-**Fix path:** 12 free multi-LLM steps → gap-fill ≤3 → soft hints only → findings bag visible → multi-provider failover.
+### Why single-agent digs used to beat the bureau
+Force-hops and GROK-PARITY checklists ran **before/instead of** free ReAct, burned budget, and rejected valid `done` / bag findings.  
+**Now:** multi-LLM free ReAct owns the dig; tools extract on visited HTML; Boss plans without numbered search scripts.
 
 ### Boot gate (do not research until green)
-1. Pull **`d6c3e9a`** or newer
-2. Secrets: `SERPER_API_KEY` + `GROQ_API_KEY` minimum; `TAVILY` + `EXA_1`/`EXA_2` + Gemini + NVIDIA + Mistral preferred
+1. Pull **`92273c9`** or newer
+2. Secrets: `SERPER_API_KEY` + `GROQ_API_KEY` minimum; `TAVILY` + `EXA_*` + Gemini + NVIDIA + Mistral preferred
 3. `RESEARCH_DEPTH=standard` (or `deep`) for parity smokes — `fast` under-digs
 4. `GET /api/healthz` → `bureauIntegrity` = **ok**
-5. Only then smoke the same brief you would give plain Grok
+5. Smoke the same brief you would give any strong general agent — expect **model-invented** queries in trajectory, not `force_*` lines
 
 ### Philosophy (do not regress)
-- **Final card review = Gemini Boss primary, NVIDIA right-hand secondary, Groq only as capacity fallback.**
-- **LLMs research freely:** Boss/right-hand choose tools and queries from understanding the case — not from a fixed enum script. Rules are last-resort only.
-- **Agentic ReAct:** free multi-step reasoning first; force-hops only after the free floor.
-
-- **No LLM funneling** — ReAct, not GROK-PARITY playbooks / force-hops.
-- **Tool-side facts** — SEC notice phones, Form 3/4 addresses, deceased probe = extractors, not model babysitting.
-- **Losing to one web agent on public SEC surface = severity bug.**
-- **LLMs decide relatedness and card content** — no forced playbooks; fail-closed admission only on exact evidence values.
-
-### Known gaps still open
-1. **Re-cook path** — documented: `POST /api/ingest/atlas-run` with `{ "singleTargetId": <id> }` re-runs full-circle (incl. EDGAR notice-phone boost). See `docs/RUN_BUREAU.md` §7. Or delete stale card + rediscover.
-2. Desktop reactor density (graph + inspector + scene cards) — still usable but can feel busy.
-3. Mobile header a11y may concatenate chip labels; visual chips already use shortLabel + · + DB.
-4. Perplexity optional (0 keys OK); healthz-backed — never paint LIVE with 0 slots.
-5. Full monorepo boot in ephemeral sandbox is unreliable — **Replit is acceptance environment**.
-
-### Replit secrets (exact names the code reads)
-| Secret | Required for parity |
-|--------|---------------------|
-| `REDIS_URL_1` … `REDIS_URL_5` | Yes (5 permanent Upstash slots) |
-| `GROQ_API_KEY` | Yes — preferred ReAct lane |
-| `SERPER_API_KEY` | Yes — agentic SERP (without it, integrity → critical) |
-| `GEMINI_API_KEY` | Strongly recommended (Boss + agentic fallback) |
-| `MISTRAL_API_KEY` | Recommended agentic fallback |
-| `NVIDIA_NIM_API_KEY` or `NVIDIA_API_KEY` | Recommended agentic fallback |
-| `TAVILY_API_KEY` | Recommended (broad discovery / integrity web count) |
-| `EXA_API_KEY` or `EXA_1` + `EXA_2` | Recommended |
-| `SCRAPFLY_API_KEY` | Recommended browser escalate |
-| `ZENROWS_API_KEY` | Recommended browser escalate |
-| `COMPANIES_HOUSE_API_KEY` | UK surface |
-| `WHOISJSON_API_KEY` | Domain surface |
-| `HF_TOKEN` | Python/deep tools |
-| `DATABASE_URL` | Managed Postgres |
-| `ENABLE_AUTO_PIPELINE` | `false` |
-
-Optional: `SERPAPI_API_KEY`, `PERPLEXITY_API_KEY` (0 keys OK — never paint LIVE).  
-Public URL must serve desk HTML; API `/api/*`; dist at `apex-finder/dist/public`.
-
-### Boot gate (do not research until green)
-1. `GET /api/health` or status page — `bureauIntegrity` = **ok**
-2. Serper + ≥1 agentic LLM slot configured
-3. Only then smoke a hard target vs the same brief in plain Grok
-
-
-### Research parity checklist (vs single Grok agent)
-1. Pull tip ≥ `23d965c` (prefer latest main).
-2. Secrets: SERPER + TAVILY + EXA + GROQ minimum; Gemini/Mistral/NVIDIA preferred.
-2b. `RESEARCH_DEPTH=standard` (or deep) for parity smokes — Replit `fast` under-digs vs Grok.
-3. Scrapfly or ZenRows for CF/social shells.
-4. Status: `bureauIntegrity=ok` (Serper counted + ≥1 agentic LLM slot).
-5. Smoke the same brief you would give plain Grok; compare contact surface, not UI polish.
-6. Re-cook stale cards: `POST /api/ingest/atlas-run` with `{ "singleTargetId": <id> }`.
-
-
-### Canonical run
-`docs/RUN_BUREAU.md` · POST `/api/ingest/atlas-run` with `CANONICAL_ATLAS_LAUNCH_BODY`.  
-Pause/Resume/Stop: atlas-pause, atlas-resume, DELETE atlas-lock.
-
-### Acceptance checklist (next clean Replit boot)
-1. Pull tip, set secrets, `ENABLE_AUTO_PIPELINE=false`.
-2. Clear ledger (or delete stale cards that still hold issuer switchboard phones).
-3. Bounded discovery-first smoke → Gund / Feinberg / Pearl-class targets.
-4. Confirm notice-line phones land as `EDGAR-Notice-Phone` / direct_contact_candidate.
-5. Reactor: plain spoken "Now:" steps, no "PAUSED 7s", no fake Perplexity LIVE, spaced header Pause/Resume.
-6. Launch CTA: gasoline-spill iridescent, readable etched type, no heavy drop-shadow.
-
----
-
-
-### LLM card promotion (2026-08-21)
-Final target review is LLM-controlled: the model evaluates whether findings are related to the HNWI (contacts, addresses, roles, related orgs) and writes cardSummary, roleHeadline, and relatedDescriptions. Adjudication still fail-closed (exact values only from candidates/evidence — no invention). Tip: pull latest main (FREE_REACT_STEPS=12; free dig before any force-visit; soft stagnation).
+- **Final card review = Gemini Boss primary, NVIDIA right-hand secondary, Groq capacity fallback.**
+- **LLMs research freely:** invent queries, visit primary pages, pivot. No force-hop / refuse-done / platform `site:` playbooks in the dig path.
+- **Tools extract; models decide.** CONTACT FACTS / proxy / IR regex on fetched HTML is tool output, not a substitute for free ReAct.
+- **Golden standard** (`docs/evals/GOLDEN_STANDARD_CASE_REFERENCE.md`) = quality bar (primary sources, exact URLs, no invention) — **not** a mandate to re-add force_* templates.
+- **Discovery bait** (`broad-discovery` / `discovery-source-mixer`) finds *new* market targets; it is not the locked-entity dig script.
+- **Do not re-introduce** `force_company_search`, `force_related_search`, `force_org_email_search`, refuse-done loops, or “Grok is the floor” prompt mandates.
 
 ### Canonical bureau run
 See **docs/RUN_BUREAU.md**. "Run Apex Atlas / bureau" = POST `/api/ingest/atlas-run` with `CANONICAL_ATLAS_LAUNCH_BODY` (`atlas-launch-defaults.ts`). UI + `scripts/run-bureau.sh` match. ENABLE_AUTO_PIPELINE stays false unless explicitly requested.
 
 ### Prompt philosophy (2026-08-20)
-Agentic loop is ReAct, not a playbook. Do not micro-manage trained models with GROK-PARITY checklists or force-hop done-gates. Place models + tools correctly; let them research. Deterministic extractors on visited HTML are tool output, not model training.
+Agentic loop is ReAct, not a playbook. Do not micro-manage trained models with checklists or force-hop done-gates. Place models + tools correctly; let them research. Deterministic extractors on visited HTML are tool output, not model training.
 
 ### Correction (2026-08-20)
 Comparing a stripped agentic-only script to full Grok Agent was invalid.
 Full Apex = multi-LLM ReAct + Boss/Gemini + Serper/Tavily/Exa + Scrapfly/ZenRows + Maigret/Sherlock/Holehe + EDGAR + registries.
-Losing to one model is a severity bug. Agentic IR/related extraction + done-gate tightened so public IR surface cannot be left on the table.
+Losing to one model is a severity bug. Agentic IR/related extraction + soft done so public IR surface is not left on the table.
 
 # Context — living handoff
 
@@ -139,7 +99,7 @@ Deterministic recovery:** if all agentic LLMs fail mid-loop, SERP+visit+proxy ex
 - **System status** page shows the same integrity panel as the global banner.
 
 
-**Tip: pull latest main (FREE_REACT_STEPS=12; free dig before any force-visit; soft stagnation).
+**Tip: pull latest main (free multi-LLM ReAct; no force-visit machine; soft stagnation).
 
 ### Why Apex "lost" vs Replit/Grok Agent (not a month of regressions)
 1. **Groq model hard-coded** to `llama-3.3-70b-versatile` which this API key cannot use → agentic ReAct control plane dead. Fixed: model fallback + **Mistral + Gemini + NVIDIA** chain (`agentic-web-research.ts`).
