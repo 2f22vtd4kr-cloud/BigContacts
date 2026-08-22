@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { formatSchedulerCountdown, schedulerWaitRemaining } from "./scheduler-utils";
 import { BureauOpsStage } from "./bureau-ops-stage";
+import { useBureauLiveDesk } from "../lib/use-bureau-live";
 import { REACTOR_ARM_MS, REACTOR_CSS, REACTOR_CELEBRATE_MS, REACTOR_SHIMMER_MS, REACTOR_SCENE_MS, REACTOR_UI_MS, motionOrNone, prefersReducedMotion } from "../lib/reactor-motion";
 
 interface ResearchSession {
@@ -219,7 +220,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
     setRateLimitDismissed(false);
   }, [exhaustedKeys.join("|")]);
 
-  const deskEvents = atlasState?.eventLog ?? [];
+  const { deskEvents, latestNarration } = useBureauLiveDesk(atlasState?.eventLog as any, { enabled: true, pollMs: 2800 });
   // Live strip = recent; History = full target action list (optional status filter)
   const filteredDeskEvents = React.useMemo(() => {
     let list = deskEvents;
@@ -788,6 +789,17 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
                 </div>
               )}
               <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+                {latestNarration && !showHistory && (
+                  <div
+                    className="mb-2 rounded-xl border border-violet-400/40 bg-violet-950/50 px-3 py-2.5 text-[12px] leading-snug text-violet-50"
+                    data-testid="mobile-desk-right-hand-strip"
+                    role="status"
+                    aria-live="polite"
+                  >
+                    <span className="mb-1 block font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-violet-200">Right-hand · under the hood</span>
+                    {latestNarration}
+                  </div>
+                )}
                 <BureauOpsStage
                   events={liveEvents as any}
                   compact

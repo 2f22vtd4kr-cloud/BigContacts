@@ -9,6 +9,7 @@ import { MobileReactorFlow } from "../components/mobile-reactor-flow";
 import { LaunchAtlasButton } from "@/components/launch-atlas-button";
 import { REACTOR_CSS, REACTOR_CELEBRATE_MS, REACTOR_UI_MS, motionOrNone, prefersReducedMotion } from "../lib/reactor-motion";
 import { BureauOpsStage } from "../components/bureau-ops-stage";
+import { useBureauLiveDesk } from "../lib/use-bureau-live";
 import { isMockMode, mockAtlasLiveState, mockLiveNodes } from "@/lib/dev-mock-data";
 import { formatSchedulerCountdown, schedulerWaitRemaining } from "../components/scheduler-utils";
 import { readApiJson } from "@/lib/api-json";
@@ -1461,7 +1462,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
   const waitingForNextCycle = Boolean(!isLive && !atlasFailed && schedulerCountdown);
   const atlasStatusColor = atlasFailed ? "#fb7185" : waitingForNextCycle ? "#fbbf24" : atlasDone ? "#b8ff4d" : isLive ? "#9CFF1A" : "#b8ff4d";
   const [deskOn, setDeskOn] = useState(true);
-  const deskEvents = atlasState?.eventLog ?? [];
+  const { deskEvents, latestNarration } = useBureauLiveDesk(atlasState?.eventLog as any, { enabled: true });
   const contactFound = atlasState?.atlasTelemetry?.disposition === "contact_route_found"
     || (atlasState?.atlasTelemetry?.contacts != null && atlasState.atlasTelemetry.contacts > 0);
   const focusedToolId = atlasState?.atlasTelemetry?.activeToolId || (liveNodes && liveNodes.size === 1 ? [...liveNodes][0] : undefined);
@@ -1870,9 +1871,20 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
                 )}
               </div>
             )}
+            {latestNarration && (
+              <div
+                className="mb-2 rounded-lg border border-violet-400/35 bg-violet-950/40 px-2.5 py-2 text-[11px] leading-snug text-violet-50"
+                data-testid="desk-right-hand-strip"
+                role="status"
+                aria-live="polite"
+              >
+                <span className="mb-0.5 block font-mono text-[8px] font-bold uppercase tracking-[0.14em] text-violet-200">Right-hand · live</span>
+                {latestNarration}
+              </div>
+            )}
             <BureauOpsStage
               events={(deskQuery.trim() ? filteredDeskEvents : deskEvents) as any}
-              maxScenes={8}
+              maxScenes={10}
               title=""
             />
           </div>

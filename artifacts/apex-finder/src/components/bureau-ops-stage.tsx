@@ -931,21 +931,23 @@ function BureauScene({ scene, compact }: { scene: Scene; compact?: boolean }) {
 }
 
 
-/** Adaptive right-hand voice — never a static script */
+/** Adaptive right-hand voice — never a static script (desktop + mobile) */
 function RightHandNarration({ text, compact }: { text?: string; compact?: boolean }) {
   if (!text || text.length < 8) return null;
   return (
     <div
-      className={`mb-2 rounded-lg border border-violet-400/35 bg-gradient-to-r from-violet-950/50 to-[#0c1018] px-2.5 py-2 ${compact ? "text-[10px]" : "text-[11px]"}`}
+      className={`mb-2 rounded-xl border border-violet-400/40 bg-gradient-to-br from-violet-950/70 via-[#12101c] to-[#0c1018] shadow-[0_0_24px_rgba(139,92,246,0.12)] ${compact ? "px-3 py-2.5 text-[11px]" : "px-3 py-2.5 text-[12px]"}`}
       data-testid="right-hand-narration"
+      role="status"
+      aria-live="polite"
     >
-      <div className="mb-1 flex items-center gap-1.5">
-        <span className="inline-flex h-1.5 w-1.5 animate-pulse rounded-full bg-violet-300 shadow-[0_0_8px_rgba(167,139,250,0.9)]" />
-        <span className="font-mono text-[8px] font-bold uppercase tracking-[0.14em] text-violet-200/90">
-          Right-hand · live
+      <div className="mb-1.5 flex items-center gap-2">
+        <span className="inline-flex h-2 w-2 animate-pulse rounded-full bg-violet-300 shadow-[0_0_10px_rgba(167,139,250,0.95)]" />
+        <span className="font-mono text-[9px] font-bold uppercase tracking-[0.16em] text-violet-200">
+          Right-hand · under the hood
         </span>
       </div>
-      <p className="leading-snug text-violet-50/95">{text}</p>
+      <p className={`leading-snug text-violet-50 ${compact ? "line-clamp-4" : "line-clamp-5"}`}>{text}</p>
     </div>
   );
 }
@@ -1241,7 +1243,13 @@ function MobileWorkstage({
           size={24}
         />
         <div className="min-w-0 flex-1">
-          <StoryLine story={scene.story} className="text-[12px] font-medium leading-snug tracking-tight text-stone-100 line-clamp-2" />
+          {scene.narration ? (
+            <p className="mb-1 text-[11px] leading-snug text-violet-100/95 line-clamp-3" data-testid="mobile-right-hand-line">
+              {scene.narration}
+            </p>
+          ) : (
+            <StoryLine story={scene.story} className="text-[12px] font-medium leading-snug tracking-tight text-stone-100 line-clamp-2" />
+          )}
           <SourceLinkRow links={scene.links} />
           <div className="mt-0.5 flex items-center gap-1.5 font-mono text-[9px] text-stone-500">
             <span className={scene.live ? "text-[#9CFF1A]" : "text-stone-500"}>

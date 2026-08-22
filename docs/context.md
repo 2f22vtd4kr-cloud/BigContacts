@@ -6,7 +6,7 @@
 
 ## Prep for next Replit run (2026-08-22)
 
-**Current tip:** `586fc86`+ — right-hand **live adaptive narration** on Reactor Live Desk (desktop + mobile). Free research path + integrity gate unchanged. See `docs/PRE_REPLIT_GO.md`.
+**Current tip:** `586fc86`+ — free ReAct bureau + Reactor right-hand live narration (desktop + mobile). See `docs/PRE_REPLIT_GO.md`.
 
 ### Reactor Live Desk (desktop + mobile)
 - **Who narrates:** right-hand (NVIDIA), **not** Boss — Boss stays on orchestration.
