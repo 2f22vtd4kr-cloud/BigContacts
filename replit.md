@@ -28,9 +28,10 @@ review-only and are never auto-merged or used to promote contacts.
 
 ## Target contact agent (2026-08-22) — card is the answer
 
-**Tip on `main`:** `7efcea8` (or later). Pull + **restart API** before judging research quality.
+**Tip on `main`:** `4fb6c9a` / `04bfa68` — agent-first contact recovery. Pull + **restart API**. Do not Launch until agent path is live.
 
 ### Contract
+- **Agent-first:** when target agent fills phone/email, **parallel AI WEB OSINT is skipped** (no second dig overwriting judgment).
 - **Per person:** `runTargetContactAgent` runs early in Atlas entity enrich (`atlas-orchestrator` → stage **TARGET CONTACT AGENT**).
 - **Loop:** free ReAct in `agentic-web-research.ts` — model invents queries, visits pages, uses OSINT tools; no force-hop playbook.
 - **Output:** best public phone/email/LinkedIn promoted onto `entities.*` + `contactOutcome` updated. Evidence rows are provenance, not the product.
