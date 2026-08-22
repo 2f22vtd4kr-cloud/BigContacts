@@ -147,6 +147,25 @@ router.post("/ingest/atlas-resume", async (req: Request, res: Response): Promise
 });
 
 // ── DELETE /ingest/atlas-lock ─────────────────────────────────────────────────
+
+// ── POST /ingest/atlas-stop ───────────────────────────────────────────────────
+router.post("/ingest/atlas-stop", async (req: Request, res: Response): Promise<void> => {
+  const activeJobId = await getActiveJob("atlas-run");
+  const bodyJobId = typeof req.body?.jobId === "string" ? req.body.jobId : "";
+  const jobId = activeJobId ?? bodyJobId;
+  if (!jobId) {
+    res.status(404).json({ ok: false, message: "No active Atlas job to stop." });
+    return;
+  }
+  await updateJob(jobId, {
+    status: "cancelled",
+    message: "Stopped by operator.",
+    finishedAt: new Date().toISOString(),
+  } as any);
+  await clearActiveJobIfOwned("atlas-run", jobId);
+  res.json({ ok: true, jobId, status: "cancelled", message: "Atlas stopped." });
+});
+
 router.delete("/ingest/atlas-lock", async (_req: Request, res: Response): Promise<void> => {
   const activeJobId = await getActiveJob("atlas-run");
   const requestedJobId = Array.isArray(_req.query.jobId)
@@ -172,6 +191,8 @@ router.delete("/ingest/atlas-lock/:jobId", async (req: Request, res: Response): 
 // completed single-target pass (e.g. CarCollect) stays stuck on the Reactor
 // across re-imports and idle continuous cycles.
 const ATLAS_LATEST_DISPLAY_TTL_MS = 15 * 60 * 1_000;
+/** Running jobs older than this with no finish are treated as zombies and cleared. */
+const ATLAS_ZOMBIE_MS = 90 * 60 * 1_000;
 
 function isFreshAtlasTerminal(job: { status?: string; finishedAt?: string; startedAt?: string }): boolean {
   if (job.status !== "done" && job.status !== "failed" && job.status !== "cancelled") return false;
@@ -199,6 +220,25 @@ router.get("/ingest/atlas-status", async (_req: Request, res: Response): Promise
     return;
   }
   const job = await getJob(jobId);
+  // Auto-clear zombie runs (e.g. stuck Phase J with no progress for hours)
+  if (job && (job.status === "running" || job.status === "paused")) {
+    const startedMs = job.startedAt ? Date.parse(job.startedAt) : NaN;
+    if (Number.isFinite(startedMs) && Date.now() - startedMs > ATLAS_ZOMBIE_MS) {
+      await updateJob(jobId, {
+        status: "failed",
+        message: `Auto-cleared zombie Atlas job (running > ${Math.round(ATLAS_ZOMBIE_MS / 60000)}m).`,
+        finishedAt: new Date().toISOString(),
+      } as any);
+      await clearActiveJobIfOwned("atlas-run", jobId);
+      res.json({
+        status: "idle",
+        message: "Stale Atlas job was auto-cleared. Launch again when ready.",
+        clearedZombieJobId: jobId,
+        scheduler,
+      });
+      return;
+    }
+  }
   const phaseJJobId = await getActiveJob("phase-j-pass");
   const phaseJ = phaseJJobId ? await getJob(phaseJJobId) : null;
   const log = await getJobLog(jobId);
