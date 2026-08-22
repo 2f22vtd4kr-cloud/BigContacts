@@ -1388,7 +1388,7 @@ export async function runAgenticWebResearch(input: {
   const visitedUrls = new Set<string>();
   const domainSurfaceDone = new Set<string>(); // one RDAP/WhoisJSON hop per primary domain
   /** Cap gap-fill scripts so free LLM research keeps the majority of the budget. */
-  const MAX_SCRIPTED_HOPS = 4;
+  const MAX_SCRIPTED_HOPS = 3;
   let scriptedHopsUsed = 0;
 
   const isAggregatorHost = (u: string): boolean =>
@@ -2041,8 +2041,7 @@ export async function runAgenticWebResearch(input: {
       // Soft nudge: if we already have company-looking URLs and no visits yet, tell the model to visit
       if (visits === 0 && sr.urls.length > 0) {
         lastObservation +=
-          `\n\nNEXT: Prefer action=visit on the COMPANY domain contact/terms/about page — not chamber, ZoomInfo, or directory pages. ` +
-          `Do not only search again.`;
+          `\n\n[Note] ${sr.urls.length} URL(s) available. Visit a primary company/contact page when ready — your choice of which.`;
       }
       continue;
     }
@@ -2057,7 +2056,7 @@ export async function runAgenticWebResearch(input: {
       if (extracted.length) {
         findings = mergeFindings(findings, extracted);
         history.push(`step${i + 1}: auto_findings=${extracted.length}`);
-        lastObservation += `\n\n(System extracted ${extracted.length} contact fact(s) from this page — include them in done.findings with this URL as sourceUrl.)`;
+        lastObservation += `\n\n(System also extracted ${extracted.length} contact fact(s) from HTML on this page — available for your done.findings with this URL as sourceUrl.)`;
       }
       // Permanent domain surface hop (RDAP-first + WhoisJSON)
       try {
