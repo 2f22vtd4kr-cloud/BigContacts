@@ -209,19 +209,14 @@ export function createAdaptiveResearchState(input: AdaptiveResearchDirectorInput
  * intentionally gap-driven rather than a fixed provider ladder: a newly found
  * person or official domain changes the next action immediately.
  */
-/** Legacy ordered fallback for budget/stop only. Live dig uses Boss/right-hand/Groq free choice. */
+/** Stop/budget only — live dig is Boss → right-hand → Groq free choice. */
 export function selectNextAdaptiveAction(
   state: AdaptiveResearchState,
   maxActions = ACTION_LIMIT,
 ): AdaptiveAction {
-  const hasAction = (kind: AdaptiveActionKind) => state.completedActions.includes(kind);
-  const hasLane = (lane: AIResearchLane) => state.completedLanes.includes(lane);
   const subject = state.targetName;
   const depth = state.depth;
   const noProgressLimit = depth.noProgressLimit;
-  const maxPerson = depth.maxPersonFollowUps;
-  const maxDomain = depth.maxDomainFollowUps;
-
   if (state.completedActions.length >= maxActions || state.noProgressPasses >= noProgressLimit) {
     return {
       kind: "stop_review",
@@ -233,112 +228,13 @@ export function selectNextAdaptiveAction(
       signature: `stop:${state.completedActions.length}:${state.noProgressPasses}`,
     };
   }
-  if (state.identityAssessment !== "confirmed" && !hasAction("resolve_identity")) {
-    return {
-      kind: "resolve_identity",
-      lane: "official_records",
-      subject,
-      reason: "identity is not yet confirmed; establish exact target anchors before trusting people or routes",
-      signature: `identity:${subject}`,
-    };
-  }
-  if (state.relatedOrganizations.length > 0 && !hasAction("resolve_structure")) {
-    return {
-      kind: "resolve_structure",
-      lane: "semantic_discovery",
-      subject: state.relatedOrganizations[0]!,
-      reason: "an operator, parent, or C/O lead exists and should be resolved before generic contact searching",
-      signature: `structure:${state.relatedOrganizations[0]!.toLowerCase()}`,
-    };
-  }
-
-  // Corporations/trusts without a known domain must discover the official website
-  // before people-press noise (Campione: independent research found leadership on
-  // the official domain; Atlas spent budget on unrelated org signals).
-  const isOrg = state.targetType === "Corporation" || state.targetType === "Trust";
-  if (
-    isOrg &&
-    state.candidateDomains.length === 0 &&
-    !hasAction("official_routes") &&
-    (state.identityAssessment === "confirmed" || hasAction("resolve_identity"))
-  ) {
-    return {
-      kind: "official_routes",
-      lane: "official_records",
-      subject: state.targetName,
-      reason:
-        "no official domain known yet — discover the organization website and leadership/contact pages before people-press noise",
-      signature: `official-discover:${state.targetName.toLowerCase()}`,
-    };
-  }
-
-  const nextDomain = state.candidateDomains.find((d) => !state.followedDomains.includes(d));
-  if (nextDomain && state.followedDomains.length < maxDomain) {
-    return {
-      kind: "official_routes",
-      lane: "official_records",
-      subject: nextDomain,
-      reason: "candidate official domain available — fetch team, leadership, contact, and about pages",
-      signature: `official:${nextDomain}`,
-    };
-  }
-  if (state.candidateDomains.length > 0 && !hasAction("official_routes")) {
-    return {
-      kind: "official_routes",
-      lane: "official_records",
-      subject: state.candidateDomains[0]!,
-      reason: "a candidate official domain is available; fetch its team, leadership, and contact routes",
-      signature: `official:${state.candidateDomains.slice(0, 3).join(",")}`,
-    };
-  }
-
-  const nextPerson = state.discoveredPeople.find((person) => !state.followedPeople.includes(person));
-  if (nextPerson && state.followedPeople.length < maxPerson) {
-    return {
-      kind: "follow_person",
-      lane: "people_press",
-      subject: nextPerson,
-      reason: "named person discovered — person-scoped public contact and press search in target context",
-      signature: `person:${nextPerson.toLowerCase()}`,
-    };
-  }
-  if (state.discoveredPeople.length > 0 && state.candidateDomains.length > 0 && !hasAction("verify_exact_claim")) {
-    return {
-      kind: "verify_exact_claim",
-      lane: "official_records",
-      subject: state.discoveredPeople[0]!,
-      reason: "a named person and official domain now exist; verify the role or route on an exact page",
-      signature: `claim:${state.discoveredPeople[0]!.toLowerCase()}:${state.candidateDomains[0]}`,
-    };
-  }
-
-  if ((state.discoveredPeople.length > 0 || state.candidateDomains.length > 0) && !hasLane("contact_routes")) {
-    return {
-      kind: "complementary_lane",
-      lane: "contact_routes",
-      subject,
-      reason: "people or domains are on the case — prioritize public contact routes (email, phone, socials)",
-      signature: "lane:contact_routes",
-    };
-  }
-
-  const lanes: AIResearchLane[] = ["semantic_discovery", "people_press", "contact_routes", "official_records"];
-  const missingLane = lanes.find((lane) => !hasLane(lane));
-  if (missingLane) {
-    return {
-      kind: "complementary_lane",
-      lane: missingLane,
-      subject,
-      reason: `the ${missingLane} evidence lane is still uncovered`,
-      signature: `lane:${missingLane}`,
-    };
-  }
+  // Models unavailable mid-budget: stop rather than run a hard-coded dig ladder.
   return {
     kind: "stop_review",
     lane: null,
     subject,
-    reason: "available lanes and follow-up leads are exhausted; retain the result for review",
-    signature: `stop:complete:${state.completedActions.length}`,
+    reason: "rules path does not script research — stop for model assignment or review",
+    signature: `stop:rules-no-script:${state.completedActions.length}`,
   };
 }
 

@@ -21,64 +21,26 @@ function state(overrides: Partial<AdaptiveResearchState> = {}): AdaptiveResearch
 }
 
 describe("adaptive research director action selection", () => {
-  it("starts with identity resolution instead of a generic contact lane", () => {
-    const action = selectNextAdaptiveAction(state());
-    expect(action.kind).toBe("resolve_identity");
-    expect(action.lane).toBe("official_records");
+  it("stops when action budget is exhausted", () => {
+    const action = selectNextAdaptiveAction(state({
+      completedActions: ["resolve_identity", "official_routes", "follow_person", "complementary_lane"],
+      noProgressPasses: 0,
+    }), 4);
+    expect(action.kind).toBe("stop_review");
   });
 
-  it("follows a newly discovered person before spending another generic provider pass", () => {
+  it("stops after a bounded no-progress budget", () => {
     const action = selectNextAdaptiveAction(state({
       identityAssessment: "confirmed",
       completedActions: ["resolve_identity"],
-      completedLanes: ["official_records"],
-      discoveredPeople: ["Stefano Silvestri"],
-      candidateDomains: ["campioneditalia.com"],
-    }));
-    expect(action.kind).toBe("official_routes");
-    const followUp = selectNextAdaptiveAction(state({
-      identityAssessment: "confirmed",
-      completedActions: ["resolve_identity", "official_routes"],
-      completedLanes: ["official_records"],
-      discoveredPeople: ["Stefano Silvestri"],
-      candidateDomains: ["campioneditalia.com"],
-    }));
-    expect(followUp.kind).toBe("follow_person");
-    expect(followUp.subject).toBe("Stefano Silvestri");
-  });
-
-  it("stops after a bounded no-progress budget and never repeats a lane", () => {
-    const action = selectNextAdaptiveAction(state({
-      identityAssessment: "confirmed",
-      completedActions: ["resolve_identity", "resolve_structure", "official_routes", "complementary_lane"],
-      completedLanes: ["official_records", "semantic_discovery", "people_press", "contact_routes"],
       noProgressPasses: 2,
     }));
     expect(action.kind).toBe("stop_review");
   });
+
+  it("does not script a research ladder when models are absent", () => {
+    const action = selectNextAdaptiveAction(state());
+    expect(action.kind).toBe("stop_review");
+    expect(action.reason.toLowerCase()).toMatch(/stop|rules|budget|progress/);
+  });
 });
-
-  it("discovers official domain for corporations before people-press noise", () => {
-    const action = selectNextAdaptiveAction(state({
-      identityAssessment: "confirmed",
-      completedActions: ["resolve_identity"],
-      completedLanes: ["official_records"],
-      candidateDomains: [],
-      discoveredPeople: [],
-    }));
-    expect(action.kind).toBe("official_routes");
-    expect(action.reason.toLowerCase()).toContain("domain");
-  });
-
-  it("follows each candidate domain for leadership pages", () => {
-    const action = selectNextAdaptiveAction(state({
-      identityAssessment: "confirmed",
-      completedActions: ["resolve_identity"],
-      completedLanes: ["official_records"],
-      candidateDomains: ["casinocampioneditalia.it"],
-      followedDomains: [],
-    }));
-    expect(action.kind).toBe("official_routes");
-    expect(action.subject).toBe("casinocampioneditalia.it");
-  });
-
