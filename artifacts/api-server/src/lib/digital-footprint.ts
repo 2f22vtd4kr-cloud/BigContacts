@@ -140,75 +140,25 @@ export function buildQueryTemplates(entity: {
   bizLocation: string | null;
   employer: string | null;
   role: string | null;
-  graphNeighbourDomains: string[];   // J8: domains from graph neighbours
-  graphNeighbourNames: string[];     // J8: names from graph neighbours
+  graphNeighbourDomains: string[];
+  graphNeighbourNames: string[];
 }, domain: string | null): QueryTemplate[] {
   const name = entity.name.trim().replace(/^(mr|mrs|ms|dr|prof)\.\s*/i, "");
   const templates: QueryTemplate[] = [];
-
-  // T1 — name + employer (most disambiguating when employer is known)
+  templates.push({ query: `"${name}"`, label: "name", weight: 1.0 });
   if (entity.employer && entity.employer !== name) {
-    templates.push({
-      query: `"${name}" "${entity.employer}" email`,
-      label: "name+employer+email",
-      weight: 1.0,
-    });
+    templates.push({ query: `"${name}" "${entity.employer}"`, label: "name+employer", weight: 0.95 });
   }
-
-  // T2 — name + domain official pages (highest precision)
   if (domain) {
-    templates.push({
-      query: `site:${domain} "${name}" OR team OR leadership OR executives OR contact`,
-      label: "domain+official",
-      weight: 0.95,
-    });
+    templates.push({ query: `"${name}" ${domain}`, label: "name+domain", weight: 0.9 });
   }
-
-  // T3 — name + LinkedIn
-  templates.push({
-    query: `"${name}" site:linkedin.com/in`,
-    label: "name+linkedin",
-    weight: 0.85,
-  });
-
-  // T4 — name + jurisdiction + contact
   const geo = entity.bizLocation ?? entity.nationality;
   if (geo) {
-    templates.push({
-      query: `"${name}" "${geo}" email OR contact`,
-      label: "name+geo+contact",
-      weight: 0.75,
-    });
+    templates.push({ query: `"${name}" "${geo}"`, label: "name+geo", weight: 0.75 });
   }
-
-  // T5 — name + role (disambiguates common names)
-  if (entity.role) {
-    templates.push({
-      query: `"${name}" "${entity.role}" contact email`,
-      label: "name+role+contact",
-      weight: 0.80,
-    });
-  }
-
-  // T6 — J8: graph-neighbour context (e.g. co-director at the same firm)
-  if (entity.graphNeighbourNames.length > 0) {
-    const neighbour = entity.graphNeighbourNames[0]!;
-    templates.push({
-      query: `"${name}" "${neighbour}" email OR contact`,
-      label: "name+graph-neighbour",
-      weight: 0.65,
-    });
-  }
-
-  // T7 — name + public mention (broadest, lowest confidence)
-  templates.push({
-    query: `"${name}" email -site:linkedin.com -site:facebook.com`,
-    label: "name+email-mention",
-    weight: 0.50,
-  });
-
-  return templates;
+  return templates.slice(0, 5);
 }
+
 
 // ── Cooldown helper ───────────────────────────────────────────────────────────
 

@@ -715,7 +715,7 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
   }
 
   // ── Phase 3.7: Person-hop — fire targeted social queries for discovered owners
-  // Each owner name gets 2 queries: "Name" instagram and "Name" site:linkedin.com/in
+  // Thin person-hop seeds from discovered owner names
   // This is how Gemini finds @christoph_cau from "Christophe Caucino" — we now do the same.
   const CORP_SUFFIX_STRIP = /\b(sas|sarl|sa|gmbh|llc|ltd|inc|corp|bv|nv|spa|srl|ag|ab|as|oy)\b\.?/gi;
   const entityShortName = entity.name.replace(CORP_SUFFIX_STRIP, "").trim().slice(0, 40);

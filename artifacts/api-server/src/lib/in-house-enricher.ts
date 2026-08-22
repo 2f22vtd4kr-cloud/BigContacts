@@ -30,7 +30,7 @@
  *  16.  SMTP port-25 verification (RCPT TO handshake — graceful fallback if blocked)
  *
  * Module F — Social & Web
- *  17.  DuckDuckGo HTML search  (site:linkedin.com/in/ "NAME" → LinkedIn URL)
+ *  17.  DuckDuckGo HTML search (name seed → LinkedIn when present)
  *  18.  DuckDuckGo Instant Answer (web presence, AbstractURL)
  *  19.  News email extraction    (DuckDuckGo News snippets for email mentions)
  *  20.  Company contact page scraper  (direct website /contact, /about, /team)
