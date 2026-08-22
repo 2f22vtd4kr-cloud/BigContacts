@@ -381,40 +381,66 @@ async function promoteBureauContactsToEntityCard(
   let bestLinkedin: string | null = null;
   let bestWebsite: string | null = null;
 
+  const urlHostScore = (urls: string[]): number => {
+    let s = 0;
+    for (const u of urls) {
+      const h = u.toLowerCase();
+      if (h.includes("sec.gov") || h.includes("edgar")) s += 6;
+      else if (h.includes("companieshouse") || h.includes("opencorporates")) s += 4;
+      else if (h.includes("gnty.com") || h.includes("carlicahn.com")) s += 5;
+      else if (h.includes("leadiq") || h.includes("zoominfo") || h.includes("rocketreach")) s -= 4;
+      else if (h.includes("ophthalmologytimes") || h.includes("abbott") || h.includes("mtec-sc")) s -= 5;
+      else if (/^https?:\/\//i.test(u)) s += 1;
+    }
+    return s;
+  };
+  const isTollFree = (phone: string) => {
+    const d = phone.replace(/\D/g, "").replace(/^1/, "");
+    return /^8(?:00|88|77|66|55|44|33|22)/.test(d);
+  };
+
   for (const item of merged) {
     if (String(item.state ?? "").toLowerCase() === "rejected") continue;
     const vt = String(item.vectorType ?? "").toLowerCase();
     const value = typeof item.value === "string" ? item.value.trim() : "";
     if (!value) continue;
+    // Skip placeholder / extraction garbage
+    if (/^(linkedin:not-found|n\/a|none|null)$/i.test(value)) continue;
+    if (/^[a-z]@/i.test(value) && value.split("@")[0].length <= 1) continue; // y@gnty.com style noise
     const scope = String(item.scope ?? item.tier ?? "").toLowerCase();
+    const note = String(item.note ?? "").toLowerCase();
     const orgish =
       scope.includes("organization") ||
       scope.includes("org") ||
-      scope.includes("issuer");
+      scope.includes("issuer") ||
+      note.includes("org");
     const urls = Array.isArray(item.sourceUrls)
       ? item.sourceUrls.filter((u) => typeof u === "string" && /^https?:\/\//i.test(u))
       : [];
-    const hasUrl = urls.length > 0;
+    const hostScore = urlHostScore(urls);
+    if (hostScore <= -3) continue; // directory / wrong-issuer trash
     const srcLabel =
-      source.startsWith("secondary") || source.includes("agentic")
+      source.includes("agentic") || source.includes("secondary") || note.includes("secondary") || note.includes("agentic")
         ? "agentic-web"
         : source.slice(0, 40);
 
     if (vt === "phone" || vt === "tel") {
-      // Prefer person-linked + URL-backed; still allow firm HQ from dig over blank/issuer
-      const score = (orgish ? 1 : 4) + (hasUrl ? 2 : 0);
+      if (isTollFree(value) && hostScore < 4) continue; // 1-800 support lines without primary host
+      const score = (orgish ? 2 : 5) + hostScore + (urls.length ? 1 : 0);
       if (!bestPhone || score > bestPhone.score) {
-        bestPhone = { value, source: orgish ? `${srcLabel}-org` : srcLabel, score };
+        bestPhone = { value, source: orgish || hostScore >= 4 ? `${srcLabel}-org` : srcLabel, score };
       }
     } else if (vt === "email") {
       if (isGenericLocal(value) && orgish) continue;
-      const score = (isGenericLocal(value) || orgish ? 1 : 4) + (hasUrl ? 2 : 0);
+      if (isGenericLocal(value) && hostScore < 3) continue;
+      const score = (isGenericLocal(value) || orgish ? 2 : 5) + hostScore;
       if (!bestEmail || score > bestEmail.score) {
         bestEmail = { value, source: orgish || isGenericLocal(value) ? `${srcLabel}-org` : srcLabel, score };
       }
     } else if (vt === "linkedin" && value.includes("linkedin.com") && !bestLinkedin) {
       bestLinkedin = value.startsWith("http") ? value : `https://${value.replace(/^\/+/, "")}`;
-    } else if ((vt === "website" || vt === "domain") && !bestWebsite) {
+    } else if ((vt === "website" || vt === "domain") && !bestWebsite && hostScore >= 0) {
+      if (value.includes("sec.gov")) continue;
       bestWebsite = value.startsWith("http") ? value : `https://${value.replace(/^\/+/, "")}`;
     }
   }
@@ -1247,4 +1273,31 @@ async function lookupWaybackContactPages(domain: string): Promise<string[]> {
     }
   }
   return found;
+}
+
+
+/** Rehydrate entity cards from durable contact_evidence (no new dig). */
+export async function rehydrateEntityCardFromEvidence(entityId: number): Promise<boolean> {
+  try {
+    await promoteBureauContactsToEntityCard(entityId, [], "evidence-rehydrate");
+    return true;
+  } catch (err) {
+    logger.warn(
+      { err: err instanceof Error ? err.message : String(err), entityId },
+      "rehydrateEntityCardFromEvidence failed",
+    );
+    return false;
+  }
+}
+
+export async function rehydrateAllEntityCardsFromEvidence(limit = 50): Promise<{ scanned: number; ok: number }> {
+  const rows = await db
+    .select({ id: entitiesTable.id })
+    .from(entitiesTable)
+    .limit(Math.min(200, Math.max(1, limit)));
+  let ok = 0;
+  for (const row of rows) {
+    if (await rehydrateEntityCardFromEvidence(row.id)) ok += 1;
+  }
+  return { scanned: rows.length, ok };
 }
