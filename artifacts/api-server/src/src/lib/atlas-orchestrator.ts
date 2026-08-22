@@ -1710,6 +1710,7 @@ Never invent specific emails, phones, or people. Return plain text only.`,
         name,
         entityType: entity.type,
         companyName: companyNameForSecondary,
+        jobId: atlasJobId,
       });
       logger.info({ entityId: id, name, secondary }, "[Atlas] Secondary public surface expansion done");
     } catch (err: any) {
@@ -1756,6 +1757,7 @@ Never invent specific emails, phones, or people. Return plain text only.`,
         try {
           const companySecondary = await expandSecondaryPublicSurface({
             entityId: id,
+            jobId: atlasJobId,
             name: companyName,
             entityType: "Corporation",
           });

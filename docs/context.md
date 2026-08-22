@@ -6,7 +6,7 @@
 
 ## Prep for next Replit run (2026-08-22)
 
-**Current tip:** `main` — dig `onLiveStep` → `publishBureauEvent` (+ job log mirror when `jobId` set) → Reactor Live Desk + right-hand narration.
+**Current tip:** Atlas secondary dig passes `jobId` so each ReAct step hits job log + bureau-events + right-hand narration.
 
 ### Reactor Live Desk (desktop + mobile)
 - **Who narrates:** right-hand (NVIDIA), **not** Boss — Boss stays on orchestration.

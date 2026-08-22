@@ -323,6 +323,8 @@ export async function expandSecondaryPublicSurface(input: {
   name: string;
   entityType?: string | null;
   companyName?: string | null;
+  /** Atlas job id — live dig steps → Reactor job log */
+  jobId?: string;
 }): Promise<{ linkedin: boolean; email: boolean; phone: boolean; signal: boolean; website: boolean; relatedPeople: number }> {
   const out = { linkedin: false, email: false, phone: false, signal: false, website: false, relatedPeople: 0 };
   const name = String(input.name ?? "").trim();
@@ -671,6 +673,7 @@ export async function expandSecondaryPublicSurface(input: {
             provider: step.provider || step.action,
             why: step.summary?.slice(0, 240),
             responseSummary: step.summary?.slice(0, 200),
+            jobId: input.jobId,
             level: "info",
           });
         },
