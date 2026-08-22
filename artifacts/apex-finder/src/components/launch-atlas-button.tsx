@@ -223,6 +223,27 @@ export function LaunchAtlasButton({
     return controls;
   }
 
+  // Mobile-safe: keep Pause/Stop in document flow (never fixed under browser chrome)
+  if (inFlight && (variant === "primary" || variant === "reactor")) {
+    return (
+      <div
+        className="flex w-full flex-col gap-2"
+        data-testid="atlas-inflight-controls"
+      >
+        <div
+          className={cn(
+            "inline-flex w-full items-center justify-center gap-2 rounded-xl border border-[#9CFF1A]/45 bg-[#9CFF1A]/12 px-4 py-3 text-sm font-semibold text-[#9CFF1A]",
+            flash && "atlas-click-flash",
+          )}
+        >
+          <Loader2 className="h-4 w-4 animate-spin shrink-0" aria-hidden />
+          <span className="truncate">{runningLabel}</span>
+        </div>
+        <div className="flex flex-row flex-wrap items-center gap-2">{controls}</div>
+      </div>
+    );
+  }
+
   return (
     <div
       className={cn(
