@@ -8,6 +8,7 @@ import { db, contactEvidenceTable, entitiesTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { sanitizePublicEmail, sanitizePublicPhone, isTrashContactValue } from "./contact-validation";
 import { logger } from "./logger";
+import { resolveResearchDepth } from "./research-depth";
 
 export type BureauContactLike = {
   vectorType?: string | null;
@@ -644,8 +645,8 @@ export async function expandSecondaryPublicSurface(input: {
             selection,
             `${apexOrientationCompact("boss")}\n\nBrief a web research agent on target "${name}"` +
               `${input.companyName ? ` (company: ${input.companyName})` : ""}.\n` +
-              `Write a short research objective (2-5 sentences): what to discover, which surfaces to open, ` +
-              `how to dig for officers and contacts. No invented emails/phones/names. Plain text only.`,
+              `Write a short free research objective (2-5 sentences): goals only, not a tool checklist. ` +
+              `No invented emails/phones/names. Plain text only.`,
           );
           if (brief.raw && brief.raw.trim().length > 40) {
             objective = brief.raw.trim().slice(0, 900);
@@ -658,7 +659,7 @@ export async function expandSecondaryPublicSurface(input: {
         targetName: name,
         companyName: input.companyName ?? null,
         objective,
-        maxIterations: 18,
+        maxIterations: resolveResearchDepth().agenticMaxIterations,
         hardTimeoutMs: 210_000,
       });
       logger.info(
