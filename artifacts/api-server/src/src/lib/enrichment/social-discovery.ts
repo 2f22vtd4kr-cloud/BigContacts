@@ -150,7 +150,7 @@ export async function discoverSocialPresence(entity: {
   const name = entity.name.trim();
 
   // ── Step 1: LinkedIn via DuckDuckGo ──────────────────────────────────────
-  const liResults = await ddgHtmlSearch(`"${name}" site:linkedin.com/in`);
+  const liResults = await ddgHtmlSearch(`"${name}"`);
   const liUrl = extractLinkedInUrl(liResults);
   if (liUrl) {
     result.linkedinUrl = liUrl;
@@ -170,7 +170,7 @@ export async function discoverSocialPresence(entity: {
   await new Promise(r => setTimeout(r, 1_200));
 
   // ── Step 2: Twitter/X via DuckDuckGo ─────────────────────────────────────
-  const twResults = await ddgHtmlSearch(`"${name}" site:twitter.com OR site:x.com`);
+  const twResults = await ddgHtmlSearch(`"${name}"`);
   const twHandle = extractTwitterHandle(twResults);
   if (twHandle) {
     result.twitterHandle = twHandle;
@@ -198,7 +198,7 @@ export async function discoverSocialPresence(entity: {
   // ── Step 3: Instagram via DuckDuckGo ─────────────────────────────────────
   // Only for lifestyle/luxury/art HNWIs — skip Corporations
   if (entity.type !== "Corporation" && entity.type !== "Trust") {
-    const igResults = await ddgHtmlSearch(`"${name}" site:instagram.com`);
+    const igResults = await ddgHtmlSearch(`"${name}"`);
     const igHandle = extractInstagramHandle(igResults);
     if (igHandle) {
       result.instagramHandle = igHandle;

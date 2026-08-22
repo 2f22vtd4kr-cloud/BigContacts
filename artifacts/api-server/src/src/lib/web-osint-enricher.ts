@@ -172,9 +172,7 @@ export async function enrichEntityOsint(entity: EntityOsintInput): Promise<Osint
 
   // ── Step 1: LinkedIn URL via DDG instant answer ───────────────────────────
   try {
-    const liQuery = isIndividual
-      ? `${name} linkedin profile`
-      : `${name} company linkedin`;
+    const liQuery = `"${name}"`;
     const ddgResult = await ddgInstantAnswer(liQuery);
     const allText = [ddgResult.abstract, ddgResult.url, ...ddgResult.relatedTopics].join(" ");
     const li = extractLinkedIn(allText);
@@ -190,9 +188,7 @@ export async function enrichEntityOsint(entity: EntityOsintInput): Promise<Osint
 
   // ── Step 2: Email via DDG HTML deep search ────────────────────────────────
   try {
-    const emailQuery = isIndividual
-      ? `"${name}" email contact site:linkedin.com OR site:bloomberg.com OR site:crunchbase.com`
-      : `"${name}" contact email official`;
+    const emailQuery = `"${name}"`;
     const html = await ddgHtmlSearch(emailQuery);
     if (html) {
       const email = extractEmail(html);

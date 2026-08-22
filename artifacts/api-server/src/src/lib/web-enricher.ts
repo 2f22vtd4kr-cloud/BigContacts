@@ -397,7 +397,7 @@ export async function enrichEntityOsint(entity: EntityOsintInput): Promise<Osint
     logger.debug({ err: err.message }, "DDG HTML search failed");
   }
 
-  // Grok-parity: derive company domain from work email when no website yet
+  // Derive company domain from work email when no website yet
   if (result.email && !result.website) {
     const domain = result.email.split("@")[1]?.toLowerCase() ?? "";
     const free = /^(gmail|yahoo|hotmail|outlook|icloud|aol|proton|mail|live|msn)\./i.test(domain)

@@ -229,14 +229,14 @@ Use it to avoid repeating completed work and to sharpen the next bounded public-
 ${input.caseContext ?? "No prior investigator report exists."}
 Suggested directions from the current case context:
 ${(input.nextDirections ?? []).join("\n") || "None yet."}
-Suggested operator-aware sub-queries (use or refine; do not invent contacts):
+Optional seed sub-queries (refine freely; do not invent contacts):
 ${buildWebSearchSubQueries({
   name: input.objective.slice(0, 120),
   geography: input.geography,
   extraAngles: (input.nextDirections ?? []).slice(0, 3),
 }).map((q) => `- ${q}`).join("\n") || "- (none)"}
 
-Use web search when useful. Prefer multi-angle queries (quotes, site:, OR groups). Return ONLY JSON:
+Use web search when useful. Invent your own queries from the mission. Return ONLY JSON:
 {
   "report": "concise evidence-led opening assessment",
   "candidates": [

@@ -240,7 +240,7 @@ export type DiscoveryCaseFile = {
     relation: string;
     evidence: string[];
   }>;
-  /** Org-footprint checklist status after discovery lanes (Claude-OSINT style). */
+  /** Org-footprint recovery status after discovery lanes (evidence-led, not a script). */
   orgFootprint?: {
     website: boolean;
     orgPhone: boolean;
