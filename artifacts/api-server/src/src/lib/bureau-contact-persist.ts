@@ -627,7 +627,7 @@ export async function expandSecondaryPublicSurface(input: {
     }
 
     // Agentic ReAct loop — LLM invents queries/visits (not a playbook). Same model class as
-    // Grok Agent + live search/visit tools. Fail-closed: findings need sourceUrls.
+    // Live search/visit tools. Fail-closed: findings need sourceUrls.
     try {
       const { runAgenticWebResearch } = await import("./agentic-web-research");
       // Boss-written objective when available — free researcher brief, not a fixed playbook line

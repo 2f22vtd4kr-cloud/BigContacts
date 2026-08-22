@@ -1,7 +1,7 @@
 /**
  * Agentic web research loop — ReAct-style, not a fixed playbook.
  *
- * Same model class as Grok Agent / Gemini AI Mode, plus Apex OSINT tools:
+ * Same model class as a strong general agent (Gemini-class), plus Apex OSINT tools:
  *   web_search(query) → SERP snippets + URLs
  *   visit(url)        → page text
  *   done              → structured findings with source URLs
@@ -499,7 +499,7 @@ function extractContactFactsFromHtml(html: string): string {
     const role = m[1]!.replace(/\s+/g, " ").trim().slice(0, 100);
     if (!/\bast-|\buagb-|[{};]/.test(role)) push(`ROLE: ${role}`);
   }
-  // Succession / family-ownership facts (Grok Agent recovers these from leadership/blog pages)
+  // Succession / family-ownership facts (recover from leadership/blog pages when present)
   for (const m of html.matchAll(
     /\b((?:family[- ]owned|fourth[- ]generation|4th[- ]generation|third[- ]generation|privately held)[^.<]{0,80})/gi,
   )) {
@@ -714,7 +714,7 @@ async function toolVisit(url: string): Promise<string> {
     const isPdfUrl = /\.pdf(\?|$)/i.test(url);
 
     // Facebook / Meta pages are almost always JS shells or login walls on plain fetch.
-    // Grok Agent reaches the About email field; we must browser-escalate first when configured.
+    // Browser-escalate when configured so About/contact fields are readable.
     const isSocialShell = /facebook\.com|fb\.com|instagram\.com|linkedin\.com\/company/i.test(url);
     if (isSocialShell && browserFetchConfigured()) {
       const escalated = await browserFetchHtml(url);
@@ -1447,7 +1447,7 @@ function findingsFromContactFacts(
         note: `Role cue on ${sourceUrl}`,
       });
     }
-    // Family ownership / succession facts (same public pages Grok Agent reads)
+    // Family ownership / succession facts from the same public pages
     const structure = line.match(/STRUCTURE:\s*(.+)/i)?.[1]?.trim();
     if (structure && structure.length >= 12 && !/[{};]|ast-/i.test(structure)) {
       out.push({
