@@ -48,7 +48,7 @@ CREATIVE PUBLIC-OSINT ANGLES (use only real public sources; never invent contact
 6. Registry trails: Companies House, EDGAR, GLEIF, OpenOwnership, local commercial registers — named officers become new subjects
 7. Username footprint when handles/emails appear: Sherlock / Maigret / Holehe on exact public values only
 
-PENDING STANDARD VECTORS TO RING THIS PASS (if this action is contact/footprint related): ${pending}
+OPEN GAPS (address if relevant to this action — not a fixed checklist): ${pending}
 NAMED PEOPLE ALREADY ON THE CASE (follow with person-scoped public search when relevant): ${people}
 DEPTH TIER: ${depth} — be adaptive and evidence-led; do not run a rigid checklist in fixed order.
 RETURN every public contact found (personal and organization). UI marks verified personal separately.

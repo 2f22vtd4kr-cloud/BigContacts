@@ -6,7 +6,7 @@
  * primarily FAA aircraft owners and HMLR property buyers who are not public figures.
  *
  * Strategy:
- *   1. Build 4–7 context-aware query templates per entity using ALL available metadata:
+ *   1. Build thin seed queries per entity (shared planner), then search:
  *      N-number (FAA), company name (EDGAR/CH), location, filing type, asset type
  *   2. Fire each query against DuckDuckGo HTML (html.duckduckgo.com/html)
  *      rotating through 12 real browser User-Agent signatures
@@ -379,54 +379,8 @@ function buildQueries(entity: DeepWebOsintInput): string[] {
     formType,
   }));
 
-  if (isIndividual) {
-    queries.push(`"${name}" (email OR contact OR "phone")`);
-    queries.push(`"${name}" site:linkedin.com/in`);
-
-    if (nNumber) {
-      queries.push(`"${nNumber}" (owner OR registrant) (email OR contact)`);
-      queries.push(`"${name}" (pilot OR aviation OR aircraft) (email OR contact)`);
-    }
-
-    if (companyName && companyName !== name) {
-      const shortCo = companyName.substring(0, 48);
-      queries.push(`"${name}" "${shortCo}" (director OR officer OR contact)`);
-      queries.push(`"${shortCo}" (team OR leadership OR about) "${name.split(" ").slice(-1)[0]}"`);
-    } else if (typeof meta["formType"] === "string") {
-      queries.push(`"${name}" (investor OR director OR "beneficial owner") (SEC OR EDGAR OR "13D" OR "13G")`);
-      queries.push(`"${name}" site:sec.gov`);
-    }
-
-    if (geoContext) {
-      const city = geoContext.split(",")[0]?.trim();
-      if (city && city.length > 2 && city !== name) {
-        queries.push(`"${name}" "${city}" (email OR phone OR contact OR linkedin)`);
-      }
-    }
-
-    // Profile / press angle when still thin
-    if (queries.length < 5) {
-      queries.push(`"${name}" ("about" OR biography OR profile) (contact OR email)`);
-    }
-  }
-
-  if (isCorp) {
-    const clean = name
-      .replace(/\b(llc|ltd|limited|corp|corporation|inc|incorporated|group|holdings|trust|co)\b\.?$/gi, "")
-      .trim();
-
-    queries.push(`"${name}" (CEO OR director OR "management team") (email OR contact)`);
-    queries.push(`"${clean}" ("registered office" OR "head office") (phone OR address OR contact)`);
-    queries.push(`"${name}" (about OR team OR leadership) (email OR contact)`);
-
-    const chId = typeof meta["chId"] === "string" ? meta["chId"] as string : null;
-    if (chId || /uk|ltd|plc/i.test(entity.sourceRegistries ?? "")) {
-      queries.push(`site:companies-house.gov.uk "${clean}"`);
-    }
-    if (/sec|edgar|us/i.test(entity.sourceRegistries ?? "") || typeof meta["cik"] === "string") {
-      queries.push(`site:sec.gov "${clean}"`);
-    }
-  }
+  // Extra domain angles removed — seeds come from buildWebSearchSubQueries only.
+  // Agentic ReAct invents the real multi-hop dig.
 
   // Deduplicate while preserving order; cap at 8 for cost/latency.
   const seen = new Set<string>();
@@ -437,7 +391,7 @@ function buildQueries(entity: DeepWebOsintInput): string[] {
     seen.add(key);
     unique.push(q);
   }
-  return unique.slice(0, 8);
+  return unique.slice(0, 4);
 }
 
 // ─── Cross-validation scoring ─────────────────────────────────────────────────
@@ -797,8 +751,7 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
   }
 
   // ── Phase 3.7: Person-hop — fire targeted social queries for discovered owners
-  // Each owner name gets 2 queries: "Name" instagram and "Name" site:linkedin.com/in
-  // This is how Gemini finds @christoph_cau from "Christophe Caucino" — we now do the same.
+  // Thin person-hop seeds from discovered owner names (not a social-platform checklist).
   const CORP_SUFFIX_STRIP = /\b(sas|sarl|sa|gmbh|llc|ltd|inc|corp|bv|nv|spa|srl|ag|ab|as|oy)\b\.?/gi;
   const entityShortName = entity.name.replace(CORP_SUFFIX_STRIP, "").trim().slice(0, 40);
 
@@ -807,10 +760,7 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
     if (owner.instagram && owner.twitter) continue;
     const firstName = owner.name.split(" ")[0] ?? owner.name;
 
-    const hopQueries = [
-      `"${owner.name}" instagram`,
-      `"${owner.name}" "${entityShortName}" linkedin contact`,
-    ];
+    const hopQueries = [`"${owner.name}"`, `"${owner.name}" "${entityShortName}"`];
 
     for (const q of hopQueries) {
       try {

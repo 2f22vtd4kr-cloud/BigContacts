@@ -1244,8 +1244,8 @@ async function smtpVerifyEmail(
 async function duckduckgoLinkedIn(name: string, location?: string | null): Promise<string | null> {
   try {
     const queries = location
-      ? [`site:linkedin.com/in/ "${name}" "${location}"`, `site:linkedin.com/in/ "${name}"`]
-      : [`site:linkedin.com/in/ "${name}"`];
+      ? [`"${name}" "${location}"`, `"${name}"`]
+      : [`"${name}"`];
 
     for (const q of queries) {
       const url = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(q)}`;
@@ -1302,7 +1302,7 @@ async function duckduckgoInstant(query: string): Promise<DDGResult | null> {
 // ── Source 19: News email extraction via DuckDuckGo News ──────────────────────
 async function duckduckgoNewsEmail(name: string): Promise<{ email: string | null; url: string | null }> {
   try {
-    const q = `"${name}" email contact`;
+    const q = `"${name}"`;
     const url = `https://api.duckduckgo.com/?q=${encodeURIComponent(q)}&format=json&no_html=1&t=h_&ia=web`;
     const resp = await fetch(url, { signal: timeout(10_000), headers: HEADERS });
     if (!resp.ok) return { email: null, url: null };

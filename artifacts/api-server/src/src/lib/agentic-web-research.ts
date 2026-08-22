@@ -1777,14 +1777,14 @@ export async function runAgenticWebResearch(input: {
     }
   };
 
-  const forceVisitNext = async (stepLabel: string): Promise<boolean> => {
+  const detVisitNext = async (stepLabel: string): Promise<boolean> => {
     const next = [...new Set(candidateUrls)]
       .filter((u) => !visitedUrls.has(u))
       .sort((a, b) => rankVisitUrl(a) - rankVisitUrl(b))[0];
     if (!next) return false;
     visits++;
     visitedUrls.add(next);
-    history.push(`${stepLabel}: force_visit ${next}`);
+    history.push(`${stepLabel}: det_visit ${next}`);
     const page = await toolVisit(next);
     lastObservation = `PAGE ${next}\n\n${page.slice(0, MAX_OBS)}`;
     // Deterministic findings from CONTACT FACTS block so we never depend solely on LLM memory
@@ -1880,7 +1880,7 @@ export async function runAgenticWebResearch(input: {
     // Model-led only: no force_company / force_org_email / force_facebook / force_related /
     // force_ownership / force_exec / force_registry / auto force_visit gap-fills.
     // Those scripts stole turns from trained models. LLM chooses search/visit/done every step.
-    // forceVisitNext remains only for deterministic recovery when all LLMs fail (below).
+    // detVisitNext remains only for all-LLM-fail recovery when all LLMs fail (below).
 
     // Soft stagnation: if the last searches repeated the same query, nudge the model.
     {
@@ -1935,7 +1935,7 @@ export async function runAgenticWebResearch(input: {
           `DETERMINISTIC SEARCH (no LLM): ${q}\nURLs: ${sr.urls.slice(0, 8).join(" | ")}\n\n${sr.text.slice(0, MAX_OBS)}`;
       }
       if (candidateUrls.some((u) => !visitedUrls.has(u))) {
-        await forceVisitNext(`step${i + 1}`);
+        await detVisitNext(`step${i + 1}`);
       }
       if (i >= maxIter - 1 || (searches >= 3 && visits >= 2)) {
         return {

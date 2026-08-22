@@ -1536,14 +1536,14 @@ export async function runAgenticWebResearch(input: {
     }
   };
 
-  const forceVisitNext = async (stepLabel: string): Promise<boolean> => {
+  const detVisitNext = async (stepLabel: string): Promise<boolean> => {
     const next = [...new Set(candidateUrls)]
       .filter((u) => !visitedUrls.has(u))
       .sort((a, b) => rankVisitUrl(a) - rankVisitUrl(b))[0];
     if (!next) return false;
     visits++;
     visitedUrls.add(next);
-    history.push(`${stepLabel}: force_visit ${next}`);
+    history.push(`${stepLabel}: det_visit ${next}`);
     const page = await toolVisit(next);
     lastObservation = `PAGE ${next}\n\n${page.slice(0, MAX_OBS)}`;
     // Deterministic findings from CONTACT FACTS block so we never depend solely on LLM memory
@@ -1630,7 +1630,7 @@ export async function runAgenticWebResearch(input: {
     }
 
     // Model-led only: no force_* gap-fill scripts. LLM chooses every search/visit/done.
-    // forceVisitNext remains available for optional future recovery only.
+    // detVisitNext remains available for optional future recovery only.
 
     const prompt = buildStepPrompt({
       targetName: name,

@@ -3194,8 +3194,8 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
         // contact vector without an explicit identity-resolution decision.
         try {
           const personQuery = city
-            ? `"${personName}" "${trading}" "${city}" owner founder director email linkedin`
-            : `"${personName}" "${trading}" owner founder director email linkedin`;
+            ? `"${personName}" "${trading}" "${city}"`
+            : `"${personName}" "${trading}"`;
           const sr = await duckduckgoSearch(personQuery, locale);
           result.queriesFired++;
           collectSearchResult(sr, label, "person_candidate", personName);
@@ -3206,9 +3206,7 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
         // Especially powerful for French/European targets where regional press covers venue owners
         const pressEngine = isFrench ? qwantSearch : duckduckgoSearch;
         const pressLocale = isFrench ? "fr_FR" : locale;
-        const pressQuery  = isFrench
-          ? `"${personName}" "${trading}" OR "${city ?? ""}" fondateur propriétaire`
-          : `"${personName}" "${trading}" owner founder`;
+        const pressQuery  = `"${personName}" "${trading}"`;
         try {
           const pr = await pressEngine(pressQuery, pressLocale);
           result.queriesFired++;
@@ -3221,7 +3219,7 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
         // This single query is what Google does to get from a person's name to their handle.
         // Result goes to evidence as person_candidate ONLY — not to igHits (entity's own social).
         try {
-          const igQuery = `"${personName}" instagram`;
+          const igQuery = `"${personName}"`;
           const igSr = await duckduckgoSearch(igQuery, locale);
           result.queriesFired++;
           // Try text regex first, then fall back to parsing result URLs directly
