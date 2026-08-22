@@ -6,7 +6,7 @@
 
 ## Prep for next Replit run (2026-08-22)
 
-**Current tip:** `07bdd9b` — **free research path** (pull latest main; this file is the handoff)
+**Current tip:** `fcafa0b` — **free research path** (pull latest main; this file is the handoff)
 
 ### What “free research” means (non-negotiable)
 - **Agentic ReAct:** the model chooses every `web_search` / `visit` / `done`. No `force_*` gap-fill machine.
@@ -39,6 +39,7 @@
 | `e0be24d`–`92273c9` | bag-attach rename; residual Grok-centric comments stripped |
 | `1d137cd` / `4bc3bf7` | **docs/context.md** — free research path written as canonical handoff |
 | `2a3661a` | RUN_BUREAU + stage2 docs aligned with free path |
+| `fcafa0b` | Adaptive rules ladder marked legacy (stop/budget only) |
 
 ### Earlier integrity tips (still relevant)
 | Commit | Point |
