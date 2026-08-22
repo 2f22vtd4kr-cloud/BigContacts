@@ -6,7 +6,7 @@
 
 ## Prep for next Replit run (2026-08-22)
 
-**Current tip:** `5cb6949` (and newer) — free research path · prior was: `4456b1b` — pull latest `main` before any Replit boot
+**Current tip:** `05bfc01` — free research path (force scripts stripped from agentic + OSINT lanes)
 
 ### Tip chain (bureau research integrity)
 | Commit | Point |
