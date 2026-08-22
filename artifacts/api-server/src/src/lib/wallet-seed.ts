@@ -108,18 +108,16 @@ export function buildWalletSeedPlan(
       `confirm material holdings when public data allows, then maximize attributable people-contacts ` +
       `for that holder. Geography focus: ${geo}. Never invent a holder or contacts.`,
     steps: [
-      "Classify wallet: EOA vs contract; reject known exchange/hot-wallet labels when public labels say so.",
-      "Seek public attribution only: ENS/name service, news, interviews, company pages, filings, personal sites that publish this address.",
-      "If no attributable human holder → status unattributed / rejected_no_evidence. STOP contact hops.",
-      "If holder named with sourceUrls → person lock (candidate → attributed as evidence accumulates).",
-      "Run person-scoped contact research (web directories, about/team, registries) — maximize people-contacts.",
-      "Record wallet + public value signals as wealth evidence on the person; contacts stay fail-closed.",
+      // Goals for operators / Boss — not a forced execution script for the dig model
+      "Attribute a human holder only from citable public sources (or mark unattributed).",
+      "Reject exchange/mixer/protocol treasuries as non-person targets when labels say so.",
+      "Once a holder is sourced, maximize attributable people-contacts (fail-closed).",
+      "Wallet value is wealth evidence after attribution — not identity by itself.",
     ],
     searchQueries: [
+      // Thin seeds only — agentic / Boss invent the real dig
       `"${addr}"`,
-      `"${addr}" (owner OR founder OR CEO OR "belongs to" OR ENS OR portfolio)`,
-      `"${addr}" (interview OR "personal site" OR github OR linkedin OR company)`,
-      seed.chain === "eth" ? `"${addr}" (etherscan OR ens)` : `"${addr}" (blockchain.com OR mempool OR "bitcoin")`,
+      seed.chain === "eth" ? `"${addr}" ethereum` : `"${addr}" bitcoin`,
     ],
     rules: [
       "Fail-closed: no holder name without citable public sourceUrls.",

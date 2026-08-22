@@ -1781,8 +1781,9 @@ export async function runAgenticWebResearch(input: {
       findings,
       trajectory: history,
     };
+  }
 
-    salvageEmailsFromHistory();
+  salvageEmailsFromHistory();
   return {
     status: "completed",
     model: modelUsed,

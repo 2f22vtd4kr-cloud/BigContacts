@@ -6,7 +6,7 @@
 
 ## Prep for next Replit run (2026-08-22)
 
-**Current tip:** latest main — **free research path** (adaptive stop-only; Boss free brief; soft right-hand; deep-web Bing uses seeds not keyword filter)
+**Current tip:** latest main — **free research path** (model-led dig; adaptive stop-only; thin seeds; wallet dig not OR-playbook)
 
 ### What “free research” means (non-negotiable)
 - **Agentic ReAct:** the model chooses every `web_search` / `visit` / `done`. No `force_*` gap-fill machine.
@@ -22,6 +22,7 @@
 ### Tip chain (free research — 2026-08-22)
 | Commit | Point |
 |--------|--------|
+| `42e3134`+ | deep-web Bing seed queries; wallet seeds thinned; agentic budget-exit fix
 | `77ad67f` | Soft right-hand primary-source guidance (no "force" language)
 | `c15c711` | Boss adaptive brief is free move (no AVAILABLE TOOLS menu) |
 | `aa392b8` / `f55e604` | Adaptive rules path **stop-only** — no dig ladder |
@@ -73,6 +74,7 @@ Force-hops and GROK-PARITY checklists ran **before/instead of** free ReAct, burn
 - **Golden standard** (`docs/evals/GOLDEN_STANDARD_CASE_REFERENCE.md`) = quality bar (primary sources, exact URLs, no invention) — **not** a mandate to re-add force_* templates.
 - **Discovery bait** (`broad-discovery` / `discovery-source-mixer`) finds *new* market targets; it is not the locked-entity dig script.
 - **Do not re-introduce** `force_company_search`, `force_related_search`, `force_org_email_search`, refuse-done loops, or “Grok is the floor” prompt mandates.
+- **Wallet-first seeds** stay thin (`"addr"` only); agentic invents the attribution dig.
 
 ### Canonical bureau run
 See **docs/RUN_BUREAU.md**. "Run Apex Atlas / bureau" = POST `/api/ingest/atlas-run` with `CANONICAL_ATLAS_LAUNCH_BODY` (`atlas-launch-defaults.ts`). UI + `scripts/run-bureau.sh` match. ENABLE_AUTO_PIPELINE stays false unless explicitly requested.
