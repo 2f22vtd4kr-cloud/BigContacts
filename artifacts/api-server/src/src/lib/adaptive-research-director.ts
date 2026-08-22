@@ -209,6 +209,7 @@ export function createAdaptiveResearchState(input: AdaptiveResearchDirectorInput
  * intentionally gap-driven rather than a fixed provider ladder: a newly found
  * person or official domain changes the next action immediately.
  */
+/** Legacy ordered fallback for budget/stop only. Live dig uses Boss/right-hand/Groq free choice. */
 export function selectNextAdaptiveAction(
   state: AdaptiveResearchState,
   maxActions = ACTION_LIMIT,
@@ -297,7 +298,7 @@ export function selectNextAdaptiveAction(
       kind: "follow_person",
       lane: "people_press",
       subject: nextPerson,
-      reason: "named person discovered — person-scoped press, bio, LinkedIn, and public contact search in target context",
+      reason: "named person discovered — person-scoped public contact and press search in target context",
       signature: `person:${nextPerson.toLowerCase()}`,
     };
   }
