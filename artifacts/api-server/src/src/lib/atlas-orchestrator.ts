@@ -1295,8 +1295,8 @@ async function enrichEntityFullCircle(atlasJobId: string, entity: EntityRow): Pr
             metadata: JSON.stringify({ siteName: p.siteName, tags: p.tags ?? [] }),
           })),
         ).onConflictDoNothing().catch(() => {});
-        // Flexible re-entry: Maigret found 3+ platforms but no email → re-run AI with platform hints
-        if (maigretResult.found.length >= 3 && !entity.email) {
+        // Re-entry only if target agent did not already own the card
+        if (!agentCardReady && maigretResult.found.length >= 3 && !entity.email) {
           const platformList = maigretResult.found.slice(0, 6).map((p: any) => p.siteName).join(", ");
           const result2 = await deepWebOsintEnrich({ ...entity, notes: `${entity.notes ?? ""} — Active on: ${platformList}` } as any).catch(() => null);
           if (result2?.email) entity = { ...entity, email: sanitizePublicEmail(result2.email) ?? entity.email };
@@ -1790,14 +1790,18 @@ Never invent specific emails, phones, or people. Return plain text only.`,
         /* non-fatal — tools still run */
       }
 
-      const secondary = await expandSecondaryPublicSurface({
-        entityId: id,
-        name,
-        entityType: entity.type,
-        companyName: companyNameForSecondary,
-        jobId: atlasJobId,
-      });
-      logger.info({ entityId: id, name, secondary }, "[Atlas] Secondary public surface expansion done");
+      if (agentCardReady) {
+        logger.info({ entityId: id, name }, "[Atlas] Secondary surface skipped — target agent owns the card");
+      } else {
+        const secondary = await expandSecondaryPublicSurface({
+          entityId: id,
+          name,
+          entityType: entity.type,
+          companyName: companyNameForSecondary,
+          jobId: atlasJobId,
+        });
+        logger.info({ entityId: id, name, secondary }, "[Atlas] Secondary public surface expansion done");
+      }
     } catch (err: any) {
       logger.warn({ entityId: id, err: err?.message }, "[Atlas] Secondary expansion skipped (non-fatal)");
     }

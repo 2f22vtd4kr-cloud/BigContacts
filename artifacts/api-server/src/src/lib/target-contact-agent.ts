@@ -102,8 +102,8 @@ export async function runTargetContactAgent(input: {
     targetName: name,
     companyName: input.companyName ?? null,
     objective,
-    maxIterations: input.maxIterations ?? Math.max(depth.agenticMaxIterations, 12),
-    hardTimeoutMs: input.hardTimeoutMs ?? 240_000,
+    maxIterations: input.maxIterations ?? Math.max(depth.agenticMaxIterations, 16),
+    hardTimeoutMs: input.hardTimeoutMs ?? 300_000,
     onLiveStep: (step) => {
       void publishBureauEvent({
         actor: "web",
