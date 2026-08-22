@@ -1,4 +1,3 @@
-import { apexOrientationCompact } from "./apex-bureau-orientation";
 /**
  * Materialize bureau / discovery contact evidence onto durable contact_evidence
  * rows so HNWI profile cards show related routes without waiting for a full
@@ -9,6 +8,7 @@ import { eq } from "drizzle-orm";
 import { sanitizePublicEmail, sanitizePublicPhone, isTrashContactValue } from "./contact-validation";
 import { logger } from "./logger";
 import { resolveResearchDepth } from "./research-depth";
+import { apexOrientationCompact } from "./apex-bureau-orientation";
 
 export type BureauContactLike = {
   vectorType?: string | null;
