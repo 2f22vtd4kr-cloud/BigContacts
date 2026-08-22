@@ -6,7 +6,7 @@
 
 ## Prep for next Replit run (2026-08-22)
 
-**Current tip:** `4bc3bf7`+ — **free research path** (see sections below; keep docs in sync on every cut)
+**Current tip:** `2a3661a` — **free research path** (code + context + RUN_BUREAU + stage2 docs aligned)
 
 ### What “free research” means (non-negotiable)
 - **Agentic ReAct:** the model chooses every `web_search` / `visit` / `done`. No `force_*` gap-fill machine.
@@ -37,7 +37,8 @@
 | `0de2a59` | Trajectory no longer matches `force_*`; discovery bait softened |
 | `3ae7fcc` | Golden standard = **evidence quality bar**, not force-hop mandate |
 | `e0be24d`–`92273c9` | bag-attach rename; residual Grok-centric comments stripped |
-| `1d137cd` | **docs/context.md** — free research path written as canonical handoff |
+| `1d137cd` / `4bc3bf7` | **docs/context.md** — free research path written as canonical handoff |
+| `2a3661a` | RUN_BUREAU + stage2 docs aligned with free path |
 
 ### Earlier integrity tips (still relevant)
 | Commit | Point |
