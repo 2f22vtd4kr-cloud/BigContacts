@@ -34,6 +34,10 @@ router.get("/healthz", async (_req, res) => {
       nvidiaNim: nvidia.configured ? 1 : 0,
       companiesHouse: process.env.COMPANIES_HOUSE_API_KEY ? 1 : 0,
       serper: [process.env.SERPER_API_KEY, process.env.SERPER_API_KEY_2, process.env.SERPER_API_KEY_3, process.env.SERPER_KEY].some((k) => Boolean(k?.trim())) ? 1 : 0,
+      scrapfly: process.env.SCRAPFLY_API_KEY ? 1 : 0,
+      zenrows: process.env.ZENROWS_API_KEY ? 1 : 0,
+      whoxy: [process.env.WHOXY_API_KEY, process.env.WHOXY_KEY, process.env.Whoxy_Key, process.env.WHOXY].some((k) => Boolean(k?.trim())) ? 1 : 0,
+      whoisjson: process.env.WHOISJSON_API_KEY ? 1 : 0,
     };
     lanesHonesty = buildLanesHonestySnapshot();
   } catch {
@@ -42,7 +46,7 @@ router.get("/healthz", async (_req, res) => {
   }
 
   const registryShallowRisk = lanesHonesty?.registryShallowRisk ?? (providers
-    ? (providers.perplexity + providers.tavily + providers.exa) === 0
+    ? (providers.perplexity + providers.tavily + providers.exa + providers.serper) === 0
     : true);
 
   res.json({
@@ -56,9 +60,11 @@ router.get("/healthz", async (_req, res) => {
     providers,
     lanesHonesty,
     registryShallowRisk,
+    bureauIntegrity: lanesHonesty?.bureauIntegrity ?? "critical",
+    bureauIntegrityReasons: lanesHonesty?.bureauIntegrityReasons ?? [],
     note: registryShallowRisk
-      ? "registryShallowRisk=true: no Perplexity/Tavily/Exa slots active — discovery may be registry-only. Restart API after secret changes."
-      : "Restart the API process after any secret change so provider slot counts refresh. ENABLE_AUTO_PIPELINE=false is the safe operator floor.",
+      ? "registryShallowRisk=true: no Serper/Tavily/Exa/Perplexity slots — discovery may be registry-only. Restart API after secret changes."
+      : "Restart the API process after any secret change so provider slot counts refresh. ENABLE_AUTO_PIPELINE=false is the safe operator floor. Check bureauIntegrity before research.",
     autoPipeline: process.env.ENABLE_AUTO_PIPELINE === "true",
   });
 });
