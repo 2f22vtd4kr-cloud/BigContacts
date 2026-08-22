@@ -5,7 +5,7 @@
 
 ## Prep for next Replit run (2026-08-22)
 
-**Current tip:** `d6c3e9a` — pull latest `main` before any Replit boot
+**Current tip:** `4456b1b` — pull latest `main` before any Replit boot
 
 ### Tip chain (bureau research integrity)
 | Commit | Point |

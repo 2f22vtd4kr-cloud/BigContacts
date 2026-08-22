@@ -120,6 +120,7 @@ export function buildInvestigatorResearchPlan(input: {
     relatedOrganizations,
     candidateDomains,
     ...(input.coverage ? { coverage: input.coverage } : {}),
+    // Stages are observational tracking labels — not a forced execution order for agents.
     stages: [
       {
         id: "identity",
