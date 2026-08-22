@@ -6,7 +6,7 @@
 
 ## Prep for next Replit run (2026-08-22)
 
-**Current tip:** `92273c9` — **free research path** (force-hop scripts removed; models invent queries/visits)
+**Current tip:** `1d137cd` — **free research path** documented in this file (code tip `92273c9`+)
 
 ### What “free research” means (non-negotiable)
 - **Agentic ReAct:** the model chooses every `web_search` / `visit` / `done`. No `force_*` gap-fill machine.
@@ -37,6 +37,7 @@
 | `0de2a59` | Trajectory no longer matches `force_*`; discovery bait softened |
 | `3ae7fcc` | Golden standard = **evidence quality bar**, not force-hop mandate |
 | `e0be24d`–`92273c9` | bag-attach rename; residual Grok-centric comments stripped |
+| `1d137cd` | **docs/context.md** — free research path written as canonical handoff |
 
 ### Earlier integrity tips (still relevant)
 | Commit | Point |
@@ -53,7 +54,7 @@ Force-hops and GROK-PARITY checklists ran **before/instead of** free ReAct, burn
 **Now:** multi-LLM free ReAct owns the dig; tools extract on visited HTML; Boss plans without numbered search scripts.
 
 ### Boot gate (do not research until green)
-1. Pull **`92273c9`** or newer
+1. Pull **`1d137cd`** or newer
 2. Secrets: `SERPER_API_KEY` + `GROQ_API_KEY` minimum; `TAVILY` + `EXA_*` + Gemini + NVIDIA + Mistral preferred
 3. `RESEARCH_DEPTH=standard` (or `deep`) for parity smokes — `fast` under-digs
 4. `GET /api/healthz` → `bureauIntegrity` = **ok**
