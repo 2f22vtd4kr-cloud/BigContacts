@@ -909,11 +909,15 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
           workingFile.humanBrief.motivation,
           workingFile.humanBrief.geography ? `Geography: ${workingFile.humanBrief.geography}` : "",
           agenticCompanyName
-            ? `Lock onto ${agenticTargetName} at ${agenticCompanyName}. Search the exact pair first. Recover address, phone, email, EDGAR/officers, related-person surface (visit company /dealer /team after primary contact).`
-            : "Multi-hop agentic search. Visit primary pages and related-people pages. Never invent contacts.",
+            ? `Target-locked: ${agenticTargetName} at ${agenticCompanyName}. Invent queries and use tools freely; prefer primary sources. Never invent contacts.`
+            : "Multi-hop agentic search. Invent queries and use OSINT tools when useful. Never invent contacts.",
         ].filter(Boolean).join("\n"),
         caseId,
-        maxIterations: 18,
+        maxIterations: resolveResearchDepth().agenticMaxIterations,
+        shouldCancel: async () => {
+          const job = await getJob(jobId);
+          return !job || job.status === "failed" || job.status === "cancelled";
+        },
       });
       workingFile = await persistDiscoveryCheckpoint(caseId, openingIteration, workingFile, {
         lane: "broad-web",
@@ -2171,7 +2175,7 @@ router.post("/research/bureau/cases/:caseId/run-next-pass", async (req, res): Pr
           "Visit official contact/about/team pages. Never invent contacts.",
         ].join("\n"),
         caseId,
-        maxIterations: 14,
+        maxIterations: resolveResearchDepth().agenticMaxIterations,
       });
       workingFile = await persistDiscoveryCheckpoint(caseId, iteration, workingFile, {
         lane: "broad-web",
@@ -3543,7 +3547,7 @@ router.post("/research/cases/:entityId/advance", async (req, res): Promise<void>
         caseId: current.id,
         entityId: params.data.entityId,
         persist: true,
-        maxIterations: 14,
+        maxIterations: resolveResearchDepth().agenticMaxIterations,
       });
 
       await db.insert(researchCaseEventsTable).values({

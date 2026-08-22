@@ -22,6 +22,8 @@ export type ResearchDepthConfig = {
   maxDomainFollowUps: number;
   /** Legacy flag — always false; free research does not force pending-vector scripts */
   forcePendingVectorBias: boolean;
+  /** Agentic ReAct dig iteration budget */
+  agenticMaxIterations: number;
   /** Run identity collision / alias challenge before stop when budget remains */
   challengePass: boolean;
 };
@@ -34,6 +36,7 @@ const CONFIGS: Record<ResearchDepth, ResearchDepthConfig> = {
     maxPersonFollowUps: 2,
     maxDomainFollowUps: 1,
     forcePendingVectorBias: false,
+    agenticMaxIterations: 10,
     challengePass: false,
   },
   standard: {
@@ -43,6 +46,7 @@ const CONFIGS: Record<ResearchDepth, ResearchDepthConfig> = {
     maxPersonFollowUps: 5,
     maxDomainFollowUps: 2,
     forcePendingVectorBias: false,
+    agenticMaxIterations: 16,
     challengePass: true,
   },
   deep: {
@@ -52,12 +56,13 @@ const CONFIGS: Record<ResearchDepth, ResearchDepthConfig> = {
     maxPersonFollowUps: 8,
     maxDomainFollowUps: 3,
     forcePendingVectorBias: false,
+    agenticMaxIterations: 20,
     challengePass: true,
   },
 };
 
 /** Hard ceiling so a bad env value cannot explode Replit / provider cost. */
-export const ABSOLUTE_ADAPTIVE_ACTION_CAP = 12;
+export const ABSOLUTE_ADAPTIVE_ACTION_CAP = 16;
 
 /** Default for unset / invalid env — keeps bulk runs cheap on Replit. */
 export const DEFAULT_RESEARCH_DEPTH: ResearchDepth = "fast";
@@ -83,6 +88,7 @@ export function describeResearchDepth(config: ResearchDepthConfig): string {
     `adaptiveMaxActions=${config.adaptiveMaxActions}`,
     `personFollowUps=${config.maxPersonFollowUps}`,
     `domainFollowUps=${config.maxDomainFollowUps}`,
+    `agenticMaxIterations=${config.agenticMaxIterations}`,
     `challengePass=${config.challengePass ? "on" : "off"}`,
   ].join(" · ");
 }

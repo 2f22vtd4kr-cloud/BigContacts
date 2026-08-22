@@ -6,6 +6,7 @@
 
 import { logger } from "./logger";
 import { runAgenticWebResearch, type AgenticFinding } from "./agentic-web-research";
+import { resolveResearchDepth } from "./research-depth";
 import { persistBureauContactsForEntity, type BureauContactLike } from "./bureau-contact-persist";
 import { publishBureauEvent } from "./bureau-live-log";
 
@@ -111,7 +112,7 @@ export async function runBureauAgenticWebPass(input: {
       companyName: input.companyName ?? null,
       objective: input.objective
         ?? `Find publicly documented contact routes for ${name}${input.companyName ? ` related to ${input.companyName}` : ""}. Multi-hop. Visit primary pages. Never invent.`,
-      maxIterations: input.maxIterations ?? 18,
+      maxIterations: input.maxIterations ?? resolveResearchDepth().agenticMaxIterations,
       hardTimeoutMs: 210_000,
       shouldCancel: input.shouldCancel,
     });
