@@ -1511,32 +1511,21 @@ export async function runAgenticWebResearch(input: {
     return 7;
   };
 
-  /** From SERP hits, seed /contact and /terms on real company domains so we don't stop at chamber pages. */
+  /** Light touch only: if SERP shows a company-aligned host, offer /contact + /about — not a path playbook. */
   const seedCompanyContactPaths = (urls: string[]) => {
-    const paths = [
-      "/contact", "/contact-us", "/contactus", "/get-in-touch", "/connect",
-      "/pages/contact", "/company/contact", "/about/contact", "/sales-contact-form",
-      "/contact-page", "/terms-and-conditions", "/terms", "/about", "/about-us",
-      "/about-us/leadership", "/leadership", "/our-leadership", "/company/leadership",
-      "/corporate-locations", "/locations", "/our-locations", "/company/locations",
-      "/dealer", "/dealers", "/team", "/our-team", "/people",
-      "/blog", "/news", "/about-us/history", "/history", "/our-story",
-    ];
+    const paths = ["/contact", "/about"];
+    const coToken = input.companyName
+      ? input.companyName.toLowerCase().replace(/[^a-z0-9]+/g, "").slice(0, 8)
+      : "";
+    if (coToken.length < 4) return;
     for (const u of urls) {
       if (isAggregatorHost(u)) continue;
       try {
         const parsed = new URL(u);
         if (!/\.(com|org|io|co|net|us)$/i.test(parsed.hostname)) continue;
         if (/linkedin|facebook|twitter|youtube|wikipedia|sec\.gov/i.test(parsed.hostname)) continue;
-        const coToken = input.companyName
-          ? input.companyName.toLowerCase().replace(/[^a-z0-9]+/g, "").slice(0, 8)
-          : "";
         const hostFlat = parsed.hostname.replace(/[^a-z0-9]/g, "");
-        // Prefer domains that look like the company; also seed any non-aggregator corporate host
-        if (coToken && !hostFlat.includes(coToken.slice(0, 5)) && !hostFlat.includes(coToken.slice(0, 4))) {
-          // still seed if path already contact-like
-          if (!/\/(contact|terms|about)/i.test(parsed.pathname)) continue;
-        }
+        if (!hostFlat.includes(coToken.slice(0, 5)) && !hostFlat.includes(coToken.slice(0, 4))) continue;
         for (const p of paths) {
           const seeded = `${parsed.protocol}//${parsed.hostname}${p}`;
           if (!candidateUrls.includes(seeded)) candidateUrls.push(seeded);
@@ -1695,7 +1684,7 @@ export async function runAgenticWebResearch(input: {
       for (const u of sr.urls) {
         if (/^https?:\/\//i.test(u) && !candidateUrls.includes(u)) candidateUrls.push(u);
       }
-      // Seed /contact /terms on company domains so force-visit does not stop at chamber directories
+      // Optional company /contact /about seeds from SERP hosts
       seedCompanyContactPaths(sr.urls);
       const snippetEmails = findingsFromSearchSnippet(sr.text, sr.urls, input.companyName || name);
       if (snippetEmails.length) {

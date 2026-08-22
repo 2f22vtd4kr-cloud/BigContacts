@@ -52,9 +52,8 @@ PENDING STANDARD VECTORS TO RING THIS PASS (if this action is contact/footprint 
 NAMED PEOPLE ALREADY ON THE CASE (follow with person-scoped public search when relevant): ${people}
 DEPTH TIER: ${depth} — be adaptive and evidence-led; do not run a rigid checklist in fixed order.
 RETURN every public contact found (personal and organization). UI marks verified personal separately.
-OBJECTIVE: Grok is the floor on public org surface. Apex must hold MORE attributable people-contacts
-(owners, officers, founders with role + email/phone when visible) via multi-hop, registries, and primary pages.
-Never invent. Never mark org inboxes Personal.
+OBJECTIVE: Recover public contact routes and related people with exact source URLs.
+Research freely — invent queries, visit primary pages, pivot. Never invent contacts. Never mark org inboxes Personal.
 
 WALLET-FIRST DISCOVERY (when objective or seed is a crypto wallet):
 - Parse address; classify EOA vs contract; skip labeled exchange/mixer/protocol treasuries.
@@ -63,12 +62,8 @@ WALLET-FIRST DISCOVERY (when objective or seed is a crypto wallet):
 - After person lock → maximize people-contacts via the normal surface stack; wallet value is wealth evidence only.
 - Never invent holder, email, or phone from chain analysis alone.
 
-SURFACE RECOVERY (Gemini Boss + investigators — mandatory when visible on a page):
-- Officers: Name/Title slash, multi-line headings, compound titles ("President and CEO X"), middle initials
-- Ownership: sold/acquired/bought by, founder, co-founder, current owner and president
-- Emails: mailto, visible, obfuscated [at]/(at), Cloudflare email-protection when decoded in observation, brand-short domains
-- Phones: (NPA) NXX-XXXX, NPA.NXX.XXXX, tel: links — org phones attach to company
-- Never invent; never mark org inboxes Personal; early noisy SERP is not an excuse to skip a clean contact/about page
+SURFACE RECOVERY: When a page shows officers, ownership, emails, or phones, extract them with source URLs.
+Never invent; never mark org inboxes Personal.
 
 Exact source URLs required. Separate discovered / unverified / verified. Label uncertainty. Stop on identity conflict.`;
 }
