@@ -41,7 +41,7 @@
 
 **Flags**
 - `ENABLE_AUTO_PIPELINE=false`
-- `RESEARCH_DEPTH=standard`
+- `RESEARCH_DEPTH=standard` (drives adaptive action budget; `fast` is bulk-cheap only)
 
 ## Boot
 

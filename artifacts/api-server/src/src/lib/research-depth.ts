@@ -20,7 +20,7 @@ export type ResearchDepthConfig = {
   maxPersonFollowUps: number;
   /** Max official-domain follow-ups */
   maxDomainFollowUps: number;
-  /** Prefer closing pending contact vectors in Boss queue */
+  /** Legacy flag — always false; free research does not force pending-vector scripts */
   forcePendingVectorBias: boolean;
   /** Run identity collision / alias challenge before stop when budget remains */
   challengePass: boolean;
@@ -33,7 +33,7 @@ const CONFIGS: Record<ResearchDepth, ResearchDepthConfig> = {
     noProgressLimit: 2,
     maxPersonFollowUps: 2,
     maxDomainFollowUps: 1,
-    forcePendingVectorBias: true,
+    forcePendingVectorBias: false,
     challengePass: false,
   },
   standard: {
@@ -42,7 +42,7 @@ const CONFIGS: Record<ResearchDepth, ResearchDepthConfig> = {
     noProgressLimit: 2,
     maxPersonFollowUps: 5,
     maxDomainFollowUps: 2,
-    forcePendingVectorBias: true,
+    forcePendingVectorBias: false,
     challengePass: true,
   },
   deep: {
@@ -51,7 +51,7 @@ const CONFIGS: Record<ResearchDepth, ResearchDepthConfig> = {
     noProgressLimit: 3,
     maxPersonFollowUps: 8,
     maxDomainFollowUps: 3,
-    forcePendingVectorBias: true,
+    forcePendingVectorBias: false,
     challengePass: true,
   },
 };

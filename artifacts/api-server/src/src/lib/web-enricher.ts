@@ -2524,7 +2524,7 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
         ...researchContext,
         candidateDomains: [...new Set([...domainTargets, ...operatorDomains])],
       },
-      maxActions: 5,
+      // maxActions omitted → RESEARCH_DEPTH adaptiveMaxActions (capped by ABSOLUTE_ADAPTIVE_ACTION_CAP)
       onStep: async ({ action, status, summary }) => {
         await emitDeepWebTelemetry(entity, {
           stage: "ADAPTIVE RESEARCH DIRECTOR",

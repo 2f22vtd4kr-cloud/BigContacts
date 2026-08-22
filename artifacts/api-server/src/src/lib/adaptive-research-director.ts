@@ -126,6 +126,8 @@ export interface AdaptiveResearchDirectorInput {
   country: string | null;
   context: Omit<AIResearchContext, "lane">;
   maxActions?: number;
+  /** Operator stop between adaptive actions. */
+  shouldCancel?: () => boolean | Promise<boolean>;
   /** fast | standard | deep — default from env RESEARCH_DEPTH or standard */
   depth?: string | null;
   onStep?: (step: {
@@ -584,6 +586,20 @@ export async function runAdaptiveResearchDirector(
   const maxActions = Math.max(1, Math.min(budget, ABSOLUTE_ADAPTIVE_ACTION_CAP));
 
   for (;;) {
+    if (input.shouldCancel) {
+      try {
+        if (await input.shouldCancel()) {
+          actions.push({
+            kind: "stop_review",
+            lane: null,
+            subject: state.targetName,
+            reason: "cancelled by operator",
+            signature: `stop:cancel:${actions.length}`,
+          });
+          break;
+        }
+      } catch { /* ignore */ }
+    }
     const { action, assignedBy } = await selectNextAdaptiveActionWithBoss(state, maxActions);
     if (action.kind === "stop_review") {
       actions.push({

@@ -48,6 +48,6 @@ Return structured findings with exact source URLs.`;
 }
 
 export function buildInvestigatorProgressBlock(progress?: InvestigationProgress | null): string {
-  if (!progress) return "No investigation progress map yet — attempt standard contact vectors when the selected action allows.";
+  if (!progress) return "No investigation progress map yet — research freely against open gaps when the selected action allows.";
   return formatProgressForPrompt(progress);
 }
