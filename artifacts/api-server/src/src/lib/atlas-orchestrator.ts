@@ -1007,6 +1007,8 @@ async function enrichEntityFullCircle(atlasJobId: string, entity: EntityRow): Pr
       }
     }
 
+    // ── Step B: Social + Messenger — optional support; skip when agent owns card ──
+    if (!agentCardReady) {
     // ── Step B: Social + Messenger discovery ───────────────────────────────────
     await setAtlasTelemetry(atlasJobId, {
       stage: "SOCIAL + MESSENGER",
@@ -1042,6 +1044,21 @@ async function enrichEntityFullCircle(atlasJobId: string, entity: EntityRow): Pr
     // routes; no newly discovered contact field is persisted before it runs.
     if (messengerResult?.telegramHandle && !entity.telegramHandle) {
       entity = { ...entity, telegramHandle: messengerResult.telegramHandle };
+    }
+
+    } else {
+      await setAtlasTelemetry(atlasJobId, {
+        stage: "SOCIAL + MESSENGER",
+        status: "complete",
+        targetName: name,
+        targetType: entity.type,
+        toolIds: ["agentic-web"],
+        activeToolId: "agentic-web",
+        actor: "web",
+        methodKind: "agentic",
+        story: `Skipped social/messenger pass — target agent owns the card for ${name}`,
+        inputSummary: "agentCardReady=true",
+      }, id);
     }
 
     await ensureAtlasActive(atlasJobId, id);

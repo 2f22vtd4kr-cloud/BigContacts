@@ -208,10 +208,24 @@ export async function persistBureauContactsForEntity(
       ? item.sourceUrls.filter((u): u is string => typeof u === "string" && /^https?:\/\//i.test(u))
       : [];
 
-    // Fail-closed admission for direct contact vectors: no URL ⇒ do not persist.
-    // Related-person / org-name anchors may attach a deterministic public search URL.
+    // Prefer source URLs. For model dig findings without a page URL, attach a
+    // deterministic public search URL so the claim is reviewable — do not silently drop.
     const needsClaimUrl = ["email", "phone", "linkedin", "twitter", "instagram", "telegram"].includes(vectorType);
-    if (needsClaimUrl && urls.length === 0) continue;
+    if (needsClaimUrl && urls.length === 0) {
+      const fromAgent =
+        source.includes("agent") ||
+        source.includes("target-contact") ||
+        source.includes("secondary") ||
+        String(item.note ?? "").includes("agentic") ||
+        String(item.note ?? "").includes("target-agent");
+      if (fromAgent && targetName) {
+        urls = [
+          `https://www.google.com/search?q=${encodeURIComponent(`"${targetName}" ${value}`)}`,
+        ];
+      } else {
+        continue;
+      }
+    }
 
     // related-person without URL: attach issuer EDGAR search when company known; else drop
     if (urls.length === 0 && /^related-person:/i.test(value)) {
