@@ -79,6 +79,8 @@ interface AtlasLiveState {
     personaNames?: string[];
     raw?: string;
     story?: string;
+    narration?: string;
+    why?: string;
     actor?: string;
     methodKind?: string;
     sourceUrls?: string[];
@@ -99,6 +101,35 @@ function parseAtlasEventLog(raw: unknown) {
   if (!Array.isArray(raw)) return [];
   return raw.map((line) => {
     const text = typeof line === "string" ? line : "";
+
+    // Structured bureau live log (includes right-hand narration)
+    const bureauIdx = text.indexOf("BUREAU|");
+    if (bureauIdx >= 0) {
+      try {
+        const parsed = JSON.parse(text.slice(bureauIdx + "BUREAU|".length));
+        const isNarration = parsed.kind === "narration" || parsed.actor === "right_hand";
+        return {
+          timestamp: parsed.timestamp || (bureauIdx > 0 ? text.slice(0, bureauIdx).trim() : undefined),
+          kind: parsed.kind || (isNarration ? "narration" : "log"),
+          stage: parsed.title,
+          status: "active",
+          targetName: parsed.targetName,
+          activeToolId: parsed.provider,
+          toolIds: parsed.provider ? [parsed.provider] : [],
+          inputSummary: parsed.why,
+          resultSummary: parsed.responseSummary || parsed.detail,
+          story: isNarration ? parsed.title : (parsed.why || parsed.title),
+          narration: isNarration ? parsed.title : parsed.narration,
+          why: parsed.why,
+          actor: parsed.actor,
+          methodKind: parsed.kind,
+          raw: text,
+        };
+      } catch {
+        /* fall through */
+      }
+    }
+
     const split = text.indexOf(" ATLAS_EVENT ");
     const timestamp = split > 0 ? text.slice(0, split) : undefined;
     const payload = split > 0 ? text.slice(split + " ATLAS_EVENT ".length) : text;
@@ -106,7 +137,6 @@ function parseAtlasEventLog(raw: unknown) {
       const event = JSON.parse(payload);
       return { ...event, timestamp, raw: text };
     } catch {
-      // Unparsed job lines often dump DIRECTOR + JSON — keep raw, never as resultSummary
       if (/ATLAS_EVENT|DIRECTOR\s+20\d{2}-|"kind"\s*:\s*"telemetry"/i.test(text)) {
         return { kind: "log", resultSummary: "Working on this person", timestamp, raw: text };
       }
@@ -121,8 +151,21 @@ function parseAtlasEventLog(raw: unknown) {
         raw: text,
       };
     }
-  }).filter((event) => event.kind === "telemetry" || event.kind === "log");
+  }).filter((event) =>
+    event.kind === "telemetry"
+    || event.kind === "log"
+    || event.kind === "narration"
+    || event.actor === "right_hand"
+    || event.kind === "search"
+    || event.kind === "page-fetch"
+    || event.kind === "extract"
+    || event.kind === "plan"
+    || event.kind === "decision"
+    || event.kind === "registry"
+    || event.kind === "tool"
+  );
 }
+
 
 function parseAtlasTelemetry(raw: unknown) {
   if (!raw) return null;

@@ -103,6 +103,16 @@ export async function publishBureauEvent(
   }, undefined).catch((err: any) => {
     logger.debug({ err: err?.message }, "bureau-live-log publish failed (non-fatal)");
   });
+    // Right-hand adaptive narration for Reactor (non-blocking; never delays research)
+  if (event.kind !== "narration") {
+    try {
+      const { scheduleBureauLiveNarration } = await import("./bureau-live-narration");
+      scheduleBureauLiveNarration(event);
+    } catch {
+      /* optional */
+    }
+  }
+
   return event;
 }
 

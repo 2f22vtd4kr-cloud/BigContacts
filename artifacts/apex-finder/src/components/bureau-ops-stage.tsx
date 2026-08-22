@@ -31,11 +31,15 @@ export type OpsEvent = {
   raw?: string;
   /** Preferred operator one-liner from the pipeline */
   story?: string;
-  actor?: "boss" | "investigator" | "registry" | "tool" | "system";
+  /** Adaptive right-hand prose (not a scripted template) */
+  narration?: string;
+  why?: string;
+  actor?: "boss" | "investigator" | "registry" | "tool" | "system" | "right_hand" | "web" | "discovery";
   methodKind?: string;
   sourceUrls?: string[];
   links?: Array<{ title?: string; url: string }>;
   caseUpdate?: string;
+  provider?: string;
 };
 
 type SceneKind = "google" | "browser" | "prompt" | "domain" | "footprint" | "serp" | "bureau" | "boss" | "case" | "registry" | "persona";
@@ -59,6 +63,8 @@ type Scene = {
   /** Phase K */
   terminal?: "done" | "failed" | null;
   story: string;
+  /** Adaptive right-hand narration for the desk */
+  narration?: string;
 };
 
 function pickTool(e: OpsEvent): string {
@@ -374,7 +380,8 @@ function toScene(e: OpsEvent, index: number, slots: ProviderSlotMap | null = nul
   const toolBlob = `${tool} ${e.stage || ""} ${e.resultSummary || ""} ${e.inputSummary || ""} ${e.methodKind || ""} ${e.actor || ""}`;
   let kind: SceneKind = "bureau";
   // Explicit pipeline method/actor first, then tool heuristics
-  if (e.methodKind === "boss" || e.actor === "boss") kind = "boss";
+  if (e.kind === "narration" || e.actor === "right_hand") kind = "boss";
+  else if (e.methodKind === "boss" || e.actor === "boss") kind = "boss";
   else if (e.methodKind === "case" || e.caseUpdate) kind = "case";
   else if (e.methodKind === "registry" || e.actor === "registry" || /edgar|companies.?house|brreg|registry/i.test(toolBlob)) kind = "registry";
   else if (e.methodKind === "persona" || /persona-review/i.test(toolBlob)) kind = "persona";
@@ -449,9 +456,13 @@ function toScene(e: OpsEvent, index: number, slots: ProviderSlotMap | null = nul
     timestamp: e.timestamp,
     live,
     terminal,
+    narration:
+      e.narration
+      || (e.kind === "narration" || e.actor === "right_hand" ? (e.story || e.resultSummary || e.why) : undefined)
+      || undefined,
     story: unavailable
       ? (honestSubtitle || "This search tool is offline or returned nothing useful")
-      : storyFor(kind, e, safeQuery),
+      : (e.narration || storyFor(kind, e, safeQuery)),
     links: (e.links && e.links.length
       ? e.links
       : (e.sourceUrls ?? []).map((url) => ({ url }))
@@ -907,23 +918,51 @@ function BureauScene({ scene, compact }: { scene: Scene; compact?: boolean }) {
   );
 }
 
+
+/** Adaptive right-hand voice — never a static script */
+function RightHandNarration({ text, compact }: { text?: string; compact?: boolean }) {
+  if (!text || text.length < 8) return null;
+  return (
+    <div
+      className={`mb-2 rounded-lg border border-violet-400/35 bg-gradient-to-r from-violet-950/50 to-[#0c1018] px-2.5 py-2 ${compact ? "text-[10px]" : "text-[11px]"}`}
+      data-testid="right-hand-narration"
+    >
+      <div className="mb-1 flex items-center gap-1.5">
+        <span className="inline-flex h-1.5 w-1.5 animate-pulse rounded-full bg-violet-300 shadow-[0_0_8px_rgba(167,139,250,0.9)]" />
+        <span className="font-mono text-[8px] font-bold uppercase tracking-[0.14em] text-violet-200/90">
+          Right-hand · live
+        </span>
+      </div>
+      <p className="leading-snug text-violet-50/95">{text}</p>
+    </div>
+  );
+}
+
 function SceneCard({ scene, compact }: { scene: Scene; compact?: boolean }) {
-  switch (scene.kind) {
-    case "google":
-      return <GoogleScene scene={scene} compact={compact} />;
-    case "browser":
-      return <BrowserScene scene={scene} compact={compact} />;
-    case "prompt":
-      return <PromptScene scene={scene} compact={compact} />;
-    case "domain":
-      return <DomainScene scene={scene} compact={compact} />;
-    case "serp":
-      return <SerpScene scene={scene} compact={compact} />;
-    case "footprint":
-      return <FootprintScene scene={scene} compact={compact} />;
-    default:
-      return <BureauScene scene={scene} compact={compact} />;
-  }
+  const body = (() => {
+    switch (scene.kind) {
+      case "google":
+        return <GoogleScene scene={scene} compact={compact} />;
+      case "browser":
+        return <BrowserScene scene={scene} compact={compact} />;
+      case "prompt":
+        return <PromptScene scene={scene} compact={compact} />;
+      case "domain":
+        return <DomainScene scene={scene} compact={compact} />;
+      case "serp":
+        return <SerpScene scene={scene} compact={compact} />;
+      case "footprint":
+        return <FootprintScene scene={scene} compact={compact} />;
+      default:
+        return <BureauScene scene={scene} compact={compact} />;
+    }
+  })();
+  return (
+    <div className="flex flex-col gap-0">
+      <RightHandNarration text={scene.narration} compact={compact} />
+      {body}
+    </div>
+  );
 }
 
 /** Mobile: one focused scene + story + swipe + auto-advance on live */
