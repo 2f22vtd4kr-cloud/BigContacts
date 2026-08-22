@@ -6,7 +6,7 @@
 
 ## Prep for next Replit run (2026-08-22)
 
-**Current tip:** latest main — **AI-driven bureau**: free ReAct dig + model-chosen OSINT (Holehe, Maigret, domain, CH/EDGAR/OpenCorporates/GLEIF). See `docs/BUREAU_REACT_ARCHITECTURE.md`
+**Current tip:** latest main — **AI-driven bureau**: free ReAct + full model-chosen OSINT tool surface (search, visit, browser, Holehe, Maigret/Sherlock, domain, theHarvester, registries, Whoxy). See `docs/BUREAU_REACT_ARCHITECTURE.md`
 
 ### What “free research” means (non-negotiable)
 - **Agentic ReAct:** the model chooses every `web_search` / `visit` / `done`. No `force_*` gap-fill machine.

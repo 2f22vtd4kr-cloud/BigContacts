@@ -52,12 +52,10 @@ type AgentAction =
   | { action: "footprint_email"; email: string; thought?: string }
   | { action: "footprint_username"; username: string; thought?: string }
   | { action: "domain_lookup"; domain: string; thought?: string }
-  | {
-      action: "registry_search";
-      query: string;
-      registry: "companies-house" | "sec-edgar" | "opencorporates" | "gleif";
-      thought?: string;
-    }
+  | { action: "registry_search"; query: string; registry: string; thought?: string }
+  | { action: "harvest_domain"; domain: string; thought?: string }
+  | { action: "browser_fetch"; url: string; thought?: string }
+  | { action: "reverse_whois"; query: string; thought?: string }
   | { action: "done"; findings: AgenticFinding[]; thought?: string };
 
 const MAX_ITER = 20;
@@ -820,23 +818,32 @@ function parseAction(raw: string): AgentAction | null {
     }
     if (action === "registry_search" || action === "registry") {
       const q = typeof o.query === "string" ? o.query.trim() : "";
-      const regRaw = String(o.registry ?? o.source ?? "sec-edgar").toLowerCase().replace(/_/g, "-");
-      const reg =
-        regRaw.includes("companies") || regRaw === "ch"
-          ? "companies-house"
-          : regRaw.includes("opencorp")
-            ? "opencorporates"
-            : regRaw.includes("gleif") || regRaw.includes("lei")
-              ? "gleif"
-              : "sec-edgar";
+      let reg = String(o.registry ?? o.source ?? "sec-edgar").toLowerCase().replace(/_/g, "-").trim();
+      if (reg === "ch" || reg === "uk") reg = "companies-house";
+      if (reg === "edgar" || reg === "sec") reg = "sec-edgar";
+      if (reg === "oc" || reg.includes("opencorp")) reg = "opencorporates";
+      if (reg.includes("gleif") || reg === "lei") reg = "gleif";
+      if (reg === "norway" || reg === "brreg-no") reg = "brreg";
       if (q.length >= 2) {
         return {
           action: "registry_search",
           query: q.slice(0, 200),
-          registry: reg as "companies-house" | "sec-edgar" | "opencorporates" | "gleif",
+          registry: reg.slice(0, 40),
           thought: typeof o.thought === "string" ? o.thought : undefined,
         };
       }
+    }
+    if ((action === "harvest_domain" || action === "theharvester" || action === "harvester") && typeof o.domain === "string" && o.domain.includes(".")) {
+      const dom = o.domain.trim().replace(/^https?:\/\//i, "").split("/")[0] || "";
+      if (dom.includes(".")) {
+        return { action: "harvest_domain", domain: dom.slice(0, 120), thought: typeof o.thought === "string" ? o.thought : undefined };
+      }
+    }
+    if ((action === "browser_fetch" || action === "browser" || action === "scrapfly") && typeof o.url === "string" && /^https?:\/\//i.test(o.url)) {
+      return { action: "browser_fetch", url: o.url.trim().slice(0, 500), thought: typeof o.thought === "string" ? o.thought : undefined };
+    }
+    if ((action === "reverse_whois" || action === "whoxy") && typeof o.query === "string" && o.query.trim().length >= 3) {
+      return { action: "reverse_whois", query: o.query.trim().slice(0, 200), thought: typeof o.thought === "string" ? o.thought : undefined };
     }
     if (action === "done") {
       const findings = Array.isArray(o.findings) ? o.findings : [];
@@ -1104,13 +1111,16 @@ TARGET: ${input.targetName}
 ${input.companyName ? `RELATED COMPANY / ISSUER: ${input.companyName}` : ""}
 OBJECTIVE: ${input.objective}
 
-AVAILABLE TOOLS (one JSON action per turn — your choice):
+AVAILABLE TOOLS (one JSON action per turn — your choice; use any Apex OSINT capability when it helps):
 {"action":"web_search","query":"...","thought":"..."}
 {"action":"visit","url":"https://...","thought":"..."}
-{"action":"footprint_email","email":"...","thought":"..."}
-{"action":"footprint_username","username":"...","thought":"..."}
-{"action":"domain_lookup","domain":"example.com","thought":"..."}
-{"action":"registry_search","query":"...","registry":"sec-edgar|companies-house|opencorporates|gleif","thought":"..."}
+{"action":"browser_fetch","url":"https://...","thought":"..."}  // Scrapfly/ZenRows JS/challenge pages
+{"action":"footprint_email","email":"...","thought":"..."}  // Holehe
+{"action":"footprint_username","username":"...","thought":"..."}  // Maigret + Sherlock
+{"action":"domain_lookup","domain":"example.com","thought":"..."}  // RDAP / WhoisJSON
+{"action":"harvest_domain","domain":"example.com","thought":"..."}  // theHarvester emails/hosts
+{"action":"registry_search","query":"...","registry":"sec-edgar|companies-house|brreg|gleif|opencorporates|...","thought":"..."}
+{"action":"reverse_whois","query":"name or email","thought":"..."}  // Whoxy when keyed
 {"action":"done","findings":[{"vectorType":"email|phone|linkedin|website|social|other","value":"...","personName":null,"role":null,"scope":"organization|candidate","sourceUrls":["https://exact-page"],"note":"..."}],"thought":"..."}
 
 Guidelines (not a script):
@@ -2018,7 +2028,7 @@ export async function runAgenticWebResearch(input: {
       }
       if (!action) {
         lastObservation =
-          "Invalid JSON twice. Reply with one valid action object only (web_search | visit | footprint_* | domain_lookup | registry_search | done).";
+          "Invalid JSON twice. Reply with one valid action object only (web_search | visit | browser_fetch | footprint_* | domain_lookup | harvest_domain | registry_search | reverse_whois | done).";
         continue;
       }
     }
@@ -2111,7 +2121,7 @@ export async function runAgenticWebResearch(input: {
         const { searchRegistry } = await import("./registry-client");
         const rows = await searchRegistry({
           query: action.query,
-          registry: action.registry,
+          registry: action.registry as any,
           limit: 8,
         });
         const lines = rows.slice(0, 8).map((r: any, idx: number) => {
@@ -2135,6 +2145,100 @@ export async function runAgenticWebResearch(input: {
         }
       } catch (err: any) {
         lastObservation = `REGISTRY_SEARCH failed (${action.registry}): ${err?.message ?? "error"}`;
+      }
+      continue;
+    }
+
+    if (action.action === "harvest_domain") {
+      if (footprintCalls >= 4) {
+        lastObservation = "Heavy OSINT tool budget used this pass. Prefer web_search/visit/done, or finish.";
+        history.push(`step${i + 1}: harvest_domain_skipped_cap`);
+        continue;
+      }
+      footprintCalls++;
+      history.push(`step${i + 1}: harvest_domain ${action.domain}`);
+      try {
+        const { runTheHarvester } = await import("./python-tools");
+        const hr = await runTheHarvester(action.domain);
+        const emails = (hr.emails ?? []).slice(0, 20);
+        const hosts = (hr.hosts ?? hr.subdomains ?? []).slice(0, 15);
+        lastObservation =
+          `HARVEST_DOMAIN ${action.domain}\n` +
+          (hr.error ? `Error: ${hr.error}\n` : "") +
+          `Emails (${emails.length}): ${emails.join(", ") || "none"}\n` +
+          `Hosts (${hosts.length}): ${hosts.join(", ") || "none"}`;
+        for (const e of emails) {
+          const clean = sanitizePublicEmail(e);
+          if (!clean || isTrashContactValue("email", clean)) continue;
+          findings = mergeFindings(findings, [{
+            vectorType: "email" as const,
+            value: clean,
+            personName: null,
+            role: null,
+            scope: "organization" as const,
+            sourceUrls: [`https://${action.domain}`],
+            note: "theHarvester",
+          }]);
+        }
+      } catch (err: any) {
+        lastObservation = `HARVEST_DOMAIN failed: ${err?.message ?? "error"}`;
+      }
+      continue;
+    }
+
+    if (action.action === "browser_fetch") {
+      history.push(`step${i + 1}: browser_fetch ${action.url}`);
+      try {
+        const { browserFetchConfigured, browserFetchHtml } = await import("./browser-fetch");
+        if (!browserFetchConfigured()) {
+          lastObservation = "BROWSER_FETCH unavailable — Scrapfly/ZenRows not configured. Use visit or web_search.";
+        } else {
+          const escalated = await browserFetchHtml(action.url);
+          const page = escalated.html
+            ? (extractContactFactsFromHtml(escalated.html) + filterPassagesForQuery(stripHtml(escalated.html), action.url, { maxChars: MAX_OBS, minScore: 0.05 })).slice(0, MAX_OBS + 800)
+            : "browser_fetch empty";
+          lastObservation = `BROWSER_FETCH (${escalated.provider}) ${action.url}\n\n${page}`;
+          const extracted = mergeFindings(
+            findingsFromContactFacts(page, action.url, name, input.companyName),
+            findingsFromProxyPage(page, action.url, name, input.companyName),
+          );
+          if (extracted.length) {
+            findings = mergeFindings(findings, extracted);
+            history.push(`step${i + 1}: auto_findings=${extracted.length}`);
+          }
+        }
+      } catch (err: any) {
+        lastObservation = `BROWSER_FETCH failed: ${err?.message ?? "error"}`;
+      }
+      continue;
+    }
+
+    if (action.action === "reverse_whois") {
+      if (footprintCalls >= 4) {
+        lastObservation = "Heavy OSINT tool budget used this pass. Prefer web_search/visit/done.";
+        history.push(`step${i + 1}: reverse_whois_skipped_cap`);
+        continue;
+      }
+      footprintCalls++;
+      history.push(`step${i + 1}: reverse_whois ${action.query}`);
+      try {
+        const { reverseWhoisByEmail, reverseWhoisByName } = await import("./whoxy-enricher");
+        const q = action.query.trim();
+        const result = q.includes("@")
+          ? await reverseWhoisByEmail(q)
+          : await reverseWhoisByName(q);
+        if (!result.apiKeyPresent) {
+          lastObservation = `REVERSE_WHOIS ${q}\nWHOXY_API_KEY not set — tool unavailable this session.`;
+        } else {
+          const names = (result.domains ?? []).map((d: { domain_name?: string }) => d.domain_name).filter(Boolean).slice(0, 20);
+          lastObservation =
+            `REVERSE_WHOIS ${q}\n` +
+            (result.error ? `Error: ${result.error}\n` : "") +
+            `Total: ${result.totalDomains ?? names.length}\n` +
+            (names.length ? `Domains: ${names.join(", ")}` : "No domains returned.");
+        }
+      } catch (err: any) {
+        lastObservation = `REVERSE_WHOIS failed: ${err?.message ?? "error"}`;
       }
       continue;
     }

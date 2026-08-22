@@ -156,7 +156,7 @@ Accept `done` when auto-extracted CONTACT FACTS already sit in `findings` — sa
 - [x] `visit` + browser escalate + CONTACT FACTS  
 - [x] Domain surface (RDAP / WhoisJSON) on discovered hosts  
 - [x] **`footprint_email` / `footprint_username`** as optional ReAct actions (model chooses)  
-- [x] **`domain_lookup`** (RDAP/WHOIS) and **`registry_search`** (SEC EDGAR, Companies House, OpenCorporates, GLEIF) — model asks, tool runs  
+- [x] **`domain_lookup`**, **`registry_search`** (all registry-client IDs), **`harvest_domain`** (theHarvester), **`browser_fetch`** (Scrapfly/ZenRows), **`reverse_whois`** (Whoxy) — model asks, tool runs  
 - [ ] Reactor shows real tool ids + spoken stories for each
 
 ### Phase C — Operator honesty
