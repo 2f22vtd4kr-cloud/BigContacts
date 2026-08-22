@@ -14,6 +14,7 @@ run = ["sh", "-c", "pnpm --filter @workspace/api-server run start"]
 [env]
 PORT = "8080"
 ENABLE_AUTO_PIPELINE = "false"
+RESEARCH_DEPTH = "standard"
 REDIS_URL = "redis://localhost:6379"
 
 [[ports]]

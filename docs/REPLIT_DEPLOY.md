@@ -48,7 +48,7 @@ Existing `.replit` runs **parallel** workflows:
 After changing **any** secret: **restart API Server** so provider slot counts refresh (`/api/healthz`).
 
 **Research integrity (do not skip):**
-1. Pull `main` tip ≥ `92c383f` (free-ReAct + Serper→Tavily→Exa + budgets).
+1. Pull latest `main` (free ReAct + full OSINT tool surface + session orientation). See `docs/PRE_REPLIT_GO.md`.
 2. Secrets must include **SERPER_API_KEY** + **GROQ_API_KEY** minimum; Tavily, Exa, Gemini, Mistral, NVIDIA, Scrapfly/ZenRows strongly recommended.
 3. Set `RESEARCH_DEPTH=standard` (or `deep`) for head-to-head vs plain Grok — `fast` is for bulk cost control.
 4. Open status / `GET /api/healthz` — `bureauIntegrity` must be **ok** before Launch.

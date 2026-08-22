@@ -6,12 +6,12 @@
 
 ## Prep for next Replit run (2026-08-22)
 
-**Current tip:** latest main — orientation on all LLM paths; WHOXY key aliases; full model-chosen OSINT surface (search, visit, browser, Holehe, Maigret/Sherlock, domain, theHarvester, registries, Whoxy). See `docs/BUREAU_REACT_ARCHITECTURE.md`
+**Current tip:** latest `main` — **GO for Replit** (see `docs/PRE_REPLIT_GO.md`). Free ReAct + full OSINT tools + session orientation.
 
 ### What “free research” means (non-negotiable)
 - **Agentic ReAct:** the model chooses every `web_search` / `visit` / `done`. No `force_*` gap-fill machine.
 - **Done:** only soft-rejected on pure no-op (zero searches, visits, and findings). Auto-extracted CONTACT FACTS count.
-- **Adaptive director:** Gemini Boss → NVIDIA right-hand → Groq free step → **stop**. Rules path is stop-only (no dig ladder).
+- **Adaptive director:** Gemini Boss → NVIDIA right-hand → capacity fallback → **stop**. Rules path is stop-only (no dig ladder).
 - **OSINT lanes:** thin **seed** queries only (`"name"`, `"name" "company"`, geo) — not LinkedIn/BBB/Facebook/SEC menus.
 - **Path crawls:** `/contact` `/about` `/team` only — not multilingual path playbooks.
 - **Prompts:** no “Grok is the floor”, no refuse-done, no force-related-people mandates.
