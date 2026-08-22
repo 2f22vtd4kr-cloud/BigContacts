@@ -553,7 +553,7 @@ async function selectNextAdaptiveActionWithBoss(
     };
   }
 
-  const prompt = `You are the lead researcher for Apex Atlas — same job as a strong general agent (Grok-class), not a script.
+  const prompt = `You are the lead researcher for Apex Atlas — same job as a strong general agent, not a script.
 Understand the target, decide what is still unknown, and choose the single highest-leverage next research move.
 You have tools. You do NOT pick from a fixed investigation script. Reason freely.
 
