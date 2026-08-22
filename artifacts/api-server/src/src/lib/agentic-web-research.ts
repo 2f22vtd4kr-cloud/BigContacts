@@ -51,6 +51,13 @@ type AgentAction =
   /** Model-chosen OSINT tools — never forced by the harness. */
   | { action: "footprint_email"; email: string; thought?: string }
   | { action: "footprint_username"; username: string; thought?: string }
+  | { action: "domain_lookup"; domain: string; thought?: string }
+  | {
+      action: "registry_search";
+      query: string;
+      registry: "companies-house" | "sec-edgar" | "opencorporates" | "gleif";
+      thought?: string;
+    }
   | { action: "done"; findings: AgenticFinding[]; thought?: string };
 
 const MAX_ITER = 20;
@@ -805,6 +812,32 @@ function parseAction(raw: string): AgentAction | null {
     if ((action === "footprint_username" || action === "maigret" || action === "sherlock") && typeof o.username === "string" && o.username.trim().length >= 2) {
       return { action: "footprint_username", username: o.username.trim().replace(/^@/, "").slice(0, 80), thought: typeof o.thought === "string" ? o.thought : undefined };
     }
+    if ((action === "domain_lookup" || action === "whois" || action === "rdap") && typeof o.domain === "string") {
+      const dom = o.domain.trim().replace(/^https?:\/\//i, "").split("/")[0] || "";
+      if (dom.includes(".")) {
+        return { action: "domain_lookup", domain: dom.slice(0, 120), thought: typeof o.thought === "string" ? o.thought : undefined };
+      }
+    }
+    if (action === "registry_search" || action === "registry") {
+      const q = typeof o.query === "string" ? o.query.trim() : "";
+      const regRaw = String(o.registry ?? o.source ?? "sec-edgar").toLowerCase().replace(/_/g, "-");
+      const reg =
+        regRaw.includes("companies") || regRaw === "ch"
+          ? "companies-house"
+          : regRaw.includes("opencorp")
+            ? "opencorporates"
+            : regRaw.includes("gleif") || regRaw.includes("lei")
+              ? "gleif"
+              : "sec-edgar";
+      if (q.length >= 2) {
+        return {
+          action: "registry_search",
+          query: q.slice(0, 200),
+          registry: reg as "companies-house" | "sec-edgar" | "opencorporates" | "gleif",
+          thought: typeof o.thought === "string" ? o.thought : undefined,
+        };
+      }
+    }
     if (action === "done") {
       const findings = Array.isArray(o.findings) ? o.findings : [];
       const cleaned: AgenticFinding[] = [];
@@ -1063,25 +1096,27 @@ function buildStepPrompt(input: {
 }): string {
   // Keep this short. Models already know how to research; do not ship a playbook.
   const bag = formatFindingsBag(input.findings ?? []);
-  return `You are running an agentic web research loop for Apex Atlas.
-You have the same class of research ability as a strong general agent, plus live tools below.
-Invent your own queries and visits from the objective and observations. No fixed search checklist.
+  return `You are a trained research investigator for Apex Atlas.
+Goal: find real, attributable public contact routes and related people for the target — primary sources, exact URLs, no invention.
+Work like a strong general agent. Extra OSINT tools are available when you decide they help. No fixed search script. No forced tool order.
 
 TARGET: ${input.targetName}
 ${input.companyName ? `RELATED COMPANY / ISSUER: ${input.companyName}` : ""}
 OBJECTIVE: ${input.objective}
 
-TOOLS (exactly one JSON action per turn — you choose; nothing is forced):
-1) {"action":"web_search","query":"...","thought":"..."}
-2) {"action":"visit","url":"https://...","thought":"..."}
-3) {"action":"footprint_email","email":"someone@domain.com","thought":"..."}  // Holehe — platform presence for a real email you already saw
-4) {"action":"footprint_username","username":"handle","thought":"..."}  // Maigret/Sherlock — only for a handle you already saw
-5) {"action":"done","findings":[{"vectorType":"email|phone|linkedin|website|social|other","value":"...","personName":null,"role":null,"scope":"organization|candidate","sourceUrls":["https://exact-page"],"note":"..."}],"thought":"..."}
+AVAILABLE TOOLS (one JSON action per turn — your choice):
+{"action":"web_search","query":"...","thought":"..."}
+{"action":"visit","url":"https://...","thought":"..."}
+{"action":"footprint_email","email":"...","thought":"..."}
+{"action":"footprint_username","username":"...","thought":"..."}
+{"action":"domain_lookup","domain":"example.com","thought":"..."}
+{"action":"registry_search","query":"...","registry":"sec-edgar|companies-house|opencorporates|gleif","thought":"..."}
+{"action":"done","findings":[{"vectorType":"email|phone|linkedin|website|social|other","value":"...","personName":null,"role":null,"scope":"organization|candidate","sourceUrls":["https://exact-page"],"note":"..."}],"thought":"..."}
 
-Rules:
-- Never invent emails, phones, people, or URLs. Only values visible in observations or FINDINGS SO FAR, each with a real sourceUrl.
-- Prefer primary sources over aggregators (ZoomInfo, RocketReach, etc.).
-- When finished, action=done. You may pass findings:[] if FINDINGS SO FAR already holds the contacts — the runtime keeps the bag.
+Guidelines (not a script):
+- Never invent emails, phones, people, or URLs. Only values from observations or FINDINGS SO FAR, with real sourceUrls.
+- Prefer primary sources (company sites, filings, registries) over aggregators.
+- When finished, action=done. findings:[] is OK if FINDINGS SO FAR already holds contacts — the runtime keeps the bag.
 
 FINDINGS SO FAR (already extracted — do not drop these):
 ${bag}
@@ -1983,7 +2018,7 @@ export async function runAgenticWebResearch(input: {
       }
       if (!action) {
         lastObservation =
-          "Invalid JSON twice. Reply with one valid action object only (web_search | visit | footprint_email | footprint_username | done).";
+          "Invalid JSON twice. Reply with one valid action object only (web_search | visit | footprint_* | domain_lookup | registry_search | done).";
         continue;
       }
     }
@@ -2054,6 +2089,55 @@ export async function runAgenticWebResearch(input: {
       continue;
     }
 
+
+    if (action.action === "domain_lookup") {
+      history.push(`step${i + 1}: domain_lookup ${action.domain}`);
+      try {
+        const { lookupDomainSurface, findingsFromDomainSurface } = await import("./domain-surface");
+        const surface = await lookupDomainSurface(action.domain);
+        lastObservation = `DOMAIN_LOOKUP ${action.domain}\n${surface.summary}`;
+        const src = `https://${action.domain.replace(/^www\./, "")}`;
+        const df = findingsFromDomainSurface(surface, src);
+        if (df.length) findings = mergeFindings(findings, df as any);
+      } catch (err: any) {
+        lastObservation = `DOMAIN_LOOKUP failed: ${err?.message ?? "error"}`;
+      }
+      continue;
+    }
+
+    if (action.action === "registry_search") {
+      history.push(`step${i + 1}: registry_search ${action.registry} ${action.query}`);
+      try {
+        const { searchRegistry } = await import("./registry-client");
+        const rows = await searchRegistry({
+          query: action.query,
+          registry: action.registry,
+          limit: 8,
+        });
+        const lines = rows.slice(0, 8).map((r: any, idx: number) => {
+          const meta = typeof r.metadata === "object" && r.metadata ? JSON.stringify(r.metadata).slice(0, 120) : "";
+          return `${idx + 1}. ${r.name}${r.knownResidences ? ` — ${r.knownResidences}` : ""}${r.notes ? ` · ${String(r.notes).slice(0, 100)}` : ""}${meta ? ` · ${meta}` : ""}`;
+        });
+        lastObservation =
+          `REGISTRY ${action.registry} query="${action.query}"\n` +
+          (lines.length ? lines.join("\n") : "No registry hits.");
+        for (const r of rows.slice(0, 5)) {
+          const note = [r.sourceRegistries, r.notes].filter(Boolean).join(" · ").slice(0, 200);
+          findings = mergeFindings(findings, [{
+            vectorType: "other" as const,
+            value: `registry:${action.registry}:${r.name}`.slice(0, 200),
+            personName: null,
+            role: null,
+            scope: "candidate" as const,
+            sourceUrls: [],
+            note: note || `${action.registry} hit`,
+          }]);
+        }
+      } catch (err: any) {
+        lastObservation = `REGISTRY_SEARCH failed (${action.registry}): ${err?.message ?? "error"}`;
+      }
+      continue;
+    }
 
     if (action.action === "footprint_email") {
       if (footprintCalls >= 3) {

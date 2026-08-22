@@ -6,7 +6,7 @@
 
 ## Prep for next Replit run (2026-08-22)
 
-**Current tip:** latest main — **free research path** + model-chosen OSINT tools (Holehe/Maigret) in ReAct; see `docs/BUREAU_REACT_ARCHITECTURE.md`
+**Current tip:** latest main — **AI-driven bureau**: free ReAct dig + model-chosen OSINT (Holehe, Maigret, domain, CH/EDGAR/OpenCorporates/GLEIF). See `docs/BUREAU_REACT_ARCHITECTURE.md`
 
 ### What “free research” means (non-negotiable)
 - **Agentic ReAct:** the model chooses every `web_search` / `visit` / `done`. No `force_*` gap-fill machine.
@@ -22,7 +22,8 @@
 ### Tip chain (free research — 2026-08-22)
 | Commit | Point |
 |--------|--------|
-| `d99c151`+ | wallet seeds thinned; budget-exit salvage; **ReAct OSINT tool actions** (footprint_email/username)
+| latest | **registry_search** + **domain_lookup** as model-chosen tools; free investigator prompt
+| `a4c1345` / `d99c151` | footprint tools; wallet seeds; budget-exit salvage
 | `42e3134` | deep-web Bing seed queries
 | `77ad67f` | Soft right-hand primary-source guidance (no "force" language)
 | `c15c711` | Boss adaptive brief is free move (no AVAILABLE TOOLS menu) |

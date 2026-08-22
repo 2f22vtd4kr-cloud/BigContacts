@@ -155,8 +155,8 @@ Accept `done` when auto-extracted CONTACT FACTS already sit in `findings` — sa
 - [x] Serper → Tavily → Exa → DDG for `web_search`  
 - [x] `visit` + browser escalate + CONTACT FACTS  
 - [x] Domain surface (RDAP / WhoisJSON) on discovered hosts  
-- [ ] **`footprint_email` / `footprint_username`** as optional ReAct actions (model chooses)  
-- [ ] Companies House / EDGAR as **on-demand** tool actions when model asks (not fixed early script)  
+- [x] **`footprint_email` / `footprint_username`** as optional ReAct actions (model chooses)  
+- [x] **`domain_lookup`** (RDAP/WHOIS) and **`registry_search`** (SEC EDGAR, Companies House, OpenCorporates, GLEIF) — model asks, tool runs  
 - [ ] Reactor shows real tool ids + spoken stories for each
 
 ### Phase C — Operator honesty
