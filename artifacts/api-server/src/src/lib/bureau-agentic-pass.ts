@@ -155,10 +155,12 @@ export async function runBureauAgenticWebPass(input: {
     const contactEvidence = findingsToContactEvidence(agentic.findings);
 
     // Persist as soon as ReAct returns (completed OR timeout). Partial findings must hit the ledger.
-    if (input.persist && input.entityId && agentic.findings.length) {
+    if (input.persist && input.entityId) {
       await persistBureauContactsForEntity(
         input.entityId,
-        findingsToBureauContacts(agentic.findings, name),
+        agentic.findings.length
+          ? findingsToBureauContacts(agentic.findings, name)
+          : [],
         "case-bureau-agentic",
       );
     }

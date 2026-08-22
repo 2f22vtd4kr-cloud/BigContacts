@@ -142,7 +142,17 @@ export async function persistBureauContactsForEntity(
   items: readonly BureauContactLike[] | null | undefined,
   source = "case-bureau",
 ): Promise<number> {
-  if (!entityId || !items?.length) return 0;
+  if (!entityId) return 0;
+  const list = Array.isArray(items) ? items : [];
+  // Empty list still runs card promotion from durable contact_evidence (rehydrate path).
+  if (!list.length) {
+    try {
+      await promoteBureauContactsToEntityCard(entityId, [], source);
+    } catch {
+      /* non-fatal */
+    }
+    return 0;
+  }
 
   let targetName = "";
   let companyName: string | null = null;
@@ -179,7 +189,7 @@ export async function persistBureauContactsForEntity(
   }> = [];
 
   const seen = new Set<string>();
-  for (const item of items) {
+  for (const item of list) {
     if (String(item.state ?? "").toLowerCase() === "rejected") continue;
     const rawValue = typeof item.value === "string" ? item.value.trim() : "";
     if (!rawValue) continue;
@@ -322,12 +332,56 @@ async function promoteBureauContactsToEntityCard(
   const ent = entRows[0];
   if (!ent) return;
 
-  let bestPhone: { value: string; source: string } | null = null;
-  let bestEmail: { value: string; source: string } | null = null;
+  // Merge live dig items with durable contact_evidence so a prior agentic pass
+  // still upgrades the card even if this call's items array is thin.
+  let evidenceItems: BureauContactLike[] = [];
+  try {
+    const ev = await db
+      .select({
+        vectorType: contactEvidenceTable.vectorType,
+        value: contactEvidenceTable.value,
+        source: contactEvidenceTable.source,
+        sourceUrl: contactEvidenceTable.sourceUrl,
+        validationStatus: contactEvidenceTable.validationStatus,
+        metadata: contactEvidenceTable.metadata,
+      })
+      .from(contactEvidenceTable)
+      .where(eq(contactEvidenceTable.entityId, entityId))
+      .limit(80);
+    evidenceItems = ev
+      .filter((r) => String(r.validationStatus ?? "") !== "rejected")
+      .map((r) => {
+        let scope = "unknown";
+        try {
+          const m = r.metadata ? JSON.parse(r.metadata) as Record<string, unknown> : {};
+          if (typeof m.tier === "string") scope = m.tier;
+          if (typeof m.scope === "string") scope = m.scope;
+        } catch { /* ignore */ }
+        const src = String(r.source ?? "");
+        if (src.includes("agentic") || src.includes("secondary")) {
+          /* keep */
+        }
+        return {
+          vectorType: r.vectorType,
+          value: r.value,
+          scope,
+          sourceUrls: r.sourceUrl ? [r.sourceUrl] : [],
+          state: "review_only",
+          note: src,
+        } satisfies BureauContactLike;
+      });
+  } catch {
+    evidenceItems = [];
+  }
+
+  const merged: BureauContactLike[] = [...items, ...evidenceItems];
+
+  let bestPhone: { value: string; source: string; score: number } | null = null;
+  let bestEmail: { value: string; source: string; score: number } | null = null;
   let bestLinkedin: string | null = null;
   let bestWebsite: string | null = null;
 
-  for (const item of items) {
+  for (const item of merged) {
     if (String(item.state ?? "").toLowerCase() === "rejected") continue;
     const vt = String(item.vectorType ?? "").toLowerCase();
     const value = typeof item.value === "string" ? item.value.trim() : "";
@@ -347,17 +401,16 @@ async function promoteBureauContactsToEntityCard(
         : source.slice(0, 40);
 
     if (vt === "phone" || vt === "tel") {
-      // Prefer non-org; still allow firm HQ from dig over blank/issuer
-      const score = (orgish ? 1 : 3) + (hasUrl ? 1 : 0);
-      const prev = bestPhone ? (bestPhone.source.includes("org") ? 1 : 3) : -1;
-      if (!bestPhone || score >= prev) {
-        bestPhone = { value, source: orgish ? `${srcLabel}-org` : srcLabel };
+      // Prefer person-linked + URL-backed; still allow firm HQ from dig over blank/issuer
+      const score = (orgish ? 1 : 4) + (hasUrl ? 2 : 0);
+      if (!bestPhone || score > bestPhone.score) {
+        bestPhone = { value, source: orgish ? `${srcLabel}-org` : srcLabel, score };
       }
     } else if (vt === "email") {
       if (isGenericLocal(value) && orgish) continue;
-      const score = (isGenericLocal(value) || orgish ? 1 : 3) + (hasUrl ? 1 : 0);
-      if (!bestEmail || score >= 2) {
-        bestEmail = { value, source: orgish || isGenericLocal(value) ? `${srcLabel}-org` : srcLabel };
+      const score = (isGenericLocal(value) || orgish ? 1 : 4) + (hasUrl ? 2 : 0);
+      if (!bestEmail || score > bestEmail.score) {
+        bestEmail = { value, source: orgish || isGenericLocal(value) ? `${srcLabel}-org` : srcLabel, score };
       }
     } else if (vt === "linkedin" && value.includes("linkedin.com") && !bestLinkedin) {
       bestLinkedin = value.startsWith("http") ? value : `https://${value.replace(/^\/+/, "")}`;
@@ -376,7 +429,10 @@ async function promoteBureauContactsToEntityCard(
       !ent.phone ||
       issuerLocked ||
       curPhoneSrc === "" ||
-      curPhoneSrc === "EDGAR-Phone";
+      curPhoneSrc === "EDGAR-Phone" ||
+      curPhoneSrc === "EDGAR-Issuer-Phone" ||
+      curPhoneSrc === "CompaniesHouse-Phone" ||
+      (curPhoneSrc.endsWith("-org") && !bestPhone.source.endsWith("-org"));
     if (allowPhone && bestPhone.value !== ent.phone) {
       patch.phone = bestPhone.value;
       patch.phoneSource = bestPhone.source.endsWith("-org")

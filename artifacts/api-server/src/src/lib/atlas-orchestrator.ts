@@ -745,14 +745,19 @@ async function enrichEntityFullCircle(atlasJobId: string, entity: EntityRow): Pr
             existingPhoneSrc === "EDGAR-Issuer-Phone" ||
             existingPhoneSrc === "CompaniesHouse-Phone" ||
             !existingPhoneSrc;
+          // Never clobber dig-promoted agentic phones with a later EDGAR pass
+          const existingIsAgentic =
+            existingPhoneSrc === "agentic-web" ||
+            existingPhoneSrc.startsWith("agentic-web");
           const phoneUpdate =
             boost.noticePhone &&
+            !existingIsAgentic &&
             (!(entity as { phone?: string | null }).phone || existingIsIssuer)
               ? {
                   phone: boost.noticePhone,
                   phoneSource: "EDGAR-Notice-Phone" as const,
                 }
-              : boost.noticePhone
+              : boost.noticePhone && !existingIsAgentic
                 ? { phoneSource: "EDGAR-Notice-Phone" as const }
                 : {};
           await db.update(entitiesTable).set({
