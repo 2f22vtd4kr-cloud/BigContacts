@@ -91,7 +91,7 @@ Org surface without related people is a gap the model should notice; it is not a
 Immediately after org surface is present:
 
 ```
-force_related_search: "<Company>" (BBB OR owner OR "co-owner" OR "co-founder" OR partner OR "managing partner" OR "general manager" OR officers OR leadership OR succession OR "family-owned" OR "second-generation")
+web_search (model-chosen): related people / officers for "<Company>" — invented by the agent, not a force_* template
 ```
 
 URL priority: BBB first, then `/team`, `/leadership`, `/about-us`, dealer paths.
@@ -155,7 +155,7 @@ rightHandDisposition: {
 - Never invents a contact.  
 - Confirms trash-gate compliance on every phone.
 
-Case context document is appended after every step (force hops, salvages, refuse-done decisions, people counts).
+Case context document is appended after every step (searches, visits, salvages, people counts).
 
 ---
 
@@ -168,7 +168,7 @@ RELATED PERSONS: ≥1 (ideally full public directory) with sourceUrls + roles
 HNWI-PATH CONTACTS: owners / partners / principal executives flagged
 PERSONAL SCOPE CONTACTS: only those meeting strict name-tied + context test
 TRASH REJECTED: any 555 / trivial phones never admitted
-TRAJECTORY: complete audit of every force hop, salvage, refuse-done
+TRAJECTORY: complete audit of every search, visit, salvage, done
 WEALTH CONTEXT: ready when ownership language or probed wallet USD present
 BOSS PREMISE: updated — “Grok floor exceeded; full public directory held”
 RIGHT-HAND DISPOSITION: surface_complete — maximised attributable people-contacts

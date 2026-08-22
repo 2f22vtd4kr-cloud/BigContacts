@@ -87,7 +87,7 @@ That is exactly the “second-generation / succession / acquired by” class the
 | Morgan Carroll | Director of Business Development | Leadership list |
 
 **Phone (secondary public):** (231) 733-1913 (directory; must still be admitted only with sourceUrl and trash-gate).  
-**Email:** no role mailbox on the company page in this visit — org inbox hop still required (force_org_email_search / Facebook / contact path).  
+**Email:** no role mailbox on the company page in this visit — org inbox hop still required (model-chosen email/contact search).  
 **HNWI-path:** Leslie Patterson (Owner & CEO, woman-owned SBA) is the primary flag.
 
 Shallow pass: “family-owned machine shop in Muskegon.”  

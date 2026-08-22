@@ -24,7 +24,7 @@ Western/Michigan mid-market precision tooling / tool & die / CNC — find real c
 
 ## 1. Grok-style shallow result (expected / typical agent stop)
 
-From homepage + light SERP without forced team-directory / refuse-done:
+From homepage + light SERP without a fixed team-directory script:
 
 | Vector | Typical hold |
 |--------|----------------|
@@ -36,7 +36,7 @@ From homepage + light SERP without forced team-directory / refuse-done:
 | Succession | Rarely fully reconstructed |
 | Team directory | Usually **not** fully extracted |
 
-**Characteristic failure:** stops after org surface or one named executive; does not systematically walk Name → role → mailto cards; does not refuse-done until related persons attached.
+**Characteristic failure:** stops after org surface or one named executive; does not systematically walk Name → role → mailto cards; does not gap-driven continuation until related persons attached.
 
 ---
 
@@ -76,7 +76,7 @@ From homepage + light SERP without forced team-directory / refuse-done:
 ### Loop behaviour that produces this
 
 1. Mixed SERP → candidate URLs include /about and contact.  
-2. Org phone + sales@ admitted → **refuse-done** while related persons = 0.  
+2. Org phone + sales@ admitted → **gap notice** while related persons = 0.  
 3. Force related-people / leadership visit → about page.  
 4. CONTACT FACTS + Griffin-style Name/role/Extension/mailto extractor + markdown heading roles.  
 5. sales@ stays organization; name-tied emails are related-person / personal-candidate with sourceUrl.  

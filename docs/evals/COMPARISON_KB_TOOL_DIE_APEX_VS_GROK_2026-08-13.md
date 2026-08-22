@@ -7,7 +7,7 @@
 **Primary surface:** http://www.kbtoolanddie.com/contact-kb-tool-and-die-michigan.php
 
 ## Product goal test
-Reachable attributable people-contacts (owners/officers + role emails/phones) so operator can reach capital controllers. Fail-closed. Grok is the floor.
+Reachable attributable people-contacts (owners/officers + role emails/phones) so operator can reach capital controllers. Fail-closed. Parity bar: match strong general-agent public surface recovery.
 
 ## Apex extraction (HTML + CONTACT FACTS + mailto + role alignment)
 | Person | Role | Contact | Scope | Source |
