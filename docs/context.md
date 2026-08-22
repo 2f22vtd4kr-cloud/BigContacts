@@ -6,7 +6,7 @@
 
 ## Prep for next Replit run (2026-08-22)
 
-**Current tip:** latest main — **free research path** (adaptive rules stop-only; Boss free brief not a tool menu)
+**Current tip:** latest main — **free research path** (adaptive rules stop-only; Boss free brief not a tool menu; right-hand soft guidance)
 
 ### What “free research” means (non-negotiable)
 - **Agentic ReAct:** the model chooses every `web_search` / `visit` / `done`. No `force_*` gap-fill machine.
@@ -22,6 +22,9 @@
 ### Tip chain (free research — 2026-08-22)
 | Commit | Point |
 |--------|--------|
+| `c15c711` | Boss adaptive brief is free move (no AVAILABLE TOOLS menu) |
+| `aa392b8` / `f55e604` | Adaptive rules path **stop-only** — no dig ladder |
+| `0eb33d3` / `fcafa0b` | Adaptive ladder marked legacy stop/budget |
 | `7eb69a5` | **Deleted** force_* gap-fills (~838 lines) from agentic loop |
 | `7bc9dc6` | Done only rejected on pure no-op |
 | `073bba6` | Adaptive: Groq free step before rules; soft Boss checklist |

@@ -136,7 +136,7 @@ Think like a senior OSINT advisor preparing the Boss's next move:
 
 1. Read the investigation-progress map first. List which standard contact vectors are still PENDING or only ATTEMPTED.
 2. Check existing named people, domains, and organizations already on the case. Prefer chaining those leads over opening a brand-new unrelated lane.
-3. Prefer actions that force primary-source work (official pages, registries, named articles, team/about pages) over actions that would only produce shallow search snippets.
+3. Prefer primary-source surfaces (official pages, registries, named articles, team/about pages) over shallow aggregator snippets — the model chooses how.
 4. Prefer actions whose tools and purpose will produce structured updates to the living case context document:
    - new or refined entities
    - contact vectors with source URLs
