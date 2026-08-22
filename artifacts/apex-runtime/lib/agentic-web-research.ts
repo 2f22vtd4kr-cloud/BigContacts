@@ -972,8 +972,8 @@ LLM EXTRACTION MANDATE (you must catch these even if early SERP is noisy/trash �
 - Succession / family-owned / MBE / co-founder facts as other findings with sourceUrls
 If a page shows any of the above, emit findings. Do not wait for perfect SERP. Early trash search results do not excuse missing surface on a later successful visit.
 
-TRAJECTORY SO FAR:
-${input.history.join("\n") || "(start)"}
+TRAJECTORY SO FAR (recent):
+${(input.history.length > 14 ? input.history.slice(-14) : input.history).join("\n") || "(start)"}
 
 LAST OBSERVATION:
 ${input.lastObservation.slice(0, MAX_OBS) || "(none — start with web_search on the exact TARGET + company)"}
@@ -2016,11 +2016,27 @@ export async function runAgenticWebResearch(input: {
       };
     }
     modelUsed = llm.model;
-    const action = parseAction(llm.raw);
+    let action = parseAction(llm.raw);
     if (!action) {
-      history.push(`step${i + 1}: parse_fail`);
-      lastObservation = "Invalid JSON. Reply with a valid action object.";
-      continue;
+      // One repair turn — native tool calling is not uniform across providers; JSON can glitch.
+      history.push(`step${i + 1}: parse_fail — retry once`);
+      const repair = await llmStep(
+        `Your previous reply was not valid action JSON.\n` +
+        `Reply with ONE object only, e.g. {"action":"web_search","query":"...","thought":"..."} ` +
+        `or {"action":"visit","url":"https://..."} or {"action":"done","findings":[...]}.\n` +
+        `Target: ${name}. Objective: ${objective.slice(0, 400)}\n` +
+        `Last observation (trim):\n${lastObservation.slice(0, 1200)}\n` +
+        `Bad reply was:\n${llm.raw.slice(0, 500)}`,
+      );
+      if (repair?.raw) {
+        modelUsed = repair.model;
+        action = parseAction(repair.raw);
+      }
+      if (!action) {
+        lastObservation =
+          "Invalid JSON twice. Reply with one valid action object only (web_search | visit | done).";
+        continue;
+      }
     }
 
     if (action.action === "web_search") {
