@@ -880,6 +880,50 @@ async function enrichEntityFullCircle(atlasJobId: string, entity: EntityRow): Pr
     };
     let pendingAssetRows: Array<Record<string, unknown>> = [];
 
+    // ── Target contact agent (model-owned dig → card) — before long phase stack ──
+    try {
+      let companyForAgent: string | null = null;
+      try {
+        const meta = entity.metadata ? JSON.parse(entity.metadata) as Record<string, unknown> : {};
+        companyForAgent = typeof meta.companyName === "string" ? meta.companyName : null;
+      } catch { companyForAgent = null; }
+      await setAtlasTelemetry(atlasJobId, {
+        stage: "TARGET CONTACT AGENT",
+        status: "active",
+        targetName: name,
+        targetType: entity.type,
+        toolIds: ["agentic-web", "serper", "exa", "tavily"],
+        activeToolId: "agentic-web",
+        actor: "web",
+        methodKind: "agentic",
+        story: `Free dig for ${name} — model chooses search/visit; best public contact goes on the card`,
+        inputSummary: companyForAgent ? `Company context: ${companyForAgent}` : "Person dig",
+      }, id);
+      const { runTargetContactAgent } = await import("./target-contact-agent");
+      const agentResult = await runTargetContactAgent({
+        entityId: id,
+        targetName: name,
+        companyName: companyForAgent,
+        jobId: atlasJobId,
+      });
+      await setAtlasTelemetry(atlasJobId, {
+        stage: "TARGET CONTACT AGENT",
+        status: "complete",
+        targetName: name,
+        targetType: entity.type,
+        toolIds: ["agentic-web"],
+        activeToolId: "agentic-web",
+        actor: "web",
+        methodKind: "agentic",
+        story: agentResult.phone
+          ? `Card phone ${agentResult.phone} (${agentResult.phoneSource ?? "dig"}) · ${agentResult.contactOutcome ?? ""}`
+          : `Dig finished · findings=${agentResult.findings} · outcome=${agentResult.contactOutcome ?? "none"}`,
+        inputSummary: `model=${agentResult.model} searches=${agentResult.searches} visits=${agentResult.visits}`,
+      }, id);
+    } catch (err: any) {
+      logger.warn({ entityId: id, err: err?.message }, "[Atlas] Target contact agent early pass skipped");
+    }
+
     // ── Step A: In-house OSINT (Wikidata, GitHub, RDAP, DNS, Gravatar, ProPublica) ──
     await setAtlasTelemetry(atlasJobId, {
       stage: "IN-HOUSE OSINT",

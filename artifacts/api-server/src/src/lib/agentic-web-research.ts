@@ -1775,7 +1775,16 @@ export async function runAgenticWebResearch(input: {
     }
   };
   let objective = input.objective
-    ?? `Find publicly documented contact routes for ${name}${input.companyName ? ` related to ${input.companyName}` : ""}. Be thorough and creative; invent queries and use OSINT tools when useful. Never invent contacts.`;
+    ?? (
+      `You are researching ${name}` +
+      (input.companyName ? ` (public company / org context: ${input.companyName})` : "") +
+      ` the way a strong open web agent would.\n` +
+      `GOAL: recover the best attributable PUBLIC contact path for this person — phone, email, LinkedIn, or firm IR/notice line with source URL.\n` +
+      `METHOD: choose your own web_search queries and visit pages; use registry/domain tools when useful.\n` +
+      `REJECT: directory spam, wrong-company 1-800 lines, invented contacts, privacy relays.\n` +
+      `DONE when you have the strongest source-backed claim(s) or you have exhausted reasonable public surface.\n` +
+      `Never invent contacts. Every finding must include http(s) sourceUrls.`
+    );
 
   // Wallet-first seed: if objective/target carries a wallet, prepend fail-closed attribution plan
   {

@@ -897,74 +897,30 @@ export async function expandSecondaryPublicSurface(input: {
 
     // Agentic ReAct loop — LLM invents queries/visits (not a playbook). Same model class as
     // Live search/visit tools. Fail-closed: findings need sourceUrls.
+    // Free target agent: model owns the dig; card is the answer (not only evidence bag)
     try {
-      const { runAgenticWebResearch } = await import("./agentic-web-research");
-      // Boss-written objective when available — free researcher brief, not a fixed playbook line
-      let objective =
-        `Find public contact routes and related people for ${name}` +
-        `${input.companyName ? ` / ${input.companyName}` : ""}. ` +
-        `Discover official domain, contact pages, org phones/emails, named officers. Multi-hop. Never invent.`;
-      try {
-        const { resolveGeminiBossModel, generateGeminiBossText } = await import("./case-bureau");
-        const selection = await resolveGeminiBossModel();
-        if (selection?.model) {
-          const brief = await generateGeminiBossText(
-            selection,
-            `${apexOrientationCompact("boss")}\n\nBrief a web research agent on target "${name}"` +
-              `${input.companyName ? ` (company: ${input.companyName})` : ""}.\n` +
-              `Write a short free research objective (2-5 sentences): goals only, not a tool checklist. ` +
-              `No invented emails/phones/names. Plain text only.`,
-          );
-          if (brief.raw && brief.raw.trim().length > 40) {
-            objective = brief.raw.trim().slice(0, 900);
-          }
-        }
-      } catch {
-        /* keep default objective */
-      }
-      const agentic = await runAgenticWebResearch({
+      const { runTargetContactAgent } = await import("./target-contact-agent");
+      const agent = await runTargetContactAgent({
+        entityId: input.entityId,
         targetName: name,
         companyName: input.companyName ?? null,
-        objective,
-        maxIterations: resolveResearchDepth().agenticMaxIterations,
-        hardTimeoutMs: 210_000,
-        onLiveStep: (step) => {
-          void publishBureauEvent({
-            actor: "web",
-            kind: step.action === "web_search" ? "search" : step.action === "visit" || step.action === "browser_fetch" ? "page-fetch" : "tool",
-            title: `${step.action}${step.query ? ` · ${step.query}` : step.url ? ` · ${step.url}` : ""}`.slice(0, 120),
-            targetName: step.targetName,
-            provider: step.provider || step.action,
-            why: step.summary?.slice(0, 240),
-            responseSummary: step.summary?.slice(0, 200),
-            jobId: input.jobId,
-            level: "info",
-          });
-        },
+        jobId: input.jobId,
       });
       logger.info(
-        { entityId: input.entityId, status: agentic.status, model: agentic.model, searches: agentic.searches, visits: agentic.visits, findings: agentic.findings.length },
-        "[Atlas] Agentic web research loop finished",
+        {
+          entityId: input.entityId,
+          status: agent.status,
+          model: agent.model,
+          findings: agent.findings,
+          phone: agent.phone,
+          outcome: agent.contactOutcome,
+        },
+        "[Atlas] Target contact agent finished",
       );
-      for (const f of agentic.findings) {
-        vectors.push({
-          vectorType: f.vectorType,
-          value: f.value,
-          scope: f.scope,
-          personName: f.personName ?? name,
-          role: f.role,
-          sourceUrls: f.sourceUrls,
-          note: `agentic:${f.note}`,
-          tier: "candidate",
-          state: "review_only",
-        });
-        if (f.vectorType === "email") out.email = true;
-        if (f.vectorType === "phone") out.phone = true;
-        if (f.vectorType === "linkedin") out.linkedin = true;
-        if (f.vectorType === "website") out.website = true;
-      }
+      if (agent.phone) out.phone = true;
+      if (agent.email) out.email = true;
     } catch (err: any) {
-      logger.warn({ entityId: input.entityId, err: err?.message }, "[Atlas] Agentic web research skipped (non-fatal)");
+      logger.warn({ entityId: input.entityId, err: err?.message }, "[Atlas] Target contact agent skipped (non-fatal)");
     }
 
     // Always persist + promote (empty vectors still rehydrate from contact_evidence)
