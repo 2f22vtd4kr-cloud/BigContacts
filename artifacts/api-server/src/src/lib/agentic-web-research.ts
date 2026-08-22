@@ -48,12 +48,14 @@ export type AgenticWebResearchResult = {
 type AgentAction =
   | { action: "web_search"; query: string; thought?: string }
   | { action: "visit"; url: string; thought?: string }
+  /** Model-chosen OSINT tools — never forced by the harness. */
+  | { action: "footprint_email"; email: string; thought?: string }
+  | { action: "footprint_username"; username: string; thought?: string }
   | { action: "done"; findings: AgenticFinding[]; thought?: string };
 
 const MAX_ITER = 20;
 const MAX_OBS = 5_000;
-/** First N steps are free ReAct only — force-hops must not starve the multi-LLM loop
- *  (so multi-hop agentic does not under-recover vs a strong single agent). */
+/** Iteration / observation caps. Loop is free ReAct — no force-hop floor. */
 
 function randomUA(): string {
   const uas = [
@@ -797,6 +799,12 @@ function parseAction(raw: string): AgentAction | null {
     if (action === "visit" && typeof o.url === "string" && /^https?:\/\//i.test(o.url)) {
       return { action: "visit", url: o.url.trim(), thought: typeof o.thought === "string" ? o.thought : undefined };
     }
+    if ((action === "footprint_email" || action === "holehe") && typeof o.email === "string" && o.email.includes("@")) {
+      return { action: "footprint_email", email: o.email.trim().slice(0, 120), thought: typeof o.thought === "string" ? o.thought : undefined };
+    }
+    if ((action === "footprint_username" || action === "maigret" || action === "sherlock") && typeof o.username === "string" && o.username.trim().length >= 2) {
+      return { action: "footprint_username", username: o.username.trim().replace(/^@/, "").slice(0, 80), thought: typeof o.thought === "string" ? o.thought : undefined };
+    }
     if (action === "done") {
       const findings = Array.isArray(o.findings) ? o.findings : [];
       const cleaned: AgenticFinding[] = [];
@@ -1004,8 +1012,10 @@ async function callNvidiaJson(prompt: string): Promise<{ model: string; raw: str
 }
 
 async function llmStep(prompt: string): Promise<{ model: string; raw: string } | null> {
-  // Multi-provider ReAct control plane. Groq first (latency), then Mistral, Gemini, NVIDIA.
-  // Never depend on a single vendor — a dead Groq model must not zero the bureau.
+  // Multi-provider ReAct control plane (fallback chain, not a single brain):
+  //   Groq (latency) → Mistral → Gemini → NVIDIA.
+  // Empty/error advances to next provider. All fail → caller runs det recovery.
+  // Never depend on one vendor or a decommissioned model id.
   const chain: Array<[string, () => Promise<{ model: string; raw: string } | null>]> = [
     ["groq", callGroqJson],
     ["mistral", callMistralJson],
@@ -1061,10 +1071,12 @@ TARGET: ${input.targetName}
 ${input.companyName ? `RELATED COMPANY / ISSUER: ${input.companyName}` : ""}
 OBJECTIVE: ${input.objective}
 
-TOOLS (exactly one JSON action per turn):
+TOOLS (exactly one JSON action per turn — you choose; nothing is forced):
 1) {"action":"web_search","query":"...","thought":"..."}
 2) {"action":"visit","url":"https://...","thought":"..."}
-3) {"action":"done","findings":[{"vectorType":"email|phone|linkedin|website|social|other","value":"...","personName":null,"role":null,"scope":"organization|candidate","sourceUrls":["https://exact-page"],"note":"..."}],"thought":"..."}
+3) {"action":"footprint_email","email":"someone@domain.com","thought":"..."}  // Holehe — platform presence for a real email you already saw
+4) {"action":"footprint_username","username":"handle","thought":"..."}  // Maigret/Sherlock — only for a handle you already saw
+5) {"action":"done","findings":[{"vectorType":"email|phone|linkedin|website|social|other","value":"...","personName":null,"role":null,"scope":"organization|candidate","sourceUrls":["https://exact-page"],"note":"..."}],"thought":"..."}
 
 Rules:
 - Never invent emails, phones, people, or URLs. Only values visible in observations or FINDINGS SO FAR, each with a real sourceUrl.
@@ -1714,6 +1726,7 @@ export async function runAgenticWebResearch(input: {
   const candidateUrls: string[] = [];
   const visitedUrls = new Set<string>();
   const domainSurfaceDone = new Set<string>(); // one RDAP/WhoisJSON hop per primary domain
+  let footprintCalls = 0; // model-chosen OSINT CLIs — soft cap so dig stays web-first
 
   const isAggregatorHost = (u: string): boolean =>
     /zoominfo|rocketreach|adapt\.io|signalhire|contactout|growjo|apollo\.io|clearbit|hunter\.io|mibarry|chamber|yelp|dnb\.com|bloomberg\.com\/profile|crunchbase|pitchbook|linkedin\.com\/company|mapquest|bbb\.org|yellowpages|superpages|manta\.com|bizapedia|opencorporates|equilar|prospeo|thebluebook|dot\.report/i.test(
@@ -1957,8 +1970,9 @@ export async function runAgenticWebResearch(input: {
       history.push(`step${i + 1}: parse_fail — retry once`);
       const repair = await llmStep(
         `Your previous reply was not valid action JSON.\n` +
-        `Reply with ONE object only, e.g. {"action":"web_search","query":"...","thought":"..."} ` +
-        `or {"action":"visit","url":"https://..."} or {"action":"done","findings":[...]}.\n` +
+        `Reply with ONE object only, e.g. {"action":"web_search","query":"..."} ` +
+        `or {"action":"visit","url":"https://..."} or {"action":"footprint_email","email":"..."} ` +
+        `or {"action":"footprint_username","username":"..."} or {"action":"done","findings":[...]}.\n` +
         `Target: ${name}. Objective: ${objective.slice(0, 400)}\n` +
         `Last observation (trim):\n${lastObservation.slice(0, 1200)}\n` +
         `Bad reply was:\n${llm.raw.slice(0, 500)}`,
@@ -1969,7 +1983,7 @@ export async function runAgenticWebResearch(input: {
       }
       if (!action) {
         lastObservation =
-          "Invalid JSON twice. Reply with one valid action object only (web_search | visit | done).";
+          "Invalid JSON twice. Reply with one valid action object only (web_search | visit | footprint_email | footprint_username | done).";
         continue;
       }
     }
@@ -2040,6 +2054,83 @@ export async function runAgenticWebResearch(input: {
       continue;
     }
 
+
+    if (action.action === "footprint_email") {
+      if (footprintCalls >= 3) {
+        lastObservation = "Footprint tool budget used for this pass. Continue with web_search, visit, or done.";
+        history.push(`step${i + 1}: footprint_email_skipped_cap`);
+        continue;
+      }
+      footprintCalls++;
+      history.push(`step${i + 1}: footprint_email ${action.email}`);
+      try {
+        const { runHolehe } = await import("./python-tools");
+        const hr = await runHolehe(action.email);
+        const hits = (hr.found ?? []).slice(0, 15);
+        const note = hits.length
+          ? `Holehe: ${hits.map((h: { name?: string; url?: string }) => h.name || h.url || "service").join(", ")}`
+          : (hr.error ? `Holehe: ${hr.error}` : "Holehe: no platforms reported for this email");
+        lastObservation = `FOOTPRINT_EMAIL ${action.email}\n${note}`;
+        // Observation only — model may promote; fail-closed contacts still need http(s) sources
+        if (hits.length) {
+          const httpUrls = hits.map((h: { url?: string }) => h.url).filter((u: unknown): u is string => typeof u === "string" && /^https?:\/\//i.test(u)).slice(0, 8);
+          findings = mergeFindings(findings, [{
+            vectorType: "other" as const,
+            value: `email-footprint:${action.email}`,
+            personName: name,
+            role: null,
+            scope: "candidate" as const,
+            sourceUrls: httpUrls,
+            note,
+          }]);
+        }
+      } catch (err: any) {
+        lastObservation = `FOOTPRINT_EMAIL failed: ${err?.message ?? "error"}`;
+      }
+      continue;
+    }
+
+    if (action.action === "footprint_username") {
+      if (footprintCalls >= 3) {
+        lastObservation = "Footprint tool budget used for this pass. Continue with web_search, visit, or done.";
+        history.push(`step${i + 1}: footprint_username_skipped_cap`);
+        continue;
+      }
+      footprintCalls++;
+      history.push(`step${i + 1}: footprint_username ${action.username}`);
+      try {
+        const { runMaigret, runSherlock } = await import("./python-tools");
+        const [mr, sr] = await Promise.all([
+          runMaigret(action.username),
+          runSherlock(action.username).catch(() => null),
+        ]);
+        const mHits = (mr.found ?? []).slice(0, 12);
+        const sHits = (sr?.found ?? []).slice(0, 8);
+        const parts = [
+          mHits.length ? `Maigret: ${mHits.map((h: { siteName?: string; url?: string }) => h.siteName || h.url || "site").join(", ")}` : (mr.error ? `Maigret: ${mr.error}` : "Maigret: no hits"),
+          sHits.length ? `Sherlock: ${sHits.map((h: { siteName?: string; url?: string }) => h.siteName || h.url || "site").join(", ")}` : "Sherlock: no hits",
+        ];
+        lastObservation = `FOOTPRINT_USERNAME ${action.username}\n${parts.join("\n")}`;
+        const urls = [
+          ...mHits.map((h: { url?: string }) => h.url).filter((u: unknown): u is string => typeof u === "string" && u.startsWith("http")),
+          ...sHits.map((h: { url?: string }) => h.url).filter((u: unknown): u is string => typeof u === "string" && u.startsWith("http")),
+        ].slice(0, 10);
+        if (urls.length) {
+          findings = mergeFindings(findings, [{
+            vectorType: "social" as const,
+            value: action.username,
+            personName: name,
+            role: null,
+            scope: "candidate" as const,
+            sourceUrls: urls,
+            note: parts.join(" · "),
+          }]);
+        }
+      } catch (err: any) {
+        lastObservation = `FOOTPRINT_USERNAME failed: ${err?.message ?? "error"}`;
+      }
+      continue;
+    }
 
     // done — only soft-reject pure no-ops (zero work + zero findings). Model owns when to finish.
     if (action.findings.length === 0 && findings.length === 0 && searches === 0 && visits === 0 && i < maxIter - 1) {

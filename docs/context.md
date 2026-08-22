@@ -6,7 +6,7 @@
 
 ## Prep for next Replit run (2026-08-22)
 
-**Current tip:** latest main — **free research path** (model-led dig; adaptive stop-only; thin seeds; wallet dig not OR-playbook)
+**Current tip:** latest main — **free research path** + model-chosen OSINT tools (Holehe/Maigret) in ReAct; see `docs/BUREAU_REACT_ARCHITECTURE.md`
 
 ### What “free research” means (non-negotiable)
 - **Agentic ReAct:** the model chooses every `web_search` / `visit` / `done`. No `force_*` gap-fill machine.
@@ -22,7 +22,8 @@
 ### Tip chain (free research — 2026-08-22)
 | Commit | Point |
 |--------|--------|
-| `42e3134`+ | deep-web Bing seed queries; wallet seeds thinned; agentic budget-exit fix
+| `d99c151`+ | wallet seeds thinned; budget-exit salvage; **ReAct OSINT tool actions** (footprint_email/username)
+| `42e3134` | deep-web Bing seed queries
 | `77ad67f` | Soft right-hand primary-source guidance (no "force" language)
 | `c15c711` | Boss adaptive brief is free move (no AVAILABLE TOOLS menu) |
 | `aa392b8` / `f55e604` | Adaptive rules path **stop-only** — no dig ladder |
