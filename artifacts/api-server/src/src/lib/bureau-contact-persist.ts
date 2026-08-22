@@ -812,14 +812,7 @@ async function lookupPublicInvestorDirectories(
   name: string,
 ): Promise<Array<{ url: string; directory: string }>> {
   const queries = [
-    { q: `"${name}" site:signal.nfx.com`, dir: "Signal.nfx" },
-    { q: `"${name}" site:openvc.app`, dir: "OpenVC" },
-    { q: `"${name}" site:angel.co OR site:wellfound.com`, dir: "AngelList/Wellfound" },
-    { q: `"${name}" site:firstround.com`, dir: "First Round" },
-    { q: `"${name}" site:techcoastangels.com`, dir: "Tech Coast Angels" },
-    { q: `"${name}" site:bandangels.com OR site:bandofangels.com`, dir: "Band of Angels" },
-    { q: `"${name}" site:eban.org`, dir: "EBAN" },
-    { q: `"${name}" "angel investor" OR "seed investor"`, dir: "angel-web" },
+    { q: `"${name}"`, dir: "web" },
   ];
   const hits: Array<{ url: string; directory: string }> = [];
   const seen = new Set<string>();
@@ -899,8 +892,7 @@ async function lookupPublicEmailClaims(
   name: string,
 ): Promise<Array<{ email: string; sourceUrl: string | null }>> {
   const queries = [
-    `"${name}" email OR contact OR "@"`,
-    `"${name}" "@" (gmail.com OR outlook.com OR proton.me OR company)`,
+    `"${name}"`,
   ];
   const out: Array<{ email: string; sourceUrl: string | null }> = [];
   const seen = new Set<string>();
@@ -949,8 +941,7 @@ async function lookupPublicEmailClaims(
 /** Public X/Twitter profile URL when identity-relevant. Never invents. */
 async function lookupPublicXProfile(name: string): Promise<string | null> {
   const queries = [
-    `"${name}" (site:x.com OR site:twitter.com)`,
-    `"${name}" twitter OR "x.com"`,
+    `"${name}"`,
   ];
   for (const q of queries) {
     try {

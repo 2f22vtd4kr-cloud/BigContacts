@@ -35,7 +35,7 @@ export function buildWebSearchSubQueries(ctx: WebSearchQueryContext): string[] {
     queries.push(shortCo ? `"${shortCo}" "${city}"` : `"${name}" "${city}"`);
   }
   if (ctx.nNumber) queries.push(`"${ctx.nNumber}"`);
-  if (ctx.formType && !shortCo) queries.push(`"${name}" site:sec.gov`);
+  if (ctx.formType && !shortCo) queries.push(`"${name}"`);
 
   for (const angle of ctx.extraAngles ?? []) {
     const a = angle.trim();

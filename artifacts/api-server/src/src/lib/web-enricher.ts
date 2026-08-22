@@ -1864,24 +1864,10 @@ async function findContactPages(domain: string, isCorp = false): Promise<{
 }[]> {
   // Corp path order: team/partners FIRST, then contact/about.
   // Venue/individual path order: contact FIRST (faster single-contact resolution).
-  const corpPaths = [
-    "/team", "/our-team", "/partners", "/people", "/leadership", "/equipe",
-    "/our-partners", "/management", "/staff", "/about", "/about-us",
-    "/qui-sommes-nous", "/contact", "/contact-us", "/contactez-nous",
-    "/nous-contacter", "/uber-uns", "/kontakt", "/impressum",
-  ];
-  const venuePaths = [
-    "/contact", "/contact-us", "/contactez-nous", "/nous-contacter",
-    "/about", "/about-us", "/qui-sommes-nous", "/uber-uns",
-    "/team", "/equipe", "/our-team", "/staff", "/management",
-    "/kontakt", "/impressum", "/contatti", "/contacto",
-    "/reservation", "/reservations", "/book", "/booking",
-  ];
-  const paths = isCorp ? corpPaths : venuePaths;
-  // Corp cap raised — we want all team pages, not just the first email.
-  // 16 paths × 10s max each = 160s worst case (acceptable for VC/Corp research).
-  const cap = isCorp ? 16 : 12;
-  const resultCap = isCorp ? 14 : 6;
+  // Thin path seeds only — not a multilingual contact playbook.
+  const paths = ["/contact", "/about", "/team"];
+  const cap = 3;
+  const resultCap = 3;
   const candidates = paths.slice(0, cap).map(path => `https://${domain}${path}`);
   const seen = new Set<string>();
   const results: Array<{ url: string; scraped: ScrapedPage }> = [];
