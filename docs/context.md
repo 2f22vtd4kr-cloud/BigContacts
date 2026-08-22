@@ -6,7 +6,7 @@
 
 ## Prep for next Replit run (2026-08-22 evening)
 
-**Current tip:** `7efcea8` — **Target contact agent**: free ReAct dig owns each person; **card is the answer** (not evidence-only bag).
+**Current tip:** `…` agent-first enrich — skip parallel AI OSINT when target agent already wrote the card; 300s dig budget.
 
 ### Product contract (non-negotiable)
 | Rule | Meaning |
@@ -34,6 +34,15 @@
 | `f16d96e` / `f49b7c5` | Honest status live-pool list; graph ErrorBoundary + lazy force-graph; ApiKeyHealth falls back to `/api/healthz`; workspace treats running/paused as LIVE |
 | Network | Never pure black — load error or graph |
 | Header | Overview and ledger show the **same** LIVE / keys state |
+
+### When to spend Replit credits (readiness)
+Do **not** burn a Launch until this is true on the tip you pulled:
+1. Target agent runs **first** per person and writes **card** fields.
+2. Parallel AI OSINT is **skipped** when the agent already filled phone/email.
+3. Promote prefers primary hosts; issuer does not clobber `agentic-web`.
+4. API restarted on that tip (rehydrate route exists; status zombie clear present).
+
+If any of those fail in code review, keep developing offline — do not “test to confirm loss.”
 
 ### Operator boot (Replit)
 ```bash

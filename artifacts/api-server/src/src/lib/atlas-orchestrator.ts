@@ -880,7 +880,9 @@ async function enrichEntityFullCircle(atlasJobId: string, entity: EntityRow): Pr
     };
     let pendingAssetRows: Array<Record<string, unknown>> = [];
 
-    // ── Target contact agent (model-owned dig → card) — before long phase stack ──
+    // ── Target contact agent (model-owned dig → card) — THIS is the research product ──
+    // Later phases may add graph/registry context; they must not re-own contact recovery.
+    let agentCardReady = false;
     try {
       let companyForAgent: string | null = null;
       try {
@@ -905,7 +907,19 @@ async function enrichEntityFullCircle(atlasJobId: string, entity: EntityRow): Pr
         targetName: name,
         companyName: companyForAgent,
         jobId: atlasJobId,
+        maxIterations: 16,
+        hardTimeoutMs: 300_000,
       });
+      agentCardReady = Boolean(
+        agentResult.phone ||
+        agentResult.email ||
+        (agentResult.findings > 0 && agentResult.contactOutcome && agentResult.contactOutcome !== "none"),
+      );
+      // Refresh in-memory entity so later steps see the card the agent wrote
+      try {
+        const fresh = await db.select().from(entitiesTable).where(eq(entitiesTable.id, id)).limit(1);
+        if (fresh[0]) entity = { ...entity, ...fresh[0] } as EntityRow;
+      } catch { /* non-fatal */ }
       await setAtlasTelemetry(atlasJobId, {
         stage: "TARGET CONTACT AGENT",
         status: "complete",
@@ -918,7 +932,7 @@ async function enrichEntityFullCircle(atlasJobId: string, entity: EntityRow): Pr
         story: agentResult.phone
           ? `Card phone ${agentResult.phone} (${agentResult.phoneSource ?? "dig"}) · ${agentResult.contactOutcome ?? ""}`
           : `Dig finished · findings=${agentResult.findings} · outcome=${agentResult.contactOutcome ?? "none"}`,
-        inputSummary: `model=${agentResult.model} searches=${agentResult.searches} visits=${agentResult.visits}`,
+        inputSummary: `model=${agentResult.model} searches=${agentResult.searches} visits=${agentResult.visits} cardReady=${agentCardReady}`,
       }, id);
     } catch (err: any) {
       logger.warn({ entityId: id, err: err?.message }, "[Atlas] Target contact agent early pass skipped");
@@ -1031,7 +1045,22 @@ async function enrichEntityFullCircle(atlasJobId: string, entity: EntityRow): Pr
     }
 
     await ensureAtlasActive(atlasJobId, id);
-    // ── Step C: AI OSINT sweep (Perplexity + Tavily + Exa + Groq) ────
+    // ── Step C: AI OSINT sweep — SKIP when target agent already wrote the card ──
+    // Second parallel dig burned budget and often overwrote agent judgment with pipeline noise.
+    if (agentCardReady) {
+      await setAtlasTelemetry(atlasJobId, {
+        stage: "AI WEB OSINT",
+        status: "complete",
+        targetName: name,
+        targetType: entity.type,
+        toolIds: ["agentic-web"],
+        activeToolId: "agentic-web",
+        actor: "web",
+        methodKind: "agentic",
+        story: `Skipped parallel AI OSINT — target agent already owns the card for ${name}`,
+        inputSummary: "agentCardReady=true",
+      }, id);
+    } else {
     await updateJob(atlasJobId, { status: "running", message: `🤖 ${name}: AI OSINT…` });
     const telemetryReachability = assessTargetReachability({
       type: entity.type,
@@ -1166,8 +1195,12 @@ async function enrichEntityFullCircle(atlasJobId: string, entity: EntityRow): Pr
       const cleanLinkedIn = sanitizePublicSocialUrl(aiResult.linkedinUrl, "linkedin", "person");
       const cleanInstagram = sanitizePublicSocialUrl(aiResult.instagramUrl, "instagram", "person");
       const cleanTwitter = sanitizePublicSocialUrl(aiResult.twitterUrl, "twitter", "person");
-      if (cleanEmail)        entity = { ...entity, email:          cleanEmail };
-      if (cleanPhone)        entity = { ...entity, phone:          cleanPhone };
+      if (cleanEmail && !entity.email) entity = { ...entity, email: cleanEmail };
+      // Never let parallel AI OSINT overwrite dig-promoted phones
+      const phoneSrc = String((entity as { phoneSource?: string | null }).phoneSource ?? "");
+      if (cleanPhone && (!entity.phone || phoneSrc === "EDGAR-Phone" || phoneSrc === "EDGAR-Issuer-Phone")) {
+        entity = { ...entity, phone: cleanPhone };
+      }
       if (cleanLinkedIn)     entity = { ...entity, linkedinUrl:    cleanLinkedIn };
       if (cleanTwitter  && !entity.twitterHandle)   entity = { ...entity, twitterHandle:   normalizeHandle(cleanTwitter) };
       if (cleanInstagram && !entity.instagramHandle) entity = { ...entity, instagramHandle: normalizeHandle(cleanInstagram) };
@@ -1201,6 +1234,8 @@ async function enrichEntityFullCircle(atlasJobId: string, entity: EntityRow): Pr
     }
 
     await ensureAtlasActive(atlasJobId, id);
+    } // end else (!agentCardReady) AI OSINT
+
     // ── Step D: Maigret (3 000+ platforms) + Holehe (120+ services) ───────────
     const rawHandle = (
       (aiResult?.twitterUrl ?? "").replace(/^https?:\/\/(www\.)?(twitter\.com|x\.com)\//, "").replace(/\?.*$/, "")
