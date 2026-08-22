@@ -658,6 +658,7 @@ export async function expandSecondaryPublicSurface(input: {
         companyName: input.companyName ?? null,
         objective,
         maxIterations: 18,
+        hardTimeoutMs: 210_000,
       });
       logger.info(
         { entityId: input.entityId, status: agentic.status, model: agentic.model, searches: agentic.searches, visits: agentic.visits, findings: agentic.findings.length },

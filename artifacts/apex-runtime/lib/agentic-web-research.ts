@@ -2095,7 +2095,7 @@ export async function runAgenticWebResearch(input: {
 
     // done — reject empty early exits so we never finish with searches=0
     const minSearches = 2;
-    if (searches < minSearches && action.findings.length === 0 && i < maxIter - 1) {
+    if (searches < minSearches && action.findings.length === 0 && findings.length === 0 && i < maxIter - 1) {
       history.push(`step${i + 1}: done_rejected (need >=${minSearches} searches before empty done; have ${searches})`);
       lastObservation =
         `You returned done with zero findings after only ${searches} search(es). ` +
@@ -2167,7 +2167,10 @@ export async function runAgenticWebResearch(input: {
       continue;
     }
     findings = mergeFindings(findings, action.findings);
-    history.push(`step${i + 1}: done findings=${findings.length}`);
+    history.push(
+      `step${i + 1}: done findings=${findings.length}` +
+        (action.findings.length === 0 && findings.length > 0 ? " (incl. auto-extracted)" : ""),
+    );
     salvageEmailsFromHistory();
     return {
       status: "completed",
