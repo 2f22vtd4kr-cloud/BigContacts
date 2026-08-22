@@ -137,7 +137,15 @@ export function findingsFromDomainSurface(
   sourceUrls: string[];
   note: string;
 }> {
-  const out: ReturnType<typeof findingsFromDomainSurface> = [];
+  const out: Array<{
+    vectorType: "other" | "website";
+    value: string;
+    personName: null;
+    role: string | null;
+    scope: "organization";
+    sourceUrls: string[];
+    note: string;
+  }> = [];
   if (!surface.domain) return out;
   const reg = surface.rdap.registration || surface.whoisjson.created;
   if (reg) {

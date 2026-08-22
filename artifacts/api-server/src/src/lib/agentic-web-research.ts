@@ -2205,6 +2205,11 @@ export async function runAgenticWebResearch(input: {
           lastObservation = "BROWSER_FETCH unavailable — Scrapfly/ZenRows not configured. Use visit or web_search.";
         } else {
           const escalated = await browserFetchHtml(action.url);
+          visits++;
+          if (action.url.startsWith("http") && !candidateUrls.includes(action.url)) {
+            candidateUrls.push(action.url);
+          }
+          visitedUrls.add(action.url);
           const page = escalated.html
             ? (extractContactFactsFromHtml(escalated.html) + filterPassagesForQuery(stripHtml(escalated.html), action.url, { maxChars: MAX_OBS, minScore: 0.05 })).slice(0, MAX_OBS + 800)
             : "browser_fetch empty";
@@ -2241,12 +2246,18 @@ export async function runAgenticWebResearch(input: {
         if (!result.apiKeyPresent) {
           lastObservation = `REVERSE_WHOIS ${q}\nWHOXY_API_KEY not set — tool unavailable this session.`;
         } else {
-          const names = (result.domains ?? []).map((d: { domain_name?: string }) => d.domain_name).filter(Boolean).slice(0, 20);
+          const names = (result.domains ?? []).map((d: { domain_name?: string }) => d.domain_name).filter(Boolean).slice(0, 20) as string[];
+          for (const d of names) {
+            const host = String(d).replace(/^https?:\/\//i, "").replace(/\/.*$/, "").trim();
+            if (!host) continue;
+            const u = `https://${host}`;
+            if (!candidateUrls.includes(u)) candidateUrls.push(u);
+          }
           lastObservation =
             `REVERSE_WHOIS ${q}\n` +
             (result.error ? `Error: ${result.error}\n` : "") +
             `Total: ${result.totalDomains ?? names.length}\n` +
-            (names.length ? `Domains: ${names.join(", ")}` : "No domains returned.");
+            (names.length ? `Domains: ${names.join(", ")} (queued for optional visit)` : "No domains returned.");
         }
       } catch (err: any) {
         lastObservation = `REVERSE_WHOIS failed: ${err?.message ?? "error"}`;

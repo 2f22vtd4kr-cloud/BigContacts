@@ -6,7 +6,7 @@
 
 ## Prep for next Replit run (2026-08-22)
 
-**Current tip:** latest `main` — **GO for Replit** after deep audit (`docs/PRE_REPLIT_GO.md`). Serper multi-key; dig LLM orient; NIM model env; adaptive free-assign fixed.
+**Current tip:** latest `main` — multi-stage audit (browser_fetch visits, whois queue, fail-closed salvage, integrity soft gate). See `docs/PRE_REPLIT_GO.md`.
 
 ### What “free research” means (non-negotiable)
 - **Agentic ReAct:** the model chooses every `web_search` / `visit` / `done`. No `force_*` gap-fill machine.

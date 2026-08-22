@@ -13,6 +13,8 @@ export {
   getNvidiaNimCaseReasoningStatus,
   runNvidiaNimCaseReasoning,
   runNvidiaNimDiscoveryAdvice,
+  runNvidiaNimFreeJson,
+  runNvidiaNimFinalReview,
   NVIDIA_NIM_CASE_REASONING_MODEL,
 } from "./nvidia-nim-case-reasoning";
 export type {

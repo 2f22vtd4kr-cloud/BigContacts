@@ -1654,7 +1654,7 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
         }
       }
 
-      // Claude-OSINT org-footprint checklist from deck evidence (fail-closed, no invention)
+      // Org footprint evidence assessment from deck (status only — not a research script)
       const allEv = mergedReviewCandidates.flatMap((c) => c.contactEvidence ?? []);
       const allUrls = mergedReviewCandidates.flatMap((c) => c.sourceUrls ?? []);
       const orgFootprint = {
