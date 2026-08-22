@@ -1347,7 +1347,7 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
           }
         }
 
-        // FORCE classic org emails onto company row (Grok parity: sales@cmi79 on about-us must score)
+        // Bag-attach classic org emails onto company row (already recovered — UI visibility)
         // Also normalize obfuscated forms (info [at] / info (at) / info at domain) from CONTACT FACTS / trajectory.
         if (agenticCompanyName) {
           const classicRe = /\b((?:info|contact|sales|office|support|hello|admin|service|parts|inquiries)@[a-z0-9.-]+\.[a-z]{2,})\b/gi;
@@ -1368,7 +1368,7 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
               personName: null,
               role: null,
               sourceUrls: sourceUrls.slice(0, 4),
-              note: "force-attach classic org mailbox",
+              note: "bag-attach classic org mailbox",
             } as (typeof agenticDiscovery.findings)[number]);
           };
           for (const f of agenticDiscovery.findings ?? []) {
@@ -1390,7 +1390,7 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
             if (e.vectorType === "email" && e.value) attachEmail(e.value, e.sourceUrls || []);
           }
 
-          // FORCE org phones from CONTACT FACTS / trajectory onto company row (Grok parity)
+          // Bag-attach org phones from CONTACT FACTS / trajectory onto company row
           const phoneRe = /\b(?:PHONE:?\s*)?(\+?1[\s.-]?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}|\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4})\b/g;
           const seenPhone = new Set<string>();
           const attachPhone = (raw: string, sourceUrls: string[]) => {
@@ -1406,7 +1406,7 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
               personName: null,
               role: null,
               sourceUrls: sourceUrls.slice(0, 4),
-              note: "force-attach org phone from CONTACT FACTS/trajectory",
+              note: "bag-attach org phone from CONTACT FACTS/trajectory",
             } as (typeof agenticDiscovery.findings)[number]);
           };
           for (const f of agenticDiscovery.findings ?? []) {

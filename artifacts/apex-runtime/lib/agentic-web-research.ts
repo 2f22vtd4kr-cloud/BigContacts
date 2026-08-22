@@ -61,7 +61,7 @@ function randomUA(): string {
   return uas[Math.floor(Math.random() * uas.length)]!;
 }
 
-/** Decode Cloudflare email-protection href hashes (Grok parity on contact pages). */
+/** Decode Cloudflare email-protection href hashes (public contact-page recovery). */
 function decodeCloudflareEmail(hex: string): string | null {
   try {
     const data = hex.replace(/[^a-fA-F0-9]/g, "");
@@ -1353,7 +1353,7 @@ function findingsFromSearchSnippet(
   return out;
 }
 
-/** Pull principal/owner names out of SERP/BBB snippet text (Grok parity on related people). */
+/** Pull principal/owner names out of SERP/BBB snippet text (related-people recovery from public snippets). */
 function findingsFromPeopleSnippet(
   text: string,
   urls: string[],
@@ -1363,7 +1363,7 @@ function findingsFromPeopleSnippet(
   if (!text) return out;
   const src = urls.find((u) => /bbb\.org|opencorporates|sec\.gov/i.test(u)) || urls[0];
   if (!src || !/^https?:\/\//i.test(src)) return out;
-  // Name atom allows middle initials: "Donald W. Kuchenbecker" (Grok parity — was a severe miss)
+  // Name atom allows middle initials: "Donald W. Kuchenbecker" (middle initials matter on public pages)
   const patterns = [
     /(?:Mr\.?|Ms\.?|Mrs\.?)\s+([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z]+)+),\s*(Owner|President|CEO|Principal|Manager|Director|Founder|Co-Founder|CFO|Chairman|Treasurer)/g,
     /\b([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z]+)+)\s*[—\-,:/]\s*(Owner|President|CEO|Principal|Manager|Director|Founder|Co-Founder|CFO|Chairman|Treasurer|General Manager|Supervisor|Controller|Managing Partner)\b/g,
@@ -1489,7 +1489,7 @@ export async function runAgenticWebResearch(input: {
       ? input.companyName.toLowerCase().replace(/[^a-z0-9]+/g, "").slice(0, 10)
       : "";
     const hostMatch = coToken && lower.replace(/[^a-z0-9]/g, "").includes(coToken.slice(0, 6));
-    // Company-domain PDF contact/sales sheets often hold named person emails (Grok parity)
+    // Company-domain PDF contact/sales sheets often hold named person emails (public surface recovery)
     if (hostMatch && /\.pdf(\?|$)/i.test(lower) && /(contact|sales|team|staff|directory|rep)/i.test(lower)) return 0;
     if (/\.pdf(\?|$)/i.test(lower) && /(contact|sales|team|staff|directory|rep)/i.test(lower) && coToken) return 1;
     // Primary company contact/terms pages first (where org email/phone actually live)
