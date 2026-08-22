@@ -1474,12 +1474,6 @@ function findingsFromContactFacts(
     if (phone) {
       const cleaned = sanitizePublicPhone(phone);
       if (cleaned && !isTrashContactValue("phone", cleaned)) {
-        const digits = cleaned.replace(/\D/g, "").replace(/^1/, "");
-        const tollFree = /^8(?:00|88|77|66|55|44|33|22)/.test(digits);
-        const primaryHost = /sec\.gov|edgar|companieshouse|opencorporates/i.test(sourceUrl);
-        if (tollFree && !primaryHost) {
-          continue; // support/sales 1-800 from random pages — not card-grade
-        }
         out.push({
           vectorType: "phone",
           value: cleaned,

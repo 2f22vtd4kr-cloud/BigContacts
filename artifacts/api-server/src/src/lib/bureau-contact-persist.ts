@@ -409,10 +409,6 @@ async function promoteBureauContactsToEntityCard(
     }
     return s;
   };
-  const isTollFree = (phone: string) => {
-    const d = phone.replace(/\D/g, "").replace(/^1/, "");
-    return /^8(?:00|88|77|66|55|44|33|22)/.test(d);
-  };
 
   for (const item of merged) {
     if (String(item.state ?? "").toLowerCase() === "rejected") continue;
@@ -440,7 +436,6 @@ async function promoteBureauContactsToEntityCard(
         : source.slice(0, 40);
 
     if (vt === "phone" || vt === "tel") {
-      if (isTollFree(value) && hostScore < 4) continue; // 1-800 support lines without primary host
       const score = (orgish ? 2 : 5) + hostScore + (urls.length ? 1 : 0);
       if (!bestPhone || score > bestPhone.score) {
         bestPhone = { value, source: orgish || hostScore >= 4 ? `${srcLabel}-org` : srcLabel, score };
