@@ -33,7 +33,7 @@ router.get("/healthz", async (_req, res) => {
       mistral: mistral.configured ? 1 : 0,
       nvidiaNim: nvidia.configured ? 1 : 0,
       companiesHouse: process.env.COMPANIES_HOUSE_API_KEY ? 1 : 0,
-      serper: process.env.SERPER_API_KEY ? 1 : 0,
+      serper: [process.env.SERPER_API_KEY, process.env.SERPER_API_KEY_2, process.env.SERPER_API_KEY_3, process.env.SERPER_KEY].some((k) => Boolean(k?.trim())) ? 1 : 0,
     };
     lanesHonesty = buildLanesHonestySnapshot();
   } catch {

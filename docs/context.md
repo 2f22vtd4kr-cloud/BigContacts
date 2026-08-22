@@ -6,7 +6,7 @@
 
 ## Prep for next Replit run (2026-08-22)
 
-**Current tip:** latest `main` — **GO for Replit** (`docs/PRE_REPLIT_GO.md`). Final fixes: adaptive NVIDIA free assign; Boss target-locked goals not checklist.
+**Current tip:** latest `main` — **GO for Replit** after deep audit (`docs/PRE_REPLIT_GO.md`). Serper multi-key; dig LLM orient; NIM model env; adaptive free-assign fixed.
 
 ### What “free research” means (non-negotiable)
 - **Agentic ReAct:** the model chooses every `web_search` / `visit` / `done`. No `force_*` gap-fill machine.

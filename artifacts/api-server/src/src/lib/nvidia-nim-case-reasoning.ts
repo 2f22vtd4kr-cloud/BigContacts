@@ -2,7 +2,8 @@ import type { BureauAction, DiscoveryCaseFile, ResearchCaseFile } from "./case-b
 import { logger } from "./logger";
 import { apexOrientationFor } from "./apex-bureau-orientation";
 
-export const NVIDIA_NIM_CASE_REASONING_MODEL = "z-ai/glm-5.2";
+export const NVIDIA_NIM_CASE_REASONING_MODEL =
+  (process.env.NVIDIA_NIM_MODEL || process.env.NVIDIA_AGENTIC_MODEL || "z-ai/glm-5.2").trim();
 const NVIDIA_NIM_CHAT_API = "https://integrate.api.nvidia.com/v1/chat/completions";
 
 export type NvidiaNimCaseReasoningStatus = {

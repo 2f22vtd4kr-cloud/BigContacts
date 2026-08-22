@@ -98,33 +98,41 @@ function stripHtml(html: string): string {
 }
 
 async function toolWebSearchSerper(query: string): Promise<{ text: string; urls: string[] } | null> {
-  const key = process.env.SERPER_API_KEY ?? "";
-  if (!key) return null;
-  try {
-    const resp = await fetch("https://google.serper.dev/search", {
-      method: "POST",
-      headers: { "X-API-KEY": key, "Content-Type": "application/json" },
-      body: JSON.stringify({ q: query, num: 10, gl: "us", hl: "en" }),
-      signal: AbortSignal.timeout(12_000),
-    });
-    if (!resp.ok) return null;
-    const data = (await resp.json()) as {
-      organic?: Array<{ title?: string; link?: string; snippet?: string }>;
-      knowledgeGraph?: { description?: string };
-    };
-    const urls: string[] = [];
-    const parts: string[] = [];
-    if (data.knowledgeGraph?.description) parts.push(data.knowledgeGraph.description);
-    for (const row of data.organic ?? []) {
-      if (row.link && /^https?:\/\//i.test(row.link)) urls.push(row.link);
-      if (row.title || row.snippet) parts.push([row.title, row.snippet].filter(Boolean).join(" — "));
+  const keys = [
+    process.env.SERPER_API_KEY,
+    process.env.SERPER_API_KEY_2,
+    process.env.SERPER_API_KEY_3,
+    process.env.SERPER_KEY,
+  ].map((k) => (k ?? "").trim()).filter(Boolean);
+  if (!keys.length) return null;
+  for (const key of keys) {
+    try {
+      const resp = await fetch("https://google.serper.dev/search", {
+        method: "POST",
+        headers: { "X-API-KEY": key, "Content-Type": "application/json" },
+        body: JSON.stringify({ q: query, num: 10, gl: "us", hl: "en" }),
+        signal: AbortSignal.timeout(12_000),
+      });
+      if (!resp.ok) continue;
+      const data = (await resp.json()) as {
+        organic?: Array<{ title?: string; link?: string; snippet?: string }>;
+        knowledgeGraph?: { description?: string };
+      };
+      const urls: string[] = [];
+      const parts: string[] = [];
+      if (data.knowledgeGraph?.description) parts.push(data.knowledgeGraph.description);
+      for (const row of data.organic ?? []) {
+        if (row.link && /^https?:\/\//i.test(row.link)) urls.push(row.link);
+        if (row.title || row.snippet) parts.push([row.title, row.snippet].filter(Boolean).join(" — "));
+      }
+      if (!urls.length && !parts.length) continue;
+      const text = filterPassagesForQuery(parts.join("\n"), query, { maxChars: MAX_OBS });
+      return { text, urls: [...new Set(urls)].slice(0, 10) };
+    } catch (err: any) {
+      logger.debug({ err: err?.message, query }, "agentic serper search failed");
     }
-    const text = filterPassagesForQuery(parts.join("\n"), query, { maxChars: MAX_OBS });
-    return { text, urls: [...new Set(urls)].slice(0, 10) };
-  } catch (err: any) {
-    logger.debug({ err: err?.message, query }, "agentic serper search failed");
-    return null;
   }
+  return null;
 }
 
 
@@ -986,7 +994,7 @@ async function callMistralJson(prompt: string): Promise<{ model: string; raw: st
             {
               role: "system",
               content:
-                "You are an elite OSINT web research agent. You operate in a ReAct loop. Reply with ONE JSON object only.",
+                apexOrientationFor("dig_agent") + "\nReply with ONE JSON object only for this ReAct step.",
             },
             { role: "user", content: prompt },
           ],
@@ -1012,6 +1020,8 @@ async function callNvidiaJson(prompt: string): Promise<{ model: string; raw: str
   if (!key) return null;
   const models = [
     process.env.NVIDIA_AGENTIC_MODEL,
+    process.env.NVIDIA_NIM_MODEL,
+    "z-ai/glm-5.2",
     "meta/llama-3.3-70b-instruct",
     "meta/llama-3.1-70b-instruct",
     "mistralai/mistral-large-2-instruct",
@@ -1034,7 +1044,7 @@ async function callNvidiaJson(prompt: string): Promise<{ model: string; raw: str
             {
               role: "system",
               content:
-                "You are an elite OSINT web research agent. You operate in a ReAct loop. Reply with ONE JSON object only.",
+                apexOrientationFor("dig_agent") + "\nReply with ONE JSON object only for this ReAct step.",
             },
             { role: "user", content: prompt },
           ],

@@ -52,7 +52,7 @@ export function buildLanesHonestySnapshot(): LanesHonestySnapshot {
   const perplexity = activeCount(status.perplexity);
   const tavily = activeCount(status.tavily);
   const exa = activeCount(status.exa);
-  const serper = process.env.SERPER_API_KEY?.trim() ? 1 : 0;
+  const serper = [process.env.SERPER_API_KEY, process.env.SERPER_API_KEY_2, process.env.SERPER_API_KEY_3, process.env.SERPER_KEY].some((k) => Boolean(k?.trim())) ? 1 : 0;
   // Serper powers agentic ReAct SERP; Tavily/Exa/Perplexity power other lanes.
   const webSearchActive = perplexity + tavily + exa + serper;
   const groqKeys = [

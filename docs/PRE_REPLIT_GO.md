@@ -1,7 +1,7 @@
 # Pre-Replit GO — Apex Atlas
 
 **Branch:** `main`  
-**Pull tip:** latest `main` (after final pre-Replit fixes: right-hand free assign ≠ final-review; target-locked Boss goals not numbered script)
+**Pull tip:** latest `main` (deep audit: free-assign NVIDIA path, Serper multi-key, dig-provider orientation, NIM model override)
 
 ## Ready when
 
