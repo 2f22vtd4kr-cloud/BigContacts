@@ -1101,21 +1101,7 @@ ${geography}
 
 A specific person and/or company is already named. Do NOT expand into unrelated family offices, random PE firms, or fame-only candidates. Recover the public contact and related surface for the NAMED subject at least as thoroughly as a capable general agent would on the same lead.
 
-Priority surface (in order):
-1. Exact person + company identity confirmation and role history
-2. Company address, phone, website, org email
-3. SEC/EDGAR filings, officer tables, co-filers, related-person rows
-4. Historical residential or officer addresses with source URLs
-5. LinkedIn / professional profiles when public
-6. Bankruptcy, ownership transitions, and current operator if relevant
-
-Opening research must:
-1. Lock onto the named person and company first — do not "discover" substitute targets.
-2. Preserve exact source URLs for every contact vector and every role claim.
-3. Rank organization / related-person surface honestly; never auto-promote Personal without verified evidence.
-4. Explicitly report name collisions, missing evidence, and search gaps.
-5. Recommend the strongest next investigation directions after the first pass.
-6. ORG FOOTPRINT PASS (required when a company is named): recover legal/trade name, official website, /contact surface, org phone, mailing address, org inbox (info@/contact@) if public, and related officers/co-founders from primary pages or registries (GLEIF, OpenCorporates, EDGAR, Companies House, state SOS, BBB). Do not stop at a single directory hit.
+Goals (not a forced execution order): identity and role anchors; company website/contact surface; org phone and public org inboxes; officers/related people from primary pages or registries; exact source URLs on every contact claim; honest gaps and name collisions.
 
 Guardrails:
 ${exclusions.map((rule) => `- ${rule}`).join("\n")}

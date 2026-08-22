@@ -1,7 +1,7 @@
 # Pre-Replit GO — Apex Atlas
 
 **Branch:** `main`  
-**Pull tip:** latest `main` (orientation + free ReAct + full OSINT tool surface)
+**Pull tip:** latest `main` (after final pre-Replit fixes: right-hand free assign ≠ final-review; target-locked Boss goals not numbered script)
 
 ## Ready when
 

@@ -495,11 +495,12 @@ Return ONLY JSON:
     /* fall through */
   }
 
-  // 2) Right-hand — same free brief
+  // 2) Right-hand — free assign (not final-card review)
   try {
-    const { runNvidiaNimFinalReview } = await import("./nvidia-nim-case-reasoning");
-    const nv = await runNvidiaNimFinalReview(
-      apexOrientationFor("right_hand") + "\n\n---\n\nReason freely; choose the next tool and query.\n\n" + prompt,
+    const { runNvidiaNimFreeJson } = await import("./nvidia-nim-case-reasoning");
+    const nv = await runNvidiaNimFreeJson(
+      prompt,
+      "Assign the next research move. Reason freely. Reply with ONE JSON object: thought, tool, query, stop.",
     );
     if (nv.status === "completed" && nv.raw) {
       const choice = parseFreeBossStep(nv.raw, state);

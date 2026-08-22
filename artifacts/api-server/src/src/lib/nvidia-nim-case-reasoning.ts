@@ -400,6 +400,68 @@ export async function runNvidiaNimCaseReasoning(input: {
  * Right-hand advisor on final card publication — JSON only, no web.
  * Boss (Gemini) is primary; this is the advisory lane when Boss is busy/down.
  */
+
+/** General free JSON completion for adaptive / dig assign — not final-card locked. */
+export async function runNvidiaNimFreeJson(
+  userPrompt: string,
+  systemExtra = "Reply with ONE JSON object only. Never invent contacts, people, or URLs.",
+): Promise<{
+  status: "completed" | "unavailable";
+  model: string;
+  raw: string | null;
+  error: string | null;
+}> {
+  const key = getNvidiaNimKey();
+  if (!key) {
+    return { status: "unavailable", model: NVIDIA_NIM_CASE_REASONING_MODEL, raw: null, error: "NVIDIA_NIM_API_KEY not set" };
+  }
+  try {
+    const resp = await fetch(NVIDIA_NIM_CHAT_API, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${key}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: NVIDIA_NIM_CASE_REASONING_MODEL,
+        temperature: 0.3,
+        max_tokens: 1200,
+        response_format: { type: "json_object" },
+        messages: [
+          {
+            role: "system",
+            content: apexOrientationFor("right_hand") + "\n\n---\n\n" + systemExtra,
+          },
+          { role: "user", content: userPrompt },
+        ],
+      }),
+      signal: AbortSignal.timeout(45_000),
+    });
+    if (!resp.ok) {
+      const detail = (await resp.text().catch(() => "")).slice(0, 200);
+      return {
+        status: "unavailable",
+        model: NVIDIA_NIM_CASE_REASONING_MODEL,
+        raw: null,
+        error: `NVIDIA HTTP ${resp.status}${detail ? `: ${detail}` : ""}`,
+      };
+    }
+    const data = (await resp.json()) as ChatCompletionResponse;
+    const raw = data.choices?.[0]?.message?.content?.trim() ?? "";
+    if (!raw) {
+      return { status: "unavailable", model: NVIDIA_NIM_CASE_REASONING_MODEL, raw: null, error: "empty NVIDIA response" };
+    }
+    return { status: "completed", model: NVIDIA_NIM_CASE_REASONING_MODEL, raw, error: null };
+  } catch (err: any) {
+    return {
+      status: "unavailable",
+      model: NVIDIA_NIM_CASE_REASONING_MODEL,
+      raw: null,
+      error: err?.message ?? "NVIDIA free JSON failed",
+    };
+  }
+}
+
 export async function runNvidiaNimFinalReview(prompt: string): Promise<{
   status: "completed" | "unavailable";
   model: string;

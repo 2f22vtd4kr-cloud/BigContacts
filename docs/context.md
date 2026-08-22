@@ -6,7 +6,7 @@
 
 ## Prep for next Replit run (2026-08-22)
 
-**Current tip:** latest `main` — **GO for Replit** (see `docs/PRE_REPLIT_GO.md`). Free ReAct + full OSINT tools + session orientation.
+**Current tip:** latest `main` — **GO for Replit** (`docs/PRE_REPLIT_GO.md`). Final fixes: adaptive NVIDIA free assign; Boss target-locked goals not checklist.
 
 ### What “free research” means (non-negotiable)
 - **Agentic ReAct:** the model chooses every `web_search` / `visit` / `done`. No `force_*` gap-fill machine.
