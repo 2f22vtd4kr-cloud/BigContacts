@@ -1,3 +1,4 @@
+import { apexOrientationFor } from "./apex-bureau-orientation";
 /**
  * AI Extractor — Multi-source AI extraction layer for contact & person intelligence
  *
@@ -183,7 +184,7 @@ export async function runFinalTargetReview(
 ): Promise<FinalTargetReviewResult> {
   const prompt = buildFinalTargetReviewPrompt(input);
   const bossPrompt =
-    "You are Gemini Boss, Head Investigator for Apex Atlas final card publication.\n" +
+    apexOrientationFor("boss") + "\n\n---\n\nYou are Gemini Boss, Head Investigator for Apex Atlas final card publication.\n" +
     "Your right-hand (NVIDIA) may advise; you decide publish/review/reject using ONLY exact values supplied below.\n" +
     "Never invent contacts, people, addresses, or URLs.\n\n" +
     prompt;

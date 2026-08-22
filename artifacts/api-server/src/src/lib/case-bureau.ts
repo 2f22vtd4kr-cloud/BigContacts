@@ -1,6 +1,7 @@
 import type { Entity } from "@workspace/db";
 import { GROQ_DEFAULT_MODEL, GROQ_CHAT_MODELS } from "./groq-models";
 import { logger } from "./logger";
+import { apexOrientationFor, apexOrientationCompact } from "./apex-bureau-orientation";
 import { buildApexAtlasBossPlanPrompt } from "./case-bureau-prompt";
 import { extractWalletSeedsFromText, buildWalletSeedPlan, formatWalletSeedPlanForPrompt, objectiveLooksWalletFirst } from "./wallet-seed";
 export {
@@ -527,7 +528,7 @@ async function generateGroqBossText(prompt: string): Promise<GeminiTextGeneratio
               {
                 role: "system",
                 content:
-                  "You are the Boss Investigator for a public-web research bureau. Reply with ONE JSON object only. Never invent contacts, people, or URLs.",
+                  apexOrientationCompact("boss") + " Reply with ONE JSON object only. Never invent contacts, people, or URLs.",
               },
               { role: "user", content: prompt },
             ],
@@ -1083,7 +1084,11 @@ export function buildBossOpeningPrompt(input: {
     /\b(Andrew|John|Mark|David|Michael|Robert|James|William|Thomas|Richard|Katherine|Catherine|Elizabeth|Sarah|Jennifer|Mary|Susan|Patricia|Linda|Barbara|Margaret|Jessica)\s+[A-Z]\.?\s*[A-Z][a-z]+\b/.test(objective);
 
   if (namedTarget) {
-    return `You are the Boss Investigator opening a TARGET-LOCKED public-web research case.
+    return `${apexOrientationFor("boss")}
+
+---
+
+You are the Boss Investigator opening a TARGET-LOCKED public-web research case.
 
 Human mission:
 ${objective}
@@ -1126,7 +1131,11 @@ Return a structured research report with:
 Do not invent contacts. Do not dilute the named target with unrelated discovery noise.`;
   }
 
-  return `You are the Boss Investigator opening a new discovery-first public-web research case.
+  return `${apexOrientationFor("boss")}
+
+---
+
+You are the Boss Investigator opening a new discovery-first public-web research case.
 
 Human mission:
 ${objective}

@@ -1,5 +1,6 @@
 import type { BureauAction, DiscoveryCaseFile, ResearchCaseFile } from "./case-bureau";
 import { logger } from "./logger";
+import { apexOrientationFor } from "./apex-bureau-orientation";
 
 export const NVIDIA_NIM_CASE_REASONING_MODEL = "z-ai/glm-5.2";
 const NVIDIA_NIM_CHAT_API = "https://integrate.api.nvidia.com/v1/chat/completions";
@@ -112,7 +113,11 @@ function buildReasoningPrompt(file: ResearchCaseFile, iteration: number): string
       }, null, 2)
     : "null";
 
-  return `You are the Boss's right-hand advisor for Apex Atlas (Case Bureau).
+  return `${apexOrientationFor("right_hand")}
+
+---
+
+You are the Boss's right-hand advisor for Apex Atlas (Case Bureau).
 
 APEX ATLAS GOAL:
 Recommend the next bounded step that advances real public-contact discovery for HNWI / principal / operator targets —
@@ -172,7 +177,11 @@ ${JSON.stringify(queuedActions, null, 2)}`;
 }
 
 function buildDiscoveryAdvicePrompt(file: DiscoveryCaseFile, iteration: number): string {
-  return `You are the right-hand advisor to Gemini, the Head Investigator of a public-record discovery Bureau.
+  return `${apexOrientationFor("right_hand")}
+
+---
+
+You are the right-hand advisor to Gemini, the Head Investigator of a public-record discovery Bureau.
 Advise freely on public contact recovery. Prefer primary sources. Recover named officers, org phones/emails, and related people when visible — never invent. Regex is a backstop, not the only path. Wallet-first: attribute holder before contact hops.
 
 You have no web access and must reason only over this discovery mission and its opening prompt.
@@ -417,7 +426,7 @@ export async function runNvidiaNimFinalReview(prompt: string): Promise<{
           {
             role: "system",
             content:
-              "You are the right-hand advisor to Gemini Boss on Apex Atlas final card publication. " +
+              apexOrientationFor("right_hand") + "\n\n---\n\nYou are the right-hand advisor to Gemini Boss on Apex Atlas final card publication. " +
               "Reply with ONE JSON object only. Never invent contacts, people, or URLs — only exact values from the prompt.",
           },
           { role: "user", content: prompt },

@@ -1,6 +1,7 @@
 import { formatProgressForPrompt, type InvestigationProgress } from "./investigation-progress";
 import { buildCreativeInvestigatorAngles } from "./investigator-prompt-guide";
 import { resolveResearchDepth, type ResearchDepth } from "./research-depth";
+import { apexOrientationFor } from "./apex-bureau-orientation";
 
 /** Minimal action shape needed for the Boss plan prompt (avoids circular import). */
 type QueuedAction = {
@@ -57,7 +58,11 @@ export function buildApexAtlasBossPlanPrompt(input: PlanInput): string {
     depth: depth.depth,
   });
 
-  return `You are the Boss and Head Investigator of Apex Atlas (Case Bureau).
+  return `${apexOrientationFor("boss")}
+
+---
+
+You are the Boss and Head Investigator of Apex Atlas (Case Bureau).
 
 APEX ATLAS GOAL (crystal clear):
 Find real, publicly documented contact routes to high-net-worth individuals, principals, operators, and organizations — emails, phones, LinkedIn, Instagram, Twitter/X, Telegram, TikTok, websites, registry trails, and username footprints — with exact source URLs. Research must be at least as thorough and creative as a skilled human OSINT analyst: adaptive, evidence-led, multi-angle, primary-source first, never a rigid shallow checklist. Investigators run AGENTIC multi-hop web loops (invent queries, visit pages, pivot) — the same capability as a strong general agent / Gemini AI Mode — not fixed playbooks. Demand that depth.

@@ -10,6 +10,7 @@
 import type { InvestigationProgress } from "./investigation-progress";
 import { formatProgressForPrompt } from "./investigation-progress";
 import { DEFAULT_RESEARCH_DEPTH, type ResearchDepth } from "./research-depth";
+import { apexOrientationFor } from "./apex-bureau-orientation";
 
 /** Short pointer injected so Boss always sees the golden-standard reference. */
 export const GOLDEN_STANDARD_REFERENCE =
@@ -34,7 +35,11 @@ export function buildCreativeInvestigatorAngles(input: {
   const country = input.country?.trim() || "unknown jurisdiction";
   const depth = input.depth ?? DEFAULT_RESEARCH_DEPTH;
 
-  return `${GOLDEN_STANDARD_REFERENCE}
+  return `${apexOrientationFor("investigator")}
+
+---
+
+${GOLDEN_STANDARD_REFERENCE}
 
 Research freely for "${input.targetName}" (${country}). Depth tier: ${depth}.
 Case already has — people: ${people}; domains: ${domains}; orgs: ${orgs}; open gaps: ${pending}.

@@ -1,3 +1,4 @@
+import { apexOrientationCompact } from "./apex-bureau-orientation";
 /**
  * Materialize bureau / discovery contact evidence onto durable contact_evidence
  * rows so HNWI profile cards show related routes without waiting for a full
@@ -641,7 +642,7 @@ export async function expandSecondaryPublicSurface(input: {
         if (selection?.model) {
           const brief = await generateGeminiBossText(
             selection,
-            `You are Gemini Boss briefing a web research agent on target "${name}"` +
+            `${apexOrientationCompact("boss")}\n\nBrief a web research agent on target "${name}"` +
               `${input.companyName ? ` (company: ${input.companyName})` : ""}.\n` +
               `Write a short research objective (2-5 sentences): what to discover, which surfaces to open, ` +
               `how to dig for officers and contacts. No invented emails/phones/names. Plain text only.`,

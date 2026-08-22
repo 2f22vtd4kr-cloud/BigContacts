@@ -22,6 +22,7 @@ import {
 import { lookupDomainSurface, findingsFromDomainSurface } from "./domain-surface";
 import { setAgenticLlmHealth, getAgenticLlmHealth } from "./agentic-llm-health";
 import { GROQ_CHAT_MODELS } from "./groq-models";
+import { apexOrientationFor } from "./apex-bureau-orientation";
 export { getAgenticLlmHealth };
 
 export type AgenticFinding = {
@@ -1103,9 +1104,9 @@ function buildStepPrompt(input: {
 }): string {
   // Keep this short. Models already know how to research; do not ship a playbook.
   const bag = formatFindingsBag(input.findings ?? []);
-  return `You are a trained research investigator for Apex Atlas.
-Goal: find real, attributable public contact routes and related people for the target — primary sources, exact URLs, no invention.
-Work like a strong general agent. Extra OSINT tools are available when you decide they help. No fixed search script. No forced tool order.
+  return `${apexOrientationFor("dig_agent")}
+
+---
 
 TARGET: ${input.targetName}
 ${input.companyName ? `RELATED COMPANY / ISSUER: ${input.companyName}` : ""}

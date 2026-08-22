@@ -6,6 +6,14 @@ This is not a search playbook with LLM labels. It is a **harness**: tools + boun
 
 ---
 
+## 0. Session orientation (mandatory)
+
+Every LLM call is a cold start. **`apex-bureau-orientation.ts`** injects product identity, goal, architecture, role (Boss / right-hand / investigator / dig agent), and the full OSINT tool surface into prompts for:
+- Boss (plan, discovery, adaptive assign, final review, orchestrator briefs)
+- Right-hand (NVIDIA case reasoning + discovery advice + final review)
+- Investigators (`investigator-prompt-guide`)
+- Agentic dig loop (`buildStepPrompt`)
+
 ## 1. ReAct agent loop (industry + Apex)
 
 ### Industry core (2025–26)

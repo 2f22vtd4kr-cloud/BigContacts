@@ -1,3 +1,4 @@
+import { apexOrientationCompact } from "./apex-bureau-orientation";
 /**
  * Apex Atlas Orchestrator
  *
@@ -1683,7 +1684,7 @@ Only include assets with a SPECIFIC identifier. If nothing concrete is mentioned
         if (selection?.model) {
           const brief = await generateGeminiBossText(
             selection,
-            `You are Gemini Boss directing Apex Atlas full-circle research for "${name}" (${entity.type}).
+            `${apexOrientationCompact("boss")}\n\nDirect full-circle research for "${name}" (${entity.type}).
 NVIDIA is your right-hand. In 2-4 sentences: what public surface to recover next (contacts, officers, filings, domain pages)?
 Never invent specific emails, phones, or people. Return plain text only.`,
           );
