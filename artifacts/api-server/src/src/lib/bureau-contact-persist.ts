@@ -8,6 +8,7 @@ import { eq } from "drizzle-orm";
 import { sanitizePublicEmail, sanitizePublicPhone, isTrashContactValue } from "./contact-validation";
 import { logger } from "./logger";
 import { resolveResearchDepth } from "./research-depth";
+import { publishBureauEvent } from "./bureau-live-log";
 import { apexOrientationCompact } from "./apex-bureau-orientation";
 
 export type BureauContactLike = {
@@ -661,6 +662,18 @@ export async function expandSecondaryPublicSurface(input: {
         objective,
         maxIterations: resolveResearchDepth().agenticMaxIterations,
         hardTimeoutMs: 210_000,
+        onLiveStep: (step) => {
+          void publishBureauEvent({
+            actor: "web",
+            kind: step.action === "web_search" ? "search" : step.action === "visit" || step.action === "browser_fetch" ? "page-fetch" : "tool",
+            title: `${step.action}${step.query ? ` · ${step.query}` : step.url ? ` · ${step.url}` : ""}`.slice(0, 120),
+            targetName: step.targetName,
+            provider: step.provider || step.action,
+            why: step.summary?.slice(0, 240),
+            responseSummary: step.summary?.slice(0, 200),
+            level: "info",
+          });
+        },
       });
       logger.info(
         { entityId: input.entityId, status: agentic.status, model: agentic.model, searches: agentic.searches, visits: agentic.visits, findings: agentic.findings.length },

@@ -115,6 +115,37 @@ export async function runBureauAgenticWebPass(input: {
       maxIterations: input.maxIterations ?? resolveResearchDepth().agenticMaxIterations,
       hardTimeoutMs: 210_000,
       shouldCancel: input.shouldCancel,
+      onLiveStep: (step) => {
+        const kind =
+          step.action === "web_search" ? "search"
+          : step.action === "visit" || step.action === "browser_fetch" ? "page-fetch"
+          : step.action === "registry_search" ? "registry"
+          : step.action === "domain_lookup" || step.action === "reverse_whois" ? "domain"
+          : step.action.startsWith("footprint") || step.action === "harvest_domain" ? "tool"
+          : "tool";
+        void publishBureauEvent({
+          actor: step.action === "registry_search" ? "registry" : "web",
+          kind,
+          title:
+            step.action === "web_search" ? `Web search · ${step.query || ""}`.slice(0, 120)
+            : step.action === "visit" ? `Reading page · ${(step.url || "").slice(0, 80)}`
+            : step.action === "browser_fetch" ? `Browser fetch · ${(step.url || "").slice(0, 80)}`
+            : step.action === "registry_search" ? `Registry · ${step.provider || "official"}`
+            : step.action === "domain_lookup" ? `Domain · ${step.query || ""}`
+            : step.action === "harvest_domain" ? `Harvest · ${step.query || ""}`
+            : step.action === "footprint_email" ? `Holehe · ${step.query || ""}`
+            : step.action === "footprint_username" ? `Username footprint · ${step.query || ""}`
+            : step.action === "reverse_whois" ? `Reverse WHOIS · ${step.query || ""}`
+            : step.action,
+          caseId: input.caseId != null ? String(input.caseId) : undefined,
+          targetName: step.targetName,
+          provider: step.provider || step.action,
+          why: step.summary?.slice(0, 240),
+          ask: step.query || step.url,
+          responseSummary: step.summary?.slice(0, 200),
+          level: "info",
+        });
+      },
     });
 
     const contactEvidence = findingsToContactEvidence(agentic.findings);

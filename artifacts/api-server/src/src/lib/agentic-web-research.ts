@@ -1737,6 +1737,16 @@ export async function runAgenticWebResearch(input: {
   hardTimeoutMs?: number;
   /** Operator stop — checked each ReAct step. */
   shouldCancel?: () => boolean | Promise<boolean>;
+  /** Live desk: after each tool step (Reactor + right-hand narration). Never throws into dig. */
+  onLiveStep?: (step: {
+    action: string;
+    query?: string;
+    url?: string;
+    provider?: string;
+    summary?: string;
+    targetName: string;
+    companyName?: string | null;
+  }) => void;
 }): Promise<AgenticWebResearchResult> {
   const name = input.targetName.trim();
   if (name.length < 2) {
@@ -1746,6 +1756,24 @@ export async function runAgenticWebResearch(input: {
   const maxIter = Math.min(input.maxIterations ?? MAX_ITER, 24);
   const hardTimeoutMs = Math.max(30_000, input.hardTimeoutMs ?? 210_000);
   const startedAt = Date.now();
+
+  const emitLive = (step: {
+    action: string;
+    query?: string;
+    url?: string;
+    provider?: string;
+    summary?: string;
+  }) => {
+    try {
+      input.onLiveStep?.({
+        ...step,
+        targetName: name,
+        companyName: input.companyName ?? null,
+      });
+    } catch {
+      /* desk telemetry must not break dig */
+    }
+  };
   let objective = input.objective
     ?? `Find publicly documented contact routes for ${name}${input.companyName ? ` related to ${input.companyName}` : ""}. Be thorough and creative; invent queries and use OSINT tools when useful. Never invent contacts.`;
 
@@ -2087,6 +2115,12 @@ export async function runAgenticWebResearch(input: {
         lastObservation +=
           `\n\n[Note] ${sr.urls.length} URL(s) available. Visit a primary company/contact page when ready — your choice of which.`;
       }
+      emitLive({
+        action: "web_search",
+        query: action.query,
+        provider: "serper",
+        summary: `${sr.urls.length} URLs · ${sr.text.slice(0, 160)}`,
+      });
       continue;
     }
 
@@ -2130,6 +2164,14 @@ export async function runAgenticWebResearch(input: {
           }
         }
       } catch { /* non-fatal */ }
+      emitLive({
+        action: "visit",
+        url: action.url,
+        provider: "page-fetch",
+        summary: extracted.length
+          ? `page read · ${extracted.length} contact fact(s) extracted`
+          : "page read · no contact facts auto-extracted",
+      });
       continue;
     }
 
@@ -2146,6 +2188,12 @@ export async function runAgenticWebResearch(input: {
       } catch (err: any) {
         lastObservation = `DOMAIN_LOOKUP failed: ${err?.message ?? "error"}`;
       }
+      emitLive({
+        action: "domain_lookup",
+        query: action.domain,
+        provider: "rdap",
+        summary: (lastObservation || "").slice(0, 180),
+      });
       continue;
     }
 
@@ -2180,6 +2228,12 @@ export async function runAgenticWebResearch(input: {
       } catch (err: any) {
         lastObservation = `REGISTRY_SEARCH failed (${action.registry}): ${err?.message ?? "error"}`;
       }
+      emitLive({
+        action: "registry_search",
+        query: action.query,
+        provider: action.registry || "registry",
+        summary: (lastObservation || "").slice(0, 180),
+      });
       continue;
     }
 
@@ -2224,6 +2278,12 @@ export async function runAgenticWebResearch(input: {
       } catch (err: any) {
         lastObservation = `HARVEST_DOMAIN failed: ${err?.message ?? "error"}`;
       }
+      emitLive({
+        action: "harvest_domain",
+        query: action.domain,
+        provider: "theharvester",
+        summary: (lastObservation || "").slice(0, 180),
+      });
       continue;
     }
 
@@ -2256,6 +2316,12 @@ export async function runAgenticWebResearch(input: {
       } catch (err: any) {
         lastObservation = `BROWSER_FETCH failed: ${err?.message ?? "error"}`;
       }
+      emitLive({
+        action: "browser_fetch",
+        url: action.url,
+        provider: "scrapfly",
+        summary: (lastObservation || "").slice(0, 180),
+      });
       continue;
     }
 
@@ -2292,6 +2358,12 @@ export async function runAgenticWebResearch(input: {
       } catch (err: any) {
         lastObservation = `REVERSE_WHOIS failed: ${err?.message ?? "error"}`;
       }
+      emitLive({
+        action: "reverse_whois",
+        query: action.query,
+        provider: "whoxy",
+        summary: (lastObservation || "").slice(0, 180),
+      });
       continue;
     }
 
@@ -2327,6 +2399,12 @@ export async function runAgenticWebResearch(input: {
       } catch (err: any) {
         lastObservation = `FOOTPRINT_EMAIL failed: ${err?.message ?? "error"}`;
       }
+      emitLive({
+        action: "footprint_email",
+        query: action.email,
+        provider: "holehe",
+        summary: (lastObservation || "").slice(0, 180),
+      });
       continue;
     }
 
@@ -2369,6 +2447,12 @@ export async function runAgenticWebResearch(input: {
       } catch (err: any) {
         lastObservation = `FOOTPRINT_USERNAME failed: ${err?.message ?? "error"}`;
       }
+      emitLive({
+        action: "footprint_username",
+        query: action.username,
+        provider: "maigret",
+        summary: (lastObservation || "").slice(0, 180),
+      });
       continue;
     }
 

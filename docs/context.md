@@ -6,7 +6,7 @@
 
 ## Prep for next Replit run (2026-08-22)
 
-**Current tip:** `012ae40`+ — Reactor Live Desk screenshots + broader tool narration (footprint/domain/harvest/browser) + provider-specific scene titles.
+**Current tip:** live dig steps publish to Reactor via `onLiveStep` → `publishBureauEvent` → right-hand narration (search/visit/registry/footprint/…). Pull latest main before Replit.
 
 ### Reactor Live Desk (desktop + mobile)
 - **Who narrates:** right-hand (NVIDIA), **not** Boss — Boss stays on orchestration.
