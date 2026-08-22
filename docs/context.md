@@ -3,25 +3,35 @@
 **Repo:** https://github.com/2f22vtd4kr-cloud/BigContacts · **Branch:** `main`  
 **Product:** Apex Atlas research bureau (NOT Steam “Atlas Reactor”, NOT physics ATLAS).
 
-## Prep for next Replit run (2026-08-21)
+## Prep for next Replit run (2026-08-22)
 
-**Current tip:** pull main — FREE_REACT=12; max 4 scripted gap-fills; soft [GAP] hints (no NEXT: playbook orders)  
-**Prior:** `6c71d46` soft done-reject · `cd8d929` force-hops don't skip LLM
+**Current tip:** `d6c3e9a` — pull latest `main` before any Replit boot
 
-### Tip chain (bureau research integrity — recent)
+### Tip chain (bureau research integrity)
 | Commit | Point |
 |--------|--------|
-| `0aebbb4` | Free floor **12**; force-visit only after free steps; stagnation hint |
-| `6c71d46` | done_rejected = soft hint only |
-| `cd8d929` / `63f66c5` | Force-hops never skip llmStep |
-| `f80e257` / `1603c5f` | Boss free tool+query; adaptive assignment |
-| `1fb783a` | Final review Boss → right-hand → Groq |
-| `23d965c` / `a07fbe6` | Serper → Tavily → Exa → DDG |
+| `d6c3e9a` | Runtime llmStep **Groq → Mistral → Gemini → NVIDIA** (parity with api-server) |
+| `f8b3997` | **FINDINGS SO FAR** in step prompt; kill runtime GROK-PARITY playbook |
+| `d3af833` | Stop infinite done-reject for missing related persons |
+| `c72d8c2` | Accept `done` when auto-extracted CONTACT FACTS already exist |
+| `fce2cb1` | One JSON parse retry; trajectory window (last 14) |
+| `ca65bb7` / `222c0c7` | Soft SERP notes; **MAX_SCRIPTED_HOPS ≤ 3** |
+| `0aebbb4` | **FREE_REACT_STEPS = 12**; no force-visit until after free floor |
+| `6c71d46` / `cd8d929` | Soft done-reject; force-hops never skip `llmStep` |
+| `f80e257` / `1603c5f` / `1fb783a` | Boss free tool+query; adaptive + final review Boss → right-hand → Groq |
+| `23d965c` / `a07fbe6` | Agentic SERP: **Serper → Tavily → Exa → DDG** |
 | `02759c3` | Off dead Llama 3.3 |
 
 ### Why single Grok previously beat the bureau
-Force-hops ran before free ReAct and burned the step budget. Models never got enough free turns.
-Fix: first **12** steps are free multi-LLM ReAct; gap-fill only after. Keys (Serper + Groq + Tavily/Exa + browsers) must be live or bureauIntegrity goes critical.
+Force-hops ran **before** free ReAct and burned the step budget; runtime still had GROK-PARITY scripts; empty `done` rejected real auto-extracted facts; related-person gates looped forever.
+**Fix path:** 12 free multi-LLM steps → gap-fill ≤3 → soft hints only → findings bag visible → multi-provider failover.
+
+### Boot gate (do not research until green)
+1. Pull **`d6c3e9a`** or newer
+2. Secrets: `SERPER_API_KEY` + `GROQ_API_KEY` minimum; `TAVILY` + `EXA_1`/`EXA_2` + Gemini + NVIDIA + Mistral preferred
+3. `RESEARCH_DEPTH=standard` (or `deep`) for parity smokes — `fast` under-digs
+4. `GET /api/healthz` → `bureauIntegrity` = **ok**
+5. Only then smoke the same brief you would give plain Grok
 
 ### Philosophy (do not regress)
 - **Final card review = Gemini Boss primary, NVIDIA right-hand secondary, Groq only as capacity fallback.**
