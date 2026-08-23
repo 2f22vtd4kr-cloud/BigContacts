@@ -127,17 +127,28 @@ body {
   isolation: isolate;
   overflow: hidden;
   color: #f7f4ff;
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: 0.02em;
-  text-shadow: none; /* no muddy underlay — type is etched into the surface */
+  text-shadow: none;
   border: none;
   border-radius: 999px;
-  background: #0a0a12; /* deep cool underfill while canvas boots */
+  background: #0a0a12;
   box-shadow:
     0 4px 22px rgba(0, 0, 0, 0.55),
     0 0 28px rgba(140, 80, 255, 0.18),
     inset 0 1px 0 rgba(180, 160, 255, 0.22);
-  transition: transform 140ms cubic-bezier(0.2, 1, 0.32, 1), box-shadow 200ms ease, filter 160ms ease;
+  transition:
+    transform 160ms cubic-bezier(0.2, 1, 0.32, 1),
+    box-shadow 220ms ease,
+    filter 180ms ease;
+}
+.atlas-launch-glow:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 2px #111827,
+    0 0 0 4px rgba(156, 255, 26, 0.75),
+    0 6px 28px rgba(0, 0, 0, 0.55),
+    0 0 32px rgba(140, 80, 255, 0.25);
 }
 
 .atlas-launch-glow canvas {
@@ -556,5 +567,19 @@ button:not(:disabled):active:not(.atlas-launch-glow):not(.atlas-outline-btn):not
   [data-testid="page-reactor"],
   [data-page="reactor"] {
     font-size: 13px;
+  }
+}
+
+
+/* AAA: Launch — reduced motion freezes surface chrome */
+@media (prefers-reduced-motion: reduce) {
+  .atlas-launch-glow,
+  .atlas-launch-glow:hover,
+  .atlas-launch-glow:active {
+    filter: none !important;
+    transition: box-shadow 160ms ease, opacity 160ms ease;
+  }
+  .atlas-launch-glow:active {
+    transform: none;
   }
 }
