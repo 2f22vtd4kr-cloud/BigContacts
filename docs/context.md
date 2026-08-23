@@ -1,84 +1,135 @@
 # Context — living handoff (Apex Atlas / BigContacts)
 
 **Repo:** https://github.com/2f22vtd4kr-cloud/BigContacts · **Branch:** `main`  
+**Current tip:** `c26a664` (Reactor UI) · prior research hang fix `04bfbba`  
 **API build entry:** `artifacts/api-server/src/src` (esbuild). Top-level `src/lib` is a thin scaffold — do not edit it for research logic.  
+**Desk package name:** `apex-finder-local` — build with `pnpm --dir artifacts/apex-finder run build` (not `@workspace/apex-finder`).  
 **Product:** Apex Atlas research bureau (NOT Steam “Atlas Reactor”, NOT physics ATLAS).
 
-## Post-test work
+---
 
-See **docs/POST_TEST_BUG_PLAN.md** — idle+researching contradiction, fixed step counts, collision emails, garbage evidence.
+## Non-negotiable rules (product law)
 
-## Prep for next Replit run (2026-08-22 evening)
+These are operator + agent law. Do not regress.
 
-**Current tip:** `main` — agent dig → card; name-matching email preferred over IR agency; skip parallel digs when card ready.
-
-### Product contract (non-negotiable)
+### What Apex is
 | Rule | Meaning |
 |------|---------|
-| Model owns the dig | `runTargetContactAgent` → `runAgenticWebResearch` (ReAct). Model chooses `web_search` / `visit` / tools / `done`. |
-| Card is the answer | Findings **persist + promote** to `entities.phone` / `email` / `linkedin` / `contactOutcome` in the same pass. |
-| Evidence bag is secondary | `contact_evidence` stores provenance; it must not be the only place good digs land. |
-| No issuer clobber | EDGAR issuer switchboard must **not** overwrite `agentic-web` phones. |
-| Host-scored promote | Prefer `sec.gov` / primary hosts; reject LeadIQ / wrong-company 1-800 / directory trash. |
-| One dig per entity | Target agent runs once early in `enrichEntityFullCircle`; secondary surface is deterministic only. |
+| **AI-driven bureau** | Trained models research like a strong general agent (e.g. “do one cycle of what Apex does”). Tools execute; models decide. |
+| **Goal** | Real, publicly documented contact routes to HNWIs / principals / operators / orgs — with **exact source URLs**. Never invent people, contacts, or relationships. |
+| **Cold start** | Every LLM call is memory-less. **`apex-bureau-orientation.ts`** injects product identity, goal, role, and tool surface into Boss, right-hand, investigators, and dig agents **every time**. |
+| **Boss** | **Gemini only** — plan / assign / final card gate. |
+| **Right-hand** | **NVIDIA** — free step advice + Reactor live narration (not final-card mix-up). |
+| **Dig capacity** | Groq → Mistral → Gemini → NVIDIA failover — **not** the Boss. |
+| **Tools** | Serper/Tavily/Exa, visit, Scrapfly/ZenRows, Holehe, Maigret, Sherlock, harvest, domain/RDAP, registries (EDGAR, CH, …). Model **chooses** when to use them. **No Whoxy.** |
+| **Discovery ≠ dig** | Discovery admits targets. Dig researches a locked person. Discovery must not block forever on pre-run cross-ref theater. |
+| **Card is the answer** | Dig findings **persist + promote** to `entities.phone` / `email` / `linkedin` / `contactOutcome`. Evidence bag is provenance, not the only landing place. |
+| **Fail-closed** | No synthetic contacts. Trash hosts / asset filenames / school mails rejected as validation — not as “training the model how to research.” |
+| **Integrity** | `bureauIntegrity` critical (0 search or 0 dig LLM) → do not pretend research is healthy. |
+
+### What Apex is not
+| Forbidden | Why |
+|-----------|-----|
+| **Force-hop / playbook dig** | `force_*` search machines, fixed “6 dig steps,” GROK-PARITY checklists |
+| **Micro-training models** | Ranked prefer lists, IR-agency penalty tables, “local-part must match name,” hard 1-800 reject playbooks in dig objectives |
+| **Pipeline as the brain** | OCCRP / OpenSky / CH are **tools/sources**, not a substitute for free model research |
+| **Issuer clobber** | EDGAR switchboard must not overwrite `agentic-web` phones |
+| **Auto-pipeline by default** | `ENABLE_AUTO_PIPELINE=false` unless operator explicitly enables |
+| **Five Redis on free Upstash** | Prefer **one** `REDIS_URL_1` — status polls burned 500k commands on empty data |
+| **Frontend on port 8080** | API-only public preview; Frontend collides with API |
+
+### Free research contract
+- **Agentic ReAct:** model chooses every `web_search` / `visit` / OSINT tool / `done`.
+- **Target contact agent:** runs first per person; competing parallel digs **skip** when the card is already filled.
+- **Done:** soft-reject only on pure no-op (0 search, 0 visit, 0 findings). Auto-extracted CONTACT FACTS count.
+- **Adaptive:** Gemini Boss → NVIDIA right-hand → capacity fallback → **stop** (no rules dig ladder).
+- **Det recovery:** only when **all** dig LLMs fail a step.
+- **Golden standard** = evidence quality bar (primary sources, exact URLs) — **not** a mandate to re-add force templates.
+
+### Replit ops (hard-won)
+| Rule | Detail |
+|------|--------|
+| Preview | **`/`** desk from API `dist` — never preview **`/api`** |
+| Workflow | **API Server only** on **8080** for public desk |
+| Build desk | `pnpm --dir artifacts/apex-finder run build` |
+| Build API | `pnpm --dir artifacts/api-server run build` |
+| npm | Prefer **public registry.npmjs.org** first (Replit proxy times out) |
+| After secrets | **Continue** install → build → run — do not stop |
+| After acceptance | **END** agent — no curl loops, no React archaeology |
+| Launch gate | `bureauIntegrity` not critical; Redis connected; stop zombies first |
+
+---
+
+## Since last context update (2026-08-22 evening → 2026-08-23)
+
+### Research / bureau
+| Tip | Change |
+|-----|--------|
+| `ee28ca1` | **Reverted** dig micro-training (name-match email boost, IR-agency penalties, ranked prefer objective) |
+| `717e00d` | **Reverted** hard 1-800 reject playbook — model judgment |
+| `7efcea8`+ | Target contact agent owns dig → card; skip parallel AI OSINT / secondary dig when card ready |
+| `04bfbba` | **Phase 0 hang:** skip OCCRP/OpenSky/CH pre-run when **ledger empty**; 45s timeout per Phase 0 sub-task; OpenSky loads aviation assets first (no global ADS-B if none) |
+| `5bcb494` | School/k12/edu email reject (Nelson High collision); status Redis caches; type floor |
+| `20c850e` | Redis key TTLs (contact cache 90d) for eviction-friendly keys |
+| `eb87ebf` | healthz Redis **PING cache** (30s ok) — stop burning free-tier commands |
+| Live tests | Tang Yan / S Joseph Moore / Klein: free dig **can** run; card quality still the scoreboard (collision/IR/org paths) |
+
+### UI / Reactor
+| Tip | Change |
+|-----|--------|
+| `b1f27ca` | Stop “Window N of 6” / fixed dig step-count language |
+| `cb3c250` / `37153c4` / `b402fbd` | Readable type floor; collapsible desktop nav; full UX audit items |
+| `c26a664` | Scheme labels **13–15px** + scale floor **0.82**; Live Desk **closed when idle**; edge nav **ghost until mouse near left edge** |
+| `51d7beb` / `7c25f6c` | Replit: API-only workflow; no auto-resume when pipeline off; skip Python OSINT unless flagged |
+
+### Docs / plans
+| Doc | Purpose |
+|-----|---------|
+| `docs/POST_TEST_BUG_PLAN.md` | Idle+researching, step counts, collision cards, garbage email |
+| `docs/LIVE_TEST_OBSERVATIONS_2026-08-23.md` | Phase 0 stuck + Reactor UI notes |
+| `docs/UX_FULL_AUDIT.md` / `FINAL_OVERALL_AUDIT.md` | Desk audit |
+| `docs/REPLIT_FROM_ZERO_PROMPT.md` | From-zero agent prompt (keep tip current) |
+
+### Still open (honest)
+| Gap | Notes |
+|-----|--------|
+| **Discovery still pipeline-shaped** | Atlas Phase 1 uses shuffled broad categories + registry batches — not fully Boss-led “choose next HNWI surface like a free agent.” Dig is freer than discovery. |
+| **Card quality** | Name collisions, org IR as “direct,” LinkedIn common-name bind still need identity-bind strength — **without** preference playbooks. |
+| **Desk honesty** | Verify idle vs researching never both show after UI rebuild on live Replit. |
 
 ### Key modules
 | Path | Role |
 |------|------|
-| `artifacts/api-server/src/src/lib/target-contact-agent.ts` | Dig → persist → promote → outcome |
-| `artifacts/api-server/src/src/lib/agentic-web-research.ts` | Free ReAct loop + strong contact objective |
-| `artifacts/api-server/src/src/lib/bureau-contact-persist.ts` | Persist evidence; host-scored promote; rehydrate |
-| `artifacts/api-server/src/src/lib/atlas-orchestrator.ts` | Early **TARGET CONTACT AGENT** stage per entity |
-| `POST /api/entities/rehydrate-contacts` | Promote existing evidence → cards without re-dig |
-| `POST /api/ingest/atlas-stop` + status zombie clear | Stop stuck runs; auto-fail jobs >90m |
+| `target-contact-agent.ts` | Dig → persist → promote → outcome |
+| `agentic-web-research.ts` | Free ReAct + multi-LLM + model-chosen tools |
+| `bureau-contact-persist.ts` | Evidence + promote + rehydrate |
+| `atlas-orchestrator.ts` | Launch phases; target agent early; Phase 0 skip if empty |
+| `apex-bureau-orientation.ts` | Cold-start context every LLM role |
+| `POST /api/entities/rehydrate-contacts` | Evidence → cards without re-dig |
+| `POST /api/ingest/atlas-stop` | Stop stuck runs |
 
-### UI gate (desk must not lie)
-| Tip | Point |
-|-----|--------|
-| `f16d96e` / `f49b7c5` | Honest status live-pool list; graph ErrorBoundary + lazy force-graph; ApiKeyHealth falls back to `/api/healthz`; workspace treats running/paused as LIVE |
-| Network | Never pure black — load error or graph |
-| Header | Overview and ledger show the **same** LIVE / keys state |
-
-### When to spend Replit credits (readiness)
-Do **not** burn a Launch until this is true on the tip you pulled:
-1. Target agent runs **first** per person and writes **card** fields.
-2. Parallel AI OSINT is **skipped** when the agent already filled phone/email.
-3. Promote prefers primary hosts; issuer does not clobber `agentic-web`.
-4. API restarted on that tip (rehydrate route exists; status zombie clear present).
-
-If any of those fail in code review, keep developing offline — do not “test to confirm loss.”
-
-### Operator boot (Replit)
+### Operator boot
 ```bash
-git pull origin main   # 7efcea8 or later
-# restart API Server workflow (required for target agent)
-pnpm --filter @workspace/apex-finder run build   # if UI still on old tip
-# Stop any stuck Atlas job (or wait for zombie auto-clear on status poll)
-# Optional without full Launch:
-curl -sS -X POST "$HOST/api/entities/rehydrate-contacts" \
-  -H "Content-Type: application/json" -d '{"limit":50}'
-# Then one clean Launch
+git pull origin main   # c26a664 or newer
+pnpm --dir artifacts/apex-finder run build
+pnpm --dir artifacts/api-server run build
+# restart API only (8080 serves desk + /api)
+# Stop stuck job → one Launch when integrity ok
 ```
 
-### What “free research” means (non-negotiable)
+### Related
+- Post-test queue: **docs/POST_TEST_BUG_PLAN.md**
+- Architecture: **docs/BUREAU_REACT_ARCHITECTURE.md**
+- Live notes: **docs/LIVE_TEST_OBSERVATIONS_2026-08-23.md**
 
-**DO NOT** micro-train dig models with ranked preference lists, 1-800 rejects, IR-agency penalty tables, or “prefer local-part matches name” heuristics. Trained models research like a general agent: goal + tools + fail-closed on invention. Card promote may rank by **source host quality** (primary vs directory trash) and **fail-closed validation** only — not playbook contact preference trees.
+---
 
-- **Agentic ReAct:** the model chooses every `web_search` / `visit` / `done`. No `force_*` gap-fill machine.
-- **Target contact agent:** for each person, dig is not optional theater — best public contact path lands on the **card**.
-- **Done:** only soft-rejected on pure no-op (zero searches, visits, and findings). Auto-extracted CONTACT FACTS count.
-- **Adaptive director:** Gemini Boss → NVIDIA right-hand → capacity fallback → **stop**. Rules path is stop-only (no dig ladder).
-- **OSINT lanes:** thin **seed** queries only (`"name"`, `"name" "company"`, geo) — not LinkedIn/BBB/Facebook/SEC menus.
-- **Path crawls:** `/contact` `/about` `/team` only — not multilingual path playbooks.
-- **Prompts:** no “Grok is the floor”, no refuse-done, no force-related-people mandates.
-- **Bag attach:** recovered org emails/phones stay visible on company rows (`bag-attach`) — that is UI visibility, not a research script.
-- **Det recovery:** only when **all** chat LLMs fail — one plain name search + optional visit.
-- **API build entry:** `artifacts/api-server/src/src` (esbuild). Outer `src/lib` is scaffold; keep it seed-only so tests do not re-teach old scripts.
 
 ### Tip chain (target agent + card — 2026-08-22 evening)
 | Commit | Point |
 |--------|--------|
-| *(pending push)* | Prefer **person-named** emails on company domains over IR/PR agency; objective steers free dig that way |
+| `ee28ca1` | **Reverted** micro-training (name-match / IR penalty / ranked prefer lists) |
+| `407fb7d` | *(reverted by ee28ca1)* brief preference ranking experiment |
 | `7efcea8` | Single target-agent dig per entity (no double ReAct) |
 | `e1d03ef` | **feat:** `runTargetContactAgent` + early enrich stage + chat-style objective |
 | `d28e597` | Always rehydrate dig evidence onto cards after secondary/enrich |
