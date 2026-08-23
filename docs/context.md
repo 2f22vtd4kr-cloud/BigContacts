@@ -4,6 +4,10 @@
 **API build entry:** `artifacts/api-server/src/src` (esbuild). Top-level `src/lib` is a thin scaffold — do not edit it for research logic.  
 **Product:** Apex Atlas research bureau (NOT Steam “Atlas Reactor”, NOT physics ATLAS).
 
+## Post-test work
+
+See **docs/POST_TEST_BUG_PLAN.md** — idle+researching contradiction, fixed step counts, collision emails, garbage evidence.
+
 ## Prep for next Replit run (2026-08-22 evening)
 
 **Current tip:** `main` — agent dig → card; name-matching email preferred over IR agency; skip parallel digs when card ready.
