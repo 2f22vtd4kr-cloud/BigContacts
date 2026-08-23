@@ -138,8 +138,9 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
 
   // A failed or completed run is never presented as active. Without Atlas
   // state, liveNodes is the only explicit activity signal available.
+  // Job status only — never "Atlas idle" while header shows researching.
   const isLive = atlasState
-    ? atlasState.runStatus === "running"
+    ? atlasState.runStatus === "running" || atlasState.runStatus === "paused"
     : liveNodes.size > 0;
   const [showHistory, setShowHistory] = React.useState(false);
   const [jumpToLiveSignal, setJumpToLiveSignal] = React.useState(0);

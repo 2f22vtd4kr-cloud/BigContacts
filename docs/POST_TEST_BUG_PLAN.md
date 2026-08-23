@@ -117,3 +117,19 @@
 | `b1f27ca` | Live Desk labels — open-ended dig (must rebuild UI on Replit) |
 | `7efcea8` / agent path | Target contact agent → card |
 
+---
+
+## Replit boot killers (2026-08-23)
+
+### BUG-R1 · PORT=8080 shared — frontend steals API port
+**Fix in repo:** `.replit` — Project workflow runs **API Server only**. Frontend optional with `PORT=23695`. API serves `dist/public` at `/`.
+
+### BUG-R2 · Dual `@tanstack/react-query` → blank mobile SPA
+**Fix:** `apex-finder` uses `catalog:` for react-query (same as `@workspace/api-client-react`).
+
+### BUG-R3 · Orphan process EADDRINUSE on 8080
+**Ops:** kill stale node on 8080 before API start. Documented in `docs/REPLIT_FROM_ZERO_PROMPT.md`.
+
+### BUG-R4 · Preview pointed at `/api`
+**Ops:** preview root must be `/`.
+

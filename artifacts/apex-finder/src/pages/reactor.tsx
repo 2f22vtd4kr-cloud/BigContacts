@@ -963,8 +963,12 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
   exhaustedKeys?: string[];
 }) {
   const hasSessions = sessions.length > 0;
-  const atlasRunning = atlasState?.runStatus === "running";
-  const isLive = (liveNodes?.size ?? 0) > 0 || atlasRunning;
+  // Single source of truth: job status. Do not light "live" from stale graph nodes alone.
+  const atlasRunning =
+    atlasState?.runStatus === "running" || atlasState?.runStatus === "paused";
+  const isLive = atlasState
+    ? atlasRunning
+    : (liveNodes?.size ?? 0) > 0;
   const atlasFailed = atlasState?.runStatus === "failed";
   const atlasDone = atlasState?.runStatus === "done";
 

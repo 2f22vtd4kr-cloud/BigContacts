@@ -52,7 +52,7 @@ export function isGenericEmailPrefix(local: string): boolean {
 
 // ── K6: Script-extension and IP-like domain rejection ────────────────────────
 // Prevents JavaScript filenames (e.g. 10.5.13.module.js) parsed as email domains.
-const SCRIPT_EXTENSION_RE = /\.(js|mjs|cjs|jsx|ts|tsx|py|rb|php|sh|css|html|json|wasm|map|lock)$/i;
+const SCRIPT_EXTENSION_RE = /\.(js|mjs|cjs|jsx|ts|tsx|py|rb|php|sh|css|html|json|wasm|map|lock|png|jpe?g|gif|webp|svg|ico|woff2?|ttf|eot|mp4|webm|pdf)$/i;
 const IP_LIKE_DOMAIN_RE   = /^\d+\.\d+/; // matches 10.x, 192.x, etc.
 
 // ── Core blocklists (unchanged) ───────────────────────────────────────────────
@@ -103,7 +103,10 @@ export function isValidPublicEmail(value: string | null | undefined): boolean {
   if (domain.includes("privacy") || domain.includes("proxy")) return false;
   // K6: reject script filenames parsed as email domains
   if (SCRIPT_EXTENSION_RE.test(domain)) return false;
+  if (SCRIPT_EXTENSION_RE.test(local)) return false;
   if (IP_LIKE_DOMAIN_RE.test(domain)) return false;
+  // Asset-style locals (lg_1@4x.png already fails domain; catch lg_1@cdn style)
+  if (/\.(png|jpe?g|gif|webp|svg|css|js)$/i.test(local)) return false;
   return true;
 }
 

@@ -33,14 +33,12 @@ export function useAtlasRun(pollMs: number = POLL_MS) {
         return;
       }
       const data = await readApiJson(res).catch(() => ({} as any));
-      const active = Boolean(
-        data?.active ||
-          data?.status === "running" ||
-          data?.status === "paused" ||
-          data?.runStatus === "running" ||
-          data?.runStatus === "paused" ||
-          data?.scheduler?.active,
-      );
+      const status = String(data?.status ?? data?.runStatus ?? "").toLowerCase();
+      // Single truth: running|paused only. Never treat scheduler or stale active as research.
+      const active =
+        status === "running" ||
+        status === "paused" ||
+        (Boolean(data?.active) && !["done", "completed", "failed", "idle", "stopped", "error"].includes(status) && status !== "");
       setRun({
         active,
         status: data?.status ?? data?.runStatus,
