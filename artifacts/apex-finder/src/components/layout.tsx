@@ -112,7 +112,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           className="ml-3 min-w-0 rounded-md focus-visible:ring-2 focus-visible:ring-primary/50"
         >
           <div className="font-display text-[15px] font-bold tracking-[0.14em] text-foreground">APEX ATLAS</div>
-          <div className="mt-0.5 font-mono text-[9px] uppercase tracking-[0.2em] text-muted-foreground/70">Private workspace</div>
+          <div className="mt-0.5 font-mono text-[11px] uppercase tracking-[0.2em] text-muted-foreground/70">Private workspace</div>
         </Link>
         {mobile && (
           <button
@@ -127,11 +127,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
       </div>
 
       <nav className="atlas-scroll flex-1 overflow-y-auto px-3 py-6">
-        <div className="mb-2 px-3 font-mono text-[9px] uppercase tracking-[0.2em] text-muted-foreground/50">Research desk</div>
+        <div className="mb-2 px-3 font-mono text-[11px] uppercase tracking-[0.2em] text-muted-foreground/50">Research desk</div>
         <div className="space-y-1">
           {mainNav.map((item) => <NavLink key={item.href} item={item} />)}
         </div>
-        <div className="mt-7 mb-2 px-3 font-mono text-[9px] uppercase tracking-[0.2em] text-muted-foreground/50">Reference</div>
+        <div className="mt-7 mb-2 px-3 font-mono text-[11px] uppercase tracking-[0.2em] text-muted-foreground/50">Reference</div>
         <div className="space-y-1">
           {referenceNav.map((item) => <NavLink key={item.href} item={item} />)}
         </div>
@@ -139,7 +139,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           onClick={() => setToolsOpen((open) => !open)}
           aria-expanded={toolsOpen}
           data-testid="button-toggle-tools"
-          className="mt-7 flex w-full items-center justify-between rounded-lg px-3 py-2 text-left font-mono text-[9px] uppercase tracking-[0.2em] text-muted-foreground/50 transition-colors hover:bg-muted/50 hover:text-muted-foreground"
+          className="mt-7 flex w-full items-center justify-between rounded-lg px-3 py-2 text-left font-mono text-[11px] uppercase tracking-[0.2em] text-muted-foreground/50 transition-colors hover:bg-muted/50 hover:text-muted-foreground"
         >
           <span>Workspace settings</span>
           {toolsOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
@@ -273,7 +273,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
               <Crosshair className="h-3.5 w-3.5" />
             </Link>
             <div className="ml-2.5 hidden min-w-0 md:block">
-              <div className="font-mono text-[9px] uppercase tracking-[0.2em] text-stone-500">
+              <div className="font-mono text-[11px] uppercase tracking-[0.2em] text-stone-500">
                 Apex Atlas · Research desk
               </div>
               <div className="mt-0.5 truncate text-[13px] font-semibold tracking-tight text-stone-100">

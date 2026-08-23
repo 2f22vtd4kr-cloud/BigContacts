@@ -200,7 +200,7 @@ function ResultCard({ result }: { result: SearchResult }) {
           )} title="Bayesian score">
             {score.toFixed(0)}
           </div>
-          <span className={cn("text-[9px] font-mono rounded border px-1.5 py-0.5 shrink-0 uppercase tracking-[0.1em]", confColor)} title="REACH confidence band">
+          <span className={cn("text-[11px] font-mono rounded border px-1.5 py-0.5 shrink-0 uppercase tracking-[0.1em]", confColor)} title="REACH confidence band">
             {result.confidence === "high" ? "Strong match" : result.confidence === "medium" ? "Partial match" : result.confidence === "low" ? "Weak match" : String(result.confidence)}
           </span>
         </div>

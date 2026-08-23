@@ -76,7 +76,7 @@ function ReachChip({ kind, label, href, title }: { kind: "personal" | "org" | "s
   const tag = kind === "personal" ? "Personal" : kind === "org" ? "Company" : "Social";
   const body = (
     <span className={cn("inline-flex max-w-full items-center gap-1 rounded border px-1.5 py-0.5 font-mono text-[10px] leading-tight", styles)} title={title}>
-      <span className="shrink-0 text-[8px] uppercase tracking-wider opacity-70">{tag}</span>
+      <span className="shrink-0 text-[11px] uppercase tracking-wider opacity-70">{tag}</span>
       <span className="truncate">{label}</span>
     </span>
   );
@@ -190,7 +190,7 @@ function RerunButton({ entityId }: { entityId: number }) {
       className={cn("flex flex-col items-center justify-center gap-1.5 py-2 border rounded transition-colors disabled:opacity-60", cls)}
     >
       {icon}
-      <span className="text-[9px] font-mono uppercase">{label}</span>
+      <span className="text-[11px] font-mono uppercase">{label}</span>
     </button>
   );
 }
@@ -269,7 +269,7 @@ function MobileEntityCard({
           )}
           <div className="flex flex-wrap items-center gap-1.5">
             <span
-              className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[9px] font-mono font-bold"
+              className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-mono font-bold"
               style={{ color: typeColor, backgroundColor: typeColor + "18" }}
             >
               <EntityTypeMark type={entity.type} compact />
@@ -277,7 +277,7 @@ function MobileEntityCard({
             {organizationLike ? (
               <span
                 className={cn(
-                  "inline-flex items-center rounded-md border px-1.5 py-0.5 text-[9px] font-mono font-bold uppercase tracking-wide",
+                  "inline-flex items-center rounded-md border px-1.5 py-0.5 text-[11px] font-mono font-bold uppercase tracking-wide",
                   entity.contactOutcome === "organization_contact"
                     ? "text-[#d4ff8a] border-[#9CFF1A]/30 bg-[#9CFF1A]/10"
                     : "text-muted-foreground border-[#9CFF1A]/12 bg-muted/30",
@@ -302,27 +302,27 @@ function MobileEntityCard({
         <div className="px-4 pb-4 pt-1 animate-in slide-in-from-top-2 fade-in duration-200">
            <div className="mb-4 grid gap-2">
              <div className="rounded-lg border border-primary/15 bg-primary/[0.035] px-3 py-2.5">
-                <div className="text-[9px] font-mono uppercase tracking-wider text-primary/75">What they do</div>
+                <div className="text-[11px] font-mono uppercase tracking-wider text-primary/75">What they do</div>
                 <p className="mt-1 text-xs leading-5 text-foreground/80">{workSummary ?? "No documented role or activity is recorded yet."}</p>
              </div>
              <div className="rounded-lg border border-secondary/15 bg-secondary/[0.035] px-3 py-2.5">
-                <div className="text-[9px] font-mono uppercase tracking-wider text-secondary/80">What we found</div>
+                <div className="text-[11px] font-mono uppercase tracking-wider text-secondary/80">What we found</div>
                 <p className="mt-1 text-xs leading-5 text-foreground/80">{findingsSummary}</p>
              </div>
            </div>
           <div className="grid grid-cols-2 gap-3 mb-3">
             <div>
-              <div className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider mb-0.5">Nationality</div>
+              <div className="text-[11px] font-mono text-muted-foreground uppercase tracking-wider mb-0.5">Nationality</div>
               <div className="text-xs"><NationalityCell nationality={entity.nationality} /></div>
             </div>
             <div>
-              <div className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider mb-0.5">{entityMeta(entity.type).metricLabel}</div>
+              <div className="text-[11px] font-mono text-muted-foreground uppercase tracking-wider mb-0.5">{entityMeta(entity.type).metricLabel}</div>
               <div className="text-xs text-foreground font-mono">{entity.type === "HNWI" && entity.estimatedNetWorth ? formatCurrency(entity.estimatedNetWorth) : entityMetric(entity)}</div>
             </div>
           </div>
           
           <div className="mb-3">
-             <div className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider mb-0.5">
+             <div className="text-[11px] font-mono text-muted-foreground uppercase tracking-wider mb-0.5">
                {organizationLike ? "Organization route" : "Contact"}
              </div>
             <div className="text-xs text-foreground font-mono truncate">
@@ -335,7 +335,7 @@ function MobileEntityCard({
              </div>
             {entity.contactOutcome && OUTCOME_BADGES[entity.contactOutcome] && (
               <span
-                className="inline-block text-[9px] font-mono px-1.5 py-0.5 rounded mt-0.5"
+                className="inline-block text-[11px] font-mono px-1.5 py-0.5 rounded mt-0.5"
                 style={{
                   color: OUTCOME_BADGES[entity.contactOutcome].color,
                   background: OUTCOME_BADGES[entity.contactOutcome].color + "18",
@@ -348,10 +348,10 @@ function MobileEntityCard({
 
           {registries.length > 0 && (
             <div className="mb-4">
-              <div className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider mb-1.5">Source Registries</div>
+              <div className="text-[11px] font-mono text-muted-foreground uppercase tracking-wider mb-1.5">Source Registries</div>
               <div className="flex flex-wrap gap-1">
                 {registries.map((r) => (
-                  <span key={r} className="text-[9px] font-mono px-1.5 py-0.5 bg-muted border border-[#9CFF1A]/12 rounded text-muted-foreground">{r}</span>
+                  <span key={r} className="text-[11px] font-mono px-1.5 py-0.5 bg-muted border border-[#9CFF1A]/12 rounded text-muted-foreground">{r}</span>
                 ))}
               </div>
             </div>
@@ -363,14 +363,14 @@ function MobileEntityCard({
               className="flex flex-col items-center justify-center gap-1.5 py-2 bg-muted border border-[#9CFF1A]/12 rounded text-muted-foreground hover:text-primary transition-colors"
             >
               <IdCard className="w-3.5 h-3.5" />
-              <span className="text-[9px] font-mono uppercase">Profile</span>
+              <span className="text-[11px] font-mono uppercase">Profile</span>
             </Link>
             <Link
               href={`/network?entity=${entity.id}`}
               className="flex flex-col items-center justify-center gap-1.5 py-2 bg-muted border border-[#9CFF1A]/12 rounded text-muted-foreground hover:text-primary transition-colors"
             >
               <Network className="w-3.5 h-3.5" />
-              <span className="text-[9px] font-mono uppercase">Network</span>
+              <span className="text-[11px] font-mono uppercase">Network</span>
             </Link>
             <RerunButton entityId={entity.id} />
             <button
@@ -383,7 +383,7 @@ function MobileEntityCard({
               aria-label={`Delete ${formatEntityName(entity.name)} from ledger`}
             >
               <Trash2 className="h-3.5 w-3.5" />
-              <span className="text-[9px] font-mono uppercase">Delete</span>
+              <span className="text-[11px] font-mono uppercase">Delete</span>
             </button>
           </div>
           <div className="mt-2 flex gap-2">
@@ -960,7 +960,7 @@ export default function EntityLedger() {
 
         {/* Contact richness + confidence + hot filter row */}
         <div className="flex items-center gap-1.5 px-4 py-2 border-b border-[#9CFF1A]/08 bg-card/10 flex-shrink-0 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
-          <span className="text-[9px] font-mono text-muted-foreground uppercase tracking-widest shrink-0">Route</span>
+          <span className="text-[11px] font-mono text-muted-foreground uppercase tracking-widest shrink-0">Route</span>
           {/* "All" pill — resets richness filter */}
           <button
             onClick={() => setContactRichness(null)}
@@ -988,7 +988,7 @@ export default function EntityLedger() {
             </button>
           ))}
           <div className="w-px h-4 bg-border/60 mx-1 shrink-0" />
-          <span className="text-[9px] font-mono text-muted-foreground uppercase tracking-widest shrink-0">Quality ≥</span>
+          <span className="text-[11px] font-mono text-muted-foreground uppercase tracking-widest shrink-0">Quality ≥</span>
           {CONFIDENCE_STEPS.map((step) => (
             <button
               key={step}
@@ -1127,26 +1127,26 @@ export default function EntityLedger() {
             <div className="flex-1" />
             <button
               onClick={handleBulkExportCsv}
-              className="atlas-pressable flex items-center gap-1 rounded border border-[#9CFF1A]/20 px-2 py-1 font-mono text-[9px] uppercase tracking-wider text-stone-400 hover:text-stone-100"
+              className="atlas-pressable flex items-center gap-1 rounded border border-[#9CFF1A]/20 px-2 py-1 font-mono text-[11px] uppercase tracking-wider text-stone-400 hover:text-stone-100"
             >
               <Download className="h-2.5 w-2.5" /> CSV
             </button>
             <button
               onClick={handleBulkMcts}
-              className="atlas-pressable flex items-center gap-1 rounded border border-[#9CFF1A]/40 bg-[#9CFF1A]/15 px-2 py-1 font-mono text-[9px] uppercase tracking-wider text-[#9CFF1A] hover:bg-[#9CFF1A]/25"
+              className="atlas-pressable flex items-center gap-1 rounded border border-[#9CFF1A]/40 bg-[#9CFF1A]/15 px-2 py-1 font-mono text-[11px] uppercase tracking-wider text-[#9CFF1A] hover:bg-[#9CFF1A]/25"
             >
               <TargetIcon className="h-2.5 w-2.5" /> Research
             </button>
             <button
               onClick={() => void handleBulkDelete()}
               disabled={bulkBusy}
-              className="atlas-pressable flex items-center gap-1 rounded border border-rose-400/40 bg-rose-500/10 px-2 py-1 font-mono text-[9px] uppercase tracking-wider text-rose-200 hover:bg-rose-500/20 disabled:opacity-50"
+              className="atlas-pressable flex items-center gap-1 rounded border border-rose-400/40 bg-rose-500/10 px-2 py-1 font-mono text-[11px] uppercase tracking-wider text-rose-200 hover:bg-rose-500/20 disabled:opacity-50"
             >
               <Trash2 className="h-2.5 w-2.5" /> {bulkBusy ? "Deleting…" : "Delete"}
             </button>
             <button
               onClick={() => setSelectedIds(new Set())}
-              className="ml-1 font-mono text-[9px] uppercase tracking-wider text-stone-500 hover:text-stone-200"
+              className="ml-1 font-mono text-[11px] uppercase tracking-wider text-stone-500 hover:text-stone-200"
             >
               <X className="h-3 w-3" />
             </button>
@@ -1232,7 +1232,7 @@ export default function EntityLedger() {
                     <td className="px-4 py-3">
                       {entity.type === "Corporation" || entity.type === "Corp" || entity.type === "Trust" ? (
                         <span
-                          className="text-[9px] font-mono font-bold uppercase tracking-wide px-1.5 py-1 rounded border text-[#d4ff8a] border-[#9CFF1A]/30 bg-[#9CFF1A]/10 whitespace-nowrap"
+                          className="text-[11px] font-mono font-bold uppercase tracking-wide px-1.5 py-1 rounded border text-[#d4ff8a] border-[#9CFF1A]/30 bg-[#9CFF1A]/10 whitespace-nowrap"
                           title="Organization evidence — this is not a personal contact confidence score"
                         >
                           Org route
@@ -1253,7 +1253,7 @@ export default function EntityLedger() {
                         })()}
                         {entity.contactOutcome && OUTCOME_BADGES[entity.contactOutcome] && (
                           <span
-                            className="text-[9px] font-mono px-1.5 py-0.5 rounded w-max"
+                            className="text-[11px] font-mono px-1.5 py-0.5 rounded w-max"
                             style={{
                               color: OUTCOME_BADGES[entity.contactOutcome].color,
                               background: OUTCOME_BADGES[entity.contactOutcome].color + "18",
@@ -1470,7 +1470,7 @@ export default function EntityLedger() {
           </div>
           {/* Contact richness + confidence chips */}
           <div className="flex items-center gap-2 px-3 pb-2 pr-6 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
-            <span className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground shrink-0">
+            <span className="text-[11px] font-mono uppercase tracking-widest text-muted-foreground shrink-0">
               Route
             </span>
             {RICHNESS_TIERS.map(({ value, label, color }) => (

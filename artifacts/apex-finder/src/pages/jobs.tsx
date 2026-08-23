@@ -94,7 +94,7 @@ function IngestorCard({ job, onTrigger }: { job: Job; onTrigger: (id: string) =>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 min-w-0">
             <span className="text-xs font-mono font-bold text-foreground truncate">{job.label}</span>
-            <span className="text-[9px] font-mono uppercase tracking-[0.1em] text-muted-foreground/70 border border-[#9CFF1A]/12 bg-background/40 px-1.5 py-0.5 rounded-md hidden sm:block whitespace-nowrap">{job.category}</span>
+            <span className="text-[11px] font-mono uppercase tracking-[0.1em] text-muted-foreground/70 border border-[#9CFF1A]/12 bg-background/40 px-1.5 py-0.5 rounded-md hidden sm:block whitespace-nowrap">{job.category}</span>
           </div>
           <div className="text-[10px] font-mono text-muted-foreground truncate mt-0.5">{job.description}</div>
         </div>
@@ -245,7 +245,7 @@ function PersonaLoopTab() {
           ].map(({ label, val, color }) => (
             <div key={label} className="p-3 rounded-xl border border-[#9CFF1A]/12 bg-card/30 text-center">
               <div className={cn("text-xl font-bold font-mono", color)}>{val.toLocaleString()}</div>
-              <div className="text-[9px] font-mono text-muted-foreground uppercase tracking-widest mt-1">{label}</div>
+              <div className="text-[11px] font-mono text-muted-foreground uppercase tracking-widest mt-1">{label}</div>
             </div>
           ))}
         </div>
@@ -270,9 +270,9 @@ function PersonaLoopTab() {
           <div key={log.id} className="p-3 rounded-lg border border-[#9CFF1A]/12 bg-card/30" data-testid={`card-suggestion-${log.id}`}>
             <div className="flex items-start justify-between gap-2">
               <div className="flex items-center gap-2 flex-wrap min-w-0">
-                <span className="text-[9px] font-mono uppercase tracking-widest text-[#9CFF1A] border border-primary/30 bg-primary/5 px-1.5 py-0.5 rounded">{personaLabel(log.persona)}</span>
+                <span className="text-[11px] font-mono uppercase tracking-widest text-[#9CFF1A] border border-primary/30 bg-primary/5 px-1.5 py-0.5 rounded">{personaLabel(log.persona)}</span>
                 <span className={cn(
-                  "inline-flex items-center rounded-md border px-1.5 py-0.5 text-[9px] font-mono font-medium",
+                  "inline-flex items-center rounded-md border px-1.5 py-0.5 text-[11px] font-mono font-medium",
                   log.priority === "HIGH" ? "text-red-300 border-red-400/30 bg-red-400/10" :
                   log.priority === "MEDIUM" ? "text-[#d4ff8a] border-[#9CFF1A]/30 bg-[#9CFF1A]/10" :
                   "text-muted-foreground border-[#9CFF1A]/12 bg-muted/20"
@@ -284,10 +284,10 @@ function PersonaLoopTab() {
               <div className="flex items-center gap-1 shrink-0">
                 <button onClick={() => fetch(`${BASE}/api/improve/logs/${log.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "applied" }) }).then(() => setLogs(prev => prev.map(l => l.id === log.id ? { ...l, status: "applied" } : l)))}
                   data-testid={`button-apply-suggestion-${log.id}`}
-                  className="text-[9px] font-mono text-[#b8ff4d]/60 hover:text-[#b8ff4d] border border-[#9CFF1A]/20 px-1.5 py-0.5 rounded transition-colors">Apply</button>
+                  className="text-[11px] font-mono text-[#b8ff4d]/60 hover:text-[#b8ff4d] border border-[#9CFF1A]/20 px-1.5 py-0.5 rounded transition-colors">Apply</button>
                 <button onClick={() => fetch(`${BASE}/api/improve/logs/${log.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "dismissed" }) }).then(() => setLogs(prev => prev.filter(l => l.id !== log.id)))}
                   data-testid={`button-dismiss-suggestion-${log.id}`}
-                  className="text-[9px] font-mono text-muted-foreground/40 hover:text-muted-foreground border border-[#9CFF1A]/10 px-1.5 py-0.5 rounded transition-colors">Dismiss</button>
+                  className="text-[11px] font-mono text-muted-foreground/40 hover:text-muted-foreground border border-[#9CFF1A]/10 px-1.5 py-0.5 rounded transition-colors">Dismiss</button>
               </div>
             </div>
             <p className="text-[11px] font-mono text-foreground/80 mt-1.5 leading-relaxed">{log.suggestion}</p>
@@ -374,7 +374,7 @@ function DuplicatesTab() {
                 )}
               </div>
               <div className="flex items-center gap-2 shrink-0">
-                <span className="text-[9px] font-mono text-[#9CFF1A] border border-primary/30 px-1.5 py-0.5 rounded">{Math.round((pair.similarity ?? 0) * 100)}%</span>
+                <span className="text-[11px] font-mono text-[#9CFF1A] border border-primary/30 px-1.5 py-0.5 rounded">{Math.round((pair.similarity ?? 0) * 100)}%</span>
                 {expanded === key ? <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" /> : <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />}
               </div>
             </button>
@@ -383,9 +383,9 @@ function DuplicatesTab() {
                 <div className="grid sm:grid-cols-2 gap-2">
                   {[{ entity: primary, label: "KEEP" }, { entity: secondary, label: "MERGE INTO (PRIMARY)" }].map(({ entity, label }) => (
                     <div key={entity.id} className={cn("p-3 rounded border text-xs font-mono space-y-1", label === "KEEP" ? "border-primary/30 bg-primary/5" : "border-[#9CFF1A]/12 bg-card/30")}>
-                      <div className="text-[9px] uppercase tracking-widest text-muted-foreground/50">{label}</div>
+                      <div className="text-[11px] uppercase tracking-widest text-muted-foreground/50">{label}</div>
                       <div className="font-bold text-foreground">{entity.name}</div>
-                      <div className="text-muted-foreground uppercase text-[9px]">{entity.entityType}</div>
+                      <div className="text-muted-foreground uppercase text-[11px]">{entity.entityType}</div>
                       {entity.bayesianScore != null && <div className="text-[#9CFF1A]">Signal: {((entity.bayesianScore ?? 0) * 100).toFixed(0)}</div>}
                     </div>
                   ))}

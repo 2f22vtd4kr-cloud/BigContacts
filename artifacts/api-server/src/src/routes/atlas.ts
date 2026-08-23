@@ -204,7 +204,15 @@ function isFreshAtlasTerminal(job: { status?: string; finishedAt?: string; start
 }
 
 // ── GET /ingest/atlas-status ──────────────────────────────────────────────────
+// Desk polls this often; short in-process cache cuts Redis GETs without lying for long.
+let _atlasStatusCache: { at: number; body: unknown } | null = null;
+const ATLAS_STATUS_CACHE_MS = 1_500;
+
 router.get("/ingest/atlas-status", async (_req: Request, res: Response): Promise<void> => {
+  if (_atlasStatusCache && Date.now() - _atlasStatusCache.at < ATLAS_STATUS_CACHE_MS) {
+    res.json(_atlasStatusCache.body);
+    return;
+  }
   const scheduler = await getAutoPipelineScheduler();
   const jobId = await getActiveJob("atlas-run");
   if (!jobId) {
@@ -242,7 +250,7 @@ router.get("/ingest/atlas-status", async (_req: Request, res: Response): Promise
   const phaseJJobId = await getActiveJob("phase-j-pass");
   const phaseJ = phaseJJobId ? await getJob(phaseJJobId) : null;
   const log = await getJobLog(jobId);
-  res.json({
+  const body = {
     ...job,
     jobId,
     active: true,
@@ -259,7 +267,9 @@ router.get("/ingest/atlas-status", async (_req: Request, res: Response): Promise
           message: phaseJ.message,
         }
       : null,
-  });
+  };
+  _atlasStatusCache = { at: Date.now(), body };
+  res.json(body);
 });
 
 export default router;

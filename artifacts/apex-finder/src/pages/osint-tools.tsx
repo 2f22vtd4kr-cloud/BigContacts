@@ -221,7 +221,7 @@ export default function OsintToolsDirectory() {
               key={c.name}
               onClick={() => handleCategory(category === c.name ? "" : c.name)}
               className={cn(
-                "min-h-[32px] text-[9px] font-mono uppercase tracking-widest px-2 py-1 rounded border transition-colors",
+                "min-h-[32px] text-[11px] font-mono uppercase tracking-widest px-2 py-1 rounded border transition-colors",
                 category === c.name
                   ? categoryColor(c.name)
                   : "text-muted-foreground border-border hover:border-lime-400/30 hover:text-lime-400"
@@ -233,7 +233,7 @@ export default function OsintToolsDirectory() {
           {category && (
             <button
               onClick={() => handleCategory("")}
-              className="text-[9px] font-mono text-red-400 hover:text-red-300 transition-colors px-1"
+              className="text-[11px] font-mono text-red-400 hover:text-red-300 transition-colors px-1"
             >
               <><X className="h-3 w-3" /> clear</>
             </button>
@@ -333,7 +333,7 @@ function ToolCard({ tool }: { tool: OsintTool }) {
       {/* Category badge */}
       <div className="flex items-center justify-between gap-2">
         <span className={cn(
-          "text-[9px] font-mono uppercase tracking-widest px-1.5 py-0.5 rounded border",
+          "text-[11px] font-mono uppercase tracking-widest px-1.5 py-0.5 rounded border",
           categoryColor(tool.category)
         )}>
           {categoryLabel(tool.category)}

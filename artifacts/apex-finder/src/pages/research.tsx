@@ -379,7 +379,7 @@ function PathNodeContact({ node }: { node: PathStep }) {
     <div className="mt-2 pt-2 border-t border-current/20 flex flex-col gap-1.5">
       {node.contactConfidence != null && node.contactConfidence > 0 && (
         <div className="flex items-center gap-2">
-          <span className="text-[8px] font-mono uppercase tracking-[0.12em] opacity-60">REACH</span>
+          <span className="text-[11px] font-mono uppercase tracking-[0.12em] opacity-60">REACH</span>
           <div className="h-1 flex-1 rounded-full bg-current/10 overflow-hidden">
             <div
               className="h-full rounded-full bg-current/60"
@@ -402,7 +402,7 @@ function PathNodeContact({ node }: { node: PathStep }) {
             title={isOrg ? `REACH · org — ${email}` : `REACH · personal — ${email}`}
             onClick={(e) => e.stopPropagation()}
           >
-            <span className="text-[8px] uppercase tracking-wider opacity-70 shrink-0">{isOrg ? "ORG" : "P"}</span>
+            <span className="text-[11px] uppercase tracking-wider opacity-70 shrink-0">{isOrg ? "ORG" : "P"}</span>
             <span className="truncate max-w-[140px]">{email}</span>
           </a>
         )}
@@ -413,7 +413,7 @@ function PathNodeContact({ node }: { node: PathStep }) {
             title={`REACH · personal — ${node.contactPhone}`}
             onClick={(e) => e.stopPropagation()}
           >
-            <span className="text-[8px] uppercase tracking-wider opacity-70 shrink-0">P</span>
+            <span className="text-[11px] uppercase tracking-wider opacity-70 shrink-0">P</span>
             <span>{node.contactPhone}</span>
           </a>
         )}

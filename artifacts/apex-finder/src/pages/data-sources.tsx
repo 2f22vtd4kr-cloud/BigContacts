@@ -508,7 +508,7 @@ function FunnelPanel() {
           <span className="text-sm font-semibold font-mono uppercase tracking-widest text-primary">
             Contact Discovery Funnel
           </span>
-          <span className="text-[9px] font-mono bg-primary/10 text-primary px-1.5 py-0.5 rounded uppercase tracking-wider">J0</span>
+          <span className="text-[11px] font-mono bg-primary/10 text-primary px-1.5 py-0.5 rounded uppercase tracking-wider">J0</span>
         </div>
         <button
           onClick={load}
@@ -561,7 +561,7 @@ function FunnelPanel() {
                       <span className={`text-[10px] font-mono font-semibold ${meta?.color ?? "text-muted-foreground"}`}>
                         {meta?.label ?? key}
                       </span>
-                      <span className="text-[9px] font-mono text-muted-foreground hidden md:inline">
+                      <span className="text-[11px] font-mono text-muted-foreground hidden md:inline">
                         — {meta?.description}
                       </span>
                     </div>
@@ -598,7 +598,7 @@ function FunnelPanel() {
                       <div className="text-[10px] font-mono text-[#9CFF1A]">
                         {typeTotal > 0 ? ((social / typeTotal) * 100).toFixed(1) : "0.0"}% social
                       </div>
-                      <div className="text-[9px] font-mono text-muted-foreground">{typeTotal.toLocaleString()} total</div>
+                      <div className="text-[11px] font-mono text-muted-foreground">{typeTotal.toLocaleString()} total</div>
                     </div>
                   );
                 })}
@@ -607,7 +607,7 @@ function FunnelPanel() {
           )}
 
           {data.note && (
-            <p className="text-[9px] font-mono text-muted-foreground/60 border-t border-border/30 pt-2">{data.note}</p>
+            <p className="text-[11px] font-mono text-muted-foreground/60 border-t border-border/30 pt-2">{data.note}</p>
           )}
         </>
       )}
@@ -636,7 +636,7 @@ function RegistryMatrixPanel() {
         <span className="text-sm font-semibold font-mono uppercase tracking-widest text-lime-400">
           Registry Coverage Matrix
         </span>
-        <span className="text-[9px] font-mono bg-lime-500/10 text-lime-400 px-1.5 py-0.5 rounded uppercase tracking-wider">J2</span>
+        <span className="text-[11px] font-mono bg-lime-500/10 text-lime-400 px-1.5 py-0.5 rounded uppercase tracking-wider">J2</span>
       </div>
       {!loading && sources.length > 0 && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 mb-3">
@@ -668,8 +668,8 @@ function RegistryMatrixPanel() {
           ].map((item) => (
             <div key={item.label} className="rounded-lg border border-[#9CFF1A]/10 bg-muted/10 px-2.5 py-2">
               <div className={`text-lg font-bold font-mono ${item.color}`}>{item.value}</div>
-              <div className="text-[9px] font-mono uppercase tracking-wider text-foreground">{item.label}</div>
-              <div className="text-[9px] font-mono text-muted-foreground">{item.detail}</div>
+              <div className="text-[11px] font-mono uppercase tracking-wider text-foreground">{item.label}</div>
+              <div className="text-[11px] font-mono text-muted-foreground">{item.detail}</div>
             </div>
           ))}
         </div>
@@ -821,7 +821,7 @@ function IdentityResolutionPanel() {
             <div className={`text-lg font-bold font-mono ${item.color}`}>
               {typeof item.value === "number" ? item.value.toLocaleString() : item.value}
             </div>
-            <div className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider">{item.label}</div>
+            <div className="text-[11px] font-mono text-muted-foreground uppercase tracking-wider">{item.label}</div>
           </div>
         ))}
       </div>
@@ -912,7 +912,7 @@ function ToolStatusBadge({ ready, label }: { ready: boolean; label?: string }) {
 function UsageBadge({ usage }: { usage: "auto" | "on-demand" }) {
   return (
     <span
-      className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-mono uppercase tracking-wider ${
+      className={`inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-mono uppercase tracking-wider ${
         usage === "auto"
           ? "bg-[#9CFF1A]/10 text-[#9CFF1A]"
           : "bg-muted/60 text-muted-foreground"
@@ -971,7 +971,7 @@ function PythonToolsPanel() {
           <span className="text-sm font-semibold font-mono uppercase tracking-widest text-lime-400">
             Python OSINT Tools
           </span>
-          <span className="text-[9px] font-mono bg-lime-500/10 text-lime-400 px-1.5 py-0.5 rounded uppercase tracking-wider">Phase L</span>
+          <span className="text-[11px] font-mono bg-lime-500/10 text-lime-400 px-1.5 py-0.5 rounded uppercase tracking-wider">Phase L</span>
         </div>
         <button
           onClick={load}
@@ -1032,13 +1032,13 @@ function PythonToolsPanel() {
               </div>
               <p className="text-[10px] font-mono text-muted-foreground leading-relaxed">{GLINER_META.desc}</p>
               <div className="flex flex-wrap items-center gap-3 pt-0.5">
-                <span className="text-[9px] font-mono text-[#9CFF1A]/80">{GLINER_META.usageNote}</span>
-                <span className="text-[9px] font-mono text-muted-foreground/60">{GLINER_META.fallback}</span>
+                <span className="text-[11px] font-mono text-[#9CFF1A]/80">{GLINER_META.usageNote}</span>
+                <span className="text-[11px] font-mono text-muted-foreground/60">{GLINER_META.fallback}</span>
               </div>
               {checked && !status?.gliner?.available && (
                 <div className="mt-1.5 flex items-center gap-1.5">
-                  <span className="text-[9px] font-mono text-muted-foreground">Start:</span>
-                  <code className="text-[9px] font-mono text-[#9CFF1A]/90 bg-muted/60 px-1.5 py-0.5 rounded select-all">
+                  <span className="text-[11px] font-mono text-muted-foreground">Start:</span>
+                  <code className="text-[11px] font-mono text-[#9CFF1A]/90 bg-muted/60 px-1.5 py-0.5 rounded select-all">
                     {GLINER_META.startCommand}
                   </code>
                 </div>
@@ -1060,12 +1060,12 @@ function PythonToolsPanel() {
                     <span className="text-xs font-semibold text-foreground">{meta.label}</span>
                     {checked && <ToolStatusBadge ready={ready} />}
                     <UsageBadge usage={meta.usage} />
-                    <span className="text-[9px] font-mono text-muted-foreground/60">{meta.input}</span>
+                    <span className="text-[11px] font-mono text-muted-foreground/60">{meta.input}</span>
                   </div>
                   <p className="text-[10px] font-mono text-muted-foreground leading-relaxed">{meta.desc}</p>
                   <div className="flex flex-wrap items-center gap-3 pt-0.5">
-                    <span className="text-[9px] font-mono text-muted-foreground/70">{meta.usageNote}</span>
-                    <code className="text-[9px] font-mono text-muted-foreground/50 bg-muted/40 px-1.5 py-0.5 rounded">
+                    <span className="text-[11px] font-mono text-muted-foreground/70">{meta.usageNote}</span>
+                    <code className="text-[11px] font-mono text-muted-foreground/50 bg-muted/40 px-1.5 py-0.5 rounded">
                       {meta.endpoint}
                     </code>
                   </div>
@@ -1078,7 +1078,7 @@ function PythonToolsPanel() {
       </div>
 
       {!checked && (
-        <p className="text-[9px] font-mono text-muted-foreground/50">
+        <p className="text-[11px] font-mono text-muted-foreground/50">
           Availability check runs on load — click refresh to re-check after installing.
         </p>
       )}
@@ -1161,17 +1161,17 @@ function SourceQualityPanel() {
       {/* Outcome summary */}
       {data?.outcomeSummary && data.outcomeSummary.length > 0 && (
         <div>
-          <p className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider mb-2">Contact outcome distribution</p>
+          <p className="text-[11px] font-mono text-muted-foreground uppercase tracking-wider mb-2">Contact outcome distribution</p>
           <div className="flex flex-wrap gap-2">
             {data.outcomeSummary.map(({ outcome, count, pct }) => (
               <div key={outcome} className="rounded-lg border border-[#9CFF1A]/10 bg-muted/10 px-3 py-2 min-w-[100px]">
                 <div className={`text-base font-bold font-mono ${outcomeColor[outcome] ?? "text-foreground"}`}>
                   {Number(count).toLocaleString()}
                 </div>
-                <div className="text-[8px] font-mono text-muted-foreground uppercase tracking-wider leading-tight">
+                <div className="text-[11px] font-mono text-muted-foreground uppercase tracking-wider leading-tight">
                   {outcome.replace(/_/g, " ")}
                 </div>
-                <div className="text-[8px] font-mono text-muted-foreground">{pct}%</div>
+                <div className="text-[11px] font-mono text-muted-foreground">{pct}%</div>
               </div>
             ))}
           </div>
@@ -1181,13 +1181,13 @@ function SourceQualityPanel() {
       {/* Per-source table */}
       {data?.bySource && data.bySource.length > 0 && (
         <div>
-          <p className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider mb-2">Evidence by source</p>
+          <p className="text-[11px] font-mono text-muted-foreground uppercase tracking-wider mb-2">Evidence by source</p>
           <div className="overflow-x-auto rounded-lg border border-[#9CFF1A]/08">
             <table className="w-full text-[10px] font-mono">
               <thead>
                 <tr className="border-b border-[#9CFF1A]/08 bg-muted/10">
                   {["Source", "Entities", "Evidence", "Verified", "Candidate", "Reliability", "Directness"].map(h => (
-                    <th key={h} className="px-3 py-2 text-left text-[9px] uppercase tracking-wider text-muted-foreground font-medium">{h}</th>
+                    <th key={h} className="px-3 py-2 text-left text-[11px] uppercase tracking-wider text-muted-foreground font-medium">{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -1215,7 +1215,7 @@ function SourceQualityPanel() {
       )}
 
       {data && (
-        <p className="text-[9px] font-mono text-muted-foreground">
+        <p className="text-[11px] font-mono text-muted-foreground">
           Generated {new Date(data.generatedAt).toLocaleTimeString()}
         </p>
       )}

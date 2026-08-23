@@ -127,7 +127,7 @@ function LeadCard({ lead, index }: { lead: any; index: number }) {
           </div>
         </div>
         {index < 3 && (
-          <span className={`relative rounded-full border px-2 py-1 font-mono text-[8px] uppercase tracking-[0.13em] ${
+          <span className={`relative rounded-full border px-2 py-1 font-mono text-[11px] uppercase tracking-[0.13em] ${
             contactReady
               ? "border-[#9CFF1A]/35 bg-[#9CFF1A]/10 text-[#d4ff8a]"
               : "border-[#9CFF1A]/12 bg-muted/60 text-muted-foreground"
@@ -139,14 +139,14 @@ function LeadCard({ lead, index }: { lead: any; index: number }) {
 
       <div className="relative mt-4 space-y-2.5">
         <div className="rounded-lg border border-primary/15 bg-primary/[0.035] px-3 py-2.5">
-          <div className="font-mono text-[8px] uppercase tracking-[0.14em] text-primary/75">What they do</div>
+          <div className="font-mono text-[11px] uppercase tracking-[0.14em] text-primary/75">What they do</div>
           <p className="mt-1 text-[11px] leading-5 text-foreground/80">
             {workSummary ?? "No documented role or activity is recorded yet."}
           </p>
         </div>
         <div className="flex items-start gap-2 text-[12px] leading-4 text-muted-foreground">
           <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-secondary" />
-          <span><span className="font-mono text-[8px] uppercase tracking-[0.12em] text-muted-foreground/65">What we found · </span>{findingsSummary}</span>
+          <span><span className="font-mono text-[11px] uppercase tracking-[0.12em] text-muted-foreground/65">What we found · </span>{findingsSummary}</span>
         </div>
       </div>
 

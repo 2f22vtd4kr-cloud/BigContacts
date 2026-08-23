@@ -239,17 +239,33 @@ export async function batchMarkSeen(keys: string[]): Promise<void> {
   }, undefined);
 }
 
+const ACTIVE_JOB_READ_CACHE = new Map<string, { at: number; id: string | null }>();
+const ACTIVE_JOB_READ_TTL_MS = 2_000;
+
 export async function setActiveJob(type: string, jobId: string): Promise<void> {
   memoryActiveByType.set(type, jobId);
   memoryLatestByType.set(type, jobId);
   await safeRedis(rc => rc.set(`apex:activejob:${type}`, jobId, "EX", JOB_TTL), null);
+  ACTIVE_JOB_READ_CACHE.set(type, { at: Date.now(), id: jobId });
 }
 
 export async function getActiveJob(type: string): Promise<string | null> {
+  const cached = ACTIVE_JOB_READ_CACHE.get(type);
+  if (cached && Date.now() - cached.at < ACTIVE_JOB_READ_TTL_MS) {
+    return cached.id;
+  }
   const fromRedis = await safeRedis(rc => rc.get(`apex:activejob:${type}`), null as string | null);
-  if (fromRedis) return fromRedis;
-  return memoryActiveByType.get(type) ?? null;
+  const id = fromRedis ?? memoryActiveByType.get(type) ?? null;
+  ACTIVE_JOB_READ_CACHE.set(type, { at: Date.now(), id });
+  return id;
 }
+
+/** Call after set/clear active job so status does not serve a stale pointer. */
+export function invalidateActiveJobCache(type?: string): void {
+  if (type) ACTIVE_JOB_READ_CACHE.delete(type);
+  else ACTIVE_JOB_READ_CACHE.clear();
+}
+
 
 export async function getLatestJob(type: string): Promise<JobState | null> {
   return safeRedis(async rc => {
@@ -322,6 +338,7 @@ export async function getAutoPipelineScheduler(): Promise<AutoPipelineSchedulerS
 }
 
 export async function clearActiveJob(type: string): Promise<void> {
+  ACTIVE_JOB_READ_CACHE.set(type, { at: Date.now(), id: null });
   memoryActiveByType.delete(type);
   await safeRedis(rc => rc.del(`apex:activejob:${type}`), null);
 }
@@ -331,6 +348,7 @@ export async function ownsActiveJob(type: string, jobId: string): Promise<boolea
 }
 
 export async function clearActiveJobIfOwned(type: string, jobId: string): Promise<boolean> {
+  // cache updated when ownership clears below
   if (!(await ownsActiveJob(type, jobId))) return false;
   await clearActiveJob(type);
   return true;

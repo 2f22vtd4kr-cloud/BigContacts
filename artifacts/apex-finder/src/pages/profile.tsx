@@ -729,13 +729,13 @@ export default function ApexProfile() {
             </div>
              <div className="mt-3 grid max-w-3xl gap-2 sm:grid-cols-2">
                <div className="rounded-lg border border-primary/15 bg-primary/[0.035] px-3 py-2.5">
-                  <div className="text-[8px] font-mono uppercase tracking-[0.16em] text-primary/75">What they do</div>
+                  <div className="text-[11px] font-mono uppercase tracking-[0.16em] text-primary/75">What they do</div>
                  <p className="mt-1 text-[11px] leading-5 text-foreground/80">
                     {profileWorkSummary ?? "No documented role or activity is recorded yet."}
                  </p>
                </div>
                <div className="rounded-lg border border-secondary/15 bg-secondary/[0.035] px-3 py-2.5">
-                  <div className="text-[8px] font-mono uppercase tracking-[0.16em] text-secondary/80">What we found</div>
+                  <div className="text-[11px] font-mono uppercase tracking-[0.16em] text-secondary/80">What we found</div>
                  <p className="mt-1 text-[11px] leading-5 text-foreground/80">
                     {profileFindings}
                  </p>
@@ -747,15 +747,15 @@ export default function ApexProfile() {
             <div className="flex items-center gap-2">
               <div className="flex flex-col items-center gap-0.5">
                 <ConfidenceBadge score={typeof (entity as any).contactConfidence === "number" ? (entity as any).contactConfidence : confidence.overall} />
-                <span className="text-[8px] font-mono text-muted-foreground/50 uppercase tracking-widest">Quality</span>
+                <span className="text-[11px] font-mono text-muted-foreground/50 uppercase tracking-widest">Quality</span>
               </div>
               <div className="flex flex-col items-center gap-0.5">
                 <AccessScoreBadge score={entity.accessScore} />
-                <span className="text-[8px] font-mono text-muted-foreground/50 uppercase tracking-widest">Reach</span>
+                <span className="text-[11px] font-mono text-muted-foreground/50 uppercase tracking-widest">Reach</span>
               </div>
               {primaryWealthSource && (
                 <div className="flex flex-col items-start gap-0.5 max-w-[140px]">
-                  <span className="text-[8px] font-mono text-muted-foreground/50 uppercase tracking-widest">Wealth source</span>
+                  <span className="text-[11px] font-mono text-muted-foreground/50 uppercase tracking-widest">Wealth source</span>
                   <span className="text-[11px] font-mono text-foreground/80 leading-tight">{primaryWealthSource}</span>
                 </div>
               )}
@@ -818,11 +818,11 @@ export default function ApexProfile() {
           )}
            <div className="mt-3 space-y-2">
              <div className="rounded-lg border border-primary/15 bg-primary/[0.035] px-3 py-2.5">
-                <div className="text-[8px] font-mono uppercase tracking-[0.16em] text-primary/75">What they do</div>
+                <div className="text-[11px] font-mono uppercase tracking-[0.16em] text-primary/75">What they do</div>
                 <p className="mt-1 text-[11px] leading-5 text-foreground/80">{profileWorkSummary ?? "No documented role or activity is recorded yet."}</p>
              </div>
              <div className="rounded-lg border border-secondary/15 bg-secondary/[0.035] px-3 py-2.5">
-                <div className="text-[8px] font-mono uppercase tracking-[0.16em] text-secondary/80">What we found</div>
+                <div className="text-[11px] font-mono uppercase tracking-[0.16em] text-secondary/80">What we found</div>
                 <p className="mt-1 text-[11px] leading-5 text-foreground/80">{profileFindings}</p>
              </div>
            </div>
@@ -1051,14 +1051,14 @@ export default function ApexProfile() {
             {hasContact ? (
               <div className="space-y-2">
               <div className="flex flex-wrap items-center gap-1.5" data-testid="profile-reach-provenance">
-                <span className="rounded-full border border-lime-400/30 bg-lime-400/10 px-1.5 py-0.5 text-[8px] font-mono font-bold uppercase tracking-wider text-lime-200">
+                <span className="rounded-full border border-lime-400/30 bg-lime-400/10 px-1.5 py-0.5 text-[11px] font-mono font-bold uppercase tracking-wider text-lime-200">
                   REACH
                 </span>
-                <span className="rounded-full border border-white/10 bg-white/[0.04] px-1.5 py-0.5 text-[8px] font-mono uppercase tracking-wider text-stone-400">
+                <span className="rounded-full border border-white/10 bg-white/[0.04] px-1.5 py-0.5 text-[11px] font-mono uppercase tracking-wider text-stone-400">
                   attributable preferred
                 </span>
                 {typeof (entity as any).contactConfidence === "number" && (
-                  <span className="rounded-full border border-white/10 bg-white/[0.04] px-1.5 py-0.5 text-[8px] font-mono tabular-nums text-stone-400">
+                  <span className="rounded-full border border-white/10 bg-white/[0.04] px-1.5 py-0.5 text-[11px] font-mono tabular-nums text-stone-400">
                     conf {(entity as any).contactConfidence}%
                   </span>
                 )}
@@ -1079,7 +1079,7 @@ export default function ApexProfile() {
                           : "border-lime-400/35 bg-lime-400/10 text-lime-200 hover:bg-lime-400/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime-400/50",
                       )}
                     >
-                      <span className="text-[8px] uppercase tracking-wider opacity-70 shrink-0">{isOrg ? "Company" : "Personal"}</span>
+                      <span className="text-[11px] uppercase tracking-wider opacity-70 shrink-0">{isOrg ? "Company" : "Personal"}</span>
                       <span className="truncate">{e.email}</span>
                     </a>
                   );
@@ -1091,7 +1091,7 @@ export default function ApexProfile() {
                     title={`REACH · personal — ${e.phone}`}
                     className="flex items-center gap-2 px-3 py-1.5 rounded border border-lime-400/35 bg-lime-400/10 text-lime-200 font-mono text-xs hover:bg-lime-400/15 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime-400/50"
                   >
-                    <span className="text-[8px] uppercase tracking-wider opacity-70 shrink-0">Phone</span>
+                    <span className="text-[11px] uppercase tracking-wider opacity-70 shrink-0">Phone</span>
                     {e.phone}
                   </a>
                 )}
@@ -1100,7 +1100,7 @@ export default function ApexProfile() {
                   <a href={e.linkedinUrl} target="_blank" rel="noopener noreferrer"
                     title={e.linkedinHeadline ?? "REACH · social · LinkedIn"}
                     className="flex items-center gap-2 px-3 py-1.5 rounded border border-[#9CFF1A]/35 bg-[#9CFF1A]/10 text-stone-300 font-mono text-xs hover:bg-[#9CFF1A]/20 transition-colors">
-                    <span className="text-[8px] uppercase tracking-wider opacity-70 shrink-0">Social</span>
+                    <span className="text-[11px] uppercase tracking-wider opacity-70 shrink-0">Social</span>
                     {e.linkedinHeadline ? (
                       <span className="truncate max-w-[160px]">{e.linkedinHeadline.slice(0, 40)}</span>
                     ) : "LinkedIn"}

@@ -104,7 +104,7 @@ export function EntityTypeMark({
   const Icon = meta.Icon;
   return (
     <span
-      className={`inline-flex items-center gap-1 rounded font-mono font-bold uppercase ${compact ? "px-1.5 py-0.5 text-[8px]" : "px-2 py-1 text-[9px]"}`}
+      className={`inline-flex items-center gap-1 rounded font-mono font-bold uppercase ${compact ? "px-1.5 py-0.5 text-[11px]" : "px-2 py-1 text-[11px]"}`}
       style={{ color: meta.color, backgroundColor: `${meta.color}18` }}
       title={meta.descriptor}
     >

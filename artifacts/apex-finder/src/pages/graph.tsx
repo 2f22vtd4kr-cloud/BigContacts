@@ -616,7 +616,7 @@ function GraphViewerInner() {
                   onChange={(e) => setMinScore(Number(e.target.value))}
                   className="w-full accent-primary"
                 />
-                <div className="flex justify-between text-[9px] text-muted-foreground mt-1">
+                <div className="flex justify-between text-[11px] text-muted-foreground mt-1">
                   <span>0%</span><span>90%</span>
                 </div>
               </div>
@@ -987,7 +987,7 @@ function GraphViewerInner() {
           onMouseLeave={() => setCtxMenu(null)}
         >
           <div className="px-3 py-1.5 border-b border-[#9CFF1A]/10">
-            <div className="text-[9px] font-mono text-muted-foreground uppercase tracking-widest">Node</div>
+            <div className="text-[11px] font-mono text-muted-foreground uppercase tracking-widest">Node</div>
             <div className="text-xs font-mono text-foreground font-semibold truncate max-w-[160px]">{ctxMenu.nodeName}</div>
           </div>
           <button
@@ -1073,7 +1073,7 @@ function GraphViewerInner() {
               </div>
               <input type="range" min={0.1} max={1.0} step={0.05} value={relStrength}
                 onChange={(e) => setRelStrength(Number(e.target.value))} className="w-full accent-primary" />
-              <div className="flex justify-between text-[9px] text-muted-foreground mt-0.5"><span>Weak</span><span>Strong</span></div>
+              <div className="flex justify-between text-[11px] text-muted-foreground mt-0.5"><span>Weak</span><span>Strong</span></div>
             </div>
 
             {/* Notes */}

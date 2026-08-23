@@ -97,6 +97,14 @@ export function isValidPublicEmail(value: string | null | undefined): boolean {
   // are malformed addresses and commonly come from scraped/generated noise.
   if (local.startsWith(".") || local.endsWith(".") || local.includes("..")) return false;
   if (BLOCKED_EMAIL_DOMAINS.has(domain)) return false;
+  // School / district hosts are common name-collision traps (e.g. Nelson High vs Nelson Thomas Inc).
+  if (
+    /\.(k12|sch)\.[a-z]{2,}$/i.test(domain)
+    || domain.endsWith(".edu")
+    || domain.includes("kyschools")
+    || domain.includes("school") && (domain.endsWith(".us") || domain.endsWith(".uk"))
+  ) return false;
+
   if ([...REGISTRAR_DOMAINS].some(blocked => domain === blocked || domain.endsWith(`.${blocked}`))) return false;
   if (BLOCKED_EMAIL_LOCAL_PARTS.has(local)) return false;
   if (isPlaceholderEmail(email)) return false;
