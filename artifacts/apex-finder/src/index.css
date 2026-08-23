@@ -159,24 +159,26 @@ body {
   display: inline-flex;
   align-items: baseline;
   font-family: inherit;
-  font-weight: 650;
+  font-weight: 700;
   font-size: inherit;
-  letter-spacing: 0.055em;
-  line-height: 1;
+  letter-spacing: 0.04em;
+  line-height: 1.15;
   -webkit-font-smoothing: antialiased;
+  color: #f4f7ff;
 }
 .atlas-liquid-char {
   display: inline-block;
-  color: rgba(252, 250, 255, 0.94);
-  /* etched metal: thin highlight above, hairline depth below — not a blob shadow */
+  /* Solid readable face — liquid motion is subtle, not soft-light washout */
+  color: #f4f7ff;
+  font-weight: 650;
   text-shadow:
-    0 0.5px 0 rgba(255, 255, 255, 0.45),
-    0 -0.5px 0 rgba(20, 10, 40, 0.35);
-  mix-blend-mode: soft-light;
-  /* second pass for readability on dark oil */
-  -webkit-text-stroke: 0.2px rgba(255, 255, 255, 0.12);
-  animation: atlas-liquid-char-wave 5.2s ease-in-out infinite;
-  will-change: transform, opacity;
+    0 1px 2px rgba(0, 0, 0, 0.65),
+    0 0 10px rgba(180, 160, 255, 0.22),
+    0 0.5px 0 rgba(255, 255, 255, 0.35);
+  mix-blend-mode: normal;
+  -webkit-text-stroke: 0;
+  animation: atlas-liquid-char-wave 4.8s ease-in-out infinite;
+  will-change: transform;
 }
 .atlas-liquid-char.is-space {
   width: 0.28em;
@@ -187,15 +189,12 @@ body {
 @keyframes atlas-liquid-char-wave {
   0%, 100% {
     transform: translate3d(0, 0, 0) scale(1);
-    opacity: 0.92;
   }
-  40% {
-    transform: translate3d(0, -0.6px, 0) scale(1.015);
-    opacity: 1;
+  35% {
+    transform: translate3d(0, -0.45px, 0) scale(1.012);
   }
-  70% {
-    transform: translate3d(0, 0.35px, 0) scale(0.995);
-    opacity: 0.95;
+  65% {
+    transform: translate3d(0, 0.3px, 0) scale(0.997);
   }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -289,14 +288,15 @@ body {
   left: 0;
   right: 0;
   bottom: -1px;
-  height: 72px;
+  height: 96px;
   pointer-events: none;
+  z-index: 1;
   background: linear-gradient(
     180deg,
     transparent 0%,
-    rgba(10, 14, 20, 0.25) 40%,
-    rgba(10, 14, 20, 0.75) 75%,
-    rgba(10, 14, 20, 1) 100%
+    rgba(17, 24, 39, 0.15) 35%,
+    rgba(17, 24, 39, 0.55) 70%,
+    rgba(17, 24, 39, 0.92) 100%
   );
 }
 
@@ -335,13 +335,34 @@ body {
   color: #F8FAFC;
 }
 
-/* Ambient wash — elliptical dissolve, no rectangular hard corners */
+/* Ambient wash — lives on a SEPARATE layer (see .atlas-ambient-wash).
+   Never mask the hero section itself — that faded Launch text into the blob. */
 .atlas-ambient-gold {
+  position: relative;
+  isolation: isolate;
+}
+.atlas-ambient-wash {
+  position: absolute;
+  inset: -30% -15% -10% -15%;
+  pointer-events: none;
+  z-index: 0;
+  /* Multi-stop radials so edges dissolve — no hard square outline on mobile */
   background:
-    radial-gradient(ellipse 85% 70% at 70% 30%, rgba(156, 255, 26, 0.1), transparent 70%),
-    radial-gradient(ellipse 55% 45% at 20% 80%, rgba(250, 204, 21, 0.045), transparent 65%);
-  -webkit-mask-image: radial-gradient(ellipse 95% 85% at 50% 40%, #000 15%, transparent 72%);
-  mask-image: radial-gradient(ellipse 95% 85% at 50% 40%, #000 15%, transparent 72%);
+    radial-gradient(ellipse 90% 75% at 72% 18%,
+      rgba(156, 255, 26, 0.14) 0%,
+      rgba(156, 255, 26, 0.07) 28%,
+      rgba(156, 255, 26, 0.03) 48%,
+      transparent 68%),
+    radial-gradient(ellipse 70% 55% at 18% 88%,
+      rgba(250, 204, 21, 0.06) 0%,
+      rgba(250, 204, 21, 0.02) 40%,
+      transparent 70%),
+    radial-gradient(ellipse 50% 40% at 50% 50%,
+      rgba(156, 255, 26, 0.04) 0%,
+      transparent 65%);
+  /* Soft outer fade only on the wash layer */
+  -webkit-mask-image: radial-gradient(ellipse 100% 90% at 50% 35%, #000 0%, #000 35%, transparent 78%);
+  mask-image: radial-gradient(ellipse 100% 90% at 50% 35%, #000 0%, #000 35%, transparent 78%);
 }
 
 /* Soft gold rim utility */

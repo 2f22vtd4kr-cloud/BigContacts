@@ -240,7 +240,9 @@ export default function Dashboard() {
   return (
     <div className="atlas-page pb-12">
       <section className="atlas-enter atlas-ambient-gold relative flex flex-col gap-8 py-8 md:flex-row md:items-end md:justify-between md:py-12">
-        <div className="max-w-2xl">
+        {/* Wash only — must not mask headline or Launch */}
+        <div className="atlas-ambient-wash" aria-hidden />
+        <div className="relative z-10 max-w-2xl">
           <div className="mb-4 flex items-center gap-2.5 font-mono text-[12px] uppercase tracking-[0.2em] text-[#9CFF1A]">
             <span className="atlas-live-dot atlas-live-dot-pulse" aria-hidden />
             Research desk
@@ -252,7 +254,7 @@ export default function Dashboard() {
             Run the public-records pipeline — discovery, attribution, contacts — then follow live work on the reactor. Only real research lands on this desk.
           </p>
         </div>
-        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center md:justify-end">
+        <div className="relative z-10 flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center md:justify-end">
           <LaunchAtlasButton variant="primary" />
           <div className="flex gap-2">
             <Link href="/reactor" data-testid="link-dashboard-reactor" className="atlas-outline-btn atlas-pressable inline-flex h-12 flex-1 items-center justify-center gap-2 rounded-xl px-4 text-xs font-semibold sm:flex-none sm:px-5">

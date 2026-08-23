@@ -1629,7 +1629,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
               </div>
               <div style={{ textAlign:"right" }}>
               <div style={{ fontSize: 12, letterSpacing:"0.16em", color:"#3a5070" }}>ENTITY FLOW</div>
-              <div style={{ fontSize:11, fontWeight:700, color:isLive ? "#9CFF1A" : "#3a5070", lineHeight:1, marginTop:3, letterSpacing:"0.12em" }}>
+              <div style={{ fontSize:13, fontWeight:700, color:isLive ? "#9CFF1A" : "#8aa4c0", lineHeight:1, marginTop:3, letterSpacing:"0.12em" }}>
                 {atlasState ? `${atlasState.phase}/10` : "IDLE"}
               </div>
             </div>
@@ -2044,7 +2044,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
               </div>
               <div style={{ minWidth:0, flex:1 }}>
                 <div style={{
-                  fontSize: isReactor ? 15 : 13, fontWeight:700,
+                  fontSize: isReactor ? 16 : 14, fontWeight:700,
                   letterSpacing: isReactor?"0.08em":"0.06em",
                   color: visible ? statusColor : "#8aa4c0", lineHeight:1.25,
                   transition:"color 0.35s", whiteSpace:"nowrap",
@@ -2105,7 +2105,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
         ].map(({y,label}) => (
           <div key={label} style={{
             position:"absolute", left:8, top:y-6,
-            fontSize: 13, letterSpacing:"0.18em", color:"#6b8aab",
+            fontSize: 14, letterSpacing:"0.16em", color:"#8eb0d0",
             writingMode:"vertical-rl", transform:"rotate(180deg)",
             zIndex:3, height:12, lineHeight:1,
           }}>{label}</div>
@@ -2370,7 +2370,7 @@ export default function IntelligenceReactorPage() {
       if (!containerRef.current) return;
       const { width, height } = containerRef.current.getBoundingClientRect();
       // Never shrink scheme text below readable (~0.82 floor)
-      setScale(Math.max(0.82, Math.min(width / 1600, height / 960, 1.05)));
+      setScale(Math.max(0.88, Math.min(width / 1600, height / 960, 1.08)));
     };
     measure();
     const ro = new ResizeObserver(measure);
