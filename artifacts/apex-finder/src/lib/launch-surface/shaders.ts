@@ -1,6 +1,6 @@
 /**
- * Launch CTA oil — rich iridescent film (visual priority restored).
- * Budgeted: 3-oct fbm, single warp, mediump.
+ * Launch CTA — liquid metal (chrome + thin-film), not soft purple blobs.
+ * Fine-scale warp, strong specular, film only as edge/height accent.
  */
 export const OIL_VERT = /* glsl */ `
 attribute vec2 a_pos;
@@ -38,7 +38,7 @@ float fbm(vec2 p) {
   float a = 0.5;
   for (int i = 0; i < 3; i++) {
     v += a * noise(p);
-    p = p * 2.02 + vec2(1.7, 3.1);
+    p = p * 2.15 + vec2(1.7, 3.1);
     a *= 0.5;
   }
   return v;
@@ -52,69 +52,66 @@ float sdRoundBox(vec2 uv, vec2 halfSize, float r) {
 void main() {
   vec2 uv = gl_FragCoord.xy / u_res;
   float aspect = u_res.x / max(u_res.y, 1.0);
+  /* Finer feature scale — avoids giant watercolor blobs */
   vec2 p = (gl_FragCoord.xy - 0.5 * u_res) / min(u_res.x, u_res.y);
-  float t = u_time * 0.28 * u_motion;
+  float t = u_time * 0.32 * u_motion;
 
-  vec2 q = p * 1.15;
+  vec2 q = p * 2.4;
   vec2 w = vec2(
-    fbm(q + vec2(t * 0.45, -t * 0.32)),
-    fbm(q * 0.9 + vec2(-t * 0.36, t * 0.5))
+    fbm(q + vec2(t * 0.35, -t * 0.28)),
+    fbm(q * 1.1 + vec2(-t * 0.3, t * 0.4))
   );
-  q += 0.55 * w;
+  q += 0.35 * w;
 
   float h = fbm(q);
-  float h2 = fbm(q * 0.75 - t * 0.2);
-  float blob = mix(h, h2, 0.35);
+  float h2 = fbm(q * 1.4 + 2.7 - t * 0.15);
+  float height = mix(h, h2, 0.3);
 
-  float e = 0.038;
+  float e = 0.028;
   float hx = fbm(q + vec2(e, 0.0));
   float hy = fbm(q + vec2(0.0, e));
-  vec3 N = normalize(vec3(blob - hx, blob - hy, 0.72));
+  vec3 N = normalize(vec3((h - hx) * 4.0, (h - hy) * 4.0, 1.0));
 
-  vec3 L1 = normalize(vec3(0.25, 0.55, 0.8));
-  vec3 L2 = normalize(vec3(-0.45, 0.2, 0.7));
-  float diff = max(dot(N, L1), 0.0) + max(dot(N, L2), 0.0) * 0.4;
-  float spec = pow(max(dot(N, normalize(L1 + vec3(0.0, 0.0, 1.0))), 0.0), 28.0);
+  /* Metallic lighting */
+  vec3 L = normalize(vec3(0.4, 0.65, 0.7));
+  vec3 V = vec3(0.0, 0.0, 1.0);
+  float ndl = max(dot(N, L), 0.0);
+  float ndh = max(dot(N, normalize(L + V)), 0.0);
+  float spec = pow(ndh, 48.0);
+  float spec2 = pow(ndh, 12.0) * 0.35;
 
-  vec3 col = mix(vec3(0.06, 0.05, 0.09), vec3(0.18, 0.15, 0.26), diff * 0.8 + blob * 0.3);
-  col = mix(col, vec3(0.6, 0.62, 0.72), smoothstep(0.4, 0.88, blob) * 0.42);
-  col += vec3(spec * 1.05);
+  /* Chrome / wet metal base — cool silver, not purple fill */
+  vec3 metalDark = vec3(0.12, 0.13, 0.18);
+  vec3 metalLit  = vec3(0.55, 0.58, 0.68);
+  vec3 col = mix(metalDark, metalLit, ndl * 0.85 + height * 0.2);
+  col += vec3(0.95, 0.96, 1.0) * spec;
+  col += vec3(0.55, 0.6, 0.7) * spec2;
 
-  float phase = fract(blob * 2.2 + t * 0.15 + w.x * 0.2);
-  vec3 violet  = vec3(0.55, 0.2, 0.95);
-  vec3 magenta = vec3(0.95, 0.28, 0.72);
-  vec3 cyan    = vec3(0.25, 0.88, 0.95);
-  vec3 blue    = vec3(0.2, 0.4, 0.95);
-  vec3 film;
-  if (phase < 0.25) film = mix(violet, magenta, phase / 0.25);
-  else if (phase < 0.5) film = mix(magenta, cyan, (phase - 0.25) / 0.25);
-  else if (phase < 0.75) film = mix(cyan, blue, (phase - 0.5) / 0.25);
-  else film = mix(blue, violet, (phase - 0.75) / 0.25);
+  /* Thin-film ONLY in bands + rim — not whole-button purple blobs */
+  float phase = fract(height * 3.5 + t * 0.2 + w.x * 0.25);
+  vec3 film = mix(
+    mix(vec3(0.45, 0.2, 0.9), vec3(0.9, 0.3, 0.75), smoothstep(0.0, 0.4, phase)),
+    mix(vec3(0.2, 0.85, 0.95), vec3(0.35, 0.45, 0.95), smoothstep(0.4, 1.0, phase)),
+    smoothstep(0.2, 0.8, phase)
+  );
+  float band = smoothstep(0.35, 0.48, height) * (1.0 - smoothstep(0.55, 0.7, height));
+  float fres = pow(1.0 - max(N.z, 0.0), 2.4);
+  float filmAmt = band * 0.45 + fres * 0.55;
+  col = mix(col, col * 0.4 + film * 1.0, filmAmt * 0.7);
 
-  float filmMask = smoothstep(0.18, 0.45, blob) * (1.0 - smoothstep(0.68, 0.95, blob));
-  filmMask *= 0.55 + 0.45 * sin(blob * 4.0 + t * 0.9);
-  col = mix(col, col * 0.2 + film * 1.15, filmMask * 0.85);
+  /* Moving diagonal sheen */
+  float sheen = smoothstep(0.0, 0.08, abs(fract(uv.x * 0.7 + uv.y * 0.35 + t * 0.08) - 0.5));
+  col += vec3(0.9, 0.93, 1.0) * (1.0 - sheen) * 0.22 * ndl;
 
-  /* Fresnel + tiny chromatic fringe (oil film dispersion) */
-  float fres = pow(1.0 - max(N.z, 0.0), 2.0);
-  col += vec3(0.92, 0.94, 1.0) * fres * 0.26;
-  col.r += violet.r * fres * 0.18;
-  col.g += cyan.g * fres * 0.12;
-  col.b += blue.b * fres * 0.16;
-
-  float vig = smoothstep(0.0, 0.1, uv.x) * smoothstep(1.0, 0.9, uv.x)
-            * smoothstep(0.0, 0.14, uv.y) * smoothstep(1.0, 0.86, uv.y);
-  col *= 0.82 + 0.18 * vig;
-
-  float mid = 1.0 - smoothstep(0.2, 0.55, abs(uv.y - 0.5));
-  col *= 1.0 - mid * 0.1;
+  float vig = smoothstep(0.0, 0.08, uv.x) * smoothstep(1.0, 0.92, uv.x)
+            * smoothstep(0.0, 0.12, uv.y) * smoothstep(1.0, 0.88, uv.y);
+  col *= 0.88 + 0.12 * vig;
 
   float rr = max(u_radius, 0.35);
   vec2 halfSz = vec2(0.5 - 0.02 / aspect, 0.5 - 0.04);
   float d = sdRoundBox(uv, halfSz, rr * 0.5);
   float aa = fwidth(d) * 1.2;
   float alpha = 1.0 - smoothstep(-aa, aa, d);
-  col *= mix(0.9, 1.0, smoothstep(0.0, 0.04, -d));
   col = clamp(col, 0.0, 1.0);
   gl_FragColor = vec4(col, alpha);
 }
