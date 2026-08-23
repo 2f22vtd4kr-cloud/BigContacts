@@ -530,3 +530,11 @@ button:not(:disabled):active:not(.atlas-launch-glow):not(.atlas-outline-btn):not
 .bg-primary {
   background-color: #9CFF1A;
 }
+
+/* Desktop Reactor: prevent sub-10px chrome from being unreadable */
+@media (min-width: 768px) {
+  [data-testid="page-reactor"],
+  [data-page="reactor"] {
+    font-size: 13px;
+  }
+}

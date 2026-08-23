@@ -507,9 +507,9 @@ const KEYFRAMES = REACTOR_CSS + `
 // ── Meter (shared) ────────────────────────────────────────────────────────────
 function Meter({ label, value, max, color }: { label:string; value:number; max:number; color:string }) {
   return (
-    <div style={{ flex:1, padding:"0 16px", display:"flex", flexDirection:"column", gap:4 }}>
+    <div data-page="reactor" style={{ flex:1, padding:"0 16px", display:"flex", flexDirection:"column", gap:4 }}>
       <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-end" }}>
-        <span style={{ fontSize:8, letterSpacing:"0.18em", color:"#3a5070" }}>{label}</span>
+        <span style={{ fontSize: 12, letterSpacing:"0.18em", color:"#3a5070" }}>{label}</span>
         <span style={{ fontSize:15, fontWeight:700, color, lineHeight:1 }}>{value}</span>
       </div>
       <div style={{ height:3, background:"#192840", borderRadius:2 }}>
@@ -539,7 +539,7 @@ function QuickStat({ label, value, color, compact = false }: {
       display:"flex", flexDirection:"column", gap:2,
     }}>
       <span style={{
-        fontSize:compact ? 5.5 : 6.5, letterSpacing:"0.14em",
+        fontSize: compact ? 10 : 12, letterSpacing:"0.14em",
         color:"#526b86", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
       }}>
         {label}
@@ -601,7 +601,7 @@ function LiveHeaderDetail({ isLive, atlasState, liveLabel, livePhaseDetail, comp
          animation:failed || done ? "none" : motionOrNone("blink .8s ease-in-out infinite"),
       }} />
       <span style={{
-         fontSize:compact ? 6 : 7, letterSpacing:"0.08em", color,
+         fontSize: compact ? 10 : 12, letterSpacing:"0.08em", color,
         overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
       }}>
         {detail}
@@ -641,7 +641,7 @@ function MobileNodeCard({ n, on, dim, status = "idle", compact = false }: { n: N
       </div>
       <div style={{ flex:1, minWidth:0 }}>
         <div style={{
-           fontSize:compact ? 6.7 : 9, fontWeight:700, letterSpacing:compact ? "0.04em" : "0.1em",
+           fontSize: compact ? 11 : 13, fontWeight:700, letterSpacing:compact ? "0.04em" : "0.1em",
            color: on ? statusColor : dim ? statusColor+"88" : "#253850",
           transition:"color 0.4s",
            overflow:"hidden", textOverflow:"ellipsis", whiteSpace:compact ? "normal" : "nowrap",
@@ -649,7 +649,7 @@ function MobileNodeCard({ n, on, dim, status = "idle", compact = false }: { n: N
           {n.label}
         </div>
         <div style={{
-           fontSize:compact ? 5.4 : 8, color: on ? statusColor+"99" : dim ? statusColor+"60" : "#1a2d42",
+           fontSize: compact ? 10 : 12, color: on ? statusColor+"99" : dim ? statusColor+"60" : "#1a2d42",
            marginTop:compact ? 0 : 1, letterSpacing:compact ? "0.02em" : "0.06em",
            overflow:"hidden", textOverflow:"ellipsis", whiteSpace:compact ? "nowrap" : "nowrap",
           transition:"color 0.4s",
@@ -660,7 +660,7 @@ function MobileNodeCard({ n, on, dim, status = "idle", compact = false }: { n: N
       {status === "completed" || status === "failed" || status === "skipped" ? (
         <span
           style={{
-            fontSize: compact ? 6 : 7,
+            fontSize: compact ? 10 : 12,
             fontWeight: 700,
             letterSpacing: "0.1em",
             textTransform: "uppercase",
@@ -700,10 +700,10 @@ function AtlasPhaseStrip({ state, compact = false }: { state?: AtlasLiveState | 
       minWidth:0, width:"100%",
     }}>
       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:8 }}>
-        <span style={{ fontSize:compact ? 7 : 8, letterSpacing:"0.16em", color:"#526b86" }}>
+        <span style={{ fontSize: compact ? 11 : 12, letterSpacing:"0.16em", color:"#526b86" }}>
           {running ? `ENTITY JOURNEY · PHASE ${activePhase}/10` : "ENTITY JOURNEY · 11 CHECKPOINTS · 10 PHASES"}
         </span>
-        <span style={{ fontSize:compact ? 6.5 : 7, letterSpacing:"0.12em", color:running ? "#9CFF1A" : "#3a5070" }}>
+        <span style={{ fontSize: compact ? 10 : 12, letterSpacing:"0.12em", color:running ? "#9CFF1A" : "#3a5070" }}>
           {running ? (state?.sourceStep != null ? `SOURCE ${state.sourceStep}/${state.sourceTotal}` : "PROCESSING") : "STANDBY"}
         </span>
       </div>
@@ -725,7 +725,7 @@ function AtlasPhaseStrip({ state, compact = false }: { state?: AtlasLiveState | 
                 transition:"all .35s ease",
               }} />
               <span style={{
-                fontSize:compact ? 5.5 : 6.5, textAlign:"center",
+                fontSize: compact ? 10 : 12, textAlign:"center",
                 letterSpacing:"0.06em", color,
                 whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis",
               }}>
@@ -765,27 +765,27 @@ function EntityWorkbench({ state, liveNodes, compact = false }: {
           flexShrink:0, background:"#9CFF1A", boxShadow:"0 0 8px #9CFF1A",
           animation: motionOrNone("blink .8s ease-in-out infinite"),
         }} />
-        <span style={{ fontSize:compact ? 6.5 : 7.5, letterSpacing:"0.14em", color:"#9CFF1A" }}>
+        <span style={{ fontSize: compact ? 10 : 12.5, letterSpacing:"0.14em", color:"#9CFF1A" }}>
           CURRENT ENTITY WORKBENCH
         </span>
-        <span style={{ marginLeft:"auto", fontSize:compact ? 6 : 7, color:"#526b86", letterSpacing:"0.08em" }}>
+        <span style={{ marginLeft:"auto", fontSize: compact ? 10 : 12, color:"#526b86", letterSpacing:"0.08em" }}>
           {state.phaseLabel}
         </span>
       </div>
       <div style={{
-        fontSize:compact ? 8 : 10, fontWeight:700, color:"#e8e0cc",
+        fontSize: compact ? 12 : 14, fontWeight:700, color:"#e8e0cc",
         overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
       }}>
         {current}
       </div>
       <div style={{ display:"flex", alignItems:"center", gap:8, minWidth:0 }}>
         <span style={{
-          fontSize:compact ? 6 : 7, color:"#b8ff4d", letterSpacing:"0.09em",
+          fontSize: compact ? 10 : 12, color:"#b8ff4d", letterSpacing:"0.09em",
           overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", flex:1,
         }}>
           {state.detail || "Collecting evidence and passing it to the next rod"}
         </span>
-        <span style={{ fontSize:compact ? 6 : 7, color:"#526b86", whiteSpace:"nowrap", textAlign:"right" }}>
+        <span style={{ fontSize: compact ? 10 : 12, color:"#526b86", whiteSpace:"nowrap", textAlign:"right" }}>
           {batchStart != null ? `ENTITIES ${batchStart}–${batchEnd}/${state.entityTotal}` : `${active.length} RODS ACTIVE`}
         </span>
       </div>
@@ -841,12 +841,12 @@ function AtlasTelemetryInspector({ telemetry, eventLog = [] }: { telemetry?: any
     }}>
       <div style={{ display:"flex", alignItems:"center", gap:7, marginBottom:8 }}>
         <span style={{ width:6, height:6, borderRadius:"50%", background:telemetry?.status === "complete" ? "#b8ff4d" : "#9CFF1A", boxShadow:"0 0 8px #9CFF1A", flexShrink:0 }} />
-        <span style={{ fontSize:7, letterSpacing:"0.17em", color:"#9CFF1A" }}>LIVE TARGET INSPECTOR</span>
-        <span style={{ marginLeft:"auto", fontSize:6.5, letterSpacing:"0.12em", color:telemetry?.status === "complete" ? "#b8ff4d" : "#fbbf24" }}>
+        <span style={{ fontSize: 12, letterSpacing:"0.17em", color:"#9CFF1A" }}>LIVE TARGET</span>
+        <span style={{ marginLeft:"auto", fontSize: 12, letterSpacing:"0.12em", color:telemetry?.status === "complete" ? "#b8ff4d" : "#fbbf24" }}>
           {String(telemetry?.status ?? "history").toUpperCase()}
         </span>
       </div>
-      <div style={{ display:"grid", gridTemplateColumns:"82px 1fr", gap:"5px 8px", fontSize:7 }}>
+      <div style={{ display:"grid", gridTemplateColumns:"82px 1fr", gap:"5px 8px", fontSize: 12 }}>
         <span style={{ color:"#526b86", letterSpacing:"0.1em" }}>TARGET</span>
         <span style={{ color:"#e8e0cc", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{telemetry?.targetName ?? "—"}</span>
         <span style={{ color:"#526b86", letterSpacing:"0.1em" }}>STAGE</span>
@@ -858,23 +858,23 @@ function AtlasTelemetryInspector({ telemetry, eventLog = [] }: { telemetry?: any
         <div style={{ marginTop:10, display:"flex", flexDirection:"column", gap:7 }}>
           {researchTools.length > 0 && (
             <div style={{ padding:"7px 8px", border:"1px solid #9CFF1A28", borderRadius:4, background:"#9CFF1A06" }}>
-              <div style={{ color:"#67e8f9", fontSize:6.5, letterSpacing:"0.13em", marginBottom:4 }}>
+              <div style={{ color:"#67e8f9", fontSize: 12, letterSpacing:"0.13em", marginBottom:4 }}>
                 OSINT &amp; EVIDENCE TOOLS
               </div>
-              <div style={{ color:"#8aa4c0", fontSize:6.7, lineHeight:1.45, marginBottom:5 }}>
+              <div style={{ color:"#8aa4c0", fontSize: 12, lineHeight:1.45, marginBottom:5 }}>
                 Public-source search, extraction, domain resolution, and contact attribution.
               </div>
-              <div style={{ color:"#8aa4c0", fontSize:6.7, lineHeight:1.5 }}>
+              <div style={{ color:"#8aa4c0", fontSize: 12, lineHeight:1.5 }}>
                 {researchTools.map((tool: string) => telemetryToolLabel(tool)).join(" · ")}
               </div>
             </div>
           )}
           {hasPersonaReview && (
             <div style={{ padding:"7px 8px", border:"1px solid #8b5cf650", borderRadius:4, background:"#8b5cf610" }}>
-              <div style={{ color:"#c4b5fd", fontSize:6.5, letterSpacing:"0.13em", marginBottom:4 }}>
+              <div style={{ color:"#c4b5fd", fontSize: 12, letterSpacing:"0.13em", marginBottom:4 }}>
                 POST-RESEARCH QUALITY REVIEW
               </div>
-              <div style={{ color:"#c4b5fd", fontSize:6.7, lineHeight:1.5 }}>
+              <div style={{ color:"#c4b5fd", fontSize: 12, lineHeight:1.5 }}>
                 11 deterministic personas inspect the saved Phase J result. This lane does not search the web, add contacts, or perform OSINT.
               </div>
             </div>
@@ -882,29 +882,29 @@ function AtlasTelemetryInspector({ telemetry, eventLog = [] }: { telemetry?: any
         </div>
       )}
       {telemetry?.inputSummary && (
-        <div style={{ marginTop:9, paddingTop:8, borderTop:"1px solid #192840", color:"#8aa4c0", fontSize:7, lineHeight:1.45 }}>
+        <div style={{ marginTop:9, paddingTop:8, borderTop:"1px solid #192840", color:"#8aa4c0", fontSize: 12, lineHeight:1.45 }}>
           <span style={{ color:"#526b86", letterSpacing:"0.1em" }}>INPUT  </span>{telemetry.inputSummary}
         </div>
       )}
       {telemetry?.prompt && (
-        <div style={{ marginTop:8, padding:"8px", border:"1px solid #b8ff4d30", borderRadius:4, background:"#b8ff4d08", color:"#cbd5a5", fontSize:6.7, lineHeight:1.5, whiteSpace:"pre-wrap", maxHeight:150, overflowY:"auto" }}>
-          <div style={{ color:"#b8ff4d", fontSize:6.5, letterSpacing:"0.13em", marginBottom:5 }}>CURRENT PROMPT</div>
+        <div style={{ marginTop:8, padding:"8px", border:"1px solid #b8ff4d30", borderRadius:4, background:"#b8ff4d08", color:"#cbd5a5", fontSize: 12, lineHeight:1.5, whiteSpace:"pre-wrap", maxHeight:150, overflowY:"auto" }}>
+          <div style={{ color:"#b8ff4d", fontSize: 12, letterSpacing:"0.13em", marginBottom:5 }}>CURRENT PROMPT</div>
           {telemetry.prompt}
         </div>
       )}
       {telemetry?.resultSummary && (
-        <div style={{ marginTop:8, color:"#8aa4c0", fontSize:7, lineHeight:1.45 }}>
+        <div style={{ marginTop:8, color:"#8aa4c0", fontSize: 12, lineHeight:1.45 }}>
           <span style={{ color:"#526b86", letterSpacing:"0.1em" }}>RESULT  </span>{telemetry.resultSummary}
         </div>
       )}
       {telemetry?.personaNames?.length > 0 && (
-        <div style={{ marginTop:8, color:"#c4b5fd", fontSize:7, lineHeight:1.45 }}>
+        <div style={{ marginTop:8, color:"#c4b5fd", fontSize: 12, lineHeight:1.45 }}>
           <span style={{ color:"#8b5cf6", letterSpacing:"0.1em" }}>REVIEW ROLES  </span>{telemetry.personaNames.join(" · ")}
         </div>
       )}
       {eventLog.length > 0 && (
         <div style={{ marginTop:10, paddingTop:8, borderTop:"1px solid #192840" }}>
-          <div style={{ color:"#9CFF1A", fontSize:6.5, letterSpacing:"0.14em", marginBottom:6 }}>
+          <div style={{ color:"#9CFF1A", fontSize: 12, letterSpacing:"0.14em", marginBottom:6 }}>
             RESEARCH EVENT LOG · {eventLog.length} RECENT EVENTS
           </div>
           <div style={{ display:"flex", flexDirection:"column", gap:5 }}>
@@ -912,12 +912,12 @@ function AtlasTelemetryInspector({ telemetry, eventLog = [] }: { telemetry?: any
               <details key={`${event.timestamp ?? "event"}-${index}`} style={{
                 border:"1px solid #192840", borderRadius:4, padding:"5px 6px", background:"#0d1525",
               }}>
-                <summary style={{ cursor:"pointer", listStyle:"none", color:event.status === "complete" ? "#b8ff4d" : event.status === "review" ? "#fbbf24" : "#8aa4c0", fontSize:6.7 }}>
+                <summary style={{ cursor:"pointer", listStyle:"none", color:event.status === "complete" ? "#b8ff4d" : event.status === "review" ? "#fbbf24" : "#8aa4c0", fontSize: 12 }}>
                   <span style={{ color:"#526b86" }}>{event.timestamp?.slice(11, 19) ?? "--:--:--"} </span>
                   {event.stage ?? "Research event"}
                   <span style={{ color:"#526b86" }}> · {event.activeToolId === PERSONA_REVIEW_TOOL ? "Post-research quality review" : event.activeToolId ? telemetryToolLabel(event.activeToolId) : "Atlas"}</span>
                 </summary>
-                <div style={{ marginTop:5, color:"#8aa4c0", fontSize:6.5, lineHeight:1.45 }}>
+                <div style={{ marginTop:5, color:"#8aa4c0", fontSize: 12, lineHeight:1.45 }}>
                   {event.story && <div style={{ color:"#e8e0cc", marginBottom:3 }}>{event.story}</div>}
                   {event.actor && <div><span style={{ color:"#526b86" }}>ACTOR </span>{event.actor}{event.methodKind ? ` · ${event.methodKind}` : ""}</div>}
                   {event.targetName && <div><span style={{ color:"#526b86" }}>TARGET </span>{event.targetName}</div>}
@@ -1025,7 +1025,7 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
             }}>
               INTELLIGENCE REACTOR
             </div>
-            <div style={{ fontSize:8, letterSpacing:"0.12em", color:"#3a5070", marginTop:1 }}>
+            <div style={{ fontSize: 12, letterSpacing:"0.12em", color:"#3a5070", marginTop:1 }}>
               APEX ATLAS  ·  RESEARCH ENGINE
             </div>
           </div>
@@ -1039,11 +1039,11 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
                    boxShadow: atlasFailed ? "0 0 8px #fb7185" : atlasDone ? "0 0 6px #b8ff4d" : isLive ? "0 0 8px #9CFF1A" : (hasSessions ? "0 0 6px #b8ff4d" : "none"),
                    animation: (!atlasFailed && !atlasDone && (isLive || hasSessions)) ? motionOrNone("blink 1.1s ease-in-out infinite") : "none",
                 }} />
-                 <span style={{ fontSize:8, letterSpacing:"0.14em", color: atlasFailed ? "#fb7185" : atlasDone ? "#b8ff4d" : isLive ? "#9CFF1A" : (hasSessions ? "#b8ff4d" : "#3a5070") }}>
+                 <span style={{ fontSize: 12, letterSpacing:"0.14em", color: atlasFailed ? "#fb7185" : atlasDone ? "#b8ff4d" : isLive ? "#9CFF1A" : (hasSessions ? "#b8ff4d" : "#3a5070") }}>
                    {atlasFailed ? "FAILED" : atlasDone ? "COMPLETE" : isLive ? "LIVE" : (hasSessions ? "OPERATIONAL" : "STANDBY")}
                 </span>
               </div>
-              <span style={{ fontSize:7, letterSpacing:"0.1em", color:"#526b86" }}>
+              <span style={{ fontSize: 12, letterSpacing:"0.1em", color:"#526b86" }}>
                  {atlasState ? `PHASE ${atlasState.phase}/10` : "READY"}
               </span>
             </div>
@@ -1102,7 +1102,7 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
               border:"2px solid #192840", borderTopColor:"#b8ff4d",
               animation: motionOrNone("blink 0.7s linear infinite"),
             }} />
-            <span style={{ fontSize:9, letterSpacing:"0.18em", color:"#3a5070" }}>
+            <span style={{ fontSize: 13, letterSpacing:"0.18em", color:"#3a5070" }}>
               LOADING SESSIONS…
             </span>
           </div>
@@ -1115,14 +1115,14 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
                 marginBottom:7, padding:"0 2px",
               }}>
                 <div>
-                  <div style={{ fontSize:8, letterSpacing:"0.2em", color:"#e8e0cc", fontWeight:700 }}>
+                  <div style={{ fontSize: 12, letterSpacing:"0.2em", color:"#e8e0cc", fontWeight:700 }}>
                     ACTIVE ROD WALL
                   </div>
-                  <div style={{ fontSize:7, letterSpacing:"0.08em", color:"#3a5070", marginTop:3 }}>
+                  <div style={{ fontSize: 12, letterSpacing:"0.08em", color:"#3a5070", marginTop:3 }}>
                     {isLive ? "LIVE ROUTES · PARALLEL WORKERS LIT" : "FULL PIPELINE · TAP-THROUGH DATA ROUTES"}
                   </div>
                 </div>
-                <div style={{ display:"flex", alignItems:"center", gap:7, fontSize:6.5, letterSpacing:"0.1em", color:"#3a5070" }}>
+                <div style={{ display:"flex", alignItems:"center", gap:7, fontSize: 12, letterSpacing:"0.1em", color:"#3a5070" }}>
                   <span style={{ display:"inline-flex", alignItems:"center", gap:3 }}>
                     <i style={{ width:6, height:2, background:"#b8ff4d", display:"inline-block" }} /> FORWARD
                   </span>
@@ -1224,10 +1224,10 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
                      border:`1px solid ${active ? "#9CFF1A55" : completed ? "#b8ff4d45" : skipped ? "#f59e0b40" : "#192840"}`,
                      borderRadius:5, padding:"6px 7px", background:active ? "#9CFF1A0b" : completed ? "#b8ff4d0b" : "#0c1422",
                   }}>
-                     <div style={{ fontSize:6.5, letterSpacing:"0.12em", color:active ? "#9CFF1A" : completed ? "#b8ff4d" : skipped ? "#f59e0b" : "#526b86" }}>
+                     <div style={{ fontSize: 12, letterSpacing:"0.12em", color:active ? "#9CFF1A" : completed ? "#b8ff4d" : skipped ? "#f59e0b" : "#526b86" }}>
                       {String(pi + 1).padStart(2,"0")} · {phase.label}
                     </div>
-                    <div style={{ fontSize:6.5, lineHeight:1.35, color:"#3a5070", marginTop:3 }}>
+                    <div style={{ fontSize: 12, lineHeight:1.35, color:"#3a5070", marginTop:3 }}>
                       {phase.detail}
                     </div>
                   </div>;
@@ -1254,7 +1254,7 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
                     animation: motionOrNone("blink 0.6s ease-in-out infinite"), flexShrink:0,
                   }} />
                   <span style={{
-                    fontSize:8, letterSpacing:"0.12em", color:"#9CFF1A",
+                    fontSize: 12, letterSpacing:"0.12em", color:"#9CFF1A",
                     flex:1, minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
                   }}>
                     {liveLabel || "JOB RUNNING"}
@@ -1262,7 +1262,7 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
                 </div>
                 {/* Current pipeline step — real detail from the running job */}
                 <div style={{ display:"flex", alignItems:"center", gap:6, paddingLeft:13 }}>
-                  <span style={{ fontSize:7.5, letterSpacing:"0.14em", color:"#b8ff4d99",
+                  <span style={{ fontSize: 12, letterSpacing:"0.14em", color:"#b8ff4d99",
                     flex:1, minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
                     ▸ {livePhaseDetail || "processing…"}
                   </span>
@@ -1284,7 +1284,7 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
                     display:"flex", alignItems:"center", gap:6, paddingLeft:13, marginTop:2,
                   }}>
                     <span style={{
-                      fontSize:7, letterSpacing:"0.12em",
+                      fontSize: 12, letterSpacing:"0.12em",
                       color:"#f59e0b", opacity:0.9,
                       flex:1, minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
                     }}>
@@ -1304,10 +1304,10 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
                   display:"flex", flexDirection:"column", gap:4, flexShrink:0,
                 }}
               >
-                <span style={{ fontSize:8, letterSpacing:"0.14em", fontWeight:700, color:"#fbbf24" }}>
+                <span style={{ fontSize: 12, letterSpacing:"0.14em", fontWeight:700, color:"#fbbf24" }}>
                   PROVIDER RATE LIMIT
                 </span>
-                <span style={{ fontSize:9, letterSpacing:"0.04em", color:"#fcd34d", lineHeight:1.35 }}>
+                <span style={{ fontSize: 13, letterSpacing:"0.04em", color:"#fcd34d", lineHeight:1.35 }}>
                   Rotating keys · {exhaustedKeys.slice(0, 3).join(" · ")}{exhaustedKeys.length > 3 ? ` +${exhaustedKeys.length - 3}` : ""}. Atlas keeps working when quota returns.
                 </span>
               </div>
@@ -1321,7 +1321,7 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
                 marginBottom:8, marginTop:4,
               }}>
                 <div style={{
-                  fontSize:8, letterSpacing:"0.22em", color:"#3a5070",
+                  fontSize: 12, letterSpacing:"0.22em", color:"#3a5070",
                   display:"flex", alignItems:"center", gap:6,
                 }}>
                   <div style={{ width:1, flex:1, height:1, background:"#192840" }} />
@@ -1342,10 +1342,10 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
                 }}>
                   <Cpu style={{ width:22, height:22, color:"#253850" }} />
                   <div>
-                    <div style={{ fontSize:9, fontWeight:700, letterSpacing:"0.16em", color:"#64748b", marginBottom:4 }}>
+                    <div style={{ fontSize: 13, fontWeight:700, letterSpacing:"0.16em", color:"#64748b", marginBottom:4 }}>
                       NO SESSIONS YET
                     </div>
-                    <div style={{ fontSize:9, color:"#94a3b8", letterSpacing:"0.06em", lineHeight:1.55 }}>
+                    <div style={{ fontSize: 13, color:"#94a3b8", letterSpacing:"0.06em", lineHeight:1.55 }}>
                       Run research from a profile to see real Atlas work here.
                     </div>
                   </div>
@@ -1387,7 +1387,7 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
                           {s.targetEntityName ?? `Session #${s.id}`}
                         </div>
                         <div style={{
-                          fontSize:8, letterSpacing:"0.12em", flexShrink:0,
+                          fontSize: 12, letterSpacing:"0.12em", flexShrink:0,
                           color:"#a78bfa",
                           padding:"2px 6px", border:"1px solid #a78bfa40",
                           borderRadius:3, background:"#a78bfa10",
@@ -1400,7 +1400,7 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
                       <div style={{ display:"flex", gap:12, alignItems:"center" }}>
                         {s.pathScore != null && (
                           <div style={{ display:"flex", flexDirection:"column", gap:1 }}>
-                            <span style={{ fontSize:7, letterSpacing:"0.14em", color:"#3a5070" }}>PATH SCORE</span>
+                            <span style={{ fontSize: 12, letterSpacing:"0.14em", color:"#3a5070" }}>PATH SCORE</span>
                             <span style={{ fontSize:12, fontWeight:700, color:"#b8ff4d", lineHeight:1 }}>
                               {s.pathScore.toFixed(2)}
                             </span>
@@ -1408,13 +1408,13 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
                         )}
                         {s.bayesianScoreAtRuntime != null && (
                           <div style={{ display:"flex", flexDirection:"column", gap:1 }}>
-                            <span style={{ fontSize:7, letterSpacing:"0.14em", color:"#3a5070" }}>SIGNAL</span>
+                            <span style={{ fontSize: 12, letterSpacing:"0.14em", color:"#3a5070" }}>SIGNAL</span>
                             <span style={{ fontSize:12, fontWeight:700, color:"#38bdf8", lineHeight:1 }}>
                               {s.bayesianScoreAtRuntime.toFixed(1)}
                             </span>
                           </div>
                         )}
-                        <div style={{ marginLeft:"auto", fontSize:9, color:"#64748b", letterSpacing:"0.06em" }} title={s.createdAt}>
+                        <div style={{ marginLeft:"auto", fontSize: 13, color:"#64748b", letterSpacing:"0.06em" }} title={s.createdAt}>
                           {formatDate(s.createdAt)}
                         </div>
                       </div>
@@ -1423,7 +1423,7 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
 
                   {sessions.length > 12 && (
                     <div style={{
-                      textAlign:"center", fontSize:8, letterSpacing:"0.14em",
+                      textAlign:"center", fontSize: 12, letterSpacing:"0.14em",
                       color:"#253850", padding:"6px 0",
                     }}>
                       +{sessions.length - 12} MORE SESSIONS
@@ -1590,7 +1590,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
             <div style={{ fontSize:12, fontWeight:700, letterSpacing:"0.2em", color:"#e8e0cc" }}>
               APEX ATLAS  —  INTELLIGENCE REACTOR
             </div>
-            <div style={{ fontSize:8, letterSpacing:"0.16em", color:"#3a5070", marginTop:2 }}>
+            <div style={{ fontSize: 12, letterSpacing:"0.16em", color:"#3a5070", marginTop:2 }}>
               ADAPTIVE RESEARCH ENGINE  ·  TARGET-AWARE MODE
             </div>
           </div>
@@ -1611,18 +1611,18 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
                     boxShadow:`0 0 8px ${atlasStatusColor}`,
                     animation: atlasFailed || atlasDone || waitingForNextCycle ? "none" : motionOrNone("blink 1.1s ease-in-out infinite"),
                   }} />
-                  <span style={{ fontSize:8, letterSpacing:"0.18em", color: atlasStatusColor }}>
+                  <span style={{ fontSize: 12, letterSpacing:"0.18em", color: atlasStatusColor }}>
                     {atlasFailed ? "ATLAS FAILED" : isLive ? "ATLAS LIVE" : waitingForNextCycle ? "NEXT CYCLE QUEUED" : atlasDone ? "ATLAS COMPLETE" : "NOMINAL"}
                   </span>
                 </div>
                 {waitingForNextCycle && (
-                  <div style={{ fontSize:7, letterSpacing:"0.12em", color:"#fbbf24", whiteSpace:"nowrap" }} data-testid="status-scheduler-countdown">
+                  <div style={{ fontSize: 12, letterSpacing:"0.12em", color:"#fbbf24", whiteSpace:"nowrap" }} data-testid="status-scheduler-countdown">
                     NEXT CYCLE IN {schedulerCountdown}
                   </div>
                 )}
               </div>
               <div style={{ textAlign:"right" }}>
-              <div style={{ fontSize:7, letterSpacing:"0.16em", color:"#3a5070" }}>ENTITY FLOW</div>
+              <div style={{ fontSize: 12, letterSpacing:"0.16em", color:"#3a5070" }}>ENTITY FLOW</div>
               <div style={{ fontSize:11, fontWeight:700, color:isLive ? "#9CFF1A" : "#3a5070", lineHeight:1, marginTop:3, letterSpacing:"0.12em" }}>
                 {atlasState ? `${atlasState.phase}/10` : "IDLE"}
               </div>
@@ -1718,20 +1718,20 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
                         textDecoration:"none",
                       }}
                     >
-                      Open in Profiles <span style={{ opacity:0.7, fontSize:9 }} aria-hidden>→</span>
+                      Open in Profiles <span style={{ opacity:0.7, fontSize: 13 }} aria-hidden>→</span>
                     </a>
                   );
                 })()}
               </div>
             )}
             <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:8 }}>
-              <span style={{ fontSize:9, letterSpacing:"0.18em", color: atlasFailed ? "#fda4af" : atlasDone ? "#d4ff8a" : "#67e8f9", fontWeight:700, display:"flex", alignItems:"center", gap:8 }}>
+              <span style={{ fontSize: 13, letterSpacing:"0.18em", color: atlasFailed ? "#fda4af" : atlasDone ? "#d4ff8a" : "#67e8f9", fontWeight:700, display:"flex", alignItems:"center", gap:8 }}>
                 {isLive ? "LIVE DESK" : atlasDone ? "DESK · COMPLETE" : atlasFailed ? "DESK · FAILED" : "LIVE DESK"}
                 {isLive && (
                   <span
                     style={{
                       display:"inline-flex", alignItems:"center", gap:4,
-                      fontSize:8, letterSpacing:"0.12em", fontWeight:700,
+                      fontSize: 12, letterSpacing:"0.12em", fontWeight:700,
                       color:"#d4ff8a", background:"rgba(52,211,153,0.15)",
                       border:"1px solid rgba(52,211,153,0.45)", borderRadius:999,
                       padding:"2px 7px",
@@ -1744,7 +1744,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
                 {!isLive && atlasDone && (
                   <span
                     style={{
-                      fontSize:8, letterSpacing:"0.12em", fontWeight:700,
+                      fontSize: 12, letterSpacing:"0.12em", fontWeight:700,
                       color:"#d4ff8a", background:"rgba(52,211,153,0.12)",
                       border:"1px solid rgba(52,211,153,0.35)", borderRadius:999,
                       padding:"2px 7px",
@@ -1754,7 +1754,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
                 {!isLive && atlasFailed && (
                   <span
                     style={{
-                      fontSize:8, letterSpacing:"0.12em", fontWeight:700,
+                      fontSize: 12, letterSpacing:"0.12em", fontWeight:700,
                       color:"#fecdd3", background:"rgba(251,113,133,0.12)",
                       border:"1px solid rgba(251,113,133,0.35)", borderRadius:999,
                       padding:"2px 7px",
@@ -1783,7 +1783,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
                 onClick={() => setDeskOn(false)}
                 aria-label="Hide Live Desk"
                 style={{
-                  fontSize:9, letterSpacing:"0.1em", color:"#94a3b8",
+                  fontSize: 13, letterSpacing:"0.1em", color:"#94a3b8",
                   background:"transparent", border:"1px solid #334155",
                   borderRadius:4, padding:"4px 10px", cursor:"pointer",
                 }}
@@ -1847,7 +1847,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
                       padding:"6px 10px",
                     }}
                   >
-                    <div style={{ fontSize:8, letterSpacing:"0.12em", fontWeight:700, color:"rgba(52,211,153,0.85)", textTransform:"uppercase" }}>{x.k}</div>
+                    <div style={{ fontSize: 12, letterSpacing:"0.12em", fontWeight:700, color:"rgba(52,211,153,0.85)", textTransform:"uppercase" }}>{x.k}</div>
                     <div style={{ marginTop:2, fontSize:13, fontWeight:600, color:"#ecfdf5", fontVariantNumeric:"tabular-nums" }}>{x.v}</div>
                   </div>
                 ))}
@@ -1910,7 +1910,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
             aria-label="Show Live Desk"
             style={{
               position:"absolute", top:12, right:18, zIndex:28,
-              fontSize:9, letterSpacing:"0.14em", fontWeight:700,
+              fontSize: 13, letterSpacing:"0.14em", fontWeight:700,
               color:"#a5f3fc", background:"rgba(156,255,26,0.1)",
               border:"1px solid #9CFF1A88", borderRadius:6, padding:"8px 12px", cursor:"pointer",
               animation: motionOrNone(`armIn ${REACTOR_UI_MS}ms ease-out both`),
@@ -2046,7 +2046,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
                   {isReactor && on ? "◉  " : ""}{n.label}
                 </div>
                 <div style={{
-                  fontSize:7.5, letterSpacing:"0.1em",
+                  fontSize: 12, letterSpacing:"0.1em",
                   color: visible ? statusColor+"99" : "#1a2d42",
                   marginTop:3, lineHeight:1.2,
                   transition:"color 0.35s", whiteSpace:"nowrap",
@@ -2058,7 +2058,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
                 <span
                   data-testid="scheme-reach-cue"
                   style={{
-                    fontSize:7, fontWeight:700, letterSpacing:"0.12em", textTransform:"uppercase",
+                    fontSize: 12, fontWeight:700, letterSpacing:"0.12em", textTransform:"uppercase",
                     color:"#d4ff8a", flexShrink:0,
                     border:"1px solid rgba(52,211,153,0.45)", borderRadius:999,
                     background:"rgba(52,211,153,0.12)", padding:"2px 6px",
@@ -2071,7 +2071,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
               ) : (status === "completed" || status === "failed" || status === "skipped") ? (
                 <span
                   style={{
-                    fontSize:7, fontWeight:700, letterSpacing:"0.12em", textTransform:"uppercase",
+                    fontSize: 12, fontWeight:700, letterSpacing:"0.12em", textTransform:"uppercase",
                     color: statusColor, flexShrink:0, opacity:0.9,
                   }}
                   aria-label={status}
@@ -2099,7 +2099,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
         ].map(({y,label}) => (
           <div key={label} style={{
             position:"absolute", left:8, top:y-6,
-            fontSize:7, letterSpacing:"0.22em", color:"#1e3050",
+            fontSize: 12, letterSpacing:"0.22em", color:"#1e3050",
             writingMode:"vertical-rl", transform:"rotate(180deg)",
             zIndex:3, height:12, lineHeight:1,
           }}>{label}</div>

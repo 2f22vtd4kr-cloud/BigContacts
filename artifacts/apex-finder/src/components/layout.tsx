@@ -5,6 +5,7 @@ import {
   Activity,
   BookOpen,
   ChevronDown,
+  ChevronLeft,
   ChevronRight,
   Crosshair,
   Cpu,
@@ -51,6 +52,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(false);
+  /** Desktop: sidebar can collapse so Reactor graph has room */
+  const [desktopNavOpen, setDesktopNavOpen] = useState(true);
+  const [edgeHot, setEdgeHot] = useState(false);
 
   useEffect(() => {
     document.documentElement.classList.add("dark");
@@ -195,7 +199,55 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </filter>
         </defs>
       </svg>
-      <div className="hidden md:flex"><Sidebar /></div>
+      {/* Desktop collapsible nav */}
+      <div
+        className={cn(
+          "relative hidden shrink-0 transition-[width] duration-200 ease-out md:flex",
+          desktopNavOpen ? "w-[250px]" : "w-0 overflow-hidden",
+        )}
+      >
+        {desktopNavOpen && <Sidebar />}
+      </div>
+      {/* Hover-reveal edge control when nav is closed (desktop) */}
+      {!desktopNavOpen && (
+        <div
+          className="pointer-events-none fixed left-0 top-0 z-[60] hidden h-full w-4 md:block"
+          onMouseEnter={() => setEdgeHot(true)}
+          onMouseLeave={() => setEdgeHot(false)}
+        />
+      )}
+      <button
+        type="button"
+        aria-label={desktopNavOpen ? "Collapse menu" : "Open menu"}
+        data-testid="button-desktop-nav-toggle"
+        onClick={() => setDesktopNavOpen((v) => !v)}
+        onMouseEnter={() => setEdgeHot(true)}
+        onMouseLeave={() => setEdgeHot(false)}
+        className={cn(
+          "fixed z-[61] hidden h-11 w-7 items-center justify-center rounded-r-lg border border-l-0 border-[#9CFF1A]/35 bg-[#0c1220]/95 text-[#9CFF1A] shadow-[0_0_16px_rgba(156,255,26,0.2)] transition-all duration-200 md:flex",
+          "top-1/2 -translate-y-1/2",
+          desktopNavOpen ? "left-[250px]" : "left-0",
+          desktopNavOpen
+            ? "opacity-50 hover:opacity-100"
+            : edgeHot
+              ? "opacity-100"
+              : "opacity-70",
+        )}
+      >
+        {desktopNavOpen ? (
+          <ChevronLeft className="h-4 w-4" />
+        ) : (
+          <ChevronRight className="h-4 w-4" />
+        )}
+      </button>
+      {/* Invisible left-edge hit target when collapsed so button can appear */}
+      {!desktopNavOpen && (
+        <div
+          className="fixed left-0 top-0 z-[59] hidden h-full w-5 md:block"
+          onMouseEnter={() => setEdgeHot(true)}
+          onMouseLeave={() => setEdgeHot(false)}
+        />
+      )}
       {sidebarOpen && (
         <div className="fixed inset-0 z-50 flex md:hidden">
           <button
