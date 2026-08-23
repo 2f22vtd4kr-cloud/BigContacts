@@ -1244,13 +1244,22 @@ async function verifyAndInstallPythonTools(): Promise<void> {
 export async function coldStartRecovery(): Promise<void> {
   logger.info("Cold-start recovery: checking for ghost jobs…");
   await clearGhostJobs();
-  await resumeContactResearchAfterRestart();
+  // Never auto-resume contact research when operator chose manual Launch only.
+  if (process.env["ENABLE_AUTO_PIPELINE"] === "true") {
+    await resumeContactResearchAfterRestart();
+  } else {
+    logger.info("Contact-research resume skipped — ENABLE_AUTO_PIPELINE is not true (manual Launch only)");
+  }
 
-  // Always verify/install Python OSINT tools — survives re-imports automatically.
-  // This runs regardless of ENABLE_AUTO_PIPELINE so tools are ready before research.
-  verifyAndInstallPythonTools().catch((err: any) =>
-    logger.warn({ err: err?.message }, "Python tool verification error (non-fatal)")
-  );
+  // Python OSINT install is optional and burns Replit time/credits on cold boot.
+  // Set INSTALL_PYTHON_OSINT=true to force; default skip when auto pipeline is off.
+  if (process.env["INSTALL_PYTHON_OSINT"] === "true" || process.env["ENABLE_AUTO_PIPELINE"] === "true") {
+    verifyAndInstallPythonTools().catch((err: any) =>
+      logger.warn({ err: err?.message }, "Python tool verification error (non-fatal)")
+    );
+  } else {
+    logger.info("Python OSINT install skipped on boot — set INSTALL_PYTHON_OSINT=true to enable");
+  }
 
   // G1: Pre-warm the semantic embedding model and load Redis embedding cache in background.
   // Non-blocking — starts model download (~23 MB on first boot) and cache hydration.

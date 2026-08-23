@@ -1,33 +1,23 @@
-# Replit from-zero prompt (copy when ready — not auto-sent)
-
-**Do not use until operator pastes into a new Replit.**
+# Replit from-zero (hard stop — copy entire block)
 
 ```
-Set up Apex Atlas on this Replit from zero.
-Do not redesign UI. Do not rewrite research.
-Stop the agent as soon as public desk is non-blank and healthz is ok.
+Set up Apex Atlas. Stop the agent the moment acceptance passes.
+Do not redesign. Do not rewrite research. Do not debug forever.
 
 REPO
 https://github.com/2f22vtd4kr-cloud/BigContacts
-Branch: main
-Tip: latest main
-API entry: artifacts/api-server/src/src
+Branch main
+Tip 51d7beb or newer
+API code artifacts/api-server/src/src
 
-CRITICAL REPLIT LAYOUT
-- ONLY run the API Server workflow for preview.
-- API owns PORT 8080 and serves the built desk at / and /api/* under the same origin.
-- Do NOT start the Frontend workflow for the public preview (it collides on PORT if env is shared).
-- Optional local Vite: PORT=23695 only — never 8080.
-- Public preview MUST open / — never /api.
+LAYOUT
+Only API Server workflow for public preview.
+PORT 8080 only for API.
+API serves desk at / and API at /api/
+Do not start Frontend workflow.
+Do not point preview at /api
 
-REQUIRED PATHS
-package.json
-pnpm-workspace.yaml
-artifacts/apex-finder
-artifacts/api-server
-lib/db
-
-SECRETS — ask for ALL of these names
+SECRETS ask all names
 REDIS_URL_1
 GROQ_API_KEY
 GEMINI_API_KEY
@@ -44,41 +34,52 @@ WHOISJSON_API_KEY
 MISTRAL_API_KEY
 HF_TOKEN
 
-Exactly ONE Redis. No REDIS_URL_2..5. No Whoxy. No Google.
-DATABASE_URL is Replit managed.
-If code needs REDIS_URL: copy REDIS_URL_1.
+One Redis only. No REDIS_URL_2 to 5. No Whoxy. No Google.
+If REDIS_URL needed copy REDIS_URL_1.
+DATABASE_URL managed do not ask if present.
 
 ENV
 ENABLE_AUTO_PIPELINE=false
+INSTALL_PYTHON_OSINT=false
 LOG_LEVEL=info
 RESEARCH_DEPTH=standard
 PORT=8080
 
-INSTALL
-1. git checkout main; tip must be latest
-2. pnpm install
-3. pnpm --filter @workspace/db run push
-4. pnpm --filter @workspace/apex-finder run build
-   Confirm dist/public/index.html uses /assets/*.js not /src/main.tsx
-5. Build API: pnpm --filter @workspace/api-server run build
+INSTALL only
+pnpm install
+pnpm --filter @workspace/db run push
+pnpm --filter @workspace/apex-finder run build
+pnpm --filter @workspace/api-server run build
+Skip Python OSINT install.
+Skip long dependency archaeology after one successful install.
 
 RUN
-1. Start ONLY API Server on 8080 (serves desk + API)
-2. Kill any orphan process on 8080 before start (fuser -k 8080/tcp or equivalent)
-3. Restart API after secrets
+Kill process on 8080 if needed.
+Start API Server only.
+Restart API after secrets.
 
-ACCEPTANCE THEN STOP
-1. Public URL / returns Apex Atlas HTML and NON-BLANK UI (nav or Launch visible)
-2. /api/healthz 200; REDIS_URL_1 ok; webSearchActive>0; agentic slots>0; bureauIntegrity not critical
-3. No fake people on cold desk
-4. Optional one smoke: atlas-run 202 then Stop 200
-5. Do not leave research running
+ACCEPTANCE then END immediately
+1 / returns Apex Atlas HTML non-blank UI
+2 /api/healthz 200 webSearchActive>0 agentic slots>0 integrity not critical
+3 REDIS_URL_1 connected or report Redis fail once
+4 One POST atlas-stop if status shows running then END
+5 Do not smoke launch research unless operator asks
+6 Do not investigate ghost jobs beyond one atlas-stop
+7 Do not install tools after acceptance
+8 One report then END
 
-If blank UI after one rebuild: report and END. Do not burn quota debugging React forever.
+REPORT
+SHA
+public URL
+healthz
+integrity
+Redis
+desk non-blank yes/no
 
-FINAL REPORT
-SHA, public URL, healthz, Redis, desk non-blank yes/no
-
-DO NOT start Frontend workflow for preview.
-DO NOT point preview at /api.
+DO NOT
+start Frontend
+point preview at /api
+burn credits on curl loops
+burn credits on React archaeology after one rebuild
+claim success on blank page
 ```
