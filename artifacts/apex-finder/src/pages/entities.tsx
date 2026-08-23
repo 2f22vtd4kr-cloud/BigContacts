@@ -1075,7 +1075,7 @@ export default function EntityLedger() {
                 </select>
                 <button
                   onClick={handleRegistrySearch} disabled={isSearching}
-                  className="px-4 py-2 bg-secondary text-secondary-foreground rounded font-mono text-xs uppercase tracking-wider hover:bg-secondary/90 disabled:opacity-50 flex items-center gap-2 flex-shrink-0"
+                  className="px-4 py-2 bg-secondary text-secondary-foreground rounded font-mono text-xs uppercase tracking-wider hover:bg-secondary/90 disabled:opacity-50 flex items-center gap-2 flex-shrink-0 max-w-full truncate"
                 >
                   {isSearching ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-3.5 h-3.5" />}
                   Search
@@ -1508,7 +1508,7 @@ export default function EntityLedger() {
         {/* Mobile bulk action bar */}
         {selectedIds.size > 0 && (
           <div className="flex flex-shrink-0 items-center gap-2 border-b border-[#9CFF1A]/25 bg-[#9CFF1A]/5 px-3 py-2">
-            <span className="flex-shrink-0 font-mono text-xs font-bold text-[#d4ff8a]">
+            <span className="flex-shrink-0 font-mono text-xs font-bold text-[#d4ff8a] max-w-full truncate">
               {selectedIds.size} selected
             </span>
             <div className="flex-1" />

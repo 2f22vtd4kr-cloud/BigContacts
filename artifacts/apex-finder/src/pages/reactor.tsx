@@ -834,8 +834,8 @@ function AtlasTelemetryInspector({ telemetry, eventLog = [] }: { telemetry?: any
   const activeTool = telemetry?.activeToolId ? telemetryToolLabel(telemetry.activeToolId) : null;
   return (
     <div style={{
-      position:"absolute", top:16, right:18, width:374, maxHeight:350, overflowY:"auto",
-      zIndex:30, padding:"11px 12px", border:"1px solid #9CFF1A55", borderRadius:7,
+      position:"absolute", top:72, right:18, width:380, maxHeight:420, overflowY:"auto",
+      zIndex:25, padding:"11px 12px", border:"1px solid #9CFF1A55", borderRadius:7,
       background:"rgba(7,15,29,0.96)", boxShadow:"0 0 24px #0008", backdropFilter:"blur(10px)",
       fontFamily:"'Space Mono','DM Mono','Courier New',monospace",
     }}>
@@ -1175,7 +1175,7 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
                     );
                   })}
                   {isLive && (
-                    <text x="350" y="622" fill="#9CFF1A88" fontSize="6" textAnchor="end"
+                    <text x="350" y="622" fill="#9CFF1A88" fontSize="11" textAnchor="end"
                       fontFamily="'Space Mono',monospace" letterSpacing="0.12em"
                       transform="rotate(-90 350 622)">ADAPTIVE FEEDBACK</text>
                   )}
@@ -1661,7 +1661,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
             role="complementary"
             aria-label="Apex Atlas Live Desk"
             style={{
-              position:"absolute", top:12, right:18, width:420, maxHeight:"calc(100% - 24px)",
+              position:"absolute", top:64, right:18, width:400, maxHeight:"calc(100% - 80px)",
               overflowY:"auto", zIndex:28, padding:"12px 12px 14px",
               border: atlasFailed
                 ? "1px solid #fb718566"
@@ -2405,7 +2405,7 @@ export default function IntelligenceReactorPage() {
       ref={containerRef}
       style={{ position:"absolute", inset:0, overflow:"hidden", background:"#111827", isolation:"isolate" }}
     >
-      <div className="absolute top-3 right-3 z-50 max-w-[min(100%,320px)]" data-testid="reactor-launch-bar-desktop">
+      <div className="absolute top-3 left-3 z-50 max-w-[min(100%,300px)] md:left-auto md:right-3" data-testid="reactor-launch-bar-desktop" style={{ pointerEvents: "auto" }}>
         <LaunchAtlasButton variant="reactor" navigateToReactor={false} label="Launch Apex Atlas" />
       </div>
       <div style={{ position:"relative", overflow:"hidden", width:"100%", height:"100%" }}>
@@ -2414,7 +2414,7 @@ export default function IntelligenceReactorPage() {
           liveNodes={liveNodes} liveLabel={liveLabel} livePhaseDetail={livePhaseDetail} atlasState={atlasState}
           scheduler={scheduler}
            schedulerNow={schedulerNow}
-          isLive={liveNodes.size > 0 || atlasState?.runStatus === "running"}
+          isLive={Boolean(atlasState ? (atlasState.runStatus === "running" || atlasState.runStatus === "paused") : liveNodes.size > 0)}
           totalEntities={totalEntities} hotCount={hotCount} totalAssets={totalAssets}
           sessionCount={sessions.length}
         />

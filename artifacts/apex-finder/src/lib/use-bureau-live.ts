@@ -58,7 +58,7 @@ function mapBureauPayload(parsed: any): BureauDeskEvent {
 /** Merge job eventLog with live bureau SSE/poll feed. Narration prefers bureau feed. */
 export function useBureauLiveDesk(eventLog: BureauDeskEvent[] | undefined, opts?: { enabled?: boolean; pollMs?: number }) {
   const enabled = opts?.enabled !== false;
-  const pollMs = opts?.pollMs ?? 2500;
+  const pollMs = opts?.pollMs ?? 5000;
   const [bureauEvents, setBureauEvents] = useState<BureauDeskEvent[]>([]);
 
   useEffect(() => {

@@ -295,7 +295,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
     else if (hasReach && !reachSettled) msg = "Contact found. REACH route available";
     else if (hasReach && reachSettled) msg = "Contact route locked";
     else if (isLive && liveEvents.length === 1) msg = "First research step on desk";
-    else if (isLive && liveEvents.length > 1) msg = `${liveEvents.length} steps on live desk`;
+    else if (isLive && liveEvents.length > 1) msg = `$Open dig on live desk`;
     else if (showHistory) msg = "History archive open";
     else if (!isLive && atlasState?.runStatus === "done") msg = "Run complete";
     else if (!isLive && atlasState?.runStatus === "failed") msg = "Run failed";

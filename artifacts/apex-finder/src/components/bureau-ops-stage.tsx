@@ -729,7 +729,7 @@ function WindowChrome({
 function GoogleScene({ scene, compact }: { scene: Scene; compact?: boolean }) {
   const q = scene.query || scene.targetName || "owner contact email";
   const typed = useTyped(q, scene.live, 44);
-  const hits = (scene.resultLines.length ? scene.resultLines : ["Looking through public search results…"]).slice(0, compact ? 2 : 3);
+  const hits = (scene.resultLines.length ? scene.resultLines : (scene.live ? ["Looking through public search results…"] : ["Step finished — no detail text stored."])).slice(0, compact ? 2 : 3);
   return (
     <WindowChrome
       title="Google Search"
@@ -780,7 +780,7 @@ function BrowserScene({ scene, compact }: { scene: Scene; compact?: boolean }) {
   const url = scene.url || undefined;
   const lines = scene.resultLines.length
     ? scene.resultLines
-    : [url ? "Reading public page content…" : "Searching public sources — no verified page URL yet"];
+    : (scene.live ? ["Reading public page…"] : ["Step finished — no detail text stored."]);
   const contactHit = lines.some((l) => /mailto:|[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i.test(l));
   return (
     <WindowChrome
@@ -849,7 +849,7 @@ function DomainScene({ scene, compact }: { scene: Scene; compact?: boolean }) {
       urlBar="rdap · whoisjson"
     >
       <pre className={`font-mono text-lime-100/90 leading-relaxed whitespace-pre-wrap ${compact ? "text-[14px]" : "text-[11px]"}`}>
-        {(scene.resultLines.length ? scene.resultLines : ["Checking domain registration details…"]).join("\n")}
+        {(scene.resultLines.length ? scene.resultLines : (scene.live ? ["Checking domain registration details…"] : ["Step finished — no detail text stored."])).join("\n")}
       </pre>
     </WindowChrome>
   );
@@ -858,7 +858,7 @@ function DomainScene({ scene, compact }: { scene: Scene; compact?: boolean }) {
 function SerpScene({ scene, compact }: { scene: Scene; compact?: boolean }) {
   const q = scene.query || scene.targetName || scene.subtitle || "owner email contact";
   const typed = useTyped(q, scene.live, 42);
-  const hits = scene.resultLines.length ? scene.resultLines : ["Looking through public search results…"];
+  const hits = scene.resultLines.length ? scene.resultLines : (scene.live ? ["Looking through public search results…"] : ["Step finished — no detail text stored."]);
   return (
     <WindowChrome
       title={`${providerLabel(scene.provider)} · web search`}
@@ -1399,6 +1399,16 @@ function MobileWorkstage({
       )}
     </div>
   );
+}
+
+
+function sceneBodyText(scene: { prompt?: string; inputSummary?: string; resultSummary?: string; raw?: string; status?: string }) {
+  const t = [scene.resultSummary, scene.inputSummary, scene.prompt, scene.raw].map(s => String(s || "").trim()).find(Boolean);
+  if (t) return t;
+  const st = String(scene.status || "").toLowerCase();
+  if (/complete|done|success/.test(st)) return "Step finished — no detail text stored.";
+  if (/active|running|live/.test(st)) return "In progress…";
+  return "Waiting for bureau detail…";
 }
 
 export function BureauOpsStage({

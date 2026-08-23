@@ -78,7 +78,7 @@ function StatTile({
       className="atlas-card atlas-pressable group block p-4 transition-colors hover:border-[#9CFF1A]/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9CFF1A]/50"
     >
       <div className="flex items-center justify-between">
-        <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground group-hover:text-[#9CFF1A]">{label}</span>
+        <span className="font-mono text-[12px] uppercase tracking-[0.16em] text-muted-foreground group-hover:text-[#9CFF1A]">{label}</span>
         <Icon className="atlas-stat-icon h-4 w-4 text-muted-foreground/50 transition-colors group-hover:text-[#9CFF1A]/80" />
       </div>
       <div className="mt-3 font-display text-2xl font-semibold tracking-tight text-foreground">{value}</div>
@@ -121,7 +121,7 @@ function LeadCard({ lead, index }: { lead: any; index: number }) {
           <div className="truncate font-display text-[15px] font-semibold text-foreground" data-testid={`text-lead-name-${lead.entityId}`}>
             {lead.entityName || "Unnamed entity"}
           </div>
-          <div className="mt-1 flex flex-wrap items-center gap-2 font-mono text-[9px] uppercase tracking-[0.12em] text-muted-foreground">
+          <div className="mt-1 flex flex-wrap items-center gap-2 font-mono text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
             <EntityTypeMark type={lead.entityType} compact />
             {lead.nationality && <><span className="text-border">·</span><NationalityCell nationality={lead.nationality} /></>}
           </div>
@@ -144,7 +144,7 @@ function LeadCard({ lead, index }: { lead: any; index: number }) {
             {workSummary ?? "No documented role or activity is recorded yet."}
           </p>
         </div>
-        <div className="flex items-start gap-2 text-[10px] leading-4 text-muted-foreground">
+        <div className="flex items-start gap-2 text-[12px] leading-4 text-muted-foreground">
           <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-secondary" />
           <span><span className="font-mono text-[8px] uppercase tracking-[0.12em] text-muted-foreground/65">What we found · </span>{findingsSummary}</span>
         </div>
@@ -152,14 +152,14 @@ function LeadCard({ lead, index }: { lead: any; index: number }) {
 
       <div className="relative mt-4 sm:mt-6 grid grid-cols-2 gap-2 sm:gap-3">
         <div className="rounded-lg border border-[#9CFF1A]/10 bg-background/45 px-2.5 py-2 sm:px-3 sm:py-2.5">
-          <div className="font-mono text-[9px] uppercase tracking-[0.14em] text-muted-foreground">Contact quality</div>
+          <div className="font-mono text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Contact quality</div>
           <div className={`mt-1 font-mono text-base sm:text-lg font-bold ${scoreTone(confidence)}`} data-testid={`text-confidence-${lead.entityId}`}>{scorePercent(confidence)}</div>
-          <div className="mt-0.5 text-[10px] text-muted-foreground hidden sm:block">How solid the contact evidence is</div>
+          <div className="mt-0.5 text-[12px] text-muted-foreground hidden sm:block">How solid the contact evidence is</div>
         </div>
         <div className="rounded-lg border border-[#9CFF1A]/10 bg-background/45 px-2.5 py-2 sm:px-3 sm:py-2.5 transition-colors group-hover:border-primary/20">
-          <div className="font-mono text-[9px] uppercase tracking-[0.14em] text-muted-foreground">Reachability</div>
+          <div className="font-mono text-[11px] uppercase tracking-[0.14em] text-muted-foreground">Reachability</div>
           <div className={`mt-1 font-mono text-base sm:text-lg font-bold ${scoreTone(access)}`} data-testid={`text-access-${lead.entityId}`}>{scorePercent(access)}</div>
-          <div className="mt-0.5 text-[10px] text-muted-foreground hidden sm:block">How realistically they can be reached</div>
+          <div className="mt-0.5 text-[12px] text-muted-foreground hidden sm:block">How realistically they can be reached</div>
         </div>
       </div>
 
@@ -168,11 +168,11 @@ function LeadCard({ lead, index }: { lead: any; index: number }) {
         <span className="text-muted-foreground">{lead.assetCount ?? 0} public assets</span>
       </div>
       {lead.email && (
-        <div className="relative mt-3 truncate rounded-md border border-[#9CFF1A]/30 bg-[#9CFF1A]/10 px-2 py-1 font-mono text-[10px] text-[#d4ff8a]" title={lead.email}>
+        <div className="relative mt-3 truncate rounded-md border border-[#9CFF1A]/30 bg-[#9CFF1A]/10 px-2 py-1 font-mono text-[12px] text-[#d4ff8a]" title={lead.email}>
           <span className="opacity-70">Email · </span>{lead.email}
         </div>
       )}
-      <div className="relative mt-3 flex items-center gap-2 text-[10px]">
+      <div className="relative mt-3 flex items-center gap-2 text-[12px]">
         <span className={`grid h-5 w-5 place-items-center rounded-full ${
           contactReady
             ? "bg-[#9CFF1A]/10 text-[#d4ff8a] border border-[#9CFF1A]/30"
@@ -180,12 +180,12 @@ function LeadCard({ lead, index }: { lead: any; index: number }) {
         }`}>
           {contactReady ? <ShieldCheck className="h-3 w-3" /> : <FileSearch className="h-3 w-3" />}
         </span>
-        <span className={contactReady ? "font-mono text-[10px] uppercase tracking-[0.1em] text-[#d4ff8a]/90" : "font-mono text-[10px] uppercase tracking-[0.1em] text-muted-foreground"}>
+        <span className={contactReady ? "font-mono text-[12px] uppercase tracking-[0.1em] text-[#d4ff8a]/90" : "font-mono text-[12px] uppercase tracking-[0.1em] text-muted-foreground"}>
           {contactReady ? "Contact path found" : "Contact path incomplete"}
         </span>
         <ArrowUpRight className="ml-auto h-3.5 w-3.5 text-muted-foreground transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
       </div>
-      <div className="relative mt-3 flex items-center gap-2 font-mono text-[9px] uppercase tracking-[0.08em] text-muted-foreground/70">
+      <div className="relative mt-3 flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.08em] text-muted-foreground/70">
         <span className="h-1.5 w-1.5 rounded-full bg-secondary" />
         {entityEvidenceLabel(lead)} · {dateLabel(lead.signalDate)}
       </div>
@@ -241,7 +241,7 @@ export default function Dashboard() {
     <div className="atlas-page pb-12">
       <section className="atlas-enter atlas-ambient-gold relative flex flex-col gap-8 py-8 md:flex-row md:items-end md:justify-between md:py-12">
         <div className="max-w-2xl">
-          <div className="mb-4 flex items-center gap-2.5 font-mono text-[10px] uppercase tracking-[0.2em] text-[#9CFF1A]">
+          <div className="mb-4 flex items-center gap-2.5 font-mono text-[12px] uppercase tracking-[0.2em] text-[#9CFF1A]">
             <span className="atlas-live-dot atlas-live-dot-pulse" aria-hidden />
             Research desk
           </div>
@@ -312,7 +312,7 @@ export default function Dashboard() {
             data-testid={item.testId}
             className="atlas-pressable group rounded-xl border border-[#9CFF1A]/14 bg-[#0d1219]/80 px-3 py-3.5 transition-colors hover:border-[#9CFF1A]/40 hover:bg-[#0d1219] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9CFF1A]/50"
           >
-            <div className="font-mono text-[9px] uppercase tracking-[0.16em] text-stone-500 group-hover:text-[#9CFF1A]">{item.label}</div>
+            <div className="font-mono text-[11px] uppercase tracking-[0.16em] text-stone-500 group-hover:text-[#9CFF1A]">{item.label}</div>
             <div className="mt-1 text-[12px] font-medium text-stone-200">{item.detail}</div>
           </Link>
         ))}

@@ -20,7 +20,7 @@ function useGraphContainerSize() {
     const updateSize = () => {
       // Mobile flex column can report 0 height before layout settles — floor to viewport.
       const w = Math.max(container.clientWidth, 320);
-      const h = Math.max(container.clientHeight, Math.floor(window.innerHeight * 0.55), 320);
+      const h = Math.max(container.clientHeight, Math.floor(window.innerHeight * 0.62), 360);
       setSize([w, h]);
     };
     updateSize();
@@ -435,7 +435,7 @@ function GraphViewerInner() {
   }
 
   return (
-    <div className="flex h-full min-h-[100dvh] md:min-h-[70vh] w-full bg-background relative overflow-hidden flex-col md:block" id="graph-container"
+    <div className="flex h-full min-h-[100dvh] md:min-h-[70vh] w-full bg-background relative overflow-hidden flex-col md:block" id="graph-container" className="min-h-[60vh] w-full"
       onContextMenu={(e) => e.preventDefault()}
     >
 

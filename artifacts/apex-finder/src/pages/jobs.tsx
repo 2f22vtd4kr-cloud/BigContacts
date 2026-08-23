@@ -207,7 +207,7 @@ function PersonaLoopTab() {
       const id = d.jobId;
       if (id) {
         setJobId(id);
-        pollRef.current = setInterval(() => pollJob(id), 2000);
+        pollRef.current = setInterval(() => pollJob(id), 8000);
       } else {
         setRunning(false);
       }
@@ -570,7 +570,7 @@ export default function BackgroundJobs() {
 
   useEffect(() => {
     fetchJobs();
-    pollRef.current = setInterval(fetchJobs, 5000);
+    pollRef.current = setInterval(fetchJobs, 15000);
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, [fetchJobs]);
 

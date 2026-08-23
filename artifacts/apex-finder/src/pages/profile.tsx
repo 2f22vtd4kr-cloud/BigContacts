@@ -211,7 +211,7 @@ function SectionHeader({ icon, title, badge, action }: {
         <span className="text-[11px] font-mono font-bold text-foreground uppercase tracking-widest">{title}</span>
       </div>
       <div className="flex items-center gap-3">
-        {badge && <span className="text-[10px] font-mono text-muted-foreground">{badge}</span>}
+        {badge && <span className="text-[12px] font-mono text-muted-foreground">{badge}</span>}
         {action}
       </div>
     </div>
@@ -266,8 +266,8 @@ function ProfileCompleteness({ entity, assets, relationships, sessions }: {
   return (
     <div className="border-b border-border px-4 md:px-6 py-3 bg-card/20 flex-shrink-0">
       <div className="flex items-center justify-between mb-2">
-        <span className="text-[9px] font-mono font-bold text-muted-foreground/70 uppercase tracking-widest">Profile completeness</span>
-        <span className={cn("text-[10px] font-mono font-bold", txtCls)}>
+        <span className="text-[11px] font-mono font-bold text-muted-foreground/70 uppercase tracking-widest">Profile completeness</span>
+        <span className={cn("text-[12px] font-mono font-bold", txtCls)}>
           {pct}% · {completed}/{fields.length}
         </span>
       </div>
@@ -279,7 +279,7 @@ function ProfileCompleteness({ entity, assets, relationships, sessions }: {
           <span
             key={f.key}
             className={cn(
-              "text-[10px] font-mono px-2 py-0.5 rounded border transition-colors",
+              "text-[12px] font-mono px-2 py-0.5 rounded border transition-colors",
               f.done
                 ? "border-primary/30 bg-primary/10 text-primary"
                 : "border-border/40 bg-muted/10 text-muted-foreground/30 opacity-40"
@@ -295,7 +295,7 @@ function ProfileCompleteness({ entity, assets, relationships, sessions }: {
 
 function CategoryBadge({ category }: { category: string }) {
   return (
-    <span className={cn("text-[9px] font-mono font-bold px-1.5 py-0.5 rounded uppercase tracking-wider whitespace-nowrap", CAT_COLORS[category] ?? "text-muted-foreground bg-muted")}>
+    <span className={cn("text-[11px] font-mono font-bold px-1.5 py-0.5 rounded uppercase tracking-wider whitespace-nowrap", CAT_COLORS[category] ?? "text-muted-foreground bg-muted")}>
       {category}
     </span>
   );
@@ -688,11 +688,11 @@ export default function ApexProfile() {
 
           <div className="flex-1 min-w-0"><div className="flex items-center gap-2 mb-1 flex-wrap">
               {(entity as any).isHot && (
-                <span className="flex items-center gap-1 text-[10px] font-mono font-bold text-[#9CFF1A] uppercase tracking-widest">
+                <span className="flex items-center gap-1 text-[12px] font-mono font-bold text-[#9CFF1A] uppercase tracking-widest">
                   <ShieldAlert className="w-3 h-3" /> Hot Lead
                 </span>
               )}
-              <span className="text-[10px] font-mono text-muted-foreground/50 uppercase tracking-widest">
+              <span className="text-[12px] font-mono text-muted-foreground/50 uppercase tracking-widest">
                 Profile card
                 <span className="opacity-50"> · {TAB_LABELS[activeTab] ?? activeTab}</span>
               </span>
@@ -704,13 +704,13 @@ export default function ApexProfile() {
 
             <div className="flex items-center gap-2 flex-wrap">
               <span
-                className="text-[10px] font-mono font-bold px-2 py-0.5 rounded flex items-center gap-1"
+                className="text-[12px] font-mono font-bold px-2 py-0.5 rounded flex items-center gap-1"
                 style={{ color: typeColor, backgroundColor: typeColor + "1A" }}
               >
                 <EntityTypeMark type={entity.type} compact />
               </span>
               {(entity as any).linkedinHeadline && (
-                <span className="text-[10px] font-mono text-muted-foreground/80 flex items-center gap-1 px-2 py-0.5 rounded bg-muted/40 border border-border/50 max-w-[280px] truncate" title={(entity as any).linkedinHeadline}>
+                <span className="text-[12px] font-mono text-muted-foreground/80 flex items-center gap-1 px-2 py-0.5 rounded bg-muted/40 border border-border/50 max-w-[280px] truncate" title={(entity as any).linkedinHeadline}>
                   <Briefcase className="w-2.5 h-2.5 flex-shrink-0" />
                   {(entity as any).linkedinHeadline}
                 </span>
@@ -722,7 +722,7 @@ export default function ApexProfile() {
                 <span className="text-xs font-mono text-foreground">{formatCurrency((entity as any).estimatedNetWorth)}</span>
               )}
               {srcRegs.filter(r => !/^(web[-.]?discovery|broad[-.]?discovery|ai[-.]?osint|deep[-.]?web|in[-.]?house|web[-.]?enricher|manual|live[-.]?source)$/i.test(r)).slice(0, 3).map((r) => (
-                <span key={r} className="text-[9px] font-mono px-1.5 py-0.5 bg-muted border border-border rounded text-muted-foreground">
+                <span key={r} className="text-[11px] font-mono px-1.5 py-0.5 bg-muted border border-border rounded text-muted-foreground">
                   {r}
                 </span>
               ))}
@@ -756,14 +756,14 @@ export default function ApexProfile() {
               {primaryWealthSource && (
                 <div className="flex flex-col items-start gap-0.5 max-w-[140px]">
                   <span className="text-[8px] font-mono text-muted-foreground/50 uppercase tracking-widest">Wealth source</span>
-                  <span className="text-[9px] font-mono text-foreground/80 leading-tight">{primaryWealthSource}</span>
+                  <span className="text-[11px] font-mono text-foreground/80 leading-tight">{primaryWealthSource}</span>
                 </div>
               )}
             </div>
             <div className="flex items-center gap-1.5">
               <Link
                 href={`/network?entity=${entity.id}`}
-                className="flex items-center gap-1 px-2 sm:px-2.5 py-1.5 rounded border border-border text-muted-foreground hover:text-foreground font-mono text-[10px] uppercase tracking-wider transition-colors"
+                className="flex items-center gap-1 px-2 sm:px-2.5 py-1.5 rounded border border-border text-muted-foreground hover:text-foreground font-mono text-[12px] uppercase tracking-wider transition-colors"
                 title="Network Graph"
               >
                 <Network className="w-3 h-3" /> <span className="hidden sm:inline">Graph</span>
@@ -773,7 +773,7 @@ export default function ApexProfile() {
                 data-testid="button-refresh-surface"
                 onClick={handleRefreshSurface}
                 disabled={isEnriching}
-                className="flex items-center gap-1 px-2 sm:px-2.5 py-1.5 rounded border border-border text-muted-foreground hover:text-foreground font-mono text-[10px] uppercase tracking-wider transition-colors disabled:opacity-50"
+                className="flex items-center gap-1 px-2 sm:px-2.5 py-1.5 rounded border border-border text-muted-foreground hover:text-foreground font-mono text-[12px] uppercase tracking-wider transition-colors disabled:opacity-50"
                 title="Refresh public surface (secondary expand — never invents Personal)"
               >
                 {isEnriching ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
@@ -782,7 +782,7 @@ export default function ApexProfile() {
               <button
                 onClick={handleEnrich}
                 disabled={isEnriching}
-                className="flex items-center gap-1 px-2 sm:px-2.5 py-1.5 rounded border border-primary/30 bg-primary/10 text-primary hover:bg-primary/20 font-mono text-[10px] uppercase tracking-wider transition-colors disabled:opacity-50"
+                className="flex items-center gap-1 px-2 sm:px-2.5 py-1.5 rounded border border-primary/30 bg-primary/10 text-primary hover:bg-primary/20 font-mono text-[12px] uppercase tracking-wider transition-colors disabled:opacity-50"
                 title="Rerun Research"
               >
                 {isEnriching ? <Loader2 className="w-3 h-3 animate-spin" /> : <TargetIcon className="w-3 h-3" />}
@@ -799,7 +799,7 @@ export default function ApexProfile() {
         <div className="px-4 pt-4 pb-4"><div className="flex items-center justify-between mb-2">
             <EntityTypeMark type={(entity as any).type} compact />
             {(entity as any).isHot && (
-              <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-md bg-[#9CFF1A]/15 text-[#d4ff8a] border border-[#9CFF1A]/30">
+              <span className="inline-flex items-center gap-1 text-[12px] font-bold px-2 py-1 rounded-md bg-[#9CFF1A]/15 text-[#d4ff8a] border border-[#9CFF1A]/30">
                 <Flame className="h-3 w-3 shrink-0" aria-hidden />
                 <span className="leading-none">Hot</span>
               </span>
@@ -829,11 +829,11 @@ export default function ApexProfile() {
           {/* Score cards */}
           <div className="mt-4 flex gap-2">
             <div className="flex-1 rounded-xl border border-border/60 bg-background/80 p-2.5 flex flex-col">
-              <span className="font-mono text-[9px] text-muted-foreground uppercase tracking-wider mb-1">Contact quality</span>
+              <span className="font-mono text-[11px] text-muted-foreground uppercase tracking-wider mb-1">Contact quality</span>
               <span className="font-mono text-[20px] text-lime-200 font-bold leading-none mb-1">
                 {typeof (entity as any).contactConfidence === "number" ? `${(entity as any).contactConfidence}` : "—"}
               </span>
-              <span className="text-[10px] text-muted-foreground leading-tight">
+              <span className="text-[12px] text-muted-foreground leading-tight">
                 {((entity as any).contactConfidence ?? 0) >= 85 ? "Confirmed"
                   : ((entity as any).contactConfidence ?? 0) >= 60 ? "Solid evidence"
                   : ((entity as any).contactConfidence ?? 0) >= 30 ? "Partial evidence"
@@ -842,11 +842,11 @@ export default function ApexProfile() {
               </span>
             </div>
             <div className="flex-1 rounded-xl border border-border/60 bg-background/80 p-2.5 flex flex-col">
-              <span className="font-mono text-[9px] text-muted-foreground uppercase tracking-wider mb-1">Reachability</span>
+              <span className="font-mono text-[11px] text-muted-foreground uppercase tracking-wider mb-1">Reachability</span>
               <span className="font-mono text-[20px] text-lime-200 font-bold leading-none mb-1">
                 {entity.accessScore != null ? Math.round(entity.accessScore * 100) : "—"}
               </span>
-              <span className="text-[10px] text-muted-foreground leading-tight">
+              <span className="text-[12px] text-muted-foreground leading-tight">
                 {(entity.accessScore ?? 0) >= 0.85 ? "Direct path"
                   : (entity.accessScore ?? 0) >= 0.6 ? "Easy to reach"
                   : (entity.accessScore ?? 0) >= 0.3 ? "Possible"
@@ -855,18 +855,18 @@ export default function ApexProfile() {
               </span>
             </div>
             <div className="flex-1 bg-background rounded border border-border/50 p-2.5 flex flex-col">
-              <span className="font-mono text-[9px] text-muted-foreground uppercase tracking-wider mb-1">{entityMeta(entity.type).metricLabel}</span>
+              <span className="font-mono text-[11px] text-muted-foreground uppercase tracking-wider mb-1">{entityMeta(entity.type).metricLabel}</span>
               {(entity as any).estimatedNetWorth != null ? (
                 <span className="font-mono text-[17px] font-bold text-primary leading-none mb-1">
                 {entity.type === "HNWI" ? formatCurrency((entity as any).estimatedNetWorth) : entityMetric(entity)}
                 </span>
               ) : (
-                <span className="font-mono text-[10px] font-semibold text-foreground/60 leading-snug mb-1 italic">
+                <span className="font-mono text-[12px] font-semibold text-foreground/60 leading-snug mb-1 italic">
                   {primaryWealthSource ?? "In Discovery"}
                 </span>
               )}
               {(entity as any).estimatedNetWorth != null && primaryWealthSource && (
-                <span className="text-[9px] text-muted-foreground leading-tight">{primaryWealthSource}</span>
+                <span className="text-[11px] text-muted-foreground leading-tight">{primaryWealthSource}</span>
               )}
             </div>
           </div>
@@ -914,16 +914,16 @@ export default function ApexProfile() {
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
                   <ShieldAlert className="w-3.5 h-3.5 text-[#9CFF1A] flex-shrink-0" />
-                  <span className="text-[10px] font-mono font-bold text-[#9CFF1A] uppercase tracking-widest">
+                  <span className="text-[12px] font-mono font-bold text-[#9CFF1A] uppercase tracking-widest">
                     Ownership / Control
                   </span>
                   {ownerCount > 0 && (
-                    <span className="text-[9px] font-mono text-lime-400/80 uppercase">
+                    <span className="text-[11px] font-mono text-lime-400/80 uppercase">
                       {ownerCount} supported {ownerCount === 1 ? "claim" : "claims"}
                     </span>
                   )}
                 </div>
-                <p className="text-[10px] text-muted-foreground/70 mt-1.5 leading-relaxed max-w-3xl">
+                <p className="text-[12px] text-muted-foreground/70 mt-1.5 leading-relaxed max-w-3xl">
                   Phase 0 resolves the people behind the entity first. Director, operator, founder, and owner are kept distinct; names remain review-only until independently confirmed.
                 </p>
               </div>
@@ -932,14 +932,14 @@ export default function ApexProfile() {
                   href={sourceUrls[0]}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex-shrink-0 text-[9px] font-mono text-[#9CFF1A]/80 hover:text-[#d4ff8a] underline underline-offset-2"
+                  className="flex-shrink-0 text-[11px] font-mono text-[#9CFF1A]/80 hover:text-[#d4ff8a] underline underline-offset-2"
                 >
                   Source↗
                 </a>
               )}
             </div>
             <div className="rounded border border-[#9CFF1A]/15 bg-background/40 px-3 py-2.5 mb-3">
-              <div className="text-[9px] font-mono uppercase tracking-widest text-[#9CFF1A]/60 mb-1">
+              <div className="text-[11px] font-mono uppercase tracking-widest text-[#9CFF1A]/60 mb-1">
                 Phase 0 finding
               </div>
               <div className={cn(
@@ -952,7 +952,7 @@ export default function ApexProfile() {
               </div>
             </div>
             {people.length === 0 ? (
-              <div className="text-[10px] font-mono text-muted-foreground/60 italic">
+              <div className="text-[12px] font-mono text-muted-foreground/60 italic">
                 No named principals returned yet. The next Phase 0 pass will search owners, controllers, founders, operators, and officers separately.
               </div>
             ) : (
@@ -972,26 +972,26 @@ export default function ApexProfile() {
                           <span className="text-xs font-semibold text-foreground truncate">{person.name}</span>
                         </div>
                         <span className={cn(
-                          "text-[9px] font-mono uppercase tracking-wider flex-shrink-0",
+                          "text-[11px] font-mono uppercase tracking-wider flex-shrink-0",
                           isSupported ? "text-lime-400" : "text-muted-foreground/65",
                         )}>
                           {status}
                         </span>
                       </div>
                       <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                        <span className="text-[9px] font-mono uppercase text-[#9CFF1A]/80">{role}</span>
+                        <span className="text-[11px] font-mono uppercase text-[#9CFF1A]/80">{role}</span>
                         {person.basis && (
-                          <span className="text-[9px] text-muted-foreground/65 truncate max-w-full" title={person.basis}>
+                          <span className="text-[11px] text-muted-foreground/65 truncate max-w-full" title={person.basis}>
                             · {person.basis}
                           </span>
                         )}
                       </div>
                       <div className="flex items-center gap-2 mt-2 flex-wrap">
-                        {person.instagram && <a href={person.instagram} target="_blank" rel="noopener noreferrer" className="text-[9px] font-mono text-pink-400 hover:underline">Instagram↗</a>}
-                        {person.linkedin && <a href={person.linkedin} target="_blank" rel="noopener noreferrer" className="text-[9px] font-mono text-[#9CFF1A] hover:underline">LinkedIn↗</a>}
-                        {person.twitter && <a href={person.twitter} target="_blank" rel="noopener noreferrer" className="text-[9px] font-mono text-[#9CFF1A] hover:underline">X↗</a>}
+                        {person.instagram && <a href={person.instagram} target="_blank" rel="noopener noreferrer" className="text-[11px] font-mono text-pink-400 hover:underline">Instagram↗</a>}
+                        {person.linkedin && <a href={person.linkedin} target="_blank" rel="noopener noreferrer" className="text-[11px] font-mono text-[#9CFF1A] hover:underline">LinkedIn↗</a>}
+                        {person.twitter && <a href={person.twitter} target="_blank" rel="noopener noreferrer" className="text-[11px] font-mono text-[#9CFF1A] hover:underline">X↗</a>}
                         {urls.slice(0, 2).map((url: string) => (
-                          <a key={url} href={url} target="_blank" rel="noopener noreferrer" className="text-[9px] font-mono text-[#9CFF1A]/70 hover:underline truncate max-w-[180px]" title={url}>
+                          <a key={url} href={url} target="_blank" rel="noopener noreferrer" className="text-[11px] font-mono text-[#9CFF1A]/70 hover:underline truncate max-w-[180px]" title={url}>
                             Evidence↗
                           </a>
                         ))}
@@ -1031,13 +1031,13 @@ export default function ApexProfile() {
         return (
           <div className={cn("flex-shrink-0 border-b border-border px-4 md:px-6 py-3", hasContact && "bg-primary/5")}>
             <div className="flex items-center justify-between mb-2 gap-2">
-               <span className="text-[9px] font-mono font-bold text-primary uppercase tracking-widest">How to reach them</span>
+               <span className="text-[11px] font-mono font-bold text-primary uppercase tracking-widest">How to reach them</span>
               <div className="flex items-center gap-1.5">
                 {hasContact && (
                   <button
                     onClick={() => { setShowContactEvidence(v => !v); setRejectStep({}); setRejectError(null); }}
                     className={cn(
-                      "flex items-center gap-1 px-2 py-1 rounded border font-mono text-[10px] uppercase tracking-wider transition-colors",
+                      "flex items-center gap-1 px-2 py-1 rounded border font-mono text-[12px] uppercase tracking-wider transition-colors",
                       showContactEvidence
                         ? "border-[#9CFF1A]/40 text-[#9CFF1A] bg-[#9CFF1A]/10"
                         : "border-border text-muted-foreground hover:text-[#9CFF1A] hover:border-[#9CFF1A]/40"
@@ -1242,7 +1242,7 @@ export default function ApexProfile() {
                 const primaryEvidence = matchingEvidence.find(ev => ev.sourceUrl) ?? matchingEvidence[0] ?? null;
 
                 const evidenceBadge = primaryEvidence ? (
-                  <span className="block mb-1.5 text-[9px] font-mono">
+                  <span className="block mb-1.5 text-[11px] font-mono">
                     <span className="text-[#9CFF1A]/60 uppercase tracking-wider">Source: </span>
                     {primaryEvidence.sourceUrl ? (
                       <a href={primaryEvidence.sourceUrl} target="_blank" rel="noopener noreferrer"
@@ -1387,37 +1387,37 @@ export default function ApexProfile() {
                 <div className="mt-3 border border-[#9CFF1A]/20 rounded-lg bg-[#9CFF1A]/5 overflow-hidden">
                   {/* Panel header */}
                   <div className="px-3 py-2.5 border-b border-[#9CFF1A]/10">
-                    <div className="text-[10px] font-mono font-semibold text-[#9CFF1A]/80 mb-0.5">
+                    <div className="text-[12px] font-mono font-semibold text-[#9CFF1A]/80 mb-0.5">
                       How we found these contacts
                     </div>
-                    <div className="text-[10px] text-muted-foreground/60 leading-relaxed">
+                    <div className="text-[12px] text-muted-foreground/60 leading-relaxed">
                       Each contact below includes a plain-English explanation of the research steps. If something looks wrong, flag it to remove it permanently.
                     </div>
                   </div>
                   <div className="px-3 py-2 border-b border-[#9CFF1A]/10">
-                    <div className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground/60 mb-1.5">
+                    <div className="text-[11px] font-mono uppercase tracking-widest text-muted-foreground/60 mb-1.5">
                       Persisted evidence audit
                     </div>
                     {contactEvidenceLoading ? (
-                      <div className="text-[10px] font-mono text-muted-foreground">Loading evidence…</div>
+                      <div className="text-[12px] font-mono text-muted-foreground">Loading evidence…</div>
                     ) : contactEvidence.length === 0 ? (
-                      <div className="text-[10px] font-mono text-muted-foreground/60">
+                      <div className="text-[12px] font-mono text-muted-foreground/60">
                         No structured evidence rows yet — evidence is written on the next enrichment run.
                       </div>
                     ) : (
                       <div className="space-y-2.5">
                         {contactEvidence.map((item) => (
-                          <div key={item.id} className="text-[10px] font-mono border-l border-[#9CFF1A]/20 pl-2 space-y-0.5">
+                          <div key={item.id} className="text-[12px] font-mono border-l border-[#9CFF1A]/20 pl-2 space-y-0.5">
                             <div className="flex items-center gap-2 flex-wrap">
                               <span className="text-[#d4ff8a]/80 uppercase w-14 flex-shrink-0">{item.vectorType}</span>
                               <span className={cn(
-                                "uppercase text-[9px] flex-shrink-0",
+                                "uppercase text-[11px] flex-shrink-0",
                                 item.validationStatus === "verified" ? "text-lime-400" :
                                   item.validationStatus === "rejected" ? "text-red-400" : "text-[#9CFF1A]/80",
                               )}>{item.validationStatus}</span>
                               <span className="text-foreground/80 truncate flex-1" title={item.value}>{item.value}</span>
                             </div>
-                            <div className="flex items-center gap-2 flex-wrap text-[9px] text-muted-foreground/60">
+                            <div className="flex items-center gap-2 flex-wrap text-[11px] text-muted-foreground/60">
                               {item.sourceUrl ? (
                                 <a href={item.sourceUrl} target="_blank" rel="noopener noreferrer"
                                   className="text-[#9CFF1A]/70 hover:text-[#9CFF1A] underline underline-offset-2 truncate max-w-[220px]"
@@ -1447,45 +1447,45 @@ export default function ApexProfile() {
                         {/* Contact type label + value + action button */}
                         <div className="flex items-start justify-between gap-2 flex-wrap mb-2">
                           <div className="flex-1 min-w-0">
-                            <div className="text-[9px] font-mono uppercase tracking-widest text-[#9CFF1A]/50 mb-0.5">{label}</div>
+                            <div className="text-[11px] font-mono uppercase tracking-widest text-[#9CFF1A]/50 mb-0.5">{label}</div>
                             <div className="text-[11px] font-mono font-semibold text-foreground break-all">{value}</div>
                           </div>
                           <div className="flex-shrink-0 flex items-center gap-1.5 flex-wrap justify-end pt-0.5">
                             {step === 0 && (
                               <button onClick={() => handleRejectContact(field)}
-                                className="text-[9px] font-mono px-2 py-1 rounded border border-red-500/30 text-red-400/60 hover:text-red-400 hover:border-red-500/50 transition-colors whitespace-nowrap">
+                                className="text-[11px] font-mono px-2 py-1 rounded border border-red-500/30 text-red-400/60 hover:text-red-400 hover:border-red-500/50 transition-colors whitespace-nowrap">
                                 Flag as incorrect
                               </button>
                             )}
                             {step === 1 && (<>
-                              <span className="text-[9px] font-mono text-red-400 whitespace-nowrap">Remove this contact?</span>
-                              <button onClick={() => handleRejectContact(field)} className="text-[9px] font-mono px-2 py-1 rounded bg-red-500/20 border border-red-500/40 text-red-400 hover:bg-red-500/30 transition-colors">Yes, remove</button>
-                              <button onClick={() => setRejectStep(prev => { const n = {...prev}; delete n[field]; return n; })} className="text-[9px] font-mono px-2 py-1 rounded border border-border text-muted-foreground hover:text-foreground transition-colors">Keep it</button>
+                              <span className="text-[11px] font-mono text-red-400 whitespace-nowrap">Remove this contact?</span>
+                              <button onClick={() => handleRejectContact(field)} className="text-[11px] font-mono px-2 py-1 rounded bg-red-500/20 border border-red-500/40 text-red-400 hover:bg-red-500/30 transition-colors">Yes, remove</button>
+                              <button onClick={() => setRejectStep(prev => { const n = {...prev}; delete n[field]; return n; })} className="text-[11px] font-mono px-2 py-1 rounded border border-border text-muted-foreground hover:text-foreground transition-colors">Keep it</button>
                             </>)}
                             {step === 2 && (<>
-                              <span className="text-[9px] font-mono text-red-400 font-bold whitespace-nowrap">Permanently delete?</span>
+                              <span className="text-[11px] font-mono text-red-400 font-bold whitespace-nowrap">Permanently delete?</span>
                               <button onClick={() => handleRejectContact(field)} disabled={rejectLoading}
-                                className="text-[9px] font-mono px-2 py-1 rounded bg-red-600/30 border border-red-600/50 text-red-300 hover:bg-red-600/40 disabled:opacity-40 transition-colors">
+                                className="text-[11px] font-mono px-2 py-1 rounded bg-red-600/30 border border-red-600/50 text-red-300 hover:bg-red-600/40 disabled:opacity-40 transition-colors">
                                 {rejectLoading ? "…" : "Yes, delete"}
                               </button>
-                              <button onClick={() => setRejectStep({})} className="text-[9px] font-mono px-2 py-1 rounded border border-border text-muted-foreground hover:text-foreground transition-colors">Cancel</button>
+                              <button onClick={() => setRejectStep({})} className="text-[11px] font-mono px-2 py-1 rounded border border-border text-muted-foreground hover:text-foreground transition-colors">Cancel</button>
                             </>)}
                           </div>
                         </div>
                         {/* Plain-English research explanation */}
-                        <div className="text-[10px] text-muted-foreground/55 leading-relaxed border-l-2 border-[#9CFF1A]/20 pl-2.5">
+                        <div className="text-[12px] text-muted-foreground/55 leading-relaxed border-l-2 border-[#9CFF1A]/20 pl-2.5">
                           {explainContact(field)}
                         </div>
                       </div>
                     );
                   })}
-                  {rejectError && <div className="px-3 py-2 text-[10px] font-mono text-red-400">{rejectError}</div>}
+                  {rejectError && <div className="px-3 py-2 text-[12px] font-mono text-red-400">{rejectError}</div>}
                   <div className="px-3 py-2 border-t border-[#9CFF1A]/10">
-                    <span className="text-[9px] text-muted-foreground/40">Flagging a contact as incorrect automatically re-runs the research pipeline to search for a replacement.</span>
+                    <span className="text-[11px] text-muted-foreground/40">Flagging a contact as incorrect automatically re-runs the research pipeline to search for a replacement.</span>
                     {isEnriching && (
                       <div className="mt-1.5 flex items-center gap-1.5">
                         <Loader2 className="w-3 h-3 animate-spin text-primary" />
-                        <span className="text-[9px] font-mono text-primary">Research pipeline running…</span>
+                        <span className="text-[11px] font-mono text-primary">Research pipeline running…</span>
                       </div>
                     )}
                   </div>
@@ -1537,7 +1537,7 @@ export default function ApexProfile() {
         if (!lines.length) return null;
         return (
           <div className="flex-shrink-0 border-b border-border px-4 md:px-6 py-3 bg-muted/20">
-            <div className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground/50 mb-1.5">
+            <div className="text-[11px] font-mono uppercase tracking-widest text-muted-foreground/50 mb-1.5">
               Why {pName} is in this database
             </div>
             <p className="text-[11px] text-muted-foreground/75 leading-relaxed">
@@ -1567,7 +1567,7 @@ export default function ApexProfile() {
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={cn(
-                "flex items-center gap-1.5 px-3 sm:px-4 py-3 min-h-[44px] font-mono text-[10px] sm:text-[11px] uppercase tracking-widest border-b-2 transition-colors whitespace-nowrap",
+                "flex items-center gap-1.5 px-3 sm:px-4 py-3 min-h-[44px] font-mono text-[12px] sm:text-[11px] uppercase tracking-widest border-b-2 transition-colors whitespace-nowrap",
                 activeTab === tab.id
                   ? "border-primary text-primary"
                   : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
@@ -1604,7 +1604,7 @@ export default function ApexProfile() {
                     <p className="text-xs font-mono">
                       {(assets as any[]).length > 0 ? "Assets on file, but no map coordinates yet" : "No assets on file yet"}
                     </p>
-                    <p className="text-[10px] font-mono leading-relaxed">
+                    <p className="text-[12px] font-mono leading-relaxed">
                       {(assets as any[]).length > 0
                         ? `${(assets as any[]).length} asset${(assets as any[]).length !== 1 ? "s" : ""} recorded — see list below`
                         : "Assets appear after the AI enrichment pipeline completes."}
@@ -1641,13 +1641,13 @@ export default function ApexProfile() {
                           <Popup>
                             <div className="space-y-0.5 min-w-[140px]">
                               <div className="font-bold text-xs">{asset.identifier}</div>
-                              <div className="text-muted-foreground text-[10px]">{asset.category} · {asset.jurisdiction}</div>
+                              <div className="text-muted-foreground text-[12px]">{asset.category} · {asset.jurisdiction}</div>
                               {asset.estimatedValue != null && (
                                 <div className="text-xs font-mono">{formatCurrency(asset.estimatedValue)}</div>
                               )}
-                              {asset.address && <div className="text-[10px] text-muted-foreground">{asset.address}</div>}
+                              {asset.address && <div className="text-[12px] text-muted-foreground">{asset.address}</div>}
                               {asset.sourceRegistry && (
-                                <div className="text-[9px] opacity-50 mt-1 pt-1 border-t border-border">{asset.sourceRegistry}</div>
+                                <div className="text-[11px] opacity-50 mt-1 pt-1 border-t border-border">{asset.sourceRegistry}</div>
                               )}
                             </div>
                           </Popup>
@@ -1665,7 +1665,7 @@ export default function ApexProfile() {
                     return (
                       <div key={cat} className="flex items-center gap-1.5">
                         <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
-                        <span className="text-[10px] font-mono text-muted-foreground">{cat} ({n})</span>
+                        <span className="text-[12px] font-mono text-muted-foreground">{cat} ({n})</span>
                       </div>
                     );
                   })}
@@ -1702,7 +1702,7 @@ export default function ApexProfile() {
                   </div>
                   <div className="flex-1">
                     <div className="text-xs font-mono font-bold text-foreground mb-1">Overall Confidence</div>
-                    <div className="text-[10px] font-mono text-muted-foreground leading-relaxed">
+                    <div className="text-[12px] font-mono text-muted-foreground leading-relaxed">
                       {confidence.overall >= 75
                         ? "High-confidence target. Multiple registry verifications confirmed."
                         : confidence.overall >= 50
@@ -1739,19 +1739,19 @@ export default function ApexProfile() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="text-xs font-mono font-medium text-foreground">{asset.identifier}</span>
-                          <span className="text-[9px] font-mono px-1.5 py-0.5 rounded border border-border/60 text-muted-foreground">{asset.category}</span>
+                          <span className="text-[11px] font-mono px-1.5 py-0.5 rounded border border-border/60 text-muted-foreground">{asset.category}</span>
                         </div>
                         {asset.description && (
-                          <p className="text-[10px] font-mono text-muted-foreground/70 truncate mt-0.5">{asset.description}</p>
+                          <p className="text-[12px] font-mono text-muted-foreground/70 truncate mt-0.5">{asset.description}</p>
                         )}
                       </div>
                       <div className="text-right flex-shrink-0 space-y-0.5">
-                        <div className="text-[10px] font-mono text-muted-foreground">{asset.jurisdiction}</div>
+                        <div className="text-[12px] font-mono text-muted-foreground">{asset.jurisdiction}</div>
                         {asset.estimatedValue != null && (
-                          <div className="text-[10px] font-mono text-primary">{formatCurrency(asset.estimatedValue)}</div>
+                          <div className="text-[12px] font-mono text-primary">{formatCurrency(asset.estimatedValue)}</div>
                         )}
                         {(asset.latitude != null) && (
-                          <div className="text-[9px] font-mono text-muted-foreground/50">📍 mapped</div>
+                          <div className="text-[11px] font-mono text-muted-foreground/50">📍 mapped</div>
                         )}
                       </div>
                     </div>
@@ -1797,29 +1797,29 @@ export default function ApexProfile() {
                       })()}
                       {occrpData.datasets?.length > 0 && (
                         <div>
-                          <div className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider mb-2">
+                          <div className="text-[11px] font-mono text-muted-foreground uppercase tracking-wider mb-2">
                             Aleph Datasets ({occrpData.datasets.length})
                           </div>
                           <div className="flex flex-wrap gap-1">
                             {occrpData.datasets.slice(0, 8).map((d: string) => (
-                              <span key={d} className="text-[9px] font-mono px-1.5 py-0.5 bg-muted border border-border rounded text-muted-foreground">
+                              <span key={d} className="text-[11px] font-mono px-1.5 py-0.5 bg-muted border border-border rounded text-muted-foreground">
                                 {d.replace(/_/g, " ")}
                               </span>
                             ))}
                             {occrpData.datasets.length > 8 && (
-                              <span className="text-[9px] font-mono text-muted-foreground">+{occrpData.datasets.length - 8} more</span>
+                              <span className="text-[11px] font-mono text-muted-foreground">+{occrpData.datasets.length - 8} more</span>
                             )}
                           </div>
                         </div>
                       )}
                       {occrpData.url && (
                         <a href={occrpData.url} target="_blank" rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1.5 text-[10px] font-mono text-primary hover:underline">
+                          className="inline-flex items-center gap-1.5 text-[12px] font-mono text-primary hover:underline">
                           <Globe className="w-3 h-3" /> View on OCCRP Aleph
                         </a>
                       )}
                       {occrpData.enrichedAt && (
-                        <p className="text-[9px] font-mono text-muted-foreground/50">
+                        <p className="text-[11px] font-mono text-muted-foreground/50">
                           Last enriched: {new Date(occrpData.enrichedAt).toLocaleDateString()}
                         </p>
                       )}
@@ -1850,7 +1850,7 @@ export default function ApexProfile() {
                         <div key={flight.id} className="border border-border rounded p-3 bg-muted/10 space-y-2">
                           <div className="flex items-center justify-between gap-2">
                             <span className="text-sm font-mono font-bold text-foreground truncate">{flight.name}</span>
-                            <span className="text-[10px] font-mono text-[#9CFF1A] flex-shrink-0 border border-[#9CFF1A]/30 bg-[#9CFF1A]/10 px-1.5 py-0.5 rounded">
+                            <span className="text-[12px] font-mono text-[#9CFF1A] flex-shrink-0 border border-[#9CFF1A]/30 bg-[#9CFF1A]/10 px-1.5 py-0.5 rounded">
                               {flight.identifier}
                             </span>
                           </div>
@@ -1858,25 +1858,25 @@ export default function ApexProfile() {
                             <div className="grid grid-cols-2 gap-x-4 gap-y-1">
                               {flight.opensky.altitudeFt != null && (
                                 <div>
-                                  <div className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider">Altitude</div>
+                                  <div className="text-[11px] font-mono text-muted-foreground uppercase tracking-wider">Altitude</div>
                                   <div className="text-xs font-mono text-foreground">{flight.opensky.altitudeFt.toLocaleString()} ft</div>
                                 </div>
                               )}
                               {flight.opensky.speedKnots != null && (
                                 <div>
-                                  <div className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider">Speed</div>
+                                  <div className="text-[11px] font-mono text-muted-foreground uppercase tracking-wider">Speed</div>
                                   <div className="text-xs font-mono text-foreground">{flight.opensky.speedKnots} kts</div>
                                 </div>
                               )}
                               {flight.opensky.originCountry && (
                                 <div>
-                                  <div className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider">Origin</div>
+                                  <div className="text-[11px] font-mono text-muted-foreground uppercase tracking-wider">Origin</div>
                                   <div className="text-xs font-mono text-foreground">{flight.opensky.originCountry}</div>
                                 </div>
                               )}
                               {flight.opensky.onGround != null && (
                                 <div>
-                                  <div className="text-[9px] font-mono text-muted-foreground uppercase tracking-wider">Status</div>
+                                  <div className="text-[11px] font-mono text-muted-foreground uppercase tracking-wider">Status</div>
                                   <div className={cn("text-xs font-mono", flight.opensky.onGround ? "text-muted-foreground" : "text-primary")}>
                                     {flight.opensky.onGround ? "On ground" : "Airborne ✈"}
                                   </div>
@@ -1885,7 +1885,7 @@ export default function ApexProfile() {
                             </div>
                           )}
                           {flight.lastActivityDate && (
-                            <p className="text-[9px] font-mono text-muted-foreground/50">
+                            <p className="text-[11px] font-mono text-muted-foreground/50">
                               Last seen: {new Date(flight.lastActivityDate).toLocaleDateString()}
                             </p>
                           )}
@@ -1925,7 +1925,7 @@ export default function ApexProfile() {
                   <thead>
                     <tr className="border-b border-border/50 bg-card/30">
                       {["Category", "Data Point", "Value", "Source Registry", "Status"].map((h) => (
-                        <th key={h} className="px-4 py-2 text-left text-[9px] font-mono font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap">
+                        <th key={h} className="px-4 py-2 text-left text-[11px] font-mono font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap">
                           {h}
                         </th>
                       ))}
@@ -1939,16 +1939,16 @@ export default function ApexProfile() {
                         <td className="px-4 py-2.5 text-xs font-mono text-foreground max-w-xs">
                           <span className="truncate block" title={entry.value}>{entry.value}</span>
                         </td>
-                        <td className="px-4 py-2.5 text-[10px] font-mono text-muted-foreground/70 whitespace-nowrap max-w-[200px]">
+                        <td className="px-4 py-2.5 text-[12px] font-mono text-muted-foreground/70 whitespace-nowrap max-w-[200px]">
                           <span className="truncate block" title={entry.source}>{entry.source}</span>
                         </td>
                         <td className="px-4 py-2.5 whitespace-nowrap">
                           {entry.verified ? (
-                            <span className="flex items-center gap-1 text-[10px] font-mono text-primary">
+                            <span className="flex items-center gap-1 text-[12px] font-mono text-primary">
                               <CheckCircle2 className="w-3 h-3 flex-shrink-0" /> Registry
                             </span>
                           ) : (
-                            <span className="text-[10px] font-mono text-muted-foreground/40">Unverified</span>
+                            <span className="text-[12px] font-mono text-muted-foreground/40">Unverified</span>
                           )}
                         </td>
                       </tr>
@@ -1968,7 +1968,7 @@ export default function ApexProfile() {
               action={
                 <button
                   onClick={() => setAddRelOpen(true)}
-                  className="flex items-center gap-1.5 px-2.5 py-1 rounded border border-border text-muted-foreground hover:text-primary hover:border-primary/40 font-mono text-[10px] uppercase tracking-wider transition-colors"
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded border border-border text-muted-foreground hover:text-primary hover:border-primary/40 font-mono text-[12px] uppercase tracking-wider transition-colors"
                 >
                   <Plus className="w-3 h-3" /> Add
                 </button>
@@ -1981,7 +1981,7 @@ export default function ApexProfile() {
                 <p className="text-[12px] text-center max-w-xs text-muted-foreground leading-relaxed">
                   Link related people, companies, or assets — or run research to discover them.
                 </p>
-                <p className="text-[10px] font-mono text-center max-w-xs leading-relaxed">
+                <p className="text-[12px] font-mono text-center max-w-xs leading-relaxed">
                   Click "Add" to link this entity to another, or run Auto-detect from Data Sources to surface co-ownership signals.
                 </p>
               </div>
@@ -1991,7 +1991,7 @@ export default function ApexProfile() {
                   <thead>
                     <tr className="border-b border-border/50 bg-card/30">
                       {["Target", "Type", "Relationship", "Strength", ""].map((h) => (
-                        <th key={h} className="px-4 py-2 text-left text-[9px] font-mono font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap">
+                        <th key={h} className="px-4 py-2 text-left text-[11px] font-mono font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap">
                           {h}
                         </th>
                       ))}
@@ -2010,7 +2010,7 @@ export default function ApexProfile() {
                           )}
                         </td>
                         <td className="px-4 py-2.5">
-                          <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-muted text-muted-foreground uppercase">
+                          <span className="text-[11px] font-mono font-bold px-1.5 py-0.5 rounded bg-muted text-muted-foreground uppercase">
                             {rel.targetType}
                           </span>
                         </td>
@@ -2022,7 +2022,7 @@ export default function ApexProfile() {
                             <div className="h-1.5 w-16 rounded-full bg-muted/30 overflow-hidden">
                               <div className="h-full rounded-full bg-primary/60" style={{ width: `${(rel.strength ?? 0.5) * 100}%` }} />
                             </div>
-                            <span className="text-[10px] font-mono text-muted-foreground">{((rel.strength ?? 0.5) * 100).toFixed(0)}%</span>
+                            <span className="text-[12px] font-mono text-muted-foreground">{((rel.strength ?? 0.5) * 100).toFixed(0)}%</span>
                           </div>
                         </td>
                         <td className="px-4 py-2.5 text-right">
@@ -2059,7 +2059,7 @@ export default function ApexProfile() {
                   type="button"
                   onClick={handleRunResearch}
                   disabled={runResearch.isPending}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-primary/10 border border-primary/30 text-primary font-mono text-[10px] uppercase tracking-wider hover:bg-primary/20 transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-primary/10 border border-primary/30 text-primary font-mono text-[12px] uppercase tracking-wider hover:bg-primary/20 transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                 >
                   {runResearch.isPending
                     ? <Loader2 className="w-3 h-3 animate-spin" />
@@ -2107,13 +2107,13 @@ export default function ApexProfile() {
 
                 {(sessions as any[]).length > 1 && (
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest">Session:</span>
+                    <span className="text-[12px] font-mono text-muted-foreground uppercase tracking-widest">Session:</span>
                     {(sessions as any[]).slice(0, 6).map((s: any, i: number) => (
                       <button
                         key={s.id}
                         onClick={() => { setSelectedIdx(i); }}
                         className={cn(
-                          "px-2.5 py-1 rounded border font-mono text-[10px] uppercase transition-colors",
+                          "px-2.5 py-1 rounded border font-mono text-[12px] uppercase transition-colors",
                           selectedIdx === i
                             ? "border-primary/40 bg-primary/10 text-primary"
                             : "border-border text-muted-foreground hover:text-foreground",
@@ -2129,29 +2129,29 @@ export default function ApexProfile() {
                   <div className="space-y-6">
                     <div className="flex items-center gap-3 flex-wrap">
                       <span className={cn(
-                        "text-[10px] font-mono font-bold px-2.5 py-1 rounded border uppercase",
+                        "text-[12px] font-mono font-bold px-2.5 py-1 rounded border uppercase",
                         "text-[#9CFF1A] bg-[#9CFF1A]/10 border-[#9CFF1A]/30",
                       )}>
                         Research Review
                       </span>
                       {selectedSession.pathScore != null && (
-                        <span className="text-[10px] font-mono text-muted-foreground">
+                        <span className="text-[12px] font-mono text-muted-foreground">
                           Path score: <span className="text-foreground font-bold">{(selectedSession.pathScore * 100).toFixed(0)}%</span>
                         </span>
                       )}
                       {selectedSession.bayesianScoreAtRuntime != null && (
-                        <span className="text-[10px] font-mono text-muted-foreground">
+                        <span className="text-[12px] font-mono text-muted-foreground">
                           Bayesian: <span className="text-foreground font-bold">{(selectedSession.bayesianScoreAtRuntime * 100).toFixed(0)}</span>
                         </span>
                       )}
-                      <span className="text-[10px] font-mono text-muted-foreground">
+                      <span className="text-[12px] font-mono text-muted-foreground">
                         {new Date(selectedSession.createdAt).toLocaleString()}
                       </span>
                     </div>
 
                     {winningPath.length > 0 && (
                       <div>
-                        <div className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest mb-3 flex items-center gap-2">
+                        <div className="text-[12px] font-mono text-muted-foreground uppercase tracking-widest mb-3 flex items-center gap-2">
                           <Route className="w-3 h-3" /> Winning Path · {winningPath.length} Nodes
                         </div>
                         <div className="flex items-start gap-0 flex-wrap gap-y-2 overflow-x-auto pb-1">
@@ -2163,11 +2163,11 @@ export default function ApexProfile() {
                               )}>
                                 <div className="flex items-center gap-1">
                                   {roleIcon(step.role)}
-                                  <span className="text-[9px] uppercase tracking-wider opacity-60 font-bold">{step.role}</span>
+                                  <span className="text-[11px] uppercase tracking-wider opacity-60 font-bold">{step.role}</span>
                                 </div>
                                 <span className="font-semibold text-[11px] leading-tight">{step.label}</span>
-                                {step.contactMethod && <span className="text-[9px] opacity-50 leading-tight">{step.contactMethod}</span>}
-                                {step.actionRequired && <span className="text-[9px] opacity-70 leading-tight italic">{step.actionRequired}</span>}
+                                {step.contactMethod && <span className="text-[11px] opacity-50 leading-tight">{step.contactMethod}</span>}
+                                {step.actionRequired && <span className="text-[11px] opacity-70 leading-tight italic">{step.actionRequired}</span>}
                               </div>
                               {i < winningPath.length - 1 && (
                                 <ChevronRight className="w-3.5 h-3.5 text-muted-foreground mx-1 flex-shrink-0" />
@@ -2180,22 +2180,22 @@ export default function ApexProfile() {
 
                     {mctsSteps.length > 0 && (
                       <div>
-                        <div className="text-[10px] font-mono text-muted-foreground uppercase tracking-widest mb-2">
+                        <div className="text-[12px] font-mono text-muted-foreground uppercase tracking-widest mb-2">
                           {mctsSteps.length} UCT Iterations
                         </div>
                         <div className="border border-border/50 rounded overflow-hidden">
                           <div className="grid grid-cols-4 border-b border-border/50 bg-card/60">
                             {["Step", "Action", "Registry", "UCT Score"].map((h) => (
-                              <div key={h} className="px-3 py-1.5 text-[9px] font-mono font-bold text-muted-foreground uppercase tracking-widest">{h}</div>
+                              <div key={h} className="px-3 py-1.5 text-[11px] font-mono font-bold text-muted-foreground uppercase tracking-widest">{h}</div>
                             ))}
                           </div>
                           <div className="max-h-80 overflow-y-auto divide-y divide-border/30">
                             {mctsSteps.map((step: any, i: number) => (
                               <div key={i} className="grid grid-cols-4 hover:bg-muted/10">
-                                <div className="px-3 py-2 text-[10px] font-mono text-muted-foreground">{step.step}</div>
-                                <div className="px-3 py-2 text-[10px] font-mono text-foreground">{step.action}</div>
-                                <div className="px-3 py-2 text-[10px] font-mono text-secondary/80">{step.registry}</div>
-                                <div className="px-3 py-2 text-[10px] font-mono text-[#9CFF1A]">{step.uctScore?.toFixed(3) ?? "—"}</div>
+                                <div className="px-3 py-2 text-[12px] font-mono text-muted-foreground">{step.step}</div>
+                                <div className="px-3 py-2 text-[12px] font-mono text-foreground">{step.action}</div>
+                                <div className="px-3 py-2 text-[12px] font-mono text-secondary/80">{step.registry}</div>
+                                <div className="px-3 py-2 text-[12px] font-mono text-[#9CFF1A]">{step.uctScore?.toFixed(3) ?? "—"}</div>
                               </div>
                             ))}
                           </div>
@@ -2242,7 +2242,7 @@ export default function ApexProfile() {
 
         <div className="space-y-4 py-2">
           <div>
-            <label className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider mb-1.5 block">Target Type</label>
+            <label className="text-[12px] font-mono text-muted-foreground uppercase tracking-wider mb-1.5 block">Target Type</label>
             <div className="flex gap-2">
               {(["Entity", "Asset"] as const).map((t) => (
                 <button key={t}
@@ -2256,7 +2256,7 @@ export default function ApexProfile() {
           </div>
 
           <div className="relative">
-            <label className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider mb-1.5 block">Target {relTargetType}</label>
+            <label className="text-[12px] font-mono text-muted-foreground uppercase tracking-wider mb-1.5 block">Target {relTargetType}</label>
             <input
               value={relTargetId ? relTargetName : relSearchQ}
               onChange={(e) => { setRelTargetId(null); setRelTargetName(""); handleRelSearch(e.target.value); }}
@@ -2276,7 +2276,7 @@ export default function ApexProfile() {
           </div>
 
           <div>
-            <label className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider mb-1.5 block">Relationship Type</label>
+            <label className="text-[12px] font-mono text-muted-foreground uppercase tracking-wider mb-1.5 block">Relationship Type</label>
             <select value={relType} onChange={(e) => setRelType(e.target.value)}
               className="w-full px-3 py-2 bg-background border border-border rounded text-sm font-mono text-foreground focus:border-primary/50 focus:outline-none">
               {["KNOWS","OWNS","CONTROLS","ASSOCIATES_WITH","EMPLOYED_BY","DIRECTS","FAMILY_OF"].map((t) => (
@@ -2287,16 +2287,16 @@ export default function ApexProfile() {
 
           <div>
             <div className="flex items-center justify-between mb-1.5">
-              <label className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider">Strength</label>
-              <span className="text-[10px] font-mono text-foreground font-bold">{(relStrength * 100).toFixed(0)}%</span>
+              <label className="text-[12px] font-mono text-muted-foreground uppercase tracking-wider">Strength</label>
+              <span className="text-[12px] font-mono text-foreground font-bold">{(relStrength * 100).toFixed(0)}%</span>
             </div>
             <input type="range" min={0.1} max={1.0} step={0.05} value={relStrength}
               onChange={(e) => setRelStrength(Number(e.target.value))} className="w-full accent-primary" />
-            <div className="flex justify-between text-[9px] text-muted-foreground mt-0.5"><span>Weak</span><span>Strong</span></div>
+            <div className="flex justify-between text-[11px] text-muted-foreground mt-0.5"><span>Weak</span><span>Strong</span></div>
           </div>
 
           <div>
-            <label className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider mb-1.5 block">Notes (optional)</label>
+            <label className="text-[12px] font-mono text-muted-foreground uppercase tracking-wider mb-1.5 block">Notes (optional)</label>
             <textarea value={relNotes} onChange={(e) => setRelNotes(e.target.value)} rows={2}
               placeholder="Source of this relationship, evidence…"
               className="w-full px-3 py-2 bg-background border border-border rounded text-sm font-mono text-foreground placeholder:text-muted-foreground/40 focus:border-primary/50 focus:outline-none resize-none" />

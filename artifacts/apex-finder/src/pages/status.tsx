@@ -159,7 +159,7 @@ function ProviderCard({ name, slots }: { name: keyof AIKeyStatus; slots: AIKeySl
           <div className="font-display text-[13px] font-semibold tracking-tight text-foreground">
             {PROVIDER_LABELS[name]}
           </div>
-          <div className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground/70">
+          <div className="mt-0.5 font-mono text-[12px] uppercase tracking-[0.14em] text-muted-foreground/70">
             {configured === 0
               ? "No keys configured"
               : configured === 1
@@ -169,7 +169,7 @@ function ProviderCard({ name, slots }: { name: keyof AIKeyStatus; slots: AIKeySl
         </div>
         <span
           className={cn(
-            "shrink-0 rounded-md border px-2 py-0.5 font-mono text-[9px] font-bold uppercase tracking-[0.12em]",
+            "shrink-0 rounded-md border px-2 py-0.5 font-mono text-[11px] font-bold uppercase tracking-[0.12em]",
             active > 0
               ? "border-[#9CFF1A]/35 bg-[#9CFF1A]/10 text-[#d4ff8a]"
               : rateLimited > 0
@@ -183,7 +183,7 @@ function ProviderCard({ name, slots }: { name: keyof AIKeyStatus; slots: AIKeySl
 
       <div className="relative mt-4 space-y-2">
         <SlotBar active={active} cooling={rateLimited} />
-        <div className="font-mono text-[10px] text-muted-foreground">
+        <div className="font-mono text-[12px] text-muted-foreground">
           {active > 0 && (
             <span className="text-[#d4ff8a]/90">
               {active} live now
@@ -222,7 +222,7 @@ function DbRow({
           <span className="font-mono text-[11px] text-muted-foreground">{latency}ms</span>
         )}
         <span className={cn(
-          "flex items-center gap-1 rounded-full px-2.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider",
+          "flex items-center gap-1 rounded-full px-2.5 py-0.5 font-mono text-[12px] font-bold uppercase tracking-wider",
           ok ? "bg-primary/15 text-primary" : "bg-destructive/15 text-destructive",
         )}>
           {ok ? <CheckCircle2 className="h-3 w-3" /> : <AlertCircle className="h-3 w-3" />}
@@ -330,7 +330,7 @@ export default function SystemStatusPage() {
         </div>
         <div className="flex items-center gap-3 shrink-0">
           {lastFetch && (
-            <span className="font-mono text-[10px] text-muted-foreground/60">
+            <span className="font-mono text-[12px] text-muted-foreground/60">
               Updated {lastFetch.toLocaleTimeString()}
             </span>
           )}
@@ -366,7 +366,7 @@ export default function SystemStatusPage() {
                 : "No AI pool keys live — check Secrets and restart API"}
             </span>
           </div>
-          <div className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
+          <div className="flex items-center gap-2 font-mono text-[12px] uppercase tracking-[0.12em] text-muted-foreground">
             <Activity className="h-3.5 w-3.5" />
             {status.cached ? `Cached · ${Math.round(status.cachedAgoMs / 1000)}s` : "Live feed"}
           </div>
@@ -420,7 +420,7 @@ export default function SystemStatusPage() {
               <li key={i}>{r}</li>
             ))}
           </ul>
-          <div className="mt-2 font-mono text-[10px] text-stone-500">
+          <div className="mt-2 font-mono text-[12px] text-stone-500">
             agentic LLM slots: {integrity.agenticSlots ?? "—"}
             {" · "}web search: {integrity.webSearch ?? "—"}
             {" · "}last step: {integrity.lastOk === false ? "failed" : integrity.lastOk === true ? `ok (${integrity.lastModel ?? "—"})` : "not exercised"}
@@ -448,7 +448,7 @@ export default function SystemStatusPage() {
             Open Research Lane
           </h2>
           <span className={cn(
-            "ml-auto rounded-full px-2 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider",
+            "ml-auto rounded-full px-2 py-0.5 font-mono text-[12px] font-bold uppercase tracking-wider",
             status?.openResearch?.state === "ready"
               ? "bg-primary/15 text-primary"
               : status?.openResearch?.state === "incomplete"
@@ -475,11 +475,11 @@ export default function SystemStatusPage() {
             >
               <div className="min-w-0">
                 <div className="text-[13px] font-semibold tracking-tight text-foreground">{item.label}</div>
-                <div className="mt-0.5 font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground/65">{item.sub}</div>
+                <div className="mt-0.5 font-mono text-[12px] uppercase tracking-[0.12em] text-muted-foreground/65">{item.sub}</div>
               </div>
               <span
                 className={cn(
-                  "shrink-0 rounded-md border px-2 py-0.5 font-mono text-[9px] font-bold uppercase tracking-[0.12em]",
+                  "shrink-0 rounded-md border px-2 py-0.5 font-mono text-[11px] font-bold uppercase tracking-[0.12em]",
                   item.configured
                     ? "border-[#9CFF1A]/30 bg-[#9CFF1A]/10 text-[#fef08a]"
                     : "border-[#9CFF1A]/12 bg-muted/20 text-muted-foreground",
@@ -491,42 +491,42 @@ export default function SystemStatusPage() {
           ))}
         </div>
         <div className="mt-2 rounded-lg border border-[#9CFF1A]/10 px-4 py-3">
-          <div className="flex flex-wrap items-center justify-between gap-2 font-mono text-[10px]">
+          <div className="flex flex-wrap items-center justify-between gap-2 font-mono text-[12px]">
             <span className="text-muted-foreground">Bounded smolagents adapter</span>
             <span className={status?.openResearch?.adapter?.available ? "text-primary" : "text-muted-foreground"}>
               {status?.openResearch?.adapter?.available ? "installed" : "unavailable"}
             </span>
           </div>
-          <div className="mt-1 truncate font-mono text-[9px] text-muted-foreground/55">
+          <div className="mt-1 truncate font-mono text-[11px] text-muted-foreground/55">
             {status?.openResearch?.adapter?.model ?? "Qwen/Qwen2.5-7B-Instruct"} · review-only, no direct promotion
           </div>
-          <div className="mt-1 truncate font-mono text-[9px] text-muted-foreground/55">
+          <div className="mt-1 truncate font-mono text-[11px] text-muted-foreground/55">
             {status?.openResearch?.mistral?.configured
               ? `Mistral ${status.openResearch.mistral.model} · ${status.openResearch.mistral.rateLimit}`
               : "Mistral web search not configured"}
           </div>
         </div>
         <div className="mt-3 rounded-lg border border-[#9CFF1A]/10 px-4 py-3">
-          <div className="flex flex-wrap items-center justify-between gap-2 font-mono text-[10px]">
+          <div className="flex flex-wrap items-center justify-between gap-2 font-mono text-[12px]">
             <span className="text-muted-foreground">Gemini Boss</span>
             <span className={status?.geminiBoss?.configured ? "text-primary" : "text-muted-foreground"}>
               {status?.geminiBoss?.configured ? "configured" : "missing"}
             </span>
           </div>
-          <div className="mt-1 truncate font-mono text-[9px] text-muted-foreground/55">
+          <div className="mt-1 truncate font-mono text-[11px] text-muted-foreground/55">
             {status?.geminiBoss?.configured
               ? `${status.geminiBoss.model} · head investigator · text only · no web grounding`
               : "Gemini Boss text-planning model not configured"}
           </div>
         </div>
         <div className="mt-3 rounded-lg border border-[#9CFF1A]/10 px-4 py-3">
-          <div className="flex flex-wrap items-center justify-between gap-2 font-mono text-[10px]">
+          <div className="flex flex-wrap items-center justify-between gap-2 font-mono text-[12px]">
             <span className="text-muted-foreground">Boss's right-hand advisor</span>
             <span className={status?.bureauReasoning?.configured ? "text-primary" : "text-muted-foreground"}>
               {status?.bureauReasoning?.configured ? "configured" : "missing"}
             </span>
           </div>
-          <div className="mt-1 truncate font-mono text-[9px] text-muted-foreground/55">
+          <div className="mt-1 truncate font-mono text-[11px] text-muted-foreground/55">
             {status?.bureauReasoning?.configured
               ? `${status.bureauReasoning.model} · advisory only · no web search`
               : "NVIDIA NIM right-hand advisor not configured"}
@@ -582,7 +582,7 @@ export default function SystemStatusPage() {
                     : "border-[#9CFF1A]/10 bg-muted/10",
                 )}
               >
-                <div className="mb-1 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground/60">
+                <div className="mb-1 font-mono text-[12px] uppercase tracking-[0.18em] text-muted-foreground/60">
                   Slot {slot.slot}
                 </div>
                 <div className="flex items-center justify-center gap-1.5">
@@ -593,7 +593,7 @@ export default function SystemStatusPage() {
                     : <Clock className="h-3.5 w-3.5 text-muted-foreground" />
                   }
                   <span className={cn(
-                    "font-mono text-[10px] font-bold uppercase",
+                    "font-mono text-[12px] font-bold uppercase",
                     slot.quotaExhausted ? "text-[#9CFF1A]" :
                     slot.status === "ready" ? "text-primary" : "text-muted-foreground",
                   )}>
@@ -601,7 +601,7 @@ export default function SystemStatusPage() {
                   </span>
                 </div>
                 {typeof slot.latencyMs === "number" && slot.latencyMs !== null && (
-                  <div className="mt-1 font-mono text-[9px] text-muted-foreground/50">{slot.latencyMs}ms</div>
+                  <div className="mt-1 font-mono text-[11px] text-muted-foreground/50">{slot.latencyMs}ms</div>
                 )}
               </div>
             ))}
@@ -610,7 +610,7 @@ export default function SystemStatusPage() {
       </section>
 
       {/* Legend */}
-      <div className="flex flex-wrap gap-4 border-t border-[#9CFF1A]/08 pt-5 font-mono text-[10px] text-muted-foreground/60">
+      <div className="flex flex-wrap gap-4 border-t border-[#9CFF1A]/08 pt-5 font-mono text-[12px] text-muted-foreground/60">
         <div className="flex items-center gap-1.5">
           <div className="h-3 w-3 rounded-full bg-primary" /> Active — key operational
         </div>
