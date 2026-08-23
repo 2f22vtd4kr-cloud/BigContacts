@@ -10,6 +10,34 @@
  */
 
 import Redis from "ioredis";
+
+/**
+ * Redis TTL / eviction policy (app-side).
+ *
+ * Upstash / managed Redis: we cannot rely on CONFIG SET maxmemory-policy.
+ * We make every cache key volatile with EX so the instance can use
+ * volatile-ttl / volatile-lru safely. Keys without TTL are eviction-resistant
+ * and will fill free-tier storage until manual flush.
+ *
+ * | Key class              | TTL                         | Why |
+ * |------------------------|-----------------------------|-----|
+ * | Local API cache        | 30–120 s                    | ephemeral |
+ * | Active job pointer     | JOB_TTL (7d)                | job lifecycle |
+ * | Job hash + log         | JOB_TTL (7d)                | job lifecycle |
+ * | Contact cache          | CONTACT_CACHE_TTL (90d)     | durable but not infinite |
+ * | Dedup set members      | set-level EX refresh        | bounded |
+ *
+ * Prefer volatile-ttl on self-hosted Redis when you control maxmemory-policy.
+ */
+export const REDIS_TTL_POLICY = {
+  /** Contact enrichment cache — was permanent; now 90 days */
+  CONTACT_CACHE_SECONDS: 60 * 60 * 24 * 90,
+  /** Default for permSet when caller omits ttl (cache-shaped data) */
+  PERM_DEFAULT_SECONDS: 60 * 60 * 24 * 7,
+  /** Local ephemeral cache default if caller passes nothing useful */
+  LOCAL_DEFAULT_SECONDS: 60,
+} as const;
+
 import { logger } from "./logger";
 
 // ── Client singletons ─────────────────────────────────────────────────────────
@@ -280,7 +308,8 @@ export async function getCache<T>(key: string): Promise<T | null> {
 export async function setCache(key: string, value: unknown, ttlSeconds = 60): Promise<void> {
   const c = getRedisClient();
   if (!c) return;
-  try { await c.set(LOCAL_PREFIX + key, JSON.stringify(value), "EX", ttlSeconds); } catch { /* non-fatal */ }
+  try { const ttl = Math.max(1, ttlSeconds ?? REDIS_TTL_POLICY.LOCAL_DEFAULT_SECONDS);
+    await c.set(LOCAL_PREFIX + key, JSON.stringify(value), "EX", ttl); } catch { /* non-fatal */ }
 }
 
 export async function delCache(...keys: string[]): Promise<void> {
@@ -317,10 +346,10 @@ export async function permGet<T>(key: string): Promise<T | null> {
 }
 
 export async function permSet(key: string, value: unknown, ttlSeconds?: number): Promise<void> {
+  const ttl = ttlSeconds && ttlSeconds > 0 ? ttlSeconds : REDIS_TTL_POLICY.PERM_DEFAULT_SECONDS;
   await withPermanentClient(async c => {
     const serialized = JSON.stringify(value);
-    if (ttlSeconds) await c.set(PERM_PREFIX + key, serialized, "EX", ttlSeconds);
-    else await c.set(PERM_PREFIX + key, serialized);
+    await c.set(PERM_PREFIX + key, serialized, "EX", ttl);
   }, undefined);
 }
 
@@ -466,10 +495,11 @@ export interface CachedContact {
   reviewOnlyContacts?: Array<Record<string, unknown>>;
 }
 
-/** Write contact data to Redis slot 2. No TTL — permanent. */
+/** Write contact data with TTL so free Redis can evict under volatile-* policies. */
 export async function contactCacheSet(stableKey: string, data: CachedContact): Promise<void> {
+  const ttl = REDIS_TTL_POLICY.CONTACT_CACHE_SECONDS;
   await withContactCacheClient(
-    c => c.set(CONTACT_PREFIX + stableKey, JSON.stringify(data)).then(() => undefined),
+    c => c.set(CONTACT_PREFIX + stableKey, JSON.stringify(data), "EX", ttl).then(() => undefined),
     undefined,
   );
 }

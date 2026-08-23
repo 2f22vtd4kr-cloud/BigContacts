@@ -64,6 +64,7 @@ export type AutoPipelineSchedulerStatus = {
   providerNoTarget: number;
 };
 
+/** Job hash, log, active pointer — 7d TTL (volatile for eviction-friendly Redis). */
 const JOB_TTL = 60 * 60 * 24 * 7;
 /** Process-local fallback when permanent Redis is exhausted/disconnected. */
 const memoryJobs = new Map<string, JobState>();
