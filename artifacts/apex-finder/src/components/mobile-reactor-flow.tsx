@@ -257,7 +257,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
     let scoped = current
       ? deskEvents.filter((e: any) => !e?.targetName || e.targetName === current)
       : deskEvents;
-    // While Atlas is live, ignore events older than 3 minutes so "Window 6 of 6 · done" from an hour ago dies
+    // While Atlas is live, ignore events older than 3 minutes so stale finished tool cards do not look current
     if (isLive) {
       scoped = scoped.filter((e: any) => {
         if (!e?.timestamp) return true;

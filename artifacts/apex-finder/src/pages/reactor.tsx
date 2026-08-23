@@ -2266,8 +2266,9 @@ export default function IntelligenceReactorPage() {
           const stepN  = parseInt(stepMatch[1], 10);
           const total  = parseInt(stepMatch[2], 10);
           const detail = plainMsg(msg.slice(stepMatch[0].length).trim().replace(/…$/, ""));
-          labels.push(`▶ [${stepN}/${total}] ${detail.slice(0, 65)}`);
-          setLivePhaseDetail(`Step ${stepN} of ${total} — ${detail.slice(0, 80)}`);
+          // [n/total] is batch target index from orchestrator — NOT a fixed dig step plan
+          labels.push(`▶ Target ${stepN}/${total}: ${detail.slice(0, 55)}`);
+          setLivePhaseDetail(`Target ${stepN} of ${total} in this run — ${detail.slice(0, 70)}`);
         } else {
           const detail = plainMsg(msg);
           labels.push(`▶ ${detail.slice(0, 70)}`);

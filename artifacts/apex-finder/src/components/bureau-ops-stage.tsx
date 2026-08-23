@@ -1373,9 +1373,10 @@ function MobileWorkstage({
               );
             })}
           </div>
-          <p className="font-mono text-[9px] tabular-nums text-stone-500">
-            Window {safeIdx + 1} of {scenes.length}
-            {scene.live ? " · live" : " · done"}
+          <p className="font-mono text-[9px] text-stone-500">
+            {scene.live
+              ? "Happening now — dig is open-ended"
+              : "Earlier tool activity (not a fixed plan)"}
           </p>
         </div>
       )}
