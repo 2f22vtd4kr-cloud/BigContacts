@@ -99,8 +99,11 @@ fn fs_main(@builtin(position) frag: vec4f) -> @location(0) vec4f {
   let film_mask = smoothstep(0.28, 0.52, h) * (1.0 - smoothstep(0.62, 0.9, h));
   col = mix(col, col * 0.4 + film * 0.68, film_mask * 0.42);
 
-  let fres = pow(1.0 - max(N.z, 0.0), 2.15);
-  col += vec3f(0.82, 0.86, 1.0) * fres * 0.14;
+  let fres = pow(1.0 - max(N.z, 0.0), 2.0);
+  col += vec3f(0.92, 0.94, 1.0) * fres * 0.26;
+  col.r += 0.55 * fres * 0.18;
+  col.g += 0.88 * fres * 0.12;
+  col.b += 0.95 * fres * 0.16;
 
   let vig = smoothstep(0.0, 0.12, uv.x) * smoothstep(1.0, 0.88, uv.x)
           * smoothstep(0.0, 0.16, uv.y) * smoothstep(1.0, 0.84, uv.y);

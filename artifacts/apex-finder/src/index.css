@@ -172,44 +172,58 @@ body {
   box-shadow: none;
 }
 
-/* Custom type: iridescent sheen (переливание) clipped to glyphs */
+/* Custom type: iridescent sheen clipped to glyphs — not a backdrop plate */
 .atlas-liquid-type {
   display: inline-block;
   font-family: inherit;
   font-weight: 750;
   font-size: inherit;
-  letter-spacing: 0.06em;
-  line-height: 1.15;
+  letter-spacing: 0.055em;
+  line-height: 1.2;
   -webkit-font-smoothing: antialiased;
+  /* Fallback face if clip unsupported */
+  color: #f4f0ff;
   background-image: linear-gradient(
-    105deg,
+    100deg,
     #ffffff 0%,
-    #e8deff 18%,
-    #9aefff 36%,
-    #ffffff 50%,
-    #ffb8ec 68%,
-    #c4b5fd 82%,
+    #f0e8ff 12%,
+    #a8f0ff 28%,
+    #ffffff 45%,
+    #ffc0eb 62%,
+    #c4b5fd 78%,
+    #e8f7ff 90%,
     #ffffff 100%
   );
-  background-size: 220% 100%;
+  background-size: 240% 100%;
   -webkit-background-clip: text;
   background-clip: text;
-  color: transparent;
   -webkit-text-fill-color: transparent;
-  /* Depth so glyphs stay readable on bright film */
-  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.75))
-          drop-shadow(0 0 10px rgba(120, 90, 220, 0.35));
-  animation: atlas-liquid-sheen 5.5s ease-in-out infinite;
+  /* Readable on bright oil without a dark pill */
+  filter: drop-shadow(0 1px 1.5px rgba(0, 0, 0, 0.85))
+          drop-shadow(0 0 8px rgba(140, 100, 255, 0.4));
+  animation: atlas-liquid-sheen 6s ease-in-out infinite;
 }
 @keyframes atlas-liquid-sheen {
   0%, 100% { background-position: 0% 50%; }
   50% { background-position: 100% 50%; }
 }
+@supports not ((-webkit-background-clip: text) or (background-clip: text)) {
+  .atlas-liquid-type {
+    color: #f7f4ff;
+    -webkit-text-fill-color: #f7f4ff;
+    background-image: none;
+  }
+}
 @media (prefers-reduced-motion: reduce) {
   .atlas-liquid-type {
     animation: none;
-    background-position: 40% 50%;
+    background-position: 35% 50%;
   }
+}
+/* Do NOT use backdrop-filter on the label — frosts into a plate and kills oil */
+.atlas-launch-glow > .atlas-liquid-label {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 /* Per-char path (legacy) — inherit gradient from parent if still used */
 .atlas-liquid-char {

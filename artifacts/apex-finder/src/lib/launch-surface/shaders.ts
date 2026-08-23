@@ -76,8 +76,8 @@ void main() {
   float diff = max(dot(N, L1), 0.0) + max(dot(N, L2), 0.0) * 0.4;
   float spec = pow(max(dot(N, normalize(L1 + vec3(0.0, 0.0, 1.0))), 0.0), 28.0);
 
-  vec3 col = mix(vec3(0.04, 0.035, 0.06), vec3(0.14, 0.12, 0.2), diff * 0.75 + blob * 0.25);
-  col = mix(col, vec3(0.55, 0.58, 0.68), smoothstep(0.42, 0.88, blob) * 0.35);
+  vec3 col = mix(vec3(0.06, 0.05, 0.09), vec3(0.18, 0.15, 0.26), diff * 0.8 + blob * 0.3);
+  col = mix(col, vec3(0.6, 0.62, 0.72), smoothstep(0.4, 0.88, blob) * 0.42);
   col += vec3(spec * 1.05);
 
   float phase = fract(blob * 2.2 + t * 0.15 + w.x * 0.2);
@@ -93,12 +93,14 @@ void main() {
 
   float filmMask = smoothstep(0.18, 0.45, blob) * (1.0 - smoothstep(0.68, 0.95, blob));
   filmMask *= 0.55 + 0.45 * sin(blob * 4.0 + t * 0.9);
-  col = mix(col, col * 0.25 + film * 1.1, filmMask * 0.72);
+  col = mix(col, col * 0.2 + film * 1.15, filmMask * 0.85);
 
+  /* Fresnel + tiny chromatic fringe (oil film dispersion) */
   float fres = pow(1.0 - max(N.z, 0.0), 2.0);
-  col += vec3(0.92, 0.94, 1.0) * fres * 0.28;
-  col += violet * fres * 0.16;
-  col += cyan * fres * 0.12;
+  col += vec3(0.92, 0.94, 1.0) * fres * 0.26;
+  col.r += violet.r * fres * 0.18;
+  col.g += cyan.g * fres * 0.12;
+  col.b += blue.b * fres * 0.16;
 
   float vig = smoothstep(0.0, 0.1, uv.x) * smoothstep(1.0, 0.9, uv.x)
             * smoothstep(0.0, 0.14, uv.y) * smoothstep(1.0, 0.86, uv.y);
