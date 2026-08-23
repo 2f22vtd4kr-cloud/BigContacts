@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 import { fetchSystemStatus, summarizeApiKeys, type SystemStatus } from "@/lib/system-status";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
-const POLL_INTERVAL_MS = 10_000;
+const POLL_INTERVAL_MS = 20_000;
 
 type AtlasStatus = {
   status?: string;
@@ -260,18 +260,18 @@ export function WorkspaceStatus() {
         <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", copy.dotClassName, state === "researching" && "animate-pulse")} />
         <Icon className={cn("h-3.5 w-3.5 shrink-0", copy.className, state === "loading" && "animate-spin")} />
         {/* Mobile: short word that never truncates mid-label; desktop: full phrase */}
-        <span className={cn("font-mono text-[9px] font-bold tracking-[0.06em] sm:hidden", copy.className)}>
+        <span className={cn("font-mono text-[13px] font-bold tracking-[0.06em] sm:hidden", copy.className)}>
           {copy.shortLabel}
         </span>
-        <span className={cn("hidden truncate font-mono text-[10px] font-bold tracking-[0.1em] sm:inline", copy.className)}>
+        <span className={cn("hidden truncate font-mono text-[14px] font-bold tracking-[0.1em] sm:inline", copy.className)}>
           {copy.label}
         </span>
-        <span className="text-stone-600 font-mono text-[9px] sm:text-[10px]" aria-hidden>
+        <span className="text-stone-600 font-mono text-[13px] sm:text-[14px]" aria-hidden>
           ·
         </span>
         <span
           className={cn(
-            "shrink-0 font-mono text-[9px] font-bold tabular-nums sm:text-[10px]",
+            "shrink-0 font-mono text-[13px] font-bold tabular-nums sm:text-[14px]",
             servicesHealthy ? "text-primary" : copy.className,
           )}
           title={databaseDetail}
@@ -302,14 +302,14 @@ export function WorkspaceStatus() {
                 <Icon className={cn("h-3.5 w-3.5", state === "loading" && "animate-spin")} />
               </div>
               <div className="min-w-0">
-                <div className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground/60">Whole workspace</div>
+                <div className="font-mono text-[14px] uppercase tracking-[0.2em] text-muted-foreground/60">Whole workspace</div>
                 <div className={cn("mt-1 font-mono text-[12px] font-bold tracking-wide", copy.className)}>{copy.label}</div>
                 <p className="mt-1 max-w-[260px] text-[11px] leading-4 text-muted-foreground">{copy.detail}</p>
               </div>
             </div>
             <button
               type="button"
-              className="shrink-0 rounded-md px-2 py-1 font-mono text-[10px] text-muted-foreground hover:bg-muted hover:text-foreground"
+              className="shrink-0 rounded-md px-2 py-1 font-mono text-[14px] text-muted-foreground hover:bg-muted hover:text-foreground"
               onClick={() => setOpen(false)}
               aria-label="Close"
             >
@@ -319,7 +319,7 @@ export function WorkspaceStatus() {
               <div className={cn("font-mono text-xl font-bold", copy.className)}>
                 {active ? phaseLabel(atlas) : schedulerEnabled ? "AUTO" : "—"}
               </div>
-              <div className="font-mono text-[9px] uppercase tracking-widest text-muted-foreground/60">
+              <div className="font-mono text-[13px] uppercase tracking-widest text-muted-foreground/60">
                 {active ? "current operation" : schedulerEnabled ? "continuous cycle" : "atlas state"}
               </div>
             </div>
@@ -328,25 +328,25 @@ export function WorkspaceStatus() {
           <div className="mt-3 space-y-2">
             <div className="rounded-lg border border-border/60 bg-background/70 px-3 py-2.5">
               <div className="flex items-center justify-between gap-3">
-                <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-muted-foreground/60">Research engine</span>
-                  <span className={cn("font-mono text-[10px] font-bold", active ? (providerDegraded ? "text-[#d4ff8a]" : "text-lime-300") : schedulerEnabled ? "text-[#d4ff8a]" : "text-muted-foreground")}>
+                <span className="font-mono text-[13px] uppercase tracking-[0.16em] text-muted-foreground/60">Research engine</span>
+                  <span className={cn("font-mono text-[14px] font-bold", active ? (providerDegraded ? "text-[#d4ff8a]" : "text-lime-300") : schedulerEnabled ? "text-[#d4ff8a]" : "text-muted-foreground")}>
                   {active ? (providerDegraded ? "ACTIVE · PARTIAL COVERAGE" : "DISCOVERING + ENRICHING") : schedulerEnabled ? "QUEUED" : "READY"}
                 </span>
               </div>
               <div className="mt-1 truncate text-[11px] text-foreground/80">
                 {active ? atlas?.message || atlas?.phaseJ?.message || "Processing the current target…" : nextCycle ? `Next cycle in ${nextCycle}` : atlas?.message || "No active Atlas target"}
               </div>
-              {active && atlas?.jobId && <div className="mt-1 truncate font-mono text-[9px] text-muted-foreground/50">run {atlas.jobId}</div>}
+              {active && atlas?.jobId && <div className="mt-1 truncate font-mono text-[13px] text-muted-foreground/50">run {atlas.jobId}</div>}
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div className="rounded-lg border border-border/60 px-3 py-2">
-                <div className="font-mono text-[9px] uppercase tracking-widest text-muted-foreground/55">Services</div>
+                <div className="font-mono text-[13px] uppercase tracking-widest text-muted-foreground/55">Services</div>
                 <div className={cn("mt-1 font-mono text-[11px] font-bold", servicesHealthy ? "text-primary" : "text-[#d4ff8a]")}>
                   {servicesHealthy ? "API · DB · REDIS OK" : "ATTENTION NEEDED"}
                 </div>
               </div>
               <div className="rounded-lg border border-border/60 px-3 py-2">
-                <div className="font-mono text-[9px] uppercase tracking-widest text-muted-foreground/55">AI capacity</div>
+                <div className="font-mono text-[13px] uppercase tracking-widest text-muted-foreground/55">AI capacity</div>
                 <div className={cn("mt-1 font-mono text-[11px] font-bold", summary.active > 0 ? "text-primary" : "text-[#d4ff8a]")}>
                   WEB {summary.active}/{summary.configured || "—"}
                 </div>
@@ -354,8 +354,8 @@ export function WorkspaceStatus() {
             </div>
             <div className="rounded-lg border border-border/60 bg-background/70 px-3 py-2.5">
               <div className="flex items-center justify-between gap-3">
-                <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-muted-foreground/60">Database / persistence</span>
-                <span className={cn("font-mono text-[10px] font-bold", servicesHealthy ? "text-primary" : "text-[#d4ff8a]")}>
+                <span className="font-mono text-[13px] uppercase tracking-[0.16em] text-muted-foreground/60">Database / persistence</span>
+                <span className={cn("font-mono text-[14px] font-bold", servicesHealthy ? "text-primary" : "text-[#d4ff8a]")}>
                   {databaseState}
                 </span>
               </div>
@@ -364,14 +364,14 @@ export function WorkspaceStatus() {
           </div>
 
           <div className="mt-3 flex items-center justify-between gap-3 border-t border-border/60 pt-3">
-            <div className="font-mono text-[9px] uppercase tracking-wider text-muted-foreground/55">
+            <div className="font-mono text-[13px] uppercase tracking-wider text-muted-foreground/55">
               {atlas?.scheduler?.cycles ? `${atlas.scheduler.cycles} cycles · live poll` : `Updated ${new Date(refreshedNow).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`}
             </div>
             <div className="flex items-center gap-1">
-              <Link href="/reactor" onClick={() => setOpen(false)} data-testid="link-workspace-reactor" className="flex items-center gap-1.5 rounded-md px-2 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-primary hover:bg-primary/10">
+              <Link href="/reactor" onClick={() => setOpen(false)} data-testid="link-workspace-reactor" className="flex items-center gap-1.5 rounded-md px-2 py-1.5 font-mono text-[14px] font-semibold uppercase tracking-wider text-primary hover:bg-primary/10">
                 Reactor <ExternalLink className="h-3 w-3" />
               </Link>
-              <Link href="/status" onClick={() => setOpen(false)} data-testid="link-workspace-status" className="flex items-center gap-1.5 rounded-md px-2 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-wider text-muted-foreground hover:bg-muted">
+              <Link href="/status" onClick={() => setOpen(false)} data-testid="link-workspace-status" className="flex items-center gap-1.5 rounded-md px-2 py-1.5 font-mono text-[14px] font-semibold uppercase tracking-wider text-muted-foreground hover:bg-muted">
                 Details
               </Link>
             </div>

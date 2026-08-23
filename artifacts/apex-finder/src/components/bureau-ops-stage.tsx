@@ -549,11 +549,11 @@ function SourceLinkRow({ links }: { links?: Array<{ title?: string; url: string 
               href={l.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="reactor-pressable group flex items-center gap-1.5 rounded-md border border-[#9CFF1A]/15 bg-[#0d1219]/80 px-2 py-1 text-[10px] text-stone-300 hover:border-[#9CFF1A]/40 hover:text-[#fef9c3]"
+              className="reactor-pressable group flex items-center gap-1.5 rounded-md border border-[#9CFF1A]/15 bg-[#0d1219]/80 px-2 py-1 text-[14px] text-stone-300 hover:border-[#9CFF1A]/40 hover:text-[#fef9c3]"
             >
-              <span className="shrink-0 text-[9px] text-[#9CFF1A]/90">↗</span>
+              <span className="shrink-0 text-[13px] text-[#9CFF1A]/90">↗</span>
               <span className="min-w-0 truncate font-medium">{l.title || host}</span>
-              <span className="ml-auto shrink-0 font-mono text-[8px] text-stone-500 group-hover:text-stone-400">{host}</span>
+              <span className="ml-auto shrink-0 font-mono text-[12px] text-stone-500 group-hover:text-stone-400">{host}</span>
             </a>
           </li>
         );
@@ -656,14 +656,14 @@ function WindowChrome({
           aria-hidden
         >
           {favicon || (
-            <span className="font-mono text-[8px] font-bold uppercase tracking-wider">{methodLabel.slice(0, 2)}</span>
+            <span className="font-mono text-[12px] font-bold uppercase tracking-wider">{methodLabel.slice(0, 2)}</span>
           )}
         </div>
         <div className="flex min-w-0 flex-1 items-center gap-1.5">
-          <span className={`truncate font-mono text-stone-200 ${compact ? "text-[10px]" : "text-[11px]"}`}>
+          <span className={`truncate font-mono text-stone-200 ${compact ? "text-[14px]" : "text-[11px]"}`}>
             {title}
           </span>
-          <span className="hidden shrink-0 rounded border border-stone-600/50 bg-stone-800/80 px-1.5 py-0.5 font-mono text-[8px] uppercase tracking-wider text-stone-400 sm:inline">
+          <span className="hidden shrink-0 rounded border border-stone-600/50 bg-stone-800/80 px-1.5 py-0.5 font-mono text-[12px] uppercase tracking-wider text-stone-400 sm:inline">
             {methodLabel}
           </span>
           {live && (
@@ -675,7 +675,7 @@ function WindowChrome({
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#9CFF1A] opacity-70" />
                 <span className="relative inline-flex h-2 w-2 rounded-full bg-[#9CFF1A] shadow-[0_0_8px_#9CFF1A]" />
               </span>
-              <span className="shrink-0 rounded px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase tracking-wider text-[#111827] bg-[#9CFF1A]">
+              <span className="shrink-0 rounded px-1.5 py-0.5 font-mono text-[13px] font-bold uppercase tracking-wider text-[#111827] bg-[#9CFF1A]">
                 NOW
               </span>
             </span>
@@ -686,7 +686,7 @@ function WindowChrome({
               aria-label="Tool complete"
             >
               <span className="h-1.5 w-1.5 rounded-full bg-[#9CFF1A]" />
-              <span className="font-mono text-[9px] font-bold uppercase tracking-wider text-[#d4ff8a]/90">DONE</span>
+              <span className="font-mono text-[13px] font-bold uppercase tracking-wider text-[#d4ff8a]/90">DONE</span>
             </span>
           )}
           {!live && terminal === "failed" && (
@@ -695,7 +695,7 @@ function WindowChrome({
               aria-label="Tool failed"
             >
               <span className="h-1.5 w-1.5 rounded-full bg-rose-400" />
-              <span className="font-mono text-[9px] font-bold uppercase tracking-wider text-rose-200/90">FAIL</span>
+              <span className="font-mono text-[13px] font-bold uppercase tracking-wider text-rose-200/90">FAIL</span>
             </span>
           )}
         </div>
@@ -706,8 +706,8 @@ function WindowChrome({
             className="flex items-center gap-1.5 rounded-full bg-[#1e293b] px-2.5 py-1 border border-[#9CFF1A]/08 overflow-hidden"
             aria-label={live ? `Live query or URL: ${urlBar}` : `Query or URL: ${urlBar}`}
           >
-            <span className="text-[9px] text-stone-500 shrink-0" aria-hidden>{"\uD83D\uDD12"}</span>
-            <span className={`font-mono text-stone-300 truncate ${compact ? "text-[10px]" : "text-[11px]"}`}>{urlBar}</span>
+            <span className="text-[13px] text-stone-500 shrink-0" aria-hidden>{"\uD83D\uDD12"}</span>
+            <span className={`font-mono text-stone-300 truncate ${compact ? "text-[14px]" : "text-[11px]"}`}>{urlBar}</span>
             {live && (
               <span
                 aria-hidden
@@ -751,7 +751,7 @@ function GoogleScene({ scene, compact }: { scene: Scene; compact?: boolean }) {
                 <span className="inline-block w-0.5 h-3.5 bg-stone-200 ml-0.5 animate-pulse align-middle" />
               )}
             </span>
-            <span className="text-[10px] text-[#b8ff4d]/80 font-mono shrink-0">Search</span>
+            <span className="text-[14px] text-[#b8ff4d]/80 font-mono shrink-0">Search</span>
           </div>
         </div>
         {/* SERP-style result cards */}
@@ -761,7 +761,7 @@ function GoogleScene({ scene, compact }: { scene: Scene; compact?: boolean }) {
               <div className={`font-medium leading-snug text-[#8ab4f8] ${compact ? "text-[12px]" : "text-[13px]"}`}>
                 {line.slice(0, 90)}{line.length > 90 ? "…" : ""}
               </div>
-              <div className="mt-0.5 font-mono text-[9px] text-emerald-500/70 truncate">
+              <div className="mt-0.5 font-mono text-[13px] text-emerald-500/70 truncate">
                 public source · result {i + 1}
               </div>
               {!compact && line.length > 40 && (
@@ -794,11 +794,11 @@ function BrowserScene({ scene, compact }: { scene: Scene; compact?: boolean }) {
     >
       <div className="space-y-1.5">
         {contactHit && (
-          <div className="rounded-md border border-lime-400/40 bg-lime-500/10 px-2 py-1 text-[9px] font-mono uppercase tracking-[0.16em] text-lime-200">
+          <div className="rounded-md border border-lime-400/40 bg-lime-500/10 px-2 py-1 text-[13px] font-mono uppercase tracking-[0.16em] text-lime-200">
             Contact found · reachable vector
           </div>
         )}
-        <div className="text-[9px] font-mono uppercase tracking-widest text-[#9CFF1A]">On the page</div>
+        <div className="text-[13px] font-mono uppercase tracking-widest text-[#9CFF1A]">On the page</div>
         <div className={`rounded-lg border p-2.5 font-mono text-[11px] leading-relaxed space-y-1 ${
           contactHit ? "border-lime-500/30 bg-[#1a1008] text-stone-200" : "border-[#9CFF1A]/20 bg-[#0d1219] text-stone-300"
         }`}>
@@ -831,7 +831,7 @@ function PromptScene({ scene, compact }: { scene: Scene; compact?: boolean }) {
         {scene.live && <span className="inline-block w-1.5 h-3 bg-lime-400 ml-0.5 animate-pulse" />}
       </div>
       {scene.resultLines[0] && scene.prompt && (
-        <div className="mt-1.5 text-[10px] text-stone-400 font-mono line-clamp-2">{scene.resultLines[0]}</div>
+        <div className="mt-1.5 text-[14px] text-stone-400 font-mono line-clamp-2">{scene.resultLines[0]}</div>
       )}
     </WindowChrome>
   );
@@ -848,7 +848,7 @@ function DomainScene({ scene, compact }: { scene: Scene; compact?: boolean }) {
       favicon={<ProviderIcon kind="domain" size={compact ? 12 : 14} />}
       urlBar="rdap · whoisjson"
     >
-      <pre className={`font-mono text-lime-100/90 leading-relaxed whitespace-pre-wrap ${compact ? "text-[10px]" : "text-[11px]"}`}>
+      <pre className={`font-mono text-lime-100/90 leading-relaxed whitespace-pre-wrap ${compact ? "text-[14px]" : "text-[11px]"}`}>
         {(scene.resultLines.length ? scene.resultLines : ["Checking domain registration details…"]).join("\n")}
       </pre>
     </WindowChrome>
@@ -878,14 +878,14 @@ function SerpScene({ scene, compact }: { scene: Scene; compact?: boolean }) {
               <span className="ml-0.5 inline-block h-3.5 w-0.5 animate-pulse bg-yellow-200 align-middle" />
             )}
           </span>
-          <span className="shrink-0 rounded-full bg-lime-500/20 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-lime-300">
+          <span className="shrink-0 rounded-full bg-lime-500/20 px-2 py-0.5 text-[13px] font-bold uppercase tracking-wider text-lime-300">
             Search
           </span>
         </div>
         <div className="space-y-2">
           {hits.slice(0, compact ? 3 : 4).map((l, i) => (
             <div key={i} className="rounded-lg border border-[#9CFF1A]/08 bg-[#0d1219] px-3 py-2">
-              <div className="mb-0.5 text-[9px] font-mono text-lime-500/80">finding {i + 1}</div>
+              <div className="mb-0.5 text-[13px] font-mono text-lime-500/80">finding {i + 1}</div>
               <div className="text-[12px] leading-snug text-stone-200">{l}</div>
             </div>
           ))}
@@ -911,7 +911,7 @@ function FootprintScene({ scene, compact }: { scene: Scene; compact?: boolean })
       compact={compact}
       favicon={<ProviderIcon kind={/holehe/i.test(p) ? "holehe" : "sherlock"} size={compact ? 12 : 14} />}
     >
-      <div className={`font-mono text-lime-100/90 space-y-1 ${compact ? "text-[10px]" : "text-[11px]"}`}>
+      <div className={`font-mono text-lime-100/90 space-y-1 ${compact ? "text-[14px]" : "text-[11px]"}`}>
         {(scene.resultLines.length ? scene.resultLines : ["Checking public profiles and sites…"]).map((l, i) => (
           <div key={i}>{"\u25B8"} {l}</div>
         ))}
@@ -932,7 +932,7 @@ function BureauScene({ scene, compact }: { scene: Scene; compact?: boolean }) {
     >
       <div className="space-y-1">
         {scene.targetName && (
-          <div className="text-[9px] font-mono text-lime-400/80 uppercase tracking-wider">{scene.targetName}</div>
+          <div className="text-[13px] font-mono text-lime-400/80 uppercase tracking-wider">{scene.targetName}</div>
         )}
         {(scene.resultLines.length ? scene.resultLines : [scene.subtitle || "Working on this person…"]).map((l, i) => (
           <div key={i} className={`text-stone-200 leading-snug ${compact ? "text-[11px]" : "text-[12px]"}`}>
@@ -957,7 +957,7 @@ function RightHandNarration({ text, compact }: { text?: string; compact?: boolea
     >
       <div className="mb-1.5 flex items-center gap-2">
         <span className="inline-flex h-2 w-2 animate-pulse rounded-full bg-violet-300 shadow-[0_0_10px_rgba(167,139,250,0.95)]" />
-        <span className="font-mono text-[9px] font-bold uppercase tracking-[0.16em] text-violet-200">
+        <span className="font-mono text-[13px] font-bold uppercase tracking-[0.16em] text-violet-200">
           Right-hand · under the hood
         </span>
       </div>
@@ -1235,7 +1235,7 @@ function MobileWorkstage({
     return (
       <div className="rounded-lg border border-stone-700/50 bg-stone-900/40 px-3 py-4 text-center" data-testid="desk-empty">
         <p className="font-mono text-[11px] text-stone-400">No live tool windows yet</p>
-        <p className="mt-1 text-[10px] text-stone-600">Waiting for search, visit, or registry steps…</p>
+        <p className="mt-1 text-[14px] text-stone-600">Waiting for search, visit, or registry steps…</p>
       </div>
     );
   }
@@ -1272,7 +1272,7 @@ function MobileWorkstage({
             <StoryLine story={scene.story} className="text-[12px] font-medium leading-snug tracking-tight text-stone-100 line-clamp-2" />
           )}
           <SourceLinkRow links={scene.links} />
-          <div className="mt-0.5 flex items-center gap-1.5 font-mono text-[9px] text-stone-500">
+          <div className="mt-0.5 flex items-center gap-1.5 font-mono text-[13px] text-stone-500">
             <span className={scene.live ? "text-[#9CFF1A]" : "text-stone-500"}>
               {scene.live ? "Now" : scene.terminal === "failed" ? "Fail" : "Done"}
             </span>
@@ -1283,7 +1283,7 @@ function MobileWorkstage({
         </div>
         {scene.timestamp && (
           <span
-            className="shrink-0 font-mono text-[9px] tabular-nums text-stone-500"
+            className="shrink-0 font-mono text-[13px] tabular-nums text-stone-500"
             title={absoluteTimeLabel(scene.timestamp)}
           >
             {timeLabel(scene.timestamp)}
@@ -1373,7 +1373,7 @@ function MobileWorkstage({
               );
             })}
           </div>
-          <p className="font-mono text-[9px] text-stone-500">
+          <p className="font-mono text-[13px] text-stone-500">
             {scene.live
               ? "Happening now — dig is open-ended"
               : "Earlier tool activity (not a fixed plan)"}
@@ -1384,7 +1384,7 @@ function MobileWorkstage({
       {paused && (
         <button
           type="button"
-          className="reactor-pressable mx-auto flex items-center justify-center gap-1.5 rounded-full border border-stone-500/40 bg-stone-900/80 px-3 py-1.5 text-center font-mono text-[9px] text-stone-300"
+          className="reactor-pressable mx-auto flex items-center justify-center gap-1.5 rounded-full border border-stone-500/40 bg-stone-900/80 px-3 py-1.5 text-center font-mono text-[13px] text-stone-300"
           data-testid="status-reading-pause"
           onClick={() => {
             setPaused(false);
@@ -1509,7 +1509,7 @@ export function BureauOpsStage({
   if (!scenes.length) {
     return (
       <div className={`rounded-xl border border-dashed border-[#9CFF1A]/20 bg-[#0d1219]/50 ${compact ? "p-3" : "p-5"}`}>
-        <div className="text-[10px] font-mono uppercase tracking-[0.2em] text-stone-500 mb-1">{title}</div>
+        <div className="text-[14px] font-mono uppercase tracking-[0.2em] text-stone-500 mb-1">{title}</div>
         <div className="text-[12px] text-stone-400">Idle — tool windows and right-hand live narration appear here when Atlas runs a step (desktop + mobile).</div>
       </div>
     );
@@ -1520,8 +1520,8 @@ export function BureauOpsStage({
       <div className="space-y-2">
         {title ? (
           <div className="flex items-center justify-between gap-2">
-            <div className="text-[9px] font-mono uppercase tracking-[0.14em] text-stone-500">{title}</div>
-            <div className="text-[9px] font-mono text-stone-600 tabular-nums">{scenes.length}</div>
+            <div className="text-[13px] font-mono uppercase tracking-[0.14em] text-stone-500">{title}</div>
+            <div className="text-[13px] font-mono text-stone-600 tabular-nums">{scenes.length}</div>
           </div>
         ) : null}
         <MobileWorkstage scenes={scenes} onEdgeSwipe={onEdgeSwipe} jumpToLiveSignal={jumpToLiveSignal} />
@@ -1533,9 +1533,9 @@ export function BureauOpsStage({
     <div className="space-y-3">
       <div className="flex items-end justify-between gap-3 flex-wrap">
         <div>
-          <div className="text-[10px] font-mono uppercase tracking-[0.2em] text-lime-400/90">{title}</div>
+          <div className="text-[14px] font-mono uppercase tracking-[0.2em] text-lime-400/90">{title}</div>
         </div>
-        <div className="text-[9px] font-mono text-stone-500 tabular-nums">{scenes.length}</div>
+        <div className="text-[13px] font-mono text-stone-500 tabular-nums">{scenes.length}</div>
       </div>
 
       <div className="flex gap-2 overflow-x-auto pb-1" role="tablist" aria-label="Live Desk scenes">
@@ -1560,21 +1560,21 @@ export function BureauOpsStage({
               }}
             >
               <div className="flex items-center gap-1.5 mb-0.5 min-w-0">
-                <span className="text-[9px] font-mono text-stone-500 shrink-0">{i + 1}</span>
+                <span className="text-[13px] font-mono text-stone-500 shrink-0">{i + 1}</span>
                 <ActivityGlyphMini kind={s.kind} live={s.live} terminal={s.terminal} />
-                <span className="text-[9px] font-mono text-stone-300 truncate min-w-0">{s.title}</span>
+                <span className="text-[13px] font-mono text-stone-300 truncate min-w-0">{s.title}</span>
                 {s.narration && (
-                  <span className="shrink-0 rounded px-1 py-px text-[7px] font-mono font-bold tracking-wide text-violet-100 bg-violet-500/40 border border-violet-300/30" title="Right-hand narration">
+                  <span className="shrink-0 rounded px-1 py-px text-[11px] font-mono font-bold tracking-wide text-violet-100 bg-violet-500/40 border border-violet-300/30" title="Right-hand narration">
                     RH
                   </span>
                 )}
                 {s.live && (
-                  <span className="shrink-0 rounded px-1 py-px text-[8px] font-mono font-bold tracking-wide text-[#111827] bg-[#9CFF1A]">
+                  <span className="shrink-0 rounded px-1 py-px text-[12px] font-mono font-bold tracking-wide text-[#111827] bg-[#9CFF1A]">
                     NOW
                   </span>
                 )}
               </div>
-              <StoryLine story={s.narration || s.story} className="text-[10px] text-stone-300 leading-snug" />
+              <StoryLine story={s.narration || s.story} className="text-[14px] text-stone-300 leading-snug" />
             </button>
           );
         })}

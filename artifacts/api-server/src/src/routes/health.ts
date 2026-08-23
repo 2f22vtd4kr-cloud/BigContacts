@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { pingRedis, getRedisClient } from "../lib/redis";
+import { pingRedis, getPermanentClient } from "../lib/redis";
 import { getAIKeyStatus } from "../lib/ai-extractor";
 import { getMistralWebSearchStatus } from "../lib/mistral-web-search";
 import { getNvidiaNimCaseReasoningStatus } from "../lib/nvidia-nim-case-reasoning";
@@ -9,7 +9,8 @@ const router: IRouter = Router();
 
 router.get("/healthz", async (_req, res) => {
   const redisLatencyMs = await pingRedis();
-  const redisStatus = getRedisClient()
+  // Permanent bureau Redis (REDIS_URL_1) — not the optional local cache client.
+  const redisStatus = getPermanentClient()
     ? redisLatencyMs !== null
       ? "ok"
       : "error"

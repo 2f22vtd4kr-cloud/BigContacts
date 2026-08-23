@@ -351,8 +351,9 @@ export async function permExpire(key: string, ttlSeconds: number): Promise<void>
   await withPermanentClient(c => c.expire(PERM_PREFIX + key, ttlSeconds).then(() => undefined), undefined);
 }
 
+/** Ping the permanent bureau Redis (REDIS_URL_1), not the optional local cache. */
 export async function pingRedis(): Promise<number | null> {
-  const c = getRedisClient();
+  const c = getPermanentClient();
   if (!c) return null;
   try {
     const t0 = Date.now();

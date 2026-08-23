@@ -1020,7 +1020,7 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
 
           <div style={{ flex:1, minWidth:0 }}>
             <div style={{
-              fontSize:10, fontWeight:700, letterSpacing:"0.18em", color:"#e8e0cc",
+              fontSize: 16, fontWeight:700, letterSpacing:"0.18em", color:"#e8e0cc",
               overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
             }}>
               INTELLIGENCE REACTOR
@@ -1380,7 +1380,7 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
                         <Cpu style={{ width:11, height:11, color:"#a78bfa", flexShrink:0 }} />
                         <div style={{
                           flex:1, minWidth:0,
-                          fontSize:10, fontWeight:700, letterSpacing:"0.1em",
+                          fontSize: 16, fontWeight:700, letterSpacing:"0.1em",
                           color:"#c4b8a0",
                           overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
                         }}>
@@ -1693,7 +1693,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
                   animation: motionOrNone(`reachIn ${REACTOR_CELEBRATE_MS}ms cubic-bezier(0.22,1,0.36,1) both`),
                 }}
               >
-                <div className="reactor-reach-label" style={{ fontWeight:700, fontSize:10, marginBottom:4 }} data-settled={reachSettled ? "true" : "false"}>
+                <div className="reactor-reach-label" style={{ fontWeight:700, fontSize: 16, marginBottom:4 }} data-settled={reachSettled ? "true" : "false"}>
                   {reachSettled ? "CONTACT ROUTE LOCKED · REACH" : "CONTACT FOUND · REACH"}
                 </div>
                 {atlasState?.atlasTelemetry?.resultSummary
@@ -1803,7 +1803,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
                   animation: motionOrNone(`terminalIn ${REACTOR_UI_MS}ms cubic-bezier(0.22,1,0.36,1) both`),
                 }}
               >
-                <div className="reactor-done-label" style={{ fontSize:10, fontWeight:700, letterSpacing:"0.14em" }}>RUN COMPLETE</div>
+                <div className="reactor-done-label" style={{ fontSize: 16, fontWeight:700, letterSpacing:"0.14em" }}>RUN COMPLETE</div>
                 <div style={{ marginTop:4, fontSize:12, lineHeight:1.4, color:"rgba(236,253,245,0.9)" }}>
                   {atlasState?.detail || atlasState?.phaseLabel || "Atlas finished this target. Review tool scenes below."}
                 </div>
@@ -1821,7 +1821,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
                   animation: motionOrNone(`terminalIn ${REACTOR_UI_MS}ms cubic-bezier(0.22,1,0.36,1) both`),
                 }}
               >
-                <div className="reactor-fail-label" style={{ fontSize:10, fontWeight:700, letterSpacing:"0.14em" }}>RUN FAILED</div>
+                <div className="reactor-fail-label" style={{ fontSize: 16, fontWeight:700, letterSpacing:"0.14em" }}>RUN FAILED</div>
                 <div style={{ marginTop:4, fontSize:12, lineHeight:1.4, color:"rgba(255,241,242,0.9)" }}>
                   {atlasState?.detail || "Atlas could not finish this pass."}
                 </div>
@@ -1877,7 +1877,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
                   onBlur={(e) => { e.currentTarget.style.borderColor = "#334155"; }}
                 />
                 {deskQuery.trim() && filteredDeskEvents.length === 0 && (
-                  <div style={{ marginTop:6, fontSize:10, color:"#94a3b8" }} data-testid="desk-search-empty">
+                  <div style={{ marginTop:6, fontSize: 16, color:"#94a3b8" }} data-testid="desk-search-empty">
                     No steps match “{deskQuery.trim()}”.
                   </div>
                 )}
@@ -1890,7 +1890,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
                 role="status"
                 aria-live="polite"
               >
-                <span className="mb-0.5 block font-mono text-[8px] font-bold uppercase tracking-[0.14em] text-violet-200">Right-hand · live</span>
+                <span className="mb-0.5 block font-mono text-[12px] font-bold uppercase tracking-[0.14em] text-violet-200">Right-hand · live</span>
                 {latestNarration}
               </div>
             )}

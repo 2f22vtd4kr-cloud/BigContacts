@@ -62,12 +62,14 @@ export function useAtlasRun(pollMs: number = POLL_MS) {
   useEffect(() => {
     const controller = new AbortController();
     refresh(controller.signal);
-    const id = window.setInterval(() => refresh(), pollMs);
+    // Idle desk: poll slower to protect free Redis command quotas.
+    const tickMs = run.active ? pollMs : Math.max(pollMs * 3, 12_000);
+    const id = window.setInterval(() => refresh(), tickMs);
     return () => {
       controller.abort();
       window.clearInterval(id);
     };
-  }, [refresh, pollMs]);
+  }, [refresh, pollMs, run.active]);
 
   return { run, ready, refresh };
 }
