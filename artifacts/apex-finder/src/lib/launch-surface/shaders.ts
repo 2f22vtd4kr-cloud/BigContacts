@@ -1,6 +1,14 @@
 /**
- * Launch CTA — liquid metal (chrome + thin-film), not soft purple blobs.
- * Fine-scale warp, strong specular, film only as edge/height accent.
+ * Launch CTA — AAA chrome + thin-film interference.
+ *
+ * Physics (approx, real-time):
+ *   Optical path δ ≈ 2 n d cosθ  →  phase φ = 2π δ / λ
+ *   Spectral reflectance R(λ) ∝ cos²(φ/2)  (simplified 2-beam film)
+ *   Sample at R/G/B wavelengths → iridescent RGB without huge blobs.
+ *
+ * Material:
+ *   Conductor-like F0, Blinn specular (cheap GGX stand-in),
+ *   dual lights, moving sheen, SDF pill AA.
  */
 export const OIL_VERT = /* glsl */ `
 attribute vec2 a_pos;
@@ -49,64 +57,90 @@ float sdRoundBox(vec2 uv, vec2 halfSize, float r) {
   return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - r;
 }
 
+/* Thin-film spectral reflectance at wavelength lambda (nm), thickness d (nm), cosθ */
+float filmReflect(float dNm, float cosTheta, float lambdaNm) {
+  float n = 1.35; /* oil / soap-film index */
+  float delta = 4.0 * 3.14159265 * n * dNm * cosTheta / lambdaNm;
+  float c = cos(delta * 0.5);
+  return c * c;
+}
+
 void main() {
   vec2 uv = gl_FragCoord.xy / u_res;
   float aspect = u_res.x / max(u_res.y, 1.0);
-  /* Finer feature scale — avoids giant watercolor blobs */
   vec2 p = (gl_FragCoord.xy - 0.5 * u_res) / min(u_res.x, u_res.y);
-  float t = u_time * 0.32 * u_motion;
+  float t = u_time * 0.3 * u_motion;
 
-  vec2 q = p * 2.4;
+  /* Fine domain warp — metal flow, not giant watercolor cells */
+  vec2 q = p * 2.6;
   vec2 w = vec2(
-    fbm(q + vec2(t * 0.35, -t * 0.28)),
-    fbm(q * 1.1 + vec2(-t * 0.3, t * 0.4))
+    fbm(q + vec2(t * 0.32, -t * 0.26)),
+    fbm(q * 1.15 + vec2(-t * 0.28, t * 0.38))
   );
-  q += 0.35 * w;
+  q += 0.32 * w;
 
   float h = fbm(q);
-  float h2 = fbm(q * 1.4 + 2.7 - t * 0.15);
-  float height = mix(h, h2, 0.3);
+  float h2 = fbm(q * 1.5 + 3.1 - t * 0.12);
+  float height = mix(h, h2, 0.28);
 
-  float e = 0.028;
+  /* Height-field normals */
+  float e = 0.025;
   float hx = fbm(q + vec2(e, 0.0));
   float hy = fbm(q + vec2(0.0, e));
-  vec3 N = normalize(vec3((h - hx) * 4.0, (h - hy) * 4.0, 1.0));
+  vec3 N = normalize(vec3((h - hx) * 5.0, (h - hy) * 5.0, 1.0));
 
-  /* Metallic lighting */
-  vec3 L = normalize(vec3(0.4, 0.65, 0.7));
+  /* —— Chrome conductor lighting —— */
   vec3 V = vec3(0.0, 0.0, 1.0);
-  float ndl = max(dot(N, L), 0.0);
-  float ndh = max(dot(N, normalize(L + V)), 0.0);
-  float spec = pow(ndh, 48.0);
-  float spec2 = pow(ndh, 12.0) * 0.35;
+  vec3 L1 = normalize(vec3(0.45, 0.7, 0.65));
+  vec3 L2 = normalize(vec3(-0.55, 0.25, 0.6));
+  float ndl1 = max(dot(N, L1), 0.0);
+  float ndl2 = max(dot(N, L2), 0.0) * 0.4;
+  float ndh1 = max(dot(N, normalize(L1 + V)), 0.0);
+  float ndh2 = max(dot(N, normalize(L2 + V)), 0.0);
+  /* High-exponent specular ≈ polished chrome */
+  float spec1 = pow(ndh1, 64.0);
+  float spec2 = pow(ndh2, 32.0) * 0.4;
+  float specBroad = pow(ndh1, 10.0) * 0.25;
 
-  /* Chrome / wet metal base — cool silver, not purple fill */
-  vec3 metalDark = vec3(0.12, 0.13, 0.18);
-  vec3 metalLit  = vec3(0.55, 0.58, 0.68);
-  vec3 col = mix(metalDark, metalLit, ndl * 0.85 + height * 0.2);
-  col += vec3(0.95, 0.96, 1.0) * spec;
-  col += vec3(0.55, 0.6, 0.7) * spec2;
+  /* F0 ~ 0.9 conductor albedo (cool silver) */
+  vec3 F0 = vec3(0.92, 0.93, 0.95);
+  vec3 metalDark = vec3(0.1, 0.11, 0.14);
+  vec3 metalMid  = vec3(0.38, 0.4, 0.46);
+  vec3 col = mix(metalDark, metalMid, ndl1 * 0.9 + ndl2 + height * 0.15);
+  col += F0 * (spec1 + spec2 + specBroad);
 
-  /* Thin-film ONLY in bands + rim — not whole-button purple blobs */
-  float phase = fract(height * 3.5 + t * 0.2 + w.x * 0.25);
-  vec3 film = mix(
-    mix(vec3(0.45, 0.2, 0.9), vec3(0.9, 0.3, 0.75), smoothstep(0.0, 0.4, phase)),
-    mix(vec3(0.2, 0.85, 0.95), vec3(0.35, 0.45, 0.95), smoothstep(0.4, 1.0, phase)),
-    smoothstep(0.2, 0.8, phase)
-  );
-  float band = smoothstep(0.35, 0.48, height) * (1.0 - smoothstep(0.55, 0.7, height));
-  float fres = pow(1.0 - max(N.z, 0.0), 2.4);
-  float filmAmt = band * 0.45 + fres * 0.55;
-  col = mix(col, col * 0.4 + film * 1.0, filmAmt * 0.7);
+  /* —— Thin-film interference ——
+     Thickness varies with warped height + slow time (breathing film) */
+  float dNm = mix(180.0, 620.0, height) + 40.0 * sin(t * 0.7 + w.x * 2.0);
+  float cosTheta = max(N.z, 0.15);
+  float rR = filmReflect(dNm, cosTheta, 650.0);
+  float rG = filmReflect(dNm, cosTheta, 550.0);
+  float rB = filmReflect(dNm, cosTheta, 450.0);
+  vec3 film = vec3(rR, rG, rB);
+  /* Boost saturation of interference colors */
+  film = pow(film, vec3(0.85));
+  film = mix(vec3(dot(film, vec3(0.333))), film, 1.35);
+  film = clamp(film, 0.0, 1.0);
 
-  /* Moving diagonal sheen */
-  float sheen = smoothstep(0.0, 0.08, abs(fract(uv.x * 0.7 + uv.y * 0.35 + t * 0.08) - 0.5));
-  col += vec3(0.9, 0.93, 1.0) * (1.0 - sheen) * 0.22 * ndl;
+  /* Film strength: stronger at grazing (Fresnel) + mid height bands */
+  float fres = pow(1.0 - cosTheta, 2.5);
+  float band = smoothstep(0.3, 0.45, height) * (1.0 - smoothstep(0.58, 0.75, height));
+  float filmW = fres * 0.65 + band * 0.4;
+  filmW = clamp(filmW, 0.0, 0.85);
+  /* Layer film over chrome — energy-ish mix */
+  col = mix(col, col * 0.35 + film * 0.95, filmW * 0.7);
 
-  float vig = smoothstep(0.0, 0.08, uv.x) * smoothstep(1.0, 0.92, uv.x)
-            * smoothstep(0.0, 0.12, uv.y) * smoothstep(1.0, 0.88, uv.y);
-  col *= 0.88 + 0.12 * vig;
+  /* Traveling anisotropic sheen (brushed chrome streak) */
+  float streak = abs(fract(uv.x * 0.85 - uv.y * 0.25 + t * 0.06) - 0.5);
+  float sheen = 1.0 - smoothstep(0.0, 0.07, streak);
+  col += F0 * sheen * 0.18 * (0.4 + ndl1);
 
+  /* Soft vignette inside pill */
+  float vig = smoothstep(0.0, 0.07, uv.x) * smoothstep(1.0, 0.93, uv.x)
+            * smoothstep(0.0, 0.1, uv.y) * smoothstep(1.0, 0.9, uv.y);
+  col *= 0.9 + 0.1 * vig;
+
+  /* SDF pill */
   float rr = max(u_radius, 0.35);
   vec2 halfSz = vec2(0.5 - 0.02 / aspect, 0.5 - 0.04);
   float d = sdRoundBox(uv, halfSz, rr * 0.5);

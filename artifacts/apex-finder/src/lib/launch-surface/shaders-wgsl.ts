@@ -1,3 +1,4 @@
+/** WGSL port target: match shaders.ts thin-film cos² phase + chrome F0. */
 /**
  * WGSL sources for Launch oil underlay (WebGPU render path).
  * Math mirrors OIL_FRAG (2-oct fbm, single warp, SDF pill).
