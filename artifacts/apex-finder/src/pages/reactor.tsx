@@ -1473,8 +1473,14 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
     !isLive && !atlasFailed && schedulerRemainingMs > 0 && scheduler?.enabled,
   );
   const atlasStatusColor = atlasFailed ? "#fb7185" : waitingForNextCycle ? "#fbbf24" : atlasDone ? "#b8ff4d" : isLive ? "#9CFF1A" : "#b8ff4d";
-  const [deskOn, setDeskOn] = useState(true);
+  const [deskOn, setDeskOn] = useState(false);
   const { deskEvents, latestNarration } = useBureauLiveDesk(atlasState?.eventLog as any, { enabled: true });
+  // Idle: keep Live Desk closed so it does not leave a blank column under Launch.
+  // Live: open automatically so tool windows are visible.
+  useEffect(() => {
+    if (isLive) setDeskOn(true);
+    else if (!deskEvents.length) setDeskOn(false);
+  }, [isLive, deskEvents.length]);
   const contactFound = atlasState?.atlasTelemetry?.disposition === "contact_route_found"
     || (atlasState?.atlasTelemetry?.contacts != null && atlasState.atlasTelemetry.contacts > 0);
   const focusedToolId = atlasState?.atlasTelemetry?.activeToolId || (liveNodes && liveNodes.size === 1 ? [...liveNodes][0] : undefined);
@@ -2038,17 +2044,17 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
               </div>
               <div style={{ minWidth:0, flex:1 }}>
                 <div style={{
-                  fontSize: isReactor ? 11 : 9.5, fontWeight:700,
-                  letterSpacing: isReactor?"0.14em":"0.12em",
-                  color: visible ? statusColor : "#253850", lineHeight:1.2,
+                  fontSize: isReactor ? 15 : 13, fontWeight:700,
+                  letterSpacing: isReactor?"0.08em":"0.06em",
+                  color: visible ? statusColor : "#8aa4c0", lineHeight:1.25,
                   transition:"color 0.35s", whiteSpace:"nowrap",
                 }}>
                   {isReactor && on ? "◉  " : ""}{n.label}
                 </div>
                 <div style={{
-                  fontSize: 12, letterSpacing:"0.1em",
-                  color: visible ? statusColor+"99" : "#1a2d42",
-                  marginTop:3, lineHeight:1.2,
+                  fontSize: 12.5, letterSpacing:"0.06em",
+                  color: visible ? statusColor+"cc" : "#5a7a9a",
+                  marginTop:3, lineHeight:1.25,
                   transition:"color 0.35s", whiteSpace:"nowrap",
                 }}>
                   {n.sub}
@@ -2099,7 +2105,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
         ].map(({y,label}) => (
           <div key={label} style={{
             position:"absolute", left:8, top:y-6,
-            fontSize: 12, letterSpacing:"0.22em", color:"#1e3050",
+            fontSize: 13, letterSpacing:"0.18em", color:"#6b8aab",
             writingMode:"vertical-rl", transform:"rotate(180deg)",
             zIndex:3, height:12, lineHeight:1,
           }}>{label}</div>
@@ -2363,7 +2369,8 @@ export default function IntelligenceReactorPage() {
     const measure = () => {
       if (!containerRef.current) return;
       const { width, height } = containerRef.current.getBoundingClientRect();
-      setScale(Math.min(width / 1600, height / 960));
+      // Never shrink scheme text below readable (~0.82 floor)
+      setScale(Math.max(0.82, Math.min(width / 1600, height / 960, 1.05)));
     };
     measure();
     const ro = new ResizeObserver(measure);

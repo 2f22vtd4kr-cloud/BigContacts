@@ -44,3 +44,13 @@ git pull origin main
 ## Other notes from this session
 - Monitor host often **timed out** from external probe while phone UI still rendered (Replit lag)
 - DB 1/1 + 5 LIVE chips looked healthy on phone — dig lanes OK; blocker was phase order
+
+## UI — Reactor desktop (screenshot follow-up)
+- Scheme node labels were **9.5px** then **scaled** by `min(w/1600,h/960)` → unreadable.
+- Live Desk default **open when idle** → blank column under Launch.
+- Sidebar edge control stayed partially visible (`opacity-70`).
+
+### Fixes
+- Node labels **13–15px**, muted text brighter; scale **floor 0.82**
+- Live Desk **closed when idle**, auto-open when job live
+- Edge control **opacity 0** until mouse near left edge (with leave delay)
