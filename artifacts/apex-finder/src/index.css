@@ -166,54 +166,60 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  /* Soft readable plate — liquid still shows through edges */
-  padding: 0.2rem 0.55rem;
-  border-radius: 999px;
-  background: rgba(6, 6, 12, 0.28);
-  box-shadow: 0 0 20px rgba(6, 6, 12, 0.25);
+  /* No dark plate — oil shows through; type carries the shimmer */
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
-/* Type cut into the oil film — light face, soft etch, gentle wave per letter */
+/* Custom type: iridescent sheen (переливание) clipped to glyphs */
 .atlas-liquid-type {
-  display: inline-flex;
-  align-items: baseline;
+  display: inline-block;
   font-family: inherit;
-  font-weight: 700;
+  font-weight: 750;
   font-size: inherit;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
   line-height: 1.15;
   -webkit-font-smoothing: antialiased;
-  color: #f4f7ff;
+  background-image: linear-gradient(
+    105deg,
+    #ffffff 0%,
+    #e8deff 18%,
+    #9aefff 36%,
+    #ffffff 50%,
+    #ffb8ec 68%,
+    #c4b5fd 82%,
+    #ffffff 100%
+  );
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  /* Depth so glyphs stay readable on bright film */
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.75))
+          drop-shadow(0 0 10px rgba(120, 90, 220, 0.35));
+  animation: atlas-liquid-sheen 5.5s ease-in-out infinite;
 }
+@keyframes atlas-liquid-sheen {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .atlas-liquid-type {
+    animation: none;
+    background-position: 40% 50%;
+  }
+}
+/* Per-char path (legacy) — inherit gradient from parent if still used */
 .atlas-liquid-char {
   display: inline-block;
-  color: #f7f8ff;
-  font-weight: 700;
-  /* Readable first; liquid motion second */
-  text-shadow:
-    0 0 1px rgba(0, 0, 0, 0.9),
-    0 1px 3px rgba(0, 0, 0, 0.75),
-    0 0 12px rgba(140, 120, 220, 0.18);
-  mix-blend-mode: normal;
-  -webkit-text-stroke: 0;
-  animation: atlas-liquid-char-wave 5.4s ease-in-out infinite;
-  will-change: transform;
+  color: inherit;
+  -webkit-text-fill-color: inherit;
+  font-weight: inherit;
 }
 .atlas-liquid-char.is-space {
   width: 0.28em;
-  text-shadow: none;
-  -webkit-text-stroke: 0;
-  mix-blend-mode: normal;
-}
-@keyframes atlas-liquid-char-wave {
-  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
-  40% { transform: translate3d(0, -0.35px, 0) scale(1.008); }
-  70% { transform: translate3d(0, 0.25px, 0) scale(0.998); }
-}
-@media (prefers-reduced-motion: reduce) {
-  .atlas-liquid-char {
-    animation: none;
-  }
 }
 
 .atlas-launch-glow:hover {

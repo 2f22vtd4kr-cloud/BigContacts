@@ -293,25 +293,7 @@ export function LaunchAtlasButton({
             )}
             aria-hidden={false}
           >
-            {(variant === "primary" || variant === "reactor") && !inFlight
-              ? (idleLabel).split("").map((ch, i) =>
-                  ch === " " ? (
-                    <span key={`s-${i}`} className="atlas-liquid-char is-space">
-                      {"\u00a0"}
-                    </span>
-                  ) : (
-                    <span
-                      key={`${ch}-${i}`}
-                      className="atlas-liquid-char"
-                      style={{ animationDelay: `${i * 0.07}s` }}
-                    >
-                      {ch}
-                    </span>
-                  ),
-                )
-              : inFlight
-                ? runningLabel
-                : idleLabel}
+            {inFlight ? runningLabel : idleLabel}
           </span>
         </span>
       </button>
