@@ -2194,7 +2194,16 @@ export async function runAtlasPipeline(atlasJobId: string, opts: AtlasOptions): 
 
   // ── Phase 0: Pre-run cross-references ──────────────────────────────────────
   // Cross-reference whatever is already in the DB. Run once at the start.
+  // Cold desk (0 entities): SKIP — do not block discovery on OCCRP/OpenSky/CH.
   if (!opts.skipIngestion) {
+    const preCountRows = await db.select({ id: entitiesTable.id }).from(entitiesTable).limit(1);
+    const hasExistingEntities = preCountRows.length > 0;
+
+    if (!hasExistingEntities) {
+      await status("Phase 0/10: Pre-run skipped — empty ledger, starting discovery…", 0);
+      summary["Phase 0"] = "Skipped (empty DB — no entities to cross-reference)";
+      logger.info("[Atlas] Phase 0 pre-run skipped: no entities in DB yet");
+    } else {
     // ── Pre-run: OCCRP/OFAC + live ADS-B + CH Officers (cross-reference existing DB) ──
     await status("Phase 0/10: Pre-run cross-references — OCCRP/OFAC + live ADS-B + CH Officers…", 0);
 
@@ -2203,25 +2212,50 @@ export async function runAtlasPipeline(atlasJobId: string, opts: AtlasOptions): 
     await setActiveJob("occrp", occrpJobId);
     await setActiveJob("opensky", openskyJobId);
 
+    const phase0TimeoutMs = 45_000;
+    const withTimeout = <T,>(p: Promise<T>, label: string, fallback: T): Promise<T> =>
+      Promise.race([
+        p,
+        new Promise<T>((resolve) =>
+          setTimeout(() => {
+            logger.warn({ label, phase0TimeoutMs }, "[Atlas] Phase 0 sub-task timed out");
+            resolve(fallback);
+          }, phase0TimeoutMs),
+        ),
+      ]);
+
     const [occrpRes, openskyRes, officersRes] = await Promise.all([
-      runOccrpEnrichment({ jobId: occrpJobId, limit: 5_000 })
-        .catch(e => { logger.error({ err: e.message }, "[Atlas] OCCRP failed"); return { inserted: 0, skipped: 0, errors: 1, durationMs: 0 }; }),
-      runOpenSkyEnrichment({ jobId: openskyJobId })
-        .catch(e => { logger.error({ err: e.message }, "[Atlas] OpenSky failed"); return { inserted: 0, skipped: 0, errors: 1, liveAircraft: 0, durationMs: 0 }; }),
-      (async () => {
-        try {
-          const { runCompanyOfficersEnrichment } = await import("./registry-enricher");
-          const chOffJobId = await createJob("ch-officers");
-          await setActiveJob("ch-officers", chOffJobId);
-          return await runCompanyOfficersEnrichment({ jobId: chOffJobId, batchSize: 100 });
-        } catch (e: any) {
-          logger.error({ err: e.message }, "[Atlas] CH Officers failed");
-          return { enriched: 0, skipped: 0, errors: 1, durationMs: 0 };
-        }
-      })(),
+      withTimeout(
+        runOccrpEnrichment({ jobId: occrpJobId, limit: 5_000 })
+          .catch(e => { logger.error({ err: e.message }, "[Atlas] OCCRP failed"); return { inserted: 0, skipped: 0, errors: 1, durationMs: 0 }; }),
+        "occrp",
+        { inserted: 0, skipped: 0, errors: 1, durationMs: 0 },
+      ),
+      withTimeout(
+        runOpenSkyEnrichment({ jobId: openskyJobId })
+          .catch(e => { logger.error({ err: e.message }, "[Atlas] OpenSky failed"); return { inserted: 0, skipped: 0, errors: 1, liveAircraft: 0, durationMs: 0 }; }),
+        "opensky",
+        { inserted: 0, skipped: 0, errors: 1, liveAircraft: 0, durationMs: 0 },
+      ),
+      withTimeout(
+        (async () => {
+          try {
+            const { runCompanyOfficersEnrichment } = await import("./registry-enricher");
+            const chOffJobId = await createJob("ch-officers");
+            await setActiveJob("ch-officers", chOffJobId);
+            return await runCompanyOfficersEnrichment({ jobId: chOffJobId, batchSize: 100 });
+          } catch (e: any) {
+            logger.error({ err: e.message }, "[Atlas] CH Officers failed");
+            return { enriched: 0, skipped: 0, errors: 1, durationMs: 0 };
+          }
+        })(),
+        "ch-officers",
+        { enriched: 0, skipped: 0, errors: 1, durationMs: 0 },
+      ),
     ]);
 
     summary["Phase 0"] = `OCCRP/OFAC: ${occrpRes.inserted ?? 0} | Live ADS-B: ${(openskyRes as any).inserted ?? 0} matched | CH Officers: ${(officersRes as any).enriched ?? 0}`;
+    } // end hasExistingEntities
 
     // Identity passes: CH contact enrichment + OpenOwnership + Foundation filings
     const chEnrichJobId = await createJob("companies-house-enrich");

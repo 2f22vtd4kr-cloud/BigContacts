@@ -160,8 +160,26 @@ export async function runOpenSkyEnrichment(
   let skipped = 0;
   let errors = 0;
 
+  // ── Step 0: Load aviation assets first — skip global ADS-B if none ────────
+  await updateJob(jobId, { message: "Loading aviation assets from DB…", progress: 5 });
+  const assets = await db
+    .select({
+      id: assetsTable.id,
+      identifier: assetsTable.identifier,
+      ownerEntityId: assetsTable.ownerEntityId,
+      metadata: assetsTable.metadata,
+    })
+    .from(assetsTable)
+    .where(eq(assetsTable.category, "Aviation"));
+
+  if (assets.length === 0) {
+    await appendJobLog(jobId, "✈️  No aviation assets in DB — skip live ADS-B fetch.");
+    await updateJob(jobId, { status: "completed", progress: 100, message: "No aviation assets to match" });
+    return { inserted: 0, skipped: 0, errors: 0, liveAircraft: 0, durationMs: Date.now() - startTime };
+  }
+
   // ── Step 1: Fetch live state vectors ──────────────────────────────────────
-  await updateJob(jobId, { message: "Querying free public ADS-B feeds for live aircraft positions…", progress: 5 });
+  await updateJob(jobId, { message: "Querying free public ADS-B feeds for live aircraft positions…", progress: 10 });
   await appendJobLog(jobId, "✈️  Fetching live state vectors from adsb.lol (OpenSky compatibility fallback enabled)…");
 
   let states: StateVector[] = [];
@@ -187,19 +205,6 @@ export async function runOpenSkyEnrichment(
       if (cs) callsignMap.set(cs, sv);
     }
   }
-
-  // ── Step 3: Load our aviation assets ─────────────────────────────────────
-  await updateJob(jobId, { message: "Loading aviation assets from DB…", progress: 20 });
-
-  const assets = await db
-    .select({
-      id: assetsTable.id,
-      identifier: assetsTable.identifier,
-      ownerEntityId: assetsTable.ownerEntityId,
-      metadata: assetsTable.metadata,
-    })
-    .from(assetsTable)
-    .where(eq(assetsTable.category, "Aviation"));
 
   await updateJob(jobId, {
     total: assets.length,
