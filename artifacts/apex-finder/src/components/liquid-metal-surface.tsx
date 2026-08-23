@@ -1,9 +1,9 @@
 /**
  * Launch CTA liquid-metal underlay — thin React shell.
- * Rendering lives in lib/launch-surface (shaders + createOilRenderer).
+ * Backend: WebGPU → WebGL → 2D (see lib/launch-surface).
  */
 import { useEffect, useRef } from "react";
-import { createOilRenderer } from "@/lib/launch-surface";
+import { createOilRenderer, type OilRenderer } from "@/lib/launch-surface";
 
 export function LiquidMetalSurface({ className }: { className?: string }) {
   const ref = useRef<HTMLCanvasElement>(null);
@@ -11,8 +11,19 @@ export function LiquidMetalSurface({ className }: { className?: string }) {
   useEffect(() => {
     const canvas = ref.current;
     if (!canvas) return;
-    const renderer = createOilRenderer(canvas);
-    return () => renderer.dispose();
+    let disposed = false;
+    let renderer: OilRenderer | null = null;
+    createOilRenderer(canvas).then((r) => {
+      if (disposed) {
+        r.dispose();
+        return;
+      }
+      renderer = r;
+    });
+    return () => {
+      disposed = true;
+      renderer?.dispose();
+    };
   }, []);
 
   return (

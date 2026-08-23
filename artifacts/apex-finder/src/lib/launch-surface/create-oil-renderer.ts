@@ -1,12 +1,32 @@
 /**
- * Non-React oil surface driver — WebGL primary, 2D fallback.
+ * Non-React oil surface driver.
+ * Prefer order: WebGPU → WebGL1 → 2D canvas.
  * Call dispose() on unmount.
  */
 import { OIL_FRAG, OIL_VERT } from "./shaders";
+import { tryCreateOilRendererWebGPU } from "./create-oil-renderer-webgpu";
 
 export type OilRenderer = {
   dispose: () => void;
+  backend?: "webgpu" | "webgl" | "canvas2d";
 };
+
+/**
+ * Async factory — tries WebGPU first, then WebGL/2D.
+ */
+export async function createOilRenderer(canvas: HTMLCanvasElement): Promise<OilRenderer> {
+  try {
+    const gpu = await tryCreateOilRendererWebGPU(canvas);
+    if (gpu) {
+      return { ...gpu, backend: "webgpu" };
+    }
+  } catch {
+    /* fall through */
+  }
+  return createOilRendererSync(canvas);
+}
+
+/** Sync WebGL / 2D path (also used if WebGPU fails). */
 
 function prefersReducedMotion(): boolean {
   if (typeof window === "undefined" || !window.matchMedia) return false;
@@ -68,7 +88,7 @@ function paint2dFallback(
   ctx.putImageData(img, 0, 0);
 }
 
-export function createOilRenderer(canvas: HTMLCanvasElement): OilRenderer {
+export function createOilRendererSync(canvas: HTMLCanvasElement): OilRenderer {
   let raf = 0;
   let dead = false;
   let visible = true;
@@ -231,7 +251,9 @@ export function createOilRenderer(canvas: HTMLCanvasElement): OilRenderer {
     raf = requestAnimationFrame(draw);
   }
 
+  const backend: OilRenderer["backend"] = gl ? "webgl" : "canvas2d";
   return {
+    backend,
     dispose: () => {
       dead = true;
       cancelAnimationFrame(raf);

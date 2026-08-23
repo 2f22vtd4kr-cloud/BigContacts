@@ -3,23 +3,23 @@
 ## Layout
 | Path | Role |
 |------|------|
-| `artifacts/apex-finder/src/lib/launch-surface/shaders.ts` | GLSL + WebGPU notes |
-| `artifacts/apex-finder/src/lib/launch-surface/create-oil-renderer.ts` | WebGL / 2D driver, sleep/wake |
-| `artifacts/apex-finder/src/components/liquid-metal-surface.tsx` | React wrapper only |
+| `lib/launch-surface/shaders.ts` | WebGL1 GLSL |
+| `lib/launch-surface/shaders-wgsl.ts` | WebGPU WGSL + compute notes |
+| `lib/launch-surface/create-oil-renderer-webgpu.ts` | WebGPU driver |
+| `lib/launch-surface/create-oil-renderer.ts` | Async factory + WebGL/2D |
+| `components/liquid-metal-surface.tsx` | React shell |
+
+## Prefer order
+**WebGPU → WebGL1 → 2D canvas** (`createOilRenderer` async).
 
 ## Performance
-- ~30fps cap; true sleep when off-screen or tab hidden (no RAF spin)
-- 3-octave fbm, **single** domain warp, 3-tap normals (cheaper than dual-warp 4-octave)
-- `precision mediump` on mobile-friendly path
-- DPR clamp ≤2; `powerPreference: low-power`
-- `prefers-reduced-motion` → one static frame
+- ~30fps; true sleep off-screen / tab hidden
+- 2-oct fbm, single domain warp
+- No MSAA on WebGL CTA path
+- DPR ≤ 2; reduced-motion → one frame
 
-## WebGPU migration (not shipped)
-1. Feature-detect `navigator.gpu`
-2. Port `OIL_FRAG` body to WGSL fragment (same uniforms: res, time, motion, radius)
-3. Full-screen triangle pipeline; no vertex buffer required
-4. Fallback: WebGPU → WebGL1 → 2D (already have last two)
-5. Keep **DOM label** — GPU never owns the wordmark
+## Compute shaders
+Not used on the CTA. A noise-bake compute pass is documented in `shaders-wgsl.ts` for larger full-viewport oil only — fragment pass wins on a ~300×48 button.
 
 ## Readability
-Label is CSS above the canvas (plate + solid type). Shader mid-band is slightly darker so film does not wash text.
+DOM/CSS label above canvas; shader mid-band darkened under type.
