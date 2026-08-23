@@ -7,7 +7,7 @@
  * - Mid-band slightly deeper so DOM label stays legible
  * - WebGL primary; cheap 2D fallback
  * - Pause off-screen + when tab hidden
- * - Cap ~30fps; prefers-reduced-motion → one static frame
+ * - Cap ~30fps; true sleep off-screen (no RAF spin); reduced-motion → static frame
  * - Decorative only (pointer-events: none)
  */
 import { useEffect, useRef } from "react";
@@ -192,17 +192,6 @@ function BaseOilCanvas() {
 
     const cleanupFns: Array<() => void> = [];
 
-    if (typeof IntersectionObserver !== "undefined") {
-      const io = new IntersectionObserver(
-        (entries) => {
-          visible = entries.some((e) => e.isIntersecting);
-        },
-        { root: null, threshold: 0.02 },
-      );
-      io.observe(canvas);
-      cleanupFns.push(() => io.disconnect());
-    }
-
     const onVis = () => {
       pageVisible = document.visibilityState !== "hidden";
     };
@@ -300,15 +289,20 @@ function BaseOilCanvas() {
         gl.enable(gl.BLEND);
         gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 
+        let looping = false;
         const draw = (now: number) => {
           if (dead) return;
+          looping = false;
           const active = visible && pageVisible;
           if (!active && !reduced) {
-            raf = requestAnimationFrame(draw);
+            /* True sleep — no RAF spin while off-screen or tab hidden */
             return;
           }
           if (!reduced && now - lastFrame < frameInterval) {
-            raf = requestAnimationFrame(draw);
+            if (!looping) {
+              looping = true;
+              raf = requestAnimationFrame(draw);
+            }
             return;
           }
           lastFrame = now;
@@ -328,8 +322,48 @@ function BaseOilCanvas() {
           gl.clearColor(0, 0, 0, 0);
           gl.clear(gl.COLOR_BUFFER_BIT);
           gl.drawArrays(gl.TRIANGLES, 0, 6);
-          if (!reduced) raf = requestAnimationFrame(draw);
+          if (!reduced && visible && pageVisible) {
+            looping = true;
+            raf = requestAnimationFrame(draw);
+          }
         };
+        const kick = () => {
+          if (dead || reduced) return;
+          if (document.visibilityState === "hidden") return;
+          if (!looping) {
+            looping = true;
+            raf = requestAnimationFrame(draw);
+          }
+        };
+        const onVisKick = () => {
+          pageVisible = document.visibilityState !== "hidden";
+          if (pageVisible) kick();
+        };
+        document.addEventListener("visibilitychange", onVisKick);
+        cleanupFns.push(() => document.removeEventListener("visibilitychange", onVisKick));
+        if (typeof IntersectionObserver !== "undefined") {
+          const ioWake = new IntersectionObserver(
+            (entries) => {
+              const on = entries.some((e) => e.isIntersecting);
+              visible = on;
+              if (on) kick();
+            },
+            { root: null, threshold: 0.02 },
+          );
+          ioWake.observe(canvas);
+          cleanupFns.push(() => ioWake.disconnect());
+        }
+        /* Debounced resize */
+        let resizeT: ReturnType<typeof setTimeout> | null = null;
+        const onResize = () => {
+          if (resizeT) clearTimeout(resizeT);
+          resizeT = setTimeout(() => kick(), 80);
+        };
+        window.addEventListener("resize", onResize);
+        cleanupFns.push(() => {
+          window.removeEventListener("resize", onResize);
+          if (resizeT) clearTimeout(resizeT);
+        });
         raf = requestAnimationFrame(draw);
         cleanupFns.push(() => {
           dead = true;
