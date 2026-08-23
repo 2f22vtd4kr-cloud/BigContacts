@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { pingRedis, getPermanentClient } from "../lib/redis";
+import { pingRedis, getPermanentClient, getRedisHealthSnapshot } from "../lib/redis";
 import { getAIKeyStatus } from "../lib/ai-extractor";
 import { getMistralWebSearchStatus } from "../lib/mistral-web-search";
 import { getNvidiaNimCaseReasoningStatus } from "../lib/nvidia-nim-case-reasoning";
@@ -8,13 +8,30 @@ import { buildLanesHonestySnapshot } from "../lib/lanes-honesty";
 const router: IRouter = Router();
 
 router.get("/healthz", async (_req, res) => {
-  const redisLatencyMs = await pingRedis();
-  // Permanent bureau Redis (REDIS_URL_1) — not the optional local cache client.
-  const redisStatus = getPermanentClient()
-    ? redisLatencyMs !== null
-      ? "ok"
-      : "error"
-    : "not_connected";
+  // Prefer cached permanent-Redis probe — desk polls healthz often; do not PING every time.
+  let snap = getRedisHealthSnapshot();
+  if (!snap.cached && getPermanentClient()) {
+    // First request or stale cache: one real ping, then subsequent healthz are free of Redis commands for TTL.
+    const latencyMs = await pingRedis();
+    snap = {
+      status: getPermanentClient()
+        ? latencyMs !== null
+          ? "ok"
+          : "error"
+        : "not_connected",
+      latencyMs,
+      cached: false,
+    };
+  } else if (snap.cached === false && !getPermanentClient()) {
+    // Kick a background refresh when cache is stale but client exists path already handled;
+    // when no client, stay not_connected.
+    void pingRedis();
+  } else if (snap.cached) {
+    // Keep cache warm in background occasionally without blocking the response.
+    void pingRedis();
+  }
+  const redisStatus = snap.status;
+  const redisLatencyMs = snap.latencyMs;
 
   let providers: Record<string, number> | undefined;
   let lanesHonesty: ReturnType<typeof buildLanesHonestySnapshot> | undefined;
@@ -55,6 +72,7 @@ router.get("/healthz", async (_req, res) => {
     redis: {
       status: redisStatus,
       latencyMs: redisLatencyMs,
+      cached: snap.cached,
     },
     // Active key slot counts only — never secret values. 0 means restart API
     // after adding Replit secrets or OSINT will stay registry-shallow.

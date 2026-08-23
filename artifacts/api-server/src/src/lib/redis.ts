@@ -351,15 +351,76 @@ export async function permExpire(key: string, ttlSeconds: number): Promise<void>
   await withPermanentClient(c => c.expire(PERM_PREFIX + key, ttlSeconds).then(() => undefined), undefined);
 }
 
-/** Ping the permanent bureau Redis (REDIS_URL_1), not the optional local cache. */
-export async function pingRedis(): Promise<number | null> {
+/** Cached health probe for permanent bureau Redis (REDIS_URL_1).
+ *  Desk /healthz can be polled many times per minute — PING every time
+ *  burns free Upstash command quota. Cache success for HEALTH_PING_TTL_MS;
+ *  failures cache briefly so we still detect outages without spamming. */
+const HEALTH_PING_TTL_OK_MS = 30_000;
+const HEALTH_PING_TTL_FAIL_MS = 8_000;
+let _healthPingCache: { at: number; latencyMs: number | null } | null = null;
+
+/** Force next pingRedis() to hit the network (e.g. after reconnect). */
+export function invalidateRedisHealthCache(): void {
+  _healthPingCache = null;
+}
+
+/** Ping permanent Redis with TTL cache. Returns latency ms or null if down. */
+export async function pingRedis(opts?: { force?: boolean }): Promise<number | null> {
+  const now = Date.now();
+  if (!opts?.force && _healthPingCache) {
+    const ttl = _healthPingCache.latencyMs !== null ? HEALTH_PING_TTL_OK_MS : HEALTH_PING_TTL_FAIL_MS;
+    if (now - _healthPingCache.at < ttl) {
+      return _healthPingCache.latencyMs;
+    }
+  }
+
   const c = getPermanentClient();
-  if (!c) return null;
+  if (!c) {
+    _healthPingCache = { at: now, latencyMs: null };
+    return null;
+  }
+
+  // Client already "ready" and recent successful cache expired — still ping
+  // occasionally, but avoid stacking concurrent pings under load.
   try {
     const t0 = Date.now();
-    await c.ping();
-    return Date.now() - t0;
-  } catch { return null; }
+    await Promise.race([
+      c.ping(),
+      new Promise<never>((_, rej) => setTimeout(() => rej(new Error("ping-timeout")), 2500)),
+    ]);
+    const latencyMs = Date.now() - t0;
+    _healthPingCache = { at: Date.now(), latencyMs };
+    return latencyMs;
+  } catch {
+    _healthPingCache = { at: Date.now(), latencyMs: null };
+    return null;
+  }
+}
+
+/** Cheap status for healthz without always waiting on network.
+ *  Uses cache when fresh; otherwise returns client presence only. */
+export function getRedisHealthSnapshot(): {
+  status: "ok" | "error" | "not_connected";
+  latencyMs: number | null;
+  cached: boolean;
+} {
+  const c = getPermanentClient();
+  if (!c) return { status: "not_connected", latencyMs: null, cached: false };
+  if (_healthPingCache) {
+    const ttl = _healthPingCache.latencyMs !== null ? HEALTH_PING_TTL_OK_MS : HEALTH_PING_TTL_FAIL_MS;
+    if (Date.now() - _healthPingCache.at < ttl) {
+      return {
+        status: _healthPingCache.latencyMs !== null ? "ok" : "error",
+        latencyMs: _healthPingCache.latencyMs,
+        cached: true,
+      };
+    }
+  }
+  // Stale / never probed — treat ready client as ok until async ping fills cache
+  if (c.status === "ready") {
+    return { status: "ok", latencyMs: _healthPingCache?.latencyMs ?? null, cached: Boolean(_healthPingCache) };
+  }
+  return { status: "error", latencyMs: null, cached: false };
 }
 
 // ── CONTACT CACHE — slot 2 (REDIS_URL_2) ─────────────────────────────────────
