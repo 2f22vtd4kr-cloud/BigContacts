@@ -48,7 +48,7 @@ function paint2dFallback(
     canvas.width = w;
     canvas.height = h;
   }
-  const t = reduced ? 0.9 : (now - start) / 1000;
+  const tt = reduced ? 1.2 : (now - start) / 1000;
   const img = ctx.createImageData(w, h);
   const d = img.data;
   const step = w * h > 36_000 ? 2 : 1;
@@ -56,24 +56,36 @@ function paint2dFallback(
     for (let x = 0; x < w; x += step) {
       const u = x / w;
       const v = y / h;
+      /* denser waves */
       const n =
-        Math.sin(u * 2.5 + t * 0.48 + Math.cos(v * 2.1 - t * 0.3)) *
-          Math.cos(v * 1.85 - t * 0.24 + Math.sin(u * 1.4 + t * 0.18)) *
+        Math.sin(u * 9 + tt * 0.6 + Math.cos(v * 7 - tt * 0.4)) *
+          Math.cos(v * 8 - tt * 0.35 + Math.sin(u * 6 + tt * 0.25)) *
           0.5 +
         0.5;
-      let r = 8 + n * 22;
-      let g = 8 + n * 16;
-      let b = 14 + n * 34;
-      if (n > 0.32 && n < 0.72) {
-        const k = (n - 0.32) / 0.4;
-        r += (65 + 45 * Math.sin(t + k * 4)) * k * 0.55;
-        g += (30 + 65 * Math.cos(t * 0.8 + k * 3)) * k * 0.55;
-        b += (95 + 30 * Math.sin(t * 1.1 + k * 2)) * k * 0.55;
+      const n2 =
+        Math.sin(u * 14 - tt * 0.3 + v * 5) * Math.cos(v * 11 + tt * 0.2) * 0.5 + 0.5;
+      const field = n * 0.65 + n2 * 0.35;
+      /* silver base */
+      let r = 45 + field * 110;
+      let g = 48 + field * 105;
+      let b = 58 + field * 100;
+      /* colorful film bands */
+      const phase = (field * 4.5 + tt * 0.25 + u * 2) % 1;
+      if (phase < 0.2) {
+        r += 90; g += 40; b += 140;
+      } else if (phase < 0.4) {
+        r += 140; g += 50; b += 100;
+      } else if (phase < 0.6) {
+        r += 40; g += 150; b += 160;
+      } else if (phase < 0.8) {
+        r += 150; g += 120; b += 40;
+      } else {
+        r += 50; g += 80; b += 160;
       }
-      const mid = 1 - Math.min(1, Math.abs(v - 0.5) * 2.5);
-      r *= 1 - mid * 0.28;
-      g *= 1 - mid * 0.28;
-      b *= 1 - mid * 0.28;
+      const k = 0.45 + field * 0.35;
+      r = 40 + (r - 40) * k;
+      g = 42 + (g - 42) * k;
+      b = 50 + (b - 50) * k;
       for (let dy = 0; dy < step && y + dy < h; dy++) {
         for (let dx = 0; dx < step && x + dx < w; dx++) {
           const i = ((y + dy) * w + (x + dx)) * 4;
