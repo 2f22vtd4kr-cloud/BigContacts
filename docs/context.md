@@ -57,6 +57,9 @@ curl -sS -X POST "$HOST/api/entities/rehydrate-contacts" \
 ```
 
 ### What “free research” means (non-negotiable)
+
+**DO NOT** micro-train dig models with ranked preference lists, 1-800 rejects, IR-agency penalty tables, or “prefer local-part matches name” heuristics. Trained models research like a general agent: goal + tools + fail-closed on invention. Card promote may rank by **source host quality** (primary vs directory trash) and **fail-closed validation** only — not playbook contact preference trees.
+
 - **Agentic ReAct:** the model chooses every `web_search` / `visit` / `done`. No `force_*` gap-fill machine.
 - **Target contact agent:** for each person, dig is not optional theater — best public contact path lands on the **card**.
 - **Done:** only soft-rejected on pure no-op (zero searches, visits, and findings). Auto-extracted CONTACT FACTS count.
