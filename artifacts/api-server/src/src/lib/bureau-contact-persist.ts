@@ -329,6 +329,7 @@ async function promoteBureauContactsToEntityCard(
   const entRows = await db
     .select({
       id: entitiesTable.id,
+      name: entitiesTable.name,
       type: entitiesTable.type,
       email: entitiesTable.email,
       phone: entitiesTable.phone,
@@ -346,6 +347,13 @@ async function promoteBureauContactsToEntityCard(
     .limit(1);
   const ent = entRows[0];
   if (!ent) return;
+
+  /** Tokens from entity name — prefer emails whose local part matches the person. */
+  const personTokens = String(ent.name ?? "")
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .split(/\s+/)
+    .filter((t) => t.length >= 2 && !/^(mr|ms|mrs|dr|jr|sr|ii|iii|iv)$/i.test(t));
 
   // Merge live dig items with durable contact_evidence so a prior agentic pass
   // still upgrades the card even if this call's items array is thin.
@@ -443,9 +451,31 @@ async function promoteBureauContactsToEntityCard(
     } else if (vt === "email") {
       if (isGenericLocal(value) && orgish) continue;
       if (isGenericLocal(value) && hostScore < 3) continue;
-      const score = (isGenericLocal(value) || orgish ? 2 : 5) + hostScore;
+      const local = (value.split("@")[0] ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
+      const domain = (value.split("@")[1] ?? "").toLowerCase();
+      // Prefer local parts that look like the person's name (tang.yan@… > yuan@christensenir)
+      let nameBoost = 0;
+      if (personTokens.length && local.length >= 3) {
+        for (const t of personTokens) {
+          if (local.includes(t)) nameBoost += 4;
+        }
+        if (personTokens.length >= 2) {
+          const first = personTokens[0];
+          const last = personTokens[personTokens.length - 1];
+          if (local.includes(first) && local.includes(last)) nameBoost += 6;
+        }
+      }
+      // IR / PR agency mailboxes are weaker than issuer or person-named company mail
+      let agencyPenalty = 0;
+      if (/(ir\.|investor|christensen|bergkamp|pragency|pressroom)/i.test(domain)) {
+        agencyPenalty = 3;
+      }
+      if (/^(ir|press|media|pr)@/i.test(value)) agencyPenalty += 2;
+      const score =
+        (isGenericLocal(value) || orgish ? 2 : 5) + hostScore + nameBoost - agencyPenalty;
+      const asOrg = orgish || isGenericLocal(value) || agencyPenalty >= 3;
       if (!bestEmail || score > bestEmail.score) {
-        bestEmail = { value, source: orgish || isGenericLocal(value) ? `${srcLabel}-org` : srcLabel, score };
+        bestEmail = { value, source: asOrg ? `${srcLabel}-org` : srcLabel, score };
       }
     } else if (vt === "linkedin" && value.includes("linkedin.com") && !bestLinkedin) {
       bestLinkedin = value.startsWith("http") ? value : `https://${value.replace(/^\/+/, "")}`;
@@ -488,11 +518,14 @@ async function promoteBureauContactsToEntityCard(
   if (bestEmail) {
     const curLocal = (ent.email ?? "").split("@")[0]?.toLowerCase() ?? "";
     const curGeneric = /^(info|contact|office|press|hello|admin|sales|support|ir|media)$/i.test(curLocal);
+    const curLooksPersonal = personTokens.some((t) => curLocal.includes(t));
+    const bestLooksPersonal = !bestEmail.source.endsWith("-org");
     const allowEmail =
       !ent.email ||
       issuerLocked ||
       weakOutcome ||
-      (curGeneric && !bestEmail.source.endsWith("-org"));
+      (curGeneric && !bestEmail.source.endsWith("-org")) ||
+      (!curLooksPersonal && bestLooksPersonal);
     if (allowEmail && bestEmail.value !== ent.email) {
       patch.email = bestEmail.value;
       changed = true;

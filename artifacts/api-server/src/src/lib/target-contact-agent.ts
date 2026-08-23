@@ -85,8 +85,11 @@ export async function runTargetContactAgent(input: {
     `Research ${name}` +
     (input.companyName ? ` linked to ${input.companyName}` : "") +
     ` as a free web agent would for a private research desk.\n` +
-    `Recover the strongest attributable PUBLIC contact path (direct phone/email/LinkedIn preferred; ` +
-    `else firm notice-line / IR with source). Reject junk directories and wrong issuers. Never invent.`;
+    `Goal: strongest attributable PUBLIC contact path on the card.\n` +
+    `Prefer: (1) email whose local part matches the person's name on the company domain, ` +
+    `(2) SEC / filing notice-line phone or email for this reporting person, ` +
+    `(3) LinkedIn, (4) company IR only if nothing closer exists.\n` +
+    `Open primary pages (SEC, company IR, press). Never invent. Cite source URLs.`;
 
   void publishBureauEvent({
     actor: "web",

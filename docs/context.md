@@ -6,7 +6,7 @@
 
 ## Prep for next Replit run (2026-08-22 evening)
 
-**Current tip:** `04bfa68` — agent-first enrich; skip parallel AI OSINT when card ready; 300s dig budget.
+**Current tip:** `main` — agent dig → card; name-matching email preferred over IR agency; skip parallel digs when card ready.
 
 ### Product contract (non-negotiable)
 | Rule | Meaning |
@@ -71,6 +71,7 @@ curl -sS -X POST "$HOST/api/entities/rehydrate-contacts" \
 ### Tip chain (target agent + card — 2026-08-22 evening)
 | Commit | Point |
 |--------|--------|
+| *(pending push)* | Prefer **person-named** emails on company domains over IR/PR agency; objective steers free dig that way |
 | `7efcea8` | Single target-agent dig per entity (no double ReAct) |
 | `e1d03ef` | **feat:** `runTargetContactAgent` + early enrich stage + chat-style objective |
 | `d28e597` | Always rehydrate dig evidence onto cards after secondary/enrich |
