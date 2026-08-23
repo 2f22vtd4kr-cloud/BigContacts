@@ -152,6 +152,11 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
+  /* Soft readable plate — liquid still shows through edges */
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  background: rgba(6, 6, 12, 0.28);
+  box-shadow: 0 0 20px rgba(6, 6, 12, 0.25);
 }
 
 /* Type cut into the oil film — light face, soft etch, gentle wave per letter */
@@ -168,16 +173,16 @@ body {
 }
 .atlas-liquid-char {
   display: inline-block;
-  /* Solid readable face — liquid motion is subtle, not soft-light washout */
-  color: #f4f7ff;
-  font-weight: 650;
+  color: #f7f8ff;
+  font-weight: 700;
+  /* Readable first; liquid motion second */
   text-shadow:
-    0 1px 2px rgba(0, 0, 0, 0.65),
-    0 0 10px rgba(180, 160, 255, 0.22),
-    0 0.5px 0 rgba(255, 255, 255, 0.35);
+    0 0 1px rgba(0, 0, 0, 0.9),
+    0 1px 3px rgba(0, 0, 0, 0.75),
+    0 0 12px rgba(140, 120, 220, 0.18);
   mix-blend-mode: normal;
   -webkit-text-stroke: 0;
-  animation: atlas-liquid-char-wave 4.8s ease-in-out infinite;
+  animation: atlas-liquid-char-wave 5.4s ease-in-out infinite;
   will-change: transform;
 }
 .atlas-liquid-char.is-space {
@@ -187,15 +192,9 @@ body {
   mix-blend-mode: normal;
 }
 @keyframes atlas-liquid-char-wave {
-  0%, 100% {
-    transform: translate3d(0, 0, 0) scale(1);
-  }
-  35% {
-    transform: translate3d(0, -0.45px, 0) scale(1.012);
-  }
-  65% {
-    transform: translate3d(0, 0.3px, 0) scale(0.997);
-  }
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  40% { transform: translate3d(0, -0.35px, 0) scale(1.008); }
+  70% { transform: translate3d(0, 0.25px, 0) scale(0.998); }
 }
 @media (prefers-reduced-motion: reduce) {
   .atlas-liquid-char {

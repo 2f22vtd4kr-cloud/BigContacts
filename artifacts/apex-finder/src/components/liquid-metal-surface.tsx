@@ -77,22 +77,24 @@ void main() {
   else film = mix(blue, violet, (f - 0.75) / 0.25);
 
   float mask = smoothstep(0.20, 0.48, blob) * (1.0 - smoothstep(0.70, 0.94, blob));
-  mask *= 0.55 + 0.45 * sin(blob * 4.2 + t * 0.85);
-  col = mix(col, col * 0.28 + film * 1.05, mask * 0.78);
+  mask *= 0.5 + 0.35 * sin(blob * 4.2 + t * 0.85);
+  /* Calmer film so type stays legible over the oil */
+  col = mix(col, col * 0.35 + film * 0.85, mask * 0.55);
 
-  /* chromatic fresnel edge — white + purple fringe */
+  /* chromatic fresnel edge — keep sparkle at rim, not under glyphs */
   float fres = pow(1.0 - max(N.z, 0.0), 2.0);
-  col += vec3(0.9, 0.92, 1.0) * fres * 0.28;
-  col += violet * fres * 0.18;
-  col += cyan * fres * 0.12;
+  col += vec3(0.9, 0.92, 1.0) * fres * 0.22;
+  col += violet * fres * 0.14;
+  col += cyan * fres * 0.1;
 
-  /* soft vignette only — keep center bright so etched type needs no muddy shadow */
+  /* Soft edge falloff */
   float edge = smoothstep(0.0, 0.1, uv.x) * smoothstep(1.0, 0.9, uv.x)
              * smoothstep(0.0, 0.14, uv.y) * smoothstep(1.0, 0.86, uv.y);
-  col *= 0.82 + 0.18 * edge;
-  /* slight mid calm (not a dark band under the label) */
-  float mid = 1.0 - smoothstep(0.22, 0.48, abs(uv.y - 0.5));
-  col *= 1.0 - mid * 0.08;
+  col *= 0.78 + 0.22 * edge;
+  /* Horizontal band under the label — slightly deeper oil for contrast */
+  float mid = 1.0 - smoothstep(0.18, 0.52, abs(uv.y - 0.5));
+  col *= 1.0 - mid * 0.22;
+  col = clamp(col, 0.0, 1.0);
 
   gl_FragColor = vec4(col, 1.0);
 }
