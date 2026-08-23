@@ -49,7 +49,7 @@ interface AutoPipelineScheduler {
 }
 
 interface AtlasLiveState {
-  runStatus: "running" | "done" | "failed";
+  runStatus: "running" | "paused" | "done" | "failed" | "cancelled";
   phase: number;
   phaseLabel: string;
   phaseProgress: number;
@@ -225,7 +225,7 @@ function atlasPhaseFromMessage(message: string, progress = 0): number {
 function parseAtlasLiveState(message: string, progress = 0, total = 10, runStatus: AtlasLiveState["runStatus"] = "running"): AtlasLiveState {
   const phase = runStatus === "done"
     ? total
-    : runStatus === "failed"
+    : (runStatus === "failed" || runStatus === "cancelled")
       ? Math.min(total, Math.max(0, progress))
       : atlasPhaseFromMessage(message, progress);
   const source = message.match(/\[(\d+)\/(\d+)\]/);
@@ -437,8 +437,8 @@ const ATLAS_PHASE_NODES: Record<number, string[]> = {
 
 function rodStatus(id: string, atlasState: AtlasLiveState | null | undefined, liveNodes?: Set<string>): RodStatus {
   if (!atlasState) return liveNodes?.has(id) ? "active" : "idle";
-  if (atlasState.runStatus === "failed") {
-    if (liveNodes?.has(id)) return "failed";
+  if (atlasState.runStatus === "failed" || atlasState.runStatus === "cancelled") {
+    if (liveNodes?.has(id) && atlasState.runStatus === "failed") return "failed";
     const wasReached = Object.entries(ATLAS_PHASE_NODES).some(([phase, ids]) => Number(phase) <= atlasState.phase && ids.includes(id));
     return wasReached ? "completed" : "skipped";
   }
@@ -587,8 +587,9 @@ function LiveHeaderDetail({ isLive, atlasState, liveLabel, livePhaseDetail, comp
   if (!isLive && !atlasState) return null;
   const detail = atlasState?.detail || livePhaseDetail || liveLabel || "Processing live research";
   const failed = atlasState?.runStatus === "failed";
+  const cancelled = atlasState?.runStatus === "cancelled";
   const done = atlasState?.runStatus === "done";
-  const color = failed ? "#fb7185" : done ? "#b8ff4d" : "#9CFF1A";
+  const color = failed ? "#fb7185" : cancelled ? "#fbbf24" : done ? "#b8ff4d" : "#9CFF1A";
   return (
     <div style={{
       display:"flex", alignItems:"center", gap:6, minWidth:0,
@@ -970,7 +971,9 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
     ? atlasRunning
     : (liveNodes?.size ?? 0) > 0;
   const atlasFailed = atlasState?.runStatus === "failed";
+  const atlasCancelled = atlasState?.runStatus === "cancelled";
   const atlasDone = atlasState?.runStatus === "done";
+  const atlasTerminal = atlasFailed || atlasCancelled || atlasDone;
 
   // ── Animated dot-pulse ticker (used for banner dots only, NOT node selection) ─
   const [liveStep, setLiveStep] = useState(0);
@@ -1035,12 +1038,12 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
               <div style={{ display:"flex", alignItems:"center", gap:5 }}>
                 <div style={{
                   width:6, height:6, borderRadius:"50%",
-                   background: atlasFailed ? "#fb7185" : atlasDone ? "#b8ff4d" : isLive ? "#9CFF1A" : (hasSessions ? "#b8ff4d" : "#253850"),
-                   boxShadow: atlasFailed ? "0 0 8px #fb7185" : atlasDone ? "0 0 6px #b8ff4d" : isLive ? "0 0 8px #9CFF1A" : (hasSessions ? "0 0 6px #b8ff4d" : "none"),
-                   animation: (!atlasFailed && !atlasDone && (isLive || hasSessions)) ? motionOrNone("blink 1.1s ease-in-out infinite") : "none",
+                   background: atlasFailed ? "#fb7185" : atlasCancelled ? "#fbbf24" : atlasDone ? "#b8ff4d" : isLive ? "#9CFF1A" : (hasSessions ? "#b8ff4d" : "#253850"),
+                   boxShadow: atlasFailed ? "0 0 8px #fb7185" : atlasCancelled ? "0 0 6px #fbbf24" : atlasDone ? "0 0 6px #b8ff4d" : isLive ? "0 0 8px #9CFF1A" : (hasSessions ? "0 0 6px #b8ff4d" : "none"),
+                   animation: (!atlasTerminal && (isLive || hasSessions)) ? motionOrNone("blink 1.1s ease-in-out infinite") : "none",
                 }} />
-                 <span style={{ fontSize: 12, letterSpacing:"0.14em", color: atlasFailed ? "#fb7185" : atlasDone ? "#b8ff4d" : isLive ? "#9CFF1A" : (hasSessions ? "#b8ff4d" : "#3a5070") }}>
-                   {atlasFailed ? "FAILED" : atlasDone ? "COMPLETE" : isLive ? "LIVE" : (hasSessions ? "OPERATIONAL" : "STANDBY")}
+                 <span style={{ fontSize: 12, letterSpacing:"0.14em", color: atlasFailed ? "#fb7185" : atlasCancelled ? "#fbbf24" : atlasDone ? "#b8ff4d" : isLive ? "#9CFF1A" : (hasSessions ? "#b8ff4d" : "#3a5070") }}>
+                   {atlasFailed ? "FAILED" : atlasCancelled ? "STOPPED" : atlasDone ? "COMPLETE" : isLive ? "LIVE" : (hasSessions ? "OPERATIONAL" : "STANDBY")}
                 </span>
               </div>
               <span style={{ fontSize: 12, letterSpacing:"0.1em", color:"#526b86" }}>
@@ -1461,7 +1464,9 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
     : new Set<string>();
   const adaptive = Boolean(isLive && liveNodes && liveNodes.size > 0);
   const atlasFailed = atlasState?.runStatus === "failed";
+  const atlasCancelled = atlasState?.runStatus === "cancelled";
   const atlasDone = atlasState?.runStatus === "done";
+  const atlasTerminal = atlasFailed || atlasCancelled || atlasDone;
   const schedulerRemainingMs = schedulerWaitRemaining(
     typeof scheduler === "object" && scheduler
       ? (scheduler as any).nextTriggerAt ?? (scheduler as any).nextAt
@@ -1470,9 +1475,9 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
   const schedulerCountdown = formatSchedulerCountdown(schedulerRemainingMs);
   // "0s" is a non-empty string — must not show NEXT CYCLE QUEUED when nothing is scheduled
   const waitingForNextCycle = Boolean(
-    !isLive && !atlasFailed && schedulerRemainingMs > 0 && scheduler?.enabled,
+    !isLive && !atlasTerminal && schedulerRemainingMs > 0 && scheduler?.enabled,
   );
-  const atlasStatusColor = atlasFailed ? "#fb7185" : waitingForNextCycle ? "#fbbf24" : atlasDone ? "#b8ff4d" : isLive ? "#9CFF1A" : "#b8ff4d";
+  const atlasStatusColor = atlasFailed ? "#fb7185" : atlasCancelled ? "#fbbf24" : waitingForNextCycle ? "#fbbf24" : atlasDone ? "#b8ff4d" : isLive ? "#9CFF1A" : "#b8ff4d";
   const [deskOn, setDeskOn] = useState(false);
   const { deskEvents, latestNarration } = useBureauLiveDesk(atlasState?.eventLog as any, { enabled: true });
   // Idle: keep Live Desk closed so it does not leave a blank column under Launch.
@@ -1615,10 +1620,10 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
                     width:7, height:7, borderRadius:"50%",
                     background: atlasStatusColor,
                     boxShadow:`0 0 8px ${atlasStatusColor}`,
-                    animation: atlasFailed || atlasDone || waitingForNextCycle ? "none" : motionOrNone("blink 1.1s ease-in-out infinite"),
+                    animation: atlasTerminal || waitingForNextCycle ? "none" : motionOrNone("blink 1.1s ease-in-out infinite"),
                   }} />
                   <span style={{ fontSize: 12, letterSpacing:"0.18em", color: atlasStatusColor }}>
-                    {atlasFailed ? "ATLAS FAILED" : isLive ? "ATLAS LIVE" : waitingForNextCycle ? "NEXT CYCLE QUEUED" : atlasDone ? "ATLAS COMPLETE" : "NOMINAL"}
+                    {atlasFailed ? "ATLAS FAILED" : atlasCancelled ? "ATLAS STOPPED" : isLive ? "ATLAS LIVE" : waitingForNextCycle ? "NEXT CYCLE QUEUED" : atlasDone ? "ATLAS COMPLETE" : "NOMINAL"}
                   </span>
                 </div>
                 {waitingForNextCycle && (
@@ -2226,12 +2231,13 @@ export default function IntelligenceReactorPage() {
       let nextAtlasState: AtlasLiveState | null = null;
 
       // ── Atlas job (step + content-aware for 21-source pipeline) ─────────────
-       if (atlasData?.jobId && ["running", "paused", "done", "failed"].includes(atlasData.status)) {
+       if (atlasData?.jobId && ["running", "paused", "done", "failed", "cancelled"].includes(atlasData.status)) {
         const msg: string = atlasData.message ?? "";
          const runStatus =
            atlasData.status === "failed" ? "failed"
+           : atlasData.status === "cancelled" ? "cancelled"
            : atlasData.status === "done" ? "done"
-           : atlasData.status === "paused" ? "running" // keep desk live while paused
+           : atlasData.status === "paused" ? "paused"
            : "running";
         const structured = parseAtlasLiveState(
           msg,

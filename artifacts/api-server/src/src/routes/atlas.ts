@@ -173,17 +173,18 @@ router.delete("/ingest/atlas-lock", async (_req: Request, res: Response): Promis
     : String(_req.query.jobId ?? "");
   const jobId = activeJobId ?? requestedJobId;
   if (!jobId) { res.json({ cleared: false, message: "No active Atlas lock or jobId supplied." }); return; }
-  await updateJob(jobId, { status: "failed", message: "Killed manually.", finishedAt: new Date().toISOString() } as any);
+  // Operator stop must be cancelled (honest UI), never failed.
+  await updateJob(jobId, { status: "cancelled", message: "Stopped by operator.", finishedAt: new Date().toISOString() } as any);
   await clearActiveJobIfOwned("atlas-run", jobId);
-  res.json({ cleared: true, jobId, message: activeJobId ? "Atlas cancellation requested." : "Stale Atlas job marked failed." });
+  res.json({ cleared: true, jobId, status: "cancelled", message: activeJobId ? "Atlas stopped." : "Stale Atlas job marked cancelled." });
 });
 
 router.delete("/ingest/atlas-lock/:jobId", async (req: Request, res: Response): Promise<void> => {
   const jobId = String(req.params.jobId ?? "");
   if (!jobId) { res.json({ cleared: false, message: "No Atlas job ID supplied." }); return; }
-  await updateJob(jobId, { status: "failed", message: "Killed manually.", finishedAt: new Date().toISOString() } as any);
+  await updateJob(jobId, { status: "cancelled", message: "Stopped by operator.", finishedAt: new Date().toISOString() } as any);
   await clearActiveJobIfOwned("atlas-run", jobId);
-  res.json({ cleared: true, jobId, message: "Atlas job marked failed." });
+  res.json({ cleared: true, jobId, status: "cancelled", message: "Atlas stopped." });
 });
 
 // Terminal Atlas jobs older than this are not surfaced as "current" Reactor

@@ -1652,6 +1652,9 @@ export interface AIKeyStatus {
   gemini:     AIKeySlot[];
   tavily:     AIKeySlot[];
   exa:        AIKeySlot[];
+  serper:     AIKeySlot[];
+  mistral:    AIKeySlot[];
+  nvidia:     AIKeySlot[];
 }
 
 /**
@@ -1685,6 +1688,9 @@ export function getAIKeyStatus(): AIKeyStatus {
   const gemNames  = ["GEMINI_API_KEY", "GEMINI_KEY", ...Array.from({ length: 10 }, (_, i) => `GEMINI_API_KEY_${i + 1}`)];
   const tavNames  = ["TAVILY_API_KEY",     ...Array.from({ length: 8 }, (_, i) => `TAVILY_API_KEY_${i + 1}`)];
   const exaNames  = ["EXA_API_KEY", "EXA_1", "EXA_2", ...Array.from({ length: 8 }, (_, i) => `EXA_API_KEY_${i + 1}`)];
+  const serperNames = ["SERPER_API_KEY", "SERPER_KEY", "SERPER_API_KEY_2", "SERPER_API_KEY_3"];
+  const mistralNames = ["MISTRAL_API_KEY", "MISTRAL_KEY"];
+  const nvidiaNames = ["NVIDIA_NIM_API_KEY", "NVIDIA_API_KEY", "NVIDIA_KEY"];
 
   return {
     groq:       groqNames.map((n, i) => slotState(n, _exhaustedGroqKeys,             i)),
@@ -1692,5 +1698,8 @@ export function getAIKeyStatus(): AIKeyStatus {
     gemini:     gemNames .map((n, i) => slotState(n, new Map(),                            i)),
     tavily:     tavNames .map((n, i) => slotState(n, _exhaustedTavilyKeys,           i, _quotaExhaustedTavilyKeys)),
     exa:        exaNames .map((n, i) => slotState(n, _exhaustedExaKeys,              i)),
+    serper:     serperNames.map((n, i) => slotState(n, new Map(), i)),
+    mistral:    mistralNames.map((n, i) => slotState(n, new Map(), i)),
+    nvidia:     nvidiaNames.map((n, i) => slotState(n, new Map(), i)),
   };
 }

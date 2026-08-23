@@ -10,6 +10,9 @@ export interface AIKeyStatus {
   gemini: AIKeySlot[];
   tavily: AIKeySlot[];
   exa: AIKeySlot[];
+  serper: AIKeySlot[];
+  mistral: AIKeySlot[];
+  nvidia: AIKeySlot[];
 }
 
 export interface UpstashSlot {
@@ -37,6 +40,9 @@ export const AI_PROVIDERS: Array<keyof AIKeyStatus> = [
   "gemini",
   "tavily",
   "exa",
+  "serper",
+  "mistral",
+  "nvidia",
 ];
 
 export const PROVIDER_LABELS: Record<keyof AIKeyStatus, string> = {
@@ -45,6 +51,9 @@ export const PROVIDER_LABELS: Record<keyof AIKeyStatus, string> = {
   gemini: "Gemini",
   tavily: "Tavily",
   exa: "Exa",
+  serper: "Serper",
+  mistral: "Mistral",
+  nvidia: "NVIDIA NIM",
 };
 
 export interface ApiKeySummary {

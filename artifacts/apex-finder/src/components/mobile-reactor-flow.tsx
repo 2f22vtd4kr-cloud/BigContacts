@@ -299,6 +299,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
     else if (showHistory) msg = "History archive open";
     else if (!isLive && atlasState?.runStatus === "done") msg = "Run complete";
     else if (!isLive && atlasState?.runStatus === "failed") msg = "Run failed";
+    else if (!isLive && atlasState?.runStatus === "cancelled") msg = "Run stopped";
     else if (isLive) msg = "Live desk active";
     if (msg && msg !== lastAnnounceRef.current) {
       lastAnnounceRef.current = msg;
@@ -346,20 +347,24 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
   );
   const statusLabel = atlasState?.runStatus === "failed"
     ? "Failed"
-    : atlasState?.runStatus === "done"
-      ? waitingForNextCycle ? "Next cycle queued" : "Complete"
-      : isLive
-        ? "Active"
-        : waitingForNextCycle ? "Next cycle queued" : "Nominal";
+    : atlasState?.runStatus === "cancelled"
+      ? "Stopped"
+      : atlasState?.runStatus === "done"
+        ? waitingForNextCycle ? "Next cycle queued" : "Complete"
+        : isLive
+          ? "Active"
+          : waitingForNextCycle ? "Next cycle queued" : "Nominal";
   const statusClass = atlasState?.runStatus === "failed"
     ? "border-rose-400/30 bg-rose-400/10 text-rose-300"
-    : waitingForNextCycle
-      ? "border-[#9CFF1A]/35 bg-[#9CFF1A]/10 text-[#d4ff8a]"
-      : atlasState?.runStatus === "done"
+    : atlasState?.runStatus === "cancelled"
+      ? "border-amber-400/30 bg-amber-400/10 text-amber-200"
+      : waitingForNextCycle
         ? "border-[#9CFF1A]/35 bg-[#9CFF1A]/10 text-[#d4ff8a]"
-        : isLive
-        ? "border-[#9CFF1A]/30 bg-[#9CFF1A]/10 text-[#d4ff8a]"
-        : "border-lime-400/30 bg-lime-400/10 text-lime-300";
+        : atlasState?.runStatus === "done"
+          ? "border-[#9CFF1A]/35 bg-[#9CFF1A]/10 text-[#d4ff8a]"
+          : isLive
+            ? "border-[#9CFF1A]/30 bg-[#9CFF1A]/10 text-[#d4ff8a]"
+            : "border-lime-400/30 bg-lime-400/10 text-lime-300";
 
   let activePhaseIndex = -1;
   if (isLive) {
@@ -584,6 +589,20 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
           <div className="reactor-fail-label text-[14px] font-bold uppercase">Run failed</div>
           <div className="mt-1 text-[12px] leading-snug text-rose-50/90">
             {atlasState.detail || "Atlas could not finish this pass. Refresh or retry when keys and targets are ready."}
+          </div>
+        </div>
+      )}
+      {!isLive && atlasState?.runStatus === "cancelled" && (
+        <div
+          className="reactor-terminal-banner mx-3 mt-2 border border-amber-400/30 bg-amber-400/10"
+          data-kind="cancelled"
+          data-testid="banner-run-terminal"
+          role="status"
+          style={{ animation: motionOrNone(`terminalIn ${REACTOR_UI_MS}ms var(--reactor-ease, cubic-bezier(0.22,1,0.36,1)) both`) }}
+        >
+          <div className="text-[14px] font-bold uppercase text-amber-200">Stopped</div>
+          <div className="mt-1 text-[12px] leading-snug text-amber-50/90">
+            {atlasState.detail || "Operator stopped this run. Desk is idle — Launch when ready."}
           </div>
         </div>
       )}
