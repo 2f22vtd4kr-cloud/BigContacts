@@ -1,9 +1,9 @@
-# Replit update prompt (2026-08-24) — tip 6aa25dd+
+# Replit update prompt (2026-08-24) — tip 8c299e9+
 
 Paste entire block. Hard stop at acceptance. No redesign. No research launch unless asked.
 
 ```
-Update Apex Atlas from GitHub main tip 6aa25dd or newer.
+Update Apex Atlas from GitHub main tip 8c299e9 or newer.
 
 CRITICAL: If git log -1 is still 84fa075, origin is stale — the graph TDZ fix is NOT on that tip.
 Pull until: git log -1 --oneline shows a80a14b or later.
@@ -17,7 +17,7 @@ Only API Server workflow. PORT 8080. Desk at /. API at /api/. No Frontend workfl
 GIT
 git fetch origin main && git checkout main && git pull origin main
 git log -1 --oneline
-Must be 6aa25dd or newer.
+Must be 8c299e9 or newer.
 
 ENV
 ENABLE_AUTO_PIPELINE=false
@@ -41,7 +41,7 @@ Connections TDZ: useListEntities/useGetEntityGraph declared BEFORE effects that 
 Also: width/height before graphReady effect; allEntities normalized to array.
 
 ACCEPTANCE — stop when all true
-1. tip 6aa25dd+
+1. tip 8c299e9+
 2. / loads desk
 3. /api/healthz ok
 4. /network does NOT show "Cannot access E before initialization" (hard refresh)

@@ -1,7 +1,7 @@
 # Context — living handoff (Apex Atlas / BigContacts)
 
 **Repo:** https://github.com/2f22vtd4kr-cloud/BigContacts · **Branch:** `main`  
-**Current tip:** `0be6b2d`+ · graph TDZ hooks-order `a80a14b` · pushed to origin
+**Current tip:** `8c299e9` (poll/Redis/graph TDZ on origin)
 **API build entry:** `artifacts/api-server/src/src` (esbuild). Top-level `src/lib` is a thin scaffold — do not edit it for research logic.  
 **Desk package name:** `apex-finder-local` — build with `pnpm --dir artifacts/apex-finder run build` (not `@workspace/apex-finder`).  
 **Product:** Apex Atlas research bureau (NOT Steam “Atlas Reactor”, NOT physics ATLAS).
