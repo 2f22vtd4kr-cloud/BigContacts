@@ -402,17 +402,11 @@ async function promoteBureauContactsToEntityCard(
     let s = 0;
     for (const u of urls) {
       const h = u.toLowerCase();
+      // Primary public registries only — not a prefer list of issuers or IR paths
       if (h.includes("sec.gov") || h.includes("edgar")) s += 6;
       else if (h.includes("companieshouse") || h.includes("opencorporates")) s += 4;
-      else if (h.includes("gnty.com") || h.includes("carlicahn.com")) s += 5;
-      // Issuer / IR / corporate sites — valid org-route evidence (not directory spam)
-      else if (
-        h.includes("/ir.") || h.includes("investor.") || h.includes("investors.")
-        || h.includes("corporate-governance") || h.includes("/about")
-      ) s += 4;
-      else if (h.includes("odfl.com") || h.includes("ielp.com") || h.includes("icahnenterprises")) s += 4;
+      // Data-broker / scraped-directory hosts — not primary attribution
       else if (h.includes("leadiq") || h.includes("zoominfo") || h.includes("rocketreach") || h.includes("signalhire")) s -= 4;
-      else if (h.includes("ophthalmologytimes") || h.includes("abbott") || h.includes("mtec-sc")) s -= 5;
       else if (/^https?:\/\//i.test(u)) s += 1;
     }
     return s;

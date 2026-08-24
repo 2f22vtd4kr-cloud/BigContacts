@@ -276,3 +276,8 @@ Deterministic recovery:** if all agentic LLMs fail mid-loop, SERP+visit+proxy ex
 
 
 (See also docs/archive/Context.md for full history.)
+
+### Correction (2026-08-24) — no script hardening
+Domain/IR prefer scores (odfl.com, ielp.com, path heuristics) were **reverted**. That class of change is micro-hardening, not free dig.
+**Kept:** one neutral bug fix — do not drop organization-scope emails solely because the local-part is generic (`info@`, `ir@`). Model + extraction decide what is a contact; promote must not erase org switchboards by default.
+
