@@ -42,7 +42,7 @@ export function BureauIntegrityBanner() {
       }
     };
     load();
-    const id = window.setInterval(load, 15_000);
+    const id = window.setInterval(load, 45_000);
     return () => {
       cancelled = true;
       window.clearInterval(id);

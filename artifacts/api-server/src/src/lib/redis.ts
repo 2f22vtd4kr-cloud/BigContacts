@@ -384,7 +384,7 @@ export async function permExpire(key: string, ttlSeconds: number): Promise<void>
  *  Desk /healthz can be polled many times per minute — PING every time
  *  burns free Upstash command quota. Cache success for HEALTH_PING_TTL_MS;
  *  failures cache briefly so we still detect outages without spamming. */
-const HEALTH_PING_TTL_OK_MS = 30_000;
+const HEALTH_PING_TTL_OK_MS = 60_000;
 const HEALTH_PING_TTL_FAIL_MS = 8_000;
 let _healthPingCache: { at: number; latencyMs: number | null } | null = null;
 

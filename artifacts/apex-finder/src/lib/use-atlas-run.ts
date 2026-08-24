@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { readApiJson } from "@/lib/api-json";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
-const POLL_MS = 4_000;
+const POLL_MS = 8_000;
 
 export type AtlasRunSnapshot = {
   active: boolean;

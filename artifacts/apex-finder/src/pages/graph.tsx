@@ -435,7 +435,9 @@ function GraphViewerInner() {
   }
 
   return (
-    <div className="flex h-full min-h-[100dvh] md:min-h-[70vh] w-full bg-background relative overflow-hidden flex-col md:block" id="graph-container" className="min-h-[60vh] w-full"
+    <div
+      id="graph-container"
+      className="relative flex h-full min-h-[100dvh] w-full flex-col overflow-hidden bg-background md:block md:min-h-[70vh]"
       onContextMenu={(e) => e.preventDefault()}
     >
 
@@ -797,7 +799,7 @@ function GraphViewerInner() {
           <Loader2 className="h-6 w-6 animate-spin text-primary" />
         </div>
       )}
-      {ForceGraph2D && width > 0 && gData.nodes.length > 0 && (
+      {ForceGraph2D && width > 0 && height > 0 && Array.isArray(gData?.nodes) && gData.nodes.length > 0 && (
         <ForceGraph2D
           ref={fgRef}
           width={width}

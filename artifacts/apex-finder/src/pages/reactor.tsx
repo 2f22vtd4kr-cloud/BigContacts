@@ -1848,7 +1848,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
                   { k: "Contacts", v: atlasState?.atlasTelemetry?.contacts },
                   { k: "Sources", v: atlasState?.atlasTelemetry?.sources },
                   { k: "Evidence", v: atlasState?.atlasTelemetry?.evidence },
-                  { k: "Phase", v: atlasState?.phaseTotal ? `${atlasState.phase}/${atlasState.phaseTotal}` : atlasState?.phase },
+                  { k: "Phase", v: atlasState?.phase != null ? String(atlasState.phase) : "—" },
                 ].filter((x) => x.v != null && x.v !== "").map((x) => (
                   <div
                     key={x.k}
@@ -2324,7 +2324,7 @@ export default function IntelligenceReactorPage() {
   // Poll live jobs every 3 s so nodes light up as research runs
   useEffect(() => {
     pollJobs();
-    const id = setInterval(pollJobs, 3_000);
+    const id = setInterval(pollJobs, 10_000);
     return () => clearInterval(id);
   }, [pollJobs]);
 
@@ -2358,7 +2358,7 @@ export default function IntelligenceReactorPage() {
 
   // Auto-poll every 10 s so the reactor stays live after research completes
   useEffect(() => {
-    const id = setInterval(() => fetchData(true), 10_000);
+    const id = setInterval(() => fetchData(true), 20_000);
     return () => clearInterval(id);
   }, [fetchData]);
 

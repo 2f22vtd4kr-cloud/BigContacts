@@ -89,7 +89,7 @@ export function ApiKeyHealth({ className }: { className?: string }) {
       }
     };
     tick();
-    const id = window.setInterval(tick, 12_000);
+    const id = window.setInterval(tick, 30_000);
     return () => {
       cancelled = true;
       window.clearInterval(id);

@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 import { fetchSystemStatus, summarizeApiKeys, type SystemStatus } from "@/lib/system-status";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
-const POLL_INTERVAL_MS = 20_000;
+const POLL_INTERVAL_MS = 45_000;
 
 type AtlasStatus = {
   status?: string;
