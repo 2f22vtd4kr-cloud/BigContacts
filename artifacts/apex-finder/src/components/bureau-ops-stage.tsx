@@ -1297,7 +1297,7 @@ function MobileWorkstage({
         aria-valuenow={safeIdx + 1}
         aria-valuemin={1}
         aria-valuemax={Math.max(scenes.length, 1)}
-        aria-label={`Recent tool window ${safeIdx + 1} of ${scenes.length}`}
+        aria-label={`Tool activity ${safeIdx + 1}`}
       >
         <div
           className="h-full rounded-full"
@@ -1351,7 +1351,7 @@ function MobileWorkstage({
                   key={s.id}
                   type="button"
                   role="tab"
-                  aria-label={`Tool window ${i + 1} of ${scenes.length}: ${s.title}${s.live ? " live" : " done"}`}
+                  aria-label={`Tool activity ${i + 1}: ${s.title}${s.live ? " live" : " done"}`}
                   aria-current={isHere ? "true" : undefined}
                   aria-selected={isHere}
                   onClick={() => {
@@ -1391,9 +1391,9 @@ function MobileWorkstage({
             setPauseLeft(0);
             if (pauseTimerRef.current) window.clearTimeout(pauseTimerRef.current);
           }}
-          aria-label="Continue to next step"
+          aria-label="Continue to next activity"
         >
-          {`Holding this step · continues in ${pauseLeft}s · tap to skip ahead`}
+          {`Holding · ${pauseLeft}s · tap to continue`}
         </button>
       )}
     </div>
@@ -1413,7 +1413,7 @@ function sceneBodyText(scene: { prompt?: string; inputSummary?: string; resultSu
 export function BureauOpsStage({
   events,
   compact = false,
-  maxScenes = 6,
+  maxScenes = 12,
   title = "LIVE DESK",
   onEdgeSwipe,
   jumpToLiveSignal = 0,

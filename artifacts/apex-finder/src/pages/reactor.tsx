@@ -702,39 +702,35 @@ function AtlasPhaseStrip({ state, compact = false }: { state?: AtlasLiveState | 
     }}>
       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:8 }}>
         <span style={{ fontSize: compact ? 11 : 12, letterSpacing:"0.16em", color:"#526b86" }}>
-          {running ? `ENTITY JOURNEY · PHASE ${activePhase}` : "ENTITY JOURNEY · OPEN DIG"}
+          {running ? `OPEN DIG · PHASE ${activePhase}` : "OPEN DIG · STANDBY"}
         </span>
         <span style={{ fontSize: compact ? 10 : 12, letterSpacing:"0.12em", color:running ? "#9CFF1A" : "#3a5070" }}>
           {running ? (state?.sourceStep != null ? `SOURCE ${state.sourceStep}` : "PROCESSING") : "STANDBY"}
         </span>
       </div>
-      <div style={{ display:"flex", alignItems:"center", gap:compact ? 2 : 3 }}>
-        {ATLAS_PHASES.map((phase) => {
-          const complete = running && phase.n < activePhase;
-          const active = running && phase.n === activePhase;
-          const color = active ? "#9CFF1A" : complete ? "#b8ff4d" : "#263d59";
-          return (
-            <div key={phase.n} title={`${phase.n} · ${phase.label} — ${phase.detail}`} style={{
-              flex:1, minWidth:compact ? 18 : 24,
-              display:"flex", flexDirection:"column", gap:3,
-            }}>
-              <div style={{
-                height:compact ? 4 : 5, borderRadius:3,
-                background:active ? `linear-gradient(90deg,#9CFF1A,#b8ff4d)` : color,
-                opacity:active || complete ? 1 : 0.55,
-                boxShadow:active ? "0 0 8px #9CFF1A88" : "none",
-                transition:"all .35s ease",
-              }} />
-              <span style={{
-                fontSize: compact ? 10 : 12, textAlign:"center",
-                letterSpacing:"0.06em", color,
-                whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis",
-              }}>
-                {phase.n}
-              </span>
-            </div>
-          );
-        })}
+            <div style={{ display:"flex", flexDirection:"column", gap:compact ? 4 : 6 }}>
+        <div
+          role="progressbar"
+          aria-valuenow={running ? Math.max(0, activePhase) : 0}
+          aria-valuemin={0}
+          aria-valuemax={10}
+          aria-label={running ? `Open dig phase ${activePhase}` : "Standby"}
+          style={{
+            height: compact ? 5 : 6, borderRadius:4, background:"#1a2740", overflow:"hidden",
+          }}
+        >
+          <div style={{
+            height:"100%", borderRadius:4, width: running ? `${Math.min(100, Math.max(8, activePhase * 10))}%` : "0%",
+            background: running ? "linear-gradient(90deg,#9CFF1A,#b8ff4d)" : "#263d59",
+            boxShadow: running ? "0 0 10px #9CFF1A66" : "none",
+            transition:"width .4s ease",
+          }} />
+        </div>
+        {running && (
+          <span style={{ fontSize: compact ? 10 : 12, color:"#67e8f9", letterSpacing:"0.1em" }}>
+            {(ATLAS_PHASES.find(p => p.n === activePhase) ?? ATLAS_PHASES[1])?.label ?? "Research"}
+          </span>
+        )}
       </div>
     </div>
   );
@@ -1679,7 +1675,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
             style={{
               position:"absolute", top:12, right:12, bottom:12, width:380,
               maxWidth:"calc(100% - 40px)",
-              overflowY:"auto", overflowX:"hidden", zIndex:30, padding:"12px 12px 14px",
+              overflowY:"auto", overflowX:"hidden", zIndex:40, padding:"14px 14px 16px",
               border: atlasFailed
                 ? "1px solid #fb718566"
                 : atlasDone
@@ -1942,7 +1938,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
           height={842}
           style={{
             position:"absolute", inset:0, zIndex:1,
-            opacity: deskOn && isLive ? 0.72 : 1,
+            opacity: deskOn ? 0.35 : 1,
             transition: `opacity ${REACTOR_UI_MS}ms ease-out`,
           }}
         >
