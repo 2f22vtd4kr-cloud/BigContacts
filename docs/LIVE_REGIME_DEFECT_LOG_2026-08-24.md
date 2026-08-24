@@ -290,3 +290,21 @@ _Append new live findings below with UTC timestamp. Do not delete prior entries.
 **Fix (tip this commit):** `h-14` / `text-[15px]` on mobile for primary+reactor; canvas opacity 0.78 on mobile; stronger label drop-shadow; keep oil style (do not replace surface).  
 **Status:** Fixed in code — re-verify mobile web after rebuild. Desktop oil style unchanged in structure.
 
+
+### 2026-08-24T06:41Z — mobile stacked glass + KEYS OFF + Phase 1/10 (screenshot)
+
+**LIVE-17 · Mobile multi-layer glass stack (P0)**  
+Workspace status panel used translucent `bg-popover` + light scrim over Reactor → Phase/capacity text ghosted through Launch and live desk.  
+**Fix:** Opaque `#0c1220` sheet, fixed mobile position, `z-[70]`/`z-[80]`, dark scrim `bg-[#05070c]/85`.
+
+**LIVE-18 · KEYS OFF while healthz has providers (P0 honesty)**  
+Chip preferred system/status under-count before healthz.  
+**Fix:** healthz-first count (serper/mistral/nvidiaNim/webSearch/agentic); system/status only adjusts tone.
+
+**LIVE-19 · Phase N/10 in workspace chip panel (P1)**  
+`phaseLabel` used `Phase ${phase}/${total}` with total default 10.  
+**Fix:** `Phase ${phase}` open-ended only.
+
+**LIVE-20 · Mobile “N steps” plan feel when idle/history (P1)**  
+Copy shifted to `open` / `archived` counts.
+

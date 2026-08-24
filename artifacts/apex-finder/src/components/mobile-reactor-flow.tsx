@@ -772,7 +772,11 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
                     data-testid="mobile-step-count"
                     style={eventCountPulse ? { textShadow: "0 0 10px rgba(156,255,26,0.45)" } : undefined}
                   >
-                    {liveEvents.length} step{liveEvents.length === 1 ? "" : "s"}
+                    {showHistory
+                      ? `${liveEvents.length} archived`
+                      : isLive
+                        ? `${liveEvents.length} open`
+                        : `${liveEvents.length}`}
                     {eventCountPulse && isLive && !showHistory ? " · new" : ""}
                   </div>
                 </div>

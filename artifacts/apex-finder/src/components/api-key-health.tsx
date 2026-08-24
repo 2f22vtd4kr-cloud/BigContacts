@@ -19,17 +19,18 @@ async function countLiveFromHealthz(): Promise<number | null> {
     const r = await fetch(`${BASE}/api/healthz`, { cache: "no-store" });
     if (!r.ok) return null;
     const j = await r.json();
-    const p = j.providers ?? {};
+    const prov = j.providers ?? {};
     const lanes = j.lanesHonesty ?? {};
-    // Prefer explicit provider counts; fall back to lanes
     let n = 0;
-    for (const k of ["groq", "gemini", "tavily", "exa", "mistral", "nvidiaNim", "serper"] as const) {
-      const v = p[k] ?? lanes[k];
+    for (const k of ["groq", "gemini", "tavily", "exa", "mistral", "nvidiaNim", "serper", "companiesHouse", "scrapfly", "zenrows"] as const) {
+      const v = prov[k] ?? lanes[k];
       if (typeof v === "number" && v > 0) n += v;
     }
-    if (n === 0 && typeof lanes.webSearchActive === "number") n += lanes.webSearchActive;
-    if (n === 0 && typeof lanes.agenticLlmSlots === "number") n += lanes.agenticLlmSlots;
-    return n;
+    // Prefer lane aggregates when they are higher (honest total capacity)
+    const web = typeof lanes.webSearchActive === "number" ? lanes.webSearchActive : 0;
+    const agentic = typeof lanes.agenticLlmSlots === "number" ? lanes.agenticLlmSlots : 0;
+    n = Math.max(n, web + agentic, web, agentic);
+    return n > 0 ? n : 0;
   } catch {
     return null;
   }
@@ -42,6 +43,29 @@ export function ApiKeyHealth({ className }: { className?: string }) {
   useEffect(() => {
     let cancelled = false;
     const tick = async () => {
+      // Prefer healthz first — includes serper/mistral/nvidiaNim/webSearchActive.
+      // system/status alone can under-count and paint false KEYS OFF (LIVE-18).
+      const hz = await countLiveFromHealthz();
+      if (cancelled) return;
+      if (hz != null && hz > 0) {
+        setState("ok");
+        setLabel(`${hz} LIVE`);
+        // Still merge system/status for rate-limit tone when available
+        try {
+          const status = await fetchSystemStatus(BASE || "");
+          if (cancelled) return;
+          const summary = summarizeApiKeys(status);
+          if (summary.rateLimited > 0) {
+            setState("degraded");
+            if (summary.active > 0) setLabel(`${Math.max(hz, summary.active)} LIVE`);
+          } else if (summary.active > hz) {
+            setLabel(`${summary.active} LIVE`);
+          }
+        } catch {
+          /* healthz already won */
+        }
+        return;
+      }
       try {
         const status = await fetchSystemStatus(BASE || "");
         if (cancelled) return;
@@ -56,30 +80,16 @@ export function ApiKeyHealth({ className }: { className?: string }) {
           setLabel("LIMITED");
           return;
         }
-        // system/status returned but no AI pool slots — try healthz (Serper/Mistral/NVIDIA live)
-        const hz = await countLiveFromHealthz();
-        if (cancelled) return;
-        if (hz != null && hz > 0) {
-          setState("ok");
-          setLabel(`${hz} LIVE`);
-          return;
-        }
         setState("offline");
         setLabel("KEYS OFF");
       } catch {
-        const hz = await countLiveFromHealthz();
         if (cancelled) return;
-        if (hz != null && hz > 0) {
-          setState("ok");
-          setLabel(`${hz} LIVE`);
-        } else {
-          setState("offline");
-          setLabel("KEYS OFF");
-        }
+        setState("offline");
+        setLabel("KEYS OFF");
       }
     };
     tick();
-    const id = window.setInterval(tick, 15_000);
+    const id = window.setInterval(tick, 12_000);
     return () => {
       cancelled = true;
       window.clearInterval(id);

@@ -100,8 +100,9 @@ function formatNextCycle(timestamp?: string): string | null {
 function phaseLabel(atlas: AtlasStatus | null): string {
   if (!atlas?.active) return "No active target";
   const phase = Number(atlas.atlasPhase ?? atlas.progress ?? 0);
-  const total = Number(atlas.atlasPhaseTotal ?? 10);
-  return `Phase ${phase}/${total}`;
+  // Open-ended — never paint a fixed dig plan denominator
+  if (!Number.isFinite(phase) || phase <= 0) return "Live research";
+  return `Phase ${phase}`;
 }
 
 export function WorkspaceStatus() {
@@ -283,10 +284,10 @@ export function WorkspaceStatus() {
 
       {open && (
         <>
-        {/* Backdrop closes panel without blocking Launch forever */}
+        {/* Opaque scrim — never glass-through to Reactor (LIVE-17) */}
         <button
           type="button"
-          className="fixed inset-0 z-40 bg-black/40 sm:bg-transparent"
+          className="fixed inset-0 z-[70] bg-[#05070c]/85 sm:bg-black/50"
           aria-label="Close workspace status"
           onClick={() => setOpen(false)}
         />
@@ -294,7 +295,7 @@ export function WorkspaceStatus() {
           id="workspace-status-panel"
           role="dialog"
           aria-label="Whole workspace status"
-          className="absolute right-0 top-[calc(100%+0.4rem)] z-50 max-h-[min(70dvh,520px)] w-[min(390px,calc(100vw-1rem))] overflow-y-auto rounded-xl border border-border bg-popover p-4 shadow-2xl shadow-black/50 backdrop-blur-xl"
+          className="fixed left-3 right-3 top-[max(3.5rem,env(safe-area-inset-top))] z-[80] max-h-[min(75dvh,560px)] overflow-y-auto rounded-xl border border-[#9CFF1A]/25 bg-[#0c1220] p-4 shadow-2xl shadow-black/80 sm:absolute sm:left-auto sm:right-0 sm:top-[calc(100%+0.4rem)] sm:w-[min(390px,calc(100vw-1rem))] sm:max-h-[min(70dvh,520px)]"
         >
           <div className="flex items-start justify-between gap-4 border-b border-border/60 pb-3">
             <div className="flex min-w-0 items-start gap-2.5">
