@@ -334,3 +334,6 @@ Full scoreboard in `docs/context.md`. Summary: Apex empty cards on Congdon/Gund/
 **LIVE-02:** `Cannot access 'E' before initialization` on Connections.
 Cause in our code: dependency array referenced `width`/`height` before their `const` declaration (temporal dead zone; minifier names it `E`).
 Fix tip `d670649`: declare size first, then effect; normalize `allEntities` to array; defer force-graph load.
+
+### 2026-08-24T07:12Z — Congdon card after rehydrate
+LIVE-01 partial close: Congdon now `organization_contact` with ODFL HQ phone + IR email via rehydrate. Gund/Icahn still evidence_only empty.

@@ -1,7 +1,7 @@
 # Context — living handoff (Apex Atlas / BigContacts)
 
 **Repo:** https://github.com/2f22vtd4kr-cloud/BigContacts · **Branch:** `main`  
-**Current tip:** `1b3ce0e` (revert domain prefer; neutral org-email promote only) · UI `fd50650`
+**Current tip:** `bd9fe2c` · graph TDZ `d670649` · Redis poll cut `99c2fb0`
 **API build entry:** `artifacts/api-server/src/src` (esbuild). Top-level `src/lib` is a thin scaffold — do not edit it for research logic.  
 **Desk package name:** `apex-finder-local` — build with `pnpm --dir artifacts/apex-finder run build` (not `@workspace/apex-finder`).  
 **Product:** Apex Atlas research bureau (NOT Steam “Atlas Reactor”, NOT physics ATLAS).
@@ -303,4 +303,9 @@ Deterministic recovery:** if all agentic LLMs fail mid-loop, SERP+visit+proxy ex
 ### Correction (2026-08-24) — no script hardening
 Domain/IR prefer scores (odfl.com, ielp.com, path heuristics) were **reverted**. That class of change is micro-hardening, not free dig.
 **Kept:** one neutral bug fix — do not drop organization-scope emails solely because the local-part is generic (`info@`, `ir@`). Model + extraction decide what is a contact; promote must not erase org switchboards by default.
+
+### 2026-08-24 rehydrate proof
+`POST /api/entities/rehydrate-contacts` on live → **Earl E Congdon**: phone `+13368895000`, email `investor.relations@odfl.com`, outcome `organization_contact`.
+Evidence existed; card was empty until rehydrate. Gund/Icahn still empty (no durable evidence rows).
+Lesson: dig→evidence without promote/rehydrate leaves blank cards — not a reason to add prefer-list scripts.
 
