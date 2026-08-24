@@ -208,3 +208,81 @@ This replaces the short first-pass note. Every major desk surface was opened on 
 ---
 
 *Full visual pass: all primary routes × desktop + mobile. Tablet inferred from density issues at 1280-class widths.*
+
+---
+
+## Pass 3 — continued review (scroll / below-fold / re-check) · same host
+
+**Time:** 2026-08-24 continued  
+**Note:** Nested `overflow-y-auto` main panes mean automation scrollY on the document often stays 0; findings below combine viewport captures, page-height metadata, and source inspection.
+
+### Status `/status` (re-check)
+
+| ID | Sev | Finding |
+|----|-----|---------|
+| UI-K61b | **P1** | Confirmed: **3+ key-pool cards have blank titles** (only “1 KEY CONFIGURED / 1 live now”). Visual grid shows titled Groq/Perplexity/Gemini/Tavily/Exa then **untitled** cards in the same AI Engine grid. |
+| UI-K61c | P1 | Source: `PROVIDER_LABELS` only maps `groq|perplexity|gemini|tavily|exa`. If `aiProviders` includes extra keys (serper/mistral/nvidia), cards render **without labels**. |
+| UI-K61d | P2 | `status.tsx` structure looks **fragile** — integrity block sits inside the provider grid open tag; ProviderCard title line references `PROVIDER_LABELS[name]` in a split fragment (maintain carefully). |
+| UI-K63b | P2 | Mobile status: “8 AI pool slots live” list includes serper·mistral·nvidia in the banner while AI Engine cards are a different set — dual taxonomy still confusing. |
+| UI-K64 | P2 | Open Research Lane badge **INCOMPLETE** while individual HF/Serper/Mistral show READY — mixed honesty signals. |
+| UI-K65 | P2 | Bounded smolagents adapter row shows **unavailable** with long Qwen/Mistral notes — easy to misread as dig LLM failure. |
+
+### Overview below fold
+
+| ID | Sev | Finding |
+|----|-----|---------|
+| UI-K12b | P2 | Page height ~1296 on 900 viewport — priority section is a large empty dashed card with only a green @ glyph and truncated “i…” under the fold. Dead space for cold desk. |
+| UI-K13 | P2 | “View all profiles →” present with zero entities — OK but leads to empty ledger. |
+
+### Data sources below fold
+
+| ID | Sev | Finding |
+|----|-----|---------|
+| UI-K93 | P2 | Page height ~1982 — long registry table continues past first screen; desktop table is usable; no sticky header observed for REGISTRY / JURISDICTION columns while scrolling (operator friction on long lists). |
+| UI-K94 | P2 | Many registries marked **private research active** vs **production reviewed** — fine for operators, dense for first-time users. |
+
+### Workspace activity `/jobs`
+
+| ID | Sev | Finding |
+|----|-----|---------|
+| UI-K84 | P2 | Idle task chips (16) are a single cloud with no category headers in the RUNNING tab empty state — hard to scan. |
+| UI-K85 | P2 | “0s ago” refresh stamp looks broken/stale when idle. |
+
+### Connections (mobile re-confirm)
+
+| ID | Sev | Finding |
+|----|-----|---------|
+| UI-K40b | **P0** | Reconfirmed mobile: **“No people on the graph yet”** overlaid on **“NO ENTITIES YET”** (or second line) with mixed body text and **four buttons fused** (Open ledger / Data sources / Live reactor / Discover). |
+
+### Source directory
+
+| ID | Sev | Finding |
+|----|-----|---------|
+| UI-K100b | **P0** | Still hangs on HuggingFace load with no timeout UI after multi-second wait (prior pass). |
+
+### Product-language tally (this pass)
+
+Surfaces still teaching **pipeline** over free dig:
+- Overview hero
+- Jobs subtitle (“Pipeline jobs · ingestors…”)
+- Research terminal (“5-ALGORITHM PIPELINE” / “PIPELINE ARCHITECTURE”)
+- Reactor fixed scheme layers
+
+Field manual remains the closest to bureau / free-dig truth.
+
+### Automation limits (honesty)
+
+- Document `scrollY` stayed 0 on several nested-scroll pages; below-fold notes use `page height` + partial captures.
+- No live dig was started (operator did not request Launch) — live Reactor / Live Desk behavior under load not re-audited this pass.
+- Tablet width (~768–1024) not separately emulated; density issues on ledger filters + status grids are expected to worsen there.
+
+### Updated fix queue (unchanged top)
+
+1. Connections double empty state (UI-K40)  
+2. Source directory hang (UI-K100)  
+3. `/discover` redirect (UI-K02)  
+4. Status untitled provider cards (UI-K61)  
+5. Scheme node truncation (UI-K20)  
+6. Research page title + pipeline chrome (UI-K110/111)  
+7. Pipeline wording pass (UI-K140)
+
