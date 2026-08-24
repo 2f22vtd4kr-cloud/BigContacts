@@ -570,7 +570,7 @@ export default function BackgroundJobs() {
 
   useEffect(() => {
     fetchJobs();
-    pollRef.current = setInterval(fetchJobs, 15000);
+    pollRef.current = setInterval(fetchJobs, 30000);
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, [fetchJobs]);
 
