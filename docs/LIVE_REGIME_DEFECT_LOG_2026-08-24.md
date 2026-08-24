@@ -308,3 +308,20 @@ Chip preferred system/status under-count before healthz.
 **LIVE-20 · Mobile “N steps” plan feel when idle/history (P1)**  
 Copy shifted to `open` / `archived` counts.
 
+
+### 2026-08-24T06:45Z — card quality vs independent research + promote fix
+
+**LIVE-01 deep dive (Congdon / Gund / Icahn)**  
+Independent research found public **organization** routes Atlas left off cards:
+- Congdon/ODFL: HQ phone 336-889-5000, IR board mail path, odfl.com / ir.odfl.com  
+- Icahn/IEP: IR 1-800-255-2737, EDGAR filer phone 305-422-4145  
+- Gund: foundation + 14 Nassau St Princeton (13G address)
+
+**Root cause in code:** `promoteBureauContactsToEntityCard` **skipped all orgish generic emails** (`isGenericLocal && orgish → continue`), so company switchboards never landed. Host score under-weighted IR/corporate URLs.
+
+**Fix this tip:** Allow org switchboard emails; boost IR/corporate host scores (odfl.com, ielp.com, /ir., investor.). Outcome remains honest `organization_contact` via existing computeContactOutcome.
+
+**Replit host:** 404 “Run this app” during audit — operator must restart API after pull.
+
+**Do not:** Add ranked prefer playbooks or hard 1-800 dig scripts. Org routes with exact URLs are the product when personal vectors are absent.
+

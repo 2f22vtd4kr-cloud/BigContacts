@@ -1,7 +1,7 @@
 # Context — living handoff (Apex Atlas / BigContacts)
 
 **Repo:** https://github.com/2f22vtd4kr-cloud/BigContacts · **Branch:** `main`  
-**Current tip:** `c26a664` (Reactor UI) · prior research hang fix `04bfbba`  
+**Current tip:** `fd50650`+ (UI honesty) · promote fix this session · prior integrity `0325311`
 **API build entry:** `artifacts/api-server/src/src` (esbuild). Top-level `src/lib` is a thin scaffold — do not edit it for research logic.  
 **Desk package name:** `apex-finder-local` — build with `pnpm --dir artifacts/apex-finder run build` (not `@workspace/apex-finder`).  
 **Product:** Apex Atlas research bureau (NOT Steam “Atlas Reactor”, NOT physics ATLAS).
@@ -80,6 +80,8 @@ These are operator + agent law. Do not regress.
 | `b1f27ca` | Stop “Window N of 6” / fixed dig step-count language |
 | `cb3c250` / `37153c4` / `b402fbd` | Readable type floor; collapsible desktop nav; full UX audit items |
 | `c26a664` | Scheme labels **13–15px** + scale floor **0.82**; Live Desk **closed when idle**; edge nav **ghost until mouse near left edge** |
+| `43234fe` | Live Desk **single-column** compact; mobile Launch **readable type** on oil |
+| `fd50650` | Kill mobile **glass stack**; healthz-first keys; **Phase N** not N/10 |
 | `51d7beb` / `7c25f6c` | Replit: API-only workflow; no auto-resume when pipeline off; skip Python OSINT unless flagged |
 
 ### Docs / plans
@@ -94,8 +96,18 @@ These are operator + agent law. Do not regress.
 | Gap | Notes |
 |-----|--------|
 | **Discovery still pipeline-shaped** | Atlas Phase 1 uses shuffled broad categories + registry batches — not fully Boss-led “choose next HNWI surface like a free agent.” Dig is freer than discovery. |
-| **Card quality** | Name collisions, org IR as “direct,” LinkedIn common-name bind still need identity-bind strength — **without** preference playbooks. |
-| **Desk honesty** | Verify idle vs researching never both show after UI rebuild on live Replit. |
+| **Card quality** | Dig can run (Serper/visit) and still leave **empty cards** if extraction/promote filters strip org routes. 2026-08-24 live: Congdon/Gund/Icahn = evidence_only, no phone/email. Independent research finds **org-route** public vectors (ODFL HQ 336-889-5000, IEP IR 1-800-255-2737, Gund foundation Princeton address). Promote must land org switchboard as `organization_contact`, not discard generics. |
+| **Desk honesty** | UI tips `43234fe`/`fd50650` fix glass stack, KEYS OFF, Phase N/10 — **must rebuild on Replit**. Host was down (404 “Run this app”) mid-session. |
+| **Network graph** | LIVE-02: `Cannot access 'E' before initialization` on `/network`. |
+
+### 2026-08-24 live run vs independent research (same targets)
+| Target | Atlas card | Independent public routes (chat Grok) | Verdict |
+|--------|------------|--------------------------------------|---------|
+| Earl E Congdon | empty phone/email; evidence_only | ODFL HQ **336-889-5000**, 500 Old Dominion Way Thomasville NC; IR/board via Corporate Secretary; Chairman Emeritus ODFL | **Bureau underperformed** — dig visited IR/news but promote/filters left card empty |
+| Gordon Gund | empty | Foundation Fighting Blindness; Gordon & Llura Gund Foundation EIN 22-2987293; business addr **14 Nassau St, Princeton NJ** (13G) | Underperformed — foundation/registry route should surface |
+| Carl C Icahn | empty | IEP IR **1.800.255.2737**; EDGAR ICAHN CARL C phone **305-422-4145**; Sunny Isles Beach office | Underperformed — org/IR route is public |
+
+**Contract reminder:** Card is the answer. Org IR phones with primary URLs = valid `organization_contact`, not “nothing.” Do not re-add micro-training playbooks.
 
 ### Key modules
 | Path | Role |

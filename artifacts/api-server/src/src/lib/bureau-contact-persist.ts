@@ -405,7 +405,13 @@ async function promoteBureauContactsToEntityCard(
       if (h.includes("sec.gov") || h.includes("edgar")) s += 6;
       else if (h.includes("companieshouse") || h.includes("opencorporates")) s += 4;
       else if (h.includes("gnty.com") || h.includes("carlicahn.com")) s += 5;
-      else if (h.includes("leadiq") || h.includes("zoominfo") || h.includes("rocketreach")) s -= 4;
+      // Issuer / IR / corporate sites — valid org-route evidence (not directory spam)
+      else if (
+        h.includes("/ir.") || h.includes("investor.") || h.includes("investors.")
+        || h.includes("corporate-governance") || h.includes("/about")
+      ) s += 4;
+      else if (h.includes("odfl.com") || h.includes("ielp.com") || h.includes("icahnenterprises")) s += 4;
+      else if (h.includes("leadiq") || h.includes("zoominfo") || h.includes("rocketreach") || h.includes("signalhire")) s -= 4;
       else if (h.includes("ophthalmologytimes") || h.includes("abbott") || h.includes("mtec-sc")) s -= 5;
       else if (/^https?:\/\//i.test(u)) s += 1;
     }
@@ -443,9 +449,10 @@ async function promoteBureauContactsToEntityCard(
         bestPhone = { value, source: orgish || hostScore >= 4 ? `${srcLabel}-org` : srcLabel, score };
       }
     } else if (vt === "email") {
-      if (isGenericLocal(value) && orgish) continue;
-      if (isGenericLocal(value) && hostScore < 3) continue;
-      const score = (isGenericLocal(value) || orgish ? 2 : 5) + hostScore;
+      // Generic local-parts on company hosts are valid *organization* routes.
+      // Only skip generics when host is weak (directories) — never skip orgish switchboard.
+      if (isGenericLocal(value) && !orgish && hostScore < 3) continue;
+      const score = (isGenericLocal(value) || orgish ? 2 : 5) + hostScore + (orgish && isGenericLocal(value) ? 1 : 0);
       if (!bestEmail || score > bestEmail.score) {
         bestEmail = { value, source: orgish || isGenericLocal(value) ? `${srcLabel}-org` : srcLabel, score };
       }
