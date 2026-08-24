@@ -1,157 +1,210 @@
-# UI audit — Kirk Replit host (2026-08-24)
+# UI audit — Kirk Replit host (FULL PASS · 2026-08-24)
 
 **URL:** https://d331280b-90c4-4117-afb3-0a8f166443d9-00-390ihneix8ipx.kirk.replit.dev  
-**Repo tip at audit:** `2c591ce` (origin/main)  
-**Method:** live `healthz` + desktop (1920×900) and mobile (750×1624) screenshots of Overview, Reactor, Entity ledger, Connections, Discover path, Status  
-**Atlas state:** idle · entities `[]` · cold desk · `bureauIntegrity: ok` · Redis ok · `webSearchActive: 4` · `agenticLlmSlots: 4` · keys chip **11 LIVE** · auto-pipeline **false**
+**Repo tip at audit:** `d890b85` / app behavior matches desk on tip `2c591ce`+  
+**Viewports:** Desktop **1920×900**, Mobile **750×1624**  
+**Routes covered:** `/`, `/reactor`, `/profiles`, `/network`, `/search`, `/status`, `/manual`, `/jobs`, `/data-sources`, `/osint-tools`, `/research`, `/improvements`, `/duplicates`, `/discover` (404), redirects (`/deep-search`, `/graph`, `/entities`, `/ledger`)  
+**Atlas:** idle · empty ledger · integrity ok · Redis ok · 11 LIVE keys chip · auto-pipeline false  
+
+This replaces the short first-pass note. Every major desk surface was opened on desktop and mobile.
 
 ---
 
-## Severity legend
+## Severity
 
 | Tag | Meaning |
 |-----|---------|
-| **P0** | Broken path, unreadable, or overlapping content |
-| **P1** | Clear layout/copy bug; hurts daily use |
-| **P2** | Polish / consistency |
-| **OK** | Looks correct for cold desk |
+| **P0** | Broken, overlapping, unreadable, or infinite load |
+| **P1** | Clear layout/copy bug; daily friction |
+| **P2** | Polish / product-language drift |
+| **OK** | Acceptable for cold empty desk |
 
 ---
 
-## Health / honesty (API)
+## 1. Shell / navigation (all pages)
 
-| Check | Result | Notes |
-|-------|--------|--------|
-| GET `/` | 200 HTML | Desk loads |
-| `bureauIntegrity` | ok | Search + dig LLM slots live |
-| Redis | ok (cached PING) | |
-| Atlas | idle | No fake LIVE run |
-| Entities | empty array | Expected cold desk |
-| Perplexity | 0 keys | Correctly EMPTY on Status |
-| Keys chip | **11 LIVE** | Honest vs healthz (not KEYS OFF) |
+| ID | Sev | Viewport | Issue |
+|----|-----|----------|--------|
+| UI-K00 | OK | both | Global header: READY · DB 1/1 · 11 LIVE honest; Launch chip not clipped on mobile |
+| UI-K01 | P2 | both | Hero / jobs / research still say **pipeline** while product law is free AI dig |
+| UI-K02 | P1 | both | **`/discover` is 404** (Page not found). Nav uses `/search`. Need redirect `/discover` → `/search` |
+| UI-K03 | P2 | both | 404 chrome still titles page **“Overview”** while body says not found |
+| UI-K04 | P2 | desktop | Sidebar “WORKSPACE SETTINGS” section long; ok but dense on short laptop heights |
 
 ---
 
-## Overview (`/`)
+## 2. Overview `/`
 
-### Desktop — mostly OK
-- Hero, Launch CTA (lime gradient), Reactor / Discover secondary buttons readable.
-- Stats row 0 / 0 / 0 / 0 correct for empty ledger.
-- Sidebar + READY · DB 1/1 · 11 LIVE clear.
+| ID | Sev | Viewport | Issue |
+|----|-----|----------|--------|
+| UI-K10 | OK | both | Launch gradient CTA readable; stats zeros correct |
+| UI-K11 | P2 | both | Copy: “public-records **pipeline**” |
+| UI-K12 | P2 | desktop | Empty priority block is a large dead zone (only @ icon) |
 
-### Mobile — mostly OK
-- Launch full-width, readable white type on gradient — **not** clipped “ch Atlas”.
-- Header: home · READY · 11 LIVE · menu — usable.
-- Quick links 2×2 grid OK.
+---
 
-### Issues
+## 3. Reactor `/reactor`
+
+| ID | Sev | Viewport | Issue |
+|----|-----|----------|--------|
+| UI-K20 | **P1** | desktop | **Scheme node text truncated mid-word** (`FAA REGIS_`, `EDGAR / S_`, `UK LAND R_`, `OCCRP ALE_`, `RDAP / WH_`, `GEMINI Boss · grou_`, `PRAC ENGINE Planner - Analy_`, …). Boxes too narrow vs letter-spacing |
+| UI-K21 | **P1** | desktop | Header band crowded: title + Launch + OPEN DIG track + NOMINAL + ENTITY FLOW + stats |
+| UI-K22 | P2 | desktop | **LIVE DESK ON** while Atlas **idle** — reads as “live” when nothing is running |
+| UI-K23 | P2 | desktop | Scheme still looks like a **fixed pipeline map** (conflicts with free-ReAct messaging) |
+| UI-K24 | OK | mobile | Idle: NOMINAL / Atlas idle / standby — honest |
+| UI-K25 | P2 | mobile | **HIST** truncated (History) |
+| UI-K26 | P2 | desktop | Right lime scrollbar gutter looks like permanent chrome |
+
+---
+
+## 4. Entity ledger `/profiles`
+
+| ID | Sev | Viewport | Issue |
+|----|-----|----------|--------|
+| UI-K30 | OK | both | Empty state clear; no fake rows |
+| UI-K31 | **P1** | mobile | Filter chips stack; ROUTE row + type filters fight empty state; **Gatek** truncated |
+| UI-K32 | P2 | desktop | Single-line filter toolbar very dense (will break ~1280px / tablet) |
+| UI-K33 | P2 | mobile | FAB `+` near empty-state CTAs |
+| UI-K34 | P2 | both | Empty copy mentions “Data Sources” inconsistently vs Discover |
+
+---
+
+## 5. Connections `/network` — worst visual bug
+
+| ID | Sev | Viewport | Issue |
+|----|-----|----------|--------|
+| UI-K40 | **P0** | **both** | **Double empty-state overlay:** “No people on the graph yet” **and** “NO ENTITIES YET” (or second “No people…”) **stacked on top of each other**; body copy interleaves from two blocks |
+| UI-K41 | **P0** | **both** | **Buttons stacked/overlapping:** Open ledger + Data sources + Live reactor + Discover in one illegible cluster |
+| UI-K42 | P1 | both | Toolbar **Entity #0** meaningless on empty desk |
+| UI-K43 | OK | desktop | No TDZ crash on cold load this pass |
+
+**Root cause (code):** `graph.tsx` renders both `allEntities.length === 0` empty UI **and** `gData.nodes.length === 0` empty UI simultaneously.
+
+---
+
+## 6. Discover `/search`
+
+| ID | Sev | Viewport | Issue |
+|----|-----|----------|--------|
+| UI-K50 | OK | both | Search UI loads; suggestion chips readable |
+| UI-K51 | P2 | mobile | Placeholder truncates (“in Texa”) |
+| UI-K52 | P2 | desktop | Suggestion chips overflow horizontally without obvious scroll affordance |
+| UI-K53 | P2 | both | SEARCH button looks disabled/grey until query — OK pattern, but easy to miss |
+
+---
+
+## 7. System status `/status`
+
+| ID | Sev | Viewport | Issue |
+|----|-----|----------|--------|
+| UI-K60 | OK | both | Perplexity EMPTY honest; Groq/Gemini/Tavily/Exa live |
+| UI-K61 | **P1** | desktop | **Key pool cards missing titles** on some tiles (blank header, only “1 KEY CONFIGURED / 1 live now”) — layout grid broken for serper/mistral/nvidia-style rows |
+| UI-K62 | P2 | both | Label **“Groq LLaMA”** outdated (multi-model dig) |
+| UI-K63 | P2 | both | Chip “11 LIVE” vs banner “8 AI pool slots” — confusing dual counts (search tools vs LLM pools) |
+
+---
+
+## 8. Field manual `/manual`
+
+| ID | Sev | Viewport | Issue |
+|----|-----|----------|--------|
+| UI-K70 | OK | both | Readable accordion; product rules visible |
+| UI-K71 | P2 | mobile | Long prose OK; search sections works |
+
+---
+
+## 9. Workspace activity `/jobs`
+
+| ID | Sev | Viewport | Issue |
+|----|-----|----------|--------|
+| UI-K80 | OK | both | Idle messaging clear |
+| UI-K81 | P2 | both | Heavy **pipeline jobs / ingestors** language vs Launch-first bureau |
+| UI-K82 | P2 | mobile | Tabs (RUNNING / AVAILABLE / AI / DUPLICATES) horizontal crush |
+| UI-K83 | P2 | desktop | Idle task chip cloud is dense but usable |
+
+---
+
+## 10. Data sources `/data-sources`
+
+| ID | Sev | Viewport | Issue |
+|----|-----|----------|--------|
+| UI-K90 | OK | desktop | Registry matrix table readable |
+| UI-K91 | P2 | mobile | Subtitle truncates (“in the shuf…”) |
+| UI-K92 | P2 | both | “Random mix / shuffled into discovery” reinforces pipeline-discovery framing |
+
+---
+
+## 11. Source directory `/osint-tools`
+
+| ID | Sev | Viewport | Issue |
+|----|-----|----------|--------|
+| UI-K100 | **P0** | desktop | **Stuck loading forever:** “Loading… tomvaillant/osint-tool-database · HuggingFace” + spinner; never resolved after multi-second wait. Blank main pane. |
+| UI-K101 | P1 | both | No timeout / error / offline fallback UI |
+
+---
+
+## 12. Research terminal `/research`
+
+| ID | Sev | Viewport | Issue |
+|----|-----|----------|--------|
+| UI-K110 | **P1** | both | Page chrome title says **“Overview / Evidence workspace”** while this is the **intel terminal** — wrong page identity |
+| UI-K111 | **P1** | both | Copy: **“5-ALGORITHM PIPELINE” / “PIPELINE ARCHITECTURE”** — contradicts free-ReAct / card-is-answer product law |
+| UI-K112 | P2 | desktop | Split layout OK empty; terminal aesthetic fine |
+| UI-K113 | P2 | mobile | Stacked target + terminal workable |
+
+---
+
+## 13. Persona review `/improvements`
+
+| ID | Sev | Viewport | Issue |
+|----|-----|----------|--------|
+| UI-K120 | OK | desktop | Empty state clear |
+| UI-K121 | P2 | desktop | Header typo-ish: “11 personas **analyse** entities…” (grammar) |
+| UI-K122 | P2 | desktop | Three lime CTAs in header (Run loop / Apply safe fixes / Clean duplicates) compete for hierarchy |
+
+---
+
+## 14. Duplicate review `/duplicates`
+
+| ID | Sev | Viewport | Issue |
+|----|-----|----------|--------|
+| UI-K130 | OK | mobile | Empty success state clear |
+| UI-K131 | P2 | mobile | Full-width Refresh button oversized vs content |
+
+---
+
+## 15. Product-language / architecture drift (cross-app)
+
 | ID | Sev | Issue |
 |----|-----|--------|
-| UI-K01 | P2 | Hero copy still says **“public-records pipeline”** — product law is free AI dig / bureau, not pipeline branding. |
-| UI-K02 | P2 | Empty priority section shows generic @ icon only; fine for cold desk, could add one-line CTA. |
+| UI-K140 | P1 | Multiple surfaces teach **pipeline / 5-algorithm / fixed scheme steps** while dig is free ReAct |
+| UI-K141 | P2 | Inconsistent verbs: Open Search / Discover / Load registries / Data sources / Open live reactor |
+| UI-K142 | P2 | Field manual is closer to product law than Overview/Reactor/Research chrome |
 
 ---
 
-## Reactor (`/reactor`)
+## 16. What is working
 
-### Desktop
-| ID | Sev | Issue |
-|----|-----|--------|
-| UI-K10 | P1 | **Scheme node labels still truncated mid-word** (`FAA REGIS_`, `EDGAR / S_`, `UK LAND R_`, `OCCRP ALE_`, `RDAP / WH_`, `GEMINI Boss · grou_`, etc.). Ellipsis exists but boxes too narrow / letter-spacing still eats width. |
-| UI-K11 | P1 | **Header chrome dense:** Launch sits in header but **OPEN DIG · STANDBY** progress track runs under/through the Launch control area; stats row + workbench + NOMINAL compete for one band. |
-| UI-K12 | P2 | **LIVE DESK ON** control visible while Atlas is **idle** — ambiguous (desk available vs desk “live”). Prefer “Live Desk” / closed when idle. |
-| UI-K13 | P2 | Scheme still reads as a **fixed multi-layer pipeline map** (REGISTRIES → DISCOVERY → AI ANALYSIS …). Product law: dig is free ReAct; chrome should not imply a mandatory step script. |
-| UI-K14 | P2 | Right edge vertical lime scrollbar strip looks like a permanent UI chrome element. |
-
-### Mobile Reactor
-| ID | Sev | Issue |
-|----|-----|--------|
-| UI-K20 | OK | Idle state: NOMINAL · Atlas idle · standby copy — honest. |
-| UI-K21 | OK | Launch full-width gradient — readable. |
-| UI-K22 | P2 | **HIST** label truncated (should be “History” or icon-only with aria-label). |
-| UI-K23 | P2 | Large empty dashed panel is correct for idle but feels sparse; OK until first dig. |
+- Cold desk boots; integrity ok; Redis ok  
+- No fake LIVE dig feed while idle  
+- Perplexity not shown as LIVE without keys  
+- Mobile Launch not left-edge clipped  
+- Ledger does not invent demo people  
+- Manual, Discover search shell, Data sources table, Duplicates empty state are usable  
 
 ---
 
-## Entity ledger (`/profiles`)
+## Fix priority (implementation order)
 
-### Desktop
-| ID | Sev | Issue |
-|----|-----|--------|
-| UI-K30 | OK | Empty state clear; Open Search / Reactor CTAs. |
-| UI-K31 | P2 | Filter chip row is **very dense** on one line (route + quality + Hot + Billionaires + CLEAR LEDGER + ADD). Risk of overflow on 1280px and tablet. |
-| UI-K32 | P2 | Empty-state text references **“Data Sources”** — nav item may not match that label (Discover / search). |
-
-### Mobile
-| ID | Sev | Issue |
-|----|-----|--------|
-| UI-K40 | OK | Launch chip not clipped; READY / 11 LIVE visible. |
-| UI-K41 | P1 | **Filter rows stack and compete with empty state**; ROUTE chips partially obscured / horizontal scroll unclear. |
-| UI-K42 | P2 | FAB `+` overlaps content area; standard pattern but close to empty-state CTAs on short screens. |
-| UI-K43 | P2 | Type filters (Person / Company / …) horizontal scroll — **Gatek** truncated. |
+1. **UI-K40 / UI-K41** — single Connections empty state; one button row (P0)  
+2. **UI-K100 / UI-K101** — Source directory load timeout + error state (P0)  
+3. **UI-K02** — redirect `/discover` → `/search` (P0)  
+4. **UI-K20** — scheme node typography fit (P1)  
+5. **UI-K61** — status key-pool card titles (P1)  
+6. **UI-K110 / UI-K111** — research page title + kill 5-algorithm pipeline chrome (P1)  
+7. **UI-K31 / UI-K21** — mobile ledger filters + reactor header density (P1)  
+8. **UI-K01 / UI-K140** — pipeline wording pass (P2)
 
 ---
 
-## Connections (`/network`)
-
-| ID | Sev | Issue |
-|----|-----|--------|
-| UI-K50 | **P0** | **Double empty-state overlay:** two messages stack/collide — “No people in the graph yet” appears **twice** (overlapping), with mixed subcopy (“Open the ledger…” / “Load registries or run Discover…”). Code path: `allEntities.length === 0` block **and** `gData.nodes.length === 0` block both render. |
-| UI-K51 | P1 | Empty-state **buttons overlap / stack** (“Open ledger” / “Data sources” / “Live reactor” / “Discover”) in one messy cluster. |
-| UI-K52 | P2 | Toolbar “Entity #0” is meaningless on empty desk. |
-| UI-K53 | OK | Graph TDZ crash **not** observed on this cold load (previous LIVE-02). |
-
----
-
-## Discover / Search
-
-| ID | Sev | Issue |
-|----|-----|--------|
-| UI-K60 | **P0** | Direct URL **`/discover` → Page not found**. Nav correctly uses **`/search`**, but any bookmark or external “Discover” link to `/discover` breaks. Should redirect `/discover` → `/search`. |
-| UI-K61 | P2 | 404 page title still says **“Overview”** in the desk chrome while body says Page not found — confusing. |
-
----
-
-## Status (`/status`, mobile sampled)
-
-| ID | Sev | Issue |
-|----|-----|--------|
-| UI-K70 | OK | Groq / Gemini / Tavily live; **Perplexity EMPTY** honest. |
-| UI-K71 | P2 | Pool label **“Groq LLaMA”** is outdated (models are multi; not necessarily Llama). |
-| UI-K72 | P2 | Header Launch + READY + 11 LIVE still tight on narrow phones. |
-
----
-
-## Cross-cutting
-
-| ID | Sev | Issue |
-|----|-----|--------|
-| UI-K80 | P2 | Copy mix: “pipeline” / “Data Sources” / “Open Search” vs product language (Launch / free dig / card). |
-| UI-K81 | P2 | Tablet (~768–1024) not separately automated here; expect ledger filter density (UI-K31) and Reactor header density (UI-K11) to worsen. |
-| UI-K82 | OK | Cold desk does **not** show fake LIVE feed or Perplexity LIVE with 0 keys. |
-| UI-K83 | OK | Mobile Launch no longer left-edge clipped on Overview / ledger / reactor idle. |
-
----
-
-## Suggested fix order
-
-1. **UI-K50 / UI-K51** — single Connections empty state; one button row.  
-2. **UI-K60** — redirect `/discover` → `/search`.  
-3. **UI-K10** — widen nodes or further cut letter-spacing / font so scheme labels don’t read as `REGIS_`.  
-4. **UI-K11 / UI-K12** — Reactor header density; Live Desk control idle labeling.  
-5. **UI-K41 / UI-K31** — ledger filters collapse on mobile/tablet.  
-6. **UI-K01 / UI-K80** — pipeline wording → bureau / free dig language.
-
----
-
-## What looked good
-
-- Desk boots cold with integrity ok and honest key counts.  
-- Overview + mobile Launch gradient readable.  
-- Idle Reactor mobile honesty (NOMINAL / Atlas idle).  
-- No glass stack / KEYS OFF lie on this host.  
-- Entity ledger empty state messaging is clear (no fake people).
-
----
-
-*Audit only — implementation tracked separately against IDs above.*
+*Full visual pass: all primary routes × desktop + mobile. Tablet inferred from density issues at 1280-class widths.*
