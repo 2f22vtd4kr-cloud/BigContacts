@@ -153,9 +153,10 @@ export function WorkspaceStatus() {
   }, []);
 
   useEffect(() => {
+    if (!open) return;
     const interval = window.setInterval(() => setNow(Date.now()), 1_000);
     return () => window.clearInterval(interval);
-  }, []);
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
