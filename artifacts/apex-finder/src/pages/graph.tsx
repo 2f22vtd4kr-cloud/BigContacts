@@ -69,17 +69,21 @@ class GraphErrorBoundary extends Component<{ children: ReactNode }, { error: str
 function GraphViewerInner() {
   const [ForceGraph2D, setForceGraph2D] = useState<typeof import("react-force-graph-2d").default | null>(null);
   const [graphLoadError, setGraphLoadError] = useState<string | null>(null);
+  const [graphReady, setGraphReady] = useState(false);
   useEffect(() => {
     let cancelled = false;
-    import("react-force-graph-2d")
-      .then((mod) => {
-        if (!cancelled) setForceGraph2D(() => mod.default);
-      })
-      .catch((err: Error) => {
-        if (!cancelled) setGraphLoadError(err?.message || "Failed to load graph library");
-      });
+    const boot = window.setTimeout(() => {
+      import("react-force-graph-2d")
+        .then((mod) => {
+          if (!cancelled) setForceGraph2D(() => mod.default);
+        })
+        .catch((err: Error) => {
+          if (!cancelled) setGraphLoadError(err?.message || "Failed to load graph library");
+        });
+    }, 50);
     return () => {
       cancelled = true;
+      window.clearTimeout(boot);
     };
   }, []);
   const search = useSearch();
@@ -162,11 +166,22 @@ function GraphViewerInner() {
         name: e.name,
         type: e.type,
         bayesianScore: e.bayesianScore ?? 0,
-      })) as any;
+        contactConfidence: e.contactConfidence ?? 0,
+      })) as any[];
     }
-    return allEntitiesRaw;
+    const raw = allEntitiesRaw as any;
+    if (Array.isArray(raw)) return raw;
+    if (raw && Array.isArray(raw.entities)) return raw.entities;
+    return [] as any[];
   }, [allEntitiesRaw]);
   const [width, height] = useGraphContainerSize();
+  useEffect(() => {
+    if (width > 0 && height > 0) {
+      const t = window.setTimeout(() => setGraphReady(true), 30);
+      return () => window.clearTimeout(t);
+    }
+    setGraphReady(false);
+  }, [width, height]);
   const fgRef = useRef<ForceGraphMethods | undefined>(undefined);
   const [selectedNode, setSelectedNode] = useState<any>(null);
   const [selectorOpen, setSelectorOpen] = useState(false);
@@ -271,8 +286,7 @@ function GraphViewerInner() {
 
     // Sparse bureau: no / few relationships → always show people as a constellation
     // so the graph is never a blank black screen.
-    const list = (allEntities as any)?.entities ?? allEntities;
-    const people = Array.isArray(list) ? list.slice(0, 48) : [];
+    const people = Array.isArray(allEntities) ? allEntities.slice(0, 48) : [];
     if (rawNodes.length <= 1 && people.length > 0) {
       rawNodes = people.map((e: any) => ({
         id: String(e.id),
@@ -799,12 +813,15 @@ function GraphViewerInner() {
           <Loader2 className="h-6 w-6 animate-spin text-primary" />
         </div>
       )}
-      {ForceGraph2D && width > 0 && height > 0 && Array.isArray(gData?.nodes) && gData.nodes.length > 0 && (
+      {ForceGraph2D && graphReady && width > 0 && height > 0 && Array.isArray(gData?.nodes) && gData.nodes.length > 0 && (
         <ForceGraph2D
           ref={fgRef}
           width={width}
           height={height}
-          graphData={gData}
+          graphData={{
+            nodes: gData.nodes.map((n: any) => ({ ...n })),
+            links: gData.links.map((l: any) => ({ ...l })),
+          }}
           nodeLabel={() => ""}
           nodeColor={nodeColor}
           nodeRelSize={6}

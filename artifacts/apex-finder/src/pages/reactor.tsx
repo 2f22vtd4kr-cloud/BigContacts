@@ -705,7 +705,7 @@ function AtlasPhaseStrip({ state, compact = false }: { state?: AtlasLiveState | 
           {running ? `ENTITY JOURNEY · PHASE ${activePhase}` : "ENTITY JOURNEY · OPEN DIG"}
         </span>
         <span style={{ fontSize: compact ? 10 : 12, letterSpacing:"0.12em", color:running ? "#9CFF1A" : "#3a5070" }}>
-          {running ? (state?.sourceStep != null ? `SOURCE ${state.sourceStep}/${state.sourceTotal}` : "PROCESSING") : "STANDBY"}
+          {running ? (state?.sourceStep != null ? `SOURCE ${state.sourceStep}` : "PROCESSING") : "STANDBY"}
         </span>
       </div>
       <div style={{ display:"flex", alignItems:"center", gap:compact ? 2 : 3 }}>
