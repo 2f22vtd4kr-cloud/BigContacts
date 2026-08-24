@@ -1269,7 +1269,7 @@ export default function EntityLedger() {
                         ? formatCurrency(entity.estimatedNetWorth)
                         : entityMetric(entity)}
                     </td>
-                    <td className="px-4 py-3 text-right">
+                    <td className="px-4 py-3 pr-6 sm:pr-8 text-right">
                       <div className="flex items-center justify-end gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
                         <Link
                           href={`/profile/${entity.id}`}

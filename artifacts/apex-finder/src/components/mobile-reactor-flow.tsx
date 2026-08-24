@@ -404,7 +404,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <span
-                className={`h-2 w-2 shrink-0 rounded-full ${isLive ? "bg-[#9CFF1A] shadow-[0_0_8px_#9CFF1A]" : atlasState?.runStatus === "failed" ? "bg-rose-400" : "bg-stone-600"}`}
+                className={`h-2 w-2 shrink-0 rounded-full ${isLive ? "bg-[#9CFF1A] shadow-[0_0_8px_#9CFF1A]" : atlasState?.runStatus === "failed" ? "bg-rose-400" : atlasState?.runStatus === "cancelled" ? "bg-amber-400" : "bg-stone-600"}`}
                 style={isLive && !prefersReducedMotion() ? { animation: "pulse 2s cubic-bezier(0.4,0,0.6,1) infinite" } : undefined}
               />
               <button
@@ -782,7 +782,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
                   >
                     <div
                       className="h-full rounded-full bg-[#9CFF1A]/70 transition-[width] duration-300 ease-out"
-                      style={{ width: `${Math.min(100, Math.round((liveEvents.length / Math.max(liveEvents.length, 6)) * 100))}%` }}
+                      style={{ width: `${Math.min(100, Math.round((liveEvents.length / Math.max(liveEvents.length, 1)) * 100))}%` }}
                     />
                   </div>
                 )}
@@ -904,7 +904,9 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
                       ? "Run complete — no tool scenes buffered"
                       : atlasState?.runStatus === "failed"
                         ? "Run failed — no tool scenes to show"
-                        : "Standby — no live tool scenes yet"}
+                        : atlasState?.runStatus === "cancelled"
+                          ? "Stopped — no live tool scenes"
+                          : "Standby — no live tool scenes yet"}
               </div>
               <div className="mt-2 max-w-xs text-[12px] leading-relaxed text-stone-500">
                 {isLive

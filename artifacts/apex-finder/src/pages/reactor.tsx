@@ -599,7 +599,7 @@ function LiveHeaderDetail({ isLive, atlasState, liveLabel, livePhaseDetail, comp
       <span style={{
         width:5, height:5, borderRadius:"50%", flexShrink:0,
          background:color, boxShadow:`0 0 7px ${color}`,
-         animation:failed || done ? "none" : motionOrNone("blink .8s ease-in-out infinite"),
+         animation:failed || cancelled || done ? "none" : motionOrNone("blink .8s ease-in-out infinite"),
       }} />
       <span style={{
          fontSize: compact ? 10 : 12, letterSpacing:"0.08em", color,
@@ -702,7 +702,7 @@ function AtlasPhaseStrip({ state, compact = false }: { state?: AtlasLiveState | 
     }}>
       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:8 }}>
         <span style={{ fontSize: compact ? 11 : 12, letterSpacing:"0.16em", color:"#526b86" }}>
-          {running ? `ENTITY JOURNEY · PHASE ${activePhase}/10` : "ENTITY JOURNEY · 11 CHECKPOINTS · 10 PHASES"}
+          {running ? `ENTITY JOURNEY · PHASE ${activePhase}` : "ENTITY JOURNEY · OPEN DIG"}
         </span>
         <span style={{ fontSize: compact ? 10 : 12, letterSpacing:"0.12em", color:running ? "#9CFF1A" : "#3a5070" }}>
           {running ? (state?.sourceStep != null ? `SOURCE ${state.sourceStep}/${state.sourceTotal}` : "PROCESSING") : "STANDBY"}
@@ -1047,7 +1047,7 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
                 </span>
               </div>
               <span style={{ fontSize: 12, letterSpacing:"0.1em", color:"#526b86" }}>
-                 {atlasState ? `PHASE ${atlasState.phase}/10` : "READY"}
+                 {atlasState ? (atlasCancelled ? "STOPPED" : atlasFailed ? "FAILED" : atlasDone ? "COMPLETE" : `PHASE ${atlasState.phase}`) : "READY"}
               </span>
             </div>
             <button
@@ -1635,7 +1635,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
               <div style={{ textAlign:"right" }}>
               <div style={{ fontSize: 12, letterSpacing:"0.16em", color:"#3a5070" }}>ENTITY FLOW</div>
               <div style={{ fontSize:13, fontWeight:700, color:isLive ? "#9CFF1A" : "#8aa4c0", lineHeight:1, marginTop:3, letterSpacing:"0.12em" }}>
-                {atlasState ? `${atlasState.phase}/10` : "IDLE"}
+                {atlasState ? (atlasCancelled ? "STOPPED" : atlasFailed ? "FAILED" : atlasDone ? "COMPLETE" : isLive ? `PHASE ${atlasState.phase}` : "IDLE") : "IDLE"}
               </div>
             </div>
           </div>
