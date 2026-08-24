@@ -1251,8 +1251,7 @@ function MobileWorkstage({
       aria-label="Tool scene workstage"
     >
       <span className="sr-only" style={{ position:"absolute", width:1, height:1, padding:0, margin:-1, overflow:"hidden", clip:"rect(0,0,0,0)", whiteSpace:"nowrap", border:0 }}>
-        Scene {safeIdx + 1} of {scenes.length}: {scene.story}
-        {scene.live ? " (live)" : ""}
+        {scene.live ? "Happening now" : "Earlier activity"}: {scene.story}
       </span>
 
       {/* Single compact status row — no duplicate Now/Done labels */}

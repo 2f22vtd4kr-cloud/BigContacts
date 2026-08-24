@@ -250,6 +250,8 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
   // Live desk: current target only; drop stale "done" windows; inject telemetry when bureau tail is old
   const liveEvents = React.useMemo(() => {
     if (showHistory) return filteredDeskEvents;
+    // Idle / cancelled / failed / done: empty live strip — history is the archive
+    if (!isLive) return [] as typeof deskEvents;
     const current =
       atlasState?.atlasTelemetry?.targetName
       || atlasState?.targetName
