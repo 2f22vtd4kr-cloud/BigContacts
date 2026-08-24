@@ -318,7 +318,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         </header>
         {/* Reactor (and other immersive desks) own their chrome — skip duplicate page title on small screens */}
         {!hideDeskTitle && (
-        <div className="relative z-10 shrink-0 border-b border-white/[0.03] bg-background/70 px-4 py-3.5 backdrop-blur-sm md:px-6 md:py-4">
+        <div className="relative z-10 shrink-0 border-b border-transparent bg-background/70 px-4 py-3.5 backdrop-blur-sm md:px-6 md:py-4">
           <div className="mx-auto w-full max-w-[1800px]">
             <h1 className="font-display text-xl font-bold tracking-[-0.03em] text-foreground md:text-2xl" data-testid="text-page-title">
               {pageTitle}

@@ -1568,7 +1568,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
 
       {/* Header: all quick progress stays above the reactor canvas. */}
       <header style={{
-        height:112, borderBottom:"1px solid rgba(163,230,53,0.06)", zIndex:20, flexShrink:0,
+        height:112, borderBottom:"1px solid rgba(255,255,255,0.04)", zIndex:20, flexShrink:0,
         display:"flex", flexDirection:"column", alignItems:"stretch",
         justifyContent:"center", padding:"8px 24px", gap:7,
         background:"rgba(11,17,32,0.92)", backdropFilter:"blur(8px)",
@@ -1668,20 +1668,23 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
             aria-label="Apex Atlas Live Desk"
             style={{
               position:"relative", flexShrink:0, width:"100%",
-              maxHeight: "min(42vh, 340px)",
-              overflowY:"auto", overflowX:"hidden", zIndex:30, padding:"12px 20px 14px",
-              borderBottom: atlasFailed
-                ? "1px solid #fb718544"
-                : atlasDone
-                  ? "1px solid rgba(156,255,26,0.28)"
-                  : isLive ? "1px solid rgba(156,255,26,0.35)" : "1px solid rgba(156,255,26,0.12)",
-              background:"rgba(11,18,32,0.96)",
-              boxShadow: isLive
-                ? "0 8px 24px rgba(0,0,0,0.35)"
-                : "0 4px 16px rgba(0,0,0,0.25)",
+              maxHeight: isLive ? "min(48vh, 400px)" : "min(36vh, 300px)",
+              display:"flex", flexDirection:"column",
+              overflow:"hidden", zIndex:30,
+              borderBottom:"none",
+              background:"linear-gradient(180deg, rgba(12,18,30,0.98) 0%, rgba(11,17,27,0.96) 100%)",
+              boxShadow:"none",
               animation: motionOrNone(`armIn ${REACTOR_UI_MS + 60}ms ease-out both`),
             }}
           >
+            {/* Soft edge into the scheme below */}
+            <div
+              aria-hidden
+              style={{
+                position:"absolute", left:0, right:0, bottom:0, height:28, zIndex:2, pointerEvents:"none",
+                background:"linear-gradient(180deg, transparent, rgba(17,24,39,0.85))",
+              }}
+            />
             {contactFound && (
               <div
                 className="reactor-reach"
@@ -1725,9 +1728,15 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
                 })()}
               </div>
             )}
-            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:8 }}>
-              <span style={{ fontSize: 13, letterSpacing:"0.18em", color: atlasFailed ? "#fda4af" : atlasDone ? "#d4ff8a" : "#67e8f9", fontWeight:700, display:"flex", alignItems:"center", gap:8 }}>
-                {isLive ? "LIVE DESK" : atlasDone ? "DESK · COMPLETE" : atlasFailed ? "DESK · FAILED" : "LIVE DESK"}
+            <div style={{
+              display:"flex", alignItems:"center", justifyContent:"space-between", gap:12,
+              flexShrink:0, position:"sticky", top:0, zIndex:5,
+              margin:"0 0 10px", padding:"10px 22px 8px",
+              background:"linear-gradient(180deg, rgba(12,18,30,1) 60%, rgba(12,18,30,0.85))",
+              borderBottom:"1px solid rgba(255,255,255,0.04)",
+            }}>
+              <span style={{ fontSize: 12, letterSpacing:"0.16em", color: atlasFailed ? "#fda4af" : atlasDone ? "#d4ff8a" : isLive ? "#d4ff8a" : "#94a3b8", fontWeight:700, display:"flex", alignItems:"center", gap:8 }}>
+                {isLive ? "UNDER THE HOOD" : atlasDone ? "RUN COMPLETE" : atlasFailed ? "RUN FAILED" : "UNDER THE HOOD"}
                 {isLive && (
                   <span
                     style={{
@@ -1784,14 +1793,16 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
                 onClick={() => setDeskOn(false)}
                 aria-label="Hide Live Desk"
                 style={{
-                  fontSize: 13, letterSpacing:"0.1em", color:"#94a3b8",
-                  background:"transparent", border:"1px solid #334155",
-                  borderRadius:4, padding:"4px 10px", cursor:"pointer",
+                  fontSize: 11, letterSpacing:"0.12em", color:"#64748b",
+                  background:"transparent", border:"1px solid rgba(255,255,255,0.08)",
+                  borderRadius:6, padding:"5px 12px", cursor:"pointer",
+                  transition:"border-color 0.15s, color 0.15s",
                 }}
-                onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#9CFF1A88"; e.currentTarget.style.color = "#fafaf9"; }}
-                onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#334155"; e.currentTarget.style.color = "#94a3b8"; }}
-              >HIDE</button>
+                onMouseEnter={(e) => { e.currentTarget.style.borderColor = "rgba(156,255,26,0.35)"; e.currentTarget.style.color = "#e7e5e4"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)"; e.currentTarget.style.color = "#64748b"; }}
+              >Hide</button>
             </div>
+            <div style={{ flex:1, minHeight:0, overflowY:"auto", overflowX:"hidden", padding:"0 22px 20px" }}>
             {!isLive && atlasDone && (
               <div
                 className="reactor-terminal-banner"
@@ -1898,13 +1909,14 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
             <BureauOpsStage
               events={(
                 !isLive
-                  ? [] /* idle/down: no fake live feed — history only if we add explicit history toggle later */
+                  ? []
                   : (deskQuery.trim() ? filteredDeskEvents : deskEvents)
               ) as any}
-              maxScenes={isLive ? 12 : 0}
+              maxScenes={isLive ? 14 : 0}
               compact
               title=""
             />
+            </div>{/* desk scroll body */}
           </div>
         )}
         {!deskOn && (
@@ -1916,17 +1928,21 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
               onClick={() => setDeskOn(true)}
               aria-label="Show Live Desk"
               style={{
-                fontSize: 13, letterSpacing:"0.14em", fontWeight:700,
-                color:"#a5f3fc", background:"rgba(156,255,26,0.1)",
-                border:"1px solid #9CFF1A88", borderRadius:6, padding:"8px 12px", cursor:"pointer",
+                fontSize: 11, letterSpacing:"0.14em", fontWeight:700,
+                color: isLive ? "#d4ff8a" : "#94a3b8",
+                background: isLive ? "rgba(156,255,26,0.12)" : "rgba(255,255,255,0.03)",
+                border: isLive ? "1px solid rgba(156,255,26,0.4)" : "1px solid rgba(255,255,255,0.08)",
+                borderRadius:8, padding:"7px 14px", cursor:"pointer",
                 animation: motionOrNone(`armIn ${REACTOR_UI_MS}ms ease-out both`),
-                boxShadow:"0 0 16px rgba(156,255,26,0.12)",
               }}
-            >{isLive ? "LIVE DESK" : "Live Desk"}</button>
+            >{isLive ? "Under the hood" : "Under the hood"}</button>
           </div>
         )}
-        {/* Scheme canvas — always full opacity; desk sits above, not over */}
-        <div style={{ position:"relative", width:1600, height:842, flexShrink:0, margin:"0 auto" }}>
+        {/* Scheme canvas — below live desk; scroll page to move between them */}
+        <div style={{
+          position:"relative", width:1600, height:842, flexShrink:0, margin:"8px auto 24px",
+          borderTop:"1px solid rgba(255,255,255,0.03)",
+        }}>
         <svg
           width={1600}
           height={842}
@@ -2118,8 +2134,8 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
         {[268,400,540,680].map(y => (
           <div key={y} style={{
             position:"absolute", left:28, right:28, top:y, height:1,
-            background:"linear-gradient(90deg,transparent,#192840 20%,#192840 80%,transparent)",
-            zIndex:2, opacity:0.6,
+            background:"linear-gradient(90deg,transparent,rgba(255,255,255,0.04) 20%,rgba(255,255,255,0.04) 80%,transparent)",
+            zIndex:2, opacity:0.5,
           }} />
         ))}
 
