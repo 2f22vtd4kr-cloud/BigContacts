@@ -1551,7 +1551,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
       background:"#111827",
       fontFamily:"'Space Mono','DM Mono','Courier New',monospace",
       display:"flex", flexDirection:"column",
-      overflow:"hidden", position:"relative",
+      overflow:"auto", position:"relative",
     }}>
       {/* Grid overlay */}
       <div style={{
@@ -1568,7 +1568,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
 
       {/* Header: all quick progress stays above the reactor canvas. */}
       <header style={{
-        height:112, borderBottom:"1px solid #192840", zIndex:20, flexShrink:0,
+        height:112, borderBottom:"1px solid rgba(163,230,53,0.06)", zIndex:20, flexShrink:0,
         display:"flex", flexDirection:"column", alignItems:"stretch",
         justifyContent:"center", padding:"8px 24px", gap:7,
         background:"rgba(11,17,32,0.92)", backdropFilter:"blur(8px)",
@@ -1653,13 +1653,13 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
         </div>
       </header>
 
-      {/* Main panel */}
-      <div style={{ flex:1, position:"relative", zIndex:5, overflow:"hidden" }}>
-        {/* Telemetry inspector OR Live Desk — never both (right-rail collision LIVE-21) */}
+      {/* Main column: Live Desk ABOVE scheme — scroll to see under-the-hood, then map */}
+      <div style={{ flex:1, position:"relative", zIndex:5, display:"flex", flexDirection:"column", minHeight:0 }}>
+        {/* Telemetry only when desk closed */}
         {!deskOn && (
           <AtlasTelemetryInspector telemetry={atlasState?.atlasTelemetry} eventLog={atlasState?.eventLog} />
         )}
-        {/* Live Desk — sole right rail when open */}
+        {/* Live Desk — horizontal band above the scheme (does not cover nodes) */}
         {deskOn && (
           <div
             data-testid="panel-live-desk"
@@ -1667,24 +1667,18 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
             role="complementary"
             aria-label="Apex Atlas Live Desk"
             style={{
-              position:"absolute", top:12, right:12, bottom:12, width:380,
-              maxWidth:"calc(100% - 40px)",
-              overflowY:"auto", overflowX:"hidden", zIndex:40, padding:"14px 14px 16px",
-              border: atlasFailed
-                ? "1px solid #fb718566"
+              position:"relative", flexShrink:0, width:"100%",
+              maxHeight: "min(42vh, 340px)",
+              overflowY:"auto", overflowX:"hidden", zIndex:30, padding:"12px 20px 14px",
+              borderBottom: atlasFailed
+                ? "1px solid #fb718544"
                 : atlasDone
-                  ? "1px solid rgba(156,255,26,0.4)"
-                  : isLive ? "1px solid #9CFF1A88" : "1px solid #9CFF1A40",
-              borderRadius:8,
-              background:"#0b1220",
+                  ? "1px solid rgba(156,255,26,0.28)"
+                  : isLive ? "1px solid rgba(156,255,26,0.35)" : "1px solid rgba(156,255,26,0.12)",
+              background:"rgba(11,18,32,0.96)",
               boxShadow: isLive
-                ? "0 0 32px rgba(156,255,26,0.14), 0 0 28px #000a"
-                : atlasDone
-                  ? "0 0 24px rgba(52,211,153,0.1), 0 0 28px #000a"
-                  : atlasFailed
-                    ? "0 0 24px rgba(251,113,133,0.1), 0 0 28px #000a"
-                    : "0 0 28px #000a",
-              backdropFilter:"blur(12px)",
+                ? "0 8px 24px rgba(0,0,0,0.35)"
+                : "0 4px 16px rgba(0,0,0,0.25)",
               animation: motionOrNone(`armIn ${REACTOR_UI_MS + 60}ms ease-out both`),
             }}
           >
@@ -1914,30 +1908,31 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
           </div>
         )}
         {!deskOn && (
-          <button
-            type="button"
-            className="reactor-pressable"
-            data-testid="button-live-desk-on"
-            onClick={() => setDeskOn(true)}
-            aria-label="Show Live Desk"
-            style={{
-              position:"absolute", top:12, right:18, zIndex:28,
-              fontSize: 13, letterSpacing:"0.14em", fontWeight:700,
-              color:"#a5f3fc", background:"rgba(156,255,26,0.1)",
-              border:"1px solid #9CFF1A88", borderRadius:6, padding:"8px 12px", cursor:"pointer",
-              animation: motionOrNone(`armIn ${REACTOR_UI_MS}ms ease-out both`),
-              boxShadow:"0 0 16px rgba(156,255,26,0.12)",
-            }}
-          >{isLive ? "LIVE DESK" : "Live Desk"}</button>
+          <div style={{ flexShrink:0, display:"flex", justifyContent:"flex-end", padding:"8px 18px 0", zIndex:28 }}>
+            <button
+              type="button"
+              className="reactor-pressable"
+              data-testid="button-live-desk-on"
+              onClick={() => setDeskOn(true)}
+              aria-label="Show Live Desk"
+              style={{
+                fontSize: 13, letterSpacing:"0.14em", fontWeight:700,
+                color:"#a5f3fc", background:"rgba(156,255,26,0.1)",
+                border:"1px solid #9CFF1A88", borderRadius:6, padding:"8px 12px", cursor:"pointer",
+                animation: motionOrNone(`armIn ${REACTOR_UI_MS}ms ease-out both`),
+                boxShadow:"0 0 16px rgba(156,255,26,0.12)",
+              }}
+            >{isLive ? "LIVE DESK" : "Live Desk"}</button>
+          </div>
         )}
-        {/* SVG connections — subtle dim when Live Desk is open so tool scenes stay primary */}
+        {/* Scheme canvas — always full opacity; desk sits above, not over */}
+        <div style={{ position:"relative", width:1600, height:842, flexShrink:0, margin:"0 auto" }}>
         <svg
           width={1600}
           height={842}
           style={{
             position:"absolute", inset:0, zIndex:1,
-            opacity: deskOn ? 0.35 : 1,
-            transition: `opacity ${REACTOR_UI_MS}ms ease-out`,
+            opacity: 1,
           }}
         >
           <defs>
@@ -2128,7 +2123,8 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
           }} />
         ))}
 
-      </div>
+      </div>{/* scheme canvas */}
+      </div>{/* main column: desk above scheme */}
 
       <style>{KEYFRAMES}</style>
     </div>

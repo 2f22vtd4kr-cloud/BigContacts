@@ -105,7 +105,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       "flex h-full flex-col bg-[#111827]",
       mobile ? "w-[min(300px,86vw)]" : "w-[250px] shrink-0",
     )}>
-      <div className="flex h-[76px] shrink-0 items-center border-b border-white/[0.04] px-5">
+      <div className="flex h-[76px] shrink-0 items-center border-b border-white/[0.03] px-5">
         <Link
           href="/"
           aria-label="Apex Atlas home"
@@ -286,7 +286,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       )}
       <main className="relative z-0 flex min-w-0 flex-1 flex-col overflow-hidden bg-[#111827]">
         <div className="atlas-grid pointer-events-none absolute inset-0" />
-        <header className="relative z-40 flex min-h-14 shrink-0 items-center gap-1 border-b border-[#9CFF1A]/08 bg-[#111827]/95 pl-[max(0.5rem,env(safe-area-inset-left))] pr-[max(0.5rem,env(safe-area-inset-right))] pt-[max(0.25rem,env(safe-area-inset-top))] backdrop-blur-lg sm:gap-2 sm:px-5 md:h-16 md:px-6">
+        <header className="relative z-40 flex min-h-14 shrink-0 items-center gap-1 border-b border-white/[0.03] bg-[#111827]/95 pl-[max(0.5rem,env(safe-area-inset-left))] pr-[max(0.5rem,env(safe-area-inset-right))] pt-[max(0.25rem,env(safe-area-inset-top))] backdrop-blur-lg sm:gap-2 sm:px-5 md:h-16 md:px-6">
           {/* Mobile: menu first so Launch/status never collide with it */}
           <button
             onClick={() => setSidebarOpen(true)}
@@ -318,7 +318,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         </header>
         {/* Reactor (and other immersive desks) own their chrome — skip duplicate page title on small screens */}
         {!hideDeskTitle && (
-        <div className="relative z-10 shrink-0 border-b border-[#9CFF1A]/08 bg-background/70 px-4 py-3.5 backdrop-blur-sm md:px-6 md:py-4">
+        <div className="relative z-10 shrink-0 border-b border-white/[0.03] bg-background/70 px-4 py-3.5 backdrop-blur-sm md:px-6 md:py-4">
           <div className="mx-auto w-full max-w-[1800px]">
             <h1 className="font-display text-xl font-bold tracking-[-0.03em] text-foreground md:text-2xl" data-testid="text-page-title">
               {pageTitle}
