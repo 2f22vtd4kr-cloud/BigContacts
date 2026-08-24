@@ -7,7 +7,7 @@ Do not redesign. Do not rewrite research. Do not debug forever.
 REPO
 https://github.com/2f22vtd4kr-cloud/BigContacts
 Branch main
-Tip 51d7beb or newer
+Tip a80a14b or newer (graph TDZ hooks-before-effects)
 API code artifacts/api-server/src/src
 
 LAYOUT
