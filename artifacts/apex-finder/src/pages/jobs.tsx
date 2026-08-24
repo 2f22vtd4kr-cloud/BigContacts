@@ -50,7 +50,7 @@ function statusIcon(status: Job["status"]) {
   if (status === "running" || status === "queued" || status === "paused") return <Loader2 className="w-3.5 h-3.5 animate-spin text-[#9CFF1A]" />;
   if (status === "done") return <CheckCircle2 className="w-3.5 h-3.5 text-[#b8ff4d]" />;
   if (status === "failed") return <XCircle className="w-3.5 h-3.5 text-red-400" />;
-  if (status === "cancelled") return <XCircle className="w-3.5 h-3.5 text-muted-foreground" />;
+  if (status === "cancelled") return <XCircle className="w-3.5 h-3.5 text-amber-400" />;
   return <div className="w-3.5 h-3.5 rounded-full border border-[#9CFF1A]/12 bg-muted/30" />;
 }
 
@@ -58,7 +58,7 @@ function statusColor(status: Job["status"]) {
   if (status === "running" || status === "queued" || status === "paused") return "text-[#9CFF1A]";
   if (status === "done") return "text-[#b8ff4d]";
   if (status === "failed") return "text-red-400";
-  if (status === "cancelled") return "text-muted-foreground";
+  if (status === "cancelled") return "text-amber-400";
   return "text-muted-foreground/40";
 }
 
