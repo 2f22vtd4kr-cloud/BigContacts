@@ -15,12 +15,13 @@ import { LiquidMetalSurface } from "@/components/liquid-metal-surface";
 type Variant = "primary" | "header" | "reactor" | "ghost";
 
 const VARIANT_CLASS: Record<Variant, string> = {
+  // Mobile = desktop oil pill: same height, type size, tracking — no noisy shrink
   primary:
-    "atlas-launch-glow min-h-[3.25rem] h-14 sm:h-12 w-full sm:w-auto px-6 sm:px-7 text-[15px] sm:text-sm tracking-wide sm:tracking-tight",
+    "atlas-launch-glow relative min-h-[3.5rem] h-14 w-full sm:w-auto px-7 text-[16px] sm:text-[15px] font-bold tracking-[0.04em]",
   header:
-    "h-9 w-9 sm:w-auto sm:px-3.5 text-[11px] font-bold tracking-wide rounded-full bg-[#9CFF1A]/12 text-[#9CFF1A] border border-[#9CFF1A]/40 hover:bg-[#9CFF1A]/20 hover:border-[#b8ff4d]/50 active:scale-[0.97] active:brightness-95",
+    "atlas-launch-glow relative h-10 min-w-[7.5rem] px-4 text-[13px] font-bold tracking-wide rounded-full sm:h-9 sm:min-w-0 sm:px-3.5 sm:text-[12px]",
   reactor:
-    "atlas-launch-glow min-h-[3.25rem] h-14 sm:h-11 w-full sm:w-auto px-5 text-[15px] sm:text-sm tracking-wide",
+    "atlas-launch-glow relative min-h-[3.5rem] h-14 w-full sm:w-auto sm:h-12 px-6 text-[16px] sm:text-[15px] font-bold tracking-[0.04em]",
   ghost:
     "atlas-outline-btn h-10 px-4 text-xs font-semibold active:scale-[0.97]",
 };
@@ -66,7 +67,7 @@ export function LaunchAtlasButton({
   const [pausing, setPausing] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const [flash, setFlash] = useState(false);
-  const { run, refresh } = useAtlasRun(4_000);
+  const { run, refresh } = useAtlasRun(8_000);
 
   const paused = run.status === "paused";
   const running = (run.active || busy) && !paused;
@@ -270,12 +271,12 @@ export function LaunchAtlasButton({
           className,
         )}
       >
-        {(variant === "primary" || variant === "reactor") && !inFlight && (
+        {(variant === "primary" || variant === "reactor" || variant === "header") && !inFlight && (
           <LiquidMetalSurface />
         )}
         <span
           className={cn(
-            (variant === "primary" || variant === "reactor") && !inFlight && "atlas-liquid-label",
+            (variant === "primary" || variant === "reactor" || variant === "header") && !inFlight && "atlas-liquid-label",
             "inline-flex items-center gap-2",
           )}
         >
@@ -288,8 +289,7 @@ export function LaunchAtlasButton({
           <span
             className={cn(
               "truncate max-w-[min(100%,18rem)] sm:max-w-none",
-              variant === "header" && "hidden sm:inline",
-              (variant === "primary" || variant === "reactor") && !inFlight && "atlas-liquid-type",
+              (variant === "primary" || variant === "reactor" || variant === "header") && !inFlight && "atlas-liquid-type",
             )}
             aria-hidden={false}
           >
