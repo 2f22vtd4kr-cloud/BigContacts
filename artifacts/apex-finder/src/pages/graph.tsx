@@ -210,6 +210,8 @@ function GraphViewerInner() {
   const queryClient = useQueryClient();
   const createRelationship = useCreateRelationship();
 
+  const deskHasPeople = (allEntities?.length ?? 0) > 0;
+
   const currentEntity = allEntities?.find((e) => e.id === targetId);
 
   // Resolve the display name: prefer allEntities list, fall back to the target node label
@@ -220,8 +222,8 @@ function GraphViewerInner() {
       const target = (graphData.nodes as any[]).find((n: any) => n.isTarget);
       if (target?.label) return target.label;
     }
-    return targetId > 0 ? `Entity #${targetId}` : null;
-  }, [currentEntity, graphData, targetId]);
+    return targetId > 0 && deskHasPeople ? `Entity #${targetId}` : null;
+  }, [currentEntity, graphData, targetId, deskHasPeople]);
 
   const filteredEntities = useMemo(() => {
     if (!allEntities) return [];
@@ -457,7 +459,8 @@ function GraphViewerInner() {
       onContextMenu={(e) => e.preventDefault()}
     >
 
-      {/* ── Mobile top bar (entity selector + controls) ── */}
+      {/* ── Mobile top bar — only when the desk has people ── */}
+      {deskHasPeople && (
       <div className="flex md:hidden flex-col border-b border-[#9CFF1A]/12 bg-card/90 backdrop-blur z-30 flex-shrink-0"><div className="flex items-center gap-2 px-3 py-2">
         {entityIdFromUrl && (
           <Link
@@ -475,7 +478,7 @@ function GraphViewerInner() {
           <div className="min-w-0 flex-1">
             <div className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider">Target</div>
             <div className="text-sm font-mono text-foreground truncate font-semibold">
-              {displayEntityName ?? `Entity #${targetId}`}
+              {displayEntityName ?? (deskHasPeople && targetId > 0 ? `Entity #${targetId}` : "Select person")}
             </div>
           </div>
           <ChevronDown className={cn("w-4 h-4 text-muted-foreground ml-2 flex-shrink-0 transition-transform", selectorOpen && "rotate-180")} />
@@ -500,10 +503,10 @@ function GraphViewerInner() {
         </button>
       </div>
       </div>
-
+      )}
 
       {/* ── Mobile filter sheet ── */}
-      {filterOpen && (
+      {deskHasPeople && filterOpen && (
         <div className="md:hidden absolute left-3 right-3 top-[57px] z-50 bg-card border border-[#9CFF1A]/12 rounded shadow-2xl p-4 space-y-4">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider">Graph Filters</span>
@@ -553,6 +556,7 @@ function GraphViewerInner() {
       )}
 
       {/* ── Desktop floating toolbar ── */}
+      {deskHasPeople && (
       <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 hidden md:flex items-center space-x-2 max-w-[90vw]">
         {/* Back to profile */}
         {entityIdFromUrl && (
@@ -573,7 +577,7 @@ function GraphViewerInner() {
           >
             <Network className="w-3.5 h-3.5 text-primary flex-shrink-0" />
             <span className="truncate flex-1 text-left">
-              {displayEntityName ?? `Entity #${targetId}`}
+              {displayEntityName ?? (deskHasPeople && targetId > 0 ? `Entity #${targetId}` : "Select person")}
             </span>
             <ChevronDown className={cn("w-3.5 h-3.5 text-muted-foreground transition-transform", selectorOpen && "rotate-180")} />
           </button>
@@ -672,6 +676,8 @@ function GraphViewerInner() {
         </div>
       </div>
 
+      )}
+
       {/* ── Entity selector dropdown (shared mobile + desktop) ── */}
       {selectorOpen && (
         <div className={cn(
@@ -716,6 +722,7 @@ function GraphViewerInner() {
       )}
 
       {/* ── Legend ── */}
+      {deskHasPeople && (
       <div className={cn(
         "absolute bottom-4 left-4 z-10 flex-col space-y-1 bg-card/80 backdrop-blur border border-[#9CFF1A]/12 p-2 md:p-3 rounded text-[10px] md:text-xs font-mono",
         // Hide on mobile when node detail bottom sheet is open (it sits at bottom-0 and would overlap)
@@ -727,8 +734,8 @@ function GraphViewerInner() {
         <div className="flex items-center"><div className="w-2.5 h-2.5 rounded-full bg-[#9CFF1A] mr-1.5 md:mr-2" /> Gatekeeper</div>
         <div className="flex items-center"><div className="w-2.5 h-2.5 rounded-full bg-muted-foreground mr-1.5 md:mr-2" /> Asset</div>
       </div>
+      )}
 
-      
       {/* ── Truncation notice ── */}
       {(graphData as any)?.truncated && (
         <div className="absolute top-16 md:top-20 left-1/2 -translate-x-1/2 z-20 max-w-[90vw] px-3 py-1.5 rounded border border-[#9CFF1A]/40 bg-[#9CFF1A]/10 text-[10px] md:text-xs font-mono text-[#d4ff8a]/90 text-center">

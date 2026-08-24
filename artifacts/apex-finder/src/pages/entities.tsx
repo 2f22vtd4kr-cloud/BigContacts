@@ -889,6 +889,7 @@ export default function EntityLedger() {
           </div>
 
           {/* Type filter */}
+          {!coldEmptyDesk && (
           <div className="atlas-h-scroll flex items-center gap-1.5 overflow-x-auto overscroll-x-contain touch-pan-x pb-0.5 pr-6">
             {[null, ...ENTITY_TYPES].map((typeKey) => {
               const meta = typeKey ? entityMeta(typeKey) : null;
@@ -914,6 +915,7 @@ export default function EntityLedger() {
             })}
           </div>
 
+          )}
           {/* View mode tabs */}
           <div className="flex items-center gap-0.5 border border-[#9CFF1A]/10 rounded-xl p-1 shrink-0 bg-card/40">
             {([

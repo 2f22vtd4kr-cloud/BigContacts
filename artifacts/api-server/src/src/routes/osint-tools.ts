@@ -34,8 +34,13 @@ async function fetchAllTools(): Promise<OsintTool[]> {
   const pageSize = 100;
   let offset = 0;
   let total = Infinity;
+  const deadline = Date.now() + 12_000; // hard budget so first request cannot hang minutes
 
   while (offset < total) {
+    if (Date.now() > deadline) {
+      console.warn(`[osint-tools] HF fetch budget exceeded with ${tools.length} tools`);
+      break;
+    }
     const url = `${HF_API_BASE}/rows?dataset=${encodeURIComponent(HF_DATASET)}&config=default&split=train&offset=${offset}&length=${pageSize}`;
 
     const resp = await fetch(url, {
@@ -43,7 +48,7 @@ async function fetchAllTools(): Promise<OsintTool[]> {
         "User-Agent": "ApexFinder/1.0 OSINT-Intelligence-Platform",
         "Accept": "application/json",
       },
-      signal: AbortSignal.timeout(20_000),
+      signal: AbortSignal.timeout(8_000),
     });
 
     if (!resp.ok) {

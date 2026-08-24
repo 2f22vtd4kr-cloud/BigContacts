@@ -194,7 +194,7 @@ function rodStatusColor(status: RodStatus, fallback: string): string {
 
 const ATLAS_PHASES = [
   { n: 0, label: "CROSS-REF", detail: "Existing records and registry anchors" },
-  { n: 1, label: "DISCOVERY", detail: "21-source discovery plus full-circle entity cooking" },
+  { n: 1, label: "DISCOVERY", detail: "Free dig discovery — model chooses tools" },
   { n: 2, label: "IDENTITY", detail: "Contacts, ownership, and foundation evidence" },
   { n: 3, label: "METADATA", detail: "Notes, assets, and source markers" },
   { n: 4, label: "IN-HOUSE", detail: "Wikidata, GitHub, RDAP, DNS, and filings" },
@@ -1928,7 +1928,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
               animation: motionOrNone(`armIn ${REACTOR_UI_MS}ms ease-out both`),
               boxShadow:"0 0 16px rgba(156,255,26,0.12)",
             }}
-          >LIVE DESK ON</button>
+          >{isLive ? "LIVE DESK" : "Live Desk"}</button>
         )}
         {/* SVG connections — subtle dim when Live Desk is open so tool scenes stay primary */}
         <svg
