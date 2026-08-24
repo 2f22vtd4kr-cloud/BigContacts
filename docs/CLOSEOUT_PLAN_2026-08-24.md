@@ -28,3 +28,8 @@ Live desk + bureau behave as product law until no further visual or logical defe
 - Graph TDZ root cause in source: `useEffect(..., [width, height])` ran *before* `const [width, height]` — fixed in `d670649`
 - Redis poll cut in `99c2fb0` (client intervals + PING 60s)
 - Deployed UI still shows 11 CHECKPOINTS · 10 PHASES until desk rebuild on Replit
+
+- 2026-08-24T07:17Z Congdon organization_contact via rehydrate (live)
+- c7b185b: cache invalidate after rehydrate/dig; mobile typo
+- Host intermittently 404 "Run this app" — operator must keep API Server workflow running
+- Still need: Replit rebuild desk for graph TDZ + residual PHASES chrome; Gund/Icahn dig when Redis healthy
