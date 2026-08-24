@@ -261,15 +261,15 @@ export function WorkspaceStatus() {
       >
         <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", copy.dotClassName, state === "researching" && "animate-pulse")} />
         <Icon className={cn("h-3.5 w-3.5 shrink-0", copy.className, state === "loading" && "animate-spin")} />
-        <span className={cn("shrink-0 font-mono text-[12px] font-bold tracking-[0.06em] sm:text-[13px]", copy.className)}>
+        <span className={cn("shrink-0 font-mono text-[11px] font-bold tracking-[0.06em] sm:text-[13px]", copy.className)}>
           {copy.shortLabel}
         </span>
-        <span className="text-stone-600 font-mono text-[13px] sm:text-[14px]" aria-hidden>
+        <span className="hidden text-stone-600 font-mono text-[13px] sm:inline sm:text-[14px]" aria-hidden>
           ·
         </span>
         <span
           className={cn(
-            "shrink-0 font-mono text-[13px] font-bold tabular-nums sm:text-[14px]",
+            "hidden shrink-0 font-mono text-[13px] font-bold tabular-nums sm:inline sm:text-[14px]",
             servicesHealthy ? "text-primary" : copy.className,
           )}
           title={databaseDetail}

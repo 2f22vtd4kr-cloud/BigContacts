@@ -18,7 +18,7 @@ const VARIANT_CLASS: Record<Variant, string> = {
   primary:
     "atlas-launch-cta relative min-h-[3.25rem] h-13 w-full sm:w-auto min-w-[11rem] px-8 text-[15px] font-extrabold tracking-[0.03em] rounded-full",
   header:
-    "atlas-launch-cta relative h-9 shrink-0 px-3.5 text-[12px] font-extrabold tracking-wide rounded-full whitespace-nowrap",
+    "atlas-launch-cta relative h-8 shrink-0 px-2.5 text-[11px] font-extrabold tracking-wide rounded-full whitespace-nowrap sm:h-9 sm:px-3.5 sm:text-[12px]",
   reactor:
     "atlas-launch-cta relative min-h-[3rem] h-12 w-full sm:w-auto min-w-[12rem] px-8 text-[15px] font-extrabold tracking-[0.03em] rounded-full",
   ghost:

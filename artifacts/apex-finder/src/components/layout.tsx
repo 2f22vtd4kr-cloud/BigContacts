@@ -267,18 +267,18 @@ export function Layout({ children }: { children: React.ReactNode }) {
       )}
       <main className="relative z-0 flex min-w-0 flex-1 flex-col overflow-hidden bg-[#111827]">
         <div className="atlas-grid pointer-events-none absolute inset-0" />
-        <header className="relative z-40 flex min-h-14 shrink-0 items-center gap-1.5 border-b border-[#9CFF1A]/08 bg-[#111827]/95 pl-[max(0.75rem,env(safe-area-inset-left))] pr-[max(0.75rem,env(safe-area-inset-right))] pt-[max(0.25rem,env(safe-area-inset-top))] backdrop-blur-lg sm:gap-2.5 sm:px-5 md:h-16 md:px-6">
-          <div className="mr-1 flex min-w-0 items-center md:mr-0">
-            {/* Outline home on mobile so it never collides with Pause/Stop pills */}
-            <Link
-              href="/"
-              aria-label="Apex Atlas home"
-              data-testid="link-mobile-apex-atlas-home"
-              className="ml-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-[#9CFF1A]/35 bg-transparent text-[#9CFF1A] focus-visible:ring-2 focus-visible:ring-lime-400/50 md:hidden"
-            >
-              <Crosshair className="h-3.5 w-3.5" />
-            </Link>
-            <div className="ml-2.5 hidden min-w-0 md:block">
+        <header className="relative z-40 flex min-h-14 shrink-0 items-center gap-1 border-b border-[#9CFF1A]/08 bg-[#111827]/95 pl-[max(0.5rem,env(safe-area-inset-left))] pr-[max(0.5rem,env(safe-area-inset-right))] pt-[max(0.25rem,env(safe-area-inset-top))] backdrop-blur-lg sm:gap-2 sm:px-5 md:h-16 md:px-6">
+          {/* Mobile: menu first so Launch/status never collide with it */}
+          <button
+            onClick={() => setSidebarOpen(true)}
+            aria-label="Open menu"
+            data-testid="button-open-menu"
+            className="atlas-pressable order-first shrink-0 rounded-lg p-2 text-stone-400 hover:bg-white/[0.06] hover:text-stone-100 md:hidden"
+          >
+            <Menu className="h-5 w-5" />
+          </button>
+          <div className="mr-1 hidden min-w-0 items-center md:flex">
+            <div className="min-w-0">
               <div className="font-mono text-[11px] uppercase tracking-[0.2em] text-stone-500">
                 Apex Atlas · Research desk
               </div>
@@ -287,24 +287,14 @@ export function Layout({ children }: { children: React.ReactNode }) {
               </div>
             </div>
           </div>
-          <div className="ml-auto flex shrink-0 flex-nowrap items-center justify-end gap-1.5 sm:gap-2">
+          <div className="ml-auto flex min-w-0 max-w-full flex-1 items-center justify-end gap-1 overflow-x-auto overscroll-x-contain sm:gap-1.5 sm:overflow-visible" style={{ scrollbarWidth: "none" }}>
             {location !== "/" && !isReactorRoute && (
               <div className="shrink-0">
                 <LaunchAtlasButton variant="header" />
               </div>
             )}
-            <div className="flex shrink-0 items-center justify-end gap-1.5 sm:gap-2">
-              <WorkspaceStatus />
-              <ApiKeyHealth />
-            </div>
-            <button
-              onClick={() => setSidebarOpen(true)}
-              aria-label="Open menu"
-              data-testid="button-open-menu"
-              className="atlas-pressable shrink-0 rounded-lg p-2 text-stone-400 hover:bg-white/[0.06] hover:text-stone-100 md:hidden"
-            >
-              <Menu className="h-5 w-5" />
-            </button>
+            <WorkspaceStatus />
+            <ApiKeyHealth />
           </div>
         </header>
         {/* Reactor (and other immersive desks) own their chrome — skip duplicate page title on small screens */}
