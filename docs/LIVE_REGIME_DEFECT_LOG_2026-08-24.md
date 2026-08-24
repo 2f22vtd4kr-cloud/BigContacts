@@ -325,3 +325,6 @@ Independent research found public **organization** routes Atlas left off cards:
 
 **Do not:** Add ranked prefer playbooks or hard 1-800 dig scripts. Org routes with exact URLs are the product when personal vectors are absent.
 
+### 2026-08-24T06:53Z — Apex vs independent comparison (no prefer-list)
+
+Full scoreboard in `docs/context.md`. Summary: Apex empty cards on Congdon/Gund/Icahn; independent found org routes (ODFL 336-889-5000, FFB 800-683-5555 + info@, IEP IR 1-800-255-2737). Domain prefer scoring reverted (`1b3ce0e`). Gap is dig→structured findings→card, not more host rules.

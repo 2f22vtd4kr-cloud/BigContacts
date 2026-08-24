@@ -1,7 +1,7 @@
 # Context — living handoff (Apex Atlas / BigContacts)
 
 **Repo:** https://github.com/2f22vtd4kr-cloud/BigContacts · **Branch:** `main`  
-**Current tip:** `fd50650`+ (UI honesty) · promote fix this session · prior integrity `0325311`
+**Current tip:** `1b3ce0e` (revert domain prefer; neutral org-email promote only) · UI `fd50650`
 **API build entry:** `artifacts/api-server/src/src` (esbuild). Top-level `src/lib` is a thin scaffold — do not edit it for research logic.  
 **Desk package name:** `apex-finder-local` — build with `pnpm --dir artifacts/apex-finder run build` (not `@workspace/apex-finder`).  
 **Product:** Apex Atlas research bureau (NOT Steam “Atlas Reactor”, NOT physics ATLAS).
@@ -100,14 +100,37 @@ These are operator + agent law. Do not regress.
 | **Desk honesty** | UI tips `43234fe`/`fd50650` fix glass stack, KEYS OFF, Phase N/10 — **must rebuild on Replit**. Host was down (404 “Run this app”) mid-session. |
 | **Network graph** | LIVE-02: `Cannot access 'E' before initialization` on `/network`. |
 
-### 2026-08-24 live run vs independent research (same targets)
-| Target | Atlas card | Independent public routes (chat Grok) | Verdict |
-|--------|------------|--------------------------------------|---------|
-| Earl E Congdon | empty phone/email; evidence_only | ODFL HQ **336-889-5000**, 500 Old Dominion Way Thomasville NC; IR/board via Corporate Secretary; Chairman Emeritus ODFL | **Bureau underperformed** — dig visited IR/news but promote/filters left card empty |
-| Gordon Gund | empty | Foundation Fighting Blindness; Gordon & Llura Gund Foundation EIN 22-2987293; business addr **14 Nassau St, Princeton NJ** (13G) | Underperformed — foundation/registry route should surface |
-| Carl C Icahn | empty | IEP IR **1.800.255.2737**; EDGAR ICAHN CARL C phone **305-422-4145**; Sunny Isles Beach office | Underperformed — org/IR route is public |
+### Apex test run vs independent research (2026-08-24) — same targets
 
-**Contract reminder:** Card is the answer. Org IR phones with primary URLs = valid `organization_contact`, not “nothing.” Do not re-add micro-training playbooks.
+**Method**
+- **Apex:** last Replit dig (agentic-web + target-contact-agent) on Congdon / Gund / Icahn; cards left empty / `evidence_only`.
+- **This chat (Grok):** open web search only — same public web surface, no private data, no invention.
+
+**Scoreboard (honest)**
+
+| Dimension | Apex last run | Independent (this chat) | Winner |
+|-----------|---------------|-------------------------|--------|
+| **Earl E Congdon identity** | Known as ODFL-linked | Chairman Emeritus & Senior Advisor ODFL; retired board Jan 2021; 8-K + IR bio | Tie (identity) |
+| **Congdon contact route** | Card empty | HQ **(336) 889-5000** (SEC 8-K registrant phone); board mail: Corporate Secretary, 500 Old Dominion Way, Thomasville NC 27360; IR site ir.odfl.com | **Independent** |
+| **Gordon Gund identity** | Named | Blind VC; FFB co-founder/Chair Emeritus; Gund Investment Corp, Princeton; Align/Kellogg interests | Tie |
+| **Gund contact route** | Card empty | FFB: **info@FightingBlindness.org**, **(800) 683-5555**, 6925 Oakland Mills Rd #701 Columbia MD; Gund listed FFB board/Chair Emeritus | **Independent** |
+| **Carl C Icahn identity** | Named | Controls ~86% IEP; Sunny Isles Beach HQ | Tie |
+| **Icahn contact route** | Card empty | IEP IR **1.800.255.2737**; HQ **(305) 422-4100**; EDGAR ICAHN CARL C **305-422-4145**; 16690 Collins Ave PH-1 | **Independent** |
+| **Source discipline** | Dig visited IR/news (prior logs: 48 facts extract on ODFL) | Exact primary URLs (SEC, ir.odfl.com, ielp.com, fightingblindness.org) | Independent used fewer steps but landed routes |
+| **Card as answer** | Fail — empty phone/email | Would score `organization_contact` with org phones + URLs | **Independent** |
+
+**What this does *not* mean**
+- Do not encode ODFL/IEP/FFB into promote prefer lists (reverted `1b3ce0e`).
+- Free dig is still correct design: model chooses tools; card must receive what dig already saw.
+
+**Structural gap (fix without playbooks)**
+1. Dig can **visit** primary pages and still leave **0 structured findings** on the card if extraction/model `done` payload is thin.
+2. Promote had a **neutral bug** (drop all org-scope generic emails) — fixed; domain prefer scores **removed**.
+3. Next honest work: ensure auto-extracted CONTACT FACTS from visited pages always reach `persistBureauContactsForEntity` (already intended) and outcome is not stuck `none` when org phone/email exists — no ranked search scripts.
+
+**Operator**
+- Replit was 404 mid-audit; restart API on `1b3ce0e`+, rebuild desk, one target dig, score card vs table above.
+
 
 ### Key modules
 | Path | Role |
