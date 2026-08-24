@@ -835,9 +835,9 @@ function AtlasTelemetryInspector({ telemetry, eventLog = [] }: { telemetry?: any
   const activeTool = telemetry?.activeToolId ? telemetryToolLabel(telemetry.activeToolId) : null;
   return (
     <div style={{
-      position:"absolute", top:72, right:18, width:380, maxHeight:420, overflowY:"auto",
-      zIndex:25, padding:"11px 12px", border:"1px solid #9CFF1A55", borderRadius:7,
-      background:"rgba(7,15,29,0.96)", boxShadow:"0 0 24px #0008", backdropFilter:"blur(10px)",
+      position:"absolute", top:12, right:12, width:360, maxHeight:"min(420px, calc(100% - 24px))", overflowY:"auto",
+      zIndex:22, padding:"11px 12px", border:"1px solid #9CFF1A55", borderRadius:7,
+      background:"rgba(7,15,29,0.96)", boxShadow:"0 0 24px #0008",
       fontFamily:"'Space Mono','DM Mono','Courier New',monospace",
     }}>
       <div style={{ display:"flex", alignItems:"center", gap:7, marginBottom:8 }}>
@@ -1078,7 +1078,7 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
           sessionCount={sessions.length}
           compact
         />
-        <EntityWorkbench state={atlasState} liveNodes={liveNodes} compact />
+        <div style={{ maxWidth:320, minWidth:0, flex:"0 1 320px" }}><EntityWorkbench state={atlasState} liveNodes={liveNodes} compact /></div>
         {!atlasState && (
           <LiveHeaderDetail
             isLive={isLive}
@@ -1649,7 +1649,9 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
               sessionCount={sessionCount ?? 0}
             />
           </div>
-          <EntityWorkbench state={atlasState} liveNodes={liveNodes} compact />
+          <div style={{ maxWidth:280, minWidth:0, flex:"0 1 280px" }}>
+            <EntityWorkbench state={atlasState} liveNodes={liveNodes} compact />
+          </div>
           {!atlasState && (
             <LiveHeaderDetail
               isLive={Boolean(isLive)}
@@ -1663,8 +1665,11 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
 
       {/* Main panel */}
       <div style={{ flex:1, position:"relative", zIndex:5, overflow:"hidden" }}>
-        <AtlasTelemetryInspector telemetry={atlasState?.atlasTelemetry} eventLog={atlasState?.eventLog} />
-        {/* Live Desk — side panel; scheme stays primary */}
+        {/* Telemetry inspector OR Live Desk — never both (right-rail collision LIVE-21) */}
+        {!deskOn && (
+          <AtlasTelemetryInspector telemetry={atlasState?.atlasTelemetry} eventLog={atlasState?.eventLog} />
+        )}
+        {/* Live Desk — sole right rail when open */}
         {deskOn && (
           <div
             data-testid="panel-live-desk"
@@ -1672,15 +1677,16 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
             role="complementary"
             aria-label="Apex Atlas Live Desk"
             style={{
-              position:"absolute", top:64, right:16, width:420, maxWidth:"calc(100% - 32px)", maxHeight:"calc(100% - 80px)",
-              overflowY:"auto", overflowX:"hidden", zIndex:28, padding:"12px 12px 14px",
+              position:"absolute", top:12, right:12, bottom:12, width:380,
+              maxWidth:"calc(100% - 40px)",
+              overflowY:"auto", overflowX:"hidden", zIndex:30, padding:"12px 12px 14px",
               border: atlasFailed
                 ? "1px solid #fb718566"
                 : atlasDone
                   ? "1px solid rgba(156,255,26,0.4)"
                   : isLive ? "1px solid #9CFF1A88" : "1px solid #9CFF1A40",
               borderRadius:8,
-              background:"rgba(7,15,29,0.97)",
+              background:"#0b1220",
               boxShadow: isLive
                 ? "0 0 32px rgba(156,255,26,0.14), 0 0 28px #000a"
                 : atlasDone
@@ -2419,7 +2425,12 @@ export default function IntelligenceReactorPage() {
       ref={containerRef}
       style={{ position:"absolute", inset:0, overflow:"hidden", background:"#111827", isolation:"isolate" }}
     >
-      <div className="absolute top-3 left-3 z-50 max-w-[min(100%,300px)] md:left-auto md:right-3" data-testid="reactor-launch-bar-desktop" style={{ pointerEvents: "auto" }}>
+      {/* Launch controls: left/center top — never right rail (Live Desk owns right) */}
+      <div
+        className="absolute left-1/2 top-2 z-50 flex max-w-[min(100%,420px)] -translate-x-1/2 justify-center px-2 md:left-auto md:right-[400px] md:translate-x-0 md:justify-end"
+        data-testid="reactor-launch-bar-desktop"
+        style={{ pointerEvents: "auto" }}
+      >
         <LaunchAtlasButton variant="reactor" navigateToReactor={false} label="Launch Apex Atlas" />
       </div>
       <div style={{ position:"relative", overflow:"hidden", width:"100%", height:"100%" }}>
