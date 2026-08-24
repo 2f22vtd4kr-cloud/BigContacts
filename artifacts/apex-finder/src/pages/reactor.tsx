@@ -2178,7 +2178,7 @@ export default function IntelligenceReactorPage() {
   // source of truth; this clock only renders the elapsed time since its last
   // confirmed nextTriggerAt snapshot.
   useEffect(() => {
-    const id = window.setInterval(() => setSchedulerNow(Date.now()), 1_000);
+    const id = window.setInterval(() => setSchedulerNow(Date.now()), 2_000);
     return () => window.clearInterval(id);
   }, []);
 
