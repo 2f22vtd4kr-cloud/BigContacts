@@ -272,112 +272,101 @@ function parseEntityNames(value: unknown): string[] {
 
 // ── Node layout (desktop coords) ─────────────────────────────────────────────
 const NODES: NodeDef[] = [
-  { id:"target",  label:"TARGET INPUT",    sub:"Entity · Query",             cx:800,  cy:68,  w:200, h:52,  type:"input",    Icon:Crosshair, color:"#e8e0cc" },
-  { id:"faa",     label:"FAA REGISTRY",    sub:"Aircraft Owners",            cx:100,  cy:178, w:140, h:60,  type:"registry", Icon:Plane,      color:"#38bdf8" },
-  { id:"edgar",   label:"EDGAR / SEC",     sub:"Corporate Filings",          cx:280,  cy:178, w:140, h:60,  type:"registry", Icon:BarChart2,  color:"#38bdf8" },
-  { id:"hmlr",    label:"UK LAND REG",     sub:"Property Records",           cx:460,  cy:178, w:140, h:60,  type:"registry", Icon:MapPin,     color:"#38bdf8" },
-  { id:"ch",      label:"COMP HOUSE",      sub:"UK Officers",                cx:640,  cy:178, w:140, h:60,  type:"registry", Icon:Building2,  color:"#38bdf8" },
-  { id:"hnwi",    label:"HNWI SCAN",       sub:"Wealth Profiles",            cx:820,  cy:178, w:140, h:60,  type:"registry", Icon:TrendingUp, color:"#38bdf8" },
-  { id:"occrp",   label:"OCCRP ALEPH",     sub:"Sanctions · Crime",          cx:1000, cy:178, w:140, h:60,  type:"registry", Icon:Shield,     color:"#38bdf8" },
-  { id:"brreg",   label:"EU REGISTRIES",   sub:"BRREG · ARES · BODACC",      cx:1180, cy:178, w:140, h:60,  type:"registry", Icon:Globe,      color:"#38bdf8" },
-  { id:"whoxy",   label:"RDAP / WHOIS",    sub:"Domain · DNS Intel",         cx:1360, cy:178, w:140, h:60,  type:"registry", Icon:Rss,        color:"#38bdf8" },
-  { id:"inhouse", label:"IN-HOUSE",        sub:"Wikidata · GitHub · RDAP",   cx:160,  cy:298, w:168, h:60,  type:"discovery",Icon:Search,     color:"#fb923c" },
-  { id:"webdisc", label:"WEB DISC.",       sub:"Web discovery · Tavily · AI",cx:530,  cy:298, w:168, h:60,  type:"discovery",Icon:Compass,    color:"#fb923c" },
-  { id:"deepweb", label:"DEEP WEB",        sub:"Multi-source OSINT",         cx:900,  cy:298, w:168, h:60,  type:"discovery",Icon:Eye,        color:"#fb923c" },
-  { id:"opensky", label:"LIVE FLIGHT",     sub:"OpenSky Network",            cx:1270, cy:298, w:148, h:60,  type:"discovery",Icon:Radio,      color:"#fb923c" },
-  { id:"maigret", label:"MAIGRET",         sub:"Holehe · 3,000+ Platforms",  cx:1460, cy:298, w:168, h:60,  type:"discovery",Icon:Users,      color:"#fb923c" },
-  { id:"perp0",   label:"SERPER",          sub:"Web search · live dig",    cx:140,  cy:420, w:160, h:62,  type:"ai-yellow",  Icon:Zap,        color:"#9CFF1A" },
-  { id:"exa",     label:"EXA NEURAL",      sub:"Semantic People Search",     cx:345,  cy:420, w:148, h:62,  type:"ai-yellow",  Icon:Compass,    color:"#9CFF1A" },
-  { id:"tavily",  label:"TAVILY AI",       sub:"AI-native Web Search",       cx:545,  cy:420, w:148, h:62,  type:"ai-yellow",  Icon:Rss,        color:"#9CFF1A" },
-  { id:"groq",    label:"GROQ LLM",        sub:"Multi-model · dig agent",     cx:800,  cy:420, w:160, h:62,  type:"ai-lime",  Icon:Brain,      color:"#b8ff4d" },
-  { id:"gemini",  label:"GEMINI",          sub:"Boss · grounded judgment",   cx:1040, cy:420, w:148, h:62,  type:"ai-yellow",  Icon:Sparkles,   color:"#9CFF1A" },
-  { id:"perpfu",  label:"FOLLOW-UP",       sub:"Adaptive dig follow-up",         cx:1250, cy:420, w:160, h:62,  type:"ai-yellow",  Icon:RefreshCw,  color:"#9CFF1A" },
-  { id:"semantic",label:"SEMANTIC ENGINE", sub:"MiniLM · Embeddings",        cx:460,  cy:540, w:192, h:62,  type:"analysis", Icon:GitMerge,   color:"#a78bfa" },
-  { id:"bayesian",label:"BAYESIAN SCORE",  sub:"Dynamic Priority",           cx:1020, cy:540, w:192, h:62,  type:"analysis", Icon:Layers,     color:"#a78bfa" },
-  { id:"graph",   label:"GRAPH ENGINE",    sub:"Relationship Synthesis",     cx:260,  cy:652, w:178, h:62,  type:"core",     Icon:Network,    color:"#a78bfa" },
-  { id:"mcts",    label:"PATH CORE",        sub:"Adaptive Pathfinding",       cx:800,  cy:657, w:228, h:78,  type:"reactor",  Icon:Cpu,        color:"#b8ff4d" },
-  { id:"prac",    label:"PRAC ENGINE",     sub:"Planner · Analyst · Critic", cx:1340, cy:652, w:178, h:62,  type:"core",     Icon:Activity,   color:"#a78bfa" },
-  { id:"evidence", label:"EVIDENCE REVIEW", sub:"Research Path Assessment", cx:800, cy:768, w:244, h:54, type:"output", Icon:Target, color:"#fbbf24" },
+  /* Free dig bureau map — model chooses tools; not a fixed pipeline */
+  { id:"target",  label:"TARGET",          sub:"Person · company · query",   cx:800,  cy:72,  w:220, h:52,  type:"input",    Icon:Crosshair, color:"#e8e0cc" },
+
+  /* Dig core — unconstrained ReAct agent */
+  { id:"mcts",    label:"FREE DIG",        sub:"Model chooses next step",    cx:800,  cy:200, w:240, h:72,  type:"reactor",  Icon:Cpu,        color:"#b8ff4d" },
+  { id:"groq",    label:"GROQ",            sub:"Dig capacity · primary",     cx:560,  cy:200, w:150, h:56,  type:"ai-lime",  Icon:Brain,      color:"#b8ff4d" },
+  { id:"gemini",  label:"GEMINI",          sub:"Boss · judgment",            cx:1040, cy:200, w:150, h:56,  type:"ai-yellow",Icon:Sparkles,   color:"#9CFF1A" },
+  { id:"perpfu",  label:"FOLLOW-UP",       sub:"Adaptive re-query",          cx:1280, cy:200, w:150, h:56,  type:"ai-yellow",Icon:RefreshCw,  color:"#9CFF1A" },
+
+  /* Search — model picks queries */
+  { id:"perp0",   label:"SERPER",          sub:"Web search",                 cx:280,  cy:340, w:150, h:56,  type:"ai-yellow",Icon:Zap,        color:"#9CFF1A" },
+  { id:"tavily",  label:"TAVILY",          sub:"AI web search",              cx:460,  cy:340, w:150, h:56,  type:"ai-yellow",Icon:Rss,        color:"#9CFF1A" },
+  { id:"exa",     label:"EXA",             sub:"Semantic search",            cx:640,  cy:340, w:150, h:56,  type:"ai-yellow",Icon:Compass,    color:"#9CFF1A" },
+  { id:"webdisc", label:"VISIT",           sub:"Open pages · extract",       cx:820,  cy:340, w:150, h:56,  type:"discovery",Icon:Eye,        color:"#fb923c" },
+  { id:"deepweb", label:"HARVEST",         sub:"Domain · contacts",          cx:1000, cy:340, w:150, h:56,  type:"discovery",Icon:Search,     color:"#fb923c" },
+  { id:"inhouse", label:"RDAP / DNS",      sub:"Domain intel",               cx:1180, cy:340, w:150, h:56,  type:"discovery",Icon:Globe,      color:"#fb923c" },
+  { id:"maigret", label:"FOOTPRINT",       sub:"Maigret · Holehe",           cx:1360, cy:340, w:150, h:56,  type:"discovery",Icon:Users,      color:"#fb923c" },
+
+  /* Registries — tools, not a mandatory first stage */
+  { id:"edgar",   label:"EDGAR",           sub:"SEC filings",                cx:200,  cy:480, w:140, h:54,  type:"registry", Icon:BarChart2,  color:"#38bdf8" },
+  { id:"ch",      label:"COMP HOUSE",      sub:"UK officers",                cx:360,  cy:480, w:140, h:54,  type:"registry", Icon:Building2,  color:"#38bdf8" },
+  { id:"hmlr",    label:"UK LAND",         sub:"Property",                   cx:520,  cy:480, w:140, h:54,  type:"registry", Icon:MapPin,     color:"#38bdf8" },
+  { id:"faa",     label:"FAA",             sub:"Aircraft",                   cx:680,  cy:480, w:140, h:54,  type:"registry", Icon:Plane,      color:"#38bdf8" },
+  { id:"brreg",   label:"EU REGS",         sub:"BRREG · ARES",               cx:840,  cy:480, w:140, h:54,  type:"registry", Icon:Globe,      color:"#38bdf8" },
+  { id:"occrp",   label:"OCCRP",           sub:"Sanctions",                  cx:1000, cy:480, w:140, h:54,  type:"registry", Icon:Shield,     color:"#38bdf8" },
+  { id:"hnwi",    label:"HNWI",            sub:"Wealth signals",             cx:1160, cy:480, w:140, h:54,  type:"registry", Icon:TrendingUp, color:"#38bdf8" },
+  { id:"whoxy",   label:"WHOIS",           sub:"RDAP · domain",              cx:1320, cy:480, w:140, h:54,  type:"registry", Icon:Rss,        color:"#38bdf8" },
+  { id:"opensky", label:"OPENSKY",         sub:"Flight track",               cx:1480, cy:480, w:110, h:54,  type:"discovery",Icon:Radio,      color:"#fb923c" },
+
+  /* Outcome — card is the answer */
+  { id:"prac",    label:"CRITIC",          sub:"Review · replan",            cx:480,  cy:620, w:160, h:56,  type:"core",     Icon:Activity,   color:"#a78bfa" },
+  { id:"semantic",label:"EMBED",           sub:"Similarity",                 cx:680,  cy:620, w:140, h:56,  type:"analysis", Icon:GitMerge,   color:"#a78bfa" },
+  { id:"bayesian",label:"SCORE",           sub:"Priority",                   cx:860,  cy:620, w:140, h:56,  type:"analysis", Icon:Layers,     color:"#a78bfa" },
+  { id:"graph",   label:"GRAPH",           sub:"Links",                      cx:1040, cy:620, w:140, h:56,  type:"core",     Icon:Network,    color:"#a78bfa" },
+  { id:"evidence",label:"CARD",            sub:"Contact route · sources",    cx:800,  cy:740, w:260, h:60,  type:"output",   Icon:Target,     color:"#fbbf24" },
 ];
 
 const NM = Object.fromEntries(NODES.map(n => [n.id, n]));
 
 const EDGES: EdgeDef[] = [
-  {id:"t-faa",    from:"target", to:"faa"    },
-  {id:"t-edgar",  from:"target", to:"edgar"  },
-  {id:"t-hmlr",   from:"target", to:"hmlr"   },
-  {id:"t-ch",     from:"target", to:"ch"     },
-  {id:"t-hnwi",   from:"target", to:"hnwi"   },
-  {id:"t-occrp",  from:"target", to:"occrp"  },
-  {id:"t-brreg",  from:"target", to:"brreg"  },
-  {id:"t-whoxy",  from:"target", to:"whoxy"  },
-  {id:"faa-inh",  from:"faa",    to:"inhouse"},
-  {id:"edgar-web",from:"edgar",  to:"webdisc"},
-  {id:"hmlr-web", from:"hmlr",   to:"webdisc"},
-  {id:"ch-inh",   from:"ch",     to:"inhouse"},
-  {id:"hnwi-dw",  from:"hnwi",   to:"deepweb"},
-  {id:"occrp-sky",from:"occrp",  to:"opensky"},
-  {id:"brreg-inh",from:"brreg",  to:"inhouse"},
-  {id:"whoxy-inh",from:"whoxy",  to:"inhouse"},
-  {id:"inh-p0",   from:"inhouse",to:"perp0"  },
-  {id:"inh-exa",  from:"inhouse",to:"exa"    },
-  {id:"web-p0",   from:"webdisc",to:"perp0"  },
-  {id:"web-exa",  from:"webdisc",to:"exa"    },
-  {id:"web-tav",  from:"webdisc",to:"tavily" },
-  {id:"web-groq", from:"webdisc",to:"groq"   },
-  {id:"dw-groq",  from:"deepweb",to:"groq"   },
-  {id:"dw-gem",   from:"deepweb",to:"gemini" },
-  {id:"dw-fu",    from:"deepweb",to:"perpfu" },
-  {id:"sky-fu",   from:"opensky",to:"perpfu" },
-  {id:"sky-mai",  from:"opensky",to:"maigret"},
-  {id:"web-mai",  from:"webdisc",to:"maigret"},
-  {id:"mai-groq", from:"maigret",to:"groq"   },
-  {id:"mai-bay",  from:"maigret",to:"bayesian"},
-  {id:"web-gem",  from:"webdisc",to:"gemini" },
-  {id:"p0-groq",  from:"perp0",  to:"groq"   },
-  {id:"exa-groq", from:"exa",    to:"groq"   },
-  {id:"tav-groq", from:"tavily", to:"groq"   },
-  {id:"groq-fu",  from:"groq",   to:"perpfu" },
-  {id:"gem-fu",   from:"gemini", to:"perpfu" },
-  {id:"p0-sem",   from:"perp0",  to:"semantic"},
-  {id:"gem-sem",  from:"gemini", to:"semantic"},
-  {id:"groq-sem", from:"groq",   to:"semantic"},
-  {id:"groq-bay", from:"groq",   to:"bayesian"},
-  {id:"fu-bay",   from:"perpfu", to:"bayesian"},
-  {id:"sem-gr",   from:"semantic",to:"graph" },
-  {id:"sem-mc",   from:"semantic",to:"mcts"  },
-  {id:"bay-mc",   from:"bayesian",to:"mcts"  },
-  {id:"bay-pr",   from:"bayesian",to:"prac"  },
-  {id:"gr-mc",    from:"graph",  to:"mcts"   },
-  {id:"mc-pr",    from:"mcts",   to:"prac"   },
-  {id:"mc-evidence", from:"mcts", to:"evidence" },
-  {id:"pr-evidence", from:"prac", to:"evidence" },
-  {id:"mc-groq-a",from:"mcts",   to:"groq",  adaptive:true},
-  {id:"mc-fu-a",  from:"mcts",   to:"perpfu",adaptive:true},
-  {id:"pr-fu-a",  from:"prac",   to:"perpfu",adaptive:true},
+  /* Target → dig core */
+  {id:"t-dig", from:"target", to:"mcts"},
+  {id:"t-groq", from:"target", to:"groq"},
+  {id:"t-gem", from:"target", to:"gemini"},
+  /* Dig capacity links */
+  {id:"dig-groq", from:"mcts", to:"groq"},
+  {id:"dig-gem", from:"mcts", to:"gemini"},
+  {id:"dig-fu", from:"mcts", to:"perpfu", adaptive:true},
+  /* Free dig → search tools (model chooses) */
+  {id:"dig-serper", from:"mcts", to:"perp0"},
+  {id:"dig-tav", from:"mcts", to:"tavily"},
+  {id:"dig-exa", from:"mcts", to:"exa"},
+  {id:"dig-visit", from:"mcts", to:"webdisc"},
+  {id:"dig-harv", from:"mcts", to:"deepweb"},
+  {id:"dig-rdap", from:"mcts", to:"inhouse"},
+  {id:"dig-foot", from:"mcts", to:"maigret"},
+  /* Free dig → registries (optional tools) */
+  {id:"dig-edgar", from:"mcts", to:"edgar"},
+  {id:"dig-ch", from:"mcts", to:"ch"},
+  {id:"dig-hmlr", from:"mcts", to:"hmlr"},
+  {id:"dig-faa", from:"mcts", to:"faa"},
+  {id:"dig-eu", from:"mcts", to:"brreg"},
+  {id:"dig-occ", from:"mcts", to:"occrp"},
+  {id:"dig-hnwi", from:"mcts", to:"hnwi"},
+  {id:"dig-whois", from:"mcts", to:"whoxy"},
+  {id:"dig-sky", from:"mcts", to:"opensky"},
+  /* Search capacity into dig LLM */
+  {id:"serper-groq", from:"perp0", to:"groq"},
+  {id:"tav-groq", from:"tavily", to:"groq"},
+  {id:"exa-groq", from:"exa", to:"groq"},
+  /* Outcome path */
+  {id:"dig-prac", from:"mcts", to:"prac"},
+  {id:"dig-sem", from:"mcts", to:"semantic"},
+  {id:"dig-bay", from:"mcts", to:"bayesian"},
+  {id:"dig-graph", from:"mcts", to:"graph"},
+  {id:"dig-card", from:"mcts", to:"evidence"},
+  {id:"prac-card", from:"prac", to:"evidence"},
+  {id:"bay-card", from:"bayesian", to:"evidence"},
+  {id:"fu-dig", from:"perpfu", to:"mcts", adaptive:true},
 ];
 
 const WAVES: Wave[] = [
-  { nodes:["target"],                               edges:["t-faa","t-edgar","t-hmlr","t-ch","t-hnwi","t-occrp","t-brreg","t-whoxy"],            label:"TARGETING  —  parsing entity query" },
-  { nodes:["faa","edgar","hmlr","ch","hnwi","occrp","brreg","whoxy"],edges:["faa-inh","edgar-web","hmlr-web","ch-inh","hnwi-dw","occrp-sky","brreg-inh","whoxy-inh"],label:"REGISTRY STACK  —  scanning eight public registries in parallel" },
-  { nodes:["inhouse","webdisc","deepweb","opensky","maigret"], edges:["inh-p0","inh-exa","web-p0","web-exa","web-tav","web-groq","web-gem","web-mai","dw-groq","dw-gem","dw-fu","sky-fu","sky-mai"], label:"DISCOVERY LAYER  —  web sources + Maigret cross-platform expansion" },
-  { nodes:["perp0","exa","tavily","gemini"],          edges:["p0-groq","exa-groq","tav-groq","p0-sem","gem-sem","gem-fu"],    label:"AI PHASE 0  —  Perplexity · Gemini · Tavily · Exa in parallel" },
-  { nodes:["groq"],                                  edges:["groq-fu","groq-sem","groq-bay"],                                label:"GROQ LLM  —  structured extraction from Exa · Tavily · web text" },
-  { nodes:["perpfu"],                                edges:["fu-bay","mai-groq","mai-bay"],                                  label:"PERPLEXITY+  —  iterative follow-up" },
-  { nodes:["semantic","bayesian"],                   edges:["sem-gr","sem-mc","bay-mc","bay-pr"],                            label:"SYNTHESIS  —  embedding profiles, scoring priorities" },
-  { nodes:["graph"],                                 edges:["gr-mc"],                                                        label:"GRAPH ENGINE  —  relationship network" },
-  { nodes:["mcts"],                                  edges:["mc-pr","mc-groq-a","mc-fu-a"],                                 label:"PATH CORE  —  adaptive pathfinding", adaptive:true },
-  { nodes:["groq","perpfu"],                         edges:["groq-fu","fu-bay","pr-fu-a"],                                  label:"ADAPTIVE LOOP  —  re-querying with new graph evidence", adaptive:true },
-  { nodes:["prac"],                                  edges:["pr-evidence","mc-evidence"],                                 label:"PRAC ENGINE  —  planner · retriever · analyst · critic" },
-  { nodes:["evidence"],                              edges:[],                                                               label:"OUTPUT  —  evidence path ready for analyst review" },
-  { nodes:[],                                        edges:[],                                                               label:"REACTOR COOLING  —  cycle complete" },
+  { nodes:["target"], edges:["t-dig","t-groq","t-gem"], label:"TARGET  —  entity or query for free dig" },
+  { nodes:["mcts","groq","gemini"], edges:["dig-groq","dig-gem"], label:"FREE DIG  —  model decides the next tool" },
+  { nodes:["perp0","tavily","exa","webdisc"], edges:["dig-serper","dig-tav","dig-exa","dig-visit","serper-groq","tav-groq","exa-groq"], label:"SEARCH & VISIT  —  queries and pages the model chooses" },
+  { nodes:["edgar","ch","hmlr","faa","brreg","occrp","hnwi","whoxy","maigret","inhouse","deepweb","opensky"], edges:["dig-edgar","dig-ch","dig-hmlr","dig-faa","dig-eu","dig-occ","dig-hnwi","dig-whois","dig-foot","dig-rdap","dig-harv","dig-sky"], label:"TOOLS  —  registries and OSINT when the model needs them" },
+  { nodes:["prac","semantic","bayesian","graph","evidence"], edges:["dig-prac","dig-sem","dig-bay","dig-graph","dig-card","prac-card","bay-card"], label:"CARD  —  contact route and evidence" },
+  { nodes:["perpfu","mcts","groq"], edges:["dig-fu","fu-dig"], label:"ADAPTIVE LOOP  —  re-query with new evidence", adaptive:true },
 ];
 
 // ── Mobile phase groups ───────────────────────────────────────────────────────
 const MOBILE_PHASES = [
   { label:"INPUT",      detail:"Target becomes a research brief", nodeIds:["target"]                                              },
-  { label:"REGISTRIES", detail:"Public records establish the evidence base", nodeIds:["faa","edgar","hmlr","ch","hnwi","occrp","brreg","whoxy"] },
-  { label:"DISCOVERY",  detail:"Open sources expand identity and activity", nodeIds:["inhouse","webdisc","deepweb","opensky","maigret"]     },
+  { label:"TOOLS", detail:"Registries the model may call", nodeIds:["faa","edgar","hmlr","ch","hnwi","occrp","brreg","whoxy"] },
+  { label:"SEARCH",  detail:"Web search and page visits the model chooses", nodeIds:["inhouse","webdisc","deepweb","opensky","maigret"]     },
   { label:"AI LAYER",   detail:"Search, extraction, and adaptive follow-up", nodeIds:["perp0","exa","tavily","gemini","groq","perpfu"]       },
   { label:"SYNTHESIS",  detail:"Evidence becomes vectors and priority", nodeIds:["semantic","bayesian"]                                 },
   { label:"CORE",       detail:"Relationships and paths are evaluated", nodeIds:["graph","mcts","prac"]                                 },
@@ -702,7 +691,7 @@ function AtlasPhaseStrip({ state, compact = false }: { state?: AtlasLiveState | 
     }}>
       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:8 }}>
         <span style={{ fontSize: compact ? 11 : 12, letterSpacing:"0.16em", color:"#526b86" }}>
-          {running ? `OPEN DIG · PHASE ${activePhase}` : "OPEN DIG · STANDBY"}
+          {running ? `FREE DIG · PHASE ${activePhase}` : "FREE DIG · STANDBY"}
         </span>
         <span style={{ fontSize: compact ? 10 : 12, letterSpacing:"0.12em", color:running ? "#9CFF1A" : "#3a5070" }}>
           {running ? (state?.sourceStep != null ? `SOURCE ${state.sourceStep}` : "PROCESSING") : "STANDBY"}
@@ -1117,7 +1106,7 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
                     ACTIVE ROD WALL
                   </div>
                   <div style={{ fontSize: 12, letterSpacing:"0.08em", color:"#3a5070", marginTop:3 }}>
-                    {isLive ? "LIVE ROUTES · PARALLEL WORKERS LIT" : "FULL PIPELINE · TAP-THROUGH DATA ROUTES"}
+                    {isLive ? "LIVE DIG · TOOLS THE MODEL CHOSE" : "FREE DIG · MODEL CHOOSES TOOLS · CARD IS THE ANSWER"}
                   </div>
                 </div>
                 <div style={{ display:"flex", alignItems:"center", gap:7, fontSize: 12, letterSpacing:"0.1em", color:"#3a5070" }}>
@@ -1595,10 +1584,10 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
           </div>
           <div style={{ minWidth:200, flexShrink:0 }}>
             <div style={{ fontSize:12, fontWeight:700, letterSpacing:"0.2em", color:"#e8e0cc" }}>
-              APEX ATLAS  —  INTELLIGENCE REACTOR
+              APEX ATLAS  —  FREE DIG REACTOR
             </div>
             <div style={{ fontSize: 12, letterSpacing:"0.16em", color:"#3a5070", marginTop:2 }}>
-              ADAPTIVE RESEARCH ENGINE  ·  TARGET-AWARE MODE
+              FREE DIG  ·  MODEL CHOOSES TOOLS  ·  CARD IS THE ANSWER
             </div>
           </div>
           {launchSlot ? (
@@ -2117,9 +2106,8 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
 
         {/* Section labels */}
         {[
-          {y:178,label:"REGISTRIES"},{y:298,label:"DISCOVERY"},
-          {y:420,label:"AI  ANALYSIS"},{y:540,label:"SYNTHESIS"},
-          {y:652,label:"CORE"},{y:768,label:"OUTPUT"},
+          {y:200,label:"DIG CORE"},{y:340,label:"SEARCH · VISIT"},
+          {y:480,label:"TOOLS"},{y:620,label:"OUTCOME"},
         ].map(({y,label}) => (
           <div key={label} style={{
             position:"absolute", left:8, top:y-6,
@@ -2130,7 +2118,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
         ))}
 
         {/* Horizontal dividers */}
-        {[236,356,478,600,716].map(y => (
+        {[268,400,540,680].map(y => (
           <div key={y} style={{
             position:"absolute", left:28, right:28, top:y, height:1,
             background:"linear-gradient(90deg,transparent,#192840 20%,#192840 80%,transparent)",
