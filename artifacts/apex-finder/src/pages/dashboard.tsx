@@ -251,7 +251,7 @@ export default function Dashboard() {
             People worth<br className="hidden sm:block" /> knowing.
           </h1>
           <p className="mt-5 max-w-lg text-sm leading-6 text-stone-400 md:text-[15px]">
-            Run the public-records pipeline — discovery, attribution, contacts — then follow live work on the reactor. Only real research lands on this desk.
+            Run free dig — the model chooses tools, visits sources, and builds contact routes. Only real research lands on this desk.
           </p>
         </div>
         <div className="relative z-10 flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center md:justify-end">

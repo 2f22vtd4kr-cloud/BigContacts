@@ -273,7 +273,7 @@ function parseEntityNames(value: unknown): string[] {
 // ── Node layout (desktop coords) ─────────────────────────────────────────────
 const NODES: NodeDef[] = [
   /* Free dig bureau map — model chooses tools; not a fixed pipeline */
-  { id:"target",  label:"TARGET",          sub:"Person · company · query",   cx:800,  cy:72,  w:220, h:52,  type:"input",    Icon:Crosshair, color:"#e8e0cc" },
+  { id:"target",  label:"TARGET",          sub:"Person · company · query",   cx:800,  cy:72,  w:240, h:52,  type:"input",    Icon:Crosshair, color:"#e8e0cc" },
 
   /* Dig core — unconstrained ReAct agent */
   { id:"mcts",    label:"FREE DIG",        sub:"Model chooses next step",    cx:800,  cy:200, w:240, h:72,  type:"reactor",  Icon:Cpu,        color:"#b8ff4d" },
@@ -299,7 +299,7 @@ const NODES: NodeDef[] = [
   { id:"occrp",   label:"OCCRP",           sub:"Sanctions",                  cx:1000, cy:480, w:140, h:54,  type:"registry", Icon:Shield,     color:"#38bdf8" },
   { id:"hnwi",    label:"HNWI",            sub:"Wealth signals",             cx:1160, cy:480, w:140, h:54,  type:"registry", Icon:TrendingUp, color:"#38bdf8" },
   { id:"whoxy",   label:"WHOIS",           sub:"RDAP · domain",              cx:1320, cy:480, w:140, h:54,  type:"registry", Icon:Rss,        color:"#38bdf8" },
-  { id:"opensky", label:"OPENSKY",         sub:"Flight track",               cx:1480, cy:480, w:110, h:54,  type:"discovery",Icon:Radio,      color:"#fb923c" },
+  { id:"opensky", label:"OPENSKY",         sub:"Flight track",               cx:1460, cy:480, w:130, h:54,  type:"discovery",Icon:Radio,      color:"#fb923c" },
 
   /* Outcome — card is the answer */
   { id:"prac",    label:"CRITIC",          sub:"Review · replan",            cx:480,  cy:620, w:160, h:56,  type:"core",     Icon:Activity,   color:"#a78bfa" },
@@ -631,17 +631,19 @@ function MobileNodeCard({ n, on, dim, status = "idle", compact = false }: { n: N
       </div>
       <div style={{ flex:1, minWidth:0 }}>
         <div style={{
-           fontSize: compact ? 11 : 13, fontWeight:700, letterSpacing:compact ? "0.04em" : "0.1em",
+           fontSize: compact ? 10 : 11, fontWeight:700, letterSpacing:compact ? "0.02em" : "0.04em",
            color: on ? statusColor : dim ? statusColor+"88" : "#253850",
           transition:"color 0.4s",
-           overflow:"hidden", textOverflow:"ellipsis", whiteSpace:compact ? "normal" : "nowrap",
+           overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
+           maxWidth: "100%",
         }}>
           {n.label}
         </div>
         <div style={{
-           fontSize: compact ? 10 : 12, color: on ? statusColor+"99" : dim ? statusColor+"60" : "#1a2d42",
-           marginTop:compact ? 0 : 1, letterSpacing:compact ? "0.02em" : "0.06em",
-           overflow:"hidden", textOverflow:"ellipsis", whiteSpace:compact ? "nowrap" : "nowrap",
+           fontSize: compact ? 9 : 10, color: on ? statusColor+"99" : dim ? statusColor+"60" : "#1a2d42",
+           marginTop:compact ? 0 : 1, letterSpacing:compact ? "0.01em" : "0.02em",
+           overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap",
+           maxWidth: "100%",
           transition:"color 0.4s",
         }}>
           {n.sub}

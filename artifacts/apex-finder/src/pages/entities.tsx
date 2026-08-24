@@ -826,6 +826,13 @@ export default function EntityLedger() {
   // Dev mock bypasses network loading/error states
   const showLoading = isMockMode() ? false : isLoadingEntities;
   const showError = isMockMode() ? false : isEntitiesError;
+  const coldEmptyDesk =
+    !showLoading &&
+    !showError &&
+    (displayEntities?.length ?? 0) === 0 &&
+    !(searchTerm || "").trim() &&
+    !hotOnly &&
+    !anyContactFilter;
 
   return (
     <div className="flex h-full min-w-0 w-full max-w-full flex-col overflow-hidden">
@@ -949,6 +956,7 @@ export default function EntityLedger() {
             </button>
           )}
 
+          {!coldEmptyDesk && (
           <button
             type="button"
             onClick={() => { setPurgeOpen(true); setPurgePhrase(""); }}
@@ -957,6 +965,7 @@ export default function EntityLedger() {
           >
             <Trash2 className="h-3 w-3" /> Clear ledger
           </button>
+          )}
 
           <button
             onClick={() => openAddModal()}
@@ -966,6 +975,7 @@ export default function EntityLedger() {
           </button>
         </div>
 
+{!coldEmptyDesk && (
         {/* Contact richness + confidence + hot filter row */}
         <div className="flex items-center gap-1.5 px-4 py-2 border-b border-[#9CFF1A]/08 bg-card/10 flex-shrink-0 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
           <span className="text-[11px] font-mono text-muted-foreground uppercase tracking-widest shrink-0">Route</span>
@@ -1040,7 +1050,7 @@ export default function EntityLedger() {
             {hideBillionaires ? "[X] " : ""}No Billionaires
           </button>
         </div>
-        </div>
+)}
 
         {/* Live Intel slide-over sidebar */}
         <div className={cn(
@@ -1740,3 +1750,5 @@ export default function EntityLedger() {
     </div>
   );
 }
+
+)}

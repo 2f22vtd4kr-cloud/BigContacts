@@ -77,12 +77,16 @@ interface SystemStatus {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-const PROVIDER_LABELS: Record<keyof AIKeyStatus, string> = {
-  groq:       "Groq LLaMA",
+const PROVIDER_LABELS: Record<string, string> = {
+  groq:       "Groq",
   perplexity: "Perplexity",
   gemini:     "Gemini",
   tavily:     "Tavily",
   exa:        "Exa",
+  serper:     "Serper",
+  mistral:    "Mistral",
+  nvidia:     "NVIDIA",
+  nvidiaNim:  "NVIDIA NIM",
 };
 
 const OPEN_RESEARCH_LABELS = {
@@ -132,7 +136,7 @@ function SlotBar({ active, cooling }: { active: number; cooling: number }) {
   );
 }
 
-function ProviderCard({ name, slots }: { name: keyof AIKeyStatus; slots: AIKeySlot[] }) {
+function ProviderCard({ name, slots }: { name: string; slots: AIKeySlot[] }) {
   const active = slots.filter((s) => s.state === "active").length;
   const rateLimited = slots.filter((s) => s.state === "rate_limited").length;
   const configured = slots.filter((s) => s.state !== "missing").length;
@@ -157,7 +161,7 @@ function ProviderCard({ name, slots }: { name: keyof AIKeyStatus; slots: AIKeySl
       <div className="relative flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="font-display text-[13px] font-semibold tracking-tight text-foreground">
-            {PROVIDER_LABELS[name]}
+            {PROVIDER_LABELS[name] ?? (name.charAt(0).toUpperCase() + name.slice(1))}
           </div>
           <div className="mt-0.5 font-mono text-[12px] uppercase tracking-[0.14em] text-muted-foreground/70">
             {configured === 0
@@ -310,8 +314,8 @@ export default function SystemStatusPage() {
   }, [fetchStatus]);
 
   const aiProviders = status?.ai
-    ? (Object.keys(status.ai) as Array<keyof AIKeyStatus>)
-    : (["groq", "perplexity", "gemini", "tavily", "exa"] as Array<keyof AIKeyStatus>);
+    ? Object.keys(status.ai).filter((k) => Array.isArray((status.ai as any)[k]))
+    : (["groq", "perplexity", "gemini", "tavily", "exa"]);
 
   const totalActive = status?.ai
     ? aiProviders.reduce((sum, k) => sum + (status.ai[k]?.filter(s => s.state === "active").length ?? 0), 0)
@@ -428,11 +432,11 @@ export default function SystemStatusPage() {
         </div>
       )}
 
-{aiProviders.map(key => (
+{aiProviders.map((key) => (
             <ProviderCard
               key={key}
               name={key}
-              slots={status?.ai[key] ?? []}
+              slots={(status?.ai as any)?.[key] ?? []}
             />
           ))}
         </div>

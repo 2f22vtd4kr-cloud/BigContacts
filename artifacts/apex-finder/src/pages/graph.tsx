@@ -753,22 +753,7 @@ function GraphViewerInner() {
         </div>
       )}
 
-      {/* ── No entities at all (DB empty) ── */}
-      {!isError && allEntities !== undefined && allEntities.length === 0 && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center z-20 px-6 text-center space-y-3">
-          <div className="grid h-14 w-14 place-items-center rounded-2xl border border-[#9CFF1A]/12 bg-card/50">
-            <Network className="w-6 h-6 text-muted-foreground/50" aria-hidden />
-          </div>
-          <div className="font-mono text-sm font-semibold uppercase tracking-widest text-foreground">No entities yet</div>
-          <p className="text-xs text-muted-foreground max-w-sm leading-relaxed">
-            Load registries or run Discover so the graph has people and companies to link.
-          </p>
-          <div className="flex flex-wrap justify-center gap-2 pt-1">
-            <Link href="/data-sources" className="inline-flex min-h-[36px] items-center rounded-lg border border-primary/30 bg-primary/10 px-3 py-1.5 text-[11px] font-semibold text-primary">Data sources</Link>
-            <Link href="/search" className="inline-flex min-h-[36px] items-center rounded-lg border border-[#9CFF1A]/12 bg-card/60 px-3 py-1.5 text-[11px] font-semibold text-foreground hover:border-primary/40">Discover</Link>
-          </div>
-        </div>
-      )}
+
 
       {/* ── Loading ── */}
       {(isLoading || (width === 0 && gData.nodes.length === 0)) && (
@@ -778,17 +763,40 @@ function GraphViewerInner() {
         </div>
       )}
 
-      {/* ── Empty state — nothing to draw ── */}
-      {!isLoading && width > 0 && gData.nodes.length === 0 && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center z-0 px-6 text-center space-y-3">
-          <Network className="w-10 h-10 text-muted-foreground/30" aria-hidden />
-          <div className="text-sm font-medium text-foreground">No people on the graph yet</div>
-          <p className="text-xs text-muted-foreground max-w-sm">
-            Open the ledger and pick someone, or run Atlas so discovery fills the desk.
-          </p>
-          <div className="flex flex-wrap justify-center gap-2">
-            <Link href="/profiles" className="inline-flex min-h-[36px] items-center rounded-lg border border-primary/30 bg-primary/10 px-3 py-1.5 text-[11px] font-semibold text-primary">Open ledger</Link>
-            <Link href="/reactor" className="inline-flex min-h-[36px] items-center rounded-lg border border-lime-400/30 bg-lime-400/10 px-3 py-1.5 text-[11px] font-semibold text-lime-100">Live reactor</Link>
+      {/* ── Empty graph — single state only ── */}
+      {!isError && !isLoading && width > 0 && gData.nodes.length === 0 && (
+        <div
+          className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 px-6 text-center"
+          data-testid="graph-empty"
+        >
+          <div className="grid h-14 w-14 place-items-center rounded-2xl border border-[#9CFF1A]/20 bg-[#9CFF1A]/[0.07]">
+            <Network className="h-6 w-6 text-[#9CFF1A]/70" aria-hidden />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-stone-100">No people on the graph yet</p>
+            <p className="mx-auto mt-1.5 max-w-[280px] text-xs leading-relaxed text-stone-400">
+              Launch Apex Atlas or open the ledger so relationships can appear. No demo nodes.
+            </p>
+          </div>
+          <div className="mt-1 flex w-full max-w-xs flex-col items-stretch gap-2 sm:max-w-none sm:flex-row sm:flex-wrap sm:justify-center">
+            <Link
+              href="/reactor"
+              className="inline-flex min-h-[44px] items-center justify-center rounded-xl bg-gradient-to-r from-[#9CFF1A] to-[#5eead4] px-4 py-2.5 text-xs font-bold text-black"
+            >
+              Launch Apex Atlas
+            </Link>
+            <Link
+              href="/profiles"
+              className="inline-flex min-h-[40px] items-center justify-center rounded-xl border border-[#9CFF1A]/35 bg-[#9CFF1A]/10 px-3 py-2.5 text-xs font-semibold text-[#d4ff8a]"
+            >
+              Open ledger
+            </Link>
+            <Link
+              href="/search"
+              className="inline-flex min-h-[40px] items-center justify-center rounded-xl border border-[#9CFF1A]/15 px-3 py-2.5 text-xs font-medium text-stone-300"
+            >
+              Discover
+            </Link>
           </div>
         </div>
       )}
