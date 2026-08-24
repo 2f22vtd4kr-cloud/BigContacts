@@ -162,6 +162,15 @@ body {
   border-radius: inherit;
   image-rendering: auto;
   display: block;
+  /* Oil is the surface — not the message. Keep it under the label. */
+  opacity: 0.92;
+  z-index: 0;
+}
+@media (max-width: 639px) {
+  .atlas-launch-glow canvas {
+    opacity: 0.78;
+    filter: saturate(0.92) contrast(0.96);
+  }
 }
 
 .atlas-launch-glow > .atlas-liquid-label {
@@ -169,11 +178,13 @@ body {
   z-index: 2;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 0.5rem;
   /* No dark plate — oil shows through; type carries the shimmer */
-  padding: 0;
+  padding: 0 0.25rem;
   background: transparent;
   box-shadow: none;
+  max-width: 100%;
 }
 
 /* Custom type: iridescent sheen clipped to glyphs — not a backdrop plate */
@@ -183,7 +194,7 @@ body {
   font-weight: 750;
   font-size: inherit;
   letter-spacing: 0.055em;
-  line-height: 1.2;
+  line-height: 1.25;
   -webkit-font-smoothing: antialiased;
   /* Fallback face if clip unsupported */
   color: #f4f0ff;
@@ -203,9 +214,19 @@ body {
   background-clip: text;
   -webkit-text-fill-color: transparent;
   /* Readable on bright oil without a dark pill */
-  filter: drop-shadow(0 1px 1.5px rgba(0, 0, 0, 0.85))
-          drop-shadow(0 0 8px rgba(140, 100, 255, 0.4));
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.95))
+          drop-shadow(0 0 10px rgba(0, 0, 0, 0.55))
+          drop-shadow(0 0 8px rgba(140, 100, 255, 0.35));
   animation: atlas-liquid-sheen 6s ease-in-out infinite;
+}
+@media (max-width: 639px) {
+  .atlas-liquid-type {
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    /* Prefer legibility over shimmer on phone */
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 1))
+            drop-shadow(0 0 12px rgba(0, 0, 0, 0.75));
+  }
 }
 @keyframes atlas-liquid-sheen {
   0%, 100% { background-position: 0% 50%; }

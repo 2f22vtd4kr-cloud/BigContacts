@@ -1589,11 +1589,12 @@ export function BureauOpsStage({
         })}
       </div>
 
-      <div className="grid gap-3 grid-cols-1 lg:grid-cols-2">
+      <div className={compact ? "flex flex-col gap-2.5" : "grid gap-3 grid-cols-1 xl:grid-cols-2"}>
         {scenes.map((s) => {
           const anyLive = scenes.some((x) => x.live);
           const focused = (focusId ?? scenes.find((x) => x.live)?.id ?? scenes[0]?.id) === s.id;
-          const dim = anyLive ? !s.live && !focused : !focused && scenes.length > 1;
+          // Side panel (compact): never dim/scale sibling cards — that reads as overlap mess
+          const dim = compact ? false : (anyLive ? !s.live && !focused : !focused && scenes.length > 1);
           return (
             <div
               key={s.id}
@@ -1607,9 +1608,12 @@ export function BureauOpsStage({
                 outline: focused ? "1px solid rgba(156,255,26,0.35)" : undefined,
                 borderRadius: 8,
                 scrollMarginTop: 12,
+                position: "relative",
+                zIndex: focused || s.live ? 2 : 1,
+                minWidth: 0,
               }}
             >
-              <SceneCard scene={s} />
+              <SceneCard scene={s} compact={compact} />
             </div>
           );
         })}

@@ -1672,8 +1672,8 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
             role="complementary"
             aria-label="Apex Atlas Live Desk"
             style={{
-              position:"absolute", top:64, right:18, width:400, maxHeight:"calc(100% - 80px)",
-              overflowY:"auto", zIndex:28, padding:"12px 12px 14px",
+              position:"absolute", top:64, right:16, width:420, maxWidth:"calc(100% - 32px)", maxHeight:"calc(100% - 80px)",
+              overflowY:"auto", overflowX:"hidden", zIndex:28, padding:"12px 12px 14px",
               border: atlasFailed
                 ? "1px solid #fb718566"
                 : atlasDone
@@ -1907,7 +1907,8 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
             )}
             <BureauOpsStage
               events={(deskQuery.trim() ? filteredDeskEvents : deskEvents) as any}
-              maxScenes={10}
+              maxScenes={4}
+              compact
               title=""
             />
           </div>

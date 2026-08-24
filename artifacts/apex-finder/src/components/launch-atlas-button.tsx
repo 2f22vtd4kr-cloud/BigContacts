@@ -16,11 +16,11 @@ type Variant = "primary" | "header" | "reactor" | "ghost";
 
 const VARIANT_CLASS: Record<Variant, string> = {
   primary:
-    "atlas-launch-glow h-12 w-full sm:w-auto px-7 text-sm tracking-tight",
+    "atlas-launch-glow min-h-[3.25rem] h-14 sm:h-12 w-full sm:w-auto px-6 sm:px-7 text-[15px] sm:text-sm tracking-wide sm:tracking-tight",
   header:
     "h-9 w-9 sm:w-auto sm:px-3.5 text-[11px] font-bold tracking-wide rounded-full bg-[#9CFF1A]/12 text-[#9CFF1A] border border-[#9CFF1A]/40 hover:bg-[#9CFF1A]/20 hover:border-[#b8ff4d]/50 active:scale-[0.97] active:brightness-95",
   reactor:
-    "atlas-launch-glow h-11 w-full sm:w-auto px-5 text-xs",
+    "atlas-launch-glow min-h-[3.25rem] h-14 sm:h-11 w-full sm:w-auto px-5 text-[15px] sm:text-sm tracking-wide",
   ghost:
     "atlas-outline-btn h-10 px-4 text-xs font-semibold active:scale-[0.97]",
 };
@@ -287,7 +287,7 @@ export function LaunchAtlasButton({
           )}
           <span
             className={cn(
-              "truncate max-w-[14rem] sm:max-w-none",
+              "truncate max-w-[min(100%,18rem)] sm:max-w-none",
               variant === "header" && "hidden sm:inline",
               (variant === "primary" || variant === "reactor") && !inFlight && "atlas-liquid-type",
             )}

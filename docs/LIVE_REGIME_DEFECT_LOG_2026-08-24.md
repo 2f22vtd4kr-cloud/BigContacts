@@ -276,3 +276,17 @@ _Append new live findings below with UTC timestamp. Do not delete prior entries.
 - Three entities on ledger; zero contact fields filled.  
 - Network ErrorBoundary confirmed.  
 - Document created: `docs/LIVE_REGIME_DEFECT_LOG_2026-08-24.md`.
+
+
+### 2026-08-24T06:35Z — desktop Live Desk overlap + mobile Launch noise
+
+**LIVE-15 · Desktop Live Desk overlapping windows (P0 UI)**  
+**Seen:** Screenshot — side panel cards stacked/colliding; 2-column grid inside ~400px panel; dim/scale on non-focus cards read as overlap mess; maxScenes=10 overcrowded.  
+**Fix (tip this commit):** `BureauOpsStage` `compact` → single-column flex stack, no dim/scale, `maxScenes={4}` on Reactor side panel, `overflowX: hidden`, panel maxWidth.  
+**Status:** Fixed in code — re-verify on Replit after rebuild.
+
+**LIVE-16 · Mobile Launch button: tiny type + oil noise (P1)**  
+**Seen:** Mobile reactor Launch full-width oil surface; label too small; reads as noise not CTA.  
+**Fix (tip this commit):** `h-14` / `text-[15px]` on mobile for primary+reactor; canvas opacity 0.78 on mobile; stronger label drop-shadow; keep oil style (do not replace surface).  
+**Status:** Fixed in code — re-verify mobile web after rebuild. Desktop oil style unchanged in structure.
+
