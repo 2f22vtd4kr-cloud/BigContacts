@@ -162,16 +162,10 @@ body {
   border-radius: inherit;
   image-rendering: auto;
   display: block;
-  /* Oil is the surface — not the message. Keep it under the label. */
-  opacity: 0.92;
+  /* Quiet oil underlay — never competes with the label (desktop + mobile) */
+  opacity: 0.42;
+  filter: saturate(0.75) contrast(0.9) brightness(0.88);
   z-index: 0;
-}
-@media (max-width: 639px) {
-  .atlas-launch-glow canvas {
-    /* Oil under label — not noise on top of type */
-    opacity: 0.55;
-    filter: saturate(0.85) contrast(0.94) brightness(0.92);
-  }
 }
 
 .atlas-launch-glow > .atlas-liquid-label {
@@ -188,68 +182,25 @@ body {
   max-width: 100%;
 }
 
-/* Custom type: iridescent sheen clipped to glyphs — not a backdrop plate */
+/* Launch label: solid, readable — no rainbow clip-text noise on desktop or mobile */
 .atlas-liquid-type {
   display: inline-block;
   font-family: inherit;
-  font-weight: 750;
+  font-weight: 800;
   font-size: inherit;
-  letter-spacing: 0.055em;
+  letter-spacing: 0.04em;
   line-height: 1.25;
   -webkit-font-smoothing: antialiased;
-  /* Fallback face if clip unsupported */
-  color: #f4f0ff;
-  background-image: linear-gradient(
-    95deg,
-    #ffffff 0%,
-    #d4c4ff 15%,
-    #7aefff 30%,
-    #ffffff 45%,
-    #ff9ad8 60%,
-    #a78bfa 75%,
-    #b8fff0 88%,
-    #ffffff 100%
-  );
-  background-size: 280% 100%;
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  /* Readable on bright oil without a dark pill */
+  color: #f8fafc !important;
+  -webkit-text-fill-color: #f8fafc !important;
+  background-image: none !important;
+  animation: none !important;
   filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.95))
-          drop-shadow(0 0 10px rgba(0, 0, 0, 0.55))
-          drop-shadow(0 0 8px rgba(140, 100, 255, 0.35));
-  animation: atlas-liquid-sheen 6s ease-in-out infinite;
-}
-@media (max-width: 639px) {
-  .atlas-liquid-type {
-    /* Solid readable type on phone — shimmer was “noise” on oil */
-    font-weight: 800;
-    letter-spacing: 0.04em;
-    font-size: 1.05em;
-    color: #f8fafc !important;
-    -webkit-text-fill-color: #f8fafc !important;
-    background-image: none !important;
-    animation: none !important;
-    filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 1))
-            drop-shadow(0 0 14px rgba(0, 0, 0, 0.85));
-  }
+          drop-shadow(0 0 10px rgba(0, 0, 0, 0.7));
 }
 @keyframes atlas-liquid-sheen {
   0%, 100% { background-position: 0% 50%; }
   50% { background-position: 100% 50%; }
-}
-@supports not ((-webkit-background-clip: text) or (background-clip: text)) {
-  .atlas-liquid-type {
-    color: #f7f4ff;
-    -webkit-text-fill-color: #f7f4ff;
-    background-image: none;
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .atlas-liquid-type {
-    animation: none;
-    background-position: 35% 50%;
-  }
 }
 /* Do NOT use backdrop-filter on the label — frosts into a plate and kills oil */
 .atlas-launch-glow > .atlas-liquid-label {

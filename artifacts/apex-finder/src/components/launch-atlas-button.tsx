@@ -17,11 +17,11 @@ type Variant = "primary" | "header" | "reactor" | "ghost";
 const VARIANT_CLASS: Record<Variant, string> = {
   // Mobile = desktop oil pill: same height, type size, tracking — no noisy shrink
   primary:
-    "atlas-launch-glow relative min-h-[3.5rem] h-14 w-full sm:w-auto px-7 text-[16px] sm:text-[15px] font-bold tracking-[0.04em]",
+    "atlas-launch-glow relative min-h-[3.5rem] h-14 w-full sm:w-auto min-w-[12rem] px-8 text-[16px] font-bold tracking-[0.03em]",
   header:
     "atlas-launch-glow relative h-10 min-w-[7.5rem] px-4 text-[13px] font-bold tracking-wide rounded-full sm:h-9 sm:min-w-0 sm:px-3.5 sm:text-[12px]",
   reactor:
-    "atlas-launch-glow relative min-h-[3.5rem] h-14 w-full sm:w-auto sm:h-12 px-6 text-[16px] sm:text-[15px] font-bold tracking-[0.04em]",
+    "atlas-launch-glow relative min-h-[3.5rem] h-14 w-full sm:w-auto sm:min-h-[3.25rem] sm:h-13 px-7 text-[16px] font-bold tracking-[0.03em]",
   ghost:
     "atlas-outline-btn h-10 px-4 text-xs font-semibold active:scale-[0.97]",
 };
