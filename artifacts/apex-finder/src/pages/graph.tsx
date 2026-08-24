@@ -97,6 +97,12 @@ function GraphViewerInner() {
     return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
   });
 
+  // Hooks MUST be declared before any effect that reads their values (TDZ / "Cannot access E before initialization")
+  const { data: graphDataRaw, isLoading, isError } = useGetEntityGraph(targetId, undefined, {
+    query: { enabled: targetId > 0 && !isMockMode(), queryKey: getGetEntityGraphQueryKey(targetId) },
+  });
+  const { data: allEntitiesRaw } = useListEntities({ limit: 200 });
+
   // On initial load with no ?entity= param, pick a hub — or any entity from the list
   useEffect(() => {
     if (!entityIdFromUrl && targetId === 0) {
@@ -120,8 +126,9 @@ function GraphViewerInner() {
   // If hub-entity returned null, fall back to first listed entity so the graph is never blank
   useEffect(() => {
     if (targetId > 0 || entityIdFromUrl) return;
-    const list = (allEntitiesRaw as any)?.entities ?? allEntitiesRaw;
-    const first = Array.isArray(list) ? list[0] : null;
+    const raw = allEntitiesRaw as any;
+    const list = Array.isArray(raw) ? raw : Array.isArray(raw?.entities) ? raw.entities : [];
+    const first = list[0];
     if (first?.id) setTargetId(Number(first.id));
   }, [allEntitiesRaw, targetId, entityIdFromUrl]);
 
@@ -132,11 +139,6 @@ function GraphViewerInner() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [entityIdFromUrl]);
-
-  const { data: graphDataRaw, isLoading, isError } = useGetEntityGraph(targetId, undefined, {
-    query: { enabled: targetId > 0 && !isMockMode(), queryKey: getGetEntityGraphQueryKey(targetId) },
-  });
-  const { data: allEntitiesRaw } = useListEntities({ limit: 200 });
 
   const graphData = useMemo(() => {
     if (isMockMode()) {
