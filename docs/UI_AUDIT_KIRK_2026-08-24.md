@@ -286,3 +286,156 @@ Field manual remains the closest to bureau / free-dig truth.
 6. Research page title + pipeline chrome (UI-K110/111)  
 7. Pipeline wording pass (UI-K140)
 
+
+---
+
+## Pass 4 — click-through + design solutions (2026-08-24)
+
+Focus: surfaces that look **bad, dense, or outdated**, with **concrete redesign ideas** (not only bug IDs).
+
+---
+
+### A. Connections empty state (worst visual debt)
+
+**What looks bad:** Two messages stacked (“No people…” / “NO ENTITIES YET”), interleaved body copy, four CTAs fused into two overlapping buttons.
+
+**Design solution:**
+1. **Single empty state only** when `entities.length === 0`.
+2. Hierarchy:
+   - Icon (network, muted)
+   - Title: **No people on the graph yet**
+   - One line: Launch Atlas or open the ledger so relationships can appear.
+   - **Primary CTA:** Launch Apex Atlas (palette gradient)
+   - **Secondary:** Open ledger · Discover (outline)
+3. Hide target dropdown / zoom / filter chrome until ≥1 entity exists — or disable with tooltip “Needs people first”.
+4. Legend (HNWI/Corp/…) only when nodes exist.
+
+---
+
+### B. Reactor scheme (looks like 2019 “pipeline dashboard”)
+
+**What looks bad:** Mid-word truncation, spaghetti edges, fixed multi-layer pipeline story, header overcrowded, “LIVE DESK ON” while idle.
+
+**Design solutions:**
+1. **Node cards:** wider min-width, `font-size: 11px`, `letter-spacing: 0.02em`, two-line clamp with ellipsis — never mid-glyph underscore look.
+2. **Idle mode simplification:** when Atlas is idle, show a **compact tool palette** (search · dig · registries · synthesis) instead of the full spaghetti map; expand full map only when a dig is live or user toggles “Show full map”.
+3. **Header strip:** one row — [Status pill NOMINAL/LIVE] [Launch / Pause·Stop] [optional progress]. Move ENTITIES/HOT LEADS/ASSETS to a slim secondary strip or Live Desk.
+4. Rename **LIVE DESK ON** → **Live Desk** (toggle), default **off** when idle.
+5. Product copy: replace “OPEN DIG · STANDBY” pipeline track with **“Free dig · model chooses tools”** or hide track until running.
+
+---
+
+### C. Entity ledger filters (power-user soup)
+
+**What looks bad:** One horizontal strip with type chips, star/hidden, LIVE INTEL, CLEAR LEDGER, ADD, plus second ROUTE/QUALITY row — empty table below.
+
+**Design solutions:**
+1. **Empty desk:** collapse filters entirely; only search + primary “Launch” / “Discover”.
+2. **With data:** 
+   - Row 1: Search + type segmented control (All / Person / Company)
+   - Row 2: “Filters” button → sheet/popover (route, quality, hot, billionaires)
+3. Move **Clear ledger** into overflow menu (⋯) — destructive, not peer of Search.
+4. Mobile: sticky search; chips in horizontal scroll with fade edges; no dual “ALL” lime pills.
+
+---
+
+### D. Workspace activity / Jobs (pipeline era)
+
+**What looks bad:** “Pipeline jobs · ingestors…”; 16 grey idle chips under RUNNING; “0s ago”; Trigger a task competes with Launch.
+
+**Design solutions:**
+1. Rebrand page to **Workspace activity** fully — drop “pipeline” from subtitle.
+2. **Running tab empty:** only the idle banner + **Launch Apex Atlas** primary (not a chip cloud).
+3. Move the 16 tasks exclusively under **Available tasks** as a **categorized card grid** (Discovery / Enrichment / Review), not a tag cloud on Running.
+4. Replace “0s ago” with **Last refreshed** only when a poll happened, or hide until first refresh.
+5. Deprioritize one-off ingestors vs Launch — secondary “Manual tasks” disclosure.
+
+---
+
+### E. Discover / Search (sparse + registry-first)
+
+**What looks bad:** Huge empty center; SEARCH looks dead-grey; suggestion chips overflow; still “public surface / registries” framing.
+
+**Design solutions:**
+1. Elevate query: large input + **always-visible primary Search** (lime/teal gradient when query non-empty; muted when empty — but not looking broken).
+2. Suggestion chips: wrap to 2 rows max or horizontal scroll with chevron.
+3. Empty state CTA order: **Search example query** · Launch Atlas · (optional) Load registries as tertiary.
+4. Copy: “Find people and companies — ranked by contact quality” (not registry lecture).
+
+---
+
+### F. System status (confusing honesty)
+
+**What looks bad:** Blank-title cards; “11 LIVE” vs “8 AI pool slots”; Open Research INCOMPLETE vs READY tiles; Groq LLaMA name.
+
+**Design solutions:**
+1. **Two clear sections only:**
+   - **Dig LLMs** (Groq, Mistral, Gemini, NVIDIA) — each named card
+   - **Search tools** (Serper, Tavily, Exa, Scrapfly…)
+2. Header chip: **Dig ready** / **Search ready** counts, not a single “11 LIVE” that mixes categories.
+3. Fix labels for every card; never render a pool without `PROVIDER_LABELS[key]`.
+4. Open Research: one badge — Ready / Partial / Offline — with missing pieces listed once.
+5. Rename Groq LLaMA → **Groq**.
+
+---
+
+### G. Research terminal `/research` (wrong identity)
+
+**What looks bad:** Titled “Overview / Evidence workspace”; “5-ALGORITHM PIPELINE”; terminal cosplay.
+
+**Design solutions:**
+1. Page title: **Intel terminal** or **Evidence dig**.
+2. Kill “5-algorithm pipeline” panel → **How dig works:** model chooses search → visit → tools → card.
+3. Keep terminal aesthetic optional (power users); default a cleaner step log list.
+4. Mobile: target select full width; run button sticky bottom.
+
+---
+
+### H. Overview home (hero OK, below-fold dead)
+
+**What looks bad:** Pipeline copy; priority section empty dashed void.
+
+**Design solutions:**
+1. Hero: “Run live research — discovery, dig, contacts. Only real findings land here.”
+2. Below fold when empty: **Get started** card with 3 steps (Launch · Watch Reactor · Open ledger) instead of empty priority profiles.
+3. When populated: priority list as now.
+
+---
+
+### I. Source directory (broken experience)
+
+**What looks bad:** Infinite HuggingFace spinner, blank canvas.
+
+**Design solutions:**
+1. **Timeout 8s** → error card: “Could not load OSINT directory” + Retry + link to Field manual.
+2. Ship a **local curated subset** of tools so the page is never blank offline.
+3. Skeleton loaders, not a lone spinner in a void.
+
+---
+
+### J. Global chrome / IA
+
+**What looks outdated or noisy:**
+- Dual Launch (header chip + page CTAs) — keep header Launch, page CTAs contextual.
+- Sidebar “Workspace settings” dump (status, data sources, source dir, persona, duplicates, jobs) feels like admin leftovers.
+
+**Design solutions:**
+1. Group sidebar: **Desk** (Overview, Ledger, Discover, Connections, Reactor) · **Ops** (Status, Activity) · **Reference** (Manual, Data sources) · collapse Persona/Duplicates under Ops.
+2. Consistent button roles: Primary = Launch only; Secondary = outline; Danger = coral Stop/Clear.
+3. `/discover` → redirect `/search`; 404 page title = “Not found”, not “Overview”.
+
+---
+
+### Priority if implementing design (after P0 bugs)
+
+| Order | Item | Why |
+|------|------|-----|
+| 1 | Connections single empty state | Unreadable today |
+| 2 | Source directory timeout + fallback | Broken page |
+| 3 | Status named cards + dig vs search split | Honesty / trust |
+| 4 | Reactor idle simplification + node type | Looks oldest |
+| 5 | Ledger filter collapse when empty | Mobile/desktop density |
+| 6 | Jobs: chips off Running tab; no pipeline subtitle | Product clarity |
+| 7 | Research title + kill 5-algorithm chrome | Messaging |
+| 8 | Overview empty below-fold | First impression |
+
