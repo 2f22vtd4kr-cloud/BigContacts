@@ -282,7 +282,7 @@ const NODES: NodeDef[] = [
   { id:"brreg",   label:"EU REGISTRIES",   sub:"BRREG · ARES · BODACC",      cx:1180, cy:178, w:140, h:60,  type:"registry", Icon:Globe,      color:"#38bdf8" },
   { id:"whoxy",   label:"RDAP / WHOIS",    sub:"Domain · DNS Intel",         cx:1360, cy:178, w:140, h:60,  type:"registry", Icon:Rss,        color:"#38bdf8" },
   { id:"inhouse", label:"IN-HOUSE",        sub:"Wikidata · GitHub · RDAP",   cx:160,  cy:298, w:168, h:60,  type:"discovery",Icon:Search,     color:"#fb923c" },
-  { id:"webdisc", label:"WEB DISC.",       sub:"15 Categories · Tavily · AI",cx:530,  cy:298, w:168, h:60,  type:"discovery",Icon:Compass,    color:"#fb923c" },
+  { id:"webdisc", label:"WEB DISC.",       sub:"Web discovery · Tavily · AI",cx:530,  cy:298, w:168, h:60,  type:"discovery",Icon:Compass,    color:"#fb923c" },
   { id:"deepweb", label:"DEEP WEB",        sub:"Multi-source OSINT",         cx:900,  cy:298, w:168, h:60,  type:"discovery",Icon:Eye,        color:"#fb923c" },
   { id:"opensky", label:"LIVE FLIGHT",     sub:"OpenSky Network",            cx:1270, cy:298, w:148, h:60,  type:"discovery",Icon:Radio,      color:"#fb923c" },
   { id:"maigret", label:"MAIGRET",         sub:"Holehe · 3,000+ Platforms",  cx:1460, cy:298, w:168, h:60,  type:"discovery",Icon:Users,      color:"#fb923c" },
