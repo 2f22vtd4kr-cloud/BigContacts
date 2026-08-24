@@ -447,7 +447,7 @@ function MobileLedgerState({
 
   const q = (searchTerm || "").trim();
   return (
-    <div className="atlas-empty mx-auto flex max-w-md flex-col items-center justify-center gap-3 px-6 py-14 text-center" data-testid="profiles-empty">
+    <div className="atlas-empty mx-auto flex max-w-md flex-col items-center justify-center gap-3 px-6 py-16 text-center md:py-14" data-testid="profiles-empty">
       <div className="grid h-12 w-12 place-items-center rounded-full border border-[#9CFF1A]/25 bg-[#9CFF1A]/10">
         <Database className="h-5 w-5 text-[#9CFF1A]" aria-hidden="true" />
       </div>
@@ -458,10 +458,10 @@ function MobileLedgerState({
         <p className="mx-auto mt-1.5 max-w-[280px] text-xs leading-relaxed text-stone-400">
           {q
             ? "Try a shorter name, clear search, or open Discover across registries."
-            : "Launch Apex Atlas or Discover to pull real people and companies into this ledger. No demo rows."}
+            : "Run free dig from Launch, or search Discover. Only real research lands here — no demo rows."}
         </p>
       </div>
-      <div className="mt-1.5 flex flex-wrap items-center justify-center gap-2">
+      <div className="mt-2 flex w-full max-w-xs flex-col items-stretch gap-2 sm:max-w-none sm:flex-row sm:flex-wrap sm:items-center sm:justify-center">
         {q && onClearSearch && (
           <button
             type="button"
@@ -471,15 +471,23 @@ function MobileLedgerState({
             Clear search
           </button>
         )}
+        {!q && (
+          <Link
+            href="/reactor"
+            className="atlas-pressable inline-flex min-h-[44px] items-center justify-center rounded-xl bg-gradient-to-r from-[#9CFF1A] to-[#5eead4] px-4 py-2.5 text-xs font-bold text-black shadow-[0_0_20px_rgba(156,255,26,0.25)]"
+          >
+            Launch Apex Atlas
+          </Link>
+        )}
         <Link
           href="/search"
-          className="atlas-pressable inline-flex min-h-[40px] items-center rounded-xl border border-[#9CFF1A]/35 bg-[#9CFF1A]/15 px-3 py-2.5 text-xs font-semibold text-[#d4ff8a] hover:bg-[#9CFF1A]/20"
+          className="atlas-pressable inline-flex min-h-[40px] items-center justify-center rounded-xl border border-[#9CFF1A]/35 bg-[#9CFF1A]/10 px-3 py-2.5 text-xs font-semibold text-[#d4ff8a] hover:bg-[#9CFF1A]/15"
         >
           Open Discover
         </Link>
         <Link
           href="/reactor"
-          className="atlas-outline-btn atlas-pressable rounded-xl px-3 py-2.5 text-xs font-medium"
+          className="atlas-outline-btn atlas-pressable inline-flex min-h-[40px] items-center justify-center rounded-xl px-3 py-2.5 text-xs font-medium"
         >
           Reactor
         </Link>
@@ -1412,6 +1420,16 @@ export default function EntityLedger() {
             {searchTerm && <button onClick={() => setSearchTerm("")}><X className="w-3.5 h-3.5 text-muted-foreground" /></button>}
           </div>
         </div>
+        {/* Mobile filters — hidden on cold empty desk so empty state can breathe */}
+        {!(
+          !showLoading &&
+          !showError &&
+          displayEntities.length === 0 &&
+          !(searchTerm || "").trim() &&
+          !hotOnly &&
+          !anyContactFilter
+        ) && (
+        <>
         {/* Mobile view mode + filter chips */}
         <div className="flex md:hidden flex-col border-b border-[#9CFF1A]/12 bg-card/30 shrink-0">
           {/* View mode row */}
@@ -1505,6 +1523,9 @@ export default function EntityLedger() {
           </div>
         </div>
 
+
+        </>
+        )}
         {/* Mobile bulk action bar */}
         {selectedIds.size > 0 && (
           <div className="flex flex-shrink-0 items-center gap-2 border-b border-[#9CFF1A]/25 bg-[#9CFF1A]/5 px-3 py-2">
@@ -1561,14 +1582,24 @@ export default function EntityLedger() {
         </div>
       </div>
 
-      {/* Mobile FAB */}
+      {/* Mobile FAB — skip on cold empty so empty CTAs are the focus */}
+      {!(
+        !showLoading &&
+        !showError &&
+        displayEntities.length === 0 &&
+        !(searchTerm || "").trim() &&
+        !hotOnly &&
+        !anyContactFilter
+      ) && (
       <button
         onClick={() => openAddModal()}
         className="fixed bottom-6 right-5 w-12 h-12 rounded-full flex items-center justify-center shadow-lg z-40 md:hidden"
         style={{ backgroundColor: "#9CFF1A", boxShadow: "0 0 20px rgba(156,255,26,0.4)" }}
+        aria-label="Add entity"
       >
         <Plus className="w-5 h-5 text-black" />
       </button>
+      )}
 
       {/* Add entity modal */}
       {showAddModal && (
