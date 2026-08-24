@@ -7,6 +7,7 @@
 import { eq } from "drizzle-orm";
 import { db, entitiesTable } from "@workspace/db";
 import { logger } from "./logger";
+import { delCachePattern } from "./redis";
 import { runAgenticWebResearch } from "./agentic-web-research";
 import {
   persistBureauContactsForEntity,
@@ -198,6 +199,8 @@ export async function runTargetContactAgent(input: {
         updatedAt: new Date(),
       })
       .where(eq(entitiesTable.id, input.entityId));
+    void delCachePattern("entities:list:*");
+    void delCachePattern("dashboard:*");
   }
 
   logger.info(
