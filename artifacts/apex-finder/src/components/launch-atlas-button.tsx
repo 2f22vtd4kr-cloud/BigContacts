@@ -38,12 +38,13 @@ const VARIANT_RUNNING: Record<Variant, string> = {
 
 const CTRL =
   "atlas-pressable relative z-10 inline-flex h-9 min-w-[4.5rem] shrink-0 items-center justify-center gap-1.5 rounded-full px-3.5 text-[11px] font-bold tracking-wide transition-all focus-visible:outline-none focus-visible:ring-2 disabled:opacity-60";
+/* State actions — static palette (not animated primary) */
 const CTRL_PAUSE =
   "border border-amber-400/45 bg-[#1a1408] text-amber-100 hover:bg-amber-500/20 focus-visible:ring-amber-400/40";
 const CTRL_RESUME =
-  "border border-[#9CFF1A]/45 bg-[#0f1a08] text-[#9CFF1A] hover:bg-[#9CFF1A]/20 focus-visible:ring-lime-400/40";
+  "atlas-btn-success focus-visible:ring-[rgba(156,255,26,0.45)]";
 const CTRL_STOP =
-  "border border-rose-400/45 bg-[#1a0c10] text-rose-200 hover:bg-rose-500/20 focus-visible:ring-rose-400/40";
+  "atlas-btn-danger focus-visible:ring-[rgba(255,77,109,0.45)]";
 
 export function LaunchAtlasButton({
   variant = "primary",
