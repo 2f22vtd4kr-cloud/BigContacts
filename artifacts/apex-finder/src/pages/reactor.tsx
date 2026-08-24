@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo, type ReactNode } from "react";
 import {
   Plane, Building2, Globe, Search, Brain, Zap, Network,
   Target, Cpu, Radio, Activity, BarChart2, Shield,
@@ -1439,7 +1439,7 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
 }
 
 // ── Desktop layout ────────────────────────────────────────────────────────────
-function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, scheduler, schedulerNow, isLive, totalEntities, hotCount, totalAssets, sessionCount, latestStatus }: {
+function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, scheduler, schedulerNow, isLive, totalEntities, hotCount, totalAssets, sessionCount, latestStatus, launchSlot }: {
   liveNodes?: Set<string>; liveLabel?: string; isLive?: boolean;
   livePhaseDetail?: string;
   atlasState?: AtlasLiveState | null;
@@ -1448,6 +1448,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
   totalEntities?: number; hotCount?: number; totalAssets?: number;
   sessionCount?: number;
   latestStatus?: string;
+  launchSlot?: ReactNode;
 }) {
   // Only live job state lights rods. Standby never simulates an entity moving
   // through the reactor.
@@ -1592,7 +1593,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
           }}>
             <span style={{ lineHeight:1, display:"block", marginTop:1 }}>☢</span>
           </div>
-          <div style={{ minWidth:230, flexShrink:0 }}>
+          <div style={{ minWidth:200, flexShrink:0 }}>
             <div style={{ fontSize:12, fontWeight:700, letterSpacing:"0.2em", color:"#e8e0cc" }}>
               APEX ATLAS  —  INTELLIGENCE REACTOR
             </div>
@@ -1600,6 +1601,9 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
               ADAPTIVE RESEARCH ENGINE  ·  TARGET-AWARE MODE
             </div>
           </div>
+          {launchSlot ? (
+            <div style={{ flexShrink:0, marginLeft: 8 }}>{launchSlot}</div>
+          ) : null}
           <div style={{ flex:1, minWidth:260 }}>
             <AtlasPhaseStrip state={atlasState} compact />
           </div>
@@ -2032,9 +2036,10 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
                 : `${on?(isReactor?2:1.5):1}px solid ${visible?statusColor:"#192840"}`,
               borderRadius: isReactor ? 12 : 6,
               background: on ? (isReactor?`${statusColor}14`:`${statusColor}0d`) : visible ? `${statusColor}08` : (isReactor?"#0c1830":"#0d1525"),
-              padding:"0 10px",
-              display:"flex", alignItems:"center", gap:9,
+              padding:"0 8px",
+              display:"flex", alignItems:"center", gap:7,
               cursor: "default",
+              overflow:"hidden",
               // Single boxShadow: reach cue > live glow > keyboard focus
               boxShadow: reachCue
                 ? "0 0 28px rgba(52,211,153,0.35)"
@@ -2053,20 +2058,22 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
               }}>
                 <n.Icon style={{ width:14, height:14 }} />
               </div>
-              <div style={{ minWidth:0, flex:1 }}>
+              <div style={{ minWidth:0, flex:1, overflow:"hidden" }}>
                 <div style={{
-                  fontSize: isReactor ? 16 : 14, fontWeight:700,
-                  letterSpacing: isReactor?"0.08em":"0.06em",
-                  color: visible ? statusColor : "#8aa4c0", lineHeight:1.25,
+                  fontSize: isReactor ? 13 : 11, fontWeight:700,
+                  letterSpacing: isReactor?"0.04em":"0.03em",
+                  color: visible ? statusColor : "#8aa4c0", lineHeight:1.2,
                   transition:"color 0.35s", whiteSpace:"nowrap",
+                  overflow:"hidden", textOverflow:"ellipsis",
                 }}>
                   {isReactor && on ? "◉  " : ""}{n.label}
                 </div>
                 <div style={{
-                  fontSize: 12.5, letterSpacing:"0.06em",
+                  fontSize: 10, letterSpacing:"0.03em",
                   color: visible ? statusColor+"cc" : "#5a7a9a",
-                  marginTop:3, lineHeight:1.25,
+                  marginTop:2, lineHeight:1.2,
                   transition:"color 0.35s", whiteSpace:"nowrap",
+                  overflow:"hidden", textOverflow:"ellipsis",
                 }}>
                   {n.sub}
                 </div>
@@ -2424,16 +2431,8 @@ export default function IntelligenceReactorPage() {
       ref={containerRef}
       style={{ position:"absolute", inset:0, overflow:"hidden", background:"#111827", isolation:"isolate" }}
     >
-      {/* Launch controls: left/center top — never right rail (Live Desk owns right) */}
-      <div
-        className="absolute left-3 top-2 z-50 flex max-w-[min(92vw,360px)] justify-start"
-        data-testid="reactor-launch-bar-desktop"
-        style={{ pointerEvents: "auto" }}
-      >
-        <LaunchAtlasButton variant="reactor" navigateToReactor={false} label="Launch Apex Atlas" />
-      </div>
       <div style={{ position:"relative", overflow:"auto", width:"100%", height:"100%" }}>
-        <div style={{ transformOrigin:"top left", transform:`scale(${Math.max(scale, 0.72)})`, width:1600, height:960 }}>
+        <div style={{ transformOrigin:"top left", transform:`scale(${Math.max(scale, 0.88)})`, width:1600, height:960 }}>
         <DesktopReactor
           liveNodes={liveNodes} liveLabel={liveLabel} livePhaseDetail={livePhaseDetail} atlasState={atlasState}
           scheduler={scheduler}
@@ -2441,6 +2440,11 @@ export default function IntelligenceReactorPage() {
           isLive={Boolean(atlasState && (atlasState.runStatus === "running" || atlasState.runStatus === "paused"))}
           totalEntities={totalEntities} hotCount={hotCount} totalAssets={totalAssets}
           sessionCount={sessions.length}
+          launchSlot={(
+            <div data-testid="reactor-launch-bar-desktop" style={{ flexShrink: 0 }}>
+              <LaunchAtlasButton variant="header" navigateToReactor={false} label="Launch Apex Atlas" />
+            </div>
+          )}
         />
         </div>
       </div>

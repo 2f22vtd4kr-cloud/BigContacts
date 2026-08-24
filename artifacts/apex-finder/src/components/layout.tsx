@@ -62,7 +62,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   };
   const disarmEdgeHot = () => {
     if (edgeHotTimer.current) clearTimeout(edgeHotTimer.current);
-    edgeHotTimer.current = setTimeout(() => setEdgeHot(false), 180);
+    edgeHotTimer.current = setTimeout(() => setEdgeHot(false), 120);
   };
 
   useEffect(() => {
@@ -225,14 +225,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
         onMouseEnter={armEdgeHot}
         onMouseLeave={disarmEdgeHot}
         className={cn(
-          "fixed z-[61] hidden h-11 w-7 items-center justify-center rounded-r-lg border border-l-0 border-[#9CFF1A]/35 bg-[#0c1220]/95 text-[#9CFF1A] shadow-[0_0_16px_rgba(156,255,26,0.2)] transition-all duration-200 md:flex",
+          "fixed z-[61] hidden h-10 w-6 items-center justify-center rounded-r-md border border-l-0 border-[#9CFF1A]/30 bg-[#0c1220] text-[#9CFF1A] shadow-none transition-opacity duration-150 md:flex",
           "top-1/2 -translate-y-1/2",
           desktopNavOpen ? "left-[250px]" : "left-0",
-          desktopNavOpen
-            ? "opacity-50 hover:opacity-100"
-            : edgeHot
-              ? "opacity-100"
-              : "opacity-0 pointer-events-none",
+          /* Fully gone unless mouse is on the left edge hit target */
+          edgeHot ? "opacity-100" : "opacity-0 pointer-events-none",
         )}
       >
         {desktopNavOpen ? (
@@ -244,7 +241,15 @@ export function Layout({ children }: { children: React.ReactNode }) {
       {/* Invisible left-edge hit target when collapsed so button can appear */}
       {!desktopNavOpen && (
         <div
-          className="fixed left-0 top-0 z-[59] hidden h-full w-8 md:block"
+          className="fixed left-0 top-0 z-[59] hidden h-full w-3 md:block"
+          onMouseEnter={armEdgeHot}
+          onMouseLeave={disarmEdgeHot}
+        />
+      )}
+      {desktopNavOpen && (
+        <div
+          className="fixed top-0 z-[59] hidden h-full w-3 md:block"
+          style={{ left: 247 }}
           onMouseEnter={armEdgeHot}
           onMouseLeave={disarmEdgeHot}
         />
