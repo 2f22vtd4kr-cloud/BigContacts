@@ -262,7 +262,7 @@ export function LaunchAtlasButton({
         aria-label={
           inFlight
             ? "Atlas research is active — open reactor desk"
-            : "Launch Apex Atlas research pipeline"
+            : "Launch Apex Atlas free dig"
         }
         className={cn(
           "atlas-pressable inline-flex items-center justify-center gap-2 rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime-400/60 disabled:opacity-60 disabled:cursor-not-allowed",

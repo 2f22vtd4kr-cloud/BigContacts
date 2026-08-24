@@ -42,6 +42,7 @@ export default function AppRouter() {
         <Route path="/entities">{() => { const s = useSearch(); return <Redirect to={`/profiles${s ? `?${s}` : ""}`} />; }}</Route>
         <Route path="/graph">{() => { const s = useSearch(); return <Redirect to={`/network${s ? `?${s}` : ""}`} />; }}</Route>
         <Route path="/deep-search">{() => <Redirect to="/search" />}</Route>
+        <Route path="/discover">{() => <Redirect to="/search" />}</Route>
         <Route path="/ledger">{() => <Redirect to="/profiles" />}</Route>
 
         <Route component={NotFound} />

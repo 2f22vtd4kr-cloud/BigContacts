@@ -170,7 +170,26 @@ export function Layout({ children }: { children: React.ReactNode }) {
   );
 
   const active = allNav.find((item) => isActive(item.href));
-  const pageTitle = location.startsWith("/profile/") ? "Profile" : active?.name ?? "Overview";
+  const pathTitles: Record<string, string> = {
+    "/research": "Intel terminal",
+    "/manual": "Field manual",
+    "/status": "System status",
+    "/data-sources": "Data sources",
+    "/osint-tools": "Source directory",
+    "/improvements": "Persona review",
+    "/duplicates": "Duplicate review",
+    "/jobs": "Workspace activity",
+    "/reactor": "Reactor",
+    "/search": "Discover",
+    "/profiles": "Entity ledger",
+    "/network": "Connections",
+    "/": "Overview",
+  };
+  const pageTitle = location.startsWith("/profile/")
+    ? "Profile"
+    : active?.name
+      ?? pathTitles[location]
+      ?? (location === "/" ? "Overview" : "Not found");
   const pageDescription = location === "/reactor"
     ? "Live public-source research, adaptive search, and evidence review"
     : location === "/"

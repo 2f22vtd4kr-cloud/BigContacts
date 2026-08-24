@@ -458,7 +458,7 @@ function LiveActivityTab({ jobs }: { jobs: Job[] }) {
                 <span className="text-[13px] font-semibold tracking-tight text-foreground">Desk idle — Launch Apex Atlas when you want a run</span>
               </div>
               <p className="mt-1.5 text-[12px] leading-relaxed text-muted-foreground max-w-md">
-                No pipeline jobs running. Start an ingestor, enrichment, or review task when you are ready.
+                No jobs running. Start an ingestor, enrichment, or review task when you are ready.
               </p>
             </div>
             <div className="flex flex-wrap gap-2 shrink-0">
@@ -623,7 +623,7 @@ export default function BackgroundJobs() {
           <div className="flex items-center gap-3 min-w-0">
             <Radio className="w-5 h-5 text-[#9CFF1A] shrink-0" aria-hidden />
             <div className="min-w-0">
-              <p className="text-[12px] text-muted-foreground leading-snug max-w-[48ch]">Pipeline jobs · ingestors · persona loop · duplicate review</p>
+              <p className="text-[12px] text-muted-foreground leading-snug max-w-[48ch]">Jobs · ingestors · persona loop · duplicate review</p>
             </div>
           </div>
           <button

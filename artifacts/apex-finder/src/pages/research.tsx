@@ -106,7 +106,7 @@ type IntroPathCandidate = {
   warnings: string[];
 };
 
-const HYBRID_PIPELINE = "Atlas ranks public records, expands the query, then explores introduction paths — same engine that powers Reactor.";
+const HYBRID_PIPELINE = "Free dig: model chooses search, visits pages, and tools — card is the answer. Same engine as Reactor.";
 
 function roleIcon(role: string) {
   if (role === "TARGET") return <Target className="w-3 h-3 text-primary" />;
@@ -604,7 +604,7 @@ export default function IntelTerminal() {
         >
           {isComputing ? (
             <span className="animate-pulse flex items-center">
-              <Hash className="w-4 h-4 mr-2 animate-spin" /> Running Pipeline...
+              <Hash className="w-4 h-4 mr-2 animate-spin" /> Digging…
             </span>
           ) : (
             <span className="flex items-center">
@@ -628,7 +628,7 @@ export default function IntelTerminal() {
             <Cpu className="w-4 h-4 mr-2 text-primary" /> Target Selection
           </h2>
           <div className="bg-background/60 border border-border/60 rounded px-3 py-2">
-            <div className="text-[12px] font-mono text-muted-foreground/60 uppercase tracking-widest mb-1">5-Algorithm Pipeline</div>
+            <div className="text-[12px] font-mono text-muted-foreground/60 uppercase tracking-widest mb-1">Free dig</div>
             <div className="text-[11px] font-mono text-primary/80 leading-relaxed">{HYBRID_PIPELINE}</div>
           </div>
         </div>
@@ -682,7 +682,7 @@ export default function IntelTerminal() {
           >
             {isComputing ? (
               <span className="animate-pulse flex items-center">
-                <Hash className="w-4 h-4 mr-2 animate-spin" /> Running Pipeline...
+                <Hash className="w-4 h-4 mr-2 animate-spin" /> Digging…
               </span>
             ) : (
               <span className="flex items-center">
@@ -704,7 +704,7 @@ export default function IntelTerminal() {
           <div className="flex items-center space-x-2 min-w-0">
             <Terminal className="w-4 h-4 flex-shrink-0" />
             <span className="truncate hidden sm:block">
-              root@apexfinder:~# /opt/intel/pipeline --target={selectedEntityId ?? "NULL"} --algos=5 --sims=120
+              root@apexfinder:~# dig --target={selectedEntityId ?? "NULL"} --mode=free
             </span>
             <span className="sm:hidden text-[12px]">INTEL --target={selectedEntityId ?? "NULL"}</span>
           </div>

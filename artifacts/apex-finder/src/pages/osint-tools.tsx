@@ -99,6 +99,15 @@ export default function OsintToolsDirectory() {
       .catch(() => {});
   }, []);
 
+  const CURATED_FALLBACK: OsintTool[] = [
+    { tool_name: "Companies House", category: "companies", short_description: "UK company officers and filings", tool_url: "https://find-and-update.company-information.service.gov.uk/" },
+    { tool_name: "SEC EDGAR", category: "public_records", short_description: "US beneficial ownership and DEF 14A", tool_url: "https://www.sec.gov/edgar" },
+    { tool_name: "OpenCorporates", category: "companies", short_description: "Cross-jurisdiction company index", tool_url: "https://opencorporates.com/" },
+    { tool_name: "FAA Aircraft Registry", category: "public_records", short_description: "US civil aircraft owners", tool_url: "https://registry.faa.gov/aircraftinquiry/" },
+    { tool_name: "OpenOwnership", category: "companies", short_description: "Beneficial ownership register search", tool_url: "https://register.openownership.org/" },
+    { tool_name: "Hunter.io", category: "people", short_description: "Role email patterns on public domains", tool_url: "https://hunter.io/" },
+  ];
+
   const fetchTools = useCallback(async (q: string, cat: string, pg: number) => {
     setLoading(true);
     setError("");
@@ -135,14 +144,30 @@ export default function OsintToolsDirectory() {
       });
       if (q.trim())  params.set("q", q.trim());
       if (cat)       params.set("category", cat);
-      const res = await fetch(`${BASE}/api/osint-tools?${params}`);
-      const d = await readApiJson(res) as { tools: OsintTool[]; total: number; cached: boolean };
-      if (!res.ok) throw new Error((d as any)?.error ?? `HTTP ${res.status}`);
-      setTools(d.tools ?? []);
-      setTotalTools(d.total ?? 0);
+      const controller = new AbortController();
+      const kill = window.setTimeout(() => controller.abort(), 8_000);
+      try {
+        const res = await fetch(`${BASE}/api/osint-tools?${params}`, { signal: controller.signal });
+        const d = await readApiJson(res) as { tools: OsintTool[]; total: number; cached: boolean };
+        if (!res.ok) throw new Error((d as any)?.error ?? `HTTP ${res.status}`);
+        setTools(d.tools ?? []);
+        setTotalTools(d.total ?? 0);
+      } finally {
+        window.clearTimeout(kill);
+      }
     } catch (err: any) {
-      setError(err?.message ?? "Failed to load tools");
-      setTools([]);
+      const msg = err?.name === "AbortError"
+        ? "Source directory timed out (HuggingFace). Showing curated tools."
+        : (err?.message ?? "Failed to load tools");
+      setError(msg);
+      const filtered = CURATED_FALLBACK.filter((tool) => {
+        const hay = `${tool.tool_name} ${tool.short_description}`.toLowerCase();
+        if (q.trim() && !hay.includes(q.trim().toLowerCase())) return false;
+        if (cat && tool.category !== cat) return false;
+        return true;
+      });
+      setTools(filtered);
+      setTotalTools(filtered.length);
     } finally {
       setLoading(false);
     }
