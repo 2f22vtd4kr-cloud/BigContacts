@@ -282,11 +282,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
               </div>
             </div>
           </div>
-          <div className="ml-auto flex min-w-0 flex-nowrap items-center justify-end gap-2 sm:gap-2.5">
+          <div className="ml-auto flex shrink-0 flex-nowrap items-center justify-end gap-1.5 sm:gap-2">
             {location !== "/" && !isReactorRoute && (
-              <LaunchAtlasButton variant="header" />
+              <div className="shrink-0">
+                <LaunchAtlasButton variant="header" />
+              </div>
             )}
-            <div className="flex shrink-0 items-center justify-end gap-2 sm:gap-2.5">
+            <div className="flex shrink-0 items-center justify-end gap-1.5 sm:gap-2">
               <WorkspaceStatus />
               <ApiKeyHealth />
             </div>

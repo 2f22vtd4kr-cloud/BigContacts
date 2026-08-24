@@ -286,12 +286,12 @@ const NODES: NodeDef[] = [
   { id:"deepweb", label:"DEEP WEB",        sub:"Multi-source OSINT",         cx:900,  cy:298, w:168, h:60,  type:"discovery",Icon:Eye,        color:"#fb923c" },
   { id:"opensky", label:"LIVE FLIGHT",     sub:"OpenSky Network",            cx:1270, cy:298, w:148, h:60,  type:"discovery",Icon:Radio,      color:"#fb923c" },
   { id:"maigret", label:"MAIGRET",         sub:"Holehe · 3,000+ Platforms",  cx:1460, cy:298, w:168, h:60,  type:"discovery",Icon:Users,      color:"#fb923c" },
-  { id:"perp0",   label:"PERPLEXITY",      sub:"Phase 0 · Live Research",    cx:140,  cy:420, w:160, h:62,  type:"ai-yellow",  Icon:Zap,        color:"#9CFF1A" },
+  { id:"perp0",   label:"SERPER",          sub:"Web search · live dig",    cx:140,  cy:420, w:160, h:62,  type:"ai-yellow",  Icon:Zap,        color:"#9CFF1A" },
   { id:"exa",     label:"EXA NEURAL",      sub:"Semantic People Search",     cx:345,  cy:420, w:148, h:62,  type:"ai-yellow",  Icon:Compass,    color:"#9CFF1A" },
   { id:"tavily",  label:"TAVILY AI",       sub:"AI-native Web Search",       cx:545,  cy:420, w:148, h:62,  type:"ai-yellow",  Icon:Rss,        color:"#9CFF1A" },
-  { id:"groq",    label:"GROQ LLM",        sub:"Llama 3.3 · Extraction",     cx:800,  cy:420, w:160, h:62,  type:"ai-lime",  Icon:Brain,      color:"#b8ff4d" },
-  { id:"gemini",  label:"GEMINI",          sub:"Google · Grounded Search",   cx:1040, cy:420, w:148, h:62,  type:"ai-yellow",  Icon:Sparkles,   color:"#9CFF1A" },
-  { id:"perpfu",  label:"PERPLEXITY+",     sub:"Adaptive Follow-up",         cx:1250, cy:420, w:160, h:62,  type:"ai-yellow",  Icon:RefreshCw,  color:"#9CFF1A" },
+  { id:"groq",    label:"GROQ LLM",        sub:"Multi-model · dig agent",     cx:800,  cy:420, w:160, h:62,  type:"ai-lime",  Icon:Brain,      color:"#b8ff4d" },
+  { id:"gemini",  label:"GEMINI",          sub:"Boss · grounded judgment",   cx:1040, cy:420, w:148, h:62,  type:"ai-yellow",  Icon:Sparkles,   color:"#9CFF1A" },
+  { id:"perpfu",  label:"FOLLOW-UP",       sub:"Adaptive dig follow-up",         cx:1250, cy:420, w:160, h:62,  type:"ai-yellow",  Icon:RefreshCw,  color:"#9CFF1A" },
   { id:"semantic",label:"SEMANTIC ENGINE", sub:"MiniLM · Embeddings",        cx:460,  cy:540, w:192, h:62,  type:"analysis", Icon:GitMerge,   color:"#a78bfa" },
   { id:"bayesian",label:"BAYESIAN SCORE",  sub:"Dynamic Priority",           cx:1020, cy:540, w:192, h:62,  type:"analysis", Icon:Layers,     color:"#a78bfa" },
   { id:"graph",   label:"GRAPH ENGINE",    sub:"Relationship Synthesis",     cx:260,  cy:652, w:178, h:62,  type:"core",     Icon:Network,    color:"#a78bfa" },
@@ -2426,14 +2426,14 @@ export default function IntelligenceReactorPage() {
     >
       {/* Launch controls: left/center top — never right rail (Live Desk owns right) */}
       <div
-        className="absolute left-1/2 top-2 z-50 flex max-w-[min(100%,420px)] -translate-x-1/2 justify-center px-2 md:left-auto md:right-[400px] md:translate-x-0 md:justify-end"
+        className="absolute left-3 top-2 z-50 flex max-w-[min(92vw,360px)] justify-start"
         data-testid="reactor-launch-bar-desktop"
         style={{ pointerEvents: "auto" }}
       >
         <LaunchAtlasButton variant="reactor" navigateToReactor={false} label="Launch Apex Atlas" />
       </div>
-      <div style={{ position:"relative", overflow:"hidden", width:"100%", height:"100%" }}>
-        <div style={{ transformOrigin:"top left", transform:`scale(${scale})`, width:1600, height:960 }}>
+      <div style={{ position:"relative", overflow:"auto", width:"100%", height:"100%" }}>
+        <div style={{ transformOrigin:"top left", transform:`scale(${Math.max(scale, 0.72)})`, width:1600, height:960 }}>
         <DesktopReactor
           liveNodes={liveNodes} liveLabel={liveLabel} livePhaseDetail={livePhaseDetail} atlasState={atlasState}
           scheduler={scheduler}

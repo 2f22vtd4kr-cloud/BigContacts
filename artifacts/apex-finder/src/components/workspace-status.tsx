@@ -37,49 +37,49 @@ const STATE_COPY: Record<WorkspaceState, {
   dotClassName: string;
 }> = {
   loading: {
-    label: "CHECKING WORKSPACE",
+    label: "CHECK",
     shortLabel: "CHECK",
     detail: "Checking whether Atlas and services are online…",
     className: "text-muted-foreground",
     dotClassName: "bg-muted-foreground/60",
   },
   researching: {
-    label: "ATLAS RESEARCHING",
+    label: "LIVE",
     shortLabel: "LIVE",
     detail: "Live research is running on a target.",
     className: "text-lime-300",
     dotClassName: "bg-lime-300 shadow-[0_0_8px_rgba(103,232,249,0.7)]",
   },
   "researching-degraded": {
-    label: "ATLAS LIVE · LIMITED",
+    label: "LIMITED",
     shortLabel: "LIVE",
     detail: "Research is running; some AI/search keys are rate-limited or offline.",
     className: "text-[#d4ff8a]",
     dotClassName: "bg-[#9CFF1A] shadow-[0_0_8px_rgba(156,255,26,0.55)]",
   },
   queued: {
-    label: "ATLAS STANDBY",
+    label: "QUEUE",
     shortLabel: "QUEUE",
     detail: "Next research cycle is queued.",
     className: "text-[#d4ff8a]",
     dotClassName: "bg-[#9CFF1A] shadow-[0_0_8px_rgba(156,255,26,0.55)]",
   },
   ready: {
-    label: "WORKSPACE READY",
+    label: "READY",
     shortLabel: "READY",
     detail: "Services are healthy. Atlas is ready to research.",
     className: "text-primary",
     dotClassName: "bg-primary shadow-[0_0_8px_rgba(96,165,250,0.65)]",
   },
   degraded: {
-    label: "WORKSPACE DEGRADED",
+    label: "WARN",
     shortLabel: "WARN",
     detail: "App is up, but one or more research services need attention.",
     className: "text-[#d4ff8a]",
     dotClassName: "bg-[#9CFF1A] shadow-[0_0_8px_rgba(156,255,26,0.55)]",
   },
   offline: {
-    label: "WORKSPACE OFFLINE",
+    label: "OFF",
     shortLabel: "OFF",
     detail: "Could not reach the API. Check connection or server status.",
     className: "text-destructive",
@@ -254,19 +254,15 @@ export function WorkspaceStatus() {
         aria-label={`${copy.label}. Open whole workspace status.`}
         data-testid="button-workspace-status"
         className={cn(
-          "group flex h-8 items-center gap-1 rounded-lg border px-1.5 transition-colors sm:h-9 sm:max-w-[230px] sm:gap-2 sm:px-3",
+          "group flex h-8 max-w-full items-center gap-1 rounded-lg border px-1.5 transition-colors sm:h-9 sm:max-w-none sm:gap-1.5 sm:px-2",
           "border-[#9CFF1A]/15 bg-background/70 hover:border-primary/40 hover:bg-muted/50",
           (state === "degraded" || state === "researching-degraded" || state === "offline") && "border-[#9CFF1A]/30",
         )}
       >
         <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", copy.dotClassName, state === "researching" && "animate-pulse")} />
         <Icon className={cn("h-3.5 w-3.5 shrink-0", copy.className, state === "loading" && "animate-spin")} />
-        {/* Mobile: short word that never truncates mid-label; desktop: full phrase */}
-        <span className={cn("font-mono text-[13px] font-bold tracking-[0.06em] sm:hidden", copy.className)}>
+        <span className={cn("shrink-0 font-mono text-[12px] font-bold tracking-[0.06em] sm:text-[13px]", copy.className)}>
           {copy.shortLabel}
-        </span>
-        <span className={cn("hidden truncate font-mono text-[14px] font-bold tracking-[0.1em] sm:inline", copy.className)}>
-          {copy.label}
         </span>
         <span className="text-stone-600 font-mono text-[13px] sm:text-[14px]" aria-hidden>
           ·

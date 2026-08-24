@@ -10,18 +10,17 @@ import {
   type LaunchAtlasOptions,
 } from "@/lib/launch-atlas";
 import { useAtlasRun } from "@/lib/use-atlas-run";
-import { LiquidMetalSurface } from "@/components/liquid-metal-surface";
 
 type Variant = "primary" | "header" | "reactor" | "ghost";
 
 const VARIANT_CLASS: Record<Variant, string> = {
-  // Mobile = desktop oil pill: same height, type size, tracking — no noisy shrink
+  // Clean solid CTA — no WebGL/oil noise (desktop + mobile identical language)
   primary:
-    "atlas-launch-glow relative min-h-[3.5rem] h-14 w-full sm:w-auto min-w-[12rem] px-8 text-[16px] font-bold tracking-[0.03em]",
+    "atlas-launch-cta relative min-h-[3.25rem] h-13 w-full sm:w-auto min-w-[11rem] px-8 text-[15px] font-extrabold tracking-[0.03em] rounded-full",
   header:
-    "atlas-launch-glow relative h-10 min-w-[7.5rem] px-4 text-[13px] font-bold tracking-wide rounded-full sm:h-9 sm:min-w-0 sm:px-3.5 sm:text-[12px]",
+    "atlas-launch-cta relative h-9 shrink-0 px-3.5 text-[12px] font-extrabold tracking-wide rounded-full whitespace-nowrap",
   reactor:
-    "atlas-launch-glow relative min-h-[3.5rem] h-14 w-full sm:w-auto sm:min-h-[3.25rem] sm:h-13 px-7 text-[16px] font-bold tracking-[0.03em]",
+    "atlas-launch-cta relative min-h-[3rem] h-12 w-full sm:w-auto min-w-[12rem] px-8 text-[15px] font-extrabold tracking-[0.03em] rounded-full",
   ghost:
     "atlas-outline-btn h-10 px-4 text-xs font-semibold active:scale-[0.97]",
 };
@@ -142,7 +141,7 @@ export function LaunchAtlasButton({
   };
 
   const idleLabel =
-    label ?? (variant === "header" ? "Launch Atlas" : "Launch Apex Atlas");
+    label ?? (variant === "header" ? "Launch" : "Launch Apex Atlas");
 
   const runningLabel = busy
     ? "Launching…"
@@ -271,28 +270,14 @@ export function LaunchAtlasButton({
           className,
         )}
       >
-        {(variant === "primary" || variant === "reactor" || variant === "header") && !inFlight && (
-          <LiquidMetalSurface />
-        )}
-        <span
-          className={cn(
-            (variant === "primary" || variant === "reactor" || variant === "header") && !inFlight && "atlas-liquid-label",
-            "inline-flex items-center gap-2",
-          )}
-        >
+        <span className="relative z-10 inline-flex items-center gap-2">
           {(busy || running) && (
             <Loader2 className="h-4 w-4 animate-spin shrink-0" aria-hidden />
           )}
           {variant === "header" && !inFlight && (
             <Crosshair className="h-3.5 w-3.5 shrink-0" aria-hidden />
           )}
-          <span
-            className={cn(
-              "truncate max-w-[min(100%,18rem)] sm:max-w-none",
-              (variant === "primary" || variant === "reactor" || variant === "header") && !inFlight && "atlas-liquid-type",
-            )}
-            aria-hidden={false}
-          >
+          <span className="whitespace-nowrap">
             {inFlight ? runningLabel : idleLabel}
           </span>
         </span>
