@@ -460,14 +460,16 @@ export function getRedisHealthSnapshot(): {
 
 const CONTACT_PREFIX = "contact:v1:";
 
-/** Returns the second permanent client (slot 2 / REDIS_URL_2) for contact cache writes.
- *  Falls back to the first available non-quota-exhausted slot. */
+/** Contact cache client — free-tier safe: use primary Redis first.
+ *  Only use REDIS_URL_2 when explicitly configured and healthy.
+ *  Never require multi-slot on free Upstash. */
 export function getContactCacheClient(): Redis | null {
-  // Prefer slot 2; skip if quota-exhausted
+  const primary = getPermanentClient();
+  if (primary) return primary;
+  // Optional second URL only if primary missing
   const slot2 = _permanentClients[1];
   if (slot2?.status === "ready" && !_quotaExhaustedSlots.has(1)) return slot2;
-  // Fall back to any healthy slot
-  return getPermanentClient();
+  return null;
 }
 
 export interface CachedContact {

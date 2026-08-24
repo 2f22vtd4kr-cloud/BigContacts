@@ -1,7 +1,7 @@
 # Context — living handoff (Apex Atlas / BigContacts)
 
 **Repo:** https://github.com/2f22vtd4kr-cloud/BigContacts · **Branch:** `main`  
-**Current tip:** `bd9fe2c` · graph TDZ `d670649` · Redis poll cut `99c2fb0`
+**Current tip:** `0be6b2d`+ · graph TDZ hooks-order `a80a14b` · pushed to origin
 **API build entry:** `artifacts/api-server/src/src` (esbuild). Top-level `src/lib` is a thin scaffold — do not edit it for research logic.  
 **Desk package name:** `apex-finder-local` — build with `pnpm --dir artifacts/apex-finder run build` (not `@workspace/apex-finder`).  
 **Product:** Apex Atlas research bureau (NOT Steam “Atlas Reactor”, NOT physics ATLAS).
@@ -309,3 +309,5 @@ Domain/IR prefer scores (odfl.com, ielp.com, path heuristics) were **reverted**.
 Evidence existed; card was empty until rehydrate. Gund/Icahn still empty (no durable evidence rows).
 Lesson: dig→evidence without promote/rehydrate leaves blank cards — not a reason to add prefer-list scripts.
 
+### Graph TDZ (2026-08-24)
+`Cannot access 'E' before initialization` on Connections: effect deps referenced `allEntitiesRaw` before `useListEntities` declared. Fix `a80a14b` (on origin). Replit must pull past `84fa075`.
