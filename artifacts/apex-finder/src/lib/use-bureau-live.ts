@@ -1,6 +1,9 @@
 /**
  * Live bureau events for Reactor desk (desktop + mobile).
  * Polls /api/ingest/bureau-events and maps right-hand narration into OpsEvent shape.
+ *
+ * INTEGRITY: when Atlas is not running, the desk must not look LIVE.
+ * Stale Redis tails / carousel spin are not research.
  */
 import { useEffect, useMemo, useState } from "react";
 
@@ -25,16 +28,17 @@ export type BureauDeskEvent = {
   provider?: string;
 };
 
-function mapBureauPayload(parsed: any): BureauDeskEvent {
+function mapBureauPayload(parsed: any, atlasLive: boolean): BureauDeskEvent {
   const isNarration = parsed?.kind === "narration" || parsed?.actor === "right_hand";
-  // Age-out LIVE chrome: only recent events stay "active". Stale Redis tails must not
-  // keep the desk showing NOW after Atlas is idle.
+  // Only mark active while Atlas is actually running AND event is very recent.
   let status = "done";
-  try {
-    const ts = parsed?.timestamp ? Date.parse(String(parsed.timestamp)) : NaN;
-    if (Number.isFinite(ts) && Date.now() - ts < 90_000) status = "active";
-  } catch {
-    status = "done";
+  if (atlasLive) {
+    try {
+      const ts = parsed?.timestamp ? Date.parse(String(parsed.timestamp)) : NaN;
+      if (Number.isFinite(ts) && Date.now() - ts < 25_000) status = "active";
+    } catch {
+      status = "done";
+    }
   }
   return {
     timestamp: parsed?.timestamp,
@@ -55,14 +59,23 @@ function mapBureauPayload(parsed: any): BureauDeskEvent {
   };
 }
 
-/** Merge job eventLog with live bureau SSE/poll feed. Narration prefers bureau feed. */
-export function useBureauLiveDesk(eventLog: BureauDeskEvent[] | undefined, opts?: { enabled?: boolean; pollMs?: number }) {
+/** Merge job eventLog with live bureau poll. When not live, strip active chrome. */
+export function useBureauLiveDesk(
+  eventLog: BureauDeskEvent[] | undefined,
+  opts?: { enabled?: boolean; pollMs?: number; atlasLive?: boolean },
+) {
   const enabled = opts?.enabled !== false;
-  const pollMs = opts?.pollMs ?? 5000;
+  const atlasLive = Boolean(opts?.atlasLive);
+  const pollMs = opts?.pollMs ?? 8_000;
   const [bureauEvents, setBureauEvents] = useState<BureauDeskEvent[]>([]);
 
   useEffect(() => {
     if (!enabled) return;
+    // Idle: do not poll bureau-events — stops fake feed after process death / stop
+    if (!atlasLive) {
+      setBureauEvents([]);
+      return;
+    }
     let cancelled = false;
     const base = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
 
@@ -75,10 +88,15 @@ export function useBureauLiveDesk(eventLog: BureauDeskEvent[] | undefined, opts?
         const data = await res.json();
         const list = Array.isArray(data?.events) ? data.events : [];
         if (!cancelled) {
-          setBureauEvents(list.map(mapBureauPayload).filter((e: BureauDeskEvent) => e.stage || e.narration || e.story));
+          setBureauEvents(
+            list
+              .map((row: any) => mapBureauPayload(row, true))
+              .filter((e: BureauDeskEvent) => e.stage || e.narration || e.story),
+          );
         }
       } catch {
-        /* soft */
+        /* soft — network down must not invent feed */
+        if (!cancelled) setBureauEvents([]);
       }
     };
 
@@ -88,29 +106,35 @@ export function useBureauLiveDesk(eventLog: BureauDeskEvent[] | undefined, opts?
       cancelled = true;
       window.clearInterval(id);
     };
-  }, [enabled, pollMs]);
+  }, [enabled, pollMs, atlasLive]);
 
   const merged = useMemo(() => {
     const fromLog = Array.isArray(eventLog) ? eventLog : [];
-    // Prefer freshest bureau narration/tool events first, then job log
+    // When not live: only finished history (no active status), prefer empty for desk chrome
+    const normalize = (e: BureauDeskEvent): BureauDeskEvent =>
+      atlasLive ? e : { ...e, status: "done" };
+
     const seen = new Set<string>();
     const out: BureauDeskEvent[] = [];
-    for (const e of [...bureauEvents, ...fromLog]) {
-      const key = `${e.timestamp || ""}|${e.kind || ""}|${e.stage || e.story || e.narration || ""}`.slice(0, 160);
+    const source = atlasLive ? [...bureauEvents, ...fromLog] : fromLog;
+    for (const e of source) {
+      const n = normalize(e);
+      const key = `${n.timestamp || ""}|${n.kind || ""}|${n.stage || n.story || n.narration || ""}`.slice(0, 160);
       if (seen.has(key)) continue;
       seen.add(key);
-      out.push(e);
+      out.push(n);
     }
     return out.slice(0, 80);
-  }, [eventLog, bureauEvents]);
+  }, [eventLog, bureauEvents, atlasLive]);
 
   const latestNarration = useMemo(() => {
+    if (!atlasLive) return null;
     for (const e of merged) {
       if (e.narration && e.narration.length > 8) return e.narration;
       if (e.kind === "narration" && (e.story || e.stage)) return e.story || e.stage;
     }
     return null;
-  }, [merged]);
+  }, [merged, atlasLive]);
 
   return { deskEvents: merged, bureauCount: bureauEvents.length, latestNarration };
 }

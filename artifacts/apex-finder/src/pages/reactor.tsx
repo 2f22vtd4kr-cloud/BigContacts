@@ -963,9 +963,8 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
   // Single source of truth: job status. Do not light "live" from stale graph nodes alone.
   const atlasRunning =
     atlasState?.runStatus === "running" || atlasState?.runStatus === "paused";
-  const isLive = atlasState
-    ? atlasRunning
-    : (liveNodes?.size ?? 0) > 0;
+  // Integrity: never LIVE from scheme node lights alone — only real run status
+  const isLive = Boolean(atlasState && atlasRunning);
   const atlasFailed = atlasState?.runStatus === "failed";
   const atlasCancelled = atlasState?.runStatus === "cancelled";
   const atlasDone = atlasState?.runStatus === "done";
@@ -1475,7 +1474,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
   );
   const atlasStatusColor = atlasFailed ? "#fb7185" : atlasCancelled ? "#fbbf24" : waitingForNextCycle ? "#fbbf24" : atlasDone ? "#b8ff4d" : isLive ? "#9CFF1A" : "#b8ff4d";
   const [deskOn, setDeskOn] = useState(false);
-  const { deskEvents, latestNarration } = useBureauLiveDesk(atlasState?.eventLog as any, { enabled: true });
+  const { deskEvents, latestNarration } = useBureauLiveDesk(atlasState?.eventLog as any, { enabled: true, atlasLive: Boolean(isLive) });
   // Idle: keep Live Desk closed so it does not leave a blank column under Launch.
   // Live: open automatically so tool windows are visible.
   useEffect(() => {
@@ -1908,8 +1907,12 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
               </div>
             )}
             <BureauOpsStage
-              events={(deskQuery.trim() ? filteredDeskEvents : deskEvents) as any}
-              maxScenes={4}
+              events={(
+                !isLive
+                  ? [] /* idle/down: no fake live feed — history only if we add explicit history toggle later */
+                  : (deskQuery.trim() ? filteredDeskEvents : deskEvents)
+              ) as any}
+              maxScenes={isLive ? 12 : 0}
               compact
               title=""
             />
@@ -2435,7 +2438,7 @@ export default function IntelligenceReactorPage() {
           liveNodes={liveNodes} liveLabel={liveLabel} livePhaseDetail={livePhaseDetail} atlasState={atlasState}
           scheduler={scheduler}
            schedulerNow={schedulerNow}
-          isLive={Boolean(atlasState ? (atlasState.runStatus === "running" || atlasState.runStatus === "paused") : liveNodes.size > 0)}
+          isLive={Boolean(atlasState && (atlasState.runStatus === "running" || atlasState.runStatus === "paused"))}
           totalEntities={totalEntities} hotCount={hotCount} totalAssets={totalAssets}
           sessionCount={sessions.length}
         />

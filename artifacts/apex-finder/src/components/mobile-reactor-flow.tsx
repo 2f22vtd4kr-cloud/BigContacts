@@ -139,9 +139,10 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
   // A failed or completed run is never presented as active. Without Atlas
   // state, liveNodes is the only explicit activity signal available.
   // Job status only — never "Atlas idle" while header shows researching.
-  const isLive = atlasState
-    ? atlasState.runStatus === "running" || atlasState.runStatus === "paused"
-    : liveNodes.size > 0;
+  // Integrity: no LIVE theater from lit scheme nodes when Atlas is idle/down
+  const isLive = Boolean(
+    atlasState && (atlasState.runStatus === "running" || atlasState.runStatus === "paused"),
+  );
   const [showHistory, setShowHistory] = React.useState(false);
   const [jumpToLiveSignal, setJumpToLiveSignal] = React.useState(0);
   const [edgeHint, setEdgeHint] = React.useState<string | null>(null);
@@ -221,7 +222,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
     setRateLimitDismissed(false);
   }, [exhaustedKeys.join("|")]);
 
-  const { deskEvents, latestNarration } = useBureauLiveDesk(atlasState?.eventLog as any, { enabled: true, pollMs: 2800 });
+  const { deskEvents, latestNarration } = useBureauLiveDesk(atlasState?.eventLog as any, { enabled: true, pollMs: 8000, atlasLive: Boolean(isLive) });
   // Live strip = recent; History = full target action list (optional status filter)
   const filteredDeskEvents = React.useMemo(() => {
     let list = deskEvents;
