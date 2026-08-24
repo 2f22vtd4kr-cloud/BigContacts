@@ -328,3 +328,9 @@ Independent research found public **organization** routes Atlas left off cards:
 ### 2026-08-24T06:53Z — Apex vs independent comparison (no prefer-list)
 
 Full scoreboard in `docs/context.md`. Summary: Apex empty cards on Congdon/Gund/Icahn; independent found org routes (ODFL 336-889-5000, FFB 800-683-5555 + info@, IEP IR 1-800-255-2737). Domain prefer scoring reverted (`1b3ce0e`). Gap is dig→structured findings→card, not more host rules.
+
+
+### 2026-08-24T07:10Z — graph TDZ root cause
+**LIVE-02:** `Cannot access 'E' before initialization` on Connections.
+Cause in our code: dependency array referenced `width`/`height` before their `const` declaration (temporal dead zone; minifier names it `E`).
+Fix tip `d670649`: declare size first, then effect; normalize `allEntities` to array; defer force-graph load.

@@ -21,3 +21,10 @@ Live desk + bureau behave as product law until no further visual or logical defe
 - Redis: single primary + cached health; no multi-slot spam on free tier
 - Dig can leave sourced org or direct vectors on card without script prefer lists
 - Stop = cancelled/STOPPED not FAILED
+
+
+## Progress log
+- 2026-08-24T07:09Z live: healthz ok, atlas idle, 6 LIVE keys, cards still empty
+- Graph TDZ root cause in source: `useEffect(..., [width, height])` ran *before* `const [width, height]` — fixed in `d670649`
+- Redis poll cut in `99c2fb0` (client intervals + PING 60s)
+- Deployed UI still shows 11 CHECKPOINTS · 10 PHASES until desk rebuild on Replit
