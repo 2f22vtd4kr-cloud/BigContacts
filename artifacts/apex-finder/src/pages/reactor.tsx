@@ -2366,22 +2366,39 @@ export default function IntelligenceReactorPage() {
         if (job.label) labels.push(job.label);
       }
 
-      if (nodes.size > 0) {
+      // Integrity: light scheme ONLY while Atlas status is running/paused.
+      // Idle/done/failed/cancelled → hard clear (no LIVE theater after process stops).
+      const runOk =
+        Boolean(nextAtlasState) &&
+        (nextAtlasState!.runStatus === "running" || nextAtlasState!.runStatus === "paused");
+      if (runOk && nodes.size > 0) {
         setLiveNodes(nodes);
         setLiveLabel(labels.join(" · "));
       } else {
-           setLiveNodes(new Set());
-           setLiveLabel("");
-           setLivePhaseDetail("");
+        setLiveNodes(new Set());
+        if (!runOk) {
+          setLiveLabel("");
+          setLivePhaseDetail("");
+        } else {
+          setLiveLabel(labels.join(" · "));
+        }
       }
-      setAtlasState(nextAtlasState);
+      // If API reports idle with no job body, wipe atlas state so LIVE cannot stick
+      if (!atlasData?.jobId || atlasData?.status === "idle") {
+        setAtlasState(null);
+        setLiveNodes(new Set());
+        setLiveLabel("");
+        setLivePhaseDetail("");
+      } else {
+        setAtlasState(nextAtlasState);
+      }
     } catch { /* non-fatal */ }
   }, []);
 
-  // Poll live jobs every 3 s so nodes light up as research runs
+  // Poll often enough that zombie clear is visible quickly
   useEffect(() => {
     pollJobs();
-    const id = setInterval(pollJobs, 10_000);
+    const id = setInterval(pollJobs, 5_000);
     return () => clearInterval(id);
   }, [pollJobs]);
 

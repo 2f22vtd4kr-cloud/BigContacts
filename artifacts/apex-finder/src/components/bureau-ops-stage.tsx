@@ -360,10 +360,10 @@ function toScene(e: OpsEvent, index: number, slots: ProviderSlotMap | null = nul
   const unavailable = providerUnavailable(e, slots);
   // Do not show LIVE chrome for missing/offline providers (e.g. Perplexity with 0 keys)
   let live = !/complete|done|success/i.test(status) && !unavailable;
-  // Stale events must not stay LIVE forever (Redis tail / job idle)
+  // Stale events must not stay LIVE (Redis tail / job idle). Short window — no theater after dig stops.
   try {
     const ts = e.timestamp ? Date.parse(String(e.timestamp)) : NaN;
-    if (!Number.isFinite(ts) || Date.now() - ts > 90_000) live = false;
+    if (!Number.isFinite(ts) || Date.now() - ts > 45_000) live = false;
   } catch {
     live = false;
   }
