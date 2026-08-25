@@ -834,10 +834,12 @@ export default function EntityLedger() {
     !hotOnly &&
     !anyContactFilter;
 
+  // Fragment root — desktop / mobile / modals close independently (Vite-safe).
+  // tip-marker: entities-ledger-fragment-shell-2026-08-25
   return (
-    <div className="flex h-full min-w-0 w-full max-w-full flex-col overflow-hidden">
+    <>
       {/* ── Desktop ── */}
-      <div className="hidden md:flex flex-col h-full overflow-hidden">
+      <div className="hidden md:flex h-full min-w-0 w-full max-w-full flex-col overflow-hidden">
         {/* Active filter banner */}
         {(hotOnly || anyContactFilter) && (
           <div className={cn(
@@ -1754,6 +1756,6 @@ export default function EntityLedger() {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
