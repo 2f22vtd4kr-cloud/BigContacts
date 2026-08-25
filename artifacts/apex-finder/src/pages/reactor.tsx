@@ -1668,9 +1668,10 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
             aria-label="Apex Atlas Live Desk"
             style={{
               position:"relative", flexShrink:0, width:"100%",
-              maxHeight: isLive ? "min(48vh, 400px)" : "min(36vh, 300px)",
+              maxHeight: isLive ? "min(42vh, 360px)" : "min(32vh, 280px)",
               display:"flex", flexDirection:"column",
-              overflow:"hidden", zIndex:30,
+              overflow:"hidden", zIndex:15,
+              marginTop: 0,
               borderBottom:"none",
               background:"linear-gradient(180deg, rgba(12,18,30,0.98) 0%, rgba(11,17,27,0.96) 100%)",
               boxShadow:"none",
@@ -1730,9 +1731,9 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
             )}
             <div style={{
               display:"flex", alignItems:"center", justifyContent:"space-between", gap:12,
-              flexShrink:0, position:"sticky", top:0, zIndex:5,
-              margin:"0 0 10px", padding:"10px 22px 8px",
-              background:"linear-gradient(180deg, rgba(12,18,30,1) 60%, rgba(12,18,30,0.85))",
+              flexShrink:0, position:"relative", zIndex:5,
+              margin:"0 0 8px", padding:"12px 22px 10px",
+              background:"linear-gradient(180deg, rgba(12,18,30,1) 70%, rgba(12,18,30,0.92))",
               borderBottom:"1px solid rgba(255,255,255,0.04)",
             }}>
               <span style={{ fontSize: 12, letterSpacing:"0.16em", color: atlasFailed ? "#fda4af" : atlasDone ? "#d4ff8a" : isLive ? "#d4ff8a" : "#94a3b8", fontWeight:700, display:"flex", alignItems:"center", gap:8 }}>
@@ -2309,9 +2310,51 @@ export default function IntelligenceReactorPage() {
           setLivePhaseDetail((prev) => prev ? `Paused — ${prev}` : "Paused — waiting for resume");
           labels.push("⏸ Paused");
         }
-         if (atlasTelemetry?.activeToolId) {
-           nodes.add(atlasTelemetry.activeToolId);
-         }
+        // Map telemetry / stage / recent events → scheme node IDs (FREE DIG map).
+        // activeToolId values like "agentic-web" are NOT scheme ids — without mapping the graph stays dark.
+        const light = (ids: string[]) => ids.forEach((id) => nodes.add(id));
+        const tool = String(atlasTelemetry?.activeToolId || "").toLowerCase();
+        const stage = String(atlasTelemetry?.stage || "").toLowerCase();
+        // Always show target + free dig while a run is active
+        if (runStatus === "running" || runStatus === "paused") {
+          light(["target", "mcts"]);
+        }
+        if (/serper|web_search|search/.test(tool) || /serper/.test(stage)) light(["perp0", "mcts"]);
+        if (/tavily/.test(tool)) light(["tavily", "mcts"]);
+        if (/exa/.test(tool)) light(["exa", "mcts"]);
+        if (/visit|page-fetch|page_fetch|browser|harvest|webdisc/.test(tool)) light(["webdisc", "mcts"]);
+        if (/agentic|target.contact|free.?dig|runTargetContact/.test(tool) || /target contact agent/.test(stage)) {
+          light(["mcts", "groq", "gemini"]);
+        }
+        if (/adaptive|director|follow-up|semantic_discovery/.test(tool) || /adaptive research/.test(stage)) {
+          light(["perpfu", "mcts"]);
+        }
+        if (/groq|mistral/.test(tool)) light(["groq", "mcts"]);
+        if (/gemini|boss/.test(tool)) light(["gemini", "mcts"]);
+        if (/edgar|proxy|sec/.test(tool) || /edgar/.test(stage)) light(["edgar", "target"]);
+        if (/companies.?house|\bch\b/.test(tool)) light(["ch"]);
+        if (/rdap|whois|domain/.test(tool) || /domain/.test(stage)) light(["inhouse", "whoxy"]);
+        if (/maigret|sherlock|footprint|holehe/.test(tool)) light(["maigret"]);
+        if (/social|messenger|linkedin/.test(stage)) light(["maigret", "webdisc"]);
+        // Recent bureau events also light matching tools (last ~12 lines)
+        const logLines = Array.isArray(atlasData.log) ? atlasData.log.slice(-12) : [];
+        for (const line of logLines) {
+          const t = String(line || "").toLowerCase();
+          if (t.includes("serper") || t.includes("web_search")) light(["perp0", "mcts"]);
+          if (t.includes("tavily")) light(["tavily", "mcts"]);
+          if (t.includes("exa")) light(["exa", "mcts"]);
+          if (t.includes("page-fetch") || t.includes("visit ·") || t.includes('"kind":"page-fetch"')) light(["webdisc", "mcts"]);
+          if (t.includes("edgar")) light(["edgar"]);
+        }
+        // toolIds array from telemetry
+        const toolIds = Array.isArray(atlasTelemetry?.toolIds) ? atlasTelemetry.toolIds : [];
+        for (const tid of toolIds) {
+          const x = String(tid).toLowerCase();
+          if (x.includes("serper")) light(["perp0"]);
+          if (x.includes("tavily")) light(["tavily"]);
+          if (x.includes("exa")) light(["exa"]);
+          if (x.includes("agentic") || x.includes("web")) light(["mcts", "webdisc"]);
+        }
       }
 
       // ── Regular jobs ─────────────────────────────────────────────────────────

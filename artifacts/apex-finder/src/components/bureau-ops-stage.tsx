@@ -1275,7 +1275,10 @@ function MobileWorkstage({
             <span className={scene.live ? "text-[#9CFF1A]" : "text-stone-500"}>
               {scene.live ? "Now" : scene.terminal === "failed" ? "Fail" : "Done"}
             </span>
-            <span className="tabular-nums text-stone-600">{safeIdx + 1}/{scenes.length}</span>
+            {/* Free dig: never "N of M steps" — only a log position, not a fixed plan */}
+            <span className="tabular-nums text-stone-600" title="Tool activity log position (not a fixed dig plan)">
+              · activity {safeIdx + 1}
+            </span>
             {scene.title ? <span className="truncate text-stone-400">· {scene.title}</span> : null}
             {scene.targetName ? <span className="hidden truncate text-stone-500 sm:inline">· {scene.targetName}</span> : null}
           </div>
@@ -1294,21 +1297,23 @@ function MobileWorkstage({
       <div
         className={`relative overflow-hidden rounded-full bg-stone-800 ${scene.live ? "h-1" : "h-0.5"}`}
         role="progressbar"
-        aria-valuenow={safeIdx + 1}
-        aria-valuemin={1}
-        aria-valuemax={Math.max(scenes.length, 1)}
-        aria-label={`Tool activity ${safeIdx + 1}`}
+        aria-valuenow={scene.live ? 1 : 0}
+        aria-valuemin={0}
+        aria-valuemax={1}
+        aria-label={scene.live ? "Tool activity in progress" : "Earlier tool activity"}
       >
         <div
           className="h-full rounded-full"
           style={{
-            width: `${((safeIdx + 1) / Math.max(scenes.length, 1)) * 100}%`,
+            /* Free dig: no "plan completion" bar — pulse width only while live */
+            width: scene.live ? "100%" : "100%",
+            opacity: scene.live ? 1 : 0.35,
             background: !scene.live
               ? "#57534e"
               : scene.phaseTone === "discovery"
                 ? "linear-gradient(90deg,#a855f7,#c084fc)"
                 : "linear-gradient(90deg,#9CFF1A,#b8ff4d)",
-            transition: `width ${REACTOR_UI_MS * 2}ms ease-out`,
+            transition: `opacity ${REACTOR_UI_MS * 2}ms ease-out`,
           }}
         />
       </div>
