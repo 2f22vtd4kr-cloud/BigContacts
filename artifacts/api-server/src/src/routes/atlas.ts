@@ -195,10 +195,10 @@ const ATLAS_LATEST_DISPLAY_TTL_MS = 15 * 60 * 1_000;
 /** Hard ceiling — running jobs older than this are always cleared. */
 const ATLAS_ZOMBIE_MS = 90 * 60 * 1_000;
 /**
- * No new log / message activity for this long → treat as dead even if status is still "running".
- * Prevents Reactor LIVE theater after the process died or finished without clearing Redis.
+ * No new log activity for this long → treat as dead even if status is still "running".
+ * 90s: stuck TARGET CONTACT AGENT must not paint LIVE for tens of minutes.
  */
-const ATLAS_STALE_PROGRESS_MS = 4 * 60 * 1_000;
+const ATLAS_STALE_PROGRESS_MS = 90 * 1_000;
 
 function isFreshAtlasTerminal(job: { status?: string; finishedAt?: string; startedAt?: string }): boolean {
   if (job.status !== "done" && job.status !== "failed" && job.status !== "cancelled") return false;
@@ -266,7 +266,7 @@ router.get("/ingest/atlas-status", async (_req: Request, res: Response): Promise
       await updateJob(jobId, {
         status: "failed",
         message: softZombie && !hardZombie
-          ? `Auto-cleared idle Atlas job (no activity > ${Math.round(ATLAS_STALE_PROGRESS_MS / 60000)}m).`
+          ? `Auto-cleared idle Atlas job (no activity > ${Math.round(ATLAS_STALE_PROGRESS_MS / 1000)}s).`
           : `Auto-cleared zombie Atlas job (running > ${Math.round(ATLAS_ZOMBIE_MS / 60000)}m).`,
         finishedAt: new Date().toISOString(),
       } as any);

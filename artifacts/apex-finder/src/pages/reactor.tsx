@@ -951,11 +951,26 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
   exhaustedKeys?: string[];
 }) {
   const hasSessions = sessions.length > 0;
-  // Single source of truth: job status. Do not light "live" from stale graph nodes alone.
+  // Single source of truth: job status + recent bureau log. Stale Redis "running" is not LIVE.
   const atlasRunning =
     atlasState?.runStatus === "running" || atlasState?.runStatus === "paused";
-  // Integrity: never LIVE from scheme node lights alone — only real run status
-  const isLive = Boolean(atlasState && atlasRunning);
+  const recentBureauMs = (() => {
+    const log = atlasState?.eventLog;
+    if (!Array.isArray(log) || log.length === 0) return null as number | null;
+    let newest = 0;
+    for (const e of log.slice(0, 8)) {
+      const t = Date.parse(String((e as any)?.timestamp || ""));
+      if (Number.isFinite(t) && t > newest) newest = t;
+    }
+    return newest > 0 ? Date.now() - newest : null;
+  })();
+  // LIVE only if running AND (log activity within 90s OR no log yet but state just appeared).
+  // Without a heartbeat, zombie jobs cannot show "Atlas researching…" / LIVE ACTIVITY.
+  const isLive = Boolean(
+    atlasState &&
+      atlasRunning &&
+      (recentBureauMs == null || recentBureauMs < 90_000),
+  );
   const atlasFailed = atlasState?.runStatus === "failed";
   const atlasCancelled = atlasState?.runStatus === "cancelled";
   const atlasDone = atlasState?.runStatus === "done";

@@ -136,12 +136,22 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
     syncing,
   } = props;
 
-  // A failed or completed run is never presented as active. Without Atlas
-  // state, liveNodes is the only explicit activity signal available.
-  // Job status only — never "Atlas idle" while header shows researching.
-  // Integrity: no LIVE theater from lit scheme nodes when Atlas is idle/down
+  // Job status + recent log heartbeat — never LIVE on zombie Redis "running".
+  const atlasRunning =
+    Boolean(atlasState) &&
+    (atlasState!.runStatus === "running" || atlasState!.runStatus === "paused");
+  const recentBureauMs = (() => {
+    const log = (atlasState as any)?.eventLog;
+    if (!Array.isArray(log) || log.length === 0) return null as number | null;
+    let newest = 0;
+    for (const e of log.slice(0, 8)) {
+      const t = Date.parse(String(e?.timestamp || ""));
+      if (Number.isFinite(t) && t > newest) newest = t;
+    }
+    return newest > 0 ? Date.now() - newest : null;
+  })();
   const isLive = Boolean(
-    atlasState && (atlasState.runStatus === "running" || atlasState.runStatus === "paused"),
+    atlasRunning && (recentBureauMs == null || recentBureauMs < 90_000),
   );
   const [showHistory, setShowHistory] = React.useState(false);
   const [jumpToLiveSignal, setJumpToLiveSignal] = React.useState(0);
