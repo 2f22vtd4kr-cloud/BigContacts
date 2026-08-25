@@ -1401,6 +1401,7 @@ export default function EntityLedger() {
           </div>
         </div>
       </div>
+      </div>
 
       {/* ── Mobile ── */}
       <div className="flex md:hidden flex-col h-full overflow-hidden min-w-0">
