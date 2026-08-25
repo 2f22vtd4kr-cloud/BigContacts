@@ -978,8 +978,12 @@ export default function EntityLedger() {
         </div>
 
 {!coldEmptyDesk && (
-        {/* Contact richness + confidence + hot filter row */}
-        <div className="flex items-center gap-1.5 px-4 py-2 border-b border-[#9CFF1A]/08 bg-card/10 flex-shrink-0 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
+        <div
+          className="flex items-center gap-1.5 px-4 py-2 border-b border-[#9CFF1A]/08 bg-card/10 flex-shrink-0 overflow-x-auto"
+          style={{ scrollbarWidth: "none" }}
+          data-filter-band="route-quality"
+        >
+          {/* Contact richness + confidence + hot filter row */}
           <span className="text-[11px] font-mono text-muted-foreground uppercase tracking-widest shrink-0">Route</span>
           {/* "All" pill — resets richness filter */}
           <button
