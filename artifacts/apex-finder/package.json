@@ -15,7 +15,8 @@
     "leaflet": "1.9.4",
     "react-leaflet": "5.0.0",
     "@paper-design/shaders-react": "0.0.80",
-    "react-force-graph-2d": "1.29.1"
+    "react-force-graph-2d": "1.29.1",
+    "@workspace/api-client-react": "workspace:*"
   },
   "devDependencies": {
     "vite": "6.3.5",

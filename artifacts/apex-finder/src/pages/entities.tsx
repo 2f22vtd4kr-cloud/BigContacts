@@ -1752,5 +1752,3 @@ export default function EntityLedger() {
     </div>
   );
 }
-
-)}
