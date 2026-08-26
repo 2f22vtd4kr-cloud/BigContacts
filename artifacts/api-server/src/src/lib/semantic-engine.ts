@@ -17,16 +17,31 @@
  * If cache is empty (cold start), the semantic signal returns [] gracefully.
  */
 
-import { env, pipeline } from "@huggingface/transformers";
+let env: any = null;
+let pipeline: any = null;
+let _transformersLoad: Promise<boolean> | null = null;
+async function loadTransformers(): Promise<boolean> {
+  if (pipeline) return true;
+  if (_transformersLoad) return _transformersLoad;
+  _transformersLoad = (async () => {
+    try {
+      const mod = await import("@huggingface/transformers");
+      env = mod.env;
+      pipeline = mod.pipeline;
+      return true;
+    } catch {
+      return false;
+    }
+  })();
+  return _transformersLoad;
+}
 import { getRedisClient } from "./redis";
 
 // Cache model files locally in /tmp so they survive Replit container restarts
-env.cacheDir = "/tmp/hf-cache";
-env.allowLocalModels = false;
 
 // ── Model singleton ───────────────────────────────────────────────────────────
 
-type FeatureExtractionPipeline = Awaited<ReturnType<typeof pipeline>>;
+type FeatureExtractionPipeline = any;
 let _pipelinePromise: Promise<FeatureExtractionPipeline> | null = null;
 let _pipelineLoaded = false;
 
@@ -41,6 +56,14 @@ async function getEmbeddingPipeline(): Promise<FeatureExtractionPipeline> {
     throw new Error("semantic model skipped on tiny host (APEX_SKIP_SEMANTIC / APEX_TINY_HOST)");
   }
   if (!_pipelinePromise) {
+    const ok = await loadTransformers();
+    if (!ok || !pipeline) {
+      throw new Error("semantic model unavailable (@huggingface/transformers not installed)");
+    }
+    if (env) {
+      env.cacheDir = "/tmp/hf-cache";
+      env.allowLocalModels = false;
+    }
     console.log("[semantic-engine] Loading all-MiniLM-L6-v2 (first time, ~23 MB download)...");
     _pipelinePromise = pipeline(
       "feature-extraction",

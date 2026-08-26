@@ -228,12 +228,25 @@ function EmptyLeads() {
   );
 }
 
+function normalizeHotLeads(data: unknown): any[] {
+  if (Array.isArray(data)) return data.filter(Boolean);
+  if (data == null) return [];
+  if (typeof data === "object") {
+    const o = data as Record<string, unknown>;
+    for (const key of ["leads", "data", "items", "results", "hotLeads"] as const) {
+      const v = o[key];
+      if (Array.isArray(v)) return v.filter(Boolean);
+    }
+  }
+  return [];
+}
+
 export default function Dashboard() {
   const mock = isMockMode();
   const statsQuery = useGetDashboardStats();
   const leadsQuery = useGetHotLeads({ limit: 8 });
   const stats = mock ? mockDashboardStats() : statsQuery.data;
-  const leads = mock ? mockHotLeads() : (leadsQuery.data ?? []);
+  const leads = mock ? mockHotLeads() : normalizeHotLeads(leadsQuery.data);
   const isLoading = mock ? false : (statsQuery.isLoading || leadsQuery.isLoading);
   const hasError = mock ? false : (statsQuery.isError || leadsQuery.isError);
 

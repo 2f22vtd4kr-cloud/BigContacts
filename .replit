@@ -1,6 +1,5 @@
 entrypoint = "README.md"
 modules = ["nodejs-20", "postgresql-16"]
-
 hidden = [".config", ".git", "node_modules", "dist", ".cache", ".local"]
 
 [nix]
@@ -9,33 +8,21 @@ channel = "stable-24_05"
 [deployment]
 deploymentTarget = "cloudrun"
 router = "application"
-run = ["sh", "-c", "pnpm --filter @workspace/api-server run start"]
+run = ["bash", "scripts/replit-boot.sh"]
 
 [env]
 PORT = "8080"
 ENABLE_AUTO_PIPELINE = "false"
-RESEARCH_DEPTH = "standard"
-REDIS_URL = "redis://localhost:6379"
+INSTALL_PYTHON_OSINT = "false"
+APEX_SKIP_SEMANTIC = "1"
+CI = "true"
 
 [[ports]]
 localPort = 8080
 externalPort = 80
 
-[[ports]]
-localPort = 23695
-externalPort = 3001
-
 [workflows]
-runButton = "Project"
-
-[[workflows.workflow]]
-name = "Project"
-mode = "parallel"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "workflow.run"
-args = "API Server"
+runButton = "API Server"
 
 [[workflows.workflow]]
 name = "API Server"
@@ -43,15 +30,5 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "pnpm --filter @workspace/api-server run build && pnpm --filter @workspace/api-server run start"
+args = "bash scripts/replit-boot.sh"
 waitForPort = 8080
-
-# Optional local Vite desk — MUST use 23695, never 8080 (API owns 8080 and serves dist/public at /)
-[[workflows.workflow]]
-name = "Start Frontend"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "PORT=23695 pnpm --filter @workspace/apex-finder run dev"
-waitForPort = 23695

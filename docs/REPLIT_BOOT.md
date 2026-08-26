@@ -1,49 +1,33 @@
-# Replit boot (do not improvise)
+# Replit boot (credit-efficient)
 
-## Hard rules
-- API **only** on port **8080** (serves desk at `/` and API at `/api/`)
-- Desk package name: **`apex-finder-local`**
-- Build desk: `pnpm --dir artifacts/apex-finder run build`
-- Build API: `pnpm --dir artifacts/api-server run build`
-- **No** Frontend workflow · **No** preview on `/api` · **No** Whoxy
-- **One** Redis: `REDIS_URL_1`
-- `ENABLE_AUTO_PIPELINE=false`
-- Do **not** hand-edit dependency version ranges
-- ONNX / transformers are **optional** — skip with `--no-optional` if memory is tight
+Public app is `/` (HTML desk). Never open `/api` as the app.
 
-## Install (filtered, public npm)
+## One workflow
+API Server only → `bash scripts/replit-boot.sh`
+
+## Install once
 ```bash
-export CI=true
+export CI=true NODE_OPTIONS=--max-old-space-size=2048 APEX_SKIP_SEMANTIC=1
 export NPM_CONFIG_REGISTRY=https://registry.npmjs.org
-pnpm config set fetch-timeout 600000
-pnpm config set network-concurrency 1
 
-# Prefer WITH optional so esbuild/rollup Linux binaries install:
-CI=true pnpm install --registry=https://registry.npmjs.org --no-frozen-lockfile --fetch-timeout=600000 \
-  --filter apex-finder-local... --filter @workspace/api-server... --filter @workspace/db...
+pnpm install --no-frozen-lockfile --no-optional \
+  --filter @workspace/api-server... \
+  --filter apex-finder-local... \
+  --filter @workspace/db...
 
-# If memory dies on optional ML, retry same command with --no-optional
-# then add platform binaries only:
-#   pnpm add --filter @workspace/api-server @esbuild/linux-x64
-#   pnpm add --filter apex-finder-local @rollup/rollup-linux-x64-gnu
-```
+pnpm add -D esbuild@0.27.3 esbuild-plugin-pino --filter @workspace/api-server --no-optional
+pnpm add @esbuild/linux-x64@0.27.3 --filter @workspace/api-server --filter apex-finder-local --no-optional
+pnpm add @rollup/rollup-linux-x64-gnu --filter apex-finder-local --no-optional
+pnpm add lightningcss-linux-x64-gnu --filter apex-finder-local --no-optional || true
+pnpm add @tailwindcss/oxide-linux-x64-gnu --filter apex-finder-local --no-optional || true
 
-## Build + run
-```bash
-pnpm --filter @workspace/db run push || true
+# Do NOT install transformers / onnx / sharp on free Replit
+pnpm --filter @workspace/db run push
 pnpm --dir artifacts/apex-finder run build
 pnpm --dir artifacts/api-server run build
-# Start API Server workflow only on 8080
-curl -sS http://127.0.0.1:8080/api/healthz | head -c 500
-curl -sS -o /dev/null -w "%{http_code}\n" http://127.0.0.1:8080/
+bash scripts/replit-boot.sh
 ```
 
-## Secrets (one batch)
-`REDIS_URL_1` `DATABASE_URL` `GROQ_API_KEY` `GEMINI_API_KEY` `NVIDIA_NIM_API_KEY`  
-`SERPER_API_KEY` `TAVILY_API_KEY` `EXA_API_KEY` `EXA_API_KEY_2` `SERPAPI_API_KEY`  
-`SCRAPFLY_API_KEY` `ZENROWS_API_KEY` `COMPANIES_HOUSE_API_KEY` `WHOISJSON_API_KEY`  
-`MISTRAL_API_KEY` `HF_TOKEN` `ENABLE_AUTO_PIPELINE=false`  
-**No WHOXY.**
-
-## Stop when
-Desk HTML at `/` + healthz 200. Do not Launch research unless asked.
+## Launch lock
+getActiveJob is Redis-only. Soft-zombie clears only if pointer still matches that jobId.
+UI Launch retries once after stop + DELETE lock.

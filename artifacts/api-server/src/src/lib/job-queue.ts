@@ -246,8 +246,14 @@ const ACTIVE_JOB_READ_TTL_MS = 2_000;
 export async function setActiveJob(type: string, jobId: string): Promise<void> {
   memoryActiveByType.set(type, jobId);
   memoryLatestByType.set(type, jobId);
-  await safeRedis(rc => rc.set(`apex:activejob:${type}`, jobId, "EX", JOB_TTL), null);
   ACTIVE_JOB_READ_CACHE.set(type, { at: Date.now(), id: jobId });
+  const wrote = await safeRedis(async rc => {
+    await rc.set(`apex:activejob:${type}`, jobId, "EX", JOB_TTL);
+    return (await rc.get(`apex:activejob:${type}`)) === jobId;
+  }, false);
+  if (!wrote) {
+    console.warn(`[job-queue] setActiveJob Redis write failed or mismatched for ${type}=${jobId}`);
+  }
 }
 
 export async function getActiveJob(type: string): Promise<string | null> {
@@ -256,9 +262,15 @@ export async function getActiveJob(type: string): Promise<string | null> {
     return cached.id;
   }
   const fromRedis = await safeRedis(rc => rc.get(`apex:activejob:${type}`), null as string | null);
-  const id = fromRedis ?? memoryActiveByType.get(type) ?? null;
-  ACTIVE_JOB_READ_CACHE.set(type, { at: Date.now(), id });
-  return id;
+  // Redis is source of truth — never revive a deleted lock from process memory.
+  if (!fromRedis) {
+    memoryActiveByType.delete(type);
+    ACTIVE_JOB_READ_CACHE.set(type, { at: Date.now(), id: null });
+    return null;
+  }
+  memoryActiveByType.set(type, fromRedis);
+  ACTIVE_JOB_READ_CACHE.set(type, { at: Date.now(), id: fromRedis });
+  return fromRedis;
 }
 
 /** Call after set/clear active job so status does not serve a stale pointer. */
@@ -342,6 +354,20 @@ export async function clearActiveJob(type: string): Promise<void> {
   ACTIVE_JOB_READ_CACHE.set(type, { at: Date.now(), id: null });
   memoryActiveByType.delete(type);
   await safeRedis(rc => rc.del(`apex:activejob:${type}`), null);
+  invalidateActiveJobCache(type);
+}
+
+export async function forceClearActiveJob(type: string): Promise<void> {
+  await clearActiveJob(type);
+}
+
+/** Clear only if the active pointer still equals jobId (no race with a newer Launch). */
+export async function clearActiveJobIfMatches(type: string, jobId: string): Promise<boolean> {
+  invalidateActiveJobCache(type);
+  const active = await getActiveJob(type);
+  if (active !== jobId) return false;
+  await clearActiveJob(type);
+  return true;
 }
 
 export async function ownsActiveJob(type: string, jobId: string): Promise<boolean> {
@@ -349,8 +375,5 @@ export async function ownsActiveJob(type: string, jobId: string): Promise<boolea
 }
 
 export async function clearActiveJobIfOwned(type: string, jobId: string): Promise<boolean> {
-  // cache updated when ownership clears below
-  if (!(await ownsActiveJob(type, jobId))) return false;
-  await clearActiveJob(type);
-  return true;
+  return clearActiveJobIfMatches(type, jobId);
 }

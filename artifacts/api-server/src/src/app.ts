@@ -69,12 +69,19 @@ if (frontendDist) {
     });
   });
 } else {
+  // HTML not JSON — Replit registers JSON-only roots as "API" cards with no preview.
   app.get("/", (_req, res) => {
-    res.status(200).json({
-      service: "apex-atlas-api",
-      desk: "frontend dist not found — build artifacts/apex-finder or use the Vite preview port",
-      health: "/api/healthz",
-    });
+    res.status(200).type("html").send(`<!doctype html>
+<html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Apex Atlas — desk not built</title>
+<style>body{font-family:system-ui,sans-serif;background:#0c1220;color:#e7e5e4;display:grid;place-items:center;min-height:100vh;margin:0;padding:24px;text-align:center}
+code{background:#1e293b;padding:2px 6px;border-radius:4px}</style></head>
+<body><div>
+<h1>Apex Atlas desk bundle missing</h1>
+<p>Build the desk, then restart API only:</p>
+<p><code>pnpm --dir artifacts/apex-finder run build</code></p>
+<p>Health: <a href="/api/healthz" style="color:#9CFF1A">/api/healthz</a></p>
+</div></body></html>`);
   });
 }
 

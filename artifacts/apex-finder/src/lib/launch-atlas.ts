@@ -53,20 +53,36 @@ export async function launchAtlasPipeline(
     ...(opts.singleTargetId != null ? { singleTargetId: opts.singleTargetId } : {}),
   };
 
-  try {
-    const res = await fetch(`${BASE}/api/ingest/atlas-run`, {
+  const postLaunch = () =>
+    fetch(`${BASE}/api/ingest/atlas-run`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
-    const data = await readApiJson(res);
+
+  try {
+    let res = await postLaunch();
+    let data = await readApiJson(res);
+
+    if (res.status === 409) {
+      try {
+        await fetch(`${BASE}/api/ingest/atlas-stop`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data?.jobId ? { jobId: data.jobId } : {}),
+        });
+        await fetch(`${BASE}/api/ingest/atlas-lock`, { method: "DELETE" });
+      } catch { /* best-effort */ }
+      res = await postLaunch();
+      data = await readApiJson(res);
+    }
 
     if (res.status === 409) {
       return {
-        ok: true,
+        ok: false,
         alreadyRunning: true,
         jobId: data?.jobId,
-        message: data?.error ?? "Atlas pipeline already running.",
+        message: data?.error ?? "Atlas still locked — wait 2s and press Launch again.",
       };
     }
 
