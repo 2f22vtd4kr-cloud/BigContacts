@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useMemo, type ReactNode } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo, type ReactNode, type PointerEvent as ReactPointerEvent } from "react";
 import {
   Plane, Building2, Globe, Search, Brain, Zap, Network,
   Target, Cpu, Radio, Activity, BarChart2, Shield,
@@ -1507,7 +1507,38 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
     !isLive && !atlasTerminal && schedulerRemainingMs > 0 && scheduler?.enabled,
   );
   const atlasStatusColor = atlasFailed ? "#fb7185" : atlasCancelled ? "#fbbf24" : waitingForNextCycle ? "#fbbf24" : atlasDone ? "#b8ff4d" : isLive ? "#9CFF1A" : "#b8ff4d";
-  const [deskOn, setDeskOn] = useState(false);
+    const schemeScrollRef = useRef<HTMLDivElement | null>(null);
+  const schemeDragRef = useRef<{ active: boolean; x: number; y: number; left: number; top: number }>({
+    active: false, x: 0, y: 0, left: 0, top: 0,
+  });
+  const onSchemePointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
+    // Only primary button; allow text selection in desk, not here
+    if (e.button !== 0) return;
+    const el = schemeScrollRef.current;
+    if (!el) return;
+    schemeDragRef.current = {
+      active: true,
+      x: e.clientX,
+      y: e.clientY,
+      left: el.scrollLeft,
+      top: el.scrollTop,
+    };
+    try { el.setPointerCapture(e.pointerId); } catch { /* */ }
+  };
+  const onSchemePointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
+    const d = schemeDragRef.current;
+    if (!d.active) return;
+    const el = schemeScrollRef.current;
+    if (!el) return;
+    el.scrollLeft = d.left - (e.clientX - d.x);
+    el.scrollTop = d.top - (e.clientY - d.y);
+  };
+  const onSchemePointerUp = (e: ReactPointerEvent<HTMLDivElement>) => {
+    schemeDragRef.current.active = false;
+    try { e.currentTarget.releasePointerCapture(e.pointerId); } catch { /* */ }
+  };
+
+const [deskOn, setDeskOn] = useState(false);
   const { deskEvents, latestNarration } = useBureauLiveDesk(atlasState?.eventLog as any, { enabled: true, atlasLive: Boolean(isLive) });
   // Idle: keep Live Desk closed so it does not leave a blank column under Launch.
   // Live: open automatically so tool windows are visible.
@@ -1984,13 +2015,20 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
         )}
         {/* Scheme canvas — horizontal + vertical pan via scroll (nodes extend past viewport) */}
         <div
+          ref={schemeScrollRef}
           data-testid="scheme-scroll-viewport"
+          onPointerDown={onSchemePointerDown}
+          onPointerMove={onSchemePointerMove}
+          onPointerUp={onSchemePointerUp}
+          onPointerCancel={onSchemePointerUp}
           style={{
             position:"relative", width:"100%", maxWidth:"100%", flex:1, minHeight:420,
             overflowX:"auto", overflowY:"auto", WebkitOverflowScrolling:"touch",
             borderTop:"1px solid rgba(255,255,255,0.03)",
             margin:"8px 0 24px",
             scrollbarColor:"#9CFF1A55 #0d1525",
+            cursor: "grab",
+            touchAction: "pan-x pan-y",
           }}
         >
         <div style={{

@@ -107,6 +107,9 @@ function assessIdentityCollision(input: {
     "fidelity", "vanguard", "schwab", "morganstanley", "goldmansachs",
     "andrewjohnsonbank", "bankofamerica", "wellsfargo", "jpmorgan", "citigroup",
     "raymondjames", "ameriprise", "northwesternmutual", "prudential",
+    "merceradvisors", "mercer-advisors", "wealthadvisor", "wealth-advisor",
+    "rocketreach", "zoominfo", "signalhire", "contactout", "apollo.io",
+    "majesco", "bbgigroup", "bbgi.com",  // wrong-family hosts seen in Janeway audit
   ];
   const hostHit = collisionHosts.some((h) => blob.includes(h));
   if (hostHit && companyToks.length && !companyToks.some((t) => blob.includes(t))) {
@@ -251,8 +254,11 @@ export async function persistBureauContactsForEntity(
       note: item.note ?? null,
     });
     // Org-scoped vectors stay orgish; collision-prone personal vectors get demoted not dropped
-    // (visibility law: show as weak candidate, never hide silently, never promote).
-    const identityMatch = orgish ? Math.min(0.35, collision.identityMatch) : collision.identityMatch;
+    // (visibility law: show as weak candidate, never hide silently, never promote as personal).
+    const forceOrg =
+      collision.risk && (vectorType === "email" || vectorType === "phone" || vectorType === "linkedin");
+    const scopeOrgish = orgish || forceOrg;
+    const identityMatch = scopeOrgish ? Math.min(0.35, collision.identityMatch) : collision.identityMatch;
     rows.push({
       entityId,
       vectorType,
@@ -260,16 +266,16 @@ export async function persistBureauContactsForEntity(
       source,
       sourceUrl: urls[0] ?? null,
       extractionMethod: "case-bureau-contact",
-      sourceReliability: collision.risk ? 0.35 : 0.55,
+      sourceReliability: collision.risk ? 0.28 : 0.55,
       identityMatch,
       recencyScore: 0.7,
-      directnessScore: orgish ? 0.35 : (vectorType === "email" || vectorType === "phone" ? 0.5 : 0.4),
+      directnessScore: scopeOrgish ? 0.3 : (vectorType === "email" || vectorType === "phone" ? 0.5 : 0.4),
       independentCorroboration: urls.length > 0 ? 1 : 0,
       validationStatus: "candidate",
       rejectionReason: null,
       observedAt: new Date(),
       metadata: JSON.stringify({
-        scope: orgish ? "organization" : (scope || "unknown"),
+        scope: scopeOrgish ? "organization" : (scope || "unknown"),
         personName: item.personName ?? null,
         role: item.role ?? null,
         note: item.note ?? null,
@@ -278,6 +284,7 @@ export async function persistBureauContactsForEntity(
         fromBureau: true,
         identityCollisionRisk: collision.risk,
         identityCollisionReason: collision.reason,
+        forcedOrgDueToCollision: forceOrg || undefined,
       }),
     });
   }
@@ -422,7 +429,7 @@ async function promoteBureauContactsToEntityCard(
     if (/^[a-z]@/i.test(value) && value.split("@")[0].length <= 1) continue; // y@gnty.com style noise
     const scope = String(item.scope ?? item.tier ?? "").toLowerCase();
     const note = String(item.note ?? "").toLowerCase();
-    const orgish =
+    let orgish =
       scope.includes("organization") ||
       scope.includes("org") ||
       scope.includes("issuer") ||
@@ -432,13 +439,22 @@ async function promoteBureauContactsToEntityCard(
       : [];
     const hostScore = urlHostScore(urls);
     if (hostScore <= -3) continue; // directory / wrong-issuer trash
+    const collision = assessIdentityCollision({
+      targetName: ent.name,
+      companyName: null,
+      personName: item.personName ?? null,
+      value,
+      sourceUrls: urls,
+      note: item.note ?? null,
+    });
+    if (collision.risk) orgish = true; // never promote collision-prone vectors as personal
     const srcLabel =
       source.includes("agentic") || source.includes("secondary") || note.includes("secondary") || note.includes("agentic")
         ? "agentic-web"
         : source.slice(0, 40);
 
     if (vt === "phone" || vt === "tel") {
-      const score = (orgish ? 2 : 5) + hostScore + (urls.length ? 1 : 0);
+      const score = (orgish ? 2 : 5) + hostScore + (urls.length ? 1 : 0) - (collision.risk ? 3 : 0);
       if (!bestPhone || score > bestPhone.score) {
         bestPhone = { value, source: orgish || hostScore >= 4 ? `${srcLabel}-org` : srcLabel, score };
       }
