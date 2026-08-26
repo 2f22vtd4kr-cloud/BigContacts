@@ -5,6 +5,7 @@ import {
   RefreshCw,
   History,
 } from "lucide-react";
+import { DigSpanTrajectory } from "@/components/dig-span-trajectory";
 import { formatSchedulerCountdown, schedulerWaitRemaining } from "./scheduler-utils";
 import { BureauOpsStage } from "./bureau-ops-stage";
 import { useBureauLiveDesk } from "../lib/use-bureau-live";
@@ -79,6 +80,17 @@ interface AtlasLiveState {
     errors?: number;
     message?: string;
   } | null;
+  recentSpans?: Array<{
+    id: string;
+    spanType: string;
+    name: string;
+    status: string;
+    targetName?: string;
+    inputSummary?: string;
+    resultSummary?: string;
+    startedAt?: string;
+    endedAt?: string;
+  }>;
 }
 
 interface AutoPipelineScheduler {
@@ -757,6 +769,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
               data-mode={showHistory ? "archive" : "live"}
               style={{ animation: motionOrNone(`armIn ${REACTOR_SCENE_MS}ms ease-out both`) }}
             >
+        <DigSpanTrajectory spans={atlasState?.recentSpans as any} className="mb-2" max={12} />
               <div className="mb-3 space-y-2 px-0.5">
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2">

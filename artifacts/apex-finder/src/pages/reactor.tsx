@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { MobileReactorFlow } from "../components/mobile-reactor-flow";
 import { LaunchAtlasButton } from "@/components/launch-atlas-button";
+import { DigSpanTrajectory, type DigSpanView } from "@/components/dig-span-trajectory";
 import { REACTOR_CSS, REACTOR_CELEBRATE_MS, REACTOR_UI_MS, motionOrNone, prefersReducedMotion } from "../lib/reactor-motion";
 import { BureauOpsStage } from "../components/bureau-ops-stage";
 import { useBureauLiveDesk } from "../lib/use-bureau-live";
@@ -96,6 +97,8 @@ interface AtlasLiveState {
     errors?: number;
     message?: string;
   } | null;
+  /** Honeycomb-style dig spans from GET /api/ingest/atlas-status recentSpans */
+  recentSpans?: DigSpanView[];
 }
 
 function parseAtlasEventLog(raw: unknown) {
@@ -1922,6 +1925,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
                 {latestNarration}
               </div>
             )}
+            <DigSpanTrajectory spans={atlasState?.recentSpans} className="mb-2" max={20} />
             <BureauOpsStage
               events={(
                 !isLive
@@ -2287,6 +2291,7 @@ export default function IntelligenceReactorPage() {
             scheduler: atlasData.scheduler ?? undefined,
             atlasTelemetry,
             eventLog: parseAtlasEventLog(atlasData.log),
+            recentSpans: Array.isArray(atlasData.recentSpans) ? atlasData.recentSpans : [],
         };
          // The parent message is real progress text. It is not a tool/activity
          // event, so it must not light individual Atlas nodes by keyword.

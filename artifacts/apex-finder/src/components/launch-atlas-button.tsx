@@ -220,8 +220,17 @@ export function LaunchAtlasButton({
   ) : null;
 
   // Header while in-flight: only Pause/Resume + Stop (no green launch icon pile-up)
+  // Keep in document flow with padding so Pause/Stop are never clipped under app chrome
   if (variant === "header" && inFlight) {
-    return controls;
+    return (
+      <div
+        className="flex min-h-[40px] flex-shrink-0 items-center justify-end gap-2 py-1 pl-2"
+        data-testid="atlas-header-inflight-controls"
+        style={{ position: "relative", zIndex: 30 }}
+      >
+        {controls}
+      </div>
+    );
   }
 
   // Mobile-safe: keep Pause/Stop in document flow (never fixed under browser chrome)
