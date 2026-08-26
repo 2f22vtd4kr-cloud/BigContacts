@@ -241,7 +241,7 @@ export async function batchMarkSeen(keys: string[]): Promise<void> {
 }
 
 const ACTIVE_JOB_READ_CACHE = new Map<string, { at: number; id: string | null }>();
-const ACTIVE_JOB_READ_TTL_MS = 2_000;
+const ACTIVE_JOB_READ_TTL_MS = 8_000;
 
 export async function setActiveJob(type: string, jobId: string): Promise<void> {
   memoryActiveByType.set(type, jobId);
@@ -252,7 +252,7 @@ export async function setActiveJob(type: string, jobId: string): Promise<void> {
     return (await rc.get(`apex:activejob:${type}`)) === jobId;
   }, false);
   if (!wrote) {
-    console.warn(`[job-queue] setActiveJob Redis write failed or mismatched for ${type}=${jobId}`);
+    console.warn(`[job-queue] setActiveJob Redis write failed — using in-process lock for ${type}=${jobId}`);
   }
 }
 
@@ -261,16 +261,30 @@ export async function getActiveJob(type: string): Promise<string | null> {
   if (cached && Date.now() - cached.at < ACTIVE_JOB_READ_TTL_MS) {
     return cached.id;
   }
-  const fromRedis = await safeRedis(rc => rc.get(`apex:activejob:${type}`), null as string | null);
-  // Redis is source of truth — never revive a deleted lock from process memory.
-  if (!fromRedis) {
+  // null fallback means Redis miss OR command failed (quota). Distinguish via sentinel.
+  let redisOk = false;
+  const fromRedis = await safeRedis(async rc => {
+    redisOk = true;
+    return rc.get(`apex:activejob:${type}`);
+  }, null as string | null);
+
+  if (fromRedis) {
+    memoryActiveByType.set(type, fromRedis);
+    ACTIVE_JOB_READ_CACHE.set(type, { at: Date.now(), id: fromRedis });
+    return fromRedis;
+  }
+
+  // Redis answered empty → clear memory (another instance deleted the lock)
+  if (redisOk) {
     memoryActiveByType.delete(type);
     ACTIVE_JOB_READ_CACHE.set(type, { at: Date.now(), id: null });
     return null;
   }
-  memoryActiveByType.set(type, fromRedis);
-  ACTIVE_JOB_READ_CACHE.set(type, { at: Date.now(), id: fromRedis });
-  return fromRedis;
+
+  // Redis unavailable (quota / network) → in-process lock so Launch can run on one API
+  const mem = memoryActiveByType.get(type) ?? null;
+  ACTIVE_JOB_READ_CACHE.set(type, { at: Date.now(), id: mem });
+  return mem;
 }
 
 /** Call after set/clear active job so status does not serve a stale pointer. */
@@ -281,36 +295,15 @@ export function invalidateActiveJobCache(type?: string): void {
 
 
 export async function getLatestJob(type: string): Promise<JobState | null> {
-  return safeRedis(async rc => {
+  // NEVER SCAN apex:job:* on the hot path — free Upstash is ~500k cmds/month;
+  // a full SCAN on every idle atlas-status poll burned the quota with almost no data.
+  const fromRedis = await safeRedis(async rc => {
     const pointerKey = `apex:latestjob:${type}`;
     const jobId = await rc.get(pointerKey);
-    if (jobId) return getJob(jobId);
-
-    let cursor = "0";
-    let latestId = "";
-    let latestStarted = "";
-    do {
-      const [next, keys] = await rc.scan(cursor, "MATCH", "apex:job:*", "COUNT", 500);
-      cursor = next;
-      const candidates = keys.filter(key => !key.endsWith(":log"));
-      if (!candidates.length) continue;
-      const pipeline = rc.pipeline();
-      candidates.forEach(key => pipeline.hmget(key, "jobId", "type", "startedAt"));
-      const rows = await pipeline.exec();
-      rows?.forEach((entry, index) => {
-        const values = entry?.[1] as string[] | null;
-        if (!values || values[1] !== type) return;
-        if (values[2] > latestStarted) {
-          latestStarted = values[2];
-          latestId = values[0] || candidates[index]!.slice("apex:job:".length);
-        }
-      });
-    } while (cursor !== "0");
-    if (!latestId) return null;
-    await rc.set(pointerKey, latestId, "EX", JOB_TTL);
-    return getJob(latestId);
+    if (!jobId) return null;
+    return getJob(jobId);
   }, null);
-  // Memory fallback when permanent Redis is down
+  if (fromRedis) return fromRedis;
   const mid = memoryLatestByType.get(type);
   if (mid) return getJob(mid);
   return null;

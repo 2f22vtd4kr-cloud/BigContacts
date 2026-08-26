@@ -2413,7 +2413,7 @@ export default function IntelligenceReactorPage() {
   // Poll often enough that zombie clear is visible quickly
   useEffect(() => {
     pollJobs();
-    const id = setInterval(pollJobs, 5_000);
+    const id = setInterval(pollJobs, 15_000);
     return () => clearInterval(id);
   }, [pollJobs]);
 

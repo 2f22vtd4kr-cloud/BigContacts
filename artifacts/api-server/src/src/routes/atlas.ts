@@ -111,11 +111,9 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
     logger.warn({ atlasJobId, pinned, attempt }, "atlas-run: active job pointer mismatch after setActiveJob");
   }
   if ((await getActiveJob("atlas-run")) !== atlasJobId) {
-    res.status(503).json({
-      error: "Could not acquire Atlas lock in Redis. Check REDIS_URL_1 and retry Launch.",
-      jobId: atlasJobId,
-    });
-    return;
+    // Last resort: pin in-process only (Redis quota exhausted)
+    await setActiveJob("atlas-run", atlasJobId);
+    logger.warn({ atlasJobId }, "atlas-run: proceeding with in-process lock only (Redis unavailable)");
   }
   await updateJob(atlasJobId, {
     status: "running",
@@ -265,7 +263,7 @@ function isFreshAtlasTerminal(job: { status?: string; finishedAt?: string; start
 // ── GET /ingest/atlas-status ──────────────────────────────────────────────────
 // Desk polls this often; short in-process cache cuts Redis GETs without lying for long.
 let _atlasStatusCache: { at: number; body: unknown } | null = null;
-const ATLAS_STATUS_CACHE_MS = 1_500;
+const ATLAS_STATUS_CACHE_MS = 6_000;
 
 router.get("/ingest/atlas-status", async (_req: Request, res: Response): Promise<void> => {
   if (_atlasStatusCache && Date.now() - _atlasStatusCache.at < ATLAS_STATUS_CACHE_MS) {

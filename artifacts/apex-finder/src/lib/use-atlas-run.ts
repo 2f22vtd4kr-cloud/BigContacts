@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { readApiJson } from "@/lib/api-json";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
-const POLL_MS = 8_000;
+const POLL_MS = 12_000;
 
 export type AtlasRunSnapshot = {
   active: boolean;
@@ -63,7 +63,7 @@ export function useAtlasRun(pollMs: number = POLL_MS) {
     const controller = new AbortController();
     refresh(controller.signal);
     // Idle desk: poll slower to protect free Redis command quotas.
-    const tickMs = run.active ? pollMs : Math.max(pollMs * 3, 12_000);
+    const tickMs = run.active ? pollMs : Math.max(pollMs * 4, 20_000);
     const id = window.setInterval(() => refresh(), tickMs);
     return () => {
       controller.abort();
