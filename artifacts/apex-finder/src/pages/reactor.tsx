@@ -1982,10 +1982,19 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
             >{isLive ? "Under the hood" : "Under the hood"}</button>
           </div>
         )}
-        {/* Scheme canvas — below live desk; scroll page to move between them */}
+        {/* Scheme canvas — horizontal + vertical pan via scroll (nodes extend past viewport) */}
+        <div
+          data-testid="scheme-scroll-viewport"
+          style={{
+            position:"relative", width:"100%", maxWidth:"100%", flex:1, minHeight:420,
+            overflowX:"auto", overflowY:"auto", WebkitOverflowScrolling:"touch",
+            borderTop:"1px solid rgba(255,255,255,0.03)",
+            margin:"8px 0 24px",
+            scrollbarColor:"#9CFF1A55 #0d1525",
+          }}
+        >
         <div style={{
-          position:"relative", width:1600, height:842, flexShrink:0, margin:"8px auto 24px",
-          borderTop:"1px solid rgba(255,255,255,0.03)",
+          position:"relative", width:1600, minWidth:1600, height:842, flexShrink:0, margin:"0 auto",
         }}>
         <svg
           width={1600}
@@ -2184,6 +2193,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
         ))}
 
       </div>{/* scheme canvas */}
+      </div>{/* scheme-scroll-viewport */}
       </div>{/* main column: desk above scheme */}
 
       <style>{KEYFRAMES}</style>

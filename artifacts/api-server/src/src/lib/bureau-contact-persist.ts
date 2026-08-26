@@ -527,7 +527,7 @@ async function promoteBureauContactsToEntityCard(
 
   if (!changed) return;
 
-  const outcome = computeContactOutcome({
+  let outcome = computeContactOutcome({
     type: ent.type,
     email: (patch.email as string) ?? ent.email,
     phone: (patch.phone as string) ?? ent.phone,
@@ -540,6 +540,15 @@ async function promoteBureauContactsToEntityCard(
     website: typeof meta.website === "string" ? meta.website : ent.personalWebsite,
     metadata: (patch.metadata as string) ?? ent.metadata,
   });
+  // Identity / source honesty: direct_* requires non-org source class (URL bind is evidence-layer).
+  const phoneSrc = String((patch.phoneSource as string) ?? ent.phoneSource ?? "");
+  const emailSrc = typeof meta.emailSource === "string" ? meta.emailSource : "";
+  if (
+    (outcome === "direct_contact_candidate" || outcome === "direct_contact_verified") &&
+    (phoneSrc === "agentic-web-org" || emailSrc === "agentic-web-org" || phoneSrc.endsWith("-org"))
+  ) {
+    outcome = "organization_contact";
+  }
   patch.contactOutcome = outcome;
 
   await db.update(entitiesTable).set(patch).where(eq(entitiesTable.id, entityId));
