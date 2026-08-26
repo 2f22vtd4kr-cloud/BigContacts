@@ -103,7 +103,20 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
   };
 
   const atlasJobId = await createJob("atlas-run");
-  await setActiveJob("atlas-run", atlasJobId);
+  // Ensure Redis lock sticks — silent SET failures caused Launch to self-cancel
+  for (let attempt = 0; attempt < 3; attempt++) {
+    await setActiveJob("atlas-run", atlasJobId);
+    const pinned = await getActiveJob("atlas-run");
+    if (pinned === atlasJobId) break;
+    logger.warn({ atlasJobId, pinned, attempt }, "atlas-run: active job pointer mismatch after setActiveJob");
+  }
+  if ((await getActiveJob("atlas-run")) !== atlasJobId) {
+    res.status(503).json({
+      error: "Could not acquire Atlas lock in Redis. Check REDIS_URL_1 and retry Launch.",
+      jobId: atlasJobId,
+    });
+    return;
+  }
   await updateJob(atlasJobId, {
     status: "running",
     progress: 0, total: 10,
@@ -275,6 +288,13 @@ router.get("/ingest/atlas-status", async (_req: Request, res: Response): Promise
   }
   const job = await getJob(jobId);
   const log = await getJobLog(jobId);
+  // Terminal job still holding the active pointer — drop pointer only
+  if (job && (job.status === "done" || job.status === "failed" || job.status === "cancelled")) {
+    await clearActiveJobIfMatches("atlas-run", jobId);
+    _atlasStatusCache = null;
+    res.json({ status: "idle", message: "No Atlas run in progress.", scheduler });
+    return;
+  }
   // Auto-clear zombie / dead runs so Reactor cannot show LIVE with no real work
   if (job && (job.status === "running" || job.status === "paused")) {
     const startedMs = job.startedAt ? Date.parse(job.startedAt) : NaN;
@@ -285,11 +305,12 @@ router.get("/ingest/atlas-status", async (_req: Request, res: Response): Promise
     const ageMs = Date.now() - lastActivity;
     const hardZombie =
       Number.isFinite(startedMs) && Date.now() - startedMs > ATLAS_ZOMBIE_MS;
-    // No log traffic for STALE window AND job has been up at least that long
+    // Never soft-clear a job under 2 minutes old (Launch was dying in <5s)
+    const minAgeForSoftClear = Math.max(ATLAS_STALE_PROGRESS_MS, 120_000);
     const softZombie =
       Number.isFinite(startedMs) &&
-      Date.now() - startedMs > ATLAS_STALE_PROGRESS_MS &&
-      ageMs > ATLAS_STALE_PROGRESS_MS;
+      Date.now() - startedMs > minAgeForSoftClear &&
+      ageMs > minAgeForSoftClear;
     if (hardZombie || softZombie) {
       const stillActive = await getActiveJob("atlas-run");
       if (stillActive && stillActive !== jobId) {
