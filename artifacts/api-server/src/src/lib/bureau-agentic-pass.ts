@@ -113,6 +113,7 @@ export async function runBureauAgenticWebPass(input: {
     const agentic = await runAgenticWebResearch({
       targetName: name,
       companyName: input.companyName ?? null,
+      jobId: input.jobId ?? null,
       objective: input.objective
         ?? `Find publicly documented contact routes for ${name}${input.companyName ? ` related to ${input.companyName}` : ""}. Multi-hop. Visit primary pages. Never invent.`,
       maxIterations: input.maxIterations ?? resolveResearchDepth().agenticMaxIterations,

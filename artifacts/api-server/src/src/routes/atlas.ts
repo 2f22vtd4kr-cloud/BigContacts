@@ -14,6 +14,7 @@ import {
 import { runAtlasPipeline, type AtlasOptions } from "../lib/atlas-orchestrator";
 import { CANONICAL_ATLAS_LAUNCH_BODY } from "../lib/atlas-launch-defaults";
 import { logger } from "../lib/logger";
+import { getRecentDigSpans, clearDigSpansForJob, publishDigSpan } from "../lib/dig-span";
 
 const router = Router();
 
@@ -278,10 +279,15 @@ router.get("/ingest/atlas-status", async (_req: Request, res: Response): Promise
     // Stale completed runs must not appear as CURRENT TARGET in the Reactor.
     if (latest && isFreshAtlasTerminal(latest)) {
       const log = await getJobLog(latest.jobId);
-      res.json({ ...latest, active: false, latest: true, scheduler, log: log.slice(0, 80) });
+      res.json({ ...latest, active: false, latest: true, scheduler, log: log.slice(0, 80), recentSpans: getRecentDigSpans(latest.jobId, 50) });
       return;
     }
-    res.json({ status: "idle", message: "No Atlas run in progress.", scheduler });
+    res.json({
+      status: "idle",
+      message: "No Atlas run in progress.",
+      scheduler,
+      recentSpans: getRecentDigSpans(null, 30),
+    });
     return;
   }
   const job = await getJob(jobId);
@@ -353,6 +359,7 @@ router.get("/ingest/atlas-status", async (_req: Request, res: Response): Promise
     active: true,
     scheduler,
     log: log.slice(0, 80),
+    recentSpans: getRecentDigSpans(jobId, 50),
     phaseJ: phaseJ
       ? {
           jobId: phaseJ.jobId,

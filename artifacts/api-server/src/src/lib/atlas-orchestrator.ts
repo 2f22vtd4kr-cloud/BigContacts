@@ -23,6 +23,7 @@ import { apexOrientationCompact } from "./apex-bureau-orientation";
 import { db, entitiesTable, assetsTable, contactEvidenceTable } from "@workspace/db";
 import { sql, eq, and, desc, inArray } from "drizzle-orm";
 import { logger } from "./logger";
+import { publishDigSpan } from "./dig-span";
 import { updateJob, clearJobFields, createJob, setActiveJob, ownsActiveJob, clearActiveJobIfOwned, appendJobLog, getJob } from "./job-queue";
 import { runWesternHnwiIngestion } from "./western-hnwi-ingestion";
 import { runFaaIngestion } from "./faa-ingestor";
@@ -585,6 +586,17 @@ async function setAtlasTelemetry(
 ): Promise<void> {
   if (entityId != null && targetWasTimedOut(atlasJobId, entityId)) return;
   await updateJob(atlasJobId, { atlasTelemetry: JSON.stringify(telemetry) });
+  try {
+    publishDigSpan({
+      jobId: atlasJobId,
+      targetName: telemetry.targetName,
+      spanType: "stage",
+      name: String(telemetry.activeToolId || telemetry.stage || "stage"),
+      status: telemetry.status === "complete" ? "ok" : telemetry.status === "blocked" ? "error" : "active",
+      inputSummary: telemetry.inputSummary || telemetry.prompt,
+      resultSummary: telemetry.resultSummary || telemetry.story,
+    });
+  } catch { /* DigSpan non-fatal */ }
   await appendJobLog(atlasJobId, `ATLAS_EVENT ${JSON.stringify({
     kind: "telemetry",
     stage: telemetry.stage,

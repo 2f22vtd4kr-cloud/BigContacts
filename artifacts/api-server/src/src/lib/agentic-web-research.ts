@@ -11,6 +11,7 @@
  */
 
 import { logger } from "./logger";
+import { spanFromLiveStep } from "./dig-span";
 import { filterClaimUrls, filterPassagesForQuery } from "./passage-filter";
 import { sanitizePublicEmail, sanitizePublicPhone, isTrashContactValue } from "./contact-validation";
 import {
@@ -1737,6 +1738,8 @@ export async function runAgenticWebResearch(input: {
   hardTimeoutMs?: number;
   /** Operator stop — checked each ReAct step. */
   shouldCancel?: () => boolean | Promise<boolean>;
+  /** Atlas job id for DigSpan / status plane */
+  jobId?: string | null;
   /** Live desk: after each tool step (Reactor + right-hand narration). Never throws into dig. */
   onLiveStep?: (step: {
     action: string;
@@ -1772,6 +1775,22 @@ export async function runAgenticWebResearch(input: {
       });
     } catch {
       /* desk telemetry must not break dig */
+    }
+    try {
+      const jobId =
+        (input as { jobId?: string }).jobId ||
+        (input as { atlasJobId?: string }).atlasJobId ||
+        null;
+      spanFromLiveStep({
+        jobId,
+        targetName: name,
+        tool: step.action || "dig_step",
+        label: step.query || step.url || step.action,
+        detail: step.summary || step.provider || undefined,
+        status: "ok",
+      });
+    } catch {
+      /* DigSpan must not break dig */
     }
   };
   let objective = input.objective
