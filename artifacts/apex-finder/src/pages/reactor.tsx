@@ -101,6 +101,30 @@ interface AtlasLiveState {
   recentSpans?: DigSpanView[];
 }
 
+
+/** Map DigSpan tool/stage names onto scheme node ids (only tools that actually ran). */
+function schemeNodesFromSpans(spans: DigSpanView[] | undefined | null): Set<string> {
+  const out = new Set<string>();
+  if (!spans?.length) return out;
+  for (const s of spans) {
+    const blob = `${s.name} ${s.inputSummary ?? ""} ${s.spanType}`.toLowerCase();
+    if (/web_search|serper|search/.test(blob)) out.add("perp0");
+    if (/tavily/.test(blob)) out.add("tavily");
+    if (/\bexa\b/.test(blob)) out.add("exa");
+    if (/visit|browser_fetch|page|scrapfly|zenrows|open.?page/.test(blob)) out.add("webdisc");
+    if (/edgar|sec/.test(blob)) out.add("edgar");
+    if (/companies.?house|\bch\b|brreg|bodacc/.test(blob)) out.add("ch");
+    if (/faa|aircraft/.test(blob)) out.add("faa");
+    if (/occrp/.test(blob)) out.add("occrp");
+    if (/maigret|sherlock|holehe|footprint/.test(blob)) out.add("maigret");
+    if (/gemini|boss/.test(blob)) out.add("gemini");
+    if (/groq/.test(blob)) out.add("groq");
+    if (/whois|rdap|domain/.test(blob)) out.add("whoxy");
+    if (/promote|card|phone|email/.test(blob) && s.spanType === "promote") out.add("evidence");
+  }
+  return out;
+}
+
 function parseAtlasEventLog(raw: unknown) {
   if (!Array.isArray(raw)) return [];
   return raw.map((line) => {
@@ -2391,17 +2415,16 @@ export default function IntelligenceReactorPage() {
       const runOk =
         Boolean(nextAtlasState) &&
         (nextAtlasState!.runStatus === "running" || nextAtlasState!.runStatus === "paused");
-      if (runOk && nodes.size > 0) {
-        setLiveNodes(nodes);
-        setLiveLabel(labels.join(" · "));
+      if (runOk) {
+        const fromSpans = schemeNodesFromSpans(nextAtlasState?.recentSpans);
+        if (fromSpans.size > 0) setLiveNodes(fromSpans);
+        else if (nodes.size > 0) setLiveNodes(nodes);
+        else setLiveNodes(new Set());
+        setLiveLabel(labels.join(" · ") || (fromSpans.size ? "Free dig tools active" : "Live"));
       } else {
         setLiveNodes(new Set());
-        if (!runOk) {
-          setLiveLabel("");
-          setLivePhaseDetail("");
-        } else {
-          setLiveLabel(labels.join(" · "));
-        }
+        setLiveLabel("");
+        setLivePhaseDetail("");
       }
       // If API reports idle with no job body, wipe atlas state so LIVE cannot stick
       if (!atlasData?.jobId || atlasData?.status === "idle") {

@@ -287,6 +287,17 @@ export function computeContactOutcome(entity: {
     if (isGenericEmail && !isNoticePhone) return "organization_contact";
     if (heuristicEmail) return "evidence_only";
 
+    // Org-scoped dig phones (agentic-web-org) without a personal email stay organization_contact.
+    // Prevents over-labeling switchboard/HQ lines as direct_contact_candidate (Brauser/Bordes class).
+    const src = `${entity.phoneSource ?? ""} ${entity.emailSource ?? ""}`.toLowerCase();
+    const orgScopedDig =
+      /agentic-web-org|issuer|switchboard|company.?main|hq.?phone/.test(src) ||
+      entity.phoneSource === "agentic-web-org" ||
+      entity.emailSource === "agentic-web-org";
+    if (orgScopedDig && (isGenericEmail || !emailStr)) {
+      return "organization_contact";
+    }
+
     // Notice phone and/or non-generic email/phone → direct candidate
     return "direct_contact_candidate";
   }
