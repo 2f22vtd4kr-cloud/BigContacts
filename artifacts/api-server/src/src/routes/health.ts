@@ -12,7 +12,10 @@ router.get("/healthz", async (_req, res) => {
   let snap = getRedisHealthSnapshot();
   if (!snap.cached && getPermanentClient()) {
     // First request or stale cache: one real ping, then subsequent healthz are free of Redis commands for TTL.
-    const latencyMs = await pingRedis();
+    const latencyMs = await Promise.race([
+      pingRedis(),
+      new Promise<null>((r) => setTimeout(() => r(null), 800)),
+    ]);
     snap = {
       status: getPermanentClient()
         ? latencyMs !== null

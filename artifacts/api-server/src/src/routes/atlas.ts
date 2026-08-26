@@ -15,12 +15,44 @@ import { runAtlasPipeline, type AtlasOptions } from "../lib/atlas-orchestrator";
 import { CANONICAL_ATLAS_LAUNCH_BODY } from "../lib/atlas-launch-defaults";
 import { logger } from "../lib/logger";
 import { getRecentDigSpans, clearDigSpansForJob, publishDigSpan } from "../lib/dig-span";
+import { normalizeAtlasStatusMessage } from "../lib/atlas-phase-progress";
 
 const router = Router();
 
 const ATLAS_ZOMBIE_MS = 90 * 60 * 1_000;
 const ATLAS_STALE_PROGRESS_MS = 90 * 1_000;
 const ATLAS_LATEST_DISPLAY_TTL_MS = 15 * 60 * 1_000;
+/** Status plane must not wait on Redis forever while dig holds the event loop / connection pool. */
+const STATUS_REDIS_BUDGET_MS = 1_200;
+
+function withBudget<T>(p: Promise<T>, fallback: T, ms = STATUS_REDIS_BUDGET_MS): Promise<T> {
+  return new Promise((resolve) => {
+    let done = false;
+    const timer = setTimeout(() => {
+      if (!done) {
+        done = true;
+        resolve(fallback);
+      }
+    }, ms);
+    p.then(
+      (v) => {
+        if (!done) {
+          done = true;
+          clearTimeout(timer);
+          resolve(v);
+        }
+      },
+      () => {
+        if (!done) {
+          done = true;
+          clearTimeout(timer);
+          resolve(fallback);
+        }
+      },
+    );
+  });
+}
+
 
 function lastLogActivityMs(log: string[]): number {
   for (const line of log.slice(0, 12)) {
@@ -264,34 +296,49 @@ function isFreshAtlasTerminal(job: { status?: string; finishedAt?: string; start
 // ── GET /ingest/atlas-status ──────────────────────────────────────────────────
 // Desk polls this often; short in-process cache cuts Redis GETs without lying for long.
 let _atlasStatusCache: { at: number; body: unknown } | null = null;
-const ATLAS_STATUS_CACHE_MS = 6_000;
+const ATLAS_STATUS_CACHE_MS = 2_000;
 
 router.get("/ingest/atlas-status", async (_req: Request, res: Response): Promise<void> => {
   if (_atlasStatusCache && Date.now() - _atlasStatusCache.at < ATLAS_STATUS_CACHE_MS) {
     res.json(_atlasStatusCache.body);
     return;
   }
-  const scheduler = await getAutoPipelineScheduler();
-  const jobId = await getActiveJob("atlas-run");
+  const scheduler = await withBudget(getAutoPipelineScheduler(), { enabled: false, active: false, cycles: 0, skippedDueToLock: 0, providerNoTarget: 0 } as any);
+  const jobId = await withBudget(getActiveJob("atlas-run"), null);
   if (!jobId) {
-    const latest = await getLatestJob("atlas-run");
+    const latest = await withBudget(getLatestJob("atlas-run"), null);
     // Only expose a terminal latest job while it is still "just finished".
     // Stale completed runs must not appear as CURRENT TARGET in the Reactor.
     if (latest && isFreshAtlasTerminal(latest)) {
-      const log = await getJobLog(latest.jobId);
-      res.json({ ...latest, active: false, latest: true, scheduler, log: log.slice(0, 80), recentSpans: getRecentDigSpans(latest.jobId, 50) });
+      const log = await withBudget(getJobLog(latest.jobId), []);
+      const latestBody = { ...latest, message: normalizeAtlasStatusMessage(latest.message), active: false, latest: true, scheduler, log: log.slice(0, 80), recentSpans: getRecentDigSpans(latest.jobId, 50) };
+      _atlasStatusCache = { at: Date.now(), body: latestBody };
+      res.json(latestBody);
       return;
     }
-    res.json({
+    const idleBody = {
       status: "idle",
       message: "No Atlas run in progress.",
       scheduler,
       recentSpans: getRecentDigSpans(null, 30),
-    });
+    };
+    _atlasStatusCache = { at: Date.now(), body: idleBody };
+    res.json(idleBody);
     return;
   }
-  const job = await getJob(jobId);
-  const log = await getJobLog(jobId);
+  const job = await withBudget(getJob(jobId), null);
+  const log = await withBudget(getJobLog(jobId), []);
+  if (!job) {
+    const idleBody = {
+      status: "idle",
+      message: "No Atlas run in progress.",
+      scheduler,
+      recentSpans: getRecentDigSpans(null, 30),
+    };
+    _atlasStatusCache = { at: Date.now(), body: idleBody };
+    res.json(idleBody);
+    return;
+  }
   // Terminal job still holding the active pointer — drop pointer only
   if (job && (job.status === "done" || job.status === "failed" || job.status === "cancelled")) {
     await clearActiveJobIfMatches("atlas-run", jobId);
@@ -356,6 +403,7 @@ router.get("/ingest/atlas-status", async (_req: Request, res: Response): Promise
   const body = {
     ...job,
     jobId,
+    message: normalizeAtlasStatusMessage(job?.message),
     active: true,
     scheduler,
     log: log.slice(0, 80),
