@@ -2501,6 +2501,44 @@ export async function runAtlasPipeline(atlasJobId: string, opts: AtlasOptions): 
   let sourceRound = 0;
   const phaseJJobId = await createJob("phase-j-pass");
 
+  // Optional free discovery agent (plan Vol 219) before template farm.
+  // Default on when discoveryFirst; set APEX_DISCOVERY_AGENT=0 to disable.
+  const discoveryAgentEnabled =
+    Boolean(opts.discoveryFirst) &&
+    process.env.APEX_DISCOVERY_AGENT !== "0" &&
+    process.env.APEX_DISCOVERY_AGENT !== "false";
+  if (discoveryAgentEnabled && targetLimit > 0) {
+    try {
+      await status("Discovery agent (free LLM people hunt)…", 1);
+      const { runDiscoveryAgent } = await import("./discovery-agent");
+      const disc = await runDiscoveryAgent({
+        jobId: atlasJobId,
+        depth: "standard",
+        hardTimeoutMs: 90_000,
+      });
+      logger.info(
+        { candidates: disc.candidates.length, degraded: disc.degraded, message: disc.message },
+        "[Atlas] Discovery agent finished",
+      );
+      // Soft admit: create review-oriented entities only when we have name + URL
+      for (const c of disc.candidates.slice(0, Math.min(5, targetLimit))) {
+        if (!c.name || !(c.sourceUrls?.length)) continue;
+        try {
+          const { createEntityFromDiscoveryCandidate } = await import("./discovery-agent-admit");
+          const id = await createEntityFromDiscoveryCandidate(c);
+          if (id) {
+            totalIngested += 1;
+            admittedTargets += 1;
+          }
+        } catch (e: any) {
+          logger.debug({ err: e?.message, name: c.name }, "[Atlas] discovery agent admit skip");
+        }
+      }
+    } catch (e: any) {
+      logger.warn({ err: e?.message }, "[Atlas] Discovery agent path failed; continuing templates");
+    }
+  }
+
   for (const source of sourcesToRun) {
     await ensureAtlasActive(atlasJobId);
     if (admittedTargets >= targetLimit) {

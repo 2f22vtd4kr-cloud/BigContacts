@@ -13,6 +13,7 @@ import {
   Star, EyeOff, Eye, CheckCircle2, Flame,
 } from "lucide-react";
 import { readApiJson } from "@/lib/api-json";
+import { ContactSurface } from "@/components/contact-surface";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -85,6 +86,28 @@ function ReachChip({ kind, label, href, title }: { kind: "personal" | "org" | "s
 }
 function entityReachVectors(entity: any) {
   const out: Array<{ kind: "personal" | "org" | "social"; label: string; href?: string; title?: string }> = [];
+  const contacts = Array.isArray(entity.contacts) ? entity.contacts : [];
+  // Prefer API presented contacts (org routes included) — maximum public surface.
+  if (contacts.length > 0) {
+    for (const c of contacts.slice(0, 8)) {
+      const value = String(c?.value ?? "").trim();
+      if (!value) continue;
+      const mark = String(c?.mark ?? "candidate");
+      const vt = String(c?.vectorType ?? "").toLowerCase();
+      const kind = mark === "organization" || vt === "organization" ? "org" : vt === "social" ? "social" : mark === "personal" ? "personal" : "personal";
+      const href =
+        vt === "phone" ? `tel:${value.replace(/[^\d+]/g, "") || value}`
+        : vt === "email" ? `mailto:${value}`
+        : c?.sourceUrl || (value.startsWith("http") ? value : undefined);
+      out.push({
+        kind: kind as "personal" | "org" | "social",
+        label: value,
+        href,
+        title: `${c?.label || mark} · ${c?.source || ""}`.trim(),
+      });
+    }
+    return out;
+  }
   // Floor contract: UI fallback respects contactOutcome —
   // outcome === "direct_contact_verified" → personal; else candidate until verified.
   const outcome = String(entity.contactOutcome ?? "");
@@ -102,11 +125,13 @@ function entityReachVectors(entity: any) {
   if (entity.phone) {
     const scope = verified ? "personal" : "candidate";
     const src = entity.phoneSource ? ` · ${entity.phoneSource}` : "";
+    // Org-marked phone sources must not show as personal chips
+    const orgPhone = /org|registry|company|ir/i.test(String(entity.phoneSource ?? "")) || outcome === "organization_contact";
     out.push({
-      kind: "personal",
+      kind: orgPhone ? "org" : "personal",
       label: `${entity.phone}${src}`,
       href: `tel:${entity.phone}`,
-      title: `REACH · ${scope} — ${entity.phone}${src}`,
+      title: `REACH · ${orgPhone ? "org" : scope} — ${entity.phone}${src}`,
     });
   }
   if (entity.linkedinUrl) out.push({ kind: "social", label: "LinkedIn", href: entity.linkedinUrl, title: entity.linkedinUrl });
@@ -218,7 +243,7 @@ function MobileEntityCard({
   const workSummary = entityWorkSummary(entity);
   const findingsSummary = entityFindingsSummary(entity);
   const organizationLike = entity.type === "Corporation" || entity.type === "Corp" || entity.type === "Trust";
-  const hasPublicVector = Boolean(entity.email || entity.phone || entity.linkedinUrl || entity.twitterHandle || entity.instagramHandle || entity.telegramHandle);
+  const hasPublicVector = Boolean(entity.email || entity.phone || entity.linkedinUrl || entity.twitterHandle || entity.instagramHandle || entity.telegramHandle || (Array.isArray(entity.contacts) && entity.contacts.length > 0));
   const contactState = organizationLike
     ? entity.contactOutcome === "organization_contact"
       ? "Organization route"
@@ -329,16 +354,16 @@ function MobileEntityCard({
           
           <div className="mb-3">
              <div className="text-[11px] font-mono text-muted-foreground uppercase tracking-wider mb-0.5">
-               {organizationLike ? "Organization route" : "Contact"}
+               Public routes
              </div>
-            <div className="text-xs text-foreground font-mono truncate">
-              {entity.email ? entity.email : entity.phone ? entity.phone : entity.linkedinUrl ? "LinkedIn" : "—"}
-            </div>
-             <div className="text-[10px] text-muted-foreground/75 mt-1">
-               {organizationLike
-                 ? `${contactState} · not a personal route`
-                 : contactState}
-             </div>
+            <ContactSurface
+              contacts={(entity as { contacts?: unknown[] }).contacts as never}
+              phone={entity.phone}
+              email={entity.email}
+              linkedinUrl={entity.linkedinUrl}
+              phoneSource={entity.phoneSource}
+              density="mobile"
+            />
             {entity.contactOutcome && OUTCOME_BADGES[entity.contactOutcome] && (
               <span
                 className="inline-block text-[11px] font-mono px-1.5 py-0.5 rounded mt-0.5"
