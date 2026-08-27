@@ -25,6 +25,10 @@ const COLLISION_HOSTS = [
   "spokeo", "whitepages", "beenverified", "intelius", "truepeoplesearch",
   "fastpeoplesearch", "thatsthem", "radaris", "peoplefinder",
   "hunter.io", "clearbit", "lusha",
+  "crunchbase", "pitchbook", "bloomberg.com/profile",
+  "dnb.com", "opencorporates", "bbb.org", "yelp.com",
+  "yellowpages", "superpages", "manta.com", "bizapedia",
+  "prospeo", "adapt.io", "growjo", "theorg.com", "equilar",
 ];
 
 export type IdentityCollisionResult = {

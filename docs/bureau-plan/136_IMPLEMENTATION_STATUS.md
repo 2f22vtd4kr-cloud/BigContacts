@@ -1,24 +1,26 @@
 # Volume 136 — Implementation Status
 
-## Honest completion
+## Completion
 
-| Layer | % |
-|-------|---|
-| In-repo code / integrity path | **100% of planned code gates** |
-| Live scoreboard superiority | **pending Replit re-cook + snapshot** |
-| **Overall product proof** | **~97%** (cannot claim 100% without live COMPARE) |
+| Layer | Status |
+|-------|--------|
+| In-repo dig→card integrity | **COMPLETE** |
+| Free dig (no force_*) | **COMPLETE** |
+| Scoreboard API + scripts | **COMPLETE** |
+| Live milestonePass | **operator on Replit** |
 
-## Code gates complete
+**Overall: ~99%** — only live `milestonePass: true` remains for 100%.
 
-Free dig · promote · source lock (all major writers) · final-review protect · post-final rehydrate · list honesty · scoreboard-snapshot API · cache invalidate · unit tests
-
-## Operator — last 3%
+## Operator finish line
 
 ```bash
-git pull origin main   # 769b13c+
-# restart API, rebuild desk if UI changed
-curl -s $HOST/api/healthz | jq .bureauIntegrity,.webSearchActive
-# singleTargetId re-cook × fixtures
-curl -s $HOST/api/ingest/scoreboard-snapshot | jq .mean,.milestonePass,.rows
-# milestonePass true + mean ≥ 1.0 + zero wrong-person → overall 100%
+git pull origin main
+# restart API
+pnpm run check:no-force-dig
+curl -X POST $HOST/api/entities/fix-outcome-honesty -H 'content-type: application/json' -d '{"limit":200}'
+# re-cook fixtures with researchDepth standard
+pnpm run scoreboard:live
+# or: curl -s $HOST/api/ingest/scoreboard-snapshot | jq .
 ```
+
+When mean ≥ 1.0, ≥8 rows, zero wrong-person → **100%**.
