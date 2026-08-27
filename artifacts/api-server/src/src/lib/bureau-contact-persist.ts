@@ -426,7 +426,6 @@ async function promoteBureauContactsToEntityCard(
     // Never demote a protected dig/notice phone to a weaker pipeline value.
     const protectedCurrent = isProtectedPhoneSource(curPhoneSrc) && Boolean(ent.phone);
     const incomingOrg = bestPhone.source.endsWith("-org");
-    const currentPersonalAgentic = curPhoneSrc === "agentic-web";
     const allowPhone =
       !protectedCurrent &&
       (
@@ -446,6 +445,8 @@ async function promoteBureauContactsToEntityCard(
     if ((allowPhone || upgradeOrgToPersonal) && bestPhone.value !== ent.phone) {
       patch.phone = bestPhone.value;
       patch.phoneSource = incomingOrg ? "agentic-web-org" : "agentic-web";
+      patch.contactMethod =
+        `Phone ${bestPhone.value} (${patch.phoneSource}). Validate before outreach.`;
       changed = true;
     }
   }
@@ -487,8 +488,7 @@ async function promoteBureauContactsToEntityCard(
     changed = true;
   }
 
-  if (!changed) return;
-
+  // Always recompute outcome for honesty even when vectors unchanged (e.g. org source labeled direct_*).
   let outcome = computeContactOutcome({
     type: ent.type,
     email: (patch.email as string) ?? ent.email,
@@ -511,7 +511,14 @@ async function promoteBureauContactsToEntityCard(
   ) {
     outcome = "organization_contact";
   }
-  patch.contactOutcome = outcome;
+  const prevOutcome = String((ent as { contactOutcome?: string | null }).contactOutcome ?? "");
+  if (outcome !== prevOutcome) {
+    patch.contactOutcome = outcome;
+    changed = true;
+  } else if (changed) {
+    patch.contactOutcome = outcome;
+  }
+  if (!changed) return;
 
   await db.update(entitiesTable).set(patch).where(eq(entitiesTable.id, entityId));
   try {
