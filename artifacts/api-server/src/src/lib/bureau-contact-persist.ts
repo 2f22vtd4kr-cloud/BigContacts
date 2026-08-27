@@ -249,12 +249,6 @@ export async function persistBureauContactsForEntity(
   return rows.length;
 }
 
-const ISSUER_PHONE_SOURCES = new Set([
-  "EDGAR-Phone",
-  "EDGAR-Issuer-Phone",
-  "CompaniesHouse-Phone",
-]);
-
 function isGenericLocal(email: string): boolean {
   const local = (email.split("@")[0] ?? "").toLowerCase();
   return /^(info|contact|office|press|hello|admin|sales|support|enquir(?:y|ies)|ir|media)$/i.test(local);
@@ -412,7 +406,7 @@ async function promoteBureauContactsToEntityCard(
   }
 
   const curPhoneSrc = String(ent.phoneSource ?? "");
-  const issuerLocked = ISSUER_PHONE_SOURCES.has(curPhoneSrc);
+  const issuerLocked = isIssuerSwitchboardSource(curPhoneSrc);
   const outcomeNow = String((ent as { contactOutcome?: string | null }).contactOutcome ?? "");
   const weakOutcome =
     !outcomeNow ||

@@ -83,6 +83,68 @@ function normalizeBooleanQueryValues(query: Record<string, unknown>): Record<str
 }
 
 
+
+// POST /entities/fix-outcome-honesty — recompute outcomes; demote org-as-direct
+router.post("/entities/fix-outcome-honesty", async (req, res): Promise<void> => {
+  try {
+    const limit = Math.min(500, Math.max(1, Number(req.body?.limit ?? 100) || 100));
+    const rows = await db
+      .select({
+        id: entitiesTable.id,
+        type: entitiesTable.type,
+        phone: entitiesTable.phone,
+        phoneSource: entitiesTable.phoneSource,
+        email: entitiesTable.email,
+        contactOutcome: entitiesTable.contactOutcome,
+        linkedinUrl: entitiesTable.linkedinUrl,
+        twitterHandle: entitiesTable.twitterHandle,
+        instagramHandle: entitiesTable.instagramHandle,
+        telegramHandle: entitiesTable.telegramHandle,
+        knownResidences: entitiesTable.knownResidences,
+        metadata: entitiesTable.metadata,
+      })
+      .from(entitiesTable)
+      .where(sql`${entitiesTable.phone} IS NOT NULL OR ${entitiesTable.email} IS NOT NULL`)
+      .limit(limit);
+    let fixed = 0;
+    for (const e of rows) {
+      const phoneSrc = String(e.phoneSource ?? "");
+      let outcome = computeContactOutcome({
+        type: e.type,
+        email: e.email,
+        phone: e.phone,
+        phoneSource: e.phoneSource,
+        linkedinUrl: e.linkedinUrl,
+        twitterHandle: e.twitterHandle,
+        instagramHandle: e.instagramHandle,
+        telegramHandle: e.telegramHandle,
+        knownResidences: e.knownResidences,
+        metadata: e.metadata,
+      });
+      if (
+        (outcome === "direct_contact_candidate" || outcome === "direct_contact_verified") &&
+        (phoneSrc === "agentic-web-org" || phoneSrc.endsWith("-org") ||
+          phoneSrc === "EDGAR-Phone" || phoneSrc === "EDGAR-Issuer-Phone" ||
+          phoneSrc === "CompaniesHouse-Phone")
+      ) {
+        outcome = "organization_contact";
+      }
+      if (outcome !== e.contactOutcome) {
+        await db.update(entitiesTable).set({
+          contactOutcome: outcome,
+          updatedAt: new Date(),
+        }).where(eq(entitiesTable.id, e.id));
+        fixed++;
+      }
+    }
+    void delCachePattern("entities:list:*");
+    void delCachePattern("dashboard:*");
+    res.json({ scanned: rows.length, fixed });
+  } catch (err) {
+    res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+  }
+});
+
 // POST /entities/rehydrate-contacts — promote durable contact_evidence onto entity cards
 router.post("/entities/rehydrate-contacts", async (req, res): Promise<void> => {
   try {

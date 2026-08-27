@@ -14,7 +14,7 @@ import {
   rehydrateEntityCardFromEvidence,
   type BureauContactLike,
 } from "./bureau-contact-persist";
-import { resolveResearchDepth } from "./research-depth";
+import { resolveResearchDepth, describeResearchDepth } from "./research-depth";
 import { publishBureauEvent } from "./bureau-live-log";
 import { computeContactOutcome } from "./contact-confidence";
 
@@ -82,6 +82,7 @@ export async function runTargetContactAgent(input: {
   }
 
   const depth = resolveResearchDepth();
+  logger.info({ entityId: input.entityId, depth: describeResearchDepth(depth) }, "[target-agent] dig depth");
   const objective =
     `Research ${name}` +
     (input.companyName ? ` linked to ${input.companyName}` : "") +
