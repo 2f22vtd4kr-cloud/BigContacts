@@ -292,3 +292,6 @@ Depth env · protected sources · final review · promote spans · theme · sche
 
 ## 401–550
 Eval L-code playbooks · observation shapes · surface doctrine · control-plane one-liners · desk entries · phoneSource vocabulary · DigSpan ops · scoreboard/API · accept/reject lists · theses · checkpoints 410–550
+
+## 801–1000
+Operator runbooks · edge cases · QA · KPIs · locked decisions · quality loop · theme index · one-page law · stress · doc drift · final reminders · checkpoint 1000
