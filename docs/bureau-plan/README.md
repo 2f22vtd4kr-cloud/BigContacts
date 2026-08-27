@@ -107,3 +107,39 @@ Grok Files folder: `artifacts/bureau-plan/` (synced).
 | [97_REGRESSION_SUITE_MINIMAL.md](./97_REGRESSION_SUITE_MINIMAL.md) |
 | [98_OPERATOR_FAQ.md](./98_OPERATOR_FAQ.md) |
 | [99_GLOSSARY.md](./99_GLOSSARY.md) |
+
+
+## Volumes 137–152 (purpose reset + UI + scoreboard culture)
+
+| Vol | Title |
+|-----|-------|
+| 137 | Purpose reset — why Apex lost to a single LLM |
+| 138 | Contact surface doctrine (personal preferred, org never discarded) |
+| 139 | Agentic OSINT 2025–2026 state and Apex mapping |
+| 140 | UI/UX desk overhaul |
+| 141 | Free dig constitution |
+| 142 | Card layout spec |
+| 143 | Batch implementation roadmap |
+| 144 | Outreach workflow |
+| 145 | Failure taxonomy L-codes expanded |
+| 146 | Live Desk information architecture |
+| 147 | Search and visit quality |
+| 148 | External methods watchlist |
+| 149 | Entities page redesign |
+| 150 | Scoreboard culture |
+| 151 | Structural advantages vs chat |
+| 152 | Plan word budget and discipline |
+| 153 | EDGAR HNWI playbook |
+| 154 | Privacy-hardened targets |
+| 155 | Provider incident runbook |
+| 156 | Related person surface |
+| 157 | Visit extraction heuristics |
+| 158 | Shared UI component contract |
+| 159 | DigSpan operator guide |
+| 160 | Batch B2 card surface |
+| 161 | Multilingual and EU registries |
+| 162 | Notes and summary field |
+
+
+**Product north star:** free-agent OSINT desk for HNWI outreach; card shows full contact surface; beat single-LLM baseline on scoreboard.
+
