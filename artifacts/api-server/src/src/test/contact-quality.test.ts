@@ -154,6 +154,51 @@ describe("public contact quality guardrails", () => {
     })).toBe(25);
   });
 
+
+  it("agentic-web-org phone without personal email is organization_contact", async () => {
+    const { computeContactOutcome } = await import("../lib/contact-confidence");
+    expect(computeContactOutcome({
+      type: "HNWI",
+      phone: "+12125551212",
+      phoneSource: "agentic-web-org",
+    })).toBe("organization_contact");
+    expect(computeContactOutcome({
+      type: "HNWI",
+      phone: "+12125551212",
+      phoneSource: "agentic-web-org",
+      email: "info@firm.example",
+    })).toBe("organization_contact");
+  });
+
+  it("agentic-web personal phone can be direct_contact_candidate", async () => {
+    const { computeContactOutcome } = await import("../lib/contact-confidence");
+    expect(computeContactOutcome({
+      type: "HNWI",
+      phone: "+12125551212",
+      phoneSource: "agentic-web",
+    })).toBe("direct_contact_candidate");
+  });
+
+  it("EDGAR-Notice-Phone is person-associated candidate not issuer org", async () => {
+    const { computeContactOutcome } = await import("../lib/contact-confidence");
+    const out = computeContactOutcome({
+      type: "HNWI",
+      phone: "+15852311248",
+      phoneSource: "EDGAR-Notice-Phone",
+    });
+    expect(out).not.toBe("organization_contact");
+    expect(["direct_contact_candidate", "direct_contact_verified"]).toContain(out);
+  });
+
+  it("generic inbox alone is organization_contact", async () => {
+    const { computeContactOutcome } = await import("../lib/contact-confidence");
+    expect(computeContactOutcome({
+      type: "HNWI",
+      email: "info@acme.example",
+    })).toBe("organization_contact");
+  });
+
+
   it("keeps organization evidence out of personal Phase J metrics", () => {
     expect(isPersonalContactOutcome("organization_contact")).toBe(false);
     expect(isPersonalContactOutcome("direct_contact_candidate")).toBe(true);
