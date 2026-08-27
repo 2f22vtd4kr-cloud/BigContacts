@@ -289,3 +289,6 @@ COMPARE archive · free dig constitution · superiority definition · drift · D
 
 ## 376–400
 Depth env · protected sources · final review · promote spans · theme · scheme≠plan · role one-liners · present layer · OS patterns · citation chips · scoreboard n · same-id re-cook · checkpoint 400
+
+## 401–550
+Eval L-code playbooks · observation shapes · surface doctrine · control-plane one-liners · desk entries · phoneSource vocabulary · DigSpan ops · scoreboard/API · accept/reject lists · theses · checkpoints 410–550
