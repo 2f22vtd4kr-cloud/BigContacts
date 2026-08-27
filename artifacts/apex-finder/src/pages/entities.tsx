@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import { entityMeta, EntityTypeMark, entityMetric, ENTITY_TYPES } from "@/lib/entity-taxonomy";
 import { isMockMode, MOCK_ENTITIES } from "@/lib/dev-mock-data";
 import {
-  Plus, Search, Trash2, Globe, ChevronDown, ChevronUp, X, Loader2,
+  Plus, Search, Trash2, Loader2, Target as TargetIcon, Globe, ChevronDown, ChevronUp, X, Loader2,
   ChevronRight, Network, Target as TargetIcon, Download, ShieldAlert,
   Filter, IdCard,
   CheckSquare, Square, Users2, CheckCheck, Database, XCircle,
@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { readApiJson } from "@/lib/api-json";
 import { ContactSurface } from "@/components/contact-surface";
+import { launchAtlasPipeline } from "@/lib/launch-atlas";
 import { ScoreboardStrip } from "@/components/scoreboard-strip";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -713,6 +714,28 @@ export default function EntityLedger() {
     if (scrollHeight - scrollTop - clientHeight < 300) handleLoadMore();
   };
 
+  const [diggingId, setDiggingId] = useState<number | null>(null);
+  const handleDigEntity = async (id: number) => {
+    if (diggingId != null) return;
+    setDiggingId(id);
+    try {
+      const launched = await launchAtlasPipeline({
+        singleTargetId: id,
+        discoveryFirst: false,
+        researchLimit: 1,
+        runResearch: true,
+        researchDepth: "standard",
+        targetCount: 1,
+      });
+      if (!launched.ok) throw new Error(launched.message || "Dig failed to start");
+      // Fire-and-forget: operator can watch Reactor; refresh list shortly
+      setTimeout(() => { void refetch(); setDiggingId(null); }, 8_000);
+    } catch (e) {
+      console.warn("dig entity failed", e);
+      setDiggingId(null);
+    }
+  };
+
   const handleDelete = (id: number) => {
     if (confirm("Delete this entity from the ledger? This cannot be undone.")) {
       deleteEntity.mutate(
@@ -1353,6 +1376,19 @@ export default function EntityLedger() {
                     </td>
                     <td className="px-4 py-3 pr-6 sm:pr-8 text-right">
                       <div className="flex items-center justify-end gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          type="button"
+                          onClick={() => handleDigEntity(entity.id)}
+                          disabled={diggingId != null}
+                          className="p-1.5 text-muted-foreground hover:text-primary transition-colors disabled:opacity-40"
+                          title="Dig contacts (Atlas free dig)"
+                          data-testid={`button-dig-entity-${entity.id}`}
+                        >
+                          {diggingId === entity.id
+                            ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            : <TargetIcon className="w-3.5 h-3.5" />}
+                        </button>
+
                         <Link
                           href={`/profile/${entity.id}`}
                           className="p-1.5 text-muted-foreground hover:text-primary transition-colors"
