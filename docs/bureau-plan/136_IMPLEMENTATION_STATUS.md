@@ -1,26 +1,35 @@
 # Volume 136 — Implementation Status
 
-## Completion
+## Status
 
-| Layer | Status |
-|-------|--------|
-| In-repo dig→card integrity | **COMPLETE** |
-| Free dig (no force_*) | **COMPLETE** |
-| Scoreboard API + scripts | **COMPLETE** |
-| Live milestonePass | **operator on Replit** |
+| Layer | % |
+|-------|---|
+| In-repo dig→card integrity + free dig | **100%** |
+| Operator tooling (snapshot, honesty fix, scripts) | **100%** |
+| Live scoreboard milestone on Replit | **pending** |
+| **Overall product proof** | **~99%** |
 
-**Overall: ~99%** — only live `milestonePass: true` remains for 100%.
+Tip: `497b088`
 
-## Operator finish line
+## Integrity complete
+
+- Free dig, no force_*
+- Promote, rehydrate, source locks on all major writers
+- Final review cannot wipe dig phones
+- Outcome honesty (promote, list, snapshot, bulk fix route)
+- DigSpan stage/llm/tool/promote + clear on stop
+- Scoreboard snapshot + replit-scoreboard-check.sh
+- Single-target defaults RESEARCH_DEPTH=standard
+
+## Last step to 100%
 
 ```bash
-git pull origin main
+git pull origin main   # 497b088
 # restart API
 pnpm run check:no-force-dig
 curl -X POST $HOST/api/entities/fix-outcome-honesty -H 'content-type: application/json' -d '{"limit":200}'
-# re-cook fixtures with researchDepth standard
-pnpm run scoreboard:live
-# or: curl -s $HOST/api/ingest/scoreboard-snapshot | jq .
+# re-cook ≥8 fixtures
+curl -s $HOST/api/ingest/scoreboard-snapshot | jq '{mean, milestonePass, count}'
 ```
 
-When mean ≥ 1.0, ≥8 rows, zero wrong-person → **100%**.
+`milestonePass: true` → overall **100%**.
