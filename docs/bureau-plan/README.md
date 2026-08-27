@@ -1,6 +1,6 @@
 # Apex Atlas — Master Bureau Plan
 
-One plan, many files on main.
+One plan, many files.
 
 Measure: `wc -w docs/bureau-plan/*.md`
 
@@ -57,5 +57,15 @@ Measure: `wc -w docs/bureau-plan/*.md`
 | [48_PAUSE_RESUME_STOP.md](./48_PAUSE_RESUME_STOP.md) |
 | [49_CACHE_INVALIDATION.md](./49_CACHE_INVALIDATION.md) |
 | [50_DOCUMENT_MAP.md](./50_DOCUMENT_MAP.md) |
+| [51_ADAPTIVE_DIRECTOR.md](./51_ADAPTIVE_DIRECTOR.md) |
+| [52_STAGNATION_HANDLING.md](./52_STAGNATION_HANDLING.md) |
+| [53_PARALLELISM_POLICY.md](./53_PARALLELISM_POLICY.md) |
+| [54_PROVIDER_HEALTH.md](./54_PROVIDER_HEALTH.md) |
+| [55_ENTITY_CARD_FIELDS.md](./55_ENTITY_CARD_FIELDS.md) |
+| [56_TRAJECTORY_QUALITY.md](./56_TRAJECTORY_QUALITY.md) |
+| [57_UI_COPY_BANK.md](./57_UI_COPY_BANK.md) |
+| [58_SECURITY_SECRETS.md](./58_SECURITY_SECRETS.md) |
+| [59_VERSIONING_TIPS.md](./59_VERSIONING_TIPS.md) |
+| [60_HANDOFF_CHECKLIST.md](./60_HANDOFF_CHECKLIST.md) |
 
-Thesis: free dig, honest cards, no force_* brain.
+Thesis: free dig · honest cards · no force_* brain · Boss=Gemini · RH=NVIDIA
