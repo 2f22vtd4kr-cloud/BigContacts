@@ -40,19 +40,21 @@ export async function launchAtlasPipeline(
   }
 
   // Must match api-server CANONICAL_ATLAS_LAUNCH_BODY (docs/RUN_BUREAU.md).
+  // singleTargetId digs: never default discoveryFirst — dig one person, no people hunt.
+  const isSingle = opts.singleTargetId != null;
   const body = {
-    discoveryFirst: opts.discoveryFirst ?? true,
-    targetCount: opts.targetCount ?? 50,
-    researchLimit: opts.researchLimit ?? 10,
+    discoveryFirst: opts.discoveryFirst ?? (isSingle ? false : true),
+    targetCount: opts.targetCount ?? (isSingle ? 1 : 50),
+    researchLimit: opts.researchLimit ?? (isSingle ? 1 : 10),
     runResearch: opts.runResearch !== false,
     hotLeadsOnly: opts.hotLeadsOnly ?? false,
     skipFaa: true,
-    broadCategories: 3,
+    broadCategories: isSingle ? 0 : 3,
     batchSize: 50,
     phaseJBatchSize: 10,
     targetTimeoutMs: 420_000,
     researchDepth: opts.researchDepth ?? "standard",
-    ...(opts.singleTargetId != null ? { singleTargetId: opts.singleTargetId } : {}),
+    ...(isSingle ? { singleTargetId: opts.singleTargetId } : {}),
   };
 
   const postLaunch = () =>
