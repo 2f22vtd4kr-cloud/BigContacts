@@ -166,3 +166,24 @@ Grok Files folder: `artifacts/bureau-plan/` (synced).
 | 193 | Anti-feature list |
 | 194 | Context window hygiene |
 | 195 | Batch B2 test plan |
+
+| 196 | Companies House surface |
+| 197 | DigSpan OTel alignment |
+| 198 | ContactSurface pixel spec |
+| 199 | Evidence drawer UX |
+| 200 | Search query diversity |
+| 201 | PDF and exhibit visits |
+| 202 | Named IR staffers |
+| 203 | Gatekeeper and counsel |
+| 204 | Status message library |
+| 205 | Cache invalidation map |
+| 206 | Comparison to chat session |
+| 207 | Mobile reactor spec |
+| 208 | Desktop entities density |
+| 209 | sourceUrl policy |
+| 210 | Sanitize vs recall |
+| 211 | Related strip UX |
+| 212 | Boss / right-hand scope |
+| 213 | Enricher parallelism policy |
+| 214 | Acceptance master checklist |
+| 215 | Word budget progress log |
