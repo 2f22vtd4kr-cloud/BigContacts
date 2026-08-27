@@ -7,6 +7,8 @@ import { db, contactEvidenceTable, entitiesTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { sanitizePublicEmail, sanitizePublicPhone, isTrashContactValue } from "./contact-validation";
 import { logger } from "./logger";
+import { invalidateBM25Index } from "./bm25";
+import { invalidateTFIDFCorpus } from "./tfidf-embedder";
 import { resolveResearchDepth } from "./research-depth";
 import { publishBureauEvent } from "./bureau-live-log";
 import { computeContactOutcome } from "./contact-confidence";
@@ -501,6 +503,10 @@ async function promoteBureauContactsToEntityCard(
   patch.contactOutcome = outcome;
 
   await db.update(entitiesTable).set(patch).where(eq(entitiesTable.id, entityId));
+  try {
+    invalidateBM25Index();
+    invalidateTFIDFCorpus();
+  } catch { /* non-fatal */ }
   logger.info(
     {
       entityId,

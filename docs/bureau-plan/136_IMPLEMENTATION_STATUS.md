@@ -4,37 +4,19 @@
 
 | Layer | % |
 |-------|---|
-| In-repo code path | **~95%** |
-| Product scoreboard proven | **0%** until Replit COMPARE |
-| **Overall** | **~90%** |
+| In-repo code path | **~97%** |
+| Product scoreboard proven | **0%** until live COMPARE |
+| **Overall** | **~92%** |
 
-## Code complete (this tip family)
+## Done in code
 
-- Free dig (no force_* controllers) + `pnpm run check:no-force-dig`
-- Promote / rehydrateEntityCardFromEvidence
-- Phone source priority: agentic/notice block issuer overwrite
-- **ingest-enrichment + phase-j** use `shouldBlockIssuerOverwrite` when writing phone/phoneSource
-- Outcome honesty (agentic-web-org → organization_contact)
-- Depth + `researchDepth` on Launch body
-- DigSpan (tools + llm_step + promote) + agentName
-- SC13 notice window parse
-- Identity collision + graph name-pair gate
-- Scoreboard rubric pure functions + `pnpm run scoreboard:shell` / `scoreboard:score`
-- Entities UI shows phoneSource
+Free dig · promote/rehydrate · source lock · outcome honesty · depth · DigSpan · SC13 · collision · scoreboard · list-index invalidate on promote · case promote rehydrate · COMPARE template
 
-## Operator (Replit)
+## Operator
 
 ```bash
 git pull origin main
 pnpm run check:no-force-dig
 pnpm run scoreboard:score
-pnpm run scoreboard:shell
-# Restart API
-# Launch singleTargetId re-cook with researchDepth standard
-# Fill COMPARE_*.md — milestone: ≥8 fixtures, mean ≥ 1.0, zero -1s
+# restart API → singleTargetId re-cook → docs/comparisons/COMPARE_*.md
 ```
-
-## Still open (needs live)
-
-- Scoreboard file from real cards after re-cook
-- Optional worker-thread dig isolation (yields already in place)
