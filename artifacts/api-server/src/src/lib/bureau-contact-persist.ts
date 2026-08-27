@@ -10,6 +10,7 @@ import { logger } from "./logger";
 import { resolveResearchDepth } from "./research-depth";
 import { publishBureauEvent } from "./bureau-live-log";
 import { computeContactOutcome } from "./contact-confidence";
+import { assessIdentityCollision } from "./identity-collision";
 import { publishDigSpan } from "./dig-span";
 import { apexOrientationCompact } from "./apex-bureau-orientation";
 
@@ -69,107 +70,6 @@ function sanitizeValue(vectorType: string, value: string): string | null {
  * verified_direct — fail-closed promotion stays elsewhere.
  */
 
-function nameTokens(value: string | null | undefined): string[] {
-  return String(value ?? "")
-    .toLowerCase()
-    .replace(/[^a-z0-9\s]/g, " ")
-    .split(/\s+/)
-    .map((t) => t.trim())
-    .filter((t) => t.length >= 3 && !["the", "and", "for", "inc", "llc", "ltd", "company", "corp"].includes(t));
-}
-
-/** True when source URL/host or note likely refers to a different person/org than the target. */
-function assessIdentityCollision(input: {
-  targetName: string;
-  companyName?: string | null;
-  personName?: string | null;
-  value: string;
-  sourceUrls: string[];
-  note?: string | null;
-}): { risk: boolean; identityMatch: number; reason: string | null } {
-  const targetToks = nameTokens(input.targetName);
-  const companyToks = nameTokens(input.companyName);
-  const blob = [
-    input.personName ?? "",
-    input.value,
-    input.note ?? "",
-    ...input.sourceUrls,
-  ].join(" ").toLowerCase();
-
-  // Strong org/company alignment → not a collision for org-scoped vectors
-  if (companyToks.length && companyToks.some((t) => blob.includes(t))) {
-    return { risk: false, identityMatch: 0.55, reason: null };
-  }
-
-  const overlap = targetToks.filter((t) => blob.includes(t));
-  // Common false friends: finance advisors, banks, unrelated filings with same first+last
-  const collisionHosts = [
-    "edwardjones", "edward-jones", "immunovant", "alvarezandmarsal", "alvarez-marsal",
-    "fidelity", "vanguard", "schwab", "morganstanley", "goldmansachs",
-    "andrewjohnsonbank", "bankofamerica", "wellsfargo", "jpmorgan", "citigroup",
-    "raymondjames", "ameriprise", "northwesternmutual", "prudential",
-    "merceradvisors", "mercer-advisors", "wealthadvisor", "wealth-advisor",
-    "rocketreach", "zoominfo", "signalhire", "contactout", "apollo.io",
-    "majesco", "bbgigroup", "bbgi.com",  // wrong-family hosts seen in Janeway audit
-  ];
-  const hostHit = collisionHosts.some((h) => blob.includes(h));
-  if (hostHit && companyToks.length && !companyToks.some((t) => blob.includes(t))) {
-    return {
-      risk: true,
-      identityMatch: 0.15,
-      reason: "source host/org does not match target issuer; likely name collision",
-    };
-  }
-  if (targetToks.length >= 2 && overlap.length === 0) {
-    return {
-      risk: true,
-      identityMatch: 0.2,
-      reason: "no name-token overlap between target and evidence blob",
-    };
-  }
-  if (targetToks.length >= 2 && overlap.length === 1 && hostHit) {
-    return {
-      risk: true,
-      identityMatch: 0.25,
-      reason: "weak name overlap with collision-prone host",
-    };
-  }
-  // Multi-token targets (e.g. "James C Czirr"): require last-token (surname) hit for personal bind.
-  // Prevents wealth-advisor / same-first-name collisions without shared surname evidence.
-  if (targetToks.length >= 2) {
-    const surname = targetToks[targetToks.length - 1]!;
-    if (surname.length >= 3 && !blob.includes(surname) && overlap.length < 2) {
-      return {
-        risk: true,
-        identityMatch: 0.22,
-        reason: "surname token missing from evidence blob; likely name collision",
-      };
-    }
-  }
-  // Related-person / extracted personName must not bind a different surname onto the target card.
-  const personToks = nameTokens(input.personName);
-  if (targetToks.length >= 2 && personToks.length >= 2) {
-    const targetSurname = targetToks[targetToks.length - 1]!;
-    const personSurname = personToks[personToks.length - 1]!;
-    if (
-      targetSurname.length >= 3 &&
-      personSurname.length >= 3 &&
-      targetSurname !== personSurname &&
-      !personToks.some((t) => targetToks.includes(t) && t === targetSurname)
-    ) {
-      return {
-        risk: true,
-        identityMatch: 0.18,
-        reason: `personName surname "${personSurname}" ≠ target surname "${targetSurname}"`,
-      };
-    }
-  }
-  return {
-    risk: false,
-    identityMatch: overlap.length >= 2 ? 0.65 : 0.45,
-    reason: null,
-  };
-}
 
 export async function persistBureauContactsForEntity(
   entityId: number,

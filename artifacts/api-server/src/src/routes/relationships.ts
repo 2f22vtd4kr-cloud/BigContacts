@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { eq, isNotNull, sql, and, or, inArray, desc } from "drizzle-orm";
 import { db, relationshipsTable, entitiesTable, assetsTable } from "@workspace/db";
 import { getAllEmbeddings } from "../lib/semantic-engine";
+import { assessGraphNamePairRisk } from "../lib/identity-collision";
 import {
   ListRelationshipsQueryParams,
   CreateRelationshipBody,
@@ -91,6 +92,29 @@ router.post("/relationships", async (req, res): Promise<void> => {
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
     return;
+  }
+  const body = parsed.data;
+  if (String(body.targetType) === "Entity") {
+    try {
+      const rows = await db
+        .select({ id: entitiesTable.id, name: entitiesTable.name })
+        .from(entitiesTable)
+        .where(inArray(entitiesTable.id, [body.sourceEntityId, body.targetId]));
+      const left = rows.find((r) => r.id === body.sourceEntityId)?.name;
+      const right = rows.find((r) => r.id === body.targetId)?.name;
+      if (left && right) {
+        const pair = assessGraphNamePairRisk(left, right);
+        if (pair.risk) {
+          res.status(422).json({
+            error: "identity_gate_rejected",
+            reason: pair.reason,
+          });
+          return;
+        }
+      }
+    } catch {
+      /* continue */
+    }
   }
   const [rel] = await db.insert(relationshipsTable).values(parsed.data).returning();
   res.status(201).json({ ...rel!, createdAt: rel!.createdAt.toISOString(), sourceEntityName: null, targetName: null });

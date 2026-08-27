@@ -1,3 +1,4 @@
+import { assessGraphNamePairRisk } from "./identity-collision";
 export type IdentityGateDecision = "accepted" | "review" | "rejected";
 
 export interface IdentityGateResult {
@@ -15,7 +16,12 @@ export function evaluateIdentityGate(input: {
   signals: string[];
   leftSources: string[];
   rightSources: string[];
+  /** Optional endpoint names — same-first different-surname fails closed without stable id. */
+  leftName?: string | null;
+  rightName?: string | null;
 }): IdentityGateResult {
+  // Import deferred via dynamic would be odd in sync gate — use require-free top import
+
   const signals = new Set(input.signals);
   const rightSources = new Set(input.rightSources.map((source) => source.toLowerCase()));
   const sourceOverlap = input.leftSources.filter((source) => rightSources.has(source.toLowerCase()));
@@ -25,6 +31,17 @@ export function evaluateIdentityGate(input: {
 
   if (signals.size === 0 || input.score < 0.62) {
     return { decision: "rejected", reason: "Name similarity without contextual corroboration is not attributable." };
+  }
+  if (input.leftName && input.rightName) {
+    const pair = assessGraphNamePairRisk(input.leftName, input.rightName);
+    const hasStableId =
+      signals.has("shared_registry_identifier") || signals.has("shared_asset_identifier");
+    if (pair.risk && !hasStableId) {
+      return {
+        decision: "rejected",
+        reason: pair.reason ?? "Graph endpoints fail name-pair identity gate.",
+      };
+    }
   }
   if (!crossSource) {
     return { decision: "review", reason: "Evidence does not yet span independent source registries." };
