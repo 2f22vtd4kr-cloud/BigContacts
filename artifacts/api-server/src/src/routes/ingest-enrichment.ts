@@ -35,7 +35,7 @@ import { runCompaniesHouseEnrichment } from "../lib/enrichment/structured-verifi
 import { deepWebOsintEnrich } from "../lib/enrichment/web-discovery";
 import { summarizeAdaptiveResearch } from "../lib/adaptive-research-director";
 import { enrichInHouse } from "../lib/enrichment/contact-enrichment";
-import { shouldBlockIssuerOverwrite, isAgenticPhoneSource } from "../lib/phone-source-priority";
+import { shouldBlockIssuerOverwrite, isAgenticPhoneSource, isNoticePhoneSource } from "../lib/phone-source-priority";
 import { runMaigret, runSherlock, runHolehe } from "../lib/python-tools";
 import { discoverSocialPresence } from "../lib/enrichment/social-discovery";
 import { discoverMessengerPresence } from "../lib/enrichment/messenger-discovery";
@@ -304,6 +304,9 @@ router.post("/ingest/web-osint-enrich", async (req: Request, res: Response): Pro
       twitterHandle:    entitiesTable.twitterHandle,
       notes:            entitiesTable.notes,
       email:            entitiesTable.email,
+      phone:            entitiesTable.phone,
+      phoneSource:      entitiesTable.phoneSource,
+      linkedinUrl:      entitiesTable.linkedinUrl,
     })
     .from(entitiesTable)
     .where(conditions.length ? and(...conditions) : undefined)
@@ -379,6 +382,16 @@ router.post("/ingest/web-osint-enrich", async (req: Request, res: Response): Pro
         const cleanInstagramHandle = sanitizePublicSocialHandle(result.instagramUrl, "instagram");
         const cleanTwitterHandle = sanitizePublicSocialHandle(result.twitterUrl, "twitter");
 
+        const existingPhoneSrcEarly = (entity as { phoneSource?: string | null }).phoneSource ?? null;
+        const protectPhoneEarly =
+          isAgenticPhoneSource(existingPhoneSrcEarly) || isNoticePhoneSource(existingPhoneSrcEarly);
+        const effectivePhone = protectPhoneEarly
+          ? ((entity as { phone?: string | null }).phone ?? null)
+          : cleanPhone;
+        const effectivePhoneSrc = protectPhoneEarly
+          ? existingPhoneSrcEarly
+          : (cleanPhone ? "web-osint" : null);
+
         const hasSignal = cleanLinkedIn || cleanEmail || cleanPhone
           || cleanInstagram || cleanTwitter || result.evidence.length > 0
           || result.openDeepResearchReport || result.openDeepResearchCitations.length > 0;
@@ -389,9 +402,10 @@ router.post("/ingest/web-osint-enrich", async (req: Request, res: Response): Pro
 
         const confidence = computeContactConfidence({
           type: entity.type,
-          email: cleanEmail,
-          phone: cleanPhone,
-          linkedinUrl: cleanLinkedIn,
+          email: cleanEmail ?? (entity as { email?: string | null }).email ?? null,
+          phone: effectivePhone,
+          phoneSource: effectivePhoneSrc,
+          linkedinUrl: cleanLinkedIn ?? (entity as { linkedinUrl?: string | null }).linkedinUrl ?? null,
           instagramHandle: cleanInstagramHandle,
           twitterHandle: cleanTwitterHandle,
           knownResidences: entity.knownResidences,
@@ -438,9 +452,10 @@ router.post("/ingest/web-osint-enrich", async (req: Request, res: Response): Pro
         meta["liveSource"] = true;
 
         const nextContactOutcome = computeContactOutcome({
-          email: cleanEmail ?? entity.email,
-          phone: cleanPhone ?? entity.phone,
-          linkedinUrl: cleanLinkedIn ?? entity.linkedinUrl,
+          email: cleanEmail ?? (entity as { email?: string | null }).email ?? null,
+          phone: effectivePhone,
+          phoneSource: effectivePhoneSrc,
+          linkedinUrl: cleanLinkedIn ?? (entity as { linkedinUrl?: string | null }).linkedinUrl ?? null,
           instagramHandle: cleanInstagramHandle ?? entity.instagramHandle,
           twitterHandle: cleanTwitterHandle ?? entity.twitterHandle,
           knownResidences: entity.knownResidences,
@@ -449,12 +464,18 @@ router.post("/ingest/web-osint-enrich", async (req: Request, res: Response): Pro
         });
         meta["contactOutcome"] = nextContactOutcome;
 
+        const phonePatch: Record<string, unknown> = protectPhoneEarly
+          ? {}
+          : cleanPhone
+            ? { phone: cleanPhone, phoneSource: "web-osint" }
+            : force
+              ? { phone: null, phoneSource: null }
+              : {};
         await db.update(entitiesTable)
           .set({
-            // When force=true, always write the new result (even null) to wipe stale/garbage
-            // values from a previous run that passed invalid data (wrong phone country, bad LinkedIn).
+            // When force=true, wipe stale fields — but never dig/notice phones (Vol 73/78).
             ...(cleanEmail       ? { email: cleanEmail }             : force ? { email:       null } : {}),
-            ...(cleanPhone       ? { phone: cleanPhone }             : force ? { phone:       null } : {}),
+            ...phonePatch,
             ...(cleanLinkedIn    ? { linkedinUrl: cleanLinkedIn }     : force ? { linkedinUrl: null } : {}),
             // Corp/Trust: social handles from web scraping belong to persons, not the org
             ...(cleanInstagramHandle && !["Corporation","Corp","Trust"].includes(entity.type) ? { instagramHandle: cleanInstagramHandle } : force && !["Corporation","Corp","Trust"].includes(entity.type) ? { instagramHandle: null } : {}),
