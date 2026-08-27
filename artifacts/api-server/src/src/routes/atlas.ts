@@ -133,6 +133,7 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
     skipFaa:            body.skipFaa !== undefined ? Boolean(body.skipFaa) : (discoveryFirst ? C.skipFaa : false),
     broadCategories:    Number(body.broadCategories)   || C.broadCategories,
     singleTargetId:     body.singleTargetId !== undefined ? Number(body.singleTargetId) : undefined,
+    researchDepth:     typeof body.researchDepth === "string" ? body.researchDepth : undefined,
   };
 
   const atlasJobId = await createJob("atlas-run");

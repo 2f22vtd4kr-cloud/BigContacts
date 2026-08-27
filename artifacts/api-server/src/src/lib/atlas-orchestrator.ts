@@ -184,6 +184,8 @@ export interface AtlasOptions {
    * global backfills so no other target is touched.
    */
   singleTargetId?: number;
+  /** Override RESEARCH_DEPTH for this run: fast | standard | deep */
+  researchDepth?: string;
 }
 
 export interface AtlasResult {
@@ -2181,6 +2183,14 @@ async function runSingleTargetPipeline(
 }
 
 export async function runAtlasPipeline(atlasJobId: string, opts: AtlasOptions): Promise<AtlasResult> {
+  // Per-run depth override (Launch body or env RESEARCH_DEPTH)
+  if (opts.researchDepth) {
+    const d = String(opts.researchDepth).trim().toLowerCase();
+    if (d === "fast" || d === "standard" || d === "deep") {
+      process.env.RESEARCH_DEPTH = d;
+    }
+  }
+
   const startMs = Date.now();
   const summary: Record<string, string> = {};
   let totalIngested = 0;
