@@ -1509,6 +1509,30 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
   const atlasStatusColor = atlasFailed ? "#fb7185" : atlasCancelled ? "#fbbf24" : waitingForNextCycle ? "#fbbf24" : atlasDone ? "#b8ff4d" : isLive ? "#9CFF1A" : "#b8ff4d";
     const schemeScrollRef = useRef<HTMLDivElement | null>(null);
   const [schemeZoom, setSchemeZoom] = useState(1);
+  const [schemeView, setSchemeView] = useState({ left: 0, top: 0, w: 0.35, h: 0.4 });
+  const updateSchemeView = () => {
+    const el = schemeScrollRef.current;
+    if (!el) return;
+    const contentW = Math.max(1, 1600 * schemeZoom);
+    const contentH = Math.max(1, 842 * schemeZoom);
+    setSchemeView({
+      left: el.scrollLeft / contentW,
+      top: el.scrollTop / contentH,
+      w: Math.min(1, el.clientWidth / contentW),
+      h: Math.min(1, el.clientHeight / contentH),
+    });
+  };
+  useEffect(() => {
+    updateSchemeView();
+    const el = schemeScrollRef.current;
+    if (!el) return;
+    el.addEventListener("scroll", updateSchemeView, { passive: true });
+    window.addEventListener("resize", updateSchemeView);
+    return () => {
+      el.removeEventListener("scroll", updateSchemeView);
+      window.removeEventListener("resize", updateSchemeView);
+    };
+  }, [schemeZoom, isLive]);
   const schemeDragRef = useRef<{ active: boolean; x: number; y: number; left: number; top: number }>({
     active: false, x: 0, y: 0, left: 0, top: 0,
   });
@@ -1551,7 +1575,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
     el.scrollTop = Math.max(0, ry * contentH - el.clientHeight / 2);
   };
 
-const [deskOn, setDeskOn] = useState(false);
+  const [deskOn, setDeskOn] = useState(false);
   const { deskEvents, latestNarration } = useBureauLiveDesk(atlasState?.eventLog as any, { enabled: true, atlasLive: Boolean(isLive) });
   // Idle: keep Live Desk closed so it does not leave a blank column under Launch.
   // Live: open automatically so tool windows are visible.
@@ -2101,20 +2125,27 @@ const [deskOn, setDeskOn] = useState(false);
             title="Click minimap to pan scheme"
           >
             <div style={{
-              position: "absolute", inset: 4,
-              border: "1px dashed rgba(148,163,184,0.35)",
+              position: "absolute", inset: 3,
+              border: "1px dashed rgba(148,163,184,0.25)",
               borderRadius: 3,
+              background: "rgba(15,23,42,0.5)",
             }} />
-            <div style={{
-              position: "absolute",
-              left: "8%", top: "12%", width: "18%", height: "14%",
-              background: "rgba(156,255,26,0.35)", borderRadius: 2,
-            }} />
-            <div style={{
-              position: "absolute",
-              left: "35%", top: "40%", width: "50%", height: "12%",
-              background: "rgba(56,189,248,0.3)", borderRadius: 2,
-            }} />
+            {/* Live viewport rectangle tracks scheme pan/zoom */}
+            <div
+              data-testid="scheme-minimap-viewport"
+              style={{
+                position: "absolute",
+                left: `${Math.max(0, Math.min(100, schemeView.left * 100))}%`,
+                top: `${Math.max(0, Math.min(100, schemeView.top * 100))}%`,
+                width: `${Math.max(8, Math.min(100, schemeView.w * 100))}%`,
+                height: `${Math.max(8, Math.min(100, schemeView.h * 100))}%`,
+                border: "1.5px solid rgba(156,255,26,0.85)",
+                background: "rgba(156,255,26,0.12)",
+                borderRadius: 2,
+                boxShadow: "0 0 8px rgba(156,255,26,0.25)",
+                pointerEvents: "none",
+              }}
+            />
             <span style={{
               position: "absolute", right: 4, bottom: 2,
               fontSize: 8, letterSpacing: "0.08em", color: "#64748b", fontWeight: 700,
@@ -2187,7 +2218,9 @@ const [deskOn, setDeskOn] = useState(false);
             const mk  = on || touchesFocus ? (e.adaptive ? "url(#mCyan2)" : "url(#mLime2)") : "url(#mDim2)";
             const edgeOpacity = focusedToolId
               ? (touchesFocus || active ? 0.95 : 0.12)
-              : (active ? 0.92 : on ? 0.5 : queued || failed ? 0.45 : 0.22);
+              : isLive && liveNodes && liveNodes.size > 0
+                ? (active || AE.has(e.id) || liveNodes.has(e.from) || liveNodes.has(e.to) ? 0.85 : 0.08)
+                : (active ? 0.92 : on ? 0.5 : queued || failed ? 0.45 : 0.22);
             return (
               <path key={e.id} d={d} fill="none"
                 stroke={col}
@@ -2238,7 +2271,16 @@ const [deskOn, setDeskOn] = useState(false);
               position:"absolute",
               left: n.cx - n.w / 2, top: n.cy - n.h / 2,
               width: n.w, height: n.h, zIndex: isFocus || kbFocus || reachCue ? 4 : 2,
-              opacity: isSibling && !kbFocus && !reachCue ? 0.32 : 1,
+              opacity: (() => {
+                if (kbFocus || reachCue || on) return 1;
+                if (isSibling) return 0.28;
+                // Dynamic scheme: while LIVE with known tools, park unused poster nodes
+                if (isLive && liveNodes && liveNodes.size > 0) {
+                  const keep = liveNodes.has(n.id) || n.id === "target" || n.id === "mcts" || n.id === "evidence";
+                  return keep ? 1 : 0.14;
+                }
+                return status === "idle" ? 0.55 : 1;
+              })(),
               outline: kbFocus ? `2px solid #9CFF1A` : undefined,
               outlineOffset: kbFocus ? 3 : undefined,
               transition: "opacity 0.35s, box-shadow 0.35s",
