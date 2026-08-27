@@ -17,7 +17,7 @@ import {
 import { resolveResearchDepth, describeResearchDepth } from "./research-depth";
 import { publishBureauEvent } from "./bureau-live-log";
 import { computeContactOutcome } from "./contact-confidence";
-import { publishDigSpan } from "./dig-span";
+import { publishDigSpan, spanFromLiveStep } from "./dig-span";
 
 export type TargetContactAgentResult = {
   status: "completed" | "timeout" | "unavailable" | "error" | "skipped";
@@ -120,6 +120,17 @@ export async function runTargetContactAgent(input: {
     maxIterations: input.maxIterations ?? depth.agenticMaxIterations,
     hardTimeoutMs: input.hardTimeoutMs ?? depth.agenticHardTimeoutMs,
     onLiveStep: (step) => {
+      try {
+        spanFromLiveStep({
+          jobId: input.jobId,
+          targetName: name,
+          tool: step.action,
+          label: step.query || step.url || step.action,
+          detail: step.summary,
+          status: "ok",
+          agentName: "investigator",
+        });
+      } catch { /* spans best-effort */ }
       void publishBureauEvent({
         actor: "web",
         kind:
