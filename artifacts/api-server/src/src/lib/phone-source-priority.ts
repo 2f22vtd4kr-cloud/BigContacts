@@ -70,3 +70,8 @@ export function resolveProtectedCardPhone(input: {
   if (cur) return { phone: cur, phoneSource: curSrc };
   return { phone: inc, phoneSource: incSrc };
 }
+
+/** Agentic email sources on the card metadata. */
+export function isAgenticEmailSource(source: string | null | undefined): boolean {
+  return typeof source === "string" && /^agentic-web/i.test(source);
+}

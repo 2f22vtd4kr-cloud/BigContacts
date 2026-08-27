@@ -6,6 +6,7 @@ import {
   isProtectedPhoneSource,
   shouldBlockIssuerOverwrite,
   resolveProtectedCardPhone,
+  isAgenticEmailSource,
 } from "../lib/phone-source-priority";
 
 describe("phone-source-priority", () => {
@@ -52,5 +53,10 @@ describe("phone-source-priority", () => {
     });
     expect(r.phone).toBe("+12127024300");
     expect(r.phoneSource).toBe("EDGAR-Notice-Phone");
+  });
+
+  it("detects agentic email source", () => {
+    expect(isAgenticEmailSource("agentic-web")).toBe(true);
+    expect(isAgenticEmailSource("pattern-generated")).toBe(false);
   });
 });

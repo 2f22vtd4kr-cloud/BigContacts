@@ -15,7 +15,7 @@ import { computeContactOutcome } from "./contact-confidence";
 import { assessIdentityCollision } from "./identity-collision";
 import { publishDigSpan } from "./dig-span";
 import { delCachePattern } from "./redis";
-import { isProtectedPhoneSource, isIssuerSwitchboardSource } from "./phone-source-priority";
+import { isProtectedPhoneSource, isIssuerSwitchboardSource, isAgenticEmailSource } from "./phone-source-priority";
 import { apexOrientationCompact } from "./apex-bureau-orientation";
 
 export type BureauContactLike = {
@@ -454,11 +454,20 @@ async function promoteBureauContactsToEntityCard(
   if (bestEmail) {
     const curLocal = (ent.email ?? "").split("@")[0]?.toLowerCase() ?? "";
     const curGeneric = /^(info|contact|office|press|hello|admin|sales|support|ir|media)$/i.test(curLocal);
+    let curEmailSrc = "";
+    try {
+      const m = ent.metadata ? (JSON.parse(ent.metadata) as Record<string, unknown>) : {};
+      curEmailSrc = typeof m.emailSource === "string" ? m.emailSource : "";
+    } catch { /* */ }
+    const protectEmail = isAgenticEmailSource(curEmailSrc) && Boolean(ent.email) && !curEmailSrc.endsWith("-org");
     const allowEmail =
-      !ent.email ||
-      issuerLocked ||
-      weakOutcome ||
-      (curGeneric && !bestEmail.source.endsWith("-org"));
+      !protectEmail &&
+      (
+        !ent.email ||
+        issuerLocked ||
+        weakOutcome ||
+        (curGeneric && !bestEmail.source.endsWith("-org"))
+      );
     if (allowEmail && bestEmail.value !== ent.email) {
       patch.email = bestEmail.value;
       changed = true;
