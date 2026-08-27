@@ -75,13 +75,14 @@ export async function persistBureauContactsForEntity(
   entityId: number,
   items: readonly BureauContactLike[] | null | undefined,
   source = "case-bureau",
+  jobId?: string | null,
 ): Promise<number> {
   if (!entityId) return 0;
   const list = Array.isArray(items) ? items : [];
   // Empty list still runs card promotion from durable contact_evidence (rehydrate path).
   if (!list.length) {
     try {
-      await promoteBureauContactsToEntityCard(entityId, [], source);
+      await promoteBureauContactsToEntityCard(entityId, [], source, jobId);
     } catch {
       /* non-fatal */
     }
@@ -234,7 +235,7 @@ export async function persistBureauContactsForEntity(
   // Dig bag → card: promote best non-issuer phone/email onto the entity so
   // free agentic findings are not stranded as evidence_only while EDGAR-Phone stays.
   try {
-    await promoteBureauContactsToEntityCard(entityId, items, source);
+    await promoteBureauContactsToEntityCard(entityId, items, source, jobId);
   } catch (err) {
     logger.debug(
       { err: err instanceof Error ? err.message : String(err), entityId },

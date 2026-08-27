@@ -104,7 +104,7 @@ export async function runTargetContactAgent(input: {
     companyName: input.companyName ?? null,
     objective,
     jobId: input.jobId ?? null,
-    maxIterations: input.maxIterations ?? Math.max(depth.agenticMaxIterations, 16),
+    maxIterations: input.maxIterations ?? depth.agenticMaxIterations,
     hardTimeoutMs: input.hardTimeoutMs ?? depth.agenticHardTimeoutMs,
     onLiveStep: (step) => {
       void publishBureauEvent({
@@ -126,7 +126,7 @@ export async function runTargetContactAgent(input: {
   });
 
   const contacts = findingsToContacts(agentic.findings, name);
-  await persistBureauContactsForEntity(input.entityId, contacts, "target-contact-agent");
+  await persistBureauContactsForEntity(input.entityId, contacts, "target-contact-agent", input.jobId);
   await rehydrateEntityCardFromEvidence(input.entityId);
 
   // Refresh outcome from card fields after promote

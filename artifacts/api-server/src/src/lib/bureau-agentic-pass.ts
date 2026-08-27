@@ -164,6 +164,7 @@ export async function runBureauAgenticWebPass(input: {
           ? findingsToBureauContacts(agentic.findings, name)
           : [],
         "case-bureau-agentic",
+        input.jobId,
       );
     }
 

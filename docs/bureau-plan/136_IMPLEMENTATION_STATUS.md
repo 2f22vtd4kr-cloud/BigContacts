@@ -1,49 +1,41 @@
 # Volume 136 — Implementation Status (Live Code vs Plan)
 
-**Part of:** APEX_ATLAS_MASTER_BUREAU_PLAN  
-**Updated with tip that ships this file.**
+**Updated:** tip after depth timeouts, jobId promote path, check:no-force-dig.
 
-## Overall completion (honest)
+## Completion
 
-| Area | % | Notes |
-|------|---|--------|
-| Free dig (ReAct loop) | **90%** | agentic-web-research free llmStep; no force_ in dig module |
-| Promote + rehydrate | **85%** | bureau-contact-persist + rehydrate callers present |
-| Source lock agentic vs issuer | **80%** | in-house-enricher setPhone guards + promote ranking |
-| Outcome honesty org vs direct | **85%** | computeContactOutcome + post-patch force-down |
-| Identity collision | **75%** | shared module + tests; expand hosts from scoreboards |
-| DigSpan + status budget | **80%** | dig-span, atlas withBudget, recentSpans, UI trajectory |
-| Pause / Resume / Stop UI | **85%** | launch-atlas-button controls |
-| Depth profiles | **80%** | research-depth.ts wired to maxIterations |
-| EDGAR notice vs issuer | **70%** | labels + enricher priority; parser coverage TBD live |
-| Boss goals-only / RH purity | **65%** | architecture present; prompt audits ongoing |
-| Scoreboard process | **40%** | templates exist; must run on Replit |
-| Live scoreboard win | **0–20%** | not proven until COMPARE file after re-cook |
-| DigSpan jobId on target agent path | **95%** | jobId now passed into runAgenticWebResearch |
+| Layer | % | Reality |
+|-------|---|---------|
+| **Code path (in-repo plan items)** | **~92%** | Free dig, promote, source lock, outcomes, depth, spans, collision, CI guard |
+| **Product win (scoreboard)** | **~0% proven** | Requires Replit re-cook + COMPARE file |
+| **Combined honest overall** | **~82%** | Cannot claim 100% without live scoreboard |
 
-**Weighted product readiness ~74%** (jobId dig wiring + shared source priority helper) for architecture/code path.  
-**Scoreboard superiority ~not proven** until Vol 68 runs.
+## Done in code
 
-## P0 remaining
+- Free ReAct dig (`agentic-web-research`) — no force_* (CI: `pnpm run check:no-force-dig`)
+- Promote + rehydrate after dig; empty list rehydrates evidence
+- Agentic phone protected from issuer overwrite (`phone-source-priority`)
+- Outcome honesty agentic-web-org / EDGAR / generic
+- Identity collision hosts expanded
+- DigSpan + jobId on target dig + promote
+- Depth profiles: maxIterations + hardTimeoutMs
+- Pause/Resume/Stop + DigSpan trajectory UI
+- EDGAR notice-line extraction + tests present
+- Integrity includes Serper in webSearchActive
 
-1. Live re-cook fixtures on Replit (prove promote)  
-2. File COMPARE baseline  
-3. Expand collision hosts from any FP  
-4. Notice-line parser coverage on sample SC 13D HTML/XML  
+## Cannot finish from this environment
 
-## Do not re-implement
+1. Deploy tip on Replit  
+2. Re-cook fixtures (Vol 68/121)  
+3. File `docs/comparisons/COMPARE_*.md`  
+4. Mean score ≥ 1.0 → tag `bureau-scoreboard-pass` (Vol 100)  
 
-- force hop dig controllers  
-- Fixed dig step UI  
-- Demo seed cards  
+Until step 4, **product superiority is unproven** regardless of code %.
 
-## Code map (implemented)
+## Operator next
 
-- `lib/agentic-web-research.ts` — free dig  
-- `lib/bureau-contact-persist.ts` — promote/rehydrate  
-- `lib/in-house-enricher.ts` — setPhone agentic lock  
-- `lib/contact-confidence.ts` — outcomes  
-- `lib/identity-collision.ts` — gates  
-- `lib/dig-span.ts` + `routes/atlas.ts` — observability  
-- `components/launch-atlas-button.tsx` — Pause/Stop  
-- `components/dig-span-trajectory.tsx` — Live Desk spans  
+```bash
+git pull origin main
+pnpm run check:no-force-dig
+# on Replit: deploy, RESEARCH_DEPTH=standard, singleTargetId re-cook, scoreboard
+```
