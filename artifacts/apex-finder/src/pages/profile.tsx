@@ -412,8 +412,8 @@ export default function ApexProfile() {
       if (!resp.ok) throw new Error("Request failed");
       setShowContactEvidence(false); setRejectStep({});
       await refetchEntity();
-      // Auto-trigger enrichment pipeline to search for a replacement contact
-      handleEnrich();
+      // Free Atlas dig for a replacement public route (not web-osint force path)
+      void handleRunResearch();
     } catch { setRejectError("Could not remove that contact — try again"); }
     finally { setRejectLoading(false); }
   };
@@ -1199,10 +1199,10 @@ export default function ApexProfile() {
                 <div className="flex flex-wrap gap-2 pt-1">
                   <button
                     type="button"
-                    onClick={handleEnrich}
+                    onClick={handleRunResearch}
                     className="rounded-lg border border-primary/35 bg-primary/10 px-3 py-1.5 text-[11px] font-medium text-primary hover:bg-primary/15"
                   >
-                    Run research
+                    Dig contacts
                   </button>
                   <button
                     type="button"
@@ -2259,12 +2259,14 @@ export default function ApexProfile() {
       {/* Mobile Action Bar */}
       <div className="md:hidden shrink-0 h-[72px] bg-background border-t border-border px-4 flex items-center gap-3 z-20">
         <button
-          onClick={handleEnrich}
+          type="button"
+          onClick={handleRunResearch}
           disabled={isEnriching}
+          data-testid="button-dig-contacts-mobile"
           className="flex-1 h-[44px] bg-primary text-primary-foreground rounded font-semibold text-[14px] flex items-center justify-center gap-2 disabled:opacity-50"
         >
           {isEnriching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Crosshair className="w-4 h-4" />}
-          {isEnriching ? "Running…" : "Rerun Research"}
+          {isEnriching ? "Digging…" : "Dig contacts"}
         </button>
         <Link
           href={`/graph?entity=${entity.id}`}
