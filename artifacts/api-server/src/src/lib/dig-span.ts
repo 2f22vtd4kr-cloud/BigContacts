@@ -43,6 +43,8 @@ export interface DigSpan {
   parentSpanId?: string;
   /** OTel-ish operation name for future exporters */
   operationName?: string;
+  /** gen_ai.agent.name — investigator | boss | right_hand | enricher */
+  agentName?: string;
 }
 
 const CAP = 80;
@@ -90,6 +92,7 @@ export function publishDigSpan(
           : input.spanType === "stage"
             ? "invoke_agent"
             : input.spanType),
+    agentName: input.agentName,
   };
 
   const jobList = byJob.get(span.jobId) ?? [];
@@ -176,6 +179,7 @@ export function spanFromLiveStep(step: {
       inputSummary: step.label || undefined,
       resultSummary: step.detail || undefined,
       modelId: step.modelId || undefined,
+      agentName: "investigator",
       endedAt: status === "active" ? undefined : new Date().toISOString(),
     });
   } catch {

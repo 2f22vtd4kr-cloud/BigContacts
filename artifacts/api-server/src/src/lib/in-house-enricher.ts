@@ -620,20 +620,32 @@ export function parseSc13NoticeContacts(text: string): { phone: string | null; a
   let phone: string | null = null;
   let address: string | null = null;
 
-  // Classic header: Name / Street / City ST ZIP / phone — under notices-and-communications
-  const noticeBlock = plain.match(
-    /(?:Name,\s*Address\s+and\s+Telephone\s+Number\s+of\s+Person\s+Authorized\s+to\s+Receive\s+Notices[^\n]{0,80})([\s\S]{20,500}?)(?:Date\s+of\s+Event|CUSIP|SCHEDULE\s+13|Item\s+1)/i,
-  );
-  const block = noticeBlock?.[1] ?? plain.slice(0, 6000);
+  // SEC SC 13 header often places Name/Address/Phone *above* the parenthetical label.
+  // Prefer a window around "Notices and Communications" (before + after).
+  const labelRe = /Name,\s*Address\s+and\s+Telephone\s+Number\s+of\s+Person\s+Authorized\s+to\s+Receive\s+Notices\s+and\s+Communications/i;
+  const labelIdx = plain.search(labelRe);
+  let block: string;
+  if (labelIdx >= 0) {
+    const start = Math.max(0, labelIdx - 800);
+    const end = Math.min(plain.length, labelIdx + 600);
+    block = plain.slice(start, end);
+  } else {
+    const noticeBlock = plain.match(
+      /(?:Name,\s*Address\s+and\s+Telephone\s+Number\s+of\s+Person\s+Authorized\s+to\s+Receive\s+Notices[^\n]{0,80})([\s\S]{20,500}?)(?:Date\s+of\s+Event|CUSIP|SCHEDULE\s+13|Item\s+1)/i,
+    );
+    block = noticeBlock?.[1] ?? plain.slice(0, 6000);
+  }
 
+  const phoneRe = /\b(\+?1[\s\-.]?)?\(?\d{3}\)?[\s\-.]?\d{3}[\s\-.]?\d{4}\b/;
   const phoneMatch =
-    block.match(/\b(\+?1[\s\-.]?)?\(?\d{3}\)?[\s\-.]?\d{3}[\s\-.]?\d{4}\b/) ||
+    block.match(phoneRe) ||
     plain.match(
       /(?:Telephone|Phone|Tel\.?)[^\d]{0,20}(\(?\d{3}\)?[\s\-.]?\d{3}[\s\-.]?\d{4})/i,
     );
   if (phoneMatch) {
-    const raw = (phoneMatch[0] ?? phoneMatch[1] ?? "").replace(/[^\d+]/g, "");
-    if (raw.replace(/\D/g, "").length >= 10) phone = phoneMatch[0]!.trim();
+    const candidate = (phoneMatch[0] ?? phoneMatch[1] ?? "").trim();
+    const digits = candidate.replace(/\D/g, "");
+    if (digits.length >= 10) phone = candidate;
   }
 
   // Item 2(b) principal business / residence address of reporting person
