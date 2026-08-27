@@ -256,6 +256,7 @@ router.post("/ingest/atlas-stop", async (req: Request, res: Response): Promise<v
     finishedAt: new Date().toISOString(),
   } as any);
   await clearActiveJobIfMatches("atlas-run", jobId);
+  try { clearDigSpansForJob(jobId); } catch { /* non-fatal */ }
   _atlasStatusCache = null;
   res.json({ ok: true, jobId, status: "cancelled", message: "Atlas stopped." });
 });
@@ -270,6 +271,7 @@ router.delete("/ingest/atlas-lock", async (_req: Request, res: Response): Promis
   // Operator stop must be cancelled (honest UI), never failed.
   await updateJob(jobId, { status: "cancelled", message: "Stopped by operator.", finishedAt: new Date().toISOString() } as any);
   await clearActiveJobIfMatches("atlas-run", jobId);
+  try { clearDigSpansForJob(jobId); } catch { /* non-fatal */ }
   _atlasStatusCache = null;
   res.json({ cleared: true, jobId, status: "cancelled", message: activeJobId ? "Atlas stopped." : "Stale Atlas job marked cancelled." });
 });
@@ -279,6 +281,7 @@ router.delete("/ingest/atlas-lock/:jobId", async (req: Request, res: Response): 
   if (!jobId) { res.json({ cleared: false, message: "No Atlas job ID supplied." }); return; }
   await updateJob(jobId, { status: "cancelled", message: "Stopped by operator.", finishedAt: new Date().toISOString() } as any);
   await clearActiveJobIfOwned("atlas-run", jobId);
+  try { clearDigSpansForJob(jobId); } catch { /* non-fatal */ }
   res.json({ cleared: true, jobId, status: "cancelled", message: "Atlas stopped." });
 });
 
