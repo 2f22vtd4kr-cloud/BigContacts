@@ -146,6 +146,24 @@ function assessIdentityCollision(input: {
       };
     }
   }
+  // Related-person / extracted personName must not bind a different surname onto the target card.
+  const personToks = nameTokens(input.personName);
+  if (targetToks.length >= 2 && personToks.length >= 2) {
+    const targetSurname = targetToks[targetToks.length - 1]!;
+    const personSurname = personToks[personToks.length - 1]!;
+    if (
+      targetSurname.length >= 3 &&
+      personSurname.length >= 3 &&
+      targetSurname !== personSurname &&
+      !personToks.some((t) => targetToks.includes(t) && t === targetSurname)
+    ) {
+      return {
+        risk: true,
+        identityMatch: 0.18,
+        reason: `personName surname "${personSurname}" ≠ target surname "${targetSurname}"`,
+      };
+    }
+  }
   return {
     risk: false,
     identityMatch: overlap.length >= 2 ? 0.65 : 0.45,

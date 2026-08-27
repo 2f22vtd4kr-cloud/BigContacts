@@ -2147,6 +2147,28 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
               borderRadius: 3,
               background: "rgba(15,23,42,0.5)",
             }} />
+            {/* Live tool dots (scheme coords → minimap %) */}
+            {isLive && liveNodes && liveNodes.size > 0 && NODES.filter((n) => liveNodes.has(n.id)).map((n) => (
+              <div
+                key={`mm-${n.id}`}
+                data-testid={`scheme-minimap-dot-${n.id}`}
+                title={n.label}
+                style={{
+                  position: "absolute",
+                  left: `${(n.cx / 1600) * 100}%`,
+                  top: `${(n.cy / 842) * 100}%`,
+                  width: 5,
+                  height: 5,
+                  marginLeft: -2.5,
+                  marginTop: -2.5,
+                  borderRadius: 999,
+                  background: n.color || "#9CFF1A",
+                  boxShadow: `0 0 6px ${n.color || "#9CFF1A"}`,
+                  pointerEvents: "none",
+                  zIndex: 2,
+                }}
+              />
+            ))}
             {/* Live viewport rectangle tracks scheme pan/zoom */}
             <div
               data-testid="scheme-minimap-viewport"
@@ -2161,11 +2183,13 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
                 borderRadius: 2,
                 boxShadow: "0 0 8px rgba(156,255,26,0.25)",
                 pointerEvents: "none",
+                zIndex: 3,
               }}
             />
             <span style={{
               position: "absolute", right: 4, bottom: 2,
               fontSize: 8, letterSpacing: "0.08em", color: "#64748b", fontWeight: 700,
+              zIndex: 4,
             }}>MAP</span>
           </div>
         </div>
