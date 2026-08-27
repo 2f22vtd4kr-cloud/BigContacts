@@ -63,7 +63,7 @@ import { backfillWealthLLM } from "./wealth-estimator";
 import { materializeBusinessAsset } from "./business-assets";
 import { runTargetResearch } from "./target-research";
 import {
-import { isAgenticPhoneSource, isNoticePhoneSource, resolveProtectedCardPhone } from "./phone-source-priority";
+import { isAgenticPhoneSource, isNoticePhoneSource, isProtectedPhoneSource, resolveProtectedCardPhone } from "./phone-source-priority";
   expandSecondaryPublicSurface,
   persistBureauContactsForEntity,
   rehydrateEntityCardFromEvidence,
@@ -2159,10 +2159,12 @@ async function runSingleTargetPipeline(
     contactOutcome: entitiesTable.contactOutcome,
     phoneSource: entitiesTable.phoneSource,
   }).from(entitiesTable).where(eq(entitiesTable.id, target.id)).limit(1);
+  // Dig owns contacts when free dig wrote routes or protected sources (Vol 371/446)
   const digAlreadyReady = Boolean(
     afterDig[0]?.phone ||
     afterDig[0]?.email ||
     afterDig[0]?.linkedinUrl ||
+    isProtectedPhoneSource(afterDig[0]?.phoneSource) ||
     (afterDig[0]?.contactOutcome && afterDig[0]?.contactOutcome !== "none" && afterDig[0]?.contactOutcome !== "evidence_only"),
   );
   const skipMcts = digAlreadyReady || process.env.APEX_SKIP_MCTS_AFTER_DIG === "1";
@@ -3054,6 +3056,39 @@ export async function runAtlasPipeline(atlasJobId: string, opts: AtlasOptions): 
           entityNames: JSON.stringify([String(e.id)]),
         });
         try {
+          // Skip MCTS when free dig already owns routes (Vol 371) — avoid dual-brain writes
+          const pre = await db.select({
+            phone: entitiesTable.phone,
+            email: entitiesTable.email,
+            linkedinUrl: entitiesTable.linkedinUrl,
+            phoneSource: entitiesTable.phoneSource,
+            contactOutcome: entitiesTable.contactOutcome,
+          }).from(entitiesTable).where(eq(entitiesTable.id, e.id)).limit(1);
+          const digReady = Boolean(
+            pre[0]?.phone ||
+            pre[0]?.email ||
+            pre[0]?.linkedinUrl ||
+            isProtectedPhoneSource(pre[0]?.phoneSource) ||
+            (pre[0]?.contactOutcome && pre[0]?.contactOutcome !== "none" && pre[0]?.contactOutcome !== "evidence_only"),
+          );
+          if (digReady) {
+            researched++;
+            await setAtlasTelemetry(atlasJobId, {
+              stage: "UCT / MCTS RESEARCH",
+              status: "complete",
+              targetName: String(e.id),
+              targetType: "HNWI",
+              toolIds: ["mcts", "prac", "graph", "evidence-review"],
+              activeToolId: "prac",
+              resultSummary: "Skipped MCTS — dig already wrote contact routes on card.",
+            });
+            await updateJob(atlasJobId, {
+              entityProgress: i + 1,
+              entityTotal: hotEntities.length,
+              entityNames: JSON.stringify([String(e.id)]),
+            });
+            continue;
+          }
           await setAtlasTelemetry(atlasJobId, {
             stage: "UCT / MCTS RESEARCH",
             status: "active",
