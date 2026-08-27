@@ -40,15 +40,23 @@ function normalizePresentedContactOutcome(entity: {
   phoneSource?: string | null;
   metadata?: string | null;
 }): string | null {
-  if (!ORGANIZATION_ENTITY_TYPES.has(entity.type ?? "")) return entity.contactOutcome ?? null;
-
-  // Organization rows must never present a person-level outcome. Registry
-  // phones and stale metadata are evidence about the organization, not a
-  // validated personal route.
-  if (entity.contactOutcome === "direct_contact_candidate" || entity.contactOutcome === "direct_contact_verified") {
+  const outcome = entity.contactOutcome ?? null;
+  const phoneSrc = String(entity.phoneSource ?? "");
+  // Org-scoped dig / issuer sources must never present as personal direct.
+  if (
+    (outcome === "direct_contact_candidate" || outcome === "direct_contact_verified") &&
+    (phoneSrc === "agentic-web-org" || phoneSrc.endsWith("-org") ||
+      phoneSrc === "EDGAR-Phone" || phoneSrc === "EDGAR-Issuer-Phone" ||
+      phoneSrc === "CompaniesHouse-Phone")
+  ) {
     return "organization_contact";
   }
-  return entity.contactOutcome ?? null;
+  if (ORGANIZATION_ENTITY_TYPES.has(entity.type ?? "")) {
+    if (outcome === "direct_contact_candidate" || outcome === "direct_contact_verified") {
+      return "organization_contact";
+    }
+  }
+  return outcome;
 }
 
 
