@@ -4,18 +4,16 @@
 
 | Item | Status | Notes |
 |------|--------|-------|
-| Present layer (`presented-contacts.ts`) | Done | API `contacts[]` |
-| ContactSurface entities | Done | mobile + reach vectors |
-| ContactSurface **profile** | **Done** | REACH section uses contacts[] |
-| ContactSurface **Live Desk** | **Done** | Reactor under DigSpan from telemetry card fields |
-| Atlas telemetry card fields | **Done** | phone/email/linkedin after dig |
-| Discovery agent module | Done | free dig people hunt |
-| Atlas discoveryFirst wire | Done | before templates |
-| Admit + **fitness gate** | **Done** | fame/shell reject |
-| Dig owns card / agentCardReady | Pre-existing | |
-| Observation quality dig | Pending | |
-| Template farm retirement | Pending | fallback still |
-| Profile evidence drawer polish | Partial | evidence toggle kept |
+| Present layer | Done | API contacts[] |
+| ContactSurface entities/profile/Live Desk | Done | |
+| Telemetry card fields | Done | |
+| Live Desk **fetch contacts by entityId** | **Done** | poll enriches cardContacts |
+| Discovery agent + Atlas | Done | |
+| Discovery-intake **rank/filter** before admit | **Done** | |
+| Admit fitness gate | Done | |
+| Dig **observation quality** | **Done** | numbered SERP + extract list on visit |
+| Template farm retirement | Pending | still fallback |
+| Scoreboard vs chat | Pending | |
 
-**This wave overall: ~48%** of architecture+discovery+surface scope.
+**This wave overall: ~62%** of architecture+discovery+surface scope.
 

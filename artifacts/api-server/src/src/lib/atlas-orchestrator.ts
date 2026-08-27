@@ -2533,9 +2533,19 @@ export async function runAtlasPipeline(atlasJobId: string, opts: AtlasOptions): 
         { candidates: disc.candidates.length, degraded: disc.degraded, message: disc.message },
         "[Atlas] Discovery agent finished",
       );
-      // Soft admit: create review-oriented entities only when we have name + URL
-      for (const c of disc.candidates.slice(0, Math.min(5, targetLimit))) {
-        if (!c.name || !(c.sourceUrls?.length)) continue;
+      // Rank/filter via discovery-intake, then soft admit (name + URL required)
+      const { filterDiscoveryCandidatesByFitness, rankDiscoveryReviewCandidates } = await import("./discovery-intake");
+      const shaped = disc.candidates.map((c) => ({
+        name: c.name,
+        type: "HNWI" as const,
+        relevance: [c.basis, c.role, c.company].filter(Boolean).join(" · "),
+        reachability: c.sourceUrls?.length ? `sources:${c.sourceUrls.length}` : "",
+        _raw: c,
+      }));
+      const ranked = rankDiscoveryReviewCandidates(filterDiscoveryCandidatesByFitness(shaped));
+      for (const row of ranked.slice(0, Math.min(5, targetLimit))) {
+        const c = (row as { _raw?: typeof disc.candidates[0] })._raw;
+        if (!c?.name || !(c.sourceUrls?.length)) continue;
         try {
           const { createEntityFromDiscoveryCandidate } = await import("./discovery-agent-admit");
           const id = await createEntityFromDiscoveryCandidate(c);

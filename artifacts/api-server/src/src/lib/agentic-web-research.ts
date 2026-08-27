@@ -62,6 +62,43 @@ type AgentAction =
 
 const MAX_ITER = 20;
 const MAX_OBS = 5_000;
+
+/** Format SERP text so the dig model sees discrete ranked hits + any phones/emails in snippets. */
+function formatSearchObservation(query: string, sr: { text: string; urls: string[] }): string {
+  const lines: string[] = [`SEARCH results for: ${query}`];
+  const urls = (sr.urls ?? []).slice(0, 10);
+  if (urls.length) {
+    lines.push("URLs (visit primary company / IR / filing pages when useful):");
+    urls.forEach((u, i) => lines.push(`  ${i + 1}. ${u}`));
+  } else {
+    lines.push("URLs: (none returned — try a different query)");
+  }
+  const body = (sr.text || "").trim();
+  if (body) {
+    lines.push("", "Snippets:");
+    // Prefer line-split hits when providers join with newlines
+    const chunks = body.split(/\n+/).map((s) => s.trim()).filter((s) => s.length > 20);
+    if (chunks.length >= 2) {
+      chunks.slice(0, 8).forEach((c, i) => lines.push(`  [${i + 1}] ${c.slice(0, 420)}`));
+    } else {
+      lines.push(body.slice(0, MAX_OBS));
+    }
+  }
+  // Surface contact-shaped tokens already visible in SERP so model can visit the right host
+  const phones = body.match(/\+?\d[\d\s().-]{8,}\d/g) ?? [];
+  const emails = body.match(/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/gi) ?? [];
+  const uniq = (xs: string[]) => [...new Set(xs.map((x) => x.trim()))].slice(0, 6);
+  const ph = uniq(phones);
+  const em = uniq(emails);
+  if (ph.length || em.length) {
+    lines.push("", "Contact-shaped tokens visible in snippets (verify via visit before done):");
+    if (em.length) lines.push(`  emails: ${em.join(", ")}`);
+    if (ph.length) lines.push(`  phones: ${ph.join(", ")}`);
+  }
+  return lines.join("\n").slice(0, MAX_OBS + 500);
+}
+
+
 /** Iteration / observation caps. Loop is free ReAct — no force-hop floor. */
 
 function randomUA(): string {
@@ -2148,7 +2185,7 @@ export async function runAgenticWebResearch(input: {
         findings = mergeFindings(findings, snippetEmails);
         history.push(`step${i + 1}: serp_email_findings=${snippetEmails.length}`);
       }
-      lastObservation = `SEARCH results for: ${action.query}\nURLs: ${sr.urls.slice(0, 8).join(" | ")}\n\n${sr.text.slice(0, MAX_OBS)}`;
+      lastObservation = formatSearchObservation(action.query, sr);
       // Soft nudge: if we already have company-looking URLs and no visits yet, tell the model to visit
       if (visits === 0 && sr.urls.length > 0) {
         lastObservation +=
@@ -2185,7 +2222,11 @@ export async function runAgenticWebResearch(input: {
       if (extracted.length) {
         findings = mergeFindings(findings, extracted);
         history.push(`step${i + 1}: auto_findings=${extracted.length}`);
-        lastObservation += `\n\n(System also extracted ${extracted.length} contact fact(s) from HTML on this page — available for your done.findings with this URL as sourceUrl.)`;
+        lastObservation += `\n\nEXTRACTED contact facts (${extracted.length}) — use these in done.findings with this page as sourceUrl:\n` +
+          extracted
+            .slice(0, 12)
+            .map((f, n) => `  ${n + 1}. [${f.vectorType}/${f.scope}] ${f.value}${f.role ? ` (${f.role})` : ""}`)
+            .join("\n");
       }
       // Permanent domain surface hop (RDAP-first + WhoisJSON)
       try {

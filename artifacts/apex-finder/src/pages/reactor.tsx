@@ -100,6 +100,8 @@ interface AtlasLiveState {
   } | null;
   /** Honeycomb-style dig spans from GET /api/ingest/atlas-status recentSpans */
   recentSpans?: DigSpanView[];
+  /** Presented routes for Live Desk ContactSurface */
+  cardContacts?: Array<Record<string, unknown>>;
 }
 
 
@@ -2025,6 +2027,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
               <div className="mb-2 rounded-lg border border-[#9CFF1A]/20 bg-black/25 px-2 py-2" data-testid="contact-surface-live">
                 <div className="mb-1 text-[10px] font-mono uppercase tracking-wider text-[#9CFF1A]/80">Card routes</div>
                 <ContactSurface
+                  contacts={(atlasState?.cardContacts as never) ?? null}
                   phone={atlasState?.atlasTelemetry?.cardPhone}
                   email={atlasState?.atlasTelemetry?.cardEmail}
                   linkedinUrl={atlasState?.atlasTelemetry?.cardLinkedin}
@@ -2710,6 +2713,28 @@ export default function IntelligenceReactorPage() {
         setLiveLabel("");
         setLivePhaseDetail("");
       } else {
+        // Live Desk: load presented contacts for current target entityId
+        try {
+          const eid = Number(nextAtlasState?.atlasTelemetry?.entityId);
+          if (Number.isFinite(eid) && eid > 0) {
+            const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
+            const cr = await fetch(`${BASE}/api/entities/${eid}`, { credentials: "include" });
+            if (cr.ok) {
+              const ej = await cr.json();
+              if (Array.isArray(ej?.contacts) && ej.contacts.length) {
+                nextAtlasState = { ...nextAtlasState, cardContacts: ej.contacts };
+              }
+              if (!nextAtlasState.atlasTelemetry) nextAtlasState.atlasTelemetry = {};
+              nextAtlasState.atlasTelemetry = {
+                ...nextAtlasState.atlasTelemetry,
+                cardPhone: nextAtlasState.atlasTelemetry.cardPhone ?? ej?.phone,
+                cardEmail: nextAtlasState.atlasTelemetry.cardEmail ?? ej?.email,
+                cardLinkedin: nextAtlasState.atlasTelemetry.cardLinkedin ?? ej?.linkedinUrl,
+                phoneSource: nextAtlasState.atlasTelemetry.phoneSource ?? ej?.phoneSource,
+              };
+            }
+          }
+        } catch { /* non-fatal */ }
         setAtlasState(nextAtlasState);
       }
     } catch { /* non-fatal */ }
