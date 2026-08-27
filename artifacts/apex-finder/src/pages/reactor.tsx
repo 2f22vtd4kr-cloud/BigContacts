@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useMemo, type ReactNode, type PointerEvent as ReactPointerEvent } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo, type ReactNode, type PointerEvent as ReactPointerEvent, type MouseEvent as ReactMouseEvent } from "react";
 import {
   Plane, Building2, Globe, Search, Brain, Zap, Network,
   Target, Cpu, Radio, Activity, BarChart2, Shield,
@@ -1538,6 +1538,18 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
     schemeDragRef.current.active = false;
     try { e.currentTarget.releasePointerCapture(e.pointerId); } catch { /* */ }
   };
+  const onSchemeMinimapClick = (e: ReactMouseEvent<HTMLDivElement>) => {
+    const el = schemeScrollRef.current;
+    const map = e.currentTarget;
+    if (!el) return;
+    const rect = map.getBoundingClientRect();
+    const rx = (e.clientX - rect.left) / rect.width;
+    const ry = (e.clientY - rect.top) / rect.height;
+    const contentW = 1600 * schemeZoom;
+    const contentH = 842 * schemeZoom;
+    el.scrollLeft = Math.max(0, rx * contentW - el.clientWidth / 2);
+    el.scrollTop = Math.max(0, ry * contentH - el.clientHeight / 2);
+  };
 
 const [deskOn, setDeskOn] = useState(false);
   const { deskEvents, latestNarration } = useBureauLiveDesk(atlasState?.eventLog as any, { enabled: true, atlasLive: Boolean(isLive) });
@@ -2061,6 +2073,53 @@ const [deskOn, setDeskOn] = useState(false);
             }}
           >Reset</button>
           <span style={{ fontSize:10, color:"#475569" }}>Drag to pan · scrollbars work</span>
+          <div
+            data-testid="scheme-minimap"
+            role="button"
+            tabIndex={0}
+            aria-label="Scheme minimap — click to pan"
+            onClick={onSchemeMinimapClick}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                const el = schemeScrollRef.current;
+                if (el) { el.scrollLeft = 0; el.scrollTop = 0; }
+              }
+            }}
+            style={{
+              marginLeft: 8,
+              width: 96,
+              height: 50,
+              borderRadius: 6,
+              border: "1px solid rgba(156,255,26,0.25)",
+              background: "linear-gradient(135deg, #0c1524 0%, #152238 100%)",
+              position: "relative",
+              cursor: "pointer",
+              flexShrink: 0,
+              overflow: "hidden",
+            }}
+            title="Click minimap to pan scheme"
+          >
+            <div style={{
+              position: "absolute", inset: 4,
+              border: "1px dashed rgba(148,163,184,0.35)",
+              borderRadius: 3,
+            }} />
+            <div style={{
+              position: "absolute",
+              left: "8%", top: "12%", width: "18%", height: "14%",
+              background: "rgba(156,255,26,0.35)", borderRadius: 2,
+            }} />
+            <div style={{
+              position: "absolute",
+              left: "35%", top: "40%", width: "50%", height: "12%",
+              background: "rgba(56,189,248,0.3)", borderRadius: 2,
+            }} />
+            <span style={{
+              position: "absolute", right: 4, bottom: 2,
+              fontSize: 8, letterSpacing: "0.08em", color: "#64748b", fontWeight: 700,
+            }}>MAP</span>
+          </div>
         </div>
 <div
           ref={schemeScrollRef}

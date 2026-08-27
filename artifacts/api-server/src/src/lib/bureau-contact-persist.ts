@@ -10,6 +10,7 @@ import { logger } from "./logger";
 import { resolveResearchDepth } from "./research-depth";
 import { publishBureauEvent } from "./bureau-live-log";
 import { computeContactOutcome } from "./contact-confidence";
+import { publishDigSpan } from "./dig-span";
 import { apexOrientationCompact } from "./apex-bureau-orientation";
 
 export type BureauContactLike = {
@@ -132,6 +133,18 @@ function assessIdentityCollision(input: {
       identityMatch: 0.25,
       reason: "weak name overlap with collision-prone host",
     };
+  }
+  // Multi-token targets (e.g. "James C Czirr"): require last-token (surname) hit for personal bind.
+  // Prevents wealth-advisor / same-first-name collisions without shared surname evidence.
+  if (targetToks.length >= 2) {
+    const surname = targetToks[targetToks.length - 1]!;
+    if (surname.length >= 3 && !blob.includes(surname) && overlap.length < 2) {
+      return {
+        risk: true,
+        identityMatch: 0.22,
+        reason: "surname token missing from evidence blob; likely name collision",
+      };
+    }
   }
   return {
     risk: false,
@@ -579,6 +592,17 @@ async function promoteBureauContactsToEntityCard(
     },
     "[Bureau] Promoted dig contacts onto entity card",
   );
+  try {
+    publishDigSpan({
+      jobId: "promote",
+      targetName: ent.name,
+      spanType: "promote",
+      name: "card_promote",
+      status: "ok",
+      inputSummary: [patch.phone, patch.email].filter(Boolean).join(" · ") || outcome,
+      resultSummary: `outcome=${outcome} source=${source}`,
+    });
+  } catch { /* non-fatal */ }
 }
 
 type DiscoveryCandidateContactSource = {
