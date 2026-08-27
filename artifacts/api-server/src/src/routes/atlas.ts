@@ -323,15 +323,30 @@ router.get("/ingest/scoreboard-snapshot", async (req: Request, res: Response): P
       .orderBy(desc(entitiesTable.cookedAt))
       .limit(limit);
     const scored = rows.map((r) => {
+      const phoneSrc = String(r.phoneSource ?? "");
+      let outcome = r.contactOutcome;
+      if (
+        (outcome === "direct_contact_candidate" || outcome === "direct_contact_verified") &&
+        (phoneSrc === "agentic-web-org" || phoneSrc.endsWith("-org") ||
+          phoneSrc === "EDGAR-Phone" || phoneSrc === "EDGAR-Issuer-Phone" ||
+          phoneSrc === "CompaniesHouse-Phone")
+      ) {
+        outcome = "organization_contact";
+      }
       const score = scoreFixtureCard({
-        contactOutcome: r.contactOutcome,
+        contactOutcome: outcome,
         phone: r.phone,
         email: r.email,
         phoneSource: r.phoneSource,
         linkedinUrl: r.linkedinUrl,
         hasSourceUrls: true,
       });
-      return { ...r, score, cookedAt: r.cookedAt ? r.cookedAt.toISOString() : null };
+      return {
+        ...r,
+        contactOutcome: outcome,
+        score,
+        cookedAt: r.cookedAt ? r.cookedAt.toISOString() : null,
+      };
     });
     const scores = scored.map((s) => s.score);
     res.json({
