@@ -1893,12 +1893,14 @@ router.post("/ingest/restore-contact-cache", async (_req: Request, res: Response
         try {
           type EntityRow = {
             id: number; type: string | null; email: string | null; phone: string | null;
+            phoneSource: string | null;
             linkedinUrl: string | null; twitterHandle: string | null; instagramHandle: string | null;
             knownResidences: string | null; metadata: string | null;
           };
           const SEL = {
             id: entitiesTable.id, type: entitiesTable.type, email: entitiesTable.email,
-            phone: entitiesTable.phone, linkedinUrl: entitiesTable.linkedinUrl,
+            phone: entitiesTable.phone, phoneSource: entitiesTable.phoneSource,
+            linkedinUrl: entitiesTable.linkedinUrl,
             twitterHandle: entitiesTable.twitterHandle, instagramHandle: entitiesTable.instagramHandle,
             knownResidences: entitiesTable.knownResidences, metadata: entitiesTable.metadata,
           };
@@ -1933,8 +1935,14 @@ router.post("/ingest/restore-contact-cache", async (_req: Request, res: Response
            const cleanTwitter = sanitizePublicSocialHandle(data.twitter, "twitter");
            const cleanInstagram = sanitizePublicSocialHandle(data.instagramHandle, "instagram");
            const updates: Record<string, unknown> = { updatedAt: new Date() };
-           if (cleanEmail)       updates["email"]       = cleanEmail;
-           if (cleanPhone)       updates["phone"]       = cleanPhone;
+           if (cleanEmail && !(entity as { email?: string | null }).email) updates["email"] = cleanEmail;
+           const cachePhoneSrc = (entity as { phoneSource?: string | null }).phoneSource ?? null;
+           const protectCachePhone =
+             isAgenticPhoneSource(cachePhoneSrc) || isNoticePhoneSource(cachePhoneSrc);
+           if (cleanPhone && !protectCachePhone && !(entity as { phone?: string | null }).phone) {
+             updates["phone"] = cleanPhone;
+             updates["phoneSource"] = "contact-cache";
+           }
            if (cleanLinkedIn)    updates["linkedinUrl"] = cleanLinkedIn;
            if (cleanTwitter)     updates["twitterHandle"] = cleanTwitter;
            if (cleanInstagram)   updates["instagramHandle"] = cleanInstagram;
@@ -2276,7 +2284,7 @@ router.post("/ingest/normalize-phones", async (_req: Request, res: Response): Pr
       if (!cleaned) {
         // Invalid — clear the phone
         await db.update(entitiesTable)
-          .set({ phone: null, updatedAt: new Date() } as any)
+          .set({ phone: null, phoneSource: null, updatedAt: new Date() } as any)
           .where(eq(entitiesTable.id, e.id));
         rejected++;
       } else {
