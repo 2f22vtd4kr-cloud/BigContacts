@@ -9,7 +9,7 @@
 | Live scoreboard milestone on Replit | **pending** |
 | **Overall product proof** | **~99%** |
 
-Tip: `461eebd` (dig depth tiers + desk stop/rehydrate/scoreboard) (dig depth + desk stop/rehydrate) (singleTarget dig defaults + desk dig CTAs)
+Tip: `17c6b66` (dig depth tiers + desk stop/rehydrate/scoreboard) (dig depth + desk stop/rehydrate) (singleTarget dig defaults + desk dig CTAs)
 
 ## Integrity complete
 

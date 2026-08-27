@@ -374,7 +374,7 @@ function MobileEntityCard({
               data-testid={`button-dig-entity-card-${entity.id}`}
             >
               {diggingId === entity.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <TargetIcon className="w-3.5 h-3.5" />}
-              {diggingId === entity.id ? "Digging…" : "Dig contacts"}
+              {diggingId === entity.id ? "Digging…" : `Dig contacts · ${digDepth}`}
             </button>
             {entity.contactOutcome && OUTCOME_BADGES[entity.contactOutcome] && (
               <span
