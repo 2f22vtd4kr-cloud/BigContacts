@@ -195,3 +195,12 @@ Grok Files folder: `artifacts/bureau-plan/` (synced).
 | 220 | Discovery signals |
 | 221 | Discovery → dig handoff |
 | 222 | Discovery batch queue |
+
+| 223 | Bureau architecture layout |
+| 224 | Boss and right-hand contract |
+| 225 | Investigators vs dig agent |
+| 226 | Tools pool layout |
+| 227 | Control flow by mode |
+| 228 | Desk UI role layout |
+| 229 | Architecture anti-patterns |
+| 230 | Architecture implementation notes |
