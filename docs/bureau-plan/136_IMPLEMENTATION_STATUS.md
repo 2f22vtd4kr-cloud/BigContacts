@@ -9,7 +9,7 @@
 | Live scoreboard milestone on Replit | **pending** |
 | **Overall product proof** | **~99%** |
 
-Tip: `497b088`
+Tip: `c2e3643+` (desk surface + free discovery)
 
 ## Integrity complete
 
@@ -24,7 +24,7 @@ Tip: `497b088`
 ## Last step to 100%
 
 ```bash
-git pull origin main   # 497b088
+git pull origin main   # latest main
 # restart API
 pnpm run check:no-force-dig
 curl -X POST $HOST/api/entities/fix-outcome-honesty -H 'content-type: application/json' -d '{"limit":200}'

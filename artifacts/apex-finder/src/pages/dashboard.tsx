@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { Link } from "wouter";
 import { LaunchAtlasButton } from "@/components/launch-atlas-button";
+import { ScoreboardStrip } from "@/components/scoreboard-strip";
 import { entityEvidenceLabel, entityFindingsSummary, entityWorkSummary, NationalityCell } from "@/lib/utils";
 import { entityMeta, EntityTypeMark, entityMetric } from "@/lib/entity-taxonomy";
 
@@ -252,6 +253,9 @@ export default function Dashboard() {
 
   return (
     <div className="atlas-page pb-12">
+      <div className="px-0 pt-2 md:pt-4">
+        <ScoreboardStrip className="mb-2" />
+      </div>
       <section className="atlas-enter atlas-ambient-gold relative flex flex-col gap-8 py-8 md:flex-row md:items-end md:justify-between md:py-12">
         {/* Wash only — must not mask headline or Launch */}
         <div className="atlas-ambient-wash" aria-hidden />

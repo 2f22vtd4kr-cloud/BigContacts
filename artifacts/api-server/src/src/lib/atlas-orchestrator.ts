@@ -2524,10 +2524,13 @@ export async function runAtlasPipeline(atlasJobId: string, opts: AtlasOptions): 
     try {
       await status("Discovery agent (free LLM people hunt)…", 1);
       const { runDiscoveryAgent } = await import("./discovery-agent");
+      const discDepth = (["fast", "standard", "deep"].includes(String(opts.researchDepth || "").toLowerCase())
+        ? String(opts.researchDepth).toLowerCase()
+        : "standard") as "fast" | "standard" | "deep";
       const disc = await runDiscoveryAgent({
         jobId: atlasJobId,
-        depth: "standard",
-        hardTimeoutMs: 90_000,
+        depth: discDepth,
+        hardTimeoutMs: discDepth === "fast" ? 60_000 : discDepth === "deep" ? 150_000 : 90_000,
       });
       logger.info(
         { candidates: disc.candidates.length, degraded: disc.degraded, message: disc.message },
