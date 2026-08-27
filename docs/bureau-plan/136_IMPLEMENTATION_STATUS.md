@@ -4,33 +4,23 @@
 
 | Layer | % |
 |-------|---|
-| In-repo code path | **~97%** |
-| Product scoreboard proven | **0%** until live COMPARE on Replit |
-| **Overall** | **~91%** |
+| In-repo code path | **~98%** |
+| Product scoreboard proven | **0%** until live COMPARE |
+| **Overall** | **~92%** |
 
-## Complete in code
+## Shipped (recent tips through 560e828)
 
-- Free dig (no force_*) + `pnpm run check:no-force-dig`
-- Promote / rehydrate (+ case promote / index invalidate)
-- Source lock: agentic/notice vs issuer in in-house, phase-j, **ingest-enrichment**, **deep-web pipeline**
-- Outcome honesty (org dig ≠ personal direct)
-- Depth + researchDepth Launch
-- DigSpan llm/tool/promote + agentName
-- SC13 notice window
-- Identity collision + graph gate
-- Scoreboard rubric + `scoreboard:shell` / `scoreboard:score` / `scoreboard:compare-template`
-- phoneSource on entities UI
+Free dig · promote/rehydrate · source lock across in-house, phase-j, enrichment, **deep-web** · outcome honesty · depth + Launch `researchDepth` · DigSpan · SC13 notice · collision · scoreboard tools · phoneSource UI · tel: href fix · reject-contact clears phoneSource · index invalidate on promote
 
-## Operator
+## Operator — only path to 100%
 
 ```bash
-git pull origin main
+git pull origin main   # 560e828+
 pnpm run check:no-force-dig
 pnpm run scoreboard:score
-pnpm run scoreboard:compare-template
-# restart API — then singleTargetId re-cook — fill COMPARE_*.md
+# restart API + rebuild desk if UI changed
+# singleTargetId re-cook researchDepth standard
+# fill COMPARE_*.md — mean ≥1.0 on ≥8 fixtures, zero -1s
 ```
 
-## Remaining (cannot finish offline)
-
-Live scoreboard mean ≥ 1.0 on ≥8 fixtures with zero -1s.
+Offline code cannot prove card superiority. That is the remaining ~8%.
