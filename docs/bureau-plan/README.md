@@ -278,3 +278,7 @@ Grok Files folder: `artifacts/bureau-plan/` (synced).
 | 298–299 | Batch B2 / D build notes |
 | 300 | Index checkpoint 300 |
 | 301–315 | COMPARE template, fixtures, timeouts, orientation, mobile, rehydrate, stop |
+
+## 331–350
+
+Anthropic parallel limits mapping · ReAct debug playbook · card/evidence maps · desk entry matrix · penalties · tool errors · browser/registry/IR notes · deceased · list honesty · cache · pause · auto-pipeline · smoke vs full · checkpoint 350
