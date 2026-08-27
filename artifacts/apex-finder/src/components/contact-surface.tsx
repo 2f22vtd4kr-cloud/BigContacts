@@ -73,7 +73,28 @@ export function ContactSurface({
   };
 
   for (const c of contacts ?? []) push(c);
-  if (phone) push({ vectorType: "phone", value: phone, source: phoneSource ?? "entity", mark: "candidate", label: phoneSource || "Phone" });
+  // Honest scope from phoneSource when contacts[] missing (Vol 428/429/555)
+  const phoneMark = (() => {
+    const s = String(phoneSource ?? "");
+    if (s === "EDGAR-Notice-Phone" || s === "EDGAR-Notice") return "candidate" as const; // notice-class personal-capable
+    if (
+      s === "agentic-web-org" ||
+      s.endsWith("-org") ||
+      s === "EDGAR-Phone" ||
+      s === "EDGAR-Issuer-Phone" ||
+      s === "CompaniesHouse-Phone"
+    ) {
+      return "organization" as const;
+    }
+    return "candidate" as const;
+  })();
+  const phoneLabel = (() => {
+    const s = String(phoneSource ?? "");
+    if (s === "EDGAR-Notice-Phone" || s === "EDGAR-Notice") return "Notice";
+    if (phoneMark === "organization") return s || "Org";
+    return s || "Phone";
+  })();
+  if (phone) push({ vectorType: "phone", value: phone, source: phoneSource ?? "entity", mark: phoneMark, label: phoneLabel });
   if (email) push({ vectorType: "email", value: email, source: "entity", mark: "candidate", label: "Email" });
   if (linkedinUrl) push({ vectorType: "social", value: linkedinUrl, source: "entity", mark: "candidate", label: "LinkedIn", sourceUrl: linkedinUrl });
 

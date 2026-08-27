@@ -351,10 +351,16 @@ router.get("/ingest/scoreboard-snapshot", async (req: Request, res: Response): P
         linkedinUrl: r.linkedinUrl,
         hasSourceUrls: true,
       });
+      // Snapshot has no DigSpan; infer dig activity from agentic/notice sources or any card route.
+      const src = String(r.phoneSource ?? "");
+      const digLike =
+        /^agentic-web/i.test(src) ||
+        src === "EDGAR-Notice-Phone" ||
+        src === "EDGAR-Notice" ||
+        Boolean(r.phone || r.email || r.linkedinUrl);
       const suggestedLcode = suggestLcode({
-        // Snapshot does not load spans; assume dig path if cooked + phoneSource agentic/notice
-        hadSearchSpan: true,
-        hadVisitSpan: Boolean(r.phone || r.email),
+        hadSearchSpan: digLike,
+        hadVisitSpan: digLike,
         cardPhone: r.phone,
         cardEmail: r.email,
         phoneSource: r.phoneSource,

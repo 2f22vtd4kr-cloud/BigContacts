@@ -15,7 +15,8 @@
     "scoreboard:live": "bash scripts/replit-scoreboard-check.sh",
     "scoreboard:postmortem-template": "node scripts/postmortem-template.mjs",
     "scoreboard:fixture-template": "node scripts/fixture-registry-template.mjs",
-    "check:bureau": "bash scripts/check-no-force-dig.sh && pnpm run test:phone-priority"
+    "check:bureau": "bash scripts/check-no-force-dig.sh && pnpm run test:phone-priority",
+    "scoreboard:lcode": "node scripts/lcode-suggest.mjs"
   },
   "private": true,
   "dependencies": {
