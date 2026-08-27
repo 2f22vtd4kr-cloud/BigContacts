@@ -1509,6 +1509,8 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
   const atlasStatusColor = atlasFailed ? "#fb7185" : atlasCancelled ? "#fbbf24" : waitingForNextCycle ? "#fbbf24" : atlasDone ? "#b8ff4d" : isLive ? "#9CFF1A" : "#b8ff4d";
     const schemeScrollRef = useRef<HTMLDivElement | null>(null);
   const [schemeZoom, setSchemeZoom] = useState(1);
+  /** When true and LIVE: hide poster nodes that have not run (dynamic scheme). */
+  const [schemeToolsOnly, setSchemeToolsOnly] = useState(true);
   const [schemeView, setSchemeView] = useState({ left: 0, top: 0, w: 0.35, h: 0.4 });
   const updateSchemeView = () => {
     const el = schemeScrollRef.current;
@@ -2096,6 +2098,21 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
               borderRadius:6, padding:"4px 10px", cursor:"pointer",
             }}
           >Reset</button>
+          <button
+            type="button"
+            className="reactor-pressable"
+            data-testid="scheme-tools-only-toggle"
+            aria-label={schemeToolsOnly ? "Show full scheme poster" : "Show only live tools"}
+            aria-pressed={schemeToolsOnly}
+            onClick={() => setSchemeToolsOnly((v) => !v)}
+            style={{
+              fontSize:11, letterSpacing:"0.06em", fontWeight:600,
+              color: schemeToolsOnly ? "#0f172a" : "#94a3b8",
+              background: schemeToolsOnly ? "rgba(156,255,26,0.85)" : "rgba(255,255,255,0.04)",
+              border: schemeToolsOnly ? "1px solid rgba(156,255,26,0.9)" : "1px solid rgba(255,255,255,0.12)",
+              borderRadius:6, padding:"4px 10px", cursor:"pointer",
+            }}
+          >{schemeToolsOnly ? "Live tools" : "Full map"}</button>
           <span style={{ fontSize:10, color:"#475569" }}>Drag to pan · scrollbars work</span>
           <div
             data-testid="scheme-minimap"
@@ -2219,7 +2236,9 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
             const edgeOpacity = focusedToolId
               ? (touchesFocus || active ? 0.95 : 0.12)
               : isLive && liveNodes && liveNodes.size > 0
-                ? (active || AE.has(e.id) || liveNodes.has(e.from) || liveNodes.has(e.to) ? 0.85 : 0.08)
+                ? (active || AE.has(e.id) || liveNodes.has(e.from) || liveNodes.has(e.to)
+                    ? 0.85
+                    : (schemeToolsOnly ? 0 : 0.08))
                 : (active ? 0.92 : on ? 0.5 : queued || failed ? 0.45 : 0.22);
             return (
               <path key={e.id} d={d} fill="none"
@@ -2274,12 +2293,24 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
               opacity: (() => {
                 if (kbFocus || reachCue || on) return 1;
                 if (isSibling) return 0.28;
-                // Dynamic scheme: while LIVE with known tools, park unused poster nodes
+                // Dynamic scheme: while LIVE with known tools, park or hide unused poster nodes
                 if (isLive && liveNodes && liveNodes.size > 0) {
                   const keep = liveNodes.has(n.id) || n.id === "target" || n.id === "mcts" || n.id === "evidence";
-                  return keep ? 1 : 0.14;
+                  if (keep) return 1;
+                  return schemeToolsOnly ? 0 : 0.14;
                 }
                 return status === "idle" ? 0.55 : 1;
+              })(),
+              visibility: (() => {
+                if (!schemeToolsOnly || !isLive || !liveNodes || liveNodes.size === 0) return "visible" as const;
+                if (kbFocus || reachCue || on) return "visible" as const;
+                const keep = liveNodes.has(n.id) || n.id === "target" || n.id === "mcts" || n.id === "evidence";
+                return keep ? "visible" as const : "hidden" as const;
+              })(),
+              pointerEvents: (() => {
+                if (!schemeToolsOnly || !isLive || !liveNodes || liveNodes.size === 0) return "auto" as const;
+                const keep = liveNodes.has(n.id) || n.id === "target" || n.id === "mcts" || n.id === "evidence" || on;
+                return keep ? "auto" as const : "none" as const;
               })(),
               outline: kbFocus ? `2px solid #9CFF1A` : undefined,
               outlineOffset: kbFocus ? 3 : undefined,

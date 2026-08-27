@@ -1729,6 +1729,11 @@ function mergeFindings(existing: AgenticFinding[], incoming: AgenticFinding[]): 
 /**
  * Run agentic multi-hop web research for a person/company target.
  */
+/** Yield so status plane can answer during long free-dig iterations. */
+function yieldEventLoop(): Promise<void> {
+  return new Promise((resolve) => setImmediate(resolve));
+}
+
 export async function runAgenticWebResearch(input: {
   targetName: string;
   companyName?: string | null;
@@ -1982,6 +1987,7 @@ export async function runAgenticWebResearch(input: {
 
 
   for (let i = 0; i < maxIter; i++) {
+    if (i > 0) await yieldEventLoop();
     // Hard wall-clock timeout: materialize whatever agentic already found and exit.
     // Prevents the box/worker kill from discarding 10–20 findings (Rayco case).
     if (Date.now() - startedAt >= hardTimeoutMs) {
