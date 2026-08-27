@@ -245,3 +245,12 @@ Grok Files folder: `artifacts/bureau-plan/` (synced).
 | 261 | What not to build next |
 | 262 | Next plan threads (post-scoreboard) |
 | 263 | Glossary dig desk |
+
+| 264 | LeadResearcher vs dig self-lead (deep) |
+| 265 | Outer workflow / inner agent restated |
+| 266 | Breadth then narrow (Apex) |
+| 267 | Synthesis and citation after dig |
+| 268 | Token budget and effort scaling |
+| 269 | Plan volume depth standard |
+| 270 | Expanded dig entry architecture |
+| 271 | Implementation progress (plan depth restored) |
