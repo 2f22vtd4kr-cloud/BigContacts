@@ -1508,6 +1508,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
   );
   const atlasStatusColor = atlasFailed ? "#fb7185" : atlasCancelled ? "#fbbf24" : waitingForNextCycle ? "#fbbf24" : atlasDone ? "#b8ff4d" : isLive ? "#9CFF1A" : "#b8ff4d";
     const schemeScrollRef = useRef<HTMLDivElement | null>(null);
+  const [schemeZoom, setSchemeZoom] = useState(1);
   const schemeDragRef = useRef<{ active: boolean; x: number; y: number; left: number; top: number }>({
     active: false, x: 0, y: 0, left: 0, top: 0,
   });
@@ -2014,7 +2015,54 @@ const [deskOn, setDeskOn] = useState(false);
           </div>
         )}
         {/* Scheme canvas — horizontal + vertical pan via scroll (nodes extend past viewport) */}
-        <div
+                <div
+          data-testid="scheme-zoom-controls"
+          style={{
+            display:"flex", alignItems:"center", gap:8, flexShrink:0,
+            padding:"6px 14px 0", zIndex:20,
+          }}
+        >
+          <span style={{ fontSize:11, letterSpacing:"0.12em", color:"#64748b", fontWeight:700 }}>SCHEME</span>
+          <button
+            type="button"
+            className="reactor-pressable"
+            data-testid="scheme-zoom-out"
+            aria-label="Zoom scheme out"
+            onClick={() => setSchemeZoom((z) => Math.max(0.55, Math.round((z - 0.1) * 10) / 10))}
+            style={{
+              fontSize:12, fontWeight:700, color:"#e2e8f0", background:"rgba(255,255,255,0.04)",
+              border:"1px solid rgba(255,255,255,0.12)", borderRadius:6, padding:"4px 10px", cursor:"pointer",
+            }}
+          >−</button>
+          <span style={{ fontSize:12, fontVariantNumeric:"tabular-nums", color:"#94a3b8", minWidth:40, textAlign:"center" }}>
+            {Math.round(schemeZoom * 100)}%
+          </span>
+          <button
+            type="button"
+            className="reactor-pressable"
+            data-testid="scheme-zoom-in"
+            aria-label="Zoom scheme in"
+            onClick={() => setSchemeZoom((z) => Math.min(1.4, Math.round((z + 0.1) * 10) / 10))}
+            style={{
+              fontSize:12, fontWeight:700, color:"#e2e8f0", background:"rgba(255,255,255,0.04)",
+              border:"1px solid rgba(255,255,255,0.12)", borderRadius:6, padding:"4px 10px", cursor:"pointer",
+            }}
+          >+</button>
+          <button
+            type="button"
+            className="reactor-pressable"
+            data-testid="scheme-zoom-reset"
+            aria-label="Reset scheme zoom"
+            onClick={() => setSchemeZoom(1)}
+            style={{
+              fontSize:11, letterSpacing:"0.08em", fontWeight:600, color:"#9CFF1A",
+              background:"rgba(156,255,26,0.08)", border:"1px solid rgba(156,255,26,0.25)",
+              borderRadius:6, padding:"4px 10px", cursor:"pointer",
+            }}
+          >Reset</button>
+          <span style={{ fontSize:10, color:"#475569" }}>Drag to pan · scrollbars work</span>
+        </div>
+<div
           ref={schemeScrollRef}
           data-testid="scheme-scroll-viewport"
           onPointerDown={onSchemePointerDown}
@@ -2032,7 +2080,18 @@ const [deskOn, setDeskOn] = useState(false);
           }}
         >
         <div style={{
-          position:"relative", width:1600, minWidth:1600, height:842, flexShrink:0, margin:"0 auto",
+          position:"relative",
+          width:1600 * schemeZoom,
+          minWidth:1600 * schemeZoom,
+          height:842 * schemeZoom,
+          flexShrink:0,
+          margin:"0 auto",
+          transform:`scale(1)`,
+        }}>
+        <div style={{
+          position:"relative", width:1600, height:842, flexShrink:0,
+          transform:`scale(${schemeZoom})`,
+          transformOrigin:"top left",
         }}>
         <svg
           width={1600}
@@ -2230,7 +2289,8 @@ const [deskOn, setDeskOn] = useState(false);
           }} />
         ))}
 
-      </div>{/* scheme canvas */}
+      </div>{/* scheme scaled content */}
+      </div>{/* scheme canvas sized box */}
       </div>{/* scheme-scroll-viewport */}
       </div>{/* main column: desk above scheme */}
 

@@ -436,6 +436,11 @@ async function fetchEntities(opts: {
  * parallelism, but the next entity never starts until the previous entity's
  * complete enrichment and final validation have finished.
  */
+/** Let status/health handlers run between targets (status plane isolation). */
+function yieldEventLoop(): Promise<void> {
+  return new Promise((resolve) => setImmediate(resolve));
+}
+
 async function runEntityBatch<T>(
   atlasJobId: string,
   phase: string,
@@ -497,6 +502,8 @@ async function runEntityBatch<T>(
       entityTotal: entities.length,
       entityNames: JSON.stringify(slice.map(e => e.name)),
     });
+    // Yield so /atlas-status and /healthz can answer while dig continues
+    await yieldEventLoop();
   }
 
   return { ok, err: errCount };
