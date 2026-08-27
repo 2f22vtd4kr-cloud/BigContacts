@@ -215,3 +215,12 @@ Grok Files folder: `artifacts/bureau-plan/` (synced).
 | 235 | Tools pool industry alignment |
 | 236 | Observability industry alignment |
 | 237 | ADR: Apex bureau topology |
+
+| 238 | Anthropic research pattern → Apex |
+| 239 | ReAct observation discipline |
+| 240 | Discovery breadth / dig depth |
+| 241 | OSINT target prioritization |
+| 242 | Subagent spawn policy |
+| 243 | Synthesis and citation layer |
+| 244 | Token budget honesty |
+| 245 | Architecture checklist post-consult |
