@@ -258,3 +258,23 @@ Grok Files folder: `artifacts/bureau-plan/` (synced).
 | 272 | ReAct loop ownership |
 | 273 | Evaluation without fake wins |
 | 274 | Original mandate trace (multi-agent research) |
+
+## Free dig quality & post-275 ops (286+)
+
+| Vol | Topic |
+|-----|--------|
+| 286 | Observation quality for free dig |
+| 287 | Done policy |
+| 288 | Maximum public surface restated |
+| 289 | Scoreboard live runbook |
+| 290 | L-code reference |
+| 291 | Discovery agent quality metrics |
+| 292 | Single-target path spec |
+| 293 | ContactSurface pixel contract |
+| 294 | Reactor Live Desk IA |
+| 295 | Healthz integrity operator |
+| 296 | EDGAR notice vs issuer (operator training) |
+| 297 | Promote and present both mandatory |
+| 298–299 | Batch B2 / D build notes |
+| 300 | Index checkpoint 300 |
+| 301–315 | COMPARE template, fixtures, timeouts, orientation, mobile, rehydrate, stop |
