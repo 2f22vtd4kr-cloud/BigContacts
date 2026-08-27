@@ -383,7 +383,12 @@ export default function ApexProfile() {
         return readApiJson(response) as Promise<{ evidence?: typeof contactEvidence }>;
       })
       .then((data) => {
-        if (!cancelled) setContactEvidence(data.evidence ?? []);
+        if (cancelled) return;
+        const rows = data.evidence ?? [];
+        setContactEvidence(rows);
+        // Open audit when bag has routes but card columns look empty — surface, don't hide.
+        const cardThin = !(entity as any)?.phone && !(entity as any)?.email && !(entity as any)?.linkedinUrl;
+        if (rows.length > 0 && cardThin) setShowContactEvidence(true);
       })
       .catch(() => {
         if (!cancelled) setContactEvidence([]);
@@ -392,7 +397,7 @@ export default function ApexProfile() {
         if (!cancelled) setContactEvidenceLoading(false);
       });
     return () => { cancelled = true; };
-  }, [entityId, baseUrl, contactEvidenceKey]);
+  }, [entityId, baseUrl, contactEvidenceKey, entity]);
 
   const handleRejectContact = async (field: string) => {
     const step = rejectStep[field] ?? 0;

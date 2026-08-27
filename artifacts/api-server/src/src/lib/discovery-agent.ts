@@ -97,6 +97,14 @@ export async function runDiscoveryAgent(input: {
   depth?: "fast" | "standard" | "deep";
   laneHint?: string;
   hardTimeoutMs?: number;
+  onLiveStep?: (step: {
+    action: string;
+    tool?: string;
+    query?: string;
+    url?: string;
+    status: "ok" | "error" | "active";
+    detail?: string;
+  }) => void;
 }): Promise<DiscoveryAgentResult> {
   const jobId = input.jobId ?? `discovery_${Date.now()}`;
   const depth = input.depth ?? "standard";
@@ -134,6 +142,7 @@ export async function runDiscoveryAgent(input: {
       maxIterations,
       hardTimeoutMs,
       jobId,
+      onLiveStep: input.onLiveStep,
     });
 
     const candidates = parsePersonFindings(result.findings ?? []);

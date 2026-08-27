@@ -2527,10 +2527,31 @@ export async function runAtlasPipeline(atlasJobId: string, opts: AtlasOptions): 
       const discDepth = (["fast", "standard", "deep"].includes(String(opts.researchDepth || "").toLowerCase())
         ? String(opts.researchDepth).toLowerCase()
         : "standard") as "fast" | "standard" | "deep";
+      const { publishBureauEvent } = await import("./bureau-live-log");
       const disc = await runDiscoveryAgent({
         jobId: atlasJobId,
         depth: discDepth,
         hardTimeoutMs: discDepth === "fast" ? 60_000 : discDepth === "deep" ? 150_000 : 90_000,
+        onLiveStep: (step) => {
+          const kind =
+            step.action === "web_search" ? "search"
+            : step.action === "visit" || step.action === "browser_fetch" ? "page-fetch"
+            : "tool";
+          void publishBureauEvent({
+            actor: "discovery",
+            kind,
+            jobId: atlasJobId,
+            title:
+              step.action === "web_search" ? `Discovery search · ${step.query || ""}`.slice(0, 120)
+              : step.action === "visit" ? `Discovery page · ${(step.url || "").slice(0, 80)}`
+              : `Discovery · ${step.action}`,
+            provider: step.tool || step.action,
+            why: step.detail?.slice(0, 240),
+            ask: step.query || step.url,
+            responseSummary: step.detail?.slice(0, 200),
+            level: step.status === "error" ? "error" : "info",
+          });
+        },
       });
       logger.info(
         { candidates: disc.candidates.length, degraded: disc.degraded, message: disc.message },
