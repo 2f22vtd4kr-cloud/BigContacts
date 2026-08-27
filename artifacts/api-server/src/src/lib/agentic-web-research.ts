@@ -2105,6 +2105,11 @@ export async function runAgenticWebResearch(input: {
       continue;
     }
     modelUsed = llm.model;
+    emitLive({
+      action: "llm_step",
+      provider: llm.model,
+      summary: `model=${llm.model} raw=${llm.raw.length}c`,
+    });
     let action = parseAction(llm.raw);
     if (!action) {
       // One repair turn — native tool calling is not uniform across providers; JSON can glitch.

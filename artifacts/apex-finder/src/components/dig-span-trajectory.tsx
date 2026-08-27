@@ -16,6 +16,8 @@ export type DigSpanView = {
   inputSummary?: string;
   resultSummary?: string;
   modelId?: string;
+  agentName?: string;
+  operationName?: string;
 };
 
 const TYPE_COLOR: Record<string, string> = {
@@ -84,6 +86,9 @@ export function DigSpanTrajectory({
             <div className="min-w-0">
               <div className="truncate font-medium text-stone-200">
                 {s.name}
+                {s.agentName ? (
+                  <span className="text-slate-600"> · {s.agentName}</span>
+                ) : null}
                 {s.targetName ? (
                   <span className="text-slate-500"> · {s.targetName}</span>
                 ) : null}
