@@ -143,3 +143,10 @@ Grok Files folder: `artifacts/bureau-plan/` (synced).
 
 **Product north star:** free-agent OSINT desk for HNWI outreach; card shows full contact surface; beat single-LLM baseline on scoreboard.
 
+| 166 | Maximum public surface (never eliminate contacts) |
+| 167 | IR, press, transfer-agent surface |
+| 168 | Public email recovery |
+| 169 | Empty card is a bug |
+| 170 | Depth means more surface |
+| 154 | CORRECTED — privacy not an excuse to drop contacts |
+
