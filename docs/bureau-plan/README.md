@@ -224,3 +224,6 @@ Grok Files folder: `artifacts/bureau-plan/` (synced).
 | 243 | Synthesis and citation layer |
 | 244 | Token budget honesty |
 | 245 | Architecture checklist post-consult |
+
+| 246 | Anthropic parallel subagent constraints (detail) |
+| 247 | ReAct trajectory debugging methods |
