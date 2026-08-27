@@ -41,6 +41,7 @@ import { discoverDigitalFootprint } from "../lib/digital-footprint";
 import { scoreAttribution, isGenericLocalPart } from "../lib/contact-attribution";
 import { logger } from "../lib/logger";
 import { canonicalizeUrl } from "../lib/evidence-ledger";
+import { shouldBlockIssuerOverwrite, isAgenticPhoneSource } from "../lib/phone-source-priority";
 import { runPersonasForEntity } from "../lib/persona-engine";
 
 const router = Router();
@@ -710,9 +711,16 @@ async function runPhaseJPass(
       }
 
       // ── Write entity updates ───────────────────────────────────────────────
+      const existingSrc =
+        (typeof meta.phoneSource === "string" ? meta.phoneSource : null) ??
+        (entity as { phoneSource?: string | null }).phoneSource ??
+        null;
+      const incomingSrc = inHouseResult.phoneSource ?? null;
+      const allowPhoneSrc =
+        incomingSrc && !shouldBlockIssuerOverwrite(existingSrc, incomingSrc);
       const nextMeta: JsonMap = {
         ...meta,
-        ...(inHouseResult.phoneSource ? { phoneSource: inHouseResult.phoneSource } : {}),
+        ...(allowPhoneSrc ? { phoneSource: incomingSrc } : {}),
         contactOutcome: outcome,
         phaseJ: {
           pass: "J4-J9",
@@ -747,7 +755,23 @@ async function runPhaseJPass(
         updatedAt: new Date(),
       };
        if (activeEmail && !entity.email) entityUpdates.email = activeEmail;
-      if (bestPhone && !entity.phone) entityUpdates.phone = bestPhone;
+      if (
+        bestPhone &&
+        !entity.phone &&
+        !shouldBlockIssuerOverwrite(
+          (entity as { phoneSource?: string | null }).phoneSource ??
+            (typeof meta.phoneSource === "string" ? meta.phoneSource : null),
+          inHouseResult.phoneSource ?? null,
+        )
+      ) {
+        entityUpdates.phone = bestPhone;
+        if (inHouseResult.phoneSource && !shouldBlockIssuerOverwrite(
+          (entity as { phoneSource?: string | null }).phoneSource,
+          inHouseResult.phoneSource,
+        )) {
+          entityUpdates.phoneSource = inHouseResult.phoneSource;
+        }
+      }
       if (bestLinkedIn && !entity.linkedinUrl) entityUpdates.linkedinUrl = bestLinkedIn;
       if (bestTwitter && !entity.twitterHandle) entityUpdates.twitterHandle = bestTwitter;
 

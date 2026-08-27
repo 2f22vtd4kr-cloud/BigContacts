@@ -35,6 +35,7 @@ import { runCompaniesHouseEnrichment } from "../lib/enrichment/structured-verifi
 import { deepWebOsintEnrich } from "../lib/enrichment/web-discovery";
 import { summarizeAdaptiveResearch } from "../lib/adaptive-research-director";
 import { enrichInHouse } from "../lib/enrichment/contact-enrichment";
+import { shouldBlockIssuerOverwrite, isAgenticPhoneSource } from "../lib/phone-source-priority";
 import { runMaigret, runSherlock, runHolehe } from "../lib/python-tools";
 import { discoverSocialPresence } from "../lib/enrichment/social-discovery";
 import { discoverMessengerPresence } from "../lib/enrichment/messenger-discovery";
@@ -930,7 +931,25 @@ router.post("/ingest/in-house-enrich", async (req: Request, res: Response): Prom
         const updates: Record<string, unknown> = { updatedAt: new Date() };
         if (cleanEmail && !entity.email) updates["email"] = cleanEmail;
         if (cleanLinkedIn && !entity.linkedinUrl) updates["linkedinUrl"] = cleanLinkedIn;
-        if (cleanPhone && !entity.phone) updates["phone"] = cleanPhone;
+        // Never let issuer switchboard replace dig/notice phones (Vol 73/78).
+        const existingPhoneSrc =
+          (entity as { phoneSource?: string | null }).phoneSource ??
+          (typeof entityMeta["phoneSource"] === "string" ? entityMeta["phoneSource"] : null);
+        const incomingPhoneSrc = result.phoneSource ?? null;
+        const blockIssuerPhone = shouldBlockIssuerOverwrite(existingPhoneSrc, incomingPhoneSrc);
+        if (cleanPhone && !entity.phone && !blockIssuerPhone) {
+          updates["phone"] = cleanPhone;
+          if (incomingPhoneSrc) updates["phoneSource"] = incomingPhoneSrc;
+        } else if (
+          cleanPhone &&
+          entity.phone &&
+          isAgenticPhoneSource(existingPhoneSrc) &&
+          shouldBlockIssuerOverwrite(existingPhoneSrc, incomingPhoneSrc)
+        ) {
+          // Keep agentic card phone; do not touch phoneSource.
+        } else if (cleanPhone && !entity.phone && blockIssuerPhone) {
+          // Incoming is issuer and we somehow have agentic source without phone — skip issuer.
+        }
         // Write twitter handle to entity column so it contributes to contactConfidence
         if (cleanTwitter && !entity.twitterHandle) updates["twitterHandle"] = cleanTwitter;
         // SMTP confirms mailbox delivery only. Target-person attribution must
@@ -954,7 +973,15 @@ router.post("/ingest/in-house-enrich", async (req: Request, res: Response): Prom
         if (result.address && !meta["bizLocation"]) meta["bizLocation"] = result.address;
         // L1: persist source labels so backfill can classify org vs personal contacts
         if (result.emailSource) meta["emailSource"] = result.emailSource;
-        if (result.phoneSource) meta["phoneSource"] = result.phoneSource;
+        if (result.phoneSource) {
+          const curMetaSrc =
+            (typeof meta["phoneSource"] === "string" ? meta["phoneSource"] : null) ??
+            (entity as { phoneSource?: string | null }).phoneSource ??
+            null;
+          if (!shouldBlockIssuerOverwrite(curMetaSrc, result.phoneSource)) {
+            meta["phoneSource"] = result.phoneSource;
+          }
+        }
         meta["enrichmentSources"] = [
           ...(Array.isArray(meta["enrichmentSources"]) ? meta["enrichmentSources"] as string[] : []),
           ...result.sources.filter(s => !(meta["enrichmentSources"] as string[] | undefined)?.includes(s)),

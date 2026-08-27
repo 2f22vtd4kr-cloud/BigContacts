@@ -9,7 +9,8 @@
     "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck",
     "check:no-force-dig": "bash scripts/check-no-force-dig.sh",
     "check:bureau": "bash scripts/check-no-force-dig.sh",
-    "scoreboard:shell": "node scripts/scoreboard-shell.mjs"
+    "scoreboard:shell": "node scripts/scoreboard-shell.mjs",
+    "scoreboard:score": "node scripts/scoreboard-shell.mjs --score"
   },
   "private": true,
   "dependencies": {
