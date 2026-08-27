@@ -4,24 +4,20 @@
 
 | Layer | % |
 |-------|---|
-| In-repo code path | **~98%** |
+| In-repo code path | **~99%** |
 | Product scoreboard proven | **0%** until live COMPARE |
-| **Overall** | **~93%** |
+| **Overall** | **~94%** |
 
-## Latest tips (phone integrity)
+## Critical fix `8e9e08f`
 
-- `15d5861` / `c3346f3` — web-osint force + cache + normalize respect dig phones
-- `560e828` — reject-contact clears phoneSource
-- `5eeac5f` / `e5b15b6` — deep-web pipeline + Launch researchDepth + tel href
-- `deb697a` — enrichment + phase-j issuer lock
+Final target review re-read card after dig and **preserves agentic-web / EDGAR-Notice phones**.  
+Previously `baselineContacts` was frozen **before** dig, so end-of-run write could null dig wins — a root cause of empty cards after free dig.
 
 ## Operator
 
 ```bash
-git pull origin main   # 15d5861+
+git pull origin main   # 8e9e08f+
+# restart API
 pnpm run check:no-force-dig
-pnpm run scoreboard:score
-# restart API; singleTargetId re-cook; fill COMPARE_*.md
+# singleTargetId re-cook → COMPARE scoreboard
 ```
-
-Remaining ~7% is **live scoreboard proof only**.
