@@ -15,6 +15,15 @@ describe("scoreboard-rubric", () => {
     })).toBe(2);
   });
 
+  it("notice phone scores 2 even if outcome was mislabeled org", () => {
+    expect(scoreFixtureCard({
+      contactOutcome: "organization_contact",
+      phone: "+16099213633",
+      phoneSource: "EDGAR-Notice-Phone",
+      hasSourceUrls: true,
+    })).toBe(2);
+  });
+
   it("scores org switchboard as 1 not 2", () => {
     expect(scoreFixtureCard({
       contactOutcome: "organization_contact",

@@ -32,12 +32,29 @@ export function scoreFixtureCard(input: ScoreboardFixtureInput): -1 | 0 | 1 | 2 
 
   if (input.baselineBetterPrimary && !hasContact) return 0;
 
+  const phoneSrc = String(input.phoneSource ?? "");
+  const isNotice = phoneSrc === "EDGAR-Notice-Phone" || phoneSrc === "EDGAR-Notice";
+  const isOrgScoped =
+    phoneSrc.endsWith("-org") ||
+    phoneSrc === "agentic-web-org" ||
+    phoneSrc === "EDGAR-Phone" ||
+    phoneSrc === "EDGAR-Issuer-Phone" ||
+    phoneSrc === "CompaniesHouse-Phone";
+
+  // Notice-line dig wins are first-class primary routes (Vol 296/453)
+  if (
+    isNotice &&
+    hasContact &&
+    input.hasSourceUrls !== false
+  ) {
+    return 2;
+  }
+
   if (
     (outcome === "direct_contact_candidate" || outcome === "direct_contact_verified") &&
     hasContact &&
     input.hasSourceUrls !== false &&
-    !String(input.phoneSource ?? "").endsWith("-org") &&
-    input.phoneSource !== "agentic-web-org"
+    !isOrgScoped
   ) {
     return 2;
   }
