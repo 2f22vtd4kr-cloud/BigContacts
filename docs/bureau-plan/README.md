@@ -1,8 +1,8 @@
 # Apex Atlas — Master Bureau Plan
 
-One plan, many files.
+One plan, many files on main.
 
-Measured size: `wc -w docs/bureau-plan/*.md`
+Measure: `wc -w docs/bureau-plan/*.md`
 
 | File |
 |------|
@@ -44,5 +44,18 @@ Measured size: `wc -w docs/bureau-plan/*.md`
 | [35_COMPARISON_ARCHIVE_TEMPLATE.md](./35_COMPARISON_ARCHIVE_TEMPLATE.md) |
 | [36_PATTERN_LIBRARY.md](./36_PATTERN_LIBRARY.md) |
 | [37_REVERT_POLICY.md](./37_REVERT_POLICY.md) |
+| [38_SANITIZERS_SPEC.md](./38_SANITIZERS_SPEC.md) |
+| [39_NOTICE_LINE_EDGAR.md](./39_NOTICE_LINE_EDGAR.md) |
+| [40_DECEASED_AND_STALE.md](./40_DECEASED_AND_STALE.md) |
+| [41_LIVE_EVENT_TRANSPORT.md](./41_LIVE_EVENT_TRANSPORT.md) |
+| [42_SCHEME_INTERACTION.md](./42_SCHEME_INTERACTION.md) |
+| [43_SINGLE_TARGET_RECOOK.md](./43_SINGLE_TARGET_RECOOK.md) |
+| [44_BUDGET_AND_COST.md](./44_BUDGET_AND_COST.md) |
+| [45_GRAPH_IDENTITY.md](./45_GRAPH_IDENTITY.md) |
+| [46_EXTRACTORS_HTML.md](./46_EXTRACTORS_HTML.md) |
+| [47_FINAL_REVIEW_PATH.md](./47_FINAL_REVIEW_PATH.md) |
+| [48_PAUSE_RESUME_STOP.md](./48_PAUSE_RESUME_STOP.md) |
+| [49_CACHE_INVALIDATION.md](./49_CACHE_INVALIDATION.md) |
+| [50_DOCUMENT_MAP.md](./50_DOCUMENT_MAP.md) |
 
-**Thesis:** Free dig, honest cards, no force_* brain. Boss=Gemini, RH=NVIDIA.
+Thesis: free dig, honest cards, no force_* brain.
