@@ -956,6 +956,16 @@ export default function EntityLedger() {
         )}
         <div className="px-4 pt-3 flex-shrink-0 space-y-2">
           <ScoreboardStrip />
+          {diggingId != null && (
+            <div
+              className="rounded-lg border border-primary/25 bg-primary/10 px-3 py-2 text-[11px] font-mono text-primary flex items-center gap-2"
+              data-testid="dig-in-progress-banner"
+            >
+              <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />
+              <span className="flex-1">Atlas dig in progress for entity #{diggingId} — free ReAct on public sources</span>
+              <a href="/reactor" className="underline underline-offset-2 hover:text-[#9CFF1A] shrink-0">Reactor</a>
+            </div>
+          )}
           <button
             type="button"
             data-testid="rehydrate-thin-cards"

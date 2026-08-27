@@ -553,6 +553,7 @@ async function promoteBureauContactsToEntityCard(
   } catch { /* non-fatal */ }
   void delCachePattern("entities:list:*");
   void delCachePattern("dashboard:*");
+  void delCachePattern("scoreboard:*");
 }
 
 type DiscoveryCandidateContactSource = {
