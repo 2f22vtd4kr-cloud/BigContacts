@@ -18,6 +18,7 @@ import { CANONICAL_ATLAS_LAUNCH_BODY } from "../lib/atlas-launch-defaults";
 import { logger } from "../lib/logger";
 import { getRecentDigSpans, clearDigSpansForJob, publishDigSpan } from "../lib/dig-span";
 import { scoreFixtureCard, meanScore, passesScoreboardMilestone } from "../lib/scoreboard-rubric";
+import { buildLanesHonestySnapshot } from "../lib/lanes-honesty";
 import { normalizeAtlasStatusMessage } from "../lib/atlas-phase-progress";
 
 const router = Router();
@@ -357,10 +358,17 @@ router.get("/ingest/scoreboard-snapshot", async (req: Request, res: Response): P
       };
     });
     const scores = scored.map((s) => s.score);
+    const lanes = buildLanesHonestySnapshot();
+    const integrity = lanes.bureauIntegrity;
+    // Plan: never claim milestone pass while integrity is critical (Vol 275/602/1652)
+    const milestonePass =
+      integrity !== "critical" && passesScoreboardMilestone(scores);
     res.json({
       count: scored.length,
       mean: meanScore(scores),
-      milestonePass: passesScoreboardMilestone(scores),
+      milestonePass,
+      bureauIntegrity: integrity,
+      bureauIntegrityReasons: lanes.bureauIntegrityReasons,
       rows: scored,
     });
   } catch (err) {

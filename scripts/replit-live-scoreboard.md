@@ -1,18 +1,24 @@
-# Live scoreboard (Replit) — last product gate
+# Replit live scoreboard (Vol 551 / 1101 / 1501)
 
-In-repo dig desk is complete. This is the only remaining product proof.
+## Preconditions
+- `git pull` and note tip SHA
+- `pnpm --dir artifacts/apex-finder run build` if desk changed
+- Restart API
+- `ENABLE_AUTO_PIPELINE=false`
+- `pnpm run check:no-force-dig` → OK
+- `GET /api/healthz` → `bureauIntegrity` not `critical`
 
-```bash
-git pull origin main
-pnpm run check:no-force-dig
-# restart API + UI after apex-finder build
-pnpm --dir artifacts/apex-finder run build
-```
+## Procedure
+1. List 8–12 fixture entity ids (issuer-trap, org-only, collision, thin, easy).
+2. For each: **Dig contacts** (not discovery-first), depth `standard` (or `deep` if hard).
+3. Wait atlas-status **idle**; note jobId.
+4. Optional: Entities → Rehydrate cards from evidence.
+5. `pnpm run scoreboard:live` or `bash scripts/replit-scoreboard-check.sh https://YOUR_HOST`
+6. Fill `pnpm run scoreboard:compare-template <SHA> > docs/comparisons/COMPARE_YYYY-MM-DD.md`
+7. On failures: L-code → one fix class → **same entity ids** re-cook.
 
-1. Fix secrets until `GET /api/healthz` → `bureauIntegrity` is **ok** or **degraded** (not critical).
-2. Profile or Entities → **Dig contacts** (depth standard or deep) on 8–12 thin HNWI cards.
-3. Wait for idle; confirm ContactSurface routes + evidence.
-4. `GET /api/ingest/scoreboard-snapshot?limit=12` → `milestonePass: true` (blocked if integrity critical).
-5. Optional: `bash scripts/replit-scoreboard-check.sh`
+## Pass
+`milestonePass: true`, integrity ok, n≥8 preferred, free dig spans present, no force_*.
 
-Do **not** add force_* dig controllers. Dig stays free ReAct.
+## Fail
+L-EMPTY / L-ISSUER / L-NO-DIG dominant, or integrity critical, or check-no-force-dig fails.

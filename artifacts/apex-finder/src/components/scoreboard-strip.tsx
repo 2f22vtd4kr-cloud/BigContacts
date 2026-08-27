@@ -16,6 +16,7 @@ type Snapshot = {
   count: number;
   mean: number;
   milestonePass: boolean;
+  bureauIntegrity?: string;
   rows: Row[];
 };
 
@@ -34,10 +35,12 @@ export function ScoreboardStrip({ className, refreshKey }: { className?: string;
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const j = (await r.json()) as Snapshot;
       setData(j);
+      let integ = String(j.bureauIntegrity ?? "");
       if (h && h.ok) {
         const hj = await h.json();
-        setIntegrity(String(hj.bureauIntegrity ?? hj.integrity ?? ""));
+        integ = String(hj.bureauIntegrity ?? hj.integrity ?? integ);
       }
+      if (integ) setIntegrity(integ);
       setErr(null);
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
