@@ -12,6 +12,7 @@
 
 import { logger } from "./logger";
 import { spanFromLiveStep } from "./dig-span";
+import { formatSerpContactTokenBlock } from "./serp-contact-tokens";
 import { filterClaimUrls, filterPassagesForQuery } from "./passage-filter";
 import { sanitizePublicEmail, sanitizePublicPhone, isTrashContactValue } from "./contact-validation";
 import {
@@ -84,17 +85,9 @@ function formatSearchObservation(query: string, sr: { text: string; urls: string
       lines.push(body.slice(0, MAX_OBS));
     }
   }
-  // Surface contact-shaped tokens already visible in SERP so model can visit the right host
-  const phones = body.match(/\+?\d[\d\s().-]{8,}\d/g) ?? [];
-  const emails = body.match(/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/gi) ?? [];
-  const uniq = (xs: string[]) => [...new Set(xs.map((x) => x.trim()))].slice(0, 6);
-  const ph = uniq(phones);
-  const em = uniq(emails);
-  if (ph.length || em.length) {
-    lines.push("", "Contact-shaped tokens visible in snippets (verify via visit before done):");
-    if (em.length) lines.push(`  emails: ${em.join(", ")}`);
-    if (ph.length) lines.push(`  phones: ${ph.join(", ")}`);
-  }
+  // Surface contact-shaped tokens in SERP (verify via visit — OSINT lead discipline)
+  const tokenBlock = formatSerpContactTokenBlock(body);
+  if (tokenBlock) lines.push("", tokenBlock);
   return lines.join("\n").slice(0, MAX_OBS + 500);
 }
 
