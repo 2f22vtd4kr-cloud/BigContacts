@@ -14,6 +14,7 @@ import { publishBureauEvent } from "./bureau-live-log";
 import { computeContactOutcome } from "./contact-confidence";
 import { assessIdentityCollision } from "./identity-collision";
 import { publishDigSpan } from "./dig-span";
+import { delCachePattern } from "./redis";
 import { isProtectedPhoneSource, isIssuerSwitchboardSource } from "./phone-source-priority";
 import { apexOrientationCompact } from "./apex-bureau-orientation";
 
@@ -537,8 +538,11 @@ async function promoteBureauContactsToEntityCard(
       status: "ok",
       inputSummary: [patch.phone, patch.email].filter(Boolean).join(" · ") || outcome,
       resultSummary: `outcome=${outcome} source=${source}`,
+      agentName: "investigator",
     });
   } catch { /* non-fatal */ }
+  void delCachePattern("entities:list:*");
+  void delCachePattern("dashboard:*");
 }
 
 type DiscoveryCandidateContactSource = {

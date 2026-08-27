@@ -56,7 +56,7 @@ import {
   isGenericEmailPrefix,
   isTrashContactValue,
 } from "./contact-validation";
-import { contactCacheSet } from "./redis";
+import { contactCacheSet, delCachePattern } from "./redis";
 import { runPhaseJBatch } from "../routes/phase-j";
 import { reachabilityOrderExpr } from "./reachability-rank";
 import { backfillWealthLLM } from "./wealth-estimator";
@@ -1727,6 +1727,8 @@ Only include assets with a SPECIFIC identifier. If nothing concrete is mentioned
       const again = await db.select().from(entitiesTable).where(eq(entitiesTable.id, id)).limit(1);
       if (again[0]) entity = { ...entity, ...again[0] } as typeof entity;
     } catch { /* non-fatal */ }
+    void delCachePattern("entities:list:*");
+    void delCachePattern("dashboard:*");
 
     // Only exact values selected by the final reviewer become verified. A
     // reviewer rejection is durable; an unavailable/uncertain review remains

@@ -7,6 +7,8 @@
  */
 
 import { Router, type Request, type Response } from "express";
+import { db, entitiesTable } from "@workspace/db";
+import { sql, desc } from "drizzle-orm";
 import {
   createJob, getActiveJob, getLatestJob, getJob, getJobLog, setActiveJob,
   updateJob, clearActiveJobIfOwned, clearActiveJobIfMatches, forceClearActiveJob, getAutoPipelineScheduler,
@@ -15,6 +17,7 @@ import { runAtlasPipeline, type AtlasOptions } from "../lib/atlas-orchestrator";
 import { CANONICAL_ATLAS_LAUNCH_BODY } from "../lib/atlas-launch-defaults";
 import { logger } from "../lib/logger";
 import { getRecentDigSpans, clearDigSpansForJob, publishDigSpan } from "../lib/dig-span";
+import { scoreFixtureCard, meanScore, passesScoreboardMilestone } from "../lib/scoreboard-rubric";
 import { normalizeAtlasStatusMessage } from "../lib/atlas-phase-progress";
 
 const router = Router();
@@ -298,6 +301,49 @@ function isFreshAtlasTerminal(job: { status?: string; finishedAt?: string; start
 // Desk polls this often; short in-process cache cuts Redis GETs without lying for long.
 let _atlasStatusCache: { at: number; body: unknown } | null = null;
 const ATLAS_STATUS_CACHE_MS = 2_000;
+
+
+// GET /ingest/scoreboard-snapshot — score recent cards for COMPARE_*.md (Vol 68/76)
+router.get("/ingest/scoreboard-snapshot", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const limit = Math.min(50, Math.max(1, Number(req.query.limit ?? 20) || 20));
+    const rows = await db
+      .select({
+        id: entitiesTable.id,
+        name: entitiesTable.name,
+        contactOutcome: entitiesTable.contactOutcome,
+        phone: entitiesTable.phone,
+        phoneSource: entitiesTable.phoneSource,
+        email: entitiesTable.email,
+        linkedinUrl: entitiesTable.linkedinUrl,
+        cookedAt: entitiesTable.cookedAt,
+      })
+      .from(entitiesTable)
+      .where(sql`${entitiesTable.cookedAt} IS NOT NULL`)
+      .orderBy(desc(entitiesTable.cookedAt))
+      .limit(limit);
+    const scored = rows.map((r) => {
+      const score = scoreFixtureCard({
+        contactOutcome: r.contactOutcome,
+        phone: r.phone,
+        email: r.email,
+        phoneSource: r.phoneSource,
+        linkedinUrl: r.linkedinUrl,
+        hasSourceUrls: true,
+      });
+      return { ...r, score, cookedAt: r.cookedAt ? r.cookedAt.toISOString() : null };
+    });
+    const scores = scored.map((s) => s.score);
+    res.json({
+      count: scored.length,
+      mean: meanScore(scores),
+      milestonePass: passesScoreboardMilestone(scores),
+      rows: scored,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
+  }
+});
 
 router.get("/ingest/atlas-status", async (_req: Request, res: Response): Promise<void> => {
   if (_atlasStatusCache && Date.now() - _atlasStatusCache.at < ATLAS_STATUS_CACHE_MS) {
