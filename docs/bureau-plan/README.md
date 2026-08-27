@@ -1,8 +1,8 @@
 # Apex Atlas — Master Bureau Plan
 
-One plan, many files.
+One plan, many files. Measure: `wc -w docs/bureau-plan/*.md`
 
-Measure: `wc -w docs/bureau-plan/*.md`
+**Start here for wins:** [61](./61_RESEARCH_SYNTHESIS_BEAT_SINGLE_AGENT.md) · [62](./62_30_DAY_EXECUTION_TO_WIN.md) · [66](./66_WIN_CONDITIONS_PRODUCT.md) · [70](./70_NEXT_CODE_PR_QUEUE.md)
 
 | File |
 |------|
@@ -67,5 +67,13 @@ Measure: `wc -w docs/bureau-plan/*.md`
 | [58_SECURITY_SECRETS.md](./58_SECURITY_SECRETS.md) |
 | [59_VERSIONING_TIPS.md](./59_VERSIONING_TIPS.md) |
 | [60_HANDOFF_CHECKLIST.md](./60_HANDOFF_CHECKLIST.md) |
-
-Thesis: free dig · honest cards · no force_* brain · Boss=Gemini · RH=NVIDIA
+| [61_RESEARCH_SYNTHESIS_BEAT_SINGLE_AGENT.md](./61_RESEARCH_SYNTHESIS_BEAT_SINGLE_AGENT.md) |
+| [62_30_DAY_EXECUTION_TO_WIN.md](./62_30_DAY_EXECUTION_TO_WIN.md) |
+| [63_FIXTURE_TARGET_SPEC.md](./63_FIXTURE_TARGET_SPEC.md) |
+| [64_ENTITY_RESOLUTION_FOR_CONTACTS.md](./64_ENTITY_RESOLUTION_FOR_CONTACTS.md) |
+| [65_EVALUATION_DRIVEN_BUREAU.md](./65_EVALUATION_DRIVEN_BUREAU.md) |
+| [66_WIN_CONDITIONS_PRODUCT.md](./66_WIN_CONDITIONS_PRODUCT.md) |
+| [67_CODE_TOUCH_MAP.md](./67_CODE_TOUCH_MAP.md) |
+| [68_OPERATOR_SCOREBOARD_SOP.md](./68_OPERATOR_SCOREBOARD_SOP.md) |
+| [69_FAILURE_INJECTION_TESTS.md](./69_FAILURE_INJECTION_TESTS.md) |
+| [70_NEXT_CODE_PR_QUEUE.md](./70_NEXT_CODE_PR_QUEUE.md) |
