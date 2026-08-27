@@ -829,6 +829,7 @@ export default function EntityLedger() {
     } finally {
       setDiggingId(null);
       setBulkBusy(false);
+      setScoreboardKey((k) => k + 1);
       void refetch();
     }
   };
