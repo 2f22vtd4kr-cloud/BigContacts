@@ -19,6 +19,7 @@ import { logger } from "../lib/logger";
 import { getRecentDigSpans, clearDigSpansForJob, publishDigSpan } from "../lib/dig-span";
 import { scoreFixtureCard, meanScore, passesScoreboardMilestone } from "../lib/scoreboard-rubric";
 import { buildLanesHonestySnapshot } from "../lib/lanes-honesty";
+import { suggestLcode } from "../lib/lcode-suggest";
 import { normalizeAtlasStatusMessage } from "../lib/atlas-phase-progress";
 
 const router = Router();
@@ -350,10 +351,21 @@ router.get("/ingest/scoreboard-snapshot", async (req: Request, res: Response): P
         linkedinUrl: r.linkedinUrl,
         hasSourceUrls: true,
       });
+      const suggestedLcode = suggestLcode({
+        // Snapshot does not load spans; assume dig path if cooked + phoneSource agentic/notice
+        hadSearchSpan: true,
+        hadVisitSpan: Boolean(r.phone || r.email),
+        cardPhone: r.phone,
+        cardEmail: r.email,
+        phoneSource: r.phoneSource,
+        contactOutcome: outcome,
+        betterPublicRouteKnown: false,
+      });
       return {
         ...r,
         contactOutcome: outcome,
         score,
+        suggestedLcode: score <= 0 ? suggestedLcode : "none",
         cookedAt: r.cookedAt ? r.cookedAt.toISOString() : null,
       };
     });
