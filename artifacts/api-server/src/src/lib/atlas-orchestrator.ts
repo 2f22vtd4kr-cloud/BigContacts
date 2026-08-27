@@ -2562,6 +2562,32 @@ export async function runAtlasPipeline(atlasJobId: string, opts: AtlasOptions): 
     }
   }
 
+  // Soft-retire template broad discovery when agent filled seats (plan Vol 218/222).
+  // Registry sources still run if budget remains. Force templates: APEX_FORCE_TEMPLATE_DISCOVERY=1
+  const forceTemplates =
+    process.env.APEX_FORCE_TEMPLATE_DISCOVERY === "1" ||
+    process.env.APEX_FORCE_TEMPLATE_DISCOVERY === "true";
+  if (
+    !forceTemplates &&
+    discoveryAgentEnabled &&
+    admittedTargets > 0
+  ) {
+    const before = sourcesToRun.length;
+    sourcesToRun = sourcesToRun.filter((s) => s.kind !== "broad");
+    logger.info(
+      {
+        admittedTargets,
+        targetLimit,
+        droppedBroad: before - sourcesToRun.length,
+        remainingSources: sourcesToRun.length,
+      },
+      "[Atlas] Soft-retired broad template discovery after agent admits",
+    );
+    if (admittedTargets >= targetLimit) {
+      sourcesToRun = [];
+    }
+  }
+
   for (const source of sourcesToRun) {
     await ensureAtlasActive(atlasJobId);
     if (admittedTargets >= targetLimit) {

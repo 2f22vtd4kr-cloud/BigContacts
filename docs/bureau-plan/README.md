@@ -228,3 +228,4 @@ Grok Files folder: `artifacts/bureau-plan/` (synced).
 | 246 | Anthropic parallel subagent constraints (detail) |
 | 247 | ReAct trajectory debugging methods |
 | 248 | Implementation progress (ContactSurface + discovery agent) |
+| 249 | Scoreboard operator use |
