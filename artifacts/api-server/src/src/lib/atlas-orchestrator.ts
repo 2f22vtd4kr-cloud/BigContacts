@@ -63,7 +63,7 @@ import { backfillWealthLLM } from "./wealth-estimator";
 import { materializeBusinessAsset } from "./business-assets";
 import { runTargetResearch } from "./target-research";
 import {
-import { isAgenticPhoneSource, isNoticePhoneSource, shouldBlockIssuerOverwrite } from "./phone-source-priority";
+import { isAgenticPhoneSource, isNoticePhoneSource, resolveProtectedCardPhone } from "./phone-source-priority";
   expandSecondaryPublicSurface,
   persistBureauContactsForEntity,
   rehydrateEntityCardFromEvidence,
@@ -1684,16 +1684,14 @@ Only include assets with a SPECIFIC identifier. If nothing concrete is mentioned
       .where(eq(entitiesTable.id, id))
       .then((rows) => rows[0]);
     const cardPhoneSrc = cardAfterDig?.phoneSource ?? (entity as { phoneSource?: string | null }).phoneSource ?? null;
-    const protectDigPhone =
-      isAgenticPhoneSource(cardPhoneSrc) || isNoticePhoneSource(cardPhoneSrc);
-    const resolvedPhone = protectDigPhone
-      ? (cardAfterDig?.phone ?? finalContacts.phone ?? entity.phone)
-      : (finalContacts.phone ?? cardAfterDig?.phone ?? entity.phone);
-    const resolvedPhoneSource = protectDigPhone
-      ? cardPhoneSrc
-      : finalContacts.phone && finalContacts.phone !== cardAfterDig?.phone
-        ? "final-review"
-        : cardPhoneSrc;
+    const resolved = resolveProtectedCardPhone({
+      currentPhone: cardAfterDig?.phone ?? entity.phone,
+      currentSource: cardPhoneSrc,
+      incomingPhone: finalContacts.phone,
+      incomingSource: finalContacts.phone ? "final-review" : null,
+    });
+    const resolvedPhone = resolved.phone;
+    const resolvedPhoneSource = resolved.phoneSource;
     const resolvedEmail = finalContacts.email ?? cardAfterDig?.email ?? entity.email;
     const resolvedLinkedIn = finalContacts.linkedinUrl ?? cardAfterDig?.linkedinUrl ?? entity.linkedinUrl;
     const resolvedIg = finalContacts.instagramHandle ?? cardAfterDig?.instagramHandle ?? entity.instagramHandle;

@@ -3,7 +3,9 @@ import {
   isAgenticPhoneSource,
   isIssuerSwitchboardSource,
   isNoticePhoneSource,
+  isProtectedPhoneSource,
   shouldBlockIssuerOverwrite,
+  resolveProtectedCardPhone,
 } from "../lib/phone-source-priority";
 
 describe("phone-source-priority", () => {
@@ -19,11 +21,36 @@ describe("phone-source-priority", () => {
     expect(shouldBlockIssuerOverwrite("EDGAR-Notice-Phone", "EDGAR-Phone")).toBe(true);
     expect(shouldBlockIssuerOverwrite("EDGAR-Phone", "EDGAR-Phone")).toBe(false);
     expect(shouldBlockIssuerOverwrite(null, "EDGAR-Phone")).toBe(false);
+    expect(shouldBlockIssuerOverwrite("agentic-web", "web-osint")).toBe(true);
+    expect(shouldBlockIssuerOverwrite("agentic-web", "ai-web-osint")).toBe(true);
   });
 
   it("classifies notice vs issuer", () => {
     expect(isNoticePhoneSource("EDGAR-Notice-Phone")).toBe(true);
     expect(isIssuerSwitchboardSource("EDGAR-Phone")).toBe(true);
     expect(isIssuerSwitchboardSource("EDGAR-Notice-Phone")).toBe(false);
+    expect(isProtectedPhoneSource("agentic-web")).toBe(true);
+  });
+
+  it("resolveProtectedCardPhone keeps dig phone over null final-review", () => {
+    const r = resolveProtectedCardPhone({
+      currentPhone: "+16099213633",
+      currentSource: "agentic-web",
+      incomingPhone: null,
+      incomingSource: "final-review",
+    });
+    expect(r.phone).toBe("+16099213633");
+    expect(r.phoneSource).toBe("agentic-web");
+  });
+
+  it("resolveProtectedCardPhone keeps notice over issuer", () => {
+    const r = resolveProtectedCardPhone({
+      currentPhone: "+12127024300",
+      currentSource: "EDGAR-Notice-Phone",
+      incomingPhone: "+15139773000",
+      incomingSource: "EDGAR-Phone",
+    });
+    expect(r.phone).toBe("+12127024300");
+    expect(r.phoneSource).toBe("EDGAR-Notice-Phone");
   });
 });
