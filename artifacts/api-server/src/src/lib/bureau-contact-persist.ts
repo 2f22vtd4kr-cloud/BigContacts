@@ -263,6 +263,7 @@ async function promoteBureauContactsToEntityCard(
   entityId: number,
   items: readonly BureauContactLike[],
   source: string,
+  jobId?: string | null,
 ): Promise<void> {
   const entRows = await db
     .select({
@@ -512,7 +513,7 @@ async function promoteBureauContactsToEntityCard(
   );
   try {
     publishDigSpan({
-      jobId: "promote",
+      jobId: jobId || "promote",
       targetName: ent.name,
       spanType: "promote",
       name: "card_promote",

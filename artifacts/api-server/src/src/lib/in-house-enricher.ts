@@ -40,7 +40,8 @@ import { createHash } from "crypto";
 import { promises as dns } from "dns";
 import * as net from "net";
 import { logger } from "./logger";
-import { isValidPublicEmail, sanitizePublicEmail, isGenericEmailPrefix, REGISTRAR_DOMAINS, normalizePhone } from "./contact-validation";
+import { isValidPublicEmail, sanitizePublicEmail, isGenericEmailPrefix, REGISTRAR_DOMAINS, normalizePhone } from "./contact-validation"
+import { shouldBlockIssuerOverwrite } from "./phone-source-priority";
 import { enrichWithIcij, summariseIcijFindings } from "./icij-enricher";
 import { enrichWithWhoxy, summariseWhoxyFindings } from "./whoxy-enricher";
 
@@ -1516,21 +1517,8 @@ export async function enrichInHouse(entity: InHouseEnrichInput): Promise<InHouse
   ) => {
     if (!phone) return;
     const isNotice = source === "EDGAR-Notice-Phone" || source === "EDGAR-Notice";
-    const isIssuer =
-      source === "EDGAR-Phone" ||
-      source === "EDGAR-Issuer-Phone" ||
-      source === "CompaniesHouse-Phone";
-    const isAgentic =
-      typeof result.phoneSource === "string" &&
-      /^agentic-web/i.test(result.phoneSource);
     // Never replace dig-promoted or notice-line phones with issuer switchboard
-    if (
-      result.phone &&
-      isIssuer &&
-      (isAgentic ||
-        result.phoneSource === "EDGAR-Notice-Phone" ||
-        result.phoneSource === "EDGAR-Notice")
-    ) {
+    if (result.phone && shouldBlockIssuerOverwrite(result.phoneSource, source)) {
       return;
     }
     // Notice line may replace issuer switchboard even at similar confidence

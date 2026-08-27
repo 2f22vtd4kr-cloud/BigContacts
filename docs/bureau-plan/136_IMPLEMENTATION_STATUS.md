@@ -19,8 +19,9 @@
 | Boss goals-only / RH purity | **65%** | architecture present; prompt audits ongoing |
 | Scoreboard process | **40%** | templates exist; must run on Replit |
 | Live scoreboard win | **0–20%** | not proven until COMPARE file after re-cook |
+| DigSpan jobId on target agent path | **95%** | jobId now passed into runAgenticWebResearch |
 
-**Weighted product readiness ~72%** for architecture/code path.  
+**Weighted product readiness ~74%** (jobId dig wiring + shared source priority helper) for architecture/code path.  
 **Scoreboard superiority ~not proven** until Vol 68 runs.
 
 ## P0 remaining

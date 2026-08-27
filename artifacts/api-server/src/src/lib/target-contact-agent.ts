@@ -103,6 +103,7 @@ export async function runTargetContactAgent(input: {
     targetName: name,
     companyName: input.companyName ?? null,
     objective,
+    jobId: input.jobId ?? null,
     maxIterations: input.maxIterations ?? Math.max(depth.agenticMaxIterations, 16),
     hardTimeoutMs: input.hardTimeoutMs ?? 300_000,
     onLiveStep: (step) => {
