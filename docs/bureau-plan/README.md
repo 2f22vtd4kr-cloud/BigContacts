@@ -207,3 +207,11 @@ Grok Files folder: `artifacts/bureau-plan/` (synced).
 
 | 231 | Architecture vs external multi-agent patterns (2025–2026) |
 | 232 | ADR: default topology for contact recovery |
+
+| 231 | External multi-agent patterns 2026 (consulted) |
+| 232 | Planner / executor / critic for Apex |
+| 233 | Explicit handoff matrix |
+| 234 | When not to add agents |
+| 235 | Tools pool industry alignment |
+| 236 | Observability industry alignment |
+| 237 | ADR: Apex bureau topology |
