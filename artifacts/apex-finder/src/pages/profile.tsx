@@ -1389,8 +1389,12 @@ export default function ApexProfile() {
                     {contactEvidenceLoading ? (
                       <div className="text-[12px] font-mono text-muted-foreground">Loading evidence…</div>
                     ) : contactEvidence.length === 0 ? (
-                      <div className="text-[12px] font-mono text-muted-foreground/60">
-                        No structured evidence rows yet — evidence is written on the next enrichment run.
+                      <div className="space-y-2 text-[12px] font-mono text-muted-foreground/70">
+                        <p>No structured evidence rows on this card yet.</p>
+                        <p className="text-muted-foreground/50">
+                          Evidence is written when dig/enrichment finds public routes. If the dig already ran, use{" "}
+                          <span className="text-[#9CFF1A]/80">Rehydrate from evidence</span> above or Launch a single-target dig.
+                        </p>
                       </div>
                     ) : (
                       <div className="space-y-2.5">

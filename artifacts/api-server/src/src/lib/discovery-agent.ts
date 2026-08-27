@@ -115,13 +115,13 @@ export async function runDiscoveryAgent(input: {
   const objective = [
     apexOrientationFor("investigator"),
     "",
-    "YOUR TASK — DISCOVERY (not contact recovery on a single known person):",
-    "Find named people worth a later public-contact dig for professional outreach.",
-    "Prefer officers, filers, principals, gatekeepers with a public filing or official page.",
-    "Each useful finding should name a person (personName or value person: Name | role | company) with http(s) sourceUrls.",
-    "Do not invent names. Companies alone are not candidates.",
-    "Pick one coherent lane for this run unless results are empty.",
-    input.laneHint ? `Lane hint (optional, not a script): ${input.laneHint}` : "",
+    "YOUR TASK — DISCOVERY (breadth: who to research later, not how to contact one known person):",
+    "Work like a strong open-web researcher: invent your own searches and visits.",
+    "Return named people who look worth a later contact dig — with real http(s) sourceUrls.",
+    "Use personName or value form: person: Full Name | role | company when possible.",
+    "Do not invent people. A company without a named person is not a candidate.",
+    "No fixed search checklist — choose a coherent public lane yourself.",
+    input.laneHint ? `Operator lane hint (optional context, not a script): ${input.laneHint}` : "",
   ]
     .filter(Boolean)
     .join("\n");

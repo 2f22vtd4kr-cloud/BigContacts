@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { readApiJson } from "@/lib/api-json";
 import { ContactSurface } from "@/components/contact-surface";
+import { ScoreboardStrip } from "@/components/scoreboard-strip";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -899,6 +900,9 @@ export default function EntityLedger() {
             </button>
           </div>
         )}
+        <div className="px-4 pt-3 flex-shrink-0">
+          <ScoreboardStrip />
+        </div>
         {/* Header toolbar */}
         <div className="flex flex-col gap-2 border-b border-[#9CFF1A]/12 bg-card/30 px-4 py-3 flex-shrink-0">
           <div className="flex items-center justify-between gap-2">

@@ -146,3 +146,19 @@ Alternatively: delete the stale card and re-discover the target.
 ## Research depth
 
 For parity smokes vs plain Grok: `RESEARCH_DEPTH=standard` or `deep`. Default `fast` is bulk-cheap and under-digs.
+
+---
+
+## Discovery-first smoke (post soft-retire templates)
+
+After tip with discovery agent (`runDiscoveryAgent` on `discoveryFirst`):
+
+1. `GET /api/healthz` — `bureauIntegrity` not critical; search + dig LLM slots live.
+2. Launch with canonical body (`discoveryFirst: true`, `researchLimit` small e.g. 3–5 for smoke).
+3. Job log / DigSpan should show **discovery_agent** stage and model-invented `web_search` / `visit` (not only template category strings).
+4. If agent admits ≥1 person, broad **template** discovery should be skipped unless `APEX_FORCE_TEMPLATE_DISCOVERY=1`.
+5. Open **Entities** / **Profile** — `ContactSurface` shows all presented routes (org chips allowed); empty + evidence → Rehydrate.
+6. Reactor **ScoreboardStrip** — no “pass” when integrity critical.
+7. Stop: `DELETE /api/ingest/atlas-lock`.
+
+Disable discovery agent only for debug: `APEX_DISCOVERY_AGENT=0`.
