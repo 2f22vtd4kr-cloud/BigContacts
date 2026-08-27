@@ -725,6 +725,7 @@ export default function EntityLedger() {
   };
 
   const [diggingId, setDiggingId] = useState<number | null>(null);
+  const [digDepth, setDigDepth] = useState<"standard" | "deep">("standard");
   const [scoreboardKey, setScoreboardKey] = useState(0);
   const handleDigEntity = async (id: number) => {
     if (diggingId != null) return;
@@ -735,7 +736,7 @@ export default function EntityLedger() {
         discoveryFirst: false,
         researchLimit: 1,
         runResearch: true,
-        researchDepth: "standard",
+        researchDepth: digDepth,
         targetCount: 1,
       });
       if (!launched.ok) throw new Error(launched.message || "Dig failed to start");
@@ -788,7 +789,7 @@ export default function EntityLedger() {
           discoveryFirst: false,
           researchLimit: 1,
           runResearch: true,
-          researchDepth: "standard",
+          researchDepth: digDepth,
           targetCount: 1,
         });
         if (!launched.ok) {
@@ -1023,6 +1024,20 @@ export default function EntityLedger() {
         )}
         <div className="px-4 pt-3 flex-shrink-0 space-y-2">
           <ScoreboardStrip refreshKey={scoreboardKey} />
+          <div className="flex items-center gap-2 flex-wrap">
+            <select
+              aria-label="Dig depth"
+              data-testid="select-entities-dig-depth"
+              disabled={diggingId != null || bulkBusy}
+              value={digDepth}
+              onChange={(e) => setDigDepth(e.target.value === "deep" ? "deep" : "standard")}
+              className="rounded border border-border bg-background/80 px-1.5 py-1 font-mono text-[10px] uppercase tracking-wider text-muted-foreground disabled:opacity-50"
+              title="standard = balanced free dig; deep = more iterations/time"
+            >
+              <option value="standard">Depth · standard</option>
+              <option value="deep">Depth · deep</option>
+            </select>
+          </div>
           {diggingId != null && (
             <div
               className="rounded-lg border border-primary/25 bg-primary/10 px-3 py-2 text-[11px] font-mono text-primary flex items-center gap-2 flex-wrap"
