@@ -162,3 +162,18 @@ After tip with discovery agent (`runDiscoveryAgent` on `discoveryFirst`):
 7. Stop: `DELETE /api/ingest/atlas-lock`.
 
 Disable discovery agent only for debug: `APEX_DISCOVERY_AGENT=0`.
+
+---
+
+## Dig contacts entry points (single-target free dig)
+
+All of these call `POST /api/ingest/atlas-run` with `singleTargetId` and `researchDepth: standard`
+(free ReAct dig owns the card — not MCTS-only, not web-osint-enrich as primary):
+
+1. **Profile** — header / research tab / mobile **Dig contacts**
+2. **Entities** — row Dig icon, mobile card **Dig contacts**, **Dig selected** (max 5 sequential)
+3. **Reactor Launch** — full batch or discovery-first
+
+After dig goes idle, the desk **rehydrates** evidence → card automatically.
+
+Skip Phase 10 MCTS when dig already wrote phone/email/linkedin or a non-empty contactOutcome.

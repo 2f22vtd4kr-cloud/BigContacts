@@ -62,6 +62,18 @@ export async function launchAtlasPipeline(
       body: JSON.stringify(body),
     });
 
+  let integrityNote = "";
+  try {
+    const hr = await fetch(`${BASE}/api/healthz`, { cache: "no-store" });
+    if (hr.ok) {
+      const hj = await readApiJson(hr);
+      const level = hj?.bureauIntegrity ?? hj?.lanesHonesty?.bureauIntegrity;
+      if (level === "critical") {
+        integrityNote = " (bureauIntegrity=critical — dig may underperform; check search/LLM secrets)";
+      }
+    }
+  } catch { /* healthz optional */ }
+
   try {
     let res = await postLaunch();
     let data = await readApiJson(res);
