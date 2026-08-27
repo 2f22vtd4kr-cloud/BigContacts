@@ -239,3 +239,9 @@ Grok Files folder: `artifacts/bureau-plan/` (synced).
 | 256 | Desk completion inventory |
 | 257 | Observability dig trajectory |
 | 258 | Implementation progress (99% in-repo) |
+
+| 259 | Stop dig semantics |
+| 260 | ContactSurface contract |
+| 261 | What not to build next |
+| 262 | Next plan threads (post-scoreboard) |
+| 263 | Glossary dig desk |
