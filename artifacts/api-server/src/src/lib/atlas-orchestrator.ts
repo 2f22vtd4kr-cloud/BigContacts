@@ -2246,6 +2246,9 @@ export async function runAtlasPipeline(atlasJobId: string, opts: AtlasOptions): 
     if (d === "fast" || d === "standard" || d === "deep") {
       process.env.RESEARCH_DEPTH = d;
     }
+  } else if (opts.singleTargetId != null && !process.env.RESEARCH_DEPTH) {
+    // Single-target re-cook defaults to standard when Launch omits depth
+    process.env.RESEARCH_DEPTH = "standard";
   }
 
   const startMs = Date.now();
