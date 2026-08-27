@@ -1,0 +1,3 @@
+# Volume 1344 — LOSE CONDITION SCRIPT
+
+L-SCRIPT present.

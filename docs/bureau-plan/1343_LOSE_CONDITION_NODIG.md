@@ -1,0 +1,3 @@
+# Volume 1343 — LOSE CONDITION NODIG
+
+L-NO-DIG dominant.
