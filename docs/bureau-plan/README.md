@@ -1,48 +1,48 @@
 # Apex Atlas — Master Bureau Plan
 
-**One plan, many files, in-repo.**
+One plan, many files.
 
-Run `wc -w docs/bureau-plan/*.md` for measured size.
+Measured size: `wc -w docs/bureau-plan/*.md`
 
-| File | Role |
-|------|------|
-| `00_CHARTER_AND_FAILURE_DIAGNOSIS.md` | (see title inside) |
-| `01_PRODUCT_LAW_AND_CONTROL_PLANE.md` | (see title inside) |
-| `02_FREE_REACT_AND_TOOL_SURFACE.md` | (see title inside) |
-| `03_EVIDENCE_PROMOTE_IDENTITY.md` | (see title inside) |
-| `04_DISCOVERY_VS_DIG.md` | (see title inside) |
-| `05_OBSERVABILITY_REACTOR.md` | (see title inside) |
-| `06_EVAL_VS_SINGLE_AGENT.md` | (see title inside) |
-| `07_REPLIT_OPS_AND_INTEGRITY.md` | (see title inside) |
-| `08_IMPLEMENTATION_ROADMAP.md` | (see title inside) |
-| `09_CASE_STUDIES_LIVE_RUNS.md` | (see title inside) |
-| `10_TOOL_CATALOG.md` | (see title inside) |
-| `11_DECISION_TABLES.md` | (see title inside) |
-| `12_API_CONTRACTS.md` | (see title inside) |
-| `13_PROMPT_CORPUS_RULES.md` | (see title inside) |
-| `14_REACTOR_DESK_UX.md` | (see title inside) |
-| `15_ANTI_SCRIPT_AUDIT.md` | (see title inside) |
-| `16_COMPARISON_RUNBOOK.md` | (see title inside) |
-| `17_ULTIMATE_ARCHITECTURE_NARRATIVE.md` | (see title inside) |
-| `18_IMPLEMENTATION_SPECS.md` | (see title inside) |
-| `19_SECRETS_AND_ENV.md` | (see title inside) |
-| `20_DIG_LOOP_STATE_MACHINE.md` | (see title inside) |
-| `21_PROMOTE_PIPELINE.md` | (see title inside) |
-| `22_REDIS_AND_JOBS.md` | (see title inside) |
-| `23_EXTENDED_CASE_NARRATIVES.md` | (see title inside) |
-| `24_DIGSPAN_SCHEMA.md` | (see title inside) |
-| `25_OPERATOR_DAY_PLAYBOOK.md` | (see title inside) |
-| `26_ACCEPTANCE_TEST_CATALOG.md` | (see title inside) |
-| `27_FORBIDDEN_PATTERNS.md` | (see title inside) |
-| `28_DISCOVERY_SUBSYSTEM.md` | (see title inside) |
-| `29_SECONDARY_SURFACE.md` | (see title inside) |
-| `30_KPIS_AND_METRICS.md` | (see title inside) |
-| `README.md` | (see title inside) |
+| File |
+|------|
+| [00_CHARTER_AND_FAILURE_DIAGNOSIS.md](./00_CHARTER_AND_FAILURE_DIAGNOSIS.md) |
+| [01_PRODUCT_LAW_AND_CONTROL_PLANE.md](./01_PRODUCT_LAW_AND_CONTROL_PLANE.md) |
+| [02_FREE_REACT_AND_TOOL_SURFACE.md](./02_FREE_REACT_AND_TOOL_SURFACE.md) |
+| [03_EVIDENCE_PROMOTE_IDENTITY.md](./03_EVIDENCE_PROMOTE_IDENTITY.md) |
+| [04_DISCOVERY_VS_DIG.md](./04_DISCOVERY_VS_DIG.md) |
+| [05_OBSERVABILITY_REACTOR.md](./05_OBSERVABILITY_REACTOR.md) |
+| [06_EVAL_VS_SINGLE_AGENT.md](./06_EVAL_VS_SINGLE_AGENT.md) |
+| [07_REPLIT_OPS_AND_INTEGRITY.md](./07_REPLIT_OPS_AND_INTEGRITY.md) |
+| [08_IMPLEMENTATION_ROADMAP.md](./08_IMPLEMENTATION_ROADMAP.md) |
+| [09_CASE_STUDIES_LIVE_RUNS.md](./09_CASE_STUDIES_LIVE_RUNS.md) |
+| [10_TOOL_CATALOG.md](./10_TOOL_CATALOG.md) |
+| [11_DECISION_TABLES.md](./11_DECISION_TABLES.md) |
+| [12_API_CONTRACTS.md](./12_API_CONTRACTS.md) |
+| [13_PROMPT_CORPUS_RULES.md](./13_PROMPT_CORPUS_RULES.md) |
+| [14_REACTOR_DESK_UX.md](./14_REACTOR_DESK_UX.md) |
+| [15_ANTI_SCRIPT_AUDIT.md](./15_ANTI_SCRIPT_AUDIT.md) |
+| [16_COMPARISON_RUNBOOK.md](./16_COMPARISON_RUNBOOK.md) |
+| [17_ULTIMATE_ARCHITECTURE_NARRATIVE.md](./17_ULTIMATE_ARCHITECTURE_NARRATIVE.md) |
+| [18_IMPLEMENTATION_SPECS.md](./18_IMPLEMENTATION_SPECS.md) |
+| [19_SECRETS_AND_ENV.md](./19_SECRETS_AND_ENV.md) |
+| [20_DIG_LOOP_STATE_MACHINE.md](./20_DIG_LOOP_STATE_MACHINE.md) |
+| [21_PROMOTE_PIPELINE.md](./21_PROMOTE_PIPELINE.md) |
+| [22_REDIS_AND_JOBS.md](./22_REDIS_AND_JOBS.md) |
+| [23_EXTENDED_CASE_NARRATIVES.md](./23_EXTENDED_CASE_NARRATIVES.md) |
+| [24_DIGSPAN_SCHEMA.md](./24_DIGSPAN_SCHEMA.md) |
+| [25_OPERATOR_DAY_PLAYBOOK.md](./25_OPERATOR_DAY_PLAYBOOK.md) |
+| [26_ACCEPTANCE_TEST_CATALOG.md](./26_ACCEPTANCE_TEST_CATALOG.md) |
+| [27_FORBIDDEN_PATTERNS.md](./27_FORBIDDEN_PATTERNS.md) |
+| [28_DISCOVERY_SUBSYSTEM.md](./28_DISCOVERY_SUBSYSTEM.md) |
+| [29_SECONDARY_SURFACE.md](./29_SECONDARY_SURFACE.md) |
+| [30_KPIS_AND_METRICS.md](./30_KPIS_AND_METRICS.md) |
+| [31_BOSS_RIGHT_HAND_PROTOCOL.md](./31_BOSS_RIGHT_HAND_PROTOCOL.md) |
+| [32_ORIENTATION_SPEC.md](./32_ORIENTATION_SPEC.md) |
+| [33_DEPTH_PROFILES.md](./33_DEPTH_PROFILES.md) |
+| [34_ERROR_TAXONOMY.md](./34_ERROR_TAXONOMY.md) |
+| [35_COMPARISON_ARCHIVE_TEMPLATE.md](./35_COMPARISON_ARCHIVE_TEMPLATE.md) |
+| [36_PATTERN_LIBRARY.md](./36_PATTERN_LIBRARY.md) |
+| [37_REVERT_POLICY.md](./37_REVERT_POLICY.md) |
 
-## Thesis
-
-Free multi-LLM dig + tools + Gemini Boss + NVIDIA RH. **No scripted dig brain. Card is the answer.**
-
-## Execute
-
-Vol 15 audit → Vol 18 tickets → Vol 16 comparison.
+**Thesis:** Free dig, honest cards, no force_* brain. Boss=Gemini, RH=NVIDIA.
