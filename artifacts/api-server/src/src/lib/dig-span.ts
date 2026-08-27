@@ -193,3 +193,27 @@ export function spanFromLiveStep(step: {
     return null;
   }
 }
+
+
+/**
+ * Map DigSpan → OTel GenAI-shaped attribute bag (for future exporters).
+ * @see https://opentelemetry.io/docs/specs/semconv/gen-ai/
+ * @see https://www.honeycomb.io/blog/instrumenting-ai-agents-agent-timeline-opentelemetry-guide
+ */
+export function toOtelGenAiAttributes(span: DigSpan): Record<string, string> {
+  const out: Record<string, string> = {
+    "gen_ai.conversation.id": span.conversationId || span.jobId,
+    "gen_ai.operation.name":
+      span.operationName ||
+      (span.spanType === "llm" ? "chat" : span.spanType === "tool" ? "execute_tool" : "invoke_agent"),
+  };
+  if (span.agentName) out["gen_ai.agent.name"] = span.agentName;
+  if (span.toolName || (span.spanType === "tool" && span.name)) {
+    out["gen_ai.tool.name"] = span.toolName || span.name;
+  }
+  if (span.modelId) out["gen_ai.request.model"] = span.modelId;
+  if (span.inputSummary) out["gen_ai.tool.call.arguments"] = span.inputSummary.slice(0, 400);
+  if (span.resultSummary) out["gen_ai.tool.call.result"] = span.resultSummary.slice(0, 500);
+  return out;
+}
+

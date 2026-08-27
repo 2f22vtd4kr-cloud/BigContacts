@@ -16,8 +16,14 @@ export type DigSpanView = {
   inputSummary?: string;
   resultSummary?: string;
   modelId?: string;
+  /** gen_ai.agent.name */
   agentName?: string;
+  /** gen_ai.operation.name — chat | execute_tool | invoke_agent */
   operationName?: string;
+  /** gen_ai.tool.name */
+  toolName?: string;
+  /** gen_ai.conversation.id */
+  conversationId?: string;
 };
 
 const TYPE_COLOR: Record<string, string> = {
@@ -85,9 +91,15 @@ export function DigSpanTrajectory({
             </span>
             <div className="min-w-0">
               <div className="truncate font-medium text-stone-200">
-                {s.name}
+                {s.toolName || s.name}
+                {s.operationName && s.operationName !== s.spanType ? (
+                  <span className="text-slate-600"> · {s.operationName}</span>
+                ) : null}
                 {s.agentName ? (
                   <span className="text-slate-600"> · {s.agentName}</span>
+                ) : null}
+                {s.modelId ? (
+                  <span className="text-slate-600"> · {s.modelId}</span>
                 ) : null}
                 {s.targetName ? (
                   <span className="text-slate-500"> · {s.targetName}</span>
