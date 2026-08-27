@@ -2151,7 +2151,23 @@ async function runSingleTargetPipeline(
   );
   summary["Target journey"] = `${target.name}: ${result.ok ? "complete" : "failed"} (${result.err} errors)`;
 
-  if (opts.runResearch !== false) {
+  // Dig owns contacts. Skip MCTS when free dig already wrote routes — save time, no parallel brain.
+  const afterDig = await db.select({
+    phone: entitiesTable.phone,
+    email: entitiesTable.email,
+    linkedinUrl: entitiesTable.linkedinUrl,
+    contactOutcome: entitiesTable.contactOutcome,
+    phoneSource: entitiesTable.phoneSource,
+  }).from(entitiesTable).where(eq(entitiesTable.id, target.id)).limit(1);
+  const digAlreadyReady = Boolean(
+    afterDig[0]?.phone ||
+    afterDig[0]?.email ||
+    afterDig[0]?.linkedinUrl ||
+    (afterDig[0]?.contactOutcome && afterDig[0]?.contactOutcome !== "none" && afterDig[0]?.contactOutcome !== "evidence_only"),
+  );
+  const skipMcts = digAlreadyReady || process.env.APEX_SKIP_MCTS_AFTER_DIG === "1";
+
+  if (opts.runResearch !== false && !skipMcts) {
     await ensureAtlasActive(atlasJobId);
     await updateJob(atlasJobId, {
       status: "running",
@@ -2172,7 +2188,8 @@ async function runSingleTargetPipeline(
       toolIds: ["graph", "mcts", "prac", "evidence-review"],
       activeToolId: "mcts",
       inputSummary: "One completed target journey; reachability-gated adaptive research",
-    });
+      entityId: target.id,
+    }, target.id);
     try {
       const researchResult = await runTargetResearch(target.id, 3);
       summary["Target research"] =
@@ -2186,6 +2203,19 @@ async function runSingleTargetPipeline(
       entityProgress: 1,
       entityTotal: 1,
       entityNames: JSON.stringify([target.name]),
+    });
+  } else if (skipMcts) {
+    summary["Target research"] = digAlreadyReady
+      ? "Skipped (dig already wrote contact routes — dig owns the card)"
+      : "Skipped (APEX_SKIP_MCTS_AFTER_DIG)";
+    await updateJob(atlasJobId, {
+      progress: 10,
+      total: 10,
+      atlasPhase: 10,
+      atlasPhaseTotal: 10,
+      entityProgress: 1,
+      entityTotal: 1,
+      message: `Single-target dig complete for ${target.name} (MCTS skipped)`,
     });
   } else {
     summary["Target research"] = "Skipped (runResearch=false)";

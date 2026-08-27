@@ -1147,6 +1147,16 @@ export default function ApexProfile() {
                   evidenceCount={contactEvidence.length}
                   onRehydrate={handleRehydrateContacts}
                 />
+                {isEnriching && (
+                  <div
+                    className="mt-2 rounded-lg border border-primary/25 bg-primary/10 px-3 py-2 text-[11px] font-mono text-primary flex items-center gap-2"
+                    data-testid="profile-dig-banner"
+                  >
+                    <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />
+                    <span className="flex-1">Atlas free dig running — model chooses search/visit</span>
+                    <Link href="/reactor" className="underline underline-offset-2 hover:text-[#9CFF1A] shrink-0">Reactor</Link>
+                  </div>
+                )}
               </div>
               <div className="flex items-center gap-2 flex-wrap mt-1">
                 {/* Twitter/X — REACH · social */}{/* Twitter/X — REACH · social */}
