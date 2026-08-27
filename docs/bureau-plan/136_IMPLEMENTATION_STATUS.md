@@ -4,21 +4,21 @@
 
 | Layer | % |
 |-------|---|
-| In-repo code path | **~99.5%** |
-| Product scoreboard proven | **needs live GET /api/ingest/scoreboard-snapshot after re-cook** |
-| **Overall** | **~96%** |
+| In-repo code / integrity path | **100% of planned code gates** |
+| Live scoreboard superiority | **pending Replit re-cook + snapshot** |
+| **Overall product proof** | **~97%** (cannot claim 100% without live COMPARE) |
 
-## Latest
+## Code gates complete
 
-- GET `/api/ingest/scoreboard-snapshot` — scores cooked cards for COMPARE
-- Promote + final review invalidate entity list cache
-- Dig phone integrity chain complete
+Free dig · promote · source lock (all major writers) · final-review protect · post-final rehydrate · list honesty · scoreboard-snapshot API · cache invalidate · unit tests
 
-## Operator
+## Operator — last 3%
 
 ```bash
-git pull origin main
-# restart API
-curl -s localhost:8080/api/ingest/scoreboard-snapshot | jq .
-# or after re-cook: mean ≥ 1.0, milestonePass true
+git pull origin main   # 769b13c+
+# restart API, rebuild desk if UI changed
+curl -s $HOST/api/healthz | jq .bureauIntegrity,.webSearchActive
+# singleTargetId re-cook × fixtures
+curl -s $HOST/api/ingest/scoreboard-snapshot | jq .mean,.milestonePass,.rows
+# milestonePass true + mean ≥ 1.0 + zero wrong-person → overall 100%
 ```
