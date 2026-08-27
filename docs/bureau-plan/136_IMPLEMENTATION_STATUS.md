@@ -6,21 +6,22 @@
 |-------|---|
 | In-repo code path | **~98%** |
 | Product scoreboard proven | **0%** until live COMPARE |
-| **Overall** | **~92%** |
+| **Overall** | **~93%** |
 
-## Shipped (recent tips through 560e828)
+## Latest tips (phone integrity)
 
-Free dig · promote/rehydrate · source lock across in-house, phase-j, enrichment, **deep-web** · outcome honesty · depth + Launch `researchDepth` · DigSpan · SC13 notice · collision · scoreboard tools · phoneSource UI · tel: href fix · reject-contact clears phoneSource · index invalidate on promote
+- `15d5861` / `c3346f3` — web-osint force + cache + normalize respect dig phones
+- `560e828` — reject-contact clears phoneSource
+- `5eeac5f` / `e5b15b6` — deep-web pipeline + Launch researchDepth + tel href
+- `deb697a` — enrichment + phase-j issuer lock
 
-## Operator — only path to 100%
+## Operator
 
 ```bash
-git pull origin main   # 560e828+
+git pull origin main   # 15d5861+
 pnpm run check:no-force-dig
 pnpm run scoreboard:score
-# restart API + rebuild desk if UI changed
-# singleTargetId re-cook researchDepth standard
-# fill COMPARE_*.md — mean ≥1.0 on ≥8 fixtures, zero -1s
+# restart API; singleTargetId re-cook; fill COMPARE_*.md
 ```
 
-Offline code cannot prove card superiority. That is the remaining ~8%.
+Remaining ~7% is **live scoreboard proof only**.
