@@ -15,6 +15,7 @@ export type LaunchAtlasOptions = {
   researchLimit?: number;
   runResearch?: boolean;
   hotLeadsOnly?: boolean;
+  researchDepth?: "fast" | "standard" | "deep";
   singleTargetId?: number;
 };
 
@@ -50,6 +51,7 @@ export async function launchAtlasPipeline(
     batchSize: 50,
     phaseJBatchSize: 10,
     targetTimeoutMs: 420_000,
+    researchDepth: opts.researchDepth ?? "standard",
     ...(opts.singleTargetId != null ? { singleTargetId: opts.singleTargetId } : {}),
   };
 

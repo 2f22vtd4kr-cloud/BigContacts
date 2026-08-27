@@ -101,7 +101,13 @@ function entityReachVectors(entity: any) {
   }
   if (entity.phone) {
     const scope = verified ? "personal" : "candidate";
-    out.push({ kind: "personal", label: entity.phone, href: `tel:${entity.phone}{entity.phoneSource ? ` · ${entity.phoneSource}` : ""}`, title: `REACH · ${scope} — ${entity.phone}` });
+    const src = entity.phoneSource ? ` · ${entity.phoneSource}` : "";
+    out.push({
+      kind: "personal",
+      label: `${entity.phone}${src}`,
+      href: `tel:${entity.phone}`,
+      title: `REACH · ${scope} — ${entity.phone}${src}`,
+    });
   }
   if (entity.linkedinUrl) out.push({ kind: "social", label: "LinkedIn", href: entity.linkedinUrl, title: entity.linkedinUrl });
   if (entity.twitterHandle) {

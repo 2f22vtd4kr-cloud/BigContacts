@@ -29,6 +29,8 @@ export const CANONICAL_ATLAS_LAUNCH_BODY = {
   phaseJBatchSize: 10,
   /** Per-target enrichment ceiling (ms) — matches orchestrator 420s floor work */
   targetTimeoutMs: 420_000,
+  /** free dig depth: fast | standard | deep */
+  researchDepth: "standard",
 } as const;
 
 export type CanonicalAtlasLaunchBody = typeof CANONICAL_ATLAS_LAUNCH_BODY;
