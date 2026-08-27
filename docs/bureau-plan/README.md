@@ -254,3 +254,7 @@ Grok Files folder: `artifacts/bureau-plan/` (synced).
 | 269 | Plan volume depth standard |
 | 270 | Expanded dig entry architecture |
 | 271 | Implementation progress (plan depth restored) |
+
+| 272 | ReAct loop ownership |
+| 273 | Evaluation without fake wins |
+| 274 | Original mandate trace (multi-agent research) |
