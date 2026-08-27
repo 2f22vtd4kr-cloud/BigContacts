@@ -282,3 +282,7 @@ Grok Files folder: `artifacts/bureau-plan/` (synced).
 ## 331–350
 
 Anthropic parallel limits mapping · ReAct debug playbook · card/evidence maps · desk entry matrix · penalties · tool errors · browser/registry/IR notes · deceased · list honesty · cache · pause · auto-pipeline · smoke vs full · checkpoint 350
+
+## 351–375
+COMPARE archive · free dig constitution · superiority definition · drift · DigSpan fields · operator first hour · HNWI use case · multi-hop · parse repair · dig UI banners · MCTS skip · checkpoints
+
