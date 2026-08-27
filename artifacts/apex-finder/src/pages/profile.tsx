@@ -338,7 +338,7 @@ export default function ApexProfile() {
 
   const [selectedIdx, setSelectedIdx] = useState(0);
   const [isEnriching, setIsEnriching]     = useState(false);
-  const [digDepth, setDigDepth] = useState<"standard" | "deep">("standard");
+  const [digDepth, setDigDepth] = useState<"fast" | "standard" | "deep">("standard");
   const [enrichError, setEnrichError]     = useState<string | null>(null);
   const [enrichDone, setEnrichDone]       = useState(false);
   // ── Tab state ──────────────────────────────────────────────────────────────
@@ -878,10 +878,14 @@ export default function ApexProfile() {
                 data-testid="select-dig-depth"
                 disabled={isEnriching}
                 value={digDepth}
-                onChange={(e) => setDigDepth(e.target.value === "deep" ? "deep" : "standard")}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setDigDepth(v === "deep" ? "deep" : v === "fast" ? "fast" : "standard");
+                }}
                 className="hidden sm:block max-h-[32px] rounded border border-border bg-background/80 px-1.5 py-1 font-mono text-[10px] uppercase tracking-wider text-muted-foreground disabled:opacity-50"
-                title="standard = balanced free dig; deep = more iterations/time"
+                title="fast / standard / deep — free dig budget only"
               >
+                <option value="fast">Depth · fast</option>
                 <option value="standard">Depth · standard</option>
                 <option value="deep">Depth · deep</option>
               </select>

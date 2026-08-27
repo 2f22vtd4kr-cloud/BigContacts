@@ -57,7 +57,7 @@ function findingsToContacts(
 }
 
 /**
- * Run free ReAct dig for one target and force-promote the best claims onto the entity card.
+ * Run free ReAct dig for one target and promote the best public claims onto the entity card.
  */
 export async function runTargetContactAgent(input: {
   entityId: number;

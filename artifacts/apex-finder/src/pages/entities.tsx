@@ -725,7 +725,7 @@ export default function EntityLedger() {
   };
 
   const [diggingId, setDiggingId] = useState<number | null>(null);
-  const [digDepth, setDigDepth] = useState<"standard" | "deep">("standard");
+  const [digDepth, setDigDepth] = useState<"fast" | "standard" | "deep">("standard");
   const [scoreboardKey, setScoreboardKey] = useState(0);
   const handleDigEntity = async (id: number) => {
     if (diggingId != null) return;
@@ -1030,10 +1030,14 @@ export default function EntityLedger() {
               data-testid="select-entities-dig-depth"
               disabled={diggingId != null || bulkBusy}
               value={digDepth}
-              onChange={(e) => setDigDepth(e.target.value === "deep" ? "deep" : "standard")}
+              onChange={(e) => {
+                const v = e.target.value;
+                setDigDepth(v === "deep" ? "deep" : v === "fast" ? "fast" : "standard");
+              }}
               className="rounded border border-border bg-background/80 px-1.5 py-1 font-mono text-[10px] uppercase tracking-wider text-muted-foreground disabled:opacity-50"
-              title="standard = balanced free dig; deep = more iterations/time"
+              title="fast / standard / deep — free dig budget only"
             >
+              <option value="fast">Depth · fast</option>
               <option value="standard">Depth · standard</option>
               <option value="deep">Depth · deep</option>
             </select>
