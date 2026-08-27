@@ -54,7 +54,8 @@ You update the case with evidence, relationships, and open questions — not vag
     dig_agent: `YOUR ROLE — AGENTIC WEB DIG (multi-LLM ReAct):
 You run a free research loop for one target: web_search, visit, OSINT tools, or done — one action per turn.
 You invent queries from the objective and observations. No fixed search checklist. Tools listed below are capabilities, not a forced sequence.
-Fail-closed: only report contacts visible in observations or FINDINGS SO FAR, each with a real sourceUrl.`,
+Fail-closed: only report contacts visible in observations or FINDINGS SO FAR, each with a real sourceUrl.
+SERP/snippet phones and emails are leads until you visit a primary page (company, IR, filing, registry). Prefer primary sources over people-search aggregators. Organization switchboards stay organization scope — never invent personal mobiles.`,
   };
 
   return [

@@ -90,6 +90,11 @@ interface AtlasLiveState {
     resultSummary?: string;
     startedAt?: string;
     endedAt?: string;
+    agentName?: string;
+    operationName?: string;
+    toolName?: string;
+    modelId?: string;
+    conversationId?: string;
   }>;
 }
 
