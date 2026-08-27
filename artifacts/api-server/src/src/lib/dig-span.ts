@@ -43,8 +43,12 @@ export interface DigSpan {
   parentSpanId?: string;
   /** OTel-ish operation name for future exporters */
   operationName?: string;
-  /** gen_ai.agent.name — investigator | boss | right_hand | enricher */
+  /** gen_ai.agent.name — investigator | boss | right_hand | enricher | discovery */
   agentName?: string;
+  /** gen_ai.tool.name — mirrors name for tool spans (OTel GenAI convention) */
+  toolName?: string;
+  /** gen_ai.conversation.id — same as jobId for this dig run */
+  conversationId?: string;
 }
 
 const CAP = 80;
@@ -93,6 +97,8 @@ export function publishDigSpan(
             ? "invoke_agent"
             : input.spanType),
     agentName: input.agentName,
+    toolName: input.toolName ?? (input.spanType === "tool" ? input.name : undefined),
+    conversationId: input.conversationId ?? input.jobId,
   };
 
   const jobList = byJob.get(span.jobId) ?? [];

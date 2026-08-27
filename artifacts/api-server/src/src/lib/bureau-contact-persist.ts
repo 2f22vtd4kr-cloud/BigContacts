@@ -16,6 +16,7 @@ import { assessIdentityCollision } from "./identity-collision";
 import { publishDigSpan } from "./dig-span";
 import { delCachePattern } from "./redis";
 import { isProtectedPhoneSource, isIssuerSwitchboardSource, isAgenticEmailSource } from "./phone-source-priority";
+import { countIndependentSourceHosts } from "./source-corroboration";
 import { apexOrientationCompact } from "./apex-bureau-orientation";
 
 export type BureauContactLike = {
@@ -206,7 +207,7 @@ export async function persistBureauContactsForEntity(
       identityMatch,
       recencyScore: 0.7,
       directnessScore: scopeOrgish ? 0.3 : (vectorType === "email" || vectorType === "phone" ? 0.5 : 0.4),
-      independentCorroboration: urls.length > 0 ? 1 : 0,
+      independentCorroboration: countIndependentSourceHosts(urls),
       validationStatus: "candidate",
       rejectionReason: null,
       observedAt: new Date(),
