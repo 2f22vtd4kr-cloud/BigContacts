@@ -2159,12 +2159,26 @@ async function runSingleTargetPipeline(
     contactOutcome: entitiesTable.contactOutcome,
     phoneSource: entitiesTable.phoneSource,
   }).from(entitiesTable).where(eq(entitiesTable.id, target.id)).limit(1);
-  // Dig owns contacts when free dig wrote routes or protected sources (Vol 371/446)
+  // Dig owns contacts when free dig wrote routes, protected sources, or bag has contact evidence (Vol 371/446)
+  let digEvidenceN = 0;
+  try {
+    const ev = await db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(contactEvidenceTable)
+      .where(
+        and(
+          eq(contactEvidenceTable.entityId, target.id),
+          inArray(contactEvidenceTable.vectorType, ["phone", "email", "social"]),
+        ),
+      );
+    digEvidenceN = Number(ev[0]?.n) || 0;
+  } catch { /* non-fatal */ }
   const digAlreadyReady = Boolean(
     afterDig[0]?.phone ||
     afterDig[0]?.email ||
     afterDig[0]?.linkedinUrl ||
     isProtectedPhoneSource(afterDig[0]?.phoneSource) ||
+    digEvidenceN > 0 ||
     (afterDig[0]?.contactOutcome && afterDig[0]?.contactOutcome !== "none" && afterDig[0]?.contactOutcome !== "evidence_only"),
   );
   const skipMcts = digAlreadyReady || process.env.APEX_SKIP_MCTS_AFTER_DIG === "1";
