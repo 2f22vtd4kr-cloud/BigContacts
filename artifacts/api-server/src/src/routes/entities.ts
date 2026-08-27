@@ -301,7 +301,7 @@ router.patch("/entities/:id/reject-contact", async (req, res): Promise<void> => 
   // Map field name to a null update (Drizzle accepts partial column objects)
   const fieldNulls: Record<string, any> = {
     email: { email: null },
-    phone: { phone: null },
+    phone: { phone: null, phoneSource: null },
     linkedinUrl: { linkedinUrl: null },
     twitterHandle: { twitterHandle: null },
     instagramHandle: { instagramHandle: null },
@@ -311,7 +311,11 @@ router.patch("/entities/:id/reject-contact", async (req, res): Promise<void> => 
     contactMethod: { contactMethod: null },
   };
   const setObj = { ...updates, ...(fieldNulls[field] ?? {}) };
-  const nextEntity = { ...entity, [field]: null };
+  const nextEntity = {
+    ...entity,
+    [field]: null,
+    ...(field === "phone" ? { phoneSource: null } : {}),
+  };
   const nextConfidence = computeContactConfidence(nextEntity);
   const nextOutcome = computeContactOutcome(nextEntity);
   const nextIsHot = hasMeaningfulDirectContact(nextEntity);
