@@ -286,3 +286,6 @@ Anthropic parallel limits mapping · ReAct debug playbook · card/evidence maps 
 ## 351–375
 COMPARE archive · free dig constitution · superiority definition · drift · DigSpan fields · operator first hour · HNWI use case · multi-hop · parse repair · dig UI banners · MCTS skip · checkpoints
 
+
+## 376–400
+Depth env · protected sources · final review · promote spans · theme · scheme≠plan · role one-liners · present layer · OS patterns · citation chips · scoreboard n · same-id re-cook · checkpoint 400
