@@ -67,6 +67,7 @@ export function LaunchAtlasButton({
   const [pausing, setPausing] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
   const [flash, setFlash] = useState(false);
+  const [launchDepth, setLaunchDepth] = useState<"fast" | "standard" | "deep">(opts?.researchDepth ?? "standard");
   const { run, refresh } = useAtlasRun(8_000);
 
   const paused = run.status === "paused";
@@ -101,7 +102,7 @@ export function LaunchAtlasButton({
     setFlash(true);
     window.setTimeout(() => setFlash(false), 480);
     setBusy(true);
-    const result = await launchAtlasPipeline(opts);
+    const result = await launchAtlasPipeline({ ...opts, researchDepth: opts?.researchDepth ?? launchDepth });
     setBusy(false);
     setStatus(result.message);
     onLaunched?.(result);
@@ -261,6 +262,23 @@ export function LaunchAtlasButton({
         variant === "header" ? "flex-row items-center justify-end" : "flex-col sm:flex-row sm:items-center",
       )}
     >
+      {variant !== "header" && !opts?.researchDepth && !inFlight && (
+        <select
+          aria-label="Research depth"
+          data-testid="select-launch-depth"
+          value={launchDepth}
+          onChange={(e) => {
+            const v = e.target.value;
+            setLaunchDepth(v === "deep" ? "deep" : v === "fast" ? "fast" : "standard");
+          }}
+          className="rounded-lg border border-border bg-background/80 px-2 py-1.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground"
+          title="fast / standard / deep — free dig budget only"
+        >
+          <option value="fast">Depth · fast</option>
+          <option value="standard">Depth · standard</option>
+          <option value="deep">Depth · deep</option>
+        </select>
+      )}
       <button
         type="button"
         onClick={handleLaunch}

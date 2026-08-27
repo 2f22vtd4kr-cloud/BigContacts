@@ -29,7 +29,7 @@ export function ScoreboardStrip({ className, refreshKey }: { className?: string;
       const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
       const [r, h] = await Promise.all([
         fetch(`${BASE}/api/ingest/scoreboard-snapshot?limit=12`, { credentials: "include" }),
-        fetch(`${BASE}/api/health`, { credentials: "include" }).catch(() => null),
+        fetch(`${BASE}/api/healthz`, { credentials: "include" }).catch(() => null),
       ]);
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const j = (await r.json()) as Snapshot;
