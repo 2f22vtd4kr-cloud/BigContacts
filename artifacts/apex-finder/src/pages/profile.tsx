@@ -338,6 +338,7 @@ export default function ApexProfile() {
 
   const [selectedIdx, setSelectedIdx] = useState(0);
   const [isEnriching, setIsEnriching]     = useState(false);
+  const [digDepth, setDigDepth] = useState<"standard" | "deep">("standard");
   const [enrichError, setEnrichError]     = useState<string | null>(null);
   const [enrichDone, setEnrichDone]       = useState(false);
   // ── Tab state ──────────────────────────────────────────────────────────────
@@ -564,7 +565,7 @@ export default function ApexProfile() {
         discoveryFirst: false,
         researchLimit: 1,
         runResearch: true,
-        researchDepth: "standard",
+        researchDepth: digDepth,
         targetCount: 1,
       });
       if (!launched.ok) {
@@ -872,6 +873,18 @@ export default function ApexProfile() {
                 {isEnriching ? <Loader2 className="w-3 h-3 animate-spin" /> : <TargetIcon className="w-3 h-3" />}
                 <span className="hidden sm:inline">{isEnriching ? "Digging…" : "Dig contacts"}</span>
               </button>
+              <select
+                aria-label="Dig depth"
+                data-testid="select-dig-depth"
+                disabled={isEnriching}
+                value={digDepth}
+                onChange={(e) => setDigDepth(e.target.value === "deep" ? "deep" : "standard")}
+                className="hidden sm:block max-h-[32px] rounded border border-border bg-background/80 px-1.5 py-1 font-mono text-[10px] uppercase tracking-wider text-muted-foreground disabled:opacity-50"
+                title="standard = balanced free dig; deep = more iterations/time"
+              >
+                <option value="standard">Depth · standard</option>
+                <option value="deep">Depth · deep</option>
+              </select>
             </div>
           </div>
         </div>
