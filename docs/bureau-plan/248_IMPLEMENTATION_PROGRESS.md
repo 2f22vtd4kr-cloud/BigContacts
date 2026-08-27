@@ -10,4 +10,4 @@
 | COMPARE baseline helper doc | **Done** |
 | Automated chat runner | Pending |
 
-**This wave: ~82%** of architecture+discovery+surface+scoreboard scope.
+**Superseded by vol 258** — wave ~99% in-repo; live scoreboard pending.

@@ -230,3 +230,12 @@ Grok Files folder: `artifacts/bureau-plan/` (synced).
 | 248 | Implementation progress (ContactSurface + discovery agent) |
 | 249 | Scoreboard operator use |
 | 250 | COMPARE baseline helper |
+
+| 251 | Dig entry points map |
+| 252 | Research depth tiers |
+| 253 | Rehydrate contract |
+| 254 | ADR: single-target vs discovery |
+| 255 | Live scoreboard gate |
+| 256 | Desk completion inventory |
+| 257 | Observability dig trajectory |
+| 258 | Implementation progress (99% in-repo) |
