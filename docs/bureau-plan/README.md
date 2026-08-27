@@ -150,3 +150,19 @@ Grok Files folder: `artifacts/bureau-plan/` (synced).
 | 170 | Depth means more surface |
 | 154 | CORRECTED — privacy not an excuse to drop contacts |
 
+
+| 181 | EDGAR EFTS operator notes |
+| 182 | Team/about/contact pages |
+| 183 | Observation quality spec |
+| 184 | Promote vs present |
+| 185 | List API contract |
+| 186 | Live Desk wireframes |
+| 187 | Wrong-person defense balance |
+| 188 | Timeout partial preserve |
+| 189 | Multi-provider search story |
+| 190 | Card copy library |
+| 191 | Fixture pack v1 design |
+| 192 | Operator daily loop |
+| 193 | Anti-feature list |
+| 194 | Context window hygiene |
+| 195 | Batch B2 test plan |
