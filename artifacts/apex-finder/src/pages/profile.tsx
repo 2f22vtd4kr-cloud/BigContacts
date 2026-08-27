@@ -591,6 +591,7 @@ export default function ApexProfile() {
             refetchEntity();
             refetchSessions();
             setContactEvidenceKey((k) => k + 1);
+            setShowContactEvidence(true);
             setSelectedIdx(0);
             return;
           }

@@ -767,6 +767,56 @@ export default function EntityLedger() {
     }
   };
 
+  const handleDigSelected = async () => {
+    const ids = [...selectedIds];
+    if (!ids.length || diggingId != null || bulkBusy) return;
+    setBulkBusy(true);
+    try {
+      for (const id of ids.slice(0, 5)) {
+        setDiggingId(id);
+        const launched = await launchAtlasPipeline({
+          singleTargetId: id,
+          discoveryFirst: false,
+          researchLimit: 1,
+          runResearch: true,
+          researchDepth: "standard",
+          targetCount: 1,
+        });
+        if (!launched.ok) {
+          console.warn("dig selected failed", id, launched.message);
+          continue;
+        }
+        const base = (import.meta as any).env.BASE_URL.replace(/\/$/, "");
+        let attempts = 0;
+        await new Promise<void>((resolve) => {
+          const poll = async () => {
+            if (attempts > 90) {
+              resolve();
+              return;
+            }
+            attempts++;
+            try {
+              const sr = await fetch(`${base}/api/ingest/atlas-status`);
+              const st = await sr.json();
+              const running = st?.status === "running" || st?.status === "paused";
+              if (!running) {
+                resolve();
+                return;
+              }
+            } catch { /* transient */ }
+            setTimeout(poll, 4_000);
+          };
+          setTimeout(poll, 3_000);
+        });
+        void refetch();
+      }
+    } finally {
+      setDiggingId(null);
+      setBulkBusy(false);
+      void refetch();
+    }
+  };
+
   const handleDelete = (id: number) => {
     if (confirm("Delete this entity from the ledger? This cannot be undone.")) {
       deleteEntity.mutate(
@@ -1283,7 +1333,17 @@ export default function EntityLedger() {
             >
               <TargetIcon className="h-2.5 w-2.5" /> Research
             </button>
-            <button
+                        <button
+              type="button"
+              disabled={bulkBusy || diggingId != null}
+              onClick={() => void handleDigSelected()}
+              className="inline-flex items-center gap-1 rounded border border-primary/40 px-2 py-1 text-[10px] font-mono uppercase tracking-wider text-primary"
+              data-testid="button-dig-selected"
+            >
+              {bulkBusy || diggingId != null ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : <TargetIcon className="h-2.5 w-2.5" />}
+              {bulkBusy ? "Digging…" : "Dig selected"}
+            </button>
+<button
               onClick={() => void handleBulkDelete()}
               disabled={bulkBusy}
               className="atlas-pressable flex items-center gap-1 rounded border border-rose-400/40 bg-rose-500/10 px-2 py-1 font-mono text-[11px] uppercase tracking-wider text-rose-200 hover:bg-rose-500/20 disabled:opacity-50"
