@@ -4,7 +4,7 @@
  */
 import { logger } from "./logger";
 import { apexOrientationFor } from "./apex-bureau-orientation";
-import { publishDigSpan, completeDigSpan } from "./dig-span";
+import { publishDigSpan, completeDigSpan, spanFromLiveStep } from "./dig-span";
 import { runAgenticWebResearch } from "./agentic-web-research";
 
 export type DiscoveryCandidate = {
@@ -142,7 +142,22 @@ export async function runDiscoveryAgent(input: {
       maxIterations,
       hardTimeoutMs,
       jobId,
-      onLiveStep: input.onLiveStep,
+      onLiveStep: (step) => {
+        try {
+          spanFromLiveStep({
+            jobId,
+            targetName: "discovery",
+            tool: step.tool || step.action,
+            label: step.query || step.url || step.action,
+            detail: step.detail || step.query || step.url,
+            status: step.status === "error" ? "error" : step.status === "active" ? "active" : "ok",
+            agentName: "discovery",
+          });
+        } catch {
+          /* spans best-effort */
+        }
+        input.onLiveStep?.(step);
+      },
     });
 
     const candidates = parsePersonFindings(result.findings ?? []);

@@ -900,8 +900,29 @@ export default function EntityLedger() {
             </button>
           </div>
         )}
-        <div className="px-4 pt-3 flex-shrink-0">
+        <div className="px-4 pt-3 flex-shrink-0 space-y-2">
           <ScoreboardStrip />
+          <button
+            type="button"
+            data-testid="rehydrate-thin-cards"
+            className="text-[10px] font-mono uppercase tracking-wider text-[#9CFF1A]/80 hover:text-[#9CFF1A] border border-[#9CFF1A]/20 rounded-lg px-2.5 py-1.5"
+            onClick={async () => {
+              try {
+                const base = (import.meta as any).env.BASE_URL.replace(/\/$/, "");
+                const r = await fetch(`${base}/api/entities/rehydrate-contacts`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ limit: 80 }),
+                });
+                if (!r.ok) throw new Error(`HTTP ${r.status}`);
+                await refetch();
+              } catch (e) {
+                console.warn("rehydrate thin cards failed", e);
+              }
+            }}
+          >
+            Rehydrate cards from evidence
+          </button>
         </div>
         {/* Header toolbar */}
         <div className="flex flex-col gap-2 border-b border-[#9CFF1A]/12 bg-card/30 px-4 py-3 flex-shrink-0">

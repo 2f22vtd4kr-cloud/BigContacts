@@ -156,6 +156,7 @@ export function spanFromLiveStep(step: {
   detail?: string | null;
   status?: "active" | "ok" | "error" | string;
   modelId?: string | null;
+  agentName?: string | null;
 }): DigSpan | null {
   try {
     const tool = (step.tool || step.label || "step").toString();
@@ -179,7 +180,7 @@ export function spanFromLiveStep(step: {
       inputSummary: step.label || undefined,
       resultSummary: step.detail || undefined,
       modelId: step.modelId || undefined,
-      agentName: "investigator",
+      agentName: step.agentName || "investigator",
       endedAt: status === "active" ? undefined : new Date().toISOString(),
     });
   } catch {
