@@ -24,6 +24,7 @@ import { deepWebOsintEnrich } from "../lib/enrichment/web-discovery";
 import { summarizeAdaptiveResearch } from "../lib/adaptive-research-director";
 import { computeContactConfidence, computeContactOutcome } from "../lib/contact-confidence";
 import { sanitizePublicEmail, sanitizePublicPhone, sanitizePublicSocialUrl, isGenericEmailPrefix } from "../lib/contact-validation";
+import { shouldBlockIssuerOverwrite, isAgenticPhoneSource, isNoticePhoneSource } from "../lib/phone-source-priority";
 import { contactCacheSet } from "../lib/redis";
 import { logger } from "../lib/logger";
 
@@ -136,6 +137,7 @@ router.post("/ingest/deep-web-osint", async (req: Request, res: Response): Promi
       bayesianScore:     entitiesTable.bayesianScore,
       email:             entitiesTable.email,
       phone:             entitiesTable.phone,
+      phoneSource:       entitiesTable.phoneSource,
       linkedinUrl:       entitiesTable.linkedinUrl,
       instagramHandle:   entitiesTable.instagramHandle,
       twitterHandle:     entitiesTable.twitterHandle,
@@ -204,8 +206,23 @@ router.post("/ingest/deep-web-osint", async (req: Request, res: Response): Promi
           const local = cleanEmail.split("@")[0] ?? "";
           updates["isGenericPrefix"] = isGenericEmailPrefix(local);
         }
-        if (cleanPhone)         updates["phone"]       = cleanPhone;
-        else if (force)         updates["phone"]       = null; // clear stale
+        // Protect dig/notice card phones — force must not wipe agentic-web / notice lines.
+        const existingPhoneSrc = (entity as { phoneSource?: string | null }).phoneSource ?? null;
+        const protectPhone =
+          isAgenticPhoneSource(existingPhoneSrc) || isNoticePhoneSource(existingPhoneSrc);
+        const deepPhoneSrc =
+          (typeof (result as { phoneSource?: string }).phoneSource === "string"
+            ? (result as { phoneSource?: string }).phoneSource
+            : null) ?? "deep-web-osint";
+        if (protectPhone) {
+          // Keep entity.phone / phoneSource; deep-web may still add evidence rows later.
+        } else if (cleanPhone) {
+          updates["phone"] = cleanPhone;
+          updates["phoneSource"] = deepPhoneSrc;
+        } else if (force) {
+          updates["phone"] = null;
+          updates["phoneSource"] = null;
+        }
         if (cleanLinkedIn)      updates["linkedinUrl"] = cleanLinkedIn;
         else if (force)         updates["linkedinUrl"] = null; // clear stale
         // Corp/Trust: social handles from deep-web belong to persons, not the org
@@ -217,6 +234,10 @@ router.post("/ingest/deep-web-osint", async (req: Request, res: Response): Promi
           type:             entity.type,
           email:           (updates["email"]      as string | null) ?? entity.email ?? null,
           phone:           (updates["phone"]      as string | null) ?? entity.phone ?? null,
+          phoneSource:
+            (updates["phoneSource"] as string | null | undefined) ??
+            (entity as { phoneSource?: string | null }).phoneSource ??
+            null,
           linkedinUrl:     (updates["linkedinUrl"] as string | null) ?? entity.linkedinUrl ?? null,
           instagramHandle: (updates["instagramHandle"] as string | null) ?? entity.instagramHandle ?? null,
           twitterHandle:   (updates["twitterHandle"] as string | null) ?? entity.twitterHandle ?? null,
@@ -269,6 +290,10 @@ router.post("/ingest/deep-web-osint", async (req: Request, res: Response): Promi
           instagramHandle: (updates["instagramHandle"] as string | null) ?? entity.instagramHandle ?? null,
           twitterHandle: (updates["twitterHandle"] as string | null) ?? entity.twitterHandle ?? null,
           bizLocation: entity.knownResidences,
+          phoneSource:
+            (updates["phoneSource"] as string | null | undefined) ??
+            (entity as { phoneSource?: string | null }).phoneSource ??
+            null,
         });
         updates["metadata"]   = JSON.stringify(meta);
         updates["liveSource"] = true;

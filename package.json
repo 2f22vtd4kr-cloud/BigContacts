@@ -10,7 +10,8 @@
     "check:no-force-dig": "bash scripts/check-no-force-dig.sh",
     "check:bureau": "bash scripts/check-no-force-dig.sh",
     "scoreboard:shell": "node scripts/scoreboard-shell.mjs",
-    "scoreboard:score": "node scripts/scoreboard-shell.mjs --score"
+    "scoreboard:score": "node scripts/scoreboard-shell.mjs --score",
+    "scoreboard:compare-template": "node scripts/compare-template.mjs"
   },
   "private": true,
   "dependencies": {

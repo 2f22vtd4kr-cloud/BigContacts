@@ -5,12 +5,21 @@
 | Layer | % |
 |-------|---|
 | In-repo code path | **~97%** |
-| Product scoreboard proven | **0%** until live COMPARE |
-| **Overall** | **~92%** |
+| Product scoreboard proven | **0%** until live COMPARE on Replit |
+| **Overall** | **~91%** |
 
-## Done in code
+## Complete in code
 
-Free dig · promote/rehydrate · source lock · outcome honesty · depth · DigSpan · SC13 · collision · scoreboard · list-index invalidate on promote · case promote rehydrate · COMPARE template
+- Free dig (no force_*) + `pnpm run check:no-force-dig`
+- Promote / rehydrate (+ case promote / index invalidate)
+- Source lock: agentic/notice vs issuer in in-house, phase-j, **ingest-enrichment**, **deep-web pipeline**
+- Outcome honesty (org dig ≠ personal direct)
+- Depth + researchDepth Launch
+- DigSpan llm/tool/promote + agentName
+- SC13 notice window
+- Identity collision + graph gate
+- Scoreboard rubric + `scoreboard:shell` / `scoreboard:score` / `scoreboard:compare-template`
+- phoneSource on entities UI
 
 ## Operator
 
@@ -18,5 +27,10 @@ Free dig · promote/rehydrate · source lock · outcome honesty · depth · DigS
 git pull origin main
 pnpm run check:no-force-dig
 pnpm run scoreboard:score
-# restart API → singleTargetId re-cook → docs/comparisons/COMPARE_*.md
+pnpm run scoreboard:compare-template
+# restart API — then singleTargetId re-cook — fill COMPARE_*.md
 ```
+
+## Remaining (cannot finish offline)
+
+Live scoreboard mean ≥ 1.0 on ≥8 fixtures with zero -1s.
