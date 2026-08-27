@@ -187,3 +187,11 @@ Grok Files folder: `artifacts/bureau-plan/` (synced).
 | 213 | Enricher parallelism policy |
 | 214 | Acceptance master checklist |
 | 215 | Word budget progress log |
+
+| 216 | Discovery north star |
+| 217 | How I would pick targets (LLM-native) |
+| 218 | Critique: template-farm discovery |
+| 219 | Discovery agent spec |
+| 220 | Discovery signals |
+| 221 | Discovery → dig handoff |
+| 222 | Discovery batch queue |
