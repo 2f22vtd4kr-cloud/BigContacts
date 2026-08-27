@@ -49,7 +49,7 @@ import { ContactSurface } from "@/components/contact-surface";
 import { isMockMode, MOCK_ENTITIES } from "@/lib/dev-mock-data";
 import { entityMeta, EntityTypeMark, entityMetric } from "@/lib/entity-taxonomy";
 import { readApiJson } from "@/lib/api-json";
-import { launchAtlasPipeline } from "@/lib/launch-atlas";
+import { launchAtlasPipeline, stopAtlasPipeline } from "@/lib/launch-atlas";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
   DialogFooter, DialogClose,
@@ -1158,12 +1158,27 @@ export default function ApexProfile() {
                 />
                 {isEnriching && (
                   <div
-                    className="mt-2 rounded-lg border border-primary/25 bg-primary/10 px-3 py-2 text-[11px] font-mono text-primary flex items-center gap-2"
+                    className="mt-2 rounded-lg border border-primary/25 bg-primary/10 px-3 py-2 text-[11px] font-mono text-primary flex items-center gap-2 flex-wrap"
                     data-testid="profile-dig-banner"
                   >
                     <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />
                     <span className="flex-1">Atlas free dig running — model chooses search/visit</span>
                     <Link href="/reactor" className="underline underline-offset-2 hover:text-[#9CFF1A] shrink-0">Reactor</Link>
+                    <button
+                      type="button"
+                      className="underline underline-offset-2 hover:text-rose-300 shrink-0"
+                      data-testid="button-stop-dig"
+                      onClick={async () => {
+                        try {
+                          await stopAtlasPipeline();
+                        } catch { /* best-effort */ }
+                        setIsEnriching(false);
+                        refetchEntity();
+                        setContactEvidenceKey((k) => k + 1);
+                      }}
+                    >
+                      Stop dig
+                    </button>
                   </div>
                 )}
               </div>

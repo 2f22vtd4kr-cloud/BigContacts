@@ -120,7 +120,12 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
   // Empty/missing fields fall back to CANONICAL_ATLAS_LAUNCH_BODY so every
   // "run bureau" path is the same procedure (UI, curl, Replit agent).
   const C = CANONICAL_ATLAS_LAUNCH_BODY;
-  const discoveryFirst = body.discoveryFirst !== undefined ? Boolean(body.discoveryFirst) : C.discoveryFirst;
+  let discoveryFirst = body.discoveryFirst !== undefined ? Boolean(body.discoveryFirst) : C.discoveryFirst;
+  const singleTargetRaw = body.singleTargetId !== undefined ? Number(body.singleTargetId) : undefined;
+  // Dig one person: never run discovery-agent / template farm first
+  if (singleTargetRaw != null && Number.isFinite(singleTargetRaw) && singleTargetRaw > 0) {
+    discoveryFirst = false;
+  }
   const opts: AtlasOptions = {
     targetCount:        Number(body.targetCount)       || C.targetCount,
     faaMaxRecords:      Number(body.faaMaxRecords)     || 60_000,
@@ -135,7 +140,7 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
     discoveryFirst,
     skipFaa:            body.skipFaa !== undefined ? Boolean(body.skipFaa) : (discoveryFirst ? C.skipFaa : false),
     broadCategories:    Number(body.broadCategories)   || C.broadCategories,
-    singleTargetId:     body.singleTargetId !== undefined ? Number(body.singleTargetId) : undefined,
+    singleTargetId:     singleTargetRaw != null && Number.isFinite(singleTargetRaw) && singleTargetRaw > 0 ? singleTargetRaw : undefined,
     researchDepth:     typeof body.researchDepth === "string" ? body.researchDepth : undefined,
   };
 
