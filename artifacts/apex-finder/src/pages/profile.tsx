@@ -5,7 +5,6 @@ import {
   useListAssets,
   useListRelationships,
   useListResearchSessions,
-  useRunResearch,
   useCreateRelationship,
   useDeleteRelationship,
 } from "@workspace/api-client-react";
@@ -50,6 +49,7 @@ import { ContactSurface } from "@/components/contact-surface";
 import { isMockMode, MOCK_ENTITIES } from "@/lib/dev-mock-data";
 import { entityMeta, EntityTypeMark, entityMetric } from "@/lib/entity-taxonomy";
 import { readApiJson } from "@/lib/api-json";
+import { launchAtlasPipeline } from "@/lib/launch-atlas";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
   DialogFooter, DialogClose,
@@ -333,7 +333,6 @@ export default function ApexProfile() {
   const { data: relationships = [], refetch: refetchRelationships } = useListRelationships({ entityId });
   const { data: sessions = [],  refetch: refetchSessions } = useListResearchSessions({ entityId, limit: 10 });
 
-  const runResearch       = useRunResearch();
   const createRelationship = useCreateRelationship();
   const deleteRelationship = useDeleteRelationship();
 
@@ -553,11 +552,56 @@ export default function ApexProfile() {
 
   // ── Handlers ───────────────────────────────────────────────────────────────
 
-  const handleRunResearch = () => {
-    runResearch.mutate(
-      { data: { entityId, depth: 4 } },
-      { onSuccess: () => { refetchSessions(); setSelectedIdx(0); } },
-    );
+  /** Primary dig: free Atlas single-target contact research (not legacy MCTS-only path). */
+  const handleRunResearch = async () => {
+    if (!entityId) return;
+    setIsEnriching(true);
+    setEnrichError(null);
+    setEnrichDone(false);
+    try {
+      const launched = await launchAtlasPipeline({
+        singleTargetId: Number(entityId),
+        discoveryFirst: false,
+        researchLimit: 1,
+        runResearch: true,
+        researchDepth: "standard",
+        targetCount: 1,
+      });
+      if (!launched.ok) {
+        throw new Error(launched.message || "Failed to start dig");
+      }
+      // Poll atlas-status until idle (or timeout ~7 min)
+      let attempts = 0;
+      const poll = async () => {
+        if (attempts > 90) {
+          setIsEnriching(false);
+          setEnrichError("Timed out waiting for Atlas dig.");
+          refetchEntity();
+          setContactEvidenceKey((k) => k + 1);
+          return;
+        }
+        attempts++;
+        try {
+          const sr = await fetch(`${baseUrl}/api/ingest/atlas-status`);
+          const st = await readApiJson(sr);
+          const running = st?.status === "running" || st?.status === "paused";
+          if (!running) {
+            setIsEnriching(false);
+            setEnrichDone(true);
+            refetchEntity();
+            refetchSessions();
+            setContactEvidenceKey((k) => k + 1);
+            setSelectedIdx(0);
+            return;
+          }
+        } catch { /* transient */ }
+        setTimeout(poll, 4_000);
+      };
+      setTimeout(poll, 3_000);
+    } catch (err: any) {
+      setIsEnriching(false);
+      setEnrichError(err?.message ?? "Dig failed — try again");
+    }
   };
 
   const handleEnrich = async () => {
@@ -809,13 +853,15 @@ export default function ApexProfile() {
                 <span className="hidden sm:inline">Refresh surface</span>
               </button>
               <button
-                onClick={handleEnrich}
+                type="button"
+                onClick={handleRunResearch}
                 disabled={isEnriching}
                 className="flex items-center gap-1 px-2 sm:px-2.5 py-1.5 rounded border border-primary/30 bg-primary/10 text-primary hover:bg-primary/20 font-mono text-[12px] uppercase tracking-wider transition-colors disabled:opacity-50"
-                title="Rerun Research"
+                title="Free Atlas dig for public contact routes on this person"
+                data-testid="button-dig-contacts"
               >
                 {isEnriching ? <Loader2 className="w-3 h-3 animate-spin" /> : <TargetIcon className="w-3 h-3" />}
-                <span className="hidden sm:inline">{isEnriching ? "Searching…" : "Run research"}</span>
+                <span className="hidden sm:inline">{isEnriching ? "Digging…" : "Dig contacts"}</span>
               </button>
             </div>
           </div>
@@ -2055,29 +2101,29 @@ export default function ApexProfile() {
                 <button
                   type="button"
                   onClick={handleRunResearch}
-                  disabled={runResearch.isPending}
+                  disabled={isEnriching}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-primary/10 border border-primary/30 text-primary font-mono text-[12px] uppercase tracking-wider hover:bg-primary/20 transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                 >
-                  {runResearch.isPending
+                  {isEnriching
                     ? <Loader2 className="w-3 h-3 animate-spin" />
                     : <Play className="w-3 h-3" />}
-                  {runResearch.isPending ? "Searching…" : "Run research"}
+                  {isEnriching ? "Digging…" : "Dig contacts"}
                 </button>
               }
             />
 
-            {(sessions as any[]).length === 0 && !runResearch.isPending && (
+            {(sessions as any[]).length === 0 && !isEnriching && (
               <div className="flex flex-col items-center justify-center py-12 gap-3 text-muted-foreground px-4" data-testid="profile-research-empty">
                 <TargetIcon className="w-10 h-10 opacity-30" aria-hidden />
-                <p className="text-sm font-semibold text-foreground">No research runs yet</p>
+                <p className="text-sm font-semibold text-foreground">No dig runs yet</p>
                 <p className="text-[12px] text-center max-w-sm leading-relaxed text-muted-foreground">
-                  Run research to collect public evidence, map introduction paths, and score how reachable this target is.
+                  Dig contacts runs free Atlas research on this person and promotes public routes onto the card.
                 </p>
                 <div className="flex flex-wrap justify-center gap-2 mt-1">
                   <button
                     type="button"
                     onClick={handleRunResearch}
-                    disabled={runResearch.isPending}
+                    disabled={isEnriching}
                     className="rounded-lg border border-primary/35 bg-primary/10 px-3 py-1.5 text-[11px] font-medium text-primary hover:bg-primary/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50"
                   >
                     Run research
@@ -2092,14 +2138,14 @@ export default function ApexProfile() {
               </div>
             )}
 
-            {runResearch.isPending && (
+            {isEnriching && (
               <div className="flex items-center justify-center py-12 gap-3 text-primary/80">
                 <Loader2 className="w-5 h-5 animate-spin" aria-hidden />
                 <span className="text-sm">Searching public sources…</span>
               </div>
             )}
 
-            {!runResearch.isPending && (sessions as any[]).length > 0 && (
+            {!isEnriching && (sessions as any[]).length > 0 && (
               <div className="p-4 md:p-6 space-y-6">
 
                 {(sessions as any[]).length > 1 && (
