@@ -35,7 +35,7 @@ import { runCompaniesHouseEnrichment } from "../lib/enrichment/structured-verifi
 import { deepWebOsintEnrich } from "../lib/enrichment/web-discovery";
 import { summarizeAdaptiveResearch } from "../lib/adaptive-research-director";
 import { enrichInHouse } from "../lib/enrichment/contact-enrichment";
-import { shouldBlockIssuerOverwrite, isAgenticPhoneSource, isNoticePhoneSource } from "../lib/phone-source-priority";
+import { shouldBlockIssuerOverwrite, isAgenticPhoneSource, isNoticePhoneSource, isProtectedPhoneSource } from "../lib/phone-source-priority";
 import { runMaigret, runSherlock, runHolehe } from "../lib/python-tools";
 import { discoverSocialPresence } from "../lib/enrichment/social-discovery";
 import { discoverMessengerPresence } from "../lib/enrichment/messenger-discovery";
@@ -383,8 +383,7 @@ router.post("/ingest/web-osint-enrich", async (req: Request, res: Response): Pro
         const cleanTwitterHandle = sanitizePublicSocialHandle(result.twitterUrl, "twitter");
 
         const existingPhoneSrcEarly = (entity as { phoneSource?: string | null }).phoneSource ?? null;
-        const protectPhoneEarly =
-          isAgenticPhoneSource(existingPhoneSrcEarly) || isNoticePhoneSource(existingPhoneSrcEarly);
+        const protectPhoneEarly = isProtectedPhoneSource(existingPhoneSrcEarly);
         const effectivePhone = protectPhoneEarly
           ? ((entity as { phone?: string | null }).phone ?? null)
           : cleanPhone;
@@ -1937,8 +1936,7 @@ router.post("/ingest/restore-contact-cache", async (_req: Request, res: Response
            const updates: Record<string, unknown> = { updatedAt: new Date() };
            if (cleanEmail && !(entity as { email?: string | null }).email) updates["email"] = cleanEmail;
            const cachePhoneSrc = (entity as { phoneSource?: string | null }).phoneSource ?? null;
-           const protectCachePhone =
-             isAgenticPhoneSource(cachePhoneSrc) || isNoticePhoneSource(cachePhoneSrc);
+           const protectCachePhone = isProtectedPhoneSource(cachePhoneSrc);
            if (cleanPhone && !protectCachePhone && !(entity as { phone?: string | null }).phone) {
              updates["phone"] = cleanPhone;
              updates["phoneSource"] = "contact-cache";

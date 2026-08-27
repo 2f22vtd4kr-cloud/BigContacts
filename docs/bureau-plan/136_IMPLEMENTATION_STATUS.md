@@ -6,18 +6,20 @@
 |-------|---|
 | In-repo code path | **~99%** |
 | Product scoreboard proven | **0%** until live COMPARE |
-| **Overall** | **~94%** |
+| **Overall** | **~95%** |
 
-## Critical fix `8e9e08f`
+## Recent integrity chain
 
-Final target review re-read card after dig and **preserves agentic-web / EDGAR-Notice phones**.  
-Previously `baselineContacts` was frozen **before** dig, so end-of-run write could null dig wins — a root cause of empty cards after free dig.
+1. Promote dig → card  
+2. Enrichment / phase-j / deep-web / web-osint cannot overwrite protected phones  
+3. Final review cannot null dig phones (`resolveProtectedCardPhone`)  
+4. Promote will not demote protected dig phones  
+5. Post-final **rehydrate** re-aligns outcome with evidence bag  
 
 ## Operator
 
 ```bash
-git pull origin main   # 8e9e08f+
-# restart API
+git pull origin main
 pnpm run check:no-force-dig
-# singleTargetId re-cook → COMPARE scoreboard
+# restart API — re-cook fixtures — COMPARE scoreboard
 ```

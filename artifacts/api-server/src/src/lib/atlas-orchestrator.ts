@@ -1721,6 +1721,13 @@ Only include assets with a SPECIFIC identifier. If nothing concrete is mentioned
       linkedinHeadline: roleHeadline || entity.linkedinHeadline,
     };
 
+    // Re-promote from evidence bag so outcome/confidence match protected dig card
+    try {
+      await rehydrateEntityCardFromEvidence(id);
+      const again = await db.select().from(entitiesTable).where(eq(entitiesTable.id, id)).limit(1);
+      if (again[0]) entity = { ...entity, ...again[0] } as typeof entity;
+    } catch { /* non-fatal */ }
+
     // Only exact values selected by the final reviewer become verified. A
     // reviewer rejection is durable; an unavailable/uncertain review remains
     // candidate evidence for later manual adjudication.

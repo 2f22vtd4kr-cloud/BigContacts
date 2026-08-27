@@ -24,7 +24,7 @@ import { deepWebOsintEnrich } from "../lib/enrichment/web-discovery";
 import { summarizeAdaptiveResearch } from "../lib/adaptive-research-director";
 import { computeContactConfidence, computeContactOutcome } from "../lib/contact-confidence";
 import { sanitizePublicEmail, sanitizePublicPhone, sanitizePublicSocialUrl, isGenericEmailPrefix } from "../lib/contact-validation";
-import { shouldBlockIssuerOverwrite, isAgenticPhoneSource, isNoticePhoneSource } from "../lib/phone-source-priority";
+import { isProtectedPhoneSource } from "../lib/phone-source-priority";
 import { contactCacheSet } from "../lib/redis";
 import { logger } from "../lib/logger";
 
@@ -208,8 +208,7 @@ router.post("/ingest/deep-web-osint", async (req: Request, res: Response): Promi
         }
         // Protect dig/notice card phones — force must not wipe agentic-web / notice lines.
         const existingPhoneSrc = (entity as { phoneSource?: string | null }).phoneSource ?? null;
-        const protectPhone =
-          isAgenticPhoneSource(existingPhoneSrc) || isNoticePhoneSource(existingPhoneSrc);
+        const protectPhone = isProtectedPhoneSource(existingPhoneSrc);
         const deepPhoneSrc =
           (typeof (result as { phoneSource?: string }).phoneSource === "string"
             ? (result as { phoneSource?: string }).phoneSource

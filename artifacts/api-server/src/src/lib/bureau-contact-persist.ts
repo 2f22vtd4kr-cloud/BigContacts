@@ -14,6 +14,7 @@ import { publishBureauEvent } from "./bureau-live-log";
 import { computeContactOutcome } from "./contact-confidence";
 import { assessIdentityCollision } from "./identity-collision";
 import { publishDigSpan } from "./dig-span";
+import { isProtectedPhoneSource, isIssuerSwitchboardSource } from "./phone-source-priority";
 import { apexOrientationCompact } from "./apex-bureau-orientation";
 
 export type BureauContactLike = {
@@ -421,20 +422,29 @@ async function promoteBureauContactsToEntityCard(
   let changed = false;
 
   if (bestPhone) {
+    // Never demote a protected dig/notice phone to a weaker pipeline value.
+    const protectedCurrent = isProtectedPhoneSource(curPhoneSrc) && Boolean(ent.phone);
+    const incomingOrg = bestPhone.source.endsWith("-org");
+    const currentPersonalAgentic = curPhoneSrc === "agentic-web";
     const allowPhone =
-      !ent.phone ||
-      issuerLocked ||
-      weakOutcome ||
-      curPhoneSrc === "" ||
-      curPhoneSrc === "EDGAR-Phone" ||
-      curPhoneSrc === "EDGAR-Issuer-Phone" ||
-      curPhoneSrc === "CompaniesHouse-Phone" ||
-      (curPhoneSrc.endsWith("-org") && !bestPhone.source.endsWith("-org"));
-    if (allowPhone && bestPhone.value !== ent.phone) {
+      !protectedCurrent &&
+      (
+        !ent.phone ||
+        issuerLocked ||
+        isIssuerSwitchboardSource(curPhoneSrc) ||
+        weakOutcome ||
+        curPhoneSrc === "" ||
+        (curPhoneSrc.endsWith("-org") && !incomingOrg)
+      );
+    // Upgrade org dig → personal dig only
+    const upgradeOrgToPersonal =
+      protectedCurrent &&
+      curPhoneSrc.endsWith("-org") &&
+      !incomingOrg &&
+      bestPhone.source.startsWith("agentic");
+    if ((allowPhone || upgradeOrgToPersonal) && bestPhone.value !== ent.phone) {
       patch.phone = bestPhone.value;
-      patch.phoneSource = bestPhone.source.endsWith("-org")
-        ? "agentic-web-org"
-        : "agentic-web";
+      patch.phoneSource = incomingOrg ? "agentic-web-org" : "agentic-web";
       changed = true;
     }
   }
