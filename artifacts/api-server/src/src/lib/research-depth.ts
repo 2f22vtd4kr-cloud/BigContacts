@@ -24,6 +24,8 @@ export type ResearchDepthConfig = {
   forcePendingVectorBias: boolean;
   /** Agentic ReAct dig iteration budget */
   agenticMaxIterations: number;
+  /** Hard wall-clock timeout for one dig (ms) */
+  agenticHardTimeoutMs: number;
   /** Run identity collision / alias challenge before stop when budget remains */
   challengePass: boolean;
 };
@@ -37,6 +39,7 @@ const CONFIGS: Record<ResearchDepth, ResearchDepthConfig> = {
     maxDomainFollowUps: 1,
     forcePendingVectorBias: false,
     agenticMaxIterations: 10,
+    agenticHardTimeoutMs: 120_000,
     challengePass: false,
   },
   standard: {
@@ -47,6 +50,7 @@ const CONFIGS: Record<ResearchDepth, ResearchDepthConfig> = {
     maxDomainFollowUps: 2,
     forcePendingVectorBias: false,
     agenticMaxIterations: 16,
+    agenticHardTimeoutMs: 210_000,
     challengePass: true,
   },
   deep: {
@@ -57,6 +61,7 @@ const CONFIGS: Record<ResearchDepth, ResearchDepthConfig> = {
     maxDomainFollowUps: 3,
     forcePendingVectorBias: false,
     agenticMaxIterations: 20,
+    agenticHardTimeoutMs: 360_000,
     challengePass: true,
   },
 };

@@ -105,7 +105,7 @@ export async function runTargetContactAgent(input: {
     objective,
     jobId: input.jobId ?? null,
     maxIterations: input.maxIterations ?? Math.max(depth.agenticMaxIterations, 16),
-    hardTimeoutMs: input.hardTimeoutMs ?? 300_000,
+    hardTimeoutMs: input.hardTimeoutMs ?? depth.agenticHardTimeoutMs,
     onLiveStep: (step) => {
       void publishBureauEvent({
         actor: "web",

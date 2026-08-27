@@ -76,6 +76,7 @@ export async function runBureauAgenticWebPass(input: {
   /** Atlas job id — mirrors live steps into job log for Reactor */
   jobId?: string;
   maxIterations?: number;
+  hardTimeoutMs?: number;
   entityId?: number;
   persist?: boolean;
   shouldCancel?: () => boolean | Promise<boolean>;
@@ -117,7 +118,7 @@ export async function runBureauAgenticWebPass(input: {
       objective: input.objective
         ?? `Find publicly documented contact routes for ${name}${input.companyName ? ` related to ${input.companyName}` : ""}. Multi-hop. Visit primary pages. Never invent.`,
       maxIterations: input.maxIterations ?? resolveResearchDepth().agenticMaxIterations,
-      hardTimeoutMs: 210_000,
+      hardTimeoutMs: input.hardTimeoutMs ?? resolveResearchDepth().agenticHardTimeoutMs,
       shouldCancel: input.shouldCancel,
       onLiveStep: (step) => {
         const kind =

@@ -23,6 +23,7 @@ import { apexOrientationCompact } from "./apex-bureau-orientation";
 import { db, entitiesTable, assetsTable, contactEvidenceTable } from "@workspace/db";
 import { sql, eq, and, desc, inArray } from "drizzle-orm";
 import { logger } from "./logger";
+import { resolveResearchDepth } from "./research-depth";
 import { publishDigSpan } from "./dig-span";
 import { updateJob, clearJobFields, createJob, setActiveJob, ownsActiveJob, clearActiveJobIfOwned, appendJobLog, getJob } from "./job-queue";
 import { runWesternHnwiIngestion } from "./western-hnwi-ingestion";
@@ -926,8 +927,8 @@ async function enrichEntityFullCircle(atlasJobId: string, entity: EntityRow): Pr
         targetName: name,
         companyName: companyForAgent,
         jobId: atlasJobId,
-        maxIterations: 16,
-        hardTimeoutMs: 300_000,
+        maxIterations: resolveResearchDepth().agenticMaxIterations,
+        hardTimeoutMs: resolveResearchDepth().agenticHardTimeoutMs,
       });
       agentCardReady = Boolean(
         agentResult.phone ||
