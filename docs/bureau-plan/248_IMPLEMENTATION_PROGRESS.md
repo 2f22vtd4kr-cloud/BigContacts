@@ -2,13 +2,12 @@
 
 | Item | Status |
 |------|--------|
-| ContactSurface entities/profile/Live Desk | Done |
-| Discovery agent + intake rank + fitness | Done |
-| Soft-retire broad **templates** after agent admits | **Done** |
+| ContactSurface + Live Desk | Done |
+| Discovery agent + soft-retire templates | Done |
 | Dig observation quality | Done |
-| Scoreboard API + **Live Desk strip** | **Done** |
-| COMPARE operator doc | **Done** |
-| Chat baseline automation | Pending |
-| Profile evidence polish | Pending |
+| Scoreboard strip + integrity gate | **Done** |
+| Profile evidence + rehydrate CTA | **Done** |
+| COMPARE baseline helper doc | **Done** |
+| Automated chat runner | Pending |
 
-**This wave: ~72%** of architecture+discovery+surface+scoreboard scope.
+**This wave: ~82%** of architecture+discovery+surface+scoreboard scope.

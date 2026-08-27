@@ -374,7 +374,7 @@ export default function ApexProfile() {
   const baseUrl = (import.meta as any).env.BASE_URL.replace(/\/$/, "");
 
   useEffect(() => {
-    if (!showContactEvidence || !entityId) return;
+    if (!entityId) return;
     let cancelled = false;
     setContactEvidenceLoading(true);
     fetch(`${baseUrl}/api/entities/${entityId}/contact-evidence`)
@@ -392,7 +392,7 @@ export default function ApexProfile() {
         if (!cancelled) setContactEvidenceLoading(false);
       });
     return () => { cancelled = true; };
-  }, [showContactEvidence, entityId, baseUrl, contactEvidenceKey]);
+  }, [entityId, baseUrl, contactEvidenceKey]);
 
   const handleRejectContact = async (field: string) => {
     const step = rejectStep[field] ?? 0;
@@ -602,6 +602,29 @@ export default function ApexProfile() {
     } catch (err: any) {
       setIsEnriching(false);
       setEnrichError(err.message ?? "Research failed — try again");
+    }
+  };
+
+  /** Promote durable contact_evidence onto the card (no new dig). */
+  const handleRehydrateContacts = async () => {
+    if (!entityId) return;
+    setIsEnriching(true);
+    setEnrichError(null);
+    try {
+      const r = await fetch(`${baseUrl}/api/entities/rehydrate-contacts`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ entityId }),
+      });
+      const data = await readApiJson(r);
+      if (!r.ok) throw new Error(data.error ?? data.message ?? "Rehydrate failed");
+      setEnrichDone(true);
+      refetchEntity();
+      setContactEvidenceKey((k) => k + 1);
+    } catch (err: any) {
+      setEnrichError(err.message ?? "Rehydrate failed");
+    } finally {
+      setIsEnriching(false);
     }
   };
 
@@ -1034,8 +1057,7 @@ export default function ApexProfile() {
             <div className="flex items-center justify-between mb-2 gap-2">
                <span className="text-[11px] font-mono font-bold text-primary uppercase tracking-widest">How to reach them</span>
               <div className="flex items-center gap-1.5">
-                {hasContact && (
-                  <button
+                <button
                     onClick={() => { setShowContactEvidence(v => !v); setRejectStep({}); setRejectError(null); }}
                     className={cn(
                       "flex items-center gap-1 px-2 py-1 rounded border font-mono text-[12px] uppercase tracking-wider transition-colors",
@@ -1046,10 +1068,9 @@ export default function ApexProfile() {
                   >
                     {showContactEvidence ? "▴ Evidence" : "▾ Evidence"}
                   </button>
-                )}
               </div>
             </div>
-            {hasContact ? (
+            <>
               <div className="space-y-2">
               <div className="flex flex-wrap items-center gap-1.5" data-testid="profile-reach-provenance">
                 <span className="rounded-full border border-lime-400/30 bg-lime-400/10 px-1.5 py-0.5 text-[11px] font-mono font-bold uppercase tracking-wider text-lime-200">
@@ -1072,6 +1093,8 @@ export default function ApexProfile() {
                   linkedinUrl={e.linkedinUrl}
                   phoneSource={(entity as { phoneSource?: string }).phoneSource}
                   density="card"
+                  evidenceCount={contactEvidence.length}
+                  onRehydrate={handleRehydrateContacts}
                 />
               </div>
               <div className="flex items-center gap-2 flex-wrap mt-1">
@@ -1121,40 +1144,36 @@ export default function ApexProfile() {
                 )}
               </div>
               </div>
-            ) : (
-              <div className="space-y-2">
-                <p className="text-xs text-muted-foreground">
-                  {isEnriching
-                    ? "Searching public sources for email, phone, and profiles…"
-                    : enrichDone
-                    ? "Research finished — no public email or phone found yet."
-                    : "No public email or phone on file yet. Run research to search registries and the open web."}
-                </p>
-                {!isEnriching && (
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      onClick={handleEnrich}
-                      disabled={isEnriching}
-                      className="rounded-lg border border-primary/35 bg-primary/10 px-3 py-1.5 text-[11px] font-medium text-primary hover:bg-primary/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50"
-                    >
-                      Run research
-                    </button>
-                    <Link
-                      href="/reactor"
-                      className="rounded-lg border border-border px-3 py-1.5 text-[11px] text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                    >
-                      Open Reactor
-                    </Link>
-                  </div>
-                )}
-              </div>
-            )}
+              {!hasContact && !isEnriching && (
+                <div className="flex flex-wrap gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={handleEnrich}
+                    className="rounded-lg border border-primary/35 bg-primary/10 px-3 py-1.5 text-[11px] font-medium text-primary hover:bg-primary/15"
+                  >
+                    Run research
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleRehydrateContacts}
+                    className="rounded-lg border border-border px-3 py-1.5 text-[11px] text-muted-foreground hover:text-foreground"
+                  >
+                    Rehydrate from evidence
+                  </button>
+                  <Link
+                    href="/reactor"
+                    className="rounded-lg border border-border px-3 py-1.5 text-[11px] text-muted-foreground hover:text-foreground"
+                  >
+                    Open Reactor
+                  </Link>
+                </div>
+              )}
+            </>
             {enrichError && (
               <p className="text-xs font-mono text-red-400 mt-1.5">{enrichError}</p>
             )}
             {/* ── Contact Evidence Panel ─────────────────────────────────── */}
-            {showContactEvidence && hasContact && (() => {
+            {showContactEvidence && (() => {
               const e2 = entity as any;
 
               // Parse enrichment sources stored in metadata

@@ -229,3 +229,4 @@ Grok Files folder: `artifacts/bureau-plan/` (synced).
 | 247 | ReAct trajectory debugging methods |
 | 248 | Implementation progress (ContactSurface + discovery agent) |
 | 249 | Scoreboard operator use |
+| 250 | COMPARE baseline helper |
