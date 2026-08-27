@@ -4,18 +4,18 @@
 
 | Item | Status | Notes |
 |------|--------|-------|
-| Present layer (`presented-contacts.ts`) | Done (pre-existing) | API attaches `contacts[]` |
-| ContactSurface UI | **Shipped** | entities mobile + reach vectors use contacts |
-| Org routes visible | **Shipped** | entityReachVectors prefers presented contacts |
-| Discovery agent module | **Shipped** | `discovery-agent.ts` free dig people hunt |
-| Atlas wire | **Shipped** | runs before templates when discoveryFirst; `APEX_DISCOVERY_AGENT=0` disables |
-| Admit candidates | **Shipped** | `discovery-agent-admit.ts` |
-| Dig owns card / agentCardReady | Pre-existing | orchestrator skips parallel when ready |
-| Boss/RH no tools | Pre-existing orientation | enforce in prompts |
-| Full discovery replace templates | Not yet | templates remain fallback |
-| Profile page ContactSurface | Pending | next |
-| Live Desk ContactSurface | Pending | next |
+| Present layer (`presented-contacts.ts`) | Done | API `contacts[]` |
+| ContactSurface entities | Done | mobile + reach vectors |
+| ContactSurface **profile** | **Done** | REACH section uses contacts[] |
+| ContactSurface **Live Desk** | **Done** | Reactor under DigSpan from telemetry card fields |
+| Atlas telemetry card fields | **Done** | phone/email/linkedin after dig |
+| Discovery agent module | Done | free dig people hunt |
+| Atlas discoveryFirst wire | Done | before templates |
+| Admit + **fitness gate** | **Done** | fame/shell reject |
+| Dig owns card / agentCardReady | Pre-existing | |
+| Observation quality dig | Pending | |
+| Template farm retirement | Pending | fallback still |
+| Profile evidence drawer polish | Partial | evidence toggle kept |
 
-**Overall plan implementation (this wave): ~35% of architecture+discovery+surface scope**  
-(Contact path UI + discovery agent MVP; deeper dig observation work and template retirement remain.)
+**This wave overall: ~48%** of architecture+discovery+surface scope.
 

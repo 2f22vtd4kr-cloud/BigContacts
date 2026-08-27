@@ -46,6 +46,7 @@ import {
   Crosshair, Flame, RefreshCw,
 } from "lucide-react";
 import { cn, entityFindingsSummary, entityWorkSummary, formatCurrency, formatEntityName, AccessScoreBadge, ConfidenceBadge, NationalityCell, ScoreBadge } from "@/lib/utils";
+import { ContactSurface } from "@/components/contact-surface";
 import { isMockMode, MOCK_ENTITIES } from "@/lib/dev-mock-data";
 import { entityMeta, EntityTypeMark, entityMetric } from "@/lib/entity-taxonomy";
 import { readApiJson } from "@/lib/api-json";
@@ -1063,50 +1064,18 @@ export default function ApexProfile() {
                   </span>
                 )}
               </div>
-              <div className="flex items-center gap-2 flex-wrap">
-                {/* Email — REACH: gold personal · violet org (never mark info@/sales@ as Personal) */}
-                {e.email && !isProtectedEmail(e.email) && (() => {
-                  const orgInbox = /^(info|sales|contact|office|support|admin|hello|team|enquiries|inquiry|press|media|hr|jobs|careers|billing|accounts|noreply|no-reply)@/i.test(e.email);
-                  const isOrg = orgInbox || e.contactOutcome === "organization_contact";
-                  return (
-                    <a
-                      href={`mailto:${e.email}`}
-                      title={isOrg ? `REACH · org — ${e.email}` : `REACH · personal — ${e.email}`}
-                      className={cn(
-                        "flex min-h-[36px] items-center gap-2 px-3 py-1.5 rounded border font-mono text-xs transition-colors min-w-0 max-w-[220px] sm:max-w-none",
-                        isOrg
-                          ? "border-[#9CFF1A]/35 bg-[#9CFF1A]/10 text-[#d4ff8a] hover:bg-[#9CFF1A]/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9CFF1A]/50"
-                          : "border-lime-400/35 bg-lime-400/10 text-lime-200 hover:bg-lime-400/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime-400/50",
-                      )}
-                    >
-                      <span className="text-[11px] uppercase tracking-wider opacity-70 shrink-0">{isOrg ? "Company" : "Personal"}</span>
-                      <span className="truncate">{e.email}</span>
-                    </a>
-                  );
-                })()}
-                {/* Phone — REACH · personal */}
-                {e.phone && (
-                  <a
-                    href={`tel:${e.phone}`}
-                    title={`REACH · personal — ${e.phone}`}
-                    className="flex items-center gap-2 px-3 py-1.5 rounded border border-lime-400/35 bg-lime-400/10 text-lime-200 font-mono text-xs hover:bg-lime-400/15 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime-400/50"
-                  >
-                    <span className="text-[11px] uppercase tracking-wider opacity-70 shrink-0">Phone</span>
-                    {e.phone}
-                  </a>
-                )}
-                {/* LinkedIn — REACH · social */}
-                {e.linkedinUrl && (
-                  <a href={e.linkedinUrl} target="_blank" rel="noopener noreferrer"
-                    title={e.linkedinHeadline ?? "REACH · social · LinkedIn"}
-                    className="flex items-center gap-2 px-3 py-1.5 rounded border border-[#9CFF1A]/35 bg-[#9CFF1A]/10 text-stone-300 font-mono text-xs hover:bg-[#9CFF1A]/20 transition-colors">
-                    <span className="text-[11px] uppercase tracking-wider opacity-70 shrink-0">Social</span>
-                    {e.linkedinHeadline ? (
-                      <span className="truncate max-w-[160px]">{e.linkedinHeadline.slice(0, 40)}</span>
-                    ) : "LinkedIn"}
-                  </a>
-                )}
-                {/* Twitter/X — REACH · social */}
+              <div className="w-full min-w-0">
+                <ContactSurface
+                  contacts={(entity as { contacts?: unknown[] }).contacts as never}
+                  phone={e.phone}
+                  email={e.email && !isProtectedEmail(e.email) ? e.email : null}
+                  linkedinUrl={e.linkedinUrl}
+                  phoneSource={(entity as { phoneSource?: string }).phoneSource}
+                  density="card"
+                />
+              </div>
+              <div className="flex items-center gap-2 flex-wrap mt-1">
+                {/* Twitter/X — REACH · social */}{/* Twitter/X — REACH · social */}
                 {cleanHandle(e.twitterHandle) && (
                   <a href={`https://x.com/${cleanHandle(e.twitterHandle)}`} target="_blank" rel="noopener noreferrer"
                     title={e.twitterBio ?? `@${cleanHandle(e.twitterHandle)} on X/Twitter`}

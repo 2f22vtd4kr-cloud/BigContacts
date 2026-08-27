@@ -588,6 +588,12 @@ type AtlasTelemetry = {
   links?: Array<{ title?: string; url: string }>;
   /** Case-file / briefing delta when Boss updates context */
   caseUpdate?: string;
+  /** Live Desk REACH preview (maximum public surface) */
+  entityId?: number;
+  cardPhone?: string | null;
+  cardEmail?: string | null;
+  cardLinkedin?: string | null;
+  phoneSource?: string | null;
 };
 
 async function setAtlasTelemetry(
@@ -956,6 +962,13 @@ async function enrichEntityFullCircle(atlasJobId: string, entity: EntityRow): Pr
           ? `Card phone ${agentResult.phone} (${agentResult.phoneSource ?? "dig"}) · ${agentResult.contactOutcome ?? ""}`
           : `Dig finished · findings=${agentResult.findings} · outcome=${agentResult.contactOutcome ?? "none"}`,
         inputSummary: `model=${agentResult.model} searches=${agentResult.searches} visits=${agentResult.visits} cardReady=${agentCardReady}`,
+        entityId: id,
+        cardPhone: entity.phone ?? agentResult.phone ?? null,
+        cardEmail: entity.email ?? agentResult.email ?? null,
+        cardLinkedin: entity.linkedinUrl ?? null,
+        phoneSource: entity.phoneSource ?? agentResult.phoneSource ?? null,
+        contacts: [entity.phone ?? agentResult.phone, entity.email ?? agentResult.email, entity.linkedinUrl].filter(Boolean).length,
+        disposition: agentCardReady ? "contact_route_found" : "needs_follow_up",
       }, id);
     } catch (err: any) {
       logger.warn({ entityId: id, err: err?.message }, "[Atlas] Target contact agent early pass skipped");

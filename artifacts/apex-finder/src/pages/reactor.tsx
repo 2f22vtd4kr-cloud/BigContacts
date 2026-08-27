@@ -8,6 +8,7 @@ import {
 import { MobileReactorFlow } from "../components/mobile-reactor-flow";
 import { LaunchAtlasButton } from "@/components/launch-atlas-button";
 import { DigSpanTrajectory, type DigSpanView } from "@/components/dig-span-trajectory";
+import { ContactSurface } from "@/components/contact-surface";
 import { REACTOR_CSS, REACTOR_CELEBRATE_MS, REACTOR_UI_MS, motionOrNone, prefersReducedMotion } from "../lib/reactor-motion";
 import { BureauOpsStage } from "../components/bureau-ops-stage";
 import { useBureauLiveDesk } from "../lib/use-bureau-live";
@@ -2020,6 +2021,18 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
               </div>
             )}
             <DigSpanTrajectory spans={atlasState?.recentSpans} className="mb-2" max={20} />
+            {(atlasState?.atlasTelemetry?.cardPhone || atlasState?.atlasTelemetry?.cardEmail || atlasState?.atlasTelemetry?.cardLinkedin || (atlasState?.atlasTelemetry?.contacts ?? 0) > 0) && (
+              <div className="mb-2 rounded-lg border border-[#9CFF1A]/20 bg-black/25 px-2 py-2" data-testid="contact-surface-live">
+                <div className="mb-1 text-[10px] font-mono uppercase tracking-wider text-[#9CFF1A]/80">Card routes</div>
+                <ContactSurface
+                  phone={atlasState?.atlasTelemetry?.cardPhone}
+                  email={atlasState?.atlasTelemetry?.cardEmail}
+                  linkedinUrl={atlasState?.atlasTelemetry?.cardLinkedin}
+                  phoneSource={atlasState?.atlasTelemetry?.phoneSource}
+                  density="card"
+                />
+              </div>
+            )}
             <BureauOpsStage
               events={(
                 !isLive
