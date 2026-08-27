@@ -86,7 +86,7 @@ export function ScoreboardStrip({ className, refreshKey }: { className?: string;
         <span className={showPass ? "text-emerald-400" : "text-slate-400"}>
           mean {data.mean.toFixed(2)} · n={data.count}
           {showPass ? " · pass" : ""}
-          {integrityBlocksPass ? " · integrity critical" : ""}
+          {integrityBlocksPass ? " · integrity critical" : integrity === "degraded" ? " · integrity degraded" : ""}
         </span>
       </div>
       <div className="flex max-h-16 flex-wrap gap-1 overflow-y-auto">

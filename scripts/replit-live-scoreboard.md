@@ -22,3 +22,12 @@
 
 ## Fail
 L-EMPTY / L-ISSUER / L-NO-DIG dominant, or integrity critical, or check-no-force-dig fails.
+
+
+## L-code triage CLI
+
+```bash
+pnpm run scoreboard:lcode -- --no-dig
+pnpm run scoreboard:lcode -- --phone '+1…' --source EDGAR-Phone --better-public
+pnpm run scoreboard:lcode -- --evidence 3
+```
