@@ -1375,7 +1375,7 @@ export default function EntityLedger() {
                         : entityMetric(entity)}
                     </td>
                     <td className="px-4 py-3 pr-6 sm:pr-8 text-right">
-                      <div className="flex items-center justify-end gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="flex items-center justify-end gap-1.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                         <button
                           type="button"
                           onClick={() => handleDigEntity(entity.id)}

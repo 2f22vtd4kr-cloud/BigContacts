@@ -602,7 +602,12 @@ async function setAtlasTelemetry(
   entityId?: number,
 ): Promise<void> {
   if (entityId != null && targetWasTimedOut(atlasJobId, entityId)) return;
-  await updateJob(atlasJobId, { atlasTelemetry: JSON.stringify(telemetry) });
+  // Always bind entityId for Live Desk ContactSurface fetch (third arg wins)
+  const payload: AtlasTelemetry = {
+    ...telemetry,
+    entityId: entityId ?? telemetry.entityId,
+  };
+  await updateJob(atlasJobId, { atlasTelemetry: JSON.stringify(payload) });
   try {
     publishDigSpan({
       jobId: atlasJobId,
@@ -929,6 +934,7 @@ async function enrichEntityFullCircle(atlasJobId: string, entity: EntityRow): Pr
         methodKind: "agentic",
         story: `Free dig for ${name} — model chooses search/visit; best public contact goes on the card`,
         inputSummary: companyForAgent ? `Company context: ${companyForAgent}` : "Person dig",
+        entityId: id,
       }, id);
       const { runTargetContactAgent } = await import("./target-contact-agent");
       const agentResult = await runTargetContactAgent({
