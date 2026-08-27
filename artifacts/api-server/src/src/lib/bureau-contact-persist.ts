@@ -16,7 +16,7 @@ import { assessIdentityCollision } from "./identity-collision";
 import { publishDigSpan } from "./dig-span";
 import { delCachePattern } from "./redis";
 import { isProtectedPhoneSource, isIssuerSwitchboardSource, isAgenticEmailSource } from "./phone-source-priority";
-import { countIndependentSourceHosts } from "./source-corroboration";
+import { countIndependentSourceHosts, meetsTwoSourceRule, isAggregatorHost, hostnameOf } from "./source-corroboration";
 import { apexOrientationCompact } from "./apex-bureau-orientation";
 
 export type BureauContactLike = {
@@ -341,12 +341,17 @@ async function promoteBureauContactsToEntityCard(
     let s = 0;
     for (const u of urls) {
       const h = u.toLowerCase();
-      // Primary public registries only — not a prefer list of issuers or IR paths
+      const host = hostnameOf(u) ?? "";
+      // Primary public registries — professional OSINT preference for filings
       if (h.includes("sec.gov") || h.includes("edgar")) s += 6;
       else if (h.includes("companieshouse") || h.includes("opencorporates")) s += 4;
-      // Data-broker / scraped-directory hosts — not primary attribution
-      else if (h.includes("leadiq") || h.includes("zoominfo") || h.includes("rocketreach") || h.includes("signalhire")) s -= 4;
+      // Data-broker / people-search hosts — weak attribution (two-source discipline)
+      else if (isAggregatorHost(host) || h.includes("leadiq")) s -= 4;
       else if (/^https?:\/\//i.test(u)) s += 1;
+    }
+    // Pure aggregator-only sets stay weak even with many mirrored URLs
+    if (urls.length && countIndependentSourceHosts(urls) <= 1 && urls.every((u) => isAggregatorHost(hostnameOf(u)))) {
+      s = Math.min(s, -3);
     }
     return s;
   };
@@ -380,6 +385,10 @@ async function promoteBureauContactsToEntityCard(
       note: item.note ?? null,
     });
     if (collision.risk) orgish = true; // never promote collision-prone vectors as personal
+    // Aggregator-only phones: keep as org/lead surface, not personal direct (OSINT two-source)
+    if (!orgish && urls.length > 0 && !meetsTwoSourceRule(urls) && urls.every((u) => isAggregatorHost(hostnameOf(u)))) {
+      orgish = true;
+    }
     const srcLabel =
       source.includes("agentic") || source.includes("secondary") || note.includes("secondary") || note.includes("agentic")
         ? "agentic-web"
