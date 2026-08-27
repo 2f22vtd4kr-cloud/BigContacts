@@ -22,6 +22,9 @@ const COLLISION_HOSTS = [
   "merceradvisors", "mercer-advisors", "wealthadvisor", "wealth-advisor",
   "rocketreach", "zoominfo", "signalhire", "contactout", "apollo.io",
   "majesco", "bbgigroup", "bbgi.com",
+  "spokeo", "whitepages", "beenverified", "intelius", "truepeoplesearch",
+  "fastpeoplesearch", "thatsthem", "radaris", "peoplefinder",
+  "hunter.io", "clearbit", "lusha",
 ];
 
 export type IdentityCollisionResult = {
