@@ -7,8 +7,8 @@
  */
 
 import { Router, type Request, type Response } from "express";
-import { db, entitiesTable } from "@workspace/db";
-import { sql, desc } from "drizzle-orm";
+import { db, entitiesTable, contactEvidenceTable } from "@workspace/db";
+import { sql, desc, inArray, and, eq } from "drizzle-orm";
 import {
   createJob, getActiveJob, getLatestJob, getJob, getJobLog, setActiveJob,
   updateJob, clearActiveJobIfOwned, clearActiveJobIfMatches, forceClearActiveJob, getAutoPipelineScheduler,
@@ -332,6 +332,30 @@ router.get("/ingest/scoreboard-snapshot", async (req: Request, res: Response): P
       .where(sql`${entitiesTable.cookedAt} IS NOT NULL`)
       .orderBy(desc(entitiesTable.cookedAt))
       .limit(limit);
+    const ids = rows.map((r) => r.id);
+    const evidenceCountByEntity = new Map<number, number>();
+    if (ids.length) {
+      try {
+        const evRows = await db
+          .select({
+            entityId: contactEvidenceTable.entityId,
+            n: sql<number>`count(*)::int`,
+          })
+          .from(contactEvidenceTable)
+          .where(
+            and(
+              inArray(contactEvidenceTable.entityId, ids),
+              inArray(contactEvidenceTable.vectorType, ["phone", "email", "social"]),
+            ),
+          )
+          .groupBy(contactEvidenceTable.entityId);
+        for (const er of evRows) {
+          evidenceCountByEntity.set(er.entityId, Number(er.n) || 0);
+        }
+      } catch {
+        /* non-fatal — L-code falls back without evidence counts */
+      }
+    }
     const scored = rows.map((r) => {
       const phoneSrc = String(r.phoneSource ?? "");
       let outcome = r.contactOutcome;
@@ -351,16 +375,19 @@ router.get("/ingest/scoreboard-snapshot", async (req: Request, res: Response): P
         linkedinUrl: r.linkedinUrl,
         hasSourceUrls: true,
       });
-      // Snapshot has no DigSpan; infer dig activity from agentic/notice sources or any card route.
+      const evidenceContactCount = evidenceCountByEntity.get(r.id) ?? 0;
+      // Dig-like: agentic/notice source, card routes, or bag has contact evidence
       const src = String(r.phoneSource ?? "");
       const digLike =
         /^agentic-web/i.test(src) ||
         src === "EDGAR-Notice-Phone" ||
         src === "EDGAR-Notice" ||
-        Boolean(r.phone || r.email || r.linkedinUrl);
+        Boolean(r.phone || r.email || r.linkedinUrl) ||
+        evidenceContactCount > 0;
       const suggestedLcode = suggestLcode({
         hadSearchSpan: digLike,
         hadVisitSpan: digLike,
+        evidenceContactCount,
         cardPhone: r.phone,
         cardEmail: r.email,
         phoneSource: r.phoneSource,
@@ -371,6 +398,7 @@ router.get("/ingest/scoreboard-snapshot", async (req: Request, res: Response): P
         ...r,
         contactOutcome: outcome,
         score,
+        evidenceContactCount,
         suggestedLcode: score <= 0 ? suggestedLcode : "none",
         cookedAt: r.cookedAt ? r.cookedAt.toISOString() : null,
       };
