@@ -753,6 +753,13 @@ export default function EntityLedger() {
           const st = await sr.json();
           const running = st?.status === "running" || st?.status === "paused";
           if (!running) {
+            try {
+              await fetch(`${base}/api/entities/rehydrate-contacts`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ entityId: id }),
+              });
+            } catch { /* non-fatal */ }
             setDiggingId(null);
             void refetch();
             return;
@@ -800,6 +807,13 @@ export default function EntityLedger() {
               const st = await sr.json();
               const running = st?.status === "running" || st?.status === "paused";
               if (!running) {
+                try {
+                  await fetch(`${base}/api/entities/rehydrate-contacts`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ entityId: id }),
+                  });
+                } catch { /* non-fatal */ }
                 resolve();
                 return;
               }

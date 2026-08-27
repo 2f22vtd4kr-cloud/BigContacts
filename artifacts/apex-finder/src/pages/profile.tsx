@@ -586,6 +586,14 @@ export default function ApexProfile() {
           const st = await readApiJson(sr);
           const running = st?.status === "running" || st?.status === "paused";
           if (!running) {
+            // Promote any durable evidence rows onto the card (no second dig)
+            try {
+              await fetch(`${baseUrl}/api/entities/rehydrate-contacts`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ entityId: Number(entityId) }),
+              });
+            } catch { /* non-fatal */ }
             setIsEnriching(false);
             setEnrichDone(true);
             refetchEntity();
