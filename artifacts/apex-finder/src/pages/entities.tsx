@@ -366,6 +366,16 @@ function MobileEntityCard({
               phoneSource={entity.phoneSource}
               density="mobile"
             />
+            <button
+              type="button"
+              className="mt-2 w-full flex items-center justify-center gap-1.5 min-h-[36px] rounded-lg border border-primary/30 bg-primary/10 text-primary font-mono text-[10px] uppercase tracking-wider disabled:opacity-50"
+              disabled={diggingId != null}
+              onClick={() => handleDigEntity(entity.id)}
+              data-testid={`button-dig-entity-card-${entity.id}`}
+            >
+              {diggingId === entity.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <TargetIcon className="w-3.5 h-3.5" />}
+              {diggingId === entity.id ? "Digging…" : "Dig contacts"}
+            </button>
             {entity.contactOutcome && OUTCOME_BADGES[entity.contactOutcome] && (
               <span
                 className="inline-block text-[11px] font-mono px-1.5 py-0.5 rounded mt-0.5"
@@ -728,8 +738,29 @@ export default function EntityLedger() {
         targetCount: 1,
       });
       if (!launched.ok) throw new Error(launched.message || "Dig failed to start");
-      // Fire-and-forget: operator can watch Reactor; refresh list shortly
-      setTimeout(() => { void refetch(); setDiggingId(null); }, 8_000);
+      const base = (import.meta as any).env.BASE_URL.replace(/\/$/, "");
+      // Poll until Atlas idle so ContactSurface refresh sees promoted routes
+      let attempts = 0;
+      const poll = async () => {
+        if (attempts > 90) {
+          setDiggingId(null);
+          void refetch();
+          return;
+        }
+        attempts++;
+        try {
+          const sr = await fetch(`${base}/api/ingest/atlas-status`);
+          const st = await sr.json();
+          const running = st?.status === "running" || st?.status === "paused";
+          if (!running) {
+            setDiggingId(null);
+            void refetch();
+            return;
+          }
+        } catch { /* transient */ }
+        setTimeout(poll, 4_000);
+      };
+      setTimeout(poll, 3_000);
     } catch (e) {
       console.warn("dig entity failed", e);
       setDiggingId(null);
