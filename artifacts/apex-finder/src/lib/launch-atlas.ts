@@ -110,7 +110,7 @@ export async function launchAtlasPipeline(
     return {
       ok: true,
       jobId: data?.jobId,
-      message: data?.message ?? "Apex Atlas pipeline started.",
+      message: (data?.message ?? "Apex Atlas pipeline started.") + integrityNote,
     };
   } catch (e: any) {
     return {
