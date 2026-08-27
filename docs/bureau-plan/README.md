@@ -204,3 +204,6 @@ Grok Files folder: `artifacts/bureau-plan/` (synced).
 | 228 | Desk UI role layout |
 | 229 | Architecture anti-patterns |
 | 230 | Architecture implementation notes |
+
+| 231 | Architecture vs external multi-agent patterns (2025–2026) |
+| 232 | ADR: default topology for contact recovery |
