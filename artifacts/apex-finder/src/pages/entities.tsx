@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { readApiJson } from "@/lib/api-json";
 import { ContactSurface } from "@/components/contact-surface";
-import { launchAtlasPipeline } from "@/lib/launch-atlas";
+import { launchAtlasPipeline, stopAtlasPipeline } from "@/lib/launch-atlas";
 import { ScoreboardStrip } from "@/components/scoreboard-strip";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -725,6 +725,7 @@ export default function EntityLedger() {
   };
 
   const [diggingId, setDiggingId] = useState<number | null>(null);
+  const [scoreboardKey, setScoreboardKey] = useState(0);
   const handleDigEntity = async (id: number) => {
     if (diggingId != null) return;
     setDiggingId(id);
@@ -761,6 +762,7 @@ export default function EntityLedger() {
               });
             } catch { /* non-fatal */ }
             setDiggingId(null);
+            setScoreboardKey((k) => k + 1);
             void refetch();
             return;
           }
@@ -1019,15 +1021,28 @@ export default function EntityLedger() {
           </div>
         )}
         <div className="px-4 pt-3 flex-shrink-0 space-y-2">
-          <ScoreboardStrip />
+          <ScoreboardStrip refreshKey={scoreboardKey} />
           {diggingId != null && (
             <div
-              className="rounded-lg border border-primary/25 bg-primary/10 px-3 py-2 text-[11px] font-mono text-primary flex items-center gap-2"
+              className="rounded-lg border border-primary/25 bg-primary/10 px-3 py-2 text-[11px] font-mono text-primary flex items-center gap-2 flex-wrap"
               data-testid="dig-in-progress-banner"
             >
               <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />
               <span className="flex-1">Atlas dig in progress for entity #{diggingId} — free ReAct on public sources</span>
               <a href="/reactor" className="underline underline-offset-2 hover:text-[#9CFF1A] shrink-0">Reactor</a>
+              <button
+                type="button"
+                className="underline underline-offset-2 hover:text-rose-300 shrink-0"
+                data-testid="button-stop-dig-entities"
+                onClick={async () => {
+                  try { await stopAtlasPipeline(); } catch { /* best-effort */ }
+                  setDiggingId(null);
+                  setScoreboardKey((k) => k + 1);
+                  void refetch();
+                }}
+              >
+                Stop dig
+              </button>
             </div>
           )}
           <button
