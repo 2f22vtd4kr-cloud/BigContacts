@@ -63,6 +63,7 @@ import { backfillWealthLLM } from "./wealth-estimator";
 import { materializeBusinessAsset } from "./business-assets";
 import { runTargetResearch } from "./target-research";
 import {
+import { isAgenticPhoneSource, isNoticePhoneSource, shouldBlockIssuerOverwrite } from "./phone-source-priority";
   expandSecondaryPublicSurface,
   persistBureauContactsForEntity,
   rehydrateEntityCardFromEvidence,
@@ -990,8 +991,12 @@ async function enrichEntityFullCircle(atlasJobId: string, entity: EntityRow): Pr
       if (ihLinkedIn && !entity.linkedinUrl) {
         entity = { ...entity, linkedinUrl: ihLinkedIn };
       }
-      if (ihPhone && !entity.phone) {
-        entity = { ...entity, phone: ihPhone };
+      if (ihPhone && !entity.phone && !isAgenticPhoneSource((entity as { phoneSource?: string | null }).phoneSource)) {
+        entity = {
+          ...entity,
+          phone: ihPhone,
+          phoneSource: (ihResult as { phoneSource?: string | null }).phoneSource ?? "in-house",
+        } as typeof entity;
       }
       if (ihTwitter && !entity.twitterHandle) {
         entity = { ...entity, twitterHandle: ihTwitter };
@@ -1237,8 +1242,13 @@ async function enrichEntityFullCircle(atlasJobId: string, entity: EntityRow): Pr
       if (cleanEmail && !entity.email) entity = { ...entity, email: cleanEmail };
       // Never let parallel AI OSINT overwrite dig-promoted phones
       const phoneSrc = String((entity as { phoneSource?: string | null }).phoneSource ?? "");
-      if (cleanPhone && (!entity.phone || phoneSrc === "EDGAR-Phone" || phoneSrc === "EDGAR-Issuer-Phone")) {
-        entity = { ...entity, phone: cleanPhone };
+      if (
+        cleanPhone &&
+        !isAgenticPhoneSource(phoneSrc) &&
+        !isNoticePhoneSource(phoneSrc) &&
+        (!entity.phone || phoneSrc === "EDGAR-Phone" || phoneSrc === "EDGAR-Issuer-Phone" || !phoneSrc)
+      ) {
+        entity = { ...entity, phone: cleanPhone, phoneSource: "ai-web-osint" as any };
       }
       if (cleanLinkedIn)     entity = { ...entity, linkedinUrl:    cleanLinkedIn };
       if (cleanTwitter  && !entity.twitterHandle)   entity = { ...entity, twitterHandle:   normalizeHandle(cleanTwitter) };
@@ -1659,19 +1669,59 @@ Only include assets with a SPECIFIC identifier. If nothing concrete is mentioned
       llmRoleHeadline: roleHeadline,
       llmRelatedFindings: relatedLines,
     };
+    // Re-read card after dig/promote so final review cannot wipe agentic/notice phones
+    // that were written after baselineContacts was captured (pre-dig).
+    const cardAfterDig = await db
+      .select({
+        email: entitiesTable.email,
+        phone: entitiesTable.phone,
+        phoneSource: entitiesTable.phoneSource,
+        linkedinUrl: entitiesTable.linkedinUrl,
+        twitterHandle: entitiesTable.twitterHandle,
+        instagramHandle: entitiesTable.instagramHandle,
+      })
+      .from(entitiesTable)
+      .where(eq(entitiesTable.id, id))
+      .then((rows) => rows[0]);
+    const cardPhoneSrc = cardAfterDig?.phoneSource ?? (entity as { phoneSource?: string | null }).phoneSource ?? null;
+    const protectDigPhone =
+      isAgenticPhoneSource(cardPhoneSrc) || isNoticePhoneSource(cardPhoneSrc);
+    const resolvedPhone = protectDigPhone
+      ? (cardAfterDig?.phone ?? finalContacts.phone ?? entity.phone)
+      : (finalContacts.phone ?? cardAfterDig?.phone ?? entity.phone);
+    const resolvedPhoneSource = protectDigPhone
+      ? cardPhoneSrc
+      : finalContacts.phone && finalContacts.phone !== cardAfterDig?.phone
+        ? "final-review"
+        : cardPhoneSrc;
+    const resolvedEmail = finalContacts.email ?? cardAfterDig?.email ?? entity.email;
+    const resolvedLinkedIn = finalContacts.linkedinUrl ?? cardAfterDig?.linkedinUrl ?? entity.linkedinUrl;
+    const resolvedIg = finalContacts.instagramHandle ?? cardAfterDig?.instagramHandle ?? entity.instagramHandle;
+    const resolvedTw = finalContacts.twitterHandle ?? cardAfterDig?.twitterHandle ?? entity.twitterHandle;
+
     await db.update(entitiesTable).set({
-      email: finalContacts.email,
-      phone: finalContacts.phone,
-      linkedinUrl: finalContacts.linkedinUrl,
-      instagramHandle: finalContacts.instagramHandle,
-      twitterHandle: finalContacts.twitterHandle,
+      email: resolvedEmail,
+      phone: resolvedPhone,
+      phoneSource: resolvedPhoneSource,
+      linkedinUrl: resolvedLinkedIn,
+      instagramHandle: resolvedIg,
+      twitterHandle: resolvedTw,
       // Role line on card when LLM supplies one and we don't already have a headline
       linkedinHeadline: roleHeadline || (reviewEntity as { linkedinHeadline?: string | null })?.linkedinHeadline || null,
       notes: cleanNotes,
       metadata: JSON.stringify(reviewMetadata),
       updatedAt: new Date(),
     }).where(eq(entitiesTable.id, id));
-    entity = { ...entity, ...finalContacts, linkedinHeadline: roleHeadline || entity.linkedinHeadline };
+    entity = {
+      ...entity,
+      email: resolvedEmail,
+      phone: resolvedPhone,
+      phoneSource: resolvedPhoneSource,
+      linkedinUrl: resolvedLinkedIn,
+      instagramHandle: resolvedIg,
+      twitterHandle: resolvedTw,
+      linkedinHeadline: roleHeadline || entity.linkedinHeadline,
+    };
 
     // Only exact values selected by the final reviewer become verified. A
     // reviewer rejection is durable; an unavailable/uncertain review remains
