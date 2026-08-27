@@ -11,7 +11,7 @@
     "scoreboard:shell": "node scripts/scoreboard-shell.mjs",
     "scoreboard:score": "node scripts/scoreboard-shell.mjs --score",
     "scoreboard:compare-template": "node scripts/compare-template.mjs",
-    "test:phone-priority": "pnpm --dir artifacts/api-server exec vitest run src/src/test/phone-source-priority.test.ts src/src/test/scoreboard-rubric.test.ts",
+    "test:phone-priority": "pnpm --dir artifacts/api-server exec vitest run src/src/test/phone-source-priority.test.ts src/src/test/scoreboard-rubric.test.ts src/src/test/lcode-suggest.test.ts",
     "scoreboard:live": "bash scripts/replit-scoreboard-check.sh",
     "scoreboard:postmortem-template": "node scripts/postmortem-template.mjs",
     "scoreboard:fixture-template": "node scripts/fixture-registry-template.mjs",
