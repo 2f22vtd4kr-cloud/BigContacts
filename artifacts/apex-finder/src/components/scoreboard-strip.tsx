@@ -10,6 +10,7 @@ type Row = {
   name: string;
   contactOutcome: string | null;
   score: number;
+  suggestedLcode?: string;
 };
 
 type Snapshot = {
@@ -99,9 +100,12 @@ export function ScoreboardStrip({ className, refreshKey }: { className?: string;
               r.score === 0 && "bg-white/5 text-slate-400",
               r.score < 0 && "bg-rose-500/20 text-rose-300",
             )}
-            title={`${r.name} · ${r.contactOutcome ?? "none"} · score ${r.score}`}
+            title={`${r.name} · ${r.contactOutcome ?? "none"} · score ${r.score}${r.suggestedLcode && r.suggestedLcode !== "none" ? ` · ${r.suggestedLcode}` : ""}`}
           >
             {r.score}
+            {r.score <= 0 && r.suggestedLcode && r.suggestedLcode !== "none"
+              ? ` ${r.suggestedLcode.replace("L-", "")}`
+              : ""}
           </span>
         ))}
       </div>
