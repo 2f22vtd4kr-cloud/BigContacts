@@ -17,6 +17,7 @@ import {
 import { resolveResearchDepth, describeResearchDepth } from "./research-depth";
 import { publishBureauEvent } from "./bureau-live-log";
 import { computeContactOutcome } from "./contact-confidence";
+import { publishDigSpan } from "./dig-span";
 
 export type TargetContactAgentResult = {
   status: "completed" | "timeout" | "unavailable" | "error" | "skipped";
@@ -99,6 +100,17 @@ export async function runTargetContactAgent(input: {
     why: "Model-owned dig; card is the answer",
     level: "info",
   });
+  try {
+    publishDigSpan({
+      jobId: input.jobId || "dig",
+      targetName: name,
+      spanType: "stage",
+      name: "target_contact_agent_start",
+      status: "active",
+      agentName: "investigator",
+      inputSummary: `depth=${depth.depth} maxIter=${input.maxIterations ?? depth.agenticMaxIterations}`,
+    });
+  } catch { /* non-fatal */ }
 
   const agentic = await runAgenticWebResearch({
     targetName: name,
@@ -125,6 +137,20 @@ export async function runTargetContactAgent(input: {
       });
     },
   });
+
+  try {
+    publishDigSpan({
+      jobId: input.jobId || "dig",
+      targetName: name,
+      spanType: "stage",
+      name: "target_contact_agent_done",
+      status: agentic.status === "timeout" ? "error" : "ok",
+      agentName: "investigator",
+      inputSummary: `model=${agentic.model}`,
+      resultSummary: `status=${agentic.status} findings=${agentic.findings.length} searches=${agentic.searches} visits=${agentic.visits}`,
+      endedAt: new Date().toISOString(),
+    });
+  } catch { /* non-fatal */ }
 
   const contacts = findingsToContacts(agentic.findings, name);
   await persistBureauContactsForEntity(input.entityId, contacts, "target-contact-agent", input.jobId);
