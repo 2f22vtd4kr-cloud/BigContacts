@@ -9,8 +9,10 @@
 
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-const root = path.resolve(new URL("..", import.meta.url).pathname, "..");
+const scriptsDir = path.dirname(fileURLToPath(import.meta.url));
+const root = path.resolve(scriptsDir, "..");
 const dig = path.join(root, "artifacts/api-server/src/src/lib/agentic-web-research.ts");
 
 if (!fs.existsSync(dig)) {
