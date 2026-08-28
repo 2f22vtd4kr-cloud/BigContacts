@@ -1,7 +1,7 @@
 # Context — living handoff (Apex Atlas / BigContacts)
 
 **Repo:** https://github.com/2f22vtd4kr-cloud/BigContacts · **Branch:** `main`  
-**Current tip:** `83ce65f` (or newer — always `git pull` + `git log -1`)  
+**Current tip:** `2f2f53c8` (or newer — always `git pull` + `git log -1`)  
 **API build entry:** `artifacts/api-server/src/src` (esbuild). Top-level `src/lib` is a thin scaffold — do not edit it for research logic.  
 **Desk package name:** `apex-finder-local` — build with `pnpm --dir artifacts/apex-finder run build` (not `@workspace/apex-finder`).  
 **Product:** Apex Atlas research bureau (NOT Steam “Atlas Reactor”, NOT physics ATLAS).
@@ -179,3 +179,16 @@ bash scripts/replit-scoreboard-check.sh http://127.0.0.1:8080
 ```
 
 Canonical launch: `POST /api/ingest/atlas-run` with `CANONICAL_ATLAS_LAUNCH_BODY` (see `docs/RUN_BUREAU.md`). Single-target dig: `singleTargetId` + `discoveryFirst: false`.
+
+---
+
+## Session 2026-08-28 (Grok agent handoff)
+
+- Cloned repo to `/tmp/BigContacts` (workspace FS issues on primary artifacts path; work from here).
+- Git user configured: Apex Atlas <apex-atlas@local>.
+- Branch: `main` @ `2f2f53c8` — working tree clean at session start.
+- PAT-authenticated remote ready for commit + push/merge.
+- Operator instruction: update `docs/context.md` after every batch of changes; commit and merge when ready.
+- Open gates unchanged: live scoreboard `milestonePass` on Replit after fixture re-cook; card identity-bind; discovery quality; real BigContacts workspace (not starter).
+- Next: continue product work per open items / operator direction.
+
