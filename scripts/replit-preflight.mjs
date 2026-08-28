@@ -1,39 +1,47 @@
 #!/usr/bin/env node
 /**
- * Presence-only preflight. Never prints values.
- * Never writes env or Secrets. Operator owns keys.
- * Exit 0 always so automation does not "fix" secrets on failure.
+ * Presence-only preflight for the FULL secret set (no required/optional tiers).
+ * Never prints values. Never writes Secrets.
  */
+const NAMES = [
+  "DATABASE_URL",
+  "REDIS_URL",
+  "REDIS_URL_1",
+  "REDIS_URL_2",
+  "REDIS_URL_3",
+  "REDIS_URL_4",
+  "REDIS_URL_5",
+  "GEMINI_API_KEY",
+  "NVIDIA_NIM_API_KEY",
+  "GROQ_API_KEY",
+  "MISTRAL_API_KEY",
+  "SERPER_API_KEY",
+  "TAVILY_API_KEY",
+  "EXA_API_KEY",
+  "EXA_1",
+  "EXA_2",
+  "SCRAPFLY_API_KEY",
+  "ZENROWS_API_KEY",
+  "WHOISJSON_API_KEY",
+  "WHOXY_API_KEY",
+  "COMPANIES_HOUSE_API_KEY",
+  "HF_TOKEN",
+];
+
 function present(name) {
   const v = process.env[name];
   return Boolean(v && String(v).trim() && !String(v).includes("YOUR_"));
 }
-function any(names) {
-  return names.some(present);
+
+console.log("Apex Atlas — full secrets presence (no tiers). Do not edit Secrets here.\n");
+let miss = 0;
+for (const k of NAMES) {
+  const ok = present(k);
+  if (!ok) miss++;
+  console.log(`${ok ? "SET " : "MISS"}  ${k}`);
 }
-
-console.log("Apex Atlas preflight — presence only. Do not edit Secrets.\n");
-
-const db = present("DATABASE_URL");
-const redis = any(["REDIS_URL_1", "REDIS_URL"]);
-const search = any(["SERPER_API_KEY", "TAVILY_API_KEY", "EXA_API_KEY", "EXA_API_KEY_1"]);
-const llm = any(["GROQ_API_KEY", "GEMINI_API_KEY", "MISTRAL_API_KEY", "NVIDIA_NIM_API_KEY"]);
-
-console.log(`${db ? "OK" : "MISS"}  database`);
-console.log(`${redis ? "OK" : "MISS"}  redis (one URL is enough)`);
-console.log(`${search ? "OK" : "MISS"}  search lane`);
-console.log(`${llm ? "OK" : "MISS"}  dig LLM lane`);
-
 const auto = String(process.env.ENABLE_AUTO_PIPELINE || "").toLowerCase();
-if (auto && auto !== "false" && auto !== "0") {
-  console.log("WARN  ENABLE_AUTO_PIPELINE is on — set false for operator dig tests");
-} else {
-  console.log("OK    ENABLE_AUTO_PIPELINE off/unset");
-}
-
-if (!search || !llm) {
-  console.log("\nNOTE  healthz may report bureauIntegrity=critical until operator adds search + dig LLM secrets and restarts API.");
-  console.log("      This script will not and must not write Secrets.");
-}
-console.log("\nDone. No secrets were modified.");
+console.log(`\nFLAG  ENABLE_AUTO_PIPELINE=${auto || "unset (treat as false)"}`);
+console.log(miss ? `\n${miss} names missing from process env — operator must complete Secrets for a full bureau.` : "\nAll listed names present in process env.");
+console.log("No secrets were modified.");
 process.exit(0);
