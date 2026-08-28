@@ -1,47 +1,40 @@
 #!/usr/bin/env node
-/**
- * Presence-only preflight for the FULL secret set (no required/optional tiers).
- * Never prints values. Never writes Secrets.
- */
+/** Presence-only. Pre–master-plan set: one Redis, no WHOXY. Never prints values. */
 const NAMES = [
   "DATABASE_URL",
-  "REDIS_URL",
   "REDIS_URL_1",
-  "REDIS_URL_2",
-  "REDIS_URL_3",
-  "REDIS_URL_4",
-  "REDIS_URL_5",
+  "GROQ_API_KEY",
   "GEMINI_API_KEY",
   "NVIDIA_NIM_API_KEY",
-  "GROQ_API_KEY",
   "MISTRAL_API_KEY",
+  "HF_TOKEN",
   "SERPER_API_KEY",
   "TAVILY_API_KEY",
-  "EXA_API_KEY",
+  "SERPAPI_KEY",
   "EXA_1",
   "EXA_2",
   "SCRAPFLY_API_KEY",
   "ZENROWS_API_KEY",
-  "WHOISJSON_API_KEY",
-  "WHOXY_API_KEY",
   "COMPANIES_HOUSE_API_KEY",
-  "HF_TOKEN",
+  "WHOISJSON_API_KEY",
 ];
-
 function present(name) {
   const v = process.env[name];
   return Boolean(v && String(v).trim() && !String(v).includes("YOUR_"));
 }
-
-console.log("Apex Atlas — full secrets presence (no tiers). Do not edit Secrets here.\n");
+console.log("Apex Atlas preflight — full set (1 Redis, no WHOXY). No secret values.\n");
 let miss = 0;
 for (const k of NAMES) {
-  const ok = present(k);
+  const ok = present(k) || (k === "REDIS_URL_1" && present("REDIS_URL"));
   if (!ok) miss++;
   console.log(`${ok ? "SET " : "MISS"}  ${k}`);
 }
-const auto = String(process.env.ENABLE_AUTO_PIPELINE || "").toLowerCase();
-console.log(`\nFLAG  ENABLE_AUTO_PIPELINE=${auto || "unset (treat as false)"}`);
-console.log(miss ? `\n${miss} names missing from process env — operator must complete Secrets for a full bureau.` : "\nAll listed names present in process env.");
+if (present("WHOXY_API_KEY") || present("WHOXY_KEY")) {
+  console.log("NOTE  WHOXY is set but not part of the boot ask-list (legacy).");
+}
+for (const k of ["REDIS_URL_2", "REDIS_URL_3", "REDIS_URL_4", "REDIS_URL_5"]) {
+  if (present(k)) console.log(`NOTE  ${k} present — prefer REDIS_URL_1 only on free tier`);
+}
+console.log(miss ? `\n${miss} missing — operator completes Secrets.` : "\nAll listed names present.");
 console.log("No secrets were modified.");
 process.exit(0);
