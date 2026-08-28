@@ -23,10 +23,12 @@ Boss = Gemini. Right-hand = NVIDIA. Dig failover = Groq → Mistral → Gemini �
 
 The existing `scripts/check-no-force-dig.sh` blocks explicit `force_*`, GROK-PARITY, and force-company-surface regressions.
 
-### 2026-08-28 free-ReAct integrity batch
-Added `scripts/check-bureau-free-react.mjs` and wired it into the root scripts as `check:free-react` and `check:bureau`. The guard verifies that the Dig controller retains model-selectable `web_search`, `visit`, and `done` actions and rejects explicit force-hop/playbook markers. It is intentionally a guard, not a research script: it does not prescribe a research sequence.
+### 2026-08-28 free-ReAct integrity batches
+**Batch 1:** Added `scripts/check-bureau-free-react.mjs` and wired it into the root scripts as `check:free-react` and `check:bureau`. The guard verifies that the Dig controller retains model-selectable `web_search`, `visit`, and `done` actions and rejects explicit force-hop/playbook markers. It is intentionally a guard, not a research script: it does not prescribe a research sequence.
 
-Files changed in this batch:
+**Batch 2:** Fixed the new guard's repository-root resolution. The first implementation resolved one directory too high when launched from `scripts/`; it now derives the scripts directory from `import.meta.url` and resolves the repository root from there. This was committed directly to `main` so the guard can actually execute against `artifacts/api-server/src/src/lib/agentic-web-research.ts`.
+
+Files changed in these batches:
 - `scripts/check-bureau-free-react.mjs`
 - `package.json`
 - `docs/context.md`
@@ -39,7 +41,7 @@ Validation available in the repository:
 - `pnpm --dir artifacts/api-server run build`
 - `bash scripts/replit-scoreboard-check.sh http://127.0.0.1:8080`
 
-**Important:** repository-level tooling has been updated, but a live Replit execution has not been performed by this session because the available GitHub integration does not provide Replit runtime/secrets access. Do not claim live `milestonePass` until the Replit run actually reports it.
+**Validation honesty:** the GitHub connector cannot execute the pnpm commands or provide the live Replit runtime in this session. Therefore no local test/build or live scoreboard result is claimed here. The root-resolution defect was identified by direct inspection and corrected.
 
 ## Architecture
 | Role | Owns | Must not |
