@@ -31,9 +31,10 @@ RESEARCH_DEPTH=standard
 
 SECRETS — ASK OPERATOR FOR THIS FULL SET (Replit Secrets UI)
 One flat list. Do not invent values. Do not print values. Do not mark any of these optional.
+Do NOT ask for DATABASE_URL (Replit Postgres sets it automatically).
 Do NOT ask for WHOXY. Do NOT ask for REDIS_URL_2 / _3 / _4 / _5.
+One EXA key is enough (EXA_API_KEY or EXA_1 — not both required).
 
-DATABASE_URL
 REDIS_URL_1
 GROQ_API_KEY
 GEMINI_API_KEY
@@ -43,17 +44,16 @@ HF_TOKEN
 SERPER_API_KEY
 TAVILY_API_KEY
 SERPAPI_KEY
-EXA_1
-EXA_2
+EXA_API_KEY
 SCRAPFLY_API_KEY
 ZENROWS_API_KEY
 COMPANIES_HOUSE_API_KEY
 WHOISJSON_API_KEY
 
-Notes (still not optional tiers — aliases only):
+Notes (aliases only — not extra asks):
 - REDIS_URL may be used instead of REDIS_URL_1 if that is how the host is wired (still one Redis only).
-- EXA_API_KEY is fine if the operator uses that name instead of EXA_1 / EXA_2.
-- Never WHOXY. Never multi-Redis slots on free tier.
+- EXA_1 is fine instead of EXA_API_KEY (one Exa slot is enough; do not require EXA_2).
+- Never WHOXY. Never multi-Redis slots on free tier. Never ask DATABASE_URL.
 
 BUILD
 pnpm install --no-frozen-lockfile
