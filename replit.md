@@ -15,6 +15,8 @@ Private OSINT desk: public contact routes on entity cards. **Zero synthetic HNWI
 | Product | **Card is the answer** (phone/email/LinkedIn + honest outcome). Evidence is provenance. |
 | Proof | Live **scoreboard** (`milestonePass`) after single-target **Dig contacts** — not commit count. |
 
+**Secrets:** Operator owns Replit Secrets. Agents must never add, edit, delete, or print keys. If `bureauIntegrity` is critical, stop and tell the operator — do not “fix keys.”
+
 **Operator prompt (only one):** `docs/REPLIT_UPDATE_PROMPT_LATEST.md`  
 **Boot:** `bash scripts/replit-boot.sh`  
 **Gates:** `pnpm run check:no-force-dig` · `GET /api/healthz` (integrity not critical)

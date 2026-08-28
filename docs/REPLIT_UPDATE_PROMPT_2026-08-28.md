@@ -1,31 +1,29 @@
 # Replit — single prompt (use this one only)
 
-**Problems this kills (from operator chat):** blank desk · preview on `/api` · Frontend workflow · auto-pipeline · multi-Redis thrash · hard-stop *before* Dig · graph-TDZ acceptance theater · force-hop dig · pass claims without scoreboard · stale tip in docs.
+**Secrets law (operator chat):** The agent must **never** add, edit, delete, rename, print, or “fix” Replit Secrets. Keys are operator-owned. If integrity is critical, **report and END** — do not touch Secrets.
 
-Paste **only** the fenced block. Do not also run FROM_ZERO / 08-24 prompts.
+Paste **only** the fenced block.
 
 ```
-Apex Atlas Replit — pull, boot, one Dig, scoreboard. Then END.
+Apex Atlas Replit — pull, build desk, boot, one Dig, scoreboard. Then END.
 
-REPO https://github.com/2f22vtd4kr-cloud/BigContacts  branch main
+SECRETS (read carefully)
+• Do NOT open, edit, add, remove, or print any Replit Secret.
+• Do NOT invent API keys or paste placeholder keys.
+• Do NOT run preflight in a way that rewrites env.
+• Flags only (safe): ENABLE_AUTO_PIPELINE=false  PORT=8080  APEX_SKIP_SEMANTIC=1
+• If /api/healthz shows bureauIntegrity=critical → report that and END. Operator fixes Secrets offline. Do not Dig for quality while critical.
+
+REPO
+https://github.com/2f22vtd4kr-cloud/BigContacts  branch main
 git fetch origin main && git checkout main && git pull origin main
 git log -1 --oneline
-# Need tip 27d722a or newer. If older: STOP, report SHA.
+Need tip 0580fd8 or newer. Older → STOP, report SHA.
 
-LAYOUT (non-negotiable)
-• One workflow: API Server only · PORT=8080
-• Preview opens / (desk HTML). Never treat /api as the app.
-• Do NOT start Frontend / apex-finder dev server.
-
-SECRETS
-ENABLE_AUTO_PIPELINE=false
-PORT=8080
-APEX_SKIP_SEMANTIC=1
-DATABASE_URL set
-One Redis: REDIS_URL_1 or REDIS_URL (extras optional, not required)
-≥1 search key: SERPER_API_KEY or TAVILY_API_KEY or EXA_API_KEY
-≥1 dig LLM: GROQ_API_KEY or GEMINI_API_KEY or MISTRAL_API_KEY
-Never print secret values.
+LAYOUT
+• One workflow: API Server · PORT=8080
+• Preview = / (desk). Never /api as the app.
+• Do NOT start Frontend workflow.
 
 BUILD + RUN
 pnpm install --no-frozen-lockfile
@@ -34,40 +32,38 @@ pnpm --dir artifacts/apex-finder run build
 test -f artifacts/apex-finder/dist/public/index.html || exit 1
 pnpm --dir artifacts/api-server run build
 pnpm run check:no-force-dig
-bash scripts/replit-boot.sh
+ENABLE_AUTO_PIPELINE=false bash scripts/replit-boot.sh
 
-HEALTH (after restart)
+HEALTH
 curl -sS http://127.0.0.1:8080/api/healthz
-If bureauIntegrity=critical → fix keys, restart API, re-check. Do not Dig for quality claims while critical.
+Report bureauIntegrity only (ok | degraded | critical). No secret names, no secret values.
+If critical → END with report. Do not modify Secrets.
 
 DESK
-Open public URL / · hard refresh · non-blank Entities/Profile.
+Open public URL / · hard refresh · non-blank UI.
 
-TEST (required — this is the product)
-1. Pick one real entity id that already exists on this DB.
-2. Profile or Entities → Dig contacts · depth standard · NOT discovery-first.
-3. Wait idle (GET /api/ingest/atlas-status). Note jobId.
-4. Confirm card or ContactSurface changed OR evidence rehydrate:
-   POST /api/entities/rehydrate-contacts {"entityId":ID}
+TEST (only if integrity is not critical)
+1. One existing entity id on this DB.
+2. Dig contacts · depth standard · not discovery-first.
+3. Wait atlas-status idle · note jobId.
+4. Optional: POST /api/entities/rehydrate-contacts {"entityId":ID}
 5. bash scripts/replit-scoreboard-check.sh http://127.0.0.1:8080
-6. Optional second–eighth fixtures only if step 1–5 worked and integrity ok.
 
 PASS
-tip ≥27d722a · desk non-blank · check-no-force-dig OK · integrity not critical · Dig reached idle · scoreboard JSON returned (mean/n/milestonePass printed)
+tip new enough · desk non-blank · no-force-dig OK · integrity not critical · Dig idle · scoreboard JSON printed
 
-FAIL → report and END (do not redesign)
-blank desk · tip too old · force_* in check · integrity critical after keys checked · Dig never starts · preview pointed at /api
+FAIL → report END (no redesign, no secret edits)
+blank desk · tip old · force_* · integrity critical · Dig never starts · preview on /api
 
 DO NOT
-redesign · add force-hop / prefer-list dig scripts · enable auto pipeline · start Frontend · burn credits on curl loops · claim milestonePass without snapshot · discovery-first as the test
+touch Secrets · print keys · redesign · force-hop dig scripts · auto pipeline · Frontend workflow · discovery-first as the test · claim milestonePass without snapshot
 
-REPORT one block then END
+REPORT then END
 SHA:
 URL:
-integrity:
+integrity: (ok|degraded|critical)
 no-force-dig:
 desk:
-jobId:
-scoreboard mean/n/milestonePass:
-card/evidence note:
+jobId: (or skipped_because_critical)
+scoreboard mean/n/milestonePass: (or skipped)
 ```
