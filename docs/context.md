@@ -28,20 +28,18 @@ The existing `scripts/check-no-force-dig.sh` blocks explicit `force_*`, GROK-PAR
 
 **Batch 2:** Fixed the new guard's repository-root resolution. The first implementation resolved one directory too high when launched from `scripts/`; it now derives the scripts directory from `import.meta.url` and resolves the repository root from there. This was committed directly to `main` so the guard can actually execute against `artifacts/api-server/src/src/lib/agentic-web-research.ts`.
 
-### 2026-08-29 comparison/evidence batch
-**Batch 3:** Strengthened the actual Apex-vs-independent-research comparison contract rather than adding a separate benchmark product. `scripts/compare-template.mjs` now requires each fixture comparison to record evidence URLs, tool-call count/ordered trajectory, strategy changes/dead-end recovery/early-stop notes, and the existing Apex outcome/baseline primary/score fields. Added `scripts/compare-template-contract.mjs` and root script `check:comparison-contract`; `check:bureau` now includes this contract check before the existing Vitest suite.
+### 2026-08-29 comparison/evidence batches
+**Batch 3:** Strengthened the actual Apex-vs-independent-research comparison contract rather than adding a separate benchmark product. `scripts/compare-template.mjs` and its contract require evidence URLs, ordered trajectories, tool-call counts, strategy changes/dead-end recovery/early-stop notes, and explicit `Apex wins / tie / Apex loses` outcomes. The root `check:bureau` includes the comparison contract.
 
-The comparison contract deliberately does not encode an Apex win. It requires an explicit verdict of `Apex wins / tie / Apex loses`, and keeps wrong-person `-1` handling and the existing ≥8 fixture / mean ≥1.0 / zero `-1` milestone gate intact. The purpose is to make the live test capture enough trajectory and evidence to determine whether Apex genuinely beats the independent baseline.
+**Batch 4:** Hardened the comparison protocol for reproducibility. The comparison template now freezes fixtures before Apex runs, requires three trials per fixture to be recorded as actually run (no silent cherry-picking), records trial-level duration/actions/evidence and aggregate Apex-vs-baseline quality, and adds explicit independence, free-ReAct, evidence/promotion, and failure-classification audits. This remains an audit of Apex rather than a mechanism for manufacturing an Apex win.
 
-Files changed in Batch 3:
+Files changed in Batch 4:
 - `scripts/compare-template.mjs`
-- `scripts/compare-template-contract.mjs`
-- `package.json`
 - `docs/context.md`
 
 Validation actually performed in this session:
-- Repository source inspection of `package.json`, `scoreboard-shell.mjs`, `replit-scoreboard-check.sh`, `scoreboard-rubric.test.ts`, `scoreboard-rubric.ts`, and `compare-template.mjs`.
-- The new contract was written to match the updated template.
+- Direct inspection of the canonical ReAct loop, action parser, provider failover, comparison template/contract, scoreboard script, and package scripts.
+- Repository write succeeded for the comparison template and this handoff update.
 - **No pnpm/Vitest/build/live Replit execution was performed by the GitHub-only session. Do not report these as passing.**
 
 ## Architecture
