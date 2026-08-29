@@ -10,6 +10,7 @@
     "check:no-force-dig": "bash scripts/check-no-force-dig.sh",
     "check:free-react": "node scripts/check-bureau-free-react.mjs",
     "check:comparison-contract": "node scripts/compare-template-contract.mjs",
+    "check:trajectory": "node scripts/evaluate-bureau-trajectory.mjs scripts/fixtures/free-react-sample.json",
     "scoreboard:shell": "node scripts/scoreboard-shell.mjs",
     "scoreboard:score": "node scripts/scoreboard-shell.mjs --score",
     "scoreboard:compare-template": "node scripts/compare-template.mjs",
@@ -17,7 +18,7 @@
     "scoreboard:live": "bash scripts/replit-scoreboard-check.sh",
     "scoreboard:postmortem-template": "node scripts/postmortem-template.mjs",
     "scoreboard:fixture-template": "node scripts/fixture-registry-template.mjs",
-    "check:bureau": "bash scripts/check-no-force-dig.sh && pnpm run check:free-react && pnpm run check:comparison-contract && pnpm run test:phone-priority",
+    "check:bureau": "bash scripts/check-no-force-dig.sh && pnpm run check:free-react && pnpm run check:comparison-contract && pnpm run check:trajectory && pnpm run test:phone-priority",
     "scoreboard:lcode": "node scripts/lcode-suggest.mjs"
   },
   "private": true,
