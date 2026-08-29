@@ -28,20 +28,21 @@ The existing `scripts/check-no-force-dig.sh` blocks explicit `force_*`, GROK-PAR
 
 **Batch 2:** Fixed the new guard's repository-root resolution. The first implementation resolved one directory too high when launched from `scripts/`; it now derives the scripts directory from `import.meta.url` and resolves the repository root from there. This was committed directly to `main` so the guard can actually execute against `artifacts/api-server/src/src/lib/agentic-web-research.ts`.
 
-Files changed in these batches:
-- `scripts/check-bureau-free-react.mjs`
+### 2026-08-29 comparison/evidence batch
+**Batch 3:** Strengthened the actual Apex-vs-independent-research comparison contract rather than adding a separate benchmark product. `scripts/compare-template.mjs` now requires each fixture comparison to record evidence URLs, tool-call count/ordered trajectory, strategy changes/dead-end recovery/early-stop notes, and the existing Apex outcome/baseline primary/score fields. Added `scripts/compare-template-contract.mjs` and root script `check:comparison-contract`; `check:bureau` now includes this contract check before the existing Vitest suite.
+
+The comparison contract deliberately does not encode an Apex win. It requires an explicit verdict of `Apex wins / tie / Apex loses`, and keeps wrong-person `-1` handling and the existing ≥8 fixture / mean ≥1.0 / zero `-1` milestone gate intact. The purpose is to make the live test capture enough trajectory and evidence to determine whether Apex genuinely beats the independent baseline.
+
+Files changed in Batch 3:
+- `scripts/compare-template.mjs`
+- `scripts/compare-template-contract.mjs`
 - `package.json`
 - `docs/context.md`
 
-Validation available in the repository:
-- `pnpm run check:no-force-dig`
-- `pnpm run check:free-react`
-- `pnpm run check:bureau`
-- `pnpm --dir artifacts/apex-finder run build`
-- `pnpm --dir artifacts/api-server run build`
-- `bash scripts/replit-scoreboard-check.sh http://127.0.0.1:8080`
-
-**Validation honesty:** the GitHub connector cannot execute the pnpm commands or provide the live Replit runtime in this session. Therefore no local test/build or live scoreboard result is claimed here. The root-resolution defect was identified by direct inspection and corrected.
+Validation actually performed in this session:
+- Repository source inspection of `package.json`, `scoreboard-shell.mjs`, `replit-scoreboard-check.sh`, `scoreboard-rubric.test.ts`, `scoreboard-rubric.ts`, and `compare-template.mjs`.
+- The new contract was written to match the updated template.
+- **No pnpm/Vitest/build/live Replit execution was performed by the GitHub-only session. Do not report these as passing.**
 
 ## Architecture
 | Role | Owns | Must not |
@@ -68,6 +69,7 @@ After live Replit execution, independent research on the same targets is the qua
 
 ## Still open
 - Live Replit scoreboard `milestonePass` after fixture re-cook.
+- Execute the 8-fixture Apex-vs-independent comparison with real public targets and record complete Dig trajectories/evidence.
 - Multi-name card identity binding.
 - Discovery quality vs residual template fallback.
 - Confirm operator is using the real BigContacts workspace, not a blank starter.
@@ -81,6 +83,7 @@ Any new AI/developer must read this file before changing Apex. After every meani
 git pull origin main && git log -1 --oneline
 pnpm run check:no-force-dig
 pnpm run check:free-react
+pnpm run check:comparison-contract
 pnpm run check:bureau
 pnpm --dir artifacts/apex-finder run build
 pnpm --dir artifacts/api-server run build
