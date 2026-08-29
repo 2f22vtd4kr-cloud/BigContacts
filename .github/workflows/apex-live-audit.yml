@@ -1,0 +1,127 @@
+name: Apex Live Bureau Audit
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  live-bureau-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      DATABASE_URL: postgresql://apex:apex_local_dev@127.0.0.1:5432/apex
+      REDIS_URL: redis://127.0.0.1:6379
+      PORT: 8080
+      ENABLE_AUTO_PIPELINE: "false"
+      NODE_ENV: development
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+      MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
+      NVIDIA_NIM_API_KEY: ${{ secrets.NVIDIA_NIM_API_KEY }}
+      SERPER_API_KEY: ${{ secrets.SERPER_API_KEY }}
+      TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
+      EXA_API_KEY: ${{ secrets.EXA_API_KEY }}
+      EXA_1: ${{ secrets.EXA_1 }}
+      SCRAPFLY_API_KEY: ${{ secrets.SCRAPFLY_API_KEY }}
+      ZENROWS_API_KEY: ${{ secrets.ZENROWS_API_KEY }}
+      COMPANIES_HOUSE_API_KEY: ${{ secrets.COMPANIES_HOUSE_API_KEY }}
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      WHOXY_API_KEY: ${{ secrets.WHOXY_API_KEY }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org/
+      - name: Install pnpm
+        run: npm install -g pnpm@9
+      - name: Install workspace dependencies
+        run: pnpm install --no-frozen-lockfile --filter @workspace/db --filter @workspace/api-server --filter @workspace/api-zod --ignore-scripts --registry=https://registry.npmjs.org/
+      - name: Install local services
+        run: |
+          sudo apt-get update -qq
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq postgresql redis-server
+          sudo service postgresql start
+          sudo service redis-server start
+          sudo -u postgres psql -c "CREATE USER apex WITH PASSWORD 'apex_local_dev' SUPERUSER;" || true
+          sudo -u postgres psql -c "CREATE DATABASE apex OWNER apex;" || true
+      - name: Schema and build
+        run: |
+          cd lib/db && npx drizzle-kit push --config ./drizzle.config.ts
+          cd ../../artifacts/api-server && node ./build.mjs
+      - name: Start Apex API
+        run: |
+          redis-cli ping
+          node artifacts/api-server/dist/index.mjs > /tmp/apex-api.log 2>&1 &
+          for i in $(seq 1 45); do
+            sleep 1
+            code=$(curl -sS -m 2 -o /tmp/health.json -w "%{http_code}" http://127.0.0.1:8080/api/healthz || true)
+            if [ "$code" = "200" ]; then break; fi
+          done
+          cat /tmp/health.json || true
+          head -100 /tmp/apex-api.log || true
+          test "$(curl -sS -m 5 -o /tmp/health.json -w '%{http_code}' http://127.0.0.1:8080/api/healthz)" = "200"
+      - name: Run free-ReAct integrity checks
+        run: |
+          pnpm run check:free-react
+          pnpm run check:trajectory
+          pnpm run check:comparison-contract
+      - name: Launch real Bureau discovery-first audit
+        run: |
+          curl -sS -m 15 -X POST http://127.0.0.1:8080/api/ingest/atlas-run \
+            -H 'Content-Type: application/json' \
+            -d '{"discoveryFirst":true,"targetCount":3,"researchLimit":3,"runResearch":true,"skipFaa":true,"broadCategories":1,"batchSize":10,"phaseJBatchSize":5,"targetTimeoutMs":180000,"researchDepth":"standard"}' \
+            | tee /tmp/launch.json
+          test "$(node -e "const x=require('/tmp/launch.json'); process.stdout.write(x.jobId?'ok':'bad')")" = "ok"
+      - name: Poll Bureau until complete
+        run: |
+          for i in $(seq 1 150); do
+            sleep 5
+            curl -sS -m 10 http://127.0.0.1:8080/api/ingest/atlas-status > /tmp/atlas-status.json || true
+            node - <<'NODE'
+            const fs=require('fs');
+            try {
+              const x=JSON.parse(fs.readFileSync('/tmp/atlas-status.json','utf8'));
+              console.log(JSON.stringify(x));
+              const s=String(x?.status ?? x?.job?.status ?? '');
+              if (['completed','failed','cancelled'].includes(s)) process.exit(s==='completed'?0:2);
+            } catch {}
+            NODE
+            rc=$?
+            if [ $rc -eq 0 ]; then exit 0; fi
+            if [ $rc -eq 2 ]; then exit 1; fi
+          done
+          echo 'Bureau did not finish within audit window'
+          exit 1
+      - name: Capture Bureau evidence and entities
+        if: always()
+        run: |
+          echo '=== HEALTH ==='
+          curl -sS -m 10 http://127.0.0.1:8080/api/healthz || true
+          echo
+          echo '=== ATLAS STATUS ==='
+          curl -sS -m 10 http://127.0.0.1:8080/api/ingest/atlas-status || true
+          echo
+          echo '=== ENTITIES ==='
+          curl -sS -m 10 'http://127.0.0.1:8080/api/entities?limit=20&offset=0' | tee /tmp/entities.json || true
+          echo
+          echo '=== SCOREBOARD ==='
+          curl -sS -m 10 'http://127.0.0.1:8080/api/ingest/scoreboard-snapshot?limit=20' || true
+          echo
+          echo '=== API LOG TAIL ==='
+          tail -200 /tmp/apex-api.log || true
+      - name: Upload live audit artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: apex-live-audit
+          path: |
+            /tmp/launch.json
+            /tmp/atlas-status.json
+            /tmp/entities.json
+            /tmp/health.json
+            /tmp/apex-api.log
+          if-no-files-found: ignore
