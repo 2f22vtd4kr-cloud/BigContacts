@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/** Emit COMPARE_YYYY-MM-DD.md template (Vol 16/276/552/1602). */
+/** Emit COMPARE_YYYY-MM-DD.md template with trajectory + evidence fields. */
 const d = new Date().toISOString().slice(0, 10);
 const sha = process.argv[2] || "TIP_SHA";
 console.log(`# COMPARE_${d}
@@ -26,22 +26,25 @@ check-no-force-dig: OK / FAIL
 
 ## Scoreboard
 
-| id | jobId | Apex outcome | phone | phoneSource | baseline primary | score | L-code |
-|----|-------|--------------|-------|-------------|------------------|-------|--------|
-| A1 |  |  |  |  |  |  |  |
-| A2 |  |  |  |  |  |  |  |
-| B1 |  |  |  |  |  |  |  |
-| B2 |  |  |  |  |  |  |  |
-| C1 |  |  |  |  |  |  |  |
-| C2 |  |  |  |  |  |  |  |
-| D1 |  |  |  |  |  |  |  |
-| D2 |  |  |  |  |  |  |  |
+| id | jobId | Apex outcome | phone | phoneSource | baseline primary | evidence URLs | score | L-code |
+|----|-------|--------------|-------|-------------|------------------|---------------|-------|--------|
+| A1 |  |  |  |  |  |  |  |  |
+| A2 |  |  |  |  |  |  |  |  |
+| B1 |  |  |  |  |  |  |  |  |
+| B2 |  |  |  |  |  |  |  |  |
+| C1 |  |  |  |  |  |  |  |  |
+| C2 |  |  |  |  |  |  |  |  |
+| D1 |  |  |  |  |  |  |  |  |
+| D2 |  |  |  |  |  |  |  |  |
 
 L-codes: L-EMPTY | L-ISSUER | L-ORG-AS-DIRECT | L-COLLISION | L-NO-DIG | L-OVERWRITE | L-SCRIPT | L-STALE-UI | L-INTEGRITY | (none)
 
 ## Process
 - Free dig spans (search/visit) present for each dig?
 - discoveryFirst used? (should be false for single-target proof)
+- tool calls: count and ordered action sequence for each dig
+- evidence URLs: at least one source supporting every promoted contact fact
+- trajectory note: record any strategy change, dead-end recovery, or early stop
 
 ## Summary
 - mean score:
