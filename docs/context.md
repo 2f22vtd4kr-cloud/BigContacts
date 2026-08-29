@@ -110,10 +110,16 @@ After live Replit/GitHub execution, independent research on the same targets is 
 ### 2026-08-29 docs consolidation
 **Batch 11:** README, RUN_BUREAU, and REPLIT_UPDATE_PROMPT_LATEST rewritten so operators/agents have **one** Replit paste and one expanded runbook. Encodes OOM-safe install, lockfile proxy-host rewrite, no DATABASE_URL secret, project-runtime vs chat sandbox, empty-ledger seed-then-Dig, Redis quota, single-target scoreboard proof, free-ReAct law.
 
+
+### 2026-08-29 greenfield prompt hardening
+**Batch 12:** `REPLIT_UPDATE_PROMPT_LATEST.md` rewritten as the definitive one-shot Agent paste for a **new Replit account** (credits-exhausted prior Repl retired). Encodes: tip floor, free-ReAct law, secrets minimum, OOM/firewall install, empty lockfile recovery, healthz gate, Redis quota, empty-ledger tiny seed then STOP, single-target Dig proof, scoreboard, what success looks like (model-chosen tools + source URLs). README Run table points only at that prompt + RUN_BUREAU.
+
+Prior live Repl went down / out of credits before sustained Dig monitoring — no verified scoreboard pass claimed.
+
 ## Still open
 - ~~Permanent source fixes for atlas build breakers~~ — done Batch 10 (`59c71ce`).
 - ~~Consolidate README / RUN_BUREAU / one Replit prompt~~ — Batch 11.
-- Complete Replit Dig + scoreboard when ledger has ≥1 entity and Redis quota is healthy.
+- Greenfield on a **funded** Replit account via Batch 12 one-shot prompt; complete Dig + scoreboard with ≥1 entity and healthy Redis.
 - First honest Batch 10 public `/` preview (fresh desk build).
 - First single-target Dig + scoreboard under non-critical integrity.
 - Get live-audit GitHub Actions through build **without** relying on CI source mutation for the two fixed errors.

@@ -9,7 +9,12 @@ This is the **only** meaning of:
 
 Do **not** invent alternate startups, random scripts, or partial pipelines.
 
-**Canonical operator path on Replit:** paste **one** prompt — `docs/REPLIT_UPDATE_PROMPT_LATEST.md` — into the Agent **inside** the BigContacts Repl (project runtime, not a detached chat). Everything below is the same procedure expanded for humans and Shell.
+**Canonical operator path on Replit:**
+1. Create Repl **from GitHub** (`2f22vtd4kr-cloud/BigContacts`, `main`) on an account **with credits**.
+2. Attach Postgres · set Secrets · open Agent **inside that Repl**.
+3. Paste **one** prompt — the fenced block in `docs/REPLIT_UPDATE_PROMPT_LATEST.md`.
+
+Everything below is the same procedure expanded for humans and Shell. Do not run from a detached chat sandbox.
 
 ---
 

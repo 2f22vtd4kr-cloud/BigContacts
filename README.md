@@ -10,13 +10,15 @@ It is designed for operators who need more than a company name and a generic inb
 
 ## Run the bureau (precise)
 
-**One path only:**
+**One path only. Do not invent alternate startups.**
 
 | Who | What to do |
 |-----|------------|
-| **Replit** | Import this repo → attach Postgres → open **Agent inside the Repl** → paste **[docs/REPLIT_UPDATE_PROMPT_LATEST.md](docs/REPLIT_UPDATE_PROMPT_LATEST.md)** (the fenced block). That is the full install → build → boot → Dig → scoreboard runbook. |
-| **Operators / Shell** | Follow **[docs/RUN_BUREAU.md](docs/RUN_BUREAU.md)** only. |
-| **Research command** | `POST /api/ingest/atlas-run` with `CANONICAL_ATLAS_LAUNCH_BODY` or single-target Dig body — not ad-hoc startups. |
+| **Replit (preferred)** | New/fresh account → Create Repl **from this GitHub repo** (`main`) → attach **Postgres** → Secrets → open **Agent inside that Repl** → paste the fenced block in **[docs/REPLIT_UPDATE_PROMPT_LATEST.md](docs/REPLIT_UPDATE_PROMPT_LATEST.md)**. That single paste is install → build → boot → seed if empty → single-target Dig → scoreboard. |
+| **Operators / Shell** | **[docs/RUN_BUREAU.md](docs/RUN_BUREAU.md)** only (same procedure expanded). |
+| **Research command** | `POST /api/ingest/atlas-run` with canonical body or `singleTargetId` Dig body — not ad-hoc scripts. |
+
+Living handoff: **[docs/context.md](docs/context.md)**. Tip floor: **42b36b0+**.
 
 **Requirements in short**
 
