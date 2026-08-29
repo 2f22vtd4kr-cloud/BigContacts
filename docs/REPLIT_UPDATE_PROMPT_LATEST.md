@@ -1,119 +1,96 @@
-# Replit — one-shot setup + dig scoreboard
+# Replit — one-shot setup + Dig scoreboard
 
-Paste the fenced block into the Replit agent. Do everything in order. One report at the end. No redesign.
+**This is the only Replit Agent prompt.** Paste the fenced block into the Agent **inside the BigContacts Repl** (project runtime). Do everything in order. One report at the end. No redesign.
 
 ```
-Apex Atlas — full setup in one pass. Then END.
+Apex Atlas — full setup + single-target Dig scoreboard. Execute in THIS Repl only. One report. END when done.
 
-REPO
-https://github.com/2f22vtd4kr-cloud/BigContacts
-branch main
+IDENTITY
+Repo https://github.com/2f22vtd4kr-cloud/BigContacts · branch main · tip 42b36b0 or newer.
+Product: free-ReAct OSINT desk. Models invent queries; tools execute. No force_* hops, no scripted dig playbooks.
+
+HARD RULES
+• Do NOT create a second project
+• Do NOT start Frontend workflow
+• Do NOT ENABLE_AUTO_PIPELINE=true
+• Do NOT ask for, invent, or print DATABASE_URL (Postgres injects it)
+• Do NOT ask for WHOXY or REDIS_URL_2–_5
+• Do NOT print secret values
+• Do NOT invent entities or contacts
+• Scoreboard proof = single-target Dig only (not discovery-first bulk)
+
+STEP 0 — TIP
 git fetch origin main && git checkout main && git pull origin main
 git log -1 --oneline
-Need tip 2b72fca or newer. Older → STOP, report SHA only.
+If older than 42b36b0 → STOP, report SHA only.
 
-LAYOUT (fixed)
-• One workflow only: API Server
-• PORT=8080
-• Public preview = / (desk HTML)
-• API = /api/
-• Do NOT start Frontend / apex-finder dev server
-• Do NOT open /api as the app
-
-FLAGS (set on the workflow — not provider secrets)
+STEP 1 — WORKFLOW ENV
+API Server only, PORT=8080.
 ENABLE_AUTO_PIPELINE=false
 INSTALL_PYTHON_OSINT=false
-PORT=8080
 APEX_SKIP_SEMANTIC=1
-NODE_OPTIONS=--max-old-space-size=2048
 CI=true
 RESEARCH_DEPTH=standard
+NODE_OPTIONS=--max-old-space-size=1536
 
-SECRETS — SHOW THIS LIST AND ASK THE OPERATOR
-Do not invent values. Do not print existing values. Do not overwrite a secret unless the operator says so.
-Do not ask for DATABASE_URL (Replit Postgres injects it).
-Do not ask for WHOXY. Do not ask for REDIS_URL_2 / _3 / _4 / _5.
-One EXA key is enough.
+STEP 2 — SECRETS
+Show list; operator fills Secrets UI. Do not invent/print values.
+Minimum: REDIS_URL_1 (or REDIS_URL), GROQ_API_KEY or GEMINI_API_KEY, and one of SERPER_API_KEY / TAVILY_API_KEY / EXA_API_KEY.
+Full: REDIS_URL_1, GROQ_API_KEY, GEMINI_API_KEY, NVIDIA_NIM_API_KEY, MISTRAL_API_KEY, HF_TOKEN, SERPER_API_KEY, TAVILY_API_KEY, SERPAPI_KEY, EXA_API_KEY, SCRAPFLY_API_KEY, ZENROWS_API_KEY, COMPANIES_HOUSE_API_KEY, WHOISJSON_API_KEY
+Aliases: REDIS_URL↔REDIS_URL_1, EXA_1↔EXA_API_KEY
+Wait for operator confirmation.
 
-REDIS_URL_1
-GROQ_API_KEY
-GEMINI_API_KEY
-NVIDIA_NIM_API_KEY
-MISTRAL_API_KEY
-HF_TOKEN
-SERPER_API_KEY
-TAVILY_API_KEY
-SERPAPI_KEY
-EXA_API_KEY
-SCRAPFLY_API_KEY
-ZENROWS_API_KEY
-COMPANIES_HOUSE_API_KEY
-WHOISJSON_API_KEY
+STEP 3 — INSTALL (OOM + firewall safe)
+export NODE_OPTIONS=--max-old-space-size=1536
+export NPM_CONFIG_REGISTRY=https://registry.npmjs.org
+pnpm config set registry https://registry.npmjs.org
+pnpm config set network-timeout 600000
+# If pnpm-lock.yaml tarball URLs use internal proxy (e.g. http://35.245.43.102/npm/...), rewrite ONLY those hosts to https://registry.npmjs.org/ (keep versions/integrity).
+pnpm install --no-frozen-lockfile --registry=https://registry.npmjs.org --child-concurrency 1 --network-concurrency 1 --fetch-retries 5 --fetch-timeout 600000
+If exit 137: retry once. If lockfile emptied by mistake: git checkout HEAD -- pnpm-lock.yaml (or latest non-empty commit). Do not strip deps.
 
-Aliases (operator may already use these — count as the same slot, do not demand duplicates):
-REDIS_URL ↔ REDIS_URL_1
-EXA_1 ↔ EXA_API_KEY
-
-Wait until the operator confirms the list is set (or explicitly continues with gaps). Then proceed.
-
-BUILD
-pnpm install --no-frozen-lockfile
+STEP 4 — DB + BUILDS
 pnpm --filter @workspace/db run push
 pnpm --dir artifacts/apex-finder run build
-test -f artifacts/apex-finder/dist/public/index.html || (echo "DESK BUILD FAILED" && exit 1)
+test -f artifacts/apex-finder/dist/public/index.html
 pnpm --dir artifacts/api-server run build
 pnpm run check:no-force-dig
-# Must print OK
+pnpm run check:free-react
 
-RUN
-ENABLE_AUTO_PIPELINE=false bash scripts/replit-boot.sh
-
-HEALTH
+STEP 5 — BOOT + HEALTH
+ENABLE_AUTO_PIPELINE=false RESEARCH_DEPTH=standard bash scripts/replit-boot.sh
 curl -sS http://127.0.0.1:8080/api/healthz
-Report only: status, redis, bureauIntegrity (ok|degraded|critical).
-Never print secret values.
-If bureauIntegrity is critical → report and END. Operator fixes Secrets offline; do not invent keys.
+Report: status, redis, bureauIntegrity only.
+If critical → END (operator fixes secrets; restart API).
+If Redis quota exhausted → operator replaces REDIS_URL_1; restart API; re-check healthz.
 
-DESK
-Open public URL /
-Hard refresh
-Confirm non-blank desk (Entities / Profile / Reactor).
-Confirm Dig contacts and Stop are visible.
+STEP 6 — PREVIEW
+Public URL / must be non-blank desk (Entities / Profile / Reactor, Dig contacts). Hard refresh.
 
-PRODUCT TEST (only if integrity is not critical)
-1. Pick one existing entity id on this database.
-2. Dig contacts · depth standard · single-target · NOT discovery-first.
-3. Wait GET /api/ingest/atlas-status until idle. Note jobId.
-4. POST /api/entities/rehydrate-contacts {"entityId": <id>} if the card still looks empty.
-5. bash scripts/replit-scoreboard-check.sh http://127.0.0.1:8080
-6. If that works and integrity still ok, optionally Dig 7–11 more mixed fixtures the same way and re-run scoreboard.
+STEP 7 — SEED IF LEDGER EMPTY
+If no entities: one tiny discovery-first only —
+POST /api/ingest/atlas-run
+{"discoveryFirst":true,"targetCount":3,"researchLimit":3,"runResearch":true,"skipFaa":true,"broadCategories":1,"batchSize":10,"phaseJBatchSize":5,"targetTimeoutMs":180000,"researchDepth":"standard"}
+Poll status; when ≥1 entity exists, DELETE /api/ingest/atlas-lock (stop). Do not leave discovery running forever.
+
+STEP 8 — PROOF DIG
+POST /api/ingest/atlas-run
+{"singleTargetId":<id>,"runResearch":true,"researchDepth":"standard","targetTimeoutMs":420000}
+Poll GET /api/ingest/atlas-status until idle. Note jobId.
+If card empty: POST /api/entities/rehydrate-contacts {"entityId":<id>}
+bash scripts/replit-scoreboard-check.sh http://127.0.0.1:8080
 
 PASS
-• tip 2b72fca+
-• desk non-blank at /
-• check-no-force-dig OK
-• bureauIntegrity not critical
-• Dig reached idle with a jobId
-• scoreboard printed mean / n / milestonePass
+tip 42b36b0+ · desk non-blank · checks OK · integrity not critical · Dig idle with jobId · scoreboard mean/n/milestonePass
 
-DO NOT
-• redesign UI or research
-• add force-hop / prefer-list dig scripts
-• enable auto pipeline
-• start Frontend workflow
-• invent, list-dump, or print secret values
-• ask DATABASE_URL, WHOXY, or REDIS_URL_2+
-• use discovery-first as the scoreboard proof
-• burn credits on endless curl loops after acceptance
-
-REPORT (one message) then END
+REPORT then END
 tip SHA:
 public URL:
-secrets list shown to operator: yes/no
-integrity:
-no-force-dig:
-desk non-blank: yes/no
-jobId:
+secrets configured: yes/no
+install/desk/api OK:
+no-force-dig / free-react:
+healthz integrity:
+entityId / jobId:
 scoreboard mean / n / milestonePass:
-card/evidence note:
+blockers (exact text):
 ```

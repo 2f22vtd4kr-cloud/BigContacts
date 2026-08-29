@@ -9,35 +9,90 @@ This is the **only** meaning of:
 
 Do **not** invent alternate startups, random scripts, or partial pipelines.
 
+**Canonical operator path on Replit:** paste **one** prompt — `docs/REPLIT_UPDATE_PROMPT_LATEST.md` — into the Agent **inside** the BigContacts Repl (project runtime, not a detached chat). Everything below is the same procedure expanded for humans and Shell.
+
+---
+
+## 0. Product law (do not regress)
+
+- Dig is **free ReAct**: models invent queries and choose actions; tools execute.
+- Never add `force_*` hops, GROK-PARITY, ranked prefer-lists, or scripted research playbooks.
+- Never invent people, contacts, or URLs. Contacts need real `http(s)` source URLs.
+- `bureauIntegrity=critical` → do not claim quality; fix secrets and restart API.
+- Scoreboard **proof** = **single-target Dig** (`singleTargetId`), depth `standard`, **not** discovery-first bulk.
+
 ---
 
 ## 1. Runtime prerequisites (once per workspace)
 
-1. Branch: `main` at the requested tip commit.
-2. Secrets present (names only — values in Replit Secrets):
-   - `REDIS_URL` or `REDIS_URL_1`…`REDIS_URL_5` (5 permanent slots)
-   - `GROQ_API_KEY`
-   - `GEMINI_API_KEY` (Boss)
-   - At least one of: `SERPER_API_KEY`, `TAVILY_API_KEY`, `EXA_API_KEY` / `EXA_1` / `EXA_2`
-   - Optional but part of full bureau: `MISTRAL_API_KEY`, `NVIDIA_NIM_API_KEY`, `SCRAPFLY_API_KEY`, `ZENROWS_API_KEY`, `COMPANIES_HOUSE_API_KEY`, `HF_TOKEN`
-3. Environment:
-   - `ENABLE_AUTO_PIPELINE=false` unless the operator explicitly wants continuous mass cycles
-   - `DATABASE_URL` = managed Postgres (Replit provides)
-4. Install: `pnpm install` (lockfile recovery only if proxy timeout — do not change product deps).
-5. Schema: Drizzle push from `lib/db`.
-6. Processes:
-   - API on **8080**
-   - Apex Finder UI on its configured port; **public root serves the desk**; `/api/*` proxies to API
-7. Health gate (must pass before research):
-   - `GET /api/healthz` → 200
-   - Redis connected
-   - `lanesHonesty.bureauIntegrity` is not `critical` (or operator acknowledges degraded)
-8. Research path: **free ReAct** (see `docs/context.md`). Trajectory should show model-invented
-   `web_search` / `visit` / `done` — not `force_*` lines. Tip: pull latest `main`.
+1. **Repo:** https://github.com/2f22vtd4kr-cloud/BigContacts · branch `main` · tip **`42b36b0` or newer** (Batch 10 build repair).
+2. **Postgres** attached to the Repl. `DATABASE_URL` is injected by Replit — **never** ask for it, paste it, or store it as a Secret.
+3. **One workflow only:** API Server on `PORT=8080`. Do **not** start Frontend / apex-finder dev server. Public `/` = desk; `/api` = API.
+4. **Workflow env (not secrets):**
+   ```
+   ENABLE_AUTO_PIPELINE=false
+   INSTALL_PYTHON_OSINT=false
+   PORT=8080
+   APEX_SKIP_SEMANTIC=1
+   CI=true
+   RESEARCH_DEPTH=standard
+   NODE_OPTIONS=--max-old-space-size=1536
+   ```
+5. **Secrets** (Replit Secrets UI — never print values):
+
+   **Minimum for non-critical integrity**
+   - Redis: `REDIS_URL_1` or `REDIS_URL`
+   - Search (≥1): `SERPER_API_KEY` / `TAVILY_API_KEY` / `EXA_API_KEY`
+   - Dig LLM (≥1): `GROQ_API_KEY` / `GEMINI_API_KEY` / `MISTRAL_API_KEY` / `NVIDIA_NIM_API_KEY`
+
+   **Full list**
+   `REDIS_URL_1`, `GROQ_API_KEY`, `GEMINI_API_KEY`, `NVIDIA_NIM_API_KEY`, `MISTRAL_API_KEY`, `HF_TOKEN`, `SERPER_API_KEY`, `TAVILY_API_KEY`, `SERPAPI_KEY`, `EXA_API_KEY`, `SCRAPFLY_API_KEY`, `ZENROWS_API_KEY`, `COMPANIES_HOUSE_API_KEY`, `WHOISJSON_API_KEY`
+
+   Aliases: `REDIS_URL`↔`REDIS_URL_1`, `EXA_1`↔`EXA_API_KEY`.  
+   Do **not** ask for `WHOXY_*` or `REDIS_URL_2`–`_5`.
+
+6. **Install (OOM-safe; Replit-hardened)**
+   ```bash
+   git fetch origin main && git checkout main && git pull origin main
+   git log -1 --oneline   # must be 42b36b0+
+
+   export NODE_OPTIONS=--max-old-space-size=1536
+   export NPM_CONFIG_REGISTRY=https://registry.npmjs.org
+   pnpm config set registry https://registry.npmjs.org
+   pnpm config set network-timeout 600000
+
+   # If lockfile tarball URLs point at an internal proxy (e.g. http://35.245.43.102/npm/...),
+   # rewrite ONLY those hosts to https://registry.npmjs.org/ — do not change package names/versions.
+   # Then:
+   pnpm install --no-frozen-lockfile --registry=https://registry.npmjs.org \
+     --child-concurrency 1 --network-concurrency 1 --fetch-retries 5 --fetch-timeout 600000
+   ```
+   Exit 137 = OOM → retry once with same flags. Do not strip dependencies.
+
+7. **Schema + builds**
+   ```bash
+   pnpm --filter @workspace/db run push
+   pnpm --dir artifacts/apex-finder run build
+   test -f artifacts/apex-finder/dist/public/index.html
+   pnpm --dir artifacts/api-server run build
+   pnpm run check:no-force-dig
+   pnpm run check:free-react
+   ```
+
+8. **Boot**
+   ```bash
+   ENABLE_AUTO_PIPELINE=false RESEARCH_DEPTH=standard bash scripts/replit-boot.sh
+   curl -sS http://127.0.0.1:8080/api/healthz
+   ```
+   Report only: status, redis, `bureauIntegrity`. If **critical** → stop; fix secrets offline; restart API.
+
+9. **Preview**  
+   This Repl’s public URL at **`/`** (hard refresh). Desk must be non-blank (Entities / Profile / Reactor, Dig contacts).  
+   Old “ApexFinder Pro” artifacts are **not** current.
 
 ---
 
-## 2. Canonical launch (the research command)
+## 2. Canonical research launch
 
 **HTTP only:**
 
@@ -46,44 +101,38 @@ POST /api/ingest/atlas-run
 Content-Type: application/json
 ```
 
-**Body** = `CANONICAL_ATLAS_LAUNCH_BODY` from  
-`artifacts/api-server/src/src/lib/atlas-launch-defaults.ts`:
+**Full bureau** body = `CANONICAL_ATLAS_LAUNCH_BODY` from  
+`artifacts/api-server/src/src/lib/atlas-launch-defaults.ts`.
+
+**Single-target Dig (scoreboard proof):**
 
 ```json
 {
-  "discoveryFirst": true,
-  "targetCount": 50,
-  "researchLimit": 10,
+  "singleTargetId": 12345,
   "runResearch": true,
-  "hotLeadsOnly": false,
-  "skipFaa": true,
-  "broadCategories": 3,
-  "batchSize": 50,
-  "phaseJBatchSize": 10,
+  "researchDepth": "standard",
   "targetTimeoutMs": 420000
 }
 ```
 
-**Expected response:** `202` with `{ "jobId": "<uuid>", ... }`  
-**If already running:** `409` with existing `jobId` — do not start a second pipeline.
+- Forces `discoveryFirst: false` for that id.
+- Expected: `202` + `jobId`. Already running → `409` (do not start a second job).
+- Poll `GET /api/ingest/atlas-status` until idle.
+- Empty card after dig: `POST /api/entities/rehydrate-contacts` `{"entityId": 12345}`.
+- Scoreboard: `bash scripts/replit-scoreboard-check.sh http://127.0.0.1:8080`
 
-**Shell helper (same body):**
+**Empty ledger:** run a **tiny** discovery-first seed only to create 1–3 entities (`targetCount`/`researchLimit` small, `skipFaa: true`), then **stop** (`DELETE /api/ingest/atlas-lock`) and run single-target Dig on a real id. Never invent entities or contacts. If Redis reports **quota exhausted**, replace `REDIS_URL_1` and restart API before digging.
 
-```bash
-./scripts/run-bureau.sh
-# or: ./scripts/run-bureau.sh http://localhost:8080
-```
-
-**UI:** Launch Apex Atlas button → same body via `launchAtlasPipeline()` in  
-`artifacts/apex-finder/src/lib/launch-atlas.ts`.
+**Shell helper:** `./scripts/run-bureau.sh` (canonical body).  
+**UI:** Launch Apex Atlas → same body via `launchAtlasPipeline()`.
 
 ---
 
 ## 3. While running
 
 - Monitor: `GET /api/ingest/atlas-status` and Reactor desk.
-- Architecture in play: discovery → identity/registries → agentic web (multi-LLM ReAct + tools) → OSINT tools (Maigret/Sherlock/Holehe when installed) → Phase J / contact persist → ledger.
-- Boss (Gemini) plans/monitors where wired; investigators use tools — **not** a single-model chat session.
+- Architecture: discovery → identity/registries → **agentic free ReAct dig** → OSINT tools → Phase J / contact persist → ledger.
+- Boss plans; dig models choose tool actions — not a fixed hop script.
 
 ---
 
@@ -93,9 +142,7 @@ Content-Type: application/json
 DELETE /api/ingest/atlas-lock
 ```
 
-Optional: `?jobId=<uuid>`
-
-Or UI **Stop** control (same endpoint).
+Or UI **Stop**. Optional `?jobId=<uuid>`.
 
 ---
 
@@ -103,77 +150,23 @@ Or UI **Stop** control (same endpoint).
 
 | Do not | Why |
 |--------|-----|
-| Set `ENABLE_AUTO_PIPELINE=true` unless asked | Continuous mass cycles ≠ one bureau run |
-| POST empty/random bodies | Defaults must match canonical |
-| Run only Phase J / only ingest | Incomplete bureau |
-| Seed fake people for demos as “research” | Corrupts ledger |
-| Start a second atlas-run while 409 | Single active pipeline |
+| `ENABLE_AUTO_PIPELINE=true` unless asked | Continuous mass cycles ≠ one bureau run |
+| POST empty/random bodies | Use canonical or documented single-target body |
+| Discovery-first as scoreboard proof | Proof is single-target Dig |
+| Seed fake people for demos | Corrupts ledger |
+| Second atlas-run while 409 | Single active pipeline |
+| Ask for DATABASE_URL / WHOXY / REDIS_URL_2+ | Not operator Secrets |
+| Create a second Repl mid-setup | Stay on the GitHub-imported BigContacts Repl |
+| Run only from detached Agent chat | Needs project Shell/workflow with injected Postgres |
 
 ---
 
-## 6. Replit agent one-liner
+## 6. Quick verify
 
-After import + secrets + install + schema + both services healthy:
-
-> POST `/api/ingest/atlas-run` with the canonical JSON body above.  
-> Poll `/api/ingest/atlas-status` until inactive or operator stops via `DELETE /api/ingest/atlas-lock`.  
-> Do not change the body shape or invent another entrypoint.
-
----
-
-## 7. Re-cook one existing ledger card (notice-phone upgrade)
-
-Old cards may still hold issuer switchboard phones from before the EDGAR notice-line protection.  
-There is no separate “re-enrich” job — use the single-target path, which re-runs `enrichEntityFullCircle` (including early EDGAR boost + phoneSource protection):
-
-```http
-POST /api/ingest/atlas-run
-Content-Type: application/json
-
-{
-  "singleTargetId": 12345,
-  "runResearch": true,
-  "targetTimeoutMs": 420000
-}
+```bash
+git log -1 --oneline
+pnpm run check:no-force-dig
+pnpm run check:free-react
+curl -sS http://127.0.0.1:8080/api/healthz
+bash scripts/replit-scoreboard-check.sh http://127.0.0.1:8080
 ```
-
-Replace `12345` with the entity id from the ledger.  
-This overwrites issuer/CH switchboard phones when a notice-line phone is found, and leaves true `EDGAR-Notice-Phone` values protected.  
-Alternatively: delete the stale card and re-discover the target.
-
-
-
-## Research depth
-
-For parity smokes vs plain Grok: `RESEARCH_DEPTH=standard` or `deep`. Default `fast` is bulk-cheap and under-digs.
-
----
-
-## Discovery-first smoke (post soft-retire templates)
-
-After tip with discovery agent (`runDiscoveryAgent` on `discoveryFirst`):
-
-1. `GET /api/healthz` — `bureauIntegrity` not critical; search + dig LLM slots live.
-2. Launch with canonical body (`discoveryFirst: true`, `researchLimit` small e.g. 3–5 for smoke).
-3. Job log / DigSpan should show **discovery_agent** stage and model-invented `web_search` / `visit` (not only template category strings).
-4. If agent admits ≥1 person, broad **template** discovery should be skipped unless `APEX_FORCE_TEMPLATE_DISCOVERY=1`.
-5. Open **Entities** / **Profile** — `ContactSurface` shows all presented routes (org chips allowed); empty + evidence → Rehydrate.
-6. Reactor **ScoreboardStrip** — no “pass” when integrity critical.
-7. Stop: `DELETE /api/ingest/atlas-lock`.
-
-Disable discovery agent only for debug: `APEX_DISCOVERY_AGENT=0`.
-
----
-
-## Dig contacts entry points (single-target free dig)
-
-All of these call `POST /api/ingest/atlas-run` with `singleTargetId` and `researchDepth: standard`
-(free ReAct dig owns the card — not MCTS-only, not web-osint-enrich as primary):
-
-1. **Profile** — header / research tab / mobile **Dig contacts**
-2. **Entities** — row Dig icon, mobile card **Dig contacts**, **Dig selected** (max 5 sequential)
-3. **Reactor Launch** — full batch or discovery-first
-
-After dig goes idle, the desk **rehydrates** evidence → card automatically.
-
-Skip Phase 10 MCTS when dig already wrote phone/email/linkedin or a non-empty contactOutcome.

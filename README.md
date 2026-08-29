@@ -10,7 +10,36 @@ It is designed for operators who need more than a company name and a generic inb
 
 ## Run the bureau (precise)
 
-Operators and Replit agents: follow **[docs/RUN_BUREAU.md](docs/RUN_BUREAU.md)** only. Canonical launch is `POST /api/ingest/atlas-run` with `CANONICAL_ATLAS_LAUNCH_BODY` — not ad-hoc startups.
+**One path only:**
+
+| Who | What to do |
+|-----|------------|
+| **Replit** | Import this repo → attach Postgres → open **Agent inside the Repl** → paste **[docs/REPLIT_UPDATE_PROMPT_LATEST.md](docs/REPLIT_UPDATE_PROMPT_LATEST.md)** (the fenced block). That is the full install → build → boot → Dig → scoreboard runbook. |
+| **Operators / Shell** | Follow **[docs/RUN_BUREAU.md](docs/RUN_BUREAU.md)** only. |
+| **Research command** | `POST /api/ingest/atlas-run` with `CANONICAL_ATLAS_LAUNCH_BODY` or single-target Dig body — not ad-hoc startups. |
+
+**Requirements in short**
+
+- Tip `main` at **42b36b0+** (Batch 10 API build repair)
+- API Server only on port **8080** (desk at `/`, API at `/api/`)
+- `ENABLE_AUTO_PIPELINE=false`
+- Secrets: Redis + search + dig LLM (never `DATABASE_URL` as a Secret — Replit injects it)
+- Dig is **free ReAct** (no force-hop scripts). Scoreboard proof = **single-target Dig**, not discovery-first bulk
+- Living handoff: **[docs/context.md](docs/context.md)**
+
+```bash
+# After secrets + Postgres (see RUN_BUREAU.md for full Replit hardening)
+git pull origin main && git log -1 --oneline
+pnpm install --registry=https://registry.npmjs.org --child-concurrency 1
+pnpm --filter @workspace/db run push
+pnpm --dir artifacts/apex-finder run build
+pnpm --dir artifacts/api-server run build
+pnpm run check:no-force-dig && pnpm run check:free-react
+ENABLE_AUTO_PIPELINE=false bash scripts/replit-boot.sh
+curl -sS http://127.0.0.1:8080/api/healthz
+```
+
+---
 
 ## The problem it solves
 
@@ -19,7 +48,7 @@ Most tools stop at the company.
 - Sales databases return a firmographic card and a guessed email pattern.
 - Company registries list directors but not how to contact them.
 - Classic OSINT frameworks map infrastructure and usernames, not investor reachability.
-- Generic AI chat can summarize the web, but it does not run a disciplined, multi-source research pipeline or keep a living ledger of people, roles, and evidence.
+- Generic AI chat can summarize the web, but it does not run a disciplined, multi-source research desk or keep a living ledger of people, roles, and evidence.
 
 If your work depends on **reaching the human who controls or influences capital** — mid-market owners, private-company leadership, family offices, succession-linked principals — those gaps compound quickly.
 
@@ -30,19 +59,19 @@ Apex Atlas is built for that job.
 ## What Apex Atlas does
 
 **1. Starts from the right target**  
-Company, person, or public asset trail (including on-chain signals where relevant). Discovery is oriented toward *who is economically important*, not only who appears in a marketing directory.
+Company, person, or public asset trail. Discovery is oriented toward *who is economically important*.
 
-**2. Researches across public sources in parallel**  
-Live web research, company filings, ownership registers, and related public records — combined so one weak source does not define the whole picture.
+**2. Researches across public sources**  
+Live web research and public records — models choose search/visit/OSINT tools (free ReAct), not a fixed hop script.
 
 **3. Builds people, not just companies**  
-Named principals with roles, relationships, and succession context where the public record supports it. Related people are first-class, not footnotes.
+Named principals with roles and relationships where the public record supports it.
 
 **4. Separates real contact paths from noise**  
-Personal or direct routes are distinguished from shared company inboxes and switchboards. Claims stay tied to sources. Invented or pattern-guessed contacts are not treated as facts.
+Claims stay tied to source URLs. Invented or pattern-guessed contacts are not treated as facts.
 
-**5. Keeps a research desk, not a one-off answer**  
-Results live in a workspace: entity ledger, relationship graph, live research activity, jobs, and review flows — so investigation can continue across sessions instead of disappearing into a chat scroll.
+**5. Keeps a research desk**  
+Entity ledger, relationship graph, live research activity, jobs, and review flows.
 
 In short: **discover → attribute people → maximize reachable contacts → keep evidence.**
 
@@ -52,8 +81,7 @@ In short: **discover → attribute people → maximize reachable contacts → ke
 
 - Teams researching **private mid-market companies** and their owners or officers  
 - Operators who need **attributable outreach paths**, not purchased spray lists  
-- Analysts tracing **ownership, succession, and related principals**  
-- Anyone comparing “who controls this” with “how do we actually reach them”
+- Analysts tracing **ownership, succession, and related principals**
 
 It is **not** a mass email database, a CRM, or a replacement for legal counsel on outreach compliance. It is a **public-records research product** for serious contact intelligence.
 
@@ -61,43 +89,29 @@ It is **not** a mass email database, a CRM, or a replacement for legal counsel o
 
 ## Closest alternatives — and why they are not the same
 
-| Category | Examples | What they do well | Why they are not Apex Atlas |
-|----------|----------|-------------------|-----------------------------|
-| **B2B contact databases** | Apollo, Hunter, Lusha, Cognism | Scale, domain email patterns, sales workflows | Built for volume outbound. Weak on private-company ownership trails, succession, and strict “is this really a personal reach path?” discipline. |
-| **Website → contact agents** | Tools that scrape About/Team pages into CSVs | Fast extraction from a known site | Usually one page or one domain at a time; little registry graph, little multi-hop ownership, no lasting research desk. |
-| **Classic OSINT suites** | Maltego, SpiderFoot, investigator CLIs | Link analysis, infra, username/email footprint | Excellent for investigations broadly; not productized around *investor/operator contact maximizer* outcomes. |
-| **Registry browsers** | Companies House, OpenCorporates, OpenOwnership | Authoritative officers and control | Stop at the filing. They do not assemble multi-source contact paths or a working desk around them. |
-| **LP / allocator platforms** | Institutional investor intelligence products | Fund and family-office coverage at scale | Different market (allocations and mandates), not mid-market owner/operator reachability. |
-| **General AI assistants** | Chat agents with web browse | Flexible ad-hoc research | No durable ledger, no fixed multi-phase pipeline, easy to blur org inboxes with personal contacts or invent plausible details. |
+| Category | Examples | Why they are not Apex Atlas |
+|----------|----------|-----------------------------|
+| **B2B contact databases** | Apollo, Hunter, Lusha | Volume outbound; weak on private ownership trails and strict personal-route discipline |
+| **Website → contact agents** | Single-site scrapers | Little multi-hop ownership; no lasting research desk |
+| **Classic OSINT suites** | Maltego, SpiderFoot | Broad investigation; not productized around investor/operator contact maximizer outcomes |
+| **Registry browsers** | Companies House, OpenCorporates | Stop at the filing |
+| **General AI assistants** | Chat agents with browse | No durable ledger; easy to blur org inboxes with personal contacts |
 
-**Apex Atlas sits in a thin band:** public OSINT depth **plus** a desk whose success metric is **attributable people-contacts** for capital-relevant targets. Neighbors exist on every side; the combination is uncommon.
-
----
-
-## How to think about it
-
-| If you need… | Apex Atlas |
-|--------------|------------|
-| A million verified work emails for SDR sequences | No — use a sales database |
-| A pure graph tool for sanctions or cyber investigations | Partial — registries help; the product goal is different |
-| “Who owns this private firm, who is related, and what public contact paths exist?” | **Yes — this is the center of the product** |
-| A workspace that keeps people, evidence, and live research runs together | **Yes** |
+**Apex Atlas sits in a thin band:** public OSINT depth **plus** a desk whose success metric is **attributable people-contacts** for capital-relevant targets.
 
 ---
 
 ## Repository (engineering)
 
-This monorepo contains the research desk UI, API/job pipeline, shared data layer, and evaluation scripts.
-
 ```text
-artifacts/apex-finder   → web research desk
-artifacts/api-server    → API, orchestration, enrichment
+artifacts/apex-finder   → web research desk (build → dist/public, served by API)
+artifacts/api-server    → API, orchestration, free-ReAct dig
 lib/                    → shared client, schema, contracts
-scripts/                → holdouts and quality floors
-docs/                   → architecture and testing notes
+scripts/                → quality floors, scoreboard, Replit boot
+docs/                   → RUN_BUREAU.md, context.md, REPLIT_UPDATE_PROMPT_LATEST.md
 ```
 
-Use **pnpm**. Full local runs need the API, database, Redis, and research provider keys. See `docs/ARCHITECTURE.md` and `docs/TESTING.md` for engineering detail.
+Use **pnpm**. Full runs need the API, database, Redis, and research provider keys.
 
 ---
 
@@ -106,3 +120,7 @@ Use **pnpm**. Full local runs need the API, database, Redis, and research provid
 **Every contact should be a person you can justify from the public record — not a guess that looks like one.**
 
 That principle is the product.
+
+## About
+
+Repository for [https://replit.com/@llhdeunvad/Wait-Instructions](https://replit.com/@llhdeunvad/Wait-Instructions)

@@ -2,7 +2,8 @@
 
 **Repo:** https://github.com/2f22vtd4kr-cloud/BigContacts  
 **Branch:** `main`  
-**Current tip floor:** `42b36b0` or newer (Batch 10 permanent build repair)  
+**Current tip floor:** `42b36b0` or newer (Batch 10 permanent build repair)
+**Canonical Replit path:** one paste — `docs/REPLIT_UPDATE_PROMPT_LATEST.md` (Agent inside the Repl). Expanded procedure: `docs/RUN_BUREAU.md`.  
 **Product:** Apex Atlas research bureau; **Bureau is its OSINT/research architecture**, not a separate product.
 
 ## Current state
@@ -105,9 +106,14 @@ bash scripts/replit-scoreboard-check.sh http://127.0.0.1:8080
 ## Quality gate
 After live Replit/GitHub execution, independent research on the same targets is the quality bar. Apex must honestly meet or beat it on identity, contact route, and source URL. Comparison is an audit, not a mechanism to manufacture an Apex win.
 
+
+### 2026-08-29 docs consolidation
+**Batch 11:** README, RUN_BUREAU, and REPLIT_UPDATE_PROMPT_LATEST rewritten so operators/agents have **one** Replit paste and one expanded runbook. Encodes OOM-safe install, lockfile proxy-host rewrite, no DATABASE_URL secret, project-runtime vs chat sandbox, empty-ledger seed-then-Dig, Redis quota, single-target scoreboard proof, free-ReAct law.
+
 ## Still open
 - ~~Permanent source fixes for atlas build breakers~~ — done Batch 10 (`59c71ce`).
-- Complete Replit install (post lockfile host rewrite) → desk + API build → boot → healthz on operator Repl.
+- ~~Consolidate README / RUN_BUREAU / one Replit prompt~~ — Batch 11.
+- Complete Replit Dig + scoreboard when ledger has ≥1 entity and Redis quota is healthy.
 - First honest Batch 10 public `/` preview (fresh desk build).
 - First single-target Dig + scoreboard under non-critical integrity.
 - Get live-audit GitHub Actions through build **without** relying on CI source mutation for the two fixed errors.
