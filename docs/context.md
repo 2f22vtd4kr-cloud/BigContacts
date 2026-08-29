@@ -40,13 +40,17 @@ The existing `scripts/check-no-force-dig.sh` blocks explicit `force_*`, GROK-PAR
 
 The current Dig implementation also has provider-level request ceilings of roughly 40s Groq, 45s Mistral, and 50s NVIDIA, with sequential failover. That is a concrete timeout-risk when a bounded Dig budget is shorter than the worst-case provider chain; it is now an identified troubleshooting target. The code still exposes the full model-selected OSINT action surface and does not encode a fixed research sequence.
 
-**Batch 7:** Added `.github/workflows/apex-live-audit.yml` and committed it to `main` (`09b2035cff819b40a66c436bfc3e48b582620b22`). This is the first repository-native executable audit harness intended to run the real API with local Postgres/Redis, real provider secrets from GitHub Actions Secrets, free-ReAct integrity checks, a real discovery-first Bureau run, status polling, entity/evidence capture, and scoreboard artifacts. It is deliberately independent of Replit so a Replit session timeout cannot block the experiment. The workflow was committed successfully; the GitHub connector did not yet return a workflow run for that commit at the time of this update, so **no live result from Batch 7 is claimed yet**.
+**Batch 7:** Added `.github/workflows/apex-live-audit.yml` and committed it to `main` (`09b2035cff819b40a66c436bfc3e48b582620b22`). This is the first repository-native executable audit harness intended to run the real API with local Postgres/Redis, real provider secrets from GitHub Actions Secrets, free-ReAct integrity checks, a real discovery-first Bureau run, status polling, entity/evidence capture, and scoreboard artifacts.
+
+**Batch 8:** The first actual execution of that harness ran in GitHub Actions and failed at the build stage before the API could start. The runner successfully installed workspace dependencies, PostgreSQL and Redis, applied the DB schema, and loaded the configured provider-secret environment (Mistral and EXA_1 were empty in this runner). The build exposed two concrete source merge artifacts: a duplicate `ATLAS_LATEST_DISPLAY_TTL_MS` declaration in `artifacts/api-server/src/src/routes/atlas.ts`, and a malformed nested `import {` immediately before the `phone-source-priority` import in `artifacts/api-server/src/src/lib/atlas-orchestrator.ts`. Consequently health, ReAct checks, and live Bureau were correctly skipped. This is a real failure, not a test pass.
+
+**Batch 9:** Added a CI-only normalization step to `.github/workflows/apex-live-audit.yml` that removes those two known textual merge artifacts from the checkout before build. Commit: `4f888f8aede9a8c3c16311fbed57b63b76f6ce90`. This is a diagnostic bridge to unblock the live runtime; it is **not yet the preferred permanent source fix**. The next execution must prove whether the normalized tree builds and reaches API/Dig; after that, the underlying source files should be repaired cleanly rather than relying on CI mutation.
 
 Validation actually performed in this session:
-- Direct inspection of the canonical ReAct loop, action parser, provider failover, orientation, atlas launch route, entity route, comparison template/contract, scoreboard script, and Bureau runbook.
-- Historical GitHub Actions logs were inspected and confirmed real API/Redis startup, provider loading, repeated poll timeouts, forced-visit experiment discard, and repeated empty LLM proposal rounds.
-- GitHub write succeeded for the executable live-audit workflow.
-- **No current live Replit Dig or current live GitHub Actions Bureau result has been verified yet. Do not report these as passing.**
+- Inspected the current `atlas.ts` and `atlas-orchestrator.ts` source around both reported build errors and confirmed the exact malformed/duplicate lines.
+- Inspected the failed GitHub Actions job logs end-to-end. Dependencies, Postgres, Redis and schema setup succeeded; build failed with exactly the two syntax/duplicate-declaration errors; API never started.
+- Committed the CI normalization bridge successfully.
+- **No current live Bureau Dig or Apex-vs-independent score has yet been verified.**
 
 ## Architecture
 | Role | Owns | Must not |
@@ -72,7 +76,8 @@ Validation actually performed in this session:
 After live Replit/GitHub execution, independent research on the same targets is the quality bar. Apex must honestly meet or beat it on identity, contact route, and source URL. Comparison is an audit, not a mechanism to manufacture an Apex win.
 
 ## Still open
-- Get the new GitHub Actions live-audit workflow to execute and retrieve its artifacts/results.
+- Get the post-Batch-9 GitHub Actions live-audit execution through build and retrieve its artifacts/results.
+- Replace the CI normalization bridge with clean permanent source fixes after confirming both errors.
 - Fix the concrete provider-chain / bounded-Dig timeout risk if the live audit reproduces it.
 - Execute the 8-fixture Apex-vs-independent comparison with real public targets and record complete Dig trajectories/evidence.
 - Multi-name card identity binding.
