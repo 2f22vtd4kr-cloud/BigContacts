@@ -62,8 +62,8 @@ import { reachabilityOrderExpr } from "./reachability-rank";
 import { backfillWealthLLM } from "./wealth-estimator";
 import { materializeBusinessAsset } from "./business-assets";
 import { runTargetResearch } from "./target-research";
-import {
 import { isAgenticPhoneSource, isNoticePhoneSource, isProtectedPhoneSource, resolveProtectedCardPhone } from "./phone-source-priority";
+import {
   expandSecondaryPublicSurface,
   persistBureauContactsForEntity,
   rehydrateEntityCardFromEvidence,

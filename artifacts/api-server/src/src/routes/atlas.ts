@@ -58,7 +58,6 @@ function withBudget<T>(p: Promise<T>, fallback: T, ms = STATUS_REDIS_BUDGET_MS):
   });
 }
 
-
 function lastLogActivityMs(log: string[]): number {
   for (const line of log.slice(0, 12)) {
     const m = String(line).match(/^(\d{4}-\d{2}-\d{2}T[\d:.]+Z)/);
@@ -69,7 +68,6 @@ function lastLogActivityMs(log: string[]): number {
   }
   return NaN;
 }
-
 
 // ── POST /ingest/atlas-run ────────────────────────────────────────────────────
 router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<void> => {
@@ -296,7 +294,7 @@ router.delete("/ingest/atlas-lock/:jobId", async (req: Request, res: Response): 
 // state. Permanent Redis keeps history for 7 days; without a freshness gate a
 // completed single-target pass (e.g. CarCollect) stays stuck on the Reactor
 // across re-imports and idle continuous cycles.
-const ATLAS_LATEST_DISPLAY_TTL_MS = 15 * 60 * 1_000;
+
 /** Hard ceiling — running jobs older than this are always cleared. */
 function isFreshAtlasTerminal(job: { status?: string; finishedAt?: string; startedAt?: string }): boolean {
   if (job.status !== "done" && job.status !== "failed" && job.status !== "cancelled") return false;
@@ -311,7 +309,6 @@ function isFreshAtlasTerminal(job: { status?: string; finishedAt?: string; start
 // Desk polls this often; short in-process cache cuts Redis GETs without lying for long.
 let _atlasStatusCache: { at: number; body: unknown } | null = null;
 const ATLAS_STATUS_CACHE_MS = 2_000;
-
 
 // GET /ingest/scoreboard-snapshot — score recent cards for COMPARE_*.md (Vol 68/76)
 router.get("/ingest/scoreboard-snapshot", async (req: Request, res: Response): Promise<void> => {
