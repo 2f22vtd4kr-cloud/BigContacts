@@ -1,0 +1,1 @@
+- [Imported workspace installs](imported-workspace-installs.md) — when pnpm lock tarballs point at an unreachable proxy, resolve manifests from npm without rewriting the lockfile.
