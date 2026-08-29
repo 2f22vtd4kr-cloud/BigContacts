@@ -2,7 +2,7 @@
 
 **Repo:** https://github.com/2f22vtd4kr-cloud/BigContacts  
 **Branch:** `main`  
-**Current tip floor:** `42b36b0` or newer (Batch 10 permanent build repair)
+**Current tip floor:** `42b36b0` or newer (prefer latest `main`; Batch 10+ build repair)
 **Canonical Replit path:** one paste — `docs/REPLIT_UPDATE_PROMPT_LATEST.md` (Agent inside the Repl). Expanded procedure: `docs/RUN_BUREAU.md`.  
 **Product:** Apex Atlas research bureau; **Bureau is its OSINT/research architecture**, not a separate product.
 
@@ -116,10 +116,15 @@ After live Replit/GitHub execution, independent research on the same targets is 
 
 Prior live Repl went down / out of credits before sustained Dig monitoring — no verified scoreboard pass claimed.
 
+
+### 2026-08-29 new-account greenfield (credits exhausted)
+**Batch 13:** Prior Repl hit **out of credits** mid-monitor; live URL went down. Operator moves to a **new funded Replit account**. Canonical path remains **one paste**: `docs/REPLIT_UPDATE_PROMPT_LATEST.md` inside the new Repl after GitHub import + Postgres + Secrets. Do not resume the dead Repl. Success still means: healthz not critical, non-blank desk, ≥1 real entity, free-ReAct single-target Dig trajectory (model-chosen tools + source URLs), scoreboard numbers. CI red ✕ on comparison-contract is unrelated to Replit boot.
+
 ## Still open
 - ~~Permanent source fixes for atlas build breakers~~ — done Batch 10 (`59c71ce`).
 - ~~Consolidate README / RUN_BUREAU / one Replit prompt~~ — Batch 11.
-- Greenfield on a **funded** Replit account via Batch 12 one-shot prompt; complete Dig + scoreboard with ≥1 entity and healthy Redis.
+- Greenfield on a **funded** Replit account (Batch 12/13 one-shot prompt); complete Dig + scoreboard with ≥1 entity and healthy Redis.
+- Prior Repl retired: credits exhausted (2026-08-29 evening).
 - First honest Batch 10 public `/` preview (fresh desk build).
 - First single-target Dig + scoreboard under non-critical integrity.
 - Get live-audit GitHub Actions through build **without** relying on CI source mutation for the two fixed errors.
