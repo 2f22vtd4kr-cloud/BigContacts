@@ -75,9 +75,16 @@ Validation actually performed in this session:
 ## Quality gate
 After live Replit/GitHub execution, independent research on the same targets is the quality bar. Apex must honestly meet or beat it on identity, contact route, and source URL. Comparison is an audit, not a mechanism to manufacture an Apex win.
 
+
+### 2026-08-29 permanent build repair
+**Batch 10:** Permanent source fixes on `main` (`59c71ce`):
+- `atlas-orchestrator.ts` — fixed nested `import { import { ... phone-source-priority` merge artifact.
+- `atlas.ts` — removed duplicate `ATLAS_LATEST_DISPLAY_TTL_MS` declaration.
+CI checkout mutation bridge is no longer required for these two errors. Replit/API build should succeed without Python normalization. Free-ReAct integrity unchanged.
+
 ## Still open
 - Get the post-Batch-9 GitHub Actions live-audit execution through build and retrieve its artifacts/results.
-- Replace the CI normalization bridge with clean permanent source fixes after confirming both errors.
+- ~~Replace the CI normalization bridge with clean permanent source fixes~~ — done in Batch 10 (`59c71ce`).
 - Fix the concrete provider-chain / bounded-Dig timeout risk if the live audit reproduces it.
 - Execute the 8-fixture Apex-vs-independent comparison with real public targets and record complete Dig trajectories/evidence.
 - Multi-name card identity binding.
