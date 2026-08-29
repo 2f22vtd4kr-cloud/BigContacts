@@ -10,36 +10,25 @@ It is designed for operators who need more than a company name and a generic inb
 
 ## Run the bureau (precise)
 
-**One path only. Do not invent alternate startups.**
+**One path only:**
 
 | Who | What to do |
 |-----|------------|
-| **Replit (preferred)** | New/fresh account → Create Repl **from this GitHub repo** (`main`) → attach **Postgres** → Secrets → open **Agent inside that Repl** → paste the fenced block in **[docs/REPLIT_UPDATE_PROMPT_LATEST.md](docs/REPLIT_UPDATE_PROMPT_LATEST.md)**. That single paste is install → build → boot → seed if empty → single-target Dig → scoreboard. |
-| **Operators / Shell** | **[docs/RUN_BUREAU.md](docs/RUN_BUREAU.md)** only (same procedure expanded). |
-| **Research command** | `POST /api/ingest/atlas-run` with canonical body or `singleTargetId` Dig body — not ad-hoc scripts. |
-
-Living handoff: **[docs/context.md](docs/context.md)**. Tip floor: **42b36b0+**.
+| **Replit (Aug 2026+)** | Funded account → create **Replit App / project from this GitHub repo** → platform **Postgres is automatic** (`DATABASE_URL` injected — do not paste it) → put **Upstash Redis** + API keys in **Secrets** → open **Agent inside that App** → paste **[docs/REPLIT_UPDATE_PROMPT_LATEST.md](docs/REPLIT_UPDATE_PROMPT_LATEST.md)** (fenced block). One paste = install → build → boot → seed if empty → single-target Dig → scoreboard. |
+| **Operators / Shell** | Follow **[docs/RUN_BUREAU.md](docs/RUN_BUREAU.md)** only. |
+| **Research command** | `POST /api/ingest/atlas-run` with `CANONICAL_ATLAS_LAUNCH_BODY` or single-target Dig body — not ad-hoc startups. |
 
 **Requirements in short**
 
-- Tip `main` at **42b36b0+** (Batch 10 API build repair)
+- Tip `main` at **42b36b0+** (prefer latest; Batch 10 API build repair)
 - API Server only on port **8080** (desk at `/`, API at `/api/`)
 - `ENABLE_AUTO_PIPELINE=false`
-- Secrets: Redis + search + dig LLM (never `DATABASE_URL` as a Secret — Replit injects it)
+- **Postgres:** Replit platform (not an operator secret)
+- **Redis:** operator **Upstash** URL as `REDIS_URL_1` / `REDIS_URL`
+- Search + dig LLM keys in Secrets
 - Dig is **free ReAct** (no force-hop scripts). Scoreboard proof = **single-target Dig**, not discovery-first bulk
 - Living handoff: **[docs/context.md](docs/context.md)**
 
-```bash
-# After secrets + Postgres (see RUN_BUREAU.md for full Replit hardening)
-git pull origin main && git log -1 --oneline
-pnpm install --registry=https://registry.npmjs.org --child-concurrency 1
-pnpm --filter @workspace/db run push
-pnpm --dir artifacts/apex-finder run build
-pnpm --dir artifacts/api-server run build
-pnpm run check:no-force-dig && pnpm run check:free-react
-ENABLE_AUTO_PIPELINE=false bash scripts/replit-boot.sh
-curl -sS http://127.0.0.1:8080/api/healthz
-```
 
 ---
 

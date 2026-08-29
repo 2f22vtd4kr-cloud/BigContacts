@@ -3,7 +3,7 @@
 **Repo:** https://github.com/2f22vtd4kr-cloud/BigContacts  
 **Branch:** `main`  
 **Current tip floor:** `42b36b0` or newer (prefer latest `main`; Batch 10+ build repair)
-**Canonical Replit path:** one paste — `docs/REPLIT_UPDATE_PROMPT_LATEST.md` (Agent inside the Repl). Expanded procedure: `docs/RUN_BUREAU.md`.  
+**Canonical Replit path:** one paste — `docs/REPLIT_UPDATE_PROMPT_LATEST.md` (Agent inside the App). Expanded procedure: `docs/RUN_BUREAU.md`.  
 **Product:** Apex Atlas research bureau; **Bureau is its OSINT/research architecture**, not a separate product.
 
 ## Current state
@@ -51,13 +51,13 @@ Guards:
 **What failed in sessions (not product cuts):**
 1. Agent OOM during `pnpm install` (exit 137) — use low concurrency + `NODE_OPTIONS=--max-old-space-size=1536`.
 2. Replit package firewall/proxy — lockfile tarball URLs pointed at internal host `http://35.245.43.102/npm/...` (and similar). Public `registry.npmjs.org` returned 200 while pnpm still fetched lockfile URLs.
-3. Agent conversation sandbox not attached to Repl runtime — no injected `DATABASE_URL`; cannot truthfully boot API from pure chat. Must run in the **project Shell / API Server workflow** of the real BigContacts Repl.
-4. Wrong project handoff (“create Apex Atlas”) and wrong account path guesses — ignore; stay on the Repl imported from this GitHub repo.
+3. Agent detached Agent chat without project env not attached to Repl runtime — no injected `DATABASE_URL`; cannot truthfully boot API from pure chat. Must run in the **project Shell / API Server workflow** of the real BigContacts Replit App.
+4. Wrong project handoff (“create Apex Atlas”) and wrong account path guesses — ignore; stay on the App imported from this GitHub repo.
 5. Old **ApexFinder Pro** web artifact is **not** Batch 10 preview. Only a fresh `artifacts/apex-finder` build + API serving `dist/public` counts.
 
 **Lockfile recovery (allowed):** rewrite **only** firewall/proxy hosts in `pnpm-lock.yaml` to `https://registry.npmjs.org/` — do **not** change package names, versions, or invent dependency cuts. Example observed host: `http://35.245.43.102/npm/`.
 
-**DATABASE_URL:** never ask, paste, or store as a Secret. Replit Postgres injects it into the Repl environment.
+**DATABASE_URL:** never ask, paste, or store as a Secret. Replit Postgres injects it into the App environment.
 
 **Minimum secrets for non-critical integrity:** one Redis (`REDIS_URL` or `REDIS_URL_1`), one web-search provider (Serper/Tavily/Exa), one dig LLM (Groq/Gemini/Mistral/NVIDIA). Without search or dig LLM → `bureauIntegrity=critical` → do not claim quality.
 
@@ -100,7 +100,7 @@ bash scripts/replit-scoreboard-check.sh http://127.0.0.1:8080
 - Never ask for/invent/print `DATABASE_URL`, `WHOXY_*`, or `REDIS_URL_2`–`_5`.
 - Canonical setup: `docs/REPLIT_UPDATE_PROMPT_LATEST.md` (update tip floor to 42b36b0+ when editing that file).
 - Single-target scoreboard proof uses `singleTargetId` and `discoveryFirst:false`.
-- Agent must execute inside the project runtime (Shell/workflow), not a detached conversation sandbox.
+- Agent must execute inside the project runtime (Shell/workflow), not a detached detached Agent chat without project env.
 - Do not create a second Repl mid-setup; do not treat old ApexFinder Pro artifact as current.
 
 ## Quality gate
@@ -119,6 +119,10 @@ Prior live Repl went down / out of credits before sustained Dig monitoring — n
 
 ### 2026-08-29 new-account greenfield (credits exhausted)
 **Batch 13:** Prior Repl hit **out of credits** mid-monitor; live URL went down. Operator moves to a **new funded Replit account**. Canonical path remains **one paste**: `docs/REPLIT_UPDATE_PROMPT_LATEST.md` inside the new Repl after GitHub import + Postgres + Secrets. Do not resume the dead Repl. Success still means: healthz not critical, non-blank desk, ≥1 real entity, free-ReAct single-target Dig trajectory (model-chosen tools + source URLs), scoreboard numbers. CI red ✕ on comparison-contract is unrelated to Replit boot.
+
+
+### 2026-08-29 Replit platform wording (Aug 2026+)
+**Batch 14:** Docs no longer say “Repl” or “use platform Postgres.” Replit ships **Apps / projects**; **Postgres is platform-provided** (`DATABASE_URL` injected — never an operator Secret). **Redis is operator Upstash** (`REDIS_URL_1`). One-shot prompt + RUN_BUREAU + README updated accordingly. Credits still required for Agent/compute.
 
 ## Still open
 - ~~Permanent source fixes for atlas build breakers~~ — done Batch 10 (`59c71ce`).
