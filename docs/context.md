@@ -2,12 +2,17 @@
 
 **Repo:** https://github.com/2f22vtd4kr-cloud/BigContacts  
 **Branch:** `main`  
+**Current tip floor:** `42b36b0` or newer (Batch 10 permanent build repair)  
 **Product:** Apex Atlas research bureau; **Bureau is its OSINT/research architecture**, not a separate product.
 
 ## Current state
 Apex Atlas is an AI-driven research bureau embedded in BigContacts. Models decide research actions; tools execute. The Dig path is free ReAct for one target and supports web search, page visits, browser fetching, email/username footprinting, domain/WHOIS, registry lookup, domain harvesting, reverse WHOIS, and `done`. Findings require real source URLs and are fail-closed. Dig findings persist into Bureau evidence and are promoted/rehydrated into the entity card.
 
 Boss = Gemini. Right-hand = NVIDIA. Dig failover = Groq → Mistral → Gemini → NVIDIA. Every LLM prompt receives `apex-bureau-orientation.ts` because calls are memoryless.
+
+**Build status (2026-08-29):** The two source merge artifacts that blocked `api-server` build are **fixed permanently** on `main` (`59c71ce`). CI checkout mutation for those two errors is obsolete.
+
+**Replit status (2026-08-29):** No verified live Batch 10 desk preview / Dig / scoreboard yet in the operator’s sessions. Blockers so far have been **environmental** (OOM 137, Replit npm firewall/proxy, agent not attached to Repl runtime), not product reduction and not free-ReAct regressions.
 
 ## Non-negotiable product law
 - Never reintroduce force-hop, fixed-step, GROK-PARITY, ranked prefer-list, or scripted research playbooks.
@@ -21,36 +26,60 @@ Boss = Gemini. Right-hand = NVIDIA. Dig failover = Groq → Mistral → Gemini �
 ## ReAct implementation
 `artifacts/api-server/src/src/lib/agentic-web-research.ts` is the canonical API-server Dig loop. `artifacts/api-server/src/src/lib/bureau-agentic-pass.ts` wraps it for Bureau. `artifacts/api-server/src/src/lib/apex-bureau-orientation.ts` supplies product/role/tool orientation.
 
-The existing `scripts/check-no-force-dig.sh` blocks explicit `force_*`, GROK-PARITY, and force-company-surface regressions.
+Guards:
+- `scripts/check-no-force-dig.sh` — blocks `force_*`, GROK-PARITY, force-company-surface
+- `scripts/check-bureau-free-react.mjs` (`pnpm run check:free-react`) — requires model-selectable `web_search` / `visit` / `done`; rejects force-hop/playbook markers
+- Wired into `pnpm run check:bureau` with trajectory + comparison-contract checks
 
 ### 2026-08-28 free-ReAct integrity batches
-**Batch 1:** Added `scripts/check-bureau-free-react.mjs` and wired it into the root scripts as `check:free-react` and `check:bureau`. The guard verifies that the Dig controller retains model-selectable `web_search`, `visit`, and `done` actions and rejects explicit force-hop/playbook markers. It is intentionally a guard, not a research script: it does not prescribe a research sequence.
-
-**Batch 2:** Fixed the new guard's repository-root resolution. The first implementation resolved one directory too high when launched from `scripts/`; it now derives the scripts directory from `import.meta.url` and resolves the repository root from there. This was committed directly to `main` so the guard can actually execute against `artifacts/api-server/src/src/lib/agentic-web-research.ts`.
+**Batch 1–2:** free-react guard + repository-root resolution fix.
 
 ### 2026-08-29 comparison/evidence batches
-**Batch 3:** Strengthened the actual Apex-vs-independent-research comparison contract rather than adding a separate benchmark product. `scripts/compare-template.mjs` and its contract require evidence URLs, ordered trajectories, tool-call counts, strategy changes/dead-end recovery/early-stop notes, and explicit `Apex wins / tie / Apex loses` outcomes. The root `check:bureau` includes the comparison contract.
-
-**Batch 4:** Hardened the comparison protocol for reproducibility. The comparison template now freezes fixtures before Apex runs, requires three trials per fixture to be recorded as actually run (no silent cherry-picking), records trial-level duration/actions/evidence and aggregate Apex-vs-baseline quality, and adds explicit independence, free-ReAct, evidence/promotion, and failure-classification audits. This remains an audit of Apex rather than a mechanism for manufacturing an Apex win.
-
-**Batch 5:** Added `scripts/evaluate-bureau-trajectory.mjs`, a deterministic trajectory-level autonomy evaluator. It consumes recorded Dig steps and checks the observed action surface, invalid/forced actions, termination, trajectory diversity, and model/provider decision evidence without scoring research quality. Added `scripts/fixtures/free-react-sample.json` and wired `check:trajectory` into `check:bureau`. This is deliberately separate from the quality comparator: autonomy evidence answers whether the run behaved like free ReAct; the blind outcome comparison answers whether the research was good.
+**Batch 3–5:** comparison template contract, reproducible protocol, trajectory-level autonomy evaluator (`check:trajectory`).
 
 ### 2026-08-29 live-execution recovery
-**Batch 6:** Investigated the timeout problem instead of treating it as an opaque Replit failure. Historical GitHub Actions execution of the actual Apex runtime proved that the API can start with Postgres + Redis and provider keys loaded, but the older overnight loop repeatedly hit `poll_timeout` and an experiment that explicitly forced a visit after domain search; that experiment scored 13 vs a baseline of 109 and was discarded. The same run then recorded 12 LLM rounds with repeated empty proposals at score 13. This is historical evidence, not a current pass/fail claim.
+**Batch 6–9:** timeout investigation notes; live-audit workflow; first CI run failed at **build** on two merge artifacts; temporary CI normalization bridge added (diagnostic only).
 
-The current Dig implementation also has provider-level request ceilings of roughly 40s Groq, 45s Mistral, and 50s NVIDIA, with sequential failover. That is a concrete timeout-risk when a bounded Dig budget is shorter than the worst-case provider chain; it is now an identified troubleshooting target. The code still exposes the full model-selected OSINT action surface and does not encode a fixed research sequence.
+### 2026-08-29 permanent build repair
+**Batch 10** (`59c71ce` source + `42b36b0` context):
+- `artifacts/api-server/src/src/lib/atlas-orchestrator.ts` — fixed nested `import { import { ... phone-source-priority` merge artifact; clean separate imports for `phone-source-priority` and `bureau-contact-persist`.
+- `artifacts/api-server/src/src/routes/atlas.ts` — removed duplicate `const ATLAS_LATEST_DISPLAY_TTL_MS` (keep single declaration; later use unchanged).
+- Free-ReAct integrity unchanged. API build no longer depends on CI text mutation for these two errors.
 
-**Batch 7:** Added `.github/workflows/apex-live-audit.yml` and committed it to `main` (`09b2035cff819b40a66c436bfc3e48b582620b22`). This is the first repository-native executable audit harness intended to run the real API with local Postgres/Redis, real provider secrets from GitHub Actions Secrets, free-ReAct integrity checks, a real discovery-first Bureau run, status polling, entity/evidence capture, and scoreboard artifacts.
+### 2026-08-29 Replit operational path (greenfield + recovery)
+**What failed in sessions (not product cuts):**
+1. Agent OOM during `pnpm install` (exit 137) — use low concurrency + `NODE_OPTIONS=--max-old-space-size=1536`.
+2. Replit package firewall/proxy — lockfile tarball URLs pointed at internal host `http://35.245.43.102/npm/...` (and similar). Public `registry.npmjs.org` returned 200 while pnpm still fetched lockfile URLs.
+3. Agent conversation sandbox not attached to Repl runtime — no injected `DATABASE_URL`; cannot truthfully boot API from pure chat. Must run in the **project Shell / API Server workflow** of the real BigContacts Repl.
+4. Wrong project handoff (“create Apex Atlas”) and wrong account path guesses — ignore; stay on the Repl imported from this GitHub repo.
+5. Old **ApexFinder Pro** web artifact is **not** Batch 10 preview. Only a fresh `artifacts/apex-finder` build + API serving `dist/public` counts.
 
-**Batch 8:** The first actual execution of that harness ran in GitHub Actions and failed at the build stage before the API could start. The runner successfully installed workspace dependencies, PostgreSQL and Redis, applied the DB schema, and loaded the configured provider-secret environment (Mistral and EXA_1 were empty in this runner). The build exposed two concrete source merge artifacts: a duplicate `ATLAS_LATEST_DISPLAY_TTL_MS` declaration in `artifacts/api-server/src/src/routes/atlas.ts`, and a malformed nested `import {` immediately before the `phone-source-priority` import in `artifacts/api-server/src/src/lib/atlas-orchestrator.ts`. Consequently health, ReAct checks, and live Bureau were correctly skipped. This is a real failure, not a test pass.
+**Lockfile recovery (allowed):** rewrite **only** firewall/proxy hosts in `pnpm-lock.yaml` to `https://registry.npmjs.org/` — do **not** change package names, versions, or invent dependency cuts. Example observed host: `http://35.245.43.102/npm/`.
 
-**Batch 9:** Added a CI-only normalization step to `.github/workflows/apex-live-audit.yml` that removes those two known textual merge artifacts from the checkout before build. Commit: `4f888f8aede9a8c3c16311fbed57b63b76f6ce90`. This is a diagnostic bridge to unblock the live runtime; it is **not yet the preferred permanent source fix**. The next execution must prove whether the normalized tree builds and reaches API/Dig; after that, the underlying source files should be repaired cleanly rather than relying on CI mutation.
+**DATABASE_URL:** never ask, paste, or store as a Secret. Replit Postgres injects it into the Repl environment.
 
-Validation actually performed in this session:
-- Inspected the current `atlas.ts` and `atlas-orchestrator.ts` source around both reported build errors and confirmed the exact malformed/duplicate lines.
-- Inspected the failed GitHub Actions job logs end-to-end. Dependencies, Postgres, Redis and schema setup succeeded; build failed with exactly the two syntax/duplicate-declaration errors; API never started.
-- Committed the CI normalization bridge successfully.
-- **No current live Bureau Dig or Apex-vs-independent score has yet been verified.**
+**Minimum secrets for non-critical integrity:** one Redis (`REDIS_URL` or `REDIS_URL_1`), one web-search provider (Serper/Tavily/Exa), one dig LLM (Groq/Gemini/Mistral/NVIDIA). Without search or dig LLM → `bureauIntegrity=critical` → do not claim quality.
+
+**Canonical Replit sequence:**
+```bash
+git pull origin main && git log -1 --oneline   # 42b36b0+
+# if lockfile has internal proxy IP hosts → rewrite hosts only (see above)
+export NODE_OPTIONS=--max-old-space-size=1536
+export NPM_CONFIG_REGISTRY=https://registry.npmjs.org
+pnpm install --no-frozen-lockfile --registry=https://registry.npmjs.org \
+  --child-concurrency 1 --network-concurrency 1 --fetch-retries 5 --fetch-timeout 600000
+pnpm --filter @workspace/db run push
+pnpm --dir artifacts/apex-finder run build
+test -f artifacts/apex-finder/dist/public/index.html
+pnpm --dir artifacts/api-server run build
+pnpm run check:no-force-dig && pnpm run check:free-react
+ENABLE_AUTO_PIPELINE=false RESEARCH_DEPTH=standard bash scripts/replit-boot.sh
+curl -sS http://127.0.0.1:8080/api/healthz
+# if integrity not critical → single-target Dig (standard, discoveryFirst false) → scoreboard
+bash scripts/replit-scoreboard-check.sh http://127.0.0.1:8080
+```
+
+**Scoreboard proof:** `POST /api/ingest/atlas-run` with `singleTargetId` + `researchDepth: "standard"` — not discovery-first bulk.
 
 ## Architecture
 | Role | Owns | Must not |
@@ -66,31 +95,26 @@ Validation actually performed in this session:
 ## Replit law
 - One API workflow on port 8080; desk at `/`, API at `/api/`.
 - `ENABLE_AUTO_PIPELINE=false` by default.
-- One Redis (`REDIS_URL_1`).
+- One Redis (`REDIS_URL_1` or `REDIS_URL`).
 - Never ask for/invent/print `DATABASE_URL`, `WHOXY_*`, or `REDIS_URL_2`–`_5`.
-- Canonical setup: `docs/REPLIT_UPDATE_PROMPT_LATEST.md`.
+- Canonical setup: `docs/REPLIT_UPDATE_PROMPT_LATEST.md` (update tip floor to 42b36b0+ when editing that file).
 - Single-target scoreboard proof uses `singleTargetId` and `discoveryFirst:false`.
-- Bounded Dig proof has a 90-second ceiling/forced stop if the API freezes.
+- Agent must execute inside the project runtime (Shell/workflow), not a detached conversation sandbox.
+- Do not create a second Repl mid-setup; do not treat old ApexFinder Pro artifact as current.
 
 ## Quality gate
 After live Replit/GitHub execution, independent research on the same targets is the quality bar. Apex must honestly meet or beat it on identity, contact route, and source URL. Comparison is an audit, not a mechanism to manufacture an Apex win.
 
-
-### 2026-08-29 permanent build repair
-**Batch 10:** Permanent source fixes on `main` (`59c71ce`):
-- `atlas-orchestrator.ts` — fixed nested `import { import { ... phone-source-priority` merge artifact.
-- `atlas.ts` — removed duplicate `ATLAS_LATEST_DISPLAY_TTL_MS` declaration.
-CI checkout mutation bridge is no longer required for these two errors. Replit/API build should succeed without Python normalization. Free-ReAct integrity unchanged.
-
 ## Still open
-- Get the post-Batch-9 GitHub Actions live-audit execution through build and retrieve its artifacts/results.
-- ~~Replace the CI normalization bridge with clean permanent source fixes~~ — done in Batch 10 (`59c71ce`).
-- Fix the concrete provider-chain / bounded-Dig timeout risk if the live audit reproduces it.
-- Execute the 8-fixture Apex-vs-independent comparison with real public targets and record complete Dig trajectories/evidence.
+- ~~Permanent source fixes for atlas build breakers~~ — done Batch 10 (`59c71ce`).
+- Complete Replit install (post lockfile host rewrite) → desk + API build → boot → healthz on operator Repl.
+- First honest Batch 10 public `/` preview (fresh desk build).
+- First single-target Dig + scoreboard under non-critical integrity.
+- Get live-audit GitHub Actions through build **without** relying on CI source mutation for the two fixed errors.
+- Provider-chain / bounded-Dig timeout risk if reproduced live.
+- 8-fixture Apex-vs-independent comparison with full trajectories.
 - Multi-name card identity binding.
 - Discovery quality vs residual template fallback.
-- Confirm operator is using the real BigContacts workspace, not a blank starter.
-- Rebuild desk after UI changes.
 
 ## Cold-start rule
 Any new AI/developer must read this file before changing Apex. After every meaningful implementation batch, update this file with the batch, files changed, validation actually run, current state, known issues, and next step. Never claim tests, deployments, or scoreboard results that were not actually executed.
