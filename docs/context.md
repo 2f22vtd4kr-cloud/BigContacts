@@ -33,13 +33,11 @@ The existing `scripts/check-no-force-dig.sh` blocks explicit `force_*`, GROK-PAR
 
 **Batch 4:** Hardened the comparison protocol for reproducibility. The comparison template now freezes fixtures before Apex runs, requires three trials per fixture to be recorded as actually run (no silent cherry-picking), records trial-level duration/actions/evidence and aggregate Apex-vs-baseline quality, and adds explicit independence, free-ReAct, evidence/promotion, and failure-classification audits. This remains an audit of Apex rather than a mechanism for manufacturing an Apex win.
 
-Files changed in Batch 4:
-- `scripts/compare-template.mjs`
-- `docs/context.md`
+**Batch 5:** Added `scripts/evaluate-bureau-trajectory.mjs`, a deterministic trajectory-level autonomy evaluator. It consumes recorded Dig steps and checks the observed action surface, invalid/forced actions, termination, trajectory diversity, and model/provider decision evidence without scoring research quality. Added `scripts/fixtures/free-react-sample.json` and wired `check:trajectory` into `check:bureau`. This is deliberately separate from the quality comparator: autonomy evidence answers whether the run behaved like free ReAct; the blind outcome comparison answers whether the research was good.
 
 Validation actually performed in this session:
-- Direct inspection of the canonical ReAct loop, action parser, provider failover, comparison template/contract, scoreboard script, and package scripts.
-- Repository write succeeded for the comparison template and this handoff update.
+- Direct inspection of the canonical ReAct loop, action parser, provider failover, comparison template/contract, scoreboard script, package scripts, and Bureau wrapper.
+- GitHub writes succeeded for the trajectory evaluator, sample fixture, package wiring, and this handoff update.
 - **No pnpm/Vitest/build/live Replit execution was performed by the GitHub-only session. Do not report these as passing.**
 
 ## Architecture
@@ -81,6 +79,7 @@ Any new AI/developer must read this file before changing Apex. After every meani
 git pull origin main && git log -1 --oneline
 pnpm run check:no-force-dig
 pnpm run check:free-react
+pnpm run check:trajectory
 pnpm run check:comparison-contract
 pnpm run check:bureau
 pnpm --dir artifacts/apex-finder run build
