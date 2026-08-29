@@ -62,14 +62,15 @@ jobs:
           p.write_text(s)
           p = Path('artifacts/api-server/src/src/lib/atlas-orchestrator.ts')
           s = p.read_text()
-          bad = 'import {\nimport { isAgenticPhoneSource, isNoticePhoneSource, isProtectedPhoneSource, resolveProtectedCardPhone } from "./phone-source-priority";'
-          good = 'import { isAgenticPhoneSource, isNoticePhoneSource, isProtectedPhoneSource, resolveProtectedCardPhone } from "./phone-source-priority";'
-          if bad in s:
-              s = s.replace(bad, good, 1)
+          bad_block = '''import {\nimport { isAgenticPhoneSource, isNoticePhoneSource, isProtectedPhoneSource, resolveProtectedCardPhone } from "./phone-source-priority";\n  expandSecondaryPublicSurface,\n  persistBureauContactsForEntity,\n  rehydrateEntityCardFromEvidence,\n} from "./bureau-contact-persist";'''
+          good_block = '''import { isAgenticPhoneSource, isNoticePhoneSource, isProtectedPhoneSource, resolveProtectedCardPhone } from "./phone-source-priority";\nimport {\n  expandSecondaryPublicSurface,\n  persistBureauContactsForEntity,\n  rehydrateEntityCardFromEvidence,\n} from "./bureau-contact-persist";'''
+          if bad_block in s:
+              s = s.replace(bad_block, good_block, 1)
           p.write_text(s)
           PY
           grep -n "ATLAS_LATEST_DISPLAY_TTL_MS" artifacts/api-server/src/src/routes/atlas.ts
-          grep -n "phone-source-priority" artifacts/api-server/src/src/lib/atlas-orchestrator.ts
+          grep -n -A4 "phone-source-priority" artifacts/api-server/src/src/lib/atlas-orchestrator.ts
+          grep -n -A4 "bureau-contact-persist" artifacts/api-server/src/src/lib/atlas-orchestrator.ts
       - name: Schema and build
         run: |
           cd lib/db && npx drizzle-kit push --config ./drizzle.config.ts
