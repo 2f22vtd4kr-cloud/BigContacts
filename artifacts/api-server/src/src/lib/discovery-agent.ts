@@ -108,6 +108,7 @@ function parsePersonFindings(findings: DiscoveryFinding[]): DiscoveryCandidate[]
     
     
     
+    
     seen.add(key);
     out.push({
       name: n,
@@ -161,7 +162,7 @@ export async function runDiscoveryAgent(input: {
   const defaultSlotTimeout = depth === "fast" ? 75_000 : depth === "deep" ? 300_000 : 210_000;
   const suppliedTimeout = input.hardTimeoutMs ?? defaultSlotTimeout;
   const slotTimeout = Math.max(suppliedTimeout, defaultSlotTimeout);
-  const aggregateTimeout = Math.max(slotTimeout * requestedBatch, 600_000);
+  const aggregateTimeout = Math.max(slotTimeout + 120_000, 600_000);
   const batchStarted = Date.now();
   const span = publishDigSpan({ jobId, spanType: "stage", name: "discovery_agent", status: "active", agentName: "discovery", inputSummary: `depth=${depth} batch=${requestedBatch} lane=${input.laneHint ?? "model-choice"}` });
 
@@ -196,18 +197,16 @@ export async function runDiscoveryAgent(input: {
   const batchHistory: string[] = [];
 
   try {
-    for (let slot = 0; slot < requestedBatch; slot++) {
-      if (Date.now() - batchStarted >= aggregateTimeout) break;
-      const already = candidates.map((c) => c.name).join("; ");
-      const recentBatchTrajectory = batchHistory.slice(-10).join("\n");
+    // Real batch execution: all discovery slots in a batch are model-driven and
+    // run concurrently. The batch controller only merges duplicate names afterward;
+    // it never feeds one slot's query path into another slot.
+    const batchTasks = Array.from({ length: requestedBatch }, (_, slot) => (async () => {
       const objective = [
         baseObjective,
-        already ? `ALREADY SELECTED IN THIS BATCH — do not repeat these people; find a genuinely different principal/operator: ${already}` : "This is the first slot; choose the strongest promising person you can find.",
-        recentBatchTrajectory ? `RECENT BATCH TRAJECTORY (context only — do not copy its actions; use it to avoid repeating dead ends):\n${recentBatchTrajectory}` : "No prior batch trajectory is available.",
-        `This is batch slot ${slot + 1} of ${requestedBatch}. One strong, distinct candidate is sufficient for this slot. You may discover more if the evidence naturally reveals them, but do not pad the result with weak names.`,
+        "This slot runs concurrently with the other discovery slots. Choose your own distinct person; duplicate candidates will be discarded after the batch.",
+        `This is batch slot ${slot + 1} of ${requestedBatch}. One strong, distinct candidate is sufficient. Do not pad with weak names.`,
       ].join("\n");
-
-      const slotSpan = publishDigSpan({ jobId, spanType: "stage", name: "discovery_slot", status: "active", agentName: "discovery", inputSummary: `slot=${slot + 1}/${requestedBatch}` });
+      const slotSpan = publishDigSpan({ jobId, spanType: "stage", name: "discovery_slot", status: "active", agentName: "discovery", inputSummary: `slot=${slot + 1}/${requestedBatch} concurrent=true` });
       try {
         const result = await runAgenticWebResearch({
           targetName: `Discovery — choose a realistically reachable principal (slot ${slot + 1}/${requestedBatch})`,
@@ -223,25 +222,33 @@ export async function runDiscoveryAgent(input: {
             input.onLiveStep?.(step);
           },
         });
-        totalSearches += result.searches ?? 0;
-        totalVisits += result.visits ?? 0;
-        lastModel = result.model || lastModel;
-        lastMessage = result.error || result.status || "completed";
-        batchHistory.push(...(result.trajectory ?? []).slice(-8));
-        if (result.status === "unavailable" || result.status === "error") degraded = true;
         const slotCandidates = parsePersonFindings(result.findings ?? []);
-        for (const candidate of slotCandidates) {
-          const key = candidate.name.toLowerCase();
-          if (seen.has(key)) continue;
-          seen.add(key);
-          candidates.push(candidate);
-          if (candidates.length >= requestedBatch) break;
-        }
         try { completeDigSpan(slotSpan.id, { status: slotCandidates.length ? "ok" : "error", resultSummary: `slot=${slot + 1}/${requestedBatch} candidates=${slotCandidates.length} searches=${result.searches} visits=${result.visits}` }); } catch { /* best-effort */ }
-      } catch (err: unknown) {
+        return { result, slotCandidates };
+      } catch (err) {
+        try { completeDigSpan(slotSpan.id, { status: "error", resultSummary: String(err).slice(0, 200) }); } catch { /* best-effort */ }
+        return { result: null, slotCandidates: [] as DiscoveryCandidate[] };
+      }
+    })());
+
+    const batchResults = await Promise.all(batchTasks);
+    for (const { result, slotCandidates } of batchResults) {
+      if (!result) {
         degraded = true;
-        lastMessage = err instanceof Error ? err.message : String(err);
-        try { completeDigSpan(slotSpan.id, { status: "error", resultSummary: lastMessage.slice(0, 200) }); } catch { /* best-effort */ }
+        continue;
+      }
+      totalSearches += result.searches ?? 0;
+      totalVisits += result.visits ?? 0;
+      lastModel = result.model || lastModel;
+      lastMessage = result.error || result.status || "completed";
+      batchHistory.push(...(result.trajectory ?? []).slice(-8));
+      if (result.status === "unavailable" || result.status === "error") degraded = true;
+      for (const candidate of slotCandidates) {
+        const key = candidate.name.toLowerCase();
+        if (seen.has(key)) continue;
+        seen.add(key);
+        candidates.push(candidate);
+        if (candidates.length >= requestedBatch) break;
       }
       if (candidates.length >= requestedBatch) break;
     }
