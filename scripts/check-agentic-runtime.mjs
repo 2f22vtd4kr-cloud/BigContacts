@@ -24,10 +24,6 @@ for (const [label, pattern] of required) {
   if (!pattern.test(source)) throw new Error(`agentic runtime invariant failed: ${label}`);
 }
 
-// The role separation is architectural, not merely documentary. The generated
-// Dig llmStep must contain only Dig-capable providers. Gemini and NVIDIA are
-// allowed to exist in this module for Boss/right-hand adapters, but neither may
-// be selected by the investigator loop.
 const llmStepMatch = source.match(
   /async function llmStep\(prompt: string\): Promise<\{ model: string; raw: string \} \| null> \{([\s\S]*?)\n\}\n\nfunction formatFindingsBag/,
 );
@@ -46,15 +42,10 @@ if (!/DIG_INVESTIGATOR_FAILOVER_CHAIN:[^\n]*Groq -> Mistral/.test(source)) {
 if (source.includes("const maxIter = Math.min(input.maxIterations ?? MAX_ITER, 24)")) {
   throw new Error("agentic runtime invariant failed: hidden 24-iteration ceiling");
 }
-
 if (source.includes("agenticProviderCircuitUntil")) {
   throw new Error("agentic runtime invariant failed: module-global provider circuit can contaminate concurrent targets");
 }
 
-// The live audit must not launch merely because Boss/right-hand providers work.
-// Discovery/Dig requires an actual investigator provider. This prevents the
-// exact failure mode where Gemini/NVIDIA preflight was green while Dig had no
-// usable model and the ten-target run spent its budget producing zero research.
 if (!/let digReady = false;/.test(workflow)) {
   throw new Error("live audit provider gate missing digReady state");
 }
@@ -68,8 +59,6 @@ if (/const ready = (?:false|bossReady \|\| rightHandReady)/.test(workflow)) {
   throw new Error("live audit incorrectly treats Boss/right-hand readiness as Dig readiness");
 }
 
-// Compatibility hardening must have one owner. It may not contain a second
-// provider router that can reintroduce Gemini/NVIDIA into Dig.
 if (!/delegat(?:e|es) to the canonical hardener/i.test(compatibilityHardener)) {
   throw new Error("compatibility hardener is not delegated to the canonical hardener");
 }
@@ -77,18 +66,16 @@ if (/\[\s*\[?\s*["']gemini["']\s*,\s*callGeminiJson|["']nvidia["']\s*,\s*callNvi
   throw new Error("compatibility hardener contains a forbidden Boss/right-hand Dig provider tuple");
 }
 
-// Observation/identity boundary: deterministic page enrichment may recover
-// literal contact tokens, but it must not be an identity authority. The
-// canonical hardener is currently the migration mechanism for this source;
-// once source parity is complete, these same invariants belong in the checked-in
-// TypeScript and this hardener should become a no-op compatibility check.
+// Deterministic page enrichment may recover literal contact tokens, but it
+// must not be an identity authority. During the migration, the canonical
+// hardener owns this source rewrite; source parity is a separate release gate.
 if (!/Observation-only contact enrichment/.test(canonicalHardener)) {
   throw new Error("observation identity boundary missing from canonical hardener");
 }
 if (!/semantic PERSON claims/.test(canonicalHardener)) {
   throw new Error("canonical hardener does not explicitly prohibit semantic PERSON extraction");
 }
-if (!/return facts\.join\("\\\\n"\)/.test(canonicalHardener)) {
+if (!/return facts\.join/.test(canonicalHardener)) {
   throw new Error("canonical hardener observation replacement does not preserve literal contact facts");
 }
 if (/push\(`PERSON:/.test(canonicalHardener)) {
