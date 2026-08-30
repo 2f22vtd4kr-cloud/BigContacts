@@ -2,18 +2,18 @@
 
 **Repo:** https://github.com/2f22vtd4kr-cloud/BigContacts  
 **Branch:** `main`  
-**Current tip floor:** `42b36b0` or newer (prefer latest `main`; Batch 10+ build repair)
+**Current tip floor:** `71f9a61` or newer (provider-role correction; Batch 20+)  
 **Canonical Replit path:** one paste — `docs/REPLIT_UPDATE_PROMPT_LATEST.md` (Agent inside the App). Expanded procedure: `docs/RUN_BUREAU.md`.  
 **Product:** Apex Atlas research bureau; **Bureau is its OSINT/research architecture**, not a separate product.
 
 ## Current state
 Apex Atlas is an AI-driven research bureau embedded in BigContacts. Models decide research actions; tools execute. The Dig path is free ReAct for one target and supports web search, page visits, browser fetching, email/username footprinting, domain/WHOIS, registry lookup, domain harvesting, reverse WHOIS, and `done`. Findings require real source URLs and are fail-closed. Dig findings persist into Bureau evidence and are promoted/rehydrated into the entity card.
 
-Boss = Gemini. Right-hand = NVIDIA. Dig failover = Groq → Mistral → Gemini → NVIDIA. Every LLM prompt receives `apex-bureau-orientation.ts` because calls are memoryless.
+**Canonical model-role boundary:** Boss = **Gemini**. Right-hand = **NVIDIA NIM**. Neither browses or executes web/OSINT tools. Actual web research is performed by the **Dig/investigator model lane**, whose currently enforced provider failover is **Groq → Mistral**. Gemini and NVIDIA must never silently become Dig providers. Every LLM prompt receives `apex-bureau-orientation.ts` because calls are memoryless.
+
+Provider failover is capability-local transport infrastructure, not the Bureau hierarchy. A Dig fallback preserves the investigator role, objective, and model-owned research decisions; it does not prescribe searches or hops. If the Dig investigator pool is unavailable, the run fails closed with degraded/critical integrity rather than borrowing Boss/right-hand models for browsing.
 
 **Build status (2026-08-29):** The two source merge artifacts that blocked `api-server` build are **fixed permanently** on `main` (`59c71ce`). CI checkout mutation for those two errors is obsolete.
-
-**Replit status (2026-08-29):** No verified live Batch 10 desk preview / Dig / scoreboard yet in the operator’s sessions. Blockers so far have been **environmental** (OOM 137, Replit npm firewall/proxy, agent not attached to Repl runtime), not product reduction and not free-ReAct regressions.
 
 ## Non-negotiable product law
 - Never reintroduce force-hop, fixed-step, GROK-PARITY, ranked prefer-list, or scripted research playbooks.
@@ -23,6 +23,8 @@ Boss = Gemini. Right-hand = NVIDIA. Dig failover = Groq → Mistral → Gemini �
 - Exact source URLs are required for contact findings.
 - `bureauIntegrity=critical` means research quality is not healthy; never claim a scoreboard pass in that state.
 - Empty cards after successful contact extraction are promotion/rehydration bugs, not justification for scripted research.
+- **Gemini is Boss and NVIDIA NIM is right-hand; neither is the Dig web-research lane.**
+- **Dig failover is Groq → Mistral.** Do not use the historical `Groq → Mistral → Gemini → NVIDIA` wording as the current architecture.
 
 ## ReAct implementation
 `artifacts/api-server/src/src/lib/agentic-web-research.ts` is the canonical API-server Dig loop. `artifacts/api-server/src/src/lib/bureau-agentic-pass.ts` wraps it for Bureau. `artifacts/api-server/src/src/lib/apex-bureau-orientation.ts` supplies product/role/tool orientation.
@@ -31,6 +33,7 @@ Guards:
 - `scripts/check-no-force-dig.sh` — blocks `force_*`, GROK-PARITY, force-company-surface
 - `scripts/check-bureau-free-react.mjs` (`pnpm run check:free-react`) — requires model-selectable `web_search` / `visit` / `done`; rejects force-hop/playbook markers
 - `scripts/check-discovery-quality.mjs` (`pnpm run check:discovery-quality`) — guards the model-selected discovery identity/provenance boundary and practical-reachability guidance
+- `scripts/check-agentic-runtime.mjs` (`pnpm run check:agentic-runtime`) — verifies Dig-only provider selection, bounded provider decisions, and absence of the old global circuit
 - Wired into `pnpm run check:bureau` with trajectory + comparison-contract checks
 
 ### 2026-08-28 free-ReAct integrity batches
@@ -60,46 +63,34 @@ Guards:
 
 **DATABASE_URL:** never ask, paste, or store as a Secret. Replit Postgres injects it into the App environment.
 
-**Minimum secrets for non-critical integrity:** one Redis (`REDIS_URL` or `REDIS_URL_1`), one web-search provider (Serper/Tavily/Exa), one dig LLM (Groq/Gemini/Mistral/NVIDIA). Without search or dig LLM → `bureauIntegrity=critical` → do not claim quality.
-
-**Canonical Replit sequence:**
-```bash
-git pull origin main && git log -1 --oneline   # 42b36b0+
-# if lockfile has internal proxy IP hosts → rewrite hosts only (see above)
-export NODE_OPTIONS=--max-old-space-size=1536
-export NPM_CONFIG_REGISTRY=https://registry.npmjs.org
-pnpm install --no-frozen-lockfile --registry=https://registry.npmjs.org \
-  --child-concurrency 1 --network-concurrency 1 --fetch-retries 5 --fetch-timeout 600000
-pnpm --filter @workspace/db run push
-pnpm --dir artifacts/apex-finder run build
-test -f artifacts/apex-finder/dist/public/index.html
-pnpm --dir artifacts/api-server run build
-pnpm run check:no-force-dig && pnpm run check:free-react && pnpm run check:discovery-quality
-ENABLE_AUTO_PIPELINE=false RESEARCH_DEPTH=standard bash scripts/replit-boot.sh
-curl -sS http://127.0.0.1:8080/api/healthz
-# if integrity not critical → single-target Dig (standard, discoveryFirst false) → scoreboard
-bash scripts/replit-scoreboard-check.sh http://127.0.0.1:8080
-```
-
-**Scoreboard proof:** `POST /api/ingest/atlas-run` with `singleTargetId` + `researchDepth: "standard"` — not discovery-first bulk.
+**Minimum secrets for non-critical integrity:** one Redis (`REDIS_URL` or `REDIS_URL_1`), one web-search provider (Serper/Tavily/Exa), one **Dig investigator LLM** (Groq or Mistral under the current role boundary). Boss/right-hand availability does not satisfy the Dig requirement. Without search or Dig LLM → `bureauIntegrity=critical` → do not claim quality.
 
 ## Architecture
-| Role | Owns | Must not |
-|---|---|---|
-| Orchestrator | lifecycle, budgets, pause/stop | research judgment |
-| Boss / Gemini | case direction, final gate | browse or invent contacts |
-| Right-hand / NVIDIA | advice + narration | control Dig path |
-| Discovery | candidate discovery | final card promotion |
-| Dig | contact research for one identity | scripted hops |
-| Tools | execute selected actions | self-fire as the research brain |
-| Promotion | deterministic card/evidence mapping | invent values |
+| Role | Canonical provider | Owns | Must not |
+|---|---|---|---|
+| Orchestrator | deterministic runtime | lifecycle, budgets, pause/stop | research judgment |
+| Boss / Head Investigator | **Gemini** | case direction, investigator brief, final case gate | browse or invent contacts |
+| Right-hand Advisor | **NVIDIA NIM** | case-file critique, evidence gaps, advisory recommendation | browse, execute OSINT, control Dig path |
+| Discovery | model-selected discovery investigator | discover attributable people | final card promotion |
+| Dig / Investigator | **Groq → Mistral** failover | actual web research, tool choice, pivots, evidence collection, stopping | bypass provenance/integrity boundaries |
+| Tools | selected tool executors | execute the model's chosen action | self-fire as the research brain |
+| Promotion | deterministic evidence/card mapping | preserve provenance and scope | invent values |
+
+## Provider-role rule
+Never describe `Groq → Mistral → Gemini → NVIDIA` as the current Dig chain. Historical documents may mention it as an obsolete state, but all current architecture and operator documents must say:
+
+`Boss = Gemini`  
+`Right-hand = NVIDIA NIM`  
+`Dig = Groq → Mistral`
+
+The distinction matters because Gemini/NVIDIA do not conduct web research in Apex. They reason over case state. The Dig investigator receives the objective and observations and owns the actual research trajectory.
 
 ## Replit law
 - One API workflow on port 8080; desk at `/`, API at `/api/`.
 - `ENABLE_AUTO_PIPELINE=false` by default.
 - One Redis (`REDIS_URL_1` or `REDIS_URL`).
 - Never ask for/invent/print `DATABASE_URL`, `WHOXY_*`, or `REDIS_URL_2`–`_5`.
-- Canonical setup: `docs/REPLIT_UPDATE_PROMPT_LATEST.md` (update tip floor to 42b36b0+ when editing that file).
+- Canonical setup: `docs/REPLIT_UPDATE_PROMPT_LATEST.md` (update tip floor when editing that file).
 - Single-target scoreboard proof uses `singleTargetId` and `discoveryFirst:false`.
 - Agent must execute inside the project runtime (Shell/workflow), not a detached detached Agent chat without project env.
 - Do not create a second Repl mid-setup; do not treat old ApexFinder Pro artifact as current.
@@ -107,63 +98,34 @@ bash scripts/replit-scoreboard-check.sh http://127.0.0.1:8080
 ## Quality gate
 After live Replit/GitHub execution, independent research on the same targets is the quality bar. Apex must honestly meet or beat it on identity, contact route, and source URL. Comparison is an audit, not a mechanism to manufacture an Apex win.
 
-### 2026-08-29 docs consolidation
-**Batch 11:** README, RUN_BUREAU, and REPLIT_UPDATE_PROMPT_LATEST rewritten so operators/agents have **one** Replit paste and one expanded runbook. Encodes OOM-safe install, lockfile proxy-host rewrite, no DATABASE_URL secret, project-runtime vs chat sandbox, empty-ledger seed-then-Dig, Redis quota, single-target scoreboard proof, free-ReAct law.
+### 2026-08-30 provider-role correction (Batch 20)
+The repository had accumulated a dangerous ambiguity: the canonical orientation correctly said Gemini = Boss and NVIDIA = right-hand, while the generated Dig hardening temporarily carried a provider list that included Gemini/NVIDIA. The runtime check then correctly rejected that leakage, but the compatibility hardener remained capable of reintroducing it. This is now corrected:
+- `scripts/apply-agentic-concurrency-hardening.mjs` remains the canonical Dig hardener and explicitly installs **Groq → Mistral** only.
+- `scripts/apply-agentic-runtime-hardening.mjs` is now a compatibility entry point that delegates to the canonical hardener; it no longer owns a second provider implementation and cannot reintroduce Gemini/NVIDIA into Dig.
+- `scripts/check-agentic-runtime.mjs` enforces that the Dig `llmStep` contains Groq/Mistral and rejects Gemini/NVIDIA leakage.
+- Volume 433 is marked superseded by Volume 434.
 
-### 2026-08-29 greenfield prompt hardening
-**Batch 12:** `REPLIT_UPDATE_PROMPT_LATEST.md` rewritten as the definitive one-shot Agent paste for a **new Replit account** (credits-exhausted prior Repl retired). Encodes: tip floor, free-ReAct law, secrets minimum, OOM/firewall install, empty lockfile recovery, healthz gate, Redis quota, empty-ledger tiny seed then STOP, single-target Dig proof, scoreboard, what success looks like (model-chosen tools + source URLs). README Run table points only at that prompt + RUN_BUREAU.
+This correction does **not** claim that the live research-quality problem is solved. It only makes the provider-role architecture internally consistent and prevents a stale hardening script from violating it.
 
-Prior live Repl went down / out of credits before sustained Dig monitoring — no verified scoreboard pass claimed.
+### 2026-08-30 discovery quality hardening (Batch 15)
+**Commit `75a7f4a8`** hardens the model-selected discovery boundary without introducing a ranking or scripted research path.
 
-### 2026-08-29 new-account greenfield (credits exhausted)
-**Batch 13:** Prior Repl hit **out of credits** mid-monitor; live URL went down. Operator moves to a **new funded Replit account**. Canonical path remains **one paste**: `docs/REPLIT_UPDATE_PROMPT_LATEST.md` inside the new Repl after GitHub import + Postgres + Secrets. Do not resume the dead Repl. Success still means: healthz not critical, non-blank desk, ≥1 real entity, free-ReAct single-target Dig trajectory (model-chosen tools + source URLs), scoreboard numbers. CI red ✕ on comparison-contract is unrelated to Replit boot.
+### 2026-08-30 discovery realism + audit hardening (Batch 16)
+**Commits through `23fce4cfae91b548d1a631bcca285c3e5e30e7a1`** extend the same product law.
 
-### 2026-08-29 Replit platform wording (Aug 2026+)
-**Batch 14:** Docs no longer say “Repl” or “use platform Postgres.” Replit ships **Apps / projects**; **Postgres is platform-provided** (`DATABASE_URL` injected — never an operator Secret). **Redis is operator Upstash** (`REDIS_URL_1`). One-shot prompt + RUN_BUREAU + README updated accordingly. Credits still required for Agent/compute.
+### 2026-08-30 model/human research alignment (Batches 17–19)
+The live audits established that static autonomy checks can pass while the agent produces zero useful research. Prompt quality, provider readiness, observation quality, and trajectory quality must therefore be evaluated separately.
 
 ## Still open
 - ~~Permanent source fixes for atlas build breakers~~ — done Batch 10 (`59c71ce`).
 - ~~Consolidate README / RUN_BUREAU / one Replit prompt~~ — Batch 11.
-- Greenfield on a **funded** Replit account (Batch 12/13 one-shot prompt); complete Dig + scoreboard with ≥1 entity and healthy Redis.
-- Prior Repl retired: credits exhausted (2026-08-29 evening).
-- First honest Batch 10 public `/` preview (fresh desk build).
-- First single-target Dig + scoreboard under non-critical integrity.
-- Get live-audit GitHub Actions through build **without** relying on CI source mutation for the two fixed errors.
-- Provider-chain / bounded-Dig timeout risk if reproduced live.
-- 8-fixture Apex-vs-independent comparison with full trajectories.
+- ~~Correct stale Dig provider-role documentation/hardener~~ — done Batch 20.
+- Funded Replit/GitHub live Dig run with a real Groq/Mistral investigator and non-critical integrity.
+- First honest single-target Dig + scoreboard with ≥1 source-backed result.
+- First honest ten-target Apex-vs-independent comparison.
 - Multi-name card identity binding.
 - Discovery quality vs residual template fallback.
-
-### 2026-08-30 discovery quality hardening (Batch 15)
-**Commit `75a7f4a8`** hardens the model-selected discovery boundary without introducing a ranking or scripted research path:
-- `artifacts/api-server/src/src/lib/discovery-agent.ts` rejects generic noun/prose fragments such as `security issues`, job-title fragments, organization/sector phrases, and list labels before they can become discovery candidates.
-- Candidate parsing applies the same identity/provenance gate immediately, so malformed model findings do not appear as valid discovery output before admission.
-- Discovery orientation tells the model to optimize for practical reachability rather than fame: no default billionaire/celebrity/Forbes-list chasing; prioritize principals/operators/founders/investors where a plausible public or intermediary route could realistically exist.
-- This is a validation/safety boundary, not a deterministic target-ranking system: the model still chooses queries, sources, lane, candidate order, and when to stop.
-
-### 2026-08-30 discovery realism + audit hardening (Batch 16)
-**Commits through `23fce4cfae91b548d1a631bcca285c3e5e30e7a1`** extend the same product law:
-- Discovery candidates backed only by Forbes billionaire / richest-person list URLs are rejected at the identity/provenance boundary; independent corroborating sources remain allowed.
-- Model-selected discovery admission no longer calls `evaluateTargetFitness` or writes a fitness classification; legacy fitness remains isolated to non-model-selected admission.
-- Investigator/dig orientation explicitly prioritizes practical outreach value over fame and headline net worth, and tells the model to pivot away from billionaire rankings toward concrete operating-company/principal/intermediary surfaces.
-- `check:discovery-quality` is wired into the bureau checks and the live audit.
-- The live-audit workflow checks out current `main`, builds both desk and API, runs autonomy/discovery checks, and no longer performs the obsolete CI source-mutation workaround for the old merge artifacts.
-- The live audit itself confirmed that current `main` really does enter `runModelSelectedDiscoveryBureau` for `discoveryFirst=true`; the earlier Replit Phase 0 behavior was therefore a stale runtime/build problem, not the current source branch.
-
-### 2026-08-30 model/human research alignment (Batches 17–19)
-**Current main commits:** `6f72f760ecd3644f99611a5c2a7d8051d4cefa87`, `5aaacb756a25e7740e2323b354a64f8c262794b6`, `ff5cac58890a760eb777a75a94c0bba80eb42c94`.
-
-The first current-main live audit was valuable because it exposed a different failure from the old Replit run: the models did **not** chase Forbes and did choose sensible business-oriented queries, but discovery ended after two searches with zero candidates because no promising result was inspected. That is a model-usage/prompt-quality problem, not a reason to add a deterministic hop.
-
-Changes now on `main`:
-- `apex-bureau-orientation.ts` makes discovery economics explicit: practical reachability over fame, operating-company/principal/intermediary evidence over billionaire/richest lists, and evidence-led stopping.
-- `discovery-agent.ts` separates discovery from target-contact role framing; it tells the model that search results are leads, that a plausible result should generally be inspected before another broad search, and that `done` should not be used merely because a search was noisy.
-- `target-contact-agent.ts` now gives the named-target dig a stronger human-research objective: realistic attributable routes, primary operating-company/filing/leadership surfaces, evidence-led pivots, no fame-list enumeration, no generic contact-form hunting, and model-owned stopping.
-- `docs/bureau-plan/272_MODEL_HUMAN_ALIGNMENT.md` records the live evidence and design rule.
-
-**Live Audit 42 result:** build, desk, API, autonomy, discovery-quality, trajectory, and comparison-contract checks passed; health was `bureauIntegrity=ok`; Redis connected after explicit Launch; active agentic model was `openai/gpt-oss-120b`. The model chose two non-Forbes searches (`private company founder interview 2023 "family business"` and `"acquired a majority stake in" "founder" "CEO" 2024 press release`) but produced zero candidates and no visits, so the audit failed the entity requirement. No legacy Phase 0, template, billionaire-list, malformed-target, or deterministic recovery markers were reported.
-
-**Current live validation:** GitHub Actions run 45 is executing against commit `ff5cac58890a760eb777a75a94c0bba80eb42c94`; its build/autonomy/startup stages have passed and the bounded Bureau poll is still active. This run must be allowed to finish before claiming the new prompt works. No Replit runtime is being used for these repository tests.
+- Remove remaining build-time source mutation by committing the canonical generated Dig implementation itself, once the full generated source can be reviewed and tested safely.
 
 ## Quick commands
 ```bash
@@ -173,6 +135,7 @@ pnpm run check:free-react
 pnpm run check:discovery-quality
 pnpm run check:trajectory
 pnpm run check:comparison-contract
+pnpm run check:agentic-runtime
 pnpm run check:bureau
 pnpm --dir artifacts/apex-finder run build
 pnpm --dir artifacts/api-server run build
