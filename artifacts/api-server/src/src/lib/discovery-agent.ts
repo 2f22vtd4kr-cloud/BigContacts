@@ -14,7 +14,17 @@ import { runAgenticWebResearch } from "./agentic-web-research";
 export type DiscoveryCandidate = { name: string; role?: string; company?: string; basis: string; sourceUrls: string[]; lane?: string; confidence?: number };
 export type DiscoveryAgentResult = { candidates: DiscoveryCandidate[]; model?: string; searches: number; visits: number; degraded: boolean; message: string };
 
-const INVALID_PERSON_NAME_WORDS = new Set(["a","an","and","as","at","behind","been","by","chief","ceo","company","executive","from","has","in","of","officer","on","the","to","with","security","issues","issue","problem","problems","solutions","services","technology","systems","markets","capital","equity","partners","partner","group","fund","funds","holdings","holding","management","ventures","venture","estate","real","private","public","wealth","investment","investments","finance","financial","industries","industry","resources","strategy","strategies","operations","organization","organizations","foundation","foundations","billionaire","billionaires","millionaire","millionaires"]);
+type DiscoveryFinding = {
+  vectorType?: string;
+  value?: string;
+  sourceUrls?: string[];
+  role?: string | null;
+  personName?: string | null;
+  note?: string;
+  scope?: "organization" | "candidate" | "unknown";
+};
+
+const INVALID_PERSON_NAME_WORDS = new Set(["a","an","and","as","at","behind","been","by","chief","ceo","company","executive","from","has","in","of","officer","on","the","to","with","security","issues","issue","problem","problems","solutions","services","technology","systems","markets","capital","equity","partners","partner","group","fund","funds","holdings","holding","management","ventures","venture","estate","real","private","public","wealth","investment","investments","finance","financial","industries","industry","resources","strategy","strategies","operations","organization","organizations","foundation","foundations","billionaire","billionaires","millionaire","millionaires","person","email","phone","com","www"]);
 const INVALID_PERSON_NAME_PHRASES = ["security issues","security issue","private equity","venture capital","real estate","wealth management","financial services","chief executive officer","chief executive","executive officer","company founder","billionaire founders","billionaire founder","forbes list","forbes billionaires","the billionaire","the billionaires"];
 const LIST_ONLY_SOURCE_PATTERNS = [/forbes\.com\/billionaires(?:\/|\?|$)/i,/forbes\.com\/real-time-billionaires(?:\/|\?|$)/i,/forbes\.com\/lists\/[^\s/]*billionaires?/i,/forbes\.com\/lists\/[^\s/]*richest/i,/bloomberg\.com\/billionaires(?:\/|\?|$)/i];
 
@@ -36,7 +46,7 @@ export function isWellFormedPersonCandidate(candidate: Pick<DiscoveryCandidate,"
   return sourceUrls.some((url) => /^https?:\/\/\S+$/i.test(url)) && hasIndependentSource(sourceUrls);
 }
 
-function parsePersonFindings(findings: Array<{vectorType?: string; value?: string; sourceUrls?: string[]; role?: string | null; personName?: string | null; note?: string}>): DiscoveryCandidate[] {
+function parsePersonFindings(findings: DiscoveryFinding[]): DiscoveryCandidate[] {
   const out: DiscoveryCandidate[] = [];
   const seen = new Set<string>();
   const add = (name: string, extra: Partial<DiscoveryCandidate>) => {
@@ -44,9 +54,9 @@ function parsePersonFindings(findings: Array<{vectorType?: string; value?: strin
     if (n.length < 3 || n.length > 120) return;
     const key = n.toLowerCase();
     if (seen.has(key)) return;
-    seen.add(key);
     const sourceUrls = (extra.sourceUrls ?? []).filter((u) => /^https?:\/\//i.test(u)).slice(0, 6);
     if (!isWellFormedPersonCandidate({ name: n, sourceUrls })) return;
+    seen.add(key);
     out.push({
       name: n,
       role: extra.role,
@@ -58,6 +68,10 @@ function parsePersonFindings(findings: Array<{vectorType?: string; value?: strin
     });
   };
   for (const f of findings ?? []) {
+    // AgenticWebResearch explicitly labels findings by scope. Discovery admission
+    // is semantic: only the model's candidate-scoped findings can become people.
+    // Organization contact facts remain evidence for a later dig, never targets.
+    if (f.scope !== "candidate") continue;
     const urls = (f.sourceUrls ?? []).filter((u) => /^https?:\/\//i.test(String(u)));
     if (f.personName && String(f.personName).trim().length >= 3) {
       add(String(f.personName), { role: f.role ?? undefined, basis: f.note || f.role || "Named on visited public page", sourceUrls: urls });
@@ -93,9 +107,6 @@ export async function runDiscoveryAgent(input: {
   const requestedBatch = Math.max(1, Math.min(10, Number(process.env.APEX_DISCOVERY_BATCH_SIZE || "10")));
   const maxIterationsPerSlot = depth === "fast" ? 7 : depth === "deep" ? 18 : 14;
   const defaultSlotTimeout = depth === "fast" ? 75_000 : depth === "deep" ? 300_000 : 210_000;
-  // A batch needs enough wall-clock budget for independent model choices. The
-  // caller's value remains an upper bound for a single slot unless batch mode
-  // is explicitly active; then the aggregate floor scales with the batch.
   const suppliedTimeout = input.hardTimeoutMs ?? defaultSlotTimeout;
   const slotTimeout = Math.max(suppliedTimeout, defaultSlotTimeout);
   const aggregateTimeout = Math.max(slotTimeout * requestedBatch, 600_000);
