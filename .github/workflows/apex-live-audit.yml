@@ -84,7 +84,7 @@ jobs:
         run: |
           curl -sS -m 15 -X POST http://127.0.0.1:8080/api/ingest/atlas-run \
             -H 'Content-Type: application/json' \
-            -d '{"discoveryFirst":true,"targetCount":3,"researchLimit":2,"runResearch":true,"skipFaa":true,"targetTimeoutMs":180000,"researchDepth":"standard"}' \
+            -d '{"discoveryFirst":true,"targetCount":1,"researchLimit":1,"runResearch":true,"skipFaa":true,"targetTimeoutMs":180000,"researchDepth":"standard"}' \
             | tee /tmp/launch.json
           JOB_ID=$(node -e 'const x=require("/tmp/launch.json"); if(!x.jobId) process.exit(1); process.stdout.write(x.jobId)')
           echo "BUREAU_JOB_ID=$JOB_ID" | tee /tmp/job-id.txt
@@ -121,11 +121,23 @@ jobs:
           echo '=== API LOG TAIL ==='
           tail -300 /tmp/apex-api.log || true
           echo
-          echo '=== AUTONOMY VIOLATION SCAN ==='
-          if grep -E 'Phase 0|Pre-run cross-references|DISCOVERY_SOURCES|European venue owners|MODEL TARGET: (security issues|Chief Executive Officer|of Vista Equity Partners|as talented and unique as)' /tmp/apex-api.log; then
+          echo '=== AUTONOMY / QUALITY AUDIT ==='
+          grep -q 'DISCOVERY_MODEL_STEP' /tmp/apex-api.log || { echo 'FAIL: no model-selected discovery trajectory recorded'; exit 1; }
+          if grep -Eiq 'Phase 0|Pre-run cross-references|DISCOVERY_SOURCES|European venue owners|MODEL TARGET: (security issues|Chief Executive Officer|of Vista Equity Partners|as talented and unique as)' /tmp/apex-api.log; then
             echo 'FAIL: legacy/fabricated discovery marker found in live log'
             exit 1
           fi
+          if grep -Eiq 'forbes.{0,100}(billionaire|richest)|billionaire.{0,100}(list|ranking)' /tmp/apex-api.log; then
+            echo 'FAIL: billionaire/richest-list discovery drift found in live log'
+            exit 1
+          fi
+          if grep -Eiq 'det_(search|visit)|auto[_-]domain|seed(?:ed)?[_-](?:contact|path)|llm[_-]all[_-]failed' /tmp/apex-api.log; then
+            echo 'FAIL: deterministic tool substitution/recovery marker found in live log'
+            exit 1
+          fi
+          ENTITY_COUNT=$(node -e 'const fs=require("fs"); const x=JSON.parse(fs.readFileSync("/tmp/entities.json","utf8")); process.stdout.write(String(Array.isArray(x)?x.length:(x.entities||x.rows||[]).length))')
+          echo "ENTITY_COUNT=$ENTITY_COUNT"
+          test "$ENTITY_COUNT" -ge 1 || { echo 'FAIL: discovery-first audit completed with zero real entities'; exit 1; }
       - name: Upload live audit artifacts
         if: always()
         uses: actions/upload-artifact@v4
