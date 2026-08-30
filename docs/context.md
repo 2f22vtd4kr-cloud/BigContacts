@@ -106,20 +106,16 @@ bash scripts/replit-scoreboard-check.sh http://127.0.0.1:8080
 ## Quality gate
 After live Replit/GitHub execution, independent research on the same targets is the quality bar. Apex must honestly meet or beat it on identity, contact route, and source URL. Comparison is an audit, not a mechanism to manufacture an Apex win.
 
-
 ### 2026-08-29 docs consolidation
 **Batch 11:** README, RUN_BUREAU, and REPLIT_UPDATE_PROMPT_LATEST rewritten so operators/agents have **one** Replit paste and one expanded runbook. Encodes OOM-safe install, lockfile proxy-host rewrite, no DATABASE_URL secret, project-runtime vs chat sandbox, empty-ledger seed-then-Dig, Redis quota, single-target scoreboard proof, free-ReAct law.
-
 
 ### 2026-08-29 greenfield prompt hardening
 **Batch 12:** `REPLIT_UPDATE_PROMPT_LATEST.md` rewritten as the definitive one-shot Agent paste for a **new Replit account** (credits-exhausted prior Repl retired). Encodes: tip floor, free-ReAct law, secrets minimum, OOM/firewall install, empty lockfile recovery, healthz gate, Redis quota, empty-ledger tiny seed then STOP, single-target Dig proof, scoreboard, what success looks like (model-chosen tools + source URLs). README Run table points only at that prompt + RUN_BUREAU.
 
 Prior live Repl went down / out of credits before sustained Dig monitoring — no verified scoreboard pass claimed.
 
-
 ### 2026-08-29 new-account greenfield (credits exhausted)
 **Batch 13:** Prior Repl hit **out of credits** mid-monitor; live URL went down. Operator moves to a **new funded Replit account**. Canonical path remains **one paste**: `docs/REPLIT_UPDATE_PROMPT_LATEST.md` inside the new Repl after GitHub import + Postgres + Secrets. Do not resume the dead Repl. Success still means: healthz not critical, non-blank desk, ≥1 real entity, free-ReAct single-target Dig trajectory (model-chosen tools + source URLs), scoreboard numbers. CI red ✕ on comparison-contract is unrelated to Replit boot.
-
 
 ### 2026-08-29 Replit platform wording (Aug 2026+)
 **Batch 14:** Docs no longer say “Repl” or “use platform Postgres.” Replit ships **Apps / projects**; **Postgres is platform-provided** (`DATABASE_URL` injected — never an operator Secret). **Redis is operator Upstash** (`REDIS_URL_1`). One-shot prompt + RUN_BUREAU + README updated accordingly. Credits still required for Agent/compute.
@@ -137,8 +133,14 @@ Prior live Repl went down / out of credits before sustained Dig monitoring — n
 - Multi-name card identity binding.
 - Discovery quality vs residual template fallback.
 
-## Cold-start rule
-Any new AI/developer must read this file before changing Apex. After every meaningful implementation batch, update this file with the batch, files changed, validation actually run, current state, known issues, and next step. Never claim tests, deployments, or scoreboard results that were not actually executed.
+### 2026-08-30 discovery quality hardening (Batch 15)
+**Commit `75a7f4a`** hardens the model-selected discovery boundary without introducing a ranking or scripted research path:
+- `artifacts/api-server/src/src/lib/discovery-agent.ts` now rejects generic noun/prose fragments such as `security issues`, job-title fragments, organization/sector phrases, and list labels before they can become discovery candidates.
+- Candidate parsing now applies the same identity/provenance gate immediately, so malformed model findings do not appear as valid discovery output before admission.
+- Discovery orientation now tells the model to optimize for practical reachability rather than fame: no default billionaire/celebrity/Forbes-list chasing; prioritize principals/operators/founders/investors where a plausible public or intermediary route could realistically exist.
+- This is a validation/safety boundary, not a deterministic target-ranking system: the model still chooses queries, sources, lane, candidate order, and when to stop.
+
+**Validation status:** source commit created on `main`; GitHub Actions did not report a workflow run for the commit through the available workflow-run endpoint. No live Bureau execution or provider-backed scoreboard is claimed from this environment.
 
 ## Quick commands
 ```bash
