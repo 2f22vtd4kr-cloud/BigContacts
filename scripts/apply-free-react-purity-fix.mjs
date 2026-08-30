@@ -1,8 +1,11 @@
 import fs from "node:fs";
 
 const path = "artifacts/api-server/src/src/lib/agentic-web-research.ts";
+const discoveryPath = "artifacts/api-server/src/src/lib/discovery-agent.ts";
 let s = fs.readFileSync(path, "utf8");
+let d = fs.readFileSync(discoveryPath, "utf8");
 const original = s;
+const originalDiscovery = d;
 
 // Free-ReAct must fail closed when no LLM is available. The old implementation
 // switched to a deterministic search/visit recovery path, which is precisely
@@ -44,9 +47,6 @@ s = s.replace(/\n\s*seedCompanyContactPaths\(sr\.urls\);\n/g, "\n");
 
 // Provider calls must not depend on vendor-specific JSON response_format support.
 // The prompt already requires one JSON object and parseAction is fail-closed.
-// Removing the optional response_format makes Groq/NVIDIA/Mistral usable when a
-// provider/model rejects that parameter, while preserving the exact same action
-// surface and keeping provider choice in the model control plane.
 s = s.replace(/\n\s*response_format: \{ type: "json_object" \},/g, "");
 
 // Discovery quality matters more than latency: use the Boss model first, then
@@ -56,20 +56,37 @@ s = s.replace(
   'const chain: Array<[string, () => Promise<{ model: string; raw: string } | null>]> = [\n    ["groq", callGroqJson],\n    ["mistral", callMistralJson],\n    ["gemini", callGeminiJson],\n    ["nvidia", callNvidiaJson],\n  ];',
   'const chain: Array<[string, () => Promise<{ model: string; raw: string } | null>]> = [\n    ["gemini", callGeminiJson],\n    ["nvidia", callNvidiaJson],\n    ["groq", callGroqJson],\n    ["mistral", callMistralJson],\n  ];',
 );
-
-// Keep the provider budget modest so one control-plane step does not consume a
-// disproportionate share of a provider quota while still leaving the model
-// enough room for a JSON action plus reasoning summary.
 s = s.replace(/max_tokens: 2048,/g, "max_tokens: 1536,");
 
-// Export the production identity gate so regression tests exercise the real
-// admission boundary rather than maintaining a second test-only implementation.
 if (s.includes("function hasStrongIdentityEvidence") && !s.includes("export function hasStrongIdentityEvidence")) {
   s = s.replace("function hasStrongIdentityEvidence", "export function hasStrongIdentityEvidence");
 }
 
-if (s === original) {
-  console.log("Free-ReAct purity/provider repair already present; no changes needed");
+// Discovery slots are bounded, but they must not be memoryless. Carry a compact
+// model-generated trajectory from prior slots so the next model can see failed
+// avenues, useful URLs, and already-explored directions. This is context sharing,
+// not a scripted query plan: the next model still owns the next action completely.
+if (!d.includes("const batchHistory: string[] = []")) {
+  const stateAnchor = '  let lastMessage = "";';
+  if (!d.includes(stateAnchor)) throw new Error("discovery state anchor missing");
+  d = d.replace(stateAnchor, `${stateAnchor}\n  const batchHistory: string[] = [];`);
+}
+if (!d.includes("const recentBatchTrajectory = batchHistory.slice(-10).join(\"\\n\");")) {
+  const objectiveAnchor = '      const objective = [';
+  if (!d.includes(objectiveAnchor)) throw new Error("discovery objective anchor missing");
+  d = d.replace(objectiveAnchor, '      const recentBatchTrajectory = batchHistory.slice(-10).join("\\n");\n      const objective = [');
+  const alreadyLine = '        already ? `ALREADY SELECTED IN THIS BATCH — do not repeat these people; find a genuinely different principal/operator: ${already}` : "This is the first slot; choose the strongest promising person you can find.",';
+  if (!d.includes(alreadyLine)) throw new Error("discovery objective context anchor missing");
+  d = d.replace(alreadyLine, `${alreadyLine}\n        recentBatchTrajectory ? \`RECENT BATCH TRAJECTORY (context only — do not copy its actions; use it to avoid repeating dead ends):\\n\${recentBatchTrajectory}\` : "No prior batch trajectory is available.",`);
+}
+if (!d.includes("batchHistory.push(...(result.trajectory ?? []).slice(-8));")) {
+  const resultAnchor = '        lastMessage = result.error || result.status || "completed";';
+  if (!d.includes(resultAnchor)) throw new Error("discovery result anchor missing");
+  d = d.replace(resultAnchor, `${resultAnchor}\n        batchHistory.push(...(result.trajectory ?? []).slice(-8));`);
+}
+
+if (s === original && d === originalDiscovery) {
+  console.log("Free-ReAct/provider/discovery-context repair already present; no changes needed");
   process.exit(0);
 }
 
@@ -78,4 +95,5 @@ if (/llm_all_failed — deterministic recovery|DETERMINISTIC SEARCH \(no LLM\)|d
 }
 
 fs.writeFileSync(path, s);
-console.log("Applied strict free-ReAct/provider repair: model-only tool choice, resilient JSON transport, quality-first provider fallback");
+fs.writeFileSync(discoveryPath, d);
+console.log("Applied strict free-ReAct/provider/discovery-context repair: model-only tools, resilient provider transport, shared non-prescriptive trajectory context");
