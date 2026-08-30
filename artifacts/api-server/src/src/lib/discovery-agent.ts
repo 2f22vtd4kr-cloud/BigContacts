@@ -68,6 +68,7 @@ export function isWellFormedPersonCandidate(candidate: Pick<DiscoveryCandidate,"
   if (!/^\p{L}[\p{L}.'’\-]*(?:\s+\p{L}[\p{L}.'’\-]*){1,4}$/u.test(name)) return false;
   if (words.some((w) => INVALID_PERSON_NAME_WORDS.has(w.toLowerCase().replace(/[.'’\-]/g, "")))) return false;
   if (INVALID_PERSON_NAME_PHRASES.some((p) => normalized === p || normalized.includes(` ${p} `) || normalized.startsWith(`${p} `) || normalized.endsWith(` ${p}`))) return false;
+  if (/^state\s+st$/i.test(normalized)) return false;
   if (!words.some((w) => /^\p{Lu}/u.test(w))) return false;
   const sourceUrls = (candidate.sourceUrls ?? []).map(String);
   return sourceUrls.some((url) => /^https?:\/\/\S+$/i.test(url)) && hasIndependentSource(sourceUrls);
@@ -84,6 +85,7 @@ function parsePersonFindings(findings: DiscoveryFinding[]): DiscoveryCandidate[]
     const sourceUrls = (extra.sourceUrls ?? []).filter((u) => /^https?:\/\//i.test(u)).slice(0, 6);
     if (!isWellFormedPersonCandidate({ name: n, sourceUrls })) return;
     if (!hasStrongIdentityEvidence({ name: n, role: extra.role, company: extra.company, basis: extra.basis, sourceUrls })) return;
+    
     
     
     
