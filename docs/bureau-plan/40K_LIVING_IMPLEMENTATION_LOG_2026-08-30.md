@@ -155,3 +155,19 @@ followed by the updated regression test commit:
 `184b9248f4a9e56c0129ecccc4c9c68b2c0535ef`
 
 No provider-backed success is claimed by this entry.
+
+## Entry 007 — model capability placement is an architecture decision, not a training task
+
+The repository review confirms that Apex should use capable existing models through orchestration; there is no need to introduce fine-tuning, reinforcement training, continued pre-training, adapters, or any other training workflow to make the Bureau capable.
+
+The living specification now records the following non-negotiable placement:
+
+`Boss = Gemini → Right-hand = NVIDIA NIM → Dig investigator = Groq → Mistral → tools/evidence/card`
+
+Gemini and NVIDIA remain reasoning roles and do not browse. Groq/Mistral are the actual web-research decision lane. The investigator owns query selection, page selection, OSINT selection, hypotheses, pivots, verification and stopping.
+
+This does **not** mean the investigator should be artificially weakened. The engineering objective is to expose the strongest supported model configuration, useful case state, and relevant tools while retaining hard integrity/resource boundaries. No fixed search slate, mandatory hop count, deterministic fame ranking, or contact checklist should replace investigator judgment.
+
+A provider can be restricted by role without being restricted in research capability. Role separation prevents architectural contamination; it does not tell the investigator what to research.
+
+No research-quality victory is claimed by this entry. The next acceptance evidence remains provider-backed trajectories and honest ten-target comparisons.
