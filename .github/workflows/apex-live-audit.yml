@@ -23,6 +23,19 @@ jobs:
       ENABLE_AUTO_PIPELINE: "false"
       NODE_ENV: development
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      GEMINI_API_KEY_1: ${{ secrets.GEMINI_API_KEY_1 }}
+      GEMINI_API_KEY_2: ${{ secrets.GEMINI_API_KEY_2 }}
+      GEMINI_API_KEY_3: ${{ secrets.GEMINI_API_KEY_3 }}
+      GEMINI_API_KEY_4: ${{ secrets.GEMINI_API_KEY_4 }}
+      GEMINI_API_KEY_5: ${{ secrets.GEMINI_API_KEY_5 }}
+      GEMINI_API_KEY_6: ${{ secrets.GEMINI_API_KEY_6 }}
+      GEMINI_API_KEY_7: ${{ secrets.GEMINI_API_KEY_7 }}
+      GEMINI_API_KEY_8: ${{ secrets.GEMINI_API_KEY_8 }}
+      GEMINI_API_KEY_9: ${{ secrets.GEMINI_API_KEY_9 }}
+      GEMINI_API_KEY_10: ${{ secrets.GEMINI_API_KEY_10 }}
+      GEMINI_API_KEY_11: ${{ secrets.GEMINI_API_KEY_11 }}
+      GEMINI_API_KEY_12: ${{ secrets.GEMINI_API_KEY_12 }}
+      GEMINI_API_KEY_13: ${{ secrets.GEMINI_API_KEY_13 }}
       GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
       MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
       NVIDIA_NIM_API_KEY: ${{ secrets.NVIDIA_NIM_API_KEY }}
@@ -71,9 +84,20 @@ jobs:
             git push origin HEAD:main
           fi
           git log -1 --oneline
-      - run: npm install -g pnpm@9
-      - name: Install workspace dependencies
-        run: pnpm install --no-frozen-lockfile --filter @workspace/db... --filter @workspace/api-server... --filter @workspace/api-zod... --filter apex-finder-local... --registry=https://registry.npmjs.org/
+      - name: Install pnpm
+        run: npm install -g pnpm@9
+      - name: Install workspace dependencies with retry
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3; do
+            echo "pnpm install attempt ${attempt}/3"
+            if pnpm install --no-frozen-lockfile --fetch-retries=5 --fetch-timeout=120000 --filter @workspace/db... --filter @workspace/api-server... --filter @workspace/api-zod... --filter apex-finder-local... --registry=https://registry.npmjs.org/; then
+              exit 0
+            fi
+            if [ "$attempt" -lt 3 ]; then sleep $((attempt * 10)); fi
+          done
+          exit 1
       - name: Install local services
         run: |
           sudo apt-get update -qq
