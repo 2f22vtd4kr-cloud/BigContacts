@@ -108,32 +108,35 @@ jobs:
           set -euo pipefail
           node --input-type=module <<'NODE'
           const results = [];
-          let ready = false;
+          let bossReady = false;
+          let rightHandReady = false;
+          let digReady = false;
           async function geminiProbe() {
             const keys = [process.env.GEMINI_API_KEY, ...Array.from({length:13}, (_,i) => process.env[`GEMINI_API_KEY_${i+1}`])].filter(Boolean);
             const models = [process.env.GEMINI_AGENTIC_MODEL || 'gemini-3.7-flash', 'gemini-3.6-flash', 'gemini-3.5-flash'];
             for (const [ki,key] of keys.entries()) for (const model of [...new Set(models)]) {
               try {
                 const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, { method:'POST', headers:{'x-goog-api-key':key,'content-type':'application/json'}, body:JSON.stringify({contents:[{parts:[{text:'Reply READY only.'}]}],generationConfig:{maxOutputTokens:8}}), signal:AbortSignal.timeout(15000) });
-                await r.text(); results.push({provider:'gemini',key:`${ki+1}`,model,status:r.status}); if (r.ok) return true; if (r.status === 401 || r.status === 403) break;
-              } catch (e) { results.push({provider:'gemini',key:`${ki+1}`,model,state:'transport_error',error:String(e?.message||e)}); }
+                await r.text(); results.push({provider:'gemini-boss',key:`${ki+1}`,model,status:r.status}); if (r.ok) { bossReady = true; return true; } if (r.status === 401 || r.status === 403) break;
+              } catch (e) { results.push({provider:'gemini-boss',key:`${ki+1}`,model,state:'transport_error',error:String(e?.message||e)}); }
             }
             return false;
           }
-          async function openaiProbe(provider, url, key, model) {
-            if (!key) { results.push({provider,state:'not_configured'}); return false; }
-            try { const r = await fetch(url,{method:'POST',headers:{Authorization:`Bearer ${key}`,'content-type':'application/json'},body:JSON.stringify({model,messages:[{role:'user',content:'Reply READY only.'}],max_tokens:8}),signal:AbortSignal.timeout(15000)}); results.push({provider,model,status:r.status}); await r.text(); return r.ok; }
-            catch (e) { results.push({provider,model,state:'transport_error',error:String(e?.message||e)}); return false; }
+          async function openaiProbe(provider, url, key, model, capability) {
+            if (!key) { results.push({provider,capability,state:'not_configured'}); return false; }
+            try { const r = await fetch(url,{method:'POST',headers:{Authorization:`Bearer ${key}`,'content-type':'application/json'},body:JSON.stringify({model,messages:[{role:'user',content:'Reply READY only.'}],max_tokens:8}),signal:AbortSignal.timeout(15000)}); results.push({provider,capability,model,status:r.status}); await r.text(); return r.ok; }
+            catch (e) { results.push({provider,capability,model,state:'transport_error',error:String(e?.message||e)}); return false; }
           }
-          const probes = [
-            ['groq', () => openaiProbe('groq','https://api.groq.com/openai/v1/chat/completions',process.env.GROQ_API_KEY,'openai/gpt-oss-120b')],
-            ['mistral', () => openaiProbe('mistral','https://api.mistral.ai/v1/chat/completions',process.env.MISTRAL_API_KEY,process.env.MISTRAL_AGENTIC_MODEL || 'mistral-small-latest')],
-            ['nvidia', () => openaiProbe('nvidia','https://integrate.api.nvidia.com/v1/chat/completions',process.env.NVIDIA_NIM_API_KEY,process.env.NVIDIA_AGENTIC_MODEL || 'nvidia/nemotron-3.5-lightning-30b-a3b')],
-          ];
-          if (await geminiProbe()) ready = true;
-          for (const [,probe] of probes) if (await probe()) ready = true;
-          console.log(JSON.stringify({ready,results},null,2));
-          if (!ready) { console.error('No configured LLM provider completed a real generation preflight. Do not launch a 10-target batch.'); process.exit(2); }
+          const groqProbe = async () => { const ok = await openaiProbe('groq','https://api.groq.com/openai/v1/chat/completions',process.env.GROQ_API_KEY,'openai/gpt-oss-120b','dig'); if (ok) digReady = true; return ok; };
+          const mistralProbe = async () => { const ok = await openaiProbe('mistral','https://api.mistral.ai/v1/chat/completions',process.env.MISTRAL_API_KEY,process.env.MISTRAL_AGENTIC_MODEL || 'mistral-small-latest','dig'); if (ok) digReady = true; return ok; };
+          const nvidiaProbe = async () => { const ok = await openaiProbe('nvidia-nim','https://integrate.api.nvidia.com/v1/chat/completions',process.env.NVIDIA_NIM_API_KEY,process.env.NVIDIA_NIM_MODEL || 'nvidia/nemotron-3.5-lightning-30b-a3b','right_hand'); if (ok) rightHandReady = true; return ok; };
+          await geminiProbe();
+          await groqProbe();
+          await mistralProbe();
+          await nvidiaProbe();
+          const ready = digReady;
+          console.log(JSON.stringify({ready,digReady,bossReady,rightHandReady,results},null,2));
+          if (!digReady) { console.error('No configured Dig investigator provider completed a real generation preflight (Groq or Mistral). Do not launch a 10-target batch.'); process.exit(2); }
           NODE
       - name: Start Apex API
         run: |
