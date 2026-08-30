@@ -29,14 +29,14 @@ jobs:
       NODE_ENV: test
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: pnpm
       - uses: pnpm/action-setup@v4
         with:
           version: 9
           run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile --filter @workspace/db... --filter @workspace/api-server... --filter @workspace/api-zod... --filter apex-finder-local...
       - name: Typecheck API server
