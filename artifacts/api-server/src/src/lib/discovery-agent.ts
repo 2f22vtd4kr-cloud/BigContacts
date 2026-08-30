@@ -1,5 +1,5 @@
 /**
- * Discovery agent (plan Vol 219) — free LLM loop to propose people with public basis.
+ * Discovery agent — free LLM loop to propose people with public basis.
  * Does NOT promote contacts onto entity cards. Output is candidates for discovery-intake.
  */
 import { logger } from "./logger";
@@ -30,8 +30,6 @@ const INVALID_PERSON_NAME_WORDS = new Set([
   "a", "an", "and", "as", "at", "behind", "been", "by", "chief", "ceo",
   "company", "executive", "from", "has", "in", "of", "officer", "on",
   "the", "to", "with",
-  // Common noun/organization fragments that models can accidentally extract
-  // from prose and SERP snippets as if they were a person's name.
   "security", "issues", "issue", "problem", "problems", "solutions", "services",
   "technology", "systems", "markets", "capital", "equity", "partners", "partner",
   "group", "fund", "funds", "holdings", "holding", "management", "ventures",
@@ -42,34 +40,18 @@ const INVALID_PERSON_NAME_WORDS = new Set([
 ]);
 
 const INVALID_PERSON_NAME_PHRASES = [
-  "security issues",
-  "security issue",
-  "private equity",
-  "venture capital",
-  "real estate",
-  "wealth management",
-  "financial services",
-  "chief executive officer",
-  "chief executive",
-  "executive officer",
-  "company founder",
-  "billionaire founders",
-  "billionaire founder",
-  "forbes list",
-  "forbes billionaires",
-  "the billionaire",
-  "the billionaires",
+  "security issues", "security issue", "private equity", "venture capital",
+  "real estate", "wealth management", "financial services", "chief executive officer",
+  "chief executive", "executive officer", "company founder", "billionaire founders",
+  "billionaire founder", "forbes list", "forbes billionaires", "the billionaire", "the billionaires",
 ];
 
-// A billionaire-list page can be legitimate evidence, but it is a poor
-// discovery basis for this product because fame is a weak proxy for an
-// attainable public contact route. A list-only candidate must not enter the
-// ledger; a candidate corroborated by an independent source remains eligible.
 const LIST_ONLY_SOURCE_PATTERNS = [
   /forbes\.com\/billionaires(?:\/|\?|$)/i,
   /forbes\.com\/real-time-billionaires(?:\/|\?|$)/i,
   /forbes\.com\/lists\/[^\s/]*billionaires?/i,
   /forbes\.com\/lists\/[^\s/]*richest/i,
+  /bloomberg\.com\/billionaires(?:\/|\?|$)/i,
 ];
 
 function hasIndependentSource(sourceUrls: string[]): boolean {
@@ -78,14 +60,6 @@ function hasIndependentSource(sourceUrls: string[]): boolean {
   return urls.some((url) => !LIST_ONLY_SOURCE_PATTERNS.some((pattern) => pattern.test(url)));
 }
 
-/**
- * Safety validation for model-selected discovery output.
- *
- * This is deliberately not a ranking or fitness score. The model still
- * chooses the candidate and its order; this only prevents sentence fragments,
- * titles, organizations, generic nouns, fame-list-only provenance, and
- * source-free strings from becoming people.
- */
 export function isWellFormedPersonCandidate(candidate: Pick<DiscoveryCandidate, "name" | "sourceUrls">): boolean {
   const name = String(candidate.name ?? "").trim().replace(/\s+/g, " ");
   const words = name.split(" ");
@@ -94,14 +68,9 @@ export function isWellFormedPersonCandidate(candidate: Pick<DiscoveryCandidate, 
   if (!/^\p{L}[\p{L}.'’\-]*(?:\s+\p{L}[\p{L}.'’\-]*){1,4}$/u.test(name)) return false;
   if (words.some((word) => INVALID_PERSON_NAME_WORDS.has(word.toLowerCase().replace(/[.'’\-]/g, "")))) return false;
   if (INVALID_PERSON_NAME_PHRASES.some((phrase) => normalized === phrase || normalized.includes(` ${phrase} `) || normalized.startsWith(`${phrase} `) || normalized.endsWith(` ${phrase}`))) return false;
-  // A real person's name normally has at least one capitalized name token.
-  // This rejects lowercase prose fragments without imposing a fixed naming style.
   if (!words.some((word) => /^\p{Lu}/u.test(word))) return false;
   const sourceUrls = (candidate.sourceUrls ?? []).map(String);
   if (!sourceUrls.some((url) => /^https?:\/\/\S+$/i.test(url))) return false;
-  // Do not let a pure billionaire/richest-person list become the discovery
-  // route. If the model independently corroborates the person elsewhere,
-  // the candidate remains model-selected and is not rejected for being famous.
   if (!hasIndependentSource(sourceUrls)) return false;
   return true;
 }
@@ -169,9 +138,6 @@ function parsePersonFindings(
   return out.slice(0, 30);
 }
 
-/**
- * Run a short free dig oriented at discovering people (breadth), not filling one card (depth).
- */
 export async function runDiscoveryAgent(input: {
   jobId?: string;
   depth?: "fast" | "standard" | "deep";
@@ -203,19 +169,20 @@ export async function runDiscoveryAgent(input: {
   const objective = [
     apexOrientationFor("investigator"),
     "",
-    "YOUR TASK — DISCOVERY (breadth: who to research later, not how to contact one known person):",
-    "Work like a strong open-web researcher: invent your own searches and visits.",
-    "Choose the lane yourself from the public evidence you encounter; there is no fixed source checklist.",
-    "Return named real people who look worth a later contact dig — with real http(s) sourceUrls.",
+    "YOUR TASK — DISCOVERY (breadth: identify people worth a later contact dig, not generic company leads):",
+    "Work like a strong open-web researcher: invent your own searches and visits. The model owns the research lane, query wording, sources, pivots, and stopping point.",
+    "Start with a concrete named person, company, ownership story, transaction, leadership page, filing, trade publication, regional business story, or other public source that can reveal a person's full name. Discover the NAME first; contact-route research comes after admission.",
+    "Do not begin with generic contact-form hunting. Avoid searches such as 'contact founder', 'contact CEO', 'contact owner', or 'founder contact email' unless a specific company or person is already named. Those queries are high-noise and frequently return generic forms, agencies, and unrelated prose rather than people.",
+    "If a company/contact page has no named person, treat it as an intermediate company lead and pivot to the named owner/founder/principal/CEO using that company's actual name. Do not treat a generic contact form as a person candidate.",
     "Prefer practical reachability over fame or maximum net worth. Good targets are often owners, founders, operators, principals, investors, family-office principals, or senior executives of substantial privately held or mid-market businesses where a public company page, office, assistant, family-office, foundation, IR, filing, or other legitimate intermediary route may exist.",
-    "Do not equate wealth, press coverage, or a prestigious list position with usefulness. A person can be extremely wealthy and still be a poor outreach target if access is heavily protected.",
-    "Treat top billionaire/celebrity/household-name profiles as low expected-value unless the evidence itself reveals a concrete, plausible public or intermediary route. Do not spend the discovery budget climbing a billionaire ranking merely because it is easy to enumerate.",
-    "Do not use Forbes/Bloomberg-style billionaire or richest-person lists as a default discovery strategy. A list may be a supporting source after a stronger lead exists, but a list-only candidate is not useful discovery provenance.",
-    "If you encounter a billionaire list, pivot to the underlying operating company, named principals, regional owners, private-equity operating partners, family-office professionals, or other people with a concrete public route instead of continuing down the ranking.",
-    "Do not turn a phrase, job title, organization, topic, product, sector, list label, or search-snippet fragment into a person. A candidate must be a named individual supported by an exact public source.",
-    "If the evidence does not yield a real person's full name, do not manufacture one; continue the investigation or finish with no candidate.",
+    "A concrete named person with a plausible operating-company or intermediary surface is more useful than a famous name with protected access. One strong person is better than many generic company pages.",
+    "Do not equate wealth, press coverage, or a prestigious list position with usefulness. Do not estimate or fabricate wealth.",
+    "Treat top billionaire/celebrity/household-name profiles as low expected-value unless the evidence itself reveals a concrete plausible route. Do not spend the discovery budget climbing a billionaire ranking merely because it is easy to enumerate.",
+    "Do not use Forbes/Bloomberg-style billionaire or richest-person lists as a default discovery strategy. A list may support an already-identified person, but a list-only candidate is invalid discovery provenance.",
+    "If a billionaire list appears naturally, pivot to the underlying operating company, named principals, regional owners, private-equity operating partners, family-office professionals, or another concrete public surface instead of continuing down the ranking.",
+    "Do not turn a phrase, job title, organization, topic, product, sector, list label, contact-form title, or search-snippet fragment into a person. A candidate must be a named individual supported by an exact public source.",
+    "Before finishing, ask yourself: do I have a full personal name, a real source URL, and a concrete reason this person is plausibly reachable? If not, continue the investigation or finish with no candidate rather than manufacturing one.",
     "Use personName or value form: person: Full Name | role | company when possible.",
-    "No fixed search checklist — choose a coherent public lane yourself.",
     input.laneHint ? `Operator lane hint (optional context, not a script): ${input.laneHint}` : "",
   ]
     .filter(Boolean)
