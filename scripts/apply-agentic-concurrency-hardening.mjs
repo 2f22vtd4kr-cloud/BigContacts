@@ -42,7 +42,7 @@ async function llmStep(prompt: string): Promise<{ model: string; raw: string } |
       [["gemini", callGeminiJson], ["nvidia", callNvidiaJson]],
       [["groq", callGroqJson], ["mistral", callMistralJson]],
     ];
-    const providerDecisionTimeoutMs = 30_000;
+    const providerDecisionTimeoutMs = 55_000;
     const errors: string[] = [];
     for (const stage of stages) {
       const attempts = stage.map(async ([name, fn]) => {
@@ -81,4 +81,4 @@ if (!llmStepRe.test(s)) {
 s = s.replace(llmStepRe, replacement);
 
 fs.writeFileSync(targetPath, s);
-console.log("Applied agentic concurrency hardening: bounded provider-decision concurrency and no global cross-target circuit");
+console.log("Applied agentic concurrency hardening: bounded provider-decision concurrency, 55s provider deadline, and no global cross-target circuit");
