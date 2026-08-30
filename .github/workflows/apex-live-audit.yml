@@ -10,7 +10,7 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   live-bureau-audit:
@@ -54,47 +54,20 @@ jobs:
       NODE_OPTIONS: --max-old-space-size=1536
     steps:
       - uses: actions/checkout@v4
-        with: { ref: main }
+        with: { ref: ${{ github.sha }} }
       - name: Show exact tip
         run: git log -1 --oneline
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           registry-url: https://registry.npmjs.org/
-      - name: Permanently patch committed agentic source when needed
-        run: |
-          node scripts/patch-agentic-final.mjs
-          node scripts/patch-discovery-batch-v2.mjs
-          node scripts/patch-provider-lifecycle-final.mjs
-          node scripts/patch-gemini-agentic-final.mjs
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add \
-            artifacts/api-server/src/src/lib/agentic-web-research.ts \
-            artifacts/api-server/src/src/lib/discovery-agent.ts \
-            scripts/patch-agentic-final.mjs \
-            scripts/patch-discovery-batch-v2.mjs \
-            scripts/patch-provider-lifecycle-final.mjs \
-            scripts/patch-gemini-agentic-final.mjs
-          if ! git diff --cached --quiet; then
-            git commit -m "fix: persist final agentic runtime and provider lifecycle [skip ci]"
-            git push origin HEAD:main
-          fi
-          git log -1 --oneline
       - name: Install pnpm
         run: npm install -g pnpm@9
-      - name: Install API workspace graph with retry
+      - name: Verify lockfile and install API workspace graph
         shell: bash
         run: |
           set -euo pipefail
-          for attempt in 1 2 3; do
-            echo "pnpm install attempt ${attempt}/3"
-            if pnpm install --no-frozen-lockfile --ignore-scripts --fetch-retries=5 --fetch-timeout=120000 --filter @workspace/api-server... --registry=https://registry.npmjs.org/; then
-              exit 0
-            fi
-            if [ "$attempt" -lt 3 ]; then sleep $((attempt * 10)); fi
-          done
-          exit 1
+          pnpm install --frozen-lockfile --ignore-scripts --fetch-retries=5 --fetch-timeout=120000 --filter @workspace/api-server... --registry=https://registry.npmjs.org/
       - name: Install local services
         run: |
           sudo apt-get update -qq
