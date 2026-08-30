@@ -11,7 +11,7 @@ export function identityNameTokens(value: string | null | undefined): string[] {
     .replace(/[^a-z0-9\s]/g, " ")
     .split(/\s+/)
     .map((t) => t.trim())
-    .filter((t) => t.length >= 3 && !STOP.includes(t));
+    .filter((t) => t.length >= 3 && !STOP.has(t));
 }
 
 const COLLISION_HOSTS = [
