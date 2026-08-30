@@ -1054,7 +1054,6 @@ async function callGeminiJson(prompt: string): Promise<{ model: string; raw: str
               generationConfig: {
                 maxOutputTokens: 4096,
                 thinkingConfig: { thinkingLevel: "high" },
-                responseFormat: { text: { mimeType: "application/json", schema: AGENTIC_ACTION_SCHEMA } },
               },
             }),
             signal: AbortSignal.timeout(50_000),
