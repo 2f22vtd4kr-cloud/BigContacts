@@ -60,7 +60,10 @@ jobs:
             artifacts/api-server/src/src/lib/agentic-web-research.ts \
             artifacts/api-server/src/src/lib/discovery-agent.ts \
             artifacts/api-server/src/src/lib/nvidia-nim-case-reasoning.ts \
+            scripts/apply-agentic-runtime-hardening.mjs \
+            scripts/generate-apex-research-agent-integrity-plan.mjs \
             docs/bureau-plan/40K_RESEARCH_AGENT_INTEGRITY_PLAN.md
+          git add -f docs/bureau-plan/40K_RESEARCH_AGENT_INTEGRITY_PLAN.md
           if ! git diff --cached --quiet; then
             git commit -m "fix: persist agentic runtime hardening and living 40k plan [skip ci]"
             git push origin HEAD:main
