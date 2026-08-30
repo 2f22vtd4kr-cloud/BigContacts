@@ -8,7 +8,7 @@ const required = [
   ["Gemini 3.7 is the default current model", /"gemini-3\.7-flash"/],
   ["Gemini uses high thinking", /thinkingLevel:\s*"high"/],
   ["Gemini action schema is present", /const AGENTIC_ACTION_SCHEMA =/],
-  ["Gemini uses structured JSON output", /responseFormat:\s*\{\s*text:\s*\{\s*mimeType:\s*"application\/json"/],
+  ["Gemini action JSON is fail-closed parsed", /function parseAction\(raw: string\): AgentAction \| null/],
   ["provider decision deadline is not the old 18s cap", /providerDecisionTimeoutMs = 55_000/],
   ["default iteration budget is expanded", /const MAX_ITER = 40;/],
 ];
