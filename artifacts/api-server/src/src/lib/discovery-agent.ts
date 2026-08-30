@@ -65,6 +65,13 @@ const LIST_ONLY_SOURCE_PATTERNS = [
   /bloomberg\.com\/billionaires(?:\/|\?|$)/i,
 ];
 
+const SEARCH_RESULT_SOURCE_PATTERNS = [
+  /google\.[^/]+\/search(?:[/?]|$)/i,
+  /bing\.com\/search(?:[/?]|$)/i,
+  /search\.yahoo\.com\/search(?:[/?]|$)/i,
+  /duckduckgo\.com\/(?:html\/)?\?(?:[^#]*&)?q=/i,
+];
+
 function normalizedPersonText(value: string): string {
   return value
     .trim()
@@ -73,6 +80,10 @@ function normalizedPersonText(value: string): string {
     .replace(/[.'’\-]+/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function normalizeUrl(value: string): string {
+  return String(value || "").trim().replace(/[),.;]+$/, "");
 }
 
 function isInvalidIdentityPhrase(name: string): boolean {
@@ -97,7 +108,9 @@ export function hasStrongIdentityEvidence(input: {
 }): boolean {
   const name = input.name.trim().replace(/\s+/g, " ");
   const normalized = normalizedPersonText(name);
-  const urls = input.sourceUrls.filter((u) => /^https?:\/\/\S+$/i.test(String(u)));
+  const urls = input.sourceUrls
+    .map(normalizeUrl)
+    .filter((u) => /^https?:\/\/\S+$/i.test(u));
 
   // Safety boundary only: reject values that are structurally recognizable as
   // metadata, labels, addresses, products, departments, or organization text.
@@ -111,13 +124,19 @@ export function hasStrongIdentityEvidence(input: {
   if (/\b(?:street|st|avenue|ave|road|rd|boulevard|blvd|drive|dr|lane|ln)\b\.?\s+\d+/i.test(normalized)) return false;
 
   // Candidate provenance remains mandatory and list-only fame pages are not
-  // sufficient. The model remains responsible for the actual identity claim.
+  // sufficient. Search-result/query URLs are also not evidence of the page
+  // behind the query and therefore cannot establish a person identity.
   return urls.length > 0 && hasIndependentSource(urls);
 }
 
 function hasIndependentSource(sourceUrls: string[]): boolean {
-  const urls = sourceUrls.filter((url) => /^https?:\/\/\S+$/i.test(String(url)));
-  return urls.length > 0 && urls.some((url) => !LIST_ONLY_SOURCE_PATTERNS.some((pattern) => pattern.test(url)));
+  const urls = sourceUrls
+    .map(normalizeUrl)
+    .filter((url) => /^https?:\/\/\S+$/i.test(url));
+  return urls.length > 0 && urls.some((url) =>
+    !LIST_ONLY_SOURCE_PATTERNS.some((pattern) => pattern.test(url))
+    && !SEARCH_RESULT_SOURCE_PATTERNS.some((pattern) => pattern.test(url)),
+  );
 }
 
 export function isWellFormedPersonCandidate(candidate: Pick<DiscoveryCandidate, "name" | "sourceUrls">): boolean {
@@ -129,11 +148,21 @@ export function isWellFormedPersonCandidate(candidate: Pick<DiscoveryCandidate, 
   if (words.some((w) => INVALID_PERSON_NAME_WORDS.has(w.toLowerCase().replace(/[.'’\-]/g, "")))) return false;
   if (isInvalidIdentityPhrase(normalized)) return false;
   if (!words.some((w) => /^\p{Lu}/u.test(w))) return false;
-  const sourceUrls = (candidate.sourceUrls ?? []).map(String);
+  const sourceUrls = (candidate.sourceUrls ?? []).map(normalizeUrl);
   return sourceUrls.some((url) => /^https?:\/\/\S+$/i.test(url)) && hasIndependentSource(sourceUrls);
 }
 
-function parsePersonFindings(findings: DiscoveryFinding[]): DiscoveryCandidate[] {
+function hasObservedPageSource(sourceUrls: string[], trajectory: string[]): boolean {
+  const observed = new Set<string>();
+  for (const line of trajectory) {
+    const match = String(line).match(/step\d+:\s+(?:visit|browser_fetch)\s+(https?:\/\/\S+)/i);
+    if (match?.[1]) observed.add(normalizeUrl(match[1]));
+  }
+  return sourceUrls.some((url) => observed.has(normalizeUrl(url)));
+}
+
+/** Exported for regression tests: identity admission must be tied to an actually visited page. */
+export function parsePersonFindings(findings: DiscoveryFinding[], trajectory: string[] = []): DiscoveryCandidate[] {
   const out: DiscoveryCandidate[] = [];
   const seen = new Set<string>();
   const add = (name: string, extra: Partial<DiscoveryCandidate>) => {
@@ -141,9 +170,10 @@ function parsePersonFindings(findings: DiscoveryFinding[]): DiscoveryCandidate[]
     if (n.length < 3 || n.length > 120) return;
     const key = n.toLowerCase();
     if (seen.has(key)) return;
-    const sourceUrls = (extra.sourceUrls ?? []).filter((u) => /^https?:\/\//i.test(u)).slice(0, 6);
+    const sourceUrls = (extra.sourceUrls ?? []).map(normalizeUrl).filter((u) => /^https?:\/\//i.test(u)).slice(0, 6);
     if (!isWellFormedPersonCandidate({ name: n, sourceUrls })) return;
     if (!hasStrongIdentityEvidence({ name: n, role: extra.role, company: extra.company, basis: extra.basis, sourceUrls })) return;
+    if (!hasObservedPageSource(sourceUrls, trajectory)) return;
     seen.add(key);
     out.push({
       name: n,
@@ -254,7 +284,7 @@ export async function runDiscoveryAgent(input: {
             input.onLiveStep?.(step);
           },
         });
-        const slotCandidates = parsePersonFindings(result.findings ?? []);
+        const slotCandidates = parsePersonFindings(result.findings ?? [], result.trajectory ?? []);
         try { completeDigSpan(slotSpan.id, { status: slotCandidates.length ? "ok" : "error", resultSummary: `slot=${slot + 1}/${requestedBatch} candidates=${slotCandidates.length} searches=${result.searches} visits=${result.visits}` }); } catch { /* best-effort */ }
         return { result, slotCandidates };
       } catch (err) {
