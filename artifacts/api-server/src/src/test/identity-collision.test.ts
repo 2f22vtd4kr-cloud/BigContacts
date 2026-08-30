@@ -18,6 +18,30 @@ describe("assessIdentityCollision", () => {
     expect(r.risk).toBe(true);
   });
 
+  it("flags unlabelled organization email as non-personal evidence", () => {
+    const r = assessIdentityCollision({
+      targetName: "Jane Smith",
+      companyName: "Smith Holdings",
+      personName: null,
+      value: "info@smithholdings.com",
+      sourceUrls: ["https://smithholdings.com/contact"],
+    });
+    expect(r.risk).toBe(true);
+    expect(r.reason).toMatch(/no explicit person attribution/i);
+  });
+
+  it("flags unlabelled phone as non-personal evidence", () => {
+    const r = assessIdentityCollision({
+      targetName: "Jane Smith",
+      companyName: "Smith Holdings",
+      personName: null,
+      value: "+1 212 555 0199",
+      sourceUrls: ["https://smithholdings.com/contact"],
+    });
+    expect(r.risk).toBe(true);
+    expect(r.reason).toMatch(/no explicit person attribution/i);
+  });
+
   it("flags personName with different surname", () => {
     const r = assessIdentityCollision({
       targetName: "Robert W Philip",
@@ -29,6 +53,18 @@ describe("assessIdentityCollision", () => {
     });
     expect(r.risk).toBe(true);
     expect(r.reason).toMatch(/surname/i);
+  });
+
+  it("allows explicitly attributed matching contact evidence", () => {
+    const r = assessIdentityCollision({
+      targetName: "Robert W Philip",
+      companyName: "Issuer Inc",
+      personName: "Robert Philip",
+      value: "rphilip@issuer.com",
+      sourceUrls: ["https://issuer.com/team/robert-philip"],
+      note: "reporting person",
+    });
+    expect(r.risk).toBe(false);
   });
 
   it("allows matching surname evidence", () => {
