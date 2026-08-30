@@ -85,6 +85,7 @@ function parsePersonFindings(findings: DiscoveryFinding[]): DiscoveryCandidate[]
     if (!isWellFormedPersonCandidate({ name: n, sourceUrls })) return;
     if (!hasStrongIdentityEvidence({ name: n, role: extra.role, company: extra.company, basis: extra.basis, sourceUrls })) return;
     if (!hasStrongIdentityEvidence({ name: n, role: extra.role, company: extra.company, basis: extra.basis, sourceUrls })) return;
+    if (!hasStrongIdentityEvidence({ name: n, role: extra.role, company: extra.company, basis: extra.basis, sourceUrls })) return;
     seen.add(key);
     out.push({
       name: n,
