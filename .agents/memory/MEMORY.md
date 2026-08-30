@@ -1,1 +1,2 @@
 - [Imported workspace installs](imported-workspace-installs.md) — when pnpm lock tarballs point at an unreachable proxy, resolve manifests from npm without rewriting the lockfile.
+- [Redis quota guardrails](redis-quota-guardrails.md) — idle status polling must batch pointer reads, cache longer, and never retry monthly-capped Upstash slots.
