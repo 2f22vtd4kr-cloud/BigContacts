@@ -13,7 +13,7 @@ This is an append-only implementation log for the living 40K research-agent inte
 
 ### Causal flaw found
 
-The previous hardening made the candidate gate stronger against malformed strings, but it still treated `sourceUrls` as an assertion supplied by the model. A model could return a person-shaped name paired with an HTTP URL that had never been observed by the actual trajectory. The identity gate therefore established **URL shape**, not **evidence binding**.
+The previous hardening made the candidate gate stronger against malformed strings, but it still treated `sourceUrls` as an assertion supplied by the model. A model could return a person-shaped name paired with an HTTP URL that had never been observed by the actual trajectory. The identity gate therefore established URL shape, not evidence binding.
 
 The same architectural distinction matters downstream for contact evidence. The legacy `persistBureauContactsForEntity` helper can manufacture Google/SEC query URLs when an item arrives without an exact source URL. A query URL proves that a query was issued; it does not prove the underlying contact claim.
 
@@ -21,20 +21,9 @@ This is an extraction → identity/provenance boundary problem, not a reason to 
 
 ### Changes made on this branch
 
-1. **Discovery source binding**
-   - Model-selected candidate admission now requires the cited source URL to have appeared in an actual `visit` or `browser_fetch` trajectory step for that discovery session.
-   - Search-engine/query URLs are not accepted as identity provenance.
-   - The model remains responsible for choosing the page and deciding that the person is worth pursuing; deterministic code only checks that the claimed page was actually observed.
-
-2. **Strict canonical persistence boundary**
-   - Added `bureau-contact-persist-strict.ts`.
-   - The canonical agentic bureau pass and target-contact agent now pass contact evidence through this strict boundary before durable persistence.
-   - The boundary rejects missing source URLs and known Google/Bing/Yahoo/DDG search URLs and SEC search-index query URLs.
-   - It does not rank people, choose tools, choose queries, or otherwise constrain research judgment.
-
-3. **Regression tests**
-   - Added discovery tests for synthetic query URLs and for model-asserted identities whose cited page was not actually visited.
-   - Added persistence-boundary tests for missing provenance, synthetic search/registry URLs, and preservation of a real claim page.
+1. **Discovery source binding** — model-selected candidate admission now requires the cited source URL to have appeared in an actual `visit` or `browser_fetch` trajectory step for that discovery session. Search-engine/query URLs are not accepted as identity provenance. The model remains responsible for choosing the page and deciding that the person is worth pursuing; deterministic code only checks that the claimed page was actually observed.
+2. **Strict canonical persistence boundary** — added `bureau-contact-persist-strict.ts`; the canonical agentic bureau pass and target-contact agent now pass contact evidence through this strict boundary before durable persistence. The boundary rejects missing source URLs and known search/index query URLs without ranking people or choosing research actions.
+3. **Regression tests** — added discovery tests for synthetic query URLs and model-asserted identities whose cited page was not actually visited; added persistence-boundary tests for missing provenance, synthetic search/registry URLs, and preservation of a real claim page.
 
 ### What this does NOT prove
 
@@ -44,25 +33,29 @@ It also does not prove the 10-target live audit. No provider-backed execution re
 
 ### Required next validation
 
-1. Run the focused Vitest suites from the exact branch tip.
+1. Run focused Vitest suites from the exact branch tip.
 2. Run all static bureau/autonomy checks.
 3. Run a real provider preflight.
-4. Run the first genuine 10-target discovery-first batch only after provider readiness is confirmed.
+4. Run a genuine 10-target discovery-first batch only after provider readiness is confirmed.
 5. Capture full trajectories, including source URLs and page observations.
-6. Compare admitted identities against the actual page content and record any remaining false promotes.
+6. Compare admitted identities against actual page content and record remaining false promotes.
 7. Convert every causal false promote into a regression test before the next 10-target batch.
 
 ## Entry 002 — provider routing observation
 
-The current free-ReAct LLM step uses staged provider races: Gemini/NVIDIA race in the first stage and Groq/Mistral race in the second stage. This is operational failover rather than a true hierarchical Boss/right-hand decision. It can also make the selected model nondeterministic when multiple providers are healthy.
+The current free-ReAct LLM step uses provider failover. Provider selection must be distinguished from the hierarchical Bureau architecture: provider failover is an implementation detail of the **web-research investigator**, not a substitute for Boss/right-hand reasoning.
 
-This is a separate architecture issue from identity integrity. It should be measured before changing it: record provider/model selected per ReAct step, failure reason, latency, and resulting research quality. Do not replace model freedom with a fixed provider solely for determinism.
+The key architecture is:
+
+`Boss (Gemini) → Right-hand (NVIDIA) → actual web-research investigator → web/OSINT tools → evidence → identity/provenance → card`
+
+Boss and right-hand do not browse. They produce strategic direction and challenge assumptions; the investigator owns the actual search/visit/tool/pivot/stopping decisions.
 
 ## Entry 003 — current acceptance rule
 
-A passing static check is not a research-quality result. The next acceptance evidence must include actual provider-backed trajectories and card truth. A provider outage is infrastructure degradation; a malformed identity that survives admission is a research failure. A clean primary-source baseline that beats Apex remains a loss, regardless of Apex trajectory length or tool count.
+A passing static check is not a research-quality result. Acceptance evidence must include actual provider-backed trajectories and card truth. A provider outage is infrastructure degradation; a malformed identity that survives admission is a research failure. A clean primary-source baseline that beats Apex remains a loss, regardless of Apex trajectory length or tool count.
 
-## Entry 004 — live provider starvation root cause
+## Entry 004 — live provider starvation root cause, corrected interpretation
 
 ### Observed run
 
@@ -72,20 +65,37 @@ The trajectory contained long sequences of `llm_wait` spans. Provider preflight 
 
 ### Root cause
 
-The committed source still contained a module-global provider circuit and a staged provider race in which Gemini/NVIDIA were attempted before Groq/Mistral. A build-time hardening script rewrote the source immediately before the API build and installed a **55-second** provider decision deadline. Consequently, ten concurrent discovery slots could spend most of the live window waiting on the first provider stage before reaching the healthy Groq fallback. The module-global circuit also represented a cross-target contamination hazard.
+The runtime was incorrectly allowing the Boss/right-hand provider implementations to participate in the actual web-research ReAct lane. The previous hardening then compounded that role violation by describing the provider sequence as a Dig failover chain containing Gemini and NVIDIA.
 
-This was a provider/orchestration failure, not evidence that free-ReAct discovery should become a scripted research sequence.
+That is architecturally wrong even if it improves availability. **Gemini and NVIDIA are Bureau reasoning roles, not the investigator's web-research lane.** Using them as investigator fallback silently changes the architecture whenever the investigator provider is unavailable and makes live behavior dependent on the wrong model role.
 
-### Correction committed
+### Correction
 
-`84d41e69d307300ff02fbc9c37ff5510750fbbe9` changes the build-time source hardening to install the canonical Dig capability chain:
+The canonical Dig failover is now explicitly:
 
-`Groq → Mistral → Gemini → NVIDIA`
+`Groq → Mistral`
 
-with bounded concurrent provider-decision slots (`4` by default), an 18-second per-provider deadline, and no module-global cross-target circuit. The generated runtime explicitly labels this as **Dig failover**, separate from **Boss = Gemini / Right-hand = NVIDIA**.
+The build-time hardening script no longer installs Gemini or NVIDIA as investigator providers. It retains bounded concurrency and an 18-second per-provider deadline, with no module-global cross-target circuit.
 
-`89d4e79201070e9f6e524a8bdedef6288bc8278a` updates `check-agentic-runtime` to enforce that chain and reject the old global circuit.
+The orientation contract now states explicitly:
 
-### Validation in progress
+- Boss = Gemini; no browsing.
+- Right-hand = NVIDIA NIM; no browsing.
+- Investigator/dig = actual web-research LLM; owns search, visit, OSINT, pivots, hypotheses, and stopping.
+- If investigator providers are unavailable, fail closed rather than silently substituting Boss/right-hand.
 
-A new live audit is running against `581e74686e28e8b440757aa0e1fd8b3f878d8216` (run 156). It must be evaluated on actual source-backed discovery output and trajectories. Completion alone is not success.
+### Important evaluation consequence
+
+A future run that succeeds only because NVIDIA or Gemini secretly took over the web-research lane must **not** be counted as a valid investigator run. Provider telemetry must record the actual investigator provider separately from Boss/right-hand roles.
+
+## Entry 005 — architecture invariant added
+
+The runtime invariant suite was corrected so it now requires the investigator lane to contain Groq followed by Mistral and explicitly checks for the Boss=Gemini/right-hand=NVIDIA separation. The prior invariant that treated `Groq → Mistral → Gemini → NVIDIA` as the canonical Dig chain was itself a documentation/test error and has been removed.
+
+Commits:
+
+- `7ace5a3a` — reserve Gemini and NVIDIA for Bureau reasoning in the build-time hardening.
+- `aea5f66c` — clarify Boss/right-hand/investigator separation in the runtime orientation contract.
+- `0300af55` — correct the runtime invariant suite to enforce investigator-only provider routing.
+
+This is not being counted as research-quality progress. It is an architectural correctness repair. The next meaningful evidence must come from real investigator trajectories using the corrected role separation.
