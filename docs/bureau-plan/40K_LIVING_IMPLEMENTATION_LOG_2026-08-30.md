@@ -61,3 +61,31 @@ This is a separate architecture issue from identity integrity. It should be meas
 ## Entry 003 — current acceptance rule
 
 A passing static check is not a research-quality result. The next acceptance evidence must include actual provider-backed trajectories and card truth. A provider outage is infrastructure degradation; a malformed identity that survives admission is a research failure. A clean primary-source baseline that beats Apex remains a loss, regardless of Apex trajectory length or tool count.
+
+## Entry 004 — live provider starvation root cause
+
+### Observed run
+
+Live audit run 153 on `3f7d9696c26c700cb315e016c6c2de9b6f7ff09d` entered the canonical discovery-first path but finished with **0 entities**, **2 searches**, and **0 visits** across the ten requested discovery slots. The final runtime state was `bureauIntegrity=critical` because the last agentic LLM step failed across configured providers.
+
+The trajectory contained long sequences of `llm_wait` spans. Provider preflight showed Gemini unavailable/429 while Groq and NVIDIA both returned HTTP 200. The active model that did complete a decision was NVIDIA.
+
+### Root cause
+
+The committed source still contained a module-global provider circuit and a staged provider race in which Gemini/NVIDIA were attempted before Groq/Mistral. A build-time hardening script rewrote the source immediately before the API build and installed a **55-second** provider decision deadline. Consequently, ten concurrent discovery slots could spend most of the live window waiting on the first provider stage before reaching the healthy Groq fallback. The module-global circuit also represented a cross-target contamination hazard.
+
+This was a provider/orchestration failure, not evidence that free-ReAct discovery should become a scripted research sequence.
+
+### Correction committed
+
+`84d41e69d307300ff02fbc9c37ff5510750fbbe9` changes the build-time source hardening to install the canonical Dig capability chain:
+
+`Groq → Mistral → Gemini → NVIDIA`
+
+with bounded concurrent provider-decision slots (`4` by default), an 18-second per-provider deadline, and no module-global cross-target circuit. The generated runtime explicitly labels this as **Dig failover**, separate from **Boss = Gemini / Right-hand = NVIDIA**.
+
+`89d4e79201070e9f6e524a8bdedef6288bc8278a` updates `check-agentic-runtime` to enforce that chain and reject the old global circuit.
+
+### Validation in progress
+
+A new live audit is running against `581e74686e28e8b440757aa0e1fd8b3f878d8216` (run 156). It must be evaluated on actual source-backed discovery output and trajectories. Completion alone is not success.
