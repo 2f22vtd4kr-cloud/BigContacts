@@ -28,6 +28,33 @@ const INVALID_PERSON_NAME_WORDS = new Set(["a","an","and","as","at","behind","be
 const INVALID_PERSON_NAME_PHRASES = ["security issues","security issue","private equity","venture capital","real estate","wealth management","financial services","chief executive officer","chief executive","executive officer","company founder","billionaire founders","billionaire founder","forbes list","forbes billionaires","the billionaire","the billionaires"];
 const LIST_ONLY_SOURCE_PATTERNS = [/forbes\.com\/billionaires(?:\/|\?|$)/i,/forbes\.com\/real-time-billionaires(?:\/|\?|$)/i,/forbes\.com\/lists\/[^\s/]*billionaires?/i,/forbes\.com\/lists\/[^\s/]*richest/i,/bloomberg\.com\/billionaires(?:\/|\?|$)/i];
 
+
+function hasStrongIdentityEvidence(input: {
+  name: string;
+  role?: string;
+  company?: string;
+  basis?: string;
+  sourceUrls: string[];
+}): boolean {
+  const name = input.name.trim().replace(/\s+/g, " ");
+  const normalized = name.toLowerCase();
+  const urls = input.sourceUrls.filter((u) => /^https?:\/\/\S+$/i.test(String(u)));
+
+  // Safety boundary only: reject values that are structurally recognizable as
+  // metadata, labels, addresses, products, departments, or organization text.
+  // Do NOT require the explanatory note to repeat the name: doing so would
+  // over-filter legitimate model findings and would turn safety into ranking.
+  if (/(?:^|\b)(email|phone|address|street|zip|postal|product|comparison|enablement|operational|person)(?:\b|$)/i.test(normalized)) return false;
+  if (/^president(?:\s+person)?$/i.test(normalized)) return false;
+  if (/^(?:[a-z]+\.)?[a-z]{2,}\s+(?:email|phone)$/i.test(normalized)) return false;
+  if (/\b(?:llc|ltd|inc|corp|corporation|holdings|group|partners|fund|capital|ventures|foundation|products?)\b/i.test(normalized)) return false;
+  if (/\b(?:street|st|avenue|ave|road|rd|boulevard|blvd|drive|dr|lane|ln)\b\.?\s+\d+/i.test(normalized)) return false;
+
+  // Candidate provenance remains mandatory and list-only fame pages are not
+  // sufficient. The model remains responsible for the actual identity claim.
+  return urls.length > 0 && hasIndependentSource(urls);
+}
+
 function hasIndependentSource(sourceUrls: string[]): boolean {
   const urls = sourceUrls.filter((url) => /^https?:\/\/\S+$/i.test(String(url)));
   return urls.length > 0 && urls.some((url) => !LIST_ONLY_SOURCE_PATTERNS.some((pattern) => pattern.test(url)));
@@ -56,6 +83,7 @@ function parsePersonFindings(findings: DiscoveryFinding[]): DiscoveryCandidate[]
     if (seen.has(key)) return;
     const sourceUrls = (extra.sourceUrls ?? []).filter((u) => /^https?:\/\//i.test(u)).slice(0, 6);
     if (!isWellFormedPersonCandidate({ name: n, sourceUrls })) return;
+    if (!hasStrongIdentityEvidence({ name: n, role: extra.role, company: extra.company, basis: extra.basis, sourceUrls })) return;
     seen.add(key);
     out.push({
       name: n,
