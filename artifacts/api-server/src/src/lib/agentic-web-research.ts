@@ -958,8 +958,7 @@ async function callGroqJson(prompt: string): Promise<{ model: string; raw: strin
           body: JSON.stringify({
             model,
             temperature: 0.25,
-            max_tokens: 2048,
-            response_format: { type: "json_object" },
+            max_tokens: 1536,
             messages: [
               {
                 role: "system",
@@ -1019,8 +1018,7 @@ async function callMistralJson(prompt: string): Promise<{ model: string; raw: st
         body: JSON.stringify({
           model,
           temperature: 0.25,
-          max_tokens: 2048,
-          response_format: { type: "json_object" },
+          max_tokens: 1536,
           messages: [
             {
               role: "system",
@@ -1068,8 +1066,7 @@ async function callNvidiaJson(prompt: string): Promise<{ model: string; raw: str
         body: JSON.stringify({
           model,
           temperature: 0.25,
-          max_tokens: 2048,
-          response_format: { type: "json_object" },
+          max_tokens: 1536,
           messages: [
             {
               role: "system",
@@ -1098,10 +1095,10 @@ async function llmStep(prompt: string): Promise<{ model: string; raw: string } |
   // Empty/error advances to next provider. All fail → caller runs det recovery.
   // Never depend on one vendor or a decommissioned model id.
   const chain: Array<[string, () => Promise<{ model: string; raw: string } | null>]> = [
-    ["groq", callGroqJson],
-    ["mistral", callMistralJson],
     ["gemini", callGeminiJson],
     ["nvidia", callNvidiaJson],
+    ["groq", callGroqJson],
+    ["mistral", callMistralJson],
   ];
   const errors: string[] = [];
   for (const [name, fn] of chain) {
