@@ -8,7 +8,8 @@
  *
  * The evaluator answers: did the recorded run actually contain model/tool
  * decisions and useful trajectory variation, and did it avoid explicit forced
- * research markers? It does NOT declare Apex better than a baseline.
+ * research markers or deterministic tool substitution? It does NOT declare
+ * Apex better than a baseline.
  */
 
 import fs from "node:fs";
@@ -33,9 +34,14 @@ const allowed = new Set([
   "domain_lookup", "harvest_domain", "registry_search", "reverse_whois", "done",
 ]);
 const forbidden = /(force_(?:company|related|visit|search|hop)|groK-parity|mandatory|required)\s+(?:step|hop|search)/i;
+const deterministicSubstitution = /(?:det(?:erministic)?[_ -](?:search|visit|recovery)|llm[_ -]all[_ -]failed|auto[_ -]domain|seed(?:ed)?[_ -](?:contact|path)|forced[_ -]tool)/i;
 
 const invalid = actions.filter((a) => !allowed.has(a));
-const forced = steps.filter((s) => s?.forced === true || forbidden.test(JSON.stringify(s ?? {})));
+const forced = steps.filter((s) =>
+  s?.forced === true
+  || forbidden.test(JSON.stringify(s ?? {}))
+  || deterministicSubstitution.test(JSON.stringify(s ?? {})),
+);
 const researchActions = actions.filter((a) => a !== "done");
 const uniqueResearchActions = new Set(researchActions);
 const searches = actions.filter((a) => a === "web_search").length;
