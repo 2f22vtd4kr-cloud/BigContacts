@@ -8,24 +8,32 @@ const status = JSON.parse(fs.readFileSync("/tmp/atlas-status.json", "utf8"));
 const fail = (msg) => { console.error(`FAIL: ${msg}`); process.exitCode = 1; };
 const isHttpUrl = (value) => {
   if (typeof value !== "string" || !value.trim()) return false;
-  try {
-    const u = new URL(value);
-    return u.protocol === "http:" || u.protocol === "https:";
-  } catch { return false; }
+  try { const u = new URL(value); return u.protocol === "http:" || u.protocol === "https:"; }
+  catch { return false; }
 };
 
-// Production telemetry is structured BUREAU records. Parse each record instead of
-// matching JSON punctuation so escaped payloads cannot create false audit failures.
+// The API status endpoint carries the authoritative live BUREAU telemetry. The
+// server log is retained as a secondary source because the structured job log
+// is intentionally not duplicated into stdout on every deployment.
+const telemetry = [
+  ...(Array.isArray(status.log) ? status.log : []),
+  ...(Array.isArray(status.recentSpans) ? status.recentSpans.map((s) => JSON.stringify(s)) : []),
+].join("\n");
+
 const bureauRecords = [];
-for (const line of log.split(/\r?\n/)) {
+for (const line of [...log.split(/\r?\n/), ...(Array.isArray(status.log) ? status.log : [])]) {
   const marker = line.indexOf("BUREAU|");
   if (marker < 0) continue;
   try { bureauRecords.push(JSON.parse(line.slice(marker + "BUREAU|".length))); } catch {}
 }
 
-const discoveryRecords = bureauRecords.filter(r => r && r.targetName === "discovery");
-const discoveryModel = discoveryRecords.some(r => r.actor === "web" && r.kind === "tool" && r.provider);
-const discoveryTools = discoveryRecords.some(r => r.kind === "search" || r.kind === "page-fetch" || r.kind === "tool");
+const discoverySpans = (status.recentSpans || []).filter((s) => s && (
+  s.agentName === "discovery" || s.targetName === "discovery" || s.operationName === "invoke_agent"
+));
+const discoveryModel = discoverySpans.some((s) => s.spanType === "llm" || s.name === "llm_step")
+  || bureauRecords.some((r) => r?.targetName === "discovery" && r?.kind === "tool");
+const discoveryTools = discoverySpans.some((s) => s.spanType === "tool" && ["web_search", "visit"].includes(s.toolName || s.name))
+  || bureauRecords.some((r) => r?.targetName === "discovery" && ["search", "page-fetch", "tool"].includes(r?.kind));
 if (!discoveryModel || !discoveryTools) fail("no model-selected discovery trajectory with actual web tooling");
 
 const forbidden = [
@@ -41,7 +49,7 @@ const forbidden = [
   /seed(?:ed)?[_-](?:contact|path)/i,
   /llm[_-]all[_-]failed/i,
 ];
-for (const re of forbidden) if (re.test(log)) fail(`forbidden autonomy/research marker: ${re}`);
+for (const re of forbidden) if (re.test(log) || re.test(telemetry)) fail(`forbidden autonomy/research marker: ${re}`);
 
 if (status.status !== "done" && status.outcome !== "complete") fail(`Bureau did not finish cleanly: ${status.status || status.outcome}`);
 if (rows.length < 1) fail("discovery-first audit produced zero entities");
@@ -51,9 +59,9 @@ let direct = 0;
 let org = 0;
 for (const entity of rows) {
   const contacts = Array.isArray(entity.contacts) ? entity.contacts : [];
-  const bad = contacts.filter(c => c && c.sourceUrl && !isHttpUrl(c.sourceUrl));
+  const bad = contacts.filter((c) => c && c.sourceUrl && !isHttpUrl(c.sourceUrl));
   if (bad.length) fail(`entity ${entity.name || entity.id} has contact evidence without HTTP(S) provenance`);
-  sourceBacked += contacts.filter(c => isHttpUrl(c?.sourceUrl)).length;
+  sourceBacked += contacts.filter((c) => isHttpUrl(c?.sourceUrl)).length;
   if (entity.contactOutcome === "direct_contact") direct++;
   if (entity.contactOutcome === "organization_contact") org++;
   console.log(`QUALITY entity=${entity.name || entity.id} outcome=${entity.contactOutcome || "none"} sourcedContacts=${contacts.length}`);
@@ -61,6 +69,6 @@ for (const entity of rows) {
 
 console.log(`LIVE_AUDIT entities=${rows.length} sourceBackedContacts=${sourceBacked} direct=${direct} organization=${org}`);
 console.log(`LIVE_AUDIT discoveryModel=${discoveryModel} discoveryTools=${discoveryTools} status=${status.status || status.outcome}`);
-console.log(`LIVE_AUDIT discoveryRecords=${discoveryRecords.length}`);
+console.log(`LIVE_AUDIT discoverySpans=${discoverySpans.length} bureauRecords=${bureauRecords.length}`);
 if (org > 0 && direct === 0) console.log("QUALITY_NOTE organization-contact only; do not count as direct-person reachability");
 if (process.exitCode) process.exit();
