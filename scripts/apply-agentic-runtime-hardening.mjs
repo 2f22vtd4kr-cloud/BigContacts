@@ -12,23 +12,100 @@ const currentNvidia = "nvidia/llama-3.3-nemotron-super-49b-v1.5";
 s = s.replace('    "z-ai/glm-5.2",', `    "${currentNvidia}",\n    "meta/llama-3.3-70b-instruct",`);
 r = r.replace('"z-ai/glm-5.2"', `"${currentNvidia}"`);
 
-// Surface actual provider HTTP failures instead of collapsing them into null.
-s = s.replace(
-  '        if (!resp.ok) {\n          // model_not_found / access → try next model on same key\n          continue;\n        }',
-  '        if (!resp.ok) {\n          logger.warn({ provider: "groq", status: resp.status, model }, "agentic provider rejected request");\n          continue;\n        }',
-);
-s = s.replace(
-  '      if (!resp.ok) continue;',
-  '      if (!resp.ok) {\n        logger.warn({ provider: "mistral", status: resp.status, model }, "agentic provider rejected request");\n        continue;\n      }',
-);
-s = s.replace(
-  '      if (!resp.ok) continue;\n      const data = (await resp.json()) as { choices?: Array<{ message?: { content?: string } }> };',
-  '      if (!resp.ok) {\n        logger.warn({ provider: "nvidia", status: resp.status, model }, "agentic provider rejected request");\n        continue;\n      }\n      const data = (await resp.json()) as { choices?: Array<{ message?: { content?: string } }> };',
-);
-s = s.replace(
-  '  } catch (err: any) {\n    logger.debug({ err: err?.message }, "agentic Gemini call failed");\n  }',
-  '  } catch (err: any) {\n    logger.warn({ err: err?.message }, "agentic Gemini call failed");\n  }',
-);
+// Replace the old Boss adapter with a direct current Gemini Generate Content
+// call. This keeps Gemini as the Boss lane while avoiding a stale resolver/model
+// abstraction that can return null without exposing the provider failure.
+const geminiRe = /async function callGeminiJson\(prompt: string\): Promise<\{ model: string; raw: string \} \| null> \{[\s\S]*?\n\}\n\nasync function callMistralJson/;
+if (!/gemini-3\.7-flash/.test(s)) {
+  if (!geminiRe.test(s)) throw new Error("Gemini adapter anchor missing");
+  const geminiFn = [
+    'async function callGeminiJson(prompt: string): Promise<{ model: string; raw: string } | null> {',
+    '  const key = process.env.GEMINI_API_KEY?.trim();',
+    '  if (!key) return null;',
+    '  const model = (process.env.GEMINI_AGENTIC_MODEL || process.env.GEMINI_BOSS_MODEL || "gemini-3.7-flash").trim();',
+    '  try {',
+    '    const resp = await fetch("https://generativelanguage.googleapis.com/v1beta/models/" + encodeURIComponent(model) + ":generateContent", {',
+    '      method: "POST",',
+    '      headers: { "x-goog-api-key": key, "Content-Type": "application/json" },',
+    '      body: JSON.stringify({',
+    '        systemInstruction: { parts: [{ text: apexOrientationFor("dig_agent") + "\\nReply with ONE JSON object only for this ReAct step." }] },',
+    '        contents: [{ role: "user", parts: [{ text: prompt }] }],',
+    '        generationConfig: { maxOutputTokens: 1536, thinkingConfig: { thinkingLevel: "medium" } },',
+    '      }),',
+    '      signal: AbortSignal.timeout(30_000),',
+    '    });',
+    '    if (!resp.ok) {',
+    '      const body = (await resp.text()).slice(0, 600);',
+    '      logger.warn({ provider: "gemini", status: resp.status, model, body }, "agentic provider rejected request");',
+    '      return null;',
+    '    }',
+    '    const data = await resp.json() as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };',
+    '    const raw = data.candidates?.[0]?.content?.parts?.map((p) => p.text || "").join("").trim() || "";',
+    '    if (raw) return { model: "gemini:" + model, raw };',
+    '  } catch (err: any) {',
+    '    logger.warn({ provider: "gemini", model, error: err?.message }, "agentic Gemini call failed");',
+    '  }',
+    '  return null;',
+    '}',
+    '',
+    'async function callMistralJson',
+  ].join("\n");
+  s = s.replace(geminiRe, geminiFn);
+}
+
+// Surface every provider's HTTP/transport failure inside the provider section.
+const providerSectionRe = /(async function callGroqJson[\s\S]*?)(\nfunction formatFindingsBag)/;
+const providerSection = s.match(providerSectionRe)?.[1];
+if (providerSection) {
+  const diagnosed = providerSection
+    .replace(/if \(!resp\.ok\) continue;/g, 'if (!resp.ok) { logger.warn({ provider: "agentic", status: resp.status, model }, "agentic provider rejected request"); continue; }')
+    .replace(/catch \{\n\s*continue;\n\s*\}/g, 'catch (err: any) { logger.warn({ provider: "agentic", model, error: err?.message }, "agentic provider call failed"); continue; }');
+  s = s.replace(providerSectionRe, diagnosed + "$2");
+}
+
+// Never wait through the full vendor timeout before trying the documented
+// fallback lane. The model still chooses the action; this is only transport
+// failover and prevents a dead provider from consuming an entire ReAct slot.
+const llmStepRe = /async function llmStep\(prompt: string\): Promise<\{ model: string; raw: string \} \| null> \{[\s\S]*?\n\}\n\nfunction formatFindingsBag/;
+if (!/providerDecisionTimeoutMs = 18_000/.test(s)) {
+  if (!llmStepRe.test(s)) throw new Error("llmStep anchor missing");
+  const llmFn = [
+    'async function llmStep(prompt: string): Promise<{ model: string; raw: string } | null> {',
+    '  const stages: Array<Array<[string, () => Promise<{ model: string; raw: string } | null>]>> = [',
+    '    [["gemini", callGeminiJson], ["nvidia", callNvidiaJson]],',
+    '    [["groq", callGroqJson], ["mistral", callMistralJson]],',
+    '  ];',
+    '  const providerDecisionTimeoutMs = 18_000;',
+    '  const errors: string[] = [];',
+    '  for (const stage of stages) {',
+    '    const attempts = stage.map(async ([name, fn]) => {',
+    '      const timeout = new Promise<never>((_, reject) => setTimeout(() => reject(new Error(name + ":timeout")), providerDecisionTimeoutMs));',
+    '      try {',
+    '        const out = await Promise.race([fn(prompt), timeout]);',
+    '        if (!out?.raw) throw new Error(name + ":empty");',
+    '        return out;',
+    '      } catch (err: any) {',
+    '        throw new Error(name + ":" + (err?.message ?? "fail"));',
+    '      }',
+    '    });',
+    '    try {',
+    '      const out = await Promise.any(attempts);',
+    '      setAgenticLlmHealth(true, out.model, null);',
+    '      return out;',
+    '    } catch (err: any) {',
+    '      const reasons = Array.isArray(err?.errors) ? err.errors.map((e: unknown) => String(e)).join(";") : String(err?.message ?? "all_failed");',
+    '      errors.push(reasons.slice(0, 500));',
+    '    }',
+    '  }',
+    '  setAgenticLlmHealth(false, null, errors.join(";").slice(0, 1000));',
+    '  logger.warn({ errors }, "[agentic] all LLM providers failed for step");',
+    '  return null;',
+    '}',
+    '',
+    'function formatFindingsBag',
+  ].join("\n");
+  s = s.replace(llmStepRe, llmFn);
+}
 
 if (!s.includes("Tool choice remains unconstrained by footprint counters")) {
   s = s.replace(
@@ -39,7 +116,9 @@ if (!s.includes("Tool choice remains unconstrained by footprint counters")) {
 
 if (/footprintCalls >= [34]/.test(s)) throw new Error("hidden footprint tool cap remains");
 if (!s.includes(currentNvidia) || !r.includes(currentNvidia)) throw new Error("current NVIDIA model fallback missing");
+if (!s.includes("gemini-3.7-flash")) throw new Error("current Gemini Boss adapter missing");
+if (!s.includes("providerDecisionTimeoutMs = 18_000")) throw new Error("provider timeout failover missing");
 
 fs.writeFileSync(path, s);
 fs.writeFileSync(rightHandPath, r);
-console.log("Applied agentic runtime hardening: removed model-path footprint caps, updated NVIDIA fallback, and surfaced provider HTTP failures");
+console.log("Applied agentic runtime hardening: current Gemini Boss adapter, current NVIDIA right-hand model, provider diagnostics, bounded transport failover, and no model-path tool caps");
