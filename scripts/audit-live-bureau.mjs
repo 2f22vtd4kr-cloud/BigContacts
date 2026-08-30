@@ -6,7 +6,15 @@ const rows = Array.isArray(entities) ? entities : (entities.entities || entities
 const status = JSON.parse(fs.readFileSync("/tmp/atlas-status.json", "utf8"));
 
 const fail = (msg) => { console.error(`FAIL: ${msg}`); process.exitCode = 1; };
-const has = (re) => re.test(log);
+const isHttpUrl = (value) => {
+  if (typeof value !== "string" || !value.trim()) return false;
+  try {
+    const u = new URL(value);
+    return u.protocol === "http:" || u.protocol === "https:";
+  } catch {
+    return false;
+  }
+};
 
 // Production telemetry is structured around BUREAU spans; older audits incorrectly
 // required the removed DISCOVERY_MODEL_STEP marker.
@@ -37,9 +45,9 @@ let direct = 0;
 let org = 0;
 for (const entity of rows) {
   const contacts = Array.isArray(entity.contacts) ? entity.contacts : [];
-  const bad = contacts.filter(c => c && c.sourceUrl && !/^https?:\\/\\//i.test(c.sourceUrl));
+  const bad = contacts.filter(c => c && c.sourceUrl && !isHttpUrl(c.sourceUrl));
   if (bad.length) fail(`entity ${entity.name || entity.id} has contact evidence without HTTP(S) provenance`);
-  sourceBacked += contacts.filter(c => /^https?:\\/\\//i.test(c?.sourceUrl || "")).length;
+  sourceBacked += contacts.filter(c => isHttpUrl(c?.sourceUrl)).length;
   if (entity.contactOutcome === "direct_contact") direct++;
   if (entity.contactOutcome === "organization_contact") org++;
   console.log(`QUALITY entity=${entity.name || entity.id} outcome=${entity.contactOutcome || "none"} sourcedContacts=${contacts.length}`);
