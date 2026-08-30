@@ -17,7 +17,7 @@ const replacement = `let activeAgenticProviderDecisions = 0;
 const agenticProviderDecisionWaiters: Array<() => void> = [];
 const MAX_CONCURRENT_AGENTIC_PROVIDER_DECISIONS = Math.max(
   1,
-  Number(process.env.APEX_AGENTIC_PROVIDER_CONCURRENCY || "2"),
+  Number(process.env.APEX_AGENTIC_PROVIDER_CONCURRENCY || "4"),
 );
 
 async function acquireAgenticProviderDecisionSlot(): Promise<void> {
@@ -81,4 +81,4 @@ if (!llmStepRe.test(s)) {
 s = s.replace(llmStepRe, replacement);
 
 fs.writeFileSync(targetPath, s);
-console.log("Applied agentic concurrency hardening: bounded provider-decision concurrency, 55s provider deadline, and no global cross-target circuit");
+console.log("Applied agentic concurrency hardening: bounded provider-decision concurrency=4, 55s provider deadline, and no global cross-target circuit");
