@@ -5,9 +5,6 @@ on:
     branches: [main]
   workflow_dispatch:
 
-# Live Bureau is expensive and must have one authoritative run at a time.
-# A newer main commit supersedes an older live audit instead of creating a
-# queue of stale provider-backed jobs.
 concurrency:
   group: apex-live-bureau-${{ github.ref }}
   cancel-in-progress: true
@@ -54,10 +51,11 @@ jobs:
       - name: Apply strict free-ReAct purity repair
         run: |
           node scripts/apply-free-react-purity-fix.mjs
+          node scripts/apply-agentic-runtime-hardening.mjs
           node scripts/apply-apex-identity-integrity-fix.mjs
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add artifacts/api-server/src/src/lib/agentic-web-research.ts artifacts/api-server/src/src/lib/discovery-agent.ts
+          git add artifacts/api-server/src/src/lib/agentic-web-research.ts artifacts/api-server/src/src/lib/discovery-agent.ts artifacts/api-server/src/src/lib/nvidia-nim-case-reasoning.ts
           if ! git diff --cached --quiet; then
             git commit -m "fix: enforce strict free-ReAct and identity boundaries [skip ci]"
             git push origin HEAD:main
