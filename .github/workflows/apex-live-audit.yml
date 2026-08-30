@@ -61,19 +61,21 @@ jobs:
         with:
           node-version: 22
           registry-url: https://registry.npmjs.org/
-      - name: Permanently patch agentic source if an old checkout still needs it
+      - name: Permanently patch committed agentic source when needed
         run: |
           node scripts/patch-agentic-final.mjs
           node scripts/patch-discovery-batch-v2.mjs
+          node scripts/patch-provider-lifecycle-final.mjs
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add \
             artifacts/api-server/src/src/lib/agentic-web-research.ts \
             artifacts/api-server/src/src/lib/discovery-agent.ts \
             scripts/patch-agentic-final.mjs \
-            scripts/patch-discovery-batch-v2.mjs
+            scripts/patch-discovery-batch-v2.mjs \
+            scripts/patch-provider-lifecycle-final.mjs
           if ! git diff --cached --quiet; then
-            git commit -m "fix: persist final free-agent runtime and discovery batching [skip ci]"
+            git commit -m "fix: persist final agentic runtime and provider lifecycle [skip ci]"
             git push origin HEAD:main
           fi
           git log -1 --oneline
@@ -85,7 +87,7 @@ jobs:
           set -euo pipefail
           for attempt in 1 2 3; do
             echo "pnpm install attempt ${attempt}/3"
-            if pnpm install --no-frozen-lockfile --fetch-retries=5 --fetch-timeout=120000 --filter @workspace/db... --filter @workspace/api-server... --filter @workspace/api-zod... --filter apex-finder-local... --registry=https://registry.npmjs.org/; then
+            if pnpm install --no-frozen-lockfile --ignore-scripts --fetch-retries=5 --fetch-timeout=120000 --filter @workspace/db... --filter @workspace/api-server... --filter @workspace/api-zod... --filter apex-finder-local... --registry=https://registry.npmjs.org/; then
               exit 0
             fi
             if [ "$attempt" -lt 3 ]; then sleep $((attempt * 10)); fi
@@ -130,7 +132,7 @@ jobs:
           }
           await probe('gemini','https://generativelanguage.googleapis.com/v1beta/models',{'x-goog-api-key':process.env.GEMINI_API_KEY||''},'gemini-3.7-flash');
           await probe('groq','https://api.groq.com/openai/v1/models',{Authorization:`Bearer ${process.env.GROQ_API_KEY||''}`},'openai/gpt-oss-120b');
-          await probe('nvidia','https://integrate.api.nvidia.com/v1/models',{Authorization:`Bearer ${process.env.NVIDIA_NIM_API_KEY||''}`},'nvidia/nemotron-3-nano-30b-a3b');
+          await probe('nvidia','https://integrate.api.nvidia.com/v1/models',{Authorization:`Bearer ${process.env.NVIDIA_NIM_API_KEY||''}`},'nvidia/nemotron-3.5-lightning-30b-a3b');
           await probe('mistral','https://api.mistral.ai/v1/models',{Authorization:`Bearer ${process.env.MISTRAL_API_KEY||''}`},'mistral-large-latest');
           console.log(JSON.stringify(probes));
           NODE
