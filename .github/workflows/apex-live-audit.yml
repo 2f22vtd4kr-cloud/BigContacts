@@ -54,7 +54,8 @@ jobs:
       NODE_OPTIONS: --max-old-space-size=1536
     steps:
       - uses: actions/checkout@v4
-        with: { ref: ${{ github.sha }} }
+        with:
+          ref: ${{ github.sha }}
       - name: Show exact tip
         run: git log -1 --oneline
       - uses: actions/setup-node@v4
