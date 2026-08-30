@@ -11,15 +11,21 @@ const isHttpUrl = (value) => {
   try {
     const u = new URL(value);
     return u.protocol === "http:" || u.protocol === "https:";
-  } catch {
-    return false;
-  }
+  } catch { return false; }
 };
 
-// Production telemetry is structured around BUREAU spans; older audits incorrectly
-// required the removed DISCOVERY_MODEL_STEP marker.
-const discoveryModel = /agentName["']?\s*[:=]\s*["']discovery|targetName["']?\s*[:=]\s*["']discovery/.test(log);
-const discoveryTools = /toolName["']?\s*[:=]\s*["'](?:web_search|visit)["']/.test(log);
+// Production telemetry is structured BUREAU records. Parse each record instead of
+// matching JSON punctuation so escaped payloads cannot create false audit failures.
+const bureauRecords = [];
+for (const line of log.split(/\r?\n/)) {
+  const marker = line.indexOf("BUREAU|");
+  if (marker < 0) continue;
+  try { bureauRecords.push(JSON.parse(line.slice(marker + "BUREAU|".length))); } catch {}
+}
+
+const discoveryRecords = bureauRecords.filter(r => r && r.targetName === "discovery");
+const discoveryModel = discoveryRecords.some(r => r.actor === "web" && r.kind === "tool" && r.provider);
+const discoveryTools = discoveryRecords.some(r => r.kind === "search" || r.kind === "page-fetch" || r.kind === "tool");
 if (!discoveryModel || !discoveryTools) fail("no model-selected discovery trajectory with actual web tooling");
 
 const forbidden = [
@@ -55,9 +61,6 @@ for (const entity of rows) {
 
 console.log(`LIVE_AUDIT entities=${rows.length} sourceBackedContacts=${sourceBacked} direct=${direct} organization=${org}`);
 console.log(`LIVE_AUDIT discoveryModel=${discoveryModel} discoveryTools=${discoveryTools} status=${status.status || status.outcome}`);
-
-// Organization routes are legitimate public contact routes, but are not equivalent
-// to direct personal contact. Keep that distinction explicit for scoreboard/comparison.
+console.log(`LIVE_AUDIT discoveryRecords=${discoveryRecords.length}`);
 if (org > 0 && direct === 0) console.log("QUALITY_NOTE organization-contact only; do not count as direct-person reachability");
-
 if (process.exitCode) process.exit();
