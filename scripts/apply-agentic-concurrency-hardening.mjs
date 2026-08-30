@@ -3,6 +3,11 @@ import fs from "node:fs";
 const path = "artifacts/api-server/src/src/lib/agentic-web-research.ts";
 let s = fs.readFileSync(path, "utf8");
 
+if (s.includes("activeAgenticProviderDecisions") && s.includes("MAX_CONCURRENT_AGENTIC_PROVIDER_DECISIONS")) {
+  console.log("Agentic concurrency hardening already applied; leaving runtime unchanged");
+  process.exit(0);
+}
+
 const llmStepRe = /let agenticProviderCircuitUntil = 0;\n\nasync function llmStep\(prompt: string\): Promise<\{ model: string; raw: string \} \| null> \{[\s\S]*?\n\}\n\nfunction formatFindingsBag/;
 
 const replacement = `let activeAgenticProviderDecisions = 0;
