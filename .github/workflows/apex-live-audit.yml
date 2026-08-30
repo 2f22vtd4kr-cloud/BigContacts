@@ -66,6 +66,7 @@ jobs:
           node scripts/patch-agentic-final.mjs
           node scripts/patch-discovery-batch-v2.mjs
           node scripts/patch-provider-lifecycle-final.mjs
+          node scripts/patch-gemini-agentic-final.mjs
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add \
@@ -73,7 +74,8 @@ jobs:
             artifacts/api-server/src/src/lib/discovery-agent.ts \
             scripts/patch-agentic-final.mjs \
             scripts/patch-discovery-batch-v2.mjs \
-            scripts/patch-provider-lifecycle-final.mjs
+            scripts/patch-provider-lifecycle-final.mjs \
+            scripts/patch-gemini-agentic-final.mjs
           if ! git diff --cached --quiet; then
             git commit -m "fix: persist final agentic runtime and provider lifecycle [skip ci]"
             git push origin HEAD:main
