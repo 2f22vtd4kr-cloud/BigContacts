@@ -5,6 +5,13 @@ on:
     branches: [main]
   workflow_dispatch:
 
+# Live Bureau is expensive and must have one authoritative run at a time.
+# A newer main commit supersedes an older live audit instead of creating a
+# queue of stale provider-backed jobs.
+concurrency:
+  group: apex-live-bureau-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   live-bureau-audit:
     runs-on: ubuntu-latest
@@ -65,6 +72,7 @@ jobs:
           pnpm run check:discovery-quality
           pnpm run check:trajectory
           pnpm run check:comparison-contract
+          pnpm --dir artifacts/api-server exec vitest run src/src/test/discovery-agent-parse.test.ts
       - name: Start Apex API
         run: |
           redis-cli ping
