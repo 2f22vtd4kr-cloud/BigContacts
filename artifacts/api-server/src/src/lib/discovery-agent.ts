@@ -30,21 +30,55 @@ const INVALID_PERSON_NAME_WORDS = new Set([
   "a", "an", "and", "as", "at", "behind", "been", "by", "chief", "ceo",
   "company", "executive", "from", "has", "in", "of", "officer", "on",
   "the", "to", "with",
+  // Common noun/organization fragments that models can accidentally extract
+  // from prose and SERP snippets as if they were a person's name.
+  "security", "issues", "issue", "problem", "problems", "solutions", "services",
+  "technology", "systems", "markets", "capital", "equity", "partners", "partner",
+  "group", "fund", "funds", "holdings", "holding", "management", "ventures",
+  "venture", "estate", "real", "private", "public", "wealth", "investment",
+  "investments", "finance", "financial", "industries", "industry", "resources",
+  "strategy", "strategies", "operations", "organization", "organizations",
+  "foundation", "foundations", "billionaire", "billionaires", "millionaire", "millionaires",
 ]);
+
+const INVALID_PERSON_NAME_PHRASES = [
+  "security issues",
+  "security issue",
+  "private equity",
+  "venture capital",
+  "real estate",
+  "wealth management",
+  "financial services",
+  "chief executive officer",
+  "chief executive",
+  "executive officer",
+  "company founder",
+  "billionaire founders",
+  "billionaire founder",
+  "forbes list",
+  "forbes billionaires",
+  "the billionaire",
+  "the billionaires",
+];
 
 /**
  * Safety validation for model-selected discovery output.
  *
  * This is deliberately not a ranking or fitness score. The model still
  * chooses the candidate and its order; this only prevents sentence fragments,
- * titles, organizations, and source-free strings from becoming people.
+ * titles, organizations, generic nouns, and source-free strings from becoming people.
  */
 export function isWellFormedPersonCandidate(candidate: Pick<DiscoveryCandidate, "name" | "sourceUrls">): boolean {
   const name = String(candidate.name ?? "").trim().replace(/\s+/g, " ");
   const words = name.split(" ");
+  const normalized = name.toLowerCase().replace(/[.'’\-]+/g, " ").replace(/\s+/g, " ").trim();
   if (words.length < 2 || words.length > 5) return false;
   if (!/^\p{L}[\p{L}.'’\-]*(?:\s+\p{L}[\p{L}.'’\-]*){1,4}$/u.test(name)) return false;
   if (words.some((word) => INVALID_PERSON_NAME_WORDS.has(word.toLowerCase().replace(/[.'’\-]/g, "")))) return false;
+  if (INVALID_PERSON_NAME_PHRASES.some((phrase) => normalized === phrase || normalized.includes(` ${phrase} `) || normalized.startsWith(`${phrase} `) || normalized.endsWith(` ${phrase}`))) return false;
+  // A real person's name normally has at least one capitalized name token.
+  // This rejects lowercase prose fragments without imposing a fixed naming style.
+  if (!words.some((word) => /^\p{Lu}/u.test(word))) return false;
   return (candidate.sourceUrls ?? []).some((url) => /^https?:\/\/\S+$/i.test(String(url)));
 }
 
@@ -62,13 +96,13 @@ function parsePersonFindings(
   const seen = new Set<string>();
 
   const add = (name: string, extra: Partial<DiscoveryCandidate>) => {
-    const n = name.trim();
+    const n = name.trim().replace(/\s+/g, " ");
     if (n.length < 3 || n.length > 120) return;
     const key = n.toLowerCase();
     if (seen.has(key)) return;
     seen.add(key);
     const sourceUrls = (extra.sourceUrls ?? []).filter((u) => /^https?:\/\//i.test(u)).slice(0, 6);
-    if (sourceUrls.length === 0 && !(extra.basis && extra.basis.length > 12)) return;
+    if (!isWellFormedPersonCandidate({ name: n, sourceUrls })) return;
     out.push({
       name: n,
       role: extra.role,
@@ -147,9 +181,14 @@ export async function runDiscoveryAgent(input: {
     "",
     "YOUR TASK — DISCOVERY (breadth: who to research later, not how to contact one known person):",
     "Work like a strong open-web researcher: invent your own searches and visits.",
-    "Return named people who look worth a later contact dig — with real http(s) sourceUrls.",
+    "Choose the lane yourself from the public evidence you encounter; there is no fixed source checklist.",
+    "Return named real people who look worth a later contact dig — with real http(s) sourceUrls.",
+    "Prefer principals, owners, operators, executives, investors, founders, family-office principals, and other high-value people for whom a plausible public or intermediary contact route could realistically exist.",
+    "Do not equate wealth or fame with usefulness. Do not optimize for celebrity, billionaire, or headline-list status; very high-profile people often have extremely protected access and low practical outreach value.",
+    "Do not use Forbes/Bloomberg-style billionaire lists as a default discovery strategy. If a high-profile person appears naturally while following a stronger lead, that is fine, but keep researching the more practically reachable opportunities instead of chasing fame.",
+    "Do not turn a phrase, job title, organization, topic, product, sector, or search-snippet fragment into a person. A candidate must be a named individual supported by a visited or otherwise exact public source.",
+    "If the evidence does not yield a real person's full name, do not manufacture one; continue the investigation or finish with no candidate.",
     "Use personName or value form: person: Full Name | role | company when possible.",
-    "Do not invent people. A company without a named person is not a candidate.",
     "No fixed search checklist — choose a coherent public lane yourself.",
     input.laneHint ? `Operator lane hint (optional context, not a script): ${input.laneHint}` : "",
   ]
