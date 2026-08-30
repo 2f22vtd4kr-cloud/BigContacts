@@ -38,10 +38,14 @@ function hasStrongIdentityEvidence(input: {
   s = s.slice(0, idx) + helper + "\n" + s.slice(idx);
 }
 
-const old = `if (!isWellFormedPersonCandidate({ name: n, sourceUrls })) return;`;
-const replacement = `if (!isWellFormedPersonCandidate({ name: n, sourceUrls })) return;\n    if (!hasStrongIdentityEvidence({ name: n, role: extra.role, company: extra.company, basis: extra.basis, sourceUrls })) return;`;
-if (!s.includes(old)) throw new Error("candidate gate anchor missing");
-s = s.replace(old, replacement);
+// Make the repair idempotent. Older versions blindly appended the same gate on
+// every CI run, producing repeated checks in the source. Remove all copies and
+// insert exactly one immediately after the structural person gate.
+const gate = `if (!hasStrongIdentityEvidence({ name: n, role: extra.role, company: extra.company, basis: extra.basis, sourceUrls })) return;`;
+s = s.split(gate).join("");
+const anchor = `if (!isWellFormedPersonCandidate({ name: n, sourceUrls })) return;`;
+if (!s.includes(anchor)) throw new Error("candidate gate anchor missing");
+s = s.replace(anchor, `${anchor}\n    ${gate}`);
 
 fs.writeFileSync(path, s);
-console.log("Applied source-bound identity safety gate to discovery-agent.ts");
+console.log("Applied source-bound identity safety gate to discovery-agent.ts (idempotent)");
