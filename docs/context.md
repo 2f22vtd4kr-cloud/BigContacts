@@ -13,6 +13,8 @@ Apex Atlas is an AI-driven research bureau embedded in BigContacts. Models decid
 
 Provider failover is capability-local transport infrastructure, not the Bureau hierarchy. A Dig fallback preserves the investigator role, objective, and model-owned research decisions; it does not prescribe searches or hops. If the Dig investigator pool is unavailable, the run fails closed with degraded/critical integrity rather than borrowing Boss/right-hand models for browsing.
 
+**Capability placement rule:** Apex uses capable existing models; it does **not** require fine-tuning, reinforcement training, continued pre-training, adapters, or other training workflows to become capable. Engineering effort goes into correct role placement, complete useful state/tool exposure, provider reliability, provenance, and research autonomy. “No training” must never be interpreted as permission to cripple the model's research capabilities.
+
 **Build status (2026-08-29):** The two source merge artifacts that blocked `api-server` build are **fixed permanently** on `main` (`59c71ce`). CI checkout mutation for those two errors is obsolete.
 
 ## Non-negotiable product law
@@ -25,6 +27,7 @@ Provider failover is capability-local transport infrastructure, not the Bureau h
 - Empty cards after successful contact extraction are promotion/rehydration bugs, not justification for scripted research.
 - **Gemini is Boss and NVIDIA NIM is right-hand; neither is the Dig web-research lane.**
 - **Dig failover is Groq → Mistral.** Do not use the historical `Groq → Mistral → Gemini → NVIDIA` wording as the current architecture.
+- **Do not train models as a substitute for architecture.** Use the capable existing models and place them in the correct Apex roles with the state/tools required to exercise their capabilities.
 
 ## ReAct implementation
 `artifacts/api-server/src/src/lib/agentic-web-research.ts` is the canonical API-server Dig loop. `artifacts/api-server/src/src/lib/bureau-agentic-pass.ts` wraps it for Bureau. `artifacts/api-server/src/src/lib/apex-bureau-orientation.ts` supplies product/role/tool orientation.
@@ -116,29 +119,8 @@ This correction does **not** claim that the live research-quality problem is sol
 ### 2026-08-30 model/human research alignment (Batches 17–19)
 The live audits established that static autonomy checks can pass while the agent produces zero useful research. Prompt quality, provider readiness, observation quality, and trajectory quality must therefore be evaluated separately.
 
+### 2026-08-30 model capability placement (Batch 21)
+The living 40K specification now explicitly records that Apex is an orchestration/placement problem, not a model-training project. Existing capable models are to be placed into the correct roles and given the state/tools needed for their jobs. No fine-tuning or other training workflow is to be introduced merely to compensate for orchestration defects. Role separation is not a research-capability ceiling: Dig remains free-ReAct and model-directed.
+
 ## Still open
 - ~~Permanent source fixes for atlas build breakers~~ — done Batch 10 (`59c71ce`).
-- ~~Consolidate README / RUN_BUREAU / one Replit prompt~~ — Batch 11.
-- ~~Correct stale Dig provider-role documentation/hardener~~ — done Batch 20.
-- Funded Replit/GitHub live Dig run with a real Groq/Mistral investigator and non-critical integrity.
-- First honest single-target Dig + scoreboard with ≥1 source-backed result.
-- First honest ten-target Apex-vs-independent comparison.
-- Multi-name card identity binding.
-- Discovery quality vs residual template fallback.
-- Remove remaining build-time source mutation by committing the canonical generated Dig implementation itself, once the full generated source can be reviewed and tested safely.
-
-## Quick commands
-```bash
-git pull origin main && git log -1 --oneline
-pnpm run check:no-force-dig
-pnpm run check:free-react
-pnpm run check:discovery-quality
-pnpm run check:trajectory
-pnpm run check:comparison-contract
-pnpm run check:agentic-runtime
-pnpm run check:bureau
-pnpm --dir artifacts/apex-finder run build
-pnpm --dir artifacts/api-server run build
-curl -sS --max-time 5 http://127.0.0.1:8080/api/healthz
-bash scripts/replit-scoreboard-check.sh http://127.0.0.1:8080
-```
