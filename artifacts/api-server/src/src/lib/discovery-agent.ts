@@ -93,6 +93,7 @@ function parsePersonFindings(findings: DiscoveryFinding[]): DiscoveryCandidate[]
     
     
     
+    
     seen.add(key);
     out.push({
       name: n,
@@ -178,14 +179,17 @@ export async function runDiscoveryAgent(input: {
   let degraded = false;
   let lastModel: string | undefined;
   let lastMessage = "";
+  const batchHistory: string[] = [];
 
   try {
     for (let slot = 0; slot < requestedBatch; slot++) {
       if (Date.now() - batchStarted >= aggregateTimeout) break;
       const already = candidates.map((c) => c.name).join("; ");
+      const recentBatchTrajectory = batchHistory.slice(-10).join("\n");
       const objective = [
         baseObjective,
         already ? `ALREADY SELECTED IN THIS BATCH — do not repeat these people; find a genuinely different principal/operator: ${already}` : "This is the first slot; choose the strongest promising person you can find.",
+        recentBatchTrajectory ? `RECENT BATCH TRAJECTORY (context only — do not copy its actions; use it to avoid repeating dead ends):\n${recentBatchTrajectory}` : "No prior batch trajectory is available.",
         `This is batch slot ${slot + 1} of ${requestedBatch}. One strong, distinct candidate is sufficient for this slot. You may discover more if the evidence naturally reveals them, but do not pad the result with weak names.`,
       ].join("\n");
 
@@ -209,6 +213,7 @@ export async function runDiscoveryAgent(input: {
         totalVisits += result.visits ?? 0;
         lastModel = result.model || lastModel;
         lastMessage = result.error || result.status || "completed";
+        batchHistory.push(...(result.trajectory ?? []).slice(-8));
         if (result.status === "unavailable" || result.status === "error") degraded = true;
         const slotCandidates = parsePersonFindings(result.findings ?? []);
         for (const candidate of slotCandidates) {
