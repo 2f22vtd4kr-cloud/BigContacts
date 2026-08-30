@@ -1,9 +1,14 @@
-name: Apex Batch 10 Bureau Audit
+name: Apex Batch 10 Bureau Audit (manual)
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
+
+# Retained as an explicit manual replay harness. The push-triggered
+# authoritative audit lives in apex-live-audit.yml; keeping both push-triggered
+# would spend provider quota twice for every source commit.
+concurrency:
+  group: apex-batch10-manual
+  cancel-in-progress: true
 
 permissions:
   contents: write
@@ -39,26 +44,6 @@ jobs:
         with: { ref: main }
       - uses: actions/setup-node@v4
         with: { node-version: 22, registry-url: https://registry.npmjs.org/ }
-      - name: Materialize mandatory 40k research-agent plan
-        run: |
-          node scripts/generate-apex-research-agent-integrity-plan.mjs
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add docs/bureau-plan/40K_RESEARCH_AGENT_INTEGRITY_PLAN.md
-          if ! git diff --cached --quiet; then
-            git commit -m "docs: materialize 40k Apex research-agent integrity plan [skip ci]"
-            git push origin HEAD:main
-          fi
-      - name: Apply causal identity integrity repair
-        run: |
-          node scripts/apply-apex-identity-integrity-fix.mjs
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add artifacts/api-server/src/src/lib/discovery-agent.ts
-          if ! git diff --cached --quiet; then
-            git commit -m "fix: enforce source-bound identity evidence before discovery admission [skip ci]"
-            git push origin HEAD:main
-          fi
       - run: npm install -g pnpm@9
       - name: Install workspace dependencies
         run: pnpm install --no-frozen-lockfile --filter @workspace/db... --filter @workspace/api-server... --filter @workspace/api-zod... --filter apex-finder-local... --registry=https://registry.npmjs.org/
@@ -81,6 +66,7 @@ jobs:
           pnpm run check:discovery-quality
           pnpm run check:trajectory
           pnpm run check:comparison-contract
+          pnpm --dir artifacts/api-server exec vitest run src/src/test/discovery-agent-parse.test.ts
       - name: Start API
         run: |
           node artifacts/api-server/dist/index.mjs > /tmp/apex-api.log 2>&1 &
