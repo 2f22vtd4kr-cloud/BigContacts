@@ -27,8 +27,26 @@ export type TargetContactAgentResult = {
   contactOutcome: string | null;
 };
 
-function findingsToContacts(findings: Array<{ vectorType: string; value: string; scope: string; personName: string | null; role: string | null; sourceUrls: string[]; note: string }>, personName: string): BureauContactLike[] {
-  return findings.map((f) => ({ vectorType: f.vectorType, value: f.value, scope: f.scope, personName: f.personName ?? personName, role: f.role, sourceUrls: f.sourceUrls, note: `target-agent:${f.note}`, tier: "candidate", state: "review_only" }));
+/**
+ * Preserve the model's evidence scope when moving findings into the durable
+ * bureau ledger. Organization/unknown findings must never inherit the target
+ * name: doing so can turn info@/office@/switchboards into personal contacts.
+ */
+export function findingsToContacts(
+  findings: Array<{ vectorType: string; value: string; scope: string; personName: string | null; role: string | null; sourceUrls: string[]; note: string }>,
+  personName: string,
+): BureauContactLike[] {
+  return findings.map((f) => ({
+    vectorType: f.vectorType,
+    value: f.value,
+    scope: f.scope,
+    personName: String(f.scope).toLowerCase() === "candidate" ? (f.personName ?? personName) : (f.personName ?? null),
+    role: f.role,
+    sourceUrls: f.sourceUrls,
+    note: `target-agent:${f.note}`,
+    tier: "candidate",
+    state: "review_only",
+  }));
 }
 
 /** Run free ReAct dig for one target and promote the best public claims onto the entity card. */
