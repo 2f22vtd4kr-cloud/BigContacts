@@ -30,6 +30,7 @@ Boss = Gemini. Right-hand = NVIDIA. Dig failover = Groq → Mistral → Gemini �
 Guards:
 - `scripts/check-no-force-dig.sh` — blocks `force_*`, GROK-PARITY, force-company-surface
 - `scripts/check-bureau-free-react.mjs` (`pnpm run check:free-react`) — requires model-selectable `web_search` / `visit` / `done`; rejects force-hop/playbook markers
+- `scripts/check-discovery-quality.mjs` (`pnpm run check:discovery-quality`) — guards the model-selected discovery identity/provenance boundary and practical-reachability guidance
 - Wired into `pnpm run check:bureau` with trajectory + comparison-contract checks
 
 ### 2026-08-28 free-ReAct integrity batches
@@ -73,7 +74,7 @@ pnpm --filter @workspace/db run push
 pnpm --dir artifacts/apex-finder run build
 test -f artifacts/apex-finder/dist/public/index.html
 pnpm --dir artifacts/api-server run build
-pnpm run check:no-force-dig && pnpm run check:free-react
+pnpm run check:no-force-dig && pnpm run check:free-react && pnpm run check:discovery-quality
 ENABLE_AUTO_PIPELINE=false RESEARCH_DEPTH=standard bash scripts/replit-boot.sh
 curl -sS http://127.0.0.1:8080/api/healthz
 # if integrity not critical → single-target Dig (standard, discoveryFirst false) → scoreboard
@@ -135,18 +136,30 @@ Prior live Repl went down / out of credits before sustained Dig monitoring — n
 
 ### 2026-08-30 discovery quality hardening (Batch 15)
 **Commit `75a7f4a`** hardens the model-selected discovery boundary without introducing a ranking or scripted research path:
-- `artifacts/api-server/src/src/lib/discovery-agent.ts` now rejects generic noun/prose fragments such as `security issues`, job-title fragments, organization/sector phrases, and list labels before they can become discovery candidates.
-- Candidate parsing now applies the same identity/provenance gate immediately, so malformed model findings do not appear as valid discovery output before admission.
-- Discovery orientation now tells the model to optimize for practical reachability rather than fame: no default billionaire/celebrity/Forbes-list chasing; prioritize principals/operators/founders/investors where a plausible public or intermediary route could realistically exist.
+- `artifacts/api-server/src/src/lib/discovery-agent.ts` rejects generic noun/prose fragments such as `security issues`, job-title fragments, organization/sector phrases, and list labels before they can become discovery candidates.
+- Candidate parsing applies the same identity/provenance gate immediately, so malformed model findings do not appear as valid discovery output before admission.
+- Discovery orientation tells the model to optimize for practical reachability rather than fame: no default billionaire/celebrity/Forbes-list chasing; prioritize principals/operators/founders/investors where a plausible public or intermediary route could realistically exist.
 - This is a validation/safety boundary, not a deterministic target-ranking system: the model still chooses queries, sources, lane, candidate order, and when to stop.
 
 **Validation status:** source commit created on `main`; GitHub Actions did not report a workflow run for the commit through the available workflow-run endpoint. No live Bureau execution or provider-backed scoreboard is claimed from this environment.
+
+### 2026-08-30 discovery realism + audit hardening (Batch 16)
+**Commits `3272111`, `3563350`, `1576c3d`, `185887f`, `27e7a05`, `d5280ca`, `3d7a43f`** extend the same product law:
+- Discovery candidates backed only by Forbes billionaire / richest-person list URLs are rejected at the identity/provenance boundary; independent corroborating sources remain allowed.
+- Model-selected discovery admission no longer calls `evaluateTargetFitness` or writes a fitness classification; legacy fitness remains isolated to non-model-selected admission.
+- Investigator/dig orientation explicitly prioritizes practical outreach value over fame and headline net worth, and tells the model to pivot away from billionaire rankings toward concrete operating-company/principal/intermediary surfaces.
+- `check:discovery-quality` is now wired into `check:bureau` and the Replit runbook.
+- The live-audit workflow now checks out current `main`, builds both desk and API, runs autonomy/discovery checks, and no longer performs the obsolete CI source-mutation workaround for the old merge artifacts.
+- The Replit prompt now contains explicit discovery-realism rules and live stop conditions for legacy/template discovery, malformed targets, and sustained billionaire-list chasing.
+
+**Validation status:** GitHub source updates succeeded. The available GitHub workflow-run lookup currently reports no workflow run for the latest main commits, so no provider-backed live Bureau/scoreboard result is claimed here. The actual runtime still must be executed in the Replit App project environment with operator secrets.
 
 ## Quick commands
 ```bash
 git pull origin main && git log -1 --oneline
 pnpm run check:no-force-dig
 pnpm run check:free-react
+pnpm run check:discovery-quality
 pnpm run check:trajectory
 pnpm run check:comparison-contract
 pnpm run check:bureau
