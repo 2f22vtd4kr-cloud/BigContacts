@@ -11,6 +11,7 @@ describe("discovery agent identity boundary", () => {
   it.each([
     "com EMAIL",
     "President PERSON",
+    "State St",
     "Operational Enablement",
     "Product Comparisons Sage Products",
     "security issues",
@@ -29,7 +30,7 @@ describe("discovery agent identity boundary", () => {
     expect(
       isWellFormedPersonCandidate({
         name: "Jane Example",
-        sourceUrls: ["https://www.forbes.com/billionaires/"] ,
+        sourceUrls: ["https://www.forbes.com/billionaires/"],
       }),
     ).toBe(false);
   });
