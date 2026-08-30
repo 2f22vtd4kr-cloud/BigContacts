@@ -144,7 +144,10 @@ async function toolWebSearchSerper(query: string): Promise<{ text: string; urls:
         body: JSON.stringify({ q: query, num: 10, gl: "us", hl: "en" }),
         signal: AbortSignal.timeout(12_000),
       });
-      if (!resp.ok) continue;
+      if (!resp.ok) {
+        logger.warn({ provider: "mistral", status: resp.status, model }, "agentic provider rejected request");
+        continue;
+      }
       const data = (await resp.json()) as {
         organic?: Array<{ title?: string; link?: string; snippet?: string }>;
         knowledgeGraph?: { description?: string };
@@ -971,7 +974,7 @@ async function callGroqJson(prompt: string): Promise<{ model: string; raw: strin
           signal: AbortSignal.timeout(40_000),
         });
         if (!resp.ok) {
-          // model_not_found / access → try next model on same key
+          logger.warn({ provider: "groq", status: resp.status, model }, "agentic provider rejected request");
           continue;
         }
         const data = await resp.json() as { choices?: Array<{ message?: { content?: string } }> };
@@ -993,7 +996,7 @@ async function callGeminiJson(prompt: string): Promise<{ model: string; raw: str
     const out = await generateGeminiBossText(selection, prompt);
     if (out.raw) return { model: out.model, raw: out.raw };
   } catch (err: any) {
-    logger.debug({ err: err?.message }, "agentic Gemini call failed");
+    logger.warn({ err: err?.message }, "agentic Gemini call failed");
   }
   return null;
 }
@@ -1030,7 +1033,10 @@ async function callMistralJson(prompt: string): Promise<{ model: string; raw: st
         }),
         signal: AbortSignal.timeout(45_000),
       });
-      if (!resp.ok) continue;
+      if (!resp.ok) {
+        logger.warn({ provider: "nvidia", status: resp.status, model }, "agentic provider rejected request");
+        continue;
+      }
       const data = (await resp.json()) as { choices?: Array<{ message?: { content?: string } }> };
       const raw = data.choices?.[0]?.message?.content?.trim() ?? "";
       if (raw) return { model: `mistral:${model}`, raw };
@@ -1050,7 +1056,8 @@ async function callNvidiaJson(prompt: string): Promise<{ model: string; raw: str
   const models = [
     process.env.NVIDIA_AGENTIC_MODEL,
     process.env.NVIDIA_NIM_MODEL,
-    "z-ai/glm-5.2",
+    "nvidia/llama-3.3-nemotron-super-49b-v1.5",
+    "meta/llama-3.3-70b-instruct",
     "meta/llama-3.1-70b-instruct",
     "mistralai/mistral-large-2-instruct",
     "google/gemma-2-27b-it",
@@ -1962,7 +1969,7 @@ export async function runAgenticWebResearch(input: {
       }
     }
 
-    // Model-led only. detVisitNext only on all-LLM-fail recovery.
+    // Model-led only. Tool choice remains unconstrained by footprint counters; lifecycle budgets are the only runtime ceiling.
 
     // Soft stagnation: if the last searches repeated the same query, nudge the model.
     {
@@ -2173,11 +2180,6 @@ export async function runAgenticWebResearch(input: {
     }
 
     if (action.action === "harvest_domain") {
-      if (footprintCalls >= 4) {
-        lastObservation = "Heavy OSINT tool budget used this pass. Prefer web_search/visit/done, or finish.";
-        history.push(`step${i + 1}: harvest_domain_skipped_cap`);
-        continue;
-      }
       footprintCalls++;
       history.push(`step${i + 1}: harvest_domain ${action.domain}`);
       try {
@@ -2261,11 +2263,6 @@ export async function runAgenticWebResearch(input: {
     }
 
     if (action.action === "reverse_whois") {
-      if (footprintCalls >= 4) {
-        lastObservation = "Heavy OSINT tool budget used this pass. Prefer web_search/visit/done.";
-        history.push(`step${i + 1}: reverse_whois_skipped_cap`);
-        continue;
-      }
       footprintCalls++;
       history.push(`step${i + 1}: reverse_whois ${action.query}`);
       try {
@@ -2303,11 +2300,6 @@ export async function runAgenticWebResearch(input: {
     }
 
     if (action.action === "footprint_email") {
-      if (footprintCalls >= 3) {
-        lastObservation = "Footprint tool budget used for this pass. Continue with web_search, visit, or done.";
-        history.push(`step${i + 1}: footprint_email_skipped_cap`);
-        continue;
-      }
       footprintCalls++;
       history.push(`step${i + 1}: footprint_email ${action.email}`);
       try {
@@ -2344,11 +2336,6 @@ export async function runAgenticWebResearch(input: {
     }
 
     if (action.action === "footprint_username") {
-      if (footprintCalls >= 3) {
-        lastObservation = "Footprint tool budget used for this pass. Continue with web_search, visit, or done.";
-        history.push(`step${i + 1}: footprint_username_skipped_cap`);
-        continue;
-      }
       footprintCalls++;
       history.push(`step${i + 1}: footprint_username ${action.username}`);
       try {
