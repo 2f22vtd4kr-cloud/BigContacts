@@ -1090,30 +1090,31 @@ async function callNvidiaJson(prompt: string): Promise<{ model: string; raw: str
 }
 
 async function llmStep(prompt: string): Promise<{ model: string; raw: string } | null> {
-  // Multi-provider ReAct control plane (fallback chain, not a single brain):
-  //   Groq (latency) → Mistral → Gemini → NVIDIA.
-  // Empty/error advances to next provider. All fail → caller runs det recovery.
-  // Never depend on one vendor or a decommissioned model id.
-  const chain: Array<[string, () => Promise<{ model: string; raw: string } | null>]> = [
-    ["gemini", callGeminiJson],
-    ["nvidia", callNvidiaJson],
-    ["groq", callGroqJson],
-    ["mistral", callMistralJson],
+  const stages: Array<Array<[string, () => Promise<{ model: string; raw: string } | null>]>> = [
+    [["gemini", callGeminiJson], ["nvidia", callNvidiaJson]],
+    [["groq", callGroqJson], ["mistral", callMistralJson]],
   ];
   const errors: string[] = [];
-  for (const [name, fn] of chain) {
-    try {
-      const out = await fn(prompt);
-      if (out?.raw) {
-        setAgenticLlmHealth(true, out.model, null);
+  for (const stage of stages) {
+    const attempts = stage.map(async ([name, fn]) => {
+      try {
+        const out = await fn(prompt);
+        if (!out?.raw) throw new Error(name + ":empty");
         return out;
+      } catch (err: any) {
+        throw new Error(name + ":" + (err?.message ?? "fail"));
       }
-      errors.push(`${name}:empty`);
+    });
+    try {
+      const out = await Promise.any(attempts);
+      setAgenticLlmHealth(true, out.model, null);
+      return out;
     } catch (err: any) {
-      errors.push(`${name}:${err?.message ?? "fail"}`);
+      const reasons = Array.isArray(err?.errors) ? err.errors.map((e: unknown) => String(e)).join(";") : String(err?.message ?? "all_failed");
+      errors.push(reasons.slice(0, 400));
     }
   }
-  setAgenticLlmHealth(false, null, errors.join("; ").slice(0, 400));
+  setAgenticLlmHealth(false, null, errors.join(";").slice(0, 800));
   logger.warn({ errors }, "[agentic] all LLM providers failed for step");
   return null;
 }
@@ -1982,6 +1983,14 @@ export async function runAgenticWebResearch(input: {
       }
     }
 
+    const llmStepWithHeartbeat = async (stepPrompt: string) => {
+      const started = Date.now();
+      emitLive({ action: "llm_wait", provider: "agentic-provider-pool", summary: "waiting for model decision" });
+      const timer = setInterval(() => {
+        emitLive({ action: "llm_wait", provider: "agentic-provider-pool", summary: "model decision still pending · " + Math.round((Date.now() - started) / 1000) + "s" });
+      }, 15_000);
+      try { return await llmStep(stepPrompt); } finally { clearInterval(timer); }
+    };
     const prompt = buildStepPrompt({
       targetName: name,
       companyName: input.companyName,
@@ -1990,7 +1999,7 @@ export async function runAgenticWebResearch(input: {
       lastObservation,
       findings,
     });
-    const llm = await llmStep(prompt);
+    const llm = await llmStepWithHeartbeat(prompt);
     if (!llm) {
       history.push(`step${i + 1}: llm_unavailable — no deterministic research fallback`);
       return {
@@ -2014,7 +2023,7 @@ export async function runAgenticWebResearch(input: {
     if (!action) {
       // One repair turn — native tool calling is not uniform across providers; JSON can glitch.
       history.push(`step${i + 1}: parse_fail — retry once`);
-      const repair = await llmStep(
+      const repair = await llmStepWithHeartbeat(
         `Your previous reply was not valid action JSON.\n` +
         `Reply with ONE action object only. Allowed actions: web_search, visit, browser_fetch, ` +
         `footprint_email, footprint_username, domain_lookup, harvest_domain, registry_search, reverse_whois, done.\n` +
