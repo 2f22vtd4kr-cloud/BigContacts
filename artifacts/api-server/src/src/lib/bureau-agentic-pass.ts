@@ -7,7 +7,7 @@
 import { logger } from "./logger";
 import { runAgenticWebResearch, type AgenticFinding } from "./agentic-web-research";
 import { resolveResearchDepth } from "./research-depth";
-import { persistBureauContactsForEntity, type BureauContactLike } from "./bureau-contact-persist";
+import { persistSourceBackedBureauContactsForEntity, type BureauContactLike } from "./bureau-contact-persist-strict";
 import { publishBureauEvent } from "./bureau-live-log";
 
 export type BureauAgenticPassResult = {
@@ -169,7 +169,7 @@ export async function runBureauAgenticWebPass(input: {
     const contactEvidence = findingsToContactEvidence(backedFindings);
 
     if (input.persist && input.entityId) {
-      await persistBureauContactsForEntity(
+      await persistSourceBackedBureauContactsForEntity(
         input.entityId,
         findingsToBureauContacts(backedFindings, name),
         "case-bureau-agentic",
