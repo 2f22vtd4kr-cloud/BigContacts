@@ -3,7 +3,7 @@ import { logger } from "./logger";
 import { apexOrientationFor } from "./apex-bureau-orientation";
 
 export const NVIDIA_NIM_CASE_REASONING_MODEL =
-  (process.env.NVIDIA_NIM_MODEL || process.env.NVIDIA_AGENTIC_MODEL || "nvidia/llama-3.3-nemotron-super-49b-v1.5").trim();
+  (process.env.NVIDIA_NIM_MODEL || process.env.NVIDIA_AGENTIC_MODEL || "nvidia/nemotron-3-nano-30b-a3b").trim();
 const NVIDIA_NIM_CHAT_API = "https://integrate.api.nvidia.com/v1/chat/completions";
 
 export type NvidiaNimCaseReasoningStatus = {

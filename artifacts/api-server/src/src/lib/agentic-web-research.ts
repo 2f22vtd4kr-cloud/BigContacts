@@ -1068,11 +1068,8 @@ async function callNvidiaJson(prompt: string): Promise<{ model: string; raw: str
   const models = [
     process.env.NVIDIA_AGENTIC_MODEL,
     process.env.NVIDIA_NIM_MODEL,
-    "nvidia/llama-3.3-nemotron-super-49b-v1.5",
-    "meta/llama-3.3-70b-instruct",
-    "meta/llama-3.1-70b-instruct",
-    "mistralai/mistral-large-2-instruct",
-    "google/gemma-2-27b-it",
+    "nvidia/nemotron-3-nano-30b-a3b",
+    "nvidia/nemotron-3.5-lightning-30b-a3b",
   ].filter((m): m is string => Boolean(m && m.trim()));
   for (const model of models) {
     try {
@@ -1106,7 +1103,14 @@ async function callNvidiaJson(prompt: string): Promise<{ model: string; raw: str
   return null;
 }
 
+let agenticProviderCircuitUntil = 0;
+
 async function llmStep(prompt: string): Promise<{ model: string; raw: string } | null> {
+  const now = Date.now();
+  if (now < agenticProviderCircuitUntil) {
+    logger.warn({ until: agenticProviderCircuitUntil }, "[agentic] provider circuit open; skipping repeated failed calls");
+    return null;
+  }
   const stages: Array<Array<[string, () => Promise<{ model: string; raw: string } | null>]>> = [
     [["gemini", callGeminiJson], ["nvidia", callNvidiaJson]],
     [["groq", callGroqJson], ["mistral", callMistralJson]],
@@ -1126,6 +1130,7 @@ async function llmStep(prompt: string): Promise<{ model: string; raw: string } |
     });
     try {
       const out = await Promise.any(attempts);
+      agenticProviderCircuitUntil = 0;
       setAgenticLlmHealth(true, out.model, null);
       return out;
     } catch (err: any) {
@@ -1133,8 +1138,11 @@ async function llmStep(prompt: string): Promise<{ model: string; raw: string } |
       errors.push(reasons.slice(0, 500));
     }
   }
+  // A short circuit prevents ten-target batches from hammering a dead/quota-exhausted
+  // provider set. The circuit is not a research decision and expires automatically.
+  agenticProviderCircuitUntil = Date.now() + 60_000;
   setAgenticLlmHealth(false, null, errors.join(";").slice(0, 1000));
-  logger.warn({ errors }, "[agentic] all LLM providers failed for step");
+  logger.warn({ errors }, "[agentic] all LLM providers failed for step; circuit opened");
   return null;
 }
 
