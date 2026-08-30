@@ -4,21 +4,27 @@
  */
 import { db, entitiesTable } from "@workspace/db";
 import { sql } from "drizzle-orm";
-import type { DiscoveryCandidate } from "./discovery-agent";
+import { isWellFormedPersonCandidate, type DiscoveryCandidate } from "./discovery-agent";
 import { logger } from "./logger";
 import { evaluateTargetFitness, shouldRejectTarget } from "./target-fitness";
 
 export async function createEntityFromDiscoveryCandidate(
   c: DiscoveryCandidate,
+  options: { modelSelected?: boolean } = {},
 ): Promise<number | null> {
   const name = c.name.trim();
   if (name.length < 3) return null;
+
+  if (options.modelSelected && !isWellFormedPersonCandidate(c)) {
+    logger.info({ name }, "[discovery-agent-admit] rejected malformed model-selected person candidate");
+    return null;
+  }
 
   const fitness = evaluateTargetFitness({
     name,
     notes: [c.basis, c.role, c.company].filter(Boolean).join(" | "),
   });
-  if (shouldRejectTarget(fitness)) {
+  if (!options.modelSelected && shouldRejectTarget(fitness)) {
     logger.info({ name, fit: fitness.fit, reasons: fitness.reasons }, "[discovery-agent-admit] rejected by fitness");
     return null;
   }

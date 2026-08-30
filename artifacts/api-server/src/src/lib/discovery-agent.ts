@@ -26,6 +26,28 @@ export type DiscoveryAgentResult = {
   message: string;
 };
 
+const INVALID_PERSON_NAME_WORDS = new Set([
+  "a", "an", "and", "as", "at", "behind", "been", "by", "chief", "ceo",
+  "company", "executive", "from", "has", "in", "of", "officer", "on",
+  "the", "to", "with",
+]);
+
+/**
+ * Safety validation for model-selected discovery output.
+ *
+ * This is deliberately not a ranking or fitness score. The model still
+ * chooses the candidate and its order; this only prevents sentence fragments,
+ * titles, organizations, and source-free strings from becoming people.
+ */
+export function isWellFormedPersonCandidate(candidate: Pick<DiscoveryCandidate, "name" | "sourceUrls">): boolean {
+  const name = String(candidate.name ?? "").trim().replace(/\s+/g, " ");
+  const words = name.split(" ");
+  if (words.length < 2 || words.length > 5) return false;
+  if (!/^\p{L}[\p{L}.'’\-]*(?:\s+\p{L}[\p{L}.'’\-]*){1,4}$/u.test(name)) return false;
+  if (words.some((word) => INVALID_PERSON_NAME_WORDS.has(word.toLowerCase().replace(/[.'’\-]/g, "")))) return false;
+  return (candidate.sourceUrls ?? []).some((url) => /^https?:\/\/\S+$/i.test(String(url)));
+}
+
 function parsePersonFindings(
   findings: Array<{
     vectorType?: string;

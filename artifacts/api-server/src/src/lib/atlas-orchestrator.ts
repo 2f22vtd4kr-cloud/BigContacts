@@ -2092,6 +2092,181 @@ Never invent specific emails, phones, or people. Return plain text only.`,
 // ── Main Orchestrator ─────────────────────────────────────────────────────────
 
 /**
+ * Free-ReAct bureau mode.
+ *
+ * Discovery-first Atlas must not fall through to the legacy fixed source
+ * slate, registry sweep, global maintenance phases, or reachability ranking.
+ * The discovery model chooses candidates in order; each target model then
+ * chooses its own web/registry/domain/footprint actions. Deterministic code
+ * only enforces lifecycle, source-backed candidate shape, time budgets, and
+ * evidence/card persistence.
+ */
+async function runModelSelectedDiscoveryBureau(
+  atlasJobId: string,
+  opts: AtlasOptions,
+  startMs: number,
+): Promise<AtlasResult> {
+  const summary: Record<string, string> = {};
+  const targetLimit = Math.max(1, Math.min(50, opts.targetCount ?? 50));
+  const researchLimit = Math.max(0, Math.min(targetLimit, opts.researchLimit ?? 10));
+
+  const status = async (message: string, progress: number, entityProgress?: number, entityTotal?: number) => {
+    await ensureAtlasActive(atlasJobId);
+    await updateJob(atlasJobId, {
+      status: "running",
+      progress,
+      total: 3,
+      atlasPhase: progress,
+      atlasPhaseTotal: 3,
+      message,
+      entityProgress,
+      entityTotal,
+    });
+  };
+
+  await status("AI discovery agent: model-selected public people hunt…", 0);
+  const { runDiscoveryAgent, isWellFormedPersonCandidate } = await import("./discovery-agent");
+  const { createEntityFromDiscoveryCandidate } = await import("./discovery-agent-admit");
+  const depth = (["fast", "standard", "deep"].includes(String(opts.researchDepth ?? "").toLowerCase())
+    ? String(opts.researchDepth).toLowerCase()
+    : "standard") as "fast" | "standard" | "deep";
+
+  const discovery = await runDiscoveryAgent({
+    jobId: atlasJobId,
+    depth,
+    hardTimeoutMs: depth === "fast" ? 60_000 : depth === "deep" ? 150_000 : 90_000,
+    onLiveStep: (step) => {
+      void appendJobLog(
+        atlasJobId,
+        `DISCOVERY_MODEL_STEP ${JSON.stringify({
+          action: step.action,
+          tool: step.tool,
+          query: step.query,
+          url: step.url,
+          status: step.status,
+          detail: step.detail?.slice(0, 240),
+        })}`,
+      ).catch(() => {});
+    },
+  });
+
+  const candidates = discovery.candidates
+    .filter((candidate) => isWellFormedPersonCandidate(candidate))
+    .slice(0, targetLimit);
+  summary["AI discovery"] =
+    `${candidates.length} source-backed model candidates from ${discovery.model ?? "provider chain"} ` +
+    `(${discovery.searches} searches, ${discovery.visits} visits, degraded=${discovery.degraded})`;
+
+  const admittedIds: number[] = [];
+  for (const candidate of candidates) {
+    await ensureAtlasActive(atlasJobId);
+    const id = await createEntityFromDiscoveryCandidate(candidate, { modelSelected: true });
+    if (id) admittedIds.push(id);
+  }
+  summary["Model admission"] = `${admittedIds.length}/${candidates.length} candidates admitted in model order`;
+
+  const targetRows: any[] = [];
+  for (const id of admittedIds.slice(0, researchLimit)) {
+    const rows = await fetchEntities({ batchSize: 1, hotLeadsOnly: false, targetId: id });
+    if (rows[0]) targetRows.push(rows[0]);
+  }
+
+  await status(
+    targetRows.length
+      ? `Target agent: model-selected ReAct research for ${targetRows.length} candidate(s)…`
+      : "AI discovery finished without a target eligible for research.",
+    1,
+    0,
+    targetRows.length,
+  );
+
+  const { runBureauAgenticWebPass } = await import("./bureau-agentic-pass");
+  const targetResult = await runEntityBatch(
+    atlasJobId,
+    "MODEL TARGET",
+    targetRows,
+    async (entity) => {
+      const metadata = safeJson<Record<string, unknown>>(entity.metadata, {});
+      const companyName = typeof metadata.company === "string"
+        ? metadata.company
+        : typeof metadata.companyName === "string"
+          ? metadata.companyName
+          : null;
+      const agentic = await runBureauAgenticWebPass({
+        targetName: entity.name,
+        companyName,
+        jobId: atlasJobId,
+        entityId: entity.id,
+        persist: true,
+        objective: [
+          apexOrientationCompact("investigator"),
+          `Research the public identity and contact surface for ${entity.name}${companyName ? ` (${companyName})` : ""}.`,
+          "Choose every next action yourself from the available non-LLM tools.",
+          "Do not follow a checklist or fixed hop order. Stop only when the evidence is exhausted or the budget is reached.",
+          "Every finding must retain an exact public source URL; never invent a person, route, relationship, or URL.",
+        ].join("\n"),
+      });
+      await rehydrateEntityCardFromEvidence(entity.id);
+      await db.update(entitiesTable).set({
+        cookedAt: new Date(),
+        updatedAt: new Date(),
+      }).where(eq(entitiesTable.id, entity.id));
+      return agentic;
+    },
+    1,
+    async (entity, result) => {
+      summary[`Target ${entity.name}`] =
+        `${result.status}: model=${result.model} iterations=${result.iterations} ` +
+        `searches=${result.searches} visits=${result.visits} findings=${result.findings.length}`;
+    },
+    opts.targetTimeoutMs ?? DEFAULT_TARGET_TIMEOUT_MS,
+  );
+  summary["Target research"] = `${targetResult.ok}/${targetRows.length} model-selected target journeys completed`;
+
+  const [hotRow, totalRow, contactRow] = await Promise.all([
+    db.select({ count: sql<number>`count(*)::int` }).from(entitiesTable).where(sql`${entitiesTable.bayesianScore} >= 0.5`),
+    db.select({ count: sql<number>`count(*)::int` }).from(entitiesTable),
+    db.select({ count: sql<number>`count(*)::int` }).from(entitiesTable)
+      .where(sql`(${entitiesTable.email} IS NOT NULL OR ${entitiesTable.phone} IS NOT NULL OR ${entitiesTable.linkedinUrl} IS NOT NULL)`),
+  ]);
+  const durationMs = Date.now() - startMs;
+  const hotLeads = Number(hotRow[0]?.count ?? 0);
+  const totalEntities = Number(totalRow[0]?.count ?? 0);
+  const totalContacts = Number(contactRow[0]?.count ?? 0);
+  const finalMsg = [
+    `Free-ReAct bureau complete in ${Math.round(durationMs / 60_000)}min.`,
+    `${totalEntities} entities | ${hotLeads} hot leads | ${totalContacts} contacts found.`,
+    Object.entries(summary).map(([key, value]) => `${key}: ${value}`).join(" | "),
+  ].join(" ");
+
+  await ensureAtlasActive(atlasJobId);
+  await updateJob(atlasJobId, {
+    status: "done",
+    progress: 3,
+    total: 3,
+    atlasPhase: 3,
+    atlasPhaseTotal: 3,
+    outcome: "complete",
+    inserted: admittedIds.length,
+    finishedAt: new Date().toISOString(),
+    message: finalMsg,
+    entityProgress: targetRows.length,
+    entityTotal: targetRows.length,
+  });
+  await clearActiveJobIfOwned("atlas-run", atlasJobId);
+
+  return {
+    phase: 3,
+    ingested: admittedIds.length,
+    enriched: targetResult.ok,
+    contactsFound: totalContacts,
+    hotLeads,
+    durationMs,
+    phaseSummary: summary,
+  };
+}
+
+/**
  * Bounded, target-scoped Atlas run.
  *
  * The normal Atlas pipeline is intentionally broad and contains global
@@ -2328,6 +2503,9 @@ export async function runAtlasPipeline(atlasJobId: string, opts: AtlasOptions): 
 
   if (opts.singleTargetId != null) {
     return runSingleTargetPipeline(atlasJobId, opts, startMs);
+  }
+  if (opts.discoveryFirst) {
+    return runModelSelectedDiscoveryBureau(atlasJobId, opts, startMs);
   }
 
   async function status(msg: string, phaseNum?: number) {
