@@ -40,8 +40,10 @@ export function findingsToContactEvidence(findings: AgenticFinding[]) {
   return findings.map((f) => ({
     vectorType: f.vectorType,
     value: f.value,
-    scope: f.scope,
-    personName: f.personName,
+    // Unknown contact scope is deliberately conservative. It is not allowed to
+    // become a personal route merely because a target name is already known.
+    scope: f.scope === "candidate" ? "candidate" : "organization",
+    personName: f.scope === "candidate" ? f.personName : null,
     role: f.role,
     sourceUrls: f.sourceUrls,
     note: f.note,
@@ -55,12 +57,11 @@ export function findingsToBureauContacts(
   return findings.map((f) => ({
     vectorType: f.vectorType,
     value: f.value,
-    scope: f.scope,
-    // Candidate-scoped findings may inherit the already-verified target name.
-    // Organization findings must stay organization-scoped and nameless; using
-    // the target as a fallback here previously risked turning info@/contact@
-    // into a personal contact merely because the target was known.
-    personName: f.scope === "candidate" ? (f.personName ?? fallbackPersonName) : (f.personName ?? null),
+    // Candidate findings may inherit the already-verified target name.
+    // Organization and unknown findings must remain organization-scoped and
+    // nameless; this prevents info@ / switchboards from becoming personal.
+    scope: f.scope === "candidate" ? "candidate" : "organization",
+    personName: f.scope === "candidate" ? (f.personName ?? fallbackPersonName) : null,
     role: f.role,
     sourceUrls: f.sourceUrls,
     note: `bureau-agentic:${f.note}`,
@@ -113,8 +114,6 @@ export async function runBureauAgenticWebPass(input: {
   });
 
   try {
-    // Promote agentic findings immediately after ReAct (including on hard timeout).
-    // Do not wait for any mixed-source tail — that was discarding Rayco-class partial wins.
     const agentic = await runAgenticWebResearch({
       targetName: name,
       companyName: input.companyName ?? null,
@@ -160,13 +159,10 @@ export async function runBureauAgenticWebPass(input: {
 
     const contactEvidence = findingsToContactEvidence(agentic.findings);
 
-    // Persist as soon as ReAct returns (completed OR timeout). Partial findings must hit the ledger.
     if (input.persist && input.entityId) {
       await persistBureauContactsForEntity(
         input.entityId,
-        agentic.findings.length
-          ? findingsToBureauContacts(agentic.findings, name)
-          : [],
+        findingsToBureauContacts(agentic.findings, name),
         "case-bureau-agentic",
         input.jobId,
       );
