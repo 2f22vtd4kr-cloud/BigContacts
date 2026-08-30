@@ -13,6 +13,8 @@ const log = readText("/tmp/apex-api.log");
 const entities = readJson("/tmp/entities.json", {});
 const rows = Array.isArray(entities) ? entities : (entities.entities || entities.rows || []);
 const status = readJson("/tmp/atlas-status.json", {});
+const health = readJson("/tmp/health.json", {});
+const launch = readJson("/tmp/launch.json", {});
 
 const fail = (msg) => { console.error(`FAIL: ${msg}`); process.exitCode = 1; };
 const isHttpUrl = (value) => {
@@ -21,9 +23,20 @@ const isHttpUrl = (value) => {
   catch { return false; }
 };
 
-// The API status endpoint carries the authoritative live BUREAU telemetry. The
-// server log is a secondary source. Missing files are treated as an audit-data
-// problem, not allowed to crash the audit with an unrelated ENOENT exception.
+// Do not misclassify a build/startup failure as an LLM or research failure.
+// This matters because a broken binary can otherwise produce the misleading
+// assertion that Apex had no model trajectory. A research-quality verdict only
+// begins after the API accepted an actual Bureau launch.
+const launchAccepted = Boolean(launch.jobId);
+const runtimeHealthy = Boolean(health && typeof health === "object" && Object.keys(health).length > 0);
+if (!launchAccepted && (!runtimeHealthy || !status || Object.keys(status).length === 0)) {
+  fail("infra/runtime failure before a Bureau launch; no research-quality verdict is possible");
+  console.log("LIVE_AUDIT class=infra_prelaunch_failure researchQuality=inconclusive");
+  process.exit();
+}
+
+// The API status endpoint carries authoritative live BUREAU telemetry. The
+// server log is a secondary source. Missing files are audit-data problems.
 const telemetry = [
   ...(Array.isArray(status.log) ? status.log : []),
   ...(Array.isArray(status.recentSpans) ? status.recentSpans.map((s) => JSON.stringify(s)) : []),
@@ -87,7 +100,7 @@ for (const entity of rows) {
   console.log(`QUALITY entity=${entity.name || entity.id} outcome=${entity.contactOutcome || "none"} sourcedContacts=${contacts.length}`);
 }
 
-console.log(`LIVE_AUDIT entities=${rows.length} sourceBackedContacts=${sourceBacked} direct=${direct} organization=${org}`);
+console.log(`LIVE_AUDIT class=research_quality entities=${rows.length} sourceBackedContacts=${sourceBacked} direct=${direct} organization=${org}`);
 console.log(`LIVE_AUDIT discoveryModel=${discoveryModel} discoveryTools=${discoveryTools} status=${status.status || status.outcome || "unknown"}`);
 console.log(`LIVE_AUDIT discoverySpans=${discoverySpans.length} bureauRecords=${bureauRecords.length}`);
 if (org > 0 && direct === 0) console.log("QUALITY_NOTE organization-contact only; do not count as direct-person reachability");
