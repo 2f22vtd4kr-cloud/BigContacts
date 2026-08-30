@@ -40,4 +40,4 @@ jobs:
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile --filter @workspace/db... --filter @workspace/api-server... --filter @workspace/api-zod... --filter apex-finder-local...
       - name: Run identity/provenance regression tests
-        run: pnpm --dir artifacts/api-server exec vitest run src/src/test/agentic-scope-boundary.test.ts src/src/test/agentic-source-provenance.test.ts src/src/test/discovery-agent-parse.test.ts
+        run: pnpm --dir artifacts/api-server exec vitest run src/src/test/agentic-scope-boundary.test.ts src/src/test/agentic-source-provenance.test.ts src/src/test/discovery-agent-parse.test.ts src/src/test/discovery-agent-admit.test.ts
