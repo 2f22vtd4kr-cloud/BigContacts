@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "export NODE_ENV=development && pnpm run build && pnpm run start",
-    "build": "node ../../scripts/apply-agentic-concurrency-hardening.mjs && node ./build.mjs",
+    "build": "node ../../scripts/apply-agentic-concurrency-hardening.mjs && node ../../scripts/apply-discovery-runtime-correctness.mjs && node ./build.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run"
   },
@@ -13,7 +13,7 @@
     "@workspace/api-zod": "workspace:*",
     "@workspace/db": "workspace:*",
     "cookie-parser": "^1.4.7",
-    "cors": "^2.8.6",
+    "cors": "^2.0.0",
     "drizzle-orm": "catalog:",
     "express": "^5.2.1",
     "ioredis": "^5.11.1",
