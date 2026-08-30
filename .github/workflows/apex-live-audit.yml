@@ -48,18 +48,24 @@ jobs:
         with:
           node-version: 22
           registry-url: https://registry.npmjs.org/
-      - name: Apply strict free-ReAct purity repair
+      - name: Apply permanent runtime hardening and regenerate living plan
         run: |
           node scripts/apply-free-react-purity-fix.mjs
           node scripts/apply-agentic-runtime-hardening.mjs
           node scripts/apply-apex-identity-integrity-fix.mjs
+          node scripts/generate-apex-research-agent-integrity-plan.mjs
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add artifacts/api-server/src/src/lib/agentic-web-research.ts artifacts/api-server/src/src/lib/discovery-agent.ts artifacts/api-server/src/src/lib/nvidia-nim-case-reasoning.ts
+          git add \
+            artifacts/api-server/src/src/lib/agentic-web-research.ts \
+            artifacts/api-server/src/src/lib/discovery-agent.ts \
+            artifacts/api-server/src/src/lib/nvidia-nim-case-reasoning.ts \
+            docs/bureau-plan/40K_RESEARCH_AGENT_INTEGRITY_PLAN.md
           if ! git diff --cached --quiet; then
-            git commit -m "fix: enforce strict free-ReAct and identity boundaries [skip ci]"
+            git commit -m "fix: persist agentic runtime hardening and living 40k plan [skip ci]"
             git push origin HEAD:main
           fi
+          git log -1 --oneline
       - run: npm install -g pnpm@9
       - name: Install workspace dependencies
         run: pnpm install --no-frozen-lockfile --filter @workspace/db... --filter @workspace/api-server... --filter @workspace/api-zod... --filter apex-finder-local... --registry=https://registry.npmjs.org/
@@ -85,6 +91,28 @@ jobs:
           pnpm run check:trajectory
           pnpm run check:comparison-contract
           pnpm --dir artifacts/api-server exec vitest run src/src/test/discovery-agent-parse.test.ts
+      - name: Provider catalog preflight
+        run: |
+          node --input-type=module <<'NODE'
+          const probes = [];
+          async function probe(name, url, headers, requiredModel) {
+            if (!Object.values(headers).some(Boolean)) { probes.push({name, state:'not_configured'}); return; }
+            try {
+              const r = await fetch(url, {headers, signal: AbortSignal.timeout(10000)});
+              const text = await r.text();
+              let modelIds = [];
+              try { const j = JSON.parse(text); modelIds = (j.data || j.models || []).map(x => x.id || x.name).filter(Boolean).slice(0, 200); } catch {}
+              const active = requiredModel ? modelIds.includes(requiredModel) : modelIds.length > 0;
+              probes.push({name, status:r.status, state:r.ok && active ? 'catalog_ok' : 'catalog_unavailable', model:requiredModel || null});
+            } catch (e) { probes.push({name, state:'transport_error', error:String(e?.message || e)}); }
+          }
+          await probe('gemini','https://generativelanguage.googleapis.com/v1beta/models',{Authorization:`Bearer ${process.env.GEMINI_API_KEY||''}`},'models/gemini-3.7-flash');
+          await probe('groq','https://api.groq.com/openai/v1/models',{Authorization:`Bearer ${process.env.GROQ_API_KEY||''}`},'openai/gpt-oss-120b');
+          await probe('nvidia','https://integrate.api.nvidia.com/v1/models',{Authorization:`Bearer ${process.env.NVIDIA_NIM_API_KEY||''}`},'nvidia/nemotron-3-nano-30b-a3b');
+          await probe('mistral','https://api.mistral.ai/v1/models',{Authorization:`Bearer ${process.env.MISTRAL_API_KEY||''}`},'mistral-large-latest');
+          console.log(JSON.stringify(probes));
+          if (!probes.some(x => x.state === 'catalog_ok')) { console.error('No configured provider exposes the required current model catalog; do not launch a blind ten-target batch.'); process.exit(1); }
+          NODE
       - name: Start Apex API
         run: |
           redis-cli ping
