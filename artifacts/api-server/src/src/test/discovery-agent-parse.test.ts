@@ -24,6 +24,14 @@ describe("discovery agent identity boundary", () => {
     "security issues",
     "Chief Executive Officer",
     "Private Equity",
+    "Venture Capital",
+    "Real Estate",
+    "Asset Management",
+    "Wealth Management",
+    "Investment Management",
+    "Private Markets",
+    "Contact Us",
+    "About Us",
     "Forbes Billionaires",
   ])("rejects historical malformed candidate: %s", (name) => {
     expect(passesDiscoveryIdentityGate(name)).toBe(false);
