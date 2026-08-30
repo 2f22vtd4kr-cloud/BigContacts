@@ -10,6 +10,8 @@ const required = [
   ["Gemini action schema is present", /const AGENTIC_ACTION_SCHEMA =/],
   ["Gemini action JSON is fail-closed parsed", /function parseAction\(raw: string\): AgentAction \| null/],
   ["provider decision deadline is not the old 18s cap", /providerDecisionTimeoutMs = 55_000/],
+  ["provider decisions are bounded across concurrent targets", /MAX_CONCURRENT_AGENTIC_PROVIDER_DECISIONS/],
+  ["provider failures do not use a global cross-target circuit", /activeAgenticProviderDecisions/],
   ["default iteration budget is expanded", /const MAX_ITER = 40;/],
 ];
 
@@ -19,6 +21,10 @@ for (const [label, pattern] of required) {
 
 if (/const maxIter = Math\.min\(input\.maxIterations \?\? MAX_ITER, 24\)/.test(source)) {
   throw new Error("agentic runtime invariant failed: hidden 24-iteration ceiling");
+}
+
+if (/agenticProviderCircuitUntil/.test(source)) {
+  throw new Error("agentic runtime invariant failed: module-global provider circuit can contaminate concurrent targets");
 }
 
 const forbidden = [
