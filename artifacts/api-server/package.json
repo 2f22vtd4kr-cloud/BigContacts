@@ -5,11 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "export NODE_ENV=development && pnpm run build && pnpm run start",
-    "prebuild": "node ../../scripts/patch-agentic-runtime.mjs",
+    "prebuild": "node ../../scripts/patch-agentic-runtime.mjs && node ../../scripts/patch-agentic-quality-v2.mjs",
     "build": "node ./build.mjs",
-    "pretypecheck": "node ../../scripts/patch-agentic-runtime.mjs",
+    "pretypecheck": "node ../../scripts/patch-agentic-runtime.mjs && node ../../scripts/patch-agentic-quality-v2.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "pretest": "node ../../scripts/patch-agentic-runtime.mjs",
+    "pretest": "node ../../scripts/patch-agentic-runtime.mjs && node ../../scripts/patch-agentic-quality-v2.mjs",
     "test": "vitest run"
   },
   "dependencies": {
@@ -29,6 +29,7 @@
     "@types/express": "^5.0.6",
     "@types/node": "catalog:",
     "@types/supertest": "^7.2.1",
+    "@types/vitest": "^4.1.10",
     "@vitest/coverage-v8": "^4.1.10",
     "esbuild": "0.27.3",
     "esbuild-plugin-pino": "^2.3.3",
