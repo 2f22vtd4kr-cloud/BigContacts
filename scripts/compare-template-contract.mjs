@@ -14,7 +14,7 @@ const required = [
   "baseline primary",
   "Apex outcome",
   "score",
-  "Free dig spans (search/visit) present for each dig?",
+  "Free dig spans (search/visit) present for every trial?",
   "discoveryFirst used?",
   "any -1 (wrong person): yes/no",
   "verdict: Apex wins / tie / Apex loses",
