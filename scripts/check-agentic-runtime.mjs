@@ -2,6 +2,8 @@ import fs from "node:fs";
 
 const file = "artifacts/api-server/src/src/lib/agentic-web-research.ts";
 const source = fs.readFileSync(file, "utf8");
+const workflow = fs.readFileSync(".github/workflows/apex-live-audit.yml", "utf8");
+const compatibilityHardener = fs.readFileSync("scripts/apply-agentic-runtime-hardening.mjs", "utf8");
 
 const required = [
   ["Gemini provider implementation remains available for Boss", /GEMINI_API_KEY_/],
@@ -46,6 +48,32 @@ if (source.includes("const maxIter = Math.min(input.maxIterations ?? MAX_ITER, 2
 
 if (source.includes("agenticProviderCircuitUntil")) {
   throw new Error("agentic runtime invariant failed: module-global provider circuit can contaminate concurrent targets");
+}
+
+// The live audit must not launch merely because Boss/right-hand providers work.
+// Discovery/Dig requires an actual investigator provider. This prevents the
+// exact failure mode where Gemini/NVIDIA preflight was green while Dig had no
+// usable model and the ten-target run spent its budget producing zero research.
+if (!/let digReady = false;/.test(workflow)) {
+  throw new Error("live audit provider gate missing digReady state");
+}
+if (!/capability:'dig'/.test(workflow) || !/if \(ok\) digReady = true/.test(workflow)) {
+  throw new Error("live audit provider gate does not mark Groq/Mistral as Dig-capable");
+}
+if (!/const ready = digReady;/.test(workflow) || !/if \(!digReady\)/.test(workflow)) {
+  throw new Error("live audit must gate launch on an actual Dig provider generation");
+}
+if (/const ready = (?:false|bossReady \|\| rightHandReady)/.test(workflow)) {
+  throw new Error("live audit incorrectly treats Boss/right-hand readiness as Dig readiness");
+}
+
+// Compatibility hardening must have one owner. It may not contain a second
+// provider router that can reintroduce Gemini/NVIDIA into Dig.
+if (!/delegat(?:e|es) to the canonical hardener/i.test(compatibilityHardener)) {
+  throw new Error("compatibility hardener is not delegated to the canonical hardener");
+}
+if (/\[\s*\[?\s*["']gemini["']\s*,\s*callGeminiJson|["']nvidia["']\s*,\s*callNvidiaJson/.test(compatibilityHardener)) {
+  throw new Error("compatibility hardener contains a forbidden Boss/right-hand Dig provider tuple");
 }
 
 const forbidden = [
