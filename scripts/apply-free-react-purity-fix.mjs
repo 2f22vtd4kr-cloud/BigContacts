@@ -42,15 +42,34 @@ s = s.replace(/\n  const seedCompanyContactPaths = \(urls: string\[\]\) => \{[\s
 s = s.replace(/\n  const detVisitNext = async \(stepLabel: string\): Promise<boolean> => \{[\s\S]*?\n  \};\n/, "\n");
 s = s.replace(/\n\s*seedCompanyContactPaths\(sr\.urls\);\n/g, "\n");
 
-// Export the identity/provenance gate so regression tests exercise the real
-// admission boundary rather than a duplicated test-only implementation.
+// Provider calls must not depend on vendor-specific JSON response_format support.
+// The prompt already requires one JSON object and parseAction is fail-closed.
+// Removing the optional response_format makes Groq/NVIDIA/Mistral usable when a
+// provider/model rejects that parameter, while preserving the exact same action
+// surface and keeping provider choice in the model control plane.
+s = s.replace(/\n\s*response_format: \{ type: "json_object" \},/g, "");
+
+// Discovery quality matters more than latency: use the Boss model first, then
+// the right-hand NVIDIA lane, then Groq and finally Mistral. Provider fallback
+// is failure handling only; it never selects research actions or targets.
+s = s.replace(
+  'const chain: Array<[string, () => Promise<{ model: string; raw: string } | null>]> = [\n    ["groq", callGroqJson],\n    ["mistral", callMistralJson],\n    ["gemini", callGeminiJson],\n    ["nvidia", callNvidiaJson],\n  ];',
+  'const chain: Array<[string, () => Promise<{ model: string; raw: string } | null>]> = [\n    ["gemini", callGeminiJson],\n    ["nvidia", callNvidiaJson],\n    ["groq", callGroqJson],\n    ["mistral", callMistralJson],\n  ];',
+);
+
+// Keep the provider budget modest so one control-plane step does not consume a
+// disproportionate share of a provider quota while still leaving the model
+// enough room for a JSON action plus reasoning summary.
+s = s.replace(/max_tokens: 2048,/g, "max_tokens: 1536,");
+
+// Export the production identity gate so regression tests exercise the real
+// admission boundary rather than maintaining a second test-only implementation.
 if (s.includes("function hasStrongIdentityEvidence") && !s.includes("export function hasStrongIdentityEvidence")) {
   s = s.replace("function hasStrongIdentityEvidence", "export function hasStrongIdentityEvidence");
 }
 
 if (s === original) {
-  // Idempotent success: the strict source is already installed.
-  console.log("Free-ReAct purity repair already present; no changes needed");
+  console.log("Free-ReAct purity/provider repair already present; no changes needed");
   process.exit(0);
 }
 
@@ -59,4 +78,4 @@ if (/llm_all_failed — deterministic recovery|DETERMINISTIC SEARCH \(no LLM\)|d
 }
 
 fs.writeFileSync(path, s);
-console.log("Applied strict free-ReAct purity repair: no deterministic research fallback or auto tool hops");
+console.log("Applied strict free-ReAct/provider repair: model-only tool choice, resilient JSON transport, quality-first provider fallback");
