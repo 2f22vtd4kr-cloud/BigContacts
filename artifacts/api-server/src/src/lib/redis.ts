@@ -44,6 +44,11 @@ import { logger } from "./logger";
 
 let _localClient: Redis | null = null;
 let _permanentClients: Redis[] = []; // one per REDIS_URL_N
+// Manual mode must not connect to Upstash just because the desk is open.
+// Atlas enables this explicitly when an operator launches a run.
+let _permanentRedisEnabled =
+  process.env["ENABLE_AUTO_PIPELINE"] === "true" ||
+  process.env["ENABLE_REDIS_ON_BOOT"] === "true";
 
 /**
  * Tracks which permanent-client slot indices are quota-exhausted.
@@ -117,6 +122,10 @@ export async function connectRedis(): Promise<void> {
  * Reads REDIS_URL_1, REDIS_URL_2, … REDIS_URL_9 in order; stops at first missing key.
  */
 export async function connectPermanentRedis(): Promise<void> {
+  if (!_permanentRedisEnabled) {
+    logger.info("Permanent Redis connection deferred — manual mode has no boot-time Redis traffic");
+    return;
+  }
   // Fresh connect: do not inherit sticky exhausted from a previous process lifetime
   _quotaExhaustedSlots.clear();
 
@@ -143,6 +152,12 @@ export async function connectPermanentRedis(): Promise<void> {
   }
 }
 
+/** Enable permanent Redis after an explicit operator action (manual Atlas launch). */
+export async function enablePermanentRedis(): Promise<void> {
+  _permanentRedisEnabled = true;
+  await connectPermanentRedis();
+}
+
 /** Shutdown all clients gracefully */
 export async function disconnectRedis(): Promise<void> {
   const all = [_localClient, ..._permanentClients].filter(Boolean) as Redis[];
@@ -163,6 +178,7 @@ export function getRedisClient(): Redis | null { return _localClient; }
  * _quotaExhaustedSlots and fall through to the next slot automatically.
  */
 export function getPermanentClient(): Redis | null {
+  if (!_permanentRedisEnabled) return null;
   const alive = _permanentClients.find(
     (c, i) => c?.status === "ready" && !_quotaExhaustedSlots.has(i),
   );

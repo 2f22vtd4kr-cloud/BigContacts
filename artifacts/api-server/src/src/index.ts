@@ -14,16 +14,26 @@ connectRedis()
   .then(() => logger.info("Redis connection initiated"))
   .catch((e) => logger.warn({ err: e }, "Redis connect error (non-fatal)"));
 
-// Connect permanent Upstash Redis clients then run cold-start recovery:
-//   • clears ghost active-job locks left by a killed process
-//   • auto-starts ingestion if the DB is empty
-connectPermanentRedis()
-  .then(() =>
-    coldStartRecovery().catch((e) =>
-      logger.warn({ err: e }, "Cold-start recovery error (non-fatal)"),
-    ),
-  )
-  .catch((e) => logger.warn({ err: e }, "Permanent Redis connect error (non-fatal)"));
+// Manual mode deliberately does not connect to Upstash at boot. This keeps an
+// idle desk from consuming a free-tier command budget; an explicit Atlas
+// launch enables the permanent client before creating its job.
+const redisOnBoot =
+  process.env["ENABLE_AUTO_PIPELINE"] === "true" ||
+  process.env["ENABLE_REDIS_ON_BOOT"] === "true";
+if (redisOnBoot) {
+  connectPermanentRedis()
+    .then(() =>
+      coldStartRecovery().catch((e) =>
+        logger.warn({ err: e }, "Cold-start recovery error (non-fatal)"),
+      ),
+    )
+    .catch((e) => logger.warn({ err: e }, "Permanent Redis connect error (non-fatal)"));
+} else {
+  logger.info("Permanent Redis boot connection skipped — manual Launch mode");
+  coldStartRecovery().catch((e) =>
+    logger.warn({ err: e }, "Cold-start recovery error (non-fatal)"),
+  );
+}
 
 const server = app.listen(port, (err) => {
   if (err) {

@@ -21,6 +21,7 @@ import { scoreFixtureCard, meanScore, passesScoreboardMilestone } from "../lib/s
 import { buildLanesHonestySnapshot } from "../lib/lanes-honesty";
 import { suggestLcode } from "../lib/lcode-suggest";
 import { normalizeAtlasStatusMessage } from "../lib/atlas-phase-progress";
+import { enablePermanentRedis } from "../lib/redis";
 
 const router = Router();
 
@@ -71,6 +72,9 @@ function lastLogActivityMs(log: string[]): number {
 
 // ── POST /ingest/atlas-run ────────────────────────────────────────────────────
 router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<void> => {
+  // Redis is opt-in in manual mode. This endpoint is the explicit operator
+  // action that permits durable job state and contact-cache writes.
+  await enablePermanentRedis();
   const existing = await getActiveJob("atlas-run");
   if (existing) {
     const job = await getJob(existing);
