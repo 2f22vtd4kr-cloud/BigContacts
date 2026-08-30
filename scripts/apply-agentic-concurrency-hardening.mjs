@@ -1,7 +1,10 @@
 import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-const path = "artifacts/api-server/src/src/lib/agentic-web-research.ts";
-let s = fs.readFileSync(path, "utf8");
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const targetPath = path.join(repoRoot, "artifacts/api-server/src/src/lib/agentic-web-research.ts");
+let s = fs.readFileSync(targetPath, "utf8");
 
 if (s.includes("activeAgenticProviderDecisions") && s.includes("MAX_CONCURRENT_AGENTIC_PROVIDER_DECISIONS")) {
   console.log("Agentic concurrency hardening already applied; leaving runtime unchanged");
@@ -77,5 +80,5 @@ if (!llmStepRe.test(s)) {
 
 s = s.replace(llmStepRe, replacement);
 
-fs.writeFileSync(path, s);
+fs.writeFileSync(targetPath, s);
 console.log("Applied agentic concurrency hardening: bounded provider-decision concurrency and no global cross-target circuit");
