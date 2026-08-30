@@ -287,6 +287,53 @@ export async function getActiveJob(type: string): Promise<string | null> {
   return mem;
 }
 
+/**
+ * Read several active-job pointers in one Redis command.
+ *
+ * The idle desk asks for the status of many possible job types. Calling
+ * getActiveJob() once per type turns a harmless 15-second UI poll into a
+ * steady stream of Upstash commands. Keep the per-type cache for callers
+ * that need one lock, but use MGET for the dashboard-wide status path.
+ */
+export async function getActiveJobs(types: string[]): Promise<Map<string, string | null>> {
+  const result = new Map<string, string | null>();
+  const uniqueTypes = [...new Set(types)].filter(Boolean);
+  if (uniqueTypes.length === 0) return result;
+
+  const now = Date.now();
+  const allFresh = uniqueTypes.every((type) => {
+    const cached = ACTIVE_JOB_READ_CACHE.get(type);
+    if (!cached || now - cached.at >= ACTIVE_JOB_READ_TTL_MS) return false;
+    result.set(type, cached.id);
+    return true;
+  });
+  if (allFresh) return result;
+
+  const values = await safeRedis(async rc => {
+    return rc.mget(...uniqueTypes.map(type => `apex:activejob:${type}`));
+  }, null as Array<string | null> | null);
+
+  if (values) {
+    uniqueTypes.forEach((type, index) => {
+      const id = values[index] ?? null;
+      result.set(type, id);
+      if (id) memoryActiveByType.set(type, id);
+      else memoryActiveByType.delete(type);
+      ACTIVE_JOB_READ_CACHE.set(type, { at: now, id });
+    });
+    return result;
+  }
+
+  // Redis unavailable: preserve the same in-process fallback semantics as
+  // getActiveJob(), without generating one failed command per job type.
+  uniqueTypes.forEach((type) => {
+    const id = memoryActiveByType.get(type) ?? null;
+    result.set(type, id);
+    ACTIVE_JOB_READ_CACHE.set(type, { at: now, id });
+  });
+  return result;
+}
+
 /** Call after set/clear active job so status does not serve a stale pointer. */
 export function invalidateActiveJobCache(type?: string): void {
   if (type) ACTIVE_JOB_READ_CACHE.delete(type);

@@ -308,7 +308,10 @@ function isFreshAtlasTerminal(job: { status?: string; finishedAt?: string; start
 // ── GET /ingest/atlas-status ──────────────────────────────────────────────────
 // Desk polls this often; short in-process cache cuts Redis GETs without lying for long.
 let _atlasStatusCache: { at: number; body: unknown } | null = null;
-const ATLAS_STATUS_CACHE_MS = 2_000;
+// The desk polls every 15 seconds while idle. A two-second cache caused each
+// poll to fan out into multiple Upstash reads and needlessly consumed free-tier
+// command quota even when no Atlas run was active.
+const ATLAS_STATUS_CACHE_MS = 15_000;
 
 // GET /ingest/scoreboard-snapshot — score recent cards for COMPARE_*.md (Vol 68/76)
 router.get("/ingest/scoreboard-snapshot", async (req: Request, res: Response): Promise<void> => {

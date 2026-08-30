@@ -81,6 +81,10 @@ function buildClient(url: string, label: string, slotIndex?: number): Redis {
         _quotaExhaustedSlots.add(slotIndex);
         logger.warn({ slot: slotIndex + 1, label }, `[${label}] Quota exhausted — slot marked as unavailable; falling through to next slot`);
       }
+      // A quota-exhausted Upstash connection is still TCP-ready and ioredis
+      // otherwise keeps reconnecting it. Disconnect immediately so a monthly
+      // cap cannot be prolonged by retry/probe traffic.
+      client.disconnect();
     } else {
       logger.warn({ err: err.message }, `[${label}] Redis error (non-fatal)`);
     }
@@ -133,6 +137,8 @@ export async function connectPermanentRedis(): Promise<void> {
       logger.info({ slot: i }, "Permanent Redis connected");
     } catch (err: any) {
       logger.warn({ slot: i, err: err.message }, "Permanent Redis connect failed");
+      // Do not leave a failed ioredis client reconnecting in the background.
+      client.disconnect();
     }
   }
 }
@@ -244,10 +250,9 @@ export async function withPermanentClient<T>(
   command: RedisCommand<T>,
   fallback: T,
 ): Promise<T> {
-  // Opportunistic recovery of sticky "exhausted" flags before picking a client
-  if (_quotaExhaustedSlots.size > 0) {
-    void tryRecoverExhaustedSlots();
-  }
+  // Do not probe quota-exhausted databases from every application command.
+  // A monthly Upstash cap will not recover during this process lifetime; the
+  // operator can add a fresh slot and restart the API when ready.
   const attempted = new Set<Redis>();
   for (;;) {
     const client = getPermanentClient();

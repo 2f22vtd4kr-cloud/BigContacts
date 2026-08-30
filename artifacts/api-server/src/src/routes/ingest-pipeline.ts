@@ -18,7 +18,7 @@ import { candidateKey } from "../lib/contact-candidate";
 import { sql, eq, and, desc, count, inArray } from "drizzle-orm";
 import {
   createJob, updateJob, getJob,
-  setActiveJob, getActiveJob, ownsActiveJob, clearActiveJobIfOwned,
+  setActiveJob, getActiveJob, getActiveJobs, ownsActiveJob, clearActiveJobIfOwned,
 } from "../lib/job-queue";
 import { deepWebOsintEnrich } from "../lib/enrichment/web-discovery";
 import { summarizeAdaptiveResearch } from "../lib/adaptive-research-director";
@@ -556,10 +556,11 @@ const KNOWN_JOB_TYPES = [
 
 router.get("/ingest/jobs", async (_req: Request, res: Response): Promise<void> => {
   try {
+    const activeByType = await getActiveJobs(KNOWN_JOB_TYPES.map((def) => def.id));
     const jobs = await Promise.all(
       KNOWN_JOB_TYPES.map(async (def) => {
         try {
-          const activeJobId = await getActiveJob(def.id);
+          const activeJobId = activeByType.get(def.id) ?? null;
           const state = activeJobId ? await getJob(activeJobId) : null;
           return {
             ...def,
