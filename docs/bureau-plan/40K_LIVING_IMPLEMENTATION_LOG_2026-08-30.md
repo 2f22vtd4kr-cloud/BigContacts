@@ -99,3 +99,59 @@ Commits:
 - `0300af55` — correct the runtime invariant suite to enforce investigator-only provider routing.
 
 This is not being counted as research-quality progress. It is an architectural correctness repair. The next meaningful evidence must come from real investigator trajectories using the corrected role separation.
+
+## Entry 006 — unattributed contact must not become personal contact
+
+### New causal finding
+
+The contact persistence layer was still capable of promoting a contact-shaped value to the target card when the evidence had no explicit person attribution. This was true even when the source URL was the target company's own public site. The existing collision logic could see the company name in the URL/value and return a low-risk identity result; the card promotion code could then treat the value as a personal email/phone unless its local-part happened to look generic.
+
+That violates the core extraction → identity boundary in a subtler way than malformed names. The value itself may be perfectly real while the **relationship between the value and the person is unproven**.
+
+Example failure class:
+
+`PAGE: target-company.com/contact`
+`EMAIL: info@target-company.com`
+`personName: null`
+`↓`
+`target entity.email = info@target-company.com`
+
+The email exists. The error is the attribution.
+
+### Change
+
+`assessIdentityCollision` now has a dedicated contact-evidence boundary:
+
+- email/phone values with no explicit `personName` are marked collision-risk;
+- the result explains that the contact has no explicit person attribution;
+- downstream `bureau-contact-persist` therefore demotes the value to organization/unknown handling rather than allowing it to masquerade as a direct personal route;
+- explicitly attributed contacts continue through the normal identity checks.
+
+This is intentionally not a ranking rule. It does not decide whether the person is valuable, wealthy, famous, reachable, or worth pursuing. It only prevents a missing identity relationship from being silently invented.
+
+### Regression coverage
+
+`identity-collision.test.ts` now locks four relevant cases:
+
+1. an unlabelled organization email is non-personal evidence;
+2. an unlabelled phone is non-personal evidence;
+3. an explicitly attributed matching personal email remains eligible for normal identity validation;
+4. ordinary descriptive evidence is unaffected.
+
+### What remains open
+
+This does not solve the larger build/source parity problem in `agentic-web-research.ts`: the checked-in source still contains the historical provider router while the canonical hardening script rewrites it at build time. That remains a high-priority source-of-truth defect because the repository's checked-in TypeScript should describe the runtime architecture without requiring a mutation step to become correct.
+
+It also does not prove that every `PERSON:` extraction emitted by the large deterministic page extractor is semantically attributable. That extractor remains a major architectural smell and must be treated as observation enrichment, not as an identity authority.
+
+### Validation status
+
+The change is committed to `main` as:
+
+`c81ef9cb45975db2face142fc1a7a6f407b3f29c`
+
+followed by the updated regression test commit:
+
+`184b9248f4a9e56c0129ecccc4c9c68b2c0535ef`
+
+No provider-backed success is claimed by this entry.
