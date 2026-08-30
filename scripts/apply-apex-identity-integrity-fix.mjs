@@ -38,6 +38,12 @@ function hasStrongIdentityEvidence(input: {
   s = s.slice(0, idx) + helper + "\n" + s.slice(idx);
 }
 
+// Export the real safety gate so regression tests execute the production gate,
+// rather than maintaining a second test-only implementation.
+if (s.includes("function hasStrongIdentityEvidence") && !s.includes("export function hasStrongIdentityEvidence")) {
+  s = s.replace("function hasStrongIdentityEvidence", "export function hasStrongIdentityEvidence");
+}
+
 // Repair the exact historical address fragment that previously survived the
 // person-shape regex. Keep this narrow: it is an identity-safety guard, not a
 // general name-ranking system.
