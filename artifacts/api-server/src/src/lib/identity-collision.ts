@@ -39,6 +39,12 @@ export type IdentityCollisionResult = {
 
 /**
  * True when evidence blob/personName likely refers to a different person than target.
+ *
+ * Contact evidence is deliberately stricter than ordinary descriptive evidence:
+ * an email/phone without an explicit person attribution is an organization/unknown
+ * route, not proof that the target personally owns the contact. This boundary keeps
+ * the promotion layer from turning `info@company.com` (or an unlabelled phone) into
+ * a direct personal contact merely because the source page belongs to the company.
  */
 export function assessIdentityCollision(input: {
   targetName: string;
@@ -56,6 +62,22 @@ export function assessIdentityCollision(input: {
     input.note ?? "",
     ...input.sourceUrls,
   ].join(" ").toLowerCase();
+
+  const value = String(input.value ?? "").trim();
+  const contactLike =
+    /^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/i.test(value)
+    || /^(?:\+?\d[\d\s().-]{6,})$/.test(value);
+
+  // A contact with no named attribution must never be treated as personal merely
+  // because the URL/domain contains the target company or target surname. The
+  // caller can still retain it as an organization route / review-only evidence.
+  if (contactLike && !input.personName?.trim()) {
+    return {
+      risk: true,
+      identityMatch: 0.3,
+      reason: "contact has no explicit person attribution; keep as organization/unknown route",
+    };
+  }
 
   if (companyToks.length && companyToks.some((t) => blob.includes(t))) {
     return { risk: false, identityMatch: 0.55, reason: null };
