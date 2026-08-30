@@ -55,6 +55,7 @@ jobs:
       WHOISJSON_API_KEY: ${{ secrets.WHOISJSON_API_KEY }}
       RESEARCH_DEPTH: standard
       APEX_SKIP_SEMANTIC: "1"
+      APEX_AGENTIC_CONCURRENCY: "4"
       NODE_OPTIONS: --max-old-space-size=1536
     steps:
       - uses: actions/checkout@v4
@@ -100,7 +101,7 @@ jobs:
           pnpm run check:trajectory
           pnpm run check:comparison-contract
           pnpm run check:agentic-runtime
-          pnpm --dir artifacts/api-server exec vitest run src/src/test/discovery-agent-parse.test.ts src/src/test/agentic-scope-boundary.test.ts src/src/test/agentic-source-provenance.test.ts src/src/test/bureau-contact-persist-strict.test.ts
+          pnpm --dir artifacts/api-server exec vitest run src/src/test/discovery-agent-parse.test.ts src/src/test/discovery-runtime-correctness.test.ts src/src/test/agentic-scope-boundary.test.ts src/src/test/agentic-source-provenance.test.ts src/src/test/bureau-contact-persist-strict.test.ts
       - name: Provider catalog and generation preflight
         shell: bash
         run: |
@@ -108,72 +109,42 @@ jobs:
           node --input-type=module <<'NODE'
           const results = [];
           let ready = false;
-
           async function geminiProbe() {
             const keys = [process.env.GEMINI_API_KEY, ...Array.from({length:13}, (_,i) => process.env[`GEMINI_API_KEY_${i+1}`])].filter(Boolean);
             const models = [process.env.GEMINI_AGENTIC_MODEL || 'gemini-3.7-flash', 'gemini-3.6-flash', 'gemini-3.5-flash'];
-            for (const [ki,key] of keys.entries()) {
-              for (const model of [...new Set(models)]) {
-                try {
-                  const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
-                    method:'POST', headers:{'x-goog-api-key':key,'content-type':'application/json'},
-                    body:JSON.stringify({contents:[{parts:[{text:'Reply READY only.'}]}],generationConfig:{maxOutputTokens:8}}),
-                    signal:AbortSignal.timeout(15000),
-                  });
-                  await r.text();
-                  results.push({provider:'gemini',key:`${ki+1}`,model,status:r.status});
-                  if (r.ok) return true;
-                  if (r.status === 401 || r.status === 403) break;
-                } catch (e) { results.push({provider:'gemini',key:`${ki+1}`,model,state:'transport_error',error:String(e?.message||e)}); }
-              }
+            for (const [ki,key] of keys.entries()) for (const model of [...new Set(models)]) {
+              try {
+                const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, { method:'POST', headers:{'x-goog-api-key':key,'content-type':'application/json'}, body:JSON.stringify({contents:[{parts:[{text:'Reply READY only.'}]}],generationConfig:{maxOutputTokens:8}}), signal:AbortSignal.timeout(15000) });
+                await r.text(); results.push({provider:'gemini',key:`${ki+1}`,model,status:r.status}); if (r.ok) return true; if (r.status === 401 || r.status === 403) break;
+              } catch (e) { results.push({provider:'gemini',key:`${ki+1}`,model,state:'transport_error',error:String(e?.message||e)}); }
             }
             return false;
           }
-
           async function openaiProbe(provider, url, key, model) {
             if (!key) { results.push({provider,state:'not_configured'}); return false; }
-            try {
-              const r = await fetch(url, {
-                method:'POST', headers:{Authorization:`Bearer ${key}`,'content-type':'application/json'},
-                body:JSON.stringify({model,messages:[{role:'user',content:'Reply READY only.'}],max_tokens:8}),
-                signal:AbortSignal.timeout(15000),
-              });
-              results.push({provider,model,status:r.status});
-              await r.text();
-              return r.ok;
-            } catch (e) { results.push({provider,model,state:'transport_error',error:String(e?.message||e)}); return false; }
+            try { const r = await fetch(url,{method:'POST',headers:{Authorization:`Bearer ${key}`,'content-type':'application/json'},body:JSON.stringify({model,messages:[{role:'user',content:'Reply READY only.'}],max_tokens:8}),signal:AbortSignal.timeout(15000)}); results.push({provider,model,status:r.status}); await r.text(); return r.ok; }
+            catch (e) { results.push({provider,model,state:'transport_error',error:String(e?.message||e)}); return false; }
           }
-
           const probes = [
             ['groq', () => openaiProbe('groq','https://api.groq.com/openai/v1/chat/completions',process.env.GROQ_API_KEY,'openai/gpt-oss-120b')],
             ['mistral', () => openaiProbe('mistral','https://api.mistral.ai/v1/chat/completions',process.env.MISTRAL_API_KEY,process.env.MISTRAL_AGENTIC_MODEL || 'mistral-small-latest')],
             ['nvidia', () => openaiProbe('nvidia','https://integrate.api.nvidia.com/v1/chat/completions',process.env.NVIDIA_NIM_API_KEY,process.env.NVIDIA_AGENTIC_MODEL || 'nvidia/nemotron-3.5-lightning-30b-a3b')],
           ];
-
           if (await geminiProbe()) ready = true;
           for (const [,probe] of probes) if (await probe()) ready = true;
           console.log(JSON.stringify({ready,results},null,2));
-          if (!ready) {
-            console.error('No configured LLM provider completed a real generation preflight. Do not launch a 10-target batch.');
-            process.exit(2);
-          }
+          if (!ready) { console.error('No configured LLM provider completed a real generation preflight. Do not launch a 10-target batch.'); process.exit(2); }
           NODE
       - name: Start Apex API
         run: |
           redis-cli ping
           node artifacts/api-server/dist/index.mjs > /tmp/apex-api.log 2>&1 &
-          for i in $(seq 1 45); do
-            sleep 1
-            test "$(curl -sS -m 2 -o /tmp/health.json -w '%{http_code}' http://127.0.0.1:8080/api/healthz || true)" = 200 && break
-          done
+          for i in $(seq 1 45); do sleep 1; test "$(curl -sS -m 2 -o /tmp/health.json -w '%{http_code}' http://127.0.0.1:8080/api/healthz || true)" = 200 && break; done
           cat /tmp/health.json || true
           test "$(curl -sS -m 5 -o /tmp/health.json -w '%{http_code}' http://127.0.0.1:8080/api/healthz)" = 200
       - name: Launch 10-target discovery-first Bureau
         run: |
-          curl -sS -m 15 -X POST http://127.0.0.1:8080/api/ingest/atlas-run \
-            -H 'Content-Type: application/json' \
-            -d '{"discoveryFirst":true,"targetCount":10,"researchLimit":10,"runResearch":true,"skipFaa":true,"targetTimeoutMs":300000,"researchDepth":"standard"}' \
-            | tee /tmp/launch.json
+          curl -sS -m 15 -X POST http://127.0.0.1:8080/api/ingest/atlas-run -H 'Content-Type: application/json' -d '{"discoveryFirst":true,"targetCount":10,"researchLimit":10,"runResearch":true,"skipFaa":true,"targetTimeoutMs":300000,"researchDepth":"standard"}' | tee /tmp/launch.json
           node -e 'const x=require("/tmp/launch.json"); if(!x.jobId) { console.error(JSON.stringify(x)); process.exit(1); } console.log(`BUREAU_JOB_ID=${x.jobId}`)'
       - name: Poll Bureau
         run: |
