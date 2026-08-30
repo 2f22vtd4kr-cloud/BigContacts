@@ -9,7 +9,8 @@ import { db, entitiesTable } from "@workspace/db";
 import { logger } from "./logger";
 import { delCachePattern } from "./redis";
 import { runAgenticWebResearch, type AgenticFinding } from "./agentic-web-research";
-import { persistBureauContactsForEntity, rehydrateEntityCardFromEvidence, type BureauContactLike } from "./bureau-contact-persist";
+import { persistSourceBackedBureauContactsForEntity, type BureauContactLike } from "./bureau-contact-persist-strict";
+import { rehydrateEntityCardFromEvidence } from "./bureau-contact-persist";
 import { resolveResearchDepth, describeResearchDepth } from "./research-depth";
 import { publishBureauEvent } from "./bureau-live-log";
 import { computeContactOutcome } from "./contact-confidence";
@@ -98,7 +99,7 @@ export async function runTargetContactAgent(input: { entityId: number; targetNam
 
   const backedFindings = sourceBackedFindings(agentic.findings);
   const contacts = findingsToContacts(backedFindings, name);
-  await persistBureauContactsForEntity(input.entityId, contacts, "target-contact-agent", input.jobId);
+  await persistSourceBackedBureauContactsForEntity(input.entityId, contacts, "target-contact-agent", input.jobId);
   await rehydrateEntityCardFromEvidence(input.entityId);
 
   const rows = await db.select({ type: entitiesTable.type, email: entitiesTable.email, phone: entitiesTable.phone, phoneSource: entitiesTable.phoneSource, linkedinUrl: entitiesTable.linkedinUrl, twitterHandle: entitiesTable.twitterHandle, instagramHandle: entitiesTable.instagramHandle, telegramHandle: entitiesTable.telegramHandle, personalWebsite: entitiesTable.personalWebsite, metadata: entitiesTable.metadata }).from(entitiesTable).where(eq(entitiesTable.id, input.entityId)).limit(1);
