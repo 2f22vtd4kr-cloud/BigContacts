@@ -1103,11 +1103,9 @@ async function callNvidiaJson(prompt: string): Promise<{ model: string; raw: str
   return null;
 }
 
-let agenticProviderCircuitUntil = 0;
 
-let agenticProviderCircuitUntil = 0;
 
-let agenticProviderCircuitUntil = 0;
+
 
 let agenticProviderCircuitUntil = 0;
 
@@ -1144,8 +1142,6 @@ async function llmStep(prompt: string): Promise<{ model: string; raw: string } |
       errors.push(reasons.slice(0, 500));
     }
   }
-  // A short circuit prevents ten-target batches from hammering a dead/quota-exhausted
-  // provider set. The circuit is not a research decision and expires automatically.
   agenticProviderCircuitUntil = Date.now() + 60_000;
   setAgenticLlmHealth(false, null, errors.join(";").slice(0, 1000));
   logger.warn({ errors }, "[agentic] all LLM providers failed for step; circuit opened");
