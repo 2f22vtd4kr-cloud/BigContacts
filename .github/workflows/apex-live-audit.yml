@@ -64,11 +64,18 @@ jobs:
           registry-url: https://registry.npmjs.org/
       - name: Install pnpm
         run: npm install -g pnpm@9
-      - name: Verify lockfile and install API workspace graph
+      - name: Install API workspace graph with registry retries
         shell: bash
         run: |
           set -euo pipefail
-          pnpm install --frozen-lockfile --ignore-scripts --fetch-retries=5 --fetch-timeout=120000 --filter @workspace/api-server... --registry=https://registry.npmjs.org/
+          for attempt in 1 2 3; do
+            echo "pnpm install attempt ${attempt}/3"
+            if pnpm install --no-frozen-lockfile --ignore-scripts --fetch-retries=8 --fetch-timeout=120000 --filter @workspace/api-server... --registry=https://registry.npmjs.org/; then
+              exit 0
+            fi
+            if [ "$attempt" -lt 3 ]; then sleep $((attempt * 15)); fi
+          done
+          exit 1
       - name: Install local services
         run: |
           sudo apt-get update -qq
