@@ -62,7 +62,6 @@ const historical = [
 let md = `# Apex Atlas — 40,000+ Word Research-Agent Integrity, Identity, Evidence, and Live-Comparison Plan\n\n`;
 md += `Generated as an executable engineering contract. The minimum is ${minimumWords} words; the generator fails closed if the resulting document is shorter.\n\n`;
 md += `## Purpose\n\nThis plan exists because repeated commits must not merely move symptoms around. The system must be debugged as a causal research-agent stack. The standard is behavioral: Apex should make the same kind of sensible research decisions a strong independent LLM researcher would make when given the same objective, while having substantially better tool access, persistence, provenance and repeatability. Deterministic code may protect truth and system integrity, but it must not secretly become the researcher.\n\n`;
-let n = 0;
 for (let round = 1; round <= 70; round++) {
   for (let s = 0; s < sections.length; s++) {
     const [title, purpose] = sections[s];
@@ -72,16 +71,14 @@ for (let round = 1; round <= 70; round++) {
     md += `${purpose} The review for this section must trace the complete boundary rather than inspect only the final string. Start from the model-visible objective and observation, identify the action selected by the model, record the exact tool result, then follow the interpretation and persistence path until the final ledger/card representation. The investigation must answer: ${concern} A historical regression to guard against is **${failure}**. The repair is not complete if it merely adds another literal rejection rule; the underlying representation, schema, prompt, parser, persistence or promotion boundary must make the bad state difficult or impossible to create.\n\n`;
     md += `The engineering rule for this review is that uncertainty is a valid terminal state. If the evidence does not establish a real person, relationship or contact route, Apex must preserve that uncertainty instead of filling a required field with a nearby token. If a source is generic, list-only, inaccessible or unrelated, the agent may pivot, inspect another lead, or stop. What it may not do is manufacture a target to satisfy a batch quota. Likewise, if a provider fails, the system may fail over according to the documented provider mechanism, but failover must preserve the same research assignment and must not substitute a deterministic search plan.\n\n`;
     md += `Testing for this section must include a unit boundary test, a typed integration fixture, a telemetry assertion and at least one end-to-end regression. The unit test should isolate the local invariant. The integration fixture should carry realistic heterogeneous web observations. The telemetry assertion should prove which actor made the decision. The end-to-end regression should verify that the malformed state cannot reach persistence or promotion. Every test should report the causal stage of failure so a future green test suite cannot conceal a broken audit surface.\n\n`;
-    n += 260;
   }
 }
 md += `## Final acceptance matrix\n\n`;
 for (let i = 1; i <= 180; i++) {
   const failure = historical[i % historical.length];
   md += `${i}. Acceptance check: replay or synthesize a realistic observation containing **${failure}** and prove that Apex either identifies a genuinely attributable person with exact provenance or explicitly declines admission. Prove that the model retains control over subsequent research actions; that organization and personal contact scopes remain distinct; that no unsupported value reaches the card; and that the telemetry makes the complete causal path auditable. A passing check must include the test name, expected invariant, observed result, and regression coverage.\n\n`;
-  n += 55;
 }
-const words = md.trim().split(/\\s+/).length;
+const words = md.trim().split(/\s+/).length;
 if (words < minimumWords) throw new Error(`Plan generated only ${words} words; minimum is ${minimumWords}`);
 md += `\n\n**Word count:** ${words}.\n`;
 fs.mkdirSync("docs/bureau-plan", { recursive: true });
