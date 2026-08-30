@@ -6,14 +6,19 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".."
 const targetPath = path.join(repoRoot, "artifacts/api-server/src/src/lib/agentic-web-research.ts");
 let s = fs.readFileSync(targetPath, "utf8");
 
-if (s.includes("activeAgenticProviderDecisions") && s.includes("MAX_CONCURRENT_AGENTIC_PROVIDER_DECISIONS")) {
-  console.log("Agentic concurrency hardening already applied; leaving runtime unchanged");
+if (s.includes("activeAgenticProviderDecisions") && s.includes("DIG_FAILOVER_CHAIN")) {
+  console.log("Agentic provider hardening already applied; leaving runtime unchanged");
   process.exit(0);
 }
 
 const llmStepRe = /let agenticProviderCircuitUntil = 0;\n\nasync function llmStep\(prompt: string\): Promise<\{ model: string; raw: string \} \| null> \{[\s\S]*?\n\}\n\nfunction formatFindingsBag/;
 
-const replacement = `let activeAgenticProviderDecisions = 0;
+const replacement = `/**
+ * DIG_FAILOVER_CHAIN: Groq -> Mistral -> Gemini -> NVIDIA.
+ * This is capability failover for the free-ReAct investigator only.
+ * It is not the Boss/right-hand architecture: Boss=Gemini, Right-hand=NVIDIA.
+ */
+let activeAgenticProviderDecisions = 0;
 const agenticProviderDecisionWaiters: Array<() => void> = [];
 const MAX_CONCURRENT_AGENTIC_PROVIDER_DECISIONS = Math.max(
   1,
@@ -38,34 +43,31 @@ function releaseAgenticProviderDecisionSlot(): void {
 async function llmStep(prompt: string): Promise<{ model: string; raw: string } | null> {
   await acquireAgenticProviderDecisionSlot();
   try {
-    const stages: Array<Array<[string, () => Promise<{ model: string; raw: string } | null>]>> = [
-      [["gemini", callGeminiJson], ["nvidia", callNvidiaJson]],
-      [["groq", callGroqJson], ["mistral", callMistralJson]],
+    const providers: Array<[string, () => Promise<{ model: string; raw: string } | null>]> = [
+      ["groq", callGroqJson],
+      ["mistral", callMistralJson],
+      ["gemini", callGeminiJson],
+      ["nvidia", callNvidiaJson],
     ];
-    const providerDecisionTimeoutMs = 55_000;
+    const providerDecisionTimeoutMs = 18_000;
     const errors: string[] = [];
-    for (const stage of stages) {
-      const attempts = stage.map(async ([name, fn]) => {
-        const timeout = new Promise<never>((_, reject) => setTimeout(() => reject(new Error(name + ":timeout")), providerDecisionTimeoutMs));
-        try {
-          const out = await Promise.race([fn(prompt), timeout]);
-          if (!out?.raw) throw new Error(name + ":empty");
-          return out;
-        } catch (err: any) {
-          throw new Error(name + ":" + (err?.message ?? "fail"));
-        }
-      });
+
+    for (const [name, fn] of providers) {
+      const timeout = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error(name + ":timeout")), providerDecisionTimeoutMs),
+      );
       try {
-        const out = await Promise.any(attempts);
+        const out = await Promise.race([fn(prompt), timeout]);
+        if (!out?.raw) throw new Error(name + ":empty");
         setAgenticLlmHealth(true, out.model, null);
         return out;
       } catch (err: any) {
-        const reasons = Array.isArray(err?.errors) ? err.errors.map((e: unknown) => String(e)).join(";") : String(err?.message ?? "all_failed");
-        errors.push(reasons.slice(0, 500));
+        errors.push(name + ":" + (err?.message ?? "fail"));
       }
     }
+
     setAgenticLlmHealth(false, null, errors.join(";").slice(0, 1000));
-    logger.warn({ errors }, "[agentic] all LLM providers failed for step");
+    logger.warn({ errors }, "[agentic] all Dig LLM providers failed for step");
     return null;
   } finally {
     releaseAgenticProviderDecisionSlot();
@@ -81,4 +83,4 @@ if (!llmStepRe.test(s)) {
 s = s.replace(llmStepRe, replacement);
 
 fs.writeFileSync(targetPath, s);
-console.log("Applied agentic concurrency hardening: bounded provider-decision concurrency=4, 55s provider deadline, and no global cross-target circuit");
+console.log("Applied Dig provider hardening: bounded concurrency=4, 18s per-provider deadline, Groq->Mistral->Gemini->NVIDIA failover, and no global cross-target circuit");
