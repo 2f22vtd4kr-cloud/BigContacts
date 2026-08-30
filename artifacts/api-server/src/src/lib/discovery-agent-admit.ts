@@ -29,7 +29,7 @@ function normalizedEvidenceText(value: string): string {
  * the claimed name. This is not a ranking rule; it only prevents a malformed or
  * hallucinated identity claim from crossing into the durable entity ledger.
  */
-async function sourceActuallyMentionsCandidate(candidate: DiscoveryCandidate): Promise<boolean> {
+export async function sourceActuallyMentionsCandidate(candidate: DiscoveryCandidate): Promise<boolean> {
   const name = candidate.name.trim();
   const tokens = normalizedEvidenceText(name).split(" ").filter((t) => t.length >= 2);
   if (tokens.length < 2) return false;
