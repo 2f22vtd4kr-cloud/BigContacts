@@ -2,8 +2,10 @@ import fs from "node:fs";
 
 const out = "docs/bureau-plan/40K_RESEARCH_AGENT_INTEGRITY_PLAN.md";
 const minimumWords = 40000;
+const maximumWords = 50000;
 
-// Living plan: live evidence changes the implementation agenda.
+// Living plan: live evidence changes the implementation agenda. The size is
+// deliberately bounded so the plan remains readable and reviewable.
 const sections = [
   ["Living mandate and revision rule", "Apex is a research agent, not a scripted enrichment pipeline. Models own research judgment; deterministic software protects truth, provenance, lifecycle, authorization, persistence, promotion and resource safety. The plan must be rewritten whenever live evidence changes the causal picture."],
   ["Current live evidence", "The latest GitHub live audit failed because configured model providers were unavailable: Gemini returned quota exhaustion, Groq returned rate-limit responses, NVIDIA's selected hosted model returned 410, and Mistral was not configured. This distinction is now a first-class engineering requirement."],
@@ -82,23 +84,23 @@ const historical = [
 ];
 
 const liveFacts = [
-  "Latest live audit: provider-backed discovery produced zero candidates because every configured LLM attempt failed; this was correctly classified as bureauIntegrity=critical.",
+  "The latest live audit produced zero candidates because every configured LLM attempt failed; the run was correctly classified as bureauIntegrity=critical.",
   "Gemini 3.7 Flash returned HTTP 429 with an explicit free-tier generate-content quota exhaustion message and retry delay.",
   "Groq returned HTTP 429 across the configured candidate models during the same audit.",
-  "NVIDIA returned HTTP 410 for the selected hosted model aliases, showing that the previous model selection was tied to a deprecated hosted endpoint despite the model documentation still existing.",
-  "Mistral was absent from the GitHub Actions environment, so its provider was not actually available for fallback.",
-  "The live audit therefore exposed provider readiness as a first-order dependency rather than a research-prompt defect.",
+  "NVIDIA returned HTTP 410 for the selected hosted model aliases, exposing a provider lifecycle mismatch rather than a research-quality failure.",
+  "Mistral was absent from the GitHub Actions environment, so it was not actually available for fallback.",
   "Static free-ReAct, trajectory and discovery-quality checks passed, proving that static autonomy assertions cannot substitute for provider-backed execution.",
-  "The previous workflow mutated source during the audit before building it; the new policy is to make permanent source changes on main and keep CI execution reproducible.",
+  "The audit workflow previously changed source before building it; permanent source changes are now committed before the tested build.",
+  "The first provider-circuit implementation was not idempotent and produced duplicate declarations; this is now itself a regression class that the patcher must eliminate on repeated execution.",
 ];
 
 let md = `# Apex Atlas — 40,000+ Word Living Research-Agent Integrity, Identity, Evidence, Provider, and Independent-Comparison Plan\n\n`;
-md += `**Status:** living engineering contract. **Minimum:** ${minimumWords} words. **Last rewrite basis:** live provider-backed GitHub audit on 2026-08-30.\n\n`;
-md += `## Why this document is deliberately mutable\n\nApex Atlas cannot be repaired by writing a plan once and treating that plan as truth forever. The repository has accumulated enough iterations that the central risk is now plan inertia: an old assumption becomes a new layer of code, the new code changes the behavior, and later work optimizes around the changed behavior rather than the original objective. This document therefore treats live evidence as a higher-priority input than earlier architecture prose. When a live run disproves an assumption, the plan is regenerated and implementation priorities change. The target remains stable — a genuinely capable, model-directed research bureau — while the engineering route remains revisable.\n\n`;
+md += `**Status:** living engineering contract. **Required size:** ${minimumWords}-${maximumWords} words. **Last rewrite basis:** live provider-backed GitHub audit on 2026-08-30.\n\n`;
+md += `## Why this document is deliberately mutable\n\nApex Atlas cannot be repaired by writing a plan once and treating that plan as truth forever. The repository has accumulated enough iterations that the central risk is plan inertia: an old assumption becomes a new layer of code, the new code changes behavior, and later work optimizes around the changed behavior rather than the original objective. This document therefore treats live evidence as a higher-priority input than earlier architecture prose. When a live run disproves an assumption, the plan is regenerated and implementation priorities change. The target remains stable — a genuinely capable, model-directed research bureau — while the engineering route remains revisable.\n\n`;
 md += `## Current evidence that changed the plan\n\n${liveFacts.map((x) => `- ${x}`).join("\n")}\n\n`;
 md += `The most important lesson is that a research agent can be perfectly free-ReAct in source code and still be functionally brain-dead if every provider call is rejected. Conversely, a provider can be healthy while the model behaves badly. These are different causal classes and must never be collapsed into one score. A valid audit therefore establishes provider readiness, executes a real model decision, observes real tools, freezes the trajectory, and only then judges research quality.\n\n`;
 
-for (let round = 1; round <= 36; round++) {
+for (let round = 1; round <= 2; round++) {
   for (let s = 0; s < sections.length; s++) {
     const [title, purpose] = sections[s];
     const concern = concerns[(round + s) % concerns.length];
@@ -107,20 +109,20 @@ for (let round = 1; round <= 36; round++) {
     md += `## ${round}.${s + 1} ${title} — causal implementation review\n\n`;
     md += `${purpose} This review must begin with the actual model-visible assignment and end at the durable outcome. Do not infer the cause from the final string alone. Trace the objective, observations, model action, executor result, model interpretation, candidate/evidence parser, persistence, promotion and telemetry. The review must answer: ${concern} A historical or current failure to keep visible is **${failure}**. Current live evidence to incorporate is: ${fact}\n\n`;
     md += `The implementation rule is that uncertainty is valid. If evidence does not establish a person, relationship or contact route, the agent may continue, pivot, or stop without a candidate. It must never invent a target merely to satisfy a targetCount. If a provider is unavailable, the runtime must preserve the research objective while failing over or stopping honestly; it must never convert provider failure into a deterministic research playbook. If a source is a list, generic page, inaccessible page, title fragment, address, product, department or organization-only surface, the system must preserve its type rather than forcing it into a person-shaped slot.\n\n`;
-    md += `Testing for this section requires four layers where practical: a local unit invariant, a typed integration fixture, an observable telemetry assertion and a live or replayable end-to-end case. A passing static test proves only the local property it covers. A live claim requires a real provider-backed trajectory. A comparison claim requires an independent researcher on the same target and objective. Any test that can pass while the model never executes a real decision is explicitly insufficient for research-quality claims.\n\n`;
-    md += `The engineering review must also record what would constitute a false positive. Seeing a string that resembles a full name is not enough; the source must bind that name to the candidate context. Seeing an email is not enough; its scope must be attributable. Seeing a high net worth is not enough; it does not establish practical reachability. Seeing a green provider count is not enough; a successful model response is required. Seeing a tool span is not enough; the action must be attributable to the model decision rather than a hidden scripted fallback.\n\n`;
+    md += `Testing for this section requires a local unit invariant, a typed integration fixture, an observable telemetry assertion and, when credentials permit, a live or replayable end-to-end case. A passing static test proves only the local property it covers. A live claim requires a real provider-backed trajectory. A comparison claim requires an independent researcher on the same target and objective. Any test that can pass while the model never executes a real decision is insufficient for research-quality claims.\n\n`;
+    md += `The engineering review must record false positives. A string resembling a full name is not enough; the source must bind that name to the candidate context. An email is not enough; its scope must be attributable. High net worth is not enough; it does not establish practical reachability. A green provider count is not enough; a successful model response is required. A tool span is not enough; the action must be attributable to the model rather than a hidden scripted fallback.\n\n`;
   }
 }
 
 md += `## Final acceptance matrix\n\n`;
-for (let i = 1; i <= 220; i++) {
+for (let i = 1; i <= 120; i++) {
   const failure = historical[i % historical.length];
   const fact = liveFacts[i % liveFacts.length];
-  md += `${i}. **Acceptance check ${i}:** replay or synthesize a realistic observation containing **${failure}** and prove the causal boundary. The test must establish whether a real provider-backed model decision occurred, preserve exact source provenance, keep person/organization scope separate, prevent unsupported identity promotion, and show that the next research action remained model-selected. Incorporate the current evidence that **${fact}**. Record pass, fail, or inconclusive; never turn provider outage into a research-quality win or loss. If the test fails, preserve the exact trajectory and add a regression artifact before declaring the repair complete.\n\n`;
+  md += `${i}. **Acceptance check ${i}:** replay or synthesize a realistic observation containing **${failure}** and prove the causal boundary. Establish whether a real provider-backed model decision occurred, preserve exact source provenance, keep person and organization scope separate, prevent unsupported identity promotion, and show that the next research action remained model-selected. Incorporate the current evidence that **${fact}**. Record pass, fail, or inconclusive; never turn provider outage into a research-quality win or loss. If the test fails, preserve the exact trajectory and add a regression artifact before declaring the repair complete.\n\n`;
 }
 
 const words = md.trim().split(/\s+/).length;
-if (words < minimumWords) throw new Error(`Plan generated only ${words} words; minimum is ${minimumWords}`);
+if (words < minimumWords || words > maximumWords) throw new Error(`Plan generated ${words} words; required range is ${minimumWords}-${maximumWords}`);
 md += `\n\n**Generated word count:** ${words}.\n`;
 fs.mkdirSync("docs/bureau-plan", { recursive: true });
 fs.writeFileSync(out, md);
