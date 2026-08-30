@@ -1881,106 +1881,9 @@ export async function runAgenticWebResearch(input: {
       u,
     );
 
-  const rankVisitUrl = (u: string): number => {
-    const lower = u.toLowerCase();
-    // Directory/aggregator pages pollute contact facts — visit last
-    if (isAggregatorHost(lower)) return 9;
-    const coToken = input.companyName
-      ? input.companyName.toLowerCase().replace(/[^a-z0-9]+/g, "").slice(0, 10)
-      : "";
-    const hostMatch = coToken && lower.replace(/[^a-z0-9]/g, "").includes(coToken.slice(0, 6));
-    // Company-domain PDF contact/sales sheets often hold named person emails (public surface recovery)
-    if (hostMatch && /\.pdf(\?|$)/i.test(lower) && /(contact|sales|team|staff|directory|rep)/i.test(lower)) return 0;
-    if (/\.pdf(\?|$)/i.test(lower) && /(contact|sales|team|staff|directory|rep)/i.test(lower) && coToken) return 1;
-    // Primary company contact/terms pages first (where org email/phone actually live)
-    if (hostMatch && /\/(contact|terms|about|team|people|leadership|privacy|impressum|dealer|corporate-locations|locations)/i.test(lower)) return 0;
-    if (hostMatch && /\/(contact|terms|about|team|people|leadership|privacy|dealer)/i.test(lower)) return 0;
-    if (/\/(contact|terms-and-conditions|terms|about\/contact|dealer|dealers|team)/i.test(lower) && hostMatch) return 0;
-    // BBB may be CF-walled; still rank if reachable
-    if (/bbb\.org/i.test(lower)) return 2;
-    if (hostMatch) return 3;
-    // Public social often carries org email for SMBs
-    if (/facebook\.com|linkedin\.com\/company/i.test(lower) && coToken) return 4;
-    if (/\/(about|team|people|leadership|company)/i.test(lower) && hostMatch) return 3;
-    // DEF 14A / proxy HTML beats generic EDGAR index pages for officer bios
-    if (/sec\.gov/i.test(lower) && /proxy|def14a|def\s*14a|hastproxy/i.test(lower)) return 1;
-    if (/investor\.|\/ir\/|\/governance|sec\.gov|edgar/i.test(lower)) return 5;
-    // Non-company hosts rank last when company is locked (avoid Team Financial pollution visits)
-    if (coToken && !hostMatch && !/bbb\.org|sec\.gov/i.test(lower)) return 8;
-    if (/\.(com|org|io|co|net)\b/i.test(lower) && !/linkedin|facebook|twitter|youtube|wikipedia|reddit/i.test(lower))
-      return 5;
-    if (/linkedin\.com\/in\//i.test(lower)) return 6;
-    return 7;
-  };
 
   /** Light touch only: if SERP shows a company-aligned host, offer /contact + /about — not a path playbook. */
-  const seedCompanyContactPaths = (urls: string[]) => {
-    const paths = ["/contact", "/about"];
-    const coToken = input.companyName
-      ? input.companyName.toLowerCase().replace(/[^a-z0-9]+/g, "").slice(0, 8)
-      : "";
-    if (coToken.length < 4) return;
-    for (const u of urls) {
-      if (isAggregatorHost(u)) continue;
-      try {
-        const parsed = new URL(u);
-        if (!/\.(com|org|io|co|net|us)$/i.test(parsed.hostname)) continue;
-        if (/linkedin|facebook|twitter|youtube|wikipedia|sec\.gov/i.test(parsed.hostname)) continue;
-        const hostFlat = parsed.hostname.replace(/[^a-z0-9]/g, "");
-        if (!hostFlat.includes(coToken.slice(0, 5)) && !hostFlat.includes(coToken.slice(0, 4))) continue;
-        for (const p of paths) {
-          const seeded = `${parsed.protocol}//${parsed.hostname}${p}`;
-          if (!candidateUrls.includes(seeded)) candidateUrls.push(seeded);
-        }
-      } catch {
-        /* skip */
-      }
-    }
-  };
 
-  const detVisitNext = async (stepLabel: string): Promise<boolean> => {
-    const next = [...new Set(candidateUrls)]
-      .filter((u) => !visitedUrls.has(u))
-      .sort((a, b) => rankVisitUrl(a) - rankVisitUrl(b))[0];
-    if (!next) return false;
-    visits++;
-    visitedUrls.add(next);
-    history.push(`${stepLabel}: det_visit ${next}`);
-    const page = await toolVisit(next);
-    lastObservation = `PAGE ${next}\n\n${page.slice(0, MAX_OBS)}`;
-    // Deterministic findings from CONTACT FACTS block so we never depend solely on LLM memory
-    const extracted = mergeFindings(
-      mergeFindings(
-        findingsFromContactFacts(page, next, name, input.companyName),
-        findingsFromProxyPage(page, next, name, input.companyName),
-      ),
-      findingsFromIrAndRelatedBlocks(page, next, name, input.companyName),
-    );
-    if (extracted.length) {
-      findings = mergeFindings(findings, extracted);
-      history.push(`${stepLabel}: auto_findings=${extracted.length}`);
-    }
-    // Permanent domain surface hop (RDAP-first + WhoisJSON): longevity / stability signal only.
-    // Fail-closed — never invent registrant contacts from privacy-redacted records.
-    try {
-      const site = extracted.find((f) => f.vectorType === "website") || findings.find((f) => f.vectorType === "website");
-      if (site?.value) {
-        const host = new URL(site.value).hostname.replace(/^www\./, "");
-        if (host && !domainSurfaceDone.has(host)) {
-          domainSurfaceDone.add(host);
-          const surface = await lookupDomainSurface(host);
-          const domainFindings = findingsFromDomainSurface(surface, next);
-          if (domainFindings.length) {
-            findings = mergeFindings(findings, domainFindings as any);
-            history.push(`${stepLabel}: domain_surface ${surface.summary}`);
-          } else {
-            history.push(`${stepLabel}: domain_surface ${surface.summary}`);
-          }
-        }
-      }
-    } catch { /* non-fatal */ }
-    return true;
-  };
 
   const salvageEmailsFromHistory = () => {
     // Classic org + any company-aligned email seen in trajectory (LLM may drop; regex backstop)
@@ -2092,47 +1995,17 @@ export async function runAgenticWebResearch(input: {
     });
     const llm = await llmStep(prompt);
     if (!llm) {
-      // All chat LLMs failed this step — do NOT abort the bureau. Run deterministic
-      // search/visit so OSINT tools still produce surface vs a general agent.
-      history.push(`step${i + 1}: llm_all_failed — deterministic recovery`);
-      modelUsed = modelUsed === "none" ? "deterministic" : modelUsed;
-      const co = input.companyName || name;
-      if (searches === 0) {
-        const q = input.companyName
-          ? `"${name}" "${input.companyName}"`
-          : `"${name}"`;
-        searches++;
-        history.push(`step${i + 1}: det_search ${q}`);
-        const sr = await toolWebSearch(q);
-        for (const u of sr.urls) {
-          if (u.startsWith("http") && !candidateUrls.includes(u)) candidateUrls.push(u);
-        }
-        seedCompanyContactPaths(sr.urls);
-        const peopleHits = findingsFromPeopleSnippet(sr.text, sr.urls, input.companyName || name);
-        if (peopleHits.length) findings = mergeFindings(findings, peopleHits);
-        const snippetEmails = findingsFromSearchSnippet(sr.text, sr.urls, input.companyName || name);
-        if (snippetEmails.length) findings = mergeFindings(findings, snippetEmails);
-        lastObservation =
-          `DETERMINISTIC SEARCH (no LLM): ${q}\nURLs: ${sr.urls.slice(0, 8).join(" | ")}\n\n${sr.text.slice(0, MAX_OBS)}`;
-      }
-      if (candidateUrls.some((u) => !visitedUrls.has(u))) {
-        await detVisitNext(`step${i + 1}`);
-      }
-      if (i >= maxIter - 1 || (searches >= 3 && visits >= 2)) {
-        return {
-          status: findings.length ? "completed" : "error",
-          model: modelUsed,
-          iterations: i + 1,
-          searches,
-          visits,
-          findings,
-          trajectory: history,
-          error: findings.length
-            ? undefined
-            : "All agentic LLMs failed; deterministic recovery produced no findings",
-        };
-      }
-      continue;
+      history.push(`step${i + 1}: llm_unavailable — no deterministic research fallback`);
+      return {
+        status: "unavailable",
+        model: "none",
+        iterations: i + 1,
+        searches,
+        visits,
+        findings,
+        trajectory: history,
+        error: "No agentic LLM provider available; free-ReAct pass stopped without scripted research",
+      };
     }
     modelUsed = llm.model;
     emitLive({
@@ -2172,7 +2045,6 @@ export async function runAgenticWebResearch(input: {
         if (/^https?:\/\//i.test(u) && !candidateUrls.includes(u)) candidateUrls.push(u);
       }
       // Optional company /contact /about seeds from SERP hosts
-      seedCompanyContactPaths(sr.urls);
       const snippetEmails = findingsFromSearchSnippet(sr.text, sr.urls, input.companyName || name);
       if (snippetEmails.length) {
         findings = mergeFindings(findings, snippetEmails);
@@ -2221,22 +2093,6 @@ export async function runAgenticWebResearch(input: {
             .map((f, n) => `  ${n + 1}. [${f.vectorType}/${f.scope}] ${f.value}${f.role ? ` (${f.role})` : ""}`)
             .join("\n");
       }
-      // Permanent domain surface hop (RDAP-first + WhoisJSON)
-      try {
-        const site = extracted.find((f) => f.vectorType === "website") || findings.find((f) => f.vectorType === "website");
-        if (site?.value) {
-          const host = new URL(site.value).hostname.replace(/^www\./, "");
-          if (host && !domainSurfaceDone.has(host)) {
-            domainSurfaceDone.add(host);
-            const surface = await lookupDomainSurface(host);
-            const domainFindings = findingsFromDomainSurface(surface, action.url);
-            if (domainFindings.length) {
-              findings = mergeFindings(findings, domainFindings as any);
-            }
-            history.push(`step${i + 1}: domain_surface ${surface.summary}`);
-          }
-        }
-      } catch { /* non-fatal */ }
       emitLive({
         action: "visit",
         url: action.url,
