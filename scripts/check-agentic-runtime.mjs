@@ -4,6 +4,7 @@ const file = "artifacts/api-server/src/src/lib/agentic-web-research.ts";
 const source = fs.readFileSync(file, "utf8");
 const workflow = fs.readFileSync(".github/workflows/apex-live-audit.yml", "utf8");
 const compatibilityHardener = fs.readFileSync("scripts/apply-agentic-runtime-hardening.mjs", "utf8");
+const canonicalHardener = fs.readFileSync("scripts/apply-agentic-concurrency-hardening.mjs", "utf8");
 
 const required = [
   ["Gemini provider implementation remains available for Boss", /GEMINI_API_KEY_/],
@@ -74,6 +75,24 @@ if (!/delegat(?:e|es) to the canonical hardener/i.test(compatibilityHardener)) {
 }
 if (/\[\s*\[?\s*["']gemini["']\s*,\s*callGeminiJson|["']nvidia["']\s*,\s*callNvidiaJson/.test(compatibilityHardener)) {
   throw new Error("compatibility hardener contains a forbidden Boss/right-hand Dig provider tuple");
+}
+
+// Observation/identity boundary: deterministic page enrichment may recover
+// literal contact tokens, but it must not be an identity authority. The
+// canonical hardener is currently the migration mechanism for this source;
+// once source parity is complete, these same invariants belong in the checked-in
+// TypeScript and this hardener should become a no-op compatibility check.
+if (!/Observation-only contact enrichment/.test(canonicalHardener)) {
+  throw new Error("observation identity boundary missing from canonical hardener");
+}
+if (!/semantic PERSON claims/.test(canonicalHardener)) {
+  throw new Error("canonical hardener does not explicitly prohibit semantic PERSON extraction");
+}
+if (!/return facts\.join\("\\\\n"\)/.test(canonicalHardener)) {
+  throw new Error("canonical hardener observation replacement does not preserve literal contact facts");
+}
+if (/push\(`PERSON:/.test(canonicalHardener)) {
+  throw new Error("canonical hardener still manufactures PERSON findings from page extraction");
 }
 
 const forbidden = [
