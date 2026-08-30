@@ -45,7 +45,7 @@ jobs:
       - name: Install pnpm
         run: npm install -g pnpm@9
       - name: Install workspace dependencies
-        run: pnpm install --no-frozen-lockfile --filter @workspace/db --filter @workspace/api-server --filter @workspace/api-zod --filter apex-finder-local --registry=https://registry.npmjs.org/
+        run: pnpm install --no-frozen-lockfile --filter @workspace/db... --filter @workspace/api-server... --filter @workspace/api-zod... --filter apex-finder-local... --registry=https://registry.npmjs.org/
       - name: Install local services
         run: |
           sudo apt-get update -qq
