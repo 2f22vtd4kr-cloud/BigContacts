@@ -145,7 +145,7 @@ async function toolWebSearchSerper(query: string): Promise<{ text: string; urls:
         signal: AbortSignal.timeout(12_000),
       });
       if (!resp.ok) {
-        logger.warn({ provider: "mistral", status: resp.status, model }, "agentic provider rejected request");
+        logger.warn({ provider: "serper", status: resp.status }, "agentic provider rejected request");
         continue;
       }
       const data = (await resp.json()) as {
