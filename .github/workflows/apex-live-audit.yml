@@ -100,13 +100,12 @@ jobs:
           pnpm run check:trajectory
           pnpm run check:comparison-contract
           pnpm run check:agentic-runtime
-          pnpm --dir artifacts/api-server exec vitest run src/src/test/discovery-agent-parse.test.ts src/src/test/agentic-scope-boundary.test.ts src/src/test/agentic-source-provenance.test.ts
+          pnpm --dir artifacts/api-server exec vitest run src/src/test/discovery-agent-parse.test.ts src/src/test/agentic-scope-boundary.test.ts src/src/test/agentic-source-provenance.test.ts src/src/test/bureau-contact-persist-strict.test.ts
       - name: Provider catalog and generation preflight
         shell: bash
         run: |
           set -euo pipefail
           node --input-type=module <<'NODE'
-          const sleep = (ms) => new Promise(r => setTimeout(r, ms));
           const results = [];
           let ready = false;
 
@@ -121,7 +120,7 @@ jobs:
                     body:JSON.stringify({contents:[{parts:[{text:'Reply READY only.'}]}],generationConfig:{maxOutputTokens:8}}),
                     signal:AbortSignal.timeout(15000),
                   });
-                  const body = await r.text();
+                  await r.text();
                   results.push({provider:'gemini',key:`${ki+1}`,model,status:r.status});
                   if (r.ok) return true;
                   if (r.status === 401 || r.status === 403) break;
