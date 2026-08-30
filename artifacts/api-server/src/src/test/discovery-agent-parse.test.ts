@@ -1,43 +1,48 @@
 import { describe, it, expect } from "vitest";
+import { isWellFormedPersonCandidate } from "../lib/discovery-agent";
 
-// Inline parse mirror for unit test stability
-function parsePersonFindings(
-  findings: Array<{ vectorType?: string; value?: string; sourceUrls?: string[]; personName?: string | null; note?: string }>,
-) {
-  const out: Array<{ name: string; sourceUrls: string[] }> = [];
-  const seen = new Set<string>();
-  for (const f of findings ?? []) {
-    const urls = (f.sourceUrls ?? []).filter((u) => /^https?:\/\//i.test(String(u)));
-    if (f.personName && String(f.personName).trim().length >= 3 && urls.length) {
-      const n = String(f.personName).trim();
-      if (!seen.has(n.toLowerCase())) {
-        seen.add(n.toLowerCase());
-        out.push({ name: n, sourceUrls: urls });
-      }
-    }
-    const value = String(f.value ?? "").trim();
-    const m = value.match(/^person:\s*(.+?)(?:\s*\|)/i);
-    if (m && urls.length) {
-      const n = m[1]!.trim();
-      if (!seen.has(n.toLowerCase())) {
-        seen.add(n.toLowerCase());
-        out.push({ name: n, sourceUrls: urls });
-      }
-    }
-  }
-  return out;
-}
+describe("discovery agent identity boundary", () => {
+  const source = ["https://example.com/about"];
 
-describe("discovery agent parse", () => {
-  it("keeps person with source URL", () => {
-    const r = parsePersonFindings([
-      { personName: "Jane Example", sourceUrls: ["https://sec.gov/x"], note: "officer" },
-    ]);
-    expect(r).toHaveLength(1);
-    expect(r[0]!.name).toBe("Jane Example");
+  it("accepts a normal source-backed person-shaped identity", () => {
+    expect(isWellFormedPersonCandidate({ name: "Jane Example", sourceUrls: source })).toBe(true);
   });
-  it("drops person without URL", () => {
-    const r = parsePersonFindings([{ personName: "No Url Person", sourceUrls: [] }]);
-    expect(r).toHaveLength(0);
+
+  it.each([
+    "com EMAIL",
+    "President PERSON",
+    "Operational Enablement",
+    "Product Comparisons Sage Products",
+    "security issues",
+    "Chief Executive Officer",
+    "Private Equity",
+    "Forbes Billionaires",
+  ])("rejects historical malformed candidate: %s", (name) => {
+    expect(isWellFormedPersonCandidate({ name, sourceUrls: source })).toBe(false);
+  });
+
+  it("rejects a street/address-shaped fragment", () => {
+    expect(isWellFormedPersonCandidate({ name: "123 State St", sourceUrls: source })).toBe(false);
+  });
+
+  it("rejects a list-only Forbes provenance even when the name is person-shaped", () => {
+    expect(
+      isWellFormedPersonCandidate({
+        name: "Jane Example",
+        sourceUrls: ["https://www.forbes.com/billionaires/"] ,
+      }),
+    ).toBe(false);
+  });
+
+  it("accepts a Forbes-mentioned person when an independent source is also present", () => {
+    expect(
+      isWellFormedPersonCandidate({
+        name: "Jane Example",
+        sourceUrls: [
+          "https://www.forbes.com/billionaires/",
+          "https://example.com/leadership/jane-example",
+        ],
+      }),
+    ).toBe(true);
   });
 });
