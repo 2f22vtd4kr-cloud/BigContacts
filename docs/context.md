@@ -135,24 +135,35 @@ Prior live Repl went down / out of credits before sustained Dig monitoring — n
 - Discovery quality vs residual template fallback.
 
 ### 2026-08-30 discovery quality hardening (Batch 15)
-**Commit `75a7f4a`** hardens the model-selected discovery boundary without introducing a ranking or scripted research path:
+**Commit `75a7f4a8`** hardens the model-selected discovery boundary without introducing a ranking or scripted research path:
 - `artifacts/api-server/src/src/lib/discovery-agent.ts` rejects generic noun/prose fragments such as `security issues`, job-title fragments, organization/sector phrases, and list labels before they can become discovery candidates.
 - Candidate parsing applies the same identity/provenance gate immediately, so malformed model findings do not appear as valid discovery output before admission.
 - Discovery orientation tells the model to optimize for practical reachability rather than fame: no default billionaire/celebrity/Forbes-list chasing; prioritize principals/operators/founders/investors where a plausible public or intermediary route could realistically exist.
 - This is a validation/safety boundary, not a deterministic target-ranking system: the model still chooses queries, sources, lane, candidate order, and when to stop.
 
-**Validation status:** source commit created on `main`; GitHub Actions did not report a workflow run for the commit through the available workflow-run endpoint. No live Bureau execution or provider-backed scoreboard is claimed from this environment.
-
 ### 2026-08-30 discovery realism + audit hardening (Batch 16)
-**Commits `3272111`, `3563350`, `1576c3d`, `185887f`, `27e7a05`, `d5280ca`, `3d7a43f`** extend the same product law:
+**Commits through `23fce4cfae91b548d1a631bcca285c3e5e30e7a1`** extend the same product law:
 - Discovery candidates backed only by Forbes billionaire / richest-person list URLs are rejected at the identity/provenance boundary; independent corroborating sources remain allowed.
 - Model-selected discovery admission no longer calls `evaluateTargetFitness` or writes a fitness classification; legacy fitness remains isolated to non-model-selected admission.
 - Investigator/dig orientation explicitly prioritizes practical outreach value over fame and headline net worth, and tells the model to pivot away from billionaire rankings toward concrete operating-company/principal/intermediary surfaces.
-- `check:discovery-quality` is now wired into `check:bureau` and the Replit runbook.
-- The live-audit workflow now checks out current `main`, builds both desk and API, runs autonomy/discovery checks, and no longer performs the obsolete CI source-mutation workaround for the old merge artifacts.
-- The Replit prompt now contains explicit discovery-realism rules and live stop conditions for legacy/template discovery, malformed targets, and sustained billionaire-list chasing.
+- `check:discovery-quality` is wired into the bureau checks and the live audit.
+- The live-audit workflow checks out current `main`, builds both desk and API, runs autonomy/discovery checks, and no longer performs the obsolete CI source-mutation workaround for the old merge artifacts.
+- The live audit itself confirmed that current `main` really does enter `runModelSelectedDiscoveryBureau` for `discoveryFirst=true`; the earlier Replit Phase 0 behavior was therefore a stale runtime/build problem, not the current source branch.
 
-**Validation status:** GitHub source updates succeeded. The available GitHub workflow-run lookup currently reports no workflow run for the latest main commits, so no provider-backed live Bureau/scoreboard result is claimed here. The actual runtime still must be executed in the Replit App project environment with operator secrets.
+### 2026-08-30 model/human research alignment (Batches 17–19)
+**Current main commits:** `6f72f760ecd3644f99611a5c2a7d8051d4cefa87`, `5aaacb756a25e7740e2323b354a64f8c262794b6`, `ff5cac58890a760eb777a75a94c0bba80eb42c94`.
+
+The first current-main live audit was valuable because it exposed a different failure from the old Replit run: the models did **not** chase Forbes and did choose sensible business-oriented queries, but discovery ended after two searches with zero candidates because no promising result was inspected. That is a model-usage/prompt-quality problem, not a reason to add a deterministic hop.
+
+Changes now on `main`:
+- `apex-bureau-orientation.ts` makes discovery economics explicit: practical reachability over fame, operating-company/principal/intermediary evidence over billionaire/richest lists, and evidence-led stopping.
+- `discovery-agent.ts` separates discovery from target-contact role framing; it tells the model that search results are leads, that a plausible result should generally be inspected before another broad search, and that `done` should not be used merely because a search was noisy.
+- `target-contact-agent.ts` now gives the named-target dig a stronger human-research objective: realistic attributable routes, primary operating-company/filing/leadership surfaces, evidence-led pivots, no fame-list enumeration, no generic contact-form hunting, and model-owned stopping.
+- `docs/bureau-plan/272_MODEL_HUMAN_ALIGNMENT.md` records the live evidence and design rule.
+
+**Live Audit 42 result:** build, desk, API, autonomy, discovery-quality, trajectory, and comparison-contract checks passed; health was `bureauIntegrity=ok`; Redis connected after explicit Launch; active agentic model was `openai/gpt-oss-120b`. The model chose two non-Forbes searches (`private company founder interview 2023 "family business"` and `"acquired a majority stake in" "founder" "CEO" 2024 press release`) but produced zero candidates and no visits, so the audit failed the entity requirement. No legacy Phase 0, template, billionaire-list, malformed-target, or deterministic recovery markers were reported.
+
+**Current live validation:** GitHub Actions run 45 is executing against commit `ff5cac58890a760eb777a75a94c0bba80eb42c94`; its build/autonomy/startup stages have passed and the bounded Bureau poll is still active. This run must be allowed to finish before claiming the new prompt works. No Replit runtime is being used for these repository tests.
 
 ## Quick commands
 ```bash
