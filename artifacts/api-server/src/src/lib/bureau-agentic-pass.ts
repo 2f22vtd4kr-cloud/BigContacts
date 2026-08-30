@@ -45,37 +45,46 @@ export function sourceBackedAgenticFindings(findings: AgenticFinding[]): Agentic
 }
 
 export function findingsToContactEvidence(findings: AgenticFinding[]) {
-  return sourceBackedAgenticFindings(findings).map((f) => ({
-    vectorType: f.vectorType,
-    value: f.value,
-    // Unknown contact scope is deliberately conservative. It is not allowed to
-    // become a personal route merely because a target name is already known.
-    scope: f.scope === "candidate" ? "candidate" : "organization",
-    personName: f.scope === "candidate" ? f.personName : null,
-    role: f.role,
-    sourceUrls: f.sourceUrls.filter((url) => /^https?:\/\/\S+$/i.test(String(url))),
-    note: f.note,
-  }));
+  return sourceBackedAgenticFindings(findings).map((f) => {
+    const isCandidate = f.scope === "candidate";
+    const personName = typeof f.personName === "string" && f.personName.trim() ? f.personName.trim() : null;
+    const personal = isCandidate && personName !== null;
+    return {
+      vectorType: f.vectorType,
+      value: f.value,
+      // Candidate scope without an explicit personName is not an identity claim.
+      // Demote it instead of silently binding the finding to the caller's target.
+      scope: personal ? "candidate" : "organization",
+      personName: personal ? personName : null,
+      role: f.role,
+      sourceUrls: f.sourceUrls.filter((url) => /^https?:\/\/\S+$/i.test(String(url))),
+      note: `${f.note}${isCandidate && !personal ? " [candidate finding missing personName; demoted to organization]" : ""}`,
+    };
+  });
 }
 
 export function findingsToBureauContacts(
   findings: AgenticFinding[],
-  fallbackPersonName: string,
+  _fallbackPersonName: string,
 ): BureauContactLike[] {
-  return sourceBackedAgenticFindings(findings).map((f) => ({
-    vectorType: f.vectorType,
-    value: f.value,
-    // Candidate findings may inherit the already-verified target name.
-    // Organization and unknown findings must remain organization-scoped and
-    // nameless; this prevents info@ / switchboards from becoming personal.
-    scope: f.scope === "candidate" ? "candidate" : "organization",
-    personName: f.scope === "candidate" ? (f.personName ?? fallbackPersonName) : null,
-    role: f.role,
-    sourceUrls: f.sourceUrls.filter((url) => /^https?:\/\/\S+$/i.test(String(url))),
-    note: `bureau-agentic:${f.note}`,
-    tier: "candidate",
-    state: "review_only",
-  }));
+  return sourceBackedAgenticFindings(findings).map((f) => {
+    const isCandidate = f.scope === "candidate";
+    const personName = typeof f.personName === "string" && f.personName.trim() ? f.personName.trim() : null;
+    const personal = isCandidate && personName !== null;
+    return {
+      vectorType: f.vectorType,
+      value: f.value,
+      // Personal scope requires the model to explicitly bind the claim to a
+      // human. The target supplied by the caller is context, not evidence.
+      scope: personal ? "candidate" : "organization",
+      personName: personal ? personName : null,
+      role: f.role,
+      sourceUrls: f.sourceUrls.filter((url) => /^https?:\/\/\S+$/i.test(String(url))),
+      note: `bureau-agentic:${f.note}${isCandidate && !personal ? " [candidate finding missing personName; demoted to organization]" : ""}`,
+      tier: "candidate",
+      state: "review_only",
+    };
+  });
 }
 
 /**

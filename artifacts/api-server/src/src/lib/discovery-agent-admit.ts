@@ -8,6 +8,75 @@ import { isWellFormedPersonCandidate, type DiscoveryCandidate } from "./discover
 import { logger } from "./logger";
 import { evaluateTargetFitness, shouldRejectTarget } from "./target-fitness";
 
+const SEARCH_ENGINE_HOSTS = new Set([
+  "google.com", "www.google.com", "bing.com", "www.bing.com",
+  "duckduckgo.com", "www.duckduckgo.com", "search.yahoo.com",
+]);
+
+function normalizedEvidenceText(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s]+/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/**
+ * Identity safety boundary: a model-supplied name + arbitrary URL is not enough
+ * to create a person. Verify that at least one claimed source actually contains
+ * the claimed name. This is not a ranking rule; it only prevents a malformed or
+ * hallucinated identity claim from crossing into the durable entity ledger.
+ */
+export async function sourceActuallyMentionsCandidate(candidate: DiscoveryCandidate): Promise<boolean> {
+  const name = candidate.name.trim();
+  const tokens = normalizedEvidenceText(name).split(" ").filter((t) => t.length >= 2);
+  if (tokens.length < 2) return false;
+
+  const urls = (candidate.sourceUrls ?? [])
+    .filter((url) => /^https?:\/\/\S+$/i.test(String(url)))
+    .filter((url) => {
+      try {
+        return !SEARCH_ENGINE_HOSTS.has(new URL(url).hostname.toLowerCase());
+      } catch {
+        return false;
+      }
+    })
+    .slice(0, 3);
+
+  for (const url of urls) {
+    try {
+      const response = await fetch(url, {
+        headers: {
+          "User-Agent": "ApexAtlas/1.0 identity-evidence-check",
+          Accept: "text/html,text/plain,application/json",
+        },
+        redirect: "follow",
+        signal: AbortSignal.timeout(8_000),
+      });
+      if (!response.ok) continue;
+      const contentType = response.headers.get("content-type") ?? "";
+      if (!/(?:text\/html|text\/plain|application\/json)/i.test(contentType)) continue;
+      const text = normalizedEvidenceText((await response.text()).slice(0, 250_000));
+      if (!text) continue;
+
+      const fullName = tokens.join(" ");
+      if (text.includes(fullName)) return true;
+
+      // Accommodate common "LAST, First" / "LAST First" source formatting
+      // without accepting an unrelated page that merely contains one token.
+      const first = tokens[0]!;
+      const last = tokens[tokens.length - 1]!;
+      if (first !== last && new RegExp(`\\b${first}\\b[\\s\\S]{0,500}\\b${last}\\b`, "i").test(text)) return true;
+      if (first !== last && new RegExp(`\\b${last}\\b[\\s\\S]{0,500}\\b${first}\\b`, "i").test(text)) return true;
+    } catch {
+      // A blocked/unavailable source is not positive identity evidence.
+    }
+  }
+  return false;
+}
+
 export async function createEntityFromDiscoveryCandidate(
   c: DiscoveryCandidate,
   options: { modelSelected?: boolean } = {},
@@ -20,6 +89,15 @@ export async function createEntityFromDiscoveryCandidate(
     // by target fitness. Only identity/provenance safety is enforced here.
     if (!isWellFormedPersonCandidate(c)) {
       logger.info({ name }, "[discovery-agent-admit] rejected malformed model-selected person candidate");
+      return null;
+    }
+    // The URL itself is provenance, not proof of identity. Check the claimed
+    // source before allowing the model's identity hypothesis into durable state.
+    if (!(await sourceActuallyMentionsCandidate(c))) {
+      logger.info(
+        { name, sourceUrls: c.sourceUrls?.slice(0, 3) ?? [] },
+        "[discovery-agent-admit] rejected candidate whose claimed source does not establish the name",
+      );
       return null;
     }
   }

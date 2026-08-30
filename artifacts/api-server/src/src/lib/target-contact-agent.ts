@@ -39,24 +39,34 @@ export function sourceBackedFindings(findings: AgenticFinding[]): AgenticFinding
  * Preserve the model's evidence scope when moving findings into the durable
  * bureau ledger. Organization/unknown findings must never inherit the target
  * name: doing so can turn info@/office@/switchboards into personal contacts.
+ *
+ * Candidate scope is also not enough by itself. A candidate finding without an
+ * explicit personName has not established which human the claim belongs to.
+ * Demote that finding to organization scope instead of silently binding it to
+ * the target supplied by the caller.
  */
 export function findingsToContacts(
   findings: Array<{ vectorType: string; value: string; scope: string; personName: string | null; role: string | null; sourceUrls: string[]; note: string }>,
-  personName: string,
+  _personName: string,
 ): BureauContactLike[] {
   return findings
     .filter((f) => Array.isArray(f.sourceUrls) && f.sourceUrls.some((url) => /^https?:\/\/\S+$/i.test(String(url))))
-    .map((f) => ({
-      vectorType: f.vectorType,
-      value: f.value,
-      scope: String(f.scope).toLowerCase() === "candidate" ? "candidate" : "organization",
-      personName: String(f.scope).toLowerCase() === "candidate" ? (f.personName ?? personName) : null,
-      role: f.role,
-      sourceUrls: f.sourceUrls.filter((url) => /^https?:\/\/\S+$/i.test(String(url))),
-      note: `target-agent:${f.note}`,
-      tier: "candidate",
-      state: "review_only",
-    }));
+    .map((f) => {
+      const isCandidate = String(f.scope).toLowerCase() === "candidate";
+      const personName = typeof f.personName === "string" && f.personName.trim() ? f.personName.trim() : null;
+      const personal = isCandidate && personName !== null;
+      return {
+        vectorType: f.vectorType,
+        value: f.value,
+        scope: personal ? "candidate" : "organization",
+        personName: personal ? personName : null,
+        role: f.role,
+        sourceUrls: f.sourceUrls.filter((url) => /^https?:\/\/\S+$/i.test(String(url))),
+        note: `target-agent:${f.note}${isCandidate && !personal ? " [candidate finding missing personName; demoted to organization]" : ""}`,
+        tier: "candidate",
+        state: "review_only",
+      };
+    });
 }
 
 /** Run free ReAct dig for one target and promote the best public claims onto the entity card. */
@@ -75,6 +85,7 @@ export async function runTargetContactAgent(input: { entityId: number; targetNam
     "You choose every action and stopping point. There is no fixed search checklist or mandatory hop order. Use non-LLM OSINT tools only when they are useful to the evidence you have.",
     "Never invent a contact, relationship, person, or URL. Every contact finding must carry the exact public URL where that value was observed. A search-engine query URL is not evidence of the claim. Keep organization inboxes and switchboards in organization scope, never as personal contacts.",
     "A source-backed result may still be wrong-person evidence. Use the identity, role, company, page context and source quality to decide whether a claim belongs to this person. If identity is ambiguous, preserve it as uncertain evidence rather than promoting it.",
+    "For every finding you label scope=candidate, set personName to the exact human name that the finding belongs to. Never omit personName and rely on the caller's target name to establish identity. If you cannot establish the person association, use scope=organization or scope=unknown instead.",
     "Stop when the evidence is exhausted or you have a sufficiently attributable route; do not keep searching merely to increase the number of findings.",
   ].join("\n");
 
