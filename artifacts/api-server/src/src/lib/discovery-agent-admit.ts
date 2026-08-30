@@ -1,6 +1,6 @@
 /**
  * Admit discovery-agent candidates into the ledger (person entities, review notes).
- * Uses target-fitness fame/shell gates (plan Vol 241).
+ * Uses target-fitness fame/shell gates only for the legacy non-model-selected path.
  */
 import { db, entitiesTable } from "@workspace/db";
 import { sql } from "drizzle-orm";
@@ -15,16 +15,22 @@ export async function createEntityFromDiscoveryCandidate(
   const name = c.name.trim();
   if (name.length < 3) return null;
 
-  if (options.modelSelected && !isWellFormedPersonCandidate(c)) {
-    logger.info({ name }, "[discovery-agent-admit] rejected malformed model-selected person candidate");
-    return null;
+  if (options.modelSelected) {
+    // Model-selected discovery is deliberately not ranked, scored, or filtered
+    // by target fitness. Only identity/provenance safety is enforced here.
+    if (!isWellFormedPersonCandidate(c)) {
+      logger.info({ name }, "[discovery-agent-admit] rejected malformed model-selected person candidate");
+      return null;
+    }
   }
 
-  const fitness = evaluateTargetFitness({
-    name,
-    notes: [c.basis, c.role, c.company].filter(Boolean).join(" | "),
-  });
-  if (!options.modelSelected && shouldRejectTarget(fitness)) {
+  const fitness = options.modelSelected
+    ? null
+    : evaluateTargetFitness({
+      name,
+      notes: [c.basis, c.role, c.company].filter(Boolean).join(" | "),
+    });
+  if (fitness && shouldRejectTarget(fitness)) {
     logger.info({ name, fit: fitness.fit, reasons: fitness.reasons }, "[discovery-agent-admit] rejected by fitness");
     return null;
   }
@@ -41,7 +47,7 @@ export async function createEntityFromDiscoveryCandidate(
     c.role ? `Role: ${c.role}` : null,
     c.company ? `Company: ${c.company}` : null,
     c.sourceUrls?.length ? `Sources: ${c.sourceUrls.slice(0, 4).join(" | ")}` : null,
-    `Fitness: ${fitness.fit} (${fitness.reasons.slice(0, 2).join("; ")})`,
+    fitness ? `Fitness: ${fitness.fit} (${fitness.reasons.slice(0, 2).join("; ")})` : null,
   ]
     .filter(Boolean)
     .join("\n");
@@ -51,7 +57,9 @@ export async function createEntityFromDiscoveryCandidate(
     .values({
       name,
       type: "HNWI",
-      bayesianScore: Math.max(0.2, Math.min(0.45, fitness.score)),
+      // Do not synthesize a discovery score. Model-selected admission preserves
+      // model order; the value below is only a neutral seed for legacy list UI.
+      bayesianScore: options.modelSelected ? 0.2 : Math.max(0.2, Math.min(0.45, fitness?.score ?? 0.2)),
       notes,
       sourceRegistries: JSON.stringify(["discovery-agent"]),
       metadata: JSON.stringify({
@@ -60,13 +68,13 @@ export async function createEntityFromDiscoveryCandidate(
         sourceUrls: c.sourceUrls?.slice(0, 8) ?? [],
         role: c.role,
         company: c.company,
-        fitness: fitness.fit,
+        ...(fitness ? { fitness: fitness.fit } : {}),
       }),
       contactConfidence: 0,
       contactOutcome: "evidence_only",
     })
     .returning({ id: entitiesTable.id });
 
-  logger.info({ id: row?.id, name, fit: fitness.fit }, "[discovery-agent-admit] inserted");
+  logger.info({ id: row?.id, name, modelSelected: options.modelSelected === true }, "[discovery-agent-admit] inserted");
   return row?.id ?? null;
 }
