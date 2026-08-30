@@ -29,8 +29,8 @@ if (!template.includes("evidence URLs")) {
   throw new Error("comparison contract must capture evidence URLs");
 }
 
-if (!template.includes("tool calls")) {
-  throw new Error("comparison contract must capture tool-call trajectory data");
+if (!template.includes("actions")) {
+  throw new Error("comparison contract must capture ordered action trajectory data");
 }
 
 console.log("comparison-template-contract: PASS");
