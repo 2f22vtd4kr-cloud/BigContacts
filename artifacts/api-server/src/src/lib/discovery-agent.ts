@@ -24,8 +24,8 @@ type DiscoveryFinding = {
   scope?: "organization" | "candidate" | "unknown";
 };
 
-const INVALID_PERSON_NAME_WORDS = new Set(["a","an","and","as","at","behind","been","by","chief","ceo","company","executive","from","has","in","of","officer","on","the","to","with","security","issues","issue","problem","problems","solutions","services","technology","systems","markets","capital","equity","partners","partner","group","fund","funds","holdings","holding","management","ventures","venture","estate","real","private","public","wealth","investment","investments","finance","financial","industries","industry","resources","strategy","strategies","operations","organization","organizations","foundation","foundations","billionaire","billionaires","millionaire","millionaires","person","email","phone","com","www"]);
-const INVALID_PERSON_NAME_PHRASES = ["security issues","security issue","private equity","venture capital","real estate","wealth management","financial services","chief executive officer","chief executive","executive officer","company founder","billionaire founders","billionaire founder","forbes list","forbes billionaires","the billionaire","the billionaires"];
+const INVALID_PERSON_NAME_WORDS = new Set(["email", "phone", "address", "street", "product", "comparison", "person", "www", "com"]);
+const INVALID_PERSON_NAME_PHRASES = ["security issues", "security issue", "chief executive officer", "executive officer", "forbes list", "forbes billionaires", "the billionaire", "the billionaires"];
 const LIST_ONLY_SOURCE_PATTERNS = [/forbes\.com\/billionaires(?:\/|\?|$)/i,/forbes\.com\/real-time-billionaires(?:\/|\?|$)/i,/forbes\.com\/lists\/[^\s/]*billionaires?/i,/forbes\.com\/lists\/[^\s/]*richest/i,/bloomberg\.com\/billionaires(?:\/|\?|$)/i];
 
 
@@ -85,6 +85,7 @@ function parsePersonFindings(findings: DiscoveryFinding[]): DiscoveryCandidate[]
     const sourceUrls = (extra.sourceUrls ?? []).filter((u) => /^https?:\/\//i.test(u)).slice(0, 6);
     if (!isWellFormedPersonCandidate({ name: n, sourceUrls })) return;
     if (!hasStrongIdentityEvidence({ name: n, role: extra.role, company: extra.company, basis: extra.basis, sourceUrls })) return;
+    
     
     
     

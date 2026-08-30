@@ -61,7 +61,7 @@ type AgentAction =
   | { action: "reverse_whois"; query: string; thought?: string }
   | { action: "done"; findings: AgenticFinding[]; thought?: string };
 
-const MAX_ITER = 20;
+const MAX_ITER = 40;
 const MAX_OBS = 5_000;
 
 /** Format SERP text so the dig model sees discrete ranked hits + any phones/emails in snippets. */
@@ -960,7 +960,6 @@ async function callGroqJson(prompt: string): Promise<{ model: string; raw: strin
           headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
           body: JSON.stringify({
             model,
-            temperature: 0.25,
             max_tokens: 1536,
             messages: [
               {
@@ -985,6 +984,36 @@ async function callGroqJson(prompt: string): Promise<{ model: string; raw: strin
   }
   return null;
 }
+
+const AGENTIC_ACTION_SCHEMA = {
+  type: "object",
+  properties: {
+    action: { type: "string", enum: ["web_search", "visit", "footprint_email", "footprint_username", "domain_lookup", "registry_search", "harvest_domain", "browser_fetch", "reverse_whois", "done"] },
+    query: { type: "string" },
+    url: { type: "string" },
+    email: { type: "string" },
+    username: { type: "string" },
+    domain: { type: "string" },
+    registry: { type: "string" },
+    thought: { type: "string" },
+    findings: { type: "array", items: {
+      type: "object",
+      properties: {
+        vectorType: { type: "string", enum: ["email", "phone", "linkedin", "website", "social", "other"] },
+        value: { type: "string" },
+        personName: { type: ["string", "null"] },
+        role: { type: ["string", "null"] },
+        scope: { type: "string", enum: ["organization", "candidate", "unknown"] },
+        sourceUrls: { type: "array", items: { type: "string" } },
+        note: { type: "string" },
+      },
+      required: ["vectorType", "value", "sourceUrls", "note"],
+      additionalProperties: false,
+    } },
+  },
+  required: ["action"],
+  additionalProperties: false,
+};
 
 async function callGeminiJson(prompt: string): Promise<{ model: string; raw: string } | null> {
   const keys = [
@@ -1025,6 +1054,7 @@ async function callGeminiJson(prompt: string): Promise<{ model: string; raw: str
               generationConfig: {
                 maxOutputTokens: 4096,
                 thinkingConfig: { thinkingLevel: "high" },
+                responseFormat: { text: { mimeType: "application/json", schema: AGENTIC_ACTION_SCHEMA } },
               },
             }),
             signal: AbortSignal.timeout(50_000),
@@ -1068,7 +1098,6 @@ async function callMistralJson(prompt: string): Promise<{ model: string; raw: st
         },
         body: JSON.stringify({
           model,
-          temperature: 0.25,
           max_tokens: 1536,
           messages: [
             {
@@ -1082,7 +1111,7 @@ async function callMistralJson(prompt: string): Promise<{ model: string; raw: st
         signal: AbortSignal.timeout(45_000),
       });
       if (!resp.ok) {
-        logger.warn({ provider: "mistral", status: resp.status, model }, "agentic provider rejected request");
+        logger.warn({ provider: "serper", status: resp.status }, "agentic provider rejected request");
         continue;
       }
       const data = (await resp.json()) as { choices?: Array<{ message?: { content?: string } }> };
@@ -1115,7 +1144,6 @@ async function callNvidiaJson(prompt: string): Promise<{ model: string; raw: str
         },
         body: JSON.stringify({
           model,
-          temperature: 0.25,
           max_tokens: 1536,
           messages: [
             {
@@ -1855,7 +1883,7 @@ export async function runAgenticWebResearch(input: {
     return { status: "unavailable", model: "none", iterations: 0, searches: 0, visits: 0, findings: [], trajectory: [], error: "empty target" };
   }
 
-  const maxIter = Math.min(input.maxIterations ?? MAX_ITER, 24);
+  const maxIter = Math.max(1, input.maxIterations ?? MAX_ITER);
   const hardTimeoutMs = Math.max(30_000, input.hardTimeoutMs ?? 210_000);
   const startedAt = Date.now();
 
