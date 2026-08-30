@@ -7,8 +7,9 @@
  * a query URL is evidence that a search was made, not evidence for the claim.
  *
  * This wrapper therefore drops any contact item that does not already carry an
- * exact HTTP(S) source URL before calling the legacy projector. It deliberately
- * does not rank or otherwise alter the research decision.
+ * exact HTTP(S) source URL, and rejects known search/query endpoints, before
+ * calling the legacy projector. It deliberately does not rank or otherwise
+ * alter the research decision.
  */
 import {
   persistBureauContactsForEntity,
@@ -16,16 +17,27 @@ import {
 } from "./bureau-contact-persist";
 
 const HTTP_SOURCE = /^https?:\/\/\S+$/i;
+const SEARCH_QUERY_URL = [
+  /google\.[^/]+\/search(?:[/?]|$)/i,
+  /bing\.com\/search(?:[/?]|$)/i,
+  /search\.yahoo\.com\/search(?:[/?]|$)/i,
+  /duckduckgo\.com\/(?:html\/)?\?(?:[^#]*&)?q=/i,
+  /efts\.sec\.gov\/LATEST\/search-index(?:[/?]|$)/i,
+];
+
+function isClaimSourceUrl(url: string): boolean {
+  return HTTP_SOURCE.test(url) && !SEARCH_QUERY_URL.some((pattern) => pattern.test(url));
+}
 
 export function sourceBackedBureauContacts(
   items: readonly BureauContactLike[] | null | undefined,
 ): BureauContactLike[] {
   return (items ?? []).filter((item) =>
     Array.isArray(item.sourceUrls)
-    && item.sourceUrls.some((url) => typeof url === "string" && HTTP_SOURCE.test(url)),
+    && item.sourceUrls.some((url) => typeof url === "string" && isClaimSourceUrl(url)),
   ).map((item) => ({
     ...item,
-    sourceUrls: (item.sourceUrls ?? []).filter((url) => typeof url === "string" && HTTP_SOURCE.test(url)),
+    sourceUrls: (item.sourceUrls ?? []).filter((url) => typeof url === "string" && isClaimSourceUrl(url)),
   }));
 }
 
