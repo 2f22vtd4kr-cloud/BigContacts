@@ -42,6 +42,12 @@ s = s.replace(/\n  const seedCompanyContactPaths = \(urls: string\[\]\) => \{[\s
 s = s.replace(/\n  const detVisitNext = async \(stepLabel: string\): Promise<boolean> => \{[\s\S]*?\n  \};\n/, "\n");
 s = s.replace(/\n\s*seedCompanyContactPaths\(sr\.urls\);\n/g, "\n");
 
+// Export the identity/provenance gate so regression tests exercise the real
+// admission boundary rather than a duplicated test-only implementation.
+if (s.includes("function hasStrongIdentityEvidence") && !s.includes("export function hasStrongIdentityEvidence")) {
+  s = s.replace("function hasStrongIdentityEvidence", "export function hasStrongIdentityEvidence");
+}
+
 if (s === original) {
   // Idempotent success: the strict source is already installed.
   console.log("Free-ReAct purity repair already present; no changes needed");
