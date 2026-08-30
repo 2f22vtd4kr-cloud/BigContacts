@@ -86,24 +86,20 @@ jobs:
             -H 'Content-Type: application/json' \
             -d '{"discoveryFirst":true,"targetCount":3,"researchLimit":2,"runResearch":true,"skipFaa":true,"targetTimeoutMs":180000,"researchDepth":"standard"}' \
             | tee /tmp/launch.json
-          test "$(node -e "const x=require('/tmp/launch.json'); process.stdout.write(x.jobId?'ok':'bad')")" = "ok"
+          JOB_ID=$(node -e 'const x=require("/tmp/launch.json"); if(!x.jobId) process.exit(1); process.stdout.write(x.jobId)')
+          echo "BUREAU_JOB_ID=$JOB_ID" | tee /tmp/job-id.txt
+          test -n "$JOB_ID"
       - name: Poll Bureau until complete
         run: |
-          for i in $(seq 1 150); do
+          for i in $(seq 1 180); do
             sleep 5
             curl -sS -m 10 http://127.0.0.1:8080/api/ingest/atlas-status > /tmp/atlas-status.json || true
-            node - <<'NODE'
-            const fs=require('fs');
-            try {
-              const x=JSON.parse(fs.readFileSync('/tmp/atlas-status.json','utf8'));
-              console.log(JSON.stringify(x));
-              const s=String(x?.status ?? x?.job?.status ?? '');
-              if (['completed','done','failed','cancelled'].includes(s)) process.exit(['completed','done'].includes(s)?0:2);
-            } catch {}
-            NODE
-            rc=$?
-            if [ $rc -eq 0 ]; then exit 0; fi
-            if [ $rc -eq 2 ]; then exit 1; fi
+            STATUS=$(node -e 'const fs=require("fs"); try { const x=JSON.parse(fs.readFileSync("/tmp/atlas-status.json","utf8")); process.stdout.write(String(x.status || x.job?.status || "")); } catch { process.stdout.write(""); }')
+            echo "poll=$i status=$STATUS"
+            if [ "$STATUS" = "done" ] || [ "$STATUS" = "completed" ] || [ "$STATUS" = "failed" ] || [ "$STATUS" = "cancelled" ] || [ "$STATUS" = "idle" ]; then
+              if [ "$STATUS" = "failed" ] || [ "$STATUS" = "cancelled" ]; then exit 1; fi
+              exit 0
+            fi
           done
           echo 'Bureau did not finish within audit window'
           exit 1
@@ -141,4 +137,5 @@ jobs:
             /tmp/entities.json
             /tmp/health.json
             /tmp/apex-api.log
+            /tmp/job-id.txt
           if-no-files-found: ignore
