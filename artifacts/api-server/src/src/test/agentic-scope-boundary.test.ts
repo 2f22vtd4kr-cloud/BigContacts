@@ -30,6 +30,31 @@ describe("agentic evidence scope boundary", () => {
     });
   });
 
+  it("never inherits the caller target when candidate scope omits personName", () => {
+    const finding = {
+      vectorType: "email",
+      value: "info@example.com",
+      personName: null,
+      role: "Founder",
+      scope: "candidate",
+      sourceUrls: [source],
+      note: "model labeled this candidate-scoped without naming the person",
+    };
+
+    expect(findingsToBureauContacts([finding], "Jane Example")[0]).toMatchObject({
+      scope: "organization",
+      personName: null,
+    });
+    expect(findingsToContactEvidence([finding])[0]).toMatchObject({
+      scope: "organization",
+      personName: null,
+    });
+    expect(findingsToContacts([finding], "Jane Example")[0]).toMatchObject({
+      scope: "organization",
+      personName: null,
+    });
+  });
+
   it("turns unknown scope into organization scope instead of inheriting the target", () => {
     const finding = {
       vectorType: "email",
