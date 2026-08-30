@@ -980,23 +980,37 @@ async function callGroqJson(prompt: string): Promise<{ model: string; raw: strin
         const data = await resp.json() as { choices?: Array<{ message?: { content?: string } }> };
         const raw = data.choices?.[0]?.message?.content?.trim() ?? "";
         if (raw) return { model, raw };
-      } catch {
-        continue;
-      }
+      } catch (err: any) { logger.warn({ provider: "agentic", model, error: err?.message }, "agentic provider call failed"); continue; }
     }
   }
   return null;
 }
 
 async function callGeminiJson(prompt: string): Promise<{ model: string; raw: string } | null> {
+  const key = process.env.GEMINI_API_KEY?.trim();
+  if (!key) return null;
+  const model = (process.env.GEMINI_AGENTIC_MODEL || process.env.GEMINI_BOSS_MODEL || "gemini-3.7-flash").trim();
   try {
-    const { resolveGeminiBossModel, generateGeminiBossText } = await import("./case-bureau");
-    const selection = await resolveGeminiBossModel();
-    if (!selection?.model) return null;
-    const out = await generateGeminiBossText(selection, prompt);
-    if (out.raw) return { model: out.model, raw: out.raw };
+    const resp = await fetch("https://generativelanguage.googleapis.com/v1beta/models/" + encodeURIComponent(model) + ":generateContent", {
+      method: "POST",
+      headers: { "x-goog-api-key": key, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        systemInstruction: { parts: [{ text: apexOrientationFor("dig_agent") + "\nReply with ONE JSON object only for this ReAct step." }] },
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        generationConfig: { maxOutputTokens: 1536, thinkingConfig: { thinkingLevel: "medium" } },
+      }),
+      signal: AbortSignal.timeout(30_000),
+    });
+    if (!resp.ok) {
+      const body = (await resp.text()).slice(0, 600);
+      logger.warn({ provider: "gemini", status: resp.status, model, body }, "agentic provider rejected request");
+      return null;
+    }
+    const data = await resp.json() as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
+    const raw = data.candidates?.[0]?.content?.parts?.map((p) => p.text || "").join("").trim() || "";
+    if (raw) return { model: "gemini:" + model, raw };
   } catch (err: any) {
-    logger.warn({ err: err?.message }, "agentic Gemini call failed");
+    logger.warn({ provider: "gemini", model, error: err?.message }, "agentic Gemini call failed");
   }
   return null;
 }
@@ -1040,9 +1054,7 @@ async function callMistralJson(prompt: string): Promise<{ model: string; raw: st
       const data = (await resp.json()) as { choices?: Array<{ message?: { content?: string } }> };
       const raw = data.choices?.[0]?.message?.content?.trim() ?? "";
       if (raw) return { model: `mistral:${model}`, raw };
-    } catch {
-      continue;
-    }
+    } catch (err: any) { logger.warn({ provider: "agentic", model, error: err?.message }, "agentic provider call failed"); continue; }
   }
   return null;
 }
@@ -1085,13 +1097,11 @@ async function callNvidiaJson(prompt: string): Promise<{ model: string; raw: str
         }),
         signal: AbortSignal.timeout(50_000),
       });
-      if (!resp.ok) continue;
+      if (!resp.ok) { logger.warn({ provider: "agentic", status: resp.status, model }, "agentic provider rejected request"); continue; }
       const data = (await resp.json()) as { choices?: Array<{ message?: { content?: string } }> };
       const raw = data.choices?.[0]?.message?.content?.trim() ?? "";
       if (raw) return { model: `nvidia:${model}`, raw };
-    } catch {
-      continue;
-    }
+    } catch (err: any) { logger.warn({ provider: "agentic", model, error: err?.message }, "agentic provider call failed"); continue; }
   }
   return null;
 }
@@ -1101,11 +1111,13 @@ async function llmStep(prompt: string): Promise<{ model: string; raw: string } |
     [["gemini", callGeminiJson], ["nvidia", callNvidiaJson]],
     [["groq", callGroqJson], ["mistral", callMistralJson]],
   ];
+  const providerDecisionTimeoutMs = 18_000;
   const errors: string[] = [];
   for (const stage of stages) {
     const attempts = stage.map(async ([name, fn]) => {
+      const timeout = new Promise<never>((_, reject) => setTimeout(() => reject(new Error(name + ":timeout")), providerDecisionTimeoutMs));
       try {
-        const out = await fn(prompt);
+        const out = await Promise.race([fn(prompt), timeout]);
         if (!out?.raw) throw new Error(name + ":empty");
         return out;
       } catch (err: any) {
@@ -1118,10 +1130,10 @@ async function llmStep(prompt: string): Promise<{ model: string; raw: string } |
       return out;
     } catch (err: any) {
       const reasons = Array.isArray(err?.errors) ? err.errors.map((e: unknown) => String(e)).join(";") : String(err?.message ?? "all_failed");
-      errors.push(reasons.slice(0, 400));
+      errors.push(reasons.slice(0, 500));
     }
   }
-  setAgenticLlmHealth(false, null, errors.join(";").slice(0, 800));
+  setAgenticLlmHealth(false, null, errors.join(";").slice(0, 1000));
   logger.warn({ errors }, "[agentic] all LLM providers failed for step");
   return null;
 }
