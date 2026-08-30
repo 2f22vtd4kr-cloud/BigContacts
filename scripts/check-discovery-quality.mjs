@@ -3,8 +3,9 @@
  * Discovery quality guard.
  *
  * This is intentionally a narrow integrity test, not a target-ranking engine.
- * It verifies that the model-selected discovery path retains its identity /
- * provenance boundary and practical-reachability guidance.
+ * It verifies that model-selected discovery retains its identity/provenance
+ * boundary and the research-judgment guidance that keeps the agent focused on
+ * realistic people rather than fame/list enumeration.
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -13,21 +14,35 @@ import { fileURLToPath } from "url";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const discovery = fs.readFileSync(path.join(root, "artifacts/api-server/src/src/lib/discovery-agent.ts"), "utf8");
 const admit = fs.readFileSync(path.join(root, "artifacts/api-server/src/src/lib/discovery-agent-admit.ts"), "utf8");
+const orientation = fs.readFileSync(path.join(root, "artifacts/api-server/src/src/lib/apex-bureau-orientation.ts"), "utf8");
 
 const requiredDiscovery = [
   "isWellFormedPersonCandidate",
   "LIST_ONLY_SOURCE_PATTERNS",
   "hasIndependentSource",
-  "practical reachability",
-  "Do not begin with generic contact-form hunting.",
-  "Do not use Forbes/Bloomberg-style billionaire or richest-person lists as a default discovery strategy.",
-  "If a company/contact page has no named person, treat it as an intermediate company lead",
+  "DISCOVERY ASSIGNMENT",
+  "information gain",
+  "Do not spend discovery iterations on Forbes/Bloomberg/richest/billionaire rankings",
+  "BAD DISCOVERY BEHAVIOR",
+  "GOOD DISCOVERY BEHAVIOR",
+  "Before every action, silently sanity-check the direction",
+  "If a company is discovered before its principal, that company is an intermediate lead",
   "Before finishing, ask yourself: do I have a full personal name",
+];
+
+const requiredOrientation = [
+  "DISCOVERY ECONOMICS",
+  "RESEARCH JUDGMENT",
+  "A billionaire list is usually a low-yield lead, not a discovery strategy",
+  "Do not continue a weak search avenue just because it returns many results",
 ];
 
 const failures = [];
 for (const marker of requiredDiscovery) {
   if (!discovery.includes(marker)) failures.push(`discovery-agent.ts missing: ${marker}`);
+}
+for (const marker of requiredOrientation) {
+  if (!orientation.includes(marker)) failures.push(`apex-bureau-orientation.ts missing: ${marker}`);
 }
 
 const modelBranchStart = admit.indexOf("if (options.modelSelected)");
@@ -43,4 +58,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log("OK: discovery remains model-selected with identity/provenance safety and practical-reachability guidance");
+console.log("OK: discovery remains model-selected with identity/provenance safety and practical-reachability research judgment");
