@@ -1,14 +1,14 @@
 /**
  * Atlas Routes
  *
- * POST /api/ingest/atlas-run   — Launch the full 10-phase Apex Atlas pipeline
+ * POST /api/ingest/atlas-run   — Launch Apex Atlas research
  * DELETE /api/ingest/atlas-lock — Clear ghost Atlas lock
  * GET  /api/ingest/atlas-status — Current Atlas job status
  */
 
 import { Router, type Request, type Response } from "express";
 import { db, entitiesTable, contactEvidenceTable } from "@workspace/db";
-import { sql, desc, inArray, and, eq } from "drizzle-orm";
+import { sql, desc, inArray, and } from "drizzle-orm";
 import {
   createJob, getActiveJob, getLatestJob, getJob, getJobLog, setActiveJob,
   updateJob, clearActiveJobIfOwned, clearActiveJobIfMatches, forceClearActiveJob, getAutoPipelineScheduler,
@@ -122,11 +122,11 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
   const body = (req.body ?? {}) as Record<string, unknown>;
 
   // Empty/missing fields fall back to CANONICAL_ATLAS_LAUNCH_BODY so every
-  // "run bureau" path is the same procedure (UI, curl, Replit agent).
+  // "run bureau" path is the same operator procedure (UI, curl, Replit agent).
   const C = CANONICAL_ATLAS_LAUNCH_BODY;
   let discoveryFirst = body.discoveryFirst !== undefined ? Boolean(body.discoveryFirst) : C.discoveryFirst;
   const singleTargetRaw = body.singleTargetId !== undefined ? Number(body.singleTargetId) : undefined;
-  // Dig one person: never run discovery-agent / template farm first
+  // Dig one person: never run discovery-agent / template farm first.
   if (singleTargetRaw != null && Number.isFinite(singleTargetRaw) && singleTargetRaw > 0) {
     discoveryFirst = false;
   }
@@ -149,7 +149,7 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
   };
 
   const atlasJobId = await createJob("atlas-run");
-  // Ensure Redis lock sticks — silent SET failures caused Launch to self-cancel
+  // Ensure Redis lock sticks — silent SET failures caused Launch to self-cancel.
   for (let attempt = 0; attempt < 3; attempt++) {
     await setActiveJob("atlas-run", atlasJobId);
     const pinned = await getActiveJob("atlas-run");
@@ -157,18 +157,33 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
     logger.warn({ atlasJobId, pinned, attempt }, "atlas-run: active job pointer mismatch after setActiveJob");
   }
   if ((await getActiveJob("atlas-run")) !== atlasJobId) {
-    // Last resort: pin in-process only (Redis quota exhausted)
+    // Last resort: pin in-process only (Redis quota exhausted).
     await setActiveJob("atlas-run", atlasJobId);
     logger.warn({ atlasJobId }, "atlas-run: proceeding with in-process lock only (Redis unavailable)");
   }
-  await updateJob(atlasJobId, {
-    status: "running",
-    progress: 0, total: 10,
-    atlasPhase: 0, atlasPhaseTotal: 10,
-    message: "Atlas pipeline initializing — 10 phases queued…",
-  });
 
-  // Fire and forget — run fully in background
+  const modelSelectedBureau = discoveryFirst && opts.singleTargetId == null;
+  await updateJob(atlasJobId, modelSelectedBureau
+    ? {
+        status: "running",
+        progress: 0,
+        total: Math.max(1, opts.targetCount),
+        atlasPhase: 0,
+        atlasPhaseTotal: 2,
+        message: "AI discovery agent initializing — model selects the public research lane…",
+      }
+    : {
+        status: "running",
+        progress: 0,
+        total: opts.singleTargetId ? 1 : 10,
+        atlasPhase: 0,
+        atlasPhaseTotal: opts.singleTargetId ? 1 : 10,
+        message: opts.singleTargetId
+          ? "Single-target Dig initializing — model selects research actions…"
+          : "Atlas pipeline initializing — legacy multi-phase mode…",
+      } as any);
+
+  // Fire and forget — run fully in background.
   void (async () => {
     try {
       await runAtlasPipeline(atlasJobId, opts);
@@ -183,26 +198,35 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
     }
   })();
 
+  const phases = modelSelectedBureau
+    ? [
+        "0 — Model-selected public discovery (free ReAct)",
+        "1 — Model-selected target research, evidence persistence, and contact promotion",
+      ]
+    : opts.singleTargetId
+      ? ["0 — Model-selected single-target Dig"]
+      : [
+          "0 — Legacy multi-phase Atlas mode (explicit non-discoveryFirst request)",
+          "1 — Discovery + full-circle entity enrichment loop",
+          "2 — Identity and contact evidence",
+          "3 — Metadata, notes, and registry assets",
+          "4 — In-house OSINT",
+          "5 — Social and messenger discovery",
+          "6 — AI OSINT + Maigret + Holehe",
+          "7 — Forensic cross-reference and asset discovery",
+          "8 — Phase J attribution and graph-assisted analysis",
+          "9 — Semantic embeddings, wealth, and confidence recompute",
+          "10 — MCTS research on reachable hot leads",
+        ];
+
   res.status(202).json({
     jobId: atlasJobId,
     pollUrl: `/api/ingest/job/${atlasJobId}`,
-    // There are eleven numbered checkpoints (0 through 10). `total: 10`
-    // remains the phase maximum, while the UI renders all eleven checkpoints.
-    phases: [
-      "0 — Pre-run cross-references (OCCRP/OFAC, live ADS-B, Companies House, ownership)",
-      "1 — Discovery + full-circle entity enrichment loop",
-      "2 — Identity and contact evidence",
-      "3 — Metadata, notes, and registry assets",
-      "4 — In-house OSINT",
-      "5 — Social and messenger discovery",
-      "6 — AI OSINT + Maigret + Holehe",
-      "7 — Forensic cross-reference and asset discovery",
-      "8 — Phase J attribution and graph-assisted analysis",
-      "9 — Semantic embeddings, wealth, and confidence recompute",
-      "10 — MCTS research on reachable hot leads",
-    ],
+    phases,
     options: opts,
-    message: `Atlas pipeline started (job: ${atlasJobId}). Poll ${`/api/ingest/job/${atlasJobId}`} for progress.`,
+    message: modelSelectedBureau
+      ? `Apex Atlas model-selected discovery started (job: ${atlasJobId}). Poll ${`/api/ingest/job/${atlasJobId}`} for progress.`
+      : `Atlas pipeline started (job: ${atlasJobId}). Poll ${`/api/ingest/job/${atlasJobId}`} for progress.`,
   });
 });
 
@@ -296,8 +320,7 @@ router.delete("/ingest/atlas-lock/:jobId", async (req: Request, res: Response): 
 
 // Terminal Atlas jobs older than this are not surfaced as "current" Reactor
 // state. Permanent Redis keeps history for 7 days; without a freshness gate a
-// completed single-target pass (e.g. CarCollect) stays stuck on the Reactor
-// across re-imports and idle continuous cycles.
+// completed single-target pass stays stuck on the Reactor across re-imports.
 
 /** Hard ceiling — running jobs older than this are always cleared. */
 function isFreshAtlasTerminal(job: { status?: string; finishedAt?: string; startedAt?: string }): boolean {
@@ -310,14 +333,10 @@ function isFreshAtlasTerminal(job: { status?: string; finishedAt?: string; start
 }
 
 // ── GET /ingest/atlas-status ──────────────────────────────────────────────────
-// Desk polls this often; short in-process cache cuts Redis GETs without lying for long.
 let _atlasStatusCache: { at: number; body: unknown } | null = null;
-// The desk polls every 15 seconds while idle. A two-second cache caused each
-// poll to fan out into multiple Upstash reads and needlessly consumed free-tier
-// command quota even when no Atlas run was active.
 const ATLAS_STATUS_CACHE_MS = 15_000;
 
-// GET /ingest/scoreboard-snapshot — score recent cards for COMPARE_*.md (Vol 68/76)
+// GET /ingest/scoreboard-snapshot — score recent cards for COMPARE_*.md
 router.get("/ingest/scoreboard-snapshot", async (req: Request, res: Response): Promise<void> => {
   try {
     const limit = Math.min(50, Math.max(1, Number(req.query.limit ?? 20) || 20));
@@ -380,7 +399,6 @@ router.get("/ingest/scoreboard-snapshot", async (req: Request, res: Response): P
         hasSourceUrls: true,
       });
       const evidenceContactCount = evidenceCountByEntity.get(r.id) ?? 0;
-      // Dig-like: agentic/notice source, card routes, or bag has contact evidence
       const src = String(r.phoneSource ?? "");
       const digLike =
         /^agentic-web/i.test(src) ||
@@ -410,9 +428,7 @@ router.get("/ingest/scoreboard-snapshot", async (req: Request, res: Response): P
     const scores = scored.map((s) => s.score);
     const lanes = buildLanesHonestySnapshot();
     const integrity = lanes.bureauIntegrity;
-    // Plan: never claim milestone pass while integrity is critical (Vol 275/602/1652)
-    const milestonePass =
-      integrity !== "critical" && passesScoreboardMilestone(scores);
+    const milestonePass = integrity !== "critical" && passesScoreboardMilestone(scores);
     res.json({
       count: scored.length,
       mean: meanScore(scores),
@@ -435,8 +451,6 @@ router.get("/ingest/atlas-status", async (_req: Request, res: Response): Promise
   const jobId = await withBudget(getActiveJob("atlas-run"), null);
   if (!jobId) {
     const latest = await withBudget(getLatestJob("atlas-run"), null);
-    // Only expose a terminal latest job while it is still "just finished".
-    // Stale completed runs must not appear as CURRENT TARGET in the Reactor.
     if (latest && isFreshAtlasTerminal(latest)) {
       const log = await withBudget(getJobLog(latest.jobId), []);
       const latestBody = { ...latest, message: normalizeAtlasStatusMessage(latest.message), active: false, latest: true, scheduler, log: log.slice(0, 80), recentSpans: getRecentDigSpans(latest.jobId, 50) };
@@ -467,14 +481,12 @@ router.get("/ingest/atlas-status", async (_req: Request, res: Response): Promise
     res.json(idleBody);
     return;
   }
-  // Terminal job still holding the active pointer — drop pointer only
   if (job && (job.status === "done" || job.status === "failed" || job.status === "cancelled")) {
     await clearActiveJobIfMatches("atlas-run", jobId);
     _atlasStatusCache = null;
     res.json({ status: "idle", message: "No Atlas run in progress.", scheduler });
     return;
   }
-  // Auto-clear zombie / dead runs so Reactor cannot show LIVE with no real work
   if (job && (job.status === "running" || job.status === "paused")) {
     const startedMs = job.startedAt ? Date.parse(job.startedAt) : NaN;
     const logMs = lastLogActivityMs(log);
@@ -482,9 +494,7 @@ router.get("/ingest/atlas-status", async (_req: Request, res: Response): Promise
       ? logMs
       : (Number.isFinite(startedMs) ? startedMs : Date.now());
     const ageMs = Date.now() - lastActivity;
-    const hardZombie =
-      Number.isFinite(startedMs) && Date.now() - startedMs > ATLAS_ZOMBIE_MS;
-    // Never soft-clear a job under 2 minutes old (Launch was dying in <5s)
+    const hardZombie = Number.isFinite(startedMs) && Date.now() - startedMs > ATLAS_ZOMBIE_MS;
     const minAgeForSoftClear = Math.max(ATLAS_STALE_PROGRESS_MS, 120_000);
     const softZombie =
       Number.isFinite(startedMs) &&
@@ -495,13 +505,7 @@ router.get("/ingest/atlas-status", async (_req: Request, res: Response): Promise
       if (stillActive && stillActive !== jobId) {
         const newer = await getJob(stillActive);
         const newerLog = await getJobLog(stillActive);
-        const body = {
-          ...newer,
-          jobId: stillActive,
-          active: true,
-          scheduler,
-          log: newerLog.slice(0, 80),
-        };
+        const body = { ...newer, jobId: stillActive, active: true, scheduler, log: newerLog.slice(0, 80) };
         _atlasStatusCache = { at: Date.now(), body };
         res.json(body);
         return;
@@ -517,12 +521,7 @@ router.get("/ingest/atlas-status", async (_req: Request, res: Response): Promise
         await clearActiveJobIfMatches("atlas-run", jobId);
       }
       _atlasStatusCache = null;
-      res.json({
-        status: "idle",
-        message: "Stale Atlas job was auto-cleared. Launch again when ready.",
-        clearedZombieJobId: jobId,
-        scheduler,
-      });
+      res.json({ status: "idle", message: "Stale Atlas job was auto-cleared. Launch again when ready.", clearedZombieJobId: jobId, scheduler });
       return;
     }
   }
