@@ -6,14 +6,13 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".."
 const targetPath = path.join(repoRoot, "artifacts/api-server/src/src/lib/agentic-web-research.ts");
 let s = fs.readFileSync(targetPath, "utf8");
 
-if (s.includes("DIG_INVESTIGATOR_FAILOVER_CHAIN") && s.includes("Groq -> Mistral")) {
-  console.log("Dig investigator provider hardening already applied; leaving runtime unchanged");
-  process.exit(0);
-}
+const llmStepAlreadyCanonical =
+  s.includes("DIG_INVESTIGATOR_FAILOVER_CHAIN") && s.includes("Groq -> Mistral");
 
-const llmStepRe = /let agenticProviderCircuitUntil = 0;\n\nasync function llmStep\(prompt: string\): Promise<\{ model: string; raw: string \} \| null> \{[\s\S]*?\n\}\n\nfunction formatFindingsBag/;
+if (!llmStepAlreadyCanonical) {
+  const llmStepRe = /let agenticProviderCircuitUntil = 0;\n\nasync function llmStep\(prompt: string\): Promise<\{ model: string; raw: string \} \| null> \{[\s\S]*?\n\}\n\nfunction formatFindingsBag/;
 
-const replacement = `/**
+  const replacement = `/**
  * DIG_INVESTIGATOR_FAILOVER_CHAIN: Groq -> Mistral.
  *
  * This is the actual web-research LLM lane. Boss and right-hand are NOT dig
@@ -79,11 +78,67 @@ async function llmStep(prompt: string): Promise<{ model: string; raw: string } |
 
 function formatFindingsBag`;
 
-if (!llmStepRe.test(s)) {
-  throw new Error("agentic llmStep hardening anchor missing");
+  if (!llmStepRe.test(s)) {
+    throw new Error("agentic llmStep hardening anchor missing");
+  }
+  s = s.replace(llmStepRe, replacement);
 }
 
-s = s.replace(llmStepRe, replacement);
+/**
+ * Observation-only contact enrichment.
+ *
+ * Literal contact tokens are useful observation enrichment. Semantic person
+ * identity is not. The page extractor must never manufacture PERSON findings
+ * from title/name adjacency, capitalization, or prose patterns. The Dig model
+ * receives the page text and decides whether a named person is actually the
+ * target, while provenance/promotion code verifies the relationship.
+ */
+const observationBoundaryRe = /function extractContactFactsFromHtml\(html: string\): string \{[\s\S]*?\n\}\n\n(?=(?:async )?function )/;
+const observationReplacement = `function extractContactFactsFromHtml(html: string): string {
+  const facts: string[] = [];
+  const seen = new Set<string>();
+  const push = (value: string) => {
+    const text = value.trim();
+    if (text.length < 5 || text.length > 200 || seen.has(text.toLowerCase())) return;
+    seen.add(text.toLowerCase());
+    facts.push(text);
+  };
+
+  for (const match of html.matchAll(/href=["']mailto:([^"'?\\s]+)/gi)) {
+    push(\`EMAIL: \${match[1]!.toLowerCase()}\`);
+  }
+  for (const match of html.matchAll(/(?:email-protection|cdn-cgi\\/l\\/email-protection)[#/]([a-fA-F0-9]{4,})/gi)) {
+    const decoded = decodeCloudflareEmail(match[1]!);
+    if (decoded) push(\`EMAIL: \${decoded}\`);
+  }
+  for (const match of html.matchAll(/data-cfemail=["']([a-fA-F0-9]+)["']/gi)) {
+    const decoded = decodeCloudflareEmail(match[1]!);
+    if (decoded) push(\`EMAIL: \${decoded}\`);
+  }
+  for (const match of html.matchAll(/\\b([a-z0-9._%+-]+@[a-z0-9.-]+\\.[a-z]{2,})\\b/gi)) {
+    const address = match[1]!.toLowerCase();
+    if (!/example\\.|sentry\\.|schema\\.|wixpress|cloudflare|wordpress|github\\.com|google\\.com/.test(address)) {
+      push(\`EMAIL: \${address}\`);
+    }
+  }
+  for (const match of html.matchAll(/href=["']tel:([^"']+)/gi)) {
+    push(\`PHONE: \${match[1]!.replace(/\\s+/g, " ").trim()}\`);
+  }
+
+  return facts.join("\\n");
+}
+
+`;
+
+if (observationBoundaryRe.test(s)) {
+  s = s.replace(observationBoundaryRe, observationReplacement);
+} else if (/function extractContactFactsFromHtml\(html: string\): string/.test(s)) {
+  throw new Error("observation identity boundary anchor is ambiguous; refusing to mutate source");
+} else {
+  throw new Error("observation identity boundary anchor missing");
+}
 
 fs.writeFileSync(targetPath, s);
-console.log("Applied Dig investigator hardening: bounded concurrency=4, 18s per-provider deadline, Groq->Mistral failover, no Boss/right-hand providers, and no global cross-target circuit");
+console.log(
+  `Applied canonical Dig hardening: provider=${llmStepAlreadyCanonical ? "already Groq->Mistral" : "Groq->Mistral"}; observation boundary=literal contacts only; no Boss/right-hand Dig providers; no global cross-target circuit`,
+);
