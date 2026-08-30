@@ -5,13 +5,9 @@ const rightHandPath = "artifacts/api-server/src/src/lib/nvidia-nim-case-reasonin
 let s = fs.readFileSync(path, "utf8");
 let r = fs.readFileSync(rightHandPath, "utf8");
 
-// Research-path autonomy: remove historical per-tool counters. Lifecycle and
-// provider budgets remain the only runtime ceilings.
 s = s.replace(/\n      if \(footprintCalls >= 4\) \{[\s\S]*?\n      \}\n/g, "\n");
 s = s.replace(/\n      if \(footprintCalls >= 3\) \{[\s\S]*?\n      \}\n/g, "\n");
 
-// The old hosted/free NVIDIA aliases returned HTTP 410 in the live audit. These
-// current inference API models are documented as active chat-completion models.
 const currentNvidia = "nvidia/nemotron-3-nano-30b-a3b";
 const secondaryNvidia = "nvidia/nemotron-3.5-lightning-30b-a3b";
 const nvidiaModelsRe = /const models = \[\s*process\.env\.NVIDIA_AGENTIC_MODEL,[\s\S]*?\n  \]\.filter\(\(m\): m is string => Boolean\(m && m\.trim\(\)\)\);/;
@@ -21,8 +17,6 @@ s = s.replace(nvidiaModelsRe, nvidiaModels);
 r = r.replace(/"nvidia\/llama-3\.3-nemotron-super-49b-v1\.5"/g, `"${currentNvidia}"`);
 r = r.replace(/"z-ai\/glm-5\.2"/g, `"${currentNvidia}"`);
 
-// Direct current Gemini adapter. Gemini 3.7 Flash is a current GA model; quota
-// and lifecycle errors are exposed rather than swallowed.
 const geminiRe = /async function callGeminiJson\(prompt: string\): Promise<\{ model: string; raw: string \} \| null> \{[\s\S]*?\n\}\n\nasync function callMistralJson/;
 if (!/gemini-3\.7-flash/.test(s)) {
   if (!geminiRe.test(s)) throw new Error("Gemini adapter anchor missing");
@@ -61,8 +55,6 @@ if (!/gemini-3\.7-flash/.test(s)) {
   s = s.replace(geminiRe, geminiFn);
 }
 
-// Provider diagnostics: status, model and transport error are observable, but
-// secrets and prompts are never logged.
 const providerSectionRe = /(async function callGroqJson[\s\S]*?)(\nfunction formatFindingsBag)/;
 const providerSection = s.match(providerSectionRe)?.[1];
 if (providerSection) {
@@ -72,9 +64,8 @@ if (providerSection) {
   s = s.replace(providerSectionRe, diagnosed + "$2");
 }
 
-// Provider circuit: after an all-provider failure, do not burn the remaining
-// discovery slots by repeating the same dead network calls. This is transport
-// resource protection only; a healthy model still owns every research action.
+// Idempotency: remove every previous declaration before inserting exactly one.
+s = s.replace(/\nlet agenticProviderCircuitUntil = 0;\n/g, "\n");
 const llmStepRe = /async function llmStep\(prompt: string\): Promise<\{ model: string; raw: string \} \| null> \{[\s\S]*?\n\}\n\nfunction formatFindingsBag/;
 const llmFn = [
   'let agenticProviderCircuitUntil = 0;',
@@ -112,8 +103,6 @@ const llmFn = [
   '      errors.push(reasons.slice(0, 500));',
   '    }',
   '  }',
-  '  // A short circuit prevents ten-target batches from hammering a dead/quota-exhausted',
-  '  // provider set. The circuit is not a research decision and expires automatically.',
   '  agenticProviderCircuitUntil = Date.now() + 60_000;',
   '  setAgenticLlmHealth(false, null, errors.join(";").slice(0, 1000));',
   '  logger.warn({ errors }, "[agentic] all LLM providers failed for step; circuit opened");',
@@ -135,8 +124,8 @@ if (!s.includes("Tool choice remains unconstrained by footprint counters")) {
 if (/footprintCalls >= [34]/.test(s)) throw new Error("hidden footprint tool cap remains");
 if (!s.includes(currentNvidia) || !s.includes(secondaryNvidia) || !r.includes(currentNvidia)) throw new Error("current NVIDIA model fallback missing");
 if (!s.includes("gemini-3.7-flash")) throw new Error("current Gemini Boss adapter missing");
-if (!s.includes("agenticProviderCircuitUntil")) throw new Error("provider circuit missing");
+if ((s.match(/let agenticProviderCircuitUntil = 0;/g) || []).length !== 1) throw new Error("provider circuit declaration is not unique");
 
 fs.writeFileSync(path, s);
 fs.writeFileSync(rightHandPath, r);
-console.log("Applied agentic runtime hardening: current NVIDIA inference models, Gemini diagnostics, provider circuit protection, and no model-path tool caps");
+console.log("Applied idempotent agentic runtime hardening: current NVIDIA inference models, Gemini diagnostics, provider circuit protection, and no model-path tool caps");
