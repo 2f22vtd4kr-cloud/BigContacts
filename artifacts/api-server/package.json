@@ -5,11 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "export NODE_ENV=development && pnpm run build && pnpm run start",
-    "prebuild": "node ../../scripts/patch-agentic-final.mjs && node ../../scripts/patch-discovery-batch-v2.mjs && node ../../scripts/patch-provider-lifecycle-final.mjs",
+    "prebuild": "node ../../scripts/patch-agentic-final.mjs && node ../../scripts/patch-discovery-batch-v2.mjs && node ../../scripts/patch-provider-lifecycle-final.mjs && node ../../scripts/patch-gemini-agentic-final.mjs",
     "build": "node ./build.mjs",
-    "pretypecheck": "node ../../scripts/patch-agentic-final.mjs && node ../../scripts/patch-discovery-batch-v2.mjs && node ../../scripts/patch-provider-lifecycle-final.mjs",
+    "pretypecheck": "node ../../scripts/patch-agentic-final.mjs && node ../../scripts/patch-discovery-batch-v2.mjs && node ../../scripts/patch-provider-lifecycle-final.mjs && node ../../scripts/patch-gemini-agentic-final.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "pretest": "node ../../scripts/patch-agentic-final.mjs && node ../../scripts/patch-discovery-batch-v2.mjs && node ../../scripts/patch-provider-lifecycle-final.mjs",
+    "pretest": "node ../../scripts/patch-agentic-final.mjs && node ../../scripts/patch-discovery-batch-v2.mjs && node ../../scripts/patch-provider-lifecycle-final.mjs && node ../../scripts/patch-gemini-agentic-final.mjs",
     "test": "vitest run"
   },
   "dependencies": {
