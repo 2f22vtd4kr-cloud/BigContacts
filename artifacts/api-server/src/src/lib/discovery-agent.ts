@@ -24,10 +24,69 @@ type DiscoveryFinding = {
   scope?: "organization" | "candidate" | "unknown";
 };
 
-const INVALID_PERSON_NAME_WORDS = new Set(["email", "phone", "address", "street", "product", "comparison", "person", "www", "com"]);
-const INVALID_PERSON_NAME_PHRASES = ["security issues", "security issue", "chief executive officer", "executive officer", "forbes list", "forbes billionaires", "the billionaire", "the billionaires"];
-const LIST_ONLY_SOURCE_PATTERNS = [/forbes\.com\/billionaires(?:\/|\?|$)/i,/forbes\.com\/real-time-billionaires(?:\/|\?|$)/i,/forbes\.com\/lists\/[^\s/]*billionaires?/i,/forbes\.com\/lists\/[^\s/]*richest/i,/bloomberg\.com\/billionaires(?:\/|\?|$)/i];
+const INVALID_PERSON_NAME_WORDS = new Set([
+  "email", "phone", "address", "street", "product", "comparison", "person", "www", "com",
+]);
 
+/**
+ * These are identity-safety labels, not a research ranking. They exist because
+ * model/HTML extraction can surface a perfectly name-shaped two-word phrase
+ * that is actually a sector, title, UI label, list heading, or generic prose.
+ */
+const INVALID_PERSON_NAME_PHRASES = [
+  "security issues",
+  "security issue",
+  "chief executive officer",
+  "executive officer",
+  "president person",
+  "private equity",
+  "venture capital",
+  "real estate",
+  "asset management",
+  "wealth management",
+  "investment management",
+  "private markets",
+  "operational enablement",
+  "product comparisons",
+  "product comparisons sage products",
+  "contact us",
+  "about us",
+  "forbes list",
+  "forbes billionaires",
+  "the billionaire",
+  "the billionaires",
+];
+
+const LIST_ONLY_SOURCE_PATTERNS = [
+  /forbes\.com\/billionaires(?:\/|\?|$)/i,
+  /forbes\.com\/real-time-billionaires(?:\/|\?|$)/i,
+  /forbes\.com\/lists\/[^\s/]*billionaires?/i,
+  /forbes\.com\/lists\/[^\s/]*richest/i,
+  /bloomberg\.com\/billionaires(?:\/|\?|$)/i,
+];
+
+function normalizedPersonText(value: string): string {
+  return value
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLowerCase()
+    .replace(/[.'’\-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function isInvalidIdentityPhrase(name: string): boolean {
+  const normalized = normalizedPersonText(name);
+  if (!normalized) return true;
+  if (INVALID_PERSON_NAME_PHRASES.some((phrase) =>
+    normalized === phrase
+    || normalized.startsWith(`${phrase} `)
+    || normalized.endsWith(` ${phrase}`)
+    || normalized.includes(` ${phrase} `),
+  )) return true;
+  if (/^state\s+st$/i.test(normalized)) return true;
+  return false;
+}
 
 export function hasStrongIdentityEvidence(input: {
   name: string;
@@ -37,13 +96,14 @@ export function hasStrongIdentityEvidence(input: {
   sourceUrls: string[];
 }): boolean {
   const name = input.name.trim().replace(/\s+/g, " ");
-  const normalized = name.toLowerCase();
+  const normalized = normalizedPersonText(name);
   const urls = input.sourceUrls.filter((u) => /^https?:\/\/\S+$/i.test(String(u)));
 
   // Safety boundary only: reject values that are structurally recognizable as
   // metadata, labels, addresses, products, departments, or organization text.
   // Do NOT require the explanatory note to repeat the name: doing so would
   // over-filter legitimate model findings and would turn safety into ranking.
+  if (isInvalidIdentityPhrase(name)) return false;
   if (/(?:^|\b)(email|phone|address|street|zip|postal|product|comparison|enablement|operational|person)(?:\b|$)/i.test(normalized)) return false;
   if (/^president(?:\s+person)?$/i.test(normalized)) return false;
   if (/^(?:[a-z]+\.)?[a-z]{2,}\s+(?:email|phone)$/i.test(normalized)) return false;
@@ -60,15 +120,14 @@ function hasIndependentSource(sourceUrls: string[]): boolean {
   return urls.length > 0 && urls.some((url) => !LIST_ONLY_SOURCE_PATTERNS.some((pattern) => pattern.test(url)));
 }
 
-export function isWellFormedPersonCandidate(candidate: Pick<DiscoveryCandidate,"name"|"sourceUrls">): boolean {
+export function isWellFormedPersonCandidate(candidate: Pick<DiscoveryCandidate, "name" | "sourceUrls">): boolean {
   const name = String(candidate.name ?? "").trim().replace(/\s+/g, " ");
   const words = name.split(" ");
-  const normalized = name.toLowerCase().replace(/[.'’\-]+/g, " ").replace(/\s+/g, " ").trim();
+  const normalized = normalizedPersonText(name);
   if (words.length < 2 || words.length > 5) return false;
   if (!/^\p{L}[\p{L}.'’\-]*(?:\s+\p{L}[\p{L}.'’\-]*){1,4}$/u.test(name)) return false;
   if (words.some((w) => INVALID_PERSON_NAME_WORDS.has(w.toLowerCase().replace(/[.'’\-]/g, "")))) return false;
-  if (INVALID_PERSON_NAME_PHRASES.some((p) => normalized === p || normalized.includes(` ${p} `) || normalized.startsWith(`${p} `) || normalized.endsWith(` ${p}`))) return false;
-  if (/^state\s+st$/i.test(normalized)) return false;
+  if (isInvalidIdentityPhrase(normalized)) return false;
   if (!words.some((w) => /^\p{Lu}/u.test(w))) return false;
   const sourceUrls = (candidate.sourceUrls ?? []).map(String);
   return sourceUrls.some((url) => /^https?:\/\/\S+$/i.test(url)) && hasIndependentSource(sourceUrls);
@@ -85,30 +144,6 @@ function parsePersonFindings(findings: DiscoveryFinding[]): DiscoveryCandidate[]
     const sourceUrls = (extra.sourceUrls ?? []).filter((u) => /^https?:\/\//i.test(u)).slice(0, 6);
     if (!isWellFormedPersonCandidate({ name: n, sourceUrls })) return;
     if (!hasStrongIdentityEvidence({ name: n, role: extra.role, company: extra.company, basis: extra.basis, sourceUrls })) return;
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
     seen.add(key);
     out.push({
       name: n,
@@ -117,7 +152,7 @@ function parsePersonFindings(findings: DiscoveryFinding[]): DiscoveryCandidate[]
       basis: extra.basis || "Public web discovery",
       sourceUrls,
       lane: extra.lane || "discovery-agent",
-      confidence: sourceUrls.length ? .55 : .35,
+      confidence: sourceUrls.length ? 0.55 : 0.35,
     });
   };
   for (const f of findings ?? []) {
@@ -162,14 +197,12 @@ export async function runDiscoveryAgent(input: {
   const defaultSlotTimeout = depth === "fast" ? 75_000 : depth === "deep" ? 300_000 : 210_000;
   const suppliedTimeout = input.hardTimeoutMs ?? defaultSlotTimeout;
   const slotTimeout = Math.max(suppliedTimeout, defaultSlotTimeout);
-  const aggregateTimeout = Math.max(slotTimeout + 120_000, 600_000);
-  const batchStarted = Date.now();
   const span = publishDigSpan({ jobId, spanType: "stage", name: "discovery_agent", status: "active", agentName: "discovery", inputSummary: `depth=${depth} batch=${requestedBatch} lane=${input.laneHint ?? "model-choice"}` });
 
   const baseObjective = [
     "DISCOVERY ASSIGNMENT — find a real person worth a later public-contact dig.",
     "You are not researching a person supplied by the operator. You are choosing whom the bureau should investigate next.",
-    "Act like a strong human open-web researcher with a limited research budget. Your first priority is information gain: find a concrete public story, business, ownership fact, transaction, filing, leadership page, trade publication, regional report, or other source that naturally exposes a NAMED PERSON.",
+    "Act like a strong human open-web researcher with a limited execution budget. Your first priority is information gain: find a concrete public story, business, ownership fact, transaction, filing, leadership page, trade publication, regional report, or other source that naturally exposes a NAMED PERSON.",
     "The objective is not to enumerate rich or famous people. Wealth is a relevance clue, not a discovery method. A realistic principal/operator with a public operating-company or intermediary surface is often a much better target than a billionaire or celebrity whose access is heavily protected.",
     "Prefer the kind of person a serious business researcher could plausibly reach through a company, adviser, professional association, regional business publication, transaction, family-office, foundation, conference, or other public/intermediary surface. Mid-market and upper-middle-market principals are often more useful than globally famous names. Do not assume that a very large net worth means a better contact result.",
     "Do not spend discovery iterations on Forbes/Bloomberg/richest/billionaire rankings, celebrity lists, generic HNWI lists, or similar fame enumerations. Those lists are low expected-value discovery because they optimize for fame rather than an attainable route. If search results contain such a list, use it only as incidental context and pivot to the underlying operating company, a named principal, an ownership story, a transaction, a regional business source, a family office, a foundation, a filing, or another concrete public surface. Do not walk the ranking.",
@@ -194,7 +227,6 @@ export async function runDiscoveryAgent(input: {
   let degraded = false;
   let lastModel: string | undefined;
   let lastMessage = "";
-  const batchHistory: string[] = [];
 
   try {
     // Real batch execution: all discovery slots in a batch are model-driven and
@@ -217,7 +249,7 @@ export async function runDiscoveryAgent(input: {
           jobId,
           onLiveStep: (step) => {
             try {
-              spanFromLiveStep({ jobId, targetName: "discovery", tool: step.tool || step.action, label: step.query || step.url || step.action, detail: step.detail || step.query || step.url, status: step.status === "error" ? "error" : step.status === "active" ? "active" : "ok", agentName: "discovery" });
+              spanFromLiveStep({ jobId, targetName: "discovery", tool: step.tool || step.action, label: step.query || step.url || step.action, detail: step.detail || step.url || step.query, status: step.status === "error" ? "error" : step.status === "active" ? "active" : "ok", agentName: "discovery" });
             } catch { /* spans best-effort */ }
             input.onLiveStep?.(step);
           },
@@ -241,7 +273,6 @@ export async function runDiscoveryAgent(input: {
       totalVisits += result.visits ?? 0;
       lastModel = result.model || lastModel;
       lastMessage = result.error || result.status || "completed";
-      batchHistory.push(...(result.trajectory ?? []).slice(-8));
       if (result.status === "unavailable" || result.status === "error") degraded = true;
       for (const candidate of slotCandidates) {
         const key = candidate.name.toLowerCase();
