@@ -18,9 +18,17 @@ IDENTITY
 ═══════════════════════════════════════
 Repo: https://github.com/2f22vtd4kr-cloud/BigContacts
 Branch: main
-Tip floor: 42b36b0 or newer (prefer latest main; Batch 10+ API build repair)
+Tip floor: 42b36b0 or newer (prefer latest main; current main includes discovery realism hardening and regression checks)
 Product: AI free-ReAct OSINT desk — real public contact routes to HNWIs / principals / operators.
-Law: models invent queries and choose tools; tools execute. NEVER force_* hops, GROK-PARITY, prefer-lists, or scripted dig playbooks. NEVER invent people, contacts, or URLs.
+Law: models invent queries and choose tools; tools execute. NEVER force_* hops, GROK-PARITY, prefer-lists, target-fitness ranking in model-selected discovery, or scripted dig playbooks. NEVER invent people, contacts, or URLs.
+
+DISCOVERY REALISM:
+• Practical reachability beats fame and headline net worth.
+• Prefer owners/operators/principals/investors/family-office principals/senior executives where a legitimate public or intermediary route could plausibly exist.
+• Do not spend discovery budget enumerating billionaire/richest-person rankings.
+• Forbes/Bloomberg-style billionaire lists may support an already-identified lead, but a list-only candidate is not valid discovery provenance.
+• If a billionaire list appears naturally, pivot to the underlying operating company, named principals, office/assistant/foundation/IR/filing route, or another concrete public surface.
+• Never invent or estimate wealth, access, relationships, or contacts merely to make a target look useful.
 
 ═══════════════════════════════════════
 PLATFORM (Replit Aug 2026+)
@@ -119,6 +127,7 @@ test -f artifacts/apex-finder/dist/public/index.html || (echo DESK_BUILD_FAILED 
 pnpm --dir artifacts/api-server run build
 pnpm run check:no-force-dig
 pnpm run check:free-react
+pnpm run check:discovery-quality
 
 ═══════════════════════════════════════
 STEP 5 — BOOT + HEALTH
@@ -162,6 +171,12 @@ When ≥1 entity exists OR job idle: DELETE /api/ingest/atlas-lock
 Do NOT leave discovery running forever. Do NOT start a second job while 409.
 If discovery blocks the API event loop: restart API Server workflow once, then continue from entities list.
 
+During the live audit, immediately stop and report if the trajectory shows:
+• Phase 0 / Pre-run cross-references / fixed registry sweep
+• European venue-owner / EDGAR batch / template-slate discovery as the driver
+• MODEL TARGET containing prose, titles, organizations, or fragments such as “security issues”
+• a billionaire/richest-person list being used as the continuing discovery lane without a concrete pivot
+
 ═══════════════════════════════════════
 STEP 8 — PROOF DIG (required)
 ═══════════════════════════════════════
@@ -192,7 +207,7 @@ PASS CRITERIA
 ═══════════════════════════════════════
 • tip 42b36b0+
 • install + desk + api build OK
-• no-force-dig OK · free-react OK
+• no-force-dig OK · free-react OK · discovery-quality OK
 • desk non-blank at /
 • bureauIntegrity not critical
 • redis connected (operator Upstash)
@@ -211,6 +226,7 @@ desk index.html:
 api build OK:
 no-force-dig:
 free-react:
+discovery-quality:
 healthz integrity:
 redis:
 desk non-blank:
