@@ -15,11 +15,13 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const discovery = fs.readFileSync(path.join(root, "artifacts/api-server/src/src/lib/discovery-agent.ts"), "utf8");
 const admit = fs.readFileSync(path.join(root, "artifacts/api-server/src/src/lib/discovery-agent-admit.ts"), "utf8");
 const orientation = fs.readFileSync(path.join(root, "artifacts/api-server/src/src/lib/apex-bureau-orientation.ts"), "utf8");
+const repair = fs.readFileSync(path.join(root, "scripts/apply-apex-identity-integrity-fix.mjs"), "utf8");
 
 const requiredDiscovery = [
   "isWellFormedPersonCandidate",
   "LIST_ONLY_SOURCE_PATTERNS",
   "hasIndependentSource",
+  "hasStrongIdentityEvidence",
   "DISCOVERY ASSIGNMENT",
   "information gain",
   "Do not spend discovery iterations on Forbes/Bloomberg/richest/billionaire rankings",
@@ -28,6 +30,7 @@ const requiredDiscovery = [
   "Before every action, silently sanity-check the direction",
   "If a company is discovered before its principal, that company is an intermediate lead",
   "Before finishing, ask yourself: do I have a full personal name",
+  "state\\s+st",
 ];
 
 const requiredOrientation = [
@@ -44,6 +47,20 @@ for (const marker of requiredDiscovery) {
 for (const marker of requiredOrientation) {
   if (!orientation.includes(marker)) failures.push(`apex-bureau-orientation.ts missing: ${marker}`);
 }
+
+const strongEvidenceDefinitionCount = (discovery.match(/function hasStrongIdentityEvidence\s*\(/g) || []).length;
+if (strongEvidenceDefinitionCount !== 1) {
+  failures.push(`discovery-agent.ts must contain exactly one hasStrongIdentityEvidence definition; found ${strongEvidenceDefinitionCount}`);
+}
+
+const strongEvidenceGate = `if (!hasStrongIdentityEvidence({ name: n, role: extra.role, company: extra.company, basis: extra.basis, sourceUrls })) return;`;
+const strongEvidenceGateCount = (discovery.match(new RegExp(strongEvidenceGate.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g")) || []).length;
+if (strongEvidenceGateCount !== 1) {
+  failures.push(`discovery-agent.ts must apply the source-bound gate exactly once; found ${strongEvidenceGateCount}`);
+}
+
+if (!repair.includes("s.split(gate).join(\"\")")) failures.push("identity repair script is not idempotent");
+if (!repair.includes("state\\\\s+st")) failures.push("identity repair script does not preserve the State St regression repair");
 
 const modelBranchStart = admit.indexOf("if (options.modelSelected)");
 const modelBranchEnd = admit.indexOf("const fitness =", modelBranchStart);
