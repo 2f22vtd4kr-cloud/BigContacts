@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { hasStrongIdentityEvidence, isWellFormedPersonCandidate } from "../lib/discovery-agent";
+import {
+  hasStrongIdentityEvidence,
+  isWellFormedPersonCandidate,
+  parsePersonFindings,
+} from "../lib/discovery-agent";
 
 const source = ["https://example.com/about"];
 
@@ -47,6 +51,14 @@ describe("discovery agent identity boundary", () => {
     ).toBe(false);
   });
 
+  it("rejects a synthetic search URL as identity provenance", () => {
+    expect(
+      passesDiscoveryIdentityGate("Jane Example", [
+        "https://www.google.com/search?q=%22Jane%20Example%22",
+      ]),
+    ).toBe(false);
+  });
+
   it("accepts a Forbes-mentioned person when an independent source is also present", () => {
     expect(
       passesDiscoveryIdentityGate("Jane Example", [
@@ -54,5 +66,39 @@ describe("discovery agent identity boundary", () => {
         "https://example.com/leadership/jane-example",
       ]),
     ).toBe(true);
+  });
+
+  it("does not admit a model-asserted person unless the cited page was actually visited", () => {
+    const finding = [{
+      personName: "Jane Example",
+      scope: "candidate" as const,
+      sourceUrls: ["https://example.com/leadership/jane-example"],
+      note: "named on public page",
+    }];
+
+    expect(parsePersonFindings(finding, [
+      "step1: web_search private company founder interview",
+    ])).toEqual([]);
+
+    expect(parsePersonFindings(finding, [
+      "step1: web_search private company founder interview",
+      "step2: visit https://example.com/leadership/jane-example",
+    ])).toEqual([
+      expect.objectContaining({ name: "Jane Example" }),
+    ]);
+  });
+
+  it("accepts browser-fetch provenance as an observed source", () => {
+    const finding = [{
+      value: "person: Jane Example | Founder | Example Co",
+      scope: "candidate" as const,
+      sourceUrls: ["https://example.com/about"],
+    }];
+
+    expect(parsePersonFindings(finding, [
+      "step1: browser_fetch https://example.com/about",
+    ])).toEqual([
+      expect.objectContaining({ name: "Jane Example", company: "Example Co" }),
+    ]);
   });
 });
