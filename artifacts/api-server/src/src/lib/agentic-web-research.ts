@@ -145,7 +145,7 @@ async function toolWebSearchSerper(query: string): Promise<{ text: string; urls:
         signal: AbortSignal.timeout(12_000),
       });
       if (!resp.ok) {
-        logger.warn({ provider: "mistral", status: resp.status, model }, "agentic provider rejected request");
+        logger.warn({ provider: "serper", status: resp.status }, "agentic provider rejected request");
         continue;
       }
       const data = (await resp.json()) as {
@@ -987,30 +987,64 @@ async function callGroqJson(prompt: string): Promise<{ model: string; raw: strin
 }
 
 async function callGeminiJson(prompt: string): Promise<{ model: string; raw: string } | null> {
-  const key = process.env.GEMINI_API_KEY?.trim();
-  if (!key) return null;
-  const model = (process.env.GEMINI_AGENTIC_MODEL || process.env.GEMINI_BOSS_MODEL || "gemini-3.7-flash").trim();
-  try {
-    const resp = await fetch("https://generativelanguage.googleapis.com/v1beta/models/" + encodeURIComponent(model) + ":generateContent", {
-      method: "POST",
-      headers: { "x-goog-api-key": key, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: apexOrientationFor("dig_agent") + "\nReply with ONE JSON object only for this ReAct step." }] },
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-        generationConfig: { maxOutputTokens: 1536, thinkingConfig: { thinkingLevel: "medium" } },
-      }),
-      signal: AbortSignal.timeout(30_000),
-    });
-    if (!resp.ok) {
-      const body = (await resp.text()).slice(0, 600);
-      logger.warn({ provider: "gemini", status: resp.status, model, body }, "agentic provider rejected request");
-      return null;
+  const keys = [
+    "GEMINI_API_KEY",
+    "GEMINI_KEY",
+    ...Array.from({ length: 13 }, (_, i) => `GEMINI_API_KEY_${i + 1}`),
+  ]
+    .map((n) => ({ name: n, key: (process.env[n] ?? "").trim() }))
+    .filter((entry) => entry.key.length > 0);
+  if (!keys.length) return null;
+
+  const models = [
+    process.env.GEMINI_AGENTIC_MODEL,
+    process.env.GEMINI_BOSS_MODEL,
+    "gemini-3.7-flash",
+    "gemini-3.6-flash",
+    "gemini-3.5-flash",
+    "gemini-3.5-flash-lite",
+    "gemini-3.1-flash-lite",
+  ].filter((m, i, all): m is string => Boolean(m && m.trim()) && all.indexOf(m) === i);
+
+  for (const entry of keys) {
+    for (const model of models) {
+      try {
+        const resp = await fetch(
+          "https://generativelanguage.googleapis.com/v1beta/models/" + encodeURIComponent(model) + ":generateContent",
+          {
+            method: "POST",
+            headers: { "x-goog-api-key": entry.key, "Content-Type": "application/json" },
+            body: JSON.stringify({
+              systemInstruction: {
+                parts: [{
+                  text: apexOrientationFor("dig_agent") +
+                    "\nReturn exactly one JSON action object. Preserve your own research judgment; the harness only executes the action you choose.",
+                }],
+              },
+              contents: [{ role: "user", parts: [{ text: prompt }] }],
+              generationConfig: {
+                maxOutputTokens: 4096,
+                thinkingConfig: { thinkingLevel: "high" },
+              },
+            }),
+            signal: AbortSignal.timeout(50_000),
+          },
+        );
+        if (!resp.ok) {
+          const body = (await resp.text()).slice(0, 500);
+          logger.warn({ provider: "gemini", keyName: entry.name, status: resp.status, model, body }, "agentic provider rejected request");
+          // 401/403 is a key problem; move to the next key. 404 is a model
+          // lifecycle problem; move to the next model. 429/503 are capacity
+          // problems; move through the configured pool instead of killing the turn.
+          continue;
+        }
+        const data = await resp.json() as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
+        const raw = data.candidates?.[0]?.content?.parts?.map((p) => p.text || "").join("").trim() || "";
+        if (raw) return { model: `gemini:${model}`, raw };
+      } catch (err: any) {
+        logger.warn({ provider: "gemini", keyName: entry.name, model, error: err?.message }, "agentic provider call failed");
+      }
     }
-    const data = await resp.json() as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
-    const raw = data.candidates?.[0]?.content?.parts?.map((p) => p.text || "").join("").trim() || "";
-    if (raw) return { model: "gemini:" + model, raw };
-  } catch (err: any) {
-    logger.warn({ provider: "gemini", model, error: err?.message }, "agentic Gemini call failed");
   }
   return null;
 }
@@ -1048,7 +1082,7 @@ async function callMistralJson(prompt: string): Promise<{ model: string; raw: st
         signal: AbortSignal.timeout(45_000),
       });
       if (!resp.ok) {
-        logger.warn({ provider: "nvidia", status: resp.status, model }, "agentic provider rejected request");
+        logger.warn({ provider: "mistral", status: resp.status, model }, "agentic provider rejected request");
         continue;
       }
       const data = (await resp.json()) as { choices?: Array<{ message?: { content?: string } }> };
@@ -1109,6 +1143,7 @@ async function callNvidiaJson(prompt: string): Promise<{ model: string; raw: str
 
 
 
+
 let agenticProviderCircuitUntil = 0;
 
 async function llmStep(prompt: string): Promise<{ model: string; raw: string } | null> {
@@ -1121,7 +1156,7 @@ async function llmStep(prompt: string): Promise<{ model: string; raw: string } |
     [["gemini", callGeminiJson], ["nvidia", callNvidiaJson]],
     [["groq", callGroqJson], ["mistral", callMistralJson]],
   ];
-  const providerDecisionTimeoutMs = 18_000;
+  const providerDecisionTimeoutMs = 55_000;
   const errors: string[] = [];
   for (const stage of stages) {
     const attempts = stage.map(async ([name, fn]) => {
@@ -1995,24 +2030,6 @@ export async function runAgenticWebResearch(input: {
 
     // Model-led only. Tool choice remains unconstrained by footprint counters; lifecycle budgets are the only runtime ceiling.
 
-    // Soft stagnation: if the last searches repeated the same query, nudge the model.
-    {
-      const recentSearches = history
-        .map((h) => {
-          const m = h.match(/web_search\s+(.+)$/i) || h.match(/det_search\s+(.+)$/i) || h.match(/search\s+(.+)$/i);
-          return m ? m[1]!.trim().toLowerCase() : null;
-        })
-        .filter(Boolean) as string[];
-      if (recentSearches.length >= 2) {
-        const a = recentSearches[recentSearches.length - 1]!;
-        const b = recentSearches[recentSearches.length - 2]!;
-        if (a === b && a.length > 8 && !/stagnation/i.test(lastObservation)) {
-          lastObservation =
-            `${lastObservation}\n\n[STAGNATION] The same search query just ran twice. ` +
-            `Change the query, visit a queued URL, or done with whatever findings you have — do not repeat the identical search.`;
-        }
-      }
-    }
 
     const llmStepWithHeartbeat = async (stepPrompt: string) => {
       const started = Date.now();
@@ -2088,11 +2105,6 @@ export async function runAgenticWebResearch(input: {
         history.push(`step${i + 1}: serp_email_findings=${snippetEmails.length}`);
       }
       lastObservation = formatSearchObservation(action.query, sr);
-      // Soft nudge: if we already have company-looking URLs and no visits yet, tell the model to visit
-      if (visits === 0 && sr.urls.length > 0) {
-        lastObservation +=
-          `\n\n[Note] ${sr.urls.length} URL(s) available. Visit a primary company/contact page when ready — your choice of which.`;
-      }
       emitLive({
         action: "web_search",
         query: action.query,
@@ -2402,14 +2414,9 @@ export async function runAgenticWebResearch(input: {
       continue;
     }
 
-    // done — only soft-reject pure no-ops (zero work + zero findings). Model owns when to finish.
-    if (action.findings.length === 0 && findings.length === 0 && searches === 0 && visits === 0 && i < maxIter - 1) {
-      history.push(`step${i + 1}: done_rejected (no research yet)`);
-      lastObservation =
-        `You returned done with no searches, visits, or findings. ` +
-        `Run web_search or visit a page for "${name}"${input.companyName ? ` / "${input.companyName}"` : ""} — your query.`;
-      continue;
-    }
+    // done is entirely model-owned. Empty findings are valid: they mean the
+    // model judged that no attributable route was established. Deterministic
+    // validation still applies to any findings that the model does return.
     findings = mergeFindings(findings, action.findings);
     history.push(
       `step${i + 1}: done findings=${findings.length}` +
