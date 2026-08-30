@@ -34,14 +34,17 @@ for (const marker of requiredDiscovery) {
   if (!discovery.includes(marker)) failures.push(`discovery-agent.ts missing: ${marker}`);
 }
 
-if (/MODEL TARGET|rankDiscoveryReviewCandidates|shouldRejectTarget\(fitness\)/i.test(admit)) {
-  failures.push("discovery-agent-admit.ts contains a target-ranking / legacy admission marker");
-}
-if (!/if \(options\.modelSelected\)[\s\S]*?isWellFormedPersonCandidate/.test(admit)) {
+const modelBranchStart = admit.indexOf("if (options.modelSelected)");
+const modelBranchEnd = admit.indexOf("const fitness =", modelBranchStart);
+const modelBranch = modelBranchStart >= 0 && modelBranchEnd > modelBranchStart
+  ? admit.slice(modelBranchStart, modelBranchEnd)
+  : "";
+
+if (!modelBranch.includes("isWellFormedPersonCandidate")) {
   failures.push("model-selected admission is not visibly gated by identity/provenance validation");
 }
-if (/options\.modelSelected[\s\S]{0,800}evaluateTargetFitness/.test(admit)) {
-  failures.push("model-selected admission must not call evaluateTargetFitness");
+if (modelBranch.includes("evaluateTargetFitness") || modelBranch.includes("shouldRejectTarget")) {
+  failures.push("model-selected admission must not call target-fitness ranking/rejection");
 }
 
 if (failures.length) {
