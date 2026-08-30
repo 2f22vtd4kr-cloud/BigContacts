@@ -1107,6 +1107,8 @@ let agenticProviderCircuitUntil = 0;
 
 let agenticProviderCircuitUntil = 0;
 
+let agenticProviderCircuitUntil = 0;
+
 async function llmStep(prompt: string): Promise<{ model: string; raw: string } | null> {
   const now = Date.now();
   if (now < agenticProviderCircuitUntil) {
