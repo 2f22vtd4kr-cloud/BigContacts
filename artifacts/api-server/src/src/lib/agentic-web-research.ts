@@ -145,7 +145,7 @@ async function toolWebSearchSerper(query: string): Promise<{ text: string; urls:
         signal: AbortSignal.timeout(12_000),
       });
       if (!resp.ok) {
-        logger.warn({ provider: "serper", status: resp.status }, "agentic provider rejected request");
+        logger.warn({ provider: "mistral", status: resp.status, model }, "agentic provider rejected request");
         continue;
       }
       const data = (await resp.json()) as {
@@ -1111,7 +1111,7 @@ async function callMistralJson(prompt: string): Promise<{ model: string; raw: st
         signal: AbortSignal.timeout(45_000),
       });
       if (!resp.ok) {
-        logger.warn({ provider: "serper", status: resp.status }, "agentic provider rejected request");
+        logger.warn({ provider: "mistral", status: resp.status, model }, "agentic provider rejected request");
         continue;
       }
       const data = (await resp.json()) as { choices?: Array<{ message?: { content?: string } }> };
@@ -1131,8 +1131,8 @@ async function callNvidiaJson(prompt: string): Promise<{ model: string; raw: str
   const models = [
     process.env.NVIDIA_AGENTIC_MODEL,
     process.env.NVIDIA_NIM_MODEL,
-    "nvidia/nemotron-3-nano-30b-a3b",
     "nvidia/nemotron-3.5-lightning-30b-a3b",
+    "nvidia/nemotron-3-super-120b-a12b",
   ].filter((m): m is string => Boolean(m && m.trim()));
   for (const model of models) {
     try {
