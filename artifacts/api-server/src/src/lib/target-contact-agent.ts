@@ -39,8 +39,8 @@ export function findingsToContacts(
   return findings.map((f) => ({
     vectorType: f.vectorType,
     value: f.value,
-    scope: f.scope,
-    personName: String(f.scope).toLowerCase() === "candidate" ? (f.personName ?? personName) : (f.personName ?? null),
+    scope: String(f.scope).toLowerCase() === "candidate" ? "candidate" : "organization",
+    personName: String(f.scope).toLowerCase() === "candidate" ? (f.personName ?? personName) : null,
     role: f.role,
     sourceUrls: f.sourceUrls,
     note: `target-agent:${f.note}`,
