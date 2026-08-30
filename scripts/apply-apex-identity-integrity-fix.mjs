@@ -38,6 +38,16 @@ function hasStrongIdentityEvidence(input: {
   s = s.slice(0, idx) + helper + "\n" + s.slice(idx);
 }
 
+// Repair the exact historical address fragment that previously survived the
+// person-shape regex. Keep this narrow: it is an identity-safety guard, not a
+// general name-ranking system.
+const stateStreetGuard = `  if (/^state\\s+st$/i.test(normalized)) return false;`;
+if (!s.includes(stateStreetGuard)) {
+  const marker = `  if (!words.some((w) => /^\\p{Lu}/u.test(w))) return false;`;
+  if (!s.includes(marker)) throw new Error("person-shape marker missing");
+  s = s.replace(marker, `${stateStreetGuard}\n${marker}`);
+}
+
 // Make the repair idempotent. Older versions blindly appended the same gate on
 // every CI run, producing repeated checks in the source. Remove all copies and
 // insert exactly one immediately after the structural person gate.
