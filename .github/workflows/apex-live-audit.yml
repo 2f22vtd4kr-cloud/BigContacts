@@ -52,6 +52,7 @@ jobs:
         run: |
           node scripts/apply-free-react-purity-fix.mjs
           node scripts/apply-agentic-runtime-hardening.mjs
+          node scripts/patch-agentic-runtime.mjs
           node scripts/apply-apex-identity-integrity-fix.mjs
           node scripts/generate-apex-research-agent-integrity-plan.mjs
           git config user.name "github-actions[bot]"
@@ -61,6 +62,7 @@ jobs:
             artifacts/api-server/src/src/lib/discovery-agent.ts \
             artifacts/api-server/src/src/lib/nvidia-nim-case-reasoning.ts \
             scripts/apply-agentic-runtime-hardening.mjs \
+            scripts/patch-agentic-runtime.mjs \
             scripts/generate-apex-research-agent-integrity-plan.mjs \
             docs/bureau-plan/40K_RESEARCH_AGENT_INTEGRITY_PLAN.md
           git add -f docs/bureau-plan/40K_RESEARCH_AGENT_INTEGRITY_PLAN.md
@@ -93,6 +95,7 @@ jobs:
           pnpm run check:discovery-quality
           pnpm run check:trajectory
           pnpm run check:comparison-contract
+          pnpm run check:agentic-runtime
           pnpm --dir artifacts/api-server exec vitest run src/src/test/discovery-agent-parse.test.ts
       - name: Provider catalog preflight (diagnostic only)
         run: |
