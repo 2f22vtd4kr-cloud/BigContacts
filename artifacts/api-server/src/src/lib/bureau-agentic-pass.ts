@@ -56,7 +56,11 @@ export function findingsToBureauContacts(
     vectorType: f.vectorType,
     value: f.value,
     scope: f.scope,
-    personName: f.personName ?? fallbackPersonName,
+    // Candidate-scoped findings may inherit the already-verified target name.
+    // Organization findings must stay organization-scoped and nameless; using
+    // the target as a fallback here previously risked turning info@/contact@
+    // into a personal contact merely because the target was known.
+    personName: f.scope === "candidate" ? (f.personName ?? fallbackPersonName) : (f.personName ?? null),
     role: f.role,
     sourceUrls: f.sourceUrls,
     note: `bureau-agentic:${f.note}`,
