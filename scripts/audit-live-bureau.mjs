@@ -22,11 +22,37 @@ const isHttpUrl = (value) => {
   try { const u = new URL(value); return u.protocol === "http:" || u.protocol === "https:"; }
   catch { return false; }
 };
+const normalized = (value) => String(value ?? "").trim().replace(/\s+/g, " ").toLowerCase();
+const malformedTargetPatterns = [
+  /^com email$/i,
+  /^president person$/i,
+  /^state st$/i,
+  /^security issues?$/i,
+  /^chief executive officer$/i,
+  /^private equity$/i,
+  /^venture capital$/i,
+  /^real estate$/i,
+  /^asset management$/i,
+  /^wealth management$/i,
+  /^investment management$/i,
+  /^private markets$/i,
+  /^operational enablement$/i,
+  /^product comparisons(?: sage products)?$/i,
+  /^contact us$/i,
+  /^about us$/i,
+  /^forbes billionaires?$/i,
+  /^(?:the )?(?:billionaires?|richest people|wealthiest people)(?: list| ranking| rankings)?$/i,
+];
+const looksMalformedTarget = (name) => {
+  const value = normalized(name);
+  if (!value) return true;
+  if (malformedTargetPatterns.some((re) => re.test(value))) return true;
+  const words = value.split(" ");
+  if (words.length < 2 || words.length > 5) return true;
+  return words.some((w) => ["email","phone","address","street","product","comparison","person","www","com"].includes(w));
+};
 
 // Do not misclassify a build/startup failure as an LLM or research failure.
-// This matters because a broken binary can otherwise produce the misleading
-// assertion that Apex had no model trajectory. A research-quality verdict only
-// begins after the API accepted an actual Bureau launch.
 const launchAccepted = Boolean(launch.jobId);
 const runtimeHealthy = Boolean(health && typeof health === "object" && Object.keys(health).length > 0);
 if (!launchAccepted && (!runtimeHealthy || !status || Object.keys(status).length === 0)) {
@@ -35,8 +61,6 @@ if (!launchAccepted && (!runtimeHealthy || !status || Object.keys(status).length
   process.exit();
 }
 
-// The API status endpoint carries authoritative live BUREAU telemetry. The
-// server log is a secondary source. Missing files are audit-data problems.
 const telemetry = [
   ...(Array.isArray(status.log) ? status.log : []),
   ...(Array.isArray(status.recentSpans) ? status.recentSpans.map((s) => JSON.stringify(s)) : []),
@@ -91,9 +115,12 @@ let sourceBacked = 0;
 let direct = 0;
 let org = 0;
 for (const entity of rows) {
+  if (looksMalformedTarget(entity.name)) fail(`malformed/non-person entity admitted as target: ${entity.name || entity.id}`);
   const contacts = Array.isArray(entity.contacts) ? entity.contacts : [];
   const bad = contacts.filter((c) => c && c.sourceUrl && !isHttpUrl(c.sourceUrl));
   if (bad.length) fail(`entity ${entity.name || entity.id} has contact evidence without HTTP(S) provenance`);
+  const synthetic = contacts.filter((c) => /google\.com\/search\?|bing\.com\/search\?|search\.yahoo\.com/i.test(String(c?.sourceUrl ?? "")));
+  if (synthetic.length) fail(`entity ${entity.name || entity.id} contains synthetic search URL as evidence provenance`);
   sourceBacked += contacts.filter((c) => isHttpUrl(c?.sourceUrl)).length;
   if (entity.contactOutcome === "direct_contact") direct++;
   if (entity.contactOutcome === "organization_contact") org++;
