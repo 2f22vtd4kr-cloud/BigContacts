@@ -2,7 +2,7 @@
 
 **Repo:** https://github.com/2f22vtd4kr-cloud/BigContacts  
 **Branch:** `main`  
-**Current tip floor:** `6e38d48b7c2b216581e0850648827848df49e894` or newer (generic-title discovery admission gate; bounded live smoke is next)  
+**Current tip floor:** `329ecd491766acbf955b2d23f1b68f1d512caf86` or newer (proxy auto-candidate rejection + regression test)  
 **Canonical Replit path:** one paste — `docs/REPLIT_UPDATE_PROMPT_LATEST.md` (Agent inside the App). Expanded procedure: `docs/RUN_BUREAU.md`.  
 **Product:** Apex Atlas research bureau; **Bureau is its OSINT/research architecture**, not a separate product.
 
@@ -139,6 +139,25 @@ The most important diagnosis is **not a license to script discovery**. Two concr
 A further throughput observation: the runtime correctness hardener serializes ReAct research by default, but the previous live workflow overrode `APEX_AGENTIC_CONCURRENCY=3` while the provider pool was constrained to one decision. The next smoke should use **one ReAct research loop at a time** so free-tier provider pacing is not undermined by queued concurrent discovery/target loops. This is scheduling, not research-path selection.
 
 Current main tip after the title-gate fix: `6e38d48b7c2b216581e0850648827848df49e894` (`fix(discovery): reject generic title identities at admission gate`).
+
+### 2026-08-31 Run 33420624242 forensic addendum (Batch 24)
+Run `33420624242` checked out `a62b51e850f0e15b08dcc2f7bf21b6be94dceed0` and completed build, static guards, provider preflight, API startup, bounded 3-target discovery-first launch, polling, live-state collection, and audit. This is **not a research-quality success**.
+
+Live results: **3 entities admitted, 0 contacts, 0 direct routes**. The three persisted names were `Inclusion Recap`, `Inclusion A Business Case`, and `Equity Interview Series Learn`; all had `bayesianScore=0.2`, `contactOutcome=none`, and a shared Detroit Chamber source with `role=proxy_table`. The audit correctly recorded `sourceBackedContacts=0` and `collisionRisk=0`, but the identities themselves are not acceptable people.
+
+The decisive new forensic finding is that `agentic-web-research.ts` contains deterministic SEC/DEF-14A proxy-page extraction which scans capitalized text for “related” names and emits them as `related-person:` findings with `role=proxy_table`. Those findings can satisfy the downstream discovery parser's source/shape checks even though the model never explicitly selected the person. This violates the discovery-first product law by letting deterministic extraction choose candidate identities.
+
+The permanent fix is now on `main`:
+- `artifacts/api-server/src/src/lib/discovery-agent.ts` rejects `proxy_table` findings before candidate admission, with an explicit comment preserving model-owned discovery.
+- The discovery target is now source-level `Discovery slot N`, rather than relying on a build-time hardener to rewrite the old prose slot label.
+- `artifacts/api-server/src/src/test/discovery-agent-parse.test.ts` adds a regression test proving a visited SEC page plus `proxy_table` related-person finding still produces **zero** discovery candidates.
+- Commits: `105683b9769db9dd2a9800a73a200ddca5cbf18d`, `329ecd491766acbf955b2d23f1b68f1d512caf86`.
+
+This fix intentionally does **not** remove the model's web tools, add a replacement search sequence, or create a ranking. The next live proof must determine whether the underlying ReAct discovery model can emit an explicit source-backed person once the deterministic proxy-name leakage is blocked.
+
+The same run also confirmed provider-role behavior at the source level: the Dig lane is Groq → Mistral; the logged Groq model names such as `qwen/qwen3.6-27b` / `openai/gpt-oss-20b` are provider-local Groq catalog fallbacks, not Gemini/NVIDIA Dig execution. Mistral was not configured in that CI environment, while Groq generation preflight returned HTTP 200. Gemini preflight returned 429 for both configured keys, and NVIDIA preflight returned 200 as right-hand capability; neither was used as the Dig provider by the canonical `llmStep`.
+
+**Next step:** run the bounded 3-target smoke again from the new main tip. Require at least one explicit model-selected, visited-source person admit and then inspect its free-ReAct Dig trajectory. Only after that proof should the workflow scale toward the 10-target blind-comparison audit.
 
 ## Independent blind baseline contract
 For every target that Apex actually admits and researches, the evaluation now requires a **blind independent OpenAI baseline**. The baseline receives only the original target/objective and its own public-web research opportunity; it must not receive Apex cards, Apex hypotheses, Apex URLs, Apex trajectory, or Apex rejection decisions. Use comparable wall-clock/tool opportunity. The baseline may beat Apex; a baseline win is a real Apex loss and becomes a bug investigation, never a reason to add forced hops.
