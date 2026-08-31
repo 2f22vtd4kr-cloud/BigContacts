@@ -14,26 +14,32 @@ test.describe('Apex Reactor responsive browser contract', () => {
       const browser = await chromium.launch({ channel: 'chrome' });
       const context = await browser.newContext({ viewport: { width: viewport.width, height: viewport.height } });
       const page = await context.newPage();
-      // Reactor intentionally has live telemetry timers/polling; networkidle is therefore
-      // the wrong readiness signal. Wait for the actual rendered theatre instead.
-      await page.goto(`${baseURL}/reactor?mock=1`, { waitUntil: 'domcontentloaded' });
+      // Use the isolated Reactor entry so an unrelated legacy route cannot prevent
+      // browser-level inspection of the actual theatre components.
+      await page.goto(`${baseURL}/reactor-browser-fixture.html`, { waitUntil: 'domcontentloaded' });
 
       await expect(page.getByTestId('reactor-live-surface')).toBeVisible();
-      await expect(page.getByText('Reactor Live · observable research')).toBeVisible();
+      await expect(page.getByText('Apex research view')).toBeVisible();
       await expect(page.getByTestId('bureau-ops-stage')).toBeVisible();
       await expect(page.getByTestId('reactor-right-hand')).toBeVisible();
       await expect(page.getByTestId('reactor-activity-feed')).toBeVisible();
+      await expect(page.getByText('Opening primary source')).toBeVisible();
 
       const bodyText = await page.locator('body').innerText();
       expect(bodyText).not.toMatch(/contact email phone/i);
       expect(bodyText).not.toMatch(/step\s+\d+\s+of\s+\d+/i);
       expect(bodyText).not.toMatch(/window\s+\d+\s+of\s+\d+/i);
 
-      const mobileLaunch = page.getByTestId('reactor-launch-bar-mobile');
+      const horizontalOverflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+      expect(horizontalOverflow).toBeLessThanOrEqual(1);
+
       if (viewport.name === 'mobile') {
-        await expect(mobileLaunch).toBeVisible();
-      } else {
-        await expect(mobileLaunch).not.toBeVisible();
+        const stage = page.getByTestId('bureau-ops-stage');
+        await stage.evaluate((el) => {
+          el.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: 310, clientY: 300, pointerType: 'touch' }));
+          el.dispatchEvent(new PointerEvent('pointerup', { bubbles: true, clientX: 150, clientY: 305, pointerType: 'touch' }));
+        });
+        await expect(page.getByTestId('fixture-swipe-status')).toHaveText('mobile swipe: next');
       }
 
       await page.screenshot({
