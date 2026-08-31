@@ -9,6 +9,7 @@ on:
     branches: [main]
     paths:
       - "scripts/resilient-live-batch-trigger.md"
+      - ".github/workflows/apex-live-audit-resilient.yml"
 
 concurrency:
   group: apex-live-bureau-resilient-${{ github.ref }}
@@ -20,7 +21,7 @@ permissions:
 jobs:
   live-bureau-audit:
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 120
     env:
       DATABASE_URL: postgresql://apex:apex_local_dev@127.0.0.1:5432/apex
       REDIS_URL: redis://127.0.0.1:6379
@@ -65,11 +66,12 @@ jobs:
       RESEARCH_DEPTH: standard
       APEX_SKIP_SEMANTIC: "1"
       APEX_AGENTIC_CONCURRENCY: "4"
-      # One model decision at a time; 2.5s pacing stays well below the
-      # published 30-RPM ceiling while preventing burst-induced 429s.
+      # One provider decision at a time. The published base limit is 8K TPM
+      # for Qwen 3.8 on the relevant rate-limit table; 20s pacing is therefore
+      # deliberately conservative for multi-thousand-token ReAct prompts.
       APEX_AGENTIC_PROVIDER_CONCURRENCY: "1"
       AGENTIC_PROVIDER_DECISION_TIMEOUT_MS: "55000"
-      GROQ_AGENTIC_MIN_INTERVAL_MS: "2500"
+      GROQ_AGENTIC_MIN_INTERVAL_MS: "20000"
       NODE_OPTIONS: --max-old-space-size=1536
     steps:
       - uses: actions/checkout@v4
@@ -159,7 +161,7 @@ jobs:
           node -e 'const x=require("/tmp/launch.json"); if(!x.jobId){console.error(JSON.stringify(x));process.exit(1)}; console.log(x.jobId)'
       - name: Poll Bureau
         run: |
-          for i in $(seq 1 900); do
+          for i in $(seq 1 1200); do
             sleep 5
             curl -sS -m 10 http://127.0.0.1:8080/api/ingest/atlas-status > /tmp/atlas-status.json || true
             node -e 'const fs=require("fs");try{const x=JSON.parse(fs.readFileSync("/tmp/atlas-status.json","utf8"));console.log(JSON.stringify({status:x.status,jobId:x.jobId||x.job?.jobId,phase:x.atlasPhase,progress:x.entityProgress,total:x.entityTotal,names:x.entityNames}))}catch{}'
