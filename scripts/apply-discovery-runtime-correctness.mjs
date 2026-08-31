@@ -22,11 +22,14 @@ fs.writeFileSync(discoveryPath, discovery);
 const researchPath = path.join(repoRoot, "artifacts/api-server/src/src/lib/agentic-web-research.ts");
 let research = fs.readFileSync(researchPath, "utf8");
 
-// Ten concurrent discovery slots previously entered the provider loop at once.
-// Bound concurrent runs while leaving each individual run fully model-directed.
+// Discovery slots are independent hypotheses, but the actual research loop is
+// serialized by default. This is resource scheduling, not research scripting:
+// each slot still owns its own queries, visits, pivots, tools, and stopping.
+// Serial execution also prevents a free-tier provider's token-per-minute ceiling
+// from starving every slot after the first model turn.
 if (!research.includes("const AGENTIC_RESEARCH_CONCURRENCY")) {
   const marker = "const MAX_OBS = 5_000;";
-  const insert = `${marker}\n\nconst AGENTIC_RESEARCH_CONCURRENCY = Math.max(1, Math.min(4, Number(process.env.APEX_AGENTIC_CONCURRENCY || "4")));\nlet activeAgenticResearch = 0;\nconst pendingAgenticResearch: Array<() => void> = [];\n\nasync function acquireAgenticResearchSlot(): Promise<void> {\n  if (activeAgenticResearch < AGENTIC_RESEARCH_CONCURRENCY) {\n    activeAgenticResearch += 1;\n    return;\n  }\n  await new Promise<void>((resolve) => pendingAgenticResearch.push(resolve));\n  activeAgenticResearch += 1;\n}\n\nfunction releaseAgenticResearchSlot(): void {\n  activeAgenticResearch = Math.max(0, activeAgenticResearch - 1);\n  pendingAgenticResearch.shift()?.();\n}\n`;
+  const insert = `${marker}\n\nconst AGENTIC_RESEARCH_CONCURRENCY = Math.max(1, Math.min(4, Number(process.env.APEX_AGENTIC_CONCURRENCY || "1")));\nlet activeAgenticResearch = 0;\nconst pendingAgenticResearch: Array<() => void> = [];\n\nasync function acquireAgenticResearchSlot(): Promise<void> {\n  if (activeAgenticResearch < AGENTIC_RESEARCH_CONCURRENCY) {\n    activeAgenticResearch += 1;\n    return;\n  }\n  await new Promise<void>((resolve) => pendingAgenticResearch.push(resolve));\n  activeAgenticResearch += 1;\n}\n\nfunction releaseAgenticResearchSlot(): void {\n  activeAgenticResearch = Math.max(0, activeAgenticResearch - 1);\n  pendingAgenticResearch.shift()?.();\n}\n`;
   if (!research.includes(marker)) throw new Error("agentic constants anchor not found");
   research = research.replace(marker, insert);
 }
@@ -37,4 +40,4 @@ if (research.includes("export async function runAgenticWebResearch(input:")) {
 }
 
 fs.writeFileSync(researchPath, research);
-console.log("[apex-discovery-runtime-correctness] trajectory admission + bounded agentic concurrency applied");
+console.log("[apex-discovery-runtime-correctness] trajectory admission + serialized-by-default agentic research concurrency applied");
