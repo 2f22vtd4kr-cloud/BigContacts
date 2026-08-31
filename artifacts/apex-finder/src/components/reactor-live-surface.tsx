@@ -25,11 +25,11 @@ import {
 } from "../lib/reactor-live-model";
 
 /**
- * Renderer for the first implementation slice of Reactor Live.
+ * Renderer for Reactor Live.
  *
- * It intentionally renders a small number of semantic scenes instead of
- * pretending that every tool is a browser. The event itself remains the
- * source of truth; no synthetic query/result is generated here.
+ * It renders semantic scenes from real Bureau events instead of pretending
+ * every action is a browser. It may show a recorded tool-input prompt, but
+ * never hidden chain-of-thought or a fabricated query/result.
  */
 
 function methodIcon(method: ReactorMethod) {
@@ -56,6 +56,17 @@ function statusIcon(status: ReactorLiveEvent["status"]) {
 function hostname(url?: string) {
   if (!url) return undefined;
   try { return new URL(url).hostname.replace(/^www\./, ""); } catch { return undefined; }
+}
+
+function ToolInput({ prompt }: { prompt?: string }) {
+  const text = cleanResearchText(prompt, 360);
+  if (!text) return null;
+  return (
+    <div className="mt-3 rounded-lg border border-white/8 bg-black/25 px-3 py-2" data-testid="reactor-tool-input">
+      <div className="text-[9px] font-semibold uppercase tracking-[0.18em] text-stone-600">Recorded tool input</div>
+      <div className="mt-1 whitespace-pre-wrap font-mono text-[11px] leading-5 text-stone-400">{text}</div>
+    </div>
+  );
 }
 
 function BrowserScene({ event }: { event: ReactorLiveEvent }) {
@@ -85,6 +96,7 @@ function BrowserScene({ event }: { event: ReactorLiveEvent }) {
         ) : (
           <div className="flex h-[110px] items-center justify-center text-xs text-stone-600">Waiting for page evidence…</div>
         )}
+        <ToolInput prompt={event.prompt} />
         {sources.length > 0 && (
           <div className="mt-4 grid gap-2 sm:grid-cols-2">
             {sources.map((source) => (
@@ -119,6 +131,7 @@ function SemanticScene({ event }: { event: ReactorLiveEvent }) {
           </div>
           {event.why && <p className="mt-1 text-xs text-stone-500">{cleanResearchText(event.why, 240)}</p>}
           {event.resultSummary && <p className="mt-3 text-sm leading-6 text-stone-300">{cleanResearchText(event.resultSummary, 700)}</p>}
+          <ToolInput prompt={event.prompt} />
           {sources.length > 0 && (
             <div className="mt-3 flex flex-wrap gap-1.5">
               {sources.map((source) => (
