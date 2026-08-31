@@ -1,0 +1,24 @@
+name: Frontend responsive contract
+
+on:
+  push:
+    paths:
+      - "artifacts/apex-finder/src/**"
+      - "scripts/check-frontend-responsive.mjs"
+      - "docs/bureau-plan/15_FRONTEND_RESPONSIVE_AUDIT.md"
+      - ".github/workflows/frontend-responsive.yml"
+  pull_request:
+    paths:
+      - "artifacts/apex-finder/src/**"
+      - "scripts/check-frontend-responsive.mjs"
+      - "docs/bureau-plan/15_FRONTEND_RESPONSIVE_AUDIT.md"
+      - ".github/workflows/frontend-responsive.yml"
+  workflow_dispatch:
+
+jobs:
+  source-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check responsive frontend contract
+        run: node scripts/check-frontend-responsive.mjs
