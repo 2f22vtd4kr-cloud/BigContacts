@@ -76,13 +76,19 @@ export function useBureauLiveDesk(
       setBureauEvents([]);
       return;
     }
+
     let cancelled = false;
+    let controller: AbortController | null = null;
     const base = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
 
     const pull = async () => {
+      controller?.abort();
+      controller = new AbortController();
       try {
         const res = await fetch(`${base}/api/ingest/bureau-events?limit=40`, {
           credentials: "same-origin",
+          signal: controller.signal,
+          cache: "no-store",
         });
         if (!res.ok || cancelled) return;
         const data = await res.json();
@@ -94,9 +100,12 @@ export function useBureauLiveDesk(
               .filter((e: BureauDeskEvent) => e.stage || e.narration || e.story),
           );
         }
-      } catch {
-        /* soft — network down must not invent feed */
-        if (!cancelled) setBureauEvents([]);
+      } catch (error) {
+        // Aborts are expected during polling handoff/unmount; network failure
+        // must fail soft and must never invent a live feed.
+        if (!cancelled && !(error instanceof DOMException && error.name === "AbortError")) {
+          setBureauEvents([]);
+        }
       }
     };
 
@@ -104,6 +113,7 @@ export function useBureauLiveDesk(
     const id = window.setInterval(() => void pull(), pollMs);
     return () => {
       cancelled = true;
+      controller?.abort();
       window.clearInterval(id);
     };
   }, [enabled, pollMs, atlasLive]);
