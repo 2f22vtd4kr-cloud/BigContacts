@@ -47,28 +47,25 @@ if (source.includes("agenticProviderCircuitUntil")) {
 }
 
 // The live audit must prove readiness of the actual web-research capability,
-// not merely that the Boss or right-hand model can generate text. Keep these
-// assertions semantic enough to survive harmless formatting changes in the
-// workflow while still preventing role leakage.
-if (!/const groqProbe\s*=\s*async \(\)\s*=>[\s\S]*?openaiProbe\(\s*['"]groq['"][\s\S]*?['"]dig['"]\)/.test(workflow)) {
+// not merely that the Boss or right-hand model can generate text. The current
+// workflow uses one capability-scoped probe helper; assert its semantic role
+// labels rather than matching an older helper implementation by name.
+if (!/async function probe\(url,key,model,provider\)/.test(workflow)) {
+  throw new Error("live audit provider gate missing generic capability probe");
+}
+if (!/const groq = await probe\([\s\S]*?["']groq-dig["']\)/.test(workflow)) {
   throw new Error("live audit provider gate missing Groq Dig probe");
 }
-if (!/const mistralProbe\s*=\s*async \(\)\s*=>[\s\S]*?openaiProbe\(\s*['"]mistral['"][\s\S]*?['"]dig['"]\)/.test(workflow)) {
+if (!/const mistral = await probe\([\s\S]*?["']mistral-dig["']\)/.test(workflow)) {
   throw new Error("live audit provider gate missing Mistral Dig probe");
 }
-if (!/groqProbe[\s\S]*?if \(ok\)\s*digReady\s*=\s*true/.test(workflow)) {
-  throw new Error("live audit Groq probe does not promote successful generation to Dig readiness");
+if (!/digReady = groq \|\| mistral;/.test(workflow)) {
+  throw new Error("live audit provider gate does not derive Dig readiness from Groq/Mistral");
 }
-if (!/mistralProbe[\s\S]*?if \(ok\)\s*digReady\s*=\s*true/.test(workflow)) {
-  throw new Error("live audit Mistral probe does not promote successful generation to Dig readiness");
-}
-if (!/const ready\s*=\s*digReady;/.test(workflow) || !/if \(!digReady\)/.test(workflow)) {
+if (!/if\(!digReady\)/.test(workflow)) {
   throw new Error("live audit must gate launch on an actual Dig provider generation");
 }
-if (/const ready = (?:false|bossReady \|\| rightHandReady)/.test(workflow)) {
-  throw new Error("live audit incorrectly treats Boss/right-hand readiness as Dig readiness");
-}
-if (!/openaiProbe\(\s*['"]nvidia-nim['"][\s\S]*?['"]right_hand['"]\)/.test(workflow)) {
+if (!/probe\([\s\S]*?["']nvidia-right-hand["']\)/.test(workflow)) {
   throw new Error("live audit right-hand probe is not explicitly capability-scoped");
 }
 
