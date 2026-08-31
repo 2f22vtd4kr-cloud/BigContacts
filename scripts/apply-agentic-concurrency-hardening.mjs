@@ -28,6 +28,18 @@ const MAX_CONCURRENT_AGENTIC_PROVIDER_DECISIONS = Math.max(
   1,
   Number(process.env.APEX_AGENTIC_PROVIDER_CONCURRENCY || "1"),
 );
+let lastGroqAgenticCallAt = 0;
+const GROQ_AGENTIC_MIN_INTERVAL_MS = Math.max(
+  0,
+  Number(process.env.GROQ_AGENTIC_MIN_INTERVAL_MS || "20000"),
+);
+
+async function waitForGroqAgenticPace(): Promise<void> {
+  const elapsed = Date.now() - lastGroqAgenticCallAt;
+  const remaining = GROQ_AGENTIC_MIN_INTERVAL_MS - elapsed;
+  if (remaining > 0) await new Promise((resolve) => setTimeout(resolve, remaining));
+  lastGroqAgenticCallAt = Date.now();
+}
 
 async function acquireAgenticProviderDecisionSlot(): Promise<void> {
   if (activeAgenticProviderDecisions < MAX_CONCURRENT_AGENTIC_PROVIDER_DECISIONS) {
@@ -59,6 +71,7 @@ async function llmStep(prompt: string): Promise<{ model: string; raw: string } |
         setTimeout(() => reject(new Error(name + ":timeout")), providerDecisionTimeoutMs),
       );
       try {
+        if (name === "groq") await waitForGroqAgenticPace();
         const out = await Promise.race([fn(prompt), timeout]);
         if (!out?.raw) throw new Error(name + ":empty");
         setAgenticLlmHealth(true, out.model, null);
@@ -183,5 +196,5 @@ s = s.replace(
 
 fs.writeFileSync(targetPath, s);
 console.log(
-  `Applied canonical Dig hardening: provider=${llmStepAlreadyCanonical ? "already Groq->Mistral" : "Groq->Mistral"}; observation boundary=literal contacts only; provider concurrency default=1; compact dig orientation; max_tokens=1024; structured search result-to-URL observations; snippet identity guidance; no Boss/right-hand Dig providers; no global cross-target circuit`,
+  `Applied canonical Dig hardening: provider=${llmStepAlreadyCanonical ? "already Groq->Mistral" : "Groq->Mistral"}; observation boundary=literal contacts only; provider concurrency default=1; Groq pacing default=20s; compact dig orientation; max_tokens=1024; structured search result-to-URL observations; snippet identity guidance; no Boss/right-hand Dig providers; no global cross-target circuit`,
 );
