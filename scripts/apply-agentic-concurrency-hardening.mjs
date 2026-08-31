@@ -26,7 +26,7 @@ let activeAgenticProviderDecisions = 0;
 const agenticProviderDecisionWaiters: Array<() => void> = [];
 const MAX_CONCURRENT_AGENTIC_PROVIDER_DECISIONS = Math.max(
   1,
-  Number(process.env.APEX_AGENTIC_PROVIDER_CONCURRENCY || "4"),
+  Number(process.env.APEX_AGENTIC_PROVIDER_CONCURRENCY || "1"),
 );
 
 async function acquireAgenticProviderDecisionSlot(): Promise<void> {
@@ -138,7 +138,21 @@ if (observationBoundaryRe.test(s)) {
   throw new Error("observation identity boundary anchor missing");
 }
 
+// Provider-capacity hardening. Groq's free-tier agentic models can reject a
+// large ReAct turn even when a tiny preflight succeeds. Keep the investigator
+// prompt compact and the JSON action bounded; this does not constrain which
+// research action the model may choose.
+const orientationImport = 'import { apexOrientationFor } from "./apex-bureau-orientation";';
+if (s.includes(orientationImport)) {
+  s = s.replace(
+    orientationImport,
+    'import { apexOrientationFor, apexOrientationCompact } from "./apex-bureau-orientation";',
+  );
+}
+s = s.replace(/apexOrientationFor\("dig_agent"\)/g, 'apexOrientationCompact("dig_agent")');
+s = s.replace(/max_tokens:\s*4096/g, 'max_tokens: 1024');
+
 fs.writeFileSync(targetPath, s);
 console.log(
-  `Applied canonical Dig hardening: provider=${llmStepAlreadyCanonical ? "already Groq->Mistral" : "Groq->Mistral"}; observation boundary=literal contacts only; no Boss/right-hand Dig providers; no global cross-target circuit`,
+  `Applied canonical Dig hardening: provider=${llmStepAlreadyCanonical ? "already Groq->Mistral" : "Groq->Mistral"}; observation boundary=literal contacts only; provider concurrency default=1; compact dig orientation; max_tokens=1024; no Boss/right-hand Dig providers; no global cross-target circuit`,
 );
