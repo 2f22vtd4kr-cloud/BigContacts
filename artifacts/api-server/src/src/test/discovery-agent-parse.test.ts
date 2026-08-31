@@ -92,6 +92,21 @@ describe("discovery agent identity boundary", () => {
     ]);
   });
 
+  it("rejects deterministic proxy-table related-person findings", () => {
+    const finding = [{
+      value: "related-person: John Example",
+      personName: "John Example",
+      role: "proxy_table",
+      scope: "candidate" as const,
+      sourceUrls: ["https://www.sec.gov/Archives/edgar/data/example/def14a.htm"],
+      note: "Related name on proxy/filing https://www.sec.gov/Archives/edgar/data/example/def14a.htm",
+    }];
+
+    expect(parsePersonFindings(finding, [
+      "step1: visit https://www.sec.gov/Archives/edgar/data/example/def14a.htm",
+    ])).toEqual([]);
+  });
+
   it("accepts an explicitly named person found on an organization-scoped source", () => {
     const finding = [{
       personName: "Jane Example",
