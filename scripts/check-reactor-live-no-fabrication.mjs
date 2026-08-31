@@ -13,7 +13,9 @@ const bureauText = fs.readFileSync(bureau, "utf8");
 const modelText = fs.readFileSync(model, "utf8");
 
 const forbiddenSyntheticQuery = /return\s+e\.targetName\s*\?\s*`\$\{e\.targetName\}\s+contact\s+email\s+phone`/;
-const explicitQueryContract = /explicitResearchQuery[\s\S]*?Deliberately no target-name fallback/;
+const explicitQueryContract = /export function explicitResearchQuery\b/.test(modelText)
+  && /Deliberately no target-name fallback/.test(modelText)
+  && /target-name fallback/.test(modelText);
 
 if (forbiddenSyntheticQuery.test(bureauText)) {
   console.error("FAIL  BureauOpsStage still fabricates a search query from targetName");
@@ -21,7 +23,7 @@ if (forbiddenSyntheticQuery.test(bureauText)) {
   process.exit(1);
 }
 
-if (!explicitQueryContract.test(modelText)) {
+if (!explicitQueryContract) {
   console.error("FAIL  Reactor Live model is missing the explicit-query/no-fallback contract");
   process.exit(1);
 }
