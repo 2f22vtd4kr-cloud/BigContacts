@@ -4,4 +4,4 @@ Touch this file to intentionally launch the expensive 10-target provider-backed 
 
 This narrow path exists for the connected engineering harness because the repository's normal workflow remains manually dispatchable. It is not a product runtime trigger.
 
-Last intentional engineering trigger: 2026-08-31T12:45:00Z — rerun after aligning the runtime invariant with the hardened 55s provider deadline and preserving the two-slot live provider pool.
+Last intentional engineering trigger: 2026-08-31T13:00:00Z — rerun after compacting model-facing state, switching the audit investigator to Groq GPT-OSS 20B low-reasoning, and removing the artificial 20s inter-call delay.
