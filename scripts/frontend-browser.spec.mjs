@@ -14,7 +14,9 @@ test.describe('Apex Reactor responsive browser contract', () => {
       const browser = await chromium.launch({ channel: 'chrome' });
       const context = await browser.newContext({ viewport: { width: viewport.width, height: viewport.height } });
       const page = await context.newPage();
-      await page.goto(`${baseURL}/reactor?mock=1`, { waitUntil: 'networkidle' });
+      // Reactor intentionally has live telemetry timers/polling; networkidle is therefore
+      // the wrong readiness signal. Wait for the actual rendered theatre instead.
+      await page.goto(`${baseURL}/reactor?mock=1`, { waitUntil: 'domcontentloaded' });
 
       await expect(page.getByTestId('reactor-live-surface')).toBeVisible();
       await expect(page.getByText('Reactor Live · observable research')).toBeVisible();
