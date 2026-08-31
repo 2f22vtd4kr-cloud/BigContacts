@@ -7,6 +7,7 @@ const files = {
   model: path.join(src, "lib", "reactor-live-model.ts"),
   surface: path.join(src, "components", "reactor-live-surface.tsx"),
   bureau: path.join(src, "components", "bureau-ops-stage.tsx"),
+  live: path.join(src, "lib", "use-bureau-live.ts"),
 };
 
 for (const [name, file] of Object.entries(files)) {
@@ -17,6 +18,7 @@ const read = (file) => fs.readFileSync(file, "utf8");
 const model = read(files.model);
 const surface = read(files.surface);
 const bureau = read(files.bureau);
+const live = read(files.live);
 
 const syntheticQueryPatterns = [
   /`\$\{\s*e\.targetName\s*\}\s+contact\s+email\s+phone/i,
@@ -37,6 +39,10 @@ const checks = [
   ["legacy stage extracts queries only from explicit query/search text", /function recordedQuery/.test(bureau)],
   ["legacy stage contains no target-name synthetic query", !syntheticQueryPatterns.some((pattern) => pattern.test(bureau))],
   ["legacy stage does not manufacture a Google URL", !/google\.com\/search\?q=\$\{.*target/i.test(bureau)],
+  ["mobile stage retains edge-swipe delegation", /onEdgeSwipe/.test(bureau) && /clientX/.test(bureau)],
+  ["live Bureau mapper preserves explicit queries", /query\?:\s*string/.test(live) && /parsed\?\.query/.test(live)],
+  ["live Bureau mapper preserves source provenance", /sourceUrls/.test(live) && /links/.test(live)],
+  ["live Bureau mapper preserves adaptive narration", /narration/.test(live)],
 ];
 
 let failed = false;
