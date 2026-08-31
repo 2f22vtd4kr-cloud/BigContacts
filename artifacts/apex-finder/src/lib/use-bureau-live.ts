@@ -15,6 +15,7 @@ export type BureauDeskEvent = {
   targetName?: string;
   activeToolId?: string;
   toolIds?: string[];
+  query?: string;
   prompt?: string;
   inputSummary?: string;
   resultSummary?: string;
@@ -56,6 +57,7 @@ function mapBureauPayload(parsed: any, atlasLive: boolean): BureauDeskEvent {
       : parsed?.provider
         ? [String(parsed.provider)]
         : [],
+    query: typeof parsed?.query === "string" ? parsed.query : undefined,
     prompt: parsed?.prompt,
     inputSummary: parsed?.inputSummary ?? parsed?.why,
     resultSummary: parsed?.responseSummary || parsed?.resultSummary || parsed?.detail,
