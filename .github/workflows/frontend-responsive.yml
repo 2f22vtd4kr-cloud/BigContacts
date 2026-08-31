@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - "artifacts/apex-finder/src/**"
+      - "artifacts/apex-finder/package.json"
       - "scripts/check-frontend-responsive.mjs"
       - "scripts/check-reactor-live-integrity.mjs"
       - "docs/bureau-plan/15_FRONTEND_RESPONSIVE_AUDIT.md"
@@ -12,6 +13,7 @@ on:
   pull_request:
     paths:
       - "artifacts/apex-finder/src/**"
+      - "artifacts/apex-finder/package.json"
       - "scripts/check-frontend-responsive.mjs"
       - "scripts/check-reactor-live-integrity.mjs"
       - "docs/bureau-plan/15_FRONTEND_RESPONSIVE_AUDIT.md"
@@ -28,3 +30,18 @@ jobs:
         run: node scripts/check-frontend-responsive.mjs
       - name: Check Reactor Live integrity contract
         run: node scripts/check-reactor-live-integrity.mjs
+
+  vite-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install pnpm
+        run: npm install -g pnpm@9
+      - name: Install frontend workspace graph
+        run: pnpm install --no-frozen-lockfile --ignore-scripts --filter apex-finder-local...
+      - name: Build Apex Finder frontend
+        run: pnpm --dir artifacts/apex-finder build
