@@ -18,6 +18,13 @@ const model = read(files.model);
 const surface = read(files.surface);
 const bureau = read(files.bureau);
 
+const syntheticQueryPatterns = [
+  /`\$\{\s*e\.targetName\s*\}\s+contact\s+email\s+phone/i,
+  /`\$\{\s*event\.targetName\s*\}\s+contact\s+email\s+phone/i,
+  /targetName\s*\?\s*`[^`]*(?:contact|email|phone|search\s+for)[^`]*`/i,
+  /targetName\s*\?\s*["'][^"']*(?:contact|email|phone|search\s+for)[^"']*["']/i,
+];
+
 const checks = [
   ["live model has explicit research-query extraction", /explicitResearchQuery/.test(model)],
   ["live model rejects non-HTTP evidence", /https\?:/.test(model) && /sourceList/.test(model)],
@@ -28,7 +35,7 @@ const checks = [
   ["source links are rendered from event evidence", /sourceList\(event\)/.test(surface)],
   ["desktop/mobile stage delegates to the semantic renderer", /ReactorLiveSurface/.test(bureau)],
   ["legacy stage extracts queries only from explicit query/search text", /function recordedQuery/.test(bureau)],
-  ["legacy stage contains no target-name synthetic query", !/targetName\s*\?\s*[`"'].*(?:contact|email|phone|search)/i.test(bureau)],
+  ["legacy stage contains no target-name synthetic query", !syntheticQueryPatterns.some((pattern) => pattern.test(bureau))],
   ["legacy stage does not manufacture a Google URL", !/google\.com\/search\?q=\$\{.*target/i.test(bureau)],
 ];
 
