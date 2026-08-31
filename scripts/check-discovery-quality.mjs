@@ -31,6 +31,8 @@ const requiredDiscovery = [
   "If a company is discovered before its principal, that company is an intermediate lead",
   "Before finishing, ask yourself: do I have a full personal name",
   "state\\s+st",
+  "proxy_table",
+  "deterministic candidate selection rather than model-owned discovery",
 ];
 
 const requiredOrientation = [
@@ -58,6 +60,9 @@ const strongEvidenceGateCount = (discovery.match(new RegExp(strongEvidenceGate.r
 if (strongEvidenceGateCount !== 1) {
   failures.push(`discovery-agent.ts must apply the source-bound gate exactly once; found ${strongEvidenceGateCount}`);
 }
+
+const proxyReject = 'if (String(f.role ?? "").trim().toLowerCase() === "proxy_table") continue;';
+if (!discovery.includes(proxyReject)) failures.push("discovery-agent.ts must reject deterministic proxy_table candidate findings before admission");
 
 if (!repair.includes("s.split(gate).join(\"\")")) failures.push("identity repair script is not idempotent");
 if (!repair.includes("state\\\\s+st")) failures.push("identity repair script does not preserve the State St regression repair");
