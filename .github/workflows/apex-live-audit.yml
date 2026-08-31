@@ -64,12 +64,13 @@ jobs:
       WHOISJSON_API_KEY: ${{ secrets.WHOISJSON_API_KEY }}
       RESEARCH_DEPTH: standard
       APEX_SKIP_SEMANTIC: "1"
-      # Provider-backed discovery is deliberately serialized after the observed
-      # Groq TPD exhaustion. This trades wall-clock speed for predictable quota use.
+      # Groq's current Qwen3.8 on-demand lane is 8K TPM. A prior 5s interval
+      # still collided with that ceiling because each agentic prompt is ~1.8–2.1K
+      # input tokens. Serialize with a 30s floor so one turn cannot crowd the next.
       APEX_AGENTIC_CONCURRENCY: "1"
       APEX_AGENTIC_PROVIDER_CONCURRENCY: "1"
       AGENTIC_PROVIDER_DECISION_TIMEOUT_MS: "55000"
-      GROQ_AGENTIC_MIN_INTERVAL_MS: "5000"
+      GROQ_AGENTIC_MIN_INTERVAL_MS: "30000"
       NODE_OPTIONS: --max-old-space-size=1536
     steps:
       - uses: actions/checkout@v4
@@ -126,9 +127,16 @@ jobs:
             if (!key) { results.push({provider,state:'not_configured'}); return false; }
             try {
               const r = await fetch(url,{method:'POST',headers:{Authorization:`Bearer ${key}`,'content-type':'application/json'},body:JSON.stringify({model,messages:[{role:'user',content:'Reply READY only.'}],max_tokens:32}),signal:AbortSignal.timeout(15000)});
-              const body = await r.text();
-              results.push({provider,model,status:r.status,retryAfter:r.headers.get('retry-after'),remainingTokens:r.headers.get('x-ratelimit-remaining-tokens'),resetTokens:r.headers.get('x-ratelimit-reset-tokens')});
+              await r.text();
+              const remaining = Number(r.headers.get('x-ratelimit-remaining-tokens') || 'NaN');
+              const limit = Number(r.headers.get('x-ratelimit-limit-tokens') || 'NaN');
+              const result={provider,model,status:r.status,retryAfter:r.headers.get('retry-after'),remainingTokens:r.headers.get('x-ratelimit-remaining-tokens'),limitTokens:r.headers.get('x-ratelimit-limit-tokens'),resetTokens:r.headers.get('x-ratelimit-reset-tokens')};
+              results.push(result);
               if (!r.ok) return false;
+              if (provider === 'groq-dig' && Number.isFinite(remaining) && Number.isFinite(limit) && remaining < Math.min(6500, limit * 0.8)) {
+                results.push({provider,state:'insufficient_tpm_headroom',remainingTokens:remaining,requiredAtLeast:Math.min(6500, limit * 0.8)});
+                return false;
+              }
               return true;
             } catch(e) { results.push({provider,model,state:'transport_error',error:String(e?.message||e)}); return false; }
           }
