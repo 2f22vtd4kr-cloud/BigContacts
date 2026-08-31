@@ -6,7 +6,7 @@ import { classifyReactorMethod, cleanResearchText, type ReactorLiveEvent, type R
 /** Normalize legacy Bureau telemetry before it reaches the research theatre. */
 export type OpsEvent = {
   timestamp?: string; stage?: string; status?: string; kind?: string; targetName?: string; targetType?: string;
-  activeToolId?: string; toolIds?: string[]; prompt?: string; inputSummary?: string; resultSummary?: string;
+  activeToolId?: string; toolIds?: string[]; query?: string; prompt?: string; inputSummary?: string; resultSummary?: string;
   sources?: number; evidence?: number; contacts?: number; raw?: string; story?: string; narration?: string; why?: string;
   actor?: "boss" | "investigator" | "registry" | "tool" | "system" | "right_hand" | "web" | "discovery";
   methodKind?: string; sourceUrls?: string[]; links?: Array<{ title?: string; url: string }>;
@@ -28,10 +28,11 @@ function methodOf(event: OpsEvent): ReactorMethod {
     domain: "domain", social: "social", graph: "graph", llm: "llm", extract: "llm", case: "case", persona: "case",
   };
   if (map[explicit]) return map[explicit];
-  return classifyReactorMethod({ method: "unknown", provider: event.provider || event.activeToolId, title: event.stage || event.kind || "", query: undefined, url: event.sourceUrls?.[0] || event.links?.[0]?.url });
+  return classifyReactorMethod({ method: "unknown", provider: event.provider || event.activeToolId, title: event.stage || event.kind || "", query: event.query, url: event.sourceUrls?.[0] || event.links?.[0]?.url });
 }
 
 function recordedQuery(event: OpsEvent): string | undefined {
+  if (event.query) return cleanResearchText(event.query, 180);
   const candidates = [event.inputSummary, event.prompt, event.raw].filter(Boolean).map(String);
   for (const candidate of candidates) {
     const match = candidate.match(/(?:^|\b)(?:query|search(?:ing)?(?:\s+for)?):\s*["“]?(.+?)["”]?(?:$|\n|\r)/i);
@@ -63,7 +64,8 @@ function toReactorEvent(event: OpsEvent, index: number): ReactorLiveEvent | null
   const prompt = cleanResearchText(event.prompt, 560);
   const why = cleanResearchText(event.why || event.inputSummary, 260);
   const query = recordedQuery(event);
-  if (!title && !result && !prompt && !why && !sources.length) return null;
+  const narration = cleanResearchText(event.narration, 360);
+  if (!title && !result && !prompt && !why && !sources.length && !narration) return null;
 
   // Stale active telemetry must not masquerade as current work after a run stops.
   let effectiveStatus = status;
@@ -90,6 +92,7 @@ function toReactorEvent(event: OpsEvent, index: number): ReactorLiveEvent | null
     sources,
     evidenceCount: typeof event.evidence === "number" ? event.evidence : undefined,
     why,
+    narration,
     links: sources,
   };
 }
@@ -103,6 +106,22 @@ function summaryIcon(status: ReactorEventStatus) {
 
 function methodLabel(method: ReactorMethod) {
   return ({ search: "web search", browser: "page research", registry: "public record", domain: "domain intelligence", social: "public profile", graph: "relationship", llm: "analysis", case: "case file", unknown: "research" } as Record<ReactorMethod, string>)[method];
+}
+
+function RightHandCallout({ text, compact }: { text?: string; compact: boolean }) {
+  if (!text) return null;
+  return (
+    <aside
+      className={`rounded-xl border border-violet-400/20 bg-violet-500/[.045] px-3 py-2 ${compact ? "text-[10px]" : "text-[11px]"}`}
+      data-testid="reactor-right-hand"
+      aria-label="Adaptive right-hand research note"
+    >
+      <div className="mb-1 flex items-center gap-2 font-mono text-[8px] font-bold uppercase tracking-[.18em] text-violet-300">
+        <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-violet-300" /> Right-hand · research note
+      </div>
+      <p className="leading-5 text-violet-50/90">{text}</p>
+    </aside>
+  );
 }
 
 /** Shared desktop/mobile Bureau workstage. `compact` is the mobile form. */
@@ -155,6 +174,7 @@ export function BureauOpsStage({
         </div>
       </div>
 
+      <RightHandCallout text={current?.narration} compact={compact} />
       <ReactorLiveSurface events={normalized} targetName={targetName} compact={compact} />
 
       {!compact && (
