@@ -1,6 +1,6 @@
 import { test, expect, chromium } from '@playwright/test';
 
-const baseURL = process.env.APEX_BROWSER_BASE_URL || 'http://127.0.0.1:5173';
+const baseURL = process.env.APEX_BROWSER_BASE_URL || 'http://127.0.0.1:4173';
 
 test.describe('Apex Reactor responsive browser contract', () => {
   const cases = [
