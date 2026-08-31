@@ -194,7 +194,16 @@ s = s.replace(
   'Guidelines (not a script):\n- Search snippets are leads, not identity evidence. When a promising result names a person, consider visiting the corresponding result URL before claiming identity; do not treat the URL/snippet alone as proof.\n- Never invent emails,',
 );
 
+// Discovery receives a slot label, not a pseudo-person target. The previous
+// descriptive target string could leak into the model's identity context and
+// make the discovery assignment look like a literal person to investigate.
+const discoveryTargetLiteral = 'targetName: `Discovery — choose a realistically reachable principal (slot ${slot + 1}/${requestedBatch})`';
+const discoveryTargetReplacement = 'targetName: `Discovery slot ${slot + 1}`';
+if (s.includes(discoveryTargetLiteral)) {
+  s = s.replace(discoveryTargetLiteral, discoveryTargetReplacement);
+}
+
 fs.writeFileSync(targetPath, s);
 console.log(
-  `Applied canonical Dig hardening: provider=${llmStepAlreadyCanonical ? "already Groq->Mistral" : "Groq->Mistral"}; observation boundary=literal contacts only; provider concurrency default=1; Groq pacing default=20s; compact dig orientation; max_tokens=1024; structured search result-to-URL observations; snippet identity guidance; no Boss/right-hand Dig providers; no global cross-target circuit`,
+  `Applied canonical Dig hardening: provider=${llmStepAlreadyCanonical ? "already Groq->Mistral" : "Groq->Mistral"}; observation boundary=literal contacts only; provider concurrency default=1; Groq pacing default=20s; compact dig orientation; max_tokens=1024; structured search result-to-URL observations; snippet identity guidance; discovery slot labels are not pseudo-person targets; no Boss/right-hand Dig providers; no global cross-target circuit`,
 );
