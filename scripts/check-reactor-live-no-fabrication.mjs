@@ -14,6 +14,7 @@ const modelText = fs.readFileSync(model, "utf8");
 
 const forbiddenSyntheticQuery = /return\s+e\.targetName\s*\?\s*`\$\{e\.targetName\}\s+contact\s+email\s+phone`/;
 const explicitQueryContract = /explicitResearchQuery[\s\S]*?Deliberately no target-name fallback/;
+const explicitQueryOnly = /return\s+cleanResearchText\(match\?\.\[1\]/;
 
 if (forbiddenSyntheticQuery.test(bureauText)) {
   console.error("FAIL  BureauOpsStage still fabricates a search query from targetName");
@@ -26,6 +27,13 @@ if (!explicitQueryContract.test(modelText)) {
   process.exit(1);
 }
 
+if (!explicitQueryOnly.test(modelText)) {
+  console.error("FAIL  explicitResearchQuery still has a non-explicit fallback path");
+  console.error("      Only a query explicitly recorded in the Bureau event may be rendered as a query.");
+  process.exit(1);
+}
+
 console.log("PASS  no synthetic target-name query fallback");
 console.log("PASS  explicit research-query contract present");
+console.log("PASS  only explicitly recorded query text can enter the Reactor query surface");
 console.log("\nReactor Live no-fabrication gate passed.");
