@@ -27,6 +27,10 @@ describe("discovery agent identity boundary", () => {
     "Product Comparisons Sage Products",
     "security issues",
     "Chief Executive Officer",
+    "Head of Marketing",
+    "Chief Marketing Officer",
+    "Vice President of Sales",
+    "Managing Director",
     "Private Equity",
     "Venture Capital",
     "Real Estate",
@@ -37,7 +41,7 @@ describe("discovery agent identity boundary", () => {
     "Contact Us",
     "About Us",
     "Forbes Billionaires",
-  ])("rejects historical malformed candidate: %s", (name) => {
+  ])("rejects historical or title-shaped malformed candidate: %s", (name) => {
     expect(passesDiscoveryIdentityGate(name)).toBe(false);
   });
 
