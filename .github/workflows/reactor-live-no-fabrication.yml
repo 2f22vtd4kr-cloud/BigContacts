@@ -1,0 +1,24 @@
+name: Reactor Live no-fabrication contract
+
+on:
+  push:
+    paths:
+      - "artifacts/apex-finder/src/components/bureau-ops-stage.tsx"
+      - "artifacts/apex-finder/src/lib/reactor-live-model.ts"
+      - "scripts/check-reactor-live-no-fabrication.mjs"
+      - ".github/workflows/reactor-live-no-fabrication.yml"
+  pull_request:
+    paths:
+      - "artifacts/apex-finder/src/components/bureau-ops-stage.tsx"
+      - "artifacts/apex-finder/src/lib/reactor-live-model.ts"
+      - "scripts/check-reactor-live-no-fabrication.mjs"
+      - ".github/workflows/reactor-live-no-fabrication.yml"
+  workflow_dispatch:
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check Reactor Live no-fabrication contract
+        run: node scripts/check-reactor-live-no-fabrication.mjs
