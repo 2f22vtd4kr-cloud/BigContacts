@@ -1,0 +1,170 @@
+name: Apex Single-Target Dig Audit (manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_name:
+        description: Exact target name
+        required: true
+        type: string
+      target_type:
+        description: Ledger type
+        required: false
+        default: HNWI
+        type: choice
+        options: [HNWI, Corporation, Trust, Gatekeeper]
+      target_context:
+        description: Optional company, role, geography, or other context
+        required: false
+        default: ""
+        type: string
+      research_depth:
+        description: Free-ReAct depth
+        required: false
+        default: standard
+        type: choice
+        options: [fast, standard, deep]
+
+concurrency:
+  group: apex-single-target-${{ github.run_id }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  single-target:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      DATABASE_URL: postgresql://apex:apex_local_dev@127.0.0.1:5432/apex
+      REDIS_URL: redis://127.0.0.1:6379
+      PORT: 8080
+      ENABLE_AUTO_PIPELINE: "false"
+      NODE_ENV: development
+      CI: "true"
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      GEMINI_API_KEY_1: ${{ secrets.GEMINI_API_KEY_1 }}
+      GEMINI_API_KEY_2: ${{ secrets.GEMINI_API_KEY_2 }}
+      GEMINI_API_KEY_3: ${{ secrets.GEMINI_API_KEY_3 }}
+      GEMINI_API_KEY_4: ${{ secrets.GEMINI_API_KEY_4 }}
+      GEMINI_API_KEY_5: ${{ secrets.GEMINI_API_KEY_5 }}
+      GEMINI_API_KEY_6: ${{ secrets.GEMINI_API_KEY_6 }}
+      GEMINI_API_KEY_7: ${{ secrets.GEMINI_API_KEY_7 }}
+      GEMINI_API_KEY_8: ${{ secrets.GEMINI_API_KEY_8 }}
+      GEMINI_API_KEY_9: ${{ secrets.GEMINI_API_KEY_9 }}
+      GEMINI_API_KEY_10: ${{ secrets.GEMINI_API_KEY_10 }}
+      GEMINI_API_KEY_11: ${{ secrets.GEMINI_API_KEY_11 }}
+      GEMINI_API_KEY_12: ${{ secrets.GEMINI_API_KEY_12 }}
+      GEMINI_API_KEY_13: ${{ secrets.GEMINI_API_KEY_13 }}
+      GEMINI_AGENTIC_MODEL: gemini-3.7-flash
+      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+      MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
+      MISTRAL_AGENTIC_MODEL: mistral-small-latest
+      NVIDIA_NIM_API_KEY: ${{ secrets.NVIDIA_NIM_API_KEY }}
+      NVIDIA_AGENTIC_MODEL: nvidia/nemotron-3.5-lightning-30b-a3b
+      NVIDIA_NIM_MODEL: nvidia/nemotron-3.5-lightning-30b-a3b
+      SERPER_API_KEY: ${{ secrets.SERPER_API_KEY }}
+      TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
+      EXA_API_KEY: ${{ secrets.EXA_API_KEY }}
+      EXA_1: ${{ secrets.EXA_1 }}
+      SCRAPFLY_API_KEY: ${{ secrets.SCRAPFLY_API_KEY }}
+      ZENROWS_API_KEY: ${{ secrets.ZENROWS_API_KEY }}
+      COMPANIES_HOUSE_API_KEY: ${{ secrets.COMPANIES_HOUSE_API_KEY }}
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      WHOISJSON_API_KEY: ${{ secrets.WHOISJSON_API_KEY }}
+      RESEARCH_DEPTH: ${{ inputs.research_depth }}
+      APEX_SKIP_SEMANTIC: "1"
+      APEX_AGENTIC_CONCURRENCY: "1"
+      NODE_OPTIONS: --max-old-space-size=1536
+      TARGET_NAME: ${{ inputs.target_name }}
+      TARGET_TYPE: ${{ inputs.target_type }}
+      TARGET_CONTEXT: ${{ inputs.target_context }}
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: ${{ github.sha }} }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, registry-url: https://registry.npmjs.org/ }
+      - run: npm install -g pnpm@9
+      - name: Install API workspace
+        run: pnpm install --no-frozen-lockfile --ignore-scripts --fetch-retries=8 --fetch-timeout=120000 --filter @workspace/api-server... --registry=https://registry.npmjs.org/
+      - name: Install local services
+        run: |
+          sudo apt-get update -qq
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq postgresql redis-server
+          sudo service postgresql start
+          sudo service redis-server start
+          sudo -u postgres psql -c "CREATE USER apex WITH PASSWORD 'apex_local_dev' SUPERUSER;" || true
+          sudo -u postgres psql -c "CREATE DATABASE apex OWNER apex;" || true
+      - name: Build and static checks
+        run: |
+          cd lib/db && npx drizzle-kit push --config ./drizzle.config.ts && cd ../../
+          pnpm --dir artifacts/api-server run build
+          pnpm run check:no-force-dig
+          pnpm run check:free-react
+          pnpm run check:trajectory
+          pnpm run check:agentic-runtime
+          pnpm --dir artifacts/api-server exec vitest run src/src/test/discovery-agent-parse.test.ts src/src/test/discovery-runtime-correctness.test.ts src/src/test/agentic-scope-boundary.test.ts src/src/test/agentic-source-provenance.test.ts src/src/test/bureau-contact-persist-strict.test.ts
+      - name: Provider generation preflight
+        run: |
+          node --input-type=module <<'NODE'
+          async function probe(url,key,model,label){
+            if(!key){console.log(JSON.stringify({label,state:'not_configured'}));return false}
+            try{const r=await fetch(url,{method:'POST',headers:{Authorization:`Bearer ${key}`,'content-type':'application/json'},body:JSON.stringify({model,messages:[{role:'user',content:'Reply READY only.'}],max_tokens:8}),signal:AbortSignal.timeout(15000)});await r.text();console.log(JSON.stringify({label,model,status:r.status}));return r.ok}catch(e){console.log(JSON.stringify({label,model,state:'transport_error',error:String(e?.message||e)}));return false}
+          }
+          const dig=await probe('https://api.groq.com/openai/v1/chat/completions',process.env.GROQ_API_KEY,'openai/gpt-oss-120b','groq-dig')||await probe('https://api.mistral.ai/v1/chat/completions',process.env.MISTRAL_API_KEY,process.env.MISTRAL_AGENTIC_MODEL||'mistral-small-latest','mistral-dig');
+          const rh=await probe('https://integrate.api.nvidia.com/v1/chat/completions',process.env.NVIDIA_NIM_API_KEY,process.env.NVIDIA_NIM_MODEL||'nvidia/nemotron-3.5-lightning-30b-a3b','nvidia-right-hand');
+          const keys=[process.env.GEMINI_API_KEY,...Array.from({length:13},(_,i)=>process.env[`GEMINI_API_KEY_${i+1}`])].filter(Boolean); let boss=false;
+          for(const [i,key] of keys.entries()){try{const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(process.env.GEMINI_AGENTIC_MODEL||'gemini-3.7-flash')}:generateContent`,{method:'POST',headers:{'x-goog-api-key':key,'content-type':'application/json'},body:JSON.stringify({contents:[{parts:[{text:'Reply READY only.'}]}],generationConfig:{maxOutputTokens:8}}),signal:AbortSignal.timeout(15000)});await r.text();console.log(JSON.stringify({label:'gemini-boss',key:`${i+1}`,status:r.status}));if(r.ok){boss=true;break}}catch(e){console.log(JSON.stringify({label:'gemini-boss',key:`${i+1}`,state:'transport_error',error:String(e?.message||e)}))}}
+          console.log(JSON.stringify({digReady:dig,rightHandReady:rh,bossReady:boss})); if(!dig) process.exit(2);
+          NODE
+      - name: Start Apex API
+        run: |
+          redis-cli ping
+          node artifacts/api-server/dist/index.mjs > /tmp/apex-api.log 2>&1 &
+          for i in $(seq 1 45); do sleep 1; test "$(curl -sS -m 2 -o /tmp/health.json -w '%{http_code}' http://127.0.0.1:8080/api/healthz || true)" = 200 && break; done
+          cat /tmp/health.json
+          test "$(curl -sS -m 5 -o /tmp/health.json -w '%{http_code}' http://127.0.0.1:8080/api/healthz)" = 200
+      - name: Seed exact target
+        run: |
+          node --input-type=module <<'NODE'
+          const name=process.env.TARGET_NAME.trim(); if(!name) throw Error('target_name is required');
+          const r=await fetch('http://127.0.0.1:8080/api/entities/import/batch',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({drafts:[{name,type:process.env.TARGET_TYPE||'HNWI',notes:process.env.TARGET_CONTEXT||'Single-target audit seed; research must establish identity and provenance independently.',sourceRegistries:['single-target-audit-seed'],confidence:'medium'}],skipDuplicates:true})});
+          const b=await r.json(); console.log(JSON.stringify(b,null,2)); if(!r.ok) throw Error(JSON.stringify(b)); const e=b.entities?.[0]; if(!e?.id) throw Error(`Target was not created: ${JSON.stringify(b)}`); require('fs').writeFileSync('/tmp/target.json',JSON.stringify(e));
+          NODE
+      - name: Launch single-target Dig
+        run: |
+          ID=$(node -p 'require("/tmp/target.json").id')
+          curl -sS -m 15 -X POST http://127.0.0.1:8080/api/ingest/atlas-run -H 'Content-Type: application/json' -d "{\"singleTargetId\":${ID},\"runResearch\":true,\"researchDepth\":\"${RESEARCH_DEPTH}\",\"targetTimeoutMs\":420000}" | tee /tmp/launch.json
+          node -e 'const x=require("/tmp/launch.json");if(!x.jobId)throw Error(JSON.stringify(x))'
+      - name: Poll Dig
+        run: |
+          for i in $(seq 1 360); do
+            sleep 5
+            curl -sS -m 10 http://127.0.0.1:8080/api/ingest/atlas-status > /tmp/atlas-status.json || true
+            S=$(node -e 'const fs=require("fs");try{const x=JSON.parse(fs.readFileSync("/tmp/atlas-status.json"));console.log(JSON.stringify({status:x.status,phase:x.atlasPhase,progress:x.entityProgress,total:x.entityTotal}));process.stdout.write(String(x.status||x.job?.status||""))}catch{}')
+            case "$S" in *done|*completed|*idle) exit 0;; *failed|*cancelled) exit 1;; esac
+          done
+          exit 1
+      - name: Freeze and audit
+        if: always()
+        run: |
+          ID=$(node -p 'require("/tmp/target.json").id' 2>/dev/null || echo 0)
+          curl -sS -m 10 "http://127.0.0.1:8080/api/entities/$ID" | tee /tmp/entity.json || true
+          curl -sS -m 10 'http://127.0.0.1:8080/api/ingest/scoreboard-snapshot?limit=50' | tee /tmp/scoreboard.json || true
+          curl -sS -m 10 http://127.0.0.1:8080/api/healthz | tee /tmp/health.json || true
+          node scripts/audit-live-bureau.mjs || true
+      - name: Upload audit artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: apex-single-target-${{ github.run_id }}
+          path: |
+            /tmp/target.json
+            /tmp/launch.json
+            /tmp/atlas-status.json
+            /tmp/entity.json
+            /tmp/scoreboard.json
+            /tmp/health.json
+            /tmp/apex-api.log
+          if-no-files-found: ignore

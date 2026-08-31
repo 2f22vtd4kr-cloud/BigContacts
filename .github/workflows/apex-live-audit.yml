@@ -1,8 +1,10 @@
 name: Apex Live Bureau Audit
 
+# This is an explicit expensive provider-backed validation run.
+# Do not trigger it on every main commit: engineering commits must not silently
+# spend a 10-target research budget. Use workflow_dispatch when a live batch is
+# intentionally requested.
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 concurrency:
@@ -75,9 +77,7 @@ jobs:
           set -euo pipefail
           for attempt in 1 2 3; do
             echo "pnpm install attempt ${attempt}/3"
-            if pnpm install --no-frozen-lockfile --ignore-scripts --fetch-retries=8 --fetch-timeout=120000 --filter @workspace/api-server... --registry=https://registry.npmjs.org/; then
-              exit 0
-            fi
+            if pnpm install --no-frozen-lockfile --ignore-scripts --fetch-retries=8 --fetch-timeout=120000 --filter @workspace/api-server... --registry=https://registry.npmjs.org/; then exit 0; fi
             if [ "$attempt" -lt 3 ]; then sleep $((attempt * 15)); fi
           done
           exit 1
@@ -108,35 +108,28 @@ jobs:
           set -euo pipefail
           node --input-type=module <<'NODE'
           const results = [];
-          let bossReady = false;
-          let rightHandReady = false;
           let digReady = false;
-          async function geminiProbe() {
-            const keys = [process.env.GEMINI_API_KEY, ...Array.from({length:13}, (_,i) => process.env[`GEMINI_API_KEY_${i+1}`])].filter(Boolean);
-            const models = [process.env.GEMINI_AGENTIC_MODEL || 'gemini-3.7-flash', 'gemini-3.6-flash', 'gemini-3.5-flash'];
-            for (const [ki,key] of keys.entries()) for (const model of [...new Set(models)]) {
-              try {
-                const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, { method:'POST', headers:{'x-goog-api-key':key,'content-type':'application/json'}, body:JSON.stringify({contents:[{parts:[{text:'Reply READY only.'}]}],generationConfig:{maxOutputTokens:8}}), signal:AbortSignal.timeout(15000) });
-                await r.text(); results.push({provider:'gemini-boss',key:`${ki+1}`,model,status:r.status}); if (r.ok) { bossReady = true; return true; } if (r.status === 401 || r.status === 403) break;
-              } catch (e) { results.push({provider:'gemini-boss',key:`${ki+1}`,model,state:'transport_error',error:String(e?.message||e)}); }
-            }
-            return false;
+          async function probe(url,key,model,provider) {
+            if (!key) { results.push({provider,state:'not_configured'}); return false; }
+            try {
+              const r = await fetch(url,{method:'POST',headers:{Authorization:`Bearer ${key}`,'content-type':'application/json'},body:JSON.stringify({model,messages:[{role:'user',content:'Reply READY only.'}],max_tokens:8}),signal:AbortSignal.timeout(15000)});
+              await r.text(); results.push({provider,model,status:r.status}); return r.ok;
+            } catch(e) { results.push({provider,model,state:'transport_error',error:String(e?.message||e)}); return false; }
           }
-          async function openaiProbe(provider, url, key, model, capability) {
-            if (!key) { results.push({provider,capability,state:'not_configured'}); return false; }
-            try { const r = await fetch(url,{method:'POST',headers:{Authorization:`Bearer ${key}`,'content-type':'application/json'},body:JSON.stringify({model,messages:[{role:'user',content:'Reply READY only.'}],max_tokens:8}),signal:AbortSignal.timeout(15000)}); results.push({provider,capability,model,status:r.status}); await r.text(); return r.ok; }
-            catch (e) { results.push({provider,capability,model,state:'transport_error',error:String(e?.message||e)}); return false; }
+          const groq = await probe('https://api.groq.com/openai/v1/chat/completions',process.env.GROQ_API_KEY,'openai/gpt-oss-120b','groq-dig');
+          const mistral = await probe('https://api.mistral.ai/v1/chat/completions',process.env.MISTRAL_API_KEY,process.env.MISTRAL_AGENTIC_MODEL || 'mistral-small-latest','mistral-dig');
+          digReady = groq || mistral;
+          await probe('https://integrate.api.nvidia.com/v1/chat/completions',process.env.NVIDIA_NIM_API_KEY,process.env.NVIDIA_NIM_MODEL || 'nvidia/nemotron-3.5-lightning-30b-a3b','nvidia-right-hand');
+          const keys=[process.env.GEMINI_API_KEY,...Array.from({length:13},(_,i)=>process.env[`GEMINI_API_KEY_${i+1}`])].filter(Boolean);
+          let bossReady=false;
+          for (const [i,key] of keys.entries()) {
+            try {
+              const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(process.env.GEMINI_AGENTIC_MODEL || 'gemini-3.7-flash')}:generateContent`,{method:'POST',headers:{'x-goog-api-key':key,'content-type':'application/json'},body:JSON.stringify({contents:[{parts:[{text:'Reply READY only.'}]}],generationConfig:{maxOutputTokens:8}}),signal:AbortSignal.timeout(15000)});
+              await r.text(); results.push({provider:'gemini-boss',key:`${i+1}`,status:r.status}); if(r.ok){bossReady=true;break;}
+            } catch(e){results.push({provider:'gemini-boss',key:`${i+1}`,state:'transport_error',error:String(e?.message||e)});}
           }
-          const groqProbe = async () => { const ok = await openaiProbe('groq','https://api.groq.com/openai/v1/chat/completions',process.env.GROQ_API_KEY,'openai/gpt-oss-120b','dig'); if (ok) digReady = true; return ok; };
-          const mistralProbe = async () => { const ok = await openaiProbe('mistral','https://api.mistral.ai/v1/chat/completions',process.env.MISTRAL_API_KEY,process.env.MISTRAL_AGENTIC_MODEL || 'mistral-small-latest','dig'); if (ok) digReady = true; return ok; };
-          const nvidiaProbe = async () => { const ok = await openaiProbe('nvidia-nim','https://integrate.api.nvidia.com/v1/chat/completions',process.env.NVIDIA_NIM_API_KEY,process.env.NVIDIA_NIM_MODEL || 'nvidia/nemotron-3.5-lightning-30b-a3b','right_hand'); if (ok) rightHandReady = true; return ok; };
-          await geminiProbe();
-          await groqProbe();
-          await mistralProbe();
-          await nvidiaProbe();
-          const ready = digReady;
-          console.log(JSON.stringify({ready,digReady,bossReady,rightHandReady,results},null,2));
-          if (!digReady) { console.error('No configured Dig investigator provider completed a real generation preflight (Groq or Mistral). Do not launch a 10-target batch.'); process.exit(2); }
+          console.log(JSON.stringify({digReady,bossReady,results},null,2));
+          if(!digReady){console.error('No configured Dig provider passed generation preflight.');process.exit(2);}
           NODE
       - name: Start Apex API
         run: |
@@ -148,14 +141,14 @@ jobs:
       - name: Launch 10-target discovery-first Bureau
         run: |
           curl -sS -m 15 -X POST http://127.0.0.1:8080/api/ingest/atlas-run -H 'Content-Type: application/json' -d '{"discoveryFirst":true,"targetCount":10,"researchLimit":10,"runResearch":true,"skipFaa":true,"targetTimeoutMs":300000,"researchDepth":"standard"}' | tee /tmp/launch.json
-          node -e 'const x=require("/tmp/launch.json"); if(!x.jobId) { console.error(JSON.stringify(x)); process.exit(1); } console.log(`BUREAU_JOB_ID=${x.jobId}`)'
+          node -e 'const x=require("/tmp/launch.json"); if(!x.jobId){console.error(JSON.stringify(x));process.exit(1)}; console.log(x.jobId)'
       - name: Poll Bureau
         run: |
           for i in $(seq 1 900); do
             sleep 5
             curl -sS -m 10 http://127.0.0.1:8080/api/ingest/atlas-status > /tmp/atlas-status.json || true
-            node -e 'const fs=require("fs"); try { const x=JSON.parse(fs.readFileSync("/tmp/atlas-status.json","utf8")); console.log(JSON.stringify({status:x.status,jobId:x.jobId||x.job?.jobId,phase:x.atlasPhase,progress:x.entityProgress,total:x.entityTotal,names:x.entityNames})); } catch {}'
-            STATUS=$(node -e 'const fs=require("fs"); try { const x=JSON.parse(fs.readFileSync("/tmp/atlas-status.json","utf8")); process.stdout.write(String(x.status||x.job?.status||"")); } catch {}')
+            node -e 'const fs=require("fs");try{const x=JSON.parse(fs.readFileSync("/tmp/atlas-status.json","utf8"));console.log(JSON.stringify({status:x.status,jobId:x.jobId||x.job?.jobId,phase:x.atlasPhase,progress:x.entityProgress,total:x.entityTotal,names:x.entityNames}))}catch{}'
+            STATUS=$(node -e 'const fs=require("fs");try{const x=JSON.parse(fs.readFileSync("/tmp/atlas-status.json","utf8"));process.stdout.write(String(x.status||x.job?.status||""))}catch{}')
             case "$STATUS" in done|completed|idle) exit 0;; failed|cancelled) exit 1;; esac
           done
           exit 1
