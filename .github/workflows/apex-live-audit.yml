@@ -43,7 +43,7 @@ jobs:
       GEMINI_API_KEY_13: ${{ secrets.GEMINI_API_KEY_13 }}
       GEMINI_AGENTIC_MODEL: gemini-3.7-flash
       GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
-      GROQ_AGENTIC_MODEL: openai/gpt-oss-120b
+      GROQ_AGENTIC_MODEL: openai/gpt-oss-20b
       MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
       MISTRAL_AGENTIC_MODEL: mistral-small-latest
       NVIDIA_NIM_API_KEY: ${{ secrets.NVIDIA_NIM_API_KEY }}
@@ -64,7 +64,7 @@ jobs:
       APEX_AGENTIC_CONCURRENCY: "4"
       APEX_AGENTIC_PROVIDER_CONCURRENCY: "2"
       AGENTIC_PROVIDER_DECISION_TIMEOUT_MS: "55000"
-      GROQ_AGENTIC_MIN_INTERVAL_MS: "20000"
+      GROQ_AGENTIC_MIN_INTERVAL_MS: "0"
       NODE_OPTIONS: --max-old-space-size=1536
     steps:
       - uses: actions/checkout@v4
@@ -124,7 +124,7 @@ jobs:
               await r.text(); results.push({provider,model,status:r.status}); return r.ok;
             } catch(e) { results.push({provider,model,state:'transport_error',error:String(e?.message||e)}); return false; }
           }
-          const groq = await probe('https://api.groq.com/openai/v1/chat/completions',process.env.GROQ_API_KEY,process.env.GROQ_AGENTIC_MODEL || 'openai/gpt-oss-120b','groq-dig');
+          const groq = await probe('https://api.groq.com/openai/v1/chat/completions',process.env.GROQ_API_KEY,process.env.GROQ_AGENTIC_MODEL || 'openai/gpt-oss-20b','groq-dig');
           const mistral = await probe('https://api.mistral.ai/v1/chat/completions',process.env.MISTRAL_API_KEY,process.env.MISTRAL_AGENTIC_MODEL || 'mistral-small-latest','mistral-dig');
           digReady = groq || mistral;
           await probe('https://integrate.api.nvidia.com/v1/chat/completions',process.env.NVIDIA_NIM_API_KEY,process.env.NVIDIA_NIM_MODEL || 'nvidia/nemotron-3.5-lightning-30b-a3b','nvidia-right-hand');
