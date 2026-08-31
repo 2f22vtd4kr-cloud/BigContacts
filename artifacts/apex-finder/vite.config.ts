@@ -40,8 +40,17 @@ export default defineConfig({
         '..',
         'attached_assets',
       ),
+      // api-client-react is a workspace-linked source package. Its generated
+      // modules import react-query, so pin the browser build to the app's
+      // installed copy rather than relying on Node resolution from lib/.
+      '@tanstack/react-query': path.resolve(
+        import.meta.dirname,
+        'node_modules',
+        '@tanstack',
+        'react-query',
+      ),
     },
-    dedupe: ['react', 'react-dom'],
+    dedupe: ['react', 'react-dom', '@tanstack/react-query'],
   },
   root: path.resolve(import.meta.dirname),
   build: {
