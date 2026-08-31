@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "export NODE_ENV=development && pnpm run build && pnpm run start",
-    "build": "node ../../scripts/apply-agentic-concurrency-hardening.mjs && node ../../scripts/apply-agentic-timeout-hardening.mjs && node ../../scripts/apply-provider-gate-v2.mjs && node ../../scripts/apply-discovery-runtime-correctness.mjs && node ./build.mjs",
+    "build": "node ../../scripts/apply-agentic-concurrency-hardening.mjs && node ../../scripts/apply-agentic-timeout-hardening.mjs && node ../../scripts/apply-provider-gate-v2.mjs && node ../../scripts/apply-discovery-runtime-correctness.mjs && node ../../scripts/apply-discovery-admission-v2.mjs && node ./build.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run"
   },
