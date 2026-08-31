@@ -1,4 +1,5 @@
-import { test, expect, chromium } from '@playwright/test';
+import { test, expect } from 'playwright/test';
+import { chromium } from 'playwright';
 
 const baseURL = process.env.APEX_BROWSER_BASE_URL || 'http://127.0.0.1:4173';
 
