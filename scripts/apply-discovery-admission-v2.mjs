@@ -1,6 +1,9 @@
 import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-const discoveryFile = "artifacts/api-server/src/src/lib/discovery-agent.ts";
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const discoveryFile = path.join(repoRoot, "artifacts/api-server/src/src/lib/discovery-agent.ts");
 const discoverySource = fs.readFileSync(discoveryFile, "utf8");
 
 const admissionOld = '    if (f.scope !== "candidate") continue;\n';
@@ -23,7 +26,7 @@ if (!nextDiscovery.includes('const hasExplicitPersonIdentity = Boolean(String(f.
   console.log("discovery admission v2 already applied");
 }
 
-const researchFile = "artifacts/api-server/src/src/lib/agentic-web-research.ts";
+const researchFile = path.join(repoRoot, "artifacts/api-server/src/src/lib/agentic-web-research.ts");
 const researchSource = fs.readFileSync(researchFile, "utf8");
 const telemetryAnchor = `    findings = mergeFindings(findings, action.findings);\n    history.push(\n      \`step\${i + 1}: done findings=\${findings.length}\` +`;
 const telemetryReplacement = `    findings = mergeFindings(findings, action.findings);\n    // Preserve a compact forensic record of model-declared findings. This is\n    // observability only; admission still applies the normal identity/provenance\n    // boundary. Never persist arbitrary model prose as an entity here.\n    const doneFindingSummary = action.findings\n      .slice(0, 12)\n      .map((f) => JSON.stringify({ vectorType: f.vectorType, value: f.value.slice(0, 120), personName: f.personName, role: f.role, scope: f.scope, sourceUrls: f.sourceUrls.slice(0, 3) }))\n      .join(" | ");\n    if (doneFindingSummary) history.push(\`step\${i + 1}: done_findings=\${doneFindingSummary.slice(0, 1800)}\`);\n    history.push(\n      \`step\${i + 1}: done findings=\${findings.length}\` +`;
