@@ -248,13 +248,13 @@ export async function runDiscoveryAgent(input: {
   let lastMessage = "";
 
   try {
-    const batchTasks = Array.from({ length: requestedBatch }, (_, slot) => (async () => {
+    for (let slot = 0; slot < requestedBatch; slot += 1) {
       const objective = [
         baseObjective,
-        "This slot runs concurrently with the other discovery slots. Choose your own distinct person; duplicate candidates will be discarded after the batch.",
+        "This slot runs serially because the investigator provider pool is paced. Choose your own distinct person; duplicate candidates will be discarded after the batch.",
         `This is batch slot ${slot + 1} of ${requestedBatch}. One strong, distinct candidate is sufficient. Do not pad with weak names.`,
       ].join("\n");
-      const slotSpan = publishDigSpan({ jobId, spanType: "stage", name: "discovery_slot", status: "active", agentName: "discovery", inputSummary: `slot=${slot + 1}/${requestedBatch} concurrent=true` });
+      const slotSpan = publishDigSpan({ jobId, spanType: "stage", name: "discovery_slot", status: "active", agentName: "discovery", inputSummary: `slot=${slot + 1}/${requestedBatch} concurrent=false` });
       try {
         const result = await runAgenticWebResearch({
           targetName: `Discovery slot ${slot + 1}`,
@@ -272,30 +272,25 @@ export async function runDiscoveryAgent(input: {
         });
         const slotCandidates = parsePersonFindings(result.findings ?? [], result.trajectory ?? []);
         try { completeDigSpan(jobId, slotSpan.id, { status: slotCandidates.length ? "ok" : "error", resultSummary: `slot=${slot + 1}/${requestedBatch} candidates=${slotCandidates.length} searches=${result.searches} visits=${result.visits}` }); } catch { /* best-effort */ }
-        return { result, slotCandidates };
-      } catch (err) {
-        try { completeDigSpan(jobId, slotSpan.id, { status: "error", resultSummary: String(err).slice(0, 200) }); } catch { /* best-effort */ }
-        return { result: null, slotCandidates: [] as DiscoveryCandidate[] };
-      }
-    })());
 
-    const batchResults = await Promise.all(batchTasks);
-    for (const { result, slotCandidates } of batchResults) {
-      if (!result) {
+        totalSearches += result.searches ?? 0;
+        totalVisits += result.visits ?? 0;
+        lastModel = result.model || lastModel;
+        lastMessage = result.error || result.status || "completed";
+        if (result.status === "unavailable" || result.status === "error") degraded = true;
+        if (slotCandidates.length) {
+          for (const candidate of slotCandidates) {
+            const key = candidate.name.toLowerCase();
+            if (seen.has(key)) continue;
+            seen.add(key);
+            candidates.push(candidate);
+            if (candidates.length >= requestedBatch) break;
+          }
+        }
+      } catch (err) {
         degraded = true;
-        continue;
-      }
-      totalSearches += result.searches ?? 0;
-      totalVisits += result.visits ?? 0;
-      lastModel = result.model || lastModel;
-      lastMessage = result.error || result.status || "completed";
-      if (result.status === "unavailable" || result.status === "error") degraded = true;
-      for (const candidate of slotCandidates) {
-        const key = candidate.name.toLowerCase();
-        if (seen.has(key)) continue;
-        seen.add(key);
-        candidates.push(candidate);
-        if (candidates.length >= requestedBatch) break;
+        lastMessage = String(err).slice(0, 180);
+        try { completeDigSpan(jobId, slotSpan.id, { status: "error", resultSummary: lastMessage }); } catch { /* best-effort */ }
       }
       if (candidates.length >= requestedBatch) break;
     }
