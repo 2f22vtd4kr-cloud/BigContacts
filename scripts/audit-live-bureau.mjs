@@ -117,21 +117,46 @@ if (rows.length < 10) fail(`discovery-first audit produced ${rows.length} entiti
 let sourceBacked = 0;
 let direct = 0;
 let org = 0;
+let candidate = 0;
+let collisionRisk = 0;
 for (const entity of rows) {
-  if (looksMalformedTarget(entity.name)) fail(`malformed/non-person entity admitted as target: ${entity.name || entity.id}`);
+  const entityName = entity.name || entity.id;
+  if (looksMalformedTarget(entity.name)) fail(`malformed/non-person entity admitted as target: ${entityName}`);
+
   const contacts = Array.isArray(entity.contacts) ? entity.contacts : [];
   const bad = contacts.filter((c) => c && c.sourceUrl && !isHttpUrl(c.sourceUrl));
-  if (bad.length) fail(`entity ${entity.name || entity.id} has contact evidence without HTTP(S) provenance`);
+  if (bad.length) fail(`entity ${entityName} has contact evidence without HTTP(S) provenance`);
   const synthetic = contacts.filter((c) => /google\.com\/search\?|bing\.com\/search\?|search\.yahoo\.com/i.test(String(c?.sourceUrl ?? "")));
-  if (synthetic.length) fail(`entity ${entity.name || entity.id} contains synthetic search URL as evidence provenance`);
-  sourceBacked += contacts.filter((c) => isHttpUrl(c?.sourceUrl)).length;
-  if (entity.contactOutcome === "direct_contact") direct++;
-  if (entity.contactOutcome === "organization_contact") org++;
-  console.log(`QUALITY entity=${entity.name || entity.id} outcome=${entity.contactOutcome || "none"} sourcedContacts=${contacts.length}`);
+  if (synthetic.length) fail(`entity ${entityName} contains synthetic search URL as evidence provenance`);
+
+  const sourced = contacts.filter((c) => isHttpUrl(c?.sourceUrl));
+  sourceBacked += sourced.length;
+  const personalRoutes = contacts.filter((c) => ["personal", "verified_direct_route"].includes(String(c?.mark ?? "").toLowerCase())
+    || String(c?.validationStatus ?? "").toLowerCase() === "verified_direct_route");
+  const organizationRoutes = contacts.filter((c) => String(c?.mark ?? "").toLowerCase() === "organization"
+    || String(c?.label ?? "").toLowerCase().includes("organization"));
+  const candidateRoutes = contacts.filter((c) => String(c?.mark ?? "").toLowerCase() === "candidate");
+  const risky = contacts.filter((c) => c?.identityCollisionRisk === true);
+  candidate += candidateRoutes.length;
+  collisionRisk += risky.length;
+
+  if (entity.contactOutcome === "direct_contact") {
+    direct++;
+    if (personalRoutes.length === 0) fail(`entity ${entityName} claims direct_contact without a personal/verified route`);
+    if (sourced.length === 0) fail(`entity ${entityName} claims direct_contact without HTTP(S)-backed contact evidence`);
+    if (risky.length) fail(`entity ${entityName} claims direct_contact while identity collision risk remains`);
+  }
+  if (entity.contactOutcome === "organization_contact") {
+    org++;
+    if (organizationRoutes.length === 0) fail(`entity ${entityName} claims organization_contact without an explicitly organization-scoped route`);
+  }
+
+  console.log(`QUALITY entity=${entityName} outcome=${entity.contactOutcome || "none"} sourcedContacts=${contacts.length} personal=${personalRoutes.length} organization=${organizationRoutes.length} candidate=${candidateRoutes.length} collisionRisk=${risky.length}`);
 }
 
-console.log(`LIVE_AUDIT class=research_quality entities=${rows.length} sourceBackedContacts=${sourceBacked} direct=${direct} organization=${org}`);
+console.log(`LIVE_AUDIT class=research_quality entities=${rows.length} sourceBackedContacts=${sourceBacked} direct=${direct} organization=${org} candidates=${candidate} collisionRisk=${collisionRisk}`);
 console.log(`LIVE_AUDIT discoveryModel=${discoveryModel} discoveryTools=${discoveryTools} status=${status.status || status.outcome || "unknown"}`);
 console.log(`LIVE_AUDIT discoverySpans=${discoverySpans.length} bureauRecords=${bureauRecords.length}`);
 if (org > 0 && direct === 0) console.log("QUALITY_NOTE organization-contact only; do not count as direct-person reachability");
+if (candidate > 0) console.log("QUALITY_NOTE candidate routes remain unverified and must not be counted as direct reachability");
 if (process.exitCode) process.exit();
