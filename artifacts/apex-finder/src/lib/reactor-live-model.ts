@@ -94,7 +94,7 @@ export function explicitResearchQuery(value?: string | null): string | undefined
   const text = cleanResearchText(value, 180);
   if (!text) return undefined;
   const match = text.match(/(?:^|\b)(?:query|search(?:ing)?(?:\s+for)?):\s*["“]?(.+?)["”]?$/i);
-  return cleanResearchText(match?.[1] ?? text, 180);
+  return cleanResearchText(match?.[1], 180);
 }
 
 export function sourceList(event: Pick<ReactorLiveEvent, "sources" | "links" | "sourceUrls">): ReactorSource[] {
