@@ -2,7 +2,7 @@
 
 **Repo:** https://github.com/2f22vtd4kr-cloud/BigContacts  
 **Branch:** `main`  
-**Current tip floor:** `329ecd491766acbf955b2d23f1b68f1d512caf86` or newer (proxy auto-candidate rejection + regression test)  
+**Current tip floor:** `e565ed839c882c3a87cca741c6f31f9cf9d24182` or newer (post-proxy-fix bounded-smoke trigger)  
 **Canonical Replit path:** one paste — `docs/REPLIT_UPDATE_PROMPT_LATEST.md` (Agent inside the App). Expanded procedure: `docs/RUN_BUREAU.md`.  
 **Product:** Apex Atlas research bureau; **Bureau is its OSINT/research architecture**, not a separate product.
 
@@ -158,6 +158,11 @@ This fix intentionally does **not** remove the model's web tools, add a replacem
 The same run also confirmed provider-role behavior at the source level: the Dig lane is Groq → Mistral; the logged Groq model names such as `qwen/qwen3.6-27b` / `openai/gpt-oss-20b` are provider-local Groq catalog fallbacks, not Gemini/NVIDIA Dig execution. Mistral was not configured in that CI environment, while Groq generation preflight returned HTTP 200. Gemini preflight returned 429 for both configured keys, and NVIDIA preflight returned 200 as right-hand capability; neither was used as the Dig provider by the canonical `llmStep`.
 
 **Next step:** run the bounded 3-target smoke again from the new main tip. Require at least one explicit model-selected, visited-source person admit and then inspect its free-ReAct Dig trajectory. Only after that proof should the workflow scale toward the 10-target blind-comparison audit.
+
+### 2026-08-31 Batch 25 — post-proxy-fix smoke trigger
+Main now advances through `c82ca466` (discovery-quality guard for the proxy boundary) and trigger commit `e565ed839c882c3a87cca741c6f31f9cf9d24182`. The existing resilient workflow's documented push surface was used to initiate the bounded 3-target smoke without changing the research path. No live outcome is claimed here yet: the GitHub connector available to this agent does not expose a usable push-run/workflow-dispatch or push-run listing endpoint, so the run must be judged only from actual workflow artifacts once accessible.
+
+The source-level contract is unchanged: model-owned discovery; observed HTTP(S) person evidence; Dig = Groq → Mistral; no forced hops; no proxy auto-candidates; honest degraded/empty outcomes.
 
 ## Independent blind baseline contract
 For every target that Apex actually admits and researches, the evaluation now requires a **blind independent OpenAI baseline**. The baseline receives only the original target/objective and its own public-web research opportunity; it must not receive Apex cards, Apex hypotheses, Apex URLs, Apex trajectory, or Apex rejection decisions. Use comparable wall-clock/tool opportunity. The baseline may beat Apex; a baseline win is a real Apex loss and becomes a bug investigation, never a reason to add forced hops.
