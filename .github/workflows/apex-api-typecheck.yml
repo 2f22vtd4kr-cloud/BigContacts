@@ -1,13 +1,15 @@
-name: Apex API Typecheck
+name: Apex API Build
 
 on:
   push:
     branches: [main]
     paths:
       - "artifacts/api-server/src/**"
+      - "artifacts/api-server/build.mjs"
       - "artifacts/api-server/package.json"
       - "artifacts/api-server/tsconfig.json"
       - "scripts/apply-*.mjs"
+      - "lib/**"
       - "pnpm-lock.yaml"
       - ".github/workflows/apex-api-typecheck.yml"
   workflow_dispatch:
@@ -16,7 +18,7 @@ permissions:
   contents: read
 
 jobs:
-  typecheck:
+  build:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -28,5 +30,5 @@ jobs:
       - run: npm install -g pnpm@9
       - name: Install API workspace graph
         run: pnpm install --no-frozen-lockfile --ignore-scripts --fetch-retries=8 --fetch-timeout=120000 --filter @workspace/api-server... --registry=https://registry.npmjs.org/
-      - name: Typecheck API
-        run: pnpm --dir artifacts/api-server run typecheck
+      - name: Build API
+        run: pnpm --dir artifacts/api-server run build
