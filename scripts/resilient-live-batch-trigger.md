@@ -1,16 +1,16 @@
 # Resilient live batch trigger
 
-This file exists only to trigger the provider-resilient 10-target Apex Atlas audit workflow.
-The workflow pins the agentic Dig lane to Groq Qwen 3.8 and preserves model-owned research decisions.
+This file exists only to trigger the provider-resilient Apex Atlas live audit workflow.
+The workflow preserves model-owned discovery and Dig research decisions; it does not define a research playbook.
 
 ## 2026-08-31 recovery run
-The live workflow uses one provider decision at a time and a conservative Groq pacing floor to respect the observed token-limited development lane. Discovery slots are labeled as slots rather than pseudo-person targets. The run must produce real trajectories and auditable evidence; completion without ten valid targets remains a failure.
+The live workflow uses one provider decision at a time and conservative Groq pacing to respect the observed token-limited development lane. Discovery slots are labeled as slots rather than pseudo-person targets. The run must produce real trajectories and auditable evidence; completion without valid admitted targets remains a failure.
 
 ## 2026-08-31 admission-boundary recovery
-The discovery admission layer now accepts an explicitly named person discovered on an organization-scoped source, while still rejecting generic organization facts. The ReAct runtime also records a compact summary of model-declared `done` findings in the trajectory so a zero-candidate result can be diagnosed at the model-output boundary rather than guessed from the final card.
+The discovery admission layer accepts an explicitly named person discovered on an organization-scoped source, while still rejecting generic organization facts. The ReAct runtime records a compact summary of model-declared `done` findings in the trajectory so zero-candidate results can be diagnosed at the model-output boundary rather than guessed from the final card.
 
-## 2026-08-31 final retrigger after forensic addendum
-The live run must execute against the current `main` tip, including the recovery specification recorded in `docs/bureau-plan/58_LIVE_RECOVERY_2026-08-31.md`, the organization-scoped admission regression test, and the repo-root path resolution fix for the build hardener.
+## 2026-08-31 Run 33411996869 forensic recovery
+The real 10-target run reached terminal state but admitted only the malformed identity `Head of Marketing`, with zero contacts. Forensics showed live provider activity but weak/partially degraded discovery trajectories, followed by a shallow Dig pass. The deterministic identity boundary is now hardened against generic title-shaped identities; this is a safety gate, not a discovery strategy.
 
-## 2026-08-31 Groq quota/JSON forensic recovery
-The failed run proved two separate production defects: Qwen 3.8 returned a real `json_validate_failed` response on one ReAct turn, then the same Groq model exhausted its 200K TPD quota while Mistral was unconfigured. `groq-models.ts` now treats the configured model as preferred rather than exclusive and retains Groq fallback models, so a transient JSON-mode failure or exhausted Qwen quota can move to another configured Groq model without changing the model-owned research/action surface.
+## 2026-08-31 bounded smoke
+The next proof is intentionally small: 3 discovery slots, 3 research targets, one agentic research loop at a time, Groq Qwen 3.8 with 20s minimum pacing, and the existing fail-closed provenance/identity gates. Success requires at least one real named-person admit with observed HTTPS evidence and an actual free-ReAct Dig trajectory. Zero admits or title-shaped admissions remain an honest research-quality failure.
