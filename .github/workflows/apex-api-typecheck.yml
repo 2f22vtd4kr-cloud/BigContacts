@@ -1,5 +1,6 @@
 name: Apex API Build
 
+# Canonical API build gate; the agentic source is materialized before this commit.
 on:
   push:
     branches: [main]
