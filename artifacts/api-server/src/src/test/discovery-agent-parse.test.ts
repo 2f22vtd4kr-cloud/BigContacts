@@ -21,6 +21,7 @@ describe("discovery agent identity boundary", () => {
 
   it.each([
     "com EMAIL",
+    "comPrecision Production",
     "President PERSON",
     "State St",
     "Operational Enablement",
