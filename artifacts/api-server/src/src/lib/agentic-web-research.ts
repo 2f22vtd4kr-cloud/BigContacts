@@ -24,7 +24,7 @@ import {
 import { lookupDomainSurface, findingsFromDomainSurface } from "./domain-surface";
 import { setAgenticLlmHealth, getAgenticLlmHealth } from "./agentic-llm-health";
 import { GROQ_CHAT_MODELS } from "./groq-models";
-import { apexOrientationFor } from "./apex-bureau-orientation";
+import { apexOrientationFor, apexOrientationCompact } from "./apex-bureau-orientation";
 export { getAgenticLlmHealth };
 
 export type AgenticFinding = {
@@ -157,7 +157,7 @@ async function toolWebSearchSerper(query: string): Promise<{ text: string; urls:
       if (data.knowledgeGraph?.description) parts.push(data.knowledgeGraph.description);
       for (const row of data.organic ?? []) {
         if (row.link && /^https?:\/\//i.test(row.link)) urls.push(row.link);
-        if (row.title || row.snippet) parts.push([row.title, row.snippet].filter(Boolean).join(" — "));
+        if (row.title || row.snippet) parts.push([`RESULT ${urls.length}`, `URL: ${row.link ?? "(none)"}`, row.title ? `TITLE: ${row.title}` : "", row.snippet ? `SNIPPET: ${row.snippet}` : ""].filter(Boolean).join(" — "));
       }
       if (!urls.length && !parts.length) continue;
       const text = filterPassagesForQuery(parts.join("\n"), query, { maxChars: MAX_OBS });
@@ -202,7 +202,7 @@ async function toolWebSearchTavily(query: string): Promise<{ text: string; urls:
       if (data.answer) parts.push(data.answer);
       for (const row of data.results ?? []) {
         if (row.url && /^https?:\/\//i.test(row.url)) urls.push(row.url);
-        if (row.title || row.content) parts.push([row.title, row.content].filter(Boolean).join(" — "));
+        if (row.title || row.content) parts.push([`RESULT ${urls.length}`, `URL: ${row.url ?? "(none)"}`, row.title ? `TITLE: ${row.title}` : "", row.content ? `SNIPPET: ${row.content}` : ""].filter(Boolean).join(" — "));
       }
       if (!urls.length && !parts.length) continue;
       const text = filterPassagesForQuery(parts.join("\n"), query, { maxChars: MAX_OBS });
@@ -245,7 +245,7 @@ async function toolWebSearchExa(query: string): Promise<{ text: string; urls: st
       const parts: string[] = [];
       for (const row of data.results ?? []) {
         if (row.url && /^https?:\/\//i.test(row.url)) urls.push(row.url);
-        if (row.title || row.text) parts.push([row.title, row.text].filter(Boolean).join(" — "));
+        if (row.title || row.text) parts.push([`RESULT ${urls.length}`, `URL: ${row.url ?? "(none)"}`, row.title ? `TITLE: ${row.title}` : "", row.text ? `SNIPPET: ${row.text}` : ""].filter(Boolean).join(" — "));
       }
       if (!urls.length && !parts.length) continue;
       const text = filterPassagesForQuery(parts.join("\n"), query, { maxChars: MAX_OBS });
@@ -310,441 +310,35 @@ async function toolWebSearch(query: string): Promise<{ text: string; urls: strin
 function extractContactFactsFromHtml(html: string): string {
   const facts: string[] = [];
   const seen = new Set<string>();
-  const push = (s: string) => {
-    const t = s.trim();
-    if (t.length < 5 || t.length > 200 || seen.has(t.toLowerCase())) return;
-    seen.add(t.toLowerCase());
-    facts.push(t);
+  const push = (value: string) => {
+    const text = value.trim();
+    if (text.length < 5 || text.length > 200 || seen.has(text.toLowerCase())) return;
+    seen.add(text.toLowerCase());
+    facts.push(text);
   };
 
-  for (const m of html.matchAll(/href=["']mailto:([^"'?\s]+)/gi)) {
-    push(`EMAIL: ${m[1]!.toLowerCase()}`);
+  for (const match of html.matchAll(/href=["']mailto:([^"'?\s]+)/gi)) {
+    push(`EMAIL: ${match[1]!.toLowerCase()}`);
   }
-  // Cloudflare email-protection (mastermfg.com and many SMB sites)
-  for (const m of html.matchAll(
-    /(?:email-protection|cdn-cgi\/l\/email-protection)[#/]([a-fA-F0-9]{4,})/gi,
-  )) {
-    const decoded = decodeCloudflareEmail(m[1]!);
+  for (const match of html.matchAll(/(?:email-protection|cdn-cgi\/l\/email-protection)[#/]([a-fA-F0-9]{4,})/gi)) {
+    const decoded = decodeCloudflareEmail(match[1]!);
     if (decoded) push(`EMAIL: ${decoded}`);
   }
-  for (const m of html.matchAll(/data-cfemail=["']([a-fA-F0-9]+)["']/gi)) {
-    const decoded = decodeCloudflareEmail(m[1]!);
+  for (const match of html.matchAll(/data-cfemail=["']([a-fA-F0-9]+)["']/gi)) {
+    const decoded = decodeCloudflareEmail(match[1]!);
     if (decoded) push(`EMAIL: ${decoded}`);
   }
-  for (const m of html.matchAll(/\b([a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,})\b/gi)) {
-    const addr = m[1]!.toLowerCase();
-    if (!/example\.|sentry\.|schema\.|wixpress|cloudflare|wordpress|github\.com|google\.com/.test(addr)) {
-      push(`EMAIL: ${addr}`);
+  for (const match of html.matchAll(/\b([a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,})\b/gi)) {
+    const address = match[1]!.toLowerCase();
+    if (!/example\.|sentry\.|schema\.|wixpress|cloudflare|wordpress|github\.com|google\.com/.test(address)) {
+      push(`EMAIL: ${address}`);
     }
   }
-  // Obfuscated org inboxes common on WordPress/SMB sites: info [at] domain.com / info (at) domain.com
-  for (const m of html.matchAll(
-    /\b((?:info|contact|sales|office|admin|support|hello)(?:\s*\[at\]\s*|\s*\(at\)\s*|\s+at\s+)[a-z0-9.-]+\.[a-z]{2,})\b/gi,
-  )) {
-    const normalized = m[1]!.toLowerCase().replace(/\s*\[at\]\s*|\s*\(at\)\s*|\s+at\s+/g, "@");
-    if (normalized.includes("@")) push(`EMAIL: ${normalized}`);
-  }
-  for (const m of html.matchAll(/href=["']tel:([^"']+)/gi)) {
-    push(`PHONE: ${m[1]!.replace(/\s+/g, " ").trim()}`);
-  }
-  // Twin/co-founder narrative: "Norman and Nathan Miller" (require 2-token full names)
-  for (const m of html.matchAll(
-    /\b(?:twin brothers|brothers|co-founders?)[,:]?\s+([A-Z][a-z]+)\s+and\s+([A-Z][a-z]+)\s+([A-Z][a-z]+)\b/gi,
-  )) {
-    const last = m[3]!.trim();
-    push(`PERSON: ${m[1]!.trim()} ${last} — co-founder`);
-    push(`PERSON: ${m[2]!.trim()} ${last} — co-founder`);
-  }
-  // About-page ownership narrative (emit PERSON findings when present)
-  // "founder Harold A. Biddle" / "founded by John Smith"
-  for (const m of html.matchAll(
-    /\b(?:founder|founded by|co-founder)\s+([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z]+)+)\b/gi,
-  )) {
-    const name = m[1]!.replace(/\s+/g, " ").trim();
-    if (name.split(/\s+/).length >= 2 && name.length < 60) push(`PERSON: ${name} — founder`);
-  }
-  // "sold to current owner and president, David Hammer" / "current owner and president David Hammer"
-  for (const m of html.matchAll(
-    /\b(?:current\s+)?(?:owner|president|ceo)(?:\s+and\s+(?:owner|president|ceo))?[,\s]+([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z]+)+)\b/gi,
-  )) {
-    const name = m[1]!.replace(/\s+/g, " ").trim();
-    if (name.split(/\s+/).length >= 2 && name.length < 60 && !/^(Inc|LLC|Corp|Company)\b/i.test(name)) {
-      push(`PERSON: ${name} — owner`);
-    }
-  }
-  // "David Hammer, President" already partially covered; add "President/Owner David Hammer"
-  for (const m of html.matchAll(
-    /\b(?:President|Owner|CEO|Founder)\s*\/?\s*(?:Owner|President)?\s*,?\s*([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)\b/g,
-  )) {
-    const name = m[1]!.replace(/\s+/g, " ").trim();
-    if (name.split(/\s+/).length >= 2 && name.length < 50) push(`PERSON: ${name} — principal`);
-  }
-  // Compound title then name: "President and CEO Bryon Shafer" / "CFO Rick Sykora" (PR buyout style)
-  for (const m of html.matchAll(
-    /\b(?:President\s+and\s+CEO|CEO\s+and\s+President|President|CEO|Chief Executive Officer|CFO|Chief Financial Officer|COO|Chief Operating Officer|Executive Chairman)\s+([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z]+)?)\b/g,
-  )) {
-    const name = m[1]!.replace(/\s+/g, " ").trim();
-    if (name.split(/\s+/).length >= 2 && name.length < 50 && !/^(Inc|LLC|Corp|Company|Board|the)\b/i.test(name)) {
-      push(`PERSON: ${name} — principal`);
-    }
-  }
-  for (const m of html.matchAll(
-    /\bco-?founder\s+([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z]+)?)\b/gi,
-  )) {
-    const name = m[1]!.replace(/\s+/g, " ").trim();
-    if (name.split(/\s+/).length >= 2 && name.length < 50) {
-      push(`PERSON: ${name} — co-founder`);
-    }
+  for (const match of html.matchAll(/href=["']tel:([^"']+)/gi)) {
+    push(`PHONE: ${match[1]!.replace(/\s+/g, " ").trim()}`);
   }
 
-  // Same-line Name / Title (KB Tool & Die style): "Alan G. Klinger / President"
-  for (const m of html.matchAll(
-    /\b([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z]+)+)\s*\/\s*((?:President|CEO|Owner|Founder|Vice President|VP|General Manager|Director|Principal|Treasurer|Chairman|Manager|Supervisor)[^<\n@]{0,40})/g,
-  )) {
-    const name = m[1]!.replace(/\s+/g, " ").trim();
-    const role = m[2]!.replace(/\s+/g, " ").trim().slice(0, 60);
-    if (name.split(/\s+/).length >= 2 && name.length < 60) {
-      push(`PERSON: ${name} — ${role}`);
-    }
-  }
-  // Ownership transfer: "sold the business to …" / "acquired by …" on public pages
-  for (const m of html.matchAll(
-    /\b(?:sold(?:\s+the\s+business)?\s+to|acquired\s+by|purchased\s+by|bought\s+by)\s+([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z]+)+)\b/gi,
-  )) {
-    const name = m[1]!.replace(/\s+/g, " ").trim();
-    if (name.split(/\s+/).length >= 2 && name.length < 60 && !/^(Inc|LLC|Corp|Company|the)\b/i.test(name)) {
-      push(`PERSON: ${name} — owner`);
-      push(`SUCCESSION: sold/acquired → ${name}`);
-    }
-  }
-  // "John H. Fennig, who is the owner and President" / "owned and led by Charles Reitsma"
-  for (const m of stripHtml(html).matchAll(
-    /\b([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z]+)+),\s*who\s+is\s+the\s+(owner\s+and\s+President|President\s+and\s+owner|owner|President|CEO|founder)/gi,
-  )) {
-    const name = m[1]!.replace(/\s+/g, " ").trim();
-    const role = m[2]!.replace(/\s+/g, " ").trim().slice(0, 40);
-    if (name.split(/\s+/).length >= 2 && name.length < 50) push(`PERSON: ${name} — ${role}`);
-  }
-  for (const m of stripHtml(html).matchAll(
-    /\b(?:owned\s+and\s+led\s+by|led\s+by|founded\s+by)\s+([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z]+)+)\b/gi,
-  )) {
-    const name = m[1]!.replace(/\s+/g, " ").trim();
-    if (name.split(/\s+/).length >= 2 && name.length < 50) push(`PERSON: ${name} — owner`);
-  }
-  // "Vince is the second-generation owner" / "Vince Petek\nPresident" narrative
-  for (const m of stripHtml(html).matchAll(
-    /\b([A-Z][a-z]+)\s+is\s+the\s+(second-generation\s+owner|owner|president|CEO|managing\s+partner)\b/gi,
-  )) {
-    // first name only — try to expand from nearby full name later; still emit as lead
-    const first = m[1]!.trim();
-    const role = m[2]!.replace(/\s+/g, " ").trim();
-    if (first.length >= 3) push(`PERSON: ${first} — ${role}`);
-  }
-  for (const m of stripHtml(html).matchAll(
-    /\b([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z]+)+)\s+is\s+the\s+(second-generation\s+owner|owner|president|CEO|managing\s+partner)\b/gi,
-  )) {
-    const name = m[1]!.replace(/\s+/g, " ").trim();
-    const role = m[2]!.replace(/\s+/g, " ").trim();
-    if (name.split(/\s+/).length >= 2 && name.length < 50) push(`PERSON: ${name} — ${role}`);
-  }
-  // "Logan Conrad\nManaging Partner" / name then Managing Partner within 2 lines
-  for (const m of stripHtml(html).matchAll(
-    /\b([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z]+)+)\s*\n\s*(Managing\s+Partner|General\s+Manager|Project\s+Coordinator|VP\s+of\s+Manufacturing)/gi,
-  )) {
-    const name = m[1]!.replace(/\s+/g, " ").trim();
-    const role = m[2]!.replace(/\s+/g, " ").trim();
-    if (name.split(/\s+/).length >= 2 && name.length < 50) push(`PERSON: ${name} — ${role}`);
-  }
-  // "Kendra Fennig who is the Vice President and Secretary Treasurer"
-  for (const m of stripHtml(html).matchAll(
-    /\b([A-Z][a-z]+(?:\s+[A-Z]\.)?(?:\s+[A-Z][a-z]+)+)\s+who\s+is\s+the\s+((?:Vice\s+President|President|CEO|Owner|Secretary|Treasurer)(?:\s+and\s+(?:Secretary|Treasurer|President|Owner))?)/gi,
-  )) {
-    const name = m[1]!.replace(/\s+/g, " ").trim();
-    const role = m[2]!.replace(/\s+/g, " ").trim().slice(0, 50);
-    if (
-      name.split(/\s+/).length >= 2
-      && name.length < 40
-      && !/\b(who|the|and|date|owner|president)\b/i.test(name)
-    ) {
-      push(`PERSON: ${name} — ${role}`);
-    }
-  }
-  // Heading adjacency: name heading then role heading on the same page
-  // Allow one newline between name and title — common on about/who-we-are pages.
-  for (const m of html.matchAll(
-    /(?:<h[1-4][^>]*>|\n)\s*([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z]+)+)\s*(?:<\/h[1-4]>)?\s*(?:\n|<br\s*\/?>|\s)*\s*(?:<h[1-4][^>]*>)?\s*((?:President|CEO|Chief Executive Officer|Owner|Founder|Vice President|VP|CFO|Chief Financial Officer|COO|Chief Operating Officer|Director|Principal|Treasurer|Chairman|Executive Chairman)[^<\n]{0,50})/gi,
-  )) {
-    const name = m[1]!.replace(/\s+/g, " ").trim();
-    const role = m[2]!.replace(/\s+/g, " ").trim().slice(0, 60);
-    if (name.split(/\s+/).length >= 2 && name.length < 60 && !/^(Inc|LLC|Corp|Company|About|Contact|Home)\b/i.test(name)) {
-      push(`PERSON: ${name} — ${role}`);
-    }
-  }
-  // Plain-text multi-line: "Nelson Reyes\nPresident..." / "### Frank K. Chesek\n#### CEO/Company President"
-  for (const m of stripHtml(html).matchAll(
-    /(?:^|\n)\s*#{0,4}\s*([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z]+)+)\s*\n\s*#{0,4}\s*((?:President|CEO|Chief Executive Officer|Owner|Founder|Vice President|VP|CFO|Chief Financial Officer|COO|Chief Operating Officer|Director|Principal|Treasurer|Chairman|Executive Chairman|Executive Assistant|Manager|Controller|Engineer|Supervisor|Managing Partner|Project Coordinator|Human Resources|Technical Sales|Quality Manager|VP of Manufacturing|VP OF HR|VP OF SALES|VP OF MANUFACTURING|VP OF ENGINEERING|FOUNDER|second-generation owner|Office Manager|Operations Manager|Engineering Manager|Administrative Specialist|Head of CNC|Process Engineer|Director of Business Development|Plant Manager)[^\n]{0,60})/gm,
-  )) {
-    const name = m[1]!.replace(/\s+/g, " ").trim();
-    const role = m[2]!.replace(/\s+/g, " ").trim().slice(0, 60);
-    if (name.split(/\s+/).length >= 2 && name.length < 60 && !/^(About|Contact|Home|Sales|Company|Directory|General)\b/i.test(name)) {
-      push(`PERSON: ${name} — ${role}`);
-    }
-  }
-  // Role-line + email on same line (Micro Manufacturing style): "President / CEO - djolliffe@micromfg.com"
-  // Emit EMAIL + ROLE; when local-part looks like a person token, also emit PERSON_EMAIL lead.
-  for (const m of html.matchAll(
-    /\b((?:President|CEO|Owner|Founder|Vice President|VP|Director|Principal|Manager|Secretary|Treasurer)[^@\n<]{0,40}?)[-–—:]\s*([a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,})\b/gi,
-  )) {
-    const role = m[1]!.replace(/\s+/g, " ").trim().slice(0, 60);
-    const email = m[2]!.toLowerCase();
-    push(`EMAIL: ${email}`);
-    push(`ROLE: ${role}`);
-    const local = email.split("@")[0] || "";
-    // Promote only when local-part is a plausible name token (not info/sales/contact)
-    if (
-      local.length >= 3
-      && !/^(info|contact|sales|office|admin|support|hello|service|parts|inquiries|mail|office|hr|accounting)$/i.test(local)
-      && /^[a-z]+(?:[._][a-z]+)?$/i.test(local)
-    ) {
-      push(`PERSON_EMAIL: ${local} | ${email}`);
-      push(`ROLE: ${role} (${email})`);
-    }
-  }
-  // BBB / directory principal lines
-  for (const m of html.matchAll(
-    /(?:Business Management|Principal Contacts?|Owner\/President|President)[:\s]+(?:Mr\.?|Ms\.?|Mrs\.?)?\s*([A-Z][a-z]+(?:\s+[A-Z][a-z.]+)+)/gi,
-  )) {
-    push(`PERSON: ${m[1]!.replace(/\s+/g, " ").trim()} — principal`);
-  }
-  for (const m of html.matchAll(
-    /\b(?:Mr\.?|Ms\.?|Mrs\.?)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+),\s*(Owner|President|CEO|Principal|Director|Founder)/gi,
-  )) {
-    push(`PERSON: ${m[1]!.trim()} — ${m[2]!.toLowerCase()}`);
-  }
-  // US-centric phone patterns common on company contact pages
-  for (const m of html.matchAll(/(?:\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]\d{3}[-.\s]\d{4}/g)) {
-    push(`PHONE: ${m[0]!.replace(/\s+/g, " ").trim()}`);
-  }
-  // Street-ish address lines — require real street type tokens (blocks CSS class noise)
-  for (const m of html.matchAll(
-    /\b\d{1,6}\s+[A-Za-z0-9.'\-]+(?:\s+[A-Za-z0-9.'\-]+){0,5}\s+(?:Street|St\.?|Avenue|Ave\.?|Road|Rd\.?|Drive|Dr\.?|Boulevard|Blvd\.?|Lane|Ln\.?|Court|Ct\.?|Way|Highway|Hwy\.?|HWY|Parkway|Pkwy\.?|Place|Pl\.?)\b[^<\n]{0,50}/gi,
-  )) {
-    const line = m[0]!.replace(/\s+/g, " ").trim().slice(0, 140);
-    if (!/\bast-|\buagb-|\bwp-|\brmp-|[{};]/.test(line)) push(`ADDRESS: ${line}`);
-  }
-  // Full "15700 South Waterloo Rd. Cleveland, OH 44110" contact-page blocks
-  for (const m of html.matchAll(
-    /\b\d{1,6}\s+[A-Za-z0-9.'\-\s]{3,55}?,\s*[A-Z][a-zA-Z .']{1,28},\s*[A-Z]{2}\s+\d{5}(?:-\d{4})?\b/g,
-  )) {
-    const line = m[0]!.replace(/\s+/g, " ").trim().slice(0, 160);
-    if (!/\bast-|\buagb-|[{};]/.test(line)) push(`ADDRESS: ${line}`);
-  }
-  for (const m of html.matchAll(/\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*,\s*[A-Z]{2}\s+\d{5}(?:-\d{4})?\b/g)) {
-    push(`ADDRESS: ${m[0]!.trim()}`);
-  }
-  // Role / title cues near officer names (proxy language)
-  for (const m of html.matchAll(
-    /\b((?:Co-)?(?:Chief Executive Officer|CEO|President|Director|Chairman|Vice President|VP|Secretary|Treasurer|Owner|Principal)[^.<]{0,60})/gi,
-  )) {
-    const role = m[1]!.replace(/\s+/g, " ").trim().slice(0, 100);
-    if (!/\bast-|\buagb-|[{};]/.test(role)) push(`ROLE: ${role}`);
-  }
-  // Succession / family-ownership facts (recover from leadership/blog pages when present)
-  for (const m of html.matchAll(
-    /\b((?:family[- ]owned|fourth[- ]generation|4th[- ]generation|third[- ]generation|privately held)[^.<]{0,80})/gi,
-  )) {
-    const line = m[1]!.replace(/\s+/g, " ").trim().slice(0, 120);
-    if (line.length > 12) push(`STRUCTURE: ${line}`);
-  }
-  for (const m of html.matchAll(
-    /\b((?:succession|succeeded|succeeds|named CEO|become CEO|Executive Chairman|Chief Strategy Officer)[^.<]{0,100})/gi,
-  )) {
-    const line = m[1]!.replace(/\s+/g, " ").trim().slice(0, 140);
-    if (line.length > 10 && !/\bast-|[{};]/.test(line)) push(`SUCCESSION: ${line}`);
-  }
-  // Related people on BBB / about / team pages: "Mr. Name, Owner" / "Name, Company Contact"
-  // Also match inside <dd>…</dd> after CF escalate (Scrapfly returns full BBB HTML)
-  for (const m of html.matchAll(
-    /\b(?:Mr\.|Ms\.|Mrs\.|Dr\.)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z'.-]+){1,3})\s*,\s*((?:Owner|President|CEO|Director|Principal|Company Contact|Manager|Secretary|Treasurer)[^<\n,]{0,40})/g,
-  )) {
-    push(`PERSON: ${m[1]!.trim()} — ${m[2]!.replace(/\s+/g, " ").trim().slice(0, 60)}`);
-  }
-  for (const m of html.matchAll(
-    /<dd[^>]*>\s*(?:Mr\.|Ms\.|Mrs\.|Dr\.)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z'.-]+){1,3})\s*,\s*([^<]{2,40})<\/dd>/gi,
-  )) {
-    push(`PERSON: ${m[1]!.trim()} — ${m[2]!.replace(/\s+/g, " ").trim().slice(0, 60)}`);
-  }
-  for (const m of html.matchAll(
-    /\b([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z]+)+)\s*[,–—-]\s*((?:Owner|President|CEO|Director|Principal Contact|Company Contact|Treasurer)[^<\n,]{0,30})/g,
-  )) {
-    push(`PERSON: ${m[1]!.trim()} — ${m[2]!.replace(/\s+/g, " ").trim().slice(0, 60)}`);
-  }
-
-  // Dealer / team pages: "Tom Jansen … Tel: … tom@domain.com"
-  const plain = stripHtml(html).slice(0, 80_000);
-  for (const m of plain.matchAll(
-    /\b([A-Z][a-z]{1,20}\s+[A-Z][a-z]{1,20})\s+(?:USA|Canada|Tel|Phone|Fax|Email|Distributor|Factory)[:\s][^@]{0,80}?([a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,})/gi,
-  )) {
-    const pName = m[1]!.replace(/\s+/g, " ").trim();
-    const email = m[2]!.toLowerCase();
-    if (pName.split(/\s+/).length === 2 && !/Mensch Manufacturing|Contact Us|Quality Equipment|Home of/i.test(pName)) {
-      push(`PERSON: ${pName} — related_contact`);
-      push(`EMAIL: ${email}`);
-      push(`PERSON_EMAIL: ${pName} | ${email}`);
-    }
-  }
-  for (const m of html.matchAll(
-    />([A-Z][a-z]+\s+[A-Z][a-z]+)<[^>]{0,200}href=["']mailto:([^"'?\s]+)/gi,
-  )) {
-    push(`PERSON: ${m[1]!.trim()} — related_contact`);
-    push(`EMAIL: ${m[2]!.toLowerCase()}`);
-    push(`PERSON_EMAIL: ${m[1]!.trim()} | ${m[2]!.toLowerCase()}`);
-  }
-  // Wix / component team cards: <h3>Name</h3> ... role ... mailto within ~2500 chars
-  // (Griffin Tool about page — 200-char window missed Lillian/Tim/Rod/Brian)
-  for (const m of html.matchAll(
-    /<h[1-4][^>]*>\s*([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z]+)+)\s*<\/h[1-4]>[\s\S]{0,2500}?href=["']mailto:([a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,})/gi,
-  )) {
-    const pName = m[1]!.replace(/\s+/g, " ").trim();
-    const email = m[2]!.toLowerCase();
-    if (pName.split(/\s+/).length >= 2 && pName.length < 45 && !/Contact|Griffin Tool|Meet/i.test(pName)) {
-      // Role: first strong title between heading and mailto
-      const between = (m[0] || "").replace(/<[^>]+>/g, " ");
-      const roleM = between.match(
-        /\b(Chief Executive Officer(?:\s+and\s+President)?|President|CEO|CFO|Chief Financial Officer|Owner|Office Manager|Operations Manager|Engineering Manager|Administrative Specialist|Senior Engineer|Head of CNC(?:\s+Department)?|Process Engineer|Director of Business Development|General Manager|Plant Manager|Controller|Manager|Director|Engineer)\b/i,
-      );
-      const role = roleM ? roleM[1]!.replace(/\s+/g, " ").trim() : "related_contact";
-      push(`PERSON: ${pName} — ${role}`);
-      push(`EMAIL: ${email}`);
-      push(`PERSON_EMAIL: ${pName} | ${email}`);
-    }
-  }
-
-  // Griffin-style team cards: Name heading → role line → optional Extension → mailto within ~6 lines
-  // (Wix/markdown about pages: ### Malcolm Cowan / Chief Executive Officer and President / Extension 229 / mailto)
-  for (const m of plain.matchAll(
-    /(?:^|\n)\s*#{0,4}\s*([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z]+)+)\s*\n\s*((?:Chief Executive Officer(?:\s+and\s+President)?|President|CEO|CFO|Chief Financial Officer|Owner|Office Manager|Operations Manager|Engineering Manager|Administrative Specialist|Senior Engineer|Head of CNC(?:\s+Department)?|Process Engineer|Director of Business Development|General Manager|Plant Manager|Controller|Manager|Director|Engineer)[^\n]{0,50})\s*(?:\n\s*Extension\s*\d+)?\s*(?:\n[^\n]{0,80}){0,4}?([a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,})/gim,
-  )) {
-    const pName = m[1]!.replace(/\s+/g, " ").trim();
-    const role = m[2]!.replace(/\s+/g, " ").trim().slice(0, 70);
-    const email = m[3]!.toLowerCase();
-    if (pName.split(/\s+/).length >= 2 && pName.length < 45 && !/Griffin Tool|Contact Us|Meet Our/i.test(pName)) {
-      push(`PERSON: ${pName} — ${role}`);
-      push(`EMAIL: ${email}`);
-      push(`PERSON_EMAIL: ${pName} | ${email}`);
-    }
-  }
-
-  // Name then "Role email@" on next line (Rathburn style): "Angie Holt\nPresident aholt@rathburn..."
-  for (const m of plain.matchAll(
-    /\b([A-Z][a-z]+(?:[ \t]+[A-Z]\.?)?(?:[ \t]+[A-Z][a-z]+)+)[ \t]*\n[ \t]*((?:President|Owner|CEO|CFO|COO|Controller|Manager|Director|Engineer|Supervisor|Secretary|Treasurer|VP|Vice President)[^\n@]{0,40})[ \t]+([a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,})\b/gi,
-  )) {
-    const pName = m[1]!.replace(/\s+/g, " ").trim();
-    const role = m[2]!.replace(/\s+/g, " ").trim().slice(0, 60);
-    const email = m[3]!.toLowerCase();
-    if (pName.split(/\s+/).length >= 2 && pName.length < 40) {
-      push(`PERSON: ${pName} — ${role}`);
-      push(`EMAIL: ${email}`);
-      push(`PERSON_EMAIL: ${pName} | ${email}`);
-    }
-  }
-  // ALL-CAPS name line then Role + email (Rathburn: "APRIL WINFIELD\nOperations Manager\nawinfield@...")
-  for (const m of plain.matchAll(
-    /\b([A-Z][A-Z]+(?:[ \t]+[A-Z][A-Z]+)+)[ \t]*\n[ \t]*((?:President|Owner|CEO|CFO|COO|Controller|Manager|Director|Engineer|Supervisor|Secretary|Treasurer|Operations|Quality|Human Resources|Technical Sales)[^\n@]{0,40})[ \t]*\n[ \t]*([a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,})\b/g,
-  )) {
-    const raw = m[1]!.replace(/\s+/g, " ").trim();
-    const pName = raw.split(/\s+/).map((w) => w.charAt(0) + w.slice(1).toLowerCase()).join(" ");
-    const role = m[2]!.replace(/\s+/g, " ").trim().slice(0, 60);
-    const email = m[3]!.toLowerCase();
-    if (pName.split(/\s+/).length >= 2 && pName.length < 40) {
-      push(`PERSON: ${pName} — ${role}`);
-      push(`EMAIL: ${email}`);
-      push(`PERSON_EMAIL: ${pName} | ${email}`);
-    }
-  }
-
-  // Public wallet mentions on page (wealth evidence after person lock — not a contact)
-  for (const m of plain.matchAll(/\b(0x[a-fA-F0-9]{40})\b/g)) {
-    push(`WALLET: eth | ${m[1]!.toLowerCase()}`);
-  }
-  for (const m of plain.matchAll(/\b(bc1[a-zA-HJ-NP-Z0-9]{25,62})\b/g)) {
-    push(`WALLET: btc | ${m[1]!.toLowerCase()}`);
-  }
-
-  // Lowercase team cards (Rapid Tool style): "jamie tissue\nbusiness owner\ndie maker"
-  for (const m of plain.matchAll(
-    /\b([a-z][a-z]+[ \t]+[a-z][a-z]+)[ \t]*\n[ \t]*(business\s+owner|owner|president|project\s+manager|office\s+manager|die\s+maker)[^\n]{0,40}/gi,
-  )) {
-    const raw = m[1]!.replace(/\s+/g, " ").trim();
-    const pName = raw.split(/\s+/).map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
-    const role = m[2]!.replace(/\s+/g, " ").trim().slice(0, 40);
-    if (pName.split(/\s+/).length === 2) push(`PERSON: ${pName} — ${role}`);
-  }
-
-  // Directory blocks: split on emails; each segment looks for Name + role just above that email.
-  // Willis Machinery team pages — hold EVERY attributable person (Apex objective).
-  {
-    const parts = plain.split(/\b([a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,})\b/i);
-    for (let i = 1; i < parts.length; i += 2) {
-      const email = (parts[i] || "").toLowerCase();
-      const local = email.split("@")[0] || "";
-      if (!email.includes("@")) continue;
-      if (/^(info|sales|contact|support|office|admin|hello|service|parts|inquiries)$/i.test(local)) continue;
-      const before = (parts[i - 1] || "").slice(-300);
-      const lines = before.split(/\n/).map((l) => l.replace(/\s+/g, " ").trim()).filter(Boolean);
-      let pName: string | null = null;
-      let role = "related_contact";
-      for (let li = lines.length - 1; li >= 0; li--) {
-        const line = lines[li]!;
-        if (!pName) {
-          const nm = line.match(/^([A-Z][a-z]+(?:[ \t]+[A-Z]\.?)?(?:[ \t]+[A-Z][a-z]+)+)$/);
-          if (nm && nm[1]!.split(/\s+/).length >= 2 && nm[1]!.length < 40
-            && !/^(Contact|About|Home|Sales|Company|With|Regional|Shared|Office|Service|Directory|President|Owner)\b/i.test(nm[1]!)) {
-            pName = nm[1]!.trim();
-            // role may be on line below name (already passed) — scan forward in lines after name
-            for (let rj = li + 1; rj < lines.length; rj++) {
-              const rm = lines[rj]!.match(/\b((?:President|Owner|CEO|CFO|COO|Controller|Manager|Director|Technician|Machinist|Secretary|Treasurer)(?:[ \t]*\/[ \t]*(?:Owner|President|CEO|Manager))?)\b/i);
-              if (rm) { role = rm[1]!.replace(/\s+/g, " ").trim().slice(0, 60); break; }
-            }
-            break;
-          }
-        }
-      }
-      if (!pName) continue;
-      push(`PERSON: ${pName} — ${role}`);
-      push(`EMAIL: ${email}`);
-      push(`PERSON_EMAIL: ${pName} | ${email}`);
-    }
-  }
-
-  if (facts.length === 0) return "";
-  return "CONTACT FACTS (visible on page):\n" + facts.slice(0, 40).join("\n") + "\n\n";
-}
-
-/** Pull printable Latin text + emails/phones from a PDF binary (no extra deps). */
-function extractTextFromPdfBuffer(buf: ArrayBuffer): string {
-  const u8 = new Uint8Array(buf);
-  // Prefer latin1 so PDF string objects stay contiguous
-  let raw = "";
-  const chunk = 0x8000;
-  for (let i = 0; i < u8.length; i += chunk) {
-    raw += String.fromCharCode(...u8.subarray(i, Math.min(i + chunk, u8.length)));
-  }
-  // PDF literal strings (...); keep readable runs
-  const parts: string[] = [];
-  for (const m of raw.matchAll(/\((?:\\.|[^\\)]){3,200}\)/g)) {
-    const s = m[0].slice(1, -1)
-      .replace(/\\\n/g, "")
-      .replace(/\\([nrtbf()\\])/g, (_, c) => ({ n: "\n", r: "\r", t: "\t", b: " ", f: " ", "(": "(", ")": ")", "\\": "\\" } as any)[c] ?? c)
-      .replace(/[^\x09\x0a\x0d\x20-\x7e]/g, " ");
-    if (/[A-Za-z0-9@]/.test(s)) parts.push(s);
-  }
-  // Also keep long printable runs outside streams (often emails sit here)
-  for (const m of raw.matchAll(/[\x20-\x7e]{8,}/g)) {
-    if (/@|\d{3}|Phone|Email|Fax|Mobile|President|CEO|Owner/i.test(m[0])) parts.push(m[0]);
-  }
-  const text = parts.join("\n").replace(/[ \t]{2,}/g, " ").slice(0, 200_000);
-  return text;
+  return facts.join("\n");
 }
 
 function isMostlyBinaryGarbage(s: string): boolean {
@@ -965,7 +559,7 @@ async function callGroqJson(prompt: string): Promise<{ model: string; raw: strin
               {
                 role: "system",
                 content:
-                  apexOrientationFor("dig_agent") + "\nReply with ONE JSON object only for this ReAct step.",
+                  apexOrientationCompact("dig_agent") + "\nReply with ONE JSON object only for this ReAct step.",
               },
               { role: "user", content: prompt },
             ],
@@ -1046,13 +640,13 @@ async function callGeminiJson(prompt: string): Promise<{ model: string; raw: str
             body: JSON.stringify({
               systemInstruction: {
                 parts: [{
-                  text: apexOrientationFor("dig_agent") +
+                  text: apexOrientationCompact("dig_agent") +
                     "\nReturn exactly one JSON action object. Preserve your own research judgment; the harness only executes the action you choose.",
                 }],
               },
               contents: [{ role: "user", parts: [{ text: prompt }] }],
               generationConfig: {
-                maxOutputTokens: 4096,
+                maxOutputTokens: 1024,
                 thinkingConfig: { thinkingLevel: "high" },
               },
             }),
@@ -1102,7 +696,7 @@ async function callMistralJson(prompt: string): Promise<{ model: string; raw: st
             {
               role: "system",
               content:
-                apexOrientationFor("dig_agent") + "\nReply with ONE JSON object only for this ReAct step.",
+                apexOrientationCompact("dig_agent") + "\nReply with ONE JSON object only for this ReAct step.",
             },
             { role: "user", content: prompt },
           ],
@@ -1148,7 +742,7 @@ async function callNvidiaJson(prompt: string): Promise<{ model: string; raw: str
             {
               role: "system",
               content:
-                apexOrientationFor("dig_agent") + "\nReply with ONE JSON object only for this ReAct step.",
+                apexOrientationCompact("dig_agent") + "\nReply with ONE JSON object only for this ReAct step.",
             },
             { role: "user", content: prompt },
           ],
@@ -1171,45 +765,81 @@ async function callNvidiaJson(prompt: string): Promise<{ model: string; raw: str
 
 
 
-let agenticProviderCircuitUntil = 0;
+/**
+ * DIG_INVESTIGATOR_FAILOVER_CHAIN: Groq -> Mistral.
+ *
+ * This is the actual web-research LLM lane. Boss and right-hand are NOT dig
+ * providers: Boss=Gemini, right-hand=NVIDIA. They reason over the case and
+ * advise the investigator; they do not execute web research themselves.
+ *
+ * No provider in this lane is given a scripted research sequence. The model
+ * still owns every search, visit, OSINT choice, pivot, and stopping decision.
+ */
+let activeAgenticProviderDecisions = 0;
+const agenticProviderDecisionWaiters: Array<() => void> = [];
+const MAX_CONCURRENT_AGENTIC_PROVIDER_DECISIONS = Math.max(
+  1,
+  Number(process.env.APEX_AGENTIC_PROVIDER_CONCURRENCY || "1"),
+);
+let lastGroqAgenticCallAt = 0;
+const GROQ_AGENTIC_MIN_INTERVAL_MS = Math.max(
+  0,
+  Number(process.env.GROQ_AGENTIC_MIN_INTERVAL_MS || "20000"),
+);
+
+async function waitForGroqAgenticPace(): Promise<void> {
+  const elapsed = Date.now() - lastGroqAgenticCallAt;
+  const remaining = GROQ_AGENTIC_MIN_INTERVAL_MS - elapsed;
+  if (remaining > 0) await new Promise((resolve) => setTimeout(resolve, remaining));
+  lastGroqAgenticCallAt = Date.now();
+}
+
+async function acquireAgenticProviderDecisionSlot(): Promise<void> {
+  if (activeAgenticProviderDecisions < MAX_CONCURRENT_AGENTIC_PROVIDER_DECISIONS) {
+    activeAgenticProviderDecisions += 1;
+    return;
+  }
+  await new Promise<void>((resolve) => agenticProviderDecisionWaiters.push(resolve));
+  activeAgenticProviderDecisions += 1;
+}
+
+function releaseAgenticProviderDecisionSlot(): void {
+  activeAgenticProviderDecisions = Math.max(0, activeAgenticProviderDecisions - 1);
+  const next = agenticProviderDecisionWaiters.shift();
+  if (next) next();
+}
 
 async function llmStep(prompt: string): Promise<{ model: string; raw: string } | null> {
-  const now = Date.now();
-  if (now < agenticProviderCircuitUntil) {
-    logger.warn({ until: agenticProviderCircuitUntil }, "[agentic] provider circuit open; skipping repeated failed calls");
-    return null;
-  }
-  const stages: Array<Array<[string, () => Promise<{ model: string; raw: string } | null>]>> = [
-    [["gemini", callGeminiJson], ["nvidia", callNvidiaJson]],
-    [["groq", callGroqJson], ["mistral", callMistralJson]],
-  ];
-  const providerDecisionTimeoutMs = 55_000;
-  const errors: string[] = [];
-  for (const stage of stages) {
-    const attempts = stage.map(async ([name, fn]) => {
-      const timeout = new Promise<never>((_, reject) => setTimeout(() => reject(new Error(name + ":timeout")), providerDecisionTimeoutMs));
+  await acquireAgenticProviderDecisionSlot();
+  try {
+    const providers: Array<[string, () => Promise<{ model: string; raw: string } | null>]> = [
+      ["groq", callGroqJson],
+      ["mistral", callMistralJson],
+    ];
+    const providerDecisionTimeoutMs = 18_000;
+    const errors: string[] = [];
+
+    for (const [name, fn] of providers) {
+      const timeout = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error(name + ":timeout")), providerDecisionTimeoutMs),
+      );
       try {
+        if (name === "groq") await waitForGroqAgenticPace();
         const out = await Promise.race([fn(prompt), timeout]);
         if (!out?.raw) throw new Error(name + ":empty");
+        setAgenticLlmHealth(true, out.model, null);
         return out;
       } catch (err: any) {
-        throw new Error(name + ":" + (err?.message ?? "fail"));
+        errors.push(name + ":" + (err?.message ?? "fail"));
       }
-    });
-    try {
-      const out = await Promise.any(attempts);
-      agenticProviderCircuitUntil = 0;
-      setAgenticLlmHealth(true, out.model, null);
-      return out;
-    } catch (err: any) {
-      const reasons = Array.isArray(err?.errors) ? err.errors.map((e: unknown) => String(e)).join(";") : String(err?.message ?? "all_failed");
-      errors.push(reasons.slice(0, 500));
     }
+
+    setAgenticLlmHealth(false, null, errors.join(";").slice(0, 1000));
+    logger.warn({ errors }, "[agentic] all Dig investigator LLM providers failed for step");
+    return null;
+  } finally {
+    releaseAgenticProviderDecisionSlot();
   }
-  agenticProviderCircuitUntil = Date.now() + 60_000;
-  setAgenticLlmHealth(false, null, errors.join(";").slice(0, 1000));
-  logger.warn({ errors }, "[agentic] all LLM providers failed for step; circuit opened");
-  return null;
 }
 
 function formatFindingsBag(findings: AgenticFinding[]): string {
@@ -1235,7 +865,7 @@ function buildStepPrompt(input: {
 }): string {
   // Keep this short. Models already know how to research; do not ship a playbook.
   const bag = formatFindingsBag(input.findings ?? []);
-  return `${apexOrientationFor("dig_agent")}
+  return `${apexOrientationCompact("dig_agent")}
 
 ---
 
@@ -1256,6 +886,7 @@ AVAILABLE TOOLS (one JSON action per turn — your choice; use any Apex OSINT ca
 {"action":"done","findings":[{"vectorType":"email|phone|linkedin|website|social|other","value":"...","personName":null,"role":null,"scope":"organization|candidate","sourceUrls":["https://exact-page"],"note":"..."}],"thought":"..."}
 
 Guidelines (not a script):
+- Search snippets are leads, not identity evidence. When a promising result names a person, consider visiting the corresponding result URL before claiming identity; do not treat the URL/snippet alone as proof.
 - Never invent emails, phones, people, or URLs. Only values from observations or FINDINGS SO FAR, with real sourceUrls.
 - Prefer primary sources (company sites, filings, registries) over aggregators.
 - When finished, action=done. findings:[] is OK if FINDINGS SO FAR already holds contacts — the runtime keeps the bag.
