@@ -32,18 +32,34 @@ if (!nextDiscovery.includes("const INVALID_PERSON_TITLE_PATTERNS = [")) {
   nextDiscovery = nextDiscovery.replace(titleAnchor, titleInsert + titleAnchor);
 }
 
+const fragmentAnchor = `const INVALID_PERSON_TITLE_PATTERNS = [\n`;
+const fragmentInsert = `const INVALID_PERSON_FRAGMENT_PATTERNS = [\n  /^com[a-z]{4,}\\s+[a-z]{2,}(?:\\s+[a-z]{2,})?$/i,\n  /^www[a-z]{2,}\\s+[a-z]{2,}(?:\\s+[a-z]{2,})?$/i,\n  /^https?[a-z]{2,}\\s+[a-z]{2,}(?:\\s+[a-z]{2,})?$/i,\n];\n\n`;
+if (!nextDiscovery.includes("const INVALID_PERSON_FRAGMENT_PATTERNS = [")) {
+  if (!nextDiscovery.includes(fragmentAnchor)) throw new Error("discovery title gate anchor not found");
+  nextDiscovery = nextDiscovery.replace(fragmentAnchor, fragmentInsert + fragmentAnchor);
+}
+
 const gateAnchor = `  if (isInvalidIdentityPhrase(normalized)) return false;\n  if (!words.some((w) => /^\\p{Lu}/u.test(w))) return false;\n`;
-const gateReplacement = `  if (isInvalidIdentityPhrase(normalized)) return false;\n  if (INVALID_PERSON_TITLE_PATTERNS.some((pattern) => pattern.test(normalized))) return false;\n  if (!words.some((w) => /^\\p{Lu}/u.test(w))) return false;\n`;
-if (!nextDiscovery.includes("INVALID_PERSON_TITLE_PATTERNS.some((pattern) => pattern.test(normalized))")) {
+const gateReplacement = `  if (isInvalidIdentityPhrase(normalized)) return false;\n  if (INVALID_PERSON_TITLE_PATTERNS.some((pattern) => pattern.test(normalized))) return false;\n  if (INVALID_PERSON_FRAGMENT_PATTERNS.some((pattern) => pattern.test(normalized))) return false;\n  if (!words.some((w) => /^\\p{Lu}/u.test(w))) return false;\n`;
+if (!nextDiscovery.includes("INVALID_PERSON_FRAGMENT_PATTERNS.some((pattern) => pattern.test(normalized))")) {
   if (!nextDiscovery.includes(gateAnchor)) throw new Error("discovery identity gate anchor not found");
   nextDiscovery = nextDiscovery.replace(gateAnchor, gateReplacement);
 }
 
+// Prompt clarity only: make the required candidate emission explicit after
+// source observation. This does not select a person, source, query, or hop.
+const promptAnchor = `    "Use personName or value form: person: Full Name | role | company when possible.",\n`;
+const promptReplacement = `    "Use personName or value form: person: Full Name | role | company when possible.",\n    "When a visited source names a specific person, emit that person explicitly as person: Full Name | role | company (or personName). Do not emit a company name, email address, contact label, domain fragment, or generic organization fact as the person. If the source is organization-scoped but names a human, the finding may remain organization-scoped; the human identity must still be explicit.",\n`;
+if (!nextDiscovery.includes("When a visited source names a specific person, emit that person explicitly")) {
+  if (!nextDiscovery.includes(promptAnchor)) throw new Error("discovery output prompt anchor not found");
+  nextDiscovery = nextDiscovery.replace(promptAnchor, promptReplacement);
+}
+
 if (nextDiscovery !== discoverySource) {
   fs.writeFileSync(discoveryFile, nextDiscovery);
-  console.log("Applied discovery admission v2 + generic-title identity gate");
+  console.log("Applied discovery admission v2 + fused-fragment/title identity gates + explicit output guidance");
 } else {
-  console.log("discovery admission v2 + generic-title identity gate already applied");
+  console.log("discovery admission v2 + fused-fragment/title identity gates + explicit output guidance already applied");
 }
 
 const researchFile = path.join(repoRoot, "artifacts/api-server/src/src/lib/agentic-web-research.ts");
