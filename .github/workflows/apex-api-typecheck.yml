@@ -9,6 +9,7 @@ on:
       - "artifacts/api-server/tsconfig.json"
       - "scripts/apply-*.mjs"
       - "pnpm-lock.yaml"
+      - ".github/workflows/apex-api-typecheck.yml"
   workflow_dispatch:
 
 permissions:
