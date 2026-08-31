@@ -109,7 +109,10 @@ for (const line of actualSearches) {
 }
 
 if (status.status !== "done" && status.outcome !== "complete") fail(`Bureau did not finish cleanly: ${status.status || status.outcome || "unknown"}`);
-if (rows.length < 1) fail("discovery-first audit produced zero entities");
+// This workflow explicitly launches a ten-target Bureau batch. Treat fewer
+// than ten persisted entities as an incomplete live validation, rather than
+// allowing a single successful target to masquerade as a batch result.
+if (rows.length < 10) fail(`discovery-first audit produced ${rows.length} entities; expected the full 10-target batch`);
 
 let sourceBacked = 0;
 let direct = 0;
