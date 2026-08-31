@@ -2,7 +2,7 @@
 
 **Repo:** https://github.com/2f22vtd4kr-cloud/BigContacts  
 **Branch:** `main`  
-**Current tip floor:** `71f9a61` or newer (provider-role correction; Batch 20+)  
+**Current tip floor:** `7833d72` or newer (live-run provider pacing correction; Batch 22+)  
 **Canonical Replit path:** one paste — `docs/REPLIT_UPDATE_PROMPT_LATEST.md` (Agent inside the App). Expanded procedure: `docs/RUN_BUREAU.md`.  
 **Product:** Apex Atlas research bureau; **Bureau is its OSINT/research architecture**, not a separate product.
 
@@ -122,5 +122,30 @@ The live audits established that static autonomy checks can pass while the agent
 ### 2026-08-30 model capability placement (Batch 21)
 The living 40K specification now explicitly records that Apex is an orchestration/placement problem, not a model-training project. Existing capable models are to be placed into the correct roles and given the state/tools needed for their jobs. No fine-tuning or other training workflow is to be introduced merely to compensate for orchestration defects. Role separation is not a research-capability ceiling: Dig remains free-ReAct and model-directed.
 
+### 2026-08-31 live 10-target recovery (Batch 22)
+The first provider-resilient 10-target workflow was run for real at commit `4eb09900ef4ff09a6d1bcda4dea54b9f5cae47b8`. Build/startup succeeded and the Bureau genuinely entered discovery, but the run produced **0 admitted entities**: 9 web searches and 3 visits across the discovery pass, followed by an honest audit failure because the workflow requires the full 10-target batch. This is a research-quality failure, not a passing run. The evidence points to insufficient provider throughput/pacing and weak completed discovery trajectories rather than permission to add a scripted discovery path.
+
+The relevant Groq base rate-limit table shows 30 RPM and 8K TPM for the listed Qwen 3.8/GPT-OSS lanes, with Qwen 3.8 having a larger daily token allowance. The previous workflow override used 2.5s pacing, which was too aggressive for multi-thousand-token ReAct turns. Commit `7833d72` changes the live workflow to **one provider decision at a time, 20s minimum Groq pacing, 55s provider-decision deadline, and a 120-minute job window**. The next run must be judged from its actual trajectory/artifacts; no success is implied by the configuration change.
+
+## Independent blind baseline contract
+For every target that Apex actually admits and researches, the evaluation now requires a **blind independent OpenAI baseline**. The baseline receives only the original target/objective and its own public-web research opportunity; it must not receive Apex cards, Apex hypotheses, Apex URLs, Apex trajectory, or Apex rejection decisions. Use comparable wall-clock/tool opportunity. The baseline may beat Apex; a baseline win is a real Apex loss and becomes a bug investigation, never a reason to add forced hops.
+
+Per-target comparison records must preserve:
+- target and objective;
+- Apex final card and complete evidence/provenance;
+- Apex trajectory/provider/fallback telemetry;
+- independent OpenAI trajectory/results and source URLs;
+- identity correctness / namesake handling;
+- direct-person vs organization-route honesty;
+- primary-source usage and URL coverage;
+- contact-route quality;
+- unsupported-contact rate;
+- empty-card-after-research and evidence-loss outcomes;
+- time to first valid evidence and total research expenditure;
+- winner/loser with an evidence-based explanation.
+
+The baseline is a quality control, not a marketing benchmark. Do not preselect baseline targets after seeing Apex results, do not feed Apex discoveries into the baseline, and do not score trajectory length as a win.
+
 ## Still open
 - ~~Permanent source fixes for atlas build breakers~~ — done Batch 10 (`59c71ce`).
+- **Next gate:** complete the new real 10-target run with actual admitted targets/cards and then execute the blind OpenAI comparison for every one. No green claim until both research and comparison evidence exist.
