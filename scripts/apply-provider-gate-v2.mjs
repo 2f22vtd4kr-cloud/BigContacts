@@ -6,6 +6,21 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".."
 const targetPath = path.join(repoRoot, "artifacts/api-server/src/src/lib/agentic-web-research.ts");
 let s = fs.readFileSync(targetPath, "utf8");
 
+// The canonical concurrency hardener runs immediately before this compatibility
+// script in the API build. Once that hardener has installed the real Dig lane,
+// this script must not wrap/replace llmStep again: doing so leaves the canonical
+// provider-gate declarations in place and creates duplicate const bindings.
+const canonicalDigLane =
+  s.includes("DIG_INVESTIGATOR_FAILOVER_CHAIN") &&
+  s.includes("Groq -> Mistral") &&
+  s.includes("const MAX_CONCURRENT_AGENTIC_PROVIDER_DECISIONS") &&
+  s.includes("const GROQ_AGENTIC_MIN_INTERVAL_MS");
+
+if (canonicalDigLane) {
+  console.log("[apex-provider-gate-v2] canonical Dig provider gate already installed; no-op");
+  process.exit(0);
+}
+
 const start = s.indexOf("async function llmStep(prompt: string): Promise<{ model: string; raw: string } | null> {");
 const end = s.indexOf("\nfunction formatFindingsBag", start);
 if (start < 0 || end < 0) throw new Error("provider gate v2: llmStep anchors missing");
