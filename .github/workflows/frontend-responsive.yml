@@ -62,8 +62,10 @@ jobs:
           node-version: 22
       - name: Install pnpm
         run: npm install -g pnpm@9
-      - name: Install workspace with browser test runner
-        run: pnpm install --no-frozen-lockfile --ignore-scripts
+      - name: Install frontend workspace graph
+        run: pnpm install --no-frozen-lockfile --ignore-scripts --filter apex-finder-local...
+      - name: Install root browser test runner
+        run: pnpm install --no-frozen-lockfile --ignore-scripts --filter .
       - name: Verify runner Chrome
         run: google-chrome --version
       - name: Run desktop tablet mobile browser inspection
