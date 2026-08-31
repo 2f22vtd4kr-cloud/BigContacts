@@ -72,8 +72,14 @@ if (!/openaiProbe\(\s*['"]nvidia-nim['"][\s\S]*?['"]right_hand['"]\)/.test(workf
   throw new Error("live audit right-hand probe is not explicitly capability-scoped");
 }
 
-if (!/delegat(?:e|es) to the canonical hardener/i.test(compatibilityHardener)) {
-  throw new Error("compatibility hardener is not delegated to the canonical hardener");
+// Compatibility hardener is intentionally a thin delegating wrapper. Assert
+// the actual executable relationship instead of matching prose, so this gate
+// cannot pass merely because a comment says "delegate".
+if (!/const canonical\s*=\s*path\.join\(here,\s*["']apply-agentic-concurrency-hardening\.mjs["']\)/.test(compatibilityHardener)) {
+  throw new Error("compatibility hardener does not resolve the canonical hardener");
+}
+if (!/spawnSync\(process\.execPath,\s*\[canonical\]/.test(compatibilityHardener)) {
+  throw new Error("compatibility hardener does not execute the canonical hardener");
 }
 if (/\[\s*\[?\s*["']gemini["']\s*,\s*callGeminiJson|["']nvidia["']\s*,\s*callNvidiaJson/.test(compatibilityHardener)) {
   throw new Error("compatibility hardener contains a forbidden Boss/right-hand Dig provider tuple");
