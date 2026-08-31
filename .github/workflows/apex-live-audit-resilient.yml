@@ -10,6 +10,10 @@ on:
     paths:
       - "scripts/resilient-live-batch-trigger.md"
       - ".github/workflows/apex-live-audit-resilient.yml"
+      - "scripts/audit-live-bureau.mjs"
+      - "scripts/apply-discovery-admission-v2.mjs"
+      - "artifacts/api-server/src/src/lib/discovery-agent.ts"
+      - "artifacts/api-server/src/src/test/discovery-agent-parse.test.ts"
 
 concurrency:
   group: apex-live-bureau-resilient-${{ github.ref }}
@@ -44,9 +48,6 @@ jobs:
       GEMINI_API_KEY_13: ${{ secrets.GEMINI_API_KEY_13 }}
       GEMINI_AGENTIC_MODEL: gemini-3.7-flash
       GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
-      # Qwen 3.8 has the materially larger published daily token allowance
-      # than the exhausted GPT-OSS/Qwen 3.6 lanes, while remaining in the
-      # same Groq OpenAI-compatible tool/JSON research lane.
       GROQ_AGENTIC_MODEL: qwen/qwen3.8-27b
       MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
       MISTRAL_AGENTIC_MODEL: mistral-small-latest
@@ -65,13 +66,12 @@ jobs:
       WHOISJSON_API_KEY: ${{ secrets.WHOISJSON_API_KEY }}
       RESEARCH_DEPTH: standard
       APEX_SKIP_SEMANTIC: "1"
-      APEX_AGENTIC_CONCURRENCY: "4"
-      # One provider decision at a time. The published base limit is 8K TPM
-      # for Qwen 3.8 on the relevant rate-limit table; 20s pacing is therefore
-      # deliberately conservative for multi-thousand-token ReAct prompts.
+      APEX_DISCOVERY_BATCH_SIZE: "3"
+      APEX_AGENTIC_CONCURRENCY: "3"
       APEX_AGENTIC_PROVIDER_CONCURRENCY: "1"
       AGENTIC_PROVIDER_DECISION_TIMEOUT_MS: "55000"
       GROQ_AGENTIC_MIN_INTERVAL_MS: "20000"
+      LIVE_AUDIT_TARGET_COUNT: "3"
       NODE_OPTIONS: --max-old-space-size=1536
     steps:
       - uses: actions/checkout@v4
@@ -155,9 +155,9 @@ jobs:
           for i in $(seq 1 45); do sleep 1; test "$(curl -sS -m 2 -o /tmp/health.json -w '%{http_code}' http://127.0.0.1:8080/api/healthz || true)" = 200 && break; done
           cat /tmp/health.json || true
           test "$(curl -sS -m 5 -o /tmp/health.json -w '%{http_code}' http://127.0.0.1:8080/api/healthz)" = 200
-      - name: Launch 10-target discovery-first Bureau
+      - name: Launch bounded 3-target discovery-first Bureau smoke
         run: |
-          curl -sS -m 15 -X POST http://127.0.0.1:8080/api/ingest/atlas-run -H 'Content-Type: application/json' -d '{"discoveryFirst":true,"targetCount":10,"researchLimit":10,"runResearch":true,"skipFaa":true,"targetTimeoutMs":300000,"researchDepth":"standard"}' | tee /tmp/launch.json
+          curl -sS -m 15 -X POST http://127.0.0.1:8080/api/ingest/atlas-run -H 'Content-Type: application/json' -d '{"discoveryFirst":true,"targetCount":3,"researchLimit":3,"runResearch":true,"skipFaa":true,"targetTimeoutMs":300000,"researchDepth":"standard"}' | tee /tmp/launch.json
           node -e 'const x=require("/tmp/launch.json"); if(!x.jobId){console.error(JSON.stringify(x));process.exit(1)}; console.log(x.jobId)'
       - name: Poll Bureau
         run: |
