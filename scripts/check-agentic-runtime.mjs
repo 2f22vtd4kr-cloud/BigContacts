@@ -28,7 +28,7 @@ const llmStepMatch = source.match(
   /async function llmStep\(prompt: string\): Promise<\{ model: string; raw: string \} \| null> \{([\s\S]*?)\n\}\n\nfunction formatFindingsBag/,
 );
 if (!llmStepMatch) throw new Error("agentic runtime invariant failed: llmStep implementation missing");
-const llmStep = llmStepMatch[1]!;
+const llmStep = llmStepMatch[1];
 if (!/\["groq", callGroqJson\]/.test(llmStep) || !/\["mistral", callMistralJson\]/.test(llmStep)) {
   throw new Error("agentic runtime invariant failed: Dig llmStep must expose Groq -> Mistral");
 }
