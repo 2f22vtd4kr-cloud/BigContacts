@@ -6,7 +6,7 @@
 
 ## 1. Purpose
 
-Prove or falsify the superiority thesis with **same targets**, **honest metrics**, and **no handicapped comparison**.
+Prove or falsify the superiority thesis with **same targets, honest metrics, and no handicapped comparison**.
 
 Apex must not be scored only on “longer trajectory” or “more tool names.” Score **card truth**.
 
@@ -20,6 +20,7 @@ Apex must not be scored only on “longer trajectory” or “more tool names.�
 - `RESEARCH_DEPTH=standard` or `deep`  
 - Secrets for Serper + dig LLM + Gemini + NVIDIA present  
 - Tip SHA recorded  
+- Apex target set and run identifiers recorded before baseline work begins
 
 ### 2.2 Target set
 
@@ -30,11 +31,41 @@ Fixed list mixing:
 - Org-only routes  
 - Prior failure names (e.g. Icahn, Feinberg, Gund, Czirr, Philip classes)  
 
-### 2.3 Single-agent baseline
+For discovery-first batches, the **targets actually admitted by Apex** become the comparison set only after Apex execution is complete. Do not substitute hand-picked targets after seeing Apex's failures or successes.
 
-One capable general agent with web search, **same names**, similar wall-clock, **no** pasting Apex results into the agent.
+### 2.3 Blind single-agent baseline
 
-### 2.4 Metrics
+Use one capable independent **OpenAI model/research context** with public web research capability. The exact model identifier must be recorded at execution time.
+
+The baseline receives:
+
+- the same target;
+- the same research objective;
+- comparable wall-clock/tool budget;
+- the public web and whatever normal research capability is available to that independent agent.
+
+The baseline must **not** receive:
+
+- Apex card;
+- Apex hypotheses;
+- Apex trajectory;
+- Apex URLs or source shortlist;
+- Apex rejected identities;
+- Apex contact candidates;
+- any other Apex-derived research state.
+
+A baseline win is a legitimate Apex loss. Never handicap the baseline to make Apex look better.
+
+### 2.4 Execution order / contamination control
+
+1. Freeze the Apex run ID, tip SHA, and target list.
+2. Export Apex evidence/trajectory into the audit record.
+3. Start an independent OpenAI baseline context with only the target/objective.
+4. Do not paste or summarize Apex findings into the baseline.
+5. Record the baseline's sources and result independently.
+6. Only after both sides are frozen, perform the comparative audit.
+
+### 2.5 Metrics
 
 | Metric | Definition |
 |--------|------------|
@@ -45,11 +76,16 @@ One capable general agent with web search, **same names**, similar wall-clock, *
 | Collision false-promote | Wrong-family personal claims |
 | Empty after dig | Dig extracted facts but card empty |
 | Time to first valid evidence | Operator-visible |
+| Primary-source rate | Fraction of material identity/contact claims backed by primary or first-party sources |
+| Unsupported contact rate | Contact claims lacking direct supporting provenance |
+| Evidence completeness | Required claim fields with retained supporting evidence |
 
-### 2.5 Scoring rule
+### 2.6 Scoring rule
 
 Apex **wins** a target if card route quality ≥ baseline on primary public sources and honesty.  
 Apex **loses** if baseline has cleaner primary firm/person line or Apex mis-labels org as personal / wrong family.
+
+Tie if the research is materially equivalent. Do not break ties using call count, agent count, trajectory length, UI quality, or commit count.
 
 ---
 
@@ -59,19 +95,23 @@ Apex **loses** if baseline has cleaner primary firm/person line or Apex mis-labe
 |--------|--------------|--------------|------------------|--------|-------|
 | | | | | | |
 
-Update after every meaningful Replit batch. Store under `docs/comparisons/` with date.
+Update after every meaningful live batch. Store under `docs/comparisons/` with date and run IDs. Each target record should retain both sides' source URLs and an explicit reason for the winner.
 
 ---
 
 ## 4. Forbidden evaluation sins
 
 1. Comparing scripted Apex to free agent and calling it fair  
-2. Counting people-search scraped personal emails without primary source  
-3. Declaring win from commit count  
-4. Ignoring empty cards after successful visits  
+2. Comparing Apex to a baseline that has been shown Apex evidence  
+3. Counting people-search scraped personal emails without primary source  
+4. Declaring win from commit count  
+5. Ignoring empty cards after successful visits  
+6. Treating a successful provider/API call as a research-quality win
 
 ---
 
 ## 5. Acceptance of the product
 
 Weekly regression on the fixed set. Any loss with integrity ok → bug ticket on promote, identity, or dig freedom—not “add more force hops.”
+
+A 10-target batch is not a victory because ten jobs completed. It is a research evaluation only after all targets have auditable evidence and each target has an independent blind baseline comparison.
