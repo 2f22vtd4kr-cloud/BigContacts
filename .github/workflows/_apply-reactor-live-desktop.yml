@@ -1,9 +1,6 @@
 name: One-time Reactor Live desktop integration
 
 on:
-  push:
-    branches:
-      - feat/reactor-live-theatre
   pull_request:
     branches:
       - main
@@ -29,10 +26,11 @@ jobs:
           const reactorPath = 'artifacts/apex-finder/src/pages/reactor.tsx';
 
           let bureau = fs.readFileSync(bureauPath, 'utf8');
-          const fallbackPattern = /\n\s*\/\/ Fallback: honest synthetic query from target name only[\s\S]*?return e\.targetName \? `\$\{e\.targetName\} contact email phone` : undefined;\n\s*}\n/;
-          if (!fallbackPattern.test(bureau)) throw new Error('Expected Bureau synthetic-query fallback was not found');
+          const fallbackPattern = /\n\s*if \(\/discover\|serp\|search[\s\S]*?return e\.targetName \? `\$\{e\.targetName\} contact email phone` : undefined;\n\s*}\n/;
+          if (!fallbackPattern.test(bureau)) throw new Error('Expected target-name synthetic query branch was not found');
           bureau = bureau.replace(fallbackPattern, '\n');
-          bureau = bureau.replace(/const safeQuery = query && !isLogGarbage\(query\) && !isInternalLanePrompt\(query\)[\s\S]*?\n\s*:\s*\(e\.targetName \? `\$\{e\.targetName\}` : undefined\);/, 'const safeQuery = query && !isLogGarbage(query) && !isInternalLanePrompt(query) ? query : undefined;');
+          const safePattern = /const safeQuery = query && !isLogGarbage\(query\) && !isInternalLanePrompt\(query\)[\s\S]*?\n\s*:\s*\(e\.targetName \? `\$\{e\.targetName\}` : undefined\);/;
+          if (safePattern.test(bureau)) bureau = bureau.replace(safePattern, 'const safeQuery = query && !isLogGarbage(query) && !isInternalLanePrompt(query) ? query : undefined;');
           fs.writeFileSync(bureauPath, bureau);
 
           let reactor = fs.readFileSync(reactorPath, 'utf8');
@@ -41,14 +39,12 @@ jobs:
           if (!reactor.includes('import { ReactorLiveSurface } from "../components/reactor-live-surface";')) {
             reactor = reactor.replace(importNeedle, `${importNeedle}\nimport { ReactorLiveSurface } from "../components/reactor-live-surface";\nimport { cleanResearchText, explicitResearchQuery } from "../lib/reactor-live-model";`);
           }
-
           const helperMarker = '  const schemeNodeIds = useMemo(() => NODES.map((n) => n.id), []);';
           if (!reactor.includes(helperMarker)) throw new Error('Reactor memo insertion marker not found');
           if (!reactor.includes('const reactorLiveEvents = useMemo(() => filteredDeskEvents')) {
             const helper = `  const reactorLiveEvents = useMemo(() => filteredDeskEvents.map((e: any, i: number) => {\n    const sources = [...(e.links || []), ...(e.sourceUrls || []).map((url: string) => ({ url }))]\n      .filter((source: any) => { try { return /^https?:$/i.test(new URL(source.url).protocol); } catch { return false; } })\n      .slice(0, 8);\n    const query = explicitResearchQuery(e.inputSummary || e.prompt || e.raw);\n    const title = cleanResearchText(e.stage || e.kind || e.activeToolId, 120) || \"Research action\";\n    const resultSummary = cleanResearchText(e.resultSummary || e.story || e.caseUpdate, 760);\n    const prompt = cleanResearchText(e.prompt, 560);\n    const why = cleanResearchText(e.why || e.inputSummary, 260);\n    const rawStatus = String(e.status || \"active\").toLowerCase();\n    let status = /fail|error|blocked|cancel/.test(rawStatus) ? \"failed\" : /complete|done|success|finished/.test(rawStatus) ? \"done\" : \"active\";\n    if (status === \"active\" && e.timestamp) { const ts = Date.parse(e.timestamp); if (Number.isFinite(ts) && Date.now() - ts > 90000) status = \"done\"; }\n    if (!title && !resultSummary && !query && !sources.length) return null;\n    return { id: \`${'${'}e.timestamp || \"event\"}-${'${'}e.activeToolId || e.stage || e.kind || \"unknown\"}-${'${'}i}\`, timestamp: e.timestamp, status, method: \"unknown\", title, actor: e.actor, provider: e.activeToolId, targetName: e.targetName, query, url: sources[0]?.url, prompt, resultSummary, sourceUrls: sources.map((s: any) => s.url), sources, evidenceCount: typeof e.evidence === \"number\" ? e.evidence : undefined, why, links: sources };\n  }).filter(Boolean).slice(-14), [filteredDeskEvents]);\n  const reactorTargetName = [...reactorLiveEvents].reverse().find((e: any) => e.targetName)?.targetName;\n`;
             reactor = reactor.replace(helperMarker, `${helper}\n${helperMarker}`);
           }
-
           const callNeedle = `            <BureauOpsStage\n              events={`;
           if (!reactor.includes(callNeedle)) throw new Error('BureauOpsStage render marker not found');
           if (!reactor.includes('<ReactorLiveSurface events={reactorLiveEvents}')) {
@@ -57,11 +53,10 @@ jobs:
           }
           reactor = reactor.replace('              maxScenes={isLive ? 14 : 0}\n              compact\n              title=""', '              maxScenes={isLive ? 14 : 0}\n              compact={false}\n              title=""');
           fs.writeFileSync(reactorPath, reactor);
-
           fs.rmSync('.github/workflows/_apply-reactor-live-desktop.yml');
           cp.execSync('git config user.name "apex-atlas-bot"');
           cp.execSync('git config user.email "apex-atlas-bot@users.noreply.github.com"');
           cp.execSync('git add artifacts/apex-finder/src/components/bureau-ops-stage.tsx artifacts/apex-finder/src/pages/reactor.tsx .github/workflows/_apply-reactor-live-desktop.yml');
           cp.execSync('git commit -m "feat(frontend): integrate semantic Reactor theatre [reactor-live-applied]"');
-          cp.execSync(`git push origin HEAD:${process.env.GITHUB_HEAD_REF || process.env.GITHUB_REF_NAME}`);
+          cp.execSync(`git push origin HEAD:${process.env.GITHUB_HEAD_REF}`);
           NODE
