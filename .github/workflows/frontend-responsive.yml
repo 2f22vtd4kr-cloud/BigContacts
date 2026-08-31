@@ -8,6 +8,7 @@ on:
       - "scripts/check-frontend-responsive.mjs"
       - "scripts/check-reactor-live-integrity.mjs"
       - "scripts/frontend-browser.spec.mjs"
+      - "scripts/playwright.config.mjs"
       - "docs/bureau-plan/15_FRONTEND_RESPONSIVE_AUDIT.md"
       - "docs/bureau-plan/17_FRONTEND_REACTOR_LIVE_GATE.md"
       - ".github/workflows/frontend-responsive.yml"
@@ -18,6 +19,7 @@ on:
       - "scripts/check-frontend-responsive.mjs"
       - "scripts/check-reactor-live-integrity.mjs"
       - "scripts/frontend-browser.spec.mjs"
+      - "scripts/playwright.config.mjs"
       - "docs/bureau-plan/15_FRONTEND_RESPONSIVE_AUDIT.md"
       - "docs/bureau-plan/17_FRONTEND_REACTOR_LIVE_GATE.md"
       - ".github/workflows/frontend-responsive.yml"
@@ -62,27 +64,14 @@ jobs:
         run: pnpm install --no-frozen-lockfile --ignore-scripts --filter apex-finder-local...
       - name: Verify runner Chrome
         run: google-chrome --version
-      - name: Start Apex Finder Vite server
-        shell: bash
-        run: |
-          pnpm --dir artifacts/apex-finder dev --host 127.0.0.1 > /tmp/apex-vite.log 2>&1 &
-          echo $! > /tmp/apex-vite.pid
-          for i in {1..60}; do
-            if curl --silent --fail http://127.0.0.1:5173/ >/dev/null; then exit 0; fi
-            sleep 1
-          done
-          cat /tmp/apex-vite.log
-          exit 1
       - name: Run desktop tablet mobile browser inspection
         env:
           APEX_BROWSER_BASE_URL: http://127.0.0.1:5173
-        run: npx --yes playwright@1.55.0 test scripts/frontend-browser.spec.mjs --reporter=line
+        run: npx --yes playwright@1.55.0 test --config=scripts/playwright.config.mjs --reporter=line
       - name: Upload responsive screenshots and Playwright diagnostics
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: apex-reactor-responsive-browser
-          path: |
-            test-results/**
-            /tmp/apex-vite.log
+          path: test-results/**
           if-no-files-found: warn
