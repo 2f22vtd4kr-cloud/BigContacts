@@ -12,5 +12,8 @@ The discovery admission layer accepts an explicitly named person discovered on a
 ## 2026-08-31 Run 33411996869 forensic recovery
 The real 10-target run reached terminal state but admitted only the malformed identity `Head of Marketing`, with zero contacts. Forensics showed live provider activity but weak/partially degraded discovery trajectories, followed by a shallow Dig pass. The deterministic identity boundary is now hardened against generic title-shaped identities; this is a safety gate, not a discovery strategy.
 
-## 2026-08-31 bounded smoke
-The next proof is intentionally small: 3 discovery slots, 3 research targets, one agentic research loop at a time, Groq Qwen 3.8 with 20s minimum pacing, and the existing fail-closed provenance/identity gates. Success requires at least one real named-person admit with observed HTTPS evidence and an actual free-ReAct Dig trajectory. Zero admits or title-shaped admissions remain an honest research-quality failure.
+## 2026-08-31 Run 33420624242 proxy-candidate forensic recovery
+The bounded 3-target smoke completed technically but admitted `Inclusion Recap`, `Inclusion A Business Case`, and `Equity Interview Series Learn` from a shared source with `role=proxy_table`, producing zero contacts. Forensics traced this to deterministic SEC/DEF-14A capitalized-name extraction emitting `related-person:` findings before the model explicitly selected a person. That path is now blocked at discovery admission and covered by a regression test. This is a provenance/autonomy correction, not a replacement search strategy.
+
+## 2026-08-31 bounded smoke — next proof
+The next proof is intentionally small: 3 discovery slots, 3 research targets, one agentic research loop at a time, Groq Qwen 3.8 with 20s minimum pacing, and the existing fail-closed provenance/identity gates. Success requires at least one real named-person admit explicitly emitted by the model after observing its source, followed by an actual free-ReAct Dig trajectory. Zero admits, deterministic proxy-name leakage, or title-shaped admissions remain an honest research-quality failure.
