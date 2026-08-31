@@ -17,3 +17,6 @@ The bounded 3-target smoke completed technically but admitted `Inclusion Recap`,
 
 ## 2026-08-31 bounded smoke — next proof
 The next proof is intentionally small: 3 discovery slots, 3 research targets, one agentic research loop at a time, Groq Qwen 3.8 with 20s minimum pacing, and the existing fail-closed provenance/identity gates. Success requires at least one real named-person admit explicitly emitted by the model after observing its source, followed by an actual free-ReAct Dig trajectory. Zero admits, deterministic proxy-name leakage, or title-shaped admissions remain an honest research-quality failure.
+
+## 2026-08-31 Batch 25 — execute the post-proxy-fix smoke
+The permanent proxy-candidate admission fix is on `main` (`105683b9`, `329ecd49`) and the discovery-quality guard now enforces the `proxy_table` rejection boundary (`c82ca466`). This entry intentionally triggers the existing resilient workflow through its documented push surface; it does not alter discovery behavior or add a research hop. The run must be judged from its live artifacts, not from workflow completion alone.
