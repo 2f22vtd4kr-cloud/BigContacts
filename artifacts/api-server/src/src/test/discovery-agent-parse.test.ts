@@ -88,6 +88,23 @@ describe("discovery agent identity boundary", () => {
     ]);
   });
 
+  it("accepts an explicitly named person found on an organization-scoped source", () => {
+    const finding = [{
+      personName: "Jane Example",
+      role: "Founder",
+      scope: "organization" as const,
+      sourceUrls: ["https://example.com/team"],
+      note: "Founder named on the company's leadership page",
+    }];
+
+    expect(parsePersonFindings(finding, [
+      "step1: web_search company founder leadership",
+      "step2: visit https://example.com/team",
+    ])).toEqual([
+      expect.objectContaining({ name: "Jane Example", role: "Founder" }),
+    ]);
+  });
+
   it("accepts browser-fetch provenance as an observed source", () => {
     const finding = [{
       value: "person: Jane Example | Founder | Example Co",
