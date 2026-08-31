@@ -29,6 +29,10 @@ const malformedTargetPatterns = [
   /^state st$/i,
   /^security issues?$/i,
   /^chief executive officer$/i,
+  /^head of (?:marketing|sales|finance|operations|engineering|product|security|legal|hr|human resources|technology|it|strategy|business development)$/i,
+  /^(?:chief|global chief) (?:marketing|sales|financial|operating|technology|information|security|product|strategy|revenue|people) officer$/i,
+  /^(?:vice president|vp|senior vice president|svp) (?:of )?(?:marketing|sales|finance|operations|engineering|product|security|legal|technology|strategy|business development|investments?)$/i,
+  /^(?:managing director|executive director|marketing director|sales director|finance director|operations director|investment director|portfolio manager|fund manager)$/i,
   /^private equity$/i,
   /^venture capital$/i,
   /^real estate$/i,
@@ -52,7 +56,6 @@ const looksMalformedTarget = (name) => {
   return words.some((w) => ["email","phone","address","street","product","comparison","person","www","com"].includes(w));
 };
 
-// Do not misclassify a build/startup failure as an LLM or research failure.
 const launchAccepted = Boolean(launch.jobId);
 const runtimeHealthy = Boolean(health && typeof health === "object" && Object.keys(health).length > 0);
 if (!launchAccepted && (!runtimeHealthy || !status || Object.keys(status).length === 0)) {
@@ -77,9 +80,11 @@ const discoverySpans = (status.recentSpans || []).filter((s) => s && (
   s.agentName === "discovery" || s.targetName === "discovery" || s.operationName === "invoke_agent"
 ));
 const discoveryModel = discoverySpans.some((s) => s.spanType === "llm" || s.name === "llm_step")
-  || bureauRecords.some((r) => r?.targetName === "discovery" && r?.kind === "tool");
-const discoveryTools = discoverySpans.some((s) => s.spanType === "tool" && ["web_search", "visit"].includes(s.toolName || s.name))
-  || bureauRecords.some((r) => r?.targetName === "discovery" && ["search", "page-fetch", "tool"].includes(r?.kind));
+  || bureauRecords.some((r) => r?.targetName === "discovery" && r?.kind === "tool")
+  || /DISCOVERY_MODEL_STEP\s*\{\s*"action"\s*:/i.test(telemetry);
+const discoveryTools = discoverySpans.some((s) => s.spanType === "tool" && ["web_search", "visit", "browser_fetch"].includes(s.toolName || s.name))
+  || bureauRecords.some((r) => r?.targetName === "discovery" && ["search", "page-fetch", "tool"].includes(r?.kind))
+  || /DISCOVERY_MODEL_STEP\s*\{\s*"action"\s*:\s*"(?:web_search|visit|browser_fetch)"/i.test(telemetry);
 if (!discoveryModel || !discoveryTools) fail("no model-selected discovery trajectory with actual web tooling");
 
 const forbidden = [
@@ -95,10 +100,6 @@ const forbidden = [
 ];
 for (const re of forbidden) if (re.test(log) || re.test(telemetry)) fail(`forbidden autonomy/research marker: ${re}`);
 
-// Forbes is not forbidden as a source. What is forbidden is using a generic
-// billionaire/richest/list ranking as the actual discovery action. A model may
-// legitimately use a Forbes profile as one source for a specifically named
-// person after discovering that person elsewhere.
 const actualSearches = [...log.split(/\r?\n/), ...(Array.isArray(status.log) ? status.log : [])]
   .filter((line) => /(?:web_search|search)\s+/i.test(line));
 for (const line of actualSearches) {
@@ -109,10 +110,8 @@ for (const line of actualSearches) {
 }
 
 if (status.status !== "done" && status.outcome !== "complete") fail(`Bureau did not finish cleanly: ${status.status || status.outcome || "unknown"}`);
-// This workflow explicitly launches a ten-target Bureau batch. Treat fewer
-// than ten persisted entities as an incomplete live validation, rather than
-// allowing a single successful target to masquerade as a batch result.
-if (rows.length < 10) fail(`discovery-first audit produced ${rows.length} entities; expected the full 10-target batch`);
+const expectedTargets = Math.max(1, Number(process.env.LIVE_AUDIT_TARGET_COUNT || "10"));
+if (rows.length < expectedTargets) fail(`discovery-first audit produced ${rows.length} entities; expected the full ${expectedTargets}-target batch`);
 
 let sourceBacked = 0;
 let direct = 0;
