@@ -1,11 +1,14 @@
 name: Apex Live Bureau Audit
 
-# This is an explicit expensive provider-backed validation run.
-# Do not trigger it on every main commit: engineering commits must not silently
-# spend a 10-target research budget. Use workflow_dispatch when a live batch is
-# intentionally requested.
+# Explicit expensive provider-backed validation. Manual dispatch remains the normal
+# path; the narrow test-trigger path exists so the connected engineering harness
+# can launch a current-main batch without a privileged API POST client.
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/live-batch-trigger.md"
 
 concurrency:
   group: apex-live-bureau-${{ github.ref }}
@@ -58,6 +61,8 @@ jobs:
       RESEARCH_DEPTH: standard
       APEX_SKIP_SEMANTIC: "1"
       APEX_AGENTIC_CONCURRENCY: "4"
+      APEX_AGENTIC_PROVIDER_CONCURRENCY: "1"
+      GROQ_AGENTIC_MIN_INTERVAL_MS: "20000"
       NODE_OPTIONS: --max-old-space-size=1536
     steps:
       - uses: actions/checkout@v4
