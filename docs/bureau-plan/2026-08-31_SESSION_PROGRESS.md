@@ -23,26 +23,50 @@ The repair changes validation only; it does not change research behavior. It now
 - NVIDIA is separately probed as `nvidia-right-hand`.
 - Launch remains fail-closed if no Dig provider can generate.
 
-## 10-target batch
+## Build blockers found and repaired
 
-After the gate repair was merged, `scripts/live-batch-trigger.md` was touched on `main` in commit `fcc98b780b84835b6662b44c15be855aa1679c0b`, intentionally triggering the current-main provider-backed 10-target audit workflow.
+The first real current-main live run reached the build and exposed two infrastructure defects before any research began:
 
-The repository connector available in this session does not expose a general list-runs endpoint for push-triggered Actions runs, so the run's live status/results cannot yet be truthfully reported from this connector alone. No research-quality success is claimed.
+1. `ioredis` was imported by the API but not declared as an API runtime dependency. It was therefore absent from the filtered CI workspace install.
+2. `apply-agentic-concurrency-hardening.mjs` and the legacy `apply-provider-gate-v2.mjs` both installed provider-gate declarations. The second script replaced `llmStep` while leaving the first script's constants in place, producing duplicate `MAX_CONCURRENT_AGENTIC_PROVIDER_DECISIONS` and `GROQ_AGENTIC_MIN_INTERVAL_MS` declarations.
 
-The authoritative audit workflow itself is configured to:
+Fixes landed on `main`:
 
-1. install/build the API;
-2. run static autonomy/provenance checks;
-3. perform provider generation preflight;
-4. launch 10 discovery-first targets;
-5. poll until completion;
-6. freeze entities/scoreboard/health/logs;
-7. run the live autonomy/provenance audit;
-8. upload the complete audit artifacts.
+- `e572ab24782d3c81a0182326a0010ee65a74d9bd6` — declare `ioredis` directly in the API server runtime dependencies.
+- `81d1d2160d85549b81ef19e767b0b289c588a7d6` — make the legacy provider-gate compatibility script a no-op when the canonical Dig gate is already installed.
+
+The subsequent live workflow reached and passed both **Schema and API build** and **Static autonomy checks**.
+
+## Current 10-target provider-backed batch
+
+The corrected current-main audit was intentionally triggered via `scripts/live-batch-trigger.md`.
+
+Current run:
+
+- Workflow: **Apex Live Bureau Audit**
+- Run: `33381234172` / run number `206`
+- Head: `65962230a1f34efe285c016db1d9151f3854fb87`
+- Provider preflight: **passed**
+- API start: **passed**
+- 10-target discovery-first launch: **passed**
+- Current state: **Poll Bureau in progress**
+
+No research-quality verdict is being claimed until the run freezes its actual outputs and the trajectories are independently audited.
+
+## Reactor integrity hardening
+
+Found a subtle remaining Reactor issue: `explicitResearchQuery()` claimed to be explicit-query-only but returned arbitrary event text when no explicit `query:` / `search:` marker was present. That could turn a narration/title into something visually presented as a real search query.
+
+Fixed on `main`:
+
+- `591a09f3a7fb3ef727d24483f5f3b90f6c091651` — only an explicitly recorded query match may enter the browser query surface.
+- `91cf1bca07278b3f9a0faf2ec059fe7b7b3153cd` — strengthened the no-fabrication checker to require the explicit-only implementation contract.
 
 ## Notion operator layer
 
-Created a Notion page: **Apex Atlas — OSINT Bureau Dashboard**. It defines the operator-facing HNWI/principal workspace, evidence discipline, research theatre, evaluation loop, failure taxonomy, and architecture boundary.
+Created a Notion page: **Apex Atlas — OSINT Bureau Dashboard**.
+
+Created the **Apex HNWI Intelligence** database with person/entity, role, organization, identity confidence, reachability, estimated wealth, geography, source, research date, open questions and status fields, plus an **HNWI Command Board** dashboard view.
 
 ## Next required gate
 
