@@ -28,11 +28,6 @@ const INVALID_PERSON_NAME_WORDS = new Set([
   "email", "phone", "address", "street", "product", "comparison", "person", "www", "com",
 ]);
 
-/**
- * These are identity-safety labels, not a research ranking. They exist because
- * model/HTML extraction can surface a perfectly name-shaped two-word phrase
- * that is actually a sector, title, UI label, list heading, or generic prose.
- */
 const INVALID_PERSON_NAME_PHRASES = [
   "security issues",
   "security issue",
@@ -112,10 +107,6 @@ export function hasStrongIdentityEvidence(input: {
     .map(normalizeUrl)
     .filter((u) => /^https?:\/\/\S+$/i.test(u));
 
-  // Safety boundary only: reject values that are structurally recognizable as
-  // metadata, labels, addresses, products, departments, or organization text.
-  // Do NOT require the explanatory note to repeat the name: doing so would
-  // over-filter legitimate model findings and would turn safety into ranking.
   if (isInvalidIdentityPhrase(name)) return false;
   if (/(?:^|\b)(email|phone|address|street|zip|postal|product|comparison|enablement|operational|person)(?:\b|$)/i.test(normalized)) return false;
   if (/^president(?:\s+person)?$/i.test(normalized)) return false;
@@ -123,9 +114,6 @@ export function hasStrongIdentityEvidence(input: {
   if (/\b(?:llc|ltd|inc|corp|corporation|holdings|group|partners|fund|capital|ventures|foundation|products?)\b/i.test(normalized)) return false;
   if (/\b(?:street|st|avenue|ave|road|rd|boulevard|blvd|drive|dr|lane|ln)\b\.?\s+\d+/i.test(normalized)) return false;
 
-  // Candidate provenance remains mandatory and list-only fame pages are not
-  // sufficient. Search-result/query URLs are also not evidence of the page
-  // behind the query and therefore cannot establish a person identity.
   return urls.length > 0 && hasIndependentSource(urls);
 }
 
@@ -161,7 +149,6 @@ function hasObservedPageSource(sourceUrls: string[], trajectory: string[]): bool
   return sourceUrls.some((url) => observed.has(normalizeUrl(url)));
 }
 
-/** Exported for regression tests: identity admission must be tied to an actually visited page. */
 export function parsePersonFindings(findings: DiscoveryFinding[], trajectory: string[] = []): DiscoveryCandidate[] {
   const out: DiscoveryCandidate[] = [];
   const seen = new Set<string>();
@@ -186,9 +173,6 @@ export function parsePersonFindings(findings: DiscoveryFinding[], trajectory: st
     });
   };
   for (const f of findings ?? []) {
-    // AgenticWebResearch explicitly labels findings by scope. Discovery admission
-    // is semantic: only the model's candidate-scoped findings can become people.
-    // Organization contact facts remain evidence for a later dig, never targets.
     if (f.scope !== "candidate") continue;
     const urls = (f.sourceUrls ?? []).filter((u) => /^https?:\/\//i.test(String(u)));
     if (f.personName && String(f.personName).trim().length >= 3) {
@@ -259,9 +243,6 @@ export async function runDiscoveryAgent(input: {
   let lastMessage = "";
 
   try {
-    // Real batch execution: all discovery slots in a batch are model-driven and
-    // run concurrently. The batch controller only merges duplicate names afterward;
-    // it never feeds one slot's query path into another slot.
     const batchTasks = Array.from({ length: requestedBatch }, (_, slot) => (async () => {
       const objective = [
         baseObjective,
@@ -285,10 +266,10 @@ export async function runDiscoveryAgent(input: {
           },
         });
         const slotCandidates = parsePersonFindings(result.findings ?? [], result.trajectory ?? []);
-        try { completeDigSpan(slotSpan.id, { status: slotCandidates.length ? "ok" : "error", resultSummary: `slot=${slot + 1}/${requestedBatch} candidates=${slotCandidates.length} searches=${result.searches} visits=${result.visits}` }); } catch { /* best-effort */ }
+        try { completeDigSpan(jobId, slotSpan.id, { status: slotCandidates.length ? "ok" : "error", resultSummary: `slot=${slot + 1}/${requestedBatch} candidates=${slotCandidates.length} searches=${result.searches} visits=${result.visits}` }); } catch { /* best-effort */ }
         return { result, slotCandidates };
       } catch (err) {
-        try { completeDigSpan(slotSpan.id, { status: "error", resultSummary: String(err).slice(0, 200) }); } catch { /* best-effort */ }
+        try { completeDigSpan(jobId, slotSpan.id, { status: "error", resultSummary: String(err).slice(0, 200) }); } catch { /* best-effort */ }
         return { result: null, slotCandidates: [] as DiscoveryCandidate[] };
       }
     })());
@@ -315,7 +296,7 @@ export async function runDiscoveryAgent(input: {
     }
 
     const finalCandidates = candidates.slice(0, requestedBatch);
-    try { completeDigSpan(span.id, { status: finalCandidates.length ? "ok" : "error", resultSummary: `candidates=${finalCandidates.length}/${requestedBatch} searches=${totalSearches} visits=${totalVisits}` }); } catch { /* best-effort */ }
+    try { completeDigSpan(jobId, span.id, { status: finalCandidates.length ? "ok" : "error", resultSummary: `candidates=${finalCandidates.length}/${requestedBatch} searches=${totalSearches} visits=${totalVisits}` }); } catch { /* best-effort */ }
     return {
       candidates: finalCandidates,
       model: lastModel,
@@ -331,7 +312,7 @@ export async function runDiscoveryAgent(input: {
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     logger.warn({ err: msg }, "[discovery-agent] failed");
-    try { completeDigSpan(span.id, { status: "error", resultSummary: msg.slice(0, 200) }); } catch { /* ignore */ }
+    try { completeDigSpan(jobId, span.id, { status: "error", resultSummary: msg.slice(0, 200) }); } catch { /* ignore */ }
     return { candidates: [], searches: totalSearches, visits: totalVisits, degraded: true, message: `Discovery agent degraded: ${msg.slice(0, 180)}` };
   }
 }
