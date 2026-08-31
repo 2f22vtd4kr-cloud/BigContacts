@@ -29,12 +29,10 @@ jobs:
           const reactorPath = 'artifacts/apex-finder/src/pages/reactor.tsx';
 
           let bureau = fs.readFileSync(bureauPath, 'utf8');
-          const oldFallback = `  // Fallback: honest synthetic query from target name only (never template meta)\n  if (/discover|serp|search|tavily|perplexity|google|gemini|serper|exa|perp/i.test(pickTool(e) + (e.stage || ""))) {\n    return e.targetName ? \`${'${'}e.targetName} contact email phone\` : undefined;\n  }\n`;
-          if (!bureau.includes(oldFallback)) throw new Error('Expected Bureau synthetic-query fallback was not found');
-          bureau = bureau.replace(oldFallback, '  // No query was recorded; keep the browser/search chrome empty rather than inventing one.\n');
-          const oldSafe = '  const safeQuery = query && !isLogGarbage(query) && !isInternalLanePrompt(query)\n    ? query\n    : (e.targetName ? `${e.targetName}` : undefined);';
-          if (!bureau.includes(oldSafe)) throw new Error('Expected Bureau safeQuery fallback was not found');
-          bureau = bureau.replace(oldSafe, '  const safeQuery = query && !isLogGarbage(query) && !isInternalLanePrompt(query) ? query : undefined;');
+          const fallbackPattern = /\n\s*\/\/ Fallback: honest synthetic query from target name only[\s\S]*?return e\.targetName \? `\$\{e\.targetName\} contact email phone` : undefined;\n\s*}\n/;
+          if (!fallbackPattern.test(bureau)) throw new Error('Expected Bureau synthetic-query fallback was not found');
+          bureau = bureau.replace(fallbackPattern, '\n');
+          bureau = bureau.replace(/const safeQuery = query && !isLogGarbage\(query\) && !isInternalLanePrompt\(query\)[\s\S]*?\n\s*:\s*\(e\.targetName \? `\$\{e\.targetName\}` : undefined\);/, 'const safeQuery = query && !isLogGarbage(query) && !isInternalLanePrompt(query) ? query : undefined;');
           fs.writeFileSync(bureauPath, bureau);
 
           let reactor = fs.readFileSync(reactorPath, 'utf8');
