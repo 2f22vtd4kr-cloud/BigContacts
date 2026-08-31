@@ -58,6 +58,7 @@ const fixtureEvents: OpsEvent[] = [
 
 function Fixture() {
   const [swipe, setSwipe] = useState("none");
+  const compact = window.innerWidth < 768;
   return (
     <main className="min-h-screen bg-[#080c11] px-3 py-4 text-stone-100 sm:px-6 sm:py-6 lg:px-10">
       <div className="mx-auto max-w-[1500px]">
@@ -67,6 +68,7 @@ function Fixture() {
         </div>
         <BureauOpsStage
           events={fixtureEvents}
+          compact={compact}
           title="REACTOR LIVE · BROWSER INSPECTION"
           onEdgeSwipe={(direction) => setSwipe(direction)}
         />
