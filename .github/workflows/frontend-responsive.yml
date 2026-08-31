@@ -50,7 +50,7 @@ jobs:
 
   browser-responsive:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -60,8 +60,8 @@ jobs:
         run: npm install -g pnpm@9
       - name: Install frontend workspace graph
         run: pnpm install --no-frozen-lockfile --ignore-scripts --filter apex-finder-local...
-      - name: Install Chromium for browser inspection
-        run: npx --yes playwright@1.55.0 install --with-deps chromium
+      - name: Verify runner Chrome
+        run: google-chrome --version
       - name: Start Apex Finder Vite server
         shell: bash
         run: |
