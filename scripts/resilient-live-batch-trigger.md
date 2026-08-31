@@ -23,3 +23,6 @@ The permanent proxy-candidate admission fix is on `main` (`105683b9`, `329ecd49`
 
 ## 2026-08-31 Batch 26 — execute after fused-domain/person-output hardening
 Commits `914c3ed` and `1b72946` harden fused-domain pseudo-identities and make explicit person emission after source observation part of the discovery output contract. This trigger is for a real bounded 3-target smoke from that tip. No discovery query, source, candidate, or hop is prescribed here. The only acceptable evidence is the live trajectory and resulting source-backed person admission/Dig outcome.
+
+## 2026-08-31 Batch 27 — execute the bounded smoke now
+This is an execution-only trigger from the current `main` tip. It deliberately prescribes no target, query, source, ranking, or research hop. The workflow's existing 3-target, one-loop-at-a-time, Groq→Mistral, provenance-gated free-ReAct path is the system under test. Judge the run only from actual workflow artifacts and trajectory evidence.
