@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, chromium } from '@playwright/test';
 
 const baseURL = process.env.APEX_BROWSER_BASE_URL || 'http://127.0.0.1:5173';
 
@@ -10,7 +10,8 @@ test.describe('Apex Reactor responsive browser contract', () => {
   ];
 
   for (const viewport of cases) {
-    test(`${viewport.name} renders the live research theatre without fabricated work`, async ({ browser }) => {
+    test(`${viewport.name} renders the live research theatre without fabricated work`, async () => {
+      const browser = await chromium.launch({ channel: 'chrome' });
       const context = await browser.newContext({ viewport: { width: viewport.width, height: viewport.height } });
       const page = await context.newPage();
       await page.goto(`${baseURL}/reactor?mock=1`, { waitUntil: 'networkidle' });
@@ -38,6 +39,7 @@ test.describe('Apex Reactor responsive browser contract', () => {
         fullPage: true,
       });
       await context.close();
+      await browser.close();
     });
   }
 });
