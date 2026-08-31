@@ -31,6 +31,10 @@ on:
       - ".github/workflows/frontend-responsive.yml"
   workflow_dispatch:
 
+concurrency:
+  group: frontend-responsive-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
@@ -49,7 +53,7 @@ jobs:
           node-version: 22
           registry-url: https://registry.npmjs.org/
       - run: npm install -g pnpm@9
-      - name: Install complete workspace graph
-        run: pnpm install --no-frozen-lockfile --ignore-scripts --fetch-retries=8 --fetch-timeout=120000 --registry=https://registry.npmjs.org/
+      - name: Install frontend workspace graph from lockfile
+        run: pnpm install --frozen-lockfile --ignore-scripts --fetch-retries=8 --fetch-timeout=120000 --filter ./artifacts/apex-finder... --registry=https://registry.npmjs.org/
       - name: Build frontend
         run: pnpm --dir artifacts/apex-finder run build
