@@ -62,7 +62,8 @@ jobs:
       RESEARCH_DEPTH: standard
       APEX_SKIP_SEMANTIC: "1"
       APEX_AGENTIC_CONCURRENCY: "4"
-      APEX_AGENTIC_PROVIDER_CONCURRENCY: "1"
+      APEX_AGENTIC_PROVIDER_CONCURRENCY: "2"
+      AGENTIC_PROVIDER_DECISION_TIMEOUT_MS: "55000"
       GROQ_AGENTIC_MIN_INTERVAL_MS: "20000"
       NODE_OPTIONS: --max-old-space-size=1536
     steps:
@@ -107,6 +108,7 @@ jobs:
           pnpm run check:trajectory
           pnpm run check:comparison-contract
           pnpm run check:agentic-runtime
+          node scripts/check-agentic-timeout.mjs
           pnpm --dir artifacts/api-server exec vitest run src/src/test/discovery-agent-parse.test.ts src/src/test/discovery-runtime-correctness.test.ts src/src/test/agentic-scope-boundary.test.ts src/src/test/agentic-source-provenance.test.ts src/src/test/bureau-contact-persist-strict.test.ts
       - name: Provider catalog and generation preflight
         shell: bash
