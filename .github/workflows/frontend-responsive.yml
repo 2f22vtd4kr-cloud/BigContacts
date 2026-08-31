@@ -7,6 +7,7 @@ on:
       - "artifacts/apex-finder/package.json"
       - "scripts/check-frontend-responsive.mjs"
       - "scripts/check-reactor-live-integrity.mjs"
+      - "scripts/frontend-browser.spec.mjs"
       - "docs/bureau-plan/15_FRONTEND_RESPONSIVE_AUDIT.md"
       - "docs/bureau-plan/17_FRONTEND_REACTOR_LIVE_GATE.md"
       - ".github/workflows/frontend-responsive.yml"
@@ -16,6 +17,7 @@ on:
       - "artifacts/apex-finder/package.json"
       - "scripts/check-frontend-responsive.mjs"
       - "scripts/check-reactor-live-integrity.mjs"
+      - "scripts/frontend-browser.spec.mjs"
       - "docs/bureau-plan/15_FRONTEND_RESPONSIVE_AUDIT.md"
       - "docs/bureau-plan/17_FRONTEND_REACTOR_LIVE_GATE.md"
       - ".github/workflows/frontend-responsive.yml"
@@ -45,3 +47,42 @@ jobs:
         run: pnpm install --no-frozen-lockfile --ignore-scripts --filter apex-finder-local...
       - name: Build Apex Finder frontend
         run: pnpm --dir artifacts/apex-finder build
+
+  browser-responsive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install pnpm
+        run: npm install -g pnpm@9
+      - name: Install frontend workspace graph
+        run: pnpm install --no-frozen-lockfile --ignore-scripts --filter apex-finder-local...
+      - name: Install Chromium for browser inspection
+        run: npx --yes playwright@1.55.0 install --with-deps chromium
+      - name: Start Apex Finder Vite server
+        shell: bash
+        run: |
+          pnpm --dir artifacts/apex-finder dev --host 127.0.0.1 > /tmp/apex-vite.log 2>&1 &
+          echo $! > /tmp/apex-vite.pid
+          for i in {1..60}; do
+            if curl --silent --fail http://127.0.0.1:5173/reactor?mock=1 >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/apex-vite.log
+          exit 1
+      - name: Run desktop tablet mobile browser inspection
+        env:
+          APEX_BROWSER_BASE_URL: http://127.0.0.1:5173
+        run: npx --yes playwright@1.55.0 test scripts/frontend-browser.spec.mjs --reporter=line
+      - name: Upload responsive screenshots and Playwright diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: apex-reactor-responsive-browser
+          path: |
+            test-results/**
+            /tmp/apex-vite.log
+          if-no-files-found: warn
