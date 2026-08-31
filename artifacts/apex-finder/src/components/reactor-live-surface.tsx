@@ -29,7 +29,7 @@ import {
  *
  * It renders semantic scenes from real Bureau events instead of pretending
  * every action is a browser. It may show a recorded tool-input prompt, but
- * never hidden chain-of-thought or a fabricated query/result.
+ * never private model reasoning or a fabricated query/result.
  */
 
 function methodIcon(method: ReactorMethod) {
