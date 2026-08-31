@@ -5,6 +5,7 @@ on:
     paths:
       - "artifacts/apex-finder/src/**"
       - "artifacts/apex-finder/package.json"
+      - "package.json"
       - "scripts/check-frontend-responsive.mjs"
       - "scripts/check-reactor-live-integrity.mjs"
       - "scripts/frontend-browser.spec.mjs"
@@ -16,6 +17,7 @@ on:
     paths:
       - "artifacts/apex-finder/src/**"
       - "artifacts/apex-finder/package.json"
+      - "package.json"
       - "scripts/check-frontend-responsive.mjs"
       - "scripts/check-reactor-live-integrity.mjs"
       - "scripts/frontend-browser.spec.mjs"
@@ -60,12 +62,12 @@ jobs:
           node-version: 22
       - name: Install pnpm
         run: npm install -g pnpm@9
-      - name: Install frontend workspace graph
-        run: pnpm install --no-frozen-lockfile --ignore-scripts --filter apex-finder-local...
+      - name: Install workspace with browser test runner
+        run: pnpm install --no-frozen-lockfile --ignore-scripts
       - name: Verify runner Chrome
         run: google-chrome --version
       - name: Run desktop tablet mobile browser inspection
-        run: npx --yes playwright@1.55.0 test --config=scripts/playwright.config.mjs --reporter=line
+        run: pnpm exec playwright test --config=scripts/playwright.config.mjs --reporter=line
       - name: Upload responsive screenshots and Playwright diagnostics
         if: always()
         uses: actions/upload-artifact@v4
