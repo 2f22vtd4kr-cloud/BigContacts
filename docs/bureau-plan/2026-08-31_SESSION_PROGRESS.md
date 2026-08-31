@@ -37,52 +37,41 @@ Fixes landed on `main`:
 
 The subsequent live workflow reached and passed both **Schema and API build** and **Static autonomy checks**.
 
-## Current 10-target provider-backed batch
+## Previous live 10-target attempt — forensics
 
-The corrected audit was intentionally triggered from the then-current mainline so the expensive provider-backed work could run without being interrupted by later documentation changes.
+Run `33401629903` (head `41b6be89`) reached the real provider-backed discovery phase and completed setup, API start, launch, polling, and artifact collection, but the quality gate correctly failed. It produced **0 entities / 0 admitted candidates**.
 
-Current run:
+Forensic inspection of the uploaded live artifact showed the actual cause:
+
+- Groq `openai/gpt-oss-20b` and `qwen/qwen3.6-27b` hit the organization's **200K TPD** quota during discovery.
+- Groq `openai/gpt-oss-120b` also hit the same organization's TPD ceiling shortly afterward.
+- Two early 20B turns were additionally rejected because the model emitted a tool call while the request had no tool declaration (`Tool choice is none, but model called a tool`).
+- The provider preflight passed because it only proved that one tiny request could be generated; it did not prove enough quota remained for the batch.
+- The run therefore failed for a real provider-capacity reason, not because the 10-target audit itself was disabled or skipped.
+
+This failure is explicitly retained as a failure; it is not counted green.
+
+## Provider hardening applied for the next run
+
+Three synchronized Groq model catalogs were updated so an explicit `GROQ_AGENTIC_MODEL` is **strict** rather than silently falling through to other models. Default/current agentic choice is now `qwen/qwen3.8-27b` when no explicit override exists.
+
+Commit sequence:
+
+- `9eef04b2b13ae27a27b85850e141d29fa6d824bb` — strict agentic Groq model catalog in API source.
+- `b9b6f9f032aaee88dbcf59cd37c672bf3f29e445` — synchronized legacy API catalog.
+- `c4dda31ad467ef32e572553ebdab59da6db2657a` — synchronized runtime catalog.
+- `9f44911dc52ae38e185c0ec8c0207c30efb61d21` — live audit pinned to `qwen/qwen3.8-27b`, serialized agentic concurrency, 5-second Groq pacing, and rate-limit header capture in preflight.
+
+The current Groq documentation lists Qwen3.8-27B with a materially larger TPD allowance than the exhausted GPT-OSS/Qwen3.6 lane, while the API exposes remaining-token/reset headers. citeturn2search0turn2search9
+
+## Current live 10-target run
 
 - Workflow: **Apex Live Bureau Audit**
-- Run: `33381234172` / run number `206`
-- Head: `65962230a1f34efe285c016db1d9151f3854fb87`
-- Provider preflight: **passed**
-- API start: **passed**
-- 10-target discovery-first launch: **passed**
-- Current state: **Poll Bureau in progress**
-
-No research-quality verdict is being claimed until the run freezes its actual outputs and the trajectories are independently audited.
-
-## Live card-truth audit hardening
-
-After inspecting the existing live audit contract, one gap was clear: it verified provenance and malformed targets, but a `direct_contact` outcome could still pass the deterministic audit without proving that the persisted route was explicitly personal/verified or that identity-collision risk was clear.
-
-Fixed on `main`:
-
-- `51002590e3a42c3283834315a6d59c5117c38ffb` — the live audit now requires `direct_contact` to have an explicitly personal/verified route, HTTP(S) evidence, and no remaining identity-collision flag.
-- `organization_contact` now requires an explicitly organization-scoped route.
-- Candidate routes and collision-risk counts are emitted separately so they cannot silently inflate direct reachability.
-
-This change is for the **next** live audit checkout; the already-running run `33381234172` is intentionally not disturbed or restarted.
-
-## Reactor integrity hardening
-
-Found a subtle remaining Reactor issue: `explicitResearchQuery()` claimed to be explicit-query-only but returned arbitrary event text when no explicit `query:` / `search:` marker was present. That could turn a narration/title into something visually presented as a real search query.
-
-Fixed on `main`:
-
-- `591a09f3a7fb3ef727d24483f5f3b90f6c091651` — only an explicitly recorded query match may enter the browser query surface.
-- `91cf1bca07278b3f9a0faf2ec059fe7b7b3153cd` — strengthened the no-fabrication checker to require the explicit-only implementation contract.
-
-## Discovery trajectory fix found during forensic code inspection
-
-The current `discovery-agent.ts` was correctly using the job-aware `publishDigSpan(...)` API but four completion calls were passing only the span id. The result was a silent no-op: discovery slot and aggregate spans could remain `active` after the work finished, degrading Reactor truth and trajectory observability.
-
-Fixed on `main`:
-
-- `58ddb9241483c2e8f207b15bd0b361eb44a164dd` — all discovery `completeDigSpan(...)` calls now pass `(jobId, spanId, patch)` consistently with the actual DigSpan contract.
-
-This does not alter research decisions; it repairs observability state so the next live run can accurately show terminal discovery spans.
+- Run: `33402261430` / run number `219`
+- Head: `9ef57a94e6cf36eba4eb096188a82b6ec7b7e79e`
+- Trigger: push via the intentional `scripts/live-batch-trigger.md` gate.
+- Current state: provider-backed run is in progress; it has not yet reached the research-quality verdict.
+- No target result, card, trajectory win, or comparison is being declared until the run actually produces and freezes them.
 
 ## Notion operator layer
 
@@ -98,4 +87,4 @@ Added three operator views:
 
 ## Next required gate
 
-Do not call the 10-target batch successful until its actual artifacts are retrieved and independently audited target-by-target. The next engineering gate is trajectory forensics plus independent baseline comparison. If the run exposes failures, fix them before declaring the batch complete.
+Do not call the 10-target batch successful until its actual artifacts are retrieved and independently audited target-by-target. The next engineering gate is trajectory forensics plus independent blind OpenAI comparison. If the run exposes failures, fix them before declaring the batch complete.
