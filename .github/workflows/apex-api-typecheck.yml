@@ -1,0 +1,31 @@
+name: Apex API Typecheck
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "artifacts/api-server/src/**"
+      - "artifacts/api-server/package.json"
+      - "artifacts/api-server/tsconfig.json"
+      - "scripts/apply-*.mjs"
+      - "pnpm-lock.yaml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  typecheck:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org/
+      - run: npm install -g pnpm@9
+      - name: Install API workspace graph
+        run: pnpm install --no-frozen-lockfile --ignore-scripts --fetch-retries=8 --fetch-timeout=120000 --filter @workspace/api-server... --registry=https://registry.npmjs.org/
+      - name: Typecheck API
+        run: pnpm --dir artifacts/api-server run typecheck
