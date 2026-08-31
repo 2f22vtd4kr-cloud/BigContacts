@@ -138,10 +138,10 @@ if (observationBoundaryRe.test(s)) {
   throw new Error("observation identity boundary anchor missing");
 }
 
-// Provider-capacity hardening. Groq's free-tier agentic models can reject a
-// large ReAct turn even when a tiny preflight succeeds. Keep the investigator
-// prompt compact and the JSON action bounded; this does not constrain which
-// research action the model may choose.
+// Provider-capacity and prompt-size hardening. Groq's agentic models can reject
+// oversized ReAct turns even when a tiny generation preflight succeeds. Keep the
+// investigator prompt compact and the JSON action bounded; this does not constrain
+// which research action the model may choose.
 const orientationImport = 'import { apexOrientationFor } from "./apex-bureau-orientation";';
 if (s.includes(orientationImport)) {
   s = s.replace(
@@ -151,8 +151,37 @@ if (s.includes(orientationImport)) {
 }
 s = s.replace(/apexOrientationFor\("dig_agent"\)/g, 'apexOrientationCompact("dig_agent")');
 s = s.replace(/max_tokens:\s*4096/g, 'max_tokens: 1024');
+s = s.replace(/maxOutputTokens:\s*4096/g, 'maxOutputTokens: 1024');
+
+// Search observations previously presented URLs and snippets as two unrelated
+// lists. Preserve the result-to-URL relationship so the investigator can make
+// an informed visit decision without the harness choosing the URL for it.
+s = s.replace(
+  /parts\.push\(\[row\.title, row\.snippet\]\.filter\(Boolean\)\.join\(" — "\)\);/g,
+  'parts.push([`RESULT ${urls.length}`, `URL: ${row.link ?? "(none)"}`, row.title ? `TITLE: ${row.title}` : "", row.snippet ? `SNIPPET: ${row.snippet}` : ""].filter(Boolean).join(" — "));',
+);
+s = s.replace(
+  /parts\.push\(\[row\.title, row\.content\]\.filter\(Boolean\)\.join\(" — "\)\);/g,
+  'parts.push([`RESULT ${urls.length}`, `URL: ${row.url ?? "(none)"}`, row.title ? `TITLE: ${row.title}` : "", row.content ? `SNIPPET: ${row.content}` : ""].filter(Boolean).join(" — "));',
+);
+s = s.replace(
+  /parts\.push\(\[row\.title, row\.text\]\.filter\(Boolean\)\.join\(" — "\)\);/g,
+  'parts.push([`RESULT ${urls.length}`, `URL: ${row.url ?? "(none)"}`, row.title ? `TITLE: ${row.title}` : "", row.text ? `SNIPPET: ${row.text}` : ""].filter(Boolean).join(" — "));',
+);
+
+// The dynamic step prompt should use the compact orientation too. Add explicit
+// observation semantics, not a forced visit: snippets are leads, while identity
+// promotion requires attributable page evidence.
+s = s.replace(
+  /return `\$\{apexOrientationFor\("dig_agent"\)\}/,
+  'return `${apexOrientationCompact("dig_agent")}',
+);
+s = s.replace(
+  /Guidelines \(not a script\):\n- Never invent emails,/,
+  'Guidelines (not a script):\n- Search snippets are leads, not identity evidence. When a promising result names a person, consider visiting the corresponding result URL before claiming identity; do not treat the URL/snippet alone as proof.\n- Never invent emails,',
+);
 
 fs.writeFileSync(targetPath, s);
 console.log(
-  `Applied canonical Dig hardening: provider=${llmStepAlreadyCanonical ? "already Groq->Mistral" : "Groq->Mistral"}; observation boundary=literal contacts only; provider concurrency default=1; compact dig orientation; max_tokens=1024; no Boss/right-hand Dig providers; no global cross-target circuit`,
+  `Applied canonical Dig hardening: provider=${llmStepAlreadyCanonical ? "already Groq->Mistral" : "Groq->Mistral"}; observation boundary=literal contacts only; provider concurrency default=1; compact dig orientation; max_tokens=1024; structured search result-to-URL observations; snippet identity guidance; no Boss/right-hand Dig providers; no global cross-target circuit`,
 );
