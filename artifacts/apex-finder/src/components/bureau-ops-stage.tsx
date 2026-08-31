@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useRef } from "react";
 import { Activity, AlertTriangle, CheckCircle2, CircleDashed, XCircle } from "lucide-react";
 import { ReactorLiveSurface } from "./reactor-live-surface";
 import { classifyReactorMethod, cleanResearchText, type ReactorLiveEvent, type ReactorMethod, type ReactorEventStatus } from "../lib/reactor-live-model";
@@ -84,7 +84,6 @@ function toReactorEvent(event: OpsEvent, index: number): ReactorLiveEvent | null
     provider: event.provider || event.activeToolId,
     targetName: event.targetName,
     query,
-    // Only URLs actually carried by the event are promoted into the surface.
     url: sources[0]?.url,
     prompt,
     resultSummary: result,
@@ -127,11 +126,12 @@ function RightHandCallout({ text, compact }: { text?: string; compact: boolean }
 /** Shared desktop/mobile Bureau workstage. `compact` is the mobile form. */
 export function BureauOpsStage({
   events, compact = false, maxScenes = 12, title = "LIVE DESK",
-  onEdgeSwipe: _onEdgeSwipe, jumpToLiveSignal: _jumpToLiveSignal,
+  onEdgeSwipe, jumpToLiveSignal: _jumpToLiveSignal,
 }: {
   events: OpsEvent[]; compact?: boolean; maxScenes?: number; title?: string;
   onEdgeSwipe?: (dir: "prev" | "next") => void; jumpToLiveSignal?: number;
 }) {
+  const swipeStart = useRef<{ x: number; y: number } | null>(null);
   const normalized = useMemo(() => {
     const list = (events || []).map(toReactorEvent).filter((event): event is ReactorLiveEvent => Boolean(event));
     const currentTarget = [...list].reverse().find((event) => event.targetName && event.status === "active")?.targetName;
@@ -161,7 +161,21 @@ export function BureauOpsStage({
   }
 
   return (
-    <section className="space-y-3" data-testid="bureau-ops-stage">
+    <section
+      className="space-y-3"
+      data-testid="bureau-ops-stage"
+      onPointerDown={compact ? (event) => { swipeStart.current = { x: event.clientX, y: event.clientY }; } : undefined}
+      onPointerUp={compact ? (event) => {
+        const start = swipeStart.current;
+        swipeStart.current = null;
+        if (!start || !onEdgeSwipe) return;
+        const dx = event.clientX - start.x;
+        const dy = event.clientY - start.y;
+        if (Math.abs(dx) < 72 || Math.abs(dx) < Math.abs(dy) * 1.25) return;
+        onEdgeSwipe(dx > 0 ? "prev" : "next");
+      } : undefined}
+      style={compact ? { touchAction: "pan-y" } : undefined}
+    >
       <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-white/8 bg-[#0d1219]/75 px-3 py-2.5 sm:px-4">
         <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg border border-[#b8ff4d]/15 bg-[#b8ff4d]/[.04] text-[#b8ff4d]">{summaryIcon(current?.status || "queued")}</div>
         <div className="min-w-0 flex-1">
