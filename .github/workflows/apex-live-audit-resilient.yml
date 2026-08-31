@@ -1,0 +1,192 @@
+name: Apex Live Bureau Audit — Resilient Groq 3.8
+
+# Provider-resilient real-run lane. This is deliberately separate from the
+# historical audit workflow so an experimental provider change cannot cancel
+# or rewrite an already-running audit.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/resilient-live-batch-trigger.md"
+
+concurrency:
+  group: apex-live-bureau-resilient-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  live-bureau-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      DATABASE_URL: postgresql://apex:apex_local_dev@127.0.0.1:5432/apex
+      REDIS_URL: redis://127.0.0.1:6379
+      PORT: 8080
+      ENABLE_AUTO_PIPELINE: "false"
+      NODE_ENV: development
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      GEMINI_API_KEY_1: ${{ secrets.GEMINI_API_KEY_1 }}
+      GEMINI_API_KEY_2: ${{ secrets.GEMINI_API_KEY_2 }}
+      GEMINI_API_KEY_3: ${{ secrets.GEMINI_API_KEY_3 }}
+      GEMINI_API_KEY_4: ${{ secrets.GEMINI_API_KEY_4 }}
+      GEMINI_API_KEY_5: ${{ secrets.GEMINI_API_KEY_5 }}
+      GEMINI_API_KEY_6: ${{ secrets.GEMINI_API_KEY_6 }}
+      GEMINI_API_KEY_7: ${{ secrets.GEMINI_API_KEY_7 }}
+      GEMINI_API_KEY_8: ${{ secrets.GEMINI_API_KEY_8 }}
+      GEMINI_API_KEY_9: ${{ secrets.GEMINI_API_KEY_9 }}
+      GEMINI_API_KEY_10: ${{ secrets.GEMINI_API_KEY_10 }}
+      GEMINI_API_KEY_11: ${{ secrets.GEMINI_API_KEY_11 }}
+      GEMINI_API_KEY_12: ${{ secrets.GEMINI_API_KEY_12 }}
+      GEMINI_API_KEY_13: ${{ secrets.GEMINI_API_KEY_13 }}
+      GEMINI_AGENTIC_MODEL: gemini-3.7-flash
+      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+      # Qwen 3.8 has the materially larger published daily token allowance
+      # than the exhausted GPT-OSS/Qwen 3.6 lanes, while remaining in the
+      # same Groq OpenAI-compatible tool/JSON research lane.
+      GROQ_AGENTIC_MODEL: qwen/qwen3.8-27b
+      MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
+      MISTRAL_AGENTIC_MODEL: mistral-small-latest
+      NVIDIA_NIM_API_KEY: ${{ secrets.NVIDIA_NIM_API_KEY }}
+      NVIDIA_AGENTIC_MODEL: nvidia/nemotron-3.5-lightning-30b-a3b
+      NVIDIA_NIM_MODEL: nvidia/nemotron-3.5-lightning-30b-a3b
+      SERPER_API_KEY: ${{ secrets.SERPER_API_KEY }}
+      TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
+      EXA_API_KEY: ${{ secrets.EXA_API_KEY }}
+      EXA_1: ${{ secrets.EXA_1 }}
+      SCRAPFLY_API_KEY: ${{ secrets.SCRAPFLY_API_KEY }}
+      ZENROWS_API_KEY: ${{ secrets.ZENROWS_API_KEY }}
+      COMPANIES_HOUSE_API_KEY: ${{ secrets.COMPANIES_HOUSE_API_KEY }}
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      WHOXY_API_KEY: ${{ secrets.WHOXY_API_KEY }}
+      WHOISJSON_API_KEY: ${{ secrets.WHOISJSON_API_KEY }}
+      RESEARCH_DEPTH: standard
+      APEX_SKIP_SEMANTIC: "1"
+      APEX_AGENTIC_CONCURRENCY: "4"
+      # One model decision at a time; 2.5s pacing stays well below the
+      # published 30-RPM ceiling while preventing burst-induced 429s.
+      APEX_AGENTIC_PROVIDER_CONCURRENCY: "1"
+      AGENTIC_PROVIDER_DECISION_TIMEOUT_MS: "55000"
+      GROQ_AGENTIC_MIN_INTERVAL_MS: "2500"
+      NODE_OPTIONS: --max-old-space-size=1536
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+      - name: Show exact tip
+        run: git log -1 --oneline
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org/
+      - name: Install pnpm
+        run: npm install -g pnpm@9
+      - name: Install API workspace graph with registry retries
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3; do
+            echo "pnpm install attempt ${attempt}/3"
+            if pnpm install --no-frozen-lockfile --ignore-scripts --fetch-retries=8 --fetch-timeout=120000 --filter @workspace/api-server... --registry=https://registry.npmjs.org/; then exit 0; fi
+            if [ "$attempt" -lt 3 ]; then sleep $((attempt * 15)); fi
+          done
+          exit 1
+      - name: Install local services
+        run: |
+          sudo apt-get update -qq
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq postgresql redis-server
+          sudo service postgresql start
+          sudo service redis-server start
+          sudo -u postgres psql -c "CREATE USER apex WITH PASSWORD 'apex_local_dev' SUPERUSER;" || true
+          sudo -u postgres psql -c "CREATE DATABASE apex OWNER apex;" || true
+      - name: Schema and API build
+        run: |
+          cd lib/db && npx drizzle-kit push --config ./drizzle.config.ts && cd ../../
+          pnpm --dir artifacts/api-server run build
+      - name: Static autonomy checks
+        run: |
+          pnpm run check:no-force-dig
+          pnpm run check:free-react
+          pnpm run check:discovery-quality
+          pnpm run check:trajectory
+          pnpm run check:comparison-contract
+          pnpm run check:agentic-runtime
+          node scripts/check-agentic-timeout.mjs
+          pnpm --dir artifacts/api-server exec vitest run src/src/test/discovery-agent-parse.test.ts src/src/test/discovery-runtime-correctness.test.ts src/src/test/agentic-scope-boundary.test.ts src/src/test/agentic-source-provenance.test.ts src/src/test/bureau-contact-persist-strict.test.ts
+      - name: Provider catalog and generation preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          const results = [];
+          let digReady = false;
+          async function probe(url,key,model,provider) {
+            if (!key) { results.push({provider,state:'not_configured'}); return false; }
+            try {
+              const r = await fetch(url,{method:'POST',headers:{Authorization:`Bearer ${key}`,'content-type':'application/json'},body:JSON.stringify({model,messages:[{role:'user',content:'Reply READY only.'}],max_tokens:8}),signal:AbortSignal.timeout(15000)});
+              const detail = await r.text();
+              results.push({provider,model,status:r.status,detail:detail.slice(0,180)});
+              return r.ok;
+            } catch(e) { results.push({provider,model,state:'transport_error',error:String(e?.message||e)}); return false; }
+          }
+          const groq = await probe('https://api.groq.com/openai/v1/chat/completions',process.env.GROQ_API_KEY,process.env.GROQ_AGENTIC_MODEL || 'qwen/qwen3.8-27b','groq-dig-qwen38');
+          const mistral = await probe('https://api.mistral.ai/v1/chat/completions',process.env.MISTRAL_API_KEY,process.env.MISTRAL_AGENTIC_MODEL || 'mistral-small-latest','mistral-dig');
+          digReady = groq || mistral;
+          await probe('https://integrate.api.nvidia.com/v1/chat/completions',process.env.NVIDIA_NIM_API_KEY,process.env.NVIDIA_NIM_MODEL || 'nvidia/nemotron-3.5-lightning-30b-a3b','nvidia-right-hand');
+          const keys=[process.env.GEMINI_API_KEY,...Array.from({length:13},(_,i)=>process.env[`GEMINI_API_KEY_${i+1}`])].filter(Boolean);
+          let bossReady=false;
+          for (const [i,key] of keys.entries()) {
+            try {
+              const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(process.env.GEMINI_AGENTIC_MODEL || 'gemini-3.7-flash')}:generateContent`,{method:'POST',headers:{'x-goog-api-key':key,'content-type':'application/json'},body:JSON.stringify({contents:[{parts:[{text:'Reply READY only.'}]}],generationConfig:{maxOutputTokens:8}}),signal:AbortSignal.timeout(15000)});
+              await r.text(); results.push({provider:'gemini-boss',key:`${i+1}`,status:r.status}); if(r.ok){bossReady=true;break;}
+            } catch(e){results.push({provider:'gemini-boss',key:`${i+1}`,state:'transport_error',error:String(e?.message||e)});}
+          }
+          console.log(JSON.stringify({digReady,bossReady,results},null,2));
+          if(!digReady){console.error('No configured Dig provider passed generation preflight.');process.exit(2);}
+          NODE
+      - name: Start Apex API
+        run: |
+          redis-cli ping
+          node artifacts/api-server/dist/index.mjs > /tmp/apex-api.log 2>&1 &
+          for i in $(seq 1 45); do sleep 1; test "$(curl -sS -m 2 -o /tmp/health.json -w '%{http_code}' http://127.0.0.1:8080/api/healthz || true)" = 200 && break; done
+          cat /tmp/health.json || true
+          test "$(curl -sS -m 5 -o /tmp/health.json -w '%{http_code}' http://127.0.0.1:8080/api/healthz)" = 200
+      - name: Launch 10-target discovery-first Bureau
+        run: |
+          curl -sS -m 15 -X POST http://127.0.0.1:8080/api/ingest/atlas-run -H 'Content-Type: application/json' -d '{"discoveryFirst":true,"targetCount":10,"researchLimit":10,"runResearch":true,"skipFaa":true,"targetTimeoutMs":300000,"researchDepth":"standard"}' | tee /tmp/launch.json
+          node -e 'const x=require("/tmp/launch.json"); if(!x.jobId){console.error(JSON.stringify(x));process.exit(1)}; console.log(x.jobId)'
+      - name: Poll Bureau
+        run: |
+          for i in $(seq 1 900); do
+            sleep 5
+            curl -sS -m 10 http://127.0.0.1:8080/api/ingest/atlas-status > /tmp/atlas-status.json || true
+            node -e 'const fs=require("fs");try{const x=JSON.parse(fs.readFileSync("/tmp/atlas-status.json","utf8"));console.log(JSON.stringify({status:x.status,jobId:x.jobId||x.job?.jobId,phase:x.atlasPhase,progress:x.entityProgress,total:x.entityTotal,names:x.entityNames}))}catch{}'
+            STATUS=$(node -e 'const fs=require("fs");try{const x=JSON.parse(fs.readFileSync("/tmp/atlas-status.json","utf8"));process.stdout.write(String(x.status||x.job?.status||""))}catch{}')
+            case "$STATUS" in done|completed|idle) exit 0;; failed|cancelled) exit 1;; esac
+          done
+          exit 1
+      - name: Collect live state
+        if: always()
+        run: |
+          curl -sS -m 10 http://127.0.0.1:8080/api/healthz | tee /tmp/health.json || true
+          curl -sS -m 10 http://127.0.0.1:8080/api/ingest/atlas-status | tee /tmp/atlas-status.json || true
+          curl -sS -m 10 'http://127.0.0.1:8080/api/entities?limit=50&offset=0' | tee /tmp/entities.json || true
+          curl -sS -m 10 'http://127.0.0.1:8080/api/ingest/scoreboard-snapshot?limit=50' | tee /tmp/scoreboard.json || true
+      - name: Live autonomy and provenance audit
+        if: always()
+        run: node scripts/audit-live-bureau.mjs
+      - name: Upload live audit artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: apex-live-audit-resilient
+          path: |
+            /tmp/launch.json
+            /tmp/atlas-status.json
+            /tmp/entities.json
+            /tmp/health.json
+            /tmp/scoreboard.json
+            /tmp/apex-api.log
+          if-no-files-found: ignore
