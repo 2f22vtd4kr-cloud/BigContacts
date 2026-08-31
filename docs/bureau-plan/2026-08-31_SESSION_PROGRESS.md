@@ -53,6 +53,18 @@ Current run:
 
 No research-quality verdict is being claimed until the run freezes its actual outputs and the trajectories are independently audited.
 
+## Live card-truth audit hardening
+
+After inspecting the existing live audit contract, one gap was clear: it verified provenance and malformed targets, but a `direct_contact` outcome could still pass the deterministic audit without proving that the persisted route was explicitly personal/verified or that identity-collision risk was clear.
+
+Fixed on `main`:
+
+- `51002590e3a42c3283834315a6d59c5117c38ffb` — the live audit now requires `direct_contact` to have an explicitly personal/verified route, HTTP(S) evidence, and no remaining identity-collision flag.
+- `organization_contact` now requires an explicitly organization-scoped route.
+- Candidate routes and collision-risk counts are emitted separately so they cannot silently inflate direct reachability.
+
+This change is for the **next** live audit checkout; the already-running run `33381234172` is intentionally not disturbed or restarted.
+
 ## Reactor integrity hardening
 
 Found a subtle remaining Reactor issue: `explicitResearchQuery()` claimed to be explicit-query-only but returned arbitrary event text when no explicit `query:` / `search:` marker was present. That could turn a narration/title into something visually presented as a real search query.
