@@ -65,8 +65,6 @@ jobs:
       - name: Verify runner Chrome
         run: google-chrome --version
       - name: Run desktop tablet mobile browser inspection
-        env:
-          APEX_BROWSER_BASE_URL: http://127.0.0.1:5173
         run: npx --yes playwright@1.55.0 test --config=scripts/playwright.config.mjs --reporter=line
       - name: Upload responsive screenshots and Playwright diagnostics
         if: always()
