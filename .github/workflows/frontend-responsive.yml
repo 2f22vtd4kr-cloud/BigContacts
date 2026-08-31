@@ -5,13 +5,17 @@ on:
     paths:
       - "artifacts/apex-finder/src/**"
       - "scripts/check-frontend-responsive.mjs"
+      - "scripts/check-reactor-live-integrity.mjs"
       - "docs/bureau-plan/15_FRONTEND_RESPONSIVE_AUDIT.md"
+      - "docs/bureau-plan/17_FRONTEND_REACTOR_LIVE_GATE.md"
       - ".github/workflows/frontend-responsive.yml"
   pull_request:
     paths:
       - "artifacts/apex-finder/src/**"
       - "scripts/check-frontend-responsive.mjs"
+      - "scripts/check-reactor-live-integrity.mjs"
       - "docs/bureau-plan/15_FRONTEND_RESPONSIVE_AUDIT.md"
+      - "docs/bureau-plan/17_FRONTEND_REACTOR_LIVE_GATE.md"
       - ".github/workflows/frontend-responsive.yml"
   workflow_dispatch:
 
@@ -22,3 +26,5 @@ jobs:
       - uses: actions/checkout@v4
       - name: Check responsive frontend contract
         run: node scripts/check-frontend-responsive.mjs
+      - name: Check Reactor Live integrity contract
+        run: node scripts/check-reactor-live-integrity.mjs
