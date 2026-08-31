@@ -20,9 +20,14 @@ const groqEnd = s.indexOf("const AGENTIC_ACTION_SCHEMA", groqStart);
 if (groqStart < 0 || groqEnd < 0) throw new Error("Groq call block anchors missing");
 let groq = s.slice(groqStart, groqEnd);
 groq = groq
-  .replace(/max_tokens:\s*1536,/, 'max_tokens: 768,\n            reasoning_effort: "low",\n            include_reasoning: false,\n            response_format: { type: "json_object" },')
+  .replace(/max_tokens:\s*1536,/, 'max_completion_tokens: 768,\n            reasoning_effort: "low",\n            include_reasoning: false,\n            response_format: { type: "json_object" },')
+  .replace(/max_tokens:\s*768,/, 'max_completion_tokens: 768,')
   .replace(/reasoning_effort:\s*"medium"/, 'reasoning_effort: "low"')
-  .replace(/signal: AbortSignal\.timeout\(40_000\)/, 'signal: AbortSignal.timeout(50_000)');
+  .replace(/signal: AbortSignal\.timeout\(40_000\)/, 'signal: AbortSignal.timeout(50_000)')
+  .replace(
+    /if \(!resp\.ok\) \{\s*logger\.warn\(\{ provider: "groq", status: resp\.status, model \}, "agentic provider rejected request"\);\s*continue;\s*\}/,
+    `if (!resp.ok) {\n          const body = (await resp.text()).slice(0, 700);\n          logger.warn({\n            provider: "groq",\n            status: resp.status,\n            model,\n            retryAfter: resp.headers.get("retry-after"),\n            remainingTokens: resp.headers.get("x-ratelimit-remaining-tokens"),\n            body,\n          }, "agentic provider rejected request");\n          continue;\n        }`,
+  );
 s = s.slice(0, groqStart) + groq + s.slice(groqEnd);
 
 // Durable history/findings remain intact; only the model-facing state is compacted
@@ -33,4 +38,4 @@ s = s.replace(/input\.history\.length > 14 \? input\.history\.slice\(-14\) : inp
 s = s.replace(/OBJECTIVE: \$\{input\.objective\}/g, 'OBJECTIVE: ${input.objective.slice(0, 1200)}');
 
 fs.writeFileSync(targetPath, s);
-console.log("Applied agentic latency hardening: provider deadline >=55s, Groq low-reasoning 768-token JSON turns, and compact model-facing state");
+console.log("Applied agentic latency hardening: provider deadline >=55s, Groq 768-token low-reasoning JSON turns, compact model-facing state, and provider rejection diagnostics");
