@@ -173,6 +173,11 @@ export function parsePersonFindings(findings: DiscoveryFinding[], trajectory: st
     });
   };
   for (const f of findings ?? []) {
+    // Proxy/DEF-14A auto-extraction can surface nearby capitalized names, but
+    // that is deterministic candidate selection rather than model-owned discovery.
+    // Never admit those synthetic related-person findings; the investigator must
+    // explicitly emit the person it chose from its observed evidence.
+    if (String(f.role ?? "").trim().toLowerCase() === "proxy_table") continue;
     if (f.scope !== "candidate") continue;
     const urls = (f.sourceUrls ?? []).filter((u) => /^https?:\/\//i.test(String(u)));
     if (f.personName && String(f.personName).trim().length >= 3) {
@@ -252,7 +257,7 @@ export async function runDiscoveryAgent(input: {
       const slotSpan = publishDigSpan({ jobId, spanType: "stage", name: "discovery_slot", status: "active", agentName: "discovery", inputSummary: `slot=${slot + 1}/${requestedBatch} concurrent=true` });
       try {
         const result = await runAgenticWebResearch({
-          targetName: `Discovery — choose a realistically reachable principal (slot ${slot + 1}/${requestedBatch})`,
+          targetName: `Discovery slot ${slot + 1}`,
           companyName: null,
           objective,
           maxIterations: maxIterationsPerSlot,
