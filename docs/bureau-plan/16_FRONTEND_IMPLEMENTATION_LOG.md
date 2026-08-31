@@ -56,13 +56,24 @@ The 2026 design pass deliberately follows observable-work patterns rather than g
 
 The UI is not allowed to pretend that Apex opened a page, issued a query, or found a source when the backend did not record that event. Animation is presentation of real telemetry, not a substitute for telemetry. Hidden model reasoning remains private; the user sees observable actions, evidence, sources, state transitions, and concise adaptive narration.
 
+### Browser-level audit preparation and regression repair — 2026-08-31
+
+Before adding browser automation, the old and new Bureau stages were compared directly against the existing Reactor/mobile specification. The comparison found two real regressions in the first semantic rewrite:
+
+1. the new compatibility adapter ignored the mobile `onEdgeSwipe` callback, which would have broken the existing right-swipe/edge-to-history behavior;
+2. the live `/api/ingest/bureau-events` mapper discarded explicit `query`, `prompt`, `inputSummary`, `sourceUrls`, `links`, evidence counts, and the adaptive right-hand narration, meaning the new theatre could become visually sparse even when the backend had recorded useful telemetry.
+
+Both were fixed before the browser gate: live Bureau events now preserve the research payload needed by the theatre, the semantic event contract carries adaptive narration, the compact workstage restores horizontal swipe delegation, and explicit query telemetry is passed through without inventing a target-name query. The right-hand note is rendered as a concise operator-facing research note; it is not hidden chain-of-thought.
+
+A real Playwright browser gate has now been added for the Reactor route at desktop (1440×1000), tablet (1024×900), and phone (390×844) widths. The gate launches the actual Vite frontend under `?mock=1`, checks the rendered DOM and responsive visibility, rejects the known synthetic-query/fixed-step strings, and stores screenshots as CI artifacts. This is deliberately a browser-level gate rather than another source regex test. Its result must be observed from GitHub Actions before the visual slice is considered validated.
+
 ### Important architectural caveat
 
 This slice intentionally centralizes the visual workstage, but the compatibility adapter is a large simplification of the previous Bureau scene engine. Before merging, compare the old and new stage behavior against the existing mobile flow, provider-health indicators, swipe/history behavior, and any route-specific controls. If any of those are lost, restore them around the shared Reactor surface rather than reintroducing a second renderer.
 
 ### Next gates
 
-1. Run a real browser screenshot pass at desktop, tablet, and phone widths against representative live-event fixtures.
+1. Observe the new Playwright desktop/tablet/mobile CI run and inspect the screenshot artifacts.
 2. Verify the Reactor surface in the actual desktop route; confirm the page does not force the compact/mobile presentation on wide screens.
 3. Exercise real Bureau events from the provider-backed runs already in progress and compare displayed queries/URLs/results with telemetry byte-for-byte where possible.
 4. Add normalized fixtures for search, browser, registry, domain, graph, LLM, rejection, contradiction, provider failure, and empty-result events.
