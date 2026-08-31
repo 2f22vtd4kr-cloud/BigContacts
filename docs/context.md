@@ -2,7 +2,7 @@
 
 **Repo:** https://github.com/2f22vtd4kr-cloud/BigContacts  
 **Branch:** `main`  
-**Current tip floor:** `7833d72` or newer (live-run provider pacing correction; Batch 22+)  
+**Current tip floor:** `6e38d48b7c2b216581e0850648827848df49e894` or newer (generic-title discovery admission gate; bounded live smoke is next)  
 **Canonical Replit path:** one paste — `docs/REPLIT_UPDATE_PROMPT_LATEST.md` (Agent inside the App). Expanded procedure: `docs/RUN_BUREAU.md`.  
 **Product:** Apex Atlas research bureau; **Bureau is its OSINT/research architecture**, not a separate product.
 
@@ -127,6 +127,19 @@ The first provider-resilient 10-target workflow was run for real at commit `4eb0
 
 The relevant Groq base rate-limit table shows 30 RPM and 8K TPM for the listed Qwen 3.8/GPT-OSS lanes, with Qwen 3.8 having a larger daily token allowance. The previous workflow override used 2.5s pacing, which was too aggressive for multi-thousand-token ReAct turns. Commit `7833d72` changes the live workflow to **one provider decision at a time, 20s minimum Groq pacing, 55s provider-decision deadline, and a 120-minute job window**. The next run must be judged from its actual trajectory/artifacts; no success is implied by the configuration change.
 
+### 2026-08-31 Run 33411996869 forensic addendum (Batch 23)
+Run `33411996869` checked out `abc16393e0605975109209df0f6a89c48ca55ce7`, completed build/static checks/provider preflight/API startup/launch/polling, and then failed the live research-quality audit. Final artifact state was **1 admitted entity, 0 contacts, 0 direct routes**, not a valid 10-target proof. The entity was the malformed identity **“Head of Marketing”**, with a source note pointing to a Newswire contact block; it must not be treated as a real person.
+
+Trajectory forensics show the provider was alive, but discovery quality was still poor: the status message reported **11 searches and 6 visits with `degraded=true`**, while the persisted discovery spans were dominated by `llm_wait` records and did not preserve usable discovery tool spans. The later Dig pass also made only **1 search / 0 visits / 2 iterations** before ending with 0 source-backed findings. The final audit correctly rejected the run because it had only 1 entity instead of the required batch and no contact evidence.
+
+The most important diagnosis is **not a license to script discovery**. Two concrete defects are now addressed for the next bounded proof:
+1. Generic title-shaped identities such as `Head of Marketing`, `Chief Marketing Officer`, `Vice President of Sales`, and `Managing Director` are explicitly rejected by the deterministic identity safety gate. The existing discovery parser tests already cover these title-shaped cases.
+2. The live workflow was reduced to a **bounded 3-target discovery-first smoke** (`APEX_DISCOVERY_BATCH_SIZE=3`, target/research limit 3) so we can prove actual admits + Dig before paying for another 10-target run. The current workflow still uses real model-selected discovery; no template or ranked intake was added.
+
+A further throughput observation: the runtime correctness hardener serializes ReAct research by default, but the previous live workflow overrode `APEX_AGENTIC_CONCURRENCY=3` while the provider pool was constrained to one decision. The next smoke should use **one ReAct research loop at a time** so free-tier provider pacing is not undermined by queued concurrent discovery/target loops. This is scheduling, not research-path selection.
+
+Current main tip after the title-gate fix: `6e38d48b7c2b216581e0850648827848df49e894` (`fix(discovery): reject generic title identities at admission gate`).
+
 ## Independent blind baseline contract
 For every target that Apex actually admits and researches, the evaluation now requires a **blind independent OpenAI baseline**. The baseline receives only the original target/objective and its own public-web research opportunity; it must not receive Apex cards, Apex hypotheses, Apex URLs, Apex trajectory, or Apex rejection decisions. Use comparable wall-clock/tool opportunity. The baseline may beat Apex; a baseline win is a real Apex loss and becomes a bug investigation, never a reason to add forced hops.
 
@@ -148,4 +161,5 @@ The baseline is a quality control, not a marketing benchmark. Do not preselect b
 
 ## Still open
 - ~~Permanent source fixes for atlas build breakers~~ — done Batch 10 (`59c71ce`).
-- **Next gate:** complete the new real 10-target run with actual admitted targets/cards and then execute the blind OpenAI comparison for every one. No green claim until both research and comparison evidence exist.
+- **Current gate:** bounded 3-target smoke must produce at least one real person-shaped admit with observed HTTP(S) evidence, then a free-ReAct Dig trajectory and honest card outcome. If it does, scale toward the 10-target audit.
+- **Not done:** no green research-quality claim, no blind comparison yet, and no 10-target success claim until the artifacts prove it.
