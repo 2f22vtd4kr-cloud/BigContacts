@@ -4,16 +4,24 @@ on:
   push:
     paths:
       - "artifacts/apex-finder/src/**"
+      - "artifacts/apex-finder/package.json"
+      - "package.json"
       - "scripts/check-frontend-responsive.mjs"
       - "scripts/check-reactor-live-integrity.mjs"
+      - "scripts/frontend-browser.spec.mjs"
+      - "scripts/playwright.config.mjs"
       - "docs/bureau-plan/15_FRONTEND_RESPONSIVE_AUDIT.md"
       - "docs/bureau-plan/17_FRONTEND_REACTOR_LIVE_GATE.md"
       - ".github/workflows/frontend-responsive.yml"
   pull_request:
     paths:
       - "artifacts/apex-finder/src/**"
+      - "artifacts/apex-finder/package.json"
+      - "package.json"
       - "scripts/check-frontend-responsive.mjs"
       - "scripts/check-reactor-live-integrity.mjs"
+      - "scripts/frontend-browser.spec.mjs"
+      - "scripts/playwright.config.mjs"
       - "docs/bureau-plan/15_FRONTEND_RESPONSIVE_AUDIT.md"
       - "docs/bureau-plan/17_FRONTEND_REACTOR_LIVE_GATE.md"
       - ".github/workflows/frontend-responsive.yml"
@@ -28,3 +36,44 @@ jobs:
         run: node scripts/check-frontend-responsive.mjs
       - name: Check Reactor Live integrity contract
         run: node scripts/check-reactor-live-integrity.mjs
+
+  vite-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install pnpm
+        run: npm install -g pnpm@9
+      - name: Install frontend workspace graph
+        run: pnpm install --no-frozen-lockfile --ignore-scripts --filter apex-finder-local...
+      - name: Build Apex Finder frontend
+        run: pnpm --dir artifacts/apex-finder build
+
+  browser-responsive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install pnpm
+        run: npm install -g pnpm@9
+      - name: Install frontend workspace graph
+        run: pnpm install --no-frozen-lockfile --ignore-scripts --filter apex-finder-local...
+      - name: Install root browser test runner
+        run: pnpm install --no-frozen-lockfile --ignore-scripts --filter .
+      - name: Verify runner Chrome
+        run: google-chrome --version
+      - name: Run desktop tablet mobile browser inspection
+        run: pnpm exec playwright test --config=scripts/playwright.config.mjs --reporter=line
+      - name: Upload responsive screenshots and Playwright diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: apex-reactor-responsive-browser
+          path: test-results/**
+          if-no-files-found: warn

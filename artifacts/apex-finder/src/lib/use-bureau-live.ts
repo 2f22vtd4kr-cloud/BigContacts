@@ -15,8 +15,13 @@ export type BureauDeskEvent = {
   targetName?: string;
   activeToolId?: string;
   toolIds?: string[];
+  query?: string;
+  prompt?: string;
   inputSummary?: string;
   resultSummary?: string;
+  sources?: number;
+  evidence?: number;
+  contacts?: number;
   story?: string;
   narration?: string;
   why?: string;
@@ -43,18 +48,32 @@ function mapBureauPayload(parsed: any, atlasLive: boolean): BureauDeskEvent {
   return {
     timestamp: parsed?.timestamp,
     kind: parsed?.kind || (isNarration ? "narration" : "log"),
-    stage: parsed?.title,
+    stage: parsed?.title || parsed?.stage,
     status,
     targetName: parsed?.targetName,
-    activeToolId: parsed?.provider,
-    toolIds: parsed?.provider ? [String(parsed.provider)] : [],
-    inputSummary: parsed?.why,
-    resultSummary: parsed?.responseSummary || parsed?.detail,
-    story: isNarration ? parsed?.title : (parsed?.why || parsed?.title),
-    narration: isNarration ? parsed?.title : parsed?.narration,
+    activeToolId: parsed?.provider || parsed?.activeToolId,
+    toolIds: Array.isArray(parsed?.toolIds)
+      ? parsed.toolIds.map(String)
+      : parsed?.provider
+        ? [String(parsed.provider)]
+        : [],
+    query: typeof parsed?.query === "string" ? parsed.query : undefined,
+    prompt: parsed?.prompt,
+    inputSummary: parsed?.inputSummary ?? parsed?.why,
+    resultSummary: parsed?.responseSummary || parsed?.resultSummary || parsed?.detail,
+    sources: typeof parsed?.sources === "number" ? parsed.sources : undefined,
+    evidence: typeof parsed?.evidence === "number" ? parsed.evidence : undefined,
+    contacts: typeof parsed?.contacts === "number" ? parsed.contacts : undefined,
+    story: isNarration ? parsed?.title : (parsed?.story || parsed?.why || parsed?.title),
+    narration: isNarration ? (parsed?.title || parsed?.narration) : parsed?.narration,
     why: parsed?.why,
     actor: parsed?.actor,
-    methodKind: parsed?.kind,
+    methodKind: parsed?.methodKind || (parsed?.kind === "search" || parsed?.kind === "page-fetch" || parsed?.kind === "registry" ? parsed.kind : undefined),
+    sourceUrls: Array.isArray(parsed?.sourceUrls) ? parsed.sourceUrls.filter((url: unknown): url is string => typeof url === "string") : undefined,
+    links: Array.isArray(parsed?.links)
+      ? parsed.links.filter((link: any) => link && typeof link.url === "string").map((link: any) => ({ title: link.title, url: link.url }))
+      : undefined,
+    raw: typeof parsed?.raw === "string" ? parsed.raw : undefined,
     provider: parsed?.provider,
   };
 }
@@ -91,7 +110,7 @@ export function useBureauLiveDesk(
           setBureauEvents(
             list
               .map((row: any) => mapBureauPayload(row, true))
-              .filter((e: BureauDeskEvent) => e.stage || e.narration || e.story),
+              .filter((e: BureauDeskEvent) => e.stage || e.narration || e.story || e.resultSummary || e.sourceUrls?.length),
           );
         }
       } catch {
@@ -110,7 +129,6 @@ export function useBureauLiveDesk(
 
   const merged = useMemo(() => {
     const fromLog = Array.isArray(eventLog) ? eventLog : [];
-    // When not live: only finished history (no active status), prefer empty for desk chrome
     const normalize = (e: BureauDeskEvent): BureauDeskEvent =>
       atlasLive ? e : { ...e, status: "done" };
 
@@ -129,7 +147,7 @@ export function useBureauLiveDesk(
 
   const latestNarration = useMemo(() => {
     if (!atlasLive) return null;
-    for (const e of merged) {
+    for (const e of [...merged].reverse()) {
       if (e.narration && e.narration.length > 8) return e.narration;
       if (e.kind === "narration" && (e.story || e.stage)) return e.story || e.stage;
     }

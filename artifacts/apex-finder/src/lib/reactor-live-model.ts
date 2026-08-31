@@ -43,6 +43,7 @@ export interface ReactorLiveEvent {
   sources?: ReactorSource[];
   evidenceCount?: number;
   why?: string;
+  narration?: string;
   links?: ReactorSource[];
 }
 
