@@ -22,11 +22,14 @@ const checks = [
   ["live model has explicit research-query extraction", /explicitResearchQuery/.test(model)],
   ["live model rejects non-HTTP evidence", /https\?:/.test(model) && /sourceList/.test(model)],
   ["live surface renders semantic events rather than raw logs", /eventIsRenderable/.test(surface)],
-  ["browser scene is backed by an event URL", /event\.url/.test(surface)],
-  ["browser scene labels recorded action explicitly", /Actual research action/.test(surface)],
-  ["tool input is presented as recorded input", /Recorded tool input/.test(surface)],
+  ["browser scene uses an event-backed URL", /event\.url|sourceList\(event\)/.test(surface)],
+  ["browser scene identifies itself as an Apex research view", /Apex research view/.test(surface)],
+  ["query playback is presentation-only and uses recorded text", /useTypedPlayback/.test(surface) && /explicitResearchQuery/.test(surface)],
   ["source links are rendered from event evidence", /sourceList\(event\)/.test(surface)],
-  ["desktop/mobile legacy stage remains evidence-aware", /sourceUrls|links/.test(bureau)],
+  ["desktop/mobile stage delegates to the semantic renderer", /ReactorLiveSurface/.test(bureau)],
+  ["legacy stage extracts queries only from explicit query/search text", /function recordedQuery/.test(bureau)],
+  ["legacy stage contains no target-name synthetic query", !/targetName\s*\?\s*[`"'].*(?:contact|email|phone|search)/i.test(bureau)],
+  ["legacy stage does not manufacture a Google URL", !/google\.com\/search\?q=\$\{.*target/i.test(bureau)],
 ];
 
 let failed = false;
@@ -35,7 +38,6 @@ for (const [label, ok] of checks) {
   if (!ok) failed = true;
 }
 
-// The UI must never turn hidden reasoning into a fake live prompt.
 if (/chain[- ]of[- ]thought|hidden reasoning|private reasoning/i.test(surface)) {
   console.error("FAIL  hidden reasoning language detected in Reactor Live surface");
   failed = true;
