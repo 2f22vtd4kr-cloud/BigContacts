@@ -10,4 +10,4 @@ The live workflow uses one provider decision at a time and a conservative Groq p
 The discovery admission layer now accepts an explicitly named person discovered on an organization-scoped source, while still rejecting generic organization facts. The ReAct runtime also records a compact summary of model-declared `done` findings in the trajectory so a zero-candidate result can be diagnosed at the model-output boundary rather than guessed from the final card.
 
 ## 2026-08-31 final retrigger after forensic addendum
-The live run must execute against the current `main` tip, including the recovery specification recorded in `docs/bureau-plan/58_LIVE_RECOVERY_2026-08-31.md`.
+The live run must execute against the current `main` tip, including the recovery specification recorded in `docs/bureau-plan/58_LIVE_RECOVERY_2026-08-31.md` and the organization-scoped admission regression test.
