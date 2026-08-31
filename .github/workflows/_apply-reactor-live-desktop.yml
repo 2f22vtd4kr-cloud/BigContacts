@@ -26,7 +26,7 @@ jobs:
           const reactorPath = 'artifacts/apex-finder/src/pages/reactor.tsx';
 
           let bureau = fs.readFileSync(bureauPath, 'utf8');
-          const fallbackPattern = /\n\s*if \(\/discover\|serp\|search[\s\S]*?return e\.targetName \? `\$\{e\.targetName\} contact email phone` : undefined;\n\s*}\n/;
+          const fallbackPattern = /\n\s*if \(\/discover[\s\S]*?return e\.targetName \? `\$\{e\.targetName\} contact email phone` : undefined;\n\s*}\n/;
           if (!fallbackPattern.test(bureau)) throw new Error('Expected target-name synthetic query branch was not found');
           bureau = bureau.replace(fallbackPattern, '\n');
           const safePattern = /const safeQuery = query && !isLogGarbage\(query\) && !isInternalLanePrompt\(query\)[\s\S]*?\n\s*:\s*\(e\.targetName \? `\$\{e\.targetName\}` : undefined\);/;
