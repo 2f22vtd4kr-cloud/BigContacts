@@ -1,6 +1,13 @@
 import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-const discoveryPath = "artifacts/api-server/src/src/lib/discovery-agent.ts";
+// This script is invoked from the api-server package during `pnpm build`, so
+// process.cwd() is not the repository root. Resolve repository-relative paths
+// from this script's own location; otherwise the build looks for
+// artifacts/api-server/artifacts/api-server/... and fails before compilation.
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const discoveryPath = path.join(repoRoot, "artifacts/api-server/src/src/lib/discovery-agent.ts");
 let discovery = fs.readFileSync(discoveryPath, "utf8");
 
 const oldParse = "const slotCandidates = parsePersonFindings(result.findings ?? []);";
@@ -12,14 +19,14 @@ if (discovery.includes(oldParse)) {
 }
 fs.writeFileSync(discoveryPath, discovery);
 
-const researchPath = "artifacts/api-server/src/src/lib/agentic-web-research.ts";
+const researchPath = path.join(repoRoot, "artifacts/api-server/src/src/lib/agentic-web-research.ts");
 let research = fs.readFileSync(researchPath, "utf8");
 
 // Ten concurrent discovery slots previously entered the provider loop at once.
 // Bound concurrent runs while leaving each individual run fully model-directed.
 if (!research.includes("const AGENTIC_RESEARCH_CONCURRENCY")) {
   const marker = "const MAX_OBS = 5_000;";
-  const insert = `${marker}\n\nconst AGENTIC_RESEARCH_CONCURRENCY = Math.max(1, Math.min(4, Number(process.env.APEX_AGENTIC_CONCURRENCY || \"4\")));\nlet activeAgenticResearch = 0;\nconst pendingAgenticResearch: Array<() => void> = [];\n\nasync function acquireAgenticResearchSlot(): Promise<void> {\n  if (activeAgenticResearch < AGENTIC_RESEARCH_CONCURRENCY) {\n    activeAgenticResearch += 1;\n    return;\n  }\n  await new Promise<void>((resolve) => pendingAgenticResearch.push(resolve));\n  activeAgenticResearch += 1;\n}\n\nfunction releaseAgenticResearchSlot(): void {\n  activeAgenticResearch = Math.max(0, activeAgenticResearch - 1);\n  pendingAgenticResearch.shift()?.();\n}\n`;
+  const insert = `${marker}\n\nconst AGENTIC_RESEARCH_CONCURRENCY = Math.max(1, Math.min(4, Number(process.env.APEX_AGENTIC_CONCURRENCY || "4")));\nlet activeAgenticResearch = 0;\nconst pendingAgenticResearch: Array<() => void> = [];\n\nasync function acquireAgenticResearchSlot(): Promise<void> {\n  if (activeAgenticResearch < AGENTIC_RESEARCH_CONCURRENCY) {\n    activeAgenticResearch += 1;\n    return;\n  }\n  await new Promise<void>((resolve) => pendingAgenticResearch.push(resolve));\n  activeAgenticResearch += 1;\n}\n\nfunction releaseAgenticResearchSlot(): void {\n  activeAgenticResearch = Math.max(0, activeAgenticResearch - 1);\n  pendingAgenticResearch.shift()?.();\n}\n`;
   if (!research.includes(marker)) throw new Error("agentic constants anchor not found");
   research = research.replace(marker, insert);
 }
