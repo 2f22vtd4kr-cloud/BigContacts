@@ -2,7 +2,7 @@
 
 ## Verified at session start
 
-- `main` was at `f3745580356052b2670305ed72694ac76ae38367`.
+- `main` was at the current engineering tip and was re-verified against GitHub before changes.
 - Canonical role boundary is intact: Boss = Gemini; Right Hand = NVIDIA NIM; Dig investigator = Groq → Mistral. Gemini/NVIDIA are not the web-research lane.
 - The repository's free-ReAct Dig implementation remains model-owned: the model selects searches, visits, OSINT actions, pivots, and stopping within bounded budgets.
 - The live audit workflow requires an actual Dig-provider generation before launching the 10-target batch.
@@ -39,7 +39,7 @@ The subsequent live workflow reached and passed both **Schema and API build** an
 
 ## Current 10-target provider-backed batch
 
-The corrected current-main audit was intentionally triggered via `scripts/live-batch-trigger.md`.
+The corrected audit was intentionally triggered from the then-current mainline so the expensive provider-backed work could run without being interrupted by later documentation changes.
 
 Current run:
 
@@ -74,11 +74,27 @@ Fixed on `main`:
 - `591a09f3a7fb3ef727d24483f5f3b90f6c091651` — only an explicitly recorded query match may enter the browser query surface.
 - `91cf1bca07278b3f9a0faf2ec059fe7b7b3153cd` — strengthened the no-fabrication checker to require the explicit-only implementation contract.
 
+## Discovery trajectory fix found during forensic code inspection
+
+The current `discovery-agent.ts` was correctly using the job-aware `publishDigSpan(...)` API but four completion calls were passing only the span id. The result was a silent no-op: discovery slot and aggregate spans could remain `active` after the work finished, degrading Reactor truth and trajectory observability.
+
+Fixed on `main`:
+
+- `58ddb9241483c2e8f207b15bd0b361eb44a164dd` — all discovery `completeDigSpan(...)` calls now pass `(jobId, spanId, patch)` consistently with the actual DigSpan contract.
+
+This does not alter research decisions; it repairs observability state so the next live run can accurately show terminal discovery spans.
+
 ## Notion operator layer
 
 Created a Notion page: **Apex Atlas — OSINT Bureau Dashboard**.
 
 Created the **Apex HNWI Intelligence** database with person/entity, role, organization, identity confidence, reachability, estimated wealth, geography, source, research date, open questions and status fields, plus an **HNWI Command Board** dashboard view.
+
+Added three operator views:
+
+- **Reachability Board** — people grouped by realistic contact route.
+- **Research Queue** — in-progress cases sorted by lowest identity confidence first.
+- **Identity & Evidence QA** — source and identity review ordered by confidence.
 
 ## Next required gate
 
