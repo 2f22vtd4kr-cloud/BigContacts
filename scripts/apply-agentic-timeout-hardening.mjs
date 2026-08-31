@@ -20,7 +20,10 @@ const groqEnd = s.indexOf("const AGENTIC_ACTION_SCHEMA", groqStart);
 if (groqStart < 0 || groqEnd < 0) throw new Error("Groq call block anchors missing");
 let groq = s.slice(groqStart, groqEnd);
 groq = groq
-  .replace(/max_tokens:\s*1536,/, 'max_completion_tokens: 768,\n            reasoning_effort: "low",\n            include_reasoning: false,\n            response_format: { type: "json_object" },')
+  .replace(
+    /max_tokens:\s*1536,/,
+    'max_completion_tokens: 768,\n            ...(model.startsWith("qwen/") ? { reasoning_effort: "none" } : { reasoning_effort: "low", include_reasoning: false }),\n            response_format: { type: "json_object" },',
+  )
   .replace(/max_tokens:\s*768,/, 'max_completion_tokens: 768,')
   .replace(/reasoning_effort:\s*"medium"/, 'reasoning_effort: "low"')
   .replace(/signal: AbortSignal\.timeout\(40_000\)/, 'signal: AbortSignal.timeout(50_000)')
@@ -38,4 +41,4 @@ s = s.replace(/input\.history\.length > 14 \? input\.history\.slice\(-14\) : inp
 s = s.replace(/OBJECTIVE: \$\{input\.objective\}/g, 'OBJECTIVE: ${input.objective.slice(0, 1200)}');
 
 fs.writeFileSync(targetPath, s);
-console.log("Applied agentic latency hardening: provider deadline >=55s, Groq 768-token low-reasoning JSON turns, compact model-facing state, and provider rejection diagnostics");
+console.log("Applied agentic latency hardening: provider deadline >=55s, compact 768-token Groq JSON turns with model-compatible reasoning settings, compact model-facing state, and provider rejection diagnostics");
