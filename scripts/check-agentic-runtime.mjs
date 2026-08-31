@@ -86,13 +86,13 @@ if (/\[\s*\[?\s*["']gemini["']\s*,\s*callGeminiJson|["']nvidia["']\s*,\s*callNvi
 }
 
 // Deterministic page enrichment may recover literal contact tokens, but it
-// must not be an identity authority. During the migration, the canonical
-// hardener owns this source rewrite; source parity is a separate release gate.
+// must not be an identity authority. The canonical hardener replaces the
+// legacy extractor with an observation-only implementation before build.
 if (!/Observation-only contact enrichment/.test(canonicalHardener)) {
   throw new Error("observation identity boundary missing from canonical hardener");
 }
-if (!/semantic PERSON claims/.test(canonicalHardener)) {
-  throw new Error("canonical hardener does not explicitly prohibit semantic PERSON extraction");
+if (!/const observationBoundaryRe\s*=/.test(canonicalHardener) || !/const observationReplacement\s*=/.test(canonicalHardener)) {
+  throw new Error("canonical hardener does not define an explicit observation replacement");
 }
 if (!/return facts\.join/.test(canonicalHardener)) {
   throw new Error("canonical hardener observation replacement does not preserve literal contact facts");
