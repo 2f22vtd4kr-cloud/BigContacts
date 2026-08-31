@@ -67,7 +67,10 @@ jobs:
       RESEARCH_DEPTH: standard
       APEX_SKIP_SEMANTIC: "1"
       APEX_DISCOVERY_BATCH_SIZE: "3"
-      APEX_AGENTIC_CONCURRENCY: "3"
+      # The provider pool is one decision at a time. Keep the research scheduler
+      # aligned with it so discovery slots do not starve each other behind the
+      # same free-tier TPM/RPM budget.
+      APEX_AGENTIC_CONCURRENCY: "1"
       APEX_AGENTIC_PROVIDER_CONCURRENCY: "1"
       AGENTIC_PROVIDER_DECISION_TIMEOUT_MS: "55000"
       GROQ_AGENTIC_MIN_INTERVAL_MS: "20000"
