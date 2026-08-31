@@ -20,3 +20,6 @@ The next proof is intentionally small: 3 discovery slots, 3 research targets, on
 
 ## 2026-08-31 Batch 25 — execute the post-proxy-fix smoke
 The permanent proxy-candidate admission fix is on `main` (`105683b9`, `329ecd49`) and the discovery-quality guard now enforces the `proxy_table` rejection boundary (`c82ca466`). This entry intentionally triggers the existing resilient workflow through its documented push surface; it does not alter discovery behavior or add a research hop. The run must be judged from its live artifacts, not from workflow completion alone.
+
+## 2026-08-31 Batch 26 — execute after fused-domain/person-output hardening
+Commits `914c3ed` and `1b72946` harden fused-domain pseudo-identities and make explicit person emission after source observation part of the discovery output contract. This trigger is for a real bounded 3-target smoke from that tip. No discovery query, source, candidate, or hop is prescribed here. The only acceptable evidence is the live trajectory and resulting source-backed person admission/Dig outcome.
