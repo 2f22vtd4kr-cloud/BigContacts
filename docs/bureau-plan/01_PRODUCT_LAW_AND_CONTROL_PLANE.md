@@ -1,116 +1,130 @@
 # Volume 01 — Product Law and Control Plane
 
 **Suite:** APEX_ATLAS_MASTER_BUREAU_PLAN  
-**Code anchors:** `apex-bureau-orientation.ts`, adaptive assign, final review, `lanes-honesty` / `bureauIntegrity`
+**Code anchors:** `apex-bureau-orientation.ts`, Atlas orchestration, discovery admission, `bureauIntegrity`
 
 ---
 
-## 1. Product law (operator + agent)
+## 1. Product law
 
-### 1.1 AI-driven bureau
-
-Trained models perform research the way a strong general agent would: understand the target, invent queries, open primary pages, pivot, stop when evidence is enough. **Tools execute.** **Models decide.**
+Apex Atlas is a model-led OSINT research bureau. Models decide research; tools execute. Deterministic software protects lifecycle, safety, provenance, identity integrity, budgets, persistence and promotion honesty.
 
 Code may:
 
-- bound iterations and wall-clock time  
-- validate and sanitize findings  
-- refuse inventing contacts  
-- recover thinly when **all** dig LLMs fail a step  
+- bound iterations and wall-clock time;
+- validate and sanitize findings;
+- reject malformed/non-person identities;
+- require HTTPS provenance for promoted evidence;
+- preserve organization/contact scope;
+- fail closed when providers or evidence are insufficient.
 
 Code must not:
 
-- replace the model with a fixed search checklist as the default brain  
-- skip the model turn after a scripted hop  
-- micro-train dig with ranked “prefer domain X” playbooks as research objectives  
+- replace the model with a fixed research checklist;
+- inject force hops or mandatory tool sequences;
+- choose candidates by fame, wealth or a ranked source list;
+- turn snippets, labels, addresses, departments or organizations into people;
+- use Boss/right-hand models as hidden web-research fallbacks.
 
-### 1.2 Roles
+### 1.1 Canonical roles
 
-| Role | Model | Responsibility |
-|------|--------|----------------|
-| **Boss** | **Gemini only** | Plan, assign direction, final card gate |
-| **Right-hand** | **NVIDIA** (e.g. GLM) | Free step advice, Reactor live narration |
-| **Dig investigators** | Groq → Mistral → Gemini → NVIDIA **failover** | Free ReAct tool loop |
-| **Deterministic shell** | TypeScript | Jobs, pause/stop, promote, identity, sanitizers |
+| Role | Model/provider | Responsibility |
+|------|----------------|----------------|
+| **Boss** | **Gemini** | Case direction, strategic brief, prioritization, final case-level judgment |
+| **Right-hand** | **NVIDIA NIM** | Case-file critique, evidence-gap analysis, advisory recommendation; non-blocking where appropriate |
+| **Discovery / Dig investigator** | **Groq → Mistral** | Actual web/OSINT research, tool selection, queries, pivots, evidence collection, stopping |
+| **Tools** | Search/fetch/registry/OSINT backends | Execute the investigator's selected action |
+| **Deterministic shell** | TypeScript | Jobs, budgets, permissions, provenance, identity gates, promotion, persistence, telemetry |
 
-**Groq is not Boss.** Groq is dig capacity and last-resort adaptive fallback when Gemini and NVIDIA fail to produce a step—not a “director.”
+**Critical boundary:** Gemini and NVIDIA do **not** conduct Apex web research. The Dig investigator lane is the only LLM lane that selects and executes web/OSINT research actions, with Groq → Mistral as its provider failover.
 
-### 1.3 Cold start / orientation
+Provider failover is transport infrastructure, not hierarchy. A Mistral fallback receives the same objective/state and independently chooses its next action; it never receives a scripted hop.
 
-Every LLM call is memory-less. **`apex-bureau-orientation.ts`** (or equivalent) must inject on every Boss, right-hand, investigator, and dig call:
+### 1.2 Cold start / orientation
 
-1. What Apex Atlas is  
-2. Goal (real public contacts + source URLs)  
-3. Role of this call  
-4. Available tool surface  
+Every LLM call is memoryless. `apex-bureau-orientation.ts` must provide the relevant product identity, objective, role, available tools, evidence/provenance rules and current state. Orientation informs the model; it does not dictate a search sequence.
 
-Without orientation, models behave like generic chat, not bureau staff.
+### 1.3 Integrity
 
-### 1.4 Final review vs adaptive assign
-
-**Bug class already hit in production work:** adaptive right-hand briefly wired to **final-card** NVIDIA prompts. That mis-briefs the model.
-
-**Law:**
-
-- Adaptive / free step assign → free-JSON path (`runNvidiaNimFreeJson` or equivalent)  
-- Final card publication → final-review path only  
-- Never mix system prompts across those jobs  
-
-### 1.5 Integrity gate
-
-`bureauIntegrity`:
-
-- **critical** if web search active count is 0 **or** dig LLM slots are 0 **or** last agentic step failed all providers  
-- UI and operators must not treat research as healthy while critical  
-- Launch may soft-warn; operators should fix keys before head-to-head evaluation  
-
-Search providers include Serper (primary), Tavily, Exa—not only Tavily/Exa in honesty math.
+`bureauIntegrity=critical` means research quality is not healthy. Provider readiness must distinguish configured from actually responding. A configured Boss or right-hand key does not satisfy the Dig capability requirement.
 
 ---
 
-## 2. Control flow (normative)
+## 2. Canonical control flow
 
 ```
-Operator Launch (canonical body)
-  → job pin + optional Boss objective (goals, not tool DAG)
-  → for each target (or discovery batch):
-       Investigator free ReAct (model chooses tools)
-       → persist evidence with URLs
-       → promote under outcome + identity gates
-       → optional right-hand narration (non-blocking)
-       → yield event loop
-  → status always readable
-  → Stop clears lock; idle is idle
+Operator Launch
+  → case/job state
+  → Boss strategic direction (Gemini; no browsing)
+  → discovery investigator (Groq → Mistral)
+       → model chooses tool/action
+       → tool executes
+       → typed observation returns
+       → model reasons/pivots/stops
+  → model-emitted candidate findings
+  → deterministic identity + provenance admission gate
+  → admitted person
+  → free-ReAct Dig investigator (Groq → Mistral)
+  → evidence/contact promotion + rehydration
+  → Right-hand advisory/final case review where configured
 ```
 
-Discovery and dig may share a job but must not confuse **phase messaging** (see Volume 04 and 05).
+The arrows describe ownership boundaries, not a mandatory research path. The investigator may search, visit, pivot, use registry/OSINT capabilities, or stop in any model-selected order.
 
 ---
 
-## 3. Canonical launch
+## 3. Discovery admission boundary
 
-Only research command for a full bureau run:
+Raw page text and tool observations are not candidates. The explicit boundary is:
 
-`POST /api/ingest/atlas-run` with `CANONICAL_ATLAS_LAUNCH_BODY`  
-(`atlas-launch-defaults.ts`, `docs/RUN_BUREAU.md`, `scripts/run-bureau.sh`, UI Launch).
+```
+RAW OBSERVATION
+   ↓
+MODEL HYPOTHESIS
+   ↓
+MODEL-EMITTED finding (action=done)
+   ↓
+identity + provenance safety gate
+   ↓
+PROMOTED PERSON
+```
 
-`ENABLE_AUTO_PIPELINE=false` unless operator explicitly enables continuous mass cycles.
+The canonical discovery path admits from `result.modelFindings`, not from deterministic proxy tables, snippets, generic extraction or legacy auto-extract bags. A deterministic identity gate may reject obvious garbage; it must not rank research opportunities.
 
-Stop: `DELETE /api/ingest/atlas-lock`.
-
----
-
-## 4. Do-not-regress checklist (control plane)
-
-- [ ] Boss remains Gemini-only for head judgment  
-- [ ] Right-hand free assign ≠ final-card review  
-- [ ] Orientation on every LLM path  
-- [ ] No force_* dig controller  
-- [ ] Integrity reflects Serper + dig LLM slots  
-- [ ] Auto-pipeline stays off by default  
+A valid person finding requires a named human plus attributable evidence and source URLs sufficient to distinguish the person from generic text or an organization-only surface.
 
 ---
 
-## 5. Handoff to Volume 02
+## 4. Dig / free ReAct
 
-Volume 02 specifies the **Investigator free ReAct loop** and the full **tool surface** the model may choose.
+The Dig loop is model-selected. Healthy turns use **Groq → Mistral** only. No Gemini/NVIDIA fallback is permitted in this capability lane. If the investigator pool is unavailable, the runtime fails closed or reports degraded integrity; it does not substitute a scripted search.
+
+`done` is a model decision, subject to lifecycle/budget/provenance guards. Empty evidence is an honest outcome.
+
+---
+
+## 5. Canonical launch
+
+Full bureau execution uses `POST /api/ingest/atlas-run` with the repository's canonical launch defaults. `ENABLE_AUTO_PIPELINE=false` by default.
+
+Replit production path: one API workflow on port 8080; desk at `/`; API under `/api/`.
+
+---
+
+## 6. Do-not-regress checklist
+
+- [ ] Boss remains Gemini.
+- [ ] Right-hand remains NVIDIA NIM.
+- [ ] Gemini/NVIDIA never become Dig browsers.
+- [ ] Dig/discovery investigator remains Groq → Mistral.
+- [ ] Model selects research actions; no force-hop controller.
+- [ ] Discovery admission uses model-emitted findings, not proxy/auto-extract identity.
+- [ ] HTTPS provenance and scope are preserved through promotion.
+- [ ] Provider failure is observable and cannot become scripted research.
+- [ ] Auto-pipeline remains off by default.
+
+---
+
+## 7. Handoff to Volume 02
+
+Volume 02 defines the investigator free-ReAct loop and the model-selectable tool surface.
