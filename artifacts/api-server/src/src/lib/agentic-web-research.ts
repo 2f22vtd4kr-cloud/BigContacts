@@ -1,1 +1,2106 @@
-RESTORING
+/**
+ * Agentic web research loop — ReAct-style, not a fixed playbook.
+ *
+ * Same model class as a strong general agent (Gemini-class), plus Apex OSINT tools:
+ *   web_search(query) → SERP snippets + URLs
+ *   visit(url)        → page text
+ *   done              → structured findings with source URLs
+ *
+ * The LLM invents queries each turn from observations. No template checklist.
+ * Contacts without http(s) source URLs are dropped (fail-closed admission).
+ */
+
+import { logger } from "./logger";
+import { spanFromLiveStep } from "./dig-span";
+import { formatSerpContactTokenBlock } from "./serp-contact-tokens";
+import { filterClaimUrls, filterPassagesForQuery } from "./passage-filter";
+import { sanitizePublicEmail, sanitizePublicPhone, isTrashContactValue } from "./contact-validation";
+import {
+  extractWalletSeedsFromText,
+  buildWalletSeedPlan,
+  formatWalletSeedPlanForPrompt,
+  objectiveLooksWalletFirst,
+} from "./wallet-seed";
+import { lookupDomainSurface, findingsFromDomainSurface } from "./domain-surface";
+import { setAgenticLlmHealth, getAgenticLlmHealth } from "./agentic-llm-health";
+import { GROQ_CHAT_MODELS } from "./groq-models";
+import { apexOrientationFor, apexOrientationCompact } from "./apex-bureau-orientation";
+export { getAgenticLlmHealth };
+
+export type AgenticFinding = {
+  vectorType: "email" | "phone" | "linkedin" | "website" | "other" | "social";
+  value: string;
+  personName: string | null;
+  role: string | null;
+  scope: "organization" | "candidate" | "unknown";
+  sourceUrls: string[];
+  note: string;
+};
+
+export type AgenticWebResearchResult = {
+  status: "completed" | "unavailable" | "error" | "timeout";
+  model: string;
+  iterations: number;
+  searches: number;
+  visits: number;
+  findings: AgenticFinding[];
+  trajectory: string[];
+  error?: string;
+};
+
+type AgentAction =
+  | { action: "web_search"; query: string; thought?: string }
+  | { action: "visit"; url: string; thought?: string }
+  /** Model-chosen OSINT tools — never forced by the harness. */
+  | { action: "footprint_email"; email: string; thought?: string }
+  | { action: "footprint_username"; username: string; thought?: string }
+  | { action: "domain_lookup"; domain: string; thought?: string }
+  | { action: "registry_search"; query: string; registry: string; thought?: string }
+  | { action: "harvest_domain"; domain: string; thought?: string }
+  | { action: "browser_fetch"; url: string; thought?: string }
+  | { action: "reverse_whois"; query: string; thought?: string }
+  | { action: "done"; findings: AgenticFinding[]; thought?: string };
+
+const MAX_ITER = 40;
+const MAX_OBS = 5_000;
+
+/** Format SERP text so the dig model sees discrete ranked hits + any phones/emails in snippets. */
+function formatSearchObservation(query: string, sr: { text: string; urls: string[] }): string {
+  const lines: string[] = [`SEARCH results for: ${query}`];
+  const urls = (sr.urls ?? []).slice(0, 10);
+  if (urls.length) {
+    lines.push("URLs (visit primary company / IR / filing pages when useful):");
+    urls.forEach((u, i) => lines.push(`  ${i + 1}. ${u}`));
+  } else {
+    lines.push("URLs: (none returned — try a different query)");
+  }
+  const body = (sr.text || "").trim();
+  if (body) {
+    lines.push("", "Snippets:");
+    // Prefer line-split hits when providers join with newlines
+    const chunks = body.split(/\n+/).map((s) => s.trim()).filter((s) => s.length > 20);
+    if (chunks.length >= 2) {
+      chunks.slice(0, 8).forEach((c, i) => lines.push(`  [${i + 1}] ${c.slice(0, 420)}`));
+    } else {
+      lines.push(body.slice(0, MAX_OBS));
+    }
+  }
+  // Surface contact-shaped tokens in SERP (verify via visit — OSINT lead discipline)
+  const tokenBlock = formatSerpContactTokenBlock(body);
+  if (tokenBlock) lines.push("", tokenBlock);
+  return lines.join("\n").slice(0, MAX_OBS + 500);
+}
+
+
+/** Iteration / observation caps. Loop is free ReAct — no force-hop floor. */
+
+function randomUA(): string {
+  const uas = [
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Safari/605.1.15",
+  ];
+  return uas[Math.floor(Math.random() * uas.length)]!;
+}
+
+/** Decode Cloudflare email-protection href hashes (public contact-page recovery). */
+function decodeCloudflareEmail(hex: string): string | null {
+  try {
+    const data = hex.replace(/[^a-fA-F0-9]/g, "");
+    if (data.length < 4 || data.length % 2 !== 0) return null;
+    const key = parseInt(data.slice(0, 2), 16);
+    let out = "";
+    for (let i = 2; i < data.length; i += 2) {
+      out += String.fromCharCode(parseInt(data.slice(i, i + 2), 16) ^ key);
+    }
+    if (!/^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/i.test(out)) return null;
+    return out.toLowerCase();
+  } catch {
+    return null;
+  }
+}
+
+function stripHtml(html: string): string {
+  return html
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+async function toolWebSearchSerper(query: string): Promise<{ text: string; urls: string[] } | null> {
+  const keys = [
+    process.env.SERPER_API_KEY,
+    process.env.SERPER_API_KEY_2,
+    process.env.SERPER_API_KEY_3,
+    process.env.SERPER_KEY,
+  ].map((k) => (k ?? "").trim()).filter(Boolean);
+  if (!keys.length) return null;
+  for (const key of keys) {
+    try {
+      const resp = await fetch("https://google.serper.dev/search", {
+        method: "POST",
+        headers: { "X-API-KEY": key, "Content-Type": "application/json" },
+        body: JSON.stringify({ q: query, num: 10, gl: "us", hl: "en" }),
+        signal: AbortSignal.timeout(12_000),
+      });
+      if (!resp.ok) {
+        logger.warn({ provider: "serper", status: resp.status }, "agentic provider rejected request");
+        continue;
+      }
+      const data = (await resp.json()) as {
+        organic?: Array<{ title?: string; link?: string; snippet?: string }>;
+        knowledgeGraph?: { description?: string };
+      };
+      const urls: string[] = [];
+      const parts: string[] = [];
+      if (data.knowledgeGraph?.description) parts.push(data.knowledgeGraph.description);
+      for (const row of data.organic ?? []) {
+        if (row.link && /^https?:\/\//i.test(row.link)) urls.push(row.link);
+        if (row.title || row.snippet) parts.push([`RESULT ${urls.length}`, `URL: ${row.link ?? "(none)"}`, row.title ? `TITLE: ${row.title}` : "", row.snippet ? `SNIPPET: ${row.snippet}` : ""].filter(Boolean).join(" — "));
+      }
+      if (!urls.length && !parts.length) continue;
+      const text = filterPassagesForQuery(parts.join("\n"), query, { maxChars: MAX_OBS });
+      return { text, urls: [...new Set(urls)].slice(0, 10) };
+    } catch (err: any) {
+      logger.debug({ err: err?.message, query }, "agentic serper search failed");
+    }
+  }
+  return null;
+}
+
+
+async function toolWebSearchTavily(query: string): Promise<{ text: string; urls: string[] } | null> {
+  const keys = ["TAVILY_API_KEY", ...Array.from({ length: 8 }, (_, i) => `TAVILY_API_KEY_${i + 1}`)]
+    .map((n) => process.env[n] ?? "")
+    .filter((k) => k.length > 0);
+  if (!keys.length) return null;
+  for (const key of keys) {
+    try {
+      const resp = await fetch("https://api.tavily.com/search", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${key}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          query,
+          search_depth: "advanced",
+          include_answer: true,
+          max_results: 8,
+          include_raw_content: false,
+        }),
+        signal: AbortSignal.timeout(18_000),
+      });
+      if (!resp.ok) continue;
+      const data = (await resp.json()) as {
+        answer?: string;
+        results?: Array<{ title?: string; url?: string; content?: string }>;
+      };
+      const urls: string[] = [];
+      const parts: string[] = [];
+      if (data.answer) parts.push(data.answer);
+      for (const row of data.results ?? []) {
+        if (row.url && /^https?:\/\//i.test(row.url)) urls.push(row.url);
+        if (row.title || row.content) parts.push([`RESULT ${urls.length}`, `URL: ${row.url ?? "(none)"}`, row.title ? `TITLE: ${row.title}` : "", row.content ? `SNIPPET: ${row.content}` : ""].filter(Boolean).join(" — "));
+      }
+      if (!urls.length && !parts.length) continue;
+      const text = filterPassagesForQuery(parts.join("\n"), query, { maxChars: MAX_OBS });
+      return { text, urls: [...new Set(urls)].slice(0, 10) };
+    } catch (err: any) {
+      logger.debug({ err: err?.message, query }, "agentic tavily search failed");
+      continue;
+    }
+  }
+  return null;
+}
+
+
+async function toolWebSearchExa(query: string): Promise<{ text: string; urls: string[] } | null> {
+  const keys = ["EXA_API_KEY", "EXA_1", "EXA_2", ...Array.from({ length: 8 }, (_, i) => `EXA_API_KEY_${i + 1}`)]
+    .map((n) => process.env[n] ?? "")
+    .filter((k) => k.length > 0);
+  if (!keys.length) return null;
+  for (const key of keys) {
+    try {
+      const resp = await fetch("https://api.exa.ai/search", {
+        method: "POST",
+        headers: {
+          "x-api-key": key,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          query,
+          type: "auto",
+          numResults: 8,
+          contents: { text: { maxCharacters: 1200 } },
+        }),
+        signal: AbortSignal.timeout(18_000),
+      });
+      if (!resp.ok) continue;
+      const data = (await resp.json()) as {
+        results?: Array<{ title?: string; url?: string; text?: string }>;
+      };
+      const urls: string[] = [];
+      const parts: string[] = [];
+      for (const row of data.results ?? []) {
+        if (row.url && /^https?:\/\//i.test(row.url)) urls.push(row.url);
+        if (row.title || row.text) parts.push([`RESULT ${urls.length}`, `URL: ${row.url ?? "(none)"}`, row.title ? `TITLE: ${row.title}` : "", row.text ? `SNIPPET: ${row.text}` : ""].filter(Boolean).join(" — "));
+      }
+      if (!urls.length && !parts.length) continue;
+      const text = filterPassagesForQuery(parts.join("\n"), query, { maxChars: MAX_OBS });
+      return { text, urls: [...new Set(urls)].slice(0, 10) };
+    } catch (err: any) {
+      logger.debug({ err: err?.message, query }, "agentic exa search failed");
+      continue;
+    }
+  }
+  return null;
+}
+
+async function toolWebSearch(query: string): Promise<{ text: string; urls: string[] }> {
+  // Prefer Serper (stable SERP URLs), then Tavily (keyed advanced search), then DDG HTML.
+  // Single-provider starvation is why a general agent can beat the bureau on the same surface.
+  const serper = await toolWebSearchSerper(query);
+  if (serper && serper.urls.length > 0) return serper;
+
+  const tavily = await toolWebSearchTavily(query);
+  if (tavily && (tavily.urls.length > 0 || tavily.text.length > 40)) return tavily;
+
+  const exa = await toolWebSearchExa(query);
+  if (exa && (exa.urls.length > 0 || exa.text.length > 40)) return exa;
+
+  const url = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}&kl=us-en`;
+  try {
+    const resp = await fetch(url, {
+      signal: AbortSignal.timeout(14_000),
+      headers: {
+        "User-Agent": randomUA(),
+        Accept: "text/html",
+        "Accept-Language": "en-US,en;q=0.9",
+      },
+    });
+    if (!resp.ok) return exa ?? tavily ?? serper ?? { text: "", urls: [] };
+    const html = await resp.text();
+    const urls: string[] = [];
+    for (const m of html.matchAll(/uddg=([^&"]+)/g)) {
+      try {
+        const u = decodeURIComponent(m[1]!);
+        if (/^https?:\/\//i.test(u) && !/duckduckgo\.com/i.test(u)) urls.push(u);
+      } catch { /* skip */ }
+    }
+    for (const m of html.matchAll(/href="(https?:\/\/[^"]+)"/g)) {
+      const u = m[1]!;
+      if (!/duckduckgo|google\.|bing\.|yahoo\./i.test(u)) urls.push(u);
+    }
+    const text = filterPassagesForQuery(stripHtml(html), query, { maxChars: MAX_OBS });
+    const out = { text, urls: [...new Set(urls)].slice(0, 10) };
+    if (out.urls.length === 0 && (exa || tavily || serper)) return exa ?? tavily ?? serper!;
+    return out;
+  } catch (err: any) {
+    logger.debug({ err: err?.message, query }, "agentic web_search failed");
+    return exa ?? tavily ?? serper ?? { text: "", urls: [] };
+  }
+}
+
+/** Deterministic contact-surface extractor from raw HTML — survives passage filter.
+ *  Prepends high-signal emails/phones/addresses/titles so agentic LLM cannot miss
+ *  org inboxes (info@) or phone lines that score poorly against a bare URL query.
+ */
+function extractContactFactsFromHtml(html: string): string {
+  const facts: string[] = [];
+  const seen = new Set<string>();
+  const push = (value: string) => {
+    const text = value.trim();
+    if (text.length < 5 || text.length > 200 || seen.has(text.toLowerCase())) return;
+    seen.add(text.toLowerCase());
+    facts.push(text);
+  };
+
+  for (const match of html.matchAll(/href=["']mailto:([^"'?\s]+)/gi)) {
+    push(`EMAIL: ${match[1]!.toLowerCase()}`);
+  }
+  for (const match of html.matchAll(/(?:email-protection|cdn-cgi\/l\/email-protection)[#/]([a-fA-F0-9]{4,})/gi)) {
+    const decoded = decodeCloudflareEmail(match[1]!);
+    if (decoded) push(`EMAIL: ${decoded}`);
+  }
+  for (const match of html.matchAll(/data-cfemail=["']([a-fA-F0-9]+)["']/gi)) {
+    const decoded = decodeCloudflareEmail(match[1]!);
+    if (decoded) push(`EMAIL: ${decoded}`);
+  }
+  for (const match of html.matchAll(/\b([a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,})\b/gi)) {
+    const address = match[1]!.toLowerCase();
+    if (!/example\.|sentry\.|schema\.|wixpress|cloudflare|wordpress|github\.com|google\.com/.test(address)) {
+      push(`EMAIL: ${address}`);
+    }
+  }
+  for (const match of html.matchAll(/href=["']tel:([^"']+)/gi)) {
+    push(`PHONE: ${match[1]!.replace(/\s+/g, " ").trim()}`);
+  }
+
+  return facts.join("\n");
+}
+
+function isMostlyBinaryGarbage(s: string): boolean {
+  if (!s || s.length < 8) return false;
+  let bad = 0;
+  for (let i = 0; i < s.length; i++) {
+    const c = s.charCodeAt(i);
+    if (c < 9 || (c > 13 && c < 32) || c === 0xfffd || c > 0x10ffff) bad++;
+  }
+  return bad / s.length > 0.15;
+}
+
+async function toolVisit(url: string): Promise<string> {
+  try {
+    const { isChallengeHtml, browserFetchConfigured, browserFetchHtml } = await import("./browser-fetch");
+    let html = "";
+    const isPdfUrl = /\.pdf(\?|$)/i.test(url);
+
+    // Facebook / Meta pages are almost always JS shells or login walls on plain fetch.
+    // Browser-escalate when configured so About/contact fields are readable.
+    const isSocialShell = /facebook\.com|fb\.com|instagram\.com|linkedin\.com\/company/i.test(url);
+    if (isSocialShell && browserFetchConfigured()) {
+      const escalated = await browserFetchHtml(url);
+      if (escalated.html && !isChallengeHtml(escalated.html) && escalated.html.length > 500) {
+        html = escalated.html.slice(0, 500_000);
+      }
+    }
+
+    if (!html) {
+      const resp = await fetch(url, {
+        signal: AbortSignal.timeout(12_000),
+        headers: {
+          "User-Agent": randomUA(),
+          Accept: isPdfUrl
+            ? "application/pdf,application/octet-stream,*/*"
+            : "text/html,application/xhtml+xml",
+          "Accept-Language": "en-US,en;q=0.9",
+        },
+        redirect: "follow",
+      });
+      if (!resp.ok) {
+        html = `HTTP ${resp.status}`;
+      } else {
+        const ctype = (resp.headers.get("content-type") || "").toLowerCase();
+        if (isPdfUrl || ctype.includes("application/pdf") || ctype.includes("octet-stream")) {
+          const buf = await resp.arrayBuffer();
+          const pdfText = extractTextFromPdfBuffer(buf);
+          // Build a synthetic HTML-ish block so CONTACT FACTS + LLM see the same shape as a page
+          html = `<html><body><pre>PDF TEXT EXTRACT\n${pdfText}</pre></body></html>`;
+        } else {
+          // Read more of the page; WordPress/Astra themes dump 100k+ of CSS before contact blocks.
+          html = (await resp.text()).slice(0, 500_000);
+        }
+      }
+    }
+
+    // Escalate when blocked and a browser/scrape provider is configured (see docs/PLAYWRIGHT_FALLBACK.md)
+    if ((isChallengeHtml(html) || /^HTTP 403/.test(html) || /^HTTP 503/.test(html)) && browserFetchConfigured()) {
+      const escalated = await browserFetchHtml(url);
+      if (escalated.html && !isChallengeHtml(escalated.html)) {
+        html = escalated.html.slice(0, 500_000);
+      } else if (isChallengeHtml(html) || /^HTTP 40|^HTTP 50/.test(html)) {
+        return `visit blocked (anti-bot): ${url}`;
+      }
+    } else if (isChallengeHtml(html)) {
+      return `visit blocked (anti-bot): ${url}`;
+    }
+
+    // Strip style/script so CONTACT FACTS extraction sees real body content, not theme chrome
+    html = html
+      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, " ")
+      .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, " ")
+      .replace(/<noscript[^>]*>[\s\S]*?<\/noscript>/gi, " ");
+    const facts = extractContactFactsFromHtml(html);
+    const body = filterPassagesForQuery(stripHtml(html), url, { maxChars: MAX_OBS, minScore: 0.05 });
+    // Always surface contact facts first so LLM can emit findings with sourceUrls.
+    return (facts + body).slice(0, MAX_OBS + 800);
+  } catch (err: any) {
+    return `visit failed: ${err?.message ?? "error"}`;
+  }
+}
+
+function extractJsonObject(raw: string): string | null {
+  const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)```/i)?.[1]?.trim();
+  const source = fenced || raw.trim();
+  const start = source.indexOf("{");
+  const end = source.lastIndexOf("}");
+  return start >= 0 && end > start ? source.slice(start, end + 1) : null;
+}
+
+function parseAction(raw: string): AgentAction | null {
+  const json = extractJsonObject(raw);
+  if (!json) return null;
+  try {
+    const o = JSON.parse(json) as Record<string, unknown>;
+    const action = String(o.action ?? "").toLowerCase();
+    if (action === "web_search" && typeof o.query === "string" && o.query.trim()) {
+      return { action: "web_search", query: o.query.trim().slice(0, 300), thought: typeof o.thought === "string" ? o.thought : undefined };
+    }
+    if (action === "visit" && typeof o.url === "string" && /^https?:\/\//i.test(o.url)) {
+      return { action: "visit", url: o.url.trim(), thought: typeof o.thought === "string" ? o.thought : undefined };
+    }
+    if ((action === "footprint_email" || action === "holehe") && typeof o.email === "string" && o.email.includes("@")) {
+      return { action: "footprint_email", email: o.email.trim().slice(0, 120), thought: typeof o.thought === "string" ? o.thought : undefined };
+    }
+    if ((action === "footprint_username" || action === "maigret" || action === "sherlock") && typeof o.username === "string" && o.username.trim().length >= 2) {
+      return { action: "footprint_username", username: o.username.trim().replace(/^@/, "").slice(0, 80), thought: typeof o.thought === "string" ? o.thought : undefined };
+    }
+    if ((action === "domain_lookup" || action === "whois" || action === "rdap") && typeof o.domain === "string") {
+      const dom = o.domain.trim().replace(/^https?:\/\//i, "").split("/")[0] || "";
+      if (dom.includes(".")) {
+        return { action: "domain_lookup", domain: dom.slice(0, 120), thought: typeof o.thought === "string" ? o.thought : undefined };
+      }
+    }
+    if (action === "registry_search" || action === "registry") {
+      const q = typeof o.query === "string" ? o.query.trim() : "";
+      let reg = String(o.registry ?? o.source ?? "sec-edgar").toLowerCase().replace(/_/g, "-").trim();
+      if (reg === "ch" || reg === "uk") reg = "companies-house";
+      if (reg === "edgar" || reg === "sec") reg = "sec-edgar";
+      if (reg === "oc" || reg.includes("opencorp")) reg = "opencorporates";
+      if (reg.includes("gleif") || reg === "lei") reg = "gleif";
+      if (reg === "norway" || reg === "brreg-no") reg = "brreg";
+      if (q.length >= 2) {
+        return {
+          action: "registry_search",
+          query: q.slice(0, 200),
+          registry: reg.slice(0, 40),
+          thought: typeof o.thought === "string" ? o.thought : undefined,
+        };
+      }
+    }
+    if ((action === "harvest_domain" || action === "theharvester" || action === "harvester") && typeof o.domain === "string" && o.domain.includes(".")) {
+      const dom = o.domain.trim().replace(/^https?:\/\//i, "").split("/")[0] || "";
+      if (dom.includes(".")) {
+        return { action: "harvest_domain", domain: dom.slice(0, 120), thought: typeof o.thought === "string" ? o.thought : undefined };
+      }
+    }
+    if ((action === "browser_fetch" || action === "browser" || action === "scrapfly") && typeof o.url === "string" && /^https?:\/\//i.test(o.url)) {
+      return { action: "browser_fetch", url: o.url.trim().slice(0, 500), thought: typeof o.thought === "string" ? o.thought : undefined };
+    }
+    if ((action === "reverse_whois" || action === "whoxy") && typeof o.query === "string" && o.query.trim().length >= 3) {
+      return { action: "reverse_whois", query: o.query.trim().slice(0, 200), thought: typeof o.thought === "string" ? o.thought : undefined };
+    }
+    if (action === "done") {
+      const findings = Array.isArray(o.findings) ? o.findings : [];
+      const cleaned: AgenticFinding[] = [];
+      for (const f of findings) {
+        if (!f || typeof f !== "object") continue;
+        const row = f as Record<string, unknown>;
+        const value = typeof row.value === "string" ? row.value.trim() : "";
+        if (!value) continue;
+        if (isMostlyBinaryGarbage(value)) continue;
+        const vectorType = ["email", "phone", "linkedin", "website", "other", "social"].includes(String(row.vectorType))
+          ? (String(row.vectorType) as AgenticFinding["vectorType"])
+          : "other";
+        const sourceUrls = filterClaimUrls(row.sourceUrls);
+        if (["email", "phone", "linkedin", "social"].includes(vectorType) && sourceUrls.length === 0) continue;
+        let finalValue = value;
+        if (vectorType === "email") {
+          const e = sanitizePublicEmail(value);
+          if (!e || isTrashContactValue("email", e)) continue;
+          finalValue = e;
+        }
+        if (vectorType === "phone") {
+          const p = sanitizePublicPhone(value);
+          if (!p || isTrashContactValue("phone", p)) continue;
+          finalValue = p;
+        }
+        if (vectorType === "website") {
+          const host = finalValue.replace(/^https?:\/\//i, "").split("/")[0]?.toLowerCase() || "";
+          if (/bbb\.org|mapquest|zoominfo|rocketreach|yelp|dnb\.com|chamber|linkedin|facebook|twitter|wikipedia|growjo|apollo|manta|bizapedia/i.test(host)) continue;
+        }
+        // Drop CSS/HTML chrome and non-contact "other" noise (theme/directory pollution)
+        if (
+          vectorType === "other"
+          && (/[{};]|rmp-|style=|--columns|standard-menu|Directory Search|\.rmp-|\bast-|\buagb-|\bwp-block|\binline-on-mobile/i.test(finalValue)
+            || finalValue.length < 6
+            || !/[A-Za-z0-9@]/.test(finalValue)
+            || (finalValue.match(/\s/g) || []).length > 20 && !/\d{3}/.test(finalValue))
+        ) {
+          continue;
+        }
+        cleaned.push({
+          vectorType,
+          value: finalValue.slice(0, 500),
+          personName: typeof row.personName === "string" ? row.personName.slice(0, 120) : null,
+          role: typeof row.role === "string" ? row.role.slice(0, 120) : null,
+          scope: row.scope === "organization" || row.scope === "candidate" ? row.scope : "unknown",
+          sourceUrls: sourceUrls.length ? sourceUrls : (vectorType === "website" && /^https?:\/\//i.test(finalValue) ? [finalValue] : []),
+          note: typeof row.note === "string" ? row.note.slice(0, 400) : "agentic web research",
+        });
+      }
+      return { action: "done", findings: cleaned, thought: typeof o.thought === "string" ? o.thought : undefined };
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+/** GROQ_CHAT_MODELS from ./groq-models — post Llama 3.3 70B decommission (2026-08-16). */
+
+async function callGroqJson(prompt: string): Promise<{ model: string; raw: string } | null> {
+  const keys = ["GROQ_API_KEY", ...Array.from({ length: 5 }, (_, i) => `GROQ_API_KEY_${i + 1}`)]
+    .map((n) => process.env[n] ?? "")
+    .filter((k) => k.length > 0);
+  if (!keys.length) return null;
+  for (const key of keys) {
+    for (const model of GROQ_CHAT_MODELS) {
+      try {
+        const resp = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model,
+            max_tokens: 1536,
+            messages: [
+              {
+                role: "system",
+                content:
+                  apexOrientationCompact("dig_agent") + "\nReply with ONE JSON object only for this ReAct step.",
+              },
+              { role: "user", content: prompt },
+            ],
+          }),
+          signal: AbortSignal.timeout(40_000),
+        });
+        if (!resp.ok) {
+          logger.warn({ provider: "groq", status: resp.status, model }, "agentic provider rejected request");
+          continue;
+        }
+        const data = await resp.json() as { choices?: Array<{ message?: { content?: string } }> };
+        const raw = data.choices?.[0]?.message?.content?.trim() ?? "";
+        if (raw) return { model, raw };
+      } catch (err: any) { logger.warn({ provider: "agentic", model, error: err?.message }, "agentic provider call failed"); continue; }
+    }
+  }
+  return null;
+}
+
+const AGENTIC_ACTION_SCHEMA = {
+  type: "object",
+  properties: {
+    action: { type: "string", enum: ["web_search", "visit", "footprint_email", "footprint_username", "domain_lookup", "registry_search", "harvest_domain", "browser_fetch", "reverse_whois", "done"] },
+    query: { type: "string" },
+    url: { type: "string" },
+    email: { type: "string" },
+    username: { type: "string" },
+    domain: { type: "string" },
+    registry: { type: "string" },
+    thought: { type: "string" },
+    findings: { type: "array", items: {
+      type: "object",
+      properties: {
+        vectorType: { type: "string", enum: ["email", "phone", "linkedin", "website", "social", "other"] },
+        value: { type: "string" },
+        personName: { type: ["string", "null"] },
+        role: { type: ["string", "null"] },
+        scope: { type: "string", enum: ["organization", "candidate", "unknown"] },
+        sourceUrls: { type: "array", items: { type: "string" } },
+        note: { type: "string" },
+      },
+      required: ["vectorType", "value", "sourceUrls", "note"],
+      additionalProperties: false,
+    } },
+  },
+  required: ["action"],
+  additionalProperties: false,
+};
+
+async function callGeminiJson(prompt: string): Promise<{ model: string; raw: string } | null> {
+  const keys = [
+    "GEMINI_API_KEY",
+    "GEMINI_KEY",
+    ...Array.from({ length: 13 }, (_, i) => `GEMINI_API_KEY_${i + 1}`),
+  ]
+    .map((n) => ({ name: n, key: (process.env[n] ?? "").trim() }))
+    .filter((entry) => entry.key.length > 0);
+  if (!keys.length) return null;
+
+  const models = [
+    process.env.GEMINI_AGENTIC_MODEL,
+    process.env.GEMINI_BOSS_MODEL,
+    "gemini-3.7-flash",
+    "gemini-3.6-flash",
+    "gemini-3.5-flash",
+    "gemini-3.5-flash-lite",
+    "gemini-3.1-flash-lite",
+  ].filter((m, i, all): m is string => Boolean(m && m.trim()) && all.indexOf(m) === i);
+
+  for (const entry of keys) {
+    for (const model of models) {
+      try {
+        const resp = await fetch(
+          "https://generativelanguage.googleapis.com/v1beta/models/" + encodeURIComponent(model) + ":generateContent",
+          {
+            method: "POST",
+            headers: { "x-goog-api-key": entry.key, "Content-Type": "application/json" },
+            body: JSON.stringify({
+              systemInstruction: {
+                parts: [{
+                  text: apexOrientationCompact("dig_agent") +
+                    "\nReturn exactly one JSON action object. Preserve your own research judgment; the harness only executes the action you choose.",
+                }],
+              },
+              contents: [{ role: "user", parts: [{ text: prompt }] }],
+              generationConfig: {
+                maxOutputTokens: 1024,
+                thinkingConfig: { thinkingLevel: "high" },
+              },
+            }),
+            signal: AbortSignal.timeout(50_000),
+          },
+        );
+        if (!resp.ok) {
+          const body = (await resp.text()).slice(0, 500);
+          logger.warn({ provider: "gemini", keyName: entry.name, status: resp.status, model, body }, "agentic provider rejected request");
+          // 401/403 is a key problem; move to the next key. 404 is a model
+          // lifecycle problem; move to the next model. 429/503 are capacity
+          // problems; move through the configured pool instead of killing the turn.
+          continue;
+        }
+        const data = await resp.json() as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
+        const raw = data.candidates?.[0]?.content?.parts?.map((p) => p.text || "").join("").trim() || "";
+        if (raw) return { model: `gemini:${model}`, raw };
+      } catch (err: any) {
+        logger.warn({ provider: "gemini", keyName: entry.name, model, error: err?.message }, "agentic provider call failed");
+      }
+    }
+  }
+  return null;
+}
+
+async function callMistralJson(prompt: string): Promise<{ model: string; raw: string } | null> {
+  const key = process.env.MISTRAL_API_KEY?.trim();
+  if (!key) return null;
+  const models = [
+    process.env.MISTRAL_AGENTIC_MODEL,
+    "mistral-small-latest",
+    "mistral-large-latest",
+    "open-mistral-nemo",
+  ].filter((m): m is string => Boolean(m && m.trim()));
+  for (const model of models) {
+    try {
+      const resp = await fetch("https://api.mistral.ai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${key}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model,
+          max_tokens: 1536,
+          messages: [
+            {
+              role: "system",
+              content:
+                apexOrientationCompact("dig_agent") + "\nReply with ONE JSON object only for this ReAct step.",
+            },
+            { role: "user", content: prompt },
+          ],
+        }),
+        signal: AbortSignal.timeout(45_000),
+      });
+      if (!resp.ok) {
+        logger.warn({ provider: "mistral", status: resp.status, model }, "agentic provider rejected request");
+        continue;
+      }
+      const data = (await resp.json()) as { choices?: Array<{ message?: { content?: string } }> };
+      const raw = data.choices?.[0]?.message?.content?.trim() ?? "";
+      if (raw) return { model: `mistral:${model}`, raw };
+    } catch (err: any) { logger.warn({ provider: "agentic", model, error: err?.message }, "agentic provider call failed"); continue; }
+  }
+  return null;
+}
+
+async function callNvidiaJson(prompt: string): Promise<{ model: string; raw: string } | null> {
+  const key =
+    process.env.NVIDIA_NIM_API_KEY?.trim() ||
+    process.env.NVIDIA_API_KEY?.trim() ||
+    "";
+  if (!key) return null;
+  const models = [
+    process.env.NVIDIA_AGENTIC_MODEL,
+    process.env.NVIDIA_NIM_MODEL,
+    "nvidia/nemotron-3.5-lightning-30b-a3b",
+    "nvidia/nemotron-3-super-120b-a12b",
+  ].filter((m): m is string => Boolean(m && m.trim()));
+  for (const model of models) {
+    try {
+      const resp = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${key}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model,
+          max_tokens: 1536,
+          messages: [
+            {
+              role: "system",
+              content:
+                apexOrientationCompact("dig_agent") + "\nReply with ONE JSON object only for this ReAct step.",
+            },
+            { role: "user", content: prompt },
+          ],
+        }),
+        signal: AbortSignal.timeout(50_000),
+      });
+      if (!resp.ok) { logger.warn({ provider: "agentic", status: resp.status, model }, "agentic provider rejected request"); continue; }
+      const data = (await resp.json()) as { choices?: Array<{ message?: { content?: string } }> };
+      const raw = data.choices?.[0]?.message?.content?.trim() ?? "";
+      if (raw) return { model: `nvidia:${model}`, raw };
+    } catch (err: any) { logger.warn({ provider: "agentic", model, error: err?.message }, "agentic provider call failed"); continue; }
+  }
+  return null;
+}
+
+
+
+
+
+
+
+
+/**
+ * DIG_INVESTIGATOR_FAILOVER_CHAIN: Groq -> Mistral.
+ *
+ * This is the actual web-research LLM lane. Boss and right-hand are NOT dig
+ * providers: Boss=Gemini, right-hand=NVIDIA. They reason over the case and
+ * advise the investigator; they do not execute web research themselves.
+ *
+ * No provider in this lane is given a scripted research sequence. The model
+ * still owns every search, visit, OSINT choice, pivot, and stopping decision.
+ */
+let activeAgenticProviderDecisions = 0;
+const agenticProviderDecisionWaiters: Array<() => void> = [];
+const MAX_CONCURRENT_AGENTIC_PROVIDER_DECISIONS = Math.max(
+  1,
+  Number(process.env.APEX_AGENTIC_PROVIDER_CONCURRENCY || "1"),
+);
+let lastGroqAgenticCallAt = 0;
+const GROQ_AGENTIC_MIN_INTERVAL_MS = Math.max(
+  0,
+  Number(process.env.GROQ_AGENTIC_MIN_INTERVAL_MS || "20000"),
+);
+
+async function waitForGroqAgenticPace(): Promise<void> {
+  const elapsed = Date.now() - lastGroqAgenticCallAt;
+  const remaining = GROQ_AGENTIC_MIN_INTERVAL_MS - elapsed;
+  if (remaining > 0) await new Promise((resolve) => setTimeout(resolve, remaining));
+  lastGroqAgenticCallAt = Date.now();
+}
+
+async function acquireAgenticProviderDecisionSlot(): Promise<void> {
+  if (activeAgenticProviderDecisions < MAX_CONCURRENT_AGENTIC_PROVIDER_DECISIONS) {
+    activeAgenticProviderDecisions += 1;
+    return;
+  }
+  await new Promise<void>((resolve) => agenticProviderDecisionWaiters.push(resolve));
+  activeAgenticProviderDecisions += 1;
+}
+
+function releaseAgenticProviderDecisionSlot(): void {
+  activeAgenticProviderDecisions = Math.max(0, activeAgenticProviderDecisions - 1);
+  const next = agenticProviderDecisionWaiters.shift();
+  if (next) next();
+}
+
+async function llmStep(prompt: string): Promise<{ model: string; raw: string } | null> {
+  await acquireAgenticProviderDecisionSlot();
+  try {
+    const providers: Array<[string, () => Promise<{ model: string; raw: string } | null>]> = [
+      ["groq", callGroqJson],
+      ["mistral", callMistralJson],
+    ];
+    const providerDecisionTimeoutMs = 18_000;
+    const errors: string[] = [];
+
+    for (const [name, fn] of providers) {
+      const timeout = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error(name + ":timeout")), providerDecisionTimeoutMs),
+      );
+      try {
+        if (name === "groq") await waitForGroqAgenticPace();
+        const out = await Promise.race([fn(prompt), timeout]);
+        if (!out?.raw) throw new Error(name + ":empty");
+        setAgenticLlmHealth(true, out.model, null);
+        return out;
+      } catch (err: any) {
+        errors.push(name + ":" + (err?.message ?? "fail"));
+      }
+    }
+
+    setAgenticLlmHealth(false, null, errors.join(";").slice(0, 1000));
+    logger.warn({ errors }, "[agentic] all Dig investigator LLM providers failed for step");
+    return null;
+  } finally {
+    releaseAgenticProviderDecisionSlot();
+  }
+}
+
+function formatFindingsBag(findings: AgenticFinding[]): string {
+  if (!findings.length) return "(none yet)";
+  return findings
+    .slice(0, 20)
+    .map((f) => {
+      const who = f.personName ? ` person=${f.personName}` : "";
+      const role = f.role ? ` role=${f.role}` : "";
+      const src = f.sourceUrls[0] ? ` src=${f.sourceUrls[0]}` : "";
+      return `- ${f.vectorType}: ${f.value}${who}${role} (${f.scope})${src}`;
+    })
+    .join("\n");
+}
+
+function buildStepPrompt(input: {
+  targetName: string;
+  companyName?: string | null;
+  objective: string;
+  history: string[];
+  lastObservation: string;
+  findings?: AgenticFinding[];
+}): string {
+  // Keep this short. Models already know how to research; do not ship a playbook.
+  const bag = formatFindingsBag(input.findings ?? []);
+  return `${apexOrientationCompact("dig_agent")}
+
+---
+
+TARGET: ${input.targetName}
+${input.companyName ? `RELATED COMPANY / ISSUER: ${input.companyName}` : ""}
+OBJECTIVE: ${input.objective}
+
+AVAILABLE TOOLS (one JSON action per turn — your choice; use any Apex OSINT capability when it helps):
+{"action":"web_search","query":"...","thought":"..."}
+{"action":"visit","url":"https://...","thought":"..."}
+{"action":"browser_fetch","url":"https://...","thought":"..."}  // Scrapfly/ZenRows JS/challenge pages
+{"action":"footprint_email","email":"...","thought":"..."}  // Holehe
+{"action":"footprint_username","username":"...","thought":"..."}  // Maigret + Sherlock
+{"action":"domain_lookup","domain":"example.com","thought":"..."}  // RDAP / WhoisJSON
+{"action":"harvest_domain","domain":"example.com","thought":"..."}  // theHarvester emails/hosts
+{"action":"registry_search","query":"...","registry":"sec-edgar|companies-house|brreg|gleif|opencorporates|...","thought":"..."}
+{"action":"reverse_whois","query":"name or email","thought":"..."}  // Whoxy when keyed
+{"action":"done","findings":[{"vectorType":"email|phone|linkedin|website|social|other","value":"...","personName":null,"role":null,"scope":"organization|candidate","sourceUrls":["https://exact-page"],"note":"..."}],"thought":"..."}
+
+Guidelines (not a script):
+- Search snippets are leads, not identity evidence. When a promising result names a person, consider visiting the corresponding result URL before claiming identity; do not treat the URL/snippet alone as proof.
+- Never invent emails, phones, people, or URLs. Only values from observations or FINDINGS SO FAR, with real sourceUrls.
+- Prefer primary sources (company sites, filings, registries) over aggregators.
+- When finished, action=done. findings:[] is OK if FINDINGS SO FAR already holds contacts — the runtime keeps the bag.
+
+FINDINGS SO FAR (already extracted — do not drop these):
+${bag}
+
+TRAJECTORY SO FAR (recent):
+${(input.history.length > 14 ? input.history.slice(-14) : input.history).join("\n") || "(start)"}
+
+LAST OBSERVATION:
+${input.lastObservation.slice(0, MAX_OBS) || "(none — begin with web_search)"}
+
+Return ONE JSON object only.`;
+}
+
+/** True when email domain aligns with company site or name (drops dealer-network noise). */
+function isCompanyAlignedEmail(email: string, companyName?: string | null, pageUrl?: string): boolean {
+  const domain = (email.split("@")[1] || "").toLowerCase();
+  if (!domain) return false;
+  if (/example\.|sentry\.|schema\.|wixpress|cloudflare|wordpress|github\.com|google\.com|microsoft\.com/.test(domain)) return false;
+  const local = (email.split("@")[0] || "").toLowerCase();
+  const isClassicOrgMailbox = /^(info|contact|sales|office|support|hello|admin|service|parts|inquiries)$/i.test(local);
+  try {
+    if (pageUrl) {
+      const host = new URL(pageUrl).hostname.replace(/^www\./, "").toLowerCase();
+      const root = host.split(".").slice(-2).join(".");
+      if (domain === host || domain === root || host.endsWith(domain)) return true;
+      // Org mailbox on a company-named host whose mail domain differs (e.g. sales@cmi79.com on custom-machine-inc.com)
+      if (isClassicOrgMailbox && companyName) {
+        const token = companyName.toLowerCase().replace(/[^a-z0-9]+/g, "");
+        const hostFlat = host.replace(/[^a-z0-9]/g, "");
+        if (token.length >= 4 && (hostFlat.includes(token.slice(0, Math.min(8, token.length))) || token.includes(hostFlat.slice(0, 6)))) {
+          return true;
+        }
+      }
+      // Classic org mailbox on a non-directory page we deliberately visited under company research
+      if (
+        isClassicOrgMailbox
+        && host
+        && !/zoominfo|rocketreach|mapquest|bbb\.org|yelp|facebook|linkedin|twitter|wikipedia|chamber/i.test(host)
+      ) {
+        return true;
+      }
+    }
+  } catch { /* ignore */ }
+  if (companyName) {
+    const token = companyName.toLowerCase().replace(/[^a-z0-9]+/g, "");
+    const domFlat = domain.replace(/[^a-z0-9]/g, "");
+    if (token.length >= 3 && (
+      domFlat.includes(token.slice(0, Math.min(6, token.length)))
+      || domain.includes(token.slice(0, Math.min(4, token.length)))
+    )) return true;
+    // Brand-short domains: "Accurate Manufacturing" → acc-mfg.com / "Custom Machine" → cmi79.com
+    // Keep company-aligned emails even when local-part is a short name vs full legal name.
+    const words = companyName.toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length >= 3 && !/^(and|the|inc|llc|corp|company|co|ltd|of)$/i.test(w));
+    if (words.length >= 1 && domFlat.length >= 3 && domFlat.length <= 20) {
+      const prefixes = words.map((w) => w.slice(0, 3));
+      if (prefixes.some((p) => domFlat.includes(p))) return true;
+      // Acronym domains: "South Shore Tool Die" → sstd.net (first letters of significant words)
+      if (words.length >= 2) {
+        const acronym = words.map((w) => w[0]).join("");
+        if (acronym.length >= 3 && (domFlat === acronym || domFlat.startsWith(acronym) || acronym.startsWith(domFlat.slice(0, Math.min(4, domFlat.length))))) {
+          return true;
+        }
+      }
+      // Shared long token: "Rathburn Precision Machining" ↔ rathburntool.com / rathburnmachining.com
+      for (const w of words) {
+        if (w.length >= 6 && domFlat.includes(w.slice(0, Math.min(8, w.length)))) return true;
+      }
+    }
+  }
+  // Classic org mailbox with company context even without pageUrl (SERP snippet path)
+  if (isClassicOrgMailbox && companyName && companyName.replace(/[^a-z0-9]/gi, "").length >= 4) return true;
+  // Reject free-mail as company-aligned unless classic org local (already handled above)
+  if (/^(gmail|yahoo|hotmail|outlook|aol|icloud|netzero|protonmail|mail)\./i.test(domain)) return false;
+  return false;
+}
+
+/** Parse CONTACT FACTS block from a visited page into structured findings (fail-closed, org scope). */
+
+/** Deterministic role/address/related extraction from SEC proxy / DEF 14A-style HTML or text. */
+function findingsFromProxyPage(
+  page: string,
+  sourceUrl: string,
+  targetName: string,
+  companyName?: string | null,
+): AgenticFinding[] {
+  const out: AgenticFinding[] = [];
+  if (!page || page.length < 80) return out;
+  const isSec = /sec\.gov|edgar|proxy|def\s*14a|beneficial owner/i.test(sourceUrl + "\n" + page.slice(0, 500));
+  if (!isSec && !/has been .{0,40}President|Director since|Chief Executive/i.test(page)) {
+    return out;
+  }
+  const plain = page
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/\s+/g, " ");
+
+  const esc = targetName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/\s+/g, "\\s+");
+  const bio = plain.match(new RegExp(`(${esc}[^.]{0,40}?)\\s+has been\\s+([^.]{10,220})\\.`, "i"));
+  if (bio?.[2]) {
+    const role = bio[2].replace(/\s+/g, " ").trim().slice(0, 120);
+    out.push({
+      vectorType: "other",
+      value: role,
+      personName: targetName,
+      role,
+      scope: "organization",
+      sourceUrls: [sourceUrl],
+      note: `Proxy/DEF 14A role line on ${sourceUrl}`,
+    });
+  } else {
+    const near = plain.toLowerCase().indexOf(targetName.toLowerCase().replace(/\s+/g, " ").slice(0, 24));
+    if (near >= 0) {
+      const window = plain.slice(Math.max(0, near - 20), near + 280);
+      const titleHit = window.match(
+        /\b(President|Co-Chief Executive Officer|Chief Executive Officer|Co-CEO|Director|Chairman|Executive Vice President)[^.]{0,80}/i,
+      );
+      if (titleHit?.[0]) {
+        const role = titleHit[0].replace(/\s+/g, " ").trim().slice(0, 120);
+        out.push({
+          vectorType: "other",
+          value: role,
+          personName: targetName,
+          role,
+          scope: "organization",
+          sourceUrls: [sourceUrl],
+          note: `Title near target on ${sourceUrl}`,
+        });
+      }
+    }
+  }
+
+  const street = plain.match(
+    /\b(\d{1,5}\s+(?:North|South|East|West|N\.?|S\.?|E\.?|W\.?)?\s*[A-Za-z0-9.'\-]+(?:\s+(?:Street|St|Avenue|Ave|Road|Rd|Boulevard|Blvd|Drive|Dr|Lane|Ln|Way|Court|Ct)\.?))\b/i,
+  );
+  if (street?.[1]) {
+    out.push({
+      vectorType: "other",
+      value: street[1].trim().slice(0, 160),
+      personName: targetName,
+      role: companyName ? `address @ ${companyName}` : "address",
+      scope: "organization",
+      sourceUrls: [sourceUrl],
+      note: `Street address on ${sourceUrl}`,
+    });
+  }
+
+  // Related officer-looking names (exclude target)
+  const exclude = new Set(
+    targetName.toLowerCase().replace(/[^a-z\s]/g, " ").split(/\s+/).filter((x) => x.length >= 2),
+  );
+  const nameRe = /\b([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z]+)+)\b/g;
+  const seen = new Set<string>();
+  let m: RegExpExecArray | null;
+  while ((m = nameRe.exec(plain)) !== null && seen.size < 8) {
+    const cand = m[1]!.replace(/\s+/g, " ").trim();
+    if (cand.length < 5 || cand.length > 60) continue;
+    if (/\b(Inc|LLC|Ltd|Corp|Company|Trust|Fund|Manufacturing|Holdings)\b/i.test(cand)) continue;
+    const tokens = cand.toLowerCase().replace(/[^a-z\s]/g, " ").split(/\s+/).filter(Boolean);
+    if (tokens.filter((t) => exclude.has(t)).length >= 2) continue;
+    if (tokens.length < 2) continue;
+    const key = tokens.join(" ");
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({
+      vectorType: "other",
+      value: `related-person:${cand}`,
+      personName: cand,
+      role: "proxy_table",
+      scope: "candidate",
+      sourceUrls: [sourceUrl],
+      note: `Related name on proxy/filing ${sourceUrl}`,
+    });
+  }
+  return out;
+}
+
+
+/** IR / press / SC13 contact blocks — parity with strong public-page extraction. */
+function findingsFromIrAndRelatedBlocks(
+  page: string,
+  sourceUrl: string,
+  targetName: string,
+  companyName?: string | null,
+): AgenticFinding[] {
+  const out: AgenticFinding[] = [];
+  if (!page || page.length < 40) return out;
+  const plain = page.replace(/\s+/g, " ");
+  // Contact blocks
+  const blockRe = /(?:Investor\s+Contact|Contact\s+Information|Media\s+Contact|For\s+further\s+information)[:\s]*([\s\S]{0,800}?)(?=Forward\s+Looking|About\s+\w+|SOURCE\s|$)/gi;
+  let bm: RegExpExecArray | null;
+  const blocks: string[] = [];
+  while ((bm = blockRe.exec(page)) !== null) blocks.push(bm[1] || "");
+  if (!blocks.length) blocks.push(page.slice(0, 4000)); // also scan head of page
+  const seen = new Set<string>();
+  for (const block of blocks) {
+    for (const em of block.matchAll(/[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,}/gi)) {
+      const e = em[0].toLowerCase();
+      if (seen.has("e:" + e)) continue;
+      if (/example|sentry|wixpress|godaddy/.test(e)) continue;
+      seen.add("e:" + e);
+      out.push({
+        vectorType: "email",
+        value: e,
+        personName: null,
+        role: null,
+        scope: "organization",
+        sourceUrls: [sourceUrl],
+        note: `IR/contact block on ${sourceUrl}`,
+      });
+    }
+    for (const ph of block.matchAll(/\(?\d{3}\)?[\s.\-]\d{3}[\s.\-]\d{4}/g)) {
+      const v = ph[0].replace(/\s+/g, " ").trim();
+      if (seen.has("p:" + v)) continue;
+      seen.add("p:" + v);
+      out.push({
+        vectorType: "phone",
+        value: v,
+        personName: null,
+        role: null,
+        scope: "organization",
+        sourceUrls: [sourceUrl],
+        note: `Phone in contact block on ${sourceUrl}`,
+      });
+    }
+    for (const pm of block.matchAll(
+      /\b([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z]+)+)\s*[,\n]\s*((?:CEO|President|Chief(?:\s+\w+)?|Director|COO|CFO|Founder)[^\n,]{0,50})/g,
+    )) {
+      const pName = pm[1]!.replace(/\s+/g, " ").trim();
+      const role = pm[2]!.replace(/\s+/g, " ").trim().slice(0, 80);
+      if (pName.split(/\s+/).length < 2 || pName.length > 50) continue;
+      const key = "r:" + pName.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push({
+        vectorType: "other",
+        value: `${pName} — ${role}`,
+        personName: pName,
+        role,
+        scope: "candidate",
+        sourceUrls: [sourceUrl],
+        note: `Related officer in contact/IR block on ${sourceUrl}`,
+      });
+    }
+    for (const pem of block.matchAll(
+      /\b([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z]+)+)[^\n]{0,50}?(?:E|Email)\s*[:.]?\s*([a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,})/gi,
+    )) {
+      const pName = pem[1]!.replace(/\s+/g, " ").trim();
+      const email = pem[2]!.toLowerCase();
+      out.push({
+        vectorType: "email",
+        value: email,
+        personName: pName,
+        role: "contact",
+        scope: "candidate",
+        sourceUrls: [sourceUrl],
+        note: `Named email in contact block on ${sourceUrl}`,
+      });
+    }
+  }
+  // SC13-style residential / reporting-person address
+  for (const m of plain.matchAll(
+    /(?:address\s+is|resides\s+at|The\s+Reporting\s+Person'?s\s+address\s+is|Item\s*2\s*\(b\)[^:]{0,40}:)\s*([^.]{12,140})/gi,
+  )) {
+    const addr = m[1]!.replace(/\s+/g, " ").trim().slice(0, 160);
+    if (seen.has("a:" + addr)) continue;
+    seen.add("a:" + addr);
+    out.push({
+      vectorType: "other",
+      value: addr,
+      personName: targetName,
+      role: "residential_address",
+      scope: "candidate",
+      sourceUrls: [sourceUrl],
+      note: `Reporting-person address on ${sourceUrl}`,
+    });
+  }
+
+  // SC 13D/G notices-and-communications phone (reporting person — not issuer)
+  const noticePhoneRe =
+    /(?:Notices\s+and\s+Communications|Authorized\s+to\s+Receive\s+Notices)[\s\S]{0,400}?(\(?\d{3}\)?[\s.\-]\d{3}[\s.\-]\d{4})/i;
+  const npm = plain.match(noticePhoneRe) || page.match(noticePhoneRe);
+  if (npm?.[1]) {
+    const v = npm[1].replace(/\s+/g, " ").trim();
+    if (!seen.has("p:" + v)) {
+      seen.add("p:" + v);
+      out.push({
+        vectorType: "phone",
+        value: v,
+        personName: targetName,
+        role: "sc13_notice",
+        scope: "candidate",
+        sourceUrls: [sourceUrl],
+        note: `SC13 notices-and-communications phone for ${targetName} on ${sourceUrl}`,
+      });
+    }
+  }
+  return out;
+}
+
+function findingsFromContactFacts(
+  pageText: string,
+  sourceUrl: string,
+  targetName: string,
+  companyName?: string | null,
+): AgenticFinding[] {
+  const out: AgenticFinding[] = [];
+  const block = pageText.match(/CONTACT FACTS \(visible on page\):([\s\S]*?)(?:\n\n|$)/i)?.[1] ?? "";
+  if (!block.trim()) return out;
+  for (const line of block.split("\n")) {
+    // PERSON_EMAIL is handled below with personName — bare EMAIL drops off-domain dealer noise
+    if (!/^PERSON_EMAIL:/i.test(line.trim())) {
+      const email = line.match(/EMAIL:\s*(\S+@\S+)/i)?.[1];
+      if (email) {
+        const cleaned = sanitizePublicEmail(email);
+        if (cleaned && !isTrashContactValue("email", cleaned)) {
+          if (!isCompanyAlignedEmail(cleaned, companyName, sourceUrl)) {
+            continue;
+          }
+          out.push({
+            vectorType: "email",
+            value: cleaned,
+            personName: null,
+            role: null,
+            scope: "organization",
+            sourceUrls: [sourceUrl],
+            note: `Extracted from ${sourceUrl}`,
+          });
+        }
+      }
+    }
+    const phone = line.match(/PHONE:\s*(.+)/i)?.[1]?.trim();
+    if (phone) {
+      const cleaned = sanitizePublicPhone(phone);
+      if (cleaned && !isTrashContactValue("phone", cleaned)) {
+        out.push({
+          vectorType: "phone",
+          value: cleaned,
+          personName: null,
+          role: null,
+          scope: "organization",
+          sourceUrls: [sourceUrl],
+          note: `Extracted from ${sourceUrl}`,
+        });
+      }
+    }
+    const addr = line.match(/ADDRESS:\s*(.+)/i)?.[1]?.trim();
+    if (
+      addr
+      && addr.length >= 10
+      && !/[{};]|rmp-|style=|--columns|standard-menu|Directory Search/i.test(addr)
+      && /\d/.test(addr)
+    ) {
+      out.push({
+        vectorType: "other",
+        value: addr.slice(0, 160),
+        personName: targetName,
+        role: companyName ? `organization_contact @ ${companyName}` : "organization_contact",
+        scope: "organization",
+        sourceUrls: [sourceUrl],
+        note: `Address on ${sourceUrl}`,
+      });
+    }
+    const role = line.match(/ROLE:\s*(.+)/i)?.[1]?.trim();
+    if (role && role.length >= 3 && !isMostlyBinaryGarbage(role) && !/[{};]|rmp-|style=|--columns|ast-/i.test(role)) {
+      out.push({
+        vectorType: "other",
+        value: role.slice(0, 120),
+        personName: targetName,
+        role: role.slice(0, 80),
+        scope: "organization",
+        sourceUrls: [sourceUrl],
+        note: `Role cue on ${sourceUrl}`,
+      });
+    }
+    // Family ownership / succession facts from the same public pages
+    const structure = line.match(/STRUCTURE:\s*(.+)/i)?.[1]?.trim();
+    if (structure && structure.length >= 12 && !/[{};]|ast-/i.test(structure)) {
+      out.push({
+        vectorType: "other",
+        value: structure.slice(0, 160),
+        personName: null,
+        role: "ownership_structure",
+        scope: "organization",
+        sourceUrls: [sourceUrl],
+        note: `Structure fact on ${sourceUrl}`,
+      });
+    }
+    const succession = line.match(/SUCCESSION:\s*(.+)/i)?.[1]?.trim();
+    if (succession && succession.length >= 10 && !/[{};]|ast-/i.test(succession)) {
+      out.push({
+        vectorType: "other",
+        value: succession.slice(0, 180),
+        personName: null,
+        role: "succession",
+        scope: "organization",
+        sourceUrls: [sourceUrl],
+        note: `Succession fact on ${sourceUrl}`,
+      });
+    }
+    // Related officers / contacts (BBB, about, team, dealer)
+    const person = line.match(/PERSON:\s*(.+)/i)?.[1]?.trim();
+    if (person && person.length >= 5 && !/[{};]|ast-|uagb-/i.test(person)) {
+      const [pName, pRole] = person.split(/\s*[—–-]\s*/).map((s) => s.trim());
+      if (pName && pName.split(/\s+/).length >= 2 && !isMostlyBinaryGarbage(pName) && !(pRole && isMostlyBinaryGarbage(pRole))) {
+        out.push({
+          vectorType: "other",
+          value: person.slice(0, 160),
+          personName: pName.slice(0, 120),
+          role: (pRole || "related_contact").slice(0, 80),
+          scope: "organization",
+          sourceUrls: [sourceUrl],
+          note: `Related person on ${sourceUrl}`,
+        });
+      }
+    }
+    const personEmail = line.match(/PERSON_EMAIL:\s*(.+)/i)?.[1]?.trim();
+    if (personEmail) {
+      const [pName, emailRaw] = personEmail.split(/\s*\|\s*/).map((s) => s.trim());
+      const cleaned = emailRaw ? sanitizePublicEmail(emailRaw) : null;
+      if (pName && pName.split(/\s+/).length >= 2 && cleaned && !isTrashContactValue("email", cleaned)) {
+        out.push({
+          vectorType: "email",
+          value: cleaned,
+          personName: pName.slice(0, 120),
+          role: "related_contact",
+          scope: "organization",
+          sourceUrls: [sourceUrl],
+          note: `Named contact email on ${sourceUrl}`,
+        });
+      }
+    }
+    const walletLine = line.match(/WALLET:\s*(.+)/i)?.[1]?.trim();
+    if (walletLine) {
+      const [chainRaw, addrRaw] = walletLine.split(/\s*\|\s*/).map((s) => s.trim());
+      const addr = (addrRaw || "").trim();
+      if (addr && (/^0x[a-fA-F0-9]{40}$/i.test(addr) || /^bc1[a-z0-9]{25,62}$/i.test(addr))) {
+        out.push({
+          vectorType: "other",
+          value: addr,
+          personName: null,
+          role: `wallet:${(chainRaw || "unknown").toLowerCase()}`,
+          scope: "candidate",
+          sourceUrls: [sourceUrl],
+          note: `Public wallet mention on ${sourceUrl} — wealth evidence only after person attribution`,
+        });
+      }
+    }
+  }
+  // Website finding only for real company domains — never bbb/mapquest/directories
+  try {
+    const host = new URL(sourceUrl).hostname.replace(/^www\./, "");
+    const hostFlat = host.replace(/[^a-z0-9]/g, "");
+    const coFlat = (companyName || targetName || "").toLowerCase().replace(/[^a-z0-9]+/g, "").slice(0, 10);
+    const looksCompany =
+      host
+      && !/linkedin|facebook|twitter|sec\.gov|wikipedia|duckduckgo|google|bing/i.test(host)
+      && !/zoominfo|rocketreach|mapquest|bbb\.org|yelp|dnb\.com|chamber|manta|bizapedia|yellowpages|opencorporates|equilar|prospeo|thebluebook|dot\.report|growjo|apollo/i.test(host)
+      && (coFlat.length < 3 || hostFlat.includes(coFlat.slice(0, Math.min(6, coFlat.length))) || coFlat.includes(hostFlat.slice(0, 5)));
+    if (looksCompany) {
+      out.push({
+        vectorType: "website",
+        value: `https://${host}`,
+        personName: null,
+        role: null,
+        scope: "organization",
+        sourceUrls: [sourceUrl],
+        note: "Primary domain from visited page",
+      });
+    }
+  } catch { /* ignore */ }
+  return out;
+}
+
+
+/** Pull company-domain org inboxes out of SERP snippet text (e.g. Facebook About lists info@). */
+function findingsFromSearchSnippet(
+  text: string,
+  urls: string[],
+  companyName?: string | null,
+): AgenticFinding[] {
+  const out: AgenticFinding[] = [];
+  if (!text) return out;
+  const co = (companyName || "").toLowerCase().replace(/[^a-z0-9]+/g, "");
+  const emails = text.match(/\b([a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,})\b/gi) || [];
+  for (const raw of emails) {
+    const email = raw.toLowerCase();
+    const domain = email.split("@")[1] || "";
+    const domFlat = domain.replace(/[^a-z0-9]/g, "");
+    // Classic org mailboxes (info@/contact@) tolerate shorter company tokens so
+    // mid-market names like "DYNA" still match dyna-products.com when visible in SERP.
+    const isClassicOrgMailbox = /^(info|contact|sales|office|support|hello|admin)@/i.test(email);
+    const companyDomain =
+      /* SERP_EMAIL_LOOSE_MATCH */ (co.length >= 3 && (domFlat.includes(co.slice(0, Math.min(8, co.length))) || co.includes(domFlat.slice(0, 5))))
+      || (isClassicOrgMailbox && co.length >= 3 && (
+        domFlat.includes(co.slice(0, Math.min(6, co.length)))
+        || domain.includes(co.slice(0, Math.min(4, co.length)))
+      ));
+    if (!companyDomain) continue;
+    if (/example\.|sentry\.|schema\.|wixpress|cloudflare|wordpress|github\.com|google\.com/.test(email)) continue;
+    // Prefer a URL that mentions the company or is a public org surface
+    const src =
+      urls.find((u) => /facebook\.com|linkedin\.com|instagram\.com/i.test(u))
+      || urls.find((u) => co.length >= 4 && u.toLowerCase().replace(/[^a-z0-9]/g, "").includes(co.slice(0, 6)))
+      || urls[0]
+      || null;
+    if (!src || !/^https?:\/\//i.test(src)) continue;
+    out.push({
+      vectorType: "email",
+      value: email,
+      personName: null,
+      role: null,
+      scope: "organization",
+      sourceUrls: [src],
+      note: `Org inbox visible in search snippet; source ${src}`,
+    });
+  }
+  return out;
+}
+
+/** Pull principal/owner names out of SERP/BBB snippet text (related-people recovery from public snippets). */
+function findingsFromPeopleSnippet(
+  text: string,
+  urls: string[],
+  companyName?: string | null,
+): AgenticFinding[] {
+  const out: AgenticFinding[] = [];
+  if (!text) return out;
+  const src = urls.find((u) => /bbb\.org|opencorporates|sec\.gov/i.test(u)) || urls[0];
+  if (!src || !/^https?:\/\//i.test(src)) return out;
+  // Name atom allows middle initials: "Donald W. Kuchenbecker" (middle initials matter on public pages)
+  const patterns = [
+    /(?:Mr\.?|Ms\.?|Mrs\.?)\s+([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z]+)+),\s*(Owner|President|CEO|Principal|Manager|Director|Founder|Co-Founder|CFO|Chairman|Treasurer)/g,
+    /\b([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z]+)+)\s*[—\-,:/]\s*(Owner|President|CEO|Principal|Manager|Director|Founder|Co-Founder|CFO|Chairman|Treasurer|General Manager|Supervisor|Controller|Managing Partner)\b/g,
+    /Business Management:\s*(?:Mr\.?|Ms\.?)?\s*([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z.]+)+),\s*(Owner|President|CEO|Treasurer)?/gi,
+    /Principal Contacts?\s*(?:Mr\.?|Ms\.?)?\s*([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z.]+)+)/gi,
+    /\b([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z]+)+)\s+(?:as\s+)?(?:CEO|President|Founder|Co-Founder|Chief Executive|Treasurer)\b/g,
+    /(?:CEO|President|Founder|Co-Founder|Chief Executive(?:\s+Officer)?|Treasurer)\s+([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z]+)+)\b/g,
+    /\b([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z]+)+),\s*(?:founder|retiring CEO|former CEO|retired CEO|board|President|Owner)/gi,
+    // Directory proximity: name within ~40 chars of role; allow one newline (heading style)
+    /\b([A-Z][a-z]+(?:\s+[A-Z]\.?)?(?:\s+[A-Z][a-z]+)+)\b(?:[^\n.]{0,40}|\s*\n\s*)\b(Owner|President|CEO|Principal|Treasurer|Founder|CFO|Chairman|General Manager|Manager|Director|Controller|Supervisor|Managing Partner|VP of Manufacturing|Project Coordinator)\b/gi,
+  ];
+  const seen = new Set<string>();
+  for (const re of patterns) {
+    for (const m of text.matchAll(re)) {
+      let person = (m[1] || "").replace(/\s+/g, " ").trim();
+      // Normalize Jr/Sr suffixes; drop garbage captures that swallowed "Jr is the Owner"
+      person = person.replace(/\s*,?\s*(Jr\.?|Sr\.?|II|III|IV)\s*$/i, "").trim();
+      person = person.replace(/^(Leadership|Meet Our Team|Our Team|Team)\s+/i, "").trim();
+      if (/\b(is the|was the|as the)\b/i.test(person)) continue;
+      const role = (m[2] || "principal").toLowerCase();
+      if (person.length < 4 || person.split(" ").length < 2) continue;
+      if (person.split(" ").length > 5) continue; // over-capture guard
+      const key = person.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push({
+        vectorType: "other",
+        value: person,
+        personName: person,
+        role: role || "related_contact",
+        scope: "organization",
+        sourceUrls: [src],
+        note: `related person from snippet; ${role}`,
+      });
+    }
+  }
+  return out;
+}
+
+function mergeFindings(existing: AgenticFinding[], incoming: AgenticFinding[]): AgenticFinding[] {
+  const key = (f: AgenticFinding) => `${f.vectorType}|${f.value.toLowerCase()}`;
+  const map = new Map<string, AgenticFinding>();
+  for (const f of existing) map.set(key(f), f);
+  for (const f of incoming) {
+    const k = key(f);
+    const prev = map.get(k);
+    if (!prev) map.set(k, f);
+    else {
+      const urls = [...new Set([...(prev.sourceUrls || []), ...(f.sourceUrls || [])])];
+      map.set(k, { ...prev, sourceUrls: urls, note: prev.note || f.note });
+    }
+  }
+  return [...map.values()];
+}
+
+/**
+ * Run agentic multi-hop web research for a person/company target.
+ */
+/** Yield so status plane can answer during long free-dig iterations. */
+function yieldEventLoop(): Promise<void> {
+  return new Promise((resolve) => setImmediate(resolve));
+}
+
+export async function runAgenticWebResearch(input: {
+  targetName: string;
+  companyName?: string | null;
+  objective?: string;
+  maxIterations?: number;
+  /** Hard wall-clock timeout (ms). On expiry return whatever findings were already accumulated. Default 210s. */
+  hardTimeoutMs?: number;
+  /** Operator stop — checked each ReAct step. */
+  shouldCancel?: () => boolean | Promise<boolean>;
+  /** Atlas job id for DigSpan / status plane */
+  jobId?: string | null;
+  /** Live desk: after each tool step (Reactor + right-hand narration). Never throws into dig. */
+  onLiveStep?: (step: {
+    action: string;
+    query?: string;
+    url?: string;
+    provider?: string;
+    summary?: string;
+    targetName: string;
+    companyName?: string | null;
+  }) => void;
+}): Promise<AgenticWebResearchResult> {
+  const name = input.targetName.trim();
+  if (name.length < 2) {
+    return { status: "unavailable", model: "none", iterations: 0, searches: 0, visits: 0, findings: [], trajectory: [], error: "empty target" };
+  }
+
+  const maxIter = Math.max(1, input.maxIterations ?? MAX_ITER);
+  const hardTimeoutMs = Math.max(30_000, input.hardTimeoutMs ?? 210_000);
+  const startedAt = Date.now();
+
+  const emitLive = (step: {
+    action: string;
+    query?: string;
+    url?: string;
+    provider?: string;
+    summary?: string;
+  }) => {
+    try {
+      input.onLiveStep?.({
+        ...step,
+        targetName: name,
+        companyName: input.companyName ?? null,
+      });
+    } catch {
+      /* desk telemetry must not break dig */
+    }
+    try {
+      const jobId =
+        (input as { jobId?: string }).jobId ||
+        (input as { atlasJobId?: string }).atlasJobId ||
+        null;
+      spanFromLiveStep({
+        jobId,
+        targetName: name,
+        tool: step.action || "dig_step",
+        label: step.query || step.url || step.action,
+        detail: step.summary || step.provider || undefined,
+        status: "ok",
+      });
+    } catch {
+      /* DigSpan must not break dig */
+    }
+  };
+  let objective = input.objective
+    ?? (
+      `You are researching ${name}` +
+      (input.companyName ? ` (public company / org context: ${input.companyName})` : "") +
+      ` the way a strong open web agent would.\n` +
+      `GOAL: recover the best attributable PUBLIC contact path for this person — phone, email, LinkedIn, or firm IR/notice line with source URL.\n` +
+      `METHOD: choose your own web_search queries and visit pages; use registry/domain tools when useful.\n` +
+      `REJECT: directory spam, wrong-company 1-800 lines, invented contacts, privacy relays.\n` +
+      `DONE when you have the strongest source-backed claim(s) or you have exhausted reasonable public surface.\n` +
+      `Never invent contacts. Every finding must include http(s) sourceUrls.`
+    );
+
+  // Wallet-first seed: if objective/target carries a wallet, prepend fail-closed attribution plan
+  {
+    const walletText = `${objective}\n${name}\n${input.companyName || ""}`;
+    const seeds = extractWalletSeedsFromText(walletText);
+    if (seeds.length > 0 || objectiveLooksWalletFirst(objective)) {
+      const seed = seeds[0] || null;
+      if (seed) {
+        const plan = buildWalletSeedPlan(seed);
+        objective = `${formatWalletSeedPlanForPrompt(plan)}\n\nThen maximize attributable people-contacts for the attributed holder.\n\n${objective}`;
+      } else {
+        objective =
+          `WALLET-FIRST mode: objective suggests crypto-wallet discovery. ` +
+          `Attribute any holder from public sources before contact hops. ` +
+          `Reject exchange/mixer/protocol treasuries. Never invent holder or contacts.\n\n${objective}`;
+      }
+    }
+  }
+
+  // Fresh browser-escalate budget per agentic pass (Scrapfly/ZenRows)
+  try {
+    const { resetBrowserFetchCount } = await import("./browser-fetch");
+    resetBrowserFetchCount();
+  } catch { /* optional */ }
+
+  const history: string[] = [];
+  let lastObservation = "Begin. Choose an initial web_search query — do not wait for instructions.";
+  let modelUsed = "none";
+  let searches = 0;
+  let visits = 0;
+  let findings: AgenticFinding[] = [];
+  // URLs seen in SERP — SERP URL queue for model visits
+  const candidateUrls: string[] = [];
+  const visitedUrls = new Set<string>();
+  const domainSurfaceDone = new Set<string>(); // one RDAP/WhoisJSON hop per primary domain
+  let footprintCalls = 0; // model-chosen OSINT CLIs — soft cap so dig stays web-first
+
+  const isAggregatorHost = (u: string): boolean =>
+    /zoominfo|rocketreach|adapt\.io|signalhire|contactout|growjo|apollo\.io|clearbit|hunter\.io|mibarry|chamber|yelp|dnb\.com|bloomberg\.com\/profile|crunchbase|pitchbook|linkedin\.com\/company|mapquest|bbb\.org|yellowpages|superpages|manta\.com|bizapedia|opencorporates|equilar|prospeo|thebluebook|dot\.report/i.test(
+      u,
+    );
+
+
+  /** Light touch only: if SERP shows a company-aligned host, offer /contact + /about — not a path playbook. */
+
+
+  const salvageEmailsFromHistory = () => {
+    // Classic org + any company-aligned email seen in trajectory (LLM may drop; regex backstop)
+    const classicRe = /\b((?:info|contact|sales|office|support|hello|admin|service|parts|inquiries)@[a-z0-9.-]+\.[a-z]{2,})\b/gi;
+    const mailtoRe = /EMAIL:\s*(\S+@\S+)/gi;
+    const anyEmailRe = /\b([a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,})\b/gi;
+    for (const line of history) {
+      const srcMatch = String(line).match(/https?:\/\/[^\s]+/i);
+      const src = srcMatch ? [srcMatch[0].replace(/[),.;]+$/, "")] : [];
+      for (const re of [classicRe, mailtoRe, anyEmailRe]) {
+        re.lastIndex = 0;
+        for (const m of String(line).matchAll(re)) {
+          const email = m[1]!.toLowerCase().replace(/[),.;]+$/, "");
+          if (!email.includes("@")) continue;
+          if (/example\.|sentry\.|schema\.|wixpress|cloudflare|wordpress|github\.com|google\.com/i.test(email)) continue;
+          if (!src.length || !/^https?:\/\//i.test(src[0] || "")) continue; // fail-closed: need page URL
+          if (input.companyName && !isCompanyAlignedEmail(email, input.companyName, src[0])) continue;
+          if (findings.some((f) => f.vectorType === "email" && f.value === email)) continue;
+          const local = email.split("@")[0] || "";
+          const isClassic = /^(info|contact|sales|office|support|hello|admin|service|parts|inquiries)$/i.test(local);
+          findings.push({
+            vectorType: "email",
+            value: email,
+            personName: null,
+            role: isClassic ? null : "related_contact",
+            scope: "organization",
+            sourceUrls: src,
+            note: "salvaged from trajectory (LLM backstop)",
+          });
+        }
+      }
+    }
+  };
+
+
+  for (let i = 0; i < maxIter; i++) {
+    if (i > 0) await yieldEventLoop();
+    // Hard wall-clock timeout: materialize whatever agentic already found and exit.
+    // Prevents the box/worker kill from discarding 10–20 findings (Rayco case).
+    if (Date.now() - startedAt >= hardTimeoutMs) {
+      history.push(`step${i + 1}: hard_timeout after ${Math.round((Date.now() - startedAt) / 1000)}s findings=${findings.length}`);
+      logger.info(
+        { target: name, findings: findings.length, searches, visits, elapsedMs: Date.now() - startedAt },
+        "[agentic] hard timeout — returning partial findings",
+      );
+      salvageEmailsFromHistory();
+      return {
+        status: "timeout",
+        model: modelUsed,
+        iterations: i,
+        searches,
+        visits,
+        findings,
+        trajectory: history,
+        error: `hard timeout ${hardTimeoutMs}ms (partial findings preserved)`,
+      };
+    }
+
+    if (input.shouldCancel) {
+      try {
+        const cancel = await input.shouldCancel();
+        if (cancel) {
+          history.push(`step${i + 1}: cancelled_by_operator findings=${findings.length}`);
+          salvageEmailsFromHistory();
+          return {
+            status: "completed",
+            model: modelUsed,
+            iterations: i,
+            searches,
+            visits,
+            findings,
+            trajectory: history,
+            error: "cancelled by operator (partial findings preserved)",
+          };
+        }
+      } catch {
+        /* ignore cancel probe errors */
+      }
+    }
+
+    // Model-led only. Tool choice remains unconstrained by footprint counters; lifecycle budgets are the only runtime ceiling.
+
+
+    const llmStepWithHeartbeat = async (stepPrompt: string) => {
+      const started = Date.now();
+      emitLive({ action: "llm_wait", provider: "agentic-provider-pool", summary: "waiting for model decision" });
+      const timer = setInterval(() => {
+        emitLive({ action: "llm_wait", provider: "agentic-provider-pool", summary: "model decision still pending · " + Math.round((Date.now() - started) / 1000) + "s" });
+      }, 15_000);
+      try { return await llmStep(stepPrompt); } finally { clearInterval(timer); }
+    };
+    const prompt = buildStepPrompt({
+      targetName: name,
+      companyName: input.companyName,
+      objective,
+      history,
+      lastObservation,
+      findings,
+    });
+    const llm = await llmStepWithHeartbeat(prompt);
+    if (!llm) {
+      history.push(`step${i + 1}: llm_unavailable — no deterministic research fallback`);
+      return {
+        status: "unavailable",
+        model: "none",
+        iterations: i + 1,
+        searches,
+        visits,
+        findings,
+        trajectory: history,
+        error: "No agentic LLM provider available; free-ReAct pass stopped without scripted research",
+      };
+    }
+    modelUsed = llm.model;
+    emitLive({
+      action: "llm_step",
+      provider: llm.model,
+      summary: `model=${llm.model} raw=${llm.raw.length}c`,
+    });
+    let action = parseAction(llm.raw);
+    if (!action) {
+      // One repair turn — native tool calling is not uniform across providers; JSON can glitch.
+      history.push(`step${i + 1}: parse_fail — retry once`);
+      const repair = await llmStepWithHeartbeat(
+        `Your previous reply was not valid action JSON.\n` +
+        `Reply with ONE action object only. Allowed actions: web_search, visit, browser_fetch, ` +
+        `footprint_email, footprint_username, domain_lookup, harvest_domain, registry_search, reverse_whois, done.\n` +
+        `Example: {"action":"web_search","query":"...","thought":"..."}\n` +
+        `Target: ${name}. Objective: ${objective.slice(0, 400)}\n` +
+        `Last observation (trim):\n${lastObservation.slice(0, 1200)}\n` +
+        `Bad reply was:\n${llm.raw.slice(0, 500)}`,
+      );
+      if (repair?.raw) {
+        modelUsed = repair.model;
+        action = parseAction(repair.raw);
+      }
+      if (!action) {
+        lastObservation =
+          "Invalid JSON twice. Reply with one valid action object only (web_search | visit | browser_fetch | footprint_* | domain_lookup | harvest_domain | registry_search | reverse_whois | done).";
+        continue;
+      }
+    }
+
+    if (action.action === "web_search") {
+      searches++;
+      history.push(`step${i + 1}: search ${action.query}${action.thought ? ` (${action.thought.slice(0, 80)})` : ""}`);
+      const sr = await toolWebSearch(action.query);
+      for (const u of sr.urls) {
+        if (/^https?:\/\//i.test(u) && !candidateUrls.includes(u)) candidateUrls.push(u);
+      }
+      // Optional company /contact /about seeds from SERP hosts
+      const snippetEmails = findingsFromSearchSnippet(sr.text, sr.urls, input.companyName || name);
+      if (snippetEmails.length) {
+        findings = mergeFindings(findings, snippetEmails);
+        history.push(`step${i + 1}: serp_email_findings=${snippetEmails.length}`);
+      }
+      lastObservation = formatSearchObservation(action.query, sr);
+      emitLive({
+        action: "web_search",
+        query: action.query,
+        provider: "serper",
+        summary: `${sr.urls.length} URLs · ${sr.text.slice(0, 160)}`,
+      });
+      continue;
+    }
+
+    if (action.action === "visit") {
+      if (visitedUrls.has(action.url)) {
+        history.push(`step${i + 1}: skip_repeat_visit ${action.url}`);
+        lastObservation =
+          `Already visited ${action.url}. Pick a different URL or a new search — your judgment.`;
+        continue;
+      }
+      visits++;
+      visitedUrls.add(action.url);
+      history.push(`step${i + 1}: visit ${action.url}`);
+      const page = await toolVisit(action.url);
+      lastObservation = `PAGE ${action.url}\n\n${page.slice(0, MAX_OBS)}`;
+      const extracted = mergeFindings(
+        mergeFindings(
+          findingsFromContactFacts(page, action.url, name, input.companyName),
+          findingsFromProxyPage(page, action.url, name, input.companyName),
+        ),
+        findingsFromIrAndRelatedBlocks(page, action.url, name, input.companyName),
+      );
+      if (extracted.length) {
+        findings = mergeFindings(findings, extracted);
+        history.push(`step${i + 1}: auto_findings=${extracted.length}`);
+        lastObservation += `\n\nEXTRACTED contact facts (${extracted.length}) — use these in done.findings with this page as sourceUrl:\n` +
+          extracted
+            .slice(0, 12)
+            .map((f, n) => `  ${n + 1}. [${f.vectorType}/${f.scope}] ${f.value}${f.role ? ` (${f.role})` : ""}`)
+            .join("\n");
+      }
+      emitLive({
+        action: "visit",
+        url: action.url,
+        provider: "page-fetch",
+        summary: extracted.length
+          ? `page read · ${extracted.length} contact fact(s) extracted`
+          : "page read · no contact facts auto-extracted",
+      });
+      continue;
+    }
+
+
+    if (action.action === "domain_lookup") {
+      history.push(`step${i + 1}: domain_lookup ${action.domain}`);
+      try {
+        const { lookupDomainSurface, findingsFromDomainSurface } = await import("./domain-surface");
+        const surface = await lookupDomainSurface(action.domain);
+        lastObservation = `DOMAIN_LOOKUP ${action.domain}\n${surface.summary}`;
+        const src = `https://${action.domain.replace(/^www\./, "")}`;
+        const df = findingsFromDomainSurface(surface, src);
+        if (df.length) findings = mergeFindings(findings, df as any);
+      } catch (err: any) {
+        lastObservation = `DOMAIN_LOOKUP failed: ${err?.message ?? "error"}`;
+      }
+      emitLive({
+        action: "domain_lookup",
+        query: action.domain,
+        provider: "rdap",
+        summary: (lastObservation || "").slice(0, 180),
+      });
+      continue;
+    }
+
+    if (action.action === "registry_search") {
+      history.push(`step${i + 1}: registry_search ${action.registry} ${action.query}`);
+      try {
+        const { searchRegistry } = await import("./registry-client");
+        const rows = await searchRegistry({
+          query: action.query,
+          registry: action.registry as any,
+          limit: 8,
+        });
+        const lines = rows.slice(0, 8).map((r: any, idx: number) => {
+          const meta = typeof r.metadata === "object" && r.metadata ? JSON.stringify(r.metadata).slice(0, 120) : "";
+          return `${idx + 1}. ${r.name}${r.knownResidences ? ` — ${r.knownResidences}` : ""}${r.notes ? ` · ${String(r.notes).slice(0, 100)}` : ""}${meta ? ` · ${meta}` : ""}`;
+        });
+        lastObservation =
+          `REGISTRY ${action.registry} query="${action.query}"\n` +
+          (lines.length ? lines.join("\n") : "No registry hits.");
+        for (const r of rows.slice(0, 5)) {
+          const note = [r.sourceRegistries, r.notes].filter(Boolean).join(" · ").slice(0, 200);
+          findings = mergeFindings(findings, [{
+            vectorType: "other" as const,
+            value: `registry:${action.registry}:${r.name}`.slice(0, 200),
+            personName: null,
+            role: null,
+            scope: "candidate" as const,
+            sourceUrls: [],
+            note: note || `${action.registry} hit`,
+          }]);
+        }
+      } catch (err: any) {
+        lastObservation = `REGISTRY_SEARCH failed (${action.registry}): ${err?.message ?? "error"}`;
+      }
+      emitLive({
+        action: "registry_search",
+        query: action.query,
+        provider: action.registry || "registry",
+        summary: (lastObservation || "").slice(0, 180),
+      });
+      continue;
+    }
+
+    if (action.action === "harvest_domain") {
+      footprintCalls++;
+      history.push(`step${i + 1}: harvest_domain ${action.domain}`);
+      try {
+        const { runTheHarvester } = await import("./python-tools");
+        const hr = await runTheHarvester(action.domain);
+        const emails = (hr.emails ?? []).slice(0, 20);
+        const hosts = (hr.hosts ?? hr.subdomains ?? []).slice(0, 15);
+        for (const h of hosts) {
+          const host = String(h).replace(/^https?:\/\//i, "").replace(/\/.*$/, "").trim();
+          if (!host || !host.includes(".")) continue;
+          const u = `https://${host}`;
+          if (!candidateUrls.includes(u)) candidateUrls.push(u);
+        }
+        lastObservation =
+          `HARVEST_DOMAIN ${action.domain}\n` +
+          (hr.error ? `Error: ${hr.error}\n` : "") +
+          `Emails (${emails.length}): ${emails.join(", ") || "none"}\n` +
+          `Hosts (${hosts.length}): ${hosts.join(", ") || "none"}` +
+          (hosts.length ? " (queued for optional visit)" : "");
+        for (const e of emails) {
+          const clean = sanitizePublicEmail(e);
+          if (!clean || isTrashContactValue("email", clean)) continue;
+          findings = mergeFindings(findings, [{
+            vectorType: "email" as const,
+            value: clean,
+            personName: null,
+            role: null,
+            scope: "organization" as const,
+            sourceUrls: [`https://${action.domain}`],
+            note: "theHarvester",
+          }]);
+        }
+      } catch (err: any) {
+        lastObservation = `HARVEST_DOMAIN failed: ${err?.message ?? "error"}`;
+      }
+      emitLive({
+        action: "harvest_domain",
+        query: action.domain,
+        provider: "theharvester",
+        summary: (lastObservation || "").slice(0, 180),
+      });
+      continue;
+    }
+
+    if (action.action === "browser_fetch") {
+      history.push(`step${i + 1}: browser_fetch ${action.url}`);
+      try {
+        const { browserFetchConfigured, browserFetchHtml } = await import("./browser-fetch");
+        if (!browserFetchConfigured()) {
+          lastObservation = "BROWSER_FETCH unavailable — Scrapfly/ZenRows not configured. Use visit or web_search.";
+        } else {
+          const escalated = await browserFetchHtml(action.url);
+          visits++;
+          if (action.url.startsWith("http") && !candidateUrls.includes(action.url)) {
+            candidateUrls.push(action.url);
+          }
+          visitedUrls.add(action.url);
+          const page = escalated.html
+            ? (extractContactFactsFromHtml(escalated.html) + filterPassagesForQuery(stripHtml(escalated.html), action.url, { maxChars: MAX_OBS, minScore: 0.05 })).slice(0, MAX_OBS + 800)
+            : "browser_fetch empty";
+          lastObservation = `BROWSER_FETCH (${escalated.provider}) ${action.url}\n\n${page}`;
+          const extracted = mergeFindings(
+            findingsFromContactFacts(page, action.url, name, input.companyName),
+            findingsFromProxyPage(page, action.url, name, input.companyName),
+          );
+          if (extracted.length) {
+            findings = mergeFindings(findings, extracted);
+            history.push(`step${i + 1}: auto_findings=${extracted.length}`);
+          }
+        }
+      } catch (err: any) {
+        lastObservation = `BROWSER_FETCH failed: ${err?.message ?? "error"}`;
+      }
+      emitLive({
+        action: "browser_fetch",
+        url: action.url,
+        provider: "scrapfly",
+        summary: (lastObservation || "").slice(0, 180),
+      });
+      continue;
+    }
+
+    if (action.action === "reverse_whois") {
+      footprintCalls++;
+      history.push(`step${i + 1}: reverse_whois ${action.query}`);
+      try {
+        const { reverseWhoisByEmail, reverseWhoisByName } = await import("./whoxy-enricher");
+        const q = action.query.trim();
+        const result = q.includes("@")
+          ? await reverseWhoisByEmail(q)
+          : await reverseWhoisByName(q);
+        if (!result.apiKeyPresent) {
+          lastObservation = `REVERSE_WHOIS ${q}\nWHOXY_API_KEY not set — tool unavailable this session.`;
+        } else {
+          const names = (result.domains ?? []).map((d: { domain_name?: string }) => d.domain_name).filter(Boolean).slice(0, 20) as string[];
+          for (const d of names) {
+            const host = String(d).replace(/^https?:\/\//i, "").replace(/\/.*$/, "").trim();
+            if (!host) continue;
+            const u = `https://${host}`;
+            if (!candidateUrls.includes(u)) candidateUrls.push(u);
+          }
+          lastObservation =
+            `REVERSE_WHOIS ${q}\n` +
+            (result.error ? `Error: ${result.error}\n` : "") +
+            `Total: ${result.totalDomains ?? names.length}\n` +
+            (names.length ? `Domains: ${names.join(", ")} (queued for optional visit)` : "No domains returned.");
+        }
+      } catch (err: any) {
+        lastObservation = `REVERSE_WHOIS failed: ${err?.message ?? "error"}`;
+      }
+      emitLive({
+        action: "reverse_whois",
+        query: action.query,
+        provider: "whoxy",
+        summary: (lastObservation || "").slice(0, 180),
+      });
+      continue;
+    }
+
+    if (action.action === "footprint_email") {
+      footprintCalls++;
+      history.push(`step${i + 1}: footprint_email ${action.email}`);
+      try {
+        const { runHolehe } = await import("./python-tools");
+        const hr = await runHolehe(action.email);
+        const hits = (hr.found ?? []).slice(0, 15);
+        const note = hits.length
+          ? `Holehe: ${hits.map((h: { name?: string; url?: string }) => h.name || h.url || "service").join(", ")}`
+          : (hr.error ? `Holehe: ${hr.error}` : "Holehe: no platforms reported for this email");
+        lastObservation = `FOOTPRINT_EMAIL ${action.email}\n${note}`;
+        // Observation only — model may promote; fail-closed contacts still need http(s) sources
+        if (hits.length) {
+          const httpUrls = hits.map((h: { url?: string }) => h.url).filter((u: unknown): u is string => typeof u === "string" && /^https?:\/\//i.test(u)).slice(0, 8);
+          findings = mergeFindings(findings, [{
+            vectorType: "other" as const,
+            value: `email-footprint:${action.email}`,
+            personName: name,
+            role: null,
+            scope: "candidate" as const,
+            sourceUrls: httpUrls,
+            note,
+          }]);
+        }
+      } catch (err: any) {
+        lastObservation = `FOOTPRINT_EMAIL failed: ${err?.message ?? "error"}`;
+      }
+      emitLive({
+        action: "footprint_email",
+        query: action.email,
+        provider: "holehe",
+        summary: (lastObservation || "").slice(0, 180),
+      });
+      continue;
+    }
+
+    if (action.action === "footprint_username") {
+      footprintCalls++;
+      history.push(`step${i + 1}: footprint_username ${action.username}`);
+      try {
+        const { runMaigret, runSherlock } = await import("./python-tools");
+        const [mr, sr] = await Promise.all([
+          runMaigret(action.username),
+          runSherlock(action.username).catch(() => null),
+        ]);
+        const mHits = (mr.found ?? []).slice(0, 12);
+        const sHits = (sr?.found ?? []).slice(0, 8);
+        const parts = [
+          mHits.length ? `Maigret: ${mHits.map((h: { siteName?: string; url?: string }) => h.siteName || h.url || "site").join(", ")}` : (mr.error ? `Maigret: ${mr.error}` : "Maigret: no hits"),
+          sHits.length ? `Sherlock: ${sHits.map((h: { siteName?: string; url?: string }) => h.siteName || h.url || "site").join(", ")}` : "Sherlock: no hits",
+        ];
+        lastObservation = `FOOTPRINT_USERNAME ${action.username}\n${parts.join("\n")}`;
+        const urls = [
+          ...mHits.map((h: { url?: string }) => h.url).filter((u: unknown): u is string => typeof u === "string" && u.startsWith("http")),
+          ...sHits.map((h: { url?: string }) => h.url).filter((u: unknown): u is string => typeof u === "string" && u.startsWith("http")),
+        ].slice(0, 10);
+        if (urls.length) {
+          findings = mergeFindings(findings, [{
+            vectorType: "social" as const,
+            value: action.username,
+            personName: name,
+            role: null,
+            scope: "candidate" as const,
+            sourceUrls: urls,
+            note: parts.join(" · "),
+          }]);
+        }
+      } catch (err: any) {
+        lastObservation = `FOOTPRINT_USERNAME failed: ${err?.message ?? "error"}`;
+      }
+      emitLive({
+        action: "footprint_username",
+        query: action.username,
+        provider: "maigret",
+        summary: (lastObservation || "").slice(0, 180),
+      });
+      continue;
+    }
+
+    // done is entirely model-owned. Empty findings are valid: they mean the
+    // model judged that no attributable route was established. Deterministic
+    // validation still applies to any findings that the model does return.
+    findings = mergeFindings(findings, action.findings);
+    history.push(
+      `step${i + 1}: done findings=${findings.length}` +
+        (action.findings.length === 0 && findings.length > 0 ? " (incl. auto-extracted)" : ""),
+    );
+    salvageEmailsFromHistory();
+    return {
+      status: "completed",
+      model: modelUsed,
+      iterations: i + 1,
+      searches,
+      visits,
+      findings,
+      trajectory: history,
+    };
+  }
+
+  salvageEmailsFromHistory();
+  return {
+    status: "completed",
+    model: modelUsed,
+    iterations: maxIter,
+    searches,
+    visits,
+    findings,
+    trajectory: history,
+    error: "iteration budget exhausted",
+  };
+}
