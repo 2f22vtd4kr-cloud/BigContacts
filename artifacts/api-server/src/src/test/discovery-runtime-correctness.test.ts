@@ -3,7 +3,7 @@ import fs from "node:fs";
 
 const discoverySource = fs.readFileSync(new URL("../lib/discovery-agent.ts", import.meta.url), "utf8");
 const researchSource = fs.readFileSync(new URL("../lib/agentic-web-research.ts", import.meta.url), "utf8");
-const runtimeHardener = fs.readFileSync(new URL("../../../../../../scripts/apply-discovery-runtime-correctness.mjs", import.meta.url), "utf8");
+const runtimeHardener = fs.readFileSync(new URL("../../../../../scripts/apply-discovery-runtime-correctness.mjs", import.meta.url), "utf8");
 
 describe("discovery runtime correctness", () => {
   it("passes model-emitted findings and the actual research trajectory into identity admission", () => {
