@@ -5,6 +5,11 @@ const source = fs.readFileSync(file, "utf8");
 const workflow = fs.readFileSync(".github/workflows/apex-live-audit.yml", "utf8");
 const compatibilityHardener = fs.readFileSync("scripts/apply-agentic-runtime-hardening.mjs", "utf8");
 const canonicalHardener = fs.readFileSync("scripts/apply-agentic-concurrency-hardening.mjs", "utf8");
+const apexRuntimeShim = fs.readFileSync("artifacts/apex-runtime/lib/agentic-web-research.ts", "utf8");
+
+if (!/^\/\*\*[\s\S]*Compatibility shim only[\s\S]*export \* from \"\.\.\/\.\.\/api-server\/src\/src\/lib\/agentic-web-research\.ts\";\s*$/m.test(apexRuntimeShim)) {
+  throw new Error("apex-runtime invariant failed: stale standalone agentic implementation is not quarantined to canonical production source");
+}
 
 const required = [
   ["Gemini provider implementation remains available for Boss", /GEMINI_API_KEY_/],
@@ -47,10 +52,6 @@ if (source.includes("agenticProviderCircuitUntil")) {
   throw new Error("agentic runtime invariant failed: module-global provider circuit can contaminate concurrent targets");
 }
 
-// The live audit must prove readiness of the actual web-research capability,
-// not merely that the Boss or right-hand model can generate text. The current
-// workflow uses one capability-scoped probe helper; assert its semantic role
-// labels rather than matching an older helper implementation by name.
 if (!/async function probe\(url,key,model,provider\)/.test(workflow)) {
   throw new Error("live audit provider gate missing generic capability probe");
 }
@@ -70,9 +71,6 @@ if (!/probe\([\s\S]*?["']nvidia-right-hand["']\)/.test(workflow)) {
   throw new Error("live audit right-hand probe is not explicitly capability-scoped");
 }
 
-// Compatibility hardener is intentionally a thin delegating wrapper. Assert
-// the actual executable relationship instead of matching prose, so this gate
-// cannot pass merely because a comment says "delegate".
 if (!/const canonical\s*=\s*path\.join\(here,\s*["']apply-agentic-concurrency-hardening\.mjs["']\)/.test(compatibilityHardener)) {
   throw new Error("compatibility hardener does not resolve the canonical hardener");
 }
@@ -83,9 +81,6 @@ if (/\[\s*\[?\s*["']gemini["']\s*,\s*callGeminiJson|["']nvidia["']\s*,\s*callNvi
   throw new Error("compatibility hardener contains a forbidden Boss/right-hand Dig provider tuple");
 }
 
-// Deterministic page enrichment may recover literal contact tokens, but it
-// must not be an identity authority. The canonical hardener replaces the
-// legacy extractor with an observation-only implementation before build.
 if (!/Observation-only contact enrichment/.test(canonicalHardener)) {
   throw new Error("observation identity boundary missing from canonical hardener");
 }
