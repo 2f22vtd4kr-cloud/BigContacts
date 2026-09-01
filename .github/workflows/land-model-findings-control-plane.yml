@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - ".github/workflows/land-model-findings-control-plane.yml"
+      - "scripts/apply-model-findings-control-plane.py"
 jobs:
   land:
     runs-on: ubuntu-latest
@@ -13,7 +14,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Verify sources whole then apply control-plane patch
+      - name: Verify whole sources and apply deterministic control-plane patch
         run: |
           set -euo pipefail
           A=artifacts/api-server/src/src/lib/agentic-web-research.ts
@@ -21,8 +22,19 @@ jobs:
           test "$(wc -l < "$A")" -ge 2000
           test "$(wc -l < "$D")" -ge 280
           ! grep -q PLACEHOLDER "$A" "$D"
-          mkdir -p scripts
-          python3 -c "open('scripts/apply-model-findings-control-plane.py','w').write(open('/dev/stdin').read())" << 'ENDSCRIPT'
-PLACEHOLDER_SCRIPT_TOO_LARGE_USE_ARTIFACT
-ENDSCRIPT
-          echo fail
+          python3 scripts/apply-model-findings-control-plane.py
+          test "$(wc -l < "$A")" -ge 2000
+          test "$(wc -l < "$D")" -ge 280
+          grep -q "modelFindings: AgenticFinding\[\]" "$A"
+          grep -q "const admissionFindings = result.modelFindings" "$D"
+          ! grep -q PLACEHOLDER "$A" "$D" scripts/apply-model-findings-control-plane.py
+          git diff --check
+          if git diff --quiet -- "$A" "$D"; then
+            echo "No source changes required (already patched)."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "$A" "$D"
+          git commit -m "fix(research): enforce model-owned discovery admission boundary"
+          git push origin HEAD:main
