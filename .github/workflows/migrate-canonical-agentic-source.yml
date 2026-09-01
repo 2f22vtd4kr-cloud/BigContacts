@@ -1,0 +1,43 @@
+name: One-time Canonical Agentic Source Migration
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/canonical-source-migration-trigger.md"
+
+permissions:
+  contents: write
+
+jobs:
+  migrate:
+    if: ${{ !contains(github.event.head_commit.message, '[canonical-migration]') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org/
+      - run: npm install -g pnpm@9
+      - run: pnpm install --no-frozen-lockfile --ignore-scripts --fetch-retries=8 --fetch-timeout=120000 --filter @workspace/api-server... --registry=https://registry.npmjs.org/
+      - name: Run canonical build hardeners once
+        run: pnpm --dir artifacts/api-server run build
+      - name: Commit generated canonical source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git status --short
+          git diff --check
+          if git diff --quiet -- artifacts/api-server/src/src/lib/discovery-agent.ts artifacts/api-server/src/src/lib/agentic-web-research.ts; then
+            echo "No canonical source changes were generated."
+            exit 1
+          fi
+          git add artifacts/api-server/src/src/lib/discovery-agent.ts artifacts/api-server/src/src/lib/agentic-web-research.ts
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "fix(bureau): migrate canonical agentic runtime hardening [canonical-migration]"
+          git push origin HEAD:main
