@@ -903,11 +903,13 @@ function buildStepPrompt(input: {
   // Keep this short. Models already know how to research; do not ship a playbook.
   const bag = formatFindingsBag(input.findings ?? []);
   const discoveryContract = /^Discovery slot\b/i.test(input.targetName)
-    ? `\nDISCOVERY OUTPUT CONTRACT (model-owned, not a search script): if you establish a real named person, emit action=done with a finding containing personName="Full Name" (or value="person: Full Name | role | company"), scope="candidate", and sourceUrls containing the exact HTTPS page you actually observed. A personName-only finding is valid. Do not emit titles, sectors, companies, or prose fragments as people. If identity is not established, return done with findings=[].\n`
+    ? `\nDISCOVERY OUTPUT CONTRACT (model-owned, not a search script): Invent your own queries. Prefer concrete business/ownership/family-office/operator surfaces; do not walk Forbes/billionaire rankings. Search snippets are leads — visit the page before claiming identity. If you establish a real named person, emit action=done with a finding containing personName="Full Name" (or value="person: Full Name | role | company"), scope="candidate", and sourceUrls containing the exact HTTPS page you actually observed. A personName-only finding is valid. Do not emit titles, sectors, companies, or prose fragments as people. If identity is not established, return done with findings=[].\n`
     : "";
   return `${apexOrientationCompact("dig_agent")}\n${discoveryContract}\n---\n\nTARGET: ${input.targetName}
 ${input.companyName ? `RELATED COMPANY / ISSUER: ${input.companyName}` : ""}
-OBJECTIVE: ${input.objective.slice(0, 1200)}
+OBJECTIVE: ${(/^Discovery slot\b/i.test(input.targetName)
+    ? input.objective.slice(0, 4500)
+    : input.objective.slice(0, 2200))}
 
 AVAILABLE TOOLS (one JSON action per turn — your choice; use any Apex OSINT capability when it helps):
 {"action":"web_search","query":"...","thought":"..."}

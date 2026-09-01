@@ -2264,6 +2264,15 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
           {EDGES.map(e => {
             const A = NM[e.from], B = NM[e.to];
             if (!A || !B) return null;
+            // Activity-only scheme: omit edges that do not touch a live tool (space + truthfulness)
+            if (schemeToolsOnly && isLive && liveNodes && liveNodes.size > 0) {
+              const keepEdge =
+                liveNodes.has(e.from) || liveNodes.has(e.to) ||
+                e.from === "target" || e.to === "target" ||
+                e.from === "mcts" || e.to === "mcts" ||
+                e.from === "evidence" || e.to === "evidence";
+              if (!keepEdge) return null;
+            }
             const fromStatus = rodStatus(e.from, atlasState, liveNodes);
             const toStatus = rodStatus(e.to, atlasState, liveNodes);
             const active = fromStatus === "active" || toStatus === "active";
@@ -2307,6 +2316,12 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
 
         {/* Nodes */}
         {NODES.map(n => {
+          // Activity-only: do not mount inactive tool nodes while Live tools mode is on
+          if (schemeToolsOnly && isLive && liveNodes && liveNodes.size > 0) {
+            const keep =
+              liveNodes.has(n.id) || n.id === "target" || n.id === "mcts" || n.id === "evidence";
+            if (!keep) return null;
+          }
           const status = rodStatus(n.id, atlasState, liveNodes);
           const on = status === "active";
           const isReactor = n.type === "reactor";
@@ -2671,15 +2686,28 @@ export default function IntelligenceReactorPage() {
           if (t.includes("exa")) light(["exa", "mcts"]);
           if (t.includes("page-fetch") || t.includes("visit ·") || t.includes('"kind":"page-fetch"')) light(["webdisc", "mcts"]);
           if (t.includes("edgar")) light(["edgar"]);
+          if (t.includes("footprint") || t.includes("maigret") || t.includes("sherlock") || t.includes("holehe")) light(["maigret", "mcts"]);
+          if (t.includes("domain_lookup") || t.includes("rdap") || t.includes("whois")) light(["inhouse", "mcts"]);
+          if (t.includes("harvest_domain") || t.includes("theharvester")) light(["deepweb", "mcts"]);
+          if (t.includes("registry_search") || t.includes("companies house")) light(["ch", "mcts"]);
+          if (t.includes("browser_fetch") || t.includes("scrapfly") || t.includes("zenrows")) light(["webdisc", "mcts"]);
         }
         // toolIds array from telemetry
         const toolIds = Array.isArray(atlasTelemetry?.toolIds) ? atlasTelemetry.toolIds : [];
         for (const tid of toolIds) {
           const x = String(tid).toLowerCase();
-          if (x.includes("serper")) light(["perp0"]);
-          if (x.includes("tavily")) light(["tavily"]);
-          if (x.includes("exa")) light(["exa"]);
-          if (x.includes("agentic") || x.includes("web")) light(["mcts", "webdisc"]);
+          if (x.includes("serper") || x === "web_search") light(["perp0", "mcts"]);
+          if (x.includes("tavily")) light(["tavily", "mcts"]);
+          if (x.includes("exa")) light(["exa", "mcts"]);
+          if (x.includes("visit") || x.includes("page") || x.includes("browser") || x.includes("scrapfly") || x.includes("zenrows")) light(["webdisc", "mcts"]);
+          if (x.includes("harvest") || x.includes("theharvester")) light(["deepweb", "mcts"]);
+          if (x.includes("domain") || x.includes("rdap") || x.includes("whois") || x.includes("dns")) light(["inhouse", "mcts"]);
+          if (x.includes("maigret") || x.includes("sherlock") || x.includes("holehe") || x.includes("footprint")) light(["maigret", "mcts"]);
+          if (x.includes("edgar") || x.includes("sec")) light(["edgar", "mcts"]);
+          if (x.includes("companies") || x.includes("registry") || x.includes("brreg") || x.includes("gleif")) light(["ch", "mcts"]);
+          if (x.includes("groq") || x.includes("mistral") || x.includes("llm")) light(["groq", "mcts"]);
+          if (x.includes("gemini") || x.includes("boss")) light(["gemini"]);
+          if (x.includes("agentic") || x.includes("dig") || x === "web") light(["mcts", "webdisc"]);
         }
       }
 
