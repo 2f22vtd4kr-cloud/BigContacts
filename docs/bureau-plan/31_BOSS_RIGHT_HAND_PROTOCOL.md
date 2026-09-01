@@ -2,52 +2,56 @@
 
 **Part of:** APEX_ATLAS_MASTER_BUREAU_PLAN
 
-## Boss (Gemini)
+## Boss — Gemini
 
-### When invoked
-- Job start: research objective for batch or target
-- Adaptive assign: next free tool+query OR stop
-- Final card review: publish/review/reject from candidates
-- Optional replan after stagnation
+### Owns
+- overall case direction and research objective;
+- prioritization and strategic replanning;
+- final case-level review/judgment where configured.
 
-### Inputs
-- Target identity, company anchors, evidence summary, depth budget, orientation block
+### Does not own
+- web browsing;
+- OSINT tool execution;
+- Dig provider fallback;
+- invented contacts or deterministic research sequences.
 
-### Outputs
-- Natural language objective or JSON free step (thought, tool, query, stop)
-- Final review: selected values that exist in candidates only
+The Boss receives case state and evidence. It may advise what matters next, but the actual web-research trajectory belongs to the investigator lane.
 
-### Never
-- Ordered tool DAG as the only output
-- Invented phone/email strings
-- Acting as dig capacity failover narrator
+## Right-hand — NVIDIA NIM
 
-## Right-hand (NVIDIA)
+### Owns
+- case-file critique;
+- evidence-gap analysis;
+- advisory recommendations and optional non-blocking narration.
 
-### When invoked
-- Adaptive free step if Boss fails
-- Live narration on bureau events (rate-limited, non-blocking)
-- Optional case advice endpoints
+### Does not own
+- web browsing;
+- OSINT execution;
+- control of the investigator's tool sequence;
+- substitution for a failed Dig provider.
 
-### Never
-- Final-card system prompt during adaptive assign
-- Blocking dig on narration failure
+## Dig investigator — Groq → Mistral
 
-## Dig capacity chain
+This is the **only LLM provider failover chain for the web/OSINT research capability**. It is transport/capacity fallback, not hierarchy.
 
-Groq → Mistral → Gemini → NVIDIA for **investigator turns** only. This chain is not Boss hierarchy.
+A provider fallback receives the same objective and current state and independently chooses the next action. It must never inject a search query, hop, source list or scripted recovery.
 
-## Sequence diagram (logical)
+**Gemini and NVIDIA are explicitly excluded from this chain.** If Groq and Mistral are unavailable, the Dig capability fails/degrades honestly rather than borrowing Boss/right-hand models.
+
+## Logical architecture
 
 ```
 Launch
-  Boss.objective?
-  loop targets:
-    loop dig iterations:
-      Investigator.llmStep (capacity chain)
-      Tool.execute
-      RH.narrate? (async)
-    Promote
-    Boss.finalReview?
-  Stop
+  → Boss (Gemini): case direction, no browsing
+  → Investigator (Groq → Mistral): free ReAct
+       → model chooses tool/action
+       → tool executes
+       → observation returns
+       → model reasons/pivots/stops
+  → deterministic evidence/identity/provenance gate
+  → card/promotion
+  → Right-hand (NVIDIA): critique/advice where configured
+  → Boss: case-level judgment where configured
 ```
+
+The diagram describes role ownership, not a mandatory research path.
