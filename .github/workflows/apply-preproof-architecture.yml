@@ -1,0 +1,33 @@
+name: apply-preproof-architecture
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "scripts/apply-preproof-architecture.py"
+      - ".github/workflows/apply-preproof-architecture.yml"
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Apply pre-proof architecture
+        run: |
+          set -euo pipefail
+          test -f scripts/apply-preproof-architecture.py
+          test "$(wc -l < artifacts/api-server/src/src/lib/agentic-web-research.ts)" -ge 2000
+          python3 scripts/apply-preproof-architecture.py
+          ! grep -q 'await import("./whoxy-enricher")' artifacts/api-server/src/src/lib/agentic-web-research.ts
+          grep -q 'DISCOVERY STATE' artifacts/api-server/src/src/lib/atlas-orchestrator.ts
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "no changes"
+          else
+            git commit -m "fix(architecture): pre-proof Apex control plane"
+            git push
+          fi
