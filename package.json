@@ -14,6 +14,7 @@
     "check:trajectory": "node scripts/evaluate-bureau-trajectory.mjs scripts/fixtures/free-react-sample.json",
     "check:agentic-runtime": "node scripts/check-agentic-runtime.mjs",
     "check:agentic-timeout": "node scripts/check-agentic-timeout.mjs",
+    "check:provider-role-docs": "node scripts/check-bureau-provider-role-docs.mjs",
     "scoreboard:shell": "node scripts/scoreboard-shell.mjs",
     "scoreboard:score": "node scripts/scoreboard-shell.mjs --score",
     "scoreboard:compare-template": "node scripts/compare-template.mjs",
@@ -21,7 +22,7 @@
     "scoreboard:live": "bash scripts/replit-scoreboard-check.sh",
     "scoreboard:postmortem-template": "node scripts/postmortem-template.mjs",
     "scoreboard:fixture-template": "node scripts/fixture-registry-template.mjs",
-    "check:bureau": "bash scripts/check-no-force-dig.sh && pnpm run check:free-react && pnpm run check:discovery-quality && pnpm run check:comparison-contract && pnpm run check:trajectory && pnpm run check:agentic-runtime && pnpm run check:agentic-timeout && pnpm run test:phone-priority",
+    "check:bureau": "bash scripts/check-no-force-dig.sh && pnpm run check:free-react && pnpm run check:discovery-quality && pnpm run check:comparison-contract && pnpm run check:trajectory && pnpm run check:agentic-runtime && pnpm run check:agentic-timeout && pnpm run check:provider-role-docs && pnpm run test:phone-priority",
     "scoreboard:lcode": "node scripts/lcode-suggest.mjs"
   },
   "private": true,
