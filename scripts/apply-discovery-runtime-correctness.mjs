@@ -3,29 +3,31 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 // Canonical source now owns the discovery admission boundary and modelFindings
-// contract. Do not rewrite it during every build. This script remains as a
-// compatibility guard for older checkouts that predate that permanent source
-// change; it must be idempotent and must never fail because an old text anchor
-// disappeared.
+// contract. This script is a compatibility guard for older checkouts that
+// predate the permanent source change; it must be idempotent and must never
+// fail because an old text anchor disappeared.
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const discoveryPath = path.join(repoRoot, "artifacts/api-server/src/src/lib/discovery-agent.ts");
 const researchPath = path.join(repoRoot, "artifacts/api-server/src/src/lib/agentic-web-research.ts");
 let discovery = fs.readFileSync(discoveryPath, "utf8");
 let research = fs.readFileSync(researchPath, "utf8");
 
-if (research.includes("modelFindings: AgenticFinding[]") && discovery.includes("result.modelFindings")) {
-  console.log("[apex-discovery-runtime-correctness] canonical modelFindings source boundary present; no rewrite");
-  process.exit(0);
-}
+const hasCanonicalModelFindings =
+  research.includes("modelFindings: AgenticFinding[]") && discovery.includes("result.modelFindings");
 
 const oldParse = "const slotCandidates = parsePersonFindings(result.findings ?? []);";
 const newParse = "const slotCandidates = parsePersonFindings(result.findings ?? [], result.trajectory ?? []);";
 if (discovery.includes(oldParse)) {
   discovery = discovery.replace(oldParse, newParse);
-} else if (!discovery.includes(newParse)) {
+} else if (!discovery.includes(newParse) && !hasCanonicalModelFindings) {
   console.log("[apex-discovery-runtime-correctness] legacy admission anchor absent; leaving source unchanged");
 }
 
+// Keep this guard independent from the modelFindings guard above. The previous
+// early exit accidentally skipped the concurrent-run gate once the permanent
+// admission boundary landed, leaving the test and intended runtime contract
+// out of sync. This gate limits only simultaneous independent runs; it does not
+// constrain any model action within a run.
 if (!research.includes("const AGENTIC_RESEARCH_CONCURRENCY")) {
   const marker = "const MAX_OBS = 5_000;";
   if (research.includes(marker)) {
