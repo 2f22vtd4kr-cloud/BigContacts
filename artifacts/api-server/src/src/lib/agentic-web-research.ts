@@ -62,7 +62,6 @@ type AgentAction =
   | { action: "registry_search"; query: string; registry: string; thought?: string }
   | { action: "harvest_domain"; domain: string; thought?: string }
   | { action: "browser_fetch"; url: string; thought?: string }
-  | { action: "reverse_whois"; query: string; thought?: string }
   | { action: "done"; findings: AgenticFinding[]; thought?: string };
 
 const MAX_ITER = 40;
@@ -499,9 +498,6 @@ function parseAction(raw: string): AgentAction | null {
     if ((action === "browser_fetch" || action === "browser" || action === "scrapfly") && typeof o.url === "string" && /^https?:\/\//i.test(o.url)) {
       return { action: "browser_fetch", url: o.url.trim().slice(0, 500), thought: typeof o.thought === "string" ? o.thought : undefined };
     }
-    if ((action === "reverse_whois" || action === "whoxy") && typeof o.query === "string" && o.query.trim().length >= 3) {
-      return { action: "reverse_whois", query: o.query.trim().slice(0, 200), thought: typeof o.thought === "string" ? o.thought : undefined };
-    }
     if (action === "done") {
       const findings = Array.isArray(o.findings) ? o.findings : [];
       const cleaned: AgenticFinding[] = [];
@@ -620,7 +616,7 @@ async function callGroqJson(prompt: string): Promise<{ model: string; raw: strin
 const AGENTIC_ACTION_SCHEMA = {
   type: "object",
   properties: {
-    action: { type: "string", enum: ["web_search", "visit", "footprint_email", "footprint_username", "domain_lookup", "registry_search", "harvest_domain", "browser_fetch", "reverse_whois", "done"] },
+    action: { type: "string", enum: ["web_search", "visit", "footprint_email", "footprint_username", "domain_lookup", "registry_search", "harvest_domain", "browser_fetch", "done"] },
     query: { type: "string" },
     url: { type: "string" },
     email: { type: "string" },
@@ -922,7 +918,6 @@ AVAILABLE TOOLS (one JSON action per turn — your choice; use any Apex OSINT ca
 {"action":"domain_lookup","domain":"example.com","thought":"..."}  // RDAP / WhoisJSON
 {"action":"harvest_domain","domain":"example.com","thought":"..."}  // theHarvester emails/hosts
 {"action":"registry_search","query":"...","registry":"sec-edgar|companies-house|brreg|gleif|opencorporates|...","thought":"..."}
-{"action":"reverse_whois","query":"name or email","thought":"..."}  // Whoxy when keyed
 {"action":"done","findings":[{"vectorType":"email|phone|linkedin|website|social|other","value":"...","personName":null,"role":null,"scope":"organization|candidate","sourceUrls":["https://exact-page"],"note":"..."}],"thought":"..."}
 
 Guidelines (not a script):
@@ -1101,7 +1096,7 @@ function findingsFromProxyPage(
       value: `related-person:${cand}`,
       personName: cand,
       role: "proxy_table",
-      scope: "candidate",
+      scope: "unknown",
       sourceUrls: [sourceUrl],
       note: `Related name on proxy/filing ${sourceUrl}`,
     });
@@ -1171,9 +1166,9 @@ function findingsFromIrAndRelatedBlocks(
         value: `${pName} — ${role}`,
         personName: pName,
         role,
-        scope: "candidate",
+        scope: "unknown",
         sourceUrls: [sourceUrl],
-        note: `Related officer in contact/IR block on ${sourceUrl}`,
+        note: `auto_extract: Related officer in contact/IR block on ${sourceUrl}`,
       });
     }
     for (const pem of block.matchAll(
@@ -1493,9 +1488,9 @@ function findingsFromPeopleSnippet(
         value: person,
         personName: person,
         role: role || "related_contact",
-        scope: "organization",
+        scope: "unknown",
         sourceUrls: [src],
-        note: `related person from snippet; ${role}`,
+        note: `auto_extract: related person from snippet; ${role}`,
       });
     }
   }
@@ -1778,7 +1773,7 @@ async function runAgenticWebResearchUnbounded(input: {
       const repair = await llmStepWithHeartbeat(
         `Your previous reply was not valid action JSON.\n` +
         `Reply with ONE action object only. Allowed actions: web_search, visit, browser_fetch, ` +
-        `footprint_email, footprint_username, domain_lookup, harvest_domain, registry_search, reverse_whois, done.\n` +
+        `footprint_email, footprint_username, domain_lookup, harvest_domain, registry_search, done.\n` +
         `Example: {"action":"web_search","query":"...","thought":"..."}\n` +
         `Target: ${name}. Objective: ${objective.slice(0, 400)}\n` +
         `Last observation (trim):\n${lastObservation.slice(0, 1200)}\n` +
@@ -1790,7 +1785,7 @@ async function runAgenticWebResearchUnbounded(input: {
       }
       if (!action) {
         lastObservation =
-          "Invalid JSON twice. Reply with one valid action object only (web_search | visit | browser_fetch | footprint_* | domain_lookup | harvest_domain | registry_search | reverse_whois | done).";
+          "Invalid JSON twice. Reply with one valid action object only (web_search | visit | browser_fetch | footprint_* | domain_lookup | harvest_domain | registry_search | done).";
         continue;
       }
     }
@@ -2002,40 +1997,11 @@ async function runAgenticWebResearchUnbounded(input: {
       continue;
     }
 
-    if (action.action === "reverse_whois") {
-      footprintCalls++;
-      history.push(`step${i + 1}: reverse_whois ${action.query}`);
-      try {
-        const { reverseWhoisByEmail, reverseWhoisByName } = await import("./whoxy-enricher");
-        const q = action.query.trim();
-        const result = q.includes("@")
-          ? await reverseWhoisByEmail(q)
-          : await reverseWhoisByName(q);
-        if (!result.apiKeyPresent) {
-          lastObservation = `REVERSE_WHOIS ${q}\nWHOXY_API_KEY not set — tool unavailable this session.`;
-        } else {
-          const names = (result.domains ?? []).map((d: { domain_name?: string }) => d.domain_name).filter(Boolean).slice(0, 20) as string[];
-          for (const d of names) {
-            const host = String(d).replace(/^https?:\/\//i, "").replace(/\/.*$/, "").trim();
-            if (!host) continue;
-            const u = `https://${host}`;
-            if (!candidateUrls.includes(u)) candidateUrls.push(u);
-          }
-          lastObservation =
-            `REVERSE_WHOIS ${q}\n` +
-            (result.error ? `Error: ${result.error}\n` : "") +
-            `Total: ${result.totalDomains ?? names.length}\n` +
-            (names.length ? `Domains: ${names.join(", ")} (queued for optional visit)` : "No domains returned.");
-        }
-      } catch (err: any) {
-        lastObservation = `REVERSE_WHOIS failed: ${err?.message ?? "error"}`;
-      }
-      emitLive({
-        action: "reverse_whois",
-        query: action.query,
-        provider: "whoxy",
-        summary: (lastObservation || "").slice(0, 180),
-      });
+    // Whoxy removed from canonical Dig. Use domain_lookup (RDAP→WhoisJSON).
+    if ((action as { action?: string }).action === "reverse_whois" || (action as { action?: string }).action === "whoxy") {
+      history.push(`step${i + 1}: reverse_whois rejected (Whoxy deprecated; use domain_lookup)`);
+      lastObservation = "TOOL_UNAVAILABLE: reverse_whois/Whoxy removed. Use domain_lookup (RDAP→WhoisJSON).";
+      emitLive({ action: "tool", query: "reverse_whois", provider: "none", summary: "whoxy deprecated" });
       continue;
     }
 

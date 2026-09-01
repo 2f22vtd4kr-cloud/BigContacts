@@ -12,7 +12,7 @@
 | harvest_domain | Harvest | theHarvester | Domain evidence when model chooses it |
 | footprint_email | Footprint | Holehe | Public account-signal investigation |
 | footprint_username | Footprint | Maigret, Sherlock | Handle/profile investigation |
-| reverse_whois | Infra | Whoxy | Domain graph investigation |
+| domain_lookup | Infra | RDAP → WhoisJSON | Domain (Whoxy removed) |
 | done | Control | n/a | Model-selected stop |
 
 ## Tool-use law

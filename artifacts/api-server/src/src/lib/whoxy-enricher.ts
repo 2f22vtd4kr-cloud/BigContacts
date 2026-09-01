@@ -1,4 +1,7 @@
 /**
+ * DEPRECATED — not part of canonical Apex Dig. Use domain_lookup.
+ */
+/**
  * Whoxy Reverse WHOIS Enricher
  *
  * Given an email address or person/company name, returns ALL domains ever

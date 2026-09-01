@@ -2124,6 +2124,20 @@ async function runModelSelectedDiscoveryBureau(
     });
   };
 
+  await status("Boss: research direction for discovery-first…", 0);
+  try {
+    const { resolveGeminiBossModel, generateGeminiBossText } = await import("./case-bureau");
+    const selection = await resolveGeminiBossModel();
+    if (selection?.model) {
+      const brief = await generateGeminiBossText(
+        "Apex Boss: short direction for finding reachable principals (founders/owners/operators), not celebrity lists. "
+        + "No search queries or tool hop lists. 3-6 sentences only.",
+      );
+      if (brief?.text) {
+        await appendJobLog(atlasJobId, `BOSS_DISCOVERY_DIRECTION model=${brief.model} ${String(brief.text).slice(0, 400)}`).catch(() => {});
+      }
+    }
+  } catch { /* optional */ }
   await status("AI discovery agent: model-selected public people hunt…", 0);
   const { runDiscoveryAgent, isWellFormedPersonCandidate } = await import("./discovery-agent");
   const { createEntityFromDiscoveryCandidate } = await import("./discovery-agent-admit");
@@ -2192,6 +2206,13 @@ async function runModelSelectedDiscoveryBureau(
         : typeof metadata.companyName === "string"
           ? metadata.companyName
           : null;
+      const discoveryUrls = Array.isArray(metadata.sourceUrls)
+        ? (metadata.sourceUrls as unknown[]).map(String).filter((u) => /^https?:\/\//i.test(u)).slice(0, 8)
+        : [];
+      const discoveryRole = typeof metadata.role === "string" ? metadata.role : null;
+      const discoveryBasis = typeof entity.notes === "string"
+        ? entity.notes.split("\n").slice(0, 6).join(" | ").slice(0, 600)
+        : "";
       const agentic = await runBureauAgenticWebPass({
         targetName: entity.name,
         companyName,
@@ -2201,10 +2222,16 @@ async function runModelSelectedDiscoveryBureau(
         objective: [
           apexOrientationCompact("investigator"),
           `Research the public identity and contact surface for ${entity.name}${companyName ? ` (${companyName})` : ""}.`,
-          "Choose every next action yourself from the available non-LLM tools.",
-          "Do not follow a checklist or fixed hop order. Stop only when the evidence is exhausted or the budget is reached.",
+          "DISCOVERY STATE (already established — do not re-prove identity from zero unless evidence conflicts):",
+          `- person: ${entity.name}`,
+          discoveryRole ? `- role: ${discoveryRole}` : null,
+          companyName ? `- organization: ${companyName}` : null,
+          discoveryUrls.length ? `- sourceUrls: ${discoveryUrls.join(" | ")}` : null,
+          discoveryBasis ? `- discovery notes: ${discoveryBasis}` : null,
+          "Use discovery sources as prior evidence. Choose every next action yourself from available non-LLM tools.",
+          "Do not follow a checklist or fixed hop order. Stop only when evidence is exhausted or the budget is reached.",
           "Every finding must retain an exact public source URL; never invent a person, route, relationship, or URL.",
-        ].join("\n"),
+        ].filter(Boolean).join("\n"),
       });
       await rehydrateEntityCardFromEvidence(entity.id);
       await db.update(entitiesTable).set({

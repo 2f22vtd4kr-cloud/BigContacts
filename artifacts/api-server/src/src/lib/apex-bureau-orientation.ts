@@ -29,7 +29,7 @@ export const APEX_OSINT_TOOL_SURFACE = `OSINT TOOL SURFACE (available to dig inv
 - domain_lookup — RDAP / WhoisJSON
 - harvest_domain — theHarvester (emails/hosts for a domain)
 - registry_search — SEC EDGAR, Companies House, BRREG, GLEIF, OpenCorporates, and other registry-client sources
-- reverse_whois — Whoxy (when keyed)
+- domain_lookup — RDAP → WhoisJSON (Whoxy removed)
 - done — finish the dig; keep auto-extracted findings already in the bag`;
 
 export type ApexOrientationRole = "boss" | "right_hand" | "investigator" | "dig_agent";
