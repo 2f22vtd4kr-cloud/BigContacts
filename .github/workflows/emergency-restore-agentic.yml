@@ -1,0 +1,31 @@
+name: emergency-restore-agentic
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/emergency-restore-agentic.yml"
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Restore agentic and discovery from good commit
+        run: |
+          set -euo pipefail
+          GOOD=823de280c8c6d73fb097d9fbd4be4460adf4b14a
+          git show "$GOOD:artifacts/api-server/src/src/lib/agentic-web-research.ts" > artifacts/api-server/src/src/lib/agentic-web-research.ts
+          git show "$GOOD:artifacts/api-server/src/src/lib/discovery-agent.ts" > artifacts/api-server/src/src/lib/discovery-agent.ts
+          wc -l artifacts/api-server/src/src/lib/agentic-web-research.ts artifacts/api-server/src/src/lib/discovery-agent.ts
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add artifacts/api-server/src/src/lib/agentic-web-research.ts artifacts/api-server/src/src/lib/discovery-agent.ts
+          if git diff --cached --quiet; then
+            echo "no changes"
+          else
+            git commit -m "fix(research): emergency restore agentic-web-research and discovery-agent from 823de280"
+            git push
+          fi
