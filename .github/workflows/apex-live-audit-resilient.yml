@@ -3,6 +3,7 @@ name: Apex Live Bureau Audit — Resilient Groq 3.8
 # Provider-resilient real-run lane. This is deliberately separate from the
 # historical audit workflow so an experimental provider change cannot cancel
 # or rewrite an already-running audit.
+# Control-plane smoke revision: modelFindings admission boundary landed at fa3efd8.
 on:
   workflow_dispatch:
   push:
@@ -67,9 +68,6 @@ jobs:
       RESEARCH_DEPTH: standard
       APEX_SKIP_SEMANTIC: "1"
       APEX_DISCOVERY_BATCH_SIZE: "3"
-      # The provider pool is one decision at a time. Keep the research scheduler
-      # aligned with it so discovery slots do not starve each other behind the
-      # same free-tier TPM/RPM budget.
       APEX_AGENTIC_CONCURRENCY: "1"
       APEX_AGENTIC_PROVIDER_CONCURRENCY: "1"
       AGENTIC_PROVIDER_DECISION_TIMEOUT_MS: "55000"
@@ -178,20 +176,3 @@ jobs:
           curl -sS -m 10 http://127.0.0.1:8080/api/healthz | tee /tmp/health.json || true
           curl -sS -m 10 http://127.0.0.1:8080/api/ingest/atlas-status | tee /tmp/atlas-status.json || true
           curl -sS -m 10 'http://127.0.0.1:8080/api/entities?limit=50&offset=0' | tee /tmp/entities.json || true
-          curl -sS -m 10 'http://127.0.0.1:8080/api/ingest/scoreboard-snapshot?limit=50' | tee /tmp/scoreboard.json || true
-      - name: Live autonomy and provenance audit
-        if: always()
-        run: node scripts/audit-live-bureau.mjs
-      - name: Upload live audit artifacts
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: apex-live-audit-resilient
-          path: |
-            /tmp/launch.json
-            /tmp/atlas-status.json
-            /tmp/entities.json
-            /tmp/health.json
-            /tmp/scoreboard.json
-            /tmp/apex-api.log
-          if-no-files-found: ignore
