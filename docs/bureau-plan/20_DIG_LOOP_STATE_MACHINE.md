@@ -8,72 +8,53 @@
 | State | Meaning | Transitions |
 |-------|---------|-------------|
 | INIT | Objective + target loaded; orientation applied | → REASON |
-| REASON | llmStep across Groq→Mistral→Gemini→NVIDIA | → ACT on valid action; → RECOVER if all LLMs null; → END_BUDGET if maxIter |
-| ACT | Execute tool | → OBSERVE |
-| OBSERVE | Append observation; CONTACT FACTS on HTML; publish DigSpan | → REASON; → END_DONE if action was done and allowed |
-| RECOVER | Thin det search+visit once | → OBSERVE or END_FAIL |
-| END_DONE | Model finished; bag kept | terminal |
-| END_TIMEOUT | hardTimeout; partial findings kept | terminal |
-| END_CANCEL | shouldCancel; partial kept | terminal |
-| END_BUDGET | maxIter; salvage; partial kept | terminal |
-| END_FAIL | unrecoverable | terminal |
+| REASON | Investigator LLM decision using **Groq → Mistral** capability failover | → ACT on valid action; → END_FAIL/DEGRADED if investigator unavailable; → END_BUDGET on limit |
+| ACT | Execute the model-selected tool | → OBSERVE |
+| OBSERVE | Append typed observation, publish trajectory span | → REASON; → END_DONE when model selected done and lifecycle guards allow |
+| END_DONE | Model stopped; findings/evidence preserved | terminal |
+| END_TIMEOUT | Wall-clock limit; partial evidence preserved | terminal |
+| END_CANCEL | Cancellation; partial evidence preserved | terminal |
+| END_BUDGET | Iteration limit; partial evidence preserved | terminal |
+| END_FAIL | Investigator/provider/tool failure that prevents further honest research | terminal |
 
 ## Invariants
 
-1. Every REASON uses free model choice — no force_* inject before llmStep on healthy path.
-2. Every ACT publishes a span when jobId known.
-3. OBSERVE never invents emails/phones not in tool output or HTML extract.
-4. done allowed iff not pure no-op (searches=visits=findings=0).
-5. yieldEventLoop between iterations after the first.
+1. Every healthy REASON turn is model-owned; no force hop or scripted research action is injected.
+2. Dig LLM provider failover is **Groq → Mistral only**. Gemini and NVIDIA are not investigator providers.
+3. ACT executes only the action selected by the investigator, subject to deterministic safety/schema checks.
+4. OBSERVE preserves source URLs and retrieval status; it never promotes arbitrary page text to identity.
+5. `done` is a model decision, not a code-selected stopping point.
+6. Partial evidence is retained on timeout/cancel/budget exit.
 
 ## Data carried across states
 
-- `findings[]` bag (auto-extract merges in)
-- `history[]` trajectory lines
-- `visited` URL set
-- `searchCount` / `visitCount`
-- `startedAt` for hardTimeoutMs
-- `onLiveStep` callback
+- investigator objective and target;
+- model-selected action history;
+- typed tool observations and exact source URLs;
+- model-emitted findings (`modelFindings`);
+- visited URL set;
+- search/visit/tool counts;
+- start time and hard timeout;
+- provider/model telemetry;
+- live-step callback for trajectory persistence.
 
 ## Depth profiles
 
-| RESEARCH_DEPTH | Typical maxIter | Notes |
-|----------------|-----------------|-------|
-| fast | ~10 | bulk |
-| standard | ~16 | default parity |
-| deep | ~20 | head-to-head |
-
-Absolute caps must not silently clip deep below configured value.
+Depth changes resource bounds, not the research path. Absolute runtime caps may enforce safety, but no depth profile may inject a tool order.
 
 ## Pseudocode
 
 ```
-function runAgenticWebResearch(input):
-  state = INIT
-  load objective, tools schema, orientation
-  for i in 0..maxIter-1:
-    if cancel: return END_CANCEL
-    if now - startedAt > hardTimeout: salvage; return END_TIMEOUT
-    if i > 0: yieldEventLoop()
-    action = llmStep(buildPrompt(history, findings))
-    if action is null:
-      action = deterministicRecoveryOnce()
-      if action is null: return END_FAIL
-    if action.action == done:
-      if isPureNoop(): append soft reject observation; continue
-      salvage; return END_DONE
-    result = execute(action)
-    publishSpan(action, result)
-    history.append(observation)
-    mergeAutoFacts(result)
-  salvage; return END_BUDGET
+INIT
+  → REASON: Groq → Mistral investigator call
+  → ACT: execute exactly the selected action
+  → OBSERVE: return typed result + provenance
+  → REASON ...
+  → model selects done OR hard lifecycle bound fires
 ```
 
-## Failure modes mapped to states
+If no investigator provider can produce a decision, terminate/degrade honestly. Do **not** substitute deterministic search, Gemini, NVIDIA, or a fixed recovery recipe.
 
-| Symptom | State issue |
-|---------|-------------|
-| force hop steals turn | ACT without REASON |
-| empty card after dig | END_DONE without promote outside loop |
-| status timeout | missing yield in loop |
-| parse_fail burn | REASON without retry |
+## Failure interpretation
+
+A green static guard proves only the control-plane invariant. Research quality requires an actual provider-backed trajectory with real model decisions, tool actions and observations.
