@@ -270,7 +270,8 @@ export async function runDiscoveryAgent(input: {
             input.onLiveStep?.(step);
           },
         });
-        const slotCandidates = parsePersonFindings(result.findings ?? [], result.trajectory ?? []);
+        const admissionFindings = result.modelFindings ?? [];
+        const slotCandidates = parsePersonFindings(admissionFindings, result.trajectory ?? []);
         try { completeDigSpan(jobId, slotSpan.id, { status: slotCandidates.length ? "ok" : "error", resultSummary: `slot=${slot + 1}/${requestedBatch} candidates=${slotCandidates.length} searches=${result.searches} visits=${result.visits}` }); } catch { /* best-effort */ }
 
         totalSearches += result.searches ?? 0;

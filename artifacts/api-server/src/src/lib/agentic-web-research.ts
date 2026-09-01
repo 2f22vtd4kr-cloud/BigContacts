@@ -44,6 +44,10 @@ export type AgenticWebResearchResult = {
   searches: number;
   visits: number;
   findings: AgenticFinding[];
+  /** Findings explicitly emitted by the model in action=done; never auto-extracted. */
+  modelFindings: AgenticFinding[];
+  /** Why the ReAct loop stopped; completed alone is not a quality signal. */
+  stopReason: "MODEL_DECIDED_DONE" | "ITERATION_BUDGET" | "HARD_TIMEOUT" | "CANCELLED" | "LLM_UNAVAILABLE" | "PARSE_FAILURE";
   trajectory: string[];
   error?: string;
 };
@@ -488,11 +492,14 @@ function parseAction(raw: string): AgentAction | null {
       for (const f of findings) {
         if (!f || typeof f !== "object") continue;
         const row = f as Record<string, unknown>;
-        const value = typeof row.value === "string" ? row.value.trim() : "";
+        const rawPersonName = typeof row.personName === "string" ? row.personName.trim() : "";
+        const rawVector = String(row.vectorType ?? "other").toLowerCase();
+        const isPersonEmit = rawVector === "person" || Boolean(rawPersonName && !row.value);
+        const value = typeof row.value === "string" ? row.value.trim() : (isPersonEmit ? rawPersonName : "");
         if (!value) continue;
         if (isMostlyBinaryGarbage(value)) continue;
-        const vectorType = ["email", "phone", "linkedin", "website", "other", "social"].includes(String(row.vectorType))
-          ? (String(row.vectorType) as AgenticFinding["vectorType"])
+        const vectorType = ["email", "phone", "linkedin", "website", "other", "social"].includes(rawVector)
+          ? (rawVector as AgenticFinding["vectorType"])
           : "other";
         const sourceUrls = filterClaimUrls(row.sourceUrls);
         if (["email", "phone", "linkedin", "social"].includes(vectorType) && sourceUrls.length === 0) continue;
@@ -521,12 +528,17 @@ function parseAction(raw: string): AgentAction | null {
         ) {
           continue;
         }
+        const personName = rawPersonName || null;
+        const role = typeof row.role === "string" ? row.role.slice(0, 120) : null;
+        const normalizedPersonValue = isPersonEmit
+          ? `person: ${personName || finalValue}${role ? ` | ${role}` : ""}`.slice(0, 500)
+          : finalValue.slice(0, 500);
         cleaned.push({
           vectorType,
-          value: finalValue.slice(0, 500),
-          personName: typeof row.personName === "string" ? row.personName.slice(0, 120) : null,
-          role: typeof row.role === "string" ? row.role.slice(0, 120) : null,
-          scope: row.scope === "organization" || row.scope === "candidate" ? row.scope : "unknown",
+          value: normalizedPersonValue,
+          personName,
+          role,
+          scope: isPersonEmit ? "candidate" : (row.scope === "organization" || row.scope === "candidate" ? row.scope : "unknown"),
           sourceUrls: sourceUrls.length ? sourceUrls : (vectorType === "website" && /^https?:\/\//i.test(finalValue) ? [finalValue] : []),
           note: typeof row.note === "string" ? row.note.slice(0, 400) : "agentic web research",
         });
@@ -865,11 +877,10 @@ function buildStepPrompt(input: {
 }): string {
   // Keep this short. Models already know how to research; do not ship a playbook.
   const bag = formatFindingsBag(input.findings ?? []);
-  return `${apexOrientationCompact("dig_agent")}
-
----
-
-TARGET: ${input.targetName}
+  const discoveryContract = /^Discovery slot\b/i.test(input.targetName)
+    ? `\nDISCOVERY OUTPUT CONTRACT (model-owned, not a search script): if you establish a real named person, emit action=done with a finding containing personName="Full Name" (or value="person: Full Name | role | company"), scope="candidate", and sourceUrls containing the exact HTTPS page you actually observed. A personName-only finding is valid. Do not emit titles, sectors, companies, or prose fragments as people. If identity is not established, return done with findings=[].\n`
+    : "";
+  return `${apexOrientationCompact("dig_agent")}\n${discoveryContract}\n---\n\nTARGET: ${input.targetName}
 ${input.companyName ? `RELATED COMPANY / ISSUER: ${input.companyName}` : ""}
 OBJECTIVE: ${input.objective}
 
@@ -1510,7 +1521,7 @@ export async function runAgenticWebResearch(input: {
 }): Promise<AgenticWebResearchResult> {
   const name = input.targetName.trim();
   if (name.length < 2) {
-    return { status: "unavailable", model: "none", iterations: 0, searches: 0, visits: 0, findings: [], trajectory: [], error: "empty target" };
+    return { status: "unavailable", model: "none", iterations: 0, searches: 0, visits: 0, findings: [], modelFindings: [], stopReason: "LLM_UNAVAILABLE", trajectory: [], error: "empty target" };
   }
 
   const maxIter = Math.max(1, input.maxIterations ?? MAX_ITER);
@@ -1659,6 +1670,8 @@ export async function runAgenticWebResearch(input: {
         searches,
         visits,
         findings,
+        modelFindings: [],
+        stopReason: "HARD_TIMEOUT",
         trajectory: history,
         error: `hard timeout ${hardTimeoutMs}ms (partial findings preserved)`,
       };
@@ -1677,6 +1690,8 @@ export async function runAgenticWebResearch(input: {
             searches,
             visits,
             findings,
+            modelFindings: [],
+            stopReason: "CANCELLED",
             trajectory: history,
             error: "cancelled by operator (partial findings preserved)",
           };
@@ -1715,6 +1730,8 @@ export async function runAgenticWebResearch(input: {
         searches,
         visits,
         findings,
+        modelFindings: [],
+        stopReason: "LLM_UNAVAILABLE",
         trajectory: history,
         error: "No agentic LLM provider available; free-ReAct pass stopped without scripted research",
       };
@@ -2075,9 +2092,10 @@ export async function runAgenticWebResearch(input: {
     // done is entirely model-owned. Empty findings are valid: they mean the
     // model judged that no attributable route was established. Deterministic
     // validation still applies to any findings that the model does return.
-    findings = mergeFindings(findings, action.findings);
+    const modelFindings = action.findings.slice();
+    findings = mergeFindings(findings, modelFindings);
     history.push(
-      `step${i + 1}: done findings=${findings.length}` +
+      `step${i + 1}: done modelFindings=${modelFindings.length} totalFindings=${findings.length}` +
         (action.findings.length === 0 && findings.length > 0 ? " (incl. auto-extracted)" : ""),
     );
     salvageEmailsFromHistory();
@@ -2088,6 +2106,8 @@ export async function runAgenticWebResearch(input: {
       searches,
       visits,
       findings,
+      modelFindings,
+      stopReason: "MODEL_DECIDED_DONE",
       trajectory: history,
     };
   }
@@ -2100,6 +2120,8 @@ export async function runAgenticWebResearch(input: {
     searches,
     visits,
     findings,
+    modelFindings: [],
+    stopReason: "ITERATION_BUDGET",
     trajectory: history,
     error: "iteration budget exhausted",
   };
