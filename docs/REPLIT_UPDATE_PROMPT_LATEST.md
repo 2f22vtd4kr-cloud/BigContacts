@@ -77,15 +77,21 @@ Show this list. Operator fills Secrets. Do not invent or print values. Wait for 
 
 MINIMUM (three classes for non-critical integrity):
   REDIS_URL_1          ← Upstash Redis URL (or REDIS_URL)
-  GROQ_API_KEY         (or GEMINI / MISTRAL / NVIDIA_NIM)
+  GROQ_API_KEY or MISTRAL_API_KEY   ← Dig investigator only (NOT Gemini/NVIDIA)
   SERPER_API_KEY       (or TAVILY_API_KEY or EXA_API_KEY)
+
+ROLE KEYS (do not confuse with Dig):
+  GEMINI_API_KEY       ← Boss only (never Dig browser)
+  NVIDIA_NIM_API_KEY   ← Right-hand only (never Dig browser)
+  GROQ_API_KEY         ← Dig investigator primary
+  MISTRAL_API_KEY      ← Dig investigator fallback
 
 FULL (fill what operator has):
   REDIS_URL_1
   GROQ_API_KEY
+  MISTRAL_API_KEY
   GEMINI_API_KEY
   NVIDIA_NIM_API_KEY
-  MISTRAL_API_KEY
   HF_TOKEN
   SERPER_API_KEY
   TAVILY_API_KEY
