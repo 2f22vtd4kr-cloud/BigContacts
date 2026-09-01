@@ -68,6 +68,22 @@ type AgentAction =
 const MAX_ITER = 40;
 const MAX_OBS = 5_000;
 
+const AGENTIC_RESEARCH_CONCURRENCY = Math.max(1, Math.min(4, Number(process.env.APEX_AGENTIC_CONCURRENCY || "1")));
+let activeAgenticResearch = 0;
+const pendingAgenticResearch: Array<() => void> = [];
+
+async function acquireAgenticResearchSlot(): Promise<void> {
+  if (activeAgenticResearch < AGENTIC_RESEARCH_CONCURRENCY) { activeAgenticResearch += 1; return; }
+  await new Promise<void>((resolve) => pendingAgenticResearch.push(resolve));
+  activeAgenticResearch += 1;
+}
+
+function releaseAgenticResearchSlot(): void {
+  activeAgenticResearch = Math.max(0, activeAgenticResearch - 1);
+  pendingAgenticResearch.shift()?.();
+}
+
+
 /** Format SERP text so the dig model sees discrete ranked hits + any phones/emails in snippets. */
 function formatSearchObservation(query: string, sr: { text: string; urls: string[] }): string {
   const lines: string[] = [`SEARCH results for: ${query}`];
@@ -566,7 +582,9 @@ async function callGroqJson(prompt: string): Promise<{ model: string; raw: strin
           headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
           body: JSON.stringify({
             model,
-            max_tokens: 1536,
+            max_completion_tokens: 768,
+            ...(model.startsWith("qwen/") ? { reasoning_effort: "none" } : { reasoning_effort: "low", include_reasoning: false }),
+            response_format: { type: "json_object" },
             messages: [
               {
                 role: "system",
@@ -576,10 +594,18 @@ async function callGroqJson(prompt: string): Promise<{ model: string; raw: strin
               { role: "user", content: prompt },
             ],
           }),
-          signal: AbortSignal.timeout(40_000),
+          signal: AbortSignal.timeout(50_000),
         });
         if (!resp.ok) {
-          logger.warn({ provider: "groq", status: resp.status, model }, "agentic provider rejected request");
+          const body = (await resp.text()).slice(0, 700);
+          logger.warn({
+            provider: "groq",
+            status: resp.status,
+            model,
+            retryAfter: resp.headers.get("retry-after"),
+            remainingTokens: resp.headers.get("x-ratelimit-remaining-tokens"),
+            body,
+          }, "agentic provider rejected request");
           continue;
         }
         const data = await resp.json() as { choices?: Array<{ message?: { content?: string } }> };
@@ -828,16 +854,19 @@ async function llmStep(prompt: string): Promise<{ model: string; raw: string } |
       ["groq", callGroqJson],
       ["mistral", callMistralJson],
     ];
-    const providerDecisionTimeoutMs = 18_000;
+    const providerDecisionTimeoutMs = Math.max(55_000, Number(process.env.AGENTIC_PROVIDER_DECISION_TIMEOUT_MS || "55000"));
     const errors: string[] = [];
 
     for (const [name, fn] of providers) {
-      const timeout = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error(name + ":timeout")), providerDecisionTimeoutMs),
-      );
       try {
         if (name === "groq") await waitForGroqAgenticPace();
-        const out = await Promise.race([fn(prompt), timeout]);
+        const out = await new Promise<{ model: string; raw: string } | null>((resolve, reject) => {
+          const timer = setTimeout(() => reject(new Error(name + ":timeout")), providerDecisionTimeoutMs);
+          void fn(prompt).then(
+            (value) => { clearTimeout(timer); resolve(value); },
+            (error) => { clearTimeout(timer); reject(error); },
+          );
+        });
         if (!out?.raw) throw new Error(name + ":empty");
         setAgenticLlmHealth(true, out.model, null);
         return out;
@@ -857,7 +886,7 @@ async function llmStep(prompt: string): Promise<{ model: string; raw: string } |
 function formatFindingsBag(findings: AgenticFinding[]): string {
   if (!findings.length) return "(none yet)";
   return findings
-    .slice(0, 20)
+    .slice(0, 8)
     .map((f) => {
       const who = f.personName ? ` person=${f.personName}` : "";
       const role = f.role ? ` role=${f.role}` : "";
@@ -882,7 +911,7 @@ function buildStepPrompt(input: {
     : "";
   return `${apexOrientationCompact("dig_agent")}\n${discoveryContract}\n---\n\nTARGET: ${input.targetName}
 ${input.companyName ? `RELATED COMPANY / ISSUER: ${input.companyName}` : ""}
-OBJECTIVE: ${input.objective}
+OBJECTIVE: ${input.objective.slice(0, 1200)}
 
 AVAILABLE TOOLS (one JSON action per turn — your choice; use any Apex OSINT capability when it helps):
 {"action":"web_search","query":"...","thought":"..."}
@@ -906,10 +935,10 @@ FINDINGS SO FAR (already extracted — do not drop these):
 ${bag}
 
 TRAJECTORY SO FAR (recent):
-${(input.history.length > 14 ? input.history.slice(-14) : input.history).join("\n") || "(start)"}
+${(input.history.length > 8 ? input.history.slice(-8) : input.history).join("\n") || "(start)"}
 
 LAST OBSERVATION:
-${input.lastObservation.slice(0, MAX_OBS) || "(none — begin with web_search)"}
+${input.lastObservation.slice(0, 2200) || "(none — begin with web_search)"}
 
 Return ONE JSON object only.`;
 }
@@ -1497,7 +1526,7 @@ function yieldEventLoop(): Promise<void> {
   return new Promise((resolve) => setImmediate(resolve));
 }
 
-export async function runAgenticWebResearch(input: {
+async function runAgenticWebResearchUnbounded(input: {
   targetName: string;
   companyName?: string | null;
   objective?: string;
@@ -2125,4 +2154,10 @@ export async function runAgenticWebResearch(input: {
     trajectory: history,
     error: "iteration budget exhausted",
   };
+}
+
+
+export async function runAgenticWebResearch(input: Parameters<typeof runAgenticWebResearchUnbounded>[0]): Promise<AgenticWebResearchResult> {
+  await acquireAgenticResearchSlot();
+  try { return await runAgenticWebResearchUnbounded(input); } finally { releaseAgenticResearchSlot(); }
 }

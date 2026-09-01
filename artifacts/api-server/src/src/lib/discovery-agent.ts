@@ -24,6 +24,11 @@ type DiscoveryFinding = {
   scope?: "organization" | "candidate" | "unknown";
 };
 
+const INVALID_PERSON_TITLE_PATTERNS = [
+  /^(?:head of|chief|global chief|vice president|vp|senior vice president|svp)\b/i,
+  /^(?:managing director|executive director|marketing director|sales director|finance director|operations director|investment director|portfolio manager|fund manager)$/i,
+];
+
 const INVALID_PERSON_NAME_WORDS = new Set([
   "email", "phone", "address", "street", "product", "comparison", "person", "www", "com",
 ]);
@@ -84,6 +89,7 @@ function normalizeUrl(value: string): string {
 function isInvalidIdentityPhrase(name: string): boolean {
   const normalized = normalizedPersonText(name);
   if (!normalized) return true;
+  if (INVALID_PERSON_TITLE_PATTERNS.some((pattern) => pattern.test(normalized))) return true;
   if (INVALID_PERSON_NAME_PHRASES.some((phrase) =>
     normalized === phrase
     || normalized.startsWith(`${phrase} `)
@@ -132,6 +138,8 @@ export function isWellFormedPersonCandidate(candidate: Pick<DiscoveryCandidate, 
   const words = name.split(" ");
   const normalized = normalizedPersonText(name);
   if (words.length < 2 || words.length > 5) return false;
+  // CamelCase extraction fragments (e.g. comPrecision) are not human-name syntax.
+  if (words.some((w) => /^[a-z]+[A-Z]/.test(w))) return false;
   if (!/^\p{L}[\p{L}.'’\-]*(?:\s+\p{L}[\p{L}.'’\-]*){1,4}$/u.test(name)) return false;
   if (words.some((w) => INVALID_PERSON_NAME_WORDS.has(w.toLowerCase().replace(/[.'’\-]/g, "")))) return false;
   if (isInvalidIdentityPhrase(normalized)) return false;
@@ -178,7 +186,7 @@ export function parsePersonFindings(findings: DiscoveryFinding[], trajectory: st
     // Never admit those synthetic related-person findings; the investigator must
     // explicitly emit the person it chose from its observed evidence.
     if (String(f.role ?? "").trim().toLowerCase() === "proxy_table") continue;
-    if (f.scope !== "candidate") continue;
+    if (f.scope !== "candidate" && !(f.scope === "organization" && f.personName)) continue;
     const urls = (f.sourceUrls ?? []).filter((u) => /^https?:\/\//i.test(String(u)));
     if (f.personName && String(f.personName).trim().length >= 3) {
       add(String(f.personName), { role: f.role ?? undefined, basis: f.note || f.role || "Named on visited public page", sourceUrls: urls });
