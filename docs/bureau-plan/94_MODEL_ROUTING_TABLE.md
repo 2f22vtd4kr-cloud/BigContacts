@@ -2,12 +2,20 @@
 
 **Part of:** APEX_ATLAS_MASTER_BUREAU_PLAN
 
-| Role | Primary | Fallback chain |
-|------|---------|----------------|
-| Boss objective / final review | Gemini | NVIDIA RH → Groq capacity |
-| Adaptive free step | Gemini Boss | NVIDIA free JSON → Groq free JSON → stop |
-| Dig investigator step | Groq | Mistral → Gemini → NVIDIA |
-| Right-hand narration | NVIDIA | skip (non-blocking) |
-| Extractors (optional) | as coded | never invent contacts |
+| Role | Canonical model/provider | Fallback / notes |
+|------|--------------------------|------------------|
+| Boss / case direction | **Gemini** | No web/OSINT browsing |
+| Right-hand / case critique | **NVIDIA NIM** | Non-blocking advisory path where configured; no web/OSINT browsing |
+| Discovery investigator | **Groq → Mistral** | Same investigator capability; model remains free to choose research actions |
+| Dig investigator | **Groq → Mistral** | Actual web/OSINT research, tool selection, pivots, evidence and stopping |
+| Promotion / integrity | Deterministic TypeScript | Provenance, identity, scope, lifecycle and persistence only |
 
-Boss hierarchy ≠ dig capacity chain. Document in orientation.
+## Hard role boundary
+
+`Boss = Gemini`  
+`Right-hand = NVIDIA NIM`  
+`Discovery/Dig = Groq → Mistral`
+
+Gemini and NVIDIA **must not** be used as Dig/discovery web-research fallbacks. If Groq and Mistral are unavailable, the research capability fails/degrades honestly. It must not borrow the control-plane models or invoke a deterministic search recipe.
+
+Provider fallback is transport infrastructure, not hierarchy: the fallback investigator receives the same objective/state and independently selects its next action.
