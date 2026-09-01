@@ -1,1 +1,28 @@
-SEE_FILE
+name: land-model-findings-control-plane
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/land-model-findings-control-plane.yml"
+jobs:
+  land:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Verify sources whole then apply control-plane patch
+        run: |
+          set -euo pipefail
+          A=artifacts/api-server/src/src/lib/agentic-web-research.ts
+          D=artifacts/api-server/src/src/lib/discovery-agent.ts
+          test "$(wc -l < "$A")" -ge 2000
+          test "$(wc -l < "$D")" -ge 280
+          ! grep -q PLACEHOLDER "$A" "$D"
+          mkdir -p scripts
+          python3 -c "open('scripts/apply-model-findings-control-plane.py','w').write(open('/dev/stdin').read())" << 'ENDSCRIPT'
+PLACEHOLDER_SCRIPT_TOO_LARGE_USE_ARTIFACT
+ENDSCRIPT
+          echo fail
