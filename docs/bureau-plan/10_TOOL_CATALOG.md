@@ -1,142 +1,40 @@
 # Volume 10 — OSINT Tool Catalog (Model-Chosen Capabilities)
 
-**Law:** Every tool below is a **capability the dig model may select**. None is a mandatory stage on a healthy run.
+**Law:** Every tool below is a capability the Dig investigator may select. None is a mandatory research stage on a healthy run.
 
-## Inventory
+| Action | Class | Backends | Role |
+|--------|-------|----------|------|
+| web_search | SERP | Serper, Tavily, Exa, DDG | Model-selected discovery/research |
+| visit | Fetch | HTTP client | Read a selected page |
+| browser_fetch | Browser | Scrapfly, ZenRows | Escalate selected page fetch |
+| registry_search | Registry | EDGAR, Companies House, BRREG, GLEIF, OpenCorporates, BODACC | Identity/company evidence |
+| domain_lookup | Infra | RDAP, WhoisJSON | Domain/org evidence |
+| harvest_domain | Harvest | theHarvester | Domain evidence when model chooses it |
+| footprint_email | Footprint | Holehe | Public account-signal investigation |
+| footprint_username | Footprint | Maigret, Sherlock | Handle/profile investigation |
+| reverse_whois | Infra | Whoxy | Domain graph investigation |
+| done | Control | n/a | Model-selected stop |
 
-| Action | Class | Backends | Output | Failure modes | Role in free dig |
-|--------|-------|----------|--------|---------------|------------------|
-| web_search | SERP | Serper, Tavily, Exa, DDG fallback | Invent queries; return titles, URLs, snippets | Empty SERP; rate limit; missing key | Primary dig move |
-| visit | Fetch | HTTP client | HTML/text; CONTACT FACTS extract | 403/CF; timeout | Primary page read |
-| browser_fetch | Browser | Scrapfly, ZenRows | Rendered HTML when static fetch fails | Quota; key missing | Anti-bot / JS pages |
-| registry_search | Registry | EDGAR, CH, BRREG, GLEIF, OpenCorporates, BODACC | Filings, officers, company links | 401 token; schema drift | Identity anchors |
-| domain_lookup | Infra | RDAP, WhoisJSON | Registrar, contacts, nameservers | Thin RDAP; privacy redaction | Org surface |
-| harvest_domain | Harvest | theHarvester | Emails/hosts from domain | Noise; install missing | Domain email sweep |
-| footprint_email | Footprint | Holehe | Account existence signals | False positives; rate limit | Email probing |
-| footprint_username | Footprint | Maigret, Sherlock | Profile URLs across sites | Noise; slow CLI | Handle pivot |
-| reverse_whois | Infra | Whoxy if keyed | Domains by registrant | Key missing; paid tier | Org domain graph |
-| done | Control | n/a | End loop; keep findings bag | Premature done | Model stop |
+## Tool-use law
 
-## Per-tool requirements
+The Dig investigator chooses whether to search, visit, pivot, use a registry, inspect a domain, investigate a public profile, or stop. Deterministic code executes the selected action and validates its result. Tool output remains a typed observation with source URL/status; it is not automatically an identity claim.
 
-### `web_search`
+Missing tools/providers surface as failures or observations. They must never trigger a hidden scripted research path.
 
-- **Class:** SERP
-- **Backends:** Serper, Tavily, Exa, DDG fallback
-- **Expected output to model:** Invent queries; return titles, URLs, snippets
-- **Failure modes:** Empty SERP; rate limit; missing key
-- **Role:** Primary dig move
-- **Observation contract:** structured summary + URLs + error string if failed; never silent success.
-- **Live Desk:** map to method chrome (search / browser / registry / footprint / domain).
-- **DigSpan:** op=`execute_tool` or `chat` for LLM; name=`web_search`.
+## Search provider order
 
-### `visit`
+Healthy web-search capability may use **Serper → Tavily → Exa → DDG** according to the runtime's capability fallback. This is search transport fallback, not research strategy: the query remains the model's choice.
 
-- **Class:** Fetch
-- **Backends:** HTTP client
-- **Expected output to model:** HTML/text; CONTACT FACTS extract
-- **Failure modes:** 403/CF; timeout
-- **Role:** Primary page read
-- **Observation contract:** structured summary + URLs + error string if failed; never silent success.
-- **Live Desk:** map to method chrome (search / browser / registry / footprint / domain).
-- **DigSpan:** op=`execute_tool` or `chat` for LLM; name=`visit`.
+## LLM provider-role boundary
 
-### `browser_fetch`
+**Dig investigator: Groq → Mistral only.** This is the provider failover for the web/OSINT research capability. Gemini is Boss and NVIDIA NIM is right-hand; neither is a Dig fallback.
 
-- **Class:** Browser
-- **Backends:** Scrapfly, ZenRows
-- **Expected output to model:** Rendered HTML when static fetch fails
-- **Failure modes:** Quota; key missing
-- **Role:** Anti-bot / JS pages
-- **Observation contract:** structured summary + URLs + error string if failed; never silent success.
-- **Live Desk:** map to method chrome (search / browser / registry / footprint / domain).
-- **DigSpan:** op=`execute_tool` or `chat` for LLM; name=`browser_fetch`.
+If Groq and Mistral are unavailable, the Dig capability fails closed/degrades honestly. Do not replace the missing investigator with Gemini, NVIDIA, a deterministic search recipe, or a force-hop sequence.
 
-### `registry_search`
+## Observation and provenance
 
-- **Class:** Registry
-- **Backends:** EDGAR, CH, BRREG, GLEIF, OpenCorporates, BODACC
-- **Expected output to model:** Filings, officers, company links
-- **Failure modes:** 401 token; schema drift
-- **Role:** Identity anchors
-- **Observation contract:** structured summary + URLs + error string if failed; never silent success.
-- **Live Desk:** map to method chrome (search / browser / registry / footprint / domain).
-- **DigSpan:** op=`execute_tool` or `chat` for LLM; name=`registry_search`.
-
-### `domain_lookup`
-
-- **Class:** Infra
-- **Backends:** RDAP, WhoisJSON
-- **Expected output to model:** Registrar, contacts, nameservers
-- **Failure modes:** Thin RDAP; privacy redaction
-- **Role:** Org surface
-- **Observation contract:** structured summary + URLs + error string if failed; never silent success.
-- **Live Desk:** map to method chrome (search / browser / registry / footprint / domain).
-- **DigSpan:** op=`execute_tool` or `chat` for LLM; name=`domain_lookup`.
-
-### `harvest_domain`
-
-- **Class:** Harvest
-- **Backends:** theHarvester
-- **Expected output to model:** Emails/hosts from domain
-- **Failure modes:** Noise; install missing
-- **Role:** Domain email sweep
-- **Observation contract:** structured summary + URLs + error string if failed; never silent success.
-- **Live Desk:** map to method chrome (search / browser / registry / footprint / domain).
-- **DigSpan:** op=`execute_tool` or `chat` for LLM; name=`harvest_domain`.
-
-### `footprint_email`
-
-- **Class:** Footprint
-- **Backends:** Holehe
-- **Expected output to model:** Account existence signals
-- **Failure modes:** False positives; rate limit
-- **Role:** Email probing
-- **Observation contract:** structured summary + URLs + error string if failed; never silent success.
-- **Live Desk:** map to method chrome (search / browser / registry / footprint / domain).
-- **DigSpan:** op=`execute_tool` or `chat` for LLM; name=`footprint_email`.
-
-### `footprint_username`
-
-- **Class:** Footprint
-- **Backends:** Maigret, Sherlock
-- **Expected output to model:** Profile URLs across sites
-- **Failure modes:** Noise; slow CLI
-- **Role:** Handle pivot
-- **Observation contract:** structured summary + URLs + error string if failed; never silent success.
-- **Live Desk:** map to method chrome (search / browser / registry / footprint / domain).
-- **DigSpan:** op=`execute_tool` or `chat` for LLM; name=`footprint_username`.
-
-### `reverse_whois`
-
-- **Class:** Infra
-- **Backends:** Whoxy if keyed
-- **Expected output to model:** Domains by registrant
-- **Failure modes:** Key missing; paid tier
-- **Role:** Org domain graph
-- **Observation contract:** structured summary + URLs + error string if failed; never silent success.
-- **Live Desk:** map to method chrome (search / browser / registry / footprint / domain).
-- **DigSpan:** op=`execute_tool` or `chat` for LLM; name=`reverse_whois`.
-
-### `done`
-
-- **Class:** Control
-- **Backends:** n/a
-- **Expected output to model:** End loop; keep findings bag
-- **Failure modes:** Premature done
-- **Role:** Model stop
-- **Observation contract:** structured summary + URLs + error string if failed; never silent success.
-- **Live Desk:** map to method chrome (search / browser / registry / footprint / domain).
-- **DigSpan:** op=`execute_tool` or `chat` for LLM; name=`done`.
-
-## Provider failover for search
-
-Order on healthy installs: **Serper → Tavily → Exa → DDG**. Missing middle providers skip. Integrity must count Serper as live search.
-
-## LLM failover for dig steps
-
-**Groq → Mistral → Gemini → NVIDIA**. Empty/error advances chain. All fail → thin deterministic recovery once.
+Search results, fetched pages, registry responses and OSINT results are observations. A contact finding must retain exact HTTP(S) source provenance and scope. An organization inbox or switchboard is organization-scoped unless evidence establishes a personal association.
 
 ## Installation
 
-Python OSINT (Holehe, Maigret, Sherlock, theHarvester) is environment-dependent. Missing tools must surface as observations, not fake findings. Replit from-zero may set INSTALL_PYTHON_OSINT=false for credit-safe boot; full parity digs need tools installed.
+Python OSINT tools are environment-dependent. Missing installations must be reported as unavailable capabilities, never converted into synthetic findings.
