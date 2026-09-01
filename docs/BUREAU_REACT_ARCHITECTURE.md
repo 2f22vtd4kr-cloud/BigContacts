@@ -1,197 +1,135 @@
-# Apex Atlas — ReAct bureau architecture
+# Apex Atlas — ReAct Bureau Architecture
 
-**Product rule:** Trained models *research*. OSINT tools *execute*. Scripts are *backstop only* when every control LLM is dead.
+**Canonical role law:** Boss = **Gemini**. Right-hand = **NVIDIA NIM**. Discovery/Dig investigator = **Groq → Mistral**. Gemini and NVIDIA do not conduct Apex web/OSINT research.
 
-This is not a search playbook with LLM labels. It is a **harness**: tools + bounds + multi-provider failover around a free ReAct loop.
-
----
-
-## 0. Session orientation (mandatory)
-
-Every LLM call is a cold start. **`apex-bureau-orientation.ts`** injects product identity, goal, architecture, role (Boss / right-hand / investigator / dig agent), and the full OSINT tool surface into prompts for:
-- Boss (plan, discovery, adaptive assign, final review, orchestrator briefs)
-- Right-hand (NVIDIA case reasoning + discovery advice + final review)
-- Investigators (`investigator-prompt-guide`)
-- Agentic dig loop (`buildStepPrompt`)
-
-## 1. ReAct agent loop (industry + Apex)
-
-### Industry core (2025–26)
-
-Every production agent converges on:
-
-1. **Perceive** — goal, trajectory, last observation  
-2. **Reason** — model decides next move (thought)  
-3. **Act** — runtime runs exactly one tool  
-4. **Observe** — tool result returns to context  
-5. **Stop** — model `done`, max iterations, wall-clock, or integrity failure  
-
-Patterns that matter for Apex:
-
-| Pattern | Role |
-|---------|------|
-| **ReAct** | Base dig loop |
-| **Tool-use loop** | Search, visit, registries, Holehe/Maigret are tools |
-| **Bounded execution** | `maxIter` + `hardTimeoutMs` |
-| **Provider fallback** | Groq → Mistral → Gemini → NVIDIA per step |
-| **Partial success on limit** | Budget/timeout returns findings already extracted |
-
-### Apex agentic loop (live path)
-
-```
-objective + target
-  → llmStep(prompt)     // multi-provider JSON ReAct
-  → parse action
-  → web_search | visit | footprint_email | footprint_username | done
-  → observation + CONTACT FACTS on HTML
-  → repeat until done | maxIter | hardTimeout
-```
-
-**Fail-closed:** emails/phones need `sourceUrls`; trash/placeholder sanitizers; aggregator hosts deprioritized.
-
-**Deterministic extractors** on every `visit` (CONTACT FACTS, proxy/IR blocks) are **tool output**, not a research script.
+Apex is a model-led research bureau, not a deterministic search playbook. The harness supplies state, tools, budgets, provenance and safety boundaries; the investigator model owns the research trajectory.
 
 ---
 
-## 2. LLM fallback strategies
+## 0. Role architecture
 
-### Per-step control plane (`llmStep`)
+### Boss — Gemini
 
-```
-try Groq (model list rotation)
-  → try Mistral
-  → try Gemini Boss path
-  → try NVIDIA
-  → null  ⇒ deterministic recovery (one plain search + optional visit)
-```
+Owns case direction, strategic prioritization, investigator briefs and case-level review where configured. It does not browse or execute web/OSINT tools.
 
-Rules:
+### Right-hand — NVIDIA NIM
 
-- **Never** depend on a single vendor or a decommissioned model id.  
-- Empty response counts as failure → advance provider.  
-- Health signal: `setAgenticLlmHealth` feeds `bureauIntegrity` (banner / status).  
-- **Do not** run force-search recipes when models are healthy.
+Owns case-file critique, evidence-gap analysis and advisory recommendations. It does not browse or execute web/OSINT tools and is not a Dig fallback.
 
-### Final card review (separate path)
+### Discovery / Dig investigator — Groq → Mistral
 
-Gemini Boss → NVIDIA right-hand → Groq capacity fallback → deterministic adjudicator on eligible candidates only.
+Owns actual web/OSINT research:
 
-### Adaptive director
+- inventing queries;
+- selecting URLs and tools;
+- reading observations;
+- forming and testing hypotheses;
+- pivoting;
+- choosing research depth;
+- deciding what evidence supports a finding;
+- stopping.
 
-Boss free `tool` + `query` → right-hand → Groq free step → **stop** (no dig ladder).
+Groq → Mistral is capability-local provider fallback, not hierarchy. A fallback receives the same objective/state and independently decides the next action.
 
----
+### Harness
 
-## 3. Budget exit — code pattern
-
-When the loop hits a limit, **keep what tools already found**. Never discard the bag.
-
-### Hard wall-clock (inside the for-loop)
-
-```ts
-if (Date.now() - startedAt >= hardTimeoutMs) {
-  history.push(`step${i + 1}: hard_timeout ... findings=${findings.length}`);
-  salvageEmailsFromHistory();
-  return {
-    status: "timeout",
-    model: modelUsed,
-    iterations: i,
-    searches,
-    visits,
-    findings, // partial preserved
-    trajectory: history,
-    error: `hard timeout ${hardTimeoutMs}ms (partial findings preserved)`,
-  };
-}
-```
-
-### Iteration budget exhausted (after the for-loop)
-
-```ts
-for (let i = 0; i < maxIter; i++) {
-  // ... reason → act → observe ...
-  if (action.action === "done") {
-    salvageEmailsFromHistory();
-    return { status: "completed", findings, /* ... */ };
-  }
-}
-
-// Budget exit — still salvage bag
-salvageEmailsFromHistory();
-return {
-  status: "completed",
-  model: modelUsed,
-  iterations: maxIter,
-  searches,
-  visits,
-  findings,
-  trajectory: history,
-  error: "iteration budget exhausted",
-};
-```
-
-### Model `done` with empty payload but non-empty bag
-
-Accept `done` when auto-extracted CONTACT FACTS already sit in `findings` — same as a human keeping what they saw on the page.
+Deterministic code may enforce lifecycle, schema validity, budgets, timeouts, permissions, provenance, identity safety, persistence and promotion honesty. It may not choose the research path.
 
 ---
 
-## 4. Structured plan — real AI OSINT bureau (not scripted slop)
+## 1. Free-ReAct loop
 
-### Principle
+```
+objective + target + structured case state
+        ↓
+Investigator LLM decision (Groq → Mistral)
+        ↓
+model-selected action
+        ↓
+tool execution
+        ↓
+typed observation + exact provenance
+        ↓
+model reasoning / pivot / stop
+        ↺
+```
 
-| Layer | Owns |
-|-------|------|
-| **Boss / right-hand / dig LLMs** | What to investigate next, when to stop, what lands on the card |
-| **Tools** | SERP, fetch, browser escalate, Holehe, Maigret, Sherlock, CH, EDGAR, Whois… |
-| **Harness** | Bounds, failover, fail-closed validation, integrity banner |
-| **Scripts** | Only when **all** dig LLMs fail for a step |
+Available capabilities may include web search, page visit, browser fetch, registry lookup, domain/WHOIS, public email/username footprinting, domain harvesting and reverse WHOIS. They are optional capabilities, not stages.
 
-### Phase A — Control plane (mostly done, do not regress)
-
-- [x] Delete force_* gap-fills from agentic  
-- [x] Done only on pure no-op  
-- [x] Adaptive stop-only rules path  
-- [x] Boss free brief (no tool menu)  
-- [x] Multi-LLM dig + review  
-- [x] Off dead Llama 3.3  
-- [x] Budget/timeout preserve findings  
-- [ ] Optional: native `tools[]` per provider where one model owns the loop (schema reliability)
-
-### Phase B — Tools as model-chosen capabilities (in progress)
-
-- [x] Serper → Tavily → Exa → DDG for `web_search`  
-- [x] `visit` + browser escalate + CONTACT FACTS  
-- [x] Domain surface (RDAP / WhoisJSON) on discovered hosts  
-- [x] **`footprint_email` / `footprint_username`** as optional ReAct actions (model chooses)  
-- [x] **`domain_lookup`**, **`registry_search`** (all registry-client IDs), **`harvest_domain`** (theHarvester), **`browser_fetch`** (Scrapfly/ZenRows), **`reverse_whois`** (Whoxy) — model asks, tool runs  
-- [ ] Reactor shows real tool ids + spoken stories for each
-
-### Phase C — Operator honesty
-
-- [x] `bureauIntegrity` critical when no search or no agentic LLM  
-- [x] No fake Perplexity LIVE  
-- [ ] Integrity panel lists **which** OSINT CLIs are installed  
-- [ ] Trajectory never invents future steps
-
-### Phase D — Acceptance
-
-- Same hard public target as a strong general agent  
-- `bureauIntegrity=ok`  
-- Expect **more** surface (tools) with **equal or better** contact precision  
-- Loss to a single web agent = severity bug in harness or keys, not “models are weak”
-
-### Do not re-introduce
-
-`force_company_search`, `force_related_search`, `force_org_email_search`, refuse-done loops, GROK-PARITY search orders, platform `site:` dig menus, adaptive dig ladders.
+There is no mandatory first search, company→LinkedIn→Instagram chain, force hop, ranked Forbes intake, or fixed number of hops.
 
 ---
 
-## 5. Replit boot (research)
+## 2. Discovery identity boundary
 
-1. Pull latest `main`  
-2. Secrets: Serper + Groq minimum; full set preferred  
-3. `RESEARCH_DEPTH=standard`  
-4. Python OSINT tools installed (Holehe, Maigret, Sherlock)  
-5. `bureauIntegrity=ok`  
-6. Launch smoke — trajectory shows model-invented queries, not `force_*`
+Discovery must keep these layers distinct:
+
+```
+RAW PAGE / SERP / TOOL OBSERVATION
+        ↓
+MODEL HYPOTHESIS
+        ↓
+MODEL-EMITTED finding (action=done)
+        ↓
+identity + provenance safety gate
+        ↓
+ADMITTED PERSON
+```
+
+Deterministic extraction may preserve literal contact facts as observations, but it is not allowed to select a person identity. Proxy/filing related-name tables, snippets, headings, addresses, products, departments and organization-only strings cannot become candidates merely because they look person-shaped.
+
+The canonical discovery admission input is `result.modelFindings` plus the actual trajectory, not a general auto-extracted findings bag.
+
+---
+
+## 3. Tool observations and provenance
+
+Every tool result is typed observation with source URL/status where applicable. Search snippets and page text are not facts merely because they came from a tool. Contact claims require exact HTTP(S) provenance and explicit scope.
+
+Organization routes remain organization-scoped unless evidence establishes a personal association. A generic inbox or switchboard is never silently relabeled as a direct personal contact.
+
+---
+
+## 4. Provider behavior
+
+### Investigator
+
+**Groq → Mistral only.** If both are unavailable, the Dig capability fails/degrades honestly. It does not fall back to Gemini or NVIDIA and does not invoke deterministic research recovery.
+
+### Web search transport
+
+Search backends may fail over among configured Serper/Tavily/Exa/DDG transports. This changes the transport used for the model's chosen query; it does not choose the query.
+
+Provider readiness must distinguish configured, reachable, authorized, rate-limited, quota-exhausted and successfully responding.
+
+---
+
+## 5. Stopping and budgets
+
+The investigator may select `done` when evidence is sufficient or further research is not worthwhile. Hard iteration, wall-clock, cancellation and provider deadlines are harness safety limits, not a research script.
+
+On timeout/cancel/budget exit, valid evidence already collected is preserved. If identity or contact evidence is insufficient, an empty result is preferable to a fabricated person/contact.
+
+---
+
+## 6. Replit production path
+
+The production App uses one API workflow on port 8080, with the desk at `/` and API under `/api/`. `ENABLE_AUTO_PIPELINE=false` by default. Live quality requires an actual provider-backed trajectory; health checks and static autonomy guards are not research proof.
+
+---
+
+## 7. Acceptance
+
+A valid live acceptance run must show:
+
+1. a real provider-backed investigator decision;
+2. model-selected search/visit/tool actions;
+3. real observations;
+4. model-emitted discovery finding(s);
+5. deterministic identity/provenance admission;
+6. the admitted person entering free-ReAct Dig;
+7. honest sourced contacts or an explicitly empty card;
+8. no forced research hops;
+9. trajectory evidence sufficient to reconstruct where each claim came from.
+
+A longer trajectory or larger tool count is not evidence of superiority. Compare truthful research outcomes against a strong independent baseline.
