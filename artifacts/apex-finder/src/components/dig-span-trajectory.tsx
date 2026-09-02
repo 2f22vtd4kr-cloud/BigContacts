@@ -3,6 +3,7 @@
  * Data contract: GET /api/ingest/atlas-status → recentSpans[]
  */
 import { cn } from "@/lib/utils";
+import { humanizeLiveStep } from "@/lib/humanize-live-copy";
 
 export type DigSpanView = {
   id: string;
@@ -61,7 +62,7 @@ export function DigSpanTrajectory({
         className={cn("rounded-lg border border-white/5 bg-black/20 px-3 py-2 text-[11px] text-slate-500", className)}
         data-testid="dig-span-trajectory-empty"
       >
-        No live dig spans yet — free-ReAct steps appear here when tools run.
+        Nothing on the desk yet — searches and page reads will show up here in plain English.
       </div>
     );
   }
@@ -83,7 +84,7 @@ export function DigSpanTrajectory({
               "grid grid-cols-[52px_1fr_auto] gap-2 rounded-md px-2 py-1.5 text-[11px] leading-snug",
               active ? "bg-[#9CFF1A]/08" : "bg-white/[0.03]",
             )}
-            data-span-type={s.spanType}
+            data-span-type={humanizeLiveStep({ name: s.name, spanType: s.spanType, status: s.status, toolName: s.toolName, inputSummary: s.inputSummary, resultSummary: s.resultSummary, active: s.status === "active" }).title}
             data-span-status={s.status}
           >
             <span className="font-mono uppercase tracking-wide" style={{ color }}>
@@ -91,7 +92,7 @@ export function DigSpanTrajectory({
             </span>
             <div className="min-w-0">
               <div className="truncate font-medium text-stone-200">
-                {s.toolName || s.name}
+                {humanizeLiveStep({ name: s.name, spanType: s.spanType, status: s.status, toolName: s.toolName, inputSummary: s.inputSummary, resultSummary: s.resultSummary, active: s.status === "active" }).detail}
                 {s.operationName && s.operationName !== s.spanType ? (
                   <span className="text-slate-600"> · {s.operationName}</span>
                 ) : null}

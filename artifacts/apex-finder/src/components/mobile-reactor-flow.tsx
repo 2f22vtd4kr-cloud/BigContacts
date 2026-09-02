@@ -6,6 +6,7 @@ import {
   History,
 } from "lucide-react";
 import { DigSpanTrajectory } from "@/components/dig-span-trajectory";
+import { humanizeLiveStep, isInternalLiveDump } from "@/lib/humanize-live-copy";
 import { formatSchedulerCountdown, schedulerWaitRemaining } from "./scheduler-utils";
 import { BureauOpsStage } from "./bureau-ops-stage";
 import { useBureauLiveDesk } from "../lib/use-bureau-live";
@@ -297,7 +298,19 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
         return now - ts < 180_000;
       });
     }
-    const out = scoped.slice(-6);
+    // HUMAN_DESK_FILTER_V1
+    const cleanedScoped = scoped.filter((e: any) => {
+      const blob = [e?.story, e?.inputSummary, e?.resultSummary, e?.stage, e?.raw].filter(Boolean).join(" ");
+      if (isInternalLiveDump(blob) && !e?.targetName) return false;
+      if (/BOSS_DISCOVERY_DIRECTION/i.test(blob)) {
+        e.story = "Boss set the research brief";
+        e.stage = "boss";
+        e.inputSummary = undefined;
+        e.resultSummary = undefined;
+      }
+      return true;
+    });
+    const out = cleanedScoped.slice(-6);
     // If live but desk only has finished/stale steps, surface the live phase as one active window
     const tel = atlasState?.atlasTelemetry as any;
     const allDone = out.length > 0 && out.every((e: any) => /complete|done|success/i.test(String(e?.status || "")));
@@ -330,21 +343,15 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
         const active = String(s.status || "") === "active";
         const input = String(s.inputSummary || "").slice(0, 160);
         const result = String(s.resultSummary || "").slice(0, 120);
-        let story = "";
-        if (name === "web_search" || (name.includes("search") && !/^https?:/i.test(input))) {
-          story = active ? ("Now searching: " + (input || "web")) : ("Done search: " + (input || name));
-        } else if (name === "visit" || name === "browser_fetch" || /^https?:///i.test(input)) {
-          story = active ? ("Now reading page: " + (input || name)) : ("Done page: " + (input || name));
-        } else if (name === "discovery_slot" || name === "discovery_agent") {
-          story = active ? ("Now discovery " + (input || name)) : ("Done discovery " + (result || input || name));
-        } else if (name === "llm_step" || name === "llm_wait") {
-          story = active ? "Now model deciding next step…" : "Done model step";
-        } else {
-          story = active ? ("Now: " + name + " " + input).trim() : ("Done: " + name + " " + (result || input)).trim();
-        }
-        if (result && !active && !story.includes(result.slice(0, 40))) {
-          story = story + " — " + result;
-        }
+        const human = humanizeLiveStep({
+          name,
+          spanType: String(s.spanType || ""),
+          status: String(s.status || ""),
+          inputSummary: input,
+          resultSummary: result,
+          active,
+        });
+        const story = human.title + ": " + human.detail;
         out.push({
           timestamp: s.startedAt || new Date().toISOString(),
           kind: "log",

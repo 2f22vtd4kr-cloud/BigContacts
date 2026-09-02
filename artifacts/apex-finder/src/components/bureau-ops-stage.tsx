@@ -72,8 +72,14 @@ function pickTool(e: OpsEvent): string {
 }
 
 function isLogGarbage(s: string): boolean {
-  return /ATLAS_EVENT|\"kind\"\s*:\s*\"telemetry\"|DIRECTOR\s+20\d{2}-|^\s*\{[\s\S]*\"stage\"|query template|0 domain target|HNWI target\s*[·•]/i.test(s)
-    || /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(s) && /ATLAS|DIRECTOR|telemetry|toolIds/i.test(s);
+  if (!s) return true;
+  const t = s.trim();
+  if (t.length < 3) return true;
+  if (/^[{[]/.test(t)) return true;
+  if (/BOSS_DISCOVERY_DIRECTION|DISCOVERY_MODEL_STEP|DISCOVERY_ADMIT|DURABLE_PROMOTION|BUREAU|/i.test(t)) return true;
+  if (/modelFindings|vectorType|atlasPhase|sourceUrls.{0,40}https/i.test(t) && t.length > 90) return true;
+  if (/slot=d+/d+.*concurrent=/i.test(t)) return true;
+  return /DIRECTORs+d{4}-|jobId=/i.test(t) && t.length > 100;
 }
 
 function isInternalLanePrompt(s: string): boolean {
