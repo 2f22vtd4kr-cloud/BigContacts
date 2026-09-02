@@ -2,12 +2,12 @@
 
 **Repo:** https://github.com/2f22vtd4kr-cloud/BigContacts  
 **Branch:** `main`  
-**Current tip floor:** `97e395ac08d5d8b2a4eaa5eeb673add29d72c2dc` or newer (post-proxy-fix bounded-smoke trigger)  
+**Current tip floor:** `2318d302e05eb93795c9d8660b45bdb8e754c577` or newer (post-Batch-46 promotion-boundary correction)  
 **Canonical Replit path:** one paste — `docs/REPLIT_UPDATE_PROMPT_LATEST.md` (Agent inside the App). Expanded procedure: `docs/RUN_BUREAU.md`.  
 **Product:** Apex Atlas research bureau; **Bureau is its OSINT/research architecture**, not a separate product.
 
 ## Current state
-Apex Atlas is an AI-driven research bureau embedded in BigContacts. Models decide research actions; tools execute. The Dig path is free ReAct for one target and supports web search, page visits, browser fetching, email/username footprinting, domain/WHOIS, registry lookup, domain harvesting, reverse WHOIS, and `done`. Findings require real source URLs and are fail-closed. Dig findings persist into Bureau evidence and are promoted/rehydrated into the entity card.
+Apex Atlas is an AI-driven research bureau embedded in BigContacts. Models decide research actions; tools execute. The Dig path is free ReAct for one target and supports web search, page visits, browser fetching, email/username footprinting, domain/WHOIS, registry lookup, domain harvesting, and `done`. Reverse-WHOIS/Whoxy is not a Dig action. Findings require real source URLs and are fail-closed. Dig findings persist into Bureau evidence and are promoted/rehydrated into the entity card.
 
 **Canonical model-role boundary:** Boss = **Gemini**. Right-hand = **NVIDIA NIM**. Neither browses or executes web/OSINT tools. Actual web research is performed by the **Dig/investigator model lane**, whose currently enforced provider failover is **Groq → Mistral**. Gemini and NVIDIA must never silently become Dig providers. Every LLM prompt receives `apex-bureau-orientation.ts` because calls are memoryless.
 
