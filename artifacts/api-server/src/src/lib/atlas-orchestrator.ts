@@ -828,6 +828,9 @@ async function enrichEntityFullCircle(atlasJobId: string, entity: EntityRow): Pr
             updatedAt: new Date(),
           }).where(eq(entitiesTable.id, id));
           if (boost.noticePhone) {
+            // A notice-line number is a public organizational/contact surface,
+            // not proof of a person's private/direct number. Keep that scope
+            // honest and let card mapping decide presentation from evidence.
             try {
               await db.insert(contactEvidenceTable).values({
                 entityId: id,
@@ -836,7 +839,7 @@ async function enrichEntityFullCircle(atlasJobId: string, entity: EntityRow): Pr
                 source: "EDGAR-Notice-Phone",
                 sourceUrl: boost.sourceUrls[0] ?? null,
                 metadata: JSON.stringify({
-                  scope: "candidate",
+                  scope: "organization",
                   mark: "notice_line",
                   label: "SEC notices-and-communications / Form 3/4",
                 }),
