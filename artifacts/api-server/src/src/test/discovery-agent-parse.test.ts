@@ -73,12 +73,44 @@ describe("discovery agent identity boundary", () => {
     ).toBe(true);
   });
 
+  it("requires an explicit investigator promotion decision", () => {
+    const finding = [{
+      personName: "Jane Example",
+      scope: "candidate" as const,
+      sourceUrls: ["https://example.com/leadership/jane-example"],
+      note: "named on public page",
+    }];
+
+    expect(parsePersonFindings(finding, [
+      "step1: visit https://example.com/leadership/jane-example",
+    ])).toEqual([]);
+
+    expect(parsePersonFindings([{
+      ...finding[0],
+      promotionDecision: "reject" as const,
+      promotionReason: "Identity is clear but not worth promoting",
+    }], [
+      "step1: visit https://example.com/leadership/jane-example",
+    ])).toEqual([]);
+
+    expect(parsePersonFindings([{
+      ...finding[0],
+      promotionDecision: "promote" as const,
+      promotionReason: "Strong public operating-company route",
+    }], [
+      "step1: visit https://example.com/leadership/jane-example",
+    ])).toEqual([
+      expect.objectContaining({ name: "Jane Example", promotionDecision: "promote" }),
+    ]);
+  });
+
   it("does not admit a model-asserted person unless the cited page was actually visited", () => {
     const finding = [{
       personName: "Jane Example",
       scope: "candidate" as const,
       sourceUrls: ["https://example.com/leadership/jane-example"],
       note: "named on public page",
+      promotionDecision: "promote" as const,
     }];
 
     expect(parsePersonFindings(finding, [
@@ -89,7 +121,7 @@ describe("discovery agent identity boundary", () => {
       "step1: web_search private company founder interview",
       "step2: visit https://example.com/leadership/jane-example",
     ])).toEqual([
-      expect.objectContaining({ name: "Jane Example" }),
+      expect.objectContaining({ name: "Jane Example", promotionDecision: "promote" }),
     ]);
   });
 
@@ -101,6 +133,7 @@ describe("discovery agent identity boundary", () => {
       scope: "candidate" as const,
       sourceUrls: ["https://www.sec.gov/Archives/edgar/data/example/def14a.htm"],
       note: "Related name on proxy/filing https://www.sec.gov/Archives/edgar/data/example/def14a.htm",
+      promotionDecision: "promote" as const,
     }];
 
     expect(parsePersonFindings(finding, [
@@ -115,13 +148,14 @@ describe("discovery agent identity boundary", () => {
       scope: "organization" as const,
       sourceUrls: ["https://example.com/team"],
       note: "Founder named on the company's leadership page",
+      promotionDecision: "promote" as const,
     }];
 
     expect(parsePersonFindings(finding, [
       "step1: web_search company founder leadership",
       "step2: visit https://example.com/team",
     ])).toEqual([
-      expect.objectContaining({ name: "Jane Example", role: "Founder" }),
+      expect.objectContaining({ name: "Jane Example", role: "Founder", promotionDecision: "promote" }),
     ]);
   });
 
@@ -130,12 +164,13 @@ describe("discovery agent identity boundary", () => {
       value: "person: Jane Example | Founder | Example Co",
       scope: "candidate" as const,
       sourceUrls: ["https://example.com/about"],
+      promotionDecision: "promote" as const,
     }];
 
     expect(parsePersonFindings(finding, [
       "step1: browser_fetch https://example.com/about",
     ])).toEqual([
-      expect.objectContaining({ name: "Jane Example", company: "Example Co" }),
+      expect.objectContaining({ name: "Jane Example", company: "Example Co", promotionDecision: "promote" }),
     ]);
   });
 });
