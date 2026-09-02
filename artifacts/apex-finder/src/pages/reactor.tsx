@@ -334,7 +334,6 @@ const NODES: NodeDef[] = [
   { id:"brreg",   label:"EU REGS",         sub:"BRREG · ARES",               cx:840,  cy:480, w:140, h:54,  type:"registry", Icon:Globe,      color:"#38bdf8" },
   { id:"occrp",   label:"OCCRP",           sub:"Sanctions",                  cx:1000, cy:480, w:140, h:54,  type:"registry", Icon:Shield,     color:"#38bdf8" },
   { id:"hnwi",    label:"HNWI",            sub:"Wealth signals",             cx:1160, cy:480, w:140, h:54,  type:"registry", Icon:TrendingUp, color:"#38bdf8" },
-  { id:"whoxy",   label:"WHOIS",           sub:"legacy alias → use RDAP",  cx:1320, cy:480, w:140, h:54,  type:"registry", Icon:Rss,        color:"#38bdf8" },
   { id:"opensky", label:"OPENSKY",         sub:"Flight track",               cx:1460, cy:480, w:130, h:54,  type:"discovery",Icon:Radio,      color:"#fb923c" },
 
   /* Outcome — card is the answer */
@@ -372,7 +371,6 @@ const EDGES: EdgeDef[] = [
   {id:"dig-eu", from:"mcts", to:"brreg"},
   {id:"dig-occ", from:"mcts", to:"occrp"},
   {id:"dig-hnwi", from:"mcts", to:"hnwi"},
-  {id:"dig-whois", from:"mcts", to:"whoxy"},
   {id:"dig-sky", from:"mcts", to:"opensky"},
   /* Search capacity into dig LLM */
   {id:"serper-groq", from:"perp0", to:"groq"},
@@ -393,7 +391,7 @@ const WAVES: Wave[] = [
   { nodes:["target"], edges:["t-dig","t-groq","t-gem"], label:"TARGET  —  entity or query for free dig" },
   { nodes:["mcts","groq","gemini"], edges:["dig-groq","dig-gem"], label:"FREE DIG  —  model decides the next tool" },
   { nodes:["perp0","tavily","exa","webdisc"], edges:["dig-serper","dig-tav","dig-exa","dig-visit","serper-groq","tav-groq","exa-groq"], label:"SEARCH & VISIT  —  queries and pages the model chooses" },
-  { nodes:["edgar","ch","hmlr","faa","brreg","occrp","hnwi","whoxy","maigret","inhouse","deepweb","opensky"], edges:["dig-edgar","dig-ch","dig-hmlr","dig-faa","dig-eu","dig-occ","dig-hnwi","dig-whois","dig-foot","dig-rdap","dig-harv","dig-sky"], label:"TOOLS  —  registries and OSINT when the model needs them" },
+  { nodes:["edgar","ch","hmlr","faa","brreg","occrp","hnwi","maigret","inhouse","deepweb","opensky"], edges:["dig-edgar","dig-ch","dig-hmlr","dig-faa","dig-eu","dig-occ","dig-hnwi","dig-foot","dig-rdap","dig-harv","dig-sky"], label:"TOOLS  —  registries and OSINT when the model needs them" },
   { nodes:["prac","semantic","bayesian","graph","evidence"], edges:["dig-prac","dig-sem","dig-bay","dig-graph","dig-card","prac-card","bay-card"], label:"CARD  —  contact route and evidence" },
   { nodes:["perpfu","mcts","groq"], edges:["dig-fu","fu-dig"], label:"ADAPTIVE LOOP  —  re-query with new evidence", adaptive:true },
 ];
@@ -401,7 +399,7 @@ const WAVES: Wave[] = [
 // ── Mobile phase groups ───────────────────────────────────────────────────────
 const MOBILE_PHASES = [
   { label:"INPUT",      detail:"Target becomes a research brief", nodeIds:["target"]                                              },
-  { label:"TOOLS", detail:"Registries the model may call", nodeIds:["faa","edgar","hmlr","ch","hnwi","occrp","brreg","whoxy"] },
+  { label:"TOOLS", detail:"Registries the model may call", nodeIds:["faa","edgar","hmlr","ch","hnwi","occrp","brreg"] },
   { label:"SEARCH",  detail:"Web search and page visits the model chooses", nodeIds:["inhouse","webdisc","deepweb","opensky","maigret"]     },
   { label:"AI LAYER",   detail:"Search, extraction, and adaptive follow-up", nodeIds:["perp0","exa","tavily","gemini","groq","perpfu"]       },
   { label:"SYNTHESIS",  detail:"Evidence becomes vectors and priority", nodeIds:["semantic","bayesian"]                                 },
@@ -409,14 +407,14 @@ const MOBILE_PHASES = [
   { label:"OUTPUT",     detail:"An evidence path ready for analyst review", nodeIds:["evidence"]                                 },
 ];
 
-const REGISTRY_NODE_IDS = ["faa","edgar","hmlr","ch","hnwi","occrp","brreg","whoxy"];
+const REGISTRY_NODE_IDS = ["faa","edgar","hmlr","ch","hnwi","occrp","brreg"];
 
 // A compact 360 × 740 coordinate system keeps the same complete network visible
 // on narrow screens. SVG carries the routes; the HTML cards remain readable.
 const MOBILE_NODE_POS: Record<string, { x:number; y:number }> = {
   target: { x:180, y:28 },
   faa: { x:42, y:112 }, edgar: { x:126, y:112 }, hmlr: { x:210, y:112 }, ch: { x:294, y:112 },
-  hnwi: { x:42, y:162 }, occrp: { x:126, y:162 }, brreg: { x:210, y:162 }, whoxy: { x:294, y:162 },
+  hnwi: { x:42, y:162 }, occrp: { x:126, y:162 }, brreg: { x:210, y:162 },
   inhouse: { x:42, y:246 }, webdisc: { x:126, y:246 }, deepweb: { x:210, y:246 }, opensky: { x:294, y:246 },
   maigret: { x:180, y:296 },
   perp0: { x:42, y:378 }, exa: { x:126, y:378 }, tavily: { x:210, y:378 }, groq: { x:294, y:378 },
@@ -454,7 +452,7 @@ const ATLAS_PHASE_NODES: Record<number, string[]> = {
   4:  ["inhouse","target"],
   5:  ["webdisc","inhouse","maigret"],
   6:  ["perp0","exa","tavily","gemini","groq","maigret","webdisc","deepweb"],
-  7:  ["whoxy","occrp","deepweb","opensky"],
+  7:  ["occrp","deepweb","opensky"],
   8:  ["semantic","bayesian","graph"],
   9:  ["semantic","bayesian","inhouse"],
   10: ["mcts","prac","graph","evidence","target"],
@@ -730,45 +728,31 @@ function formatDate(iso: string) {
   } catch { return iso.slice(0, 10); }
 }
 
-function AtlasPhaseStrip({ state, compact = false }: { state?: AtlasLiveState | null; compact?: boolean }) {
-  const activePhase = state?.phase ?? -1;
-  const running = Boolean(state);
+function AtlasPhaseStrip({ state, liveNodes, compact = false }: { state?: AtlasLiveState | null; liveNodes?: Set<string>; compact?: boolean }) {
+  const running = Boolean(state && (state.runStatus === "running" || state.runStatus === "paused"));
+  const activeCount = liveNodes?.size ?? 0;
+  const source = state?.sourceStep != null ? `SOURCE ${state.sourceStep}` : activeCount ? `${activeCount} LIVE TOOLS` : "AWAITING TOOL EVENT";
   return (
-    <div style={{
-      display:"flex", flexDirection:"column", gap:compact ? 5 : 7,
-      minWidth:0, width:"100%",
-    }}>
+    <div style={{ display:"flex", flexDirection:"column", gap:compact ? 5 : 7, minWidth:0, width:"100%" }}>
       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:8 }}>
         <span style={{ fontSize: compact ? 11 : 12, letterSpacing:"0.16em", color:"#526b86" }}>
-          {running ? `FREE DIG · PHASE ${activePhase}` : "FREE DIG · STANDBY"}
+          {running ? "FREE DIG · ACTIVITY" : state?.runStatus === "done" ? "FREE DIG · RECORDED" : "FREE DIG · STANDBY"}
         </span>
-        <span style={{ fontSize: compact ? 10 : 12, letterSpacing:"0.12em", color:running ? "#9CFF1A" : "#3a5070" }}>
-          {running ? (state?.sourceStep != null ? `SOURCE ${state.sourceStep}` : "PROCESSING") : "STANDBY"}
-        </span>
+        <span style={{ fontSize: compact ? 10 : 12, letterSpacing:"0.12em", color:running ? "#9CFF1A" : "#3a5070" }}>{source}</span>
       </div>
-            <div style={{ display:"flex", flexDirection:"column", gap:compact ? 4 : 6 }}>
-        <div
-          role="progressbar"
-          aria-valuenow={running ? Math.max(0, activePhase) : 0}
-          aria-valuemin={0}
-          aria-valuemax={10}
-          aria-label={running ? `Open dig phase ${activePhase}` : "Standby"}
-          style={{
-            height: compact ? 5 : 6, borderRadius:4, background:"#1a2740", overflow:"hidden",
-          }}
-        >
+      <div style={{ display:"flex", flexDirection:"column", gap:compact ? 4 : 6 }}>
+        <div role="status" aria-label={running ? "Free dig activity in progress" : "Free dig activity idle"} style={{ height: compact ? 5 : 6, borderRadius:4, background:"#1a2740", overflow:"hidden" }}>
           <div style={{
-            height:"100%", borderRadius:4, width: running ? `${Math.min(100, Math.max(8, activePhase * 10))}%` : "0%",
+            height:"100%", borderRadius:4, width: running ? "42%" : state?.runStatus === "done" ? "100%" : "0%",
             background: running ? "linear-gradient(90deg,#9CFF1A,#b8ff4d)" : "#263d59",
             boxShadow: running ? "0 0 10px #9CFF1A66" : "none",
             transition:"width .4s ease",
+            animation: running ? motionOrNone("pulseGlow 1.4s ease-in-out infinite") : "none",
           }} />
         </div>
-        {running && (
-          <span style={{ fontSize: compact ? 10 : 12, color:"#67e8f9", letterSpacing:"0.1em" }}>
-            {(ATLAS_PHASES.find(p => p.n === activePhase) ?? ATLAS_PHASES[1])?.label ?? "Research"}
-          </span>
-        )}
+        {state && <span style={{ fontSize: compact ? 10 : 12, color:"#67e8f9", letterSpacing:"0.1em" }}>
+          {state.detail || (activeCount ? "Tool telemetry is driving the desk" : "No tool event yet")}
+        </span>}
       </div>
     </div>
   );
@@ -804,7 +788,7 @@ function EntityWorkbench({ state, liveNodes, compact = false }: {
           CURRENT ENTITY WORKBENCH
         </span>
         <span style={{ marginLeft:"auto", fontSize: compact ? 10 : 12, color:"#526b86", letterSpacing:"0.08em" }}>
-          {state.phaseLabel}
+          {active.length ? `${active.length} LIVE TOOL${active.length === 1 ? "" : "S"}` : "ACTIVITY FEED"}
         </span>
       </div>
       <div style={{
@@ -842,7 +826,6 @@ const TELEMETRY_TOOL_LABELS: Record<string, string> = {
   maigret: "MAIGRET",
   holehe: "HOLEHE",
   occrp: "OCCRP",
-  whoxy: "WHOXY",
   graph: "GRAPH",
   mcts: "Path core",
   prac: "PRAC",
@@ -1095,7 +1078,7 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
                 </span>
               </div>
               <span style={{ fontSize: 12, letterSpacing:"0.1em", color:"#526b86" }}>
-                 {atlasState ? (atlasCancelled ? "STOPPED" : atlasFailed ? "FAILED" : atlasDone ? "COMPLETE" : `PHASE ${atlasState.phase}`) : "READY"}
+                 {atlasState ? (atlasCancelled ? "STOPPED" : atlasFailed ? "FAILED" : atlasDone ? "COMPLETE" : "ACTIVITY") : "READY"}
               </span>
             </div>
             <button
@@ -1118,7 +1101,7 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
           </div>
         </div>
 
-        <AtlasPhaseStrip state={atlasState} compact />
+        <AtlasPhaseStrip state={atlasState} liveNodes={liveNodes} compact />
         <QuickStats
           totalEntities={totalEntities}
           hotCount={hotCount}
@@ -1743,7 +1726,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
             <div style={{ flexShrink:0, marginLeft: 8 }}>{launchSlot}</div>
           ) : null}
           <div style={{ flex:1, minWidth:260 }}>
-            <AtlasPhaseStrip state={atlasState} compact />
+            <AtlasPhaseStrip state={atlasState} liveNodes={liveNodes} compact />
           </div>
             <div style={{ display:"flex", alignItems:"center", gap:16, flexShrink:0 }}>
               <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:4 }}>
@@ -1772,7 +1755,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
               <div style={{ textAlign:"right" }}>
               <div style={{ fontSize: 12, letterSpacing:"0.16em", color:"#3a5070" }}>ENTITY FLOW</div>
               <div style={{ fontSize:13, fontWeight:700, color:isLive ? "#9CFF1A" : "#8aa4c0", lineHeight:1, marginTop:3, letterSpacing:"0.12em" }}>
-                {atlasState ? (atlasCancelled ? "STOPPED" : atlasFailed ? "FAILED" : atlasDone ? "COMPLETE" : isLive ? `PHASE ${atlasState.phase}` : "IDLE") : "IDLE"}
+                {atlasState ? (atlasCancelled ? "STOPPED" : atlasFailed ? "FAILED" : atlasDone ? "COMPLETE" : isLive ? "ACTIVITY" : "IDLE") : "IDLE"}
               </div>
             </div>
           </div>
