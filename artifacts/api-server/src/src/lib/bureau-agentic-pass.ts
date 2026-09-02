@@ -27,6 +27,8 @@ export type BureauAgenticPassResult = {
     note: string;
   }>;
   trajectory: string[];
+  /** Explicit terminal reason from the underlying ReAct loop when available. */
+  stopReason?: string;
   error?: string;
 };
 
@@ -217,6 +219,7 @@ export async function runBureauAgenticWebPass(input: {
       findings: backedFindings,
       contactEvidence,
       trajectory: agentic.trajectory,
+      stopReason: agentic.stopReason,
       error: agentic.error,
     };
   } catch (err: any) {
