@@ -228,70 +228,17 @@ function rodStatusColor(status: RodStatus, fallback: string): string {
   }
 }
 
-const ATLAS_PHASES = [
-  /* Labels are progress chrome only — not a research playbook. Live tools = span telemetry. */
-  { n: 0, label: "BRIEF", detail: "Case orientation" },
-  { n: 1, label: "DISCOVER", detail: "Model-selected discovery" },
-  { n: 2, label: "DIG", detail: "Free-ReAct investigation" },
-  { n: 3, label: "DIG", detail: "Free-ReAct investigation" },
-  { n: 4, label: "DIG", detail: "Free-ReAct investigation" },
-  { n: 5, label: "DIG", detail: "Free-ReAct investigation" },
-  { n: 6, label: "DIG", detail: "Free-ReAct investigation" },
-  { n: 7, label: "DIG", detail: "Free-ReAct investigation" },
-  { n: 8, label: "DIG", detail: "Free-ReAct investigation" },
-  { n: 9, label: "CARD", detail: "Evidence and contact routes" },
-  { n: 10, label: "CARD", detail: "Evidence and contact routes" },
-];
-
-function atlasPhaseFromMessage(message: string, progress = 0): number {
-  const explicit = message.match(/Phase\s+(\d+)(?:\/10)?/i);
-  if (explicit) return Math.min(10, Math.max(0, Number(explicit[1])));
-  if (/\bMCTS\b|research batch/i.test(message)) return 10;
-  if (/\bPhase J\b|attribution|digital footprint|domain resolution/i.test(message)) return 8;
-  if (/embedding|semantic|net worth|confidence recompute|contact outcome/i.test(message)) return 9;
-  if (/forensic|ICIJ|Whoxy|WHOIS|Equasis|ADSB|flight history/i.test(message)) return 7;
-  if (/AI OSINT|Maigret|Holehe|Perplexity|Gemini|Tavily|Exa|Groq/i.test(message)) return 6;
-  if (/social|messenger|Telegram|LinkedIn|Instagram|Twitter/i.test(message)) return 5;
-  if (/in.house|Wikidata|GitHub|RDAP|ProPublica|DNS/i.test(message)) return 4;
-  if (/metadata|notes|EDGAR assets|source markers/i.test(message)) return 3;
-  if (/identity|ownership|Foundation|OpenOwnership|Companies House contact/i.test(message)) return 2;
-  if (/\[\d+\/\d+\]|discovery|registry|cooked|enrich/i.test(message)) return 1;
-  return Math.min(10, Math.max(0, progress));
-}
-
 function parseAtlasLiveState(message: string, progress = 0, total = 10, runStatus: AtlasLiveState["runStatus"] = "running"): AtlasLiveState {
-  const phase = runStatus === "done"
-    ? total
-    : (runStatus === "failed" || runStatus === "cancelled")
-      ? Math.min(total, Math.max(0, progress))
-      : atlasPhaseFromMessage(message, progress);
+  // Legacy status payloads still carry a numeric phase. In the Free-ReAct desk
+  // that number is display-only: it must never select or light tools.
+  const phase = runStatus === "done" ? total : Math.min(total, Math.max(0, progress));
   const source = message.match(/\[(\d+)\/(\d+)\]/);
-  // Remove emojis from the raw message before matching entity names
   const cleanMessage = message.replace(/[\u{1F300}-\u{1F9FF}]/gu, "").replace(/🍳/g, "");
   const entityBatch = cleanMessage.match(/:\s*([^…]+?)(?:…|$)/);
-  const names = entityBatch?.[1]
-    ?.split(",")
-    .map(value => value.trim())
-    .filter(Boolean)
-    .slice(0, 3) ?? [];
-  const phaseMeta = ATLAS_PHASES[phase] ?? ATLAS_PHASES[1];
-  const completion = message.match(/Atlas complete in ([^.]+)\.\s*(.*?)(?:\s*Phase 0:|$)/i);
-  const detail = runStatus === "done" && completion
-    ? `Completed in ${completion[1]}. ${completion[2].trim()}`
-    : cleanMessage.replace(/…$/, "").trim();
-  return {
-    runStatus,
-    phase,
-    phaseLabel: phaseMeta.label,
-    phaseProgress: progress,
-    phaseTotal: total,
-    sourceStep: source ? Number(source[1]) : null,
-    sourceTotal: source ? Number(source[2]) : null,
-    currentEntities: names,
-    entityProgress: null,
-    entityTotal: null,
-    detail,
-  };
+  const names = entityBatch?.[1].split(",").map(value => value.trim()).filter(Boolean).slice(0, 3) ?? [];
+  return { runStatus, phase, phaseLabel: "LIVE TOOLS", phaseProgress: progress, phaseTotal: total,
+    sourceStep: source ? Number(source[1]) : null, sourceTotal: source ? Number(source[2]) : null,
+    currentEntities: names, entityProgress: null, entityTotal: null, detail: cleanMessage.replace(/…$/, "").trim() };
 }
 
 function parseEntityNames(value: unknown): string[] {
@@ -430,59 +377,20 @@ const MOBILE_NODE_POS: Record<string, { x:number; y:number }> = {
 // Registry batches sit at 1-indexed positions 2,5,8,11,14,18 in DISCOVERY_SOURCES.
 const ATLAS_REGISTRY_STEPS = new Set([2, 5, 8, 11, 14, 18]);
 
-/** Map an Atlas [N/21] step + message to reactor node IDs. */
-function atlasStepToNodes(stepN: number, msg: string): string[] {
-  // Entity cooking -> full enrichment stack including deep-web + maigret
-  if (msg.includes("cooked") || msg.includes("enrich")) {
-    return ["inhouse","perp0","exa","tavily","gemini","groq","deepweb","maigret","semantic","bayesian"];
-  }
-  // Registry batch → ingestion nodes
-  if (ATLAS_REGISTRY_STEPS.has(stepN)) {
-    return ["target", ...REGISTRY_NODE_IDS];
-  }
-  // Broad discovery category → web + AI extraction
-  return ["target","webdisc","groq"];
-}
-
-// Legacy phase map kept for non-atlas jobs / fallback
-const ATLAS_PHASE_NODES: Record<number, string[]> = {
-  0:  ["target","occrp","opensky","ch","brreg","edgar"],   // pre-run: OCCRP+OpenSky+CH Officers
-  1:  ["target","occrp","opensky","ch"],
-  2:  ["ch","inhouse","hnwi"],
-  3:  ["hnwi","target","edgar"],
-  4:  ["inhouse","target"],
-  5:  ["webdisc","inhouse","maigret"],
-  6:  ["perp0","exa","tavily","gemini","groq","maigret","webdisc","deepweb"],
-  7:  ["occrp","deepweb","opensky"],
-  8:  ["semantic","bayesian","graph"],
-  9:  ["semantic","bayesian","inhouse"],
-  10: ["mcts","prac","graph","evidence","target"],
-};
+/** Legacy Atlas step numbers are not tool-selection signals for Free-ReAct. */
+function atlasStepToNodes(_stepN: number, _msg: string): string[] { return []; }
 
 function rodStatus(id: string, atlasState: AtlasLiveState | null | undefined, liveNodes?: Set<string>): RodStatus {
-  // Live tools mode is span/tool telemetry, not a numbered pipeline. Once the
-  // caller supplies live state, never synthesize queued/completed nodes from
-  // ATLAS_PHASE_NODES; that would fabricate activity for free-ReAct Dig.
+  // Live bureau activity is telemetry-driven. Missing/empty telemetry means
+  // "no tool observed yet", never "infer the old pipeline".
   if (liveNodes) {
     if (atlasState?.runStatus === "failed" && liveNodes.has(id)) return "failed";
     if (atlasState?.runStatus === "cancelled") return "idle";
     if (atlasState?.runStatus === "done") return liveNodes.has(id) ? "completed" : "idle";
-    if (atlasState?.runStatus === "running" || atlasState?.runStatus === "paused" || !atlasState) {
-      return liveNodes.has(id) ? "active" : "idle";
-    }
+    return liveNodes.has(id) ? "active" : "idle";
   }
-  if (!atlasState) return "idle";
-  if (atlasState.runStatus === "failed" || atlasState.runStatus === "cancelled") {
-    if (liveNodes?.has(id) && atlasState.runStatus === "failed") return "failed";
-    const wasReached = Object.entries(ATLAS_PHASE_NODES).some(([phase, ids]) => Number(phase) <= atlasState.phase && ids.includes(id));
-    return wasReached ? "completed" : "skipped";
-  }
-  if (atlasState.runStatus === "done") return "completed";
-  if (liveNodes?.has(id)) return "active";
-  const wasReached = Object.entries(ATLAS_PHASE_NODES).some(([phase, ids]) => Number(phase) < atlasState.phase && ids.includes(id));
-  if (wasReached) return "completed";
-  const isQueued = Object.entries(ATLAS_PHASE_NODES).some(([phase, ids]) => Number(phase) >= atlasState.phase && ids.includes(id));
-  return isQueued ? "queued" : "idle";
+  // Historical/non-live records are deliberately unpowered.
+  return "idle";
 }
 
 const JOB_NODE_MAP: Record<string, string[]> = {
