@@ -45,6 +45,10 @@ const must = (c, m) => { if (!c) throw new Error(m); };
   let d = read("artifacts/api-server/src/src/lib/discovery-agent.ts");
   if (!d.includes('promotionDecision?: "promote" | "reject"')) {
     d = d.replace(
+      'export type DiscoveryCandidate = { name: string; role?: string; company?: string; basis: string; sourceUrls: string[]; lane?: string; confidence?: number };',
+      'export type DiscoveryCandidate = { name: string; role?: string; company?: string; basis: string; sourceUrls: string[]; lane?: string; confidence?: number; promotionDecision: "promote"; promotionReason?: string };',
+    );
+    d = d.replace(
       '  note?: string;\n  scope?: "organization" | "candidate" | "unknown";\n};',
       '  note?: string;\n  scope?: "organization" | "candidate" | "unknown";\n  promotionDecision?: "promote" | "reject";\n  promotionReason?: string;\n};',
     );
@@ -65,11 +69,18 @@ const must = (c, m) => { if (!c) throw new Error(m); };
       '        sourceUrls: urls,\n        promotionDecision: f.promotionDecision,\n        promotionReason: f.promotionReason,\n      });\n      continue;\n    }\n    if (/^related-person:/i.test(value))',
     );
   }
+  // Preserve the explicit decision in the durable candidate object.
+  if (!d.includes('promotionDecision: "promote",')) {
+    d = d.replace(
+      '      confidence: sourceUrls.length ? 0.55 : 0.35,\n    });',
+      '      confidence: sourceUrls.length ? 0.55 : 0.35,\n      promotionDecision: "promote",\n      promotionReason: extra.promotionReason,\n    });',
+    );
+  }
   d = d.replace(
     '"If you establish a real named person, emit action=done with a finding containing personName="Full Name" (or value="person: Full Name | role | company"), scope="candidate", and sourceUrls containing the exact HTTPS page you actually observed.',
     '"If you establish a real named person that you judge worth promoting, emit action=done with a finding containing personName="Full Name" (or value="person: Full Name | role | company"), scope="candidate", promotionDecision="promote", promotionReason="brief reason", and sourceUrls containing the exact HTTPS page you actually observed.',
   );
-  if (!d.includes("promotionDecision=\"promote\"")) {
+  if (!d.includes("Only emit promotionDecision=promote when YOU have made the promotion decision")) {
     d = d.replace(
       '"Before finishing, ask yourself: do I have a full personal name, an exact source URL, and a concrete reason this person is plausibly reachable?',
       '"Before finishing, ask yourself: do I have a full personal name, an exact source URL, and a concrete reason this person is plausibly reachable? Only emit promotionDecision=promote when YOU have made the promotion decision. Otherwise emit findings=[] or promotionDecision=reject.",',
@@ -77,6 +88,24 @@ const must = (c, m) => { if (!c) throw new Error(m); };
   }
   write("artifacts/api-server/src/src/lib/discovery-agent.ts", d);
   console.log("OK discovery explicit promotion gate");
+}
+
+{
+  let a = read("artifacts/api-server/src/src/lib/discovery-agent-admit.ts");
+  if (!a.includes("c.promotionDecision !== \"promote\"")) {
+    a = a.replace(
+      '  if (options.modelSelected) {\n    // Model-selected discovery is deliberately not ranked, scored, or filtered',
+      '  if (options.modelSelected) {\n    // Durable admission requires the investigator\'s explicit promotion decision.\n    if (c.promotionDecision !== "promote") {\n      logger.info({ name }, "[discovery-agent-admit] rejected: no explicit investigator promotion decision");\n      return null;\n    }\n    // Model-selected discovery is deliberately not ranked, scored, or filtered',
+    );
+  }
+  if (!a.includes("promotionDecision: c.promotionDecision")) {
+    a = a.replace(
+      '        company: c.company,\n        ...(fitness ? { fitness: fitness.fit } : {}),',
+      '        company: c.company,\n        promotionDecision: c.promotionDecision,\n        promotionReason: c.promotionReason,\n        ...(fitness ? { fitness: fitness.fit } : {}),',
+    );
+  }
+  write("artifacts/api-server/src/src/lib/discovery-agent-admit.ts", a);
+  console.log("OK durable promotion persistence");
 }
 
 console.log("INVESTIGATOR_PROMOTION_CONTRACT_APPLIED");
