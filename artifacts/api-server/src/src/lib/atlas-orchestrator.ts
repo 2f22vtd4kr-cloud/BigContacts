@@ -2130,11 +2130,12 @@ async function runModelSelectedDiscoveryBureau(
     const selection = await resolveGeminiBossModel();
     if (selection?.model) {
       const brief = await generateGeminiBossText(
+        selection,
         "Apex Boss: short direction for finding reachable principals (founders/owners/operators), not celebrity lists. "
         + "No search queries or tool hop lists. 3-6 sentences only.",
       );
-      if (brief?.text) {
-        await appendJobLog(atlasJobId, `BOSS_DISCOVERY_DIRECTION model=${brief.model} ${String(brief.text).slice(0, 400)}`).catch(() => {});
+      if (brief?.raw) {
+        await appendJobLog(atlasJobId, `BOSS_DISCOVERY_DIRECTION model=${brief.model} ${String(brief.raw).slice(0, 400)}`).catch(() => {});
       }
     }
   } catch { /* optional */ }
