@@ -296,3 +296,13 @@ A second architecture audit found `scripts/check-agentic-runtime.mjs` still **re
 **Fixed (`c314eb5`):** the guard now requires only the generic Dig action schema/parser and explicitly fails if dormant Gemini or NVIDIA provider HTTP code remains in the Dig module. This aligns the static contract with product law instead of preserving historical role leakage as a test requirement.
 
 This is another reason not to treat prior “green” reports as sufficient. The static guard itself contained stale architecture assumptions. The live proof is still pending after this correction.
+
+
+### 2026-09-02 Batch 37 — live desk stays activity-only during the initial quiet window
+A remaining UI truthfulness leak was found in `reactor.tsx`: activity-only hiding was conditioned on `liveNodes.size > 0`. During the first seconds of a real free-ReAct run — especially while the Dig model is waiting for its first decision — the set is legitimately empty, so the desktop could remount the full idle poster and mobile could show numbered phase rails before any tool had actually run.
+
+**Fixed (`d4a7371`):** while a run is live, Live tools mode is activity-only even when the current active-tool set is empty. Only the stable anchors remain mounted until telemetry names a real tool. Mobile phase rails/labels are also hidden for the whole live window. This removes the “quiet start → fake pipeline” transition without inventing activity.
+
+**Current audit state:** the control plane already enforces model-emitted findings, exact visited/fetched source provenance, Groq→Mistral-only Dig, and fail-closed admission. The desk now reflects the same rule: no tool glow or phase progression until there is actual telemetry.
+
+**Still unproven:** this is not a live research result. The required current-tip artifact remains a bounded discovery-first run with at least one real named-person admit followed by a free-ReAct Dig and honest card result.
