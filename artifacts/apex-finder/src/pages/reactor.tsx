@@ -2615,22 +2615,26 @@ export default function IntelligenceReactorPage() {
           if (t.includes("registry_search") || t.includes("companies house")) light(["ch", "mcts"]);
           if (t.includes("browser_fetch") || t.includes("scrapfly") || t.includes("zenrows")) light(["webdisc", "mcts"]);
         }
-        // toolIds array from telemetry
-        const toolIds = Array.isArray(atlasTelemetry?.toolIds) ? atlasTelemetry.toolIds : [];
+        // Telemetry may supplement spans, but it must use the same explicit
+        // action vocabulary. Never infer a browser/search action from generic
+        // words such as "web" or "dig".
+        const toolIds = [
+          ...(Array.isArray(atlasTelemetry?.toolIds) ? atlasTelemetry.toolIds : []),
+          ...(atlasTelemetry?.activeToolId ? [atlasTelemetry.activeToolId] : []),
+        ];
         for (const tid of toolIds) {
           const x = String(tid).toLowerCase();
           if (x.includes("serper") || x === "web_search") light(["perp0", "mcts"]);
           if (x.includes("tavily")) light(["tavily", "mcts"]);
           if (x.includes("exa")) light(["exa", "mcts"]);
-          if (x.includes("visit") || x.includes("page") || x.includes("browser") || x.includes("scrapfly") || x.includes("zenrows")) light(["webdisc", "mcts"]);
-          if (x.includes("harvest") || x.includes("theharvester")) light(["deepweb", "mcts"]);
-          if (x.includes("domain") || x.includes("rdap") || x.includes("whois") || x.includes("dns")) light(["inhouse", "mcts"]);
+          if (x === "visit" || x.includes("browser_fetch") || x.includes("page_fetch") || x.includes("scrapfly") || x.includes("zenrows")) light(["webdisc", "mcts"]);
+          if (x.includes("harvest_domain") || x.includes("theharvester")) light(["deepweb", "mcts"]);
+          if (x.includes("domain_lookup") || x.includes("rdap") || x.includes("whois") || x.includes("dns")) light(["inhouse", "mcts"]);
           if (x.includes("maigret") || x.includes("sherlock") || x.includes("holehe") || x.includes("footprint")) light(["maigret", "mcts"]);
-          if (x.includes("edgar") || x.includes("sec")) light(["edgar", "mcts"]);
-          if (x.includes("companies") || x.includes("registry") || x.includes("brreg") || x.includes("gleif")) light(["ch", "mcts"]);
-          if (x.includes("groq") || x.includes("mistral") || x.includes("llm")) light(["groq", "mcts"]);
+          if (x.includes("edgar") || x.includes("sec-edgar")) light(["edgar", "mcts"]);
+          if (x.includes("companies_house") || x.includes("registry_search") || x.includes("brreg") || x.includes("gleif")) light(["ch", "mcts"]);
+          if (x.includes("groq") || x.includes("mistral") || x.includes("llm_step") || x.includes("llm_wait")) light(["groq", "mcts"]);
           if (x.includes("gemini") || x.includes("boss")) light(["gemini"]);
-          if (x.includes("agentic") || x.includes("dig") || x === "web") light(["mcts", "webdisc"]);
         }
       }
 
