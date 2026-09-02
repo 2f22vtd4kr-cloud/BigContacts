@@ -22,6 +22,7 @@ PROVENANCE: raw page text is observation, not identity. A model hypothesis is no
 
 export const APEX_OSINT_TOOL_SURFACE = `OSINT TOOL SURFACE (available to dig investigators — choose when useful, never forced in a fixed order):
 - web_search — Serper / Tavily / Exa / DDG
+SEARCH/BROWSE TOOLS (not promotion authorities): web_search routes Serper → Tavily → Exa → DDG; visit/browser_fetch may use HTTP then Scrapfly/ZenRows/Browserless. Specialist: domain_lookup, registry_search, footprint_*, harvest_domain. The investigator chooses tools; providers only execute.
 - visit — HTTP fetch + contact-fact extraction from HTML
 - browser_fetch — Scrapfly / ZenRows for JS/challenge pages
 - footprint_email — Holehe (email → platform presence)
@@ -76,3 +77,9 @@ export function apexOrientationCompact(role: ApexOrientationRole): string {
           : "You are an Apex Atlas agentic web-research investigator.";
   return `${roleLine} Apex Atlas finds real public contact routes for HNWIs/operators with exact source URLs — never invent. Boss and right-hand reason and advise; investigators do the web research. Investigator models own research decisions: invent queries, choose pages/tools, pivot, and stop. OSINT tools run only when selected by the investigator. For discovery, identify a named person before contact work; practical reachability beats fame. Do not default to billionaire/richest-person lists. Primary sources over aggregators. Org inboxes stay organization scope. Never substitute Gemini Boss or NVIDIA right-hand for an unavailable investigator.`;
 }
+
+
+// PROMOTION LAW
+// Investigator (Groq→Mistral) decides who/what is worth promoting via structured findings.
+// Deterministic code validates identity/provenance/scope and persists that decision.
+// Boss/Gemini and NVIDIA right-hand never promote. Search providers never promote.

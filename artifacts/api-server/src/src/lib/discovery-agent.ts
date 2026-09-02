@@ -256,6 +256,7 @@ export async function runDiscoveryAgent(input: {
 
   const baseObjective = [
     "DISCOVERY ASSIGNMENT — find a real person worth a later public-contact dig.",
+    "PROMOTION AUTHORITY: You (the investigator) decide who is worth promoting. Deterministic code only validates provenance/schema and persists your decision — it does not pick people for you from page scrapes.",
     "You are not researching a person supplied by the operator. You are choosing whom the bureau should investigate next.",
     "Act like a strong human open-web researcher with a limited execution budget. Your first priority is information gain: find a concrete public story, business, ownership fact, transaction, filing, leadership page, trade publication, regional report, or other source that naturally exposes a NAMED PERSON.",
     "The objective is not to enumerate rich or famous people. Wealth is a relevance clue, not a discovery method. A realistic principal/operator with a public operating-company or intermediary surface is often a much better target than a billionaire or celebrity whose access is heavily protected.",
@@ -309,7 +310,7 @@ export async function runDiscoveryAgent(input: {
         });
         const admissionFindings = result.modelFindings ?? [];
         const slotCandidates = parsePersonFindings(admissionFindings, result.trajectory ?? []);
-        try { completeDigSpan(jobId, slotSpan.id, { status: slotCandidates.length ? "ok" : "error", resultSummary: `slot=${slot + 1}/${requestedBatch} candidates=${slotCandidates.length} searches=${result.searches} visits=${result.visits}` }); } catch { /* best-effort */ }
+        try { completeDigSpan(jobId, slotSpan.id, { status: slotCandidates.length ? "ok" : "error", resultSummary: `slot=${slot + 1}/${requestedBatch} investigator_decisions=${slotCandidates.length} searches=${result.searches} visits=${result.visits} (modelFindings only — not infra extract)` }); } catch { /* best-effort */ }
         try { await input.onSlotProgress?.({ slot: slot + 1, batch: requestedBatch, phase: "end", candidatesInSlot: slotCandidates.length }); } catch { /* best-effort */ }
 
         totalSearches += result.searches ?? 0;
@@ -319,6 +320,17 @@ export async function runDiscoveryAgent(input: {
         if (result.status === "unavailable" || result.status === "error") degraded = true;
         if (slotCandidates.length) {
           for (const candidate of slotCandidates) {
+            try {
+              publishDigSpan({
+                jobId,
+                spanType: "stage",
+                name: "investigator_promotion_decision",
+                status: "ok",
+                agentName: "discovery",
+                inputSummary: candidate.name,
+                resultSummary: `INVESTIGATOR_PROMOTION_DECISION name=${candidate.name} sources=${(candidate.sourceUrls || []).slice(0, 2).join("|")} — awaiting durable persist`,
+              });
+            } catch { /* best-effort */ }
             const key = candidate.name.toLowerCase();
             if (seen.has(key)) continue;
             seen.add(key);

@@ -277,17 +277,16 @@ async function toolWebSearchExa(query: string): Promise<{ text: string; urls: st
   return null;
 }
 
-async function toolWebSearch(query: string): Promise<{ text: string; urls: string[] }> {
-  // Prefer Serper (stable SERP URLs), then Tavily (keyed advanced search), then DDG HTML.
-  // Single-provider starvation is why a general agent can beat the bureau on the same surface.
+async function toolWebSearch(query: string): Promise<{ text: string; urls: string[]; provider: "serper" | "tavily" | "exa" | "ddg" }> {
+  // Prefer Serper, then Tavily, then Exa, then DDG. Providers are tools — not promotion authorities.
   const serper = await toolWebSearchSerper(query);
-  if (serper && serper.urls.length > 0) return serper;
+  if (serper && serper.urls.length > 0) return { ...serper, provider: "serper" };
 
   const tavily = await toolWebSearchTavily(query);
-  if (tavily && (tavily.urls.length > 0 || tavily.text.length > 40)) return tavily;
+  if (tavily && (tavily.urls.length > 0 || tavily.text.length > 40)) return { ...tavily, provider: "tavily" };
 
   const exa = await toolWebSearchExa(query);
-  if (exa && (exa.urls.length > 0 || exa.text.length > 40)) return exa;
+  if (exa && (exa.urls.length > 0 || exa.text.length > 40)) return { ...exa, provider: "exa" };
 
   const url = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}&kl=us-en`;
   try {
@@ -299,7 +298,7 @@ async function toolWebSearch(query: string): Promise<{ text: string; urls: strin
         "Accept-Language": "en-US,en;q=0.9",
       },
     });
-    if (!resp.ok) return exa ?? tavily ?? serper ?? { text: "", urls: [] };
+    if (!resp.ok) return { ...(exa ?? tavily ?? serper ?? { text: "", urls: [] }), provider: exa ? "exa" : tavily ? "tavily" : serper ? "serper" : "ddg" };
     const html = await resp.text();
     const urls: string[] = [];
     for (const m of html.matchAll(/uddg=([^&"]+)/g)) {
@@ -313,12 +312,12 @@ async function toolWebSearch(query: string): Promise<{ text: string; urls: strin
       if (!/duckduckgo|google\.|bing\.|yahoo\./i.test(u)) urls.push(u);
     }
     const text = filterPassagesForQuery(stripHtml(html), query, { maxChars: MAX_OBS });
-    const out = { text, urls: [...new Set(urls)].slice(0, 10) };
-    if (out.urls.length === 0 && (exa || tavily || serper)) return exa ?? tavily ?? serper!;
+    const out = { text, urls: [...new Set(urls)].slice(0, 10), provider: "ddg" as const };
+    if (out.urls.length === 0 && (exa || tavily || serper)) return { ...(exa ?? tavily ?? serper!), provider: (exa ? "exa" : tavily ? "tavily" : "serper") };
     return out;
   } catch (err: any) {
     logger.debug({ err: err?.message, query }, "agentic web_search failed");
-    return exa ?? tavily ?? serper ?? { text: "", urls: [] };
+    return { ...(exa ?? tavily ?? serper ?? { text: "", urls: [] }), provider: exa ? "exa" : tavily ? "tavily" : serper ? "serper" : "ddg" };
   }
 }
 
@@ -1692,12 +1691,13 @@ async function runAgenticWebResearchUnbounded(input: {
         findings = mergeFindings(findings, snippetEmails);
         history.push(`step${i + 1}: serp_email_findings=${snippetEmails.length}`);
       }
-      lastObservation = formatSearchObservation(action.query, sr);
+      lastObservation = formatSearchObservation(action.query, sr) +
+        `\nSEARCH_PROVIDER: ${sr.provider || "unknown"} (tool result — not a promotion decision)`;
       emitLive({
         action: "web_search",
         query: action.query,
-        provider: "serper",
-        summary: `${sr.urls.length} URLs · ${sr.text.slice(0, 160)}`,
+        provider: sr.provider || "unknown",
+        summary: `${sr.provider || "?"} · ${sr.urls.length} URLs · ${sr.text.slice(0, 140)}`,
       });
       continue;
     }

@@ -2203,8 +2203,20 @@ async function runModelSelectedDiscoveryBureau(
         );
         void appendJobLog(
           atlasJobId,
-          `DISCOVERY_ADMIT ${JSON.stringify({ id, name: candidate.name, sources: candidate.sourceUrls?.slice(0, 3) })}`,
+          `DURABLE_PROMOTION_PERSISTED ${JSON.stringify({ id, name: candidate.name, sources: candidate.sourceUrls?.slice(0, 3), state: "candidate_admitted" })}`,
         ).catch(() => {});
+        try {
+          const { publishDigSpan } = await import("./dig-span");
+          publishDigSpan({
+            jobId: atlasJobId,
+            spanType: "stage",
+            name: "durable_promotion",
+            status: "ok",
+            agentName: "discovery",
+            inputSummary: candidate.name,
+            resultSummary: `entityId=${id} state=candidate_admitted`,
+          });
+        } catch { /* best-effort */ }
       }
     },
   });
