@@ -342,3 +342,8 @@ The reactor still retained a numbered phase classifier and phase-node fallback. 
 **Fixed:** `reactor.tsx` no longer maps status prose or legacy Atlas step numbers to research tools. Numeric progress is display metadata only; live lighting is telemetry-only; historical/non-live records remain unpowered.
 
 **Still unproven:** no live trajectory has yet demonstrated model-selected discovery → source-backed named-person admit → Groq/Mistral Dig → honest card. This batch changes desk truthfulness only; it is not live validation.
+
+### 2026-09-02 Batch 42 — telemetry lighting narrowed to explicit Dig actions
+The desk still had a telemetry fallback that could light research nodes from generic identifiers such as `web`, `dig`, or broad `page` strings. That is another form of activity inference: a provider/status label could make the graph claim that a specific browser or search tool ran.
+
+**Fixed:** telemetry now supplements spans only through explicit canonical action/provider names and includes `activeToolId` in the same mapping. Generic `web`/`dig` no longer lights VISIT or any other research tool. This keeps the activity-only graph tied to observed Dig vocabulary.
