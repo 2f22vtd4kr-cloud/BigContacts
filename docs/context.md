@@ -268,3 +268,9 @@ The retained Run 23/24 artifacts showed that a tiny “READY” probe can be a f
 **Important residual:** a GitHub Actions push-created `apex-single-target-audit` run on commit `47d24af` reported failure before any jobs were listed. That is not being treated as a research result or as evidence that the architecture is ready; its workflow/startup cause still needs inspection. No current-tip live discovery artifact exists yet.
 
 **Next step:** resolve/understand the zero-job audit workflow failure if it is a real workflow defect, then run the current bounded 3-slot discovery-first smoke. Success remains **≥1 model-emitted, visited-source named-person admit → Groq/Mistral free-ReAct trajectory → honest card**, with non-critical/non-degraded final integrity. Otherwise document the failure trajectory rather than claiming readiness.
+
+
+### 2026-09-02 Batch 33 — admission boundary locked against future drift
+`check:discovery-quality` now asserts the exact discovery control plane: only `result.modelFindings` may enter admission, the candidate parser must receive the trajectory, and each admitted source URL must correspond to a `visit`/`browser_fetch` observation (`37954ef`). This is a regression guard for the historical Run 24 class of bug where deterministic extraction could manufacture clean-looking rows.
+
+The source tip is now `37954ef54345af0cbe87ff920f6d5bf6cf269fe6` at the time of this note. **Still unproven:** no current-tip bounded smoke artifact exists. Static guards and UI truthfulness are not a substitute for the required live admit → Dig → honest-card trajectory.
