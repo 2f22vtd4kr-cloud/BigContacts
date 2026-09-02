@@ -17,7 +17,6 @@ s = s.replace(
 // The old shell forced the whole page to 1600x960. The activity surface must
 // fit the browser viewport; only the explicit Full map view may scroll.
 s = s.replace('width:"100%", height:"100%", minWidth:1600, minHeight:960,', 'width:"100%", height:"100%", minWidth:0, minHeight:0,');
-s = s.replace('overflow:"auto", position:"relative",', 'overflow:"hidden", position:"relative",');
 s = s.replace('position:"relative", width:"100%", maxWidth:"100%", flex:1, minHeight:420,', 'position:"relative", width:"100%", maxWidth:"100%", flex:1, minHeight:0,');
 
 const importLine = 'import { ReactorActivityOnly } from "../components/reactor-activity-only";';
@@ -39,17 +38,18 @@ if (!s.includes("<ReactorActivityOnly nodes={NODES.filter")) {
   s = s.slice(0, lineStart) + activity + s.slice(lineStart);
 }
 
-// The poster implementation is preserved, but never mounted in Live tools mode.
+// Hide the poster implementation in Live tools mode. Full map remains an
+// explicit opt-in through schemeToolsOnly=false.
 const scrollMarker = 'data-testid="scheme-scroll-viewport"';
 const scrollAt = s.indexOf(scrollMarker);
 if (scrollAt < 0) throw new Error("scheme scroll viewport missing");
-const styleAt = s.lastIndexOf('style={{', scrollAt);
-if (styleAt >= 0) {
-  const displayMarker = 'display: schemeToolsOnly ? "none" : "block",';
-  const nextBrace = s.indexOf('}}', styleAt);
-  if (nextBrace > 0 && !s.slice(styleAt, nextBrace).includes(displayMarker)) {
-    s = s.slice(0, styleAt) + s.slice(styleAt, nextBrace).replace('style={{', 'style={{\n            ' + displayMarker) + s.slice(nextBrace);
-  }
+const styleAt = s.indexOf('style={{', scrollAt);
+if (styleAt < 0) throw new Error("scheme scroll style missing");
+const displayMarker = 'display: schemeToolsOnly ? "none" : "block",';
+const nextBrace = s.indexOf('}}', styleAt);
+if (nextBrace < 0) throw new Error("scheme scroll style terminator missing");
+if (!s.slice(styleAt, nextBrace).includes(displayMarker)) {
+  s = s.slice(0, styleAt) + s.slice(styleAt, nextBrace).replace('style={{', 'style={{\n            ' + displayMarker) + s.slice(nextBrace);
 }
 
 if (!s.includes(importLine)) throw new Error("activity component import did not land");
