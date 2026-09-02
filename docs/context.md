@@ -335,3 +335,10 @@ ChatGPT Batches 29–39 fixed: Boss typed contract, NVIDIA dead helper removal, 
 - Phase strip labels softened to BRIEF/DISCOVER/DIG/CARD progress chrome (not a 11-step OSINT playbook).
 
 **Still unproven:** live 3-target trajectory with real admit → free-ReAct Dig → honest card.
+
+### 2026-09-02 Batch 41 — desk phase-theater boundary removed
+The reactor still retained a numbered phase classifier and phase-node fallback. Even though recent live paths usually supplied telemetry, those structures could fabricate queued/completed tool activity whenever telemetry wiring changed or was absent.
+
+**Fixed:** `reactor.tsx` no longer maps status prose or legacy Atlas step numbers to research tools. Numeric progress is display metadata only; live lighting is telemetry-only; historical/non-live records remain unpowered.
+
+**Still unproven:** no live trajectory has yet demonstrated model-selected discovery → source-backed named-person admit → Groq/Mistral Dig → honest card. This batch changes desk truthfulness only; it is not live validation.
