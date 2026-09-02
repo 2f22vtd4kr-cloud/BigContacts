@@ -63,7 +63,6 @@ jobs:
       ZENROWS_API_KEY: ${{ secrets.ZENROWS_API_KEY }}
       COMPANIES_HOUSE_API_KEY: ${{ secrets.COMPANIES_HOUSE_API_KEY }}
       HF_TOKEN: ${{ secrets.HF_TOKEN }}
-      WHOXY_API_KEY: ${{ secrets.WHOXY_API_KEY }}
       WHOISJSON_API_KEY: ${{ secrets.WHOISJSON_API_KEY }}
       RESEARCH_DEPTH: standard
       APEX_SKIP_SEMANTIC: "1"
@@ -71,7 +70,7 @@ jobs:
       APEX_AGENTIC_CONCURRENCY: "1"
       APEX_AGENTIC_PROVIDER_CONCURRENCY: "1"
       AGENTIC_PROVIDER_DECISION_TIMEOUT_MS: "55000"
-      GROQ_AGENTIC_MIN_INTERVAL_MS: "20000"
+      GROQ_AGENTIC_MIN_INTERVAL_MS: "30000"
       LIVE_AUDIT_TARGET_COUNT: "3"
       NODE_OPTIONS: --max-old-space-size=1536
     steps:
@@ -158,7 +157,8 @@ jobs:
           test "$(curl -sS -m 5 -o /tmp/health.json -w '%{http_code}' http://127.0.0.1:8080/api/healthz)" = 200
       - name: Launch bounded 3-target discovery-first Bureau smoke
         run: |
-          curl -sS -m 15 -X POST http://127.0.0.1:8080/api/ingest/atlas-run -H 'Content-Type: application/json' -d '{"discoveryFirst":true,"targetCount":3,"researchLimit":3,"runResearch":true,"skipFaa":true,"targetTimeoutMs":300000,"researchDepth":"standard"}' | tee /tmp/launch.json
+          # Keep this proof run narrow: first establish a real admit → Dig chain.
+          curl -sS -m 15 -X POST http://127.0.0.1:8080/api/ingest/atlas-run -H 'Content-Type: application/json' -d '{"discoveryFirst":true,"targetCount":3,"researchLimit":2,"runResearch":true,"skipFaa":true,"targetTimeoutMs":300000,"researchDepth":"standard"}' | tee /tmp/launch.json
           node -e 'const x=require("/tmp/launch.json"); if(!x.jobId){console.error(JSON.stringify(x));process.exit(1)}; console.log(x.jobId)'
       - name: Poll Bureau
         run: |
