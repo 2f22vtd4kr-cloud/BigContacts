@@ -1,8 +1,10 @@
 #!/usr/bin/env node
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-const root = process.cwd();
+// Build scripts run from the API workspace. Resolve from this file, never cwd.
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 function read(p) { return fs.readFileSync(path.join(root, p), "utf8"); }
 function write(p, t) { fs.writeFileSync(path.join(root, p), t); }
 function must(c, m) { if (!c) throw new Error(m); }
