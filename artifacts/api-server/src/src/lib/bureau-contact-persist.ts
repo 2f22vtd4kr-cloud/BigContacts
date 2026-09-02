@@ -84,15 +84,10 @@ export async function persistBureauContactsForEntity(
 ): Promise<number> {
   if (!entityId) return 0;
   const list = Array.isArray(items) ? items : [];
-  // Empty list still runs card promotion from durable contact_evidence (rehydrate path).
-  if (!list.length) {
-    try {
-      await promoteBureauContactsToEntityCard(entityId, [], source, jobId);
-    } catch {
-      /* non-fatal */
-    }
-    return 0;
-  }
+  // Empty model output is evidence, too: do not manufacture a promotion from
+  // unrelated durable rows. Card mapping runs when this pass actually supplied
+  // evidence, or via the explicit rehydration path.
+  if (!list.length) return 0;
 
   let targetName = "";
   let companyName: string | null = null;
