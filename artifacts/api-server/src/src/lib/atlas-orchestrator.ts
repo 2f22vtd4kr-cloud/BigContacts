@@ -2275,7 +2275,9 @@ async function runModelSelectedDiscoveryBureau(
   const totalEntities = Number(totalRow[0]?.count ?? 0);
   const totalContacts = Number(contactRow[0]?.count ?? 0);
   const finalMsg = [
-    `Free-ReAct bureau complete in ${Math.round(durationMs / 60_000)}min.`,
+    processIncomplete
+      ? `Free-ReAct bureau ended incomplete in ${Math.round(durationMs / 60_000)}min.`
+      : `Free-ReAct bureau finished in ${Math.round(durationMs / 60_000)}min.`,
     `${totalEntities} entities | ${hotLeads} hot leads | ${totalContacts} contacts found.`,
     Object.entries(summary).map(([key, value]) => `${key}: ${value}`).join(" | "),
   ].join(" ");

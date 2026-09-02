@@ -229,17 +229,18 @@ function rodStatusColor(status: RodStatus, fallback: string): string {
 }
 
 const ATLAS_PHASES = [
-  { n: 0, label: "CROSS-REF", detail: "Existing records and registry anchors" },
-  { n: 1, label: "DISCOVERY", detail: "Free dig discovery — model chooses tools" },
-  { n: 2, label: "IDENTITY", detail: "Contacts, ownership, and foundation evidence" },
-  { n: 3, label: "METADATA", detail: "Notes, assets, and source markers" },
-  { n: 4, label: "IN-HOUSE", detail: "Wikidata, GitHub, RDAP, DNS, and filings" },
-  { n: 5, label: "SOCIAL", detail: "Public social and messenger discovery" },
-  { n: 6, label: "AI OSINT", detail: "Search, extraction, and platform expansion" },
-  { n: 7, label: "FORENSICS", detail: "Leaks, WHOIS, vessels, and flight history" },
-  { n: 8, label: "ATTRIBUTION", detail: "Domain, footprint, and graph-assisted attribution" },
-  { n: 9, label: "SEMANTIC", detail: "Embeddings, wealth, confidence, and outcomes" },
-  { n: 10, label: "PATH RESEARCH", detail: "Adaptive paths and evidence review" },
+  /* Labels are progress chrome only — not a research playbook. Live tools = span telemetry. */
+  { n: 0, label: "BRIEF", detail: "Case orientation" },
+  { n: 1, label: "DISCOVER", detail: "Model-selected discovery" },
+  { n: 2, label: "DIG", detail: "Free-ReAct investigation" },
+  { n: 3, label: "DIG", detail: "Free-ReAct investigation" },
+  { n: 4, label: "DIG", detail: "Free-ReAct investigation" },
+  { n: 5, label: "DIG", detail: "Free-ReAct investigation" },
+  { n: 6, label: "DIG", detail: "Free-ReAct investigation" },
+  { n: 7, label: "DIG", detail: "Free-ReAct investigation" },
+  { n: 8, label: "DIG", detail: "Free-ReAct investigation" },
+  { n: 9, label: "CARD", detail: "Evidence and contact routes" },
+  { n: 10, label: "CARD", detail: "Evidence and contact routes" },
 ];
 
 function atlasPhaseFromMessage(message: string, progress = 0): number {
@@ -2373,13 +2374,13 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
                 return status === "idle" ? 0.55 : 1;
               })(),
               visibility: (() => {
-                if (!schemeToolsOnly || !isLive || !liveNodes || liveNodes.size === 0) return "visible" as const;
+                if (!schemeToolsOnly || !isLive || !liveNodes) return "visible" as const;
                 if (kbFocus || reachCue || on) return "visible" as const;
                 const keep = liveNodes.has(n.id) || n.id === "target" || n.id === "mcts" || n.id === "evidence";
                 return keep ? "visible" as const : "hidden" as const;
               })(),
               pointerEvents: (() => {
-                if (!schemeToolsOnly || !isLive || !liveNodes || liveNodes.size === 0) return "auto" as const;
+                if (!schemeToolsOnly || !isLive || !liveNodes) return "auto" as const;
                 const keep = liveNodes.has(n.id) || n.id === "target" || n.id === "mcts" || n.id === "evidence" || on;
                 return keep ? "auto" as const : "none" as const;
               })(),

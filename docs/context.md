@@ -324,3 +324,14 @@ The Batch 38 outcome fix exposed a wrapper boundary: `runBureauAgenticWebPass` m
 **Fixed (`636fe69`):** `BureauAgenticPassResult` now carries optional `stopReason` and forwards the exact underlying ReAct value. The discovery-first finalizer can therefore mark the job `incomplete` for `LLM_UNAVAILABLE`, timeout, or budget terminal conditions with the actual reason in its summary.
 
 **Important:** this is a control-plane fix, not a research success claim. Current live proof remains pending.
+
+
+### 2026-09-02 Batch 40 — residual honesty after control-plane pass
+ChatGPT Batches 29–39 fixed: Boss typed contract, NVIDIA dead helper removal, Whoxy node removal, activity-only quiet-start, Dig stopReason through bureau-agentic-pass, incomplete outcome when Dig terminal/degraded, model-only admission tests, 3-target CI smoke.
+
+**Residual closed here:**
+- Discovery-first final status *message* no longer claims "bureau complete" when `outcome: incomplete`.
+- Live-tools opacity path no longer treats empty `liveNodes` as “show full poster” (anchors only until first real tool span).
+- Phase strip labels softened to BRIEF/DISCOVER/DIG/CARD progress chrome (not a 11-step OSINT playbook).
+
+**Still unproven:** live 3-target trajectory with real admit → free-ReAct Dig → honest card.
