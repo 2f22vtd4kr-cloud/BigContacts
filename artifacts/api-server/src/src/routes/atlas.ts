@@ -131,7 +131,9 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
     discoveryFirst = false;
   }
   const opts: AtlasOptions = {
-    targetCount:        Number(body.targetCount)       || C.targetCount,
+    /* roadmap: discoveryFirst default targetCount 3 */
+    targetCount:        Number(body.targetCount)
+      || (Boolean(body.discoveryFirst !== undefined ? body.discoveryFirst : C.discoveryFirst) ? 3 : C.targetCount),
     faaMaxRecords:      Number(body.faaMaxRecords)     || 60_000,
     includeLandRegistry: Boolean(body.includeLandRegistry),
     batchSize:          Number(body.batchSize)         || C.batchSize,

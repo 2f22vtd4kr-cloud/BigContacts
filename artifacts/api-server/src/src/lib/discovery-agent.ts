@@ -234,6 +234,8 @@ export async function runDiscoveryAgent(input: {
   onLiveStep?: (step: { action: string; tool?: string; query?: string; url?: string; status: "ok" | "error" | "active"; detail?: string }) => void;
   /** Optional: called as soon as a slot produces a distinct well-formed candidate (incremental admit). */
   onCandidate?: (candidate: DiscoveryCandidate, meta: { slot: number; batch: number }) => void | Promise<void>;
+  /** Fires at the start/end of each discovery slot for operator progress. */
+  onSlotProgress?: (meta: { slot: number; batch: number; phase: "start" | "end"; candidatesInSlot: number }) => void | Promise<void>;
 }): Promise<DiscoveryAgentResult> {
   const jobId = input.jobId ?? `discovery_${Date.now()}`;
   const depth = input.depth ?? "standard";
@@ -289,6 +291,7 @@ export async function runDiscoveryAgent(input: {
         `This is batch slot ${slot + 1} of ${requestedBatch}. One strong, distinct candidate is sufficient. Do not pad with weak names.`,
       ].join("\n");
       const slotSpan = publishDigSpan({ jobId, spanType: "stage", name: "discovery_slot", status: "active", agentName: "discovery", inputSummary: `slot=${slot + 1}/${requestedBatch} concurrent=false` });
+      try { await input.onSlotProgress?.({ slot: slot + 1, batch: requestedBatch, phase: "start", candidatesInSlot: 0 }); } catch { /* best-effort */ }
       try {
         const result = await runAgenticWebResearch({
           targetName: `Discovery slot ${slot + 1}`,
@@ -307,6 +310,7 @@ export async function runDiscoveryAgent(input: {
         const admissionFindings = result.modelFindings ?? [];
         const slotCandidates = parsePersonFindings(admissionFindings, result.trajectory ?? []);
         try { completeDigSpan(jobId, slotSpan.id, { status: slotCandidates.length ? "ok" : "error", resultSummary: `slot=${slot + 1}/${requestedBatch} candidates=${slotCandidates.length} searches=${result.searches} visits=${result.visits}` }); } catch { /* best-effort */ }
+        try { await input.onSlotProgress?.({ slot: slot + 1, batch: requestedBatch, phase: "end", candidatesInSlot: slotCandidates.length }); } catch { /* best-effort */ }
 
         totalSearches += result.searches ?? 0;
         totalVisits += result.visits ?? 0;

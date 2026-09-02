@@ -2110,7 +2110,7 @@ async function runModelSelectedDiscoveryBureau(
   startMs: number,
 ): Promise<AtlasResult> {
   const summary: Record<string, string> = {};
-  const targetLimit = Math.max(1, Math.min(50, opts.targetCount ?? 50));
+  const targetLimit = Math.max(1, Math.min(50, opts.targetCount ?? 3));
   const researchLimit = Math.max(0, Math.min(targetLimit, opts.researchLimit ?? 10));
 
   const status = async (message: string, progress: number, entityProgress?: number, entityTotal?: number) => {
@@ -2118,9 +2118,9 @@ async function runModelSelectedDiscoveryBureau(
     await updateJob(atlasJobId, {
       status: "running",
       progress,
-      total: 3,
+      total: Math.max(1, targetLimit),
       atlasPhase: progress,
-      atlasPhaseTotal: 3,
+      atlasPhaseTotal: Math.max(1, targetLimit),
       message,
       entityProgress,
       entityTotal,
@@ -2138,7 +2138,10 @@ async function runModelSelectedDiscoveryBureau(
         + "No search queries or tool hop lists. 3-6 sentences only.",
       );
       if (brief?.raw) {
-        await appendJobLog(atlasJobId, `BOSS_DISCOVERY_DIRECTION model=${brief.model} ${String(brief.raw).slice(0, 400)}`).catch(() => {});
+        const bossLine = `BOSS_DISCOVERY_DIRECTION model=${brief.model} ${String(brief.raw).slice(0, 400)}`;
+        await appendJobLog(atlasJobId, bossLine, { dedupeKey: "BOSS_DIRECTION_WRITTEN" }).catch(() => {
+          void appendJobLog(atlasJobId, bossLine).catch(() => {});
+        });
       }
     }
   } catch { /* optional */ }
@@ -2172,6 +2175,19 @@ async function runModelSelectedDiscoveryBureau(
     },
     // Incremental admit: write ledger rows as soon as a slot produces a person
     // so operators see entities during a long batch and stops do not discard work.
+    onSlotProgress: async ({ slot, batch, phase, candidatesInSlot }) => {
+      const pct = Math.min(90, Math.round((slot / Math.max(1, batch)) * 50));
+      if (phase === "start") {
+        await status(`Discovery slot ${slot}/${batch} — model hunting…`, pct, admittedIds.length, targetLimit);
+      } else {
+        await status(
+          `Discovery slot ${slot}/${batch} done (${candidatesInSlot} candidate(s), ${admittedIds.length} admitted)…`,
+          pct,
+          admittedIds.length,
+          targetLimit,
+        );
+      }
+    },
     onCandidate: async (candidate) => {
       await ensureAtlasActive(atlasJobId);
       if (!isWellFormedPersonCandidate(candidate)) {
@@ -2207,7 +2223,7 @@ async function runModelSelectedDiscoveryBureau(
   for (const candidate of candidates) {
     await ensureAtlasActive(atlasJobId);
     const id = await createEntityFromDiscoveryCandidate(candidate, { modelSelected: true });
-    if (id) admittedIds.push(id);
+    if (id && !admittedIds.includes(id)) admittedIds.push(id);
   }
   summary["Model admission"] = `${admittedIds.length}/${candidates.length} candidates admitted in model order (incremental+final)`;
 

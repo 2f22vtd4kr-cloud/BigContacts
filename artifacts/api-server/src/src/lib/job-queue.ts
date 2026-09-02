@@ -134,7 +134,17 @@ export async function clearJobFields(jobId: string, fields: string[]): Promise<v
   }, undefined);
 }
 
-export async function appendJobLog(jobId: string, line: string): Promise<void> {
+export async function appendJobLog(jobId: string, line: string, opts?: { dedupeKey?: string }): Promise<void> {
+  if (opts?.dedupeKey) {
+    const ok = await safeRedis(async (rc) => {
+      const key = `apex:joblog:dedupe:${jobId}:${opts.dedupeKey}`;
+      const set = await rc.set(key, "1", "EX", 86400, "NX");
+      return set === "OK" || set === true;
+    }, true);
+    if (!ok) return;
+  }
+  const memCheck = memoryLogs.get(jobId) ?? [];
+  if (memCheck[0] && memCheck[0].includes(line.slice(0, 120))) return;
   const ts = `${new Date().toISOString()} ${line}`;
   const mem = memoryLogs.get(jobId) ?? [];
   mem.unshift(ts);

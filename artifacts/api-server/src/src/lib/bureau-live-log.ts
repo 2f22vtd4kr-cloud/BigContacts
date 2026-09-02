@@ -44,6 +44,7 @@ let mirrorWindowStart = 0;
 let mirrorWindowCount = 0;
 const MIRROR_WINDOW_MS = 10_000;
 const MIRROR_MAX_PER_WINDOW = 40;
+let lastBossTitleMirror = "";
 
 function caseKey(caseId: string) {
   return `apex:bureau:live:case:${caseId}`;
@@ -218,8 +219,15 @@ export function classifyJobLogLine(line: string): {
 
 /** Rate-limited mirror used by job-queue.appendJobLog */
 export async function mirrorJobLogLine(jobId: string, line: string): Promise<void> {
+  if (/BOSS_DISCOVERY_DIRECTION/i.test(line)) {
+    const sig = line.slice(0, 160);
+    if (sig === lastBossTitleMirror) return;
+    lastBossTitleMirror = sig;
+  }
   const structured = tryParseBureauLogLine(line);
   if (structured) {
+    if (structured.actor === "boss" && structured.title && structured.title === lastBossTitleMirror) return;
+    if (structured.actor === "boss") lastBossTitleMirror = structured.title || lastBossTitleMirror;
     await publishBureauEvent({ ...structured, jobId: structured.jobId ?? jobId });
     return;
   }
