@@ -187,3 +187,15 @@ The baseline is a quality control, not a marketing benchmark. Do not preselect b
 - ~~Permanent source fixes for atlas build breakers~~ — done Batch 10 (`59c71ce`).
 - **Current gate:** bounded 3-target smoke must produce at least one real person-shaped admit with observed HTTP(S) evidence, then a free-ReAct Dig trajectory and honest card outcome. If it does, scale toward the 10-target audit.
 - **Not done:** no green research-quality claim, no blind comparison yet, and no 10-target success claim until the artifacts prove it.
+
+
+### 2026-09-02 control-plane audit — Batch 26
+**Commit `bb319872bb3ed1229c57e2ba331799b8fefa9ffd`** closes two latent Dig control-plane hazards found by tracing the current source rather than relying on architecture prose:
+- `agentic-web-research.ts` contained dead `callGeminiJson` and `callNvidiaJson` helpers. They were not in the canonical `llmStep` chain, but their presence made future role leakage easier and contradicted the fail-closed Dig boundary. They were removed; `llmStep` remains **Groq → Mistral**.
+- The invalid-action repair prompt silently truncated its objective to 400 characters even though the normal discovery prompt preserves up to 4500 characters for discovery slots. Repair turns could therefore lose critical discovery law after a JSON parse failure. The repair path now uses the same discovery/dig objective budget split.
+
+**Still unproven:** no live trajectory in this batch proves named-person admit → Dig → honest card. Do not call Apex ready for production or live-proof success on the basis of this source fix.
+
+**Desk residual risk:** source audit found live-node keyword mappings that can still light legacy/role nodes from generic telemetry (including a Gemini node on an agentic target-contact condition and a Whoxy alias on RDAP/domain conditions). These must be corrected before claiming the desk is fully activity-truthful; the attempted UI write was not committed in this batch.
+
+**Next:** finish the desk phase/legacy-node audit, run static guards, then only perform the bounded 3-target discovery-first smoke and inspect the actual trajectory/artifacts.
