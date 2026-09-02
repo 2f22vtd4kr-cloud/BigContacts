@@ -2,7 +2,7 @@
 
 **Repo:** https://github.com/2f22vtd4kr-cloud/BigContacts  
 **Branch:** `main`  
-**Current tip floor:** `4f911cf64fd2a4654bcc118f594354859589bbf6` or newer (post-proxy-fix bounded-smoke trigger)  
+**Current tip floor:** `97e395ac08d5d8b2a4eaa5eeb673add29d72c2dc` or newer (post-proxy-fix bounded-smoke trigger)  
 **Canonical Replit path:** one paste — `docs/REPLIT_UPDATE_PROMPT_LATEST.md` (Agent inside the App). Expanded procedure: `docs/RUN_BUREAU.md`.  
 **Product:** Apex Atlas research bureau; **Bureau is its OSINT/research architecture**, not a separate product.
 
@@ -251,3 +251,7 @@ The artifact comparison exposed another control-plane mistake in the live audit 
 **Historical artifact replay, conceptually:** Run 23 fails on malformed title identity and provider collapse; Run 24 fails on malformed proxy-derived identities, `degraded=true`, and `bureauIntegrity=critical`. A current smoke can pass with one real admit, but only if the runtime remains non-critical and non-degraded and the row carries discovery-agent HTTP(S) provenance.
 
 **Still unproven:** no current-tip live artifact has yet passed these corrected criteria. Do not equate the stronger audit contract with a successful research run.
+
+
+### 2026-09-02 Batch 31 — provider preflight parity
+The retained Run 23/24 artifacts showed that a tiny “READY” probe can be a false signal when Groq is near a token ceiling: the old run passed preflight, then normal-sized ReAct decisions immediately hit 429/TPD exhaustion. The resilient workflow still had the weaker probe. It now shares the canonical live-audit provider gate (`97e395a`): Groq/Mistral are probed as the only Dig readiness sources, Groq headroom is checked when rate headers are available, and launch aborts if neither Dig provider passes. This is provider transport gating only; it does not alter model-chosen research actions.
