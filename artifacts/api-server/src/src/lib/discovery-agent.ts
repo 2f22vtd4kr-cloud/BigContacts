@@ -212,6 +212,8 @@ export function parsePersonFindings(findings: DiscoveryFinding[], trajectory: st
 
 export async function runDiscoveryAgent(input: {
   jobId?: string;
+  /** Bound the number of independent discovery slots for this caller. */
+  targetCount?: number;
   depth?: "fast" | "standard" | "deep";
   laneHint?: string;
   hardTimeoutMs?: number;
@@ -219,7 +221,12 @@ export async function runDiscoveryAgent(input: {
 }): Promise<DiscoveryAgentResult> {
   const jobId = input.jobId ?? `discovery_${Date.now()}`;
   const depth = input.depth ?? "standard";
-  const requestedBatch = Math.max(1, Math.min(10, Number(process.env.APEX_DISCOVERY_BATCH_SIZE || "10")));
+  const requestedBatch = Math.max(
+    1,
+    Math.min(10, Number.isFinite(Number(input.targetCount))
+      ? Number(input.targetCount)
+      : Number(process.env.APEX_DISCOVERY_BATCH_SIZE || "10")),
+  );
   const maxIterationsPerSlot = depth === "fast" ? 7 : depth === "deep" ? 18 : 14;
   const defaultSlotTimeout = depth === "fast" ? 75_000 : depth === "deep" ? 300_000 : 210_000;
   const suppliedTimeout = input.hardTimeoutMs ?? defaultSlotTimeout;
