@@ -2240,17 +2240,15 @@ async function runModelSelectedDiscoveryBureau(
           "Every finding must retain an exact public source URL; never invent a person, route, relationship, or URL.",
         ].filter(Boolean).join("\n"),
       });
-      const cleanTerminal =
-        agentic.status === "completed" &&
-        agentic.stopReason === "MODEL_DECIDED_DONE";
-      if (cleanTerminal) {
-        const rehydrated = await rehydrateEntityCardFromEvidence(entity.id);
-        if (rehydrated) {
-          await db.update(entitiesTable).set({
-            cookedAt: new Date(),
-            updatedAt: new Date(),
-          }).where(eq(entitiesTable.id, entity.id));
-        }
+      // Promotion is evidence/card mapping, not a research-path gate. Preserve
+      // any valid source-backed evidence even when the investigator stops on a
+      // budget/timeout boundary; terminal integrity remains visible separately.
+      const rehydrated = await rehydrateEntityCardFromEvidence(entity.id);
+      if (rehydrated) {
+        await db.update(entitiesTable).set({
+          cookedAt: new Date(),
+          updatedAt: new Date(),
+        }).where(eq(entitiesTable.id, entity.id));
       }
       return agentic;
     },
