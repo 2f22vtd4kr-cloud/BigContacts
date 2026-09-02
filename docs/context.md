@@ -199,3 +199,25 @@ The baseline is a quality control, not a marketing benchmark. Do not preselect b
 **Desk residual risk:** source audit found live-node keyword mappings that can still light legacy/role nodes from generic telemetry (including a Gemini node on an agentic target-contact condition and a Whoxy alias on RDAP/domain conditions). These must be corrected before claiming the desk is fully activity-truthful; the attempted UI write was not committed in this batch.
 
 **Next:** finish the desk phase/legacy-node audit, run static guards, then only perform the bounded 3-target discovery-first smoke and inspect the actual trajectory/artifacts.
+
+
+### 2026-09-02 Batch 27–28 — live desk truthfulness + bounded-smoke control plane
+**Commits:**
+- `dcce7a74b19902db0bf1f42c4a9f38fc84b8284e` — activity-only live reactor
+- `ade5b3270effdcb067f8b0b0ae99b1bdb5bbc933` — bounded CI smoke gate
+- `ca7af8be8c9a71fe7b5c18956a28e09a4c7124af` — discovery agent honors caller bound
+- `557c366a076bc997d750739dc50a812956b2639a` — Atlas propagates targetCount into discovery
+
+**Desk fixes (source-level):**
+- When live-node telemetry is supplied, `rodStatus` no longer synthesizes queued/completed state from `ATLAS_PHASE_NODES`. Free-ReAct live state is span/tool telemetry, not a numbered pipeline.
+- Generic `agentic/target-contact/free-dig` telemetry lights `FREE DIG + GROQ`, not Gemini. Gemini still appears only for explicit boss telemetry.
+- RDAP/domain telemetry lights the real in-house/RDAP path, not the legacy `whoxy` alias.
+- Mobile hides phase rails and numbered phase cards while Live tools has actual telemetry.
+
+**Bounded-proof fix:** a caller requesting `targetCount: 3` previously entered `runDiscoveryAgent` without passing that bound, so the agent could silently use `APEX_DISCOVERY_BATCH_SIZE` (often 10) discovery slots. That made a nominal 3-target smoke fan out beyond its stated budget. `targetCount` is now explicit in `runDiscoveryAgent` and propagated from `runModelSelectedDiscoveryBureau`.
+
+**CI launch surface:** the authoritative live-audit workflow now launches a **3-target / researchLimit 2** discovery-first smoke rather than immediately spending quota on a 10-target run. The 10-target audit remains a later scaling gate after real artifacts exist. The obsolete WHOXY secret was removed from this workflow's environment.
+
+**Still unproven:** these are control-plane and UI truthfulness fixes only. No live artifact yet proves the complete chain **model-selected discovery → named person admit with observed HTTPS page evidence → Groq/Mistral free-ReAct Dig → honest evidence-backed or explicitly empty card**. Do not claim readiness, scoreboard success, or a win over the blind independent baseline until that trajectory and card artifacts are collected.
+
+**Next:** run build/static checks on the current tip, then execute the bounded 3-target smoke in the actual runtime and perform trajectory forensics before any scale-up.
