@@ -41,6 +41,11 @@ if (!/\["groq", callGroqJson\]/.test(llmStep) || !/\["mistral", callMistralJson\
 if (/callGeminiJson|callNvidiaJson|\["gemini"|\["nvidia"/.test(llmStep)) {
   throw new Error("agentic runtime invariant failed: Boss/right-hand provider leaked into Dig investigator lane");
 }
+// Keep the production Dig module free of dormant Boss/right-hand HTTP callers.
+if (/async function callNvidiaJson\b/.test(source)) {
+  throw new Error("agentic runtime invariant failed: dormant NVIDIA Dig HTTP helper remains in production module");
+}
+
 if (!/DIG_INVESTIGATOR_FAILOVER_CHAIN:[^\n]*Groq -> Mistral/.test(source)) {
   throw new Error("agentic runtime invariant failed: missing explicit Dig provider-role marker");
 }
