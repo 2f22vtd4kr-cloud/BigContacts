@@ -367,3 +367,10 @@ Added regression cases for generated Google/Bing query URLs so HTTPS search endp
 The discovery-first chain was re-traced end to end: `runDiscoveryAgent` runs model-owned slots; each slot admits only `result.modelFindings` through `parsePersonFindings`; the orchestrator applies `isWellFormedPersonCandidate`, admits candidates in model order, then reconstructs the admitted entity's role/company/source URLs and notes into the compact Dig objective. The Dig objective explicitly treats discovery state as prior evidence rather than restarting identity research.
 
 Added an explicit source-level guard comment at the admission boundary to make the no-auto-person rule reviewable. This is static path proof, not trajectory proof.
+
+### 2026-09-02 Batch 46 — correction: promotion is not a scripted completion gate
+Re-reading the product law exposed an overcorrection in Batch 43. Requiring `MODEL_DECIDED_DONE` before card rehydration/`cookedAt` turned terminal state into a deterministic promotion gate. That is contrary to Apex's architecture: the model is free to research and stop naturally; deterministic code validates provenance and maps evidence honestly, but must not discard already-valid findings merely because a lifecycle budget or timeout ended the loop.
+
+**Corrected:** card rehydration now runs from evidence regardless of terminal stop reason. Promotion still cannot invent data: it depends on source-backed evidence and successful rehydration. Terminal integrity/stop reason remains a separate truth surface and must not be collapsed into a success claim.
+
+This restores the intended boundary: **free model research → deterministic provenance validation → evidence/card mapping**, with no scripted discovery, forced research path, or terminal-state promotion playbook.
