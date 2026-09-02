@@ -34,40 +34,38 @@ const write = (p, t) => fs.writeFileSync(path.join(root, p), t);
   const newContract = 'If you establish a real named person that YOU judge worth promoting, emit action=done with a finding containing personName="Full Name" (or value="person: Full Name | role | company"), scope="candidate", promotionDecision="promote", promotionReason="brief reason", and sourceUrls containing the exact HTTPS page you actually observed. If you do not judge the person worth promoting, emit promotionDecision="reject" or findings=[].';
   if (s.includes(oldContract)) s = s.replace(oldContract, newContract);
 
-  // Do not tell the discovery investigator that an empty model finding set is
-  // acceptable merely because deterministic contact facts exist. Those facts
-  // are observations; discovery admission is explicitly model-owned.
+  // Discovery admission is model-owned. Deterministic contact facts remain
+  // observations and must never be used as a substitute for model promotion.
   s = s.replace(
     /- When finished, action=done\. findings:\[\] is OK if FINDINGS SO FAR already holds contacts — the runtime keeps the bag\./g,
     '- When finished, action=done. In discovery, findings=[] means no person was promoted. Do not rely on FINDINGS SO FAR or deterministic contact facts to represent a discovery promotion; emit the person you personally selected with promotionDecision="promote" and the exact observed HTTPS source when identity is established.',
   );
 
-  // Provider selection is an optional part of the model-selected web_search
-  // action. The harness may fall back only when the model omits the provider;
-  // it never silently changes an explicitly requested provider.
-  if (!s.includes('requestedProvider?: "serper" | "tavily" | "exa" | "ddg"')) {
+  // Let the investigator choose the web-search provider. If it omits provider,
+  // the existing availability fallback remains intact. An explicit choice is
+  // never silently rerouted; the model can see the failure and pivot itself.
+  if (!s.includes('requestedProvider?: "serper" | "tavily" | "exa"')) {
     s = s.replace(
       'async function toolWebSearch(query: string): Promise<{ text: string; urls: string[]; provider: "serper" | "tavily" | "exa" | "ddg" }> {',
-      'async function toolWebSearch(query: string, requestedProvider?: "serper" | "tavily" | "exa" | "ddg"): Promise<{ text: string; urls: string[]; provider: "serper" | "tavily" | "exa" | "ddg" }> {',
-    );
-    s = s.replace(
-      '      const sr = await toolWebSearch(action.query);',
-      '      const requestedProvider = ["serper", "tavily", "exa", "ddg"].includes(String((action as any).provider))\n        ? ((action as any).provider as "serper" | "tavily" | "exa" | "ddg")\n        : undefined;\n      const sr = await toolWebSearch(action.query, requestedProvider);',
+      'async function toolWebSearch(query: string, requestedProvider?: "serper" | "tavily" | "exa"): Promise<{ text: string; urls: string[]; provider: "serper" | "tavily" | "exa" | "ddg" }> {',
     );
     const marker = '  // Prefer Serper, then Tavily, then Exa, then DDG. Providers are tools — not promotion authorities.\n';
-    const replacement = marker +
+    const providerBranches = marker +
       '  if (requestedProvider === "serper") { const r = await toolWebSearchSerper(query); return r && r.urls.length ? { ...r, provider: "serper" } : { text: "SERPER requested but unavailable/no results", urls: [], provider: "serper" }; }\n' +
       '  if (requestedProvider === "tavily") { const r = await toolWebSearchTavily(query); return r && (r.urls.length || r.text.length > 40) ? { ...r, provider: "tavily" } : { text: "TAVILY requested but unavailable/no results", urls: [], provider: "tavily" }; }\n' +
-      '  if (requestedProvider === "exa") { const r = await toolWebSearchExa(query); return r && (r.urls.length || r.text.length > 40) ? { ...r, provider: "exa" } : { text: "EXA requested but unavailable/no results", urls: [], provider: "exa" }; }\n' +
-      '  if (requestedProvider === "ddg") { const r = await toolWebSearchDdg(query); return r && (r.urls.length || r.text.length > 40) ? { ...r, provider: "ddg" } : { text: "DDG requested but unavailable/no results", urls: [], provider: "ddg" }; }\n';
-    if (s.includes(marker) && s.includes('async function toolWebSearchDdg')) s = s.replace(marker, replacement);
+      '  if (requestedProvider === "exa") { const r = await toolWebSearchExa(query); return r && (r.urls.length || r.text.length > 40) ? { ...r, provider: "exa" } : { text: "EXA requested but unavailable/no results", urls: [], provider: "exa" }; }\n';
+    if (s.includes(marker)) s = s.replace(marker, providerBranches);
+    s = s.replace(
+      '      const sr = await toolWebSearch(action.query);',
+      '      const requestedProvider = ["serper", "tavily", "exa"].includes(String((action as any).provider))\n        ? ((action as any).provider as "serper" | "tavily" | "exa")\n        : undefined;\n      const sr = await toolWebSearch(action.query, requestedProvider);',
+    );
     s = s.replace(
       '{"action":"web_search","query":"...","thought":"..."}',
-      '{"action":"web_search","query":"...","provider":"serper|tavily|exa|ddg (optional)","thought":"..."}',
+      '{"action":"web_search","query":"...","provider":"serper|tavily|exa (optional)","thought":"..."}',
     );
     s = s.replace(
       '- Search snippets are leads, not identity evidence.',
-      '- Search snippets are leads, not identity evidence. You may choose the search provider explicitly with provider=serper, tavily, exa, or ddg when that changes expected information gain.',
+      '- Search snippets are leads, not identity evidence. You may choose the search provider explicitly with provider=serper, tavily, or exa when that changes expected information gain.',
     );
   }
   write("artifacts/api-server/src/src/lib/agentic-web-research.ts", s);
