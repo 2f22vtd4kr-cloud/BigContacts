@@ -2,7 +2,7 @@
 
 **Repo:** https://github.com/2f22vtd4kr-cloud/BigContacts  
 **Branch:** `main`  
-**Current tip floor:** `2318d302e05eb93795c9d8660b45bdb8e754c577` or newer (post-Batch-46 promotion-boundary correction)  
+**Current tip floor:** `c2a8b93ff9e9743af3935d9563464952c656e43a` or newer (Batch 50 Replit boot: api-server start + REDIS_URL_1 on boot)
 **Canonical Replit path:** one paste — `docs/REPLIT_UPDATE_PROMPT_LATEST.md` (Agent inside the App). Expanded procedure: `docs/RUN_BUREAU.md`.  
 **Product:** Apex Atlas research bureau; **Bureau is its OSINT/research architecture**, not a separate product.
 
@@ -393,3 +393,19 @@ A final full-path review found stale pre-span fallback code in `reactor.tsx`: `a
 **Fixed:** named research nodes now come from actual Dig spans only. During a running/paused job the target anchor may remain visible, but no tool is lit from telemetry/status/log keywords. The existing explicit telemetry mapping is retained only as dead compatibility code removal territory and is no longer an activity source in the live decision path. This aligns the Desk with the product law: display observed actions, never infer a research trajectory.
 
 **Final static audit result:** model autonomy remains intact across discovery, Dig, and evidence flow. Deterministic boundaries validate identity, scope, provenance, budgets, and card honesty; they do not prescribe queries, tools, pivots, or a terminal-state promotion sequence.
+
+### 2026-09-02 Batch 50 — Replit live setup feedback → repo fixes
+A Replit Agent run (operator pasted the updated setup prompt into the Apex Atlas App) reached tip `6ea0d44`, installed after lockfile host rewrite to registry.npmjs.org, pushed DB schema, built desk/API, and passed `check:no-force-dig` / `check:free-react`. Operator stopped the bounded discovery seed before Dig/scoreboard; setup left in manual-launch mode with non-blank preview.
+
+**Real defects exposed by that run (not operator error):**
+1. `@workspace/api-server` `package.json` had `dev`/`build` but **no `start` script**, while `scripts/replit-boot.sh` ends with `pnpm --filter @workspace/api-server run start`. Boot could not start the API from the documented path.
+2. Permanent bureau Redis (`REDIS_URL_1`) is deferred unless `ENABLE_AUTO_PIPELINE` or `ENABLE_REDIS_ON_BOOT` is true. With the safe floor `ENABLE_AUTO_PIPELINE=false`, healthz reported Redis `not_connected` even when Upstash `REDIS_URL_1` was correctly set — until an Atlas launch called `enablePermanentRedis()`. That confused the Replit health step.
+3. Operators often configure only `REDIS_URL_1` (runbook allows alias). Local-cache `REDIS_URL` was empty; boot should alias when appropriate.
+
+**Fixed on main:**
+- `artifacts/api-server/package.json` — add `"start": "node --enable-source-maps ./dist/index.mjs"` (commit `881f662`).
+- `scripts/replit-boot.sh` — default `ENABLE_REDIS_ON_BOOT=true`; if `REDIS_URL` unset and `REDIS_URL_1` set, export `REDIS_URL=$REDIS_URL_1` so a single Upstash secret satisfies health + permanent store (commit `c2a8b93`).
+
+**Not claimed:** Replit did not complete seed admits or single-target Dig scoreboard. That remains operator-initiated proof. Desk syntax issue reported mid-build was fixed in the App workspace; if it reappears, treat as apply-script/checkout corruption and re-pull clean tip.
+
+**Operator next:** `git pull origin main` (tip ≥ `c2a8b93`), rebuild API if needed, restart API Server only, re-check `/api/healthz`. Launch Apex manually when ready.
