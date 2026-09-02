@@ -381,3 +381,8 @@ A direct evidence insert in the EDGAR identity boost labeled a public SEC notice
 **Fixed:** the evidence is now labeled `organization`. The number remains available as public evidence; nothing is hidden or discarded by a scripted lifecycle rule. The change only corrects what the evidence means so the honest card mapper does not misrepresent an organizational surface as a person's direct line.
 
 This follows the product boundary: models remain free to discover and emit findings; deterministic code may validate provenance, identity and scope, but does not prescribe research steps or require a terminal state before evidence can appear on a card.
+
+### 2026-09-02 Batch 48 — remove empty-output promotion fallback
+The legacy bureau persistence helper promoted a card from arbitrary durable evidence even when the current model/research pass supplied an empty list. That could make a no-finding pass appear to have produced a contact update through unrelated historical rows.
+
+**Fixed:** an empty pass now persists nothing and triggers no implicit card promotion. This is not a research gate: non-empty, source-backed evidence still flows freely through validation into card mapping regardless of how the model got there or why its loop later stopped. Explicit rehydration remains available when the caller intentionally asks to rebuild a card from durable evidence.
