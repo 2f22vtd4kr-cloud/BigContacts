@@ -2149,6 +2149,7 @@ async function runModelSelectedDiscoveryBureau(
     ? String(opts.researchDepth).toLowerCase()
     : "standard") as "fast" | "standard" | "deep";
 
+  const admittedIds: number[] = [];
   const discovery = await runDiscoveryAgent({
     jobId: atlasJobId,
     // Discovery slots are part of the caller's lifecycle budget. A 3-target
@@ -2169,6 +2170,27 @@ async function runModelSelectedDiscoveryBureau(
         })}`,
       ).catch(() => {});
     },
+    // Incremental admit: write ledger rows as soon as a slot produces a person
+    // so operators see entities during a long batch and stops do not discard work.
+    onCandidate: async (candidate) => {
+      await ensureAtlasActive(atlasJobId);
+      if (!isWellFormedPersonCandidate(candidate)) {
+        logger.info({ name: candidate.name }, "[discovery-first] incremental admit skipped malformed");
+        return;
+      }
+      const id = await createEntityFromDiscoveryCandidate(candidate, { modelSelected: true });
+      if (id && !admittedIds.includes(id)) {
+        admittedIds.push(id);
+        await status(
+          `Admitted ${candidate.name} (${admittedIds.length}/${targetLimit}) — continuing discovery…`,
+          Math.min(90, Math.round((admittedIds.length / Math.max(1, targetLimit)) * 40)),
+        );
+        void appendJobLog(
+          atlasJobId,
+          `DISCOVERY_ADMIT ${JSON.stringify({ id, name: candidate.name, sources: candidate.sourceUrls?.slice(0, 3) })}`,
+        ).catch(() => {});
+      }
+    },
   });
 
   // Admission must remain model-output-only. Never reconstruct people from
@@ -2180,13 +2202,14 @@ async function runModelSelectedDiscoveryBureau(
     `${candidates.length} source-backed model candidates from ${discovery.model ?? "provider chain"} ` +
     `(${discovery.searches} searches, ${discovery.visits} visits, degraded=${discovery.degraded})`;
 
-  const admittedIds: number[] = [];
+  // admittedIds already filled incrementally
+  
   for (const candidate of candidates) {
     await ensureAtlasActive(atlasJobId);
     const id = await createEntityFromDiscoveryCandidate(candidate, { modelSelected: true });
     if (id) admittedIds.push(id);
   }
-  summary["Model admission"] = `${admittedIds.length}/${candidates.length} candidates admitted in model order`;
+  summary["Model admission"] = `${admittedIds.length}/${candidates.length} candidates admitted in model order (incremental+final)`;
 
   const targetRows: any[] = [];
   for (const id of admittedIds.slice(0, researchLimit)) {

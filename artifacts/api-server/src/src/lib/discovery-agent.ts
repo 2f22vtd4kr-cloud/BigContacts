@@ -186,7 +186,21 @@ export function parsePersonFindings(findings: DiscoveryFinding[], trajectory: st
     // Never admit those synthetic related-person findings; the investigator must
     // explicitly emit the person it chose from its observed evidence.
     if (String(f.role ?? "").trim().toLowerCase() === "proxy_table") continue;
-    if (f.scope !== "candidate" && !(f.scope === "organization" && f.personName)) continue;
+    // Prefer explicit scope=candidate; still accept personName + HTTPS sources when
+    // the model omits scope (common free-ReAct omission). Reject organization-only
+    // rows without a personName.
+    const hasPersonName = Boolean(f.personName && String(f.personName).trim().length >= 3);
+    const scopeOk =
+      f.scope === "candidate" ||
+      (f.scope === "organization" && hasPersonName) ||
+      (hasPersonName && (f.sourceUrls?.some((u) => /^https?:\/\//i.test(String(u))) ?? false));
+    if (!scopeOk) {
+      logger.info(
+        { scope: f.scope, personName: f.personName, value: String(f.value ?? "").slice(0, 80) },
+        "[discovery-agent] parsePersonFindings skipped finding (scope/person gate)",
+      );
+      continue;
+    }
     const urls = (f.sourceUrls ?? []).filter((u) => /^https?:\/\//i.test(String(u)));
     if (f.personName && String(f.personName).trim().length >= 3) {
       add(String(f.personName), { role: f.role ?? undefined, basis: f.note || f.role || "Named on visited public page", sourceUrls: urls });
@@ -218,14 +232,19 @@ export async function runDiscoveryAgent(input: {
   laneHint?: string;
   hardTimeoutMs?: number;
   onLiveStep?: (step: { action: string; tool?: string; query?: string; url?: string; status: "ok" | "error" | "active"; detail?: string }) => void;
+  /** Optional: called as soon as a slot produces a distinct well-formed candidate (incremental admit). */
+  onCandidate?: (candidate: DiscoveryCandidate, meta: { slot: number; batch: number }) => void | Promise<void>;
 }): Promise<DiscoveryAgentResult> {
   const jobId = input.jobId ?? `discovery_${Date.now()}`;
   const depth = input.depth ?? "standard";
   const requestedBatch = Math.max(
     1,
-    Math.min(10, Number.isFinite(Number(input.targetCount))
-      ? Number(input.targetCount)
-      : Number(process.env.APEX_DISCOVERY_BATCH_SIZE || "10")),
+    Math.min(
+      10,
+      Number.isFinite(Number(input.targetCount)) && Number(input.targetCount) > 0
+        ? Number(input.targetCount)
+        : Number(process.env.APEX_DISCOVERY_BATCH_SIZE || process.env.APEX_DISCOVERY_DEFAULT_BATCH || "3"),
+    ),
   );
   const maxIterationsPerSlot = depth === "fast" ? 7 : depth === "deep" ? 18 : 14;
   const defaultSlotTimeout = depth === "fast" ? 75_000 : depth === "deep" ? 300_000 : 210_000;
@@ -300,6 +319,14 @@ export async function runDiscoveryAgent(input: {
             if (seen.has(key)) continue;
             seen.add(key);
             candidates.push(candidate);
+            try {
+              await input.onCandidate?.(candidate, { slot: slot + 1, batch: requestedBatch });
+            } catch (admitErr) {
+              logger.warn(
+                { err: String(admitErr).slice(0, 200), name: candidate.name },
+                "[discovery-agent] onCandidate failed",
+              );
+            }
             if (candidates.length >= requestedBatch) break;
           }
         }
