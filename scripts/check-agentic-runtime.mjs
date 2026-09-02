@@ -12,11 +12,8 @@ if (!/^\/\*\*[\s\S]*Compatibility shim only[\s\S]*export \* from \"\.\.\/\.\.\/a
 }
 
 const required = [
-  ["Gemini provider implementation remains available for Boss", /GEMINI_API_KEY_/],
-  ["Gemini 3.7 is an available current model", /gemini-3\.7-flash/],
-  ["Gemini uses high thinking", /thinkingLevel.*high/],
-  ["Gemini action schema is present", /const AGENTIC_ACTION_SCHEMA =/],
-  ["Gemini action JSON is fail-closed parsed", /function parseAction/],
+  ["Dig action schema is present", /const AGENTIC_ACTION_SCHEMA =/],
+  ["Dig action JSON is fail-closed parsed", /function parseAction/],
   ["Dig provider decision deadline is bounded", /providerDecisionTimeoutMs = Math\.max\(55_000, Number\(process\.env\.AGENTIC_PROVIDER_DECISION_TIMEOUT_MS/],
   ["late provider rejections are consumed", /void fn\(prompt\)\.then\([\s\S]*?clearTimeout\(timer\)/],
   ["Dig investigator failover starts with Groq", /DIG_INVESTIGATOR_FAILOVER_CHAIN[\s\S]*\["groq", callGroqJson\]/],
@@ -41,6 +38,11 @@ if (!/\["groq", callGroqJson\]/.test(llmStep) || !/\["mistral", callMistralJson\
 if (/callGeminiJson|callNvidiaJson|\["gemini"|\["nvidia"/.test(llmStep)) {
   throw new Error("agentic runtime invariant failed: Boss/right-hand provider leaked into Dig investigator lane");
 }
+// The Dig module must not carry dormant Boss provider implementation.
+if (/GEMINI_API_KEY_|async function callGeminiJson\b/.test(source)) {
+  throw new Error("agentic runtime invariant failed: dormant Gemini provider remains in production Dig module");
+}
+
 // Keep the production Dig module free of dormant Boss/right-hand HTTP callers.
 if (/async function callNvidiaJson\b/.test(source)) {
   throw new Error("agentic runtime invariant failed: dormant NVIDIA Dig HTTP helper remains in production module");
