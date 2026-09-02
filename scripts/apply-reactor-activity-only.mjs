@@ -20,26 +20,37 @@ s = s.replace('width:"100%", height:"100%", minWidth:1600, minHeight:960,', 'wid
 s = s.replace('overflow:"auto", position:"relative",', 'overflow:"hidden", position:"relative",');
 s = s.replace('position:"relative", width:"100%", maxWidth:"100%", flex:1, minHeight:420,', 'position:"relative", width:"100%", maxWidth:"100%", flex:1, minHeight:0,');
 
-// Render the compact live surface from a separate component so this patcher
-// never has to splice a large JSX template into the page implementation.
+const importLine = 'import { ReactorActivityOnly } from "../components/reactor-activity-only";';
 const importAnchor = 'import { MobileReactorFlow } from "../components/mobile-reactor-flow";';
-if (!s.includes('import { ReactorActivityOnly } from "../components/reactor-activity-only";')) {
+if (!s.includes(importLine)) {
   if (!s.includes(importAnchor)) throw new Error("reactor import anchor missing");
-  s = s.replace(importAnchor, `${importAnchor}\nimport { ReactorActivityOnly } from "../components/reactor-activity-only";`);
+  s = s.replace(importAnchor, `${importAnchor}\n${importLine}`);
 }
 
-const schemeAnchor = '        {/* Scheme canvas — horizontal + vertical pan via scroll (nodes extend past viewport) */}';
-if (!s.includes('data-testid="scheme-activity-only"')) {
-  if (!s.includes(schemeAnchor)) throw new Error("scheme canvas anchor missing");
+// Insert immediately before the existing poster comment. Using the line index
+// avoids brittle indentation/whitespace matching in the large page file.
+const schemeMarker = "Scheme canvas — horizontal + vertical pan via scroll";
+if (!s.includes("<ReactorActivityOnly nodes={NODES.filter")) {
+  const markerAt = s.indexOf(schemeMarker);
+  if (markerAt < 0) throw new Error("scheme marker missing");
+  const lineStart = s.lastIndexOf("\n", markerAt) + 1;
   const activity = '        {schemeToolsOnly && <ReactorActivityOnly nodes={NODES.filter((n) => liveNodes?.has(n.id))} />}\n';
-  s = s.replace(schemeAnchor, activity + schemeAnchor);
+  s = s.slice(0, lineStart) + activity + s.slice(lineStart);
 }
 
-// The poster implementation is preserved, but never mounted in Live tools mode.
-s = s.replace(
-  '            position:"relative", width:"100%", maxWidth:"100%", flex:1, minHeight:0,\n            overflowX:"auto",',
-  '            position:"relative", width:"100%", maxWidth:"100%", flex:1, minHeight:0,\n            display: schemeToolsOnly ? "none" : "block",\n            overflowX:"auto",',
-);
+// Hide the poster in Live tools mode. Full map is still available by toggling
+// the existing schemeToolsOnly control off.
+const scrollMarker = 'data-testid="scheme-scroll-viewport"';
+const scrollAt = s.indexOf(scrollMarker);
+if (scrollAt < 0) throw new Error("scheme scroll viewport missing");
+const styleAt = s.lastIndexOf('style={{', scrollAt);
+if (styleAt >= 0) {
+  const displayMarker = 'display: schemeToolsOnly ? "none" : "block",';
+  const nextBrace = s.indexOf('}}', styleAt);
+  if (nextBrace > 0 && !s.slice(styleAt, nextBrace).includes(displayMarker)) {
+    s = s.slice(0, styleAt) + s.slice(styleAt, nextBrace).replace('style={{', 'style={{\n            ' + displayMarker) + s.slice(nextBrace);
+  }
+}
 
 // Never synthesize a visible target node from run phase. liveNodes comes from
 // the currently-active span set; completed spans are history, not live activity.
@@ -52,7 +63,8 @@ s = s.replace(
   '        setLiveNodes(fromSpans);',
 );
 
-if (!s.includes('data-testid="scheme-activity-only"')) throw new Error("activity-only surface did not land");
+if (!s.includes(importLine)) throw new Error("activity component import did not land");
+if (!s.includes("<ReactorActivityOnly nodes={NODES.filter")) throw new Error("activity component mount did not land");
 if (!s.includes('setLiveNodes(fromSpans);')) throw new Error("span-only live state did not land");
 fs.writeFileSync(reactorPath, s);
 console.log("REACTOR_ACTIVITY_ONLY_APPLIED");
