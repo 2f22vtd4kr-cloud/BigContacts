@@ -136,7 +136,7 @@ export async function runBureauAgenticWebPass(input: {
           step.action === "web_search" ? "search"
           : step.action === "visit" || step.action === "browser_fetch" ? "page-fetch"
           : step.action === "registry_search" ? "registry"
-          : step.action === "domain_lookup" || step.action === "reverse_whois" ? "domain"
+          : step.action === "domain_lookup" ? "domain"
           : step.action.startsWith("footprint") || step.action === "harvest_domain" ? "tool"
           : "tool";
         void publishBureauEvent({
@@ -152,7 +152,6 @@ export async function runBureauAgenticWebPass(input: {
             : step.action === "harvest_domain" ? `Harvest · ${step.query || ""}`
             : step.action === "footprint_email" ? `Holehe · ${step.query || ""}`
             : step.action === "footprint_username" ? `Username footprint · ${step.query || ""}`
-            : step.action === "reverse_whois" ? `Reverse WHOIS · ${step.query || ""}`
             : step.action,
           caseId: input.caseId != null ? String(input.caseId) : undefined,
           targetName: step.targetName,
