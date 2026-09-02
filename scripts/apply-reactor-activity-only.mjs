@@ -51,18 +51,6 @@ if (!s.slice(styleAt, nextBrace).includes(displayMarker)) {
   s = s.slice(0, styleAt) + s.slice(styleAt, nextBrace).replace('style={{', 'style={{\n            ' + displayMarker) + s.slice(nextBrace);
 }
 
-// The page had a malformed outer pollJobs try/catch boundary before the
-// activity-only change. Remove that unused wrapper instead of shipping a
-// parser error at the catch site; the contact hydration try/catch remains.
-s = s.replace(
-  '    try {\n      // Poll jobs, atlas status, AND key health in parallel',
-  '      // Poll jobs, atlas status, AND key health in parallel',
-);
-s = s.replace(
-  '      }\n    } catch { /* non-fatal */ }\n  }, []);',
-  '      }\n  }, []);',
-);
-
 if (!s.includes(importLine)) throw new Error("activity component import did not land");
 if (!s.includes("<ReactorActivityOnly nodes={NODES.filter")) throw new Error("activity component mount did not land");
 fs.writeFileSync(reactorPath, s);
