@@ -643,69 +643,6 @@ const AGENTIC_ACTION_SCHEMA = {
   additionalProperties: false,
 };
 
-async function callGeminiJson(prompt: string): Promise<{ model: string; raw: string } | null> {
-  const keys = [
-    "GEMINI_API_KEY",
-    "GEMINI_KEY",
-    ...Array.from({ length: 13 }, (_, i) => `GEMINI_API_KEY_${i + 1}`),
-  ]
-    .map((n) => ({ name: n, key: (process.env[n] ?? "").trim() }))
-    .filter((entry) => entry.key.length > 0);
-  if (!keys.length) return null;
-
-  const models = [
-    process.env.GEMINI_AGENTIC_MODEL,
-    process.env.GEMINI_BOSS_MODEL,
-    "gemini-3.7-flash",
-    "gemini-3.6-flash",
-    "gemini-3.5-flash",
-    "gemini-3.5-flash-lite",
-    "gemini-3.1-flash-lite",
-  ].filter((m, i, all): m is string => Boolean(m && m.trim()) && all.indexOf(m) === i);
-
-  for (const entry of keys) {
-    for (const model of models) {
-      try {
-        const resp = await fetch(
-          "https://generativelanguage.googleapis.com/v1beta/models/" + encodeURIComponent(model) + ":generateContent",
-          {
-            method: "POST",
-            headers: { "x-goog-api-key": entry.key, "Content-Type": "application/json" },
-            body: JSON.stringify({
-              systemInstruction: {
-                parts: [{
-                  text: apexOrientationCompact("dig_agent") +
-                    "\nReturn exactly one JSON action object. Preserve your own research judgment; the harness only executes the action you choose.",
-                }],
-              },
-              contents: [{ role: "user", parts: [{ text: prompt }] }],
-              generationConfig: {
-                maxOutputTokens: 1024,
-                thinkingConfig: { thinkingLevel: "high" },
-              },
-            }),
-            signal: AbortSignal.timeout(50_000),
-          },
-        );
-        if (!resp.ok) {
-          const body = (await resp.text()).slice(0, 500);
-          logger.warn({ provider: "gemini", keyName: entry.name, status: resp.status, model, body }, "agentic provider rejected request");
-          // 401/403 is a key problem; move to the next key. 404 is a model
-          // lifecycle problem; move to the next model. 429/503 are capacity
-          // problems; move through the configured pool instead of killing the turn.
-          continue;
-        }
-        const data = await resp.json() as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
-        const raw = data.candidates?.[0]?.content?.parts?.map((p) => p.text || "").join("").trim() || "";
-        if (raw) return { model: `gemini:${model}`, raw };
-      } catch (err: any) {
-        logger.warn({ provider: "gemini", keyName: entry.name, model, error: err?.message }, "agentic provider call failed");
-      }
-    }
-  }
-  return null;
-}
-
 async function callMistralJson(prompt: string): Promise<{ model: string; raw: string } | null> {
   const key = process.env.MISTRAL_API_KEY?.trim();
   if (!key) return null;
@@ -1777,7 +1714,7 @@ async function runAgenticWebResearchUnbounded(input: {
         `Reply with ONE action object only. Allowed actions: web_search, visit, browser_fetch, ` +
         `footprint_email, footprint_username, domain_lookup, harvest_domain, registry_search, done.\n` +
         `Example: {"action":"web_search","query":"...","thought":"..."}\n` +
-        `Target: ${name}. Objective: ${objective.slice(0, 400)}\n` +
+        `Target: ${name}. Objective: ${( /^Discovery slot\b/i.test(name) ? objective.slice(0, 4500) : objective.slice(0, 2200))}\n` +
         `Last observation (trim):\n${lastObservation.slice(0, 1200)}\n` +
         `Bad reply was:\n${llm.raw.slice(0, 500)}`,
       );
