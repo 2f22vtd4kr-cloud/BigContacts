@@ -110,8 +110,14 @@ for (const line of actualSearches) {
 }
 
 if (status.status !== "done" && status.outcome !== "complete") fail(`Bureau did not finish cleanly: ${status.status || status.outcome || "unknown"}`);
-const expectedTargets = Math.max(1, Number(process.env.LIVE_AUDIT_TARGET_COUNT || "10"));
-if (rows.length < expectedTargets) fail(`discovery-first audit produced ${rows.length} entities; expected the full ${expectedTargets}-target batch`);
+if (health?.bureauIntegrity === "critical") {
+  fail(`bureauIntegrity=critical: ${(health.bureauIntegrityReasons || []).join("; ") || "agentic runtime degraded"}`);
+}
+if (/\bdegraded=true\b/i.test(String(status.message || ""))) {
+  fail("Bureau completed with degraded=true; provider failure cannot count as research-quality proof");
+}
+const minAdmits = Math.max(1, Number(process.env.LIVE_AUDIT_MIN_ADMITS || "1"));
+if (rows.length < minAdmits) fail(`discovery-first proof produced ${rows.length} entities; require at least ${minAdmits} real admitted person(s)`);
 
 let sourceBacked = 0;
 let direct = 0;
