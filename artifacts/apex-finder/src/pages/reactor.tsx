@@ -461,7 +461,18 @@ const ATLAS_PHASE_NODES: Record<number, string[]> = {
 };
 
 function rodStatus(id: string, atlasState: AtlasLiveState | null | undefined, liveNodes?: Set<string>): RodStatus {
-  if (!atlasState) return liveNodes?.has(id) ? "active" : "idle";
+  // Live tools mode is span/tool telemetry, not a numbered pipeline. Once the
+  // caller supplies live state, never synthesize queued/completed nodes from
+  // ATLAS_PHASE_NODES; that would fabricate activity for free-ReAct Dig.
+  if (liveNodes) {
+    if (atlasState?.runStatus === "failed" && liveNodes.has(id)) return "failed";
+    if (atlasState?.runStatus === "cancelled") return "idle";
+    if (atlasState?.runStatus === "done") return liveNodes.has(id) ? "completed" : "idle";
+    if (atlasState?.runStatus === "running" || atlasState?.runStatus === "paused" || !atlasState) {
+      return liveNodes.has(id) ? "active" : "idle";
+    }
+  }
+  if (!atlasState) return "idle";
   if (atlasState.runStatus === "failed" || atlasState.runStatus === "cancelled") {
     if (liveNodes?.has(id) && atlasState.runStatus === "failed") return "failed";
     const wasReached = Object.entries(ATLAS_PHASE_NODES).some(([phase, ids]) => Number(phase) <= atlasState.phase && ids.includes(id));
@@ -1257,7 +1268,7 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
                     </div>
                   );
                 })}
-                {MOBILE_PHASES.map((phase, pi) => {
+                {!(isLive && liveNodes && liveNodes.size > 0) && MOBILE_PHASES.map((phase, pi) => {
                   const y = [76, 210, 342, 476, 558, 658, 724][pi];
                   return <div key={`rail-${phase.label}`} style={{
                     position:"absolute", left:20, right:10, top:y, height:1,
@@ -1270,7 +1281,7 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
                 display:"grid", gridTemplateColumns:"repeat(2, minmax(0,1fr))",
                 gap:5, marginTop:8,
               }}>
-                {MOBILE_PHASES.map((phase, pi) => {
+                {!(isLive && liveNodes && liveNodes.size > 0) && MOBILE_PHASES.map((phase, pi) => {
                    const phaseStatuses = phase.nodeIds.map(id => rodStatus(id, atlasState, liveNodes));
                    const active = phaseStatuses.includes("active");
                    const completed = !active && phaseStatuses.some(status => status === "completed");
@@ -2685,7 +2696,7 @@ export default function IntelligenceReactorPage() {
         if (/exa/.test(tool)) light(["exa", "mcts"]);
         if (/visit|page-fetch|page_fetch|browser|harvest|webdisc/.test(tool)) light(["webdisc", "mcts"]);
         if (/agentic|target.contact|free.?dig|runTargetContact/.test(tool) || /target contact agent/.test(stage)) {
-          light(["mcts", "groq", "gemini"]);
+          light(["mcts", "groq"]);
         }
         if (/adaptive|director|follow-up|semantic_discovery/.test(tool) || /adaptive research/.test(stage)) {
           light(["perpfu", "mcts"]);
@@ -2694,7 +2705,7 @@ export default function IntelligenceReactorPage() {
         if (/gemini|boss/.test(tool)) light(["gemini", "mcts"]);
         if (/edgar|proxy|sec/.test(tool) || /edgar/.test(stage)) light(["edgar", "target"]);
         if (/companies.?house|\bch\b/.test(tool)) light(["ch"]);
-        if (/rdap|whois|domain/.test(tool) || /domain/.test(stage)) light(["inhouse", "whoxy"]);
+        if (/rdap|whois|domain/.test(tool) || /domain/.test(stage)) light(["inhouse", "mcts"]);
         if (/maigret|sherlock|footprint|holehe/.test(tool)) light(["maigret"]);
         if (/social|messenger|linkedin/.test(stage)) light(["maigret", "webdisc"]);
         // Recent bureau events also light matching tools (last ~12 lines)
