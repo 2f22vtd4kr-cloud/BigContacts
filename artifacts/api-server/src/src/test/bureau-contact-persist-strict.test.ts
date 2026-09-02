@@ -40,3 +40,29 @@ describe("strict bureau contact persistence boundary", () => {
     ]);
   });
 });
+
+
+describe("Batch 44 provenance regressions", () => {
+  it("rejects a generated Google query even when another field looks agentic", () => {
+    expect(sourceBackedBureauContacts([
+      {
+        vectorType: "phone",
+        value: "+1 555 0100",
+        scope: "candidate",
+        note: "bureau-agentic",
+        sourceUrls: ["https://www.google.com/search?q=Jane%20Example%20%2B1%20555%200100"],
+      },
+    ])).toEqual([]);
+  });
+
+  it("requires a real claim page, not merely an HTTPS URL", () => {
+    expect(sourceBackedBureauContacts([
+      {
+        vectorType: "email",
+        value: "jane@example.com",
+        scope: "candidate",
+        sourceUrls: ["https://bing.com/search?q=jane%40example.com"],
+      },
+    ])).toEqual([]);
+  });
+});
