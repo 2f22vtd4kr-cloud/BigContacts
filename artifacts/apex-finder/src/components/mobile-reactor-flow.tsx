@@ -315,8 +315,62 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
         story: tel.story || tel.inputSummary || tel.stage,
       } as any);
     }
+    // SPAN_FEED_FALLBACK_V1: map recentSpans → plain-language Now/Done lines when
+    // eventLog/deskEvents are empty (common during discovery-first free-ReAct).
+    if (isLive && out.length === 0) {
+      const spans = Array.isArray(atlasState?.recentSpans) ? atlasState!.recentSpans! : [];
+      const toolish = spans.filter((s) => {
+        const t = String(s.spanType || "");
+        const n = String(s.name || "");
+        return t === "tool" || n === "web_search" || n === "visit" || n === "browser_fetch"
+          || n === "llm_step" || t === "stage" || n === "discovery_slot";
+      }).slice(-8);
+      for (const s of toolish) {
+        const name = String(s.name || s.spanType || "step");
+        const active = String(s.status || "") === "active";
+        const input = String(s.inputSummary || "").slice(0, 160);
+        const result = String(s.resultSummary || "").slice(0, 120);
+        let story = "";
+        if (name === "web_search" || (name.includes("search") && !/^https?:/i.test(input))) {
+          story = active ? ("Now searching: " + (input || "web")) : ("Done search: " + (input || name));
+        } else if (name === "visit" || name === "browser_fetch" || /^https?:///i.test(input)) {
+          story = active ? ("Now reading page: " + (input || name)) : ("Done page: " + (input || name));
+        } else if (name === "discovery_slot" || name === "discovery_agent") {
+          story = active ? ("Now discovery " + (input || name)) : ("Done discovery " + (result || input || name));
+        } else if (name === "llm_step" || name === "llm_wait") {
+          story = active ? "Now model deciding next step…" : "Done model step";
+        } else {
+          story = active ? ("Now: " + name + " " + input).trim() : ("Done: " + name + " " + (result || input)).trim();
+        }
+        if (result && !active && !story.includes(result.slice(0, 40))) {
+          story = story + " — " + result;
+        }
+        out.push({
+          timestamp: s.startedAt || new Date().toISOString(),
+          kind: "log",
+          stage: name,
+          status: active ? "active" : (String(s.status) === "error" ? "error" : "complete"),
+          targetName: s.targetName || atlasState?.detail || "discovery",
+          activeToolId: name,
+          toolIds: [name],
+          inputSummary: input,
+          resultSummary: result,
+          story,
+        } as any);
+      }
+      if (out.length === 0 && atlasState?.detail) {
+        out.push({
+          timestamp: new Date().toISOString(),
+          kind: "log",
+          stage: "atlas",
+          status: "active",
+          targetName: atlasState.detail,
+          story: "Now: " + atlasState.detail,
+        } as any);
+      }
+    }
     return out;
-  }, [showHistory, filteredDeskEvents, deskEvents, atlasState?.atlasTelemetry, atlasState?.targetName, atlasState?.detail, isLive]);
+  }, [showHistory, filteredDeskEvents, deskEvents, atlasState?.atlasTelemetry, atlasState?.targetName, atlasState?.detail, atlasState?.recentSpans, isLive]);
 
   // Discrete polite announcements: arming → first scene → REACH (no per-tick spam)
   React.useEffect(() => {
@@ -941,6 +995,8 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
                         ? "Run failed — no tool scenes to show"
                         : atlasState?.runStatus === "cancelled"
                           ? "Stopped — no live tool scenes"
+                          : isLive
+                          ? "Live — waiting for the next tool step"
                           : "Standby — no live tool scenes yet"}
               </div>
               <div className="mt-2 max-w-xs text-[12px] leading-relaxed text-stone-500">
