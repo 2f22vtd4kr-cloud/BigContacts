@@ -316,3 +316,11 @@ The discovery-first wrapper still had one honesty gap: `runEntityBatch` counts a
 **Verification so far:** the frontend responsive contract for the Batch 37 Reactor change completed successfully on GitHub Actions. This is UI validation only, not the required live bureau proof.
 
 **Current tip after this batch:** `5540880b66572c6f58b719abddb9b0860bee6b9a` at the time of writing. The remaining gate is unchanged: inspect a current 3-target discovery-first trajectory and require at least one model-emitted, visited-source named-person admit followed by Groq→Mistral free-ReAct Dig and an honest card artifact.
+
+
+### 2026-09-02 Batch 39 — stop reason propagation completed
+The Batch 38 outcome fix exposed a wrapper boundary: `runBureauAgenticWebPass` mapped Dig status but dropped the underlying `stopReason`, so the orchestrator could not honestly distinguish ordinary completion from a budget/LLM terminal reason at the final job boundary.
+
+**Fixed (`636fe69`):** `BureauAgenticPassResult` now carries optional `stopReason` and forwards the exact underlying ReAct value. The discovery-first finalizer can therefore mark the job `incomplete` for `LLM_UNAVAILABLE`, timeout, or budget terminal conditions with the actual reason in its summary.
+
+**Important:** this is a control-plane fix, not a research success claim. Current live proof remains pending.
