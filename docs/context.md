@@ -221,3 +221,20 @@ The baseline is a quality control, not a marketing benchmark. Do not preselect b
 **Still unproven:** these are control-plane and UI truthfulness fixes only. No live artifact yet proves the complete chain **model-selected discovery → named person admit with observed HTTPS page evidence → Groq/Mistral free-ReAct Dig → honest evidence-backed or explicitly empty card**. Do not claim readiness, scoreboard success, or a win over the blind independent baseline until that trajectory and card artifacts are collected.
 
 **Next:** run build/static checks on the current tip, then execute the bounded 3-target smoke in the actual runtime and perform trajectory forensics before any scale-up.
+
+
+### 2026-09-02 Batch 29 — artifact comparison against prior Replit/GitHub live runs
+**Evidence inspected directly:** retained workflow artifacts for run `33411996869` (commit `abc16393`) and run `33420624242` (commit `a62b51e8`), including launch/status/entities/scoreboard/API logs.
+
+**Run 23 vs current:** the old 10-target run admitted only `Head of Marketing`. Its API log shows the discovery model initially hit Groq JSON-generation failure and then repeated Groq TPD/429 exhaustion; Mistral was unavailable. The persisted health showed the older agentic lane could still report a last Groq model even though the run failed research quality. Current source now explicitly requires a person-shaped name, independent HTTP(S) provenance, strong identity evidence, an actually observed page, and model-emitted findings; title-shaped identities are regression-tested and rejected.
+
+**Run 24 vs current:** the old bounded 3-target run admitted `Inclusion Recap`, `Inclusion A Business Case`, and `Equity Interview Series Learn`. The artifacts show all three came from deterministic `proxy_table` related-person extraction on one Detroit Chamber page, while the final health was `bureauIntegrity=critical` because all Dig providers had failed. Current `parsePersonFindings` explicitly rejects `role=proxy_table`; the regression test requires the exact proxy-table shape to admit zero candidates. A discovery finding must now be model-emitted and tied to a visited/fetched HTTP(S) page.
+
+**Additional live-audit defects found while comparing the artifacts:**
+1. The canonical 3-target workflow launched `targetCount:3` but did not set `LIVE_AUDIT_TARGET_COUNT`; the audit script defaults to 10, so a correct 3-target proof could be falsely failed for expecting ten rows. Fixed in `beda2dd9` by setting the acceptance count to 3.
+2. The resilient workflow still carried stale `WHOXY_API_KEY`, used the older 20s Groq pacing, and launched `researchLimit:3`. It is now aligned to the bounded proof regime: no Whoxy dependency, 30s Groq pacing, and researchLimit 2 (`d0c7b4e`).
+3. The live audit previously checked that names looked person-shaped but did not independently require discovery admission provenance on each discovery-first row. It now requires `metadata.discoveryAgent===true` and at least one HTTP(S) discovery source (`097073c`).
+
+**Interpretation:** the retained failures are now explained by two distinct historical defects: provider/output collapse (Run 23) and deterministic proxy leakage plus provider collapse (Run 24). The current implementation closes those specific admission/control-plane boundaries, but **has not yet produced a new live artifact proving research quality**. A new bounded smoke remains mandatory.
+
+**Current next step:** run the current 3-target workflow/runtime, inspect the exact trajectory and provider responses, and only count a pass if at least one real named person is admitted from model-emitted, visited-source evidence and receives a Groq→Mistral free-ReAct Dig with an honest card result. The old artifacts must never be relabeled as success.
