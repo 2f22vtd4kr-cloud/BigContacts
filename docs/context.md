@@ -386,3 +386,10 @@ This follows the product boundary: models remain free to discover and emit findi
 The legacy bureau persistence helper promoted a card from arbitrary durable evidence even when the current model/research pass supplied an empty list. That could make a no-finding pass appear to have produced a contact update through unrelated historical rows.
 
 **Fixed:** an empty pass now persists nothing and triggers no implicit card promotion. This is not a research gate: non-empty, source-backed evidence still flows freely through validation into card mapping regardless of how the model got there or why its loop later stopped. Explicit rehydration remains available when the caller intentionally asks to rebuild a card from durable evidence.
+
+### 2026-09-02 Batch 49 — Reactor activity source made span-only
+A final full-path review found stale pre-span fallback code in `reactor.tsx`: `activeToolId`, stage strings, and recent log text could still light named tools through regex inference before the span map ran. This could resurrect phase/provider/log theater whenever spans were temporarily absent.
+
+**Fixed:** named research nodes now come from actual Dig spans only. During a running/paused job the target anchor may remain visible, but no tool is lit from telemetry/status/log keywords. The existing explicit telemetry mapping is retained only as dead compatibility code removal territory and is no longer an activity source in the live decision path. This aligns the Desk with the product law: display observed actions, never infer a research trajectory.
+
+**Final static audit result:** model autonomy remains intact across discovery, Dig, and evidence flow. Deterministic boundaries validate identity, scope, provenance, budgets, and card honesty; they do not prescribe queries, tools, pivots, or a terminal-state promotion sequence.
