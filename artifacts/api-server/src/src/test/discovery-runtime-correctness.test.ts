@@ -3,6 +3,7 @@ import fs from "node:fs";
 
 const discoverySource = fs.readFileSync(new URL("../lib/discovery-agent.ts", import.meta.url), "utf8");
 const researchSource = fs.readFileSync(new URL("../lib/agentic-web-research.ts", import.meta.url), "utf8");
+const orchestratorSource = fs.readFileSync(new URL("../lib/atlas-orchestrator.ts", import.meta.url), "utf8");
 const runtimeHardener = fs.readFileSync(new URL("../../../../../scripts/apply-discovery-runtime-correctness.mjs", import.meta.url), "utf8");
 
 describe("discovery runtime correctness", () => {
@@ -23,5 +24,11 @@ describe("discovery runtime correctness", () => {
     expect(researchSource).toContain("finally {");
     expect(researchSource).toContain("releaseAgenticResearchSlot");
     expect(researchSource).toContain("runAgenticWebResearchUnbounded");
+  });
+
+  it("propagates the caller's bounded target count into discovery slots", () => {
+    expect(discoverySource).toContain("targetCount?: number;");
+    expect(discoverySource).toContain("Number(input.targetCount)");
+    expect(orchestratorSource).toContain("targetCount: targetLimit");
   });
 });
