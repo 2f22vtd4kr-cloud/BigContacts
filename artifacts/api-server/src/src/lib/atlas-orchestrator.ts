@@ -2168,6 +2168,8 @@ async function runModelSelectedDiscoveryBureau(
     },
   });
 
+  // Admission must remain model-output-only. Never reconstruct people from
+  // search snippets, auto-extraction, or discovery telemetry.
   const candidates = discovery.candidates
     .filter((candidate) => isWellFormedPersonCandidate(candidate))
     .slice(0, targetLimit);
