@@ -313,7 +313,7 @@ const NODES: NodeDef[] = [
 
   /* Dig core — unconstrained ReAct agent */
   { id:"mcts",    label:"FREE DIG",        sub:"Model chooses next step",    cx:800,  cy:200, w:240, h:72,  type:"reactor",  Icon:Cpu,        color:"#b8ff4d" },
-  { id:"groq",    label:"GROQ",            sub:"Dig capacity · primary",     cx:560,  cy:200, w:150, h:56,  type:"ai-lime",  Icon:Brain,      color:"#b8ff4d" },
+  { id:"groq",    label:"DIG LLM",         sub:"Groq → Mistral",             cx:560,  cy:200, w:150, h:56,  type:"ai-lime",  Icon:Brain,      color:"#b8ff4d" },
   { id:"gemini",  label:"GEMINI",          sub:"Boss · judgment",            cx:1040, cy:200, w:150, h:56,  type:"ai-yellow",Icon:Sparkles,   color:"#9CFF1A" },
   { id:"perpfu",  label:"FOLLOW-UP",       sub:"Adaptive re-query",          cx:1280, cy:200, w:150, h:56,  type:"ai-yellow",Icon:RefreshCw,  color:"#9CFF1A" },
 
@@ -353,7 +353,6 @@ const EDGES: EdgeDef[] = [
   {id:"t-gem", from:"target", to:"gemini"},
   /* Dig capacity links */
   {id:"dig-groq", from:"mcts", to:"groq"},
-  {id:"dig-gem", from:"mcts", to:"gemini"},
   {id:"dig-fu", from:"mcts", to:"perpfu", adaptive:true},
   /* Free dig → search tools (model chooses) */
   {id:"dig-serper", from:"mcts", to:"perp0"},
@@ -388,9 +387,10 @@ const EDGES: EdgeDef[] = [
 ];
 
 const WAVES: Wave[] = [
-  { nodes:["target"], edges:["t-dig","t-groq","t-gem"], label:"TARGET  —  entity or query for free dig" },
-  { nodes:["mcts","groq","gemini"], edges:["dig-groq","dig-gem"], label:"FREE DIG  —  model decides the next tool" },
-  { nodes:["perp0","tavily","exa","webdisc"], edges:["dig-serper","dig-tav","dig-exa","dig-visit","serper-groq","tav-groq","exa-groq"], label:"SEARCH & VISIT  —  queries and pages the model chooses" },
+  { nodes:["target"], edges:["t-dig","t-groq"], label:"TARGET  —  entity or query for free dig" },
+  { nodes:["gemini"], edges:["t-gem"], label:"BUREAU DIRECTION  —  Boss may direct the case; it does not browse" },
+  { nodes:["mcts","groq"], edges:["dig-groq"], label:"FREE DIG  —  investigator decides the next tool" },
+  { nodes:["perp0","tavily","exa","webdisc"], edges:["dig-serper","dig-tav","dig-exa","dig-visit","serper-groq","tav-groq","exa-groq"], label:"SEARCH & VISIT  —  queries and pages the investigator chooses" },
   { nodes:["edgar","ch","hmlr","faa","brreg","occrp","hnwi","maigret","inhouse","deepweb","opensky"], edges:["dig-edgar","dig-ch","dig-hmlr","dig-faa","dig-eu","dig-occ","dig-hnwi","dig-foot","dig-rdap","dig-harv","dig-sky"], label:"TOOLS  —  registries and OSINT when the model needs them" },
   { nodes:["prac","semantic","bayesian","graph","evidence"], edges:["dig-prac","dig-sem","dig-bay","dig-graph","dig-card","prac-card","bay-card"], label:"CARD  —  contact route and evidence" },
   { nodes:["perpfu","mcts","groq"], edges:["dig-fu","fu-dig"], label:"ADAPTIVE LOOP  —  re-query with new evidence", adaptive:true },
