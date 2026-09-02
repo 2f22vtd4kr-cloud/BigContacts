@@ -1191,7 +1191,7 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
                     const a = MOBILE_NODE_POS[e.from], b = MOBILE_NODE_POS[e.to];
                     if (!a || !b) return null;
                     // Activity-only mobile scheme: omit idle tool edges while live
-                    if (isLive && liveNodes && liveNodes.size > 0) {
+                    if (isLive && liveNodes) {
                       const keep =
                         liveNodes.has(e.from) || liveNodes.has(e.to) ||
                         e.from === "target" || e.to === "target" ||
@@ -1227,7 +1227,7 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
                   const pos = MOBILE_NODE_POS[n.id];
                   if (!pos) return null;
                   // Activity-only: do not mount idle tool nodes on mobile while live
-                  if (isLive && liveNodes && liveNodes.size > 0) {
+                  if (isLive && liveNodes) {
                     const keep =
                       liveNodes.has(n.id) || n.id === "target" || n.id === "mcts" || n.id === "evidence";
                     if (!keep) return null;
@@ -1251,7 +1251,7 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
                     </div>
                   );
                 })}
-                {!(isLive && liveNodes && liveNodes.size > 0) && MOBILE_PHASES.map((phase, pi) => {
+                {!(isLive && liveNodes) && MOBILE_PHASES.map((phase, pi) => {
                   const y = [76, 210, 342, 476, 558, 658, 724][pi];
                   return <div key={`rail-${phase.label}`} style={{
                     position:"absolute", left:20, right:10, top:y, height:1,
@@ -1264,7 +1264,7 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
                 display:"grid", gridTemplateColumns:"repeat(2, minmax(0,1fr))",
                 gap:5, marginTop:8,
               }}>
-                {!(isLive && liveNodes && liveNodes.size > 0) && MOBILE_PHASES.map((phase, pi) => {
+                {!(isLive && liveNodes) && MOBILE_PHASES.map((phase, pi) => {
                    const phaseStatuses = phase.nodeIds.map(id => rodStatus(id, atlasState, liveNodes));
                    const active = phaseStatuses.includes("active");
                    const completed = !active && phaseStatuses.some(status => status === "completed");
@@ -1503,13 +1503,13 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
 }) {
   // Only live job state lights rods. Standby never simulates an entity moving
   // through the reactor.
-  const AN = (isLive && liveNodes && liveNodes.size > 0) ? liveNodes : new Set<string>();
+  const AN = (isLive && liveNodes) ? liveNodes : new Set<string>();
   // Live routes are derived from the active rods so the lines never imply work
   // that is not currently represented by the job state.
-  const AE = isLive && liveNodes && liveNodes.size > 0
+  const AE = isLive && liveNodes
     ? new Set(EDGES.filter(e => liveNodes.has(e.from) || liveNodes.has(e.to)).map(e => e.id))
     : new Set<string>();
-  const adaptive = Boolean(isLive && liveNodes && liveNodes.size > 0);
+  const adaptive = Boolean(isLive && liveNodes);
   const atlasFailed = atlasState?.runStatus === "failed";
   const atlasCancelled = atlasState?.runStatus === "cancelled";
   const atlasDone = atlasState?.runStatus === "done";
@@ -2180,7 +2180,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
               background: "rgba(15,23,42,0.5)",
             }} />
             {/* Live tool dots (scheme coords → minimap %) */}
-            {isLive && liveNodes && liveNodes.size > 0 && NODES.filter((n) => liveNodes.has(n.id)).map((n) => (
+            {isLive && liveNodes && NODES.filter((n) => liveNodes.has(n.id)).map((n) => (
               <div
                 key={`mm-${n.id}`}
                 data-testid={`scheme-minimap-dot-${n.id}`}
@@ -2279,7 +2279,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
             const A = NM[e.from], B = NM[e.to];
             if (!A || !B) return null;
             // Activity-only scheme: omit edges that do not touch a live tool (space + truthfulness)
-            if (schemeToolsOnly && isLive && liveNodes && liveNodes.size > 0) {
+            if (schemeToolsOnly && isLive && liveNodes) {
               const keepEdge =
                 liveNodes.has(e.from) || liveNodes.has(e.to) ||
                 e.from === "target" || e.to === "target" ||
@@ -2300,7 +2300,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
             const mk  = on || touchesFocus ? (e.adaptive ? "url(#mCyan2)" : "url(#mLime2)") : "url(#mDim2)";
             const edgeOpacity = focusedToolId
               ? (touchesFocus || active ? 0.95 : 0.12)
-              : isLive && liveNodes && liveNodes.size > 0
+              : isLive && liveNodes
                 ? (active || AE.has(e.id) || liveNodes.has(e.from) || liveNodes.has(e.to)
                     ? 0.85
                     : (schemeToolsOnly ? 0 : 0.08))
@@ -2331,7 +2331,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
         {/* Nodes */}
         {NODES.map(n => {
           // Activity-only: do not mount inactive tool nodes while Live tools mode is on
-          if (schemeToolsOnly && isLive && liveNodes && liveNodes.size > 0) {
+          if (schemeToolsOnly && isLive && liveNodes) {
             const keep =
               liveNodes.has(n.id) || n.id === "target" || n.id === "mcts" || n.id === "evidence";
             if (!keep) return null;
@@ -2365,7 +2365,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
                 if (kbFocus || reachCue || on) return 1;
                 if (isSibling) return 0.28;
                 // Dynamic scheme: while LIVE with known tools, park or hide unused poster nodes
-                if (isLive && liveNodes && liveNodes.size > 0) {
+                if (isLive && liveNodes) {
                   const keep = liveNodes.has(n.id) || n.id === "target" || n.id === "mcts" || n.id === "evidence";
                   if (keep) return 1;
                   return schemeToolsOnly ? 0 : 0.14;
