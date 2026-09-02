@@ -347,3 +347,11 @@ The reactor still retained a numbered phase classifier and phase-node fallback. 
 The desk still had a telemetry fallback that could light research nodes from generic identifiers such as `web`, `dig`, or broad `page` strings. That is another form of activity inference: a provider/status label could make the graph claim that a specific browser or search tool ran.
 
 **Fixed:** telemetry now supplements spans only through explicit canonical action/provider names and includes `activeToolId` in the same mapping. Generic `web`/`dig` no longer lights VISIT or any other research tool. This keeps the activity-only graph tied to observed Dig vocabulary.
+
+### 2026-09-02 Batch 43 — provenance and terminal-card promotion tightened
+A control-plane audit found two fail-open boundaries:
+
+- `bureau-contact-persist.ts` could attach a generated Google search URL when an agentic contact finding had no exact source page. A search query is not evidence for the claimed value. **Fixed:** claim-bearing contact vectors without an actual HTTP(S) source page are dropped rather than receiving synthetic provenance.
+- `atlas-orchestrator.ts` rehydrated and stamped `cookedAt` after the Dig call without requiring a clean terminal reason or successful card rehydration. **Fixed:** the completion stamp now requires `status === "completed"`, `stopReason === "MODEL_DECIDED_DONE"`, and successful evidence rehydration. Budget/timeout/unavailable/parse outcomes cannot silently acquire a completed-research stamp.
+
+**Still unproven:** these are static boundary fixes. No live discovery trajectory has been used as acceptance evidence.
