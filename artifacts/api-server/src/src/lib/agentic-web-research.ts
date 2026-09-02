@@ -686,56 +686,6 @@ async function callMistralJson(prompt: string): Promise<{ model: string; raw: st
   return null;
 }
 
-async function callNvidiaJson(prompt: string): Promise<{ model: string; raw: string } | null> {
-  const key =
-    process.env.NVIDIA_NIM_API_KEY?.trim() ||
-    process.env.NVIDIA_API_KEY?.trim() ||
-    "";
-  if (!key) return null;
-  const models = [
-    process.env.NVIDIA_AGENTIC_MODEL,
-    process.env.NVIDIA_NIM_MODEL,
-    "nvidia/nemotron-3.5-lightning-30b-a3b",
-    "nvidia/nemotron-3-super-120b-a12b",
-  ].filter((m): m is string => Boolean(m && m.trim()));
-  for (const model of models) {
-    try {
-      const resp = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${key}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model,
-          max_tokens: 1536,
-          messages: [
-            {
-              role: "system",
-              content:
-                apexOrientationCompact("dig_agent") + "\nReply with ONE JSON object only for this ReAct step.",
-            },
-            { role: "user", content: prompt },
-          ],
-        }),
-        signal: AbortSignal.timeout(50_000),
-      });
-      if (!resp.ok) { logger.warn({ provider: "agentic", status: resp.status, model }, "agentic provider rejected request"); continue; }
-      const data = (await resp.json()) as { choices?: Array<{ message?: { content?: string } }> };
-      const raw = data.choices?.[0]?.message?.content?.trim() ?? "";
-      if (raw) return { model: `nvidia:${model}`, raw };
-    } catch (err: any) { logger.warn({ provider: "agentic", model, error: err?.message }, "agentic provider call failed"); continue; }
-  }
-  return null;
-}
-
-
-
-
-
-
-
-
 /**
  * DIG_INVESTIGATOR_FAILOVER_CHAIN: Groq -> Mistral.
  *
