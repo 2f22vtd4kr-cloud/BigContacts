@@ -2574,70 +2574,15 @@ export default function IntelligenceReactorPage() {
           setLivePhaseDetail((prev) => prev ? `Paused — ${prev}` : "Paused — waiting for resume");
           labels.push("⏸ Paused");
         }
-        // Map telemetry / stage / recent events → scheme node IDs (FREE DIG map).
-        // activeToolId values like "agentic-web" are NOT scheme ids — without mapping the graph stays dark.
-        const light = (ids: string[]) => ids.forEach((id) => nodes.add(id));
-        const tool = String(atlasTelemetry?.activeToolId || "").toLowerCase();
-        const stage = String(atlasTelemetry?.stage || "").toLowerCase();
-        // Always show target + free dig while a run is active
+        // Spans are the activity source of truth. Telemetry/status/log text is
+        // deliberately not translated into tool activity: free-ReAct has no
+        // phase/tool inference layer.
+        const fromSpans = schemeNodesFromSpans(nextAtlasState?.recentSpans);
         if (runStatus === "running" || runStatus === "paused") {
-          light(["target", "mcts"]);
+          nodes.add("target");
         }
-        if (/serper|web_search|search/.test(tool) || /serper/.test(stage)) light(["perp0", "mcts"]);
-        if (/tavily/.test(tool)) light(["tavily", "mcts"]);
-        if (/exa/.test(tool)) light(["exa", "mcts"]);
-        if (/visit|page-fetch|page_fetch|browser|harvest|webdisc/.test(tool)) light(["webdisc", "mcts"]);
-        if (/agentic|target.contact|free.?dig|runTargetContact/.test(tool) || /target contact agent/.test(stage)) {
-          light(["mcts", "groq"]);
-        }
-        if (/adaptive|director|follow-up|semantic_discovery/.test(tool) || /adaptive research/.test(stage)) {
-          light(["perpfu", "mcts"]);
-        }
-        if (/groq|mistral/.test(tool)) light(["groq", "mcts"]);
-        if (/gemini|boss/.test(tool)) light(["gemini", "mcts"]);
-        if (/edgar|proxy|sec/.test(tool) || /edgar/.test(stage)) light(["edgar", "target"]);
-        if (/companies.?house|\bch\b/.test(tool)) light(["ch"]);
-        if (/rdap|whois|domain/.test(tool) || /domain/.test(stage)) light(["inhouse", "mcts"]);
-        if (/maigret|sherlock|footprint|holehe/.test(tool)) light(["maigret"]);
-        if (/social|messenger|linkedin/.test(stage)) light(["maigret", "webdisc"]);
-        // Recent bureau events also light matching tools (last ~12 lines)
-        const logLines = Array.isArray(atlasData.log) ? atlasData.log.slice(-12) : [];
-        for (const line of logLines) {
-          const t = String(line || "").toLowerCase();
-          if (t.includes("serper") || t.includes("web_search")) light(["perp0", "mcts"]);
-          if (t.includes("tavily")) light(["tavily", "mcts"]);
-          if (t.includes("exa")) light(["exa", "mcts"]);
-          if (t.includes("page-fetch") || t.includes("visit ·") || t.includes('"kind":"page-fetch"')) light(["webdisc", "mcts"]);
-          if (t.includes("edgar")) light(["edgar"]);
-          if (t.includes("footprint") || t.includes("maigret") || t.includes("sherlock") || t.includes("holehe")) light(["maigret", "mcts"]);
-          if (t.includes("domain_lookup") || t.includes("rdap") || t.includes("whois")) light(["inhouse", "mcts"]);
-          if (t.includes("harvest_domain") || t.includes("theharvester")) light(["deepweb", "mcts"]);
-          if (t.includes("registry_search") || t.includes("companies house")) light(["ch", "mcts"]);
-          if (t.includes("browser_fetch") || t.includes("scrapfly") || t.includes("zenrows")) light(["webdisc", "mcts"]);
-        }
-        // Telemetry may supplement spans, but it must use the same explicit
-        // action vocabulary. Never infer a browser/search action from generic
-        // words such as "web" or "dig".
-        const toolIds = [
-          ...(Array.isArray(atlasTelemetry?.toolIds) ? atlasTelemetry.toolIds : []),
-          ...(atlasTelemetry?.activeToolId ? [atlasTelemetry.activeToolId] : []),
-        ];
-        for (const tid of toolIds) {
-          const x = String(tid).toLowerCase();
-          if (x.includes("serper") || x === "web_search") light(["perp0", "mcts"]);
-          if (x.includes("tavily")) light(["tavily", "mcts"]);
-          if (x.includes("exa")) light(["exa", "mcts"]);
-          if (x === "visit" || x.includes("browser_fetch") || x.includes("page_fetch") || x.includes("scrapfly") || x.includes("zenrows")) light(["webdisc", "mcts"]);
-          if (x.includes("harvest_domain") || x.includes("theharvester")) light(["deepweb", "mcts"]);
-          if (x.includes("domain_lookup") || x.includes("rdap") || x.includes("whois") || x.includes("dns")) light(["inhouse", "mcts"]);
-          if (x.includes("maigret") || x.includes("sherlock") || x.includes("holehe") || x.includes("footprint")) light(["maigret", "mcts"]);
-          if (x.includes("edgar") || x.includes("sec-edgar")) light(["edgar", "mcts"]);
-          if (x.includes("companies_house") || x.includes("registry_search") || x.includes("brreg") || x.includes("gleif")) light(["ch", "mcts"]);
-          if (x.includes("groq") || x.includes("mistral") || x.includes("llm_step") || x.includes("llm_wait")) light(["groq", "mcts"]);
-          if (x.includes("gemini") || x.includes("boss")) light(["gemini"]);
-        }
-      }
-
+        for (const id of fromSpans) nodes.add(id);
+        if (fromSpans.size > 0) labels.push("Free dig tools active");
       // ── Regular jobs ─────────────────────────────────────────────────────────
       const running = (jobsData.jobs ?? []).filter((j: any) =>
         j.status === "running" || j.status === "active"
