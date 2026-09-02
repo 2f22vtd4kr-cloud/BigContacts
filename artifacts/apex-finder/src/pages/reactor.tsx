@@ -111,20 +111,25 @@ function schemeNodesFromSpans(spans: DigSpanView[] | undefined | null): Set<stri
   const out = new Set<string>();
   if (!spans?.length) return out;
   for (const s of spans) {
-    const blob = `${s.name} ${s.inputSummary ?? ""} ${s.spanType}`.toLowerCase();
-    if (/web_search|serper|search/.test(blob)) out.add("perp0");
-    if (/tavily/.test(blob)) out.add("tavily");
-    if (/\bexa\b/.test(blob)) out.add("exa");
-    if (/visit|browser_fetch|page|scrapfly|zenrows|open.?page/.test(blob)) out.add("webdisc");
-    if (/edgar|sec/.test(blob)) out.add("edgar");
-    if (/companies.?house|\bch\b|brreg|bodacc/.test(blob)) out.add("ch");
-    if (/faa|aircraft/.test(blob)) out.add("faa");
-    if (/occrp/.test(blob)) out.add("occrp");
-    if (/maigret|sherlock|holehe|footprint/.test(blob)) out.add("maigret");
+    const blob = `${s.name} ${s.inputSummary ?? ""} ${s.spanType} ${s.toolName ?? ""}`.toLowerCase();
+    let toolHit = false;
+    if (/web_search|serper|\bsearch\b/.test(blob)) { out.add("perp0"); toolHit = true; }
+    if (/tavily/.test(blob)) { out.add("tavily"); toolHit = true; }
+    if (/\bexa\b/.test(blob)) { out.add("exa"); toolHit = true; }
+    if (/visit|browser_fetch|page-fetch|scrapfly|zenrows|open.?page/.test(blob)) { out.add("webdisc"); toolHit = true; }
+    if (/harvest|theharvester/.test(blob)) { out.add("deepweb"); toolHit = true; }
+    // Dig domain path is RDAP / WhoisJSON → inhouse. Never light deprecated Whoxy product node.
+    if (/domain_lookup|\brdap\b|whoisjson|\bwhois\b|\bdns\b/.test(blob)) { out.add("inhouse"); toolHit = true; }
+    if (/edgar|sec-edgar|\bsec\b/.test(blob)) { out.add("edgar"); toolHit = true; }
+    if (/companies.?house|registry_search|\bch\b|brreg|bodacc|gleif|opencorporates/.test(blob)) { out.add("ch"); toolHit = true; }
+    if (/faa|aircraft/.test(blob)) { out.add("faa"); toolHit = true; }
+    if (/occrp/.test(blob)) { out.add("occrp"); toolHit = true; }
+    if (/maigret|sherlock|holehe|footprint/.test(blob)) { out.add("maigret"); toolHit = true; }
     if (/gemini|boss/.test(blob)) out.add("gemini");
-    if (/groq/.test(blob)) out.add("groq");
-    if (/whois|rdap|domain/.test(blob)) out.add("whoxy");
+    if (/groq|mistral|llm_step|llm_wait/.test(blob)) { out.add("groq"); toolHit = true; }
     if (/promote|card|phone|email/.test(blob) && s.spanType === "promote") out.add("evidence");
+    // Any real dig tool activity lights FREE DIG core
+    if (toolHit || s.spanType === "tool" || s.spanType === "llm") out.add("mcts");
   }
   return out;
 }
@@ -318,7 +323,7 @@ const NODES: NodeDef[] = [
   { id:"exa",     label:"EXA",             sub:"Semantic search",            cx:640,  cy:340, w:150, h:56,  type:"ai-yellow",Icon:Compass,    color:"#9CFF1A" },
   { id:"webdisc", label:"VISIT",           sub:"Open pages · extract",       cx:820,  cy:340, w:150, h:56,  type:"discovery",Icon:Eye,        color:"#fb923c" },
   { id:"deepweb", label:"HARVEST",         sub:"Domain · contacts",          cx:1000, cy:340, w:150, h:56,  type:"discovery",Icon:Search,     color:"#fb923c" },
-  { id:"inhouse", label:"RDAP / DNS",      sub:"Domain intel",               cx:1180, cy:340, w:150, h:56,  type:"discovery",Icon:Globe,      color:"#fb923c" },
+  { id:"inhouse", label:"RDAP / DNS",      sub:"domain_lookup path",         cx:1180, cy:340, w:150, h:56,  type:"discovery",Icon:Globe,      color:"#fb923c" },
   { id:"maigret", label:"FOOTPRINT",       sub:"Maigret · Holehe",           cx:1360, cy:340, w:150, h:56,  type:"discovery",Icon:Users,      color:"#fb923c" },
 
   /* Registries — tools, not a mandatory first stage */
@@ -329,7 +334,7 @@ const NODES: NodeDef[] = [
   { id:"brreg",   label:"EU REGS",         sub:"BRREG · ARES",               cx:840,  cy:480, w:140, h:54,  type:"registry", Icon:Globe,      color:"#38bdf8" },
   { id:"occrp",   label:"OCCRP",           sub:"Sanctions",                  cx:1000, cy:480, w:140, h:54,  type:"registry", Icon:Shield,     color:"#38bdf8" },
   { id:"hnwi",    label:"HNWI",            sub:"Wealth signals",             cx:1160, cy:480, w:140, h:54,  type:"registry", Icon:TrendingUp, color:"#38bdf8" },
-  { id:"whoxy",   label:"WHOIS",           sub:"RDAP · domain",              cx:1320, cy:480, w:140, h:54,  type:"registry", Icon:Rss,        color:"#38bdf8" },
+  { id:"whoxy",   label:"WHOIS",           sub:"legacy alias → use RDAP",  cx:1320, cy:480, w:140, h:54,  type:"registry", Icon:Rss,        color:"#38bdf8" },
   { id:"opensky", label:"OPENSKY",         sub:"Flight track",               cx:1460, cy:480, w:130, h:54,  type:"discovery",Icon:Radio,      color:"#fb923c" },
 
   /* Outcome — card is the answer */
@@ -1191,6 +1196,15 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
                   {EDGES.map(e => {
                     const a = MOBILE_NODE_POS[e.from], b = MOBILE_NODE_POS[e.to];
                     if (!a || !b) return null;
+                    // Activity-only mobile scheme: omit idle tool edges while live
+                    if (isLive && liveNodes && liveNodes.size > 0) {
+                      const keep =
+                        liveNodes.has(e.from) || liveNodes.has(e.to) ||
+                        e.from === "target" || e.to === "target" ||
+                        e.from === "mcts" || e.to === "mcts" ||
+                        e.from === "evidence" || e.to === "evidence";
+                      if (!keep) return null;
+                    }
                     const fromStatus = rodStatus(e.from, atlasState, liveNodes);
                     const toStatus = rodStatus(e.to, atlasState, liveNodes);
                     const active = fromStatus === "active" || toStatus === "active";
@@ -1218,6 +1232,12 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
                 {NODES.map(n => {
                   const pos = MOBILE_NODE_POS[n.id];
                   if (!pos) return null;
+                  // Activity-only: do not mount idle tool nodes on mobile while live
+                  if (isLive && liveNodes && liveNodes.size > 0) {
+                    const keep =
+                      liveNodes.has(n.id) || n.id === "target" || n.id === "mcts" || n.id === "evidence";
+                    if (!keep) return null;
+                  }
                   const isTarget = n.id === "target";
                   const isOutput = n.id === "evidence";
                   return (
