@@ -374,3 +374,10 @@ Re-reading the product law exposed an overcorrection in Batch 43. Requiring `MOD
 **Corrected:** card rehydration now runs from evidence regardless of terminal stop reason. Promotion still cannot invent data: it depends on source-backed evidence and successful rehydration. Terminal integrity/stop reason remains a separate truth surface and must not be collapsed into a success claim.
 
 This restores the intended boundary: **free model research → deterministic provenance validation → evidence/card mapping**, with no scripted discovery, forced research path, or terminal-state promotion playbook.
+
+### 2026-09-02 Batch 47 — evidence scope correction, not a promotion gate
+A direct evidence insert in the EDGAR identity boost labeled a public SEC notices-and-communications phone as `scope: "candidate"`. That could make an organizational notice line compete with personal/direct contact evidence during card mapping.
+
+**Fixed:** the evidence is now labeled `organization`. The number remains available as public evidence; nothing is hidden or discarded by a scripted lifecycle rule. The change only corrects what the evidence means so the honest card mapper does not misrepresent an organizational surface as a person's direct line.
+
+This follows the product boundary: models remain free to discover and emit findings; deterministic code may validate provenance, identity and scope, but does not prescribe research steps or require a terminal state before evidence can appear on a card.
