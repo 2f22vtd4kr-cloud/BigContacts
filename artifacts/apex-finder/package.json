@@ -26,7 +26,7 @@
   },
   "scripts": {
     "dev": "vite",
-    "build": "cd ../.. && node scripts/apply-reactor-live-integration.mjs && node scripts/apply-reactor-activity-only.mjs && node scripts/check-generated-reactor-syntax.mjs && node scripts/apply-mobile-span-live-feed.mjs && node scripts/apply-reactor-human-live-copy.mjs && cd artifacts/apex-finder && vite build",
+    "build": "cd ../.. && node scripts/apply-reactor-activity-only.mjs && node scripts/check-generated-reactor-syntax.mjs && node scripts/apply-mobile-span-live-feed.mjs && node scripts/apply-reactor-human-live-copy.mjs && cd artifacts/apex-finder && vite build",
     "preview": "vite preview"
   }
 }
