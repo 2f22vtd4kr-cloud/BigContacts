@@ -2147,6 +2147,9 @@ async function runModelSelectedDiscoveryBureau(
 
   const discovery = await runDiscoveryAgent({
     jobId: atlasJobId,
+    // Discovery slots are part of the caller's lifecycle budget. A 3-target
+    // smoke must not silently fan out to the environment default of 10 slots.
+    targetCount: targetLimit,
     depth,
     hardTimeoutMs: depth === "fast" ? 60_000 : depth === "deep" ? 150_000 : 90_000,
     onLiveStep: (step) => {
