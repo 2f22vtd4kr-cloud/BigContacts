@@ -355,3 +355,10 @@ A control-plane audit found two fail-open boundaries:
 - `atlas-orchestrator.ts` rehydrated and stamped `cookedAt` after the Dig call without requiring a clean terminal reason or successful card rehydration. **Fixed:** the completion stamp now requires `status === "completed"`, `stopReason === "MODEL_DECIDED_DONE"`, and successful evidence rehydration. Budget/timeout/unavailable/parse outcomes cannot silently acquire a completed-research stamp.
 
 **Still unproven:** these are static boundary fixes. No live discovery trajectory has been used as acceptance evidence.
+
+### 2026-09-02 Batch 44 — telemetry and persistence audit
+Tracing the live path showed that free-Dig actions are emitted through `onLiveStep → spanFromLiveStep → publishDigSpan`; discovery uses the same bridge. The Reactor should therefore treat Dig spans as the primary truth source and Atlas telemetry only as an explicit supplementary vocabulary.
+
+A persistence audit also found a legacy secondary-public-surface path that calls the permissive `persistBureauContactsForEntity` directly. That path is not the canonical discovery-first agentic pass and remains a residual boundary risk because the legacy helper still permits non-contact organizational synthetic registry anchors. Canonical agentic persistence continues through `persistSourceBackedBureauContactsForEntity`.
+
+Added regression cases for generated Google/Bing query URLs so HTTPS search endpoints cannot regress into claim provenance. Terminal `cookedAt` gating remains source-level protected by `MODEL_DECIDED_DONE` plus successful evidence rehydration.
