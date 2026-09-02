@@ -255,3 +255,16 @@ The artifact comparison exposed another control-plane mistake in the live audit 
 
 ### 2026-09-02 Batch 31 — provider preflight parity
 The retained Run 23/24 artifacts showed that a tiny “READY” probe can be a false signal when Groq is near a token ceiling: the old run passed preflight, then normal-sized ReAct decisions immediately hit 429/TPD exhaustion. The resilient workflow still had the weaker probe. It now shares the canonical live-audit provider gate (`97e395a`): Groq/Mistral are probed as the only Dig readiness sources, Groq headroom is checked when rate headers are available, and launch aborts if neither Dig provider passes. This is provider transport gating only; it does not alter model-chosen research actions.
+
+
+### 2026-09-02 Batch 32 — control-plane and desk truthfulness pass
+**Control-plane audit result:** discovery admission is now genuinely model-finding-only: `runDiscoveryAgent` passes `result.modelFindings` into `parsePersonFindings`, and that parser requires a well-formed person name, independent HTTP(S) source, strong identity evidence, and an exact source URL observed through `visit`/`browser_fetch`. The historical deterministic proxy-table shape is explicitly rejected before admission. The admitted entity metadata carries `discoveryAgent` and `sourceUrls`, and the live audit now checks those fields for discovery-first rows.
+
+**Fixed this batch:**
+- Removed the dormant `callNvidiaJson` HTTP helper from `agentic-web-research.ts` (`bd1a42f`). NVIDIA is the right-hand, not a latent Dig provider. `check:agentic-runtime` now fails if that dormant helper returns (`911b864`). The actual `llmStep` remains Groq → Mistral only.
+- Removed stale `reverse_whois` presentation branches from `bureau-agentic-pass.ts` (`a5f3091`). The current Dig action schema does not expose reverse-WHOIS; domain research is `domain_lookup` via RDAP/WhoisJSON.
+- Reworked the Reactor control-plane display (`d821841`, `47d24af`): numbered phase progress is replaced with activity semantics, idle live tools stay absent, the deprecated Whoxy/WHOIS node and edges are removed, and the Boss is visually separated as case direction rather than an edge inside FREE DIG. The Dig LLM node now states `Groq → Mistral`.
+
+**Important residual:** a GitHub Actions push-created `apex-single-target-audit` run on commit `47d24af` reported failure before any jobs were listed. That is not being treated as a research result or as evidence that the architecture is ready; its workflow/startup cause still needs inspection. No current-tip live discovery artifact exists yet.
+
+**Next step:** resolve/understand the zero-job audit workflow failure if it is a real workflow defect, then run the current bounded 3-slot discovery-first smoke. Success remains **≥1 model-emitted, visited-source named-person admit → Groq/Mistral free-ReAct trajectory → honest card**, with non-critical/non-degraded final integrity. Otherwise document the failure trajectory rather than claiming readiness.
