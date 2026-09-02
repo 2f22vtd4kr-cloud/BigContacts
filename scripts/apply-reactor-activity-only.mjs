@@ -27,19 +27,19 @@ if (!s.includes(importLine)) {
   s = s.replace(importAnchor, `${importAnchor}\n${importLine}`);
 }
 
-// Insert immediately before the existing poster comment. Using the line index
-// avoids brittle indentation/whitespace matching in the large page file.
+// Insert immediately before the existing poster comment. The activity surface
+// reads recentSpans itself through the already-present schemeNodesFromSpans
+// mapper, so phase maps/fallback nodes cannot leak into the live scheme.
 const schemeMarker = "Scheme canvas — horizontal + vertical pan via scroll";
 if (!s.includes("<ReactorActivityOnly nodes={NODES.filter")) {
   const markerAt = s.indexOf(schemeMarker);
   if (markerAt < 0) throw new Error("scheme marker missing");
   const lineStart = s.lastIndexOf("\n", markerAt) + 1;
-  const activity = '        {schemeToolsOnly && <ReactorActivityOnly nodes={NODES.filter((n) => liveNodes?.has(n.id))} />}\n';
+  const activity = '        {schemeToolsOnly && <ReactorActivityOnly nodes={NODES.filter((n) => schemeNodesFromSpans(atlasState?.recentSpans).has(n.id))} />}\n';
   s = s.slice(0, lineStart) + activity + s.slice(lineStart);
 }
 
-// Hide the poster in Live tools mode. Full map is still available by toggling
-// the existing schemeToolsOnly control off.
+// The poster implementation is preserved, but never mounted in Live tools mode.
 const scrollMarker = 'data-testid="scheme-scroll-viewport"';
 const scrollAt = s.indexOf(scrollMarker);
 if (scrollAt < 0) throw new Error("scheme scroll viewport missing");
@@ -52,19 +52,7 @@ if (styleAt >= 0) {
   }
 }
 
-// Never synthesize a visible target node from run phase. liveNodes comes from
-// the currently-active span set; completed spans are history, not live activity.
-s = s.replace(
-  '        if (runStatus === "running" || runStatus === "paused") {\n          nodes.add("target");\n        }\n        for (const id of fromSpans) nodes.add(id);',
-  '        for (const id of fromSpans) nodes.add(id);',
-);
-s = s.replace(
-  '        if (fromSpans.size > 0) setLiveNodes(fromSpans);\n        else if (nodes.size > 0) setLiveNodes(nodes);\n        else setLiveNodes(new Set());',
-  '        setLiveNodes(fromSpans);',
-);
-
 if (!s.includes(importLine)) throw new Error("activity component import did not land");
 if (!s.includes("<ReactorActivityOnly nodes={NODES.filter")) throw new Error("activity component mount did not land");
-if (!s.includes('setLiveNodes(fromSpans);')) throw new Error("span-only live state did not land");
 fs.writeFileSync(reactorPath, s);
 console.log("REACTOR_ACTIVITY_ONLY_APPLIED");
