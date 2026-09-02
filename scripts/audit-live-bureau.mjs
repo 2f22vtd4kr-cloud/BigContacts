@@ -122,6 +122,25 @@ for (const entity of rows) {
   const entityName = entity.name || entity.id;
   if (looksMalformedTarget(entity.name)) fail(`malformed/non-person entity admitted as target: ${entityName}`);
 
+  // A discovery-first admit must carry the actual discovery provenance. Do not
+  // let a clean-looking card name substitute for evidence that the model chose
+  // and sourced the person.
+  let discoveryMeta = {};
+  try {
+    discoveryMeta = typeof entity.metadata === "string" ? JSON.parse(entity.metadata) : (entity.metadata || {});
+  } catch {
+    fail(`entity ${entityName} has unreadable discovery metadata`);
+  }
+  if (launch?.options?.discoveryFirst === true) {
+    if (discoveryMeta.discoveryAgent !== true) {
+      fail(`entity ${entityName} lacks discovery-agent admission provenance`);
+    }
+    const admitUrls = Array.isArray(discoveryMeta.sourceUrls) ? discoveryMeta.sourceUrls : [];
+    if (!admitUrls.some(isHttpUrl)) {
+      fail(`entity ${entityName} lacks HTTP(S) discovery admission evidence`);
+    }
+  }
+
   const contacts = Array.isArray(entity.contacts) ? entity.contacts : [];
   const bad = contacts.filter((c) => c && c.sourceUrl && !isHttpUrl(c.sourceUrl));
   if (bad.length) fail(`entity ${entityName} has contact evidence without HTTP(S) provenance`);
