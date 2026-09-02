@@ -54,7 +54,7 @@ model reasoning / pivot / stop
         ↺
 ```
 
-Available capabilities may include web search, page visit, browser fetch, registry lookup, domain/WHOIS, public email/username footprinting, domain harvesting and reverse WHOIS. They are optional capabilities, not stages.
+Available capabilities may include web search, page visit, browser fetch, registry lookup, domain_lookup via RDAP/WhoisJSON, public email/username footprinting and domain harvesting. Deprecated Whoxy/reverse-WHOIS is not part of the canonical Dig tool surface. These are optional capabilities, not stages.
 
 There is no mandatory first search, company→LinkedIn→Instagram chain, force hop, ranked Forbes intake, or fixed number of hops.
 
