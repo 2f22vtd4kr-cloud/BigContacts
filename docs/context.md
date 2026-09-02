@@ -362,3 +362,8 @@ Tracing the live path showed that free-Dig actions are emitted through `onLiveSt
 A persistence audit also found a legacy secondary-public-surface path that calls the permissive `persistBureauContactsForEntity` directly. That path is not the canonical discovery-first agentic pass and remains a residual boundary risk because the legacy helper still permits non-contact organizational synthetic registry anchors. Canonical agentic persistence continues through `persistSourceBackedBureauContactsForEntity`.
 
 Added regression cases for generated Google/Bing query URLs so HTTPS search endpoints cannot regress into claim provenance. Terminal `cookedAt` gating remains source-level protected by `MODEL_DECIDED_DONE` plus successful evidence rehydration.
+
+### 2026-09-02 Batch 45 — final static discovery continuity audit
+The discovery-first chain was re-traced end to end: `runDiscoveryAgent` runs model-owned slots; each slot admits only `result.modelFindings` through `parsePersonFindings`; the orchestrator applies `isWellFormedPersonCandidate`, admits candidates in model order, then reconstructs the admitted entity's role/company/source URLs and notes into the compact Dig objective. The Dig objective explicitly treats discovery state as prior evidence rather than restarting identity research.
+
+Added an explicit source-level guard comment at the admission boundary to make the no-auto-person rule reviewable. This is static path proof, not trajectory proof.
