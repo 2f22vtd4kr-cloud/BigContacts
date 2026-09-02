@@ -2,7 +2,7 @@
 
 **Repo:** https://github.com/2f22vtd4kr-cloud/BigContacts  
 **Branch:** `main`  
-**Current tip floor:** `e565ed839c882c3a87cca741c6f31f9cf9d24182` or newer (post-proxy-fix bounded-smoke trigger)  
+**Current tip floor:** `4f911cf64fd2a4654bcc118f594354859589bbf6` or newer (post-proxy-fix bounded-smoke trigger)  
 **Canonical Replit path:** one paste — `docs/REPLIT_UPDATE_PROMPT_LATEST.md` (Agent inside the App). Expanded procedure: `docs/RUN_BUREAU.md`.  
 **Product:** Apex Atlas research bureau; **Bureau is its OSINT/research architecture**, not a separate product.
 
