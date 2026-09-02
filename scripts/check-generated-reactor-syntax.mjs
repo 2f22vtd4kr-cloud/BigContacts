@@ -17,8 +17,8 @@ try {
   const line = match ? Number(match[1]) : 0;
   if (line > 0) {
     const lines = source.split("\n");
-    const start = Math.max(1, line - 14);
-    const end = Math.min(lines.length, line + 14);
+    const start = Math.max(1, line - 80);
+    const end = Math.min(lines.length, line + 8);
     console.error(`Generated Reactor syntax context (${start}-${end}):`);
     for (let i = start; i <= end; i++) console.error(`${i}: ${lines[i - 1]}`);
   }
