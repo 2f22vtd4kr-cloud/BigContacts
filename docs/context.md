@@ -282,3 +282,9 @@ During the role-separation trace, `runModelSelectedDiscoveryBureau` was found ca
 **Fixed:** `atlas-orchestrator.ts` now passes the resolved Gemini selection and logs `brief.raw` (`2ed326c`). `check:discovery-quality` now locks that contract so future API drift is caught (`57099c`). The Boss remains text-only and its note is logged as direction; it is not turned into Dig queries or a fixed hop plan.
 
 **Current status:** the discovery-first path is materially cleaner, but the required live proof is still absent. Do not call Apex ready until a current-tip bounded run produces the artifact chain.
+
+
+### 2026-09-02 Batch 35 — architecture docs aligned with canonical tool surface
+`docs/BUREAU_REACT_ARCHITECTURE.md` still described reverse-WHOIS as an available Dig capability. That contradicted the current schema and product law. It now names `domain_lookup` via RDAP/WhoisJSON and explicitly excludes deprecated Whoxy/reverse-WHOIS (`bf9d8af`).
+
+No live claim follows from this documentation cleanup. The next meaningful artifact remains the bounded 3-slot discovery-first run on a current tip.
