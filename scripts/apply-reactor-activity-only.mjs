@@ -38,8 +38,7 @@ if (!s.includes("<ReactorActivityOnly nodes={NODES.filter")) {
   s = s.slice(0, lineStart) + activity + s.slice(lineStart);
 }
 
-// Hide the poster implementation in Live tools mode. Full map remains an
-// explicit opt-in through schemeToolsOnly=false.
+// The poster implementation is preserved, but never mounted in Live tools mode.
 const scrollMarker = 'data-testid="scheme-scroll-viewport"';
 const scrollAt = s.indexOf(scrollMarker);
 if (scrollAt < 0) throw new Error("scheme scroll viewport missing");
@@ -51,6 +50,18 @@ if (nextBrace < 0) throw new Error("scheme scroll style terminator missing");
 if (!s.slice(styleAt, nextBrace).includes(displayMarker)) {
   s = s.slice(0, styleAt) + s.slice(styleAt, nextBrace).replace('style={{', 'style={{\n            ' + displayMarker) + s.slice(nextBrace);
 }
+
+// The page had a malformed outer pollJobs try/catch boundary before the
+// activity-only change. Remove that unused wrapper instead of shipping a
+// parser error at the catch site; the contact hydration try/catch remains.
+s = s.replace(
+  '    try {\n      // Poll jobs, atlas status, AND key health in parallel',
+  '      // Poll jobs, atlas status, AND key health in parallel',
+);
+s = s.replace(
+  '      }\n    } catch { /* non-fatal */ }\n  }, []);',
+  '      }\n  }, []);',
+);
 
 if (!s.includes(importLine)) throw new Error("activity component import did not land");
 if (!s.includes("<ReactorActivityOnly nodes={NODES.filter")) throw new Error("activity component mount did not land");
