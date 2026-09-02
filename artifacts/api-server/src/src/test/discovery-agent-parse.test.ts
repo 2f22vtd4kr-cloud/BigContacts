@@ -5,6 +5,8 @@ import {
   parsePersonFindings,
 } from "../lib/discovery-agent";
 
+// Regression contract: identity safety validates the investigator's choice;
+// it never creates the choice itself.
 const source = ["https://example.com/about"];
 
 function passesDiscoveryIdentityGate(name: string, sourceUrls = source): boolean {
