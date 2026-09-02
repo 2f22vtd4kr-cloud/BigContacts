@@ -1,0 +1,29 @@
+name: apply-context-batch-50
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "scripts/apply-context-batch-50.py"
+      - ".github/workflows/apply-context-batch-50.yml"
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Apply Batch 50
+        run: |
+          set -euo pipefail
+          python3 scripts/apply-context-batch-50.py
+          grep -q 'Batch 50' docs/context.md
+          grep -q 'c2a8b93' docs/context.md
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/context.md
+          if git diff --cached --quiet; then echo no-changes; else
+            git commit -m "docs(context): Batch 50 Replit boot start script + Redis-on-boot"
+            git push
+          fi
