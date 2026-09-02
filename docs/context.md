@@ -238,3 +238,16 @@ The baseline is a quality control, not a marketing benchmark. Do not preselect b
 **Interpretation:** the retained failures are now explained by two distinct historical defects: provider/output collapse (Run 23) and deterministic proxy leakage plus provider collapse (Run 24). The current implementation closes those specific admission/control-plane boundaries, but **has not yet produced a new live artifact proving research quality**. A new bounded smoke remains mandatory.
 
 **Current next step:** run the current 3-target workflow/runtime, inspect the exact trajectory and provider responses, and only count a pass if at least one real named person is admitted from model-emitted, visited-source evidence and receives a Groq→Mistral free-ReAct Dig with an honest card result. The old artifacts must never be relabeled as success.
+
+
+### 2026-09-02 Batch 30 — smoke acceptance semantics corrected from retained-run comparison
+The artifact comparison exposed another control-plane mistake in the live audit itself: a bounded smoke is an exploration budget of three discovery slots, **not a requirement to admit all three**. The product acceptance gate is at least one real person-shaped, source-backed admit followed by a real Dig trajectory. Requiring three rows could falsely fail the exact proof we need.
+
+**Fixed:**
+- `scripts/audit-live-bureau.mjs` now uses `LIVE_AUDIT_MIN_ADMITS=1` rather than treating `LIVE_AUDIT_TARGET_COUNT=3` as a mandatory full-admission count (`ee582b6`).
+- Both live workflows explicitly separate **3 exploration slots** from **1 minimum proof admit** (`f824078`, `150d1e4`).
+- The audit now fails if final `bureauIntegrity=critical` or the completed status reports `degraded=true`. This specifically prevents the historical Run 24 pattern — “status done / 3 rows” while every Dig provider had failed — from being called a proof.
+
+**Historical artifact replay, conceptually:** Run 23 fails on malformed title identity and provider collapse; Run 24 fails on malformed proxy-derived identities, `degraded=true`, and `bureauIntegrity=critical`. A current smoke can pass with one real admit, but only if the runtime remains non-critical and non-degraded and the row carries discovery-agent HTTP(S) provenance.
+
+**Still unproven:** no current-tip live artifact has yet passed these corrected criteria. Do not equate the stronger audit contract with a successful research run.
