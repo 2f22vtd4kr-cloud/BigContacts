@@ -2238,11 +2238,18 @@ async function runModelSelectedDiscoveryBureau(
           "Every finding must retain an exact public source URL; never invent a person, route, relationship, or URL.",
         ].filter(Boolean).join("\n"),
       });
-      await rehydrateEntityCardFromEvidence(entity.id);
-      await db.update(entitiesTable).set({
-        cookedAt: new Date(),
-        updatedAt: new Date(),
-      }).where(eq(entitiesTable.id, entity.id));
+      const cleanTerminal =
+        agentic.status === "completed" &&
+        agentic.stopReason === "MODEL_DECIDED_DONE";
+      if (cleanTerminal) {
+        const rehydrated = await rehydrateEntityCardFromEvidence(entity.id);
+        if (rehydrated) {
+          await db.update(entitiesTable).set({
+            cookedAt: new Date(),
+            updatedAt: new Date(),
+          }).where(eq(entitiesTable.id, entity.id));
+        }
+      }
       return agentic;
     },
     1,
