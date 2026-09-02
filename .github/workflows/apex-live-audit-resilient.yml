@@ -129,13 +129,21 @@ jobs:
           async function probe(url,key,model,provider) {
             if (!key) { results.push({provider,state:'not_configured'}); return false; }
             try {
-              const r = await fetch(url,{method:'POST',headers:{Authorization:`Bearer ${key}`,'content-type':'application/json'},body:JSON.stringify({model,messages:[{role:'user',content:'Reply READY only.'}],max_tokens:8}),signal:AbortSignal.timeout(15000)});
-              const detail = await r.text();
-              results.push({provider,model,status:r.status,detail:detail.slice(0,180)});
-              return r.ok;
+              const r = await fetch(url,{method:'POST',headers:{Authorization:`Bearer ${key}`,'content-type':'application/json'},body:JSON.stringify({model,messages:[{role:'user',content:'Reply READY only.'}],max_tokens:32}),signal:AbortSignal.timeout(15000)});
+              await r.text();
+              const remaining = Number(r.headers.get('x-ratelimit-remaining-tokens') || 'NaN');
+              const limit = Number(r.headers.get('x-ratelimit-limit-tokens') || 'NaN');
+              const result={provider,model,status:r.status,retryAfter:r.headers.get('retry-after'),remainingTokens:r.headers.get('x-ratelimit-remaining-tokens'),limitTokens:r.headers.get('x-ratelimit-limit-tokens'),resetTokens:r.headers.get('x-ratelimit-reset-tokens')};
+              results.push(result);
+              if (!r.ok) return false;
+              if (provider === 'groq-dig' && Number.isFinite(remaining) && Number.isFinite(limit) && remaining < Math.min(6500, limit * 0.8)) {
+                results.push({provider,state:'insufficient_tpm_headroom',remainingTokens:remaining,requiredAtLeast:Math.min(6500, limit * 0.8)});
+                return false;
+              }
+              return true;
             } catch(e) { results.push({provider,model,state:'transport_error',error:String(e?.message||e)}); return false; }
           }
-          const groq = await probe('https://api.groq.com/openai/v1/chat/completions',process.env.GROQ_API_KEY,process.env.GROQ_AGENTIC_MODEL || 'qwen/qwen3.8-27b','groq-dig-qwen38');
+          const groq = await probe('https://api.groq.com/openai/v1/chat/completions',process.env.GROQ_API_KEY,process.env.GROQ_AGENTIC_MODEL,'groq-dig');
           const mistral = await probe('https://api.mistral.ai/v1/chat/completions',process.env.MISTRAL_API_KEY,process.env.MISTRAL_AGENTIC_MODEL || 'mistral-small-latest','mistral-dig');
           digReady = groq || mistral;
           await probe('https://integrate.api.nvidia.com/v1/chat/completions',process.env.NVIDIA_NIM_API_KEY,process.env.NVIDIA_NIM_MODEL || 'nvidia/nemotron-3.5-lightning-30b-a3b','nvidia-right-hand');
