@@ -2199,6 +2199,7 @@ async function runModelSelectedDiscoveryBureau(
   );
 
   const { runBureauAgenticWebPass } = await import("./bureau-agentic-pass");
+  const digTerminalProblems: string[] = [];
   const targetResult = await runEntityBatch(
     atlasJobId,
     "MODEL TARGET",
@@ -2246,9 +2247,14 @@ async function runModelSelectedDiscoveryBureau(
     },
     1,
     async (entity, result) => {
+      const stopReason = result.stopReason ?? "";
       summary[`Target ${entity.name}`] =
         `${result.status}: model=${result.model} iterations=${result.iterations} ` +
-        `searches=${result.searches} visits=${result.visits} findings=${result.findings.length}`;
+        `searches=${result.searches} visits=${result.visits} findings=${result.findings.length}` +
+        (stopReason ? ` stopReason=${stopReason}` : "");
+      if (result.status !== "completed" || /LLM_UNAVAILABLE|TIMEOUT|BUDGET/i.test(stopReason)) {
+        digTerminalProblems.push(`${entity.name}:${result.status}${stopReason ? `:${stopReason}` : ""}`);
+      }
     },
     opts.targetTimeoutMs ?? DEFAULT_TARGET_TIMEOUT_MS,
   );
@@ -2261,6 +2267,10 @@ async function runModelSelectedDiscoveryBureau(
       .where(sql`(${entitiesTable.email} IS NOT NULL OR ${entitiesTable.phone} IS NOT NULL OR ${entitiesTable.linkedinUrl} IS NOT NULL)`),
   ]);
   const durationMs = Date.now() - startMs;
+  const processIncomplete = discovery.degraded || targetResult.err > 0 || digTerminalProblems.length > 0;
+  if (processIncomplete) {
+    summary["Integrity"] = `incomplete: discoveryDegraded=${discovery.degraded} targetErrors=${targetResult.err} digProblems=${digTerminalProblems.join(",") || "none"}`;
+  }
   const hotLeads = Number(hotRow[0]?.count ?? 0);
   const totalEntities = Number(totalRow[0]?.count ?? 0);
   const totalContacts = Number(contactRow[0]?.count ?? 0);
@@ -2277,7 +2287,7 @@ async function runModelSelectedDiscoveryBureau(
     total: 3,
     atlasPhase: 3,
     atlasPhaseTotal: 3,
-    outcome: "complete",
+    outcome: processIncomplete ? "incomplete" : "complete",
     inserted: admittedIds.length,
     finishedAt: new Date().toISOString(),
     message: finalMsg,
