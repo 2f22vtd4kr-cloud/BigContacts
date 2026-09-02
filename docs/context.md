@@ -274,3 +274,11 @@ The retained Run 23/24 artifacts showed that a tiny “READY” probe can be a f
 `check:discovery-quality` now asserts the exact discovery control plane: only `result.modelFindings` may enter admission, the candidate parser must receive the trajectory, and each admitted source URL must correspond to a `visit`/`browser_fetch` observation (`37954ef`). This is a regression guard for the historical Run 24 class of bug where deterministic extraction could manufacture clean-looking rows.
 
 The source tip is now `37954ef54345af0cbe87ff920f6d5bf6cf269fe6` at the time of this note. **Still unproven:** no current-tip bounded smoke artifact exists. Static guards and UI truthfulness are not a substitute for the required live admit → Dig → honest-card trajectory.
+
+
+### 2026-09-02 Batch 34 — critical discovery-first control-plane contract bug found and fixed
+During the role-separation trace, `runModelSelectedDiscoveryBureau` was found calling `generateGeminiBossText` with the **old one-argument API** and reading the retired `.text` field. The current `case-bureau.ts` contract is `generateGeminiBossText(selection, prompt)` and returns `.raw`. This was a real architecture/runtime defect, not a cosmetic mismatch: the optional Boss discovery-direction branch could fail at runtime or typecheck.
+
+**Fixed:** `atlas-orchestrator.ts` now passes the resolved Gemini selection and logs `brief.raw` (`2ed326c`). `check:discovery-quality` now locks that contract so future API drift is caught (`57099c`). The Boss remains text-only and its note is logged as direction; it is not turned into Dig queries or a fixed hop plan.
+
+**Current status:** the discovery-first path is materially cleaner, but the required live proof is still absent. Do not call Apex ready until a current-tip bounded run produces the artifact chain.
