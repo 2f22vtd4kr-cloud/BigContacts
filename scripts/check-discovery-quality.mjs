@@ -16,6 +16,7 @@ const discovery = fs.readFileSync(path.join(root, "artifacts/api-server/src/src/
 const admit = fs.readFileSync(path.join(root, "artifacts/api-server/src/src/lib/discovery-agent-admit.ts"), "utf8");
 const orientation = fs.readFileSync(path.join(root, "artifacts/api-server/src/src/lib/apex-bureau-orientation.ts"), "utf8");
 const repair = fs.readFileSync(path.join(root, "scripts/apply-apex-identity-integrity-fix.mjs"), "utf8");
+const orchestrator = fs.readFileSync(path.join(root, "artifacts/api-server/src/src/lib/atlas-orchestrator.ts"), "utf8");
 
 const requiredDiscovery = [
   "isWellFormedPersonCandidate",
@@ -66,6 +67,13 @@ if (!discovery.includes(proxyReject)) failures.push("discovery-agent.ts must rej
 
 if (!repair.includes("s.split(gate).join(\"\")")) failures.push("identity repair script is not idempotent");
 if (!repair.includes("state\\\\s+st")) failures.push("identity repair script does not preserve the State St regression repair");
+
+if (!/generateGeminiBossText\(\s*selection,/.test(orchestrator)) {
+  failures.push("discovery-first Boss direction must call generateGeminiBossText with the resolved selection contract");
+}
+if (/brief\?\.text/.test(orchestrator)) {
+  failures.push("discovery-first Boss direction still reads the retired .text result field; use .raw");
+}
 
 const admissionBoundary = 'const admissionFindings = result.modelFindings ?? [];';
 if (!discovery.includes(admissionBoundary)) {
