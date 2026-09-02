@@ -14,6 +14,7 @@ on:
       - "scripts/check-reactor-live-integrity.mjs"
       - "scripts/apply-reactor-live-integration.mjs"
       - "scripts/apply-reactor-activity-only.mjs"
+      - "scripts/check-generated-reactor-syntax.mjs"
       - "docs/bureau-plan/15_FRONTEND_RESPONSIVE_AUDIT.md"
       - "docs/bureau-plan/17_FRONTEND_REACTOR_LIVE_GATE.md"
       - ".github/workflows/frontend-responsive.yml"
@@ -30,6 +31,7 @@ on:
       - "scripts/check-reactor-live-integrity.mjs"
       - "scripts/apply-reactor-live-integration.mjs"
       - "scripts/apply-reactor-activity-only.mjs"
+      - "scripts/check-generated-reactor-syntax.mjs"
       - "docs/bureau-plan/15_FRONTEND_RESPONSIVE_AUDIT.md"
       - "docs/bureau-plan/17_FRONTEND_REACTOR_LIVE_GATE.md"
       - ".github/workflows/frontend-responsive.yml"
@@ -63,4 +65,5 @@ jobs:
       - name: Install frontend workspace graph
         run: pnpm install --no-frozen-lockfile --ignore-scripts --fetch-retries=8 --fetch-timeout=120000 --filter ./artifacts/apex-finder... --registry=https://registry.npmjs.org/
       - name: Build frontend
+        # Generated Reactor is syntax-checked before Vite so patcher regressions fail here, not in the browser.
         run: pnpm --dir artifacts/apex-finder run build
