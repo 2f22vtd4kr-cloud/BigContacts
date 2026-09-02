@@ -21,86 +21,8 @@ function patchLiveFlag(filePath) {
   fs.writeFileSync(filePath, s);
 }
 
-function patchActivityOnlyScheme() {
-  let s = fs.readFileSync(reactorPath, "utf8");
-
-  // The scheme is an activity surface, not a poster. Its default mode must be
-  // driven exclusively by currently-active Dig spans. Terminal/idle telemetry
-  // must not leave target/core/output anchors or completed rods mounted.
-  s = s.replace(
-    'for (const s of spans) {\n    const blob = `${s.name}',
-    'for (const s of spans) {\n    if (String(s.status ?? "").toLowerCase() !== "active") continue;\n    const blob = `${s.name}',
-  );
-
-  s = s.replace(
-    'const AN = (isLive && liveNodes) ? liveNodes : new Set<string>();',
-    'const AN = liveNodes ?? new Set<string>();',
-  );
-  s = s.replace(
-    'const AE = isLive && liveNodes\n    ? new Set(EDGES.filter(e => liveNodes.has(e.from) || liveNodes.has(e.to)).map(e => e.id))\n    : new Set<string>();',
-    'const AE = new Set(EDGES.filter(e => AN.has(e.from) && AN.has(e.to)).map(e => e.id));',
-  );
-  s = s.replace(
-    'const adaptive = Boolean(isLive && liveNodes);',
-    'const adaptive = AN.size > 0;',
-  );
-
-  const stateAnchor = '  const [schemeToolsOnly, setSchemeToolsOnly] = useState(true);\n';
-  if (!s.includes('const schemeNodeDefs = useMemo')) {
-    if (!s.includes(stateAnchor)) throw new Error("schemeToolsOnly anchor missing");
-    const insert = `${stateAnchor}  // Default scheme = live activity only. Active nodes are compacted into the viewport\n  // without changing research semantics or implying a fixed tool order.\n  const schemeNodeDefs = useMemo(() => {\n    if (!schemeToolsOnly) return NODES;\n    const active = NODES.filter((n) => AN.has(n.id));\n    if (active.length === 0) return [];\n    const minX = Math.min(...active.map((n) => n.cx - n.w / 2));\n    const maxX = Math.max(...active.map((n) => n.cx + n.w / 2));\n    const minY = Math.min(...active.map((n) => n.cy - n.h / 2));\n    const maxY = Math.max(...active.map((n) => n.cy + n.h / 2));\n    const sourceW = Math.max(1, maxX - minX);\n    const sourceH = Math.max(1, maxY - minY);\n    const padX = 70;\n    const padY = 56;\n    const canvasW = 1120;\n    const canvasH = 560;\n    const usableW = canvasW - padX * 2;\n    const usableH = canvasH - padY * 2;\n    const sx = usableW / sourceW;\n    const sy = usableH / sourceH;\n    return active.map((n) => ({\n      ...n,\n      cx: padX + (n.cx - minX) * sx,\n      cy: padY + (n.cy - minY) * sy,\n    }));\n  }, [AN, schemeToolsOnly]);\n  const schemeNodeMap = useMemo(() => Object.fromEntries(schemeNodeDefs.map((n) => [n.id, n])), [schemeNodeDefs]);\n  const schemeEdges = useMemo(\n    () => EDGES.filter((e) => schemeNodeMap[e.from] && schemeNodeMap[e.to]),\n    [schemeNodeMap],\n  );\n  const schemeCanvasW = schemeToolsOnly ? 1120 : 1600;\n  const schemeCanvasH = schemeToolsOnly ? 560 : 842;\n`;
-    s = s.replace(stateAnchor, insert);
-  }
-
-  // Dynamic canvas dimensions prevent the 1600x842 poster from forcing a
-  // desktop viewport larger than the actual screen in Live tools mode.
-  s = s.replace('const contentW = Math.max(1, 1600 * schemeZoom);', 'const contentW = Math.max(1, schemeCanvasW * schemeZoom);');
-  s = s.replace('const contentH = Math.max(1, 842 * schemeZoom);', 'const contentH = Math.max(1, schemeCanvasH * schemeZoom);');
-  s = s.replace('[schemeZoom, isLive]', '[schemeZoom, isLive, schemeCanvasW, schemeCanvasH]');
-  s = s.replace('const contentW = 1600 * schemeZoom;', 'const contentW = schemeCanvasW * schemeZoom;');
-  s = s.replace('const contentH = 842 * schemeZoom;', 'const contentH = schemeCanvasH * schemeZoom;');
-  s = s.replace('width:"100%", height:"100%", minWidth:1600, minHeight:960,', 'width:"100%", height:"100%", minWidth:0, minHeight:0,');
-  s = s.replace('overflow:"auto", position:"relative",', 'overflow:"hidden", position:"relative",');
-  s = s.replace('position:"relative", width:"100%", maxWidth:"100%", flex:1, minHeight:420,', 'position:"relative", width:"100%", maxWidth:"100%", flex:1, minHeight:0,');
-  s = s.replace('width:1600 * schemeZoom,\n          minWidth:1600 * schemeZoom,\n          height:842 * schemeZoom,', 'width:schemeCanvasW * schemeZoom,\n          minWidth:schemeCanvasW * schemeZoom,\n          height:schemeCanvasH * schemeZoom,');
-  s = s.replace('position:"relative", width:1600, height:842, flexShrink:0,', 'position:"relative", width:schemeCanvasW, height:schemeCanvasH, flexShrink:0,');
-  s = s.replace('width={1600}\n          height={842}', 'width={schemeCanvasW}\n          height={schemeCanvasH}');
-
-  // Activity-only node/edge collections. Full map remains available explicitly.
-  s = s.replace('{EDGES.map(e => {\n            const A = NM[e.from], B = NM[e.to];', '{schemeEdges.map(e => {\n            const A = schemeNodeMap[e.from], B = schemeNodeMap[e.to];');
-  s = s.replace('{NODES.map(n => {\n          // Activity-only: do not mount inactive tool nodes while Live tools mode is on\n          if (schemeToolsOnly && isLive && liveNodes) {\n            const keep =\n              liveNodes.has(n.id) || n.id === "target" || n.id === "mcts" || n.id === "evidence";\n            if (!keep) return null;\n          }', '{schemeNodeDefs.map(n => {');
-  s = s.replace('if (schemeToolsOnly && isLive && liveNodes) {\n              const keepEdge =\n                liveNodes.has(e.from) || liveNodes.has(e.to) ||\n                e.from === "target" || e.to === "target" ||\n                e.from === "mcts" || e.to === "mcts" ||\n                e.from === "evidence" || e.to === "evidence";\n              if (!keepEdge) return null;\n            }', '');
-  s = s.replace('const edgeOpacity = focusedToolId\n              ? (touchesFocus || active ? 0.95 : 0.12)\n              : isLive && liveNodes\n                ? (active || AE.has(e.id) || liveNodes.has(e.from) || liveNodes.has(e.to)\n                    ? 0.85\n                    : (schemeToolsOnly ? 0 : 0.08))\n                : (active ? 0.92 : on ? 0.5 : queued || failed ? 0.45 : 0.22);', 'const edgeOpacity = focusedToolId\n              ? (touchesFocus || active ? 0.95 : 0.12)\n              : schemeToolsOnly\n                ? (active || AE.has(e.id) ? 0.9 : 0)\n                : (active ? 0.92 : on ? 0.5 : queued || failed ? 0.45 : 0.22);');
-
-  // In activity mode there are no section rails/dividers; they are poster chrome.
-  s = s.replace('{[\n          {y:200,label:"DIG CORE"},{y:340,label:"SEARCH · VISIT"},\n          {y:480,label:"TOOLS"},{y:620,label:"OUTCOME"},\n        ].map(({y,label}) => (', '{!schemeToolsOnly && [\n          {y:200,label:"DIG CORE"},{y:340,label:"SEARCH · VISIT"},\n          {y:480,label:"TOOLS"},{y:620,label:"OUTCOME"},\n        ].map(({y,label}) => (');
-  s = s.replace('{[268,400,540,680].map(y => (', '{!schemeToolsOnly && [268,400,540,680].map(y => (');
-
-  // Minimap uses the same compact activity coordinates and does not imply a full map.
-  s = s.replace('{isLive && liveNodes && NODES.filter((n) => liveNodes.has(n.id)).map((n) => (', '{schemeToolsOnly && schemeNodeDefs.map((n) => (');
-  s = s.replace('left: `${(n.cx / 1600) * 100}%`,\n                  top: `${(n.cy / 842) * 100}%`,', 'left: `${(n.cx / schemeCanvasW) * 100}%`,\n                  top: `${(n.cy / schemeCanvasH) * 100}%`,');
-
-  // Live node status is span-driven regardless of whether the bureau job banner is live.
-  s = s.replace('if (schemeToolsOnly && isLive && liveNodes) {', 'if (schemeToolsOnly && liveNodes) {');
-  s = s.replace('const keep =\n              liveNodes.has(n.id) || n.id === "target" || n.id === "mcts" || n.id === "evidence";', 'const keep = liveNodes.has(n.id);');
-  s = s.replace('const keep = liveNodes.has(n.id) || n.id === "target" || n.id === "mcts" || n.id === "evidence" || on;', 'const keep = liveNodes.has(n.id) || on;');
-  s = s.replace('if (!schemeToolsOnly || !isLive || !liveNodes) return "visible" as const;', 'if (!schemeToolsOnly || !liveNodes) return "visible" as const;');
-  s = s.replace('if (!schemeToolsOnly || !isLive || !liveNodes) return "auto" as const;', 'if (!schemeToolsOnly || !liveNodes) return "auto" as const;');
-  s = s.replace('if (isLive && liveNodes) {\n                  const keep = liveNodes.has(n.id) || n.id === "target" || n.id === "mcts" || n.id === "evidence";', 'if (schemeToolsOnly && liveNodes) {\n                  const keep = liveNodes.has(n.id);');
-
-  // Strict live state: never synthesize target/core activity when no active span exists.
-  s = s.replace('        if (runStatus === "running" || runStatus === "paused") {\n          nodes.add("target");\n        }\n        for (const id of fromSpans) nodes.add(id);\n        if (fromSpans.size > 0) labels.push("Free dig tools active");', '        for (const id of fromSpans) nodes.add(id);\n        if (fromSpans.size > 0) labels.push("Free dig tools active");');
-  s = s.replace('        if (fromSpans.size > 0) setLiveNodes(fromSpans);\n        else if (nodes.size > 0) setLiveNodes(nodes);\n        else setLiveNodes(new Set());', '        setLiveNodes(fromSpans);');
-
-  if (!s.includes('const schemeNodeDefs = useMemo') || !s.includes('setLiveNodes(fromSpans);')) {
-    throw new Error("activity-only scheme patch did not land");
-  }
-  fs.writeFileSync(reactorPath, s);
-}
-
 patchLiveFlag(reactorPath);
 patchLiveFlag(mobilePath);
-patchActivityOnlyScheme();
 
 let s = fs.readFileSync(reactorPath, "utf8");
 const importAnchor = 'import { readApiJson } from "@/lib/api-json";';
