@@ -8,7 +8,7 @@ const file = path.join(repoRoot, "artifacts/apex-finder/src/pages/reactor.tsx");
 const source = fs.readFileSync(file, "utf8");
 const esbuild = path.join(repoRoot, "node_modules/.pnpm/esbuild@0.25.12/node_modules/esbuild/bin/esbuild");
 try {
-  execFileSync(process.execPath, [esbuild, file, "--loader=tsx", "--outfile=/tmp/reactor-syntax-check.js"], { stdio: "inherit" });
+  execFileSync(process.execPath, [esbuild, file, "--outfile=/tmp/reactor-syntax-check.js"], { stdio: "inherit" });
   console.log("GENERATED_REACTOR_TSX_SYNTAX_OK");
 } catch (error) {
   const text = String(error?.stderr || "");
