@@ -288,3 +288,11 @@ During the role-separation trace, `runModelSelectedDiscoveryBureau` was found ca
 `docs/BUREAU_REACT_ARCHITECTURE.md` still described reverse-WHOIS as an available Dig capability. That contradicted the current schema and product law. It now names `domain_lookup` via RDAP/WhoisJSON and explicitly excludes deprecated Whoxy/reverse-WHOIS (`bf9d8af`).
 
 No live claim follows from this documentation cleanup. The next meaningful artifact remains the bounded 3-slot discovery-first run on a current tip.
+
+
+### 2026-09-02 Batch 36 — broken static role guard corrected (important)
+A second architecture audit found `scripts/check-agentic-runtime.mjs` still **required Gemini provider keys, a Gemini model, and Gemini thinking configuration inside `agentic-web-research.ts`**. The production Dig module had already removed that role, so the check was internally contradictory and would fail a correct Groq→Mistral implementation.
+
+**Fixed (`c314eb5`):** the guard now requires only the generic Dig action schema/parser and explicitly fails if dormant Gemini or NVIDIA provider HTTP code remains in the Dig module. This aligns the static contract with product law instead of preserving historical role leakage as a test requirement.
+
+This is another reason not to treat prior “green” reports as sufficient. The static guard itself contained stale architecture assumptions. The live proof is still pending after this correction.
