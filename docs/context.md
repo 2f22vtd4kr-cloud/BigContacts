@@ -306,3 +306,13 @@ A remaining UI truthfulness leak was found in `reactor.tsx`: activity-only hidin
 **Current audit state:** the control plane already enforces model-emitted findings, exact visited/fetched source provenance, Groq→Mistral-only Dig, and fail-closed admission. The desk now reflects the same rule: no tool glow or phase progression until there is actual telemetry.
 
 **Still unproven:** this is not a live research result. The required current-tip artifact remains a bounded discovery-first run with at least one real named-person admit followed by a free-ReAct Dig and honest card result.
+
+
+### 2026-09-02 Batch 38 — terminal Dig failures can no longer look like a clean bureau completion
+The discovery-first wrapper still had one honesty gap: `runEntityBatch` counts a target as mechanically handled when the Dig function returns, even if that return is `unavailable`/`timeout`. The final wrapper then wrote `outcome: "complete"`. That was too close to the historical “job finished” failure mode.
+
+**Fixed (`5540880`):** target summaries now retain `stopReason`, terminal Dig states are collected explicitly, and the final job outcome becomes `incomplete` when discovery is degraded, a target errors, or Dig reports an LLM-unavailable/timeout/budget terminal reason. The human-readable integrity summary records why. A healthy zero-admit run can still finish honestly as zero admits; a provider-degraded run cannot masquerade as a clean complete proof.
+
+**Verification so far:** the frontend responsive contract for the Batch 37 Reactor change completed successfully on GitHub Actions. This is UI validation only, not the required live bureau proof.
+
+**Current tip after this batch:** `5540880b66572c6f58b719abddb9b0860bee6b9a` at the time of writing. The remaining gate is unchanged: inspect a current 3-target discovery-first trajectory and require at least one model-emitted, visited-source named-person admit followed by Groq→Mistral free-ReAct Dig and an honest card artifact.
