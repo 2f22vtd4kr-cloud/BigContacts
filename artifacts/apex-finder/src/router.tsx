@@ -15,6 +15,7 @@ import IntelligenceReactorPage from "@/pages/reactor";
 import IntelTerminal from "@/pages/research";
 import NotFound from "@/pages/not-found";
 import SystemStatusPage from "@/pages/status";
+import { ProfileErrorBoundary } from "@/components/profile-error-boundary";
 
 export default function AppRouter() {
   return (
@@ -29,7 +30,7 @@ export default function AppRouter() {
         <Route path="/reactor" component={IntelligenceReactorPage} />
         <Route path="/research" component={IntelTerminal} />
         <Route path="/manual" component={FieldManual} />
-        <Route path="/profile/:id" component={ApexProfile} />
+        <Route path="/profile/:id">{() => <ProfileErrorBoundary><ApexProfile /></ProfileErrorBoundary>}</Route>
 
         {/* ── Tools & Admin pages ── */}
         <Route path="/improvements" component={Improvements} />
