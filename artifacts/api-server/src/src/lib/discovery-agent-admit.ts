@@ -16,6 +16,11 @@ export async function createEntityFromDiscoveryCandidate(
   if (name.length < 3) return null;
 
   if (options.modelSelected) {
+    // Durable admission requires the investigator's explicit promotion decision.
+    if (c.promotionDecision !== "promote") {
+      logger.info({ name }, "[discovery-agent-admit] rejected: no explicit investigator promotion decision");
+      return null;
+    }
     // Model-selected discovery is deliberately not ranked, scored, or filtered
     // by target fitness. Only identity/provenance safety is enforced here.
     if (!isWellFormedPersonCandidate(c)) {
@@ -68,6 +73,8 @@ export async function createEntityFromDiscoveryCandidate(
         sourceUrls: c.sourceUrls?.slice(0, 8) ?? [],
         role: c.role,
         company: c.company,
+        promotionDecision: c.promotionDecision,
+        promotionReason: c.promotionReason,
         ...(fitness ? { fitness: fitness.fit } : {}),
       }),
       contactConfidence: 0,

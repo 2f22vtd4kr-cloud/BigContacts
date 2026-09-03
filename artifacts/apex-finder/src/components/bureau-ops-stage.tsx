@@ -78,8 +78,8 @@ function isLogGarbage(s: string): boolean {
   if (/^[{[]/.test(t)) return true;
   if (/BOSS_DISCOVERY_DIRECTION|DISCOVERY_MODEL_STEP|DISCOVERY_ADMIT|DURABLE_PROMOTION|BUREAU|/i.test(t)) return true;
   if (/modelFindings|vectorType|atlasPhase|sourceUrls.{0,40}https/i.test(t) && t.length > 90) return true;
-  if (/slot=d+/d+.*concurrent=/i.test(t)) return true;
-  return /DIRECTORs+d{4}-|jobId=/i.test(t) && t.length > 100;
+  if (/slot=\d+\/\d+.*concurrent=/i.test(t)) return true;
+  return /DIRECTOR\s+\d{4}-|jobId=/i.test(t) && t.length > 100;
 }
 
 function isInternalLanePrompt(s: string): boolean {

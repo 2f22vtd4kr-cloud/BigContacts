@@ -779,6 +779,18 @@ export default function ApexProfile() {
                 Profile card
                 <span className="opacity-50"> · {TAB_LABELS[activeTab] ?? activeTab}</span>
               </span>
+
+              {entity?.cookedAt ? (
+                <span
+                  data-testid="research-committed-at"
+                  className="mt-1 inline-flex items-center rounded border border-[#9CFF1A]/15 bg-[#9CFF1A]/5 px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.12em] text-[#9CFF1A]/75"
+                  title="Research committed"
+                >
+                  Research committed · {new Date(entity.cookedAt).toLocaleString()}
+                </span>
+              ) : (
+                <span data-testid="research-not-committed" className="mt-1 inline-flex items-center font-mono text-[9px] uppercase tracking-[0.12em] text-muted-foreground/35">Research not committed</span>
+              )}
             </div>
 
             <h1 className="text-xl md:text-2xl font-bold text-foreground tracking-tight leading-none mb-2">

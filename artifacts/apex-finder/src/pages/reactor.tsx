@@ -6,6 +6,7 @@ import {
   Sparkles, Compass, Rss, Users,
 } from "lucide-react";
 import { MobileReactorFlow } from "../components/mobile-reactor-flow";
+import { ReactorActivityOnly } from "../components/reactor-activity-only";
 import { LaunchAtlasButton } from "@/components/launch-atlas-button";
 import { DigSpanTrajectory, type DigSpanView } from "@/components/dig-span-trajectory";
 import { ContactSurface } from "@/components/contact-surface";
@@ -16,6 +17,7 @@ import { useBureauLiveDesk } from "../lib/use-bureau-live";
 import { isMockMode, mockAtlasLiveState, mockLiveNodes } from "@/lib/dev-mock-data";
 import { formatSchedulerCountdown, schedulerWaitRemaining } from "../components/scheduler-utils";
 import { readApiJson } from "@/lib/api-json";
+import { ReactorLiveSurface } from "../components/reactor-live-surface";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 interface NodeDef {
@@ -111,6 +113,7 @@ function schemeNodesFromSpans(spans: DigSpanView[] | undefined | null): Set<stri
   const out = new Set<string>();
   if (!spans?.length) return out;
   for (const s of spans) {
+    if (String(s.status ?? "").toLowerCase() !== "active") continue;
     const blob = `${s.name} ${s.inputSummary ?? ""} ${s.spanType} ${s.toolName ?? ""}`.toLowerCase();
     let toolHit = false;
     if (/web_search|serper|\bsearch\b/.test(blob)) { out.add("perp0"); toolHit = true; }
@@ -893,6 +896,18 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
   // Single source of truth: job status + recent bureau log. Stale Redis "running" is not LIVE.
   const atlasRunning =
     atlasState?.runStatus === "running" || atlasState?.runStatus === "paused";
+  const recentSpanMs = (() => {
+    const spans = (atlasState as any)?.recentSpans;
+    if (!Array.isArray(spans) || spans.length === 0) return null as number | null;
+    const now = Date.now();
+    let newest = 0;
+    for (const span of spans.slice(0, 24)) {
+      if (String(span?.status || "") === "active") return 0;
+      const t = Date.parse(String(span?.startedAt || span?.endedAt || ""));
+      if (Number.isFinite(t) && t > newest) newest = t;
+    }
+    return newest > 0 ? now - newest : null;
+  })();
   const recentBureauMs = (() => {
     const log = atlasState?.eventLog;
     if (!Array.isArray(log) || log.length === 0) return null as number | null;
@@ -908,7 +923,7 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
   const isLive = Boolean(
     atlasState &&
       atlasRunning &&
-      (recentBureauMs == null || recentBureauMs < 90_000),
+      (recentSpanMs === 0 || recentSpanMs != null && recentSpanMs < 90_000 || recentBureauMs == null || recentBureauMs < 90_000),
   );
   const atlasFailed = atlasState?.runStatus === "failed";
   const atlasCancelled = atlasState?.runStatus === "cancelled";
@@ -1506,6 +1521,52 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
 
   const [deskOn, setDeskOn] = useState(false);
   const { deskEvents, latestNarration } = useBureauLiveDesk(atlasState?.eventLog as any, { enabled: true, atlasLive: Boolean(isLive) });
+  // Live semantic feed is built from actual Bureau events plus actual Dig spans.
+  // Spans are authoritative for tool/model activity; event logs are supplemental.
+  const reactorLiveEvents = useMemo(() => {
+    const events = deskEvents.map((event: any, index: number) => ({
+      id: String(event.timestamp || "event") + "-" + String(event.stage || event.story || index),
+      timestamp: event.timestamp,
+      status: event.status === "active" ? "active" : event.status === "failed" ? "failed" : event.status === "queued" ? "queued" : "done",
+      method: event.methodKind || "unknown",
+      title: event.stage || event.story || event.narration || "Research event",
+      actor: event.actor,
+      provider: event.provider || event.activeToolId,
+      targetName: event.targetName,
+      query: event.inputSummary,
+      url: event.links?.[0]?.url || event.sourceUrls?.[0],
+      prompt: event.prompt,
+      resultSummary: event.resultSummary,
+      sourceUrls: event.sourceUrls,
+      sources: Array.isArray(event.links) ? event.links : undefined,
+      evidenceCount: event.evidence,
+      why: event.why,
+      links: Array.isArray(event.links) ? event.links : undefined,
+    }));
+    const spans = (atlasState?.recentSpans || []).map((span: any) => ({
+      id: "span-" + String(span.id),
+      timestamp: span.startedAt,
+      status: span.status === "active" ? "active" : span.status === "error" ? "failed" : "done",
+      method: span.spanType || "unknown",
+      title: span.name || span.toolName || "Research step",
+      actor: span.agentName || "investigator",
+      provider: span.modelId || span.toolName,
+      targetName: span.targetName,
+      query: span.inputSummary,
+      url: undefined,
+      resultSummary: span.resultSummary,
+      sourceUrls: undefined,
+      evidenceCount: undefined,
+      why: undefined,
+    }));
+    const merged = [...events, ...spans];
+    const seen = new Set<string>();
+    return merged.filter((e: any) => {
+      if (seen.has(e.id)) return false;
+      seen.add(e.id);
+      return true;
+    }).slice(-24);
+  }, [deskEvents, atlasState?.recentSpans]);
   // Idle: keep Live Desk closed so it does not leave a blank column under Launch.
   // Live: open automatically so tool windows are visible.
   useEffect(() => {
@@ -1586,7 +1647,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
 
   return (
     <div style={{
-      width:"100%", height:"100%", minWidth:1600, minHeight:960,
+      width:"100%", height:"100%", minWidth:0, minHeight:0,
       background:"#111827",
       fontFamily:"'Space Mono','DM Mono','Courier New',monospace",
       display:"flex", flexDirection:"column",
@@ -1961,6 +2022,15 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
                 />
               </div>
             )}
+            {isLive && reactorLiveEvents.length > 0 && (
+              <div className="mb-3" data-testid="reactor-live-semantic-layer">
+                <ReactorLiveSurface
+                  events={reactorLiveEvents as any}
+                  targetName={atlasState?.currentEntities?.[0] || atlasState?.atlasTelemetry?.targetName}
+                  compact
+                />
+              </div>
+            )}
             <BureauOpsStage
               events={(
                 !isLive
@@ -1993,6 +2063,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
             >{isLive ? "Under the hood" : "Under the hood"}</button>
           </div>
         )}
+        {schemeToolsOnly && <ReactorActivityOnly nodes={NODES.filter((n) => schemeNodesFromSpans(atlasState?.recentSpans).has(n.id))} />}
         {/* Scheme canvas — horizontal + vertical pan via scroll (nodes extend past viewport) */}
                 <div
           data-testid="scheme-zoom-controls"
@@ -2142,7 +2213,8 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
           onPointerUp={onSchemePointerUp}
           onPointerCancel={onSchemePointerUp}
           style={{
-            position:"relative", width:"100%", maxWidth:"100%", flex:1, minHeight:420,
+            display: schemeToolsOnly ? "none" : "block",
+            position:"relative", width:"100%", maxWidth:"100%", flex:1, minHeight:0,
             overflowX:"auto", overflowY:"auto", WebkitOverflowScrolling:"touch",
             borderTop:"1px solid rgba(255,255,255,0.03)",
             margin:"8px 0 24px",
@@ -2463,7 +2535,6 @@ export default function IntelligenceReactorPage() {
   const pollJobs = useCallback(async () => {
     if (isMockMode()) return; // offline idle mock — skip live job poll
     const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
-    try {
       // Poll jobs, atlas status, AND key health in parallel
       const [jobsData, atlasData, sysData] = await Promise.all([
         fetch(`${BASE}/api/ingest/jobs`, { cache: "no-store" })
@@ -2583,6 +2654,7 @@ export default function IntelligenceReactorPage() {
         }
         for (const id of fromSpans) nodes.add(id);
         if (fromSpans.size > 0) labels.push("Free dig tools active");
+      }
       // ── Regular jobs ─────────────────────────────────────────────────────────
       const running = (jobsData.jobs ?? []).filter((j: any) =>
         j.status === "running" || j.status === "active"
@@ -2639,7 +2711,6 @@ export default function IntelligenceReactorPage() {
         } catch { /* non-fatal */ }
         setAtlasState(nextAtlasState);
       }
-    } catch { /* non-fatal */ }
   }, []);
 
   // Poll often enough that zombie clear is visible quickly

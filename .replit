@@ -32,3 +32,9 @@ author = "agent"
 task = "shell.exec"
 args = "bash scripts/replit-boot.sh"
 waitForPort = 8080
+
+[userenv]
+
+[userenv.shared]
+NODE_OPTIONS = "--max-old-space-size=1536"
+RESEARCH_DEPTH = "standard"

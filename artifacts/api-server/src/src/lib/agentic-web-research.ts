@@ -35,6 +35,10 @@ export type AgenticFinding = {
   scope: "organization" | "candidate" | "unknown";
   sourceUrls: string[];
   note: string;
+  /** Explicit investigator decision; discovery admission requires promote. */
+  promotionDecision?: "promote" | "reject";
+  /** Short investigator-authored reason for the decision. */
+  promotionReason?: string;
 };
 
 export type AgenticWebResearchResult = {
@@ -277,8 +281,11 @@ async function toolWebSearchExa(query: string): Promise<{ text: string; urls: st
   return null;
 }
 
-async function toolWebSearch(query: string): Promise<{ text: string; urls: string[]; provider: "serper" | "tavily" | "exa" | "ddg" }> {
+async function toolWebSearch(query: string, requestedProvider?: "serper" | "tavily" | "exa"): Promise<{ text: string; urls: string[]; provider: "serper" | "tavily" | "exa" | "ddg" }> {
   // Prefer Serper, then Tavily, then Exa, then DDG. Providers are tools — not promotion authorities.
+  if (requestedProvider === "serper") { const r = await toolWebSearchSerper(query); return r && r.urls.length ? { ...r, provider: "serper" } : { text: "SERPER requested but unavailable/no results", urls: [], provider: "serper" }; }
+  if (requestedProvider === "tavily") { const r = await toolWebSearchTavily(query); return r && (r.urls.length || r.text.length > 40) ? { ...r, provider: "tavily" } : { text: "TAVILY requested but unavailable/no results", urls: [], provider: "tavily" }; }
+  if (requestedProvider === "exa") { const r = await toolWebSearchExa(query); return r && (r.urls.length || r.text.length > 40) ? { ...r, provider: "exa" } : { text: "EXA requested but unavailable/no results", urls: [], provider: "exa" }; }
   const serper = await toolWebSearchSerper(query);
   if (serper && serper.urls.length > 0) return { ...serper, provider: "serper" };
 
@@ -540,6 +547,10 @@ function parseAction(raw: string): AgentAction | null {
           continue;
         }
         const personName = rawPersonName || null;
+        const promotionDecision = row.promotionDecision === "promote" || row.promotionDecision === "reject"
+          ? row.promotionDecision
+          : undefined;
+        const promotionReason = typeof row.promotionReason === "string" ? row.promotionReason.slice(0, 500) : undefined;
         const role = typeof row.role === "string" ? row.role.slice(0, 120) : null;
         const normalizedPersonValue = isPersonEmit
           ? `person: ${personName || finalValue}${role ? ` | ${role}` : ""}`.slice(0, 500)
@@ -552,6 +563,8 @@ function parseAction(raw: string): AgentAction | null {
           scope: isPersonEmit ? "candidate" : (row.scope === "organization" || row.scope === "candidate" ? row.scope : "unknown"),
           sourceUrls: sourceUrls.length ? sourceUrls : (vectorType === "website" && /^https?:\/\//i.test(finalValue) ? [finalValue] : []),
           note: typeof row.note === "string" ? row.note.slice(0, 400) : "agentic web research",
+          promotionDecision,
+          promotionReason,
         });
       }
       return { action: "done", findings: cleaned, thought: typeof o.thought === "string" ? o.thought : undefined };
@@ -633,6 +646,8 @@ const AGENTIC_ACTION_SCHEMA = {
         scope: { type: "string", enum: ["organization", "candidate", "unknown"] },
         sourceUrls: { type: "array", items: { type: "string" } },
         note: { type: "string" },
+        promotionDecision: { type: "string", enum: ["promote", "reject"] },
+        promotionReason: { type: "string" },
       },
       required: ["vectorType", "value", "sourceUrls", "note"],
       additionalProperties: false,
@@ -789,7 +804,7 @@ function buildStepPrompt(input: {
   // Keep this short. Models already know how to research; do not ship a playbook.
   const bag = formatFindingsBag(input.findings ?? []);
   const discoveryContract = /^Discovery slot\b/i.test(input.targetName)
-    ? `\nDISCOVERY OUTPUT CONTRACT (model-owned, not a search script): Invent your own queries. Prefer concrete business/ownership/family-office/operator surfaces; do not walk Forbes/billionaire rankings. Search snippets are leads — visit the page before claiming identity. If you establish a real named person, emit action=done with a finding containing personName="Full Name" (or value="person: Full Name | role | company"), scope="candidate", and sourceUrls containing the exact HTTPS page you actually observed. A personName-only finding is valid. Do not emit titles, sectors, companies, or prose fragments as people. If identity is not established, return done with findings=[].\n`
+    ? `\nDISCOVERY OUTPUT CONTRACT (model-owned, not a search script): Invent your own queries. Prefer concrete business/ownership/family-office/operator surfaces; do not walk Forbes/billionaire rankings. Search snippets are leads — visit the page before claiming identity. If you establish a real named person that YOU judge worth promoting, emit action=done with a finding containing personName="Full Name" (or value="person: Full Name | role | company"), scope="candidate", promotionDecision="promote", promotionReason="brief reason", and sourceUrls containing the exact HTTPS page you actually observed. If you do not judge the person worth promoting, emit promotionDecision="reject" or findings=[]. A personName-only finding is valid. Do not emit titles, sectors, companies, or prose fragments as people. If identity is not established, return done with findings=[].\n`
     : "";
   return `${apexOrientationCompact("dig_agent")}\n${discoveryContract}\n---\n\nTARGET: ${input.targetName}
 ${input.companyName ? `RELATED COMPANY / ISSUER: ${input.companyName}` : ""}
@@ -798,7 +813,7 @@ OBJECTIVE: ${(/^Discovery slot\b/i.test(input.targetName)
     : input.objective.slice(0, 2200))}
 
 AVAILABLE TOOLS (one JSON action per turn — your choice; use any Apex OSINT capability when it helps):
-{"action":"web_search","query":"...","thought":"..."}
+{"action":"web_search","query":"...","provider":"serper|tavily|exa (optional)","thought":"..."}
 {"action":"visit","url":"https://...","thought":"..."}
 {"action":"browser_fetch","url":"https://...","thought":"..."}  // Scrapfly/ZenRows JS/challenge pages
 {"action":"footprint_email","email":"...","thought":"..."}  // Holehe
@@ -809,10 +824,10 @@ AVAILABLE TOOLS (one JSON action per turn — your choice; use any Apex OSINT ca
 {"action":"done","findings":[{"vectorType":"email|phone|linkedin|website|social|other","value":"...","personName":null,"role":null,"scope":"organization|candidate","sourceUrls":["https://exact-page"],"note":"..."}],"thought":"..."}
 
 Guidelines (not a script):
-- Search snippets are leads, not identity evidence. When a promising result names a person, consider visiting the corresponding result URL before claiming identity; do not treat the URL/snippet alone as proof.
+- Search snippets are leads, not identity evidence. You may choose the search provider explicitly with provider=serper, tavily, or exa when that changes expected information gain. When a promising result names a person, consider visiting the corresponding result URL before claiming identity; do not treat the URL/snippet alone as proof.
 - Never invent emails, phones, people, or URLs. Only values from observations or FINDINGS SO FAR, with real sourceUrls.
 - Prefer primary sources (company sites, filings, registries) over aggregators.
-- When finished, action=done. findings:[] is OK if FINDINGS SO FAR already holds contacts — the runtime keeps the bag.
+- When finished, action=done. In discovery, findings=[] means no person was promoted. Do not rely on FINDINGS SO FAR or deterministic contact facts to represent a discovery promotion; emit the person you personally selected with promotionDecision="promote" and the exact observed HTTPS source when identity is established.
 
 FINDINGS SO FAR (already extracted — do not drop these):
 ${bag}
@@ -1681,7 +1696,10 @@ async function runAgenticWebResearchUnbounded(input: {
     if (action.action === "web_search") {
       searches++;
       history.push(`step${i + 1}: search ${action.query}${action.thought ? ` (${action.thought.slice(0, 80)})` : ""}`);
-      const sr = await toolWebSearch(action.query);
+      const requestedProvider = ["serper", "tavily", "exa"].includes(String((action as any).provider))
+        ? ((action as any).provider as "serper" | "tavily" | "exa")
+        : undefined;
+      const sr = await toolWebSearch(action.query, requestedProvider);
       for (const u of sr.urls) {
         if (/^https?:\/\//i.test(u) && !candidateUrls.includes(u)) candidateUrls.push(u);
       }

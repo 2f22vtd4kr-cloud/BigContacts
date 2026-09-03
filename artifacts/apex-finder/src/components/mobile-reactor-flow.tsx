@@ -158,6 +158,18 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
   const atlasRunning =
     Boolean(atlasState) &&
     (atlasState!.runStatus === "running" || atlasState!.runStatus === "paused");
+  const recentSpanMs = (() => {
+    const spans = (atlasState as any)?.recentSpans;
+    if (!Array.isArray(spans) || spans.length === 0) return null as number | null;
+    const now = Date.now();
+    let newest = 0;
+    for (const span of spans.slice(0, 24)) {
+      if (String(span?.status || "") === "active") return 0;
+      const t = Date.parse(String(span?.startedAt || span?.endedAt || ""));
+      if (Number.isFinite(t) && t > newest) newest = t;
+    }
+    return newest > 0 ? now - newest : null;
+  })();
   const recentBureauMs = (() => {
     const log = (atlasState as any)?.eventLog;
     if (!Array.isArray(log) || log.length === 0) return null as number | null;
@@ -169,7 +181,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
     return newest > 0 ? Date.now() - newest : null;
   })();
   const isLive = Boolean(
-    atlasRunning && (recentBureauMs == null || recentBureauMs < 90_000),
+    atlasRunning && (recentSpanMs === 0 || recentSpanMs != null && recentSpanMs < 90_000 || recentBureauMs == null || recentBureauMs < 90_000),
   );
   const [showHistory, setShowHistory] = React.useState(false);
   const [jumpToLiveSignal, setJumpToLiveSignal] = React.useState(0);

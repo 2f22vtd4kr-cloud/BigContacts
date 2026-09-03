@@ -63,6 +63,13 @@ s = s.replace(
   '      }\n  }, []);',
 );
 
+const regularJobsMarker = '      // ── Regular jobs';
+if (!s.includes(`      }\n${regularJobsMarker}`)) {
+  const regularJobsAt = s.indexOf('      // ── Regular jobs');
+  if (regularJobsAt < 0) throw new Error("regular jobs marker missing");
+  s = s.slice(0, regularJobsAt) + `      }\n` + s.slice(regularJobsAt);
+}
+
 if (!s.includes(importLine)) throw new Error("activity component import did not land");
 if (!s.includes("<ReactorActivityOnly nodes={NODES.filter")) throw new Error("activity component mount did not land");
 fs.writeFileSync(reactorPath, s);

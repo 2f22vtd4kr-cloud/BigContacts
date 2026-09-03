@@ -11,7 +11,7 @@ import { logger } from "./logger";
 import { publishDigSpan, completeDigSpan, spanFromLiveStep } from "./dig-span";
 import { runAgenticWebResearch } from "./agentic-web-research";
 
-export type DiscoveryCandidate = { name: string; role?: string; company?: string; basis: string; sourceUrls: string[]; lane?: string; confidence?: number };
+export type DiscoveryCandidate = { name: string; role?: string; company?: string; basis: string; sourceUrls: string[]; lane?: string; confidence?: number; promotionDecision: "promote"; promotionReason?: string };
 export type DiscoveryAgentResult = { candidates: DiscoveryCandidate[]; model?: string; searches: number; visits: number; degraded: boolean; message: string };
 
 type DiscoveryFinding = {
@@ -22,6 +22,8 @@ type DiscoveryFinding = {
   personName?: string | null;
   note?: string;
   scope?: "organization" | "candidate" | "unknown";
+  promotionDecision?: "promote" | "reject";
+  promotionReason?: string;
 };
 
 const INVALID_PERSON_TITLE_PATTERNS = [
@@ -140,6 +142,10 @@ export function isWellFormedPersonCandidate(candidate: Pick<DiscoveryCandidate, 
   if (words.length < 2 || words.length > 5) return false;
   // CamelCase extraction fragments (e.g. comPrecision) are not human-name syntax.
   if (words.some((w) => /^[a-z]+[A-Z]/.test(w))) return false;
+  // CamelCase extraction fragments (e.g. comPrecision) are not human-name syntax.
+  if (words.some((w) => /^[a-z]+[A-Z]/.test(w))) return false;
+  // CamelCase extraction fragments (e.g. comPrecision) are not human-name syntax.
+  if (words.some((w) => /^[a-z]+[A-Z]/.test(w))) return false;
   if (!/^\p{L}[\p{L}.'’\-]*(?:\s+\p{L}[\p{L}.'’\-]*){1,4}$/u.test(name)) return false;
   if (words.some((w) => INVALID_PERSON_NAME_WORDS.has(w.toLowerCase().replace(/[.'’\-]/g, "")))) return false;
   if (isInvalidIdentityPhrase(normalized)) return false;
@@ -178,9 +184,16 @@ export function parsePersonFindings(findings: DiscoveryFinding[], trajectory: st
       sourceUrls,
       lane: extra.lane || "discovery-agent",
       confidence: sourceUrls.length ? 0.55 : 0.35,
+      promotionDecision: "promote",
+      promotionReason: extra.promotionReason,
     });
   };
   for (const f of findings ?? []) {
+    // Only the investigator may promote a discovery person.
+    if (f.promotionDecision !== "promote") {
+      logger.info({ personName: f.personName, promotionDecision: f.promotionDecision }, "[discovery-agent] skipped finding without explicit investigator promotion decision");
+      continue;
+    }
     // Proxy/DEF-14A auto-extraction can surface nearby capitalized names, but
     // that is deterministic candidate selection rather than model-owned discovery.
     // Never admit those synthetic related-person findings; the investigator must

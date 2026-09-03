@@ -6,9 +6,16 @@ import { fileURLToPath } from "node:url";
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const file = path.join(repoRoot, "artifacts/apex-finder/src/pages/reactor.tsx");
 const source = fs.readFileSync(file, "utf8");
-const esbuild = path.join(repoRoot, "node_modules/.pnpm/esbuild@0.25.12/node_modules/esbuild/bin/esbuild");
+const esbuildCandidates = [
+  path.join(repoRoot, "node_modules/.pnpm/node_modules/esbuild/bin/esbuild"),
+  path.join(repoRoot, "artifacts/apex-finder/node_modules/vite/node_modules/esbuild/bin/esbuild"),
+];
+const esbuild = esbuildCandidates.find((candidate) => fs.existsSync(candidate));
+if (!esbuild) {
+  throw new Error("Unable to locate the workspace-installed esbuild binary");
+}
 try {
-  execFileSync(process.execPath, [esbuild, file, "--outfile=/tmp/reactor-syntax-check.js"], { stdio: ["ignore", "pipe", "pipe"] });
+  execFileSync(esbuild, [file, "--outfile=/tmp/reactor-syntax-check.js"], { stdio: ["ignore", "pipe", "pipe"] });
   console.log("GENERATED_REACTOR_TSX_SYNTAX_OK");
 } catch (error) {
   const text = String(error?.stderr || "");

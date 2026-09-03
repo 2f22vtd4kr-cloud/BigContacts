@@ -1464,7 +1464,12 @@ export default function EntityLedger() {
                         )}
                          <div className="min-w-0">
                           <div className="font-semibold text-sm text-foreground whitespace-nowrap">{formatEntityName(entity.name)}</div>
-                           <div className="mt-1 max-w-[260px] truncate text-[10px] leading-4 text-muted-foreground/65" title={entityWorkSummary(entity) ?? undefined}>
+                           {entity.cookedAt && (
+                          <div data-testid="entity-research-committed-at" className="mt-0.5 font-mono text-[9px] uppercase tracking-[0.08em] text-[#9CFF1A]/60" title={new Date(entity.cookedAt).toLocaleString()}>
+                            Research committed · {new Date(entity.cookedAt).toLocaleString()}
+                          </div>
+                        )}
+                        <div className="mt-1 max-w-[260px] truncate text-[10px] leading-4 text-muted-foreground/65" title={entityWorkSummary(entity) ?? undefined}>
                              {entityWorkSummary(entity) ?? entityFindingsSummary(entity)}
                            </div>
                           {entity.linkedinHeadline && (
