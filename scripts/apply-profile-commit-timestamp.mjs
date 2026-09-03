@@ -4,6 +4,7 @@ import path from "node:path";
 const root = process.cwd();
 const profilePath = path.join(root, "artifacts/apex-finder/src/pages/profile.tsx");
 const entitiesPath = path.join(root, "artifacts/apex-finder/src/pages/entities.tsx");
+const NL = String.fromCharCode(10);
 
 const timestampBlock = [
   "",
@@ -18,7 +19,7 @@ const timestampBlock = [
   "              ) : (",
   "                <span data-testid=\"research-not-committed\" className=\"mt-1 inline-flex items-center font-mono text-[9px] uppercase tracking-[0.12em] text-muted-foreground/35\">Research not committed</span>",
   "              )}",
-].join("\\n");
+].join(NL);
 
 const profile = fs.readFileSync(profilePath, "utf8");
 if (!profile.includes("data-testid=\"research-committed-at\"")) {
@@ -28,11 +29,11 @@ if (!profile.includes("data-testid=\"research-committed-at\"")) {
     "                <span className=\"opacity-50\"> · {TAB_LABELS[activeTab] ?? activeTab}</span>",
     "              </span>",
     "",
-  ].join("\\n");
+  ].join(NL);
   const at = profile.indexOf(anchor);
   if (at < 0) throw new Error("Profile card header anchor not found; refusing timestamp patch");
   const insertAt = at + anchor.length;
-  fs.writeFileSync(profilePath, profile.slice(0, insertAt) + timestampBlock + "\\n" + profile.slice(insertAt));
+  fs.writeFileSync(profilePath, profile.slice(0, insertAt) + timestampBlock + NL + profile.slice(insertAt));
 }
 
 const entities = fs.readFileSync(entitiesPath, "utf8");
@@ -46,7 +47,7 @@ if (!entities.includes("data-testid=\"entity-research-committed-at\"")) {
     "                            Research committed · {new Date(entity.cookedAt).toLocaleString()}",
     "                          </div>",
     "                        )}",
-  ].join("\\n") + "\\n";
+  ].join(NL) + NL;
   fs.writeFileSync(entitiesPath, entities.slice(0, at) + block + entities.slice(at));
 }
 
