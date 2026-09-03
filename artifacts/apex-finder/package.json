@@ -25,8 +25,8 @@
     "tailwindcss": "4.1.11"
   },
   "scripts": {
-    "dev": "cd ../.. && node scripts/apply-profile-commit-timestamp.mjs && cd artifacts/apex-finder && vite",
-    "build": "cd ../.. && node scripts/apply-reactor-activity-only.mjs && node scripts/check-generated-reactor-syntax.mjs && node scripts/apply-profile-commit-timestamp.mjs && node scripts/apply-mobile-span-live-feed.mjs && node scripts/apply-reactor-human-live-copy.mjs && cd artifacts/apex-finder && vite build",
+    "dev": "cd ../.. && node scripts/check-profile-route-contract.mjs && node scripts/apply-profile-commit-timestamp.mjs && cd artifacts/apex-finder && vite",
+    "build": "cd ../.. && node scripts/apply-reactor-activity-only.mjs && node scripts/check-generated-reactor-syntax.mjs && node scripts/apply-profile-commit-timestamp.mjs && node scripts/apply-mobile-span-live-feed.mjs && node scripts/apply-reactor-human-live-copy.mjs && node scripts/check-profile-route-contract.mjs && cd artifacts/apex-finder && vite build",
     "preview": "vite preview"
   }
 }
