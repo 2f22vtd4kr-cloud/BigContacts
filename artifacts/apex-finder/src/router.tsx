@@ -1,5 +1,5 @@
 import { Layout } from "@/components/layout";
-import { Route, Switch, Redirect, useSearch } from "wouter";
+import { Route, Switch, Redirect, useParams, useSearch } from "wouter";
 import Dashboard from "@/pages/dashboard";
 import GraphViewer from "@/pages/graph";
 import EntityLedger from "@/pages/entities";
@@ -17,9 +17,16 @@ import NotFound from "@/pages/not-found";
 import SystemStatusPage from "@/pages/status";
 import { ProfileErrorBoundary } from "@/components/profile-error-boundary";
 
+/**
+ * Keep profile failure state scoped to the concrete entity route. Without the
+ * key, a caught render error can leave the boundary latched while navigation
+ * moves to another HNWI, which looks like a permanent blank profile desk.
+ */
 function ProfileRoute() {
+  const params = useParams<{ id: string }>();
+  const id = String(params.id ?? "");
   return (
-    <ProfileErrorBoundary>
+    <ProfileErrorBoundary key={id}>
       <ApexProfile />
     </ProfileErrorBoundary>
   );
