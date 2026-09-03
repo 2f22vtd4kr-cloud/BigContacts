@@ -51,6 +51,18 @@ if (!s.slice(styleAt, nextBrace).includes(displayMarker)) {
   s = s.slice(0, styleAt) + s.slice(styleAt, nextBrace).replace('style={{', 'style={{\n            ' + displayMarker) + s.slice(nextBrace);
 }
 
+// The committed page still contains a malformed outer pollJobs try/catch
+// boundary. Remove only that unused wrapper at build time; the inner contact
+// hydration try/catch remains intact. This keeps the generated TSX parseable.
+s = s.replace(
+  '    try {\n      // Poll jobs, atlas status, AND key health in parallel',
+  '      // Poll jobs, atlas status, AND key health in parallel',
+);
+s = s.replace(
+  '      }\n    } catch { /* non-fatal */ }\n  }, []);',
+  '      }\n  }, []);',
+);
+
 if (!s.includes(importLine)) throw new Error("activity component import did not land");
 if (!s.includes("<ReactorActivityOnly nodes={NODES.filter")) throw new Error("activity component mount did not land");
 fs.writeFileSync(reactorPath, s);
