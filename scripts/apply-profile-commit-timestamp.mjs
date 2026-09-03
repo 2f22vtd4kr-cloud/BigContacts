@@ -5,15 +5,34 @@ const root = process.cwd();
 const profilePath = path.join(root, "artifacts/apex-finder/src/pages/profile.tsx");
 const entitiesPath = path.join(root, "artifacts/apex-finder/src/pages/entities.tsx");
 
-const timestampBlock = `\n              {entity?.cookedAt ? (\n                <span\n                  data-testid="research-committed-at"\n                  className="mt-1 inline-flex items-center rounded border border-[#9CFF1A]/15 bg-[#9CFF1A]/5 px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.12em] text-[#9CFF1A]/75"\n                  title="Research committed"\n                >\n                  Research committed · {new Date(entity.cookedAt).toLocaleString()}\n                </span>\n              ) : (\n                <span data-testid="research-not-committed" className="mt-1 inline-flex items-center font-mono text-[9px] uppercase tracking-[0.12em] text-muted-foreground/35">Research not committed</span>\n              )}`;
+const timestampBlock = [
+  "",
+  "              {entity?.cookedAt ? (",
+  "                <span",
+  "                  data-testid=\"research-committed-at\"",
+  "                  className=\"mt-1 inline-flex items-center rounded border border-[#9CFF1A]/15 bg-[#9CFF1A]/5 px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.12em] text-[#9CFF1A]/75\"",
+  "                  title=\"Research committed\"",
+  "                >",
+  "                  Research committed · {new Date(entity.cookedAt).toLocaleString()}",
+  "                </span>",
+  "              ) : (",
+  "                <span data-testid=\"research-not-committed\" className=\"mt-1 inline-flex items-center font-mono text-[9px] uppercase tracking-[0.12em] text-muted-foreground/35\">Research not committed</span>",
+  "              )}",
+].join("\\n");
 
 const profile = fs.readFileSync(profilePath, "utf8");
 if (!profile.includes("data-testid=\"research-committed-at\"")) {
-  const anchor = `              <span className="text-[12px] font-mono text-muted-foreground/50 uppercase tracking-widest">\n                Profile card\n                <span className="opacity-50"> · {TAB_LABELS[activeTab] ?? activeTab}</span>\n              </span>\n`;
+  const anchor = [
+    "              <span className=\"text-[12px] font-mono text-muted-foreground/50 uppercase tracking-widest\">",
+    "                Profile card",
+    "                <span className=\"opacity-50\"> · {TAB_LABELS[activeTab] ?? activeTab}</span>",
+    "              </span>",
+    "",
+  ].join("\\n");
   const at = profile.indexOf(anchor);
   if (at < 0) throw new Error("Profile card header anchor not found; refusing timestamp patch");
   const insertAt = at + anchor.length;
-  fs.writeFileSync(profilePath, profile.slice(0, insertAt) + timestampBlock + "\n" + profile.slice(insertAt));
+  fs.writeFileSync(profilePath, profile.slice(0, insertAt) + timestampBlock + "\\n" + profile.slice(insertAt));
 }
 
 const entities = fs.readFileSync(entitiesPath, "utf8");
@@ -21,7 +40,13 @@ if (!entities.includes("data-testid=\"entity-research-committed-at\"")) {
   const anchor = `                        <div className="mt-1 max-w-[260px] truncate text-[10px] leading-4 text-muted-foreground/65" title={entityWorkSummary(entity) ?? undefined}>`;
   const at = entities.indexOf(anchor);
   if (at < 0) throw new Error("Entity ledger name anchor not found; refusing timestamp patch");
-  const block = `                        {entity.cookedAt && (\n                          <div data-testid="entity-research-committed-at" className="mt-0.5 font-mono text-[9px] uppercase tracking-[0.08em] text-[#9CFF1A]/60" title={new Date(entity.cookedAt).toLocaleString()}>\n                            Research committed · {new Date(entity.cookedAt).toLocaleString()}\n                          </div>\n                        )}\n`;
+  const block = [
+    "                        {entity.cookedAt && (",
+    "                          <div data-testid=\"entity-research-committed-at\" className=\"mt-0.5 font-mono text-[9px] uppercase tracking-[0.08em] text-[#9CFF1A]/60\" title={new Date(entity.cookedAt).toLocaleString()}>",
+    "                            Research committed · {new Date(entity.cookedAt).toLocaleString()}",
+    "                          </div>",
+    "                        )}",
+  ].join("\\n") + "\\n";
   fs.writeFileSync(entitiesPath, entities.slice(0, at) + block + entities.slice(at));
 }
 
