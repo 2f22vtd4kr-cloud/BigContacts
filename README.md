@@ -8,27 +8,70 @@ It is designed for operators who need more than a company name and a generic inb
 
 ---
 
+## New Replit account setup
+
+**Repository:** `https://github.com/2f22vtd4kr-cloud/BigContacts`  
+**Branch:** `main`
+
+1. Import this existing repository through the connected Replit ↔ GitHub integration.
+2. Do **not** ask for a GitHub PAT, `GITHUB_TOKEN`, or any GitHub credential. GitHub access is handled by the connected integration.
+3. Before changing, installing, or running anything, read `docs/context.md` completely. It is the living development and architecture handoff.
+4. Use the repository's existing package manager, lockfiles, scripts, and configuration. Do not scaffold a replacement application or redesign Apex during setup.
+5. Replit Postgres is platform-managed. Do **not** ask the operator for `DATABASE_URL` or a Postgres connection string.
+6. Configure exactly the operator runtime secret set documented below and in `docs/REPLIT_NEW_ACCOUNT_SETUP.md`.
+7. Run the existing preflight, checks, builds, and boot flow. Fix real failures at the root cause; do not weaken tests or bypass architecture checks to obtain green output.
+
+### Canonical operator secret names
+
+The new-account operator secret list contains exactly these 14 names:
+
+```text
+REDIS_URL_1
+GROQ_API_KEY
+GEMINI_API_KEY
+NVIDIA_NIM_API_KEY
+MISTRAL_API_KEY
+HF_TOKEN
+SERPER_API_KEY
+TAVILY_API_KEY
+SERPAPI_KEY
+EXA_API_KEY
+SCRAPFLY_API_KEY
+ZENROWS_API_KEY
+COMPANIES_HOUSE_API_KEY
+WHOISJSON_API_KEY
+```
+
+Important mappings: the operator's Redis/Upstash URL goes in `REDIS_URL_1`; the Hugging Face token goes in `HF_TOKEN`; NVIDIA uses `NVIDIA_NIM_API_KEY`; Exa uses `EXA_API_KEY`. `REDIS_URL` and `EXA_1` are compatibility aliases, not additional operator asks. Do not ask for `DATABASE_URL`, `WHOXY_*`, `REDIS_URL_2`–`REDIS_URL_5`, or duplicate GitHub credentials.
+
+Never print or commit secret values.
+
+**Detailed new-account setup contract:** `docs/REPLIT_NEW_ACCOUNT_SETUP.md`  
+**Living development context:** `docs/context.md`  
+**Operational run procedure:** `docs/RUN_BUREAU.md`
+
+---
+
 ## Run the bureau (precise)
 
 **One path only:**
 
 | Who | What to do |
 |-----|------------|
-| **Replit (Aug 2026+)** | Funded account → create **Replit App / project from this GitHub repo** → platform **Postgres is automatic** (`DATABASE_URL` injected — do not paste it) → put **Upstash Redis** + API keys in **Secrets** → open **Agent inside that App** → paste **[docs/REPLIT_UPDATE_PROMPT_LATEST.md](docs/REPLIT_UPDATE_PROMPT_LATEST.md)** (fenced block). One paste = install → build → boot → seed if empty → single-target Dig → scoreboard. |
+| **Replit** | Import this GitHub repo into the connected Replit App/project, read `docs/context.md`, configure the canonical runtime Secrets, then follow `docs/REPLIT_NEW_ACCOUNT_SETUP.md` and `docs/RUN_BUREAU.md`. |
 | **Operators / Shell** | Follow **[docs/RUN_BUREAU.md](docs/RUN_BUREAU.md)** only. |
-| **Research command** | `POST /api/ingest/atlas-run` with `CANONICAL_ATLAS_LAUNCH_BODY` or single-target Dig body — not ad-hoc startups. |
+| **Research command** | `POST /api/ingest/atlas-run` using the repository's canonical launch contract — not ad-hoc scripted startups. |
 
 **Requirements in short**
 
-- Tip `main` at **42b36b0+** (prefer latest; Batch 10 API build repair)
+- Current `main` tip; prefer latest
 - API Server only on port **8080** (desk at `/`, API at `/api/`)
 - `ENABLE_AUTO_PIPELINE=false`
-- **Postgres:** Replit platform (not an operator secret)
-- **Redis:** operator **Upstash** URL as `REDIS_URL_1` / `REDIS_URL`
-- Search + dig LLM keys in Secrets
-- Dig is **free ReAct** (no force-hop scripts). Scoreboard proof = **single-target Dig**, not discovery-first bulk
+- **Postgres:** Replit platform-managed (`DATABASE_URL` is not an operator secret)
+- **Redis:** operator Upstash URL as `REDIS_URL_1`
+- Canonical 14 runtime keys listed above
+- Dig is **free ReAct**: no force-hop scripts, no invented people or contacts
 - Living handoff: **[docs/context.md](docs/context.md)**
-
 
 ---
 
@@ -78,28 +121,14 @@ It is **not** a mass email database, a CRM, or a replacement for legal counsel o
 
 ---
 
-## Closest alternatives — and why they are not the same
-
-| Category | Examples | Why they are not Apex Atlas |
-|----------|----------|-----------------------------|
-| **B2B contact databases** | Apollo, Hunter, Lusha | Volume outbound; weak on private ownership trails and strict personal-route discipline |
-| **Website → contact agents** | Single-site scrapers | Little multi-hop ownership; no lasting research desk |
-| **Classic OSINT suites** | Maltego, SpiderFoot | Broad investigation; not productized around investor/operator contact maximizer outcomes |
-| **Registry browsers** | Companies House, OpenCorporates | Stop at the filing |
-| **General AI assistants** | Chat agents with browse | No durable ledger; easy to blur org inboxes with personal contacts |
-
-**Apex Atlas sits in a thin band:** public OSINT depth **plus** a desk whose success metric is **attributable people-contacts** for capital-relevant targets.
-
----
-
 ## Repository (engineering)
 
 ```text
-artifacts/apex-finder   → web research desk (build → dist/public, served by API)
-artifacts/api-server    → API, orchestration, free-ReAct dig
+artifacts/apex-finder   → web research desk
+artifacts/api-server    → API, orchestration, free-ReAct Dig
 lib/                    → shared client, schema, contracts
-scripts/                → quality floors, scoreboard, Replit boot
-docs/                   → RUN_BUREAU.md, context.md, REPLIT_UPDATE_PROMPT_LATEST.md
+scripts/                → quality floors, regression guards, Replit boot
+docs/                   → context and operational setup/run contracts
 ```
 
 Use **pnpm**. Full runs need the API, database, Redis, and research provider keys.
@@ -111,7 +140,3 @@ Use **pnpm**. Full runs need the API, database, Redis, and research provider key
 **Every contact should be a person you can justify from the public record — not a guess that looks like one.**
 
 That principle is the product.
-
-## About
-
-Repository for [https://replit.com/@llhdeunvad/Wait-Instructions](https://replit.com/@llhdeunvad/Wait-Instructions)
