@@ -1,6 +1,6 @@
 name: Apex API Build
 
-# Canonical API build gate; the agentic source is materialized before this commit.
+# Canonical API build gate.
 on:
   push:
     branches: [main]
@@ -10,7 +10,7 @@ on:
       - "artifacts/api-server/package.json"
       - "artifacts/api-server/tsconfig.json"
       - "scripts/apply-*.mjs"
-      - "scripts/check-agentic-source-parity.mjs"
+      - "scripts/check-*.mjs"
       - "lib/**"
       - "pnpm-lock.yaml"
       - ".github/workflows/apex-api-typecheck.yml"
@@ -34,5 +34,9 @@ jobs:
         run: pnpm install --no-frozen-lockfile --ignore-scripts --fetch-retries=8 --fetch-timeout=120000 --filter @workspace/api-server... --registry=https://registry.npmjs.org/
       - name: Check canonical agentic source parity
         run: node scripts/check-agentic-source-parity.mjs
+      - name: Check Apex launch gate
+        run: node scripts/check-apex-launch-gate.mjs
       - name: Build API
         run: pnpm --dir artifacts/api-server run build
+      - name: Run strict provenance tests
+        run: pnpm --dir artifacts/api-server exec vitest run src/src/test/bureau-contact-persist-strict.test.ts
