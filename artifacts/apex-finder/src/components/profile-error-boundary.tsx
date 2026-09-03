@@ -20,7 +20,7 @@ export class ProfileErrorBoundary extends React.Component<
     if (!this.state.error) return this.props.children;
 
     return (
-      <div className="min-h-full flex items-center justify-center bg-background px-5 py-10">
+      <div className="min-h-[calc(100dvh-56px)] flex items-center justify-center bg-background px-5 py-10">
         <div className="w-full max-w-xl rounded-lg border border-red-500/20 bg-card/70 p-6 shadow-xl">
           <div className="flex items-start gap-3">
             <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-red-400" />
