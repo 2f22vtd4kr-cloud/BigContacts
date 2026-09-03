@@ -19,9 +19,17 @@ export class ProfileErrorBoundary extends React.Component<
   render() {
     if (!this.state.error) return this.props.children;
 
+    // This is intentionally viewport-anchored rather than relying on a nested
+    // flex parent's height. A profile renderer failure must be visible on every
+    // desktop/mobile shell and must never collapse into the blank state it is
+    // meant to diagnose.
     return (
-      <div className="min-h-[calc(100dvh-56px)] flex items-center justify-center bg-background px-5 py-10">
-        <div className="w-full max-w-xl rounded-lg border border-red-500/20 bg-card/70 p-6 shadow-xl">
+      <main
+        className="fixed inset-0 z-[100] flex min-h-screen min-w-full items-center justify-center overflow-auto bg-background px-5 py-10"
+        role="alert"
+        data-testid="profile-render-failure"
+      >
+        <div className="w-full max-w-xl rounded-lg border border-red-500/20 bg-card/95 p-6 shadow-xl">
           <div className="flex items-start gap-3">
             <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-red-400" />
             <div className="min-w-0">
@@ -29,7 +37,7 @@ export class ProfileErrorBoundary extends React.Component<
                 Profile view failed safely
               </div>
               <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                The entity was not discarded. The profile renderer hit an unexpected error, so Apex kept the desk visible instead of showing a blank screen.
+                The entity was not discarded. The profile renderer hit an unexpected error, so Apex kept a visible recovery surface instead of showing a blank screen.
               </p>
               <div className="mt-4 rounded border border-border/50 bg-muted/10 p-3 font-mono text-[10px] leading-5 text-muted-foreground/80 break-words">
                 {this.state.error.message || "Unknown profile render error"}
@@ -52,7 +60,7 @@ export class ProfileErrorBoundary extends React.Component<
             </div>
           </div>
         </div>
-      </div>
+      </main>
     );
   }
 }
