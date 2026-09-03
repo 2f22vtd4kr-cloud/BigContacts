@@ -146,6 +146,8 @@ export function isWellFormedPersonCandidate(candidate: Pick<DiscoveryCandidate, 
   if (words.some((w) => /^[a-z]+[A-Z]/.test(w))) return false;
   // CamelCase extraction fragments (e.g. comPrecision) are not human-name syntax.
   if (words.some((w) => /^[a-z]+[A-Z]/.test(w))) return false;
+  // CamelCase extraction fragments (e.g. comPrecision) are not human-name syntax.
+  if (words.some((w) => /^[a-z]+[A-Z]/.test(w))) return false;
   if (!/^\p{L}[\p{L}.'’\-]*(?:\s+\p{L}[\p{L}.'’\-]*){1,4}$/u.test(name)) return false;
   if (words.some((w) => INVALID_PERSON_NAME_WORDS.has(w.toLowerCase().replace(/[.'’\-]/g, "")))) return false;
   if (isInvalidIdentityPhrase(normalized)) return false;

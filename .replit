@@ -17,10 +17,6 @@ INSTALL_PYTHON_OSINT = "false"
 APEX_SKIP_SEMANTIC = "1"
 CI = "true"
 
-[[ports]]
-localPort = 8080
-externalPort = 80
-
 [workflows]
 runButton = "API Server"
 
@@ -38,3 +34,8 @@ waitForPort = 8080
 [userenv.shared]
 NODE_OPTIONS = "--max-old-space-size=1536"
 RESEARCH_DEPTH = "standard"
+APEX_SKIP_SEMANTIC = "1"
+CI = "true"
+ENABLE_AUTO_PIPELINE = "false"
+INSTALL_PYTHON_OSINT = "false"
+PORT = "8080"
