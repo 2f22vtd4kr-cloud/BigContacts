@@ -1,20 +1,18 @@
-name: Apex Batch 10 Bureau Audit (manual)
+name: Apex Batch 3 Bureau Audit (manual)
 
 on:
   workflow_dispatch:
 
-# Retained as an explicit manual replay harness. The push-triggered
-# authoritative audit lives in apex-live-audit.yml; keeping both push-triggered
-# would spend provider quota twice for every source commit.
+# Manual replay harness. The authoritative audit remains in apex-live-audit.yml.
 concurrency:
-  group: apex-batch10-manual
+  group: apex-batch3-manual
   cancel-in-progress: true
 
 permissions:
   contents: write
 
 jobs:
-  batch10:
+  batch3:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     env:
@@ -66,17 +64,19 @@ jobs:
           pnpm run check:discovery-quality
           pnpm run check:trajectory
           pnpm run check:comparison-contract
-          pnpm --dir artifacts/api-server exec vitest run src/src/test/discovery-agent-parse.test.ts
+          pnpm run check:agentic-runtime
+          pnpm run check:agentic-timeout
+          pnpm --dir artifacts/api-server exec vitest run src/src/test/discovery-agent-parse.test.ts src/src/test/bureau-contact-persist-strict.test.ts
       - name: Start API
         run: |
           node artifacts/api-server/dist/index.mjs > /tmp/apex-api.log 2>&1 &
           for i in $(seq 1 45); do sleep 1; curl -sS -m 2 -o /tmp/health.json http://127.0.0.1:8080/api/healthz && break || true; done
           cat /tmp/health.json
           test "$(curl -sS -m 5 -o /tmp/health.json -w '%{http_code}' http://127.0.0.1:8080/api/healthz)" = 200
-      - name: Launch 10-target discovery-first Bureau
+      - name: Launch bounded three-target discovery-first Bureau
         run: |
-          curl -sS -m 15 -X POST http://127.0.0.1:8080/api/ingest/atlas-run -H 'Content-Type: application/json' -d '{"discoveryFirst":true,"targetCount":10,"researchLimit":10,"runResearch":true,"skipFaa":true,"targetTimeoutMs":180000,"researchDepth":"standard"}' | tee /tmp/launch.json
-          node -e 'const x=require("/tmp/launch.json"); if(!x.jobId) throw Error(JSON.stringify(x)); console.log(x.jobId)'
+          curl -sS -m 15 -X POST http://127.0.0.1:8080/api/ingest/atlas-run -H 'Content-Type: application/json' -d '{"discoveryFirst":true,"targetCount":3,"researchLimit":3,"runResearch":true,"skipFaa":true,"targetTimeoutMs":180000,"researchDepth":"standard"}' | tee /tmp/launch.json
+          node -e 'const fs=require("fs"); const x=JSON.parse(fs.readFileSync("/tmp/launch.json")); if(!x.jobId) throw Error(JSON.stringify(x)); console.log(x.jobId)'
       - name: Poll until idle
         run: |
           for i in $(seq 1 600); do
@@ -87,7 +87,7 @@ jobs:
             case "$S" in idle|done|completed) exit 0;; failed|cancelled) exit 1;; esac
           done
           exit 1
-      - name: Freeze 10-target output
+      - name: Freeze bounded output
         if: always()
         run: |
           curl -sS -m 10 'http://127.0.0.1:8080/api/entities?limit=50&offset=0' | tee /tmp/entities.json || true
@@ -97,7 +97,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: apex-batch10
+          name: apex-batch3
           path: |
             /tmp/launch.json
             /tmp/atlas-status.json
