@@ -1,31 +1,32 @@
 # Run Apex Atlas research / bureau — precise procedure
 
-This is the **only** meaning of “Run Apex Atlas”, “Start the bureau”, “Launch research”, or Replit instructions that say to run Atlas.
+This is the canonical operational meaning of “Run Apex Atlas”, “Start the bureau”, or “Launch research”.
 
-Do **not** invent alternate startups, random scripts, or partial pipelines.
+Do not invent alternate startups, random scripts, partial pipelines, or a second application.
 
-**Canonical path on Replit (Aug 2026+):** paste **one** prompt — `docs/REPLIT_UPDATE_PROMPT_LATEST.md` — into **Agent inside the BigContacts Replit App / project** (project runtime, not a detached chat).
+**Repository:** `https://github.com/2f22vtd4kr-cloud/BigContacts` · branch `main`  
+**New-account setup:** `docs/REPLIT_NEW_ACCOUNT_SETUP.md`  
+**Living architecture/development transcription:** `docs/context.md`
 
 ---
 
 ## 0. Product law (do not regress)
 
-- Dig is **free ReAct**: models invent queries and choose actions; tools execute.
+- Dig is **free ReAct**: investigators invent queries and choose actions; tools execute.
 - Never add `force_*` hops, GROK-PARITY, ranked prefer-lists, or scripted research playbooks.
-- Never invent people, contacts, or URLs. Contacts need real `http(s)` source URLs.
-- `bureauIntegrity=critical` → do not claim quality; fix secrets and restart API.
-- Scoreboard **proof** = **single-target Dig** (`singleTargetId`), depth `standard`, **not** discovery-first bulk.
+- Never invent people, contacts, relationships, or URLs. Contact claims need real `http(s)` source URLs.
+- `bureauIntegrity=critical` means research quality is unhealthy; do not claim quality in that state.
+- Boot/build success is not proof of research success. A live claim requires trajectory evidence.
 
 ---
 
 ## 1. Runtime prerequisites (once per app)
 
-1. **Repo:** https://github.com/2f22vtd4kr-cloud/BigContacts · `main` · tip **`42b36b0` or newer** (prefer latest).
-2. **Platform:** Replit **App / project** (not legacy “Repl” naming). Funded account with credits.
-3. **Postgres:** Provided by Replit (Database tool / default app DB). `DATABASE_URL` is **injected**. Never ask the operator to attach Postgres or paste a Postgres URL.
-4. **Redis:** Operator supplies **Upstash** (or equivalent) as Secret `REDIS_URL_1` or `REDIS_URL`.
-5. **One API workflow** on `PORT=8080`. Public `/` = desk; `/api` = API. Do not run Frontend as the product entry.
-6. **Workflow env (not secrets):**
+1. Import the repository through the connected Replit ↔ GitHub integration. Do not ask for GitHub PATs or `GITHUB_TOKEN`.
+2. Read `docs/context.md` before modifying or running the project.
+3. Replit Postgres is platform-managed. `DATABASE_URL` is injected and is not an operator secret.
+4. Run one API workflow on `PORT=8080`. Public `/` is the desk; `/api` is the API. Do not run a separate frontend preview as the product entry.
+5. Set workflow environment (not operator secrets):
    ```
    ENABLE_AUTO_PIPELINE=false
    INSTALL_PYTHON_OSINT=false
@@ -35,65 +36,66 @@ Do **not** invent alternate startups, random scripts, or partial pipelines.
    RESEARCH_DEPTH=standard
    NODE_OPTIONS=--max-old-space-size=1536
    ```
-7. **Secrets** (names only — never print values):
+6. Ask the operator for exactly these 14 runtime secret names:
 
-   **Minimum:** `REDIS_URL_1` (Upstash), dig LLM (`GROQ_API_KEY` / Gemini / Mistral / NVIDIA), search (`SERPER` / `TAVILY` / `EXA`).
+   ```text
+   REDIS_URL_1
+   GROQ_API_KEY
+   GEMINI_API_KEY
+   NVIDIA_NIM_API_KEY
+   MISTRAL_API_KEY
+   HF_TOKEN
+   SERPER_API_KEY
+   TAVILY_API_KEY
+   SERPAPI_KEY
+   EXA_API_KEY
+   SCRAPFLY_API_KEY
+   ZENROWS_API_KEY
+   COMPANIES_HOUSE_API_KEY
+   WHOISJSON_API_KEY
+   ```
 
-   **Full:** `REDIS_URL_1`, `GROQ_API_KEY`, `GEMINI_API_KEY`, `NVIDIA_NIM_API_KEY`, `MISTRAL_API_KEY`, `HF_TOKEN`, `SERPER_API_KEY`, `TAVILY_API_KEY`, `SERPAPI_KEY`, `EXA_API_KEY`, `SCRAPFLY_API_KEY`, `ZENROWS_API_KEY`, `COMPANIES_HOUSE_API_KEY`, `WHOISJSON_API_KEY`
+   `REDIS_URL` and `EXA_1` are compatibility aliases, not additional operator asks. Never ask for `DATABASE_URL`, `WHOXY_*`, or `REDIS_URL_2`–`REDIS_URL_5`. Never print secret values.
 
-   Aliases: `REDIS_URL`↔`REDIS_URL_1`, `EXA_1`↔`EXA_API_KEY`.  
-   Never ask for `DATABASE_URL`, `WHOXY_*`, or `REDIS_URL_2`–`_5`.
-
-8. **Install / build / boot** — see `docs/REPLIT_UPDATE_PROMPT_LATEST.md` (OOM-safe pnpm, lockfile proxy-host rewrite if needed, desk + API build, checks, `replit-boot.sh`, healthz).
+7. Run `node scripts/replit-preflight.mjs` after secrets are configured. Then follow the repository's install, build, check, and boot commands.
 
 ---
 
 ## 2. Canonical research launch
 
-```http
-POST /api/ingest/atlas-run
-Content-Type: application/json
-```
+Use the repository's current API launch contract. Do not substitute ad-hoc startup scripts or scripted research paths.
 
-**Full bureau:** `CANONICAL_ATLAS_LAUNCH_BODY` from `artifacts/api-server/src/src/lib/atlas-launch-defaults.ts`.
+For a bounded discovery-first smoke, use the current target count and trajectory acceptance criteria documented in `docs/context.md`.
 
-**Single-target Dig (scoreboard proof):**
-```json
-{
-  "singleTargetId": 12345,
-  "runResearch": true,
-  "researchDepth": "standard",
-  "targetTimeoutMs": 420000
-}
-```
+For an existing admitted entity, a single-target Dig run uses the repository's `singleTargetId` launch path and is judged by actual investigator trajectory and source-backed evidence, not merely by job completion.
 
-Poll `GET /api/ingest/atlas-status` until idle. Rehydrate if needed.  
-Scoreboard: `bash scripts/replit-scoreboard-check.sh http://127.0.0.1:8080`
-
-**Empty ledger:** tiny discovery-first seed (1–3 targets) → **stop** → single-target Dig. Never invent entities. Redis quota issues → new Upstash URL in Secrets + API restart.
-
-**Stop:** `DELETE /api/ingest/atlas-lock`
+Poll `GET /api/ingest/atlas-status` until terminal state. Do not start a second job while the first lock is active. Use `DELETE /api/ingest/atlas-lock` only as the documented stop/recovery action.
 
 ---
 
 ## 3. What this is NOT
 
 | Do not | Why |
-|--------|-----|
-| Ask for DATABASE_URL / “attach Postgres” | Platform injects DB |
-| `ENABLE_AUTO_PIPELINE=true` unless asked | Not a one-shot bureau run |
-| Discovery-first as scoreboard proof | Proof is single-target Dig |
-| Fake people for demos | Corrupts ledger |
-| Second app mid-setup | Stay on the GitHub-imported App |
-| Detached Agent chat without project env | No injected Postgres / wrong runtime |
+|---|---|
+| Ask for GitHub credentials | Replit GitHub integration handles repository access |
+| Ask for DATABASE_URL / “attach Postgres” | Platform manages/injects DB |
+| Add a second Replit app mid-setup | Stay on the GitHub-imported App |
+| Use detached agent execution without project runtime | Environment/runtime may be missing |
+| Fake people for demos | Corrupts ledger and proof |
+| Treat boot as research proof | Architecture requires trajectory evidence |
+| Disable checks for green output | Hides real defects |
 
 ---
 
-## 4. Quick verify
+## 4. Quick setup verify
 
 ```bash
 git log -1 --oneline
-pnpm run check:no-force-dig && pnpm run check:free-react
+node scripts/replit-preflight.mjs
+pnpm run check:no-force-dig
+pnpm run check:free-react
+pnpm run check:discovery-quality
 curl -sS http://127.0.0.1:8080/api/healthz
-bash scripts/replit-scoreboard-check.sh http://127.0.0.1:8080
 ```
+
+For full setup details, use `docs/REPLIT_NEW_ACCOUNT_SETUP.md`. For product behavior and architecture, use `docs/context.md`.
