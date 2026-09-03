@@ -5,15 +5,15 @@ const root = process.cwd();
 const profilePath = path.join(root, "artifacts/apex-finder/src/pages/profile.tsx");
 const entitiesPath = path.join(root, "artifacts/apex-finder/src/pages/entities.tsx");
 
-const timestampBlock = `\n              {entity?.cookedAt ? (\n                <span\n                  data-testid="research-committed-at"\n                  className="mt-1 inline-flex items-center rounded border border-[#9CFF1A]/15 bg-[#9CFF1A]/5 px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.12em] text-[#9CFF1A]/75"\n                  title={\`Research committed ${new Date(entity.cookedAt).toLocaleString()}\`}\n                >\n                  Research committed · {new Date(entity.cookedAt).toLocaleString()}\n                </span>\n              ) : (\n                <span data-testid="research-not-committed" className="mt-1 inline-flex items-center font-mono text-[9px] uppercase tracking-[0.12em] text-muted-foreground/35">Research not committed</span>\n              )}`;
+const timestampBlock = `\n              {entity?.cookedAt ? (\n                <span\n                  data-testid="research-committed-at"\n                  className="mt-1 inline-flex items-center rounded border border-[#9CFF1A]/15 bg-[#9CFF1A]/5 px-2 py-0.5 font-mono text-[9px] uppercase tracking-[0.12em] text-[#9CFF1A]/75"\n                  title="Research committed"\n                >\n                  Research committed · {new Date(entity.cookedAt).toLocaleString()}\n                </span>\n              ) : (\n                <span data-testid="research-not-committed" className="mt-1 inline-flex items-center font-mono text-[9px] uppercase tracking-[0.12em] text-muted-foreground/35">Research not committed</span>\n              )}`;
 
 const profile = fs.readFileSync(profilePath, "utf8");
 if (!profile.includes("data-testid=\"research-committed-at\"")) {
-  const anchor = `              </span>\n            </div>\n`;
+  const anchor = `              <span className="text-[12px] font-mono text-muted-foreground/50 uppercase tracking-widest">\n                Profile card\n                <span className="opacity-50"> · {TAB_LABELS[activeTab] ?? activeTab}</span>\n              </span>\n`;
   const at = profile.indexOf(anchor);
-  if (at < 0) throw new Error("Profile header anchor not found; refusing timestamp patch");
-  const next = profile.slice(0, at) + timestampBlock + "\n" + profile.slice(at);
-  fs.writeFileSync(profilePath, next);
+  if (at < 0) throw new Error("Profile card header anchor not found; refusing timestamp patch");
+  const insertAt = at + anchor.length;
+  fs.writeFileSync(profilePath, profile.slice(0, insertAt) + timestampBlock + "\n" + profile.slice(insertAt));
 }
 
 const entities = fs.readFileSync(entitiesPath, "utf8");
