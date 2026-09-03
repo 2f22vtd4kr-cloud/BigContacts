@@ -17,6 +17,14 @@ import NotFound from "@/pages/not-found";
 import SystemStatusPage from "@/pages/status";
 import { ProfileErrorBoundary } from "@/components/profile-error-boundary";
 
+function ProfileRoute() {
+  return (
+    <ProfileErrorBoundary>
+      <ApexProfile />
+    </ProfileErrorBoundary>
+  );
+}
+
 export default function AppRouter() {
   return (
     <Layout>
@@ -30,7 +38,7 @@ export default function AppRouter() {
         <Route path="/reactor" component={IntelligenceReactorPage} />
         <Route path="/research" component={IntelTerminal} />
         <Route path="/manual" component={FieldManual} />
-        <Route path="/profile/:id">{() => <ProfileErrorBoundary><ApexProfile /></ProfileErrorBoundary>}</Route>
+        <Route path="/profile/:id" component={ProfileRoute} />
 
         {/* ── Tools & Admin pages ── */}
         <Route path="/improvements" component={Improvements} />
