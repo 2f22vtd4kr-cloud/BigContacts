@@ -1,8 +1,7 @@
 /**
- * Target contact agent — one person, one job: put the best public contact on the card.
- *
- * Same shape as a chat agent: model chooses tools, ranks claims, stops when done.
- * Output is entities.phone / email / linkedin / contactOutcome — not only evidence rows.
+ * Target contact agent — one person, one job: investigate public contact
+ * surfaces. The investigator owns what is emitted as a finding; deterministic
+ * code validates provenance/schema and persists that evidence.
  */
 import { eq } from "drizzle-orm";
 import { db, entitiesTable } from "@workspace/db";
@@ -10,7 +9,6 @@ import { logger } from "./logger";
 import { delCachePattern } from "./redis";
 import { runAgenticWebResearch, type AgenticFinding } from "./agentic-web-research";
 import { persistSourceBackedBureauContactsForEntity, type BureauContactLike } from "./bureau-contact-persist-strict";
-import { rehydrateEntityCardFromEvidence } from "./bureau-contact-persist";
 import { resolveResearchDepth, describeResearchDepth } from "./research-depth";
 import { publishBureauEvent } from "./bureau-live-log";
 import { computeContactOutcome } from "./contact-confidence";
@@ -36,11 +34,7 @@ export function sourceBackedFindings(findings: AgenticFinding[]): AgenticFinding
   );
 }
 
-/**
- * Preserve the model's evidence scope when moving findings into the durable
- * bureau ledger. Organization/unknown findings must never inherit the target
- * name: doing so can turn info@/office@/switchboards into personal contacts.
- */
+/** Preserve model scope and never turn an organization route into a personal one. */
 export function findingsToContacts(
   findings: Array<{ vectorType: string; value: string; scope: string; personName: string | null; role: string | null; sourceUrls: string[]; note: string }>,
   personName: string,
@@ -60,7 +54,7 @@ export function findingsToContacts(
     }));
 }
 
-/** Run free ReAct dig for one target and promote the best public claims onto the entity card. */
+/** Run free ReAct Dig for one target. No legacy evidence rehydration is allowed here. */
 export async function runTargetContactAgent(input: { entityId: number; targetName: string; companyName?: string | null; jobId?: string; maxIterations?: number; hardTimeoutMs?: number }): Promise<TargetContactAgentResult> {
   const name = (input.targetName ?? "").trim();
   if (!input.entityId || name.length < 2) return { status: "skipped", model: "none", findings: 0, searches: 0, visits: 0, phone: null, email: null, phoneSource: null, contactOutcome: null };
@@ -79,7 +73,7 @@ export async function runTargetContactAgent(input: { entityId: number; targetNam
     "Stop when the evidence is exhausted or you have a sufficiently attributable route; do not keep searching merely to increase the number of findings.",
   ].join("\n");
 
-  void publishBureauEvent({ actor: "web", kind: "search", title: `Target agent · ${name}`, targetName: name, jobId: input.jobId, why: "Model-owned dig; card is the answer", level: "info" });
+  void publishBureauEvent({ actor: "web", kind: "search", title: `Target agent · ${name}`, targetName: name, jobId: input.jobId, why: "Model-owned Dig; card updates only from its emitted source-backed findings", level: "info" });
   try { publishDigSpan({ jobId: input.jobId || "dig", targetName: name, spanType: "stage", name: "target_contact_agent_start", status: "active", agentName: "investigator", inputSummary: `depth=${depth.depth} maxIter=${input.maxIterations ?? depth.agenticMaxIterations}` }); } catch { /* non-fatal */ }
 
   const agentic = await runAgenticWebResearch({
@@ -95,12 +89,14 @@ export async function runTargetContactAgent(input: { entityId: number; targetNam
     },
   });
 
-  try { publishDigSpan({ jobId: input.jobId || "dig", targetName: name, spanType: "stage", name: "target_contact_agent_done", status: agentic.status === "timeout" ? "error" : "ok", agentName: "investigator", inputSummary: `model=${agentic.model}`, resultSummary: `status=${agentic.status} findings=${agentic.findings.length} searches=${agentic.searches} visits=${agentic.visits}`, endedAt: new Date().toISOString() }); } catch { /* non-fatal */ }
+  try { publishDigSpan({ jobId: input.jobId || "dig", targetName: name, spanType: "stage", name: "target_contact_agent_done", status: agentic.status === "timeout" ? "error" : "ok", agentName: "investigator", inputSummary: `model=${agentic.model}`, resultSummary: `status=${agentic.status} findings=${agentic.findings.length} searches=${agentic.searches} visits=${agentic.visits} stop=${agentic.stopReason}`, endedAt: new Date().toISOString() }); } catch { /* non-fatal */ }
 
   const backedFindings = sourceBackedFindings(agentic.findings);
   const contacts = findingsToContacts(backedFindings, name);
+  // Canonical boundary: persist only this Dig's source-backed output. The strict
+  // persistence boundary may map an unambiguous investigator-emitted value, but
+  // this agent never calls legacy rehydrate/ranking over unrelated evidence.
   await persistSourceBackedBureauContactsForEntity(input.entityId, contacts, "target-contact-agent", input.jobId);
-  await rehydrateEntityCardFromEvidence(input.entityId);
 
   const rows = await db.select({ type: entitiesTable.type, email: entitiesTable.email, phone: entitiesTable.phone, phoneSource: entitiesTable.phoneSource, linkedinUrl: entitiesTable.linkedinUrl, twitterHandle: entitiesTable.twitterHandle, instagramHandle: entitiesTable.instagramHandle, telegramHandle: entitiesTable.telegramHandle, personalWebsite: entitiesTable.personalWebsite, metadata: entitiesTable.metadata }).from(entitiesTable).where(eq(entitiesTable.id, input.entityId)).limit(1);
   const ent = rows[0];
@@ -119,7 +115,7 @@ export async function runTargetContactAgent(input: { entityId: number; targetNam
     void delCachePattern("dashboard:*");
   }
 
-  logger.info({ entityId: input.entityId, name, status: agentic.status, model: agentic.model, findings: backedFindings.length, rawFindings: agentic.findings.length, phone: ent?.phone ?? null, outcome }, "[TargetAgent] Card updated from free dig");
+  logger.info({ entityId: input.entityId, name, status: agentic.status, model: agentic.model, findings: backedFindings.length, rawFindings: agentic.findings.length, stopReason: agentic.stopReason, phone: ent?.phone ?? null, outcome }, "[TargetAgent] free Dig finished");
   const mapped = agentic.status === "completed" ? "completed" : agentic.status === "timeout" ? "timeout" : agentic.status === "unavailable" ? "unavailable" : "error";
   return { status: mapped, model: agentic.model, findings: backedFindings.length, searches: agentic.searches, visits: agentic.visits, phone: ent?.phone ?? null, email: ent?.email ?? null, phoneSource: ent?.phoneSource ?? null, contactOutcome: outcome };
 }
