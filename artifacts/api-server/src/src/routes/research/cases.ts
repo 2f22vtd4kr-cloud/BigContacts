@@ -935,7 +935,7 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
         sourceUrls: agenticDiscovery.findings.flatMap((f) => f.sourceUrls).slice(0, 20),
         nextQuestions: [],
         contactEvidence: agenticDiscovery.contactEvidence,
-        error: agenticDiscovery.error,
+        error: agenticDiscovery.error ?? null,
       }, `Agentic ReAct web pass ${agenticDiscovery.status}; findings=${agenticDiscovery.findings.length}.`);
       await appendJobLog(jobId, `Agentic ReAct web ${agenticDiscovery.status}; model=${agenticDiscovery.model}; findings=${agenticDiscovery.findings.length}; searches=${agenticDiscovery.searches}.`);
 
@@ -1681,7 +1681,9 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
       workingFile = {
         ...workingFile,
         discoveredCandidates: mergedReviewCandidates,
-        entityLinks: entityLinks.length ? entityLinks : (workingFile as { entityLinks?: unknown }).entityLinks,
+        entityLinks: entityLinks.length
+          ? entityLinks
+          : (workingFile as { entityLinks?: Array<{ from: string; to: string; relation: string; evidence: string[] }> }).entityLinks,
         orgFootprint,
         initialResearch: {
           ...workingFile.initialResearch,
@@ -2195,7 +2197,7 @@ router.post("/research/bureau/cases/:caseId/run-next-pass", async (req, res): Pr
         sourceUrls: agenticVerify.findings.flatMap((f) => f.sourceUrls).slice(0, 20),
         nextQuestions: [],
         contactEvidence: agenticVerify.contactEvidence,
-        error: agenticVerify.error,
+        error: agenticVerify.error ?? null,
       }, `Agentic ReAct verification ${agenticVerify.status}; findings=${agenticVerify.findings.length}.`);
       await appendJobLog(jobId, `Agentic ReAct verification ${agenticVerify.status}; findings=${agenticVerify.findings.length}.`);
 
@@ -2813,8 +2815,12 @@ router.post("/research/bureau/cases/:caseId/initial-research", async (req, res):
 router.post("/research/bureau/cases/:caseId/admit-candidate", async (req, res): Promise<void> => {
   const params = GetBureauCaseParams.safeParse(req.params);
   const body = AdmitBureauCaseCandidateBody.safeParse(req.body);
-  if (!params.success || !body.success) {
-    res.status(400).json({ error: !params.success ? params.error.message : body.error.message });
+  if (!params.success) {
+    res.status(400).json({ error: params.error.message });
+    return;
+  }
+  if (!body.success) {
+    res.status(400).json({ error: body.error.message });
     return;
   }
   const [current] = await db.select().from(researchCasesTable)
