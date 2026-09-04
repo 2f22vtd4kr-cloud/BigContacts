@@ -17,7 +17,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
@@ -39,6 +39,24 @@ jobs:
       - name: Build API
         run: pnpm --dir artifacts/api-server run build
       - name: Typecheck workspace
-        run: pnpm run typecheck
+        id: typecheck
+        run: |
+          set +e
+          pnpm run typecheck > typecheck.log 2>&1
+          status=$?
+          cat typecheck.log
+          exit $status
+      - name: Publish failing typecheck diagnostics for repair
+        if: failure() && steps.typecheck.outcome == 'failure'
+        run: |
+          mkdir -p ci
+          cp typecheck.log ci/typecheck-latest.txt
+          git config user.name "apex-typecheck-bot"
+          git config user.email "apex-typecheck-bot@users.noreply.github.com"
+          git checkout --orphan ci-typecheck-diagnostics
+          git rm -rf .
+          git add ci/typecheck-latest.txt
+          git commit -m "ci: capture latest typecheck diagnostics"
+          git push --force origin HEAD:refs/heads/ci/typecheck-diagnostics
       - name: Run strict provenance tests
         run: pnpm --dir artifacts/api-server exec vitest run src/src/test/bureau-contact-persist-strict.test.ts
