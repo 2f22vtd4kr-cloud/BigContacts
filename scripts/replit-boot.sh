@@ -6,6 +6,10 @@ export ENABLE_AUTO_PIPELINE="${ENABLE_AUTO_PIPELINE:-false}"
 export APEX_SKIP_SEMANTIC="${APEX_SKIP_SEMANTIC:-1}"
 export NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=2048}"
 export NPM_CONFIG_REGISTRY="${NPM_CONFIG_REGISTRY:-https://registry.npmjs.org}"
+# Replit's single long-running API workflow can legitimately spend several
+# minutes inside one standard Dig. Disable stale auto-clear for this managed
+# process; operators can still stop/clear a job explicitly through atlas-lock.
+export ATLAS_DISABLE_AUTO_CLEAR="${ATLAS_DISABLE_AUTO_CLEAR:-true}"
 # Single Upstash secret is enough: REDIS_URL_1 is the bureau permanent store.
 # Healthz probes permanent Redis; without ENABLE_REDIS_ON_BOOT, manual mode
 # defers connect and health looks "not_connected" until first Atlas launch.
