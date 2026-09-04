@@ -1,0 +1,36 @@
+   300	  let lastMessage = "";
+   301	
+   302	  try {
+   303	    for (let slot = 0; slot < requestedBatch; slot += 1) {
+   304	      const objective = [
+   305	        baseObjective,
+   306	        "This slot runs serially because the investigator provider pool is paced. Choose your own distinct person; duplicate candidates will be discarded after the batch.",
+   307	        `This is batch slot ${slot + 1} of ${requestedBatch}. One strong, distinct candidate is sufficient. Do not pad with weak names.`,
+   308	      ].join("\n");
+   309	      const slotSpan = publishDigSpan({ jobId, spanType: "stage", name: "discovery_slot", status: "active", agentName: "discovery", inputSummary: `slot=${slot + 1}/${requestedBatch} concurrent=false` });
+   310	      try { await input.onSlotProgress?.({ slot: slot + 1, batch: requestedBatch, phase: "start", candidatesInSlot: 0 }); } catch { /* best-effort */ }
+   311	      try {
+   312	        const result = await runAgenticWebResearch({
+   313	          targetName: `Discovery slot ${slot + 1}`,
+   314	          companyName: null,
+   315	          objective,
+   316	          maxIterations: maxIterationsPerSlot,
+   317	          hardTimeoutMs: slotTimeout,
+   318	          jobId,
+   319	          onLiveStep: (step) => {
+   320	            try {
+   321	              spanFromLiveStep({ jobId, targetName: "discovery", tool: step.provider || step.action, label: step.query || step.url || step.action, detail: step.summary || step.url || step.query, status: "ok", agentName: "discovery" });
+   322	            } catch { /* spans best-effort */ }
+   323	            input.onLiveStep?.({
+   324	      action: step.action,
+   325	      tool: step.provider || step.action,
+   326	      query: step.query,
+   327	      url: step.url,
+   328	      detail: step.summary,
+   329	      status: "ok",
+   330	    });
+   331	          },
+   332	        });
+   333	        const admissionFindings = result.modelFindings ?? [];
+   334	        const slotCandidates = parsePersonFindings(admissionFindings, result.trajectory ?? []);
+   335	        try { completeDigSpan(jobId, slotSpan.id, { status: slotCandidates.length ? "ok" : "error", resultSummary: `slot=${slot + 1}/${requestedBatch} investigator_decisions=${slotCandidates.length} searches=${result.searches} visits=${result.visits} (modelFindings only — not infra extract)` }); } catch { /* best-effort */ }

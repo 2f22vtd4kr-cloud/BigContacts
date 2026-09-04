@@ -1,0 +1,69 @@
+  2158	    vectorType: DeepWebEvidence["vectorType"],
+  2159	    value: string | null | undefined,
+  2160	    source: string,
+  2161	    sourceUrl: string | null | undefined,
+  2162	    extractionMethod: string,
+  2163	    confidence: number,
+  2164	    details: Record<string, unknown> = {},
+  2165	  ) => {
+  2166	    if (!value) return;
+  2167	    let normalized = value.trim();
+  2168	    if (!normalized) return;
+  2169	    if (vectorType === "email") {
+  2170	      normalized = sanitizePublicEmail(normalized) ?? "";
+  2171	    } else if (vectorType === "phone") {
+  2172	      normalized = sanitizePublicPhone(normalized) ?? "";
+  2173	    } else if (vectorType === "social") {
+  2174	      const network = details.network;
+  2175	      const scope = details.scope === "organization" ? "organization" : "person";
+  2176	      normalized = network === "linkedin"
+  2177	        ? (sanitizePublicSocialUrl(normalized, "linkedin", scope) ?? "")
+  2178	        : network === "instagram"
+  2179	          ? (isValidPublicSocialHandle(normalized, "instagram")
+  2180	            ? normalized
+  2181	            : (sanitizePublicSocialUrl(normalized, "instagram", scope) ?? ""))
+  2182	          : network === "twitter"
+  2183	            ? (isValidPublicSocialHandle(normalized, "twitter")
+  2184	              ? normalized
+  2185	              : (sanitizePublicSocialUrl(normalized, "twitter", scope) ?? ""))
+  2186	            : "";
+  2187	    }
+  2188	    if (!normalized) return;
+  2189	    const key = `${vectorType}|${normalized.toLowerCase()}|${source}|${sourceUrl ?? ""}`;
+  2190	    if (evidenceKeys.has(key)) return;
+  4105	    vectorType: "social",
+  4106	    value: string | null,
+  4107	  ): string | null => {
+  4108	    if (!value?.trim()) return null;
+  4109	    const candidate = result.candidateFunnel.candidates.find(
+  4110	      (item) => item.key === candidateKey(vectorType, value),
+  4111	    );
+  4112	    if (!candidate || candidate.state === "rejected") return null;
+  4113	    if (isCorp) {
+  4114	      return candidate.scopes.length > 0
+  4115	        && candidate.scopes.every((scope) => scope === "organization")
+  4116	        && candidate.sourceUrls.length > 0
+  4117	        ? value
+  4118	        : null;
+  4119	    }
+  4120	    // Prefer personal social; if none qualifies, still keep a related org-linked profile
+  4121	    // so the HNWI card is not empty of public routes.
+  4122	    if (isEligiblePersonalSocialCandidate(candidate)) return value;
+  4123	    if (candidate.sourceUrls.length > 0) return value;
+  4124	    return null;
+  4125	  };
+  4126	
+  4127	  result.linkedinUrl = promotedSocialUrl("social", result.linkedinUrl);
+  4128	  result.instagramUrl = promotedSocialUrl("social", result.instagramUrl);
+  4129	  result.twitterUrl = promotedSocialUrl("social", result.twitterUrl);
+  4130	
+  4131	  // Promotion to "personal direct" is strict. Related / organization contacts are
+  4132	  // still retained end-to-end: they stay in the candidate funnel + evidence, and
+  4133	  // when no personal route exists we surface the best related contact on the
+  4134	  // entity so the profile is never emptied of usable public routes.
+  4135	  const rankRelated = (candidate: typeof result.candidateFunnel.candidates[number]) => {
+  4136	    let s = candidate.sourceDomains.length * 10;
+  4137	    if (candidate.state === "independently_corroborated") s += 20;
+  4138	    if (candidate.state === "source_linked") s += 12;
+  4139	    if (candidate.state === "attribution_review") s += 8;
+  4140	    if (candidate.scopes.includes("organization")) s += 4;

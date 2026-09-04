@@ -1,0 +1,33 @@
+  1808	        setEmail(rdap.email, 50, "RDAP-Registrant", `https://rdap.org/domain/${knownDomain}`);
+  1809	      }
+  1810	      if (rdap.phone) setPhone(rdap.phone, 40, "RDAP-Phone", `https://rdap.org/domain/${knownDomain}`);
+  1811	    })());
+  1812	
+  1813	    // Source 12: crt.sh
+  1814	    g2Promises.push((async () => {
+  1815	      const certEmails = await queryCRTsh(knownDomain!);
+  1816	      if (certEmails.length) {
+  1817	        result.sourceHits["crt.sh"] = true;
+  1818	        setEmail(certEmails[0]!, 60, "CertTransparency-Email");
+  1819	      }
+  1820	    })());
+  1821	
+  1822	    // Source 13: Wayback Machine
+  1823	    if (!result.email || result.emailConfidence < 50) {
+  1824	      g2Promises.push((async () => {
+  1825	        const waybackEmail = await queryWaybackMachine(knownDomain!);
+  1826	        if (waybackEmail) {
+  1827	          result.sourceHits["Wayback"] = true;
+  1828	          setEmail(waybackEmail.email, 55, "Wayback-Email", waybackEmail.sourceUrl ?? undefined);
+  1829	        }
+  1830	      })());
+  1831	    }
+  1832	
+  1833	    // Source 20: Live contact page scraper
+  1834	    if (!result.email || result.emailConfidence < 50 || !result.linkedinUrl) {
+  1835	      g2Promises.push((async () => {
+  1836	        const scraped = await scrapeContactPage(knownDomain!);
+  1837	        if (scraped.email) {
+  1838	          result.sourceHits["ContactPage"] = true;
+  1839	          setEmail(scraped.email, 60, "ContactPage-Email");
+  1840	        }

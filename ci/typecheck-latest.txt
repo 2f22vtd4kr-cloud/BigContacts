@@ -1,0 +1,25 @@
+
+> workspace@0.0.0 typecheck /home/runner/work/BigContacts/BigContacts
+> pnpm run typecheck:libs && pnpm -r --filter "./artifacts/**" --filter "./scripts" --if-present run typecheck
+
+
+> workspace@0.0.0 typecheck:libs /home/runner/work/BigContacts/BigContacts
+> tsc --build
+
+Scope: 5 of 10 workspace projects
+artifacts/api-server typecheck$ tsc -p tsconfig.json --noEmit
+artifacts/mockup-sandbox typecheck$ tsc -p tsconfig.json --noEmit
+scripts typecheck$ tsc -p tsconfig.json --noEmit
+scripts typecheck: Done
+artifacts/mockup-sandbox typecheck: Done
+artifacts/api-server typecheck: src/src/routes/research/cases.ts(938,9): error TS2322: Type 'string | undefined' is not assignable to type 'string | null'.
+artifacts/api-server typecheck:   Type 'undefined' is not assignable to type 'string | null'.
+artifacts/api-server typecheck: src/src/routes/research/cases.ts(1684,9): error TS2322: Type 'unknown' is not assignable to type '{ from: string; to: string; relation: string; evidence: string[]; }[] | undefined'.
+artifacts/api-server typecheck: src/src/routes/research/cases.ts(2198,9): error TS2322: Type 'string | undefined' is not assignable to type 'string | null'.
+artifacts/api-server typecheck:   Type 'undefined' is not assignable to type 'string | null'.
+artifacts/api-server typecheck: src/src/routes/research/cases.ts(2817,76): error TS18048: 'body.error' is possibly 'undefined'.
+artifacts/api-server typecheck: Failed
+/home/runner/work/BigContacts/BigContacts/artifacts/api-server:
+ ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @workspace/api-server@0.0.0 typecheck: `tsc -p tsconfig.json --noEmit`
+Exit status 2
+ ELIFECYCLE  Command failed with exit code 2.

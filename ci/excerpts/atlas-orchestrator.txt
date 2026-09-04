@@ -1,0 +1,102 @@
+  1490	- "Aviation": private jets, helicopters, aircraft (use FAA tail number if mentioned)
+  1491	- "Marine": yachts, superyachts, boats, vessels (use IMO number or vessel name)
+  1492	- "Business": other companies they founded/own/control (tech, retail, manufacturing, trading, media, finance)
+  1493	- "PrivateClub": exclusive private membership clubs or societies they own or chair
+  1494	- "Investment": private equity funds, hedge funds, stock positions, financial stakes
+  1495	
+  1496	Respond ONLY with a JSON array. Each item must have:
+  1497	- "category": one of the categories above (use "Hospitality" for hotels/restaurants/clubs/resorts)
+  1498	- "identifier": SPECIFIC name/identifier — hotel name + city, property address, N-number, company name, vessel name (NOT vague like "a hotel in Italy")
+  1499	- "jurisdiction": country, state, or registry (e.g. "Italy", "France", "UK", "FAA", "IMO")
+  1500	- "description": one sentence: what the asset is and the person's role (owner, founder, operator, etc.)
+  1501	
+  1502	IMPORTANT: A hotel, restaurant, resort, or golf club that a person OWNS is one of their most important assets — always include it.
+  1503	Only include assets with a SPECIFIC identifier. If nothing concrete is mentioned, respond with [].`;
+  1504	
+  1505	          const resp = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+  1506	            method: "POST",
+  1507	            headers: { "Content-Type": "application/json", "Authorization": `Bearer ${groqKey}` },
+  1508	            body: JSON.stringify({
+  1509	              model: "openai/gpt-oss-120b",
+  1510	              messages: [{ role: "user", content: prompt }],
+  1511	              temperature: 0, max_tokens: 1024,
+  1512	            }),
+  1513	            signal: AbortSignal.timeout(15_000),
+  1514	          }).then(async (r) => r.json() as Promise<{ choices?: Array<{ message?: { content?: string | null } }> }>).catch(() => null);
+  1515	
+  1516	          const raw = resp?.choices?.[0]?.message?.content?.trim() ?? "";
+  1517	          const jsonMatch = raw.match(/\[[\s\S]*\]/);
+  1518	          if (jsonMatch) {
+  1519	            const extracted: Array<{ category: string; identifier: string; jurisdiction: string; description?: string }> =
+  1520	              JSON.parse(jsonMatch[0]);
+  1521	            const validCategories = new Set(["RealEstate", "Aviation", "Marine", "Hospitality", "Business", "PrivateClub", "Investment"]);
+  1522	            const assetRows = extracted
+  1523	              .filter(a => a.identifier?.length > 2 && validCategories.has(a.category))
+  1524	              .slice(0, 12)
+  1525	              .map(a => {
+  1526	                const juris = a.jurisdiction ?? "Unknown";
+  1527	                const coords = jurisdictionToCoords(juris);
+  1528	                return {
+  1529	                  category: a.category,
+  1530	                  identifier: a.identifier,
+  1531	                  jurisdiction: juris,
+  1532	                  description: a.description ?? null,
+  1533	                  sourceRegistry: "AI OSINT (Groq extraction)",
+  1534	                  ownerEntityId: id,
+  1535	                  latitude:  coords ? coords[0] : null,
+  1536	                  longitude: coords ? coords[1] : null,
+  1537	                };
+  1538	              });
+  1539	            if (assetRows.length) {
+  1540	              pendingAssetRows.push(...assetRows);
+  1541	              logger.info({ entityId: id, name, assetCount: assetRows.length }, "[Atlas] Assets held for final target review");
+  1542	            }
+  1543	          }
+  1544	        }
+  1545	      }
+  1790	    // ── Step F: Final confidence recompute + bayesian score + isHot + cookedAt ─
+  1791	    const fresh = await db.select({
+  1792	      type: entitiesTable.type,
+  1793	      email: entitiesTable.email, phone: entitiesTable.phone,
+  1794	      linkedinUrl: entitiesTable.linkedinUrl, twitterHandle: entitiesTable.twitterHandle,
+  1795	      instagramHandle: entitiesTable.instagramHandle, telegramHandle: entitiesTable.telegramHandle,
+  1796	      phoneSource: entitiesTable.phoneSource,
+  1797	      knownResidences: entitiesTable.knownResidences, sourceRegistries: entitiesTable.sourceRegistries,
+  1798	      nationality: entitiesTable.nationality, estimatedNetWorth: entitiesTable.estimatedNetWorth,
+  1799	    }).from(entitiesTable).where(eq(entitiesTable.id, id)).then((r: any[]) => r[0]);
+  1800	
+  1801	    if (fresh) {
+  1802	      const contactConf = computeContactConfidence(fresh);
+  1803	
+  1804	      // Fetch assets written in Steps E + G for bayesian scoring
+  1805	      const entityAssets: Array<{ category: string | null; estimatedValue: number | string | null; jurisdiction: string | null }> = await db.select({
+  1806	        category: assetsTable.category,
+  1807	        estimatedValue: assetsTable.estimatedValue,
+  1808	        jurisdiction: assetsTable.jurisdiction,
+  1809	      }).from(assetsTable).where(eq(assetsTable.ownerEntityId, id)).catch(() => []);
+  1810	
+  1811	      const assetCategories = [...new Set(entityAssets.map((a: any) => a.category).filter(Boolean))] as string[];
+  1812	      const totalAssetValue = entityAssets.reduce((s: number, a: any) => s + (Number(a.estimatedValue) || 0), 0);
+  1813	      const jurisdictionCount = new Set(entityAssets.map((a: any) => a.jurisdiction).filter(Boolean)).size;
+  1814	
+  1815	      const { computeBayesianScore } = await import("./bayesian-scorer");
+  1816	      const bayesScore = computeBayesianScore(0.05, {
+  1817	        entityType:               entity.type,
+  1818	        assetCount:               entityAssets.length,
+  1819	        assetCategories,
+  1820	        totalAssetValue,
+  1821	        hasRecentActivity:        true,
+  1822	        recentActivityDays:       0,
+  1823	        networkDegree:            0,
+  1824	        hasGatekeeperConnection:  false,
+  1825	        hasKnownInvestorConnection: false,
+  1826	        hasShellCompany:          false,
+  1827	        hasAviationAsset:         assetCategories.includes("Aviation"),
+  1828	        hasMarineAsset:           assetCategories.includes("Marine"),
+  1829	        hasClubMembership:        assetCategories.some(c => ["PrivateClub","Hospitality"].includes(c)),
+  1830	        hasLuxuryRealEstate:      assetCategories.includes("RealEstate"),
+  1831	        jurisdictionCount,
+  1832	        contactConfidence:        contactConf,
+  1833	      });
+  1834	
+  1835	      // isHot: entity is a real lead when we have a direct contact vector

@@ -1,0 +1,41 @@
+   805	  // result. Provider labels are only audit metadata; corroboration is computed
+   806	  // from the canonical publisher URLs attached here. When a provider returns a
+   807	  // value without a claim-level URL, keep the candidate but leave sourceUrl
+   808	  // null so it cannot gain false corroboration.
+   809	  const now = new Date().toISOString();
+   810	  const evidenceFor = (
+   811	    vectorType: string,
+   812	    value: string | null,
+   813	    labels: string[],
+   814	  ): CandidateEvidence[] => {
+   815	    if (!value) return [];
+   816	    return labels.flatMap((label) => {
+   817	      const baseLabel = label.replace(/-owner$/, "");
+   818	      const urls = sourceUrlsByLabel.get(label) ?? sourceUrlsByLabel.get(baseLabel) ?? [];
+   819	      const boundUrls = urls.length ? urls : [null];
+   820	      return boundUrls.map((sourceUrl) => ({
+   821	        vectorType,
+   822	        value,
+   823	        source: label,
+   824	        sourceUrl,
+   825	        extractionMethod: sourceUrl ? "public-search-extraction" : "ai-extraction-without-claim-url",
+   826	        confidence: sourceUrl ? 0.4 : 0.25,
+   827	        details: { citationBound: Boolean(sourceUrl) },
+   828	        observedAt: now,
+   829	      }));
+   830	    });
+   831	  };
+   832	  result.evidence = [
+   833	    ...evidenceFor("email", bestEmail, emailSrcs),
+   834	    ...evidenceFor("phone", bestPhone, phoneSrcs),
+   835	    ...evidenceFor("social", bestLI, liSrcs),
+   836	    ...evidenceFor("social", bestIG, igSrcs),
+   837	    ...evidenceFor("social", bestTW, twSrcs),
+   838	  ];
+   839	
+   840	  if (bestEmail) {
+   841	    result.email = bestEmail;
+   842	    result.emailConfidence = scoreByCorroboration(emailSrcs.length, result.evidence ?? [], bestEmail);
+   843	    result.sources.push(...emailSrcs);
+   844	  }
+   845	  if (bestPhone) {

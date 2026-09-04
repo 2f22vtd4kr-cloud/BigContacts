@@ -1,0 +1,678 @@
+   120	/** D residual: stamp discovery jobs with lane honesty + registry-shallow risk. */
+   121	async function stampDiscoveryJobHonesty(jobId: string, message?: string): Promise<void> {
+   122	  const lanes = buildLanesHonestySnapshot();
+   123	  await updateJob(jobId, {
+   124	    message: message
+   125	      ?? (lanes.registryShallowRisk
+   126	        ? "Registry-shallow risk: no active web-search provider slots"
+   127	        : undefined),
+   128	    result: JSON.stringify({
+   129	      lanesHonesty: lanes,
+   130	      registryShallowRisk: lanes.registryShallowRisk,
+   131	    }),
+   132	  });
+   133	}
+   134	
+   135	
+   136	
+   137	function serializeCase(
+   138	  row: typeof researchCasesTable.$inferSelect,
+   139	  entity: { name: string; type: string } | null,
+   140	) {
+   141	  let progressSummary: {
+   142	    coverageRatio: number;
+   143	    foundAnyCount: number;
+   144	    foundPersonalCount: number;
+   145	    pendingVectors: string[];
+   146	    noProgressStreak: number | null;
+   147	    bossOutcome: string | null;
+   148	    progressAssessment: string | null;
+   149	    rightHandDisposition: string | null;
+   150	    rightHandNote: string | null;
+   150	    rightHandNote: string | null;
+   151	    lanesHonesty: Record<string, unknown> | null;
+   152	  } | null = null;
+   153	  let discoveryQuality: ReturnType<typeof computeDiscoveryQualityMetrics> | null = null;
+   154	  try {
+   155	    const parsed = JSON.parse(row.caseFile) as Record<string, unknown>;
+   156	    const progress = parsed.investigationProgress as
+   157	      | {
+   158	          coverageRatio?: number;
+   159	          foundAnyCount?: number;
+   160	          foundPersonalCount?: number;
+   161	          pendingVectors?: string[];
+   162	        }
+   163	      | undefined;
+   164	    const bossPlan = parsed.bossPlan as
+   165	      | {
+   166	          outcome?: string;
+   167	          progressAssessment?: string | null;
+   168	          rightHandDisposition?: string | null;
+   169	          rightHandNote?: string | null;
+   170	        }
+   171	      | undefined;
+   172	    const lanesHonesty = (parsed.lastLanesHonesty as Record<string, unknown> | undefined) ?? null;
+   173	    if (progress || bossPlan || lanesHonesty) {
+   174	      progressSummary = {
+   175	        coverageRatio: progress?.coverageRatio ?? 0,
+   176	        foundAnyCount: progress?.foundAnyCount ?? 0,
+   177	        foundPersonalCount: progress?.foundPersonalCount ?? 0,
+   178	        pendingVectors: progress?.pendingVectors ?? [],
+   179	        noProgressStreak: typeof parsed.noProgressStreak === "number" ? parsed.noProgressStreak : null,
+   180	        bossOutcome: bossPlan?.outcome ?? null,
+   181	        progressAssessment: bossPlan?.progressAssessment ?? null,
+   182	        rightHandDisposition: bossPlan?.rightHandDisposition ?? null,
+   183	        rightHandNote: bossPlan?.rightHandNote ?? null,
+   184	        lanesHonesty,
+   185	      };
+   186	    }
+   187	    const candidates = parsed.discoveredCandidates;
+   188	    if (Array.isArray(candidates) && candidates.length > 0) {
+   189	      discoveryQuality = computeDiscoveryQualityMetrics(
+   190	        candidates as Array<{
+   191	          name: string;
+   192	          type?: string | null;
+   193	          relevance?: string | null;
+   194	          reachability?: string | null;
+   195	          contactEvidence?: Array<{ value?: string | null }> | null;
+   196	        }>,
+   197	      );
+   198	    }
+   199	  } catch {
+   200	    progressSummary = null;
+   201	    discoveryQuality = null;
+   202	  }
+   203	  return {
+   204	    ...row,
+   205	    targetEntityName: entity?.name ?? null,
+   206	    targetEntityType: entity?.type ?? null,
+   207	    lastDecisionAt: row.lastDecisionAt?.toISOString() ?? null,
+   208	    createdAt: row.createdAt.toISOString(),
+   209	    updatedAt: row.updatedAt.toISOString(),
+   210	    progressSummary,
+   211	    discoveryQuality,
+   212	  };
+   213	}
+   214	
+   215	function serializeBureauCase(
+   216	  row: typeof researchCasesTable.$inferSelect,
+   217	  entity: { name: string; type: string } | null,
+   218	) {
+   219	  return serializeCase(row, entity);
+   220	}
+   221	
+   222	function candidateTypeToEntityType(type: string): "HNWI" | "Corporation" | "Trust" | "Gatekeeper" {
+   223	  const normalized = type.toLowerCase();
+   224	  if (normalized.includes("person") || normalized.includes("individual") || normalized.includes("investor")) return "HNWI";
+   225	  if (normalized.includes("intermediary") || normalized.includes("gatekeeper") || normalized.includes("advisor")) return "Gatekeeper";
+   226	  if (normalized.includes("trust") || normalized.includes("foundation")) return "Trust";
+   227	  return "Corporation";
+   228	}
+   229	
+   230	function mergeContactEvidence(
+   231	  ...groups: Array<Array<{
+   232	    vectorType: string;
+   233	    value: string;
+   234	    scope: string;
+   235	    personName: string | null;
+   236	    role: string | null;
+   237	    sourceUrls: string[];
+   238	    note: string | null | undefined;
+   239	  }> | undefined>
+   240	) {
+   241	  return groups.flatMap((group) => group ?? [])
+   242	    .filter((item) => item.value.trim())
+   243	    .filter((item, index, all) => all.findIndex((other) =>
+   244	      other.vectorType === item.vectorType
+   245	      && other.value.toLowerCase() === item.value.toLowerCase()
+   246	      && (other.personName ?? "").toLowerCase() === (item.personName ?? "").toLowerCase(),
+   247	    ) === index)
+   248	    .slice(0, 20);
+   249	}
+   250	
+   251	type DiscoveryCandidate = import("../../lib/case-bureau").DiscoveryCaseFile["discoveredCandidates"][number];
+   252	
+   253	function mergeDiscoveryCandidates(
+   254	  existing: DiscoveryCandidate[],
+   255	  additions: DiscoveryCandidate[],
+   256	): DiscoveryCandidate[] {
+   257	  const merged = new Map<string, DiscoveryCandidate>();
+   258	  for (const candidate of [...existing, ...additions]) {
+   259	    const key = candidate.name.trim().toLowerCase();
+   260	    if (!key) continue;
+   261	    const prior = merged.get(key);
+   262	    if (!prior) {
+   263	      merged.set(key, candidate);
+   264	      continue;
+   265	    }
+   266	    merged.set(key, {
+   267	      ...prior,
+   268	      type: prior.type || candidate.type,
+   269	      relevance: candidate.relevance || prior.relevance,
+   270	      reachability: candidate.reachability || prior.reachability,
+   271	      sourceUrls: [...new Set([...prior.sourceUrls, ...candidate.sourceUrls])].slice(0, 20),
+   272	      contactEvidence: mergeContactEvidence(prior.contactEvidence, candidate.contactEvidence),
+   273	      admittedEntityId: prior.admittedEntityId ?? candidate.admittedEntityId ?? null,
+   274	    });
+   275	  }
+   276	  // Fame-only trophies out; person-first ranking; shells kept only with reframe annotation.
+   277	  return rankDiscoveryReviewCandidates(
+   278	    filterDiscoveryCandidatesByFitness([...merged.values()]),
+   279	  ).slice(0, 80);
+   280	}
+   281	
+   282	/**
+   283	 * Phase A visibility floor: materialize non-trash discovery review candidates
+   284	 * into durable review entities + contact_evidence so the entity ledger /
+   285	 * "People worth knowing" is never stuck at zero after candidate-producing runs.
+   286	 *
+   287	 * - Never invents contacts or marks Personal.
+   288	 * - Does not auto-promote to target cases.
+   289	 * - Skips candidates that already have admittedEntityId.
+   290	 * - Requires a non-empty name; prefers candidates with sourceUrls or contactEvidence.
+   290	 * - Requires a non-empty name; prefers candidates with sourceUrls or contactEvidence.
+   291	 */
+   292	async function materializeDiscoveryReviewCandidates(input: {
+   293	  caseId: number;
+   294	  candidates: DiscoveryCandidate[];
+   295	  sourceTag?: string;
+   296	  expandSecondary?: boolean;
+   297	}): Promise<{ materialized: number; secondaryExpanded: number; candidates: DiscoveryCandidate[] }> {
+   298	  const sourceTag = input.sourceTag ?? "case-bureau-discovery";
+   299	  const nowIso = new Date().toISOString();
+   300	  let materialized = 0;
+   301	  let secondaryExpanded = 0;
+   302	  const updated: DiscoveryCandidate[] = [];
+   303	  const secondaryQueue: Array<{ entityId: number; name: string; entityType: string }> = [];
+   304	
+   305	  for (const candidate of input.candidates) {
+   306	    const name = String(candidate.name ?? "").trim();
+   307	    if (!name) {
+   308	      updated.push(candidate);
+   309	      continue;
+   310	    }
+   311	    if (candidate.admittedEntityId) {
+   312	      updated.push(candidate);
+   313	      continue;
+   314	    }
+   315	
+   316	    const hasSurface =
+   317	      (Array.isArray(candidate.sourceUrls) && candidate.sourceUrls.length > 0)
+   318	      || (Array.isArray(candidate.contactEvidence) && candidate.contactEvidence.length > 0)
+   319	      || Boolean(String(candidate.relevance ?? "").trim())
+   320	      || Boolean(String(candidate.reachability ?? "").trim());
+   321	    // Keep named person-shaped or registry anchors even when surface is thin —
+   322	    // empty-name / pure noise already filtered by mergeDiscoveryCandidates.
+   323	    if (!hasSurface && !name.includes(" ")) {
+   324	      updated.push(candidate);
+   325	      continue;
+   326	    }
+   327	
+   328	    // Dedup against existing entities with the same name (case-insensitive).
+   329	    const existing = await db
+   330	      .select({ id: entitiesTable.id })
+   331	      .from(entitiesTable)
+   332	      .where(sql`lower(btrim(${entitiesTable.name})) = ${name.toLowerCase()}`)
+   333	      .limit(1);
+   334	
+   335	    let entityId: number | null = existing[0]?.id ?? null;
+   336	    const entityType = candidateTypeToEntityType(String(candidate.type ?? "review_candidate"));
+   337	    if (!entityId) {
+   338	      try {
+   339	        const [entity] = await db.insert(entitiesTable).values({
+   340	          name,
+   341	          type: entityType,
+   342	          bayesianScore: 0.05,
+   343	          contactConfidence: 0,
+   344	          contactOutcome: "evidence_only",
+   345	          isHot: false,
+   345	          isHot: false,
+   346	          isStarred: false,
+   347	          isHidden: false,
+   348	          sourceRegistries: JSON.stringify(["Case Bureau discovery"]),
+   349	          notes: `Auto-materialized as review-only from Case Bureau discovery (case ${input.caseId}). Not promoted to target; Personal mark requires verified evidence.`,
+   350	          metadata: JSON.stringify({
+   351	            reviewOnly: true,
+   352	            admission: "case-bureau-discovery-auto",
+   353	            caseId: input.caseId,
+   354	            materializedAt: nowIso,
+   355	            candidate: {
+   356	              name,
+   357	              type: candidate.type,
+   358	              relevance: candidate.relevance,
+   359	              reachability: candidate.reachability,
+   360	              sourceUrls: candidate.sourceUrls ?? [],
+   361	              contactEvidence: candidate.contactEvidence ?? [],
+   362	            },
+   363	          }),
+   364	        }).returning();
+   365	        entityId = entity?.id ?? null;
+   366	      } catch {
+   367	        // Race or unique constraint — leave candidate without entity id.
+   368	        entityId = null;
+   369	      }
+   370	    }
+   371	
+   372	    if (!entityId) {
+   373	      updated.push(candidate);
+   374	      continue;
+   375	    }
+   376	
+   377	    const contacts = collectDiscoveryContactsForTarget(name, input.candidates);
+   378	    const evidence = contacts.length
+   379	      ? contacts
+   380	      : (candidate.contactEvidence ?? []);
+   381	    // Also persist source profile URLs as website/social candidate vectors.
+   382	    const urlEvidence = (candidate.sourceUrls ?? [])
+   383	      .filter((u): u is string => typeof u === "string" && /^https?:\/\//i.test(u))
+   384	      .slice(0, 8)
+   385	      .map((url) => ({
+   386	        vectorType: /linkedin\.com/i.test(url) ? "linkedin" : "website",
+   387	        value: url,
+   388	        scope: "candidate",
+   389	        personName: name,
+   390	        role: null,
+   391	        sourceUrls: [url],
+   392	        note: "Profile / source URL from discovery review candidate",
+   393	        tier: "candidate",
+   394	        state: "review_only",
+   395	      }));
+   396	    await persistBureauContactsForEntity(
+   397	      entityId,
+   398	      [...evidence, ...urlEvidence],
+   399	      sourceTag,
+   400	    );
+   401	
+   402	    // Queue person-shaped (and a few corp shells) for bounded secondary expansion.
+   403	    // Runs even when LinkedIn is already present so Signal/crt/claims still fire.
+   404	    const personShaped =
+   405	      entityType === "HNWI"
+   406	      || entityType === "Gatekeeper"
+   407	      || (name.includes(" ") && !/llc|ltd|inc|corp|plc|gmbh|sa\b|bv\b|nv\b/i.test(name));
+   408	    const corpShaped = entityType === "Corporation" || entityType === "Trust"
+   409	      || /llc|ltd|inc|corp|plc|gmbh|sa\b|bv\b|nv\b/i.test(name);
+   410	    if ((personShaped || corpShaped) && secondaryQueue.length < 8) {
+   411	      secondaryQueue.push({ entityId, name, entityType });
+   412	    }
+   413	
+   414	    materialized += 1;
+   415	    updated.push({ ...candidate, admittedEntityId: entityId });
+   416	  }
+   417	
+   418	  if (input.expandSecondary !== false) {
+   419	    for (const item of secondaryQueue) {
+   420	      try {
+   421	        const result = await expandSecondaryPublicSurface(item);
+   422	        if (result.linkedin || result.email || result.phone || result.signal || result.website) secondaryExpanded += 1;
+   423	      } catch {
+   424	        // non-fatal
+   425	      }
+   426	    }
+   427	    // Registry officer expansion: corp anchors → named people as review entities.
+   428	    try {
+   429	      const officerAdds = await expandRegistryOfficersFromCandidates({
+   430	        caseId: input.caseId,
+   431	        candidates: updated,
+   432	        limit: 6,
+   433	      });
+   434	      if (officerAdds.materialized > 0) {
+   435	        materialized += officerAdds.materialized;
+   436	        const byName = new Map(updated.map((c) => [c.name.trim().toLowerCase(), c]));
+   437	        for (const oc of officerAdds.candidates) {
+   438	          const key = oc.name.trim().toLowerCase();
+   439	          if (!byName.has(key)) {
+   440	            byName.set(key, oc);
+   441	            updated.push(oc);
+   442	          }
+   443	        }
+   444	      }
+   445	    } catch {
+   446	      // non-fatal
+   447	    }
+   448	  }
+   449	
+   450	  return { materialized, secondaryExpanded, candidates: updated };
+   451	}
+   452	
+   453	/**
+   454	 * Corp/registry anchors → named officers as review-only entities + evidence.
+   455	 * Bounded; never invents; never Personal.
+   456	 */
+   457	async function expandRegistryOfficersFromCandidates(input: {
+   458	  caseId: number;
+   459	  candidates: DiscoveryCandidate[];
+   460	  limit?: number;
+   461	}): Promise<{ materialized: number; candidates: DiscoveryCandidate[] }> {
+   462	  const limit = input.limit ?? 6;
+   463	  const out: DiscoveryCandidate[] = [];
+   464	  let materialized = 0;
+   465	  if (!process.env.COMPANIES_HOUSE_API_KEY) return { materialized: 0, candidates: out };
+   466	
+   467	  const corpAnchors = input.candidates
+   468	    .filter((c) => {
+   469	      const t = String(c.type ?? "").toLowerCase();
+   470	      const n = String(c.name ?? "");
+   471	      return t.includes("corp") || t.includes("company") || /llc|ltd|inc|plc|gmbh/i.test(n);
+   472	    })
+   473	    .slice(0, 4);
+   474	
+   475	  try {
+   476	    const { searchRegistry } = await import("../../lib/registry-client");
+   477	    for (const anchor of corpAnchors) {
+   478	      if (out.length >= limit) break;
+   479	      let results: Array<{ name: string; type?: string; metadata?: string; notes?: string }> = [];
+   480	      try {
+   481	        results = await searchRegistry({
+   482	          query: anchor.name,
+   483	          registry: "companies-house",
+   484	          limit: 5,
+   485	        });
+   486	      } catch {
+   487	        continue;
+   488	      }
+   489	      for (const r of results) {
+   490	        if (out.length >= limit) break;
+   491	        const personName = String(r.name ?? "").trim();
+   492	        if (!personName || personName.toLowerCase() === anchor.name.trim().toLowerCase()) continue;
+   493	        const looksPerson = personName.includes(" ") && !/llc|ltd|inc|plc|gmbh|limited/i.test(personName);
+   494	        if (!looksPerson) continue;
+   495	
+   496	        const existing = await db
+   497	          .select({ id: entitiesTable.id })
+   498	          .from(entitiesTable)
+   499	          .where(sql`lower(btrim(${entitiesTable.name})) = ${personName.toLowerCase()}`)
+   500	          .limit(1);
+   501	        let entityId: number | null = existing[0]?.id ?? null;
+   502	        if (!entityId) {
+   503	          try {
+   504	            const [entity] = await db.insert(entitiesTable).values({
+   505	              name: personName,
+   506	              type: "HNWI",
+   507	              bayesianScore: 0.05,
+   508	              contactConfidence: 0,
+   509	              contactOutcome: "evidence_only",
+   510	              isHot: false,
+   511	              isStarred: false,
+   512	              isHidden: false,
+   513	              sourceRegistries: JSON.stringify(["Companies House officers"]),
+   514	              notes: `Registry officer expanded from corp anchor "${anchor.name}" (case ${input.caseId}). Review-only; not Personal.`,
+   515	              metadata: JSON.stringify({
+   516	                reviewOnly: true,
+   517	                admission: "registry-officer-expansion",
+   518	                caseId: input.caseId,
+   519	                parentCorp: anchor.name,
+   520	                candidate: { name: personName, type: r.type, notes: r.notes },
+   521	              }),
+   522	            }).returning();
+   523	            entityId = entity?.id ?? null;
+   524	          } catch {
+   525	            entityId = null;
+   526	          }
+   527	        }
+   528	        if (!entityId) continue;
+   529	
+   530	        let sourceUrls: string[] = [];
+   531	        try {
+   532	          const meta = r.metadata ? JSON.parse(r.metadata) as Record<string, unknown> : {};
+   533	          if (typeof meta.url === "string") sourceUrls = [meta.url];
+   534	        } catch { /* ignore */ }
+   535	
+   536	        await persistBureauContactsForEntity(entityId, [{
+   537	          vectorType: "website",
+   538	          value: sourceUrls[0] ?? `companies-house:${personName}`,
+   539	          scope: "candidate",
+   540	          personName,
+   541	          role: "officer",
+   542	          sourceUrls,
+   543	          note: `Companies House officer related to ${anchor.name}`,
+   544	          tier: "candidate",
+   545	          state: "review_only",
+   915	            : "Multi-hop agentic search. Invent queries and use OSINT tools when useful. Never invent contacts.",
+   916	        ].filter(Boolean).join("\n"),
+   917	        caseId,
+   918	        jobId,
+   919	        maxIterations: resolveResearchDepth().agenticMaxIterations,
+   920	        shouldCancel: async () => {
+   921	          const job = await getJob(jobId);
+   922	          return !job || job.status === "failed" || job.status === "cancelled";
+   923	        },
+   924	      });
+   925	      workingFile = await persistDiscoveryCheckpoint(caseId, openingIteration, workingFile, {
+   926	        lane: "broad-web",
+   927	        provider: `Agentic-ReAct ${agenticDiscovery.model}`,
+   928	        status: agenticDiscovery.status === "completed" ? "completed" : agenticDiscovery.status === "unavailable" ? "unavailable" : "failed",
+   929	        iteration: openingIteration,
+   930	        summary: `Agentic web pass: ${agenticDiscovery.findings.length} findings; searches=${agenticDiscovery.searches}; visits=${agenticDiscovery.visits}`,
+   931	        findings: agenticDiscovery.trajectory.slice(-8),
+   932	        candidateNames: agenticDiscovery.findings
+   933	          .map((f) => f.personName)
+   934	          .filter((n): n is string => Boolean(n)),
+   935	        sourceUrls: agenticDiscovery.findings.flatMap((f) => f.sourceUrls).slice(0, 20),
+   936	        nextQuestions: [],
+   937	        contactEvidence: agenticDiscovery.contactEvidence,
+   938	        error: agenticDiscovery.error,
+   939	      }, `Agentic ReAct web pass ${agenticDiscovery.status}; findings=${agenticDiscovery.findings.length}.`);
+   940	      await appendJobLog(jobId, `Agentic ReAct web ${agenticDiscovery.status}; model=${agenticDiscovery.model}; findings=${agenticDiscovery.findings.length}; searches=${agenticDiscovery.searches}.`);
+   941	
+   942	      const boss = await runGeminiBossDiscovery({
+   943	          file: workingFile,
+   944	          objective: file.humanBrief.objective,
+   945	          motivation: file.humanBrief.motivation,
+   946	          geography: file.humanBrief.geography,
+   947	          exclusions: file.humanBrief.exclusions,
+   948	           rightHandAdvice: rightHand,
+   949	           startingLane: `Randomized Western-aligned discovery lane ${discoveryTemplateSet}`,
+   950	       });
+   951	      workingFile = await persistDiscoveryCheckpoint(caseId, openingIteration, workingFile, {
+   952	        lane: "gemini-boss",
+   953	        provider: `Gemini ${boss.model}`,
+   954	        status: boss.status === "completed" ? "completed" : "unavailable",
+   955	        iteration: openingIteration,
+  1560	            return {
+  1561	              ...cand,
+  1562	              sourceUrls: [],
+  1563	              contactEvidence: [],
+  1564	              relevance: `Name locked to ${lockCompany}; unrelated-domain surface stripped. Review-only.`,
+  1565	            };
+  1566	          }
+  1567	          return null;
+  1568	        }
+  1569	        return {
+  1570	          ...cand,
+  1571	          sourceUrls: (alignedUrls.length ? alignedUrls : urls.filter(hostOk)).slice(0, 8),
+  1572	          contactEvidence: evidence,
+  1573	          relevance: (cand as { relevance?: string }).relevance
+  1574	            ?? `Company-locked to ${lockCompany}; only aligned sources retained.`,
+  1575	        };
+  1576	      };
+  1577	
+  1578	      const companyLockedReview = reviewCandidates
+  1579	        .map((c) => scrubCompanyLockedSurface(c))
+  1580	        .filter((c): c is NonNullable<typeof c> => c != null);
+  1581	
+  1582	      const preFilterCount = companyLockedReview.length;
+  1583	      const mergedReviewCandidates = mergeDiscoveryCandidates([], companyLockedReview);
+  1584	      const fameDropped = Math.max(0, preFilterCount - mergedReviewCandidates.length);
+  1585	      if (fameDropped > 0) {
+  1586	        await appendJobLog(
+  1587	          jobId,
+  1588	          `Fitness filter removed ${fameDropped} fame-only or empty candidate(s) from discovery review deck; retained ${mergedReviewCandidates.length}.`,
+  1589	        );
+  1590	      }
+  1591	      if (lockCompany) {
+  1592	        await appendJobLog(
+  1593	          jobId,
+  1594	          `Company-lock scrub applied for "${lockCompany}"; person surface limited to company-aligned domains.`,
+  1595	        );
+  1596	      }
+  1597	
+  1598	
+  1599	      // GHOST-style: dedupe person rows that share the same normalized name (keep denser evidence)
+  1600	      const normPerson = (n: string) => n.toLowerCase().replace(/[^a-z\s]/g, " ").replace(/\s+/g, " ").trim();
+  1601	      const deduped: typeof mergedReviewCandidates = [];
+  1602	      for (const cand of mergedReviewCandidates) {
+  1603	        const isP = cand.type === "person" || cand.type === "review_candidate";
+  1604	        if (!isP || cand.name.split(/\s+/).length < 2) {
+  1605	          deduped.push(cand);
+  1606	          continue;
+  1607	        }
+  1608	        const key = normPerson(cand.name);
+  1609	        const existingIdx = deduped.findIndex(
+  1610	          (d) => (d.type === "person" || d.type === "review_candidate") && normPerson(d.name) === key,
+  1611	        );
+  1612	        if (existingIdx < 0) {
+  1613	          deduped.push(cand);
+  1614	          continue;
+  1615	        }
+  1616	        const prev = deduped[existingIdx]!;
+  1617	        const denser =
+  1618	          (cand.contactEvidence?.length ?? 0) + (cand.sourceUrls?.length ?? 0)
+  1619	          >= (prev.contactEvidence?.length ?? 0) + (prev.sourceUrls?.length ?? 0)
+  1620	            ? cand
+  1621	            : prev;
+  1622	        const thinner = denser === cand ? prev : cand;
+  1623	        denser.contactEvidence = [
+  1624	          ...(denser.contactEvidence ?? []),
+  1625	          ...(thinner.contactEvidence ?? []).filter(
+  1626	            (e) => !(denser.contactEvidence ?? []).some(
+  1627	              (x) => x.vectorType === e.vectorType && String(x.value).toLowerCase() === String(e.value).toLowerCase(),
+  1628	            ),
+  1629	          ),
+  1630	        ].slice(0, 24);
+  1631	        denser.sourceUrls = [...new Set([...(denser.sourceUrls ?? []), ...(thinner.sourceUrls ?? [])])].slice(0, 12);
+  1632	        deduped[existingIdx] = denser;
+  1633	      }
+  1634	      mergedReviewCandidates.length = 0;
+  1635	      mergedReviewCandidates.push(...deduped);
+  1636	
+  1637	      // GHOST-style entity graph: link person rows to company row when company is locked
+  1638	      const entityLinks: Array<{
+  1639	        from: string;
+  1640	        to: string;
+  1641	        relation: string;
+  1642	        evidence: string[];
+  1643	      }> = [];
+  1644	      const companyRow = mergedReviewCandidates.find(
+  1645	        (c) => c.type === "company" || (lockCompany && c.name.toLowerCase() === lockCompany.toLowerCase()),
+  1646	      );
+  1647	      if (companyRow) {
+  1648	        for (const person of mergedReviewCandidates) {
+  1649	          if (person === companyRow) continue;
+  1650	          if (person.type !== "person" && person.type !== "review_candidate") continue;
+  1651	          if (person.name.split(/\s+/).length < 2) continue;
+  1652	          const roleHint = (person.contactEvidence ?? [])
+  1653	            .map((e) => String(e.role || e.value || ""))
+  1654	            .find((s) => /founder|owner|officer|ceo|president|director|principal/i.test(s));
+  1655	          entityLinks.push({
+  1656	            from: person.name,
+  1657	            to: companyRow.name,
+  1658	            relation: roleHint ? String(roleHint).slice(0, 80) : "related_to_organization",
+  1659	            evidence: (person.sourceUrls ?? []).slice(0, 4),
+  1660	          });
+  1661	        }
+  1662	      }
+  1663	
+  1664	      // Org footprint evidence assessment from deck (status only — not a research script)
+  1665	      const allEv = mergedReviewCandidates.flatMap((c) => c.contactEvidence ?? []);
+  1666	      const allUrls = mergedReviewCandidates.flatMap((c) => c.sourceUrls ?? []);
+  1667	      const orgFootprint = {
+  1668	        website: allEv.some((e) => e.vectorType === "website") || allUrls.some((u) => /^https?:\/\//i.test(u)),
+  1669	        orgPhone: allEv.some((e) => e.vectorType === "phone"),
+  1670	        orgEmail: allEv.some((e) => e.vectorType === "email"),
+  1671	        address: allEv.some((e) => e.vectorType === "other" && /\d/.test(String(e.value || "")) && /street|rd|ave|drive|blvd|mi |state/i.test(String(e.value || ""))),
+  1672	        relatedOfficers: entityLinks.length > 0 || mergedReviewCandidates.filter((c) => c.type === "person").length >= 2,
+  1673	        registryMention: allUrls.some((u) => /opencorporates|sec\.gov|companieshouse|gleif|bbb\.org/i.test(u)),
+  1674	        notes: [
+  1675	          lockCompany ? `Locked company: ${lockCompany}` : "No company lock",
+  1676	          `entityLinks=${entityLinks.length}`,
+  1677	          `candidates=${mergedReviewCandidates.length}`,
+  1678	        ],
+  1679	      };
+  1680	
+  1681	      workingFile = {
+  1682	        ...workingFile,
+  1683	        discoveredCandidates: mergedReviewCandidates,
+  1684	        entityLinks: entityLinks.length ? entityLinks : (workingFile as { entityLinks?: unknown }).entityLinks,
+  1685	        orgFootprint,
+  1686	        initialResearch: {
+  1687	          ...workingFile.initialResearch,
+  1688	          status: "recorded",
+  1689	          recordedAt: now().toISOString(),
+  1690	        },
+  1691	        lastUpdatedBy: "discovery-lanes",
+  1692	      };
+  1693	      workingFile = await persistDiscoveryCheckpoint(caseId, openingIteration, workingFile, {
+  1694	        lane: "broad-web",
+  1695	        provider: "Tavily/DDG + Groq admission gate",
+  1696	        status: "completed",
+  1697	        iteration: openingIteration,
+  1698	        summary: `Broad discovery searched ${broad.queriesFired} queries and reviewed ${broad.resultsScraped} excerpts.`,
+  1699	        findings: broad.newEntities.map((candidate) => `${candidate.name}: ${candidate.snippet}`).slice(0, 20),
+  1700	        candidateNames: broad.newEntities.map((candidate) => candidate.name),
+  2175	        objective: [
+  2176	          "Boss-directed verification — free agentic multi-hop. Invent queries; use OSINT tools when useful.",
+  2177	          ...directions.slice(0, 6),
+  2178	          "Prefer primary pages when URLs are known. Never invent contacts.",
+  2179	        ].join("\n"),
+  2180	        caseId,
+  2181	        maxIterations: resolveResearchDepth().agenticMaxIterations,
+  2182	        shouldCancel: async () => {
+  2183	          const job = await getJob(jobId);
+  2184	          return !job || job.status === "failed" || job.status === "cancelled";
+  2185	        },
+  2186	      });
+  2187	      workingFile = await persistDiscoveryCheckpoint(caseId, iteration, workingFile, {
+  2188	        lane: "broad-web",
+  2189	        provider: `Agentic-ReAct ${agenticVerify.model}`,
+  2190	        status: agenticVerify.status === "completed" ? "completed" : agenticVerify.status === "unavailable" ? "unavailable" : "failed",
+  2191	        iteration,
+  2192	        summary: `Agentic verification: ${agenticVerify.findings.length} findings`,
+  2193	        findings: agenticVerify.trajectory.slice(-8),
+  2194	        candidateNames: agenticVerify.findings.map((f) => f.personName).filter((n): n is string => Boolean(n)),
+  2195	        sourceUrls: agenticVerify.findings.flatMap((f) => f.sourceUrls).slice(0, 20),
+  2196	        nextQuestions: [],
+  2197	        contactEvidence: agenticVerify.contactEvidence,
+  2198	        error: agenticVerify.error,
+  2199	      }, `Agentic ReAct verification ${agenticVerify.status}; findings=${agenticVerify.findings.length}.`);
+  2200	      await appendJobLog(jobId, `Agentic ReAct verification ${agenticVerify.status}; findings=${agenticVerify.findings.length}.`);
+  2201	
+  2202	      await updateJob(jobId, {
+  2203	        progress: 1,
+  2204	        total: 4,
+  2205	        message: "Named-candidate and decision-maker verification recorded…",
+  2206	      });
+  2207	
+  2208	      // Registry searches are intentionally limited to the existing corporate
+  2209	      // anchors. They provide official cross-references and officer/filing
+  2210	      // signals without inserting records or claiming beneficial ownership.
+  2800	    iteration: current.iteration + 1,
+  2801	    actorRole: "head_investigator",
+  2802	    eventType: "observation",
+  2803	    summary: "Broad initial research response recorded for Boss review and candidate extraction.",
+  2804	    payload: JSON.stringify({
+  2805	      researchResponse: body.data.researchResponse,
+  2806	      bossCommentary: body.data.bossCommentary ?? null,
+  2807	      sourceUrls: body.data.sourceUrls ?? [],
+  2808	    }),
+  2809	  });
+  2810	  res.json(serializeBureauCase(updated!, null));
+  2811	});
+  2812	
+  2813	router.post("/research/bureau/cases/:caseId/admit-candidate", async (req, res): Promise<void> => {
+  2814	  const params = GetBureauCaseParams.safeParse(req.params);
+  2815	  const body = AdmitBureauCaseCandidateBody.safeParse(req.body);
+  2816	  if (!params.success || !body.success) {
+  2817	    res.status(400).json({ error: !params.success ? params.error.message : body.error.message });
+  2818	    return;
+  2819	  }
+  2820	  const [current] = await db.select().from(researchCasesTable)
+  2821	    .where(eq(researchCasesTable.id, params.data.caseId))
+  2822	    .limit(1);
+  2823	  if (!current) {
+  2824	    res.status(404).json({ error: "Bureau case not found" });
+  2825	    return;
+  2826	  }
+  2827	  const discoveryFile = parseDiscoveryCaseFile(current.caseFile);
+  2828	  if (!discoveryFile) {
+  2829	    res.status(409).json({ error: "Only a discovery case can admit a candidate" });
+  2830	    return;
