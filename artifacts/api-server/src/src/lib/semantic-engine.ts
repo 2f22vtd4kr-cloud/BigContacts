@@ -3,18 +3,6 @@
  *
  * Provides true sentence-embedding semantic search using
  * @huggingface/transformers (Xenova/all-MiniLM-L6-v2, ONNX, 384-dim).
- *
- * Runs fully server-side in Node.js — no external AI API calls.
- * Model is ~23 MB, downloaded once to /tmp/hf-cache and cached.
- *
- * Architecture:
- *   1. Background job (POST /api/ingest/compute-embeddings) embeds every entity
- *      and stores Float32Array in Redis key `emb:v1:{id}` (base64).
- *   2. In-memory cache (module Map) is populated from Redis at startup and
- *      incrementally by the background job.
- *   3. At search time: embed query → cosine sim against in-memory cache → top-K.
- *
- * If cache is empty (cold start), the semantic signal returns [] gracefully.
  */
 
 let env: any = null;
@@ -37,21 +25,15 @@ async function loadTransformers(): Promise<boolean> {
 }
 import { getRedisClient } from "./redis";
 
-// Cache model files locally in /tmp so they survive Replit container restarts
-
-// ── Model singleton ───────────────────────────────────────────────────────────
-
 type FeatureExtractionPipeline = any;
 let _pipelinePromise: Promise<FeatureExtractionPipeline> | null = null;
 let _pipelineLoaded = false;
 
 async function getEmbeddingPipeline(): Promise<FeatureExtractionPipeline> {
-  // Tiny agent sandboxes / low-memory hosts: never load the ~23 MB model on cold start.
-  // Set APEX_SKIP_SEMANTIC=1 or APEX_TINY_HOST=1 to force skip; semantic returns [] gracefully.
   if (
     process.env.APEX_SKIP_SEMANTIC === "1" ||
     process.env.APEX_TINY_HOST === "1" ||
-    process.env.REPL_ID // Replit free tier is often too small
+    process.env.REPL_ID
   ) {
     throw new Error("semantic model skipped on tiny host (APEX_SKIP_SEMANTIC / APEX_TINY_HOST)");
   }
@@ -69,12 +51,12 @@ async function getEmbeddingPipeline(): Promise<FeatureExtractionPipeline> {
       "feature-extraction",
       "Xenova/all-MiniLM-L6-v2",
       { dtype: "fp32" },
-    ).then((p) => {
+    ).then((p: FeatureExtractionPipeline) => {
       _pipelineLoaded = true;
       console.log("[semantic-engine] Model ready.");
       return p;
-    }).catch((err) => {
-      _pipelinePromise = null; // allow retry
+    }).catch((err: unknown) => {
+      _pipelinePromise = null;
       throw err;
     });
   }
@@ -85,28 +67,18 @@ export function isModelLoaded(): boolean {
   return _pipelineLoaded;
 }
 
-// ── Embedding ─────────────────────────────────────────────────────────────────
-
-/**
- * Embed a string → normalised 384-dim Float32Array.
- * Truncates to 512 chars to keep latency under 20 ms post-load.
- */
 export async function embedText(text: string): Promise<Float32Array> {
   try {
     const pipe = await getEmbeddingPipeline();
     const output = await pipe(text.slice(0, 512), { pooling: "mean", normalize: true });
-    // output.data is already a Float32Array
     return output.data as Float32Array;
   } catch (err: any) {
     if (String(err?.message || err).includes("skipped on tiny host")) {
-      // Graceful empty signal — callers already treat empty cache as "no semantic hits"
       return new Float32Array(384);
     }
     throw err;
   }
 }
-
-// ── Cosine similarity ─────────────────────────────────────────────────────────
 
 function cosineSim(a: Float32Array, b: Float32Array): number {
   let dot = 0;
@@ -121,15 +93,12 @@ function cosineSim(a: Float32Array, b: Float32Array): number {
   return denom === 0 ? 0 : dot / denom;
 }
 
-// ── In-memory embedding cache ─────────────────────────────────────────────────
-
 const _embCache = new Map<number, Float32Array>();
 
 export function getEmbeddingCacheSize(): number {
   return _embCache.size;
 }
 
-/** Build the text to embed for an entity — same fields as BM25 for consistency */
 export function entityToEmbedText(entity: {
   name: string;
   notes?: string | null;
@@ -141,7 +110,7 @@ export function entityToEmbedText(entity: {
   try { meta = JSON.parse(entity.metadata ?? "{}"); } catch { /* */ }
 
   return [
-    entity.name, entity.name, // doubled for weight
+    entity.name, entity.name,
     entity.notes ?? "",
     entity.nationality ?? "",
     entity.knownResidences ?? "",
@@ -156,10 +125,8 @@ export function entityToEmbedText(entity: {
     .slice(0, 512);
 }
 
-// ── Redis persistence ─────────────────────────────────────────────────────────
-
 const EMB_KEY_PREFIX = "emb:v1:";
-const EMB_TTL_SECONDS = 60 * 60 * 24 * 14; // 14 days
+const EMB_TTL_SECONDS = 60 * 60 * 24 * 14;
 
 function float32ToBase64(arr: Float32Array): string {
   return Buffer.from(arr.buffer).toString("base64");
@@ -170,7 +137,6 @@ function base64ToFloat32(b64: string): Float32Array {
   return new Float32Array(buf.buffer, buf.byteOffset, buf.byteLength / 4);
 }
 
-/** Store one embedding in Redis + in-memory cache */
 export async function storeEmbedding(entityId: number, emb: Float32Array): Promise<void> {
   _embCache.set(entityId, emb);
   try {
@@ -179,14 +145,9 @@ export async function storeEmbedding(entityId: number, emb: Float32Array): Promi
       await redis.set(`${EMB_KEY_PREFIX}${entityId}`, float32ToBase64(emb), "EX", EMB_TTL_SECONDS);
     }
   } catch {
-    // Redis failure is non-fatal — in-memory cache still works
   }
 }
 
-/**
- * Load all embeddings from Redis into the in-memory cache.
- * Called at startup — may load 0 entries on fresh import (run compute-embeddings to populate).
- */
 export async function loadEmbeddingsFromRedis(): Promise<number> {
   try {
     const redis = await getRedisClient();
@@ -222,25 +183,16 @@ export async function loadEmbeddingsFromRedis(): Promise<number> {
   }
 }
 
-// ── Search ────────────────────────────────────────────────────────────────────
-
 export interface SemanticEngineResult {
   id: number;
   score: number;
 }
 
-/**
- * Semantic search against the in-memory embedding cache.
- * Returns [] if cache is empty (model not yet warmed up).
- */
 export async function semanticEngineSearch(
   query: string,
   topK = 100,
 ): Promise<SemanticEngineResult[]> {
-  if (_embCache.size < 100) {
-    // Not enough embeddings yet — skip gracefully
-    return [];
-  }
+  if (_embCache.size < 100) return [];
 
   let queryEmb: Float32Array;
   try {
@@ -259,22 +211,14 @@ export async function semanticEngineSearch(
     .slice(0, topK);
 }
 
-// ── Expose embedding cache for cross-module use (e.g. entity resolution) ─────
-
-/**
- * Returns the full in-memory embedding cache (entityId → Float32Array).
- * Callers must not mutate the map.
- */
 export function getAllEmbeddings(): ReadonlyMap<number, Float32Array> {
   return _embCache;
 }
 
-// ── Warm-up: preload model in background (non-blocking) ───────────────────────
-
 export function warmUpSemanticEngine(): void {
   getEmbeddingPipeline()
     .then(() => loadEmbeddingsFromRedis())
-    .catch((err) =>
+    .catch((err: unknown) =>
       console.warn("[semantic-engine] Warm-up failed (non-fatal):", (err as Error).message),
     );
 }
