@@ -6,6 +6,7 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".."
 const reactorPath = path.join(repoRoot, "artifacts/apex-finder/src/pages/reactor.tsx");
 
 let s = fs.readFileSync(reactorPath, "utf8");
+const original = s;
 
 // Only an active Dig span may create a visible scheme node. Completed spans
 // remain available in the desk/history but disappear from the live canvas.
@@ -26,9 +27,6 @@ if (!s.includes(importLine)) {
   s = s.replace(importAnchor, `${importAnchor}\n${importLine}`);
 }
 
-// Insert immediately before the existing poster comment. The activity surface
-// reads recentSpans itself through the already-present schemeNodesFromSpans
-// mapper, so phase maps/fallback nodes cannot leak into the live scheme.
 const schemeMarker = "Scheme canvas — horizontal + vertical pan via scroll";
 if (!s.includes("<ReactorActivityOnly nodes={NODES.filter")) {
   const markerAt = s.indexOf(schemeMarker);
@@ -38,7 +36,6 @@ if (!s.includes("<ReactorActivityOnly nodes={NODES.filter")) {
   s = s.slice(0, lineStart) + activity + s.slice(lineStart);
 }
 
-// The poster implementation is preserved, but never mounted in Live tools mode.
 const scrollMarker = 'data-testid="scheme-scroll-viewport"';
 const scrollAt = s.indexOf(scrollMarker);
 if (scrollAt < 0) throw new Error("scheme scroll viewport missing");
@@ -51,26 +48,26 @@ if (!s.slice(styleAt, nextBrace).includes(displayMarker)) {
   s = s.slice(0, styleAt) + s.slice(styleAt, nextBrace).replace('style={{', 'style={{\n            ' + displayMarker) + s.slice(nextBrace);
 }
 
-// The committed page still contains a malformed outer pollJobs try/catch
-// boundary. Remove only that unused wrapper at build time; the inner contact
-// hydration try/catch remains intact. This keeps the generated TSX parseable.
-s = s.replace(
-  '    try {\n      // Poll jobs, atlas status, AND key health in parallel',
-  '      // Poll jobs, atlas status, AND key health in parallel',
-);
-s = s.replace(
-  '      }\n    } catch { /* non-fatal */ }\n  }, []);',
-  '      }\n  }, []);',
-);
+// Repair the known malformed outer wrapper only as one exact pair. Do not
+// perform a partial rewrite on a previously transformed source.
+const pollStart = '    try {\n      // Poll jobs, atlas status, AND key health in parallel';
+const pollEnd = '      }\n    } catch { /* non-fatal */ }\n  }, []);';
+if (s.includes(pollStart) || s.includes(pollEnd)) {
+  if (!(s.includes(pollStart) && s.includes(pollEnd))) {
+    throw new Error("reactor poll wrapper is partially transformed; refusing to mutate source");
+  }
+  s = s.replace(pollStart, '      // Poll jobs, atlas status, AND key health in parallel');
+  s = s.replace(pollEnd, '      }\n  }, []);');
+}
 
 const regularJobsMarker = '      // ── Regular jobs';
 if (!s.includes(`      }\n${regularJobsMarker}`)) {
-  const regularJobsAt = s.indexOf('      // ── Regular jobs');
+  const regularJobsAt = s.indexOf(regularJobsMarker);
   if (regularJobsAt < 0) throw new Error("regular jobs marker missing");
   s = s.slice(0, regularJobsAt) + `      }\n` + s.slice(regularJobsAt);
 }
 
 if (!s.includes(importLine)) throw new Error("activity component import did not land");
 if (!s.includes("<ReactorActivityOnly nodes={NODES.filter")) throw new Error("activity component mount did not land");
-fs.writeFileSync(reactorPath, s);
-console.log("REACTOR_ACTIVITY_ONLY_APPLIED");
+if (s !== original) fs.writeFileSync(reactorPath, s);
+console.log(s === original ? "REACTOR_ACTIVITY_ONLY_ALREADY_CANONICAL" : "REACTOR_ACTIVITY_ONLY_APPLIED");
