@@ -146,6 +146,8 @@ function serializeCase(
     noProgressStreak: number | null;
     bossOutcome: string | null;
     progressAssessment: string | null;
+    rightHandDisposition: string | null;
+    rightHandNote: string | null;
     lanesHonesty: Record<string, unknown> | null;
   } | null = null;
   let discoveryQuality: ReturnType<typeof computeDiscoveryQualityMetrics> | null = null;
@@ -233,7 +235,7 @@ function mergeContactEvidence(
     personName: string | null;
     role: string | null;
     sourceUrls: string[];
-    note: string | null;
+    note: string | null | undefined;
   }> | undefined>
 ) {
   return groups.flatMap((group) => group ?? [])
@@ -330,7 +332,7 @@ async function materializeDiscoveryReviewCandidates(input: {
       .where(sql`lower(btrim(${entitiesTable.name})) = ${name.toLowerCase()}`)
       .limit(1);
 
-    let entityId = existing[0]?.id ?? null;
+    let entityId: number | null = existing[0]?.id ?? null;
     const entityType = candidateTypeToEntityType(String(candidate.type ?? "review_candidate"));
     if (!entityId) {
       try {
@@ -496,7 +498,7 @@ async function expandRegistryOfficersFromCandidates(input: {
           .from(entitiesTable)
           .where(sql`lower(btrim(${entitiesTable.name})) = ${personName.toLowerCase()}`)
           .limit(1);
-        let entityId = existing[0]?.id ?? null;
+        let entityId: number | null = existing[0]?.id ?? null;
         if (!entityId) {
           try {
             const [entity] = await db.insert(entitiesTable).values({
