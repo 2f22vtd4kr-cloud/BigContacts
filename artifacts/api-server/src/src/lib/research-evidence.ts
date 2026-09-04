@@ -33,11 +33,7 @@ export function buildResearchEvidenceRows(input: {
 }): InsertResearchEvidence[] {
   const rows: InsertResearchEvidence[] = [];
   const add = (row: Omit<InsertResearchEvidence, "sessionId" | "entityId">) => {
-    rows.push({
-      ...row,
-      sessionId: input.sessionId,
-      entityId: input.entityId,
-    });
+    rows.push({ ...row, sessionId: input.sessionId, entityId: input.entityId });
   };
   const observedAt = new Date();
   const addClaim = (row: Omit<InsertResearchEvidence, "sessionId" | "entityId"> & {
@@ -47,7 +43,7 @@ export function buildResearchEvidenceRows(input: {
   }) => {
     const sourceReliability = getSourceReliability(row.sourceName);
     const decision = decideEvidence({
-      confidence: row.confidence,
+      confidence: row.confidence ?? 0,
       sourceName: row.sourceName,
       sourceReliability: sourceReliability.reliability,
       conflictReason: row.conflictReason,
@@ -60,7 +56,6 @@ export function buildResearchEvidenceRows(input: {
       const parsed = JSON.parse(evidence.metadata || "{}");
       if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) metadata = parsed as Record<string, unknown>;
     } catch {
-      // Keep malformed source metadata visible while adding reliability context.
     }
     add({
       ...evidence,
@@ -95,15 +90,8 @@ export function buildResearchEvidenceRows(input: {
       confidence: confidence || 0.35,
       observedAt,
       freshnessScore: computeFreshnessScore(observedAt, observedAt),
-      metadata: JSON.stringify({
-        role: node.role ?? null,
-        contactEmail: node.contactEmail ?? null,
-        contactPhone: node.contactPhone ?? null,
-        registry: node.registry ?? null,
-      }),
-      negativeReason: confidence < 0.7
-        ? "The stored public contact vector is insufficient to attribute this path node as an authorized intermediary."
-        : null,
+      metadata: JSON.stringify({ role: node.role ?? null, contactEmail: node.contactEmail ?? null, contactPhone: node.contactPhone ?? null, registry: node.registry ?? null }),
+      negativeReason: confidence < 0.7 ? "The stored public contact vector is insufficient to attribute this path node as an authorized intermediary." : null,
     });
   }
 
@@ -117,9 +105,7 @@ export function buildResearchEvidenceRows(input: {
       observedAt,
       freshnessScore: computeFreshnessScore(observedAt, observedAt),
       metadata: JSON.stringify({ action: step.action ?? null, targetType: step.targetType ?? null }),
-      negativeReason: (step.warmthScore ?? 0) < 0.7
-        ? "Warmth is a prioritization signal, not independent proof of access or identity."
-        : null,
+      negativeReason: (step.warmthScore ?? 0) < 0.7 ? "Warmth is a prioritization signal, not independent proof of access or identity." : null,
     });
   }
 
@@ -133,9 +119,7 @@ export function buildResearchEvidenceRows(input: {
       observedAt,
       freshnessScore: computeFreshnessScore(observedAt, observedAt),
       metadata: JSON.stringify(input.hybridMeta),
-      negativeReason: (input.hybridMeta.totalCandidates ?? 0) === 0
-        ? "No related candidates were returned by the configured retrieval signals."
-        : null,
+      negativeReason: (input.hybridMeta.totalCandidates ?? 0) === 0 ? "No related candidates were returned by the configured retrieval signals." : null,
     });
   }
 
@@ -149,13 +133,8 @@ export function buildResearchEvidenceRows(input: {
       observedAt,
       freshnessScore: computeFreshnessScore(observedAt, observedAt),
       rejectionReason: input.reachability.blockers?.join("; ") || null,
-      metadata: JSON.stringify({
-        reasons: input.reachability.reasons ?? [],
-        blockers: input.reachability.blockers ?? [],
-      }),
-      negativeReason: input.reachability.status === "reachable"
-        ? null
-        : input.reachability.blockers?.join("; ") || "No validated direct or intermediary route was established.",
+      metadata: JSON.stringify({ reasons: input.reachability.reasons ?? [], blockers: input.reachability.blockers ?? [] }),
+      negativeReason: input.reachability.status === "reachable" ? null : input.reachability.blockers?.join("; ") || "No validated direct or intermediary route was established.",
     });
   }
 
