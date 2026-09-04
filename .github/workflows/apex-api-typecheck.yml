@@ -1,6 +1,6 @@
 name: Apex API Build
 
-# Canonical API build and typecheck gate.
+# Canonical API build and typecheck gate. Diagnostic capture remains temporary until the gate is green.
 on:
   push:
     branches: [main]
