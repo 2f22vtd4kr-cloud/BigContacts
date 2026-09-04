@@ -1,0 +1,18 @@
+  2188	        lane: "broad-web",
+  2189	        provider: `Agentic-ReAct ${agenticVerify.model}`,
+  2190	        status: agenticVerify.status === "completed" ? "completed" : agenticVerify.status === "unavailable" ? "unavailable" : "failed",
+  2191	        iteration,
+  2192	        summary: `Agentic verification: ${agenticVerify.findings.length} findings`,
+  2193	        findings: agenticVerify.trajectory.slice(-8),
+  2194	        candidateNames: agenticVerify.findings.map((f) => f.personName).filter((n): n is string => Boolean(n)),
+  2195	        sourceUrls: agenticVerify.findings.flatMap((f) => f.sourceUrls).slice(0, 20),
+  2196	        nextQuestions: [],
+  2197	        contactEvidence: agenticVerify.contactEvidence,
+  2198	        error: agenticVerify.error,
+  2199	      }, `Agentic ReAct verification ${agenticVerify.status}; findings=${agenticVerify.findings.length}.`);
+  2200	      await appendJobLog(jobId, `Agentic ReAct verification ${agenticVerify.status}; findings=${agenticVerify.findings.length}.`);
+  2201	
+  2202	      await updateJob(jobId, {
+  2203	        progress: 1,
+  2204	        total: 4,
+  2205	        message: "Named-candidate and decision-maker verification recorded…",

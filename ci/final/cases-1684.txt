@@ -1,0 +1,21 @@
+  1672	        relatedOfficers: entityLinks.length > 0 || mergedReviewCandidates.filter((c) => c.type === "person").length >= 2,
+  1673	        registryMention: allUrls.some((u) => /opencorporates|sec\.gov|companieshouse|gleif|bbb\.org/i.test(u)),
+  1674	        notes: [
+  1675	          lockCompany ? `Locked company: ${lockCompany}` : "No company lock",
+  1676	          `entityLinks=${entityLinks.length}`,
+  1677	          `candidates=${mergedReviewCandidates.length}`,
+  1678	        ],
+  1679	      };
+  1680	
+  1681	      workingFile = {
+  1682	        ...workingFile,
+  1683	        discoveredCandidates: mergedReviewCandidates,
+  1684	        entityLinks: entityLinks.length ? entityLinks : (workingFile as { entityLinks?: unknown }).entityLinks,
+  1685	        orgFootprint,
+  1686	        initialResearch: {
+  1687	          ...workingFile.initialResearch,
+  1688	          status: "recorded",
+  1689	          recordedAt: now().toISOString(),
+  1690	        },
+  1691	        lastUpdatedBy: "discovery-lanes",
+  1692	      };

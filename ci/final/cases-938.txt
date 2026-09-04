@@ -1,0 +1,21 @@
+   925	      workingFile = await persistDiscoveryCheckpoint(caseId, openingIteration, workingFile, {
+   926	        lane: "broad-web",
+   927	        provider: `Agentic-ReAct ${agenticDiscovery.model}`,
+   928	        status: agenticDiscovery.status === "completed" ? "completed" : agenticDiscovery.status === "unavailable" ? "unavailable" : "failed",
+   929	        iteration: openingIteration,
+   930	        summary: `Agentic web pass: ${agenticDiscovery.findings.length} findings; searches=${agenticDiscovery.searches}; visits=${agenticDiscovery.visits}`,
+   931	        findings: agenticDiscovery.trajectory.slice(-8),
+   932	        candidateNames: agenticDiscovery.findings
+   933	          .map((f) => f.personName)
+   934	          .filter((n): n is string => Boolean(n)),
+   935	        sourceUrls: agenticDiscovery.findings.flatMap((f) => f.sourceUrls).slice(0, 20),
+   936	        nextQuestions: [],
+   937	        contactEvidence: agenticDiscovery.contactEvidence,
+   938	        error: agenticDiscovery.error,
+   939	      }, `Agentic ReAct web pass ${agenticDiscovery.status}; findings=${agenticDiscovery.findings.length}.`);
+   940	      await appendJobLog(jobId, `Agentic ReAct web ${agenticDiscovery.status}; model=${agenticDiscovery.model}; findings=${agenticDiscovery.findings.length}; searches=${agenticDiscovery.searches}.`);
+   941	
+   942	      const boss = await runGeminiBossDiscovery({
+   943	          file: workingFile,
+   944	          objective: file.humanBrief.objective,
+   945	          motivation: file.humanBrief.motivation,

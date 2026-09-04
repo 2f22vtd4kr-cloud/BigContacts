@@ -1,0 +1,17 @@
+  2808	    }),
+  2809	  });
+  2810	  res.json(serializeBureauCase(updated!, null));
+  2811	});
+  2812	
+  2813	router.post("/research/bureau/cases/:caseId/admit-candidate", async (req, res): Promise<void> => {
+  2814	  const params = GetBureauCaseParams.safeParse(req.params);
+  2815	  const body = AdmitBureauCaseCandidateBody.safeParse(req.body);
+  2816	  if (!params.success || !body.success) {
+  2817	    res.status(400).json({ error: !params.success ? params.error.message : body.error.message });
+  2818	    return;
+  2819	  }
+  2820	  const [current] = await db.select().from(researchCasesTable)
+  2821	    .where(eq(researchCasesTable.id, params.data.caseId))
+  2822	    .limit(1);
+  2823	  if (!current) {
+  2824	    res.status(404).json({ error: "Bureau case not found" });
