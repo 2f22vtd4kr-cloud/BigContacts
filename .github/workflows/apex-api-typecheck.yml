@@ -1,6 +1,6 @@
 name: Apex API Build
 
-# Canonical API build and typecheck gate. Diagnostic capture remains temporary until the gate is green.
+# Canonical API build and typecheck gate. Diagnostic capture remains temporary until the gate is green (pass 2B rerun).
 on:
   push:
     branches: [main]
@@ -57,7 +57,7 @@ jobs:
           nl -ba artifacts/api-server/src/src/lib/in-house-enricher.ts | sed -n '1808,1840p' > ci/excerpts/in-house-enricher.txt
           nl -ba artifacts/api-server/src/src/lib/web-enricher.ts | sed -n '2158,2190p;4105,4140p' > ci/excerpts/web-enricher.txt
           nl -ba artifacts/api-server/src/src/routes/extended-osint.ts | sed -n '100,245p' > ci/excerpts/extended-osint.txt
-          nl -ba artifacts/api-server/src/src/routes/research/cases.ts | sed -n '150,290p;345,545p;915,955p;1560,1700p;2175,2210p;2800,2830p' > ci/excerpts/research-cases.txt
+          nl -ba artifacts/api-server/src/src/routes/research/cases.ts | sed -n '120,150p;150,290p;290,345p;345,545p;915,955p;1560,1700p;2175,2210p;2800,2830p' > ci/excerpts/research-cases.txt
           git config user.name "apex-typecheck-bot"
           git config user.email "apex-typecheck-bot@users.noreply.github.com"
           git checkout --orphan ci-typecheck-diagnostics
