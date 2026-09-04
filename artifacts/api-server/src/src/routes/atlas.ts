@@ -25,8 +25,15 @@ import { enablePermanentRedis } from "../lib/redis";
 
 const router = Router();
 
-const ATLAS_ZOMBIE_MS = 90 * 60 * 1_000;
-const ATLAS_STALE_PROGRESS_MS = 90 * 1_000;
+const ATLAS_ZOMBIE_MS = (() => {
+  const parsed = Number(process.env.ATLAS_ZOMBIE_MS);
+  return Number.isFinite(parsed) && parsed > 0 ? Math.max(parsed, 10 * 60 * 1_000) : 90 * 60 * 1_000;
+})();
+const ATLAS_STALE_PROGRESS_MS = (() => {
+  const parsed = Number(process.env.ATLAS_STALE_PROGRESS_MS);
+  return Number.isFinite(parsed) && parsed > 0 ? Math.max(parsed, 10 * 60 * 1_000) : 10 * 60 * 1_000;
+})();
+const ATLAS_DISABLE_AUTO_CLEAR = /^(1|true|yes)$/i.test(String(process.env.ATLAS_DISABLE_AUTO_CLEAR ?? ""));
 const ATLAS_LATEST_DISPLAY_TTL_MS = 15 * 60 * 1_000;
 /** Status plane must not wait on Redis forever while dig holds the event loop / connection pool. */
 const STATUS_REDIS_BUDGET_MS = 1_200;
@@ -92,7 +99,7 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
         Number.isFinite(startedMs) &&
         Date.now() - startedMs > ATLAS_STALE_PROGRESS_MS &&
         ageMs > ATLAS_STALE_PROGRESS_MS;
-      if (hardZombie || softZombie || !Number.isFinite(startedMs)) {
+      if (!ATLAS_DISABLE_AUTO_CLEAR && (hardZombie || softZombie || !Number.isFinite(startedMs))) {
         await updateJob(existing, {
           status: "cancelled",
           message: "Cleared stale job so a new Launch could start.",
@@ -502,7 +509,7 @@ router.get("/ingest/atlas-status", async (_req: Request, res: Response): Promise
       Number.isFinite(startedMs) &&
       Date.now() - startedMs > minAgeForSoftClear &&
       ageMs > minAgeForSoftClear;
-    if (hardZombie || softZombie) {
+    if (!ATLAS_DISABLE_AUTO_CLEAR && (hardZombie || softZombie)) {
       const stillActive = await getActiveJob("atlas-run");
       if (stillActive && stillActive !== jobId) {
         const newer = await getJob(stillActive);
