@@ -30,8 +30,8 @@ jobs:
           node-version: 22
           registry-url: https://registry.npmjs.org/
       - run: npm install -g pnpm@9
-      - name: Install API workspace graph
-        run: pnpm install --no-frozen-lockfile --ignore-scripts --fetch-retries=8 --fetch-timeout=120000 --filter @workspace/api-server... --registry=https://registry.npmjs.org/
+      - name: Install full workspace for the full typecheck gate
+        run: pnpm install --no-frozen-lockfile --ignore-scripts --fetch-retries=8 --fetch-timeout=120000 --registry=https://registry.npmjs.org/
       - name: Check canonical agentic source parity
         run: node scripts/check-agentic-source-parity.mjs
       - name: Check Apex launch gate
