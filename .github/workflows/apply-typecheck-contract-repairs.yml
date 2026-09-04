@@ -1,0 +1,40 @@
+name: Apply Typecheck Contract Repairs
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/apply-typecheck-contract-repairs.mjs"
+      - ".github/workflows/apply-typecheck-contract-repairs.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Apply canonical contract repairs
+        run: node scripts/apply-typecheck-contract-repairs.mjs
+      - name: Commit repairs when changed
+        run: |
+          if git diff --quiet; then
+            echo "No repair changes to commit."
+            exit 0
+          fi
+          git config user.name "apex-typecheck-bot"
+          git config user.email "apex-typecheck-bot@users.noreply.github.com"
+          git add artifacts/api-server/src/src/lib/deep-web-osint.ts \
+            artifacts/api-server/src/src/lib/discovery-agent.ts \
+            artifacts/api-server/src/src/lib/in-house-enricher.ts \
+            artifacts/api-server/src/src/lib/web-enricher.ts \
+            artifacts/api-server/src/src/routes/extended-osint.ts \
+            artifacts/api-server/src/src/lib/atlas-orchestrator.ts \
+            artifacts/api-server/src/src/lib/case-bureau.ts \
+            artifacts/api-server/src/src/routes/research/cases.ts
+          git commit -m "fix: repair first-pass canonical type contracts"
+          git push origin HEAD:main
