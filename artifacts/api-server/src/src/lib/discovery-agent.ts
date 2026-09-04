@@ -318,7 +318,14 @@ export async function runDiscoveryAgent(input: {
             try {
               spanFromLiveStep({ jobId, targetName: "discovery", tool: step.provider || step.action, label: step.query || step.url || step.action, detail: step.summary || step.url || step.query, status: "ok", agentName: "discovery" });
             } catch { /* spans best-effort */ }
-            input.onLiveStep?.(step);
+            input.onLiveStep?.({
+      action: step.action,
+      tool: step.provider || step.action,
+      query: step.query,
+      url: step.url,
+      detail: step.summary,
+      status: "ok",
+    });
           },
         });
         const admissionFindings = result.modelFindings ?? [];

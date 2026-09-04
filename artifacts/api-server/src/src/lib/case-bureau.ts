@@ -67,11 +67,13 @@ export type DiscoveryContactEvidence = {
   // downstream persistence still validates scope, source URLs and promotion state.
   vectorType: string;
   value: string;
-  scope: "person" | "organization" | "unknown";
+  // Provider/model discovery may carry additional review-only scope labels; promotion validates final scope.
+  scope: string;
   personName: string | null;
   role: string | null;
   sourceUrls: string[];
-  note: string | null;
+  // Provider-originated evidence may omit a note.
+  note: string | null | undefined;
 };
 
 export type ResearchCaseFile = {
