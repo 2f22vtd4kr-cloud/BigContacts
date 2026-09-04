@@ -65,14 +65,18 @@ function isBlockedPublisher(url: string): boolean {
   ].some((domain) => host === domain || host.endsWith(`.${domain}`));
 }
 
+function isPublicSourceUrl(value: unknown): value is string {
+  return typeof value === "string"
+    && /^https?:\/\//i.test(value)
+    && !isBlockedPublisher(value);
+}
+
 function exactSourceUrls(row: ContactEvidenceRow, details: Record<string, unknown>): string[] {
-  const urls = [
+  const urls: unknown[] = [
     row.sourceUrl,
-    ...(Array.isArray(details.sourceUrls)
-      ? details.sourceUrls.filter((value): value is string => typeof value === "string")
-      : []),
+    ...(Array.isArray(details.sourceUrls) ? details.sourceUrls : []),
   ];
-  return [...new Set(urls.filter((url) => /^https?:\/\//i.test(url) && !isBlockedPublisher(url)))];
+  return [...new Set(urls.filter(isPublicSourceUrl))];
 }
 
 function isIntermediaryRole(role: unknown): role is string {
@@ -90,9 +94,6 @@ function candidateRank(row: ContactEvidenceRow, details: Record<string, unknown>
   if (row.vectorType !== "email" && row.vectorType !== "phone") return -1;
 
   let score = 0;
-  // A named person is eligible here only as a possible professional
-  // intermediary. Generic target-person contact candidates stay in the
-  // contact-evidence funnel and do not become intro paths.
   if (scope === "person_candidate" && personName && isIntermediaryRole(role)) score += 125;
   if (scope === "target_person" && personName && isIntermediaryRole(role)) score += 105;
   if (scope === "organization") score += 25;
