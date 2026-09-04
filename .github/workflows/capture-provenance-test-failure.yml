@@ -19,7 +19,8 @@ jobs:
         id: provenance
         run: |
           set +e
-          pnpm --dir artifacts/api-server exec vitest run src/src/test/bureau-contact-persist-strict.test.ts > provenance-test.log 2>&1
+          DATABASE_URL=postgres://apex_ci_placeholder:apex_ci_placeholder@127.0.0.1:5432/apex_ci \
+            pnpm --dir artifacts/api-server exec vitest run src/src/test/bureau-contact-persist-strict.test.ts > provenance-test.log 2>&1
           status=$?
           cat provenance-test.log
           exit $status
@@ -34,4 +35,4 @@ jobs:
           git rm -rf .
           git add ci/provenance-test-latest.txt
           git commit -m "ci: capture provenance test failure"
-          git push --force origin HEAD:refs/heads/ci/provenance-diagnostics
+          git push --force origin HEAD:refs/heads/ci-provenance-diagnostics
