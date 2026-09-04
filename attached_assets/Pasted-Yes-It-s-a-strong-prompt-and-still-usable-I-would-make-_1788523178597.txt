@@ -1,0 +1,397 @@
+Yes. It’s a strong prompt and still usable. I would make a few targeted changes to prevent the new agent from wasting time, accidentally reopening passed work, or treating milestonePass=true as something it can force.
+
+Two important corrections
+
+1. Add an explicit repository integrity rule at the top.
+
+Because the previous session involved a risky GitHub file-edit attempt, I would add:
+
+Before modifying anything, verify the current repository HEAD, working tree, and the full contents of any file being changed. Never perform a whole-file replacement unless the complete canonical file content has been retrieved and verified. Prefer local patch-based edits.
+
+2. Separate “completed Dig” from “successful contact acquisition.”
+
+A legitimate Dig can complete while finding insufficient evidence or no contact. The prompt should prevent the agent from redefining success dishonestly:
+
+A Dig reaching canonical completion does not require finding a contact. Do not convert “no contact found” into a failure if the canonical research journey completed honestly. Completion and research disposition must remain separate concepts.
+
+⸻
+
+My recommended revised version
+
+You can paste this version directly:
+
+⸻
+
+Apex Atlas / BigContacts — Continue Existing Work
+
+You are continuing work on the existing Apex Atlas / BigContacts repository.
+
+NON-DESTRUCTIVE WORKING RULES
+
+Before changing code:
+
+1. Verify the current repository HEAD and branch.
+2. Verify git status -sb.
+3. Inspect recent commits relevant to this work.
+4. Retrieve and inspect the complete current contents of every source file before modifying it.
+5. Never replace a large source file with partial or placeholder content.
+6. Prefer local patch-based edits.
+7. Do not force-push, reset, squash, rewrite history, or recreate existing commits unless explicitly instructed.
+8. Do not restart the project, replace the architecture, create a parallel app, or reopen already-passed static work without concrete evidence that it regressed.
+
+If the environment only provides whole-file replacement editing, retrieve the complete canonical file first. Never write partial content into an existing source file.
+
+⸻
+
+CURRENT VERIFIED STATE
+
+The following already passed and must be preserved:
+
+* Full workspace TypeScript typecheck
+* API build
+* Desk build
+* Database schema push
+* check:no-force-dig
+* check:free-react
+* Agentic runtime and canonical promotion checks
+* API health
+* Redis health
+* bureauIntegrity
+* Desk at /
+* API under /api
+* Canonical source/build hardening and idempotence
+* Discovery-first runtime proof
+
+A bounded discovery run admitted a real source-backed entity:
+
+* Entity ID: 1
+* Name: Darcy Morris
+* Source: https://ewingmorris.com/team-member/darcy-morris-2/
+
+Do not fake or script research results.
+
+⸻
+
+REMAINING ACCEPTANCE FAILURES
+
+1. Standard single-target Dig did not fully complete
+
+Evidence:
+
+* Job: 9989b269-495e-4361-96a1-0e2ff84ae99a
+* Terminal lifecycle: done
+* Outcome: incomplete
+* Target result: timeout_review
+* Error: target enrichment exceeded the configured 180s timeout
+
+2. Scoreboard proof remains incomplete
+
+Current evidence:
+
+* count: 0
+* mean: 0
+* milestonePass: false
+
+The entity remains uncooked because the Dig did not reach the canonical completed research transition.
+
+3. GitHub push previously failed
+
+Previous error:
+
+remote: Invalid username or token.
+fatal: Authentication failed
+
+The working tree was clean and the branch contained local commits ahead of origin/main.
+
+Do not recreate or squash those commits unnecessarily.
+
+⸻
+
+PRIMARY OBJECTIVE
+
+Finish the remaining acceptance gates honestly:
+
+A.
+
+Diagnose and repair the Dig timeout.
+
+B.
+
+Produce a real completed standard single-target Dig through the canonical research pipeline.
+
+C.
+
+Produce a legitimate non-zero scoreboard row and milestone evidence through canonical completion logic.
+
+D.
+
+Verify all previously passed static and runtime gates still pass.
+
+E.
+
+Push existing local commits plus any legitimate new commits once GitHub authentication is correctly configured.
+
+F.
+
+Only after acceptance passes, publish/deploy if deployment is requested and supported.
+
+⸻
+
+IMPORTANT COMPLETION SEMANTICS
+
+Do not conflate these concepts:
+
+1. Pipeline execution completion
+2. Research disposition
+3. Contact acquisition
+4. Scoreboard eligibility
+
+A standard Dig may legitimately complete even when:
+
+* no contact is found;
+* evidence is insufficient for outreach;
+* the entity requires follow-up;
+* some optional provider is unavailable.
+
+Do not automatically convert needs_follow_up or an insufficient-evidence research disposition into a failed or incomplete pipeline outcome if the canonical research journey itself completed.
+
+Conversely, do not mark execution complete when a required canonical stage genuinely timed out, crashed, was cancelled, or never reached its completion contract.
+
+If the current code incorrectly conflates execution completion with research disposition, repair the shared contract and lifecycle semantics, not a target-specific case.
+
+⸻
+
+DIG TIMEOUT INVESTIGATION RULES
+
+Do not solve this merely by increasing the 180-second timeout.
+
+Trace the actual target enrichment lifecycle and determine:
+
+* exact stage(s) consuming the timeout;
+* provider calls made;
+* retries;
+* Retry-After handling;
+* provider/account cooldown interaction;
+* concurrency behavior;
+* serial versus parallel execution;
+* whether partial evidence is persisted progressively;
+* whether quota controls cause avoidable waiting;
+* whether a provider continues consuming time after the Dig has enough evidence to finish;
+* whether completion/disposition semantics are incorrectly coupled.
+
+Preserve:
+
+* honest research behavior;
+* model-selected research actions;
+* no forced provider actions;
+* no fabricated identities;
+* no hardcoded target-specific success;
+* no fake contacts;
+* no fake source evidence.
+
+If a timeout architecture issue exists, repair the shared contract so normal standard Digs can finish under normal provider conditions while genuinely slow or quota-exhausted research still terminates honestly.
+
+Do not weaken timeout handling globally without evidence.
+
+⸻
+
+SCOREBOARD RULES
+
+Do not manually mutate:
+
+* cookedAt;
+* score values;
+* database rows;
+* entity state;
+
+merely to manufacture a passing result.
+
+Trace the canonical path:
+
+research evidence
+-> target execution completion
+-> legitimate completed/cooked transition
+-> scoreboard inclusion
+-> scoring
+-> milestone calculation
+
+Repair a broken transition if one exists.
+
+Then run a real workflow until the API produces genuine evidence such as:
+
+* at least one legitimate scored row;
+* non-zero count;
+* actual mean;
+* milestonePass=true if the existing acceptance threshold is genuinely met.
+
+If the existing threshold cannot legitimately be met from the available real research evidence, do not lower the threshold merely to pass acceptance.
+
+Instead report the precise product or runtime constraint.
+
+⸻
+
+EXTERNAL QUOTA CONTROLS
+
+Preserve and verify shared controls for all quota-limited external services, not just Redis.
+
+Review real execution paths for:
+
+* LLM providers;
+* search providers;
+* scraping providers;
+* browser/visit/fetch providers;
+* registries and external data APIs;
+* Redis where applicable.
+
+Verify:
+
+* bounded concurrency;
+* per-provider/account cooldowns;
+* correct 429 handling;
+* Retry-After support;
+* bounded retries;
+* no retry storms;
+* no repeated calls after quota exhaustion;
+* normal fallback behavior where architecture supports it;
+* quota controls do not unnecessarily consume the Dig’s global deadline.
+
+Do not add artificial throttling that makes a normal Dig more likely to hit its deadline.
+
+Do not bypass quota controls to obtain a passing live proof.
+
+⸻
+
+GITHUB
+
+Diagnose authentication without exposing secrets.
+
+Check:
+
+git remote -v
+git status -sb
+git log --oneline origin/main..HEAD
+git ls-remote origin
+
+Determine whether the problem is:
+
+* missing credential;
+* invalid or expired PAT;
+* insufficient PAT permissions;
+* cached wrong credentials;
+* wrong remote repository or account.
+
+Do not print tokens.
+
+Once authentication works:
+
+1. Preserve existing commits.
+2. Commit only actual source changes.
+3. Push normally.
+4. Do not force-push.
+
+⸻
+
+REQUIRED VERIFICATION ORDER
+
+Run in this order where dependencies allow:
+
+1. git status -sb
+2. inspect current HEAD and recent relevant commits
+3. git diff --check
+4. clean/idempotent canonical-source checks
+5. pnpm run typecheck
+6. API build
+7. Desk build
+8. required static guards
+9. database schema verification
+10. API startup
+11. /api/healthz
+12. Redis and bureauIntegrity
+13. root desk /
+14. real discovery proof if needed
+15. real standard single-target Dig
+16. wait for genuine terminal completion
+17. inspect execution outcome separately from research disposition
+18. inspect entity completion/cooked state
+19. inspect contacts and source evidence
+20. run scoreboard check
+21. verify legitimate non-zero rows
+22. verify milestone result
+23. git status
+24. commit only actual source changes
+25. push normally after authentication is fixed
+
+⸻
+
+FINAL REPORT FORMAT
+
+PASSED
+
+For every passed item:
+
+* exact command/check;
+* concise result.
+
+FIXED
+
+For every repair:
+
+* root cause;
+* files/contracts changed;
+* why the repair is architecture-safe;
+* why it does not fabricate research success.
+
+LIVE EVIDENCE
+
+Include:
+
+* discovery job;
+* entity ID;
+* Dig job;
+* terminal lifecycle;
+* execution outcome;
+* research disposition;
+* source evidence;
+* contact evidence only if legitimately found;
+* scoreboard count;
+* scoreboard mean;
+* milestonePass.
+
+BLOCKERS
+
+List only genuine unresolved blockers.
+
+Do not convert unavailable credentials, quota exhaustion, missing deployment permissions, or unavailable providers into invented successful results.
+
+GIT
+
+Include:
+
+* starting commit;
+* ending commit;
+* new commit IDs;
+* push result;
+* exact remote branch status.
+
+⸻
+
+ACCEPTANCE HONESTY RULE
+
+Do not claim full acceptance unless the Dig and scoreboard requirements genuinely pass.
+
+Do not fake:
+
+* completion;
+* entities;
+* contacts;
+* sources;
+* cooked transitions;
+* scores;
+* scoreboard rows;
+* milestone results.
+
+Preserve the existing architecture unless concrete evidence demonstrates that the architecture itself is the source of the failure.
+
+⸻
+
+My verdict: your original prompt was already good, but this version is safer. The biggest addition is the explicit distinction between pipeline completion and research disposition. That is particularly important given the timeout_review / needs_follow_up behavior that appears to be central to the remaining issue.
