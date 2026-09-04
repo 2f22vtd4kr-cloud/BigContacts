@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "export NODE_ENV=development && pnpm run build && pnpm run start",
-    "build": "cd ../.. && node scripts/apply-agentic-concurrency-hardening.mjs && node scripts/apply-agentic-timeout-hardening.mjs && node scripts/apply-provider-gate-v2.mjs && node scripts/apply-discovery-runtime-correctness.mjs && node scripts/apply-discovery-admission-v2.mjs && node scripts/run-p0-incremental-admit.mjs && node scripts/apply-roadmap-remaining.mjs && node scripts/apply-investigator-promotion-truth.mjs && node scripts/apply-investigator-promotion-contract.mjs && node scripts/apply-reactor-live-integration.mjs && node scripts/check-canonical-promotion-boundary.mjs && cd artifacts/api-server && node ./build.mjs",
+    "build": "cd ../.. && node scripts/apply-agentic-concurrency-hardening.mjs && node scripts/apply-agentic-timeout-hardening.mjs && node scripts/apply-provider-gate-v2.mjs && node scripts/apply-discovery-runtime-correctness.mjs && node scripts/apply-discovery-admission-v2.mjs && node scripts/run-p0-incremental-admit.mjs && node scripts/apply-roadmap-remaining.mjs && node scripts/apply-investigator-promotion-truth.mjs && node scripts/apply-investigator-promotion-contract.mjs && node scripts/apply-reactor-live-integration.mjs && node scripts/apply-atlas-stale-job-hardening.mjs && node scripts/check-canonical-promotion-boundary.mjs && cd artifacts/api-server && node ./build.mjs",
     "start": "node --enable-source-maps ./dist/index.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "cd ../.. && node scripts/apply-investigator-promotion-contract.mjs && node scripts/check-canonical-promotion-boundary.mjs && cd artifacts/api-server && vitest run"
