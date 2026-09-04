@@ -1,16 +1,5 @@
 /**
  * ICIJ Offshore Leaks Enricher
- *
- * Uses the free ICIJ Offshore Leaks reconciliation API to find offshore
- * structures (BVI SPVs, foundations, trusts) linked to an entity name.
- * Covers: Panama Papers, Pandora Papers, Paradise Papers, Bahamas Leaks,
- * and Offshore Leaks — 810,000+ offshore entities with UBOs, intermediaries,
- * and registered agents.
- *
- * API: POST https://offshoreleaks.icij.org/api/v1/reconcile
- * No auth required. Free. No rate limits documented.
- *
- * Docs: https://offshoreleaks.icij.org/docs/reconciliation
  */
 
 import { logger } from "./logger";
@@ -18,20 +7,22 @@ import { logger } from "./logger";
 const RECONCILE_URL = "https://offshoreleaks.icij.org/api/v1/reconcile";
 const ENTITY_DETAIL_URL = "https://offshoreleaks.icij.org/nodes";
 
+type IcijQueryResult = { result: IcijMatch[] };
+type IcijBatchResult = Record<string, IcijQueryResult>;
+
 export interface IcijMatch {
   id: string;
   name: string;
   score: number;
   match: boolean;
   type: Array<{ id: string; name: string }>;
-  // Extended fields from node detail fetch
   jurisdiction?: string | null;
   incorporationDate?: string | null;
   inactivationDate?: string | null;
   registeredAddress?: string | null;
   countryCode?: string | null;
-  sourceId?: string | null; // panama_papers, pandora_papers, paradise_papers, etc.
-  nodeType?: string | null; // Entity, Officer, Intermediary, Address, Other
+  sourceId?: string | null;
+  nodeType?: string | null;
   linkedOfficers?: Array<{ name: string; relationship: string }>;
   status?: string | null;
   profileUrl?: string | null;
@@ -41,23 +32,22 @@ export interface IcijEnrichResult {
   found: boolean;
   totalMatches: number;
   matches: IcijMatch[];
-  sources: string[]; // Which leak datasets produced results
+  sources: string[];
   queryName: string;
   error?: string;
 }
 
-/**
- * ICIJ reconciliation returns fuzzy suggestions as well as confirmed matches.
- * Suggestions have match=false and must remain out of persisted evidence.
- */
 export function isAcceptedIcijMatch(match: IcijMatch): boolean {
   return match.match === true;
 }
 
-/** POST the current ICIJ reconciliation API with up to 5 queries at once. */
+function isSingleQueryResult(value: IcijQueryResult | IcijBatchResult): value is IcijQueryResult {
+  return Array.isArray((value as Partial<IcijQueryResult>).result);
+}
+
 async function reconcile(
   queries: Record<string, { query: string; type?: string; limit?: number }>
-): Promise<Record<string, { result: IcijMatch[] }> | { result: IcijMatch[] }> {
+): Promise<IcijBatchResult | IcijQueryResult> {
   const resp = await fetch(RECONCILE_URL, {
     method: "POST",
     headers: {
@@ -67,31 +57,19 @@ async function reconcile(
     },
     body: JSON.stringify({
       type: "Officer",
-      queries: Object.fromEntries(Object.entries(queries).map(([key, query]) => [
-        key,
-        { query: query.query },
-      ])),
+      queries: Object.fromEntries(Object.entries(queries).map(([key, query]) => [key, { query: query.query }])),
     }),
     signal: AbortSignal.timeout(15_000),
   });
-
-  if (!resp.ok) {
-    throw new Error(`ICIJ reconcile HTTP ${resp.status}: ${resp.statusText}`);
-  }
-
-  return resp.json() as Promise<Record<string, { result: IcijMatch[] }> | { result: IcijMatch[] }>;
+  if (!resp.ok) throw new Error(`ICIJ reconcile HTTP ${resp.status}: ${resp.statusText}`);
+  return resp.json() as Promise<IcijBatchResult | IcijQueryResult>;
 }
 
-/** Fetch extended node detail from the ICIJ graph */
 async function fetchNodeDetail(nodeId: string): Promise<Partial<IcijMatch>> {
   try {
-    // The public node endpoint returns HTML — parse JSON-LD or structured data
     const url = `${ENTITY_DETAIL_URL}/${encodeURIComponent(nodeId)}.json`;
     const resp = await fetch(url, {
-      headers: {
-        "User-Agent": "ApexFinder-OSINT/2.0",
-        "Accept": "application/json",
-      },
+      headers: { "User-Agent": "ApexFinder-OSINT/2.0", "Accept": "application/json" },
       signal: AbortSignal.timeout(10_000),
     });
     if (!resp.ok) return {};
@@ -115,75 +93,48 @@ async function fetchNodeDetail(nodeId: string): Promise<Partial<IcijMatch>> {
   }
 }
 
-/**
- * Main enrichment function.
- * Queries the ICIJ Offshore Leaks database for an entity name and optional aliases.
- *
- * @param entityName  Primary entity name to search
- * @param aliases     Optional alternative names / transliterations
- * @param fetchDetail Whether to fetch extended node details (slower, more data)
- */
 export async function enrichWithIcij(
   entityName: string,
   aliases: string[] = [],
   fetchDetail = false
 ): Promise<IcijEnrichResult> {
   const queryName = entityName.trim();
-  if (!queryName) {
-    return { found: false, totalMatches: 0, matches: [], sources: [], queryName };
-  }
+  if (!queryName) return { found: false, totalMatches: 0, matches: [], sources: [], queryName };
 
-  // Build multi-query payload (primary + up to 4 aliases)
   const allNames = [queryName, ...aliases.slice(0, 4)];
   const queries: Record<string, { query: string; type: string; limit: number }> = {};
-  allNames.forEach((name, i) => {
-    queries[`q${i}`] = { query: name, type: "/Entity", limit: 5 };
-  });
+  allNames.forEach((name, i) => { queries[`q${i}`] = { query: name, type: "/Entity", limit: 5 }; });
 
-  let rawResults: Record<string, { result: IcijMatch[] }>;
+  let rawResults: IcijBatchResult;
   try {
     const response = await reconcile(queries);
-    // The current ICIJ service returns a single {result: []} object for a
-    // batch containing one query, and a keyed object for a true batch.
-    rawResults = "result" in response
-      ? { q0: response }
-      : response;
+    rawResults = isSingleQueryResult(response) ? { q0: response } : response;
   } catch (err: any) {
     logger.warn({ err: err.message, entityName }, "[ICIJ] reconcile API error");
     return { found: false, totalMatches: 0, matches: [], sources: [], queryName, error: err.message };
   }
 
-  // Flatten and deduplicate by ID
   const seen = new Set<string>();
   const allMatches: IcijMatch[] = [];
   for (const key of Object.keys(queries)) {
     for (const match of rawResults[key]?.result ?? []) {
-      if (!isAcceptedIcijMatch(match)) continue;
-      if (!seen.has(match.id)) {
-        seen.add(match.id);
-        allMatches.push(match);
-      }
+      if (!isAcceptedIcijMatch(match) || seen.has(match.id)) continue;
+      seen.add(match.id);
+      allMatches.push(match);
     }
   }
 
-  // Sort by score descending, cap at 15
   allMatches.sort((a, b) => b.score - a.score);
   const topMatches = allMatches.slice(0, 15);
 
-  // Optionally enrich top matches with node detail
   if (fetchDetail && topMatches.length > 0) {
-    const detailLimit = Math.min(topMatches.length, 5); // max 5 detail fetches
-    const details = await Promise.allSettled(
-      topMatches.slice(0, detailLimit).map(m => fetchNodeDetail(m.id))
-    );
-    details.forEach((r, i) => {
-      if (r.status === "fulfilled") {
-        Object.assign(topMatches[i]!, r.value);
-      }
+    const detailLimit = Math.min(topMatches.length, 5);
+    const details = await Promise.allSettled(topMatches.slice(0, detailLimit).map((m) => fetchNodeDetail(m.id)));
+    details.forEach((result, i) => {
+      if (result.status === "fulfilled") Object.assign(topMatches[i]!, result.value);
     });
   }
 
-  // Determine which leak databases produced results
   const sourceMap: Record<string, string> = {
     panama_papers: "Panama Papers",
     pandora_papers: "Pandora Papers",
@@ -193,41 +144,23 @@ export async function enrichWithIcij(
     icij: "ICIJ",
   };
   const foundSources = new Set<string>();
-  for (const m of topMatches) {
-    if (m.sourceId) {
-      const label = sourceMap[m.sourceId.toLowerCase()] ?? m.sourceId;
-      foundSources.add(label);
-    }
+  for (const match of topMatches) {
+    if (match.sourceId) foundSources.add(sourceMap[match.sourceId.toLowerCase()] ?? match.sourceId);
   }
 
-  logger.info(
-    { entityName, matchCount: topMatches.length, sources: [...foundSources] },
-    "[ICIJ] enrichment complete"
-  );
-
-  return {
-    found: topMatches.length > 0,
-    totalMatches: topMatches.length,
-    matches: topMatches,
-    sources: [...foundSources],
-    queryName,
-  };
+  logger.info({ entityName, matchCount: topMatches.length, sources: [...foundSources] }, "[ICIJ] enrichment complete");
+  return { found: topMatches.length > 0, totalMatches: topMatches.length, matches: topMatches, sources: [...foundSources], queryName };
 }
 
-/**
- * Summarise ICIJ findings for injection into entity notes / metadata.
- * Returns a compact string or null if no offshore structures found.
- */
 export function summariseIcijFindings(result: IcijEnrichResult): string | null {
   if (!result.found || result.matches.length === 0) return null;
-
   const lines: string[] = [`ICIJ Offshore Leaks — ${result.totalMatches} match(es):`];
-  for (const m of result.matches.slice(0, 5)) {
-    const parts: string[] = [`  • ${m.name} (score: ${m.score.toFixed(2)})`];
-    if (m.jurisdiction) parts.push(`[${m.jurisdiction}]`);
-    if (m.sourceId) parts.push(`via ${m.sourceId.replace(/_/g, " ")}`);
-    if (m.nodeType) parts.push(`— ${m.nodeType}`);
-    if (m.profileUrl) parts.push(`→ ${m.profileUrl}`);
+  for (const match of result.matches.slice(0, 5)) {
+    const parts: string[] = [`  • ${match.name} (score: ${match.score.toFixed(2)})`];
+    if (match.jurisdiction) parts.push(`[${match.jurisdiction}]`);
+    if (match.sourceId) parts.push(`via ${match.sourceId.replace(/_/g, " ")}`);
+    if (match.nodeType) parts.push(`— ${match.nodeType}`);
+    if (match.profileUrl) parts.push(`→ ${match.profileUrl}`);
     lines.push(parts.join(" "));
   }
   return lines.join("\n");
