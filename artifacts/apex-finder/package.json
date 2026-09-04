@@ -19,10 +19,10 @@
     "@workspace/api-client-react": "workspace:*"
   },
   "devDependencies": {
-    "vite": "6.3.5",
-    "@vitejs/plugin-react": "4.5.2",
-    "@tailwindcss/vite": "4.1.11",
-    "tailwindcss": "4.1.11"
+    "vite": "catalog:",
+    "@vitejs/plugin-react": "catalog:",
+    "@tailwindcss/vite": "catalog:",
+    "tailwindcss": "catalog:"
   },
   "scripts": {
     "dev": "cd ../.. && node scripts/check-profile-route-contract.mjs && node scripts/apply-profile-commit-timestamp.mjs && cd artifacts/apex-finder && vite",
