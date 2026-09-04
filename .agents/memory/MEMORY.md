@@ -1,2 +1,3 @@
 - [Imported workspace installs](imported-workspace-installs.md) — when pnpm lock tarballs point at an unreachable proxy, resolve manifests from npm without rewriting the lockfile.
 - [Redis quota guardrails](redis-quota-guardrails.md) — idle status polling must batch pointer reads, cache longer, and never retry monthly-capped Upstash slots.
+- [Build hardening idempotence](build-hardening-idempotence.md) — managed API builds can repeat source-level guard comments; inspect the tree after each build.
