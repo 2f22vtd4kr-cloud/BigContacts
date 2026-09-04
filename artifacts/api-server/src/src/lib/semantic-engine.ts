@@ -13,7 +13,9 @@ async function loadTransformers(): Promise<boolean> {
   if (_transformersLoad) return _transformersLoad;
   _transformersLoad = (async () => {
     try {
-      const mod = await import("@huggingface/transformers");
+      // Keep this optional dependency genuinely optional on the Replit host.
+      const transformersModule = "@huggingface/transformers";
+      const mod = await import(transformersModule);
       env = mod.env;
       pipeline = mod.pipeline;
       return true;

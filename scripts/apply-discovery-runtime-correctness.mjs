@@ -41,7 +41,7 @@ if (!discovery.includes("INVALID_PERSON_TITLE_PATTERNS.some((pattern) => pattern
 }
 
 const candidateNameMarker = "  if (words.length < 2 || words.length > 5) return false;";
-if (!discovery.includes("/^[a-z]+[A-Z]/.test(w)/")) {
+if (!discovery.includes("CamelCase extraction fragments (e.g. comPrecision) are not human-name syntax.")) {
   const replacement = `${candidateNameMarker}\n  // CamelCase extraction fragments (e.g. comPrecision) are not human-name syntax.\n  if (words.some((w) => /^[a-z]+[A-Z]/.test(w))) return false;`;
   discovery = discovery.replace(candidateNameMarker, replacement);
 }

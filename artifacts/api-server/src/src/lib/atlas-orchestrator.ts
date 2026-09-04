@@ -1311,7 +1311,7 @@ async function enrichEntityFullCircle(atlasJobId: string, entity: EntityRow): Pr
     const rawHandle = (
       (ihResult?.twitter ?? "").replace(/^https?:\/\/(www\.)?(twitter\.com|x\.com)\//, "").replace(/\?.*$/, "")
       || (entity.twitterHandle ?? "").replace(/^@/, "")
-      || "").replace(/^https?:\/\/(www\.)?instagram\.com\//, "").replace(/\?.*$/, "")
+      || (ihResult?.instagram ?? "").replace(/^https?:\/\/(www\.)?instagram\.com\//, "").replace(/\?.*$/, "")
       || (entity.instagramHandle ?? "").replace(/^@/, "")
     ).replace(/[^a-zA-Z0-9._\-]/g, "").trim();
     const emailForHolehe = (() => {
