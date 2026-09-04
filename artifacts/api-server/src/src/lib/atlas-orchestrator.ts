@@ -1511,7 +1511,7 @@ Only include assets with a SPECIFIC identifier. If nothing concrete is mentioned
               temperature: 0, max_tokens: 1024,
             }),
             signal: AbortSignal.timeout(15_000),
-          }).then(r => r.json()).catch(() => null);
+          }).then(async (r) => r.json() as Promise<{ choices?: Array<{ message?: { content?: string | null } }> }>).catch(() => null);
 
           const raw = resp?.choices?.[0]?.message?.content?.trim() ?? "";
           const jsonMatch = raw.match(/\[[\s\S]*\]/);
@@ -1802,7 +1802,7 @@ Only include assets with a SPECIFIC identifier. If nothing concrete is mentioned
       const contactConf = computeContactConfidence(fresh);
 
       // Fetch assets written in Steps E + G for bayesian scoring
-      const entityAssets = await db.select({
+      const entityAssets: Array<{ category: string | null; estimatedValue: number | string | null; jurisdiction: string | null }> = await db.select({
         category: assetsTable.category,
         estimatedValue: assetsTable.estimatedValue,
         jurisdiction: assetsTable.jurisdiction,

@@ -65,6 +65,7 @@ export interface DeepWebOsintResult {
 }
 
 type CandidateEvidence = {
+  vectorType: string;
   value: string;
   sourceUrl?: string | null;
   source: string;

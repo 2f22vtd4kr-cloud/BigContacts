@@ -1825,7 +1825,7 @@ export async function enrichInHouse(entity: InHouseEnrichInput): Promise<InHouse
         const waybackEmail = await queryWaybackMachine(knownDomain!);
         if (waybackEmail) {
           result.sourceHits["Wayback"] = true;
-          setEmail(waybackEmail, 55, "Wayback-Email");
+          setEmail(waybackEmail.email, 55, "Wayback-Email", waybackEmail.sourceUrl ?? undefined);
         }
       })());
     }

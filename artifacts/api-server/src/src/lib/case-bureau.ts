@@ -63,7 +63,9 @@ export type BureauContactRoute = {
 };
 
 export type DiscoveryContactEvidence = {
-  vectorType: "email" | "phone" | "linkedin" | "twitter" | "instagram" | "telegram" | "website" | "organization_contact" | "other";
+  // Discovery is provider/model-selected and may surface new public route labels;
+  // downstream persistence still validates scope, source URLs and promotion state.
+  vectorType: string;
   value: string;
   scope: "person" | "organization" | "unknown";
   personName: string | null;

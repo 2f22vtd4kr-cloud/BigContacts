@@ -246,9 +246,7 @@ function mergeContactEvidence(
     .slice(0, 20);
 }
 
-type DiscoveryCandidate = ReturnType<typeof parseDiscoveryCaseFile> extends infer T
-  ? Exclude<T, null>["discoveredCandidates"][number]
-  : never;
+type DiscoveryCandidate = import("../../lib/case-bureau").DiscoveryCaseFile["discoveredCandidates"][number];
 
 function mergeDiscoveryCandidates(
   existing: DiscoveryCandidate[],

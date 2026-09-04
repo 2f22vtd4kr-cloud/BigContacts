@@ -119,10 +119,10 @@ router.post("/enrich/whoxy", async (req: Request, res: Response): Promise<void> 
     if (entity) {
       const domains = Array.isArray(result.allUniqueDomains) ? result.allUniqueDomains : [];
       const domainVectors = domains.slice(0, 20)
-        .filter((d: unknown): d is string => typeof d === "string" && d.trim().length > 0)
-        .map((d: string) => {
-          const host = d.replace(/^https?:\/\//i, "").split("/")[0] ?? d;
-          const url = /^https?:\/\//i.test(d) ? d : `https://${host}`;
+        .filter((d) => typeof d.domain_name === "string" && d.domain_name.trim().length > 0)
+        .map((d) => {
+          const host = d.domain_name.trim().toLowerCase();
+          const url = `https://${host}`;
           return {
             vectorType: "domain",
             value: host,
@@ -176,8 +176,8 @@ router.post("/enrich/holehe", async (req: Request, res: Response): Promise<void>
     if (entity && result.found.length > 0) {
       // Visibility: platform presence URLs as candidate social leads (never Personal).
       const socialVectors = result.found.slice(0, 25)
-        .filter((p: { url?: string }) => typeof p.url === "string" && /^https?:\/\//i.test(p.url))
-        .map((p: { name?: string; url: string }) => ({
+        .filter((p): p is typeof p & { url: string } => typeof p.url === "string" && /^https?:\/\//i.test(p.url))
+        .map((p) => ({
           vectorType: "social",
           value: p.url,
           scope: "candidate",
@@ -225,8 +225,8 @@ router.post("/enrich/maigret", async (req: Request, res: Response): Promise<void
 
     if (entity && result.found.length > 0) {
       const socialVectors = result.found.slice(0, 25)
-        .filter((p: { url?: string }) => typeof p.url === "string" && /^https?:\/\//i.test(p.url))
-        .map((p: { siteName?: string; url: string }) => ({
+        .filter((p): p is typeof p & { url: string } => typeof p.url === "string" && /^https?:\/\//i.test(p.url))
+        .map((p) => ({
           vectorType: "social",
           value: p.url,
           scope: "candidate",

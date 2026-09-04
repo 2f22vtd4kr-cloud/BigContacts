@@ -2174,15 +2174,15 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
       const network = details.network;
       const scope = details.scope === "organization" ? "organization" : "person";
       normalized = network === "linkedin"
-        ? sanitizePublicSocialUrl(normalized, "linkedin", scope)
+        ? (sanitizePublicSocialUrl(normalized, "linkedin", scope) ?? "")
         : network === "instagram"
           ? (isValidPublicSocialHandle(normalized, "instagram")
             ? normalized
-            : sanitizePublicSocialUrl(normalized, "instagram", scope))
+            : (sanitizePublicSocialUrl(normalized, "instagram", scope) ?? ""))
           : network === "twitter"
             ? (isValidPublicSocialHandle(normalized, "twitter")
               ? normalized
-              : sanitizePublicSocialUrl(normalized, "twitter", scope))
+              : (sanitizePublicSocialUrl(normalized, "twitter", scope) ?? ""))
             : "";
     }
     if (!normalized) return;
@@ -4120,7 +4120,7 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
     // Prefer personal social; if none qualifies, still keep a related org-linked profile
     // so the HNWI card is not empty of public routes.
     if (isEligiblePersonalSocialCandidate(candidate)) return value;
-    if (candidate.sourceUrls.length > 0 && candidate.state !== "rejected") return value;
+    if (candidate.sourceUrls.length > 0) return value;
     return null;
   };
 

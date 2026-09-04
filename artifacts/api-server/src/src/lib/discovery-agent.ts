@@ -316,7 +316,7 @@ export async function runDiscoveryAgent(input: {
           jobId,
           onLiveStep: (step) => {
             try {
-              spanFromLiveStep({ jobId, targetName: "discovery", tool: step.tool || step.action, label: step.query || step.url || step.action, detail: step.detail || step.url || step.query, status: step.status === "error" ? "error" : step.status === "active" ? "active" : "ok", agentName: "discovery" });
+              spanFromLiveStep({ jobId, targetName: "discovery", tool: step.provider || step.action, label: step.query || step.url || step.action, detail: step.summary || step.url || step.query, status: "ok", agentName: "discovery" });
             } catch { /* spans best-effort */ }
             input.onLiveStep?.(step);
           },
