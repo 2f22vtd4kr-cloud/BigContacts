@@ -17,7 +17,7 @@ jobs:
     timeout-minutes: 60
     env:
       DATABASE_URL: postgresql://apex:apex_local_dev@127.0.0.1:5432/apex
-      REDIS_URL: redis://127.0.0.1:6379
+      REDIS_URL_1: redis://127.0.0.1:6379
       PORT: 8080
       ENABLE_AUTO_PIPELINE: "false"
       NODE_ENV: development
@@ -33,7 +33,6 @@ jobs:
       ZENROWS_API_KEY: ${{ secrets.ZENROWS_API_KEY }}
       COMPANIES_HOUSE_API_KEY: ${{ secrets.COMPANIES_HOUSE_API_KEY }}
       HF_TOKEN: ${{ secrets.HF_TOKEN }}
-      WHOXY_API_KEY: ${{ secrets.WHOXY_API_KEY }}
       RESEARCH_DEPTH: standard
       APEX_SKIP_SEMANTIC: "1"
       NODE_OPTIONS: --max-old-space-size=1536
