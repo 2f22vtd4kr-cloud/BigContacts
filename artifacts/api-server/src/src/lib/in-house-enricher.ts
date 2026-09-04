@@ -44,6 +44,7 @@ import { isValidPublicEmail, sanitizePublicEmail, isGenericEmailPrefix, REGISTRA
 import { shouldBlockIssuerOverwrite } from "./phone-source-priority";
 import { enrichWithIcij, summariseIcijFindings } from "./icij-enricher";
 import { enrichWithWhoxy, summariseWhoxyFindings } from "./whoxy-enricher";
+import type { ReconciledCandidate } from "./contact-candidate";
 
 // ─── Result / Input types ─────────────────────────────────────────────────────
 
@@ -59,6 +60,7 @@ export interface InHouseEnrichResult {
   phoneConfidence: number;   // 0-100
   sourceHits:      Record<string, boolean>;  // per-source hit tracking
   evidence:        InHouseEvidence[];
+  candidateFunnel?: { candidates: ReconciledCandidate[] };
   // K2/L1: generic-prefix flag — set when the winning email is an org inbox
   hasGenericEmail?: boolean;
   // K5: source labels for org-contact classification in computeContactOutcome

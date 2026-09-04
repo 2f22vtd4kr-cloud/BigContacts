@@ -553,7 +553,7 @@ type EntityRow = {
   id: number; name: string; type: string;
   email: string | null; phone: string | null;
   phoneSource: string | null;
-  linkedinUrl: string | null; twitterHandle: string | null;
+  linkedinUrl: string | null; linkedinHeadline: string | null; contactMethod: string | null; twitterHandle: string | null;
   instagramHandle: string | null; telegramHandle: string | null;
   bayesianScore: number | null; contactConfidence: number | null;
   knownResidences: string | null; metadata: string | null;
@@ -579,9 +579,9 @@ type AtlasTelemetry = {
   /** Operator-facing one-liner (Now:/Done:) — preferred over UI heuristics */
   story?: string;
   /** Who is acting: boss (Gemini), investigator, registry, tool, system */
-  actor?: "boss" | "investigator" | "registry" | "tool" | "system";
+  actor?: "boss" | "investigator" | "registry" | "tool" | "system" | "web";
   /** Method family for method-aware chrome */
-  methodKind?: "search" | "fetch" | "extract" | "registry" | "domain" | "footprint" | "boss" | "case" | "persona" | "bureau";
+  methodKind?: "search" | "fetch" | "extract" | "registry" | "domain" | "footprint" | "boss" | "case" | "persona" | "bureau" | "agentic";
   /** Real source URLs visited or consulted this step */
   sourceUrls?: string[];
   /** Optional titled links for the live feed */
@@ -812,7 +812,7 @@ async function enrichEntityFullCircle(atlasJobId: string, entity: EntityRow): Pr
               : (entity as { contactOutcome?: string | null }).contactOutcome,
             contactConfidence: boost.noticePhone
               ? Math.max(Number((entity as { contactConfidence?: number | null }).contactConfidence ?? 0), 55)
-              : (entity as { contactConfidence?: number | null }).contactConfidence,
+              : ((entity as { contactConfidence?: number | null }).contactConfidence ?? undefined),
             metadata: sql`COALESCE(${entitiesTable.metadata}::jsonb, '{}'::jsonb) || ${JSON.stringify({
               phoneSource: boost.noticePhone ? "EDGAR-Notice-Phone" : undefined,
               edgarIdentityBoost: {
@@ -1309,9 +1309,9 @@ async function enrichEntityFullCircle(atlasJobId: string, entity: EntityRow): Pr
 
     // ── Step D: Maigret (3 000+ platforms) + Holehe (120+ services) ───────────
     const rawHandle = (
-      (aiResult?.twitterUrl ?? "").replace(/^https?:\/\/(www\.)?(twitter\.com|x\.com)\//, "").replace(/\?.*$/, "")
+      (ihResult?.twitter ?? "").replace(/^https?:\/\/(www\.)?(twitter\.com|x\.com)\//, "").replace(/\?.*$/, "")
       || (entity.twitterHandle ?? "").replace(/^@/, "")
-      || (aiResult?.instagramUrl ?? "").replace(/^https?:\/\/(www\.)?instagram\.com\//, "").replace(/\?.*$/, "")
+      || "").replace(/^https?:\/\/(www\.)?instagram\.com\//, "").replace(/\?.*$/, "")
       || (entity.instagramHandle ?? "").replace(/^@/, "")
     ).replace(/[^a-zA-Z0-9._\-]/g, "").trim();
     const emailForHolehe = (() => {
@@ -1898,6 +1898,7 @@ Never invent specific emails, phones, or people. Return plain text only.`,
               targetName: name,
               targetType: entity.type,
               actor: "boss",
+              toolIds: [],
               methodKind: "boss",
               story: brief.raw.trim().slice(0, 400),
               inputSummary: `Boss model ${brief.model} assigned next research focus`,

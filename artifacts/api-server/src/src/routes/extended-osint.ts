@@ -38,7 +38,7 @@ const router = Router();
 
 async function resolveEntity(entityId?: number): Promise<{
   id: number; name: string; type: string; metadata: string | null;
-  email: string | null; website: string | null; notes: string | null;
+  email: string | null; website?: string | null; notes: string | null;
   nationality: string | null;
 } | null> {
   if (!entityId) return null;

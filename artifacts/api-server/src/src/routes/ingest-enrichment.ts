@@ -482,7 +482,6 @@ router.post("/ingest/web-osint-enrich", async (req: Request, res: Response): Pro
             contactConfidence: confidence,
             contactOutcome: nextContactOutcome,
             metadata: JSON.stringify(meta),
-            liveSource: true,
             updatedAt: new Date(),
           })
           .where(eq(entitiesTable.id, entity.id));

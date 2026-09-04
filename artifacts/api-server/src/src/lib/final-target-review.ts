@@ -192,7 +192,7 @@ function deterministicFallbackApprovals(input: FinalTargetReviewInput): {
 
   for (const c of input.candidates) {
     if (c.state === "rejected" || c.conflictCount > 0) continue;
-    const src = `${c.source ?? ""} ${(c as { note?: string }).note ?? ""}`.toLowerCase();
+    const src = `${c.providers.join(" ")} ${(c as { note?: string }).note ?? ""}`.toLowerCase();
     const isNotice =
       src.includes("edgar-notice")
       || src.includes("sc13_notice")

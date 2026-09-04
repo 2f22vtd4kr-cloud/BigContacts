@@ -94,7 +94,6 @@ export function isModelLoaded(): boolean {
 export async function embedText(text: string): Promise<Float32Array> {
   try {
     const pipe = await getEmbeddingPipeline();
-    // @ts-expect-error — dynamic pipeline call
     const output = await pipe(text.slice(0, 512), { pooling: "mean", normalize: true });
     // output.data is already a Float32Array
     return output.data as Float32Array;

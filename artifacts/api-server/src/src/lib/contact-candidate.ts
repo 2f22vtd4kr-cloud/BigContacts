@@ -14,7 +14,7 @@ export type CandidateState =
   | "verified_direct_route"
   | "rejected";
 
-export type CandidateVector = "email" | "phone" | "social" | "domain" | "website" | "address";
+export type CandidateVector = "email" | "phone" | "social" | "domain" | "website" | "address" | "ownership";
 
 export interface ContactCandidateEvidence {
   vectorType: CandidateVector;
@@ -65,7 +65,7 @@ export interface CandidateFunnel {
 }
 
 const CANDIDATE_VECTORS = new Set<CandidateVector>([
-  "email", "phone", "social", "domain", "website", "address",
+  "email", "phone", "social", "domain", "website", "address", "ownership",
 ]);
 
 function parseStoredDetails(metadata: string | null | undefined): Record<string, unknown> {

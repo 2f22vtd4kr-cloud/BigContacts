@@ -15,7 +15,7 @@ const BASE = `http://localhost:${process.env.PORT ?? 8080}`;
 
 async function get(path: string) {
   const res = await fetch(`${BASE}${path}`);
-  return { status: res.status, body: await res.json() };
+  return { status: res.status, body: await res.json() as Record<string, unknown> };
 }
 
 // ── 1. Health check ──────────────────────────────────────────────────────────

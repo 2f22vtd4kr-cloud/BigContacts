@@ -174,7 +174,7 @@ export async function runOpenSkyEnrichment(
 
   if (assets.length === 0) {
     await appendJobLog(jobId, "✈️  No aviation assets in DB — skip live ADS-B fetch.");
-    await updateJob(jobId, { status: "completed", progress: 100, message: "No aviation assets to match" });
+    await updateJob(jobId, { status: "done", progress: 100, message: "No aviation assets to match" });
     return { inserted: 0, skipped: 0, errors: 0, liveAircraft: 0, durationMs: Date.now() - startTime };
   }
 

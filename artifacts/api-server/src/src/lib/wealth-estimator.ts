@@ -21,7 +21,7 @@ import { apexOrientationCompact } from "./apex-bureau-orientation";
  */
 
 import { db } from "@workspace/db";
-import { entities as entitiesTable, assets as assetsTable } from "@workspace/db";
+import { entitiesTable, assetsTable } from "@workspace/db";
 import { sql, isNull, eq, or } from "drizzle-orm";
 import { logger } from "./logger";
 

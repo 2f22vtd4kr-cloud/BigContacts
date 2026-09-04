@@ -1700,7 +1700,7 @@ export function applyGeminiBossPlan(
  * Fail-closed: does not mark verified personal; state stays candidate/review.
  */
 export function contactEvidenceToRoutes(
-  items: readonly Array<{
+  items: ReadonlyArray<{
     vectorType?: string | null;
     value?: string | null;
     scope?: string | null;

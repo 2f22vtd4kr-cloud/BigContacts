@@ -176,7 +176,7 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
     ? {
         status: "running",
         progress: 0,
-        total: Math.max(1, opts.targetCount),
+        total: Math.max(1, opts.targetCount ?? C.targetCount),
         atlasPhase: 0,
         atlasPhaseTotal: 2,
         message: "AI discovery agent initializing — model selects the public research lane…",

@@ -4,10 +4,15 @@ import { connectRedis, connectPermanentRedis, disconnectRedis } from "./lib/redi
 import { coldStartRecovery } from "./lib/startup";
 import { getAIKeyStatus } from "./lib/ai-extractor";
 import { buildLanesHonestySnapshot } from "./lib/lanes-honesty";
+import { installExternalQuotaGuard } from "./lib/provider-gate";
 
 const rawPort = process.env["PORT"] ?? "8080";
 const parsedPort = Number(rawPort);
 const port = (Number.isNaN(parsedPort) || parsedPort <= 0) ? 8080 : parsedPort;
+
+// All outbound AI/search/scrape/registry traffic shares one bounded gate.
+// Local preview/API requests bypass it; provider failures remain explicit.
+installExternalQuotaGuard();
 
 // Connect local Redis cache (non-blocking)
 connectRedis()

@@ -292,7 +292,7 @@ export interface AIExtractResult {
   discoveryCandidates: DiscoveryPersonCandidate[];
   ownershipSummary: string | null;
   ownershipSources: string[];
-  source:    "groq-llama-70b" | "groq-llama-8b" | "openrouter" | "perplexity-sonar" | "tavily" | "exa" | "none";
+  source:    "groq-llama-70b" | "groq-llama-8b" | "openrouter" | "perplexity-sonar" | "tavily" | "exa" | "none" | "gemini-flash" | "groq";
   citations: string[];            // URLs the model actually searched — use as evidence sources
   reachability?: {
     status: "direct" | "intermediary" | "bounded" | "research_only" | "unknown";
@@ -739,9 +739,9 @@ function parseAIResponse(raw: string, source: AIExtractResult["source"]): AIExtr
           sourceUrls: Array.isArray(candidate.sourceUrls)
             ? candidate.sourceUrls.filter((url): url is string => typeof url === "string" && /^https?:\/\//i.test(url)).slice(0, 8)
             : [],
-          instagram: sanitizePublicSocialUrl(candidate.instagram, "instagram", "person"),
-          twitter: sanitizePublicSocialUrl(candidate.twitter, "twitter", "person"),
-          linkedin: sanitizePublicSocialUrl(candidate.linkedin, "linkedin", "person"),
+          instagram: sanitizePublicSocialUrl(typeof candidate.instagram === "string" ? candidate.instagram : null, "instagram", "person"),
+          twitter: sanitizePublicSocialUrl(typeof candidate.twitter === "string" ? candidate.twitter : null, "twitter", "person"),
+          linkedin: sanitizePublicSocialUrl(typeof candidate.linkedin === "string" ? candidate.linkedin : null, "linkedin", "person"),
           attributionStatus,
         };
         if (!discoveryCandidates.some((existing) => existing.name.toLowerCase() === normalized.name.toLowerCase())) {

@@ -42,14 +42,18 @@ async function rdapLookup(domain: string): Promise<DomainSurfaceResult["rdap"]> 
   try {
     const res = await fetch(url, { signal: AbortSignal.timeout(12000) });
     if (!res.ok) return { ok: false, error: `rdap ${res.status}` };
-    const j = await res.json();
+    const j = await res.json() as {
+      events?: Array<{ eventAction: string; eventDate: string }>;
+      entities?: Array<{ roles?: string[]; vcardArray?: unknown[] }>;
+      status?: string[];
+    };
     const events = Object.fromEntries(
       (j.events || []).map((e: { eventAction: string; eventDate: string }) => [e.eventAction, e.eventDate]),
     );
     let registrarName: string | null = null;
     for (const ent of j.entities || []) {
       if ((ent.roles || []).includes("registrar")) {
-        const vcard = ent.vcardArray?.[1] || [];
+        const vcard = Array.isArray(ent.vcardArray?.[1]) ? ent.vcardArray[1] as unknown[] : [];
         for (const row of vcard) {
           if (Array.isArray(row) && row[0] === "fn" && row[3]) {
             registrarName = String(row[3]);
@@ -81,7 +85,10 @@ async function whoisjsonLookup(domain: string): Promise<DomainSurfaceResult["who
     });
     const remaining = res.headers.get("remaining-requests");
     if (!res.ok) return { ok: false, remainingRequests: remaining, error: `whoisjson ${res.status}` };
-    const j = await res.json();
+    const j = await res.json() as {
+      created?: string; expires?: string; registrar?: { name?: string };
+      contacts?: Record<string, unknown>;
+    };
     return {
       ok: true,
       remainingRequests: remaining,

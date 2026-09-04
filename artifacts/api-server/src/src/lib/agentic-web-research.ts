@@ -25,7 +25,17 @@ import { lookupDomainSurface, findingsFromDomainSurface } from "./domain-surface
 import { setAgenticLlmHealth, getAgenticLlmHealth } from "./agentic-llm-health";
 import { GROQ_CHAT_MODELS } from "./groq-models";
 import { apexOrientationFor, apexOrientationCompact } from "./apex-bureau-orientation";
+import { withProviderScope } from "./provider-gate";
 export { getAgenticLlmHealth };
+
+/** Best-effort extraction of literal PDF text without adding a heavyweight dependency. */
+function extractTextFromPdfBuffer(buffer: ArrayBuffer): string {
+  const text = new TextDecoder("latin1").decode(buffer);
+  return [...text.matchAll(/\(([^()]*)\)/g)]
+    .map((match) => match[1]!.replace(/\\([\\()])/g, "$1"))
+    .filter((value) => /[A-Za-z]{2}/.test(value))
+    .join(" ");
+}
 
 export type AgenticFinding = {
   vectorType: "email" | "phone" | "linkedin" | "website" | "other" | "social";
@@ -747,7 +757,7 @@ function releaseAgenticProviderDecisionSlot(): void {
 async function llmStep(prompt: string): Promise<{ model: string; raw: string } | null> {
   await acquireAgenticProviderDecisionSlot();
   try {
-    const providers: Array<[string, () => Promise<{ model: string; raw: string } | null>]> = [
+    const providers: Array<[string, (prompt: string) => Promise<{ model: string; raw: string } | null>]> = [
       ["groq", callGroqJson],
       ["mistral", callMistralJson],
     ];
@@ -2031,6 +2041,9 @@ async function runAgenticWebResearchUnbounded(input: {
 
 
 export async function runAgenticWebResearch(input: Parameters<typeof runAgenticWebResearchUnbounded>[0]): Promise<AgenticWebResearchResult> {
-  await acquireAgenticResearchSlot();
-  try { return await runAgenticWebResearchUnbounded(input); } finally { releaseAgenticResearchSlot(); }
+  const scope = `agentic:${input.jobId ?? input.targetName.trim().toLowerCase()}`;
+  return withProviderScope(scope, async () => {
+    await acquireAgenticResearchSlot();
+    try { return await runAgenticWebResearchUnbounded(input); } finally { releaseAgenticResearchSlot(); }
+  });
 }

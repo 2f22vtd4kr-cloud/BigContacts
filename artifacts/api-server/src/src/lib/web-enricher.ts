@@ -2023,7 +2023,7 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
     ownershipSources: [],
     evidence: [],
     candidateFunnel: {
-      totalCandidates: 0, discovered: 0, sourceLinked: 0, attributionReview: 0,
+      totalCandidates: 0, discovered: 0, sourceLinked: 0, attributionReview: 0, rejected: 0,
       independentlyCorroborated: 0, verifiedDirectRoute: 0, organizationOnly: 0,
       conflicted: 0, independentSourceDomains: 0, candidates: [],
     },

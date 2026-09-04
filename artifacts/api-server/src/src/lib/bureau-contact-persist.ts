@@ -140,7 +140,7 @@ export async function persistBureauContactsForEntity(
     const orgish = scope.includes("organization") || scope.includes("org")
       || /^(info|contact|office|press|hello|admin|sales)@/i.test(value);
     let urls = Array.isArray(item.sourceUrls)
-      ? item.sourceUrls.filter((u): u is string => typeof u === "string" && /^https?:\/\//i.test(u))
+      ? item.sourceUrls.filter((u: unknown): u is string => typeof u === "string" && /^https?:\/\//i.test(u))
       : [];
 
     // Claim-bearing contact vectors require an exact public source page.
@@ -222,7 +222,7 @@ export async function persistBureauContactsForEntity(
   // Dig bag → card: promote best non-issuer phone/email onto the entity so
   // free agentic findings are not stranded as evidence_only while EDGAR-Phone stays.
   try {
-    await promoteBureauContactsToEntityCard(entityId, items, source, jobId);
+  await promoteBureauContactsToEntityCard(entityId, items ?? [], source, jobId);
   } catch (err) {
     logger.debug(
       { err: err instanceof Error ? err.message : String(err), entityId },

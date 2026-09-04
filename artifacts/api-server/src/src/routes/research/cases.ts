@@ -68,6 +68,7 @@ import {
   runGeminiBossPlan,
 } from "../../lib/case-bureau";
 import { runBroadDiscovery } from "../../lib/enrichment/broad-discovery";
+import { resolveResearchDepth } from "../../lib/research-depth";
 import { searchRegistry, type RegistryId } from "../../lib/registry-client";
 import {
   appendJobLog,
