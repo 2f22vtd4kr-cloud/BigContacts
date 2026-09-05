@@ -22,6 +22,7 @@ cd "$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 echo "[replit-boot] $(git log -1 --oneline 2>/dev/null || echo unknown)"
 fuser -k "${PORT}/tcp" 2>/dev/null || true
 sleep 1
+node scripts/apply-redis-runtime-hardening.mjs
 pnpm --filter @workspace/db run push
 if [[ ! -f artifacts/apex-finder/dist/public/index.html ]]; then
   pnpm --dir artifacts/apex-finder run build
