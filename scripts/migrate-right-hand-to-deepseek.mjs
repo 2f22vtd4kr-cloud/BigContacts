@@ -19,6 +19,7 @@ const textExt = new Set([".ts", ".tsx", ".js", ".mjs", ".md", ".json"]);
 const RIGHT_HAND_FILE = "artifacts/api-server/src/src/lib/nvidia-nim-case-reasoning.ts";
 const DEEPSEEK_MODEL = "deepseek-ai/deepseek-v4-flash-0731";
 const DEEPSEEK_ENDPOINT = "https://integrate.api.nvidia.com/v1/chat/completions";
+const DEEPSEEK_PARAMS = 'temperature: 1,\n        top_p: 0.95,\n        max_tokens: 16384,\n        extra_body: { chat_template_kwargs: { thinking: true, reasoning_effort: "high" } },';
 
 function isSkipped(rel) {
   const p = rel.replaceAll("\\", "/");
@@ -52,9 +53,8 @@ function writeIfChanged(rel, next) {
   }
 }
 
-// Provider implementation: rename the public API, switch credential/model, and
-// explicitly enable DeepSeek thinking at high reasoning effort. Keep bounded
-// JSON outputs but never let a tiny token budget starve the reasoning model.
+// 1. Provider implementation. Keep the existing file to minimize import churn,
+// but make its API, credential, endpoint, model and thinking contract canonical.
 {
   const abs = path.join(root, RIGHT_HAND_FILE);
   let s = fs.readFileSync(abs, "utf8");
@@ -76,23 +76,23 @@ function writeIfChanged(rel, next) {
     /export const DEEPSEEK_CASE_REASONING_MODEL =\n\s*\(process\.env\.DEEPSEEK_MODEL \|\| process\.env\.DEEPSEEK_AGENTIC_MODEL \|\| "[^"]+"\)\.trim\(\);/,
     `export const DEEPSEEK_CASE_REASONING_MODEL =\n  (process.env.DEEPSEEK_MODEL || "${DEEPSEEK_MODEL}").trim();`,
   );
-
-  // All DeepSeek requests must use the NVIDIA Integrate endpoint and high
-  // reasoning. The provider supports reasoning_content/reasoning output.
-  s = s.replaceAll(
-    'const DEEPSEEK_CHAT_API = "https://integrate.api.nvidia.com/v1/chat/completions";',
+  s = s.replace(
+    /const DEEPSEEK_CHAT_API = "[^"]+";/,
     `const DEEPSEEK_CHAT_API = "${DEEPSEEK_ENDPOINT}";`,
   );
-  s = s.replaceAll(
-    '      body: JSON.stringify({\n        model: DEEPSEEK_CASE_REASONING_MODEL,',
-    '      body: JSON.stringify({\n        model: DEEPSEEK_CASE_REASONING_MODEL,\n        temperature: 1,\n        top_p: 0.95,\n        max_tokens: 16384,\n        extra_body: { chat_template_kwargs: { thinking: true, reasoning_effort: "high" } },',
-  );
+
+  // Replace each existing generation parameter block rather than injecting a
+  // second temperature/max_tokens block. This is safe for all four right-hand
+  // call sites with their current bounded JSON output contracts.
+  s = s.replace(/temperature: 0\.2,\n\s*max_tokens: 800,/g, DEEPSEEK_PARAMS);
+  s = s.replace(/temperature: 0\.2,\n\s*max_tokens: 1200,/g, DEEPSEEK_PARAMS);
+  s = s.replace(/temperature: 0\.3,\n\s*max_tokens: 1200,/g, DEEPSEEK_PARAMS);
+  s = s.replace(/temperature: 0\.1,\n\s*max_tokens: 1200,/g, DEEPSEEK_PARAMS);
 
   writeIfChanged(RIGHT_HAND_FILE, s);
 }
 
-// Active code references: migrate only explicit provider-role identifiers. Do
-// not blanket-rewrite arbitrary "NVIDIA" mentions (e.g. unrelated docs).
+// 2. Active source references. Do not blanket-rewrite unrelated NVIDIA text.
 const activeSourceFiles = files.filter((rel) => /^(artifacts|lib|scripts)\//.test(rel) && rel !== RIGHT_HAND_FILE);
 for (const rel of activeSourceFiles) {
   const abs = path.join(root, rel);
@@ -113,8 +113,8 @@ for (const rel of activeSourceFiles) {
     .replaceAll("NVIDIA_KEY", "DEEPSEEK_API_KEY")
     .replaceAll("nvidia-right-hand", "deepseek-right-hand")
     .replaceAll("nvidia-nim", "deepseek")
-    .replaceAll("provider: \"nvidia-nim\"", "provider: \"deepseek\"")
-    .replaceAll("lane: \"nvidia-right-hand\"", "lane: \"deepseek-right-hand\"")
+    .replaceAll('provider: "nvidia-nim"', 'provider: "deepseek"')
+    .replaceAll('lane: "nvidia-right-hand"', 'lane: "deepseek-right-hand"')
     .replaceAll("z-AI / GLM", "DeepSeek-V4-Flash-0731")
     .replaceAll("z-AI/GLM", "DeepSeek-V4-Flash-0731")
     .replaceAll("z-AI", "DeepSeek")
@@ -122,7 +122,7 @@ for (const rel of activeSourceFiles) {
     .replaceAll("GLM", "DeepSeek-V4-Flash-0731")
     .replaceAll("NVIDIA NIM", "DeepSeek via NVIDIA Integrate");
 
-  // Dig must never inherit DeepSeek from a generic replacement.
+  // Dig is an independent lane. Never let migration add DeepSeek to it.
   if (/DIG_INVESTIGATOR_FAILOVER_CHAIN/.test(next)) {
     next = next
       .replaceAll("Groq -> Mistral -> DeepSeek", "Groq -> Mistral")
@@ -132,7 +132,7 @@ for (const rel of activeSourceFiles) {
   writeIfChanged(rel, next);
 }
 
-// Canonical role documentation must agree with the runtime contract.
+// 3. Canonical role documentation. Historical/archive docs remain untouched.
 const roleDocs = [
   "docs/BUREAU_REACT_ARCHITECTURE.md",
   "docs/bureau-plan/01_PRODUCT_LAW_AND_CONTROL_PLANE.md",
@@ -146,10 +146,9 @@ const roleDocs = [
 for (const rel of roleDocs) {
   if (!fs.existsSync(path.join(root, rel))) throw new Error(`missing canonical role doc: ${rel}`);
   const original = fs.readFileSync(path.join(root, rel), "utf8");
-  let next = original
+  const next = original
     .replaceAll("NVIDIA_NIM_API_KEY", "DEEPSEEK_API_KEY")
     .replaceAll("NVIDIA_API_KEY", "DEEPSEEK_API_KEY")
-    .replaceAll("NVIDIA NIM", "DeepSeek via NVIDIA Integrate")
     .replaceAll("NVIDIA NIM", "DeepSeek via NVIDIA Integrate")
     .replaceAll("NVIDIA narrator", "DeepSeek right-hand advisor")
     .replaceAll("NVIDIA adaptive fallback", "DeepSeek advisory lane")
@@ -166,7 +165,7 @@ for (const rel of roleDocs) {
   writeIfChanged(rel, next);
 }
 
-// Operator docs / preflight secret contract.
+// 4. Operator docs and preflight contract.
 const operatorDocs = [
   "README.md",
   "docs/PRE_REPLIT_GO.md",
@@ -182,16 +181,16 @@ for (const rel of operatorDocs) {
   const next = original
     .replaceAll("NVIDIA_NIM_API_KEY", "DEEPSEEK_API_KEY")
     .replaceAll("NVIDIA_API_KEY", "DEEPSEEK_API_KEY")
+    .replaceAll("NVIDIA NIM", "DeepSeek via NVIDIA Integrate")
     .replaceAll("z-AI / GLM", "DeepSeek-V4-Flash-0731")
     .replaceAll("z-AI/GLM", "DeepSeek-V4-Flash-0731")
     .replaceAll("z-AI", "DeepSeek")
     .replaceAll("z.ai", "DeepSeek")
-    .replaceAll("GLM", "DeepSeek-V4-Flash-0731")
-    .replaceAll("NVIDIA NIM", "DeepSeek via NVIDIA Integrate");
+    .replaceAll("GLM", "DeepSeek-V4-Flash-0731");
   writeIfChanged(rel, next);
 }
 
-// Final active-tree invariants. Historical snapshots are intentionally exempt.
+// 5. Verify active tree and the Dig contract before returning success.
 const stale = [];
 for (const rel of walk(root)) {
   const s = fs.readFileSync(path.join(root, rel), "utf8");
@@ -207,6 +206,9 @@ if (!hardening.includes("DIG_INVESTIGATOR_FAILOVER_CHAIN") || !hardening.include
 const provider = fs.readFileSync(path.join(root, RIGHT_HAND_FILE), "utf8");
 for (const required of ["DEEPSEEK_API_KEY", DEEPSEEK_MODEL, DEEPSEEK_ENDPOINT, "reasoning_effort: \"high\"", "thinking: true"]) {
   if (!provider.includes(required)) throw new Error(`DeepSeek provider missing required contract: ${required}`);
+}
+if ((provider.match(/temperature: 1,/g) ?? []).length !== (provider.match(/reasoning_effort: "high"/g) ?? []).length) {
+  throw new Error("DeepSeek provider has an inconsistent generation-parameter count");
 }
 
 console.log(`DeepSeek right-hand migration complete: ${changed} files changed.`);
