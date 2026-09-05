@@ -19,9 +19,9 @@ The model invents queries and chooses tools from the live schema. There is no ma
 
 ## 2. Model/provider boundary
 
-**Groq → Mistral is the Dig/discovery investigator capability.** Gemini is Boss; NVIDIA NIM is right-hand. Neither is a web-research fallback.
+**Groq → Mistral is the Dig/discovery investigator capability.** Gemini is Boss; DeepSeek via NVIDIA Integrate is right-hand. Neither is a web-research fallback.
 
-**Provider roles:** **Boss = Gemini**; **Right-hand = NVIDIA NIM**; **Investigator = Groq → Mistral**.
+**Provider roles:** **Boss = Gemini**; **Right-hand = DeepSeek via NVIDIA Integrate**; **Investigator = Groq → Mistral**.
 
 Provider failover changes transport capacity, not research strategy. The fallback model receives the same objective and state and chooses its own next action.
 

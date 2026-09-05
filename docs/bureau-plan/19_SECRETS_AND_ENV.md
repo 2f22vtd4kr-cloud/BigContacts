@@ -7,7 +7,7 @@ From product from-zero discipline:
 1. REDIS_URL_1
 2. GROQ_API_KEY
 3. GEMINI_API_KEY
-4. NVIDIA_NIM_API_KEY
+4. DEEPSEEK_API_KEY
 5. SERPER_API_KEY
 6. TAVILY_API_KEY
 7. EXA_API_KEY
@@ -22,7 +22,7 @@ From product from-zero discipline:
 
 Aliases commonly accepted in code (do not require operator to invent extras):
 
-- NVIDIA_API_KEY / NVIDIA_KEY → NVIDIA
+- DEEPSEEK_API_KEY / NVIDIA_KEY → NVIDIA
 - GEMINI_KEY → Gemini
 - WHOXY_API_KEY / WHOXY_KEY → Whoxy if used
 - EXA_1 / EXA_2 → Exa

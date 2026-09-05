@@ -36,7 +36,7 @@ There is no fallback research path, ranked intake, force-hop sequence or determi
 ```
 Case file
   → Boss (Gemini): direction/judgment, no browsing
-  → Right-hand (NVIDIA NIM): critique/advice, no browsing
+  → Right-hand (DeepSeek via NVIDIA Integrate): critique/advice, no browsing
   → Investigator (Groq → Mistral): actual web/OSINT research
        → model-selected tools and pivots
   → evidence update → promotion

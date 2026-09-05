@@ -445,7 +445,7 @@ function parseFreeBossStep(
 async function selectNextAdaptiveActionWithBoss(
   state: AdaptiveResearchState,
   maxActions: number,
-): Promise<{ action: AdaptiveAction; assignedBy: "gemini-boss" | "nvidia-right-hand" | "groq" | "rules" }> {
+): Promise<{ action: AdaptiveAction; assignedBy: "gemini-boss" | "deepseek-right-hand" | "groq" | "rules" }> {
   if (state.completedActions.length >= maxActions || state.noProgressPasses >= state.depth.noProgressLimit) {
     return {
       action: selectNextAdaptiveAction(state, maxActions),
@@ -499,14 +499,14 @@ Return ONLY JSON:
 
   // 2) Right-hand — free assign (not final-card review)
   try {
-    const { runNvidiaNimFreeJson } = await import("./nvidia-nim-case-reasoning");
-    const nv = await runNvidiaNimFreeJson(
+    const { runDeepSeekFreeJson } = await import("./deepseek-case-reasoning");
+    const nv = await runDeepSeekFreeJson(
       prompt,
       "Assign the next research move. Reason freely. Reply with ONE JSON object: thought, tool, query, stop.",
     );
     if (nv.status === "completed" && nv.raw) {
       const choice = parseFreeBossStep(nv.raw, state);
-      if (choice) return { action: choice, assignedBy: "nvidia-right-hand" };
+      if (choice) return { action: choice, assignedBy: "deepseek-right-hand" };
     }
   } catch {
     /* fall through */

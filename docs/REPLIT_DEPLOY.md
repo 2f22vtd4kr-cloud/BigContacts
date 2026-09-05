@@ -75,7 +75,7 @@ Map **one secret name → one value**. Never commit values to git.
 |--------|---------|
 | `GROQ_API_KEY` | Primary fast LLM (also `GROQ_API_KEY_2`… if multi) |
 | `GEMINI_API_KEY` | Gemini Boss (add `GEMINI_API_KEY_2`… for rotation) |
-| `NVIDIA_NIM_API_KEY` | zAI / NIM case reasoning (right hand) |
+| `DEEPSEEK_API_KEY` | zAI / NIM case reasoning (right hand) |
 | `MISTRAL_API_KEY` | Mistral web-search lane |
 | `HF_TOKEN` | Hugging Face / deep research tools |
 

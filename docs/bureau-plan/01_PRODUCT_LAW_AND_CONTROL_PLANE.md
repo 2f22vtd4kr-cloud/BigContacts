@@ -31,7 +31,7 @@ Code must not:
 | Role | Model/provider | Responsibility |
 |------|----------------|----------------|
 | **Boss** | **Gemini** | Case direction, strategic brief, prioritization, final case-level judgment |
-| **Right-hand** | **NVIDIA NIM** | Case-file critique, evidence-gap analysis, advisory recommendation; non-blocking where appropriate |
+| **Right-hand** | **DeepSeek via NVIDIA Integrate** | Case-file critique, evidence-gap analysis, advisory recommendation; non-blocking where appropriate |
 | **Discovery / Dig investigator** | **Groq → Mistral** | Actual web/OSINT research, tool selection, queries, pivots, evidence collection, stopping |
 | **Tools** | Search/fetch/registry/OSINT backends | Execute the investigator's selected action |
 | **Deterministic shell** | TypeScript | Jobs, budgets, permissions, provenance, identity gates, promotion, persistence, telemetry |
@@ -114,7 +114,7 @@ Replit production path: one API workflow on port 8080; desk at `/`; API under `/
 ## 6. Do-not-regress checklist
 
 - [ ] Boss remains Gemini.
-- [ ] Right-hand remains NVIDIA NIM.
+- [ ] Right-hand remains DeepSeek via NVIDIA Integrate.
 - [ ] Gemini/NVIDIA never become Dig browsers.
 - [ ] Dig/discovery investigator remains Groq → Mistral.
 - [ ] Model selects research actions; no force-hop controller.

@@ -212,24 +212,24 @@ export async function runFinalTargetReview(
     logger.debug({ err: err?.message }, "final-review Gemini Boss unavailable");
   }
 
-  // 2) Right-hand — NVIDIA NIM
+  // 2) Right-hand — DeepSeek via NVIDIA Integrate
   try {
-    const { runNvidiaNimFinalReview } = await import("./nvidia-nim-case-reasoning");
-    const nv = await runNvidiaNimFinalReview(bossPrompt);
-    if (nv.status === "completed" && nv.raw) {
-      const json = extractJsonObject(nv.raw);
+    const { runDeepSeekFinalReview } = await import("./deepseek-case-reasoning");
+    const rightHand = await runDeepSeekFinalReview(bossPrompt);
+    if (rightHand.status === "completed" && rightHand.raw) {
+      const json = extractJsonObject(rightHand.raw);
       if (json) {
         try {
           return adjudicateFinalTargetReview(
             input,
             JSON.parse(json),
-            `nvidia-right-hand-final-review:${nv.model}`,
+            `deepseek-right-hand-final-review:${rightHand.model}`,
           );
         } catch { /* fall through */ }
       }
     }
   } catch (err: any) {
-    logger.debug({ err: err?.message }, "final-review NVIDIA right-hand unavailable");
+    logger.debug({ err: err?.message }, "final-review DeepSeek right-hand unavailable");
   }
 
   // 3) Groq capacity fallback (multi-model)
@@ -1690,7 +1690,7 @@ export function getAIKeyStatus(): AIKeyStatus {
   const exaNames  = ["EXA_API_KEY", "EXA_1", "EXA_2", ...Array.from({ length: 8 }, (_, i) => `EXA_API_KEY_${i + 1}`)];
   const serperNames = ["SERPER_API_KEY", "SERPER_KEY", "SERPER_API_KEY_2", "SERPER_API_KEY_3"];
   const mistralNames = ["MISTRAL_API_KEY", "MISTRAL_KEY"];
-  const nvidiaNames = ["NVIDIA_NIM_API_KEY", "NVIDIA_API_KEY", "NVIDIA_KEY"];
+  const nvidiaNames = ["DEEPSEEK_API_KEY", "DEEPSEEK_API_KEY", "DEEPSEEK_API_KEY"];
 
   return {
     groq:       groqNames.map((n, i) => slotState(n, _exhaustedGroqKeys,             i)),

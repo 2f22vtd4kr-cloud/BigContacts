@@ -26,6 +26,8 @@ const runtimeFiles = [
   "artifacts/api-server/src/src/lib/adaptive-research-director.ts",
   "artifacts/api-server/src/src/lib/bureau-live-narration.ts",
   "artifacts/api-server/src/src/lib/lanes-honesty.ts",
+  "artifacts/api-server/src/src/lib/ai-extractor.ts",
+  "artifacts/api-server/src/src/lib/apex-bureau-orientation.ts",
   "artifacts/api-server/src/src/routes/health.ts",
   "artifacts/api-server/src/src/routes/system-status.ts",
   "artifacts/api-server/src/src/routes/research/cases.ts",
@@ -68,8 +70,11 @@ function writeIfChanged(rel, next) {
   const abs = path.join(root, RIGHT_HAND_FILE);
   if (!fs.existsSync(abs)) throw new Error(`missing expected right-hand file: ${RIGHT_HAND_FILE}`);
   let s = fs.readFileSync(abs, "utf8");
-  for (const anchor of ["NVIDIA_NIM_CASE_REASONING_MODEL", "getNvidiaNimKey", "runNvidiaNimCaseReasoning", "NVIDIA_NIM_CHAT_API"]) {
-    if (!s.includes(anchor)) throw new Error(`${RIGHT_HAND_FILE}: expected anchor missing: ${anchor}`);
+  const legacyAnchors = ["NVIDIA_NIM_CASE_REASONING_MODEL", "getNvidiaNimKey", "runNvidiaNimCaseReasoning", "NVIDIA_NIM_CHAT_API"];
+  const migratedAnchors = ["DEEPSEEK_CASE_REASONING_MODEL", "getDeepSeekKey", "runDeepSeekCaseReasoning", "DEEPSEEK_CHAT_API"];
+  const hasExpectedShape = legacyAnchors.every((anchor) => s.includes(anchor)) || migratedAnchors.every((anchor) => s.includes(anchor));
+  if (!hasExpectedShape) {
+    throw new Error(`${RIGHT_HAND_FILE}: expected legacy or migrated provider anchors missing`);
   }
   s = s
     .replaceAll("NvidiaNim", "DeepSeek")
@@ -101,6 +106,7 @@ for (const rel of runtimeFiles) {
     .replaceAll("runNvidiaNimCaseReasoning", "runDeepSeekCaseReasoning")
     .replaceAll("runNvidiaNimFreeJson", "runDeepSeekFreeJson")
     .replaceAll("runNvidiaNimFinalReview", "runDeepSeekFinalReview")
+    .replaceAll("nvidia-nim-case-reasoning", "deepseek-case-reasoning")
     .replaceAll("getNvidiaNimCaseReasoningStatus", "getDeepSeekCaseReasoningStatus")
     .replaceAll("NvidiaNimCaseReasoningStatus", "DeepSeekCaseReasoningStatus")
     .replaceAll("NvidiaNimCaseReasoningResult", "DeepSeekCaseReasoningResult")

@@ -63,8 +63,8 @@ import {
   DEFAULT_DISCOVERY_MOTIVATION,
   DEFAULT_DISCOVERY_OBJECTIVE,
   runMistralWebSearch,
-  runNvidiaNimCaseReasoning,
-  runNvidiaNimDiscoveryAdvice,
+  runDeepSeekCaseReasoning,
+  runDeepSeekDiscoveryAdvice,
   runGeminiBossPlan,
 } from "../../lib/case-bureau";
 import { runBroadDiscovery } from "../../lib/enrichment/broad-discovery";
@@ -579,7 +579,7 @@ async function persistDiscoveryCheckpoint(
   await db.insert(researchCaseEventsTable).values({
     caseId,
     iteration,
-    actorRole: report.lane === "nvidia-right-hand" ? "right_hand_advisor" : report.lane === "gemini-boss" ? "head_investigator" : "specialist",
+    actorRole: report.lane === "deepseek-right-hand" ? "right_hand_advisor" : report.lane === "gemini-boss" ? "head_investigator" : "specialist",
     eventType: "observation",
     summary,
     payload: JSON.stringify({
@@ -727,7 +727,7 @@ router.get("/research/bureau/cases/:caseId/events", async (req, res): Promise<vo
 
 /**
  * Run one bounded discovery-first investigation:
- * 1. GLM right-hand advice and Gemini Boss text planning open the case context.
+ * 1. DeepSeek-V4-Flash-0731 right-hand advice and Gemini Boss text planning open the case context.
  * 2. The existing mixed-source discovery/admission runner searches the public
  *    web without requiring an existing entity.
  * 3. A small registry mix adds independent review-only company anchors.
@@ -811,13 +811,13 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
       const discoveryTemplateSet = westernTemplateSets[Math.floor(Math.random() * westernTemplateSets.length)] ?? 1;
       let workingFile = file;
       const openingIteration = current.iteration + 1;
-      const rightHand = await runNvidiaNimDiscoveryAdvice({
+      const rightHand = await runDeepSeekDiscoveryAdvice({
         file: workingFile,
         iteration: openingIteration,
       });
       workingFile = await persistDiscoveryCheckpoint(caseId, openingIteration, workingFile, {
-        lane: "nvidia-right-hand",
-        provider: `NVIDIA NIM ${rightHand.model}`,
+        lane: "deepseek-right-hand",
+        provider: `DeepSeek via NVIDIA Integrate ${rightHand.model}`,
         status: rightHand.status,
         iteration: openingIteration,
         summary: rightHand.decision ?? rightHand.error ?? "Right-hand discovery review unavailable.",
@@ -827,7 +827,7 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
         nextQuestions: rightHand.focusLanes,
         error: rightHand.error,
       }, `Right-hand discovery review ${rightHand.status}; shared case context checkpointed.`);
-      await appendJobLog(jobId, `GLM right-hand discovery advice ${rightHand.status}; model=${rightHand.model}.`);
+      await appendJobLog(jobId, `DeepSeek-V4-Flash-0731 right-hand discovery advice ${rightHand.status}; model=${rightHand.model}.`);
 
       const mistral = await runMistralWebSearch({
         objective: workingFile.humanBrief.objective,
@@ -1745,7 +1745,7 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
         }
       };
       const finalRightHand = await withTimeout(
-        runNvidiaNimDiscoveryAdvice({
+        runDeepSeekDiscoveryAdvice({
           file: workingFile,
           iteration: openingIteration + 1,
         }),
@@ -1761,8 +1761,8 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
         },
       );
       workingFile = await persistDiscoveryCheckpoint(caseId, openingIteration + 1, workingFile, {
-        lane: "nvidia-right-hand",
-        provider: `NVIDIA NIM ${finalRightHand.model}`,
+        lane: "deepseek-right-hand",
+        provider: `DeepSeek via NVIDIA Integrate ${finalRightHand.model}`,
         status: finalRightHand.status,
         iteration: openingIteration + 1,
         summary: finalRightHand.decision ?? finalRightHand.error ?? "Right-hand post-research review unavailable.",
@@ -1909,7 +1909,7 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
           recordedAt: now().toISOString(),
         },
         rightHandAdvice: {
-           provider: "nvidia-nim" as const,
+           provider: "deepseek" as const,
            model: finalRightHand.model,
            status: finalRightHand.status,
            decision: finalRightHand.decision,
@@ -2269,13 +2269,13 @@ router.post("/research/bureau/cases/:caseId/run-next-pass", async (req, res): Pr
         message: "Reviewing refreshed case context with the right hand and Boss…",
       });
 
-      const rightHand = await runNvidiaNimDiscoveryAdvice({
+      const rightHand = await runDeepSeekDiscoveryAdvice({
         file: workingFile,
         iteration,
       });
       workingFile = await persistDiscoveryCheckpoint(caseId, iteration, workingFile, {
-        lane: "nvidia-right-hand",
-        provider: `NVIDIA NIM ${rightHand.model}`,
+        lane: "deepseek-right-hand",
+        provider: `DeepSeek via NVIDIA Integrate ${rightHand.model}`,
         status: rightHand.status,
         iteration,
         summary: rightHand.decision ?? rightHand.error ?? "Right-hand verification review unavailable.",
@@ -2567,10 +2567,10 @@ router.post("/research/bureau/cases/:caseId/run-boss-review", async (req, res): 
     const now = () => new Date();
     try {
       let workingFile = file;
-      const rightHand = await runNvidiaNimDiscoveryAdvice({ file: workingFile, iteration });
+      const rightHand = await runDeepSeekDiscoveryAdvice({ file: workingFile, iteration });
       workingFile = await persistDiscoveryCheckpoint(caseId, iteration, workingFile, {
-        lane: "nvidia-right-hand",
-        provider: `NVIDIA NIM ${rightHand.model}`,
+        lane: "deepseek-right-hand",
+        provider: `DeepSeek via NVIDIA Integrate ${rightHand.model}`,
         status: rightHand.status,
         iteration,
         summary: rightHand.decision ?? rightHand.error ?? "Right-hand closure review unavailable.",
@@ -3389,12 +3389,12 @@ router.post("/research/cases/:entityId/advance", async (req, res): Promise<void>
     return;
   }
 
-  const reasoning = await runNvidiaNimCaseReasoning({
+  const reasoning = await runDeepSeekCaseReasoning({
     file: workingFile,
     iteration: nextIteration,
   });
   // Boss remains the Head Investigator and owns the final queue decision.
-  // GLM is a right-hand advisor: preserve its recommendation in case context,
+  // DeepSeek-V4-Flash-0731 is a right-hand advisor: preserve its recommendation in case context,
   // but never let it directly select or activate the Boss's action.
   const advisedFile = recordRightHandAdvice(workingFile, {
     model: reasoning.model,
@@ -3598,8 +3598,8 @@ router.post("/research/cases/:entityId/advance", async (req, res): Promise<void>
     actorRole: "right_hand_advisor",
     eventType: "decision",
     summary: reasoning.status === "completed"
-      ? `GLM right-hand advisory recommendation: ${reasoning.actionId ?? "none"}. Boss decision remains authoritative.`
-      : "GLM right-hand advisor unavailable; Boss used the local planning fallback.",
+      ? `DeepSeek-V4-Flash-0731 right-hand advisory recommendation: ${reasoning.actionId ?? "none"}. Boss decision remains authoritative.`
+      : "DeepSeek-V4-Flash-0731 right-hand advisor unavailable; Boss used the local planning fallback.",
     payload: JSON.stringify({
       advisor: updatedFile.rightHandAdvice,
     }),

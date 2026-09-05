@@ -23,7 +23,7 @@ Ask the operator for exactly these 14 runtime secrets, using these canonical nam
 1. `REDIS_URL_1`
 2. `GROQ_API_KEY`
 3. `GEMINI_API_KEY`
-4. `NVIDIA_NIM_API_KEY`
+4. `DEEPSEEK_API_KEY`
 5. `MISTRAL_API_KEY`
 6. `HF_TOKEN`
 7. `SERPER_API_KEY`
@@ -39,7 +39,7 @@ Mappings:
 
 - The operator's Upstash Redis connection URL belongs in `REDIS_URL_1`.
 - The Hugging Face token belongs in `HF_TOKEN`.
-- The NVIDIA credential belongs in `NVIDIA_NIM_API_KEY`.
+- The NVIDIA credential belongs in `DEEPSEEK_API_KEY`.
 - The Exa credential belongs in `EXA_API_KEY`.
 - `REDIS_URL` and `EXA_1` are compatibility aliases and are not additional operator asks.
 

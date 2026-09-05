@@ -10,18 +10,18 @@ export {
 } from "./mistral-web-search";
 export type { MistralWebSearchResult } from "./mistral-web-search";
 export {
-  getNvidiaNimCaseReasoningStatus,
-  runNvidiaNimCaseReasoning,
-  runNvidiaNimDiscoveryAdvice,
-  runNvidiaNimFreeJson,
-  runNvidiaNimFinalReview,
-  NVIDIA_NIM_CASE_REASONING_MODEL,
-} from "./nvidia-nim-case-reasoning";
+  getDeepSeekCaseReasoningStatus,
+  runDeepSeekCaseReasoning,
+  runDeepSeekDiscoveryAdvice,
+  runDeepSeekFreeJson,
+  runDeepSeekFinalReview,
+  DEEPSEEK_CASE_REASONING_MODEL,
+} from "./deepseek-case-reasoning";
 export type {
-  NvidiaNimCaseReasoningResult,
-  NvidiaNimCaseReasoningStatus,
-  NvidiaNimDiscoveryAdviceResult,
-} from "./nvidia-nim-case-reasoning";
+  DeepSeekCaseReasoningResult,
+  DeepSeekCaseReasoningStatus,
+  DeepSeekDiscoveryAdviceResult,
+} from "./deepseek-case-reasoning";
 
 /** Boss may proceed with an allowlisted action, reject the target, or reframe scope. */
 export type BossPlanOutcome = "proceed" | "reject_target" | "reframe";
@@ -111,7 +111,7 @@ export type ResearchCaseFile = {
     createdAt: string;
   }>;
   rightHandAdvice?: {
-    provider: "nvidia-nim";
+    provider: "deepseek";
     model: string;
     status: "completed" | "unavailable";
     actionId: string | null;
@@ -179,7 +179,7 @@ export type DiscoveryCaseFile = {
   };
   investigatorReports: Array<{
     id: string;
-    lane: "gemini-boss" | "nvidia-right-hand" | "mistral-web" | "broad-web" | "registry";
+    lane: "gemini-boss" | "deepseek-right-hand" | "mistral-web" | "broad-web" | "registry";
     provider: string;
     status: "completed" | "unavailable" | "failed";
     iteration: number;
@@ -220,7 +220,7 @@ export type DiscoveryCaseFile = {
     } | null;
   };
   rightHandAdvice?: {
-    provider: "nvidia-nim";
+    provider: "deepseek";
     model: string;
     status: "completed" | "unavailable";
     decision: string | null;
@@ -334,7 +334,7 @@ export type GeminiBossPlanResult = {
    * Only ids that already exist in the case file queue are applied; no tool invention.
    */
   reprioritize: string[];
-  /** Explicit coordination with z-AI/GLM right-hand: accept or override advisory. */
+  /** Explicit coordination with DeepSeek-V4-Flash-0731 right-hand: accept or override advisory. */
   rightHandDisposition: "accept" | "override" | "unknown";
   /** One-line note: why accept, or which right-hand action was overridden and why. */
   rightHandNote: string | null;
@@ -1580,7 +1580,7 @@ export function recordRightHandAdvice(
   return {
     ...file,
     rightHandAdvice: {
-      provider: "nvidia-nim",
+      provider: "deepseek",
       model: input.model,
       status: input.status,
       actionId: input.actionId,

@@ -20,7 +20,7 @@ Create and ask me to provide exactly these 14 runtime secrets using these canoni
 1. REDIS_URL_1
 2. GROQ_API_KEY
 3. GEMINI_API_KEY
-4. NVIDIA_NIM_API_KEY
+4. DEEPSEEK_API_KEY
 5. MISTRAL_API_KEY
 6. HF_TOKEN
 7. SERPER_API_KEY
@@ -35,7 +35,7 @@ Create and ask me to provide exactly these 14 runtime secrets using these canoni
 Important mappings:
 - the operator's Upstash Redis URL goes in REDIS_URL_1;
 - the Hugging Face token goes in HF_TOKEN;
-- the NVIDIA key goes in NVIDIA_NIM_API_KEY;
+- the NVIDIA key goes in DEEPSEEK_API_KEY;
 - the Exa key goes in EXA_API_KEY.
 
 REDIS_URL and EXA_1 are compatibility aliases, not additional operator asks.

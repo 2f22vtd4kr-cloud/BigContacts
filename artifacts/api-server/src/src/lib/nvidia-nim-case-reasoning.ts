@@ -2,11 +2,11 @@ import type { BureauAction, DiscoveryCaseFile, ResearchCaseFile } from "./case-b
 import { logger } from "./logger";
 import { apexOrientationFor } from "./apex-bureau-orientation";
 
-export const NVIDIA_NIM_CASE_REASONING_MODEL =
-  (process.env.NVIDIA_NIM_MODEL || process.env.NVIDIA_AGENTIC_MODEL || "nvidia/nemotron-3-nano-30b-a3b").trim();
-const NVIDIA_NIM_CHAT_API = "https://integrate.api.nvidia.com/v1/chat/completions";
+export const DEEPSEEK_CASE_REASONING_MODEL =
+  (process.env.DEEPSEEK_MODEL || "deepseek-ai/deepseek-v4-flash-0731").trim();
+const DEEPSEEK_CHAT_API = "https://integrate.api.nvidia.com/v1/chat/completions";
 
-export type NvidiaNimCaseReasoningStatus = {
+export type DeepSeekCaseReasoningStatus = {
   configured: boolean;
   model: string;
   endpoint: string;
@@ -14,7 +14,7 @@ export type NvidiaNimCaseReasoningStatus = {
   capability: "case_file_reasoning_only";
 };
 
-export type NvidiaNimCaseReasoningResult = {
+export type DeepSeekCaseReasoningResult = {
   status: "completed" | "unavailable";
   model: string;
   actionId: string | null;
@@ -24,7 +24,7 @@ export type NvidiaNimCaseReasoningResult = {
   error: string | null;
 };
 
-export type NvidiaNimDiscoveryAdviceResult = {
+export type DeepSeekDiscoveryAdviceResult = {
   status: "completed" | "unavailable";
   model: string;
   decision: string | null;
@@ -38,24 +38,36 @@ type ChatCompletionResponse = {
   choices?: Array<{
     message?: {
       content?: string | null;
+      reasoning?: string | null;
+      reasoning_content?: string | null;
     };
   }>;
 };
+type ChatMessage = {
+  content?: string | null;
+  reasoning?: string | null;
+  reasoning_content?: string | null;
+};
 
-function getNvidiaNimKey(): string | null {
-  return (
-    process.env.NVIDIA_NIM_API_KEY?.trim()
-    || process.env.NVIDIA_API_KEY?.trim()
-    || process.env.NVIDIA_KEY?.trim()
-    || null
-  );
+function getDeepSeekKey(): string | null {
+  return process.env.DEEPSEEK_API_KEY?.trim() || null;
 }
 
-export function getNvidiaNimCaseReasoningStatus(): NvidiaNimCaseReasoningStatus {
+function extractAssistantText(message: ChatMessage | undefined): string {
+  if (!message) return "";
+  return (
+    (typeof message.content === "string" ? message.content : null)
+    || (typeof message.reasoning_content === "string" ? message.reasoning_content : null)
+    || (typeof message.reasoning === "string" ? message.reasoning : null)
+    || ""
+  ).trim();
+}
+
+export function getDeepSeekCaseReasoningStatus(): DeepSeekCaseReasoningStatus {
   return {
-    configured: Boolean(getNvidiaNimKey()),
-    model: NVIDIA_NIM_CASE_REASONING_MODEL,
-    endpoint: NVIDIA_NIM_CHAT_API,
+    configured: Boolean(getDeepSeekKey()),
+    model: DEEPSEEK_CASE_REASONING_MODEL,
+    endpoint: DEEPSEEK_CHAT_API,
     role: "right_hand_advisor",
     capability: "case_file_reasoning_only",
   };
@@ -73,7 +85,7 @@ function extractJsonObject(value: string): string | null {
 function parseRecommendation(
   raw: string,
   queuedActions: BureauAction[],
-): Pick<NvidiaNimCaseReasoningResult, "actionId" | "decision" | "reason" | "confidence"> | null {
+): Pick<DeepSeekCaseReasoningResult, "actionId" | "decision" | "reason" | "confidence"> | null {
   const json = extractJsonObject(raw);
   if (!json) return null;
   try {
@@ -221,7 +233,7 @@ Return ONLY this JSON:
 }`;
 }
 
-function parseDiscoveryAdvice(raw: string, file: DiscoveryCaseFile): Pick<NvidiaNimDiscoveryAdviceResult, "decision" | "reason" | "focusLanes" | "confidence"> | null {
+function parseDiscoveryAdvice(raw: string, file: DiscoveryCaseFile): Pick<DeepSeekDiscoveryAdviceResult, "decision" | "reason" | "focusLanes" | "confidence"> | null {
   const json = extractJsonObject(raw);
   if (!json) return null;
   try {
@@ -244,23 +256,23 @@ function parseDiscoveryAdvice(raw: string, file: DiscoveryCaseFile): Pick<Nvidia
   }
 }
 
-export async function runNvidiaNimDiscoveryAdvice(input: {
+export async function runDeepSeekDiscoveryAdvice(input: {
   file: DiscoveryCaseFile;
   iteration: number;
-}): Promise<NvidiaNimDiscoveryAdviceResult> {
-  const key = getNvidiaNimKey();
-  const unavailable = (error: string): NvidiaNimDiscoveryAdviceResult => ({
+}): Promise<DeepSeekDiscoveryAdviceResult> {
+  const key = getDeepSeekKey();
+  const unavailable = (error: string): DeepSeekDiscoveryAdviceResult => ({
     status: "unavailable",
-    model: NVIDIA_NIM_CASE_REASONING_MODEL,
+    model: DEEPSEEK_CASE_REASONING_MODEL,
     decision: null,
     reason: null,
     focusLanes: [],
     confidence: null,
     error,
   });
-  if (!key) return unavailable("NVIDIA_NIM_API_KEY is not configured.");
+  if (!key) return unavailable("DEEPSEEK_API_KEY is not configured.");
   try {
-    const response = await fetch(NVIDIA_NIM_CHAT_API, {
+    const response = await fetch(DEEPSEEK_CHAT_API, {
       method: "POST",
       headers: {
         Accept: "application/json",
@@ -268,7 +280,7 @@ export async function runNvidiaNimDiscoveryAdvice(input: {
         Authorization: `Bearer ${key}`,
       },
       body: JSON.stringify({
-        model: NVIDIA_NIM_CASE_REASONING_MODEL,
+        model: DEEPSEEK_CASE_REASONING_MODEL,
         messages: [
           {
             role: "system",
@@ -276,40 +288,42 @@ export async function runNvidiaNimDiscoveryAdvice(input: {
           },
           { role: "user", content: buildDiscoveryAdvicePrompt(input.file, input.iteration) },
         ],
-        temperature: 0.2,
-        max_tokens: 800,
+        temperature: 1,
+        top_p: 0.95,
+        max_tokens: 16384,
+        extra_body: { chat_template_kwargs: { thinking: true, reasoning_effort: "high" } },
         stream: false,
       }),
       signal: AbortSignal.timeout(90_000),
     });
     if (!response.ok) {
       const detail = (await response.text().catch(() => "")).slice(0, 300);
-      return unavailable(`NVIDIA NIM ${NVIDIA_NIM_CASE_REASONING_MODEL} HTTP ${response.status}${detail ? `: ${detail}` : ""}`);
+      return unavailable(`DeepSeek via NVIDIA Integrate ${DEEPSEEK_CASE_REASONING_MODEL} HTTP ${response.status}${detail ? `: ${detail}` : ""}`);
     }
     const payload = await response.json() as ChatCompletionResponse;
-    const parsed = parseDiscoveryAdvice(payload.choices?.[0]?.message?.content?.trim() ?? "", input.file);
+    const parsed = parseDiscoveryAdvice(extractAssistantText(payload.choices?.[0]?.message), input.file);
     return parsed
-      ? { status: "completed", model: NVIDIA_NIM_CASE_REASONING_MODEL, ...parsed, error: null }
-      : unavailable("NVIDIA NIM returned an invalid discovery advisory.");
+      ? { status: "completed", model: DEEPSEEK_CASE_REASONING_MODEL, ...parsed, error: null }
+      : unavailable("DeepSeek via NVIDIA Integrate returned an invalid discovery advisory.");
   } catch (error) {
-    return unavailable(error instanceof Error ? error.message : "NVIDIA NIM discovery advice failed.");
+    return unavailable(error instanceof Error ? error.message : "DeepSeek via NVIDIA Integrate discovery advice failed.");
   }
 }
 
-export async function runNvidiaNimCaseReasoning(input: {
+export async function runDeepSeekCaseReasoning(input: {
   file: ResearchCaseFile;
   iteration: number;
-}): Promise<NvidiaNimCaseReasoningResult> {
-  const key = getNvidiaNimKey();
+}): Promise<DeepSeekCaseReasoningResult> {
+  const key = getDeepSeekKey();
   if (!key) {
     return {
       status: "unavailable",
-      model: NVIDIA_NIM_CASE_REASONING_MODEL,
+      model: DEEPSEEK_CASE_REASONING_MODEL,
       actionId: null,
       decision: null,
       reason: null,
       confidence: null,
-      error: "NVIDIA_NIM_API_KEY is not configured.",
+      error: "DEEPSEEK_API_KEY is not configured.",
     };
   }
 
@@ -317,7 +331,7 @@ export async function runNvidiaNimCaseReasoning(input: {
   if (queuedActions.length === 0) {
     return {
       status: "unavailable",
-      model: NVIDIA_NIM_CASE_REASONING_MODEL,
+      model: DEEPSEEK_CASE_REASONING_MODEL,
       actionId: null,
       decision: null,
       reason: null,
@@ -327,7 +341,7 @@ export async function runNvidiaNimCaseReasoning(input: {
   }
 
   try {
-    const response = await fetch(NVIDIA_NIM_CHAT_API, {
+    const response = await fetch(DEEPSEEK_CHAT_API, {
       method: "POST",
       headers: {
         Accept: "application/json",
@@ -335,7 +349,7 @@ export async function runNvidiaNimCaseReasoning(input: {
         Authorization: `Bearer ${key}`,
       },
       body: JSON.stringify({
-        model: NVIDIA_NIM_CASE_REASONING_MODEL,
+        model: DEEPSEEK_CASE_REASONING_MODEL,
         messages: [
           {
             role: "system",
@@ -343,8 +357,10 @@ export async function runNvidiaNimCaseReasoning(input: {
           },
           { role: "user", content: buildReasoningPrompt(input.file, input.iteration) },
         ],
-        temperature: 0.2,
-        max_tokens: 1200,
+        temperature: 1,
+        top_p: 0.95,
+        max_tokens: 16384,
+        extra_body: { chat_template_kwargs: { thinking: true, reasoning_effort: "high" } },
         stream: false,
       }),
       signal: AbortSignal.timeout(45_000),
@@ -352,11 +368,11 @@ export async function runNvidiaNimCaseReasoning(input: {
 
     if (!response.ok) {
       const detail = (await response.text().catch(() => "")).slice(0, 300);
-      const error = `NVIDIA NIM ${NVIDIA_NIM_CASE_REASONING_MODEL} HTTP ${response.status}${detail ? `: ${detail}` : ""}`;
-      logger.warn({ model: NVIDIA_NIM_CASE_REASONING_MODEL, status: response.status }, "NVIDIA NIM case reasoning rejected");
+      const error = `DeepSeek via NVIDIA Integrate ${DEEPSEEK_CASE_REASONING_MODEL} HTTP ${response.status}${detail ? `: ${detail}` : ""}`;
+      logger.warn({ model: DEEPSEEK_CASE_REASONING_MODEL, status: response.status }, "DeepSeek via NVIDIA Integrate case reasoning rejected");
       return {
         status: "unavailable",
-        model: NVIDIA_NIM_CASE_REASONING_MODEL,
+        model: DEEPSEEK_CASE_REASONING_MODEL,
         actionId: null,
         decision: null,
         reason: null,
@@ -366,32 +382,32 @@ export async function runNvidiaNimCaseReasoning(input: {
     }
 
     const payload = await response.json() as ChatCompletionResponse;
-    const raw = payload.choices?.[0]?.message?.content?.trim() ?? "";
+    const raw = extractAssistantText(payload.choices?.[0]?.message);
     const recommendation = parseRecommendation(raw, queuedActions);
     if (!recommendation) {
       return {
         status: "unavailable",
-        model: NVIDIA_NIM_CASE_REASONING_MODEL,
+        model: DEEPSEEK_CASE_REASONING_MODEL,
         actionId: null,
         decision: null,
         reason: null,
         confidence: null,
-        error: "NVIDIA NIM returned an invalid case-action recommendation.",
+        error: "DeepSeek via NVIDIA Integrate returned an invalid case-action recommendation.",
       };
     }
 
     return {
       status: "completed",
-      model: NVIDIA_NIM_CASE_REASONING_MODEL,
+      model: DEEPSEEK_CASE_REASONING_MODEL,
       ...recommendation,
       error: null,
     };
   } catch (error) {
-    const message = error instanceof Error ? error.message : "NVIDIA NIM case reasoning failed.";
-    logger.warn({ model: NVIDIA_NIM_CASE_REASONING_MODEL, err: message }, "NVIDIA NIM case reasoning threw");
+    const message = error instanceof Error ? error.message : "DeepSeek via NVIDIA Integrate case reasoning failed.";
+    logger.warn({ model: DEEPSEEK_CASE_REASONING_MODEL, err: message }, "DeepSeek via NVIDIA Integrate case reasoning threw");
     return {
       status: "unavailable",
-      model: NVIDIA_NIM_CASE_REASONING_MODEL,
+      model: DEEPSEEK_CASE_REASONING_MODEL,
       actionId: null,
       decision: null,
       reason: null,
@@ -407,7 +423,7 @@ export async function runNvidiaNimCaseReasoning(input: {
  */
 
 /** General free JSON completion for adaptive / dig assign — not final-card locked. */
-export async function runNvidiaNimFreeJson(
+export async function runDeepSeekFreeJson(
   userPrompt: string,
   systemExtra = "Reply with ONE JSON object only. Never invent contacts, people, or URLs.",
 ): Promise<{
@@ -416,22 +432,25 @@ export async function runNvidiaNimFreeJson(
   raw: string | null;
   error: string | null;
 }> {
-  const key = getNvidiaNimKey();
+  const key = getDeepSeekKey();
   if (!key) {
-    return { status: "unavailable", model: NVIDIA_NIM_CASE_REASONING_MODEL, raw: null, error: "NVIDIA_NIM_API_KEY not set" };
+    return { status: "unavailable", model: DEEPSEEK_CASE_REASONING_MODEL, raw: null, error: "DEEPSEEK_API_KEY not set" };
   }
   try {
-    const resp = await fetch(NVIDIA_NIM_CHAT_API, {
+    const resp = await fetch(DEEPSEEK_CHAT_API, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${key}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: NVIDIA_NIM_CASE_REASONING_MODEL,
-        temperature: 0.3,
-        max_tokens: 1200,
+        model: DEEPSEEK_CASE_REASONING_MODEL,
+        temperature: 1,
+        top_p: 0.95,
+        max_tokens: 16384,
+        extra_body: { chat_template_kwargs: { thinking: true, reasoning_effort: "high" } },
         response_format: { type: "json_object" },
+        stream: false,
         messages: [
           {
             role: "system",
@@ -446,49 +465,52 @@ export async function runNvidiaNimFreeJson(
       const detail = (await resp.text().catch(() => "")).slice(0, 200);
       return {
         status: "unavailable",
-        model: NVIDIA_NIM_CASE_REASONING_MODEL,
+        model: DEEPSEEK_CASE_REASONING_MODEL,
         raw: null,
-        error: `NVIDIA HTTP ${resp.status}${detail ? `: ${detail}` : ""}`,
+        error: `DeepSeek HTTP ${resp.status}${detail ? `: ${detail}` : ""}`,
       };
     }
     const data = (await resp.json()) as ChatCompletionResponse;
-    const raw = data.choices?.[0]?.message?.content?.trim() ?? "";
+     const raw = extractAssistantText(data.choices?.[0]?.message);
     if (!raw) {
-      return { status: "unavailable", model: NVIDIA_NIM_CASE_REASONING_MODEL, raw: null, error: "empty NVIDIA response" };
+      return { status: "unavailable", model: DEEPSEEK_CASE_REASONING_MODEL, raw: null, error: "empty NVIDIA response" };
     }
-    return { status: "completed", model: NVIDIA_NIM_CASE_REASONING_MODEL, raw, error: null };
+    return { status: "completed", model: DEEPSEEK_CASE_REASONING_MODEL, raw, error: null };
   } catch (err: any) {
     return {
       status: "unavailable",
-      model: NVIDIA_NIM_CASE_REASONING_MODEL,
+      model: DEEPSEEK_CASE_REASONING_MODEL,
       raw: null,
       error: err?.message ?? "NVIDIA free JSON failed",
     };
   }
 }
 
-export async function runNvidiaNimFinalReview(prompt: string): Promise<{
+export async function runDeepSeekFinalReview(prompt: string): Promise<{
   status: "completed" | "unavailable";
   model: string;
   raw: string | null;
   error: string | null;
 }> {
-  const key = getNvidiaNimKey();
+  const key = getDeepSeekKey();
   if (!key) {
-    return { status: "unavailable", model: NVIDIA_NIM_CASE_REASONING_MODEL, raw: null, error: "NVIDIA_NIM_API_KEY not set" };
+    return { status: "unavailable", model: DEEPSEEK_CASE_REASONING_MODEL, raw: null, error: "DEEPSEEK_API_KEY not set" };
   }
   try {
-    const resp = await fetch(NVIDIA_NIM_CHAT_API, {
+    const resp = await fetch(DEEPSEEK_CHAT_API, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${key}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: NVIDIA_NIM_CASE_REASONING_MODEL,
-        temperature: 0.1,
-        max_tokens: 1200,
+        model: DEEPSEEK_CASE_REASONING_MODEL,
+        temperature: 1,
+        top_p: 0.95,
+        max_tokens: 16384,
+        extra_body: { chat_template_kwargs: { thinking: true, reasoning_effort: "high" } },
         response_format: { type: "json_object" },
+        stream: false,
         messages: [
           {
             role: "system",
@@ -505,21 +527,21 @@ export async function runNvidiaNimFinalReview(prompt: string): Promise<{
       const detail = (await resp.text().catch(() => "")).slice(0, 200);
       return {
         status: "unavailable",
-        model: NVIDIA_NIM_CASE_REASONING_MODEL,
+        model: DEEPSEEK_CASE_REASONING_MODEL,
         raw: null,
-        error: `NVIDIA HTTP ${resp.status}${detail ? `: ${detail}` : ""}`,
+        error: `DeepSeek HTTP ${resp.status}${detail ? `: ${detail}` : ""}`,
       };
     }
     const data = (await resp.json()) as ChatCompletionResponse;
-    const raw = data.choices?.[0]?.message?.content?.trim() ?? "";
+     const raw = extractAssistantText(data.choices?.[0]?.message);
     if (!raw) {
-      return { status: "unavailable", model: NVIDIA_NIM_CASE_REASONING_MODEL, raw: null, error: "empty NVIDIA response" };
+      return { status: "unavailable", model: DEEPSEEK_CASE_REASONING_MODEL, raw: null, error: "empty NVIDIA response" };
     }
-    return { status: "completed", model: NVIDIA_NIM_CASE_REASONING_MODEL, raw, error: null };
+    return { status: "completed", model: DEEPSEEK_CASE_REASONING_MODEL, raw, error: null };
   } catch (err: any) {
     return {
       status: "unavailable",
-      model: NVIDIA_NIM_CASE_REASONING_MODEL,
+      model: DEEPSEEK_CASE_REASONING_MODEL,
       raw: null,
       error: err?.message ?? "NVIDIA final review failed",
     };

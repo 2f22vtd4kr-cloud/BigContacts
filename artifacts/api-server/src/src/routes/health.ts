@@ -2,7 +2,7 @@ import { Router, type IRouter } from "express";
 import { pingRedis, getPermanentClient, getRedisHealthSnapshot } from "../lib/redis";
 import { getAIKeyStatus } from "../lib/ai-extractor";
 import { getMistralWebSearchStatus } from "../lib/mistral-web-search";
-import { getNvidiaNimCaseReasoningStatus } from "../lib/nvidia-nim-case-reasoning";
+import { getDeepSeekCaseReasoningStatus } from "../lib/deepseek-case-reasoning";
 import { buildLanesHonestySnapshot } from "../lib/lanes-honesty";
 
 const router: IRouter = Router();
@@ -43,7 +43,7 @@ router.get("/healthz", async (_req, res) => {
     const active = (slots: Array<{ state: string }>) =>
       slots.filter((s) => s.state === "active").length;
     const mistral = getMistralWebSearchStatus();
-    const nvidia = getNvidiaNimCaseReasoningStatus();
+    const nvidia = getDeepSeekCaseReasoningStatus();
     providers = {
       groq: active(status.groq),
       gemini: active(status.gemini),

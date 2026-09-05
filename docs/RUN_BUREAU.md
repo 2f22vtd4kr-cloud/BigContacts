@@ -42,7 +42,7 @@ Do not invent alternate startups, random scripts, partial pipelines, or a second
    REDIS_URL_1
    GROQ_API_KEY
    GEMINI_API_KEY
-   NVIDIA_NIM_API_KEY
+   DEEPSEEK_API_KEY
    MISTRAL_API_KEY
    HF_TOKEN
    SERPER_API_KEY

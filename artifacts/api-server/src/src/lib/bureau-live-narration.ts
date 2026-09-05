@@ -57,7 +57,7 @@ export function scheduleBureauLiveNarration(event: BureauLiveEvent): void {
   const now = Date.now();
   if (now - lastNarrationAt < MIN_GAP_MS) return;
   if (inFlight >= MAX_IN_FLIGHT) return;
-  if (!process.env.NVIDIA_NIM_API_KEY?.trim() && !process.env.NVIDIA_API_KEY?.trim() && !process.env.NVIDIA_KEY?.trim()) {
+  if (!process.env.DEEPSEEK_API_KEY?.trim() && !process.env.DEEPSEEK_API_KEY?.trim() && !process.env.DEEPSEEK_API_KEY?.trim()) {
     return;
   }
 
@@ -65,7 +65,7 @@ export function scheduleBureauLiveNarration(event: BureauLiveEvent): void {
   inFlight += 1;
   void (async () => {
     try {
-      const { runNvidiaNimFreeJson } = await import("./nvidia-nim-case-reasoning");
+      const { runDeepSeekFreeJson } = await import("./deepseek-case-reasoning");
       const prompt = [
         "You are the right-hand advisor narrating live research for the Apex Atlas Reactor desk.",
         "Write ONE short operator-facing line (1–2 sentences, max 220 chars) explaining what is happening now under the hood.",
@@ -87,7 +87,7 @@ export function scheduleBureauLiveNarration(event: BureauLiveEvent): void {
         .filter(Boolean)
         .join("\n");
 
-      const nv = await runNvidiaNimFreeJson(
+      const nv = await runDeepSeekFreeJson(
         prompt,
         "You narrate live OSINT for operators. Reply with ONE JSON object: {\"narration\":\"...\"}. Never invent contacts.",
       );

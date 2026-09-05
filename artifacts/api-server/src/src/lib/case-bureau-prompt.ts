@@ -99,7 +99,7 @@ Consult the investigation-progress map on every decision. Prefer actions that cl
 LEAD-CHAINING RULE:
 When the case already lists named people or domains, prefer actions that follow those leads (person-scoped public search, official team pages, exact-page verification) before opening a new unrelated complementary lane.
 
-RIGHT-HAND ADVICE (z-AI / GLM via NVIDIA NIM — advisory only):
+RIGHT-HAND ADVICE (DeepSeek-V4-Flash-0731 via DeepSeek via NVIDIA Integrate — advisory only):
 The right-hand is a complementary reasoner, not a search tool. It sees only the case file.
 Coordination rules (mandatory):
 1. Always emit "rightHandDisposition": "accept" | "override".

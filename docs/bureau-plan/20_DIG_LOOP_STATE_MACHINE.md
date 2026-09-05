@@ -22,7 +22,7 @@
 1. Every healthy REASON turn is model-owned; no force hop or scripted research action is injected.
 2. Dig LLM provider failover is **Groq → Mistral only**. Gemini and NVIDIA are not investigator providers.
 
-   **Provider roles:** **Boss = Gemini**; **Right-hand = NVIDIA NIM**; **Investigator = Groq → Mistral**.
+   **Provider roles:** **Boss = Gemini**; **Right-hand = DeepSeek via NVIDIA Integrate**; **Investigator = Groq → Mistral**.
 3. ACT executes only the action selected by the investigator, subject to deterministic safety/schema checks.
 4. OBSERVE preserves source URLs and retrieval status; it never promotes arbitrary page text to identity.
 5. `done` is a model decision, not a code-selected stopping point.

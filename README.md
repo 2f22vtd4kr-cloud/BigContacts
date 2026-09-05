@@ -29,7 +29,7 @@ The new-account operator secret list contains exactly these 14 names:
 REDIS_URL_1
 GROQ_API_KEY
 GEMINI_API_KEY
-NVIDIA_NIM_API_KEY
+DEEPSEEK_API_KEY
 MISTRAL_API_KEY
 HF_TOKEN
 SERPER_API_KEY
@@ -42,7 +42,7 @@ COMPANIES_HOUSE_API_KEY
 WHOISJSON_API_KEY
 ```
 
-Important mappings: the operator's Redis/Upstash URL goes in `REDIS_URL_1`; the Hugging Face token goes in `HF_TOKEN`; NVIDIA uses `NVIDIA_NIM_API_KEY`; Exa uses `EXA_API_KEY`. `REDIS_URL` and `EXA_1` are compatibility aliases, not additional operator asks. Do not ask for `DATABASE_URL`, `WHOXY_*`, `REDIS_URL_2`–`REDIS_URL_5`, or duplicate GitHub credentials.
+Important mappings: the operator's Redis/Upstash URL goes in `REDIS_URL_1`; the Hugging Face token goes in `HF_TOKEN`; NVIDIA uses `DEEPSEEK_API_KEY`; Exa uses `EXA_API_KEY`. `REDIS_URL` and `EXA_1` are compatibility aliases, not additional operator asks. Do not ask for `DATABASE_URL`, `WHOXY_*`, `REDIS_URL_2`–`REDIS_URL_5`, or duplicate GitHub credentials.
 
 Never print or commit secret values.
 

@@ -1,6 +1,6 @@
 # Apex Atlas — ReAct Bureau Architecture
 
-**Canonical role law:** Boss = **Gemini**. Right-hand = **NVIDIA NIM**. Discovery/Dig investigator = **Groq → Mistral**. Gemini and NVIDIA do not conduct Apex web/OSINT research.
+**Canonical role law:** Boss = **Gemini**. Right-hand = **DeepSeek via NVIDIA Integrate**. Discovery/Dig investigator = **Groq → Mistral**. Gemini and NVIDIA do not conduct Apex web/OSINT research.
 
 Apex is a model-led research bureau, not a deterministic search playbook. The harness supplies state, tools, budgets, provenance and safety boundaries; the investigator model owns the research trajectory.
 
@@ -12,7 +12,7 @@ Apex is a model-led research bureau, not a deterministic search playbook. The ha
 
 Owns case direction, strategic prioritization, investigator briefs and case-level review where configured. It does not browse or execute web/OSINT tools.
 
-### Right-hand — NVIDIA NIM
+### Right-hand — DeepSeek via NVIDIA Integrate
 
 Owns case-file critique, evidence-gap analysis and advisory recommendations. It does not browse or execute web/OSINT tools and is not a Dig fallback.
 

@@ -17,7 +17,7 @@
 
 The Boss receives case state and evidence. It may advise what matters next, but the actual web-research trajectory belongs to the investigator lane.
 
-## Right-hand — NVIDIA NIM
+## Right-hand — DeepSeek via NVIDIA Integrate
 
 ### Owns
 - case-file critique;

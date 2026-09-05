@@ -7,7 +7,7 @@
  */
 import { getAIKeyStatus } from "./ai-extractor";
 import { getMistralWebSearchStatus } from "./mistral-web-search";
-import { getNvidiaNimCaseReasoningStatus } from "./nvidia-nim-case-reasoning";
+import { getDeepSeekCaseReasoningStatus } from "./deepseek-case-reasoning";
 import { getAgenticLlmHealth } from "./agentic-llm-health";
 
 export type BureauIntegrityLevel = "ok" | "degraded" | "critical";
@@ -48,7 +48,7 @@ function activeCount(slots: Array<{ state: string }> | undefined): number {
 export function buildLanesHonestySnapshot(): LanesHonestySnapshot {
   const status = getAIKeyStatus();
   const mistral = getMistralWebSearchStatus();
-  const nvidia = getNvidiaNimCaseReasoningStatus();
+  const nvidia = getDeepSeekCaseReasoningStatus();
   const perplexity = activeCount(status.perplexity);
   const tavily = activeCount(status.tavily);
   const exa = activeCount(status.exa);

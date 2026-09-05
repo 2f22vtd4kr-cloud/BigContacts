@@ -17,7 +17,7 @@
 | Role | Provider |
 |------|----------|
 | Boss | **Gemini** (`GEMINI_API_KEY` or `GEMINI_KEY`) |
-| Right-hand | **NVIDIA** (`NVIDIA_NIM_API_KEY` / `NVIDIA_API_KEY`) |
+| Right-hand | **NVIDIA** (`DEEPSEEK_API_KEY` / `DEEPSEEK_API_KEY`) |
 | Dig capacity | Groq / Mistral / Gemini / NVIDIA failover — **not** Boss |
 
 ## Secrets
@@ -27,7 +27,7 @@
 - `REDIS_URL_1` … `REDIS_URL_5` (Upstash)
 - `REDIS_URL=redis://localhost:6379` (or `.replit` default)
 - `GEMINI_API_KEY` (Boss)
-- `NVIDIA_NIM_API_KEY` (right-hand)
+- `DEEPSEEK_API_KEY` (right-hand)
 - `GROQ_API_KEY` (dig + capacity fallback)
 - `SERPER_API_KEY` (primary SERP; also `_2` / `_3` / `SERPER_KEY`)
 
