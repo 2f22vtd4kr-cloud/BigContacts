@@ -1,0 +1,41 @@
+entrypoint = "README.md"
+modules = ["nodejs-20", "web", "bash", "python-3.12"]
+hidden = [".config", ".git", "node_modules", "dist", ".cache", ".local"]
+
+[nix]
+channel = "stable-25_05"
+
+[deployment]
+deploymentTarget = "cloudrun"
+router = "application"
+run = ["bash", "scripts/replit-boot.sh"]
+
+[env]
+PORT = "8080"
+ENABLE_AUTO_PIPELINE = "false"
+INSTALL_PYTHON_OSINT = "false"
+APEX_SKIP_SEMANTIC = "1"
+CI = "true"
+
+[workflows]
+runButton = "API Server"
+
+[[workflows.workflow]]
+name = "API Server"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "bash scripts/replit-boot.sh"
+waitForPort = 8080
+
+[userenv]
+
+[userenv.shared]
+NODE_OPTIONS = "--max-old-space-size=1536"
+RESEARCH_DEPTH = "standard"
+APEX_SKIP_SEMANTIC = "1"
+CI = "true"
+ENABLE_AUTO_PIPELINE = "false"
+INSTALL_PYTHON_OSINT = "false"
+PORT = "8080"

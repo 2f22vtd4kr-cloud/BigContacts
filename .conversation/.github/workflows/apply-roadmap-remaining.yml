@@ -1,0 +1,33 @@
+name: apply-roadmap-remaining
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "scripts/apply-roadmap-remaining.mjs"
+      - ".github/workflows/apply-roadmap-remaining.yml"
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Apply
+        run: |
+          set -euo pipefail
+          node scripts/apply-p0-incremental-admit.mjs || true
+          node scripts/apply-mobile-span-live-feed.mjs || true
+          node scripts/apply-roadmap-remaining.mjs
+          grep -q 'onSlotProgress' artifacts/api-server/src/src/lib/discovery-agent.ts
+          grep -q 'targetCount ?? 3' artifacts/api-server/src/src/lib/atlas-orchestrator.ts
+          grep -q 'dedupeKey' artifacts/api-server/src/src/lib/job-queue.ts
+          grep -q 'lastBossTitleMirror' artifacts/api-server/src/src/lib/bureau-live-log.ts
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add artifacts/api-server/src/src/lib/*.ts artifacts/api-server/src/src/routes/atlas.ts artifacts/apex-finder/src/components/mobile-reactor-flow.tsx || true
+          if git diff --cached --quiet; then echo no-changes; else
+            git commit -m "fix(roadmap): progress, boss dedupe, defaults, mobile feed landed"
+            git push
+          fi

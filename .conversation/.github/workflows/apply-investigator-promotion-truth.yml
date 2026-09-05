@@ -1,0 +1,37 @@
+name: apply-investigator-promotion-truth
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "scripts/enforce-launch-bounds.mjs"
+      - "scripts/enforce-canonical-discovery-boundary.mjs"
+      - ".github/workflows/apply-investigator-promotion-truth.yml"
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Enforce canonical production boundaries
+        run: |
+          set -euo pipefail
+          node scripts/enforce-launch-bounds.mjs
+          node scripts/enforce-canonical-discovery-boundary.mjs
+          grep -q 'Math.min(3' artifacts/api-server/src/src/lib/discovery-agent.ts
+          grep -q 'Math.min(3, opts.targetCount' artifacts/api-server/src/src/lib/atlas-orchestrator.ts
+          ! grep -q 'Promotion is evidence/card mapping, not a research-path gate' artifacts/api-server/src/src/lib/atlas-orchestrator.ts
+          grep -q 'callGroqJson' artifacts/api-server/src/src/lib/agentic-web-research.ts
+          grep -q 'callMistralJson' artifacts/api-server/src/src/lib/agentic-web-research.ts
+          ! grep -q 'callGeminiJson' artifacts/api-server/src/src/lib/agentic-web-research.ts
+          ! grep -q 'callNvidiaJson' artifacts/api-server/src/src/lib/agentic-web-research.ts
+          grep -q 'targetCount:3' .github/workflows/apex-batch10.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add artifacts/api-server/src/src/lib/*.ts
+          if git diff --cached --quiet; then echo no-changes; else
+            git commit -m "fix(architecture): enforce canonical discovery bounds"
+            git push
+          fi

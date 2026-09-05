@@ -1,0 +1,613 @@
+@import "tailwindcss";
+@source "./**/*.{tsx,ts,jsx,js}";
+@source "./*.{tsx,ts}";
+
+/* ─── Apex Atlas — neon lime primary on slate navy (user palette) ─── */
+@theme {
+  --font-sans: "Instrument Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+  --font-display: "Instrument Sans", ui-sans-serif, system-ui, sans-serif;
+
+  --color-background: #111827;
+  --color-foreground: #F8FAFC;
+  --color-card: #161f2e;
+  --color-border: #1e293b;
+  --color-muted: #94a3b8;
+  --color-muted-foreground: #64748b;
+  --color-primary: #9CFF1A;
+  --color-primary-foreground: #111827;
+  --color-secondary: #00B3B8;
+  --color-accent: #b8ff4d;
+  --color-destructive: #FF4D6D;
+  --color-sidebar: #111827;
+  --color-sidebar-foreground: #F8FAFC;
+  --color-sidebar-border: rgba(156, 255, 26, 0.10);
+  --color-sidebar-accent: rgba(156, 255, 26, 0.12);
+  --color-sidebar-accent-foreground: #9CFF1A;
+}
+
+
+html, body, #root { min-height: 100%; }
+
+body {
+  margin: 0;
+  background: #111827;
+  color: #F8FAFC;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(156, 255, 26, 0.45) #111827;
+}
+
+.font-display { font-family: var(--font-display); }
+.font-mono { font-family: var(--font-mono); }
+
+/* Film grain (very subtle) */
+.atlas-noise {
+  background-color: #111827;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.028'/%3E%3C/svg%3E");
+}
+
+/* Enter */
+.atlas-enter {
+  animation: atlas-enter 280ms cubic-bezier(0.2, 1, 0.32, 1) both;
+}
+@keyframes atlas-enter {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes atlas-shimmer {
+  0% { transform: translateX(-120%); }
+  100% { transform: translateX(220%); }
+}
+
+@keyframes atlas-live-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* Interactive */
+.atlas-pressable {
+  transition:
+    transform 120ms cubic-bezier(0.2, 1, 0.32, 1),
+    opacity 120ms ease-out,
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    background-color 180ms ease,
+    filter 120ms ease;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+.atlas-pressable:active {
+  transform: scale(0.97);
+  opacity: 0.88;
+  filter: brightness(0.96);
+}
+.atlas-pressable:active:not(:disabled) {
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.35);
+}
+
+/* Brief gold flash after click (add class via JS or :active + animation) */
+@keyframes atlas-click-flash {
+  0% { box-shadow: 0 0 0 0 rgba(156, 255, 26, 0.45); }
+  40% { box-shadow: 0 0 0 6px rgba(156, 255, 26, 0.18); }
+  100% { box-shadow: 0 0 0 0 rgba(156, 255, 26, 0); }
+}
+.atlas-click-flash {
+  animation: atlas-click-flash 420ms cubic-bezier(0.2, 1, 0.32, 1);
+}
+
+/* Cards — soft edge into page (no hard ink rectangle) */
+.atlas-card {
+  background: #0d1219;
+  border: 1px solid rgba(42, 42, 42, 0.75);
+  border-radius: 14px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.03),
+    0 10px 32px rgba(0, 0, 0, 0.42),
+    0 0 0 1px rgba(156, 255, 26, 0.035);
+  transition:
+    border-color 180ms ease,
+    box-shadow 220ms cubic-bezier(0.2, 1, 0.32, 1);
+}
+.atlas-card:hover {
+  border-color: rgba(156, 255, 26, 0.28);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    0 12px 40px rgba(0, 0, 0, 0.5),
+    0 0 28px rgba(156, 255, 26, 0.06);
+}
+
+/* ── Apex palette tokens ─────────────────────────────────────────
+   #00B3B8 teal · #9CFF1A lime · #111827 navy · #F8FAFC white · #FF4D6D coral
+   Hierarchy: primary (animated gradient) > secondary outline > state (pause/stop)
+*/
+:root {
+  --atlas-teal: #00b3b8;
+  --atlas-lime: #9cff1a;
+  --atlas-navy: #111827;
+  --atlas-white: #f8fafc;
+  --atlas-coral: #ff4d6d;
+}
+
+/* Primary CTA — Figma-style animated gradient (teal ↔ lime), readable white type */
+@keyframes atlas-cta-gradient {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.atlas-launch-cta,
+.atlas-launch-glow {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  color: var(--atlas-white) !important;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
+  border: 1px solid rgba(156, 255, 26, 0.55);
+  border-radius: 999px;
+  /* Wide gradient so animation shifts teal → lime smoothly (not noisy oil) */
+  background: linear-gradient(
+    120deg,
+    #0a3d40 0%,
+    var(--atlas-teal) 28%,
+    #6fd914 52%,
+    var(--atlas-lime) 72%,
+    var(--atlas-teal) 100%
+  );
+  background-size: 220% 220%;
+  animation: atlas-cta-gradient 6s ease-in-out infinite;
+  box-shadow:
+    0 4px 20px rgba(0, 0, 0, 0.45),
+    0 0 18px rgba(0, 179, 184, 0.22),
+    0 0 12px rgba(156, 255, 26, 0.12),
+    inset 0 1px 0 rgba(248, 250, 252, 0.22);
+  transition:
+    transform 160ms cubic-bezier(0.2, 1, 0.32, 1),
+    box-shadow 200ms ease,
+    border-color 160ms ease,
+    filter 160ms ease;
+}
+.atlas-launch-cta:hover,
+.atlas-launch-glow:hover {
+  border-color: rgba(156, 255, 26, 0.85);
+  filter: brightness(1.05);
+  box-shadow:
+    0 6px 24px rgba(0, 0, 0, 0.5),
+    0 0 24px rgba(0, 179, 184, 0.28),
+    0 0 18px rgba(156, 255, 26, 0.2),
+    inset 0 1px 0 rgba(248, 250, 252, 0.28);
+}
+.atlas-launch-cta:active,
+.atlas-launch-glow:active {
+  transform: scale(0.98);
+  filter: brightness(0.96);
+}
+.atlas-launch-cta:focus-visible,
+.atlas-launch-glow:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 2px var(--atlas-navy),
+    0 0 0 4px var(--atlas-lime),
+    0 4px 20px rgba(0, 0, 0, 0.45);
+}
+/* No WebGL / oil canvas */
+.atlas-launch-cta canvas,
+.atlas-launch-glow canvas {
+  display: none !important;
+}
+.atlas-launch-cta.atlas-click-flash,
+.atlas-launch-glow.atlas-click-flash {
+  animation:
+    atlas-cta-gradient 6s ease-in-out infinite,
+    atlas-click-flash 480ms cubic-bezier(0.2, 1, 0.32, 1);
+}
+
+/* Secondary — outline (less important than Launch) */
+.atlas-btn-secondary,
+.atlas-outline-btn {
+  border: 1px solid rgba(0, 179, 184, 0.45);
+  background: rgba(17, 24, 39, 0.85);
+  color: var(--atlas-white);
+  border-radius: 999px;
+  font-weight: 650;
+  transition: border-color 160ms ease, background 160ms ease, color 160ms ease;
+}
+.atlas-btn-secondary:hover,
+.atlas-outline-btn:hover {
+  border-color: rgba(156, 255, 26, 0.55);
+  background: rgba(156, 255, 26, 0.08);
+  color: var(--atlas-lime);
+}
+
+/* Danger / Stop — coral */
+.atlas-btn-danger {
+  border: 1px solid rgba(255, 77, 109, 0.55);
+  background: rgba(40, 12, 18, 0.95);
+  color: #ffc4ce;
+  border-radius: 999px;
+  font-weight: 700;
+}
+.atlas-btn-danger:hover {
+  background: rgba(255, 77, 109, 0.18);
+  border-color: rgba(255, 77, 109, 0.75);
+}
+
+/* Success / live accent — lime static (no animation) */
+.atlas-btn-success {
+  border: 1px solid rgba(156, 255, 26, 0.5);
+  background: rgba(156, 255, 26, 0.12);
+  color: var(--atlas-lime);
+  border-radius: 999px;
+  font-weight: 700;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .atlas-launch-cta,
+  .atlas-launch-glow {
+    animation: none !important;
+    background-size: 100% 100%;
+    background-position: 50% 50%;
+  }
+}
+
+/* rim pulse removed */
+
+
+
+
+
+/* Shimmer loading */
+.atlas-shimmer-sweep { position: relative; overflow: hidden; }
+.atlas-shimmer-sweep::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(156, 255, 26, 0.11), transparent);
+  animation: atlas-shimmer 1.5s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.atlas-skeleton {
+  background: #141414;
+  border-radius: 8px;
+  position: relative;
+  overflow: hidden;
+}
+.atlas-skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(156, 255, 26, 0.1), transparent);
+  animation: atlas-shimmer 1.5s ease-in-out infinite;
+}
+
+/* Chips / dots / dividers */
+.atlas-chip-yellow {
+  border: 1px solid rgba(156, 255, 26, 0.35);
+  background: rgba(156, 255, 26, 0.1);
+  color: #d4ff8a;
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.atlas-live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #9CFF1A;
+  box-shadow: 0 0 10px rgba(156, 255, 26, 0.55);
+}
+.atlas-live-dot-pulse {
+  animation: atlas-live-pulse 1.8s ease-in-out infinite;
+}
+.atlas-divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(156, 255, 26, 0.22), transparent);
+  border: 0;
+}
+/* Soft vertical fade so section backgrounds don't end in a hard straight edge */
+.atlas-soft-edge {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 96px;
+  pointer-events: none;
+  z-index: 1;
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    rgba(17, 24, 39, 0.15) 35%,
+    rgba(17, 24, 39, 0.55) 70%,
+    rgba(17, 24, 39, 0.92) 100%
+  );
+}
+
+.atlas-panel {
+  background: #0d1219;
+  border: 1px solid #2a2a2a;
+  border-radius: 12px;
+}
+.atlas-panel-glow:hover {
+  border-color: rgba(156, 255, 26, 0.3);
+  box-shadow: 0 0 24px rgba(156, 255, 26, 0.08);
+}
+
+.atlas-focus-ring:focus-visible {
+  outline: 2px solid #9CFF1A;
+  outline-offset: 3px;
+}
+
+.atlas-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(156, 255, 26, 0.45) #111827;
+}
+
+/* Sidebar active rail */
+.atlas-nav-active {
+  background: rgba(156, 255, 26, 0.12);
+  color: #d4ff8a;
+  border-color: rgba(156, 255, 26, 0.25);
+  box-shadow: inset 3px 0 0 #9CFF1A;
+}
+
+
+/* Selection */
+::selection {
+  background: rgba(156, 255, 26, 0.35);
+  color: #F8FAFC;
+}
+
+/* Ambient wash — lives on a SEPARATE layer (see .atlas-ambient-wash).
+   Never mask the hero section itself — that faded Launch text into the blob. */
+.atlas-ambient-gold {
+  position: relative;
+  isolation: isolate;
+}
+.atlas-ambient-wash {
+  position: absolute;
+  inset: -30% -15% -10% -15%;
+  pointer-events: none;
+  z-index: 0;
+  /* Multi-stop radials so edges dissolve — no hard square outline on mobile */
+  background:
+    radial-gradient(ellipse 90% 75% at 72% 18%,
+      rgba(156, 255, 26, 0.14) 0%,
+      rgba(156, 255, 26, 0.07) 28%,
+      rgba(156, 255, 26, 0.03) 48%,
+      transparent 68%),
+    radial-gradient(ellipse 70% 55% at 18% 88%,
+      rgba(250, 204, 21, 0.06) 0%,
+      rgba(250, 204, 21, 0.02) 40%,
+      transparent 70%),
+    radial-gradient(ellipse 50% 40% at 50% 50%,
+      rgba(156, 255, 26, 0.04) 0%,
+      transparent 65%);
+  /* Soft outer fade only on the wash layer */
+  -webkit-mask-image: radial-gradient(ellipse 100% 90% at 50% 35%, #000 0%, #000 35%, transparent 78%);
+  mask-image: radial-gradient(ellipse 100% 90% at 50% 35%, #000 0%, #000 35%, transparent 78%);
+}
+
+/* Soft gold rim utility */
+.atlas-rim {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    0 0 0 1px rgba(156, 255, 26, 0.18),
+    0 12px 36px rgba(0, 0, 0, 0.5);
+}
+
+/* Stat / metric tile icon lift on hover */
+.atlas-card:hover .atlas-stat-icon {
+  color: #9CFF1A;
+  opacity: 0.9;
+  transition: color 180ms ease, opacity 180ms ease;
+}
+
+/* Empty state dashed panel */
+.atlas-empty {
+  border: 1px dashed rgba(156, 255, 26, 0.22);
+  background: rgba(12, 12, 12, 0.6);
+  border-radius: 12px;
+}
+
+/* WebKit scrollbar gold */
+.atlas-scroll::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.atlas-scroll::-webkit-scrollbar-track {
+  background: #0d1219;
+}
+.atlas-scroll::-webkit-scrollbar-thumb {
+  background: rgba(156, 255, 26, 0.35);
+  border-radius: 999px;
+}
+.atlas-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(156, 255, 26, 0.55);
+}
+
+
+/* Secondary outline CTA — gold on hover, never competes with launch */
+.atlas-outline-btn {
+  border: 1px solid #2a2a2a;
+  background: #0d1219;
+  color: #e7e5e4;
+  border-radius: 12px;
+  transition:
+    border-color 180ms ease,
+    background-color 180ms ease,
+    color 180ms ease,
+    box-shadow 180ms ease,
+    transform 120ms cubic-bezier(0.2, 1, 0.32, 1),
+    filter 120ms ease;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+.atlas-outline-btn:hover {
+  border-color: rgba(156, 255, 26, 0.45);
+  background: rgba(156, 255, 26, 0.08);
+  color: #d4ff8a;
+  box-shadow: 0 0 20px rgba(156, 255, 26, 0.08);
+}
+.atlas-outline-btn:active {
+  transform: scale(0.97);
+  filter: brightness(0.95);
+  border-color: rgba(156, 255, 26, 0.55);
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+
+/* Soft gold hairline — use instead of pure white/gray rules */
+.atlas-hairline {
+  border-color: rgba(156, 255, 26, 0.1);
+}
+.atlas-hairline-strong {
+  border-color: rgba(156, 255, 26, 0.18);
+}
+
+
+/* Default click feedback for desk chrome controls */
+button:not(:disabled),
+[role="button"]:not([aria-disabled="true"]),
+a.atlas-pressable {
+  -webkit-tap-highlight-color: transparent;
+}
+button:not(:disabled):active:not(.atlas-launch-glow):not(.atlas-outline-btn):not(.atlas-pressable) {
+  transform: scale(0.98);
+  opacity: 0.9;
+}
+
+
+/* Horizontal chip rows — scrollable on narrow viewports */
+.atlas-h-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(156, 255, 26, 0.3) transparent;
+  -webkit-overflow-scrolling: touch;
+}
+.atlas-h-scroll::-webkit-scrollbar {
+  height: 3px;
+}
+.atlas-h-scroll::-webkit-scrollbar-thumb {
+  background: rgba(156, 255, 26, 0.35);
+  border-radius: 999px;
+}
+
+/* Page shell rhythm — never bleed past the phone edge */
+.atlas-page {
+  box-sizing: border-box;
+  margin-left: auto;
+  margin-right: auto;
+  width: 100%;
+  max-width: min(1480px, 100%);
+  min-width: 0;
+  overflow-x: clip;
+  padding-left: max(1rem, env(safe-area-inset-left, 0px));
+  padding-right: max(1rem, env(safe-area-inset-right, 0px));
+  padding-top: 1.25rem;
+  padding-bottom: max(3rem, env(safe-area-inset-bottom, 0px));
+}
+.atlas-page p,
+.atlas-page h1,
+.atlas-page h2,
+.atlas-page li {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.atlas-section-label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #9CFF1A;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .atlas-launch-glow,
+  .atlas-launch-glow .atlas-liquid-mesh,
+  .atlas-launch-glow .atlas-liquid-sheen,
+  .atlas-launch-glow .atlas-liquid-rim {
+    animation: none !important;
+  }
+  .atlas-launch-glow .atlas-liquid-mesh {
+    filter: none !important;
+  }
+
+  .atlas-launch-glow,
+  .atlas-launch-glow:hover {
+    animation: none !important;
+  }
+  .atlas-launch-glow::before,
+  .atlas-launch-glow::after {
+    animation: none !important;
+    filter: none !important;
+  }
+
+  .atlas-enter,
+  .atlas-shimmer-sweep::after,
+  .atlas-skeleton::after,
+  .atlas-live-dot-pulse,
+  .atlas-launch-glow,
+  .atlas-card,
+  .atlas-pressable,
+  .atlas-outline-btn,
+  .atlas-click-flash {
+    animation: none !important;
+    transition: none !important;
+  }
+  button:not(:disabled):active,
+  .atlas-pressable:active,
+  .atlas-outline-btn:active,
+  .atlas-launch-glow:active {
+    transform: none !important;
+    filter: none !important;
+  }
+}
+
+
+/* Text on solid lime fills — never light-on-lime */
+.atlas-on-primary,
+.bg-primary {
+  color: #111827;
+}
+.bg-primary {
+  background-color: #9CFF1A;
+}
+
+/* Desktop Reactor: prevent sub-10px chrome from being unreadable */
+@media (min-width: 768px) {
+  [data-testid="page-reactor"],
+  [data-page="reactor"] {
+    font-size: 13px;
+  }
+}
+
+
+/* AAA: Launch — reduced motion freezes surface chrome */
+@media (prefers-reduced-motion: reduce) {
+  .atlas-launch-glow,
+  .atlas-launch-glow:hover,
+  .atlas-launch-glow:active {
+    filter: none !important;
+    transition: box-shadow 160ms ease, opacity 160ms ease;
+  }
+  .atlas-launch-glow:active {
+    transform: none;
+  }
+}

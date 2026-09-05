@@ -1,0 +1,119 @@
+{
+  "tip": "griffin-holdout-live",
+  "pages": [
+    {
+      "url": "https://www.griffintool.com/about",
+      "ok": true,
+      "status": 200
+    },
+    {
+      "url": "https://www.griffintool.com/copy-of-contact-2",
+      "ok": true,
+      "status": 200
+    }
+  ],
+  "relatedPersons": 8,
+  "relatedWithEmail": 8,
+  "orgEmails": [
+    "sales@griffintool.com",
+    "sales@griffintool.com"
+  ],
+  "phones": [
+    "+12694294077",
+    "+12694294560"
+  ],
+  "successionFacts": 1,
+  "ledgerHits": [
+    "Malcolm Cowan",
+    "Jenny Cowan",
+    "Lillian Cowan",
+    "Jason Caropepe",
+    "Tim Dye",
+    "Rod McGilvra",
+    "Brian Moore"
+  ],
+  "ledgerHitCount": 7,
+  "people": [
+    {
+      "name": "Malcolm Cowan",
+      "role": "Chief Executive Officer and President",
+      "email": "malcolm@griffintool.com",
+      "scope": "candidate",
+      "sourceUrls": [
+        "https://www.griffintool.com/about"
+      ]
+    },
+    {
+      "name": "Lillian Cowan",
+      "role": "Office Manager",
+      "email": "lillian@griffintool.com",
+      "scope": "candidate",
+      "sourceUrls": [
+        "https://www.griffintool.com/about"
+      ]
+    },
+    {
+      "name": "Jenny Cowan",
+      "role": "Chief Financial Officer",
+      "email": "jenny@griffintool.com",
+      "scope": "candidate",
+      "sourceUrls": [
+        "https://www.griffintool.com/about"
+      ]
+    },
+    {
+      "name": "Jason Caropepe",
+      "role": "Operations Manager",
+      "email": "jason@griffintool.com",
+      "scope": "candidate",
+      "sourceUrls": [
+        "https://www.griffintool.com/about"
+      ]
+    },
+    {
+      "name": "Tim Dye",
+      "role": "Engineering Manager",
+      "email": "tim@griffintool.com",
+      "scope": "candidate",
+      "sourceUrls": [
+        "https://www.griffintool.com/about"
+      ]
+    },
+    {
+      "name": "Debbie Schroeder",
+      "role": "Administrative Specialist",
+      "email": "rick.fitts@griffintool.com",
+      "scope": "candidate",
+      "sourceUrls": [
+        "https://www.griffintool.com/about"
+      ]
+    },
+    {
+      "name": "Rod McGilvra",
+      "role": "Senior Engineer",
+      "email": "rod.mcgilvra@griffintool.com",
+      "scope": "candidate",
+      "sourceUrls": [
+        "https://www.griffintool.com/about"
+      ]
+    },
+    {
+      "name": "Brian Moore",
+      "role": "Head of CNC Department",
+      "email": "brian.moore@griffintool.com",
+      "scope": "candidate",
+      "sourceUrls": [
+        "https://www.griffintool.com/about"
+      ]
+    }
+  ],
+  "assert": {
+    "relatedPersonsAtLeast5": true,
+    "relatedWithEmailAtLeast5": true,
+    "ledgerAtLeast5": true,
+    "hasOrgPhone": true,
+    "hasOrgEmail": true,
+    "allHaveSourceUrls": true
+  },
+  "pass": true
+}

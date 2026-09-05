@@ -1,0 +1,71 @@
+name: Frontend responsive contract
+
+on:
+  push:
+    paths:
+      - "artifacts/apex-finder/src/**"
+      - "artifacts/apex-finder/index.html"
+      - "artifacts/apex-finder/package.json"
+      - "artifacts/apex-finder/vite.config.*"
+      - "artifacts/apex-finder/tsconfig*.json"
+      - "lib/api-client-react/**"
+      - "pnpm-lock.yaml"
+      - "scripts/check-frontend-responsive.mjs"
+      - "scripts/check-reactor-live-integrity.mjs"
+      - "scripts/apply-reactor-live-integration.mjs"
+      - "scripts/apply-reactor-activity-only.mjs"
+      - "scripts/apply-profile-commit-timestamp.mjs"
+      - "scripts/check-generated-reactor-syntax.mjs"
+      - "docs/bureau-plan/15_FRONTEND_RESPONSIVE_AUDIT.md"
+      - "docs/bureau-plan/17_FRONTEND_REACTOR_LIVE_GATE.md"
+      - ".github/workflows/frontend-responsive.yml"
+  pull_request:
+    paths:
+      - "artifacts/apex-finder/src/**"
+      - "artifacts/apex-finder/index.html"
+      - "artifacts/apex-finder/package.json"
+      - "artifacts/apex-finder/vite.config.*"
+      - "artifacts/apex-finder/tsconfig*.json"
+      - "lib/api-client-react/**"
+      - "pnpm-lock.yaml"
+      - "scripts/check-frontend-responsive.mjs"
+      - "scripts/check-reactor-live-integrity.mjs"
+      - "scripts/apply-reactor-live-integration.mjs"
+      - "scripts/apply-reactor-activity-only.mjs"
+      - "scripts/apply-profile-commit-timestamp.mjs"
+      - "scripts/check-generated-reactor-syntax.mjs"
+      - "docs/bureau-plan/15_FRONTEND_RESPONSIVE_AUDIT.md"
+      - "docs/bureau-plan/17_FRONTEND_REACTOR_LIVE_GATE.md"
+      - ".github/workflows/frontend-responsive.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: frontend-responsive-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  PNPM_CONFIG_MINIMUM_RELEASE_AGE: "0"
+
+jobs:
+  source-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check responsive frontend contract
+        run: node scripts/check-frontend-responsive.mjs
+      - name: Check Reactor Live integrity contract
+        run: node scripts/check-reactor-live-integrity.mjs
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org/
+      - run: npm install -g pnpm@9
+      - name: Install frontend workspace graph
+        run: pnpm install --no-frozen-lockfile --ignore-scripts --fetch-retries=8 --fetch-timeout=120000 --filter ./artifacts/apex-finder... --registry=https://registry.npmjs.org/
+      - name: Build frontend
+        # Generated Reactor is syntax-checked before Vite so patcher regressions fail here, not in the browser.
+        run: pnpm --dir artifacts/apex-finder run build
