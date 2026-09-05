@@ -1,0 +1,1563 @@
+Yes. Since this is a fresh Replit build on a new/renewed account, the prompt should be more defensive than the previous one: it needs to establish the repository, environment, dependency installation, database, provider migration, workflow, and live proof from zero—while preserving the existing Apex architecture and avoiding the mistakes from the previous DeepSeek attempt.
+
+I’ve also changed the DeepSeek instructions so Replit does not repeat the incorrect streaming detour. Production uses the NVIDIA-documented non-streaming contract; the live smoke test is deliberately tiny so it tests connectivity/model/credential separately from a full 16K high-reasoning generation.
+
+APEX ATLAS — FRESH REPLIT BUILD / FULL BOOTSTRAP
+
+EXECUTE END-TO-END IN THIS REPLIT APP ONLY.
+
+THIS IS A FRESH REPLIT BUILD OF THE EXISTING APEX ATLAS REPOSITORY BECAUSE THE PREVIOUS REPLIT ACCOUNT RAN OUT OF CREDITS.
+
+DO NOT CREATE A SECOND APP.
+DO NOT REDESIGN.
+DO NOT REPLACE THE PRODUCT.
+DO NOT INVENT FEATURES.
+DO NOT SEND PROGRESS REPORTS.
+
+BUILD → MIGRATE → VERIFY → BOOT → LIVE TEST → SINGLE-TARGET DIG PROOF → ONE FINAL REPORT → END.
+
+═══════════════════════════════════════
+0. MISSION
+═══════════════════════════════════════
+
+Repository:
+
+https://github.com/2f22vtd4kr-cloud/BigContacts
+
+Branch:
+
+main
+
+Product:
+
+Apex Atlas — AI free-ReAct OSINT desk for real public contact routes to legitimate HNWIs / principals / operators.
+
+This is an EXISTING product.
+
+The goal is to reproduce and validate the existing Apex Atlas application in this fresh Replit environment, not redesign it.
+
+The application must remain:
+
+• lightweight
+• self-contained
+• model-driven
+• free-ReAct
+• provenance-first
+• deterministic only where deterministic enforcement is required
+• free of scripted research playbooks
+
+═══════════════════════════════════════
+
+1. APEX OPERATING LAW
+    ═══════════════════════════════════════
+
+NON-NEGOTIABLE:
+
+MODELS CHOOSE.
+TOOLS EXECUTE.
+
+Models may:
+
+• invent search queries
+• decide which authorized tool to use
+• decide whether to search
+• decide whether to visit
+• decide whether to pivot
+• decide when to stop
+• reason over evidence
+• advise the Boss
+
+Tools may:
+
+• execute the selected operation
+• return tool results
+• enforce authorization
+• enforce safety
+• enforce budgets
+• enforce timeouts
+• attach provenance
+• validate source/evidence structures
+
+Deterministic code MAY enforce:
+
+• lifecycle
+• authorization
+• provenance
+• validation
+• budgets
+• timeout limits
+• safety
+• state transitions
+• evidence promotion
+• integrity
+• persistence
+
+Deterministic code MUST NOT choose the Dig research path.
+
+NEVER:
+
+• force_* hops
+• scripted Dig playbooks
+• prefer-lists
+• GROK-PARITY
+• hard-coded search sequences
+• target-specific research recipes
+• fabricated people
+• fabricated entities
+• fabricated contacts
+• fabricated URLs
+• fabricated evidence
+
+The Dig Investigator must select the research trajectory from the authorized tool surface.
+
+═══════════════════════════════════════
+2. MODEL ARCHITECTURE — LOCK THIS
+═══════════════════════════════════════
+
+BOSS:
+
+Gemini
+
+ROLE:
+
+Head / Boss investigator.
+
+The Boss reasons, evaluates, reviews, and governs the case.
+
+RIGHT HAND:
+
+DeepSeek-V4-Flash-0731
+
+Exact model:
+
+deepseek-ai/deepseek-v4-flash-0731
+
+Transport:
+
+NVIDIA Integrate
+
+Endpoint:
+
+https://integrate.api.nvidia.com/v1/chat/completions
+
+Credential:
+
+DEEPSEEK_API_KEY
+
+ROLE:
+
+Right-Hand Advisor / case-file reasoning / advisory support.
+
+DeepSeek is NOT the Dig Investigator.
+
+DIG INVESTIGATOR:
+
+Groq → Mistral
+
+Groq is primary.
+
+Mistral is failover.
+
+This architecture MUST remain intact.
+
+CRITICAL:
+
+DeepSeek MUST NOT:
+
+• browse
+• search
+• execute OSINT
+• select Dig hops
+• choose Dig trajectory
+• replace Groq
+• replace Mistral
+• become the investigator
+
+Gemini MUST NOT be silently replaced as Boss.
+
+Groq → Mistral MUST remain the Dig lane.
+
+═══════════════════════════════════════
+3. TARGET QUALITY LAW
+═══════════════════════════════════════
+
+Only legitimate entities may enter the research ledger.
+
+Never manufacture a target because the database is empty.
+
+Reject/degrade:
+
+• junk targets
+• malformed people
+• placeholders
+• synthetic people
+• fabricated organizations
+• unrealistic Forbes-style HNWI targets
+• targets with no credible identity grounding
+
+Forbes-style celebrity / billionaire-style targets are NOT automatically wins for this product.
+
+The goal is practical, evidence-backed contact recovery.
+
+If discovery produces no legitimate entity:
+
+report it.
+
+Do not fabricate one.
+
+═══════════════════════════════════════
+4. FRESH REPLIT RULES
+═══════════════════════════════════════
+
+This is a Replit App / project.
+
+Do NOT call it a “Repl”.
+
+Do NOT create:
+
+• another Replit App
+• another repository
+• another frontend project
+• another API project
+• another product
+• another Vite preview workflow
+
+Use THIS repository.
+
+Use THIS Replit App.
+
+Use the connected GitHub integration.
+
+Do NOT ask the operator for a GitHub PAT if the connected GitHub integration already provides repository access.
+
+Do NOT print credentials.
+
+═══════════════════════════════════════
+5. POSTGRES
+═══════════════════════════════════════
+
+Postgres is Replit/platform managed.
+
+DATABASE_URL is injected by the platform.
+
+NEVER ask the operator for:
+
+DATABASE_URL
+
+Never ask them to:
+
+• paste it
+• create it
+• attach it
+• reveal it
+
+Use the platform-provided DATABASE_URL.
+
+═══════════════════════════════════════
+6. REDIS
+═══════════════════════════════════════
+
+Redis is operator supplied through Upstash.
+
+Canonical secret:
+
+REDIS_URL_1
+
+ONLY.
+
+Do NOT ask for:
+
+REDIS_URL
+REDIS_URL_2
+REDIS_URL_3
+REDIS_URL_4
+REDIS_URL_5
+
+Existing boot compatibility may map:
+
+REDIS_URL_1 → REDIS_URL
+
+internally.
+
+Never print Redis values.
+
+If Redis quota is exhausted:
+
+STOP.
+
+Operator must replace REDIS_URL_1 offline and restart the API.
+
+Do not invent another Redis credential.
+
+═══════════════════════════════════════
+7. WORKFLOW
+═══════════════════════════════════════
+
+ONLY the API Server workflow is the product workflow.
+
+PORT:
+
+8080
+
+Required environment:
+
+PORT=8080
+ENABLE_AUTO_PIPELINE=false
+INSTALL_PYTHON_OSINT=false
+APEX_SKIP_SEMANTIC=1
+CI=true
+RESEARCH_DEPTH=standard
+NODE_OPTIONS=–max-old-space-size=1536
+
+Canonical startup:
+
+bash scripts/replit-boot.sh
+
+from repository root.
+
+Do NOT start a separate Vite frontend.
+
+Do NOT start artifacts/apex-finder as a separate product.
+
+Do NOT create duplicate API processes.
+
+═══════════════════════════════════════
+8. STEP 0 — CONNECT / VERIFY REPOSITORY
+═══════════════════════════════════════
+
+First establish the existing repository.
+
+Run:
+
+git remote -v
+
+git fetch origin main
+
+git checkout main
+
+git pull origin main
+
+git log -1 –oneline
+
+git rev-parse HEAD
+
+Verify:
+
+branch = main
+
+Verify HEAD is the latest available origin/main.
+
+Minimum historical floor:
+
+c2a8b93ff9e9743af3935d9563464952c656e43a
+
+If the checkout is older than that floor:
+
+STOP.
+
+Report only the SHA and blocker.
+
+Do not continue against stale source.
+
+═══════════════════════════════════════
+9. STEP 1 — INSPECT BEFORE MODIFYING
+═══════════════════════════════════════
+
+Before changing anything, inspect:
+
+package.json
+.replit
+scripts/replit-boot.sh
+scripts/replit-preflight.mjs
+scripts/migrate-right-hand-to-deepseek.mjs
+scripts/check-bureau-provider-role-docs.mjs
+
+and the active Apex runtime.
+
+At minimum inspect:
+
+artifacts/api-server/src/src/lib/nvidia-nim-case-reasoning.ts
+artifacts/api-server/src/src/lib/case-bureau.ts
+artifacts/api-server/src/src/lib/case-bureau-prompt.ts
+artifacts/api-server/src/src/lib/adaptive-research-director.ts
+artifacts/api-server/src/src/lib/bureau-live-narration.ts
+artifacts/api-server/src/src/lib/lanes-honesty.ts
+artifacts/api-server/src/src/routes/health.ts
+artifacts/api-server/src/src/routes/system-status.ts
+artifacts/api-server/src/src/routes/research/cases.ts
+
+Do not blindly rewrite files.
+
+Preserve working architecture.
+
+═══════════════════════════════════════
+10. STEP 2 — SECRETS
+═══════════════════════════════════════
+
+Configure Replit Secrets.
+
+NEVER print secret values.
+
+REQUIRED ARCHITECTURE:
+
+REDIS_URL_1
+GEMINI_API_KEY
+DEEPSEEK_API_KEY
+GROQ_API_KEY
+MISTRAL_API_KEY
+
+At least one search provider:
+
+SERPER_API_KEY
+
+OR:
+
+TAVILY_API_KEY
+
+OR:
+
+EXA_API_KEY
+
+OPTIONAL:
+
+HF_TOKEN
+SERPAPI_KEY
+SCRAPFLY_API_KEY
+ZENROWS_API_KEY
+COMPANIES_HOUSE_API_KEY
+WHOISJSON_API_KEY
+
+DO NOT REQUEST:
+
+DATABASE_URL
+REDIS_URL
+REDIS_URL_2
+REDIS_URL_3
+REDIS_URL_4
+REDIS_URL_5
+WHOXY credentials
+NVIDIA_NIM_API_KEY
+NVIDIA_NIM_MODEL
+z.ai credentials
+GLM credentials
+
+IMPORTANT:
+
+The operator-facing DeepSeek credential is:
+
+DEEPSEEK_API_KEY
+
+The NVIDIA transport does not mean the Right Hand should use an old NVIDIA NIM model.
+
+Do not substitute:
+
+Nemotron
+NVIDIA NIM
+z.ai
+GLM
+
+for DeepSeek.
+
+If required secrets are missing, report their NAMES only and stop.
+
+Do not invent values.
+
+═══════════════════════════════════════
+11. STEP 3 — SAFE INSTALL
+═══════════════════════════════════════
+
+Fresh Replit environments may have registry/firewall/OOM problems.
+
+Set:
+
+export NODE_OPTIONS=–max-old-space-size=1536
+export NPM_CONFIG_REGISTRY=https://registry.npmjs.org
+
+pnpm config set registry https://registry.npmjs.org
+pnpm config set network-timeout 600000
+
+If pnpm-lock.yaml contains tarball URLs pointing to an internal proxy such as:
+
+http://35.245.43.102/npm/…
+
+rewrite ONLY those tarball hosts to:
+
+https://registry.npmjs.org/
+
+Preserve:
+
+• package names
+• versions
+• integrity hashes
+
+Do NOT remove dependencies.
+
+Then:
+
+pnpm install –no-frozen-lockfile –registry=https://registry.npmjs.org 
+–child-concurrency 1 
+–network-concurrency 1 
+–fetch-retries 5 
+–fetch-timeout 600000
+
+If exit 137:
+
+retry ONCE with exactly the same flags.
+
+If pnpm-lock.yaml becomes empty/corrupt:
+
+git checkout HEAD – pnpm-lock.yaml
+
+Then retry installation.
+
+Do NOT strip dependencies.
+
+Do NOT replace the application with a minimal dependency set.
+
+After successful installation, do NOT restore an obsolete firewall-proxy lockfile.
+
+═══════════════════════════════════════
+12. STEP 4 — APPLY DEEPSEEK MIGRATION
+═══════════════════════════════════════
+
+Before any build:
+
+node scripts/migrate-right-hand-to-deepseek.mjs
+
+The migration MUST be:
+
+• idempotent
+• fail-closed
+• restricted to audited active runtime files
+• safe from self-rewriting
+• safe from broad repository corruption
+
+Do NOT rewrite historical:
+
+.conversation
+
+or:
+
+docs/archive
+
+merely to erase old architecture history.
+
+After migration, verify active runtime.
+
+The Right-Hand MUST resolve to:
+
+DEEPSEEK_API_KEY
+
+deepseek-ai/deepseek-v4-flash-0731
+
+https://integrate.api.nvidia.com/v1/chat/completions
+
+═══════════════════════════════════════
+13. STEP 5 — CORRECT NVIDIA DEEPSEEK REQUEST CONTRACT
+═══════════════════════════════════════
+
+IMPORTANT:
+
+Do NOT repeat the previous streaming detour.
+
+The normal production Right-Hand request is NON-STREAMING.
+
+Use:
+
+stream: false
+
+Use:
+
+Accept: application/json
+
+Use:
+
+Content-Type: application/json
+
+Use:
+
+Authorization: Bearer <DEEPSEEK_API_KEY>
+
+Production body:
+
+{
+“model”: “deepseek-ai/deepseek-v4-flash-0731”,
+“messages”: […],
+“temperature”: 1,
+“top_p”: 0.95,
+“max_tokens”: 16384,
+“reasoning_effort”: “high”,
+“stream”: false
+}
+
+The NVIDIA API currently exposes:
+
+reasoning_effort
+
+as the top-level parameter.
+
+Use:
+
+reasoning_effort: “high”
+
+Do NOT make chat_template_kwargs the application’s required interface.
+
+Do NOT require SSE.
+
+Do NOT set:
+
+Accept: text/event-stream
+
+for the normal production Right-Hand call.
+
+Do NOT use:
+
+stream: true
+
+for the normal Right-Hand implementation.
+
+The production contract MUST remain:
+
+temperature = 1
+top_p = 0.95
+max_tokens = 16384
+reasoning_effort = high
+stream = false
+
+Do not lower production max_tokens merely to make a smoke test pass.
+
+═══════════════════════════════════════
+14. STEP 6 — DEEPSEEK RESPONSE HANDLING
+═══════════════════════════════════════
+
+Normal response is JSON.
+
+Read:
+
+choices[0].message.content
+
+and when available:
+
+choices[0].message.reasoning
+
+or:
+
+choices[0].message.reasoning_content
+
+If content is absent but reasoning exists, preserve the existing application’s fail-closed behavior.
+
+Do not invent an answer.
+
+Handle HTTP errors explicitly.
+
+400/422:
+
+provider/request validation error.
+
+401/403:
+
+credential/authentication error.
+
+429:
+
+rate limit/provider capacity.
+
+500:
+
+provider/server error.
+
+202:
+
+pending invocation.
+
+Do NOT treat 202 as success without actually receiving the result.
+
+Do NOT poll indefinitely.
+
+All provider calls must remain bounded.
+
+Never log:
+
+• API keys
+• Authorization headers
+• secret values
+
+═══════════════════════════════════════
+15. STEP 7 — DEEPSEEK TIMEOUTS
+═══════════════════════════════════════
+
+Previous 45-second / 90-second Right-Hand limits were too aggressive for high-reasoning DeepSeek workloads.
+
+Use bounded production timeouts around:
+
+case reasoning:
+180000 ms
+
+final review:
+180000 ms
+
+discovery advice:
+180000 ms
+
+general Right-Hand JSON:
+180000 ms
+
+Do NOT use infinite timeouts.
+
+Do NOT silently fallback to obsolete providers.
+
+If a production Right-Hand call times out:
+
+return unavailable/fail-closed.
+
+Do not manufacture an answer.
+
+═══════════════════════════════════════
+16. STEP 8 — VERIFY PROVIDER ISOLATION
+═══════════════════════════════════════
+
+Active architecture MUST be:
+
+Gemini
+↓
+BOSS
+
+DeepSeek-V4-Flash-0731 via NVIDIA Integrate
+↓
+RIGHT HAND
+
+Groq
+↓
+DIG PRIMARY
+
+Mistral
+↓
+DIG FAILOVER
+
+Search providers
+↓
+AUTHORIZED SEARCH TOOLS
+
+Verify:
+
+DeepSeek is NOT imported or configured as Dig.
+
+Gemini is NOT configured as Dig.
+
+Old NVIDIA NIM is NOT configured as Right Hand.
+
+z.ai/GLM is NOT configured as Right Hand.
+
+Dig failover still contains:
+
+DIG_INVESTIGATOR_FAILOVER_CHAIN
+
+with:
+
+Groq → Mistral
+
+═══════════════════════════════════════
+17. STEP 9 — ACTIVE STALE PROVIDER AUDIT
+═══════════════════════════════════════
+
+Search active runtime/config surfaces for:
+
+NVIDIA_NIM_API_KEY
+NVIDIA_NIM_MODEL
+NVIDIA_AGENTIC_MODEL
+nvidia/nemotron-3-nano-30b-a3b
+nvidia-right-hand
+nvidia-nim
+z-AI
+z.ai
+GLM
+
+Historical archive references are not active runtime failures.
+
+But active Right-Hand runtime MUST contain:
+
+DEEPSEEK_API_KEY
+
+deepseek-ai/deepseek-v4-flash-0731
+
+https://integrate.api.nvidia.com/v1/chat/completions
+
+reasoning_effort: “high”
+
+stream: false
+
+max_tokens: 16384
+
+If an active obsolete provider remains:
+
+FIX IT.
+
+Do not continue until fixed.
+
+═══════════════════════════════════════
+18. STEP 10 — PROVIDER ROLE GUARD
+═══════════════════════════════════════
+
+Run:
+
+node scripts/check-bureau-provider-role-docs.mjs
+
+If this script exists.
+
+If package scripts are required, inspect package.json first.
+
+NEVER invent a pnpm script.
+
+The provider-role guard must validate:
+
+Boss = Gemini
+
+Right Hand = DeepSeek
+
+Dig = Groq → Mistral
+
+NVIDIA Integrate = DeepSeek transport
+
+No stale active Right-Hand provider.
+
+═══════════════════════════════════════
+19. STEP 11 — DATABASE
+═══════════════════════════════════════
+
+Use platform-injected DATABASE_URL.
+
+Run:
+
+pnpm –filter @workspace/db run push
+
+If this fails:
+
+inspect the actual error.
+
+Use existing Replit/platform Postgres tooling if available.
+
+NEVER ask the operator for DATABASE_URL.
+
+Do not invent database credentials.
+
+═══════════════════════════════════════
+20. STEP 12 — DESK BUILD
+═══════════════════════════════════════
+
+Run:
+
+pnpm –dir artifacts/apex-finder run build
+
+Then:
+
+test -f artifacts/apex-finder/dist/public/index.html
+
+If missing:
+
+echo DESK_BUILD_FAILED
+exit 1
+
+Do NOT replace the desk.
+
+Do NOT redesign.
+
+═══════════════════════════════════════
+21. STEP 13 — API BUILD + TYPECHECK
+═══════════════════════════════════════
+
+Run:
+
+pnpm –dir artifacts/api-server run build
+
+Then:
+
+pnpm run typecheck
+
+TYPECHECK IS MANDATORY.
+
+If typecheck fails:
+
+FIX the actual module/type errors.
+
+Do not claim build success.
+
+Do not proceed to live research until typecheck passes.
+
+═══════════════════════════════════════
+22. STEP 14 — STATIC APEX GATES
+═══════════════════════════════════════
+
+Inspect package.json.
+
+Only execute scripts that actually exist.
+
+At minimum, if present:
+
+pnpm run check:no-force-dig
+
+pnpm run check:free-react
+
+Also run existing:
+
+provider-role checks
+trajectory checks
+agentic runtime checks
+agentic timeout checks
+comparison/integrity checks
+
+Do not invent commands.
+
+Every applicable invariant must pass.
+
+═══════════════════════════════════════
+23. STEP 15 — CANONICAL BOOT
+═══════════════════════════════════════
+
+Start only the canonical API workflow.
+
+Use:
+
+ENABLE_AUTO_PIPELINE=false 
+RESEARCH_DEPTH=standard 
+PORT=8080 
+bash scripts/replit-boot.sh
+
+Do NOT:
+
+• start Vite separately
+• start another API
+• create another workflow
+• run another frontend
+• create another application
+
+═══════════════════════════════════════
+24. STEP 16 — HEALTH
+═══════════════════════════════════════
+
+Run:
+
+curl -sS http://127.0.0.1:8080/api/healthz
+
+Inspect:
+
+status
+redis
+bureauIntegrity
+
+Expected:
+
+bureauIntegrity != critical
+
+Redis:
+
+connected
+
+If:
+
+bureauIntegrity=critical
+
+STOP.
+
+Report exact non-secret reason.
+
+If Redis is unavailable or quota exhausted:
+
+STOP.
+
+Operator replaces:
+
+REDIS_URL_1
+
+offline.
+
+Then restart API and rerun healthz.
+
+═══════════════════════════════════════
+25. STEP 17 — PUBLIC DESK
+═══════════════════════════════════════
+
+Open this Replit App’s public URL:
+
+/
+
+Hard refresh.
+
+Confirm:
+
+• page is non-blank
+• Entities surface exists
+• Profile surface exists
+• Reactor exists
+• Dig/contact/evidence surface exists
+
+Do not treat old “ApexFinder Pro” artifacts as the current product.
+
+Do not redesign the interface.
+
+═══════════════════════════════════════
+26. STEP 18 — SMALL LIVE DEEPSEEK SMOKE
+═══════════════════════════════════════
+
+THIS IS A CONNECTIVITY / CREDENTIAL / MODEL TEST.
+
+It is NOT the production workload.
+
+Use the SAME endpoint:
+
+https://integrate.api.nvidia.com/v1/chat/completions
+
+Use:
+
+model:
+deepseek-ai/deepseek-v4-flash-0731
+
+temperature:
+1
+
+top_p:
+0.95
+
+max_tokens:
+256
+
+reasoning_effort:
+“high”
+
+stream:
+false
+
+Headers:
+
+Accept: application/json
+Content-Type: application/json
+Authorization: Bearer <DEEPSEEK_API_KEY>
+
+Use a tiny prompt:
+
+Reply with exactly: DEEPSEEK_SMOKE_OK
+
+Use a bounded timeout:
+
+120 seconds.
+
+Do NOT use:
+
+max_tokens=16384
+
+for this connectivity smoke.
+
+The smoke exists to establish:
+
+• credential works
+• endpoint responds
+• model resolves
+• JSON is returned
+• assistant output exists
+
+Record:
+
+HTTP status
+elapsed time
+model
+response validity
+
+Do NOT print the API key.
+
+Do NOT dump unnecessary reasoning output.
+
+═══════════════════════════════════════
+27. STEP 19 — IF SMOKE FAILS
+═══════════════════════════════════════
+
+If the 256-token high-reasoning smoke times out:
+
+perform ONE diagnostic only:
+
+max_tokens:
+64
+
+reasoning_effort:
+“none”
+
+stream:
+false
+
+same endpoint
+same model
+same credential
+
+Purpose:
+
+distinguish provider availability from high-reasoning latency.
+
+If the minimal request succeeds:
+
+classify:
+
+DeepSeek provider is reachable, but high-reasoning workload is experiencing provider/capacity latency.
+
+If the minimal request also fails:
+
+classify:
+
+DeepSeek provider / credential / network availability failure.
+
+Do NOT:
+
+• switch providers
+• hide the failure
+• restore Nemotron
+• restore z.ai
+• restore GLM
+• make DeepSeek a Dig provider
+• claim PASS
+
+If both fail:
+
+BLOCKED.
+
+═══════════════════════════════════════
+28. STEP 20 — VERIFY PRODUCTION CONTRACT AGAIN
+═══════════════════════════════════════
+
+After smoke testing, verify the actual production source still contains:
+
+temperature: 1
+top_p: 0.95
+max_tokens: 16384
+reasoning_effort: “high”
+stream: false
+
+The production code MUST NOT accidentally retain:
+
+max_tokens: 256
+
+That value is smoke-test-only.
+
+═══════════════════════════════════════
+29. STEP 21 — LEDGER
+═══════════════════════════════════════
+
+Run:
+
+GET /api/entities?limit=5
+
+If a legitimate entity already exists:
+
+DO NOT run discovery unnecessarily.
+
+Proceed to single-target Dig.
+
+If ledger is empty:
+
+run ONE tiny discovery seed.
+
+POST:
+
+/api/ingest/atlas-run
+
+with:
+
+{
+“discoveryFirst”: true,
+“targetCount”: 3,
+“researchLimit”: 3,
+“runResearch”: true,
+“skipFaa”: true,
+“broadCategories”: 1,
+“batchSize”: 10,
+“phaseJBatchSize”: 5,
+“targetTimeoutMs”: 180000,
+“researchDepth”: “standard”
+}
+
+Poll:
+
+GET /api/ingest/atlas-status
+
+Stop immediately when:
+
+• ≥1 legitimate entity exists
+
+OR
+
+• job becomes idle
+
+Then:
+
+DELETE /api/ingest/atlas-lock
+
+Do NOT leave discovery running.
+
+Do NOT start a second job during 409/lock.
+
+If discovery blocks the API event loop:
+
+restart the canonical API workflow ONCE.
+
+Then re-check entities.
+
+═══════════════════════════════════════
+30. STEP 22 — TARGET SANITY
+═══════════════════════════════════════
+
+Choose a legitimate entityId from the ledger.
+
+Verify:
+
+• credible identity
+• credible source
+• legitimate entity
+• not placeholder
+• not fabricated
+• not an unrealistic Forbes-style target
+
+If no legitimate entity exists:
+
+BLOCKED.
+
+Do not invent one.
+
+═══════════════════════════════════════
+31. STEP 23 — REQUIRED SINGLE-TARGET DIG
+═══════════════════════════════════════
+
+Run exactly ONE real single-target Dig proof.
+
+POST:
+
+/api/ingest/atlas-run
+
+{
+“singleTargetId”: <REAL_ENTITY_ID>,
+“runResearch”: true,
+“researchDepth”: “standard”,
+“targetTimeoutMs”: 420000
+}
+
+Poll:
+
+GET /api/ingest/atlas-status
+
+until idle.
+
+Record:
+
+jobId
+
+Do not start another Dig.
+
+═══════════════════════════════════════
+32. STEP 24 — DIG TRAJECTORY
+═══════════════════════════════════════
+
+Inspect the completed trajectory.
+
+Expected examples:
+
+web_search
+visit
+authorized OSINT tools
+pivot
+done
+
+The exact path is model-selected and may vary.
+
+BLOCKING SIGNS:
+
+force_*
+GROK-PARITY
+prefer-lists
+scripted hops
+hard-coded target-specific playbooks
+fabricated URLs
+fabricated contacts
+fabricated evidence
+DeepSeek acting as investigator
+
+Deterministic enforcement is allowed.
+
+Deterministic path selection is not.
+
+═══════════════════════════════════════
+33. STEP 25 — PROVENANCE / CONTACTS
+═══════════════════════════════════════
+
+Verify:
+
+• real HTTP(S) source URLs
+• source-backed evidence
+• identity grounding
+• legitimate contact provenance
+• organization inbox remains organization scope
+• no fabricated personal route
+• no synthetic search URLs
+• no fabricated evidence
+
+If Dig wrote valid evidence but the card is empty:
+
+POST:
+
+/api/entities/rehydrate-contacts
+
+{
+“entityId”: <REAL_ENTITY_ID>
+}
+
+Then re-check.
+
+Never fabricate a contact.
+
+═══════════════════════════════════════
+34. STEP 26 — SCOREBOARD
+═══════════════════════════════════════
+
+Run:
+
+bash scripts/replit-scoreboard-check.sh http://127.0.0.1:8080
+
+Record:
+
+mean
+n
+milestonePass
+
+A single-target proof may legitimately produce:
+
+n = 1
+
+and:
+
+milestonePass = false
+
+if the rubric requires eight scored entities.
+
+Do NOT manufacture eight entities merely to make the scoreboard pass.
+
+The purpose of this run is legitimate single-target proof.
+
+═══════════════════════════════════════
+35. FINAL PASS CONDITIONS
+═══════════════════════════════════════
+
+A CLEAN PASS requires:
+
+✓ latest main
+✓ above tip floor
+✓ dependencies installed
+✓ database push passed
+✓ desk build passed
+✓ desk index.html exists
+✓ API build passed
+✓ typecheck passed
+✓ no-force-Dig passed
+✓ free-ReAct passed
+✓ provider-role check passed
+✓ agentic runtime checks passed
+✓ agentic timeout checks passed
+✓ DeepSeek migration passed
+✓ active Right Hand = DeepSeek-V4-Flash-0731
+✓ NVIDIA Integrate transport
+✓ DEEPSEEK_API_KEY configured
+✓ production DeepSeek contract correct
+✓ live DeepSeek smoke succeeds
+✓ Boss = Gemini
+✓ Dig = Groq → Mistral
+✓ DeepSeek NOT in Dig
+✓ health non-critical
+✓ Redis connected
+✓ desk non-blank
+✓ legitimate entity exists
+✓ single-target Dig completed
+✓ jobId exists
+✓ model-selected Dig trajectory
+✓ provenance valid
+✓ no fabricated contacts/evidence/URLs
+✓ scoreboard output captured
+
+═══════════════════════════════════════
+36. FAILURE POLICY
+═══════════════════════════════════════
+
+Classify failures accurately.
+
+REPOSITORY:
+wrong branch / stale tip / checkout failure
+
+INSTALL:
+pnpm / registry / firewall / OOM
+
+DATABASE:
+Postgres/schema/push
+
+BUILD:
+desk/API build
+
+TYPE:
+TypeScript/module failure
+
+PLATFORM:
+Replit workflow / port / boot
+
+REDIS:
+connection / quota / configuration
+
+PROVIDER:
+Gemini / DeepSeek / Groq / Mistral / search provider
+
+RIGHT-HAND:
+DeepSeek request/response/timeout
+
+INTEGRITY:
+bureauIntegrity critical / provenance failure
+
+FREE-REACT:
+free-ReAct invariant failure
+
+DIG:
+trajectory / timeout / evidence failure
+
+SCOREBOARD:
+mean/n/milestonePass unavailable or invalid
+
+Never hide a provider failure behind a different category.
+
+═══════════════════════════════════════
+37. ANTI-REGRESSION
+═══════════════════════════════════════
+
+NEVER:
+
+• restore NVIDIA_NIM_API_KEY
+• restore Nemotron
+• restore z.ai
+• restore GLM
+• make DeepSeek the Dig Investigator
+• make Gemini the Dig Investigator
+• replace Groq → Mistral
+• use streaming for the normal production Right-Hand request
+• use SSE as a requirement
+• lower production max_tokens from 16384
+• remove reasoning_effort=high
+• remove bounded timeouts
+• use infinite provider waits
+• fabricate targets
+• fabricate evidence
+• fabricate contacts
+• fabricate URLs
+• create another Replit App
+• create another frontend workflow
+• ask for DATABASE_URL
+• ask for REDIS_URL_2–5
+• print secrets
+• silently fall back to an obsolete provider
+
+═══════════════════════════════════════
+38. FINAL REPORT — ONE MESSAGE
+═══════════════════════════════════════
+
+DO NOT SEND PROGRESS UPDATES.
+
+DO NOT SEND INTERMEDIATE REPORTS.
+
+DO NOT ASK FOR CONFIRMATION AFTER STARTING.
+
+Execute the work.
+
+At the very end output exactly ONE report.
+
+Use:
+
+APEX ATLAS FRESH REPLIT RUN REPORT
+
+Repository:
+branch:
+tip SHA:
+
+public URL:
+
+Secrets:
+configured: yes/no
+missing secret names:
+(no values)
+
+MODEL ARCHITECTURE:
+Boss:
+Right Hand:
+Dig:
+
+DEEPSEEK:
+model:
+endpoint:
+credential configured:
+production contract:
+live smoke:
+HTTP status:
+elapsed:
+diagnosis:
+
+INSTALL:
+install:
+database push:
+
+BUILDS:
+desk build:
+desk index.html:
+API build:
+typecheck:
+
+STATIC GATES:
+no-force-dig:
+free-react:
+provider-role:
+agentic runtime:
+agentic timeout:
+
+RUNTIME:
+workflow:
+health status:
+bureauIntegrity:
+redis:
+desk non-blank:
+
+RESEARCH:
+entityId:
+target quality:
+jobId:
+Dig status:
+trajectory:
+provenance:
+contacts:
+
+SCOREBOARD:
+mean:
+n:
+milestonePass:
+
+OVERALL:
+PASS / BLOCKED
+
+BLOCKERS:
+exact non-secret error text, if any
+
+If every required condition passed:
+
+OVERALL:
+PASS
+
+Then END.
+
+If any required condition failed:
+
+OVERALL:
+BLOCKED
+
+State the exact blocker.
+
+Do not conceal it.
+
+Do not invent a workaround.
+
+END.
+
+This is the prompt I’d use for the fresh account. The key difference is that it separates “can NVIDIA answer a tiny request?” from “can Apex sustain the full high-reasoning 16K Right-Hand workload?” That prevents another 180-second zero-byte test from being mistaken for a malformed application request, while keeping your actual production DeepSeek configuration intact.

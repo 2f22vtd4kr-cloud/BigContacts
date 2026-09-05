@@ -48,16 +48,6 @@ type ChatMessage = {
   reasoning?: string | null;
   reasoning_content?: string | null;
 };
-type ChatCompletionChunk = {
-  choices?: Array<{
-    delta?: ChatMessage;
-  }>;
-};
-
-const DEEPSEEK_CHAT_TEMPLATE_KWARGS = {
-  thinking: true,
-  reasoning_effort: "high",
-} as const;
 
 function getDeepSeekKey(): string | null {
   return process.env.DEEPSEEK_API_KEY?.trim() || null;
@@ -73,48 +63,6 @@ function extractAssistantText(message: ChatMessage | undefined): string {
   ).trim();
 }
 
-async function readDeepSeekCompletion(response: Response): Promise<string> {
-  const contentType = response.headers.get("content-type") ?? "";
-  if (!response.body || !contentType.toLowerCase().includes("text/event-stream")) {
-    const payload = await response.json() as ChatCompletionResponse;
-    return extractAssistantText(payload.choices?.[0]?.message);
-  }
-
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-  let content = "";
-  let reasoning = "";
-
-  const consumeLine = (line: string): void => {
-    const trimmed = line.trim();
-    if (!trimmed.startsWith("data:")) return;
-    const data = trimmed.slice("data:".length).trim();
-    if (!data || data === "[DONE]") return;
-    try {
-      const chunk = JSON.parse(data) as ChatCompletionChunk;
-      const delta = chunk.choices?.[0]?.delta;
-      if (typeof delta?.content === "string") content += delta.content;
-      if (typeof delta?.reasoning_content === "string") reasoning += delta.reasoning_content;
-      if (typeof delta?.reasoning === "string") reasoning += delta.reasoning;
-    } catch {
-      // Ignore malformed keep-alive/event fragments; the completed text remains usable.
-    }
-  };
-
-  while (true) {
-    const { done, value } = await reader.read();
-    buffer += decoder.decode(value, { stream: !done });
-    const lines = buffer.split(/\r?\n/);
-    buffer = lines.pop() ?? "";
-    for (const line of lines) consumeLine(line);
-    if (done) break;
-  }
-  if (buffer) consumeLine(buffer);
-
-  return (content || reasoning).trim();
-}
-
 async function requestDeepSeekCompletion(
   messages: Array<{ role: "system" | "user"; content: string }>,
   options: { timeoutMs: number; responseFormat?: { type: "json_object" } },
@@ -126,7 +74,7 @@ async function requestDeepSeekCompletion(
     const response = await fetch(DEEPSEEK_CHAT_API, {
       method: "POST",
       headers: {
-        Accept: "text/event-stream",
+        Accept: "application/json",
         "Content-Type": "application/json",
         Authorization: `Bearer ${key}`,
       },
@@ -136,9 +84,9 @@ async function requestDeepSeekCompletion(
         temperature: 1,
         top_p: 0.95,
         max_tokens: 16384,
-        chat_template_kwargs: DEEPSEEK_CHAT_TEMPLATE_KWARGS,
+        reasoning_effort: "high",
         ...(options.responseFormat ? { response_format: options.responseFormat } : {}),
-        stream: true,
+        stream: false,
       }),
       signal: AbortSignal.timeout(options.timeoutMs),
     });
@@ -151,7 +99,8 @@ async function requestDeepSeekCompletion(
       };
     }
 
-    return { raw: await readDeepSeekCompletion(response), error: null };
+    const payload = await response.json() as ChatCompletionResponse;
+    return { raw: extractAssistantText(payload.choices?.[0]?.message), error: null };
   } catch (error) {
     return {
       raw: "",
@@ -374,7 +323,7 @@ export async function runDeepSeekDiscoveryAdvice(input: {
       content: "You are a case-file reasoning engine. You cannot search online and must never invent evidence.",
     },
     { role: "user", content: buildDiscoveryAdvicePrompt(input.file, input.iteration) },
-  ], { timeoutMs: 90_000 });
+  ], { timeoutMs: 180_000 });
   if (result.error) return unavailable(result.error);
   const parsed = parseDiscoveryAdvice(result.raw, input.file);
   return parsed
@@ -418,7 +367,7 @@ export async function runDeepSeekCaseReasoning(input: {
       content: "You are a case-file reasoning engine. You cannot search online and must never invent evidence.",
     },
     { role: "user", content: buildReasoningPrompt(input.file, input.iteration) },
-  ], { timeoutMs: 45_000 });
+  ], { timeoutMs: 180_000 });
   if (result.error) {
     logger.warn({ model: DEEPSEEK_CASE_REASONING_MODEL, err: result.error }, "DeepSeek via NVIDIA Integrate case reasoning failed");
     return {
@@ -492,7 +441,7 @@ export async function runDeepSeekFreeJson(
       content: apexOrientationFor("right_hand") + "\n\n---\n\n" + systemExtra,
     },
     { role: "user", content: userPrompt },
-  ], { timeoutMs: 45_000, responseFormat: { type: "json_object" } });
+  ], { timeoutMs: 180_000, responseFormat: { type: "json_object" } });
   if (result.error) {
     return {
       status: "unavailable",
@@ -525,7 +474,7 @@ export async function runDeepSeekFinalReview(prompt: string): Promise<{
         "Reply with ONE JSON object only. Never invent contacts, people, or URLs — only exact values from the prompt.",
     },
     { role: "user", content: prompt },
-  ], { timeoutMs: 45_000, responseFormat: { type: "json_object" } });
+  ], { timeoutMs: 180_000, responseFormat: { type: "json_object" } });
   if (result.error) {
     return {
       status: "unavailable",

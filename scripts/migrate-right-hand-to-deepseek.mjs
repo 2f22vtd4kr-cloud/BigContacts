@@ -18,7 +18,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const RIGHT_HAND_FILE = "artifacts/api-server/src/src/lib/nvidia-nim-case-reasoning.ts";
 const DEEPSEEK_MODEL = "deepseek-ai/deepseek-v4-flash-0731";
 const DEEPSEEK_ENDPOINT = "https://integrate.api.nvidia.com/v1/chat/completions";
-const DEEPSEEK_PARAMS = 'temperature: 1,\n        top_p: 0.95,\n        max_tokens: 16384,\n        chat_template_kwargs: { thinking: true, reasoning_effort: "high" },';
+const DEEPSEEK_PARAMS = 'temperature: 1,\n        top_p: 0.95,\n        max_tokens: 16384,\n        reasoning_effort: "high",\n        stream: false,';
 
 const runtimeFiles = [
   "artifacts/api-server/src/src/lib/case-bureau.ts",
@@ -94,7 +94,11 @@ function writeIfChanged(rel, next) {
   s = s.replace(/temperature: 0\.1,\n\s*max_tokens: 1200,/g, DEEPSEEK_PARAMS);
   s = s.replaceAll(
     'extra_body: { chat_template_kwargs: { thinking: true, reasoning_effort: "high" } },',
+    'reasoning_effort: "high",',
+  );
+  s = s.replaceAll(
     'chat_template_kwargs: { thinking: true, reasoning_effort: "high" },',
+    'reasoning_effort: "high",',
   );
   writeIfChanged(RIGHT_HAND_FILE, s);
 }
@@ -196,20 +200,12 @@ if (!hardening.includes("DIG_INVESTIGATOR_FAILOVER_CHAIN") || !hardening.include
 }
 
 const provider = fs.readFileSync(path.join(root, RIGHT_HAND_FILE), "utf8");
-for (const required of ["DEEPSEEK_API_KEY", DEEPSEEK_MODEL, DEEPSEEK_ENDPOINT, "reasoning_effort: \"high\"", "thinking: true"]) {
+for (const required of ["DEEPSEEK_API_KEY", DEEPSEEK_MODEL, DEEPSEEK_ENDPOINT, "reasoning_effort: \"high\"", "stream: false"]) {
   if (!provider.includes(required)) throw new Error(`DeepSeek provider missing required contract: ${required}`);
 }
 const temperatures = provider.match(/temperature: 1,/g) ?? [];
 const reasoningModes = provider.match(/reasoning_effort: "high"/g) ?? [];
-const usesSharedStreamingContract =
-  provider.includes("DEEPSEEK_CHAT_TEMPLATE_KWARGS") &&
-  provider.includes("chat_template_kwargs: DEEPSEEK_CHAT_TEMPLATE_KWARGS") &&
-  provider.includes("stream: true");
-if (usesSharedStreamingContract) {
-  if (temperatures.length !== 1 || reasoningModes.length !== 1 || provider.includes("stream: false") || provider.includes("extra_body")) {
-    throw new Error("DeepSeek provider shared streaming contract mismatch");
-  }
-} else if (temperatures.length !== 4 || reasoningModes.length !== 4) {
+if (temperatures.length < 1 || reasoningModes.length < 1 || !provider.includes("stream: false") || provider.includes("stream: true") || provider.includes("chat_template_kwargs")) {
   throw new Error(`DeepSeek provider generation contract mismatch: ${temperatures.length} temperature blocks, ${reasoningModes.length} reasoning blocks`);
 }
 
