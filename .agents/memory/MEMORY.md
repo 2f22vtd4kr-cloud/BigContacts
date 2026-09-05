@@ -2,3 +2,4 @@
 - [Redis quota guardrails](redis-quota-guardrails.md) — idle status polling must batch pointer reads, cache longer, and never retry monthly-capped Upstash slots.
 - [Build hardening idempotence](build-hardening-idempotence.md) — managed API builds can repeat source-level guard comments; inspect the tree after each build.
 - [Bureau admission telemetry](bureau-admission-telemetry.md) — a discovery run can finish with contact facts yet zero new ledger admissions; trust the ledger delta for proof.
+- [Frontend dist rebuild](frontend-dist-rebuild.md) — the API boot script skips frontend builds when dist exists, so UI edits need an explicit client build before restart.

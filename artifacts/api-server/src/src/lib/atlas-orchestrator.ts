@@ -2113,6 +2113,15 @@ async function runModelSelectedDiscoveryBureau(
   const summary: Record<string, string> = {};
   const targetLimit = Math.max(1, Math.min(50, opts.targetCount ?? 3));
   const researchLimit = Math.max(0, Math.min(targetLimit, opts.researchLimit ?? 10));
+  const [baselineEntityRows, baselineEntityTotalRow, baselineContactRow] = await Promise.all([
+    db.select({ id: entitiesTable.id }).from(entitiesTable),
+    db.select({ count: sql<number>`count(*)::int` }).from(entitiesTable),
+    db.select({ count: sql<number>`count(*)::int` }).from(entitiesTable)
+      .where(sql`(${entitiesTable.email} IS NOT NULL OR ${entitiesTable.phone} IS NOT NULL OR ${entitiesTable.linkedinUrl} IS NOT NULL)`),
+  ]);
+  const baselineEntityIds = new Set(baselineEntityRows.map((row) => row.id));
+  const baselineEntityCount = Number(baselineEntityTotalRow[0]?.count ?? 0);
+  const baselineContactCount = Number(baselineContactRow[0]?.count ?? 0);
 
   const status = async (message: string, progress: number, entityProgress?: number, entityTotal?: number) => {
     await ensureAtlasActive(atlasJobId);
@@ -2196,7 +2205,9 @@ async function runModelSelectedDiscoveryBureau(
         return;
       }
       const id = await createEntityFromDiscoveryCandidate(candidate, { modelSelected: true });
-      if (id && !admittedIds.includes(id)) {
+      // createEntityFromDiscoveryCandidate returns an existing ID for a duplicate.
+      // Do not call that a fresh admission or let it satisfy a discovery target.
+      if (id && !baselineEntityIds.has(id) && !admittedIds.includes(id)) {
         admittedIds.push(id);
         await status(
           `Admitted ${candidate.name} (${admittedIds.length}/${targetLimit}) — continuing discovery…`,
@@ -2236,7 +2247,7 @@ async function runModelSelectedDiscoveryBureau(
   for (const candidate of candidates) {
     await ensureAtlasActive(atlasJobId);
     const id = await createEntityFromDiscoveryCandidate(candidate, { modelSelected: true });
-    if (id && !admittedIds.includes(id)) admittedIds.push(id);
+    if (id && !baselineEntityIds.has(id) && !admittedIds.includes(id)) admittedIds.push(id);
   }
   summary["Model admission"] = `${admittedIds.length}/${candidates.length} candidates admitted in model order (incremental+final)`;
 
@@ -2336,11 +2347,14 @@ async function runModelSelectedDiscoveryBureau(
   const hotLeads = Number(hotRow[0]?.count ?? 0);
   const totalEntities = Number(totalRow[0]?.count ?? 0);
   const totalContacts = Number(contactRow[0]?.count ?? 0);
+  summary["Run delta"] =
+    `newEntityAdmissions=${admittedIds.length} (ledger ${baselineEntityCount}→${totalEntities}); ` +
+    `newContactBearingEntities=${Math.max(0, totalContacts - baselineContactCount)} (ledger ${baselineContactCount}→${totalContacts})`;
   const finalMsg = [
     processIncomplete
       ? `Free-ReAct bureau ended incomplete in ${Math.round(durationMs / 60_000)}min.`
       : `Free-ReAct bureau finished in ${Math.round(durationMs / 60_000)}min.`,
-    `${totalEntities} entities | ${hotLeads} hot leads | ${totalContacts} contacts found.`,
+    `Ledger totals: ${totalEntities} entities | ${hotLeads} hot leads | ${totalContacts} contact-bearing entities.`,
     Object.entries(summary).map(([key, value]) => `${key}: ${value}`).join(" | "),
   ].join(" ");
 

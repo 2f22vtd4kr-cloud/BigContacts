@@ -756,11 +756,11 @@ export default function ApexProfile() {
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex flex-col min-h-full overflow-visible">
+    <div className="flex min-h-full w-full min-w-0 flex-col overflow-visible">
 
       {/* ── Desktop Header ────────────────────────────────────────────── */}
       <div className="hidden md:block flex-shrink-0 border-b border-border bg-card/60 px-4 md:px-6 py-4">
-        <div className="flex items-start gap-3 md:gap-4">
+        <div className="grid grid-cols-[auto_minmax(0,1fr)] items-start gap-3 md:gap-4">
           <Link
             href="/profiles"
             aria-label="Back to entity ledger"
@@ -838,7 +838,7 @@ export default function ApexProfile() {
              </div>
           </div>
 
-          <div className="flex items-center gap-2 md:gap-3 flex-shrink-0">
+          <div className="col-span-2 flex w-full items-center justify-end gap-2 md:gap-3 flex-shrink-0">
             <div className="flex items-center gap-2">
               <div className="flex flex-col items-center gap-0.5">
                 <ConfidenceBadge score={typeof (entity as any).contactConfidence === "number" ? (entity as any).contactConfidence : confidence.overall} />

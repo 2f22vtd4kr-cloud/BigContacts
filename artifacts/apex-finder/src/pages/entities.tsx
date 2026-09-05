@@ -275,7 +275,14 @@ function MobileEntityCard({
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0 flex-1">
               <div className="font-semibold text-[15px] leading-snug text-foreground break-words">
-                {formatEntityName(entity.name)}
+                <Link
+                  href={`/profile/${entity.id}`}
+                  onClick={(event) => event.stopPropagation()}
+                  className="hover:text-primary hover:underline underline-offset-2"
+                  data-testid={`link-mobile-profile-${entity.id}`}
+                >
+                  {formatEntityName(entity.name)}
+                </Link>
               </div>
               {entity.linkedinHeadline && (
                 <div className="mt-0.5 text-[11px] text-stone-400 font-mono line-clamp-1" title={entity.linkedinHeadline}>
@@ -1463,7 +1470,13 @@ export default function EntityLedger() {
                           </span>
                         )}
                          <div className="min-w-0">
-                          <div className="font-semibold text-sm text-foreground whitespace-nowrap">{formatEntityName(entity.name)}</div>
+                           <Link
+                             href={`/profile/${entity.id}`}
+                             className="font-semibold text-sm text-foreground whitespace-nowrap hover:text-primary hover:underline underline-offset-2"
+                             data-testid={`link-desktop-profile-${entity.id}`}
+                           >
+                             {formatEntityName(entity.name)}
+                           </Link>
                            {entity.cookedAt && (
                           <div data-testid="entity-research-committed-at" className="mt-0.5 font-mono text-[9px] uppercase tracking-[0.08em] text-[#9CFF1A]/60" title={new Date(entity.cookedAt).toLocaleString()}>
                             Research committed · {new Date(entity.cookedAt).toLocaleString()}

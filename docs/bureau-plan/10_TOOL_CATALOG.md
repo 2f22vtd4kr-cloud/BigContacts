@@ -29,6 +29,8 @@ Healthy web-search capability may use **Serper → Tavily → Exa → DDG** acco
 
 **Dig investigator: Groq → Mistral only.** This is the provider failover for the web/OSINT research capability. Gemini is Boss and NVIDIA NIM is right-hand; neither is a Dig fallback.
 
+**Provider roles:** **Boss = Gemini**; **Right-hand = NVIDIA NIM**; **Investigator = Groq → Mistral**.
+
 If Groq and Mistral are unavailable, the Dig capability fails closed/degrades honestly. Do not replace the missing investigator with Gemini, NVIDIA, a deterministic search recipe, or a force-hop sequence.
 
 ## Observation and provenance

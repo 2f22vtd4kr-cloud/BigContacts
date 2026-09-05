@@ -21,6 +21,8 @@ The model invents queries and chooses tools from the live schema. There is no ma
 
 **Groq → Mistral is the Dig/discovery investigator capability.** Gemini is Boss; NVIDIA NIM is right-hand. Neither is a web-research fallback.
 
+**Provider roles:** **Boss = Gemini**; **Right-hand = NVIDIA NIM**; **Investigator = Groq → Mistral**.
+
 Provider failover changes transport capacity, not research strategy. The fallback model receives the same objective and state and chooses its own next action.
 
 If Groq and Mistral cannot produce a decision, the capability fails/degrades honestly. The harness must not substitute a deterministic search recipe or borrow Gemini/NVIDIA for browsing.

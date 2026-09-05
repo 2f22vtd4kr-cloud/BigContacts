@@ -29,7 +29,7 @@ Operator → Atlas (discoveryFirst)
   → promotion + card
 ```
 
-There is no template fallback, ranked intake, force-hop sequence or deterministic identity extractor in the canonical discovery path.
+There is no fallback research path, ranked intake, force-hop sequence or deterministic identity extractor in the canonical discovery path.
 
 ## Mode 3 — Case Bureau adaptive
 
