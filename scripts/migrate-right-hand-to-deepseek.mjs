@@ -53,8 +53,9 @@ function writeIfChanged(rel, next) {
   }
 }
 
-// 1. Provider implementation. Keep the existing file to minimize import churn,
-// but make its API, credential, endpoint, model and thinking contract canonical.
+// 1. Provider implementation. Keep the existing filename to minimize import
+// churn, but make its API, credential, endpoint, model and thinking contract
+// canonical. Existing bounded JSON contracts remain bounded by callers.
 {
   const abs = path.join(root, RIGHT_HAND_FILE);
   let s = fs.readFileSync(abs, "utf8");
@@ -76,14 +77,8 @@ function writeIfChanged(rel, next) {
     /export const DEEPSEEK_CASE_REASONING_MODEL =\n\s*\(process\.env\.DEEPSEEK_MODEL \|\| process\.env\.DEEPSEEK_AGENTIC_MODEL \|\| "[^"]+"\)\.trim\(\);/,
     `export const DEEPSEEK_CASE_REASONING_MODEL =\n  (process.env.DEEPSEEK_MODEL || "${DEEPSEEK_MODEL}").trim();`,
   );
-  s = s.replace(
-    /const DEEPSEEK_CHAT_API = "[^"]+";/,
-    `const DEEPSEEK_CHAT_API = "${DEEPSEEK_ENDPOINT}";`,
-  );
+  s = s.replace(/const DEEPSEEK_CHAT_API = "[^"]+";/, `const DEEPSEEK_CHAT_API = "${DEEPSEEK_ENDPOINT}";`);
 
-  // Replace each existing generation parameter block rather than injecting a
-  // second temperature/max_tokens block. This is safe for all four right-hand
-  // call sites with their current bounded JSON output contracts.
   s = s.replace(/temperature: 0\.2,\n\s*max_tokens: 800,/g, DEEPSEEK_PARAMS);
   s = s.replace(/temperature: 0\.2,\n\s*max_tokens: 1200,/g, DEEPSEEK_PARAMS);
   s = s.replace(/temperature: 0\.3,\n\s*max_tokens: 1200,/g, DEEPSEEK_PARAMS);
@@ -132,7 +127,7 @@ for (const rel of activeSourceFiles) {
   writeIfChanged(rel, next);
 }
 
-// 3. Canonical role documentation. Historical/archive docs remain untouched.
+// 3. Canonical provider-role documentation.
 const roleDocs = [
   "docs/BUREAU_REACT_ARCHITECTURE.md",
   "docs/bureau-plan/01_PRODUCT_LAW_AND_CONTROL_PLANE.md",
@@ -165,7 +160,9 @@ for (const rel of roleDocs) {
   writeIfChanged(rel, next);
 }
 
-// 4. Operator docs and preflight contract.
+// 4. Operator docs and preflight contract. The startup prompt is intentionally
+// allowed to mention the obsolete key as a negative instruction, so it is not
+// treated as an active configuration source.
 const operatorDocs = [
   "README.md",
   "docs/PRE_REPLIT_GO.md",
@@ -190,9 +187,15 @@ for (const rel of operatorDocs) {
   writeIfChanged(rel, next);
 }
 
-// 5. Verify active tree and the Dig contract before returning success.
+// 5. Verify active runtime source and canonical role docs only. The startup
+// prompt may name NVIDIA_NIM_API_KEY solely to say it is obsolete.
+const verifyFiles = [
+  ...files.filter((rel) => /^(artifacts|lib|scripts)\//.test(rel)),
+  ...roleDocs,
+  ...operatorDocs,
+];
 const stale = [];
-for (const rel of walk(root)) {
+for (const rel of [...new Set(verifyFiles)]) {
   const s = fs.readFileSync(path.join(root, rel), "utf8");
   if (/NVIDIA_NIM_API_KEY|NVIDIA_NIM_MODEL|NVIDIA_AGENTIC_MODEL|nvidia\/nemotron-3-nano-30b-a3b/.test(s)) stale.push(rel);
 }
@@ -207,8 +210,10 @@ const provider = fs.readFileSync(path.join(root, RIGHT_HAND_FILE), "utf8");
 for (const required of ["DEEPSEEK_API_KEY", DEEPSEEK_MODEL, DEEPSEEK_ENDPOINT, "reasoning_effort: \"high\"", "thinking: true"]) {
   if (!provider.includes(required)) throw new Error(`DeepSeek provider missing required contract: ${required}`);
 }
-if ((provider.match(/temperature: 1,/g) ?? []).length !== (provider.match(/reasoning_effort: "high"/g) ?? []).length) {
-  throw new Error("DeepSeek provider has an inconsistent generation-parameter count");
+const temperatures = provider.match(/temperature: 1,/g) ?? [];
+const reasoningModes = provider.match(/reasoning_effort: "high"/g) ?? [];
+if (temperatures.length !== reasoningModes.length || temperatures.length !== 4) {
+  throw new Error(`DeepSeek provider generation contract mismatch: ${temperatures.length} temperature blocks, ${reasoningModes.length} reasoning blocks`);
 }
 
 console.log(`DeepSeek right-hand migration complete: ${changed} files changed.`);
