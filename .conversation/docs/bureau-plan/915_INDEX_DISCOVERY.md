@@ -1,3 +1,0 @@
-# Volume 915 — INDEX DISCOVERY
-
-Discovery: 216-222, 438-439, 636-645.

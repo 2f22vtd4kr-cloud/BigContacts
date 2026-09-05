@@ -1,3 +1,0 @@
-# Volume 1341 — LOSE CONDITION EMPTY
-
-L-EMPTY dominant.

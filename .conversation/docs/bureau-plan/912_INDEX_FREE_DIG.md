@@ -1,3 +1,0 @@
-# Volume 912 — INDEX FREE DIG
-
-Free dig: 101, 272, 287, 353, 501-503, 606-614.

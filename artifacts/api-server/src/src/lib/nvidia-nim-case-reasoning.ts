@@ -48,6 +48,16 @@ type ChatMessage = {
   reasoning?: string | null;
   reasoning_content?: string | null;
 };
+type ChatCompletionChunk = {
+  choices?: Array<{
+    delta?: ChatMessage;
+  }>;
+};
+
+const DEEPSEEK_CHAT_TEMPLATE_KWARGS = {
+  thinking: true,
+  reasoning_effort: "high",
+} as const;
 
 function getDeepSeekKey(): string | null {
   return process.env.DEEPSEEK_API_KEY?.trim() || null;
@@ -61,6 +71,93 @@ function extractAssistantText(message: ChatMessage | undefined): string {
     || (typeof message.reasoning === "string" ? message.reasoning : null)
     || ""
   ).trim();
+}
+
+async function readDeepSeekCompletion(response: Response): Promise<string> {
+  const contentType = response.headers.get("content-type") ?? "";
+  if (!response.body || !contentType.toLowerCase().includes("text/event-stream")) {
+    const payload = await response.json() as ChatCompletionResponse;
+    return extractAssistantText(payload.choices?.[0]?.message);
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let content = "";
+  let reasoning = "";
+
+  const consumeLine = (line: string): void => {
+    const trimmed = line.trim();
+    if (!trimmed.startsWith("data:")) return;
+    const data = trimmed.slice("data:".length).trim();
+    if (!data || data === "[DONE]") return;
+    try {
+      const chunk = JSON.parse(data) as ChatCompletionChunk;
+      const delta = chunk.choices?.[0]?.delta;
+      if (typeof delta?.content === "string") content += delta.content;
+      if (typeof delta?.reasoning_content === "string") reasoning += delta.reasoning_content;
+      if (typeof delta?.reasoning === "string") reasoning += delta.reasoning;
+    } catch {
+      // Ignore malformed keep-alive/event fragments; the completed text remains usable.
+    }
+  };
+
+  while (true) {
+    const { done, value } = await reader.read();
+    buffer += decoder.decode(value, { stream: !done });
+    const lines = buffer.split(/\r?\n/);
+    buffer = lines.pop() ?? "";
+    for (const line of lines) consumeLine(line);
+    if (done) break;
+  }
+  if (buffer) consumeLine(buffer);
+
+  return (content || reasoning).trim();
+}
+
+async function requestDeepSeekCompletion(
+  messages: Array<{ role: "system" | "user"; content: string }>,
+  options: { timeoutMs: number; responseFormat?: { type: "json_object" } },
+): Promise<{ raw: string; error: string | null }> {
+  const key = getDeepSeekKey();
+  if (!key) return { raw: "", error: "DEEPSEEK_API_KEY is not configured." };
+
+  try {
+    const response = await fetch(DEEPSEEK_CHAT_API, {
+      method: "POST",
+      headers: {
+        Accept: "text/event-stream",
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${key}`,
+      },
+      body: JSON.stringify({
+        model: DEEPSEEK_CASE_REASONING_MODEL,
+        messages,
+        temperature: 1,
+        top_p: 0.95,
+        max_tokens: 16384,
+        chat_template_kwargs: DEEPSEEK_CHAT_TEMPLATE_KWARGS,
+        ...(options.responseFormat ? { response_format: options.responseFormat } : {}),
+        stream: true,
+      }),
+      signal: AbortSignal.timeout(options.timeoutMs),
+    });
+
+    if (!response.ok) {
+      const detail = (await response.text().catch(() => "")).slice(0, 300);
+      return {
+        raw: "",
+        error: `DeepSeek via NVIDIA Integrate ${DEEPSEEK_CASE_REASONING_MODEL} HTTP ${response.status}${detail ? `: ${detail}` : ""}`,
+      };
+    }
+
+    return { raw: await readDeepSeekCompletion(response), error: null };
+  } catch (error) {
+    return {
+      raw: "",
+      error: error instanceof Error ? error.message : "DeepSeek via NVIDIA Integrate request failed.",
+    };
+  }
 }
 
 export function getDeepSeekCaseReasoningStatus(): DeepSeekCaseReasoningStatus {
@@ -271,43 +368,18 @@ export async function runDeepSeekDiscoveryAdvice(input: {
     error,
   });
   if (!key) return unavailable("DEEPSEEK_API_KEY is not configured.");
-  try {
-    const response = await fetch(DEEPSEEK_CHAT_API, {
-      method: "POST",
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${key}`,
-      },
-      body: JSON.stringify({
-        model: DEEPSEEK_CASE_REASONING_MODEL,
-        messages: [
-          {
-            role: "system",
-            content: "You are a case-file reasoning engine. You cannot search online and must never invent evidence.",
-          },
-          { role: "user", content: buildDiscoveryAdvicePrompt(input.file, input.iteration) },
-        ],
-        temperature: 1,
-        top_p: 0.95,
-        max_tokens: 16384,
-        extra_body: { chat_template_kwargs: { thinking: true, reasoning_effort: "high" } },
-        stream: false,
-      }),
-      signal: AbortSignal.timeout(90_000),
-    });
-    if (!response.ok) {
-      const detail = (await response.text().catch(() => "")).slice(0, 300);
-      return unavailable(`DeepSeek via NVIDIA Integrate ${DEEPSEEK_CASE_REASONING_MODEL} HTTP ${response.status}${detail ? `: ${detail}` : ""}`);
-    }
-    const payload = await response.json() as ChatCompletionResponse;
-    const parsed = parseDiscoveryAdvice(extractAssistantText(payload.choices?.[0]?.message), input.file);
-    return parsed
-      ? { status: "completed", model: DEEPSEEK_CASE_REASONING_MODEL, ...parsed, error: null }
-      : unavailable("DeepSeek via NVIDIA Integrate returned an invalid discovery advisory.");
-  } catch (error) {
-    return unavailable(error instanceof Error ? error.message : "DeepSeek via NVIDIA Integrate discovery advice failed.");
-  }
+  const result = await requestDeepSeekCompletion([
+    {
+      role: "system",
+      content: "You are a case-file reasoning engine. You cannot search online and must never invent evidence.",
+    },
+    { role: "user", content: buildDiscoveryAdvicePrompt(input.file, input.iteration) },
+  ], { timeoutMs: 90_000 });
+  if (result.error) return unavailable(result.error);
+  const parsed = parseDiscoveryAdvice(result.raw, input.file);
+  return parsed
+    ? { status: "completed", model: DEEPSEEK_CASE_REASONING_MODEL, ...parsed, error: null }
+    : unavailable("DeepSeek via NVIDIA Integrate returned an invalid discovery advisory.");
 }
 
 export async function runDeepSeekCaseReasoning(input: {
@@ -340,50 +412,28 @@ export async function runDeepSeekCaseReasoning(input: {
     };
   }
 
+  const result = await requestDeepSeekCompletion([
+    {
+      role: "system",
+      content: "You are a case-file reasoning engine. You cannot search online and must never invent evidence.",
+    },
+    { role: "user", content: buildReasoningPrompt(input.file, input.iteration) },
+  ], { timeoutMs: 45_000 });
+  if (result.error) {
+    logger.warn({ model: DEEPSEEK_CASE_REASONING_MODEL, err: result.error }, "DeepSeek via NVIDIA Integrate case reasoning failed");
+    return {
+      status: "unavailable",
+      model: DEEPSEEK_CASE_REASONING_MODEL,
+      actionId: null,
+      decision: null,
+      reason: null,
+      confidence: null,
+      error: result.error,
+    };
+  }
+
   try {
-    const response = await fetch(DEEPSEEK_CHAT_API, {
-      method: "POST",
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${key}`,
-      },
-      body: JSON.stringify({
-        model: DEEPSEEK_CASE_REASONING_MODEL,
-        messages: [
-          {
-            role: "system",
-            content: "You are a case-file reasoning engine. You cannot search online and must never invent evidence.",
-          },
-          { role: "user", content: buildReasoningPrompt(input.file, input.iteration) },
-        ],
-        temperature: 1,
-        top_p: 0.95,
-        max_tokens: 16384,
-        extra_body: { chat_template_kwargs: { thinking: true, reasoning_effort: "high" } },
-        stream: false,
-      }),
-      signal: AbortSignal.timeout(45_000),
-    });
-
-    if (!response.ok) {
-      const detail = (await response.text().catch(() => "")).slice(0, 300);
-      const error = `DeepSeek via NVIDIA Integrate ${DEEPSEEK_CASE_REASONING_MODEL} HTTP ${response.status}${detail ? `: ${detail}` : ""}`;
-      logger.warn({ model: DEEPSEEK_CASE_REASONING_MODEL, status: response.status }, "DeepSeek via NVIDIA Integrate case reasoning rejected");
-      return {
-        status: "unavailable",
-        model: DEEPSEEK_CASE_REASONING_MODEL,
-        actionId: null,
-        decision: null,
-        reason: null,
-        confidence: null,
-        error,
-      };
-    }
-
-    const payload = await response.json() as ChatCompletionResponse;
-    const raw = extractAssistantText(payload.choices?.[0]?.message);
-    const recommendation = parseRecommendation(raw, queuedActions);
+    const recommendation = parseRecommendation(result.raw, queuedActions);
     if (!recommendation) {
       return {
         status: "unavailable",
@@ -436,54 +486,25 @@ export async function runDeepSeekFreeJson(
   if (!key) {
     return { status: "unavailable", model: DEEPSEEK_CASE_REASONING_MODEL, raw: null, error: "DEEPSEEK_API_KEY not set" };
   }
-  try {
-    const resp = await fetch(DEEPSEEK_CHAT_API, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${key}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: DEEPSEEK_CASE_REASONING_MODEL,
-        temperature: 1,
-        top_p: 0.95,
-        max_tokens: 16384,
-        extra_body: { chat_template_kwargs: { thinking: true, reasoning_effort: "high" } },
-        response_format: { type: "json_object" },
-        stream: false,
-        messages: [
-          {
-            role: "system",
-            content: apexOrientationFor("right_hand") + "\n\n---\n\n" + systemExtra,
-          },
-          { role: "user", content: userPrompt },
-        ],
-      }),
-      signal: AbortSignal.timeout(45_000),
-    });
-    if (!resp.ok) {
-      const detail = (await resp.text().catch(() => "")).slice(0, 200);
-      return {
-        status: "unavailable",
-        model: DEEPSEEK_CASE_REASONING_MODEL,
-        raw: null,
-        error: `DeepSeek HTTP ${resp.status}${detail ? `: ${detail}` : ""}`,
-      };
-    }
-    const data = (await resp.json()) as ChatCompletionResponse;
-     const raw = extractAssistantText(data.choices?.[0]?.message);
-    if (!raw) {
-      return { status: "unavailable", model: DEEPSEEK_CASE_REASONING_MODEL, raw: null, error: "empty NVIDIA response" };
-    }
-    return { status: "completed", model: DEEPSEEK_CASE_REASONING_MODEL, raw, error: null };
-  } catch (err: any) {
+  const result = await requestDeepSeekCompletion([
+    {
+      role: "system",
+      content: apexOrientationFor("right_hand") + "\n\n---\n\n" + systemExtra,
+    },
+    { role: "user", content: userPrompt },
+  ], { timeoutMs: 45_000, responseFormat: { type: "json_object" } });
+  if (result.error) {
     return {
       status: "unavailable",
       model: DEEPSEEK_CASE_REASONING_MODEL,
       raw: null,
-      error: err?.message ?? "NVIDIA free JSON failed",
+      error: result.error,
     };
   }
+  if (!result.raw) {
+    return { status: "unavailable", model: DEEPSEEK_CASE_REASONING_MODEL, raw: null, error: "empty NVIDIA response" };
+  }
+  return { status: "completed", model: DEEPSEEK_CASE_REASONING_MODEL, raw: result.raw, error: null };
 }
 
 export async function runDeepSeekFinalReview(prompt: string): Promise<{
@@ -496,55 +517,26 @@ export async function runDeepSeekFinalReview(prompt: string): Promise<{
   if (!key) {
     return { status: "unavailable", model: DEEPSEEK_CASE_REASONING_MODEL, raw: null, error: "DEEPSEEK_API_KEY not set" };
   }
-  try {
-    const resp = await fetch(DEEPSEEK_CHAT_API, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${key}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: DEEPSEEK_CASE_REASONING_MODEL,
-        temperature: 1,
-        top_p: 0.95,
-        max_tokens: 16384,
-        extra_body: { chat_template_kwargs: { thinking: true, reasoning_effort: "high" } },
-        response_format: { type: "json_object" },
-        stream: false,
-        messages: [
-          {
-            role: "system",
-            content:
-              apexOrientationFor("right_hand") + "\n\n---\n\nYou are the right-hand advisor to Gemini Boss on Apex Atlas final card publication. " +
-              "Reply with ONE JSON object only. Never invent contacts, people, or URLs — only exact values from the prompt.",
-          },
-          { role: "user", content: prompt },
-        ],
-      }),
-      signal: AbortSignal.timeout(45_000),
-    });
-    if (!resp.ok) {
-      const detail = (await resp.text().catch(() => "")).slice(0, 200);
-      return {
-        status: "unavailable",
-        model: DEEPSEEK_CASE_REASONING_MODEL,
-        raw: null,
-        error: `DeepSeek HTTP ${resp.status}${detail ? `: ${detail}` : ""}`,
-      };
-    }
-    const data = (await resp.json()) as ChatCompletionResponse;
-     const raw = extractAssistantText(data.choices?.[0]?.message);
-    if (!raw) {
-      return { status: "unavailable", model: DEEPSEEK_CASE_REASONING_MODEL, raw: null, error: "empty NVIDIA response" };
-    }
-    return { status: "completed", model: DEEPSEEK_CASE_REASONING_MODEL, raw, error: null };
-  } catch (err: any) {
+  const result = await requestDeepSeekCompletion([
+    {
+      role: "system",
+      content:
+        apexOrientationFor("right_hand") + "\n\n---\n\nYou are the right-hand advisor to Gemini Boss on Apex Atlas final card publication. " +
+        "Reply with ONE JSON object only. Never invent contacts, people, or URLs — only exact values from the prompt.",
+    },
+    { role: "user", content: prompt },
+  ], { timeoutMs: 45_000, responseFormat: { type: "json_object" } });
+  if (result.error) {
     return {
       status: "unavailable",
       model: DEEPSEEK_CASE_REASONING_MODEL,
       raw: null,
-      error: err?.message ?? "NVIDIA final review failed",
+      error: result.error,
     };
   }
+  if (!result.raw) {
+    return { status: "unavailable", model: DEEPSEEK_CASE_REASONING_MODEL, raw: null, error: "empty NVIDIA response" };
+  }
+  return { status: "completed", model: DEEPSEEK_CASE_REASONING_MODEL, raw: result.raw, error: null };
 }
 

@@ -1,3 +1,0 @@
-# Volume 914 — INDEX SURFACE
-
-Surface: 166, 260, 288, 293, 421-430.

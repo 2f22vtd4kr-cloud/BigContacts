@@ -1,8 +1,0 @@
-{
-  "steps": [
-    {"action":"web_search","query":"Ada Lovelace primary sources","provider":"groq","thought":"Establish identity and primary-source trail."},
-    {"action":"visit","url":"https://example.org/primary","provider":"groq","thought":"Verify the strongest lead."},
-    {"action":"registry_search","query":"Ada Lovelace","registry":"archive","provider":"mistral","thought":"Cross-check identity rather than assume the first result."},
-    {"action":"done","provider":"gemini","thought":"Sufficient corroboration."}
-  ]
-}

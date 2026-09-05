@@ -1,3 +1,0 @@
-# Volume 1170 — INDEX BY DESK
-
-251-263, 491-499, 626-635 for desk.

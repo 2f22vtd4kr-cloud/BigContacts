@@ -1,3 +1,0 @@
-# Volume 1633 — CHECKPOINT 1633
-
-Desk QA.

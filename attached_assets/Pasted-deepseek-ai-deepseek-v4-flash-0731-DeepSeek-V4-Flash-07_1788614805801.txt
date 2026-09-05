@@ -1,0 +1,99 @@
+deepseek-ai / deepseek-v4-flash-0731
+DeepSeek-V4-Flash-0731
+Description
+DeepSeek-V4-Flash-0731 is a 304B-parameter sparse Mixture-of-Experts language model for text generation, coding, reasoning, long-context, and agentic workflows. It supports a one-million-token context and includes an attached speculative decoding module.
+
+This model is ready for commercial or non-commercial use.
+
+Third-Party Community Consideration:
+This model is not owned or developed by NVIDIA. This model has been developed and built to a third-party's requirements for this application and use case; see link to Non-NVIDIA DeepSeek-V4-Flash-0731 Model Card.
+
+License and Terms of Use:
+GOVERNING TERMS: This trial service is governed by the NVIDIA API Trial Terms of Service. Use of this model is governed by the NVIDIA Open Model Agreement. Additional Information: MIT.
+
+Deployment Geography:
+Global
+
+Use Case:
+Use Case: Text generation, coding, reasoning, long-context, and agentic tool-use workflows.
+
+Release Date:
+NGC: 08/13/2026 via link
+
+Build.NVIDIA.com: 08/17/2026 via link
+
+Hugging Face: 07/30/2026 via link
+
+Reference(s):
+References:
+
+DeepSeek-V4-Flash-0731 Model Page
+DeepSeek-V4 Technical Report
+Model Architecture:
+Architecture Type: Transformer
+Network Architecture: Sparse Mixture of Experts with hybrid Compressed Sparse Attention and Heavily Compressed Attention, Manifold-Constrained Hyper-Connections, and an attached speculative decoding module
+Total Parameters: 304B
+Active Parameters: 13B
+
+Input:
+Input Types: Text
+Input Formats: String
+Input Parameters: One Dimensional (1D)
+Other Input Properties: Supports multi-turn messages encoded in OpenAI-compatible format and low, high, and max reasoning-effort levels.
+Input Context Length (ISL): 1 million tokens
+
+Output:
+Output Types: Text
+Output Format: String
+Output Parameters: One Dimensional (1D)
+Other Output Properties: Supports text completions and reasoning content.
+
+Our AI models are designed and/or optimized to run on NVIDIA GPU-accelerated systems. By leveraging NVIDIA's hardware (e.g. GPU cores) and software frameworks (e.g., CUDA libraries), the model achieves faster training and inference times compared to CPU-only solutions.
+
+Software Integration:
+Runtime Engines:
+
+SGLang
+vLLM
+Supported Hardware:
+
+NVIDIA Blackwell: NVIDIA B200 Tensor Core GPU, NVIDIA RTX PRO 6000D
+NVIDIA Hopper: NVIDIA H100 Tensor Core GPU, NVIDIA H200 Tensor Core GPU, NVIDIA H20 Tensor Core GPU
+Operating System: Linux
+
+The integration of foundation and fine-tuned models into AI systems requires additional testing using use-case-specific data to ensure safe and effective deployment. Following the V-model methodology, iterative testing and validation at both unit and system levels are essential to mitigate risks, meet technical and functional requirements, and ensure compliance with safety and ethical standards before deployment.
+
+Model Version(s)
+DeepSeek-V4-Flash-0731
+
+Training, Testing, and Evaluation Datasets:
+Training Dataset
+Data Modality: Text
+Text Training Data Size: [More than 10 Trillion Tokens]
+Data Collection Method by dataset: Undisclosed
+Labeling Method by dataset: Undisclosed
+Properties: The DeepSeek-V4 family was pretrained on more than 32 trillion diverse tokens and then post-trained for reasoning and agentic capabilities.
+
+Testing Dataset
+Data Collection Method by dataset: Undisclosed
+Labeling Method by dataset: Undisclosed
+Properties: Undisclosed
+
+Evaluation Dataset
+Evaluation Benchmark Score: DeepSeek-V4-Flash-0731 reports 82.7 on Terminal Bench 2.1, 76.7 on Cybergym, 70.3 on Toolathlon-Verified, 68.7 on DSBench-FullStack, and 59.6 on DSBench-Hard.
+
+Detailed Benchmark Comparison Table
+Data Collection Method by dataset: [Hybrid: Automated, Manually-Collected]
+Labeling Method by dataset: [Hybrid: Automated, Manually-Labeled]
+Properties: Evaluated on coding-agent, repository, cybersecurity, software-engineering, and tool-use benchmarks.
+
+Inference
+Acceleration Engine: vLLM
+Test Hardware: NVIDIA Hopper (H100)
+
+Ethical Considerations
+NVIDIA believes Trustworthy AI is a shared responsibility and we have established policies and practices to enable development for a wide array of AI applications. Developers should work with their internal model team to ensure this model meets requirements for the relevant industry and use case and addresses unforeseen product misuse.
+
+Users are responsible for model inputs and outputs. Users are responsible for ensuring safe integration of this model, including implementing guardrails as well as other safety mechanisms, prior to deployment.
+
+Please report model quality, risk, security vulnerabilities or NVIDIA AI Concerns here.

@@ -1,3 +1,0 @@
-# Volume 1342 — LOSE CONDITION ISSUER
-
-L-ISSUER dominant.

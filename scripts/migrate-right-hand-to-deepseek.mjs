@@ -18,7 +18,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const RIGHT_HAND_FILE = "artifacts/api-server/src/src/lib/nvidia-nim-case-reasoning.ts";
 const DEEPSEEK_MODEL = "deepseek-ai/deepseek-v4-flash-0731";
 const DEEPSEEK_ENDPOINT = "https://integrate.api.nvidia.com/v1/chat/completions";
-const DEEPSEEK_PARAMS = 'temperature: 1,\n        top_p: 0.95,\n        max_tokens: 16384,\n        extra_body: { chat_template_kwargs: { thinking: true, reasoning_effort: "high" } },';
+const DEEPSEEK_PARAMS = 'temperature: 1,\n        top_p: 0.95,\n        max_tokens: 16384,\n        chat_template_kwargs: { thinking: true, reasoning_effort: "high" },';
 
 const runtimeFiles = [
   "artifacts/api-server/src/src/lib/case-bureau.ts",
@@ -92,6 +92,10 @@ function writeIfChanged(rel, next) {
   s = s.replace(/temperature: 0\.2,\n\s*max_tokens: 1200,/g, DEEPSEEK_PARAMS);
   s = s.replace(/temperature: 0\.3,\n\s*max_tokens: 1200,/g, DEEPSEEK_PARAMS);
   s = s.replace(/temperature: 0\.1,\n\s*max_tokens: 1200,/g, DEEPSEEK_PARAMS);
+  s = s.replaceAll(
+    'extra_body: { chat_template_kwargs: { thinking: true, reasoning_effort: "high" } },',
+    'chat_template_kwargs: { thinking: true, reasoning_effort: "high" },',
+  );
   writeIfChanged(RIGHT_HAND_FILE, s);
 }
 
@@ -197,7 +201,15 @@ for (const required of ["DEEPSEEK_API_KEY", DEEPSEEK_MODEL, DEEPSEEK_ENDPOINT, "
 }
 const temperatures = provider.match(/temperature: 1,/g) ?? [];
 const reasoningModes = provider.match(/reasoning_effort: "high"/g) ?? [];
-if (temperatures.length !== 4 || reasoningModes.length !== 4) {
+const usesSharedStreamingContract =
+  provider.includes("DEEPSEEK_CHAT_TEMPLATE_KWARGS") &&
+  provider.includes("chat_template_kwargs: DEEPSEEK_CHAT_TEMPLATE_KWARGS") &&
+  provider.includes("stream: true");
+if (usesSharedStreamingContract) {
+  if (temperatures.length !== 1 || reasoningModes.length !== 1 || provider.includes("stream: false") || provider.includes("extra_body")) {
+    throw new Error("DeepSeek provider shared streaming contract mismatch");
+  }
+} else if (temperatures.length !== 4 || reasoningModes.length !== 4) {
   throw new Error(`DeepSeek provider generation contract mismatch: ${temperatures.length} temperature blocks, ${reasoningModes.length} reasoning blocks`);
 }
 
