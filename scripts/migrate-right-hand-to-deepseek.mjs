@@ -6,7 +6,8 @@
  * Integrate. The Dig investigator remains Groq -> Mistral.
  *
  * Fail-closed and idempotent: historical .conversation and docs/archive content
- * is intentionally untouched; active source and canonical docs are migrated.
+ * is intentionally untouched. Only the audited runtime/provider files and
+ * canonical role/operator docs are changed.
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -14,31 +15,40 @@ import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const skip = [".git", ".conversation", "node_modules", "dist", "docs/archive"];
-const textExt = new Set([".ts", ".tsx", ".js", ".mjs", ".md", ".json"]);
 const RIGHT_HAND_FILE = "artifacts/api-server/src/src/lib/nvidia-nim-case-reasoning.ts";
 const DEEPSEEK_MODEL = "deepseek-ai/deepseek-v4-flash-0731";
 const DEEPSEEK_ENDPOINT = "https://integrate.api.nvidia.com/v1/chat/completions";
 const DEEPSEEK_PARAMS = 'temperature: 1,\n        top_p: 0.95,\n        max_tokens: 16384,\n        extra_body: { chat_template_kwargs: { thinking: true, reasoning_effort: "high" } },';
 
-function isSkipped(rel) {
-  const p = rel.replaceAll("\\", "/");
-  return skip.some((prefix) => p === prefix || p.startsWith(`${prefix}/`));
-}
-
-function walk(dir, out = []) {
-  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-    const abs = path.join(dir, entry.name);
-    const rel = path.relative(root, abs).replaceAll("\\", "/");
-    if (isSkipped(rel)) continue;
-    if (entry.isDirectory()) walk(abs, out);
-    else if (textExt.has(path.extname(entry.name))) out.push(rel);
-  }
-  return out;
-}
-
-const files = walk(root);
-if (!files.includes(RIGHT_HAND_FILE)) throw new Error(`missing expected right-hand file: ${RIGHT_HAND_FILE}`);
+const runtimeFiles = [
+  "artifacts/api-server/src/src/lib/case-bureau.ts",
+  "artifacts/api-server/src/src/lib/case-bureau-prompt.ts",
+  "artifacts/api-server/src/src/lib/adaptive-research-director.ts",
+  "artifacts/api-server/src/src/lib/bureau-live-narration.ts",
+  "artifacts/api-server/src/src/lib/lanes-honesty.ts",
+  "artifacts/api-server/src/src/routes/health.ts",
+  "artifacts/api-server/src/src/routes/system-status.ts",
+  "artifacts/api-server/src/src/routes/research/cases.ts",
+];
+const roleDocs = [
+  "docs/BUREAU_REACT_ARCHITECTURE.md",
+  "docs/bureau-plan/01_PRODUCT_LAW_AND_CONTROL_PLANE.md",
+  "docs/bureau-plan/02_FREE_REACT_AND_TOOL_SURFACE.md",
+  "docs/bureau-plan/10_TOOL_CATALOG.md",
+  "docs/bureau-plan/20_DIG_LOOP_STATE_MACHINE.md",
+  "docs/bureau-plan/31_BOSS_RIGHT_HAND_PROTOCOL.md",
+  "docs/bureau-plan/94_MODEL_ROUTING_TABLE.md",
+  "docs/bureau-plan/227_BUREAU_CONTROL_FLOW.md",
+];
+const operatorDocs = [
+  "README.md",
+  "docs/PRE_REPLIT_GO.md",
+  "docs/REPLIT_NEW_ACCOUNT_SETUP.md",
+  "docs/REPLIT_UPDATE_PROMPT_LATEST.md",
+  "docs/REPLIT_DEPLOY.md",
+  "docs/RUN_BUREAU.md",
+  "docs/bureau-plan/19_SECRETS_AND_ENV.md",
+];
 
 let changed = 0;
 const touched = [];
@@ -53,11 +63,10 @@ function writeIfChanged(rel, next) {
   }
 }
 
-// 1. Provider implementation. Keep the existing filename to minimize import
-// churn, but make its API, credential, endpoint, model and thinking contract
-// canonical. Existing bounded JSON contracts remain bounded by callers.
+// Provider implementation.
 {
   const abs = path.join(root, RIGHT_HAND_FILE);
+  if (!fs.existsSync(abs)) throw new Error(`missing expected right-hand file: ${RIGHT_HAND_FILE}`);
   let s = fs.readFileSync(abs, "utf8");
   for (const anchor of ["NVIDIA_NIM_CASE_REASONING_MODEL", "getNvidiaNimKey", "runNvidiaNimCaseReasoning", "NVIDIA_NIM_CHAT_API"]) {
     if (!s.includes(anchor)) throw new Error(`${RIGHT_HAND_FILE}: expected anchor missing: ${anchor}`);
@@ -72,27 +81,21 @@ function writeIfChanged(rel, next) {
     .replaceAll("NVIDIA HTTP", "DeepSeek HTTP")
     .replaceAll("nvidia-nim", "deepseek-right-hand")
     .replaceAll("NIM", "DeepSeek");
-
-  s = s.replace(
-    /export const DEEPSEEK_CASE_REASONING_MODEL =\n\s*\(process\.env\.DEEPSEEK_MODEL \|\| process\.env\.DEEPSEEK_AGENTIC_MODEL \|\| "[^"]+"\)\.trim\(\);/,
-    `export const DEEPSEEK_CASE_REASONING_MODEL =\n  (process.env.DEEPSEEK_MODEL || "${DEEPSEEK_MODEL}").trim();`,
-  );
+  s = s.replace(/export const DEEPSEEK_CASE_REASONING_MODEL =\n\s*\(process\.env\.DEEPSEEK_MODEL \|\| process\.env\.DEEPSEEK_AGENTIC_MODEL \|\| "[^"]+"\)\.trim\(\);/, `export const DEEPSEEK_CASE_REASONING_MODEL =\n  (process.env.DEEPSEEK_MODEL || "${DEEPSEEK_MODEL}").trim();`);
   s = s.replace(/const DEEPSEEK_CHAT_API = "[^"]+";/, `const DEEPSEEK_CHAT_API = "${DEEPSEEK_ENDPOINT}";`);
-
   s = s.replace(/temperature: 0\.2,\n\s*max_tokens: 800,/g, DEEPSEEK_PARAMS);
   s = s.replace(/temperature: 0\.2,\n\s*max_tokens: 1200,/g, DEEPSEEK_PARAMS);
   s = s.replace(/temperature: 0\.3,\n\s*max_tokens: 1200,/g, DEEPSEEK_PARAMS);
   s = s.replace(/temperature: 0\.1,\n\s*max_tokens: 1200,/g, DEEPSEEK_PARAMS);
-
   writeIfChanged(RIGHT_HAND_FILE, s);
 }
 
-// 2. Active source references. Do not blanket-rewrite unrelated NVIDIA text.
-const activeSourceFiles = files.filter((rel) => /^(artifacts|lib|scripts)\//.test(rel) && rel !== RIGHT_HAND_FILE);
-for (const rel of activeSourceFiles) {
+// Runtime references only. This explicit allowlist prevents this migration
+// script from rewriting itself or unrelated tools.
+for (const rel of runtimeFiles) {
   const abs = path.join(root, rel);
+  if (!fs.existsSync(abs)) throw new Error(`missing audited runtime file: ${rel}`);
   const original = fs.readFileSync(abs, "utf8");
-  if (!/(NvidiaNim|NVIDIA_NIM|z-AI|z.ai|GLM|nvidia-right-hand)/.test(original)) continue;
   let next = original
     .replaceAll("runNvidiaNimDiscoveryAdvice", "runDeepSeekDiscoveryAdvice")
     .replaceAll("runNvidiaNimCaseReasoning", "runDeepSeekCaseReasoning")
@@ -116,8 +119,6 @@ for (const rel of activeSourceFiles) {
     .replaceAll("z.ai", "DeepSeek")
     .replaceAll("GLM", "DeepSeek-V4-Flash-0731")
     .replaceAll("NVIDIA NIM", "DeepSeek via NVIDIA Integrate");
-
-  // Dig is an independent lane. Never let migration add DeepSeek to it.
   if (/DIG_INVESTIGATOR_FAILOVER_CHAIN/.test(next)) {
     next = next
       .replaceAll("Groq -> Mistral -> DeepSeek", "Groq -> Mistral")
@@ -127,20 +128,11 @@ for (const rel of activeSourceFiles) {
   writeIfChanged(rel, next);
 }
 
-// 3. Canonical provider-role documentation.
-const roleDocs = [
-  "docs/BUREAU_REACT_ARCHITECTURE.md",
-  "docs/bureau-plan/01_PRODUCT_LAW_AND_CONTROL_PLANE.md",
-  "docs/bureau-plan/02_FREE_REACT_AND_TOOL_SURFACE.md",
-  "docs/bureau-plan/10_TOOL_CATALOG.md",
-  "docs/bureau-plan/20_DIG_LOOP_STATE_MACHINE.md",
-  "docs/bureau-plan/31_BOSS_RIGHT_HAND_PROTOCOL.md",
-  "docs/bureau-plan/94_MODEL_ROUTING_TABLE.md",
-  "docs/bureau-plan/227_BUREAU_CONTROL_FLOW.md",
-];
+// Canonical role docs.
 for (const rel of roleDocs) {
-  if (!fs.existsSync(path.join(root, rel))) throw new Error(`missing canonical role doc: ${rel}`);
-  const original = fs.readFileSync(path.join(root, rel), "utf8");
+  const abs = path.join(root, rel);
+  if (!fs.existsSync(abs)) throw new Error(`missing canonical role doc: ${rel}`);
+  const original = fs.readFileSync(abs, "utf8");
   const next = original
     .replaceAll("NVIDIA_NIM_API_KEY", "DEEPSEEK_API_KEY")
     .replaceAll("NVIDIA_API_KEY", "DEEPSEEK_API_KEY")
@@ -160,21 +152,11 @@ for (const rel of roleDocs) {
   writeIfChanged(rel, next);
 }
 
-// 4. Operator docs and preflight contract. The startup prompt is intentionally
-// allowed to mention the obsolete key as a negative instruction, so it is not
-// treated as an active configuration source.
-const operatorDocs = [
-  "README.md",
-  "docs/PRE_REPLIT_GO.md",
-  "docs/REPLIT_NEW_ACCOUNT_SETUP.md",
-  "docs/REPLIT_UPDATE_PROMPT_LATEST.md",
-  "docs/REPLIT_DEPLOY.md",
-  "docs/RUN_BUREAU.md",
-  "docs/bureau-plan/19_SECRETS_AND_ENV.md",
-];
+// Operator docs.
 for (const rel of operatorDocs) {
-  if (!fs.existsSync(path.join(root, rel))) continue;
-  const original = fs.readFileSync(path.join(root, rel), "utf8");
+  const abs = path.join(root, rel);
+  if (!fs.existsSync(abs)) continue;
+  const original = fs.readFileSync(abs, "utf8");
   const next = original
     .replaceAll("NVIDIA_NIM_API_KEY", "DEEPSEEK_API_KEY")
     .replaceAll("NVIDIA_API_KEY", "DEEPSEEK_API_KEY")
@@ -187,19 +169,16 @@ for (const rel of operatorDocs) {
   writeIfChanged(rel, next);
 }
 
-// 5. Verify active runtime source and canonical role docs only. The startup
-// prompt may name NVIDIA_NIM_API_KEY solely to say it is obsolete.
-const verifyFiles = [
-  ...files.filter((rel) => /^(artifacts|lib|scripts)\//.test(rel)),
-  ...roleDocs,
-  ...operatorDocs,
-];
+// Verify only the files that are supposed to be canonical. The startup prompt
+// intentionally contains the obsolete key in a negative instruction and is
+// therefore excluded from this active-configuration scan.
+const verifyFiles = [...runtimeFiles, RIGHT_HAND_FILE, ...roleDocs, ...operatorDocs];
 const stale = [];
 for (const rel of [...new Set(verifyFiles)]) {
   const s = fs.readFileSync(path.join(root, rel), "utf8");
   if (/NVIDIA_NIM_API_KEY|NVIDIA_NIM_MODEL|NVIDIA_AGENTIC_MODEL|nvidia\/nemotron-3-nano-30b-a3b/.test(s)) stale.push(rel);
 }
-if (stale.length) throw new Error(`obsolete DeepSeek right-hand references remain:\n${stale.join("\n")}`);
+if (stale.length) throw new Error(`obsolete right-hand references remain:\n${stale.join("\n")}`);
 
 const hardening = fs.readFileSync(path.join(root, "scripts/apply-agentic-concurrency-hardening.mjs"), "utf8");
 if (!hardening.includes("DIG_INVESTIGATOR_FAILOVER_CHAIN") || !hardening.includes("Groq -> Mistral")) {
@@ -212,7 +191,7 @@ for (const required of ["DEEPSEEK_API_KEY", DEEPSEEK_MODEL, DEEPSEEK_ENDPOINT, "
 }
 const temperatures = provider.match(/temperature: 1,/g) ?? [];
 const reasoningModes = provider.match(/reasoning_effort: "high"/g) ?? [];
-if (temperatures.length !== reasoningModes.length || temperatures.length !== 4) {
+if (temperatures.length !== 4 || reasoningModes.length !== 4) {
   throw new Error(`DeepSeek provider generation contract mismatch: ${temperatures.length} temperature blocks, ${reasoningModes.length} reasoning blocks`);
 }
 
