@@ -4,7 +4,7 @@ const NAMES = [
   "REDIS_URL_1",
   "GROQ_API_KEY",
   "GEMINI_API_KEY",
-  "NVIDIA_NIM_API_KEY",
+  "DEEPSEEK_API_KEY",
   "MISTRAL_API_KEY",
   "HF_TOKEN",
   "SERPER_API_KEY",
@@ -20,7 +20,7 @@ function present(name) {
   const v = process.env[name];
   return Boolean(v && String(v).trim() && !String(v).includes("YOUR_"));
 }
-console.log("Apex Atlas preflight — full set (1 Redis, 1 EXA, no WHOXY, no DATABASE_URL ask).\n");
+console.log("Apex Atlas preflight — full set (1 Redis, 1 EXA, DeepSeek right-hand, no WHOXY, no DATABASE_URL ask).\n");
 let miss = 0;
 for (const k of NAMES) {
   let ok = present(k);
@@ -37,6 +37,7 @@ if (present("WHOXY_API_KEY") || present("WHOXY_KEY")) {
 for (const k of ["REDIS_URL_2", "REDIS_URL_3", "REDIS_URL_4", "REDIS_URL_5"]) {
   if (present(k)) console.log(`NOTE  ${k} present — prefer REDIS_URL_1 only on free tier`);
 }
+if (present("NVIDIA_NIM_API_KEY")) console.log("NOTE  NVIDIA_NIM_API_KEY is present but obsolete for the canonical DeepSeek right-hand role.");
 console.log(miss ? `\n${miss} missing — operator completes Secrets.` : "\nAll listed names present.");
 console.log("No secrets were modified.");
 process.exit(0);
