@@ -11,16 +11,27 @@ const files = [
   "docs/bureau-plan/227_BUREAU_CONTROL_FLOW.md",
 ];
 
+const failures = [];
 const forbidden = [
   "Groq → Mistral → Gemini → NVIDIA",
   "Groq -> Mistral -> Gemini -> NVIDIA",
   "Dig investigators | Groq → Mistral → Gemini → NVIDIA",
   "deterministic recovery only after dig LLM total fail",
   "template fallback",
+  "NVIDIA NIM as right-hand",
+  "Right-hand = **NVIDIA**",
+  "Right-hand | **NVIDIA**",
+  "Right-hand = NVIDIA NIM",
+  "Right-hand | NVIDIA NIM",
+  "z-AI / GLM",
+  "z-AI/GLM",
 ];
 
-const failures = [];
 for (const file of files) {
+  if (!fs.existsSync(file)) {
+    failures.push(`${file}: missing canonical provider-role document`);
+    continue;
+  }
   const source = fs.readFileSync(file, "utf8");
   for (const phrase of forbidden) {
     if (source.includes(phrase)) failures.push(`${file}: stale provider/control-plane phrase: ${phrase}`);
@@ -28,11 +39,14 @@ for (const file of files) {
   if (!/Boss\s*=\s*\*\*Gemini\*\*|\*\*Boss\*\*.*Gemini|Boss.*Gemini/.test(source)) {
     failures.push(`${file}: missing Gemini Boss declaration`);
   }
-  if (!/Right-hand.*NVIDIA|NVIDIA.*right-hand|NVIDIA NIM.*right-hand/i.test(source)) {
-    failures.push(`${file}: missing NVIDIA right-hand declaration`);
+  if (!/Right-hand.*DeepSeek|DeepSeek.*right-hand/i.test(source)) {
+    failures.push(`${file}: missing DeepSeek right-hand declaration`);
   }
   if (!/Groq\s*(?:→|->)\s*Mistral/.test(source)) {
     failures.push(`${file}: missing Groq → Mistral investigator declaration`);
+  }
+  if (!/NVIDIA Integrate/i.test(source)) {
+    failures.push(`${file}: missing NVIDIA Integrate transport declaration`);
   }
 }
 
