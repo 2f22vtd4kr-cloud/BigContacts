@@ -8,8 +8,7 @@ let s = fs.readFileSync(targetPath, "utf8");
 
 const llmStepAlreadyCanonical =
   s.includes("activeAgenticProviderDecisions") &&
-  /async function llmStep\(prompt: string, selectedInvestigatorLlm\?: "groq" \| "mistral"\)/.test(s) &&
-  s.includes("Observation-only contact enrichment");
+  /async function llmStep\(prompt: string, selectedInvestigatorLlm\?: "groq" \\| "mistral"\)/.test(s);
 
 if (!llmStepAlreadyCanonical) {
   const llmStepRe = /let agenticProviderCircuitUntil = 0;\n\nasync function llmStep\(prompt: string\): Promise<\{ model: string; raw: string \} \| null> \{[\s\S]*?\n\}\n\nfunction formatFindingsBag/;
