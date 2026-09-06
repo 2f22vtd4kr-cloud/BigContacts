@@ -53,6 +53,12 @@ const replacement = `const providers: Array<[string, (prompt: string) => Promise
     ];`;
 s = s.slice(0, start) + replacement + s.slice(end + 6);
 
+// Rewrite stale source prose from older hardeners even when the marker already exists.
+s = s.replace(
+  /\/\*\*\n \* This is the actual web-research LLM lane\.[\s\S]*?\*\/\n/, 
+  "/**\n * INVESTIGATOR_LLM_POOL: the actual investigation actors. Boss + Right-hand select the investigator; the selected model may freely choose tools.\n * DeepSeek via NVIDIA NIM remains Right-hand only; Gemini remains Boss only.\n * Every investigation act is reported into the target/run research document for continuous oversight.\n */\n",
+);
+
 if (!s.includes(marker)) {
   s = s.replace(
     "/**\n * DIG_INVESTIGATOR_FAILOVER_CHAIN:",
@@ -70,4 +76,4 @@ if (!s.includes('provider=serper, tavily, or exa')) {
 }
 
 fs.writeFileSync(file, s);
-console.log("Investigator LLM pool semantics applied.");
+console.log("Investigator LLM two-layer architecture applied.");
