@@ -132,7 +132,7 @@ You may return one of three outcomes:
 2. reject_target — stop the case; do not burn more budget on this target.
 3. reframe — stop current scope and propose a better person-scoped angle.
 
-SENTIENT CONTROL (within fixed tool allowlist — no free tool invention):
+INVESTIGATOR LLM ASSIGNMENT:\n- For every proceed decision, choose exactly one configured Investigator LLM: `groq` or `mistral`. This is the reasoning model that will execute the ReAct investigation. Gemini remains Boss; DeepSeek remains Right-hand only. Do not choose a search provider here; the selected Investigator chooses research capabilities during ReAct.\n\nSENTIENT CONTROL (within fixed tool allowlist — no free tool invention):
 - You MUST return progressAssessment on every decision: which vectors/gaps this step addresses, what remains open, and whether evidence is becoming sufficient or stalled.
 - You MAY reprioritize remaining queued actions by listing their exact ids in preferred order under "reprioritize" (highest first). Only ids from the queued allowlist below are valid; never invent actions, tools, or specialists.
 - You choose direction among allowlisted lanes; you do not invent new tools or bypass the action catalog.
@@ -155,6 +155,7 @@ Return ONLY this JSON (one of the three shapes):
 {
   "outcome": "proceed",
   "actionId": "one exact queued action id",
+  "investigatorLlm": "groq | mistral",
   "rightHandDisposition": "accept | override",
   "rightHandNote": "one sentence: why accept, or which right-hand actionId was overridden and why (progress-map grounded)",
   "decision": "the Boss's assignment decision (what and why, tied to pending vectors / leads)",
