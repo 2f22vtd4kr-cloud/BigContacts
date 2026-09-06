@@ -195,8 +195,11 @@ for (const rel of [...new Set(verifyFiles)]) {
 if (stale.length) throw new Error(`obsolete right-hand references remain:\n${stale.join("\n")}`);
 
 const hardening = fs.readFileSync(path.join(root, "scripts/apply-agentic-concurrency-hardening.mjs"), "utf8");
-if (!hardening.includes("DIG_INVESTIGATOR_FAILOVER_CHAIN") || !hardening.includes("Groq -> Mistral")) {
-  throw new Error("Dig investigator failover contract is not Groq -> Mistral");
+if (/DIG_INVESTIGATOR_FAILOVER_CHAIN|Groq -> Mistral/.test(hardening)) {
+  throw new Error("obsolete closed Groq -> Mistral architecture marker remains in canonical hardener");
+}
+if (!hardening.includes("selected Investigator") || !hardening.includes("Investigator pool")) {
+  throw new Error("canonical hardener is missing the unified Investigator pool contract");
 }
 
 const provider = fs.readFileSync(path.join(root, RIGHT_HAND_FILE), "utf8");
