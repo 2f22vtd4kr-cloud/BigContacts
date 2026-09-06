@@ -28,6 +28,9 @@ import { apexOrientationFor, apexOrientationCompact } from "./apex-bureau-orient
 import { withProviderScope } from "./provider-gate";
 export { getAgenticLlmHealth };
 
+/** Configured reasoning-capability pool. Non-LLM research tools remain a separate capability type. */
+export const INVESTIGATOR_LLM_CAPABILITY_POOL = ["groq", "mistral"] as const;
+
 /** Best-effort extraction of literal PDF text without adding a heavyweight dependency. */
 function extractTextFromPdfBuffer(buffer: ArrayBuffer): string {
   const text = new TextDecoder("latin1").decode(buffer);
