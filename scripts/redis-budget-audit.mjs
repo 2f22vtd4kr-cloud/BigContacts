@@ -20,8 +20,8 @@ const files = [
   "artifacts/apex-finder/src/pages/reactor.tsx",
 ];
 
-const failures: string[] = [];
-const warnings: string[] = [];
+const failures = [];
+const warnings = [];
 const read = (rel: string) => {
   const file = path.join(root, rel);
   return fs.existsSync(file) ? fs.readFileSync(file, "utf8") : "";
