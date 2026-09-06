@@ -3,7 +3,7 @@
 Launch is blocked until the canonical discovery-first path satisfies all of these invariants:
 
 - Discovery is model-led: the investigator chooses searches, pivots, stopping, and whether a named person is worth promotion.
-- Dig is model-led and uses Groq → Mistral only; Gemini is direction and NVIDIA is advice only.
+- Dig is model-led and uses the configured investigator LLM capability pool; the investigator may use the configured search, browser/fetch, registry and OSINT capability pools. Boss and right-hand control-plane roles do not silently become web researchers.
 - Deterministic code validates safety, identity, provenance, scope, budgets, and schema; it does not choose research targets or promote candidates on its own.
 - A promoted person must have an observed HTTPS source page and a named identity. Search/query URLs are not claim provenance.
 - Contact evidence without exact observed HTTPS provenance is dropped from the canonical promotion path.
@@ -13,6 +13,6 @@ Launch is blocked until the canonical discovery-first path satisfies all of thes
 - Entity profile routes have explicit loading, error, not-found, and render failure surfaces; no blank failure state.
 - Entity cards use `cookedAt` for the committed-research timestamp and show an explicit uncommitted state otherwise.
 - Legacy persistence callers cannot bypass the strict provenance boundary on the canonical discovery/Dig path.
-- Final live proof must demonstrate: objective → investigator trajectory → named person admission → Dig trajectory → investigator-selected contact evidence → honest card → committed timestamp.
+- Final live proof must demonstrate: objective → investigator trajectory → named person admission → Dig trajectory → investigator-selected research capability → investigator-selected contact evidence → honest card → committed timestamp.
 
-This file is a gate, not a research playbook. It does not prescribe queries, hops, providers beyond the architectural provider boundary, or promotion thresholds for the investigator.
+This file is a gate, not a research playbook. It does not prescribe queries, hops, providers, or promotion thresholds for the investigator.
