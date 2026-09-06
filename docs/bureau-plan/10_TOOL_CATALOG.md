@@ -1,10 +1,10 @@
 # Volume 10 — OSINT Tool Catalog (Model-Chosen Capabilities)
 
-**Law:** Every tool below is a capability the Dig investigator may select. None is a mandatory research stage on a healthy run.
+**Law:** Every tool below is a capability the investigator may select. None is a mandatory research stage on a healthy run.
 
 | Action | Class | Backends | Role |
 |--------|-------|----------|------|
-| web_search | SERP | Serper, Tavily, Exa, DDG | Model-selected discovery/research |
+| web_search | Search | Serper, Tavily, Exa, DDG | Model-selected discovery/research |
 | visit | Fetch | HTTP client | Read a selected page |
 | browser_fetch | Browser | Scrapfly, ZenRows | Escalate selected page fetch |
 | registry_search | Registry | EDGAR, Companies House, BRREG, GLEIF, OpenCorporates, BODACC | Identity/company evidence |
@@ -12,26 +12,25 @@
 | harvest_domain | Harvest | theHarvester | Domain evidence when model chooses it |
 | footprint_email | Footprint | Holehe | Public account-signal investigation |
 | footprint_username | Footprint | Maigret, Sherlock | Handle/profile investigation |
-| domain_lookup | Infra | RDAP → WhoisJSON | Domain (Whoxy removed) |
 | done | Control | n/a | Model-selected stop |
 
 ## Tool-use law
 
-The Dig investigator chooses whether to search, visit, pivot, use a registry, inspect a domain, investigate a public profile, or stop. Deterministic code executes the selected action and validates its result. Tool output remains a typed observation with source URL/status; it is not automatically an identity claim.
+The investigator chooses whether to search, visit, pivot, use a registry, inspect a domain, investigate a public profile, or stop. Deterministic code executes the selected action and validates its result. Tool output remains a typed observation with source URL/status; it is not automatically an identity claim.
 
 Missing tools/providers surface as failures or observations. They must never trigger a hidden scripted research path.
 
-## Search provider order
+## Search capability pool
 
-Healthy web-search capability may use **Serper → Tavily → Exa → DDG** according to the runtime's capability fallback. This is search transport fallback, not research strategy: the query remains the model's choice.
+The search layer is a capability pool, not a fixed vendor chain. Serper, Tavily, Exa and DDG are interchangeable search transports where configured; Scrapfly/ZenRows provide browser/fetch escalation rather than an LLM role. The model may explicitly select a search provider when that is useful, or use the runtime's configured fallback when no provider is requested.
 
-## LLM provider-role boundary
+## Investigator LLM capability pool
 
-**Dig investigator: Groq → Mistral only.** This is the provider failover for the web/OSINT research capability. Gemini is Boss and DeepSeek via NVIDIA Integrate is right-hand; neither is a Dig fallback.
+The investigator role is **provider-neutral**. The runtime may select among configured LLM adapters for investigator decisions. Groq and Mistral are supported adapters today, but they are not the definition of the investigator role and must not be documented as a closed `Groq → Mistral` architecture.
 
-**Provider roles:** **Boss = Gemini**; **Right-hand = DeepSeek via NVIDIA Integrate**; **Investigator = Groq → Mistral**.
+Research/search/fetch capabilities such as **Tavily, Exa, Serper, Scrapfly and ZenRows** are separate tools available to the investigator; they are not interchangeable with the LLM adapter itself. This distinction keeps the architecture open to additional LLMs and additional research providers without changing the investigator role.
 
-If Groq and Mistral are unavailable, the Dig capability fails closed/degrades honestly. Do not replace the missing investigator with Gemini, NVIDIA, a deterministic search recipe, or a force-hop sequence.
+Gemini and NVIDIA remain Boss/right-hand roles unless deliberately added as investigator adapters in a separate architecture change. Provider failure must degrade honestly; it must not silently change model roles or impose a deterministic research recipe.
 
 ## Observation and provenance
 
