@@ -42,11 +42,11 @@ for (const file of files) {
   if (!/Right-hand.*DeepSeek|DeepSeek.*right-hand/i.test(source)) {
     failures.push(`${file}: missing DeepSeek right-hand declaration`);
   }
-  if (!/Groq\s*(?:→|->)\s*Mistral/.test(source)) {
-    failures.push(`${file}: missing Groq → Mistral investigator declaration`);
+  if (!/Groq\s*(?:→|->)\s*Mistral|Groq\s*\+\s*Mistral|Groq\s+and\s+Mistral/i.test(source)) {
+    failures.push(`${file}: missing current Investigator adapter declaration`);
   }
-  if (!/NVIDIA Integrate/i.test(source)) {
-    failures.push(`${file}: missing NVIDIA Integrate transport declaration`);
+  if (!/NVIDIA\s+(?:Integrate|NIM)/i.test(source)) {
+    failures.push(`${file}: missing NVIDIA NIM/Integrate transport declaration`);
   }
 }
 

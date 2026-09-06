@@ -7,27 +7,55 @@
 
 ```
 objective + target + current evidence/trajectory
-  → investigator LLM decision (Groq → Mistral)
-  → one model-selected action
-  → tool executes
+  → Investigator LLM decision
+  → one model-selected research action
+  → tool / browser / OSINT execution
   → typed observation + provenance
-  → model reasons/pivots/stops
+  → Investigator LLM reasons/pivots/stops
   → repeat until model selects done or a hard lifecycle bound fires
 ```
 
-The model invents queries and chooses tools from the live schema. There is no mandatory first tool, fixed six-step sequence, force hop, or ranked source menu.
+The **Investigator LLM decision is the single additional model step** that controls the research loop. It receives the complete live tool surface and decides what to do next. There is no mandatory first tool, fixed sequence, force hop, or scripted checklist.
 
-## 2. Model/provider boundary
+## 2. Role boundary
 
-**Groq → Mistral is the Dig/discovery investigator capability.** Gemini is Boss; DeepSeek via NVIDIA Integrate is right-hand. Neither is a web-research fallback.
+The roles are deliberately separate:
 
-**Provider roles:** **Boss = Gemini**; **Right-hand = DeepSeek via NVIDIA Integrate**; **Investigator = Groq → Mistral**.
+- **Boss = Gemini:** case direction, strategic orchestration and case-level judgment.
+- **Right-hand = DeepSeek via NVIDIA NIM:** supports the Boss with case-file critique, evidence-gap analysis, ongoing bureau-work/result analysis and advisory recommendations.
+- **Investigator LLM pool:** the model(s) that actually decide each research action in the free ReAct loop.
 
-Provider failover changes transport capacity, not research strategy. The fallback model receives the same objective and state and chooses its own next action.
+DeepSeek/NVIDIA is **not** an Investigator LLM and must never be inserted into the Investigator pool or used as a Dig fallback. Gemini is also not a Dig fallback.
 
-If Groq and Mistral cannot produce a decision, the capability fails/degrades honestly. The harness must not substitute a deterministic search recipe or borrow Gemini/NVIDIA for browsing.
+The current implementation has Groq and Mistral Investigator adapters. That is a provider pool, not a `Groq → Mistral` research architecture: adapter ordering is only transport/capacity fallback. The ReAct strategy remains model-owned and extensible.
 
-## 3. Harness bounds
+## 3. Tool surface
+
+The Investigator LLM can choose any useful capability exposed by the live contract:
+
+| Capability | Providers / implementation |
+|---|---|
+| `web_search` | **Serper / Tavily / Exa** (plus DDG emergency transport) |
+| `visit` | HTTP page retrieval |
+| `browser_fetch` | **Scrapfly / ZenRows** browser/scrape escalation |
+| `footprint_email` | Holehe public account signals |
+| `footprint_username` | Maigret / Sherlock profile investigation |
+| `domain_lookup` | RDAP / WhoisJSON |
+| `harvest_domain` | theHarvester domain evidence |
+| `registry_search` | EDGAR / Companies House / BRREG / GLEIF / other configured registries |
+| `done` | Investigator-selected stop |
+
+These providers are **research capabilities, not LLMs**. The Investigator chooses the capability; the capability implementation may fail over between its configured vendors. That transport behavior does not replace the Investigator decision.
+
+For `web_search`, the action schema may explicitly request `serper`, `tavily`, or `exa` when the Investigator expects different information gain. For `browser_fetch`, the browser layer handles Scrapfly/ZenRows escalation according to availability and anti-bot conditions.
+
+## 4. Observation and evidence
+
+Tool output remains typed observation. Deterministic parsing may improve readability or extract literal contact tokens, but it is not an identity authority. Raw page text, snippets, headings, addresses, departments and organization names must not become person candidates merely because they resemble a name.
+
+Model-emitted discovery findings are kept separate from auto-extracted observations. Promotion requires identity and provenance gates.
+
+## 5. Harness bounds
 
 - iteration budget;
 - hard wall-clock timeout;
@@ -38,32 +66,9 @@ If Groq and Mistral cannot produce a decision, the capability fails/degrades hon
 
 These bounds constrain resources, not intellectual choices.
 
-## 4. Observation and evidence
-
-Tool output remains typed observation. Deterministic parsing may improve readability or extract literal contact tokens, but it is not an identity authority. Raw page text, snippets, headings, addresses, departments and organization names must not become person candidates merely because they resemble a name.
-
-Model-emitted discovery findings are kept separate from auto-extracted observations. Promotion requires identity and provenance gates.
-
-## 5. Tool surface
-
-| Action | Capability |
-|--------|------------|
-| `web_search` | Serper / Tavily / Exa / DDG transport |
-| `visit` | HTTP page retrieval |
-| `browser_fetch` | Scrapfly / ZenRows escalation |
-| `footprint_email` | Holehe public account signals |
-| `footprint_username` | Maigret / Sherlock profile investigation |
-| `domain_lookup` | RDAP / WhoisJSON |
-| `harvest_domain` | theHarvester domain evidence |
-| `registry_search` | EDGAR / Companies House / other configured registries |
-| `reverse_whois` | Whoxy when available |
-| `done` | Model-selected stop |
-
-Every action is optional. The model decides whether it is useful.
-
 ## 6. Acceptance
 
-A healthy live trajectory should show model-selected actions and real observations. Static checks prove only control-plane invariants; research quality requires a provider-backed run.
+A healthy live trajectory should show the Investigator LLM making the decision, the selected tool/browser actually executing, real observations, and a model-owned stop/finding decision. Static checks prove only control-plane invariants; research quality requires a provider-backed run.
 
 Empty research is valid. A missing person or contact must never be manufactured to satisfy target counts.
 
@@ -72,6 +77,8 @@ Empty research is valid. A missing person or contact must never be manufactured 
 - `force_*` research hops;
 - mandatory company → LinkedIn → Instagram sequences;
 - scripted registry sweeps masquerading as model research;
-- Gemini/NVIDIA as Dig browsers;
-- deterministic fallback search after an investigator failure;
-- promotion from auto-extracted identity candidates.
+- Gemini/Boss as Dig browser;
+- DeepSeek/NVIDIA right-hand inserted into the Investigator pool;
+- deterministic fallback search after an Investigator LLM failure;
+- promotion from auto-extracted identity candidates;
+- treating Tavily/Exa/Serper/Scrapfly/ZenRows as if they were LLM roles.

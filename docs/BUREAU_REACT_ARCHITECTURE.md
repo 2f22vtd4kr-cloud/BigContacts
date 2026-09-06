@@ -1,8 +1,8 @@
 # Apex Atlas — ReAct Bureau Architecture
 
-**Canonical role law:** Boss = **Gemini**. Right-hand = **DeepSeek via NVIDIA Integrate**. Discovery/Dig investigator = **Groq → Mistral**. Gemini and NVIDIA do not conduct Apex web/OSINT research.
+**Canonical role law:** Boss = **Gemini**. Right-hand = **DeepSeek via NVIDIA NIM**. Investigator = **the configured Investigator LLM pool**. Gemini and NVIDIA/DeepSeek do not conduct the investigation.
 
-Apex is a model-led research bureau, not a deterministic search playbook. The harness supplies state, tools, budgets, provenance and safety boundaries; the investigator model owns the research trajectory.
+Apex is a model-led research bureau, not a deterministic search playbook. The harness supplies state, the complete research-tool surface, budgets, provenance and safety boundaries; the Investigator LLM owns the research trajectory.
 
 ---
 
@@ -10,26 +10,25 @@ Apex is a model-led research bureau, not a deterministic search playbook. The ha
 
 ### Boss — Gemini
 
-Owns case direction, strategic prioritization, investigator briefs and case-level review where configured. It does not browse or execute web/OSINT tools.
+Owns case direction, strategic prioritization, investigator briefs, ongoing bureau orchestration and case-level review where configured. It does not execute the Investigator's web/OSINT tool loop.
 
-### Right-hand — DeepSeek via NVIDIA Integrate
+### Right-hand — DeepSeek via NVIDIA NIM
 
-Owns case-file critique, evidence-gap analysis and advisory recommendations. It does not browse or execute web/OSINT tools and is not a Dig fallback.
+Owns advisory orchestration support: case-file critique, evidence-gap analysis, analysis of ongoing bureau work/results and recommendations back to the Boss. It is **not** an Investigator LLM and is never a Dig fallback.
 
-### Discovery / Dig investigator — Groq → Mistral
+### Investigator LLM pool
 
-Owns actual web/OSINT research:
+This is the **single additional model-decision step** immediately before each research action. The Investigator LLM receives the target, objective, accumulated evidence/trajectory and the complete live research capability surface, then chooses exactly one next action.
 
-- inventing queries;
-- selecting URLs and tools;
-- reading observations;
-- forming and testing hypotheses;
-- pivoting;
-- choosing research depth;
-- deciding what evidence supports a finding;
-- stopping.
+The pool is for Investigator LLM adapters only. It is intentionally separate from:
 
-Groq → Mistral is capability-local provider fallback, not hierarchy. A fallback receives the same objective/state and independently decides the next action.
+- Boss Gemini;
+- Right-hand DeepSeek via NVIDIA NIM;
+- search/research vendors such as Serper, Tavily and Exa;
+- browser/fetch vendors such as Scrapfly and ZenRows;
+- registries and OSINT executors.
+
+The current configured Investigator adapters are Groq and Mistral. This is an implementation pool, not a conceptual `Groq → Mistral` architecture: adapters may be added without changing the ReAct design. Provider order is transport/capacity fallback only; it never defines research strategy.
 
 ### Harness
 
@@ -42,19 +41,19 @@ Deterministic code may enforce lifecycle, schema validity, budgets, timeouts, pe
 ```
 objective + target + structured case state
         ↓
-Investigator LLM decision (Groq → Mistral)
+INVESTIGATOR LLM DECISION
         ↓
-model-selected action
+one model-selected research action
         ↓
-tool execution
+tool / browser / OSINT execution
         ↓
 typed observation + exact provenance
         ↓
-model reasoning / pivot / stop
+INVESTIGATOR LLM DECISION
         ↺
 ```
 
-Available capabilities may include web search, page visit, browser fetch, registry lookup, domain_lookup via RDAP/WhoisJSON, public email/username footprinting and domain harvesting. Deprecated Whoxy/reverse-WHOIS is not part of the canonical Dig tool surface. These are optional capabilities, not stages.
+The action surface includes web search through **Serper / Tavily / Exa**, page visit, **Scrapfly / ZenRows browser escalation**, registry lookup, domain lookup via RDAP/WhoisJSON, public email/username footprinting and domain harvesting. These are capabilities available to the Investigator; they are not separate scripted stages.
 
 There is no mandatory first search, company→LinkedIn→Instagram chain, force hop, ranked Forbes intake, or fixed number of hops.
 
@@ -67,7 +66,7 @@ Discovery must keep these layers distinct:
 ```
 RAW PAGE / SERP / TOOL OBSERVATION
         ↓
-MODEL HYPOTHESIS
+INVESTIGATOR LLM HYPOTHESIS
         ↓
 MODEL-EMITTED finding (action=done)
         ↓
@@ -92,13 +91,13 @@ Organization routes remain organization-scoped unless evidence establishes a per
 
 ## 4. Provider behavior
 
-### Investigator
+### Investigator LLMs
 
-**Groq → Mistral only.** If both are unavailable, the Dig capability fails/degrades honestly. It does not fall back to Gemini or NVIDIA and does not invoke deterministic research recovery.
+The Investigator LLM pool is **not** the Boss/right-hand pool and is **not** the research-provider pool. The current adapters are Groq and Mistral. If all configured Investigator adapters fail, the Dig capability fails/degrades honestly. It does not borrow Gemini or DeepSeek/NVIDIA and does not invoke deterministic research recovery.
 
-### Web search transport
+### Research tools
 
-Search backends may fail over among configured Serper/Tavily/Exa/DDG transports. This changes the transport used for the model's chosen query; it does not choose the query.
+The Investigator may choose among configured **Serper / Tavily / Exa** search transports and may choose `browser_fetch`, which can escalate through **Scrapfly / ZenRows**. Tool-provider failover is transport behavior after the Investigator has chosen the capability; it is not an LLM decision and not a substitute Investigator.
 
 Provider readiness must distinguish configured, reachable, authorized, rate-limited, quota-exhausted and successfully responding.
 
@@ -106,7 +105,7 @@ Provider readiness must distinguish configured, reachable, authorized, rate-limi
 
 ## 5. Stopping and budgets
 
-The investigator may select `done` when evidence is sufficient or further research is not worthwhile. Hard iteration, wall-clock, cancellation and provider deadlines are harness safety limits, not a research script.
+The Investigator may select `done` when evidence is sufficient or further research is not worthwhile. Hard iteration, wall-clock, cancellation and provider deadlines are harness safety limits, not a research script.
 
 On timeout/cancel/budget exit, valid evidence already collected is preserved. If identity or contact evidence is insufficient, an empty result is preferable to a fabricated person/contact.
 
@@ -114,7 +113,7 @@ On timeout/cancel/budget exit, valid evidence already collected is preserved. If
 
 ## 6. Replit production path
 
-The production App uses one API workflow on port 8080, with the desk at `/` and API under `/api/`. `ENABLE_AUTO_PIPELINE=false` by default. Live quality requires an actual provider-backed trajectory; health checks and static autonomy guards are not research proof.
+The production App uses one API workflow on port 8080, with the desk at `/` and API under `/api/`. `ENABLE_AUTO_PIPELINE=false` by default. Live quality requires an actual provider-backed Investigator trajectory; health checks and static autonomy guards are not research proof.
 
 ---
 
@@ -122,9 +121,9 @@ The production App uses one API workflow on port 8080, with the desk at `/` and 
 
 A valid live acceptance run must show:
 
-1. a real provider-backed investigator decision;
-2. model-selected search/visit/tool actions;
-3. real observations;
+1. a real provider-backed Investigator decision;
+2. model-selected research actions;
+3. real observations from the selected tools/browsers;
 4. model-emitted discovery finding(s);
 5. deterministic identity/provenance admission;
 6. the admitted person entering free-ReAct Dig;

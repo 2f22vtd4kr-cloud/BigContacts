@@ -1,31 +1,34 @@
 # Volume 304 — Provider Failover Narrative
 
-## Dig LLM
+## Investigator LLM
 
-**Investigator lane:** Groq → Mistral. These are the actual web-research providers for the canonical free-ReAct Dig path.
+The **Investigator LLM pool** is the model-decision boundary for free-ReAct research. Current Investigator adapters are **Groq and Mistral**. They receive the same target/objective/trajectory and choose the next research capability; adapter fallback is transport/capacity behavior, not a research strategy.
 
-Gemini is the Boss/control lane and NVIDIA NIM is the Right Hand/advisory lane. Neither is a Dig fallback. If the investigator pool is unavailable, Apex must report degraded/unavailable research rather than silently substituting the Boss or Right Hand model into web research.
+**DeepSeek via NVIDIA NIM is the Right-hand, not an Investigator LLM.** Gemini is the Boss, not an Investigator LLM. Neither may be borrowed as an Investigator fallback.
 
-Failover is capacity, not role substitution.
+If all configured Investigator adapters are unavailable, Apex must report degraded/unavailable research rather than silently substituting another role's model or a deterministic research recipe.
 
-## Search
+## Research search tools
 
-Serper → Tavily → Exa → DDG-class fallback as implemented. Missing keys reduce the available search surface; integrity should reflect search capability loss rather than pretending the surface is unchanged.
+The Investigator can choose among **Serper / Tavily / Exa** search capabilities. Tool-level fallback among configured search transports changes retrieval transport for the model's chosen query; it does not choose the query or replace the Investigator.
 
-## Browser
+## Browser tools
 
-Scrapfly/ZenRows may be selected when a page is blocked, JavaScript-heavy, or otherwise requires browser recovery. They are capabilities selected by the investigator, not mandatory first hops.
+**Scrapfly / ZenRows** are browser/fetch capabilities available to the Investigator when a page is blocked, JavaScript-heavy, or otherwise requires browser recovery. They are not LLM providers and are not a mandatory first hop.
 
 ## Architectural law
 
 ```text
 Gemini Boss
-    ↓ reasoning / mission direction
-NVIDIA Right Hand
-    ↓ advisory reasoning / evidence gaps
-Groq → Mistral Investigator
-    ↓ model-selected actions
-Search / browser / registry / OSINT tools
+    ↓ case direction / orchestration
+DeepSeek via NVIDIA NIM Right-hand
+    ↓ critique / evidence gaps / ongoing-work analysis / advice
+Investigator LLM decision
+    ↓ chooses one capability
+Serper / Tavily / Exa / browser / Scrapfly / ZenRows / registry / OSINT
+    ↓ typed observation + provenance
+Investigator LLM decision
+    ↺
 ```
 
-The research/tool layer performs actual web and OSINT work. Boss and Right Hand do not browse by virtue of their model identity.
+The research/tool layer performs actual web and OSINT work. The Investigator LLM owns the research choices. Boss and Right-hand retain their distinct strategic/advisory roles.

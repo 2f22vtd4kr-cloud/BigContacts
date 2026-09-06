@@ -6,18 +6,10 @@ const file = path.join(root, "artifacts/api-server/src/src/lib/agentic-web-resea
 let s = fs.readFileSync(file, "utf8");
 
 const marker = "INVESTIGATOR_LLM_CAPABILITY_POOL";
-const helperMarker = "async function callDeepSeekJson";
 
-// Keep the checked-in source and the build-time canonicalizer aligned. This is
-// deliberately provider-neutral: adding another investigator adapter only
-// requires a new adapter + env key, not a new research architecture.
-if (!s.includes(helperMarker)) {
-  const anchor = "async function llmStep(prompt: string): Promise<{ model: string; raw: string } | null> {";
-  if (!s.includes(anchor)) throw new Error("investigator capability pool: llmStep anchor not found");
-
-  const helper = `async function callDeepSeekJson(prompt: string): Promise<{ model: string; raw: string } | null> {\n  const key = (process.env.DEEPSEEK_API_KEY ?? "").trim();\n  if (!key) return null;\n  try {\n    const resp = await fetch("https://api.deepseek.com/chat/completions", {\n      method: "POST",\n      headers: { Authorization: \`Bearer \${key}\`, "Content-Type": "application/json" },\n      body: JSON.stringify({\n        model: process.env.DEEPSEEK_INVESTIGATOR_MODEL || "deepseek-chat",\n        temperature: 0.1,\n        messages: [\n          { role: "system", content: "You are the autonomous web-research investigator. Choose the next research action from the supplied tool contract. Return only the requested JSON action." },\n          { role: "user", content: prompt },\n        ],\n      }),\n      signal: AbortSignal.timeout(18_000),\n    });\n    if (!resp.ok) return null;\n    const data = (await resp.json()) as { choices?: Array<{ message?: { content?: string } }> };\n    const raw = data.choices?.[0]?.message?.content ?? "";\n    return raw ? { model: process.env.DEEPSEEK_INVESTIGATOR_MODEL || "deepseek-chat", raw } : null;\n  } catch {\n    return null;\n  }\n}\n\n`;
-  s = s.replace(anchor, helper + anchor);
-}
+// The investigator boundary is a model-decision boundary, not a vendor/tool pool.
+// DeepSeek is deliberately excluded: it is the NVIDIA NIM right-hand model and
+// advises the Boss / analyses bureau work rather than conducting investigation.
 
 // Make search-provider choice a real model action instead of documentation-only.
 if (!/\| \{ action: "web_search"; query: string; provider\?:/.test(s)) {
@@ -35,7 +27,7 @@ if (s.includes(searchReturn) && !s.includes('provider: requestedProvider')) {
   );
 }
 
-// Ensure the JSON schema advertises the provider selector when the schema is present.
+// Ensure the JSON schema advertises the search-provider selector.
 if (!/provider:\s*\{ type: "string", enum: \["serper", "tavily", "exa"\] \}/.test(s)) {
   s = s.replace(
     'query: { type: "string" },\n    url: { type: "string" },',
@@ -43,18 +35,34 @@ if (!/provider:\s*\{ type: "string", enum: \["serper", "tavily", "exa"\] \}/.tes
   );
 }
 
+// Normalize the investigator LLM adapter list. This is the only LLM decision pool
+// in Dig. Tool vendors (Tavily/Exa/Serper, Scrapfly/ZenRows, registries, OSINT)
+// remain capabilities selected by the investigator model; they are not LLMs.
 const start = s.indexOf("const providers: Array<[string, (prompt: string) => Promise<{ model: string; raw: string } | null>]>");
 if (start < 0) throw new Error("investigator capability pool: provider array not found");
 const end = s.indexOf("    ];", start);
 if (end < 0) throw new Error("investigator capability pool: provider array terminator not found");
 
-const replacement = `const providers: Array<[string, (prompt: string) => Promise<{ model: string; raw: string } | null>]> = [\n      // Current configured investigator adapters. Order is availability/fallback, not role hierarchy.\n      ...(process.env.GROQ_API_KEY ? [["groq", callGroqJson] as [string, (prompt: string) => Promise<{ model: string; raw: string } | null>]] : []),\n      ...(process.env.MISTRAL_API_KEY ? [["mistral", callMistralJson] as [string, (prompt: string) => Promise<{ model: string; raw: string } | null>]] : []),\n      ...(process.env.DEEPSEEK_API_KEY ? [["deepseek", callDeepSeekJson] as [string, (prompt: string) => Promise<{ model: string; raw: string } | null>]] : []),\n    ];`;
+const replacement = `const providers: Array<[string, (prompt: string) => Promise<{ model: string; raw: string } | null>]> = [
+      // Investigator LLM adapters only. Order is availability/fallback, not role hierarchy.
+      ...(process.env.GROQ_API_KEY ? [["groq", callGroqJson] as [string, (prompt: string) => Promise<{ model: string; raw: string } | null>]] : []),
+      ...(process.env.MISTRAL_API_KEY ? [["mistral", callMistralJson] as [string, (prompt: string) => Promise<{ model: string; raw: string } | null>]] : []),
+    ];`;
 s = s.slice(0, start) + replacement + s.slice(end + 6);
 
 if (!s.includes(marker)) {
   s = s.replace(
     "/**\n * DIG_INVESTIGATOR_FAILOVER_CHAIN:",
-    "/**\n * INVESTIGATOR_LLM_CAPABILITY_POOL: provider-neutral investigator adapters.\n * The list is extensible; provider order is availability fallback only.\n *\n * DIG_INVESTIGATOR_FAILOVER_CHAIN:"
+    "/**\n * INVESTIGATOR_LLM_CAPABILITY_POOL: the model-decision boundary for free ReAct.\n * Investigator adapters are separate from Boss/right-hand models and from research tools.\n * DeepSeek via NVIDIA NIM remains right-hand only; Gemini remains Boss only.\n *\n * DIG_INVESTIGATOR_FAILOVER_CHAIN:"
+  );
+}
+
+// The canonical prompt must expose the complete research surface to the investigator.
+// This is a capability surface, not an instruction to use every tool.
+if (!s.includes('provider=serper, tavily, or exa')) {
+  s = s.replace(
+    'Guidelines (not a script):\n- Search snippets are leads, not identity evidence.',
+    'Guidelines (not a script):\n- You are the investigator decision-maker for this turn. You may choose any available research capability based on information gain; no tool order is prescribed.\n- Search snippets are leads, not identity evidence.',
   );
 }
 
