@@ -692,14 +692,9 @@ async function callMistralJson(prompt: string): Promise<{ model: string; raw: st
 }
 
 /**
- * DIG_INVESTIGATOR_FAILOVER_CHAIN: Groq -> Mistral.
- *
- * This is the actual web-research LLM lane. Boss and right-hand are NOT dig
- * providers: Boss=Gemini, right-hand=NVIDIA. They reason over the case and
- * advise the investigator; they do not execute web research themselves.
- *
- * No provider in this lane is given a scripted research sequence. The model
- * still owns every search, visit, OSINT choice, pivot, and stopping decision.
+ * INVESTIGATOR_POOL_RETRY: the Boss-selected Investigator executes the step.
+ * A transport/capacity failure may retry the same prompt on another configured
+ * Investigator adapter; this never chooses the research trajectory.
  */
 let activeAgenticProviderDecisions = 0;
 const agenticProviderDecisionWaiters: Array<() => void> = [];
