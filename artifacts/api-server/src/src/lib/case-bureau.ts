@@ -884,6 +884,7 @@ function parseBossPlanResponse(raw: string, queuedActions: BureauAction[]): Omit
         decision: decision.slice(0, 500),
         reason: reason.slice(0, 700),
         investigatorPrompt: null,
+        investigatorLlm: null,
         restrictions: [],
         tools: [],
         evidenceRequirements: [],
@@ -899,8 +900,11 @@ function parseBossPlanResponse(raw: string, queuedActions: BureauAction[]): Omit
     const actionId = typeof parsed.actionId === "string" ? parsed.actionId.trim() : "";
     const action = queuedActions.find((candidate) => candidate.id === actionId);
     if (!action) return null;
+    const rawInvestigatorLlm = typeof parsed.investigatorLlm === "string" ? parsed.investigatorLlm.trim().toLowerCase() : "";
+    const investigatorLlm: "groq" | "mistral" | null =
+      rawInvestigatorLlm === "groq" || rawInvestigatorLlm === "mistral" ? rawInvestigatorLlm : null;
     const investigatorPrompt = typeof parsed.investigatorPrompt === "string" ? parsed.investigatorPrompt.trim() : "";
-    if (!decision || !reason || investigatorPrompt.length < 20) return null;
+    if (!decision || !reason || investigatorPrompt.length < 20 || !investigatorLlm) return null;
     // Soft-require progress judgment; if missing, synthesize from reason so control loop stays live.
     const assessed =
       progressAssessment ??
@@ -931,6 +935,7 @@ function parseBossPlanResponse(raw: string, queuedActions: BureauAction[]): Omit
       decision: decision.slice(0, 500),
       reason: reason.slice(0, 700),
       investigatorPrompt: investigatorPrompt.slice(0, 4000),
+      investigatorLlm,
       restrictions: restrictions.map((value) => value.slice(0, 300)),
       tools,
       evidenceRequirements: evidenceRequirements.map((value) => value.slice(0, 300)),
