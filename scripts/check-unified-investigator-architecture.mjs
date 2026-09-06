@@ -8,6 +8,7 @@ const files = {
   prompt: path.join(root, "artifacts/api-server/src/src/lib/case-bureau-prompt.ts"),
   pass: path.join(root, "artifacts/api-server/src/src/lib/bureau-agentic-pass.ts"),
   cases: path.join(root, "artifacts/api-server/src/src/routes/research/cases.ts"),
+  orientation: path.join(root, "artifacts/api-server/src/src/lib/apex-bureau-orientation.ts"),
   architecture: path.join(root, "docs/BUREAU_REACT_ARCHITECTURE.md"),
 };
 
@@ -31,6 +32,7 @@ assert(!/Groq\s*[→>-]+\s*Mistral|Mistral\s*[→>-]+\s*Groq/.test(source.resear
 // Search providers are capabilities. A model may explicitly request one; the runtime must not encode a ranked research preference list.
 assert(!/Prefer\s+Serper.*Tavily.*Exa/i.test(source.research), "Active research runtime contains a ranked Serper→Tavily→Exa preference list.");
 assert(!/const\s+serper\s*=.*\n\s*if\s*\(serper.*\n\s*const\s+tavily\s*=.*\n\s*if\s*\(tavily.*\n\s*const\s+exa\s*=/s.test(source.research), "Active research runtime contains deterministic sequential search-provider selection.");
+assert(!/web_search routes Serper\s*[→>-]+\s*Tavily/i.test(source.orientation), "Investigator orientation still teaches a fixed search-provider route.");
 
 // The selected Investigator must propagate from the Boss plan to the ReAct pass.
 assert(/investigatorLlm/.test(source.bureau), "Boss plan does not expose investigatorLlm.");
