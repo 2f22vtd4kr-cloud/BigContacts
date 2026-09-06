@@ -34,6 +34,13 @@ const replacement = `async function toolWebSearch(query: string, requestedProvid
 `;
 s = s.slice(0, start) + replacement + s.slice(end);
 
+// The promotion-contract transform currently passes an optional provider.
+// Narrow that value before invoking the now-explicit capability contract.
+s = s.replace(
+  '      const sr = await toolWebSearch(action.query, requestedProvider);',
+  '      if (!requestedProvider) throw new Error("web_search requires an explicit Investigator-selected provider");\n      const sr = await toolWebSearch(action.query, requestedProvider);',
+);
+
 // Make the action parser fail closed if the model omitted the provider choice.
 const providerLine = 'const requestedProvider = ["serper", "tavily", "exa"].includes(String(o.provider)) ? (String(o.provider) as "serper" | "tavily" | "exa") : undefined;';
 if (s.includes(providerLine) && !s.includes('if (!requestedProvider) return null;')) {
