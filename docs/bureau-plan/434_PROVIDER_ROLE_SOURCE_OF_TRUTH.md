@@ -1,116 +1,103 @@
-# Volume 434 — Provider Role and Source-of-Truth Correction
+# Volume 434 — Provider Role Source of Truth
 
-**Date:** 2026-08-30  
-**Status:** binding living-plan correction  
-**Supersedes:** Volume 433 where provider-role wording conflicts
+**Status:** binding architecture correction
 
-## Finding
+## Canonical model
 
-Apex has four distinct concerns that must not be collapsed into a generic “LLM provider” concept:
+Apex Atlas has **two AI layers**:
 
-1. **Boss / Head Investigator — Gemini**
-2. **Right-hand Advisor — NVIDIA NIM**
-3. **Investigator / Dig — Groq → Mistral**
-4. **Tools — web and OSINT executors selected by the investigator model**
+### 1. Boss + Right-hand — Bureau oversight
 
-Gemini and NVIDIA do **not** conduct the web research. They reason over case state. The Dig investigator is the actor that searches, visits pages, chooses OSINT tools, forms hypotheses, pivots, verifies evidence, and stops.
+- **Boss = Gemini.**
+- **Right-hand = DeepSeek via NVIDIA NIM.**
+- Boss and Right-hand consult on the case and choose which Investigator LLM should perform the current research assignment.
+- They may recommend useful non-LLM research capabilities.
+- They see the investigation as it happens: every investigation act produces a report that is added to the specific target's living research document and made available to Boss + Right-hand.
+- They analyse progress, evidence quality, gaps and contamination risk and can redirect, challenge or stop the work.
 
-## Why this matters
+DeepSeek via NVIDIA NIM is **only** the Right-hand. It never performs the investigation and never appears as an Investigator fallback.
 
-The distinction is architectural, not cosmetic. If a Dig fallback silently calls Gemini or NVIDIA, the runtime has changed the actor responsible for research. That makes telemetry misleading, invalidates provider-quality diagnosis, and can cause a model to be used outside the role for which its prompt and evaluation contract were designed.
+### 2. Investigator LLM pool + non-LLM tools — Actual investigation
 
-Therefore the current canonical statement is:
+The Investigator LLM pool contains **all LLMs explicitly designated/configured as investigators**. Those models are the investigators themselves.
+
+There is **no extra Investigator decision layer** between Boss/Right-hand and this pool.
+
+The selected Investigator LLM conducts the actual research. It can independently choose any permitted non-LLM capability, including search, browser/fetch, registries and OSINT tools. Boss/Right-hand suggestions are guidance, not a forced sequence.
+
+Current investigator implementations include Groq and Mistral. Those names describe investigator models, not a `Groq → Mistral` architecture and not an additional routing stage.
+
+## Research capability surface
+
+The Investigator LLM may independently use:
+
+- **Serper, Tavily, Exa** search;
+- HTTP/page visits and browser fetching;
+- **Scrapfly, ZenRows** and other approved fetch/browser capabilities;
+- RDAP / WhoisJSON and registries;
+- public email/username footprinting;
+- theHarvester, Maigret, Sherlock and other approved OSINT executors.
+
+These are tools. They are not LLMs, do not belong in the Investigator LLM pool, and do not decide what the Bureau researches.
+
+## Living target investigation document
+
+Every research run has a target-specific living investigation document. After **every investigation act**, it must receive a structured report containing, as applicable:
+
+- selected Investigator LLM;
+- action and tool/provider used;
+- observation/result;
+- exact provenance and retrieval status;
+- findings and evidence;
+- uncertainty/conflicts;
+- open questions and next leads.
+
+That updated document is then available to Boss + Right-hand for the next oversight decision. A final-only summary is not sufficient.
+
+## Research freedom
+
+The Investigator LLM owns the research trajectory. It may:
+
+- choose its own query;
+- choose among search providers;
+- visit or browser-fetch pages;
+- invoke specialist OSINT tools;
+- follow unexpected leads;
+- corroborate or abandon hypotheses;
+- decide when the evidence is sufficient;
+- propose which findings deserve promotion.
+
+Boss + Right-hand do not replace this with a fixed checklist. They oversee the work and prevent unsupported data from silently becoming trusted case data.
+
+## Promotion boundary
+
+The Investigator LLM makes the research judgment and proposes promotion/rejection of researched findings. Deterministic code enforces only the non-negotiable provenance, identity, scope, schema, lifecycle and persistence rules.
+
+Boss + Right-hand continuously review the accumulating research record. Their purpose is oversight: no unsupported, misattributed or contaminated result should slip through simply because an Investigator emitted it.
+
+## Explicit prohibitions
+
+The following are architecture violations:
+
+- describing `Groq → Mistral` as the Bureau's Investigator architecture;
+- introducing a separate "Investigator LLM decision" layer between Boss/Right-hand and investigators;
+- using DeepSeek/NVIDIA as an Investigator;
+- using Gemini as an Investigator;
+- treating Tavily, Exa, Serper, Scrapfly or ZenRows as LLMs;
+- hiding investigation acts from the target's living research document;
+- giving Boss/Right-hand only the final result instead of the ongoing reports.
+
+The canonical shorthand is:
 
 ```text
-Boss = Gemini
-Right-hand = NVIDIA NIM
-Dig investigator = Groq → Mistral
+BOSS (Gemini) + RIGHT-HAND (DeepSeek/NVIDIA)
+                 ↓
+      choose Investigator LLM
+                 ↓
+   INVESTIGATOR LLM + TOOLS
+                 ↓
+        report every act
+                 ↓
+       living target document
+                 ↺ Boss + Right-hand oversight
 ```
-
-The Dig chain is a capability-local availability mechanism. It is not the Bureau hierarchy.
-
-## Source-of-truth rule
-
-The repository contains a historical build-time hardening layer. Until the generated Dig source itself is committed as the canonical implementation, the canonical hardener is `scripts/apply-agentic-concurrency-hardening.mjs`. Any compatibility entry point must delegate to that hardener rather than maintain a second provider implementation.
-
-The old `scripts/apply-agentic-runtime-hardening.mjs` implementation violated this rule by containing a separate provider router that could put Gemini and NVIDIA ahead of the actual investigator providers. It is now only a compatibility delegator.
-
-The runtime invariant must fail if the generated Dig `llmStep` contains:
-
-- `callGeminiJson`
-- `callNvidiaJson`
-- a `gemini` Dig provider tuple
-- an `nvidia` Dig provider tuple
-
-and must require both Groq and Mistral in the Dig lane.
-
-## Research freedom is unchanged
-
-Removing Gemini/NVIDIA from the Dig provider lane is **not** a restriction on research judgment. The investigator model still chooses:
-
-- whether to search;
-- what query to issue;
-- which result to inspect;
-- whether to visit or browser-fetch;
-- which OSINT tool to invoke;
-- what hypothesis to pursue;
-- when to pivot;
-- whether to corroborate;
-- when to stop.
-
-The provider layer only determines which model can make that decision. Deterministic code still enforces safety, budgets, provenance, integrity, and persistence.
-
-## Evaluation consequence
-
-Every trajectory must record role and provider separately. A valid trace should be interpretable as:
-
-```text
-role=boss provider=gemini       -> case direction
-role=right_hand provider=nvidia -> advisory critique
-role=dig provider=groq          -> web-research decision
-role=dig provider=mistral       -> web-research decision after failover
-```
-
-A run in which Gemini or NVIDIA appears as the Dig provider is a **provider-role violation**, regardless of whether the final card happens to look good.
-
-## New integrity boundary: contact attribution
-
-Provider-role correctness is not sufficient if a real contact value can still be misattributed to the target person. The persistence layer must distinguish **value truth** from **relationship truth**.
-
-For contact-shaped evidence:
-
-```text
-real email/phone + no named attribution
-        ≠
-proof that target person owns/uses the contact
-```
-
-An organization page may legitimately expose `info@company.example` or a company switchboard. Those values remain useful organization routes, but the card must not silently relabel them as personal contacts merely because the page belongs to the target company.
-
-The shared identity-collision boundary therefore treats an email or phone with no explicit `personName` as collision-risk. Downstream persistence already has the correct semantic response to collision-risk: demote the route to organization/unknown handling rather than promote it as personal. Explicitly attributed contacts continue through normal identity matching.
-
-This is deliberately **not** a research-ranking heuristic. It does not decide who is valuable, wealthy, famous, reachable, or worth researching. It enforces only the missing relationship between a contact value and a person.
-
-## Regression requirement
-
-The regression suite must retain cases for:
-
-- unlabelled `info@company` → never personal;
-- unlabelled company phone → never personal;
-- explicitly named personal email on a matching source → eligible for normal identity validation;
-- ordinary descriptive evidence → unaffected.
-
-A future implementation that removes this boundary must explain how relationship provenance is established elsewhere before changing the invariant.
-
-## Next implementation gate
-
-Before claiming the provider-role correction is fully complete, run:
-
-1. static runtime invariant checks;
-2. API build, including the canonical hardener;
-3. trajectory fixture checks;
-4. a provider-backed single-target Dig run when valid credentials are available;
-5. a ten-target batch only after the single-target trace demonstrates actual model-selected research actions and source-backed evidence;
-6. inspect the resulting card specifically for organization/person scope confusion and contact attribution.
-
-Do not call a green static check a research-quality pass.
