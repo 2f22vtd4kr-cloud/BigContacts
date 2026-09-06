@@ -3450,6 +3450,7 @@ router.post("/research/cases/:entityId/advance", async (req, res): Promise<void>
             ? applyGeminiBossPlan(advisedFile, {
                 outcome: "proceed",
                 actionId: bossPlan.actionId,
+                investigatorLlm: bossPlan.investigatorLlm,
                 decision: bossPlan.decision,
                 reason: bossPlan.reason,
                 progressAssessment: bossPlan.progressAssessment,
