@@ -17,9 +17,9 @@ import extendedOsintRouter from "./extended-osint";
 import atlasRouter from "./atlas";
 import bureauStreamRouter from "./bureau-stream";
 import systemStatusRouter from "./system-status";
+import investigatorTraceRouter from "./investigator-trace";
 
 const router: IRouter = Router();
-
 router.use(healthRouter);
 router.use(entitiesRouter);
 router.use(assetsRouter);
@@ -38,5 +38,5 @@ router.use(extendedOsintRouter);
 router.use(atlasRouter);
 router.use(bureauStreamRouter);
 router.use(systemStatusRouter);
-
+router.use(investigatorTraceRouter);
 export default router;
