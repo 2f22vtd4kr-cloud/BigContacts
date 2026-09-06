@@ -4,21 +4,41 @@
 
 | Role | Canonical model/provider | Responsibility |
 |------|--------------------------|----------------|
-| Boss / case direction | **Gemini** | Case direction, strategic orchestration, prioritization, ongoing bureau direction, final case-level judgment |
-| Right-hand / case analysis | **DeepSeek via NVIDIA NIM** | Case-file critique, evidence-gap analysis, analysis of ongoing bureau work/results, advisory recommendations to Boss |
-| Investigator LLM pool | **Configured Investigator LLM adapters; current adapters: Groq + Mistral** | The additional model-decision step that selects each research action, reads observations, pivots, evaluates evidence and decides when to stop |
-| Research/search/browser tools | **Capability pool** | Serper, Tavily, Exa, Scrapfly/ZenRows, HTTP visit, registries, RDAP/WhoisJSON, Holehe, Maigret/Sherlock, theHarvester, etc. |
-| Promotion / integrity | Deterministic TypeScript | Provenance, identity, scope, lifecycle and persistence only |
+| Boss / Head Investigator | **Gemini** | Case direction, assignment, selection of an Investigator LLM, strategic orchestration, ongoing bureau oversight, final case-level judgment |
+| Right-hand | **DeepSeek via NVIDIA NIM** | Consults with Boss, critiques the case, analyses every investigation report, identifies evidence gaps/risk, recommends Investigator LLM/tool choices and course corrections |
+| Investigator LLM pool | **All configured LLMs designated for investigation** | Actual target research: reasoning, queries, pivots, tool use, evidence evaluation, stopping, and promotion recommendations |
+| Non-LLM research tools | **Capability pool** | Serper, Tavily, Exa, HTTP/page visit, Scrapfly, ZenRows, registries, RDAP/WhoisJSON, Holehe, Maigret/Sherlock, theHarvester, etc. |
+| Promotion / integrity | Deterministic TypeScript | Enforces provenance, identity, scope, lifecycle, schema and persistence; never invents research |
 
-## Hard role boundary
+## The only two AI layers
 
-`Boss = Gemini`  
-`Right-hand = DeepSeek via NVIDIA NIM`  
-`Investigator = configured Investigator LLM pool`  
-`Research capabilities = Serper/Tavily/Exa/Scrapfly/ZenRows/etc.`
+```text
+BOSS (Gemini) + RIGHT-HAND (DeepSeek / NVIDIA NIM)
+        │
+        │ consult, choose Investigator LLM, suggest capabilities
+        ↓
+INVESTIGATOR LLM POOL + NON-LLM RESEARCH TOOLS
+        │
+        │ research freely; tools may be chosen independently
+        ↓
+report after every act → target-specific living investigation document
+        │
+        └── Boss + Right-hand review every report and guide the continuing work
+```
 
-The Investigator LLM pool is the **single model-decision layer inside the free-ReAct research loop**. It receives the complete live research capability surface and chooses the next action. Search/browser vendors are not LLMs and do not belong in the LLM pool.
+There is **no additional Investigator decision model** between the Boss/Right-hand layer and the Investigator LLM pool.
 
-**DeepSeek via NVIDIA NIM is strictly the Right-hand model. It is not an Investigator adapter and is never an Investigator fallback. Gemini is strictly the Boss model and is never an Investigator fallback.**
+## Hard role boundaries
 
-The current Groq + Mistral adapters are an implementation pool, not a closed `Groq → Mistral` research architecture. Adapter fallback is transport/capacity behavior only; the Investigator model remains the owner of research strategy.
+- **Gemini = Boss only.** Never an Investigator fallback.
+- **DeepSeek via NVIDIA NIM = Right-hand only.** Never an Investigator adapter or Investigator fallback.
+- **Groq/Mistral/etc. = Investigator models only when configured/designated for the Investigator pool.** They are the investigators themselves, not a separate control layer.
+- **Tavily/Exa/Serper/Scrapfly/ZenRows/etc. = tools.** They are not LLMs and never decide research.
+
+## Selection and continuous oversight
+
+Before an investigation assignment, Boss consults the Right-hand and chooses the Investigator LLM from the configured Investigator pool. The Boss/Right-hand may recommend non-LLM tools, but those recommendations are not a fixed playbook: the Investigator LLM may independently choose any permitted capability.
+
+After **every investigation act**, the action, selected Investigator LLM, actual tool/provider, observation, provenance, findings, uncertainty and open questions are appended to the target-specific living investigation document and exposed to Boss + Right-hand. They can then retain, challenge, redirect or stop the work.
+
+The Investigator LLM owns research judgment and proposes what should be promoted. Boss + Right-hand provide continuous oversight so unsupported or contaminated data does not silently become trusted case data. Deterministic gates enforce only the non-negotiable truth/provenance/scope boundaries.
