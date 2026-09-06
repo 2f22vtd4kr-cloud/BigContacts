@@ -7,13 +7,15 @@ const targetPath = path.join(repoRoot, "artifacts/api-server/src/src/lib/agentic
 let s = fs.readFileSync(targetPath, "utf8");
 
 const llmStepAlreadyCanonical =
-  s.includes("DIG_INVESTIGATOR_FAILOVER_CHAIN") && s.includes("Groq -> Mistral");
+  s.includes("activeAgenticProviderDecisions") &&
+  /async function llmStep\(prompt: string, selectedInvestigatorLlm\?: "groq" \| "mistral"\)/.test(s) &&
+  s.includes("Observation-only contact enrichment");
 
 if (!llmStepAlreadyCanonical) {
   const llmStepRe = /let agenticProviderCircuitUntil = 0;\n\nasync function llmStep\(prompt: string\): Promise<\{ model: string; raw: string \} \| null> \{[\s\S]*?\n\}\n\nfunction formatFindingsBag/;
 
   const replacement = `/**
- * DIG_INVESTIGATOR_FAILOVER_CHAIN: Groq -> Mistral.
+ * INVESTIGATOR_POOL_RETRY: selected Investigator first; same research prompt may retry on another configured Investigator only when the selected adapter is unavailable.
  *
  * This is the actual web-research LLM lane. Boss and right-hand are NOT dig
  * providers: Boss=Gemini, right-hand=NVIDIA. They reason over the case and
