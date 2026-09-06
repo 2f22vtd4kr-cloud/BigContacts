@@ -3562,6 +3562,7 @@ router.post("/research/cases/:entityId/advance", async (req, res): Promise<void>
           "Boss-selected web action — free agentic multi-hop with OSINT tools when useful. Never invent contacts.",
         ].filter(Boolean).join("\n"),
         caseId: current.id,
+        investigatorLlm: bossPlan.investigatorLlm ?? undefined,
         entityId: params.data.entityId,
         persist: true,
         maxIterations: resolveResearchDepth().agenticMaxIterations,
