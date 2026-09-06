@@ -1,8 +1,11 @@
 import fs from "node:fs";
 import path from "node:path";
 
-const file = path.join(process.cwd(), "artifacts/api-server/src/src/lib/agentic-web-research.ts");
+const root = process.cwd();
+const file = path.join(root, "artifacts/api-server/src/src/lib/agentic-web-research.ts");
+const orientationFile = path.join(root, "artifacts/api-server/src/src/lib/apex-bureau-orientation.ts");
 let s = fs.readFileSync(file, "utf8");
+let orientation = fs.readFileSync(orientationFile, "utf8");
 
 // The Investigator must explicitly choose the research provider. This script
 // removes the legacy Serper -> Tavily -> Exa -> DDG trajectory from the active
@@ -47,5 +50,13 @@ if (s.includes(providerLine) && !s.includes('if (!requestedProvider) return null
   s = s.replace(providerLine, `${providerLine}\n      if (!requestedProvider) return null;`, 1);
 }
 
+// The prompt surface must describe search providers as capabilities selected by
+// the Investigator, never as a ranked route. DDG is no longer a research fallback.
+orientation = orientation.replace(
+  '- web_search — Serper / Tavily / Exa / DDG\nSEARCH/BROWSE TOOLS (not promotion authorities): web_search routes Serper → Tavily → Exa → DDG; visit/browser_fetch may use HTTP then Scrapfly/ZenRows/Browserless. Specialist: domain_lookup, registry_search, footprint_*, harvest_domain. The investigator chooses tools; providers only execute.',
+  '- web_search — Investigator-selected Serper / Tavily / Exa\nSEARCH/BROWSE TOOLS (not promotion authorities): web_search executes only the provider explicitly selected by the Investigator; there is no cross-provider research fallback. Provider-specific key/transport retries are execution mechanics only. visit/browser_fetch may use HTTP then Scrapfly/ZenRows/Browserless. Specialist: domain_lookup, registry_search, footprint_*, harvest_domain. The investigator chooses tools; providers only execute.',
+);
+
 fs.writeFileSync(file, s);
+fs.writeFileSync(orientationFile, orientation);
 console.log("DONE apply-investigator-provider-routing");
