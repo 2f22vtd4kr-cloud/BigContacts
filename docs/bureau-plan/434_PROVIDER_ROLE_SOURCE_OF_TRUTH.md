@@ -81,8 +81,8 @@ The following are architecture violations:
 
 - describing `Groq → Mistral` as the Bureau's Investigator architecture;
 - introducing a separate "Investigator LLM decision" layer between Boss/Right-hand and investigators;
-- using DeepSeek/NVIDIA as an Investigator;
-- using Gemini as an Investigator;
+- using DeepSeek/NVIDIA as Right-hand only;
+- using Gemini as Boss only;
 - treating Tavily, Exa, Serper, Scrapfly or ZenRows as LLMs;
 - hiding investigation acts from the target's living research document;
 - giving Boss/Right-hand only the final result instead of the ongoing reports.
