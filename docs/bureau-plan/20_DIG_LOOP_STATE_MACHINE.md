@@ -3,83 +3,106 @@
 **Part of:** APEX_ATLAS_MASTER_BUREAU_PLAN  
 **Code:** `artifacts/api-server/src/src/lib/agentic-web-research.ts`
 
+## Canonical architecture
+
+There are **two AI layers**, not three:
+
+1. **Bureau oversight: Boss + Right-hand**
+   - Boss = Gemini.
+   - Right-hand = DeepSeek via NVIDIA NIM.
+   - Together they decide the research assignment, choose an Investigator LLM from the Investigator LLM pool, suggest useful non-LLM tools/capabilities, and continuously review the work.
+2. **Investigation: Investigator LLM pool + non-LLM tools**
+   - The selected Investigator LLM conducts the actual research.
+   - It may independently choose any available search, browser, registry, or OSINT capability.
+   - It decides what to investigate next, what evidence matters, when to pivot, and what findings are worthy of promotion.
+
+**DeepSeek/NVIDIA is never an Investigator. Gemini is never an Investigator.**
+
+## ReAct lifecycle
+
+```text
+Boss + Right-hand
+    │
+    ├── choose Investigator LLM from the pool
+    ├── set objective / scope / review constraints
+    └── suggest useful tools (not mandatory)
+          ↓
+Investigator LLM
+    │
+    ├── chooses a research action itself
+    ├── uses any permitted non-LLM tool/browser
+    ├── evaluates the observation
+    └── decides the next research action
+          ↓
+REPORT EVERY ACT + OBSERVATION
+    │
+    ├── append to this target's living investigation document
+    └── Boss + Right-hand see and analyse the report
+          ↓
+Investigator LLM continues OR stops
+          ↺
+```
+
+The living investigation document belongs to the **specific research run for the specific target**. Each investigation act contributes its action, tool/provider, observation, provenance, findings, uncertainty, and open questions. Boss and Right-hand receive the accumulating report after every act rather than seeing only the final result.
+
 ## States
 
-| State | Meaning | Transitions |
-|-------|---------|-------------|
-| INIT | Objective + target loaded; orientation applied | → REASON |
-| REASON | **Investigator LLM decision** using the configured Investigator LLM pool and the complete live research capability surface | → ACT on valid action; → END_FAIL/DEGRADED if investigator unavailable; → END_BUDGET on limit |
-| ACT | Execute the model-selected research action/tool/browser/OSINT capability | → OBSERVE |
-| OBSERVE | Append typed observation, publish trajectory span | → REASON; → END_DONE when model selected done and lifecycle guards allow |
-| END_DONE | Model stopped; findings/evidence preserved | terminal |
-| END_TIMEOUT | Wall-clock limit; partial evidence preserved | terminal |
-| END_CANCEL | Cancellation; partial evidence preserved | terminal |
-| END_BUDGET | Iteration limit; partial evidence preserved | terminal |
-| END_FAIL | Investigator/provider/tool failure that prevents further honest research | terminal |
+| State | Meaning |
+|-------|---------|
+| ASSIGN | Boss + Right-hand establish the current assignment and select an Investigator LLM from the pool |
+| INVESTIGATE | Selected Investigator LLM reasons and chooses its own next research action |
+| ACT | Execute exactly the selected non-LLM capability/tool/browser action |
+| REPORT | Persist the typed observation and append it to the target/run investigation document; make it visible to Boss + Right-hand |
+| REVIEW | Boss + Right-hand inspect the new report, identify gaps/risk, and may revise the assignment or suggested tools |
+| PROMOTE | Investigator LLM proposes which researched findings deserve promotion; deterministic provenance/identity gates enforce truth and scope |
+| DONE | Investigation stops with the accumulated evidence preserved |
+
+## Investigator LLM pool
+
+The pool means **all configured LLMs that are designated as investigators**. Provider names must never be mistaken for the role itself. Groq and Mistral are current investigator implementations; they are investigators, full stop. They are not an extra decision layer.
+
+DeepSeek via NVIDIA NIM belongs only to the Right-hand role. Gemini belongs only to the Boss role. Neither may be inserted into the Investigator pool by fallback.
+
+## Tool surface
+
+The Investigator may use any permitted non-LLM capability that is exposed in the live contract, including:
+
+- Serper, Tavily, Exa;
+- HTTP/page visit and browser fetching;
+- Scrapfly and ZenRows browser/fetch escalation;
+- RDAP / WhoisJSON and registries;
+- public email/username footprinting;
+- theHarvester, Maigret, Sherlock and other approved OSINT executors.
+
+These tools are capabilities, not stages and not LLMs. The Investigator can choose them independently even when Boss/Right-hand did not explicitly suggest them.
+
+## Continuous bureau visibility
+
+After **every investigation act**, the runtime must:
+
+1. record the selected Investigator LLM and action;
+2. record the tool/browser provider actually used;
+3. record the observation and exact provenance/status;
+4. append the event to the target-specific research document;
+5. expose the updated report to Boss + Right-hand;
+6. retain their review/advice for the next assignment.
+
+A final-only summary is insufficient for the Bureau control loop.
+
+## Promotion
+
+The Investigator LLM owns the research judgment and proposes promotion/rejection of findings. Deterministic code does **not** invent or select research findings; it only enforces provenance, identity, scope, schema, lifecycle, and persistence rules.
+
+Boss + Right-hand are the oversight layer that watches the accumulating work and prevents unsupported or contaminated findings from silently becoming trusted case data.
 
 ## Invariants
 
-1. Every healthy REASON turn is model-owned; no force hop or scripted research action is injected.
-2. The Investigator LLM pool is a distinct role from **Boss = Gemini** and **Right-hand = DeepSeek via NVIDIA NIM**. DeepSeek/NVIDIA never participates as the Investigator or as an Investigator fallback.
-3. The current Investigator adapters are Groq and Mistral. This is an implementation pool, not a closed research architecture; the pool can be extended with additional Investigator LLM adapters without changing the ReAct loop.
-4. ACT executes only the action selected by the Investigator, subject to deterministic safety/schema checks.
-5. The Investigator can select research capabilities including **Serper, Tavily, Exa, Scrapfly, ZenRows, browser/HTTP fetch, registries and OSINT tools** as available in the live tool contract. These are tools, not LLM providers.
-6. OBSERVE preserves source URLs and retrieval status; it never promotes arbitrary page text to identity.
-7. `done` is a model decision, not a code-selected stopping point.
-8. Partial evidence is retained on timeout/cancel/budget exit.
-
-## Data carried across states
-
-- Investigator objective and target;
-- model-selected action history;
-- typed tool observations and exact source URLs;
-- model-emitted findings (`modelFindings`);
-- visited URL set;
-- search/visit/tool counts;
-- start time and hard timeout;
-- provider/model telemetry;
-- live-step callback for trajectory persistence.
-
-## Depth profiles
-
-Depth changes resource bounds, not the research path. Absolute runtime caps may enforce safety, but no depth profile may inject a tool order.
-
-## Pseudocode
-
-```
-INIT
-  → REASON: Investigator LLM chooses the next action
-  → ACT: execute exactly the selected research capability
-  → OBSERVE: return typed result + provenance
-  → REASON ...
-  → Investigator selects done OR hard lifecycle bound fires
-```
-
-If no Investigator LLM can produce a decision, terminate/degrade honestly. Do **not** substitute Gemini, DeepSeek/NVIDIA, deterministic search, or a fixed recovery recipe.
-
-## Role boundary
-
-```
-Boss (Gemini)
-    │ case direction / orchestration / review
-    ↓
-Right-hand (DeepSeek via NVIDIA NIM)
-    │ critique / evidence-gap analysis / ongoing-work analysis / advice
-    ↓
-Investigator LLM decision
-    │ chooses one capability
-    ├── Serper / Tavily / Exa search
-    ├── HTTP visit / browser fetch
-    ├── Scrapfly / ZenRows escalation
-    ├── registries / RDAP / WhoisJSON
-    └── public OSINT tools
-         ↓
-typed observation + provenance
-         ↺ Investigator LLM decision
-```
-
-The right-hand may advise the Boss about the bureau; it does not enter the Investigator tool loop.
-
-## Failure interpretation
-
-A green static guard proves only the control-plane invariant. Research quality requires an actual provider-backed trajectory with real Investigator model decisions, tool actions and observations.
+1. No fixed search checklist or forced research hop.
+2. No separate Investigator decision model between Boss/Right-hand and the Investigator pool.
+3. No DeepSeek/NVIDIA Investigator fallback.
+4. No Gemini Investigator fallback.
+5. Every tool action is selected by an Investigator LLM, unless Boss/Right-hand explicitly reassign the investigation.
+6. Every action produces a report visible to Boss + Right-hand and appended to the target/run document.
+7. Search/browser vendors are tools, not LLMs.
+8. Promotion remains source-backed and scope-safe.
+9. Partial evidence survives timeout/cancel/budget exit.
