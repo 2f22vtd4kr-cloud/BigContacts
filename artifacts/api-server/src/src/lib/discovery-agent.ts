@@ -1,146 +1,56 @@
 /**
  * Discovery agent — free LLM loop to propose people with public basis.
  * Does NOT promote contacts onto entity cards. Output is candidates for discovery-intake.
- *
- * Batch semantics are intentionally model-driven: each slot gets a fresh agentic
- * research pass. The batch controller only prevents duplicate admission and
- * keeps the overall run bounded; it does not prescribe queries, sources, tools,
- * hops, rankings, or target identities.
  */
 import { logger } from "./logger";
 import { publishDigSpan, completeDigSpan, spanFromLiveStep } from "./dig-span";
 import { runAgenticWebResearch } from "./agentic-web-research";
+import { recordDiscoveryTrace } from "./investigator-trace";
 
 export type DiscoveryCandidate = { name: string; role?: string; company?: string; basis: string; sourceUrls: string[]; lane?: string; confidence?: number; promotionDecision: "promote"; promotionReason?: string };
 export type DiscoveryAgentResult = { candidates: DiscoveryCandidate[]; model?: string; searches: number; visits: number; degraded: boolean; message: string };
 
 type DiscoveryFinding = {
-  vectorType?: string;
-  value?: string;
-  sourceUrls?: string[];
-  role?: string | null;
-  personName?: string | null;
-  note?: string;
-  scope?: "organization" | "candidate" | "unknown";
-  promotionDecision?: "promote" | "reject";
-  promotionReason?: string;
+  vectorType?: string; value?: string; sourceUrls?: string[]; role?: string | null; personName?: string | null; note?: string;
+  scope?: "organization" | "candidate" | "unknown"; promotionDecision?: "promote" | "reject"; promotionReason?: string;
 };
 
 const INVALID_PERSON_TITLE_PATTERNS = [
   /^(?:head of|chief|global chief|vice president|vp|senior vice president|svp)\b/i,
   /^(?:managing director|executive director|marketing director|sales director|finance director|operations director|investment director|portfolio manager|fund manager)$/i,
 ];
+const INVALID_PERSON_NAME_WORDS = new Set(["email", "phone", "address", "street", "product", "comparison", "person", "www", "com"]);
+const INVALID_PERSON_NAME_PHRASES = ["security issues", "security issue", "chief executive officer", "executive officer", "president person", "private equity", "venture capital", "real estate", "asset management", "wealth management", "investment management", "private markets", "operational enablement", "product comparisons", "product comparisons sage products", "contact us", "about us", "forbes list", "forbes billionaires", "the billionaire", "the billionaires"];
+const LIST_ONLY_SOURCE_PATTERNS = [/forbes\.com\/billionaires(?:\/|\?|$)/i, /forbes\.com\/real-time-billionaires(?:\/|\?|$)/i, /forbes\.com\/lists\/[^\s/]*billionaires?/i, /forbes\.com\/lists\/[^\s/]*richest/i, /bloomberg\.com\/billionaires(?:\/|\?|$)/i];
+const SEARCH_RESULT_SOURCE_PATTERNS = [/google\.[^/]+\/search(?:[/?]|$)/i, /bing\.com\/search(?:[/?]|$)/i, /search\.yahoo\.com\/search(?:[/?]|$)/i, /duckduckgo\.com\/(?:html\/)?\?(?:[^#]*&)?q=/i];
 
-const INVALID_PERSON_NAME_WORDS = new Set([
-  "email", "phone", "address", "street", "product", "comparison", "person", "www", "com",
-]);
-
-const INVALID_PERSON_NAME_PHRASES = [
-  "security issues",
-  "security issue",
-  "chief executive officer",
-  "executive officer",
-  "president person",
-  "private equity",
-  "venture capital",
-  "real estate",
-  "asset management",
-  "wealth management",
-  "investment management",
-  "private markets",
-  "operational enablement",
-  "product comparisons",
-  "product comparisons sage products",
-  "contact us",
-  "about us",
-  "forbes list",
-  "forbes billionaires",
-  "the billionaire",
-  "the billionaires",
-];
-
-const LIST_ONLY_SOURCE_PATTERNS = [
-  /forbes\.com\/billionaires(?:\/|\?|$)/i,
-  /forbes\.com\/real-time-billionaires(?:\/|\?|$)/i,
-  /forbes\.com\/lists\/[^\s/]*billionaires?/i,
-  /forbes\.com\/lists\/[^\s/]*richest/i,
-  /bloomberg\.com\/billionaires(?:\/|\?|$)/i,
-];
-
-const SEARCH_RESULT_SOURCE_PATTERNS = [
-  /google\.[^/]+\/search(?:[/?]|$)/i,
-  /bing\.com\/search(?:[/?]|$)/i,
-  /search\.yahoo\.com\/search(?:[/?]|$)/i,
-  /duckduckgo\.com\/(?:html\/)?\?(?:[^#]*&)?q=/i,
-];
-
-function normalizedPersonText(value: string): string {
-  return value
-    .trim()
-    .replace(/\s+/g, " ")
-    .toLowerCase()
-    .replace(/[.'’\-]+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function normalizeUrl(value: string): string {
-  return String(value || "").trim().replace(/[),.;]+$/, "");
-}
-
+function normalizedPersonText(value: string): string { return value.trim().replace(/\s+/g, " ").toLowerCase().replace(/[.'’\-]+/g, " ").replace(/\s+/g, " ").trim(); }
+function normalizeUrl(value: string): string { return String(value || "").trim().replace(/[),.;]+$/, ""); }
 function isInvalidIdentityPhrase(name: string): boolean {
   const normalized = normalizedPersonText(name);
   if (!normalized) return true;
   if (INVALID_PERSON_TITLE_PATTERNS.some((pattern) => pattern.test(normalized))) return true;
-  if (INVALID_PERSON_NAME_PHRASES.some((phrase) =>
-    normalized === phrase
-    || normalized.startsWith(`${phrase} `)
-    || normalized.endsWith(` ${phrase}`)
-    || normalized.includes(` ${phrase} `),
-  )) return true;
-  if (/^state\s+st$/i.test(normalized)) return true;
-  return false;
+  if (INVALID_PERSON_NAME_PHRASES.some((phrase) => normalized === phrase || normalized.startsWith(`${phrase} `) || normalized.endsWith(` ${phrase}`) || normalized.includes(` ${phrase} `))) return true;
+  return /^state\s+st$/i.test(normalized);
 }
-
-export function hasStrongIdentityEvidence(input: {
-  name: string;
-  role?: string;
-  company?: string;
-  basis?: string;
-  sourceUrls: string[];
-}): boolean {
-  const name = input.name.trim().replace(/\s+/g, " ");
-  const normalized = normalizedPersonText(name);
-  const urls = input.sourceUrls
-    .map(normalizeUrl)
-    .filter((u) => /^https?:\/\/\S+$/i.test(u));
-
+export function hasStrongIdentityEvidence(input: { name: string; role?: string; company?: string; basis?: string; sourceUrls: string[] }): boolean {
+  const name = input.name.trim().replace(/\s+/g, " "); const normalized = normalizedPersonText(name);
+  const urls = input.sourceUrls.map(normalizeUrl).filter((u) => /^https?:\/\/\S+$/i.test(u));
   if (isInvalidIdentityPhrase(name)) return false;
   if (/(?:^|\b)(email|phone|address|street|zip|postal|product|comparison|enablement|operational|person)(?:\b|$)/i.test(normalized)) return false;
   if (/^president(?:\s+person)?$/i.test(normalized)) return false;
   if (/^(?:[a-z]+\.)?[a-z]{2,}\s+(?:email|phone)$/i.test(normalized)) return false;
   if (/\b(?:llc|ltd|inc|corp|corporation|holdings|group|partners|fund|capital|ventures|foundation|products?)\b/i.test(normalized)) return false;
   if (/\b(?:street|st|avenue|ave|road|rd|boulevard|blvd|drive|dr|lane|ln)\b\.?\s+\d+/i.test(normalized)) return false;
-
   return urls.length > 0 && hasIndependentSource(urls);
 }
-
 function hasIndependentSource(sourceUrls: string[]): boolean {
-  const urls = sourceUrls
-    .map(normalizeUrl)
-    .filter((url) => /^https?:\/\/\S+$/i.test(url));
-  return urls.length > 0 && urls.some((url) =>
-    !LIST_ONLY_SOURCE_PATTERNS.some((pattern) => pattern.test(url))
-    && !SEARCH_RESULT_SOURCE_PATTERNS.some((pattern) => pattern.test(url)),
-  );
+  const urls = sourceUrls.map(normalizeUrl).filter((url) => /^https?:\/\/\S+$/i.test(url));
+  return urls.length > 0 && urls.some((url) => !LIST_ONLY_SOURCE_PATTERNS.some((pattern) => pattern.test(url)) && !SEARCH_RESULT_SOURCE_PATTERNS.some((pattern) => pattern.test(url)));
 }
-
 export function isWellFormedPersonCandidate(candidate: Pick<DiscoveryCandidate, "name" | "sourceUrls">): boolean {
-  const name = String(candidate.name ?? "").trim().replace(/\s+/g, " ");
-  const words = name.split(" ");
-  const normalized = normalizedPersonText(name);
+  const name = String(candidate.name ?? "").trim().replace(/\s+/g, " "); const words = name.split(" "); const normalized = normalizedPersonText(name);
   if (words.length < 2 || words.length > 5) return false;
-  // CamelCase extraction fragments (e.g. comPrecision) are not human-name syntax.
   if (words.some((w) => /^[a-z]+[A-Z]/.test(w))) return false;
   if (!/^\p{L}[\p{L}.'’\-]*(?:\s+\p{L}[\p{L}.'’\-]*){1,4}$/u.test(name)) return false;
   if (words.some((w) => INVALID_PERSON_NAME_WORDS.has(w.toLowerCase().replace(/[.'’\-]/g, "")))) return false;
@@ -149,120 +59,46 @@ export function isWellFormedPersonCandidate(candidate: Pick<DiscoveryCandidate, 
   const sourceUrls = (candidate.sourceUrls ?? []).map(normalizeUrl);
   return sourceUrls.some((url) => /^https?:\/\/\S+$/i.test(url)) && hasIndependentSource(sourceUrls);
 }
-
 function hasObservedPageSource(sourceUrls: string[], trajectory: string[]): boolean {
   const observed = new Set<string>();
-  for (const line of trajectory) {
-    const match = String(line).match(/step\d+:\s+(?:visit|browser_fetch)\s+(https?:\/\/\S+)/i);
-    if (match?.[1]) observed.add(normalizeUrl(match[1]));
-  }
+  for (const line of trajectory) { const match = String(line).match(/step\d+:\s+(?:visit|browser_fetch)\s+(https?:\/\/\S+)/i); if (match?.[1]) observed.add(normalizeUrl(match[1])); }
   return sourceUrls.some((url) => observed.has(normalizeUrl(url)));
 }
-
 export function parsePersonFindings(findings: DiscoveryFinding[], trajectory: string[] = []): DiscoveryCandidate[] {
-  const out: DiscoveryCandidate[] = [];
-  const seen = new Set<string>();
+  const out: DiscoveryCandidate[] = []; const seen = new Set<string>();
   const add = (name: string, extra: Partial<DiscoveryCandidate>) => {
-    const n = name.trim().replace(/\s+/g, " ");
-    if (n.length < 3 || n.length > 120) return;
-    const key = n.toLowerCase();
-    if (seen.has(key)) return;
+    const n = name.trim().replace(/\s+/g, " "); if (n.length < 3 || n.length > 120) return;
+    const key = n.toLowerCase(); if (seen.has(key)) return;
     const sourceUrls = (extra.sourceUrls ?? []).map(normalizeUrl).filter((u) => /^https?:\/\//i.test(u)).slice(0, 6);
     if (!isWellFormedPersonCandidate({ name: n, sourceUrls })) return;
     if (!hasStrongIdentityEvidence({ name: n, role: extra.role, company: extra.company, basis: extra.basis, sourceUrls })) return;
     if (!hasObservedPageSource(sourceUrls, trajectory)) return;
     seen.add(key);
-    out.push({
-      name: n,
-      role: extra.role,
-      company: extra.company,
-      basis: extra.basis || "Public web discovery",
-      sourceUrls,
-      lane: extra.lane || "discovery-agent",
-      confidence: sourceUrls.length ? 0.55 : 0.35,
-      promotionDecision: "promote",
-      promotionReason: extra.promotionReason,
-    });
+    out.push({ name: n, role: extra.role, company: extra.company, basis: extra.basis || "Public web discovery", sourceUrls, lane: extra.lane || "discovery-agent", confidence: sourceUrls.length ? 0.55 : 0.35, promotionDecision: "promote", promotionReason: extra.promotionReason });
   };
   for (const f of findings ?? []) {
-    // Only the investigator may promote a discovery person.
-    if (f.promotionDecision !== "promote") {
-      logger.info({ personName: f.personName, promotionDecision: f.promotionDecision }, "[discovery-agent] skipped finding without explicit investigator promotion decision");
-      continue;
-    }
-    // Proxy/DEF-14A auto-extraction can surface nearby capitalized names, but
-    // that is deterministic candidate selection rather than model-owned discovery.
-    // Never admit those synthetic related-person findings; the investigator must
-    // explicitly emit the person it chose from its observed evidence.
+    if (f.promotionDecision !== "promote") { logger.info({ personName: f.personName, promotionDecision: f.promotionDecision }, "[discovery-agent] skipped finding without explicit investigator promotion decision"); continue; }
     if (String(f.role ?? "").trim().toLowerCase() === "proxy_table") continue;
-    // Prefer explicit scope=candidate; still accept personName + HTTPS sources when
-    // the model omits scope (common free-ReAct omission). Reject organization-only
-    // rows without a personName.
     const hasPersonName = Boolean(f.personName && String(f.personName).trim().length >= 3);
-    const scopeOk =
-      f.scope === "candidate" ||
-      (f.scope === "organization" && hasPersonName) ||
-      (hasPersonName && (f.sourceUrls?.some((u) => /^https?:\/\//i.test(String(u))) ?? false));
-    if (!scopeOk) {
-      logger.info(
-        { scope: f.scope, personName: f.personName, value: String(f.value ?? "").slice(0, 80) },
-        "[discovery-agent] parsePersonFindings skipped finding (scope/person gate)",
-      );
-      continue;
-    }
+    const scopeOk = f.scope === "candidate" || (f.scope === "organization" && hasPersonName) || (hasPersonName && (f.sourceUrls?.some((u) => /^https?:\/\//i.test(String(u))) ?? false));
+    if (!scopeOk) { logger.info({ scope: f.scope, personName: f.personName, value: String(f.value ?? "").slice(0, 80) }, "[discovery-agent] parsePersonFindings skipped finding (scope/person gate)"); continue; }
     const urls = (f.sourceUrls ?? []).filter((u) => /^https?:\/\//i.test(String(u)));
-    if (f.personName && String(f.personName).trim().length >= 3) {
-      add(String(f.personName), { role: f.role ?? undefined, basis: f.note || f.role || "Named on visited public page", sourceUrls: urls });
-    }
-    const value = String(f.value ?? "").trim();
-    if (!value) continue;
+    if (f.personName && String(f.personName).trim().length >= 3) add(String(f.personName), { role: f.role ?? undefined, basis: f.note || f.role || "Named on visited public page", sourceUrls: urls, promotionReason: f.promotionReason });
+    const value = String(f.value ?? "").trim(); if (!value) continue;
     const m = value.match(/^person:\s*(.+?)(?:\s*\|\s*(.*?))?(?:\s*\|\s*(.*?))?$/i);
-    if (m) {
-      add(m[1]!, {
-        role: (m[2] || f.role || "").trim() || undefined,
-        company: (m[3] || "").trim() || undefined,
-        basis: f.note || "person: finding from discovery dig",
-        sourceUrls: urls,
-      });
-      continue;
-    }
-    if (/^related-person:/i.test(value)) {
-      add(value.replace(/^related-person:/i, ""), { basis: "Related person from public filing/page", sourceUrls: urls });
-    }
+    if (m) { add(m[1]!, { role: (m[2] || f.role || "").trim() || undefined, company: (m[3] || "").trim() || undefined, basis: f.note || "person: finding from discovery dig", sourceUrls: urls, promotionReason: f.promotionReason }); continue; }
+    if (/^related-person:/i.test(value)) add(value.replace(/^related-person:/i, ""), { basis: "Related person from public filing/page", sourceUrls: urls, promotionReason: f.promotionReason });
   }
   return out.slice(0, 30);
 }
 
-export async function runDiscoveryAgent(input: {
-  jobId?: string;
-  /** Bound the number of independent discovery slots for this caller. */
-  targetCount?: number;
-  depth?: "fast" | "standard" | "deep";
-  laneHint?: string;
-  hardTimeoutMs?: number;
-  onLiveStep?: (step: { action: string; tool?: string; query?: string; url?: string; status: "ok" | "error" | "active"; detail?: string }) => void;
-  /** Optional: called as soon as a slot produces a distinct well-formed candidate (incremental admit). */
-  onCandidate?: (candidate: DiscoveryCandidate, meta: { slot: number; batch: number }) => void | Promise<void>;
-  /** Fires at the start/end of each discovery slot for operator progress. */
-  onSlotProgress?: (meta: { slot: number; batch: number; phase: "start" | "end"; candidatesInSlot: number }) => void | Promise<void>;
-}): Promise<DiscoveryAgentResult> {
-  const jobId = input.jobId ?? `discovery_${Date.now()}`;
-  const depth = input.depth ?? "standard";
-  const requestedBatch = Math.max(
-    1,
-    Math.min(
-      10,
-      Number.isFinite(Number(input.targetCount)) && Number(input.targetCount) > 0
-        ? Number(input.targetCount)
-        : Number(process.env.APEX_DISCOVERY_BATCH_SIZE || process.env.APEX_DISCOVERY_DEFAULT_BATCH || "3"),
-    ),
-  );
+export async function runDiscoveryAgent(input: { jobId?: string; targetCount?: number; depth?: "fast" | "standard" | "deep"; laneHint?: string; hardTimeoutMs?: number; onLiveStep?: (step: { action: string; tool?: string; query?: string; url?: string; status: "ok" | "error" | "active"; detail?: string }) => void; onCandidate?: (candidate: DiscoveryCandidate, meta: { slot: number; batch: number }) => void | Promise<void>; onSlotProgress?: (meta: { slot: number; batch: number; phase: "start" | "end"; candidatesInSlot: number }) => void | Promise<void>; }): Promise<DiscoveryAgentResult> {
+  const jobId = input.jobId ?? `discovery_${Date.now()}`; const depth = input.depth ?? "standard";
+  const requestedBatch = Math.max(1, Math.min(10, Number.isFinite(Number(input.targetCount)) && Number(input.targetCount) > 0 ? Number(input.targetCount) : Number(process.env.APEX_DISCOVERY_BATCH_SIZE || process.env.APEX_DISCOVERY_DEFAULT_BATCH || "3")));
   const maxIterationsPerSlot = depth === "fast" ? 7 : depth === "deep" ? 18 : 14;
   const defaultSlotTimeout = depth === "fast" ? 75_000 : depth === "deep" ? 300_000 : 210_000;
-  const suppliedTimeout = input.hardTimeoutMs ?? defaultSlotTimeout;
-  const slotTimeout = Math.max(suppliedTimeout, defaultSlotTimeout);
+  const suppliedTimeout = input.hardTimeoutMs ?? defaultSlotTimeout; const slotTimeout = Math.max(suppliedTimeout, defaultSlotTimeout);
   const span = publishDigSpan({ jobId, spanType: "stage", name: "discovery_agent", status: "active", agentName: "discovery", inputSummary: `depth=${depth} batch=${requestedBatch} lane=${input.laneHint ?? "model-choice"}` });
-
   const baseObjective = [
     "DISCOVERY ASSIGNMENT — find a real person worth a later public-contact dig.",
     "PROMOTION AUTHORITY: You (the investigator) decide who is worth promoting. Deterministic code only validates provenance/schema and persists your decision — it does not pick people for you from page scrapes.",
@@ -284,109 +120,46 @@ export async function runDiscoveryAgent(input: {
     "Use personName or value form: person: Full Name | role | company when possible.",
     input.laneHint ? `Optional lane context (not a script): ${input.laneHint}` : "",
   ].filter(Boolean).join("\n");
-
-  const candidates: DiscoveryCandidate[] = [];
-  const seen = new Set<string>();
-  let totalSearches = 0;
-  let totalVisits = 0;
-  let degraded = false;
-  let lastModel: string | undefined;
-  let lastMessage = "";
-
+  const candidates: DiscoveryCandidate[] = []; const seen = new Set<string>(); let totalSearches = 0; let totalVisits = 0; let degraded = false; let lastModel: string | undefined; let lastMessage = "";
   try {
     for (let slot = 0; slot < requestedBatch; slot += 1) {
-      const objective = [
-        baseObjective,
-        "This slot runs serially because the investigator provider pool is paced. Choose your own distinct person; duplicate candidates will be discarded after the batch.",
-        `This is batch slot ${slot + 1} of ${requestedBatch}. One strong, distinct candidate is sufficient. Do not pad with weak names.`,
-      ].join("\n");
+      const objective = [baseObjective, "This slot runs serially because the investigator provider pool is paced. Choose your own distinct person; duplicate candidates will be discarded after the batch.", `This is batch slot ${slot + 1} of ${requestedBatch}. One strong, distinct candidate is sufficient. Do not pad with weak names.`].join("\n");
       const slotSpan = publishDigSpan({ jobId, spanType: "stage", name: "discovery_slot", status: "active", agentName: "discovery", inputSummary: `slot=${slot + 1}/${requestedBatch} concurrent=false` });
       try { await input.onSlotProgress?.({ slot: slot + 1, batch: requestedBatch, phase: "start", candidatesInSlot: 0 }); } catch { /* best-effort */ }
       try {
-        const result = await runAgenticWebResearch({
-          targetName: `Discovery slot ${slot + 1}`,
-          companyName: null,
-          objective,
-          maxIterations: maxIterationsPerSlot,
-          hardTimeoutMs: slotTimeout,
-          jobId,
-          onLiveStep: (step) => {
-            try {
-              spanFromLiveStep({ jobId, targetName: "discovery", tool: step.provider || step.action, label: step.query || step.url || step.action, detail: step.summary || step.url || step.query, status: "ok", agentName: "discovery" });
-            } catch { /* spans best-effort */ }
-            input.onLiveStep?.({
-      action: step.action,
-      tool: step.provider || step.action,
-      query: step.query,
-      url: step.url,
-      detail: step.summary,
-      status: "ok",
-    });
-          },
-        });
+        const result = await runAgenticWebResearch({ targetName: `Discovery slot ${slot + 1}`, companyName: null, objective, maxIterations: maxIterationsPerSlot, hardTimeoutMs: slotTimeout, jobId, onLiveStep: (step) => {
+          try { spanFromLiveStep({ jobId, targetName: "discovery", tool: step.provider || step.action, label: step.query || step.url || step.action, detail: step.summary || step.url || step.query, status: "ok", agentName: "discovery" }); } catch { /* spans best-effort */ }
+          input.onLiveStep?.({ action: step.action, tool: step.provider || step.action, query: step.query, url: step.url, detail: step.summary, status: "ok" });
+        } });
         const admissionFindings = result.modelFindings ?? [];
         const slotCandidates = parsePersonFindings(admissionFindings, result.trajectory ?? []);
+        await recordDiscoveryTrace(jobId, {
+          slot: slot + 1, recordedAt: new Date().toISOString(), model: result.model, status: result.status, searches: result.searches ?? 0, visits: result.visits ?? 0,
+          stopReason: result.stopReason, error: result.error, modelFindings: admissionFindings, parsedCandidates: slotCandidates, trajectory: result.trajectory ?? [],
+          resultUrls: (result.trajectory ?? []).flatMap((line) => String(line).match(/https?:\/\/\S+/gi) ?? []),
+        });
         try { completeDigSpan(jobId, slotSpan.id, { status: slotCandidates.length ? "ok" : "error", resultSummary: `slot=${slot + 1}/${requestedBatch} investigator_decisions=${slotCandidates.length} searches=${result.searches} visits=${result.visits} (modelFindings only — not infra extract)` }); } catch { /* best-effort */ }
         try { await input.onSlotProgress?.({ slot: slot + 1, batch: requestedBatch, phase: "end", candidatesInSlot: slotCandidates.length }); } catch { /* best-effort */ }
-
-        totalSearches += result.searches ?? 0;
-        totalVisits += result.visits ?? 0;
-        lastModel = result.model || lastModel;
-        lastMessage = result.error || result.status || "completed";
+        totalSearches += result.searches ?? 0; totalVisits += result.visits ?? 0; lastModel = result.model || lastModel; lastMessage = result.error || result.status || "completed";
         if (result.status === "unavailable" || result.status === "error") degraded = true;
-        if (slotCandidates.length) {
-          for (const candidate of slotCandidates) {
-            try {
-              publishDigSpan({
-                jobId,
-                spanType: "stage",
-                name: "investigator_promotion_decision",
-                status: "ok",
-                agentName: "discovery",
-                inputSummary: candidate.name,
-                resultSummary: `INVESTIGATOR_PROMOTION_DECISION name=${candidate.name} sources=${(candidate.sourceUrls || []).slice(0, 2).join("|")} — awaiting durable persist`,
-              });
-            } catch { /* best-effort */ }
-            const key = candidate.name.toLowerCase();
-            if (seen.has(key)) continue;
-            seen.add(key);
-            candidates.push(candidate);
-            try {
-              await input.onCandidate?.(candidate, { slot: slot + 1, batch: requestedBatch });
-            } catch (admitErr) {
-              logger.warn(
-                { err: String(admitErr).slice(0, 200), name: candidate.name },
-                "[discovery-agent] onCandidate failed",
-              );
-            }
-            if (candidates.length >= requestedBatch) break;
-          }
+        for (const candidate of slotCandidates) {
+          try { publishDigSpan({ jobId, spanType: "stage", name: "investigator_promotion_decision", status: "ok", agentName: "discovery", inputSummary: candidate.name, resultSummary: `INVESTIGATOR_PROMOTION_DECISION name=${candidate.name} sources=${(candidate.sourceUrls || []).slice(0, 2).join("|")} — awaiting durable persist` }); } catch { /* best-effort */ }
+          const key = candidate.name.toLowerCase(); if (seen.has(key)) continue; seen.add(key); candidates.push(candidate);
+          try { await input.onCandidate?.(candidate, { slot: slot + 1, batch: requestedBatch }); } catch (admitErr) { logger.warn({ err: String(admitErr).slice(0, 200), name: candidate.name }, "[discovery-agent] onCandidate failed"); }
+          if (candidates.length >= requestedBatch) break;
         }
       } catch (err) {
-        degraded = true;
-        lastMessage = String(err).slice(0, 180);
+        degraded = true; lastMessage = String(err).slice(0, 180);
+        await recordDiscoveryTrace(jobId, { slot: slot + 1, recordedAt: new Date().toISOString(), searches: 0, visits: 0, modelFindings: [], parsedCandidates: [], trajectory: [], resultUrls: [], error: lastMessage, status: "error" });
         try { completeDigSpan(jobId, slotSpan.id, { status: "error", resultSummary: lastMessage }); } catch { /* best-effort */ }
       }
       if (candidates.length >= requestedBatch) break;
     }
-
     const finalCandidates = candidates.slice(0, requestedBatch);
     try { completeDigSpan(jobId, span.id, { status: finalCandidates.length ? "ok" : "error", resultSummary: `candidates=${finalCandidates.length}/${requestedBatch} searches=${totalSearches} visits=${totalVisits}` }); } catch { /* best-effort */ }
-    return {
-      candidates: finalCandidates,
-      model: lastModel,
-      searches: totalSearches,
-      visits: totalVisits,
-      degraded,
-      message: finalCandidates.length
-        ? `Discovery agent proposed ${finalCandidates.length}/${requestedBatch} distinct source-backed people`
-        : degraded
-          ? `Discovery agent degraded: ${lastMessage}`
-          : `Discovery agent finished with no source-backed person candidates`,
-    };
+    return { candidates: finalCandidates, model: lastModel, searches: totalSearches, visits: totalVisits, degraded, message: finalCandidates.length ? `Discovery agent proposed ${finalCandidates.length}/${requestedBatch} distinct source-backed people` : degraded ? `Discovery agent degraded: ${lastMessage}` : `Discovery agent finished with no source-backed person candidates` };
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
-    logger.warn({ err: msg }, "[discovery-agent] failed");
+    const msg = err instanceof Error ? err.message : String(err); logger.warn({ err: msg }, "[discovery-agent] failed");
     try { completeDigSpan(jobId, span.id, { status: "error", resultSummary: msg.slice(0, 200) }); } catch { /* ignore */ }
     return { candidates: [], searches: totalSearches, visits: totalVisits, degraded: true, message: `Discovery agent degraded: ${msg.slice(0, 180)}` };
   }
