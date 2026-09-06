@@ -2,13 +2,10 @@ import fs from "node:fs";
 
 const files = [
   "docs/BUREAU_REACT_ARCHITECTURE.md",
-  "docs/bureau-plan/01_PRODUCT_LAW_AND_CONTROL_PLANE.md",
-  "docs/bureau-plan/02_FREE_REACT_AND_TOOL_SURFACE.md",
-  "docs/bureau-plan/10_TOOL_CATALOG.md",
   "docs/bureau-plan/20_DIG_LOOP_STATE_MACHINE.md",
-  "docs/bureau-plan/31_BOSS_RIGHT_HAND_PROTOCOL.md",
   "docs/bureau-plan/94_MODEL_ROUTING_TABLE.md",
   "docs/bureau-plan/227_BUREAU_CONTROL_FLOW.md",
+  "docs/bureau-plan/434_PROVIDER_ROLE_SOURCE_OF_TRUTH.md",
 ];
 
 const failures = [];
@@ -16,15 +13,16 @@ const forbidden = [
   "Groq → Mistral → Gemini → NVIDIA",
   "Groq -> Mistral -> Gemini -> NVIDIA",
   "Dig investigators | Groq → Mistral → Gemini → NVIDIA",
-  "deterministic recovery only after dig LLM total fail",
-  "template fallback",
-  "NVIDIA NIM as right-hand",
-  "Right-hand = **NVIDIA**",
-  "Right-hand | **NVIDIA**",
-  "Right-hand = NVIDIA NIM",
-  "Right-hand | NVIDIA NIM",
-  "z-AI / GLM",
-  "z-AI/GLM",
+  "Dig investigator = Groq → Mistral",
+  "Dig investigator = Groq -> Mistral",
+  "Dig / Investigator = Groq → Mistral",
+  "Dig / Investigator = Groq -> Mistral",
+  "additional model-decision step",
+  "additional Investigator decision layer",
+  "separate Investigator decision model",
+  "DeepSeek/NVIDIA as an Investigator",
+  "DeepSeek via NVIDIA NIM is an Investigator",
+  "Gemini as an Investigator",
 ];
 
 for (const file of files) {
@@ -36,18 +34,12 @@ for (const file of files) {
   for (const phrase of forbidden) {
     if (source.includes(phrase)) failures.push(`${file}: stale provider/control-plane phrase: ${phrase}`);
   }
-  if (!/Boss\s*=\s*\*\*Gemini\*\*|\*\*Boss\*\*.*Gemini|Boss.*Gemini/.test(source)) {
-    failures.push(`${file}: missing Gemini Boss declaration`);
-  }
-  if (!/Right-hand.*DeepSeek|DeepSeek.*right-hand/i.test(source)) {
-    failures.push(`${file}: missing DeepSeek right-hand declaration`);
-  }
-  if (!/Groq\s*(?:→|->)\s*Mistral|Groq\s*\+\s*Mistral|Groq\s+and\s+Mistral/i.test(source)) {
-    failures.push(`${file}: missing current Investigator adapter declaration`);
-  }
-  if (!/NVIDIA\s+(?:Integrate|NIM)/i.test(source)) {
-    failures.push(`${file}: missing NVIDIA NIM/Integrate transport declaration`);
-  }
+  if (!/Boss.*Gemini/i.test(source)) failures.push(`${file}: missing Gemini Boss declaration`);
+  if (!/Right-hand.*DeepSeek|DeepSeek.*right-hand/i.test(source)) failures.push(`${file}: missing DeepSeek right-hand declaration`);
+  if (!/Investigator LLM pool/i.test(source)) failures.push(`${file}: missing Investigator LLM pool declaration`);
+  if (!/two AI layers|two-layer/i.test(source)) failures.push(`${file}: missing two-layer architecture declaration`);
+  if (!/Tavily.*Exa|Exa.*Tavily/i.test(source)) failures.push(`${file}: missing search capability surface`);
+  if (!/Scrapfly.*ZenRows|ZenRows.*Scrapfly/i.test(source)) failures.push(`${file}: missing browser/fetch capability surface`);
 }
 
 if (failures.length) {
