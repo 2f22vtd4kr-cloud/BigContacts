@@ -1,11 +1,11 @@
 # Volume 231 — Boss / Right-Hand / Investigator Provider Separation
 
 **Status:** normative architecture correction for the living 40K plan
-**Date:** 2026-08-30
+**Date:** 2026-09-06
 
 ## Purpose
 
-This document resolves a critical ambiguity found during live-research architecture review: the models that provide Bureau-level reasoning are not the models that conduct web research.
+The models that provide Bureau-level reasoning are not the same architectural role as the systems that conduct web research. The investigator role must remain open to multiple LLM adapters and multiple external research capabilities.
 
 ## Canonical architecture
 
@@ -38,14 +38,19 @@ This document resolves a critical ambiguity found during live-research architect
                 +-----------------------------+
                 | ACTUAL WEB-RESEARCH         |
                 | INVESTIGATOR / DIG MODEL    |
-                |                              |
-                | Groq -> Mistral failover    |
-                |                              |
+                | configurable LLM pool       |
+                |                             |
                 | model chooses:              |
                 | search / visit / browser /  |
                 | registry / OSINT / pivot /  |
                 | hypothesis / stopping       |
                 +--------------+---------------+
+                               |
+                  +------------+-------------+
+                  | research capability pool |
+                  | Serper / Tavily / Exa     |
+                  | Scrapfly / ZenRows / ... |
+                  +------------+-------------+
                                |
                                v
                          observations
@@ -61,110 +66,47 @@ This document resolves a critical ambiguity found during live-research architect
 
 ### Boss — Gemini
 
-Boss is the head investigator and strategic reasoning layer.
-
-Boss may:
-
-- interpret the mission;
-- prioritize cases;
-- decide research direction;
-- formulate investigator goals;
-- set evidence requirements;
-- accept or override right-hand advice;
-- decide whether evidence is sufficient.
-
-Boss must not:
-
-- browse the web;
-- call web-search or page-fetch tools directly;
-- invent evidence;
-- replace the actual investigator when the investigator provider is unavailable.
+Boss is the head strategic reasoning layer. It may interpret the mission, prioritize cases, formulate investigator goals and evidence requirements, and decide whether evidence is sufficient. Boss must not directly browse or replace the investigator merely because an investigator adapter is unavailable.
 
 ### Right-hand — NVIDIA NIM
 
-Right-hand is the complementary reasoning/advisory layer.
-
-Right-hand may:
-
-- challenge the current hypothesis;
-- identify evidence gaps;
-- propose alternative research angles;
-- recommend a next high-leverage direction.
-
-Right-hand must not:
-
-- browse the web;
-- call OSINT tools directly;
-- invent evidence;
-- impose a numbered research sequence.
+Right-hand is the complementary reasoning/advisory layer. It may challenge hypotheses, identify evidence gaps and propose alternate research angles. It must not directly browse or impose a numbered research sequence.
 
 ### Investigator / Dig — actual web researcher
 
-The investigator is the model that conducts the research.
+The investigator is the model that conducts the research. It owns query formulation, result selection, page visits, browser escalation, registry/OSINT tool choice, hypothesis formation, pivots, identity investigation, contact-route investigation, evidence depth and stopping.
 
-It owns:
+The investigator provider pool is **provider-neutral**. It is not defined by a two-vendor chain. Groq and Mistral are supported investigator LLM adapters in the current implementation; additional investigator LLM adapters may be added without changing the role contract.
 
-- query formulation;
-- result selection;
-- page visits;
-- browser escalation;
-- registry/OSINT tool choice;
-- hypothesis formation;
-- pivots;
-- identity investigation;
-- contact-route investigation;
-- evidence depth;
-- stopping.
+The research/search/fetch pool is separate from the investigator LLM pool. Providers such as **Tavily, Exa, Serper, Scrapfly, ZenRows**, registry APIs and OSINT tools are capabilities the investigator can select. They are not substitutes for the investigator model itself.
 
-The canonical investigator provider pool is independent of Boss/right-hand roles. Current failover is:
-
-`Groq -> Mistral`
-
-If that pool is unavailable, the bureau must fail closed or report degraded research. It must **not** silently use Gemini or NVIDIA as substitute web researchers.
+If the configured investigator LLM pool is unavailable, the bureau must fail closed or report degraded research. It must not silently change the Boss/right-hand role or invent evidence.
 
 ## Why this separation matters
 
-Using Gemini or NVIDIA as investigator fallback creates a hidden architecture change. The same request can become:
+A provider name is an implementation detail, not an architectural identity. Hard-coding a vendor pair into the role creates false constraints and makes the system look as if Tavily/Exa/Scrapfly/etc. are secondary when they are actually first-class research capabilities.
 
-- Boss-controlled research;
-- right-hand-controlled research;
-- actual investigator research;
-
-depending on provider availability.
-
-That makes trajectory comparisons invalid and can hide infrastructure failures as apparent research behavior.
-
-Provider fallback is therefore transport infrastructure, not agent hierarchy.
+Provider fallback is transport infrastructure, not hierarchy. The same objective/state is passed to whichever configured investigator adapter is selected, and that adapter independently chooses its next research action.
 
 ## Autonomy requirement
 
-Separating the providers does not mean constraining the investigator. The investigator still receives a mission, case state, evidence requirements and available tools, then independently chooses the next action. The harness may enforce:
-
-- budgets;
-- timeouts;
-- provenance;
-- permissions;
-- malformed-action rejection;
-- persistence integrity;
-- provider health.
-
-It must not choose the next useful research move merely because a particular provider is unavailable.
+The investigator still receives a mission, case state, evidence requirements and available tools, then independently chooses the next action. The harness may enforce budgets, timeouts, provenance, permissions, malformed-action rejection, persistence integrity and provider health. It must not choose the next useful research move merely because a particular provider is unavailable.
 
 ## Evaluation consequence
 
-Every trajectory must record at minimum:
+Every trajectory should record, when applicable:
 
-- Boss model/provider, if Boss participated;
-- right-hand model/provider, if right-hand participated;
-- investigator model/provider;
-- provider fallback reason;
-- selected tool/action;
+- Boss model/provider;
+- right-hand model/provider;
+- investigator model/provider and adapter;
+- provider selection/fallback reason;
+- selected tool/action and research-provider backend;
 - observation;
 - resulting evidence;
 - promoted identity/contact claims.
 
-A run in which Gemini or NVIDIA performs the actual web research is not a valid run of the canonical investigator architecture. It must be classified as an architecture/infrastructure failure rather than counted toward research-quality superiority.
+A run in which Gemini or NVIDIA performs actual web research without an explicit investigator-adapter configuration is an architecture/infrastructure failure, not a successful investigator run.
 
 ## Relationship to the 40K plan
 
-This document is a normative correction to the living 40K plan. It supersedes any earlier wording that describes `Groq -> Mistral -> Gemini -> NVIDIA` as a single Dig provider chain. Gemini and NVIDIA remain part of Apex's multi-model architecture, but they belong to the reasoning/control layer. The investigator lane is separate.
+This document supersedes wording that describes `Groq -> Mistral` as the definition of the investigator role. That phrase may describe a temporary current implementation configuration in an implementation log, but it is not the architecture. The architecture is **investigator LLM capability pool + model-selected research capability pool**.
