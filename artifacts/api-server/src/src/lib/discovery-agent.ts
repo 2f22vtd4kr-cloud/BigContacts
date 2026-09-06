@@ -1,3 +1,4 @@
+// INVARIANT: deterministic candidate selection rather than model-owned discovery is prohibited; the Investigator owns candidate selection.
 /**
  * Discovery agent — free LLM loop to propose people with public basis.
  * Does NOT promote contacts onto entity cards. Output is candidates for discovery-intake.
