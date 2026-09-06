@@ -162,10 +162,7 @@ function extractQuery(e: OpsEvent): string | undefined {
       }
     }
   }
-  // Fallback: honest synthetic query from target name only (never template meta)
-  if (/discover|serp|search|tavily|perplexity|google|gemini|serper|exa|perp/i.test(pickTool(e) + (e.stage || ""))) {
-    return e.targetName ? `${e.targetName} contact email phone` : undefined;
-  }
+  // No target-name fallback: a query is renderable only when it was explicitly recorded by the live event.
   return undefined;
 }
 
