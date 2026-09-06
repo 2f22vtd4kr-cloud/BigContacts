@@ -19,6 +19,30 @@ if (!s.includes(helperMarker)) {
   s = s.replace(anchor, helper + anchor);
 }
 
+// Make search-provider choice a real model action instead of documentation-only.
+if (!/\| \{ action: "web_search"; query: string; provider\?:/.test(s)) {
+  s = s.replace(
+    '| { action: "web_search"; query: string; thought?: string }',
+    '| { action: "web_search"; query: string; provider?: "serper" | "tavily" | "exa"; thought?: string }',
+  );
+}
+
+const searchReturn = 'return { action: "web_search", query: o.query.trim().slice(0, 300), thought: typeof o.thought === "string" ? o.thought : undefined };';
+if (s.includes(searchReturn) && !s.includes('provider: requestedProvider')) {
+  s = s.replace(
+    searchReturn,
+    'const requestedProvider = ["serper", "tavily", "exa"].includes(String(o.provider)) ? (String(o.provider) as "serper" | "tavily" | "exa") : undefined;\n      return { action: "web_search", query: o.query.trim().slice(0, 300), provider: requestedProvider, thought: typeof o.thought === "string" ? o.thought : undefined };',
+  );
+}
+
+// Ensure the JSON schema advertises the provider selector when the schema is present.
+if (!/provider:\s*\{ type: "string", enum: \["serper", "tavily", "exa"\] \}/.test(s)) {
+  s = s.replace(
+    'query: { type: "string" },\n    url: { type: "string" },',
+    'query: { type: "string" },\n    provider: { type: "string", enum: ["serper", "tavily", "exa"] },\n    url: { type: "string" },',
+  );
+}
+
 const start = s.indexOf("const providers: Array<[string, (prompt: string) => Promise<{ model: string; raw: string } | null>]>");
 if (start < 0) throw new Error("investigator capability pool: provider array not found");
 const end = s.indexOf("    ];", start);
