@@ -21,8 +21,8 @@ MODEL ROLE SEPARATION: Gemini is the canonical Boss/head-investigator reasoning 
 PROVENANCE: raw page text is observation, not identity. A model hypothesis is not an identity claim. An identity claim requires attributable evidence. A contact route requires evidence and correct scope. Organization routes are not personal routes unless the evidence explicitly establishes that relationship.`;
 
 export const APEX_OSINT_TOOL_SURFACE = `OSINT TOOL SURFACE (available to dig investigators — choose when useful, never forced in a fixed order):
-- web_search — Serper / Tavily / Exa / DDG
-SEARCH/BROWSE TOOLS (not promotion authorities): web_search routes Serper → Tavily → Exa → DDG; visit/browser_fetch may use HTTP then Scrapfly/ZenRows/Browserless. Specialist: domain_lookup, registry_search, footprint_*, harvest_domain. The investigator chooses tools; providers only execute.
+- web_search — Investigator-selected Serper / Tavily / Exa
+SEARCH/BROWSE TOOLS (not promotion authorities): web_search executes only the provider explicitly selected by the Investigator; there is no cross-provider research fallback. Provider-specific key/transport retries are execution mechanics only. visit/browser_fetch may use HTTP then Scrapfly/ZenRows/Browserless. Specialist: domain_lookup, registry_search, footprint_*, harvest_domain. The investigator chooses tools; providers only execute.
 - visit — HTTP fetch + contact-fact extraction from HTML
 - browser_fetch — Scrapfly / ZenRows for JS/challenge pages
 - footprint_email — Holehe (email → platform presence)
