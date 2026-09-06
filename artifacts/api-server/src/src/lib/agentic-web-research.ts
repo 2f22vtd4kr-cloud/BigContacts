@@ -444,7 +444,11 @@ function parseAction(raw: string): AgentAction | null {
     const o = JSON.parse(json) as Record<string, unknown>;
     const action = String(o.action ?? "").toLowerCase();
     if (action === "web_search" && typeof o.query === "string" && o.query.trim()) {
-      return { action: "web_search", query: o.query.trim().slice(0, 300), thought: typeof o.thought === "string" ? o.thought : undefined };
+      const requestedProvider = ["serper", "tavily", "exa"].includes(String(o.provider))
+        ? (String(o.provider) as "serper" | "tavily" | "exa")
+        : undefined;
+      if (!requestedProvider) return null;
+      return { action: "web_search", query: o.query.trim().slice(0, 300), provider: requestedProvider, thought: typeof o.thought === "string" ? o.thought : undefined };
     }
     if (action === "visit" && typeof o.url === "string" && /^https?:\/\//i.test(o.url)) {
       return { action: "visit", url: o.url.trim(), thought: typeof o.thought === "string" ? o.thought : undefined };
@@ -613,6 +617,7 @@ const AGENTIC_ACTION_SCHEMA = {
   properties: {
     action: { type: "string", enum: ["web_search", "visit", "footprint_email", "footprint_username", "domain_lookup", "registry_search", "harvest_domain", "browser_fetch", "done"] },
     query: { type: "string" },
+    provider: { type: "string", enum: ["serper", "tavily", "exa"] },
     url: { type: "string" },
     email: { type: "string" },
     username: { type: "string" },
