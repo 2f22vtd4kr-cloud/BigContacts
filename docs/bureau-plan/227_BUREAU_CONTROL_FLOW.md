@@ -54,7 +54,7 @@ Operator → Atlas
   → Investigator proposes promotion
 ```
 
-There is no separate Investigator decision model between the oversight layer and the Investigator LLM. There is no forced search sequence or deterministic research fallback.
+There is no the selected Investigator LLM owns the investigation decision between the oversight layer and the Investigator LLM. There is no forced search sequence or deterministic research fallback.
 
 ## Mode 3 — Case Bureau adaptive
 
