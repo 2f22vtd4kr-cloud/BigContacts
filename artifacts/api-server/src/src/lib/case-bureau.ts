@@ -975,6 +975,7 @@ export async function runGeminiBossPlan(input: {
     decision: null,
     reason: null,
     investigatorPrompt: null,
+    investigatorLlm: null,
     restrictions: [],
     tools: [],
     evidenceRequirements: [],
