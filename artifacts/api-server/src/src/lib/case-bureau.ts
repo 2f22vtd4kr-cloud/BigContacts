@@ -791,14 +791,7 @@ Return ONLY JSON in this shape:
 }
 Candidates are review-only. Never invent a name, wealth claim, relationship, contact detail, or URL.`;
   try {
-    // Groq-first for discovery brief text: Gemini is text-only Boss (no web search) and
-    // often 429s on capacity. Groq keeps the shaft moving; Gemini still tried as upgrade.
-    let generated = await generateGroqBossText(prompt);
-    if (!generated.raw) {
-      const gem = await generateGeminiBossText(selection, prompt);
-      if (gem.raw) generated = gem;
-      else generated = { model: gem.model || generated.model, raw: null, error: gem.error || generated.error };
-    }
+    const generated = await generateGeminiBossText(selection, prompt);
     if (!generated.raw) {
       return {
         status: "unavailable",
@@ -808,7 +801,7 @@ Candidates are review-only. Never invent a name, wealth claim, relationship, con
         citations: [],
         nextDirections: [],
         uncertainties: [],
-        error: generated.error ?? "Boss text generation returned no text for the discovery brief.",
+        error: generated.error ?? "Gemini Boss text generation returned no text for the discovery brief.",
       };
     }
     const parsed = parseBossDiscoveryResponse(generated.raw);
@@ -1003,13 +996,7 @@ export async function runGeminiBossPlan(input: {
   if (queuedActions.length === 0) return unavailable("The case file has no queued actions.");
   try {
     const planPrompt = buildGeminiBossPlanPrompt(input);
-    // Groq-first: avoid Gemini text-gen 429 stalls on plan steps (Gemini has no web search here)
-    let generated = await generateGroqBossText(planPrompt);
-    if (!generated.raw) {
-      const gem = await generateGeminiBossText(selection, planPrompt);
-      if (gem.raw) generated = gem;
-      else generated = { model: gem.model || generated.model, raw: null, error: gem.error || generated.error };
-    }
+    const generated = await generateGeminiBossText(selection, planPrompt);
     if (!generated.raw) return unavailable(generated.error ?? "Boss plan text generation returned no text.");
     const parsed = parseBossPlanResponse(generated.raw, queuedActions);
     return parsed
