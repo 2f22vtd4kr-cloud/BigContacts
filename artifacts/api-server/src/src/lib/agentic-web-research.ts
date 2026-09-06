@@ -292,50 +292,23 @@ async function toolWebSearchExa(query: string): Promise<{ text: string; urls: st
 }
 
 async function toolWebSearch(query: string, requestedProvider?: "serper" | "tavily" | "exa"): Promise<{ text: string; urls: string[]; provider: "serper" | "tavily" | "exa" | "ddg" }> {
-  // Prefer Serper, then Tavily, then Exa, then DDG. Providers are tools — not promotion authorities.
-  if (requestedProvider === "serper") { const r = await toolWebSearchSerper(query); return r && r.urls.length ? { ...r, provider: "serper" } : { text: "SERPER requested but unavailable/no results", urls: [], provider: "serper" }; }
-  if (requestedProvider === "tavily") { const r = await toolWebSearchTavily(query); return r && (r.urls.length || r.text.length > 40) ? { ...r, provider: "tavily" } : { text: "TAVILY requested but unavailable/no results", urls: [], provider: "tavily" }; }
-  if (requestedProvider === "exa") { const r = await toolWebSearchExa(query); return r && (r.urls.length || r.text.length > 40) ? { ...r, provider: "exa" } : { text: "EXA requested but unavailable/no results", urls: [], provider: "exa" }; }
-  const serper = await toolWebSearchSerper(query);
-  if (serper && serper.urls.length > 0) return { ...serper, provider: "serper" };
-
-  const tavily = await toolWebSearchTavily(query);
-  if (tavily && (tavily.urls.length > 0 || tavily.text.length > 40)) return { ...tavily, provider: "tavily" };
-
-  const exa = await toolWebSearchExa(query);
-  if (exa && (exa.urls.length > 0 || exa.text.length > 40)) return { ...exa, provider: "exa" };
-
-  const url = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}&kl=us-en`;
-  try {
-    const resp = await fetch(url, {
-      signal: AbortSignal.timeout(14_000),
-      headers: {
-        "User-Agent": randomUA(),
-        Accept: "text/html",
-        "Accept-Language": "en-US,en;q=0.9",
-      },
-    });
-    if (!resp.ok) return { ...(exa ?? tavily ?? serper ?? { text: "", urls: [] }), provider: exa ? "exa" : tavily ? "tavily" : serper ? "serper" : "ddg" };
-    const html = await resp.text();
-    const urls: string[] = [];
-    for (const m of html.matchAll(/uddg=([^&"]+)/g)) {
-      try {
-        const u = decodeURIComponent(m[1]!);
-        if (/^https?:\/\//i.test(u) && !/duckduckgo\.com/i.test(u)) urls.push(u);
-      } catch { /* skip */ }
-    }
-    for (const m of html.matchAll(/href="(https?:\/\/[^"]+)"/g)) {
-      const u = m[1]!;
-      if (!/duckduckgo|google\.|bing\.|yahoo\./i.test(u)) urls.push(u);
-    }
-    const text = filterPassagesForQuery(stripHtml(html), query, { maxChars: MAX_OBS });
-    const out = { text, urls: [...new Set(urls)].slice(0, 10), provider: "ddg" as const };
-    if (out.urls.length === 0 && (exa || tavily || serper)) return { ...(exa ?? tavily ?? serper!), provider: (exa ? "exa" : tavily ? "tavily" : "serper") };
-    return out;
-  } catch (err: any) {
-    logger.debug({ err: err?.message, query }, "agentic web_search failed");
-    return { ...(exa ?? tavily ?? serper ?? { text: "", urls: [] }), provider: exa ? "exa" : tavily ? "tavily" : serper ? "serper" : "ddg" };
+  if (requestedProvider === "serper") {
+    const r = await toolWebSearchSerper(query);
+    return r && r.urls.length ? { ...r, provider: "serper" } : { text: "SERPER requested but unavailable/no results", urls: [], provider: "serper" };
   }
+  if (requestedProvider === "tavily") {
+    const r = await toolWebSearchTavily(query);
+    return r && (r.urls.length || r.text.length > 40) ? { ...r, provider: "tavily" } : { text: "TAVILY requested but unavailable/no results", urls: [], provider: "tavily" };
+  }
+  if (requestedProvider === "exa") {
+    const r = await toolWebSearchExa(query);
+    return r && (r.urls.length || r.text.length > 40) ? { ...r, provider: "exa" } : { text: "EXA requested but unavailable/no results", urls: [], provider: "exa" };
+  }
+  return {
+    text: "No search provider was selected by the Investigator. web_search requires an explicit provider selection.",
+    urls: [],
+    provider: "ddg",
+  };
 }
 
 /** Deterministic contact-surface extractor from raw HTML — survives passage filter.
@@ -754,17 +727,25 @@ function releaseAgenticProviderDecisionSlot(): void {
   if (next) next();
 }
 
-async function llmStep(prompt: string): Promise<{ model: string; raw: string } | null> {
+async function llmStep(prompt: string, selectedInvestigatorLlm?: "groq" | "mistral"): Promise<{ model: string; raw: string } | null> {
   await acquireAgenticProviderDecisionSlot();
   try {
     const providers: Array<[string, (prompt: string) => Promise<{ model: string; raw: string } | null>]> = [
-      ["groq", callGroqJson],
-      ["mistral", callMistralJson],
+      ...(process.env.GROQ_API_KEY ? [["groq", callGroqJson] as [string, (prompt: string) => Promise<{ model: string; raw: string } | null>]] : []),
+      ...(process.env.MISTRAL_API_KEY ? [["mistral", callMistralJson] as [string, (prompt: string) => Promise<{ model: string; raw: string } | null>]] : []),
     ];
+    const orderedProviders = selectedInvestigatorLlm
+      ? [...providers.filter(([name]) => name === selectedInvestigatorLlm), ...providers.filter(([name]) => name !== selectedInvestigatorLlm)]
+      : providers;
     const providerDecisionTimeoutMs = Math.max(55_000, Number(process.env.AGENTIC_PROVIDER_DECISION_TIMEOUT_MS || "55000"));
     const errors: string[] = [];
 
-    for (const [name, fn] of providers) {
+    if (!selectedInvestigatorLlm) {
+      setAgenticLlmHealth(false, null, "No Boss-selected Investigator LLM was propagated into ReAct");
+      return null;
+    }
+
+    for (const [name, fn] of orderedProviders) {
       try {
         if (name === "groq") await waitForGroqAgenticPace();
         const out = await new Promise<{ model: string; raw: string } | null>((resolve, reject) => {
@@ -783,7 +764,7 @@ async function llmStep(prompt: string): Promise<{ model: string; raw: string } |
     }
 
     setAgenticLlmHealth(false, null, errors.join(";").slice(0, 1000));
-    logger.warn({ errors }, "[agentic] all Dig investigator LLM providers failed for step");
+    logger.warn({ errors, selectedInvestigatorLlm }, "[agentic] Investigator adapters failed for step");
     return null;
   } finally {
     releaseAgenticProviderDecisionSlot();
@@ -1438,6 +1419,8 @@ async function runAgenticWebResearchUnbounded(input: {
   targetName: string;
   companyName?: string | null;
   objective?: string;
+  /** Gemini Boss-selected Investigator LLM. */
+  investigatorLlm?: "groq" | "mistral";
   maxIterations?: number;
   /** Hard wall-clock timeout (ms). On expiry return whatever findings were already accumulated. Default 210s. */
   hardTimeoutMs?: number;
@@ -1647,7 +1630,7 @@ async function runAgenticWebResearchUnbounded(input: {
       const timer = setInterval(() => {
         emitLive({ action: "llm_wait", provider: "agentic-provider-pool", summary: "model decision still pending · " + Math.round((Date.now() - started) / 1000) + "s" });
       }, 15_000);
-      try { return await llmStep(stepPrompt); } finally { clearInterval(timer); }
+      try { return await llmStep(stepPrompt, selectedInvestigatorLlm); } finally { clearInterval(timer); }
     };
     const prompt = buildStepPrompt({
       targetName: name,
@@ -1657,7 +1640,7 @@ async function runAgenticWebResearchUnbounded(input: {
       lastObservation,
       findings,
     });
-    const llm = await llmStepWithHeartbeat(prompt);
+    const llm = await llmStepWithHeartbeat(prompt, input.investigatorLlm);
     if (!llm) {
       history.push(`step${i + 1}: llm_unavailable — no deterministic research fallback`);
       return {
