@@ -33,6 +33,9 @@ MATH_RANDOM_ALLOWLIST=(
   "social-discovery.ts"
   "messenger-discovery.ts"
   "broad-discovery.ts"
+  "dig-span.ts"                 # opaque operational event/span ids
+  "apply-discovery-mixer.mjs"   # provider-key rotation, not entity generation
+  "case-bureau.ts"              # transport backoff jitter, not synthetic data
   "research/cases.ts"
   "ai-ensemble.ts"
   "ai-extractor.ts"
