@@ -21,75 +21,39 @@ const required = [
   ["provider failures do not use a global cross-target circuit", /activeAgenticProviderDecisions/],
   ["default iteration budget is expanded", /const MAX_ITER = 40;/],
 ];
-
 for (const [label, pattern] of required) {
   if (!pattern.test(source)) throw new Error(`agentic runtime invariant failed: ${label}`);
 }
 
 const llmStepMatch = source.match(
-  /async function llmStep\(prompt: string\): Promise<\{ model: string; raw: string \} \| null> \{([\s\S]*?)\n\}\n\nfunction formatFindingsBag/,
+  /async function llmStep\(prompt: string(?:, selectedInvestigatorLlm\?: "groq" \| "mistral")?\): Promise<\{ model: string; raw: string \} \| null> \{([\s\S]*?)\n\}\n\nfunction formatFindingsBag/,
 );
 if (!llmStepMatch) throw new Error("agentic runtime invariant failed: llmStep implementation missing");
 const llmStep = llmStepMatch[1];
-if (!/const providers:/.test(llmStep) || !/providers\.*/.test(llmStep)) {
-  throw new Error("agentic runtime invariant failed: investigator adapter pool is not explicit");
-}
-if (/callGeminiJson|callNvidiaJson|\["gemini"|\["nvidia"/.test(llmStep)) {
-  throw new Error("agentic runtime invariant failed: Boss/right-hand provider leaked into investigator lane");
-}
+if (!/const providers:/.test(llmStep)) throw new Error("agentic runtime invariant failed: investigator adapter pool is not explicit");
+if (/callGeminiJson|callNvidiaJson|\["gemini"|\["nvidia"/.test(llmStep)) throw new Error("agentic runtime invariant failed: Boss/right-hand provider leaked into investigator lane");
+if (/GEMINI_API_KEY_|async function callGeminiJson\b/.test(source)) throw new Error("agentic runtime invariant failed: dormant Gemini provider remains in production Dig module");
+if (/async function callNvidiaJson\b/.test(source)) throw new Error("agentic runtime invariant failed: dormant NVIDIA investigator HTTP helper remains in production module");
+if (/DIG_INVESTIGATOR_FAILOVER_CHAIN:[^\n]*Groq -> Mistral/.test(source)) throw new Error("agentic runtime invariant failed: legacy closed Groq -> Mistral architecture marker remains");
+if (source.includes("const maxIter = Math.min(input.maxIterations ?? MAX_ITER, 24)")) throw new Error("agentic runtime invariant failed: hidden 24-iteration ceiling");
+if (source.includes("agenticProviderCircuitUntil")) throw new Error("agentic runtime invariant failed: module-global provider circuit can contaminate concurrent targets");
 
-// The Dig module may support a changing set of investigator adapters. It must not
-// retain dormant control-plane implementations just because a historical adapter
-// was once used there.
-if (/GEMINI_API_KEY_|async function callGeminiJson\b/.test(source)) {
-  throw new Error("agentic runtime invariant failed: dormant Gemini provider remains in production Dig module");
-}
-if (/async function callNvidiaJson\b/.test(source)) {
-  throw new Error("agentic runtime invariant failed: dormant NVIDIA investigator HTTP helper remains in production module");
-}
+// Selection must be a real assignment, not merely a prompt claim.
+if (!/investigatorLlm\?: "groq" \| "mistral"/.test(source)) throw new Error("agentic runtime invariant failed: selected Investigator field missing from ReAct input");
+if (!/const orderedProviders = selectedInvestigatorLlm/.test(llmStep)) throw new Error("agentic runtime invariant failed: Boss-selected Investigator is not bound to provider ordering");
+if (!/providers\.filter\(\(\[name\]\) => name === selectedInvestigatorLlm\)/.test(llmStep)) throw new Error("agentic runtime invariant failed: selected Investigator is not first-class in invocation");
 
-if (/DIG_INVESTIGATOR_FAILOVER_CHAIN:[^\n]*Groq -> Mistral/.test(source)) {
-  throw new Error("agentic runtime invariant failed: legacy closed Groq -> Mistral architecture marker remains");
-}
-if (source.includes("const maxIter = Math.min(input.maxIterations ?? MAX_ITER, 24)")) {
-  throw new Error("agentic runtime invariant failed: hidden 24-iteration ceiling");
-}
-if (source.includes("agenticProviderCircuitUntil")) {
-  throw new Error("agentic runtime invariant failed: module-global provider circuit can contaminate concurrent targets");
-}
+if (!/async function probe\(url,key,model,provider\)/.test(workflow)) throw new Error("live audit provider gate missing generic capability probe");
+if (!/digReady = groq \|\| mistral;/.test(workflow)) throw new Error("live audit provider gate must derive readiness from configured investigator adapters");
+if (!/if\(!digReady\)/.test(workflow)) throw new Error("live audit must gate launch on an actual investigator generation");
+if (!/probe\([\s\S]*?["']nvidia-right-hand["']\)/.test(workflow)) throw new Error("live audit right-hand probe is not explicitly capability-scoped");
 
-if (!/async function probe\(url,key,model,provider\)/.test(workflow)) {
-  throw new Error("live audit provider gate missing generic capability probe");
-}
-if (!/digReady = groq \|\| mistral;/.test(workflow)) {
-  throw new Error("live audit provider gate must derive readiness from configured investigator adapters");
-}
-if (!/if\(!digReady\)/.test(workflow)) {
-  throw new Error("live audit must gate launch on an actual investigator generation");
-}
-if (!/probe\([\s\S]*?["']nvidia-right-hand["']\)/.test(workflow)) {
-  throw new Error("live audit right-hand probe is not explicitly capability-scoped");
-}
-
-if (!/const canonical\s*=\s*path\.join\(here,\s*["']apply-agentic-concurrency-hardening\.mjs["']\)/.test(compatibilityHardener)) {
-  throw new Error("compatibility hardener does not resolve the canonical hardener");
-}
-if (!/spawnSync\(process\.execPath,\s*\[canonical\]/.test(compatibilityHardener)) {
-  throw new Error("compatibility hardener does not execute the canonical hardener");
-}
-
-if (!/Observation-only contact enrichment/.test(canonicalHardener)) {
-  throw new Error("observation identity boundary missing from canonical hardener");
-}
-if (!/const observationBoundaryRe\s*=/.test(canonicalHardener) || !/const observationReplacement\s*=/.test(canonicalHardener)) {
-  throw new Error("canonical hardener does not define an explicit observation replacement");
-}
-if (!/return facts\.join/.test(canonicalHardener)) {
-  throw new Error("canonical hardener observation replacement does not preserve literal contact facts");
-}
-if (/push\(`PERSON:/.test(canonicalHardener)) {
-  throw new Error("canonical hardener still manufactures PERSON findings from page extraction");
-}
+if (!/const canonical\s*=\s*path\.join\(here,\s*["']apply-agentic-concurrency-hardening\.mjs["']\)/.test(compatibilityHardener)) throw new Error("compatibility hardener does not resolve the canonical hardener");
+if (!/spawnSync\(process\.execPath,\s*\[canonical\]/.test(compatibilityHardener)) throw new Error("compatibility hardener does not execute the canonical hardener");
+if (!/Observation-only contact enrichment/.test(canonicalHardener)) throw new Error("observation identity boundary missing from canonical hardener");
+if (!/const observationBoundaryRe\s*=/.test(canonicalHardener) || !/const observationReplacement\s*=/.test(canonicalHardener)) throw new Error("canonical hardener does not define an explicit observation replacement");
+if (!/return facts\.join/.test(canonicalHardener)) throw new Error("canonical hardener observation replacement does not preserve literal contact facts");
+if (/push\(`PERSON:/.test(canonicalHardener)) throw new Error("canonical hardener still manufactures PERSON findings from page extraction");
 
 const forbidden = [
   ["forced stagnation nudge", /\[STAGNATION\]/],
@@ -97,7 +61,6 @@ const forbidden = [
   ["automatic post-search visit instruction", /Soft nudge: if we already have company-looking URLs/],
   ["Gemini temperature clamp", /generationConfig:[\s\S]{0,250}temperature:\s*0\.25/],
 ];
-
 for (const [label, pattern] of forbidden) {
   if (pattern.test(source)) throw new Error(`agentic runtime invariant failed: ${label}`);
 }
