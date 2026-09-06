@@ -98,7 +98,7 @@ Boss + Right-hand are the oversight layer that watches the accumulating work and
 ## Invariants
 
 1. No fixed search checklist or forced research hop.
-2. No separate Investigator decision model between Boss/Right-hand and the Investigator pool.
+2. No the selected Investigator LLM owns the investigation decision between Boss/Right-hand and the Investigator pool.
 3. No DeepSeek/NVIDIA Investigator fallback.
 4. No Gemini Investigator fallback.
 5. Every tool action is selected by an Investigator LLM, unless Boss/Right-hand explicitly reassign the investigation.
