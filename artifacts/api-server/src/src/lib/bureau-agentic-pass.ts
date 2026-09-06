@@ -87,6 +87,8 @@ export async function runBureauAgenticWebPass(input: {
   targetName: string;
   companyName?: string | null;
   objective?: string;
+  /** Gemini Boss-selected Investigator LLM. */
+  investigatorLlm?: "groq" | "mistral";
   caseId?: string | number;
   /** Atlas job id — mirrors live steps into job log for Reactor */
   jobId?: string;
@@ -130,6 +132,7 @@ export async function runBureauAgenticWebPass(input: {
       jobId: input.jobId ?? null,
       objective: input.objective
         ?? `Find publicly documented contact routes for ${name}${input.companyName ? ` related to ${input.companyName}` : ""}. Multi-hop. Visit primary pages. Never invent.`,
+      investigatorLlm: input.investigatorLlm,
       maxIterations: input.maxIterations ?? resolveResearchDepth().agenticMaxIterations,
       hardTimeoutMs: input.hardTimeoutMs ?? resolveResearchDepth().agenticHardTimeoutMs,
       shouldCancel: input.shouldCancel,
