@@ -130,6 +130,7 @@ export type ResearchCaseFile = {
     decision: string | null;
     reason: string | null;
     investigatorPrompt: string | null;
+    investigatorLlm?: "groq" | "mistral" | null;
     restrictions: string[];
     tools: string[];
     evidenceRequirements: string[];
@@ -322,6 +323,7 @@ export type GeminiBossPlanResult = {
   decision: string | null;
   reason: string | null;
   investigatorPrompt: string | null;
+  investigatorLlm: "groq" | "mistral" | null;
   restrictions: string[];
   tools: string[];
   evidenceRequirements: string[];
@@ -1807,6 +1809,7 @@ export function recordGeminiBossPlan(
       decision: input.decision,
       reason: input.reason,
       investigatorPrompt: input.investigatorPrompt,
+      investigatorLlm: input.investigatorLlm ?? null,
       restrictions: input.restrictions,
       tools: input.tools,
       evidenceRequirements: input.evidenceRequirements,
