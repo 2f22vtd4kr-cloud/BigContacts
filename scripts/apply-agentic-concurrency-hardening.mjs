@@ -206,5 +206,5 @@ if (s.includes(discoveryTargetLiteral)) {
 
 fs.writeFileSync(targetPath, s);
 console.log(
-  `Applied canonical Dig hardening: provider=${llmStepAlreadyCanonical ? "already Groq->Mistral" : "Groq->Mistral"}; observation boundary=literal contacts only; provider concurrency default=1; Groq pacing default=20s; compact dig orientation; max_tokens=1024; structured search result-to-URL observations; snippet identity guidance; discovery slot labels are not pseudo-person targets; no Boss/right-hand Dig providers; no global cross-target circuit`,
+  `Applied canonical Dig hardening: Investigator LLM selection=${llmStepAlreadyCanonical ? "already canonical" : "repaired"}; observation boundary=literal contacts only; provider concurrency default=1; Groq pacing default=20s; compact dig orientation; max_tokens=1024; structured search result-to-URL observations; snippet identity guidance; discovery slot labels are not pseudo-person targets; no Boss/right-hand Dig providers; no global cross-target circuit`,
 );
