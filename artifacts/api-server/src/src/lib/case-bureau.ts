@@ -1605,6 +1605,7 @@ export function applyGeminiBossPlan(
   input: {
     outcome?: BossPlanOutcome;
     actionId: string | null;
+    investigatorLlm?: "groq" | "mistral" | null;
     decision: string;
     reason: string;
     iteration: number;
