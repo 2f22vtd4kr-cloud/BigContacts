@@ -110,10 +110,13 @@ for (const line of actualSearches) {
 }
 
 if (status.status !== "done" && status.outcome !== "complete") fail(`Bureau did not finish cleanly: ${status.status || status.outcome || "unknown"}`);
+if (status.outcome && status.outcome !== "complete") {
+  fail(`Bureau terminal outcome is ${status.outcome}; provider failure cannot count as research-quality proof`);
+}
 if (health?.bureauIntegrity === "critical") {
   fail(`bureauIntegrity=critical: ${(health.bureauIntegrityReasons || []).join("; ") || "agentic runtime degraded"}`);
 }
-if (/\bdegraded=true\b/i.test(String(status.message || ""))) {
+if (/\b(?:discovery)?degraded=true\b/i.test(String(status.message || ""))) {
   fail("Bureau completed with degraded=true; provider failure cannot count as research-quality proof");
 }
 const minAdmits = Math.max(1, Number(process.env.LIVE_AUDIT_MIN_ADMITS || "1"));
