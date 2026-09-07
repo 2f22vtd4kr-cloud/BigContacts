@@ -730,7 +730,7 @@ function WindowChrome({
 }
 
 function GoogleScene({ scene, compact }: { scene: Scene; compact?: boolean }) {
-  const q = scene.query || scene.targetName || "owner contact email";
+  const q = scene.query || "";
   const typed = useTyped(q, scene.live, 44);
   const hits = (scene.resultLines.length ? scene.resultLines : (scene.live ? ["Looking through public search results…"] : ["Step finished — no detail text stored."])).slice(0, compact ? 2 : 3);
   return (
@@ -741,7 +741,7 @@ function GoogleScene({ scene, compact }: { scene: Scene; compact?: boolean }) {
       accent="#9CFF1A"
       compact={compact}
       favicon={<ProviderIcon kind="google" size={compact ? 12 : 14} />}
-      urlBar={`google.com/search?q=${encodeURIComponent(q).slice(0, 48)}`}
+       urlBar={q ? `google.com/search?q=${encodeURIComponent(q).slice(0, 48)}` : "awaiting recorded research query…"}
     >
       <div className="space-y-2.5">
         {/* Search box — browser imitation */}
@@ -859,7 +859,7 @@ function DomainScene({ scene, compact }: { scene: Scene; compact?: boolean }) {
 }
 
 function SerpScene({ scene, compact }: { scene: Scene; compact?: boolean }) {
-  const q = scene.query || scene.targetName || scene.subtitle || "owner email contact";
+  const q = scene.query || "";
   const typed = useTyped(q, scene.live, 42);
   const hits = scene.resultLines.length ? scene.resultLines : (scene.live ? ["Looking through public search results…"] : ["Step finished — no detail text stored."]);
   return (
@@ -870,7 +870,7 @@ function SerpScene({ scene, compact }: { scene: Scene; compact?: boolean }) {
       accent="#9CFF1A"
       compact={compact}
       favicon={<ProviderIcon kind={scene.provider} size={compact ? 12 : 14} />}
-      urlBar={`${providerLabel(scene.provider).toLowerCase()} · ${q.slice(0, 36)}`}
+       urlBar={q ? `${providerLabel(scene.provider).toLowerCase()} · ${q.slice(0, 36)}` : "awaiting recorded research query…"}
     >
       <div className="space-y-3">
         <div className="flex items-center gap-2 rounded-full border border-lime-500/30 bg-[#0d1219] px-3 py-2.5">

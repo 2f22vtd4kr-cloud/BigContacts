@@ -39,6 +39,7 @@ MATH_RANDOM_ALLOWLIST=(
   "research/cases.ts"
   "ai-ensemble.ts"
   "ai-extractor.ts"
+  "agentic-web-research.ts"      # randomized User-Agent selection, not entity generation
 )
 
 echo "╔══════════════════════════════════════════════════════╗"

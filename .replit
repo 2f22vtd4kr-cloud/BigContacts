@@ -18,7 +18,28 @@ APEX_SKIP_SEMANTIC = "1"
 CI = "true"
 
 [workflows]
-runButton = "API Server"
+runButton = "Project"
+
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Apex Atlas API"
+
+[[workflows.workflow]]
+name = "Apex Atlas API"
+author = "agent"
+
+[workflows.workflow.metadata]
+outputType = "console"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "bash scripts/replit-boot.sh"
+waitForPort = 8080
 
 [userenv]
 

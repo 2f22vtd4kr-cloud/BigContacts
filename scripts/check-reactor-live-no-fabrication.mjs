@@ -13,7 +13,7 @@ const bureauText = fs.readFileSync(bureau, "utf8");
 const modelText = fs.readFileSync(model, "utf8");
 
 const forbiddenSyntheticQuery = /return\s+e\.targetName\s*\?\s*`\$\{e\.targetName\}\s+contact\s+email\s+phone`/;
-const explicitQueryContract = /explicitResearchQuery[\s\S]*?Deliberately no target-name fallback/;
+const explicitQueryContract = /Deliberately no target-name fallback[\s\S]*?explicitResearchQuery/;
 const explicitQueryOnly = /return\s+cleanResearchText\(match\?\.\[1\]/;
 
 if (forbiddenSyntheticQuery.test(bureauText)) {
