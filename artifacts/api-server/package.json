@@ -17,11 +17,10 @@
     "cors": "^2.0.0",
     "drizzle-orm": "catalog:",
     "express": "^5.2.1",
-    "drizzle-orm": "catalog:",
-    "cors": "^2.0.0",
     "ioredis": "^5.7.0",
     "pino": "^9.14.0",
-    "pino-http": "^10.5.0"
+    "pino-http": "^10.5.0",
+    "thread-stream": "3.1.0"
   },
   "devDependencies": {
     "@types/cookie-parser": "^1.4.10",
