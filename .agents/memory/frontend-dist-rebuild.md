@@ -7,4 +7,4 @@ The API workflow does not rebuild the frontend when `artifacts/apex-finder/dist/
 
 **Why:** A profile navigation fix appeared ineffective because the API restart reused the previous production bundle rather than compiling the changed React source.
 
-**How to apply:** After frontend source changes, run the Apex Finder client build before restarting the API workflow and verify the served DOM or screenshot, not only the TypeScript source.
+**How to apply:** After frontend source changes, run the Apex Finder client build before restarting the API workflow and verify the served DOM or screenshot, not only the TypeScript source. The same restart rule applies after rebuilding the API bundle: the running Node process keeps its previously loaded `dist` until the managed workflow restarts.

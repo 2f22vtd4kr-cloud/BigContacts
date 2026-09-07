@@ -143,7 +143,7 @@ export async function runDiscoveryAgent(input: { jobId?: string; targetCount?: n
         try { completeDigSpan(jobId, slotSpan.id, { status: slotCandidates.length ? "ok" : "error", resultSummary: `slot=${slot + 1}/${requestedBatch} investigator_decisions=${slotCandidates.length} searches=${result.searches} visits=${result.visits} (modelFindings only — not infra extract)` }); } catch { /* best-effort */ }
         try { await input.onSlotProgress?.({ slot: slot + 1, batch: requestedBatch, phase: "end", candidatesInSlot: slotCandidates.length }); } catch { /* best-effort */ }
         totalSearches += result.searches ?? 0; totalVisits += result.visits ?? 0; lastModel = result.model || lastModel; lastMessage = result.error || result.status || "completed";
-        if (result.status === "unavailable" || result.status === "error") degraded = true;
+        if (result.status === "unavailable" || result.status === "error" || result.status === "timeout") degraded = true;
         for (const candidate of slotCandidates) {
           try { publishDigSpan({ jobId, spanType: "stage", name: "investigator_promotion_decision", status: "ok", agentName: "discovery", inputSummary: candidate.name, resultSummary: `INVESTIGATOR_PROMOTION_DECISION name=${candidate.name} sources=${(candidate.sourceUrls || []).slice(0, 2).join("|")} — awaiting durable persist` }); } catch { /* best-effort */ }
           const key = candidate.name.toLowerCase(); if (seen.has(key)) continue; seen.add(key); candidates.push(candidate);
