@@ -34,6 +34,7 @@ const bossRequired = [
   "What is newly known since the previous iteration?",
   "What remains genuinely unresolved?",
   "What would be redundant with work already done?",
+  "buildBossDecisionContext(input.file)",
 ];
 for (const marker of bossRequired) {
   if (!boss.includes(marker)) {
