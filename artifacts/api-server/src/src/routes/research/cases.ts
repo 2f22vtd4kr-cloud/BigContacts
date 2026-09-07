@@ -1786,6 +1786,7 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
         {
           status: "unavailable" as const,
           model: "timeout",
+          investigatorLlm: null,
           report: null,
           candidates: [],
           citations: [],

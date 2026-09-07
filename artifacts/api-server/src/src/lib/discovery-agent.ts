@@ -94,7 +94,7 @@ export function parsePersonFindings(findings: DiscoveryFinding[], trajectory: st
   return out.slice(0, 30);
 }
 
-export async function runDiscoveryAgent(input: { jobId?: string; targetCount?: number; depth?: "fast" | "standard" | "deep"; laneHint?: string; hardTimeoutMs?: number; onLiveStep?: (step: { action: string; tool?: string; query?: string; url?: string; status: "ok" | "error" | "active"; detail?: string }) => void; onCandidate?: (candidate: DiscoveryCandidate, meta: { slot: number; batch: number }) => void | Promise<void>; onSlotProgress?: (meta: { slot: number; batch: number; phase: "start" | "end"; candidatesInSlot: number }) => void | Promise<void>; }): Promise<DiscoveryAgentResult> {
+export async function runDiscoveryAgent(input: { jobId?: string; targetCount?: number; depth?: "fast" | "standard" | "deep"; laneHint?: string; investigatorLlm?: "groq" | "mistral"; hardTimeoutMs?: number; onLiveStep?: (step: { action: string; tool?: string; query?: string; url?: string; status: "ok" | "error" | "active"; detail?: string }) => void; onCandidate?: (candidate: DiscoveryCandidate, meta: { slot: number; batch: number }) => void | Promise<void>; onSlotProgress?: (meta: { slot: number; batch: number; phase: "start" | "end"; candidatesInSlot: number }) => void | Promise<void>; }): Promise<DiscoveryAgentResult> {
   const jobId = input.jobId ?? `discovery_${Date.now()}`; const depth = input.depth ?? "standard";
   const requestedBatch = Math.max(1, Math.min(10, Number.isFinite(Number(input.targetCount)) && Number(input.targetCount) > 0 ? Number(input.targetCount) : Number(process.env.APEX_DISCOVERY_BATCH_SIZE || process.env.APEX_DISCOVERY_DEFAULT_BATCH || "3")));
   const maxIterationsPerSlot = depth === "fast" ? 7 : depth === "deep" ? 18 : 14;
@@ -129,7 +129,7 @@ export async function runDiscoveryAgent(input: { jobId?: string; targetCount?: n
       const slotSpan = publishDigSpan({ jobId, spanType: "stage", name: "discovery_slot", status: "active", agentName: "discovery", inputSummary: `slot=${slot + 1}/${requestedBatch} concurrent=false` });
       try { await input.onSlotProgress?.({ slot: slot + 1, batch: requestedBatch, phase: "start", candidatesInSlot: 0 }); } catch { /* best-effort */ }
       try {
-        const result = await runAgenticWebResearch({ targetName: `Discovery slot ${slot + 1}`, companyName: null, objective, maxIterations: maxIterationsPerSlot, hardTimeoutMs: slotTimeout, jobId, onLiveStep: (step) => {
+        const result = await runAgenticWebResearch({ targetName: `Discovery slot ${slot + 1}`, companyName: null, objective, investigatorLlm: input.investigatorLlm, maxIterations: maxIterationsPerSlot, hardTimeoutMs: slotTimeout, jobId, onLiveStep: (step) => {
           try { spanFromLiveStep({ jobId, targetName: "discovery", tool: step.provider || step.action, label: step.query || step.url || step.action, detail: step.summary || step.url || step.query, status: "ok", agentName: "discovery" }); } catch { /* spans best-effort */ }
           input.onLiveStep?.({ action: step.action, tool: step.provider || step.action, query: step.query, url: step.url, detail: step.summary, status: "ok" });
         } });

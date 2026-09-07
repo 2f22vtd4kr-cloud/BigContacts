@@ -298,6 +298,7 @@ export type GeminiBossModelSelection = {
 export type GeminiBossDiscoveryResult = {
   status: "completed" | "pending" | "unavailable";
   model: string;
+  investigatorLlm: "groq" | "mistral" | null;
   report: string | null;
   candidates: Array<{
     name: string;
@@ -641,13 +642,21 @@ function extractJsonObject(value: string): string | null {
 function parseBossDiscoveryResponse(raw: string): {
   report: string;
   candidates: GeminiBossDiscoveryResult["candidates"];
+  investigatorLlm: "groq" | "mistral" | null;
   nextDirections: string[];
   uncertainties: string[];
 } {
   const json = extractJsonObject(raw);
-  if (!json) return { report: raw.trim(), candidates: [], nextDirections: [], uncertainties: [] };
+  if (!json) return { report: raw.trim(), candidates: [], investigatorLlm: null, nextDirections: [], uncertainties: [] };
   try {
     const parsed = JSON.parse(json) as Record<string, unknown>;
+    const rawInvestigatorLlm = typeof parsed.investigatorLlm === "string"
+      ? parsed.investigatorLlm.trim().toLowerCase()
+      : "";
+    const investigatorLlm: "groq" | "mistral" | null =
+      rawInvestigatorLlm === "groq" || rawInvestigatorLlm === "mistral"
+        ? rawInvestigatorLlm
+        : null;
     const rawCandidates = Array.isArray(parsed.candidates)
       ? parsed.candidates
       : Array.isArray(parsed.discoveredCandidates)
@@ -678,9 +687,9 @@ function parseBossDiscoveryResponse(raw: string): {
     const uncertainties = Array.isArray(parsed.uncertainties)
       ? uniqueStrings(parsed.uncertainties, 12)
       : [];
-    return { report, candidates, nextDirections, uncertainties };
+    return { report, candidates, investigatorLlm, nextDirections, uncertainties };
   } catch {
-    return { report: raw.trim(), candidates: [], nextDirections: [], uncertainties: [] };
+    return { report: raw.trim(), candidates: [], investigatorLlm: null, nextDirections: [], uncertainties: [] };
   }
 }
 
@@ -739,6 +748,7 @@ export async function runGeminiBossDiscovery(input: {
     return {
       status: selection.status,
       model: selection.model,
+      investigatorLlm: null,
       report: null,
       candidates: [],
       citations: [],
@@ -766,6 +776,7 @@ ${input.file ? buildDiscoveryProgressSnapshot(input.file) : "No prior investigat
 Return ONLY JSON in this shape:
      {
   "report": "concise evidence-led opening assessment",
+  "investigatorLlm": "groq | mistral",
   "candidates": [
     {
       "name": "candidate name",
@@ -796,6 +807,7 @@ Candidates are review-only. Never invent a name, wealth claim, relationship, con
       return {
         status: "unavailable",
         model: generated.model,
+        investigatorLlm: null,
         report: null,
         candidates: [],
         citations: [],
@@ -808,6 +820,7 @@ Candidates are review-only. Never invent a name, wealth claim, relationship, con
     return {
       status: "completed",
       model: generated.model,
+      investigatorLlm: parsed.investigatorLlm,
       report: parsed.report || generated.raw,
       candidates: parsed.candidates,
       citations: [],
@@ -819,6 +832,7 @@ Candidates are review-only. Never invent a name, wealth claim, relationship, con
     return {
       status: "unavailable",
       model: selection.model,
+      investigatorLlm: null,
       report: null,
       candidates: [],
       citations: [],

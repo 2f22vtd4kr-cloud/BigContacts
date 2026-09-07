@@ -2138,21 +2138,33 @@ async function runModelSelectedDiscoveryBureau(
   };
 
   await status("Boss: research direction for discovery-first…", 0);
+  let discoveryInvestigatorLlm: "groq" | "mistral" | null = null;
   try {
-    const { resolveGeminiBossModel, generateGeminiBossText } = await import("./case-bureau");
-    const selection = await resolveGeminiBossModel();
-    if (selection?.model) {
-      const brief = await generateGeminiBossText(
-        selection,
-        "Apex Boss: short direction for finding reachable principals (founders/owners/operators), not celebrity lists. "
-        + "No search queries or tool hop lists. 3-6 sentences only.",
-      );
-      if (brief?.raw) {
-        const bossLine = `BOSS_DISCOVERY_DIRECTION model=${brief.model} ${String(brief.raw).slice(0, 400)}`;
-        await appendJobLog(atlasJobId, bossLine, { dedupeKey: "BOSS_DIRECTION_WRITTEN" }).catch(() => {
-          void appendJobLog(atlasJobId, bossLine).catch(() => {});
-        });
-      }
+    const { runGeminiBossDiscovery } = await import("./case-bureau");
+    const brief = await runGeminiBossDiscovery({
+      objective: "Find realistic public routes to named founders, owners, operators, investors, or intermediaries who could support a useful investor conversation.",
+      motivation: "Apex Atlas is validating one real model-directed Bureau research trajectory with source-backed identity and an attributable public contact route.",
+      geography: "Western-world public web sources and registries",
+      exclusions: [
+        "Never invent people, contacts, relationships, or URLs.",
+        "Do not use celebrity or billionaire rankings as a discovery method.",
+        "Keep organization routes separate from personal contact claims.",
+      ],
+      startingLane: "model-selected public-web discovery",
+    });
+    discoveryInvestigatorLlm = brief.investigatorLlm;
+    const bossLine = `BOSS_DISCOVERY_DIRECTION model=${brief.model} investigator=${brief.investigatorLlm ?? "none"} ${JSON.stringify({
+      status: brief.status,
+      report: brief.report,
+      nextDirections: brief.nextDirections,
+      uncertainties: brief.uncertainties,
+      error: brief.error,
+    }).slice(0, 900)}`;
+    await appendJobLog(atlasJobId, bossLine, { dedupeKey: "BOSS_DIRECTION_WRITTEN" }).catch(() => {
+      void appendJobLog(atlasJobId, bossLine).catch(() => {});
+    });
+    if (!discoveryInvestigatorLlm) {
+      logger.warn({ atlasJobId, bossStatus: brief.status, error: brief.error }, "[discovery-first] Boss did not select an Investigator LLM");
     }
   } catch { /* optional */ }
   await status("AI discovery agent: model-selected public people hunt…", 0);
@@ -2165,6 +2177,7 @@ async function runModelSelectedDiscoveryBureau(
   const admittedIds: number[] = [];
   const discovery = await runDiscoveryAgent({
     jobId: atlasJobId,
+    investigatorLlm: discoveryInvestigatorLlm ?? undefined,
     // Discovery slots are part of the caller's lifecycle budget. A 3-target
     // smoke must not silently fan out to the environment default of 10 slots.
     targetCount: targetLimit,
@@ -2292,6 +2305,7 @@ async function runModelSelectedDiscoveryBureau(
         jobId: atlasJobId,
         entityId: entity.id,
         persist: true,
+        investigatorLlm: discoveryInvestigatorLlm ?? undefined,
         objective: [
           apexOrientationCompact("investigator"),
           `Research the public identity and contact surface for ${entity.name}${companyName ? ` (${companyName})` : ""}.`,
