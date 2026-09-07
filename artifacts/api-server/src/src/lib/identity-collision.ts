@@ -79,12 +79,46 @@ export function assessIdentityCollision(input: {
     };
   }
 
+  const overlap = targetToks.filter((t) => blob.includes(t));
+  const hostHit = COLLISION_HOSTS.some((h) => blob.includes(h));
+
+  // A named-person surname mismatch is stronger evidence than a broad company
+  // host hit. Check it before company attribution so a collision-prone employer
+  // cannot mask an explicitly different surname.
+  const personToks = identityNameTokens(input.personName);
+  if (targetToks.length >= 2 && personToks.length >= 2) {
+    const targetSurname = targetToks[targetToks.length - 1]!;
+    const personSurname = personToks[personToks.length - 1]!;
+    if (
+      targetSurname.length >= 3 &&
+      personSurname.length >= 3 &&
+      targetSurname !== personSurname
+    ) {
+      return {
+        risk: true,
+        identityMatch: 0.18,
+        reason: `personName surname "${personSurname}" ≠ target surname "${targetSurname}"`,
+      };
+    }
+  }
+
+  // When the target has a full name, missing surname evidence is also stronger
+  // than a generic employer/domain match.
+  if (targetToks.length >= 2) {
+    const surname = targetToks[targetToks.length - 1]!;
+    if (surname.length >= 3 && !blob.includes(surname) && overlap.length < 2) {
+      return {
+        risk: true,
+        identityMatch: 0.22,
+        reason: "surname token missing from evidence blob; likely name collision",
+      };
+    }
+  }
+
   if (companyToks.length && companyToks.some((t) => blob.includes(t))) {
     return { risk: false, identityMatch: 0.55, reason: null };
   }
 
-  const overlap = targetToks.filter((t) => blob.includes(t));
-  const hostHit = COLLISION_HOSTS.some((h) => blob.includes(h));
   if (hostHit && companyToks.length && !companyToks.some((t) => blob.includes(t))) {
     return {
       risk: true,
@@ -105,32 +139,6 @@ export function assessIdentityCollision(input: {
       identityMatch: 0.25,
       reason: "weak name overlap with collision-prone host",
     };
-  }
-  if (targetToks.length >= 2) {
-    const surname = targetToks[targetToks.length - 1]!;
-    if (surname.length >= 3 && !blob.includes(surname) && overlap.length < 2) {
-      return {
-        risk: true,
-        identityMatch: 0.22,
-        reason: "surname token missing from evidence blob; likely name collision",
-      };
-    }
-  }
-  const personToks = identityNameTokens(input.personName);
-  if (targetToks.length >= 2 && personToks.length >= 2) {
-    const targetSurname = targetToks[targetToks.length - 1]!;
-    const personSurname = personToks[personToks.length - 1]!;
-    if (
-      targetSurname.length >= 3 &&
-      personSurname.length >= 3 &&
-      targetSurname !== personSurname
-    ) {
-      return {
-        risk: true,
-        identityMatch: 0.18,
-        reason: `personName surname "${personSurname}" ≠ target surname "${targetSurname}"`,
-      };
-    }
   }
   return {
     risk: false,
