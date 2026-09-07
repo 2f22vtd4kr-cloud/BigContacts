@@ -6,9 +6,8 @@ const target = path.join(root, "artifacts/api-server/src/src/lib/case-bureau-pro
 let source = fs.readFileSync(target, "utf8");
 
 const helper = `function buildBossDecisionContext(file: PlanInput["file"]): string {
-  const queued = (file.actionQueue ?? []).filter((action) => action.status === "queued").slice(0, 16);
+  const queued = (file.actionQueue ?? []).filter((action) => action.status === "queued").slice().sort((a, b) => Number(b.priority ?? 0) - Number(a.priority ?? 0)).slice(0, 16);
   const recentCompleted = (file.actionQueue ?? []).filter((action) => action.status !== "queued").slice(-8);
-  const recentContacts = (file.contactRoutes ?? []).slice(-16);
   const evidence = file.evidenceSummary ?? {};
   return JSON.stringify({
     target: file.target,
@@ -21,7 +20,7 @@ const helper = `function buildBossDecisionContext(file: PlanInput["file"]): stri
     },
     specialistRoster: file.specialistRoster ?? [],
     actionFrontier: { queued, recentCompleted },
-    contactRoutes: recentContacts,
+    contactRoutes: (file.contactRoutes ?? []).slice(-16),
     humanDirectives: (file.humanDirectives ?? []).slice(-8),
     decisionLog: (file.decisionLog ?? []).slice(-8),
     rightHandAdvice: file.rightHandAdvice ?? null,
