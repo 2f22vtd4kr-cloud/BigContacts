@@ -83,7 +83,9 @@ async function requestDeepSeekCompletion(
         messages,
         temperature: 1,
         top_p: 0.95,
-        max_tokens: 16384,
+        // Right-hand output is intentionally bounded: its job is strategic
+        // diagnosis, not to consume an investigator-sized reasoning budget.
+        max_tokens: 4096,
         reasoning_effort: "high",
         ...(options.responseFormat ? { response_format: options.responseFormat } : {}),
         stream: false,
@@ -175,6 +177,34 @@ function buildReasoningPrompt(file: ResearchCaseFile, iteration: number): string
         vectors: file.investigationProgress.vectors,
       }, null, 2)
     : "null";
+  const coordination = JSON.stringify({
+    iteration,
+    lastUpdatedBy: file.lastUpdatedBy,
+    recentDecisions: file.decisionLog.slice(-5),
+    priorRightHand: file.rightHandAdvice ?? null,
+    priorBossPlan: file.bossPlan ? {
+      outcome: file.bossPlan.outcome,
+      actionId: file.bossPlan.actionId,
+      decision: file.bossPlan.decision,
+      progressAssessment: file.bossPlan.progressAssessment,
+      rightHandDisposition: file.bossPlan.rightHandDisposition,
+      rightHandNote: file.bossPlan.rightHandNote,
+    } : null,
+    recentEvidence: {
+      discoveredPeople: file.evidenceSummary.discoveredPeople.slice(-12),
+      relatedOrganizations: file.evidenceSummary.relatedOrganizations.slice(-12),
+      searchGaps: file.evidenceSummary.searchGaps.slice(-12),
+      negativeFindings: file.evidenceSummary.negativeFindings.slice(-12),
+      contactRoutes: file.contactRoutes.slice(-12).map((route) => ({
+        vectorType: route.vectorType,
+        personName: route.personName,
+        role: route.role,
+        relationship: route.relationship,
+        state: route.state,
+        sourceUrls: route.sourceUrls,
+      })),
+    },
+  }, null, 2);
 
   return `${apexOrientationFor("right_hand")}
 
@@ -199,6 +229,33 @@ Do not create a new action, rename an action, perform the action, promote a cont
 or claim that any fact is verified. Preserve human review and the existing evidence gaps.
 All discovered contact routes should remain visible; verified personal routes are marked separately in the UI.
 
+=== BUREAU CHAIN OF COMMAND / SHARED MIND ===
+The Bureau is one organism, not three independent researchers.
+
+- RIGHT-HAND = diagnostic strategist. Detects blind spots, contradictions, stale assumptions, coverage gaps, and the highest-leverage DIFFERENT next lane. It does not redo the Investigator's research and does not compete with the Boss for authorship.
+- BOSS = head investigator / integrator. Synthesizes the right-hand diagnosis with the living case, decides the direction, assigns one bounded mission, and prevents contradictory or duplicative work.
+- INVESTIGATOR = execution intelligence. It freely chooses queries, pages, tools, pivots, evidence collection and stopping inside the Boss assignment.
+
+Every iteration must move the shared case state forward. A recommendation that merely repeats the last successful lane is low quality unless new evidence makes that repetition necessary.
+
+The case file is mounting shared memory. Treat these fields as the authoritative coordination ledger:
+- investigationProgress: what is covered, attempted, pending, and stalled
+- evidenceSummary: what was actually learned and what remains unproven
+- contactRoutes: already recovered contact vectors; do not spend a turn rediscovering them without a new reason
+- decisionLog: what the Bureau already decided and why
+- rightHandAdvice / bossPlan: what the other reasoning layer already recommended/decided
+- actionQueue statuses: what has actually been completed versus merely proposed
+
+COORDINATION LAW:
+1. First identify the NEW information since the previous iteration.
+2. Separate "already established" from "still unresolved".
+3. Recommend a step that changes the unresolved frontier, not a paraphrase of completed work.
+4. If the best next step is a continuation of the same lane, explain what NEW question/evidence justifies it.
+5. If the Boss previously overrode you, do not keep fighting the same decision unless the case state materially changed.
+6. If evidence contradicts an earlier assumption, surface the contradiction explicitly and recommend resolution before expansion.
+7. Never manufacture certainty merely to make the chain agree. Agreement is valuable only when evidence supports it.
+8. Prefer complementary cognition: diagnose, integrate, execute. Do not have every LLM summarize the same page or repeat the same search.
+
 === HOW YOU MUST REASON (right-hand quality bar) ===
 Think like a senior OSINT advisor preparing the Boss's next move:
 
@@ -217,6 +274,10 @@ Think like a senior OSINT advisor preparing the Boss's next move:
 
 The Boss (Gemini, text-only Head Investigator) will use your advice when writing the investigator prompt and must record accept/override. Recommend the action that best sets up a full primary-source investigation loop (flag high-interest link → multi-angle public search → primary fetch → structured extraction → case-context update).
 
+<coordination_ledger>
+${coordination}
+</coordination_ledger>
+
 Case iteration: ${iteration}
 
 <investigation_progress>
@@ -231,7 +292,7 @@ Return ONLY this JSON object:
 {
   "actionId": "one exact queued action id",
   "decision": "short statement of the recommended assignment for the Boss (what should be investigated next and why it is the highest-leverage primary-source step)",
-  "reason": "evidence-gap-based reason grounded only in the case file: cite pending vectors, existing named leads/domains, and how this action advances the living case context",
+  "reason": "evidence-gap-based reason grounded only in the case file: cite pending vectors, existing named leads/domains, what changed since the prior iteration, and how this action advances the living case context",
   "confidence": 0.0
 }
 
@@ -251,6 +312,8 @@ You have no web access and must reason only over this discovery mission and its 
 Recommend how Gemini should frame the first broad discovery pass. Your recommendation is advisory only.
 Do not invent people, wealth, relationships, URLs, evidence, or contact routes. Do not select a target.
 Keep the mission within Western countries, prioritize practical proximity over fame, and preserve human review.
+
+This is a shared Bureau, not independent parallel researchers. Your role is to diagnose the opening search space for Gemini, not to perform the research. Prefer a lane that is complementary to what is already known and avoid repeating a lane merely because it is familiar.
 
 Iteration: ${iteration}
 <discovery_case>
@@ -416,12 +479,7 @@ export async function runDeepSeekCaseReasoning(input: {
   }
 }
 
-/**
- * Right-hand advisor on final card publication — JSON only, no web.
- * Boss (Gemini) is primary; this is the advisory lane when Boss is busy/down.
- */
-
-/** General free JSON completion for adaptive / dig assign — not final-card locked. */
+/** Right-hand advisor on final card publication — JSON only, no web. */
 export async function runDeepSeekFreeJson(
   userPrompt: string,
   systemExtra = "Reply with ONE JSON object only. Never invent contacts, people, or URLs.",
@@ -488,4 +546,3 @@ export async function runDeepSeekFinalReview(prompt: string): Promise<{
   }
   return { status: "completed", model: DEEPSEEK_CASE_REASONING_MODEL, raw: result.raw, error: null };
 }
-
