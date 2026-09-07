@@ -6,7 +6,7 @@ const target = path.join(root, "artifacts/api-server/src/src/lib/nvidia-nim-case
 let source = fs.readFileSync(target, "utf8");
 
 const helper = `function buildRightHandDecisionContext(file: ResearchCaseFile): string {
-  const queued = (file.actionQueue ?? []).filter((action) => action.status === "queued").slice(0, 16);
+  const queued = (file.actionQueue ?? []).filter((action) => action.status === "queued").slice().sort((a, b) => Number(b.priority ?? 0) - Number(a.priority ?? 0)).slice(0, 16);
   const recentCompleted = (file.actionQueue ?? []).filter((action) => action.status !== "queued").slice(-8);
   const evidence = file.evidenceSummary ?? {};
   return JSON.stringify({
