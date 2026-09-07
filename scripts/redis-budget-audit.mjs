@@ -22,7 +22,7 @@ const files = [
 
 const failures = [];
 const warnings = [];
-const read = (rel: string) => {
+const read = (rel) => {
   const file = path.join(root, rel);
   return fs.existsSync(file) ? fs.readFileSync(file, "utf8") : "";
 };
