@@ -23,7 +23,7 @@
     "scoreboard:live": "bash scripts/replit-scoreboard-check.sh",
     "scoreboard:postmortem-template": "node scripts/postmortem-template.mjs",
     "scoreboard:fixture-template": "node scripts/fixture-registry-template.mjs",
-    "check:bureau": "bash scripts/check-no-force-dig.sh && pnpm run check:free-react && pnpm run check:discovery-quality && pnpm run check:comparison-contract && pnpm run check:trajectory && pnpm run check:agentic-runtime && pnpm run check:agentic-timeout && pnpm run check:provider-role-docs && pnpm run check:unified-investigator-architecture && pnpm run test:phone-priority",
+    "check:bureau": "bash scripts/check-no-force-dig.sh && pnpm run check:free-react && pnpm run check:discovery-quality && pnpm run check:comparison-contract && pnpm run check:trajectory && pnpm run check:agentic-runtime && pnpm run check:agentic-timeout && pnpm run check:provider-role-docs && pnpm run check:unified-investigator && pnpm run test:phone-priority",
     "scoreboard:lcode": "node scripts/lcode-suggest.mjs"
   },
   "private": true,
