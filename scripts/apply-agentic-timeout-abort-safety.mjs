@@ -6,6 +6,19 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const target = path.join(root, "artifacts/api-server/src/src/lib/agentic-web-research.ts");
 let s = fs.readFileSync(target, "utf8");
 
+const alreadyApplied = [
+  "signal?: AbortSignal",
+  "signal: signal ?? AbortSignal.timeout(50_000)",
+  "signal: signal ?? AbortSignal.timeout(45_000)",
+  "const controller = new AbortController()",
+  "fn(prompt, controller.signal)",
+].every((marker) => s.includes(marker));
+
+if (alreadyApplied) {
+  console.log("Investigator timeout-abort safety already applied; no source mutation");
+  process.exit(0);
+}
+
 function replaceOnce(from, to, label) {
   if (!s.includes(from)) throw new Error(`timeout-abort safety anchor missing: ${label}`);
   s = s.replace(from, to);
