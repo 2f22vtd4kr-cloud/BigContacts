@@ -1,0 +1,146 @@
+   100	  const entity = entityId ? await resolveEntity(entityId) : null;
+   101	  const resolvedEmail = email ?? entity?.email ?? undefined;
+   102	  const resolvedName = name ?? (entity?.type === "HNWI" ? entity?.name : undefined) ?? undefined;
+   103	  const resolvedCompany = companyName ?? (entity?.type !== "HNWI" ? entity?.name : undefined) ?? undefined;
+   104	
+   105	  if (!resolvedEmail && !resolvedName && !resolvedCompany) {
+   106	    res.status(400).json({ error: "At least one of: email, name, companyName, or entityId with email/name is required" });
+   107	    return;
+   108	  }
+   109	
+   110	  try {
+   111	    const result = await enrichWithWhoxy({
+   112	      email: resolvedEmail,
+   113	      name: resolvedName,
+   114	      companyName: resolvedCompany,
+   115	    });
+   116	
+   117	    const summary = summariseWhoxyFindings(result.allUniqueDomains);
+   118	
+   119	    if (entity) {
+   120	      const domains = Array.isArray(result.allUniqueDomains) ? result.allUniqueDomains : [];
+   121	      const domainVectors = domains.slice(0, 20)
+   122	        .filter((d) => typeof d.domain_name === "string" && d.domain_name.trim().length > 0)
+   123	        .map((d) => {
+   124	          const host = d.domain_name.trim().toLowerCase();
+   125	          const url = `https://${host}`;
+   126	          return {
+   127	            vectorType: "domain",
+   128	            value: host,
+   129	            scope: "organization",
+   130	            personName: entity.name,
+   131	            role: null,
+   132	            sourceUrls: [url],
+   133	            note: "Whoxy reverse WHOIS domain claim — related/org lead only",
+   134	            tier: "candidate",
+   135	            state: "review_only",
+   136	          };
+   137	        });
+   138	      if (domainVectors.length) {
+   139	        await persistBureauContactsForEntity(entity.id, domainVectors, "whoxy");
+   140	      }
+   141	
+   142	      if (summary) {
+   143	        const existing = entity.notes ?? "";
+   144	        const newNotes = existing
+   145	          ? `${existing}\n\n--- Whoxy Reverse WHOIS (${new Date().toISOString().slice(0, 10)}) ---\n${summary}`
+   146	          : summary;
+   147	        await db.update(entitiesTable)
+   148	          .set({ notes: newNotes.slice(0, 10_000), updatedAt: new Date() })
+   149	          .where(eq(entitiesTable.id, entity.id));
+   150	      }
+   151	    }
+   152	
+   153	    res.json({ ...result, summary });
+   154	  } catch (err: any) {
+   155	    logger.error({ err: err.message }, "[Whoxy] route error");
+   156	    res.status(500).json({ error: err.message });
+   157	  }
+   158	});
+   159	
+   160	// ── POST /api/enrich/holehe ───────────────────────────────────────────────────
+   161	
+   162	router.post("/enrich/holehe", async (req: Request, res: Response): Promise<void> => {
+   163	  const { entityId, email } = req.body as { entityId?: number; email?: string };
+   164	
+   165	  const entity = entityId ? await resolveEntity(entityId) : null;
+   166	  const resolvedEmail = email ?? entity?.email ?? undefined;
+   167	
+   168	  if (!resolvedEmail) {
+   169	    res.status(400).json({ error: "email is required (or entityId of an entity with an email)" });
+   170	    return;
+   171	  }
+   172	
+   173	  try {
+   174	    const result = await runHolehe(resolvedEmail);
+   175	
+   176	    if (entity && result.found.length > 0) {
+   177	      // Visibility: platform presence URLs as candidate social leads (never Personal).
+   178	      const socialVectors = result.found.slice(0, 25)
+   179	        .filter((p): p is typeof p & { url: string } => typeof p.url === "string" && /^https?:\/\//i.test(p.url))
+   180	        .map((p) => ({
+   181	          vectorType: "social",
+   182	          value: p.url,
+   183	          scope: "candidate",
+   184	          personName: entity.name,
+   185	          role: null,
+   186	          sourceUrls: [p.url],
+   187	          note: `Holehe platform hit${p.name ? ` (${p.name})` : ""} for ${resolvedEmail} — lead only`,
+   188	          tier: "candidate",
+   189	          state: "review_only",
+   190	        }));
+   191	      if (socialVectors.length) {
+   192	        await persistBureauContactsForEntity(entity.id, socialVectors, "holehe");
+   193	      }
+   194	
+   195	      const summary = `Holehe Platform Check (${new Date().toISOString().slice(0, 10)}) — ${result.totalFound} platforms:\n` +
+   196	        result.found.slice(0, 20).map((p: { name?: string; url?: string }) => `  • ${p.name}${p.url ? ` (${p.url})` : ""}`).join("\n");
+   197	      const existing = entity.notes ?? "";
+   198	      const newNotes = existing ? `${existing}\n\n${summary}` : summary;
+   199	      await db.update(entitiesTable)
+   200	        .set({ notes: newNotes.slice(0, 10_000), updatedAt: new Date() })
+   201	        .where(eq(entitiesTable.id, entity.id));
+   202	    }
+   203	
+   204	    res.json(result);
+   205	  } catch (err: any) {
+   206	    logger.error({ err: err.message }, "[Holehe] route error");
+   207	    res.status(500).json({ error: err.message });
+   208	  }
+   209	});
+   210	
+   211	// ── POST /api/enrich/maigret ──────────────────────────────────────────────────
+   212	
+   213	router.post("/enrich/maigret", async (req: Request, res: Response): Promise<void> => {
+   214	  const { entityId, username } = req.body as { entityId?: number; username?: string };
+   215	
+   216	  if (!username) {
+   217	    res.status(400).json({ error: "username is required" });
+   218	    return;
+   219	  }
+   220	
+   221	  const entity = entityId ? await resolveEntity(entityId) : null;
+   222	
+   223	  try {
+   224	    const result = await runMaigret(username);
+   225	
+   226	    if (entity && result.found.length > 0) {
+   227	      const socialVectors = result.found.slice(0, 25)
+   228	        .filter((p): p is typeof p & { url: string } => typeof p.url === "string" && /^https?:\/\//i.test(p.url))
+   229	        .map((p) => ({
+   230	          vectorType: "social",
+   231	          value: p.url,
+   232	          scope: "candidate",
+   233	          personName: entity.name,
+   234	          role: null,
+   235	          sourceUrls: [p.url],
+   236	          note: `Maigret profile${p.siteName ? ` (${p.siteName})` : ""} for @${username} — lead only`,
+   237	          tier: "candidate",
+   238	          state: "review_only",
+   239	        }));
+   240	      if (socialVectors.length) {
+   241	        await persistBureauContactsForEntity(entity.id, socialVectors, "maigret");
+   242	      }
+   243	
+   244	      const summary = `Maigret Dossier (${new Date().toISOString().slice(0, 10)}) — ${result.found.length} profiles:\n` +
+   245	        result.found.slice(0, 20).map((p: { siteName?: string; url?: string }) => `  • ${p.siteName}${p.url ? ` → ${p.url}` : ""}`).join("\n");
