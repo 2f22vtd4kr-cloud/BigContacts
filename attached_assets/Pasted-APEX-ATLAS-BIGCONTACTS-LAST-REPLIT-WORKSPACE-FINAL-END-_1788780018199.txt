@@ -1,0 +1,770 @@
+APEX ATLAS / BIGCONTACTS
+
+LAST REPLIT WORKSPACE
+
+FINAL END-TO-END PROOF → RELEASE DECISION
+
+Repository:
+
+https://github.com/2f22vtd4kr-cloud/BigContacts
+
+This is the FINAL validation workspace.
+
+We are NOT beginning another engineering cycle.
+
+We are NOT doing another repository archaeology pass.
+
+We are NOT rebuilding infrastructure that has already been proven.
+
+We are NOT doing cosmetic cleanup.
+
+We are NOT creating another endless sequence of speculative fixes.
+
+The objective of this workspace is singular:
+
+RUN THE FINAL REAL BUREAU MISSION, PROVE THE ENTIRE APEX ATLAS ARCHITECTURE END-TO-END, AND—IF IT PASSES—DECLARE APEX ATLAS READY FOR REAL USE.
+
+If a genuine blocker appears, fix it locally, verify it, COMMIT IT, PUSH IT, and rerun the proof.
+
+If the proof passes, STOP.
+
+==================================================
+
+1. GITHUB SOURCE OF TRUTH
+    ==================================================
+
+Import:
+
+https://github.com/2f22vtd4kr-cloud/BigContacts
+
+Immediately run:
+
+git fetch origin
+git status –short
+git rev-parse HEAD
+git rev-parse origin/main
+git log -12 –oneline
+
+Synchronize to the latest origin/main.
+
+Do NOT use an old Replit snapshot.
+
+Do NOT reset to an old commit.
+
+Do NOT discard existing GitHub fixes.
+
+The recent GitHub state includes the discovery-timeout correctness fix and the removal of the accidental Replit prompt artifact.
+
+==================================================
+2. COMMIT AUTHORITY
+
+Unlike previous workspaces:
+
+THIS WORKSPACE MAY COMMIT AND PUSH.
+
+However:
+
+ONLY commit genuine production fixes.
+
+Before every commit:
+
+git diff
+git status –short
+
+Run the relevant test(s).
+
+Then commit with a clear message.
+
+NEVER commit:
+
+* secrets
+* API keys
+* logs
+* temporary files
+* prompts
+* generated junk
+* Replit artifacts
+* credentials
+
+Push legitimate production fixes to origin/main.
+
+==================================================
+3. DO NOT WASTE THE QUOTA
+
+Do NOT:
+
+* read thousands of files
+* redo historical architecture analysis
+* repeatedly run successful tests
+* upgrade dependencies
+* refactor unrelated code
+* redesign the UI
+* change working architecture
+* create new abstractions without a demonstrated need
+
+Only inspect additional source files when a real test or live Bureau trace points to them.
+
+The goal is the FINAL LIVE PROOF.
+
+==================================================
+4. READ THE CANONICAL DOCUMENTS
+
+Read completely:
+
+docs/context.md
+docs/RUN_BUREAU.md
+docs/REPLIT_NEW_ACCOUNT_SETUP.md
+package.json
+
+These are the operational contracts.
+
+Follow them.
+
+==================================================
+5. CURRENT EXPECTED BASELINE
+
+The previous workspace established:
+
+* architecture guards PASS
+* timeout guard PASS
+* synthetic-data guard PASS
+* Reactor no-fabrication guard PASS
+* integrity guards PASS
+* API build PASS
+* typecheck PASS
+* database PASS
+* Redis PASS
+* API health PASS
+* 419/419 Vitest PASS
+
+Do NOT spend the majority of this workspace proving these again.
+
+Run a MINIMAL baseline:
+
+1. preflight
+2. typecheck
+3. API build
+4. full Vitest
+5. architecture/critical guards
+
+If all pass:
+
+MOVE DIRECTLY TO THE LIVE BUREAU.
+
+If a regression appears:
+
+fix it properly, commit it, push it, verify it, then continue.
+
+==================================================
+6. PROVIDER KEYS
+
+The previous live Bureau proof was blocked by provider capacity:
+
+Groq = HTTP 429 token/day exhausted
+Mistral = HTTP 429
+
+Use the NEW UNUSED provider keys supplied for this final workspace.
+
+Replace:
+
+GROQ_API_KEY
+MISTRAL_API_KEY
+
+in Replit Secrets.
+
+Do NOT print the values.
+
+Do NOT log the values.
+
+Do NOT commit the values.
+
+Verify only:
+
+GROQ_API_KEY = configured
+MISTRAL_API_KEY = configured
+
+If another required provider is actually exhausted or invalid, identify it explicitly.
+
+Do not fabricate provider success.
+
+==================================================
+7. START THE CANONICAL API
+
+Start the documented API.
+
+Use:
+
+PORT=8080
+
+Verify:
+
+GET /api/healthz
+
+Record:
+
+* PostgreSQL
+* Redis
+* Bureau integrity
+* agentic LLM state
+
+Health is infrastructure validation only.
+
+It is NOT the final proof.
+
+==================================================
+8. FINAL LIVE BUREAU MISSION
+
+Now execute:
+
+docs/RUN_BUREAU.md
+
+Use the canonical discovery-first Bureau audit.
+
+Use ONE bounded real mission.
+
+Do NOT invent a target merely to make the test easier.
+
+Do NOT inject a candidate.
+
+Do NOT fabricate a person.
+
+Do NOT fabricate evidence.
+
+Do NOT fabricate contacts.
+
+Do NOT fabricate URLs.
+
+Do NOT use synthetic observations.
+
+If the documented audit requires a real target, use the documented/authorized target mechanism.
+
+If it is discovery-first, let Discovery actually discover.
+
+==================================================
+9. THIS IS THE ACTUAL FINISH LINE
+
+We need to prove:
+
+REAL MISSION
+↓
+GEMINI BOSS
+↓
+DISCOVERY BRIEF
+↓
+INVESTIGATOR ASSIGNMENT
+↓
+ACTUAL INVESTIGATOR LLM
+↓
+MODEL-SELECTED RESEARCH ACTION
+↓
+REAL TOOL EXECUTION
+↓
+REAL EXTERNAL OBSERVATION
+↓
+OBSERVATION RETURNED TO INVESTIGATOR
+↓
+INVESTIGATOR REASONING
+↓
+PIVOT / FOLLOW-UP
+↓
+REAL PERSON
+↓
+IDENTITY EVIDENCE
+↓
+RESEARCH EVIDENCE
+↓
+PROVENANCE
+↓
+CONTACT ROUTE
+↓
+BUREAU DECISION
+↓
+TRUTHFUL TERMINAL STATE
+
+Every meaningful arrow must be supported by actual runtime evidence.
+
+==================================================
+10. INVESTIGATOR OWNERSHIP — NON-NEGOTIABLE
+
+Prove that the Investigator owns the research trajectory.
+
+The Investigator must actually determine:
+
+* what to search
+* query wording
+* which research action to take
+* which tool/capability to use where applicable
+* whether to visit/fetch
+* whether to pivot
+* whether evidence is sufficient
+* when to stop
+
+The deterministic application may enforce:
+
+* safety
+* authorization
+* budgets
+* rate limits
+* persistence
+* lifecycle
+* cancellation
+* provenance
+* schema
+* evidence validation
+
+It must NOT secretly determine research strategy.
+
+No scripted research.
+
+No fixed search sequence.
+
+No hidden:
+
+Serper → Tavily → Exa
+
+No hidden:
+
+Groq → Mistral
+
+No forced research hops.
+
+==================================================
+11. PROVE MODEL ACTION → TOOL ACTION
+
+For every meaningful research action capture:
+
+WHO chose it?
+WHAT did the Investigator model request?
+WHAT tool executed?
+WHAT source was actually observed?
+WHAT observation returned?
+WHAT did the Investigator do next?
+
+A tool call appearing in logs does not automatically prove the model selected it.
+
+The trace must establish model ownership.
+
+==================================================
+12. REAL EXTERNAL OBSERVATIONS
+
+For each meaningful source:
+
+verify:
+
+* actual URL
+* actual tool call
+* actual external request/observation
+* resulting observation
+* persistence/provenance
+
+A model-generated URL is NOT proof of a visit.
+
+A search snippet is NOT automatically evidence.
+
+Model knowledge is NOT a source observation.
+
+==================================================
+13. REAL CANDIDATE VALIDATION
+
+Any promoted person must be:
+
+* a real named individual
+* identified by an observed source
+* identity-attributable
+* mission-relevant
+
+Reject:
+
+* titles
+* companies
+* generic organizations
+* fragments
+* topics
+* fabricated names
+* proxy_table leakage
+* synthetic candidates
+
+No deterministic extraction pipeline may secretly manufacture the candidate list.
+
+==================================================
+14. EVIDENCE / PROVENANCE
+
+For every promoted candidate:
+
+candidate
+→ observed source
+→ identity evidence
+→ research evidence
+→ provenance
+→ Bureau promotion
+
+must be traceable.
+
+If evidence is weak:
+
+do not pretend it is strong.
+
+If provenance is absent:
+
+do not promote.
+
+==================================================
+15. CONTACTS
+
+A personal contact must actually be attributable to the person.
+
+Do NOT convert:
+
+info@
+contact@
+press@
+generic company forms
+
+into personal contact data.
+
+Do NOT infer personal email addresses.
+
+If no personal route exists:
+
+return that honestly.
+
+A correct “no personal contact found” is a SUCCESSFUL honest outcome.
+
+==================================================
+16. FAILURE / TIMEOUT TRUTHFULNESS
+
+The previously discovered production bug was:
+
+HARD_TIMEOUT
+
+being treated as if discovery had completed successfully.
+
+This has now been fixed.
+
+Verify the live system preserves:
+
+timeout
+→ degraded/incomplete
+
+and does not incorrectly produce:
+
+timeout
+→ clean successful Bureau completion
+
+Likewise:
+
+provider failure
+→ truthful degraded/failure state
+
+not:
+
+provider failure
+→ fake success
+
+==================================================
+17. PROVIDER CAPACITY
+
+If Groq works:
+
+record the actual Investigator model.
+
+If Mistral works:
+
+record the actual Investigator model.
+
+If one provider fails:
+
+do not endlessly retry.
+
+If legitimate Investigator capacity fallback exists:
+
+verify that it preserves truthful model/provider attribution.
+
+Never report one model as having performed work done by another.
+
+==================================================
+18. IF THE LIVE BUREAU FAILS
+
+DO NOT simply rerun it.
+
+Find the FIRST BROKEN TRANSITION.
+
+Examples:
+
+Boss
+Investigator assignment
+model propagation
+provider invocation
+action selection
+tool dispatch
+external observation
+observation return
+pivot
+candidate validation
+identity
+provenance
+contact
+terminal state
+
+Then:
+
+1. identify root cause
+2. make minimal correct fix
+3. run focused test
+4. run full Vitest
+5. run relevant guards
+6. commit
+7. push
+8. rerun ONE clean Bureau mission
+
+Do not make speculative changes.
+
+==================================================
+19. IF THE LIVE BUREAU SUCCEEDS
+
+Do NOT modify successful code.
+
+If provider capacity permits, perform ONE SECOND bounded Bureau run.
+
+The two trajectories do NOT need to be identical.
+
+We want repeatability of the architecture, not identical search paths.
+
+Both runs should demonstrate:
+
+model-directed research
++
+real tool execution
++
+real observations
++
+evidence
++
+provenance
++
+truthful completion.
+
+If the first run is complete and credible and provider capacity is limited, the first run may be sufficient—BUT explain why.
+
+==================================================
+20. FINAL BUG HUNT
+
+Only AFTER the live run, perform a focused final bug hunt against the areas actually exercised:
+
+* Boss → Investigator propagation
+* Investigator ReAct loop
+* provider failures
+* tool execution
+* observation persistence
+* candidate promotion
+* identity
+* provenance
+* contact scope
+* timeout semantics
+* terminal state
+* fabricated-query protection
+* deterministic research routing
+
+Do NOT turn this into a new broad refactor.
+
+If the bug hunt finds no credible defect:
+
+say so.
+
+If it finds one:
+
+fix it, commit it, push it, and rerun the affected proof.
+
+==================================================
+21. FINAL ACCEPTANCE CRITERIA
+
+Apex Atlas can be declared READY only if ALL are true:
+
+[ ] Build works
+[ ] Typecheck works
+[ ] Full test suite passes
+[ ] Critical architecture guards pass
+[ ] Synthetic-data guard passes
+[ ] Reactor no-fabrication guard passes
+[ ] Redis works
+[ ] PostgreSQL works
+[ ] API health works
+[ ] Timeout semantics are truthful
+[ ] Gemini actually acts as Boss
+[ ] DeepSeek actually acts as Right Hand
+[ ] Investigator actually acts as Investigator
+[ ] Investigator model is correctly propagated
+[ ] Investigator chooses research actions
+[ ] Real tools execute
+[ ] Real external sources are observed
+[ ] Observations return to Investigator
+[ ] Investigator can pivot/reason
+[ ] Real named people can be established
+[ ] Identity evidence is preserved
+[ ] Research evidence is preserved
+[ ] Provenance is preserved
+[ ] Contacts are correctly scoped
+[ ] No fabricated candidates
+[ ] No fabricated observations
+[ ] No fabricated contacts
+[ ] No hidden deterministic research strategy
+[ ] Provider failures remain truthful
+[ ] Bureau reaches a genuinely valid terminal state
+[ ] At least one complete real end-to-end Bureau mission is proven
+
+==================================================
+22. FINAL REPORT
+
+Do NOT say “looks good.”
+
+Give actual evidence.
+
+GITHUB
+
+HEAD:
+origin/main:
+latest commit(s):
+
+BASELINE
+
+Preflight:
+Typecheck:
+Build:
+Vitest:
+Architecture:
+Synthetic-data:
+Reactor:
+Redis:
+Database:
+
+PROVIDERS
+
+Gemini:
+DeepSeek:
+Groq:
+Mistral:
+Research tools:
+
+LIVE BUREAU RUN
+
+Run ID:
+Mission:
+Boss:
+Right Hand:
+Investigator:
+Investigator model:
+Investigator provider:
+
+Model-selected actions:
+Searches:
+Visits:
+External observations:
+Pivots:
+LLM spans:
+Tool spans:
+Discovery spans:
+
+Candidates:
+Identity evidence:
+Research evidence:
+Provenance:
+Contacts:
+Contact scope:
+
+Termination reason:
+Final Bureau state:
+Integrity:
+
+SECOND RUN
+
+If executed, provide the same evidence.
+
+FINAL BUG HUNT
+
+Issues checked:
+Issues found:
+Issues fixed:
+Commits:
+
+==================================================
+23. FINAL VERDICT — NO HEDGING
+
+Choose exactly ONE:
+
+A) APEX ATLAS IS FINALLY WHAT WE DESIGNED IT TO BE.
+
+OR
+
+B) APEX ATLAS IS NOT YET WHAT WE DESIGNED IT TO BE.
+
+You may choose A ONLY if the acceptance criteria are actually demonstrated.
+
+If A:
+
+State:
+
+“APEX ATLAS IS FINALLY WHAT WE DESIGNED IT TO BE.”
+
+Then provide the concrete runtime evidence proving it.
+
+If B:
+
+State exactly:
+
+FIRST REMAINING FAILURE:
+ROOT CAUSE:
+WHY IT MATTERS:
+WHAT WAS FIXED:
+WHAT STILL NEEDS TO HAPPEN:
+
+Do NOT choose A because the tests are green.
+
+Do NOT choose A because the UI looks good.
+
+Do NOT choose A because Bureau returned “completed.”
+
+Choose A only because the complete model-directed research trajectory has actually been demonstrated.
+
+==================================================
+24. IF A IS PROVEN
+
+STOP ENGINEERING.
+
+Do not create another improvement cycle.
+
+Do not refactor.
+
+Do not redesign.
+
+Do not spend the remaining quota on cosmetic work.
+
+Leave GitHub at the verified release state.
+
+The next phase is REAL USE of Apex Atlas.
+
+==================================================
+FINAL INSTRUCTION
+
+This is the last validation workspace.
+
+We have spent enough time proving infrastructure.
+
+Now prove the PRODUCT.
+
+Run the real Bureau.
+
+Trace the real research.
+
+Fix only real blockers.
+
+Commit genuine fixes.
+
+Push them.
+
+And if the complete evidence satisfies every acceptance criterion:
+
+SAY IT CLEARLY:
+
+APEX ATLAS IS FINALLY WHAT WE DESIGNED IT TO BE.
+
+START NOW.
