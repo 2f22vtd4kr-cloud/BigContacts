@@ -17,7 +17,8 @@ const rightHandRequired = [
   "Every iteration must produce a meaningful delta in the case frontier",
   "do not merely repeat the previous Investigator result",
   "recentDecisions: file.decisionLog.slice(-5)",
-  "buildRightHandDecisionContext(file)",
+  "function buildRightHandDecisionContext(file: ResearchCaseFile)",
+  "${buildRightHandDecisionContext(file)}",
 ];
 for (const marker of rightHandRequired) {
   if (!rightHand.includes(marker)) {
@@ -34,7 +35,8 @@ const bossRequired = [
   "What is newly known since the previous iteration?",
   "What remains genuinely unresolved?",
   "What would be redundant with work already done?",
-  "buildBossDecisionContext(input.file)",
+  "function buildBossDecisionContext(file: PlanInput[\"file\"]): string",
+  "${buildBossDecisionContext(input.file)}",
 ];
 for (const marker of bossRequired) {
   if (!boss.includes(marker)) {
