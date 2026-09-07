@@ -1,0 +1,771 @@
+APEX ATLAS / BIGCONTACTS
+
+FINAL VALIDATION WORKSPACE
+
+FRESH PROVIDER KEYS + BUG HUNT + REAL BUREAU PROOF
+
+Repository:
+
+https://github.com/2f22vtd4kr-cloud/BigContacts
+
+This is the FINAL VALIDATION phase.
+
+We are NOT starting the engineering project over.
+
+We are NOT doing another archaeology pass.
+
+We are NOT rebuilding architecture that is already working.
+
+The objective is brutally simple:
+
+VERIFY THE CURRENT GITHUB CODE, REPLACE EXHAUSTED PROVIDER KEYS, CLEAR THE REMAINING REAL GUARD/BUG ISSUES, THEN RUN A REAL BUREAU MISSION AND DETERMINE WITH EVIDENCE WHETHER APEX ATLAS IS FINALLY THE SYSTEM WE DESIGNED.
+
+==================================================
+
+1. GITHUB SOURCE OF TRUTH
+    ==================================================
+
+Import the repository.
+
+Run immediately:
+
+git fetch origin
+git status –short
+git rev-parse HEAD
+git rev-parse origin/main
+git log -12 –oneline
+
+The latest expected history includes:
+
+d0d399f0e56135879fb2e9de5dcba2e06b825ee3
+= committed timeout-classification fix
+
+261e41487a137d160c5f1addafe1c89012a5fcef
+= removal of accidental Replit prompt artifact
+
+Do NOT resurrect the removed prompt artifact.
+
+Do NOT reset to older commits.
+
+Do NOT use an old Replit snapshot.
+
+==================================================
+2. PROVIDER KEYS — REPLACE THESE NOW
+
+The previous real Bureau run exhausted the Investigator provider capacity.
+
+It produced:
+
+Groq HTTP 429 — token-per-day exhausted
+Mistral HTTP 429
+
+I am providing NEW UNUSED provider keys.
+
+Replace ONLY:
+
+GROQ_API_KEY
+MISTRAL_API_KEY
+
+Use the Replit Secrets UI.
+
+DO NOT print them.
+
+DO NOT log them.
+
+DO NOT put them in source.
+
+DO NOT commit them.
+
+After replacing them, verify only:
+
+GROQ_API_KEY = configured
+MISTRAL_API_KEY = configured
+
+Never reveal the values.
+
+If you discover another provider is genuinely exhausted, identify it and ask for that replacement only.
+
+==================================================
+3. READ ONLY THE CANONICAL DOCUMENTS
+
+Read completely:
+
+docs/context.md
+docs/RUN_BUREAU.md
+docs/REPLIT_NEW_ACCOUNT_SETUP.md
+package.json
+
+Do NOT reread thousands of files.
+
+Only inspect additional source files when a real failure requires it.
+
+==================================================
+4. EXISTING PRODUCTION BREAKTHROUGH
+
+The previous live Bureau run already proved:
+
+Gemini Boss invoked
+DeepSeek Right Hand active
+Investigator invoked
+Qwen3.8-27B through Groq
+model-selected actions
+5 searches
+5 visits
+real Exa/Tavily/Serper/Scrapfly/browser activity
+21 LLM spans
+28 tool spans
+24 discovery spans
+18 Bureau records
+real named candidate
+observed source
+persisted provenance
+
+This is important.
+
+DO NOT redesign this architecture.
+
+The remaining live failure was:
+
+Investigator continuation
+→ provider capacity collapse
+
+not:
+
+model-directed research strategy.
+
+==================================================
+5. BASELINE
+
+Run:
+
+node scripts/replit-preflight.mjs
+
+Then:
+
+typecheck
+API build
+frontend build
+database/schema
+Redis audit
+architecture guards
+full Vitest
+
+Expected:
+
+419/419 Vitest
+
+If something fails:
+
+find the FIRST genuine failure.
+
+Do not weaken tests.
+
+Do not delete assertions.
+
+Do not change successful architecture.
+
+==================================================
+6. BUILD IDEMPOTENCE
+
+Run the canonical build twice.
+
+Verify that the timeout classification remains:
+
+result.status === “unavailable”
+OR
+result.status === “error”
+OR
+result.status === “timeout”
+
+=> degraded=true
+
+Build #2 must not introduce additional semantic source mutations.
+
+If the build mutates source again:
+
+STOP.
+
+Diagnose it.
+
+==================================================
+7. REMAINING STATIC GUARD #1
+
+Run:
+
+bash scripts/check-no-synthetic-data.sh
+
+The previous workspace reported a failure involving:
+
+* operational Math.random/user-agent behavior
+* the illustrative Jane Doe example in the model prompt
+
+DO NOT simply weaken or disable the synthetic-data guard.
+
+Determine exactly why the guard is firing.
+
+Distinguish:
+
+REAL SYNTHETIC DATA GENERATION
+
+from:
+
+LEGITIMATE OPERATIONAL RANDOMNESS
+
+and:
+
+ILLUSTRATIVE/REJECTION-ONLY TEXT
+
+The guard itself must remain meaningful.
+
+Fix the guard or source only if the fix is architecturally correct.
+
+Do not hide a genuine synthetic-data violation.
+
+The final guard MUST PASS.
+
+==================================================
+8. REMAINING STATIC GUARD #2
+
+Run:
+
+node scripts/check-reactor-live-no-fabrication.mjs
+
+The previous workspace reported that the guard expected an explicit-query marker that did not match the current implementation wording.
+
+Inspect:
+
+artifacts/apex-finder/src/lib/reactor-live-model.ts
+artifacts/apex-finder/src/components/bureau-ops-stage.tsx
+
+The invariant is:
+
+A Reactor query surface may display ONLY a research query that was actually recorded from the Bureau/Investigator event.
+
+It must NEVER fabricate:
+
+targetName + “contact email phone”
+
+or another synthetic query.
+
+Do not weaken this invariant.
+
+Make the guard accurately recognize the real implementation.
+
+The final guard MUST PASS.
+
+==================================================
+9. BUG HUNT
+
+Before the live Bureau run, perform a focused production bug hunt.
+
+Search specifically for:
+
+* incorrect terminal-state semantics
+* timeout classification
+* provider failure propagation
+* provider attribution
+* Investigator model propagation
+* model-selected action persistence
+* tool dispatch
+* observation persistence
+* candidate promotion
+* identity validation
+* provenance
+* contact scope
+* fabricated query fallback
+* deterministic research routing
+* hidden provider sequencing
+* stale runtime after rebuild
+* API restart after build
+* Bureau “done” vs “complete” semantics
+
+Do NOT perform a generic code-quality cleanup.
+
+We are hunting correctness bugs.
+
+For every suspected issue:
+
+PROVE IT.
+
+Do not change code merely because something looks unusual.
+
+==================================================
+10. TEST TIMEOUT TRUTHFULNESS
+
+The previously discovered bug was:
+
+HARD_TIMEOUT
+
+being treated as if discovery had cleanly completed.
+
+Verify now that:
+
+timeout
+→ degraded/incomplete
+
+and that this truth propagates all the way to Bureau terminal semantics.
+
+The system must never report:
+
+successful completion
+
+when the research stage actually failed closed.
+
+==================================================
+11. TEST PROVIDER FAILURE TRUTHFULNESS
+
+With fresh keys, verify provider calls.
+
+Do NOT print key values.
+
+For each Investigator provider determine:
+
+configured
+reachable
+model invocation successful
+
+If Groq works:
+
+record the actual Investigator model.
+
+If Mistral works:
+
+record the actual Investigator model.
+
+Do not substitute Gemini or DeepSeek into the Investigator lane merely to make the run succeed.
+
+The role architecture remains:
+
+Gemini = Boss
+DeepSeek = Right Hand
+Groq/Mistral = Investigator
+
+==================================================
+12. RUN REAL BUREAU
+
+Follow:
+
+docs/RUN_BUREAU.md
+
+Run the canonical Bureau audit.
+
+This is NOT a synthetic benchmark.
+
+Use a real bounded mission.
+
+Do not fabricate:
+
+targets
+people
+sources
+evidence
+contacts
+observations
+
+==================================================
+13. TRACE THE COMPLETE TRAJECTORY
+
+We need evidence for:
+
+MISSION
+↓
+GEMINI BOSS
+↓
+DISCOVERY ASSIGNMENT
+↓
+INVESTIGATOR MODEL
+↓
+MODEL DECISION
+↓
+RESEARCH ACTION
+↓
+REAL TOOL
+↓
+REAL EXTERNAL OBSERVATION
+↓
+OBSERVATION RETURNED
+↓
+INVESTIGATOR REASONING
+↓
+PIVOT / FOLLOW-UP
+↓
+REAL PERSON
+↓
+IDENTITY EVIDENCE
+↓
+RESEARCH EVIDENCE
+↓
+PROVENANCE
+↓
+CONTACT ROUTE
+↓
+BUREAU RESULT
+
+Do not infer missing steps.
+
+Show actual trace evidence.
+
+==================================================
+14. INVESTIGATOR MUST OWN THE RESEARCH
+
+Prove that the Investigator chose:
+
+* query wording
+* search action
+* tool/provider
+* follow-up
+* pivot
+* stopping point
+
+Deterministic code may enforce:
+
+safety
+authorization
+budgets
+provenance
+persistence
+schema
+cancellation
+lifecycle
+
+Deterministic code must NOT secretly run a research playbook.
+
+No:
+
+Serper → Tavily → Exa
+
+No:
+
+Groq → Mistral
+
+No:
+
+fixed search hops
+
+No:
+
+deterministic candidate extraction from page text
+
+==================================================
+15. REAL WEB OBSERVATION
+
+For every important source:
+
+record:
+
+URL
+tool
+action
+observation
+timestamp if available
+provenance
+
+A model-generated URL is not evidence of a visit.
+
+A search snippet is not automatically evidence.
+
+The system must actually observe the source.
+
+==================================================
+16. CANDIDATE QUALITY
+
+A promoted person must be:
+
+real
+named
+source-backed
+identity-attributable
+mission-relevant
+
+Reject:
+
+generic companies
+titles
+topics
+search fragments
+proxy_table
+fabricated names
+list-only pseudo-people
+
+The Investigator decides who is worth promoting.
+
+The deterministic layer validates evidence/provenance.
+
+==================================================
+17. CONTACT QUALITY
+
+If a contact is found:
+
+prove ownership.
+
+Generic:
+
+info@
+contact@
+press@
+company form
+
+is NOT a personal contact.
+
+Do not infer personal emails.
+
+If there is no attributable personal route:
+
+say so.
+
+A high-quality Bureau result with no personal contact is better than fabricated contact data.
+
+==================================================
+18. FAILURE SEMANTICS
+
+A provider failure must not become:
+
+“completed successfully.”
+
+A timeout must not become:
+
+“completed successfully.”
+
+A missing candidate must not become:
+
+“candidate found.”
+
+Missing evidence must not become:
+
+“verified.”
+
+The system must fail truthfully.
+
+==================================================
+19. FIRST LIVE RUN
+
+Run ONE clean Bureau mission.
+
+If it fails:
+
+DO NOT immediately retry.
+
+Find the first broken transition.
+
+Determine:
+
+APPLICATION BUG
+
+or
+
+EXTERNAL PROVIDER FAILURE
+
+If application bug:
+
+fix the minimum correct issue.
+
+Run:
+
+focused test
+full Vitest
+relevant guards
+
+Then run ONE clean Bureau retry.
+
+==================================================
+20. SECOND LIVE RUN
+
+If Run #1 genuinely succeeds and provider capacity remains available:
+
+run ONE additional bounded mission.
+
+We want repeatability.
+
+The two research trajectories do NOT need to match.
+
+They should demonstrate the same architectural invariants:
+
+model-directed
+real research
+real observations
+real evidence
+real provenance
+honest contacts
+truthful completion.
+
+==================================================
+21. NO SPECULATIVE REFACTORING
+
+Do NOT:
+
+* rewrite architecture
+* upgrade dependencies
+* redesign UI
+* refactor unrelated modules
+* add deterministic research shortcuts
+* weaken guards
+* suppress errors
+* hide provider failures
+
+If the system passes:
+
+STOP.
+
+==================================================
+22. GIT
+
+This workspace MAY commit genuine fixes.
+
+If you make a production fix:
+
+COMMIT IT.
+
+Use a clear commit message.
+
+PUSH TO origin/main.
+
+Do not commit:
+
+* secrets
+* logs
+* prompt artifacts
+* generated junk
+* temporary files
+
+Before committing:
+
+git diff
+git status
+run the relevant tests.
+
+Then commit.
+
+==================================================
+23. FINAL EVIDENCE REPORT
+
+Do NOT give me a vague “looks good.”
+
+Give me:
+
+GITHUB
+HEAD:
+origin/main:
+latest commits:
+
+BASELINE
+Preflight:
+Typecheck:
+API build:
+Frontend:
+Database:
+Redis:
+Architecture:
+Vitest:
+
+STATIC GUARDS
+Synthetic-data guard:
+Reactor no-fabrication guard:
+
+BUG HUNT
+Issues investigated:
+Issues fixed:
+Issues ruled out:
+
+PROVIDERS
+Gemini:
+DeepSeek:
+Groq:
+Mistral:
+Research providers:
+
+BUREAU RUN #1
+
+Run ID:
+Mission:
+Boss:
+Right Hand:
+Investigator:
+Investigator model:
+Investigator provider:
+
+Model-selected actions:
+Searches:
+Visits:
+External observations:
+Pivots:
+LLM spans:
+Tool spans:
+Discovery spans:
+
+Candidates:
+Identity evidence:
+Research evidence:
+Provenance:
+Contacts:
+Contact scope:
+
+Termination reason:
+Final Bureau state:
+Integrity:
+
+BUREAU RUN #2
+Same fields if executed.
+
+==================================================
+24. FINAL VERDICT — EVIDENCE REQUIRED
+
+You MUST choose exactly one:
+
+A) APEX ATLAS IS NOW WORKING AS DESIGNED
+
+or
+
+B) APEX ATLAS IS NOT YET WORKING AS DESIGNED
+
+You may choose A ONLY if ALL of these are demonstrated:
+
+✓ baseline green
+✓ 419/419 tests or documented updated equivalent
+✓ architecture guards green
+✓ synthetic-data guard green
+✓ Reactor no-fabrication guard green
+✓ timeout semantics truthful
+✓ provider attribution truthful
+✓ Gemini actually acts as Boss
+✓ DeepSeek actually acts as Right Hand
+✓ Investigator actually owns research
+✓ Investigator actually chooses research actions
+✓ real research tools execute
+✓ real external sources are observed
+✓ observations return to the Investigator
+✓ Investigator can reason/pivot
+✓ real named people are established from evidence
+✓ provenance survives
+✓ contacts are correctly scoped
+✓ no fabricated candidates
+✓ no fabricated observations
+✓ no deterministic research playbook
+✓ Bureau reaches a genuinely successful final state
+✓ the success is not merely “job status = done”
+✓ at least one complete end-to-end live Bureau trajectory is evidenced
+✓ preferably a second successful bounded run confirms repeatability
+
+If ANY of these are missing:
+
+choose B.
+
+Do not tell me “A” to make me happy.
+
+==================================================
+25. THE FINAL STATEMENT
+
+If and ONLY IF every acceptance criterion above is actually proven, say:
+
+“APEX ATLAS IS FINALLY WHAT WE DESIGNED IT TO BE.”
+
+Then list the evidence that proves it.
+
+If not, tell me exactly what remains.
+
+No bullshit.
+
+No optimism without evidence.
+
+No “almost.”
+
+START NOW.
