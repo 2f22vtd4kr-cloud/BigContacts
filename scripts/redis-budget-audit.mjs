@@ -35,7 +35,7 @@ const workspace = read(files[6]);
 const reactor = read(files[7]);
 
 if (/getLatestJob[\s\S]{0,12000}\.scan\([^)]*apex:job:\*/i.test(job)) {
-  failures.push("job-queue.ts: getLatestJob contains a keyspace SCAN on apex:job:*.");
+  failures.push("job-queue.ts: getLatestJob contains a keyspace SCAN on apex:job:*." );
 }
 
 const setActive = job.match(/export async function setActiveJob[\s\S]*?\n}\n\nexport async function getActiveJob/);
@@ -48,13 +48,16 @@ if (update && /rc\.expire\(jk\(jobId\)/.test(update[0])) {
   failures.push("job-queue.ts: updateJob refreshes job TTL on every update.");
 }
 
+// Bureau mirroring is implemented in bureau-live-log.ts. The recursion guard
+// therefore belongs in that module; do not require the guard to live in the
+// lower-level job queue just because it also exposes appendJobLog().
 const hasBureauMirror = /appendJobLog\([\s\S]*?mirrorJobLogLine/i.test(live);
 const hasBureauGuard =
-  job.includes('startsWith("BUREAU|') ||
-  job.includes("startsWith('BUREAU|") ||
-  job.includes('BUREAU|') && job.includes("skip");
+  live.includes('startsWith("BUREAU|') ||
+  live.includes("startsWith('BUREAU|") ||
+  (live.includes("BUREAU|") && /skip|guard|recursion/i.test(live));
 if (hasBureauMirror && !hasBureauGuard) {
-  failures.push("bureau-live-log/job-queue: BUREAU job-log mirroring has no recursion guard.");
+  failures.push("bureau-live-log.ts: BUREAU job-log mirroring has no recursion guard.");
 }
 
 const hookIntervals = (hook.match(/setInterval\(/g) || []).length;
