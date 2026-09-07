@@ -219,6 +219,10 @@ export function classifyJobLogLine(line: string): {
 
 /** Rate-limited mirror used by job-queue.appendJobLog */
 export async function mirrorJobLogLine(jobId: string, line: string): Promise<void> {
+  // publishBureauEvent mirrors structured BUREAU lines back into the job log.
+  // Never mirror those lines into Bureau again or the two mirrors can recurse.
+  if (line.trimStart().startsWith("BUREAU|")) return;
+
   if (/BOSS_DISCOVERY_DIRECTION/i.test(line)) {
     const sig = line.slice(0, 160);
     if (sig === lastBossTitleMirror) return;

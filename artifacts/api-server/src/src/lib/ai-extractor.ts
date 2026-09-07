@@ -379,14 +379,20 @@ export function buildProviderSearchQuery(
     .slice(0, 3));
   if (context.subjectKind) parts.push(`subject:${context.subjectKind}`);
 
-  // Prefer known domains as context; do not append fixed OR keyword playbooks.
+  // Put known domains first so official-site lanes lead providers to the
+  // target's own pages, then add a compact lane-specific research angle.
   const domains = (context.candidateDomains ?? [])
     .map((domain) => domain.trim().replace(/^https?:\/\//i, "").replace(/\/.*$/, "").toLowerCase())
     .filter(Boolean)
     .slice(0, 3);
-  if (domains.length > 0) {
-    parts.push(domains[0]!);
-  }
+  if (domains.length > 0) parts.unshift(`site:${domains[0]}`);
+  const laneTerms: Record<AIResearchLane, string> = {
+    official_records: "official team people registry filing",
+    people_press: "named people leadership interview",
+    contact_routes: "direct contact official team people email phone",
+    semantic_discovery: "ownership control parent operating company principal",
+  };
+  parts.push(laneTerms[context.lane ?? "people_press"]);
   if (entityType === "Corporation" || entityType === "Trust") {
     parts.push("company");
   }

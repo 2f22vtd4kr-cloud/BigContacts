@@ -3566,6 +3566,17 @@ router.post("/research/cases/:entityId/advance", async (req, res): Promise<void>
         entityId: params.data.entityId,
         persist: true,
         maxIterations: resolveResearchDepth().agenticMaxIterations,
+        onInvestigationAct: async (step) => {
+          await db.insert(researchCaseEventsTable).values({
+            caseId: current.id,
+            iteration: nextIteration,
+            actorRole: "specialist",
+            eventType: "observation",
+            status: "recorded",
+            summary: `Investigator act · ${step.action}${step.provider ? ` · ${step.provider}` : ""}${step.query ? ` · ${step.query}` : step.url ? ` · ${step.url}` : ""}`.slice(0, 1000),
+            payload: JSON.stringify({ investigatorLlm: bossPlan.investigatorLlm ?? null, action: step.action, provider: step.provider ?? null, query: step.query ?? null, url: step.url ?? null, result: step.summary ?? null }),
+          });
+        },
       });
 
       await db.insert(researchCaseEventsTable).values({

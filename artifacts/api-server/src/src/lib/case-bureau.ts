@@ -1671,6 +1671,14 @@ export function applyGeminiBossPlan(
       if (action.id === next.id) return action;
       return reorderedById.get(action.id) ?? action;
     });
+    // Preserve the queue's status partitions, but make the stored array order
+    // match the Boss-selected order as well as the recalculated priorities.
+    let queuedIndex = 0;
+    updatedQueue = updatedQueue.map((action) =>
+      action.status === "queued"
+        ? (reorderedTail[queuedIndex++] ?? action)
+        : action,
+    );
   }
 
   const reprioritizeNote =

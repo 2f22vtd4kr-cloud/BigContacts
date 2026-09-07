@@ -55,6 +55,17 @@ export function isHeuristicEmailEvidence(input: {
   return sources.some((source) => HEURISTIC_EMAIL_SOURCE_RE.test(source));
 }
 
+function hasCandidatePhone(entity: { type?: string | null; phone?: string | null }): boolean {
+  const normalized = normalizePhone(entity.phone);
+  if (normalized) return true;
+  // Untyped inputs are legacy candidate records, not persisted entity state.
+  // Keep their structural score useful while typed entity paths stay
+  // fail-closed through normalizePhone/isTrashPhone before publication.
+  if (entity.type) return false;
+  const digits = entity.phone?.replace(/[^\d]/g, "") ?? "";
+  return digits.length >= 8 && digits.length <= 15 && Boolean(entity.phone?.trim());
+}
+
 export function computeContactConfidence(entity: {
   type?: string | null;
   organizationContact?: boolean;
@@ -83,7 +94,7 @@ export function computeContactConfidence(entity: {
     !isHeuristicEmailEvidence(entity)
   ) score += 35;
   if (
-    normalizePhone(entity.phone) !== null &&
+    hasCandidatePhone(entity) &&
     entity.phoneSource !== "EDGAR-Phone" &&
     entity.phoneSource !== "CompaniesHouse-Phone"
   ) score += 25;
@@ -125,7 +136,7 @@ export function hasMeaningfulDirectContact(entity: {
     !isHeuristicEmailEvidence(entity);
   const hasPersonalPhone =
     Boolean(entity.phone?.trim()) &&
-    normalizePhone(entity.phone) !== null &&
+    hasCandidatePhone(entity) &&
     entity.phoneSource !== "EDGAR-Phone" &&
     entity.phoneSource !== "CompaniesHouse-Phone";
 

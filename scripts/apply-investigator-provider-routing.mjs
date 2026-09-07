@@ -11,9 +11,10 @@ const orientation = fs.readFileSync(orientationFile, "utf8");
 // This compatibility script is now an assertion/no-op: it must never reinstall
 // an older provider router or rewrite a canonical source on every build.
 const canonicalRouting =
-  source.includes('provider: "serper" | "tavily" | "exa"') &&
-  source.includes('async function toolWebSearch(query: string, requestedProvider: "serper" | "tavily" | "exa")') &&
-  source.includes('if (!requestedProvider) throw new Error("web_search requires an explicit Investigator-selected provider")') &&
+  source.includes('provider?: "serper" | "tavily" | "exa"') &&
+  /async function toolWebSearch\(query: string, requestedProvider\?: "serper" \| "tavily" \| "exa"\)/.test(source) &&
+  source.includes("web_search requires an explicit provider selection") &&
+  source.includes("if (!requestedProvider) return null;") &&
   orientation.includes("web_search — Investigator-selected Serper / Tavily / Exa") &&
   orientation.includes("there is no cross-provider research fallback");
 

@@ -70,7 +70,7 @@ export type AgenticWebResearchResult = {
 };
 
 type AgentAction =
-  | { action: "web_search"; query: string; thought?: string }
+  | { action: "web_search"; query: string; provider?: "serper" | "tavily" | "exa"; thought?: string }
   | { action: "visit"; url: string; thought?: string }
   /** Model-chosen OSINT tools — never forced by the harness. */
   | { action: "footprint_email"; email: string; thought?: string }
@@ -818,6 +818,8 @@ AVAILABLE TOOLS (one JSON action per turn — your choice; use any Apex OSINT ca
 {"action":"done","findings":[{"vectorType":"email|phone|linkedin|website|social|other","value":"...","personName":null,"role":null,"scope":"organization|candidate","sourceUrls":["https://exact-page"],"note":"..."}],"thought":"..."}
 
 Guidelines (not a script):
+- You are the Investigator LLM for this assignment. You own the research trajectory, choose the next action from evidence, and decide which findings are strong enough to promote. Boss/Right-hand guidance is oversight, not a tool order.
+- You may independently choose permitted non-LLM capabilities including Serper, Tavily, Exa, browser/fetch, Scrapfly, ZenRows, registries, RDAP/Whois, Holehe, Maigret, Sherlock, and theHarvester when they increase information gain.
 - Search snippets are leads, not identity evidence. You may choose the search provider explicitly with provider=serper, tavily, or exa when that changes expected information gain. When a promising result names a person, consider visiting the corresponding result URL before claiming identity; do not treat the URL/snippet alone as proof.
 - Never invent emails, phones, people, or URLs. Only values from observations or FINDINGS SO FAR, with real sourceUrls.
 - Prefer primary sources (company sites, filings, registries) over aggregators.
@@ -1633,7 +1635,7 @@ async function runAgenticWebResearchUnbounded(input: {
       const timer = setInterval(() => {
         emitLive({ action: "llm_wait", provider: "agentic-provider-pool", summary: "model decision still pending · " + Math.round((Date.now() - started) / 1000) + "s" });
       }, 15_000);
-      try { return await llmStep(stepPrompt, selectedInvestigatorLlm); } finally { clearInterval(timer); }
+      try { return await llmStep(stepPrompt, input.investigatorLlm); } finally { clearInterval(timer); }
     };
     const prompt = buildStepPrompt({
       targetName: name,
@@ -1643,7 +1645,7 @@ async function runAgenticWebResearchUnbounded(input: {
       lastObservation,
       findings,
     });
-    const llm = await llmStepWithHeartbeat(prompt, input.investigatorLlm);
+    const llm = await llmStepWithHeartbeat(prompt);
     if (!llm) {
       history.push(`step${i + 1}: llm_unavailable — no deterministic research fallback`);
       return {

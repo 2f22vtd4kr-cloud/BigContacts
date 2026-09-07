@@ -200,7 +200,7 @@ function deterministicFallbackApprovals(input: FinalTargetReviewInput): {
       || src.includes("notice-phone");
     if (
       (c.vectorType === "phone" || c.vectorType === "email")
-      && (isNotice || c.scopes?.includes("target_person") || c.scopes?.includes("person_candidate"))
+      && isNotice
     ) {
       if (!contacts.includes(c.value)) contacts.push(c.value);
     }
@@ -319,11 +319,12 @@ export function adjudicateFinalTargetReview(
 
   if (llmEmpty) {
     const fb = deterministicFallbackApprovals(input);
-    approvedContactValues = fb.contacts.filter((v) => exactMatch(v, eligibleContacts) || exactMatch(v, Object.values(input.proposedContacts ?? {}).filter(Boolean) as string[]));
-    // Allow proposed contact values even if not in candidates list
-    if (!approvedContactValues.length && fb.contacts.length) {
-      approvedContactValues = fb.contacts.slice(0, 4);
-    }
+    // Deterministic rescue may only promote the same exact values that passed
+    // the normal eligibility gate. Never turn a proposed/model-supplied value
+    // into an approved contact merely because the LLM abstained.
+    approvedContactValues = fb.contacts
+      .filter((value) => exactMatch(value, eligibleContacts))
+      .slice(0, 4);
     approvedRelatedValues = fb.related.filter((v) => exactMatch(v, eligibleRelated) || v.length >= 12).slice(0, 8);
     relatedDescriptions = approvedRelatedValues.map(() => "Public filing / notice surface");
     if (!cardSummary && (approvedContactValues.length || approvedRelatedValues.length)) {

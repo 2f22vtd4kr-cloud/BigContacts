@@ -52,6 +52,7 @@ function hasIndependentSource(sourceUrls: string[]): boolean {
 export function isWellFormedPersonCandidate(candidate: Pick<DiscoveryCandidate, "name" | "sourceUrls">): boolean {
   const name = String(candidate.name ?? "").trim().replace(/\s+/g, " "); const words = name.split(" "); const normalized = normalizedPersonText(name);
   if (words.length < 2 || words.length > 5) return false;
+  // CamelCase extraction fragments (e.g. comPrecision) are not human-name syntax.
   if (words.some((w) => /^[a-z]+[A-Z]/.test(w))) return false;
   if (!/^\p{L}[\p{L}.'’\-]*(?:\s+\p{L}[\p{L}.'’\-]*){1,4}$/u.test(name)) return false;
   if (words.some((w) => INVALID_PERSON_NAME_WORDS.has(w.toLowerCase().replace(/[.'’\-]/g, "")))) return false;

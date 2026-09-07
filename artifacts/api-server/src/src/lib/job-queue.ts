@@ -120,9 +120,10 @@ export async function updateJob(jobId: string, patch: Partial<JobState>): Promis
   }
   const flat: Record<string, string> = {};
   for (const [k, v] of Object.entries(patch)) if (v !== undefined) flat[k] = String(v);
+  // Progress updates are frequent; createJob owns the initial TTL.
+  // Refreshing EXPIRE on every update doubles Redis traffic on the hottest path.
   await safeRedis(async rc => {
     await rc.hset(jk(jobId), flat);
-    await rc.expire(jk(jobId), JOB_TTL);
   }, undefined);
 }
 
@@ -257,9 +258,12 @@ export async function setActiveJob(type: string, jobId: string): Promise<void> {
   memoryActiveByType.set(type, jobId);
   memoryLatestByType.set(type, jobId);
   ACTIVE_JOB_READ_CACHE.set(type, { at: Date.now(), id: jobId });
+  // The in-process cache is the immediate verification surface. Do not issue
+  // a write followed by an immediate GET: that verification caused avoidable
+  // Upstash command amplification and did not improve correctness.
   const wrote = await safeRedis(async rc => {
     await rc.set(`apex:activejob:${type}`, jobId, "EX", JOB_TTL);
-    return (await rc.get(`apex:activejob:${type}`)) === jobId;
+    return true;
   }, false);
   if (!wrote) {
     console.warn(`[job-queue] setActiveJob Redis write failed — using in-process lock for ${type}=${jobId}`);

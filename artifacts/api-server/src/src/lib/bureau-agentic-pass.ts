@@ -97,6 +97,7 @@ export async function runBureauAgenticWebPass(input: {
   entityId?: number;
   persist?: boolean;
   shouldCancel?: () => boolean | Promise<boolean>;
+  onInvestigationAct?: (step: { action: string; provider?: string; query?: string; url?: string; summary?: string }) => void | Promise<void>;
 }): Promise<BureauAgenticPassResult> {
   const name = (input.targetName ?? "").trim();
   if (name.length < 2) {
@@ -137,6 +138,7 @@ export async function runBureauAgenticWebPass(input: {
       hardTimeoutMs: input.hardTimeoutMs ?? resolveResearchDepth().agenticHardTimeoutMs,
       shouldCancel: input.shouldCancel,
       onLiveStep: (step) => {
+        void input.onInvestigationAct?.({ action: step.action, provider: step.provider, query: step.query, url: step.url, summary: step.summary });
         const kind =
           step.action === "web_search" ? "search"
           : step.action === "visit" || step.action === "browser_fetch" ? "page-fetch"

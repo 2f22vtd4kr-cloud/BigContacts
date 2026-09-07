@@ -29,10 +29,27 @@ export function buildWebSearchSubQueries(ctx: WebSearchQueryContext): string[] {
   const geo = (ctx.geography ?? "").trim();
   const city = geo.split(",")[0]?.trim() ?? "";
 
-  queries.push(`"${name}"`);
-  if (shortCo) queries.push(`"${name}" "${shortCo}"`);
-  if (city && city.length > 2) {
-    queries.push(shortCo ? `"${shortCo}" "${city}"` : `"${name}" "${city}"`);
+  const isPerson = /person|hnwi|individual|gatekeeper/i.test(ctx.type ?? "");
+  const registry = (ctx.sourceRegistries ?? "").toLowerCase();
+  const registrySite = registry.includes("companies house")
+    ? "site:companies-house.gov.uk"
+    : registry.includes("sec") || registry.includes("edgar")
+      ? "site:sec.gov"
+      : registry.includes("gleif") || registry.includes("lei")
+        ? "site:gleif.org"
+        : "";
+
+  if (isPerson) {
+    const company = shortCo ? ` "${shortCo}"` : "";
+    queries.push(`"${name}"${company} linkedin.com/in`);
+    queries.push(`"${name}"${company} email OR contact OR phone OR linkedin`);
+    queries.push(`"${name}"${company} official website`);
+    if (city && city.length > 2) queries.push(shortCo ? `"${shortCo}" "${city}"` : `"${name}" "${city}"`);
+  } else {
+    queries.push(`${registrySite} "${name}"`.trim());
+    queries.push(`"${name}"`);
+    if (shortCo) queries.push(`"${name}" "${shortCo}"`);
+    if (city && city.length > 2) queries.push(shortCo ? `"${shortCo}" "${city}"` : `"${name}" "${city}"`);
   }
   if (ctx.nNumber) queries.push(`"${ctx.nNumber}"`);
   if (ctx.formType && !shortCo) queries.push(`"${name}"`);

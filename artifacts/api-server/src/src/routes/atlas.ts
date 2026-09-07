@@ -158,18 +158,11 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
   };
 
   const atlasJobId = await createJob("atlas-run");
-  // Ensure Redis lock sticks — silent SET failures caused Launch to self-cancel.
-  for (let attempt = 0; attempt < 3; attempt++) {
-    await setActiveJob("atlas-run", atlasJobId);
-    const pinned = await getActiveJob("atlas-run");
-    if (pinned === atlasJobId) break;
-    logger.warn({ atlasJobId, pinned, attempt }, "atlas-run: active job pointer mismatch after setActiveJob");
-  }
-  if ((await getActiveJob("atlas-run")) !== atlasJobId) {
-    // Last resort: pin in-process only (Redis quota exhausted).
-    await setActiveJob("atlas-run", atlasJobId);
-    logger.warn({ atlasJobId }, "atlas-run: proceeding with in-process lock only (Redis unavailable)");
-  }
+  // setActiveJob updates the process-local lock before attempting Redis and
+  // falls back to that lock if Redis is unavailable. Do not read it back here:
+  // Launch is already serialized by getActiveJob above and this route must not
+  // turn one launch into a multi-command Redis verification loop.
+  await setActiveJob("atlas-run", atlasJobId);
 
   const modelSelectedBureau = discoveryFirst && opts.singleTargetId == null;
   await updateJob(atlasJobId, modelSelectedBureau
