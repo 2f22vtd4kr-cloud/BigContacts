@@ -17,6 +17,7 @@ const rightHandRequired = [
   "Every iteration must produce a meaningful delta in the case frontier",
   "do not merely repeat the previous Investigator result",
   "recentDecisions: file.decisionLog.slice(-5)",
+  "buildRightHandDecisionContext(file)",
 ];
 for (const marker of rightHandRequired) {
   if (!rightHand.includes(marker)) {
