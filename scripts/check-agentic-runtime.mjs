@@ -16,7 +16,7 @@ const required = [
   ["Dig action schema is present", /const AGENTIC_ACTION_SCHEMA =/],
   ["Dig action JSON is fail-closed parsed", /function parseAction/],
   ["Dig provider decision deadline is bounded", /providerDecisionTimeoutMs = Math\.max\(55_000, Number\(process\.env\.AGENTIC_PROVIDER_DECISION_TIMEOUT_MS/],
-  ["late provider rejections are consumed", /void fn\(prompt(?:,\s*controller\.signal)?\)\.then\([\s\S]*?clearTimeout\(timer\)/],
+  ["late provider rejections are consumed", /void fn\(prompt\)\.then\([\s\S]*?clearTimeout\(timer\)/],
   ["provider decisions are bounded across concurrent targets", /MAX_CONCURRENT_AGENTIC_PROVIDER_DECISIONS/],
   ["provider failures do not use a global cross-target circuit", /activeAgenticProviderDecisions/],
   ["default iteration budget is expanded", /const MAX_ITER = 40;/],
