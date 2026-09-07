@@ -1,8 +1,7 @@
 /**
  * Filing notice-line extraction — reporting person phone/address, not issuer HQ.
  */
-import { describe, it } from "node:test";
-import assert from "node:assert/strict";
+import { describe, expect, it } from "vitest";
 import { parseFilingPersonContacts } from "../lib/edgar-identity-boost";
 
 const GUND_NOTICE = `
@@ -27,14 +26,14 @@ Northbrook, IL 60062
 describe("parseFilingPersonContacts", () => {
   it("extracts SC 13 notices-and-communications phone", () => {
     const r = parseFilingPersonContacts(GUND_NOTICE);
-    assert.ok(r.phone && r.phone.includes("609"), `expected 609 notice phone, got ${r.phone}`);
+    expect(r.phone).toBeTruthy();
+    expect(r.phone).toContain("609");
   });
 
   it("does not invent a phone from issuer HQ block alone without notice header", () => {
-    const r = parseFilingPersonContacts(ISSUER_ONLY);
-    // May or may not pick up a phone from loose text — if it does, still valid digits;
-    // critical invariant: Gund-style notice block must win when present
+    parseFilingPersonContacts(ISSUER_ONLY);
     const withNotice = parseFilingPersonContacts(GUND_NOTICE + "\n" + ISSUER_ONLY);
-    assert.ok(withNotice.phone && withNotice.phone.includes("609"));
+    expect(withNotice.phone).toBeTruthy();
+    expect(withNotice.phone).toContain("609");
   });
 });
