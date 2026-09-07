@@ -1,0 +1,705 @@
+APEX ATLAS / BIGCONTACTS
+
+FRESH REPLIT WORKSPACE
+
+OBJECTIVE: PROVE BUREAU WORKS
+
+Repository:
+
+https://github.com/2f22vtd4kr-cloud/BigContacts
+
+This workspace is NOT for another giant setup/rebuild cycle.
+
+The engineering foundation has already been through extensive repair.
+
+The current objective is:
+
+PROVE THAT BUREAU NOW BEHAVES LIKE THE MODEL-DIRECTED RESEARCH BUREAU WE DESIGNED.
+
+==================================================
+
+1. CURRENT GITHUB SOURCE OF TRUTH
+    ==================================================
+
+Import the repository.
+
+Immediately run:
+
+git fetch origin
+git status –short
+git rev-parse HEAD
+git rev-parse origin/main
+git log -10 –oneline
+
+Current expected origin/main:
+
+108031b17a858c32f53f93df3d5ca80592add84b
+
+Do NOT use an old Replit snapshot.
+
+Do NOT reset to an older commit.
+
+Do NOT resurrect historical code.
+
+==================================================
+2. IMPORTANT RECENT FIX
+
+A real Bureau run exposed this defect:
+
+Discovery slot 2 reached:
+
+HARD_TIMEOUT
+
+but discovery only classified:
+
+unavailable
+error
+
+as degraded.
+
+Therefore a timed-out research stage could incorrectly appear:
+
+complete
+degraded=false
+
+even though no valid discovery result had been established.
+
+This has now been fixed in GitHub.
+
+The canonical build applies the timeout classification before compiling.
+
+The expected source condition is:
+
+result.status === “unavailable”
+OR
+result.status === “error”
+OR
+result.status === “timeout”
+
+=> degraded=true
+
+DO NOT remove this.
+
+DO NOT weaken it.
+
+==================================================
+3. DO NOT SPEND CREDITS ON ARCHAEOLOGY
+
+Do NOT:
+
+* reread thousands of repository files
+* redesign the architecture
+* rewrite the frontend
+* upgrade dependencies
+* refactor unrelated code
+* polish UI
+* repeat historical fixes
+* invent a new Bureau benchmark
+
+Read only:
+
+docs/context.md
+docs/RUN_BUREAU.md
+docs/REPLIT_NEW_ACCOUNT_SETUP.md
+package.json
+
+Then work directly on the live objective.
+
+==================================================
+4. SECRETS / ENVIRONMENT
+
+Configure the documented production/research secrets.
+
+Required core providers:
+
+GEMINI_API_KEY
+DEEPSEEK_API_KEY
+GROQ_API_KEY
+MISTRAL_API_KEY
+REDIS_URL_1
+
+plus the documented research-provider credentials.
+
+Never print secret values.
+
+Use:
+
+PORT=8080
+ENABLE_AUTO_PIPELINE=false
+INSTALL_PYTHON_OSINT=false
+APEX_SKIP_SEMANTIC=1
+CI=true
+RESEARCH_DEPTH=standard
+NODE_OPTIONS=–max-old-space-size=1536
+
+==================================================
+5. BUILD FIRST
+
+Run the canonical build ONCE.
+
+This is important because the current build now applies the committed discovery-timeout classification.
+
+After build, verify:
+
+git diff –stat
+git diff – artifacts/api-server/src/src/lib/discovery-agent.ts
+
+Confirm the timeout condition is present.
+
+Then run the build a second time.
+
+Expected:
+
+NO additional semantic source mutation.
+
+Build idempotence must remain intact.
+
+If the build keeps modifying the source:
+
+STOP and diagnose.
+
+Do not hide the diff.
+
+==================================================
+6. BASELINE
+
+Run the minimum baseline:
+
+preflight
+typecheck
+API build
+frontend build
+database/schema checks
+Redis audit
+architecture guards
+full Vitest
+
+Expected current baseline:
+
+419/419 Vitest passing.
+
+If baseline is green:
+
+DO NOT spend time repeating successful infrastructure work.
+
+Move to Bureau.
+
+If baseline fails:
+
+identify the first genuine regression.
+
+Do not weaken tests.
+
+==================================================
+7. API
+
+Start the canonical API.
+
+Verify:
+
+GET /api/healthz
+
+Record:
+
+Redis
+PostgreSQL
+Bureau integrity
+agentic LLM status
+
+Health is NOT Bureau success.
+
+==================================================
+8. NOW RUN THE REAL BUREAU
+
+Read and follow:
+
+docs/RUN_BUREAU.md
+
+Run the canonical Bureau audit.
+
+Do not invent a substitute.
+
+Do not fabricate a target.
+
+Do not fabricate a person.
+
+Do not fabricate evidence.
+
+Do not manufacture observations.
+
+==================================================
+9. THIS IS WHAT WE NEED TO SEE
+
+A successful run should look like:
+
+MISSION
+↓
+GEMINI / BOSS
+↓
+INVESTIGATOR ASSIGNMENT
+↓
+SELECTED INVESTIGATOR
+↓
+ACTUAL INVESTIGATOR LLM CALL
+↓
+MODEL-SELECTED RESEARCH ACTION
+↓
+REAL SEARCH / FETCH
+↓
+REAL HTTP OBSERVATION
+↓
+OBSERVATION RETURNED TO INVESTIGATOR
+↓
+INVESTIGATOR REASONING
+↓
+PIVOT / FOLLOW-UP WHEN APPROPRIATE
+↓
+REAL NAMED PERSON
+↓
+IDENTITY VALIDATION
+↓
+SOURCE-BACKED EVIDENCE
+↓
+CONTACT ROUTE WITH CORRECT SCOPE
+↓
+BUREAU RESULT
+
+We are testing the whole chain.
+
+==================================================
+10. INVESTIGATOR OWNERSHIP
+
+This is CRITICAL.
+
+Prove that the Investigator actually owns research strategy.
+
+The Investigator must decide:
+
+* query wording
+* search/fetch action
+* research direction
+* provider/tool choice where applicable
+* pivot
+* whether evidence is sufficient
+* when to stop
+
+Deterministic code may enforce:
+
+* safety
+* budgets
+* authorization
+* lifecycle
+* cancellation
+* provenance
+* schema
+* evidence validation
+
+Deterministic code must NOT secretly decide:
+
+“search provider A, then B, then C”
+
+or:
+
+“Groq, then Mistral”
+
+or:
+
+“take candidate X from page text”
+
+==================================================
+11. DO NOT CONFUSE TOOL EXECUTION WITH MODEL DECISION
+
+For each meaningful research step establish:
+
+WHO chose it?
+
+WHAT did the model request?
+
+WHAT tool executed?
+
+WHAT was actually observed?
+
+WHAT came back to the model?
+
+WHAT did the model decide next?
+
+The logs/trace should demonstrate this.
+
+Do not infer model ownership merely because a tool was eventually called.
+
+==================================================
+12. REAL WEB OBSERVATION
+
+For every important research source, verify:
+
+* actual URL
+* actual tool call
+* actual external observation
+* observation returned/persisted
+* provenance linkage
+
+A model-generated URL is NOT a visited source.
+
+A search result snippet is NOT automatically evidence.
+
+Model knowledge is NOT source observation.
+
+==================================================
+13. REAL CANDIDATE
+
+A candidate must be:
+
+* a real named individual
+* supported by an observed HTTP(S) source
+* identity-attributable
+* relevant to the mission
+* suitable for further investigation
+
+Reject:
+
+* titles pretending to be people
+* company names pretending to be people
+* topic phrases
+* search fragments
+* generic organizations
+* proxy_table candidates
+* deterministic page-text extraction
+
+The model owns the candidate decision.
+
+The deterministic layer validates it.
+
+==================================================
+14. CONTACT QUALITY
+
+If Bureau finds a contact route, determine:
+
+WHO owns it?
+
+WHAT evidence attributes it?
+
+WHAT scope does it have?
+
+A generic:
+
+info@
+contact@
+press@
+company contact form
+
+is NOT a personal contact.
+
+Do not infer personal email addresses.
+
+==================================================
+15. PROVENANCE
+
+For every promoted result:
+
+candidate
+→ observed source
+→ identity evidence
+→ research evidence
+→ promotion
+
+must be traceable.
+
+If provenance is missing:
+
+do not promote.
+
+==================================================
+16. TIMEOUT SEMANTICS
+
+This is a specific regression test.
+
+If a discovery slot reaches:
+
+HARD_TIMEOUT
+
+the Bureau MUST NOT report the process as a clean successful completion.
+
+Expected semantics:
+
+timeout
+→ degraded/incomplete
+
+unless the surrounding documented state machine has an explicitly valid alternative interpretation.
+
+Do not simply change the displayed status.
+
+Verify the actual downstream Bureau state.
+
+The system must remain truthful.
+
+==================================================
+17. FAILURE IS USEFUL
+
+If the Bureau run fails:
+
+DO NOT immediately retry.
+
+Find the FIRST broken transition.
+
+Examples:
+
+Boss failed
+Investigator not invoked
+wrong Investigator propagation
+provider unavailable
+model response malformed
+action parsing failed
+tool dispatch failed
+HTTP observation failed
+model failed to continue
+candidate admission failed
+identity failed
+provenance failed
+timeout incorrectly classified
+Bureau terminal state incorrect
+
+Report exactly where the chain broke.
+
+==================================================
+18. PROVIDER 429
+
+If Mistral or another provider returns 429:
+
+Do NOT endlessly retry.
+
+Determine whether this is:
+
+APPLICATION BUG
+or
+EXTERNAL PROVIDER CAPACITY
+
+If another authorized Investigator capability can legitimately be used, verify that the architecture handles it correctly.
+
+Do not silently misattribute the acting model.
+
+Do not fake success.
+
+==================================================
+19. RESEARCH QUALITY
+
+We do NOT want a scripted benchmark.
+
+A good Bureau run may look different from another good Bureau run.
+
+That is desirable.
+
+The model should adapt.
+
+A strong trajectory might be:
+
+search
+→ inspect
+→ identify
+→ visit
+→ reason
+→ pivot
+→ corroborate
+→ stop
+
+Another may be:
+
+search
+→ search
+→ visit
+→ identify
+→ corroborate
+→ stop
+
+Both can be correct.
+
+The invariant is:
+
+MODEL-DIRECTED RESEARCH
++
+REAL OBSERVATIONS
++
+HONEST PROVENANCE.
+
+==================================================
+20. IF THE FIRST RUN SUCCEEDS
+
+Do NOT immediately declare victory.
+
+If credits permit, perform ONE second bounded Bureau run using the same canonical procedure.
+
+We are looking for repeatability.
+
+The two trajectories do NOT need to be identical.
+
+We want to see that the system repeatedly:
+
+* lets the Investigator choose
+* executes real research
+* observes real sources
+* establishes real people
+* preserves provenance
+* produces honest results
+
+==================================================
+21. DO NOT MAKE SPECULATIVE FIXES
+
+If everything above passes:
+
+STOP.
+
+Do not:
+
+* refactor
+* polish
+* upgrade
+* rewrite
+* “improve” architecture
+* modify successful code
+
+If you discover a genuine new blocker, capture the exact evidence.
+
+Do not make a large speculative patch.
+
+I will handle GitHub engineering/commits.
+
+==================================================
+22. GIT RULE
+
+DO NOT commit.
+
+DO NOT push.
+
+The current GitHub state contains the fixes already made.
+
+If the workspace produces source changes from the canonical build, show me the exact diff.
+
+Do not discard it.
+
+==================================================
+23. FINAL REPORT
+
+Report ONLY meaningful evidence.
+
+GITHUB
+HEAD:
+origin/main:
+
+BASELINE
+Preflight:
+Typecheck:
+API build:
+Build idempotence:
+Frontend:
+Database:
+Redis:
+Architecture:
+Vitest:
+
+API
+Healthz:
+Redis:
+Postgres:
+Bureau integrity:
+
+PROVIDERS
+Gemini:
+DeepSeek:
+Groq:
+Mistral:
+Research providers:
+
+BUREAU RUN #1
+Run ID:
+Mission:
+Boss:
+Investigator:
+Investigator model:
+Investigator provider:
+Model-selected actions:
+Searches:
+Visits:
+External observations:
+Pivots:
+Candidates:
+Identity:
+Evidence:
+Provenance:
+Contacts:
+Termination reason:
+Final state:
+Integrity:
+
+BUREAU RUN #2
+Same fields if executed.
+
+MOST IMPORTANT QUESTIONS
+
+1. Did the Investigator actually choose the research actions?
+2. Did real tools execute?
+3. Did real external sources get observed?
+4. Did observations return to the Investigator?
+5. Did the Investigator adapt based on evidence?
+6. Were candidates source-backed?
+7. Was provenance preserved?
+8. Were contacts honest and correctly scoped?
+9. Did deterministic code remain enforcement rather than research strategy?
+10. Did Bureau produce a trustworthy final state?
+11. Did timeout semantics remain truthful?
+
+FINAL VERDICT:
+
+A) BUREAU IS WORKING AS DESIGNED
+
+or
+
+B) BUREAU IS NOT YET WORKING
+
+If B:
+
+FIRST BROKEN TRANSITION:
+ROOT CAUSE:
+EVIDENCE:
+REMAINING BLOCKER:
+
+==================================================
+DEFINITION OF DONE
+
+We are NOT done because 419 tests pass.
+
+We are NOT done because healthz passes.
+
+We are NOT done because Redis passes.
+
+We are NOT done because a job says “completed.”
+
+We are done when we have evidence that:
+
+Gemini acts as Boss.
+
+DeepSeek acts as Right Hand.
+
+The Investigator owns research.
+
+The Investigator chooses actions.
+
+Real tools execute those actions.
+
+Real external sources are observed.
+
+The Investigator reasons over observations.
+
+The Investigator can pivot.
+
+Real people are established from evidence.
+
+Evidence and provenance survive.
+
+Contact routes remain honest.
+
+Timeouts and failures remain truthful.
+
+Bureau produces a trustworthy result.
+
+That is the Apex Atlas we designed.
+
+START NOW.
