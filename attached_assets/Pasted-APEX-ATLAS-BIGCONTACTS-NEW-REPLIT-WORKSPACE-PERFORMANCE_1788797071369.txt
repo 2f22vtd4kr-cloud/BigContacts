@@ -1,0 +1,1050 @@
+APEX ATLAS / BIGCONTACTS
+
+NEW REPLIT WORKSPACE — PERFORMANCE LAB
+
+COORDINATED BUREAU LIVE EXPERIMENT
+
+Repository:
+
+https://github.com/2f22vtd4kr-cloud/BigContacts
+
+MISSION
+
+You are entering a NEW Replit workspace for Apex Atlas.
+
+This is NOT another reconstruction.
+
+This is NOT another architecture audit.
+
+This is NOT permission to redesign the Bureau.
+
+The architecture is already assembled and the latest performance/coordination work has been committed to GitHub.
+
+Your job in this workspace is:
+
+RUN THE CURRENT APEX ATLAS AS A COORDINATED, MODEL-DRIVEN RESEARCH BUREAU, MEASURE ITS REAL QUOTA ECONOMICS AND RESEARCH QUALITY, FIND ANY PERFORMANCE/COORDINATION BUGS EXPOSED BY THE LIVE RUN, FIX ONLY GENUINE PROBLEMS, COMMIT AND PUSH EVERY FIX, AND PRODUCE AN EVIDENCE-BASED VERDICT.
+
+We are specifically testing whether the new Bureau coordination makes Apex:
+
+* smarter
+* deeper
+* more coherent
+* more efficient
+* less repetitive
+* better at finding attributable contacts
+* better at using the strengths of its individual LLMs
+* substantially more useful than a single-agent research run.
+
+Do NOT cripple the models simply to save tokens.
+
+Do NOT script the research trajectory.
+
+Do NOT turn the Investigator into a deterministic search engine.
+
+The LLMs must be allowed to reason.
+
+The Bureau must coordinate them.
+
+============================================================
+
+1. GITHUB IS THE SOURCE OF TRUTH
+    ============================================================
+
+Import the repository:
+
+https://github.com/2f22vtd4kr-cloud/BigContacts
+
+Immediately run:
+
+git fetch origin
+git status –short
+git rev-parse HEAD
+git rev-parse origin/main
+git log -15 –oneline
+
+Synchronize to the current origin/main.
+
+The expected latest performance/coordination work is around:
+
+1c725fd4a25c0ef2c33c9b11fcee79745b66cb0e
+
+Do NOT assume that exact SHA is still HEAD if GitHub has advanced.
+
+Use the actual latest origin/main.
+
+Before doing anything else, verify that the following current work exists:
+
+* LLM quota telemetry
+* terminal provider retry handling
+* timeout abort propagation
+* Mistral output cap
+* performance roadmap
+* Boss context compaction
+* Right-hand context compaction
+* coordination ledger/shared-mind contract
+* priority-aware action frontier
+* coordination efficiency regression guard
+
+============================================================
+2. READ THE CANONICAL DOCUMENTS
+
+Read completely:
+
+docs/context.md
+docs/RUN_BUREAU.md
+docs/APEX_ATLAS_PERFORMANCE_PLAN.md
+
+Also inspect the relevant current implementation for:
+
+* Boss
+* Right-hand / DeepSeek
+* Investigator / ReAct
+* provider selection
+* LLM telemetry
+* context compaction
+* action queue
+* evidence/provenance
+* Bureau terminal states.
+
+Do NOT read the entire repository indiscriminately.
+
+Follow references from the canonical documents and inspect only what is necessary.
+
+============================================================
+3. NO OLD REPLIT STATE
+
+This is a fresh workspace.
+
+Do NOT trust:
+
+* old processes
+* old environment variables
+* old logs
+* old database state
+* old build artifacts
+* old node_modules
+* old generated files.
+
+Establish the current repository state first.
+
+============================================================
+4. PROVIDER KEYS — ASK FOR THEM
+
+Before running the live Bureau, ASK ME to provide fresh unused provider quota keys if they are not already configured.
+
+At minimum verify the required current providers:
+
+GEMINI_API_KEY
+DEEPSEEK_API_KEY
+GROQ_API_KEY
+MISTRAL_API_KEY
+
+Do NOT ask me to paste secrets into the chat if Replit Secrets is the appropriate mechanism.
+
+Tell me exactly which secret names are missing or need replacement.
+
+NEVER print secret values.
+
+NEVER commit secrets.
+
+NEVER put secrets in logs.
+
+We specifically need fresh quota for the Investigator providers because the previous live test was interrupted by 429 capacity exhaustion.
+
+============================================================
+5. BASELINE BEFORE LIVE RESEARCH
+
+Run only the necessary baseline:
+
+* preflight
+* typecheck
+* API build
+* full Vitest
+* critical architecture/performance guards
+* API health
+* PostgreSQL
+* Redis
+
+Expected historical baseline:
+
+419/419 tests passing.
+
+If the number has changed because legitimate tests were added, report the actual result.
+
+If anything fails:
+
+DO NOT immediately modify code.
+
+Identify whether it is:
+
+A. environmental
+B. provider-related
+C. stale workspace state
+D. actual regression
+
+Fix only genuine repository defects.
+
+Every production fix MUST be:
+
+1. tested
+2. committed
+3. pushed to GitHub
+4. verified from GitHub.
+
+============================================================
+6. START THE REAL BUREAU
+
+Start the canonical API according to:
+
+docs/RUN_BUREAU.md
+
+Use the documented port and startup process.
+
+Verify:
+
+GET /api/healthz
+
+Do not consider health status to be proof of Bureau correctness.
+
+============================================================
+7. THE LIVE TEST MUST BE BLIND
+
+Use the SAME TARGET:
+
+Andy Cantwell
+
+BUT:
+
+DO NOT PROVIDE APEX WITH MY INDEPENDENT RESEARCH RESULTS.
+
+Do NOT provide:
+
+* his website
+* his email
+* his phone
+* search queries
+* source URLs
+* contact information
+* findings from my independent investigation.
+
+The Bureau must discover these itself.
+
+This is now a blind comparative research experiment.
+
+============================================================
+8. BUREAU CHAIN OF COMMAND
+
+The Bureau must operate as one coordinated organism.
+
+The roles are:
+
+RIGHT-HAND / DEEPSEEK
+
+Purpose:
+
+diagnose the investigation.
+
+It receives mounting case information and should reason about:
+
+* what is known
+* what is uncertain
+* what has already been attempted
+* what has changed
+* contradictions
+* blind spots
+* evidence gaps
+* contact gaps
+* highest-value unexplored frontier.
+
+It MUST NOT simply repeat the Investigator.
+
+It MUST NOT independently burn quota researching the same matter without a distinct reason.
+
+It should produce concise, high-value strategic advice.
+
+⸻
+
+BOSS / GEMINI
+
+Purpose:
+
+command and integration.
+
+It receives:
+
+* current case state
+* Investigator progress
+* evidence
+* findings
+* action queue
+* contact routes
+* contradictions
+* Right-hand reasoning
+* prior decisions
+* progress/stagnation information.
+
+It decides the Bureau’s next strategic move.
+
+The Boss MUST NOT duplicate Investigator work.
+
+The Boss MUST coordinate the available intelligence.
+
+⸻
+
+INVESTIGATOR
+
+Purpose:
+
+autonomous research execution.
+
+It receives:
+
+* Boss assignment
+* relevant Right-hand intelligence
+* compact case state
+* evidence
+* unresolved questions
+* previous research
+* available tools.
+
+It must freely decide:
+
+* search query
+* research action
+* source
+* visit
+* pivot
+* corroboration
+* evidence sufficiency
+* stopping.
+
+Do NOT replace these decisions with hard-coded routing.
+
+============================================================
+9. SHARED MIND / MOUNTING DATA
+
+This is one of the PRIMARY experiments.
+
+As research progresses, Boss and Right-hand must receive meaningful mounting information.
+
+The shared state must make clear:
+
+* what has been discovered
+* what has been disproven
+* what remains uncertain
+* which sources were inspected
+* which candidates survived
+* which identities were resolved
+* which contacts were found
+* which contact routes failed
+* which hypotheses changed
+* what research has already been performed
+* what the Investigator currently believes
+* what the Investigator has not yet resolved
+* what the next useful frontier may be.
+
+Do NOT repeatedly resend huge raw histories when a compact evidence-rich representation can carry the same information.
+
+But DO NOT compact away information needed for reasoning.
+
+The objective is:
+
+RICH PERSISTENT CASE
++
+COMPACT HIGH-VALUE DECISION CONTEXT.
+
+============================================================
+10. NO DUPLICATED RESEARCH
+
+The Bureau must not behave like:
+
+Boss searches X
+Right-hand searches X
+Investigator searches X
+Boss searches X again
+Right-hand summarizes X
+Investigator searches X again
+
+That is quota waste and organizational failure.
+
+Every additional investigation of an already-covered area must have a reason:
+
+* corroboration
+* contradiction
+* identity ambiguity
+* new evidence
+* contact validation
+* source conflict
+* new hypothesis
+* higher-value unresolved question.
+
+Otherwise move forward.
+
+============================================================
+11. MEASURE EVERY PHYSICAL LLM CALL
+
+This run exists partly to determine WHERE QUOTA GOES.
+
+Capture telemetry for every LLM request:
+
+run ID
+role
+iteration
+provider
+model
+attempt
+retry index
+HTTP status
+success/failure
+timeout
+prompt/input tokens
+cached input tokens if available
+output tokens
+total tokens
+latency.
+
+Also capture the associated research action.
+
+NEVER capture:
+
+* API keys
+* raw secrets
+* full prompts
+* full model responses
+* private credentials.
+
+At the end calculate:
+
+TOTAL LLM CALLS
+TOTAL INPUT TOKENS
+TOTAL OUTPUT TOKENS
+TOTAL TOKENS
+TOKENS BY ROLE
+TOKENS BY PROVIDER
+TOKENS BY MODEL
+TOKENS BY ITERATION
+RETRIES
+FAILED REQUESTS
+429s
+TIMEOUTS
+AVERAGE LATENCY
+USEFUL FINDINGS
+VERIFIED SOURCES
+VERIFIED IDENTITIES
+VERIFIED CONTACTS.
+
+============================================================
+12. QUOTA WASTE TEST
+
+Explicitly investigate:
+
+* duplicate model calls
+* duplicate provider attempts
+* retry fan-out
+* abandoned requests
+* timeout requests that continue running
+* malformed-output repair calls
+* oversized context
+* repeated observations
+* redundant searches
+* redundant Boss reasoning
+* redundant Right-hand reasoning.
+
+If a physical request is made:
+
+ask whether it materially advanced the investigation.
+
+Do NOT count a request as waste merely because it failed.
+
+A legitimate failed attempt can be useful resilience.
+
+WASTE means:
+
+unnecessary computation that did not meaningfully advance the Bureau.
+
+============================================================
+13. MODEL INTELLIGENCE MUST NOT BE ARTIFICIALLY CRIPPLED
+
+This is crucial.
+
+Do NOT lower reasoning quality simply because we want a prettier token number.
+
+Do NOT:
+
+* hard-code queries
+* hard-code search order
+* hard-code contact discovery
+* hard-code stop after N searches
+* replace model reasoning with deterministic rules
+* force fixed provider sequences.
+
+The models are the intelligence.
+
+The code supplies:
+
+* tools
+* evidence
+* memory
+* safety
+* budgets
+* provenance
+* coordination
+* lifecycle
+* integrity.
+
+We want:
+
+MAXIMUM RESEARCH INTELLIGENCE
+WITH
+MINIMUM UNNECESSARY COMPUTATION.
+
+============================================================
+14. CONTACTS ARE A PRIMARY QUALITY METRIC
+
+The final Bureau result must distinguish:
+
+* personal direct contact
+* professional direct contact
+* company/organizational contact
+* generic contact
+* social profile
+* contact form
+* inferred contact
+* unverified contact.
+
+Never promote an inferred email as verified.
+
+Never turn:
+
+info@
+contact@
+press@
+
+into a personal contact.
+
+A public personal contact that is clearly attributable to Andy is HIGH-VALUE evidence.
+
+============================================================
+15. EVIDENCE QUALITY
+
+For every important claim establish:
+
+CLAIM
+→ SOURCE
+→ OBSERVATION
+→ IDENTITY LINK
+→ PROVENANCE
+→ CONFIDENCE.
+
+Prefer:
+
+primary sources
+first-party profiles
+authoritative records
+direct portfolio/contact pages
+independent corroboration.
+
+Do not inflate weak evidence into certainty.
+
+============================================================
+16. RESEARCH DEPTH
+
+Do NOT judge depth by number of searches.
+
+Depth means:
+
+identity certainty
++
+relevant professional intelligence
++
+independent corroboration
++
+relationship/context discovery
++
+contact discovery
++
+contact attribution
++
+contradiction resolution
++
+provenance.
+
+Apex should stop when the Investigator has legitimately reached evidence sufficiency—not merely because a fixed counter was reached.
+
+Likewise, it should continue when meaningful uncertainty remains.
+
+============================================================
+17. ANTI-STAGNATION
+
+Monitor whether successive iterations produce:
+
+new evidence
+new source
+new identity information
+new contact information
+new relationship
+new hypothesis
+new contradiction resolution.
+
+If several iterations produce no meaningful frontier movement:
+
+the system should surface stagnation to the reasoning layers.
+
+Do NOT force a deterministic pivot.
+
+Let the Investigator/Boss decide whether:
+
+* pivot
+* corroborate
+* investigate contact
+* revisit source
+* stop.
+
+============================================================
+18. FAILURE SEMANTICS
+
+Verify that:
+
+429
+→ provider capacity failure
+
+timeout
+→ incomplete/degraded
+
+provider outage
+→ degraded/failure
+
+invalid model response
+→ bounded repair/failure
+
+No failure may become fake success.
+
+No incomplete Bureau run may be reported as a complete research result.
+
+============================================================
+19. THE LIVE RESEARCH SHOULD BE ALLOWED TO FINISH
+
+Do NOT terminate the Bureau simply because the Investigator has produced one candidate.
+
+Let the coordinated Bureau decide whether the target has been sufficiently researched.
+
+For Andy Cantwell specifically, the blind test should give the system the opportunity to discover:
+
+* identity
+* career
+* relevant projects
+* authoritative sources
+* independent corroboration
+* contact routes
+* attributable direct contact if publicly available.
+
+Do not inject any of those.
+
+============================================================
+20. SECOND RUN
+
+If the first run completes cleanly and provider capacity permits:
+
+perform ONE additional bounded run.
+
+The second run must not be forced to follow the first run’s exact path.
+
+We are testing whether the Bureau architecture is robust, not whether it memorized a trajectory.
+
+Compare:
+
+Run 1
+vs.
+Run 2
+
+for:
+
+research path
+tokens
+useful findings
+contacts
+evidence
+provenance
+redundancy
+quality.
+
+If provider quota does not permit the second run, do not manufacture one.
+
+============================================================
+21. COMPARE AGAINST THE BLIND BASELINE
+
+Do NOT give the Bureau my independent findings beforehand.
+
+After the Bureau finishes, compare its output against the independent baseline.
+
+Independent baseline currently establishes that publicly attributable direct contact information exists for Andy Cantwell.
+
+The Bureau should discover this independently if its research is functioning properly.
+
+Compare:
+
+identity
+career evidence
+primary sources
+independent corroboration
+projects
+relationships
+contact routes
+direct contact
+contact attribution
+provenance
+useful findings
+missed opportunities.
+
+Do NOT score the Bureau merely on matching my wording.
+
+Score INFORMATION VALUE.
+
+============================================================
+22. QUALITY / COST SCORECARD
+
+Calculate:
+
+1. Verified useful findings / 1,000 LLM tokens
+2. Verified contact routes / 1,000 LLM tokens
+3. Verified direct contacts / 1,000 LLM tokens
+4. Independent sources / 1,000 LLM tokens
+5. Redundant actions / total actions
+6. Failed physical LLM attempts / total attempts
+7. Duplicate research actions / total research actions
+8. Average tokens per meaningful research decision
+9. Average tokens per verified candidate
+10. Average tokens per verified contact.
+
+Also give a qualitative assessment:
+
+LOW
+MEDIUM
+HIGH
+EXCEPTIONAL
+
+for:
+
+research intelligence
+coordination
+depth
+contact discovery
+evidence quality
+quota efficiency.
+
+============================================================
+23. IF A BUG APPEARS
+
+Do NOT rewrite the system.
+
+Identify:
+
+FIRST BROKEN TRANSITION
+ROOT CAUSE
+IMPACT
+MINIMAL FIX.
+
+Then:
+
+1. fix
+2. run focused test
+3. run relevant guard
+4. run full Vitest if production behavior changed
+5. git diff
+6. git status
+7. commit
+8. push
+9. verify GitHub contains commit
+10. rerun the affected live test.
+
+No uncommitted production fixes.
+
+============================================================
+24. IF PERFORMANCE IS BAD
+
+Do not immediately lower token limits.
+
+First determine WHY.
+
+Possible causes:
+
+* context bloat
+* repeated observations
+* poor tool selection
+* weak shared state
+* duplicate research
+* overlong reasoning
+* unnecessary retries
+* poor model selection
+* provider fallback waste
+* weak stopping
+* poor contact-search strategy
+* poor Boss/Right-hand coordination.
+
+Fix the actual cause.
+
+============================================================
+25. DO NOT OPTIMIZE AWAY THE BEAST
+
+This is a hard requirement.
+
+If an optimization saves 30% tokens but reduces:
+
+* evidence quality
+* identity certainty
+* contact discovery
+* research depth
+* contradiction resolution
+* model autonomy
+
+REJECT THE OPTIMIZATION.
+
+Apex is supposed to be a powerful Bureau.
+
+Not a cheap chatbot.
+
+============================================================
+26. FINAL BUG HUNT AFTER LIVE RUN
+
+After the live mission, inspect the actual execution trace for:
+
+* repeated work
+* contradictory instructions
+* missing mounting data
+* stale context
+* Boss/Right-hand duplication
+* Investigator starvation
+* context loss
+* evidence loss
+* provenance loss
+* contact promotion errors
+* retry amplification
+* provider failover problems
+* timeout leaks
+* premature stopping
+* endless research
+* incorrect terminal states.
+
+Fix genuine defects.
+
+Commit and push.
+
+============================================================
+27. FINAL REPORT
+
+Do NOT say:
+
+“Looks good.”
+
+Do NOT say:
+
+“Seems promising.”
+
+Provide measured evidence.
+
+GITHUB
+
+HEAD:
+origin/main:
+commits made:
+commits pushed:
+
+BASELINE
+
+Typecheck:
+Build:
+Vitest:
+Architecture guards:
+Coordination guard:
+Performance guards:
+API:
+PostgreSQL:
+Redis:
+
+PROVIDER
+
+Gemini:
+DeepSeek:
+Groq:
+Mistral:
+
+LIVE RUN
+
+Run ID:
+Target:
+Final state:
+Completion/degraded:
+Boss:
+Right-hand:
+Investigator:
+Investigator model:
+
+COORDINATION
+
+Right-hand received mounting data:
+Boss received mounting data:
+Shared case state:
+Contradictions handled:
+Repeated research detected:
+Unnecessary research detected:
+
+LLM ECONOMICS
+
+Total calls:
+Input tokens:
+Cached input:
+Output tokens:
+Total tokens:
+Retries:
+429s:
+Timeouts:
+Exceptions:
+Average latency:
+
+BY ROLE
+
+Boss:
+Right-hand:
+Investigator:
+
+RESEARCH
+
+Searches:
+Visits:
+Observations:
+Meaningful findings:
+Verified sources:
+Identity evidence:
+Contact routes:
+Verified direct contacts:
+Provenance completeness:
+
+QUALITY
+
+Independent baseline:
+Apex result:
+Apex advantages:
+Apex misses:
+Apex unnecessary work:
+Quality verdict:
+Efficiency verdict:
+
+SECOND RUN
+
+Run:
+Result:
+Token economics:
+Quality:
+
+BUG HUNT
+
+Issues found:
+Issues fixed:
+Commit(s):
+Remaining concerns:
+
+============================================================
+28. FINAL VERDICT
+
+Answer these separately:
+
+A. DID THE BUREAU ACT AS ONE COORDINATED ORGANISM?
+
+B. DID BOSS AND RIGHT-HAND ACTUALLY REASON OVER MOUNTING DATA?
+
+C. DID THEY AVOID DUPLICATING INVESTIGATOR WORK?
+
+D. DID THE INVESTIGATOR REMAIN AUTONOMOUS?
+
+E. DID THE BUREAU PRODUCE SUBSTANTIALLY MORE USEFUL INTELLIGENCE THAN A SINGLE AGENT?
+
+F. DID IT DISCOVER THE PUBLICLY ATTRIBUTABLE DIRECT CONTACT?
+
+G. DID IT DO SO WITH REASONABLE QUOTA EFFICIENCY?
+
+H. DID ANY QUOTA LEAK REMAIN?
+
+I. IS APEX NOW READY FOR REAL USE?
+
+Then choose exactly one:
+
+APEX IS THE BEAST WE DESIGNED.
+
+or
+
+APEX IS NOT YET THE BEAST WE DESIGNED.
+
+Do NOT choose the first merely because tests pass.
+
+Choose it only if the LIVE evidence demonstrates:
+
+COORDINATION
++
+AUTONOMOUS REASONING
++
+REAL RESEARCH
++
+DEEP EVIDENCE
++
+CONTACT DISCOVERY
++
+PROVENANCE
++
+QUOTA DISCIPLINE
++
+TRUTHFUL TERMINATION.
+
+============================================================
+29. ABSOLUTE STOP CONDITION
+
+If the final acceptance criteria pass:
+
+STOP.
+
+Do not invent another engineering task.
+
+Do not refactor.
+
+Do not redesign.
+
+Do not spend remaining quota.
+
+Leave the repository clean and committed.
+
+The next step after a successful proof is REAL APEX ATLAS USE.
+
+============================================================
+
+START NOW.
+
+First establish the current GitHub HEAD.
+
+Then read the canonical documents.
+
+Then establish the provider secrets.
+
+Then baseline the current build.
+
+Then run the live coordinated Bureau.
+
+Measure everything.
+
+Fix only genuine defects.
+
+Commit and push every production fix.
+
+And remember:
+
+THE OBJECTIVE IS NOT TO MAKE APEX LOOK IMPRESSIVE.
+
+THE OBJECTIVE IS TO MAKE APEX ACTUALLY INTELLIGENT.
+
+MAKE THE MODELS THINK.
+
+MAKE THE BUREAU COORDINATE.
+
+MAKE EVERY TOKEN COUNT.
+
+MAKE THE FINAL DOSSIER DEEPER THAN A SINGLE AGENT COULD REASONABLY PRODUCE.
+
+GO.
