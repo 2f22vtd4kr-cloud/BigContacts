@@ -16,9 +16,11 @@ const rightHandRequired = [
   "BUREAU CHAIN OF COMMAND / SHARED MIND",
   "Every iteration must produce a meaningful delta in the case frontier",
   "do not merely repeat the previous Investigator result",
-  "recentDecisions: file.decisionLog.slice(-5)",
+  "recentDecisions: (file.decisionLog ?? []).slice(-8)",
   "function buildRightHandDecisionContext(file: ResearchCaseFile)",
   "${buildRightHandDecisionContext(file)}",
+  "actionFrontier: { queued, recentCompleted }",
+  "searchGaps: (evidence.searchGaps ?? []).slice(-16)",
 ];
 for (const marker of rightHandRequired) {
   if (!rightHand.includes(marker)) {
@@ -37,6 +39,9 @@ const bossRequired = [
   "What would be redundant with work already done?",
   "function buildBossDecisionContext(file: PlanInput[\"file\"]): string",
   "${buildBossDecisionContext(input.file)}",
+  "actionFrontier: { queued, recentCompleted }",
+  "contactRoutes: recentContacts",
+  "negativeFindings: (evidence.negativeFindings ?? []).slice(-16)",
 ];
 for (const marker of bossRequired) {
   if (!boss.includes(marker)) {
