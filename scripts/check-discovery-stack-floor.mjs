@@ -1,12 +1,15 @@
 #!/usr/bin/env node
 /**
- * Machine-checkable floor for the "priority stack" capabilities:
- * - starmex-style verifiers (company-lock, org-email gates)
- * - Claude-OSINT org footprint language
- * - Legendary-style expanded public source queries
- * - GHOST-style entityLinks on discovery deck
- * - Agentic SERP email + company-domain email gate
- * Does NOT require karpathy overnight cohort runner (deferred).
+ * Machine-checkable floor for the current discovery capabilities:
+ * - company-lock and source-backed organization surfaces
+ * - adaptive, model-selected public-web and registry research
+ * - entityLinks / orgFootprint on the discovery deck
+ * - agentic SERP email + company-domain email validation
+ * - browser-fetch fallbacks
+ *
+ * This guard must not require a deterministic search playbook. The Investigator
+ * owns the trajectory and may choose footprint, registry, browser, or search
+ * actions from the canonical action schema.
  */
 import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
@@ -28,25 +31,25 @@ const queries = read("artifacts/api-server/src/src/lib/web-search-queries.ts");
 const bossPrompt = read("artifacts/api-server/src/src/lib/case-bureau-prompt.ts");
 const bureau = read("artifacts/api-server/src/src/lib/case-bureau.ts");
 const browser = read("artifacts/api-server/src/src/lib/browser-fetch.ts");
+const registry = read("artifacts/api-server/src/src/lib/registry-client.ts");
 
 // starmex / verifier layer
 ok("company-lock scrub", !!cases?.includes("scrubCompanyLockedSurface") || !!cases?.includes("Company-lock scrub applied"));
 ok("company-domain email from public social", !!cases?.includes("PUBLIC_ORG_SURFACE") || !!cases?.includes("publicOrgSurfaceHost"));
-ok("agentic company-domain hasOrgEmail", !!agentic?.includes("emailMatchesCompany"));
-ok("agentic force org-email search", !!agentic?.includes("force_org_email_search"));
+ok("agentic company-domain email alignment", !!agentic?.includes("isCompanyAlignedEmail") || !!agentic?.includes("emailMatchesCompany"));
+ok("agentic footprint email capability", !!agentic?.includes("footprint_email"));
 ok("agentic SERP snippet email extract", !!agentic?.includes("findingsFromSearchSnippet"));
-ok("agentic reject done without org-email hop", !!agentic?.includes("org-email hop required"));
+ok("agentic has no mandatory org-email hop", !agentic?.includes("force_org_email_search") && !agentic?.includes("org-email hop required"));
 
-// Claude-OSINT org footprint
-ok("Boss plan org footprint methodology", !!bossPrompt?.includes("ORG FOOTPRINT METHODOLOGY"));
-ok("Boss opening ORG FOOTPRINT PASS", !!bureau?.includes("ORG FOOTPRINT PASS"));
-ok("queries OpenCorporates/GLEIF/SEC", !!queries?.includes("opencorporates") && !!queries?.includes("GLEIF"));
-ok("queries BBB/chamber", !!queries?.includes("BBB") || !!queries?.includes("better business"));
-ok("queries facebook org inbox angle", !!queries?.includes("site:facebook.com"));
-ok("queries cap allows footprint angles", !!queries?.includes("slice(0, 12)"));
+// Adaptive public-web and registry research. These are capabilities, not a forced order.
+ok("Boss plan uses adaptive org research", !!bossPrompt?.includes("adaptive, evidence-led") && !!bossPrompt?.includes("not fixed playbooks"));
+ok("Boss opening is target-locked", !!bureau?.includes("TARGET-LOCKED") || !!bossPrompt?.includes("TARGET-LOCKED"));
+ok("registry capability includes OpenCorporates/GLEIF/SEC", !!registry?.includes("OpenCorporates") && !!registry?.includes("GLEIF") && !!registry?.includes("SEC EDGAR"));
+ok("public-source research remains provider-neutral", !!agentic && !agentic.includes("force_org_email_search") && !agentic.includes("force_registry_search"));
+ok("action budget permits footprint choices", !!agentic?.includes("maxIterations") && !!agentic?.includes("footprint_username"));
 
 // Legendary-style related officers
-ok("agentic related co-founder+registry query", !!agentic?.includes("OpenCorporates") && !!agentic?.includes("co-founder"));
+ok("agentic related-person and registry capabilities", !!agentic?.includes("registry_search") && !!bureau?.includes("related"));
 
 // GHOST-style entity graph
 ok("entityLinks written on discovery deck", !!cases?.includes("entityLinks") && !!cases?.includes("related_to_organization"));
@@ -62,7 +65,7 @@ ok("DiscoveryCaseFile entityLinks type", !!bureau?.includes("entityLinks?:"));
 ok("DiscoveryCaseFile orgFootprint type", !!bureau?.includes("orgFootprint?:"));
 ok("cases orgFootprint checklist", !!cases?.includes("orgFootprint") && !!cases?.includes("registryMention"));
 ok("cases person dedupe denser evidence", !!cases?.includes("normPerson") || !!cases?.includes("denser"));
-ok("agentic force_registry_search", !!agentic?.includes("force_registry_search"));
+ok("agentic registry_search capability", !!agentic?.includes("registry_search"));
 ok("score-discovery-case scorecard script", existsSync(join(root, "scripts/score-discovery-case.mjs")));
 
 ok("no requirement for overnight cohort runner in this floor", true);

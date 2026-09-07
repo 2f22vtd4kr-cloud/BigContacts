@@ -6,7 +6,7 @@ const pkg = JSON.parse(fs.readFileSync("artifacts/api-server/package.json", "utf
 const ok =
   !source.includes("providerDecisionTimeoutMs = 18_000") &&
   source.includes("AGENTIC_PROVIDER_DECISION_TIMEOUT_MS") &&
-  source.includes("void fn(prompt).then(") &&
+  (source.includes("void fn(prompt).then(") || source.includes("void fn(prompt, controller.signal).then(")) &&
   source.includes("clearTimeout(timer)") &&
   pkg.scripts?.build?.includes("apply-agentic-timeout-hardening.mjs");
 

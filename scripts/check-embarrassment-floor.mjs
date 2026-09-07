@@ -36,6 +36,8 @@ const passage = read("artifacts/api-server/src/src/lib/passage-filter.ts");
 const queries = read("artifacts/api-server/src/src/lib/web-search-queries.ts");
 const mistral = read("artifacts/api-server/src/src/lib/mistral-web-search.ts");
 const nim = read("artifacts/api-server/src/src/lib/nvidia-nim-case-reasoning.ts");
+const agentic = read("artifacts/api-server/src/src/lib/agentic-web-research.ts");
+const bureauAgentic = read("artifacts/api-server/src/src/lib/bureau-agentic-pass.ts");
 
 // 1) Soft admission boundary closed for email/phone
 ok("persist requires claim URL for email/phone",
@@ -84,7 +86,9 @@ ok("enrichEntityOsint company-aware",
   read("artifacts/api-server/src/src/lib/web-enricher.ts").includes("companyName") &&
   read("artifacts/api-server/src/src/lib/web-enricher.ts").includes("Email-Domain"));
 ok("leadership contact page scrape",
-  persist.includes("/contact-us") && persist.includes("mailto on official page"));
+  agentic.includes("toolVisit") &&
+  agentic.includes("findingsFromContactFacts") &&
+  agentic.includes("sourceUrls"));
 ok("deep-web scrape depth >= 8",
   read("artifacts/api-server/src/src/lib/deep-web-osint.ts").includes("slice(0, 8)"));
 ok("agentic ReAct web research module",
@@ -99,7 +103,8 @@ ok("bureau advance runs Atlas secondary",
   read("artifacts/api-server/src/src/routes/research/cases.ts").includes("atlas-secondary+agentic-react") &&
   read("artifacts/api-server/src/src/routes/research/cases.ts").includes("expandSecondaryPublicSurface"));
 ok("secondary runs agentic loop",
-  persist.includes("runAgenticWebResearch") && persist.includes("Agentic web research"));
+  bureauAgentic.includes("runAgenticWebResearch") &&
+  bureauAgentic.includes("Agentic web pass"));
 ok("secondary email requires website URL",
   persist.includes("result.email && result.website"));
 

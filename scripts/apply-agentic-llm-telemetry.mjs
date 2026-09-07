@@ -20,7 +20,7 @@ function ensureAttemptInstrumentation(block, loopAnchor, provider) {
     if (!block.includes(keyAnchor)) throw new Error(`${provider} telemetry initialization anchor missing`);
     block = block.replace(keyAnchor, keyAnchor + "  let telemetryAttemptCount = 0;\n");
   }
-  if (!block.includes("telemetryAttemptCount += 1;")) {
+  if (!block.includes("const telemetryStartedAt = Date.now();")) {
     const tryAnchor = provider === "Groq" ? "      try {" : "    try {";
     if (!block.includes(tryAnchor)) throw new Error(`${provider} telemetry try anchor missing`);
     block = block.replace(tryAnchor, provider === "Groq"
@@ -34,7 +34,7 @@ const groqStart = s.indexOf("async function callGroqJson");
 const groqEnd = s.indexOf("async function callMistralJson", groqStart);
 if (groqStart < 0 || groqEnd < 0) throw new Error("Groq/Mistral anchors missing");
 let groq = s.slice(groqStart, groqEnd);
-groq = ensureAttemptInstrumentation(groq, "    for (const model of GROQ_CHAT_MODELS) {\n      try {", "Groq");
+groq = ensureAttemptInstrumentation(groq, "    for (const model of GROQ_CHAT_MODELS) {", "Groq");
 
 if (!groq.includes("recordAgenticLlmAttempt({")) {
   const rawAnchor = '        const raw = data.choices?.[0]?.message?.content?.trim() ?? "";';
@@ -48,7 +48,7 @@ if (!groq.includes("reason: \"provider_rejected\"")) {
   groq = groq.replace(anchor, '          recordAgenticLlmAttempt({ provider: "groq", model, promptChars: prompt.length, status: resp.status, success: false, latencyMs: Date.now() - telemetryStartedAt, retryIndex: telemetryAttemptCount, reason: "provider_rejected" });\n' + anchor);
 }
 
-if (!groq.includes("reason: \"rate_limited\"")) {
+if (!groq.includes('reason: resp.status === 429 ? "rate_limited"')) {
   const anchor = '            if (resp.status === 429) return null;';
   if (!groq.includes(anchor)) throw new Error("Groq terminal provider anchor missing");
   groq = groq.replace(anchor, '            recordAgenticLlmAttempt({ provider: "groq", model, promptChars: prompt.length, status: resp.status, success: false, latencyMs: Date.now() - telemetryStartedAt, retryIndex: telemetryAttemptCount, reason: resp.status === 429 ? "rate_limited" : "provider_auth" });\n' + anchor);
@@ -66,7 +66,7 @@ const mistralStart = s.indexOf("async function callMistralJson");
 const mistralEnd = s.indexOf("/**\n * INVESTIGATOR_POOL_RETRY", mistralStart);
 if (mistralStart < 0 || mistralEnd < 0) throw new Error("Mistral end anchor missing");
 let mistral = s.slice(mistralStart, mistralEnd);
-mistral = ensureAttemptInstrumentation(mistral, "  for (const model of models) {\n    try {", "Mistral");
+mistral = ensureAttemptInstrumentation(mistral, "  for (const model of models) {", "Mistral");
 
 if (!mistral.includes("recordAgenticLlmAttempt({")) {
   const rawAnchor = '      const raw = data.choices?.[0]?.message?.content?.trim() ?? "";';
@@ -80,7 +80,7 @@ if (!mistral.includes("reason: \"provider_rejected\"")) {
   mistral = mistral.replace(anchor, '        recordAgenticLlmAttempt({ provider: "mistral", model, promptChars: prompt.length, status: resp.status, success: false, latencyMs: Date.now() - telemetryStartedAt, retryIndex: telemetryAttemptCount, reason: "provider_rejected" });\n' + anchor);
 }
 
-if (!mistral.includes("reason: \"rate_limited\"")) {
+if (!mistral.includes('reason: resp.status === 429 ? "rate_limited"')) {
   const anchor = '          if (resp.status === 429) return null;';
   if (!mistral.includes(anchor)) throw new Error("Mistral terminal provider anchor missing");
   mistral = mistral.replace(anchor, '          recordAgenticLlmAttempt({ provider: "mistral", model, promptChars: prompt.length, status: resp.status, success: false, latencyMs: Date.now() - telemetryStartedAt, retryIndex: telemetryAttemptCount, reason: resp.status === 429 ? "rate_limited" : "provider_auth" });\n' + anchor);

@@ -576,6 +576,8 @@ async function callGroqJson(prompt: string, signal?: AbortSignal): Promise<{ mod
   let telemetryAttemptCount = 0;
   for (const key of keys) {
     for (const model of GROQ_CHAT_MODELS) {
+      telemetryAttemptCount += 1;
+      const telemetryStartedAt = Date.now();
       try {
         const resp = await fetch("https://api.groq.com/openai/v1/chat/completions", {
           method: "POST",
@@ -610,6 +612,7 @@ async function callGroqJson(prompt: string, signal?: AbortSignal): Promise<{ mod
 
           if ([401, 403, 429].includes(resp.status)) {
 
+            recordAgenticLlmAttempt({ provider: "groq", model, promptChars: prompt.length, status: resp.status, success: false, latencyMs: Date.now() - telemetryStartedAt, retryIndex: telemetryAttemptCount, reason: resp.status === 429 ? "rate_limited" : "provider_auth" });
             if (resp.status === 429) return null;
 
             break;
@@ -674,6 +677,8 @@ async function callMistralJson(prompt: string, signal?: AbortSignal): Promise<{ 
     "open-mistral-nemo",
   ].filter((m): m is string => Boolean(m && m.trim()));
   for (const model of models) {
+    telemetryAttemptCount += 1;
+    const telemetryStartedAt = Date.now();
     try {
       const resp = await fetch("https://api.mistral.ai/v1/chat/completions", {
         method: "POST",
@@ -701,6 +706,7 @@ async function callMistralJson(prompt: string, signal?: AbortSignal): Promise<{ 
 
         if ([401, 403, 429].includes(resp.status)) {
 
+          recordAgenticLlmAttempt({ provider: "mistral", model, promptChars: prompt.length, status: resp.status, success: false, latencyMs: Date.now() - telemetryStartedAt, retryIndex: telemetryAttemptCount, reason: resp.status === 429 ? "rate_limited" : "provider_auth" });
           if (resp.status === 429) return null;
 
           break;
