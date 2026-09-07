@@ -44,5 +44,14 @@ const fullContext = "${JSON.stringify(file, null, 2).slice(0, 100_000)}";
 const compactContext = "${buildRightHandDecisionContext(file)}";
 if (source.includes(fullContext)) source = source.replace(fullContext, compactContext);
 
+source = source.replace(
+  "recentDecisions: file.decisionLog.slice(-5)",
+  "recentDecisions: (file.decisionLog ?? []).slice(-8)",
+);
+source = source.replace(
+  "Every iteration must move the shared case state forward. A recommendation that merely repeats the last successful lane is low quality unless new evidence makes that repetition necessary.",
+  "Every iteration must produce a meaningful delta in the case frontier.\ndo not merely repeat the previous Investigator result unless new evidence makes that repetition necessary.",
+);
+
 fs.writeFileSync(target, source);
 console.log("bureau coordination context patch: PASS");

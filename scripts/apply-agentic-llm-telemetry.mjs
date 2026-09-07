@@ -21,17 +21,17 @@ if (!groq.includes("recordAgenticLlmAttempt({")) {
     "  if (!keys.length) return null;\n",
     "  if (!keys.length) return null;\n  let telemetryAttemptCount = 0;\n",
   );
-  const fetchAnchor = '        const resp = await fetch("https://api.groq.com/openai/v1/chat/completions", {';
-  if (!groq.includes(fetchAnchor)) throw new Error("Groq fetch anchor missing");
+  const loopAnchor = "    for (const model of GROQ_CHAT_MODELS) {\n      try {";
+  if (!groq.includes(loopAnchor)) throw new Error("Groq model loop anchor missing");
   groq = groq.replace(
-    fetchAnchor,
-    '        telemetryAttemptCount += 1;\n        const telemetryStartedAt = Date.now();\n' + fetchAnchor,
+    loopAnchor,
+    "    for (const model of GROQ_CHAT_MODELS) {\n      telemetryAttemptCount += 1;\n      const telemetryStartedAt = Date.now();\n      try {",
   );
   const parseAnchor = '        const data = await resp.json() as { choices?: Array<{ message?: { content?: string } }> };';
   if (!groq.includes(parseAnchor)) throw new Error("Groq response parse anchor missing");
   groq = groq.replace(
     parseAnchor,
-    `        const data = await resp.json() as { choices?: Array<{ message?: { content?: string } }>; usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number; prompt_tokens_details?: { cached_tokens?: number } } };\n        const raw = data.choices?.[0]?.message?.content?.trim() ?? "";\n        recordAgenticLlmAttempt({ provider: "groq", model, promptChars: prompt.length, status: resp.status, success: Boolean(raw), promptTokens: data.usage?.prompt_tokens, completionTokens: data.usage?.completion_tokens, totalTokens: data.usage?.total_tokens, cachedPromptTokens: data.usage?.prompt_tokens_details?.cached_tokens, latencyMs: Date.now() - telemetryStartedAt, retryIndex: telemetryAttemptCount, reason: raw ? undefined : "empty_response" });`,
+     `        const data = await resp.json() as { choices?: Array<{ message?: { content?: string } }>; usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number; prompt_tokens_details?: { cached_tokens?: number } } };\n        recordAgenticLlmAttempt({ provider: "groq", model, promptChars: prompt.length, status: resp.status, success: Boolean(raw), promptTokens: data.usage?.prompt_tokens, completionTokens: data.usage?.completion_tokens, totalTokens: data.usage?.total_tokens, cachedPromptTokens: data.usage?.prompt_tokens_details?.cached_tokens, latencyMs: Date.now() - telemetryStartedAt, retryIndex: telemetryAttemptCount, reason: raw ? undefined : "empty_response" });`,
   );
   const rejection = groq.match(/if \(!resp\.ok\) \{[\s\S]*?\n\s*continue;\n\s*\}/);
   if (!rejection) throw new Error("Groq rejection block missing");
@@ -61,17 +61,17 @@ if (!mistral.includes("recordAgenticLlmAttempt({")) {
     "  if (!key) return null;\n",
     "  if (!key) return null;\n  let telemetryAttemptCount = 0;\n",
   );
-  const fetchAnchor = '      const resp = await fetch("https://api.mistral.ai/v1/chat/completions", {';
-  if (!mistral.includes(fetchAnchor)) throw new Error("Mistral fetch anchor missing");
+  const loopAnchor = "  for (const model of models) {\n    try {";
+  if (!mistral.includes(loopAnchor)) throw new Error("Mistral model loop anchor missing");
   mistral = mistral.replace(
-    fetchAnchor,
-    '      telemetryAttemptCount += 1;\n      const telemetryStartedAt = Date.now();\n' + fetchAnchor,
+    loopAnchor,
+    "  for (const model of models) {\n    telemetryAttemptCount += 1;\n    const telemetryStartedAt = Date.now();\n    try {",
   );
   const parseAnchor = '      const data = (await resp.json()) as { choices?: Array<{ message?: { content?: string } }> };';
   if (!mistral.includes(parseAnchor)) throw new Error("Mistral response parse anchor missing");
   mistral = mistral.replace(
     parseAnchor,
-    `      const data = (await resp.json()) as { choices?: Array<{ message?: { content?: string } }>; usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number; prompt_tokens_details?: { cached_tokens?: number } } };\n      const raw = data.choices?.[0]?.message?.content?.trim() ?? "";\n      recordAgenticLlmAttempt({ provider: "mistral", model, promptChars: prompt.length, status: resp.status, success: Boolean(raw), promptTokens: data.usage?.prompt_tokens, completionTokens: data.usage?.completion_tokens, totalTokens: data.usage?.total_tokens, cachedPromptTokens: data.usage?.prompt_tokens_details?.cached_tokens, latencyMs: Date.now() - telemetryStartedAt, retryIndex: telemetryAttemptCount, reason: raw ? undefined : "empty_response" });`,
+     `      const data = (await resp.json()) as { choices?: Array<{ message?: { content?: string } }>; usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number; prompt_tokens_details?: { cached_tokens?: number } } };\n      recordAgenticLlmAttempt({ provider: "mistral", model, promptChars: prompt.length, status: resp.status, success: Boolean(raw), promptTokens: data.usage?.prompt_tokens, completionTokens: data.usage?.completion_tokens, totalTokens: data.usage?.total_tokens, cachedPromptTokens: data.usage?.prompt_tokens_details?.cached_tokens, latencyMs: Date.now() - telemetryStartedAt, retryIndex: telemetryAttemptCount, reason: raw ? undefined : "empty_response" });`,
   );
   const rejection = mistral.match(/if \(!resp\.ok\) \{[\s\S]*?\n\s*continue;\n\s*\}/);
   if (!rejection) throw new Error("Mistral rejection block missing");

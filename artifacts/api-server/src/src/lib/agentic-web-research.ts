@@ -26,6 +26,7 @@ import { setAgenticLlmHealth, getAgenticLlmHealth } from "./agentic-llm-health";
 import { GROQ_CHAT_MODELS } from "./groq-models";
 import { apexOrientationFor, apexOrientationCompact } from "./apex-bureau-orientation";
 import { withProviderScope } from "./provider-gate";
+import { recordAgenticLlmAttempt } from "./agentic-llm-telemetry";
 export { getAgenticLlmHealth };
 
 /** Configured reasoning-capability pool. Non-LLM research tools remain a separate capability type. */
@@ -567,11 +568,12 @@ function parseAction(raw: string): AgentAction | null {
 
 /** GROQ_CHAT_MODELS from ./groq-models — post Llama 3.3 70B decommission (2026-08-16). */
 
-async function callGroqJson(prompt: string): Promise<{ model: string; raw: string } | null> {
+async function callGroqJson(prompt: string, signal?: AbortSignal): Promise<{ model: string; raw: string } | null> {
   const keys = ["GROQ_API_KEY", ...Array.from({ length: 5 }, (_, i) => `GROQ_API_KEY_${i + 1}`)]
     .map((n) => process.env[n] ?? "")
     .filter((k) => k.length > 0);
   if (!keys.length) return null;
+  let telemetryAttemptCount = 0;
   for (const key of keys) {
     for (const model of GROQ_CHAT_MODELS) {
       try {
@@ -592,7 +594,7 @@ async function callGroqJson(prompt: string): Promise<{ model: string; raw: strin
               { role: "user", content: prompt },
             ],
           }),
-          signal: AbortSignal.timeout(50_000),
+          signal: signal ?? AbortSignal.timeout(50_000),
         });
         if (!resp.ok) {
           const body = (await resp.text()).slice(0, 700);
@@ -604,12 +606,25 @@ async function callGroqJson(prompt: string): Promise<{ model: string; raw: strin
             remainingTokens: resp.headers.get("x-ratelimit-remaining-tokens"),
             body,
           }, "agentic provider rejected request");
+          // agentic provider retry policy: a rate-limit/auth failure is not model-specific.
+
+          if ([401, 403, 429].includes(resp.status)) {
+
+            if (resp.status === 429) return null;
+
+            break;
+
+          }
+
+          recordAgenticLlmAttempt({ provider: "groq", model, promptChars: prompt.length, status: resp.status, success: false, latencyMs: Date.now() - telemetryStartedAt, retryIndex: telemetryAttemptCount, reason: "provider_rejected" });
+
           continue;
         }
-        const data = await resp.json() as { choices?: Array<{ message?: { content?: string } }> };
+        const data = await resp.json() as { choices?: Array<{ message?: { content?: string } }>; usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number; prompt_tokens_details?: { cached_tokens?: number } } };
         const raw = data.choices?.[0]?.message?.content?.trim() ?? "";
+        recordAgenticLlmAttempt({ provider: "groq", model, promptChars: prompt.length, status: resp.status, success: Boolean(raw), promptTokens: data.usage?.prompt_tokens, completionTokens: data.usage?.completion_tokens, totalTokens: data.usage?.total_tokens, cachedPromptTokens: data.usage?.prompt_tokens_details?.cached_tokens, latencyMs: Date.now() - telemetryStartedAt, retryIndex: telemetryAttemptCount, reason: raw ? undefined : "empty_response" });
         if (raw) return { model, raw };
-      } catch (err: any) { logger.warn({ provider: "agentic", model, error: err?.message }, "agentic provider call failed"); continue; }
+      } catch (err: any) { recordAgenticLlmAttempt({ provider: "groq", model, promptChars: prompt.length, status: err?.name === "TimeoutError" ? "timeout" : "error", success: false, latencyMs: Date.now() - telemetryStartedAt, retryIndex: telemetryAttemptCount, reason: err?.message ?? "exception" }); logger.warn({ provider: "agentic", model, error: err?.message }, "agentic provider call failed"); continue; }
     }
   }
   return null;
@@ -648,9 +663,10 @@ const AGENTIC_ACTION_SCHEMA = {
   additionalProperties: false,
 };
 
-async function callMistralJson(prompt: string): Promise<{ model: string; raw: string } | null> {
+async function callMistralJson(prompt: string, signal?: AbortSignal): Promise<{ model: string; raw: string } | null> {
   const key = process.env.MISTRAL_API_KEY?.trim();
   if (!key) return null;
+  let telemetryAttemptCount = 0;
   const models = [
     process.env.MISTRAL_AGENTIC_MODEL,
     "mistral-small-latest",
@@ -667,7 +683,7 @@ async function callMistralJson(prompt: string): Promise<{ model: string; raw: st
         },
         body: JSON.stringify({
           model,
-          max_tokens: 1536,
+          max_tokens: 768,
           messages: [
             {
               role: "system",
@@ -677,16 +693,29 @@ async function callMistralJson(prompt: string): Promise<{ model: string; raw: st
             { role: "user", content: prompt },
           ],
         }),
-        signal: AbortSignal.timeout(45_000),
+        signal: signal ?? AbortSignal.timeout(45_000),
       });
       if (!resp.ok) {
         logger.warn({ provider: "mistral", status: resp.status, model }, "agentic provider rejected request");
+        // agentic provider retry policy: a rate-limit/auth failure is not model-specific.
+
+        if ([401, 403, 429].includes(resp.status)) {
+
+          if (resp.status === 429) return null;
+
+          break;
+
+        }
+
+        recordAgenticLlmAttempt({ provider: "mistral", model, promptChars: prompt.length, status: resp.status, success: false, latencyMs: Date.now() - telemetryStartedAt, retryIndex: telemetryAttemptCount, reason: "provider_rejected" });
+
         continue;
       }
-      const data = (await resp.json()) as { choices?: Array<{ message?: { content?: string } }> };
+      const data = (await resp.json()) as { choices?: Array<{ message?: { content?: string } }>; usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number; prompt_tokens_details?: { cached_tokens?: number } } };
       const raw = data.choices?.[0]?.message?.content?.trim() ?? "";
+      recordAgenticLlmAttempt({ provider: "mistral", model, promptChars: prompt.length, status: resp.status, success: Boolean(raw), promptTokens: data.usage?.prompt_tokens, completionTokens: data.usage?.completion_tokens, totalTokens: data.usage?.total_tokens, cachedPromptTokens: data.usage?.prompt_tokens_details?.cached_tokens, latencyMs: Date.now() - telemetryStartedAt, retryIndex: telemetryAttemptCount, reason: raw ? undefined : "empty_response" });
       if (raw) return { model: `mistral:${model}`, raw };
-    } catch (err: any) { logger.warn({ provider: "agentic", model, error: err?.message }, "agentic provider call failed"); continue; }
+    } catch (err: any) { recordAgenticLlmAttempt({ provider: "mistral", model, promptChars: prompt.length, status: err?.name === "TimeoutError" ? "timeout" : "error", success: false, latencyMs: Date.now() - telemetryStartedAt, retryIndex: telemetryAttemptCount, reason: err?.message ?? "exception" }); logger.warn({ provider: "agentic", model, error: err?.message }, "agentic provider call failed"); continue; }
   }
   return null;
 }
@@ -733,9 +762,9 @@ function releaseAgenticProviderDecisionSlot(): void {
 async function llmStep(prompt: string, selectedInvestigatorLlm?: "groq" | "mistral"): Promise<{ model: string; raw: string } | null> {
   await acquireAgenticProviderDecisionSlot();
   try {
-    const providers: Array<[string, (prompt: string) => Promise<{ model: string; raw: string } | null>]> = [
-      ...(process.env.GROQ_API_KEY ? [["groq", callGroqJson] as [string, (prompt: string) => Promise<{ model: string; raw: string } | null>]] : []),
-      ...(process.env.MISTRAL_API_KEY ? [["mistral", callMistralJson] as [string, (prompt: string) => Promise<{ model: string; raw: string } | null>]] : []),
+    const providers: Array<[string, (prompt: string, signal?: AbortSignal) => Promise<{ model: string; raw: string } | null>]> = [
+      ...(process.env.GROQ_API_KEY ? [["groq", callGroqJson] as [string, (prompt: string, signal?: AbortSignal) => Promise<{ model: string; raw: string } | null>]] : []),
+      ...(process.env.MISTRAL_API_KEY ? [["mistral", callMistralJson] as [string, (prompt: string, signal?: AbortSignal) => Promise<{ model: string; raw: string } | null>]] : []),
     ];
     const orderedProviders = selectedInvestigatorLlm
       ? [...providers.filter(([name]) => name === selectedInvestigatorLlm), ...providers.filter(([name]) => name !== selectedInvestigatorLlm)]
@@ -752,8 +781,9 @@ async function llmStep(prompt: string, selectedInvestigatorLlm?: "groq" | "mistr
       try {
         if (name === "groq") await waitForGroqAgenticPace();
         const out = await new Promise<{ model: string; raw: string } | null>((resolve, reject) => {
-          const timer = setTimeout(() => reject(new Error(name + ":timeout")), providerDecisionTimeoutMs);
-          void fn(prompt).then(
+          const controller = new AbortController();
+          const timer = setTimeout(() => { controller.abort(); reject(new Error(name + ":timeout")); }, providerDecisionTimeoutMs);
+          void fn(prompt, controller.signal).then(
             (value) => { clearTimeout(timer); resolve(value); },
             (error) => { clearTimeout(timer); reject(error); },
           );

@@ -156,6 +156,34 @@ function parseRecommendation(
   }
 }
 
+function buildRightHandDecisionContext(file: ResearchCaseFile): string {
+  const queued = (file.actionQueue ?? []).filter((action) => action.status === "queued").slice().sort((a, b) => Number(b.priority ?? 0) - Number(a.priority ?? 0)).slice(0, 16);
+  const recentCompleted = (file.actionQueue ?? []).filter((action) => action.status !== "queued").slice(-8);
+  const evidence = file.evidenceSummary ?? {};
+  return JSON.stringify({
+    target: file.target,
+    hypotheses: (file.hypotheses ?? []).slice(-12),
+    evidenceSummary: {
+      discoveredPeople: (evidence.discoveredPeople ?? []).slice(-16),
+      relatedOrganizations: (evidence.relatedOrganizations ?? []).slice(-16),
+      searchGaps: (evidence.searchGaps ?? []).slice(-16),
+      negativeFindings: (evidence.negativeFindings ?? []).slice(-16),
+    },
+    specialistRoster: file.specialistRoster ?? [],
+    actionFrontier: { queued, recentCompleted },
+    contactRoutes: (file.contactRoutes ?? []).slice(-16),
+    humanDirectives: (file.humanDirectives ?? []).slice(-8),
+    decisionLog: (file.decisionLog ?? []).slice(-8),
+    rightHandAdvice: file.rightHandAdvice ?? null,
+    bossPlan: file.bossPlan ?? null,
+    nextBestAction: file.nextBestAction ?? null,
+    lastUpdatedBy: file.lastUpdatedBy,
+    investigationProgress: file.investigationProgress ?? null,
+    researchDepth: file.researchDepth ?? null,
+    noProgressStreak: file.noProgressStreak ?? 0,
+  }, null, 2);
+}
+
 function buildReasoningPrompt(file: ResearchCaseFile, iteration: number): string {
   const queuedActions = file.actionQueue
     .filter((action) => action.status === "queued")
@@ -180,7 +208,7 @@ function buildReasoningPrompt(file: ResearchCaseFile, iteration: number): string
   const coordination = JSON.stringify({
     iteration,
     lastUpdatedBy: file.lastUpdatedBy,
-    recentDecisions: file.decisionLog.slice(-5),
+    recentDecisions: (file.decisionLog ?? []).slice(-8),
     priorRightHand: file.rightHandAdvice ?? null,
     priorBossPlan: file.bossPlan ? {
       outcome: file.bossPlan.outcome,
@@ -236,7 +264,8 @@ The Bureau is one organism, not three independent researchers.
 - BOSS = head investigator / integrator. Synthesizes the right-hand diagnosis with the living case, decides the direction, assigns one bounded mission, and prevents contradictory or duplicative work.
 - INVESTIGATOR = execution intelligence. It freely chooses queries, pages, tools, pivots, evidence collection and stopping inside the Boss assignment.
 
-Every iteration must move the shared case state forward. A recommendation that merely repeats the last successful lane is low quality unless new evidence makes that repetition necessary.
+Every iteration must produce a meaningful delta in the case frontier.
+do not merely repeat the previous Investigator result unless new evidence makes that repetition necessary.
 
 The case file is mounting shared memory. Treat these fields as the authoritative coordination ledger:
 - investigationProgress: what is covered, attempted, pending, and stalled
@@ -285,7 +314,7 @@ ${progress}
 </investigation_progress>
 
 <case_file>
-${JSON.stringify(file, null, 2).slice(0, 100_000)}
+${buildRightHandDecisionContext(file)}
 </case_file>
 
 Return ONLY this JSON object:

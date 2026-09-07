@@ -8,6 +8,7 @@ let source = fs.readFileSync(target, "utf8");
 const helper = `function buildBossDecisionContext(file: PlanInput["file"]): string {
   const queued = (file.actionQueue ?? []).filter((action) => action.status === "queued").slice().sort((a, b) => Number(b.priority ?? 0) - Number(a.priority ?? 0)).slice(0, 16);
   const recentCompleted = (file.actionQueue ?? []).filter((action) => action.status !== "queued").slice(-8);
+  const recentContacts = (file.contactRoutes ?? []).slice(-16);
   const evidence = file.evidenceSummary ?? {};
   return JSON.stringify({
     target: file.target,
@@ -20,7 +21,7 @@ const helper = `function buildBossDecisionContext(file: PlanInput["file"]): stri
     },
     specialistRoster: file.specialistRoster ?? [],
     actionFrontier: { queued, recentCompleted },
-    contactRoutes: (file.contactRoutes ?? []).slice(-16),
+    contactRoutes: recentContacts,
     humanDirectives: (file.humanDirectives ?? []).slice(-8),
     decisionLog: (file.decisionLog ?? []).slice(-8),
     rightHandAdvice: file.rightHandAdvice ?? null,
@@ -43,6 +44,14 @@ if (!source.includes("function buildBossDecisionContext(file: PlanInput[\"file\"
 const fullContext = "${JSON.stringify(input.file, null, 2).slice(0, 100_000)}";
 const compactContext = "${buildBossDecisionContext(input.file)}";
 if (source.includes(fullContext)) source = source.replace(fullContext, compactContext);
+
+const typeNeedle = "    rightHandAdvice?: unknown;\n    researchDepth?: ResearchDepth;";
+if (source.includes(typeNeedle) && !source.includes("    hypotheses?: unknown[];")) {
+  source = source.replace(
+    typeNeedle,
+    "    hypotheses?: unknown[];\n    specialistRoster?: unknown[];\n    humanDirectives?: unknown[];\n    nextBestAction?: unknown;\n    noProgressStreak?: number;\n    lastUpdatedBy?: string;\n    rightHandAdvice?: unknown;\n    researchDepth?: ResearchDepth;",
+  );
+}
 
 fs.writeFileSync(target, source);
 console.log("bureau Boss decision context patch: PASS");

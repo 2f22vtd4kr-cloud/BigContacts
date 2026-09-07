@@ -40,6 +40,12 @@ type PlanInput = {
       state?: string;
       sourceUrls?: string[];
     }>;
+    hypotheses?: unknown[];
+    specialistRoster?: unknown[];
+    humanDirectives?: unknown[];
+    nextBestAction?: unknown;
+    noProgressStreak?: number;
+    lastUpdatedBy?: string;
     decisionLog?: Array<{ iteration: number; decision: string; reason: string; createdAt: string }>;
     bossPlan?: {
       outcome?: string;
@@ -54,6 +60,35 @@ type PlanInput = {
     [key: string]: unknown;
   };
 };
+
+function buildBossDecisionContext(file: PlanInput["file"]): string {
+  const queued = (file.actionQueue ?? []).filter((action) => action.status === "queued").slice().sort((a, b) => Number(b.priority ?? 0) - Number(a.priority ?? 0)).slice(0, 16);
+  const recentCompleted = (file.actionQueue ?? []).filter((action) => action.status !== "queued").slice(-8);
+  const recentContacts = (file.contactRoutes ?? []).slice(-16);
+  const evidence = file.evidenceSummary ?? {};
+  return JSON.stringify({
+    target: file.target,
+    hypotheses: (file.hypotheses ?? []).slice(-12),
+    evidenceSummary: {
+      discoveredPeople: (evidence.discoveredPeople ?? []).slice(-16),
+      relatedOrganizations: (evidence.relatedOrganizations ?? []).slice(-16),
+      searchGaps: (evidence.searchGaps ?? []).slice(-16),
+      negativeFindings: (evidence.negativeFindings ?? []).slice(-16),
+    },
+    specialistRoster: file.specialistRoster ?? [],
+    actionFrontier: { queued, recentCompleted },
+    contactRoutes: recentContacts,
+    humanDirectives: (file.humanDirectives ?? []).slice(-8),
+    decisionLog: (file.decisionLog ?? []).slice(-8),
+    rightHandAdvice: file.rightHandAdvice ?? null,
+    bossPlan: file.bossPlan ?? null,
+    nextBestAction: file.nextBestAction ?? null,
+    lastUpdatedBy: file.lastUpdatedBy,
+    investigationProgress: file.investigationProgress ?? null,
+    researchDepth: file.researchDepth ?? null,
+    noProgressStreak: file.noProgressStreak ?? 0,
+  }, null, 2);
+}
 
 /** Apex Atlas Boss planning prompt — progress-aware, depth-aware, primary-source OSINT discipline. */
 export function buildApexAtlasBossPlanPrompt(input: PlanInput): string {
@@ -228,7 +263,7 @@ Iteration: ${input.iteration}
 ${progressBlock}
 </investigation_progress>
 <case_file>
-${JSON.stringify(input.file, null, 2).slice(0, 100_000)}
+${buildBossDecisionContext(input.file)}
 </case_file>
 <right_hand_advice>
 ${JSON.stringify(input.rightHandAdvice ?? null, null, 2)}

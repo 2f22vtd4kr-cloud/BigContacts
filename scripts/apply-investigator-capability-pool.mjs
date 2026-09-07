@@ -27,13 +27,17 @@ const sigNeedle = '  objective?: string;\n  maxIterations?: number;';
 if (s.includes(sigNeedle) && !s.includes('  investigatorLlm?: "groq" | "mistral";')) s = s.replace(sigNeedle, '  objective?: string;\n  /** Gemini Boss-selected Investigator LLM. */\n  investigatorLlm?: "groq" | "mistral";\n  maxIterations?: number;');
 const llmStart = 'async function llmStep(prompt: string): Promise<{ model: string; raw: string } | null> {';
 if (s.includes(llmStart) && !s.includes('async function llmStep(prompt: string, selectedInvestigatorLlm?: "groq" | "mistral")')) s = s.replace(llmStart, 'async function llmStep(prompt: string, selectedInvestigatorLlm?: "groq" | "mistral"): Promise<{ model: string; raw: string } | null> {');
-const start = s.indexOf('const providers: Array<[string, (prompt: string) => Promise<{ model: string; raw: string } | null>]>');
+const start = s.indexOf('const providers: Array<[string, (prompt: string');
 if (start < 0) throw new Error("investigator LLM pool: provider array not found");
 const end = s.indexOf('    ];', start);
 if (end < 0) throw new Error("investigator LLM pool: provider array terminator not found");
-const replacement = `const providers: Array<[string, (prompt: string) => Promise<{ model: string; raw: string } | null>]> = [
-      ...(process.env.GROQ_API_KEY ? [["groq", callGroqJson] as [string, (prompt: string) => Promise<{ model: string; raw: string } | null>]] : []),
-      ...(process.env.MISTRAL_API_KEY ? [["mistral", callMistralJson] as [string, (prompt: string) => Promise<{ model: string; raw: string } | null>]] : []),
+const usesAbortSignal = s.slice(start, end).includes("signal?: AbortSignal");
+const providerFnType = usesAbortSignal
+  ? "(prompt: string, signal?: AbortSignal) => Promise<{ model: string; raw: string } | null>"
+  : "(prompt: string) => Promise<{ model: string; raw: string } | null>";
+const replacement = `const providers: Array<[string, ${providerFnType}]> = [
+      ...(process.env.GROQ_API_KEY ? [["groq", callGroqJson] as [string, ${providerFnType}]] : []),
+      ...(process.env.MISTRAL_API_KEY ? [["mistral", callMistralJson] as [string, ${providerFnType}]] : []),
     ];`;
 s = s.slice(0, start) + replacement + s.slice(end + 6);
 if (s.includes('    for (const [name, fn] of providers) {') && !s.includes('const orderedProviders = selectedInvestigatorLlm')) s = s.replace('    for (const [name, fn] of providers) {', '    const orderedProviders = selectedInvestigatorLlm\n      ? [...providers.filter(([name]) => name === selectedInvestigatorLlm), ...providers.filter(([name]) => name !== selectedInvestigatorLlm)]\n      : providers;\n    for (const [name, fn] of orderedProviders) {');
