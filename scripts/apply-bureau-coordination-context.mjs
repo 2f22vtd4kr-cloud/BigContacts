@@ -6,18 +6,26 @@ const target = path.join(root, "artifacts/api-server/src/src/lib/nvidia-nim-case
 let source = fs.readFileSync(target, "utf8");
 
 const helper = `function buildRightHandDecisionContext(file: ResearchCaseFile): string {
+  const queued = (file.actionQueue ?? []).filter((action) => action.status === "queued").slice(0, 16);
+  const recentCompleted = (file.actionQueue ?? []).filter((action) => action.status !== "queued").slice(-8);
+  const evidence = file.evidenceSummary ?? {};
   return JSON.stringify({
     target: file.target,
-    hypotheses: file.hypotheses,
-    evidenceSummary: file.evidenceSummary,
-    specialistRoster: file.specialistRoster,
-    actionQueue: file.actionQueue,
-    contactRoutes: file.contactRoutes,
-    humanDirectives: file.humanDirectives,
-    decisionLog: file.decisionLog.slice(-8),
+    hypotheses: (file.hypotheses ?? []).slice(-12),
+    evidenceSummary: {
+      discoveredPeople: (evidence.discoveredPeople ?? []).slice(-16),
+      relatedOrganizations: (evidence.relatedOrganizations ?? []).slice(-16),
+      searchGaps: (evidence.searchGaps ?? []).slice(-16),
+      negativeFindings: (evidence.negativeFindings ?? []).slice(-16),
+    },
+    specialistRoster: file.specialistRoster ?? [],
+    actionFrontier: { queued, recentCompleted },
+    contactRoutes: (file.contactRoutes ?? []).slice(-16),
+    humanDirectives: (file.humanDirectives ?? []).slice(-8),
+    decisionLog: (file.decisionLog ?? []).slice(-8),
     rightHandAdvice: file.rightHandAdvice ?? null,
     bossPlan: file.bossPlan ?? null,
-    nextBestAction: file.nextBestAction,
+    nextBestAction: file.nextBestAction ?? null,
     lastUpdatedBy: file.lastUpdatedBy,
     investigationProgress: file.investigationProgress ?? null,
     researchDepth: file.researchDepth ?? null,
