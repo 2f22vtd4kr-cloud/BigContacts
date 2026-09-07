@@ -26,9 +26,16 @@ if (!groq.includes("event: \"apex_agentic_llm_attempt\"")) {
   const fetchAnchor = '        const resp = await fetch("https://api.groq.com/openai/v1/chat/completions", {';
   if (!groq.includes(fetchAnchor)) throw new Error("Groq fetch anchor missing");
   groq = groq.replace(fetchAnchor, '        telemetryAttemptCount += 1;\n' + fetchAnchor);
-  const parseAnchor = '        const data = await resp.json() as { choices?: Array<{ message?: { content?: string } }> };';
-  if (!groq.includes(parseAnchor)) throw new Error("Groq response parse anchor missing");
-  groq = groq.replace(parseAnchor, `        const data = await resp.json() as {\n          choices?: Array<{ message?: { content?: string } }>;\n          usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };\n        };\n        recordAgenticLlmAttempt({\n          provider: "groq",\n          model,\n          promptChars: prompt.length,\n          status: resp.status,\n          success: true,\n          promptTokens: data.usage?.prompt_tokens,\n          completionTokens: data.usage?.completion_tokens,\n          totalTokens: data.usage?.total_tokens,\n          retryIndex: telemetryAttemptCount,\n        });`);
+  const failureAnchor = '        if (!resp.ok) {';
+  const failureEnd = '        }\n        const data = await resp.json() as { choices?: Array<{ message?: { content?: string } }> };';
+  if (!groq.includes(failureAnchor) || !groq.includes(failureEnd)) throw new Error("Groq response guard anchor missing");
+  groq = groq.replace(failureEnd, `        }\n        const data = await resp.json() as { choices?: Array<{ message?: { content?: string } }>; usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number } };`);
+  const parseOld = '        const data = await resp.json() as { choices?: Array<{ message?: { content?: string } }>; usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number } };';
+  groq = groq.replace(parseOld, `${parseOld}\n        recordAgenticLlmAttempt({ provider: "groq", model, promptChars: prompt.length, status: resp.status, success: true, promptTokens: data.usage?.prompt_tokens, completionTokens: data.usage?.completion_tokens, totalTokens: data.usage?.total_tokens, retryIndex: telemetryAttemptCount });`);
+  const oldWarn = 'logger.warn({ provider: "groq", status: resp.status, model }, "agentic provider rejected request");';
+  if (groq.includes(oldWarn)) {
+    groq = groq.replace(oldWarn, oldWarn + '\n          recordAgenticLlmAttempt({ provider: "groq", model, promptChars: prompt.length, status: resp.status, success: false, retryIndex: telemetryAttemptCount, reason: "provider_rejected" });');
+  }
 }
 s = s.slice(0, groqStart) + groq + s.slice(groqEnd);
 
@@ -48,9 +55,13 @@ if (!mistral.includes("event: \"apex_agentic_llm_attempt\"")) {
   mistral = mistral.replace(fetchAnchor, '      telemetryAttemptCount += 1;\n' + fetchAnchor);
   const parseAnchor = '      const data = (await resp.json()) as { choices?: Array<{ message?: { content?: string } }> };';
   if (!mistral.includes(parseAnchor)) throw new Error("Mistral response parse anchor missing");
-  mistral = mistral.replace(parseAnchor, `      const data = (await resp.json()) as {\n        choices?: Array<{ message?: { content?: string } }>;\n        usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };\n      };\n      recordAgenticLlmAttempt({\n        provider: "mistral",\n        model,\n        promptChars: prompt.length,\n        status: resp.status,\n        success: true,\n        promptTokens: data.usage?.prompt_tokens,\n        completionTokens: data.usage?.completion_tokens,\n        totalTokens: data.usage?.total_tokens,\n        retryIndex: telemetryAttemptCount,\n      });`);
+  mistral = mistral.replace(parseAnchor, `      const data = (await resp.json()) as { choices?: Array<{ message?: { content?: string } }>; usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number } };\n      recordAgenticLlmAttempt({ provider: "mistral", model, promptChars: prompt.length, status: resp.status, success: true, promptTokens: data.usage?.prompt_tokens, completionTokens: data.usage?.completion_tokens, totalTokens: data.usage?.total_tokens, retryIndex: telemetryAttemptCount });`);
+  const oldWarn = 'logger.warn({ provider: "mistral", status: resp.status, model }, "agentic provider rejected request");';
+  if (mistral.includes(oldWarn)) {
+    mistral = mistral.replace(oldWarn, oldWarn + '\n        recordAgenticLlmAttempt({ provider: "mistral", model, promptChars: prompt.length, status: resp.status, success: false, retryIndex: telemetryAttemptCount, reason: "provider_rejected" });');
+  }
 }
 s = s.slice(0, mistralStart) + mistral + s.slice(mistralEnd);
 
 fs.writeFileSync(target, s);
-console.log("Applied safe Investigator LLM usage telemetry (successful calls only; no prompt/content/secrets stored)");
+console.log("Applied safe Investigator LLM usage telemetry (tokens, attempts, failures; no prompt/content/secrets stored)");
