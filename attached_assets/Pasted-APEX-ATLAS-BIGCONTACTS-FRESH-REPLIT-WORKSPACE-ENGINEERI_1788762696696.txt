@@ -1,0 +1,800 @@
+APEX ATLAS / BIGCONTACTS
+
+FRESH REPLIT WORKSPACE — ENGINEERING HANDOFF
+
+You are starting in a completely NEW Replit workspace.
+
+Repository:
+
+https://github.com/2f22vtd4kr-cloud/BigContacts
+
+This is NOT a new application.
+
+This is an existing Apex Atlas / BigContacts implementation that has already gone through multiple engineering passes.
+
+Our objective is no longer “set up the project.”
+
+Our objective is:
+
+GET APEX ATLAS TO ACTUALLY WORK END-TO-END AND PROVE IT WITH A REAL BUREAU RUN.
+
+Do not waste the workspace quota repeating repository archaeology that has already been completed.
+
+Do not create unnecessary commits.
+
+I handle GitHub commits myself.
+
+==================================================
+0. GIT — ABSOLUTE RULE
+
+DO NOT COMMIT.
+
+DO NOT PUSH.
+
+DO NOT FORCE-PUSH.
+
+DO NOT AMEND.
+
+I own GitHub history.
+
+You may modify files locally, test them, and leave the working tree with the fixes.
+
+At the end I will inspect the diff and commit the verified changes myself.
+
+==================================================
+
+1. IMPORT / SYNCHRONIZE
+    ==================================================
+
+Import:
+
+https://github.com/2f22vtd4kr-cloud/BigContacts
+
+Immediately run:
+
+git remote -v
+git status –short
+git branch –show-current
+git rev-parse HEAD
+git fetch origin
+git rev-parse origin/main
+git log -10 –oneline
+
+The repository contains the following GitHub-side fixes already made during the previous engineering passes:
+
+* provider-gate canonicalization
+* Investigator provider-routing canonicalization
+* Redis audit JavaScript correction
+* filing-person-contacts Vitest conversion
+* identity collision ordering fix
+* Bureau-log recursion-audit correction
+
+DO NOT revert these.
+
+If this fresh workspace imported an older commit, synchronize it to the current origin/main.
+
+Because this is a NEW workspace, there should be no legitimate local user work to preserve.
+
+==================================================
+2. READ THE THREE CANONICAL DOCUMENTS
+
+Read completely:
+
+docs/context.md
+docs/RUN_BUREAU.md
+docs/REPLIT_NEW_ACCOUNT_SETUP.md
+
+Also read:
+
+package.json
+
+These documents are authoritative.
+
+DO NOT attempt to read all 2,771 repository files.
+
+That was already done in a previous workspace.
+
+From this point forward, read complete files when they are directly relevant to a failure you are diagnosing.
+
+==================================================
+3. CANONICAL ARCHITECTURE
+
+This architecture is NON-NEGOTIABLE.
+
+Gemini
+= Boss / Primary Orchestrator
+
+DeepSeek V4 Flash
+= Right Hand Advisor
+
+Groq / Mistral
+= Investigator
+
+Investigator
+= owner of the actual research trajectory
+
+Research providers/tools
+= capabilities available to the Investigator
+
+Deterministic code
+= safety, authorization, provenance, persistence, lifecycle, cancellation, budgets, validation
+
+The model must determine research direction.
+
+Deterministic code may constrain unsafe behavior but must not secretly become the research strategist.
+
+==================================================
+4. NEVER RESTORE THE OLD ARCHITECTURE
+
+NEVER introduce or restore:
+
+* Serper → Tavily → Exa sequencing
+* Groq → Mistral research sequencing
+* fixed provider ordering
+* hidden search-provider routers
+* scripted ReAct
+* forced research hops
+* deterministic candidate generation from arbitrary web text
+* proxy_table candidate leakage
+* fabricated people
+* fabricated contacts
+* fabricated evidence
+* fabricated URLs
+* synthetic research observations
+* fake research stages
+* provider substitution presented as successful research
+
+Transport retries are acceptable.
+
+Capacity fallback is acceptable where documented.
+
+But fallback must NOT become hidden research strategy.
+
+==================================================
+5. SECRETS
+
+Configure the required Replit secrets from the documented setup.
+
+Expected credentials include:
+
+REDIS_URL_1
+GROQ_API_KEY
+GEMINI_API_KEY
+DEEPSEEK_API_KEY
+MISTRAL_API_KEY
+HF_TOKEN
+SERPER_API_KEY
+TAVILY_API_KEY
+SERPAPI_KEY
+EXA_API_KEY
+SCRAPFLY_API_KEY
+ZENROWS_API_KEY
+COMPANIES_HOUSE_API_KEY
+WHOISJSON_API_KEY
+
+NEVER print secret values.
+
+NEVER include secret values in logs.
+
+NEVER commit secrets.
+
+Do not invent additional credentials.
+
+Do not create REDIS_URL_2 through REDIS_URL_5.
+
+Replit Postgres supplies DATABASE_URL.
+
+==================================================
+6. ENVIRONMENT
+
+Use the documented environment.
+
+Set:
+
+ENABLE_AUTO_PIPELINE=false
+INSTALL_PYTHON_OSINT=false
+PORT=8080
+APEX_SKIP_SEMANTIC=1
+CI=true
+RESEARCH_DEPTH=standard
+NODE_OPTIONS=–max-old-space-size=1536
+
+Do not use environment flags to bypass substantive validation.
+
+==================================================
+7. INSTALL
+
+Use the repository’s existing pnpm/lockfile setup.
+
+Do not migrate package managers.
+
+Do not randomly upgrade dependencies.
+
+Install dependencies.
+
+Then run:
+
+node scripts/replit-preflight.mjs
+
+If preflight fails, fix the actual problem.
+
+==================================================
+8. FAST BASELINE — DO THIS BEFORE DEEP DEBUGGING
+
+Run these in this order:
+
+1. preflight
+2. API build
+3. API typecheck
+4. frontend production build
+5. database/schema check
+6. Redis audit
+7. architecture guards
+8. full Vitest
+
+Do not spend excessive time explaining successful commands.
+
+I need the results, not a transcript of every shell command.
+
+==================================================
+9. SERIAL BUILD IDEMPOTENCE
+
+Run the API build THREE TIMES, SERIALIZED.
+
+After each build compare:
+
+git diff –stat
+
+and the relevant source diff.
+
+Expected:
+
+Build #1 may perform canonical transforms.
+
+Build #2 = no additional semantic source changes.
+
+Build #3 = no additional semantic source changes.
+
+If builds continually mutate source:
+
+STOP and diagnose the transform.
+
+Do not paper over it.
+
+==================================================
+10. TEST SUITE
+
+Run the COMPLETE Vitest suite.
+
+Previous engineering reached:
+
+419 passed / 419 passed
+
+That is the current expected baseline.
+
+If it is lower:
+
+DO NOT simply alter tests.
+
+For every failure:
+
+* identify the exact test
+* read the entire test
+* identify the production implementation
+* read the relevant production code
+* find the root cause
+* classify the failure
+* fix genuine defects
+* preserve the canonical architecture
+* rerun the affected test
+* rerun the full suite
+
+Do not weaken assertions merely to obtain green.
+
+==================================================
+11. REDIS
+
+Run the Redis audit.
+
+Verify actual Redis connectivity.
+
+Verify the actual implementation of:
+
+* budget
+* lock
+* TTL
+* lifecycle
+* cancellation
+* persistence
+* Bureau live logging
+
+Do not create Redis write storms.
+
+Do not add unnecessary verification loops.
+
+Do not add recursive log mirroring.
+
+One Redis is sufficient.
+
+==================================================
+12. ARCHITECTURE GUARDS
+
+Run every relevant canonical guard documented in:
+
+docs/context.md
+docs/RUN_BUREAU.md
+
+At minimum:
+
+pnpm run check:no-force-dig
+pnpm run check:free-react
+pnpm run check:discovery-quality
+pnpm run check:agentic-runtime
+pnpm run check:agentic-timeout
+pnpm run check:provider-role-docs
+pnpm run check:unified-investigator
+pnpm run check:bureau
+
+If a guard fails:
+
+Determine whether:
+
+A. production architecture is wrong
+
+or
+
+B. the guard is stale
+
+Do not restore obsolete architecture just to satisfy a stale guard.
+
+==================================================
+13. API BOOT
+
+Start the API using the documented Replit procedure.
+
+Use:
+
+PORT=8080
+
+Verify:
+
+GET /api/healthz
+
+Report the actual response.
+
+IMPORTANT:
+
+/api/healthz passing is NOT Bureau success.
+
+It only proves the API is alive.
+
+==================================================
+14. PROVIDER VERIFICATION
+
+Verify provider functionality without exposing credentials.
+
+For each required provider distinguish:
+
+CONFIGURED
+REACHABLE
+MODEL INVOCATION SUCCESSFUL
+PRODUCTION PATH SUCCESSFUL
+
+Do not call a provider “working” merely because an API key exists.
+
+Pay particular attention to:
+
+Gemini
+DeepSeek
+Groq
+Mistral
+
+The previous Bureau run demonstrated:
+
+Groq was reachable.
+
+Mistral returned HTTP 429.
+
+Discovery consequently produced zero model-selected findings/searches/visits.
+
+That is the central unresolved production problem.
+
+==================================================
+15. PRIMARY OBJECTIVE — BUREAU
+
+Once the baseline is green enough to safely run it:
+
+RUN THE CANONICAL BUREAU AUDIT.
+
+Follow:
+
+docs/RUN_BUREAU.md
+
+Do not invent a different test procedure.
+
+Do not manufacture a target.
+
+Do not fabricate research.
+
+==================================================
+16. WHAT WE ACTUALLY NEED TO PROVE
+
+A successful Bureau run must demonstrate the REAL production trajectory:
+
+HUMAN MISSION
+↓
+BOSS
+↓
+DISCOVERY BRIEF
+↓
+INVESTIGATOR
+↓
+MODEL-SELECTED ACTION
+↓
+REAL WEB TOOL / HTTP OBSERVATION
+↓
+REAL SOURCE
+↓
+REAL NAMED PERSON
+↓
+IDENTITY / PROVENANCE
+↓
+FURTHER INVESTIGATION
+↓
+SOURCE-BACKED EVIDENCE
+↓
+HONEST CONTACT ROUTE
+↓
+BUREAU RESULT
+
+Do not accept:
+
+job completed
+
+as evidence of success.
+
+==================================================
+17. THE CRITICAL DISCOVERY FAILURE
+
+The previous live Bureau run reached a real job but then showed:
+
+discovery = 0 model-selected findings
+searches = 0
+visits = 0
+
+Groq was reachable.
+
+Mistral returned HTTP 429.
+
+The system subsequently reported:
+
+agenticLlmLastOk = false
+
+This is the area I want investigated first if it reproduces.
+
+Determine whether the root cause is:
+
+* Investigator provider selection
+* provider capacity handling
+* provider fallback
+* incorrect availability detection
+* incorrect model invocation
+* swallowed provider error
+* discovery loop termination
+* invalid provider-role routing
+* case/Bureau state transition
+* environment configuration
+* rate limiting
+* actual provider outage
+
+Do NOT guess.
+
+Trace the actual execution path.
+
+==================================================
+18. PROVIDER FALLBACK RULE
+
+If Mistral is rate-limited:
+
+DO NOT automatically turn:
+
+Groq → Mistral
+
+into a hidden research strategy.
+
+The Investigator must remain the owner of research decisions.
+
+Transport/capacity handling may retry or select an available configured Investigator capability according to the documented provider contract.
+
+But the system must preserve truthful attribution of:
+
+* which model acted
+* which provider acted
+* what action was selected
+* why the action was selected
+* what source was observed
+
+No fake success.
+
+==================================================
+19. DISCOVERY REQUIREMENT
+
+The system must NOT begin with fabricated candidates.
+
+Discovery must produce candidates from actual observed sources.
+
+A model-generated candidate hypothesis is not automatically a validated person.
+
+The chain must be:
+
+model hypothesis
+→ tool/source observation
+→ identity evidence
+→ candidate admission
+→ further research
+
+If no valid candidate can be established:
+
+return no candidate.
+
+Do NOT manufacture one.
+
+==================================================
+20. BUREAU EVIDENCE AUDIT
+
+For every candidate that reaches Bureau output, inspect:
+
+WHO is this person?
+
+WHAT source identifies them?
+
+WHERE was the source actually observed?
+
+WHAT evidence supports the identity?
+
+WHAT evidence supports their investment/ownership/relationship?
+
+WHAT contact route is attributable to them?
+
+WHO selected the research action?
+
+WHAT did the Investigator actually observe?
+
+Every promoted fact needs a provenance chain.
+
+==================================================
+21. CONTACT RULES
+
+Do not promote:
+
+generic company emails
+generic contact pages
+organization routes
+press addresses
+info@ addresses
+
+as direct personal contact evidence.
+
+An organization route can be retained as an organization route.
+
+A personal route requires attributable evidence.
+
+Never infer:
+
+company executive
+→ personal email
+
+without evidence.
+
+==================================================
+22. STOP WASTING CREDITS
+
+This is important.
+
+Do NOT spend the workspace quota on:
+
+* rereading thousands of files
+* repeated successful builds
+* verbose narration
+* cosmetic cleanup
+* unrelated refactors
+* dependency upgrades
+* UI polish
+* documentation rewriting
+
+Spend the quota on:
+
+1. reproducing failures
+2. tracing the production path
+3. fixing root causes
+4. verifying the fix
+5. running Bureau
+6. auditing the real trajectory
+
+==================================================
+23. IF THE BUREAU RUN FAILS
+
+Do NOT simply retry it endlessly.
+
+Capture the failure.
+
+Trace the exact code path.
+
+Fix the root cause.
+
+Then perform ONE clean rerun.
+
+If the failure is external provider capacity, document it separately from application correctness.
+
+For example:
+
+APPLICATION BUG
+versus
+PROVIDER 429
+versus
+MISSING CREDENTIAL
+versus
+NETWORK FAILURE
+
+Do not conflate them.
+
+==================================================
+24. LOCAL CHANGES
+
+You may modify the repository locally.
+
+After each logical change:
+
+git diff –stat
+git diff
+
+Keep changes focused.
+
+Do not rewrite unrelated code.
+
+Do not commit.
+
+Do not push.
+
+==================================================
+25. FINAL REPORT
+
+When you finish, give me a concise but complete report.
+
+Use:
+
+GITHUB BASE
+
+* HEAD:
+* origin/main:
+
+INSTALL
+
+* PASS/FAIL
+
+PREFLIGHT
+
+* PASS/FAIL
+
+API BUILD
+
+* #1:
+* #2:
+* #3:
+* IDEMPOTENT:
+
+TYPECHECK
+
+* PASS/FAIL
+
+FRONTEND BUILD
+
+* PASS/FAIL
+
+DATABASE
+
+* PASS/FAIL
+
+REDIS
+
+* PASS/FAIL
+
+ARCHITECTURE
+
+* each guard:
+* PASS/FAIL
+
+VITEST
+
+* passed:
+* failed:
+* skipped:
+
+PROVIDER STATUS
+
+* Gemini:
+* DeepSeek:
+* Groq:
+* Mistral:
+
+API HEALTH
+
+* response:
+
+BUREAU
+
+* run ID:
+* target:
+* discovery:
+* Investigator:
+* model-selected actions:
+* searches:
+* HTTP observations:
+* named candidates:
+* provenance:
+* contacts:
+* final result:
+* integrity:
+* PASS/FAIL:
+
+ROOT CAUSE OF ANY FAILURE
+
+* exact explanation
+
+LOCAL FILES CHANGED
+
+* exact list
+
+UNCOMMITTED DIFF
+
+* summary
+
+REMAINING BLOCKERS
+
+* exact list
+
+==================================================
+26. DEFINITION OF DONE
+
+We are NOT done because:
+
+* the app builds
+* tests pass
+* healthz responds
+* Redis is connected
+* a job says “completed”
+
+We are done when we have credible evidence that:
+
+Apex Atlas can accept a mission,
+Boss can establish the mission,
+Investigator can autonomously conduct the research trajectory,
+real tools can be used,
+real sources can be observed,
+real people can be established,
+evidence and provenance survive the pipeline,
+contact routes remain honest,
+and Bureau can produce a trustworthy result.
+
+If external provider capacity prevents the final live proof, say so clearly.
+
+Do not fake it.
+
+==================================================
+START
+
+Start by importing/synchronizing the repository.
+
+Then execute the baseline.
+
+Then fix genuine failures.
+
+Then run the Bureau audit.
+
+Do not commit or push anything.
+
+Do not waste credits repeating work that is already complete.
+
+The goal is simple:
+
+MAKE APEX ATLAS ACTUALLY WORK.
