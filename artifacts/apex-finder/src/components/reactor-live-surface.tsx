@@ -19,6 +19,8 @@ import {
   cleanResearchText,
   eventIsRenderable,
   explicitResearchQuery,
+  normalizeReactorStatus,
+  reactorEventKey,
   sourceList,
   type ReactorLiveEvent,
   type ReactorMethod,
@@ -27,9 +29,9 @@ import {
 /**
  * Renderer for Reactor Live.
  *
- * It renders semantic scenes from real Bureau events instead of pretending
- * every action is a browser. It may show a recorded tool-input prompt, but
- * never private model reasoning or a fabricated query/result.
+ * It renders semantic scenes from actual Bureau telemetry. It may show a
+ * recorded tool-input prompt, but never invents a query, URL, result, or
+ * in-flight state merely to make the desk look busy.
  */
 
 function methodIcon(method: ReactorMethod) {
@@ -149,10 +151,18 @@ function SemanticScene({ event }: { event: ReactorLiveEvent }) {
 }
 
 export function ReactorLiveSurface({ events, targetName, compact = false }: { events: ReactorLiveEvent[]; targetName?: string; compact?: boolean }) {
-  const renderable = useMemo(
-    () => events.filter(eventIsRenderable).slice(0, compact ? 3 : 12),
-    [events, compact],
-  );
+  const renderable = useMemo(() => {
+    const seen = new Set<string>();
+    const normalized = events
+      .map((event) => ({ ...event, status: normalizeReactorStatus(event.status) }))
+      .sort((a, b) => Date.parse(String(b.timestamp ?? "")) - Date.parse(String(a.timestamp ?? "")));
+    return normalized.filter((event) => {
+      const key = reactorEventKey(event);
+      if (seen.has(key) || !eventIsRenderable(event)) return false;
+      seen.add(key);
+      return true;
+    }).slice(0, compact ? 3 : 12);
+  }, [events, compact]);
 
   return (
     <section className="space-y-3" aria-label="Reactor live research" data-testid="reactor-live-surface">
@@ -163,7 +173,7 @@ export function ReactorLiveSurface({ events, targetName, compact = false }: { ev
           </div>
           <h2 className="mt-1 text-base font-medium text-stone-100">{targetName ? `Researching ${targetName}` : "Live research"}</h2>
         </div>
-        <div className="hidden text-right text-[10px] uppercase tracking-wider text-stone-600 sm:block">Rendered from Bureau events</div>
+        <div className="hidden text-right text-[10px] uppercase tracking-wider text-stone-600 sm:block">Rendered from live telemetry</div>
       </header>
 
       {renderable.length === 0 ? (
@@ -175,8 +185,8 @@ export function ReactorLiveSurface({ events, targetName, compact = false }: { ev
           {renderable.map((event) => {
             const method = classifyReactorMethod(event);
             return method === "search" || method === "browser"
-              ? <BrowserScene key={event.id} event={event} />
-              : <SemanticScene key={event.id} event={event} />;
+              ? <BrowserScene key={reactorEventKey(event)} event={event} />
+              : <SemanticScene key={reactorEventKey(event)} event={event} />;
           })}
         </div>
       )}
