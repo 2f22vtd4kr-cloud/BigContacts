@@ -1,63 +1,56 @@
 /**
  * Research depth tiers — scale-safe quality control for Apex Atlas (Replit-optimised).
  *
- * fast     → DEFAULT — bulk / thousands of targets (same budget as legacy 5-action cap)
- * standard → richer single-target enrichment (set RESEARCH_DEPTH=standard)
- * deep     → VIP / human-requested thorough pass (set RESEARCH_DEPTH=deep)
+ * fast     → DEFAULT — bulk / thousands of targets
+ * standard → richer single-target enrichment
+ * deep     → VIP / human-requested thorough pass
  *
- * Override with Replit Secret / env: RESEARCH_DEPTH=fast|standard|deep
+ * The adaptive director is a coordination layer around the free-ReAct Investigator;
+ * its budget must not consume the quota that should go to actual web research.
  */
 
 export type ResearchDepth = "fast" | "standard" | "deep";
 
 export type ResearchDepthConfig = {
   depth: ResearchDepth;
-  /** Adaptive Research Director action budget */
   adaptiveMaxActions: number;
-  /** Consecutive no-progress passes before stop */
   noProgressLimit: number;
-  /** Max person follow-ups inside adaptive loop */
   maxPersonFollowUps: number;
-  /** Max official-domain follow-ups */
   maxDomainFollowUps: number;
-  /** Legacy flag — always false; free research does not force pending-vector scripts */
   forcePendingVectorBias: boolean;
-  /** Agentic ReAct dig iteration budget */
   agenticMaxIterations: number;
-  /** Hard wall-clock timeout for one dig (ms) */
   agenticHardTimeoutMs: number;
-  /** Run identity collision / alias challenge before stop when budget remains */
   challengePass: boolean;
 };
 
 const CONFIGS: Record<ResearchDepth, ResearchDepthConfig> = {
   fast: {
     depth: "fast",
-    adaptiveMaxActions: 8,
+    adaptiveMaxActions: 5,
     noProgressLimit: 2,
     maxPersonFollowUps: 2,
     maxDomainFollowUps: 1,
     forcePendingVectorBias: false,
-    agenticMaxIterations: 10,
+    agenticMaxIterations: 8,
     agenticHardTimeoutMs: 120_000,
     challengePass: false,
   },
   standard: {
     depth: "standard",
-    adaptiveMaxActions: 12,
+    adaptiveMaxActions: 8,
     noProgressLimit: 2,
-    maxPersonFollowUps: 5,
+    maxPersonFollowUps: 4,
     maxDomainFollowUps: 2,
     forcePendingVectorBias: false,
-    agenticMaxIterations: 16,
+    agenticMaxIterations: 14,
     agenticHardTimeoutMs: 210_000,
     challengePass: true,
   },
   deep: {
     depth: "deep",
-    adaptiveMaxActions: 16,
+    adaptiveMaxActions: 12,
     noProgressLimit: 3,
-    maxPersonFollowUps: 8,
+    maxPersonFollowUps: 7,
     maxDomainFollowUps: 3,
     forcePendingVectorBias: false,
     agenticMaxIterations: 20,
@@ -66,8 +59,8 @@ const CONFIGS: Record<ResearchDepth, ResearchDepthConfig> = {
   },
 };
 
-/** Hard ceiling so a bad env value cannot explode Replit / provider cost. */
-export const ABSOLUTE_ADAPTIVE_ACTION_CAP = 16;
+/** Hard ceiling so a bad env value cannot explode provider cost. */
+export const ABSOLUTE_ADAPTIVE_ACTION_CAP = 12;
 
 /** Default for unset / invalid env — keeps bulk runs cheap on Replit. */
 export const DEFAULT_RESEARCH_DEPTH: ResearchDepth = "fast";
