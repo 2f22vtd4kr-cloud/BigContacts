@@ -1,0 +1,586 @@
+APEX ATLAS — FINAL LIVE PROOF
+
+CONTINUE FROM THE CURRENT WORKSPACE
+
+We have now fixed the concrete failure discovered during the previous Andy Cantwell run.
+
+IMPORTANT:
+
+DO NOT redesign Apex.
+
+DO NOT rewrite the Bureau.
+
+DO NOT start another architecture project.
+
+DO NOT spend credits auditing irrelevant parts of the repository.
+
+The repository already contains the latest fix:
+
+commit:
+02980985169271673bbf29a87f6104382e36dca2
+
+message:
+fix: preserve current-run evidence for blind review
+
+The fix gives target-agent evidence a run-specific source identity so an identical finding discovered during a new run cannot be incorrectly discarded as historical evidence.
+
+============================================================
+PRIMARY OBJECTIVE
+
+NOW RUN THE REAL TEST.
+
+Target:
+
+ANDY CANTWELL
+
+The question is no longer:
+
+“Can we keep improving Apex?”
+
+The question is:
+
+CAN APEX ACTUALLY RESEARCH ONE PERSON PROPERLY FROM START TO FINISH?
+
+We need an answer based on an actual completed run.
+
+============================================================
+
+1. VERIFY THE FIX FIRST
+    ============================================================
+
+Run:
+
+git fetch origin
+git status –short
+git rev-parse HEAD
+git rev-parse origin/main
+
+Confirm HEAD contains:
+
+02980985169271673bbf29a87f6104382e36dca2
+
+HEAD must equal origin/main.
+
+If it does not:
+
+STOP and synchronize correctly.
+
+DO NOT overwrite the fix.
+
+============================================================
+2. VERIFY THE SPECIFIC BUG FIX
+
+Inspect:
+
+artifacts/api-server/src/src/lib/target-contact-agent.ts
+
+Confirm the current-run source is run-specific:
+
+target-contact-agentic:
+
+The purpose is:
+
+same value historically
++
+same value discovered again now
+
+must result in:
+
+historical evidence
+AND
+current-run evidence.
+
+The current-run evidence must therefore survive the blind-review filter.
+
+Do NOT undo this behavior.
+
+============================================================
+3. VERIFY EXA IS ACTUALLY AVAILABLE
+
+Apex already contains direct Exa web search integration.
+
+Verify:
+
+EXA_API_KEY
+
+is configured.
+
+Do NOT print the key.
+
+The Investigator’s web_search capability must be able to call:
+
+https://api.exa.ai/search
+
+The Investigator must be allowed to choose:
+
+provider=“exa”
+
+when appropriate.
+
+Do NOT replace Exa with a fake local search.
+
+Do NOT remove Exa.
+
+============================================================
+4. DO NOT MAKE THE INVESTIGATOR SHALLOW
+
+This is extremely important.
+
+We are NOT trying to get:
+
+“SUCCESS”
+
+by making the Investigator do two searches.
+
+The Investigator must remain a real model-directed researcher.
+
+It should:
+
+SEARCH
+→ OBSERVE
+→ VISIT
+→ UPDATE CASE
+→ CHOOSE NEXT ACTION
+→ CORROBORATE
+→ INVESTIGATE CONTACT SURFACES
+→ STOP WHEN SUFFICIENT.
+
+No hard-coded query list.
+
+No fake findings.
+
+No synthetic research.
+
+============================================================
+5. ANDY CANTWELL — BLIND TARGET
+
+Target:
+
+ANDY CANTWELL
+
+Do NOT provide any independent research.
+
+Do NOT provide known websites.
+
+Do NOT provide known contacts.
+
+Do NOT provide expected answers.
+
+Apex gets only the target identity.
+
+============================================================
+6. THE RESEARCH MISSION
+
+Research the person as a serious public-web intelligence target.
+
+Look for:
+
+identity
+career
+professional role
+companies
+organizations
+projects
+ownership/control
+relationships
+public professional presence
+authoritative filings
+interviews
+company pages
+public contact surfaces
+direct attributable contact routes.
+
+Do not turn the mission into “find an email at all costs.”
+
+The goal is:
+
+USEFUL INTELLIGENCE.
+
+============================================================
+7. CONTACT QUALITY
+
+Distinguish:
+
+DIRECT PERSONAL
+DIRECT PROFESSIONAL
+ORGANIZATION
+GENERIC
+SOCIAL
+CONTACT FORM
+INFERRED
+UNVERIFIED.
+
+Never call:
+
+info@
+contact@
+press@
+office@
+
+a personal contact.
+
+Never manufacture an email.
+
+Never infer a phone number.
+
+Every contact claim must have the exact public source URL where it was observed.
+
+============================================================
+8. EXA SHOULD ACTUALLY BE USED WHEN IT IS THE BEST SEARCH TOOL
+
+The Investigator may choose Exa naturally.
+
+For example:
+
+web_search
+provider=“exa”
+
+is valid.
+
+Exa is particularly appropriate for:
+
+people discovery
+company/people relationships
+semantic search
+deep public-web research
+finding relevant pages that keyword search misses.
+
+Do NOT force Exa for every query.
+
+Do NOT prevent Exa.
+
+The Investigator decides.
+
+============================================================
+9. NO PROVIDER QUOTA DEATH SPIRAL
+
+This run has a finite resource budget.
+
+No infinite:
+
+LLM retry
+429 retry
+provider retry
+timeout
+research loop
+Boss loop
+Right-hand loop.
+
+If Groq is unavailable:
+
+use Mistral if configured.
+
+If a web-search provider fails:
+
+try another available web-search capability when useful.
+
+If a provider is repeatedly unavailable:
+
+stop hammering it.
+
+DO NOT burn the entire run on one dead provider.
+
+============================================================
+10. LLMs MUST ACT AS ONE BUREAU
+
+INVESTIGATOR:
+
+Does the actual research.
+
+RIGHT-HAND:
+
+Receives mounting evidence and asks:
+
+WHAT ARE WE MISSING?
+
+BOSS:
+
+Receives the mounting case + Right-hand reasoning + Investigator progress and decides:
+
+WHAT SHOULD HAPPEN NEXT?
+
+They must not independently repeat the same research.
+
+============================================================
+11. MOUNTING DATA
+
+As evidence arrives, the shared case must retain:
+
+sources
+findings
+identity evidence
+relationships
+contradictions
+failed hypotheses
+contacts
+unresolved questions
+research already performed.
+
+Boss and Right-hand must see the updated state.
+
+The Investigator must see relevant accumulated state.
+
+============================================================
+12. DO NOT STOP PREMATURELY
+
+Finding Andy’s identity is not completion.
+
+One search is not completion.
+
+Two searches are not automatically completion.
+
+A useful dossier should investigate multiple relevant dimensions.
+
+At the same time:
+
+do not search forever.
+
+Stop when the evidence is genuinely sufficient or the remaining research has low expected value.
+
+============================================================
+13. CRITICAL BLIND-EVIDENCE TEST
+
+This is the bug we just fixed.
+
+At final review report separately:
+
+PRE-EXISTING EVIDENCE
+
+CURRENT-RUN EVIDENCE
+
+NEWLY DISCOVERED
+
+RE-OBSERVED THIS RUN
+
+HISTORICAL ONLY.
+
+If the same contact/value existed historically but the Investigator found it again:
+
+it MUST appear as:
+
+RE-OBSERVED THIS RUN.
+
+It must NOT disappear merely because the durable database already contained the value.
+
+============================================================
+14. FINAL REVIEW
+
+The final reviewer must receive the CURRENT-RUN evidence.
+
+The candidate funnel must not be empty merely because identical historical evidence existed.
+
+If Investigator produces valid source-backed findings:
+
+they must survive into:
+
+candidate funnel
+→ final review
+→ final dossier.
+
+============================================================
+15. DO NOT USE LEGACY REHYDRATION TO CHEAT
+
+Do NOT solve the problem by simply feeding the entire historical evidence bag back into the final reviewer.
+
+That would destroy the blind test.
+
+Historical evidence remains historical.
+
+Current-run observation remains current-run observation.
+
+Both may exist in the database.
+
+Only current-run evidence counts as a discovery in this evaluation.
+
+============================================================
+16. FINAL DOSSIER
+
+The final output should contain useful intelligence about Andy.
+
+At minimum evaluate:
+
+identity confidence
+professional history
+companies/organizations
+projects
+relationships
+authoritative sources
+corroboration
+public presence
+contact routes
+direct attributable contacts
+evidence quality
+confidence.
+
+============================================================
+17. IF SOMETHING BREAKS
+
+DO NOT start another giant rewrite.
+
+Identify:
+
+FIRST BROKEN TRANSITION
+ROOT CAUSE
+MINIMAL FIX.
+
+Then:
+
+FIX
+→ TEST
+→ COMMIT
+→ PUSH
+→ VERIFY.
+
+Only then retry.
+
+No uncommitted “fixes.”
+
+============================================================
+18. IF THE RUN COMPLETES
+
+DO NOT immediately change the architecture.
+
+Stop.
+
+Inspect the completed research.
+
+Report exactly:
+
+RUN ID
+duration
+terminal state
+
+LLM CALLS
+Boss
+Right-hand
+Investigator
+
+TOKENS
+input
+cached
+output
+total
+
+PROVIDERS
+Gemini
+DeepSeek
+Groq
+Mistral
+
+WEB SEARCH
+Exa searches
+Tavily searches
+Serper searches
+page visits
+
+RESEARCH
+findings
+sources
+corroborated claims
+identity evidence
+relationships
+contact routes
+verified direct contacts
+
+FAILURES
+429s
+timeouts
+retries
+fallbacks
+
+BLIND EVIDENCE
+historical
+current-run
+new
+re-observed.
+
+============================================================
+19. FINAL QUALITY QUESTION
+
+Do NOT judge success from:
+
+HTTP 200
+healthz
+build success
+“Investigator completed”
+number of searches.
+
+Judge success from the actual dossier.
+
+Ask:
+
+DID APEX LEARN SOMETHING USEFUL?
+
+DID IT FOLLOW EVIDENCE?
+
+DID IT FIND MULTIPLE RELEVANT SOURCES?
+
+DID IT INVESTIGATE THE PERSON RATHER THAN JUST SEARCH THEIR NAME?
+
+DID IT FIND USEFUL CONTACT INTELLIGENCE?
+
+DID THE CONTACT CLAIMS HAVE REAL SOURCES?
+
+DID BOSS AND RIGHT-HAND ACTUALLY HELP?
+
+DID THE INVESTIGATOR REMAIN AUTONOMOUS?
+
+DID THE RUN STAY WITHIN REASONABLE QUOTA?
+
+DID THE FINAL REVIEW RECEIVE THE ACTUAL CURRENT-RUN FINDINGS?
+
+============================================================
+20. FINAL VERDICT
+
+Give one of exactly these:
+
+APEX IS READY FOR REAL RESEARCH
+
+or
+
+APEX IS NOT READY
+
+If NOT READY:
+
+identify the exact blocker.
+
+If READY:
+
+show the evidence.
+
+Do not say READY because we are tired of development.
+
+Say READY because the Andy run proves it.
+
+============================================================
+NO MORE ARCHITECTURE THEATER
+
+The machinery exists.
+
+Exa exists.
+
+The Investigator exists.
+
+The Bureau exists.
+
+The current-run evidence bug is now fixed and committed.
+
+Now let the fucking thing research.
+
+ONE TARGET.
+
+ANDY CANTWELL.
+
+REAL WEB.
+
+REAL EVIDENCE.
+
+REAL CONTACT DISCOVERY.
+
+REAL DOSSIER.
+
+REAL QUOTA ACCOUNTING.
+
+FINISH THE JOB.
+
+START NOW.
