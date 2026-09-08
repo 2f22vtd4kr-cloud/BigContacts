@@ -11,7 +11,7 @@
  */
 
 import { logger } from "./logger";
-import { spanFromLiveStep } from "./dig-span";
+import { completeDigSpan, publishDigSpan, spanFromLiveStep } from "./dig-span";
 import { formatSerpContactTokenBlock } from "./serp-contact-tokens";
 import { filterClaimUrls, filterPassagesForQuery } from "./passage-filter";
 import { sanitizePublicEmail, sanitizePublicPhone, isTrashContactValue } from "./contact-validation";
@@ -1727,6 +1727,23 @@ async function runAgenticWebResearchUnbounded(input: {
       }
     }
 
+    const activeToolSpan = action.action === "done"
+      ? null
+      : publishDigSpan({
+          jobId: input.jobId || "unknown",
+          targetName: name,
+          spanType: "tool",
+          name: action.action,
+          status: "active",
+          inputSummary: ("query" in action ? action.query : "url" in action ? action.url : "email" in action ? action.email : "username" in action ? action.username : "domain" in action ? action.domain : "registry" in action ? `${action.registry}:${action.query}` : action.action)?.slice(0, 400),
+          agentName: "investigator",
+        });
+
+    const retireActiveToolSpan = (status: "ok" | "error" = "ok", resultSummary?: string) => {
+      if (!activeToolSpan) return;
+      completeDigSpan(input.jobId || "unknown", activeToolSpan.id, { status, resultSummary });
+    };
+
     if (action.action === "web_search") {
       searches++;
       history.push(`step${i + 1}: search ${action.query}${action.thought ? ` (${action.thought.slice(0, 80)})` : ""}`);
@@ -1751,6 +1768,7 @@ async function runAgenticWebResearchUnbounded(input: {
         provider: sr.provider || "unknown",
         summary: `${sr.provider || "?"} · ${sr.urls.length} URLs · ${sr.text.slice(0, 140)}`,
       });
+      retireActiveToolSpan("ok", `${sr.provider || "?"} · ${sr.urls.length} URLs`);
       continue;
     }
 
@@ -1790,6 +1808,7 @@ async function runAgenticWebResearchUnbounded(input: {
           ? `page read · ${extracted.length} contact fact(s) extracted`
           : "page read · no contact facts auto-extracted",
       });
+      retireActiveToolSpan("ok", extracted.length ? `page read · ${extracted.length} contact fact(s)` : "page read");
       continue;
     }
 
@@ -1812,6 +1831,7 @@ async function runAgenticWebResearchUnbounded(input: {
         provider: "rdap",
         summary: (lastObservation || "").slice(0, 180),
       });
+      retireActiveToolSpan("ok", (lastObservation || "").slice(0, 180));
       continue;
     }
 
@@ -1852,6 +1872,7 @@ async function runAgenticWebResearchUnbounded(input: {
         provider: action.registry || "registry",
         summary: (lastObservation || "").slice(0, 180),
       });
+      retireActiveToolSpan("ok", (lastObservation || "").slice(0, 180));
       continue;
     }
 
@@ -1897,6 +1918,7 @@ async function runAgenticWebResearchUnbounded(input: {
         provider: "theharvester",
         summary: (lastObservation || "").slice(0, 180),
       });
+      retireActiveToolSpan("ok", (lastObservation || "").slice(0, 180));
       continue;
     }
 
@@ -1935,6 +1957,7 @@ async function runAgenticWebResearchUnbounded(input: {
         provider: "scrapfly",
         summary: (lastObservation || "").slice(0, 180),
       });
+      retireActiveToolSpan("ok", (lastObservation || "").slice(0, 180));
       continue;
     }
 
@@ -1943,6 +1966,7 @@ async function runAgenticWebResearchUnbounded(input: {
       history.push(`step${i + 1}: reverse_whois rejected (Whoxy deprecated; use domain_lookup)`);
       lastObservation = "TOOL_UNAVAILABLE: reverse_whois/Whoxy removed. Use domain_lookup (RDAP→WhoisJSON).";
       emitLive({ action: "tool", query: "reverse_whois", provider: "none", summary: "whoxy deprecated" });
+      retireActiveToolSpan("error", "whoxy deprecated");
       continue;
     }
 
@@ -1979,6 +2003,7 @@ async function runAgenticWebResearchUnbounded(input: {
         provider: "holehe",
         summary: (lastObservation || "").slice(0, 180),
       });
+      retireActiveToolSpan("ok", (lastObservation || "").slice(0, 180));
       continue;
     }
 
@@ -2022,6 +2047,7 @@ async function runAgenticWebResearchUnbounded(input: {
         provider: "maigret",
         summary: (lastObservation || "").slice(0, 180),
       });
+      retireActiveToolSpan("ok", (lastObservation || "").slice(0, 180));
       continue;
     }
 
