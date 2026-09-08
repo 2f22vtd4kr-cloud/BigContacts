@@ -167,56 +167,6 @@ function collectEligibleRelatedValues(input: FinalTargetReviewInput): string[] {
   return Array.from(new Set([...fromCandidates, ...fromEvidence].filter(Boolean)));
 }
 
-function deterministicFallbackApprovals(input: FinalTargetReviewInput): {
-  contacts: string[];
-  related: string[];
-  reasons: string[];
-} {
-  const contacts: string[] = [];
-  const related: string[] = [];
-  const reasons: string[] = [];
-
-  for (const c of input.candidates) {
-    if (c.state === "rejected" || c.conflictCount > 0) continue;
-    const src = `${c.providers.join(" ")} ${(c as { note?: string }).note ?? ""}`.toLowerCase();
-    const isNotice =
-      src.includes("edgar-notice")
-      || src.includes("sc13_notice")
-      || src.includes("notices-and-communications")
-      || src.includes("notice-phone");
-    if ((c.vectorType === "phone" || c.vectorType === "email") && isNotice) {
-      if (!contacts.includes(c.value)) contacts.push(c.value);
-    }
-  }
-
-  for (const e of input.evidence) {
-    if (e.validationStatus === "rejected") continue;
-    const blob = `${e.source} ${e.vectorType} ${e.value}`.toLowerCase();
-    if (
-      (e.vectorType === "phone" || e.vectorType === "email")
-      && (blob.includes("notice") || blob.includes("edgar-notice") || blob.includes("sc13"))
-      && !contacts.includes(e.value)
-    ) {
-      contacts.push(e.value);
-    }
-    if (
-      (blob.includes("address") || e.vectorType === "address" || blob.includes("nassa") || blob.includes("greenwich"))
-      && e.value.length >= 12
-      && !related.includes(e.value)
-    ) {
-      related.push(e.value);
-    }
-  }
-
-  if (contacts.length) {
-    reasons.push(`Deterministic fallback: promoted ${contacts.length} filing/notice contact value(s) after reviewer abstained or returned empty.`);
-  }
-  if (related.length) {
-    reasons.push(`Deterministic fallback: kept ${related.length} related address/filing string(s) on the card.`);
-  }
-  return { contacts: contacts.slice(0, 6), related: related.slice(0, 8), reasons };
-}
-
 function scrubUnsupportedContactClaims(summary: string | null, approvedContacts: readonly string[]): string | null {
   if (!summary) return null;
   const approved = approvedContacts.map((v) => v.trim().toLowerCase()).filter(Boolean);
@@ -245,14 +195,14 @@ export function adjudicateFinalTargetReview(
   const eligibleContacts = collectEligibleContactValues(input);
   const eligibleRelated = collectEligibleRelatedValues(input);
 
-  let approvedContactValues = Array.isArray(payload.approvedContactValues)
+  const approvedContactValues = Array.isArray(payload.approvedContactValues)
     ? payload.approvedContactValues
       .filter((value): value is string => typeof value === "string")
       .filter((value, index, values) => values.indexOf(value) === index)
       .filter((value) => exactMatch(value, eligibleContacts))
     : [];
 
-  let approvedRelatedValues = Array.isArray(payload.approvedRelatedValues)
+  const approvedRelatedValues = Array.isArray(payload.approvedRelatedValues)
     ? payload.approvedRelatedValues
       .filter((value): value is string => typeof value === "string")
       .filter((value, index, values) => values.indexOf(value) === index)
@@ -260,13 +210,13 @@ export function adjudicateFinalTargetReview(
       .slice(0, 12)
     : [];
 
-  let relatedDescriptions = Array.isArray(payload.relatedDescriptions)
+  const relatedDescriptions = Array.isArray(payload.relatedDescriptions)
     ? payload.relatedDescriptions
       .filter((value): value is string => typeof value === "string")
       .slice(0, approvedRelatedValues.length)
     : [];
 
-  let cardSummary = typeof payload.cardSummary === "string" && payload.cardSummary.trim().length >= 12
+  const cardSummaryRaw = typeof payload.cardSummary === "string" && payload.cardSummary.trim().length >= 12
     ? payload.cardSummary.trim().slice(0, 800)
     : null;
   const roleHeadline = typeof payload.roleHeadline === "string" && payload.roleHeadline.trim().length >= 3
@@ -281,44 +231,23 @@ export function adjudicateFinalTargetReview(
       .filter((value) => exactMatch(value, proposedAssetIdentifiers))
     : [];
 
-  let reasons = Array.isArray(payload.reasons)
+  const reasons = Array.isArray(payload.reasons)
     ? payload.reasons.filter((reason): reason is string => typeof reason === "string").slice(0, 12)
     : [];
 
-  // The LLM narrative is not evidence. If it contains a contact-like value,
-  // that exact value must have survived the deterministic approval gate.
-  cardSummary = scrubUnsupportedContactClaims(cardSummary, approvedContactValues);
-
-  const llmEmpty =
-    approvedContactValues.length === 0
-    && approvedRelatedValues.length === 0
-    && !cardSummary
-    && requestedDecision !== "reject";
-
-  if (llmEmpty) {
-    const fb = deterministicFallbackApprovals(input);
-    approvedContactValues = fb.contacts
-      .filter((value) => exactMatch(value, eligibleContacts))
-      .slice(0, 4);
-    approvedRelatedValues = fb.related
-      .filter((value) => exactMatch(value, eligibleRelated))
-      .slice(0, 8);
-    relatedDescriptions = approvedRelatedValues.map(() => "Public filing / notice surface");
-    if (!cardSummary && (approvedContactValues.length || approvedRelatedValues.length)) {
-      cardSummary = `${input.targetName}: public filing trail supports contact/address routes promoted by deterministic notice-line rules after the model abstained.`;
-    }
-    reasons = [...reasons, ...fb.reasons].slice(0, 12);
-  }
+  const cardSummary = scrubUnsupportedContactClaims(cardSummaryRaw, approvedContactValues);
 
   const hasCardMaterial =
     approvedContactValues.length > 0
     || approvedRelatedValues.length > 0
     || approvedAssetIdentifiers.length > 0;
 
+  // Deterministic code validates exact provenance and schema; it never creates
+  // a promotion decision when the reviewer abstains or returns malformed output.
   const decision: FinalReviewDecision =
-    requestedDecision === "reject" && !llmEmpty
+    requestedDecision === "reject" && !hasCardMaterial
       ? "reject"
-      : hasCardMaterial
+      : hasCardMaterial && requestedDecision === "publish"
         ? "publish"
         : "review";
 
@@ -333,8 +262,8 @@ export function adjudicateFinalTargetReview(
     reasons: reasons.length > 0
       ? reasons
       : hasCardMaterial
-        ? ["Published from supplied candidates/evidence."]
-        : ["No contact or related values cleared exact-match gates. Run another target-scoped OSINT pass on notice lines and identity pages."],
-    reviewerSource: llmEmpty && hasCardMaterial ? `${reviewerSource}+deterministic-fallback` : reviewerSource,
+        ? ["Published from exact values explicitly selected by the reviewer."]
+        : ["No values were explicitly selected for publication. Run another target-scoped OSINT review."],
+    reviewerSource,
   };
 }
