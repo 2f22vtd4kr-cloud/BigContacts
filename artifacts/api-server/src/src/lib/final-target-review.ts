@@ -32,13 +32,9 @@ export interface FinalTargetReviewResult {
   decision: FinalReviewDecision;
   approvedContactValues: string[];
   approvedAssetIdentifiers: string[];
-  /** LLM card narrative — who this is / why related (may be empty). */
   cardSummary: string | null;
-  /** Role / relationship line for the ledger (e.g. 10% owner, President). */
   roleHeadline: string | null;
-  /** Related findings the model judged on-topic (addresses, orgs, related people) — exact values only. */
   approvedRelatedValues: string[];
-  /** How the model describes each approved related value (same order / parallel). */
   relatedDescriptions: string[];
   reasons: string[];
   reviewerSource: string;
@@ -46,6 +42,7 @@ export interface FinalTargetReviewResult {
 
 export type TargetResearchDisposition = "contact_route_found" | "needs_follow_up";
 
+/** A narrative alone is never a successful research disposition. */
 export function deriveTargetResearchDisposition(
   review: Pick<FinalTargetReviewResult, "approvedContactValues"> & {
     approvedRelatedValues?: string[];
@@ -58,7 +55,6 @@ export function deriveTargetResearchDisposition(
   if (
     review.approvedContactValues.length > 0
     || (review.approvedRelatedValues?.length ?? 0) > 0
-    || (review.cardSummary && review.cardSummary.trim().length > 20)
   ) {
     return {
       disposition: "contact_route_found",
@@ -73,11 +69,6 @@ export function deriveTargetResearchDisposition(
   };
 }
 
-/**
- * Build the bounded, target-scoped input given to the final reviewer.
- * The reviewer judges relatedness and controls what appears on the card.
- * It may only select exact values from the supplied arrays (no invention).
- */
 export function buildFinalTargetReviewPrompt(input: FinalTargetReviewInput): string {
   return `You are the final publication reviewer for one OSINT target in Apex Atlas.
 
@@ -132,6 +123,7 @@ Use "publish" when you are promoting at least one contact or related finding to 
 Use "review" when evidence is too weak to put anything useful on the card.
 Use "reject" only when claims are clearly invalid or about a different person.
 Never approve a value merely because multiple providers repeated it.
+Never write a contact value in cardSummary unless that exact value is also in approvedContactValues.
 Never invent a value not present in the arrays above.`;
 }
 
@@ -150,13 +142,11 @@ function collectEligibleContactValues(input: FinalTargetReviewInput): string[] {
     .filter((candidate) => {
       if (candidate.state === "rejected") return false;
       if (candidate.conflictCount > 0) return false;
-      // LLM judges strength; we only require non-rejected + contact-like vector
       return candidate.vectorType === "email"
         || candidate.vectorType === "phone"
         || candidate.vectorType === "social";
     })
     .filter((candidate) => {
-      // Prefer target_person / organization scope; allow unscoped for model judgment
       if (!candidate.scopes?.length) return true;
       if (organizationTarget) return candidate.scopes.includes("organization") || candidate.scopes.includes("target_person");
       return candidate.scopes.includes("target_person")
@@ -177,10 +167,6 @@ function collectEligibleRelatedValues(input: FinalTargetReviewInput): string[] {
   return Array.from(new Set([...fromCandidates, ...fromEvidence].filter(Boolean)));
 }
 
-/**
- * When the LLM returns empty / abstains, still put strong deterministic claims
- * on the card so we never end a rich EDGAR run with "no actionable decision."
- */
 function deterministicFallbackApprovals(input: FinalTargetReviewInput): {
   contacts: string[];
   related: string[];
@@ -198,18 +184,11 @@ function deterministicFallbackApprovals(input: FinalTargetReviewInput): {
       || src.includes("sc13_notice")
       || src.includes("notices-and-communications")
       || src.includes("notice-phone");
-    if (
-      (c.vectorType === "phone" || c.vectorType === "email")
-      && isNotice
-    ) {
+    if ((c.vectorType === "phone" || c.vectorType === "email") && isNotice) {
       if (!contacts.includes(c.value)) contacts.push(c.value);
-    }
-    if (c.vectorType === "phone" && isNotice && !contacts.includes(c.value)) {
-      contacts.push(c.value);
     }
   }
 
-  // Durable evidence with EDGAR notice / filing address
   for (const e of input.evidence) {
     if (e.validationStatus === "rejected") continue;
     const blob = `${e.source} ${e.vectorType} ${e.value}`.toLowerCase();
@@ -229,18 +208,8 @@ function deterministicFallbackApprovals(input: FinalTargetReviewInput): {
     }
   }
 
-  // Proposed contacts that already look like real phones/emails
-  for (const [k, v] of Object.entries(input.proposedContacts ?? {})) {
-    if (!v || typeof v !== "string") continue;
-    if ((k === "phone" || k === "email") && v.replace(/\D/g, "").length >= 10) {
-      if (!contacts.includes(v)) contacts.push(v);
-    }
-  }
-
   if (contacts.length) {
-    reasons.push(
-      `Deterministic fallback: promoted ${contacts.length} filing/notice contact value(s) after reviewer abstained or returned empty.`,
-    );
+    reasons.push(`Deterministic fallback: promoted ${contacts.length} filing/notice contact value(s) after reviewer abstained or returned empty.`);
   }
   if (related.length) {
     reasons.push(`Deterministic fallback: kept ${related.length} related address/filing string(s) on the card.`);
@@ -248,13 +217,19 @@ function deterministicFallbackApprovals(input: FinalTargetReviewInput): {
   return { contacts: contacts.slice(0, 6), related: related.slice(0, 8), reasons };
 }
 
-/**
- * Fail-closed boundary: the LLM selects and describes supplied claims only.
- * Related findings (addresses, roles, orgs) can be promoted without requiring
- * verified_direct_route — that gate was zeroing cards despite rich SEC surface.
- * Empty LLM output falls back to notice-line / strong candidates so the desk
- * does not store "no actionable decision" when EDGAR surface was rich.
- */
+function scrubUnsupportedContactClaims(summary: string | null, approvedContacts: readonly string[]): string | null {
+  if (!summary) return null;
+  const approved = approvedContacts.map((v) => v.trim().toLowerCase()).filter(Boolean);
+  const emails = summary.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi) ?? [];
+  const urls = summary.match(/https?:\/\/[^\s)]+/gi) ?? [];
+  const phoneLike = summary.match(/(?:\+?\d[\d().\s-]{7,}\d)/g) ?? [];
+  const unsupported = [...emails, ...urls, ...phoneLike].some((token) => {
+    const normalized = token.trim().toLowerCase().replace(/[),.;]+$/, "");
+    return !approved.includes(normalized);
+  });
+  return unsupported ? null : summary;
+}
+
 export function adjudicateFinalTargetReview(
   input: FinalTargetReviewInput,
   raw: unknown,
@@ -310,7 +285,10 @@ export function adjudicateFinalTargetReview(
     ? payload.reasons.filter((reason): reason is string => typeof reason === "string").slice(0, 12)
     : [];
 
-  // Deterministic rescue when model abstains but filing surface is usable
+  // The LLM narrative is not evidence. If it contains a contact-like value,
+  // that exact value must have survived the deterministic approval gate.
+  cardSummary = scrubUnsupportedContactClaims(cardSummary, approvedContactValues);
+
   const llmEmpty =
     approvedContactValues.length === 0
     && approvedRelatedValues.length === 0
@@ -319,17 +297,15 @@ export function adjudicateFinalTargetReview(
 
   if (llmEmpty) {
     const fb = deterministicFallbackApprovals(input);
-    // Deterministic rescue may only promote the same exact values that passed
-    // the normal eligibility gate. Never turn a proposed/model-supplied value
-    // into an approved contact merely because the LLM abstained.
     approvedContactValues = fb.contacts
       .filter((value) => exactMatch(value, eligibleContacts))
       .slice(0, 4);
-    approvedRelatedValues = fb.related.filter((v) => exactMatch(v, eligibleRelated) || v.length >= 12).slice(0, 8);
+    approvedRelatedValues = fb.related
+      .filter((value) => exactMatch(value, eligibleRelated))
+      .slice(0, 8);
     relatedDescriptions = approvedRelatedValues.map(() => "Public filing / notice surface");
     if (!cardSummary && (approvedContactValues.length || approvedRelatedValues.length)) {
-      cardSummary =
-        `${input.targetName}: public filing trail supports contact/address routes promoted by deterministic notice-line rules after the model abstained.`;
+      cardSummary = `${input.targetName}: public filing trail supports contact/address routes promoted by deterministic notice-line rules after the model abstained.`;
     }
     reasons = [...reasons, ...fb.reasons].slice(0, 12);
   }
@@ -337,17 +313,14 @@ export function adjudicateFinalTargetReview(
   const hasCardMaterial =
     approvedContactValues.length > 0
     || approvedRelatedValues.length > 0
-    || approvedAssetIdentifiers.length > 0
-    || Boolean(cardSummary);
+    || approvedAssetIdentifiers.length > 0;
 
   const decision: FinalReviewDecision =
     requestedDecision === "reject" && !llmEmpty
       ? "reject"
       : hasCardMaterial
         ? "publish"
-        : requestedDecision === "review"
-          ? "review"
-          : "review";
+        : "review";
 
   return {
     decision,
@@ -357,14 +330,11 @@ export function adjudicateFinalTargetReview(
     roleHeadline,
     approvedRelatedValues,
     relatedDescriptions,
-    reasons:
-      reasons.length > 0
-        ? reasons
-        : hasCardMaterial
-          ? ["Published from supplied candidates/evidence."]
-          : [
-              "No contact or related values cleared exact-match gates. Run another target-scoped OSINT pass on notice lines and identity pages.",
-            ],
+    reasons: reasons.length > 0
+      ? reasons
+      : hasCardMaterial
+        ? ["Published from supplied candidates/evidence."]
+        : ["No contact or related values cleared exact-match gates. Run another target-scoped OSINT pass on notice lines and identity pages."],
     reviewerSource: llmEmpty && hasCardMaterial ? `${reviewerSource}+deterministic-fallback` : reviewerSource,
   };
 }
