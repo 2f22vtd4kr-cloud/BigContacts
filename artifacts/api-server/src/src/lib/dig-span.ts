@@ -212,7 +212,7 @@ export function spanFromLiveStep(step: {
 /**
  * Map DigSpan → OTel GenAI-shaped attribute bag (for future exporters).
  * @see https://opentelemetry.io/docs/specs/semconv/gen-ai/
- * @see https://www.honeycomb.io/blog/instrumenting-ai-agents/agent-timeline
+ * @see https://www.honeycomb.io/blog/instrumenting-ai-agents-agent-timeline-opentelemetry-guide
  */
 export function toOtelGenAiAttributes(span: DigSpan): Record<string, string> {
   const out: Record<string, string> = {
