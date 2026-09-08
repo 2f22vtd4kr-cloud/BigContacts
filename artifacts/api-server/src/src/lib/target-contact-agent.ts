@@ -26,7 +26,6 @@ export type TargetContactAgentResult = {
   contactOutcome: string | null;
 };
 
-/** Exact-source law: a contact claim without its actual public source URL is not durable evidence. */
 export function sourceBackedFindings(findings: AgenticFinding[]): AgenticFinding[] {
   return findings.filter((finding) =>
     Array.isArray(finding.sourceUrls)
@@ -34,9 +33,17 @@ export function sourceBackedFindings(findings: AgenticFinding[]): AgenticFinding
   );
 }
 
-/** Preserve model scope and never turn an organization route into a personal one. */
 export function findingsToContacts(
-  findings: Array<{ vectorType: string; value: string; scope: string; personName: string | null; role: string | null; sourceUrls: string[]; note: string }>,
+  findings: Array<{
+    vectorType: string;
+    value: string;
+    scope: string;
+    personName: string | null;
+    role: string | null;
+    sourceUrls: string[];
+    note: string;
+    promotionDecision?: "promote" | "reject";
+  }>,
   personName: string,
 ): BureauContactLike[] {
   return findings
@@ -51,10 +58,10 @@ export function findingsToContacts(
       note: `target-agent:${f.note}`,
       tier: "candidate",
       state: "review_only",
+      promote: f.promotionDecision === "promote",
     }));
 }
 
-/** Run free ReAct Dig for one target. No legacy evidence rehydration is allowed here. */
 export async function runTargetContactAgent(input: { entityId: number; targetName: string; companyName?: string | null; jobId?: string; maxIterations?: number; hardTimeoutMs?: number; investigatorLlm?: "groq" | "mistral" }): Promise<TargetContactAgentResult> {
   const name = (input.targetName ?? "").trim();
   if (!input.entityId || name.length < 2) return { status: "skipped", model: "none", findings: 0, searches: 0, visits: 0, phone: null, email: null, phoneSource: null, contactOutcome: null };
@@ -96,13 +103,6 @@ export async function runTargetContactAgent(input: { entityId: number; targetNam
 
   const backedFindings = sourceBackedFindings(agentic.findings);
   const contacts = findingsToContacts(backedFindings, name);
-  // Canonical boundary: persist only this Dig's source-backed output. The strict
-  // persistence boundary may map an unambiguous investigator-emitted value, but
-  // this agent never calls legacy rehydrate/ranking over unrelated evidence.
-  // Include the run ID in the source so a repeated observation remains a distinct
-  // current-run evidence row even when the exact value already existed historically.
-  // This is evaluation provenance, not duplicate card data: the entity card still
-  // receives only the investigator-selected value through the strict projector.
   const evidenceSource = input.jobId ? `target-contact-agentic:${input.jobId}` : "target-contact-agentic";
   await persistSourceBackedBureauContactsForEntity(input.entityId, contacts, evidenceSource, input.jobId);
 
