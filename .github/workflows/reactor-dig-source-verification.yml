@@ -1,0 +1,29 @@
+name: Reactor Dig live-source verification
+
+on:
+  push:
+    branches: [apex/dig-live-tool-spans]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --no-frozen-lockfile --ignore-scripts
+      - run: node scripts/check-reactor-live-integrity.mjs
+      - run: node scripts/check-agentic-source-parity.mjs
+      - run: node scripts/check-apex-launch-gate.mjs
+      - run: pnpm --dir artifacts/api-server run build
+      - run: pnpm run typecheck
