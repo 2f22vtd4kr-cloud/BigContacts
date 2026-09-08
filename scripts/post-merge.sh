@@ -26,17 +26,24 @@ if ! bash scripts/check-no-synthetic-data.sh; then
   echo "ERROR: synthetic data guard reported violations."
   exit 1
 fi
-
 echo "Synthetic data guard: clean"
 
 echo "=== [4/5] Installing Python OSINT tools (Holehe · Maigret · Sherlock) ==="
 bash scripts/install-python-tools.sh || echo "WARN: Python OSINT install incomplete"
-
 echo "=== [5/5] Verifying canonical architecture (NO APPLY SCRIPTS) ==="
 pnpm run check:bureau
 pnpm --dir artifacts/api-server run typecheck
 pnpm --dir artifacts/apex-finder run build
 pnpm --dir artifacts/api-server run build
+
+# The build/test lifecycle is now required to be source-pure. Any tracked
+# mutation is a hard failure instead of something a Replit boot script repairs.
+if ! git diff --quiet -- . ':(exclude)pnpm-lock.yaml'; then
+  echo "ERROR: build/check lifecycle mutated tracked source."
+  git diff --stat
+  git diff -- . ':(exclude)pnpm-lock.yaml'
+  exit 1
+fi
 
 echo ""
 echo "Post-merge verification finished. Canonical source was not rewritten."
