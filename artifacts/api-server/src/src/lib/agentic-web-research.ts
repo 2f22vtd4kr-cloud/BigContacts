@@ -1727,7 +1727,8 @@ async function runAgenticWebResearchUnbounded(input: {
       }
     }
 
-    const activeToolSpan = action.action === "done"
+    const duplicateVisit = action.action === "visit" && visitedUrls.has(action.url);
+    const activeToolSpan = action.action === "done" || duplicateVisit
       ? null
       : publishDigSpan({
           jobId: input.jobId || "unknown",
@@ -1735,7 +1736,7 @@ async function runAgenticWebResearchUnbounded(input: {
           spanType: "tool",
           name: action.action,
           status: "active",
-          inputSummary: ("query" in action ? action.query : "url" in action ? action.url : "email" in action ? action.email : "username" in action ? action.username : "domain" in action ? action.domain : "registry" in action ? `${action.registry}:${action.query}` : action.action)?.slice(0, 400),
+          inputSummary: String((action as any).query ?? (action as any).url ?? (action as any).email ?? (action as any).username ?? (action as any).domain ?? ((action as any).registry ? `${(action as any).registry}:${(action as any).query ?? ""}` : (action as any).action ?? "tool")).slice(0, 400),
           agentName: "investigator",
         });
 
