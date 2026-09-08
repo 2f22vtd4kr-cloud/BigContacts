@@ -22,6 +22,8 @@ const forbidden = [
   "separate Investigator decision model",
   "DeepSeek/NVIDIA as an Investigator",
   "DeepSeek via NVIDIA NIM is an Investigator",
+  "NVIDIA as an Investigator",
+  "NVIDIA NIM as an Investigator",
   "Gemini as an Investigator",
 ];
 
@@ -35,7 +37,7 @@ for (const file of files) {
     if (source.includes(phrase)) failures.push(`${file}: stale provider/control-plane phrase: ${phrase}`);
   }
   if (!/Boss.*Gemini/i.test(source)) failures.push(`${file}: missing Gemini Boss declaration`);
-  if (!/Right-hand.*DeepSeek|DeepSeek.*right-hand/i.test(source)) failures.push(`${file}: missing DeepSeek right-hand declaration`);
+  if (!/Right-hand.*(?:NVIDIA|NIM)|(?:NVIDIA|NIM).*right-hand/i.test(source)) failures.push(`${file}: missing NVIDIA NIM right-hand declaration`);
   if (!/Investigator LLM pool/i.test(source)) failures.push(`${file}: missing Investigator LLM pool declaration`);
   if (!/two AI layers|two-layer/i.test(source)) failures.push(`${file}: missing two-layer architecture declaration`);
   if (!/Tavily.*Exa|Exa.*Tavily/i.test(source)) failures.push(`${file}: missing search capability surface`);
