@@ -1521,52 +1521,6 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
 
   const [deskOn, setDeskOn] = useState(false);
   const { deskEvents, latestNarration } = useBureauLiveDesk(atlasState?.eventLog as any, { enabled: true, atlasLive: Boolean(isLive) });
-  // Live semantic feed is built from actual Bureau events plus actual Dig spans.
-  // Spans are authoritative for tool/model activity; event logs are supplemental.
-  const reactorLiveEvents = useMemo(() => {
-    const events = deskEvents.map((event: any, index: number) => ({
-      id: String(event.timestamp || "event") + "-" + String(event.stage || event.story || index),
-      timestamp: event.timestamp,
-      status: event.status === "active" ? "active" : event.status === "failed" ? "failed" : event.status === "queued" ? "queued" : "done",
-      method: event.methodKind || "unknown",
-      title: event.stage || event.story || event.narration || "Research event",
-      actor: event.actor,
-      provider: event.provider || event.activeToolId,
-      targetName: event.targetName,
-      query: event.inputSummary,
-      url: event.links?.[0]?.url || event.sourceUrls?.[0],
-      prompt: event.prompt,
-      resultSummary: event.resultSummary,
-      sourceUrls: event.sourceUrls,
-      sources: Array.isArray(event.links) ? event.links : undefined,
-      evidenceCount: event.evidence,
-      why: event.why,
-      links: Array.isArray(event.links) ? event.links : undefined,
-    }));
-    const spans = (atlasState?.recentSpans || []).map((span: any) => ({
-      id: "span-" + String(span.id),
-      timestamp: span.startedAt,
-      status: span.status === "active" ? "active" : span.status === "error" ? "failed" : "done",
-      method: span.spanType || "unknown",
-      title: span.name || span.toolName || "Research step",
-      actor: span.agentName || "investigator",
-      provider: span.modelId || span.toolName,
-      targetName: span.targetName,
-      query: span.inputSummary,
-      url: undefined,
-      resultSummary: span.resultSummary,
-      sourceUrls: undefined,
-      evidenceCount: undefined,
-      why: undefined,
-    }));
-    const merged = [...events, ...spans];
-    const seen = new Set<string>();
-    return merged.filter((e: any) => {
-      if (seen.has(e.id)) return false;
-      seen.add(e.id);
-      return true;
-    }).slice(-24);
-  }, [deskEvents, atlasState?.recentSpans]);
   // Idle: keep Live Desk closed so it does not leave a blank column under Launch.
   // Live: open automatically so tool windows are visible.
   useEffect(() => {
@@ -2022,10 +1976,10 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
                 />
               </div>
             )}
-            {isLive && reactorLiveEvents.length > 0 && (
+            {isLive && (
               <div className="mb-3" data-testid="reactor-live-semantic-layer">
                 <ReactorLiveSurface
-                  events={reactorLiveEvents as any}
+                  events={[]}
                   targetName={atlasState?.currentEntities?.[0] || atlasState?.atlasTelemetry?.targetName}
                   compact
                 />
@@ -2064,7 +2018,9 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
           </div>
         )}
         {schemeToolsOnly && <ReactorActivityOnly nodes={NODES.filter((n) => schemeNodesFromSpans(atlasState?.recentSpans).has(n.id))} />}
-        {/* Scheme canvas — horizontal + vertical pan via scroll (nodes extend past viewport) */}
+        {!isLive && (
+          <div data-testid="reactor-standby-scheme">
+        {/* Scheme canvas — standby/explanatory only; live mode uses telemetry activity above */}
                 <div
           data-testid="scheme-zoom-controls"
           style={{
@@ -2476,6 +2432,8 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
       </div>{/* scheme scaled content */}
       </div>{/* scheme canvas sized box */}
       </div>{/* scheme-scroll-viewport */}
+          </div>{/* reactor-standby-scheme */}
+        )}
       </div>{/* main column: desk above scheme */}
 
       <style>{KEYFRAMES}</style>
