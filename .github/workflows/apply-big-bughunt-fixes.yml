@@ -1,0 +1,59 @@
+name: apply reviewed bug-hunt fixes
+
+on:
+  push:
+    branches: [apex/big-bughunt-fixes]
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply narrow fixes
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          # Identity boundary: candidate scope requires an explicit model-emitted personName.
+          p = Path('artifacts/api-server/src/src/lib/bureau-agentic-pass.ts')
+          s = p.read_text()
+          old = '''export function findingsToBureauContacts(\n  findings: AgenticFinding[],\n  fallbackPersonName: string,\n): BureauContactLike[] {\n  return sourceBackedAgenticFindings(findings).map((f) => ({\n    vectorType: f.vectorType,\n    value: f.value,\n    // Candidate findings may inherit the already-verified target name.\n    // Organization and unknown findings must remain organization-scoped and\n    // nameless; this prevents info@ / switchboards from becoming personal.\n    scope: f.scope === "candidate" ? "candidate" : "organization",\n    personName: f.scope === "candidate" ? (f.personName ?? fallbackPersonName) : null,\n    role: f.role,\n    sourceUrls: f.sourceUrls.filter((url) => /^https?:\\/\\/\\S+$/i.test(String(url))),\n    note: `bureau-agentic:${f.note}`,\n    tier: "candidate",\n    state: "review_only",\n    // Preserve the Investigator's explicit publication decision. Observation-only\n    // extracts intentionally have no promotionDecision and therefore cannot mutate\n    // the entity card through the strict persistence boundary.\n    promote: f.promotionDecision === "promote",\n  }));\n}'''
+          new = '''export function findingsToBureauContacts(\n  findings: AgenticFinding[],\n  _fallbackPersonName: string,\n): BureauContactLike[] {\n  return sourceBackedAgenticFindings(findings).map((f) => {\n    const explicitPersonName = typeof f.personName === "string" ? f.personName.trim() : "";\n    const isExplicitCandidate = f.scope === "candidate" && explicitPersonName.length > 0;\n    return {\n      vectorType: f.vectorType,\n      value: f.value,\n      // A candidate finding is personal only when the Investigator explicitly\n      // names the person in the finding. Never inherit the target name here.\n      scope: isExplicitCandidate ? "candidate" : "organization",\n      personName: isExplicitCandidate ? explicitPersonName : null,\n      role: f.role,\n      sourceUrls: f.sourceUrls.filter((url) => /^https?:\\/\\/\\S+$/i.test(String(url))),\n      note: `bureau-agentic:${f.note}`,\n      tier: "candidate",\n      state: "review_only",\n      // Only an explicit promotion on an explicit candidate may cross the card boundary.\n      promote: isExplicitCandidate && f.promotionDecision === "promote",\n    };\n  });\n}'''
+          if old not in s: raise SystemExit('bureau-agentic identity block not found')
+          p.write_text(s.replace(old, new, 1))
+
+          # Shared Reactor adapter: its accepted span shape must include the name used for tool fallback.
+          p = Path('artifacts/apex-finder/src/lib/reactor-live-model.ts')
+          s = p.read_text()
+          anchor = 'export interface ReactorSpanLike {\n  id: string;\n'
+          if anchor not in s: raise SystemExit('ReactorSpanLike anchor not found')
+          if 'export interface ReactorSpanLike {\n  id: string;\n  name?: string;' not in s:
+              s = s.replace(anchor, 'export interface ReactorSpanLike {\n  id: string;\n  name?: string;\n', 1)
+          p.write_text(s)
+
+          # Store failure/teardown semantics: never retain a prior live snapshot after a failed poll or unmount.
+          p = Path('artifacts/apex-finder/src/lib/reactor-live-store.ts')
+          s = p.read_text()
+          old = '''function stopPolling(): void {\n  generation += 1;\n  if (timer != null) window.clearTimeout(timer);\n  timer = null;\n  controller?.abort();\n  controller = null;\n}'''
+          new = '''function stopPolling(): void {\n  generation += 1;\n  if (timer != null) window.clearTimeout(timer);\n  timer = null;\n  controller?.abort();\n  controller = null;\n  snapshot = EMPTY;\n}'''
+          if old not in s: raise SystemExit('store stopPolling block not found')
+          s = s.replace(old, new, 1)
+          old = '''    if (!response.ok) return;\n    const data = await response.json();'''
+          new = '''    if (!response.ok) {\n      if (myGeneration === generation && listeners.size > 0) emit(EMPTY);\n      return;\n    }\n    const data = await response.json();'''
+          if old not in s: raise SystemExit('store non-ok block not found')
+          s = s.replace(old, new, 1)
+          p.write_text(s)
+          PY
+          git diff --check
+          git diff -- artifacts/api-server/src/src/lib/bureau-agentic-pass.ts artifacts/apex-finder/src/lib/reactor-live-model.ts artifacts/apex-finder/src/lib/reactor-live-store.ts
+      - name: Commit fixes and remove workflow
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add artifacts/api-server/src/src/lib/bureau-agentic-pass.ts artifacts/apex-finder/src/lib/reactor-live-model.ts artifacts/apex-finder/src/lib/reactor-live-store.ts
+          git rm .github/workflows/apply-big-bughunt-fixes.yml
+          git commit -m 'fix: harden identity and Reactor live state boundaries'
+          git push
