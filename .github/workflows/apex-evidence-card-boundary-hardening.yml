@@ -1,14 +1,18 @@
 name: one-time evidence card boundary hardening
 on:
-  push:
-    branches: [apex/evidence-card-boundary-hardening]
+  pull_request:
+    branches: [main]
 permissions:
   contents: write
 jobs:
   harden:
+    if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
       - name: Remove legacy evidence-to-card projection
         run: |
           python3 - <<'PY'
@@ -20,7 +24,7 @@ jobs:
 
           auto = '''  // Dig bag → card: promote best non-issuer phone/email onto the entity so
           // free agentic findings are not stranded as evidence_only while EDGAR-Phone stays.
-          try {
+          try
           await promoteBureauContactsToEntityCard(entityId, items ?? [], source, jobId);
           } catch (err) {
             logger.debug(
@@ -30,33 +34,31 @@ jobs:
           }
           return rows.length;'''
           replacement = '''  // Evidence persistence ends here. Card mutation belongs exclusively to
-          // the explicit investigator-selected promotion boundary.
-          return rows.length;'''
+  // the explicit investigator-selected promotion boundary.
+  return rows.length;'''
           if s.count(auto) != 1:
               raise SystemExit('expected exactly one legacy auto-promotion block')
           s = s.replace(auto, replacement, 1)
 
           generated_related = '''    // related-person without URL: attach issuer EDGAR search when company known; else drop
-          if (urls.length === 0 && /^related-person:/i.test(value)) {
-            if (!companyName) continue;
-            urls = [
-              `https://efts.sec.gov/LATEST/search-index?q=${encodeURIComponent('"' + companyName.slice(0, 80) + '"')}&forms=SC+13D,SC+13G`,
-            ];
-          }
-          // Org issuer name anchor without URL: attach EDGAR search, never a fake contact
-          if (urls.length === 0 && (vectorType === "domain" || vectorType === "organization" || vectorType === "other")
-              && orgish && companyName) {
-            urls = [
-              `https://efts.sec.gov/LATEST/search-index?q=${encodeURIComponent('"' + companyName.slice(0, 80) + '"')}&forms=SC+13D,SC+13G`,
-            ];
-          }
+    if (urls.length === 0 && /^related-person:/i.test(value)) {
+      if (!companyName) continue;
+      urls = [
+        `https://efts.sec.gov/LATEST/search-index?q=${encodeURIComponent('"' + companyName.slice(0, 80) + '"')}&forms=SC+13D,SC+13G`,
+      ];
+    }
+    // Org issuer name anchor without URL: attach EDGAR search, never a fake contact
+    if (urls.length === 0 && (vectorType === "domain" || vectorType === "organization" || vectorType === "other")
+        && orgish && companyName) {
+      urls = [
+        `https://efts.sec.gov/LATEST/search-index?q=${encodeURIComponent('"' + companyName.slice(0, 80) + '"')}&forms=SC+13D,SC+13G`,
+      ];
+    }
 '''
           if s.count(generated_related) != 1:
               raise SystemExit('expected exactly one generated query-URL provenance block')
-          s = s.replace(generated_related, '''    // Missing exact source pages are not provenance. Do not manufacture search URLs.
-''', 1)
+          s = s.replace(generated_related, '    // Missing exact source pages are not provenance. Do not manufacture search URLs.\n', 1)
 
-          # Rehydration must never rank arbitrary durable evidence into a card.
           pattern = re.compile(r'/\*\* Rehydrate entity cards from durable contact_evidence \(no new dig\)\. \*/\nexport async function rehydrateEntityCardFromEvidence\(entityId: number\): Promise<boolean> \{.*?\n\}', re.S)
           replacement_rehydrate = '''/**
  * Legacy rehydration is intentionally disabled.
@@ -69,20 +71,13 @@ export async function rehydrateEntityCardFromEvidence(_entityId: number): Promis
           s2, n = pattern.subn(replacement_rehydrate, s, count=1)
           if n != 1:
               raise SystemExit('expected exactly one legacy rehydration function')
-          s = s2
-
-          p.write_text(s)
+          p.write_text(s2)
           PY
           git diff --check
-          if grep -n "promoteBureauContactsToEntityCard(entityId" artifacts/api-server/src/src/lib/bureau-contact-persist.ts; then
-            echo 'legacy auto-promotion still present'; exit 1
-          fi
-          if grep -n "efts.sec.gov/LATEST/search-index" artifacts/api-server/src/src/lib/bureau-contact-persist.ts; then
-            echo 'generated provenance URL still present'; exit 1
-          fi
-          grep -n "rehydrateEntityCardFromEvidence" artifacts/api-server/src/src/lib/bureau-contact-persist.ts
+          git diff --check
+          grep -n "promoteBureauContactsToEntityCard(entityId" artifacts/api-server/src/src/lib/bureau-contact-persist.ts && exit 1 || true
+          grep -n "efts.sec.gov/LATEST/search-index" artifacts/api-server/src/src/lib/bureau-contact-persist.ts && exit 1 || true
           git diff --stat
-          git diff -- artifacts/api-server/src/src/lib/bureau-contact-persist.ts
       - name: Verify targeted boundary tests
         run: |
           pnpm install --frozen-lockfile
@@ -94,4 +89,4 @@ export async function rehydrateEntityCardFromEvidence(_entityId: number): Promis
           git add artifacts/api-server/src/src/lib/bureau-contact-persist.ts
           git rm .github/workflows/apex-evidence-card-boundary-hardening.yml
           git commit -m 'fix: enforce explicit evidence to card promotion boundary'
-          git push
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}
