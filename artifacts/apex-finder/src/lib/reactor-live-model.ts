@@ -86,6 +86,26 @@ export function classifyReactorMethod(event: Pick<ReactorLiveEvent, "method" | "
 }
 
 /**
+ * Normalize status at the rendering boundary. Unknown telemetry states are
+ * deliberately not treated as active; only explicit active/queued/terminal
+ * values can create corresponding UI chrome.
+ */
+export function normalizeReactorStatus(value?: string | null): ReactorEventStatus {
+  const status = String(value ?? "").toLowerCase();
+  if (status === "active" || status === "running" || status === "in_progress") return "active";
+  if (status === "queued" || status === "pending" || status === "waiting") return "queued";
+  if (status === "error" || status === "failed" || status === "failure" || status === "timeout") return "failed";
+  return "done";
+}
+
+/** Stable identity for a live event. Prefer an instrumentation id when one exists. */
+export function reactorEventKey(event: Pick<ReactorLiveEvent, "id" | "timestamp" | "title" | "provider" | "targetName">): string {
+  const id = String(event.id || "").trim();
+  if (id) return id;
+  return [event.timestamp, event.targetName, event.provider, event.title].map((value) => String(value ?? "").trim()).join("|");
+}
+
+/**
  * Extract only an explicit search query. Deliberately no target-name fallback:
  * showing "John Smith contact email phone" would be UI fiction if the agent
  * did not actually issue that query.
