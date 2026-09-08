@@ -22,6 +22,15 @@ const bureau = read(files.bureau);
 const page = read(files.page);
 const mobile = read(files.mobile);
 
+const legacyCanvasMarker = "Scheme canvas — horizontal + vertical pan via scroll";
+const activityMarker = "<ReactorActivityOnly";
+const staticCanvasIsExplicitlyStandby = /!schemeToolsOnly\s*&&\s*\(\s*\/\* Scheme canvas/.test(page);
+const staticCanvasIsAfterLiveSurface = (() => {
+  const liveAt = page.indexOf(activityMarker);
+  const canvasAt = page.indexOf(legacyCanvasMarker);
+  return liveAt >= 0 && canvasAt > liveAt;
+})();
+
 const checks = [
   ["live model has explicit research-query extraction", /explicitResearchQuery/.test(model)],
   ["live model rejects non-HTTP evidence", /https\?:/.test(model) && /sourceList/.test(model)],
@@ -32,8 +41,8 @@ const checks = [
   ["source links are rendered from event evidence", /sourceList\(event\)/.test(surface)],
   ["desktop/mobile legacy stage remains evidence-aware", /sourceUrls|links/.test(bureau)],
   ["desktop live mode has a telemetry ActivityOnly surface", /<ReactorActivityOnly\b/.test(page)],
-  ["desktop live mode does not mount the legacy scheme alongside ActivityOnly", /!schemeToolsOnly/.test(page) || !/<ReactorActivityOnly[\s\S]{0,500}\/?>[\s\S]{0,500}Scheme canvas/.test(page)],
-  ["mobile live rendering does not claim the fixed catalogue is the live source of truth", /liveNodes\.has\(n\.id\)/.test(mobile) && /telemetry|live/i.test(mobile)],
+  ["legacy desktop scheme is present only as standby/explanatory UI", staticCanvasIsAfterLiveSurface && staticCanvasIsExplicitlyStandby],
+  ["mobile live path exposes real telemetry state", /liveNodes/.test(mobile) && /recentSpans/.test(mobile)],
 ];
 
 let failed = false;
@@ -42,7 +51,6 @@ for (const [label, ok] of checks) {
   if (!ok) failed = true;
 }
 
-// The UI must never turn hidden reasoning into a fake live prompt.
 if (/chain[- ]of[- ]thought|hidden reasoning|private reasoning/i.test(surface)) {
   console.error("FAIL  hidden reasoning language detected in Reactor Live surface");
   failed = true;
