@@ -72,11 +72,16 @@ export function ContactSurface({
     routes.push({ ...r, value: v });
   };
 
+  // The presented contacts array is the authoritative UI surface. Raw entity
+  // columns may be historical/candidate data and therefore must not silently
+  // become a direct-looking route merely because this component received them.
   for (const c of contacts ?? []) push(c);
-  // Honest scope from phoneSource when contacts[] missing (Vol 428/429/555)
+
+  // A phone column is safe to surface only when the API also supplies an
+  // explicit provenance source. It remains a candidate/organization route.
   const phoneMark = (() => {
     const s = String(phoneSource ?? "");
-    if (s === "EDGAR-Notice-Phone" || s === "EDGAR-Notice") return "candidate" as const; // notice-class personal-capable
+    if (s === "EDGAR-Notice-Phone" || s === "EDGAR-Notice") return "candidate" as const;
     if (
       s === "agentic-web-org" ||
       s.endsWith("-org") ||
@@ -90,13 +95,18 @@ export function ContactSurface({
   })();
   const phoneLabel = (() => {
     const s = String(phoneSource ?? "");
-    if (s === "EDGAR-Notice-Phone" || s === "EDGAR-Notice") return "Notice";
-    if (phoneMark === "organization") return s || "Org";
-    return s || "Phone";
+    if (s === "EDGAR-Notice-Phone" || s === "EDGAR-Notice") return "Notice · lead";
+    if (phoneMark === "organization") return `${s || "Org"} · company route`;
+    return `${s || "Phone"} · lead`;
   })();
-  if (phone) push({ vectorType: "phone", value: phone, source: phoneSource ?? "entity", mark: phoneMark, label: phoneLabel });
-  if (email) push({ vectorType: "email", value: email, source: "entity", mark: "candidate", label: "Email" });
-  if (linkedinUrl) push({ vectorType: "social", value: linkedinUrl, source: "entity", mark: "candidate", label: "LinkedIn", sourceUrl: linkedinUrl });
+  if (phone && phoneSource) {
+    push({ vectorType: "phone", value: phone, source: phoneSource, mark: phoneMark, label: phoneLabel });
+  }
+
+  // Do not render raw entity.email/linkedinUrl fallbacks here. Those columns
+  // are not sufficient provenance for a current presented contact. If they are
+  // useful, the server must expose them through contacts[] with an honest mark,
+  // source and validation status.
 
   if (routes.length === 0) {
     const hasEvidence = (evidenceCount ?? 0) > 0;
