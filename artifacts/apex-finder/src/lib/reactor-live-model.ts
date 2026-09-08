@@ -49,9 +49,8 @@ export interface ReactorLiveEvent {
 }
 
 /**
- * The shared semantic unit for live execution. Both the graph and textual
- * feed should eventually render this shape rather than independently
- * interpreting raw Bureau payloads.
+ * Shared semantic unit for live execution. The graph and textual feed should
+ * render this shape rather than independently interpreting raw span payloads.
  */
 export interface LiveActivity {
   id: string;
@@ -146,10 +145,26 @@ export function normalizeLiveActivityStatus(value?: string | null): LiveActivity
   return "completed";
 }
 
+function recordedHttpUrls(value?: string[]): string[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const seen = new Set<string>();
+  const urls = value.filter((url) => {
+    try {
+      const parsed = new URL(url);
+      if (!/^https?:$/i.test(parsed.protocol)) return false;
+      if (seen.has(parsed.href)) return false;
+      seen.add(parsed.href);
+      return true;
+    } catch {
+      return false;
+    }
+  }).slice(0, 8);
+  return urls.length ? urls : undefined;
+}
+
 /**
- * Normalize a DigSpan once, preserving causal identity and recorded facts.
- * This adapter intentionally performs no polling, inference, or tool
- * catalogue lookup; consumers receive the same semantic truth.
+ * Normalize one DigSpan once, preserving causal identity and recorded facts.
+ * This adapter performs no polling, inference, or tool catalogue lookup.
  */
 export function normalizeLiveActivity(span: ReactorSpanLike): LiveActivity {
   return {
@@ -160,21 +175,37 @@ export function normalizeLiveActivity(span: ReactorSpanLike): LiveActivity {
     actor: span.agentName,
     agent: span.agentName,
     operation: span.operationName,
-    tool: span.toolName,
+    tool: span.toolName ?? (span.spanType === "tool" ? span.name : undefined),
     spanType: span.spanType,
     status: normalizeLiveActivityStatus(span.status),
     startedAt: span.startedAt,
     endedAt: span.endedAt,
     inputSummary: cleanResearchText(span.inputSummary, 360),
     resultSummary: cleanResearchText(span.resultSummary, 700),
-    sourceUrls: span.sourceUrls?.filter((url) => {
-      try {
-        return /^https?:$/i.test(new URL(url).protocol);
-      } catch {
-        return false;
-      }
-    }).slice(0, 8),
+    sourceUrls: recordedHttpUrls(span.sourceUrls),
   };
+}
+
+/**
+ * Normalize a status-plane span collection once for all live surfaces.
+ * Ordering is newest-first, matching atlas-status/recentSpans semantics.
+ */
+export function normalizeLiveActivities(spans?: ReactorSpanLike[] | null, max = 50): LiveActivity[] {
+  if (!Array.isArray(spans)) return [];
+  const seen = new Set<string>();
+  const normalized = spans
+    .map(normalizeLiveActivity)
+    .filter((activity) => {
+      if (!activity.id || seen.has(activity.id)) return false;
+      seen.add(activity.id);
+      return true;
+    })
+    .sort((a, b) => {
+      const at = Date.parse(String(a.startedAt ?? a.endedAt ?? ""));
+      const bt = Date.parse(String(b.startedAt ?? b.endedAt ?? ""));
+      return (Number.isFinite(bt) ? bt : 0) - (Number.isFinite(at) ? at : 0);
+    });
+  return normalized.slice(0, Math.max(1, Math.min(80, max)));
 }
 
 /** Stable identity for a live event. Prefer an instrumentation id when one exists. */

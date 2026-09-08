@@ -445,12 +445,16 @@ router.get("/ingest/scoreboard-snapshot", async (req: Request, res: Response): P
 });
 
 router.get("/ingest/atlas-status", async (_req: Request, res: Response): Promise<void> => {
-  if (_atlasStatusCache && Date.now() - _atlasStatusCache.at < ATLAS_STATUS_CACHE_MS) {
+  // Never serve the 15s terminal/standby cache while an Atlas job is active.
+  // Live Reactor telemetry is polled from this endpoint, so active spans must
+  // cross the status boundary without an artificial cache delay.
+  const activeJobForCache = await withBudget(getActiveJob("atlas-run"), null);
+  if (!activeJobForCache && _atlasStatusCache && Date.now() - _atlasStatusCache.at < ATLAS_STATUS_CACHE_MS) {
     res.json(_atlasStatusCache.body);
     return;
   }
   const scheduler = await withBudget(getAutoPipelineScheduler(), { enabled: false, active: false, cycles: 0, skippedDueToLock: 0, providerNoTarget: 0 } as any);
-  const jobId = await withBudget(getActiveJob("atlas-run"), null);
+  const jobId = activeJobForCache;
   if (!jobId) {
     const latest = await withBudget(getLatestJob("atlas-run"), null);
     if (latest && isFreshAtlasTerminal(latest)) {

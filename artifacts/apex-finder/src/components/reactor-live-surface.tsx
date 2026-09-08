@@ -14,6 +14,7 @@ import {
   UserRound,
   XCircle,
 } from "lucide-react";
+import { useReactorLiveTelemetry, type LiveActivity } from "../lib/reactor-live-store";
 import {
   classifyReactorMethod,
   cleanResearchText,
@@ -29,9 +30,10 @@ import {
 /**
  * Renderer for Reactor Live.
  *
- * It renders semantic scenes from actual Bureau telemetry. It may show a
- * recorded tool-input prompt, but never invents a query, URL, result, or
- * in-flight state merely to make the desk look busy.
+ * During a running Atlas job, recentSpans from the shared telemetry store are
+ * authoritative. Bureau event-log prose is not promoted to live activity just
+ * because it is recent. The component accepts legacy events for terminal/standby
+ * compatibility, but never invents a query, URL, result, or in-flight state.
  */
 
 function methodIcon(method: ReactorMethod) {
@@ -96,7 +98,7 @@ function BrowserScene({ event }: { event: ReactorLiveEvent }) {
         {event.resultSummary ? (
           <p className="max-w-3xl text-sm leading-6 text-stone-300">{cleanResearchText(event.resultSummary, 700)}</p>
         ) : (
-          <div className="flex h-[110px] items-center justify-center text-xs text-stone-600">Waiting for page evidence…</div>
+          <div className="flex h-[110px] items-center justify-center text-xs text-stone-600">Waiting for recorded page evidence…</div>
         )}
         <ToolInput prompt={event.prompt} />
         {sources.length > 0 && (
@@ -150,10 +152,58 @@ function SemanticScene({ event }: { event: ReactorLiveEvent }) {
   );
 }
 
-export function ReactorLiveSurface({ events, targetName, compact = false }: { events: ReactorLiveEvent[]; targetName?: string; compact?: boolean }) {
+function activityToEvent(activity: LiveActivity): ReactorLiveEvent {
+  const title = activity.tool || activity.operation || activity.spanType || "Research activity";
+  const method = classifyReactorMethod({
+    method: "unknown",
+    provider: activity.tool,
+    title,
+    query: undefined,
+    url: activity.sourceUrls?.[0],
+  });
+  return {
+    id: activity.id,
+    timestamp: activity.startedAt,
+    status: activity.status === "active" ? "active" : activity.status === "failed" ? "failed" : activity.status === "queued" ? "queued" : "done",
+    method,
+    title,
+    actor: activity.actor,
+    provider: activity.tool,
+    targetName: activity.target,
+    resultSummary: activity.resultSummary,
+    sourceUrls: activity.sourceUrls,
+    url: activity.sourceUrls?.[0],
+  };
+}
+
+export function ReactorLiveSurface({
+  events,
+  targetName,
+  compact = false,
+  activities,
+}: {
+  events: ReactorLiveEvent[];
+  targetName?: string;
+  compact?: boolean;
+  activities?: LiveActivity[];
+}) {
+  const telemetry = useReactorLiveTelemetry();
+  const liveActivities = activities ?? telemetry.activities;
+  const liveRun = telemetry.runStatus === "running" || telemetry.runStatus === "paused";
+
   const renderable = useMemo(() => {
+    // A running job with no observed spans is intentionally empty. Bureau prose
+    // cannot stand in for actual tool/model telemetry.
+    if (!activities && liveRun) {
+      return liveActivities
+        .map(activityToEvent)
+        .filter(eventIsRenderable)
+        .sort((a, b) => Date.parse(String(b.timestamp ?? "")) - Date.parse(String(a.timestamp ?? "")))
+        .slice(0, compact ? 3 : 12);
+    }
+
     const seen = new Set<string>();
-    const normalized = events
+    const normalized = (activities ? liveActivities.map(activityToEvent) : events)
       .map((event) => ({ ...event, status: normalizeReactorStatus(event.status) }))
       .sort((a, b) => Date.parse(String(b.timestamp ?? "")) - Date.parse(String(a.timestamp ?? "")));
     return normalized.filter((event) => {
@@ -162,7 +212,7 @@ export function ReactorLiveSurface({ events, targetName, compact = false }: { ev
       seen.add(key);
       return true;
     }).slice(0, compact ? 3 : 12);
-  }, [events, compact]);
+  }, [activities, liveActivities, liveRun, events, compact]);
 
   return (
     <section className="space-y-3" aria-label="Reactor live research" data-testid="reactor-live-surface">
@@ -173,12 +223,12 @@ export function ReactorLiveSurface({ events, targetName, compact = false }: { ev
           </div>
           <h2 className="mt-1 text-base font-medium text-stone-100">{targetName ? `Researching ${targetName}` : "Live research"}</h2>
         </div>
-        <div className="hidden text-right text-[10px] uppercase tracking-wider text-stone-600 sm:block">Rendered from live telemetry</div>
+        <div className="hidden text-right text-[10px] uppercase tracking-wider text-stone-600 sm:block">{liveRun ? "Live spans are authoritative" : "Recorded telemetry"}</div>
       </header>
 
       {renderable.length === 0 ? (
         <div className="rounded-xl border border-dashed border-white/10 px-4 py-8 text-center text-xs text-stone-600">
-          No live research evidence has arrived yet.
+          {liveRun ? "No live research spans have arrived yet." : "No live research activity is available."}
         </div>
       ) : (
         <div className="space-y-3">
