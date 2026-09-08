@@ -1,0 +1,22 @@
+name: Temporary mobile Reactor verification
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install -g pnpm@9
+      - run: pnpm install --no-frozen-lockfile --ignore-scripts --fetch-retries=8 --fetch-timeout=120000 --filter ./artifacts/apex-finder... --registry=https://registry.npmjs.org/
+      - run: node scripts/check-frontend-responsive.mjs
+      - run: node scripts/check-reactor-live-integrity.mjs
+      - run: pnpm --dir artifacts/apex-finder run build
