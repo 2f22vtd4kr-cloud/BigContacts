@@ -48,18 +48,22 @@ export function findingsToContacts(
 ): BureauContactLike[] {
   return findings
     .filter((f) => Array.isArray(f.sourceUrls) && f.sourceUrls.some((url) => /^https?:\/\/\S+$/i.test(String(url))))
-    .map((f) => ({
-      vectorType: f.vectorType,
-      value: f.value,
-      scope: String(f.scope).toLowerCase() === "candidate" ? "candidate" : "organization",
-      personName: String(f.scope).toLowerCase() === "candidate" ? (f.personName ?? personName) : null,
-      role: f.role,
-      sourceUrls: f.sourceUrls.filter((url) => /^https?:\/\/\S+$/i.test(String(url))),
-      note: `target-agent:${f.note}`,
-      tier: "candidate",
-      state: "review_only",
-      promote: f.promotionDecision === "promote",
-    }));
+    .map((f) => {
+      const explicitPersonName = typeof f.personName === "string" ? f.personName.trim() : "";
+      const isExplicitCandidate = String(f.scope).toLowerCase() === "candidate" && explicitPersonName.length > 0;
+      return {
+        vectorType: f.vectorType,
+        value: f.value,
+        scope: isExplicitCandidate ? "candidate" : "organization",
+        personName: isExplicitCandidate ? explicitPersonName : null,
+        role: f.role,
+        sourceUrls: f.sourceUrls.filter((url) => /^https?:\/\/\S+$/i.test(String(url))),
+        note: `target-agent:${f.note}`,
+        tier: "candidate",
+        state: "review_only",
+        promote: isExplicitCandidate && f.promotionDecision === "promote",
+      };
+    });
 }
 
 export async function runTargetContactAgent(input: { entityId: number; targetName: string; companyName?: string | null; jobId?: string; maxIterations?: number; hardTimeoutMs?: number; investigatorLlm?: "groq" | "mistral" }): Promise<TargetContactAgentResult> {
