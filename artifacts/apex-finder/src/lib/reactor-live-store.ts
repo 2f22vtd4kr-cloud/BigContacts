@@ -36,6 +36,7 @@ function stopPolling(): void {
   timer = null;
   controller?.abort();
   controller = null;
+  snapshot = EMPTY;
 }
 
 function schedule(): void {
@@ -55,7 +56,10 @@ async function pull(): Promise<void> {
       cache: "no-store",
       signal: controller.signal,
     });
-    if (!response.ok) return;
+    if (!response.ok) {
+      if (myGeneration === generation && listeners.size > 0) emit(EMPTY);
+      return;
+    }
     const data = await response.json();
     if (myGeneration !== generation || listeners.size === 0) return;
     const runStatus = String(data?.runStatus ?? data?.status ?? "idle").toLowerCase();

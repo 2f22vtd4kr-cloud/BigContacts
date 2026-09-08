@@ -73,6 +73,7 @@ export interface LiveActivity {
 /** Minimal DigSpan shape accepted by the shared live-activity adapter. */
 export interface ReactorSpanLike {
   id: string;
+  name?: string;
   parentSpanId?: string;
   jobId?: string;
   targetName?: string;
