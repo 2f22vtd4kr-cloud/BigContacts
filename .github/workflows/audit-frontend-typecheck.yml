@@ -1,0 +1,20 @@
+name: audit frontend TypeScript compilation
+
+on:
+  push:
+    branches: [audit/frontend-typecheck]
+
+permissions:
+  contents: read
+
+jobs:
+  typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: npm install -g pnpm@9
+      - run: pnpm install --no-frozen-lockfile
+      - run: pnpm exec tsc -p artifacts/apex-finder/tsconfig.json --noEmit
