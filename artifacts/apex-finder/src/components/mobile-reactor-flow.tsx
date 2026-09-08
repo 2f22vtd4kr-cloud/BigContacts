@@ -41,7 +41,7 @@ interface AtlasTelemetry {
 }
 
 interface AtlasLiveState {
-  runStatus: "running" | "done" | "failed";
+  runStatus: "running" | "paused" | "done" | "failed" | "cancelled";
   phase: number;
   phaseLabel: string;
   phaseProgress: number;
@@ -200,6 +200,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
       wasLiveRef.current = false;
       setArming(false);
     }
+    return undefined;
   }, [isLive, forceArming]);
 
 
@@ -313,6 +314,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
       return () => window.clearTimeout(t);
     }
     prevEventCountRef.current = n;
+    return undefined;
   }, [deskEvents.length]);
 
   // Keyboard: Escape returns from History; "/" focuses history search
