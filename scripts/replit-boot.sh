@@ -11,10 +11,7 @@ export NPM_CONFIG_REGISTRY="${NPM_CONFIG_REGISTRY:-https://registry.npmjs.org}"
 # process; operators can still stop/clear a job explicitly through atlas-lock.
 export ATLAS_DISABLE_AUTO_CLEAR="${ATLAS_DISABLE_AUTO_CLEAR:-true}"
 # Single Upstash secret is enough: REDIS_URL_1 is the bureau permanent store.
-# Healthz probes permanent Redis; without ENABLE_REDIS_ON_BOOT, manual mode
-# defers connect and health looks "not_connected" until first Atlas launch.
 export ENABLE_REDIS_ON_BOOT="${ENABLE_REDIS_ON_BOOT:-true}"
-# Optional local-cache alias: if only REDIS_URL_1 is set, reuse it for REDIS_URL.
 if [[ -z "${REDIS_URL:-}" && -n "${REDIS_URL_1:-}" ]]; then
   export REDIS_URL="${REDIS_URL_1}"
 fi
@@ -22,7 +19,7 @@ cd "$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 echo "[replit-boot] $(git log -1 --oneline 2>/dev/null || echo unknown)"
 fuser -k "${PORT}/tcp" 2>/dev/null || true
 sleep 1
-node scripts/apply-redis-runtime-hardening.mjs
+# Runtime hardening is canonical source now. Boot must never rewrite TS files.
 pnpm --filter @workspace/db run push
 if [[ ! -f artifacts/apex-finder/dist/public/index.html ]]; then
   pnpm --dir artifacts/apex-finder run build
