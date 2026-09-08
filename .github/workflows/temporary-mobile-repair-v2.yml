@@ -1,9 +1,9 @@
 name: Temporary mobile Reactor repair v2
 
 on:
-  pull_request:
+  push:
     branches:
-      - main
+      - apex/mobile-reactor-telemetry-source-v2
 
 permissions:
   contents: write
@@ -14,7 +14,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.head_ref }}
+          ref: ${{ github.ref_name }}
       - name: Patch mobile live feed to shared telemetry
         run: |
           python3 - <<'PY'
@@ -32,7 +32,6 @@ jobs:
           block = '''  const liveEvents = React.useMemo(() => {
     if (showHistory) return filteredDeskEvents;
     if (!telemetryRunLive) return [] as typeof deskEvents;
-    // Live mobile scenes use the same normalized recentSpans snapshot as desktop.
     return telemetry.activities
       .filter((activity) => activity.status === "active" || activity.status === "completed" || activity.status === "failed")
       .slice(0, 6)
@@ -69,4 +68,4 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add artifacts/apex-finder/src/components/mobile-reactor-flow.tsx
           git diff --cached --quiet || git commit -m "refactor(reactor): use shared telemetry on mobile"
-          git push origin HEAD:${{ github.head_ref }}
+          git push origin HEAD:${{ github.ref_name }}
