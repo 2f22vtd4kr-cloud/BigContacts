@@ -177,6 +177,59 @@ export function normalizeLiveActivity(span: ReactorSpanLike): LiveActivity {
   };
 }
 
+/**
+ * Normalize the complete span snapshot once. IDs are authoritative: duplicate
+ * observations of one span collapse to one activity, while distinct spans
+ * remain distinct even when they use the same tool. Chronology is stable so
+ * graph and feed consumers can render the same ordering without reinterpreting
+ * the telemetry independently.
+ */
+export function normalizeLiveActivities(spans: ReactorSpanLike[] | null | undefined): LiveActivity[] {
+  if (!Array.isArray(spans) || spans.length === 0) return [];
+  const byId = new Map<string, LiveActivity>();
+  for (const span of spans) {
+    if (!span?.id) continue;
+    byId.set(String(span.id), normalizeLiveActivity(span));
+  }
+  return [...byId.values()].sort((a, b) => {
+    const at = a.startedAt ? Date.parse(a.startedAt) : 0;
+    const bt = b.startedAt ? Date.parse(b.startedAt) : 0;
+    if (bt !== at) return bt - at;
+    return a.id.localeCompare(b.id);
+  });
+}
+
+/**
+ * Convert the shared activity into the existing feed contract. This is a
+ * presentation adapter only: every displayed field comes from the span or
+ * from deterministic normalization of that recorded span.
+ */
+export function liveActivityToReactorEvent(activity: LiveActivity): ReactorLiveEvent {
+  const title = cleanResearchText(activity.operation || activity.tool || activity.spanType, 120) || "Research activity";
+  const method = classifyReactorMethod({
+    method: "unknown",
+    provider: activity.tool,
+    title,
+    query: activity.inputSummary,
+    url: activity.sourceUrls?.[0],
+  });
+  const sourceUrls = activity.sourceUrls ?? [];
+  return {
+    id: activity.id,
+    timestamp: activity.startedAt,
+    status: activity.status === "active" ? "active" : activity.status === "queued" ? "queued" : activity.status === "failed" ? "failed" : "done",
+    method,
+    title,
+    actor: activity.actor || activity.agent,
+    provider: activity.tool,
+    targetName: activity.target,
+    prompt: activity.inputSummary,
+    resultSummary: activity.resultSummary,
+    sourceUrls,
+    links: sourceUrls.map((url) => ({ url })),
+  };
+}
+
 /** Stable identity for a live event. Prefer an instrumentation id when one exists. */
 export function reactorEventKey(event: Pick<ReactorLiveEvent, "id" | "timestamp" | "title" | "provider" | "targetName">): string {
   const id = String(event.id || "").trim();
