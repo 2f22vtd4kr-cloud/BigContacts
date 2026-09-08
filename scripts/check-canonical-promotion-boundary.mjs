@@ -13,6 +13,7 @@ const checks = [
   ["target Dig uses strict persistence", target.includes("persistSourceBackedBureauContactsForEntity")],
   ["target Dig does not legacy-rehydrate", !target.includes("rehydrateEntityCardFromEvidence")],
   ["target Dig is marked canonical agentic evidence", target.includes('"target-contact-agentic"')],
+  ["target contact preserves investigator promotion", target.includes('promote: f.promotionDecision === "promote"')],
   ["bureau pass uses strict persistence", bureau.includes("persistSourceBackedBureauContactsForEntity")],
   ["bureau pass preserves explicit investigator promotion", bureau.includes('promote: f.promotionDecision === "promote"')],
   ["strict boundary requires explicit promotion for card mutation", strict.includes("if (row.item.promote !== true) continue")],
