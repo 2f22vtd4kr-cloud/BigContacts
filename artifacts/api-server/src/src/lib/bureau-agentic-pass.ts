@@ -77,6 +77,10 @@ export function findingsToBureauContacts(
     note: `bureau-agentic:${f.note}`,
     tier: "candidate",
     state: "review_only",
+    // Preserve the Investigator's explicit publication decision. Observation-only
+    // extracts intentionally have no promotionDecision and therefore cannot mutate
+    // the entity card through the strict persistence boundary.
+    promote: f.promotionDecision === "promote",
   }));
 }
 
