@@ -1,0 +1,970 @@
+APEX ATLAS / BIGCONTACTS
+
+NEW REPLIT WORKSPACE
+
+FIRST-TARGET COMPLETION + QUOTA SURVIVAL
+
+THIS RUN MUST END THE INFINITE DEBUGGING CYCLE
+
+Repository:
+
+https://github.com/2f22vtd4kr-cloud/BigContacts
+
+We are starting a NEW Replit workspace.
+
+This is the most important live validation yet.
+
+The previous workspaces repeatedly consumed Replit credits before Apex could complete one ordinary research target.
+
+That is now the PRIMARY PROBLEM TO SOLVE.
+
+The objective of this workspace is NOT to keep improving Apex forever.
+
+The objective is:
+
+GET APEX TO SUCCESSFULLY COMPLETE ONE REAL RESEARCH TARGET, WITH THE BUREAU OPERATING AS DESIGNED, WITHOUT UNCONTROLLED QUOTA CONSUMPTION.
+
+Target:
+
+ANDY CANTWELL
+
+At the end of this workspace we need a definitive answer:
+
+CAN APEX ACTUALLY RESEARCH A TARGET FROM START TO FINISH?
+
+If yes, prove it.
+
+If no, identify the exact blocking mechanism and fix it.
+
+DO NOT burn another workspace endlessly making speculative changes.
+
+============================================================
+0. ABSOLUTE PRIORITY
+
+There are ONLY TWO acceptable outcomes.
+
+OUTCOME A:
+
+Apex completes the Andy Cantwell investigation with a useful, evidence-backed dossier and reaches a truthful successful terminal state.
+
+OR
+
+OUTCOME B:
+
+Apex cannot complete it.
+
+In that case:
+
+* identify exactly why
+* fix the smallest real cause
+* test the fix
+* commit
+* push
+* perform ONE controlled retry.
+
+If the controlled retry still cannot complete, STOP and provide the exact evidence.
+
+Do NOT enter another infinite engineering loop.
+
+============================================================
+
+1. IMPORT CURRENT GITHUB
+    ============================================================
+
+Import:
+
+https://github.com/2f22vtd4kr-cloud/BigContacts
+
+Immediately:
+
+git fetch origin
+git status –short
+git rev-parse HEAD
+git rev-parse origin/main
+git log -20 –oneline
+
+Synchronize with current origin/main.
+
+The previously audited baseline was:
+
+c68aba0f18b4de6db40c202f0b4e6805e48f3a58
+
+But DO NOT assume this is still current.
+
+Use the actual current origin/main.
+
+============================================================
+2. DO NOT DESTROY WORKING CODE
+
+Before running any transformation:
+
+inspect:
+
+artifacts/api-server/src/lib/agentic-web-research.ts
+
+Confirm it is the complete Investigator implementation.
+
+It must contain the actual:
+
+* ReAct loop
+* search
+* web visitation
+* OSINT tools
+* identity research
+* contact research
+* evidence handling
+* trajectory
+* stopping
+* provider selection.
+
+If the file is unexpectedly truncated:
+
+STOP.
+
+Restore from the last intact GitHub version.
+
+Do NOT attempt to “rebuild” the Investigator from memory.
+
+============================================================
+3. NO SPECULATIVE REFACTORING
+
+DO NOT:
+
+* redesign the architecture
+* replace the Bureau
+* rewrite the Investigator
+* remove LLM reasoning
+* convert the system into deterministic search
+* create another framework
+* introduce unnecessary dependencies.
+
+Only fix an actual defect that blocks:
+
+BUILD
+TEST
+BUREAU EXECUTION
+QUOTA CONTROL
+RESEARCH COMPLETION
+EVIDENCE INTEGRITY.
+
+============================================================
+4. FAST BASELINE — NOT A 2-HOUR AUDIT
+
+Run only the essential preflight:
+
+typecheck
+build
+critical tests
+coordination guards
+performance guards
+API health.
+
+If these pass, MOVE ON.
+
+Do not spend the workspace quota running endless static audits.
+
+Provider quota is precious.
+
+============================================================
+5. PROVIDER SECRETS
+
+Verify:
+
+GEMINI_API_KEY
+DEEPSEEK_API_KEY
+GROQ_API_KEY
+MISTRAL_API_KEY
+
+If fresh keys are required, ASK ME.
+
+NEVER display key values.
+
+NEVER save keys into source.
+
+NEVER commit secrets.
+
+============================================================
+6. CRITICAL CHANGE IN PHILOSOPHY:
+
+QUOTA IS A SHARED BUREAU RESOURCE
+
+============================================================
+
+The Bureau must treat model quota as a shared finite resource.
+
+NOT:
+
+Boss gets unlimited quota
++
+Right-hand gets unlimited quota
++
+Investigator gets unlimited quota
++
+retries get unlimited quota.
+
+Instead:
+
+ONE RESEARCH RUN
+→ ONE GLOBAL RESOURCE BUDGET.
+
+Boss, Right-hand and Investigator must operate within that budget.
+
+No single component may consume the entire budget.
+
+============================================================
+7. HARD GLOBAL RUN BUDGET
+
+Implement/verify a hard global research budget.
+
+The budget must cover:
+
+Boss
+Right-hand
+Investigator
+retries
+fallbacks
+repair calls.
+
+The exact numeric budget should be derived from the currently available provider capacity and existing application limits.
+
+DO NOT choose an absurdly low budget merely to force completion.
+
+The budget must be large enough for a genuine investigation.
+
+But it MUST be finite.
+
+When the global budget is approaching exhaustion:
+
+the Bureau must gracefully converge or stop.
+
+It must NOT continue calling LLMs indefinitely.
+
+============================================================
+8. HARD WALLS ON EVERY LAYER
+
+There must be independent safety limits for:
+
+Boss calls
+Right-hand calls
+Investigator iterations
+provider retries
+provider fallback attempts
+malformed-response repairs.
+
+These are safety walls.
+
+They are NOT intended to replace model reasoning.
+
+If a wall is reached:
+
+record exactly which wall was reached.
+
+Then transition to a truthful state.
+
+NEVER silently loop.
+
+============================================================
+9. THE MOST IMPORTANT RULE:
+
+NO CALL WITHOUT A PURPOSE
+
+============================================================
+
+Before every physical LLM call, the system must know:
+
+WHO is calling?
+
+WHY?
+
+WHAT decision/research task is being advanced?
+
+WHAT relevant state is being provided?
+
+WHAT is the expected information gain?
+
+Do NOT literally ask the model to calculate information gain unless useful.
+
+This is an orchestration requirement.
+
+If the same role repeatedly makes calls without meaningful state/progress change:
+
+STOP THAT LOOP.
+
+============================================================
+10. RETRY CIRCUIT BREAKER
+
+A provider failure MUST NOT create an infinite retry chain.
+
+For each provider/model:
+
+track consecutive failures.
+
+After the configured failure threshold:
+
+temporarily OPEN the circuit.
+
+Do not immediately hammer that provider again.
+
+Especially for:
+
+429
+capacity exhaustion
+timeouts
+persistent 5xx.
+
+Fallback to another genuinely available provider if policy allows.
+
+If no provider remains:
+
+terminate gracefully as DEGRADED/INCOMPLETE.
+
+Do NOT spend the entire remaining quota proving that a dead provider is dead.
+
+============================================================
+11. 429 IS NOT AN INVITATION TO RETRY FOREVER
+
+This deserves explicit enforcement.
+
+If a provider returns 429:
+
+record:
+
+provider
+model
+attempt
+timestamp
+retry-after if supplied
+retry count.
+
+Respect retry-after where available.
+
+Use bounded backoff.
+
+After the provider is demonstrably unavailable:
+
+STOP retrying it.
+
+A 429 storm must never consume the Bureau’s entire research budget.
+
+============================================================
+12. TIMEOUT CIRCUIT BREAKER
+
+Every physical request must have a real timeout.
+
+Verify AbortController propagation.
+
+When the timeout fires:
+
+abort the underlying request.
+
+Do NOT merely stop awaiting it.
+
+Track:
+
+timeout
+aborted
+provider
+role
+iteration.
+
+No orphan requests.
+
+============================================================
+13. DO NOT LET FALLBACKS MULTIPLY WORK
+
+Bad:
+
+Gemini fails
+→ DeepSeek
+→ Gemini retry
+→ Groq
+→ Gemini
+→ DeepSeek
+→ Mistral
+→ retry everything again.
+
+Good:
+
+provider fails
+→ classify failure
+→ bounded alternative
+→ continue once
+→ circuit breaker.
+
+Fallback is for resilience.
+
+It is not a second copy of the same research job.
+
+============================================================
+14. BOSS / RIGHT-HAND / INVESTIGATOR MUST SHARE ONE CASE
+
+The Bureau must operate as one organism.
+
+RIGHT-HAND:
+
+Receives mounting research state.
+
+Reasoning question:
+
+WHAT ARE WE MISSING?
+
+It should identify:
+
+* blind spots
+* contradictions
+* evidence gaps
+* contact gaps
+* unexplored high-value avenues.
+
+It must NOT independently repeat the Investigator’s research.
+
+⸻
+
+BOSS:
+
+Receives:
+
+* mounting case
+* Investigator findings
+* evidence
+* unresolved questions
+* Right-hand reasoning
+* action frontier
+* previous decisions.
+
+Reasoning question:
+
+WHAT IS THE BEST NEXT MOVE?
+
+It assigns the next useful mission.
+
+⸻
+
+INVESTIGATOR:
+
+Receives:
+
+* current mission
+* relevant evidence
+* previous work
+* unresolved objective
+* available tools
+* relevant Boss/Right-hand intelligence.
+
+Reasoning question:
+
+HOW DO I EXECUTE THIS?
+
+The Investigator remains autonomous.
+
+============================================================
+15. MOUNTING DATA IS MANDATORY
+
+As the Investigator progresses, update the shared case.
+
+Capture:
+
+new evidence
+new sources
+new identity information
+new contacts
+failed hypotheses
+contradictions
+confidence changes
+research already performed
+unresolved questions.
+
+Boss and Right-hand must reason over this updated state.
+
+Do NOT send enormous raw history if a compact representation preserves the useful information.
+
+Do NOT compact away information required for reasoning.
+
+============================================================
+16. ANTI-DUPLICATION
+
+The live trace must make it possible to detect:
+
+duplicate searches
+duplicate page visits
+duplicate questions
+duplicate contact investigations
+duplicate evidence processing
+duplicate LLM calls.
+
+Repeated work is allowed only when justified.
+
+Examples:
+
+corroboration
+contradiction
+identity ambiguity
+new evidence
+contact validation
+new hypothesis.
+
+Otherwise:
+
+MOVE FORWARD.
+
+============================================================
+17. INVESTIGATOR MUST REMAIN A REAL AGENT
+
+Do NOT hard-code:
+
+search queries
+search sequence
+contact discovery sequence
+research pivots
+source selection.
+
+The Investigator must use its model reasoning.
+
+The deterministic layer provides:
+
+tools
+memory
+evidence
+budgets
+provenance
+coordination
+failure handling.
+
+The LLM decides how to investigate.
+
+============================================================
+18. RESEARCH STOPPING MUST BE INTELLIGENT
+
+The Investigator must not:
+
+stop immediately after identifying Andy.
+
+But it must also not:
+
+search forever.
+
+A valid stopping decision should consider:
+
+identity confidence
+evidence quality
+source coverage
+unresolved contradictions
+contact discovery
+marginal research value
+remaining resource budget.
+
+If the target is sufficiently researched:
+
+STOP SUCCESSFULLY.
+
+============================================================
+19. FIRST LIVE TARGET
+
+Target:
+
+ANDY CANTWELL
+
+This is a blind research test.
+
+DO NOT provide Apex with:
+
+* my research
+* known contact details
+* known websites
+* known sources
+* known answers
+* search queries.
+
+Apex must discover them independently.
+
+============================================================
+20. COMPLETE RESEARCH REQUIREMENT
+
+Do not stop at identity.
+
+The dossier should attempt to establish:
+
+identity
+career
+professional history
+projects
+organizations
+relevant relationships
+authoritative sources
+independent corroboration
+public professional presence
+contact routes
+direct attributable contact if publicly available.
+
+The objective is useful intelligence.
+
+============================================================
+21. CONTACTS
+
+Correctly distinguish:
+
+DIRECT PERSONAL
+DIRECT PROFESSIONAL
+ORGANIZATIONAL
+GENERIC
+SOCIAL
+CONTACT FORM
+INFERRED
+UNVERIFIED.
+
+Never promote inferred contact into verified contact.
+
+Never label:
+
+info@
+contact@
+press@
+
+as a personal direct contact.
+
+============================================================
+22. EVIDENCE
+
+Important findings require:
+
+claim
+source
+observation
+identity link
+provenance
+confidence.
+
+Prefer primary/authoritative sources.
+
+============================================================
+23. LIVE QUOTA DASHBOARD
+
+During the run continuously report internally:
+
+global budget
+budget consumed
+budget remaining
+LLM calls
+tokens
+calls by role
+tokens by role
+calls by provider
+tokens by provider
+retries
+429s
+timeouts
+research progress.
+
+If consumption is accelerating without meaningful research progress:
+
+STOP AND DIAGNOSE.
+
+Do NOT keep spending.
+
+============================================================
+24. QUOTA EMERGENCY MODE
+
+If the Bureau reaches a critical percentage of its global budget before reaching a complete dossier:
+
+DO NOT simply continue until the quota dies.
+
+Enter QUOTA EMERGENCY MODE.
+
+In this mode:
+
+1. stop redundant work
+2. stop dead-provider retries
+3. compact context
+4. prioritize unresolved high-value evidence
+5. prioritize contact discovery if appropriate
+6. ask Boss to decide whether the dossier is now sufficient
+7. either finish truthfully or terminate as incomplete.
+
+The Bureau must reach a controlled terminal state.
+
+============================================================
+25. NO INFINITE RUNS
+
+This is a HARD REQUIREMENT.
+
+There must be no state in which:
+
+research continues
+→ budget is exhausted
+→ provider calls continue
+→ retries continue
+→ workspace credits disappear
+→ no final dossier exists.
+
+That behavior is unacceptable.
+
+Every run MUST eventually reach:
+
+SUCCESS
+or
+DEGRADED
+or
+INCOMPLETE
+or
+FAILED.
+
+Never endless execution.
+
+============================================================
+26. IF SOMETHING BREAKS
+
+Do not immediately start changing five systems.
+
+Identify:
+
+FIRST BROKEN TRANSITION
+ROOT CAUSE
+MINIMAL FIX.
+
+Then:
+
+fix
+→ test
+→ commit
+→ push
+→ verify GitHub.
+
+If the fix changes production behavior, rerun the affected validation.
+
+============================================================
+27. COMMIT DISCIPLINE
+
+Every genuine production fix MUST be:
+
+committed
+AND
+pushed to GitHub.
+
+After pushing:
+
+git fetch origin
+git rev-parse HEAD
+git rev-parse origin/main
+
+HEAD MUST MATCH origin/main.
+
+Never tell me a fix was completed if it exists only in Replit.
+
+============================================================
+28. THE FIRST TARGET MUST BE COMPLETED BEFORE ANY “NICE TO HAVE” WORK
+
+DO NOT spend the remaining workspace credits on:
+
+* documentation polish
+* refactors
+* cosmetic improvements
+* extra tests that don’t affect the run
+* architecture experiments
+* new abstractions
+* unrelated cleanup.
+
+FIRST:
+
+COMPLETE ANDY CANTWELL.
+
+Only after that may you investigate secondary improvements.
+
+============================================================
+29. AFTER THE RUN — BUG HUNT
+
+Inspect the actual execution trace.
+
+Look specifically for:
+
+quota leaks
+duplicate work
+provider thrashing
+retry storms
+timeout leaks
+context bloat
+lost mounting data
+Boss/Right-hand contradiction
+Investigator starvation
+premature stopping
+endless research
+contact errors
+evidence errors
+terminal-state errors.
+
+Fix only genuine problems.
+
+Commit and push every fix.
+
+============================================================
+30. FINAL COMPARISON
+
+After Apex finishes, compare its blind result against the independent baseline.
+
+Do NOT give Apex the baseline beforehand.
+
+Measure:
+
+identity
+career
+projects
+sources
+corroboration
+relationships
+contacts
+direct contact
+provenance
+useful findings
+missed opportunities.
+
+The key question:
+
+DID APEX PRODUCE MORE USEFUL INTELLIGENCE THAN A SINGLE INVESTIGATOR?
+
+============================================================
+31. FINAL REPORT
+
+Report exact numbers.
+
+REPOSITORY:
+
+HEAD:
+origin/main:
+clean:
+commits made:
+commits pushed:
+
+BASELINE:
+
+typecheck:
+build:
+tests:
+guards:
+
+RUN:
+
+target:
+run ID:
+terminal state:
+complete/degraded/incomplete/failed:
+duration:
+
+LLM:
+
+total calls:
+total tokens:
+input:
+cached input:
+output:
+
+Boss calls/tokens:
+Right-hand calls/tokens:
+Investigator calls/tokens:
+
+PROVIDERS:
+
+Gemini:
+DeepSeek:
+Groq:
+Mistral:
+
+429s:
+timeouts:
+retries:
+provider failures:
+
+RESEARCH:
+
+searches:
+visits:
+observations:
+meaningful findings:
+verified sources:
+identity evidence:
+contact routes:
+verified direct contacts:
+provenance completeness:
+
+COORDINATION:
+
+Boss received mounting data:
+Right-hand received mounting data:
+shared case:
+duplicate work:
+unnecessary calls:
+stagnation:
+contradictions resolved:
+
+QUOTA:
+
+global budget:
+consumed:
+remaining:
+largest consumer:
+largest waste source:
+
+============================================================
+32. FINAL VERDICT
+
+Answer these directly:
+
+1. DID APEX COMPLETE THE FIRST TARGET?
+2. DID IT COMPLETE IT BEFORE UNNECESSARILY EXHAUSTING QUOTA?
+3. DID THE BUREAU REACH A CLEAN TERMINAL STATE?
+4. DID BOSS REASON OVER MOUNTING DATA?
+5. DID RIGHT-HAND REASON OVER MOUNTING DATA?
+6. DID BOSS AND RIGHT-HAND COMPLEMENT RATHER THAN DUPLICATE THE INVESTIGATOR?
+7. DID THE INVESTIGATOR REMAIN AUTONOMOUS?
+8. DID RETRIES/FALLBACKS STAY UNDER CONTROL?
+9. DID ANY TIMEOUT OR PROVIDER LEAK REMAIN?
+10. DID THE BUREAU DISCOVER HIGH-VALUE CONTACT INTELLIGENCE?
+11. WAS THE EVIDENCE PROPERLY PROVENANCED?
+12. DID APEX PRODUCE SUBSTANTIALLY USEFUL INTELLIGENCE?
+13. DID IT MEANINGFULLY OUTPERFORM OR CHALLENGE A SINGLE-AGENT BASELINE?
+14. IS APEX READY FOR REAL RESEARCH?
+
+Then choose exactly one:
+
+APEX IS READY.
+
+OR
+
+APEX IS NOT READY.
+
+Do not choose READY because the project has taken a long time.
+
+Choose READY only if the first-target evidence proves it.
+
+============================================================
+FINAL COMMAND
+
+THIS IS NOT ANOTHER INFINITE DEVELOPMENT SESSION.
+
+DO NOT BURN THE WORKSPACE QUOTA ON ENDLESS TESTS.
+
+DO NOT BURN PROVIDER QUOTA ON ENDLESS RETRIES.
+
+DO NOT LET A SINGLE PROVIDER DIE WHILE THE BUREAU HAMMERS IT.
+
+DO NOT LET BOSS, RIGHT-HAND AND INVESTIGATOR REPEAT EACH OTHER.
+
+DO NOT TURN OFF THEIR INTELLIGENCE TO MAKE THE NUMBERS LOOK BETTER.
+
+DO NOT FAKE SUCCESS.
+
+DO NOT LEAVE FIXES UNCOMMITTED.
+
+DO NOT STOP AFTER FINDING ONLY THE PERSON.
+
+DO NOT START ANOTHER TARGET.
+
+ONE TARGET.
+
+ONE COMPLETE BUREAU INVESTIGATION.
+
+ONE HARD EVIDENCE-BASED VERDICT.
+
+THE BUREAU HAS BEEN ARCHITECTED.
+
+NOW PROVE IT CAN ACTUALLY WORK.
+
+START NOW.
