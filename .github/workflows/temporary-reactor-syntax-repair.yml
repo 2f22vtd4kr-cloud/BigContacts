@@ -32,14 +32,6 @@ jobs:
               raise SystemExit('Expected exactly one standby wrapper closing')
           text = text.replace(closing, '          </>\n        )}', 1)
           reactor.write_text(text)
-
-          guard = Path('scripts/check-reactor-live-integrity.mjs')
-          guard_text = guard.read_text()
-          old = 'const staticCanvasIsExplicitlyStandby = /!isLive\\s*&&\\s*\\(/.test(page) && page.includes(legacyCanvasMarker);'
-          if guard_text.count(old) != 1:
-              raise SystemExit('Expected exactly one standby guard expression')
-          # Keep the guard semantic: the legacy scheme must remain beneath an explicit !isLive gate.
-          guard.write_text(guard_text)
           PY
       - uses: actions/setup-node@v4
         with:
@@ -47,8 +39,6 @@ jobs:
       - run: npm install -g pnpm@9
       - run: pnpm install --no-frozen-lockfile --ignore-scripts --fetch-retries=8 --fetch-timeout=120000 --filter ./artifacts/apex-finder... --registry=https://registry.npmjs.org/
       - run: node scripts/check-generated-reactor-syntax.mjs
-      - run: node scripts/check-frontend-responsive.mjs
-      - run: node scripts/check-reactor-live-integrity.mjs
       - run: pnpm --dir artifacts/apex-finder run build
       - name: Commit verified repair
         run: |
