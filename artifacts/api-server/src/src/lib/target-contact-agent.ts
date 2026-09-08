@@ -99,7 +99,12 @@ export async function runTargetContactAgent(input: { entityId: number; targetNam
   // Canonical boundary: persist only this Dig's source-backed output. The strict
   // persistence boundary may map an unambiguous investigator-emitted value, but
   // this agent never calls legacy rehydrate/ranking over unrelated evidence.
-  await persistSourceBackedBureauContactsForEntity(input.entityId, contacts, "target-contact-agentic", input.jobId);
+  // Include the run ID in the source so a repeated observation remains a distinct
+  // current-run evidence row even when the exact value already existed historically.
+  // This is evaluation provenance, not duplicate card data: the entity card still
+  // receives only the investigator-selected value through the strict projector.
+  const evidenceSource = input.jobId ? `target-contact-agentic:${input.jobId}` : "target-contact-agentic";
+  await persistSourceBackedBureauContactsForEntity(input.entityId, contacts, evidenceSource, input.jobId);
 
   const rows = await db.select({ type: entitiesTable.type, email: entitiesTable.email, phone: entitiesTable.phone, phoneSource: entitiesTable.phoneSource, linkedinUrl: entitiesTable.linkedinUrl, twitterHandle: entitiesTable.twitterHandle, instagramHandle: entitiesTable.instagramHandle, telegramHandle: entitiesTable.telegramHandle, personalWebsite: entitiesTable.personalWebsite, metadata: entitiesTable.metadata }).from(entitiesTable).where(eq(entitiesTable.id, input.entityId)).limit(1);
   const ent = rows[0];
