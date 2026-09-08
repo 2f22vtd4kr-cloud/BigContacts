@@ -14,6 +14,8 @@ const checks = [
   ["target Dig does not legacy-rehydrate", !target.includes("rehydrateEntityCardFromEvidence")],
   ["target Dig is marked canonical agentic evidence", target.includes('"target-contact-agentic"')],
   ["bureau pass uses strict persistence", bureau.includes("persistSourceBackedBureauContactsForEntity")],
+  ["bureau pass preserves explicit investigator promotion", bureau.includes('promote: f.promotionDecision === "promote"')],
+  ["strict boundary requires explicit promotion for card mutation", strict.includes("if (row.item.promote !== true) continue")],
   ["strict boundary rejects search-query provenance", strict.includes("SEARCH_QUERY_URL") && strict.includes("isClaimSourceUrl")],
   ["strict boundary fails closed without source", strict.includes("if (!sourceUrls.length) continue")],
   ["discovery requires model findings", discovery.includes("modelFindings")],
