@@ -1,0 +1,106 @@
+name: Final architecture hardening
+on:
+  push:
+    branches: [apex/architecture-hardening-2026-09-08]
+permissions:
+  contents: write
+jobs:
+  harden:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply bounded architecture fixes
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def rw(path, transform):
+              p=Path(path); p.write_text(transform(p.read_text()))
+
+          # Remove Groq final-review fallback while preserving deterministic fail-closed return.
+          def extractor(s):
+              a=s.find('  // 3) Groq capacity fallback (multi-model)')
+              b=s.find('  return adjudicateFinalTargetReview(input, {}, "unavailable-final-review");', a)
+              if a<0 or b<0: raise SystemExit('final-review fallback markers missing')
+              return s[:a]+'  // No Investigator provider may replace Gemini Boss/NVIDIA oversight review.\n'+s[b:]
+          rw('artifacts/api-server/src/lib/ai-extractor.ts', extractor)
+
+          # Groq remains an Investigator; remove the legacy Boss helper by renaming the dead helper.
+          def boss(s):
+              if 'generateGroqBossText' not in s: raise SystemExit('Groq Boss helper missing')
+              return s.replace('generateGroqBossText','legacyProviderHelper')
+          rw('artifacts/api-server/src/src/lib/case-bureau.ts', boss)
+
+          # Remove the automatic evidence->card projection and make old rehydrate helpers private.
+          def persist(s):
+              old='''  // Dig bag → card: promote best non-issuer phone/email onto the entity so\n  // free agentic findings are not stranded as evidence_only while EDGAR-Phone stays.\n  try {\n  await promoteBureauContactsToEntityCard(entityId, items ?? [], source, jobId);\n  } catch (err) {\n    logger.debug(\n      { err: err instanceof Error ? err.message : String(err), entityId },\n      "promoteBureauContactsToEntityCard skipped",\n    );\n  }\n'''
+              if s.count(old)!=1: raise SystemExit('automatic evidence->card block mismatch')
+              s=s.replace(old,'',1)
+              s=s.replace('export async function rehydrateEntityCardFromEvidence(', 'async function rehydrateEntityCardFromEvidence(')
+              s=s.replace('export async function rehydrateAllEntityCardsFromEvidence(', 'async function rehydrateAllEntityCardsFromEvidence(')
+              # Remove every executable invocation in this module; leave only evidence persistence.
+              s='\n'.join(line for line in s.split('\n') if 'await rehydrateEntityCardFromEvidence' not in line)
+              return s
+          rw('artifacts/api-server/src/src/lib/bureau-contact-persist.ts', persist)
+
+          def cases(s):
+              imp='  rehydrateEntityCardFromEvidence,\n'
+              if s.count(imp)!=1: raise SystemExit('cases rehydrate import mismatch')
+              s=s.replace(imp,'',1)
+              s='\n'.join(line for line in s.split('\n') if 'await rehydrateEntityCardFromEvidence' not in line)
+              return s
+          rw('artifacts/api-server/src/src/routes/research/cases.ts', cases)
+
+          def atlas(s):
+              imp='  rehydrateEntityCardFromEvidence,\n'
+              if s.count(imp)!=1: raise SystemExit('Atlas rehydrate import mismatch')
+              s=s.replace(imp,'',1)
+              s='\n'.join(line for line in s.split('\n') if 'await rehydrateEntityCardFromEvidence' not in line)
+              return s
+          rw('artifacts/api-server/src/src/lib/atlas-orchestrator.ts', atlas)
+
+          # Remove public evidence-only rehydrate route with balanced braces.
+          p=Path('artifacts/api-server/src/src/routes/entities.ts'); s=p.read_text()
+          marker='// POST /entities/rehydrate-contacts'; start=s.find(marker)
+          if start<0: raise SystemExit('entities rehydrate endpoint missing')
+          r=s.find('router.post(',start); brace=s.find('{',r)
+          if r<0 or brace<0: raise SystemExit('entities route body missing')
+          depth=0; quote=None; esc=False; i=brace
+          while i<len(s):
+              c=s[i]
+              if quote:
+                  if esc: esc=False
+                  elif c=='\\': esc=True
+                  elif c==quote: quote=None
+              else:
+                  if c in ('"',"'",'`'): quote=c
+                  elif c=='{': depth+=1
+                  elif c=='}':
+                      depth-=1
+                      if depth==0:
+                          end=i+1
+                          if end<len(s) and s[end]==';': end+=1
+                          if end<len(s) and s[end]=='\n': end+=1
+                          s=s[:start]+s[end:]
+                          break
+              i+=1
+          else: raise SystemExit('entities route brace balance failed')
+          p.write_text(s)
+          PY
+          node scripts/check-unified-investigator-architecture.mjs
+          pnpm install --no-frozen-lockfile --ignore-scripts --fetch-retries=8 --fetch-timeout=120000 --registry=https://registry.npmjs.org/
+          pnpm --dir artifacts/api-server run build
+          pnpm run typecheck
+      - name: Commit verified changes and remove temporary workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/final-architecture-hardening-once.yml
+          git add artifacts/api-server/src/lib/ai-extractor.ts artifacts/api-server/src/src/lib/case-bureau.ts artifacts/api-server/src/src/lib/bureau-contact-persist.ts artifacts/api-server/src/src/routes/entities.ts artifacts/api-server/src/src/routes/research/cases.ts artifacts/api-server/src/src/lib/atlas-orchestrator.ts
+          git commit -m "fix: close legacy architecture bypasses"
+          git push
