@@ -1,6 +1,7 @@
 name: Reactor architecture edit
 on:
-  workflow_dispatch:
+  push:
+    branches: [apex/reactor-live-source-truth]
 permissions:
   contents: write
 jobs:
