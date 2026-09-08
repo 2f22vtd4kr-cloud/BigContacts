@@ -16,7 +16,7 @@
  * - AgentPrism (span tree UI concepts):
  *   https://github.com/evilmartians/agent-prism
  * - Sentry AI agent observability:
- *   https://blog.sentry.io/ai-agent-observability-developers-guide-to-agent-monitoring/
+ *   https://blog.sentry.io/ai-agent-observability-developers-guide-to-ai-agent-observability/
  *
  * Contract: in-memory ring buffer only (status plane must stay fast under dig load).
  * Redis optional mirror is intentionally NOT required for /atlas-status.
@@ -145,8 +145,22 @@ export function getRecentDigSpans(jobId?: string | null, limit = 50): DigSpan[] 
   return globalRing.slice(0, n);
 }
 
-/** Clear job spans (on stop / terminal). Keeps a short global trail. */
+/**
+ * Clear job spans on stop without leaving zombie active spans in the global trail.
+ * Active spans are first retired as errors so idle/latest views remain truthful.
+ */
 export function clearDigSpansForJob(jobId: string): void {
+  const list = byJob.get(jobId) ?? [];
+  const endedAt = new Date().toISOString();
+  for (const span of list) {
+    if (span.status !== "active") continue;
+    globalRing = pushRing(globalRing, {
+      ...span,
+      status: "error",
+      endedAt,
+      resultSummary: span.resultSummary ?? "job stopped before tool completed",
+    }, CAP);
+  }
   byJob.delete(jobId);
 }
 
@@ -216,4 +230,3 @@ export function toOtelGenAiAttributes(span: DigSpan): Record<string, string> {
   if (span.resultSummary) out["gen_ai.tool.call.result"] = span.resultSummary.slice(0, 500);
   return out;
 }
-
