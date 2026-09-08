@@ -1,9 +1,9 @@
 name: Temporary identity boundary repair
 
 on:
-  push:
+  pull_request:
     branches:
-      - apex/identity-boundary-candidate-names
+      - main
 
 permissions:
   contents: write
@@ -13,6 +13,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
       - name: Remove target-name inheritance from candidate evidence
         run: |
           python3 - <<'PY'
@@ -20,7 +22,7 @@ jobs:
           p = Path('artifacts/api-server/src/src/lib/target-contact-agent.ts')
           s = p.read_text()
           old = '''export function sourceBackedFindings(findings: AgenticFinding[]): AgenticFinding[] {\n  return findings.filter((finding) =>\n    Array.isArray(finding.sourceUrls)\n    && finding.sourceUrls.some((url) => /^https?:\\/\\/\\S+$/i.test(String(url))),\n  );\n}'''
-          new = '''export function sourceBackedFindings(findings: AgenticFinding[]): AgenticFinding[] {\n  return findings\n    .filter((finding) =>\n      Array.isArray(finding.sourceUrls)\n      && finding.sourceUrls.some((url) => /^https?:\\/\\/\\S+$/i.test(String(url))),\n    )\n    .map((finding) => {\n      const candidate = String(finding.scope).toLowerCase() === "candidate";\n      const explicitPerson = typeof finding.personName === "string" && finding.personName.trim().length > 0;\n      if (candidate && !explicitPerson) {\n        return { ...finding, scope: "organization", personName: null };\n      }\n      return finding;\n    });\n}'''
+          new = '''export function sourceBackedFindings(findings: AgenticFinding[]): AgenticFinding[] {\n  return findings\n    .filter((finding) =>\n      Array.isArray(finding.sourceUrls)\n      && finding.sourceUrls.some((url) => /^https?:\\/\\/\\S+$/i.test(String(url))),\n    )\n    .map((finding) => {\n      const candidate = String(finding.scope).toLowerCase() === "candidate";\n      const explicitPerson = typeof finding.personName === "string" && finding.personName.trim().length > 0;\n      if (candidate && !explicitPerson) return { ...finding, scope: "organization", personName: null };\n      return finding;\n    });\n}'''
           if s.count(old) != 1: raise SystemExit('sourceBackedFindings block not found exactly once')
           s = s.replace(old, new, 1)
           old2 = '''      scope: String(f.scope).toLowerCase() === "candidate" ? "candidate" : "organization",\n      personName: String(f.scope).toLowerCase() === "candidate" ? (f.personName ?? personName) : null,'''
@@ -42,4 +44,4 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add artifacts/api-server/src/src/lib/target-contact-agent.ts
           git diff --cached --quiet || git commit -m "fix(identity): reject candidate target-name inheritance"
-          git push
+          git push origin HEAD:${{ github.head_ref }}
