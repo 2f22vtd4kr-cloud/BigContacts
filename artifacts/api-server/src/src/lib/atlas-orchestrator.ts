@@ -1565,7 +1565,11 @@ Only include assets with a SPECIFIC identifier. If nothing concrete is mentioned
     }).from(entitiesTable).where(eq(entitiesTable.id, id)).then((rows: any[]) => rows[0]);
     const reviewEvidence = await db.select().from(contactEvidenceTable)
       .where(eq(contactEvidenceTable.entityId, id));
-    const candidateFunnel = reconcileStoredContactEvidence(reviewEvidence as any);
+    // A rerun is a blind quality check over this run's evidence. Historical
+    // candidate rows remain durable for audit, but must not be re-approved as
+    // if the current Investigator observed them again.
+    const currentRunEvidence = reviewEvidence.filter((row) => !baselineEvidenceIds.has(row.id));
+    const candidateFunnel = reconcileStoredContactEvidence(currentRunEvidence as any);
     const reachability = assessTargetReachability({
       type: entity.type,
       estimatedNetWorth: reviewEntity?.estimatedNetWorth,
@@ -1589,7 +1593,7 @@ Only include assets with a SPECIFIC identifier. If nothing concrete is mentioned
         twitter: entity.twitterHandle,
       },
       candidates: candidateFunnel.candidates,
-      evidence: reviewEvidence.map((row) => ({
+       evidence: currentRunEvidence.map((row) => ({
         vectorType: row.vectorType,
         value: row.value,
         source: row.source,
@@ -1749,7 +1753,12 @@ Only include assets with a SPECIFIC identifier. If nothing concrete is mentioned
 
     // Re-promote from evidence bag so outcome/confidence match protected dig card
     try {
-      await rehydrateEntityCardFromEvidence(id);
+      // On a rerun, final-review/card writes above are scoped to current-run
+      // evidence. Rehydrating the entire historical evidence bag here would
+      // undo that boundary by promoting stale candidate rows.
+      if (baselineEvidenceIds.size === 0) {
+        await rehydrateEntityCardFromEvidence(id);
+      }
       const again = await db.select().from(entitiesTable).where(eq(entitiesTable.id, id)).limit(1);
       if (again[0]) entity = { ...entity, ...again[0] } as typeof entity;
     } catch { /* non-fatal */ }
