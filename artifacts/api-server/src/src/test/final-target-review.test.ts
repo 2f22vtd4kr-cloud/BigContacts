@@ -43,6 +43,37 @@ describe("final target review", () => {
     expect(result.approvedAssetIdentifiers).toEqual(["Example Holdings"]);
   });
 
+  it("does not promote a baseline proposed contact when the current-run candidate set does not support it", () => {
+    const result = adjudicateFinalTargetReview(baseInput({
+      candidates: [],
+      evidence: [],
+      proposedContacts: { email: "historical@example.org", phone: null, linkedin: null, instagram: null, twitter: null },
+    }), { decision: "review" }, "test");
+    expect(result.approvedContactValues).toEqual([]);
+    expect(result.decision).toBe("review");
+  });
+
+  it("does not let reviewer prose create a contact route", () => {
+    const result = adjudicateFinalTargetReview(baseInput({ candidates: [], evidence: [] }), {
+      decision: "publish",
+      approvedContactValues: [],
+      approvedRelatedValues: [],
+      cardSummary: "Jane Example's direct email is jane@example.org and she can be reached there.",
+    }, "test");
+    expect(result.approvedContactValues).toEqual([]);
+    expect(result.cardSummary).toBeNull();
+    expect(result.decision).toBe("review");
+  });
+
+  it("does not treat narrative alone as contact_route_found", () => {
+    const disposition = deriveTargetResearchDisposition({
+      approvedContactValues: [],
+      approvedRelatedValues: [],
+      cardSummary: "A narrative without an approved evidence value.",
+    });
+    expect(disposition.disposition).toBe("needs_follow_up");
+  });
+
   it("downgrades research-only targets even when a model tries to publish", () => {
     const result = adjudicateFinalTargetReview(baseInput({ reachabilityStatus: "research_only" }), { decision: "publish", approvedContactValues: ["jane@example.org"], approvedAssetIdentifiers: ["Example Holdings"] }, "test");
     expect(result.approvedContactValues).toEqual([]);
