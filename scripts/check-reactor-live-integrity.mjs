@@ -26,14 +26,15 @@ const bureau = read(files.bureau);
 const page = read(files.page);
 const mobile = read(files.mobile);
 
-const legacyCanvasMarker = "Scheme canvas — horizontal + vertical pan via scroll";
+const legacyCanvasMarker = "Scheme canvas — standby/explanatory only; live mode uses telemetry activity above";
 const activityMarker = "<ReactorActivityOnly";
-const staticCanvasIsExplicitlyStandby = /!schemeToolsOnly\s*&&\s*\(\s*\/\* Scheme canvas/.test(page);
+const staticCanvasIsExplicitlyStandby = /!isLive\s*&&\s*\(\s*<div[^>]*data-testid=\"reactor-standby-scheme\"/.test(page) && page.includes(legacyCanvasMarker);
 const staticCanvasIsAfterLiveSurface = (() => {
   const liveAt = page.indexOf(activityMarker);
   const canvasAt = page.indexOf(legacyCanvasMarker);
   return liveAt >= 0 && canvasAt > liveAt;
 })();
+const pageNoLongerBuildsDuplicateLiveEventModel = !/const reactorLiveEvents\s*=|deskEvents\.map\(\(event/.test(page);
 
 const checks = [
   ["live model has explicit research-query extraction", /explicitResearchQuery/.test(model)],
@@ -53,6 +54,7 @@ const checks = [
   ["desktop/mobile legacy stage remains evidence-aware", /sourceUrls|links/.test(bureau)],
   ["desktop live mode has a telemetry ActivityOnly surface", /<ReactorActivityOnly\b/.test(page)],
   ["legacy desktop scheme is present only as standby/explanatory UI", staticCanvasIsAfterLiveSurface && staticCanvasIsExplicitlyStandby],
+  ["desktop page has one live event source of truth", pageNoLongerBuildsDuplicateLiveEventModel],
   ["mobile live path exposes real telemetry state", /liveNodes/.test(mobile) && /recentSpans/.test(mobile)],
 ];
 
