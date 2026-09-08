@@ -20,6 +20,8 @@ export type ReactorMethod =
 
 export type ReactorEventStatus = "queued" | "active" | "done" | "failed";
 
+export type LiveActivityStatus = "queued" | "active" | "completed" | "failed";
+
 export interface ReactorSource {
   title?: string;
   url: string;
@@ -44,6 +46,47 @@ export interface ReactorLiveEvent {
   evidenceCount?: number;
   why?: string;
   links?: ReactorSource[];
+}
+
+/**
+ * The shared semantic unit for live execution. Both the graph and textual
+ * feed should eventually render this shape rather than independently
+ * interpreting raw Bureau payloads.
+ */
+export interface LiveActivity {
+  id: string;
+  parentId?: string;
+  jobId?: string;
+  target?: string;
+  actor?: string;
+  agent?: string;
+  operation?: string;
+  tool?: string;
+  spanType?: string;
+  status: LiveActivityStatus;
+  startedAt?: string;
+  endedAt?: string;
+  inputSummary?: string;
+  resultSummary?: string;
+  sourceUrls?: string[];
+}
+
+/** Minimal DigSpan shape accepted by the shared live-activity adapter. */
+export interface ReactorSpanLike {
+  id: string;
+  parentSpanId?: string;
+  jobId?: string;
+  targetName?: string;
+  agentName?: string;
+  operationName?: string;
+  toolName?: string;
+  spanType?: string;
+  status?: string;
+  startedAt?: string;
+  endedAt?: string;
+  inputSummary?: string;
+  resultSummary?: string;
+  sourceUrls?: string[];
 }
 
 const INTERNAL = [
@@ -85,17 +128,53 @@ export function classifyReactorMethod(event: Pick<ReactorLiveEvent, "method" | "
   return "unknown";
 }
 
-/**
- * Normalize status at the rendering boundary. Unknown telemetry states are
- * deliberately not treated as active; only explicit active/queued/terminal
- * values can create corresponding UI chrome.
- */
+/** Normalize status at the rendering boundary without inventing activity. */
 export function normalizeReactorStatus(value?: string | null): ReactorEventStatus {
   const status = String(value ?? "").toLowerCase();
   if (status === "active" || status === "running" || status === "in_progress") return "active";
   if (status === "queued" || status === "pending" || status === "waiting") return "queued";
   if (status === "error" || status === "failed" || status === "failure" || status === "timeout") return "failed";
   return "done";
+}
+
+/** Convert raw span status into the shared live-activity vocabulary. */
+export function normalizeLiveActivityStatus(value?: string | null): LiveActivityStatus {
+  const status = String(value ?? "").toLowerCase();
+  if (status === "active" || status === "running" || status === "in_progress") return "active";
+  if (status === "queued" || status === "pending" || status === "waiting") return "queued";
+  if (status === "error" || status === "failed" || status === "failure" || status === "timeout") return "failed";
+  return "completed";
+}
+
+/**
+ * Normalize a DigSpan once, preserving causal identity and recorded facts.
+ * This adapter intentionally performs no polling, inference, or tool
+ * catalogue lookup; consumers receive the same semantic truth.
+ */
+export function normalizeLiveActivity(span: ReactorSpanLike): LiveActivity {
+  return {
+    id: String(span.id),
+    parentId: span.parentSpanId,
+    jobId: span.jobId,
+    target: span.targetName,
+    actor: span.agentName,
+    agent: span.agentName,
+    operation: span.operationName,
+    tool: span.toolName,
+    spanType: span.spanType,
+    status: normalizeLiveActivityStatus(span.status),
+    startedAt: span.startedAt,
+    endedAt: span.endedAt,
+    inputSummary: cleanResearchText(span.inputSummary, 360),
+    resultSummary: cleanResearchText(span.resultSummary, 700),
+    sourceUrls: span.sourceUrls?.filter((url) => {
+      try {
+        return /^https?:$/i.test(new URL(url).protocol);
+      } catch {
+        return false;
+      }
+    }).slice(0, 8),
+  };
 }
 
 /** Stable identity for a live event. Prefer an instrumentation id when one exists. */
