@@ -1,0 +1,41 @@
+name: Architecture hardening verification
+on:
+  push:
+    branches: [apex/architecture-hardening-2026-09-08]
+permissions:
+  contents: write
+jobs:
+  verify-fix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Repair bounded Atlas edit and verify source contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('artifacts/api-server/src/src/lib/atlas-orchestrator.ts')
+          s=p.read_text()
+          old='''      // Evidence persistence is independent of card publication.\n\n          updatedAt: new Date(),\n        }).where(eq(entitiesTable.id, entity.id));\n      }'''
+          if old not in s:
+              raise SystemExit('malformed Atlas replacement not found exactly')
+          s=s.replace(old, '', 1)
+          p.write_text(s)
+          PY
+          grep -R -n -E 'rehydrateEntityCardFromEvidence|rehydrateAllEntityCardsFromEvidence|promoteBureauContactsToEntityCard|groq-final-review-fallback|generateGroqBossText' artifacts/api-server/src scripts/check-unified-investigator-architecture.mjs || true
+          node scripts/check-unified-investigator-architecture.mjs
+          pnpm install --no-frozen-lockfile --ignore-scripts --fetch-retries=8 --fetch-timeout=120000 --registry=https://registry.npmjs.org/
+          pnpm --dir artifacts/api-server run build
+          pnpm run typecheck
+      - name: Commit verified source and remove temporary workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/architecture-hardening-fix-once.yml
+          git add artifacts/api-server/src/src/lib/atlas-orchestrator.ts
+          git commit -m "fix: verify architecture hardening source integrity"
+          git push
