@@ -145,27 +145,7 @@ router.post("/entities/fix-outcome-honesty", async (req, res): Promise<void> => 
   }
 });
 
-// POST /entities/rehydrate-contacts — promote durable contact_evidence onto entity cards
-router.post("/entities/rehydrate-contacts", async (req, res): Promise<void> => {
-  try {
-    const limit = Math.min(200, Math.max(1, Number(req.body?.limit ?? req.query?.limit ?? 50) || 50));
-    const { rehydrateAllEntityCardsFromEvidence, rehydrateEntityCardFromEvidence } = await import("../lib/bureau-contact-persist");
-    const entityId = Number(req.body?.entityId ?? 0);
-    if (entityId > 0) {
-      const ok = await rehydrateEntityCardFromEvidence(entityId);
-      void delCachePattern("entities:list:*");
-      void delCachePattern("dashboard:*");
-      res.json({ ok, entityId });
-      return;
-    }
-    const result = await rehydrateAllEntityCardsFromEvidence(limit);
-    void delCachePattern("entities:list:*");
-    void delCachePattern("dashboard:*");
-    res.json(result);
-  } catch (err) {
-    res.status(500).json({ error: err instanceof Error ? err.message : String(err) });
-  }
-});
+);
 
 // GET /entities
 router.get("/entities", async (req, res): Promise<void> => {

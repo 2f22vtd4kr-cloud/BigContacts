@@ -231,47 +231,9 @@ export async function runFinalTargetReview(
     logger.debug({ err: err?.message }, "final-review NVIDIA right-hand unavailable");
   }
 
-  // 3) Groq capacity fallback (multi-model)
-  const models = [...new Set([GROQ_MODEL, ...GROQ_CHAT_MODELS, GROQ_MODEL_FAST].filter(Boolean))];
-  for (const key of getGroqKeys()) {
-    if (isExhausted(_exhaustedGroqKeys, key)) continue;
-    for (const model of models) {
-      try {
-        const response = await fetch(GROQ_API, {
-          method: "POST",
-          headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-          body: JSON.stringify({
-            model,
-            messages: [
-              {
-                role: "system",
-                content:
-                  "You are covering final card review because Gemini Boss and NVIDIA right-hand were unavailable. ONE JSON object only. Never invent.",
-              },
-              { role: "user", content: prompt },
-            ],
-            temperature: 0,
-            max_tokens: 700,
-            response_format: { type: "json_object" },
-          }),
-          signal: AbortSignal.timeout(20_000),
-        });
-        if (response.status === 429) {
-          _exhaustedGroqKeys.set(key, Date.now() + EXHAUSTED_TTL_MS);
-          break;
-        }
-        if (!response.ok) continue;
-        const data = await response.json() as any;
-        const raw = data?.choices?.[0]?.message?.content ?? "";
-        const json = extractJsonObject(raw);
-        if (!json) continue;
-        return adjudicateFinalTargetReview(input, JSON.parse(json), `groq-final-review-fallback:${model}`);
-      } catch {
-        // next model/key
-      }
-    }
-  }
-
+  // No investigator provider is allowed to replace Gemini Boss/NVIDIA final review.
+  // If both oversight layers are unavailable, the deterministic adjudicator receives
+  // an empty model decision and therefore fail-closes without publishing a card.
   return adjudicateFinalTargetReview(input, {}, "unavailable-final-review");
 }
 

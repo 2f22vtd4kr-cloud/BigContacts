@@ -66,7 +66,6 @@ import { isAgenticPhoneSource, isNoticePhoneSource, isProtectedPhoneSource, reso
 import {
   expandSecondaryPublicSurface,
   persistBureauContactsForEntity,
-  rehydrateEntityCardFromEvidence,
 } from "./bureau-contact-persist";
 
 // ── Jurisdiction → approximate coordinates lookup (for asset geocoding) ───────
@@ -2333,13 +2332,8 @@ async function runModelSelectedDiscoveryBureau(
           "Every finding must retain an exact public source URL; never invent a person, route, relationship, or URL.",
         ].filter(Boolean).join("\n"),
       });
-      // Promotion is evidence/card mapping, not a research-path gate. Preserve
-      // any valid source-backed evidence even when the investigator stops on a
-      // budget/timeout boundary; terminal integrity remains visible separately.
-      const rehydrated = await rehydrateEntityCardFromEvidence(entity.id);
-      if (rehydrated) {
-        await db.update(entitiesTable).set({
-          cookedAt: new Date(),
+      // Evidence persistence is independent of card publication.
+
           updatedAt: new Date(),
         }).where(eq(entitiesTable.id, entity.id));
       }

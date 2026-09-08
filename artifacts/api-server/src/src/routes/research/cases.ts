@@ -11,7 +11,6 @@ import {
   collectDiscoveryContactsForTarget,
   expandSecondaryPublicSurface,
   persistBureauContactsForEntity,
-  rehydrateEntityCardFromEvidence,
 } from "../../lib/bureau-contact-persist";
 import {
   filterDiscoveryCandidatesByFitness,
@@ -3052,9 +3051,6 @@ router.post("/research/bureau/cases/:caseId/promote-target", async (req, res): P
 
   // Copy discovery + case hierarchy contacts onto the target entity for profile cards.
   await persistBureauContactsForEntity(entity.id, promoteContacts, "case-bureau-promote");
-  try {
-    await rehydrateEntityCardFromEvidence(entity.id);
-  } catch { /* non-fatal */ }
   try {
     await expandSecondaryPublicSurface({
       entityId: entity.id,
