@@ -126,7 +126,7 @@ export async function launchAtlasPipeline(
       ok: false,
       message:
         e?.message ??
-        "Could not reach api-server. Deploy the research API and proxy /api to launch Atlas for real.",
+        "Could not reach api-server. Deploy the research API and proxy /api to launch Atlas.",
     };
   }
 }
@@ -142,3 +142,52 @@ export async function stopAtlasPipeline(jobId?: string): Promise<LaunchAtlasResu
       body: JSON.stringify(jobId ? { jobId } : {}),
     });
     const data = await readApiJson(res);
+    if (res.ok) {
+      return { ok: true, jobId: data?.jobId, message: data?.message ?? "Atlas research stopped." };
+    }
+    if (res.status === 404) {
+      const q = jobId ? `?jobId=${encodeURIComponent(jobId)}` : "";
+      const lockRes = await fetch(`${BASE}/api/ingest/atlas-lock${q}`, { method: "DELETE" });
+      const lockData = await readApiJson(lockRes);
+      if (!lockRes.ok) {
+        return { ok: false, message: lockData?.message ?? lockData?.error ?? `Stop failed (HTTP ${lockRes.status})` };
+      }
+      return { ok: true, jobId: lockData?.jobId, message: lockData?.message ?? "Atlas research stopped." };
+    }
+    return { ok: false, message: data?.message ?? data?.error ?? `Stop failed (HTTP ${res.status})` };
+  } catch (e: any) {
+    return { ok: false, message: e?.message ?? "Could not reach api-server to stop Atlas." };
+  }
+}
+
+export async function pauseAtlasPipeline(jobId?: string): Promise<LaunchAtlasResult> {
+  if (isMockMode()) return { ok: true, mock: true, message: "Mock mode — nothing to pause." };
+  try {
+    const res = await fetch(`${BASE}/api/ingest/atlas-pause`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(jobId ? { jobId } : {}),
+    });
+    const data = await readApiJson(res);
+    if (!res.ok) return { ok: false, message: data?.message ?? data?.error ?? `Pause failed (HTTP ${res.status})` };
+    return { ok: true, jobId: data?.jobId, message: data?.message ?? "Atlas paused." };
+  } catch (e: any) {
+    return { ok: false, message: e?.message ?? "Could not reach api-server to pause Atlas." };
+  }
+}
+
+export async function resumeAtlasPipeline(jobId?: string): Promise<LaunchAtlasResult> {
+  if (isMockMode()) return { ok: true, mock: true, message: "Mock mode — nothing to resume." };
+  try {
+    const res = await fetch(`${BASE}/api/ingest/atlas-resume`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(jobId ? { jobId } : {}),
+    });
+    const data = await readApiJson(res);
+    if (!res.ok) return { ok: false, message: data?.message ?? data?.error ?? `Resume failed (HTTP ${res.status})` };
+    return { ok: true, jobId: data?.jobId, message: data?.message ?? "Atlas resumed." };
+  } catch (e: any) {
+    return { ok: false, message: e?.message ?? "Could not reach api-server to resume Atlas." };
+  }
+}
