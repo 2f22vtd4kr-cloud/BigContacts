@@ -16,7 +16,7 @@
  * - AgentPrism (span tree UI concepts):
  *   https://github.com/evilmartians/agent-prism
  * - Sentry AI agent observability:
- *   https://blog.sentry.io/ai-agent-observability-developers-guide-to-ai-agent-observability/
+ *   https://blog.sentry.io/ai-agent-observability-developers-guide-to-agent-monitoring/
  *
  * Contract: in-memory ring buffer only (status plane must stay fast under dig load).
  * Redis optional mirror is intentionally NOT required for /atlas-status.
@@ -58,7 +58,7 @@ const byJob = new Map<string, DigSpan[]>();
 let globalRing: DigSpan[] = [];
 
 function uid(): string {
-  return `sp_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+  return `sp_${Date.now().toString(36)}_${Math.random().toString(36).slice(0, 8)}`;
 }
 
 function pushRing(list: DigSpan[], span: DigSpan, cap: number): DigSpan[] {
@@ -212,7 +212,7 @@ export function spanFromLiveStep(step: {
 /**
  * Map DigSpan → OTel GenAI-shaped attribute bag (for future exporters).
  * @see https://opentelemetry.io/docs/specs/semconv/gen-ai/
- * @see https://www.honeycomb.io/blog/instrumenting-ai-agents-agent-timeline-opentelemetry-guide
+ * @see https://www.honeycomb.io/blog/instrumenting-ai-agents-agent-timeline-guide
  */
 export function toOtelGenAiAttributes(span: DigSpan): Record<string, string> {
   const out: Record<string, string> = {
