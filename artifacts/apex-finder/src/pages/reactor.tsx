@@ -2019,7 +2019,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
         )}
         {schemeToolsOnly && <ReactorActivityOnly nodes={NODES.filter((n) => schemeNodesFromSpans(atlasState?.recentSpans).has(n.id))} />}
         {!isLive && (
-          <div data-testid="reactor-standby-scheme">
+          <>
         {/* Scheme canvas — standby/explanatory only; live mode uses telemetry activity above */}
                 <div
           data-testid="scheme-zoom-controls"
@@ -2432,7 +2432,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
       </div>{/* scheme scaled content */}
       </div>{/* scheme canvas sized box */}
       </div>{/* scheme-scroll-viewport */}
-          </div>{/* reactor-standby-scheme */}
+          </>
         )}
       </div>{/* main column: desk above scheme */}
 

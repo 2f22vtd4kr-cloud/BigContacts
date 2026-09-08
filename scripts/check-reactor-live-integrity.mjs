@@ -28,7 +28,10 @@ const mobile = read(files.mobile);
 
 const legacyCanvasMarker = "Scheme canvas — standby/explanatory only; live mode uses telemetry activity above";
 const activityMarker = "<ReactorActivityOnly";
-const staticCanvasIsExplicitlyStandby = /!isLive\s*&&\s*\(\s*<div[^>]*data-testid=\"reactor-standby-scheme\"/.test(page) && page.includes(legacyCanvasMarker);
+// The legacy scheme is deliberately grouped in a fragment because its existing
+// canvas contains its own flex wrappers. The fragment keeps the standby gate
+// structural without adding another layout box.
+const staticCanvasIsExplicitlyStandby = /!isLive\s*&&\s*\(\s*(?:<>\s*)?\{\/\*\s*Scheme canvas/.test(page) && page.includes(legacyCanvasMarker);
 const staticCanvasIsAfterLiveSurface = (() => {
   const liveAt = page.indexOf(activityMarker);
   const canvasAt = page.indexOf(legacyCanvasMarker);
@@ -43,6 +46,7 @@ const checks = [
   ["shared live store uses useSyncExternalStore", /useSyncExternalStore/.test(store) && /subscribe/.test(store)],
   ["shared store reads atlas-status recentSpans", /atlas-status/.test(store) && /recentSpans/.test(store)],
   ["graph consumes shared telemetry store", /useReactorLiveTelemetry/.test(activity)],
+  ["graph renders only active tool spans", /status === "active" && activity\.spanType === "tool" && Boolean\(activity\.tool\)/.test(activity)],
   ["graph has no private atlas-status polling loop", !/setInterval\(|fetch\([^\n]*atlas-status/.test(activity)],
   ["live surface consumes shared telemetry store", /useReactorLiveTelemetry/.test(surface)],
   ["live surface refuses bureau prose when a run has no observed spans", /running job with no observed spans/.test(surface)],

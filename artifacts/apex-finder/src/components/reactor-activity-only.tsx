@@ -84,7 +84,7 @@ export function ReactorActivityOnly({ activities }: { activities?: LiveActivity[
   }, []);
 
   const activeActivities = useMemo(() => sourceActivities
-    .filter((activity) => activity.status === "active")
+    .filter((activity) => activity.status === "active" && activity.spanType === "tool" && Boolean(activity.tool))
     .sort((a, b) => timeOf(a) - timeOf(b)), [sourceActivities]);
 
   const activeNodes = useMemo<LiveNode[]>(() => activeActivities.map((activity) => ({
@@ -264,7 +264,7 @@ export function ReactorActivityOnly({ activities }: { activities?: LiveActivity[
         </div>
       )}
       <div style={{ marginTop: 8, textAlign: "center", color: "#334155", fontSize: 8, letterSpacing: "0.12em", textTransform: "uppercase" }}>
-        Live telemetry only · active nodes disappear when spans retire · solid links are observed parent flow · dashed links are inferred sequence
+        Live telemetry only · active tool spans only · nodes disappear when tool spans retire · solid links are observed parent flow · dashed links are inferred sequence
       </div>
     </div>
   );
