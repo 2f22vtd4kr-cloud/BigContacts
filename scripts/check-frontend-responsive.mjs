@@ -43,13 +43,9 @@ const checks = [
   ["reactor has reduced-motion handling", /prefersReducedMotion/.test(reactor) && /prefers-reduced-motion/.test(css)],
   ["mobile live state requires recent bureau activity", /recentBureauMs/.test(mobile) && /90_000/.test(mobile)],
   ["mobile flow has history instead of only current state", /showHistory/.test(mobile)],
-  // The application shell owns horizontal clipping on the scrolling surface;
-  // requiring a particular global CSS spelling made this contract fail even
-  // though Layout already enforced the intended behavior.
-  ["page shell clips horizontal overflow", /overflow-x-hidden/.test(layout)],
-  // Long model/source strings are explicitly protected at the component level.
-  // Check the production source rather than demanding a global CSS rule that
-  // can have undesirable effects on code, URLs, and fixed-layout controls.
+  // Layout owns the page-level clipping surface with overflow-hidden. Individual
+  // horizontal strips intentionally opt into overflow-x-auto where needed.
+  ["page shell clips horizontal overflow", /overflow-hidden/.test(layout)],
   ["page shell wraps long content", /break-words|break-all|overflow-wrap\s*:\s*anywhere/.test(appSource)],
 ];
 
@@ -59,9 +55,6 @@ for (const [label, ok] of checks) {
   if (!ok) failed = true;
 }
 
-// Guard against the exact UX regression called out in Volume 15: the live UI
-// must not invent a fixed six-step trajectory. This is intentionally a source
-// check, not a runtime claim about the model.
 const fixedStepLanguage = /(?:step|window)\s+\$?\{?\w*\}?\s*(?:of|\/)\s*(?:6|6\b|planned)/i;
 if (fixedStepLanguage.test(reactor) || fixedStepLanguage.test(mobile)) {
   console.error("FAIL  fixed-step/window language detected in production reactor source");
