@@ -10,6 +10,7 @@ import { humanizeLiveStep, isInternalLiveDump } from "@/lib/humanize-live-copy";
 import { formatSchedulerCountdown, schedulerWaitRemaining } from "./scheduler-utils";
 import { BureauOpsStage } from "./bureau-ops-stage";
 import { useBureauLiveDesk } from "../lib/use-bureau-live";
+import { useReactorLiveTelemetry } from "../lib/reactor-live-store";
 import { REACTOR_ARM_MS, REACTOR_CSS, REACTOR_CELEBRATE_MS, REACTOR_SHIMMER_MS, REACTOR_SCENE_MS, REACTOR_UI_MS, motionOrNone, prefersReducedMotion } from "../lib/reactor-motion";
 
 interface ResearchSession {
@@ -154,35 +155,8 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
     syncing,
   } = props;
 
-  // Job status + recent log heartbeat — never LIVE on zombie Redis "running".
-  const atlasRunning =
-    Boolean(atlasState) &&
-    (atlasState!.runStatus === "running" || atlasState!.runStatus === "paused");
-  const recentSpanMs = (() => {
-    const spans = (atlasState as any)?.recentSpans;
-    if (!Array.isArray(spans) || spans.length === 0) return null as number | null;
-    const now = Date.now();
-    let newest = 0;
-    for (const span of spans.slice(0, 24)) {
-      if (String(span?.status || "") === "active") return 0;
-      const t = Date.parse(String(span?.startedAt || span?.endedAt || ""));
-      if (Number.isFinite(t) && t > newest) newest = t;
-    }
-    return newest > 0 ? now - newest : null;
-  })();
-  const recentBureauMs = (() => {
-    const log = (atlasState as any)?.eventLog;
-    if (!Array.isArray(log) || log.length === 0) return null as number | null;
-    let newest = 0;
-    for (const e of log.slice(0, 8)) {
-      const t = Date.parse(String(e?.timestamp || ""));
-      if (Number.isFinite(t) && t > newest) newest = t;
-    }
-    return newest > 0 ? Date.now() - newest : null;
-  })();
-  const isLive = Boolean(
-    atlasRunning && (recentSpanMs === 0 || recentSpanMs != null && recentSpanMs < 90_000 || recentBureauMs == null || recentBureauMs < 90_000),
-  );
+  const { runStatus: telemetryRunStatus, activities: telemetryActivities } = useReactorLiveTelemetry();
+  const isLive = telemetryRunStatus === "running" || telemetryRunStatus === "paused";
   const [showHistory, setShowHistory] = React.useState(false);
   const [jumpToLiveSignal, setJumpToLiveSignal] = React.useState(0);
   const [edgeHint, setEdgeHint] = React.useState<string | null>(null);
@@ -288,108 +262,26 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
     }
     return list;
   }, [deskEvents, showHistory, historyFilter, historyQuery]);
-  // Live desk: current target only; drop stale "done" windows; inject telemetry when bureau tail is old
+  // Live desk is telemetry-authoritative. Historical bureau narration remains an archive only.
   const liveEvents = React.useMemo(() => {
     if (showHistory) return filteredDeskEvents;
-    // Idle / cancelled / failed / done: empty live strip — history is the archive
     if (!isLive) return [] as typeof deskEvents;
-    const current =
-      atlasState?.atlasTelemetry?.targetName
-      || atlasState?.targetName
-      || [...deskEvents].reverse().find((e: any) => e?.targetName && !/complete|done/i.test(String(e?.status || "")))?.targetName;
-    const now = Date.now();
-    let scoped = current
-      ? deskEvents.filter((e: any) => !e?.targetName || e.targetName === current)
-      : deskEvents;
-    // While Atlas is live, ignore events older than 3 minutes so stale finished tool cards do not look current
-    if (isLive) {
-      scoped = scoped.filter((e: any) => {
-        if (!e?.timestamp) return true;
-        const ts = Date.parse(String(e.timestamp));
-        if (!Number.isFinite(ts)) return true;
-        return now - ts < 180_000;
-      });
-    }
-    // HUMAN_DESK_FILTER_V1
-    const cleanedScoped = scoped.filter((e: any) => {
-      const blob = [e?.story, e?.inputSummary, e?.resultSummary, e?.stage, e?.raw].filter(Boolean).join(" ");
-      if (isInternalLiveDump(blob) && !e?.targetName) return false;
-      if (/BOSS_DISCOVERY_DIRECTION/i.test(blob)) {
-        e.story = "Boss set the research brief";
-        e.stage = "boss";
-        e.inputSummary = undefined;
-        e.resultSummary = undefined;
-      }
-      return true;
-    });
-    const out = cleanedScoped.slice(-6);
-    // If live but desk only has finished/stale steps, surface the live phase as one active window
-    const tel = atlasState?.atlasTelemetry as any;
-    const allDone = out.length > 0 && out.every((e: any) => /complete|done|success/i.test(String(e?.status || "")));
-    if (isLive && tel?.targetName && (out.length === 0 || allDone)) {
-      out.push({
-        timestamp: new Date().toISOString(),
-        kind: "log",
-        stage: tel.stage || atlasState?.detail || "Research",
-        status: "active",
-        targetName: tel.targetName,
-        activeToolId: tel.activeToolId,
-        toolIds: Array.isArray(tel.toolIds) ? tel.toolIds : [],
-        inputSummary: tel.inputSummary,
-        resultSummary: tel.resultSummary,
-        story: tel.story || tel.inputSummary || tel.stage,
-      } as any);
-    }
-    // SPAN_FEED_FALLBACK_V1: map recentSpans → plain-language Now/Done lines when
-    // eventLog/deskEvents are empty (common during discovery-first free-ReAct).
-    if (isLive && out.length === 0) {
-      const spans = Array.isArray(atlasState?.recentSpans) ? atlasState!.recentSpans! : [];
-      const toolish = spans.filter((s) => {
-        const t = String(s.spanType || "");
-        const n = String(s.name || "");
-        return t === "tool" || n === "web_search" || n === "visit" || n === "browser_fetch"
-          || n === "llm_step" || t === "stage" || n === "discovery_slot";
-      }).slice(-8);
-      for (const s of toolish) {
-        const name = String(s.name || s.spanType || "step");
-        const active = String(s.status || "") === "active";
-        const input = String(s.inputSummary || "").slice(0, 160);
-        const result = String(s.resultSummary || "").slice(0, 120);
-        const human = humanizeLiveStep({
-          name,
-          spanType: String(s.spanType || ""),
-          status: String(s.status || ""),
-          inputSummary: input,
-          resultSummary: result,
-          active,
-        });
-        const story = human.title + ": " + human.detail;
-        out.push({
-          timestamp: s.startedAt || new Date().toISOString(),
-          kind: "log",
-          stage: name,
-          status: active ? "active" : (String(s.status) === "error" ? "error" : "complete"),
-          targetName: s.targetName || atlasState?.detail || "discovery",
-          activeToolId: name,
-          toolIds: [name],
-          inputSummary: input,
-          resultSummary: result,
-          story,
-        } as any);
-      }
-      if (out.length === 0 && atlasState?.detail) {
-        out.push({
-          timestamp: new Date().toISOString(),
-          kind: "log",
-          stage: "atlas",
-          status: "active",
-          targetName: atlasState.detail,
-          story: "Now: " + atlasState.detail,
-        } as any);
-      }
-    }
-    return out;
-  }, [showHistory, filteredDeskEvents, deskEvents, atlasState?.atlasTelemetry, atlasState?.targetName, atlasState?.detail, atlasState?.recentSpans, isLive]);
+    return telemetryActivities
+      .map((activity) => ({
+        timestamp: activity.startedAt || activity.endedAt,
+        kind: "telemetry",
+        stage: activity.operation || activity.tool || activity.spanType || "research",
+        status: activity.status === "active" ? "active" : activity.status === "failed" ? "error" : "complete",
+        targetName: activity.target,
+        activeToolId: activity.tool,
+        toolIds: activity.tool ? [activity.tool] : [],
+        inputSummary: activity.inputSummary,
+        resultSummary: activity.resultSummary,
+        story: activity.resultSummary || activity.inputSummary,
+        sourceUrls: activity.sourceUrls,
+      }))
+      .filter((event) => Boolean(event.story || event.inputSummary || event.resultSummary));
+  }, [showHistory, filteredDeskEvents, deskEvents, telemetryActivities, isLive]);
 
   // Discrete polite announcements: arming → first scene → REACH (no per-tick spam)
   React.useEffect(() => {

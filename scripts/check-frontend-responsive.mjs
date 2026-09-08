@@ -41,7 +41,7 @@ const checks = [
   ["reactor derives visible tools from observed spans", /schemeNodesFromSpans/.test(reactor)],
   ["reactor supports pointer panning", /setPointerCapture/.test(reactor)],
   ["reactor has reduced-motion handling", /prefersReducedMotion/.test(reactor) && /prefers-reduced-motion/.test(css)],
-  ["mobile live state requires recent bureau activity", /recentBureauMs/.test(mobile) && /90_000/.test(mobile)],
+  ["mobile live state is telemetry-authoritative", /useReactorLiveTelemetry/.test(mobile) && /telemetryActivities/.test(mobile) && !/recentBureauMs|90_000|activeWindow/.test(mobile)],
   ["mobile flow has history instead of only current state", /showHistory/.test(mobile)],
   // Layout owns the page-level clipping surface with overflow-hidden. Individual
   // horizontal strips intentionally opt into overflow-x-auto where needed.
