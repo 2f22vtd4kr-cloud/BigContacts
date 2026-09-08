@@ -474,12 +474,12 @@ export async function generateGeminiBossText(
           const detail = (await response.text().catch(() => "")).slice(0, 300);
           lastError = `Gemini Boss ${model} text-generation HTTP ${response.status}${detail ? `: ${detail}` : ""}`;
           logger.warn(
-            { model, status: response.status, keyName: entry.name },
-            "Gemini Boss text-generation capacity busy; trying next model/key (not a web-search failure)",
+            { model, status: response.status, keyName: entry.name, detail },
+            "Gemini Boss text-generation capacity busy; stopping this Boss attempt (not a web-search failure)",
           );
-          // Capacity backoff: avoid tight-looping the same rate-limited pool
-          await new Promise((r) => setTimeout(r, 1200 + Math.floor(Math.random() * 1800)));
-          continue;
+          // A 429/503 is commonly project/model capacity, not a model-local
+          // failure. Do not fan out across the catalog and spend more quota.
+          return { model, raw: null, error: lastError };
         }
         if (!response.ok) {
           const detail = (await response.text().catch(() => "")).slice(0, 300);

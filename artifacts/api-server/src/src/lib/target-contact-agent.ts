@@ -55,11 +55,13 @@ export function findingsToContacts(
 }
 
 /** Run free ReAct Dig for one target. No legacy evidence rehydration is allowed here. */
-export async function runTargetContactAgent(input: { entityId: number; targetName: string; companyName?: string | null; jobId?: string; maxIterations?: number; hardTimeoutMs?: number }): Promise<TargetContactAgentResult> {
+export async function runTargetContactAgent(input: { entityId: number; targetName: string; companyName?: string | null; jobId?: string; maxIterations?: number; hardTimeoutMs?: number; investigatorLlm?: "groq" | "mistral" }): Promise<TargetContactAgentResult> {
   const name = (input.targetName ?? "").trim();
   if (!input.entityId || name.length < 2) return { status: "skipped", model: "none", findings: 0, searches: 0, visits: 0, phone: null, email: null, phoneSource: null, contactOutcome: null };
 
   const depth = resolveResearchDepth();
+  const investigatorLlm = input.investigatorLlm
+    ?? (process.env.GROQ_API_KEY ? "groq" : process.env.MISTRAL_API_KEY ? "mistral" : undefined);
   logger.info({ entityId: input.entityId, depth: describeResearchDepth(depth) }, "[target-agent] dig depth");
   const objective = [
     `Research the public identity and contact surface for ${name}${input.companyName ? ` linked to ${input.companyName}` : ""}.`,
@@ -80,6 +82,7 @@ export async function runTargetContactAgent(input: { entityId: number; targetNam
     targetName: name,
     companyName: input.companyName ?? null,
     objective,
+    investigatorLlm,
     jobId: input.jobId ?? null,
     maxIterations: input.maxIterations ?? depth.agenticMaxIterations,
     hardTimeoutMs: input.hardTimeoutMs ?? depth.agenticHardTimeoutMs,

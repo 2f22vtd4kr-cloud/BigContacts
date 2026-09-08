@@ -482,19 +482,22 @@ Return ONLY JSON:
   "stop": false
 }`;
 
-  // 1) Boss — free reasoning
-  try {
-    const { resolveGeminiBossModel, generateGeminiBossText } = await import("./case-bureau");
-    const selection = await resolveGeminiBossModel();
-    if (selection?.model) {
-      const out = await generateGeminiBossText(selection, prompt);
-      if (out.raw) {
-        const choice = parseFreeBossStep(out.raw, state);
-        if (choice) return { action: choice, assignedBy: "gemini-boss" };
+  // 1) Boss — free reasoning for the opening move only. Gemini is the
+  // case-level planner, not a per-search-loop web-research controller.
+  if (state.completedActions.length === 0) {
+    try {
+      const { resolveGeminiBossModel, generateGeminiBossText } = await import("./case-bureau");
+      const selection = await resolveGeminiBossModel();
+      if (selection?.model) {
+        const out = await generateGeminiBossText(selection, prompt);
+        if (out.raw) {
+          const choice = parseFreeBossStep(out.raw, state);
+          if (choice) return { action: choice, assignedBy: "gemini-boss" };
+        }
       }
+    } catch {
+      /* fall through */
     }
-  } catch {
-    /* fall through */
   }
 
   // 2) Right-hand — free assign (not final-card review)
