@@ -34,7 +34,7 @@ jobs:
           }
           return rows.length;'''
           replacement = '''  // Evidence persistence ends here. Card mutation belongs exclusively to
-  // the explicit investigator-selected promotion boundary.
+          // the explicit investigator-selected promotion boundary.
   return rows.length;'''
           if s.count(auto) != 1:
               raise SystemExit('expected exactly one legacy auto-promotion block')
@@ -74,19 +74,21 @@ export async function rehydrateEntityCardFromEvidence(_entityId: number): Promis
           p.write_text(s2)
           PY
           git diff --check
-          git diff --check
-          grep -n "promoteBureauContactsToEntityCard(entityId" artifacts/api-server/src/src/lib/bureau-contact-persist.ts && exit 1 || true
-          grep -n "efts.sec.gov/LATEST/search-index" artifacts/api-server/src/src/lib/bureau-contact-persist.ts && exit 1 || true
+          if grep -n "promoteBureauContactsToEntityCard(entityId" artifacts/api-server/src/src/lib/bureau-contact-persist.ts; then exit 1; fi
+          if grep -n "efts.sec.gov/LATEST/search-index" artifacts/api-server/src/src/lib/bureau-contact-persist.ts; then exit 1; fi
           git diff --stat
       - name: Verify targeted boundary tests
         run: |
           pnpm install --frozen-lockfile
           pnpm --dir artifacts/api-server exec vitest run src/src/test/bureau-contact-persist-strict.test.ts src/src/test/agentic-scope-boundary.test.ts src/src/test/investigator-promotion-contract.test.ts
-      - name: Commit and remove one-time workflow
+      - name: Commit branch hardening when needed
         run: |
+          if git diff --quiet -- artifacts/api-server/src/src/lib/bureau-contact-persist.ts; then
+            echo 'legacy boundary already hardened'; exit 0
+          fi
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add artifacts/api-server/src/src/lib/bureau-contact-persist.ts
-          git rm .github/workflows/apex-evidence-card-boundary-hardening.yml
           git commit -m 'fix: enforce explicit evidence to card promotion boundary'
           git push origin HEAD:${{ github.event.pull_request.head.ref }}
+# retrigger verification after base workflow installation
