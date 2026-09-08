@@ -1,7 +1,7 @@
 /**
  * Atlas Routes
  *
- * POST /api/ingest/atlas-run   — Launch the full 10-phase Apex Atlas pipeline
+ * POST /api/ingest/atlas-run   — Launch the full Apex Atlas pipeline
  * DELETE /api/ingest/atlas-lock — Clear ghost Atlas lock
  * GET  /api/ingest/atlas-status — Current Atlas job status
  */
@@ -9,6 +9,7 @@
 import { Router, type Request, type Response } from "express";
 import { createJob, getActiveJob, getLatestJob, getJob, setActiveJob, updateJob, clearActiveJobIfOwned } from "../lib/job-queue";
 import { runAtlasPipeline, type AtlasOptions } from "../lib/atlas-orchestrator";
+import { CANONICAL_ATLAS_LAUNCH_BODY } from "../lib/atlas-launch-defaults";
 import { logger } from "../lib/logger";
 import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
@@ -27,23 +28,45 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
   }
 
   const body = (req.body ?? {}) as Record<string, unknown>;
+  const singleTargetRaw = body.singleTargetId !== undefined ? Number(body.singleTargetId) : undefined;
+  const singleTargetId = Number.isInteger(singleTargetRaw) && (singleTargetRaw as number) > 0 ? singleTargetRaw as number : undefined;
+  const discoveryFirst = singleTargetId != null
+    ? false
+    : body.discoveryFirst !== undefined
+      ? Boolean(body.discoveryFirst)
+      : CANONICAL_ATLAS_LAUNCH_BODY.discoveryFirst;
 
-  const discoveryFirst = Boolean(body.discoveryFirst);
+  const requestedResearchDepth = String(body.researchDepth ?? CANONICAL_ATLAS_LAUNCH_BODY.researchDepth).toLowerCase();
+  const researchDepth = ["fast", "standard", "deep"].includes(requestedResearchDepth)
+    ? requestedResearchDepth as AtlasOptions["researchDepth"]
+    : CANONICAL_ATLAS_LAUNCH_BODY.researchDepth;
+
   const opts: AtlasOptions = {
-    targetCount:        Number(body.targetCount)       || (discoveryFirst ? 500 : 15_000),
+    targetCount:        Number(body.targetCount)       || (discoveryFirst ? 3 : CANONICAL_ATLAS_LAUNCH_BODY.targetCount),
     faaMaxRecords:      Number(body.faaMaxRecords)     || 60_000,
     includeLandRegistry: Boolean(body.includeLandRegistry),
-    batchSize:          Number(body.batchSize)         || 200,
-    phaseJBatchSize:    Number(body.phaseJBatchSize)   || 50,
+    batchSize:          Number(body.batchSize)         || CANONICAL_ATLAS_LAUNCH_BODY.batchSize,
+    phaseJBatchSize:    Number(body.phaseJBatchSize)   || CANONICAL_ATLAS_LAUNCH_BODY.phaseJBatchSize,
     skipIngestion:      Boolean(body.skipIngestion),
     hotLeadsOnly:       Boolean(body.hotLeadsOnly),
     runResearch:        body.runResearch !== false,
-    researchLimit:      Number(body.researchLimit)     || 10,
-    // ── Discovery-first diversified mode ──────────────────────────────────────
+    researchLimit:      Number(body.researchLimit)     || (singleTargetId != null ? 1 : CANONICAL_ATLAS_LAUNCH_BODY.researchLimit),
+    targetTimeoutMs:    Number(body.targetTimeoutMs)  || (singleTargetId != null ? 420_000 : CANONICAL_ATLAS_LAUNCH_BODY.targetTimeoutMs),
+    researchDepth,
+    singleTargetId,
     discoveryFirst,
-    skipFaa:            body.skipFaa !== undefined ? Boolean(body.skipFaa) : discoveryFirst,
-    broadCategories:    Number(body.broadCategories)   || (discoveryFirst ? 3 : 1),
+    skipFaa:            body.skipFaa !== undefined ? Boolean(body.skipFaa) : CANONICAL_ATLAS_LAUNCH_BODY.skipFaa,
+    broadCategories:   Number(body.broadCategories)   || (discoveryFirst ? CANONICAL_ATLAS_LAUNCH_BODY.broadCategories : 1),
   };
+
+  // A single-target operator action is never allowed to accidentally enter the
+  // autonomous people-discovery lane.
+  if (singleTargetId != null) {
+    opts.targetCount = 1;
+    opts.researchLimit = 1;
+    opts.discoveryFirst = false;
+    opts.broadCategories = 0;
+  }
 
   const atlasJobId = await createJob("atlas-run");
   await setActiveJob("atlas-run", atlasJobId);
@@ -51,7 +74,7 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
     status: "running",
     progress: 0, total: 10,
     atlasPhase: 0, atlasPhaseTotal: 10,
-    message: "Atlas pipeline initializing — 10 phases queued…",
+    message: "Atlas pipeline initializing…",
   });
 
   // Immediately repair isHot only for validated person-level direct contacts.
@@ -74,7 +97,6 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
     )
   `).catch(() => {});
 
-  // Fire and forget — run fully in background
   void (async () => {
     try {
       await runAtlasPipeline(atlasJobId, opts);
@@ -92,16 +114,14 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
   res.status(202).json({
     jobId: atlasJobId,
     pollUrl: `/api/ingest/job/${atlasJobId}`,
-    // There are eleven numbered checkpoints (0 through 10). `total: 10`
-    // remains the phase maximum, while the UI renders all eleven checkpoints.
     phases: [
-      "0 — Pre-run cross-references (OCCRP, OpenSky, Companies House, ownership)",
-      "1 — Discovery + full-circle entity enrichment loop",
+      "0 — Pre-run cross-references",
+      "1 — Discovery + full-circle entity enrichment",
       "2 — Identity and contact evidence",
       "3 — Metadata, notes, and registry assets",
       "4 — In-house OSINT",
       "5 — Social and messenger discovery",
-      "6 — AI OSINT + Maigret + Holehe",
+      "6 — AI OSINT + footprint tools",
       "7 — Forensic cross-reference and asset discovery",
       "8 — Phase J attribution and graph-assisted analysis",
       "9 — Semantic embeddings, wealth, and confidence recompute",
@@ -112,7 +132,6 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
   });
 });
 
-// ── DELETE /ingest/atlas-lock ─────────────────────────────────────────────────
 router.delete("/ingest/atlas-lock", async (_req: Request, res: Response): Promise<void> => {
   const activeJobId = await getActiveJob("atlas-run");
   const requestedJobId = Array.isArray(_req.query.jobId)
@@ -133,7 +152,6 @@ router.delete("/ingest/atlas-lock/:jobId", async (req: Request, res: Response): 
   res.json({ cleared: true, jobId, message: "Atlas job marked failed." });
 });
 
-// ── GET /ingest/atlas-status ──────────────────────────────────────────────────
 router.get("/ingest/atlas-status", async (_req: Request, res: Response): Promise<void> => {
   const jobId = await getActiveJob("atlas-run");
   if (!jobId) {
