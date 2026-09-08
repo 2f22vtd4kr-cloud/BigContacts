@@ -10,6 +10,7 @@ const files = {
   cases: path.join(root, "artifacts/api-server/src/src/routes/research/cases.ts"),
   orientation: path.join(root, "artifacts/api-server/src/src/lib/apex-bureau-orientation.ts"),
   finalReview: path.join(root, "artifacts/api-server/src/lib/ai-extractor.ts"),
+  persistence: path.join(root, "artifacts/api-server/src/src/lib/bureau-contact-persist.ts"),
   architecture: path.join(root, "docs/BUREAU_REACT_ARCHITECTURE.md"),
 };
 
@@ -36,6 +37,10 @@ assert(!/web_search routes Serper\s*[→>-]+\s*Tavily/i.test(source.orientation)
 // Groq/Mistral must never become a Boss/Right-hand/final-review decision layer.
 assert(!/generateGroqBossText|Groq text fallback for Boss/i.test(source.bureau), "Groq is still exposed as a Boss planning fallback.");
 assert(!/groq-final-review-fallback|Boss \(Gemini\).*NVIDIA.*Groq|Final card publication review.*Groq/i.test(source.finalReview), "Groq is still exposed as a final card review/decision layer.");
+
+// Evidence is not a card. Legacy durable-evidence rehydration/projectors are forbidden.
+assert(!/promoteBureauContactsToEntityCard|rehydrateEntityCardFromEvidence|rehydrateAllEntityCardsFromEvidence/.test(source.persistence), "Legacy bureau evidence-to-card projector/rehydration API remains present.");
+assert(!/rehydrateEntityCardFromEvidence|rehydrateAllEntityCardsFromEvidence/.test(source.cases + source.research), "Legacy evidence-only rehydration remains reachable from the research path.");
 
 // The selected Investigator must propagate from the Boss plan to the ReAct pass.
 assert(/investigatorLlm/.test(source.bureau), "Boss plan does not expose investigatorLlm.");
