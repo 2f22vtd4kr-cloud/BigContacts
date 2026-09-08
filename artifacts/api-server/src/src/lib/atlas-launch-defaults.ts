@@ -16,12 +16,19 @@ export const CANONICAL_ATLAS_LAUNCH_BODY = {
   /** Diversified discovery over bulk FAA-scale ingest */
   discoveryFirst: true,
   /**
-   * Discovery is model-driven: every slot is a real LLM research session.
-   * Keep the canonical operator run bounded so one launch cannot consume the
-   * provider pool before any target reaches target-scoped research.
+   * Number of people the Bureau is asked to deliver end-to-end.
+   * Discovery is the funnel for this same target goal; it must not run an
+   * arbitrary larger number of expensive LLM sessions and then discard them
+   * merely because researchLimit is smaller.
    */
-  targetCount: 6,
-  /** How many targets get full research depth this cycle */
+  targetCount: 3,
+  /**
+   * Full target-scoped research budget. In the canonical flow this matches
+   * targetCount: each admitted discovery target gets researched. The
+   * orchestrator may still research fewer when discovery cannot produce
+   * enough qualified people, but it must never manufacture targets to fill
+   * this number.
+   */
   researchLimit: 3,
   /** Always run research/enrichment for a bureau run */
   runResearch: true,
