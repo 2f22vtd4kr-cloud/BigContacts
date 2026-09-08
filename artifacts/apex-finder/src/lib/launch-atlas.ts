@@ -41,11 +41,14 @@ export async function launchAtlasPipeline(
 
   // Must match api-server CANONICAL_ATLAS_LAUNCH_BODY (docs/RUN_BUREAU.md).
   // singleTargetId digs: never default discoveryFirst — dig one person, no people hunt.
+  // Discovery defaults are intentionally bounded: each model-selected slot is a
+  // real research session, so a 50-slot default can burn the entire provider pool
+  // before the Bureau reaches target research. Operators can request more explicitly.
   const isSingle = opts.singleTargetId != null;
   const body = {
     discoveryFirst: opts.discoveryFirst ?? (isSingle ? false : true),
-    targetCount: opts.targetCount ?? (isSingle ? 1 : 50),
-    researchLimit: opts.researchLimit ?? (isSingle ? 1 : 10),
+    targetCount: opts.targetCount ?? (isSingle ? 1 : 6),
+    researchLimit: opts.researchLimit ?? (isSingle ? 1 : 3),
     runResearch: opts.runResearch !== false,
     hotLeadsOnly: opts.hotLeadsOnly ?? false,
     skipFaa: true,
@@ -124,13 +127,10 @@ export async function launchAtlasPipeline(
   }
 }
 
-
 export async function stopAtlasPipeline(jobId?: string): Promise<LaunchAtlasResult> {
   if (isMockMode()) {
     return { ok: true, mock: true, message: "Mock mode — nothing to stop." };
   }
-  // Prefer dedicated stop endpoint (sets cancelled). Fall back to DELETE lock
-  // which is also cancelled after the integrity fix — never mark operator stop as failed.
   try {
     const res = await fetch(`${BASE}/api/ingest/atlas-stop`, {
       method: "POST",
@@ -139,13 +139,8 @@ export async function stopAtlasPipeline(jobId?: string): Promise<LaunchAtlasResu
     });
     const data = await readApiJson(res);
     if (res.ok) {
-      return {
-        ok: true,
-        jobId: data?.jobId,
-        message: data?.message ?? "Atlas research stopped.",
-      };
+      return { ok: true, jobId: data?.jobId, message: data?.message ?? "Atlas research stopped." };
     }
-    // Fallback only if stop route is missing on older deploys
     if (res.status === 404) {
       const q = jobId ? `?jobId=${encodeURIComponent(jobId)}` : "";
       const lockRes = await fetch(`${BASE}/api/ingest/atlas-lock${q}`, { method: "DELETE" });
@@ -153,25 +148,16 @@ export async function stopAtlasPipeline(jobId?: string): Promise<LaunchAtlasResu
       if (!lockRes.ok) {
         return { ok: false, message: lockData?.message ?? lockData?.error ?? `Stop failed (HTTP ${lockRes.status})` };
       }
-      return {
-        ok: true,
-        jobId: lockData?.jobId,
-        message: lockData?.message ?? "Atlas research stopped.",
-      };
+      return { ok: true, jobId: lockData?.jobId, message: lockData?.message ?? "Atlas research stopped." };
     }
     return { ok: false, message: data?.message ?? data?.error ?? `Stop failed (HTTP ${res.status})` };
   } catch (e: any) {
-    return {
-      ok: false,
-      message: e?.message ?? "Could not reach api-server to stop Atlas.",
-    };
+    return { ok: false, message: e?.message ?? "Could not reach api-server to stop Atlas." };
   }
 }
 
 export async function pauseAtlasPipeline(jobId?: string): Promise<LaunchAtlasResult> {
-  if (isMockMode()) {
-    return { ok: true, mock: true, message: "Mock mode — nothing to pause." };
-  }
+  if (isMockMode()) return { ok: true, mock: true, message: "Mock mode — nothing to pause." };
   try {
     const res = await fetch(`${BASE}/api/ingest/atlas-pause`, {
       method: "POST",
@@ -179,9 +165,7 @@ export async function pauseAtlasPipeline(jobId?: string): Promise<LaunchAtlasRes
       body: JSON.stringify(jobId ? { jobId } : {}),
     });
     const data = await readApiJson(res);
-    if (!res.ok) {
-      return { ok: false, message: data?.message ?? data?.error ?? `Pause failed (HTTP ${res.status})` };
-    }
+    if (!res.ok) return { ok: false, message: data?.message ?? data?.error ?? `Pause failed (HTTP ${res.status})` };
     return { ok: true, jobId: data?.jobId, message: data?.message ?? "Atlas paused." };
   } catch (e: any) {
     return { ok: false, message: e?.message ?? "Could not reach api-server to pause Atlas." };
@@ -189,9 +173,7 @@ export async function pauseAtlasPipeline(jobId?: string): Promise<LaunchAtlasRes
 }
 
 export async function resumeAtlasPipeline(jobId?: string): Promise<LaunchAtlasResult> {
-  if (isMockMode()) {
-    return { ok: true, mock: true, message: "Mock mode — nothing to resume." };
-  }
+  if (isMockMode()) return { ok: true, mock: true, message: "Mock mode — nothing to resume." };
   try {
     const res = await fetch(`${BASE}/api/ingest/atlas-resume`, {
       method: "POST",
@@ -199,9 +181,7 @@ export async function resumeAtlasPipeline(jobId?: string): Promise<LaunchAtlasRe
       body: JSON.stringify(jobId ? { jobId } : {}),
     });
     const data = await readApiJson(res);
-    if (!res.ok) {
-      return { ok: false, message: data?.message ?? data?.error ?? `Resume failed (HTTP ${res.status})` };
-    }
+    if (!res.ok) return { ok: false, message: data?.message ?? data?.error ?? `Resume failed (HTTP ${res.status})` };
     return { ok: true, jobId: data?.jobId, message: data?.message ?? "Atlas resumed." };
   } catch (e: any) {
     return { ok: false, message: e?.message ?? "Could not reach api-server to resume Atlas." };
