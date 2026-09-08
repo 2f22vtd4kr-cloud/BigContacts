@@ -4,7 +4,7 @@ set -euo pipefail
 BASE="${1:-http://127.0.0.1:8080}"
 BODY='{
   "discoveryFirst": true,
-  "targetCount": 6,
+  "targetCount": 3,
   "researchLimit": 3,
   "runResearch": true,
   "hotLeadsOnly": false,
