@@ -15,10 +15,14 @@
 export const CANONICAL_ATLAS_LAUNCH_BODY = {
   /** Diversified discovery over bulk FAA-scale ingest */
   discoveryFirst: true,
-  /** Cap new discovery intake for a bounded operator run */
-  targetCount: 50,
+  /**
+   * Discovery is model-driven: every slot is a real LLM research session.
+   * Keep the canonical operator run bounded so one launch cannot consume the
+   * provider pool before any target reaches target-scoped research.
+   */
+  targetCount: 6,
   /** How many targets get full research depth this cycle */
-  researchLimit: 10,
+  researchLimit: 3,
   /** Always run research/enrichment for a bureau run */
   runResearch: true,
   hotLeadsOnly: false,
