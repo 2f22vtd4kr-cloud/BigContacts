@@ -7,6 +7,8 @@ const files = {
   model: path.join(src, "lib", "reactor-live-model.ts"),
   surface: path.join(src, "components", "reactor-live-surface.tsx"),
   bureau: path.join(src, "components", "bureau-ops-stage.tsx"),
+  page: path.join(src, "pages", "reactor.tsx"),
+  mobile: path.join(src, "components", "mobile-reactor-flow.tsx"),
 };
 
 for (const [name, file] of Object.entries(files)) {
@@ -17,6 +19,8 @@ const read = (file) => fs.readFileSync(file, "utf8");
 const model = read(files.model);
 const surface = read(files.surface);
 const bureau = read(files.bureau);
+const page = read(files.page);
+const mobile = read(files.mobile);
 
 const checks = [
   ["live model has explicit research-query extraction", /explicitResearchQuery/.test(model)],
@@ -27,6 +31,9 @@ const checks = [
   ["tool input is presented as recorded input", /Recorded tool input/.test(surface)],
   ["source links are rendered from event evidence", /sourceList\(event\)/.test(surface)],
   ["desktop/mobile legacy stage remains evidence-aware", /sourceUrls|links/.test(bureau)],
+  ["desktop live mode has a telemetry ActivityOnly surface", /<ReactorActivityOnly\b/.test(page)],
+  ["desktop live mode does not mount the legacy scheme alongside ActivityOnly", /!schemeToolsOnly/.test(page) || !/<ReactorActivityOnly[\s\S]{0,500}\/?>[\s\S]{0,500}Scheme canvas/.test(page)],
+  ["mobile live rendering does not claim the fixed catalogue is the live source of truth", /liveNodes\.has\(n\.id\)/.test(mobile) && /telemetry|live/i.test(mobile)],
 ];
 
 let failed = false;
