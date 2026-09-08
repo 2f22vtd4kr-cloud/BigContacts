@@ -62,26 +62,27 @@ export function findingsToContactEvidence(findings: AgenticFinding[]) {
 
 export function findingsToBureauContacts(
   findings: AgenticFinding[],
-  fallbackPersonName: string,
+  _fallbackPersonName: string,
 ): BureauContactLike[] {
-  return sourceBackedAgenticFindings(findings).map((f) => ({
-    vectorType: f.vectorType,
-    value: f.value,
-    // Candidate findings may inherit the already-verified target name.
-    // Organization and unknown findings must remain organization-scoped and
-    // nameless; this prevents info@ / switchboards from becoming personal.
-    scope: f.scope === "candidate" ? "candidate" : "organization",
-    personName: f.scope === "candidate" ? (f.personName ?? fallbackPersonName) : null,
-    role: f.role,
-    sourceUrls: f.sourceUrls.filter((url) => /^https?:\/\/\S+$/i.test(String(url))),
-    note: `bureau-agentic:${f.note}`,
-    tier: "candidate",
-    state: "review_only",
-    // Preserve the Investigator's explicit publication decision. Observation-only
-    // extracts intentionally have no promotionDecision and therefore cannot mutate
-    // the entity card through the strict persistence boundary.
-    promote: f.promotionDecision === "promote",
-  }));
+  return sourceBackedAgenticFindings(findings).map((f) => {
+    const explicitPersonName = typeof f.personName === "string" ? f.personName.trim() : "";
+    const isExplicitCandidate = f.scope === "candidate" && explicitPersonName.length > 0;
+    return {
+      vectorType: f.vectorType,
+      value: f.value,
+      // A candidate finding is personal only when the Investigator explicitly
+      // names the person in the finding. Never inherit the target name here.
+      scope: isExplicitCandidate ? "candidate" : "organization",
+      personName: isExplicitCandidate ? explicitPersonName : null,
+      role: f.role,
+      sourceUrls: f.sourceUrls.filter((url) => /^https?:\/\/\S+$/i.test(String(url))),
+      note: `bureau-agentic:${f.note}`,
+      tier: "candidate",
+      state: "review_only",
+      // Only an explicit promotion on an explicit candidate may cross the card boundary.
+      promote: isExplicitCandidate && f.promotionDecision === "promote",
+    };
+  });
 }
 
 /**
