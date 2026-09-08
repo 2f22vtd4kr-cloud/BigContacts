@@ -1,6 +1,6 @@
 name: Apex API Build
 
-# Canonical API build and typecheck gate. Diagnostic capture remains temporary until the gate is green (pass 2B rerun).
+# Canonical API build and typecheck gate.
 on:
   push:
     branches: [main]
@@ -17,7 +17,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   build:
@@ -39,31 +39,6 @@ jobs:
       - name: Build API
         run: pnpm --dir artifacts/api-server run build
       - name: Typecheck workspace
-        id: typecheck
-        run: |
-          set +e
-          pnpm run typecheck > typecheck.log 2>&1
-          status=$?
-          cat typecheck.log
-          exit $status
-      - name: Publish failing typecheck diagnostics for repair
-        if: failure() && steps.typecheck.outcome == 'failure'
-        run: |
-          mkdir -p ci/excerpts
-          cp typecheck.log ci/typecheck-latest.txt
-          nl -ba artifacts/api-server/src/src/lib/atlas-orchestrator.ts | sed -n '1490,1545p;1790,1835p' > ci/excerpts/atlas-orchestrator.txt
-          nl -ba artifacts/api-server/src/src/lib/deep-web-osint.ts | sed -n '805,845p' > ci/excerpts/deep-web-osint.txt
-          nl -ba artifacts/api-server/src/src/lib/discovery-agent.ts | sed -n '300,335p' > ci/excerpts/discovery-agent.txt
-          nl -ba artifacts/api-server/src/src/lib/in-house-enricher.ts | sed -n '1808,1840p' > ci/excerpts/in-house-enricher.txt
-          nl -ba artifacts/api-server/src/src/lib/web-enricher.ts | sed -n '2158,2190p;4105,4140p' > ci/excerpts/web-enricher.txt
-          nl -ba artifacts/api-server/src/src/routes/extended-osint.ts | sed -n '100,245p' > ci/excerpts/extended-osint.txt
-          nl -ba artifacts/api-server/src/src/routes/research/cases.ts | sed -n '120,150p;150,290p;290,345p;345,545p;915,955p;1560,1700p;2175,2210p;2800,2830p' > ci/excerpts/research-cases.txt
-          git config user.name "apex-typecheck-bot"
-          git config user.email "apex-typecheck-bot@users.noreply.github.com"
-          git checkout --orphan ci-typecheck-diagnostics
-          git rm -rf .
-          git add ci
-          git commit -m "ci: capture latest typecheck diagnostics"
-          git push --force origin HEAD:refs/heads/ci/typecheck-diagnostics
+        run: pnpm run typecheck
       - name: Run strict provenance tests
         run: pnpm --dir artifacts/api-server exec vitest run src/src/test/bureau-contact-persist-strict.test.ts
