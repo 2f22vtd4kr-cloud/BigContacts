@@ -1,0 +1,40 @@
+name: apply provider role guard correction
+
+on:
+  push:
+    branches: [apex/provider-role-guard-fix]
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Correct guard
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('scripts/check-bureau-provider-role-docs.mjs')
+          s = p.read_text()
+          old = '  "DeepSeek/NVIDIA as an Investigator",\n  "DeepSeek via NVIDIA NIM is an Investigator",\n  "Gemini as an Investigator",'
+          new = '  "DeepSeek/NVIDIA as an Investigator",\n  "DeepSeek via NVIDIA NIM is an Investigator",\n  "NVIDIA as an Investigator",\n  "NVIDIA NIM as an Investigator",\n  "Gemini as an Investigator",'
+          if old not in s: raise SystemExit('forbidden phrase anchor missing')
+          s = s.replace(old, new, 1)
+          old = '  if (!/Right-hand.*DeepSeek|DeepSeek.*right-hand/i.test(source)) failures.push(`${file}: missing DeepSeek right-hand declaration`);'
+          new = '  if (!/Right-hand.*(?:NVIDIA|NIM)|(?:NVIDIA|NIM).*right-hand/i.test(source)) failures.push(`${file}: missing NVIDIA NIM right-hand declaration`);'
+          if old not in s: raise SystemExit('right-hand assertion anchor missing')
+          s = s.replace(old, new, 1)
+          p.write_text(s)
+          PY
+          git diff --check
+          git diff -- scripts/check-bureau-provider-role-docs.mjs
+      - name: Commit patch and remove workflow
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add scripts/check-bureau-provider-role-docs.mjs
+          git rm .github/workflows/apply-provider-role-guard-fix.yml
+          git commit -m 'fix: align provider role guard with NVIDIA right-hand'
+          git push
