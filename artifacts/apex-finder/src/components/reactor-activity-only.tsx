@@ -44,6 +44,7 @@ type LiveNode = {
 };
 
 type LiveEdge = { id: string; from: string; to: string; exact: boolean };
+type Position = { x: number; y: number };
 
 const PALETTE = ["#9CFF1A", "#38bdf8", "#fb923c", "#a78bfa", "#fbbf24", "#34d399", "#f472b6", "#67e8f9"];
 
@@ -98,7 +99,7 @@ function timeOf(span: DigSpan): number {
  * Every active DigSpan becomes its own visual node, including tools Apex has
  * never seen before. Parent-span edges are authoritative when available.
  * A same-conversation temporal fallback is deliberately softer and only fills
- * a gap where instrumentation did not provide parentSpanId.
+ * a gap where instrumentation did not provide a visible parent.
  */
 export function ReactorActivityOnly({ nodes: _legacyNodes }: { nodes?: unknown[] }) {
   const [spans, setSpans] = useState<DigSpan[]>([]);
@@ -165,50 +166,94 @@ export function ReactorActivityOnly({ nodes: _legacyNodes }: { nodes?: unknown[]
     const byId = new Map(activeNodes.map((node) => [node.span.id, node.id]));
     const out: LiveEdge[] = [];
     const edgeKeys = new Set<string>();
+    const conversationPrevious = new Map<string, LiveNode>();
 
     for (const node of activeNodes) {
       const parent = node.span.parentSpanId ? byId.get(node.span.parentSpanId) : undefined;
-      if (!parent || parent === node.id) continue;
-      const key = `${parent}->${node.id}`;
-      if (edgeKeys.has(key)) continue;
-      edgeKeys.add(key);
-      out.push({ id: `parent:${key}`, from: parent, to: node.id, exact: true });
-    }
+      if (parent && parent !== node.id) {
+        const key = `${parent}->${node.id}`;
+        edgeKeys.add(key);
+        out.push({ id: `parent:${key}`, from: parent, to: node.id, exact: true });
+      }
 
-    for (let i = 1; i < activeNodes.length; i += 1) {
-      const previous = activeNodes[i - 1];
-      const current = activeNodes[i];
-      if (current.span.parentSpanId) continue;
-      if (!previous.span.conversationId || previous.span.conversationId !== current.span.conversationId) continue;
-      const key = `${previous.id}->${current.id}`;
-      if (edgeKeys.has(key)) continue;
-      edgeKeys.add(key);
-      out.push({ id: `sequence:${key}`, from: previous.id, to: current.id, exact: false });
+      const conversation = node.span.conversationId || node.span.jobId;
+      const previous = conversation ? conversationPrevious.get(conversation) : undefined;
+      if (previous && previous.id !== node.id && !edgeKeys.has(`${previous.id}->${node.id}`)) {
+        const previousIsAlreadyParent = node.span.parentSpanId && byId.has(node.span.parentSpanId);
+        if (!previousIsAlreadyParent) {
+          const key = `${previous.id}->${node.id}`;
+          edgeKeys.add(key);
+          out.push({ id: `sequence:${key}`, from: previous.id, to: node.id, exact: false });
+        }
+      }
+      if (conversation) conversationPrevious.set(conversation, node);
     }
     return out;
   }, [activeNodes]);
 
+  const { positions, canvasW, canvasH } = useMemo(() => {
+    const cardW = 188;
+    const cardH = 68;
+    const colGap = 48;
+    const rowGap = 34;
+    const horizontalPadding = 52;
+    const verticalPadding = 44;
+    const byId = new Map(activeNodes.map((node) => [node.id, node]));
+    const exactParents = new Map<string, string>();
+
+    for (const edge of edges) {
+      if (!edge.exact || exactParents.has(edge.to) || !byId.has(edge.from)) continue;
+      exactParents.set(edge.to, edge.from);
+    }
+
+    // Assign a depth from the visible exact parent graph. A parent that has
+    // already ended is intentionally absent: Reactor only visualises live work.
+    // Such nodes become a new visible root rather than inventing a ghost node.
+    const depthMemo = new Map<string, number>();
+    const depthOf = (id: string, visiting = new Set<string>()): number => {
+      const cached = depthMemo.get(id);
+      if (cached !== undefined) return cached;
+      if (visiting.has(id)) return 0;
+      const parent = exactParents.get(id);
+      if (!parent || !byId.has(parent)) {
+        depthMemo.set(id, 0);
+        return 0;
+      }
+      visiting.add(id);
+      const depth = depthOf(parent, visiting) + 1;
+      visiting.delete(id);
+      depthMemo.set(id, depth);
+      return depth;
+    };
+
+    const layers = new Map<number, LiveNode[]>();
+    for (const node of activeNodes) {
+      const depth = depthOf(node.id);
+      const layer = layers.get(depth) ?? [];
+      layer.push(node);
+      layers.set(depth, layer);
+    }
+
+    const orderedLayers = [...layers.entries()].sort(([a], [b]) => a - b);
+    const maxRows = Math.max(1, ...orderedLayers.map(([, layer]) => layer.length));
+    const width = Math.max(860, maxRows * cardW + Math.max(0, maxRows - 1) * colGap + horizontalPadding * 2);
+    const height = Math.max(190, orderedLayers.length * cardH + Math.max(0, orderedLayers.length - 1) * rowGap + verticalPadding * 2);
+    const result = new Map<string, Position>();
+
+    for (const [depth, layer] of orderedLayers) {
+      const rowWidth = layer.length * cardW + Math.max(0, layer.length - 1) * colGap;
+      const startX = (width - rowWidth) / 2;
+      const y = verticalPadding + depth * (cardH + rowGap);
+      layer.forEach((node, index) => {
+        result.set(node.id, { x: startX + index * (cardW + colGap) + cardW / 2, y: y + cardH / 2 });
+      });
+    }
+
+    return { positions: result, canvasW: width, canvasH: height };
+  }, [activeNodes, edges]);
+
   const cardW = 188;
   const cardH = 68;
-  const colGap = 34;
-  const rowGap = 62;
-  const cols = Math.max(1, Math.min(5, Math.ceil(Math.sqrt(Math.max(1, activeNodes.length)))));
-  const rows = Math.max(1, Math.ceil(activeNodes.length / cols));
-  const canvasW = Math.max(780, cols * cardW + (cols - 1) * colGap + 64);
-  const canvasH = Math.max(190, rows * cardH + (rows - 1) * rowGap + 72);
-
-  const positions = useMemo(() => {
-    const result = new Map<string, { x: number; y: number }>();
-    activeNodes.forEach((node, index) => {
-      const col = index % cols;
-      const row = Math.floor(index / cols);
-      result.set(node.id, {
-        x: 32 + col * (cardW + colGap) + cardW / 2,
-        y: 32 + row * (cardH + rowGap) + cardH / 2,
-      });
-    });
-    return result;
-  }, [activeNodes, cols]);
 
   return (
     <div
@@ -235,7 +280,13 @@ export function ReactorActivityOnly({ nodes: _legacyNodes }: { nodes?: unknown[]
                 const from = positions.get(edge.from);
                 const to = positions.get(edge.to);
                 if (!from || !to) return null;
-                const d = `M ${from.x} ${from.y + cardH / 2} C ${from.x} ${from.y + cardH / 2 + 26} ${to.x} ${to.y - cardH / 2 - 26} ${to.x} ${to.y - cardH / 2}`;
+                const forward = to.y >= from.y;
+                const startX = from.x;
+                const startY = forward ? from.y + cardH / 2 : from.y - cardH / 2;
+                const endX = to.x;
+                const endY = forward ? to.y - cardH / 2 : to.y + cardH / 2;
+                const bend = Math.max(22, Math.abs(endY - startY) * 0.42);
+                const d = `M ${startX} ${startY} C ${startX} ${startY + (forward ? bend : -bend)} ${endX} ${endY - (forward ? bend : -bend)} ${endX} ${endY}`;
                 return <path key={edge.id} d={d} fill="none" stroke={edge.exact ? "#b8ff4d" : "#64748b"} strokeWidth={edge.exact ? 1.7 : 1} strokeDasharray={edge.exact ? "none" : "5 5"} opacity={edge.exact ? 0.85 : 0.55} markerEnd={`url(#${edge.exact ? "reactorLiveArrow" : "reactorSoftArrow"})`} />;
               })}
             </svg>
@@ -249,7 +300,7 @@ export function ReactorActivityOnly({ nodes: _legacyNodes }: { nodes?: unknown[]
                   key={node.id}
                   data-testid={`scheme-live-span-${node.span.id}`}
                   aria-label={`${node.label}, active`}
-                  style={{ position: "absolute", left: pos.x - cardW / 2, top: pos.y - cardH / 2, width: cardW, height: cardH, borderRadius: node.kind === "llm" ? 12 : 8, border: `1px solid ${node.color}66`, background: `linear-gradient(135deg,${node.color}15,rgba(8,14,25,0.94))`, boxShadow: `0 0 20px ${node.color}18, inset 0 0 16px ${node.color}0a`, display: "flex", alignItems: "center", gap: 9, padding: "0 12px", overflow: "hidden", boxSizing: "border-box", zIndex: 2 }}
+                  style={{ position: "absolute", left: pos.x - cardW / 2, top: pos.y - cardH / 2, width: cardW, height: cardH, borderRadius: node.kind === "llm" ? 12 : 8, border: `1px solid ${node.color}66`, background: `linear-gradient(135deg,${node.color}15,rgba(8,14,25,0.94))`, boxShadow: `0 0 20px ${node.color}18, inset 0 0 16px ${node.color}0a`, display: "flex", alignItems: "center", gap: 9, padding: "0 12px", overflow: "hidden", boxSizing: "border-box", zIndex: 2, transition: "left 420ms ease, top 420ms ease, opacity 180ms ease, transform 180ms ease" }}
                 >
                   <div style={{ width: 29, height: 29, flexShrink: 0, borderRadius: 6, border: `1px solid ${node.color}55`, background: `${node.color}12`, display: "flex", alignItems: "center", justifyContent: "center", color: node.color }}>
                     <Icon style={{ width: 15, height: 15 }} />
@@ -266,7 +317,7 @@ export function ReactorActivityOnly({ nodes: _legacyNodes }: { nodes?: unknown[]
         </div>
       )}
       <div style={{ marginTop: 8, textAlign: "center", color: "#334155", fontSize: 8, letterSpacing: "0.12em", textTransform: "uppercase" }}>
-        Live telemetry only · nodes disappear when their active spans end · solid links are parent-span flow · dashed links are same-conversation fallback
+        Live telemetry only · nodes disappear when their active spans end · solid links are observed parent flow · dashed links are inferred same-conversation sequence
       </div>
     </div>
   );
