@@ -5,6 +5,8 @@ const root = process.cwd();
 const src = path.join(root, "artifacts", "apex-finder", "src");
 const files = {
   model: path.join(src, "lib", "reactor-live-model.ts"),
+  store: path.join(src, "lib", "reactor-live-store.ts"),
+  activity: path.join(src, "components", "reactor-activity-only.tsx"),
   surface: path.join(src, "components", "reactor-live-surface.tsx"),
   bureau: path.join(src, "components", "bureau-ops-stage.tsx"),
   page: path.join(src, "pages", "reactor.tsx"),
@@ -17,6 +19,8 @@ for (const [name, file] of Object.entries(files)) {
 
 const read = (file) => fs.readFileSync(file, "utf8");
 const model = read(files.model);
+const store = read(files.store);
+const activity = read(files.activity);
 const surface = read(files.surface);
 const bureau = read(files.bureau);
 const page = read(files.page);
@@ -34,6 +38,13 @@ const staticCanvasIsAfterLiveSurface = (() => {
 const checks = [
   ["live model has explicit research-query extraction", /explicitResearchQuery/.test(model)],
   ["live model rejects non-HTTP evidence", /https\?:/.test(model) && /sourceList/.test(model)],
+  ["live model normalizes DigSpan collections once", /normalizeLiveActivities/.test(model)],
+  ["shared live store uses useSyncExternalStore", /useSyncExternalStore/.test(store) && /subscribe/.test(store)],
+  ["shared store reads atlas-status recentSpans", /atlas-status/.test(store) && /recentSpans/.test(store)],
+  ["graph consumes shared telemetry store", /useReactorLiveTelemetry/.test(activity)],
+  ["graph has no private atlas-status polling loop", !/setInterval\(|fetch\([^\n]*atlas-status/.test(activity)],
+  ["live surface consumes shared telemetry store", /useReactorLiveTelemetry/.test(surface)],
+  ["live surface refuses bureau prose when a run has no observed spans", /running job with no observed spans/.test(surface)],
   ["live surface renders semantic events rather than raw logs", /eventIsRenderable/.test(surface)],
   ["browser scene is backed by an event URL", /event\.url/.test(surface)],
   ["browser scene labels recorded action explicitly", /Actual research action/.test(surface)],

@@ -1,9 +1,10 @@
 /**
- * Live bureau events for Reactor desk (desktop + mobile).
- * Polls /api/ingest/bureau-events and maps right-hand narration into OpsEvent shape.
+ * Supplemental Bureau events for Reactor desk narration and terminal history.
  *
- * INTEGRITY: when Atlas is not running, the desk must not look LIVE.
- * Stale Redis tails / carousel spin are not research.
+ * IMPORTANT: recentSpans are the authoritative live execution feed. This hook
+ * may poll bureau-events for right-hand narration, but it deliberately does
+ * not expose those events as desktop live scenes. That prevents the legacy
+ * BureauOpsStage from becoming a second, independently interpreted live feed.
  */
 import { useEffect, useMemo, useState } from "react";
 
@@ -30,7 +31,8 @@ export type BureauDeskEvent = {
 
 function mapBureauPayload(parsed: any, atlasLive: boolean): BureauDeskEvent {
   const isNarration = parsed?.kind === "narration" || parsed?.actor === "right_hand";
-  // Only mark active while Atlas is actually running AND event is very recent.
+  // Bureau events are supplemental. They may only carry active chrome while
+  // Atlas is actually running and the producer explicitly emitted a recent event.
   let status = "done";
   if (atlasLive) {
     try {
@@ -59,7 +61,10 @@ function mapBureauPayload(parsed: any, atlasLive: boolean): BureauDeskEvent {
   };
 }
 
-/** Merge job eventLog with live bureau poll. When not live, strip active chrome. */
+/**
+ * Merge job history for terminal views, while keeping bureau-events strictly
+ * supplemental during a live run. The live scene consumer is recentSpans.
+ */
 export function useBureauLiveDesk(
   eventLog: BureauDeskEvent[] | undefined,
   opts?: { enabled?: boolean; pollMs?: number; atlasLive?: boolean },
@@ -71,7 +76,6 @@ export function useBureauLiveDesk(
 
   useEffect(() => {
     if (!enabled) return;
-    // Idle: do not poll bureau-events — stops fake feed after process death / stop
     if (!atlasLive) {
       setBureauEvents([]);
       return;
@@ -101,8 +105,6 @@ export function useBureauLiveDesk(
           );
         }
       } catch (error) {
-        // Aborts are expected during polling handoff/unmount; network failure
-        // must fail soft and must never invent a live feed.
         if (!cancelled && !(error instanceof DOMException && error.name === "AbortError")) {
           setBureauEvents([]);
         }
@@ -118,33 +120,36 @@ export function useBureauLiveDesk(
     };
   }, [enabled, pollMs, atlasLive]);
 
-  const merged = useMemo(() => {
+  const terminalEvents = useMemo(() => {
     const fromLog = Array.isArray(eventLog) ? eventLog : [];
-    // When not live: only finished history (no active status), prefer empty for desk chrome
-    const normalize = (e: BureauDeskEvent): BureauDeskEvent =>
-      atlasLive ? e : { ...e, status: "done" };
+    if (atlasLive) return [];
 
     const seen = new Set<string>();
     const out: BureauDeskEvent[] = [];
-    const source = atlasLive ? [...bureauEvents, ...fromLog] : fromLog;
-    for (const e of source) {
-      const n = normalize(e);
-      const key = `${n.timestamp || ""}|${n.kind || ""}|${n.stage || n.story || n.narration || ""}`.slice(0, 160);
+    for (const event of fromLog) {
+      const normalized = { ...event, status: "done" };
+      const key = `${normalized.timestamp || ""}|${normalized.kind || ""}|${normalized.stage || normalized.story || normalized.narration || ""}`.slice(0, 160);
       if (seen.has(key)) continue;
       seen.add(key);
-      out.push(n);
+      out.push(normalized);
     }
     return out.slice(0, 80);
-  }, [eventLog, bureauEvents, atlasLive]);
+  }, [eventLog, atlasLive]);
 
   const latestNarration = useMemo(() => {
     if (!atlasLive) return null;
-    for (const e of merged) {
-      if (e.narration && e.narration.length > 8) return e.narration;
-      if (e.kind === "narration" && (e.story || e.stage)) return e.story || e.stage;
+    for (const event of bureauEvents) {
+      if (event.narration && event.narration.length > 8) return event.narration;
+      if (event.kind === "narration" && (event.story || event.stage)) return event.story || event.stage;
     }
     return null;
-  }, [merged, atlasLive]);
+  }, [bureauEvents, atlasLive]);
 
-  return { deskEvents: merged, bureauCount: bureauEvents.length, latestNarration };
+  return {
+    // During a live run this is intentionally empty. The legacy scene stage
+    // must not render a second interpretation of live execution telemetry.
+    deskEvents: terminalEvents,
+    bureauCount: bureauEvents.length,
+    latestNarration,
+  };
 }
