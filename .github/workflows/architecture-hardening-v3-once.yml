@@ -1,0 +1,154 @@
+name: One-time architecture hardening v3
+on:
+  push:
+    branches: [apex/architecture-hardening-v3]
+permissions:
+  contents: write
+jobs:
+  harden:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply and verify bounded architecture transforms
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def read(p): return Path(p).read_text()
+          def write(p,s): Path(p).write_text(s)
+
+          def remove_fn(s, signature):
+              start=s.find(signature)
+              if start<0: raise SystemExit(f'missing function: {signature}')
+              brace=s.find('{', start)
+              if brace<0: raise SystemExit(f'missing body: {signature}')
+              depth=0; quote=None; esc=False; line=False; block=False; i=brace
+              while i<len(s):
+                  c=s[i]; n=s[i+1] if i+1<len(s) else ''
+                  if line:
+                      if c=='\\n': line=False
+                  elif block:
+                      if c=='*' and n=='/': block=False; i+=1
+                  elif quote:
+                      if esc: esc=False
+                      elif c=='\\\\': esc=True
+                      elif c==quote: quote=None
+                  else:
+                      if c=='/' and n=='/': line=True; i+=1
+                      elif c=='/' and n=='*': block=True; i+=1
+                      elif c in ('"',"'",'`'): quote=c
+                      elif c=='{': depth+=1
+                      elif c=='}':
+                          depth-=1
+                          if depth==0:
+                              end=i+1
+                              if end<len(s) and s[end]=='\\n': end+=1
+                              return s[:start]+s[end:]
+                  i+=1
+              raise SystemExit(f'unbalanced function: {signature}')
+
+          # AI final review: remove Groq fallback between marker and deterministic fail-closed return.
+          p='artifacts/api-server/src/lib/ai-extractor.ts'; s=read(p)
+          a=s.find('  // 3) Groq capacity fallback (multi-model)')
+          b=s.find('  return adjudicateFinalTargetReview(input, {}, "unavailable-final-review");', a)
+          if a<0 or b<0: raise SystemExit('ai-extractor final review markers missing')
+          s=s[:a]+'  // No Investigator provider may replace Gemini Boss/NVIDIA oversight review.\\n'+s[b:]
+          write(p,s)
+
+          # Remove the dead Groq-as-Boss function. Verify its only occurrence is its definition.
+          p='artifacts/api-server/src/src/lib/case-bureau.ts'; s=read(p)
+          if s.count('generateGroqBossText')!=2: raise SystemExit('unexpected Groq Boss symbol count')
+          s=remove_fn(s,'async function generateGroqBossText(')
+          if 'generateGroqBossText' in s: raise SystemExit('Groq Boss references remain after function removal')
+          write(p,s)
+
+          # Remove automatic evidence->card promotion call from persistence.
+          p='artifacts/api-server/src/src/lib/bureau-contact-persist.ts'; s=read(p)
+          old='''  // Dig bag → card: promote best non-issuer phone/email onto the entity so\n  // free agentic findings are not stranded as evidence_only while EDGAR-Phone stays.\n  try {\n  await promoteBureauContactsToEntityCard(entityId, items ?? [], source, jobId);\n  } catch (err) {\n    logger.debug(\n      { err: err instanceof Error ? err.message : String(err), entityId },\n      "promoteBureauContactsToEntityCard skipped",\n    );\n  }\n'''
+          if s.count(old)!=1: raise SystemExit('bureau automatic promotion block count mismatch')
+          s=s.replace(old,'',1)
+          # Remove rehydrate calls before removing their implementations.
+          block='''    try {\n      await rehydrateEntityCardFromEvidence(input.entityId);\n    } catch {\n      /* non-fatal */\n    }\n'''
+          if s.count(block)!=2: raise SystemExit('bureau rehydrate call blocks count mismatch')
+          s=s.replace(block,'',2)
+          s=remove_fn(s,'async function promoteBureauContactsToEntityCard(')
+          s=remove_fn(s,'export async function rehydrateEntityCardFromEvidence(')
+          s=remove_fn(s,'export async function rehydrateAllEntityCardsFromEvidence(')
+          if any(x in s for x in ['promoteBureauContactsToEntityCard','rehydrateEntityCardFromEvidence','rehydrateAllEntityCardsFromEvidence']):
+              raise SystemExit('bureau legacy promotion symbols remain')
+          write(p,s)
+
+          # Remove rehydrate import/call from case route.
+          p='artifacts/api-server/src/src/routes/research/cases.ts'; s=read(p)
+          imp='  rehydrateEntityCardFromEvidence,\\n'
+          if s.count(imp)!=1: raise SystemExit('cases rehydrate import count mismatch')
+          s=s.replace(imp,'',1)
+          block='''  try {\n    await rehydrateEntityCardFromEvidence(entity.id);\n  } catch { /* non-fatal */ }\n'''
+          if s.count(block)!=1: raise SystemExit('cases rehydrate call count mismatch')
+          s=s.replace(block,'',1)
+          write(p,s)
+
+          # Remove rehydrate import/call from Atlas orchestrator.
+          p='artifacts/api-server/src/src/lib/atlas-orchestrator.ts'; s=read(p)
+          if s.count('  rehydrateEntityCardFromEvidence,\\n')!=1: raise SystemExit('atlas rehydrate import count mismatch')
+          s=s.replace('  rehydrateEntityCardFromEvidence,\\n','',1)
+          start=s.find('      // Promotion is evidence/card mapping, not a research-path gate. Preserve')
+          end=s.find('      return agentic;',start)
+          if start<0 or end<0: raise SystemExit('atlas rehydrate block markers missing')
+          s=s[:start]+s[end:]
+          # Other legacy atlas calls are standalone awaits.
+          while 'await rehydrateEntityCardFromEvidence(id);' in s:
+              s=s.replace('      await rehydrateEntityCardFromEvidence(id);\\n','',1)
+          if 'rehydrateEntityCardFromEvidence' in s: raise SystemExit('atlas rehydrate references remain')
+          write(p,s)
+
+          # Remove public evidence-only rehydrate endpoint by balanced router.post block.
+          p='artifacts/api-server/src/src/routes/entities.ts'; s=read(p)
+          marker='// POST /entities/rehydrate-contacts'
+          start=s.find(marker)
+          if start<0: raise SystemExit('entities rehydrate endpoint missing')
+          r=s.find('router.post(',start); brace=s.find('{',r)
+          if r<0 or brace<0: raise SystemExit('entities route body missing')
+          depth=0; quote=None; esc=False; i=brace
+          while i<len(s):
+              c=s[i]
+              if quote:
+                  if esc: esc=False
+                  elif c=='\\\\': esc=True
+                  elif c==quote: quote=None
+              else:
+                  if c in ('"',"'",'`'): quote=c
+                  elif c=='{': depth+=1
+                  elif c=='}':
+                      depth-=1
+                      if depth==0:
+                          end=i+1
+                          if end<len(s) and s[end]==';': end+=1
+                          if end<len(s) and s[end]=='\\n': end+=1
+                          s=s[:start]+s[end:]
+                          break
+              i+=1
+          else: raise SystemExit('entities route brace balance failed')
+          write(p,s)
+          PY
+
+          if grep -R -n -E 'rehydrateEntityCardFromEvidence|rehydrateAllEntityCardsFromEvidence|promoteBureauContactsToEntityCard|groq-final-review-fallback|generateGroqBossText' artifacts/api-server/src; then
+            echo 'PROHIBITED SYMBOLS REMAIN'; exit 1
+          fi
+          node scripts/check-unified-investigator-architecture.mjs
+          pnpm install --no-frozen-lockfile --ignore-scripts --fetch-retries=8 --fetch-timeout=120000 --registry=https://registry.npmjs.org/
+          pnpm --dir artifacts/api-server run build
+          pnpm run typecheck
+      - name: Commit verified source and remove temporary workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/architecture-hardening-v3-once.yml
+          git add artifacts/api-server/src/lib/ai-extractor.ts artifacts/api-server/src/src/lib/case-bureau.ts artifacts/api-server/src/src/lib/bureau-contact-persist.ts artifacts/api-server/src/src/routes/entities.ts artifacts/api-server/src/src/routes/research/cases.ts artifacts/api-server/src/src/lib/atlas-orchestrator.ts
+          git commit -m "fix: close legacy architecture bypasses"
+          git push
