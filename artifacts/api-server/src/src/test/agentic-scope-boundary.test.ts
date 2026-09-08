@@ -20,6 +20,7 @@ describe("agentic evidence scope boundary", () => {
     expect(findingsToBureauContacts([finding], "Jane Example")[0]).toMatchObject({
       scope: "candidate",
       personName: "Jane Example",
+      promote: false,
     });
     expect(findingsToContactEvidence([finding])[0]).toMatchObject({
       scope: "candidate",
@@ -28,6 +29,23 @@ describe("agentic evidence scope boundary", () => {
     expect(findingsToContacts([finding], "Jane Example")[0]).toMatchObject({
       scope: "candidate",
       personName: "Jane Example",
+    });
+  });
+
+  it("marks an explicit investigator promotion for card application", () => {
+    const finding: AgenticFinding = {
+      vectorType: "email",
+      value: "jane@example.com",
+      personName: "Jane Example",
+      role: "Founder",
+      scope: "candidate",
+      sourceUrls: [source],
+      note: "named email on source",
+      promotionDecision: "promote",
+      promotionReason: "Exact named contact on the visited company page.",
+    };
+    expect(findingsToBureauContacts([finding], "Jane Example")[0]).toMatchObject({
+      promote: true,
     });
   });
 
@@ -45,6 +63,7 @@ describe("agentic evidence scope boundary", () => {
     expect(findingsToBureauContacts([finding], "Jane Example")[0]).toMatchObject({
       scope: "organization",
       personName: null,
+      promote: false,
     });
     expect(findingsToContactEvidence([finding])[0]).toMatchObject({
       scope: "organization",
