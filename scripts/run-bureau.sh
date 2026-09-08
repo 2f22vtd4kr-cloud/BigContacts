@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Canonical Apex Atlas bureau launch — same body as UI and api defaults.
+# Canonical Apex Atlas bureau launch — same bounded body as UI and api defaults.
 set -euo pipefail
 BASE="${1:-http://127.0.0.1:8080}"
 BODY='{
   "discoveryFirst": true,
-  "targetCount": 50,
-  "researchLimit": 10,
+  "targetCount": 6,
+  "researchLimit": 3,
   "runResearch": true,
   "hotLeadsOnly": false,
   "skipFaa": true,
