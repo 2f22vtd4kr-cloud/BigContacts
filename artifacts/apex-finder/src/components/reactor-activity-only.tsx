@@ -26,6 +26,7 @@ type DigSpan = {
   inputSummary?: string;
   resultSummary?: string;
   modelId?: string;
+  parentSpanId?: string;
   agentName?: string;
   operationName?: string;
   toolName?: string;
@@ -42,7 +43,7 @@ type LiveNode = {
   kind: "llm" | "tool" | "promote" | "stage" | "error";
 };
 
-type LiveEdge = { id: string; from: string; to: string; adaptive?: boolean };
+type LiveEdge = { id: string; from: string; to: string; exact: boolean };
 
 const PALETTE = ["#9CFF1A", "#38bdf8", "#fb923c", "#a78bfa", "#fbbf24", "#34d399", "#f472b6", "#67e8f9"];
 
@@ -95,9 +96,9 @@ function timeOf(span: DigSpan): number {
 /**
  * The Reactor graph is telemetry-first: no catalogue of possible tools is used.
  * Every active DigSpan becomes its own visual node, including tools Apex has
- * never seen before. Connections are only drawn between spans actually present
- * in the current live telemetry window; they are an observed live sequence, not
- * an invented pipeline.
+ * never seen before. Parent-span edges are authoritative when available.
+ * A same-conversation temporal fallback is deliberately softer and only fills
+ * a gap where instrumentation did not provide parentSpanId.
  */
 export function ReactorActivityOnly({ nodes: _legacyNodes }: { nodes?: unknown[] }) {
   const [spans, setSpans] = useState<DigSpan[]>([]);
@@ -161,17 +162,28 @@ export function ReactorActivityOnly({ nodes: _legacyNodes }: { nodes?: unknown[]
   }, [spans]);
 
   const edges = useMemo<LiveEdge[]>(() => {
+    const byId = new Map(activeNodes.map((node) => [node.span.id, node.id]));
     const out: LiveEdge[] = [];
+    const edgeKeys = new Set<string>();
+
+    for (const node of activeNodes) {
+      const parent = node.span.parentSpanId ? byId.get(node.span.parentSpanId) : undefined;
+      if (!parent || parent === node.id) continue;
+      const key = `${parent}->${node.id}`;
+      if (edgeKeys.has(key)) continue;
+      edgeKeys.add(key);
+      out.push({ id: `parent:${key}`, from: parent, to: node.id, exact: true });
+    }
+
     for (let i = 1; i < activeNodes.length; i += 1) {
       const previous = activeNodes[i - 1];
       const current = activeNodes[i];
-      const sameConversation = Boolean(previous.span.conversationId && previous.span.conversationId === current.span.conversationId);
-      out.push({
-        id: `live:${previous.id}:${current.id}`,
-        from: previous.id,
-        to: current.id,
-        adaptive: !sameConversation,
-      });
+      if (current.span.parentSpanId) continue;
+      if (!previous.span.conversationId || previous.span.conversationId !== current.span.conversationId) continue;
+      const key = `${previous.id}->${current.id}`;
+      if (edgeKeys.has(key)) continue;
+      edgeKeys.add(key);
+      out.push({ id: `sequence:${key}`, from: previous.id, to: current.id, exact: false });
     }
     return out;
   }, [activeNodes]);
@@ -224,7 +236,7 @@ export function ReactorActivityOnly({ nodes: _legacyNodes }: { nodes?: unknown[]
                 const to = positions.get(edge.to);
                 if (!from || !to) return null;
                 const d = `M ${from.x} ${from.y + cardH / 2} C ${from.x} ${from.y + cardH / 2 + 26} ${to.x} ${to.y - cardH / 2 - 26} ${to.x} ${to.y - cardH / 2}`;
-                return <path key={edge.id} d={d} fill="none" stroke={edge.adaptive ? "#64748b" : "#b8ff4d"} strokeWidth={edge.adaptive ? 1 : 1.7} strokeDasharray={edge.adaptive ? "5 5" : "none"} opacity={edge.adaptive ? 0.55 : 0.85} markerEnd={`url(#${edge.adaptive ? "reactorSoftArrow" : "reactorLiveArrow"})`} />;
+                return <path key={edge.id} d={d} fill="none" stroke={edge.exact ? "#b8ff4d" : "#64748b"} strokeWidth={edge.exact ? 1.7 : 1} strokeDasharray={edge.exact ? "none" : "5 5"} opacity={edge.exact ? 0.85 : 0.55} markerEnd={`url(#${edge.exact ? "reactorLiveArrow" : "reactorSoftArrow"})`} />;
               })}
             </svg>
 
@@ -254,7 +266,7 @@ export function ReactorActivityOnly({ nodes: _legacyNodes }: { nodes?: unknown[]
         </div>
       )}
       <div style={{ marginTop: 8, textAlign: "center", color: "#334155", fontSize: 8, letterSpacing: "0.12em", textTransform: "uppercase" }}>
-        Live telemetry only · nodes disappear when their active spans end · dashed links indicate sequence without shared conversation identity
+        Live telemetry only · nodes disappear when their active spans end · solid links are parent-span flow · dashed links are same-conversation fallback
       </div>
     </div>
   );
