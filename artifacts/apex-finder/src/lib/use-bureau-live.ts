@@ -1,13 +1,14 @@
 /**
- * Live bureau events for Reactor desk (desktop + mobile).
- * Polls /api/ingest/bureau-events and maps right-hand narration into OpsEvent shape.
- *
- * INTEGRITY: when Atlas is not running, the desk must not look LIVE.
- * Stale Redis tails / carousel spin are not research.
+ * Supplemental desk narration plus the canonical Reactor live-activity snapshot.
+ * Tool/model execution comes from DigSpan-derived live activities; bureau-events
+ * remains narration/history only and is never allowed to manufacture execution.
  */
 import { useEffect, useMemo, useState } from "react";
+import { liveActivityToReactorEvent } from "./reactor-live-model";
+import { useReactorLiveSnapshot } from "./reactor-live-store";
 
 export type BureauDeskEvent = {
+  id?: string;
   timestamp?: string;
   kind?: string;
   stage?: string;
@@ -30,7 +31,6 @@ export type BureauDeskEvent = {
 
 function mapBureauPayload(parsed: any, atlasLive: boolean): BureauDeskEvent {
   const isNarration = parsed?.kind === "narration" || parsed?.actor === "right_hand";
-  // Only mark active while Atlas is actually running AND event is very recent.
   let status = "done";
   if (atlasLive) {
     try {
@@ -41,6 +41,7 @@ function mapBureauPayload(parsed: any, atlasLive: boolean): BureauDeskEvent {
     }
   }
   return {
+    id: parsed?.id ? String(parsed.id) : undefined,
     timestamp: parsed?.timestamp,
     kind: parsed?.kind || (isNarration ? "narration" : "log"),
     stage: parsed?.title,
@@ -59,7 +60,29 @@ function mapBureauPayload(parsed: any, atlasLive: boolean): BureauDeskEvent {
   };
 }
 
-/** Merge job eventLog with live bureau poll. When not live, strip active chrome. */
+function activityToDeskEvent(activity: ReturnType<typeof useReactorLiveSnapshot>["activities"][number]): BureauDeskEvent {
+  const event = liveActivityToReactorEvent(activity);
+  return {
+    id: event.id,
+    timestamp: event.timestamp,
+    kind: "telemetry",
+    stage: event.title,
+    status: event.status === "done" ? "done" : event.status,
+    targetName: event.targetName,
+    activeToolId: event.provider,
+    toolIds: event.provider ? [event.provider] : [],
+    inputSummary: event.prompt,
+    resultSummary: event.resultSummary,
+    story: event.title,
+    actor: event.actor,
+    methodKind: event.method,
+    sourceUrls: event.sourceUrls,
+    links: event.links,
+    provider: event.provider,
+  };
+}
+
+/** Merge canonical live telemetry with supplemental bureau narration/history. */
 export function useBureauLiveDesk(
   eventLog: BureauDeskEvent[] | undefined,
   opts?: { enabled?: boolean; pollMs?: number; atlasLive?: boolean },
@@ -68,11 +91,10 @@ export function useBureauLiveDesk(
   const atlasLive = Boolean(opts?.atlasLive);
   const pollMs = opts?.pollMs ?? 8_000;
   const [bureauEvents, setBureauEvents] = useState<BureauDeskEvent[]>([]);
+  const { activities } = useReactorLiveSnapshot();
 
   useEffect(() => {
-    if (!enabled) return;
-    // Idle: do not poll bureau-events — stops fake feed after process death / stop
-    if (!atlasLive) {
+    if (!enabled || !atlasLive) {
       setBureauEvents([]);
       return;
     }
@@ -101,11 +123,7 @@ export function useBureauLiveDesk(
           );
         }
       } catch (error) {
-        // Aborts are expected during polling handoff/unmount; network failure
-        // must fail soft and must never invent a live feed.
-        if (!cancelled && !(error instanceof DOMException && error.name === "AbortError")) {
-          setBureauEvents([]);
-        }
+        if (!cancelled && !(error instanceof DOMException && error.name === "AbortError")) setBureauEvents([]);
       }
     };
 
@@ -118,24 +136,29 @@ export function useBureauLiveDesk(
     };
   }, [enabled, pollMs, atlasLive]);
 
+  const telemetryEvents = useMemo(
+    () => (atlasLive ? activities.map(activityToDeskEvent) : []),
+    [activities, atlasLive],
+  );
+
   const merged = useMemo(() => {
     const fromLog = Array.isArray(eventLog) ? eventLog : [];
-    // When not live: only finished history (no active status), prefer empty for desk chrome
-    const normalize = (e: BureauDeskEvent): BureauDeskEvent =>
-      atlasLive ? e : { ...e, status: "done" };
-
+    const normalize = (e: BureauDeskEvent): BureauDeskEvent => atlasLive ? e : { ...e, status: "done" };
     const seen = new Set<string>();
     const out: BureauDeskEvent[] = [];
-    const source = atlasLive ? [...bureauEvents, ...fromLog] : fromLog;
+
+    // Telemetry is authoritative and deliberately comes first. Narration/history
+    // can enrich the desk, but cannot replace or invent a live tool/model event.
+    const source = atlasLive ? [...telemetryEvents, ...bureauEvents, ...fromLog] : fromLog;
     for (const e of source) {
       const n = normalize(e);
-      const key = `${n.timestamp || ""}|${n.kind || ""}|${n.stage || n.story || n.narration || ""}`.slice(0, 160);
+      const key = n.id || `${n.timestamp || ""}|${n.kind || ""}|${n.stage || n.story || n.narration || ""}`.slice(0, 160);
       if (seen.has(key)) continue;
       seen.add(key);
       out.push(n);
     }
     return out.slice(0, 80);
-  }, [eventLog, bureauEvents, atlasLive]);
+  }, [eventLog, bureauEvents, telemetryEvents, atlasLive]);
 
   const latestNarration = useMemo(() => {
     if (!atlasLive) return null;
