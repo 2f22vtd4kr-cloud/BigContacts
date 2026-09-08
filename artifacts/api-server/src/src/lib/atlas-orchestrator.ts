@@ -401,7 +401,11 @@ async function fetchEntities(opts: {
   requireAviationAsset?: boolean;
   targetId?: number;
 }) {
-  const types = opts.types ?? ["HNWI", "Gatekeeper", "Corporation", "Trust"];
+  const types = opts.types ?? (
+    opts.targetId != null
+      ? ["HNWI", "Gatekeeper", "Corporation", "Trust", "Person"]
+      : ["HNWI", "Gatekeeper", "Corporation", "Trust"]
+  );
   const conditions: any[] = [
     sql`${entitiesTable.type} IN (${sql.join(types.map(t => sql`${t}`), sql`, `)})`,
   ];
