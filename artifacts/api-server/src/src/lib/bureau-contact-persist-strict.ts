@@ -169,7 +169,7 @@ export async function persistSourceBackedBureauContactsForEntity(
         note: item.note ?? null,
         sourceUrls: sourceUrls.slice(0, 5),
         fromAgenticInvestigator: true,
-        investigatorSelectedForCard: item.promote === true || /agentic/i.test(source),
+        investigatorSelectedForCard: item.promote === true,
         identityCollisionRisk: collision.risk,
         identityCollisionReason: collision.reason,
       }),
@@ -178,9 +178,10 @@ export async function persistSourceBackedBureauContactsForEntity(
   if (!values.length) return 0;
   await db.insert(contactEvidenceTable).values(values).onConflictDoNothing();
 
-  // The canonical agentic caller passes only the investigator's final `done`
-  // findings. Apply only fields for which that model output contains exactly
-  // one candidate. Never pick a winner when the model emitted conflicting values.
+  // Evidence persistence and card mutation are separate boundaries. Even in the
+  // canonical agentic lane, only an explicitly promoted model finding may mutate
+  // an entity field. Auto-extracted observation facts remain evidence until the
+  // Investigator explicitly emits the value with promotionDecision="promote".
   if (/agentic/i.test(source)) {
     const fieldByType: Record<string, string> = {
       email: "email",
@@ -193,6 +194,7 @@ export async function persistSourceBackedBureauContactsForEntity(
     };
     const grouped = new Map<string, typeof normalized>();
     for (const row of normalized) {
+      if (row.item.promote !== true) continue;
       const field = fieldByType[row.vectorType];
       if (!field) continue;
       const bucket = grouped.get(field) ?? [];
