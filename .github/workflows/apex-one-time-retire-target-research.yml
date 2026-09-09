@@ -1,0 +1,50 @@
+name: one-time retire deterministic target research
+on:
+  pull_request:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  harden:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
+      - name: Retire deterministic MCTS from Atlas path
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          p = Path('artifacts/api-server/src/src/lib/atlas-orchestrator.ts')
+          s = p.read_text()
+          old_import = 'import { runTargetResearch } from "./target-research";\n'
+          if old_import not in s: raise SystemExit('expected target-research import was not found')
+          s = s.replace(old_import, '', 1)
+          block = re.compile(r'    try \{\n      const researchResult = await runTargetResearch\(target\.id, 3\);\n      summary\["Target research"\] =\n        `UCT complete \(\$\{researchResult\.mcts\.mctsSteps\.length\} steps, ` \+\n        `candidate path \$\{\(researchResult\.pathScore \* 100\)\.toFixed\(0\)\}/100; manual review\)`;\n    \} catch \(err: any\) \{\n      summary\["Target research"\] = `MCTS review: \$\{err\?\.message \?\? "failed"\}`;\n      logger\.warn\(\{ entityId: target\.id, err: err\?\.message \}, "\[Atlas\] single-target MCTS failed"\);\n    \}', re.S)
+          replacement = '''    // Target research judgment is owned by the selected Investigator/oversight loop.
+    // The former deterministic MCTS projector is intentionally not part of Atlas's
+    // canonical research path; deterministic code remains limited to safety/integrity.
+    summary["Target research"] = "Model-selected target research handled by the Investigator loop.";'''
+          s, n = block.subn(replacement, s, count=1)
+          if n != 1: raise SystemExit(f'expected exactly one Atlas MCTS block, found {n}')
+          p.write_text(s)
+          PY
+          git diff --check
+          ! grep -n "runTargetResearch\|UCT complete\|single-target MCTS" artifacts/api-server/src/src/lib/atlas-orchestrator.ts
+          git diff --stat
+      - name: Verify deterministic target-research path is gone
+        run: |
+          ! grep -n 'runTargetResearch' artifacts/api-server/src/src/lib/atlas-orchestrator.ts
+          grep -n 'Model-selected target research handled by the Investigator loop' artifacts/api-server/src/src/lib/atlas-orchestrator.ts
+      - name: Commit source change and remove runner
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add artifacts/api-server/src/src/lib/atlas-orchestrator.ts
+          git commit -m 'fix: retire deterministic target research from Atlas'
+          git rm .github/workflows/apex-one-time-retire-target-research.yml
+          git commit -m 'chore: remove one-time target research runner'
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}
