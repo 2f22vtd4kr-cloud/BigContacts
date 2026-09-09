@@ -1,7 +1,6 @@
 import type { Entity } from "@workspace/db";
-import { GROQ_DEFAULT_MODEL, GROQ_CHAT_MODELS } from "./groq-models";
 import { logger } from "./logger";
-import { apexOrientationFor, apexOrientationCompact } from "./apex-bureau-orientation";
+import { apexOrientationFor } from "./apex-bureau-orientation";
 import { buildApexAtlasBossPlanPrompt } from "./case-bureau-prompt";
 import { extractWalletSeedsFromText, buildWalletSeedPlan, formatWalletSeedPlanForPrompt, objectiveLooksWalletFirst } from "./wallet-seed";
 export {
@@ -512,52 +511,6 @@ export async function generateGeminiBossText(
   }
 
   return { model: selection.model, raw: null, error: lastError };
-}
-
-/** Groq text fallback for Boss discovery/plan when Gemini capacity is exhausted. */
-async function generateGroqBossText(prompt: string): Promise<GeminiTextGenerationResult> {
-  const keys = ["GROQ_API_KEY", ...Array.from({ length: 5 }, (_, i) => `GROQ_API_KEY_${i + 1}`)]
-    .map((n) => process.env[n] ?? "")
-    .filter((k) => k.length > 0);
-  if (!keys.length) {
-    return { model: "groq-none", raw: null, error: "No GROQ_API_KEY configured for Boss capacity fallback." };
-  }
-  let lastError = "Groq Boss fallback returned no text.";
-  for (const key of keys) {
-    for (const model of GROQ_CHAT_MODELS) {
-      try {
-        const resp = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-          method: "POST",
-          headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-          body: JSON.stringify({
-            model,
-            temperature: 0.2,
-            max_tokens: 4096,
-            response_format: { type: "json_object" },
-            messages: [
-              {
-                role: "system",
-                content:
-                  apexOrientationCompact("boss") + " Reply with ONE JSON object only. Never invent contacts, people, or URLs.",
-              },
-              { role: "user", content: prompt },
-            ],
-          }),
-          signal: AbortSignal.timeout(45_000),
-        });
-        if (!resp.ok) {
-          lastError = `Groq Boss ${model} HTTP ${resp.status}`;
-          continue;
-        }
-        const data = (await resp.json()) as { choices?: Array<{ message?: { content?: string } }> };
-        const raw = data.choices?.[0]?.message?.content?.trim() ?? "";
-        if (raw) return { model, raw, error: null };
-      } catch (err: any) {
-        lastError = err?.message ?? "Groq Boss fallback failed.";
-      }
-    }
-  }
-  return { model: GROQ_DEFAULT_MODEL, raw: null, error: lastError };
 }
 
 export async function getGeminiBossStatus(): Promise<GeminiBossStatus> {
