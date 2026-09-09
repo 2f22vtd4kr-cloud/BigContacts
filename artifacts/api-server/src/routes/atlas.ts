@@ -15,7 +15,6 @@ import { logger } from "../lib/logger";
 
 const router = Router();
 
-// ── POST /ingest/atlas-run ────────────────────────────────────────────────────
 router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<void> => {
   const existing = await getActiveJob("atlas-run");
   if (existing) {
@@ -29,11 +28,10 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
   const body = (req.body ?? {}) as Record<string, unknown>;
   const singleTargetRaw = body.singleTargetId !== undefined ? Number(body.singleTargetId) : undefined;
   const singleTargetId = Number.isInteger(singleTargetRaw) && (singleTargetRaw as number) > 0 ? singleTargetRaw as number : undefined;
-  const discoveryFirst = singleTargetId != null
-    ? false
-    : body.discoveryFirst !== undefined
-      ? Boolean(body.discoveryFirst)
-      : CANONICAL_ATLAS_LAUNCH_BODY.discoveryFirst;
+  // Public Atlas launch is always the canonical model-selected pipeline. The
+  // only alternate mode is an explicitly named single target, which is routed
+  // to the dedicated Investigator control plane below.
+  const discoveryFirst = singleTargetId != null ? false : true;
 
   const requestedResearchDepth = String(body.researchDepth ?? CANONICAL_ATLAS_LAUNCH_BODY.researchDepth).toLowerCase();
   const researchDepth = ["fast", "standard", "deep"].includes(requestedResearchDepth)
@@ -58,8 +56,6 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
     broadCategories:   Number(body.broadCategories)   || (discoveryFirst ? CANONICAL_ATLAS_LAUNCH_BODY.broadCategories : 1),
   };
 
-  // A single-target operator action is never allowed to accidentally enter the
-  // autonomous people-discovery lane.
   if (singleTargetId != null) {
     opts.targetCount = 1;
     opts.researchLimit = 1;
