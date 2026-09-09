@@ -32,10 +32,12 @@ function buildInvestigationContext(input: {
   investigator?: { status: string; model: string; findings: number; searches: number; visits: number; stopReason?: string };
   trajectory?: string[];
   findingSummary?: string[];
+  priorContext?: string;
   phase: string;
 }): string {
   const trajectory = (input.trajectory ?? []).slice(-40);
   const findings = (input.findingSummary ?? []).slice(-30);
+  const priorContext = (input.priorContext ?? "").trim().slice(-12000);
   return [
     "# Apex Atlas — Investigation Context",
     "",
@@ -49,6 +51,9 @@ function buildInvestigationContext(input: {
     "## Bureau operating law",
     "Gemini is Boss / primary orchestrator. DeepSeek V4 Flash is Right Hand Advisor. Groq/Mistral are Investigator LLM capabilities. The Investigator owns the research trajectory. Deterministic code only enforces safety, provenance, budgets, lifecycle and promotion integrity.",
     "No fixed search-provider order, no scripted research hops, no force_* research trajectory, no fabricated evidence.",
+    "",
+    "## Prior durable context",
+    priorContext || "No prior investigation context exists; this is the first target-scoped run.",
     "",
     "## Right Hand — latest state",
     `status=${input.rightHand.status}; model=${input.rightHand.model}`,
@@ -155,12 +160,19 @@ export async function runCanonicalSingleTargetInvestigation(
   })();
   const caseRow = await ensureTargetCase(target, companyName, atlasJobId);
   const caseId = caseRow.id;
+  const baseIteration = Math.max(0, Number(caseRow.iteration ?? 0));
+  const priorContext = (() => {
+    try {
+      const parsed = caseRow.caseFile ? JSON.parse(caseRow.caseFile) as Record<string, unknown> : {};
+      return typeof parsed.contextDocument === "string" ? parsed.contextDocument : "";
+    } catch { return ""; }
+  })();
   const depth = resolveResearchDepth({ explicit: options.researchDepth });
   const hardTimeoutMs = Math.max(30_000, options.targetTimeoutMs ?? depth.agenticHardTimeoutMs);
   let rightHand: Oversight = { status: "unavailable", model: "none", decision: null, reason: null, focusLanes: [], confidence: null, error: null };
   let boss: { status: string; model: string; investigatorLlm: "groq" | "mistral" | null; decision: string | null; nextDirections: string[]; uncertainties: string[]; error: string | null } = { status: "unavailable", model: "none", investigatorLlm: null, decision: null, nextDirections: [], uncertainties: [], error: null };
-  let contextDocument = buildInvestigationContext({ caseId, targetName: target.name, targetType: target.type, companyName, iteration: 0, rightHand, boss, phase: "opening" });
-  await persistContext(caseId, contextDocument, 0, "bureau", "Investigation opened; shared context document created before model oversight.");
+  let contextDocument = buildInvestigationContext({ caseId, targetName: target.name, targetType: target.type, companyName, iteration: baseIteration, rightHand, boss, priorContext, phase: "opening" });
+  await persistContext(caseId, contextDocument, baseIteration, "bureau", priorContext ? "Target investigation resumed; prior durable context preserved before new model oversight." : "Investigation opened; shared context document created before model oversight.");
 
   await updateJob(atlasJobId, { status: "running", progress: 0, total: 5, atlasPhase: 0, atlasPhaseTotal: 5, message: `Right Hand reviewing ${target.name} with shared case context…` });
 
@@ -175,8 +187,8 @@ export async function runCanonicalSingleTargetInvestigation(
       rightHand = { status: "completed", model: raw.model, decision: typeof parsed.decision === "string" ? parsed.decision.slice(0, 500) : null, reason: typeof parsed.reason === "string" ? parsed.reason.slice(0, 1000) : null, focusLanes: Array.isArray(parsed.focusLanes) ? parsed.focusLanes.filter((v): v is string => typeof v === "string").slice(0, 8) : [], confidence: typeof parsed.confidence === "number" ? Math.max(0, Math.min(1, parsed.confidence)) : null, error: null };
     } else rightHand.error = raw.error ?? "Right-hand unavailable";
   } catch (error) { rightHand.error = error instanceof Error ? error.message : "Right-hand unavailable"; }
-  contextDocument = buildInvestigationContext({ caseId, targetName: target.name, targetType: target.type, companyName, iteration: 1, rightHand, boss, phase: "Boss assignment pending" });
-  await persistContext(caseId, contextDocument, 1, "right_hand_advisor", `Right-hand preflight ${rightHand.status}; shared context refreshed.`);
+  contextDocument = buildInvestigationContext({ caseId, targetName: target.name, targetType: target.type, companyName, iteration: baseIteration + 1, rightHand, boss, priorContext, phase: "Boss assignment pending" });
+  await persistContext(caseId, contextDocument, baseIteration + 1, "right_hand_advisor", `Right-hand preflight ${rightHand.status}; shared context refreshed.`);
   await updateJob(atlasJobId, { progress: 1, atlasPhase: 1, message: `Gemini Boss assigning Investigator for ${target.name} from shared context…` });
 
   const bossResult = await runGeminiBossDiscovery({
@@ -188,8 +200,8 @@ export async function runCanonicalSingleTargetInvestigation(
     startingLane: "exact target assignment from shared case context",
   });
   boss = { status: bossResult.status, model: bossResult.model, investigatorLlm: bossResult.investigatorLlm, decision: bossResult.report, nextDirections: bossResult.nextDirections, uncertainties: bossResult.uncertainties, error: bossResult.error };
-  contextDocument = buildInvestigationContext({ caseId, targetName: target.name, targetType: target.type, companyName, iteration: 2, rightHand, boss, phase: "Investigator assignment" });
-  await persistContext(caseId, contextDocument, 2, "head_investigator", `Gemini Boss ${boss.status}; Investigator=${boss.investigatorLlm ?? "none"}; shared context refreshed.`);
+  contextDocument = buildInvestigationContext({ caseId, targetName: target.name, targetType: target.type, companyName, iteration: baseIteration + 2, rightHand, boss, priorContext, phase: "Investigator assignment" });
+  await persistContext(caseId, contextDocument, baseIteration + 2, "head_investigator", `Gemini Boss ${boss.status}; Investigator=${boss.investigatorLlm ?? "none"}; shared context refreshed.`);
 
   if (!boss.investigatorLlm) {
     await updateJob(atlasJobId, { status: "failed", progress: 2, atlasPhase: 2, message: `Gemini Boss did not select a usable Investigator for ${target.name}; run closed without fallback.`, result: JSON.stringify({ caseId, rightHand, boss }), finishedAt: new Date().toISOString() });
@@ -201,8 +213,8 @@ export async function runCanonicalSingleTargetInvestigation(
   const result = await runTargetContactAgent({ entityId: target.id, targetName: target.name, companyName, jobId: atlasJobId, investigatorLlm: boss.investigatorLlm, maxIterations: depth.agenticMaxIterations, hardTimeoutMs, contextDocument });
 
   const trajectorySummary = [`Investigator model=${result.model}`, `status=${result.status}`, `findings=${result.findings}`, `searches=${result.searches}`, `visits=${result.visits}`];
-  contextDocument = buildInvestigationContext({ caseId, targetName: target.name, targetType: target.type, companyName, iteration: 3, rightHand, boss, investigator: { status: result.status, model: result.model, findings: result.findings, searches: result.searches, visits: result.visits }, trajectory: result.trajectory, findingSummary: trajectorySummary, phase: "Investigator completed" });
-  await persistContext(caseId, contextDocument, 3, "investigator", `Investigator ${result.status}; ${result.findings} source-backed findings returned; trajectory persisted for oversight review.`);
+  contextDocument = buildInvestigationContext({ caseId, targetName: target.name, targetType: target.type, companyName, iteration: baseIteration + 3, rightHand, boss, investigator: { status: result.status, model: result.model, findings: result.findings, searches: result.searches, visits: result.visits }, trajectory: result.trajectory, findingSummary: trajectorySummary, priorContext, phase: "Investigator completed" });
+  await persistContext(caseId, contextDocument, baseIteration + 3, "investigator", `Investigator ${result.status}; ${result.findings} source-backed findings returned; trajectory persisted for oversight review.`);
   await updateJob(atlasJobId, { progress: 3, atlasPhase: 3, message: `Right Hand reviewing the completed ${target.name} investigation…` });
 
   const postRaw = await runDeepSeekFreeJson(
@@ -214,8 +226,8 @@ export async function runCanonicalSingleTargetInvestigation(
     try { parsed = JSON.parse(postRaw.raw ?? "{}"); } catch { parsed = {}; }
     rightHand = { status: "completed", model: postRaw.model, decision: typeof parsed.decision === "string" ? parsed.decision.slice(0, 500) : null, reason: typeof parsed.reason === "string" ? parsed.reason.slice(0, 1000) : null, focusLanes: Array.isArray(parsed.focusLanes) ? parsed.focusLanes.filter((v): v is string => typeof v === "string").slice(0, 8) : [], confidence: typeof parsed.confidence === "number" ? Math.max(0, Math.min(1, parsed.confidence)) : null, error: null };
   } else rightHand = { ...rightHand, status: "unavailable", model: postRaw.model, error: postRaw.error ?? "Right-hand review unavailable" };
-  contextDocument = buildInvestigationContext({ caseId, targetName: target.name, targetType: target.type, companyName, iteration: 4, rightHand, boss, investigator: { status: result.status, model: result.model, findings: result.findings, searches: result.searches, visits: result.visits }, trajectory: result.trajectory, findingSummary: trajectorySummary, phase: "Right-hand post-investigation review" });
-  await persistContext(caseId, contextDocument, 4, "right_hand_advisor", `Right-hand post-investigation review ${rightHand.status}; Investigator trajectory remains mounted in context.`);
+  contextDocument = buildInvestigationContext({ caseId, targetName: target.name, targetType: target.type, companyName, iteration: baseIteration + 4, rightHand, boss, investigator: { status: result.status, model: result.model, findings: result.findings, searches: result.searches, visits: result.visits }, trajectory: result.trajectory, findingSummary: trajectorySummary, priorContext, phase: "Right-hand post-investigation review" });
+  await persistContext(caseId, contextDocument, baseIteration + 4, "right_hand_advisor", `Right-hand post-investigation review ${rightHand.status}; Investigator trajectory remains mounted in context.`);
   await updateJob(atlasJobId, { progress: 4, atlasPhase: 4, message: `Gemini Boss reviewing the complete ${target.name} case context…` });
 
   const finalBoss = await runGeminiBossDiscovery({
@@ -227,8 +239,8 @@ export async function runCanonicalSingleTargetInvestigation(
     startingLane: "final review of completed target investigation",
   });
   boss = { status: finalBoss.status, model: finalBoss.model, investigatorLlm: boss.investigatorLlm, decision: finalBoss.report ?? boss.decision, nextDirections: finalBoss.nextDirections, uncertainties: finalBoss.uncertainties, error: finalBoss.error };
-  contextDocument = buildInvestigationContext({ caseId, targetName: target.name, targetType: target.type, companyName, iteration: 5, rightHand, boss, investigator: { status: result.status, model: result.model, findings: result.findings, searches: result.searches, visits: result.visits }, trajectory: result.trajectory, findingSummary: trajectorySummary, phase: "Gemini final review" });
-  await persistContext(caseId, contextDocument, 5, "head_investigator", `Gemini final review ${boss.status}; investigation context finalized with Investigator trajectory.`);
+  contextDocument = buildInvestigationContext({ caseId, targetName: target.name, targetType: target.type, companyName, iteration: baseIteration + 5, rightHand, boss, investigator: { status: result.status, model: result.model, findings: result.findings, searches: result.searches, visits: result.visits }, trajectory: result.trajectory, findingSummary: trajectorySummary, priorContext, phase: "Gemini final review" });
+  await persistContext(caseId, contextDocument, baseIteration + 5, "head_investigator", `Gemini final review ${boss.status}; investigation context finalized with Investigator trajectory.`);
 
   const incomplete = result.status !== "completed";
   await db.update(researchCasesTable).set({ status: incomplete ? "review" : "complete", currentAction: incomplete ? "investigator-incomplete" : "awaiting-human-review", lastDecisionAt: new Date(), updatedAt: new Date() }).where(eq(researchCasesTable.id, caseId));
