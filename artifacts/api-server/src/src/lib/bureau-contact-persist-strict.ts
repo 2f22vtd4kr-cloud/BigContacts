@@ -11,6 +11,7 @@ import { eq } from "drizzle-orm";
 import { sanitizePublicEmail, sanitizePublicPhone, isTrashContactValue } from "./contact-validation";
 import { assessIdentityCollision } from "./identity-collision";
 import { countIndependentSourceHosts } from "./source-corroboration";
+import { getDiscoveryTrace } from "./investigator-trace";
 
 export type BureauContactLike = {
   vectorType?: string | null;
@@ -49,6 +50,27 @@ function normalizeObservedUrls(urls: readonly string[] | null | undefined): Set<
     } catch { /* malformed observed URL is not provenance */ }
   }
   return observed;
+}
+
+function observedUrlsFromTraceLines(lines: readonly string[] | null | undefined): string[] {
+  const out: string[] = [];
+  for (const line of lines ?? []) {
+    const match = String(line).match(/step\d+:\s+(?:visit|browser_fetch)\s+(https?:\/\/\S+)/i);
+    if (match?.[1]) out.push(match[1]);
+  }
+  return out;
+}
+
+async function resolveObservedSourceUrls(
+  jobId: string | null | undefined,
+  supplied: readonly string[] | null | undefined,
+): Promise<string[]> {
+  const direct = [...(supplied ?? [])];
+  if (direct.length) return direct;
+  if (!jobId) return [];
+  const trace = await getDiscoveryTrace(jobId);
+  if (!trace?.slots?.length) return [];
+  return trace.slots.flatMap((slot) => observedUrlsFromTraceLines(slot.trajectory));
 }
 
 function mapVectorType(raw: string, value: string): string {
@@ -118,13 +140,16 @@ export async function persistSourceBackedBureauContactsForEntity(
   entityId: number,
   items: readonly BureauContactLike[] | null | undefined,
   source: string,
-  _jobId?: string | null,
+  jobId?: string | null,
   observedSourceUrls?: readonly string[] | null,
 ): Promise<number> {
   if (!entityId) return 0;
   const agenticSource = /agentic/i.test(source);
+  const resolvedObservedSourceUrls = agenticSource
+    ? await resolveObservedSourceUrls(jobId, observedSourceUrls)
+    : [];
   const backed = agenticSource
-    ? observedSourceBackedBureauContacts(items, observedSourceUrls)
+    ? observedSourceBackedBureauContacts(items, resolvedObservedSourceUrls)
     : sourceBackedBureauContacts(items);
   if (!backed.length) return 0;
 
@@ -216,10 +241,6 @@ export async function persistSourceBackedBureauContactsForEntity(
   if (!values.length) return 0;
   await db.insert(contactEvidenceTable).values(values).onConflictDoNothing();
 
-  // Evidence persistence and card mutation are separate boundaries. Even in the
-  // canonical agentic lane, only an explicitly promoted model finding may mutate
-  // an entity field. Auto-extracted observation facts remain evidence until the
-  // Investigator explicitly emits the value with promotionDecision="promote".
   if (agenticSource) {
     const fieldByType: Record<string, string> = {
       email: "email",
@@ -251,7 +272,7 @@ export async function persistSourceBackedBureauContactsForEntity(
         value: selected.value,
         sourceUrls: selected.sourceUrls,
         promote: true,
-      }, observedSourceUrls ?? []);
+      }, resolvedObservedSourceUrls);
     }
   }
   return values.length;
@@ -259,8 +280,8 @@ export async function persistSourceBackedBureauContactsForEntity(
 
 /**
  * Apply exactly one investigator-selected value to the entity card.
- * This validates provenance, schema, identity, candidate/person scope, and
- * run-scoped observation but never chooses among candidates.
+ * This validates provenance, schema, candidate/person scope, and run-scoped
+ * observation but never chooses among candidates.
  */
 export async function applyInvestigatorSelectedContactToEntityCard(
   entityId: number,
