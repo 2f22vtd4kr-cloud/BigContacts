@@ -1,0 +1,47 @@
+name: one-time remove Groq Boss fallback
+on:
+  pull_request:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  harden:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
+      - name: Remove Groq Boss fallback
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          p = Path('artifacts/api-server/src/src/lib/case-bureau.ts')
+          s = p.read_text()
+          block = re.compile(r'\n/\*\* Groq text fallback for Boss discovery/plan when Gemini capacity is exhausted\. \*/\nasync function generateGroqBossText\(prompt: string\): Promise<GeminiTextGenerationResult> \{.*?\n\}\n\n(?=export async function getGeminiBossStatus)', re.S)
+          s, n = block.subn('\n', s, count=1)
+          if n != 1: raise SystemExit(f'expected exactly one Groq Boss fallback function, found {n}')
+          s, n = re.subn(r'import \{ GROQ_DEFAULT_MODEL, GROQ_CHAT_MODELS \} from "\\./groq-models";\n', '', s, count=1)
+          if n != 1: raise SystemExit(f'expected exactly one unused Groq model import, found {n}')
+          s, n = re.subn(r'import \{ apexOrientationFor, apexOrientationCompact \} from "\\./apex-bureau-orientation";', 'import { apexOrientationFor } from "./apex-bureau-orientation";', s, count=1)
+          if n != 1: raise SystemExit(f'expected exactly one orientation import, found {n}')
+          p.write_text(s)
+          PY
+          git diff --check
+          ! grep -n "generateGroqBossText\|Groq text fallback for Boss" artifacts/api-server/src/src/lib/case-bureau.ts
+          grep -n "apexOrientationFor" artifacts/api-server/src/src/lib/case-bureau.ts
+          git diff --stat
+      - name: Verify provider-role guard
+        run: |
+          node scripts/check-unified-investigator-architecture.mjs
+      - name: Commit source change and remove runner
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add artifacts/api-server/src/src/lib/case-bureau.ts
+          git commit -m 'fix: keep Groq out of Boss role'
+          git rm .github/workflows/apex-one-time-remove-groq-boss-fallback.yml
+          git commit -m 'chore: remove one-time Boss role runner'
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}
