@@ -79,10 +79,20 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
   void (async () => {
     try {
       const depth = resolveResearchDepth({ explicit: typeof file.researchDepth === "string" ? file.researchDepth : undefined });
-      const rightRaw = await runDeepSeekFreeJson(
-        `Review this discovery mission for the Boss. Objective: ${String(file.humanBrief?.objective ?? "").slice(0, 4000)}. Motivation: ${String(file.humanBrief?.motivation ?? "").slice(0, 1500)}. Geography: ${String(file.humanBrief?.geography ?? "").slice(0, 500)}. Return concise priorities only; do not browse, do not select people, and do not choose contacts. JSON: decision, reason, focusLanes, confidence.`,
-        "You are the DeepSeek/NVIDIA Right-hand. Advise Gemini only. Never browse or act as Investigator. Reply with ONE JSON object.",
-      );
+      let rightRaw: Awaited<ReturnType<typeof runDeepSeekFreeJson>>;
+      try {
+        rightRaw = await runDeepSeekFreeJson(
+          `Review this discovery mission for the Boss. Objective: ${String(file.humanBrief?.objective ?? "").slice(0, 4000)}. Motivation: ${String(file.humanBrief?.motivation ?? "").slice(0, 1500)}. Geography: ${String(file.humanBrief?.geography ?? "").slice(0, 500)}. Return concise priorities only; do not browse, do not select people, and do not choose contacts. JSON: decision, reason, focusLanes, confidence.`,
+          "You are the DeepSeek/NVIDIA Right-hand. Advise Gemini only. Never browse or act as Investigator. Reply with ONE JSON object.",
+        );
+      } catch (error) {
+        rightRaw = {
+          status: "unavailable",
+          model: "deepseek-ai/deepseek-v4-flash-0731",
+          raw: null,
+          error: error instanceof Error ? error.message : "DeepSeek Right-hand unavailable",
+        };
+      }
       let rightHand = {
         status: rightRaw.status === "completed" ? "completed" as const : "unavailable" as const,
         model: rightRaw.model,
