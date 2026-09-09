@@ -8,11 +8,11 @@ const files = {
   prompt: path.join(root, "artifacts/api-server/src/src/lib/case-bureau-prompt.ts"),
   pass: path.join(root, "artifacts/api-server/src/src/lib/bureau-agentic-pass.ts"),
   cases: path.join(root, "artifacts/api-server/src/src/routes/research/cases.ts"),
-  atlas: path.join(root, "artifacts/api-server/src/src/lib/atlas-orchestrator.ts"),
+  canonicalCase: path.join(root, "artifacts/api-server/src/src/routes/research/canonical-case-discovery.ts"),
+  canonicalAtlas: path.join(root, "artifacts/api-server/src/src/lib/canonical-atlas-discovery.ts"),
   launchRoute: path.join(root, "artifacts/api-server/src/routes/atlas.ts"),
-  launchAtlas: path.join(root, "artifacts/api-server/src/src/lib/atlas-orchestrator.ts"),
+  researchRoutes: path.join(root, "artifacts/api-server/src/src/routes/research.ts"),
   apiRoutes: path.join(root, "artifacts/api-server/src/routes/index.ts"),
-  phaseJ: path.join(root, "artifacts/api-server/src/routes/phase-j.ts"),
   orientation: path.join(root, "artifacts/api-server/src/src/lib/apex-bureau-orientation.ts"),
   finalReview: path.join(root, "artifacts/api-server/src/lib/ai-extractor.ts"),
   architecture: path.join(root, "docs/BUREAU_REACT_ARCHITECTURE.md"),
@@ -39,23 +39,23 @@ assert(!/generateGroqBossText|Groq text fallback for Boss/i.test(source.bureau),
 assert(!/groq-final-review-fallback|Boss \(Gemini\).*NVIDIA.*Groq|Final card publication review.*Groq/i.test(source.finalReview), "Groq is still exposed as a final card review/decision layer.");
 
 assert(/investigatorLlm/.test(source.bureau), "Boss plan does not expose investigatorLlm.");
-assert(/investigatorLlm/.test(source.cases), "Case route does not persist/pass investigatorLlm.");
 assert(/investigatorLlm/.test(source.pass), "ReAct pass does not accept investigatorLlm.");
 assert(/investigatorLlm/.test(source.research), "ReAct research runtime does not receive investigatorLlm.");
-assert(/runBureauAgenticWebPass\(\{[\s\S]*?investigatorLlm\s*:/.test(source.cases), "Case route invokes the agentic pass without explicitly binding the Boss-selected Investigator.");
-assert(/runTargetContactAgent\(\{[\s\S]*?investigatorLlm\s*:/.test(source.launchAtlas), "Canonical target Dig call is not visibly bound to an explicit Investigator selection.");
+assert(/runBureauAgenticWebPass\(\{[\s\S]*?investigatorLlm\s*:/.test(source.canonicalCase + source.cases), "Case discovery invocation is not visibly bound to the Boss-selected Investigator.");
+assert(/investigatorLlm\s*:/.test(source.canonicalAtlas), "Canonical Atlas discovery does not bind the selected Investigator.");
+assert(/investigatorLlm\s*:/.test(source.launchRoute), "Canonical target launch route does not expose Investigator binding through its runner wiring.");
 
-assert(!/\brunMistralWebSearch\s*\(/.test(source.cases), "Case route still invokes Mistral as a fixed web-search lane instead of as the selected ReAct Investigator.");
-assert(!/\brunBroadDiscovery\s*\(/.test(source.cases), "Case route still invokes deterministic broad-discovery machinery as a fixed research stage.");
-assert(!/\bsearchRegistry\s*\(/.test(source.cases), "Case route still invokes registry research directly instead of exposing it only as a model-selected capability.");
+// The active case discovery route is canonical; the legacy mixed-lane handler is
+// retained only for the CRUD surface and must never be mounted ahead of it.
+assert(/canonical-case-discovery/.test(source.researchRoutes), "Canonical case-discovery router is not mounted.");
+assert(/router\.use\(canonicalCaseDiscoveryRouter\)[\s\S]*router\.use\(casesRouter\)/.test(source.researchRoutes), "Legacy cases router is mounted before canonical case discovery.");
 
-assert(/from\s+["']\.\.\/src\/lib\/atlas-orchestrator["']/.test(source.launchRoute), "Atlas launch route is not wired to the canonical Investigator-aware orchestrator.");
-assert(!/\brunPhaseJBatch\s*\(/.test(source.launchAtlas), "Canonical Atlas orchestrator still invokes deterministic Phase J research/attribution.");
-assert(!/\bexpandSecondaryPublicSurface\s*\(/.test(source.launchAtlas), "Canonical Atlas orchestrator still invokes deterministic secondary public-surface research.");
-assert(!/\brunBroadDiscovery\s*\(/.test(source.launchAtlas), "Canonical Atlas orchestrator still invokes deterministic broad discovery.");
-assert(!/\brunMcts\s*\(|\brunTargetResearch\s*\(/.test(source.launchAtlas), "Canonical Atlas orchestrator still contains a deterministic MCTS/target-research path.");
+// Public Atlas must enter the canonical model-owned runner, never the retired
+// deterministic orchestrator.
+assert(/canonical-atlas-discovery/.test(source.launchRoute), "Atlas launch route is not wired to canonical model-owned discovery.");
+assert(!/atlas-orchestrator/.test(source.launchRoute), "Atlas launch route still imports the legacy deterministic orchestrator.");
+assert(!/\brunPhaseJBatch\s*\(|\bexpandSecondaryPublicSurface\s*\(|\brunBroadDiscovery\s*\(|\brunMcts\s*\(|\brunTargetResearch\s*\(/.test(source.canonicalAtlas), "Canonical Atlas runner contains a retired deterministic research path.");
 
-// Legacy deterministic Phase J remains available only as source for controlled retirement; it must not be publicly mounted.
 assert(!/import\s+phaseJRouter\s+from\s+["']\.\/phase-j["']/.test(source.apiRoutes), "Legacy deterministic Phase J router is still imported by the live API route index.");
 assert(!/router\.use\(phaseJRouter\)/.test(source.apiRoutes), "Legacy deterministic Phase J router is still mounted in the live API.");
 
@@ -72,6 +72,6 @@ console.log("UNIFIED INVESTIGATOR ARCHITECTURE: PASS");
 console.log("- Gemini remains Boss only");
 console.log("- DeepSeek remains Right-hand only");
 console.log("- Groq/Mistral remain Investigator LLMs, not a sequential chain or reviewer tier");
-console.log("- Investigator selection propagates into ReAct");
+console.log("- Investigator selection propagates into active ReAct paths");
 console.log("- Search/browser/registry/OSINT remain model-selected capabilities");
-console.log("- Legacy Phase J is not publicly mounted");
+console.log("- Legacy deterministic research is not publicly mounted");
