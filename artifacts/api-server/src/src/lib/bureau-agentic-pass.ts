@@ -64,24 +64,35 @@ export function findingsToBureauContacts(findings: AgenticFinding[], _fallbackPe
   });
 }
 
+/**
+ * Case-scoped Investigator work requires a durable context document. A missing
+ * or unreadable context is an integrity failure, not permission to continue with
+ * a context-free ReAct pass; otherwise the model can unknowingly repeat work or
+ * lose the Boss/Right-hand investigation state.
+ */
 async function loadMountedCaseContext(caseId: string | number | undefined): Promise<string | null> {
   if (caseId == null) return null;
   const numericId = Number(caseId);
-  if (!Number.isInteger(numericId) || numericId <= 0) return null;
+  if (!Number.isInteger(numericId) || numericId <= 0) throw new Error("Invalid investigation case ID; durable case context cannot be mounted.");
   try {
     const [row] = await db.select({ caseFile: researchCasesTable.caseFile })
       .from(researchCasesTable)
       .where(eq(researchCasesTable.id, numericId))
       .limit(1);
-    if (!row?.caseFile) return null;
+    if (!row?.caseFile) throw new Error(`Investigation case ${numericId} has no durable case file.`);
+    let parsed: Record<string, unknown>;
     try {
-      const parsed = JSON.parse(row.caseFile) as Record<string, unknown>;
-      const document = typeof parsed.contextDocument === "string" ? parsed.contextDocument : JSON.stringify(parsed, null, 2);
-      return document.slice(0, 28000);
-    } catch { return row.caseFile.slice(0, 28000); }
+      parsed = JSON.parse(row.caseFile) as Record<string, unknown>;
+    } catch {
+      throw new Error(`Investigation case ${numericId} has an unreadable case file.`);
+    }
+    const document = typeof parsed.contextDocument === "string" ? parsed.contextDocument.trim() : "";
+    if (!document) throw new Error(`Investigation case ${numericId} has no durable context document.`);
+    return document.slice(0, 28000);
   } catch (error) {
-    logger.warn({ err: error instanceof Error ? error.message : String(error), caseId }, "[Bureau] case context mount failed; continuing without context");
-    return null;
+    const message = error instanceof Error ? error.message : String(error);
+    logger.error({ err: message, caseId }, "[Bureau] required investigation context mount failed");
+    throw error instanceof Error ? error : new Error(message);
   }
 }
 
