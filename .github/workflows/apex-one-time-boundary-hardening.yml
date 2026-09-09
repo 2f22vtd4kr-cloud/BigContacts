@@ -18,25 +18,17 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
           import re
-
           p = Path('artifacts/api-server/src/src/lib/bureau-contact-persist.ts')
           s = p.read_text()
-
           auto = re.compile(r'  // Dig bag → card: promote best non-issuer phone/email onto the entity so.*?\n  return rows\.length;', re.S)
           s, n = auto.subn('  // Evidence persistence ends here. Card mutation belongs exclusively to the\n  // explicit investigator-selected promotion boundary.\n  return rows.length;', s, count=1)
-          if n != 1:
-              raise SystemExit(f'expected exactly one legacy auto-promotion block, found {n}')
-
+          if n != 1: raise SystemExit(f'expected exactly one legacy auto-promotion block, found {n}')
           generated = re.compile(r'    // related-person without URL: attach issuer EDGAR search when company known; else drop\n.*?    const collision = assessIdentityCollision\(', re.S)
           s, n = generated.subn('    // Missing exact source pages are not provenance. Do not manufacture search URLs.\n\n    const collision = assessIdentityCollision(', s, count=1)
-          if n != 1:
-              raise SystemExit(f'expected exactly one generated query-URL block, found {n}')
-
+          if n != 1: raise SystemExit(f'expected exactly one generated query-URL block, found {n}')
           helper = re.compile(r'\nfunction isGenericLocal\(email: string\): boolean \{.*?\n\}\n\ntype DiscoveryCandidateContactSource =', re.S)
           s, n = helper.subn('\n\ntype DiscoveryCandidateContactSource =', s, count=1)
-          if n != 1:
-              raise SystemExit(f'expected exactly one legacy card projector block, found {n}')
-
+          if n != 1: raise SystemExit(f'expected exactly one legacy card projector block, found {n}')
           rehydrate = re.compile(r'/\*\* Rehydrate entity cards from durable contact_evidence \(no new dig\)\. \*/\nexport async function rehydrateEntityCardFromEvidence\(entityId: number\): Promise<boolean> \{.*?\n\}', re.S)
           replacement = '''/**
           * Legacy rehydration is intentionally disabled.
@@ -47,9 +39,7 @@ jobs:
             return false;
           }'''
           s, n = rehydrate.subn(replacement, s, count=1)
-          if n != 1:
-              raise SystemExit(f'expected exactly one legacy rehydration function, found {n}')
-
+          if n != 1: raise SystemExit(f'expected exactly one legacy rehydration function, found {n}')
           p.write_text(s)
           PY
           git diff --check
@@ -59,7 +49,7 @@ jobs:
       - name: Verify targeted boundary tests
         run: |
           npm install -g pnpm@9
-          pnpm install --frozen-lockfile
+          pnpm install --no-frozen-lockfile --ignore-scripts
           pnpm --dir artifacts/api-server exec vitest run src/src/test/bureau-contact-persist-strict.test.ts src/src/test/agentic-scope-boundary.test.ts src/src/test/investigator-promotion-contract.test.ts
       - name: Commit source hardening and remove runner
         run: |
