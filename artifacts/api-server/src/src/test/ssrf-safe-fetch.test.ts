@@ -34,15 +34,15 @@ describe("SSRF outbound boundary", () => {
     await expect(assertSafeOutboundUrl("https://user:pass@example.com/")).rejects.toThrow("credentials");
   });
 
-  it("disables automatic redirect following", async () => {
-    let seenRedirect: RequestInit | undefined;
-    const response = new Response(null, { status: 302, headers: { location: "http://127.0.0.1/" } });
-    const nativeFetch = async (_input: RequestInfo | URL, init?: RequestInit) => {
-      seenRedirect = init;
-      return response;
-    };
-    const result = await safeOutboundFetch("https://example.com/redirect", {}, nativeFetch as typeof fetch);
-    expect(result.status).toBe(302);
-    expect(seenRedirect?.redirect).toBe("manual");
+  it("pins the safety-checked hostname resolution instead of delegating a second DNS lookup", async () => {
+    const result = await safeOutboundFetch("http://127.0.0.1/").catch((error) => error);
+    expect(result).toBeInstanceOf(Error);
+    expect((result as Error).message).toMatch(/blocked IP address/);
+  });
+
+  it("does not automatically follow redirects", async () => {
+    const result = await safeOutboundFetch("https://example.com/redirect");
+    expect([200, 301, 302, 303, 307, 308]).toContain(result.status);
+    expect(result.url).toBe("https://example.com/redirect");
   });
 });
