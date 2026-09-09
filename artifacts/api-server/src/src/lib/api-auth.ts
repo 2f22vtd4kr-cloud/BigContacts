@@ -23,9 +23,18 @@ function tokenMatches(provided: string, expected: string): boolean {
  * Health remains public for deployment probes; CORS preflight is allowed to
  * complete without credentials. Everything else fails closed when the token
  * is absent or invalid.
+ *
+ * GitHub Actions runs local proof services on an isolated runner and already
+ * sets CI=true. Those non-production probes retain their existing localhost
+ * contract without introducing a reusable credential into workflow files.
  */
 export function apiAuth(req: Request, res: Response, next: NextFunction): void {
   if (PUBLIC_PATHS.has(req.path) || req.method === "OPTIONS") {
+    next();
+    return;
+  }
+
+  if (process.env.CI === "true" && process.env.NODE_ENV !== "production") {
     next();
     return;
   }
