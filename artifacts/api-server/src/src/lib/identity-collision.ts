@@ -90,9 +90,6 @@ export function assessIdentityCollision(input: {
       ? INSTITUTIONAL_EDUCATION_HOSTS.some((marker) => blob.includes(marker))
       : false;
 
-  // A named-person surname mismatch is stronger evidence than a broad company
-  // host hit. Check it before company attribution so a collision-prone employer
-  // cannot mask an explicitly different surname.
   const personToks = identityNameTokens(input.personName);
   if (targetToks.length >= 2 && personToks.length >= 2) {
     const targetSurname = targetToks[targetToks.length - 1]!;
@@ -119,6 +116,18 @@ export function assessIdentityCollision(input: {
       identityMatch: 0.2,
       reason: "institutional school/district contact surface; personal attribution requires stronger evidence",
     };
+  }
+
+  // An explicitly named person whose full identity matches the target gets a
+  // high deterministic identity score. This keeps the promotion gate usable for
+  // legitimate company-page evidence while still allowing collision checks above.
+  if (
+    targetToks.length >= 2
+    && personToks.length >= 2
+    && overlap.length >= 2
+    && personToks[personToks.length - 1] === targetToks[targetToks.length - 1]
+  ) {
+    return { risk: false, identityMatch: 0.85, reason: null };
   }
 
   // When the target has a full name, missing surname evidence is also stronger
