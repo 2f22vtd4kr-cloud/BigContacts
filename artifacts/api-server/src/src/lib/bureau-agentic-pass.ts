@@ -177,12 +177,24 @@ export async function runBureauAgenticWebPass(input: {
     });
 
     const backedFindings = sourceBackedAgenticFindings(agentic.findings);
-    const contactEvidence = findingsToContactEvidence(backedFindings);
+    // Fail closed before the bureau route can fall back to the known target name:
+    // organization-scoped findings require an explicit company context, and
+    // candidate-scoped findings require an explicit person name.
+    const scopedFindings = backedFindings.filter((finding) => {
+      if (finding.scope === "candidate") {
+        return typeof finding.personName === "string" && finding.personName.trim().length >= 2;
+      }
+      if (finding.scope === "organization") {
+        return Boolean(input.companyName?.trim());
+      }
+      return false;
+    });
+    const contactEvidence = findingsToContactEvidence(scopedFindings);
 
     if (input.persist && input.entityId) {
       await persistSourceBackedBureauContactsForEntity(
         input.entityId,
-        findingsToBureauContacts(backedFindings, name),
+        findingsToBureauContacts(scopedFindings, name),
         "case-bureau-agentic",
         input.jobId,
       );
@@ -191,14 +203,14 @@ export async function runBureauAgenticWebPass(input: {
     void publishBureauEvent({
       actor: "web",
       kind: "extract",
-      title: `Agentic web · ${backedFindings.length} source-backed findings${agentic.findings.length !== backedFindings.length ? ` (${agentic.findings.length - backedFindings.length} ungrounded dropped)` : ""}${agentic.status === "timeout" ? " (timeout)" : ""}`,
+      title: `Agentic web · ${scopedFindings.length} scoped source-backed findings${agentic.findings.length !== scopedFindings.length ? ` (${agentic.findings.length - scopedFindings.length} raw findings dropped by source/scope boundary)` : ""}${agentic.status === "timeout" ? " (timeout)" : ""}`,
       caseId: input.caseId != null ? String(input.caseId) : undefined,
       jobId: input.jobId,
       targetName: name,
       provider: agentic.model,
       why: `searches=${agentic.searches} visits=${agentic.visits} iters=${agentic.iterations}`,
-      responseSummary: `OUT: ${agentic.status}; sourceBacked=${backedFindings.length}; raw=${agentic.findings.length}`,
-      level: backedFindings.length ? "info" : "warn",
+      responseSummary: `OUT: ${agentic.status}; scoped=${scopedFindings.length}; raw=${agentic.findings.length}`,
+      level: scopedFindings.length ? "info" : "warn",
     });
 
     logger.info(
@@ -206,7 +218,7 @@ export async function runBureauAgenticWebPass(input: {
         target: name,
         status: agentic.status,
         model: agentic.model,
-        findings: backedFindings.length,
+        findings: scopedFindings.length,
         rawFindings: agentic.findings.length,
         searches: agentic.searches,
         visits: agentic.visits,
@@ -226,7 +238,7 @@ export async function runBureauAgenticWebPass(input: {
       iterations: agentic.iterations,
       searches: agentic.searches,
       visits: agentic.visits,
-      findings: backedFindings,
+      findings: scopedFindings,
       contactEvidence,
       trajectory: agentic.trajectory,
       stopReason: agentic.stopReason,
