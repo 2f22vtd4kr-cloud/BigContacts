@@ -78,12 +78,11 @@ async function resolveSelectedInvestigator(input: {
   if (input.investigatorLlm) return input.investigatorLlm;
   if (!input.jobId) return null;
   const trace = await getDiscoveryTrace(input.jobId);
-  const models = (trace?.slots ?? [])
+  const models = [...new Set((trace?.slots ?? [])
     .map((slot) => String(slot.model ?? "").trim().toLowerCase())
-    .filter(Boolean);
-  if (models.some((model) => model.includes("mistral"))) return "mistral";
-  if (models.length > 0) return "groq";
-  return null;
+    .map((model) => model.includes("mistral") ? "mistral" : model.includes("groq") ? "groq" : null)
+    .filter((model): model is "groq" | "mistral" => model !== null))];
+  return models.length === 1 ? models[0] : null;
 }
 
 export async function runTargetContactAgent(input: { entityId: number; targetName: string; companyName?: string | null; jobId?: string; maxIterations?: number; hardTimeoutMs?: number; investigatorLlm?: "groq" | "mistral" }): Promise<TargetContactAgentResult> {
@@ -93,7 +92,7 @@ export async function runTargetContactAgent(input: { entityId: number; targetNam
   const depth = resolveResearchDepth();
   const investigatorLlm = await resolveSelectedInvestigator(input);
   if (!investigatorLlm) {
-    logger.warn({ entityId: input.entityId, jobId: input.jobId }, "[target-agent] no Boss-selected Investigator available; refusing provider fallback");
+    logger.warn({ entityId: input.entityId, jobId: input.jobId }, "[target-agent] no unambiguous Boss-selected Investigator available; refusing provider fallback");
     return { status: "unavailable", model: "none", findings: 0, searches: 0, visits: 0, phone: null, email: null, phoneSource: null, contactOutcome: null };
   }
   logger.info({ entityId: input.entityId, depth: describeResearchDepth(depth), investigatorLlm }, "[target-agent] dig depth");
@@ -117,7 +116,6 @@ export async function runTargetContactAgent(input: { entityId: number; targetNam
     companyName: input.companyName ?? null,
     objective,
     investigatorLlm,
-    jobId: input.jobId ?? null,
     maxIterations: input.maxIterations ?? depth.agenticMaxIterations,
     hardTimeoutMs: input.hardTimeoutMs ?? depth.agenticHardTimeoutMs,
     onLiveStep: (step) => {
