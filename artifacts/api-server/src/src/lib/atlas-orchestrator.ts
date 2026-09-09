@@ -2502,7 +2502,7 @@ async function runSingleTargetPipeline(
     (afterDig[0]?.contactOutcome && afterDig[0]?.contactOutcome !== "none" && afterDig[0]?.contactOutcome !== "evidence_only"),
   );
 
-  if (opts.runResearch !== false && !skipMcts) {
+  if (opts.runResearch !== false) {
     await ensureAtlasActive(atlasJobId);
     await updateJob(atlasJobId, {
       status: "running",
