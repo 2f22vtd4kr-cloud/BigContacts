@@ -28,11 +28,27 @@ export type TargetContactAgentResult = {
   contactOutcome: string | null;
 };
 
-export function sourceBackedFindings(findings: AgenticFinding[]): AgenticFinding[] {
-  return findings.filter((finding) =>
-    Array.isArray(finding.sourceUrls)
-    && finding.sourceUrls.some((url) => /^https?:\/\/\S+$/i.test(String(url))),
-  );
+function observedUrlsFromTrajectory(trajectory: string[]): Set<string> {
+  const observed = new Set<string>();
+  for (const line of trajectory) {
+    const match = String(line).match(/step\d+:\s+(?:visit|browser_fetch)\s+(https?:\/\/\S+)/i);
+    if (!match?.[1]) continue;
+    try { observed.add(new URL(match[1]).href); } catch { /* malformed trajectory URL is not provenance */ }
+  }
+  return observed;
+}
+
+export function sourceBackedFindings(findings: AgenticFinding[], trajectory: string[] = []): AgenticFinding[] {
+  const observed = observedUrlsFromTrajectory(trajectory);
+  return findings
+    .filter((finding) => Array.isArray(finding.sourceUrls))
+    .map((finding) => ({
+      ...finding,
+      sourceUrls: finding.sourceUrls.filter((url) => {
+        try { return observed.has(new URL(String(url)).href); } catch { return false; }
+      }),
+    }))
+    .filter((finding) => finding.sourceUrls.length > 0);
 }
 
 export function findingsToContacts(
@@ -127,7 +143,7 @@ export async function runTargetContactAgent(input: { entityId: number; targetNam
 
   try { publishDigSpan({ jobId: input.jobId || "dig", targetName: name, spanType: "stage", name: "target_contact_agent_done", status: agentic.status === "timeout" ? "error" : "ok", agentName: "investigator", inputSummary: `model=${agentic.model}`, resultSummary: `status=${agentic.status} findings=${agentic.findings.length} searches=${agentic.searches} visits=${agentic.visits} stop=${agentic.stopReason}`, endedAt: new Date().toISOString() }); } catch { /* non-fatal */ }
 
-  const backedFindings = sourceBackedFindings(agentic.findings);
+  const backedFindings = sourceBackedFindings(agentic.findings, agentic.trajectory);
   const contacts = findingsToContacts(backedFindings, name);
   const evidenceSource = input.jobId ? `target-contact-agentic:${input.jobId}` : "target-contact-agentic";
   await persistSourceBackedBureauContactsForEntity(input.entityId, contacts, evidenceSource, input.jobId);
