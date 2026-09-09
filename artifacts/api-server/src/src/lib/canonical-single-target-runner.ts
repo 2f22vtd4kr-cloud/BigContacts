@@ -4,7 +4,12 @@ import { getJob, updateJob, clearActiveJobIfOwned } from "./job-queue";
 import { runGeminiBossDiscovery } from "./case-bureau";
 import { runDeepSeekFreeJson } from "./deepseek-case-reasoning";
 import { runTargetContactAgent } from "./target-contact-agent";
-import { resolveResearchDepth } from "./research-depth";
+import { resolveResearchDepth, type ResearchDepth } from "./research-depth";
+
+export type CanonicalSingleTargetOptions = {
+  researchDepth?: ResearchDepth;
+  targetTimeoutMs?: number;
+};
 
 /**
  * Canonical single-target control plane.
@@ -16,6 +21,7 @@ import { resolveResearchDepth } from "./research-depth";
 export async function runCanonicalSingleTargetInvestigation(
   atlasJobId: string,
   targetId: number,
+  options: CanonicalSingleTargetOptions = {},
 ): Promise<void> {
   const [target] = await db
     .select({ id: entitiesTable.id, name: entitiesTable.name, type: entitiesTable.type, metadata: entitiesTable.metadata })
@@ -25,7 +31,8 @@ export async function runCanonicalSingleTargetInvestigation(
 
   if (!target) throw new Error(`Atlas target entity ${targetId} was not found.`);
 
-  const depth = resolveResearchDepth();
+  const depth = resolveResearchDepth({ explicit: options.researchDepth });
+  const hardTimeoutMs = Math.max(30_000, options.targetTimeoutMs ?? depth.agenticHardTimeoutMs);
   await updateJob(atlasJobId, {
     status: "running",
     progress: 0,
@@ -111,7 +118,7 @@ export async function runCanonicalSingleTargetInvestigation(
     progress: 2,
     atlasPhase: 2,
     message: `${boss.investigatorLlm.toUpperCase()} Investigator researching ${target.name}…`,
-    result: JSON.stringify({ rightHand, boss: { status: boss.status, model: boss.model, investigatorLlm: boss.investigatorLlm } }),
+    result: JSON.stringify({ rightHand, boss: { status: boss.status, model: boss.model, investigatorLlm: boss.investigatorLlm }, depth: depth.depth }),
   });
 
   const result = await runTargetContactAgent({
@@ -121,7 +128,7 @@ export async function runCanonicalSingleTargetInvestigation(
     jobId: atlasJobId,
     investigatorLlm: boss.investigatorLlm,
     maxIterations: depth.agenticMaxIterations,
-    hardTimeoutMs: depth.agenticHardTimeoutMs,
+    hardTimeoutMs,
   });
 
   const incomplete = result.status !== "completed";
@@ -146,6 +153,8 @@ export async function runCanonicalSingleTargetInvestigation(
         visits: result.visits,
         contactOutcome: result.contactOutcome,
       },
+      depth: depth.depth,
+      hardTimeoutMs,
     }),
     finishedAt: new Date().toISOString(),
   });
