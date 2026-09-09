@@ -148,7 +148,8 @@ export async function runTargetContactAgent(input: { entityId: number; targetNam
   const backedFindings = sourceBackedFindings(agentic.findings, agentic.trajectory);
   const contacts = findingsToContacts(backedFindings, name);
   const evidenceSource = input.jobId ? `target-contact-agentic:${input.jobId}` : "target-contact-agentic";
-  await persistSourceBackedBureauContactsForEntity(input.entityId, contacts, evidenceSource, input.jobId);
+  const observedSourceUrls = [...observedUrlsFromTrajectory(agentic.trajectory)];
+  await persistSourceBackedBureauContactsForEntity(input.entityId, contacts, evidenceSource, input.jobId, observedSourceUrls);
 
   const rows = await db.select({ type: entitiesTable.type, email: entitiesTable.email, phone: entitiesTable.phone, phoneSource: entitiesTable.phoneSource, linkedinUrl: entitiesTable.linkedinUrl, twitterHandle: entitiesTable.twitterHandle, instagramHandle: entitiesTable.instagramHandle, telegramHandle: entitiesTable.telegramHandle, personalWebsite: entitiesTable.personalWebsite, metadata: entitiesTable.metadata }).from(entitiesTable).where(eq(entitiesTable.id, input.entityId)).limit(1);
   const ent = rows[0];
