@@ -11,7 +11,6 @@ import { eq } from "drizzle-orm";
 import { sanitizePublicEmail, sanitizePublicPhone, isTrashContactValue } from "./contact-validation";
 import { assessIdentityCollision } from "./identity-collision";
 import { countIndependentSourceHosts } from "./source-corroboration";
-import { getDiscoveryTrace } from "./investigator-trace";
 
 export type BureauContactLike = {
   vectorType?: string | null;
@@ -52,27 +51,6 @@ function normalizeObservedUrls(urls: readonly string[] | null | undefined): Set<
   return observed;
 }
 
-function observedUrlsFromTraceLines(lines: readonly string[] | null | undefined): string[] {
-  const out: string[] = [];
-  for (const line of lines ?? []) {
-    const match = String(line).match(/step\d+:\s+(?:visit|browser_fetch)\s+(https?:\/\/\S+)/i);
-    if (match?.[1]) out.push(match[1]);
-  }
-  return out;
-}
-
-async function resolveObservedSourceUrls(
-  jobId: string | null | undefined,
-  supplied: readonly string[] | null | undefined,
-): Promise<string[]> {
-  const direct = [...(supplied ?? [])];
-  if (direct.length) return direct;
-  if (!jobId) return [];
-  const trace = await getDiscoveryTrace(jobId);
-  if (!trace?.slots?.length) return [];
-  return trace.slots.flatMap((slot) => observedUrlsFromTraceLines(slot.trajectory));
-}
-
 function mapVectorType(raw: string, value: string): string {
   const t = raw.toLowerCase().trim();
   if (["email", "phone", "website", "domain", "address", "social", "linkedin", "twitter", "instagram", "telegram"].includes(t)) return t;
@@ -111,7 +89,8 @@ export function sourceBackedBureauContacts(
  * Same source/schema validation as sourceBackedBureauContacts, plus run-scoped
  * provenance. This is the only form accepted for canonical agentic promotion:
  * every claim source offered to the card boundary must have been observed by
- * the Investigator's actual page-visit trajectory.
+ * the Investigator's actual page-visit trajectory and passed explicitly by the
+ * caller. Missing run-scoped provenance is a hard failure, never a lookup.
  */
 export function observedSourceBackedBureauContacts(
   items: readonly BureauContactLike[] | null | undefined,
@@ -145,11 +124,8 @@ export async function persistSourceBackedBureauContactsForEntity(
 ): Promise<number> {
   if (!entityId) return 0;
   const agenticSource = /agentic/i.test(source);
-  const resolvedObservedSourceUrls = agenticSource
-    ? await resolveObservedSourceUrls(jobId, observedSourceUrls)
-    : [];
   const backed = agenticSource
-    ? observedSourceBackedBureauContacts(items, resolvedObservedSourceUrls)
+    ? observedSourceBackedBureauContacts(items, observedSourceUrls)
     : sourceBackedBureauContacts(items);
   if (!backed.length) return 0;
 
@@ -272,7 +248,7 @@ export async function persistSourceBackedBureauContactsForEntity(
         value: selected.value,
         sourceUrls: selected.sourceUrls,
         promote: true,
-      }, resolvedObservedSourceUrls);
+      }, observedSourceUrls ?? []);
     }
   }
   return values.length;
