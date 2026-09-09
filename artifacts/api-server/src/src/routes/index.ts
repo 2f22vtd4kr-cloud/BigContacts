@@ -17,6 +17,7 @@ import atlasRouter from "./atlas";
 import bureauStreamRouter from "./bureau-stream";
 import systemStatusRouter from "./system-status";
 import investigatorTraceRouter from "./investigator-trace";
+import { legacyApexMutationGuard } from "../lib/legacy-apex-mutation-guard";
 
 const router: IRouter = Router();
 router.use(healthRouter);
@@ -26,6 +27,7 @@ router.use(relationshipsRouter);
 router.use(researchRouter);
 router.use(dashboardRouter);
 router.use(graphRouter);
+router.use(legacyApexMutationGuard);
 router.use(ingestRouter);
 router.use(searchRouter);
 router.use(improveRouter);
