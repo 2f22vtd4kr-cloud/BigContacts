@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { eq } from "drizzle-orm";
+import { eq, and, inArray } from "drizzle-orm";
 import { db, entitiesTable, researchCasesTable, researchCaseEventsTable } from "@workspace/db";
 import { createJob, getActiveJob, getJob, setActiveJob, updateJob, clearActiveJobIfOwned } from "../../lib/job-queue";
 import { runGeminiBossDiscovery } from "../../lib/case-bureau";
@@ -146,8 +146,16 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
         hardTimeoutMs: depth.agenticHardTimeoutMs,
       });
 
+      // Admission is an identity boundary, not merely a model-output boundary.
+      // A promotion decision is only admissible for an explicitly person-scoped
+      // finding with a non-empty personName and source-backed URLs. Organization,
+      // unknown-scope, or URL-less findings must remain evidence and never become
+      // person candidates.
       const admitted = uniqueNames(discovery.findings
         .filter((finding) => finding.promotionDecision === "promote")
+        .filter((finding) => finding.scope === "candidate")
+        .filter((finding) => typeof finding.personName === "string" && finding.personName.trim().length >= 3)
+        .filter((finding) => Array.isArray(finding.sourceUrls) && finding.sourceUrls.some((url) => /^https?:\/\//i.test(String(url))))
         .map((finding) => finding.personName ?? ""));
       const report = {
         id: `canonical-${jobId}`,
@@ -170,7 +178,7 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
         discoveredCandidates: [
           ...(Array.isArray(file.discoveredCandidates) ? file.discoveredCandidates : []),
           ...admitted.map((name) => {
-            const finding = discovery.findings.find((item) => item.personName?.trim().toLowerCase() === name.toLowerCase() && item.promotionDecision === "promote");
+            const finding = discovery.findings.find((item) => item.personName?.trim().toLowerCase() === name.toLowerCase() && item.promotionDecision === "promote" && item.scope === "candidate");
             return {
               name,
               type: "review_candidate",
@@ -208,8 +216,18 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
 
       let materialized = 0;
       for (const name of admitted) {
-        const finding = discovery.findings.find((item) => item.personName?.trim().toLowerCase() === name.toLowerCase() && item.promotionDecision === "promote");
-        const [existing] = await db.select({ id: entitiesTable.id }).from(entitiesTable).where(eq(entitiesTable.name, name)).limit(1);
+        const finding = discovery.findings.find((item) => item.personName?.trim().toLowerCase() === name.toLowerCase() && item.promotionDecision === "promote" && item.scope === "candidate");
+        // Never let a same-name organization/entity absorb a person admission.
+        // Person admissions are materialized only against a person-shaped entity
+        // type; otherwise create the review-only HNWI record separately.
+        const existingRows = await db.select({ id: entitiesTable.id })
+          .from(entitiesTable)
+          .where(and(
+            eq(entitiesTable.name, name),
+            inArray(entitiesTable.type, ["HNWI", "Gatekeeper"]),
+          ))
+          .limit(1);
+        const existing = existingRows[0];
         let entityId = existing?.id ?? null;
         if (!entityId) {
           const [created] = await db.insert(entitiesTable).values({
