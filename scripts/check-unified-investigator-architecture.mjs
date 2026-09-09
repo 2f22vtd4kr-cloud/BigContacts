@@ -8,6 +8,7 @@ const files = {
   prompt: path.join(root, "artifacts/api-server/src/src/lib/case-bureau-prompt.ts"),
   pass: path.join(root, "artifacts/api-server/src/src/lib/bureau-agentic-pass.ts"),
   cases: path.join(root, "artifacts/api-server/src/src/routes/research/cases.ts"),
+  atlas: path.join(root, "artifacts/api-server/src/src/lib/atlas-orchestrator.ts"),
   orientation: path.join(root, "artifacts/api-server/src/src/lib/apex-bureau-orientation.ts"),
   finalReview: path.join(root, "artifacts/api-server/src/lib/ai-extractor.ts"),
   architecture: path.join(root, "docs/BUREAU_REACT_ARCHITECTURE.md"),
@@ -37,11 +38,18 @@ assert(!/web_search routes Serper\s*[→>-]+\s*Tavily/i.test(source.orientation)
 assert(!/generateGroqBossText|Groq text fallback for Boss/i.test(source.bureau), "Groq is still exposed as a Boss planning fallback.");
 assert(!/groq-final-review-fallback|Boss \(Gemini\).*NVIDIA.*Groq|Final card publication review.*Groq/i.test(source.finalReview), "Groq is still exposed as a final card review/decision layer.");
 
-// The selected Investigator must propagate from the Boss plan to the ReAct pass.
+// The selected Investigator must propagate from the Boss plan all the way into the ReAct pass.
 assert(/investigatorLlm/.test(source.bureau), "Boss plan does not expose investigatorLlm.");
 assert(/investigatorLlm/.test(source.cases), "Case route does not persist/pass investigatorLlm.");
 assert(/investigatorLlm/.test(source.pass), "ReAct pass does not accept investigatorLlm.");
 assert(/investigatorLlm/.test(source.research), "ReAct research runtime does not receive investigatorLlm.");
+assert(/runBureauAgenticWebPass\(\{[\s\S]*?investigatorLlm\s*:/.test(source.cases), "Case route invokes the agentic pass without explicitly binding the Boss-selected Investigator.");
+assert(/runTargetContactAgent\(\{[\s\S]*?investigatorLlm\s*:/.test(source.atlas), "Canonical target Dig call is not visibly bound to an explicit Investigator selection.");
+
+// Case discovery must not bypass the ReAct Investigator with fixed model/tool lanes.
+assert(!/\brunMistralWebSearch\s*\(/.test(source.cases), "Case route still invokes Mistral as a fixed web-search lane instead of as the selected ReAct Investigator.");
+assert(!/\brunBroadDiscovery\s*\(/.test(source.cases), "Case route still invokes deterministic broad-discovery machinery as a fixed research stage.");
+assert(!/\bsearchRegistry\s*\(/.test(source.cases), "Case route still invokes registry research directly instead of exposing it only as a model-selected capability.");
 
 // The architecture document must describe the same two-layer law.
 assert(/Gemini/.test(source.architecture) && /DeepSeek/.test(source.architecture) && /Investigator LLM pool/.test(source.architecture), "Canonical ReAct architecture document is missing the two-layer role law.");
