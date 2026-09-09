@@ -4,7 +4,7 @@
 
 **Repo:** https://github.com/2f22vtd4kr-cloud/BigContacts  
 **Branch:** `main`  
-**Verified GitHub tip:** `24843279165d94be3f3987824aef1545577a6866`  
+**Verified GitHub code tip:** `aabdf6f1c3eac8700f49e916583889d324ef830f`  
 **Product:** Apex Atlas research bureau embedded in BigContacts. Bureau is the OSINT/research architecture, not a separate product.
 
 ## 1. What Apex is
@@ -124,9 +124,11 @@ Every target-scoped investigation has a durable `contextDocument` stored in the 
 
 Gemini and DeepSeek receive the evolving context before their oversight decisions. The Investigator receives it as mounted context before acting. The context records the target, phase, operating law, latest Right-hand state, latest Boss state, Investigator result, actual recent Investigator trajectory/finding summaries, uncertainties and investigation timeline.
 
-The Investigator must never silently continue context-free when a case scope is supplied. `bureau-agentic-pass.ts` fails closed when the case ID is invalid, the case file is missing/unreadable, or the durable `contextDocument` is missing/empty.
+Case-scoped Investigator work fails closed when the case ID is invalid, the case file is missing/unreadable, or the durable `contextDocument` is missing/empty.
 
-The canonical single-target runner now persists the actual bounded Investigator trajectory into the durable context after the ReAct pass, so DeepSeek post-review and Gemini final review see what actually happened rather than only counters.
+The canonical single-target runner persists the actual bounded Investigator trajectory into the durable context after the ReAct pass, so DeepSeek post-review and Gemini final review see what actually happened rather than only counters.
+
+When a target case is resumed, the prior durable context is preserved and carried into the new run instead of being reset. Case iteration numbers continue from the existing case state.
 
 The context document is a memory/state surface for orchestration, not a deterministic script. It must never be used to prescribe a search sequence or teach a trained model how to research.
 
@@ -155,7 +157,7 @@ Static guards passing is not proof of research quality or runtime truth.
 
 ## 8. Latest verified GitHub changes — 2026-09-09
 
-Current `main` is `24843279165d94be3f3987824aef1545577a6866`.
+Current `main` code tip is `aabdf6f1c3eac8700f49e916583889d324ef830f`.
 
 ### PR #102 — canonical discovery admission scope
 Strengthened the canonical discovery boundary so person-scoped identity is explicit.
@@ -187,6 +189,13 @@ Bug: the canonical single-target runner created the durable context and mounted 
 
 Fix: persist the bounded recent Investigator trajectory at the post-Investigator context checkpoint and carry it through Right-hand and Gemini final-review context snapshots. No research strategy or model-routing logic changed.
 
+### PR #108 — preserve prior target investigation context
+Merged as `aabdf6f1c3eac8700f49e916583889d324ef830f`.
+
+Bug: rerunning an existing target case rebuilt the context from scratch at iteration 0. The timeline survived, but the actual durable `contextDocument` was replaced, so Gemini/DeepSeek/Investigator could lose prior target-investigation state.
+
+Fix: load prior durable context, carry it into the next context snapshot, and continue the case iteration counter instead of resetting it. The context remains state rather than a deterministic research script.
+
 ## 9. Actual public Atlas launch path
 
 The live route is:
@@ -202,7 +211,7 @@ The live route is:
 
 `routes/atlas.ts` no longer imports the retired legacy Atlas orchestrator.
 
-For an explicit single target, the canonical single-target runner creates/loads a target research case, creates the context document before model oversight, gives the same context to DeepSeek and Gemini, mounts it for the Investigator, then refreshes the durable context for post-investigation Right-hand and Gemini review.
+For an explicit single target, the canonical single-target runner creates/loads a target research case, creates/loads the durable context before model oversight, gives the same context to DeepSeek and Gemini, mounts it for the Investigator, then refreshes the durable context for post-investigation Right-hand and Gemini review.
 
 ## 10. Current remaining audit work
 
@@ -210,7 +219,7 @@ The audit is not finished. Continue leaf-by-leaf; do not declare the repository 
 
 Immediate next leaves:
 
-1. **Target Contact Agent.** Audit identity boundary, provider binding, tool autonomy, source provenance, contact fabrication, inherited target identity, cancellation and explicit promotion. Also determine whether any non-canonical caller can invoke it without a durable context.
+1. **Target Contact Agent.** Audit identity boundary, provider binding, tool autonomy, source provenance, contact fabrication, inherited target identity, cancellation and explicit promotion. Also determine whether any non-canonical caller can invoke it without durable context.
 2. **Agentic Web Research.** Audit the complete ReAct loop: action selection, observation, retries, provider transport fallback, malformed output, prompt-injection handling, stopping, evidence creation, telemetry and explicit promotion. Pay special attention to provider transport fallback versus research strategy.
 3. **Final review.** Confirm Gemini/NVIDIA only in decision/review roles; no Groq/Mistral reviewer fallback; fail-closed ambiguity; historical evidence never silently promoted.
 4. **Persistence callers.** Trace every caller of strict and legacy persistence, including rehydration and old projectors.
@@ -297,7 +306,8 @@ A guard is not proof of runtime semantics. A field named `investigatorLlm` is no
 Latest closed gaps:
 - canonical Atlas admission could over-admit person identities;
 - case-scoped Investigator passes could silently lose durable context;
-- post-Investigator oversight context omitted the actual Investigator trajectory.
+- post-Investigator oversight context omitted the actual Investigator trajectory;
+- repeated target runs could discard prior durable investigation context.
 
 Next objective: continue the forensic leaf hunt through the actual target Investigator path and ReAct runtime, then persistence/final-review/legacy/telemetry/CI surfaces. No architecture rewrite unless a real source defect requires it.
 
