@@ -7,6 +7,7 @@ import {
   setActiveJob,
   updateJob,
 } from "../../lib/job-queue";
+import { enablePermanentRedis } from "../../lib/redis";
 import { runCanonicalAtlasPipeline } from "../../lib/canonical-atlas-discovery";
 import { runCanonicalSingleTargetInvestigation } from "../../lib/canonical-single-target-runner";
 
@@ -20,6 +21,12 @@ const router = Router();
  * the model-owned discovery/single-target control plane here.
  */
 router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<void> => {
+  // Manual mode intentionally defers permanent Redis until an operator starts
+  // a run. Canonical launch is itself that explicit operator action; enable it
+  // before reading/writing the job lock so canonical launches get the same
+  // durable job semantics as the retired launch path.
+  await enablePermanentRedis();
+
   const existingId = await getActiveJob("atlas-run");
   if (existingId) {
     const existing = await getJob(existingId);
