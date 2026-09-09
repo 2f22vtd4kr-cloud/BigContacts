@@ -31,6 +31,10 @@ const COLLISION_HOSTS = [
   "prospeo", "adapt.io", "growjo", "theorg.com", "equilar",
 ];
 
+const INSTITUTIONAL_EDUCATION_HOSTS = [
+  "kyschools", "schools", "school", "k12", "district", "isd.", "usd.", "edu.",
+];
+
 export type IdentityCollisionResult = {
   risk: boolean;
   identityMatch: number;
@@ -81,6 +85,10 @@ export function assessIdentityCollision(input: {
 
   const overlap = targetToks.filter((t) => blob.includes(t));
   const hostHit = COLLISION_HOSTS.some((h) => blob.includes(h));
+  const educationHostHit =
+    /^[a-z0-9._%+-]+@([a-z0-9.-]+)$/i.test(value)
+      ? INSTITUTIONAL_EDUCATION_HOSTS.some((marker) => blob.includes(marker))
+      : false;
 
   // A named-person surname mismatch is stronger evidence than a broad company
   // host hit. Check it before company attribution so a collision-prone employer
@@ -100,6 +108,17 @@ export function assessIdentityCollision(input: {
         reason: `personName surname "${personSurname}" ≠ target surname "${targetSurname}"`,
       };
     }
+  }
+
+  // Institutional education domains are high-collision organizational surfaces.
+  // Never let a school/district mailbox become a personal card value merely
+  // because a surname/company token overlaps. It remains review-only evidence.
+  if (contactLike && educationHostHit) {
+    return {
+      risk: true,
+      identityMatch: 0.2,
+      reason: "institutional school/district contact surface; personal attribution requires stronger evidence",
+    };
   }
 
   // When the target has a full name, missing surname evidence is also stronger

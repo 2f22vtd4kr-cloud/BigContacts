@@ -78,6 +78,32 @@ describe("assessIdentityCollision", () => {
     });
     expect(r.risk).toBe(false);
   });
+
+  it("flags school and district mailboxes even when a surname overlaps", () => {
+    const r = assessIdentityCollision({
+      targetName: "S Joseph Moore",
+      companyName: "Nelson Thomas Inc",
+      personName: "S Joseph Moore",
+      value: "joseph.peake@nelson.kyschools.us",
+      sourceUrls: ["https://www.facebook.com/ThomasNelsonHighSchool"],
+      note: "public contact on school Facebook page",
+    });
+    expect(r.risk).toBe(true);
+    expect(r.reason).toContain("school/district");
+  });
+
+  it("keeps a directly named person on a non-institutional source eligible for high-confidence binding", () => {
+    const r = assessIdentityCollision({
+      targetName: "Jane Example",
+      companyName: "Example Holdings",
+      personName: "Jane Example",
+      value: "jane@exampleholdings.com",
+      sourceUrls: ["https://exampleholdings.com/team/jane-example"],
+      note: "Jane Example email listed on her company profile",
+    });
+    expect(r.risk).toBe(false);
+    expect(r.identityMatch).toBeGreaterThanOrEqual(0.65);
+  });
 });
 
 describe("assessGraphNamePairRisk", () => {
