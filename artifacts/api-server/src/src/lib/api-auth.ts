@@ -1,7 +1,10 @@
 import { timingSafeEqual } from "node:crypto";
 import type { NextFunction, Request, Response } from "express";
 
-const PUBLIC_PATHS = new Set(["/api/healthz"]);
+// Express strips the mount path (/api) before evaluating req.path inside
+// app.use("/api", apiAuth, router). The health router therefore appears as
+// /healthz here, not /api/healthz.
+const PUBLIC_PATHS = new Set(["/healthz"]);
 const TOKEN_ENV = "APEX_API_AUTH_TOKEN";
 
 function configuredToken(): string {
