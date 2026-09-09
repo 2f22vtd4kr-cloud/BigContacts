@@ -1,8 +1,10 @@
 import { eq } from "drizzle-orm";
-import { db, entitiesTable, contactEvidenceTable } from "@workspace/db";
+import { db, entitiesTable } from "@workspace/db";
 import { updateJob, clearActiveJobIfOwned } from "./job-queue";
-import { runDeepSeekDiscoveryAdvice, runGeminiBossDiscovery } from "./case-bureau";
+import { runGeminiBossDiscovery } from "./case-bureau";
+import { runDeepSeekFreeJson } from "./deepseek-case-reasoning";
 import { runBureauAgenticWebPass } from "./bureau-agentic-pass";
+import { persistSourceBackedBureauContactsForEntity } from "./bureau-contact-persist-strict";
 import { resolveResearchDepth } from "./research-depth";
 
 export type CanonicalAtlasOptions = {
@@ -49,18 +51,51 @@ export async function runCanonicalAtlasPipeline(
   });
 
   try {
-    const rightHand = await runDeepSeekDiscoveryAdvice({
-      file: undefined as never,
-      iteration: 1,
-    }).catch((error) => ({
+    const rightHandRaw = await runDeepSeekFreeJson(
+      "Review the Apex Atlas discovery mission before Gemini assigns its Investigator. Return concise research priorities only. Do not browse, do not choose contacts, and do not invent people. Return JSON with decision, reason, focusLanes, confidence.",
+      "You are the DeepSeek/NVIDIA Right-hand. Advise the Boss only. Never act as Investigator and never browse. Reply with ONE JSON object.",
+    ).catch((error) => ({
       status: "unavailable" as const,
       model: "none",
+      raw: null,
+      error: error instanceof Error ? error.message : "Right-hand unavailable",
+    }));
+
+    let rightHand: {
+      status: "completed" | "unavailable";
+      model: string;
+      decision: string | null;
+      reason: string | null;
+      focusLanes: string[];
+      confidence: number | null;
+      error: string | null;
+    } = {
+      status: rightHandRaw.status === "completed" ? "completed" : "unavailable",
+      model: rightHandRaw.model,
       decision: null,
       reason: null,
       focusLanes: [],
       confidence: null,
-      error: error instanceof Error ? error.message : "Right-hand unavailable",
-    }));
+      error: rightHandRaw.error ?? null,
+    };
+    if (rightHandRaw.status === "completed" && rightHandRaw.raw) {
+      try {
+        const parsed = JSON.parse(rightHandRaw.raw) as Record<string, unknown>;
+        rightHand = {
+          status: "completed",
+          model: rightHandRaw.model,
+          decision: typeof parsed.decision === "string" ? parsed.decision.slice(0, 500) : null,
+          reason: typeof parsed.reason === "string" ? parsed.reason.slice(0, 1000) : null,
+          focusLanes: Array.isArray(parsed.focusLanes)
+            ? parsed.focusLanes.filter((value): value is string => typeof value === "string").slice(0, 8)
+            : [],
+          confidence: typeof parsed.confidence === "number" ? Math.max(0, Math.min(1, parsed.confidence)) : null,
+          error: null,
+        };
+      } catch {
+        rightHand.error = "Right-hand returned invalid JSON.";
+      }
+    }
 
     const boss = await runGeminiBossDiscovery({
       objective: "Discover real named people who may be worth a target-scoped public-contact investigation. Favor attributable operating-company, filing, leadership, foundation, transaction, and other primary-source paths. Do not invent people or contacts.",
@@ -123,7 +158,7 @@ export async function runCanonicalAtlasPipeline(
       const sourceUrl = finding?.sourceUrls?.[0] ?? null;
       const existing = await db.select({ id: entitiesTable.id })
         .from(entitiesTable)
-        .where(sqlNameEquals(name))
+        .where(eq(entitiesTable.name, name))
         .limit(1);
       let entityId = existing[0]?.id ?? null;
       if (!entityId) {
@@ -144,26 +179,18 @@ export async function runCanonicalAtlasPipeline(
         if (entityId) materialized += 1;
       }
       if (!entityId || !sourceUrl) continue;
-      await db.insert(contactEvidenceTable).values({
-        entityId,
+      await persistSourceBackedBureauContactsForEntity(entityId, [{
         vectorType: "other",
         value: `person:${name}`,
-        source: `canonical-agentic-discovery:${atlasJobId}`,
-        sourceUrl,
-        extractionMethod: "agentic-model-finding",
-        sourceReliability: 0.55,
-        identityMatch: 0.85,
-        recencyScore: 0.7,
-        directnessScore: 0.5,
-        independentCorroboration: 1,
-        validationStatus: "candidate",
-        metadata: JSON.stringify({
-          scope: "candidate",
-          personName: name,
-          promotionDecision: "promote",
-          reviewOnly: true,
-        }),
-      }).onConflictDoNothing();
+        scope: "candidate",
+        personName: name,
+        role: finding?.role ?? "discovery candidate",
+        sourceUrls: [sourceUrl],
+        note: "Explicit Investigator discovery admission; review-only until target-scoped research.",
+        tier: "candidate",
+        state: "review_only",
+        promote: false,
+      }], "canonical-agentic-discovery", atlasJobId);
       evidenceRows += 1;
     }
 
@@ -174,7 +201,7 @@ export async function runCanonicalAtlasPipeline(
       progress: 2,
       atlasPhase: 2,
       message: admitted.length
-        ? `Deep target research queued for ${admitted.length} exact named candidate(s).`
+        ? `Deep target research starting for ${admitted.length} exact named candidate(s).`
         : "No exact named-person admission candidate was emitted; run closed without synthetic targets.",
     });
 
@@ -217,8 +244,4 @@ export async function runCanonicalAtlasPipeline(
     await clearActiveJobIfOwned("atlas-run", atlasJobId);
     throw error;
   }
-}
-
-function sqlNameEquals(name: string) {
-  return eq(entitiesTable.name, name);
 }
