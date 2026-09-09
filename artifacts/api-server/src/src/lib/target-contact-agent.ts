@@ -22,6 +22,7 @@ export type TargetContactAgentResult = {
   findings: number;
   searches: number;
   visits: number;
+  trajectory: string[];
   phone: string | null;
   email: string | null;
   phoneSource: string | null;
@@ -104,13 +105,13 @@ async function resolveSelectedInvestigator(input: {
 
 export async function runTargetContactAgent(input: { entityId: number; targetName: string; companyName?: string | null; jobId?: string; maxIterations?: number; hardTimeoutMs?: number; investigatorLlm?: "groq" | "mistral"; contextDocument?: string }): Promise<TargetContactAgentResult> {
   const name = (input.targetName ?? "").trim();
-  if (!input.entityId || name.length < 2) return { status: "skipped", model: "none", findings: 0, searches: 0, visits: 0, phone: null, email: null, phoneSource: null, contactOutcome: null };
+  if (!input.entityId || name.length < 2) return { status: "skipped", model: "none", findings: 0, searches: 0, visits: 0, trajectory: [], phone: null, email: null, phoneSource: null, contactOutcome: null };
 
   const depth = resolveResearchDepth();
   const investigatorLlm = await resolveSelectedInvestigator(input);
   if (!investigatorLlm) {
     logger.warn({ entityId: input.entityId, jobId: input.jobId }, "[target-agent] no unambiguous Boss-selected Investigator available; refusing provider fallback");
-    return { status: "unavailable", model: "none", findings: 0, searches: 0, visits: 0, phone: null, email: null, phoneSource: null, contactOutcome: null };
+    return { status: "unavailable", model: "none", findings: 0, searches: 0, visits: 0, trajectory: [], phone: null, email: null, phoneSource: null, contactOutcome: null };
   }
   logger.info({ entityId: input.entityId, depth: describeResearchDepth(depth), investigatorLlm }, "[target-agent] dig depth");
   const objective = [
@@ -168,5 +169,5 @@ export async function runTargetContactAgent(input: { entityId: number; targetNam
 
   logger.info({ entityId: input.entityId, name, status: agentic.status, model: agentic.model, findings: backedFindings.length, rawFindings: agentic.findings.length, stopReason: agentic.stopReason, phone: ent?.phone ?? null, outcome }, "[TargetAgent] free Dig finished");
   const mapped = agentic.status === "completed" ? "completed" : agentic.status === "timeout" ? "timeout" : agentic.status === "unavailable" ? "unavailable" : "error";
-  return { status: mapped, model: agentic.model, findings: backedFindings.length, searches: agentic.searches, visits: agentic.visits, phone: ent?.phone ?? null, email: ent?.email ?? null, phoneSource: ent?.phoneSource ?? null, contactOutcome: outcome };
+  return { status: mapped, model: agentic.model, findings: backedFindings.length, searches: agentic.searches, visits: agentic.visits, trajectory: agentic.trajectory.slice(-80), phone: ent?.phone ?? null, email: ent?.email ?? null, phoneSource: ent?.phoneSource ?? null, contactOutcome: outcome };
 }
