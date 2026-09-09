@@ -1,16 +1,18 @@
 name: one-time retire deterministic target research
 on:
-  push:
-    branches: [apex/retire-deterministic-target-research]
+  pull_request:
+    types: [opened, reopened]
+    branches: [main]
 permissions:
   contents: write
 jobs:
   harden:
+    if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: apex/retire-deterministic-target-research
+          ref: ${{ github.event.pull_request.head.ref }}
           fetch-depth: 0
       - name: Retire deterministic MCTS from Atlas path
         run: |
@@ -44,7 +46,6 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add artifacts/api-server/src/src/lib/atlas-orchestrator.ts
           git commit -m 'fix: retire deterministic target research from Atlas'
-          git rm .github/workflows/apex-one-time-retire-target-research.yml
-          git rm tmp/apex-target-research-runner-trigger.txt
+          git rm .github/workflows/apex-one-time-retire-target-research.yml tmp/apex-target-research-runner-trigger.txt
           git commit -m 'chore: remove one-time target research runner'
-          git push origin HEAD:apex/retire-deterministic-target-research
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}
