@@ -8,11 +8,11 @@ const browser = fs.readFileSync(path.join(root, "artifacts/api-server/src/src/li
 
 const checks = [
   ["canonical agentic module owns the guarded entrypoint", research.includes("safeOutboundFetch") && research.includes("AsyncLocalStorage")],
-  ["core implementation is not the canonical import target", !research.includes("from \"./agentic-web-research-core\";\n\nexport async function runAgenticWebResearch")],
+  ["canonical module does not statically import the core run function", !research.includes('import { runAgenticWebResearch } from "./agentic-web-research-core"')],
   ["core still contains the actual ReAct implementation", core.includes("function toolVisit") && core.includes("parseAction") && core.includes("runAgenticWebResearch")],
   ["browser escalation validates the model-selected destination", browser.includes("assertSafeOutboundUrl(url)")],
   ["canonical visit path imports the guarded browser wrapper", core.includes('import("./browser-fetch")')],
-  ["raw global fetch is not exposed by the canonical wrapper", research.includes("safeOutboundFetch(input, init, nativeFetch)")],
+  ["guarded fetch delegates to the original native fetch", research.includes("safeOutboundFetch(input, init, nativeFetch)")],
 ];
 
 let failed = false;
