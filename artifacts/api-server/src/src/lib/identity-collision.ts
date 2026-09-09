@@ -121,6 +121,18 @@ export function assessIdentityCollision(input: {
     };
   }
 
+  // An explicitly named person whose full identity matches the target gets a
+  // high deterministic identity score. This keeps the promotion gate usable for
+  // legitimate company-page evidence while still allowing collision checks above.
+  if (
+    targetToks.length >= 2
+    && personToks.length >= 2
+    && overlap.length >= 2
+    && personToks[personToks.length - 1] === targetToks[targetToks.length - 1]
+  ) {
+    return { risk: false, identityMatch: 0.85, reason: null };
+  }
+
   // When the target has a full name, missing surname evidence is also stronger
   // than a generic employer/domain match.
   if (targetToks.length >= 2) {
