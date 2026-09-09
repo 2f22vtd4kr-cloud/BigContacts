@@ -11,19 +11,23 @@ const LEGACY_MUTATING_ENRICHMENT_PATHS = new Set([
 ]);
 const APEX_TYPES = new Set(["HNWI", "Gatekeeper"]);
 
+function isLegacyEnrichmentPath(path: string): boolean {
+  return LEGACY_MUTATING_ENRICHMENT_PATHS.has(path) || path.startsWith("/enrich/");
+}
+
 /**
- * Legacy enrichment endpoints predate the canonical Investigator decision
- * boundary. They may remain available for non-Apex maintenance work, but must
- * never write HNWI/Gatekeeper cards from deterministic enrichment output.
- *
- * This guard is deliberately about mutation scope, not research strategy.
+ * Legacy/deterministic enrichment endpoints predate the canonical Investigator
+ * decision boundary. They may remain available for non-Apex maintenance work,
+ * but must never write HNWI/Gatekeeper cards from deterministic enrichment
+ * output. This guard is deliberately about mutation scope, not research
+ * strategy.
  */
 export async function legacyApexMutationGuard(
   req: Request,
   res: Response,
   next: NextFunction,
 ): Promise<void> {
-  if (req.method !== "POST" || !LEGACY_MUTATING_ENRICHMENT_PATHS.has(req.path)) {
+  if (req.method !== "POST" || !isLegacyEnrichmentPath(req.path)) {
     next();
     return;
   }
@@ -35,6 +39,8 @@ export async function legacyApexMutationGuard(
     .map((value) => Number(value))
     .filter((value) => Number.isInteger(value) && value > 0)
     .slice(0, 1_000);
+  const singularEntityId = Number(body.entityId);
+  if (Number.isInteger(singularEntityId) && singularEntityId > 0) entityIds.push(singularEntityId);
 
   if (entityType && APEX_TYPES.has(entityType)) {
     res.status(409).json({
