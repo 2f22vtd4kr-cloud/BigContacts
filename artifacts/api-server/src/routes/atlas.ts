@@ -8,7 +8,7 @@
 
 import { Router, type Request, type Response } from "express";
 import { createJob, getActiveJob, getLatestJob, getJob, setActiveJob, updateJob, clearActiveJobIfOwned } from "../lib/job-queue";
-import { runAtlasPipeline, type AtlasOptions } from "../src/lib/atlas-orchestrator";
+import { runCanonicalAtlasPipeline, type CanonicalAtlasOptions } from "../src/lib/canonical-atlas-discovery";
 import { runCanonicalSingleTargetInvestigation } from "../src/lib/canonical-single-target-runner";
 import { CANONICAL_ATLAS_LAUNCH_BODY } from "../lib/atlas-launch-defaults";
 import { logger } from "../lib/logger";
@@ -28,56 +28,36 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
   const body = (req.body ?? {}) as Record<string, unknown>;
   const singleTargetRaw = body.singleTargetId !== undefined ? Number(body.singleTargetId) : undefined;
   const singleTargetId = Number.isInteger(singleTargetRaw) && (singleTargetRaw as number) > 0 ? singleTargetRaw as number : undefined;
-  // Public Atlas launch is always the canonical model-selected pipeline. The
-  // only alternate mode is an explicitly named single target, which is routed
-  // to the dedicated Investigator control plane below.
-  const discoveryFirst = singleTargetId != null ? false : true;
+  const discoveryFirst = singleTargetId == null;
 
   const requestedResearchDepth = String(body.researchDepth ?? CANONICAL_ATLAS_LAUNCH_BODY.researchDepth).toLowerCase();
   const researchDepth = ["fast", "standard", "deep"].includes(requestedResearchDepth)
-    ? requestedResearchDepth as AtlasOptions["researchDepth"]
+    ? requestedResearchDepth as CanonicalAtlasOptions["researchDepth"]
     : CANONICAL_ATLAS_LAUNCH_BODY.researchDepth;
 
-  const opts: AtlasOptions = {
-    targetCount:        Number(body.targetCount)       || (discoveryFirst ? 3 : CANONICAL_ATLAS_LAUNCH_BODY.targetCount),
-    faaMaxRecords:      Number(body.faaMaxRecords)     || 60_000,
-    includeLandRegistry: Boolean(body.includeLandRegistry),
-    batchSize:          Number(body.batchSize)         || CANONICAL_ATLAS_LAUNCH_BODY.batchSize,
-    phaseJBatchSize:    Number(body.phaseJBatchSize)   || CANONICAL_ATLAS_LAUNCH_BODY.phaseJBatchSize,
-    skipIngestion:      Boolean(body.skipIngestion),
-    hotLeadsOnly:       Boolean(body.hotLeadsOnly),
-    runResearch:        body.runResearch !== false,
-    researchLimit:      Number(body.researchLimit)     || (singleTargetId != null ? 1 : CANONICAL_ATLAS_LAUNCH_BODY.researchLimit),
-    targetTimeoutMs:    Number(body.targetTimeoutMs)  || (singleTargetId != null ? 420_000 : CANONICAL_ATLAS_LAUNCH_BODY.targetTimeoutMs),
+  const opts: CanonicalAtlasOptions = {
+    targetCount: Number(body.targetCount) || (discoveryFirst ? 3 : 1),
     researchDepth,
-    singleTargetId,
-    discoveryFirst,
-    skipFaa:            body.skipFaa !== undefined ? Boolean(body.skipFaa) : CANONICAL_ATLAS_LAUNCH_BODY.skipFaa,
-    broadCategories:   Number(body.broadCategories)   || (discoveryFirst ? CANONICAL_ATLAS_LAUNCH_BODY.broadCategories : 1),
+    targetTimeoutMs: Number(body.targetTimeoutMs) || (singleTargetId != null ? 420_000 : undefined),
   };
-
-  if (singleTargetId != null) {
-    opts.targetCount = 1;
-    opts.researchLimit = 1;
-    opts.discoveryFirst = false;
-    opts.broadCategories = 0;
-  }
 
   const atlasJobId = await createJob("atlas-run");
   await setActiveJob("atlas-run", atlasJobId);
   await updateJob(atlasJobId, {
     status: "running",
-    progress: 0, total: 10,
-    atlasPhase: 0, atlasPhaseTotal: 10,
+    progress: 0,
+    total: singleTargetId != null ? 3 : 4,
+    atlasPhase: 0,
+    atlasPhaseTotal: singleTargetId != null ? 3 : 4,
     message: "Atlas pipeline initializing…",
   });
 
   void (async () => {
     try {
-      if (opts.singleTargetId != null) {
-        await runCanonicalSingleTargetInvestigation(atlasJobId, opts.singleTargetId);
+      if (singleTargetId != null) {
+        await runCanonicalSingleTargetInvestigation(atlasJobId, singleTargetId);
       } else {
-        await runAtlasPipeline(atlasJobId, opts);
+        await runCanonicalAtlasPipeline(atlasJobId, opts);
       }
     } catch (err: any) {
       logger.error({ err: err.message }, "[Atlas] Pipeline crashed");
@@ -93,18 +73,9 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
   res.status(202).json({
     jobId: atlasJobId,
     pollUrl: `/api/ingest/job/${atlasJobId}`,
-    phases: [
-      "0 — Canonical launch / intake",
-      "1 — Model-owned discovery",
-      "2 — Investigator research",
-      "3 — Evidence persistence",
-      "4 — Target-scoped investigation",
-      "5 — Evidence review",
-      "6 — Explicit promotion boundary",
-      "7 — Run telemetry / audit",
-      "8 — Case completion",
-      "9 — Final state",
-    ],
+    phases: singleTargetId != null
+      ? ["0 — Canonical launch / intake", "1 — Oversight assignment", "2 — Investigator research", "3 — Explicit promotion boundary"]
+      : ["0 — Canonical discovery / intake", "1 — Oversight assignment", "2 — Investigator discovery", "3 — Target-scoped Investigator research", "4 — Final state"],
     options: opts,
     message: `Atlas pipeline started (job: ${atlasJobId}). Poll ${`/api/ingest/job/${atlasJobId}`} for progress.`,
   });
