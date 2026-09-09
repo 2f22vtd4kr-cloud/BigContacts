@@ -12,6 +12,7 @@ import { persistSourceBackedBureauContactsForEntity, type BureauContactLike } fr
 import { resolveResearchDepth, describeResearchDepth } from "./research-depth";
 import { publishBureauEvent } from "./bureau-live-log";
 import { computeContactOutcome } from "./contact-confidence";
+import { isValidPublicEmail } from "./contact-validation";
 import { publishDigSpan, spanFromLiveStep } from "./dig-span";
 import { getDiscoveryTrace } from "./investigator-trace";
 
@@ -137,10 +138,10 @@ export async function runTargetContactAgent(input: { entityId: number; targetNam
   if (ent) {
     let meta: Record<string, unknown> = {};
     try { meta = ent.metadata ? (JSON.parse(ent.metadata) as Record<string, unknown>) : {}; } catch { meta = {}; }
-    outcome = computeContactOutcome({ type: ent.type, email: ent.email, phone: ent.phone, phoneSource: ent.phoneSource, emailSource: typeof meta.emailSource === "string" ? meta.emailSource : null, linkedinUrl: ent.linkedinUrl, twitterHandle: ent.twitterHandle, instagramHandle: ent.instagramHandle, telegramHandle: ent.telegramHandle, website: typeof meta.website === "string" ? meta.website : ent.personalWebsite, metadata: ent.metadata });
+    outcome = computeContactOutcome({ type: ent.type, email: isValidPublicEmail(ent.email) ? ent.email : null, phone: ent.phone, phoneSource: ent.phoneSource, emailSource: typeof meta.emailSource === "string" ? meta.emailSource : null, linkedinUrl: ent.linkedinUrl, twitterHandle: ent.twitterHandle, instagramHandle: ent.instagramHandle, telegramHandle: ent.telegramHandle, website: typeof meta.website === "string" ? meta.website : ent.personalWebsite, metadata: ent.metadata });
     const methodParts: string[] = [];
     if (ent.phone) methodParts.push(`Phone ${ent.phone} (${ent.phoneSource ?? "dig"}). Validate before outreach.`);
-    if (ent.email) methodParts.push(`Email ${ent.email}. Validate before outreach.`);
+    if (ent.email && isValidPublicEmail(ent.email)) methodParts.push(`Email ${ent.email}. Validate before outreach.`);
     if (ent.linkedinUrl) methodParts.push(`LinkedIn ${ent.linkedinUrl}`);
     const confidence = outcome === "direct_contact_candidate" ? 70 : outcome === "organization_contact" ? 55 : outcome === "evidence_only" ? 35 : 20;
     await db.update(entitiesTable).set({ contactOutcome: outcome, contactConfidence: confidence, ...(methodParts.length ? { contactMethod: methodParts.join(" · ").slice(0, 500) } : {}), updatedAt: new Date() }).where(eq(entitiesTable.id, input.entityId));
