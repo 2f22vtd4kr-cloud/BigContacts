@@ -5,6 +5,7 @@ import express, { type Express } from "express";
 import cors from "cors";
 import pinoHttp from "pino-http";
 import router from "./routes";
+import { apiAuth } from "./lib/api-auth";
 import { logger } from "./lib/logger";
 
 const app: Express = express();
@@ -32,7 +33,10 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-app.use("/api", router);
+// The API is reachable from the public Replit/Vercel surface. Authenticate
+// before any route can read or mutate case/entity data. /api/healthz remains
+// public for probes; the auth middleware handles that explicit exception.
+app.use("/api", apiAuth, router);
 
 /**
  * Single-port / Replit public root: serve built Apex Finder at `/`,
@@ -42,7 +46,6 @@ const __appDir = path.dirname(fileURLToPath(import.meta.url));
 
 function resolveFrontendDist(): string | null {
   const candidates = [
-    // Vite build.outDir is dist/public (see apex-finder/vite.config.ts)
     path.resolve(__appDir, "../../../apex-finder/dist/public"),
     path.resolve(__appDir, "../../../../artifacts/apex-finder/dist/public"),
     path.resolve(process.cwd(), "artifacts/apex-finder/dist/public"),
@@ -69,7 +72,6 @@ if (frontendDist) {
     });
   });
 } else {
-  // HTML not JSON — Replit registers JSON-only roots as "API" cards with no preview.
   app.get("/", (_req, res) => {
     res.status(200).type("html").send(`<!doctype html>
 <html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
