@@ -21,15 +21,22 @@ function tokenMatches(provided: string, expected: string): boolean {
   return a.length === b.length && timingSafeEqual(a, b);
 }
 
+function isLoopbackAddress(value: string | undefined): boolean {
+  const normalized = String(value ?? "").trim().toLowerCase();
+  return normalized === "127.0.0.1"
+    || normalized === "::1"
+    || normalized === "::ffff:127.0.0.1";
+}
+
 /**
  * Protect the public API with an operator-controlled bearer token.
  * Health remains public for deployment probes; CORS preflight is allowed to
  * complete without credentials. Everything else fails closed when the token
  * is absent or invalid.
  *
- * GitHub Actions runs local proof services on an isolated runner and already
- * sets CI=true. Those non-production probes retain their existing localhost
- * contract without introducing a reusable credential into workflow files.
+ * GitHub Actions local proof services may rely on the CI bypass, but only
+ * loopback callers are eligible. CI=true must never turn a publicly reachable
+ * staging/API process into an unauthenticated API.
  */
 export function apiAuth(req: Request, res: Response, next: NextFunction): void {
   if (PUBLIC_PATHS.has(req.path) || req.method === "OPTIONS") {
@@ -37,7 +44,11 @@ export function apiAuth(req: Request, res: Response, next: NextFunction): void {
     return;
   }
 
-  if (process.env.CI === "true" && process.env.NODE_ENV !== "production") {
+  if (
+    process.env.CI === "true"
+    && process.env.NODE_ENV !== "production"
+    && isLoopbackAddress(req.ip)
+  ) {
     next();
     return;
   }
