@@ -145,7 +145,11 @@ export async function runTargetContactAgent(input: { entityId: number; targetNam
 
   try { publishDigSpan({ jobId: input.jobId || "dig", targetName: name, spanType: "stage", name: "target_contact_agent_done", status: agentic.status === "timeout" ? "error" : "ok", agentName: "investigator", inputSummary: `model=${agentic.model}`, resultSummary: `status=${agentic.status} findings=${agentic.findings.length} searches=${agentic.searches} visits=${agentic.visits} stop=${agentic.stopReason}`, endedAt: new Date().toISOString() }); } catch { /* spans best-effort */ }
 
-  const backedFindings = sourceBackedFindings(agentic.findings, agentic.trajectory);
+  // Only findings explicitly emitted by action=done are eligible to cross the
+  // evidence boundary. Deterministic extraction remains an observation inside
+  // the Investigator trajectory, not a model finding.
+  const modelFindings = agentic.modelFindings ?? [];
+  const backedFindings = sourceBackedFindings(modelFindings, agentic.trajectory);
   const contacts = findingsToContacts(backedFindings, name);
   const evidenceSource = input.jobId ? `target-contact-agentic:${input.jobId}` : "target-contact-agentic";
   const observedSourceUrls = [...observedUrlsFromTrajectory(agentic.trajectory)];
@@ -168,7 +172,7 @@ export async function runTargetContactAgent(input: { entityId: number; targetNam
     void delCachePattern("dashboard:*");
   }
 
-  logger.info({ entityId: input.entityId, name, status: agentic.status, model: agentic.model, findings: backedFindings.length, rawFindings: agentic.findings.length, stopReason: agentic.stopReason, phone: ent?.phone ?? null, outcome }, "[TargetAgent] free Dig finished");
+  logger.info({ entityId: input.entityId, name, status: agentic.status, model: agentic.model, findings: backedFindings.length, rawFindings: agentic.findings.length, modelFindings: modelFindings.length, stopReason: agentic.stopReason, phone: ent?.phone ?? null, outcome }, "[TargetAgent] free Dig finished");
   const mapped = agentic.status === "completed" ? "completed" : agentic.status === "timeout" ? "timeout" : agentic.status === "unavailable" ? "unavailable" : "error";
   return { status: mapped, model: agentic.model, findings: backedFindings.length, searches: agentic.searches, visits: agentic.visits, trajectory: agentic.trajectory.slice(-80), phone: ent?.phone ?? null, email: ent?.email ?? null, phoneSource: ent?.phoneSource ?? null, contactOutcome: outcome };
 }
