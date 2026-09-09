@@ -13,6 +13,7 @@ import { resolveResearchDepth, describeResearchDepth } from "./research-depth";
 import { publishBureauEvent } from "./bureau-live-log";
 import { computeContactOutcome } from "./contact-confidence";
 import { publishDigSpan, spanFromLiveStep } from "./dig-span";
+import { getDiscoveryTrace } from "./investigator-trace";
 
 export type TargetContactAgentResult = {
   status: "completed" | "timeout" | "unavailable" | "error" | "skipped";
@@ -44,7 +45,7 @@ export function findingsToContacts(
     note: string;
     promotionDecision?: "promote" | "reject";
   }>,
-  personName: string,
+  _personName: string,
 ): BureauContactLike[] {
   return findings
     .filter((f) => Array.isArray(f.sourceUrls) && f.sourceUrls.some((url) => /^https?:\/\/\S+$/i.test(String(url))))
@@ -66,14 +67,36 @@ export function findingsToContacts(
     });
 }
 
+/**
+ * Recover the Investigator selected for this Atlas job from its discovery trace.
+ * This is a run-scoped selection, never an environment/provider preference.
+ */
+async function resolveSelectedInvestigator(input: {
+  investigatorLlm?: "groq" | "mistral";
+  jobId?: string;
+}): Promise<"groq" | "mistral" | null> {
+  if (input.investigatorLlm) return input.investigatorLlm;
+  if (!input.jobId) return null;
+  const trace = await getDiscoveryTrace(input.jobId);
+  const models = (trace?.slots ?? [])
+    .map((slot) => String(slot.model ?? "").trim().toLowerCase())
+    .filter(Boolean);
+  if (models.some((model) => model.includes("mistral"))) return "mistral";
+  if (models.length > 0) return "groq";
+  return null;
+}
+
 export async function runTargetContactAgent(input: { entityId: number; targetName: string; companyName?: string | null; jobId?: string; maxIterations?: number; hardTimeoutMs?: number; investigatorLlm?: "groq" | "mistral" }): Promise<TargetContactAgentResult> {
   const name = (input.targetName ?? "").trim();
   if (!input.entityId || name.length < 2) return { status: "skipped", model: "none", findings: 0, searches: 0, visits: 0, phone: null, email: null, phoneSource: null, contactOutcome: null };
 
   const depth = resolveResearchDepth();
-  const investigatorLlm = input.investigatorLlm
-    ?? (process.env.GROQ_API_KEY ? "groq" : process.env.MISTRAL_API_KEY ? "mistral" : undefined);
-  logger.info({ entityId: input.entityId, depth: describeResearchDepth(depth) }, "[target-agent] dig depth");
+  const investigatorLlm = await resolveSelectedInvestigator(input);
+  if (!investigatorLlm) {
+    logger.warn({ entityId: input.entityId, jobId: input.jobId }, "[target-agent] no Boss-selected Investigator available; refusing provider fallback");
+    return { status: "unavailable", model: "none", findings: 0, searches: 0, visits: 0, phone: null, email: null, phoneSource: null, contactOutcome: null };
+  }
+  logger.info({ entityId: input.entityId, depth: describeResearchDepth(depth), investigatorLlm }, "[target-agent] dig depth");
   const objective = [
     `Research the public identity and contact surface for ${name}${input.companyName ? ` linked to ${input.companyName}` : ""}.`,
     "Act like a strong human public-web researcher with a bounded execution budget. The goal is an attributable, realistic route to this person, not fame, wealth ranking, or generic company contact information.",
