@@ -1,0 +1,40 @@
+name: one-time fix PR73 retired research condition
+on:
+  pull_request:
+    types: [opened, reopened]
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  fix:
+    if: github.event.pull_request.number == 73 && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
+      - name: Fix condition
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('artifacts/api-server/src/src/lib/atlas-orchestrator.ts')
+          s=p.read_text()
+          old='if (opts.runResearch !== false && !skipMcts) {'
+          if s.count(old)!=1: raise SystemExit(f'expected one stale condition, found {s.count(old)}')
+          s=s.replace(old,'if (opts.runResearch !== false) {',1)
+          if 'skipMcts' in s or 'runTargetResearch' in s or 'APEX_SKIP_MCTS_AFTER_DIG' in s or 'UCT RESEARCH' in s or 'activeToolId: "mcts"' in s:
+            raise SystemExit('retired MCTS residue remains')
+          p.write_text(s)
+          PY
+          git diff --check
+          ! grep -n 'skipMcts\|runTargetResearch\|APEX_SKIP_MCTS_AFTER_DIG\|UCT RESEARCH\|activeToolId: "mcts"' artifacts/api-server/src/src/lib/atlas-orchestrator.ts
+      - name: Commit and remove runner
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add artifacts/api-server/src/src/lib/atlas-orchestrator.ts
+          git commit -m 'fix: remove stale retired-research condition'
+          git rm .github/workflows/apex-one-time-fix-pr73-condition.yml
+          git commit -m 'chore: remove one-time PR73 condition runner'
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}
