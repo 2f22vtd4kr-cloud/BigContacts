@@ -8,6 +8,7 @@ const files = {
   prompt: path.join(root, "artifacts/api-server/src/src/lib/case-bureau-prompt.ts"),
   pass: path.join(root, "artifacts/api-server/src/src/lib/bureau-agentic-pass.ts"),
   cases: path.join(root, "artifacts/api-server/src/src/routes/research/cases.ts"),
+  atlas: path.join(root, "artifacts/api-server/src/src/lib/atlas-orchestrator.ts"),
   orientation: path.join(root, "artifacts/api-server/src/src/lib/apex-bureau-orientation.ts"),
   finalReview: path.join(root, "artifacts/api-server/src/lib/ai-extractor.ts"),
   architecture: path.join(root, "docs/BUREAU_REACT_ARCHITECTURE.md"),
@@ -43,7 +44,7 @@ assert(/investigatorLlm/.test(source.cases), "Case route does not persist/pass i
 assert(/investigatorLlm/.test(source.pass), "ReAct pass does not accept investigatorLlm.");
 assert(/investigatorLlm/.test(source.research), "ReAct research runtime does not receive investigatorLlm.");
 assert(/runBureauAgenticWebPass\(\{[\s\S]*?investigatorLlm\s*:/.test(source.cases), "Case route invokes the agentic pass without explicitly binding the Boss-selected Investigator.");
-assert(/runTargetContactAgent\(\{[\s\S]*?investigatorLlm\s*:/.test(source.cases + source.bureau) || /runTargetContactAgent\(\{[\s\S]*?investigatorLlm\s*:/.test(source.research), "Canonical target Dig call is not visibly bound to an explicit Investigator selection.");
+assert(/runTargetContactAgent\(\{[\s\S]*?investigatorLlm\s*:/.test(source.atlas), "Canonical target Dig call is not visibly bound to an explicit Investigator selection.");
 
 // Case discovery must not bypass the ReAct Investigator with fixed model/tool lanes.
 assert(!/\brunMistralWebSearch\s*\(/.test(source.cases), "Case route still invokes Mistral as a fixed web-search lane instead of as the selected ReAct Investigator.");
