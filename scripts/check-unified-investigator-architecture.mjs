@@ -10,6 +10,7 @@ const files = {
   cases: path.join(root, "artifacts/api-server/src/src/routes/research/cases.ts"),
   canonicalCase: path.join(root, "artifacts/api-server/src/src/routes/research/canonical-case-discovery.ts"),
   canonicalAtlas: path.join(root, "artifacts/api-server/src/src/lib/canonical-atlas-discovery.ts"),
+  canonicalTarget: path.join(root, "artifacts/api-server/src/src/lib/canonical-single-target-runner.ts"),
   launchRoute: path.join(root, "artifacts/api-server/src/routes/atlas.ts"),
   researchRoutes: path.join(root, "artifacts/api-server/src/src/routes/research.ts"),
   apiRoutes: path.join(root, "artifacts/api-server/src/routes/index.ts"),
@@ -18,18 +19,15 @@ const files = {
   architecture: path.join(root, "docs/BUREAU_REACT_ARCHITECTURE.md"),
 };
 
-const source = Object.fromEntries(
-  Object.entries(files).map(([name, file]) => {
-    if (!fs.existsSync(file)) throw new Error(`missing required architecture file: ${file}`);
-    return [name, fs.readFileSync(file, "utf8")];
-  }),
-);
-
+const source = Object.fromEntries(Object.entries(files).map(([name, file]) => {
+  if (!fs.existsSync(file)) throw new Error(`missing required architecture file: ${file}`);
+  return [name, fs.readFileSync(file, "utf8")];
+}));
 const failures = [];
 const assert = (ok, message) => { if (!ok) failures.push(message); };
 
 assert(!/DEEPSEEK_INVESTIGATOR_MODEL|\["deepseek",\s*callDeepSeekJson\]|\bname === "deepseek"/.test(source.research), "DeepSeek is present in the Investigator adapter pool; DeepSeek must remain Right-hand only.");
-assert(!/Gemini.*Investigator fallback|investigator.*Gemini.*fallback/i.test(source.prompt + source.bureau), "Gemini appears to be described as an Investigator fallback.");
+assert(!/Gemini.*Investigator fallback|investigator.*Gemini.*fallback/i.test(source.prompt + source.bureau), "Gemini appears to be an Investigator fallback.");
 assert(!/Groq\s*[→>-]+\s*Mistral|Mistral\s*[→>-]+\s*Groq/.test(source.research + source.bureau + source.prompt), "Active runtime still contains a Groq→Mistral Investigator chain.");
 assert(!/Prefer\s+Serper.*Tavily.*Exa/i.test(source.research), "Active research runtime contains a ranked Serper→Tavily→Exa preference list.");
 assert(!/const\s+serper\s*=.*\n\s*if\s*\(serper.*\n\s*const\s+tavily\s*=.*\n\s*if\s*\(tavily.*\n\s*const\s+exa\s*=/s.test(source.research), "Active research runtime contains deterministic sequential search-provider selection.");
@@ -43,7 +41,8 @@ assert(/investigatorLlm/.test(source.pass), "ReAct pass does not accept investig
 assert(/investigatorLlm/.test(source.research), "ReAct research runtime does not receive investigatorLlm.");
 assert(/runBureauAgenticWebPass\(\{[\s\S]*?investigatorLlm\s*:/.test(source.canonicalCase + source.cases), "Case discovery invocation is not visibly bound to the Boss-selected Investigator.");
 assert(/investigatorLlm\s*:/.test(source.canonicalAtlas), "Canonical Atlas discovery does not bind the selected Investigator.");
-assert(/investigatorLlm\s*:/.test(source.launchRoute), "Canonical target launch route does not expose Investigator binding through its runner wiring.");
+assert(/runTargetContactAgent\(\{[\s\S]*?investigatorLlm\s*:/.test(source.canonicalTarget), "Canonical target runner does not bind the selected Investigator into the target Dig.");
+assert(/runCanonicalSingleTargetInvestigation/.test(source.launchRoute), "Atlas launch route does not expose the canonical single-target control plane.");
 
 // The active case discovery route is canonical; the legacy mixed-lane handler is
 // retained only for the CRUD surface and must never be mounted ahead of it.
