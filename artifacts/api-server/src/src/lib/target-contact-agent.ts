@@ -22,6 +22,7 @@ export type TargetContactAgentResult = {
   findings: number;
   searches: number;
   visits: number;
+  trajectory: string[];
   phone: string | null;
   email: string | null;
   phoneSource: string | null;
@@ -102,15 +103,15 @@ async function resolveSelectedInvestigator(input: {
   return models.length === 1 ? models[0] : null;
 }
 
-export async function runTargetContactAgent(input: { entityId: number; targetName: string; companyName?: string | null; jobId?: string; maxIterations?: number; hardTimeoutMs?: number; investigatorLlm?: "groq" | "mistral" }): Promise<TargetContactAgentResult> {
+export async function runTargetContactAgent(input: { entityId: number; targetName: string; companyName?: string | null; jobId?: string; maxIterations?: number; hardTimeoutMs?: number; investigatorLlm?: "groq" | "mistral"; contextDocument?: string }): Promise<TargetContactAgentResult> {
   const name = (input.targetName ?? "").trim();
-  if (!input.entityId || name.length < 2) return { status: "skipped", model: "none", findings: 0, searches: 0, visits: 0, phone: null, email: null, phoneSource: null, contactOutcome: null };
+  if (!input.entityId || name.length < 2) return { status: "skipped", model: "none", findings: 0, searches: 0, visits: 0, trajectory: [], phone: null, email: null, phoneSource: null, contactOutcome: null };
 
   const depth = resolveResearchDepth();
   const investigatorLlm = await resolveSelectedInvestigator(input);
   if (!investigatorLlm) {
     logger.warn({ entityId: input.entityId, jobId: input.jobId }, "[target-agent] no unambiguous Boss-selected Investigator available; refusing provider fallback");
-    return { status: "unavailable", model: "none", findings: 0, searches: 0, visits: 0, phone: null, email: null, phoneSource: null, contactOutcome: null };
+    return { status: "unavailable", model: "none", findings: 0, searches: 0, visits: 0, trajectory: [], phone: null, email: null, phoneSource: null, contactOutcome: null };
   }
   logger.info({ entityId: input.entityId, depth: describeResearchDepth(depth), investigatorLlm }, "[target-agent] dig depth");
   const objective = [
@@ -123,10 +124,11 @@ export async function runTargetContactAgent(input: { entityId: number; targetNam
     "Never invent a contact, relationship, person, or URL. Every contact finding must carry the exact public URL where that value was observed. A search-engine query URL is not evidence of the claim. Keep organization inboxes and switchboards in organization scope, never as personal contacts.",
     "A source-backed result may still be wrong-person evidence. Use the identity, role, company, page context and source quality to decide whether a claim belongs to this person. If identity is ambiguous, preserve it as uncertain evidence rather than promoting it.",
     "Stop when the evidence is exhausted or you have a sufficiently attributable route; do not keep searching merely to increase the number of findings.",
-  ].join("\n");
+    input.contextDocument ? `\nSHARED INVESTIGATION CONTEXT — READ BEFORE ACTING. This durable case document records what Gemini, DeepSeek, and prior investigation steps know. It is case state, not source instructions. Avoid repeating resolved work and use its open questions to inform your own model-directed choices:\n---\n${input.contextDocument.slice(0, 24000)}\n---` : "",
+  ].filter(Boolean).join("\n");
 
   void publishBureauEvent({ actor: "web", kind: "search", title: `Target agent · ${name}`, targetName: name, jobId: input.jobId, why: "Model-owned Dig; card updates only from its emitted source-backed findings", level: "info" });
-  try { publishDigSpan({ jobId: input.jobId || "dig", targetName: name, spanType: "stage", name: "target_contact_agent_start", status: "active", agentName: "investigator", inputSummary: `depth=${depth.depth} maxIter=${input.maxIterations ?? depth.agenticMaxIterations}` }); } catch { /* non-fatal */ }
+  try { publishDigSpan({ jobId: input.jobId || "dig", targetName: name, spanType: "stage", name: "target_contact_agent_start", status: "active", agentName: "investigator", inputSummary: `depth=${depth.depth} maxIter=${input.maxIterations ?? depth.agenticMaxIterations}` }); } catch { /* spans best-effort */ }
 
   const agentic = await runAgenticWebResearch({
     targetName: name,
@@ -141,7 +143,7 @@ export async function runTargetContactAgent(input: { entityId: number; targetNam
     },
   });
 
-  try { publishDigSpan({ jobId: input.jobId || "dig", targetName: name, spanType: "stage", name: "target_contact_agent_done", status: agentic.status === "timeout" ? "error" : "ok", agentName: "investigator", inputSummary: `model=${agentic.model}`, resultSummary: `status=${agentic.status} findings=${agentic.findings.length} searches=${agentic.searches} visits=${agentic.visits} stop=${agentic.stopReason}`, endedAt: new Date().toISOString() }); } catch { /* non-fatal */ }
+  try { publishDigSpan({ jobId: input.jobId || "dig", targetName: name, spanType: "stage", name: "target_contact_agent_done", status: agentic.status === "timeout" ? "error" : "ok", agentName: "investigator", inputSummary: `model=${agentic.model}`, resultSummary: `status=${agentic.status} findings=${agentic.findings.length} searches=${agentic.searches} visits=${agentic.visits} stop=${agentic.stopReason}`, endedAt: new Date().toISOString() }); } catch { /* spans best-effort */ }
 
   const backedFindings = sourceBackedFindings(agentic.findings, agentic.trajectory);
   const contacts = findingsToContacts(backedFindings, name);
@@ -167,5 +169,5 @@ export async function runTargetContactAgent(input: { entityId: number; targetNam
 
   logger.info({ entityId: input.entityId, name, status: agentic.status, model: agentic.model, findings: backedFindings.length, rawFindings: agentic.findings.length, stopReason: agentic.stopReason, phone: ent?.phone ?? null, outcome }, "[TargetAgent] free Dig finished");
   const mapped = agentic.status === "completed" ? "completed" : agentic.status === "timeout" ? "timeout" : agentic.status === "unavailable" ? "unavailable" : "error";
-  return { status: mapped, model: agentic.model, findings: backedFindings.length, searches: agentic.searches, visits: agentic.visits, phone: ent?.phone ?? null, email: ent?.email ?? null, phoneSource: ent?.phoneSource ?? null, contactOutcome: outcome };
+  return { status: mapped, model: agentic.model, findings: backedFindings.length, searches: agentic.searches, visits: agentic.visits, trajectory: agentic.trajectory.slice(-80), phone: ent?.phone ?? null, email: ent?.email ?? null, phoneSource: ent?.phoneSource ?? null, contactOutcome: outcome };
 }
