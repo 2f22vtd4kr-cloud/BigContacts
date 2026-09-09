@@ -8,12 +8,16 @@
 import { Router, type IRouter } from "express";
 import sessionsRouter from "./research/sessions";
 import deepResearchRouter from "./research/deep-research";
+import canonicalCaseDiscoveryRouter from "./research/canonical-case-discovery";
 import casesRouter from "./research/cases";
 
 const router: IRouter = Router();
 
 router.use(sessionsRouter);
 router.use(deepResearchRouter);
+// The canonical model-owned discovery route must win over the legacy mixed-lane
+// handler for the duplicate /:caseId/run-discovery endpoint.
+router.use(canonicalCaseDiscoveryRouter);
 router.use(casesRouter);
 
 export default router;
