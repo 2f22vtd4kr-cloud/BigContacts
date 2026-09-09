@@ -86,7 +86,7 @@ export function assessIdentityCollision(input: {
   const overlap = targetToks.filter((t) => blob.includes(t));
   const hostHit = COLLISION_HOSTS.some((h) => blob.includes(h));
   const educationHostHit =
-    /^[a-z0-9._%+-]+@([a-z0-9.-]+)$/i.exec(value)?.[1]
+    /^[a-z0-9._%+-]+@([a-z0-9.-]+)$/i.test(value)
       ? INSTITUTIONAL_EDUCATION_HOSTS.some((marker) => blob.includes(marker))
       : false;
 
@@ -111,13 +111,13 @@ export function assessIdentityCollision(input: {
   }
 
   // Institutional education domains are high-collision organizational surfaces.
-  // Do not let a school/district mailbox become a personal contact solely because
-  // a surname token happens to overlap. It remains useful as review-only evidence.
-  if (contactLike && educationHostHit && companyToks.length === 0) {
+  // Never let a school/district mailbox become a personal card value merely
+  // because a surname/company token overlaps. It remains review-only evidence.
+  if (contactLike && educationHostHit) {
     return {
       risk: true,
       identityMatch: 0.2,
-      reason: "institutional school/district contact surface; personal attribution is not strong enough",
+      reason: "institutional school/district contact surface; personal attribution requires stronger evidence",
     };
   }
 
