@@ -55,7 +55,10 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
   void (async () => {
     try {
       if (singleTargetId != null) {
-        await runCanonicalSingleTargetInvestigation(atlasJobId, singleTargetId);
+        await runCanonicalSingleTargetInvestigation(atlasJobId, singleTargetId, {
+          researchDepth,
+          targetTimeoutMs: opts.targetTimeoutMs,
+        });
       } else {
         await runCanonicalAtlasPipeline(atlasJobId, opts);
       }
