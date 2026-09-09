@@ -38,16 +38,33 @@ export function isWebSpecialistAction(specialistId: string | null | undefined): 
   return WEB_SPECIALISTS.has(String(specialistId ?? "").toLowerCase());
 }
 
-/** Exact-source law: contact evidence without an actual public URL is not durable evidence. */
-export function sourceBackedAgenticFindings(findings: AgenticFinding[]): AgenticFinding[] {
-  return findings.filter((finding) =>
-    Array.isArray(finding.sourceUrls)
-    && finding.sourceUrls.some((url) => /^https?:\/\/\S+$/i.test(String(url))),
-  );
+/** Exact-source law: contact evidence must cite a public URL actually observed by this ReAct run. */
+export function sourceBackedAgenticFindings(findings: AgenticFinding[], trajectory: string[] = []): AgenticFinding[] {
+  const observed = new Set<string>();
+  for (const line of trajectory) {
+    const match = String(line).match(/step\d+:\s+(?:visit|browser_fetch)\s+(https?:\/\/\S+)/i);
+    if (match?.[1]) {
+      try { observed.add(new URL(match[1]).href); } catch { /* malformed trajectory URL is ignored */ }
+    }
+  }
+  return findings
+    .filter((finding) => Array.isArray(finding.sourceUrls))
+    .map((finding) => ({
+      ...finding,
+      sourceUrls: finding.sourceUrls.filter((url) => {
+        try {
+          const normalized = new URL(String(url)).href;
+          return /^https?:$/i.test(new URL(normalized).protocol) && observed.has(normalized);
+        } catch {
+          return false;
+        }
+      }),
+    }))
+    .filter((finding) => finding.sourceUrls.length > 0);
 }
 
-export function findingsToContactEvidence(findings: AgenticFinding[]) {
-  return sourceBackedAgenticFindings(findings).map((f) => ({
+export function findingsToContactEvidence(findings: AgenticFinding[], trajectory: string[] = []) {
+  return sourceBackedAgenticFindings(findings, trajectory).map((f) => ({
     vectorType: f.vectorType,
     value: f.value,
     // Unknown contact scope is deliberately conservative. It is not allowed to
@@ -63,8 +80,9 @@ export function findingsToContactEvidence(findings: AgenticFinding[]) {
 export function findingsToBureauContacts(
   findings: AgenticFinding[],
   _fallbackPersonName: string,
+  trajectory: string[] = [],
 ): BureauContactLike[] {
-  return sourceBackedAgenticFindings(findings).map((f) => {
+  return sourceBackedAgenticFindings(findings, trajectory).map((f) => {
     const explicitPersonName = typeof f.personName === "string" ? f.personName.trim() : "";
     const isExplicitCandidate = f.scope === "candidate" && explicitPersonName.length > 0;
     return {
@@ -176,7 +194,7 @@ export async function runBureauAgenticWebPass(input: {
       },
     });
 
-    const backedFindings = sourceBackedAgenticFindings(agentic.findings);
+    const backedFindings = sourceBackedAgenticFindings(agentic.findings, agentic.trajectory);
     // Fail closed before the bureau route can fall back to the known target name:
     // organization-scoped findings require an explicit company context, and
     // candidate-scoped findings require an explicit person name.
@@ -189,12 +207,12 @@ export async function runBureauAgenticWebPass(input: {
       }
       return false;
     });
-    const contactEvidence = findingsToContactEvidence(scopedFindings);
+    const contactEvidence = findingsToContactEvidence(scopedFindings, agentic.trajectory);
 
     if (input.persist && input.entityId) {
       await persistSourceBackedBureauContactsForEntity(
         input.entityId,
-        findingsToBureauContacts(scopedFindings, name),
+        findingsToBureauContacts(scopedFindings, name, agentic.trajectory),
         "case-bureau-agentic",
         input.jobId,
       );
