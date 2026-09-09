@@ -4,13 +4,13 @@
  * This is a network-safety guard, not a research allowlist: arbitrary public
  * HTTP(S) destinations remain eligible. Private, loopback, link-local,
  * multicast, reserved, and cloud-metadata destinations are rejected.
- * Redirects are followed manually so every hop is revalidated.
+ * Redirects are deliberately NOT followed; callers receive the 3xx response
+ * and the model can choose whether to inspect the advertised public URL.
  */
 
 import { lookup } from "node:dns/promises";
 import net from "node:net";
 
-const MAX_REDIRECTS = 8;
 const BLOCKED_HOSTNAMES = new Set([
   "localhost",
   "localhost.localdomain",
@@ -23,7 +23,7 @@ function isBlockedIp(address: string): boolean {
   const version = net.isIP(normalized);
   if (version === 4) {
     const octets = normalized.split(".").map(Number);
-    const [a, b] = octets;
+    const [a, b, c] = octets;
     return (
       a === 0 ||
       a === 10 ||
@@ -33,9 +33,11 @@ function isBlockedIp(address: string): boolean {
       (a === 172 && b >= 16 && b <= 31) ||
       (a === 192 && b === 0) ||
       (a === 192 && b === 168) ||
-      (a === 198 && (b === 18 || b === 19)) ||
-      (a >= 224) ||
-      (a === 255 && b === 255)
+      (a === 192 && b === 88 && c === 99) ||
+      (a === 192 && b === 0 && c === 2) ||
+      (a === 198 && (b === 18 || b === 19 || (b === 51 && c === 100))) ||
+      (a === 203 && b === 0 && c === 113) ||
+      a >= 224
     );
   }
   if (version === 6) {
@@ -44,10 +46,8 @@ function isBlockedIp(address: string): boolean {
     if (/^ff/i.test(compact)) return true; // multicast
     if (/^fe[89ab]/i.test(compact)) return true; // link-local
     if (/^(fc|fd)/i.test(compact)) return true; // unique-local
-    if (/^::ffff:/i.test(compact)) {
-      const mapped = compact.slice(7);
-      return isBlockedIp(mapped);
-    }
+    if (/^2001:db8:/i.test(compact)) return true; // documentation range
+    if (/^::ffff:/i.test(compact)) return isBlockedIp(compact.slice(7));
     return false;
   }
   return true;
@@ -89,28 +89,18 @@ export async function assertSafeOutboundUrl(rawUrl: string): Promise<URL> {
 }
 
 /**
- * Fetch with redirect validation. The native fetch implementation is injected
- * so this boundary can wrap Node's fetch without changing the research tools.
+ * Validate every requested destination while disabling automatic redirects.
+ * This avoids both unsafe redirect following and replaying provider credentials
+ * or request bodies to an unvalidated redirect target.
  */
 export async function safeOutboundFetch(
   input: RequestInfo | URL,
   init: RequestInit = {},
   nativeFetch: typeof fetch = fetch,
 ): Promise<Response> {
-  let nextUrl = typeof input === "string" || input instanceof URL ? String(input) : input.url;
-  let redirects = 0;
-
-  while (true) {
-    const validated = await assertSafeOutboundUrl(nextUrl);
-    const response = await nativeFetch(validated, { ...init, redirect: "manual" });
-    if (response.status < 300 || response.status >= 400) return response;
-
-    const location = response.headers.get("location");
-    if (!location) return response;
-    redirects += 1;
-    if (redirects > MAX_REDIRECTS) throw new Error("Outbound redirect limit exceeded");
-    nextUrl = new URL(location, validated).toString();
-  }
+  const nextUrl = typeof input === "string" || input instanceof URL ? String(input) : input.url;
+  const validated = await assertSafeOutboundUrl(nextUrl);
+  return nativeFetch(validated, { ...init, redirect: "manual" });
 }
 
 export function isBlockedOutboundIpForTest(address: string): boolean {
