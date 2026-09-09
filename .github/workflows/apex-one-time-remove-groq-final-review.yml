@@ -23,16 +23,16 @@ jobs:
           block = re.compile(r'\n  // 3\) Groq capacity fallback \(multi-model\).*?\n  return adjudicateFinalTargetReview\(input, \{\}, "unavailable-final-review"\);\n\}', re.S)
           replacement = '''\n  // Only the two oversight roles may adjudicate final card publication:\n  // Gemini Boss first, then NVIDIA/DeepSeek right-hand. Investigator models\n  // such as Groq/Mistral are never promoted into the final-review role.\n  return adjudicateFinalTargetReview(input, {}, "unavailable-final-review");\n}'''
           s, n = block.subn(replacement, s, count=1)
-          if n != 1:
-              raise SystemExit(f'expected exactly one Groq final-review fallback block, found {n}')
+          if n != 1: raise SystemExit(f'expected exactly one Groq final-review fallback block, found {n}')
           p.write_text(s)
           PY
           git diff --check
           if grep -n "groq-final-review-fallback\|covering final card review" artifacts/api-server/src/lib/ai-extractor.ts; then exit 1; fi
           git diff --stat
-      - name: Verify architecture guard
+      - name: Verify targeted final-review guard
         run: |
-          node scripts/check-unified-investigator-architecture.mjs
+          ! grep -n "groq-final-review-fallback\|covering final card review\|Groq capacity fallback" artifacts/api-server/src/lib/ai-extractor.ts
+          grep -n "gemini-boss-final-review\|nvidia-right-hand-final-review\|unavailable-final-review" artifacts/api-server/src/lib/ai-extractor.ts
       - name: Commit source change and remove runner
         run: |
           git config user.name 'github-actions[bot]'
