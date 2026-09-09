@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { db, entitiesTable } from "@workspace/db";
 import { updateJob, clearActiveJobIfOwned } from "./job-queue";
 import { runGeminiBossDiscovery } from "./case-bureau";
@@ -25,6 +25,10 @@ export type CanonicalAtlasResult = {
 
 function uniqueNames(values: string[]): string[] {
   return [...new Set(values.map((value) => value.trim()).filter((value) => value.length >= 3))];
+}
+
+function isObservedHttpSource(value: unknown): value is string {
+  return typeof value === "string" && /^https?:\/\/\S+$/i.test(value);
 }
 
 /**
@@ -142,10 +146,15 @@ export async function runCanonicalAtlasPipeline(
       hardTimeoutMs: opts.targetTimeoutMs ?? depth.agenticHardTimeoutMs,
     });
 
+    // Admission is an identity boundary. A promotion decision by itself is not
+    // enough: the finding must explicitly be person-scoped and backed by an
+    // HTTP(S) source actually observed by the Investigator runtime.
     const admitted = uniqueNames(
       discovery.findings
         .filter((finding) => finding.promotionDecision === "promote")
-        .filter((finding) => finding.personName && finding.personName.trim().length >= 3)
+        .filter((finding) => finding.scope === "candidate")
+        .filter((finding) => typeof finding.personName === "string" && finding.personName.trim().length >= 3)
+        .filter((finding) => Array.isArray(finding.sourceUrls) && finding.sourceUrls.some(isObservedHttpSource))
         .map((finding) => finding.personName as string),
     ).slice(0, targetCount);
 
@@ -153,14 +162,27 @@ export async function runCanonicalAtlasPipeline(
     let evidenceRows = 0;
     for (const name of admitted) {
       const finding = discovery.findings.find(
-        (candidate) => candidate.personName?.trim().toLowerCase() === name.toLowerCase() && candidate.promotionDecision === "promote",
+        (candidate) => candidate.personName?.trim().toLowerCase() === name.toLowerCase()
+          && candidate.promotionDecision === "promote"
+          && candidate.scope === "candidate"
+          && Array.isArray(candidate.sourceUrls)
+          && candidate.sourceUrls.some(isObservedHttpSource),
       );
-      const sourceUrl = finding?.sourceUrls?.[0] ?? null;
-      const existing = await db.select({ id: entitiesTable.id })
+      const sourceUrl = finding?.sourceUrls?.find(isObservedHttpSource) ?? null;
+      if (!sourceUrl) continue;
+
+      // Never bind an exact-name admission to an organization/trust entity with
+      // the same display name. A person admission may only reuse a person-shaped
+      // entity; otherwise create a review-only HNWI record.
+      const existingRows = await db.select({ id: entitiesTable.id })
         .from(entitiesTable)
-        .where(eq(entitiesTable.name, name))
+        .where(and(
+          eq(entitiesTable.name, name),
+          inArray(entitiesTable.type, ["HNWI", "Gatekeeper"]),
+        ))
         .limit(1);
-      let entityId = existing[0]?.id ?? null;
+      const existing = existingRows[0];
+      let entityId = existing?.id ?? null;
       if (!entityId) {
         const [created] = await db.insert(entitiesTable).values({
           name,
@@ -178,7 +200,7 @@ export async function runCanonicalAtlasPipeline(
         entityId = created?.id ?? null;
         if (entityId) materialized += 1;
       }
-      if (!entityId || !sourceUrl) continue;
+      if (!entityId) continue;
       await persistSourceBackedBureauContactsForEntity(entityId, [{
         vectorType: "other",
         value: `person:${name}`,
@@ -208,7 +230,10 @@ export async function runCanonicalAtlasPipeline(
     let researched = 0;
     let contactsFound = 0;
     for (const name of admitted) {
-      const [entity] = await db.select({ id: entitiesTable.id, name: entitiesTable.name }).from(entitiesTable).where(eq(entitiesTable.name, name)).limit(1);
+      const [entity] = await db.select({ id: entitiesTable.id, name: entitiesTable.name })
+        .from(entitiesTable)
+        .where(and(eq(entitiesTable.name, name), inArray(entitiesTable.type, ["HNWI", "Gatekeeper"])))
+        .limit(1);
       if (!entity) continue;
       const target = await runBureauAgenticWebPass({
         targetName: entity.name,
