@@ -59,7 +59,7 @@ function isBlockedIp(address: string): boolean {
   return true;
 }
 
-async function resolveSafeAddress(hostname: string): Promise<string | undefined> {
+async function resolveSafeAddress(hostname: string): Promise<string> {
   if (net.isIP(hostname)) {
     if (isBlockedIp(hostname)) throw new Error("Outbound URL targets a blocked IP address");
     return hostname;
@@ -75,12 +75,10 @@ async function resolveSafeAddress(hostname: string): Promise<string | undefined>
     throw new Error("Outbound URL resolves to a blocked IP address");
   }
 
-  // Pin one safety-checked address. The socket's lookup callback below returns
-  // this exact address, so Node does not perform a second DNS resolution.
   return records[0].address;
 }
 
-export async function assertSafeOutboundUrl(rawUrl: string): Promise<URL> {
+function parseSafeUrl(rawUrl: string): URL {
   let url: URL;
   try {
     url = new URL(rawUrl);
@@ -93,12 +91,16 @@ export async function assertSafeOutboundUrl(rawUrl: string): Promise<URL> {
   if (url.username || url.password) {
     throw new Error("Outbound URL credentials are not permitted");
   }
-
   const hostname = url.hostname.replace(/^\[|\]$/g, "").toLowerCase().replace(/\.$/, "");
   if (!hostname || BLOCKED_HOSTNAMES.has(hostname)) {
     throw new Error("Outbound URL targets a blocked host");
   }
-  await resolveSafeAddress(hostname);
+  return url;
+}
+
+export async function assertSafeOutboundUrl(rawUrl: string): Promise<URL> {
+  const url = parseSafeUrl(rawUrl);
+  await resolveSafeAddress(url.hostname.replace(/^\[|\]$/g, "").toLowerCase().replace(/\.$/, ""));
   return url;
 }
 
@@ -168,19 +170,17 @@ async function pinnedFetch(input: RequestInfo | URL, init: RequestInit, address:
 }
 
 /**
- * Validate every requested destination while disabling automatic redirects.
- * DNS is resolved once by the safety layer and that exact address is pinned to
- * the socket, eliminating the preflight/native-fetch DNS rebinding window.
+ * Validate and resolve the requested destination once, then pin that exact
+ * public address to the socket. Redirects are never followed automatically.
  */
 export async function safeOutboundFetch(
   input: RequestInfo | URL,
   init: RequestInit = {},
 ): Promise<Response> {
   const nextUrl = typeof input === "string" || input instanceof URL ? String(input) : input.url;
-  const validated = await assertSafeOutboundUrl(nextUrl);
+  const validated = parseSafeUrl(nextUrl);
   const hostname = validated.hostname.replace(/^\[|\]$/g, "").toLowerCase().replace(/\.$/, "");
   const address = await resolveSafeAddress(hostname);
-  if (!address) throw new Error("Outbound URL could not be pinned safely");
   return pinnedFetch(input, { ...init, redirect: "manual" }, address);
 }
 
