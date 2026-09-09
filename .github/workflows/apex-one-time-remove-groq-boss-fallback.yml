@@ -32,12 +32,13 @@ jobs:
           p.write_text(s)
           PY
           git diff --check
-          ! grep -n "generateGroqBossText\|Groq text fallback for Boss" artifacts/api-server/src/src/lib/case-bureau.ts
+          ! grep -n "generateGroqBossText\|Groq text fallback for Boss\|GROQ_DEFAULT_MODEL\|GROQ_CHAT_MODELS" artifacts/api-server/src/src/lib/case-bureau.ts
           grep -n "apexOrientationFor" artifacts/api-server/src/src/lib/case-bureau.ts
           git diff --stat
-      - name: Verify provider-role guard
+      - name: Verify targeted provider role
         run: |
-          node scripts/check-unified-investigator-architecture.mjs
+          ! grep -R -n "generateGroqBossText\|Groq text fallback for Boss" artifacts/api-server/src/src/lib/case-bureau.ts
+          grep -n "export async function runGeminiBossPlan\|export async function resolveGeminiBossModel" artifacts/api-server/src/src/lib/case-bureau.ts
       - name: Commit source change and remove runner
         run: |
           git config user.name 'github-actions[bot]'
