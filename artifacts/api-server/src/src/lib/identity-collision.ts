@@ -41,15 +41,6 @@ export type IdentityCollisionResult = {
   reason: string | null;
 };
 
-/**
- * True when evidence blob/personName likely refers to a different person than target.
- *
- * Contact evidence is deliberately stricter than ordinary descriptive evidence:
- * an email/phone without an explicit person attribution is an organization/unknown
- * route, not proof that the target personally owns the contact. This boundary keeps
- * the promotion layer from turning `info@company.com` (or an unlabelled phone) into
- * a direct personal contact merely because the source page belongs to the company.
- */
 export function assessIdentityCollision(input: {
   targetName: string;
   companyName?: string | null;
@@ -72,9 +63,6 @@ export function assessIdentityCollision(input: {
     /^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/i.test(value)
     || /^(?:\+?\d[\d\s().-]{6,})$/.test(value);
 
-  // A contact with no named attribution must never be treated as personal merely
-  // because the URL/domain contains the target company or target surname. The
-  // caller can still retain it as an organization route / review-only evidence.
   if (contactLike && !input.personName?.trim()) {
     return {
       risk: true,
@@ -84,16 +72,14 @@ export function assessIdentityCollision(input: {
   }
 
   const overlap = targetToks.filter((t) => blob.includes(t));
+  const personToks = identityNameTokens(input.personName);
+  const personOverlap = targetToks.filter((t) => personToks.includes(t));
   const hostHit = COLLISION_HOSTS.some((h) => blob.includes(h));
   const educationHostHit =
     /^[a-z0-9._%+-]+@([a-z0-9.-]+)$/i.test(value)
       ? INSTITUTIONAL_EDUCATION_HOSTS.some((marker) => blob.includes(marker))
       : false;
 
-  // A named-person surname mismatch is stronger evidence than a broad company
-  // host hit. Check it before company attribution so a collision-prone employer
-  // cannot mask an explicitly different surname.
-  const personToks = identityNameTokens(input.personName);
   if (targetToks.length >= 2 && personToks.length >= 2) {
     const targetSurname = targetToks[targetToks.length - 1]!;
     const personSurname = personToks[personToks.length - 1]!;
@@ -110,9 +96,6 @@ export function assessIdentityCollision(input: {
     }
   }
 
-  // Institutional education domains are high-collision organizational surfaces.
-  // Never let a school/district mailbox become a personal card value merely
-  // because a surname/company token overlaps. It remains review-only evidence.
   if (contactLike && educationHostHit) {
     return {
       risk: true,
@@ -121,20 +104,18 @@ export function assessIdentityCollision(input: {
     };
   }
 
-  // An explicitly named person whose full identity matches the target gets a
-  // high deterministic identity score. This keeps the promotion gate usable for
-  // legitimate company-page evidence while still allowing collision checks above.
+  // High confidence is reserved for an explicit personName whose complete
+  // token set matches the target. Evidence URLs/values cannot manufacture the
+  // missing identity match.
   if (
     targetToks.length >= 2
     && personToks.length >= 2
-    && overlap.length >= 2
-    && personToks[personToks.length - 1] === targetToks[targetToks.length - 1]
+    && personToks.length === targetToks.length
+    && personOverlap.length === targetToks.length
   ) {
     return { risk: false, identityMatch: 0.85, reason: null };
   }
 
-  // When the target has a full name, missing surname evidence is also stronger
-  // than a generic employer/domain match.
   if (targetToks.length >= 2) {
     const surname = targetToks[targetToks.length - 1]!;
     if (surname.length >= 3 && !blob.includes(surname) && overlap.length < 2) {
@@ -178,9 +159,6 @@ export function assessIdentityCollision(input: {
   };
 }
 
-/**
- * Graph edge name-pair gate: reject same-first-name different-surname without shared id signal.
- */
 export function assessGraphNamePairRisk(leftName: string, rightName: string): IdentityCollisionResult {
   const left = identityNameTokens(leftName);
   const right = identityNameTokens(rightName);
