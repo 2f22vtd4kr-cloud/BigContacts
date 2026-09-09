@@ -23,10 +23,12 @@ jobs:
           block = re.compile(r'\n/\*\* Groq text fallback for Boss discovery/plan when Gemini capacity is exhausted\. \*/\nasync function generateGroqBossText\(prompt: string\): Promise<GeminiTextGenerationResult> \{.*?\n\}\n\n(?=export async function getGeminiBossStatus)', re.S)
           s, n = block.subn('\n', s, count=1)
           if n != 1: raise SystemExit(f'expected exactly one Groq Boss fallback function, found {n}')
-          s, n = re.subn(r'import \{ GROQ_DEFAULT_MODEL, GROQ_CHAT_MODELS \} from "\\./groq-models";\n', '', s, count=1)
-          if n != 1: raise SystemExit(f'expected exactly one unused Groq model import, found {n}')
-          s, n = re.subn(r'import \{ apexOrientationFor, apexOrientationCompact \} from "\\./apex-bureau-orientation";', 'import { apexOrientationFor } from "./apex-bureau-orientation";', s, count=1)
-          if n != 1: raise SystemExit(f'expected exactly one orientation import, found {n}')
+          old = 'import { GROQ_DEFAULT_MODEL, GROQ_CHAT_MODELS } from "./groq-models";\n'
+          if old not in s: raise SystemExit('expected Groq model import was not found')
+          s = s.replace(old, '', 1)
+          old_orientation = 'import { apexOrientationFor, apexOrientationCompact } from "./apex-bureau-orientation";'
+          if old_orientation not in s: raise SystemExit('expected orientation import was not found')
+          s = s.replace(old_orientation, 'import { apexOrientationFor } from "./apex-bureau-orientation";', 1)
           p.write_text(s)
           PY
           git diff --check
