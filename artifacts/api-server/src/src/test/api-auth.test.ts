@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { NextFunction, Request, Response } from "express";
 import { apiAuth } from "../lib/api-auth";
 
@@ -22,7 +22,16 @@ function run(path: string, method: string, authorization?: string) {
   return { response, nextCalled };
 }
 
-afterEach(() => { delete process.env.APEX_API_AUTH_TOKEN; });
+beforeEach(() => {
+  delete process.env.CI;
+  process.env.NODE_ENV = "test";
+});
+
+afterEach(() => {
+  delete process.env.APEX_API_AUTH_TOKEN;
+  delete process.env.CI;
+  delete process.env.NODE_ENV;
+});
 
 describe("API authentication", () => {
   it("leaves health probes public", () => {
@@ -45,5 +54,14 @@ describe("API authentication", () => {
     const token = "x".repeat(32);
     process.env.APEX_API_AUTH_TOKEN = token;
     expect(run("/api/entities", "GET", `Bearer ${token}`).nextCalled).toBe(true);
+  });
+
+  it("allows only the explicit non-production CI compatibility boundary", () => {
+    process.env.CI = "true";
+    process.env.NODE_ENV = "development";
+    expect(run("/api/entities", "GET").nextCalled).toBe(true);
+
+    process.env.NODE_ENV = "production";
+    expect(run("/api/entities", "GET").response.statusCode).toBe(503);
   });
 });
