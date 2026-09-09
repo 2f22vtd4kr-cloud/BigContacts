@@ -8,11 +8,9 @@
 
 import { Router, type Request, type Response } from "express";
 import { createJob, getActiveJob, getLatestJob, getJob, setActiveJob, updateJob, clearActiveJobIfOwned } from "../lib/job-queue";
-import { runAtlasPipeline, type AtlasOptions } from "../lib/atlas-orchestrator";
+import { runAtlasPipeline, type AtlasOptions } from "../src/lib/atlas-orchestrator";
 import { CANONICAL_ATLAS_LAUNCH_BODY } from "../lib/atlas-launch-defaults";
 import { logger } from "../lib/logger";
-import { db } from "@workspace/db";
-import { sql } from "drizzle-orm";
 
 const router = Router();
 
@@ -77,26 +75,6 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
     message: "Atlas pipeline initializing…",
   });
 
-  // Immediately repair isHot only for validated person-level direct contacts.
-  // Wealth/registry signals and organisation switchboards are not access signals.
-  db.execute(sql`
-    UPDATE entities
-    SET is_hot = (
-      (
-        (email IS NOT NULL AND email !~* '^(info|contact|hello|sales|support|office|admin|press|media|enquiries|inquiries|reservations|booking|investor|ir)@')
-        OR (phone IS NOT NULL AND COALESCE(phone_source, '') NOT IN ('EDGAR-Phone', 'CompaniesHouse-Phone'))
-      )
-      AND entity_type NOT IN ('Corporation', 'Corp', 'Trust')
-    )
-    WHERE is_hot IS DISTINCT FROM (
-      (
-        (email IS NOT NULL AND email !~* '^(info|contact|hello|sales|support|office|admin|press|media|enquiries|inquiries|reservations|booking|investor|ir)@')
-        OR (phone IS NOT NULL AND COALESCE(phone_source, '') NOT IN ('EDGAR-Phone', 'CompaniesHouse-Phone'))
-      )
-      AND entity_type NOT IN ('Corporation', 'Corp', 'Trust')
-    )
-  `).catch(() => {});
-
   void (async () => {
     try {
       await runAtlasPipeline(atlasJobId, opts);
@@ -115,17 +93,16 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
     jobId: atlasJobId,
     pollUrl: `/api/ingest/job/${atlasJobId}`,
     phases: [
-      "0 — Pre-run cross-references",
-      "1 — Discovery + full-circle entity enrichment",
-      "2 — Identity and contact evidence",
-      "3 — Metadata, notes, and registry assets",
-      "4 — In-house OSINT",
-      "5 — Social and messenger discovery",
-      "6 — AI OSINT + footprint tools",
-      "7 — Forensic cross-reference and asset discovery",
-      "8 — Phase J attribution and graph-assisted analysis",
-      "9 — Semantic embeddings, wealth, and confidence recompute",
-      "10 — MCTS research on reachable hot leads",
+      "0 — Canonical launch / intake",
+      "1 — Model-owned discovery",
+      "2 — Investigator research",
+      "3 — Evidence persistence",
+      "4 — Target-scoped investigation",
+      "5 — Evidence review",
+      "6 — Explicit promotion boundary",
+      "7 — Run telemetry / audit",
+      "8 — Case completion",
+      "9 — Final state",
     ],
     options: opts,
     message: `Atlas pipeline started (job: ${atlasJobId}). Poll ${`/api/ingest/job/${atlasJobId}`} for progress.`,
