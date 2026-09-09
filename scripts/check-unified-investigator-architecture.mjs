@@ -9,7 +9,8 @@ const files = {
   pass: path.join(root, "artifacts/api-server/src/src/lib/bureau-agentic-pass.ts"),
   cases: path.join(root, "artifacts/api-server/src/src/routes/research/cases.ts"),
   atlas: path.join(root, "artifacts/api-server/src/src/lib/atlas-orchestrator.ts"),
-  launchAtlas: path.join(root, "artifacts/api-server/src/lib/atlas-orchestrator.ts"),
+  launchRoute: path.join(root, "artifacts/api-server/src/routes/atlas.ts"),
+  launchAtlas: path.join(root, "artifacts/api-server/src/src/lib/atlas-orchestrator.ts"),
   orientation: path.join(root, "artifacts/api-server/src/src/lib/apex-bureau-orientation.ts"),
   finalReview: path.join(root, "artifacts/api-server/src/lib/ai-extractor.ts"),
   architecture: path.join(root, "docs/BUREAU_REACT_ARCHITECTURE.md"),
@@ -52,11 +53,14 @@ assert(!/\brunMistralWebSearch\s*\(/.test(source.cases), "Case route still invok
 assert(!/\brunBroadDiscovery\s*\(/.test(source.cases), "Case route still invokes deterministic broad-discovery machinery as a fixed research stage.");
 assert(!/\bsearchRegistry\s*\(/.test(source.cases), "Case route still invokes registry research directly instead of exposing it only as a model-selected capability.");
 
-// The externally launched Atlas path must not retain the retired deterministic research control plane.
-assert(!/\brunPhaseJBatch\s*\(/.test(source.launchAtlas), "Externally launched Atlas still invokes deterministic Phase J research/attribution.");
-assert(!/\bexpandSecondaryPublicSurface\s*\(/.test(source.launchAtlas), "Externally launched Atlas still invokes deterministic secondary public-surface research.");
-assert(!/\brunBroadDiscovery\s*\(/.test(source.launchAtlas), "Externally launched Atlas still invokes deterministic broad discovery.");
-assert(!/\brunMcts\s*\(|\brunTargetResearch\s*\(/.test(source.launchAtlas), "Externally launched Atlas still contains a deterministic MCTS/target-research path.");
+// The externally launched Atlas route must import the maintained Investigator-aware orchestrator.
+assert(/from\s+["']\.\.\/src\/lib\/atlas-orchestrator["']/.test(source.launchRoute), "Atlas launch route is not wired to the canonical Investigator-aware orchestrator.");
+
+// The canonical Atlas orchestrator must not retain the retired deterministic research control plane.
+assert(!/\brunPhaseJBatch\s*\(/.test(source.launchAtlas), "Canonical Atlas orchestrator still invokes deterministic Phase J research/attribution.");
+assert(!/\bexpandSecondaryPublicSurface\s*\(/.test(source.launchAtlas), "Canonical Atlas orchestrator still invokes deterministic secondary public-surface research.");
+assert(!/\brunBroadDiscovery\s*\(/.test(source.launchAtlas), "Canonical Atlas orchestrator still invokes deterministic broad discovery.");
+assert(!/\brunMcts\s*\(|\brunTargetResearch\s*\(/.test(source.launchAtlas), "Canonical Atlas orchestrator still contains a deterministic MCTS/target-research path.");
 
 // The architecture document must describe the same two-layer law.
 assert(/Gemini/.test(source.architecture) && /DeepSeek/.test(source.architecture) && /Investigator LLM pool/.test(source.architecture), "Canonical ReAct architecture document is missing the two-layer role law.");
