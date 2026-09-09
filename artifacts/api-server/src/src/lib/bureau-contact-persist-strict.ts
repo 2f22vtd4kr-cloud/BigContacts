@@ -218,7 +218,7 @@ export async function persistSourceBackedBureauContactsForEntity(
 
 /**
  * Apply exactly one investigator-selected value to the entity card.
- * This validates provenance and schema but never chooses among candidates.
+ * This validates provenance, schema, and identity but never chooses among candidates.
  */
 export async function applyInvestigatorSelectedContactToEntityCard(
   entityId: number,
@@ -244,6 +244,26 @@ export async function applyInvestigatorSelectedContactToEntityCard(
   };
   const field = fieldByType[vectorType];
   if (!field) return false;
+
+  const rows = await db.select({ name: entitiesTable.name, metadata: entitiesTable.metadata })
+    .from(entitiesTable).where(eq(entitiesTable.id, entityId)).limit(1);
+  const targetName = rows[0]?.name ?? "";
+  let companyName: string | null = null;
+  try {
+    const meta = rows[0]?.metadata ? JSON.parse(rows[0].metadata) as Record<string, unknown> : {};
+    companyName = typeof meta.companyName === "string" ? meta.companyName : null;
+  } catch { /* malformed metadata is handled conservatively below */ }
+
+  const collision = assessIdentityCollision({
+    targetName,
+    companyName,
+    personName: candidate.personName ?? null,
+    value: clean,
+    sourceUrls: candidate.sourceUrls ?? [],
+    note: candidate.note ?? null,
+  });
+  if (collision.risk || collision.identityMatch < 0.65) return false;
+
   await db.update(entitiesTable).set({ [field]: clean }).where(eq(entitiesTable.id, entityId));
   return true;
 }
