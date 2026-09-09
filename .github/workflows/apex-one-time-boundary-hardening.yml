@@ -8,6 +8,8 @@ jobs:
   harden:
     if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgresql://apex:apex_local_dev@127.0.0.1:5432/apex
     steps:
       - uses: actions/checkout@v4
         with:
