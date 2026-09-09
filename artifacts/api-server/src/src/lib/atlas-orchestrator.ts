@@ -61,7 +61,6 @@ import { runPhaseJBatch } from "../routes/phase-j";
 import { reachabilityOrderExpr } from "./reachability-rank";
 import { backfillWealthLLM } from "./wealth-estimator";
 import { materializeBusinessAsset } from "./business-assets";
-import { runTargetResearch } from "./target-research";
 import { isAgenticPhoneSource, isNoticePhoneSource, isProtectedPhoneSource, resolveProtectedCardPhone } from "./phone-source-priority";
 import {
   expandSecondaryPublicSurface,
@@ -2502,9 +2501,8 @@ async function runSingleTargetPipeline(
     digEvidenceN > 0 ||
     (afterDig[0]?.contactOutcome && afterDig[0]?.contactOutcome !== "none" && afterDig[0]?.contactOutcome !== "evidence_only"),
   );
-  const skipMcts = digAlreadyReady || process.env.APEX_SKIP_MCTS_AFTER_DIG === "1";
 
-  if (opts.runResearch !== false && !skipMcts) {
+  if (opts.runResearch !== false) {
     await ensureAtlasActive(atlasJobId);
     await updateJob(atlasJobId, {
       status: "running",
@@ -2517,46 +2515,12 @@ async function runSingleTargetPipeline(
       entityTotal: 1,
       entityNames: JSON.stringify([target.name]),
     });
-    await setAtlasTelemetry(atlasJobId, {
-      stage: "UCT RESEARCH",
-      status: "active",
-      targetName: target.name,
-      targetType: target.type,
-      toolIds: ["graph", "mcts", "prac", "evidence-review"],
-      activeToolId: "mcts",
-      inputSummary: "One completed target journey; reachability-gated adaptive research",
-      entityId: target.id,
-    }, target.id);
-    try {
-      const researchResult = await runTargetResearch(target.id, 3);
-      summary["Target research"] =
-        `UCT complete (${researchResult.mcts.mctsSteps.length} steps, ` +
-        `candidate path ${(researchResult.pathScore * 100).toFixed(0)}/100; manual review)`;
-    } catch (err: any) {
-      summary["Target research"] = `MCTS review: ${err?.message ?? "failed"}`;
-      logger.warn({ entityId: target.id, err: err?.message }, "[Atlas] single-target MCTS failed");
-    }
+    summary["Target research"] = "Model-selected target research handled by the Investigator loop.";
     await updateJob(atlasJobId, {
       entityProgress: 1,
       entityTotal: 1,
       entityNames: JSON.stringify([target.name]),
     });
-  } else if (skipMcts) {
-    summary["Target research"] = digAlreadyReady
-      ? "Skipped (dig already wrote contact routes — dig owns the card)"
-      : "Skipped (APEX_SKIP_MCTS_AFTER_DIG)";
-    await updateJob(atlasJobId, {
-      progress: 10,
-      total: 10,
-      atlasPhase: 10,
-      atlasPhaseTotal: 10,
-      entityProgress: 1,
-      entityTotal: 1,
-      message: `Single-target dig complete for ${target.name} (MCTS skipped)`,
-    });
-  } else {
-    summary["Target research"] = "Skipped (runResearch=false)";
-  }
 
   const [hotRow, totalRow, contactRow] = await Promise.all([
     db.select({ count: sql<number>`count(*)::int` }).from(entitiesTable).where(sql`${entitiesTable.bayesianScore} >= 0.5`),
@@ -3364,115 +3328,10 @@ export async function runAtlasPipeline(atlasJobId: string, opts: AtlasOptions): 
     summary["Phase 9"] = `Error: ${e.message}`;
   }
 
-  // ── Phase 10: MCTS Research on hot leads ───────────────────────────────────
-  if (opts.runResearch !== false) {
-    await ensureAtlasActive(atlasJobId);
-    await status("Phase 10/10: MCTS research on hot leads…", 10);
-    try {
-      // Target selection is reachability-first, NOT wealth-first: a $2B net worth
-      // recluse with no contact vector (the "Peter Thiel class") must never outrank
-      // a moderately wealthy person we can actually reach. bayesianScore only breaks
-      // ties here — see reachability-rank.ts for the full ordering rationale.
-      const researchLimit = opts.researchLimit ?? 10;
-      const hotEntities = await db.select({ id: entitiesTable.id })
-        .from(entitiesTable)
-        .where(sql`${entitiesTable.type} = 'HNWI' AND ${entitiesTable.isHidden} = false`)
-        .orderBy(reachabilityOrderExpr())
-        .limit(researchLimit);
-
-      let researched = 0;
-      for (let i = 0; i < hotEntities.length; i++) {
-        await ensureAtlasActive(atlasJobId);
-        const e = hotEntities[i]!;
-        await updateJob(atlasJobId, {
-          status: "running",
-          progress: 10,
-          total: 10,
-          message: `MCTS research target ${i + 1}/${hotEntities.length}: ${e.id}…`,
-          entityProgress: i,
-          entityTotal: hotEntities.length,
-          entityNames: JSON.stringify([String(e.id)]),
-        });
-        try {
-          // Skip MCTS when free dig already owns routes (Vol 371) — avoid dual-brain writes
-          const pre = await db.select({
-            phone: entitiesTable.phone,
-            email: entitiesTable.email,
-            linkedinUrl: entitiesTable.linkedinUrl,
-            phoneSource: entitiesTable.phoneSource,
-            contactOutcome: entitiesTable.contactOutcome,
-          }).from(entitiesTable).where(eq(entitiesTable.id, e.id)).limit(1);
-          const digReady = Boolean(
-            pre[0]?.phone ||
-            pre[0]?.email ||
-            pre[0]?.linkedinUrl ||
-            isProtectedPhoneSource(pre[0]?.phoneSource) ||
-            (pre[0]?.contactOutcome && pre[0]?.contactOutcome !== "none" && pre[0]?.contactOutcome !== "evidence_only"),
-          );
-          if (digReady) {
-            researched++;
-            await setAtlasTelemetry(atlasJobId, {
-              stage: "UCT / MCTS RESEARCH",
-              status: "complete",
-              targetName: String(e.id),
-              targetType: "HNWI",
-              toolIds: ["mcts", "prac", "graph", "evidence-review"],
-              activeToolId: "prac",
-              resultSummary: "Skipped MCTS — dig already wrote contact routes on card.",
-            });
-            await updateJob(atlasJobId, {
-              entityProgress: i + 1,
-              entityTotal: hotEntities.length,
-              entityNames: JSON.stringify([String(e.id)]),
-            });
-            continue;
-          }
-          await setAtlasTelemetry(atlasJobId, {
-            stage: "UCT / MCTS RESEARCH",
-            status: "active",
-            targetName: String(e.id),
-            targetType: "HNWI",
-            toolIds: ["mcts", "prac", "graph", "evidence-review"],
-            activeToolId: "mcts",
-            inputSummary: `Reachability-ranked HNWI research target ${i + 1}/${hotEntities.length} · one target at a time`,
-          });
-          await runTargetResearch(e.id, 3);
-          researched++;
-          await setAtlasTelemetry(atlasJobId, {
-            stage: "UCT / MCTS RESEARCH",
-            status: "complete",
-            targetName: String(e.id),
-            targetType: "HNWI",
-            toolIds: ["mcts", "prac", "graph", "evidence-review"],
-            activeToolId: "prac",
-            resultSummary: "Target research completed; outcome remains subject to reachability and evidence gates.",
-          });
-        } catch (err: any) {
-          await setAtlasTelemetry(atlasJobId, {
-            stage: "UCT / MCTS RESEARCH",
-            status: "review",
-            targetName: String(e.id),
-            targetType: "HNWI",
-            toolIds: ["mcts", "prac", "graph", "evidence-review"],
-            activeToolId: "mcts",
-            resultSummary: `Target research did not complete: ${err?.message ?? "unknown error"}`,
-          });
-          logger.warn({ entityId: e.id, err: err?.message }, "[Atlas] single-target MCTS failed");
-        }
-        await updateJob(atlasJobId, {
-          entityProgress: i + 1,
-          entityTotal: hotEntities.length,
-          entityNames: JSON.stringify([String(e.id)]),
-        });
-      }
-      summary["Phase 10"] = `MCTS: ${researched}/${hotEntities.length} hot leads researched`;
-    } catch (e: any) {
-      logger.error({ err: e.message }, "[Atlas] MCTS phase failed");
-      summary["Phase 10"] = `MCTS: error — ${e.message}`;
-    }
-  } else {
-    summary["Phase 10"] = "Skipped (runResearch=false)";
-  }
+  // ── Phase 10: model-owned target research ─────────────────────────────────
+  summary["Phase 10"] = opts.runResearch === false
+    ? "Skipped (runResearch=false)"
+    : "Model-selected Investigator research; no deterministic MCTS path.";
 
   // ── Final count ────────────────────────────────────────────────────────────
   const [hotRow, totalRow] = await Promise.all([
