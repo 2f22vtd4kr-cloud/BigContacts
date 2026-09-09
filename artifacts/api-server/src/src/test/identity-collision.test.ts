@@ -55,6 +55,19 @@ describe("assessIdentityCollision", () => {
     expect(r.reason).toMatch(/surname/i);
   });
 
+  it("rejects a wrong first name even when the surname and source URL overlap", () => {
+    const r = assessIdentityCollision({
+      targetName: "Robert Philip",
+      companyName: "Philip Holdings",
+      personName: "Michael Philip",
+      value: "michael@philip.com",
+      sourceUrls: ["https://philip.com/team/robert-philip"],
+      note: "wrong person on a shared-surname page",
+    });
+    expect(r.risk).toBe(true);
+    expect(r.identityMatch).toBeLessThan(0.65);
+  });
+
   it("allows explicitly attributed matching contact evidence", () => {
     const r = assessIdentityCollision({
       targetName: "Robert W Philip",
