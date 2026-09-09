@@ -1,17 +1,18 @@
 // Thin router — mounts research sub-modules split by concern.
 // Each sub-module handles its own route definitions.
+//
+// The legacy MCTS and bulk-hybrid research endpoints are intentionally not
+// mounted: the canonical Atlas path owns research decisions in the Investigator
+// loop. Keeping these modules unmounted prevents an alternate deterministic
+// research control plane from remaining externally reachable.
 import { Router, type IRouter } from "express";
-import mctsRouter     from "./research/mcts";
-import sessionsRouter  from "./research/sessions";
-import bulkRouter      from "./research/bulk";
+import sessionsRouter from "./research/sessions";
 import deepResearchRouter from "./research/deep-research";
-import casesRouter     from "./research/cases";
+import casesRouter from "./research/cases";
 
 const router: IRouter = Router();
 
-router.use(mctsRouter);
 router.use(sessionsRouter);
-router.use(bulkRouter);
 router.use(deepResearchRouter);
 router.use(casesRouter);
 
