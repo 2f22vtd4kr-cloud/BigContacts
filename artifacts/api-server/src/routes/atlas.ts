@@ -9,6 +9,7 @@
 import { Router, type Request, type Response } from "express";
 import { createJob, getActiveJob, getLatestJob, getJob, setActiveJob, updateJob, clearActiveJobIfOwned } from "../lib/job-queue";
 import { runAtlasPipeline, type AtlasOptions } from "../src/lib/atlas-orchestrator";
+import { runCanonicalSingleTargetInvestigation } from "../src/lib/canonical-single-target-runner";
 import { CANONICAL_ATLAS_LAUNCH_BODY } from "../lib/atlas-launch-defaults";
 import { logger } from "../lib/logger";
 
@@ -77,7 +78,11 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
 
   void (async () => {
     try {
-      await runAtlasPipeline(atlasJobId, opts);
+      if (opts.singleTargetId != null) {
+        await runCanonicalSingleTargetInvestigation(atlasJobId, opts.singleTargetId);
+      } else {
+        await runAtlasPipeline(atlasJobId, opts);
+      }
     } catch (err: any) {
       logger.error({ err: err.message }, "[Atlas] Pipeline crashed");
       await updateJob(atlasJobId, {
