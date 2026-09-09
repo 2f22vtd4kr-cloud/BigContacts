@@ -17,8 +17,9 @@ function parseFile(raw: string | null): Record<string, any> | null {
 }
 
 function contextOf(file: Record<string, any>): string {
-  if (typeof file.contextDocument === "string") return file.contextDocument;
-  return JSON.stringify(file, null, 2).slice(0, 28000);
+  const context = typeof file.contextDocument === "string" ? file.contextDocument.trim() : "";
+  if (!context) throw new Error("Canonical discovery case has no durable context document; refusing context-free continuation.");
+  return context.slice(0, 28000);
 }
 
 router.post("/research/bureau/cases/:caseId/run-next-pass", async (req, res): Promise<void> => {
@@ -35,10 +36,17 @@ router.post("/research/bureau/cases/:caseId/run-next-pass", async (req, res): Pr
     if (existing?.status === "running" || existing?.status === "queued") { res.status(409).json({ error: "A bureau discovery investigation is already running.", jobId: active }); return; }
   }
 
+  let initialContext: string;
+  try {
+    initialContext = contextOf(file);
+  } catch (error) {
+    res.status(409).json({ error: error instanceof Error ? error.message : "Durable case context is missing." });
+    return;
+  }
+
   const jobId = await createJob("case-bureau-discovery");
   await setActiveJob("case-bureau-discovery", jobId);
   const iteration = Number(current.iteration ?? 0) + 1;
-  const initialContext = contextOf(file);
   await updateJob(jobId, { status: "running", progress: 0, total: 4, message: "DeepSeek Right-hand reviewing the accumulated case context…" });
   await db.update(researchCasesTable).set({ status: "active", currentAction: "canonical-case-continuation", updatedAt: new Date() }).where(eq(researchCasesTable.id, caseId));
   await db.insert(researchCaseEventsTable).values({ caseId, iteration, actorRole: "head_investigator", eventType: "assignment", summary: "Canonical case continuation started from the shared investigation context; no fixed Mistral/search/registry lane is used.", payload: JSON.stringify({ jobId }) });

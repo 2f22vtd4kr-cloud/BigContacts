@@ -4,7 +4,7 @@
  * Canonical agentic research may persist source-backed evidence, but it must
  * never invoke the legacy projector that ranks candidates and mutates an
  * entity card. Card mutation is a separate operation that requires an
- * investigator-selected finding.
+ * investigator-selected finding whose source was actually observed by the run.
  */
 import { db, contactEvidenceTable, entitiesTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
@@ -37,6 +37,18 @@ const SEARCH_QUERY_URL = [
 
 function isClaimSourceUrl(url: string): boolean {
   return HTTP_SOURCE.test(url) && !SEARCH_QUERY_URL.some((pattern) => pattern.test(url));
+}
+
+function normalizeObservedUrls(urls: readonly string[] | null | undefined): Set<string> {
+  const observed = new Set<string>();
+  for (const raw of urls ?? []) {
+    if (typeof raw !== "string") continue;
+    try {
+      const url = new URL(raw).href;
+      if (isClaimSourceUrl(url)) observed.add(url);
+    } catch { /* malformed observed URL is not provenance */ }
+  }
+  return observed;
 }
 
 function mapVectorType(raw: string, value: string): string {
@@ -74,6 +86,29 @@ export function sourceBackedBureauContacts(
 }
 
 /**
+ * Same source/schema validation as sourceBackedBureauContacts, plus run-scoped
+ * provenance. This is the only form accepted for canonical agentic promotion:
+ * every claim source offered to the card boundary must have been observed by
+ * the Investigator's actual page-visit trajectory and passed explicitly by the
+ * caller. Missing run-scoped provenance is a hard failure, never a lookup.
+ */
+export function observedSourceBackedBureauContacts(
+  items: readonly BureauContactLike[] | null | undefined,
+  observedSourceUrls: readonly string[] | null | undefined,
+): BureauContactLike[] {
+  const observed = normalizeObservedUrls(observedSourceUrls);
+  if (!observed.size) return [];
+  return sourceBackedBureauContacts(items)
+    .map((item) => ({
+      ...item,
+      sourceUrls: (item.sourceUrls ?? []).filter((url) => {
+        try { return observed.has(new URL(url).href); } catch { return false; }
+      }),
+    }))
+    .filter((item) => (item.sourceUrls?.length ?? 0) > 0);
+}
+
+/**
  * Persist candidate evidence only. No ranking, best-value selection, or legacy
  * projector is called here. For the canonical agentic source, the input is the
  * investigator's final `done` output; an unambiguous value per card field is
@@ -84,10 +119,14 @@ export async function persistSourceBackedBureauContactsForEntity(
   entityId: number,
   items: readonly BureauContactLike[] | null | undefined,
   source: string,
-  _jobId?: string | null,
+  jobId?: string | null,
+  observedSourceUrls?: readonly string[] | null,
 ): Promise<number> {
   if (!entityId) return 0;
-  const backed = sourceBackedBureauContacts(items);
+  const agenticSource = /agentic/i.test(source);
+  const backed = agenticSource
+    ? observedSourceBackedBureauContacts(items, observedSourceUrls)
+    : sourceBackedBureauContacts(items);
   if (!backed.length) return 0;
 
   let targetName = "";
@@ -168,7 +207,7 @@ export async function persistSourceBackedBureauContactsForEntity(
         role: item.role ?? null,
         note: item.note ?? null,
         sourceUrls: sourceUrls.slice(0, 5),
-        fromAgenticInvestigator: true,
+        fromAgenticInvestigator: agenticSource,
         investigatorSelectedForCard: item.promote === true,
         identityCollisionRisk: collision.risk,
         identityCollisionReason: collision.reason,
@@ -178,11 +217,7 @@ export async function persistSourceBackedBureauContactsForEntity(
   if (!values.length) return 0;
   await db.insert(contactEvidenceTable).values(values).onConflictDoNothing();
 
-  // Evidence persistence and card mutation are separate boundaries. Even in the
-  // canonical agentic lane, only an explicitly promoted model finding may mutate
-  // an entity field. Auto-extracted observation facts remain evidence until the
-  // Investigator explicitly emits the value with promotionDecision="promote".
-  if (/agentic/i.test(source)) {
+  if (agenticSource) {
     const fieldByType: Record<string, string> = {
       email: "email",
       phone: "phone",
@@ -197,6 +232,9 @@ export async function persistSourceBackedBureauContactsForEntity(
       if (row.item.promote !== true) continue;
       const field = fieldByType[row.vectorType];
       if (!field) continue;
+      if (String(row.item.scope ?? "").toLowerCase() !== "candidate") continue;
+      const personName = typeof row.item.personName === "string" ? row.item.personName.trim() : "";
+      if (!personName) continue;
       const bucket = grouped.get(field) ?? [];
       bucket.push(row);
       grouped.set(field, bucket);
@@ -210,7 +248,7 @@ export async function persistSourceBackedBureauContactsForEntity(
         value: selected.value,
         sourceUrls: selected.sourceUrls,
         promote: true,
-      });
+      }, observedSourceUrls ?? []);
     }
   }
   return values.length;
@@ -218,14 +256,19 @@ export async function persistSourceBackedBureauContactsForEntity(
 
 /**
  * Apply exactly one investigator-selected value to the entity card.
- * This validates provenance, schema, and identity but never chooses among candidates.
+ * This validates provenance, schema, candidate/person scope, and run-scoped
+ * observation but never chooses among candidates.
  */
 export async function applyInvestigatorSelectedContactToEntityCard(
   entityId: number,
   item: BureauContactLike | null | undefined,
+  observedSourceUrls: readonly string[] | null | undefined,
 ): Promise<boolean> {
   if (!entityId || !item?.promote) return false;
-  const backed = sourceBackedBureauContacts([item]);
+  if (String(item.scope ?? "").toLowerCase() !== "candidate") return false;
+  const personName = typeof item.personName === "string" ? item.personName.trim() : "";
+  if (!personName) return false;
+  const backed = observedSourceBackedBureauContacts([item], observedSourceUrls);
   if (backed.length !== 1) return false;
   const candidate = backed[0]!;
   const value = typeof candidate.value === "string" ? candidate.value.trim() : "";

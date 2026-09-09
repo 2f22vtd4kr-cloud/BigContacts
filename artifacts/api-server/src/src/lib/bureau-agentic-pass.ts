@@ -124,7 +124,10 @@ export async function runBureauAgenticWebPass(input: {
     const backedFindings = sourceBackedAgenticFindings(agentic.findings, agentic.trajectory);
     const scopedFindings = backedFindings.filter((finding) => finding.scope === "candidate" ? typeof finding.personName === "string" && finding.personName.trim().length >= 2 : finding.scope === "organization" ? Boolean(input.companyName?.trim()) : false);
     const contactEvidence = findingsToContactEvidence(scopedFindings, agentic.trajectory);
-    if (input.persist && input.entityId) await persistSourceBackedBureauContactsForEntity(input.entityId, findingsToBureauContacts(scopedFindings, name, agentic.trajectory), "case-bureau-agentic", input.jobId);
+    if (input.persist && input.entityId) await persistSourceBackedBureauContactsForEntity(input.entityId, findingsToBureauContacts(scopedFindings, name, agentic.trajectory), "case-bureau-agentic", input.jobId, agentic.trajectory.flatMap((line) => {
+      const match = String(line).match(/step\d+:\s+(?:visit|browser_fetch)\s+(https?:\/\/\S+)/i);
+      return match?.[1] ? [match[1]] : [];
+    }));
     void publishBureauEvent({ actor: "web", kind: "extract", title: `Agentic web · ${scopedFindings.length} scoped source-backed findings${agentic.findings.length !== scopedFindings.length ? ` (${agentic.findings.length - scopedFindings.length} raw findings dropped by source/scope boundary)` : ""}${agentic.status === "timeout" ? " (timeout)" : ""}`, caseId: input.caseId != null ? String(input.caseId) : undefined, jobId: input.jobId, targetName: name, provider: agentic.model, why: `searches=${agentic.searches} visits=${agentic.visits} iters=${agentic.iterations}`, responseSummary: `OUT: ${agentic.status}; scoped=${scopedFindings.length}; raw=${agentic.findings.length}`, level: scopedFindings.length ? "info" : "warn" });
     logger.info({ target: name, status: agentic.status, model: agentic.model, findings: scopedFindings.length, rawFindings: agentic.findings.length, searches: agentic.searches, visits: agentic.visits }, "[Bureau] Agentic web pass finished");
     const mappedStatus = agentic.status === "unavailable" ? "unavailable" : agentic.status === "error" ? "error" : agentic.status === "timeout" ? "timeout" : "completed";

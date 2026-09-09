@@ -5,6 +5,7 @@ import { runGeminiBossDiscovery } from "./case-bureau";
 import { runDeepSeekFreeJson } from "./deepseek-case-reasoning";
 import { runBureauAgenticWebPass } from "./bureau-agentic-pass";
 import { persistSourceBackedBureauContactsForEntity } from "./bureau-contact-persist-strict";
+import { runCanonicalSingleTargetInvestigation } from "./canonical-single-target-runner";
 import { resolveResearchDepth } from "./research-depth";
 
 export type CanonicalAtlasOptions = {
@@ -235,21 +236,46 @@ export async function runCanonicalAtlasPipeline(
         .where(and(eq(entitiesTable.name, name), inArray(entitiesTable.type, ["HNWI", "Gatekeeper"])))
         .limit(1);
       if (!entity) continue;
-      const target = await runBureauAgenticWebPass({
-        targetName: entity.name,
-        objective: `Deep target-scoped investigation of the exact admitted person ${entity.name}. Start from the admission evidence and choose every next action yourself. Recover realistic public contact routes only when attributable to this exact person. Emit promotionDecision=promote only for a value you personally judge attributable and source-backed.`,
-        investigatorLlm: boss.investigatorLlm,
-        jobId: atlasJobId,
-        maxIterations: depth.agenticMaxIterations,
-        hardTimeoutMs: opts.targetTimeoutMs ?? depth.agenticHardTimeoutMs,
-        entityId: entity.id,
-        persist: true,
+
+      // Every admitted target must traverse the canonical single-target control
+      // plane. This creates/loads durable case state and gives the target its own
+      // Gemini Boss -> DeepSeek Right-hand -> Investigator -> Right-hand -> Boss
+      // lifecycle. The batch loop may select targets, but it must not bypass the
+      // per-target oversight boundary or run a context-free ReAct pass.
+      const before = await db.select({
+        email: entitiesTable.email,
+        phone: entitiesTable.phone,
+        linkedinUrl: entitiesTable.linkedinUrl,
+        twitterHandle: entitiesTable.twitterHandle,
+        instagramHandle: entitiesTable.instagramHandle,
+        telegramHandle: entitiesTable.telegramHandle,
+        personalWebsite: entitiesTable.personalWebsite,
+      }).from(entitiesTable).where(eq(entitiesTable.id, entity.id)).limit(1);
+      const beforeCard = before[0] ?? null;
+
+      await runCanonicalSingleTargetInvestigation(atlasJobId, entity.id, {
+        researchDepth: opts.researchDepth,
+        targetTimeoutMs: opts.targetTimeoutMs,
       });
       researched += 1;
-      contactsFound += target.findings.filter((finding) => finding.promotionDecision === "promote").length;
+
+      const after = await db.select({
+        email: entitiesTable.email,
+        phone: entitiesTable.phone,
+        linkedinUrl: entitiesTable.linkedinUrl,
+        twitterHandle: entitiesTable.twitterHandle,
+        instagramHandle: entitiesTable.instagramHandle,
+        telegramHandle: entitiesTable.telegramHandle,
+        personalWebsite: entitiesTable.personalWebsite,
+      }).from(entitiesTable).where(eq(entitiesTable.id, entity.id)).limit(1);
+      const afterCard = after[0] ?? null;
+      if (beforeCard && afterCard) {
+        const cardFields: Array<keyof typeof beforeCard> = ["email", "phone", "linkedinUrl", "twitterHandle", "instagramHandle", "telegramHandle", "personalWebsite"];
+        contactsFound += cardFields.filter((field) => beforeCard[field] !== afterCard[field] && afterCard[field]).length;
+      }
     }
 
-    phaseSummary.research = `researched=${researched}; explicitPromotions=${contactsFound}`;
+    phaseSummary.research = `researched=${researched}; explicitCardPromotions=${contactsFound}`;
     await updateJob(atlasJobId, {
       status: "done",
       progress: 4,
@@ -257,7 +283,7 @@ export async function runCanonicalAtlasPipeline(
       atlasPhase: 4,
       atlasPhaseTotal: 4,
       outcome: "complete",
-      message: `Canonical Investigator discovery/research complete: ${researched} target(s), ${contactsFound} explicit promotion finding(s).`,
+      message: `Canonical Investigator discovery/research complete: ${researched} target(s), ${contactsFound} card field promotion(s).`,
       result: JSON.stringify({ rightHand, boss: { status: boss.status, model: boss.model, investigatorLlm: boss.investigatorLlm }, discovery: { status: discovery.status, findings: discovery.findings.length, searches: discovery.searches, visits: discovery.visits }, phaseSummary }),
       finishedAt: new Date().toISOString(),
     });

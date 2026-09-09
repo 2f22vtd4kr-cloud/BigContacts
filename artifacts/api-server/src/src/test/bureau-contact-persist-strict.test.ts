@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { sourceBackedBureauContacts } from "../lib/bureau-contact-persist-strict";
+import { observedSourceBackedBureauContacts, sourceBackedBureauContacts } from "../lib/bureau-contact-persist-strict";
 
 describe("strict bureau contact persistence boundary", () => {
   it("drops findings with no source URL", () => {
@@ -41,6 +41,33 @@ describe("strict bureau contact persistence boundary", () => {
   });
 });
 
+describe("run-scoped Investigator provenance", () => {
+  const claim = {
+    vectorType: "email",
+    value: "jane@example.com",
+    scope: "candidate",
+    personName: "Jane Example",
+    sourceUrls: ["https://example.com/team/jane", "https://example.com/about"],
+    promote: true,
+  };
+
+  it("rejects a plausible HTTPS claim page that was not observed by the run", () => {
+    expect(observedSourceBackedBureauContacts([claim], ["https://example.com/about"])).toEqual([
+      expect.objectContaining({ sourceUrls: ["https://example.com/about"] }),
+    ]);
+  });
+
+  it("rejects all agentic provenance when the Investigator observed no pages", () => {
+    expect(observedSourceBackedBureauContacts([claim], [])).toEqual([]);
+  });
+
+  it("accepts only claim URLs actually present in the observed trajectory", () => {
+    expect(observedSourceBackedBureauContacts([claim], [
+      "https://example.com/team/jane",
+      "https://example.com/about",
+    ])).toEqual([claim]);
+  });
+});
 
 describe("Batch 44 provenance regressions", () => {
   it("rejects a generated Google query even when another field looks agentic", () => {
