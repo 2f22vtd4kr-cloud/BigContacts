@@ -24,7 +24,10 @@ Apex's identity and purpose must exist before operator-specific case direction. 
 
 Added `scripts/check-apex-mission-bootstrap.mjs` and wired it into the root `check:bureau` suite. The guard verifies that the canonical orientation exists, live Boss/Right-Hand/Investigator paths consume it, durable context remains part of the Investigator boundary, and the first research action is not allowed to become deterministic.
 
-This formalizes the existing canonical `apex-bureau-orientation.ts` rather than introducing a second prompt/identity system.
+The canonical orientation is now explicitly versioned (`APEX_INSTITUTIONAL_MISSION_VERSION`) and its compact provider-facing form declares the pre-investigation contract: institutional purpose and role purpose exist before operator case input and before discovery/research reasoning.
+
+### 6. First-decision contract is documented separately from the mission
+Added `docs/APEX_FIRST_DECISION_CONTRACT.md`. It makes the stronger invariant explicit: absence of the literal `begin with web_search` string is not enough. The first model-facing decision must arise from institutional mission + role purpose + durable case context + capabilities, with no deterministic first-tool seed.
 
 ## Newly confirmed blockers still requiring source work
 
@@ -43,10 +46,13 @@ The top-level and `src/src` trees still contain overlapping legacy modules. Some
 ### #133 — Apex institutional mission/bootstrap
 The new issue tracks the broader invariant separately from #120. The operator may provide case-specific direction, but must never be required to teach Apex what Apex is, why it exists, what evidence law it follows, or what each AI role is responsible for. Every model must know its institutional and role purpose before discovery/research reasoning begins.
 
+### #134 — deterministic discovery→target-research transition
+Canonical Atlas discovery currently admits candidates and then unconditionally loops over those candidates into `runCanonicalSingleTargetInvestigation()`. That hard-wires discovery→target research as a deterministic phase transition. The AI control plane must own whether to advance, revisit discovery, reprioritize, pivot, investigate a candidate, or stop. A new unified architecture guard intentionally rejects this pattern until repaired.
+
 ## Important architectural observation
 
 The canonical Investigator wrapper correctly scopes outbound Investigator fetches through the shared pinned-IP SSRF-safe transport. The problem in #126 is specifically the older secondary-surface lane, which bypasses that canonical boundary.
 
 ## Runtime honesty
 
-No claim is made here that Replit starts successfully, Redis/Postgres are healthy, provider keys work, browser login works end-to-end, or an Investigator has completed a real case. Those remain runtime verification tasks after the static blockers are resolved.
+No claim is made here that Replit starts successfully, Redis/Postgres are healthy, provider keys work, browser login works end-to-end, or an Investigator has completed a real case. Current CI/runtime status is not being inferred from source inspection; these remain runtime verification tasks after the static blockers are resolved.
