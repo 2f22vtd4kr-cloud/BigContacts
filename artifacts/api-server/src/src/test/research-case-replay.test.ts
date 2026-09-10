@@ -42,4 +42,15 @@ describe("research case replay", () => {
     expect(replay.violations.some((v) => v.includes("caseId"))).toBe(true);
     expect(replay.violations.some((v) => v.includes("valid JSON"))).toBe(true);
   });
+
+  it("fails closed on unknown actor roles and event types", () => {
+    const replay = replayResearchCaseEvents([
+      { id: 1, caseId: 8, iteration: 0, actorRole: "unknown_actor", eventType: "case_opened", status: "recorded", summary: "Case opened", payload: "{}", createdAt: "2026-09-10T10:00:00Z" },
+      { id: 2, caseId: 8, iteration: 1, actorRole: "system", eventType: "secret_research_phase", status: "recorded", summary: "Unexpected event", payload: "{}", createdAt: "2026-09-10T10:01:00Z" },
+    ]);
+
+    expect(replay.valid).toBe(false);
+    expect(replay.violations.some((v) => v.includes("unknown actorRole"))).toBe(true);
+    expect(replay.violations.some((v) => v.includes("unknown eventType"))).toBe(true);
+  });
 });
