@@ -11,6 +11,7 @@ const RETIRED_MUTATING_ENRICHMENT_PATHS = new Set([
   "/ingest/companies-house-enrich",
   "/ingest/occrp",
   "/ingest/deep-web-osint",
+  "/ingest/broad-discovery",
 ]);
 const APEX_TYPES = new Set(["HNWI", "Gatekeeper"]);
 
