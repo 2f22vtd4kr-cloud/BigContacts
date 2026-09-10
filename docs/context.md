@@ -2,7 +2,7 @@
 
 > **Living handoff — 2026-09-10.** Current architecture source of truth. Historical documents are not live control planes.
 
-**Repo:** `2f22vtd4kr-cloud/BigContacts` · **Branch:** `main` · **Current reviewed tip:** `95b3d55d5c9e44bcb40610dd94b82423fd7a0786`
+**Repo:** `2f22vtd4kr-cloud/BigContacts` · **Branch:** `main` · **Current reviewed tip:** `487697730b9c5fd14337b834c5aaa45bd4455bfb`
 
 ## Institutional contract
 Apex is an AI-driven OSINT bureau, not a deterministic search script.
@@ -13,13 +13,13 @@ institutional constitution -> role purpose -> durable case context -> operator c
 
 - Gemini = Boss / Head Investigator only.
 - DeepSeek via NVIDIA Integrate = Right Hand / Oversight only.
-- Groq + Mistral = Investigator capacity only; provider fallback is infrastructure/capacity behavior.
+- Groq + Mistral = Investigator capacity only.
 - AI owns research strategy, query formulation, tool choice, pivots, identity reasoning, evidence sufficiency, promotion, stopping, and discovery-vs-target continuation.
 - Deterministic code owns safety, auth, schemas, SSRF, quotas, cancellation, persistence, provenance validation, deduplication, telemetry and lifecycle.
 
 ## Canonical ReAct path
 - Core: `artifacts/api-server/src/src/lib/agentic-web-research-core.ts`
-- Guarded wrapper: `artifacts/api-server/src/src/lib/agentic-web-research.ts`
+- Wrapper: `artifacts/api-server/src/src/lib/agentic-web-research.ts`
 - Execution scope: `artifacts/api-server/src/src/lib/agentic-execution-context.ts`
 - Target Investigator: `artifacts/api-server/src/src/lib/target-contact-agent.ts`
 - Bureau wrapper: `artifacts/api-server/src/src/lib/bureau-agentic-pass.ts`
@@ -27,50 +27,80 @@ institutional constitution -> role purpose -> durable case context -> operator c
 - Target control: `artifacts/api-server/src/src/lib/target-control-decision.ts`
 - SSRF: `artifacts/api-server/src/src/lib/ssrf-safe-fetch.ts`
 - Browser: `browser-fetch.ts` + `browser-fetch-core.ts`
+- Registry: `artifacts/api-server/src/src/lib/registry-client.ts`
 - Atlas control: `atlas-control-decision.ts` + canonical discovery/continuation routes.
 
-## Implemented hardening
-1. First Investigator action is genuinely model-selected; no seeded `web_search`.
-2. Effective ReAct iterations are hard-clamped to 40.
-3. One run-scoped AbortController covers canonical LLM/provider/search/page/browser paths; subprocess OSINT remains an open boundary.
-4. Attempted URLs do not become provenance; successful observations explicitly carry observed URLs.
-5. Structured trajectory records retain action/args/model/execution/observation/observed URLs/findings/fallback/stop state.
-6. Discovery persistence retains structured trajectory plus durable case-memory projection.
-7. SSRF/provider transport response bodies are byte-capped; browser provider responses are bounded too.
-8. Browser escalation is SSRF-checked, including redirected/subresource requests.
-9. Browser budgets use AsyncLocalStorage execution scope rather than a global process counter.
-10. Each Agentic run gets a unique execution scope, preventing concurrent runs with the same target/job from sharing browser-budget state.
-11. Serper locale/market are optional model-selected fields; no forced US/English defaults.
-12. Target/Bureau evidence gates require source URLs to be successful observed material and exact contact values to occur in that material.
-13. Claim-to-source binding is single-observation: candidate identity tokens and the exact contact value must co-occur in one successful bounded trajectory observation; independent observations are never concatenated to satisfy one claim.
-14. Target/Bureau wrappers preserve canonical `cancelled` as a distinct result state.
-15. Discovery admissions pass their validated successful source URL into the strict persistence boundary.
-16. Discovery is exposed as explicit `mode="discovery"` rather than requiring a person target at the canonical ReAct boundary.
-17. `scripts/check-canonical-promotion-boundary.mjs` guards single-observation claim binding and cancellation-state preservation.
-18. Canonical target continuation is model-owned: after each Investigator pass, DeepSeek provides oversight and Gemini chooses `continue_target`, `revisit_target`, `pivot_target`, or `stop`; the decision is durably persisted and subsequent passes remount accumulated case context.
-19. The canonical target runner gates final Gemini review on an explicit Gemini `stop` decision rather than finalizing immediately after one Investigator pass.
-20. `scripts/audit-target-continuation-intrinsic.mjs` checks the target runner's direct control wiring, Investigator-before-control ordering, explicit pass loop, stop-gated final review, and durable control persistence.
-21. `domain-surface.ts` now accepts a caller `AbortSignal` and passes it into both RDAP and WhoisJSON transport calls, with fail-closed cancellation checks around the parallel lookup. **The canonical ReAct core currently does not yet propagate its run signal into `lookupDomainSurface`; this remains an identified #139 second-order gap.**
-22. `python-tools.ts` now gives Holehe/Maigret/Sherlock/theHarvester real child-process cancellation primitives: detached POSIX process groups, SIGTERM plus SIGKILL backstop, bounded output, and distinct cancellation exit state. **Formal network-egress governance for those subprocesses remains unresolved.**
-23. `scripts/check-agentic-runtime.mjs` now guards the Python subprocess cancellation contract and the canonical ReAct signal propagation expected for the individual OSINT adapters.
-24. `artifacts/api-server/package.json` now runs `check-agentic-runtime.mjs` and `check-discovery-mode-boundary.mjs` as part of API-server build/test guard chains. No CI result is inferred from this local/static wiring.
+## Implemented/static hardening in this continuation
+1. First Investigator action remains genuinely model-selected; no seeded mandatory research action.
+2. Effective ReAct iterations remain hard-clamped to 40.
+3. One run-scoped AbortController covers canonical LLM/provider/search/page/browser paths.
+4. Python OSINT subprocesses have detached POSIX process groups, SIGTERM/SIGKILL cancellation, bounded output, and distinct cancellation state. **Formal subprocess network-egress governance remains unresolved.**
+5. `domain-surface.ts` accepts caller cancellation and uses it for RDAP/WhoisJSON. The canonical ReAct domain action is now wired to pass `runController.signal` through the build hardening path.
+6. Registry search now has an AbortSignal contract and canonical ReAct registry execution passes the run signal through the registry transport layer.
+7. Username footprinting is split into individually model-selectable Maigret and Sherlock capabilities; the old compound username action is rejected by guards.
+8. Final card review is hardening toward the required role law: Gemini Boss -> DeepSeek/NVIDIA -> deterministic fail-closed adjudication; a build hardener removes the Groq reviewer fallback and a dedicated guard rejects it in both source trees.
+9. Deterministic secondary-surface calls from canonical `entities.ts` and `atlas-orchestrator.ts` are retired at build time to a neutral empty surface; the retirement guard rejects live callers and independent fetch transport.
+10. Deterministic target-name identity inheritance in the canonical Investigator observation layer is removed by build-time hardening (`personName: targetName/name` -> neutral identity); model-authored `done` findings remain the only promotion source.
+11. Structured ReAct trajectory records exist and canonical discovery/target continuation persists bounded trajectory records/context projections. Full operator-grade replay/event-ledger durability remains a target.
+12. Discovery is an explicit `mode="discovery"`, not a fake person target.
+13. Evidence binding is single-observation: exact contact value and candidate identity must co-occur in one successful bounded observation for candidate-scoped claims.
+14. Attempted URLs do not become provenance; only successful observed URLs do.
+15. Browser escalation and canonical HTTP paths use SSRF-safe transport and bounded responses.
 
-## Confirmed/open forensic defects
-- **#128:** canonical `src/src/lib/ai-extractor.ts` still exposes a Groq final-card-review path according to source/issue review. Required remediation remains Gemini -> DeepSeek -> deterministic fail-closed adjudication; Groq must not act as reviewer. Historical `mcts.ts` material is not mounted by the live research route but remains source that must be retired/reconciled.
-- **#139:** Python OSINT subprocesses now have cooperative child-process cancellation, but they still lack formally governed network egress. Additionally, canonical `domain_lookup` currently calls `lookupDomainSurface` without passing the run-scoped signal, so RDAP/WhoisJSON can outlive run cancellation. This is not runtime-proven.
-- **#147:** canonical ReAct still exposes compound `footprint_username`, `footprint_email`, and `harvest_domain` actions. `footprint_username` deterministically fans out to Maigret + Sherlock; the other actions bind a model action to a specific capability. Required remediation remains individually model-selectable capabilities plus cancellation/egress controls, with exact tool-level trajectory/provenance.
-- **#125/#126:** deterministic secondary-surface enrichment remains in legacy/live-adjacent routes and requires continued reachability analysis/retirement.
-- Duplicate source trees, legacy ingest/enrichment, old API/OpenAPI execution surfaces, legacy extraction semantics, and other research material remain under forensic cleanup.
+## Build/test guard chain
+`artifacts/api-server/package.json` now runs the relevant hardening scripts before the architecture guards/build, including:
 
-## Resolved in this continuation
-- **#150:** closed after integrating Gemini-owned target continuation directly into the canonical single-target runner. Static verification only; no runtime success claimed.
-- **#149:** closed after changing target/Bureau evidence validation from cross-source concatenation to per-observation claim binding. Static verification only.
+- domain signal hardening + guard;
+- username capability split + guard;
+- final-review role hardening + guard;
+- secondary-surface retirement + retired-route guard;
+- Investigator identity-observation hardening;
+- registry cancellation hardening + guard;
+- unified Investigator architecture;
+- free-ReAct boundary;
+- source parity;
+- timeout/abort safety;
+- promotion boundary;
+- canonical Atlas entrypoint;
+- runtime hardening;
+- discovery boundary.
 
-## Evidence law
-A person candidate requires explicit model-authored identity, candidate scope, successful observed HTTP(S) source, and explicit `promotionDecision="promote"`. No target-name inheritance, organization inheritance, URL-slug admission, listicle admission, proxy-contact admission, or fabricated URL. Claim-source validation must bind the claim to a single successful bounded observation; it must not stitch independent observations together as though they were one source.
+These are static repository/build gates. **No CI/runtime/provider success is inferred merely because the scripts are wired.**
+
+## Open blockers / next engineering targets
+- **#139 / #141:** subprocess OSINT still needs a real network-egress boundary. Cancellation is materially hardened, but child processes can still make their own network requests outside Node's SSRF/quota transport. The world-class target is a real sandbox/egress broker or governed service, not proxy environment variables.
+- **#140:** trajectory records exist and are persisted in canonical case/discovery projections, but an operator-grade immutable event ledger/replay path still needs completion and runtime proof.
+- **#129:** duplicate top-level `src/lib` and `src/routes` legacy trees still require final reachability/deletion/quarantine reconciliation.
+- **#132:** legacy ingest/enrichment source remains under cleanup; mounted canonical research routes have been quarantined, but duplicate legacy material must be reconciled.
+- **#136:** deterministic identity attribution is now actively neutralized by hardening; runtime/source-level verification still needs to confirm no other observation path authors identity before Investigator promotion.
+- **#137/#138:** legacy canonical case execution/discovery sources remain on disk and must stay unmounted from live research until final retirement is proven.
+- **#125/#126:** automatic secondary-surface research is retired from the key canonical callers; remaining legacy source should be removed/reconciled and no independent fetch transport should remain reachable.
+- **#128:** Groq final-review fallback is now blocked by build-time hardening and a dedicated role guard; the next step is direct source cleanup plus runtime proof, not merely guard green status.
+- **#147:** username compound capability is split; remaining capability-surface work includes individual email/theHarvester contracts and exact per-capability provenance where appropriate.
+
+## World-class architecture north star
+See `docs/APEX_WORLD_CLASS_OSINT_ARCHITECTURE.md`.
+
+The finished Apex should be evidence-native: immutable/bounded observations -> explicit model claims -> deterministic evidence gateway -> provenance graph -> continuous Gemini/DeepSeek oversight -> operator-ready dossier. Leads, hypotheses, evidence, claims, contradictions and historical/freshness state must remain distinct.
 
 ## Verification state
-**No Replit/runtime/provider/CI/end-to-end success is claimed.** Repository mutations and static source review are not runtime proof. The latest main tip is `95b3d55d5c9e44bcb40610dd94b82423fd7a0786`. Final acceptance requires a real durable trajectory showing Gemini Boss -> DeepSeek/NVIDIA Right Hand -> selected Groq/Mistral Investigator -> genuine model-selected first action -> model pivots -> successful observed provenance -> explicit promotion -> evidence-backed card, with actual observations inspectable by oversight.
+**No Replit/runtime/provider/CI/end-to-end success is claimed.** Repository mutations and static source review are not runtime proof.
 
-## Immediate forensic priority
-Continue from the current main tip by tracing #139/#147 together: canonical ReAct action execution -> `python-tools.ts` -> child processes -> network egress -> cancellation -> trajectory status/provenance, while fixing the currently identified missing `runController.signal` propagation into `lookupDomainSurface`. Then audit #128, duplicate source trees, deterministic secondary-surface reachability, legacy extraction semantics, and every caller that can turn model output into persisted contact/entity state. Static fixes must be followed by second-order reachability review; runtime/provider availability remains unproven.
+The eventual acceptance test must demonstrate a real durable trajectory containing, at minimum:
+
+```text
+Gemini Boss
+  -> DeepSeek/NVIDIA Right Hand
+  -> selected Groq/Mistral Investigator
+  -> genuinely model-selected first action
+  -> model-selected pivots / tool choices
+  -> successful observed provenance
+  -> explicit promotion
+  -> evidence-backed persisted result
+  -> inspectable trajectory / oversight context
+```
+
+The user will manually launch Replit for the live runtime phase. Do not infer runtime/provider availability before that evidence exists.
+
+## Working rule
+Move toward a complete usable Apex, but never trade evidence integrity or role/safety boundaries for speed. Every static fix gets a second-order reachability review; every runtime claim requires actual runtime evidence.
