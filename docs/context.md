@@ -2,7 +2,7 @@
 
 > **Living handoff — 2026-09-10.** Current architecture source of truth. Historical documents are not live control planes.
 
-**Repo:** `2f22vtd4kr-cloud/BigContacts` · **Branch:** `main` · **Current reviewed tip:** `5c1ed66eb5184ad55486f75ab2e22654e7e58e82`
+**Repo:** `2f22vtd4kr-cloud/BigContacts` · **Branch:** `main` · **Current reviewed tip:** `4209c97df4b48ee8fb171270e2e9bb9e7ab5f637`
 
 ## Institutional contract
 Apex is an AI-driven OSINT bureau, not a deterministic search script.
@@ -47,7 +47,7 @@ institutional constitution -> role purpose -> durable case context -> operator c
 16. Discovery is exposed as explicit `mode="discovery"` rather than requiring a person target at the canonical ReAct boundary.
 17. `scripts/check-canonical-promotion-boundary.mjs` guards single-observation claim binding and cancellation-state preservation.
 18. A target continuation **control component** exists: Gemini can be asked to choose `continue_target`, `revisit_target`, `pivot_target`, or `stop`; the decision is persisted as a durable control event and the mounted continuation route preserves durable context.
-19. `scripts/audit-target-continuation-intrinsic.mjs` now explicitly checks whether the canonical single-target runner itself invokes the target control boundary; this audit currently fails because that intrinsic wiring is still missing.
+19. `scripts/audit-target-continuation-intrinsic.mjs` explicitly checks whether the canonical single-target runner itself invokes the target control boundary; this audit currently fails because that intrinsic wiring is still missing.
 
 ## Confirmed/open forensic defects
 - **#128:** canonical `src/src/lib/ai-extractor.ts` still exposes a Groq final-card-review fallback after Gemini Boss and DeepSeek/NVIDIA. Required remediation is Gemini -> DeepSeek -> deterministic fail-closed adjudication; Groq must not act as reviewer. The historical `mcts.ts` path containing this reviewer is not mounted by the live `src/src/routes/research.ts`, but the source remains present and therefore requires retirement/reachability cleanup rather than assumption-based deletion.
