@@ -25,8 +25,8 @@
     "tailwindcss": "catalog:"
   },
   "scripts": {
-    "dev": "cd ../.. && node scripts/check-investigator-ui-source-boundary.mjs && node scripts/check-profile-route-contract.mjs && node scripts/check-generated-reactor-syntax.mjs && cd artifacts/apex-finder && vite",
-    "build": "cd ../.. && node scripts/check-investigator-ui-source-boundary.mjs && node scripts/check-generated-reactor-syntax.mjs && node scripts/check-profile-route-contract.mjs && cd artifacts/apex-finder && vite build",
+    "dev": "cd ../.. && node scripts/apply-investigator-ui-source-boundary.mjs && node scripts/check-investigator-ui-source-boundary.mjs && node scripts/check-profile-route-contract.mjs && node scripts/check-generated-reactor-syntax.mjs && cd artifacts/apex-finder && vite",
+    "build": "cd ../.. && node scripts/apply-investigator-ui-source-boundary.mjs && node scripts/check-investigator-ui-source-boundary.mjs && node scripts/check-generated-reactor-syntax.mjs && node scripts/check-profile-route-contract.mjs && cd artifacts/apex-finder && vite build",
     "preview": "vite preview"
   }
 }
