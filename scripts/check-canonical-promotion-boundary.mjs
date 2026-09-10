@@ -11,6 +11,12 @@ const atlas = read("artifacts/api-server/src/src/lib/canonical-atlas-discovery.t
 const targetRunner = read("artifacts/api-server/src/src/lib/canonical-single-target-runner.ts");
 const control = read("artifacts/api-server/src/src/lib/atlas-control-decision.ts");
 const continuation = read("artifacts/api-server/src/src/routes/research/canonical-case-continuation.ts");
+const claimValidator = (source) => {
+  const start = source.indexOf("function claimAppearsInObservedMaterial");
+  const end = source.indexOf("\n}", start);
+  const body = start >= 0 && end > start ? source.slice(start, end + 2) : "";
+  return body.includes("for (const record of records)") && body.includes("record.observation") && !body.includes("matching.map") && !body.includes('.join("\\n")');
+};
 const checks = [
   ["target Dig uses strict persistence", target.includes("persistSourceBackedBureauContactsForEntity")],
   ["target Dig does not legacy-rehydrate", !target.includes("rehydrateEntityCardFromEvidence")],
@@ -18,11 +24,15 @@ const checks = [
   ["target Dig persists only model-emitted findings", target.includes("const modelFindings = agentic.modelFindings ?? []") && target.includes("sourceBackedFindings(modelFindings, agentic.trajectory, agentic.trajectoryRecords") && !target.includes("sourceBackedFindings(agentic.findings, agentic.trajectory)")],
   ["target Dig supplies successful observed provenance", target.includes("execution=success") && target.includes("observed=(https?:")],
   ["target Dig validates claims against observed material", target.includes("claimAppearsInObservedMaterial") && target.includes("record.observation")],
+  ["target claim binding is single-observation", claimValidator(target)],
+  ["target preserves cancellation as a distinct result state", target.includes('agentic.status === "cancelled" ? "cancelled"') && target.includes('status: "cancelled"')],
   ["target Dig exposes structured trajectory records", target.includes("trajectoryRecords: AgenticTrajectoryRecord[]") && target.includes("trajectoryRecords: agentic.trajectoryRecords")],
   ["bureau pass uses strict persistence", bureau.includes("persistSourceBackedBureauContactsForEntity")],
   ["bureau pass preserves explicit investigator promotion", bureau.includes('promote: isExplicitCandidate && f.promotionDecision === "promote"')],
   ["bureau pass uses only model-emitted findings", bureau.includes("const modelFindings = agentic.modelFindings ?? []") && bureau.includes("sourceBackedAgenticFindings(modelFindings, agentic.trajectory, agentic.trajectoryRecords)") && !bureau.includes("sourceBackedAgenticFindings(agentic.findings, agentic.trajectory)")],
   ["bureau pass validates claims against observed material", bureau.includes("claimAppearsInObservedMaterial") && bureau.includes("r.observation")],
+  ["bureau claim binding is single-observation", claimValidator(bureau)],
+  ["bureau preserves cancellation as a distinct result state", bureau.includes('agentic.status === "cancelled" ? "cancelled"') && bureau.includes('status: "cancelled"')],
   ["strict boundary requires explicit promotion for card mutation", strict.includes("if (row.item.promote !== true) continue")],
   ["strict boundary requires candidate scope", strict.includes('String(row.item.scope ?? "").toLowerCase() !== "candidate"')],
   ["strict boundary requires explicit person identity", strict.includes('typeof row.item.personName === "string"')],
@@ -37,6 +47,7 @@ const checks = [
   ["Atlas has no fake Discovery slot target", !atlas.includes("Discovery slot")],
   ["Bureau discovery mode is explicit", bureau.includes('mode?: "target" | "discovery"') && bureau.includes("input.mode !== \"discovery\"")],
   ["Atlas routes targets through canonical single-target control plane", atlas.includes("runCanonicalSingleTargetInvestigation")],
+  ["discovery admission passes validated source provenance into strict persistence", atlas.includes('"canonical-agentic-discovery"') && atlas.includes('input.atlasJobId, [sourceUrl]')],
   ["continuation fails closed without durable context", continuation.includes("refusing context-free continuation")],
   ["discovery requires model findings", discovery.includes("modelFindings")],
 ];
