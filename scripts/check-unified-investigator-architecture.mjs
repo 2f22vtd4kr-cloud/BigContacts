@@ -3,7 +3,7 @@ import path from "node:path";
 
 const root = process.cwd();
 const files = {
-  research: path.join(root, "artifacts/api-server/src/src/lib/agentic-web-research.ts"),
+  research: path.join(root, "artifacts/api-server/src/src/lib/agentic-web-research-core.ts"),
   bureau: path.join(root, "artifacts/api-server/src/src/lib/case-bureau.ts"),
   prompt: path.join(root, "artifacts/api-server/src/src/lib/case-bureau-prompt.ts"),
   pass: path.join(root, "artifacts/api-server/src/src/lib/bureau-agentic-pass.ts"),
@@ -15,7 +15,7 @@ const files = {
   researchRoutes: path.join(root, "artifacts/api-server/src/src/routes/research.ts"),
   apiRoutes: path.join(root, "artifacts/api-server/src/routes/index.ts"),
   orientation: path.join(root, "artifacts/api-server/src/src/lib/apex-bureau-orientation.ts"),
-  finalReview: path.join(root, "artifacts/api-server/src/lib/ai-extractor.ts"),
+  finalReview: path.join(root, "artifacts/api-server/src/src/lib/ai-extractor.ts"),
   architecture: path.join(root, "docs/BUREAU_REACT_ARCHITECTURE.md"),
 };
 
