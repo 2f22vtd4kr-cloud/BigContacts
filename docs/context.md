@@ -1,96 +1,58 @@
 # Context — living handoff (Apex Atlas / BigContacts)
 
-> **Living handoff — 2026-09-10.** This document is the current product/architecture source of truth for Apex Atlas. Historical implementation batches remain in Git history; do not resurrect obsolete architecture because an old document mentions it.
+> **Living handoff — 2026-09-10.** This is the current architecture source of truth. Historical documents describe prior states; do not resurrect obsolete control planes.
 
 **Repo:** https://github.com/2f22vtd4kr-cloud/BigContacts  
 **Branch:** `main`  
-**Current GitHub code tip:** `68f31230ba33172651db717e27fca69c0b14ce5e`  
-**Product:** Apex Atlas research bureau embedded in BigContacts. Bureau is the OSINT/research architecture, not a separate product.
+**Current GitHub code tip:** `acf49d2cb42d5cbdbc6b597a94a82f9ee2d07e0e`  
+**Product:** Apex Atlas research bureau embedded in BigContacts.
 
-## 1. Institutional identity and mission
+## 1. Institutional constitution
 
-Apex is a model-directed OSINT research bureau. Its institutional identity, evidence law, safety boundary, autonomy law, and AI-role separation exist before any operator supplies case-specific input.
+Apex is an AI-driven OSINT research bureau, not a deterministic search script.
 
-The hierarchy is:
+Hierarchy:
 
 ```text
 institutional constitution
-        ↓
-role purpose
-        ↓
-durable case context / memory
-        ↓
-operator case contribution
-        ↓
-AI reasoning and decision
-        ↓
-model-selected research action
+  -> role purpose
+  -> durable case context / memory
+  -> operator case contribution
+  -> AI reasoning
+  -> model-selected action
 ```
 
-Operator input supplies case direction and parameters. It does not teach Apex what Apex is, define the evidence law, or define the role boundaries.
-
-### Canonical roles
+### Roles
 
 | Role | Provider | Responsibility |
 |---|---|---|
-| Boss / Primary Orchestrator | **Gemini** | case direction, Investigator assignment, control decisions, final case gate |
-| Right Hand / Oversight Advisor | **DeepSeek / NVIDIA** | advisory and review intelligence; never Investigator |
-| Investigator | **Groq** | model-directed free-ReAct research |
-| Investigator | **Mistral** | model-directed free-ReAct research / transport-capacity fallback |
-| Research capabilities | configured tools/adapters | execute Investigator-selected actions |
+| Boss / Head Investigator | Gemini | case direction, Investigator assignment, control decisions, final case gate |
+| Right Hand / Oversight | DeepSeek via NVIDIA Integrate | advisory/review intelligence; never Investigator |
+| Investigator | Groq | free-ReAct web/OSINT research |
+| Investigator | Mistral | free-ReAct web/OSINT research / capacity fallback |
 
-Groq/Mistral fallback is infrastructure/capacity behavior only. It must never become a research sequence. DeepSeek is never inserted into the Investigator pool. Gemini is never an Investigator.
+Groq/Mistral transport fallback is infrastructure only. Gemini and DeepSeek never silently enter the Investigator lane.
 
-## 2. Non-negotiable autonomy law
+## 2. Autonomy law
 
-LLMs own:
+AI owns research strategy, query construction, tool selection, pivots, identity reasoning, evidence sufficiency, contact-route discovery, stopping, promotion, and discovery-versus-target continuation.
 
-- research strategy;
-- missing-information judgment;
-- query construction;
-- tool selection;
-- pivots and revisits;
-- identity reasoning;
-- evidence sufficiency;
-- contact-route discovery;
-- stopping;
-- promotion decisions;
-- discovery-versus-target continuation decisions.
+Deterministic code owns safety/infrastructure only: auth, schemas, transport, SSRF, quotas/budgets, cancellation, persistence, provenance, deduplication, telemetry, lifecycle and impossible-state prevention.
 
-Deterministic code owns only safety and infrastructure: authorization, schemas, transport, SSRF protection, budgets, cancellation, persistence, provenance validation, deduplication, telemetry, lifecycle and impossible-state prevention.
-
-Never reintroduce:
-
-- fixed research playbooks;
-- forced first tools/hops;
-- fixed provider order as research strategy;
-- EXA → Tavily → Serper recipes;
-- deterministic candidate discovery from arbitrary text;
-- automatic promotion from scores, fields, URLs, source counts, extraction or existing cards;
-- hidden search/router brains;
-- fabricated contacts, people or URLs;
-- role leakage between Gemini, DeepSeek and Investigator adapters.
+Never reintroduce fixed playbooks, forced first tools, deterministic discovery, hidden search brains, automatic promotion, fabricated contacts/people/URLs, or role leakage.
 
 Discovery and target research are capabilities, not mandatory deterministic phases.
 
-## 3. Canonical implementation locations
+## 3. Canonical ReAct implementation
 
-Primary ReAct loop:
+Primary loop:
 `artifacts/api-server/src/src/lib/agentic-web-research-core.ts`
 
-Canonical SSRF wrapper/entrypoint:
+Canonical guarded entrypoint:
 `artifacts/api-server/src/src/lib/agentic-web-research.ts`
 
-Bureau context mount:
+Bureau wrapper/context mount:
 `artifacts/api-server/src/src/lib/bureau-agentic-pass.ts`
-
-Discovery:
-`artifacts/api-server/src/src/lib/discovery-agent.ts`
-
-Atlas control:
-`artifacts/api-server/src/src/lib/canonical-atlas-discovery.ts`
-`artifacts/api-server/src/src/lib/atlas-control-decision.ts`
-`artifacts/api-server/src/src/lib/canonical-single-target-runner.ts`
 
 Target Investigator:
 `artifacts/api-server/src/src/lib/target-contact-agent.ts`
@@ -98,160 +60,135 @@ Target Investigator:
 Strict evidence/card boundary:
 `artifacts/api-server/src/src/lib/bureau-contact-persist-strict.ts`
 
-Final review:
-`artifacts/api-server/src/src/lib/final-target-review.ts`
-`artifacts/api-server/src/src/lib/ai-extractor.ts`
+SSRF:
+`artifacts/api-server/src/src/lib/ssrf-safe-fetch.ts`
 
-Public Atlas launch:
-`POST /api/ingest/atlas-run`
-→ `routes/atlas.ts`
-→ canonical Atlas discovery or canonical single-target runner
-→ Gemini Boss + DeepSeek Right Hand
-→ selected Groq/Mistral Investigator
-→ model-selected tools
-→ evidence validation/persistence
-→ explicit promotion/final gate.
+Browser escalation:
+`artifacts/api-server/src/src/lib/browser-fetch.ts`
+`artifacts/api-server/src/src/lib/browser-fetch-core.ts`
 
-## 4. First-decision contract
+Atlas control/discovery:
+`artifacts/api-server/src/src/lib/atlas-control-decision.ts`
+`artifacts/api-server/src/src/lib/canonical-atlas-discovery.ts`
+`artifacts/api-server/src/src/routes/research/canonical-case-discovery.ts`
+`artifacts/api-server/src/src/routes/research/canonical-case-continuation.ts`
 
-Before the first Investigator action, the runtime must mount:
+## 4. ReAct first-decision result
 
-1. Apex institutional mission;
-2. Investigator role purpose;
-3. durable case context;
-4. operator case objective;
-5. currently available capabilities;
-6. model reasoning;
-7. the model's first action of its own choice.
+The rewritten canonical core no longer seeds the loop with `Begin. Choose an initial web_search query` or `(none — begin with web_search)`.
 
-There must be no deterministic first-tool selection. In particular, `web_search` must not be forced merely because a ReAct loop has started.
+Its initial observation is context-only: institutional mission/role, durable case context, capabilities, and an explicit statement that no research action has yet been selected. The model then chooses one permitted action.
 
-**Open blocker #120:** the canonical ReAct core still initializes `lastObservation` with:
-`Begin. Choose an initial web_search query — do not wait for instructions.`
+The action surface currently includes:
 
-The prompt also still contains an empty-observation fallback equivalent to:
-`(none — begin with web_search)`.
+- `web_search` with explicit Investigator-selected Serper/Tavily/Exa provider;
+- `visit`;
+- `browser_fetch`;
+- `footprint_email`;
+- `footprint_username`;
+- `domain_lookup`;
+- `registry_search`;
+- `harvest_domain`;
+- `done`.
 
-The required fix is to remove both forced seeds and let the already-oriented Investigator choose any valid capability. Do not replace the forced search with another deterministic first tool. Provider selection for `web_search` remains explicit.
+The loop has no deterministic search checklist or mandatory hop order.
 
-## 5. Durable case memory and AI-owned Atlas control
+## 5. ReAct forensic review — current findings
 
-Every target/discovery investigation uses a durable case file and `contextDocument`. It is memory/state, not a research script.
+### PASS — AI-owned first action
+`lastObservation` begins with case/institutional context rather than a forced tool. `buildStepPrompt()` explicitly says there is no required first tool or hop order.
 
-The Investigator trajectory is persisted into durable context so subsequent Right Hand and Boss review see what actually happened, not just aggregate counters. Target continuation preserves prior context rather than resetting the investigation.
+### PASS — model-authored evidence boundary
+Only `action=done` produces `modelFindings`. Deterministic contact extraction remains observation material. Persistence consumes `modelFindings`, then validates observed provenance and schema.
 
-Atlas transition control is now AI-owned. Gemini, after DeepSeek/Right-Hand oversight, can choose:
+### PASS — explicit provider selection
+`web_search` requires a provider in the action schema. There is no Serper→Tavily→Exa research recipe. Investigator-provider fallback occurs only at the LLM-capacity/transport layer.
 
-- `continue_discovery`;
-- `research_candidate`;
-- `revisit_candidate`;
-- `pivot_discovery`;
-- `stop`.
+### PASS — role separation
+The core's LLM adapter pool is Groq/Mistral only. Gemini/DeepSeek are not Investigator adapters.
 
-Candidate selection is validated against the explicit admitted set. Invalid model decisions fail closed. The execution turn budget is a safety envelope, not a research recipe.
+### PASS — canonical SSRF wrapper
+The canonical wrapper installs an Investigator-only fetch boundary. `ssrf-safe-fetch.ts` validates HTTP(S), rejects private/loopback/link-local/metadata/reserved destinations, pins the resolved public address, and disables automatic redirects.
 
-Each Atlas control decision is now durable case memory (`control_decision`) with action, candidate, direction, rationale, confidence, Boss state, Right Hand state and control turn. Persistence is fail-closed. The control API now also requires a valid positive durable `caseId` and positive `controlTurn`; missing or invalid context throws before any model decision can be accepted. This prevents a context-free control decision from becoming process-only state.
+### FIXED — Investigator provider quota bypass
+The initial wrapper composed SSRF safety around native fetch but bypassed the provider quota gate. Commit `acf49d2cb42d5cbdbc6b597a94a82f9ee2d07e0e` now composes **provider quota -> SSRF-safe pinned fetch** inside the Investigator execution context, so search/LLM/page/provider traffic is subject to the deterministic infrastructure budget boundary.
 
-## 6. Evidence and person-admission law
+### BLOCKER — prompt-injection boundary is incomplete
+Fetched pages, search snippets, registry responses, footprint results, and other tool observations are inserted into the Investigator user prompt. The current prompt does not explicitly state, at system-message level, that these observations are untrusted data and may contain instructions that must never override Apex policy or tool-selection rules.
 
-Evidence is not a card. Only an explicit model decision may cross the evidence → card boundary. Deterministic code validates source/provenance/schema and prevents impossible or unsafe mutations; it must not manufacture promotion.
+Required fix: add a strong untrusted-observation/prompt-injection rule to the Investigator system orientation and/or a dedicated system-level guard. Web content must remain data, never instructions.
 
-A discovery person candidate requires:
+### BLOCKER — hard timeout is not actually hard during an action
+The loop checks elapsed time between iterations, while individual LLM/tool calls can run until their own timeout. `hardTimeoutMs` therefore bounds iteration entry rather than guaranteeing that the whole run stops at the requested deadline.
 
-1. explicit person identity emitted by the Investigator;
+Required fix: propagate a run-scoped AbortSignal through LLM and network tools and make subprocess-capable tools honor cancellation; do not merely race the Promise while leaving the underlying operation alive.
+
+### BLOCKER — iteration budget is not capped to the core safety constant
+The core defines `MAX_ITER = 40`, but `maxIter` is currently `Math.max(1, input.maxIterations ?? MAX_ITER)`, which permits a caller to request more than 40 iterations. The canonical live wrapper/callers normally use bounded research-depth values, but the core's own invariant is not fail-closed.
+
+Required fix: cap the effective iteration budget to the hard maximum in the canonical core, and keep the caller-side depth budget as the softer research envelope.
+
+### BLOCKER — direct core fetch contains `redirect: "follow"`
+`toolVisit()` asks native fetch to follow redirects. The canonical wrapper's SSRF transport overrides this to manual redirects, so the live canonical path is protected. However, the core itself contains a dangerous transport instruction and becomes unsafe if ever called outside the wrapper.
+
+Required fix: make the core tool transport itself use the canonical SSRF-safe wrapper and remove the misleading direct-follow behavior rather than relying solely on the global shim.
+
+### BLOCKER — provider quota and scope composition needs regression coverage
+The new wrapper fix composes `runProviderFetch()` around `safeOutboundFetch()`. This needs an architecture guard proving that Investigator fetches cannot bypass provider quota and that the two wrappers are not accidentally installed in a recursion/double-counting order.
+
+### BLOCKER — web observations lack an explicit system-level trust boundary
+The current system message is `apexOrientationCompact("dig_agent") + "Return one JSON action object only."`; the dynamic page/search material is supplied as the user message. The institutional orientation states evidence law but does not explicitly say that observed text is adversarial/untrusted data.
+
+This is separate from identity provenance. Both are required.
+
+### RISK — deterministic provider bundles inside tools
+`browser_fetch` has an implementation-level provider chain (Scrapfly → ZenRows → Browserless → Playwright), and `footprint_username` executes Maigret + Sherlock together. These are currently capability implementations rather than research strategy, but they should remain documented as transport/tool internals and must not evolve into model-invisible research decisions.
+
+### RISK — browser fetch budget is process-scoped
+`browser-fetch-core.ts` uses a process-wide `browserFetchCount` despite describing it as case-local. Concurrent cases can therefore consume one another's browser escalation budget.
+
+### RISK — durable discovery context is narrower than the full case file
+`persistDiscoveryTrajectory()` rewrites `contextDocument` to objective + counters + actual Investigator trajectory. The full `caseFile` still retains other fields, but subsequent continuation currently mounts `contextDocument` rather than a synthesized memory view containing all relevant prior Boss/Right-Hand advice, admitted candidates, open questions, and evidence state.
+
+Required fix: build a durable memory projection for continuation instead of treating the trajectory-only document as the whole case memory.
+
+### RISK — identity collision heuristic can be too permissive
+`assessIdentityCollision()` can reach `identityMatch >= 0.65` from evidence-token overlap even when an explicitly model-authored `personName` does not fully match the target. The card boundary should require stronger explicit person-name alignment for candidate/personal promotion; evidence URLs must not substitute for the identity match.
+
+## 6. Evidence/person-admission law
+
+Discovery admission requires:
+
+1. explicit model-authored person identity;
 2. candidate/person scope;
-3. an exact observed HTTP(S) source URL;
-4. explicit Investigator `promotionDecision="promote"`.
+3. exact observed HTTP(S) source URL;
+4. explicit `promotionDecision="promote"`.
 
-Never inherit person identity from a target name, company name, URL slug, article title, document author, organization record or proxy contact. Organizations and unknown-scope findings remain evidence, not person admissions.
+No target-name inheritance, organization inheritance, URL-slug admission, article/listicle admission, or proxy-contact admission.
 
-Canonical target and bureau persistence consume `modelFindings`, not the deterministic observation `findings` bag. This preserves the #110 boundary: extraction may help the model observe, but deterministic observations cannot silently become persisted Investigator evidence.
+Canonical target persistence uses source URLs observed in the actual Investigator trajectory. Deterministic extraction does not silently become card evidence.
 
-## 7. New forensic finding — #136
+## 7. Durable Atlas control
 
-The current ReAct core still performs deterministic identity attribution while building its in-memory observation/finding bag. Examples include deterministic page/proxy extraction assigning `personName: targetName` and candidate scope, and footprint tool branches assigning the target name to candidate findings.
+Gemini controls the discovery/research transition after DeepSeek oversight. Allowed control actions are `continue_discovery`, `research_candidate`, `revisit_candidate`, `pivot_discovery`, and `stop`.
 
-This is not currently equivalent to automatic card promotion because canonical persistence is modelFindings-only. Nevertheless, it weakens the stronger autonomy law by injecting target-inherited identity into `FINDINGS SO FAR`, where the model can later use that claim when deciding what to promote.
+Control decisions require durable `caseId` and positive `controlTurn`, are persisted as `control_decision`, and fail closed on persistence errors.
 
-**Issue #136:** separate raw/tool/page observations from model-authored identity claims. Deterministic extraction may surface facts and observed URLs, but person attribution must be made explicitly by the Investigator. Preserve the existing modelFindings-only persistence boundary.
+## 8. Remaining architectural blockers
 
-A dedicated regression guard, `scripts/check-investigator-observation-attribution.mjs`, is wired into `check:bureau`. It fails on direct `personName: targetName` / `personName: name` assignments and specifically checks the footprint observation branches. This guard is intentionally expected to fail until #136 is repaired; it is a regression barrier, not a claim that the defect is fixed.
+- **#125/#126:** deterministic secondary-surface playbook and its old direct-fetch/SSRF lane.
+- **#128:** canonical Groq final reviewer in `src/src/lib/ai-extractor.ts`.
+- **#129/#132:** duplicate/legacy source-tree reachability and remaining legacy enrichment tree.
+- **#133:** institutional mission/bootstrap reconciliation.
+- **#136:** target-derived identity attribution inside the ReAct observation bag.
+- **#137/#138:** legacy deterministic case execution source remains quarantined/unmounted; public API/OpenAPI retirement reconciliation remains.
 
-## 8. Secondary-surface blockers
+#120's forced first-search defect is **fixed in the runtime rewrite**, but the complete ReAct safety review remains open because of the blockers above.
 
-**#125 — deterministic secondary surface:**
-`expandSecondaryPublicSurface()` in `bureau-contact-persist.ts` remains a fixed research playbook and still has callers in canonical/legacy source. Automatic canonical invocation must be retired, or useful capabilities must be exposed as explicit Investigator-selectable tools.
+## 9. Verification state
 
-**#126 — secondary-surface SSRF:**
-the same legacy lane performs direct outbound fetching of discovered URLs and historically follows redirects outside the canonical pinned-IP SSRF boundary. If retained, it must use the shared SSRF-safe transport with DNS pinning and no automatic redirect following. Prefer retirement of the deterministic lane.
+Current main tip: `acf49d2cb42d5cbdbc6b597a94a82f9ee2d07e0e`.
 
-The canonical Investigator web path already uses an AsyncLocalStorage guard around the core and `ssrf-safe-fetch.ts`. The SSRF boundary validates HTTP(S), blocks private/loopback/link-local/metadata destinations, resolves safely and pins the resolved public address, while redirects are manual.
+GitHub has not provided CI/runtime evidence for this tip. No Replit deployment, provider availability, DB/Redis durability, card promotion, or end-to-end smoke trajectory is claimed as proven.
 
-## 9. Final-review role boundary
-
-**#128 — canonical Groq final-review fallback:**
-`artifacts/api-server/src/src/lib/ai-extractor.ts` still contains the tertiary Groq final-review loop. The required architecture is Gemini Boss → DeepSeek/NVIDIA Right Hand only for final review, with fail-closed adjudication when oversight is unavailable.
-
-Do not weaken the architecture guard. The correct repair is removal of the entire canonical Groq final-review loop and failure through `adjudicateFinalTargetReview(input, {}, "unavailable-final-review")` when required oversight is unavailable.
-
-The legacy `src/lib/ai-extractor.ts` was already corrected by earlier work; the canonical `src/src/lib` copy is the active blocker.
-
-## 10. Duplicate/legacy reachability
-
-**#129:** `artifacts/api-server/src/lib/*` and `artifacts/api-server/src/src/lib/*` are parallel source trees. Reachability must be classified before deletion. Some legacy/status compatibility surfaces may still be live. Do not delete blindly.
-
-Concrete evidence gathered this session:
-
-- `artifacts/api-server/src/index.ts` is a compatibility entry that imports `./src/index`.
-- `artifacts/api-server/src/src/index.ts` is the canonical server entry and imports `./app`.
-- `artifacts/api-server/src/src/app.ts` imports canonical `./routes`.
-- The top-level `artifacts/api-server/src/routes/search.ts` still imports the legacy `src/lib/agent-orchestrator.ts`, but that route tree is not the canonical route tree mounted by `src/src/app.ts`.
-- The top-level search/orchestration lane should therefore remain explicitly classified as legacy/unreachable compatibility code until build/configuration reachability is fully proven, rather than being mistaken for the Bureau's live research control plane.
-
-**#132:** canonical `src/src/routes/ingest-enrichment.ts` is already an explicit HTTP 410 retirement router with a regression guard. The parallel legacy `src/routes/ingest-enrichment.ts` still requires reachability classification under #129. Remaining `ingest.ts` maintenance operations must be separated from research launch.
-
-Legacy `atlas-orchestrator.ts` still contains old multi-phase machinery, but the public Atlas route is canonical and guarded against importing the legacy orchestrator. Do not delete it until all compatibility/reachability callers are classified.
-
-Retired legacy MCTS/bulk research routes and the old startup scheduler are not part of the live canonical research control plane. The canonical startup recovery is lifecycle-only.
-
-## 11. Browser/API authorization
-
-The single-port browser deployment now has a browser-safe operator session design:
-
-- `APEX_OPERATOR_PASSWORD` and `APEX_SESSION_SECRET` remain server-side;
-- `/api/auth/login`, `/api/auth/session`, `/api/auth/logout` exist;
-- successful login creates an 8-hour HttpOnly, SameSite=Strict session cookie;
-- browser code does not receive the server bearer token;
-- state-changing cookie-authenticated requests require same-origin `Origin` checks.
-
-The frontend has an `OperatorGate` that checks the session and uses credentialed same-origin login. The browser launch/stop/pause/resume requests use same-origin fetches, so the HttpOnly session is carried without embedding the server bearer token.
-
-**Issue #131 is now closed at source level.** Runtime/Replit verification remains separate and was not claimed by that closure.
-
-## 12. Canonical research-case route blocker — #137/#138
-
-A fresh audit of `artifacts/api-server/src/src/routes/research/cases.ts` found a legacy discovery execution path that remains mounted alongside the newer canonical case-discovery/continuation routers.
-
-**Issue #137:** the route directly invokes `runBroadDiscovery()` with fixed configuration (`templateSet`, `rotateTemplates: false`, `maxQueries: 3`).
-
-**Issue #138:** the same route also directly executes `runMistralWebSearch()`, derives target/company identity and registry queries deterministically from the operator objective, executes a fixed registry set (`gleif`, `sec-edgar`, conditional Companies House), and invokes `expandSecondaryPublicSurface()` plus deterministic Companies House officer expansion. These are research-strategy decisions, not mere persistence.
-
-The canonical replacement already exists in `canonical-case-discovery.ts` and `canonical-case-continuation.ts`: Gemini Boss + DeepSeek Right Hand select a Groq/Mistral Investigator, which owns the ReAct trajectory and tool selection. The correct remediation is to split/retire the old execution route while preserving only necessary case data/read/event APIs. Do not replace it with another deterministic discovery recipe.
-
-The unified architecture guard now explicitly rejects `runBroadDiscovery`, `runMistralWebSearch`, `searchRegistry`, `expandSecondaryPublicSurface`, and deterministic discovery-template selection in the canonical `cases.ts` route. These assertions are regression barriers; the underlying route defect remains open until the legacy execution path is actually removed or unmounted.
-
-## 13. Verification state
-
-The latest source change is commit `68f31230ba33172651db717e27fca69c0b14ce5e`, which strengthens the unified architecture guard for the newly discovered canonical `cases.ts` discovery lanes. Issue #138 records the underlying source defect. GitHub has not provided runtime/CI evidence for this new tip, so **no CI/runtime success is claimed**.
-
-Open architecture work remains:
-
-- **#120** — forced initial `web_search` opening in the canonical ReAct core;
-- **#125/#126** — deterministic secondary-surface playbook and its SSRF boundary;
-- **#128** — canonical Groq final reviewer;
-- **#129/#132** — duplicate/legacy reachability and remaining legacy enrichment tree;
-- **#133** — institutional mission/bootstrap reconciliation;
-- **#136** — target-derived identity attribution inside ReAct observations;
-- **#137/#138** — legacy deterministic discovery execution still present in canonical `cases.ts`.
-
-No Replit deployment, provider availability, DB/Redis durability, card promotion, or end-to-end smoke result should be treated as proven until observed directly.
+The correct final acceptance test remains a real run showing: durable case → Gemini Boss → DeepSeek/NVIDIA Right Hand → selected Groq/Mistral Investigator → genuine model-selected first action → multiple model-selected pivots/tools as appropriate → observed provenance → explicit promotion → evidence-backed card, with the full trajectory visible to subsequent oversight.
