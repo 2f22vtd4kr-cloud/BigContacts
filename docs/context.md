@@ -4,7 +4,7 @@
 
 **Repo:** https://github.com/2f22vtd4kr-cloud/BigContacts  
 **Branch:** `main`  
-**Current GitHub code tip:** `1d0b54a40ada30354811d27bc9dab8f3d542ee62`  
+**Current GitHub code tip:** `464cff6ea5de8d5f60b1f85e751b595e83330fd2`  
 **Product:** Apex Atlas research bureau embedded in BigContacts. Bureau is the OSINT/research architecture, not a separate product.
 
 ## 1. Institutional identity and mission
@@ -175,6 +175,8 @@ This is not currently equivalent to automatic card promotion because canonical p
 
 **Issue #136:** separate raw/tool/page observations from model-authored identity claims. Deterministic extraction may surface facts and observed URLs, but person attribution must be made explicitly by the Investigator. Preserve the existing modelFindings-only persistence boundary.
 
+A new static guard, `scripts/check-investigator-identity-boundary.mjs`, now detects the known target-name inheritance patterns and is wired into `check:bureau`. It is intentionally expected to fail until the canonical ReAct core is repaired; it is a regression barrier, not a claim that the defect is fixed.
+
 ## 8. Secondary-surface blockers
 
 **#125 — deterministic secondary surface:**
@@ -218,63 +220,8 @@ The frontend has an `OperatorGate` that checks the session and uses credentialed
 
 Issue #131 still has an open GitHub state even though the source-level repair is now present. Keep it open until the issue is formally reconciled/closed with the appropriate static/runtime evidence; do not claim runtime success merely from the implementation.
 
-## 12. Concurrency and infrastructure safety
+## 12. Verification state
 
-Canonical Atlas launch locking uses permanent Redis with a distributed SET-NX claim so concurrent API instances cannot both launch the same active run. Redis unavailability is fail-closed for the canonical launch lock.
+The latest two commits added the identity-boundary guard and wired it into the bureau gate. GitHub currently reports no combined status entries and no PR-triggered workflow runs for the latest tip, so **no CI/runtime success is claimed**.
 
-Do not add heartbeat storms, recursive log mirroring, GET-after-SET verification loops, per-progress TTL refreshes or other activity that only creates the appearance of work.
-
-Self-mutating CI was retired. Workflows should retain least-privilege read permissions and must not mutate repository code as part of verification.
-
-## 13. Architecture guards
-
-Important guards include:
-
-- `scripts/check-unified-investigator-architecture.mjs`
-- `scripts/check-no-force-dig.sh`
-- `scripts/check-bureau-free-react.mjs`
-- `scripts/check-apex-mission-bootstrap.mjs`
-- `scripts/check-atlas-control-durability.mjs`
-- `scripts/check-target-agent-context-boundary.mjs`
-- `scripts/check-canonical-promotion-boundary.mjs`
-- `scripts/check-agentic-ssrf-boundary.mjs`
-- `scripts/check-frontend-api-auth-contract.mjs`
-- `scripts/check-legacy-apex-mutation-boundary.mjs`
-- `scripts/check-retired-research-routes.mjs`
-
-The Atlas durability guard now explicitly requires `caseId` and `controlTurn` to be required TypeScript inputs, rejects invalid values, and rejects the former silent no-op persistence path. The guard itself checks those fail-closed properties.
-
-The guards are regression barriers, not proof of runtime behavior. A field named `investigatorLlm` is not proof of propagation; a function named `agentic` is not proof of autonomy; a green static check is not proof of a real investigation.
-
-## 14. Verification truth
-
-GitHub currently shows the latest main tip as:
-`1d0b54a40ada30354811d27bc9dab8f3d542ee62` (`Guard required durable Atlas control context`, 2026-09-10).
-
-No runtime/Replit success is claimed.
-
-The repository remains **PRE-DEPLOYMENT / STATIC AUDIT CONTINUING**.
-
-## 15. Open audit queue
-
-1. **#120 — highest priority:** exact source repair of the forced first `web_search` observation in the canonical ReAct core. Remove both forced opening seeds without introducing another deterministic first action.
-2. **#128:** remove canonical Groq final-review fallback; retain Gemini + DeepSeek/NVIDIA review roles and fail closed.
-3. **#125/#126:** retire deterministic secondary-surface invocation and eliminate its SSRF bypass, or rebuild surviving capabilities as Investigator-selected tools behind the canonical SSRF boundary.
-4. **#136:** remove deterministic target-name identity attribution from Investigator observation state while preserving raw observation and modelFindings-only persistence.
-5. **#129/#132:** complete duplicate-tree and legacy ingest/enrichment reachability classification/quarantine.
-6. **#133:** formally close the institutional mission/bootstrap issue once its acceptance criteria are reconciled with the current source and guards.
-7. Re-audit target Investigator cancellation, provider binding, malformed output, prompt-injection handling, source provenance and explicit promotion after the above blockers.
-8. Re-audit final-review callers and historical evidence handling.
-9. Only after static blockers are exhausted: perform real Replit build/typecheck/database/Redis/API health/provider checks and one bounded discovery-first smoke. Inspect the actual Investigator trajectory and evidence chain before any deployment claim.
-
-## 16. Engineering safety
-
-Never blindly replace large files. Inspect exact source, trace reachability, make the smallest safe patch, inspect the diff immediately, run targeted verification, open a focused PR, verify available checks, and restart the hunt.
-
-Do not use scripts to teach trained models or impose deterministic research sequences. Scripts verify contracts; models choose research.
-
-Do not relabel historical failures as successes. Do not claim runtime proof from static source inspection.
-
-**Final proof contract:**
-
-`repair → verify → merge → restart hunt → boot → bounded real trajectory → forensic review → blind comparison → deploy.`
+The canonical forced-opening defect (#120), canonical Groq final-review fallback (#128), deterministic secondary-surface lane (#125/#126), duplicate/legacy reachability work (#129/#132), and mission-bootstrap reconciliation (#133) remain open work unless explicitly closed later with evidence.
