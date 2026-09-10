@@ -72,7 +72,7 @@ export function replayResearchCaseEvents(events: ResearchReplayEvent[]): Researc
   });
 
   const caseId = ordered[0]?.caseId ?? 0;
-  let previousId = 0;
+  const seenIds = new Set<number>();
   let previousIteration = 0;
   let previousTime = -Infinity;
   let actionCount = 0;
@@ -89,20 +89,20 @@ export function replayResearchCaseEvents(events: ResearchReplayEvent[]): Researc
 
   for (const event of ordered) {
     if (!Number.isInteger(event.id) || event.id <= 0) violations.push(`event has invalid id: ${String(event.id)}`);
+    if (seenIds.has(event.id)) violations.push(`event ${event.id}: duplicate event ID`);
+    seenIds.add(event.id);
     if (event.caseId !== caseId) violations.push(`event ${event.id}: caseId ${event.caseId} differs from replay case ${caseId}`);
-    if (event.id <= previousId) violations.push(`event ${event.id}: event IDs are not strictly increasing after replay ordering`);
     if (event.iteration < previousIteration) violations.push(`event ${event.id}: iteration regressed from ${previousIteration} to ${event.iteration}`);
     const time = asTime(event.createdAt);
     if (!Number.isFinite(time)) violations.push(`event ${event.id}: invalid createdAt`);
     else if (time < previousTime) violations.push(`event ${event.id}: createdAt regressed`);
-    previousId = event.id;
     previousIteration = Math.max(previousIteration, event.iteration);
     if (Number.isFinite(time)) previousTime = time;
 
     const payload = parsePayload(event.payload, event.id, violations);
     const type = event.eventType.toLowerCase();
     const status = event.status.toLowerCase();
-    if (["decision", "assignment", "observation", "directive"].includes(type)) actionCount++;
+    if (["decision", "assignment", "observation", "tool_observation", "directive"].includes(type)) actionCount++;
     if (type === "decision") { decisionCount++; latestDecision = payload; }
     if (type === "assignment") assignmentCount++;
     if (type === "observation" || type === "tool_observation") { observationCount++; latestObservation = payload; }
