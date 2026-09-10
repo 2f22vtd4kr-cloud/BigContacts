@@ -8,8 +8,7 @@
  * and the model can choose whether to inspect the advertised public URL.
  *
  * Hostname validation and connection are one operation here: the address used
- * by the socket is the address returned by the safety-checked DNS lookup. This
- * closes the DNS preflight -> native fetch resolution TOCTOU/rebinding window.
+ * by the socket is the address returned by the safety-checked DNS lookup.
  */
 
 import { lookup } from "node:dns/promises";
@@ -17,12 +16,8 @@ import http from "node:http";
 import https from "node:https";
 import net from "node:net";
 
-const BLOCKED_HOSTNAMES = new Set([
-  "localhost",
-  "localhost.localdomain",
-  "metadata.google.internal",
-  "metadata",
-]);
+const BLOCKED_HOSTNAMES = new Set(["localhost", "localhost.localdomain", "metadata.google.internal", "metadata"]);
+const MAX_RESPONSE_BYTES = 2_000_000;
 
 function isBlockedIp(address: string): boolean {
   const normalized = address.toLowerCase().replace(/^\[|\]$/g, "");
@@ -30,29 +25,15 @@ function isBlockedIp(address: string): boolean {
   if (version === 4) {
     const octets = normalized.split(".").map(Number);
     const [a, b, c] = octets;
-    return (
-      a === 0 ||
-      a === 10 ||
-      a === 127 ||
-      (a === 100 && b >= 64 && b <= 127) ||
-      (a === 169 && b === 254) ||
-      (a === 172 && b >= 16 && b <= 31) ||
-      (a === 192 && b === 0) ||
-      (a === 192 && b === 168) ||
-      (a === 192 && b === 88 && c === 99) ||
-      (a === 192 && b === 0 && c === 2) ||
-      (a === 198 && (b === 18 || b === 19 || (b === 51 && c === 100))) ||
-      (a === 203 && b === 0 && c === 113) ||
-      a >= 224
-    );
+    return a === 0 || a === 10 || a === 127 || (a === 100 && b >= 64 && b <= 127) ||
+      (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 0) ||
+      (a === 192 && b === 168) || (a === 192 && b === 88 && c === 99) || (a === 192 && b === 0 && c === 2) ||
+      (a === 198 && (b === 18 || b === 19 || (b === 51 && c === 100))) || (a === 203 && b === 0 && c === 113) || a >= 224;
   }
   if (version === 6) {
     const compact = normalized.replace(/%.*$/, "");
     if (compact === "::1" || compact === "::") return true;
-    if (/^ff/i.test(compact)) return true;
-    if (/^fe[89ab]/i.test(compact)) return true;
-    if (/^(fc|fd)/i.test(compact)) return true;
-    if (/^2001:db8:/i.test(compact)) return true;
+    if (/^ff/i.test(compact) || /^fe[89ab]/i.test(compact) || /^(fc|fd)/i.test(compact) || /^2001:db8:/i.test(compact)) return true;
     if (/^::ffff:/i.test(compact)) return isBlockedIp(compact.slice(7));
     return false;
   }
@@ -64,37 +45,20 @@ async function resolveSafeAddress(hostname: string): Promise<string> {
     if (isBlockedIp(hostname)) throw new Error("Outbound URL targets a blocked IP address");
     return hostname;
   }
-
   let records: Array<{ address: string }>;
-  try {
-    records = await lookup(hostname, { all: true, verbatim: true });
-  } catch {
-    throw new Error("Outbound URL hostname could not be resolved safely");
-  }
-  if (!records.length || records.some((record) => isBlockedIp(record.address))) {
-    throw new Error("Outbound URL resolves to a blocked IP address");
-  }
-
+  try { records = await lookup(hostname, { all: true, verbatim: true }); }
+  catch { throw new Error("Outbound URL hostname could not be resolved safely"); }
+  if (!records.length || records.some((record) => isBlockedIp(record.address))) throw new Error("Outbound URL resolves to a blocked IP address");
   return records[0].address;
 }
 
 function parseSafeUrl(rawUrl: string): URL {
   let url: URL;
-  try {
-    url = new URL(rawUrl);
-  } catch {
-    throw new Error("Outbound URL is invalid");
-  }
-  if (url.protocol !== "http:" && url.protocol !== "https:") {
-    throw new Error("Outbound URL must use HTTP(S)");
-  }
-  if (url.username || url.password) {
-    throw new Error("Outbound URL credentials are not permitted");
-  }
+  try { url = new URL(rawUrl); } catch { throw new Error("Outbound URL is invalid"); }
+  if (url.protocol !== "http:" && url.protocol !== "https:") throw new Error("Outbound URL must use HTTP(S)");
+  if (url.username || url.password) throw new Error("Outbound URL credentials are not permitted");
   const hostname = url.hostname.replace(/^\[|\]$/g, "").toLowerCase().replace(/\.$/, "");
-  if (!hostname || BLOCKED_HOSTNAMES.has(hostname)) {
-    throw new Error("Outbound URL targets a blocked host");
-  }
+  if (!hostname || BLOCKED_HOSTNAMES.has(hostname)) throw new Error("Outbound URL targets a blocked host");
   return url;
 }
 
@@ -106,13 +70,9 @@ export async function assertSafeOutboundUrl(rawUrl: string): Promise<URL> {
 
 function requestHeaders(init: RequestInit, hostname: string, port: string): Record<string, string> {
   const headers: Record<string, string> = { "accept-encoding": "identity" };
-  if (init.headers instanceof Headers) {
-    init.headers.forEach((value, key) => { headers[key] = value; });
-  } else if (Array.isArray(init.headers)) {
-    for (const [key, value] of init.headers) headers[key] = value;
-  } else if (init.headers) {
-    for (const [key, value] of Object.entries(init.headers)) headers[key] = String(value);
-  }
+  if (init.headers instanceof Headers) init.headers.forEach((value, key) => { headers[key] = value; });
+  else if (Array.isArray(init.headers)) for (const [key, value] of init.headers) headers[key] = value;
+  else if (init.headers) for (const [key, value] of Object.entries(init.headers)) headers[key] = String(value);
   if (!headers.host) headers.host = port ? `${hostname}:${port}` : hostname;
   return headers;
 }
@@ -128,23 +88,31 @@ async function pinnedFetch(input: RequestInfo | URL, init: RequestInit, address:
 
   return new Promise<Response>((resolve, reject) => {
     let settled = false;
-    const finishError = (error: unknown) => {
-      if (settled) return;
-      settled = true;
-      reject(error instanceof Error ? error : new Error(String(error)));
-    };
+    const finishError = (error: unknown) => { if (settled) return; settled = true; reject(error instanceof Error ? error : new Error(String(error))); };
     const req = transport.request({
-      protocol: url.protocol,
-      hostname: address,
-      port,
-      method,
+      protocol: url.protocol, hostname: address, port, method,
       path: `${url.pathname}${url.search}` || "/",
       headers: requestHeaders(init, url.hostname, url.port),
       ...(url.protocol === "https:" ? { servername: url.hostname } : {}),
       lookup: (_hostname, _options, callback) => callback(null, address, net.isIP(address) as 4 | 6),
     }, (res) => {
+      const declared = Number(res.headers["content-length"] ?? NaN);
+      if (Number.isFinite(declared) && declared > MAX_RESPONSE_BYTES) {
+        res.resume();
+        finishError(new Error(`Outbound response exceeds ${MAX_RESPONSE_BYTES} byte limit`));
+        return;
+      }
       const chunks: Buffer[] = [];
-      res.on("data", (chunk) => chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)));
+      let bytes = 0;
+      res.on("data", (chunk) => {
+        const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+        bytes += buffer.byteLength;
+        if (bytes > MAX_RESPONSE_BYTES) {
+          res.destroy(new Error(`Outbound response exceeds ${MAX_RESPONSE_BYTES} byte limit`));
+          return;
+        }
+        chunks.push(buffer);
+      });
       res.on("end", () => {
         if (settled) return;
         settled = true;
@@ -159,24 +127,15 @@ async function pinnedFetch(input: RequestInfo | URL, init: RequestInit, address:
     });
     req.on("error", finishError);
     req.setTimeout(12_000, () => req.destroy(new Error("Outbound request timed out")));
-
     const abort = () => req.destroy(new Error("Outbound request aborted"));
     if (signal?.aborted) return abort();
     signal?.addEventListener("abort", abort, { once: true });
-
     if (body) req.write(body);
     req.end();
   });
 }
 
-/**
- * Validate and resolve the requested destination once, then pin that exact
- * public address to the socket. Redirects are never followed automatically.
- */
-export async function safeOutboundFetch(
-  input: RequestInfo | URL,
-  init: RequestInit = {},
-): Promise<Response> {
+export async function safeOutboundFetch(input: RequestInfo | URL, init: RequestInit = {}): Promise<Response> {
   const nextUrl = typeof input === "string" || input instanceof URL ? String(input) : input.url;
   const validated = parseSafeUrl(nextUrl);
   const hostname = validated.hostname.replace(/^\[|\]$/g, "").toLowerCase().replace(/\.$/, "");
@@ -184,6 +143,5 @@ export async function safeOutboundFetch(
   return pinnedFetch(input, { ...init, redirect: "manual" }, address);
 }
 
-export function isBlockedOutboundIpForTest(address: string): boolean {
-  return isBlockedIp(address);
-}
+export function isBlockedOutboundIpForTest(address: string): boolean { return isBlockedIp(address); }
+export const MAX_SAFE_OUTBOUND_RESPONSE_BYTES = MAX_RESPONSE_BYTES;
