@@ -4,7 +4,7 @@
 
 **Repo:** https://github.com/2f22vtd4kr-cloud/BigContacts  
 **Branch:** `main`  
-**Verified GitHub code tip:** `aabdf6f1c3eac8700f49e916583889d324ef830f`  
+**Current GitHub code tip:** `52d850af36b5a60119e5dd45ed67d794b939a1f5`  
 **Product:** Apex Atlas research bureau embedded in BigContacts. Bureau is the OSINT/research architecture, not a separate product.
 
 ## 1. What Apex is
@@ -78,6 +78,7 @@ Canonical case discovery/continuation:
 
 Canonical Atlas:
 - `artifacts/api-server/src/src/lib/canonical-atlas-discovery.ts`
+- `artifacts/api-server/src/src/lib/atlas-control-decision.ts`
 - `artifacts/api-server/src/src/lib/canonical-single-target-runner.ts`
 - `artifacts/api-server/src/routes/atlas.ts`
 
@@ -157,7 +158,7 @@ Static guards passing is not proof of research quality or runtime truth.
 
 ## 8. Latest verified GitHub changes — 2026-09-09
 
-Current `main` code tip is `aabdf6f1c3eac8700f49e916583889d324ef830f`.
+The older 2026-09-09 tip was `aabdf6f1c3eac8700f49e916583889d324ef830f`; subsequent 2026-09-10 continuation commits are recorded below.
 
 ### PR #102 — canonical discovery admission scope
 Strengthened the canonical discovery boundary so person-scoped identity is explicit.
@@ -319,15 +320,23 @@ Final proof remains:
 
 ### AI-owned Atlas transition control
 
-Merged after the 2026-09-10 audit: `atlas-control-decision.ts` introduces an explicit Gemini Boss control decision after DeepSeek Right-hand review. The decision is allowed to choose `continue_discovery`, `research_candidate`, `revisit_candidate`, `pivot_discovery`, or `stop`. Candidate selection is validated against the explicit source-backed admission set; invalid model choices fail closed.
+Merged as `c46d707707a3c77321a8c3c5df5b6721867f368b`: `atlas-control-decision.ts` introduces an explicit Gemini Boss control decision after DeepSeek Right-hand review. The decision is allowed to choose `continue_discovery`, `research_candidate`, `revisit_candidate`, `pivot_discovery`, or `stop`. Candidate selection is validated against the explicit source-backed admission set; invalid model choices fail closed.
 
 `canonical-atlas-discovery.ts` no longer unconditionally loops through every admitted candidate into target research. Its bounded execution loop asks the AI control plane for the next action. A model-directed continuation/pivot can launch another Investigator pass against the same durable discovery case; a model-selected candidate can enter the canonical single-target control plane. The loop budget is an execution safety envelope, not a research recipe.
 
+The architecture guard was strengthened in `8a6a8f420688d55ed892919f6624902f7e374124` to require the Atlas control decision contract and Gemini+DeepSeek oversight, while retaining the no-forced-first-search guard and legacy route guards.
+
 ### Remaining blockers still intentionally open
 
-- **#120:** canonical `agentic-web-research-core.ts` still contains the forced initial `web_search` opening observation; source repair is still required.
+- **#120:** canonical `agentic-web-research-core.ts` still contains the forced initial `web_search` opening observation; source repair is still required. Provider ordering itself is explicit and transport fallback remains distinct from research strategy.
 - **#125/#126:** `expandSecondaryPublicSurface()` remains a deterministic legacy playbook with live callers and direct outbound fetching; it is not yet retired from all canonical callers.
 - **#128:** canonical `src/src/lib/ai-extractor.ts` still has the Groq final-review path; role-boundary repair remains required.
 - **#129/#132:** duplicate source-tree and legacy ingest/enrichment reachability classification remains unfinished.
+
+### #135 — durable control-memory follow-up
+
+An audit defect was found immediately after #134: the new Gemini/DeepSeek Atlas control decision is currently retained in `phaseSummary`/process-local variables, while the durable discovery case already stores Investigator trajectory/events. That means a crash/resume boundary does not yet expose the same control-decision history to the next oversight pass.
+
+Documented in `docs/issues/135-atlas-control-decisions-durable-memory.md` and opened as GitHub issue **#135**. Required repair: persist each Boss/Right-hand control decision as durable case state without turning it into a deterministic instruction script.
 
 No runtime/CI success claim is made by this continuation. Main remains pre-deployment until the remaining static blockers are repaired and runtime proof is actually observed.
