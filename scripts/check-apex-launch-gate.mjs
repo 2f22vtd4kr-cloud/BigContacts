@@ -70,7 +70,7 @@ pass("legacy Atlas route cannot call historical orchestrator", !/runAtlasPipelin
 let failed = false;
 for (const [name, ok] of checks) {
   console.log(`${ok ? "PASS" : "FAIL"}  ${name}`);
-  if (failed) failed = true;
+  if (!ok) failed = true;
 }
 if (failed) process.exit(1);
 console.log(`\nApex launch gate: ${checks.length} checks passed.`);
