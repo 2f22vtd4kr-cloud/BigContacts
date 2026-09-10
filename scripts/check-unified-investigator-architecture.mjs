@@ -11,6 +11,7 @@ const files = {
   canonicalCase: path.join(root, "artifacts/api-server/src/src/routes/research/canonical-case-discovery.ts"),
   canonicalAtlas: path.join(root, "artifacts/api-server/src/src/lib/canonical-atlas-discovery.ts"),
   canonicalTarget: path.join(root, "artifacts/api-server/src/src/lib/canonical-single-target-runner.ts"),
+  targetAgent: path.join(root, "artifacts/api-server/src/src/lib/target-contact-agent.ts"),
   launchRoute: path.join(root, "artifacts/api-server/src/routes/atlas.ts"),
   researchRoutes: path.join(root, "artifacts/api-server/src/src/routes/research.ts"),
   apiRoutes: path.join(root, "artifacts/api-server/src/routes/index.ts"),
@@ -34,6 +35,9 @@ assert(!/Prefer\s+Serper.*Tavily.*Exa/i.test(source.research), "Active research 
 assert(!/const\s+serper\s*=.*\n\s*if\s*\(serper.*\n\s*const\s+tavily\s*=.*\n\s*if\s*\(tavily.*\n\s*const\s+exa\s*=/s.test(source.research), "Active research runtime contains deterministic sequential search-provider selection.");
 assert(!/web_search routes Serper\s*[→>-]+\s*Tavily/i.test(source.orientation), "Investigator orientation still teaches a fixed search-provider route.");
 
+assert(!/Begin\. Choose an initial web_search query/i.test(source.research), "Investigator ReAct still contains a forced initial web_search instruction.");
+assert(!/web_search[^\n]*provider[^\n]*undefined|provider[^\n]*fallback[^\n]*web_search/i.test(source.research), "web_search appears to have an implicit provider-selection fallback.");
+
 assert(!/generateGroqBossText|Groq text fallback for Boss/i.test(source.bureau), "Groq is still exposed as a Boss planning fallback.");
 const groqFinalFallback = /groq-final-review-fallback/i;
 assert(!groqFinalFallback.test(source.finalReview), "Groq is still exposed as a final card review/decision layer in canonical source.");
@@ -45,6 +49,10 @@ assert(/investigatorLlm/.test(source.research), "ReAct research runtime does not
 assert(/runBureauAgenticWebPass\(\{[\s\S]*?investigatorLlm\s*:/.test(source.canonicalCase + source.cases), "Case discovery invocation is not visibly bound to the Boss-selected Investigator.");
 assert(/investigatorLlm\s*:/.test(source.canonicalAtlas), "Canonical Atlas discovery does not bind the selected Investigator.");
 assert(/runTargetContactAgent\(\{[\s\S]*?investigatorLlm\s*:/.test(source.canonicalTarget), "Canonical target runner does not bind the selected Investigator into the target Dig.");
+assert(/runTargetContactAgent\(\{[\s\S]*?contextDocument\s*:/.test(source.canonicalTarget), "Canonical target runner does not mount durable context into the Target Investigator.");
+assert(/refusing context-free Investigator run/.test(source.targetAgent), "Target Investigator does not explicitly refuse context-free execution.");
+assert(/const contextDocument = typeof input\.contextDocument === "string" \? input\.contextDocument\.trim\(\) : "";/.test(source.targetAgent), "Target Investigator does not normalize its durable context input.");
+assert(/if \(!contextDocument\)\s*\{[\s\S]*?return \{ status: "unavailable"/.test(source.targetAgent), "Target Investigator does not fail closed when durable context is absent.");
 assert(/runCanonicalSingleTargetInvestigation/.test(source.launchRoute), "Atlas launch route does not expose the canonical single-target control plane.");
 
 assert(/canonical-case-discovery/.test(source.researchRoutes), "Canonical case-discovery router is not mounted.");
@@ -72,4 +80,5 @@ console.log("- DeepSeek remains Right-hand only");
 console.log("- Groq/Mistral remain Investigator LLMs, not a sequential chain or reviewer tier");
 console.log("- Investigator selection propagates into active ReAct paths");
 console.log("- Search/browser/registry/OSINT remain model-selected capabilities");
+console.log("- Target Investigator requires durable case context");
 console.log("- Legacy deterministic research is not publicly mounted");
