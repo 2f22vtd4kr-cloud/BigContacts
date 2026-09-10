@@ -30,7 +30,10 @@ async function materializeAtlasAdmissions(input: { findings: Array<{ promotionDe
     const existing = existingRows[0]; let entityId = existing?.id ?? null;
     if (!entityId) { const [created] = await db.insert(entitiesTable).values({ name, type: "HNWI", bayesianScore: 0.05, contactConfidence: 0, contactOutcome: "evidence_only", isHot: false, isStarred: false, isHidden: false, sourceRegistries: JSON.stringify(["canonical-agentic-discovery"]), notes: "Model-selected discovery candidate; target-scoped Investigator research required before contact promotion.", metadata: JSON.stringify({ reviewOnly: true, admission: "investigator-explicit-promotion", sourceUrl, discoveryCaseId }) }).returning({ id: entitiesTable.id }); entityId = created?.id ?? null; if (entityId) materialized += 1; }
     if (!entityId) continue;
-    await persistSourceBackedBureauContactsForEntity(entityId, [{ vectorType: "other", value: `person:${name}`, scope: "candidate", personName: name, role: finding?.role ?? "discovery candidate", sourceUrls: [sourceUrl], note: "Explicit Investigator discovery admission; review-only until target-scoped research.", tier: "candidate", state: "review_only", promote: false }], "canonical-agentic-discovery", input.atlasJobId);
+    // `discovery.findings` is already source-backed by the canonical Bureau pass.
+    // Pass that validated source URL into the strict persistence boundary rather
+    // than silently dropping the admission for missing run-scoped provenance.
+    await persistSourceBackedBureauContactsForEntity(entityId, [{ vectorType: "other", value: `person:${name}`, scope: "candidate", personName: name, role: finding?.role ?? "discovery candidate", sourceUrls: [sourceUrl], note: "Explicit Investigator discovery admission; review-only until target-scoped research.", tier: "candidate", state: "review_only", promote: false }], "canonical-agentic-discovery", input.atlasJobId, [sourceUrl]);
     evidenceRows += 1;
   }
   return { names: admitted, materialized, evidenceRows };
