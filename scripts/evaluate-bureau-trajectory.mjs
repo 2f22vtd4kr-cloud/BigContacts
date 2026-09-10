@@ -30,7 +30,8 @@ if (!Array.isArray(steps)) {
 
 const actions = steps.map((s) => String(s?.action ?? "").toLowerCase()).filter(Boolean);
 const allowed = new Set([
-  "web_search", "visit", "browser_fetch", "footprint_email", "footprint_username",
+  "web_search", "visit", "browser_fetch", "footprint_email",
+  "footprint_username_maigret", "footprint_username_sherlock",
   "domain_lookup", "harvest_domain", "registry_search", "reverse_whois", "done",
 ]);
 const forbidden = /(force_(?:company|related|visit|search|hop)|groK-parity|mandatory|required)\s+(?:step|hop|search)/i;
