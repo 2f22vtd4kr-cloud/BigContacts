@@ -11,6 +11,9 @@ const checks = [
   ["control decision records Right-hand state", /rightHand:\s*input\.decision\.rightHand/.test(control)],
   ["control decision records control turn", /controlTurn:\s*input\.controlTurn/.test(control)],
   ["control decision persistence fails closed", /Failed to persist Atlas control decision/.test(control)],
+  ["control decision requires durable case ID", /caseId:\s*number;/.test(control) && /requires a valid durable caseId/.test(control)],
+  ["control decision requires positive control turn", /controlTurn:\s*number;/.test(control) && /requires a valid positive controlTurn/.test(control)],
+  ["persistence cannot silently skip a missing case ID", !/if\s*\(!input\.caseId\)\s*return/.test(control)],
   ["canonical Atlas passes durable discovery case ID", /caseId:\s*discoveryCaseId/.test(atlas)],
   ["canonical Atlas passes control turn", /controlTurn:\s*controlTurns/.test(atlas)],
 ];
