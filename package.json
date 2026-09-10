@@ -17,6 +17,7 @@
     "check:provider-role-docs": "node scripts/check-bureau-provider-role-docs.mjs",
     "check:unified-investigator": "node scripts/check-unified-investigator-architecture.mjs",
     "check:discovery-mode": "node scripts/check-discovery-mode-boundary.mjs",
+    "check:agentic-core-transport": "node scripts/check-agentic-core-transport.mjs",
     "check:mission-bootstrap": "node scripts/check-apex-mission-bootstrap.mjs",
     "check:investigator-identity-boundary": "node scripts/check-investigator-identity-boundary.mjs",
     "check:agentic-efficiency": "node scripts/check-agentic-llm-efficiency.mjs",
@@ -32,7 +33,7 @@
     "scoreboard:live": "bash scripts/replit-scoreboard-check.sh",
     "scoreboard:postmortem-template": "node scripts/postmortem-template.mjs",
     "scoreboard:fixture-template": "node scripts/fixture-registry-template.mjs",
-    "check:bureau": "bash scripts/check-no-force-dig.sh && pnpm run check:free-react && pnpm run check:discovery-quality && pnpm run check:comparison-contract && pnpm run check:trajectory && pnpm run check:agentic-runtime && pnpm run check:agentic-timeout && pnpm run check:provider-role-docs && pnpm run check:unified-investigator && pnpm run check:discovery-mode && pnpm run check:mission-bootstrap && pnpm run check:investigator-identity-boundary && pnpm run check:agentic-efficiency && pnpm run check:target-agent-context && pnpm run check:atlas-control-durability && pnpm run check:legacy-mutation-boundary && pnpm run check:retired-research-routes && pnpm run check:investigator-observation-attribution && pnpm run test:phone-priority",
+    "check:bureau": "bash scripts/check-no-force-dig.sh && pnpm run check:free-react && pnpm run check:discovery-quality && pnpm run check:comparison-contract && pnpm run check:trajectory && pnpm run check:agentic-runtime && pnpm run check:agentic-timeout && pnpm run check:provider-role-docs && pnpm run check:unified-investigator && pnpm run check:discovery-mode && pnpm run check:agentic-core-transport && pnpm run check:mission-bootstrap && pnpm run check:investigator-identity-boundary && pnpm run check:agentic-efficiency && pnpm run check:target-agent-context && pnpm run check:atlas-control-durability && pnpm run check:legacy-mutation-boundary && pnpm run check:retired-research-routes && pnpm run check:investigator-observation-attribution && pnpm run test:phone-priority",
     "scoreboard:lcode": "node scripts/lcode-suggest.mjs"
   },
   "private": true,
