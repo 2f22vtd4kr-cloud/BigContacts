@@ -67,6 +67,11 @@ assert(/canonical-atlas-discovery/.test(source.launchRoute), "Atlas launch route
 assert(!/atlas-orchestrator/.test(source.launchRoute), "Atlas launch route still imports the legacy deterministic orchestrator.");
 assert(!/\brunPhaseJBatch\s*\(|\bexpandSecondaryPublicSurface\s*\(|\brunBroadDiscovery\s*|\brunMcts\s*\(|\brunTargetResearch\s*\(/.test(source.canonicalAtlas), "Canonical Atlas runner contains a retired deterministic research path.");
 
+// Discovery admission must not itself become an unconditional phase gate into every
+// admitted target. The AI control plane must own the decision to advance, pivot, revisit,
+// reprioritize, or stop; deterministic persistence cannot encode that research sequence.
+assert(!/for\s*\(const\s+name\s+of\s+admitted\)[\s\S]{0,12000}runCanonicalSingleTargetInvestigation\s*\(/.test(source.canonicalAtlas), "Canonical Atlas hard-wires discovery→target research as a deterministic phase transition; #134 remains unresolved.");
+
 // Broad discovery used to be a deterministic template/query/extraction playbook. It must
 // not remain callable from the canonical Case Bureau simply because the old endpoint is
 // quarantined. Discovery is now an Investigator trajectory, not a category loop.
@@ -103,5 +108,6 @@ console.log("- Groq/Mistral remain Investigator LLMs, not a sequential chain or 
 console.log("- Investigator selection propagates into active ReAct paths");
 console.log("- Search/browser/registry/OSINT remain model-selected capabilities");
 console.log("- Discovery and Target Investigator paths mount durable case context");
+console.log("- Discovery cannot deterministically force the next target-research phase");
 console.log("- Startup recovery is lifecycle-only; mass research cannot begin at boot");
 console.log("- Legacy deterministic research is not publicly mounted");
