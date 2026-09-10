@@ -4,7 +4,7 @@
 
 **Repo:** https://github.com/2f22vtd4kr-cloud/BigContacts  
 **Branch:** `main`  
-**Current GitHub code tip:** `464cff6ea5de8d5f60b1f85e751b595e83330fd2`  
+**Current GitHub code tip:** `f5f186960b96474fc1e7b006b467ff624663217d`  
 **Product:** Apex Atlas research bureau embedded in BigContacts. Bureau is the OSINT/research architecture, not a separate product.
 
 ## 1. Institutional identity and mission
@@ -175,7 +175,7 @@ This is not currently equivalent to automatic card promotion because canonical p
 
 **Issue #136:** separate raw/tool/page observations from model-authored identity claims. Deterministic extraction may surface facts and observed URLs, but person attribution must be made explicitly by the Investigator. Preserve the existing modelFindings-only persistence boundary.
 
-A new static guard, `scripts/check-investigator-identity-boundary.mjs`, now detects the known target-name inheritance patterns and is wired into `check:bureau`. It is intentionally expected to fail until the canonical ReAct core is repaired; it is a regression barrier, not a claim that the defect is fixed.
+The unified architecture guard now also checks the canonical ReAct core for target-derived `personName`/candidate-scope injection in deterministic observation helpers. This guard is intentionally expected to fail until #136 is repaired; it is a regression barrier, not a claim that the defect is fixed.
 
 ## 8. Secondary-surface blockers
 
@@ -216,12 +216,28 @@ The single-port browser deployment now has a browser-safe operator session desig
 - browser code does not receive the server bearer token;
 - state-changing cookie-authenticated requests require same-origin `Origin` checks.
 
-The frontend has an `OperatorGate` that checks the session and uses credentialed same-origin login. `scripts/check-frontend-api-auth-contract.mjs` is the static contract guard.
+The frontend has an `OperatorGate` that checks the session and uses credentialed same-origin login. The browser launch/stop/pause/resume requests use same-origin fetches, so the HttpOnly session is carried without embedding the server bearer token.
 
-Issue #131 still has an open GitHub state even though the source-level repair is now present. Keep it open until the issue is formally reconciled/closed with the appropriate static/runtime evidence; do not claim runtime success merely from the implementation.
+**Issue #131 is now closed at source level.** Runtime/Replit verification remains separate and was not claimed by that closure.
 
-## 12. Verification state
+## 12. Newly discovered canonical discovery blocker — #137
 
-The latest two commits added the identity-boundary guard and wired it into the bureau gate. GitHub currently reports no combined status entries and no PR-triggered workflow runs for the latest tip, so **no CI/runtime success is claimed**.
+A fresh audit of `artifacts/api-server/src/src/routes/research/cases.ts` found that the canonical research-case route still imports and invokes `runBroadDiscovery()` with fixed configuration (`templateSet`, `rotateTemplates: false`, `maxQueries: 3`). This is deterministic research strategy inside the canonical case route, despite later review-only handling.
 
-The canonical forced-opening defect (#120), canonical Groq final-review fallback (#128), deterministic secondary-surface lane (#125/#126), duplicate/legacy reachability work (#129/#132), and mission-bootstrap reconciliation (#133) remain open work unless explicitly closed later with evidence.
+**Issue #137:** remove that canonical `runBroadDiscovery()` execution path and route discovery through the canonical model-owned Investigator/ReAct control plane. Do not replace it with another deterministic discovery recipe. Preserve candidate admission, provenance, review-only persistence and durable case context.
+
+## 13. Verification state
+
+The latest source change is commit `f5f186960b96474fc1e7b006b467ff624663217d`, which strengthens `scripts/check-unified-investigator-architecture.mjs` with a #136 identity-boundary regression check. GitHub currently reports no combined status entries and no PR-triggered workflow runs for this tip, so **no CI/runtime success is claimed**.
+
+Open architecture work remains:
+
+- **#120** — forced initial `web_search` opening in the canonical ReAct core;
+- **#125/#126** — deterministic secondary-surface playbook and its SSRF boundary;
+- **#128** — canonical Groq final reviewer;
+- **#129/#132** — duplicate/legacy reachability and remaining legacy enrichment tree;
+- **#133** — institutional mission/bootstrap reconciliation;
+- **#136** — target-derived identity attribution inside ReAct observations;
+- **#137** — canonical research-case route still invoking deterministic broad discovery.
+
+No Replit deployment, provider availability, DB/Redis durability, card promotion, or end-to-end smoke result should be treated as proven until observed directly.
