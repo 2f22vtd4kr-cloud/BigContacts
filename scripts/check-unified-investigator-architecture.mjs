@@ -14,6 +14,7 @@ const files = {
   targetAgent: path.join(root, "artifacts/api-server/src/src/lib/target-contact-agent.ts"),
   launchRoute: path.join(root, "artifacts/api-server/src/routes/atlas.ts"),
   researchRoutes: path.join(root, "artifacts/api-server/src/src/routes/research.ts"),
+  legacyResearchRoutes: path.join(root, "artifacts/api-server/src/routes/research.ts"),
   apiRoutes: path.join(root, "artifacts/api-server/src/routes/index.ts"),
   orientation: path.join(root, "artifacts/api-server/src/src/lib/apex-bureau-orientation.ts"),
   finalReview: path.join(root, "artifacts/api-server/src/src/lib/ai-extractor.ts"),
@@ -63,6 +64,10 @@ assert(/router\.use\(canonicalCaseDiscoveryRouter\)[\s\S]*router\.use\(casesRout
 assert(/canonical-atlas-discovery/.test(source.launchRoute), "Atlas launch route is not wired to canonical model-owned discovery.");
 assert(!/atlas-orchestrator/.test(source.launchRoute), "Atlas launch route still imports the legacy deterministic orchestrator.");
 assert(!/\brunPhaseJBatch\s*\(|\bexpandSecondaryPublicSurface\s*\(|\brunBroadDiscovery\s*|\brunMcts\s*\(|\brunTargetResearch\s*\(/.test(source.canonicalAtlas), "Canonical Atlas runner contains a retired deterministic research path.");
+
+// The top-level API route tree is still mounted for compatibility/status surfaces,
+// but its legacy deterministic MCTS and bulk research routers must remain quarantined.
+assert(!/mctsRouter|bulkRouter/.test(source.legacyResearchRoutes), "Legacy API research router still mounts deterministic MCTS or bulk-hybrid research.");
 
 assert(!/import\s+phaseJRouter\s+from\s+["']\.\/phase-j["']/.test(source.apiRoutes), "Legacy deterministic Phase J router is still imported by the live API route index.");
 assert(!/router\.use\(phaseJRouter\)/.test(source.apiRoutes), "Legacy deterministic Phase J router is still mounted in the live API.");
