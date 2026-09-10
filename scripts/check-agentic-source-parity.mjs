@@ -1,7 +1,7 @@
 import fs from "node:fs";
 
-const file = "artifacts/api-server/src/src/lib/agentic-web-research.ts";
-const source = fs.readFileSync(file, "utf8");
+const wrapper = fs.readFileSync("artifacts/api-server/src/src/lib/agentic-web-research.ts", "utf8");
+const source = fs.readFileSync("artifacts/api-server/src/src/lib/agentic-web-research-core.ts", "utf8");
 
 const marker = "INVESTIGATOR_LLM_CAPABILITY_POOL";
 const llmStart = source.indexOf(marker);
@@ -10,6 +10,7 @@ const extractorStart = source.indexOf("function extractContactFactsFromHtml");
 const extractorEnd = source.indexOf("function isMostlyBinaryGarbage", extractorStart);
 
 const checks = [
+  ["canonical investigator wrapper exists", wrapper.includes("agentic-web-research-core")],
   ["canonical investigator LLM capability marker exists", llmStart >= 0],
   ["investigator lane defines provider adapters", llmStart >= 0 && llmEnd > llmStart && /callGroqJson|callMistralJson/.test(source.slice(llmStart, llmEnd))],
   ["investigator lane is not a closed vendor contract", llmStart >= 0 && llmEnd > llmStart && !/FAILOVER_CHAIN:\s*Groq -> Mistral/.test(source.slice(llmStart, llmEnd))],
