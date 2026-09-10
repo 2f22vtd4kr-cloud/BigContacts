@@ -1,5 +1,5 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
-import { Router } from "express";
+import { Router, type Request, type Response } from "express";
 
 const router = Router();
 const COOKIE_NAME = "apex_session";
@@ -22,6 +22,15 @@ function makeSession(secret: string): string {
   return `${payload}.${sign(payload, secret)}`;
 }
 
+function readCookie(req: Request, name: string): string | undefined {
+  const header = req.header("cookie") ?? "";
+  for (const part of header.split(";")) {
+    const [key, ...rest] = part.trim().split("=");
+    if (key === name) return decodeURIComponent(rest.join("="));
+  }
+  return undefined;
+}
+
 export function verifyOperatorSession(value: string | undefined): boolean {
   const secret = requiredEnv(SECRET_ENV, 32);
   if (!secret || !value) return false;
@@ -35,12 +44,12 @@ export function verifyOperatorSession(value: string | undefined): boolean {
   return provided.length === expectedBytes.length && timingSafeEqual(provided, expectedBytes);
 }
 
-function cookieSecure(req: Parameters<Router["post"]>[0]): boolean {
+function cookieSecure(req: Request): boolean {
   const forwarded = String(req.header("x-forwarded-proto") ?? "").split(",")[0]?.trim().toLowerCase();
   return req.secure || forwarded === "https";
 }
 
-function setSessionCookie(res: Parameters<Router["post"]>[1], token: string, secure: boolean): void {
+function setSessionCookie(res: Response, token: string, secure: boolean): void {
   res.setHeader("Set-Cookie", `${COOKIE_NAME}=${token}; Max-Age=${SESSION_TTL_SECONDS}; Path=/api; HttpOnly; SameSite=Strict${secure ? "; Secure" : ""}`);
 }
 
@@ -68,7 +77,7 @@ router.post("/auth/logout", (_req, res): void => {
 });
 
 router.get("/auth/session", (req, res): void => {
-  res.json({ authenticated: verifyOperatorSession(req.cookies?.[COOKIE_NAME]) });
+  res.json({ authenticated: verifyOperatorSession(readCookie(req, COOKIE_NAME)) });
 });
 
 export default router;
