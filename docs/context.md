@@ -2,7 +2,7 @@
 
 > **Living handoff — 2026-09-10.** Current architecture source of truth. Historical documents are not live control planes.
 
-**Repo:** `2f22vtd4kr-cloud/BigContacts` · **Branch:** `main` · **Current reviewed tip:** `30808c7d87780d4501f0e284ff518d277121c622`
+**Repo:** `2f22vtd4kr-cloud/BigContacts` · **Branch:** `main` · **Current reviewed tip:** `ff874a9ae53a15a424c86b7fcc74ece2d858308c`
 
 ## Institutional contract
 Apex is an AI-driven OSINT bureau, not a deterministic search script.
@@ -47,7 +47,7 @@ institutional constitution -> role purpose -> durable case context -> operator c
 16. Discovery is exposed as explicit `mode="discovery"` rather than requiring a person target at the canonical ReAct boundary.
 17. `scripts/check-canonical-promotion-boundary.mjs` now guards single-observation claim binding and cancellation-state preservation.
 18. A target continuation control boundary now exists: Gemini is explicitly asked to choose `continue_target`, `revisit_target`, `pivot_target`, or `stop`; the decision is persisted as a durable control event and continuation remounts the existing target context rather than creating a scripted research sequence.
-19. Target continuation execution is serialized under the same canonical Atlas distributed job lock before model control is evaluated, preventing concurrent continuation requests from racing and overwriting each other's control state.
+19. Target continuation execution is serialized under the same canonical Atlas distributed job lock before model control is evaluated, preventing concurrent continuation requests from racing and overwriting each other's control state; Redis lock-acquisition failure now fails closed without leaking a job.
 
 ## Confirmed/open forensic defects
 - **#128:** canonical `src/src/lib/ai-extractor.ts` still exposes a Groq final-card-review fallback after Gemini Boss and DeepSeek/NVIDIA. Required remediation is Gemini -> DeepSeek -> deterministic fail-closed adjudication; Groq must not act as reviewer.
