@@ -63,6 +63,12 @@ function mapVectorType(raw: string, value: string): string {
 function sanitizeValue(vectorType: string, value: string): string | null {
   const trimmed = value.trim();
   if (!trimmed) return null;
+  // `person:<name>` is an internal identity/admission marker, not an observed
+  // public contact value. Persisting it as contact evidence would manufacture a
+  // claim-to-source relationship because that literal value normally cannot
+  // occur in the cited source. Identity admissions belong in the case/event
+  // ledger, not in contact_evidence.
+  if (vectorType === "other" && /^person:/i.test(trimmed)) return null;
   if (vectorType === "email") return sanitizePublicEmail(trimmed);
   if (vectorType === "phone") return sanitizePublicPhone(trimmed);
   if (vectorType === "domain" || vectorType === "website") {
