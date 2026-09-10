@@ -2,18 +2,20 @@
  * Ingest Migration Routes
  *
  * One-time and repeatable backfill/sync operations that keep existing data clean.
- * All routes are safe to run multiple times.
+ * Apex person identity and access-state mutations are deliberately excluded from
+ * deterministic migrations: those decisions belong to the canonical model-owned
+ * research/adjudication path.
  *
  * POST /ingest/sync-faa-coordinates     — backfill lat/lng for FAA assets
- * POST /ingest/reclassify-entity-types  — re-run classifyEntityType() on all entities
+ * POST /ingest/reclassify-entity-types  — re-run classifyEntityType() on non-Apex entities
  * POST /ingest/fix-faa-names            — normalize FAA "LAST FIRST" → "First Last"
- * POST /ingest/fix-edgar-names          — normalize EDGAR ALL-CAPS names
- * POST /ingest/sync-hot-flags           — set isHot=true for validated direct contacts
+ * POST /ingest/fix-edgar-names          — retired for Apex identity safety
+ * POST /ingest/sync-hot-flags           — retired; isHot is not a heuristic research selector
  */
 
 import { Router, type Request, type Response } from "express";
 import { db, assetsTable, entitiesTable } from "@workspace/db";
-import { sql, eq, and, gte, inArray } from "drizzle-orm";
+import { sql, eq, and, inArray } from "drizzle-orm";
 import { classifyEntityType } from "../lib/western-hnwi-ingestion";
 import { US_STATE_CENTROIDS, normalizeFaaName } from "../lib/faa-ingestor";
 
@@ -58,7 +60,13 @@ router.post("/ingest/sync-faa-coordinates", async (_req: Request, res: Response)
 // ── POST /ingest/reclassify-entity-types ─────────────────────────────────────
 router.post("/ingest/reclassify-entity-types", async (_req: Request, res: Response): Promise<void> => {
   try {
-    const rows = await db.select({ id: entitiesTable.id, name: entitiesTable.name }).from(entitiesTable);
+    // Never let a deterministic name classifier rewrite canonical Apex person
+    // or Gatekeeper identity. Those entity types require the canonical model-
+    // owned adjudication path.
+    const rows = await db
+      .select({ id: entitiesTable.id, name: entitiesTable.name })
+      .from(entitiesTable)
+      .where(sql`${entitiesTable.type} NOT IN ('HNWI', 'Gatekeeper')`);
 
     const corps: number[] = [];
     const trusts: number[] = [];
@@ -88,13 +96,12 @@ router.post("/ingest/reclassify-entity-types", async (_req: Request, res: Respon
       trustUpdated += chunk.length;
     }
 
-    const hnwiCount = rows.length - corpUpdated - trustUpdated;
     res.json({
       total: rows.length,
       corporations: corpUpdated,
       trusts: trustUpdated,
-      hnwi: hnwiCount,
-      message: `Reclassified ${corpUpdated} → Corporation, ${trustUpdated} → Trust, ${hnwiCount} remain HNWI.`,
+      excludedApexEntities: "HNWI/Gatekeeper",
+      message: `Reclassified ${corpUpdated} → Corporation, ${trustUpdated} → Trust; HNWI/Gatekeeper entities were excluded.`,
     });
   } catch (err: any) {
     res.status(500).json({ error: err?.message ?? "Reclassification failed" });
@@ -152,94 +159,20 @@ router.post("/ingest/fix-faa-names", async (_req: Request, res: Response): Promi
   }
 });
 
-// ── POST /ingest/fix-edgar-names ──────────────────────────────────────────────
-router.post("/ingest/fix-edgar-names", async (_req: Request, res: Response): Promise<void> => {
-  try {
-    const rows = await db
-      .select({ id: entitiesTable.id, name: entitiesTable.name, metadata: entitiesTable.metadata })
-      .from(entitiesTable)
-      .where(sql`${entitiesTable.type} IN ('HNWI', 'Gatekeeper')`);
-
-    const updates: { id: number; name: string }[] = [];
-
-    for (const row of rows) {
-      const meta = (typeof row.metadata === "string" ? JSON.parse(row.metadata) : row.metadata ?? {}) as Record<string, unknown>;
-      if (meta["edgarNameMigrated"] === true) continue;
-
-      const name = row.name.trim();
-      const upperRatio = (name.match(/[A-Z]/g) ?? []).length / (name.replace(/[^a-zA-Z]/g, "").length || 1);
-      if (upperRatio < 0.85) continue;
-      if (!name.includes(" ")) continue;
-
-      const stripped = name.replace(/\s+ET\s+AL\.?\s*$/i, "").trim();
-      const titled = stripped.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
-      const spaceIdx = titled.indexOf(" ");
-      if (spaceIdx === -1) continue;
-      const lastName = titled.slice(0, spaceIdx);
-      const rest = titled.slice(spaceIdx + 1);
-      const normalized = `${rest} ${lastName}`;
-
-      if (normalized !== row.name) {
-        updates.push({ id: row.id, name: normalized });
-      }
-    }
-
-    const CHUNK = 100;
-    let updated = 0;
-    for (let i = 0; i < updates.length; i += CHUNK) {
-      const chunk = updates.slice(i, i + CHUNK);
-      await Promise.all(chunk.map(u =>
-        db.update(entitiesTable)
-          .set({
-            name: u.name,
-            metadata: sql`jsonb_set(COALESCE(${entitiesTable.metadata}::jsonb, '{}'::jsonb), '{edgarNameMigrated}', 'true'::jsonb)`,
-            updatedAt: new Date(),
-          })
-          .where(eq(entitiesTable.id, u.id))
-      ));
-      updated += chunk.length;
-    }
-
-    res.json({
-      total: rows.length,
-      renamed: updated,
-      skipped: rows.length - updated,
-      message: `EDGAR name migration: ${updated} entities normalized to First Last order.`,
-    });
-  } catch (err: any) {
-    res.status(500).json({ error: err?.message ?? "EDGAR name migration failed" });
-  }
+// ── Retired Apex identity migration ──────────────────────────────────────────
+router.post("/ingest/fix-edgar-names", (_req: Request, res: Response): void => {
+  res.status(410).json({
+    error: "Retired migration",
+    message: "EDGAR name normalization for HNWI/Gatekeeper entities is retired; canonical model-owned adjudication owns Apex identity.",
+  });
 });
 
-// ── POST /ingest/sync-hot-flags ───────────────────────────────────────────────
-router.post("/ingest/sync-hot-flags", async (_req: Request, res: Response): Promise<void> => {
-  try {
-    const result = await db.execute(sql`
-      UPDATE entities
-      SET is_hot = (
-        (
-          (email IS NOT NULL AND email !~* '^(info|contact|hello|sales|support|office|admin|press|media|enquiries|inquiries|reservations|booking|investor|ir)@')
-          OR (phone IS NOT NULL AND COALESCE(phone_source, '') NOT IN ('EDGAR-Phone', 'CompaniesHouse-Phone'))
-        )
-        AND entity_type NOT IN ('Corporation', 'Corp', 'Trust')
-      ), updated_at = now()
-      WHERE is_hot IS DISTINCT FROM (
-        (
-          (email IS NOT NULL AND email !~* '^(info|contact|hello|sales|support|office|admin|press|media|enquiries|inquiries|reservations|booking|investor|ir)@')
-          OR (phone IS NOT NULL AND COALESCE(phone_source, '') NOT IN ('EDGAR-Phone', 'CompaniesHouse-Phone'))
-        )
-        AND entity_type NOT IN ('Corporation', 'Corp', 'Trust')
-      )
-      RETURNING id
-    `);
-    const updated = (result.rows as Array<{ id: number }>).length;
-    res.json({
-      updated,
-      message: `${updated} entit${updated === 1 ? "y" : "ies"} flagged as hot lead${updated === 1 ? "" : "s"}.`,
-    });
-  } catch (err: any) {
-    res.status(500).json({ error: err?.message ?? "Sync failed" });
-  }
+// ── Retired heuristic access-state migration ─────────────────────────────────
+router.post("/ingest/sync-hot-flags", (_req: Request, res: Response): void => {
+  res.status(410).json({
+    error: "Retired migration",
+    message: "Hot-flag heuristics are retired; isHot is not a deterministic research selector. Use explicit validated contact outcomes through the canonical path.",
+  });
 });
 
 export default router;
