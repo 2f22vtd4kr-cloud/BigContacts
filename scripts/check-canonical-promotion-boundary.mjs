@@ -43,6 +43,8 @@ const checks = [
   ["strict boundary rejects search-query provenance", strict.includes("SEARCH_QUERY_URL") && strict.includes("isClaimSourceUrl")],
   ["strict boundary fails closed without source", strict.includes("if (!sourceUrls.length) continue")],
   ["target oversight mounts structured trajectory", targetRunner.includes("trajectoryRecords") && targetRunner.includes("Structured Investigator turns")],
+  ["target runner delegates continuation choice to Gemini", targetRunner.includes("decideTargetNextAction") && targetRunner.includes("TargetControlAction")],
+  ["target runner does not close immediately after the first Investigator pass", targetRunner.includes("targetControlDecisions") && targetRunner.includes("continue_target")],
   ["Atlas control receives structured trajectory", atlas.includes("discoveryTrajectoryRecords: discovery.trajectoryRecords")],
   ["Atlas control prompts include structured observations", control.includes("STRUCTURED OBSERVATIONS") && control.includes("discoveryTrajectoryRecords")],
   ["Atlas preserves trajectory records across discovery pivots", atlas.includes("trajectoryRecords: [...(discovery.trajectoryRecords ?? []), ...(nextDiscovery.trajectoryRecords ?? [])]")],
