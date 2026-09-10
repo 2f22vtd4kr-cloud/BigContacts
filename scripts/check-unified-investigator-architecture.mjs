@@ -7,8 +7,8 @@ const files = {
   bureau: path.join(root, "artifacts/api-server/src/src/lib/case-bureau.ts"),
   prompt: path.join(root, "artifacts/api-server/src/src/lib/case-bureau-prompt.ts"),
   pass: path.join(root, "artifacts/api-server/src/src/lib/bureau-agentic-pass.ts"),
-  cases: path.join(root, "artifacts/api-server/src/src/routes/research/cases.ts"),
   canonicalCase: path.join(root, "artifacts/api-server/src/src/routes/research/canonical-case-discovery.ts"),
+  caseData: path.join(root, "artifacts/api-server/src/src/routes/research/case-data.ts"),
   canonicalAtlas: path.join(root, "artifacts/api-server/src/src/lib/canonical-atlas-discovery.ts"),
   atlasControl: path.join(root, "artifacts/api-server/src/src/lib/atlas-control-decision.ts"),
   canonicalTarget: path.join(root, "artifacts/api-server/src/src/lib/canonical-single-target-runner.ts"),
@@ -50,7 +50,7 @@ assert(!groqFinalFallback.test(source.legacyFinalReview), "Groq is still exposed
 assert(/investigatorLlm/.test(source.bureau), "Boss plan does not expose investigatorLlm.");
 assert(/investigatorLlm/.test(source.pass), "ReAct pass does not accept investigatorLlm.");
 assert(/investigatorLlm/.test(source.research), "ReAct research runtime does not receive investigatorLlm.");
-assert(/runBureauAgenticWebPass\(\{[\s\S]*?investigatorLlm\s*:/.test(source.canonicalCase + source.cases), "Case discovery invocation is not visibly bound to the Boss-selected Investigator.");
+assert(/runBureauAgenticWebPass\(\{[\s\S]*?investigatorLlm\s*:/.test(source.canonicalCase), "Case discovery invocation is not visibly bound to the Boss-selected Investigator.");
 assert(/runBureauAgenticWebPass\(\{[\s\S]*?caseId\s*,/.test(source.canonicalCase), "Canonical case discovery does not mount its durable discovery case context into the Investigator.");
 assert(/investigatorLlm\s*:/.test(source.canonicalAtlas), "Canonical Atlas discovery does not bind the selected Investigator.");
 assert(/runBureauAgenticWebPass\(\{[\s\S]*?caseId\s*:/.test(source.canonicalAtlas), "Canonical Atlas discovery does not mount a durable discovery case context into the Investigator.");
@@ -66,7 +66,10 @@ assert(/if \(!contextDocument\)\s*\{[\s\S]*?return \{ status: "unavailable"/.tes
 assert(/runCanonicalSingleTargetInvestigation/.test(source.launchRoute), "Atlas launch route does not expose the canonical single-target control plane.");
 
 assert(/canonical-case-discovery/.test(source.researchRoutes), "Canonical case-discovery router is not mounted.");
-assert(/router\.use\(canonicalCaseDiscoveryRouter\)[\s\S]*router\.use\(casesRouter\)/.test(source.researchRoutes), "Legacy cases router is mounted before canonical case discovery.");
+assert(/canonical-case-continuation/.test(source.researchRoutes), "Canonical case-continuation router is not mounted.");
+assert(/case-data/.test(source.researchRoutes), "Durable case data router is not mounted.");
+assert(!/from "\.\/research\/cases"/.test(source.researchRoutes), "Legacy mixed research/cases router is still imported by the live canonical research router.");
+assert(!/router\.use\(casesRouter\)/.test(source.researchRoutes), "Legacy mixed research/cases router is still mounted by the live canonical research router.");
 
 assert(/canonical-atlas-discovery/.test(source.launchRoute), "Atlas launch route is not wired to canonical model-owned discovery.");
 assert(!/atlas-orchestrator/.test(source.launchRoute), "Atlas launch route still imports the legacy deterministic orchestrator.");
@@ -77,20 +80,10 @@ assert(!/\brunPhaseJBatch\s*\(|\bexpandSecondaryPublicSurface\s*\(|\brunBroadDis
 // reprioritize, or stop; deterministic persistence cannot encode that research sequence.
 assert(!/for\s*\(const\s+name\s+of\s+admitted\)[\s\S]{0,12000}runCanonicalSingleTargetInvestigation\s*\(/.test(source.canonicalAtlas), "Canonical Atlas hard-wires discovery→target research as a deterministic phase transition; #134 remains unresolved.");
 
-// Broad discovery used to be a deterministic template/query/extraction playbook. It must
-// not remain callable from the canonical Case Bureau simply because the old endpoint is
-// quarantined. Discovery is now an Investigator trajectory, not a category loop.
-assert(!/\brunBroadDiscovery\s*\(/.test(source.cases), "Canonical Case Bureau still invokes deterministic broad discovery; use the Investigator capability instead.");
-assert(!/\brunBroadDiscovery\s*\(/.test(source.canonicalCase), "Canonical case-discovery route still invokes deterministic broad discovery.");
-
-// The older cases router also contains a second mixed-source execution lane. Keep these
-// assertions strict so removing runBroadDiscovery alone cannot leave a shadow research brain
-// behind under the same mounted route. Case CRUD/read/event data may remain, but research
-// execution belongs to the canonical model-owned control plane.
-assert(!/\brunMistralWebSearch\s*\(/.test(source.cases), "Canonical Case Bureau still directly executes the Mistral web-search lane; #138 requires retiring the legacy execution path.");
-assert(!/\bsearchRegistry\s*\(/.test(source.cases), "Canonical Case Bureau still executes deterministic registry discovery; #138 requires moving registry choice behind the Investigator control plane.");
-assert(!/\bexpandSecondaryPublicSurface\s*\(/.test(source.cases), "Canonical Case Bureau still executes deterministic secondary-surface expansion; #125/#138 require model-selected capability execution.");
-assert(!/const\s+discoveryTemplateSet\s*=|\bwesternTemplateSets\s*=/.test(source.cases), "Canonical Case Bureau still derives a deterministic discovery template/category lane; #138 remains unresolved.");
+// The legacy mixed cases.ts research executor is intentionally quarantined by the route
+// graph. It is no longer a required live architecture source; deletion/reachability cleanup
+// is tracked separately under #129/#138. The live router must not import or mount it.
+assert(!/cases\.ts/.test(source.researchRoutes), "Live canonical research router still references quarantined cases.ts.");
 
 // The top-level API route tree is still mounted for compatibility/status surfaces,
 // but its legacy deterministic MCTS and bulk research routers must remain quarantined.
