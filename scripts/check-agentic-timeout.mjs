@@ -1,6 +1,6 @@
 import fs from "node:fs";
 
-const source = fs.readFileSync("artifacts/api-server/src/src/lib/agentic-web-research.ts", "utf8");
+const source = fs.readFileSync("artifacts/api-server/src/src/lib/agentic-web-research-core.ts", "utf8");
 const pkg = JSON.parse(fs.readFileSync("artifacts/api-server/package.json", "utf8"));
 
 const ok =
@@ -8,7 +8,7 @@ const ok =
   source.includes("AGENTIC_PROVIDER_DECISION_TIMEOUT_MS") &&
   (source.includes("void fn(prompt).then(") || source.includes("void fn(prompt, controller.signal).then(")) &&
   source.includes("clearTimeout(timer)") &&
-  pkg.scripts?.build?.includes("apply-agentic-timeout-hardening.mjs");
+  pkg.scripts?.build?.includes("check-agentic-timeout-abort-safety.mjs");
 
 if (!ok) {
   console.error("FAIL: agentic provider timeout hardening is missing or not wired into the canonical build");
