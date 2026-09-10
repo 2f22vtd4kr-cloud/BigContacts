@@ -32,11 +32,6 @@ function isObservedHttpSource(value: unknown): value is string {
   return typeof value === "string" && /^https?:\/\/\S+$/i.test(value);
 }
 
-/**
- * The initial Atlas discovery is itself an investigation. Give it an explicit
- * durable case before the Investigator is called so trajectory, observations,
- * and later oversight state cannot live only in process memory.
- */
 async function createAtlasDiscoveryCase(input: {
   atlasJobId: string;
   objective: string;
@@ -80,7 +75,6 @@ async function createAtlasDiscoveryCase(input: {
   return caseId;
 }
 
-/** Persist only explicit, source-backed Investigator person promotions as review-only candidates. */
 async function materializeAtlasAdmissions(input: {
   findings: Array<{
     promotionDecision?: "promote" | "reject";
@@ -159,11 +153,6 @@ async function materializeAtlasAdmissions(input: {
   return { names: admitted, materialized, evidenceRows };
 }
 
-/**
- * Public Atlas discovery control plane. Gemini/DeepSeek coordinate; the selected
- * Groq/Mistral Investigator performs the actual open-web work. Deterministic code
- * validates, persists and bounds execution; AI owns the next research action.
- */
 export async function runCanonicalAtlasPipeline(
   atlasJobId: string,
   opts: CanonicalAtlasOptions = {},
@@ -303,8 +292,6 @@ export async function runCanonicalAtlasPipeline(
     phaseSummary.assignment = `${boss.investigatorLlm} selected by Gemini; discovery completed=${discovery.status}; durableCase=${discoveryCaseId}.`;
     phaseSummary.discovery = `admitted=${admitted.length}; materialized=${materialized}; evidenceRows=${evidenceRows}; searches=${discovery.searches}; visits=${discovery.visits}; trajectory=${discovery.trajectory.length}`;
 
-    // AI owns this transition. The loop below is only a bounded execution envelope;
-    // the next research action comes from Gemini Boss after DeepSeek Right-hand review.
     while (controlTurns < maxControlTurns) {
       controlTurns += 1;
       const decision = await decideAtlasNextAction({
@@ -325,6 +312,8 @@ export async function runCanonicalAtlasPipeline(
         })),
         priorAction,
         priorCandidate,
+        caseId: discoveryCaseId,
+        controlTurn: controlTurns,
       });
 
       phaseSummary[`control_${controlTurns}`] = `${decision.action}${decision.candidateName ? `:${decision.candidateName}` : ""}${decision.direction ? ` — ${decision.direction.slice(0, 180)}` : ""}`;
