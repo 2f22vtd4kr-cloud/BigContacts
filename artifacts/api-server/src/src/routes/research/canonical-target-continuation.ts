@@ -37,14 +37,24 @@ router.post("/research/bureau/target-cases/:caseId/run-next-pass", async (req, r
   let contextDocument: string;
   try { contextDocument = contextOf(file); } catch (error) { res.status(409).json({ error: error instanceof Error ? error.message : "Durable target context is missing." }); return; }
 
-  const jobId = await createJob("atlas-run");
-  const claimed = await claimCanonicalJob("atlas-run", jobId);
-  if (!claimed) {
-    await updateJob(jobId, { status: "failed", outcome: "incomplete", message: "Another canonical Atlas job owns the distributed execution lock.", finishedAt: new Date().toISOString() });
-    res.status(409).json({ error: "Another canonical Atlas investigation owns the execution lock.", jobId });
+  let jobId: string | null = null;
+  try {
+    jobId = await createJob("atlas-run");
+    const claimed = await claimCanonicalJob("atlas-run", jobId);
+    if (!claimed) {
+      await updateJob(jobId, { status: "failed", outcome: "incomplete", message: "Another canonical Atlas job owns the distributed execution lock.", finishedAt: new Date().toISOString() });
+      res.status(409).json({ error: "Another canonical Atlas investigation owns the execution lock.", jobId });
+      return;
+    }
+    await setActiveJob("atlas-run", jobId);
+  } catch (error) {
+    if (jobId) {
+      await updateJob(jobId, { status: "failed", outcome: "incomplete", message: error instanceof Error ? error.message : "Canonical Atlas lock acquisition failed.", finishedAt: new Date().toISOString() }).catch(() => undefined);
+      await clearActiveJobIfOwned("atlas-run", jobId).catch(() => undefined);
+    }
+    res.status(503).json({ error: error instanceof Error ? error.message : "Canonical Atlas lock acquisition failed.", jobId });
     return;
   }
-  await setActiveJob("atlas-run", jobId);
 
   const targetName = typeof file.target.name === "string" ? file.target.name : "";
   const targetType = typeof file.target.type === "string" ? file.target.type : "unknown";
@@ -71,6 +81,7 @@ router.post("/research/bureau/target-cases/:caseId/run-next-pass", async (req, r
     if (decision.status !== "completed" || decision.action === "stop") {
       await db.update(researchCasesTable).set({ status: "review", currentAction: "gemini-target-stop", lastDecisionAt: new Date(), updatedAt: new Date() }).where(eq(researchCasesTable.id, caseId));
       await updateJob(jobId, { status: "done", progress: 5, total: 5, outcome: "complete", message: `Gemini target control closed continuation for ${targetName}; case remains in review.`, result: JSON.stringify({ caseId, decision }), finishedAt: new Date().toISOString() });
+      await clearActiveJobIfOwned("atlas-run", jobId);
       res.status(200).json({ caseId, jobId, status: "review", decision });
       return;
     }
@@ -100,13 +111,13 @@ router.post("/research/bureau/target-cases/:caseId/run-next-pass", async (req, r
     await updateJob(jobId, { progress: 1, message: `Gemini authorized ${decision.action}; remounting target context for ${targetName}…`, result: JSON.stringify({ caseId, decision }) });
     void (async () => {
       try {
-        await runCanonicalSingleTargetInvestigation(jobId, Number(current.targetEntityId), {});
+        await runCanonicalSingleTargetInvestigation(jobId!, Number(current.targetEntityId), {});
       } catch (error) {
         const message = error instanceof Error ? error.message : "Target continuation failed.";
         await db.update(researchCasesTable).set({ status: "review", currentAction: "target-continuation-error", updatedAt: new Date() }).where(eq(researchCasesTable.id, caseId));
-        await updateJob(jobId, { status: "failed", outcome: "incomplete", message, finishedAt: new Date().toISOString() });
+        await updateJob(jobId!, { status: "failed", outcome: "incomplete", message, finishedAt: new Date().toISOString() });
       } finally {
-        await clearActiveJobIfOwned("atlas-run", jobId);
+        await clearActiveJobIfOwned("atlas-run", jobId!);
       }
     })();
 
