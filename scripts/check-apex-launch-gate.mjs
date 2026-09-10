@@ -3,6 +3,8 @@ import fs from "node:fs";
 import { execFileSync } from "node:child_process";
 
 const hardeners = [
+  "apply-free-react-opening-repair.mjs",
+  "apply-harvest-domain-egress-quarantine.mjs",
   "apply-agentic-domain-signal-hardening.mjs",
   "apply-agentic-username-capability-split.mjs",
   "apply-final-review-role-boundary.mjs",
@@ -47,6 +49,7 @@ pass("manual audit runs agentic runtime checks", /check:agentic-runtime/.test(ba
 pass("discovery emits model-selection progress", /onSlotProgress\?/.test(discovery));
 pass("orchestrator defaults target limit to three", /opts\.targetCount \?\? 3/.test(orchestrator));
 pass("orchestrator does not force a ten-target default", !/opts\.targetCount \?\? 10/.test(orchestrator));
+pass("first Investigator action is not seeded with web_search", !/Begin\. Choose an initial web_search query/i.test(agentic) && !/\(none — begin with web_search\)/i.test(agentic));
 pass("Maigret is individually selectable", agentic.includes('"footprint_username_maigret"'));
 pass("Sherlock is individually selectable", agentic.includes('"footprint_username_sherlock"'));
 pass("compound username action is gone", !/action === "footprint_username"/.test(agentic));
@@ -58,12 +61,13 @@ pass("registry has no timeout-only fetch signal", !/signal:\s*AbortSignal\.timeo
 pass("Python subprocesses have AbortSignal", /signal\?: AbortSignal/.test(pythonTools));
 pass("Python subprocesses use detached POSIX groups", /detached: process\.platform !== "win32"/.test(pythonTools));
 pass("Python subprocess cancellation has hard kill backstop", /SIGKILL/.test(pythonTools));
+pass("harvest_domain fails closed pending governed egress", /HARVEST_DOMAIN blocked: network-capable subprocess egress is not yet governed/.test(agentic) && !/runTheHarvester\(/.test(agentic));
 pass("Groq is not a final reviewer", !/Groq capacity fallback|groq-final-review-fallback/.test(aiExtractor));
 pass("DeepSeek final review remains available", /runDeepSeekFinalReview/.test(aiExtractor));
 pass("final review fails closed", /unavailable-final-review/.test(aiExtractor));
 pass("canonical secondary research caller is retired", !/\bexpandSecondaryPublicSurface\s*\(/.test(entities));
 pass("canonical observation layer does not inherit target identity", !/personName:\s*(?:targetName|name)\b/.test(agentic));
-pass("Atlas does not script Maigret/Holehe", !/runMaigret\(|runHolehe\(|rawHandle \|\| emailForHolehe/.test(orchestrator));
+pass("Atlas does not script Python OSINT", !/runMaigret\(|runHolehe\(|runSherlock\(|runTheHarvester\(|rawHandle \|\| emailForHolehe/.test(orchestrator));
 pass("legacy Atlas launch is quarantined", /router\.post\(\"\/ingest\/atlas-run\"[\s\S]{0,500}status\(410\)/.test(legacyAtlas));
 pass("legacy Atlas route cannot call historical orchestrator", !/runAtlasPipeline\(|from [\"']\.\.\/lib\/atlas-orchestrator[\"']/.test(legacyAtlas));
 
