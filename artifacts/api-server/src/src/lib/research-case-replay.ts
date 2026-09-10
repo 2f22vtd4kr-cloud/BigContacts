@@ -41,6 +41,23 @@ export type ResearchCaseReplay = {
   violations: string[];
 };
 
+const ALLOWED_ACTOR_ROLES = new Set([
+  "head_investigator",
+  "gemini_boss",
+  "right_hand",
+  "specialist",
+  "human_operator",
+  "system",
+]);
+const ALLOWED_EVENT_TYPES = new Set([
+  "case_opened",
+  "decision",
+  "assignment",
+  "observation",
+  "directive",
+  "status",
+]);
+
 function parsePayload(raw: string, eventId: number, violations: string[]): Record<string, unknown> {
   try {
     const parsed = JSON.parse(raw || "{}");
@@ -94,8 +111,14 @@ export function replayResearchCaseEvents(events: ResearchReplayEvent[]): Researc
     if (!Number.isInteger(event.id) || event.id <= 0) violations.push(`event has invalid id: ${String(event.id)}`);
     if (seenIds.has(event.id)) violations.push(`event ${event.id}: duplicate event ID`);
     seenIds.add(event.id);
+    if (!Number.isInteger(event.caseId) || event.caseId <= 0) violations.push(`event ${event.id}: invalid caseId ${String(event.caseId)}`);
     if (event.caseId !== caseId) violations.push(`event ${event.id}: caseId ${event.caseId} differs from replay case ${caseId}`);
+    if (!Number.isInteger(event.iteration) || event.iteration < 0) violations.push(`event ${event.id}: invalid iteration ${String(event.iteration)}`);
     if (event.iteration < previousIteration) violations.push(`event ${event.id}: iteration regressed from ${previousIteration} to ${event.iteration}`);
+    if (!ALLOWED_ACTOR_ROLES.has(event.actorRole)) violations.push(`event ${event.id}: unknown actorRole ${event.actorRole}`);
+    if (!ALLOWED_EVENT_TYPES.has(event.eventType)) violations.push(`event ${event.id}: unknown eventType ${event.eventType}`);
+    if (!event.status.trim()) violations.push(`event ${event.id}: empty status`);
+    if (!event.summary.trim()) violations.push(`event ${event.id}: empty summary`);
     if (!Number.isFinite(asTime(event.createdAt))) violations.push(`event ${event.id}: invalid createdAt`);
     previousIteration = Math.max(previousIteration, event.iteration);
 
