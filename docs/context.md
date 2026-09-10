@@ -4,7 +4,7 @@
 
 **Repo:** https://github.com/2f22vtd4kr-cloud/BigContacts  
 **Branch:** `main`  
-**Current GitHub code tip:** `9e64e25f9c927b762be62340a9a12c3dd7330c73`  
+**Current GitHub code tip:** `50c6ffa6cee2bdb228b835399cc401675e2d278a`  
 **Product:** Apex Atlas research bureau embedded in BigContacts. Bureau is the OSINT/research architecture, not a separate product.
 
 ## 1. Institutional identity and mission
@@ -150,7 +150,7 @@ Atlas transition control is now AI-owned. Gemini, after DeepSeek/Right-Hand over
 
 Candidate selection is validated against the explicit admitted set. Invalid model decisions fail closed. The execution turn budget is a safety envelope, not a research recipe.
 
-Each Atlas control decision is now durable case memory (`control_decision`) with action, candidate, direction, rationale, confidence, Boss state, Right-Hand state and control turn. Persistence is fail-closed. This is recorded in the current audit commits and issue #135, which is closed.
+Each Atlas control decision is now durable case memory (`control_decision`) with action, candidate, direction, rationale, confidence, Boss state, Right-Hand state and control turn. Persistence is fail-closed. The control API now also requires a valid positive durable `caseId` and positive `controlTurn`; missing or invalid context throws before any model decision can be accepted. This prevents a context-free control decision from becoming process-only state.
 
 ## 6. Evidence and person-admission law
 
@@ -247,9 +247,9 @@ The guards are regression barriers, not proof of runtime behavior. A field named
 ## 14. Verification truth
 
 GitHub currently shows the latest main tip as:
-`9e64e25f9c927b762be62340a9a12c3dd7330c73` (`Record Atlas control durability continuation`, 2026-09-10 07:05:30Z).
+`50c6ffa6cee2bdb228b835399cc401675e2d278a` (`Fail closed when Atlas control context is omitted`, 2026-09-10).
 
-There are no reported combined CI status checks for the preceding `aacb2f82e0ec9683b0cb0fd4e9a7d7081f7ed049` tip, and the latest commit was documentation-only. No runtime/Replit success is claimed.
+No runtime/Replit success is claimed.
 
 The repository remains **PRE-DEPLOYMENT / STATIC AUDIT CONTINUING**.
 
@@ -267,7 +267,7 @@ The repository remains **PRE-DEPLOYMENT / STATIC AUDIT CONTINUING**.
 
 ## 16. Engineering safety
 
-Never blindly replace large files. Inspect exact source, trace reachability, make the smallest safe patch, inspect the diff immediately, run targeted verification, open a focused PR, verify available checks, merge, and restart the hunt.
+Never blindly replace large files. Inspect exact source, trace reachability, make the smallest safe patch, inspect the diff immediately, run targeted verification, open a focused PR, verify available checks, and restart the hunt.
 
 Do not use scripts to teach trained models or impose deterministic research sequences. Scripts verify contracts; models choose research.
 
