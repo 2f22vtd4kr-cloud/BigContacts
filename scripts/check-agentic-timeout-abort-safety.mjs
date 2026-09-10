@@ -7,11 +7,12 @@ const source = fs.readFileSync(target, "utf8");
 
 const required = [
   "signal?: AbortSignal",
-  "signal: signal ?? AbortSignal.timeout(50_000)",
-  "signal: signal ?? AbortSignal.timeout(45_000)",
-  "const controller = new AbortController()",
-  "controller.abort(); reject(new Error(name + \":timeout\"))",
+  "const runController = new AbortController()",
+  "const timeout = setTimeout(() => runController.abort(), hardTimeoutMs)",
+  "await acquireProviderSlot(parentSignal)",
   "fn(prompt, controller.signal)",
+  "Math.min(MAX_ITER, Math.max(1, requestedIterations))",
+  "status: \"cancelled\"",
 ];
 for (const marker of required) {
   if (!source.includes(marker)) throw new Error(`agentic timeout-abort guard failed: missing ${marker}`);
