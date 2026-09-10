@@ -2,7 +2,7 @@
 
 > **Living handoff — 2026-09-10.** Current architecture source of truth. Historical documents are not live control planes.
 
-**Repo:** `2f22vtd4kr-cloud/BigContacts` · **Branch:** `main` · **Current reviewed tip:** `e2b6592fa811d300c7143e809ef3d917faeb39b8`
+**Repo:** `2f22vtd4kr-cloud/BigContacts` · **Branch:** `main` · **Current reviewed tip:** `e36595ddab9c5bc9e3e976cde40fce06470be094`
 
 ## Institutional contract
 Apex is an AI-driven OSINT bureau, not a deterministic search script.
@@ -36,16 +36,17 @@ institutional constitution -> role purpose -> durable case context -> operator c
 3. One run-scoped AbortController covers canonical LLM/provider/search/page/browser paths.
 4. Python OSINT subprocesses have detached POSIX process groups, SIGTERM/SIGKILL cancellation, bounded output, and distinct cancellation state. **Formal subprocess network-egress governance remains unresolved.**
 5. `domain-surface.ts` accepts caller cancellation and uses it for RDAP/WhoisJSON. The canonical ReAct domain action is now wired to pass `runController.signal` through the build hardening path.
-6. Registry search now has an AbortSignal contract and canonical ReAct registry execution passes the run signal through the registry transport layer.
+6. Registry search now has an AbortSignal contract; canonical ReAct registry execution and GLEIF pass the run signal through the registry transport layer.
 7. Username footprinting is split into individually model-selectable Maigret and Sherlock capabilities; the old compound username action is rejected by guards.
 8. Final card review is hardening toward the required role law: Gemini Boss -> DeepSeek/NVIDIA -> deterministic fail-closed adjudication; a build hardener removes the Groq reviewer fallback and a dedicated guard rejects it in both source trees.
 9. Deterministic secondary-surface calls from canonical `entities.ts` and `atlas-orchestrator.ts` are retired at build time to a neutral empty surface; the retirement guard rejects live callers and independent fetch transport.
 10. Deterministic target-name identity inheritance in the canonical Investigator observation layer is removed by build-time hardening (`personName: targetName/name` -> neutral identity); model-authored `done` findings remain the only promotion source.
-11. Structured ReAct trajectory records exist and canonical discovery/target continuation persists bounded trajectory records/context projections. Full operator-grade replay/event-ledger durability remains a target.
-12. Discovery is an explicit `mode="discovery"`, not a fake person target.
-13. Evidence binding is single-observation: exact contact value and candidate identity must co-occur in one successful bounded observation for candidate-scoped claims.
-14. Attempted URLs do not become provenance; only successful observed URLs do.
-15. Browser escalation and canonical HTTP paths use SSRF-safe transport and bounded responses.
+11. Deterministic Atlas Maigret/Holehe fan-out is retired from the canonical orchestrator; those are Investigator-selectable capabilities, not scripted enrichment stages.
+12. Structured ReAct trajectory records exist and canonical discovery/target continuation persists bounded trajectory records/context projections. Full operator-grade replay/event-ledger durability remains a target.
+13. Discovery is an explicit `mode="discovery"`, not a fake person target.
+14. Evidence binding is single-observation: exact contact value and candidate identity must co-occur in one successful bounded observation for candidate-scoped claims.
+15. Attempted URLs do not become provenance; only successful observed URLs do.
+16. Browser escalation and canonical HTTP paths use SSRF-safe transport and bounded responses.
 
 ## Build/test guard chain
 `artifacts/api-server/package.json` now runs the relevant hardening scripts before the architecture guards/build, including:
@@ -56,6 +57,7 @@ institutional constitution -> role purpose -> durable case context -> operator c
 - secondary-surface retirement + retired-route guard;
 - Investigator identity-observation hardening;
 - registry cancellation hardening + guard;
+- Atlas scripted-OSINT retirement + guard;
 - unified Investigator architecture;
 - free-ReAct boundary;
 - source parity;
@@ -65,7 +67,7 @@ institutional constitution -> role purpose -> durable case context -> operator c
 - runtime hardening;
 - discovery boundary.
 
-These are static repository/build gates. **No CI/runtime/provider success is inferred merely because the scripts are wired.**
+These are static repository/build gates. **No CI/runtime/provider success is inferred merely because the scripts are wired.** The latest commit has no reported GitHub status checks.
 
 ## Open blockers / next engineering targets
 - **#139 / #141:** subprocess OSINT still needs a real network-egress boundary. Cancellation is materially hardened, but child processes can still make their own network requests outside Node's SSRF/quota transport. The world-class target is a real sandbox/egress broker or governed service, not proxy environment variables.
@@ -76,7 +78,7 @@ These are static repository/build gates. **No CI/runtime/provider success is inf
 - **#137/#138:** legacy canonical case execution/discovery sources remain on disk and must stay unmounted from live research until final retirement is proven.
 - **#125/#126:** automatic secondary-surface research is retired from the key canonical callers; remaining legacy source should be removed/reconciled and no independent fetch transport should remain reachable.
 - **#128:** Groq final-review fallback is now blocked by build-time hardening and a dedicated role guard; the next step is direct source cleanup plus runtime proof, not merely guard green status.
-- **#147:** username compound capability is split; remaining capability-surface work includes individual email/theHarvester contracts and exact per-capability provenance where appropriate.
+- **#147:** username compound capability is split; remaining capability-surface work is now primarily exact tool-level provenance/cancellation/egress and ensuring no other canonical orchestrator directly launches OSINT tools. The canonical Atlas Maigret/Holehe fan-out has now been retired.
 
 ## World-class architecture north star
 See `docs/APEX_WORLD_CLASS_OSINT_ARCHITECTURE.md`.
