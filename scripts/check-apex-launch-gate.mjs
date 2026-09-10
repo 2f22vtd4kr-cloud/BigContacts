@@ -5,12 +5,14 @@ const read = (p) => fs.readFileSync(p, "utf8");
 const checks = [];
 const pass = (name, ok) => checks.push([name, Boolean(ok)]);
 
-const agentic = read("artifacts/api-server/src/src/lib/agentic-web-research.ts");
+const wrapper = read("artifacts/api-server/src/src/lib/agentic-web-research.ts");
+const agentic = read("artifacts/api-server/src/src/lib/agentic-web-research-core.ts");
 const strict = read("artifacts/api-server/src/src/lib/bureau-contact-persist-strict.ts");
 const batch = read(".github/workflows/apex-batch10.yml");
 const discovery = read("artifacts/api-server/src/src/lib/discovery-agent.ts");
 const orchestrator = read("artifacts/api-server/src/src/lib/atlas-orchestrator.ts");
 
+pass("Investigator wrapper mounts canonical core", wrapper.includes("agentic-web-research-core"));
 pass("Investigator adapter pool contains Groq", /callGroqJson/.test(agentic));
 pass("Investigator adapter pool contains Mistral", /callMistralJson/.test(agentic));
 pass("Boss-selected Investigator reaches llmStep", /investigatorLlm\?: "groq" \| "mistral"/.test(agentic) && /selectedInvestigatorLlm/.test(agentic));
