@@ -37,6 +37,15 @@ router.post("/research/bureau/target-cases/:caseId/run-next-pass", async (req, r
   let contextDocument: string;
   try { contextDocument = contextOf(file); } catch (error) { res.status(409).json({ error: error instanceof Error ? error.message : "Durable target context is missing." }); return; }
 
+  const jobId = await createJob("atlas-run");
+  const claimed = await claimCanonicalJob("atlas-run", jobId);
+  if (!claimed) {
+    await updateJob(jobId, { status: "failed", outcome: "incomplete", message: "Another canonical Atlas job owns the distributed execution lock.", finishedAt: new Date().toISOString() });
+    res.status(409).json({ error: "Another canonical Atlas investigation owns the execution lock.", jobId });
+    return;
+  }
+  await setActiveJob("atlas-run", jobId);
+
   const targetName = typeof file.target.name === "string" ? file.target.name : "";
   const targetType = typeof file.target.type === "string" ? file.target.type : "unknown";
   const objective = typeof current.objective === "string" && current.objective ? current.objective : `Investigate the exact named target ${targetName} for realistic public contact routes.`;
@@ -45,9 +54,9 @@ router.post("/research/bureau/target-cases/:caseId/run-next-pass", async (req, r
   const latestReport = priorInvestigator.length ? priorInvestigator[priorInvestigator.length - 1] : null;
   const controlTurn = Math.max(0, Number(current.iteration ?? 0)) + 1;
 
-  let decision;
   try {
-    decision = await decideTargetNextAction({
+    await updateJob(jobId, { status: "running", progress: 0, total: 5, message: `Gemini Boss reviewing continuation options for ${targetName}…` });
+    const decision = await decideTargetNextAction({
       caseId,
       controlTurn,
       targetName,
@@ -58,62 +67,57 @@ router.post("/research/bureau/target-cases/:caseId/run-next-pass", async (req, r
       investigatorStatus: typeof latestReport?.status === "string" ? latestReport.status : current.status,
       investigatorStopReason: typeof file.investigatorStopReason === "string" ? file.investigatorStopReason : null,
     });
-  } catch (error) {
-    res.status(503).json({ error: error instanceof Error ? error.message : "Target control decision unavailable" });
-    return;
-  }
 
-  if (decision.status !== "completed" || decision.action === "stop") {
-    await db.update(researchCasesTable).set({ status: "review", currentAction: "gemini-target-stop", lastDecisionAt: new Date(), updatedAt: new Date() }).where(eq(researchCasesTable.id, caseId));
-    res.status(200).json({ caseId, status: "review", decision });
-    return;
-  }
-
-  const direction = decision.direction?.trim() || "Reassess the strongest unresolved evidence question within the exact target scope.";
-  const nextContext = `${contextDocument}\n\n## Gemini Boss — explicit continuation decision\nAction: ${decision.action}\nResearch direction: ${direction}\nReason: ${decision.reason ?? "not supplied"}\nConfidence: ${decision.confidence ?? "unknown"}\nThis direction is a research objective, not a prescribed tool sequence. Investigator retains control of every search, visit, pivot, evidence judgment, and stopping decision.`.slice(-32000);
-  const nextFile = {
-    ...file,
-    contextDocument: nextContext,
-    nextInvestigation: {
-      ...(file.nextInvestigation ?? {}),
-      targetControl: {
-        action: decision.action,
-        direction,
-        reason: decision.reason,
-        confidence: decision.confidence,
-        rightHand: decision.rightHand,
-        bossModel: decision.bossModel,
-        recordedAt: new Date().toISOString(),
-      },
-    },
-    lastUpdatedBy: "gemini-boss-target-control",
-  };
-  await db.update(researchCasesTable).set({ caseFile: JSON.stringify(nextFile), status: "active", currentAction: `gemini-${decision.action}`, updatedAt: new Date() }).where(eq(researchCasesTable.id, caseId));
-  await db.insert(researchCaseEventsTable).values({ caseId, iteration: controlTurn, actorRole: "gemini_boss", eventType: "assignment", summary: `Gemini authorized ${decision.action} for target continuation.`, payload: JSON.stringify({ direction, reason: decision.reason, confidence: decision.confidence, bossModel: decision.bossModel }) });
-
-  const jobId = await createJob("atlas-run");
-  const claimed = await claimCanonicalJob("atlas-run", jobId);
-  if (!claimed) {
-    await updateJob(jobId, { status: "failed", outcome: "incomplete", message: "Another canonical Atlas job owns the distributed execution lock.", finishedAt: new Date().toISOString() });
-    res.status(409).json({ error: "Another canonical Atlas investigation owns the execution lock.", jobId });
-    return;
-  }
-  await setActiveJob("atlas-run", jobId);
-  await updateJob(jobId, { status: "running", progress: 0, total: 5, message: `Gemini authorized ${decision.action}; remounting target context for ${targetName}…`, result: JSON.stringify({ caseId, decision }) });
-
-  void (async () => {
-    try {
-      await runCanonicalSingleTargetInvestigation(jobId, Number(current.targetEntityId), {});
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Target continuation failed.";
-      await db.update(researchCasesTable).set({ status: "review", currentAction: "target-continuation-error", updatedAt: new Date() }).where(eq(researchCasesTable.id, caseId));
-      await updateJob(jobId, { status: "failed", outcome: "incomplete", message, finishedAt: new Date().toISOString() });
-    } finally {
-      await clearActiveJobIfOwned("atlas-run", jobId);
+    if (decision.status !== "completed" || decision.action === "stop") {
+      await db.update(researchCasesTable).set({ status: "review", currentAction: "gemini-target-stop", lastDecisionAt: new Date(), updatedAt: new Date() }).where(eq(researchCasesTable.id, caseId));
+      await updateJob(jobId, { status: "done", progress: 5, total: 5, outcome: "complete", message: `Gemini target control closed continuation for ${targetName}; case remains in review.`, result: JSON.stringify({ caseId, decision }), finishedAt: new Date().toISOString() });
+      res.status(200).json({ caseId, jobId, status: "review", decision });
+      return;
     }
-  })();
 
-  res.status(202).json({ caseId, jobId, status: "running", decision, mode: "canonical-model-owned-target-continuation" });
+    const direction = decision.direction?.trim() || "Reassess the strongest unresolved evidence question within the exact target scope.";
+    const nextContext = `${contextDocument}\n\n## Gemini Boss — explicit continuation decision\nAction: ${decision.action}\nResearch direction: ${direction}\nReason: ${decision.reason ?? "not supplied"}\nConfidence: ${decision.confidence ?? "unknown"}\nThis direction is a research objective, not a prescribed tool sequence. Investigator retains control of every search, visit, pivot, evidence judgment, and stopping decision.`.slice(-32000);
+    const nextFile = {
+      ...file,
+      contextDocument: nextContext,
+      nextInvestigation: {
+        ...(file.nextInvestigation ?? {}),
+        targetControl: {
+          action: decision.action,
+          direction,
+          reason: decision.reason,
+          confidence: decision.confidence,
+          rightHand: decision.rightHand,
+          bossModel: decision.bossModel,
+          recordedAt: new Date().toISOString(),
+        },
+      },
+      lastUpdatedBy: "gemini-boss-target-control",
+    };
+    await db.update(researchCasesTable).set({ caseFile: JSON.stringify(nextFile), status: "active", currentAction: `gemini-${decision.action}`, updatedAt: new Date() }).where(eq(researchCasesTable.id, caseId));
+    await db.insert(researchCaseEventsTable).values({ caseId, iteration: controlTurn, actorRole: "gemini_boss", eventType: "assignment", summary: `Gemini authorized ${decision.action} for target continuation.`, payload: JSON.stringify({ direction, reason: decision.reason, confidence: decision.confidence, bossModel: decision.bossModel, jobId }) });
+
+    await updateJob(jobId, { progress: 1, message: `Gemini authorized ${decision.action}; remounting target context for ${targetName}…`, result: JSON.stringify({ caseId, decision }) });
+    void (async () => {
+      try {
+        await runCanonicalSingleTargetInvestigation(jobId, Number(current.targetEntityId), {});
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Target continuation failed.";
+        await db.update(researchCasesTable).set({ status: "review", currentAction: "target-continuation-error", updatedAt: new Date() }).where(eq(researchCasesTable.id, caseId));
+        await updateJob(jobId, { status: "failed", outcome: "incomplete", message, finishedAt: new Date().toISOString() });
+      } finally {
+        await clearActiveJobIfOwned("atlas-run", jobId);
+      }
+    })();
+
+    res.status(202).json({ caseId, jobId, status: "running", decision, mode: "canonical-model-owned-target-continuation" });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Target control decision failed.";
+    await db.update(researchCasesTable).set({ status: "review", currentAction: "target-control-error", updatedAt: new Date() }).where(eq(researchCasesTable.id, caseId));
+    await updateJob(jobId, { status: "failed", outcome: "incomplete", message, finishedAt: new Date().toISOString() });
+    await clearActiveJobIfOwned("atlas-run", jobId);
+    res.status(503).json({ error: message, jobId });
+  }
 });
 
 export default router;
