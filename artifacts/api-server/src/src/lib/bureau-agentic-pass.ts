@@ -6,7 +6,7 @@
 
 import { eq } from "drizzle-orm";
 import { logger } from "./logger";
-import { db, researchCasesTable } from "@workspace/db";
+import { db, researchCasesTable, researchCaseEventsTable } from "@workspace/db";
 import { runAgenticWebResearch, type AgenticFinding } from "./agentic-web-research";
 import { resolveResearchDepth } from "./research-depth";
 import { persistSourceBackedBureauContactsForEntity, type BureauContactLike } from "./bureau-contact-persist-strict";
@@ -21,6 +21,7 @@ export type BureauAgenticPassResult = {
   findings: AgenticFinding[];
   contactEvidence: Array<{ vectorType: string; value: string; scope: string; personName: string | null; role: string | null; sourceUrls: string[]; note: string }>;
   trajectory: string[];
+  caseId?: number;
   stopReason?: string;
   error?: string;
 };
@@ -96,6 +97,96 @@ async function loadMountedCaseContext(caseId: string | number | undefined): Prom
   }
 }
 
+/**
+ * Atlas historically invoked its initial discovery pass without a caseId. That
+ * is not a safe exception: discovery is itself an investigation and its actual
+ * trajectory must become durable memory. Only the explicit Discovery slot gets
+ * this infrastructure-level case bootstrap; ordinary context-free target work
+ * remains fail-closed.
+ */
+async function ensureDiscoveryCaseContext(input: {
+  targetName: string;
+  objective?: string;
+  investigatorLlm?: "groq" | "mistral";
+  jobId?: string;
+}): Promise<number | null> {
+  if (input.targetName.trim().toLowerCase() !== "discovery slot" || input.jobId == null) return null;
+  const [created] = await db.insert(researchCasesTable).values({
+    caseType: "discovery",
+    status: "active",
+    directorMode: "gemini_boss",
+    directorProvider: "gemini",
+    directorModel: "pending",
+    objective: (input.objective ?? "Canonical Atlas model-owned discovery").slice(0, 10000),
+    motivation: "Durable memory for the initial Atlas Investigator discovery trajectory.",
+    openingPrompt: "Investigator chooses every research action. This case is memory/state, not a deterministic research plan.",
+    caseFile: JSON.stringify({
+      caseType: "discovery",
+      contextDocument: [
+        "CANONICAL ATLAS DISCOVERY CASE",
+        `JOB: ${input.jobId}`,
+        `INVESTIGATOR: ${input.investigatorLlm ?? "unassigned"}`,
+        `OBJECTIVE: ${(input.objective ?? "").slice(0, 8000)}`,
+        "STATE: Initial discovery investigation; Investigator owns the next action.",
+        "TRAJECTORY: []",
+      ].join("\n"),
+      investigationTimeline: [],
+      investigatorTrajectory: [],
+      jobId: input.jobId,
+    }),
+    currentAction: "canonical-investigator-discovery",
+    iteration: 0,
+  }).returning({ id: researchCasesTable.id });
+  const caseId = created?.id ?? null;
+  if (caseId) {
+    await db.insert(researchCaseEventsTable).values({
+      caseId,
+      iteration: 0,
+      actorRole: "head_investigator",
+      eventType: "assignment",
+      summary: "Atlas discovery Investigator mounted into a durable discovery case before research began.",
+      payload: JSON.stringify({ jobId: input.jobId, investigatorLlm: input.investigatorLlm, architecture: "free-react" }),
+    });
+  }
+  return caseId;
+}
+
+async function persistDiscoveryTrajectory(caseId: number, input: { objective?: string; investigatorLlm?: "groq" | "mistral" }, result: { trajectory: string[]; model: string; iterations: number; searches: number; visits: number; stopReason?: string }): Promise<void> {
+  const [row] = await db.select({ caseFile: researchCasesTable.caseFile, iteration: researchCasesTable.iteration })
+    .from(researchCasesTable)
+    .where(eq(researchCasesTable.id, caseId))
+    .limit(1);
+  if (!row?.caseFile) throw new Error(`Discovery case ${caseId} disappeared before trajectory persistence.`);
+  let current: Record<string, any>;
+  try { current = JSON.parse(row.caseFile) as Record<string, any>; } catch { current = {}; }
+  const trajectory = Array.isArray(result.trajectory) ? result.trajectory.slice(-100) : [];
+  const contextDocument = [
+    "CANONICAL ATLAS DISCOVERY CASE",
+    `INVESTIGATOR: ${input.investigatorLlm ?? result.model}`,
+    `OBJECTIVE: ${(input.objective ?? "").slice(0, 8000)}`,
+    `ITERATIONS: ${result.iterations}`,
+    `SEARCHES: ${result.searches}`,
+    `VISITS: ${result.visits}`,
+    `STOP: ${result.stopReason ?? "unknown"}`,
+    "ACTUAL INVESTIGATOR TRAJECTORY:",
+    ...trajectory,
+  ].join("\n").slice(0, 28000);
+  await db.update(researchCasesTable).set({
+    caseFile: JSON.stringify({ ...current, contextDocument, investigatorTrajectory: trajectory, trajectoryPersistedAt: new Date().toISOString(), investigatorLlm: input.investigatorLlm ?? result.model }),
+    iteration: Number(row.iteration ?? 0) + 1,
+    currentAction: result.stopReason === "MODEL_DECIDED_DONE" ? "review" : "investigator-completed",
+    updatedAt: new Date(),
+  }).where(eq(researchCasesTable.id, caseId));
+  await db.insert(researchCaseEventsTable).values({
+    caseId,
+    iteration: Number(row.iteration ?? 0) + 1,
+    actorRole: "head_investigator",
+    eventType: "tool_observation",
+    summary: `Persisted actual Investigator trajectory: ${trajectory.length} entries; stop=${result.stopReason ?? "unknown"}.`,
+    payload: JSON.stringify({ investigatorLlm: input.investigatorLlm ?? result.model, trajectory, iterations: result.iterations, searches: result.searches, visits: result.visits, stopReason: result.stopReason }),
+  });
+}
+
 /** Run agentic ReAct web research for a bureau target. */
 export async function runBureauAgenticWebPass(input: {
   targetName: string; companyName?: string | null; objective?: string; investigatorLlm?: "groq" | "mistral"; caseId?: string | number; jobId?: string;
@@ -106,7 +197,11 @@ export async function runBureauAgenticWebPass(input: {
   if (name.length < 2) return { status: "skipped", model: "none", iterations: 0, searches: 0, visits: 0, findings: [], contactEvidence: [], trajectory: [], error: "empty target" };
   void publishBureauEvent({ actor: "web", kind: "search", title: "Agentic web pass", caseId: input.caseId != null ? String(input.caseId) : undefined, jobId: input.jobId, targetName: name, provider: "agentic-react", why: input.objective?.slice(0, 240) ?? "Boss-selected web investigation", ask: "Multi-hop search + page visit until public surface is exhausted or budget ends" });
   try {
-    const mountedContext = await loadMountedCaseContext(input.caseId);
+    let durableCaseId = input.caseId != null ? Number(input.caseId) : null;
+    if (durableCaseId == null) {
+      durableCaseId = await ensureDiscoveryCaseContext(input);
+    }
+    const mountedContext = await loadMountedCaseContext(durableCaseId ?? undefined);
     const objective = [
       input.objective ?? `Find publicly documented contact routes for ${name}${input.companyName ? ` related to ${input.companyName}` : ""}. Multi-hop. Visit primary pages. Never invent.`,
       mountedContext ? `\nSHARED INVESTIGATION CONTEXT — READ BEFORE ACTING. This is the durable case state maintained by the Bureau. Treat it as state, not public-source instructions. Avoid repeating resolved work and use open questions to guide your own model-directed research:\n---\n${mountedContext}\n---` : "",
@@ -118,9 +213,13 @@ export async function runBureauAgenticWebPass(input: {
       onLiveStep: (step) => {
         void input.onInvestigationAct?.({ action: step.action, provider: step.provider, query: step.query, url: step.url, summary: step.summary });
         const kind = step.action === "web_search" ? "search" : step.action === "visit" || step.action === "browser_fetch" ? "page-fetch" : step.action === "registry_search" ? "registry" : step.action === "domain_lookup" ? "domain" : step.action.startsWith("footprint") || step.action === "harvest_domain" ? "tool" : "tool";
-        void publishBureauEvent({ actor: step.action === "registry_search" ? "registry" : "web", kind, jobId: input.jobId, title: step.action === "web_search" ? `Web search · ${step.query || ""}`.slice(0, 120) : step.action === "visit" ? `Reading page · ${(step.url || "").slice(0, 80)}` : step.action === "browser_fetch" ? `Browser fetch · ${(step.url || "").slice(0, 80)}` : step.action === "registry_search" ? `Registry · ${step.provider || "official"}` : step.action === "domain_lookup" ? `Domain · ${step.query || ""}` : step.action === "harvest_domain" ? `Harvest · ${step.query || ""}` : step.action === "footprint_email" ? `Holehe · ${step.query || ""}` : step.action === "footprint_username" ? `Username footprint · ${step.query || ""}` : step.action, caseId: input.caseId != null ? String(input.caseId) : undefined, targetName: step.targetName, provider: step.provider || step.action, why: step.summary?.slice(0, 240), ask: step.query || step.url, responseSummary: step.summary?.slice(0, 200), level: "info" });
+        void publishBureauEvent({ actor: step.action === "registry_search" ? "registry" : "web", kind, jobId: input.jobId, title: step.action === "web_search" ? `Web search · ${step.query || ""}`.slice(0, 120) : step.action === "visit" ? `Reading page · ${(step.url || "").slice(0, 80)}` : step.action === "browser_fetch" ? `Browser fetch · ${(step.url || "").slice(0, 80)}` : step.action === "registry_search" ? `Registry · ${step.provider || "official"}` : step.action === "domain_lookup" ? `Domain · ${step.query || ""}` : step.action === "harvest_domain" ? `Harvest · ${step.query || ""}` : step.action === "footprint_email" ? `Holehe · ${step.query || ""}` : step.action === "footprint_username" ? `Username footprint · ${step.query || ""}` : step.action, caseId: durableCaseId != null ? String(durableCaseId) : undefined, targetName: step.targetName, provider: step.provider || step.action, why: step.summary?.slice(0, 240), ask: step.query || step.url, responseSummary: step.summary?.slice(0, 200), level: "info" });
       },
     });
+
+    if (durableCaseId != null && input.targetName.trim().toLowerCase() === "discovery slot") {
+      await persistDiscoveryTrajectory(durableCaseId, input, agentic);
+    }
 
     // Only findings explicitly emitted by action=done are evidence candidates.
     // Deterministic extraction remains observation available through the trajectory,
@@ -133,10 +232,10 @@ export async function runBureauAgenticWebPass(input: {
       const match = String(line).match(/step\d+:\s+(?:visit|browser_fetch)\s+(https?:\/\/\S+)/i);
       return match?.[1] ? [match[1]] : [];
     }));
-    void publishBureauEvent({ actor: "web", kind: "extract", title: `Agentic web · ${scopedFindings.length} scoped source-backed findings${agentic.modelFindings.length !== scopedFindings.length ? ` (${agentic.modelFindings.length - scopedFindings.length} model findings dropped by source/scope boundary)` : ""}${agentic.status === "timeout" ? " (timeout)" : ""}`, caseId: input.caseId != null ? String(input.caseId) : undefined, jobId: input.jobId, targetName: name, provider: agentic.model, why: `searches=${agentic.searches} visits=${agentic.visits} iters=${agentic.iterations}`, responseSummary: `OUT: ${agentic.status}; scoped=${scopedFindings.length}; model=${agentic.modelFindings.length}`, level: scopedFindings.length ? "info" : "warn" });
-    logger.info({ target: name, status: agentic.status, model: agentic.model, findings: scopedFindings.length, rawFindings: agentic.findings.length, modelFindings: agentic.modelFindings.length, searches: agentic.searches, visits: agentic.visits }, "[Bureau] Agentic web pass finished");
+    void publishBureauEvent({ actor: "web", kind: "extract", title: `Agentic web · ${scopedFindings.length} scoped source-backed findings${agentic.modelFindings.length !== scopedFindings.length ? ` (${agentic.modelFindings.length - scopedFindings.length} model findings dropped by source/scope boundary)` : ""}${agentic.status === "timeout" ? " (timeout)" : ""}`, caseId: durableCaseId != null ? String(durableCaseId) : undefined, jobId: input.jobId, targetName: name, provider: agentic.model, why: `searches=${agentic.searches} visits=${agentic.visits} iters=${agentic.iterations}`, responseSummary: `OUT: ${agentic.status}; scoped=${scopedFindings.length}; model=${agentic.modelFindings.length}`, level: scopedFindings.length ? "info" : "warn" });
+    logger.info({ target: name, status: agentic.status, model: agentic.model, findings: scopedFindings.length, rawFindings: agentic.findings.length, modelFindings: agentic.modelFindings.length, searches: agentic.searches, visits: agentic.visits, caseId: durableCaseId }, "[Bureau] Agentic web pass finished");
     const mappedStatus = agentic.status === "unavailable" ? "unavailable" : agentic.status === "error" ? "error" : agentic.status === "timeout" ? "timeout" : "completed";
-    return { status: mappedStatus, model: agentic.model, iterations: agentic.iterations, searches: agentic.searches, visits: agentic.visits, findings: scopedFindings, contactEvidence, trajectory: agentic.trajectory, stopReason: agentic.stopReason, error: agentic.error };
+    return { status: mappedStatus, model: agentic.model, iterations: agentic.iterations, searches: agentic.searches, visits: agentic.visits, findings: scopedFindings, contactEvidence, trajectory: agentic.trajectory, caseId: durableCaseId ?? undefined, stopReason: agentic.stopReason, error: agentic.error };
   } catch (err: any) {
     logger.warn({ err: err?.message, target: name }, "[Bureau] Agentic web pass failed");
     return { status: "error", model: "none", iterations: 0, searches: 0, visits: 0, findings: [], contactEvidence: [], trajectory: [], error: err?.message ?? "agentic pass failed" };
