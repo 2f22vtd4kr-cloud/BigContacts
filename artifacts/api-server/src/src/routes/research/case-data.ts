@@ -184,7 +184,7 @@ router.get("/research/bureau/cases/:caseId/events", async (req, res): Promise<vo
   }
   const rows = await db.select().from(researchCaseEventsTable)
     .where(eq(researchCaseEventsTable.caseId, current.id))
-    .orderBy(desc(researchCaseEventsTable.createdAt))
+    .orderBy(researchCaseEventsTable.id)
     .limit(query.data.limit);
   res.json(rows.map((row) => ({ ...row, createdAt: row.createdAt.toISOString() })));
 });
