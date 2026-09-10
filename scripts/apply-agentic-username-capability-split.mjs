@@ -3,8 +3,8 @@ import fs from "node:fs";
 const targetPath = "artifacts/api-server/src/src/lib/agentic-web-research-core.ts";
 let source = fs.readFileSync(targetPath, "utf8");
 
-const oldUnion = '|  | { action: "footprint_username"; username: string; thought?: string }';
-const newUnion = '|  | { action: "footprint_username_maigret"; username: string; thought?: string }\n  | { action: "footprint_username_sherlock"; username: string; thought?: string }';
+const oldUnion = '  | { action: "footprint_username"; username: string; thought?: string }';
+const newUnion = '  | { action: "footprint_username_maigret"; username: string; thought?: string }\n  | { action: "footprint_username_sherlock"; username: string; thought?: string }';
 if (source.includes(oldUnion)) source = source.replace(oldUnion, newUnion);
 
 const oldSchema = '"footprint_email", "footprint_username", "domain_lookup"';
