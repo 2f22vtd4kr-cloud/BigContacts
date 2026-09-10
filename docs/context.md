@@ -314,3 +314,20 @@ Next objective: continue the forensic leaf hunt through the actual target Invest
 Final proof remains:
 
 **repair → verify → merge → restart hunt → boot → bounded real trajectory → forensic review → blind comparison → deploy.**
+
+## 15. Continuation — 2026-09-10
+
+### AI-owned Atlas transition control
+
+Merged after the 2026-09-10 audit: `atlas-control-decision.ts` introduces an explicit Gemini Boss control decision after DeepSeek Right-hand review. The decision is allowed to choose `continue_discovery`, `research_candidate`, `revisit_candidate`, `pivot_discovery`, or `stop`. Candidate selection is validated against the explicit source-backed admission set; invalid model choices fail closed.
+
+`canonical-atlas-discovery.ts` no longer unconditionally loops through every admitted candidate into target research. Its bounded execution loop asks the AI control plane for the next action. A model-directed continuation/pivot can launch another Investigator pass against the same durable discovery case; a model-selected candidate can enter the canonical single-target control plane. The loop budget is an execution safety envelope, not a research recipe.
+
+### Remaining blockers still intentionally open
+
+- **#120:** canonical `agentic-web-research-core.ts` still contains the forced initial `web_search` opening observation; source repair is still required.
+- **#125/#126:** `expandSecondaryPublicSurface()` remains a deterministic legacy playbook with live callers and direct outbound fetching; it is not yet retired from all canonical callers.
+- **#128:** canonical `src/src/lib/ai-extractor.ts` still has the Groq final-review path; role-boundary repair remains required.
+- **#129/#132:** duplicate source-tree and legacy ingest/enrichment reachability classification remains unfinished.
+
+No runtime/CI success claim is made by this continuation. Main remains pre-deployment until the remaining static blockers are repaired and runtime proof is actually observed.
