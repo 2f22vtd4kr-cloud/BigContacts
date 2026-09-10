@@ -8,425 +8,78 @@ import { runCanonicalSingleTargetInvestigation } from "./canonical-single-target
 import { decideAtlasNextAction, type AtlasControlAction } from "./atlas-control-decision";
 import { resolveResearchDepth } from "./research-depth";
 
-export type CanonicalAtlasOptions = {
-  targetCount?: number;
-  researchDepth?: "fast" | "standard" | "deep";
-  targetTimeoutMs?: number;
-};
+export type CanonicalAtlasOptions = { targetCount?: number; researchDepth?: "fast" | "standard" | "deep"; targetTimeoutMs?: number };
+export type CanonicalAtlasResult = { phase: number; ingested: number; enriched: number; contactsFound: number; hotLeads: number; durationMs: number; phaseSummary: Record<string, string> };
+function uniqueNames(values: string[]): string[] { return [...new Set(values.map((value) => value.trim()).filter((value) => value.length >= 3))]; }
+function isObservedHttpSource(value: unknown): value is string { return typeof value === "string" && /^https?:\/\/\S+$/i.test(value); }
 
-export type CanonicalAtlasResult = {
-  phase: number;
-  ingested: number;
-  enriched: number;
-  contactsFound: number;
-  hotLeads: number;
-  durationMs: number;
-  phaseSummary: Record<string, string>;
-};
-
-function uniqueNames(values: string[]): string[] {
-  return [...new Set(values.map((value) => value.trim()).filter((value) => value.length >= 3))];
-}
-
-function isObservedHttpSource(value: unknown): value is string {
-  return typeof value === "string" && /^https?:\/\/\S+$/i.test(value);
-}
-
-async function createAtlasDiscoveryCase(input: {
-  atlasJobId: string;
-  objective: string;
-  investigatorLlm: "groq" | "mistral";
-}): Promise<number> {
-  const [created] = await db.insert(researchCasesTable).values({
-    caseType: "discovery",
-    status: "active",
-    directorMode: "gemini_boss",
-    directorProvider: "gemini",
-    directorModel: "pending",
-    objective: input.objective.slice(0, 10000),
-    motivation: "Durable memory for canonical Atlas Investigator discovery.",
-    openingPrompt: "Investigator chooses every research action; this case is memory/state, not a deterministic research plan.",
-    caseFile: JSON.stringify({
-      caseType: "discovery",
-      contextDocument: [
-        "CANONICAL ATLAS DISCOVERY CASE",
-        `JOB: ${input.atlasJobId}`,
-        `INVESTIGATOR: ${input.investigatorLlm}`,
-        `OBJECTIVE: ${input.objective.slice(0, 8000)}`,
-        "STATE: Initial discovery; Investigator owns the next action.",
-        "TRAJECTORY: []",
-      ].join("\n"),
-      investigatorTrajectory: [],
-      investigationTimeline: [],
-    }),
-    currentAction: "canonical-investigator-discovery",
-    iteration: 0,
-  }).returning({ id: researchCasesTable.id });
-  const caseId = created?.id;
-  if (!caseId) throw new Error("Failed to create durable Atlas discovery case.");
-  await db.insert(researchCaseEventsTable).values({
-    caseId,
-    iteration: 0,
-    actorRole: "head_investigator",
-    eventType: "assignment",
-    summary: "Atlas discovery Investigator mounted into a durable case before research began.",
-    payload: JSON.stringify({ jobId: input.atlasJobId, investigatorLlm: input.investigatorLlm, architecture: "free-react" }),
-  });
+async function createAtlasDiscoveryCase(input: { atlasJobId: string; objective: string; investigatorLlm: "groq" | "mistral" }): Promise<number> {
+  const [created] = await db.insert(researchCasesTable).values({ caseType: "discovery", status: "active", directorMode: "gemini_boss", directorProvider: "gemini", directorModel: "pending", objective: input.objective.slice(0, 10000), motivation: "Durable memory for canonical Atlas Investigator discovery.", openingPrompt: "Investigator chooses every research action; this case is memory/state, not a deterministic research plan.", caseFile: JSON.stringify({ caseType: "discovery", contextDocument: ["CANONICAL ATLAS DISCOVERY CASE", `JOB: ${input.atlasJobId}`, `INVESTIGATOR: ${input.investigatorLlm}`, `OBJECTIVE: ${input.objective.slice(0, 8000)}`, "STATE: Initial discovery; Investigator owns the next action.", "TRAJECTORY: []"].join("\n"), investigatorTrajectory: [], investigatorTrajectoryRecords: [], investigationTimeline: [] }), currentAction: "canonical-investigator-discovery", iteration: 0 }).returning({ id: researchCasesTable.id });
+  const caseId = created?.id; if (!caseId) throw new Error("Failed to create durable Atlas discovery case.");
+  await db.insert(researchCaseEventsTable).values({ caseId, iteration: 0, actorRole: "head_investigator", eventType: "assignment", summary: "Atlas discovery Investigator mounted into a durable case before research began.", payload: JSON.stringify({ jobId: input.atlasJobId, investigatorLlm: input.investigatorLlm, architecture: "free-react" }) });
   return caseId;
 }
 
-async function materializeAtlasAdmissions(input: {
-  findings: Array<{
-    promotionDecision?: "promote" | "reject";
-    scope: "organization" | "candidate" | "unknown";
-    personName: string | null;
-    role: string | null;
-    sourceUrls: string[];
-  }>;
-  atlasJobId: string;
-  discoveryCaseId: number;
-  maxCandidates: number;
-}): Promise<{ names: string[]; materialized: number; evidenceRows: number }> {
-  const admitted = uniqueNames(
-    input.findings
-      .filter((finding) => finding.promotionDecision === "promote")
-      .filter((finding) => finding.scope === "candidate")
-      .filter((finding) => typeof finding.personName === "string" && finding.personName.trim().length >= 3)
-      .filter((finding) => Array.isArray(finding.sourceUrls) && finding.sourceUrls.some(isObservedHttpSource))
-      .map((finding) => finding.personName as string),
-  ).slice(0, input.maxCandidates);
-
-  let materialized = 0;
-  let evidenceRows = 0;
+async function materializeAtlasAdmissions(input: { findings: Array<{ promotionDecision?: "promote" | "reject"; scope: "organization" | "candidate" | "unknown"; personName: string | null; role: string | null; sourceUrls: string[] }>; atlasJobId: string; discoveryCaseId: number; maxCandidates: number }): Promise<{ names: string[]; materialized: number; evidenceRows: number }> {
+  const admitted = uniqueNames(input.findings.filter((f) => f.promotionDecision === "promote").filter((f) => f.scope === "candidate").filter((f) => typeof f.personName === "string" && f.personName.trim().length >= 3).filter((f) => Array.isArray(f.sourceUrls) && f.sourceUrls.some(isObservedHttpSource)).map((f) => f.personName as string)).slice(0, input.maxCandidates);
+  let materialized = 0, evidenceRows = 0;
   for (const name of admitted) {
-    const finding = input.findings.find(
-      (candidate) => candidate.personName?.trim().toLowerCase() === name.toLowerCase()
-        && candidate.promotionDecision === "promote"
-        && candidate.scope === "candidate"
-        && Array.isArray(candidate.sourceUrls)
-        && candidate.sourceUrls.some(isObservedHttpSource),
-    );
-    const sourceUrl = finding?.sourceUrls?.find(isObservedHttpSource) ?? null;
-    if (!sourceUrl) continue;
-
-    const existingRows = await db.select({ id: entitiesTable.id })
-      .from(entitiesTable)
-      .where(and(
-        eq(entitiesTable.name, name),
-        inArray(entitiesTable.type, ["HNWI", "Gatekeeper"]),
-      ))
-      .limit(1);
-    const existing = existingRows[0];
-    let entityId = existing?.id ?? null;
-    if (!entityId) {
-      const [created] = await db.insert(entitiesTable).values({
-        name,
-        type: "HNWI",
-        bayesianScore: 0.05,
-        contactConfidence: 0,
-        contactOutcome: "evidence_only",
-        isHot: false,
-        isStarred: false,
-        isHidden: false,
-        sourceRegistries: JSON.stringify(["canonical-agentic-discovery"]),
-        notes: "Model-selected discovery candidate; target-scoped Investigator research required before contact promotion.",
-        metadata: JSON.stringify({ reviewOnly: true, admission: "investigator-explicit-promotion", sourceUrl, discoveryCaseId }),
-      }).returning({ id: entitiesTable.id });
-      entityId = created?.id ?? null;
-      if (entityId) materialized += 1;
-    }
+    const finding = input.findings.find((candidate) => candidate.personName?.trim().toLowerCase() === name.toLowerCase() && candidate.promotionDecision === "promote" && candidate.scope === "candidate" && Array.isArray(candidate.sourceUrls) && candidate.sourceUrls.some(isObservedHttpSource));
+    const sourceUrl = finding?.sourceUrls?.find(isObservedHttpSource) ?? null; if (!sourceUrl) continue;
+    const existingRows = await db.select({ id: entitiesTable.id }).from(entitiesTable).where(and(eq(entitiesTable.name, name), inArray(entitiesTable.type, ["HNWI", "Gatekeeper"]))).limit(1);
+    const existing = existingRows[0]; let entityId = existing?.id ?? null;
+    if (!entityId) { const [created] = await db.insert(entitiesTable).values({ name, type: "HNWI", bayesianScore: 0.05, contactConfidence: 0, contactOutcome: "evidence_only", isHot: false, isStarred: false, isHidden: false, sourceRegistries: JSON.stringify(["canonical-agentic-discovery"]), notes: "Model-selected discovery candidate; target-scoped Investigator research required before contact promotion.", metadata: JSON.stringify({ reviewOnly: true, admission: "investigator-explicit-promotion", sourceUrl, discoveryCaseId }) }).returning({ id: entitiesTable.id }); entityId = created?.id ?? null; if (entityId) materialized += 1; }
     if (!entityId) continue;
-    await persistSourceBackedBureauContactsForEntity(entityId, [{
-      vectorType: "other",
-      value: `person:${name}`,
-      scope: "candidate",
-      personName: name,
-      role: finding?.role ?? "discovery candidate",
-      sourceUrls: [sourceUrl],
-      note: "Explicit Investigator discovery admission; review-only until target-scoped research.",
-      tier: "candidate",
-      state: "review_only",
-      promote: false,
-    }], "canonical-agentic-discovery", atlasJobId);
+    await persistSourceBackedBureauContactsForEntity(entityId, [{ vectorType: "other", value: `person:${name}`, scope: "candidate", personName: name, role: finding?.role ?? "discovery candidate", sourceUrls: [sourceUrl], note: "Explicit Investigator discovery admission; review-only until target-scoped research.", tier: "candidate", state: "review_only", promote: false }], "canonical-agentic-discovery", input.atlasJobId);
     evidenceRows += 1;
   }
   return { names: admitted, materialized, evidenceRows };
 }
 
-export async function runCanonicalAtlasPipeline(
-  atlasJobId: string,
-  opts: CanonicalAtlasOptions = {},
-): Promise<CanonicalAtlasResult> {
-  const startedAt = Date.now();
-  const depth = resolveResearchDepth({ explicit: opts.researchDepth });
-  const targetCount = Math.max(1, Math.min(20, Math.trunc(opts.targetCount ?? 3)));
-  const phaseSummary: Record<string, string> = {};
-
-  await updateJob(atlasJobId, {
-    status: "running",
-    progress: 0,
-    total: 4,
-    atlasPhase: 0,
-    atlasPhaseTotal: 4,
-    message: "Gemini Boss + DeepSeek Right-hand opening model-owned discovery…",
-  });
-
+export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: CanonicalAtlasOptions = {}): Promise<CanonicalAtlasResult> {
+  const startedAt = Date.now(); const depth = resolveResearchDepth({ explicit: opts.researchDepth }); const targetCount = Math.max(1, Math.min(20, Math.trunc(opts.targetCount ?? 3))); const phaseSummary: Record<string, string> = {};
+  await updateJob(atlasJobId, { status: "running", progress: 0, total: 4, atlasPhase: 0, atlasPhaseTotal: 4, message: "Gemini Boss + DeepSeek Right-hand opening model-owned discovery…" });
   try {
-    const rightHandRaw = await import("./deepseek-case-reasoning").then(({ runDeepSeekFreeJson }) => runDeepSeekFreeJson(
-      "Review the Apex Atlas discovery mission before Gemini assigns its Investigator. Return concise research priorities only. Do not browse, do not choose contacts, and do not invent people. Return JSON with decision, reason, focusLanes, confidence.",
-      "You are the DeepSeek/NVIDIA Right-hand. Advise the Boss only. Never act as Investigator and never browse. Reply with ONE JSON object.",
-    )).catch((error) => ({
-      status: "unavailable" as const,
-      model: "none",
-      raw: null,
-      error: error instanceof Error ? error.message : "Right-hand unavailable",
-    }));
-
-    let rightHand: {
-      status: "completed" | "unavailable";
-      model: string;
-      decision: string | null;
-      reason: string | null;
-      focusLanes: string[];
-      confidence: number | null;
-      error: string | null;
-    } = {
-      status: rightHandRaw.status === "completed" ? "completed" : "unavailable",
-      model: rightHandRaw.model,
-      decision: null,
-      reason: null,
-      focusLanes: [],
-      confidence: null,
-      error: rightHandRaw.error ?? null,
-    };
-    if (rightHandRaw.status === "completed" && rightHandRaw.raw) {
-      try {
-        const parsed = JSON.parse(rightHandRaw.raw) as Record<string, unknown>;
-        rightHand = {
-          status: "completed",
-          model: rightHandRaw.model,
-          decision: typeof parsed.decision === "string" ? parsed.decision.slice(0, 500) : null,
-          reason: typeof parsed.reason === "string" ? parsed.reason.slice(0, 1000) : null,
-          focusLanes: Array.isArray(parsed.focusLanes)
-            ? parsed.focusLanes.filter((value): value is string => typeof value === "string").slice(0, 8)
-            : [],
-          confidence: typeof parsed.confidence === "number" ? Math.max(0, Math.min(1, parsed.confidence)) : null,
-          error: null,
-        };
-      } catch {
-        rightHand.error = "Right-hand returned invalid JSON.";
-      }
-    }
-
-    const boss = await runGeminiBossDiscovery({
-      objective: "Discover real named people who may be worth a target-scoped public-contact investigation. Favor attributable operating-company, filing, leadership, foundation, transaction, and other primary-source paths. Do not invent people or contacts.",
-      motivation: "Find a small set of real people for deep target-scoped investigation.",
-      geography: "Public web; geography selected by the research objective",
-      exclusions: [
-        "Do not browse as Boss.",
-        "Do not prescribe a fixed tool or search sequence.",
-        "Do not invent people, contacts, relationships, or URLs.",
-        "Select only groq or mistral as Investigator.",
-      ],
-      rightHandAdvice: rightHand,
-      startingLane: "model-selected discovery",
-    });
-
-    if (!boss.investigatorLlm) {
-      phaseSummary.assignment = "No usable Gemini-selected Investigator; fail closed.";
-      await updateJob(atlasJobId, {
-        status: "failed",
-        progress: 1,
-        atlasPhase: 1,
-        outcome: "incomplete",
-        message: "Gemini Boss did not select a Groq/Mistral Investigator; no fallback was attempted.",
-        result: JSON.stringify({ rightHand, boss }),
-        finishedAt: new Date().toISOString(),
-      });
-      await clearActiveJobIfOwned("atlas-run", atlasJobId);
-      return { phase: 1, ingested: 0, enriched: 0, contactsFound: 0, hotLeads: 0, durationMs: Date.now() - startedAt, phaseSummary };
-    }
-
+    const rightHandRaw = await import("./deepseek-case-reasoning").then(({ runDeepSeekFreeJson }) => runDeepSeekFreeJson("Review the Apex Atlas discovery mission before Gemini assigns its Investigator. Return concise research priorities only. Do not browse, do not choose contacts, and do not invent people. Return JSON with decision, reason, focusLanes, confidence.", "You are the DeepSeek/NVIDIA Right-hand. Advise the Boss only. Never act as Investigator and never browse. Reply with ONE JSON object.")).catch((error) => ({ status: "unavailable" as const, model: "none", raw: null, error: error instanceof Error ? error.message : "Right-hand unavailable" }));
+    let rightHand: { status: "completed" | "unavailable"; model: string; decision: string | null; reason: string | null; focusLanes: string[]; confidence: number | null; error: string | null } = { status: rightHandRaw.status === "completed" ? "completed" : "unavailable", model: rightHandRaw.model, decision: null, reason: null, focusLanes: [], confidence: null, error: rightHandRaw.error ?? null };
+    if (rightHandRaw.status === "completed" && rightHandRaw.raw) { try { const parsed = JSON.parse(rightHandRaw.raw) as Record<string, unknown>; rightHand = { status: "completed", model: rightHandRaw.model, decision: typeof parsed.decision === "string" ? parsed.decision.slice(0, 500) : null, reason: typeof parsed.reason === "string" ? parsed.reason.slice(0, 1000) : null, focusLanes: Array.isArray(parsed.focusLanes) ? parsed.focusLanes.filter((v): v is string => typeof v === "string").slice(0, 8) : [], confidence: typeof parsed.confidence === "number" ? Math.max(0, Math.min(1, parsed.confidence)) : null, error: null }; } catch { rightHand.error = "Right-hand returned invalid JSON."; } }
+    const boss = await runGeminiBossDiscovery({ objective: "Discover real named people who may be worth a target-scoped public-contact investigation. Favor attributable operating-company, filing, leadership, foundation, transaction, and other primary-source paths. Do not invent people or contacts.", motivation: "Find a small set of real people for deep target-scoped investigation.", geography: "Public web; geography selected by the research objective", exclusions: ["Do not browse as Boss.", "Do not prescribe a fixed tool or search sequence.", "Do not invent people, contacts, relationships, or URLs.", "Select only groq or mistral as Investigator."], rightHandAdvice: rightHand, startingLane: "model-selected discovery" });
+    if (!boss.investigatorLlm) { phaseSummary.assignment = "No usable Gemini-selected Investigator; fail closed."; await updateJob(atlasJobId, { status: "failed", progress: 1, atlasPhase: 1, outcome: "incomplete", message: "Gemini Boss did not select a Groq/Mistral Investigator; no fallback was attempted.", result: JSON.stringify({ rightHand, boss }), finishedAt: new Date().toISOString() }); await clearActiveJobIfOwned("atlas-run", atlasJobId); return { phase: 1, ingested: 0, enriched: 0, contactsFound: 0, hotLeads: 0, durationMs: Date.now() - startedAt, phaseSummary }; }
     const discoveryObjective = "Discover real named people for subsequent target-scoped public-contact research. Choose every search, page visit, registry/domain/OSINT action and stopping point yourself. Emit a person only when you can attribute the observed source to that person; use promotionDecision=promote only for an exact named-person admission candidate. Never invent a person, contact, or URL.";
-    const discoveryCaseId = await createAtlasDiscoveryCase({
-      atlasJobId,
-      objective: discoveryObjective,
-      investigatorLlm: boss.investigatorLlm,
-    });
-
-    await updateJob(atlasJobId, {
-      progress: 1,
-      atlasPhase: 1,
-      message: `${boss.investigatorLlm.toUpperCase()} Investigator running free-ReAct discovery…`,
-      result: JSON.stringify({ rightHand, boss: { status: boss.status, model: boss.model, investigatorLlm: boss.investigatorLlm }, discoveryCaseId }),
-    });
-
-    let discovery = await runBureauAgenticWebPass({
-      targetName: "Discovery slot",
-      objective: discoveryObjective,
-      investigatorLlm: boss.investigatorLlm,
-      caseId: discoveryCaseId,
-      jobId: atlasJobId,
-      maxIterations: depth.agenticMaxIterations,
-      hardTimeoutMs: opts.targetTimeoutMs ?? depth.agenticHardTimeoutMs,
-    });
-
-    let admission = await materializeAtlasAdmissions({
-      findings: discovery.findings,
-      atlasJobId,
-      discoveryCaseId,
-      maxCandidates: targetCount,
-    });
-    let admitted = admission.names;
-    let materialized = admission.materialized;
-    let evidenceRows = admission.evidenceRows;
-    let researched = 0;
-    let contactsFound = 0;
-    let controlTurns = 0;
-    let discoveryRuns = 1;
-    let priorAction: AtlasControlAction | null = null;
-    let priorCandidate: string | null = null;
-    const researchedNames = new Set<string>();
-    const maxControlTurns = Math.min(12, Math.max(4, targetCount * 3));
-
-    phaseSummary.assignment = `${boss.investigatorLlm} selected by Gemini; discovery completed=${discovery.status}; durableCase=${discoveryCaseId}.`;
-    phaseSummary.discovery = `admitted=${admitted.length}; materialized=${materialized}; evidenceRows=${evidenceRows}; searches=${discovery.searches}; visits=${discovery.visits}; trajectory=${discovery.trajectory.length}`;
-
+    const discoveryCaseId = await createAtlasDiscoveryCase({ atlasJobId, objective: discoveryObjective, investigatorLlm: boss.investigatorLlm });
+    await updateJob(atlasJobId, { progress: 1, atlasPhase: 1, message: `${boss.investigatorLlm.toUpperCase()} Investigator running free-ReAct discovery…`, result: JSON.stringify({ rightHand, boss: { status: boss.status, model: boss.model, investigatorLlm: boss.investigatorLlm }, discoveryCaseId }) });
+    let discovery = await runBureauAgenticWebPass({ targetName: "Discovery slot", objective: discoveryObjective, investigatorLlm: boss.investigatorLlm, caseId: discoveryCaseId, jobId: atlasJobId, maxIterations: depth.agenticMaxIterations, hardTimeoutMs: opts.targetTimeoutMs ?? depth.agenticHardTimeoutMs });
+    let admission = await materializeAtlasAdmissions({ findings: discovery.findings, atlasJobId, discoveryCaseId, maxCandidates: targetCount });
+    let admitted = admission.names; let materialized = admission.materialized; let evidenceRows = admission.evidenceRows; let researched = 0; let contactsFound = 0; let controlTurns = 0; let discoveryRuns = 1; let priorAction: AtlasControlAction | null = null; let priorCandidate: string | null = null;
+    const researchedNames = new Set<string>(); const maxControlTurns = Math.min(12, Math.max(4, targetCount * 3));
+    phaseSummary.assignment = `${boss.investigatorLlm} selected by Gemini; discovery completed=${discovery.status}; durableCase=${discoveryCaseId}.`; phaseSummary.discovery = `admitted=${admitted.length}; materialized=${materialized}; evidenceRows=${evidenceRows}; searches=${discovery.searches}; visits=${discovery.visits}; trajectory=${discovery.trajectory.length}; structuredTurns=${discovery.trajectoryRecords?.length ?? 0}`;
     while (controlTurns < maxControlTurns) {
       controlTurns += 1;
-      const decision = await decideAtlasNextAction({
-        objective: discoveryObjective,
-        admittedCandidates: admitted.map((name) => {
-          const finding = discovery.findings.find((candidate) => candidate.personName?.trim().toLowerCase() === name.toLowerCase());
-          return { name, role: finding?.role ?? null, sourceUrls: finding?.sourceUrls?.filter(isObservedHttpSource) ?? [] };
-        }),
-        discoveryStatus: discovery.status,
-        discoveryTrajectory: discovery.trajectory,
-        discoveryFindings: discovery.findings.map((finding) => ({
-          personName: finding.personName,
-          role: finding.role,
-          scope: finding.scope,
-          promotionDecision: finding.promotionDecision,
-          sourceUrls: finding.sourceUrls,
-          note: finding.note,
-        })),
-        priorAction,
-        priorCandidate,
-        caseId: discoveryCaseId,
-        controlTurn: controlTurns,
-      });
-
+      const decision = await decideAtlasNextAction({ objective: discoveryObjective, admittedCandidates: admitted.map((name) => { const finding = discovery.findings.find((candidate) => candidate.personName?.trim().toLowerCase() === name.toLowerCase()); return { name, role: finding?.role ?? null, sourceUrls: finding?.sourceUrls?.filter(isObservedHttpSource) ?? [] }; }), discoveryStatus: discovery.status, discoveryTrajectory: discovery.trajectory, discoveryTrajectoryRecords: discovery.trajectoryRecords, discoveryFindings: discovery.findings.map((finding) => ({ personName: finding.personName, role: finding.role, scope: finding.scope, promotionDecision: finding.promotionDecision, sourceUrls: finding.sourceUrls, note: finding.note })), priorAction, priorCandidate, caseId: discoveryCaseId, controlTurn: controlTurns });
       phaseSummary[`control_${controlTurns}`] = `${decision.action}${decision.candidateName ? `:${decision.candidateName}` : ""}${decision.direction ? ` — ${decision.direction.slice(0, 180)}` : ""}`;
       if (decision.status !== "completed" || decision.action === "stop") break;
-
-      priorAction = decision.action;
-      priorCandidate = decision.candidateName;
-
+      priorAction = decision.action; priorCandidate = decision.candidateName;
       if (decision.action === "research_candidate" || decision.action === "revisit_candidate") {
-        const name = decision.candidateName;
-        if (!name) break;
-        const [entity] = await db.select({ id: entitiesTable.id, name: entitiesTable.name })
-          .from(entitiesTable)
-          .where(and(eq(entitiesTable.name, name), inArray(entitiesTable.type, ["HNWI", "Gatekeeper"])))
-          .limit(1);
-        if (!entity) continue;
-        if (decision.action === "research_candidate" && researchedNames.has(name.toLowerCase())) continue;
-
-        const before = await db.select({
-          email: entitiesTable.email,
-          phone: entitiesTable.phone,
-          linkedinUrl: entitiesTable.linkedinUrl,
-          twitterHandle: entitiesTable.twitterHandle,
-          instagramHandle: entitiesTable.instagramHandle,
-          telegramHandle: entitiesTable.telegramHandle,
-          personalWebsite: entitiesTable.personalWebsite,
-        }).from(entitiesTable).where(eq(entitiesTable.id, entity.id)).limit(1);
-        const beforeCard = before[0] ?? null;
-
-        await runCanonicalSingleTargetInvestigation(atlasJobId, entity.id, {
-          researchDepth: opts.researchDepth,
-          targetTimeoutMs: opts.targetTimeoutMs,
-        });
-        researched += 1;
-        researchedNames.add(name.toLowerCase());
-
-        const after = await db.select({
-          email: entitiesTable.email,
-          phone: entitiesTable.phone,
-          linkedinUrl: entitiesTable.linkedinUrl,
-          twitterHandle: entitiesTable.twitterHandle,
-          instagramHandle: entitiesTable.instagramHandle,
-          telegramHandle: entitiesTable.telegramHandle,
-          personalWebsite: entitiesTable.personalWebsite,
-        }).from(entitiesTable).where(eq(entitiesTable.id, entity.id)).limit(1);
-        const afterCard = after[0] ?? null;
-        if (beforeCard && afterCard) {
-          const cardFields: Array<keyof typeof beforeCard> = ["email", "phone", "linkedinUrl", "twitterHandle", "instagramHandle", "telegramHandle", "personalWebsite"];
-          contactsFound += cardFields.filter((field) => beforeCard[field] !== afterCard[field] && afterCard[field]).length;
-        }
+        const name = decision.candidateName; if (!name) break;
+        const [entity] = await db.select({ id: entitiesTable.id, name: entitiesTable.name }).from(entitiesTable).where(and(eq(entitiesTable.name, name), inArray(entitiesTable.type, ["HNWI", "Gatekeeper"]))).limit(1);
+        if (!entity) continue; if (decision.action === "research_candidate" && researchedNames.has(name.toLowerCase())) continue;
+        const before = await db.select({ email: entitiesTable.email, phone: entitiesTable.phone, linkedinUrl: entitiesTable.linkedinUrl, twitterHandle: entitiesTable.twitterHandle, instagramHandle: entitiesTable.instagramHandle, telegramHandle: entitiesTable.telegramHandle, personalWebsite: entitiesTable.personalWebsite }).from(entitiesTable).where(eq(entitiesTable.id, entity.id)).limit(1); const beforeCard = before[0] ?? null;
+        await runCanonicalSingleTargetInvestigation(atlasJobId, entity.id, { researchDepth: opts.researchDepth, targetTimeoutMs: opts.targetTimeoutMs }); researched += 1; researchedNames.add(name.toLowerCase());
+        const after = await db.select({ email: entitiesTable.email, phone: entitiesTable.phone, linkedinUrl: entitiesTable.linkedinUrl, twitterHandle: entitiesTable.twitterHandle, instagramHandle: entitiesTable.instagramHandle, telegramHandle: entitiesTable.telegramHandle, personalWebsite: entitiesTable.personalWebsite }).from(entitiesTable).where(eq(entitiesTable.id, entity.id)).limit(1); const afterCard = after[0] ?? null;
+        if (beforeCard && afterCard) { const cardFields: Array<keyof typeof beforeCard> = ["email", "phone", "linkedinUrl", "twitterHandle", "instagramHandle", "telegramHandle", "personalWebsite"]; contactsFound += cardFields.filter((field) => beforeCard[field] !== afterCard[field] && afterCard[field]).length; }
         continue;
       }
-
       if (decision.action === "continue_discovery" || decision.action === "pivot_discovery") {
         const directedObjective = `${discoveryObjective}\n\nBOSS-DIRECTED RESEARCH QUESTION / PIVOT:\n${(decision.direction || "Reassess the open evidence and choose the highest-information next action yourself.").slice(0, 1800)}`;
-        const nextDiscovery = await runBureauAgenticWebPass({
-          targetName: "Discovery slot",
-          objective: directedObjective,
-          investigatorLlm: boss.investigatorLlm,
-          caseId: discoveryCaseId,
-          jobId: atlasJobId,
-          maxIterations: depth.agenticMaxIterations,
-          hardTimeoutMs: opts.targetTimeoutMs ?? depth.agenticHardTimeoutMs,
-        });
+        const nextDiscovery = await runBureauAgenticWebPass({ targetName: "Discovery slot", objective: directedObjective, investigatorLlm: boss.investigatorLlm, caseId: discoveryCaseId, jobId: atlasJobId, maxIterations: depth.agenticMaxIterations, hardTimeoutMs: opts.targetTimeoutMs ?? depth.agenticHardTimeoutMs });
         discoveryRuns += 1;
-        discovery = {
-          ...nextDiscovery,
-          searches: discovery.searches + nextDiscovery.searches,
-          visits: discovery.visits + nextDiscovery.visits,
-          iterations: discovery.iterations + nextDiscovery.iterations,
-          findings: [...discovery.findings, ...nextDiscovery.findings],
-          modelFindings: [...discovery.modelFindings, ...nextDiscovery.modelFindings],
-          trajectory: [...discovery.trajectory, ...nextDiscovery.trajectory],
-        };
-        admission = await materializeAtlasAdmissions({
-          findings: discovery.findings,
-          atlasJobId,
-          discoveryCaseId,
-          maxCandidates: targetCount,
-        });
-        admitted = admission.names;
-        materialized += admission.materialized;
-        evidenceRows += admission.evidenceRows;
-        continue;
+        discovery = { ...nextDiscovery, searches: discovery.searches + nextDiscovery.searches, visits: discovery.visits + nextDiscovery.visits, iterations: discovery.iterations + nextDiscovery.iterations, findings: [...discovery.findings, ...nextDiscovery.findings], modelFindings: [...discovery.modelFindings, ...nextDiscovery.modelFindings], trajectory: [...discovery.trajectory, ...nextDiscovery.trajectory], trajectoryRecords: [...(discovery.trajectoryRecords ?? []), ...(nextDiscovery.trajectoryRecords ?? [])].slice(-100) };
+        admission = await materializeAtlasAdmissions({ findings: discovery.findings, atlasJobId, discoveryCaseId, maxCandidates: targetCount }); admitted = admission.names; materialized += admission.materialized; evidenceRows += admission.evidenceRows; continue;
       }
     }
-
-    phaseSummary.discovery = `runs=${discoveryRuns}; admitted=${admitted.length}; materialized=${materialized}; evidenceRows=${evidenceRows}; searches=${discovery.searches}; visits=${discovery.visits}; trajectory=${discovery.trajectory.length}`;
+    phaseSummary.discovery = `runs=${discoveryRuns}; admitted=${admitted.length}; materialized=${materialized}; evidenceRows=${evidenceRows}; searches=${discovery.searches}; visits=${discovery.visits}; trajectory=${discovery.trajectory.length}; structuredTurns=${discovery.trajectoryRecords?.length ?? 0}`;
     phaseSummary.research = `researched=${researched}; explicitCardPromotions=${contactsFound}; controlTurns=${controlTurns}/${maxControlTurns}; finalAction=${priorAction ?? "none"}`;
-
-    await updateJob(atlasJobId, {
-      status: "done",
-      progress: 4,
-      total: 4,
-      atlasPhase: 4,
-      atlasPhaseTotal: 4,
-      outcome: "complete",
-      message: `Canonical Investigator control loop complete: ${researched} target investigation(s); AI chose the transition trajectory.`,
-      result: JSON.stringify({
-        rightHand,
-        boss: { status: boss.status, model: boss.model, investigatorLlm: boss.investigatorLlm },
-        discovery: { status: discovery.status, findings: discovery.findings.length, searches: discovery.searches, visits: discovery.visits, caseId: discoveryCaseId, trajectoryEntries: discovery.trajectory.length, runs: discoveryRuns },
-        control: { turns: controlTurns, maxTurns: maxControlTurns, finalAction: priorAction, finalCandidate: priorCandidate },
-        phaseSummary,
-      }),
-      finishedAt: new Date().toISOString(),
-    });
-    await clearActiveJobIfOwned("atlas-run", atlasJobId);
-    return { phase: 4, ingested: 0, enriched: materialized, contactsFound, hotLeads: admitted.length, durationMs: Date.now() - startedAt, phaseSummary };
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Canonical Atlas discovery failed.";
-    await updateJob(atlasJobId, { status: "failed", outcome: "incomplete", message, finishedAt: new Date().toISOString() });
-    await clearActiveJobIfOwned("atlas-run", atlasJobId);
-    throw error;
-  }
+    await updateJob(atlasJobId, { status: "done", progress: 4, total: 4, atlasPhase: 4, atlasPhaseTotal: 4, outcome: "complete", message: `Canonical Investigator control loop complete: ${researched} target investigation(s); AI chose the transition trajectory.`, result: JSON.stringify({ rightHand, boss: { status: boss.status, model: boss.model, investigatorLlm: boss.investigatorLlm }, discovery: { status: discovery.status, findings: discovery.findings.length, searches: discovery.searches, visits: discovery.visits, caseId: discoveryCaseId, trajectoryEntries: discovery.trajectory.length, trajectoryRecords: discovery.trajectoryRecords?.slice(-100) ?? [], runs: discoveryRuns }, control: { turns: controlTurns, maxTurns: maxControlTurns, finalAction: priorAction, finalCandidate: priorCandidate }, phaseSummary }), finishedAt: new Date().toISOString() });
+    await clearActiveJobIfOwned("atlas-run", atlasJobId); return { phase: 4, ingested: 0, enriched: materialized, contactsFound, hotLeads: admitted.length, durationMs: Date.now() - startedAt, phaseSummary };
+  } catch (error) { const message = error instanceof Error ? error.message : "Canonical Atlas discovery failed."; await updateJob(atlasJobId, { status: "failed", outcome: "incomplete", message, finishedAt: new Date().toISOString() }); await clearActiveJobIfOwned("atlas-run", atlasJobId); throw error; }
 }
