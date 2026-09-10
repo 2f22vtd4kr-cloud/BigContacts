@@ -2,7 +2,7 @@
 
 > **Living handoff — 2026-09-10.** Current architecture source of truth. Historical documents are not live control planes.
 
-**Repo:** `2f22vtd4kr-cloud/BigContacts` · **Branch:** `main` · **Current reviewed tip:** `ff874a9ae53a15a424c86b7fcc74ece2d858308c`
+**Repo:** `2f22vtd4kr-cloud/BigContacts` · **Branch:** `main` · **Current reviewed tip:** `5c1ed66eb5184ad55486f75ab2e22654e7e58e82`
 
 ## Institutional contract
 Apex is an AI-driven OSINT bureau, not a deterministic search script.
@@ -45,15 +45,15 @@ institutional constitution -> role purpose -> durable case context -> operator c
 14. Target and Bureau wrappers preserve canonical `cancelled` as a distinct result state instead of collapsing it into `error`.
 15. Discovery admissions now pass their already validated successful source URL into the strict persistence boundary, so review-only admission evidence is not silently dropped.
 16. Discovery is exposed as explicit `mode="discovery"` rather than requiring a person target at the canonical ReAct boundary.
-17. `scripts/check-canonical-promotion-boundary.mjs` now guards single-observation claim binding and cancellation-state preservation.
-18. A target continuation control boundary now exists: Gemini is explicitly asked to choose `continue_target`, `revisit_target`, `pivot_target`, or `stop`; the decision is persisted as a durable control event and continuation remounts the existing target context rather than creating a scripted research sequence.
-19. Target continuation execution is serialized under the same canonical Atlas distributed job lock before model control is evaluated, preventing concurrent continuation requests from racing and overwriting each other's control state; Redis lock-acquisition failure now fails closed without leaking a job.
+17. `scripts/check-canonical-promotion-boundary.mjs` guards single-observation claim binding and cancellation-state preservation.
+18. A target continuation **control component** exists: Gemini can be asked to choose `continue_target`, `revisit_target`, `pivot_target`, or `stop`; the decision is persisted as a durable control event and the mounted continuation route preserves durable context.
+19. `scripts/audit-target-continuation-intrinsic.mjs` now explicitly checks whether the canonical single-target runner itself invokes the target control boundary; this audit currently fails because that intrinsic wiring is still missing.
 
 ## Confirmed/open forensic defects
-- **#128:** canonical `src/src/lib/ai-extractor.ts` still exposes a Groq final-card-review fallback after Gemini Boss and DeepSeek/NVIDIA. Required remediation is Gemini -> DeepSeek -> deterministic fail-closed adjudication; Groq must not act as reviewer.
+- **#128:** canonical `src/src/lib/ai-extractor.ts` still exposes a Groq final-card-review fallback after Gemini Boss and DeepSeek/NVIDIA. Required remediation is Gemini -> DeepSeek -> deterministic fail-closed adjudication; Groq must not act as reviewer. The historical `mcts.ts` path containing this reviewer is not mounted by the live `src/src/routes/research.ts`, but the source remains present and therefore requires retirement/reachability cleanup rather than assumption-based deletion.
 - **#139:** cancellation propagation through target/Bureau wrappers is fixed, but Python OSINT subprocesses (Holehe/Maigret/Sherlock/theHarvester) still require real child-process cancellation tied to the run-scoped AbortSignal and formally governed network egress.
 - **#147:** compound OSINT actions remain deterministic: `footprint_username` runs both Maigret and Sherlock, `footprint_email` invokes Holehe, and `harvest_domain` invokes theHarvester. These need individual model-selectable actions plus cancellation/egress controls.
-- **#150:** a durable AI-owned target continuation boundary is now implemented and mounted, but the original single-target runner still performs its existing post-Investigator final review/closure before that continuation endpoint is invoked. The remaining remediation is to make the canonical single-target execution path itself reach the continuation decision automatically, without requiring a separate operator/API call, while preserving hard resource ceilings and avoiding a deterministic research recipe.
+- **#150:** a durable AI-owned target continuation control component and API route exist, but the original single-target runner still performs its existing post-Investigator final review/closure before that continuation endpoint is invoked. The remaining remediation is to make the canonical single-target execution path itself reach the continuation decision automatically, without requiring a separate operator/API call, while preserving hard resource ceilings and avoiding a deterministic research recipe.
 - **#125/#126:** deterministic secondary-surface enrichment remains in legacy/live-adjacent routes and requires continued reachability analysis/retirement; canonical Atlas launch itself enters `canonical-atlas-launch.ts` and routes into the model-owned control plane rather than the historical orchestrator.
 - Duplicate source trees, legacy ingest/enrichment, old API/OpenAPI execution surfaces, and other legacy research material remain under forensic cleanup.
 
