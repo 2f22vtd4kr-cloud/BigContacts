@@ -10,6 +10,7 @@ const files = {
   cases: path.join(root, "artifacts/api-server/src/src/routes/research/cases.ts"),
   canonicalCase: path.join(root, "artifacts/api-server/src/src/routes/research/canonical-case-discovery.ts"),
   canonicalAtlas: path.join(root, "artifacts/api-server/src/src/lib/canonical-atlas-discovery.ts"),
+  atlasControl: path.join(root, "artifacts/api-server/src/src/lib/atlas-control-decision.ts"),
   canonicalTarget: path.join(root, "artifacts/api-server/src/src/lib/canonical-single-target-runner.ts"),
   targetAgent: path.join(root, "artifacts/api-server/src/src/lib/target-contact-agent.ts"),
   launchRoute: path.join(root, "artifacts/api-server/src/routes/atlas.ts"),
@@ -53,6 +54,10 @@ assert(/runBureauAgenticWebPass\(\{[\s\S]*?investigatorLlm\s*:/.test(source.cano
 assert(/runBureauAgenticWebPass\(\{[\s\S]*?caseId\s*,/.test(source.canonicalCase), "Canonical case discovery does not mount its durable discovery case context into the Investigator.");
 assert(/investigatorLlm\s*:/.test(source.canonicalAtlas), "Canonical Atlas discovery does not bind the selected Investigator.");
 assert(/runBureauAgenticWebPass\(\{[\s\S]*?caseId\s*:/.test(source.canonicalAtlas), "Canonical Atlas discovery does not mount a durable discovery case context into the Investigator.");
+assert(/decideAtlasNextAction\s*\(/.test(source.canonicalAtlas), "Canonical Atlas discovery does not delegate the next research action to the AI control plane.");
+assert(/Allowed actions:[\s\S]*continue_discovery[\s\S]*research_candidate[\s\S]*revisit_candidate[\s\S]*pivot_discovery[\s\S]*stop/.test(source.atlasControl), "Atlas control decision does not expose the required model-owned transition actions.");
+assert(/resolveGeminiBossModel\s*\(/.test(source.atlasControl) && /runDeepSeekFreeJson\s*\(/.test(source.atlasControl), "Atlas transition control does not use Gemini Boss plus DeepSeek Right-hand oversight.");
+assert(/candidateNames\.some\(/.test(source.atlasControl) && /fail-closed/.test(source.atlasControl), "Atlas control decision does not bind target selection to explicit admissions and fail closed.");
 assert(/runTargetContactAgent\(\{[\s\S]*?investigatorLlm\s*:/.test(source.canonicalTarget), "Canonical target runner does not bind the selected Investigator into the target Dig.");
 assert(/runTargetContactAgent\(\{[\s\S]*?contextDocument\s*:/.test(source.canonicalTarget), "Canonical target runner does not mount durable context into the Target Investigator.");
 assert(/refusing context-free Investigator run/.test(source.targetAgent), "Target Investigator does not explicitly refuse context-free execution.");
@@ -109,5 +114,6 @@ console.log("- Investigator selection propagates into active ReAct paths");
 console.log("- Search/browser/registry/OSINT remain model-selected capabilities");
 console.log("- Discovery and Target Investigator paths mount durable case context");
 console.log("- Discovery cannot deterministically force the next target-research phase");
+console.log("- Atlas transition is selected by Gemini after DeepSeek advice and bounded by deterministic safety validation");
 console.log("- Startup recovery is lifecycle-only; mass research cannot begin at boot");
 console.log("- Legacy deterministic research is not publicly mounted");
