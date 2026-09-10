@@ -21,20 +21,25 @@ const failures = [];
 const assert = (condition, message) => { if (!condition) failures.push(message); };
 
 // Institutional identity must be a runtime source, not an operator-authored prompt fragment.
+assert(/APEX_INSTITUTIONAL_MISSION_VERSION\s*=/.test(source.orientation), "canonical orientation is not versioned as an institutional contract.");
 assert(/APEX_WHAT_IS_ATLAS\s*=/.test(source.orientation), "canonical orientation has no institutional Apex identity/mission constant.");
 assert(/AI-driven investigatory bureau/.test(source.orientation), "canonical orientation does not identify Apex as an AI-driven investigatory bureau.");
 assert(/RESEARCH JUDGMENT/.test(source.orientation), "canonical orientation does not establish standing research judgment.");
 assert(/PROVENANCE/.test(source.orientation), "canonical orientation does not establish standing provenance/evidence discipline.");
 assert(/MODEL ROLE SEPARATION/.test(source.orientation), "canonical orientation does not establish model role separation.");
 assert(/INSTITUTIONAL BOOTSTRAP/.test(source.orientation), "canonical orientation does not establish institutional bootstrap independent of operator input.");
-assert(/standing institutional mission/.test(source.orientation), "canonical orientation does not state that institutional mission exists before operator input.");
+assert(/PRE-INVESTIGATION CONTRACT/.test(source.orientation), "canonical orientation does not establish a pre-investigation contract.");
+assert(/before any operator supplies case-specific instructions/i.test(source.orientation), "institutional purpose is not explicitly established before operator input.");
 assert(/Operator input/i.test(source.architecture), "mission bootstrap document does not distinguish operator input from institutional purpose.");
 assert(/does not redefine Apex's institutional purpose/i.test(source.architecture), "mission bootstrap document permits operator input to redefine institutional purpose.");
 
-// The compact orientation is used in the actual provider system messages. It must carry
-// the institutional bootstrap itself rather than relying on an unrelated outer prompt.
+// The compact orientation is used in actual provider system messages. It must carry the
+// institutional bootstrap itself rather than relying on an unrelated outer prompt.
 assert(/apexOrientationCompact/.test(source.orientation), "canonical orientation has no compact provider orientation.");
-assert(/standing institutional mission, evidence discipline, autonomy law, and role separation that exist before operator input/i.test(source.orientation), "compact AI orientation does not carry institutional bootstrap context.");
+assert(/APEX MISSION CONTRACT v\$\{APEX_INSTITUTIONAL_MISSION_VERSION\}/.test(source.orientation), "compact AI orientation does not expose the institutional mission version.");
+assert(/institutional purpose, evidence discipline, autonomy law, and role separation exist before operator case input/i.test(source.orientation), "compact AI orientation does not carry institutional bootstrap context.");
+assert(/role purpose exists before discovery\/research begins/i.test(source.orientation), "compact AI orientation does not establish role purpose before discovery/research.");
+assert(/Discovery and research are capabilities, not fixed stages/i.test(source.orientation), "compact AI orientation does not reject deterministic discovery/research stages.");
 
 // All three live reasoning roles must receive the canonical orientation before role work.
 assert(/apexOrientationFor\("boss"\)/.test(source.bureau) || /apexOrientationCompact\("boss"\)/.test(source.bureau), "Boss path does not visibly consume canonical Apex orientation.");
@@ -61,7 +66,7 @@ if (failures.length) {
 }
 
 console.log("APEX MISSION BOOTSTRAP: PASS");
-console.log("- institutional Apex purpose is runtime-defined");
+console.log("- institutional Apex purpose is a versioned runtime contract");
 console.log("- compact provider orientation carries institutional bootstrap");
 console.log("- Boss, Right Hand, and Investigator receive standing role orientation");
 console.log("- durable context is part of the Investigator boundary");
