@@ -145,7 +145,7 @@ export function assessIdentityCollision(input: {
     return { risk: false, identityMatch: 0.55, reason: null };
   }
 
-  if (hostHit && companyToks.length && !hostBlob.includes(companyToks.find((t) => hostBlob.includes(t)) ?? "\u0000")) {
+  if (hostHit && companyToks.length && !companyToks.some((t) => hostBlob.includes(t))) {
     return {
       risk: true,
       identityMatch: 0.15,
