@@ -10,7 +10,6 @@
  * Hostname validation and connection are one operation here: the address used
  * by the socket is the address returned by the safety-checked DNS lookup.
  */
-
 import { lookup } from "node:dns/promises";
 import http from "node:http";
 import https from "node:https";
@@ -25,10 +24,7 @@ function isBlockedIp(address: string): boolean {
   if (version === 4) {
     const octets = normalized.split(".").map(Number);
     const [a, b, c] = octets;
-    return a === 0 || a === 10 || a === 127 || (a === 100 && b >= 64 && b <= 127) ||
-      (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 0) ||
-      (a === 192 && b === 168) || (a === 192 && b === 88 && c === 99) || (a === 192 && b === 0 && c === 2) ||
-      (a === 198 && (b === 18 || b === 19 || (b === 51 && c === 100))) || (a === 203 && b === 0 && c === 113) || a >= 224;
+    return a === 0 || a === 10 || a === 127 || (a === 100 && b >= 64 && b <= 127) || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 0) || (a === 192 && b === 168) || (a === 192 && b === 88 && c === 99) || (a === 192 && b === 0 && c === 2) || (a === 198 && (b === 18 || b === 19 || (b === 51 && c === 100))) || (a === 203 && b === 0 && c === 113) || a >= 224;
   }
   if (version === 6) {
     const compact = normalized.replace(/%.*$/, "");
@@ -41,13 +37,9 @@ function isBlockedIp(address: string): boolean {
 }
 
 async function resolveSafeAddress(hostname: string): Promise<string> {
-  if (net.isIP(hostname)) {
-    if (isBlockedIp(hostname)) throw new Error("Outbound URL targets a blocked IP address");
-    return hostname;
-  }
+  if (net.isIP(hostname)) { if (isBlockedIp(hostname)) throw new Error("Outbound URL targets a blocked IP address"); return hostname; }
   let records: Array<{ address: string }>;
-  try { records = await lookup(hostname, { all: true, verbatim: true }); }
-  catch { throw new Error("Outbound URL hostname could not be resolved safely"); }
+  try { records = await lookup(hostname, { all: true, verbatim: true }); } catch { throw new Error("Outbound URL hostname could not be resolved safely"); }
   if (!records.length || records.some((record) => isBlockedIp(record.address))) throw new Error("Outbound URL resolves to a blocked IP address");
   return records[0].address;
 }
@@ -62,11 +54,7 @@ function parseSafeUrl(rawUrl: string): URL {
   return url;
 }
 
-export async function assertSafeOutboundUrl(rawUrl: string): Promise<URL> {
-  const url = parseSafeUrl(rawUrl);
-  await resolveSafeAddress(url.hostname.replace(/^\[|\]$/g, "").toLowerCase().replace(/\.$/, ""));
-  return url;
-}
+export async function assertSafeOutboundUrl(rawUrl: string): Promise<URL> { const url = parseSafeUrl(rawUrl); await resolveSafeAddress(url.hostname.replace(/^\[|\]$/g, "").toLowerCase().replace(/\.$/, "")); return url; }
 
 function requestHeaders(init: RequestInit, hostname: string, port: string): Record<string, string> {
   const headers: Record<string, string> = { "accept-encoding": "identity" };
@@ -79,69 +67,35 @@ function requestHeaders(init: RequestInit, hostname: string, port: string): Reco
 
 async function pinnedFetch(input: RequestInfo | URL, init: RequestInit, address: string): Promise<Response> {
   const rawUrl = typeof input === "string" || input instanceof URL ? String(input) : input.url;
-  const url = new URL(rawUrl);
-  const transport = url.protocol === "https:" ? https : http;
-  const port = url.port || (url.protocol === "https:" ? "443" : "80");
+  const url = new URL(rawUrl); const transport = url.protocol === "https:" ? https : http; const port = url.port || (url.protocol === "https:" ? "443" : "80");
   const method = init.method || (typeof input !== "string" && !(input instanceof URL) ? input.method : "GET");
   const body = init.body == null ? undefined : typeof init.body === "string" ? Buffer.from(init.body) : Buffer.from(await new Response(init.body as BodyInit).arrayBuffer());
   const signal = init.signal;
-
   return new Promise<Response>((resolve, reject) => {
     let settled = false;
-    const finishError = (error: unknown) => { if (settled) return; settled = true; reject(error instanceof Error ? error : new Error(String(error))); };
-    const req = transport.request({
-      protocol: url.protocol, hostname: address, port, method,
-      path: `${url.pathname}${url.search}` || "/",
-      headers: requestHeaders(init, url.hostname, url.port),
-      ...(url.protocol === "https:" ? { servername: url.hostname } : {}),
-      lookup: (_hostname, _options, callback) => callback(null, address, net.isIP(address) as 4 | 6),
-    }, (res) => {
+    let abort: (() => void) | undefined;
+    const cleanup = () => { if (abort && signal) signal.removeEventListener("abort", abort); abort = undefined; };
+    const finishError = (error: unknown) => { if (settled) return; settled = true; cleanup(); reject(error instanceof Error ? error : new Error(String(error))); };
+    const req = transport.request({ protocol: url.protocol, hostname: address, port, method, path: `${url.pathname}${url.search}` || "/", headers: requestHeaders(init, url.hostname, url.port), ...(url.protocol === "https:" ? { servername: url.hostname } : {}), lookup: (_hostname, _options, callback) => callback(null, address, net.isIP(address) as 4 | 6) }, (res) => {
       const declared = Number(res.headers["content-length"] ?? NaN);
-      if (Number.isFinite(declared) && declared > MAX_RESPONSE_BYTES) {
-        res.resume();
-        finishError(new Error(`Outbound response exceeds ${MAX_RESPONSE_BYTES} byte limit`));
-        return;
-      }
-      const chunks: Buffer[] = [];
-      let bytes = 0;
-      res.on("data", (chunk) => {
-        const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
-        bytes += buffer.byteLength;
-        if (bytes > MAX_RESPONSE_BYTES) {
-          res.destroy(new Error(`Outbound response exceeds ${MAX_RESPONSE_BYTES} byte limit`));
-          return;
-        }
-        chunks.push(buffer);
-      });
-      res.on("end", () => {
-        if (settled) return;
-        settled = true;
-        const headers = new Headers();
-        for (const [key, value] of Object.entries(res.headers)) {
-          if (Array.isArray(value)) headers.set(key, value.join(", "));
-          else if (value != null) headers.set(key, value);
-        }
-        resolve(new Response(Buffer.concat(chunks), { status: res.statusCode ?? 0, statusText: res.statusMessage ?? "", headers }));
-      });
+      if (Number.isFinite(declared) && declared > MAX_RESPONSE_BYTES) { res.resume(); finishError(new Error(`Outbound response exceeds ${MAX_RESPONSE_BYTES} byte limit`)); return; }
+      const chunks: Buffer[] = []; let bytes = 0;
+      res.on("data", (chunk) => { const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk); bytes += buffer.byteLength; if (bytes > MAX_RESPONSE_BYTES) { res.destroy(new Error(`Outbound response exceeds ${MAX_RESPONSE_BYTES} byte limit`)); return; } chunks.push(buffer); });
+      res.on("end", () => { if (settled) return; settled = true; cleanup(); const headers = new Headers(); for (const [key, value] of Object.entries(res.headers)) { if (Array.isArray(value)) headers.set(key, value.join(", ")); else if (value != null) headers.set(key, value); } resolve(new Response(Buffer.concat(chunks), { status: res.statusCode ?? 0, statusText: res.statusMessage ?? "", headers })); });
       res.on("error", finishError);
     });
-    req.on("error", finishError);
-    req.setTimeout(12_000, () => req.destroy(new Error("Outbound request timed out")));
-    const abort = () => req.destroy(new Error("Outbound request aborted"));
+    req.on("error", finishError); req.setTimeout(12_000, () => req.destroy(new Error("Outbound request timed out")));
+    abort = () => req.destroy(new Error("Outbound request aborted"));
     if (signal?.aborted) return abort();
     signal?.addEventListener("abort", abort, { once: true });
-    if (body) req.write(body);
-    req.end();
+    if (body) req.write(body); req.end();
   });
 }
 
 export async function safeOutboundFetch(input: RequestInfo | URL, init: RequestInit = {}): Promise<Response> {
   const nextUrl = typeof input === "string" || input instanceof URL ? String(input) : input.url;
-  const validated = parseSafeUrl(nextUrl);
-  const hostname = validated.hostname.replace(/^\[|\]$/g, "").toLowerCase().replace(/\.$/, "");
-  const address = await resolveSafeAddress(hostname);
+  const validated = parseSafeUrl(nextUrl); const hostname = validated.hostname.replace(/^\[|\]$/g, "").toLowerCase().replace(/\.$/, ""); const address = await resolveSafeAddress(hostname);
   return pinnedFetch(input, { ...init, redirect: "manual" }, address);
 }
-
 export function isBlockedOutboundIpForTest(address: string): boolean { return isBlockedIp(address); }
 export const MAX_SAFE_OUTBOUND_RESPONSE_BYTES = MAX_RESPONSE_BYTES;
