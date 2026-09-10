@@ -65,6 +65,12 @@ assert(/canonical-atlas-discovery/.test(source.launchRoute), "Atlas launch route
 assert(!/atlas-orchestrator/.test(source.launchRoute), "Atlas launch route still imports the legacy deterministic orchestrator.");
 assert(!/\brunPhaseJBatch\s*\(|\bexpandSecondaryPublicSurface\s*\(|\brunBroadDiscovery\s*|\brunMcts\s*\(|\brunTargetResearch\s*\(/.test(source.canonicalAtlas), "Canonical Atlas runner contains a retired deterministic research path.");
 
+// Broad discovery used to be a deterministic template/query/extraction playbook. It must
+// not remain callable from the canonical Case Bureau simply because the old endpoint is
+// quarantined. Discovery is now an Investigator trajectory, not a category loop.
+assert(!/\brunBroadDiscovery\s*\(/.test(source.cases), "Canonical Case Bureau still invokes deterministic broad discovery; use the Investigator capability instead.");
+assert(!/\brunBroadDiscovery\s*\(/.test(source.canonicalCase), "Canonical case-discovery route still invokes deterministic broad discovery.");
+
 // The top-level API route tree is still mounted for compatibility/status surfaces,
 // but its legacy deterministic MCTS and bulk research routers must remain quarantined.
 assert(!/mctsRouter|bulkRouter/.test(source.legacyResearchRoutes), "Legacy API research router still mounts deterministic MCTS or bulk-hybrid research.");
