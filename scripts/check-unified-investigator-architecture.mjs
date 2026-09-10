@@ -16,6 +16,8 @@ const files = {
   researchRoutes: path.join(root, "artifacts/api-server/src/src/routes/research.ts"),
   legacyResearchRoutes: path.join(root, "artifacts/api-server/src/routes/research.ts"),
   apiRoutes: path.join(root, "artifacts/api-server/src/routes/index.ts"),
+  entrypoint: path.join(root, "artifacts/api-server/src/src/index.ts"),
+  startupRecovery: path.join(root, "artifacts/api-server/src/src/lib/startup-recovery.ts"),
   orientation: path.join(root, "artifacts/api-server/src/src/lib/apex-bureau-orientation.ts"),
   finalReview: path.join(root, "artifacts/api-server/src/src/lib/ai-extractor.ts"),
   legacyFinalReview: path.join(root, "artifacts/api-server/src/lib/ai-extractor.ts"),
@@ -78,6 +80,13 @@ assert(!/mctsRouter|bulkRouter/.test(source.legacyResearchRoutes), "Legacy API r
 assert(!/import\s+phaseJRouter\s+from\s+["']\.\/phase-j["']/.test(source.apiRoutes), "Legacy deterministic Phase J router is still imported by the live API route index.");
 assert(!/router\.use\(phaseJRouter\)/.test(source.apiRoutes), "Legacy deterministic Phase J router is still mounted in the live API.");
 
+// Boot is lifecycle-only. The old startup module contained a mass research scheduler;
+// the live entrypoint must use the recovery-only module instead.
+assert(/from "\.\/lib\/startup-recovery"/.test(source.entrypoint), "Live API entrypoint does not use lifecycle-only startup recovery.");
+assert(!/from "\.\/lib\/startup"/.test(source.entrypoint), "Live API entrypoint still imports the retired startup research scheduler.");
+assert(/Startup recovery complete/.test(source.startupRecovery), "Lifecycle-only startup recovery is missing its explicit no-research completion marker.");
+assert(!/runBroadDiscovery|bulk-run|deep-web-osint|social-discovery|messenger-discovery|in-house-enrich/.test(source.startupRecovery), "Lifecycle-only startup recovery contains a research/enrichment trigger.");
+
 assert(/Gemini/.test(source.architecture) && /DeepSeek/.test(source.architecture) && /Investigator LLM pool/.test(source.architecture), "Canonical ReAct architecture document is missing the two-layer role law.");
 assert(/no forced search order/i.test(source.architecture), "Canonical ReAct architecture document does not state the no-forced-search-order invariant.");
 
@@ -94,4 +103,5 @@ console.log("- Groq/Mistral remain Investigator LLMs, not a sequential chain or 
 console.log("- Investigator selection propagates into active ReAct paths");
 console.log("- Search/browser/registry/OSINT remain model-selected capabilities");
 console.log("- Discovery and Target Investigator paths mount durable case context");
+console.log("- Startup recovery is lifecycle-only; mass research cannot begin at boot");
 console.log("- Legacy deterministic research is not publicly mounted");
