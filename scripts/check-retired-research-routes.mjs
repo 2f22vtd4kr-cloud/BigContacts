@@ -3,6 +3,7 @@ import fs from "node:fs";
 const canonicalStartup = fs.readFileSync("artifacts/api-server/src/src/lib/startup.ts", "utf8");
 const legacyStartup = fs.readFileSync("artifacts/api-server/src/lib/startup.ts", "utf8");
 const jobs = fs.readFileSync("artifacts/apex-finder/src/pages/jobs.tsx", "utf8");
+const secondaryPersist = fs.readFileSync("artifacts/api-server/src/src/lib/bureau-contact-persist.ts", "utf8");
 
 const retired = [
   "/api/ingest/deep-web-osint",
@@ -32,6 +33,18 @@ for (const route of retired) {
   }
 }
 
+// Route retirement is not enough when the operator UI still exposes the old control plane
+// under task IDs/labels rather than literal API URLs.
+const retiredUiTasks = ["sync-hot-flags", "deep-web-osint", "bulk-hybrid-research", "bulk-mcts"];
+for (const task of retiredUiTasks) {
+  if (jobs.includes(task)) {
+    console.log(`FAIL retired research task remains advertised by operator UI: ${task}`);
+    failed = true;
+  } else {
+    console.log(`PASS retired research task absent from operator UI: ${task}`);
+  }
+}
+
 // A retired deterministic research function must not remain an automatic research control
 // plane merely because its old HTTP route has been removed. Keep this gate intentionally
 // source-level and conservative: the implementation itself is allowed to exist for
@@ -49,6 +62,17 @@ for (const file of secondarySurfaceSources) {
   } else {
     console.log(`PASS no secondary research caller: ${file}`);
   }
+}
+
+// The secondary surface is a research control plane. If it survives quarantine, its own
+// implementation must not contain an independent outbound HTTP transport. This catches
+// direct fetch() usage inside the function without outlawing unrelated persistence helpers.
+const secondaryFn = secondaryPersist.match(/export async function expandSecondaryPublicSurface\s*\([\s\S]*?(?=\nexport |\nasync function |\nfunction |$)/)?.[0] ?? "";
+if (/\bfetch\s*\(/.test(secondaryFn)) {
+  console.log("FAIL expandSecondaryPublicSurface contains a direct outbound fetch; surviving web I/O must use canonical SSRF-safe transport.");
+  failed = true;
+} else {
+  console.log("PASS secondary surface contains no independent fetch transport.");
 }
 
 if (failed) process.exit(1);
