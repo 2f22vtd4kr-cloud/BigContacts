@@ -109,7 +109,7 @@ router.post("/research/bureau/cases", async (req, res): Promise<void> => {
     motivation,
     openingPrompt,
     caseFile: JSON.stringify(caseFile),
-    currentAction: caseFile.initialAction.id,
+    currentAction: "awaiting_boss_control",
     iteration: 0,
   }).returning();
   if (!created) {
