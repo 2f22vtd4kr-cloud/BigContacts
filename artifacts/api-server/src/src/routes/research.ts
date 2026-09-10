@@ -6,6 +6,7 @@ import sessionsRouter from "./research/sessions";
 import deepResearchRouter from "./research/deep-research";
 import canonicalCaseDiscoveryRouter from "./research/canonical-case-discovery";
 import canonicalCaseContinuationRouter from "./research/canonical-case-continuation";
+import legacyCaseExecutionRetirementRouter from "./research/legacy-case-execution-retirement";
 import caseDataRouter from "./research/case-data";
 
 const router: IRouter = Router();
@@ -14,7 +15,7 @@ router.use(sessionsRouter);
 router.use(deepResearchRouter);
 router.use(canonicalCaseDiscoveryRouter);
 router.use(canonicalCaseContinuationRouter);
-// Case data is intentionally separate from the retired legacy execution router.
+router.use(legacyCaseExecutionRetirementRouter);
 router.use(caseDataRouter);
 
 export default router;
