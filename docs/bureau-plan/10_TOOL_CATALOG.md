@@ -9,14 +9,17 @@
 | browser_fetch | Browser | Scrapfly, ZenRows | Escalate selected page fetch |
 | registry_search | Registry | EDGAR, Companies House, BRREG, GLEIF, OpenCorporates, BODACC | Identity/company evidence |
 | domain_lookup | Infra | RDAP, WhoisJSON | Domain/org evidence |
-| harvest_domain | Harvest | theHarvester | Domain evidence when model chooses it |
+| harvest_domain | Harvest | theHarvester | Domain evidence when model chooses it; currently fail-closed pending governed subprocess egress |
 | footprint_email | Footprint | Holehe | Public account-signal investigation |
-| footprint_username | Footprint | Maigret, Sherlock | Handle/profile investigation |
+| footprint_username_maigret | Footprint | Maigret | Model-selected handle/profile investigation |
+| footprint_username_sherlock | Footprint | Sherlock | Model-selected handle/profile investigation |
 | done | Control | n/a | Model-selected stop |
 
 ## Tool-use law
 
 The investigator chooses whether to search, visit, pivot, use a registry, inspect a domain, investigate a public profile, or stop. Deterministic code executes the selected action and validates its result. Tool output remains a typed observation with source URL/status; it is not automatically an identity claim.
+
+Each network-capable OSINT backend is an atomic capability at the model boundary. One action must not silently fan out into a fixed bundle of independent research tools. If a backend cannot yet satisfy the canonical cancellation/egress contract, the capability fails closed rather than bypassing the safety envelope.
 
 Missing tools/providers surface as failures or observations. They must never trigger a hidden scripted research path.
 
