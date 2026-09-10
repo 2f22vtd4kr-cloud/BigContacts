@@ -9,7 +9,7 @@ import { researchCasesTable } from "./research_cases";
  * The immutable database `id` is the canonical per-case event sequence.  It is
  * intentionally separate from `iteration`: multiple events can legitimately
  * occur during one ReAct iteration, and iterations can be reused by different
- * actors.  Consumers must order a case's ledger by id, never by wall-clock
+ * actors. Consumers must order a case's ledger by id, never by wall-clock
  * timestamps or by iteration alone.
  */
 export const researchCaseEventsTable = pgTable("research_case_events", {
@@ -18,8 +18,8 @@ export const researchCaseEventsTable = pgTable("research_case_events", {
     .notNull()
     .references(() => researchCasesTable.id, { onDelete: "cascade" }),
   iteration: integer("iteration").notNull().default(0),
-  actorRole: text("actor_role").notNull(), // head_investigator | specialist | human_operator | system
-  eventType: text("event_type").notNull(), // case_opened | decision | assignment | observation | directive | status
+  actorRole: text("actor_role").notNull(), // head_investigator | gemini_boss | right_hand | specialist | human_operator | system
+  eventType: text("event_type").notNull(), // case_opened | decision | assignment | observation | tool_observation | directive | status
   status: text("status").notNull().default("recorded"),
   summary: text("summary").notNull(),
   payload: text("payload").notNull().default("{}"),
@@ -42,6 +42,7 @@ export const researchCaseEventTypeSchema = z.enum([
   "decision",
   "assignment",
   "observation",
+  "tool_observation",
   "directive",
   "status",
 ]);
