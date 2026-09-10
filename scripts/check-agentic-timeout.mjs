@@ -6,13 +6,16 @@ const pkg = JSON.parse(fs.readFileSync("artifacts/api-server/package.json", "utf
 const ok =
   !source.includes("providerDecisionTimeoutMs = 18_000") &&
   source.includes("AGENTIC_PROVIDER_DECISION_TIMEOUT_MS") &&
-  (source.includes("void fn(prompt).then(") || source.includes("void fn(prompt, controller.signal).then(")) &&
+  source.includes("const controller = new AbortController()") &&
+  source.includes("fn(prompt, controller.signal)") &&
   source.includes("clearTimeout(timer)") &&
+  source.includes("runController.abort()") &&
+  source.includes("Math.min(MAX_ITER, Math.max(1, requestedIterations))") &&
   pkg.scripts?.build?.includes("check-agentic-timeout-abort-safety.mjs");
 
 if (!ok) {
-  console.error("FAIL: agentic provider timeout hardening is missing or not wired into the canonical build");
+  console.error("FAIL: agentic provider/run timeout hardening is missing or not wired into the canonical build");
   process.exit(1);
 }
 
-console.log("OK: agentic provider timeout is bounded above provider fetch deadlines and late rejections are consumed");
+console.log("OK: agentic provider and run-level timeouts are bounded and abortable");
