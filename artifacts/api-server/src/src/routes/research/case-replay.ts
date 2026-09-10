@@ -9,6 +9,7 @@ const MAX_REPLAY_EVENTS = 5_000;
 /**
  * Reconstruct operator-visible case state from append-only events.
  * This endpoint is read-only: it never executes research and never mutates caseFile.
+ * Event id is the immutable ledger sequence; wall-clock time is metadata only.
  */
 router.get("/research/bureau/cases/:caseId/replay", async (req, res): Promise<void> => {
   const caseId = Number(req.params.caseId);
@@ -28,7 +29,7 @@ router.get("/research/bureau/cases/:caseId/replay", async (req, res): Promise<vo
 
   const rows = await db.select().from(researchCaseEventsTable)
     .where(eq(researchCaseEventsTable.caseId, caseId))
-    .orderBy(asc(researchCaseEventsTable.createdAt), asc(researchCaseEventsTable.id))
+    .orderBy(asc(researchCaseEventsTable.id))
     .limit(MAX_REPLAY_EVENTS);
 
   const replay = replayResearchCaseEvents(rows.map((row) => ({
