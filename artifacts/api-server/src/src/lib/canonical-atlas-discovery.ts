@@ -1,5 +1,5 @@
 import { and, eq, inArray } from "drizzle-orm";
-import { db, entitiesTable } from "@workspace/db";
+import { db, entitiesTable, researchCasesTable, researchCaseEventsTable } from "@workspace/db";
 import { updateJob, clearActiveJobIfOwned } from "./job-queue";
 import { runGeminiBossDiscovery } from "./case-bureau";
 import { runDeepSeekFreeJson } from "./deepseek-case-reasoning";
@@ -30,6 +30,54 @@ function uniqueNames(values: string[]): string[] {
 
 function isObservedHttpSource(value: unknown): value is string {
   return typeof value === "string" && /^https?:\/\/\S+$/i.test(value);
+}
+
+/**
+ * The initial Atlas discovery is itself an investigation. Give it an explicit
+ * durable case before the Investigator is called so trajectory, observations,
+ * and later oversight state cannot live only in process memory.
+ */
+async function createAtlasDiscoveryCase(input: {
+  atlasJobId: string;
+  objective: string;
+  investigatorLlm: "groq" | "mistral";
+}): Promise<number> {
+  const [created] = await db.insert(researchCasesTable).values({
+    caseType: "discovery",
+    status: "active",
+    directorMode: "gemini_boss",
+    directorProvider: "gemini",
+    directorModel: "pending",
+    objective: input.objective.slice(0, 10000),
+    motivation: "Durable memory for canonical Atlas Investigator discovery.",
+    openingPrompt: "Investigator chooses every research action; this case is memory/state, not a deterministic research plan.",
+    caseFile: JSON.stringify({
+      caseType: "discovery",
+      contextDocument: [
+        "CANONICAL ATLAS DISCOVERY CASE",
+        `JOB: ${input.atlasJobId}`,
+        `INVESTIGATOR: ${input.investigatorLlm}`,
+        `OBJECTIVE: ${input.objective.slice(0, 8000)}`,
+        "STATE: Initial discovery; Investigator owns the next action.",
+        "TRAJECTORY: []",
+      ].join("\n"),
+      investigatorTrajectory: [],
+      investigationTimeline: [],
+    }),
+    currentAction: "canonical-investigator-discovery",
+    iteration: 0,
+  }).returning({ id: researchCasesTable.id });
+  const caseId = created?.id;
+  if (!caseId) throw new Error("Failed to create durable Atlas discovery case.");
+  await db.insert(researchCaseEventsTable).values({
+    caseId,
+    iteration: 0,
+    actorRole: "head_investigator",
+    eventType: "assignment",
+    summary: "Atlas discovery Investigator mounted into a durable case before research began.",
+    payload: JSON.stringify({ jobId: input.atlasJobId, investigatorLlm: input.investigatorLlm, architecture: "free-react" }),
+  });
+  return caseId;
 }
 
 /**
@@ -131,17 +179,25 @@ export async function runCanonicalAtlasPipeline(
       return { phase: 1, ingested: 0, enriched: 0, contactsFound: 0, hotLeads: 0, durationMs: Date.now() - startedAt, phaseSummary };
     }
 
+    const discoveryObjective = "Discover real named people for subsequent target-scoped public-contact research. Choose every search, page visit, registry/domain/OSINT action and stopping point yourself. Emit a person only when you can attribute the observed source to that person; use promotionDecision=promote only for an exact named-person admission candidate. Never invent a person, contact, or URL.";
+    const discoveryCaseId = await createAtlasDiscoveryCase({
+      atlasJobId,
+      objective: discoveryObjective,
+      investigatorLlm: boss.investigatorLlm,
+    });
+
     await updateJob(atlasJobId, {
       progress: 1,
       atlasPhase: 1,
       message: `${boss.investigatorLlm.toUpperCase()} Investigator running free-ReAct discovery…`,
-      result: JSON.stringify({ rightHand, boss: { status: boss.status, model: boss.model, investigatorLlm: boss.investigatorLlm } }),
+      result: JSON.stringify({ rightHand, boss: { status: boss.status, model: boss.model, investigatorLlm: boss.investigatorLlm }, discoveryCaseId }),
     });
 
     const discovery = await runBureauAgenticWebPass({
       targetName: "Discovery slot",
-      objective: "Discover real named people for subsequent target-scoped public-contact research. Choose every search, page visit, registry/domain/OSINT action and stopping point yourself. Emit a person only when you can attribute the observed source to that person; use promotionDecision=promote only for an exact named-person admission candidate. Never invent a person, contact, or URL.",
+      objective: discoveryObjective,
       investigatorLlm: boss.investigatorLlm,
+      caseId: discoveryCaseId,
       jobId: atlasJobId,
       maxIterations: depth.agenticMaxIterations,
       hardTimeoutMs: opts.targetTimeoutMs ?? depth.agenticHardTimeoutMs,
@@ -196,7 +252,7 @@ export async function runCanonicalAtlasPipeline(
           isHidden: false,
           sourceRegistries: JSON.stringify(["canonical-agentic-discovery"]),
           notes: "Model-selected discovery candidate; target-scoped Investigator research required before contact promotion.",
-          metadata: JSON.stringify({ reviewOnly: true, admission: "investigator-explicit-promotion", sourceUrl }),
+          metadata: JSON.stringify({ reviewOnly: true, admission: "investigator-explicit-promotion", sourceUrl, discoveryCaseId }),
         }).returning({ id: entitiesTable.id });
         entityId = created?.id ?? null;
         if (entityId) materialized += 1;
@@ -217,8 +273,8 @@ export async function runCanonicalAtlasPipeline(
       evidenceRows += 1;
     }
 
-    phaseSummary.assignment = `${boss.investigatorLlm} selected by Gemini; discovery completed=${discovery.status}.`;
-    phaseSummary.discovery = `admitted=${admitted.length}; materialized=${materialized}; evidenceRows=${evidenceRows}; searches=${discovery.searches}; visits=${discovery.visits}`;
+    phaseSummary.assignment = `${boss.investigatorLlm} selected by Gemini; discovery completed=${discovery.status}; durableCase=${discoveryCaseId}.`;
+    phaseSummary.discovery = `admitted=${admitted.length}; materialized=${materialized}; evidenceRows=${evidenceRows}; searches=${discovery.searches}; visits=${discovery.visits}; trajectory=${discovery.trajectory.length}`;
 
     await updateJob(atlasJobId, {
       progress: 2,
@@ -284,7 +340,7 @@ export async function runCanonicalAtlasPipeline(
       atlasPhaseTotal: 4,
       outcome: "complete",
       message: `Canonical Investigator discovery/research complete: ${researched} target(s), ${contactsFound} card field promotion(s).`,
-      result: JSON.stringify({ rightHand, boss: { status: boss.status, model: boss.model, investigatorLlm: boss.investigatorLlm }, discovery: { status: discovery.status, findings: discovery.findings.length, searches: discovery.searches, visits: discovery.visits }, phaseSummary }),
+      result: JSON.stringify({ rightHand, boss: { status: boss.status, model: boss.model, investigatorLlm: boss.investigatorLlm }, discovery: { status: discovery.status, findings: discovery.findings.length, searches: discovery.searches, visits: discovery.visits, caseId: discoveryCaseId, trajectoryEntries: discovery.trajectory.length }, phaseSummary }),
       finishedAt: new Date().toISOString(),
     });
     await clearActiveJobIfOwned("atlas-run", atlasJobId);
