@@ -25,7 +25,8 @@ type RunInput = Parameters<CoreModule["runAgenticWebResearch"]>[0];
 
 /** Canonical Investigator entrypoint with SSRF-safe outbound network access. */
 export async function runAgenticWebResearch(input: RunInput): Promise<Awaited<ReturnType<CoreModule["runAgenticWebResearch"]>>> {
-  const scope = `agentic:${input.jobId ?? input.targetName.trim().toLowerCase()}`;
+  const executionId = typeof crypto?.randomUUID === "function" ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  const scope = `agentic:${executionId}`;
   return withAgenticExecutionScope(scope, async () => {
     const core = await import("./agentic-web-research-core");
     return core.runAgenticWebResearch(input);
