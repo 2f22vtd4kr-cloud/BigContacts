@@ -4,7 +4,7 @@
 
 **Repo:** https://github.com/2f22vtd4kr-cloud/BigContacts  
 **Branch:** `main`  
-**Current GitHub code tip:** `aa65c2e17b92a59b5165975c75997d923d900d2d`  
+**Current GitHub code tip:** `8281119be080d5c2fa917786257a49edcd40e8b0`  
 **Product:** Apex Atlas research bureau embedded in BigContacts.
 
 ## 1. Institutional constitution
@@ -46,13 +46,11 @@ Atlas control: `atlas-control-decision.ts`, `canonical-atlas-discovery.ts`, cano
 
 ## 4. First-decision result — #120 fixed
 
-The rewritten core no longer seeds `lastObservation` with `Begin. Choose an initial web_search query` or `(none — begin with web_search)`.
-
-The first observation is context-only: institutional mission/role, durable case context, capabilities, and explicit statement that no action has been selected. The Investigator can choose any permitted first action.
+The rewritten core no longer seeds a mandatory `web_search`. The first observation is context-only and the Investigator can choose any permitted first action.
 
 Current action surface:
 
-- `web_search` — explicit Serper/Tavily/Exa choice;
+- `web_search` — explicit Serper/Tavily/Exa choice, with optional model-selected locale/market;
 - `visit`;
 - `browser_fetch`;
 - `footprint_email`;
@@ -62,45 +60,58 @@ Current action surface:
 - `harvest_domain`;
 - `done`.
 
-Issue #120 is closed as completed. No runtime/CI success is implied.
-
 ## 5. Forensic hardening status
 
-### FIXED — provider quota composition
-The original Investigator SSRF wrapper bypassed the global provider quota gate. The wrapper now composes provider quota with SSRF-safe pinned fetch and detects an outer `__apexQuotaGuard` so quota is not double-counted when module-load order installs provider-gate after the Agentic module. Regression guard: `scripts/check-agentic-ssrf-boundary.mjs`.
+### FIXED — Agentic provider quota wrapper contract
+The canonical Agentic SSRF wrapper now uses the actual `runProviderCall` API when no process-wide quota shim exists, instead of calling the incompatible internal `runProviderFetch` signature. With the outer quota guard present, Agentic fetch uses only SSRF pinning and avoids double quota accounting.
 
-### FIXED — system-level prompt-injection law
-`apex-bureau-orientation.ts` now explicitly classifies search/page/registry/browser/OSINT output as untrusted/adversarial data. Observations cannot override Apex mission, role boundaries, evidence law, safety law, action schema, authorization, or promotion/stopping authority.
+### FIXED — run iteration ceiling
+The core hard-caps caller-supplied iterations at `MAX_ITER=40`.
 
-### FIXED — identity collision URL substitution
-`identity-collision.ts` no longer counts source URL tokens as identity overlap. Explicit multi-token `personName` must align with the target; evidence URLs are provenance, not identity.
+### FIXED — run-level cancellation for LLM/HTTP
+The core creates one run-scoped `AbortController`, aborts it at the hard deadline, propagates it into Investigator LLM requests and page/search HTTP, and makes provider-slot waiting cancellable. Cancellation is now represented as a distinct terminal status rather than successful completion.
 
-### OPEN — run-level hard timeout/cancellation (#139)
-The ReAct loop checks timeout only between turns. Tool/LLM calls can continue until their local timeout. Cancellation currently returns `status="completed"` with `stopReason="CANCELLED"`, conflating cancellation with successful completion. Required: run-scoped AbortSignal propagated through LLM/network/browser/subprocess tools and explicit cancelled terminal state.
+### FIXED — attempted URL is not provenance
+ReAct trajectory entries now record execution state and an explicit `observed=` URL. Contact-source validation accepts only successful observed page/browser URLs; failed/blocked/timed-out attempts cannot become evidence merely because the model attempted them.
 
-### OPEN — hard iteration ceiling (#139)
-Core defines `MAX_ITER=40` but computes `maxIter = Math.max(1, input.maxIterations ?? MAX_ITER)`, permitting a caller to exceed the intended hard ceiling. Research-depth callers currently use 8/14/20, but the core invariant must be fail-closed.
+### FIXED — network response memory ceiling
+The SSRF-pinned transport enforces a 2,000,000-byte response ceiling with Content-Length precheck and streaming byte counting. Browser/provider escalation also has a 2,000,000-byte response ceiling where applicable.
 
-### OPEN — core transport safety (#139)
-`toolVisit()` contains `redirect: "follow"`. The live canonical wrapper overrides redirects to manual, but the core is unsafe by construction if imported outside the wrapper. Make the core transport safe itself.
+### FIXED — browser budget isolation
+Browser escalation budget is now keyed by Agentic execution scope through AsyncLocalStorage instead of one process-wide counter. Browser Playwright requests are individually checked against the SSRF destination guard, including redirects/subresources.
 
-### OPEN — exact claim-to-source provenance (#142)
-Current provenance proves that a cited URL was observed, not that the claimed email/phone/person identity actually appeared in the observed material. The durable evidence record needs bounded source excerpts/content-addressed observations so deterministic validation can bind each claim to observed material without choosing identity or promotion.
+### FIXED — search locale neutrality
+Serper no longer silently supplies `gl=us` / `hl=en`; optional locale/market fields are model-selectable.
 
-### OPEN — durable forensic trajectory (#140)
-Current `history` persists compact action summaries, not the actual model action object, exact tool arguments, tool result/observation, provenance excerpt, fallback event, and next state. The required trajectory must be inspectable by Gemini/DeepSeek/operator without storing private hidden chain-of-thought. Persist explicit structured action/thought fields only where product-visible, never hidden CoT.
+### FIXED — exact claim-to-observation binding
+Target and Bureau source-backed finding gates now use durable structured ReAct observations. Contact values must occur in the observed material, and candidate person-name tokens must occur in the same observed material. Identity/promotion remain model-authored; deterministic code only validates the claim-to-source binding.
+
+### IMPLEMENTED — structured forensic trajectory
+The ReAct result now includes bounded `trajectoryRecords` containing turn/model/action/args, optional product-visible thought, execution state, observation, observed URLs, findings, provider fallback, and stop reason. Canonical discovery persistence stores those records and builds a durable continuation memory projection from case state.
+
+### OPEN — full run cancellation across browser/subprocess (#139/#141)
+Browser adapters now accept cancellation internally, but the canonical core still needs to pass its run signal into the browser call; subprocess OSINT adapters (Holehe/Maigret/Sherlock/theHarvester) still need true child-process cancellation and governed egress. Do not claim the entire run is hard-cancellable until those paths are wired.
 
 ### OPEN — subprocess network boundary (#141)
-Holehe/Maigret/Sherlock/theHarvester subprocesses make network requests outside the Node provider/SSRF/cancellation boundary. TheHarvester accepts a model-selected domain. Local Playwright browser navigation can also follow redirects/subresources outside the Node SSRF guard. These adapters need sandboxed/egress-governed transport or explicit proof of safe destination behavior.
+Python OSINT tools make network calls outside the Node SSRF/provider boundary. They require sandboxed/egress-governed execution or a formal safe-transport design.
 
-### OPEN — search locale (#143)
-Serper hard-codes `gl="us"` and `hl="en"`. Investigator action schema does not expose locale/market choice, creating deterministic international retrieval bias. Locale should be model-selectable or neutralized.
+### OPEN — discovery first-class mode (#144)
+The core exposes `mode="discovery"`, and the Bureau wrapper uses it, but the legacy discovery-agent tree still contains `Discovery slot` magic strings and older prescriptive prompts. Canonical Atlas should stop representing discovery as a fake target at all public/internal boundaries.
 
-### OPEN — durable continuation memory
-Discovery trajectory persistence currently narrows `contextDocument` to objective/counters/trajectory rather than a synthesized memory projection containing Boss/Right-Hand state, admitted candidates, open questions and evidence state.
+### OPEN — legacy deterministic secondary surface (#125/#126)
+`expandSecondaryPublicSurface()` remains a deterministic enrichment playbook in legacy/live-adjacent paths. It should be retired or converted into explicit model-selectable capabilities; direct fetch must remain under the canonical safety boundary.
 
-### OPEN — browser budget isolation
-`browser-fetch-core.ts` uses a process-wide browser fetch counter while describing the budget as case-local. Concurrent cases can consume each other's browser escalation budget.
+### OPEN — canonical Groq final reviewer (#128)
+`src/src/lib/ai-extractor.ts` still contains the Groq final-review path and must be removed/fail-closed without weakening the role contract.
+
+### OPEN — duplicate source trees (#129) and legacy ingest tree (#132)
+Reachability/classification and quarantine cleanup remain incomplete.
+
+### OPEN — observation-only semantic scope (#136)
+The old deterministic contact-fact-to-`AgenticFinding` helper has been removed from the canonical ReAct core. The broader legacy observation/extraction tree still needs reachability audit before #136 can be closed globally.
+
+### OPEN — API/OpenAPI legacy retirement (#137/#138)
+The old `cases.ts` execution source is unmounted/quarantined; API/OpenAPI/generated-client retirement reconciliation remains.
 
 ## 6. Evidence/person admission law
 
@@ -108,12 +119,10 @@ A discovery person candidate requires:
 
 1. explicit model-authored person identity;
 2. candidate/person scope;
-3. exact observed HTTP(S) source;
+3. exact successful observed HTTP(S) source;
 4. explicit `promotionDecision="promote"`.
 
 No target-name inheritance, organization inheritance, URL-slug admission, article/listicle admission, proxy-contact admission, or source-URL-as-identity substitution.
-
-Deterministic contact extraction remains observation-only and does not become `modelFindings`. #136 additionally tracks removal of semantic `scope="organization"` objects from raw extraction; raw observations should contain facts/provenance, not identity scope authored by code.
 
 ## 7. Durable Atlas control
 
@@ -123,23 +132,8 @@ Control decisions require durable `caseId` and positive `controlTurn`, are persi
 
 Target investigations refuse context-free calls. Canonical target context includes prior case state, Right-Hand state, Boss state, actual Investigator trajectory, and finding summaries.
 
-## 8. Remaining legacy/control-plane blockers
+## 8. Verification state
 
-- **#125/#126:** deterministic secondary-surface playbook and legacy direct-fetch/SSRF lane.
-- **#128:** canonical Groq final reviewer in `src/src/lib/ai-extractor.ts`.
-- **#129/#132:** duplicate/legacy source-tree and enrichment reachability classification.
-- **#133:** institutional mission/bootstrap reconciliation.
-- **#136:** deterministic semantic identity/scope in observation extraction.
-- **#137/#138:** legacy `cases.ts` execution source is quarantined/unmounted; API/OpenAPI retirement reconciliation remains.
+**No runtime, Replit, provider-availability, DB/Redis durability, CI, or end-to-end card-promotion success is claimed.** GitHub connector writes confirm repository mutations only. The next acceptance gate remains a real durable trajectory showing Gemini Boss → DeepSeek/NVIDIA Right Hand → selected Groq/Mistral Investigator → genuine model-selected first action → model-selected pivots/tools → successful observed provenance → explicit promotion → evidence-backed card, with actual observations inspectable by oversight.
 
-Legacy `discovery-agent.ts` also contains older prescriptive discovery prompts and candidate heuristics. It is not the canonical public Atlas control path and remains part of legacy reachability/quarantine work; do not treat it as current ReAct architecture.
-
-## 9. Verification
-
-Current main tip: `aa65c2e17b92a59b5165975c75997d923d900d2d`.
-
-GitHub has not provided completed CI/runtime evidence for this tip. No Replit deployment, provider availability, DB/Redis durability, card promotion, or end-to-end smoke trajectory is claimed.
-
-Final acceptance remains a real durable trajectory showing: Gemini Boss → DeepSeek/NVIDIA Right Hand → selected Groq/Mistral Investigator → genuine model-selected first action → model-selected pivots/tools → observed provenance → explicit promotion → evidence-backed card, with actual actions/observations inspectable by oversight.
-
-For the complete forensic review and issue mapping, see `docs/audit-2026-09-10-react-core-forensic-review.md` and GitHub issues #139–#143.
+Legacy `discovery-agent.ts` remains quarantine material and must not be treated as current ReAct architecture.
