@@ -26,8 +26,15 @@ assert(/AI-driven investigatory bureau/.test(source.orientation), "canonical ori
 assert(/RESEARCH JUDGMENT/.test(source.orientation), "canonical orientation does not establish standing research judgment.");
 assert(/PROVENANCE/.test(source.orientation), "canonical orientation does not establish standing provenance/evidence discipline.");
 assert(/MODEL ROLE SEPARATION/.test(source.orientation), "canonical orientation does not establish model role separation.");
+assert(/INSTITUTIONAL BOOTSTRAP/.test(source.orientation), "canonical orientation does not establish institutional bootstrap independent of operator input.");
+assert(/standing institutional mission/.test(source.orientation), "canonical orientation does not state that institutional mission exists before operator input.");
 assert(/Operator input/i.test(source.architecture), "mission bootstrap document does not distinguish operator input from institutional purpose.");
 assert(/does not redefine Apex's institutional purpose/i.test(source.architecture), "mission bootstrap document permits operator input to redefine institutional purpose.");
+
+// The compact orientation is used in the actual provider system messages. It must carry
+// the institutional bootstrap itself rather than relying on an unrelated outer prompt.
+assert(/apexOrientationCompact/.test(source.orientation), "canonical orientation has no compact provider orientation.");
+assert(/standing institutional mission, evidence discipline, autonomy law, and role separation that exist before operator input/i.test(source.orientation), "compact AI orientation does not carry institutional bootstrap context.");
 
 // All three live reasoning roles must receive the canonical orientation before role work.
 assert(/apexOrientationFor\("boss"\)/.test(source.bureau) || /apexOrientationCompact\("boss"\)/.test(source.bureau), "Boss path does not visibly consume canonical Apex orientation.");
@@ -55,6 +62,7 @@ if (failures.length) {
 
 console.log("APEX MISSION BOOTSTRAP: PASS");
 console.log("- institutional Apex purpose is runtime-defined");
+console.log("- compact provider orientation carries institutional bootstrap");
 console.log("- Boss, Right Hand, and Investigator receive standing role orientation");
 console.log("- durable context is part of the Investigator boundary");
 console.log("- operator input cannot redefine institutional purpose");
