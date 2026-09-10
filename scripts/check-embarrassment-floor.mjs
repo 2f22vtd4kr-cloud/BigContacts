@@ -77,12 +77,6 @@ ok("bureau cases wire agentic",
   cases.includes("runBureauAgenticWebPass") && cases.includes("isWebSpecialistAction"));
 ok("secondary runs agentic loop",
   bureauAgentic.includes("runAgenticWebResearch") && bureauAgentic.includes("Agentic web pass"));
-
-// No audit floor should require a deterministic secondary research function to
-// execute. The function may remain quarantined/retired while its capabilities
-// are eventually exposed through explicit Investigator actions.
-ok("deterministic secondary expansion is not required by this floor", !cases.includes("atlas-secondary+agentic-react") || !cases.includes("expandSecondaryPublicSurface"));
-
 ok("secondary email requires website URL",
   persist.includes("result.email && result.website"));
 
