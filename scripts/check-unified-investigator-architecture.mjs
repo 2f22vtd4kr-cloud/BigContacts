@@ -9,6 +9,7 @@ const files = {
   pass: path.join(root, "artifacts/api-server/src/src/lib/bureau-agentic-pass.ts"),
   canonicalCase: path.join(root, "artifacts/api-server/src/src/routes/research/canonical-case-discovery.ts"),
   caseData: path.join(root, "artifacts/api-server/src/src/routes/research/case-data.ts"),
+  caseRetirement: path.join(root, "artifacts/api-server/src/src/routes/research/legacy-case-execution-retirement.ts"),
   canonicalAtlas: path.join(root, "artifacts/api-server/src/src/lib/canonical-atlas-discovery.ts"),
   atlasControl: path.join(root, "artifacts/api-server/src/src/lib/atlas-control-decision.ts"),
   canonicalTarget: path.join(root, "artifacts/api-server/src/src/lib/canonical-single-target-runner.ts"),
@@ -68,16 +69,17 @@ assert(/runCanonicalSingleTargetInvestigation/.test(source.launchRoute), "Atlas 
 assert(/canonical-case-discovery/.test(source.researchRoutes), "Canonical case-discovery router is not mounted.");
 assert(/canonical-case-continuation/.test(source.researchRoutes), "Canonical case-continuation router is not mounted.");
 assert(/case-data/.test(source.researchRoutes), "Durable case data router is not mounted.");
+assert(/legacy-case-execution-retirement/.test(source.researchRoutes), "Legacy case execution retirement router is not mounted.");
 assert(!/from "\.\/research\/cases"/.test(source.researchRoutes), "Legacy mixed research/cases router is still imported by the live canonical research router.");
 assert(!/router\.use\(casesRouter\)/.test(source.researchRoutes), "Legacy mixed research/cases router is still mounted by the live canonical research router.");
+assert(/status\(410\)/.test(source.caseRetirement), "Legacy case execution retirement router does not return explicit HTTP 410 responses.");
+assert(/initial-research/.test(source.caseRetirement) && /admit-candidate/.test(source.caseRetirement) && /promote-target/.test(source.caseRetirement) && /run-boss-review/.test(source.caseRetirement), "Legacy case execution retirement router does not cover every retired manual execution endpoint.");
+assert(!/runBureauAgenticWebPass|runBroadDiscovery|runMistralWebSearch|searchRegistry|expandSecondaryPublicSurface/.test(source.caseData), "Case data router contains research execution logic; persistence/read surfaces must remain non-research.");
 
 assert(/canonical-atlas-discovery/.test(source.launchRoute), "Atlas launch route is not wired to canonical model-owned discovery.");
 assert(!/atlas-orchestrator/.test(source.launchRoute), "Atlas launch route still imports the legacy deterministic orchestrator.");
 assert(!/\brunPhaseJBatch\s*\(|\bexpandSecondaryPublicSurface\s*\(|\brunBroadDiscovery\s*|\brunMcts\s*\(|\brunTargetResearch\s*\(/.test(source.canonicalAtlas), "Canonical Atlas runner contains a retired deterministic research path.");
 
-// Discovery admission must not itself become an unconditional phase gate into every
-// admitted target. The AI control plane must own the decision to advance, pivot, revisit,
-// reprioritize, or stop; deterministic persistence cannot encode that research sequence.
 assert(!/for\s*\(const\s+name\s+of\s+admitted\)[\s\S]{0,12000}runCanonicalSingleTargetInvestigation\s*\(/.test(source.canonicalAtlas), "Canonical Atlas hard-wires discovery→target research as a deterministic phase transition; #134 remains unresolved.");
 
 // The legacy mixed cases.ts research executor is intentionally quarantined by the route
@@ -85,24 +87,15 @@ assert(!/for\s*\(const\s+name\s+of\s+admitted\)[\s\S]{0,12000}runCanonicalSingle
 // is tracked separately under #129/#138. The live router must not import or mount it.
 assert(!/cases\.ts/.test(source.researchRoutes), "Live canonical research router still references quarantined cases.ts.");
 
-// The top-level API route tree is still mounted for compatibility/status surfaces,
-// but its legacy deterministic MCTS and bulk research routers must remain quarantined.
 assert(!/mctsRouter|bulkRouter/.test(source.legacyResearchRoutes), "Legacy API research router still mounts deterministic MCTS or bulk-hybrid research.");
-
 assert(!/import\s+phaseJRouter\s+from\s+["']\.\/phase-j["']/.test(source.apiRoutes), "Legacy deterministic Phase J router is still imported by the live API route index.");
 assert(!/router\.use\(phaseJRouter\)/.test(source.apiRoutes), "Legacy deterministic Phase J router is still mounted in the live API.");
 
-// Boot is lifecycle-only. The old startup module contained a mass research scheduler;
-// the live entrypoint must use the recovery-only module instead.
 assert(/from "\.\/lib\/startup-recovery"/.test(source.entrypoint), "Live API entrypoint does not use lifecycle-only startup recovery.");
 assert(!/from "\.\/lib\/startup"/.test(source.entrypoint), "Live API entrypoint still imports the retired startup research scheduler.");
 assert(/Startup recovery complete/.test(source.startupRecovery), "Lifecycle-only startup recovery is missing its explicit no-research completion marker.");
 assert(!/runBroadDiscovery|bulk-run|deep-web-osint|social-discovery|messenger-discovery|in-house-enrich/.test(source.startupRecovery), "Lifecycle-only startup recovery contains a research/enrichment trigger.");
 
-// Identity law: deterministic observations may be exposed as raw observations, but
-// the ReAct core must not pre-attribute them to the requested target. Identity claims
-// belong to the Investigator's explicit done/promotion decision. This guard is expected
-// to stay red until #136 removes target-derived attribution from observation generation.
 assert(!/findingsFrom(?:PeopleSnippet|ProxyPage|IrAndRelatedBlocks|ContactFacts)[\s\S]{0,18000}personName:\s*targetName/.test(source.research), "ReAct observation extraction still injects target-derived personName into deterministic findings; #136 remains unresolved.");
 assert(!/findingsFrom(?:PeopleSnippet|ProxyPage|IrAndRelatedBlocks|ContactFacts)[\s\S]{0,18000}scope:\s*"candidate"/.test(source.research), "ReAct observation extraction still manufactures candidate scope before an Investigator promotion decision; #136 remains unresolved.");
 
