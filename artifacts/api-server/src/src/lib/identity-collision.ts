@@ -51,12 +51,17 @@ export function assessIdentityCollision(input: {
 }): IdentityCollisionResult {
   const targetToks = identityNameTokens(input.targetName);
   const companyToks = identityNameTokens(input.companyName);
-  const blob = [
-    input.personName ?? "",
-    input.value,
-    input.note ?? "",
-    ...input.sourceUrls,
-  ].join(" ").toLowerCase();
+
+  // Identity overlap is deliberately computed from explicit person/evidence
+  // text, not from URLs. A source URL is provenance, not a substitute for a
+  // model-authored person identity; otherwise a URL slug containing the target
+  // name could make an unrelated person appear to match.
+  const identityBlob = [input.personName ?? "", input.value, input.note ?? ""].join(" ").toLowerCase();
+  const sourceBlob = input.sourceUrls.join(" ").toLowerCase();
+  const overlap = targetToks.filter((t) => identityBlob.includes(t));
+  const personToks = identityNameTokens(input.personName);
+  const personOverlap = targetToks.filter((t) => personToks.includes(t));
+  const hostBlob = `${identityBlob} ${sourceBlob}`;
 
   const value = String(input.value ?? "").trim();
   const contactLike =
@@ -71,13 +76,22 @@ export function assessIdentityCollision(input: {
     };
   }
 
-  const overlap = targetToks.filter((t) => blob.includes(t));
-  const personToks = identityNameTokens(input.personName);
-  const personOverlap = targetToks.filter((t) => personToks.includes(t));
-  const hostHit = COLLISION_HOSTS.some((h) => blob.includes(h));
+  // For a multi-token target, an explicit multi-token personName must actually
+  // align with the target. Evidence URLs cannot rescue a conflicting name.
+  if (targetToks.length >= 2 && input.personName?.trim()) {
+    if (personToks.length < 2 || personOverlap.length < 2) {
+      return {
+        risk: true,
+        identityMatch: 0.18,
+        reason: "explicit personName does not sufficiently align with target identity",
+      };
+    }
+  }
+
+  const hostHit = COLLISION_HOSTS.some((h) => hostBlob.includes(h));
   const educationHostHit =
     /^[a-z0-9._%+-]+@([a-z0-9.-]+)$/i.test(value)
-      ? INSTITUTIONAL_EDUCATION_HOSTS.some((marker) => blob.includes(marker))
+      ? INSTITUTIONAL_EDUCATION_HOSTS.some((marker) => hostBlob.includes(marker))
       : false;
 
   if (targetToks.length >= 2 && personToks.length >= 2) {
@@ -118,20 +132,20 @@ export function assessIdentityCollision(input: {
 
   if (targetToks.length >= 2) {
     const surname = targetToks[targetToks.length - 1]!;
-    if (surname.length >= 3 && !blob.includes(surname) && overlap.length < 2) {
+    if (surname.length >= 3 && !identityBlob.includes(surname) && overlap.length < 2) {
       return {
         risk: true,
         identityMatch: 0.22,
-        reason: "surname token missing from evidence blob; likely name collision",
+        reason: "surname token missing from explicit evidence text; likely name collision",
       };
     }
   }
 
-  if (companyToks.length && companyToks.some((t) => blob.includes(t))) {
+  if (companyToks.length && companyToks.some((t) => identityBlob.includes(t))) {
     return { risk: false, identityMatch: 0.55, reason: null };
   }
 
-  if (hostHit && companyToks.length && !companyToks.some((t) => blob.includes(t))) {
+  if (hostHit && companyToks.length && !hostBlob.includes(companyToks.find((t) => hostBlob.includes(t)) ?? "\u0000")) {
     return {
       risk: true,
       identityMatch: 0.15,
@@ -142,7 +156,7 @@ export function assessIdentityCollision(input: {
     return {
       risk: true,
       identityMatch: 0.2,
-      reason: "no name-token overlap between target and evidence blob",
+      reason: "no name-token overlap between target and explicit evidence text",
     };
   }
   if (targetToks.length >= 2 && overlap.length === 1 && hostHit) {
