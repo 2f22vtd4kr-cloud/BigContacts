@@ -10,6 +10,7 @@ const required = {
   pass: path.join(root, "artifacts/api-server/src/src/lib/bureau-agentic-pass.ts"),
   target: path.join(root, "artifacts/api-server/src/src/lib/target-contact-agent.ts"),
   architecture: path.join(root, "docs/APEX_AUTONOMOUS_MISSION_BOOTSTRAP.md"),
+  firstDecision: path.join(root, "docs/APEX_FIRST_DECISION_CONTRACT.md"),
 };
 
 const source = Object.fromEntries(Object.entries(required).map(([name, file]) => {
@@ -32,6 +33,10 @@ assert(/PRE-INVESTIGATION CONTRACT/.test(source.orientation), "canonical orienta
 assert(/before any operator supplies case-specific instructions/i.test(source.orientation), "institutional purpose is not explicitly established before operator input.");
 assert(/Operator input/i.test(source.architecture), "mission bootstrap document does not distinguish operator input from institutional purpose.");
 assert(/does not redefine Apex's institutional purpose/i.test(source.architecture), "mission bootstrap document permits operator input to redefine institutional purpose.");
+assert(/APEX INSTITUTIONAL MISSION/.test(source.firstDecision), "first-decision contract omits institutional mission from the context order.");
+assert(/ROLE PURPOSE/.test(source.firstDecision), "first-decision contract omits role purpose.");
+assert(/DURABLE CASE CONTEXT/.test(source.firstDecision), "first-decision contract omits durable case context.");
+assert(/first model-facing decision/i.test(source.firstDecision), "first-decision contract does not define the first model-facing decision.");
 
 // The compact orientation is used in actual provider system messages. It must carry the
 // institutional bootstrap itself rather than relying on an unrelated outer prompt.
@@ -70,5 +75,6 @@ console.log("- institutional Apex purpose is a versioned runtime contract");
 console.log("- compact provider orientation carries institutional bootstrap");
 console.log("- Boss, Right Hand, and Investigator receive standing role orientation");
 console.log("- durable context is part of the Investigator boundary");
+console.log("- first-decision contract forbids hidden deterministic sequencing");
 console.log("- operator input cannot redefine institutional purpose");
 console.log("- first research action remains model-selected");
