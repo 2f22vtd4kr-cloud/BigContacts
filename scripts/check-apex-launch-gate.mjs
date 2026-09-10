@@ -11,6 +11,7 @@ const hardeners = [
   "apply-registry-cancellation-boundary.mjs",
   "apply-agentic-registry-signal-wiring.mjs",
   "apply-retire-deterministic-atlas-osint.mjs",
+  "apply-retire-legacy-atlas-launch.mjs",
 ];
 for (const script of hardeners) execFileSync(process.execPath, [`scripts/${script}`], { stdio: "inherit" });
 
@@ -28,6 +29,7 @@ const registry = read("artifacts/api-server/src/src/lib/registry-client.ts");
 const pythonTools = read("artifacts/api-server/src/src/lib/python-tools.ts");
 const aiExtractor = read("artifacts/api-server/src/src/lib/ai-extractor.ts");
 const entities = read("artifacts/api-server/src/src/routes/entities.ts");
+const legacyAtlas = read("artifacts/api-server/src/src/routes/atlas.ts");
 
 pass("Investigator wrapper mounts canonical core", wrapper.includes("agentic-web-research-core"));
 pass("Investigator adapter pool contains Groq", /callGroqJson/.test(agentic));
@@ -45,7 +47,6 @@ pass("manual audit runs agentic runtime checks", /check:agentic-runtime/.test(ba
 pass("discovery emits model-selection progress", /onSlotProgress\?/.test(discovery));
 pass("orchestrator defaults target limit to three", /opts\.targetCount \?\? 3/.test(orchestrator));
 pass("orchestrator does not force a ten-target default", !/opts\.targetCount \?\? 10/.test(orchestrator));
-
 pass("Maigret is individually selectable", agentic.includes('"footprint_username_maigret"'));
 pass("Sherlock is individually selectable", agentic.includes('"footprint_username_sherlock"'));
 pass("compound username action is gone", !/action === "footprint_username"/.test(agentic));
@@ -63,11 +64,13 @@ pass("final review fails closed", /unavailable-final-review/.test(aiExtractor));
 pass("canonical secondary research caller is retired", !/\bexpandSecondaryPublicSurface\s*\(/.test(entities));
 pass("canonical observation layer does not inherit target identity", !/personName:\s*(?:targetName|name)\b/.test(agentic));
 pass("Atlas does not script Maigret/Holehe", !/runMaigret\(|runHolehe\(|rawHandle \|\| emailForHolehe/.test(orchestrator));
+pass("legacy Atlas launch is quarantined", /router\.post\(\"\/ingest\/atlas-run\"[\s\S]{0,500}status\(410\)/.test(legacyAtlas));
+pass("legacy Atlas route cannot call historical orchestrator", !/runAtlasPipeline\(|from [\"']\.\.\/lib\/atlas-orchestrator[\"']/.test(legacyAtlas));
 
 let failed = false;
 for (const [name, ok] of checks) {
   console.log(`${ok ? "PASS" : "FAIL"}  ${name}`);
-  if (!ok) failed = true;
+  if (failed) failed = true;
 }
 if (failed) process.exit(1);
 console.log(`\nApex launch gate: ${checks.length} checks passed.`);
