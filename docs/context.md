@@ -4,7 +4,7 @@
 
 **Repo:** https://github.com/2f22vtd4kr-cloud/BigContacts  
 **Branch:** `main`  
-**Current GitHub code tip:** `50c6ffa6cee2bdb228b835399cc401675e2d278a`  
+**Current GitHub code tip:** `1d0b54a40ada30354811d27bc9dab8f3d542ee62`  
 **Product:** Apex Atlas research bureau embedded in BigContacts. Bureau is the OSINT/research architecture, not a separate product.
 
 ## 1. Institutional identity and mission
@@ -242,12 +242,14 @@ Important guards include:
 - `scripts/check-legacy-apex-mutation-boundary.mjs`
 - `scripts/check-retired-research-routes.mjs`
 
+The Atlas durability guard now explicitly requires `caseId` and `controlTurn` to be required TypeScript inputs, rejects invalid values, and rejects the former silent no-op persistence path. The guard itself checks those fail-closed properties.
+
 The guards are regression barriers, not proof of runtime behavior. A field named `investigatorLlm` is not proof of propagation; a function named `agentic` is not proof of autonomy; a green static check is not proof of a real investigation.
 
 ## 14. Verification truth
 
 GitHub currently shows the latest main tip as:
-`50c6ffa6cee2bdb228b835399cc401675e2d278a` (`Fail closed when Atlas control context is omitted`, 2026-09-10).
+`1d0b54a40ada30354811d27bc9dab8f3d542ee62` (`Guard required durable Atlas control context`, 2026-09-10).
 
 No runtime/Replit success is claimed.
 
