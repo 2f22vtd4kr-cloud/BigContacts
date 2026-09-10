@@ -49,6 +49,7 @@ assert(/investigatorLlm/.test(source.research), "ReAct research runtime does not
 assert(/runBureauAgenticWebPass\(\{[\s\S]*?investigatorLlm\s*:/.test(source.canonicalCase + source.cases), "Case discovery invocation is not visibly bound to the Boss-selected Investigator.");
 assert(/runBureauAgenticWebPass\(\{[\s\S]*?caseId\s*,/.test(source.canonicalCase), "Canonical case discovery does not mount its durable discovery case context into the Investigator.");
 assert(/investigatorLlm\s*:/.test(source.canonicalAtlas), "Canonical Atlas discovery does not bind the selected Investigator.");
+assert(/runBureauAgenticWebPass\(\{[\s\S]*?caseId\s*:/.test(source.canonicalAtlas), "Canonical Atlas discovery does not mount a durable discovery case context into the Investigator.");
 assert(/runTargetContactAgent\(\{[\s\S]*?investigatorLlm\s*:/.test(source.canonicalTarget), "Canonical target runner does not bind the selected Investigator into the target Dig.");
 assert(/runTargetContactAgent\(\{[\s\S]*?contextDocument\s*:/.test(source.canonicalTarget), "Canonical target runner does not mount durable context into the Target Investigator.");
 assert(/refusing context-free Investigator run/.test(source.targetAgent), "Target Investigator does not explicitly refuse context-free execution.");
