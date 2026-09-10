@@ -7,6 +7,7 @@ const legacyStartup = read("artifacts/api-server/src/lib/startup.ts");
 const jobs = read("artifacts/apex-finder/src/pages/jobs.tsx");
 const secondaryPersist = read("artifacts/api-server/src/src/lib/bureau-contact-persist.ts");
 const canonicalEnrichment = read("artifacts/api-server/src/src/routes/ingest-enrichment.ts");
+const canonicalResearchRoutes = read("artifacts/api-server/src/src/routes/research.ts");
 
 const retired = [
   "/api/ingest/deep-web-osint",
@@ -37,9 +38,6 @@ for (const route of retired) {
   }
 }
 
-// Startup is lifecycle-only. The former canonical startup module contained a long
-// phase scheduler that could launch research after boot. It must stay deleted, while
-// the replacement recovery module must remain free of research triggers.
 if (canonicalStartup) {
   console.log("FAIL retired canonical startup research scheduler still exists on disk.");
   failed = true;
@@ -56,8 +54,6 @@ if (/runBroadDiscovery|bulk-run|deep-web-osint|social-discovery|messenger-discov
   failed = true;
 }
 
-// Route retirement is not enough when the operator UI still exposes the old control plane
-// under task IDs/labels rather than literal API URLs.
 const retiredUiTasks = ["sync-hot-flags", "deep-web-osint", "bulk-hybrid-research", "bulk-mcts"];
 for (const task of retiredUiTasks) {
   if (jobs.includes(task)) {
@@ -68,8 +64,6 @@ for (const task of retiredUiTasks) {
   }
 }
 
-// Workspace activity is deliberately navigation/review only. A future edit must not
-// quietly turn it back into a second research launcher.
 if (/\bfetch\s*\(/.test(jobs) || /\bTrigger Task\b|\bonTrigger\b|\bJOB_DEFS\b/.test(jobs)) {
   console.log("FAIL workspace activity desk contains executable job-launcher logic; research launch belongs to the canonical control plane.");
   failed = true;
@@ -77,8 +71,6 @@ if (/\bfetch\s*\(/.test(jobs) || /\bTrigger Task\b|\bonTrigger\b|\bJOB_DEFS\b/.t
   console.log("PASS workspace activity desk contains no executable job-launcher logic.");
 }
 
-// These deterministic routers were unmounted before deletion. Keep the filesystem
-// check so a future refactor cannot silently resurrect them as a second control plane.
 const retiredControlPlaneFiles = [
   "artifacts/api-server/src/routes/research/mcts.ts",
   "artifacts/api-server/src/routes/research/bulk.ts",
@@ -92,8 +84,6 @@ for (const file of retiredControlPlaneFiles) {
   }
 }
 
-// The legacy enrichment router is retained only as an explicit 410 quarantine. It must
-// not regain deterministic research jobs or a hidden compatibility path.
 if (!/status\(410\)/.test(canonicalEnrichment)) {
   console.log("FAIL canonical ingest-enrichment router is not an explicit 410 quarantine.");
   failed = true;
@@ -107,13 +97,20 @@ if (/runBroadDiscovery|deepWebOsintEnrich|enrichInHouse|discoverSocialPresence|d
   console.log("PASS canonical ingest-enrichment quarantine contains no research implementation.");
 }
 
-// A retired deterministic research function must not remain an automatic research control
-// plane merely because its old HTTP route has been removed. Keep this gate intentionally
-// source-level and conservative: the implementation itself is allowed to exist for
-// quarantine/compatibility, but live application callers are forbidden.
+// The legacy cases executor is now deliberately unmounted from the canonical research
+// graph. Keep the source on disk temporarily for reachability/deletion work under #129/#138,
+// but make the live-route invariant explicit here.
+if (/from "\.\/research\/cases"|router\.use\(casesRouter\)/.test(canonicalResearchRoutes)) {
+  console.log("FAIL canonical research router still imports or mounts legacy cases executor.");
+  failed = true;
+} else {
+  console.log("PASS canonical research router does not import or mount legacy cases executor.");
+}
+
+// The secondary-surface function is still under active retirement. Only actual live callers
+// are architectural failures; quarantined legacy source is tracked separately.
 const secondarySurfaceSources = [
   "artifacts/api-server/src/src/routes/entities.ts",
-  "artifacts/api-server/src/src/routes/research/cases.ts",
   "artifacts/api-server/src/src/lib/atlas-orchestrator.ts",
 ];
 for (const file of secondarySurfaceSources) {
@@ -126,9 +123,6 @@ for (const file of secondarySurfaceSources) {
   }
 }
 
-// The secondary surface is a research control plane. If it survives quarantine, its own
-// implementation must not contain an independent outbound HTTP transport. This catches
-// direct fetch() usage inside the function without outlawing unrelated persistence helpers.
 const secondaryFn = secondaryPersist.match(/export async function expandSecondaryPublicSurface\s*\([\s\S]*?(?=\nexport |\nasync function |\nfunction |$)/)?.[0] ?? "";
 if (/\bfetch\s*\(/.test(secondaryFn)) {
   console.log("FAIL expandSecondaryPublicSurface contains a direct outbound fetch; surviving web I/O must use canonical SSRF-safe transport.");
