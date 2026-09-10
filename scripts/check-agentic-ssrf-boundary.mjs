@@ -14,6 +14,7 @@ const checks = [
   ["shared execution context is AsyncLocalStorage-backed", context.includes("AsyncLocalStorage") && context.includes("withAgenticExecutionScope")],
   ["canonical module does not statically import the core run function", !research.includes('import { runAgenticWebResearch } from "./agentic-web-research-core"')],
   ["core still contains the actual ReAct implementation", core.includes("function toolVisit") && core.includes("parseAction") && core.includes("runAgenticWebResearch")],
+  ["each ReAct run gets a unique execution scope", research.includes("crypto?.randomUUID") && research.includes("const scope = `agentic:${executionId}`") && !research.includes("input.jobId ?? input.targetName")],
   ["browser escalation validates the model-selected destination", browser.includes("assertSafeOutboundUrl(url)")],
   ["canonical visit path imports the guarded browser wrapper", core.includes('import("./browser-fetch")')],
   ["ReAct browser escalation receives the run-scoped abort signal", core.includes("browserFetchHtml(action.url, { signal: runController.signal })")],
