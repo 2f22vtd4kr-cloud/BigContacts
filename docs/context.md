@@ -4,7 +4,7 @@
 
 **Repo:** https://github.com/2f22vtd4kr-cloud/BigContacts  
 **Branch:** `main`  
-**Current GitHub code tip:** `d22606b56dabc897cd6cd2db867969bb429ad634`
+**Current GitHub code tip:** `124e65f6533112fe5f6a35468407e7ebacb08c4f`
 
 ## Institutional constitution
 Apex is an AI-driven OSINT bureau, not a deterministic search script.
@@ -25,20 +25,22 @@ Gemini = Boss only. DeepSeek/NVIDIA = Right Hand / oversight only. Groq and Mist
 - `artifacts/api-server/src/src/lib/atlas-control-decision.ts`
 - canonical discovery/continuation routes
 
-## Implemented hardening
+## Implemented hardening in this forensic continuation
 - No forced first web search; Investigator chooses the first action.
 - Hard `MAX_ITER=40` ceiling.
 - Run-scoped cancellation across Investigator LLM/HTTP and browser escalation.
 - Attempted URLs are not provenance; only successful observed HTTP(S) observations qualify.
 - Structured ReAct trajectory records retain bounded action, args, execution state, observation, observed URLs, findings, fallback and stop information.
-- Contact claims are validated against the actual observed material, not merely cited URLs.
+- Contact claims are validated against actual observed material, not merely cited URLs.
 - SSRF DNS resolution is pinned to the checked address; redirects are manual; response bytes are capped at 2 MB.
 - SSRF request abort listeners are cleaned up on terminal completion/error.
+- The ReAct core itself now calls `safeOutboundFetch` for LLM providers, search providers, and page visits; it no longer depends on the process-global wrapper for transport safety.
+- Provider-slot waiter cancellation listeners are cleaned up when a waiter is released.
 - Browser budget is execution-scoped and browser request destinations are checked, including Playwright redirects/subresources.
 - Serper locale/market are optional model-selected fields; no forced US/English market.
 - Provider quota composition avoids nested double accounting.
-- Discovery is now a first-class `mode="discovery"`; canonical Atlas and canonical continuation pass an empty target identity into the ReAct core. The Bureau wrapper explicitly strips target identity in discovery mode.
-- `check-discovery-mode-boundary.mjs` is wired into `check:bureau`.
+- Discovery is a first-class `mode="discovery"`; canonical Atlas, canonical continuation, and the Bureau wrapper no longer pass a fake person target into the ReAct core.
+- `check-discovery-mode-boundary.mjs` and `check-agentic-core-transport.mjs` are wired into `check:bureau`.
 
 ## Evidence/person admission law
 Discovery admission requires explicit model-authored person identity, candidate scope, successful observed HTTP(S) source, and explicit `promotionDecision="promote"`. No target-name inheritance, organization inheritance, URL-slug identity, article/listicle admission, proxy-contact admission, or source-URL-as-person substitution.
@@ -47,8 +49,8 @@ Discovery admission requires explicit model-authored person identity, candidate 
 Gemini controls transitions after DeepSeek advice with AI-owned actions `continue_discovery`, `research_candidate`, `revisit_candidate`, `pivot_discovery`, and `stop`. Decisions require durable case identity and control turn and fail closed on persistence errors. Target investigations refuse context-free execution.
 
 ## Remaining blockers
-- Subprocess OSINT tools (Holehe/Maigret/Sherlock/theHarvester) still need governed egress and true child-process cancellation.
-- Proxy/browser service providers can follow target-side redirects outside Node; formal egress-safe design remains required.
+- Subprocess OSINT tools (Holehe/Maigret/Sherlock/theHarvester) still need governed egress, shared quota semantics, and true child-process cancellation. See #141.
+- Browser/proxy service providers can follow target-side redirects outside Node; formal egress-safe design remains required.
 - Deterministic secondary-surface enrichment remains legacy/live-adjacent and should be retired or exposed only as explicit model-selectable capabilities.
 - Canonical `src/src/lib/ai-extractor.ts` still has the legacy Groq final-review path.
 - Duplicate source trees, legacy ingest/extraction reachability, and old API/OpenAPI execution contracts still need classification/quarantine cleanup.
