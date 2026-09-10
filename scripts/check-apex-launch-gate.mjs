@@ -10,6 +10,7 @@ const hardeners = [
   "apply-investigator-identity-observation-boundary.mjs",
   "apply-registry-cancellation-boundary.mjs",
   "apply-agentic-registry-signal-wiring.mjs",
+  "apply-retire-deterministic-atlas-osint.mjs",
 ];
 for (const script of hardeners) execFileSync(process.execPath, [`scripts/${script}`], { stdio: "inherit" });
 
@@ -61,6 +62,7 @@ pass("DeepSeek final review remains available", /runDeepSeekFinalReview/.test(ai
 pass("final review fails closed", /unavailable-final-review/.test(aiExtractor));
 pass("canonical secondary research caller is retired", !/\bexpandSecondaryPublicSurface\s*\(/.test(entities));
 pass("canonical observation layer does not inherit target identity", !/personName:\s*(?:targetName|name)\b/.test(agentic));
+pass("Atlas does not script Maigret/Holehe", !/runMaigret\(|runHolehe\(|rawHandle \|\| emailForHolehe/.test(orchestrator));
 
 let failed = false;
 for (const [name, ok] of checks) {
