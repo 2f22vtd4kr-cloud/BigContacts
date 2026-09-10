@@ -1,15 +1,21 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import { safeOutboundFetch } from "./ssrf-safe-fetch";
+import { classifyExternalProvider, runProviderFetch } from "./provider-gate";
 
 const outboundContext = new AsyncLocalStorage<boolean>();
 const nativeFetch = globalThis.fetch.bind(globalThis);
 
 // Install one process-level shim, but enforce it only inside an Investigator
 // execution context. Non-Investigator application traffic keeps native fetch.
+// Investigator traffic is composed as provider quota -> SSRF-safe pinned fetch;
+// this intentionally bypasses any pre-existing global fetch wrapper so quota
+// and DNS-pinning are both enforced exactly once.
 if (!(globalThis.fetch as typeof fetch & { __apexSsrfGuard?: boolean }).__apexSsrfGuard) {
   const guardedFetch = ((input: RequestInfo | URL, init?: RequestInit) => {
     if (!outboundContext.getStore()) return nativeFetch(input, init);
-    return safeOutboundFetch(input, init, nativeFetch);
+    const rawUrl = typeof input === "string" || input instanceof URL ? String(input) : input.url;
+    const provider = classifyExternalProvider(rawUrl);
+    return runProviderFetch({ provider }, () => safeOutboundFetch(input, init));
   }) as typeof fetch & { __apexSsrfGuard?: boolean };
   guardedFetch.__apexSsrfGuard = true;
   globalThis.fetch = guardedFetch;
