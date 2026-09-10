@@ -4,7 +4,7 @@
 
 **Repo:** https://github.com/2f22vtd4kr-cloud/BigContacts  
 **Branch:** `main`  
-**Current GitHub code tip:** `f5f186960b96474fc1e7b006b467ff624663217d`  
+**Current GitHub code tip:** `e5150e312ce16d348b774621cfa8ac7832244cfe`  
 **Product:** Apex Atlas research bureau embedded in BigContacts. Bureau is the OSINT/research architecture, not a separate product.
 
 ## 1. Institutional identity and mission
@@ -150,7 +150,7 @@ Atlas transition control is now AI-owned. Gemini, after DeepSeek/Right-Hand over
 
 Candidate selection is validated against the explicit admitted set. Invalid model decisions fail closed. The execution turn budget is a safety envelope, not a research recipe.
 
-Each Atlas control decision is now durable case memory (`control_decision`) with action, candidate, direction, rationale, confidence, Boss state, Right-Hand state and control turn. Persistence is fail-closed. The control API now also requires a valid positive durable `caseId` and positive `controlTurn`; missing or invalid context throws before any model decision can be accepted. This prevents a context-free control decision from becoming process-only state.
+Each Atlas control decision is now durable case memory (`control_decision`) with action, candidate, direction, rationale, confidence, Boss state, Right Hand state and control turn. Persistence is fail-closed. The control API now also requires a valid positive durable `caseId` and positive `controlTurn`; missing or invalid context throws before any model decision can be accepted. This prevents a context-free control decision from becoming process-only state.
 
 ## 6. Evidence and person-admission law
 
@@ -175,7 +175,7 @@ This is not currently equivalent to automatic card promotion because canonical p
 
 **Issue #136:** separate raw/tool/page observations from model-authored identity claims. Deterministic extraction may surface facts and observed URLs, but person attribution must be made explicitly by the Investigator. Preserve the existing modelFindings-only persistence boundary.
 
-The unified architecture guard now also checks the canonical ReAct core for target-derived `personName`/candidate-scope injection in deterministic observation helpers. This guard is intentionally expected to fail until #136 is repaired; it is a regression barrier, not a claim that the defect is fixed.
+A new dedicated regression guard, `scripts/check-investigator-observation-attribution.mjs`, is now wired into `check:bureau`. It fails on direct `personName: targetName` / `personName: name` assignments and specifically checks the footprint observation branches. This guard is intentionally expected to fail until #136 is repaired; it is a regression barrier, not a claim that the defect is fixed.
 
 ## 8. Secondary-surface blockers
 
@@ -199,6 +199,14 @@ The legacy `src/lib/ai-extractor.ts` was already corrected by earlier work; the 
 ## 10. Duplicate/legacy reachability
 
 **#129:** `artifacts/api-server/src/lib/*` and `artifacts/api-server/src/src/lib/*` are parallel source trees. Reachability must be classified before deletion. Some legacy/status compatibility surfaces may still be live. Do not delete blindly.
+
+Concrete evidence gathered this session:
+
+- `artifacts/api-server/src/index.ts` is a compatibility entry that imports `./src/index`.
+- `artifacts/api-server/src/src/index.ts` is the canonical server entry and imports `./app`.
+- `artifacts/api-server/src/src/app.ts` imports canonical `./routes`.
+- The top-level `artifacts/api-server/src/routes/search.ts` still imports the legacy `src/lib/agent-orchestrator.ts`, but that route tree is not the canonical route tree mounted by `src/src/app.ts`.
+- The top-level search/orchestration lane should therefore remain explicitly classified as legacy/unreachable compatibility code until build/configuration reachability is fully proven, rather than being mistaken for the Bureau's live research control plane.
 
 **#132:** canonical `src/src/routes/ingest-enrichment.ts` is already an explicit HTTP 410 retirement router with a regression guard. The parallel legacy `src/routes/ingest-enrichment.ts` still requires reachability classification under #129. Remaining `ingest.ts` maintenance operations must be separated from research launch.
 
@@ -228,7 +236,7 @@ A fresh audit of `artifacts/api-server/src/src/routes/research/cases.ts` found t
 
 ## 13. Verification state
 
-The latest source change is commit `f5f186960b96474fc1e7b006b467ff624663217d`, which strengthens `scripts/check-unified-investigator-architecture.mjs` with a #136 identity-boundary regression check. GitHub currently reports no combined status entries and no PR-triggered workflow runs for this tip, so **no CI/runtime success is claimed**.
+The latest source change is commit `e5150e312ce16d348b774621cfa8ac7832244cfe`, which adds and wires a dedicated #136 identity-attribution regression guard. The immediately preceding commit added the guard file itself. GitHub currently reports no combined status entries and no PR-triggered workflow runs for the prior tip; the new tip has not been treated as CI/runtime verified. **No CI/runtime success is claimed.**
 
 Open architecture work remains:
 
