@@ -26,14 +26,21 @@ function readCookie(req: Request, name: string): string | undefined {
   const header = req.header("cookie") ?? "";
   for (const part of header.split(";")) {
     const [key, ...rest] = part.trim().split("=");
-    if (key === name) return decodeURIComponent(rest.join("="));
+    if (key !== name) continue;
+    const raw = rest.join("=");
+    if (raw.length > 512) return undefined;
+    try {
+      return decodeURIComponent(raw);
+    } catch {
+      return undefined;
+    }
   }
   return undefined;
 }
 
 export function verifyOperatorSession(value: string | undefined): boolean {
   const secret = requiredEnv(SECRET_ENV, 32);
-  if (!secret || !value) return false;
+  if (!secret || !value || value.length > 512) return false;
   const parts = value.split(".");
   if (parts.length !== 3 || parts[0] !== "operator") return false;
   const expiresAt = Number(parts[1]);
