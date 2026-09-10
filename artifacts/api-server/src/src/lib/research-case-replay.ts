@@ -60,13 +60,17 @@ function asTime(value: string | Date): number {
   return Number.isFinite(time) ? time : NaN;
 }
 
-/** Replay events in database order. Input order is never trusted. */
+/**
+ * Replay events in the immutable database sequence (`id`) order.
+ *
+ * `createdAt` is metadata, not the ordering authority: concurrent transactions
+ * can legitimately receive timestamps that do not have the same total order as
+ * sequence allocation. `iteration` is likewise not a sequence because several
+ * actor/tool events can occur during one iteration.
+ */
 export function replayResearchCaseEvents(events: ResearchReplayEvent[]): ResearchCaseReplay {
   const violations: string[] = [];
   const ordered = [...events].sort((a, b) => {
-    const ta = asTime(a.createdAt);
-    const tb = asTime(b.createdAt);
-    if (Number.isFinite(ta) && Number.isFinite(tb) && ta !== tb) return ta - tb;
     if (a.id !== b.id) return a.id - b.id;
     return a.iteration - b.iteration;
   });
@@ -74,7 +78,6 @@ export function replayResearchCaseEvents(events: ResearchReplayEvent[]): Researc
   const caseId = ordered[0]?.caseId ?? 0;
   const seenIds = new Set<number>();
   let previousIteration = 0;
-  let previousTime = -Infinity;
   let actionCount = 0;
   let observationCount = 0;
   let decisionCount = 0;
@@ -93,11 +96,8 @@ export function replayResearchCaseEvents(events: ResearchReplayEvent[]): Researc
     seenIds.add(event.id);
     if (event.caseId !== caseId) violations.push(`event ${event.id}: caseId ${event.caseId} differs from replay case ${caseId}`);
     if (event.iteration < previousIteration) violations.push(`event ${event.id}: iteration regressed from ${previousIteration} to ${event.iteration}`);
-    const time = asTime(event.createdAt);
-    if (!Number.isFinite(time)) violations.push(`event ${event.id}: invalid createdAt`);
-    else if (time < previousTime) violations.push(`event ${event.id}: createdAt regressed`);
+    if (!Number.isFinite(asTime(event.createdAt))) violations.push(`event ${event.id}: invalid createdAt`);
     previousIteration = Math.max(previousIteration, event.iteration);
-    if (Number.isFinite(time)) previousTime = time;
 
     const payload = parsePayload(event.payload, event.id, violations);
     const type = event.eventType.toLowerCase();
