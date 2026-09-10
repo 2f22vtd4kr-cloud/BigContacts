@@ -2,7 +2,7 @@ import type { NextFunction, Request, Response } from "express";
 import { db, entitiesTable } from "@workspace/db";
 import { inArray } from "drizzle-orm";
 
-const LEGACY_MUTATING_ENRICHMENT_PATHS = new Set([
+const RETIRED_MUTATING_ENRICHMENT_PATHS = new Set([
   "/ingest/web-osint-enrich",
   "/ingest/in-house-enrich",
   "/ingest/social-discovery",
@@ -14,23 +14,44 @@ const LEGACY_MUTATING_ENRICHMENT_PATHS = new Set([
 ]);
 const APEX_TYPES = new Set(["HNWI", "Gatekeeper"]);
 
-function isLegacyEnrichmentPath(path: string): boolean {
-  return LEGACY_MUTATING_ENRICHMENT_PATHS.has(path) || path.startsWith("/enrich/");
+function isRetiredEnrichmentPath(path: string): boolean {
+  return RETIRED_MUTATING_ENRICHMENT_PATHS.has(path);
+}
+
+function isLegacyScopedEnrichmentPath(path: string): boolean {
+  return path.startsWith("/enrich/");
 }
 
 /**
- * Legacy/deterministic enrichment endpoints predate the canonical Investigator
- * decision boundary. They may remain available for explicitly scoped non-Apex
- * maintenance work, but must never write HNWI/Gatekeeper cards from deterministic
- * enrichment output. This guard is deliberately about mutation scope, not research
- * strategy.
+ * Legacy/deterministic enrichment is not a second research control plane.
+ * Canonical Atlas owns research strategy through the Investigator ReAct loop.
+ *
+ * Known legacy enrichment endpoints are therefore retired unconditionally,
+ * including from internal cold-start callers. This prevents old scheduled jobs
+ * from silently re-entering the research system around the canonical boundary.
+ * The generic /enrich/* compatibility surface remains scope-checked for
+ * explicitly non-Apex maintenance callers until each endpoint is retired.
  */
 export async function legacyApexMutationGuard(
   req: Request,
   res: Response,
   next: NextFunction,
 ): Promise<void> {
-  if (req.method !== "POST" || !isLegacyEnrichmentPath(req.path)) {
+  if (req.method !== "POST") {
+    next();
+    return;
+  }
+
+  if (isRetiredEnrichmentPath(req.path)) {
+    res.status(410).json({
+      error: "Legacy enrichment route retired.",
+      reason: "Canonical Atlas Investigator research is the only supported research control plane.",
+      path: req.path,
+    });
+    return;
+  }
+
+  if (!isLegacyScopedEnrichmentPath(req.path)) {
     next();
     return;
   }
