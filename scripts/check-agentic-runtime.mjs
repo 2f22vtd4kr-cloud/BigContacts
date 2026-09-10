@@ -1,6 +1,6 @@
 import fs from "node:fs";
 
-const file = "artifacts/api-server/src/src/lib/agentic-web-research.ts";
+const file = "artifacts/api-server/src/src/lib/agentic-web-research-core.ts";
 const source = fs.readFileSync(file, "utf8");
 const workflow = fs.readFileSync(".github/workflows/apex-live-audit.yml", "utf8");
 const compatibilityHardener = fs.readFileSync("scripts/apply-agentic-runtime-hardening.mjs", "utf8");
