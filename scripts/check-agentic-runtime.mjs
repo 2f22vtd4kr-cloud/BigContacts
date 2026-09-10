@@ -21,7 +21,7 @@ const required = [
   ["run has a run-scoped AbortController", /const runController = new AbortController\(\)/],
   ["hard timeout aborts the run", /setTimeout\(\(\) => runController\.abort\(\), hardTimeoutMs\)/],
   ["external cancellation is wired into the run", /input\.signal\?\.addEventListener\("abort", abortExternal/],
-  ["cooperative cancellation is bridged into the run signal", /const cancellationPoll = input\.shouldCancel \? setInterval/],
+  ["cooperative cancellation is checked at the turn boundary", /runController\.signal\.aborted\)[\s\S]{0,240}input\.shouldCancel\?\.\(\)/],
   ["browser escalation receives run cancellation", /browserFetchHtml\(action\.url, \{ signal: runController\.signal \}\)/],
   ["provider HTTP response reads are bounded", /MAX_NETWORK_RESPONSE_BYTES/],
   ["browser/tool observations distinguish failed provenance", /execution=\$\{page\.status\}/],
