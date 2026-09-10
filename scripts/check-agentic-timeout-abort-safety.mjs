@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 const root = process.cwd();
-const target = path.join(root, "artifacts/api-server/src/src/lib/agentic-web-research.ts");
+const target = path.join(root, "artifacts/api-server/src/src/lib/agentic-web-research-core.ts");
 const source = fs.readFileSync(target, "utf8");
 
 const required = [
