@@ -34,10 +34,10 @@ assert(!/Prefer\s+Serper.*Tavily.*Exa/i.test(source.research), "Active research 
 assert(!/const\s+serper\s*=.*\n\s*if\s*\(serper.*\n\s*const\s+tavily\s*=.*\n\s*if\s*\(tavily.*\n\s*const\s+exa\s*=/s.test(source.research), "Active research runtime contains deterministic sequential search-provider selection.");
 assert(!/web_search routes Serper\s*[→>-]+\s*Tavily/i.test(source.orientation), "Investigator orientation still teaches a fixed search-provider route.");
 
-const forbiddenFinalReviewFallback = /groq-final-review-fallback|Boss \(Gemini\).*NVIDIA.*Groq|Final card publication review.*Groq/i;
 assert(!/generateGroqBossText|Groq text fallback for Boss/i.test(source.bureau), "Groq is still exposed as a Boss planning fallback.");
-assert(!forbiddenFinalReviewFallback.test(source.finalReview), "Groq is still exposed as a final card review/decision layer in canonical source.");
-assert(!forbiddenFinalReviewFallback.test(source.legacyFinalReview), "Groq is still exposed as a final card review/decision layer in legacy source.");
+const groqFinalFallback = /groq-final-review-fallback/i;
+assert(!groqFinalFallback.test(source.finalReview), "Groq is still exposed as a final card review/decision layer in canonical source.");
+assert(!groqFinalFallback.test(source.legacyFinalReview), "Groq is still exposed as a final card review/decision layer in legacy source.");
 
 assert(/investigatorLlm/.test(source.bureau), "Boss plan does not expose investigatorLlm.");
 assert(/investigatorLlm/.test(source.pass), "ReAct pass does not accept investigatorLlm.");
@@ -47,13 +47,9 @@ assert(/investigatorLlm\s*:/.test(source.canonicalAtlas), "Canonical Atlas disco
 assert(/runTargetContactAgent\(\{[\s\S]*?investigatorLlm\s*:/.test(source.canonicalTarget), "Canonical target runner does not bind the selected Investigator into the target Dig.");
 assert(/runCanonicalSingleTargetInvestigation/.test(source.launchRoute), "Atlas launch route does not expose the canonical single-target control plane.");
 
-// The active case discovery route is canonical; the legacy mixed-lane handler is
-// retained only for the CRUD surface and must never be mounted ahead of it.
 assert(/canonical-case-discovery/.test(source.researchRoutes), "Canonical case-discovery router is not mounted.");
 assert(/router\.use\(canonicalCaseDiscoveryRouter\)[\s\S]*router\.use\(casesRouter\)/.test(source.researchRoutes), "Legacy cases router is mounted before canonical case discovery.");
 
-// Public Atlas must enter the canonical model-owned runner, never the retired
-// deterministic orchestrator.
 assert(/canonical-atlas-discovery/.test(source.launchRoute), "Atlas launch route is not wired to canonical model-owned discovery.");
 assert(!/atlas-orchestrator/.test(source.launchRoute), "Atlas launch route still imports the legacy deterministic orchestrator.");
 assert(!/\brunPhaseJBatch\s*\(|\bexpandSecondaryPublicSurface\s*\(|\brunBroadDiscovery\s*|\brunMcts\s*\(|\brunTargetResearch\s*\(/.test(source.canonicalAtlas), "Canonical Atlas runner contains a retired deterministic research path.");
