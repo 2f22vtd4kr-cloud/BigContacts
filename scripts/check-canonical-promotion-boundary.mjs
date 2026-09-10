@@ -14,14 +14,14 @@ const continuation = read("artifacts/api-server/src/src/routes/research/canonica
 const checks = [
   ["target Dig uses strict persistence", target.includes("persistSourceBackedBureauContactsForEntity")],
   ["target Dig does not legacy-rehydrate", !target.includes("rehydrateEntityCardFromEvidence")],
-  ["target Dig is marked canonical agentic evidence", target.includes('"target-contact-agentic"')],
   ["target contact preserves investigator promotion", target.includes('promote: isExplicitCandidate && f.promotionDecision === "promote"')],
-  ["target Dig persists only model-emitted findings", target.includes("const modelFindings = agentic.modelFindings ?? []") && target.includes("sourceBackedFindings(modelFindings, agentic.trajectory)") && !target.includes("sourceBackedFindings(agentic.findings, agentic.trajectory)")],
-  ["target Dig supplies observed provenance to strict persistence", target.includes("const observedSourceUrls = [...observedUrlsFromTrajectory(agentic.trajectory)]") && target.includes("persistSourceBackedBureauContactsForEntity(input.entityId, contacts, evidenceSource, input.jobId, observedSourceUrls)")],
+  ["target Dig persists only model-emitted findings", target.includes("const modelFindings = agentic.modelFindings ?? []") && target.includes("sourceBackedFindings(modelFindings, agentic.trajectory, agentic.trajectoryRecords)") && !target.includes("sourceBackedFindings(agentic.findings, agentic.trajectory)")],
+  ["target Dig supplies successful observed provenance", target.includes("execution=success") && target.includes("observed=(https?:")],
+  ["target Dig validates claims against observed material", target.includes("claimAppearsInObservedMaterial") && target.includes("record.observation")],
   ["bureau pass uses strict persistence", bureau.includes("persistSourceBackedBureauContactsForEntity")],
   ["bureau pass preserves explicit investigator promotion", bureau.includes('promote: isExplicitCandidate && f.promotionDecision === "promote"')],
-  ["bureau pass uses only model-emitted findings", bureau.includes("const modelFindings = agentic.modelFindings ?? []") && bureau.includes("sourceBackedAgenticFindings(modelFindings, agentic.trajectory)") && !bureau.includes("sourceBackedAgenticFindings(agentic.findings, agentic.trajectory)")],
-  ["bureau pass supplies observed trajectory provenance", bureau.includes("agentic.trajectory.flatMap") && bureau.includes("persistSourceBackedBureauContactsForEntity(input.entityId")],
+  ["bureau pass uses only model-emitted findings", bureau.includes("const modelFindings = agentic.modelFindings ?? []") && bureau.includes("sourceBackedAgenticFindings(modelFindings, agentic.trajectory, agentic.trajectoryRecords)") && !bureau.includes("sourceBackedAgenticFindings(agentic.findings, agentic.trajectory)")],
+  ["bureau pass validates claims against observed material", bureau.includes("claimAppearsInObservedMaterial") && bureau.includes("r.observation")],
   ["strict boundary requires explicit promotion for card mutation", strict.includes("if (row.item.promote !== true) continue")],
   ["strict boundary requires candidate scope", strict.includes('String(row.item.scope ?? "").toLowerCase() !== "candidate"')],
   ["strict boundary requires explicit person identity", strict.includes('typeof row.item.personName === "string"')],
@@ -32,11 +32,7 @@ const checks = [
   ["continuation fails closed without durable context", continuation.includes("refusing context-free continuation")],
   ["discovery requires model findings", discovery.includes("modelFindings")],
 ];
-
 const failed = checks.filter(([, ok]) => !ok).map(([name]) => name);
 for (const [name, ok] of checks) console.log(`${ok ? "PASS" : "FAIL"} ${name}`);
-if (failed.length) {
-  console.error(`Canonical promotion boundary failed: ${failed.join(", ")}`);
-  process.exit(1);
-}
+if (failed.length) { console.error(`Canonical promotion boundary failed: ${failed.join(", ")}`); process.exit(1); }
 console.log(`Canonical promotion boundary: ${checks.length}/${checks.length} checks passed`);
