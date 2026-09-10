@@ -2,9 +2,11 @@ import fs from "node:fs";
 
 const read = (path) => fs.existsSync(path) ? fs.readFileSync(path, "utf8") : "";
 const canonicalStartup = read("artifacts/api-server/src/src/lib/startup.ts");
+const startupRecovery = read("artifacts/api-server/src/src/lib/startup-recovery.ts");
 const legacyStartup = read("artifacts/api-server/src/lib/startup.ts");
 const jobs = read("artifacts/apex-finder/src/pages/jobs.tsx");
 const secondaryPersist = read("artifacts/api-server/src/src/lib/bureau-contact-persist.ts");
+const canonicalEnrichment = read("artifacts/api-server/src/src/routes/ingest-enrichment.ts");
 
 const retired = [
   "/api/ingest/deep-web-osint",
@@ -33,6 +35,25 @@ for (const route of retired) {
     console.log(`FAIL deleted legacy startup still references retired route: ${route}`);
     failed = true;
   }
+}
+
+// Startup is lifecycle-only. The former canonical startup module contained a long
+// phase scheduler that could launch research after boot. It must stay deleted, while
+// the replacement recovery module must remain free of research triggers.
+if (canonicalStartup) {
+  console.log("FAIL retired canonical startup research scheduler still exists on disk.");
+  failed = true;
+} else {
+  console.log("PASS retired canonical startup research scheduler absent.");
+}
+if (/runBroadDiscovery|bulk-run|deep-web-osint|social-discovery|messenger-discovery|in-house-enrich/.test(startupRecovery)) {
+  console.log("FAIL lifecycle-only startup recovery contains a research/enrichment trigger.");
+  failed = true;
+} else if (startupRecovery) {
+  console.log("PASS lifecycle-only startup recovery contains no research/enrichment trigger.");
+} else {
+  console.log("FAIL lifecycle-only startup recovery module is missing.");
+  failed = true;
 }
 
 // Route retirement is not enough when the operator UI still exposes the old control plane
@@ -69,6 +90,21 @@ for (const file of retiredControlPlaneFiles) {
   } else {
     console.log(`PASS retired deterministic research control-plane file absent: ${file}`);
   }
+}
+
+// The legacy enrichment router is retained only as an explicit 410 quarantine. It must
+// not regain deterministic research jobs or a hidden compatibility path.
+if (!/status\(410\)/.test(canonicalEnrichment)) {
+  console.log("FAIL canonical ingest-enrichment router is not an explicit 410 quarantine.");
+  failed = true;
+} else {
+  console.log("PASS canonical ingest-enrichment router is explicitly quarantined with 410.");
+}
+if (/runBroadDiscovery|deepWebOsintEnrich|enrichInHouse|discoverSocialPresence|discoverMessengerPresence|lookupPublic|fetch\s*\(/.test(canonicalEnrichment)) {
+  console.log("FAIL canonical ingest-enrichment quarantine contains active research/enrichment implementation.");
+  failed = true;
+} else {
+  console.log("PASS canonical ingest-enrichment quarantine contains no research implementation.");
 }
 
 // A retired deterministic research function must not remain an automatic research control
