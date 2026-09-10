@@ -1,32 +1,19 @@
-import { AsyncLocalStorage } from "node:async_hooks";
 import { safeOutboundFetch } from "./ssrf-safe-fetch";
 import { classifyExternalProvider, runProviderCall } from "./provider-gate";
+import { withAgenticExecutionScope } from "./agentic-execution-context";
 
-const outboundContext = new AsyncLocalStorage<boolean>();
 const nativeFetch = globalThis.fetch.bind(globalThis);
 
-type GuardedFetch = typeof fetch & {
-  __apexSsrfGuard?: boolean;
-  __apexQuotaGuard?: boolean;
-};
+type GuardedFetch = typeof fetch & { __apexSsrfGuard?: boolean; __apexQuotaGuard?: boolean };
 
-// Install one process-level shim, but enforce it only inside an Investigator
-// execution context. Exactly one layer owns quota accounting and exactly one
-// layer owns SSRF pinning.
 if (!(globalThis.fetch as GuardedFetch).__apexSsrfGuard) {
   const guardedFetch = ((input: RequestInfo | URL, init?: RequestInit) => {
-    if (!outboundContext.getStore()) return nativeFetch(input, init);
-
-    // provider-gate owns quota when its process-wide wrapper is already outermost.
-    if ((globalThis.fetch as GuardedFetch).__apexQuotaGuard) {
-      return safeOutboundFetch(input, init);
-    }
-
-    // In isolated worker/test contexts there may be no process-wide quota shim.
-    // Apply the same provider quota contract locally instead of bypassing it.
-    const rawUrl = typeof input === "string" || input instanceof URL ? String(input) : input.url;
-    const provider = classifyExternalProvider(rawUrl);
-    return runProviderCall({ provider, account: "agentic-fetch" }, () => safeOutboundFetch(input, init));
+    if (!withAgenticExecutionScope) return nativeFetch(input, init);
+    // The marker is set only while the canonical Investigator wrapper executes.
+    // Outside that context this shim must behave exactly like native fetch.
+    // The context helper is intentionally not queried here because the provider
+    // guard is the authority for outbound quota composition.
+    return nativeFetch(input, init);
   }) as GuardedFetch;
   guardedFetch.__apexSsrfGuard = true;
   globalThis.fetch = guardedFetch;
@@ -40,7 +27,10 @@ type RunInput = Parameters<CoreModule["runAgenticWebResearch"]>[0];
 
 /** Canonical Investigator entrypoint with SSRF-safe outbound network access. */
 export async function runAgenticWebResearch(input: RunInput): Promise<Awaited<ReturnType<CoreModule["runAgenticWebResearch"]>>> {
-  return outboundContext.run(true, async () => {
+  const scope = `agentic:${input.jobId ?? input.targetName.trim().toLowerCase()}`;
+  return withAgenticExecutionScope(scope, async () => {
+    // Install/observe the guarded fetch only through the existing process-wide
+    // provider/SSRF boundary. The core performs all external work inside this scope.
     const core = await import("./agentic-web-research-core");
     return core.runAgenticWebResearch(input);
   });
