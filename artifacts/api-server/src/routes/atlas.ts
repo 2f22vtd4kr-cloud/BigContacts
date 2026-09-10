@@ -1,7 +1,7 @@
 /**
  * Atlas Routes
  *
- * POST /api/ingest/atlas-run   — Launch the full Apex Atlas pipeline
+ * POST /api/ingest/atlas-run   — Launch the canonical Apex Atlas bureau
  * DELETE /api/ingest/atlas-lock — Clear ghost Atlas lock
  * GET  /api/ingest/atlas-status — Current Atlas job status
  */
@@ -73,12 +73,16 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
     }
   })();
 
+  const executionModel = "AI-owned control: discovery, target research, revisit, pivot, continuation, and stop are model decisions, not mandatory phases.";
+  const phases = singleTargetId != null
+    ? ["0 — Canonical intake", "1 — Gemini/DeepSeek oversight", "2 — Model-directed Investigator research", "3 — Explicit promotion/final state"]
+    : ["0 — Canonical intake", "1 — Gemini/DeepSeek oversight", "2 — Model-directed research (discovery/target/revisit/pivot/stop)", "3 — Explicit promotion/final state"];
+
   res.status(202).json({
     jobId: atlasJobId,
     pollUrl: `/api/ingest/job/${atlasJobId}`,
-    phases: singleTargetId != null
-      ? ["0 — Canonical launch / intake", "1 — Oversight assignment", "2 — Investigator research", "3 — Explicit promotion boundary"]
-      : ["0 — Canonical discovery / intake", "1 — Oversight assignment", "2 — Investigator discovery", "3 — Target-scoped Investigator research", "4 — Final state"],
+    phases,
+    executionModel,
     options: opts,
     message: `Atlas pipeline started (job: ${atlasJobId}). Poll ${`/api/ingest/job/${atlasJobId}`} for progress.`,
   });
