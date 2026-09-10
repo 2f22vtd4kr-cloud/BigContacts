@@ -2,7 +2,7 @@
 
 > **Living handoff — 2026-09-10.** Current architecture source of truth. Historical documents are not live control planes.
 
-**Repo:** `2f22vtd4kr-cloud/BigContacts` · **Branch:** `main` · **Current reviewed tip:** `fb1b331f3e6030ca4c27c0c89bead35226517821`
+**Repo:** `2f22vtd4kr-cloud/BigContacts` · **Branch:** `main` · **Current reviewed tip:** `efdd94ca428d4202417d40ffc74aa1bb869f5a04`
 
 ## Institutional contract
 Apex is an AI-driven OSINT bureau, not a deterministic search script.
@@ -40,7 +40,7 @@ institutional constitution -> role purpose -> durable case context -> operator c
 10. Each Agentic run gets a unique execution scope, preventing concurrent runs with the same target/job from sharing browser-budget state.
 11. Serper locale/market are optional model-selected fields; no forced US/English defaults.
 12. Target/Bureau evidence gates require source URLs to be successful observed material and require exact contact values to occur in that material.
-13. **Claim-to-source binding is now single-observation:** candidate identity tokens and the exact contact value must co-occur in one successful bounded trajectory observation; independent observations are never concatenated to satisfy one claim.
+13. **Claim-to-source binding is single-observation:** candidate identity tokens and the exact contact value must co-occur in one successful bounded trajectory observation; independent observations are never concatenated to satisfy one claim.
 14. Target and Bureau wrappers preserve canonical `cancelled` as a distinct result state instead of collapsing it into `error`.
 15. Discovery admissions now pass their already validated successful source URL into the strict persistence boundary, so review-only admission evidence is not silently dropped.
 16. Discovery is exposed as explicit `mode="discovery"` rather than requiring a person target at the canonical ReAct boundary.
@@ -50,6 +50,7 @@ institutional constitution -> role purpose -> durable case context -> operator c
 - **#128:** canonical `src/src/lib/ai-extractor.ts` still exposes a Groq final-card-review fallback after Gemini Boss and DeepSeek/NVIDIA. Required remediation is Gemini -> DeepSeek -> deterministic fail-closed adjudication; Groq must not act as reviewer.
 - **#139:** cancellation propagation through target/Bureau wrappers is fixed, but Python OSINT subprocesses (Holehe/Maigret/Sherlock/theHarvester) still require real child-process cancellation tied to the run-scoped AbortSignal and formally governed network egress.
 - **#147:** compound OSINT actions remain deterministic: `footprint_username` runs both Maigret and Sherlock, `footprint_email` invokes Holehe, and `harvest_domain` invokes theHarvester. These need individual model-selectable actions plus cancellation/egress controls.
+- **#150:** canonical single-target control still has no AI-owned continuation decision after the Investigator/Right-Hand review. It currently closes the target case after one Investigator pass plus oversight. This must be changed so Gemini can explicitly stop, continue, revisit or pivot while retaining durable trajectory context.
 - **#125/#126:** deterministic secondary-surface enrichment remains in legacy/live-adjacent routes and requires continued reachability analysis/retirement; canonical Atlas launch itself enters `canonical-atlas-launch.ts` and routes into the model-owned control plane rather than the historical orchestrator.
 - Duplicate source trees, legacy ingest/enrichment, old API/OpenAPI execution surfaces, and other legacy research material remain under forensic cleanup.
 
