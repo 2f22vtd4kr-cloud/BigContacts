@@ -4,7 +4,7 @@
 
 **Repo:** https://github.com/2f22vtd4kr-cloud/BigContacts  
 **Branch:** `main`  
-**Current GitHub code tip:** `e5150e312ce16d348b774621cfa8ac7832244cfe`  
+**Current GitHub code tip:** `68f31230ba33172651db717e27fca69c0b14ce5e`  
 **Product:** Apex Atlas research bureau embedded in BigContacts. Bureau is the OSINT/research architecture, not a separate product.
 
 ## 1. Institutional identity and mission
@@ -175,12 +175,12 @@ This is not currently equivalent to automatic card promotion because canonical p
 
 **Issue #136:** separate raw/tool/page observations from model-authored identity claims. Deterministic extraction may surface facts and observed URLs, but person attribution must be made explicitly by the Investigator. Preserve the existing modelFindings-only persistence boundary.
 
-A new dedicated regression guard, `scripts/check-investigator-observation-attribution.mjs`, is now wired into `check:bureau`. It fails on direct `personName: targetName` / `personName: name` assignments and specifically checks the footprint observation branches. This guard is intentionally expected to fail until #136 is repaired; it is a regression barrier, not a claim that the defect is fixed.
+A dedicated regression guard, `scripts/check-investigator-observation-attribution.mjs`, is wired into `check:bureau`. It fails on direct `personName: targetName` / `personName: name` assignments and specifically checks the footprint observation branches. This guard is intentionally expected to fail until #136 is repaired; it is a regression barrier, not a claim that the defect is fixed.
 
 ## 8. Secondary-surface blockers
 
 **#125 — deterministic secondary surface:**
-`expandSecondaryPublicSurface()` in `bureau-contact-persist.ts` remains a fixed research playbook and still has callers in canonical/legacy source. Its sequence includes deterministic OSINT/enrichment and contact-surface expansion. Automatic canonical invocation must be retired, or useful capabilities must be exposed as explicit Investigator-selectable tools.
+`expandSecondaryPublicSurface()` in `bureau-contact-persist.ts` remains a fixed research playbook and still has callers in canonical/legacy source. Automatic canonical invocation must be retired, or useful capabilities must be exposed as explicit Investigator-selectable tools.
 
 **#126 — secondary-surface SSRF:**
 the same legacy lane performs direct outbound fetching of discovered URLs and historically follows redirects outside the canonical pinned-IP SSRF boundary. If retained, it must use the shared SSRF-safe transport with DNS pinning and no automatic redirect following. Prefer retirement of the deterministic lane.
@@ -228,15 +228,21 @@ The frontend has an `OperatorGate` that checks the session and uses credentialed
 
 **Issue #131 is now closed at source level.** Runtime/Replit verification remains separate and was not claimed by that closure.
 
-## 12. Newly discovered canonical discovery blocker — #137
+## 12. Canonical research-case route blocker — #137/#138
 
-A fresh audit of `artifacts/api-server/src/src/routes/research/cases.ts` found that the canonical research-case route still imports and invokes `runBroadDiscovery()` with fixed configuration (`templateSet`, `rotateTemplates: false`, `maxQueries: 3`). This is deterministic research strategy inside the canonical case route, despite later review-only handling.
+A fresh audit of `artifacts/api-server/src/src/routes/research/cases.ts` found a legacy discovery execution path that remains mounted alongside the newer canonical case-discovery/continuation routers.
 
-**Issue #137:** remove that canonical `runBroadDiscovery()` execution path and route discovery through the canonical model-owned Investigator/ReAct control plane. Do not replace it with another deterministic discovery recipe. Preserve candidate admission, provenance, review-only persistence and durable case context.
+**Issue #137:** the route directly invokes `runBroadDiscovery()` with fixed configuration (`templateSet`, `rotateTemplates: false`, `maxQueries: 3`).
+
+**Issue #138:** the same route also directly executes `runMistralWebSearch()`, derives target/company identity and registry queries deterministically from the operator objective, executes a fixed registry set (`gleif`, `sec-edgar`, conditional Companies House), and invokes `expandSecondaryPublicSurface()` plus deterministic Companies House officer expansion. These are research-strategy decisions, not mere persistence.
+
+The canonical replacement already exists in `canonical-case-discovery.ts` and `canonical-case-continuation.ts`: Gemini Boss + DeepSeek Right Hand select a Groq/Mistral Investigator, which owns the ReAct trajectory and tool selection. The correct remediation is to split/retire the old execution route while preserving only necessary case data/read/event APIs. Do not replace it with another deterministic discovery recipe.
+
+The unified architecture guard now explicitly rejects `runBroadDiscovery`, `runMistralWebSearch`, `searchRegistry`, `expandSecondaryPublicSurface`, and deterministic discovery-template selection in the canonical `cases.ts` route. These assertions are regression barriers; the underlying route defect remains open until the legacy execution path is actually removed or unmounted.
 
 ## 13. Verification state
 
-The latest source change is commit `e5150e312ce16d348b774621cfa8ac7832244cfe`, which adds and wires a dedicated #136 identity-attribution regression guard. The immediately preceding commit added the guard file itself. GitHub currently reports no combined status entries and no PR-triggered workflow runs for the prior tip; the new tip has not been treated as CI/runtime verified. **No CI/runtime success is claimed.**
+The latest source change is commit `68f31230ba33172651db717e27fca69c0b14ce5e`, which strengthens the unified architecture guard for the newly discovered canonical `cases.ts` discovery lanes. Issue #138 records the underlying source defect. GitHub has not provided runtime/CI evidence for this new tip, so **no CI/runtime success is claimed**.
 
 Open architecture work remains:
 
@@ -246,6 +252,6 @@ Open architecture work remains:
 - **#129/#132** — duplicate/legacy reachability and remaining legacy enrichment tree;
 - **#133** — institutional mission/bootstrap reconciliation;
 - **#136** — target-derived identity attribution inside ReAct observations;
-- **#137** — canonical research-case route still invoking deterministic broad discovery.
+- **#137/#138** — legacy deterministic discovery execution still present in canonical `cases.ts`.
 
 No Replit deployment, provider availability, DB/Redis durability, card promotion, or end-to-end smoke result should be treated as proven until observed directly.
