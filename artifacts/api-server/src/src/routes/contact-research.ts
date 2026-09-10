@@ -4,36 +4,17 @@ import {
   getJob,
   getLatestJob,
 } from "../lib/job-queue";
-import {
-  CONTACT_RESEARCH_JOB_TYPE,
-  cancelContactResearch,
-  startContactResearch,
-} from "../lib/contact-research-orchestrator";
+import { CONTACT_RESEARCH_JOB_TYPE } from "../lib/contact-research-orchestrator";
 
 const router = Router();
 
-router.post("/ingest/contact-research", async (req: Request, res: Response): Promise<void> => {
-  try {
-    const body = req.body ?? {};
-    const entityIds = Array.isArray(body.entityIds)
-      ? body.entityIds.map(Number).filter((id: number) => Number.isInteger(id) && id > 0)
-      : undefined;
-    const result = await startContactResearch({
-      limit: Number(body.limit) || undefined,
-      entityIds,
-      resumeJobId: typeof body.resumeJobId === "string" ? body.resumeJobId : undefined,
-    });
-    res.status(202).json({
-      ...result,
-      pollUrl: `/api/ingest/job/${result.jobId}`,
-      message: result.resumed
-        ? "Durable contact-research job resumed."
-        : "Durable contact-research job started.",
-    });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    res.status(/already running/i.test(message) ? 409 : 400).json({ error: message });
-  }
+const RETIRED_MESSAGE =
+  "The legacy contact-research control plane is retired. Use the canonical Atlas Investigator path; research strategy is model-owned.";
+
+// Kept as an explicit retirement response so old UI/operator clients cannot
+// silently invoke the former deterministic coordinator.
+router.post("/ingest/contact-research", (_req: Request, res: Response): void => {
+  res.status(410).json({ error: "Retired endpoint", message: RETIRED_MESSAGE });
 });
 
 router.get("/ingest/contact-research/status", async (_req: Request, res: Response): Promise<void> => {
@@ -41,6 +22,8 @@ router.get("/ingest/contact-research/status", async (_req: Request, res: Respons
   const active = activeId ? await getJob(activeId) : null;
   const latest = await getLatestJob(CONTACT_RESEARCH_JOB_TYPE);
   res.json({
+    retired: true,
+    message: RETIRED_MESSAGE,
     active: active ? {
       jobId: active.jobId,
       status: active.status,
@@ -69,20 +52,8 @@ router.get("/ingest/contact-research/status", async (_req: Request, res: Respons
   });
 });
 
-router.post("/ingest/contact-research/cancel", async (req: Request, res: Response): Promise<void> => {
-  try {
-    const job = await cancelContactResearch(
-      typeof req.body?.jobId === "string" ? req.body.jobId : undefined,
-    );
-    res.json({
-      jobId: job.jobId,
-      status: job.status,
-      outcome: job.outcome,
-      message: job.message,
-    });
-  } catch (error) {
-    res.status(400).json({ error: error instanceof Error ? error.message : String(error) });
-  }
+router.post("/ingest/contact-research/cancel", (_req: Request, res: Response): void => {
+  res.status(410).json({ error: "Retired endpoint", message: RETIRED_MESSAGE });
 });
 
 export default router;
