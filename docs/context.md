@@ -4,7 +4,7 @@
 
 **Repo:** https://github.com/2f22vtd4kr-cloud/BigContacts  
 **Branch:** `main`  
-**Current GitHub code tip:** `acf49d2cb42d5cbdbc6b597a94a82f9ee2d07e0e`  
+**Current GitHub code tip:** `9250b8edcca712e3647c0dd6ef8fd2267d7c9a53`  
 **Product:** Apex Atlas research bureau embedded in BigContacts.
 
 ## 1. Institutional constitution
@@ -187,7 +187,7 @@ Control decisions require durable `caseId` and positive `controlTurn`, are persi
 
 ## 9. Verification state
 
-Current main tip: `acf49d2cb42d5cbdbc6b597a94a82f9ee2d07e0e`.
+Current main tip: `9250b8edcca712e3647c0dd6ef8fd2267d7c9a53`.
 
 GitHub has not provided CI/runtime evidence for this tip. No Replit deployment, provider availability, DB/Redis durability, card promotion, or end-to-end smoke trajectory is claimed as proven.
 
