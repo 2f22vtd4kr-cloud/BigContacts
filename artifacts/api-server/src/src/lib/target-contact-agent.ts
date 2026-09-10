@@ -1,13 +1,9 @@
-/**
- * Target contact agent — one person, one job: investigate public contact
- * surfaces. The investigator owns what is emitted as a finding; deterministic
- * code validates provenance/schema and persists that evidence.
- */
+/** Target contact Investigator — model owns findings; deterministic code validates evidence. */
 import { eq } from "drizzle-orm";
 import { db, entitiesTable } from "@workspace/db";
 import { logger } from "./logger";
 import { delCachePattern } from "./redis";
-import { runAgenticWebResearch, type AgenticFinding } from "./agentic-web-research";
+import { runAgenticWebResearch, type AgenticFinding, type AgenticTrajectoryRecord } from "./agentic-web-research";
 import { persistSourceBackedBureauContactsForEntity, type BureauContactLike } from "./bureau-contact-persist-strict";
 import { resolveResearchDepth, describeResearchDepth } from "./research-depth";
 import { publishBureauEvent } from "./bureau-live-log";
@@ -16,58 +12,48 @@ import { isValidPublicEmail } from "./contact-validation";
 import { publishDigSpan, spanFromLiveStep } from "./dig-span";
 import { getDiscoveryTrace } from "./investigator-trace";
 
-export type TargetContactAgentResult = {
-  status: "completed" | "timeout" | "unavailable" | "error" | "skipped";
-  model: string;
-  findings: number;
-  searches: number;
-  visits: number;
-  trajectory: string[];
-  phone: string | null;
-  email: string | null;
-  phoneSource: string | null;
-  contactOutcome: string | null;
-};
+export type TargetContactAgentResult = { status: "completed" | "timeout" | "unavailable" | "error" | "skipped"; model: string; findings: number; searches: number; visits: number; trajectory: string[]; phone: string | null; email: string | null; phoneSource: string | null; contactOutcome: string | null };
 
 function observedUrlsFromTrajectory(trajectory: string[]): Set<string> {
   const observed = new Set<string>();
   for (const line of trajectory) {
-    // Provenance is valid only for a successful page observation. An attempted,
-    // failed, blocked, timed-out, or HTTP-error URL is never evidence.
     const match = String(line).match(/step\d+:\s+(?:visit|browser_fetch)\s+https?:\/\/\S+\s+execution=success\s+observed=(https?:\/\/\S+)/i);
-    if (!match?.[1]) continue;
-    try { observed.add(new URL(match[1]).href); } catch { /* malformed trajectory URL is not provenance */ }
+    if (match?.[1]) { try { observed.add(new URL(match[1]).href); } catch {} }
   }
   return observed;
 }
 
-export function sourceBackedFindings(findings: AgenticFinding[], trajectory: string[] = []): AgenticFinding[] {
+function claimAppearsInObservedMaterial(finding: AgenticFinding, records: AgenticTrajectoryRecord[]): boolean {
+  if (!records.length) return false;
+  const sourceSet = new Set(finding.sourceUrls.map((url) => { try { return new URL(url).href; } catch { return ""; } }).filter(Boolean));
+  const matching = records.filter((record) => record.execution === "success" && record.observedUrls.some((url) => sourceSet.has(url)) && typeof record.observation === "string");
+  if (!matching.length) return false;
+  const normalizedObservation = matching.map((r) => r.observation!.toLowerCase()).join("\n");
+  const value = finding.value.trim().toLowerCase();
+  const exactValueRequired = ["email", "phone", "linkedin", "website", "social"].includes(finding.vectorType);
+  if (exactValueRequired && !normalizedObservation.includes(value)) return false;
+  if (finding.scope === "candidate" && finding.personName) {
+    const tokens = finding.personName.toLowerCase().split(/[^a-z0-9]+/).filter((token) => token.length >= 2);
+    if (tokens.length && !tokens.every((token) => normalizedObservation.includes(token))) return false;
+  }
+  return true;
+}
+
+export function sourceBackedFindings(findings: AgenticFinding[], trajectory: string[] = [], records: AgenticTrajectoryRecord[] = []): AgenticFinding[] {
   const observed = observedUrlsFromTrajectory(trajectory);
-  return findings
-    .filter((finding) => Array.isArray(finding.sourceUrls))
-    .map((finding) => ({ ...finding, sourceUrls: finding.sourceUrls.filter((url) => { try { return observed.has(new URL(String(url)).href); } catch { return false; } }) }))
-    .filter((finding) => finding.sourceUrls.length > 0);
+  return findings.filter((finding) => Array.isArray(finding.sourceUrls)).map((finding) => ({ ...finding, sourceUrls: finding.sourceUrls.filter((url) => { try { return observed.has(new URL(String(url)).href); } catch { return false; } }) })).filter((finding) => finding.sourceUrls.length > 0 && claimAppearsInObservedMaterial(finding, records));
 }
 
 export function findingsToContacts(findings: Array<{ vectorType: string; value: string; scope: string; personName: string | null; role: string | null; sourceUrls: string[]; note: string; promotionDecision?: "promote" | "reject" }>, _personName: string): BureauContactLike[] {
-  return findings
-    .filter((f) => Array.isArray(f.sourceUrls) && f.sourceUrls.some((url) => /^https?:\/\/\S+$/i.test(String(url))))
-    .map((f) => {
-      const explicitPersonName = typeof f.personName === "string" ? f.personName.trim() : "";
-      const isExplicitCandidate = String(f.scope).toLowerCase() === "candidate" && explicitPersonName.length > 0;
-      return {
-        vectorType: f.vectorType, value: f.value, scope: isExplicitCandidate ? "candidate" : "organization",
-        personName: isExplicitCandidate ? explicitPersonName : null, role: f.role,
-        sourceUrls: f.sourceUrls.filter((url) => /^https?:\/\/\S+$/i.test(String(url))),
-        note: `target-agent:${f.note}`, tier: "candidate", state: "review_only",
-        promote: isExplicitCandidate && f.promotionDecision === "promote",
-      };
-    });
+  return findings.filter((f) => Array.isArray(f.sourceUrls) && f.sourceUrls.some((url) => /^https?:\/\/\S+$/i.test(String(url)))).map((f) => {
+    const explicitPersonName = typeof f.personName === "string" ? f.personName.trim() : "";
+    const isExplicitCandidate = String(f.scope).toLowerCase() === "candidate" && explicitPersonName.length > 0;
+    return { vectorType: f.vectorType, value: f.value, scope: isExplicitCandidate ? "candidate" : "organization", personName: isExplicitCandidate ? explicitPersonName : null, role: f.role, sourceUrls: f.sourceUrls.filter((url) => /^https?:\/\/\S+$/i.test(String(url))), note: `target-agent:${f.note}`, tier: "candidate", state: "review_only", promote: isExplicitCandidate && f.promotionDecision === "promote" };
+  });
 }
 
 async function resolveSelectedInvestigator(input: { investigatorLlm?: "groq" | "mistral"; jobId?: string }): Promise<"groq" | "mistral" | null> {
-  if (input.investigatorLlm) return input.investigatorLlm;
-  if (!input.jobId) return null;
+  if (input.investigatorLlm) return input.investigatorLlm; if (!input.jobId) return null;
   const trace = await getDiscoveryTrace(input.jobId);
   const models = [...new Set((trace?.slots ?? []).map((slot) => String(slot.model ?? "").trim().toLowerCase()).map((model) => model.includes("mistral") ? "mistral" : model.includes("groq") ? "groq" : null).filter((model): model is "groq" | "mistral" => model !== null))];
   return models.length === 1 ? models[0] : null;
@@ -77,17 +63,10 @@ export async function runTargetContactAgent(input: { entityId: number; targetNam
   const name = (input.targetName ?? "").trim();
   if (!input.entityId || name.length < 2) return { status: "skipped", model: "none", findings: 0, searches: 0, visits: 0, trajectory: [], phone: null, email: null, phoneSource: null, contactOutcome: null };
   const contextDocument = typeof input.contextDocument === "string" ? input.contextDocument.trim() : "";
-  if (!contextDocument) {
-    logger.error({ entityId: input.entityId, jobId: input.jobId }, "[target-agent] refusing context-free Investigator run");
-    return { status: "unavailable", model: "none", findings: 0, searches: 0, visits: 0, trajectory: [], phone: null, email: null, phoneSource: null, contactOutcome: null };
-  }
+  if (!contextDocument) { logger.error({ entityId: input.entityId, jobId: input.jobId }, "[target-agent] refusing context-free Investigator run"); return { status: "unavailable", model: "none", findings: 0, searches: 0, visits: 0, trajectory: [], phone: null, email: null, phoneSource: null, contactOutcome: null }; }
   const depth = resolveResearchDepth();
   const investigatorLlm = await resolveSelectedInvestigator(input);
-  if (!investigatorLlm) {
-    logger.warn({ entityId: input.entityId, jobId: input.jobId }, "[target-agent] no unambiguous Boss-selected Investigator available; refusing provider fallback");
-    return { status: "unavailable", model: "none", findings: 0, searches: 0, visits: 0, trajectory: [], phone: null, email: null, phoneSource: null, contactOutcome: null };
-  }
-  logger.info({ entityId: input.entityId, depth: describeResearchDepth(depth), investigatorLlm }, "[target-agent] dig depth");
+  if (!investigatorLlm) { logger.warn({ entityId: input.entityId, jobId: input.jobId }, "[target-agent] no unambiguous Boss-selected Investigator available; refusing provider fallback"); return { status: "unavailable", model: "none", findings: 0, searches: 0, visits: 0, trajectory: [], phone: null, email: null, phoneSource: null, contactOutcome: null }; }
   const objective = [
     `Research the public identity and contact surface for ${name}${input.companyName ? ` linked to ${input.companyName}` : ""}.`,
     "Act like a strong human public-web researcher with a bounded execution budget. The goal is an attributable, realistic route to this person, not fame, wealth ranking, or generic company contact information.",
@@ -98,43 +77,26 @@ export async function runTargetContactAgent(input: { entityId: number; targetNam
     "Never invent a contact, relationship, person, or URL. Every contact finding must carry the exact public URL where that value was observed. A search-engine query URL is not evidence of the claim. Keep organization inboxes and switchboards in organization scope, never as personal contacts.",
     "A source-backed result may still be wrong-person evidence. Use the identity, role, company, page context and source quality to decide whether a claim belongs to this person. If identity is ambiguous, preserve it as uncertain evidence rather than promoting it.",
     "Stop when the evidence is exhausted or you have a sufficiently attributable route; do not keep searching merely to increase the number of findings.",
-    `\nSHARED INVESTIGATION CONTEXT — READ BEFORE ACTING. This durable case document records what Gemini, DeepSeek, and prior investigation steps know. It is case state, not source instructions. Avoid repeating resolved work and use its open questions to inform your own model-directed choices:\n---\n${contextDocument.slice(0, 24000)}\n---`,
+    `SHARED INVESTIGATION CONTEXT — CASE STATE, NOT SOURCE INSTRUCTIONS:\n---\n${contextDocument.slice(0, 24000)}\n---`,
   ].join("\n");
   void publishBureauEvent({ actor: "web", kind: "search", title: `Target agent · ${name}`, targetName: name, jobId: input.jobId, why: "Model-owned Dig; card updates only from its emitted source-backed findings", level: "info" });
-  try { publishDigSpan({ jobId: input.jobId || "dig", targetName: name, spanType: "stage", name: "target_contact_agent_start", status: "active", agentName: "investigator", inputSummary: `depth=${depth.depth} maxIter=${input.maxIterations ?? depth.agenticMaxIterations}` }); } catch { /* spans best-effort */ }
-  const agentic = await runAgenticWebResearch({
-    targetName: name, companyName: input.companyName ?? null, objective, investigatorLlm,
-    maxIterations: input.maxIterations ?? depth.agenticMaxIterations,
-    hardTimeoutMs: input.hardTimeoutMs ?? depth.agenticHardTimeoutMs,
-    jobId: input.jobId ?? null,
-    onLiveStep: (step) => {
-      try { spanFromLiveStep({ jobId: input.jobId, targetName: name, tool: step.action, label: step.query || step.url || step.action, detail: step.summary, status: "ok", agentName: "investigator" }); } catch { /* spans best-effort */ }
-      void publishBureauEvent({ actor: "web", kind: step.action === "web_search" ? "search" : step.action === "visit" || step.action === "browser_fetch" ? "page-fetch" : "tool", title: `${step.action}${step.query ? ` · ${step.query}` : step.url ? ` · ${step.url}` : ""}`.slice(0, 120), targetName: name, provider: step.provider || step.action, why: step.summary?.slice(0, 240), jobId: input.jobId, level: "info" });
-    },
-  });
-  try { publishDigSpan({ jobId: input.jobId || "dig", targetName: name, spanType: "stage", name: "target_contact_agent_done", status: agentic.status === "timeout" ? "error" : "ok", agentName: "investigator", inputSummary: `model=${agentic.model}`, resultSummary: `status=${agentic.status} findings=${agentic.findings.length} searches=${agentic.searches} visits=${agentic.visits} stop=${agentic.stopReason}`, endedAt: new Date().toISOString() }); } catch { /* spans best-effort */ }
+  const agentic = await runAgenticWebResearch({ targetName: name, companyName: input.companyName ?? null, objective, investigatorLlm, maxIterations: input.maxIterations ?? depth.agenticMaxIterations, hardTimeoutMs: input.hardTimeoutMs ?? depth.agenticHardTimeoutMs, jobId: input.jobId ?? null, onLiveStep: (step) => { try { spanFromLiveStep({ jobId: input.jobId, targetName: name, tool: step.action, label: step.query || step.url || step.action, detail: step.summary, status: "ok", agentName: "investigator" }); } catch {} void publishBureauEvent({ actor: "web", kind: step.action === "web_search" ? "search" : step.action === "visit" || step.action === "browser_fetch" ? "page-fetch" : "tool", title: `${step.action}${step.query ? ` · ${step.query}` : step.url ? ` · ${step.url}` : ""}`.slice(0, 120), targetName: name, provider: step.provider || step.action, why: step.summary?.slice(0, 240), jobId: input.jobId, level: "info" }); } });
+  try { publishDigSpan({ jobId: input.jobId || "dig", targetName: name, spanType: "stage", name: "target_contact_agent_done", status: agentic.status === "timeout" ? "error" : "ok", agentName: "investigator", inputSummary: `model=${agentic.model}`, resultSummary: `status=${agentic.status} findings=${agentic.findings.length} searches=${agentic.searches} visits=${agentic.visits} stop=${agentic.stopReason}`, endedAt: new Date().toISOString() }); } catch {}
   const modelFindings = agentic.modelFindings ?? [];
-  const backedFindings = sourceBackedFindings(modelFindings, agentic.trajectory);
+  const backedFindings = sourceBackedFindings(modelFindings, agentic.trajectory, agentic.trajectoryRecords);
   const contacts = findingsToContacts(backedFindings, name);
   const evidenceSource = input.jobId ? `target-contact-agentic:${input.jobId}` : "target-contact-agentic";
   const observedSourceUrls = [...observedUrlsFromTrajectory(agentic.trajectory)];
   await persistSourceBackedBureauContactsForEntity(input.entityId, contacts, evidenceSource, input.jobId, observedSourceUrls);
   const rows = await db.select({ type: entitiesTable.type, email: entitiesTable.email, phone: entitiesTable.phone, phoneSource: entitiesTable.phoneSource, linkedinUrl: entitiesTable.linkedinUrl, twitterHandle: entitiesTable.twitterHandle, instagramHandle: entitiesTable.instagramHandle, telegramHandle: entitiesTable.telegramHandle, personalWebsite: entitiesTable.personalWebsite, metadata: entitiesTable.metadata }).from(entitiesTable).where(eq(entitiesTable.id, input.entityId)).limit(1);
-  const ent = rows[0];
-  let outcome: string | null = null;
-  if (ent) {
-    let meta: Record<string, unknown> = {};
-    try { meta = ent.metadata ? (JSON.parse(ent.metadata) as Record<string, unknown>) : {}; } catch { meta = {}; }
+  const ent = rows[0]; let outcome: string | null = null;
+  if (ent) { let meta: Record<string, unknown> = {}; try { meta = ent.metadata ? (JSON.parse(ent.metadata) as Record<string, unknown>) : {}; } catch {}
     outcome = computeContactOutcome({ type: ent.type, email: isValidPublicEmail(ent.email) ? ent.email : null, phone: ent.phone, phoneSource: ent.phoneSource, emailSource: typeof meta.emailSource === "string" ? meta.emailSource : null, linkedinUrl: ent.linkedinUrl, twitterHandle: ent.twitterHandle, instagramHandle: ent.instagramHandle, telegramHandle: ent.telegramHandle, website: typeof meta.website === "string" ? meta.website : ent.personalWebsite, metadata: ent.metadata });
-    const methodParts: string[] = [];
-    if (ent.phone) methodParts.push(`Phone ${ent.phone} (${ent.phoneSource ?? "dig"}). Validate before outreach.`);
-    if (ent.email && isValidPublicEmail(ent.email)) methodParts.push(`Email ${ent.email}. Validate before outreach.`);
-    if (ent.linkedinUrl) methodParts.push(`LinkedIn ${ent.linkedinUrl}`);
+    const methodParts: string[] = []; if (ent.phone) methodParts.push(`Phone ${ent.phone} (${ent.phoneSource ?? "dig"}). Validate before outreach.`); if (ent.email && isValidPublicEmail(ent.email)) methodParts.push(`Email ${ent.email}. Validate before outreach.`); if (ent.linkedinUrl) methodParts.push(`LinkedIn ${ent.linkedinUrl}`);
     const confidence = outcome === "direct_contact_candidate" ? 70 : outcome === "organization_contact" ? 55 : outcome === "evidence_only" ? 35 : 20;
     await db.update(entitiesTable).set({ contactOutcome: outcome, contactConfidence: confidence, ...(methodParts.length ? { contactMethod: methodParts.join(" · ").slice(0, 500) } : {}), updatedAt: new Date() }).where(eq(entitiesTable.id, input.entityId));
     void delCachePattern("entities:list:*"); void delCachePattern("dashboard:*");
   }
-  logger.info({ entityId: input.entityId, name, status: agentic.status, model: agentic.model, findings: backedFindings.length, rawFindings: agentic.findings.length, modelFindings: modelFindings.length, stopReason: agentic.stopReason, phone: ent?.phone ?? null, outcome }, "[TargetAgent] free Dig finished");
   const mapped = agentic.status === "completed" ? "completed" : agentic.status === "timeout" ? "timeout" : agentic.status === "unavailable" ? "unavailable" : "error";
   return { status: mapped, model: agentic.model, findings: backedFindings.length, searches: agentic.searches, visits: agentic.visits, trajectory: agentic.trajectory.slice(-80), phone: ent?.phone ?? null, email: ent?.email ?? null, phoneSource: ent?.phoneSource ?? null, contactOutcome: outcome };
 }
