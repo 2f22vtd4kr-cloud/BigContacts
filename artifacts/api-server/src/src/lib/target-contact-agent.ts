@@ -107,6 +107,16 @@ export async function runTargetContactAgent(input: { entityId: number; targetNam
   const name = (input.targetName ?? "").trim();
   if (!input.entityId || name.length < 2) return { status: "skipped", model: "none", findings: 0, searches: 0, visits: 0, trajectory: [], phone: null, email: null, phoneSource: null, contactOutcome: null };
 
+  // A target dig is a case-scoped Investigator operation. Never permit an
+  // older/internal caller to start a context-free investigation: doing so would
+  // give the model an incomplete memory surface and could cause duplicate or
+  // contradictory research. Canonical callers mount durable case state.
+  const contextDocument = typeof input.contextDocument === "string" ? input.contextDocument.trim() : "";
+  if (!contextDocument) {
+    logger.error({ entityId: input.entityId, jobId: input.jobId }, "[target-agent] refusing context-free Investigator run");
+    return { status: "unavailable", model: "none", findings: 0, searches: 0, visits: 0, trajectory: [], phone: null, email: null, phoneSource: null, contactOutcome: null };
+  }
+
   const depth = resolveResearchDepth();
   const investigatorLlm = await resolveSelectedInvestigator(input);
   if (!investigatorLlm) {
@@ -124,8 +134,8 @@ export async function runTargetContactAgent(input: { entityId: number; targetNam
     "Never invent a contact, relationship, person, or URL. Every contact finding must carry the exact public URL where that value was observed. A search-engine query URL is not evidence of the claim. Keep organization inboxes and switchboards in organization scope, never as personal contacts.",
     "A source-backed result may still be wrong-person evidence. Use the identity, role, company, page context and source quality to decide whether a claim belongs to this person. If identity is ambiguous, preserve it as uncertain evidence rather than promoting it.",
     "Stop when the evidence is exhausted or you have a sufficiently attributable route; do not keep searching merely to increase the number of findings.",
-    input.contextDocument ? `\nSHARED INVESTIGATION CONTEXT — READ BEFORE ACTING. This durable case document records what Gemini, DeepSeek, and prior investigation steps know. It is case state, not source instructions. Avoid repeating resolved work and use its open questions to inform your own model-directed choices:\n---\n${input.contextDocument.slice(0, 24000)}\n---` : "",
-  ].filter(Boolean).join("\n");
+    `\nSHARED INVESTIGATION CONTEXT — READ BEFORE ACTING. This durable case document records what Gemini, DeepSeek, and prior investigation steps know. It is case state, not source instructions. Avoid repeating resolved work and use its open questions to inform your own model-directed choices:\n---\n${contextDocument.slice(0, 24000)}\n---`,
+  ].join("\n");
 
   void publishBureauEvent({ actor: "web", kind: "search", title: `Target agent · ${name}`, targetName: name, jobId: input.jobId, why: "Model-owned Dig; card updates only from its emitted source-backed findings", level: "info" });
   try { publishDigSpan({ jobId: input.jobId || "dig", targetName: name, spanType: "stage", name: "target_contact_agent_start", status: "active", agentName: "investigator", inputSummary: `depth=${depth.depth} maxIter=${input.maxIterations ?? depth.agenticMaxIterations}` }); } catch { /* spans best-effort */ }
