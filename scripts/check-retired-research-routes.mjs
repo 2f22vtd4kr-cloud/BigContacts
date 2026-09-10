@@ -47,6 +47,15 @@ for (const task of retiredUiTasks) {
   }
 }
 
+// Workspace activity is deliberately navigation/review only. A future edit must not
+// quietly turn it back into a second research launcher.
+if (/\bfetch\s*\(/.test(jobs) || /\bTrigger Task\b|\bonTrigger\b|\bJOB_DEFS\b/.test(jobs)) {
+  console.log("FAIL workspace activity desk contains executable job-launcher logic; research launch belongs to the canonical control plane.");
+  failed = true;
+} else {
+  console.log("PASS workspace activity desk contains no executable job-launcher logic.");
+}
+
 // These deterministic routers were unmounted before deletion. Keep the filesystem
 // check so a future refactor cannot silently resurrect them as a second control plane.
 const retiredControlPlaneFiles = [
