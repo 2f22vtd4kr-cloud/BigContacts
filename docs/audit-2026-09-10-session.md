@@ -15,13 +15,14 @@
 - Audited the canonical Atlas batch discovery path and confirmed a separate context-continuity defect: `runCanonicalAtlasPipeline()` invokes its initial `Discovery slot` Investigator without a `caseId`, unlike the canonical case-discovery route. Issue #130 tracks creation/reuse of a durable discovery case and persistence of that discovery trajectory before target cases exist.
 - Confirmed the current canonical provider boundary is already explicit: missing `web_search.provider` is rejected/visible rather than silently mapped to a provider. The remaining #120 autonomy defect is the forced initial `web_search` observation, not the provider omission path.
 - Audited the single-port Replit deployment contract: `src/src/app.ts` serves the built Apex Finder directly while `apiAuth` protects `/api/*`. The Vite development proxy is not the production browser contract. Frontend launch/status/stop/pause/resume calls do not register a browser-safe auth mechanism. Issue #131 tracks the required session/authorization design.
+- Found one more live deterministic discovery control plane: `/ingest/broad-discovery` used fixed DuckDuckGo/template HNWI discovery and directly created entity rows. It was not previously in the retired-path set. The endpoint is now retired with the same explicit HTTP 410 boundary, and the legacy mutation regression gate requires it to remain retired.
 
 ## Newly confirmed blockers
 
 1. `agentic-web-research-core.ts` still contains the forced initial observation `Begin. Choose an initial web_search query — do not wait for instructions.`. Free-ReAct is therefore not yet clean. This remains issue #120. A stronger unified guard now explicitly blocks this string, so the build cannot silently regress while the source fix is pending.
 2. The canonical `src/src/lib/ai-extractor.ts` still exposes Groq as a final card reviewer. The corrected architecture gate now catches this real role-boundary violation; issue #128 tracks the implementation fix.
 3. `expandSecondaryPublicSurface()` is still a deterministic research playbook reachable from canonical research (issue #125) and contains website fetches that bypass the canonical SSRF boundary (issue #126).
-4. `startup.ts` still contains scheduled legacy research calls, including deep-web OSINT and Hybrid Research bulk passes. The API boundary now blocks the retired deep-web endpoint, but the scheduler itself remains stale and should be retired rather than repeatedly attempting a 410 route.
+4. `startup.ts` still contains scheduled legacy research calls, including deep-web OSINT, broad discovery, and Hybrid Research bulk passes. Those endpoints are now retired at the API boundary, but the scheduler itself remains stale and should be retired rather than repeatedly attempting 410 routes.
 5. `jobs.tsx` still advertises retired legacy tasks such as `sync-hot-flags`, `deep-web-osint`, and `bulk-hybrid-research`; UI cleanup is required so the operator surface cannot launch retired control planes.
 6. The duplicate legacy/canonical API-server source trees need reachability tracing and quarantine; issue #129 tracks this. The audit has now also established that legacy Atlas still directly invokes the Target Investigator without durable context, so the new leaf boundary contains that legacy path rather than allowing it to run silently.
 7. Canonical Atlas batch discovery does not yet mount a durable discovery case context before its first Investigator pass; issue #130. This is a state/forensic-integrity defect, not a research-strategy defect.
@@ -34,6 +35,8 @@ The canonical web-search adapter currently requires an explicit provider selecti
 The remaining concrete autonomy defect in the ReAct core is the initial observation that instructs the Investigator to choose a `web_search`. The correct repair is a neutral first-turn observation containing the durable objective/context and telling the Investigator to choose any valid action. It must not be replaced by another deterministic first tool.
 
 The Atlas batch-discovery context defect is orthogonal: it does not constrain tool choice, but it deprives the Investigator and later oversight layers of durable forensic state for that initial discovery run. Context must remain memory/state, not a script.
+
+The broad-discovery retirement is a separate control-plane correction: fixed templates and automatic HNWI admission are no longer permitted as an externally reachable research lane. Canonical Atlas discovery must remain the only path that lets the Investigator decide how to explore the open web.
 
 ## Architecture law reaffirmed
 
@@ -48,6 +51,8 @@ Repository writes completed this continuation include:
 - Target Investigator context-boundary implementation and static guard.
 - Unified architecture guard strengthened for canonical source paths, free-ReAct opening, Investigator propagation, and context boundaries.
 - Legacy Apex mutation guard moved ahead of all legacy enrichment routers, including extended OSINT.
+- `/ingest/broad-discovery` retired from the legacy research surface; the boundary now returns explicit HTTP 410 and the regression gate requires the route to remain retired.
+- Root `check:bureau` now includes the legacy mutation boundary check.
 - Frontend API-auth audit/probe artifacts added without exposing any server secret.
 - Atlas discovery context continuity audit documented as issue #130.
 - Frontend single-port auth contract blocker documented as issue #131.
