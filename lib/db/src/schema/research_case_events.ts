@@ -28,10 +28,45 @@ export const researchCaseEventsTable = pgTable("research_case_events", {
   caseEventSequenceIdx: index("research_case_events_case_id_id_idx").on(table.caseId, table.id),
 }));
 
-export const insertResearchCaseEventSchema = createInsertSchema(researchCaseEventsTable).omit({
-  id: true,
-  createdAt: true,
-});
+export const researchCaseEventActorRoleSchema = z.enum([
+  "head_investigator",
+  "gemini_boss",
+  "right_hand",
+  "specialist",
+  "human_operator",
+  "system",
+]);
+
+export const researchCaseEventTypeSchema = z.enum([
+  "case_opened",
+  "decision",
+  "assignment",
+  "observation",
+  "directive",
+  "status",
+]);
+
+const eventPayloadSchema = z.string().refine((value) => {
+  try {
+    const parsed: unknown = JSON.parse(value);
+    return parsed !== null && typeof parsed === "object" && !Array.isArray(parsed);
+  } catch {
+    return false;
+  }
+}, "research case event payload must be a JSON object");
+
+export const insertResearchCaseEventSchema = createInsertSchema(researchCaseEventsTable)
+  .omit({
+    id: true,
+    createdAt: true,
+  })
+  .extend({
+    actorRole: researchCaseEventActorRoleSchema,
+    eventType: researchCaseEventTypeSchema,
+    status: z.string().trim().min(1).max(64),
+    summary: z.string().trim().min(1).max(2000),
+    payload: eventPayloadSchema,
+  });
 
 export type InsertResearchCaseEvent = z.infer<typeof insertResearchCaseEventSchema>;
 export type ResearchCaseEvent = typeof researchCaseEventsTable.$inferSelect;
