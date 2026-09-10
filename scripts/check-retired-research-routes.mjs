@@ -45,6 +45,21 @@ for (const task of retiredUiTasks) {
   }
 }
 
+// These deterministic routers were unmounted before deletion. Keep the filesystem
+// check so a future refactor cannot silently resurrect them as a second control plane.
+const retiredControlPlaneFiles = [
+  "artifacts/api-server/src/routes/research/mcts.ts",
+  "artifacts/api-server/src/routes/research/bulk.ts",
+];
+for (const file of retiredControlPlaneFiles) {
+  if (fs.existsSync(file)) {
+    console.log(`FAIL retired deterministic research control-plane file still exists: ${file}`);
+    failed = true;
+  } else {
+    console.log(`PASS retired deterministic research control-plane file absent: ${file}`);
+  }
+}
+
 // A retired deterministic research function must not remain an automatic research control
 // plane merely because its old HTTP route has been removed. Keep this gate intentionally
 // source-level and conservative: the implementation itself is allowed to exist for
