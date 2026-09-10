@@ -4,12 +4,12 @@
  * Wraps Python OSINT CLI tools (Holehe, Maigret, Sherlock, theHarvester,
  * Open Deep Research, GLiNER)
  * as async TypeScript functions. Each tool is called via child_process.spawn
- * with a timeout, and output is parsed from JSON or stdout.
+ * with a timeout, cancellation, bounded output, and process-group cleanup.
  *
  * Tools:
  *   - Holehe:       email → platform presence (120+ platforms)
  *   - Maigret:      username → cross-platform dossier (3,000+ sites)
- *   - Sherlock:      username → supplementary public profile discovery fallback
+ *   - Sherlock:     username → supplementary public profile discovery fallback
  *   - theHarvester: domain → emails/subdomains/IPs from public sources
  *
  * GLiNER is handled separately via gliner-client.ts (HTTP microservice).
@@ -32,6 +32,15 @@ interface RunResult {
   exitCode: number;
 }
 
+interface SubprocessOptions {
+  signal?: AbortSignal;
+}
+
+const MAX_SUBPROCESS_OUTPUT_BYTES = 2_000_000;
+const CANCELLED_EXIT_CODE = -3;
+const TIMEOUT_EXIT_CODE = -1;
+const SPAWN_ERROR_EXIT_CODE = -2;
+
 // Replit installs Python packages into .pythonlibs alongside the workspace.
 // Prefer the workspace-managed interpreter so this remains stable when the
 // base image's python3 changes after a re-import.
@@ -48,57 +57,126 @@ function buildPythonEnv(extra?: Record<string, string>): Record<string, string> 
   };
 }
 
+function terminateProcessTree(proc: ReturnType<typeof spawn>, signal: NodeJS.Signals = "SIGTERM"): void {
+  try {
+    if (process.platform !== "win32" && proc.pid) {
+      process.kill(-proc.pid, signal);
+      return;
+    }
+  } catch {
+    // Fall through to the direct child kill when the process group is already gone.
+  }
+  try { proc.kill(signal); } catch { /* already exited */ }
+}
+
 function runSubprocess(
   cmd: string,
   args: string[],
   timeoutMs = 120_000,
-  env?: Record<string, string>
+  env?: Record<string, string>,
+  options: SubprocessOptions = {},
 ): Promise<RunResult> {
   return new Promise((resolve) => {
+    if (options.signal?.aborted) {
+      resolve({ stdout: "", stderr: "cancelled", exitCode: CANCELLED_EXIT_CODE });
+      return;
+    }
+
     const proc = spawn(cmd, args, {
       env: buildPythonEnv(env),
       stdio: ["ignore", "pipe", "pipe"],
+      detached: process.platform !== "win32",
     });
 
     let stdout = "";
     let stderr = "";
+    let settled = false;
+    let timedOut = false;
+    let cancelled = false;
 
-    proc.stdout.on("data", (chunk: Buffer) => { stdout += chunk.toString(); });
-    proc.stderr.on("data", (chunk: Buffer) => { stderr += chunk.toString(); });
+    const appendCapped = (current: string, chunk: Buffer): string => {
+      if (Buffer.byteLength(current, "utf8") >= MAX_SUBPROCESS_OUTPUT_BYTES) return current;
+      const remaining = MAX_SUBPROCESS_OUTPUT_BYTES - Buffer.byteLength(current, "utf8");
+      return current + chunk.toString("utf8").slice(0, remaining);
+    };
+
+    proc.stdout.on("data", (chunk: Buffer) => { stdout = appendCapped(stdout, chunk); });
+    proc.stderr.on("data", (chunk: Buffer) => { stderr = appendCapped(stderr, chunk); });
+
+    const finish = (result: RunResult): void => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      options.signal?.removeEventListener("abort", onAbort);
+      resolve(result);
+    };
+
+    const onAbort = (): void => {
+      if (settled) return;
+      cancelled = true;
+      terminateProcessTree(proc, "SIGTERM");
+      // Give the process group a short grace period, then make cancellation
+      // deterministic even when a Python child ignores SIGTERM.
+      setTimeout(() => {
+        if (!settled) terminateProcessTree(proc, "SIGKILL");
+      }, 1_000);
+    };
 
     const timer = setTimeout(() => {
-      proc.kill("SIGKILL");
-      resolve({ stdout, stderr: stderr + "\n[timeout]", exitCode: -1 });
+      if (settled) return;
+      timedOut = true;
+      terminateProcessTree(proc, "SIGTERM");
+      setTimeout(() => {
+        if (!settled) terminateProcessTree(proc, "SIGKILL");
+      }, 1_000);
     }, timeoutMs);
 
+    options.signal?.addEventListener("abort", onAbort, { once: true });
+
     proc.on("close", (code) => {
-      clearTimeout(timer);
-      resolve({ stdout, stderr, exitCode: code ?? 0 });
+      if (cancelled || options.signal?.aborted) {
+        finish({ stdout, stderr: stderr + "\n[cancelled]", exitCode: CANCELLED_EXIT_CODE });
+      } else if (timedOut) {
+        finish({ stdout, stderr: stderr + "\n[timeout]", exitCode: TIMEOUT_EXIT_CODE });
+      } else {
+        finish({ stdout, stderr, exitCode: code ?? 0 });
+      }
     });
 
     proc.on("error", (err) => {
-      clearTimeout(timer);
-      resolve({ stdout, stderr: err.message, exitCode: -2 });
+      if (cancelled || options.signal?.aborted) {
+        finish({ stdout, stderr: stderr + "\n[cancelled]", exitCode: CANCELLED_EXIT_CODE });
+      } else {
+        finish({ stdout, stderr: err.message, exitCode: SPAWN_ERROR_EXIT_CODE });
+      }
     });
   });
+}
+
+function throwIfCancelled(signal?: AbortSignal): void {
+  if (signal?.aborted) throw new Error("cancelled");
 }
 
 // ── Tool availability check ───────────────────────────────────────────────────
 
 const toolAvailability: Record<string, boolean | null> = {};
 
-async function isToolAvailable(tool: string): Promise<boolean> {
+async function isToolAvailable(tool: string, signal?: AbortSignal): Promise<boolean> {
+  throwIfCancelled(signal);
   if (toolAvailability[tool] !== undefined) return toolAvailability[tool]!;
-  const result = await runSubprocess("which", [tool], 5_000);
+  const result = await runSubprocess("which", [tool], 5_000, undefined, { signal });
+  throwIfCancelled(signal);
   const available = result.exitCode === 0 && result.stdout.trim().length > 0;
   toolAvailability[tool] = available;
   return available;
 }
 
-async function isPythonModuleAvailable(module: string): Promise<boolean> {
+async function isPythonModuleAvailable(module: string, signal?: AbortSignal): Promise<boolean> {
+  throwIfCancelled(signal);
   const key = `module:${module}`;
   if (toolAvailability[key] !== undefined) return toolAvailability[key]!;
-  const result = await runSubprocess(PYTHON_BIN, ["-c", `import ${module}`], 5_000);
+  const result = await runSubprocess(PYTHON_BIN, ["-c", `import ${module}`], 5_000, undefined, { signal });
+  throwIfCancelled(signal);
   const available = result.exitCode === 0;
   toolAvailability[key] = available;
   return available;
@@ -124,7 +202,7 @@ export interface HoleheResult {
   error?: string;
 }
 
-export async function runHolehe(email: string): Promise<HoleheResult> {
+export async function runHolehe(email: string, options: SubprocessOptions = {}): Promise<HoleheResult> {
   const base: HoleheResult = {
     email,
     found: [],
@@ -134,8 +212,9 @@ export async function runHolehe(email: string): Promise<HoleheResult> {
   };
 
   if (!email?.includes("@")) return { ...base, error: "Invalid email" };
+  throwIfCancelled(options.signal);
 
-  const available = await isPythonModuleAvailable("holehe");
+  const available = await isPythonModuleAvailable("holehe", options.signal);
   if (!available) {
     logger.debug("[Holehe] module not installed — run scripts/install-python-tools.sh");
     return { ...base, error: "holehe not installed" };
@@ -144,14 +223,15 @@ export async function runHolehe(email: string): Promise<HoleheResult> {
   const tmpFile = path.join(os.tmpdir(), `holehe-${Date.now()}.json`);
 
   try {
-    // holehe EMAIL --only-used --json > tmpFile
     const result = await runSubprocess(
       PYTHON_BIN,
       ["-m", "holehe", email, "--only-used", "--json", "--output", tmpFile],
-      90_000
+      90_000,
+      undefined,
+      options,
     );
+    throwIfCancelled(options.signal);
 
-    // Try reading JSON output file
     let platforms: HolehePlatform[] = [];
     try {
       const raw = await fs.readFile(tmpFile, "utf8");
@@ -166,26 +246,17 @@ export async function runHolehe(email: string): Promise<HoleheResult> {
           phonenumber: p?.phonenumber ?? undefined,
         }));
     } catch {
-      // Parse stdout as fallback
       const lines = result.stdout.split("\n");
       for (const line of lines) {
         const match = line.match(/\[✓\]\s+(.+)/);
-        if (match) {
-          platforms.push({ name: match[1]!.trim(), exists: true });
-        }
+        if (match) platforms.push({ name: match[1]!.trim(), exists: true });
       }
     }
 
     logger.info({ email, found: platforms.length }, "[Holehe] platform check complete");
-
-    return {
-      email,
-      found: platforms,
-      totalChecked: 120, // approximate
-      totalFound: platforms.length,
-      available: true,
-    };
+    return { email, found: platforms, totalChecked: 120, totalFound: platforms.length, available: true };
   } catch (err: any) {
+    if (options.signal?.aborted) throw new Error("cancelled");
     logger.warn({ email, err: err.message }, "[Holehe] run failed");
     return { ...base, available: true, error: err.message };
   } finally {
@@ -212,18 +283,13 @@ export interface MaigretResult {
   error?: string;
 }
 
-export async function runMaigret(username: string): Promise<MaigretResult> {
-  const base: MaigretResult = {
-    username,
-    found: [],
-    totalSitesChecked: 0,
-    available: false,
-  };
-
+export async function runMaigret(username: string, options: SubprocessOptions = {}): Promise<MaigretResult> {
+  const base: MaigretResult = { username, found: [], totalSitesChecked: 0, available: false };
   const sanitized = username.replace(/[^a-zA-Z0-9._\-]/g, "");
   if (!sanitized) return { ...base, error: "Invalid username" };
+  throwIfCancelled(options.signal);
 
-  const available = await isPythonModuleAvailable("maigret");
+  const available = await isPythonModuleAvailable("maigret", options.signal);
   if (!available) {
     logger.debug("[Maigret] module not installed — run scripts/install-python-tools.sh");
     return { ...base, error: "maigret not installed" };
@@ -233,59 +299,35 @@ export async function runMaigret(username: string): Promise<MaigretResult> {
   await fs.mkdir(tmpDir, { recursive: true });
 
   try {
-    const result = await runSubprocess(
-      PYTHON_BIN,
-      [
-        "-m", "maigret",
-        sanitized,
-        "--json", "ndjson",
-        "--folderoutput", tmpDir,
-        "--top-sites", "500",
-        "--timeout", "30",
-        "--no-color",
-      ],
-      120_000
-    );
+    const result = await runSubprocess(PYTHON_BIN, [
+      "-m", "maigret", sanitized, "--json", "ndjson", "--folderoutput", tmpDir,
+      "--top-sites", "500", "--timeout", "30", "--no-color",
+    ], 120_000, undefined, options);
+    throwIfCancelled(options.signal);
 
-    // Parse NDJSON output
     const jsonFile = path.join(tmpDir, `${sanitized}.json`);
     let profiles: MaigretProfile[] = [];
-
     try {
       const raw = await fs.readFile(jsonFile, "utf8");
       const data = JSON.parse(raw) as any;
       const sites: Record<string, any> = data?.sites ?? data ?? {};
-
       for (const [siteName, info] of Object.entries(sites)) {
         const status = info?.status?.status ?? info?.status ?? "unknown";
         if (status === "Claimed" || status === "found") {
-          profiles.push({
-            siteName,
-            url: info?.url_user ?? info?.url ?? undefined,
-            status: "found",
-            profileData: info?.data ?? info?.profile_data ?? undefined,
-            tags: info?.tags ?? undefined,
-          });
+          profiles.push({ siteName, url: info?.url_user ?? info?.url ?? undefined, status: "found", profileData: info?.data ?? info?.profile_data ?? undefined, tags: info?.tags ?? undefined });
         }
       }
     } catch {
-      // Parse stdout fallback
       const lines = result.stdout.split("\n");
       for (const line of lines) {
         const m = line.match(/\[✓\]\s+(.+?):\s+(https?:\/\/[^\s]+)/);
         if (m) profiles.push({ siteName: m[1]!.trim(), url: m[2]!.trim(), status: "found" });
       }
     }
-
     logger.info({ username, found: profiles.length }, "[Maigret] dossier complete");
-
-    return {
-      username,
-      found: profiles,
-      totalSitesChecked: 500,
-      available: true,
-    };
+    return { username, found: profiles, totalSitesChecked: 500, available: true };
   } catch (err: any) {
+    if (options.signal?.aborted) throw new Error("cancelled");
     logger.warn({ username, err: err.message }, "[Maigret] run failed");
     return { ...base, available: true, error: err.message };
   } finally {
@@ -295,12 +337,7 @@ export async function runMaigret(username: string): Promise<MaigretResult> {
 
 // ── Sherlock: supplementary username discovery fallback ───────────────────────
 
-export interface SherlockProfile {
-  siteName: string;
-  url: string;
-  status: "found";
-}
-
+export interface SherlockProfile { siteName: string; url: string; status: "found"; }
 export interface SherlockResult {
   username: string;
   found: SherlockProfile[];
@@ -311,40 +348,21 @@ export interface SherlockResult {
   error?: string;
 }
 
-/**
- * Runs Sherlock only as a supplementary username search. Maigret is the
- * primary engine because it has broader structured output. Sherlock results
- * are never treated as identity or contact verification on their own.
- */
-export async function runSherlock(username: string): Promise<SherlockResult> {
-  const base: SherlockResult = {
-    username,
-    found: [],
-    totalSitesChecked: 0,
-    available: false,
-    reviewOnly: true,
-  };
+export async function runSherlock(username: string, options: SubprocessOptions = {}): Promise<SherlockResult> {
+  const base: SherlockResult = { username, found: [], totalSitesChecked: 0, available: false, reviewOnly: true };
   const sanitized = username.replace(/[^a-zA-Z0-9._\-]/g, "");
   if (!sanitized) return { ...base, error: "Invalid username" };
+  throwIfCancelled(options.signal);
 
-  const available = await isPythonModuleAvailable("sherlock_project");
+  const available = await isPythonModuleAvailable("sherlock_project", options.signal);
   if (!available) {
     logger.debug("[Sherlock] module not installed — run scripts/install-python-tools.sh");
     return { ...base, error: "sherlock not installed" };
   }
 
   try {
-    const result = await runSubprocess(
-      PYTHON_BIN,
-      [
-        "-m", "sherlock_project",
-        sanitized,
-        "--print-found",
-        "--no-color",
-        "--timeout", "10",
-      ],
-      120_000,
-    );
+    const result = await runSubprocess(PYTHON_BIN, ["-m", "sherlock_project", sanitized, "--print-found", "--no-color", "--timeout", "10"], 120_000, undefined, options);
+    throwIfCancelled(options.signal);
     const profiles: SherlockProfile[] = [];
     const seen = new Set<string>();
     for (const line of result.stdout.split("\n")) {
@@ -358,17 +376,10 @@ export async function runSherlock(username: string): Promise<SherlockResult> {
       profiles.push({ siteName, url, status: "found" });
     }
     logger.info({ username, found: profiles.length }, "[Sherlock] supplementary dossier complete");
-    return {
-      username,
-      found: profiles,
-      totalSitesChecked: 0,
-      available: true,
-      reviewOnly: true,
-      ...(result.exitCode !== 0 && profiles.length === 0
-        ? { error: result.stderr.trim().slice(0, 500) || "Sherlock returned no usable results" }
-        : {}),
-    };
+    return { username, found: profiles, totalSitesChecked: 0, available: true, reviewOnly: true,
+      ...(result.exitCode !== 0 && profiles.length === 0 ? { error: result.stderr.trim().slice(0, 500) || "Sherlock returned no usable results" } : {}) };
   } catch (err: any) {
+    if (options.signal?.aborted) throw new Error("cancelled");
     logger.warn({ username, err: err.message }, "[Sherlock] run failed");
     return { ...base, available: true, error: err.message };
   }
@@ -389,166 +400,75 @@ export interface OpenDeepResearchResult {
 }
 
 function findWorkspaceScript(scriptName: string): string | null {
-  const candidates = [
-    path.join(process.cwd(), "scripts", scriptName),
-    path.resolve(process.cwd(), "..", "..", "scripts", scriptName),
-    path.resolve(process.cwd(), "..", "..", "..", "scripts", scriptName),
-  ];
+  const candidates = [path.join(process.cwd(), "scripts", scriptName), path.resolve(process.cwd(), "..", "..", "scripts", scriptName), path.resolve(process.cwd(), "..", "..", "..", "scripts", scriptName)];
   return candidates.find((candidate) => existsSync(candidate)) ?? null;
 }
-
 function parseLastJsonLine(stdout: string): Record<string, unknown> | null {
   for (const line of stdout.trim().split(/\r?\n/).reverse()) {
-    try {
-      const parsed = JSON.parse(line) as unknown;
-      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-        return parsed as Record<string, unknown>;
-      }
-    } catch { /* smolagents/provider logs may precede the JSON result */ }
+    try { const parsed = JSON.parse(line) as unknown; if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) return parsed as Record<string, unknown>; } catch { /* logs may precede the JSON result */ }
   }
   return null;
 }
 
-/**
- * Run the Hugging Face Open Deep Research adapter as an isolated, bounded
- * subprocess. The report and citations are review-only; this function never
- * writes entity/contact state.
- */
-export async function runOpenDeepResearch(
-  prompt: string,
-  options: { timeoutMs?: number } = {},
-): Promise<OpenDeepResearchResult> {
-  const base: OpenDeepResearchResult = {
-    status: "unavailable",
-    report: null,
-    citations: [],
-    searches: 0,
-    pages: 0,
-    model: null,
-    available: false,
-    reviewOnly: true,
-  };
+export async function runOpenDeepResearch(prompt: string, options: { timeoutMs?: number; signal?: AbortSignal } = {}): Promise<OpenDeepResearchResult> {
+  const base: OpenDeepResearchResult = { status: "unavailable", report: null, citations: [], searches: 0, pages: 0, model: null, available: false, reviewOnly: true };
+  throwIfCancelled(options.signal);
   const script = findWorkspaceScript("open_deep_research.py");
   if (!script) return { ...base, error: "Open Deep Research adapter script not found." };
-  const serperKey = [
-    process.env.SERPER_API_KEY,
-    process.env.SERPER_API_KEY_2,
-    process.env.SERPER_API_KEY_3,
-    process.env.SERPER_KEY,
-  ].map((k) => (k ?? "").trim()).find(Boolean);
-  if (!process.env.HF_TOKEN || !serperKey) {
-    return { ...base, error: "HF_TOKEN and SERPER_API_KEY (or SERPER_KEY) are not configured." };
-  }
-
+  const serperKey = [process.env.SERPER_API_KEY, process.env.SERPER_API_KEY_2, process.env.SERPER_API_KEY_3, process.env.SERPER_KEY].map((k) => (k ?? "").trim()).find(Boolean);
+  if (!process.env.HF_TOKEN || !serperKey) return { ...base, error: "HF_TOKEN and SERPER_API_KEY (or SERPER_KEY) are not configured." };
   const timeoutMs = Math.min(Math.max(options.timeoutMs ?? 90_000, 30_000), 180_000);
   const subprocess = await runSubprocess(PYTHON_BIN, [script, prompt.slice(0, 12_000)], timeoutMs, {
-    HF_TOKEN: process.env.HF_TOKEN,
-    SERPER_API_KEY: serperKey,
+    HF_TOKEN: process.env.HF_TOKEN, SERPER_API_KEY: serperKey,
     HF_DEEP_RESEARCH_MODEL: process.env.HF_DEEP_RESEARCH_MODEL || "Qwen/Qwen2.5-7B-Instruct",
-  });
-  if (subprocess.exitCode === -1) {
-    return { ...base, status: "timeout", available: true, error: "Open Deep Research subprocess timed out." };
-  }
+  }, { signal: options.signal });
+  throwIfCancelled(options.signal);
+  if (subprocess.exitCode === TIMEOUT_EXIT_CODE) return { ...base, status: "timeout", available: true, error: "Open Deep Research subprocess timed out." };
   const payload = parseLastJsonLine(subprocess.stdout);
-  if (!payload) {
-    return {
-      ...base,
-      status: "failed",
-      available: true,
-      error: subprocess.stderr.trim().slice(0, 500) || "Open Deep Research returned no JSON result.",
-    };
-  }
-  const status = payload.status === "completed" ? "completed"
-    : payload.status === "timeout" ? "timeout"
-      : payload.status === "unavailable" ? "unavailable" : "failed";
-  const citations = Array.isArray(payload.citations)
-    ? payload.citations.filter((value): value is string => typeof value === "string").slice(0, 40)
-    : [];
+  if (!payload) return { ...base, status: "failed", available: true, error: subprocess.stderr.trim().slice(0, 500) || "Open Deep Research returned no JSON result." };
+  const status = payload.status === "completed" ? "completed" : payload.status === "timeout" ? "timeout" : payload.status === "unavailable" ? "unavailable" : "failed";
+  const citations = Array.isArray(payload.citations) ? payload.citations.filter((value): value is string => typeof value === "string").slice(0, 40) : [];
   const report = typeof payload.report === "string" ? payload.report.slice(0, 16_000) : null;
-  const result: OpenDeepResearchResult = {
-    ...base,
-    status,
-    report,
-    citations,
-    searches: typeof payload.searches === "number" ? payload.searches : 0,
-    pages: typeof payload.pages === "number" ? payload.pages : 0,
-    model: typeof payload.model === "string" ? payload.model : null,
-    available: true,
-    ...(typeof payload.error === "string" ? { error: payload.error.slice(0, 500) } : {}),
-  };
-  logger.info({
-    status: result.status,
-    searches: result.searches,
-    pages: result.pages,
-    citations: result.citations.length,
-    model: result.model,
-  }, "[Open Deep Research] bounded run complete");
+  const result: OpenDeepResearchResult = { ...base, status, report, citations, searches: typeof payload.searches === "number" ? payload.searches : 0, pages: typeof payload.pages === "number" ? payload.pages : 0, model: typeof payload.model === "string" ? payload.model : null, available: true, ...(typeof payload.error === "string" ? { error: payload.error.slice(0, 500) } : {}) };
+  logger.info({ status: result.status, searches: result.searches, pages: result.pages, citations: result.citations.length, model: result.model }, "[Open Deep Research] bounded run complete");
   return result;
 }
 
 // ── theHarvester: domain → emails/subdomains ─────────────────────────────────
 
-export interface HarvesterResult {
-  domain: string;
-  emails: string[];
-  subdomains: string[];
-  ips: string[];
-  hosts: string[];
-  totalFound: number;
-  available: boolean;
-  error?: string;
-}
+export interface HarvesterResult { domain: string; emails: string[]; subdomains: string[]; ips: string[]; hosts: string[]; totalFound: number; available: boolean; error?: string; }
 
-export async function runTheHarvester(
-  domain: string,
-  sources = "bing,duckduckgo,yahoo,certspotter,crtsh"
-): Promise<HarvesterResult> {
-  const base: HarvesterResult = {
-    domain,
-    emails: [],
-    subdomains: [],
-    ips: [],
-    hosts: [],
-    totalFound: 0,
-    available: false,
-  };
-
+export async function runTheHarvester(domain: string, sources = "bing,duckduckgo,yahoo,certspotter,crtsh", options: SubprocessOptions = {}): Promise<HarvesterResult> {
+  const base: HarvesterResult = { domain, emails: [], subdomains: [], ips: [], hosts: [], totalFound: 0, available: false };
   const cleanDomain = domain.replace(/^https?:\/\//i, "").replace(/\/.*$/, "").trim();
   if (!cleanDomain || !cleanDomain.includes(".")) return { ...base, error: "Invalid domain" };
+  throwIfCancelled(options.signal);
 
-  // Check if theHarvester is available
-  const available = (await isToolAvailable("theHarvester")) || (await isPythonModuleAvailable("theHarvester"));
+  const available = (await isToolAvailable("theHarvester", options.signal)) || (await isPythonModuleAvailable("theHarvester", options.signal));
   if (!available) {
     logger.debug("[theHarvester] not installed — run scripts/install-python-tools.sh");
     return { ...base, error: "theHarvester not installed" };
   }
 
   const tmpFile = path.join(os.tmpdir(), `harvester-${Date.now()}.json`);
-
   try {
-    const cmd = (await isToolAvailable("theHarvester")) ? "theHarvester" : "python3";
-    const args = cmd === "theHarvester"
+    const hasBinary = await isToolAvailable("theHarvester", options.signal);
+    const cmd = hasBinary ? "theHarvester" : PYTHON_BIN;
+    const args = hasBinary
       ? ["-d", cleanDomain, "-b", sources, "-f", tmpFile.replace(".json", ""), "-l", "200"]
       : ["-m", "theHarvester", "-d", cleanDomain, "-b", sources, "-f", tmpFile.replace(".json", ""), "-l", "200"];
+    const subprocess = await runSubprocess(cmd, args, 120_000, undefined, options);
+    throwIfCancelled(options.signal);
 
-    await runSubprocess(cmd, args, 120_000);
-
-    // Parse JSON output
-    let emails: string[] = [];
-    let subdomains: string[] = [];
-    let ips: string[] = [];
-    let hosts: string[] = [];
-
+    let emails: string[] = [], subdomains: string[] = [], ips: string[] = [], hosts: string[] = [];
     try {
-      const jsonPath = tmpFile.replace(".json", ".json");
-      const raw = await fs.readFile(jsonPath, "utf8");
+      const raw = await fs.readFile(tmpFile, "utf8");
       const data = JSON.parse(raw) as any;
-      emails = data?.emails ?? [];
-      subdomains = data?.hosts ?? data?.subdomains ?? [];
-      ips = data?.ips ?? [];
-      hosts = data?.hosts ?? [];
+      emails = Array.isArray(data?.emails) ? data.emails : [];
+      subdomains = Array.isArray(data?.hosts ?? data?.subdomains) ? (data?.hosts ?? data?.subdomains) : [];
+      ips = Array.isArray(data?.ips) ? data.ips : [];
+      hosts = Array.isArray(data?.hosts) ? data.hosts : [];
     } catch {
-      // Text output parsing
       const txtPath = tmpFile.replace(".json", ".txt");
       try {
         const text = await fs.readFile(txtPath, "utf8");
@@ -558,18 +478,15 @@ export async function runTheHarvester(
         subdomains = [...new Set([...text.matchAll(hostRe)].map(m => m[0].toLowerCase()))];
       } catch { /* both outputs missing */ }
     }
-
     const totalFound = emails.length + subdomains.length + ips.length;
     logger.info({ domain: cleanDomain, emails: emails.length, subdomains: subdomains.length }, "[theHarvester] scan complete");
-
     return { domain: cleanDomain, emails, subdomains, ips, hosts, totalFound, available: true };
   } catch (err: any) {
+    if (options.signal?.aborted) throw new Error("cancelled");
     logger.warn({ domain: cleanDomain, err: err.message }, "[theHarvester] run failed");
     return { ...base, available: true, error: err.message };
   } finally {
-    for (const ext of [".json", ".txt", ".xml"]) {
-      fs.unlink(tmpFile.replace(".json", ext)).catch(() => {});
-    }
+    for (const ext of [".json", ".txt", ".xml"]) fs.unlink(tmpFile.replace(".json", ext)).catch(() => {});
   }
 }
 
@@ -583,12 +500,5 @@ export async function checkPythonToolsAvailability(): Promise<Record<string, boo
     isToolAvailable("theHarvester").then(async v => v || isPythonModuleAvailable("theHarvester")),
     isPythonModuleAvailable("smolagents"),
   ]);
-
-  return {
-    holehe: checks[0]!,
-    maigret: checks[1]!,
-    sherlock: checks[2]!,
-    theHarvester: checks[3]!,
-    openDeepResearch: checks[4]!,
-  };
+  return { holehe: checks[0]!, maigret: checks[1]!, sherlock: checks[2]!, theHarvester: checks[3]!, openDeepResearch: checks[4]! };
 }
