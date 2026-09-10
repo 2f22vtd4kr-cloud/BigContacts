@@ -97,6 +97,13 @@ assert(!/from "\.\/lib\/startup"/.test(source.entrypoint), "Live API entrypoint 
 assert(/Startup recovery complete/.test(source.startupRecovery), "Lifecycle-only startup recovery is missing its explicit no-research completion marker.");
 assert(!/runBroadDiscovery|bulk-run|deep-web-osint|social-discovery|messenger-discovery|in-house-enrich/.test(source.startupRecovery), "Lifecycle-only startup recovery contains a research/enrichment trigger.");
 
+// Identity law: deterministic observations may be exposed as raw observations, but
+// the ReAct core must not pre-attribute them to the requested target. Identity claims
+// belong to the Investigator's explicit done/promotion decision. This guard is expected
+// to stay red until #136 removes target-derived attribution from observation generation.
+assert(!/findingsFrom(?:PeopleSnippet|ProxyPage|IrAndRelatedBlocks|ContactFacts)[\s\S]{0,18000}personName:\s*targetName/.test(source.research), "ReAct observation extraction still injects target-derived personName into deterministic findings; #136 remains unresolved.");
+assert(!/findingsFrom(?:PeopleSnippet|ProxyPage|IrAndRelatedBlocks|ContactFacts)[\s\S]{0,18000}scope:\s*"candidate"/.test(source.research), "ReAct observation extraction still manufactures candidate scope before an Investigator promotion decision; #136 remains unresolved.");
+
 assert(/Gemini/.test(source.architecture) && /DeepSeek/.test(source.architecture) && /Investigator LLM pool/.test(source.architecture), "Canonical ReAct architecture document is missing the two-layer role law.");
 assert(/no forced search order/i.test(source.architecture), "Canonical ReAct architecture document does not state the no-forced-search-order invariant.");
 
