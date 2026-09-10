@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import { execFileSync } from "node:child_process";
 
 const targets = [
   "artifacts/api-server/src/src/lib/atlas-orchestrator.ts",
@@ -51,3 +52,7 @@ for (const path of targets) {
   if (/runMaigret\(|runHolehe\(/.test(source)) throw new Error(`deterministic Atlas OSINT retirement: live Python OSINT call remains in ${path}`);
   fs.writeFileSync(path, source);
 }
+
+// The legacy Atlas router is still useful for status/stop telemetry, but its
+// historical POST launch must never be another executable research plane.
+execFileSync(process.execPath, ["scripts/apply-retire-legacy-atlas-launch.mjs"], { stdio: "inherit" });
