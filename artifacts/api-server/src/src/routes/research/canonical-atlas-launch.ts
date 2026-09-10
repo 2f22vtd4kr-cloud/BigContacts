@@ -7,6 +7,7 @@ import {
   setActiveJob,
   updateJob,
 } from "../../lib/job-queue";
+import { claimCanonicalJob } from "../../lib/canonical-job-lock";
 import { enablePermanentRedis } from "../../lib/redis";
 import { runCanonicalAtlasPipeline } from "../../lib/canonical-atlas-discovery";
 import { runCanonicalSingleTargetInvestigation } from "../../lib/canonical-single-target-runner";
@@ -17,8 +18,8 @@ const router = Router();
  * Canonical Atlas launch boundary.
  *
  * The historical atlas-orchestrator remains in the repository for controlled
- * retirement, but it is not a launch path. Every public Atlas launch enters
- * the model-owned discovery/single-target control plane here.
+ * retirement, but it is not a launch path. Every public Atlas launch enters the
+ * model-owned discovery/single-target control plane here.
  */
 router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<void> => {
   // Manual mode intentionally defers permanent Redis until an operator starts
@@ -48,6 +49,20 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
   const targetTimeoutMs = Math.min(Math.max(Number(body.targetTimeoutMs) || 420_000, 30_000), 600_000);
 
   const atlasJobId = await createJob("atlas-run");
+  const claimed = await claimCanonicalJob("atlas-run", atlasJobId);
+  if (!claimed) {
+    await updateJob(atlasJobId, {
+      status: "cancelled",
+      outcome: "incomplete",
+      message: "Canonical Atlas launch rejected: another instance owns the distributed launch lock.",
+      finishedAt: new Date().toISOString(),
+    });
+    res.status(409).json({ error: "Atlas pipeline already running." });
+    return;
+  }
+
+  // Mirror the successful atomic claim into the local cache used by job-queue
+  // status checks. The Redis claim above is the correctness boundary.
   await setActiveJob("atlas-run", atlasJobId);
   await updateJob(atlasJobId, {
     status: "running",
