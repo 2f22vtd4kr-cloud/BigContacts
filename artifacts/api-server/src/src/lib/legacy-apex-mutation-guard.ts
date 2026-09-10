@@ -8,6 +8,7 @@ const LEGACY_MUTATING_ENRICHMENT_PATHS = new Set([
   "/ingest/social-discovery",
   "/ingest/messenger-discovery",
   "/ingest/foundation-filings",
+  "/ingest/companies-house-enrich",
 ]);
 const APEX_TYPES = new Set(["HNWI", "Gatekeeper"]);
 
@@ -17,9 +18,9 @@ function isLegacyEnrichmentPath(path: string): boolean {
 
 /**
  * Legacy/deterministic enrichment endpoints predate the canonical Investigator
- * decision boundary. They may remain available for non-Apex maintenance work,
- * but must never write HNWI/Gatekeeper cards from deterministic enrichment
- * output. This guard is deliberately about mutation scope, not research
+ * decision boundary. They may remain available for explicitly scoped non-Apex
+ * maintenance work, but must never write HNWI/Gatekeeper cards from deterministic
+ * enrichment output. This guard is deliberately about mutation scope, not research
  * strategy.
  */
 export async function legacyApexMutationGuard(
