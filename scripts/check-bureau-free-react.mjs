@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 /**
- * Static integrity guard for Apex Bureau's agentic Dig.
+ * Static integrity guard for Apex Bureau's canonical agentic Dig.
  *
- * This is deliberately narrow: it does not prescribe a research path. It only
- * fails when the Dig controller regresses into explicit force-hop/playbook
- * machinery or when its action surface disappears.
+ * This guard inspects the actual ReAct core, not the thin SSRF wrapper. It does
+ * not prescribe a research path; it only fails when the controller regresses
+ * into explicit force-hop/playbook machinery or when its action surface or
+ * free first-turn contract disappears.
  */
 
 import fs from "node:fs";
@@ -13,7 +14,7 @@ import { fileURLToPath } from "node:url";
 
 const scriptsDir = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(scriptsDir, "..");
-const dig = path.join(root, "artifacts/api-server/src/src/lib/agentic-web-research.ts");
+const dig = path.join(root, "artifacts/api-server/src/src/lib/agentic-web-research-core.ts");
 
 if (!fs.existsSync(dig)) {
   console.error(`FAIL: missing ${dig}`);
@@ -26,6 +27,9 @@ const forbidden = [
   /GROK-PARITY/i,
   /force_company_surface/i,
   /(?:mandatory|required)\s+(?:step|hop|search)/i,
+  /Begin\. Choose an initial web_search query/i,
+  /Prefer\s+Serper.*Tavily.*Exa/i,
+  /Serper\s*[→>-]+\s*Tavily\s*[→>-]+\s*Exa/i,
 ];
 
 const failures = forbidden
@@ -35,6 +39,12 @@ const failures = forbidden
 const requiredActions = [
   'action: "web_search"',
   'action: "visit"',
+  'action: "footprint_email"',
+  'action: "footprint_username"',
+  'action: "domain_lookup"',
+  'action: "registry_search"',
+  'action: "harvest_domain"',
+  'action: "browser_fetch"',
   'action: "done"',
 ];
 
@@ -48,4 +58,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log("OK: Bureau Dig retains free-ReAct action surface with no explicit force-hop/playbook markers");
+console.log("OK: canonical Bureau Dig retains free-ReAct action surface with no explicit force-hop/playbook markers");
