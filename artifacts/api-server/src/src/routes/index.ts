@@ -22,13 +22,16 @@ import { legacyApexMutationGuard } from "../lib/legacy-apex-mutation-guard";
 
 const router: IRouter = Router();
 router.use(healthRouter);
+// The legacy Apex mutation boundary must wrap every legacy enrichment router,
+// including /enrich/* routes mounted outside the ingest router. Health remains
+// public above; all mutating legacy enrichment traffic reaches this guard first.
+router.use(legacyApexMutationGuard);
 router.use(entitiesRouter);
 router.use(assetsRouter);
 router.use(relationshipsRouter);
 router.use(researchRouter);
 router.use(dashboardRouter);
 router.use(graphRouter);
-router.use(legacyApexMutationGuard);
 router.use(ingestRouter);
 router.use(searchRouter);
 router.use(improveRouter);
