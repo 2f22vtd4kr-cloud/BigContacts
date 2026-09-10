@@ -2,7 +2,7 @@
 
 > **Living handoff — 2026-09-10.** Current architecture source of truth. Historical documents are not live control planes.
 
-**Repo:** `2f22vtd4kr-cloud/BigContacts` · **Branch:** `main` · **Current reviewed tip:** `10ec5a514260ca1d326daf177e71a7d338666a01`
+**Repo:** `2f22vtd4kr-cloud/BigContacts` · **Branch:** `main` · **Current reviewed tip:** `95b3d55d5c9e44bcb40610dd94b82423fd7a0786`
 
 ## Institutional contract
 Apex is an AI-driven OSINT bureau, not a deterministic search script.
@@ -53,6 +53,7 @@ institutional constitution -> role purpose -> durable case context -> operator c
 21. `domain-surface.ts` now accepts a caller `AbortSignal` and passes it into both RDAP and WhoisJSON transport calls, with fail-closed cancellation checks around the parallel lookup. **The canonical ReAct core currently does not yet propagate its run signal into `lookupDomainSurface`; this remains an identified #139 second-order gap.**
 22. `python-tools.ts` now gives Holehe/Maigret/Sherlock/theHarvester real child-process cancellation primitives: detached POSIX process groups, SIGTERM plus SIGKILL backstop, bounded output, and distinct cancellation exit state. **Formal network-egress governance for those subprocesses remains unresolved.**
 23. `scripts/check-agentic-runtime.mjs` now guards the Python subprocess cancellation contract and the canonical ReAct signal propagation expected for the individual OSINT adapters.
+24. `artifacts/api-server/package.json` now runs `check-agentic-runtime.mjs` and `check-discovery-mode-boundary.mjs` as part of API-server build/test guard chains. No CI result is inferred from this local/static wiring.
 
 ## Confirmed/open forensic defects
 - **#128:** canonical `src/src/lib/ai-extractor.ts` still exposes a Groq final-card-review path according to source/issue review. Required remediation remains Gemini -> DeepSeek -> deterministic fail-closed adjudication; Groq must not act as reviewer. Historical `mcts.ts` material is not mounted by the live research route but remains source that must be retired/reconciled.
@@ -69,7 +70,7 @@ institutional constitution -> role purpose -> durable case context -> operator c
 A person candidate requires explicit model-authored identity, candidate scope, successful observed HTTP(S) source, and explicit `promotionDecision="promote"`. No target-name inheritance, organization inheritance, URL-slug admission, listicle admission, proxy-contact admission, or fabricated URL. Claim-source validation must bind the claim to a single successful bounded observation; it must not stitch independent observations together as though they were one source.
 
 ## Verification state
-**No Replit/runtime/provider/CI/end-to-end success is claimed.** Repository mutations and static source review are not runtime proof. The latest main tip is `10ec5a514260ca1d326daf177e71a7d338666a01`. Final acceptance requires a real durable trajectory showing Gemini Boss -> DeepSeek/NVIDIA Right Hand -> selected Groq/Mistral Investigator -> genuine model-selected first action -> model pivots -> successful observed provenance -> explicit promotion -> evidence-backed card, with actual observations inspectable by oversight.
+**No Replit/runtime/provider/CI/end-to-end success is claimed.** Repository mutations and static source review are not runtime proof. The latest main tip is `95b3d55d5c9e44bcb40610dd94b82423fd7a0786`. Final acceptance requires a real durable trajectory showing Gemini Boss -> DeepSeek/NVIDIA Right Hand -> selected Groq/Mistral Investigator -> genuine model-selected first action -> model pivots -> successful observed provenance -> explicit promotion -> evidence-backed card, with actual observations inspectable by oversight.
 
 ## Immediate forensic priority
 Continue from the current main tip by tracing #139/#147 together: canonical ReAct action execution -> `python-tools.ts` -> child processes -> network egress -> cancellation -> trajectory status/provenance, while fixing the currently identified missing `runController.signal` propagation into `lookupDomainSurface`. Then audit #128, duplicate source trees, deterministic secondary-surface reachability, legacy extraction semantics, and every caller that can turn model output into persisted contact/entity state. Static fixes must be followed by second-order reachability review; runtime/provider availability remains unproven.
