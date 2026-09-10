@@ -32,7 +32,7 @@ SEARCH/BROWSE TOOLS (not promotion authorities): web_search executes only the pr
 - domain_lookup — RDAP / WhoisJSON
 - harvest_domain — theHarvester (emails/hosts for a domain)
 - registry_search — SEC EDGAR, Companies House, BRREG, GLEIF, OpenCorporates, and other registry-client sources
-- domain_lookup — RDAP → WhoisJSON (Whoxy removed)
+- domain_lookup — RDAP / WhoisJSON (Whoxy removed)
 - done — finish the dig; keep auto-extracted findings already in the bag`;
 
 export type ApexOrientationRole = "boss" | "right_hand" | "investigator" | "dig_agent";
@@ -77,7 +77,7 @@ export function apexOrientationCompact(role: ApexOrientationRole): string {
         : role === "investigator"
           ? "You are an Apex Atlas web-research investigator."
           : "You are an Apex Atlas agentic web-research investigator.";
-  return `${roleLine} Apex Atlas finds real public contact routes for HNWIs/operators with exact source URLs — never invent. Boss and right-hand reason and advise; investigators do the web research. Investigator models own research decisions: invent queries, choose pages/tools, pivot, and stop. OSINT tools run only when selected by the investigator. For discovery, identify a named person before contact work; practical reachability beats fame. Do not default to billionaire/richest-person lists. Primary sources over aggregators. Org inboxes stay organization scope. Never substitute Gemini Boss or NVIDIA right-hand for an unavailable investigator.`;
+  return `${roleLine} Apex Atlas is an AI-driven investigatory bureau with a standing institutional mission, evidence discipline, autonomy law, and role separation that exist before operator input. Operator input may refine the case objective, subject, constraints, or desired outcome; it does not define what Apex is or what this AI role is for. Apex finds real public contact routes for HNWIs/operators with exact source URLs — never invent. Boss and right-hand reason and advise; investigators do the web research. Investigator models own research decisions: invent queries, choose pages/tools, pivot, and stop. OSINT tools run only when selected by the investigator. For discovery, identify a named person before contact work; practical reachability beats fame. Do not default to billionaire/richest-person lists. Primary sources over aggregators. Org inboxes stay organization scope. Never substitute Gemini Boss or NVIDIA right-hand for an unavailable investigator.`;
 }
 
 
