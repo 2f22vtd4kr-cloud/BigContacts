@@ -21,7 +21,8 @@ async function createAtlasDiscoveryCase(input: { atlasJobId: string; objective: 
 }
 
 async function materializeAtlasAdmissions(input: { findings: Array<{ promotionDecision?: "promote" | "reject"; scope: "organization" | "candidate" | "unknown"; personName: string | null; role: string | null; sourceUrls: string[] }>; atlasJobId: string; discoveryCaseId: number; maxCandidates: number }): Promise<{ names: string[]; materialized: number; evidenceRows: number }> {
-  const admitted = uniqueNames(input.findings.filter((f) => f.promotionDecision === "promote").filter((f) => f.scope === "candidate").filter((f) => typeof f.personName === "string" && f.personName.trim().length >= 3).filter((f) => Array.isArray(f.sourceUrls) && f.sourceUrls.some(isObservedHttpSource)).map((f) => f.personName as string)).slice(0, input.maxCandidates);
+  const admitted = uniqueNames(input.findings.filter((f) => f.promotionDecision === "promote").filter((f) => f.scope === "candidate").filter((f) => typeof f.personName === "string" && f.personName.trim().length >= 3).filter((f) => Array.isArray(f.sourceUrls) && f.sourceUrls.some(isObservedHttpSource)).map((f) => f.personName as string));
+  if (admitted.length > input.maxCandidates) throw new Error(`Discovery admission safety cap exceeded (${admitted.length} > ${input.maxCandidates}); refusing to deterministically select candidates.`);
   let materialized = 0, evidenceRows = 0;
   for (const name of admitted) {
     const finding = input.findings.find((candidate) => candidate.personName?.trim().toLowerCase() === name.toLowerCase() && candidate.promotionDecision === "promote" && candidate.scope === "candidate" && Array.isArray(candidate.sourceUrls) && candidate.sourceUrls.some(isObservedHttpSource));
@@ -30,11 +31,8 @@ async function materializeAtlasAdmissions(input: { findings: Array<{ promotionDe
     const existing = existingRows[0]; let entityId = existing?.id ?? null;
     if (!entityId) { const [created] = await db.insert(entitiesTable).values({ name, type: "HNWI", bayesianScore: 0.05, contactConfidence: 0, contactOutcome: "evidence_only", isHot: false, isStarred: false, isHidden: false, sourceRegistries: JSON.stringify(["canonical-agentic-discovery"]), notes: "Model-selected discovery candidate; target-scoped Investigator research required before contact promotion.", metadata: JSON.stringify({ reviewOnly: true, admission: "investigator-explicit-promotion", sourceUrl, discoveryCaseId }) }).returning({ id: entitiesTable.id }); entityId = created?.id ?? null; if (entityId) materialized += 1; }
     if (!entityId) continue;
-    // `discovery.findings` is already source-backed by the canonical Bureau pass.
-    // Pass that validated source URL into the strict persistence boundary rather
-    // than silently dropping the admission for missing run-scoped provenance.
-    await persistSourceBackedBureauContactsForEntity(entityId, [{ vectorType: "other", value: `person:${name}`, scope: "candidate", personName: name, role: finding?.role ?? "discovery candidate", sourceUrls: [sourceUrl], note: "Explicit Investigator discovery admission; review-only until target-scoped research.", tier: "candidate", state: "review_only", promote: false }], "canonical-agentic-discovery", input.atlasJobId, [sourceUrl]);
-    evidenceRows += 1;
+    const persisted = await persistSourceBackedBureauContactsForEntity(entityId, [{ vectorType: "other", value: `person:${name}`, scope: "candidate", personName: name, role: finding?.role ?? "discovery candidate", sourceUrls: [sourceUrl], note: "Explicit Investigator discovery admission; review-only until target-scoped research.", tier: "candidate", state: "review_only", promote: false }], "canonical-agentic-discovery", input.atlasJobId, [sourceUrl]);
+    evidenceRows += persisted;
   }
   return { names: admitted, materialized, evidenceRows };
 }
