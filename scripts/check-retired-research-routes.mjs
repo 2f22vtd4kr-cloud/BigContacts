@@ -107,11 +107,13 @@ if (/from "\.\/research\/cases"|router\.use\(casesRouter\)/.test(canonicalResear
   console.log("PASS canonical research router does not import or mount legacy cases executor.");
 }
 
-// The secondary-surface function is still under active retirement. Only actual live callers
-// are architectural failures; quarantined legacy source is tracked separately.
+// The secondary-surface function is still under active retirement. Every canonical caller
+// is an architectural failure, including the discovery-case executor: the Investigator must
+// choose any surviving capability rather than inherit a deterministic secondary recipe.
 const secondarySurfaceSources = [
   "artifacts/api-server/src/src/routes/entities.ts",
   "artifacts/api-server/src/src/lib/atlas-orchestrator.ts",
+  "artifacts/api-server/src/src/routes/research/cases.ts",
 ];
 for (const file of secondarySurfaceSources) {
   const source = read(file);
