@@ -7,7 +7,10 @@ const marker = "INVESTIGATOR_LLM_CAPABILITY_POOL";
 const llmStart = source.indexOf(marker);
 const llmEnd = source.indexOf("function formatFindingsBag", llmStart);
 const extractorStart = source.indexOf("function extractContactFactsFromHtml");
-const extractorEnd = source.indexOf("function isMostlyBinaryGarbage", extractorStart);
+const extractorEndMarker = source.indexOf("function isMostlyBinaryGarbage", extractorStart);
+const extractorEnd = extractorEndMarker > extractorStart
+  ? extractorEndMarker
+  : source.indexOf("function findingsFromProxyPage", extractorStart);
 
 const checks = [
   ["canonical investigator wrapper exists", wrapper.includes("agentic-web-research-core")],
