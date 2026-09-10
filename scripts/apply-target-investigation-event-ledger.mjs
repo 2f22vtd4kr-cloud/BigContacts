@@ -9,7 +9,9 @@ let target = fs.readFileSync(targetFile, "utf8");
 let runner = fs.readFileSync(runnerFile, "utf8");
 
 if (!target.includes("onInvestigationAct?:")) {
-  const signature = 'contextDocument?: string }): Promise<TargetContactAgentResult>';
+  const signatureWithCancellation = 'contextDocument?: string; shouldCancel?: () => boolean | Promise<boolean> }): Promise<TargetContactAgentResult>';
+  const signatureWithoutCancellation = 'contextDocument?: string }): Promise<TargetContactAgentResult>';
+  const signature = target.includes(signatureWithCancellation) ? signatureWithCancellation : signatureWithoutCancellation;
   if (!target.includes(signature)) throw new Error("target-agent signature anchor missing");
   target = target.replace(signature, 'contextDocument?: string; shouldCancel?: () => boolean | Promise<boolean>; onInvestigationAct?: (step: { action: string; provider?: string; query?: string; url?: string; summary?: string }) => void | Promise<void> }): Promise<TargetContactAgentResult>');
 }
