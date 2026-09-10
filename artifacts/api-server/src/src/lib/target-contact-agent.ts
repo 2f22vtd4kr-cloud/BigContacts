@@ -12,7 +12,7 @@ import { isValidPublicEmail } from "./contact-validation";
 import { publishDigSpan, spanFromLiveStep } from "./dig-span";
 import { getDiscoveryTrace } from "./investigator-trace";
 
-export type TargetContactAgentResult = { status: "completed" | "timeout" | "unavailable" | "error" | "skipped"; model: string; findings: number; searches: number; visits: number; trajectory: string[]; trajectoryRecords: AgenticTrajectoryRecord[]; phone: string | null; email: string | null; phoneSource: string | null; contactOutcome: string | null };
+export type TargetContactAgentResult = { status: "completed" | "timeout" | "unavailable" | "error" | "cancelled" | "skipped"; model: string; findings: number; searches: number; visits: number; trajectory: string[]; trajectoryRecords: AgenticTrajectoryRecord[]; phone: string | null; email: string | null; phoneSource: string | null; contactOutcome: string | null };
 
 function observedUrlsFromTrajectory(trajectory: string[]): Set<string> {
   const observed = new Set<string>();
@@ -23,20 +23,28 @@ function observedUrlsFromTrajectory(trajectory: string[]): Set<string> {
   return observed;
 }
 
+/**
+ * A promoted claim must be grounded by ONE successful bounded observation.
+ * Never concatenate independent pages to manufacture a claim-to-source link.
+ */
 function claimAppearsInObservedMaterial(finding: AgenticFinding, records: AgenticTrajectoryRecord[]): boolean {
   if (!records.length) return false;
   const sourceSet = new Set(finding.sourceUrls.map((url) => { try { return new URL(url).href; } catch { return ""; } }).filter(Boolean));
-  const matching = records.filter((record) => record.execution === "success" && record.observedUrls.some((url) => sourceSet.has(url)) && typeof record.observation === "string");
-  if (!matching.length) return false;
-  const normalizedObservation = matching.map((r) => r.observation!.toLowerCase()).join("\n");
   const value = finding.value.trim().toLowerCase();
   const exactValueRequired = ["email", "phone", "linkedin", "website", "social"].includes(finding.vectorType);
-  if (exactValueRequired && !normalizedObservation.includes(value)) return false;
-  if (finding.scope === "candidate" && finding.personName) {
-    const tokens = finding.personName.toLowerCase().split(/[^a-z0-9]+/).filter((token) => token.length >= 2);
-    if (tokens.length && !tokens.every((token) => normalizedObservation.includes(token))) return false;
+  const personTokens = finding.scope === "candidate" && finding.personName
+    ? finding.personName.toLowerCase().split(/[^a-z0-9]+/).filter((token) => token.length >= 2)
+    : [];
+
+  for (const record of records) {
+    if (record.execution !== "success" || typeof record.observation !== "string") continue;
+    if (!record.observedUrls.some((url) => sourceSet.has(url))) continue;
+    const observation = record.observation.toLowerCase();
+    if (exactValueRequired && !observation.includes(value)) continue;
+    if (personTokens.length && !personTokens.every((token) => observation.includes(token))) continue;
+    return true;
   }
-  return true;
+  return false;
 }
 
 export function sourceBackedFindings(findings: AgenticFinding[], trajectory: string[] = [], records: AgenticTrajectoryRecord[] = []): AgenticFinding[] {
@@ -82,7 +90,7 @@ export async function runTargetContactAgent(input: { entityId: number; targetNam
   ].join("\n");
   void publishBureauEvent({ actor: "web", kind: "search", title: `Target agent · ${name}`, targetName: name, jobId: input.jobId, why: "Model-owned Dig; card updates only from its emitted source-backed findings", level: "info" });
   const agentic = await runAgenticWebResearch({ targetName: name, companyName: input.companyName ?? null, objective, investigatorLlm, maxIterations: input.maxIterations ?? depth.agenticMaxIterations, hardTimeoutMs: input.hardTimeoutMs ?? depth.agenticHardTimeoutMs, jobId: input.jobId ?? null, onLiveStep: (step) => { try { spanFromLiveStep({ jobId: input.jobId, targetName: name, tool: step.action, label: step.query || step.url || step.action, detail: step.summary, status: "ok", agentName: "investigator" }); } catch {} void publishBureauEvent({ actor: "web", kind: step.action === "web_search" ? "search" : step.action === "visit" || step.action === "browser_fetch" ? "page-fetch" : "tool", title: `${step.action}${step.query ? ` · ${step.query}` : step.url ? ` · ${step.url}` : ""}`.slice(0, 120), targetName: name, provider: step.provider || step.action, why: step.summary?.slice(0, 240), jobId: input.jobId, level: "info" }); } });
-  try { publishDigSpan({ jobId: input.jobId || "dig", targetName: name, spanType: "stage", name: "target_contact_agent_done", status: agentic.status === "timeout" ? "error" : "ok", agentName: "investigator", inputSummary: `model=${agentic.model}`, resultSummary: `status=${agentic.status} findings=${agentic.findings.length} searches=${agentic.searches} visits=${agentic.visits} stop=${agentic.stopReason}`, endedAt: new Date().toISOString() }); } catch {}
+  try { publishDigSpan({ jobId: input.jobId || "dig", targetName: name, spanType: "stage", name: "target_contact_agent_done", status: agentic.status === "timeout" ? "error" : agentic.status === "cancelled" ? "cancelled" : "ok", agentName: "investigator", inputSummary: `model=${agentic.model}`, resultSummary: `status=${agentic.status} findings=${agentic.findings.length} searches=${agentic.searches} visits=${agentic.visits} stop=${agentic.stopReason}`, endedAt: new Date().toISOString() }); } catch {}
   const modelFindings = agentic.modelFindings ?? [];
   const backedFindings = sourceBackedFindings(modelFindings, agentic.trajectory, agentic.trajectoryRecords);
   const contacts = findingsToContacts(backedFindings, name);
@@ -98,6 +106,6 @@ export async function runTargetContactAgent(input: { entityId: number; targetNam
     await db.update(entitiesTable).set({ contactOutcome: outcome, contactConfidence: confidence, ...(methodParts.length ? { contactMethod: methodParts.join(" · ").slice(0, 500) } : {}), updatedAt: new Date() }).where(eq(entitiesTable.id, input.entityId));
     void delCachePattern("entities:list:*"); void delCachePattern("dashboard:*");
   }
-  const mapped = agentic.status === "completed" ? "completed" : agentic.status === "timeout" ? "timeout" : agentic.status === "unavailable" ? "unavailable" : "error";
+  const mapped = agentic.status === "completed" ? "completed" : agentic.status === "timeout" ? "timeout" : agentic.status === "cancelled" ? "cancelled" : agentic.status === "unavailable" ? "unavailable" : "error";
   return { status: mapped, model: agentic.model, findings: backedFindings.length, searches: agentic.searches, visits: agentic.visits, trajectory: agentic.trajectory.slice(-80), trajectoryRecords: agentic.trajectoryRecords.slice(-100), phone: ent?.phone ?? null, email: ent?.email ?? null, phoneSource: ent?.phoneSource ?? null, contactOutcome: outcome };
 }
