@@ -1,9 +1,10 @@
 import fs from "node:fs";
 
-const canonicalStartup = fs.readFileSync("artifacts/api-server/src/src/lib/startup.ts", "utf8");
-const legacyStartup = fs.readFileSync("artifacts/api-server/src/lib/startup.ts", "utf8");
-const jobs = fs.readFileSync("artifacts/apex-finder/src/pages/jobs.tsx", "utf8");
-const secondaryPersist = fs.readFileSync("artifacts/api-server/src/src/lib/bureau-contact-persist.ts", "utf8");
+const read = (path) => fs.existsSync(path) ? fs.readFileSync(path, "utf8") : "";
+const canonicalStartup = read("artifacts/api-server/src/src/lib/startup.ts");
+const legacyStartup = read("artifacts/api-server/src/lib/startup.ts");
+const jobs = read("artifacts/apex-finder/src/pages/jobs.tsx");
+const secondaryPersist = read("artifacts/api-server/src/src/lib/bureau-contact-persist.ts");
 
 const retired = [
   "/api/ingest/deep-web-osint",
@@ -29,7 +30,8 @@ for (const route of retired) {
     console.log(`PASS retired research route absent from canonical startup/UI: ${route}`);
   }
   if (inLegacyStartup) {
-    console.log(`INFO legacy duplicate startup still references retired route: ${route}`);
+    console.log(`FAIL deleted legacy startup still references retired route: ${route}`);
+    failed = true;
   }
 }
 
@@ -70,7 +72,7 @@ const secondarySurfaceSources = [
   "artifacts/api-server/src/src/lib/atlas-orchestrator.ts",
 ];
 for (const file of secondarySurfaceSources) {
-  const source = fs.readFileSync(file, "utf8");
+  const source = read(file);
   if (/\bexpandSecondaryPublicSurface\s*\(/.test(source)) {
     console.log(`FAIL deterministic secondary research remains callable from live source: ${file}`);
     failed = true;
