@@ -1,7 +1,7 @@
 import app from "./app";
 import { logger } from "./lib/logger";
 import { connectRedis, connectPermanentRedis, disconnectRedis } from "./lib/redis";
-import { coldStartRecovery } from "./lib/startup";
+import { coldStartRecovery } from "./lib/startup-recovery";
 import { getAIKeyStatus } from "./lib/ai-extractor";
 import { buildLanesHonestySnapshot } from "./lib/lanes-honesty";
 import { installExternalQuotaGuard } from "./lib/provider-gate";
