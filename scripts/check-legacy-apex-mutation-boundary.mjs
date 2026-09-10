@@ -14,6 +14,7 @@ const retiredRoutes = [
   "companies-house-enrich",
   "occrp",
   "deep-web-osint",
+  "broad-discovery",
 ];
 
 const guardIndex = routes.indexOf("legacyApexMutationGuard");
