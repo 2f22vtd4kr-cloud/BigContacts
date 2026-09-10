@@ -3,6 +3,7 @@ import fs from "node:fs";
 const targets = [
   "artifacts/api-server/src/src/routes/entities.ts",
   "artifacts/api-server/src/src/lib/atlas-orchestrator.ts",
+  "artifacts/api-server/src/src/routes/research/cases.ts",
 ];
 
 function findCallEnd(source, openIndex) {
@@ -34,22 +35,41 @@ function findCallEnd(source, openIndex) {
   return -1;
 }
 
-const fallback = `const secondary: Record<string, any> = {\n  linkedin: null,\n  email: null,\n  phone: null,\n  signal: null,\n  website: null,\n  relatedPeople: [],\n};`;
+function findStatementStart(source, callStart) {
+  const lineStart = source.lastIndexOf("\n", callStart - 1) + 1;
+  const prefix = source.slice(lineStart, callStart);
+  const assignment = prefix.match(/^(\s*(?:const|let|var)\s+[A-Za-z_$][\w$]*\s*=\s*)$/);
+  if (assignment) return lineStart;
+  const awaitPrefix = prefix.match(/^(\s*await\s+)$/);
+  if (awaitPrefix) return lineStart;
+  return lineStart;
+}
+
+function findStatementEnd(source, callEnd) {
+  let i = callEnd;
+  while (i < source.length && /[ \t]/.test(source[i]!)) i++;
+  if (source[i] === ";") return i + 1;
+  return callEnd;
+}
 
 for (const path of targets) {
   let source = fs.readFileSync(path, "utf8");
-  const marker = "const secondary = await expandSecondaryPublicSurface(";
-  const start = source.indexOf(marker);
-  if (start < 0) {
-    console.log(`secondary-surface retirement: no live call found in ${path}`);
-    continue;
+  let removed = 0;
+  for (;;) {
+    const marker = "expandSecondaryPublicSurface(";
+    const call = source.indexOf(marker);
+    if (call < 0) break;
+    const open = source.indexOf("(", call + marker.length - 1);
+    const end = findCallEnd(source, open);
+    if (end < 0) throw new Error(`secondary-surface retirement: could not parse call in ${path}`);
+    const statementStart = findStatementStart(source, call);
+    const statementEnd = findStatementEnd(source, end);
+    source = source.slice(0, statementStart) + source.slice(statementEnd);
+    removed++;
   }
-  const open = source.indexOf("(", start + marker.length - 1);
-  const end = findCallEnd(source, open);
-  if (end < 0) throw new Error(`secondary-surface retirement: could not parse call in ${path}`);
-  source = source.slice(0, start) + fallback + source.slice(end).replace(/^;/, "");
-  source = source.replace(/,\s*expandSecondaryPublicSurface\s*\}/, " }");
+  source = source.replace(/,\s*expandSecondaryPublicSurface\s*\}/g, " }");
   source = source.replace(/\{\s*expandSecondaryPublicSurface,\s*/g, "{ ");
+  source = source.replace(/import\s*\{\s*expandSecondaryPublicSurface\s*,?\s*/g, "import { ");
   fs.writeFileSync(path, source);
-  console.log(`secondary-surface retirement: removed live call from ${path}`);
+  console.log(`secondary-surface retirement: removed ${removed} live call(s) from ${path}`);
 }
