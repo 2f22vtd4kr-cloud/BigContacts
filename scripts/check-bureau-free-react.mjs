@@ -30,6 +30,7 @@ const forbidden = [
   /Begin\. Choose an initial web_search query/i,
   /Prefer\s+Serper.*Tavily.*Exa/i,
   /Serper\s*[→>-]+\s*Tavily\s*[→>-]+\s*Exa/i,
+  /action === "footprint_username"/,
 ];
 
 const failures = forbidden
@@ -40,7 +41,8 @@ const requiredActions = [
   'action: "web_search"',
   'action: "visit"',
   'action: "footprint_email"',
-  'action: "footprint_username"',
+  'action: "footprint_username_maigret"',
+  'action: "footprint_username_sherlock"',
   'action: "domain_lookup"',
   'action: "registry_search"',
   'action: "harvest_domain"',
