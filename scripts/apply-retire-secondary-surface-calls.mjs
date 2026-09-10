@@ -34,7 +34,7 @@ function findCallEnd(source, openIndex) {
   return -1;
 }
 
-const fallback = `const secondary = {\n  linkedin: null,\n  email: null,\n  phone: null,\n  signal: null,\n  website: null,\n  relatedPeople: [],\n};`;
+const fallback = `const secondary: Record<string, any> = {\n  linkedin: null,\n  email: null,\n  phone: null,\n  signal: null,\n  website: null,\n  relatedPeople: [],\n};`;
 
 for (const path of targets) {
   let source = fs.readFileSync(path, "utf8");
