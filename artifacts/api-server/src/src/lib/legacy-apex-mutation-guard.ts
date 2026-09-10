@@ -9,6 +9,7 @@ const LEGACY_MUTATING_ENRICHMENT_PATHS = new Set([
   "/ingest/messenger-discovery",
   "/ingest/foundation-filings",
   "/ingest/companies-house-enrich",
+  "/ingest/occrp",
 ]);
 const APEX_TYPES = new Set(["HNWI", "Gatekeeper"]);
 
