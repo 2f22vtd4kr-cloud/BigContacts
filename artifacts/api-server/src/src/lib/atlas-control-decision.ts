@@ -1,6 +1,8 @@
 import { apexOrientationFor } from "./apex-bureau-orientation";
 import { resolveGeminiBossModel, generateGeminiBossText } from "./case-bureau";
 import { runDeepSeekFreeJson } from "./deepseek-case-reasoning";
+import { db, researchCasesTable, researchCaseEventsTable } from "@workspace/db";
+import { eq } from "drizzle-orm";
 
 export type AtlasControlAction =
   | "continue_discovery"
@@ -58,6 +60,66 @@ const ALLOWED_ACTIONS = new Set<AtlasControlAction>([
   "stop",
 ]);
 
+async function persistControlDecision(input: {
+  caseId?: number;
+  controlTurn?: number;
+  decision: AtlasControlDecision;
+}): Promise<void> {
+  if (!input.caseId) return;
+  try {
+    const [caseRow] = await db.select({ caseFile: researchCasesTable.caseFile })
+      .from(researchCasesTable)
+      .where(eq(researchCasesTable.id, input.caseId))
+      .limit(1);
+    if (!caseRow) throw new Error(`Atlas discovery case ${input.caseId} does not exist.`);
+
+    const payload = {
+      action: input.decision.action,
+      status: input.decision.status,
+      candidateName: input.decision.candidateName,
+      direction: input.decision.direction,
+      reason: input.decision.reason,
+      confidence: input.decision.confidence,
+      bossModel: input.decision.bossModel,
+      bossError: input.decision.error,
+      rightHand: input.decision.rightHand,
+      controlTurn: input.controlTurn ?? null,
+    };
+    const summary = `Atlas control decision: ${input.decision.action}${input.decision.candidateName ? ` → ${input.decision.candidateName}` : ""}`;
+
+    await db.insert(researchCaseEventsTable).values({
+      caseId: input.caseId,
+      iteration: input.controlTurn ?? 0,
+      actorRole: "gemini_boss",
+      eventType: "control_decision",
+      summary,
+      payload: JSON.stringify(payload),
+    });
+
+    let caseFile: Record<string, unknown> = {};
+    try {
+      caseFile = caseRow.caseFile ? JSON.parse(caseRow.caseFile) as Record<string, unknown> : {};
+    } catch {
+      caseFile = {};
+    }
+    const history = Array.isArray(caseFile.atlasControlDecisions)
+      ? caseFile.atlasControlDecisions
+      : [];
+    history.push({
+      ...payload,
+      recordedAt: new Date().toISOString(),
+    });
+    caseFile.atlasControlDecisions = history.slice(-24);
+    await db.update(researchCasesTable)
+      .set({ caseFile: JSON.stringify(caseFile), updatedAt: new Date() })
+      .where(eq(researchCasesTable.id, input.caseId));
+  } catch (error) {
+    // Control-memory persistence is fail-closed: a decision must not be turned
+    // into a false success when its durable case record could not be written.
+    throw new Error(`Failed to persist Atlas control decision: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
 /**
  * AI-owned Atlas transition decision. Deterministic code supplies bounded state
  * and validates the returned action; it does not select the next research phase.
@@ -77,7 +139,14 @@ export async function decideAtlasNextAction(input: {
   }>;
   priorAction?: AtlasControlAction | null;
   priorCandidate?: string | null;
+  caseId?: number;
+  controlTurn?: number;
 }): Promise<AtlasControlDecision> {
+  const finalize = async (decision: AtlasControlDecision): Promise<AtlasControlDecision> => {
+    await persistControlDecision({ caseId: input.caseId, controlTurn: input.controlTurn, decision });
+    return decision;
+  };
+
   const candidateNames = input.admittedCandidates.map((candidate) => candidate.name);
   const rightHandRaw = await runDeepSeekFreeJson(
     `${apexOrientationFor("right_hand")}\n\nReview the current Atlas discovery state and advise Gemini Boss on the next control decision.\nThe AI, not the harness, owns whether to continue discovery, research one candidate, revisit a candidate, pivot discovery, or stop.\nNever invent a candidate or evidence. Candidate names must come only from the supplied admitted list.\nReturn ONE JSON object with decision, reason, direction, confidence.\n\nOBJECTIVE:\n${input.objective.slice(0, 6000)}\n\nADMITTED CANDIDATES:\n${JSON.stringify(input.admittedCandidates).slice(0, 8000)}\n\nDISCOVERY STATUS: ${input.discoveryStatus}\n\nRECENT TRAJECTORY:\n${input.discoveryTrajectory.slice(-12).join("\n").slice(0, 8000)}`,
@@ -102,7 +171,7 @@ export async function decideAtlasNextAction(input: {
 
   const selection = await resolveGeminiBossModel();
   if (!selection?.model) {
-    return {
+    return finalize({
       status: "unavailable",
       action: "stop",
       candidateName: null,
@@ -112,7 +181,7 @@ export async function decideAtlasNextAction(input: {
       rightHand,
       bossModel: null,
       error: "No Gemini Boss model available.",
-    };
+    });
   }
 
   const prompt = `${apexOrientationFor("boss")}\n\nYou are Gemini Boss controlling the Apex Atlas research bureau. Decide the NEXT research action from the current evidence state. This is a control decision, not a fixed workflow phase.\n\nAllowed actions:\n- continue_discovery: run another Investigator discovery pass because current evidence is insufficient or a new question should be explored.\n- research_candidate: select exactly one admitted named person for target-scoped investigation.\n- revisit_candidate: select exactly one admitted named person whose prior investigation should be revisited because evidence changed or a gap remains.\n- pivot_discovery: continue discovery with a materially different direction supplied in direction.\n- stop: stop because the evidence is sufficient, the case is exhausted, or further work is not justified.\n\nRules:\n- You own the next action. The harness does not infer one from candidate count, score, phase number, or availability.\n- If researching or revisiting, candidateName MUST exactly match one supplied admitted candidate.\n- Never invent a person, URL, relationship, contact, or evidence.\n- Do not prescribe a fixed provider/tool sequence. The Investigator chooses its own tools.\n- direction is a concise research question or pivot, not a tool command.\n- A stop decision is valid even when candidates exist.\n\nReturn ONE JSON object only: {"action":"continue_discovery|research_candidate|revisit_candidate|pivot_discovery|stop","candidateName":null,"direction":"...","reason":"...","confidence":0.0}\n\nOBJECTIVE:\n${input.objective.slice(0, 7000)}\n\nADMITTED CANDIDATES:\n${JSON.stringify(input.admittedCandidates).slice(0, 9000)}\n\nDISCOVERY FINDINGS:\n${JSON.stringify(input.discoveryFindings.slice(-40)).slice(0, 12000)}\n\nTRAJECTORY:\n${input.discoveryTrajectory.slice(-16).join("\n").slice(0, 10000)}\n\nPREVIOUS CONTROL DECISION:\n${JSON.stringify({ action: input.priorAction ?? null, candidateName: input.priorCandidate ?? null }).slice(0, 2000)}\n\nRIGHT-HAND ADVICE:\n${JSON.stringify(rightHand).slice(0, 5000)}`;
@@ -122,7 +191,7 @@ export async function decideAtlasNextAction(input: {
     const parsed = parseObject(generated.raw);
     const requestedAction = String(parsed?.action ?? "").toLowerCase() as AtlasControlAction;
     if (!ALLOWED_ACTIONS.has(requestedAction)) {
-      return {
+      return finalize({
         status: "unavailable",
         action: "stop",
         candidateName: null,
@@ -132,7 +201,7 @@ export async function decideAtlasNextAction(input: {
         rightHand,
         bossModel: selection.model,
         error: "Invalid Gemini control decision.",
-      };
+      });
     }
 
     const requestedCandidate = typeof parsed?.candidateName === "string" ? parsed.candidateName.trim() : "";
@@ -141,7 +210,7 @@ export async function decideAtlasNextAction(input: {
       : null;
 
     if ((requestedAction === "research_candidate" || requestedAction === "revisit_candidate") && !candidateName) {
-      return {
+      return finalize({
         status: "unavailable",
         action: "stop",
         candidateName: null,
@@ -151,10 +220,10 @@ export async function decideAtlasNextAction(input: {
         rightHand,
         bossModel: selection.model,
         error: "Invalid candidate selection.",
-      };
+      });
     }
 
-    return {
+    return finalize({
       status: "completed",
       action: requestedAction,
       candidateName,
@@ -164,9 +233,9 @@ export async function decideAtlasNextAction(input: {
       rightHand,
       bossModel: selection.model,
       error: null,
-    };
+    });
   } catch (error) {
-    return {
+    return finalize({
       status: "unavailable",
       action: "stop",
       candidateName: null,
@@ -176,6 +245,6 @@ export async function decideAtlasNextAction(input: {
       rightHand,
       bossModel: selection.model,
       error: error instanceof Error ? error.message : "Gemini control decision failed.",
-    };
+    });
   }
 }
