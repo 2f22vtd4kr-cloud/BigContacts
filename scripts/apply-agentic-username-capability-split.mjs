@@ -12,7 +12,7 @@ const newSchema = '"footprint_email", "footprint_username_maigret", "footprint_u
 if (source.includes(oldSchema)) source = source.replace(oldSchema, newSchema);
 
 const oldParse = 'if (action === "footprint_username" && cleanText(value.username, 80).replace(/^@/, "").length >= 2) return { action: "footprint_username", username: cleanText(value.username, 80).replace(/^@/, ""), thought: cleanText(value.thought, 500) || undefined };';
-const newParse = 'if ((action === "footprint_username_maigret" || action === "footprint_username_sherlock") && cleanText(value.username, 80).replace(/^@/, "").length >= 2) return { action, username: cleanText(value.username, 80).replace(/^@/, ""), thought: cleanText(value.thought, 500) || undefined };';
+const newParse = 'if ((action === "footprint_username_maigret" || action === "footprint_username_sherlock") && cleanText(value.username, 80).replace(/^@/, "").length >= 2) return { action: action as "footprint_username_maigret" | "footprint_username_sherlock", username: cleanText(value.username, 80).replace(/^@/, ""), thought: cleanText(value.thought, 500) || undefined };';
 if (source.includes(oldParse)) source = source.replace(oldParse, newParse);
 
 const oldExecution = /      if \(action\.action === "footprint_username"\) \{[\s\S]*?history\.push\(`step\$\{i \+ 1\}: footprint_username \$\{action\.username\} execution=\$\{record\.execution\}`\); emit\("footprint_username", \{ query: action\.username, provider: "maigret", summary: lastObservation\.slice\(0, 180\) \}\); continue; \}/;
