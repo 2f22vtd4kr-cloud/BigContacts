@@ -1,5 +1,6 @@
 import { Router, type IRouter } from "express";
 import healthRouter from "./health";
+import authRouter from "./auth";
 import entitiesRouter from "./entities";
 import assetsRouter from "./assets";
 import relationshipsRouter from "./relationships";
@@ -22,9 +23,13 @@ import { legacyApexMutationGuard } from "../lib/legacy-apex-mutation-guard";
 
 const router: IRouter = Router();
 router.use(healthRouter);
+// Browser login/session bootstrap is public; all other API routes remain behind
+// apiAuth at the application boundary.
+router.use(authRouter);
 // The legacy Apex mutation boundary must wrap every legacy enrichment router,
-// including /enrich/* routes mounted outside the ingest router. Health remains
-// public above; all mutating legacy enrichment traffic reaches this guard first.
+// including /enrich/* routes mounted outside the ingest router. Health and auth
+// bootstrap remain public above; legacy mutating enrichment traffic reaches this
+// guard first.
 router.use(legacyApexMutationGuard);
 router.use(entitiesRouter);
 router.use(assetsRouter);
