@@ -2,7 +2,7 @@
 
 > **Living handoff — 2026-09-10.** Current architecture source of truth. Historical documents are not live control planes.
 
-**Repo:** `2f22vtd4kr-cloud/BigContacts` · **Branch:** `main` · **Current reviewed tip:** `7b16587eaefffe5e99f3ebbc24d6b8c36b525b03`
+**Repo:** `2f22vtd4kr-cloud/BigContacts` · **Branch:** `main` · **Current reviewed tip:** `5cba6f8eddf86a83b5ea9e17fc2e741eee2e4e63`
 
 ## Institutional contract
 Apex is an AI-driven OSINT bureau, not a deterministic search script.
@@ -66,7 +66,7 @@ institutional constitution -> role purpose -> durable case context -> operator c
 A person candidate requires explicit model-authored identity, candidate scope, successful observed HTTP(S) source, and explicit `promotionDecision="promote"`. No target-name inheritance, organization inheritance, URL-slug admission, listicle admission, proxy-contact admission, or fabricated URL. Claim-source validation must bind the claim to a single successful bounded observation; it must not stitch independent observations together as though they were one source.
 
 ## Verification state
-**No Replit/runtime/provider/CI/end-to-end success is claimed.** Repository mutations and static source review are not runtime proof. The latest main tip is `7b16587eaefffe5e99f3ebbc24d6b8c36b525b03`. Final acceptance requires a real durable trajectory showing Gemini Boss -> DeepSeek/NVIDIA Right Hand -> selected Groq/Mistral Investigator -> genuine model-selected first action -> model pivots -> successful observed provenance -> explicit promotion -> evidence-backed card, with actual observations inspectable by oversight.
+**No Replit/runtime/provider/CI/end-to-end success is claimed.** Repository mutations and static source review are not runtime proof. The latest main tip is `5cba6f8eddf86a83b5ea9e17fc2e741eee2e4e63`. Final acceptance requires a real durable trajectory showing Gemini Boss -> DeepSeek/NVIDIA Right Hand -> selected Groq/Mistral Investigator -> genuine model-selected first action -> model pivots -> successful observed provenance -> explicit promotion -> evidence-backed card, with actual observations inspectable by oversight.
 
 ## Immediate forensic priority
 Continue from the current main tip by tracing #139/#147 together: canonical ReAct action execution -> `python-tools.ts` -> child processes -> network egress -> cancellation -> trajectory status/provenance. Then audit #128, duplicate source trees, deterministic secondary-surface reachability, legacy extraction semantics, and every caller that can turn model output into persisted contact/entity state. Static fixes must be followed by second-order reachability review; runtime/provider availability remains unproven.
