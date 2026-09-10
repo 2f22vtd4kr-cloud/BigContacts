@@ -7,7 +7,7 @@ const routes = fs.readFileSync(path.join(root, "artifacts/api-server/src/src/rou
 const migrations = fs.readFileSync(path.join(root, "artifacts/api-server/src/src/routes/ingest-migrations.ts"), "utf8");
 
 const checks = [
-  ["guard names all legacy contact-mutating routes", ["web-osint-enrich", "in-house-enrich", "social-discovery", "messenger-discovery", "foundation-filings", "companies-house-enrich"].every((p) => guard.includes(p))],
+  ["guard names all legacy contact-mutating routes", ["web-osint-enrich", "in-house-enrich", "social-discovery", "messenger-discovery", "foundation-filings", "companies-house-enrich", "occrp"].every((p) => guard.includes(p))],
   ["guard blocks Apex entity types", guard.includes('["HNWI", "Gatekeeper"]')],
   ["guard rejects unscoped legacy enrichment", guard.includes("Legacy enrichment requires an explicit non-Apex target scope")],
   ["guard queries concrete entity IDs before allowing mutation", guard.includes("inArray(entitiesTable.id, entityIds)")],
