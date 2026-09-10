@@ -5,14 +5,14 @@ import { logger } from "./logger";
 import { delCachePattern } from "./redis";
 import { runAgenticWebResearch, type AgenticFinding, type AgenticTrajectoryRecord } from "./agentic-web-research";
 import { persistSourceBackedBureauContactsForEntity, type BureauContactLike } from "./bureau-contact-persist-strict";
-import { resolveResearchDepth, describeResearchDepth } from "./research-depth";
+import { resolveResearchDepth } from "./research-depth";
 import { publishBureauEvent } from "./bureau-live-log";
 import { computeContactOutcome } from "./contact-confidence";
 import { isValidPublicEmail } from "./contact-validation";
 import { publishDigSpan, spanFromLiveStep } from "./dig-span";
 import { getDiscoveryTrace } from "./investigator-trace";
 
-export type TargetContactAgentResult = { status: "completed" | "timeout" | "unavailable" | "error" | "skipped"; model: string; findings: number; searches: number; visits: number; trajectory: string[]; phone: string | null; email: string | null; phoneSource: string | null; contactOutcome: string | null };
+export type TargetContactAgentResult = { status: "completed" | "timeout" | "unavailable" | "error" | "skipped"; model: string; findings: number; searches: number; visits: number; trajectory: string[]; trajectoryRecords: AgenticTrajectoryRecord[]; phone: string | null; email: string | null; phoneSource: string | null; contactOutcome: string | null };
 
 function observedUrlsFromTrajectory(trajectory: string[]): Set<string> {
   const observed = new Set<string>();
@@ -61,12 +61,13 @@ async function resolveSelectedInvestigator(input: { investigatorLlm?: "groq" | "
 
 export async function runTargetContactAgent(input: { entityId: number; targetName: string; companyName?: string | null; jobId?: string; maxIterations?: number; hardTimeoutMs?: number; investigatorLlm?: "groq" | "mistral"; contextDocument?: string }): Promise<TargetContactAgentResult> {
   const name = (input.targetName ?? "").trim();
-  if (!input.entityId || name.length < 2) return { status: "skipped", model: "none", findings: 0, searches: 0, visits: 0, trajectory: [], phone: null, email: null, phoneSource: null, contactOutcome: null };
+  const empty = (): TargetContactAgentResult => ({ status: "skipped", model: "none", findings: 0, searches: 0, visits: 0, trajectory: [], trajectoryRecords: [], phone: null, email: null, phoneSource: null, contactOutcome: null });
+  if (!input.entityId || name.length < 2) return empty();
   const contextDocument = typeof input.contextDocument === "string" ? input.contextDocument.trim() : "";
-  if (!contextDocument) { logger.error({ entityId: input.entityId, jobId: input.jobId }, "[target-agent] refusing context-free Investigator run"); return { status: "unavailable", model: "none", findings: 0, searches: 0, visits: 0, trajectory: [], phone: null, email: null, phoneSource: null, contactOutcome: null }; }
+  if (!contextDocument) { logger.error({ entityId: input.entityId, jobId: input.jobId }, "[target-agent] refusing context-free Investigator run"); return { ...empty(), status: "unavailable" }; }
   const depth = resolveResearchDepth();
   const investigatorLlm = await resolveSelectedInvestigator(input);
-  if (!investigatorLlm) { logger.warn({ entityId: input.entityId, jobId: input.jobId }, "[target-agent] no unambiguous Boss-selected Investigator available; refusing provider fallback"); return { status: "unavailable", model: "none", findings: 0, searches: 0, visits: 0, trajectory: [], phone: null, email: null, phoneSource: null, contactOutcome: null }; }
+  if (!investigatorLlm) { logger.warn({ entityId: input.entityId, jobId: input.jobId }, "[target-agent] no unambiguous Boss-selected Investigator available; refusing provider fallback"); return { ...empty(), status: "unavailable" }; }
   const objective = [
     `Research the public identity and contact surface for ${name}${input.companyName ? ` linked to ${input.companyName}` : ""}.`,
     "Act like a strong human public-web researcher with a bounded execution budget. The goal is an attributable, realistic route to this person, not fame, wealth ranking, or generic company contact information.",
@@ -98,5 +99,5 @@ export async function runTargetContactAgent(input: { entityId: number; targetNam
     void delCachePattern("entities:list:*"); void delCachePattern("dashboard:*");
   }
   const mapped = agentic.status === "completed" ? "completed" : agentic.status === "timeout" ? "timeout" : agentic.status === "unavailable" ? "unavailable" : "error";
-  return { status: mapped, model: agentic.model, findings: backedFindings.length, searches: agentic.searches, visits: agentic.visits, trajectory: agentic.trajectory.slice(-80), phone: ent?.phone ?? null, email: ent?.email ?? null, phoneSource: ent?.phoneSource ?? null, contactOutcome: outcome };
+  return { status: mapped, model: agentic.model, findings: backedFindings.length, searches: agentic.searches, visits: agentic.visits, trajectory: agentic.trajectory.slice(-80), trajectoryRecords: agentic.trajectoryRecords.slice(-100), phone: ent?.phone ?? null, email: ent?.email ?? null, phoneSource: ent?.phoneSource ?? null, contactOutcome: outcome };
 }
