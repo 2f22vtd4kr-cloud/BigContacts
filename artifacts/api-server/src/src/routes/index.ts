@@ -13,7 +13,6 @@ import improveRouter from "./improve";
 import osintToolsRouter from "./osint-tools";
 import identityRouter from "./identity";
 import contactResearchRouter from "./contact-research";
-import extendedOsintRouter from "./extended-osint";
 import canonicalAtlasLaunchRouter from "./research/canonical-atlas-launch";
 import atlasRouter from "./atlas";
 import bureauStreamRouter from "./bureau-stream";
@@ -26,10 +25,9 @@ router.use(healthRouter);
 // Browser login/session bootstrap is public; all other API routes remain behind
 // apiAuth at the application boundary.
 router.use(authRouter);
-// The legacy Apex mutation boundary must wrap every legacy enrichment router,
-// including /enrich/* routes mounted outside the ingest router. Health and auth
-// bootstrap remain public above; legacy mutating enrichment traffic reaches this
-// guard first.
+// The legacy Apex mutation boundary wraps remaining compatibility/mutation routes.
+// Direct deterministic extended-OSINT execution is intentionally NOT mounted here:
+// research capabilities must be selected and executed by the canonical Investigator.
 router.use(legacyApexMutationGuard);
 router.use(entitiesRouter);
 router.use(assetsRouter);
@@ -43,7 +41,6 @@ router.use(improveRouter);
 router.use(osintToolsRouter);
 router.use(identityRouter);
 router.use(contactResearchRouter);
-router.use(extendedOsintRouter);
 // The canonical launch handler owns POST /ingest/atlas-run. The legacy Atlas
 // router remains mounted for status/lock compatibility, but its launch handler
 // is unreachable because this route is registered first and terminates the
