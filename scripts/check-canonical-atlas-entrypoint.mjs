@@ -16,7 +16,9 @@ const checks = [
   ["canonical launch enables permanent Redis before job locking", launch.includes("enablePermanentRedis") && launch.indexOf("await enablePermanentRedis()") < launch.indexOf("getActiveJob")],
   ["canonical launch route is mounted", index.includes("canonicalAtlasLaunchRouter")],
   ["canonical launch is mounted before legacy Atlas router", index.indexOf("canonicalAtlasLaunchRouter") < index.indexOf("atlasRouter")],
-  ["legacy Atlas router remains status/compatibility infrastructure", legacyAtlas.includes("runAtlasPipeline")],
+  ["legacy Atlas router does not import legacy Atlas orchestrator", !legacyAtlas.includes('from "../lib/atlas-orchestrator"')],
+  ["legacy Atlas POST launch is explicitly retired", /router\.post\("\/ingest\/atlas-run"[\s\S]{0,500}status\(410\)/.test(legacyAtlas)],
+  ["legacy Atlas router retains compatibility/status infrastructure", legacyAtlas.includes("/ingest/atlas-status") && legacyAtlas.includes("/ingest/atlas-stop")],
 ];
 
 let failed = false;
