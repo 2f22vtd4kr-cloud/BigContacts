@@ -2,7 +2,7 @@
 
 > **Living handoff — 2026-09-10.** Current architecture source of truth. Historical documents are not live control planes.
 
-**Repo:** `2f22vtd4kr-cloud/BigContacts` · **Branch:** `main` · **Current reviewed tip:** `aa570be593d042e827ea0a2deb33ba4b522f5545`
+**Repo:** `2f22vtd4kr-cloud/BigContacts` · **Branch:** `main` · **Current reviewed tip:** `9d7b29a4528f947ef8bca46f7e2964b42b2cae84`
 
 ## Institutional contract
 Apex is an AI-driven OSINT bureau, not a deterministic search script.
