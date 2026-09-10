@@ -15,10 +15,24 @@ if (!target.includes("onInvestigationAct?:")) {
   if (!target.includes(signature)) throw new Error("target-agent signature anchor missing");
   target = target.replace(signature, 'contextDocument?: string; shouldCancel?: () => boolean | Promise<boolean>; onInvestigationAct?: (step: { action: string; provider?: string; query?: string; url?: string; summary?: string }) => void | Promise<void> }): Promise<TargetContactAgentResult>');
 }
-if (!target.includes("void input.onInvestigationAct?.({ action: step.action")) {
-  const liveAnchor = 'onLiveStep: (step) => { try { spanFromLiveStep';
-  if (!target.includes(liveAnchor)) throw new Error("target-agent live-step anchor missing");
-  target = target.replace(liveAnchor, 'onLiveStep: (step) => { void input.onInvestigationAct?.({ action: step.action, provider: step.provider, query: step.query, url: step.url, summary: step.summary }); try { spanFromLiveStep');
+
+// The canonical ReAct core emits live steps synchronously. The persistence
+// callback is asynchronous, so do not fire-and-forget it: serialize callbacks
+// and drain the chain before the target run is allowed to finish. Otherwise a
+// fast run/cancellation/process exit can lose or reorder forensic events.
+if (!target.includes("let investigationEventChain = Promise.resolve();")) {
+  const agenticAnchor = '  const agentic = await runAgenticWebResearch({';
+  if (!target.includes(agenticAnchor)) throw new Error("target-agent ReAct invocation anchor missing");
+  target = target.replace(agenticAnchor, '  let investigationEventChain = Promise.resolve();\n  const agentic = await runAgenticWebResearch({');
+}
+const targetFireAndForget = 'onLiveStep: (step) => { void input.onInvestigationAct?.({ action: step.action, provider: step.provider, query: step.query, url: step.url, summary: step.summary }); try { spanFromLiveStep';
+const targetOrdered = 'onLiveStep: (step) => { investigationEventChain = investigationEventChain.then(async () => { await input.onInvestigationAct?.({ action: step.action, provider: step.provider, query: step.query, url: step.url, summary: step.summary }); }); try { spanFromLiveStep';
+if (target.includes(targetFireAndForget)) target = target.replace(targetFireAndForget, targetOrdered);
+
+if (!target.includes("await investigationEventChain;")) {
+  const drainAnchor = '  try { publishDigSpan({ jobId: input.jobId || "dig", targetName: name, spanType: "stage", name: "target_contact_agent_done"';
+  if (!target.includes(drainAnchor)) throw new Error("target-agent event-chain drain anchor missing");
+  target = target.replace(drainAnchor, '  await investigationEventChain;\n  try { publishDigSpan({ jobId: input.jobId || "dig", targetName: name, spanType: "stage", name: "target_contact_agent_done"');
 }
 
 if (!runner.includes('onInvestigationAct: async (step) =>')) {
@@ -29,10 +43,11 @@ if (!runner.includes('onInvestigationAct: async (step) =>')) {
 }
 
 if (!target.includes("onInvestigationAct?:")) throw new Error("target-agent event callback signature missing");
-if (!target.includes("void input.onInvestigationAct?.({ action: step.action")) throw new Error("target-agent event callback propagation missing");
+if (!target.includes("investigationEventChain = investigationEventChain.then")) throw new Error("target-agent event callback is not serialized");
+if (!target.includes("await investigationEventChain;")) throw new Error("target-agent event callback is not drained before completion");
 if (!runner.includes("onInvestigationAct: async (step) =>")) throw new Error("target runner event ledger callback missing");
 if (!runner.includes("researchCaseEventsTable).values({ caseId, iteration: baseIteration + 3 + pass")) throw new Error("target runner event ledger persistence missing");
 
 fs.writeFileSync(targetFile, target);
 fs.writeFileSync(runnerFile, runner);
-console.log("Target Investigator event-ledger boundary applied.");
+console.log("Target Investigator event-ledger boundary applied with ordered durable event drain.");
