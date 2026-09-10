@@ -11,21 +11,10 @@ if (!source.includes("signal?: AbortSignal;")) {
 }
 
 const networkFunctions = [
-  "searchOpenCorporates",
-  "searchCompaniesHouse",
-  "searchSecEdgar",
-  "searchBrreg",
-  "searchAres",
-  "searchBodacc",
-  "searchCvrDenmark",
-  "searchZefixSwitzerland",
-  "searchOffeneregisterGermany",
-  "searchBolagsverketSweden",
-  "searchYtjFinland",
-  "searchAtokaItaly",
-  "searchBormeSpain",
-  "searchKvkNetherlands",
-  "searchKboBelgium",
+  "searchOpenCorporates", "searchCompaniesHouse", "searchSecEdgar", "searchBrreg",
+  "searchAres", "searchBodacc", "searchCvrDenmark", "searchZefixSwitzerland",
+  "searchOffeneregisterGermany", "searchBolagsverketSweden", "searchYtjFinland",
+  "searchAtokaItaly", "searchBormeSpain", "searchKvkNetherlands", "searchKboBelgium",
 ];
 for (const name of networkFunctions) {
   const re = new RegExp(`async function ${name}\\(([\\s\\S]*?)\\): Promise`);
@@ -67,9 +56,14 @@ const calls = [
   ["searchKboBelgium(query.trim(), limit)", "searchKboBelgium(query.trim(), limit, signal)"],
 ];
 for (const [from, to] of calls) source = source.replaceAll(from, to);
+source = source.replace(
+  "const results = await searchGleif(query.trim(), limit);",
+  "const results = await searchGleif(query.trim(), limit, signal);",
+);
 
 if (!source.includes("signal?: AbortSignal;")) throw new Error("registry cancellation: public signal field missing");
 if (!source.includes("searchOpenCorporates(query.trim(), limit, signal)")) throw new Error("registry cancellation: public signal is not propagated");
+if (!source.includes("searchGleif(query.trim(), limit, signal)")) throw new Error("registry cancellation: GLEIF signal is not propagated");
 if (/searchOpenCorporates\(query\.trim\(\), limit\)\b/.test(source)) throw new Error("registry cancellation: stale OpenCorporates call remains");
 if (/signal:\s*AbortSignal\.timeout\(/.test(source)) throw new Error("registry cancellation: raw timeout-only fetch remains");
 
