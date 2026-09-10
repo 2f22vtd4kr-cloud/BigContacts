@@ -4,7 +4,7 @@
 
 **Repo:** https://github.com/2f22vtd4kr-cloud/BigContacts  
 **Branch:** `main`  
-**Current GitHub code tip:** `9e8168eb2e38326fa587c8f9f83387f888227789`  
+**Current GitHub code tip:** `8d7d70030fbcdb1fc53979dc3a1f1b80e67c8bec`  
 **Product:** Apex Atlas research bureau embedded in BigContacts.
 
 ## Current ReAct law
@@ -21,8 +21,8 @@ Apex is an AI-driven OSINT bureau. Institutional constitution and role purpose p
 - Browser budget is execution-scope-local and Playwright subrequests are SSRF-checked.
 - Target/Bureau promotion gates bind claims to successful observed source material and preserve model-authored identity/scope/promotion.
 - Target and Atlas oversight receive structured Investigator turn records; discovery pivots merge the records across passes.
-- Bureau and canonical Atlas now use explicit `mode="discovery"` with an empty target name; the historical `Discovery slot` fake-target convention has been removed from the canonical Atlas call path.
-- `check-agentic-runtime.mjs` was reconciled to the rewritten core; promotion and SSRF guards now cover structured trajectory, browser cancellation and byte ceilings.
+- Bureau and canonical Atlas use explicit `mode="discovery"` with an empty target name; the historical `Discovery slot` fake-target convention is removed from the canonical Atlas call path.
+- `check-agentic-runtime.mjs` was reconciled to the rewritten core; promotion and SSRF guards cover structured trajectory, browser cancellation and byte ceilings.
 
 ## Remaining blockers
 - **#141:** Holehe/Maigret/Sherlock/theHarvester still need governed network egress and true child-process cancellation before being considered fully safe ReAct tools.
