@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 import fs from "node:fs";
 import path from "node:path";
-
 const root = process.cwd();
 const read = (p) => fs.readFileSync(path.join(root, p), "utf8");
 const target = read("artifacts/api-server/src/src/lib/target-contact-agent.ts");
@@ -12,7 +11,6 @@ const atlas = read("artifacts/api-server/src/src/lib/canonical-atlas-discovery.t
 const targetRunner = read("artifacts/api-server/src/src/lib/canonical-single-target-runner.ts");
 const control = read("artifacts/api-server/src/src/lib/atlas-control-decision.ts");
 const continuation = read("artifacts/api-server/src/src/routes/research/canonical-case-continuation.ts");
-
 const checks = [
   ["target Dig uses strict persistence", target.includes("persistSourceBackedBureauContactsForEntity")],
   ["target Dig does not legacy-rehydrate", !target.includes("rehydrateEntityCardFromEvidence")],
@@ -35,6 +33,9 @@ const checks = [
   ["Atlas control receives structured trajectory", atlas.includes("discoveryTrajectoryRecords: discovery.trajectoryRecords")],
   ["Atlas control prompts include structured observations", control.includes("STRUCTURED OBSERVATIONS") && control.includes("discoveryTrajectoryRecords")],
   ["Atlas preserves trajectory records across discovery pivots", atlas.includes("trajectoryRecords: [...(discovery.trajectoryRecords ?? []), ...(nextDiscovery.trajectoryRecords ?? [])]")],
+  ["Atlas uses explicit discovery mode", atlas.includes('mode: "discovery", targetName: ""')],
+  ["Atlas has no fake Discovery slot target", !atlas.includes("Discovery slot")],
+  ["Bureau discovery mode is explicit", bureau.includes('mode?: "target" | "discovery"') && bureau.includes("input.mode !== \"discovery\"")],
   ["Atlas routes targets through canonical single-target control plane", atlas.includes("runCanonicalSingleTargetInvestigation")],
   ["continuation fails closed without durable context", continuation.includes("refusing context-free continuation")],
   ["discovery requires model findings", discovery.includes("modelFindings")],
