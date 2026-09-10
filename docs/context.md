@@ -4,7 +4,7 @@
 
 **Repo:** https://github.com/2f22vtd4kr-cloud/BigContacts  
 **Branch:** `main`  
-**Current GitHub code tip:** `52d850af36b5a60119e5dd45ed67d794b939a1f5`  
+**Current GitHub code tip:** `99510166bbdca2486749fa30fb239e7fbd468a7c`  
 **Product:** Apex Atlas research bureau embedded in BigContacts. Bureau is the OSINT/research architecture, not a separate product.
 
 ## 1. What Apex is
@@ -325,6 +325,8 @@ Merged as `c46d707707a3c77321a8c3c5df5b6721867f368b`: `atlas-control-decision.ts
 `canonical-atlas-discovery.ts` no longer unconditionally loops through every admitted candidate into target research. Its bounded execution loop asks the AI control plane for the next action. A model-directed continuation/pivot can launch another Investigator pass against the same durable discovery case; a model-selected candidate can enter the canonical single-target control plane. The loop budget is an execution safety envelope, not a research recipe.
 
 The architecture guard was strengthened in `8a6a8f420688d55ed892919f6624902f7e374124` to require the Atlas control decision contract and Gemini+DeepSeek oversight, while retaining the no-forced-first-search guard and legacy route guards.
+
+The public Atlas route was then clarified in `99510166bbdca2486749fa30fb239e7fbd468a7c`: its response now describes discovery/target/revisit/pivot/continuation/stop as model decisions inside a model-directed research envelope rather than presenting target research as a mandatory deterministic phase.
 
 ### Remaining blockers still intentionally open
 
