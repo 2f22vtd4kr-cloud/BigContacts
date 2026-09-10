@@ -44,12 +44,19 @@ for (const path of targets) {
     const open = source.indexOf("{", start + marker.length - 1);
     const end = findBlockEnd(source, open);
     if (end < 0) throw new Error(`deterministic Atlas OSINT retirement: could not parse ${path}`);
-    source = source.slice(0, start) + "// Deterministic Maigret/Holehe fan-out retired: Investigator capabilities own this research decision.\n" + source.slice(end);
-    console.log(`deterministic Atlas OSINT retirement: removed scripted Maigret/Holehe block from ${path}`);
+    source = source.slice(0, start) + "// Deterministic Python OSINT fan-out retired: Investigator capabilities own these research decisions.\n" + source.slice(end);
+    console.log(`deterministic Atlas OSINT retirement: removed scripted Python OSINT block from ${path}`);
   }
-  source = source.replace(/import \{ runHolehe, runMaigret \} from "\.\/python-tools";\n/g, "");
-  source = source.replace(/import \{ runMaigret, runHolehe \} from "\.\/python-tools";\n/g, "");
-  if (/runMaigret\(|runHolehe\(/.test(source)) throw new Error(`deterministic Atlas OSINT retirement: live Python OSINT call remains in ${path}`);
+
+  // Remove any import whose only purpose was the retired deterministic fan-out.
+  source = source.replace(
+    /import\s*\{[^}]*\brun(?:Holehe|Maigret|Sherlock|TheHarvester)\b[^}]*\}\s*from\s*["']\.\/python-tools["'];\s*\n/g,
+    "",
+  );
+
+  if (/runMaigret\(|runHolehe\(|runSherlock\(|runTheHarvester\(/.test(source)) {
+    throw new Error(`deterministic Atlas OSINT retirement: live Python OSINT call remains in ${path}`);
+  }
   fs.writeFileSync(path, source);
 }
 
