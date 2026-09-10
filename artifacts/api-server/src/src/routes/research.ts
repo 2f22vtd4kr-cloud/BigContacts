@@ -6,6 +6,7 @@ import sessionsRouter from "./research/sessions";
 import deepResearchRouter from "./research/deep-research";
 import canonicalCaseDiscoveryRouter from "./research/canonical-case-discovery";
 import canonicalCaseContinuationRouter from "./research/canonical-case-continuation";
+import canonicalTargetContinuationRouter from "./research/canonical-target-continuation";
 import legacyCaseExecutionRetirementRouter from "./research/legacy-case-execution-retirement";
 import caseDataRouter from "./research/case-data";
 
@@ -15,6 +16,7 @@ router.use(sessionsRouter);
 router.use(deepResearchRouter);
 router.use(canonicalCaseDiscoveryRouter);
 router.use(canonicalCaseContinuationRouter);
+router.use(canonicalTargetContinuationRouter);
 router.use(legacyCaseExecutionRetirementRouter);
 router.use(caseDataRouter);
 
