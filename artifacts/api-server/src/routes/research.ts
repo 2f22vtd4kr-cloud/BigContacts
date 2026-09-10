@@ -1,16 +1,14 @@
-// Thin router — mounts research sub-modules split by concern.
-// Each sub-module handles its own route definitions.
+// Thin compatibility router for durable research-session views and outreach helpers.
+// Deterministic MCTS / bulk-hybrid research is intentionally not mounted here.
+// Canonical research is entered through the Gemini Boss -> DeepSeek Right-hand ->
+// Groq/Mistral Investigator control plane under src/src/routes/research.
 import { Router, type IRouter } from "express";
-import mctsRouter     from "./research/mcts";
-import sessionsRouter  from "./research/sessions";
-import pitchesRouter   from "./research/pitches";
-import bulkRouter      from "./research/bulk";
+import sessionsRouter from "./research/sessions";
+import pitchesRouter from "./research/pitches";
 
 const router: IRouter = Router();
 
-router.use(mctsRouter);
 router.use(sessionsRouter);
 router.use(pitchesRouter);
-router.use(bulkRouter);
 
 export default router;
