@@ -9,8 +9,11 @@ const strict = read("artifacts/api-server/src/src/lib/bureau-contact-persist-str
 const discovery = read("artifacts/api-server/src/src/lib/discovery-agent.ts");
 const atlas = read("artifacts/api-server/src/src/lib/canonical-atlas-discovery.ts");
 const targetRunner = read("artifacts/api-server/src/src/lib/canonical-single-target-runner.ts");
+const targetControl = read("artifacts/api-server/src/src/lib/target-control-decision.ts");
+const targetContinuation = read("artifacts/api-server/src/src/routes/research/canonical-target-continuation.ts");
 const control = read("artifacts/api-server/src/src/lib/atlas-control-decision.ts");
 const continuation = read("artifacts/api-server/src/src/routes/research/canonical-case-continuation.ts");
+const researchRoutes = read("artifacts/api-server/src/src/routes/research.ts");
 const claimValidator = (source) => {
   const start = source.indexOf("function claimAppearsInObservedMaterial");
   const end = source.indexOf("\n}", start);
@@ -49,6 +52,12 @@ const checks = [
   ["Atlas routes targets through canonical single-target control plane", atlas.includes("runCanonicalSingleTargetInvestigation")],
   ["discovery admission passes validated source provenance into strict persistence", atlas.includes('"canonical-agentic-discovery"') && atlas.includes('input.atlasJobId, [sourceUrl]')],
   ["continuation fails closed without durable context", continuation.includes("refusing context-free continuation")],
+  ["target continuation has explicit AI action vocabulary", targetControl.includes('"continue_target"') && targetControl.includes('"revisit_target"') && targetControl.includes('"pivot_target"') && targetControl.includes('"stop"')],
+  ["target continuation delegates next-action choice to Gemini", targetControl.includes("generateGeminiBossText") && targetControl.includes("You own this decision")],
+  ["target continuation persists durable control decisions", targetControl.includes("targetControlDecisions") && targetControl.includes("eventType: \"control_decision\"")],
+  ["target continuation remounts durable context", targetContinuation.includes("contextOf(file)") && targetContinuation.includes("runCanonicalSingleTargetInvestigation")],
+  ["target continuation is mounted", researchRoutes.includes("canonical-target-continuation")],
+  ["target continuation rejects context-free cases", targetContinuation.includes("refusing context-free continuation")],
   ["discovery requires model findings", discovery.includes("modelFindings")],
 ];
 const failed = checks.filter(([, ok]) => !ok).map(([name]) => name);
