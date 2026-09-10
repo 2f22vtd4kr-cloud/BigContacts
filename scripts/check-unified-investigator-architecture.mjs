@@ -83,6 +83,15 @@ assert(!/for\s*\(const\s+name\s+of\s+admitted\)[\s\S]{0,12000}runCanonicalSingle
 assert(!/\brunBroadDiscovery\s*\(/.test(source.cases), "Canonical Case Bureau still invokes deterministic broad discovery; use the Investigator capability instead.");
 assert(!/\brunBroadDiscovery\s*\(/.test(source.canonicalCase), "Canonical case-discovery route still invokes deterministic broad discovery.");
 
+// The older cases router also contains a second mixed-source execution lane. Keep these
+// assertions strict so removing runBroadDiscovery alone cannot leave a shadow research brain
+// behind under the same mounted route. Case CRUD/read/event data may remain, but research
+// execution belongs to the canonical model-owned control plane.
+assert(!/\brunMistralWebSearch\s*\(/.test(source.cases), "Canonical Case Bureau still directly executes the Mistral web-search lane; #138 requires retiring the legacy execution path.");
+assert(!/\bsearchRegistry\s*\(/.test(source.cases), "Canonical Case Bureau still executes deterministic registry discovery; #138 requires moving registry choice behind the Investigator control plane.");
+assert(!/\bexpandSecondaryPublicSurface\s*\(/.test(source.cases), "Canonical Case Bureau still executes deterministic secondary-surface expansion; #125/#138 require model-selected capability execution.");
+assert(!/const\s+discoveryTemplateSet\s*=|\bwesternTemplateSets\s*=/.test(source.cases), "Canonical Case Bureau still derives a deterministic discovery template/category lane; #138 remains unresolved.");
+
 // The top-level API route tree is still mounted for compatibility/status surfaces,
 // but its legacy deterministic MCTS and bulk research routers must remain quarantined.
 assert(!/mctsRouter|bulkRouter/.test(source.legacyResearchRoutes), "Legacy API research router still mounts deterministic MCTS or bulk-hybrid research.");
