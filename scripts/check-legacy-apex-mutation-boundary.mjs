@@ -16,13 +16,20 @@ const retiredRoutes = [
   "deep-web-osint",
 ];
 
+const guardIndex = routes.indexOf("legacyApexMutationGuard");
+const healthIndex = routes.indexOf("router.use(healthRouter)");
+const ingestIndex = routes.indexOf("router.use(ingestRouter)");
+const extendedIndex = routes.indexOf("router.use(extendedOsintRouter)");
+
 const checks = [
   ["guard names all retired legacy enrichment routes", retiredRoutes.every((p) => guard.includes(`\"/ingest/${p}\"`))],
   ["legacy routes return explicit 410", guard.includes('res.status(410).json({') && guard.includes("Legacy enrichment route retired.")],
   ["guard blocks Apex entity types on generic enrich routes", guard.includes('["HNWI", "Gatekeeper"]')],
   ["guard rejects unscoped generic legacy enrichment", guard.includes("Legacy enrichment requires an explicit non-Apex target scope")],
   ["guard queries concrete entity IDs before allowing generic mutation", guard.includes("inArray(entitiesTable.id, entityIds)")],
-  ["guard is mounted before ingest routes", routes.indexOf("legacyApexMutationGuard") < routes.indexOf("ingestRouter")],
+  ["guard is mounted after public health", healthIndex >= 0 && guardIndex > healthIndex],
+  ["guard is mounted before ingest routes", guardIndex >= 0 && ingestIndex >= 0 && guardIndex < ingestIndex],
+  ["guard is mounted before extended OSINT routes", guardIndex >= 0 && extendedIndex >= 0 && guardIndex < extendedIndex],
 ];
 
 let failed = false;
