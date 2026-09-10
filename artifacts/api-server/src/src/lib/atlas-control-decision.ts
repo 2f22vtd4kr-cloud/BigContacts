@@ -61,11 +61,10 @@ const ALLOWED_ACTIONS = new Set<AtlasControlAction>([
 ]);
 
 async function persistControlDecision(input: {
-  caseId?: number;
-  controlTurn?: number;
+  caseId: number;
+  controlTurn: number;
   decision: AtlasControlDecision;
 }): Promise<void> {
-  if (!input.caseId) return;
   try {
     const [caseRow] = await db.select({ caseFile: researchCasesTable.caseFile })
       .from(researchCasesTable)
@@ -83,13 +82,13 @@ async function persistControlDecision(input: {
       bossModel: input.decision.bossModel,
       bossError: input.decision.error,
       rightHand: input.decision.rightHand,
-      controlTurn: input.controlTurn ?? null,
+      controlTurn: input.controlTurn,
     };
     const summary = `Atlas control decision: ${input.decision.action}${input.decision.candidateName ? ` → ${input.decision.candidateName}` : ""}`;
 
     await db.insert(researchCaseEventsTable).values({
       caseId: input.caseId,
-      iteration: input.controlTurn ?? 0,
+      iteration: input.controlTurn,
       actorRole: "gemini_boss",
       eventType: "control_decision",
       summary,
@@ -139,9 +138,16 @@ export async function decideAtlasNextAction(input: {
   }>;
   priorAction?: AtlasControlAction | null;
   priorCandidate?: string | null;
-  caseId?: number;
-  controlTurn?: number;
+  caseId: number;
+  controlTurn: number;
 }): Promise<AtlasControlDecision> {
+  if (!Number.isSafeInteger(input.caseId) || input.caseId <= 0) {
+    throw new Error("Atlas control decision requires a valid durable caseId.");
+  }
+  if (!Number.isSafeInteger(input.controlTurn) || input.controlTurn <= 0) {
+    throw new Error("Atlas control decision requires a valid positive controlTurn.");
+  }
+
   const finalize = async (decision: AtlasControlDecision): Promise<AtlasControlDecision> => {
     await persistControlDecision({ caseId: input.caseId, controlTurn: input.controlTurn, decision });
     return decision;
