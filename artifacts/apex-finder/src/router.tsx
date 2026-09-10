@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { Layout } from "@/components/layout";
 import { Route, Switch, Redirect, useParams, useSearch } from "wouter";
 import Dashboard from "@/pages/dashboard";
@@ -89,7 +89,7 @@ function OperatorLogin({ onAuthenticated }: { onAuthenticated: () => void }) {
   );
 }
 
-function OperatorGate({ children }: { children: React.ReactNode }) {
+function OperatorGate({ children }: { children: ReactNode }) {
   const [state, setState] = useState<"checking" | "authenticated" | "unauthenticated">("checking");
 
   useEffect(() => {
