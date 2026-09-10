@@ -1,7 +1,7 @@
 import fs from "node:fs";
 
 const file = "artifacts/api-server/src/src/lib/agentic-web-research-core.ts";
-const source = fs.readFileSync(file, "utf8");
+const pythonTools = fs.readFileSync("artifacts/api-server/src/src/lib/python-tools.ts", "utf8");
 const workflow = fs.readFileSync(".github/workflows/apex-live-audit.yml", "utf8");
 const compatibilityHardener = fs.readFileSync("scripts/apply-agentic-runtime-hardening.mjs", "utf8");
 const canonicalHardener = fs.readFileSync("scripts/apply-agentic-concurrency-hardening.mjs", "utf8");
@@ -21,12 +21,31 @@ const required = [
   ["run has a run-scoped AbortController", /const runController = new AbortController\(\)/],
   ["hard timeout aborts the run", /setTimeout\(\(\) => runController\.abort\(\), hardTimeoutMs\)/],
   ["external cancellation is wired into the run", /input\.signal\?\.addEventListener\("abort", abortExternal/],
+  ["cooperative cancellation is bridged into the run signal", /const cancellationPoll = input\.shouldCancel \? setInterval/],
   ["browser escalation receives run cancellation", /browserFetchHtml\(action\.url, \{ signal: runController\.signal \}\)/],
   ["provider HTTP response reads are bounded", /MAX_NETWORK_RESPONSE_BYTES/],
   ["browser/tool observations distinguish failed provenance", /execution=\$\{page\.status\}/],
   ["structured trajectory is durable output", /trajectoryRecords: AgenticTrajectoryRecord\[\]/],
+  ["email footprint receives the run signal", /runHolehe\(action\.email, \{ signal: runController\.signal \}\)/],
+  ["username footprint receives the run signal", /runMaigret\(action\.username, \{ signal: runController\.signal \}\)/],
+  ["supplementary username footprint receives the run signal", /runSherlock\(action\.username, \{ signal: runController\.signal \}\)/],
+  ["domain harvesting receives the run signal", /runTheHarvester\(action\.domain, undefined, \{ signal: runController\.signal \}\)/],
 ];
 for (const [label, pattern] of required) if (!pattern.test(source)) throw new Error(`agentic runtime invariant failed: ${label}`);
+
+const subprocessRequired = [
+  ["Python subprocess API accepts AbortSignal", /interface SubprocessOptions\s*\{\s*signal\?: AbortSignal/],
+  ["Python subprocesses use detached process groups on POSIX", /detached: process\.platform !== "win32"/],
+  ["Python subprocess cancellation kills the process group", /process\.kill\(-proc\.pid, signal\)/],
+  ["Python subprocess cancellation has a hard kill backstop", /if \(!settled\) terminateProcessTree\(proc, "SIGKILL"\)/],
+  ["Python subprocess output is bounded", /MAX_SUBPROCESS_OUTPUT_BYTES\s*=\s*2_000_000/],
+  ["Python cancellation has a distinct exit state", /CANCELLED_EXIT_CODE\s*=\s*-3/],
+  ["Holehe exposes subprocess options", /runHolehe\(email: string, options: SubprocessOptions = \{\}\)/],
+  ["Maigret exposes subprocess options", /runMaigret\(username: string, options: SubprocessOptions = \{\}\)/],
+  ["Sherlock exposes subprocess options", /runSherlock\(username: string, options: SubprocessOptions = \{\}\)/],
+  ["theHarvester exposes subprocess options", /runTheHarvester\(domain: string,[\s\S]{0,160}options: SubprocessOptions = \{\}\)/],
+];
+for (const [label, pattern] of subprocessRequired) if (!pattern.test(pythonTools)) throw new Error(`python subprocess invariant failed: ${label}`);
 
 const llmStepMatch = source.match(/async function llmStep\([\s\S]*?\n\}\nfunction formatFindingsBag/);
 if (!llmStepMatch) throw new Error("agentic runtime invariant failed: llmStep implementation missing");
