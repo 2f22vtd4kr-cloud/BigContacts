@@ -1,4 +1,4 @@
-import { and, eq, like } from "drizzle-orm";
+import { and, desc, eq, like } from "drizzle-orm";
 import { db, entitiesTable, researchCaseEventsTable, researchCasesTable } from "@workspace/db";
 import { apexOrientationFor } from "./apex-bureau-orientation";
 import { resolveGeminiBossModel, generateGeminiBossText } from "./case-bureau";
@@ -70,13 +70,30 @@ function compactAct(record: ActRecord): Record<string, unknown> {
   };
 }
 
-async function findTargetCase(jobId: string): Promise<{ id: number; targetEntityId: number | null; objective: string | null; caseFile: string | null } | null> {
-  const [row] = await db
+async function findTargetCase(jobId: string, targetName: string): Promise<{ id: number; targetEntityId: number | null; objective: string | null; caseFile: string | null } | null> {
+  const [exact] = await db
     .select({ id: researchCasesTable.id, targetEntityId: researchCasesTable.targetEntityId, objective: researchCasesTable.objective, caseFile: researchCasesTable.caseFile })
     .from(researchCasesTable)
     .where(and(eq(researchCasesTable.caseType, "target"), like(researchCasesTable.caseFile, `%${jobId}%`)))
     .limit(1);
-  return row ?? null;
+  if (exact) return exact;
+
+  const candidates = await db
+    .select({ id: researchCasesTable.id, targetEntityId: researchCasesTable.targetEntityId, objective: researchCasesTable.objective, caseFile: researchCasesTable.caseFile })
+    .from(researchCasesTable)
+    .where(eq(researchCasesTable.caseType, "target"))
+    .orderBy(desc(researchCasesTable.updatedAt))
+    .limit(12);
+  for (const candidate of candidates) {
+    if (!candidate.targetEntityId) continue;
+    let caseFile: Record<string, unknown> = {};
+    try { caseFile = candidate.caseFile ? JSON.parse(candidate.caseFile) as Record<string, unknown> : {}; } catch {}
+    const target = caseFile.target && typeof caseFile.target === "object" ? caseFile.target as Record<string, unknown> : null;
+    if (target && typeof target.name === "string" && target.name.trim().toLowerCase() === targetName.trim().toLowerCase()) return candidate;
+    const [entity] = await db.select({ name: entitiesTable.name }).from(entitiesTable).where(eq(entitiesTable.id, candidate.targetEntityId)).limit(1);
+    if (entity?.name?.trim().toLowerCase() === targetName.trim().toLowerCase()) return candidate;
+  }
+  return null;
 }
 
 async function persistActOversight(caseId: number, controlTurn: number, act: ActRecord, oversight: TargetActOversight): Promise<void> {
@@ -158,8 +175,8 @@ export async function reviewTargetInvestigationAct(input: {
   }
 }
 
-export async function loadTargetActOversightContext(jobId: string): Promise<{ caseId: number; targetEntityId: number; targetType: string; objective: string; contextDocument: string; liveOversightDirection: string | null } | null> {
-  const row = await findTargetCase(jobId);
+export async function loadTargetActOversightContext(jobId: string, targetName: string): Promise<{ caseId: number; targetEntityId: number; targetType: string; objective: string; contextDocument: string; liveOversightDirection: string | null } | null> {
+  const row = await findTargetCase(jobId, targetName);
   if (!row || !row.targetEntityId) return null;
   const [target] = await db.select({ type: entitiesTable.type }).from(entitiesTable).where(eq(entitiesTable.id, row.targetEntityId)).limit(1);
   let caseFile: Record<string, unknown> = {};
