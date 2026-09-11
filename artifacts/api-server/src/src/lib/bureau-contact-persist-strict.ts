@@ -63,11 +63,6 @@ function mapVectorType(raw: string, value: string): string {
 function sanitizeValue(vectorType: string, value: string): string | null {
   const trimmed = value.trim();
   if (!trimmed) return null;
-  // `person:<name>` is an internal identity/admission marker, not an observed
-  // public contact value. Persisting it as contact evidence would manufacture a
-  // claim-to-source relationship because that literal value normally cannot
-  // occur in the cited source. Identity admissions belong in the case/event
-  // ledger, not in contact_evidence.
   if (vectorType === "other" && /^person:/i.test(trimmed)) return null;
   if (vectorType === "email") return sanitizePublicEmail(trimmed);
   if (vectorType === "phone") return sanitizePublicPhone(trimmed);
@@ -91,13 +86,6 @@ export function sourceBackedBureauContacts(
   }));
 }
 
-/**
- * Same source/schema validation as sourceBackedBureauContacts, plus run-scoped
- * provenance. This is the only form accepted for canonical agentic promotion:
- * every claim source offered to the card boundary must have been observed by
- * the Investigator's actual page-visit trajectory and passed explicitly by the
- * caller. Missing run-scoped provenance is a hard failure, never a lookup.
- */
 export function observedSourceBackedBureauContacts(
   items: readonly BureauContactLike[] | null | undefined,
   observedSourceUrls: readonly string[] | null | undefined,
@@ -114,13 +102,6 @@ export function observedSourceBackedBureauContacts(
     .filter((item) => (item.sourceUrls?.length ?? 0) > 0);
 }
 
-/**
- * Persist candidate evidence only. No ranking, best-value selection, or legacy
- * projector is called here. For the canonical agentic source, the input is the
- * investigator's final `done` output; an unambiguous value per card field is
- * applied exactly as emitted, while conflicting duplicate values are left as
- * evidence only rather than being resolved by deterministic code.
- */
 export async function persistSourceBackedBureauContactsForEntity(
   entityId: number,
   items: readonly BureauContactLike[] | null | undefined,
@@ -217,6 +198,7 @@ export async function persistSourceBackedBureauContactsForEntity(
         investigatorSelectedForCard: item.promote === true,
         identityCollisionRisk: collision.risk,
         identityCollisionReason: collision.reason,
+        jobId: jobId ?? null,
       }),
     });
   }
@@ -262,8 +244,9 @@ export async function persistSourceBackedBureauContactsForEntity(
 
 /**
  * Apply exactly one investigator-selected value to the entity card.
- * This validates provenance, schema, candidate/person scope, and run-scoped
- * observation but never chooses among candidates.
+ * Candidate-scope promotion is only legal when the destination entity itself
+ * is the named person. Discovery/organization entities cannot receive a
+ * candidate person's contact vector merely because a caller supplied their id.
  */
 export async function applyInvestigatorSelectedContactToEntityCard(
   entityId: number,
@@ -294,17 +277,21 @@ export async function applyInvestigatorSelectedContactToEntityCard(
   const field = fieldByType[vectorType];
   if (!field) return false;
 
-  const rows = await db.select({ name: entitiesTable.name, metadata: entitiesTable.metadata })
+  const rows = await db.select({ name: entitiesTable.name, type: entitiesTable.type, metadata: entitiesTable.metadata })
     .from(entitiesTable).where(eq(entitiesTable.id, entityId)).limit(1);
-  const targetName = rows[0]?.name ?? "";
+  const entity = rows[0];
+  if (!entity) return false;
+  if (entity.name.trim().toLowerCase() !== personName.toLowerCase()) return false;
+  if (!["HNWI", "Gatekeeper"].includes(entity.type)) return false;
+
   let companyName: string | null = null;
   try {
-    const meta = rows[0]?.metadata ? JSON.parse(rows[0].metadata) as Record<string, unknown> : {};
+    const meta = entity.metadata ? JSON.parse(entity.metadata) as Record<string, unknown> : {};
     companyName = typeof meta.companyName === "string" ? meta.companyName : null;
   } catch { /* malformed metadata is handled conservatively below */ }
 
   const collision = assessIdentityCollision({
-    targetName,
+    targetName: entity.name,
     companyName,
     personName: candidate.personName ?? null,
     value: clean,
@@ -313,6 +300,25 @@ export async function applyInvestigatorSelectedContactToEntityCard(
   });
   if (collision.risk || collision.identityMatch < 0.65) return false;
 
-  await db.update(entitiesTable).set({ [field]: clean }).where(eq(entitiesTable.id, entityId));
+  const nextMetadata: Record<string, unknown> = entity.metadata
+    ? (() => { try { return JSON.parse(entity.metadata!) as Record<string, unknown>; } catch { return {}; } })()
+    : {};
+  const existingProvenance = nextMetadata.agenticContactProvenance && typeof nextMetadata.agenticContactProvenance === "object"
+    ? nextMetadata.agenticContactProvenance as Record<string, unknown>
+    : {};
+  nextMetadata.agenticContactProvenance = {
+    ...existingProvenance,
+    [field]: {
+      value: clean,
+      personName,
+      sourceUrls: candidate.sourceUrls.slice(0, 8),
+      observedSourceUrls: (observedSourceUrls ?? []).slice(0, 16),
+      note: candidate.note ?? null,
+      jobId: typeof nextMetadata.jobId === "string" ? nextMetadata.jobId : null,
+      recordedAt: new Date().toISOString(),
+    },
+  };
+
+  await db.update(entitiesTable).set({ [field]: clean, metadata: JSON.stringify(nextMetadata) }).where(eq(entitiesTable.id, entityId));
   return true;
 }
