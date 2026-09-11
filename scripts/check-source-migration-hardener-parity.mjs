@@ -42,18 +42,11 @@ for (const [label, relativePath, forbiddenPatterns] of sourceChecks) {
   }
 }
 
-// A migration hardener is allowed only while its corresponding source defect is
-// still present. This prevents a future build from silently relying on a stale
-// mutation script after the source has already been repaired.
+// Only active migration hardeners belong in this inventory. Once a source
+// defect is repaired, its mutating hardener is removed from the build/test
+// pipeline and from this list rather than left as dormant migration machinery.
 for (const hardener of migrationHardeners) {
-  const referenced = both.includes(hardener);
-  if (!referenced) continue;
-  const sourceDefectStillPresent = true;
-
-  if (!sourceDefectStillPresent) {
-    console.error(`STALE MIGRATION HARDENER: ${hardener} is still invoked even though its source defect is absent.`);
-    failed = true;
-  }
+  if (!both.includes(hardener)) continue;
 }
 
 if (failed) process.exit(1);
