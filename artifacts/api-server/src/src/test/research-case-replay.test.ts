@@ -32,18 +32,22 @@ describe("research case replay", () => {
     expect(replay.latestDecision).toMatchObject({ action: "continue_target" });
   });
 
-  it("replays claim and promotion events through explicit observation references", () => {
+  it("replays claim, promotion, validation, and projection events through explicit causal references", () => {
     const replay = replayResearchCaseEvents([
       { id: 1, caseId: 31, iteration: 0, actorRole: "system", eventType: "case_opened", status: "recorded", summary: "Case opened", payload: "{}", createdAt: "2026-09-11T01:00:00Z" },
       { id: 2, caseId: 31, iteration: 1, actorRole: "head_investigator", eventType: "tool_observation", status: "success", summary: "Observed source", payload: JSON.stringify({ observedUrls: ["https://example.test/source"], observation: "alice@example.test" }), createdAt: "2026-09-11T01:00:01Z" },
       { id: 3, caseId: 31, iteration: 2, actorRole: "head_investigator", eventType: "claim", status: "recorded", summary: "Investigator authored email claim", payload: JSON.stringify({ claim: { vectorType: "email", value: "alice@example.test" }, observationEventIds: [2] }), createdAt: "2026-09-11T01:00:02Z" },
       { id: 4, caseId: 31, iteration: 2, actorRole: "head_investigator", eventType: "promotion", status: "promote", summary: "Investigator explicitly promoted claim", payload: JSON.stringify({ claimEventId: 3, decision: "promote" }), createdAt: "2026-09-11T01:00:03Z" },
+      { id: 5, caseId: 31, iteration: 2, actorRole: "system", eventType: "validation", status: "verified", summary: "Deterministic provenance validation passed", payload: JSON.stringify({ claimEventId: 3, sourceObservationEventIds: [2] }), createdAt: "2026-09-11T01:00:04Z" },
+      { id: 6, caseId: 31, iteration: 2, actorRole: "system", eventType: "projection", status: "applied", summary: "Validated contact projected to entity", payload: JSON.stringify({ validationEventId: 5, entityId: 77, field: "email" }), createdAt: "2026-09-11T01:00:05Z" },
     ]);
 
     expect(replay.valid).toBe(true);
     expect(replay.claimCount).toBe(1);
     expect(replay.promotionCount).toBe(1);
-    expect(replay.causalReferenceCount).toBe(2);
+    expect(replay.validationCount).toBe(1);
+    expect(replay.projectionCount).toBe(1);
+    expect(replay.causalReferenceCount).toBe(4);
     expect(replay.orphanReferenceCount).toBe(0);
   });
 
@@ -87,11 +91,30 @@ describe("research case replay", () => {
       { id: 1, caseId: 44, iteration: 0, actorRole: "system", eventType: "case_opened", status: "recorded", summary: "Case opened", payload: "{}", createdAt: "2026-09-11T02:00:00Z" },
       { id: 2, caseId: 44, iteration: 1, actorRole: "head_investigator", eventType: "claim", status: "recorded", summary: "Orphan claim", payload: JSON.stringify({ observationEventIds: [99] }), createdAt: "2026-09-11T02:00:01Z" },
       { id: 3, caseId: 44, iteration: 1, actorRole: "head_investigator", eventType: "promotion", status: "promote", summary: "Orphan promotion", payload: JSON.stringify({ claimEventId: 98 }), createdAt: "2026-09-11T02:00:02Z" },
+      { id: 4, caseId: 44, iteration: 1, actorRole: "system", eventType: "validation", status: "verified", summary: "Orphan validation", payload: JSON.stringify({ claimEventId: 98 }), createdAt: "2026-09-11T02:00:03Z" },
+      { id: 5, caseId: 44, iteration: 1, actorRole: "system", eventType: "projection", status: "applied", summary: "Orphan projection", payload: JSON.stringify({ validationEventId: 97, entityId: 44 }), createdAt: "2026-09-11T02:00:04Z" },
     ]);
 
     expect(replay.valid).toBe(false);
-    expect(replay.orphanReferenceCount).toBe(2);
+    expect(replay.orphanReferenceCount).toBe(4);
     expect(replay.violations.some((v) => v.includes("missing observation event 99"))).toBe(true);
-    expect(replay.violations.some((v) => v.includes("missing claim event 98"))).toBe(true);
+    expect(replay.violations.some((v) => v.includes("missing event 98"))).toBe(true);
+    expect(replay.violations.some((v) => v.includes("missing event 97"))).toBe(true);
+  });
+
+  it("rejects invalid promotion, validation, and projection contracts", () => {
+    const replay = replayResearchCaseEvents([
+      { id: 1, caseId: 45, iteration: 0, actorRole: "system", eventType: "case_opened", status: "recorded", summary: "Case opened", payload: "{}", createdAt: "2026-09-11T03:00:00Z" },
+      { id: 2, caseId: 45, iteration: 1, actorRole: "head_investigator", eventType: "claim", status: "recorded", summary: "Claim", payload: JSON.stringify({ observationEventIds: [1] }), createdAt: "2026-09-11T03:00:01Z" },
+      { id: 3, caseId: 45, iteration: 1, actorRole: "head_investigator", eventType: "promotion", status: "recorded", summary: "Bad promotion", payload: JSON.stringify({ claimEventId: 2 }), createdAt: "2026-09-11T03:00:02Z" },
+      { id: 4, caseId: 45, iteration: 1, actorRole: "system", eventType: "validation", status: "unknown", summary: "Bad validation", payload: JSON.stringify({ claimEventId: 2 }), createdAt: "2026-09-11T03:00:03Z" },
+      { id: 5, caseId: 45, iteration: 1, actorRole: "system", eventType: "projection", status: "applied", summary: "Bad projection", payload: JSON.stringify({ validationEventId: 4 }), createdAt: "2026-09-11T03:00:04Z" },
+    ]);
+
+    expect(replay.valid).toBe(false);
+    expect(replay.violations.some((v) => v.includes("promotion status must be promote or reject"))).toBe(true);
+    expect(replay.violations.some((v) => v.includes("validation status must be"))).toBe(true);
+    expect(replay.violations.some((v) => v.includes("projection has no validationEventId or promotionEventId") || v.includes("projection"))).toBe(false);
+    expect(replay.projectionCount).toBe(1);
   });
 });
