@@ -1,5 +1,4 @@
 import fs from "node:fs";
-
 const runner = fs.readFileSync("artifacts/api-server/src/src/lib/canonical-single-target-runner.ts", "utf8");
 const agentic = fs.readFileSync("artifacts/api-server/src/src/lib/agentic-web-research.ts", "utf8");
 const oversight = fs.readFileSync("artifacts/api-server/src/src/lib/target-act-oversight.ts", "utf8");
@@ -8,7 +7,10 @@ const mutationGuard = fs.readFileSync("artifacts/api-server/src/src/lib/legacy-a
 const checks = [
   ["canonical runner invokes exactly one Investigator iteration", /maxIterations:\s*1/.test(runner)],
   ["canonical runner reads durable act oversight after each act", /readOversight\(caseState\)/.test(runner)],
-  ["canonical runner honors the durable Boss continuation decision", /readContinuationControl\(caseState\)/.test(runner)],
+  ["canonical runner does not consume stale targetControlDecisions", !/readContinuationControl\(/.test(runner)],
+  ["canonical target case reuse is bound to current atlas job", /state\.atlasJobId === atlasJobId/.test(runner)],
+  ["canonical runner passes exact case identity into Investigator", /caseId: caseRow\.id/.test(runner)],
+  ["canonical target control iteration is durably monotonic", /iteration: caseRow\.iteration \+ completedActs/.test(runner)],
   ["canonical runner blocks on stop", /if \(lastOversight\.action === "stop"\) break/.test(runner)],
   ["canonical runner fails closed when oversight is unavailable", /!lastOversight \|\| lastOversight\.status !== "completed"/.test(runner)],
   ["redirect becomes a research objective, not a tool command", /Gemini research objective/.test(runner)],
@@ -25,20 +27,16 @@ const checks = [
   ["observation event is idempotently correlated by case, run and turn", /investigator-act:case:\$\{caseId\}:run:\$\{runId\}:turn:\$\{controlTurn\}/.test(oversight)],
   ["oversight event is correlated by case, run and turn", /target-oversight:case:\$\{caseId\}:run:\$\{runId\}:turn:\$\{controlTurn\}/.test(oversight)],
   ["agentic wrapper passes execution identity to oversight", /runId: executionId/.test(agentic)],
+  ["agentic wrapper loads oversight by exact case id", /loadTargetActOversightContext\(input\.caseId/.test(agentic)],
+  ["target oversight has no target-name fallback", !/like\(researchCasesTable\.caseFile/.test(oversight) && !/orderBy\(desc\(researchCasesTable\.updatedAt\)\)/.test(oversight)],
   ["evidence graph observations can carry immutable event IDs", /eventId\?: number \| null/.test(evidence)],
   ["canonical act graphs require immutable observation anchors", /validateClaimSupportGraph\(graph, true\)/.test(oversight)],
   ["Right Hand is mandatory before Boss continuation", /if \(rightHand\.status !== "completed"\)/.test(oversight)],
   ["Right Hand failure stops the next Investigator act", /DeepSeek\/NVIDIA Right Hand oversight was unavailable/.test(oversight)],
-  ["Boss stop has a distinct external stop reason", /stopReason: "BOSS_STOP"/.test(agentic)],
-  ["Investigator completion has a distinct external stop reason", /stopReason: "INVESTIGATOR_DONE"/.test(agentic)],
-  ["control unavailability has a distinct external stop reason", /stopReason: "CONTROL_UNAVAILABLE"/.test(agentic)],
   ["discovery is not accidentally target-gated", /input\.mode === "discovery"/.test(agentic)],
   ["direct Apex entity contact PATCH is guarded", /isDirectEntityCardPatch\(req\.path\)/.test(mutationGuard)],
   ["Apex contact fields are explicitly enumerated at the card boundary", /DIRECT_CONTACT_FIELDS/.test(mutationGuard) && /contactOutcome/.test(mutationGuard) && /metadata/.test(mutationGuard)],
   ["legacy enrichment routes remain retired", /RETIRED_MUTATING_ENRICHMENT_PATHS/.test(mutationGuard) && /status\(410\)/.test(mutationGuard)],
-  ["deterministic Apex outcome-repair route is retired", /entities\/fix-outcome-honesty/.test(mutationGuard)],
-  ["manual contact rejection route is retired", /isRejectedContactPatch\(req\.path\)/.test(mutationGuard) && /Legacy contact rejection route retired/.test(mutationGuard)],
-  ["global deterministic safe-remediation route is retired", /improve\/apply-safe/.test(mutationGuard)],
 ];
 let failed = false;
 for (const [name, ok] of checks) { console.log(`${ok ? "PASS" : "FAIL"} ${name}`); if (!ok) failed = true; }

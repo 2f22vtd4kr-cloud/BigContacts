@@ -16,5 +16,6 @@ assert(/safeOutboundFetch\(url/.test(core), "Investigator page visits do not use
 assert(!/\bfetch\(/.test(core), "ReAct core still contains a direct fetch call outside the canonical transport boundary.");
 assert(/redirect: "manual"/.test(ssrf), "Canonical SSRF transport does not force manual redirect semantics.");
 assert(/MAX_RESPONSE_BYTES/.test(ssrf) && /res\.destroy/.test(ssrf), "Canonical SSRF transport is missing its streaming response ceiling.");
+assert(/MAX_REQUEST_BYTES/.test(ssrf) && /readRequestBodyCapped/.test(ssrf), "Canonical SSRF transport is missing a bounded request-body ceiling.");
 if (failures.length) { console.error("AGENTIC CORE TRANSPORT: FAIL"); for (const f of failures) console.error(`- ${f}`); process.exit(1); }
 console.log("AGENTIC CORE TRANSPORT: PASS");
