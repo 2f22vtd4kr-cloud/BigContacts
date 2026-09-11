@@ -10,6 +10,8 @@ const checks = [
   ["redirect becomes a research objective, not a tool command", /Gemini research objective/.test(runner)],
   ["canonical runner establishes one global target deadline", /const deadline = Date\.now\(\) \+ hardTimeoutMs/.test(runner)],
   ["each act receives only remaining global budget", /hardTimeoutMs: Math\.max\(30_000, remainingMs\)/.test(runner)],
+  ["canonical agentic target wrapper actively aborts at its deadline", /setTimeout\(\(\) => overallController\.abort\(\), requestedHardTimeout\)/.test(agentic)],
+  ["canonical agentic target wrapper clears its deadline timer", /clearTimeout\(deadlineTimer\)/.test(agentic)],
   ["act cancellation observes the global deadline", /Date\.now\(\) >= deadline/.test(runner)],
   ["agentic entrypoint performs Right Hand + Boss review after an act", /await reviewTargetInvestigationAct\(/.test(agentic)],
   ["discovery is not accidentally target-gated", /input\.mode === "discovery"/.test(agentic)],
