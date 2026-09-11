@@ -27,13 +27,14 @@ export async function searchGleif(
   });
 
   const url = `https://api.gleif.org/api/v1/lei-records?${params}`;
+  const requestSignal = signal ? AbortSignal.any([signal, AbortSignal.timeout(12_000)]) : AbortSignal.timeout(12_000);
 
   const resp = await fetch(url, {
     headers: {
       Accept: "application/vnd.api+json",
       "User-Agent": "ApexFinder/1.0 OSINT-Intelligence research@apexfinder.private",
     },
-    signal: signal ?? AbortSignal.timeout(12_000),
+    signal: requestSignal,
   });
 
   if (!resp.ok) {
