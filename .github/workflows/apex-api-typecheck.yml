@@ -38,6 +38,8 @@ jobs:
         run: node scripts/check-canonical-target-per-act-control.mjs
       - name: Check discovery context control
         run: node scripts/check-discovery-context-control.mjs
+      - name: Check Atlas launch input normalization
+        run: node scripts/check-atlas-launch-input-normalization.mjs
       - name: Check canonical agentic source parity
         run: node scripts/check-agentic-source-parity.mjs
       - name: Check Apex launch gate
