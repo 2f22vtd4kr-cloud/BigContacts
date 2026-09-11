@@ -13,6 +13,7 @@ const RETIRED_MUTATING_ENRICHMENT_PATHS = new Set([
   "/ingest/deep-web-osint",
   "/ingest/broad-discovery",
   "/entities/rehydrate-contacts",
+  "/entities/fix-outcome-honesty",
 ]);
 const APEX_TYPES = new Set(["HNWI", "Gatekeeper"]);
 const DIRECT_CONTACT_FIELDS = new Set([
@@ -43,23 +44,32 @@ function isDirectEntityCardPatch(path: string): boolean {
   return /^\/entities\/\d+$/.test(path);
 }
 
+function isRejectedContactPatch(path: string): boolean {
+  return /^\/entities\/\d+\/reject-contact$/.test(path);
+}
+
 /**
  * Legacy/deterministic enrichment is not a second research control plane.
  * Canonical Atlas owns research strategy through the Investigator ReAct loop.
- *
- * Known legacy enrichment endpoints are therefore retired unconditionally,
- * including from internal cold-start callers. The durable evidence projector
- * `/entities/rehydrate-contacts` is also retired: replaying contact_evidence
- * into an entity card is not allowed to become an implicit promotion path.
- * Generic entity PATCHes remain available for non-contact UI fields, but a
- * direct Apex contact-field write is rejected unless it comes through the
- * explicit investigator-selected promotion boundary.
+ * Known legacy enrichment and contact-repair endpoints are therefore retired
+ * unconditionally. Generic entity PATCHes remain available for non-contact UI
+ * fields, but Apex contact state may cross the card boundary only through
+ * explicit Investigator-selected promotion with immutable evidence provenance.
  */
 export async function legacyApexMutationGuard(
   req: Request,
   res: Response,
   next: NextFunction,
 ): Promise<void> {
+  if (req.method === "PATCH" && isRejectedContactPatch(req.path)) {
+    res.status(410).json({
+      error: "Legacy contact rejection route retired.",
+      reason: "Contact-card state cannot be manually nulled or repaired outside the explicit Investigator promotion boundary.",
+      path: req.path,
+    });
+    return;
+  }
+
   if (req.method === "PATCH" && isDirectEntityCardPatch(req.path)) {
     const body = (req.body ?? {}) as Record<string, unknown>;
     const touchesContactState = Object.keys(body).some((key) => DIRECT_CONTACT_FIELDS.has(key));
