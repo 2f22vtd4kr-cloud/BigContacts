@@ -69,11 +69,14 @@ jobs:
           if 'node scripts/apply-final-review-role-boundary.mjs' in package:
               raise SystemExit('final-review hardener remains in package scripts')
           PYFIX
-      - name: Verify source and architecture guards
+      - name: Verify source migration and role invariants
         run: |
-          node scripts/check-final-review-role-boundary.mjs
           node scripts/check-source-migration-hardener-parity.mjs
           node scripts/check-unified-investigator-architecture.mjs
+          test ! -e scripts/apply-final-review-role-boundary.mjs
+          ! grep -q 'groq-final-review-fallback\|Groq capacity fallback' artifacts/api-server/src/src/lib/ai-extractor.ts
+          grep -q 'runDeepSeekFinalReview' artifacts/api-server/src/src/lib/ai-extractor.ts
+          grep -q 'unavailable-final-review' artifacts/api-server/src/src/lib/ai-extractor.ts
       - name: Typecheck
         run: |
           corepack enable
