@@ -4,11 +4,11 @@
 
 **Repository:** `2f22vtd4kr-cloud/BigContacts`  
 **Branch:** `main`  
-**Current reviewed tip:** `ba2d7a4d2b22a739cf01f20db227313ef98d9890`
+**Current reviewed source tip:** `831c00dd6740f43b435b01be765ca756ddf824df`
 
 ## 1. Institutional architecture
 
-Apex is intended to be an autonomous AI OSINT research bureau, not a deterministic enrichment workflow.
+Apex is an autonomous AI OSINT research bureau, not a deterministic enrichment workflow.
 
 ```text
 institutional constitution
@@ -16,201 +16,283 @@ institutional constitution
   -> durable case context
   -> operator case objective
   -> AI reasoning
-  -> model-selected action
-  -> deterministic safety envelope
+  -> model-selected research objective/action
+  -> deterministic safety / authorization / budget envelope
   -> observation
-  -> AI interpretation / pivot
+  -> evidence graph / provenance
+  -> AI interpretation / attribution / pivot
   -> ...
   -> explicit finding / promotion / stop
-  -> deterministic evidence validation
-  -> persistence
+  -> deterministic validation
+  -> persistence / review
 ```
 
-- **Gemini:** Boss / Head Investigator. Owns case direction, assignment, continuation and final high-level decisions.
-- **DeepSeek via NVIDIA Integrate:** Right Hand / oversight. Advises and challenges; does not investigate.
-- **Groq / Mistral:** Investigator capacity. They execute free-ReAct research.
-- Deterministic code owns safety, authorization, schemas, SSRF, quotas, cancellation, persistence, provenance validation, deduplication, telemetry and lifecycle.
-- Deterministic code must never silently choose research strategy.
+- **Gemini:** Boss / Head Investigator. Owns case direction, Investigator assignment, continuation disposition and final high-level review.
+- **DeepSeek V4 Flash via NVIDIA Integrate:** Right Hand / oversight. Advises and challenges Gemini; it does not browse or investigate.
+- **Groq / Mistral:** Investigator capacity. They execute the free-ReAct research loop selected by the Boss.
+- Search providers and OSINT capabilities are research tools, not LLM roles.
+- Deterministic code owns safety, authorization, schemas, SSRF/egress controls, quotas, cancellation, persistence, provenance, deduplication, telemetry and lifecycle.
+- Deterministic code must not silently choose research strategy.
+
+Professional architecture checks continue to support this separation. Anthropic's managed-agent work explicitly separates brain, harness, session and sandbox so implementations can change without corrupting durable state; OpenAI's 2026 Agents SDK work similarly emphasizes separating harness from compute and durable external state. OWASP's 2026 Agent Control Standard emphasizes inspectability, traceability, instrumentation and runtime control. These principles match Apex's intended model/harness/evidence separation.
 
 ## 2. Canonical ReAct
 
-Canonical files include `agentic-web-research-core.ts`, `agentic-web-research.ts`, `target-contact-agent.ts`, `bureau-agentic-pass.ts`, `canonical-single-target-runner.ts`, `atlas-control-decision.ts`, and `canonical-atlas-discovery.ts` under `artifacts/api-server/src/src/lib/`.
+Canonical Investigator machinery is under `artifacts/api-server/src/src/lib/`, especially:
+- `agentic-web-research-core.ts`
+- `agentic-web-research.ts`
+- `bureau-agentic-pass.ts`
+- `target-contact-agent.ts`
+- `canonical-single-target-runner.ts`
+- `canonical-atlas-discovery.ts`
+- `atlas-control-decision.ts`
+- `target-control-decision.ts`
 
-The Investigator action surface is model-selectable. Current individual OSINT actions include `web_search`, `visit`, `browser_fetch`, `footprint_email`, `footprint_username_maigret`, `footprint_username_sherlock`, `domain_lookup`, `harvest_domain`, `registry_search`, `reverse_whois`, and `done` where the corresponding capability is available. Maigret and Sherlock are separate model actions; the old compound username action is retired in the canonical source/runtime transformation.
+The Investigator chooses its own permitted action trajectory. Current capabilities include web search, visit/browser fetch, domain/registry investigation and individual Maigret/Sherlock username actions where configured. There is no canonical fixed provider sequence and no intended fixed first research action.
 
-Hardening includes maximum effective ReAct iterations = 40; run-scoped cancellation through canonical LLM/provider/search/page/browser paths; SSRF-safe HTTP/browser transport and redirect/subresource egress checks; bounded network/browser reads; model-selectable search locale; provider quota composition without duplicate counting; explicit successful-observation states; structured trajectory records; explicit model promotion and strict source-backed persistence; and candidate admission safety caps that fail closed rather than silently selecting the first N candidates.
+Hardening includes effective ReAct iteration limits, run-scoped cancellation, SSRF-safe HTTP/browser transport, bounded reads, model-selectable search locale, provider quota accounting, successful-observation state, structured trajectory records, explicit promotion, strict source-backed persistence and fail-closed candidate admission.
 
-The forced initial `web_search` migration has been removed from API build/test and its source-mutator has been deleted after direct source verification. Permanent Free-ReAct guards remain.
+### 2026-09-11 source migrations
+- PR **#170** merged: canonical target-runner cancellation is source-native.
+- PR **#172** merged: typed multi-source evidence-graph primitives and focused tests were added to canonical source corroboration.
+- PR **#173** merged: Gemini target continuation now uses only `research | stop`; `direction` is the next research objective. The Boss no longer has `continue_target`, `revisit_target`, and `pivot_target` pseudo-phase vocabulary. The Investigator owns how to answer that objective.
+- PR **#174** merged: Bureau investigation event callbacks are source-native, serialized and drained before trajectory persistence/pass completion. The obsolete event-ordering source mutator was deleted.
+- The stale PR #171 was closed because #174 re-applied the migration on the current main tip.
 
-## 3. Python OSINT boundary
+Anthropic's context-engineering research reinforces the current durable-context direction: long-running agents need iterative context curation, structured notes/state and selective just-in-time retrieval rather than dumping an ever-growing raw trace into every prompt. citeturn2search0turn2search8
 
-Holehe, Maigret, Sherlock and theHarvester use independent child-process network stacks. Process cancellation/output bounds exist, but environment variables or proxy hints are not an enforceable network-egress boundary.
+## 3. Durable context and event ledger
 
-Canonical Python network capabilities therefore remain **fail-closed**. Do not re-enable them until an actual sandbox/egress-controlled execution service or equivalent OS/deployment boundary exists and is verified. This remains under #139/#141.
+Every canonical investigation must have durable case context. Gemini and DeepSeek receive the accumulated investigation state, and Investigator passes mount the same durable context.
 
-## 4. Discovery/control architecture
+`research_case_events` is append-only case history. Immutable database event IDs are the canonical per-case ordering authority. Trajectory records include model/action/arguments/execution/observation/observed URLs/findings/provider fallback/stop metadata.
 
-Canonical discovery is `mode="discovery"`, not a fake person such as `Discovery slot`.
+The Bureau event-ordering migration now guarantees that Investigator action callbacks are serialized through `investigationEventChain` and drained before discovery trajectory persistence/pass completion. This prevents fire-and-forget persistence from diverging from the actual Investigator trajectory.
 
-Gemini currently owns a bounded transition vocabulary: `continue_discovery`, `research_candidate`, `revisit_candidate`, `pivot_discovery`, and `stop`. These are AI-returned control decisions; the harness validates them and does not infer the action from candidate count or scores. This remains an architectural seam to revisit: the long-term target is for the Boss to express the next research objective without a deterministic phase/playbook vocabulary constraining legitimate hypotheses.
+The event/replay layer already represents assignment, control decisions, tool observations, claims, promotions and related causal references. It is still not a mature semantic graph: many relationships remain encoded inside event payloads rather than independent typed relational edges.
 
-Invalid Boss decisions fail closed. Candidate safety validation may reject invalid/over-cap state but must not substitute a research strategy.
-
-The canonical Atlas launch boundary is `research/canonical-atlas-launch.ts`, which dispatches to the canonical model-owned discovery or single-target runner. The historical Atlas router/orchestrator remains retirement material and is not the canonical launch plane.
-
-The legacy mixed `research/cases.ts` executor is deliberately unmounted from the live research router.
-
-The legacy `case-bureau.ts` discovery `initialAction` type still contains historical `broad-web-discovery` vocabulary in source, although the live build/test hardener that rewrote it has now been retired. New canonical discovery case creation itself uses Boss-controlled state. Direct source cleanup of the legacy type is still desirable, but it is no longer an active build mutation.
-
-## 5. Evidence law
+## 4. Evidence law and multi-source graph
 
 An observation is not automatically evidence.
 
 ```text
 raw observation
-  -> model-authored finding
-  -> explicit promotion/rejection
-  -> deterministic provenance/schema validation
-  -> persistence
+  -> model-authored claim
+  -> explicit attribution / promotion decision
+  -> deterministic provenance / identity / scope validation
+  -> persistence / projection
 ```
 
-Canonical person/contact promotion requires explicit model authorship, appropriate candidate/person scope, successful observed HTTP(S) provenance, explicit promotion, and strict claim-to-observation validation.
+Canonical person/contact promotion requires explicit model authorship, candidate scope, explicit person identity, successful observed HTTP(S) provenance, explicit promotion and strict destination identity checks. HNWI/Gatekeeper destination constraints prevent organization-card contamination.
 
-**Important research-quality limitation:** the current canonical contact boundary still requires the claimed contact value and model-authored person identity to co-occur in one successful bounded observation. This is deliberately conservative, but it creates false negatives for legitimate multi-source attribution. Do not weaken the boundary. The intended next architecture is a typed evidence graph in which identity, role, organization and contact-value observations can support separate claims that are then joined by explicit model reasoning and deterministic attribution/collision checks.
+### New graph foundation — PR #172
+The canonical `source-corroboration.ts` module now contains typed primitives:
+- `EvidenceObservation`
+- `EvidenceClaim`
+- `EvidenceEdge`
+- `EvidenceGraph`
+- `observationsFromSourceUrls()`
+- `buildClaimSupportGraph()`
+- `graphHasIndependentCorroboration()`
 
-Example target state:
+These primitives allow multiple independently observed sources to support one model-authored claim without turning corroboration into automatic promotion. Tests cover the two-source rule and multi-observation claim support.
+
+This is intentionally a foundation, not a claim that full multi-source attribution is finished. The remaining quality problem is the existing upstream `claimAppearsInObservedMaterial()` rule in Bureau/target Investigator paths: the claim's value and candidate identity still generally need to co-occur in one successful observation before the finding enters the strict persistence path. **Do not weaken that rule casually.** The next integration should instead connect immutable observation events to a model-authored attribution claim:
 
 ```text
 Observation A -> John Smith is CFO of Company X
 Observation B -> john.smith@company-x.com is published
-             -> separate claims with immutable observation references
-             -> model attribution reasoning
-             -> deterministic identity/scope/provenance validation
-             -> explicit promotion
+        -> claim references both observations
+        -> model attribution reasoning
+        -> deterministic identity/scope/provenance validation
+        -> explicit promotion
 ```
 
-Issue #148 is closed for the original same-observation regression boundary. The multi-source evidence-graph extension is a separate quality improvement and remains strategically important even though #152 is marked completed.
+EviGraph (Aug. 2026) supports this architectural direction by treating typed evidence graphs as operational state and validating claim/evidence dependencies rather than merely storing a post-hoc trace. Explicit provenance research likewise argues that agent actions and conclusions need traceable causal provenance. citeturn0academia12turn0academia13
 
-## 6. Durable event ledger
+## 5. Python OSINT boundary
 
-`research_case_events` is append-only case history. Immutable database `id` is the canonical per-case event sequence. `iteration` and `createdAt` are metadata, not ordering authorities.
+`python-tools.ts` now enforces the Python OSINT quarantine directly in canonical source:
 
-Canonical discovery trajectory persistence records each structured Investigator turn as its own durable case event inside the same DB transaction as the case snapshot update. Tool turns are `tool_observation`; an explicit `done` turn is a `decision`. Event payloads retain model/action/args/execution/observation/observedUrls/findings/provider-fallback/stop metadata.
+- Holehe: unavailable
+- Maigret: unavailable
+- Sherlock: unavailable
+- theHarvester: unavailable
+- Python-backed deep research: unavailable
 
-The event schema/replay layer accepts canonical `control_decision` and `tool_observation` event types and validates claim → observation, promotion → claim, validation → claim, and projection → validation/promotion causal references. Correlation keys make autonomous trajectory events idempotent across retries.
+The source uses a hard `PYTHON_OSINT_EGRESS_GOVERNED = false` boundary. Cancellation/output hygiene remains useful but is not treated as a network-egress sandbox.
 
-The graph is therefore substantially implemented, but it is not yet the mature semantic evidence graph: observations and claims are stored as event payloads rather than as a fully typed relational graph with independent contradiction, temporal, scope and derivation edges. The remaining work is to make those relationships first-class without turning the graph into a deterministic research planner.
+Do **not** re-enable Python network capabilities until an actual sandbox/container/VM or equivalent deployment-level egress boundary is implemented and verified. OWASP and NIST guidance independently emphasize sandboxing, least privilege, server-side tool controls and explicit egress/authorization controls for agentic execution. citeturn1search0turn1search24
 
-## 7. Evidence graph
+## 6. Registry cancellation — still in progress
 
-The repository still contains the older `research_evidence` session model alongside the newer case/event architecture. Current verified consumers include the session read route and legacy `target-research.ts`/MCTS surfaces. Do not delete or merge blindly.
+The canonical Investigator registry action already has a run-scoped cancellation design, but the current repository still uses build-time hardening around `registry-client.ts` and registry signal propagation.
 
-Target architecture:
+Remaining hardeners include:
+- `apply-registry-cancellation-boundary.mjs`
+- `apply-agentic-registry-signal-wiring.mjs`
+
+The desired final source contract is:
 
 ```text
-case
-  -> immutable event / turn
-  -> observation
-  -> source/provenance
-  -> model claim
-  -> relationship / contradiction / scope
-  -> promotion decision
-  -> entity/contact projection
+Investigator runController.signal
+  -> registry action
+  -> searchRegistry(..., signal)
+  -> registry-specific fetch
+  -> cancellation reaches actual network operation
 ```
 
-The dossier/card must be a projection of evidence, never the source of truth. The strict card boundary refuses candidate-person promotion unless the destination entity itself is an HNWI/Gatekeeper whose name exactly matches the model-authored person identity, preventing organization-card contamination. Promoted card values retain exact claim source URLs, observed URLs and job/run correlation in `metadata.agenticContactProvenance`.
+The migration is **not complete** merely because a guard or build transform produces this shape. Direct source migration must be made in `registry-client.ts` and the canonical ReAct call site, then the two mutators can be deleted. This remains a priority.
 
-The strategic next step is **multi-source claim attribution**, not weaker validation: the graph should allow a claim to depend on several independently observed facts while keeping every edge and uncertainty explicit.
+## 7. Deterministic secondary-surface retirement — still in progress
 
-## 8. Duplicate source trees
+`expandSecondaryPublicSurface()` remains legacy deterministic research machinery. Its historical behavior chooses fixed secondary-surface research/fetch steps and therefore does not belong in the canonical model-owned research plane.
 
-API server has canonical `artifacts/api-server/src/src/*` and legacy/compatibility `artifacts/api-server/src/*` trees. `tsconfig.json` includes only `src/src/**/*.ts`, and `build.mjs` bundles `src/src/index.ts`; a guard also prevents canonical production source from importing the legacy top-level `src/lib/*` tree.
+The active hardener is:
+- `apply-retire-secondary-surface-calls.mjs`
 
-Issue #129 remains open until remaining compatibility/build/test references are reconciled and deletion/quarantine is proven safe.
+It currently strips live callers from canonical `entities.ts` and legacy Atlas orchestration source before build. The underlying callers still need direct source retirement or replacement by explicit model-selected capability execution.
 
-## 9. Migration hardeners
+Do not delete the hardener until source reachability is rechecked. Do not turn the secondary surface into another hidden deterministic Investigator lane.
 
-The build still executes a collection of `apply-*` migration scripts before compilation. They are scaffolding, not the desired final architecture.
+## 8. Gemini control-plane redesign
 
-Safe retirement sequence:
+The target continuation control was previously:
+
+`continue_target | revisit_target | pivot_target | stop`
+
+That vocabulary was a pseudo-phase seam. It has now been simplified to:
+
+`research | stop`
+
+When `research` is selected, Gemini supplies a **research objective**, not a tool, provider, query or scripted sequence. The Investigator may revisit, pivot, verify, broaden, narrow or abandon hypotheses as needed.
+
+This better follows the intended division:
 
 ```text
-transformed source
-  -> inspect exact result
-  -> commit canonical source directly
-  -> guard invariant
-  -> remove corresponding apply script
-  -> repeat
+Gemini: what question should be pursued next, and why?
+        ↓
+Investigator: how should that question be investigated?
+        ↓
+harness: is the requested action authorized/safe/budgeted?
+        ↓
+observation
+        ↓
+context/evidence graph
+        ↓
+Gemini reassesses
 ```
 
-Completed during this session:
-- obsolete discovery initial-state mutator removed from API build/test and deleted;
-- obsolete target Investigator cancellation mutator removed from API build/test and deleted after moving `shouldCancel` into canonical `target-contact-agent.ts`;
-- both migrations retain permanent invariant guards where appropriate.
+The harness still validates the minimal `research|stop` disposition and fail-closes malformed model output. It does not infer continuation from pass count, finding count, score or elapsed time.
 
-Still requiring direct source migration before deletion include canonical target-runner cancellation, target event-ledger wiring, Bureau event ordering, registry cancellation/signal propagation, deterministic secondary-surface retirement, Python egress quarantine, and other explicitly tracked source migrations. A hardener must not be deleted merely because a guard exists; the underlying source must first contain the invariant itself.
+## 9. Duplicate source trees
 
-## 10. Legacy deterministic research
+The API contains canonical `artifacts/api-server/src/src/*` and legacy/compatibility `artifacts/api-server/src/*` trees. Canonical `tsconfig`/build compilation uses the nested `src/src` tree.
 
-The historical deterministic secondary-surface expansion remains a source-level legacy playbook. Its build-time retirement hardener is still active because live source callers remain in legacy/manual entity surfaces; those callers must be removed or converted to explicit model-selected capability execution before the hardener can be deleted.
+The permanent guard `check-no-canonical-legacy-tree-imports.mjs` prevents canonical production source from importing the legacy top-level `src/lib` tree and checks retired research route removal. The old `research/cases.ts` source is no longer present on main.
 
-The historical Atlas POST launch route is explicitly quarantined to HTTP 410. The historical Atlas orchestrator remains on disk for controlled retirement/reachability analysis.
+However, several noncanonical compatibility routes intentionally still use the legacy top-level tree. Do not delete that tree wholesale. Continue auditing route reachability and writers before moving individual files. Issue #129 remains a cleanup/retirement program rather than permission to perform a blind deletion.
 
-Legacy `/api/enrich/*` and old case execution routes are retired/unmounted where guards establish the boundary. The deterministic `/entities/rehydrate-contacts` route is also retired through the legacy mutation guard because replaying evidence into cards is an implicit promotion bypass. Issues #125/#126, #132, and #137/#138 remain relevant for final source/API-contract cleanup.
+## 10. Role boundaries
 
-Issue #147 is closed: the model-facing username footprint capability is represented as individual Maigret and Sherlock actions after the canonical username capability split.
+- Gemini remains Boss.
+- DeepSeek V4 Flash/NVIDIA remains Right Hand.
+- Groq/Mistral remain Investigators.
+- Groq must not become Boss or final reviewer.
+- Final review remains Gemini Boss → DeepSeek/Right Hand → deterministic fail-closed adjudication.
 
-## 11. Role boundary
+The canonical DeepSeek path is advisory and non-blocking when the external NVIDIA service is unavailable. The known NVIDIA Integrate DeepSeek V4 Flash outage/hang behavior is an external provider problem; do not redesign Apex around it or falsely claim successful Right-hand calls.
 
-Groq must never become Boss or final reviewer. Gemini is Boss. DeepSeek/NVIDIA is Right Hand. Groq/Mistral are Investigators.
+## 11. Persistence / provenance / identity
 
-The canonical final-review boundary is now **Gemini Boss → DeepSeek/NVIDIA Right Hand → deterministic fail-closed adjudication**. The canonical `ai-extractor.ts` source no longer contains the former Groq tertiary reviewer loop; the role-boundary guard remains active. Issue #128's source-level blocker has been repaired.
+`bureau-contact-persist-strict.ts` is the strict card boundary. It:
+- requires source-backed HTTP(S) provenance;
+- rejects search-query URLs as claim provenance;
+- requires explicit model promotion for card mutation;
+- requires candidate scope and explicit person identity for personal promotion;
+- requires destination entity name to exactly match the model-authored person identity;
+- restricts person-card promotion to HNWI/Gatekeeper entities;
+- preserves source URLs, observed URLs and run/job correlation in provenance metadata.
 
-## 12. Persistence and provenance
+The dossier/card is a projection, not the source of truth.
 
-Canonical strict persistence (`bureau-contact-persist-strict.ts`) persists source-backed candidate evidence and only applies a card field when the Investigator explicitly promoted exactly one candidate-scoped value with valid run-scoped observed provenance and acceptable identity-collision validation.
+## 12. Legacy deterministic research / API cleanup
 
-Candidate-person card promotion additionally requires the destination entity to be an HNWI/Gatekeeper and its name to exactly match the model-authored person identity. This prevents a discovery/organization entity from receiving a person's contact vector through a caller-supplied entity ID.
+Historical deterministic MCTS/target-research and fixed discovery/case lanes have been removed or quarantined from canonical execution. The old Atlas POST launch is retired. Legacy research routes are unmounted or guarded where proven safe.
 
-Promoted values retain exact claim source URLs, observed URLs and job/run correlation under `agenticContactProvenance`. This is provenance preservation, not proof that the complete semantic claim/event graph is finished.
+The remaining legacy areas requiring continued reachability analysis include:
+- deterministic secondary-surface callers;
+- compatibility entity/manual endpoints;
+- identity review utilities (`/identity/resolve`, tracked as #154);
+- old registry/ingest surfaces;
+- duplicate-tree writers and readers.
 
-## 13. Identity review boundary
+Never equate “unmounted” with “dead”; trace transitive callers before deletion.
 
-The mounted `/identity/resolve` route deterministically builds identity bundles/candidates and writes `identityCandidatesTable`. It is currently review-only and was not found to directly mutate a card, but it can manufacture identity candidates without an Investigator finding. This is tracked as **#154** and must be explicitly classified as a non-autonomous review utility or converted/retired before final acceptance.
+## 13. Migration hardeners — current state
 
-## 14. Runtime verification state
+Build-time source-mutating hardeners are scaffolding and should disappear one by one only after direct source migration.
 
-**No runtime/CI/provider/Replit success is currently claimed.** The user will manually launch Replit for the live phase. Static source changes, guards and GitHub commits are not runtime proof.
+### Retired this session
+- `apply-target-runner-cancellation-boundary.mjs` — deleted; target runner cancellation is source-native.
+- `apply-bureau-investigation-event-ordering.mjs` — deleted; Bureau event ordering is source-native.
+- The stale PR #171 carrying the first event-ordering implementation was closed and superseded by PR #174 on the current main tip.
 
-Final acceptance must demonstrate a real run resembling:
+### Still active and requiring direct source migration
+- `apply-retire-secondary-surface-calls.mjs`
+- `apply-registry-cancellation-boundary.mjs`
+- `apply-agentic-registry-signal-wiring.mjs`
+- `apply-target-investigation-event-ledger.mjs`
+- `apply-canonical-discovery-cancellation-boundary.mjs`
+- other explicitly tracked compatibility migrations
 
-```text
-Gemini Boss
-  -> DeepSeek/NVIDIA Right Hand
-  -> Groq/Mistral Investigator selected by the Boss
-  -> genuinely model-selected first action
-  -> model-selected pivots/tool choices
-  -> successful observations
-  -> explicit finding/promotion
-  -> evidence-backed persistence
-  -> durable append-only events
-  -> replayable trajectory/state
-  -> inspectable oversight context
-  -> clean operator cancellation
-```
+A hardener must not be deleted merely because a permanent guard exists. First put the invariant in canonical source, inspect the exact diff, trace callers/error paths/persistence/cancellation, then remove the mutator and keep the permanent guard.
 
-Do not seed the first action, inject a known URL, force a provider, fabricate provenance, or use legacy enrichment to make the smoke test pass.
+## 14. Professional architecture basis
+
+Current work has been cross-checked against current professional/primary guidance:
+
+- Anthropic: managed agents should separate durable session state, harness and execution environments; this supports Apex's durable case/event architecture. citeturn0search1turn0search7
+- Anthropic: effective context engineering favors compact, high-signal context, structured notes and just-in-time retrieval over indiscriminate context accumulation. citeturn2search0turn2search8
+- OpenAI: the 2026 Agents SDK work emphasizes sandbox-aware orchestration, durable state and separation of harness from compute. citeturn0search0
+- OWASP: agent tool execution needs server-side validation, least privilege, sandboxing and explicit runtime controls rather than relying on model instructions alone. citeturn1search0turn1search3turn1search11
+- NIST: agent identity/authorization and auditability are explicit emerging control concerns. citeturn1search6turn1search7
+- EviGraph and provenance research support explicit typed claim/evidence relationships rather than post-hoc trace reconstruction. citeturn0academia12turn0academia14
+
+These sources are used to validate architectural principles, not to dictate a vendor-specific Apex implementation.
 
 ## 15. Current priorities
 
-1. Complete direct-source migration of the remaining build-time hardeners; do not let build scripts remain the source of runtime behavior.
-2. Replace the remaining deterministic secondary-surface callers with explicit model-selected capability execution or retire those manual endpoints if they are not part of the Bureau product.
-3. Mature the immutable claim → observation/event → promotion → projection graph into a true multi-source evidence graph with explicit attribution, contradiction, temporal and scope edges (#151/#152 direction).
-4. Revisit the Gemini control vocabulary so the Boss selects the next research objective rather than being constrained by a pseudo-phase taxonomy; keep deterministic validation of safety and candidate identity.
-5. Finish real subprocess sandbox/egress architecture for Python OSINT; keep fail-closed until enforceable.
-6. Resolve #154's live deterministic identity-review boundary.
-7. Finish duplicate-tree and legacy writer reachability proof.
-8. Audit all entity/contact/relationship writers and generated/API compatibility surfaces.
-9. Only then perform the user's live Replit acceptance experiment.
+1. **Finish registry cancellation source migration.** Move AbortSignal through the actual registry client and every relevant network fetch; then delete both registry mutators.
+2. **Finish target investigation event-ledger source migration.** `target-contact-agent.ts` already has source-native cancellation; the remaining target-runner event callback wiring still depends on `apply-target-investigation-event-ledger.mjs` and must be migrated directly.
+3. **Finish secondary-surface retirement.** Remove live deterministic callers from source, then delete the retirement hardener.
+4. **Integrate the new multi-source evidence graph into canonical finding admission.** Claims must reference several immutable observations where attribution requires it. Do not weaken identity/provenance validation.
+5. **Finish Python sandbox/egress architecture.** Keep fail-closed until enforceable isolation exists.
+6. **Continue duplicate-tree and legacy-writer reachability cleanup.** Move or retire compatibility surfaces only after caller tracing.
+7. **Audit identity review and remaining manual entity writers.** Resolve #154 and related projection bypass risks.
+8. **Finish context/trajectory compaction strategy.** Keep the durable case document high-signal; mount detailed event IDs/trajectory references instead of endlessly expanding raw prompts.
+9. **Only after source architecture is complete, perform the user's Replit acceptance experiment.** No Replit/runtime/provider success is claimed in this phase.
 
-**Working rule:** after every fix, trace callers, transitive callers, error paths, persistence, cancellation, provenance and legacy duplicates. Never convert “I found no caller” into “there is no caller.” Never claim runtime success without runtime evidence.
+## 16. Pre-run acceptance contract
+
+The first live acceptance run must be real, not staged:
+
+```text
+Gemini Boss
+  -> DeepSeek/NVIDIA Right Hand (if provider available; unavailable must remain honest)
+  -> Gemini-selected Groq/Mistral Investigator
+  -> genuinely model-selected first action
+  -> model-selected pivots/tool/provider choices
+  -> successful observations with immutable provenance
+  -> multi-source attribution where necessary
+  -> explicit model finding/promotion decision
+  -> deterministic evidence/identity validation
+  -> durable append-only case events
+  -> inspectable shared context for Gemini/Right Hand/Investigator
+  -> clean cancellation
+  -> replayable trajectory/state
+```
+
+Do not seed a known URL, force a search provider, manufacture provenance, bypass strict persistence, or use legacy enrichment to make the smoke test pass.
+
+**Working rule:** after every fix, trace callers, transitive callers, error paths, persistence, cancellation, provenance and legacy duplicates. Never turn “I found no caller” into “there is no caller.” Never claim runtime success without runtime evidence.
