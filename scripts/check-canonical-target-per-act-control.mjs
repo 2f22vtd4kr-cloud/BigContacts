@@ -4,6 +4,7 @@ const agentic = fs.readFileSync("artifacts/api-server/src/src/lib/agentic-web-re
 const oversight = fs.readFileSync("artifacts/api-server/src/src/lib/target-act-oversight.ts", "utf8");
 const evidence = fs.readFileSync("artifacts/api-server/src/src/lib/source-corroboration.ts", "utf8");
 const mutationGuard = fs.readFileSync("artifacts/api-server/src/src/lib/legacy-apex-mutation-guard.ts", "utf8");
+const core = fs.readFileSync("artifacts/api-server/src/src/lib/agentic-web-research-core.ts", "utf8");
 const checks = [
   ["canonical runner invokes exactly one Investigator iteration", /maxIterations:\s*1/.test(runner)],
   ["canonical runner reads durable act oversight after each act with exact run and turn", /readOversight\(caseState,\s*latestResult\.executionId\s*\?\?\s*null,\s*actNumber\)/.test(runner)],
@@ -20,6 +21,8 @@ const checks = [
   ["canonical agentic target wrapper clears its deadline timer", /clearTimeout\(deadlineTimer\)/.test(agentic)],
   ["target control context is mandatory", /if \(!oversightContext\)/.test(agentic)],
   ["missing target control context fails closed", /CONTROL_CONTEXT_UNAVAILABLE/.test(agentic)],
+  ["Gemini research redirects are validated as objective-only text", /validateGeminiResearchObjective/.test(agentic)],
+  ["Gemini redirects containing concrete provider/tool/URL directives fail closed", /Gemini produced an invalid research objective/.test(agentic)],
   ["act cancellation observes the global deadline", /Date\.now\(\) >= deadline/.test(runner)],
   ["agentic entrypoint performs Right Hand + Boss review after an act", /await reviewTargetInvestigationAct\(/.test(agentic)],
   ["completed act is durably persisted before Right Hand review", /persistInvestigatorObservation\(/.test(oversight)],
@@ -34,6 +37,10 @@ const checks = [
   ["Right Hand is mandatory before Boss continuation", /if \(rightHand\.status !== "completed"\)/.test(oversight)],
   ["Right Hand failure stops the next Investigator act", /DeepSeek\/NVIDIA Right Hand oversight was unavailable/.test(oversight)],
   ["discovery is not accidentally target-gated", /input\.mode === "discovery"/.test(agentic)],
+  ["selected Investigator executes only the Boss-selected provider", /const fn = selectedInvestigatorLlm === "groq"/.test(core) && !/orderedProviders/.test(core) && !/for\s*\(const \[name, fn\] of orderedProviders\)/.test(core)],
+  ["selected Investigator records no cross-provider fallback", /fallback: \[\]/.test(core)],
+  ["canonical ReAct domain lookup receives cancellation", /lookupDomainSurface\(action\.domain, \{ signal: runController\.signal \}\)/.test(core)],
+  ["canonical ReAct registry lookup receives cancellation", /searchRegistry\(\{ query: action\.query, registry: action\.registry as any, limit: 8, signal: runController\.signal \}\)/.test(core)],
   ["direct Apex entity contact PATCH is guarded", /isDirectEntityCardPatch\(req\.path\)/.test(mutationGuard)],
   ["Apex contact fields are explicitly enumerated at the card boundary", /DIRECT_CONTACT_FIELDS/.test(mutationGuard) && /contactOutcome/.test(mutationGuard) && /metadata/.test(mutationGuard)],
   ["legacy enrichment routes remain retired", /RETIRED_MUTATING_ENRICHMENT_PATHS/.test(mutationGuard) && /status\(410\)/.test(mutationGuard)],
