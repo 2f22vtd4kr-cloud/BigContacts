@@ -176,7 +176,7 @@ export interface DiscoveryPersonCandidate {
   attributionStatus: "unverified" | "ambiguous" | "probable";
 }
 
-/** Final card publication review: Boss (Gemini) primary → NVIDIA right-hand → Groq.
+/** Final card publication review: Boss (Gemini) primary → NVIDIA right-hand.
  * Deterministic adjudicator always fail-closes on exact eligible values. */
 export async function runFinalTargetReview(
   input: FinalTargetReviewInput,
