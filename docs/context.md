@@ -4,7 +4,7 @@
 
 **Repository:** `2f22vtd4kr-cloud/BigContacts`  
 **Branch:** `main`  
-**Current reviewed tip:** `3e5d77c8048b2b162b9e88cd333cd2526cac8853`
+**Current reviewed tip:** `7e1cadd89d0b61789d78209018ebf7109575442c`
 
 ## 1. Institutional architecture
 
@@ -105,7 +105,7 @@ case
   -> entity/contact projection
 ```
 
-The dossier/card must be a projection of evidence, never the source of truth. The strict card boundary now additionally refuses candidate-person promotion unless the destination entity itself is an HNWI/Gatekeeper whose name exactly matches the model-authored person identity, preventing organization-card contamination. Promoted card values retain exact claim source URLs and run/job provenance in `metadata.agenticContactProvenance`.
+The dossier/card must be a projection of evidence, never the source of truth. The strict card boundary now additionally refuses candidate-person promotion unless the destination entity itself is an HNWI/Gatekeeper whose name exactly matches the model-authored person identity, preventing organization-card contamination. Promoted card values retain exact claim source URLs, observed URLs and job/run correlation in `metadata.agenticContactProvenance`.
 
 Remaining work is to classify all readers/writers of `research_evidence`, `contact_evidence`, entity fields, relationships and identity candidates and retire/migrate proven legacy consumers.
 
