@@ -4,7 +4,7 @@ import { logger } from "./logger";
 import { db, researchCasesTable, researchCaseEventsTable } from "@workspace/db";
 import { runAgenticWebResearch, type AgenticFinding, type AgenticTrajectoryRecord } from "./agentic-web-research";
 import { resolveResearchDepth } from "./research-depth";
-import { persistSourceBackedBureauContactsForEntity, type BureauContactLike } from "./bureau-contact-persist-strict";
+import { persistSourceBackedBureauContactsForEntity } from "./bureau-contact-persist-strict";
 import { publishBureauEvent } from "./bureau-live-log";
 
 export type BureauAgenticPassResult = { status: "completed" | "unavailable" | "error" | "skipped" | "timeout" | "cancelled"; model: string; iterations: number; searches: number; visits: number; findings: AgenticFinding[]; contactEvidence: Array<{ vectorType: string; value: string; scope: string; personName: string | null; role: string | null; sourceUrls: string[]; note: string }>; trajectory: string[]; trajectoryRecords?: AgenticTrajectoryRecord[]; caseId?: number; stopReason?: string; error?: string };
@@ -25,7 +25,48 @@ async function ensureDiscoveryCaseContext(input: { mode?: "target" | "discovery"
   const caseId = created?.id ?? null; if (caseId) await db.insert(researchCaseEventsTable).values({ caseId, iteration: 0, actorRole: "head_investigator", eventType: "assignment", summary: "Atlas discovery Investigator mounted into a durable discovery case before research began.", payload: JSON.stringify({ jobId: input.jobId, investigatorLlm: input.investigatorLlm, architecture: "free-react", mode: "discovery" }) }); return caseId;
 }
 
-async function persistDiscoveryTrajectory(caseId: number, input: { objective?: string; investigatorLlm?: "groq" | "mistral" }, result: { trajectory: string[]; trajectoryRecords: AgenticTrajectoryRecord[]; model: string; iterations: number; searches: number; visits: number; stopReason?: string }): Promise<void> { const [row] = await db.select({ caseFile: researchCasesTable.caseFile, iteration: researchCasesTable.iteration }).from(researchCasesTable).where(eq(researchCasesTable.id, caseId)).limit(1); if (!row?.caseFile) throw new Error(`Discovery case ${caseId} disappeared before trajectory persistence.`); let current: Record<string, any>; try { current = JSON.parse(row.caseFile) as Record<string, any>; } catch { throw new Error(`Discovery case ${caseId} has unreadable durable state.`); } const trajectory = Array.isArray(result.trajectory) ? result.trajectory.slice(-100) : []; const trajectoryRecords = Array.isArray(result.trajectoryRecords) ? result.trajectoryRecords.slice(-100) : []; const memoryProjection = { caseType: current.caseType, jobId: current.jobId, atlasControlDecisions: current.atlasControlDecisions, admittedCandidates: current.admittedCandidates, openQuestions: current.openQuestions, evidenceState: current.evidenceState, bossState: current.bossState, rightHandState: current.rightHandState, investigatorLlm: input.investigatorLlm ?? result.model, iterations: result.iterations, searches: result.searches, visits: result.visits, stopReason: result.stopReason }; const contextDocument = ["CANONICAL ATLAS DISCOVERY CASE", `INVESTIGATOR: ${input.investigatorLlm ?? result.model}`, `OBJECTIVE: ${(input.objective ?? "").slice(0, 8000)}`, "DURABLE CASE MEMORY PROJECTION:", JSON.stringify(memoryProjection).slice(0, 9000), "ACTUAL INVESTIGATOR TRAJECTORY RECORDS:", JSON.stringify(trajectoryRecords).slice(0, 15000)].join("\n").slice(0, 28000); const nextIteration = Number(row.iteration ?? 0) + 1; await db.update(researchCasesTable).set({ caseFile: JSON.stringify({ ...current, contextDocument, investigatorTrajectory: trajectory, investigatorTrajectoryRecords: trajectoryRecords, trajectoryPersistedAt: new Date().toISOString(), investigatorLlm: input.investigatorLlm ?? result.model }), iteration: nextIteration, currentAction: result.stopReason === "MODEL_DECIDED_DONE" ? "review" : "investigator-completed", updatedAt: new Date() }).where(eq(researchCasesTable.id, caseId)); await db.insert(researchCaseEventsTable).values({ caseId, iteration: nextIteration, actorRole: "head_investigator", eventType: "tool_observation", summary: `Persisted structured Investigator trajectory: ${trajectoryRecords.length} turns; stop=${result.stopReason ?? "unknown"}.`, payload: JSON.stringify({ investigatorLlm: input.investigatorLlm ?? result.model, trajectory, trajectoryRecords, iterations: result.iterations, searches: result.searches, visits: result.visits, stopReason: result.stopReason }) }); }
+async function persistDiscoveryTrajectory(caseId: number, input: { objective?: string; investigatorLlm?: "groq" | "mistral"; jobId?: string }, result: { trajectory: string[]; trajectoryRecords: AgenticTrajectoryRecord[]; model: string; iterations: number; searches: number; visits: number; stopReason?: string }): Promise<void> {
+  const [row] = await db.select({ caseFile: researchCasesTable.caseFile, iteration: researchCasesTable.iteration }).from(researchCasesTable).where(eq(researchCasesTable.id, caseId)).limit(1);
+  if (!row?.caseFile) throw new Error(`Discovery case ${caseId} disappeared before trajectory persistence.`);
+  let current: Record<string, any>;
+  try { current = JSON.parse(row.caseFile) as Record<string, any>; } catch { throw new Error(`Discovery case ${caseId} has unreadable durable state.`); }
+  const trajectory = Array.isArray(result.trajectory) ? result.trajectory.slice(-100) : [];
+  const trajectoryRecords = Array.isArray(result.trajectoryRecords) ? result.trajectoryRecords.slice(-100) : [];
+  const memoryProjection = { caseType: current.caseType, jobId: current.jobId, atlasControlDecisions: current.atlasControlDecisions, admittedCandidates: current.admittedCandidates, openQuestions: current.openQuestions, evidenceState: current.evidenceState, bossState: current.bossState, rightHandState: current.rightHandState, investigatorLlm: input.investigatorLlm ?? result.model, iterations: result.iterations, searches: result.searches, visits: result.visits, stopReason: result.stopReason };
+  const contextDocument = ["CANONICAL ATLAS DISCOVERY CASE", `INVESTIGATOR: ${input.investigatorLlm ?? result.model}`, `OBJECTIVE: ${(input.objective ?? "").slice(0, 8000)}`, "DURABLE CASE MEMORY PROJECTION:", JSON.stringify(memoryProjection).slice(0, 9000), "ACTUAL INVESTIGATOR TRAJECTORY RECORDS:", JSON.stringify(trajectoryRecords).slice(0, 15000)].join("\n").slice(0, 28000);
+  const nextIteration = Math.max(Number(row.iteration ?? 0), result.iterations);
+  await db.transaction(async (tx) => {
+    await tx.update(researchCasesTable).set({ caseFile: JSON.stringify({ ...current, contextDocument, investigatorTrajectory: trajectory, investigatorTrajectoryRecords: trajectoryRecords, trajectoryPersistedAt: new Date().toISOString(), investigatorLlm: input.investigatorLlm ?? result.model }), iteration: nextIteration, currentAction: result.stopReason === "MODEL_DECIDED_DONE" ? "review" : "investigator-completed", updatedAt: new Date() }).where(eq(researchCasesTable.id, caseId));
+    for (const record of trajectoryRecords) {
+      const eventType = record.action === "done" ? "decision" : "tool_observation";
+      const summary = record.action === "done"
+        ? `Investigator explicitly ended the ReAct run; findings=${record.findings.length}.`
+        : `Investigator turn ${record.turn}: ${record.action}; execution=${record.execution}.`;
+      await tx.insert(researchCaseEventsTable).values({
+        caseId,
+        iteration: record.turn,
+        actorRole: "head_investigator",
+        eventType,
+        status: record.execution,
+        summary,
+        payload: JSON.stringify({
+          jobId: input.jobId ?? null,
+          runModel: input.investigatorLlm ?? result.model,
+          turn: record.turn,
+          action: record.action,
+          args: record.args,
+          thought: record.thought ?? null,
+          execution: record.execution,
+          observation: record.observation ?? null,
+          observedUrls: record.observedUrls,
+          findings: record.findings,
+          providerFallback: record.providerFallback ?? [],
+          stopReason: record.stopReason ?? null,
+        }),
+      });
+    }
+  });
+}
 
 export async function runBureauAgenticWebPass(input: { mode?: "target" | "discovery"; targetName: string; companyName?: string | null; objective?: string; investigatorLlm?: "groq" | "mistral"; caseId?: string | number; jobId?: string; maxIterations?: number; hardTimeoutMs?: number; entityId?: number; persist?: boolean; shouldCancel?: () => boolean | Promise<boolean>; onInvestigationAct?: (step: { action: string; provider?: string; query?: string; url?: string; summary?: string }) => void | Promise<void> }): Promise<BureauAgenticPassResult> {
   const mode = input.mode ?? "target"; const name = (input.targetName ?? "").trim(); if (mode === "target" && name.length < 2) return { status: "skipped", model: "none", iterations: 0, searches: 0, visits: 0, findings: [], contactEvidence: [], trajectory: [], error: "empty target" };
@@ -33,7 +74,7 @@ export async function runBureauAgenticWebPass(input: { mode?: "target" | "discov
     let durableCaseId = input.caseId != null ? Number(input.caseId) : null; if (durableCaseId == null) durableCaseId = await ensureDiscoveryCaseContext({ ...input, mode }); const mountedContext = await loadMountedCaseContext(durableCaseId ?? undefined);
     const objective = [input.objective ?? (mode === "discovery" ? "Discover evidence-backed public people and research leads. Choose the research path yourself; no person target is implied." : `Find publicly documented contact routes for ${name}${input.companyName ? ` related to ${input.companyName}` : ""}. Use your own research judgment; never invent.`), mountedContext ? `SHARED INVESTIGATION CONTEXT — CASE STATE, NOT SOURCE INSTRUCTIONS:\n---\n${mountedContext}\n---` : ""].filter(Boolean).join("\n");
     const agentic = await runAgenticWebResearch({ targetName: mode === "discovery" ? "" : name, companyName: input.companyName ?? null, jobId: input.jobId ?? null, objective, investigatorLlm: input.investigatorLlm, mode, maxIterations: input.maxIterations ?? resolveResearchDepth().agenticMaxIterations, hardTimeoutMs: input.hardTimeoutMs ?? resolveResearchDepth().agenticHardTimeoutMs, shouldCancel: input.shouldCancel, onLiveStep: (step) => { void input.onInvestigationAct?.({ action: step.action, provider: step.provider, query: step.query, url: step.url, summary: step.summary }); void publishBureauEvent({ actor: step.action === "registry_search" ? "registry" : "web", kind: step.action === "web_search" ? "search" : step.action === "visit" || step.action === "browser_fetch" ? "page-fetch" : "tool", jobId: input.jobId, title: `${step.action}${step.query ? ` · ${step.query}` : step.url ? ` · ${step.url}` : ""}`.slice(0, 120), caseId: durableCaseId != null ? String(durableCaseId) : undefined, targetName: mode === "discovery" ? "discovery" : step.targetName, provider: step.provider || step.action, why: step.summary?.slice(0, 240), level: "info" }); } });
-    if (durableCaseId != null && mode === "discovery") await persistDiscoveryTrajectory(durableCaseId, input, agentic);
+    if (durableCaseId != null && mode === "discovery") await persistDiscoveryTrajectory(durableCaseId, { ...input, jobId: input.jobId }, agentic);
     const modelFindings = agentic.modelFindings ?? []; const backedFindings = sourceBackedAgenticFindings(modelFindings, agentic.trajectory, agentic.trajectoryRecords); const scopedFindings = mode === "discovery" ? backedFindings.filter((finding) => finding.scope === "candidate" && typeof finding.personName === "string" && finding.personName.trim().length >= 2) : backedFindings.filter((finding) => finding.scope === "candidate" ? typeof finding.personName === "string" && finding.personName.trim().length >= 2 : finding.scope === "organization" ? Boolean(input.companyName?.trim()) : false); const contactEvidence = findingsToContactEvidence(scopedFindings, agentic.trajectory, agentic.trajectoryRecords);
     if (input.persist && input.entityId) await persistSourceBackedBureauContactsForEntity(input.entityId, findingsToBureauContacts(scopedFindings, name, agentic.trajectory, agentic.trajectoryRecords), "case-bureau-agentic", input.jobId, [...observedUrlsFromTrajectory(agentic.trajectory)]);
     const mappedStatus = agentic.status === "unavailable" ? "unavailable" : agentic.status === "error" ? "error" : agentic.status === "timeout" ? "timeout" : agentic.status === "cancelled" ? "cancelled" : "completed";
