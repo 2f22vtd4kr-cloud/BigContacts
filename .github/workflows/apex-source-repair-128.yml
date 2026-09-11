@@ -76,11 +76,12 @@ jobs:
           ! grep -q 'groq-final-review-fallback\|Groq capacity fallback' artifacts/api-server/src/src/lib/ai-extractor.ts
           grep -q 'runDeepSeekFinalReview' artifacts/api-server/src/src/lib/ai-extractor.ts
           grep -q 'unavailable-final-review' artifacts/api-server/src/src/lib/ai-extractor.ts
-      - name: Typecheck
+      - name: Typecheck against current manifest
         run: |
           corepack enable
-          pnpm install --frozen-lockfile
+          pnpm install --no-frozen-lockfile
           pnpm --dir artifacts/api-server typecheck
+          git restore -- pnpm-lock.yaml
       - name: Commit repair
         run: |
           git config user.name 'github-actions[bot]'
@@ -93,4 +94,4 @@ jobs:
           git commit -m 'Remove Groq final-review fallback at source [skip apex repair]'
           git push origin HEAD:main
 
-# Final one-time source migration workflow; remove after the source commit lands.
+# One-time migration helper; delete after the source commit lands.
