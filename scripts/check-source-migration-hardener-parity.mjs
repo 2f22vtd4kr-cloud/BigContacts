@@ -13,7 +13,6 @@ const migrationHardeners = [
   "apply-retire-secondary-surface-calls.mjs",
   "apply-registry-cancellation-boundary.mjs",
   "apply-agentic-registry-signal-wiring.mjs",
-  "apply-discovery-case-initial-action-state.mjs",
 ];
 
 const sourceChecks = [
