@@ -38,6 +38,7 @@ const checks = [
   ["legacy enrichment routes remain retired", /RETIRED_MUTATING_ENRICHMENT_PATHS/.test(mutationGuard) && /status\(410\)/.test(mutationGuard)],
   ["deterministic Apex outcome-repair route is retired", /entities\/fix-outcome-honesty/.test(mutationGuard)],
   ["manual contact rejection route is retired", /isRejectedContactPatch\(req\.path\)/.test(mutationGuard) && /Legacy contact rejection route retired/.test(mutationGuard)],
+  ["global deterministic safe-remediation route is retired", /improve\/apply-safe/.test(mutationGuard)],
 ];
 let failed = false;
 for (const [name, ok] of checks) { console.log(`${ok ? "PASS" : "FAIL"} ${name}`); if (!ok) failed = true; }
