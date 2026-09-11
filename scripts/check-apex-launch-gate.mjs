@@ -37,6 +37,9 @@ pass("canonical Dig lane has no NVIDIA implementation", !/callNvidiaJson/.test(a
 pass("strict boundary does not import legacy projector", !/from [\"']\.\/bureau-contact-persist[\"']/.test(strict));
 pass("strict boundary has explicit investigator selection API", /applyInvestigatorSelectedContactToEntityCard/.test(strict));
 pass("strict boundary rejects query URLs", /SEARCH_QUERY_URL/.test(strict) && /search-index/.test(strict));
+pass("strict promotion is entity-bound", /expectedEntityId/.test(strict) && /caseRow\.targetEntityId!==expectedEntityId/.test(strict));
+pass("strict promotion wins only an empty destination field", /or\(isNull\(fieldColumn\),eq\(fieldColumn,\"\"\)\)/.test(strict));
+pass("strict promotion merges provenance atomically", /jsonb_set\(/.test(strict) && /\.returning\(\{id:entitiesTable\.id\}\)/.test(strict));
 pass("manual live audit is bounded to three targets", /[\"']targetCount[\"']\s*:\s*3/.test(batch) && !/[\"']targetCount[\"']\s*:\s*10/.test(batch));
 pass("manual audit runs agentic runtime checks", /check:agentic-runtime/.test(batch));
 pass("discovery emits model-selection progress", /onSlotProgress\?/.test(discovery));
@@ -54,7 +57,7 @@ pass("registry has no timeout-only fetch signal", !/signal:\s*AbortSignal\.timeo
 pass("Python OSINT source fails closed", pythonTools.includes("authorizePythonSandboxRequest") && pythonTools.includes("available: false"));
 pass("Python OSINT does not directly spawn subprocesses", !/from [\"']node:child_process[\"']|from [\"']child_process[\"']|execFile|spawn\(|spawnSync\(/.test(pythonTools));
 pass("Python OSINT availability requires attestation", pythonTools.includes('state === "attested"') && pythonTools.includes('allowedCapabilities.includes("network_osint")'));
-pass("harvest_domain is fail-closed until governed egress exists", /harvest_domain/.test(agentic) && !/runTheHarvester\(/.test(agentic));
+pass("harvest_domain is fail-closed behind the Python sandbox contract", /runTheHarvester/.test(agentic) && pythonTools.includes('available: false') && pythonTools.includes('const blocked = authorizeNetworkPython(options.signal)'));
 pass("Groq is not a final reviewer", !/Groq capacity fallback|groq-final-review-fallback/.test(aiExtractor));
 pass("DeepSeek final review remains available", /runDeepSeekFinalReview/.test(aiExtractor));
 pass("final review fails closed", /unavailable-final-review/.test(aiExtractor));
@@ -63,12 +66,16 @@ pass("canonical observation layer does not inherit target identity", !/personNam
 pass("canonical Atlas launch does not import the historical orchestrator", !/atlas-orchestrator|runAtlasPipeline/.test(canonicalLaunch));
 pass("canonical target runner does not import the historical orchestrator", !/atlas-orchestrator|runAtlasPipeline/.test(canonicalRunner));
 pass("historical Atlas launch has defense-in-depth quarantine", /legacyAtlasLaunchQuarantine/.test(routesIndex) && /POST.*\/ingest\/atlas-run/.test(launchQuarantine) && /status\(410\)/.test(launchQuarantine));
-pass("historical Atlas router is not the canonical launch boundary", /canonicalAtlasLaunchRouter/.test(routesIndex) && routesIndex.indexOf("canonicalAtlasLaunchRouter") < routesIndex.indexOf("legacyAtlasLaunchQuarantine") && routesIndex.indexOf("legacyAtlasLaunchQuarantine") < routesIndex.indexOf("atlasRouter"));
+const canonicalMount = routesIndex.indexOf("router.use(canonicalAtlasLaunchRouter)");
+const quarantineMount = routesIndex.indexOf("router.use(legacyAtlasLaunchQuarantine)");
+const legacyMount = routesIndex.indexOf("router.use(atlasRouter)");
+pass("historical Atlas router is not the canonical launch boundary", canonicalMount >= 0 && quarantineMount > canonicalMount && legacyMount > quarantineMount);
 pass("legacy Atlas launch cannot be reached through the quarantine boundary", /router\.post\(\"\/ingest\/atlas-run\"/.test(legacyAtlas) && /Legacy Atlas launch route retired/.test(launchQuarantine));
 pass("username migration hardener is no longer in API scripts", !packageJson.includes("apply-agentic-username-capability-split.mjs"));
 pass("canonical target runner steps one Investigator act", /maxIterations:\s*1/.test(canonicalRunner));
 pass("canonical target runner requires durable oversight", /!lastOversight \|\| lastOversight\.status !== "completed"/.test(canonicalRunner));
 pass("canonical target runner uses one global deadline", /const deadline = Date\.now\(\) \+ hardTimeoutMs/.test(canonicalRunner));
+pass("canonical target runner releases the Atlas lock owner-atomically", /releaseCanonicalJob\("atlas-run", atlasJobId\)/.test(canonicalRunner) && !/clearActiveJobIfMatches\("atlas-run", atlasJobId\)/.test(canonicalRunner));
 pass("target wrapper fails closed without control context", /CONTROL_CONTEXT_UNAVAILABLE/.test(wrapper));
 pass("target wrapper actively aborts at global deadline", /setTimeout\(\(\) => overallController\.abort\(\), requestedHardTimeout\)/.test(wrapper));
 
