@@ -36,6 +36,8 @@ const checks = [
   ["direct Apex entity contact PATCH is guarded", /isDirectEntityCardPatch\(req\.path\)/.test(mutationGuard)],
   ["Apex contact fields are explicitly enumerated at the card boundary", /DIRECT_CONTACT_FIELDS/.test(mutationGuard) && /contactOutcome/.test(mutationGuard) && /metadata/.test(mutationGuard)],
   ["legacy enrichment routes remain retired", /RETIRED_MUTATING_ENRICHMENT_PATHS/.test(mutationGuard) && /status\(410\)/.test(mutationGuard)],
+  ["deterministic Apex outcome-repair route is retired", /entities\/fix-outcome-honesty/.test(mutationGuard)],
+  ["manual contact rejection route is retired", /isRejectedContactPatch\(req\.path\)/.test(mutationGuard) && /Legacy contact rejection route retired/.test(mutationGuard)],
 ];
 let failed = false;
 for (const [name, ok] of checks) { console.log(`${ok ? "PASS" : "FAIL"} ${name}`); if (!ok) failed = true; }
