@@ -21,7 +21,14 @@ function walk(dir) {
 }
 
 walk(root);
-if (failures.length) {
-  throw new Error(`Canonical API source imports legacy top-level src/lib tree: ${failures.join(", ")}`);
+const retiredLegacyRoutes = [
+  "artifacts/api-server/src/src/routes/research/cases.ts",
+];
+for (const route of retiredLegacyRoutes) {
+  if (fs.existsSync(route)) failures.push(`${route} (retired legacy research route still exists)`);
 }
-console.log("Canonical API source has no imports into the legacy top-level src/lib tree.");
+
+if (failures.length) {
+  throw new Error(`Canonical API source imports or retains retired legacy sources: ${failures.join(", ")}`);
+}
+console.log("Canonical API source has no imports into legacy top-level src/lib and no retired research route sources.");
