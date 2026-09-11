@@ -35,7 +35,8 @@ SEARCH/BROWSE TOOLS (not promotion authorities): web_search executes only the pr
 - visit — HTTP fetch + contact-fact extraction from HTML
 - browser_fetch — Scrapfly / ZenRows for JS/challenge pages
 - footprint_email — Holehe (email → platform presence)
-- footprint_username — Maigret + Sherlock
+- footprint_username_maigret — Maigret (username → platform presence)
+- footprint_username_sherlock — Sherlock (username → platform presence)
 - domain_lookup — RDAP / WhoisJSON
 - harvest_domain — theHarvester (emails/hosts for a domain)
 - registry_search — SEC EDGAR, Companies House, BRREG, GLEIF, OpenCorporates, and other registry-client sources

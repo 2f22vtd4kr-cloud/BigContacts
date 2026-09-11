@@ -5,7 +5,6 @@ import { execFileSync } from "node:child_process";
 const hardeners = [
   "apply-harvest-domain-egress-quarantine.mjs",
   "apply-agentic-domain-signal-hardening.mjs",
-  "apply-agentic-username-capability-split.mjs",
   "apply-final-review-role-boundary.mjs",
   "apply-retire-secondary-surface-calls.mjs",
   "apply-investigator-identity-observation-boundary.mjs",
@@ -31,6 +30,7 @@ const pythonTools = read("artifacts/api-server/src/src/lib/python-tools.ts");
 const aiExtractor = read("artifacts/api-server/src/src/lib/ai-extractor.ts");
 const entities = read("artifacts/api-server/src/src/routes/entities.ts");
 const legacyAtlas = read("artifacts/api-server/src/src/routes/atlas.ts");
+const packageJson = read("artifacts/api-server/package.json");
 
 pass("Investigator wrapper mounts canonical core", wrapper.includes("agentic-web-research-core"));
 pass("Investigator adapter pool contains Groq", /callGroqJson/.test(agentic));
@@ -69,6 +69,7 @@ pass("canonical observation layer does not inherit target identity", !/personNam
 pass("Atlas does not script Python OSINT", !/runMaigret\(|runHolehe\(|runSherlock\(|runTheHarvester\(|rawHandle \|\| emailForHolehe/.test(orchestrator));
 pass("legacy Atlas launch is quarantined", /router\.post\(\"\/ingest\/atlas-run\"[\s\S]{0,500}status\(410\)/.test(legacyAtlas));
 pass("legacy Atlas route cannot call historical orchestrator", !/runAtlasPipeline\(|from [\"']\.\.\/lib\/atlas-orchestrator[\"']/.test(legacyAtlas));
+pass("username migration hardener is no longer in API scripts", !packageJson.includes("apply-agentic-username-capability-split.mjs"));
 
 let failed = false;
 for (const [name, ok] of checks) {
