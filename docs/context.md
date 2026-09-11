@@ -4,7 +4,7 @@
 
 **Repository:** `2f22vtd4kr-cloud/BigContacts`  
 **Branch:** `main`  
-**Current reviewed tip:** `e8c16e41981efa96a26e12c0c2af5df0b24daef6`
+**Current reviewed tip:** `ba2d7a4d2b22a739cf01f20db227313ef98d9890`
 
 ## 1. Institutional architecture
 
@@ -143,9 +143,12 @@ transformed source
   -> repeat
 ```
 
-Completed during this session: the obsolete discovery initial-state mutator was removed from API build/test and deleted because the relevant canonical case state was already in place. Its migration-parity inventory entry was removed at the same time.
+Completed during this session:
+- obsolete discovery initial-state mutator removed from API build/test and deleted;
+- obsolete target Investigator cancellation mutator removed from API build/test and deleted after moving `shouldCancel` into canonical `target-contact-agent.ts`;
+- both migrations retain permanent invariant guards where appropriate.
 
-Still requiring direct source migration before deletion include registry cancellation, deterministic secondary-surface retirement, several cancellation/event hardeners, Python egress quarantine, and other explicitly tracked source migrations. A hardener must not be deleted merely because a guard exists; the underlying source must first contain the invariant itself.
+Still requiring direct source migration before deletion include canonical target-runner cancellation, target event-ledger wiring, Bureau event ordering, registry cancellation/signal propagation, deterministic secondary-surface retirement, Python egress quarantine, and other explicitly tracked source migrations. A hardener must not be deleted merely because a guard exists; the underlying source must first contain the invariant itself.
 
 ## 10. Legacy deterministic research
 
@@ -200,7 +203,7 @@ Do not seed the first action, inject a known URL, force a provider, fabricate pr
 
 ## 15. Current priorities
 
-1. Complete the direct-source migration of the remaining build-time hardeners; do not let build scripts remain the source of runtime behavior.
+1. Complete direct-source migration of the remaining build-time hardeners; do not let build scripts remain the source of runtime behavior.
 2. Replace the remaining deterministic secondary-surface callers with explicit model-selected capability execution or retire those manual endpoints if they are not part of the Bureau product.
 3. Mature the immutable claim → observation/event → promotion → projection graph into a true multi-source evidence graph with explicit attribution, contradiction, temporal and scope edges (#151/#152 direction).
 4. Revisit the Gemini control vocabulary so the Boss selects the next research objective rather than being constrained by a pseudo-phase taxonomy; keep deterministic validation of safety and candidate identity.
