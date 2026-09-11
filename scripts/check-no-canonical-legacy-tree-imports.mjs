@@ -15,20 +15,17 @@ function walk(dir) {
     if (!/\.(?:ts|tsx|mjs|mts)$/.test(entry.name)) continue;
     const source = fs.readFileSync(full, "utf8");
     if (/from\s*["']\.\.\/\.\.\/lib\//.test(source) || /import\s*\(\s*["']\.\.\/\.\.\/lib\//.test(source)) {
-      failures.push(full);
+      failures.push(`${full}: imports legacy top-level src/lib`);
+    }
+    if (/from\s*["'][^"']*broad-discovery["']/.test(source) || /import\s*\(\s*["'][^"']*broad-discovery["']/.test(source)) {
+      failures.push(`${full}: reaches retired legacy broad-discovery`);
     }
   }
 }
 
 walk(root);
-const retiredLegacyRoutes = [
-  "artifacts/api-server/src/src/routes/research/cases.ts",
-];
-for (const route of retiredLegacyRoutes) {
-  if (fs.existsSync(route)) failures.push(`${route} (retired legacy research route still exists)`);
-}
 
 if (failures.length) {
-  throw new Error(`Canonical API source imports or retains retired legacy sources: ${failures.join(", ")}`);
+  throw new Error(`Canonical API source reaches legacy research sources: ${failures.join(", ")}`);
 }
-console.log("Canonical API source has no imports into legacy top-level src/lib and no retired research route sources.");
+console.log("Canonical API source has no legacy top-level src/lib imports and no broad-discovery reachability.");
