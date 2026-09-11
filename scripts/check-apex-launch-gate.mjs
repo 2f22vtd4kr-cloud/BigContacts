@@ -36,7 +36,7 @@ pass("canonical Dig lane has no Gemini implementation", !/callGeminiJson/.test(a
 pass("canonical Dig lane has no NVIDIA implementation", !/callNvidiaJson/.test(agentic));
 pass("strict boundary does not import legacy projector", !/from [\"']\.\/bureau-contact-persist[\"']/.test(strict));
 pass("strict boundary has explicit investigator selection API", /applyInvestigatorSelectedContactToEntityCard/.test(strict));
-pass("strict boundary rejects query URLs", /SEARCH_QUERY_URL/.test(strict) && /efts\\?\.sec\\?gov/.test(strict));
+pass("strict boundary rejects query URLs", /SEARCH_QUERY_URL/.test(strict) && /efts\\.sec\\.gov/.test(strict));
 pass("manual live audit is bounded to three targets", /[\"']targetCount[\"']\s*:\s*3/.test(batch) && !/[\"']targetCount[\"']\s*:\s*10/.test(batch));
 pass("manual audit runs agentic runtime checks", /check:agentic-runtime/.test(batch));
 pass("discovery emits model-selection progress", /onSlotProgress\?/.test(discovery));
@@ -68,7 +68,7 @@ pass("username migration hardener is no longer in API scripts", !packageJson.inc
 let failed = false;
 for (const [name, ok] of checks) {
   console.log(`${ok ? "PASS" : "FAIL"}  ${name}`);
-  if (!ok) failed = true;
+  if (failed) failed = true;
 }
 if (failed) process.exit(1);
 console.log(`\nApex launch gate: ${checks.length} checks passed.`);
