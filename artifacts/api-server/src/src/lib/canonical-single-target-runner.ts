@@ -27,6 +27,17 @@ function readOversight(caseFile: Record<string, unknown>): StoredOversight | nul
   return { action, direction: typeof oversight.direction === "string" ? oversight.direction : null, reason: typeof oversight.reason === "string" ? oversight.reason : null, status: typeof oversight.status === "string" ? oversight.status : undefined, bossModel: typeof oversight.bossModel === "string" ? oversight.bossModel : null, error: typeof oversight.error === "string" ? oversight.error : null };
 }
 
+function readContinuationControl(caseFile: Record<string, unknown>): StoredOversight | null {
+  const history = Array.isArray(caseFile.targetControlDecisions) ? caseFile.targetControlDecisions : [];
+  const latest = history[history.length - 1];
+  if (!latest || typeof latest !== "object") return null;
+  const value = latest as Record<string, unknown>;
+  if (value.status !== "completed") return null;
+  if (value.action === "stop") return { action: "stop", direction: null, reason: typeof value.reason === "string" ? value.reason : null, status: "completed", bossModel: typeof value.bossModel === "string" ? value.bossModel : null };
+  if (value.action !== "research") return null;
+  return { action: typeof value.direction === "string" && value.direction.trim() ? "redirect" : "continue", direction: typeof value.direction === "string" ? value.direction : null, reason: typeof value.reason === "string" ? value.reason : null, status: "completed", bossModel: typeof value.bossModel === "string" ? value.bossModel : null };
+}
+
 async function ensureTargetCase(target: { id: number; name: string; type: string }, companyName: string | null, atlasJobId: string): Promise<TargetCase> {
   const [existing] = await db.select({ id: researchCasesTable.id, targetEntityId: researchCasesTable.targetEntityId, status: researchCasesTable.status, iteration: researchCasesTable.iteration, objective: researchCasesTable.objective, caseFile: researchCasesTable.caseFile }).from(researchCasesTable).where(and(eq(researchCasesTable.targetEntityId, target.id), eq(researchCasesTable.caseType, "target"))).limit(1);
   if (existing?.targetEntityId) {
@@ -68,7 +79,7 @@ export async function runCanonicalSingleTargetInvestigation(atlasJobId: string, 
   let contextDocument = typeof caseState.contextDocument === "string" ? caseState.contextDocument : openingContext(target, companyName, caseRow.id, caseRow.objective, "");
   let investigatorLlm: "groq" | "mistral" | null = typeof caseState.investigatorLlm === "string" && (caseState.investigatorLlm === "groq" || caseState.investigatorLlm === "mistral") ? caseState.investigatorLlm : null;
   let latestResult: Awaited<ReturnType<typeof runTargetContactAgent>> | null = null;
-  let lastOversight: StoredOversight | null = null;
+  let lastOversight: StoredOversight | null = readOversight(caseState) ?? readContinuationControl(caseState);
   let completedActs = 0;
   let deadlineExceeded = false;
   let cancelled = false;
@@ -101,9 +112,6 @@ export async function runCanonicalSingleTargetInvestigation(atlasJobId: string, 
     if (job.status === "failed") break;
 
     const remainingMs = deadline - Date.now();
-    // The Investigator wrapper has a 30s minimum hard timeout. Do not start a
-    // new act when less than that remains; otherwise the global deadline could
-    // be exceeded merely by entering the act.
     if (remainingMs < 30_000) { deadlineExceeded = true; break; }
 
     const direction = lastOversight?.action === "redirect" ? lastOversight.direction : null;
