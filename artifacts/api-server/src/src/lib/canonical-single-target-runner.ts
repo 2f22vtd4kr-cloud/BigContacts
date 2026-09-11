@@ -1,5 +1,5 @@
 import { and, eq } from "drizzle-orm";
-import { db, entitiesTable, researchCaseEventsTable, researchCasesTable } from "@workspace/db";
+import { db, entitiesTable, researchCasesTable } from "@workspace/db";
 import { getJob, updateJob, clearActiveJobIfOwned } from "./job-queue";
 import { runGeminiBossDiscovery } from "./case-bureau";
 import { runTargetContactAgent } from "./target-contact-agent";
@@ -31,7 +31,7 @@ async function ensureTargetCase(target: { id: number; name: string; type: string
   const [existing] = await db.select({ id: researchCasesTable.id, targetEntityId: researchCasesTable.targetEntityId, status: researchCasesTable.status, iteration: researchCasesTable.iteration, objective: researchCasesTable.objective, caseFile: researchCasesTable.caseFile }).from(researchCasesTable).where(and(eq(researchCasesTable.targetEntityId, target.id), eq(researchCasesTable.caseType, "target"))).limit(1);
   if (existing?.targetEntityId) {
     const existingCaseFile = parseCaseFile(existing.caseFile);
-    if (existingCaseFile.atlasJobId !== atlasJobId) {
+    if (existingCaseFile.atlasJobId !== atlasJobId || JSON.stringify(existingCaseFile.target) !== JSON.stringify({ id: target.id, name: target.name, type: target.type })) {
       existingCaseFile.atlasJobId = atlasJobId;
       existingCaseFile.target = { id: target.id, name: target.name, type: target.type };
       await db.update(researchCasesTable).set({ caseFile: JSON.stringify(existingCaseFile), updatedAt: new Date() }).where(eq(researchCasesTable.id, existing.id));
@@ -69,8 +69,9 @@ export async function runCanonicalSingleTargetInvestigation(atlasJobId: string, 
   let investigatorLlm: "groq" | "mistral" | null = typeof caseState.investigatorLlm === "string" && (caseState.investigatorLlm === "groq" || caseState.investigatorLlm === "mistral") ? caseState.investigatorLlm : null;
   let latestResult: Awaited<ReturnType<typeof runTargetContactAgent>> | null = null;
   let lastOversight: StoredOversight | null = null;
-  let acts = 0;
+  let completedActs = 0;
   let deadlineExceeded = false;
+  let cancelled = false;
 
   await db.update(researchCasesTable).set({ status: "active", currentAction: "gemini-opening-assignment", updatedAt: new Date() }).where(eq(researchCasesTable.id, caseRow.id));
   await updateJob(atlasJobId, { status: "running", progress: 0, total: maxActs + 2, atlasPhase: 0, atlasPhaseTotal: maxActs + 2, message: `Gemini Boss opening assignment for ${target.name}…` });
@@ -94,32 +95,40 @@ export async function runCanonicalSingleTargetInvestigation(atlasJobId: string, 
     }
   }
 
-  for (acts = 1; acts <= maxActs && !deadlineExceeded; acts++) {
+  for (let actNumber = 1; actNumber <= maxActs && !deadlineExceeded; actNumber++) {
     const job = await getJob(atlasJobId);
-    if (!job || job.status === "cancelled" || job.status === "failed") break;
+    if (!job || job.status === "cancelled") { cancelled = true; break; }
+    if (job.status === "failed") break;
+
     const remainingMs = deadline - Date.now();
-    if (remainingMs <= 0) { deadlineExceeded = true; break; }
+    // The Investigator wrapper has a 30s minimum hard timeout. Do not start a
+    // new act when less than that remains; otherwise the global deadline could
+    // be exceeded merely by entering the act.
+    if (remainingMs < 30_000) { deadlineExceeded = true; break; }
+
     const direction = lastOversight?.action === "redirect" ? lastOversight.direction : null;
-    const actContext = compactInvestigationContext({ raw: `${contextDocument}\n\n## Current control turn\n${acts}${direction ? `\n\n## Gemini research objective\n${direction}` : ""}`, maxChars: 32_000 });
-    await updateJob(atlasJobId, { progress: acts, atlasPhase: acts, message: `${investigatorLlm!.toUpperCase()} Investigator act ${acts}/${maxActs} for ${target.name}; awaiting Boss control after completion…` });
-    latestResult = await runTargetContactAgent({ entityId: target.id, targetName: target.name, companyName, jobId: atlasJobId, investigatorLlm: investigatorLlm!, maxIterations: 1, hardTimeoutMs: Math.max(30_000, remainingMs), contextDocument: actContext, shouldCancel: async () => { const current = await getJob(atlasJobId); return !current || current.status === "cancelled" || current.status === "failed" || Date.now() >= deadline; } });
+    const actContext = compactInvestigationContext({ raw: `${contextDocument}\n\n## Current control turn\n${actNumber}${direction ? `\n\n## Gemini research objective\n${direction}` : ""}`, maxChars: 32_000 });
+    await updateJob(atlasJobId, { progress: actNumber, atlasPhase: actNumber, message: `${investigatorLlm!.toUpperCase()} Investigator act ${actNumber}/${maxActs} for ${target.name}; awaiting Boss control after completion…` });
+    latestResult = await runTargetContactAgent({ entityId: target.id, targetName: target.name, companyName, jobId: atlasJobId, investigatorLlm: investigatorLlm!, maxIterations: 1, hardTimeoutMs: Math.min(55_000, remainingMs), contextDocument: actContext, shouldCancel: async () => { const current = await getJob(atlasJobId); return !current || current.status === "cancelled" || current.status === "failed" || Date.now() >= deadline; } });
+    completedActs = actNumber;
 
     const refreshed = await loadCase(caseRow.id);
-    caseState = parseCaseFile(refreshed?.caseFile ?? null);
+    if (!refreshed) { lastOversight = null; break; }
+    caseState = parseCaseFile(refreshed.caseFile ?? null);
     lastOversight = readOversight(caseState);
     contextDocument = typeof caseState.contextDocument === "string" ? caseState.contextDocument : actContext;
-    await db.insert(researchCaseEventsTable).values({ caseId: caseRow.id, iteration: acts, actorRole: "gemini_boss", eventType: "control_decision", status: lastOversight?.action === "stop" ? "stop" : "recorded", summary: `Control turn ${acts}: ${lastOversight?.action ?? "unavailable"}${lastOversight?.direction ? ` — ${lastOversight.direction}` : ""}`.slice(0, 1000), payload: JSON.stringify({ oversight: lastOversight, investigatorStatus: latestResult.status, investigatorModel: latestResult.model, stopReason: (latestResult as unknown as { stopReason?: string }).stopReason ?? null }) });
 
+    if (latestResult.status === "cancelled" || (await getJob(atlasJobId))?.status === "cancelled") { cancelled = true; break; }
     if (latestResult.status !== "completed") break;
     if (!lastOversight || lastOversight.status !== "completed") break;
     if (lastOversight.action === "stop") break;
   }
 
-  if (!deadlineExceeded && Date.now() >= deadline && !lastOversight?.action) deadlineExceeded = true;
-  const stopped = lastOversight?.action === "stop";
-  const resourceLimited = !stopped && !!latestResult && latestResult.status === "completed" && acts >= maxActs;
-  const incomplete = !latestResult || latestResult.status !== "completed" || resourceLimited || !stopped || deadlineExceeded;
-  await db.update(researchCasesTable).set({ status: incomplete ? "review" : "complete", currentAction: incomplete ? "investigator-incomplete-or-resource-limited" : "awaiting-human-review", lastDecisionAt: new Date(), updatedAt: new Date(), caseFile: JSON.stringify({ ...caseState, contextDocument, lastOversight, completedActs: acts, resourceLimited, deadlineExceeded }) }).where(eq(researchCasesTable.id, caseRow.id));
-  await updateJob(atlasJobId, { status: incomplete ? "failed" : "done", progress: Math.min(maxActs + 2, acts + 1), total: maxActs + 2, atlasPhase: Math.min(maxActs + 2, acts + 1), atlasPhaseTotal: maxActs + 2, outcome: incomplete ? "incomplete" : "complete", message: stopped ? `Gemini Boss explicitly stopped ${target.name} after ${acts} Investigator act(s).` : deadlineExceeded ? `Target investigation for ${target.name} reached its global deadline after ${acts} controlled act(s).` : `Target investigation for ${target.name} preserved for review after ${acts} controlled act(s).`, result: JSON.stringify({ caseId: caseRow.id, investigator: latestResult ? { status: latestResult.status, model: latestResult.model, findings: latestResult.findings, searches: latestResult.searches, visits: latestResult.visits, contactOutcome: latestResult.contactOutcome, evidenceGraphs: latestResult.evidenceGraphs } : null, lastOversight, completedActs: acts, resourceLimited, deadlineExceeded, hardTimeoutMs }), finishedAt: new Date().toISOString() });
+  if (!deadlineExceeded && Date.now() >= deadline) deadlineExceeded = true;
+  const stopped = lastOversight?.action === "stop" && !cancelled;
+  const resourceLimited = !stopped && !cancelled && !deadlineExceeded && completedActs >= maxActs;
+  const incomplete = cancelled || !latestResult || latestResult.status !== "completed" || resourceLimited || !stopped || deadlineExceeded;
+  await db.update(researchCasesTable).set({ status: incomplete ? "review" : "complete", currentAction: incomplete ? (cancelled ? "cancelled" : "investigator-incomplete-or-resource-limited") : "awaiting-human-review", lastDecisionAt: new Date(), updatedAt: new Date(), caseFile: JSON.stringify({ ...caseState, contextDocument, lastOversight, completedActs, resourceLimited, deadlineExceeded, cancelled }) }).where(eq(researchCasesTable.id, caseRow.id));
+  await updateJob(atlasJobId, { status: cancelled ? "cancelled" : incomplete ? "failed" : "done", progress: Math.min(maxActs + 2, completedActs + 1), total: maxActs + 2, atlasPhase: Math.min(maxActs + 2, completedActs + 1), atlasPhaseTotal: maxActs + 2, outcome: cancelled ? "cancelled" : incomplete ? "incomplete" : "complete", message: stopped ? `Gemini Boss explicitly stopped ${target.name} after ${completedActs} Investigator act(s).` : cancelled ? `Target investigation for ${target.name} was cancelled after ${completedActs} controlled act(s).` : deadlineExceeded ? `Target investigation for ${target.name} reached its global deadline after ${completedActs} controlled act(s).` : `Target investigation for ${target.name} preserved for review after ${completedActs} controlled act(s).`, result: JSON.stringify({ caseId: caseRow.id, investigator: latestResult ? { status: latestResult.status, model: latestResult.model, findings: latestResult.findings, searches: latestResult.searches, visits: latestResult.visits, contactOutcome: latestResult.contactOutcome, evidenceGraphs: latestResult.evidenceGraphs } : null, lastOversight, completedActs, resourceLimited, deadlineExceeded, cancelled, hardTimeoutMs }), finishedAt: new Date().toISOString() });
   await clearActiveJobIfOwned("atlas-run", atlasJobId);
 }
