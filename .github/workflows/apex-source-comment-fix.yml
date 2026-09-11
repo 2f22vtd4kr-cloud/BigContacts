@@ -38,3 +38,5 @@ jobs:
           git add artifacts/api-server/src/src/lib/ai-extractor.ts
           git commit -m 'Correct final-review role comment [skip apex comment fix]'
           git push origin HEAD:main
+
+# One-time source comment correction; remove after the source commit lands.
