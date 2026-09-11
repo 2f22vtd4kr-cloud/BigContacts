@@ -19,6 +19,19 @@ describe("research case replay", () => {
     expect(replay.lastEventId).toBe(3);
   });
 
+  it("accepts canonical Gemini control decisions and deterministic bureau events", () => {
+    const replay = replayResearchCaseEvents([
+      { id: 1, caseId: 21, iteration: 0, actorRole: "bureau", eventType: "observation", status: "recorded", summary: "Shared target context persisted", payload: JSON.stringify({ context: "case-state" }), createdAt: "2026-09-11T00:00:00Z" },
+      { id: 2, caseId: 21, iteration: 1, actorRole: "gemini_boss", eventType: "control_decision", status: "recorded", summary: "Target control decision: continue_target", payload: JSON.stringify({ action: "continue_target", direction: "Verify the operating-company relationship." }), createdAt: "2026-09-11T00:00:01Z" },
+      { id: 3, caseId: 21, iteration: 2, actorRole: "head_investigator", eventType: "tool_observation", status: "success", summary: "Investigator turn 2: visit; execution=success.", payload: JSON.stringify({ turn: 2, action: "visit", observedUrls: ["https://example.test/team"] }), createdAt: "2026-09-11T00:00:02Z" },
+    ]);
+
+    expect(replay.valid).toBe(true);
+    expect(replay.decisionCount).toBe(1);
+    expect(replay.observationCount).toBe(2);
+    expect(replay.latestDecision).toMatchObject({ action: "continue_target" });
+  });
+
   it("uses database sequence rather than wall-clock time as the canonical order", () => {
     const replay = replayResearchCaseEvents([
       { id: 2, caseId: 12, iteration: 1, actorRole: "specialist", eventType: "observation", status: "recorded", summary: "Later sequence observation", payload: JSON.stringify({ step: 2 }), createdAt: "2026-09-10T09:59:00Z" },
