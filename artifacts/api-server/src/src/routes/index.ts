@@ -19,6 +19,7 @@ import bureauStreamRouter from "./bureau-stream";
 import systemStatusRouter from "./system-status";
 import investigatorTraceRouter from "./investigator-trace";
 import { legacyApexMutationGuard } from "../lib/legacy-apex-mutation-guard";
+import { legacyAtlasLaunchQuarantine } from "../lib/legacy-atlas-launch-quarantine";
 import { normalizeAtlasLaunchBody } from "../middlewares/normalize-atlas-launch-body";
 
 const router: IRouter = Router();
@@ -45,11 +46,12 @@ router.use(improveRouter);
 router.use(osintToolsRouter);
 router.use(identityRouter);
 router.use(contactResearchRouter);
-// The canonical launch handler owns POST /ingest/atlas-run. The legacy Atlas
-// router remains mounted for status/lock compatibility, but its launch handler
-// is unreachable because this route is registered first and terminates the
-// request after scheduling the canonical control plane.
+// The canonical launch handler owns POST /ingest/atlas-run.
 router.use(canonicalAtlasLaunchRouter);
+// Defense in depth: even if the canonical router ever declines the launch
+// request, the historical orchestrator remains unreachable.
+router.use(legacyAtlasLaunchQuarantine);
+// Keep the legacy Atlas router mounted only for status/lock compatibility.
 router.use(atlasRouter);
 router.use(bureauStreamRouter);
 router.use(systemStatusRouter);
