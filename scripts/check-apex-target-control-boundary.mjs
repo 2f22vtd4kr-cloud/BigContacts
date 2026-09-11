@@ -4,6 +4,7 @@ const continuation = fs.readFileSync("artifacts/api-server/src/src/routes/resear
 const oversight = fs.readFileSync("artifacts/api-server/src/src/lib/target-act-oversight.ts", "utf8");
 const wrapper = fs.readFileSync("artifacts/api-server/src/src/lib/agentic-web-research.ts", "utf8");
 const targetAgent = fs.readFileSync("artifacts/api-server/src/src/lib/target-contact-agent.ts", "utf8");
+const strictPromotion = fs.readFileSync("artifacts/api-server/src/src/lib/bureau-contact-persist-strict.ts", "utf8");
 const mutationGuard = fs.readFileSync("artifacts/api-server/src/src/lib/legacy-apex-mutation-guard.ts", "utf8");
 const checks = [
   ["canonical runner does not consume stale targetControlDecisions", !/readContinuationControl\(/.test(runner)],
@@ -13,12 +14,17 @@ const checks = [
   ["continuation route passes the explicit case into the canonical runner", /existingCaseId: caseId/.test(continuation)],
   ["continuation direction is passed as an objective, not durable stale control", /initialDirection: direction/.test(continuation) && /options\.initialDirection/.test(runner)],
   ["canonical runner passes caseId into target Investigator", /runTargetContactAgent\(\{[^}]*caseId: caseRow\.id/.test(runner)],
+  ["canonical runner consumes only current run and control turn oversight", /readOversight\(caseState, latestResult\.executionId \?\? null, actNumber\)/.test(runner) && /value\.runId === runId && Number\(value\.controlTurn\) === controlTurn/.test(runner)],
   ["target oversight loads by exact case id", /where\(and\(eq\(researchCasesTable\.id, caseId\), eq\(researchCasesTable\.caseType, "target"\)\)\)/.test(oversight)],
   ["target oversight has no target-name fallback query", !/orderBy\(desc\(researchCasesTable\.updatedAt\)\)/.test(oversight) && !/like\(researchCasesTable\.caseFile/.test(oversight)],
   ["agentic wrapper requires case identity for target mode", /input\.caseId \? await loadTargetActOversightContext\(input\.caseId/.test(wrapper)],
+  ["agentic wrapper creates and returns one durable execution id", /const executionId =/.test(wrapper) && /executionId \}/.test(wrapper)],
   ["agentic wrapper carries the execution id into oversight", /runId: executionId/.test(wrapper)],
   ["target Investigator receives canonical case identity", /caseId: input\.caseId/.test(targetAgent)],
+  ["target Investigator uses the same execution id for promotion provenance", /const runId = input\.caseId \? \(agentic\.executionId \?\? null\)/.test(targetAgent)],
   ["target promotion receives same-case run provenance", /const provenance: InvestigatorPromotionProvenance \| undefined/.test(targetAgent) && /persistSourceBackedBureauContactsForEntity\([^;]*provenance\)/s.test(targetAgent)],
+  ["strict promotion requires exact event payload run identity", /String\(payload\.runId\?\?\"\"\)\.trim\(\) !== provenance\.runId/.test(strictPromotion)],
+  ["strict promotion binds claims to observed source material", /claimValueAppearsInObservation/.test(strictPromotion) && /observationPayload\.observation/.test(strictPromotion)],
   ["target Investigator no longer writes contact card fields directly", !/db\.update\(entitiesTable\)\.set\(\{ contactOutcome: outcome/.test(targetAgent)],
   ["generic Apex entity creation contact fields are blocked", /req\.path === "\/entities"/.test(mutationGuard) && /touchesApexContactFields\(body\)/.test(mutationGuard)],
   ["manual Apex batch contact fields are blocked", /req\.path === "\/entities\/import\/batch"/.test(mutationGuard) && /draftTouchesApexContactFields/.test(mutationGuard)],
