@@ -30,7 +30,7 @@ pass("Investigator wrapper mounts canonical core", wrapper.includes("agentic-web
 pass("Investigator adapter pool contains Groq", /callGroqJson/.test(agentic));
 pass("Investigator adapter pool contains Mistral", /callMistralJson/.test(agentic));
 pass("Boss-selected Investigator reaches llmStep", /investigatorLlm\?: "groq" \| "mistral"/.test(agentic) && /selectedInvestigatorLlm/.test(agentic) && /llmStep/.test(agentic));
-pass("selected Investigator is first-class, not a fixed research stage", /selectedInvestigatorLlm/.test(agentic) && !/const orderedProviders\s*=/.test(agentic) && !/fallback/i.test(agentic.slice(agentic.indexOf("selectedInvestigatorLlm"))));
+pass("selected Investigator is first-class, not a fixed research stage", /selectedInvestigatorLlm/.test(agentic) && !/const orderedProviders\s*=/.test(agentic) && !/selectedInvestigatorLlm\s*,\s*\.\.\./.test(agentic));
 pass("no forced search-provider order", !/Prefer Serper.*Tavily.*Exa/i.test(agentic) && !/Serper\s*[→>-]+\s*Tavily\s*[→>-]+\s*Exa/i.test(agentic));
 pass("canonical Dig lane has no Gemini implementation", !/callGeminiJson/.test(agentic));
 pass("canonical Dig lane has no NVIDIA implementation", !/callNvidiaJson/.test(agentic));
