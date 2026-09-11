@@ -73,7 +73,7 @@ export async function runAgenticWebResearch(input: RunInput): Promise<CoreResult
   return withAgenticExecutionScope(scope, async () => {
     const core = await import("./agentic-web-research-core");
 
-    const oversightContext = input.jobId ? await loadTargetActOversightContext(input.jobId) : null;
+    const oversightContext = input.jobId ? await loadTargetActOversightContext(input.jobId, input.targetName) : null;
     if (!oversightContext || input.mode === "discovery") return core.runAgenticWebResearch(input);
 
     const startedAt = Date.now();
@@ -153,7 +153,7 @@ export async function runAgenticWebResearch(input: RunInput): Promise<CoreResult
               visits,
               findings,
               modelFindings,
-              stopReason: actRecord.action === "done" ? "MODEL_DECIDED_DONE" : "MODEL_DECIDED_DONE",
+              stopReason: "MODEL_DECIDED_DONE",
               trajectory,
               trajectoryRecords: records.slice(-100),
               error: oversight.error ?? error,
