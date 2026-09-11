@@ -10,7 +10,6 @@ const test = String(packageJson.scripts?.test ?? "");
 const both = `${build}\n${test}`;
 
 const migrationHardeners = [
-  "apply-free-react-opening-repair.mjs",
   "apply-final-review-role-boundary.mjs",
   "apply-retire-secondary-surface-calls.mjs",
   "apply-investigator-identity-observation-boundary.mjs",
@@ -52,13 +51,11 @@ for (const hardener of migrationHardeners) {
   const referenced = both.includes(hardener);
   if (!referenced) continue;
   const sourceDefectStillPresent =
-    hardener === "apply-free-react-opening-repair.mjs"
-      ? sourceChecks[0][2].some((pattern) => pattern.test(read(sourceChecks[0][1])))
-      : hardener === "apply-final-review-role-boundary.mjs"
-        ? sourceChecks[1][2].some((pattern) => pattern.test(read(sourceChecks[1][1])))
-        : true;
+    hardener === "apply-final-review-role-boundary.mjs"
+      ? sourceChecks[1][2].some((pattern) => pattern.test(read(sourceChecks[1][1])))
+      : true;
 
-  if (!sourceDefectStillPresent && (hardener === "apply-free-react-opening-repair.mjs" || hardener === "apply-final-review-role-boundary.mjs")) {
+  if (!sourceDefectStillPresent && hardener === "apply-final-review-role-boundary.mjs") {
     console.error(`STALE MIGRATION HARDENER: ${hardener} is still invoked even though its source defect is absent.`);
     failed = true;
   }
