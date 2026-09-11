@@ -14,6 +14,7 @@ const RETIRED_MUTATING_ENRICHMENT_PATHS = new Set([
   "/ingest/broad-discovery",
   "/entities/rehydrate-contacts",
   "/entities/fix-outcome-honesty",
+  "/improve/apply-safe",
 ]);
 const APEX_TYPES = new Set(["HNWI", "Gatekeeper"]);
 const DIRECT_CONTACT_FIELDS = new Set([
@@ -51,10 +52,11 @@ function isRejectedContactPatch(path: string): boolean {
 /**
  * Legacy/deterministic enrichment is not a second research control plane.
  * Canonical Atlas owns research strategy through the Investigator ReAct loop.
- * Known legacy enrichment and contact-repair endpoints are therefore retired
- * unconditionally. Generic entity PATCHes remain available for non-contact UI
- * fields, but Apex contact state may cross the card boundary only through
- * explicit Investigator-selected promotion with immutable evidence provenance.
+ * Known legacy enrichment, contact-repair and global remediation endpoints are
+ * therefore retired unconditionally. Generic entity PATCHes remain available
+ * for non-contact UI fields, but Apex contact state may cross the card boundary
+ * only through explicit Investigator-selected promotion with immutable evidence
+ * provenance.
  */
 export async function legacyApexMutationGuard(
   req: Request,
