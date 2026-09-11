@@ -12,6 +12,8 @@ const checks = [
   ["each act receives only remaining global budget", /hardTimeoutMs: Math\.max\(30_000, remainingMs\)/.test(runner)],
   ["canonical agentic target wrapper actively aborts at its deadline", /setTimeout\(\(\) => overallController\.abort\(\), requestedHardTimeout\)/.test(agentic)],
   ["canonical agentic target wrapper clears its deadline timer", /clearTimeout\(deadlineTimer\)/.test(agentic)],
+  ["target control context is mandatory", /if \(!oversightContext\)/.test(agentic)],
+  ["missing target control context fails closed", /CONTROL_CONTEXT_UNAVAILABLE/.test(agentic)],
   ["act cancellation observes the global deadline", /Date\.now\(\) >= deadline/.test(runner)],
   ["agentic entrypoint performs Right Hand + Boss review after an act", /await reviewTargetInvestigationAct\(/.test(agentic)],
   ["discovery is not accidentally target-gated", /input\.mode === "discovery"/.test(agentic)],
