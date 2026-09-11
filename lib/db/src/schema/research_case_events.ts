@@ -6,7 +6,7 @@ import { researchCasesTable } from "./research_cases";
 /**
  * Append-only decisions, assignments, tool observations, and human directives.
  *
- * The immutable database `id` is the canonical per-case event sequence.  It is
+ * The immutable database `id` is the canonical per-case event sequence. It is
  * intentionally separate from `iteration`: multiple events can legitimately
  * occur during one ReAct iteration, and iterations can be reused by different
  * actors. Consumers must order a case's ledger by id, never by wall-clock
@@ -18,8 +18,8 @@ export const researchCaseEventsTable = pgTable("research_case_events", {
     .notNull()
     .references(() => researchCasesTable.id, { onDelete: "cascade" }),
   iteration: integer("iteration").notNull().default(0),
-  actorRole: text("actor_role").notNull(), // head_investigator | gemini_boss | right_hand | specialist | human_operator | system
-  eventType: text("event_type").notNull(), // case_opened | decision | assignment | observation | tool_observation | directive | status
+  actorRole: text("actor_role").notNull(), // head_investigator | gemini_boss | right_hand | specialist | human_operator | system | bureau
+  eventType: text("event_type").notNull(), // case_opened | decision | control_decision | assignment | observation | tool_observation | directive | status
   status: text("status").notNull().default("recorded"),
   summary: text("summary").notNull(),
   payload: text("payload").notNull().default("{}"),
@@ -35,11 +35,13 @@ export const researchCaseEventActorRoleSchema = z.enum([
   "specialist",
   "human_operator",
   "system",
+  "bureau",
 ]);
 
 export const researchCaseEventTypeSchema = z.enum([
   "case_opened",
   "decision",
+  "control_decision",
   "assignment",
   "observation",
   "tool_observation",
