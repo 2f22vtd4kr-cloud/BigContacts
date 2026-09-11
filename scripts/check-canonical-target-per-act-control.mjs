@@ -20,17 +20,15 @@ const checks = [
   ["agentic entrypoint performs Right Hand + Boss review after an act", /await reviewTargetInvestigationAct\(/.test(agentic)],
   ["completed act is durably persisted before Right Hand review", /persistInvestigatorObservation\(/.test(oversight)],
   ["observation event is written as head-investigator tool observation", /actorRole: "head_investigator"/.test(oversight) && /eventType: "tool_observation"/.test(oversight)],
-  ["observation event is idempotently correlated by case and turn", /investigator-act:case:\$\{caseId\}:turn:\$\{controlTurn\}/.test(oversight)],
+  ["observation event is idempotently correlated by case, run and turn", /investigator-act:case:\$\{caseId\}:run:\$\{runId\}:turn:\$\{controlTurn\}/.test(oversight)],
+  ["oversight event is correlated by case, run and turn", /target-oversight:case:\$\{caseId\}:run:\$\{runId\}:turn:\$\{controlTurn\}/.test(oversight)],
+  ["agentic wrapper passes execution identity to oversight", /runId: executionId/.test(agentic)],
   ["evidence graph observations can carry immutable event IDs", /eventId\?: number \| null/.test(evidence)],
   ["canonical act graphs require immutable observation anchors", /validateClaimSupportGraph\(graph, true\)/.test(oversight)],
   ["Right Hand is mandatory before Boss continuation", /if \(rightHand\.status !== "completed"\)/.test(oversight)],
   ["Right Hand failure stops the next Investigator act", /DeepSeek\/NVIDIA Right Hand oversight was unavailable/.test(oversight)],
-  ["oversight events are idempotently correlated by case and turn", /target-oversight:case:\$\{caseId\}:turn:\$\{controlTurn\}/.test(oversight)],
   ["discovery is not accidentally target-gated", /input\.mode === "discovery"/.test(agentic)],
 ];
 let failed = false;
-for (const [name, ok] of checks) {
-  console.log(`${ok ? "PASS" : "FAIL"} ${name}`);
-  if (!ok) failed = true;
-}
+for (const [name, ok] of checks) { console.log(`${ok ? "PASS" : "FAIL"} ${name}`); if (!ok) failed = true; }
 if (failed) process.exit(1);
