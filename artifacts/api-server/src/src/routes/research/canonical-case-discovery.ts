@@ -1,50 +1,77 @@
 import { Router } from "express";
-import { eq, and, inArray } from "drizzle-orm";
-import { db, entitiesTable, researchCasesTable, researchCaseEventsTable } from "@workspace/db";
-import { createJob, getActiveJob, getJob, setActiveJob, updateJob, clearActiveJobIfOwned } from "../../lib/job-queue";
-import { runGeminiBossDiscovery } from "../../lib/case-bureau";
-import { runDeepSeekFreeJson } from "../../lib/deepseek-case-reasoning";
-import { runBureauAgenticWebPass } from "../../lib/bureau-agentic-pass";
-import { persistSourceBackedBureauContactsForEntity } from "../../lib/bureau-contact-persist-strict";
+import { eq } from "drizzle-orm";
+import { db, researchCasesTable } from "@workspace/db";
+import { createJob, getActiveJob, getJob, setActiveJob, clearActiveJobIfOwned } from "../../lib/job-queue";
+import { runCanonicalAtlasPipeline } from "../../lib/canonical-atlas-discovery";
 import { resolveResearchDepth } from "../../lib/research-depth";
 
 const router = Router();
-function parseFile(raw: string | null): Record<string, any> | null { try { const value = raw ? JSON.parse(raw) : null; return value && typeof value === "object" ? value : null; } catch { return null; } }
-function uniqueNames(values: string[]): string[] { return [...new Set(values.map((value) => value.trim()).filter((value) => value.length >= 3))]; }
 
+function parseFile(raw: string | null): Record<string, any> | null {
+  try {
+    const value = raw ? JSON.parse(raw) : null;
+    return value && typeof value === "object" ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * HTTP adapter only. Canonical discovery execution, Boss/Right-hand coordination,
+ * Investigator execution, admission, and durable discovery state live in the
+ * canonical Atlas control plane.
+ */
 router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Promise<void> => {
   const caseId = Number(req.params.caseId);
-  if (!Number.isInteger(caseId) || caseId <= 0) { res.status(400).json({ error: "Invalid bureau case ID" }); return; }
+  if (!Number.isInteger(caseId) || caseId <= 0) {
+    res.status(400).json({ error: "Invalid bureau case ID" });
+    return;
+  }
   const [current] = await db.select().from(researchCasesTable).where(eq(researchCasesTable.id, caseId)).limit(1);
-  if (!current) { res.status(404).json({ error: "Bureau case not found" }); return; }
+  if (!current) {
+    res.status(404).json({ error: "Bureau case not found" });
+    return;
+  }
   const file = parseFile(current.caseFile);
-  if (!file || file.caseType !== "discovery") { res.status(409).json({ error: "Only a discovery case can run the canonical discovery investigation" }); return; }
+  if (!file || file.caseType !== "discovery") {
+    res.status(409).json({ error: "Only a discovery case can run the canonical discovery investigation" });
+    return;
+  }
   const existingJobId = await getActiveJob("case-bureau-discovery");
-  if (existingJobId) { const existing = await getJob(existingJobId); if (existing?.status === "running" || existing?.status === "queued") { res.status(409).json({ error: "A bureau discovery investigation is already running.", jobId: existingJobId }); return; } }
-  const jobId = await createJob("case-bureau-discovery"); await setActiveJob("case-bureau-discovery", jobId);
-  await updateJob(jobId, { status: "running", progress: 0, total: 4, message: "DeepSeek Right-hand reviewing the discovery mission…" });
-  await db.update(researchCasesTable).set({ status: "active", currentAction: "canonical-investigator-discovery", updatedAt: new Date() }).where(eq(researchCasesTable.id, caseId));
-  await db.insert(researchCaseEventsTable).values({ caseId, iteration: current.iteration, actorRole: "head_investigator", eventType: "assignment", summary: "Canonical Investigator discovery assigned in first-class discovery mode; no fixed web or registry lane is used.", payload: JSON.stringify({ jobId, architecture: "gemini-boss + deepseek-right-hand + selected-groq-or-mistral-investigator", mode: "discovery" }) });
+  if (existingJobId) {
+    const existing = await getJob(existingJobId);
+    if (existing?.status === "running" || existing?.status === "queued") {
+      res.status(409).json({ error: "A bureau discovery investigation is already running.", jobId: existingJobId });
+      return;
+    }
+  }
+  const jobId = await createJob("case-bureau-discovery");
+  await setActiveJob("case-bureau-discovery", jobId);
+  const depth = resolveResearchDepth({ explicit: typeof file.researchDepth === "string" ? file.researchDepth : undefined });
   void (async () => {
     try {
-      const depth = resolveResearchDepth({ explicit: typeof file.researchDepth === "string" ? file.researchDepth : undefined });
-      const rightRaw = await runDeepSeekFreeJson(`Review this discovery mission for the Boss. Objective: ${String(file.humanBrief?.objective ?? "").slice(0, 4000)}. Motivation: ${String(file.humanBrief?.motivation ?? "").slice(0, 1500)}. Geography: ${String(file.humanBrief?.geography ?? "").slice(0, 500)}. Return concise priorities only; do not browse, do not select people, and do not choose contacts. JSON: decision, reason, focusLanes, confidence.`, "You are the DeepSeek/NVIDIA Right-hand. Advise Gemini only. Never browse or act as Investigator. Reply with ONE JSON object.").catch((error) => ({ status: "unavailable" as const, model: "deepseek-ai/deepseek-v4-flash-0731", raw: null, error: error instanceof Error ? error.message : "DeepSeek Right-hand unavailable" }));
-      let rightHand = { status: rightRaw.status === "completed" ? "completed" as const : "unavailable" as const, model: rightRaw.model, decision: null as string | null, reason: null as string | null, focusLanes: [] as string[], confidence: null as number | null, error: rightRaw.error ?? null };
-      if (rightRaw.status === "completed" && rightRaw.raw) { try { const parsed = JSON.parse(rightRaw.raw) as Record<string, unknown>; rightHand = { status: "completed", model: rightRaw.model, decision: typeof parsed.decision === "string" ? parsed.decision.slice(0, 500) : null, reason: typeof parsed.reason === "string" ? parsed.reason.slice(0, 1000) : null, focusLanes: Array.isArray(parsed.focusLanes) ? parsed.focusLanes.filter((v): v is string => typeof v === "string").slice(0, 8) : [], confidence: typeof parsed.confidence === "number" ? Math.max(0, Math.min(1, parsed.confidence)) : null, error: null }; } catch { rightHand.error = "Right-hand returned invalid JSON."; } }
-      const boss = await runGeminiBossDiscovery({ objective: String(file.humanBrief?.objective ?? "").slice(0, 5000), motivation: String(file.humanBrief?.motivation ?? "").slice(0, 2000), geography: String(file.humanBrief?.geography ?? "").slice(0, 800), exclusions: Array.isArray(file.humanBrief?.exclusions) ? file.humanBrief.exclusions : [], rightHandAdvice: rightHand, startingLane: "canonical model-selected discovery" });
-      await updateJob(jobId, { progress: 1, message: boss.investigatorLlm ? `${boss.investigatorLlm.toUpperCase()} Investigator assigned by Gemini; starting free-ReAct discovery…` : "Gemini did not select an Investigator; closing without fallback.", result: JSON.stringify({ rightHand, boss }) });
-      if (!boss.investigatorLlm) throw new Error("Gemini Boss did not select a Groq/Mistral Investigator.");
-      const discovery = await runBureauAgenticWebPass({ mode: "discovery", targetName: "", objective: [String(file.humanBrief?.objective ?? ""), String(file.humanBrief?.motivation ?? ""), file.humanBrief?.geography ? `Geography: ${file.humanBrief.geography}` : "", "Discover exact named people only when the observed public source supports the identity. You own every search/tool choice and stopping point. Emit promotionDecision=promote only for an exact named-person admission candidate. Never invent."].filter(Boolean).join("\n"), investigatorLlm: boss.investigatorLlm, caseId, jobId, maxIterations: depth.agenticMaxIterations, hardTimeoutMs: depth.agenticHardTimeoutMs });
-      const admitted = uniqueNames(discovery.findings.filter((finding) => finding.promotionDecision === "promote").filter((finding) => finding.scope === "candidate").filter((finding) => typeof finding.personName === "string" && finding.personName.trim().length >= 3).filter((finding) => Array.isArray(finding.sourceUrls) && finding.sourceUrls.some((url) => /^https?:\/\//i.test(String(url)))).map((finding) => finding.personName ?? ""));
-      const report = { id: `canonical-${jobId}`, lane: "broad-web", provider: `Agentic-ReAct ${discovery.model}`, status: discovery.status === "completed" ? "completed" : discovery.status === "unavailable" ? "unavailable" : "failed", iteration: Number(current.iteration ?? 0) + 1, summary: `Canonical Investigator discovery: ${discovery.findings.length} source-backed finding(s); ${admitted.length} explicit admission candidate(s).`, findings: discovery.trajectory.slice(-12), candidateNames: admitted, sourceUrls: discovery.findings.flatMap((finding) => finding.sourceUrls).slice(0, 20), nextQuestions: [], contactEvidence: discovery.contactEvidence, error: discovery.error ?? null, createdAt: new Date().toISOString() };
-      const nextFile = { ...file, investigatorReports: [...(Array.isArray(file.investigatorReports) ? file.investigatorReports : []), report], discoveredCandidates: [...(Array.isArray(file.discoveredCandidates) ? file.discoveredCandidates : []), ...admitted.map((name) => { const finding = discovery.findings.find((item) => item.personName?.trim().toLowerCase() === name.toLowerCase() && item.promotionDecision === "promote" && item.scope === "candidate"); return { name, type: "review_candidate", relevance: "Explicit Investigator discovery admission candidate", reachability: "Requires target-scoped Investigator research", sourceUrls: finding?.sourceUrls ?? [], contactEvidence: [], state: "review_only", admittedEntityId: null }; })], currentProgress: { ...(file.currentProgress ?? {}), reportCount: Number(file.currentProgress?.reportCount ?? 0) + 1, completedLanes: [...new Set([...(file.currentProgress?.completedLanes ?? []), "broad-web"])], openQuestions: [], lastReviewedBy: "gemini-boss", refreshedAt: new Date().toISOString() }, nextInvestigation: { rightHand, boss: { status: boss.status === "completed" ? "completed" : "unavailable", decision: boss.report, candidateNames: boss.candidates.map((candidate) => candidate.name), nextDirections: boss.nextDirections, uncertainties: boss.uncertainties, error: boss.error, reviewedAt: new Date().toISOString() } } };
-      await db.update(researchCasesTable).set({ caseFile: JSON.stringify(nextFile), currentAction: admitted.length ? "target-scoped-investigator-research" : "review", iteration: Number(current.iteration ?? 0) + 1, updatedAt: new Date() }).where(eq(researchCasesTable.id, caseId));
-      let materialized = 0;
-      for (const name of admitted) { const finding = discovery.findings.find((item) => item.personName?.trim().toLowerCase() === name.toLowerCase() && item.promotionDecision === "promote" && item.scope === "candidate"); const existingRows = await db.select({ id: entitiesTable.id }).from(entitiesTable).where(and(eq(entitiesTable.name, name), inArray(entitiesTable.type, ["HNWI", "Gatekeeper"]))).limit(1); const existing = existingRows[0]; let entityId = existing?.id ?? null; if (!entityId) { const [created] = await db.insert(entitiesTable).values({ name, type: "HNWI", bayesianScore: 0.05, contactConfidence: 0, contactOutcome: "evidence_only", isHot: false, isStarred: false, isHidden: false, sourceRegistries: JSON.stringify(["canonical-agentic-discovery"]), notes: "Review-only discovery candidate; requires target-scoped Investigator research.", metadata: JSON.stringify({ reviewOnly: true, admission: "investigator-explicit", caseId, sourceUrls: finding?.sourceUrls ?? [] }) }).returning({ id: entitiesTable.id }); entityId = created?.id ?? null; if (entityId) materialized += 1; } if (entityId && finding?.sourceUrls?.length) await persistSourceBackedBureauContactsForEntity(entityId, [{ vectorType: "other", value: `person:${name}`, scope: "candidate", personName: name, role: finding.role, sourceUrls: finding.sourceUrls, note: "Explicit Investigator discovery admission; review-only.", tier: "candidate", state: "review_only", promote: false }], "canonical-agentic-discovery", jobId); }
-      await db.insert(researchCaseEventsTable).values({ caseId, iteration: Number(current.iteration ?? 0) + 1, actorRole: "specialist", eventType: "observation", summary: `Canonical Investigator discovery completed; ${admitted.length} admission candidate(s), ${materialized} review entities.`, payload: JSON.stringify({ jobId, investigatorLlm: boss.investigatorLlm, admitted, searches: discovery.searches, visits: discovery.visits }) });
-      await updateJob(jobId, { status: "done", progress: 4, total: 4, outcome: "complete", message: `Canonical discovery complete: ${admitted.length} exact named candidate(s) admitted for review.`, finishedAt: new Date().toISOString() });
-    } catch (error) { const message = error instanceof Error ? error.message : "Canonical case discovery failed."; await db.update(researchCasesTable).set({ status: "error", currentAction: "canonical-discovery-error", updatedAt: new Date() }).where(eq(researchCasesTable.id, caseId)); await updateJob(jobId, { status: "failed", outcome: "incomplete", message, finishedAt: new Date().toISOString() }); await clearActiveJobIfOwned("case-bureau-discovery", jobId); }
+      await runCanonicalAtlasPipeline(jobId, {
+        targetCount: 20,
+        researchDepth: depth.researchDepth,
+        targetTimeoutMs: depth.agenticHardTimeoutMs,
+        discoveryCaseId: caseId,
+        discoveryOnly: true,
+        discoveryObjective: [
+          String(file.humanBrief?.objective ?? ""),
+          String(file.humanBrief?.motivation ?? ""),
+          file.humanBrief?.geography ? `Geography: ${file.humanBrief.geography}` : "",
+          "Discover exact named people only when the observed public source supports the identity. You own every search/tool choice and stopping point. Emit promotionDecision=promote only for an exact named-person admission candidate. Never invent.",
+        ].filter(Boolean).join("\n"),
+        discoveryMotivation: String(file.humanBrief?.motivation ?? ""),
+        discoveryGeography: String(file.humanBrief?.geography ?? ""),
+        discoveryExclusions: Array.isArray(file.humanBrief?.exclusions) ? file.humanBrief.exclusions : [],
+        lockKey: "case-bureau-discovery",
+      });
+    } catch {
+      await clearActiveJobIfOwned("case-bureau-discovery", jobId);
+    }
   })();
   res.status(202).json({ jobId, caseId, status: "running", mode: "canonical-model-owned-discovery" });
 });
+
 export default router;
