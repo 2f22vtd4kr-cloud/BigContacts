@@ -42,11 +42,14 @@ for (const [label, relativePath, forbiddenPatterns] of sourceChecks) {
   }
 }
 
-// Only active migration hardeners belong in this inventory. Once a source
-// defect is repaired, its mutating hardener is removed from the build/test
-// pipeline and from this list rather than left as dormant migration machinery.
+// Every hardener still present in the build/test scripts represents an active
+// source migration. Repaired migrations are removed from both the pipeline and
+// this inventory rather than retained as dormant source-mutating machinery.
 for (const hardener of migrationHardeners) {
-  if (!both.includes(hardener)) continue;
+  if (!both.includes(hardener)) {
+    console.error(`MIGRATION PARITY FAIL: active hardener ${hardener} is not wired into API build/test.`);
+    failed = true;
+  }
 }
 
 if (failed) process.exit(1);
