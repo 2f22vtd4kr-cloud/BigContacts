@@ -7,7 +7,6 @@ const hardeners = [
   "apply-retire-secondary-surface-calls.mjs",
   "apply-registry-cancellation-boundary.mjs",
   "apply-agentic-registry-signal-wiring.mjs",
-  "apply-retire-deterministic-atlas-osint.mjs",
 ];
 for (const script of hardeners) execFileSync(process.execPath, [`scripts/${script}`], { stdio: "inherit" });
 
