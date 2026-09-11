@@ -3,6 +3,7 @@ import fs from "node:fs";
 const runner = fs.readFileSync("artifacts/api-server/src/src/lib/canonical-single-target-runner.ts", "utf8");
 const agentic = fs.readFileSync("artifacts/api-server/src/src/lib/agentic-web-research.ts", "utf8");
 const oversight = fs.readFileSync("artifacts/api-server/src/src/lib/target-act-oversight.ts", "utf8");
+const evidence = fs.readFileSync("artifacts/api-server/src/src/lib/source-corroboration.ts", "utf8");
 const checks = [
   ["canonical runner invokes exactly one Investigator iteration", /maxIterations:\s*1/.test(runner)],
   ["canonical runner reads durable oversight after each act", /readOversight\(caseState\)/.test(runner)],
@@ -17,6 +18,11 @@ const checks = [
   ["missing target control context fails closed", /CONTROL_CONTEXT_UNAVAILABLE/.test(agentic)],
   ["act cancellation observes the global deadline", /Date\.now\(\) >= deadline/.test(runner)],
   ["agentic entrypoint performs Right Hand + Boss review after an act", /await reviewTargetInvestigationAct\(/.test(agentic)],
+  ["completed act is durably persisted before Right Hand review", /persistInvestigatorObservation\(/.test(oversight)],
+  ["observation event is written as head-investigator tool observation", /actorRole: "head_investigator"/.test(oversight) && /eventType: "tool_observation"/.test(oversight)],
+  ["observation event is idempotently correlated by case and turn", /investigator-act:case:\$\{caseId\}:turn:\$\{controlTurn\}/.test(oversight)],
+  ["evidence graph observations can carry immutable event IDs", /eventId\?: number \| null/.test(evidence)],
+  ["canonical act graphs require immutable observation anchors", /validateClaimSupportGraph\(graph, true\)/.test(oversight)],
   ["Right Hand is mandatory before Boss continuation", /if \(rightHand\.status !== "completed"\)/.test(oversight)],
   ["Right Hand failure stops the next Investigator act", /DeepSeek\/NVIDIA Right Hand oversight was unavailable/.test(oversight)],
   ["oversight events are idempotently correlated by case and turn", /target-oversight:case:\$\{caseId\}:turn:\$\{controlTurn\}/.test(oversight)],
