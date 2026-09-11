@@ -10,7 +10,6 @@ const test = String(packageJson.scripts?.test ?? "");
 const both = `${build}\n${test}`;
 
 const migrationHardeners = [
-  "apply-final-review-role-boundary.mjs",
   "apply-retire-secondary-surface-calls.mjs",
   "apply-registry-cancellation-boundary.mjs",
   "apply-agentic-registry-signal-wiring.mjs",
@@ -43,19 +42,12 @@ for (const [label, relativePath, forbiddenPatterns] of sourceChecks) {
   }
 }
 
-// A migration hardener is allowed only while its corresponding source defect is
-// still present. This prevents a future build from silently relying on a stale
-// mutation script after the source has already been repaired.
+// Every hardener still present in the build/test scripts represents an active
+// source migration. Repaired migrations are removed from both the pipeline and
+// this inventory rather than retained as dormant source-mutating machinery.
 for (const hardener of migrationHardeners) {
-  const referenced = both.includes(hardener);
-  if (!referenced) continue;
-  const sourceDefectStillPresent =
-    hardener === "apply-final-review-role-boundary.mjs"
-      ? sourceChecks[1][2].some((pattern) => pattern.test(read(sourceChecks[1][1])))
-      : true;
-
-  if (!sourceDefectStillPresent && hardener === "apply-final-review-role-boundary.mjs") {
-    console.error(`STALE MIGRATION HARDENER: ${hardener} is still invoked even though its source defect is absent.`);
+  if (!both.includes(hardener)) {
+    console.error(`MIGRATION PARITY FAIL: active hardener ${hardener} is not wired into API build/test.`);
     failed = true;
   }
 }
