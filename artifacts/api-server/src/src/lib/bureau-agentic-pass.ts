@@ -1,5 +1,5 @@
 /** Bureau-facing wrapper around the canonical ReAct Investigator. */
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { logger } from "./logger";
 import { db, researchCasesTable, researchCaseEventsTable } from "@workspace/db";
 import { runAgenticWebResearch, type AgenticFinding, type AgenticTrajectoryRecord } from "./agentic-web-research";
@@ -42,28 +42,34 @@ async function persistDiscoveryTrajectory(caseId: number, input: { objective?: s
       const summary = record.action === "done"
         ? `Investigator explicitly ended the ReAct run; findings=${record.findings.length}.`
         : `Investigator turn ${record.turn}: ${record.action}; execution=${record.execution}.`;
-      await tx.insert(researchCaseEventsTable).values({
-        caseId,
-        iteration: record.turn,
-        actorRole: "head_investigator",
-        eventType,
-        status: record.execution,
-        summary,
-        payload: JSON.stringify({
-          jobId: input.jobId ?? null,
-          runModel: input.investigatorLlm ?? result.model,
-          turn: record.turn,
-          action: record.action,
-          args: record.args,
-          thought: record.thought ?? null,
-          execution: record.execution,
-          observation: record.observation ?? null,
-          observedUrls: record.observedUrls,
-          findings: record.findings,
-          providerFallback: record.providerFallback ?? [],
-          stopReason: record.stopReason ?? null,
-        }),
-      });
+      const correlationKey = `${input.jobId ?? "case"}:turn:${record.turn}:trajectory`;
+      const inserted = await tx.insert(researchCaseEventsTable).values({ caseId, iteration: record.turn, actorRole: "head_investigator", eventType, status: record.execution, summary, correlationKey, payload: JSON.stringify({ jobId: input.jobId ?? null, runModel: input.investigatorLlm ?? result.model, turn: record.turn, action: record.action, args: record.args, thought: record.thought ?? null, execution: record.execution, observation: record.observation ?? null, observedUrls: record.observedUrls, findings: record.findings, providerFallback: record.providerFallback ?? [], stopReason: record.stopReason ?? null }) }).onConflictDoNothing({ target: [researchCaseEventsTable.caseId, researchCaseEventsTable.correlationKey] }).returning({ id: researchCaseEventsTable.id });
+      const eventId = inserted[0]?.id ?? (await tx.select({ id: researchCaseEventsTable.id }).from(researchCaseEventsTable).where(and(eq(researchCaseEventsTable.caseId, caseId), eq(researchCaseEventsTable.correlationKey, correlationKey))).limit(1))[0]?.id;
+      if (!eventId) throw new Error(`Unable to resolve immutable trajectory event for ${correlationKey}`);
+
+      if (record.action !== "done") continue;
+      for (const [findingIndex, finding] of record.findings.entries()) {
+        const observationEventIds = trajectoryRecords
+          .filter((candidate) => candidate.execution === "success" && candidate.observedUrls.some((url) => finding.sourceUrls.some((source) => { try { return new URL(url).href === new URL(source).href; } catch { return false; } })))
+          .map((candidate) => `${input.jobId ?? "case"}:turn:${candidate.turn}:trajectory`)
+          .filter((key, index, keys) => keys.indexOf(key) === index)
+          .map((key) => trajectoryRecords.find((candidate) => `${input.jobId ?? "case"}:turn:${candidate.turn}:trajectory` === key)?.turn)
+          .filter((turn): turn is number => Number.isInteger(turn));
+        const resolvedObservationIds: number[] = [];
+        for (const turn of observationEventIds) {
+          const key = `${input.jobId ?? "case"}:turn:${turn}:trajectory`;
+          const observationId = (await tx.select({ id: researchCaseEventsTable.id }).from(researchCaseEventsTable).where(and(eq(researchCaseEventsTable.caseId, caseId), eq(researchCaseEventsTable.correlationKey, key))).limit(1))[0]?.id;
+          if (observationId) resolvedObservationIds.push(observationId);
+        }
+        if (!resolvedObservationIds.length) continue;
+        const claimKey = `${input.jobId ?? "case"}:turn:${record.turn}:claim:${findingIndex}:${finding.vectorType}:${finding.value.trim().toLowerCase().slice(0, 120)}`;
+        const claimInserted = await tx.insert(researchCaseEventsTable).values({ caseId, iteration: record.turn, actorRole: "head_investigator", eventType: "claim", status: "recorded", summary: `Investigator authored claim ${finding.vectorType} for ${finding.personName ?? "organization scope"}.`, correlationKey: claimKey, payload: JSON.stringify({ jobId: input.jobId ?? null, claim: finding, observationEventIds: resolvedObservationIds }) }).onConflictDoNothing({ target: [researchCaseEventsTable.caseId, researchCaseEventsTable.correlationKey] }).returning({ id: researchCaseEventsTable.id });
+        const claimEventId = claimInserted[0]?.id ?? (await tx.select({ id: researchCaseEventsTable.id }).from(researchCaseEventsTable).where(and(eq(researchCaseEventsTable.caseId, caseId), eq(researchCaseEventsTable.correlationKey, claimKey))).limit(1))[0]?.id;
+        if (!claimEventId) throw new Error(`Unable to resolve immutable claim event for ${claimKey}`);
+        if (!finding.promotionDecision) continue;
+        const promotionKey = `${claimKey}:promotion`;
+        await tx.insert(researchCaseEventsTable).values({ caseId, iteration: record.turn, actorRole: "head_investigator", eventType: "promotion", status: finding.promotionDecision, summary: `Investigator explicitly ${finding.promotionDecision}d claim ${claimEventId}.`, correlationKey: promotionKey, payload: JSON.stringify({ jobId: input.jobId ?? null, claimEventId, decision: finding.promotionDecision, reason: finding.promotionReason ?? null }) }).onConflictDoNothing({ target: [researchCaseEventsTable.caseId, researchCaseEventsTable.correlationKey] });
+      }
     }
   });
 }
