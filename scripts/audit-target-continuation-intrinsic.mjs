@@ -19,14 +19,14 @@ const investigatorBeforeControl = investigatorCall >= 0 && controlCall > investi
 const finalReviewIsStopGated = stopGate >= 0 && finalReview > stopGate;
 
 const checks = [
-  ["target control vocabulary exists", /continue_target/.test(control) && /revisit_target/.test(control) && /pivot_target/.test(control) && /stop/.test(control)],
+  ["target control uses minimal research/stop disposition", /"research"/.test(control) && /"stop"/.test(control) && !/continue_target/.test(control) && !/revisit_target/.test(control) && !/pivot_target/.test(control)],
   ["target control is Gemini-owned", /generateGeminiBossText/.test(control) && /You own this decision/.test(control)],
   ["target control is durable", /targetControlDecisions/.test(control) && /eventType: \"control_decision\"/.test(control)],
   ["continuation route requires durable context", /refusing context-free continuation/.test(continuation)],
   ["canonical runner imports target control", /import \{ decideTargetNextAction/.test(runner)],
   ["canonical runner has an explicit Investigator-pass loop", loopStart >= 0 && /maxPasses/.test(runner)],
   ["canonical runner invokes target control after Investigator work", investigatorBeforeControl && controlAfterLoopStart],
-  ["canonical runner exposes all continuation actions", /continue_target/.test(runner) && /revisit_target/.test(runner) && /pivot_target/.test(runner)],
+  ["canonical runner leaves research trajectory to the Investigator", !/continue_target/.test(runner) && !/revisit_target/.test(runner) && !/pivot_target/.test(runner)],
   ["canonical runner gates final Boss review on Gemini stop", finalReviewIsStopGated && controlBeforeFinalReview],
   ["canonical runner persists control decisions through the control component", /persistContext\([^\n]*head_investigator/.test(runner) && /decideTargetNextAction/.test(runner)],
 ];
