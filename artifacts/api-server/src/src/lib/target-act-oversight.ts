@@ -3,6 +3,7 @@ import { db, entitiesTable, researchCaseEventsTable, researchCasesTable } from "
 import { apexOrientationFor } from "./apex-bureau-orientation";
 import { resolveGeminiBossModel, generateGeminiBossText } from "./case-bureau";
 import { runDeepSeekFreeJson } from "./deepseek-case-reasoning";
+import { buildClaimSupportGraph, observationsFromSourceUrls, validateClaimSupportGraph, type EvidenceGraph } from "./source-corroboration";
 
 type ActRecord = {
   turn: number;
@@ -41,49 +42,19 @@ function parseObject(raw: string | null | undefined): Record<string, unknown> | 
   if (!raw) return null;
   const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)```/i)?.[1]?.trim();
   const source = fenced || raw.trim();
-  const start = source.indexOf("{");
-  const end = source.lastIndexOf("}");
+  const start = source.indexOf("{"); const end = source.lastIndexOf("}");
   if (start < 0 || end <= start) return null;
-  try {
-    const parsed = JSON.parse(source.slice(start, end + 1));
-    return parsed && typeof parsed === "object" ? parsed as Record<string, unknown> : null;
-  } catch {
-    return null;
-  }
+  try { const parsed = JSON.parse(source.slice(start, end + 1)); return parsed && typeof parsed === "object" ? parsed as Record<string, unknown> : null; } catch { return null; }
 }
-
-function clampConfidence(value: unknown): number | null {
-  return typeof value === "number" && Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : null;
-}
-
+function clampConfidence(value: unknown): number | null { return typeof value === "number" && Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : null; }
 function compactAct(record: ActRecord): Record<string, unknown> {
-  return {
-    turn: record.turn,
-    model: record.model,
-    action: record.action,
-    args: record.args,
-    execution: record.execution,
-    observation: typeof record.observation === "string" ? record.observation.slice(0, 4500) : undefined,
-    observedUrls: record.observedUrls.slice(0, 12),
-    findings: record.findings.slice(0, 12),
-    providerFallback: record.providerFallback?.slice(0, 4),
-  };
+  return { turn: record.turn, model: record.model, action: record.action, args: record.args, execution: record.execution, observation: typeof record.observation === "string" ? record.observation.slice(0, 4500) : undefined, observedUrls: record.observedUrls.slice(0, 12), findings: record.findings.slice(0, 12), providerFallback: record.providerFallback?.slice(0, 4) };
 }
 
 async function findTargetCase(jobId: string, targetName: string): Promise<{ id: number; targetEntityId: number | null; objective: string | null; caseFile: string | null } | null> {
-  const [exact] = await db
-    .select({ id: researchCasesTable.id, targetEntityId: researchCasesTable.targetEntityId, objective: researchCasesTable.objective, caseFile: researchCasesTable.caseFile })
-    .from(researchCasesTable)
-    .where(and(eq(researchCasesTable.caseType, "target"), like(researchCasesTable.caseFile, `%${jobId}%`)))
-    .limit(1);
+  const [exact] = await db.select({ id: researchCasesTable.id, targetEntityId: researchCasesTable.targetEntityId, objective: researchCasesTable.objective, caseFile: researchCasesTable.caseFile }).from(researchCasesTable).where(and(eq(researchCasesTable.caseType, "target"), like(researchCasesTable.caseFile, `%${jobId}%`))).limit(1);
   if (exact) return exact;
-
-  const candidates = await db
-    .select({ id: researchCasesTable.id, targetEntityId: researchCasesTable.targetEntityId, objective: researchCasesTable.objective, caseFile: researchCasesTable.caseFile })
-    .from(researchCasesTable)
-    .where(eq(researchCasesTable.caseType, "target"))
-    .orderBy(desc(researchCasesTable.updatedAt))
-    .limit(12);
+  const candidates = await db.select({ id: researchCasesTable.id, targetEntityId: researchCasesTable.targetEntityId, objective: researchCasesTable.objective, caseFile: researchCasesTable.caseFile }).from(researchCasesTable).where(eq(researchCasesTable.caseType, "target")).orderBy(desc(researchCasesTable.updatedAt)).limit(12);
   for (const candidate of candidates) {
     if (!candidate.targetEntityId) continue;
     let caseFile: Record<string, unknown> = {};
@@ -96,24 +67,57 @@ async function findTargetCase(jobId: string, targetName: string): Promise<{ id: 
   return null;
 }
 
-async function persistActOversight(caseId: number, controlTurn: number, act: ActRecord, oversight: TargetActOversight): Promise<void> {
-  const payload = { controlTurn, act: compactAct(act), oversight, recordedAt: new Date().toISOString() };
-  const correlationKey = `target-oversight:case:${caseId}:turn:${controlTurn}`;
-  await db.insert(researchCaseEventsTable).values({
+function buildActEvidenceGraphs(caseId: number, act: ActRecord, observationEventId: number, runId: string): EvidenceGraph[] {
+  const observed = new Set(act.observedUrls.map((url) => { try { return new URL(url).href; } catch { return ""; } }).filter(Boolean));
+  const graphs: EvidenceGraph[] = [];
+  for (const [index, raw] of act.findings.entries()) {
+    if (!raw || typeof raw !== "object") continue;
+    const finding = raw as Record<string, unknown>;
+    const sourceUrls = Array.isArray(finding.sourceUrls) ? finding.sourceUrls.filter((url): url is string => typeof url === "string").map((url) => { try { return new URL(url).href; } catch { return ""; } }).filter((url) => observed.has(url)) : [];
+    if (!sourceUrls.length) continue;
+    const scope = finding.scope === "candidate" || finding.scope === "target" ? finding.scope : "organization";
+    const claim = {
+      id: `claim:${runId}:turn:${act.turn}:${index + 1}`,
+      subject: typeof finding.personName === "string" && finding.personName.trim() ? finding.personName.trim() : "organization",
+      predicate: typeof finding.vectorType === "string" ? finding.vectorType : "other",
+      object: typeof finding.value === "string" ? finding.value.trim() : "",
+      scope,
+      personName: typeof finding.personName === "string" ? finding.personName.trim() || null : null,
+      confidence: null,
+    } as const;
+    if (!claim.object) continue;
+    const observations = observationsFromSourceUrls(sourceUrls, { observedAt: new Date().toISOString(), runId, caseId, turn: act.turn, collectionMethod: "canonical-investigator-act", eventId: observationEventId, idPrefix: `case:${caseId}:turn:${act.turn}:finding:${index + 1}` });
+    const graph = buildClaimSupportGraph(claim, observations, "Investigator explicitly attributed the claim to source URLs observed in this immutable act event");
+    if (validateClaimSupportGraph(graph, true).valid) graphs.push(graph);
+  }
+  return graphs;
+}
+
+async function persistInvestigatorObservation(caseId: number, controlTurn: number, act: ActRecord, runId: string): Promise<number> {
+  const correlationKey = `investigator-act:case:${caseId}:turn:${controlTurn}`;
+  const inserted = await db.insert(researchCaseEventsTable).values({
     caseId,
     iteration: controlTurn,
-    actorRole: "gemini_boss",
-    eventType: "control_decision",
-    status: oversight.status === "completed" ? "recorded" : "unavailable",
-    summary: `Per-act oversight: ${act.action} -> ${oversight.action}`.slice(0, 1000),
+    actorRole: "head_investigator",
+    eventType: "tool_observation",
+    status: act.execution,
+    summary: `Investigator act ${controlTurn}: ${act.action}; execution=${act.execution}.`.slice(0, 1000),
     correlationKey,
-    payload: JSON.stringify(payload),
-  }).onConflictDoNothing({ target: [researchCaseEventsTable.caseId, researchCaseEventsTable.correlationKey] });
+    payload: JSON.stringify({ runId, turn: controlTurn, action: act.action, model: act.model, args: act.args, observation: act.observation ?? null, observedUrls: act.observedUrls, findings: act.findings, providerFallback: act.providerFallback ?? [], stopReason: act.stopReason ?? null, recordedAt: new Date().toISOString() }),
+  }).onConflictDoNothing({ target: [researchCaseEventsTable.caseId, researchCaseEventsTable.correlationKey] }).returning({ id: researchCaseEventsTable.id });
+  if (inserted[0]?.id) return inserted[0].id;
+  const [existing] = await db.select({ id: researchCaseEventsTable.id }).from(researchCaseEventsTable).where(and(eq(researchCaseEventsTable.caseId, caseId), eq(researchCaseEventsTable.correlationKey, correlationKey))).limit(1);
+  if (!existing?.id) throw new Error(`Unable to resolve immutable Investigator observation event ${correlationKey}`);
+  return existing.id;
+}
 
+async function persistActOversight(caseId: number, controlTurn: number, act: ActRecord, oversight: TargetActOversight, observationEventId: number, evidenceGraphs: EvidenceGraph[]): Promise<void> {
+  const payload = { controlTurn, observationEventId, evidenceGraphs, act: compactAct(act), oversight, recordedAt: new Date().toISOString() };
+  const correlationKey = `target-oversight:case:${caseId}:turn:${controlTurn}`;
+  await db.insert(researchCaseEventsTable).values({ caseId, iteration: controlTurn, actorRole: "gemini_boss", eventType: "control_decision", status: oversight.status === "completed" ? "recorded" : "unavailable", summary: `Per-act oversight: ${act.action} -> ${oversight.action}`.slice(0, 1000), correlationKey, payload: JSON.stringify(payload) }).onConflictDoNothing({ target: [researchCaseEventsTable.caseId, researchCaseEventsTable.correlationKey] });
   const [row] = await db.select({ caseFile: researchCasesTable.caseFile }).from(researchCasesTable).where(eq(researchCasesTable.id, caseId)).limit(1);
   if (!row) return;
-  let caseFile: Record<string, unknown> = {};
-  try { caseFile = row.caseFile ? JSON.parse(row.caseFile) as Record<string, unknown> : {}; } catch {}
+  let caseFile: Record<string, unknown> = {}; try { caseFile = row.caseFile ? JSON.parse(row.caseFile) as Record<string, unknown> : {}; } catch {}
   const history = Array.isArray(caseFile.investigatorActOversight) ? caseFile.investigatorActOversight : [];
   if (!history.some((item) => item && typeof item === "object" && (item as Record<string, unknown>).controlTurn === controlTurn)) history.push(payload);
   caseFile.investigatorActOversight = history.slice(-40);
@@ -131,6 +135,15 @@ export async function reviewTargetInvestigationAct(input: {
   act: ActRecord;
   recentActs: ActRecord[];
 }): Promise<TargetActOversight> {
+  const runId = `target:${input.caseId}`;
+  let observationEventId: number;
+  try {
+    observationEventId = await persistInvestigatorObservation(input.caseId, input.controlTurn, input.act, runId);
+  } catch (error) {
+    const unavailable: TargetActOversight = { status: "unavailable", action: "stop", direction: null, reason: "The completed Investigator act could not be anchored to an immutable observation event; continuation is fail-closed.", confidence: null, rightHand: { status: "unavailable", decision: null, reason: null, focusLanes: [], confidence: null, model: "none", error: error instanceof Error ? error.message : "observation persistence failed" }, bossModel: null, error: error instanceof Error ? error.message : "observation persistence failed" };
+    return unavailable;
+  }
+  const evidenceGraphs = buildActEvidenceGraphs(input.caseId, input.act, observationEventId, runId);
   const trajectory = [...input.recentActs, input.act].slice(-12).map(compactAct);
   const rightRaw = await runDeepSeekFreeJson(
     `${apexOrientationFor("right_hand")}\n\nYou are reviewing ONE completed Investigator act in an active target-scoped Apex Atlas investigation. You are the Right Hand, not the Investigator. Do not browse, do not select a tool, and do not invent evidence.\n\nIdentify whether the act is useful, redundant, identity-risky, unsupported, contradictory, or likely to justify a different research question. Give Gemini concise advisory input for the next act. Do not make the final continuation decision. Do not provide a tool/provider/query/URL sequence.\n\nTARGET: ${input.targetName} (${input.targetType})\nOBJECTIVE: ${input.objective.slice(0, 6000)}\nSHARED CASE STATE:\n${input.sharedContext.slice(0, 22000)}\n\nJUST-COMPLETED ACT:\n${JSON.stringify(compactAct(input.act)).slice(0, 7000)}\n\nRECENT ACTS:\n${JSON.stringify(trajectory).slice(0, 16000)}\n\nReturn ONE JSON object: {"decision":"...","reason":"...","focusLanes":["..."],"confidence":0.0}`,
@@ -148,27 +161,16 @@ export async function reviewTargetInvestigationAct(input: {
     error: rightParsed ? null : (rightRaw.error ?? "Right-hand returned no valid advice."),
   };
 
-  // Both control layers are mandatory. Gemini must never become an implicit
-  // replacement for a failed Right Hand review.
   if (rightHand.status !== "completed") {
-    const unavailable: TargetActOversight = {
-      status: "unavailable",
-      action: "stop",
-      direction: null,
-      reason: "DeepSeek/NVIDIA Right Hand oversight was unavailable; the next Investigator act is fail-closed.",
-      confidence: null,
-      rightHand,
-      bossModel: null,
-      error: rightHand.error ?? "Right-hand returned no valid advice.",
-    };
-    await persistActOversight(input.caseId, input.controlTurn, input.act, unavailable);
+    const unavailable: TargetActOversight = { status: "unavailable", action: "stop", direction: null, reason: "DeepSeek/NVIDIA Right Hand oversight was unavailable; the next Investigator act is fail-closed.", confidence: null, rightHand, bossModel: null, error: rightHand.error ?? "Right-hand returned no valid advice." };
+    await persistActOversight(input.caseId, input.controlTurn, input.act, unavailable, observationEventId, evidenceGraphs);
     return unavailable;
   }
 
   const selection = await resolveGeminiBossModel();
   if (!selection?.model) {
     const unavailable: TargetActOversight = { status: "unavailable", action: "stop", direction: null, reason: "Gemini Boss unavailable; the next Investigator act is fail-closed.", confidence: null, rightHand, bossModel: null, error: "No Gemini Boss model available." };
-    await persistActOversight(input.caseId, input.controlTurn, input.act, unavailable);
+    await persistActOversight(input.caseId, input.controlTurn, input.act, unavailable, observationEventId, evidenceGraphs);
     return unavailable;
   }
 
@@ -179,17 +181,12 @@ export async function reviewTargetInvestigationAct(input: {
     const parsed = parseObject(generated.raw);
     const action = String(parsed?.action ?? "").toLowerCase();
     if (!["continue", "redirect", "stop"].includes(action)) throw new Error("Invalid Gemini per-act oversight action.");
-    const oversight: TargetActOversight = {
-      status: "completed", action: action as TargetActOversight["action"],
-      direction: typeof parsed?.direction === "string" ? parsed.direction.slice(0, 1800) : null,
-      reason: typeof parsed?.reason === "string" ? parsed.reason.slice(0, 1800) : null,
-      confidence: clampConfidence(parsed?.confidence), bossModel: selection.model, rightHand, error: null,
-    };
-    await persistActOversight(input.caseId, input.controlTurn, input.act, oversight);
+    const oversight: TargetActOversight = { status: "completed", action: action as TargetActOversight["action"], direction: typeof parsed?.direction === "string" ? parsed.direction.slice(0, 1800) : null, reason: typeof parsed?.reason === "string" ? parsed.reason.slice(0, 1800) : null, confidence: clampConfidence(parsed?.confidence), bossModel: selection.model, rightHand, error: null };
+    await persistActOversight(input.caseId, input.controlTurn, input.act, oversight, observationEventId, evidenceGraphs);
     return oversight;
   } catch (error) {
     const failed: TargetActOversight = { status: "unavailable", action: "stop", direction: null, reason: "Gemini per-act oversight failed; continuation is fail-closed.", confidence: null, bossModel: selection.model, rightHand, error: error instanceof Error ? error.message : "Gemini per-act oversight failed." };
-    await persistActOversight(input.caseId, input.controlTurn, input.act, failed);
+    await persistActOversight(input.caseId, input.controlTurn, input.act, failed, observationEventId, evidenceGraphs);
     return failed;
   }
 }
