@@ -73,8 +73,24 @@ export async function runAgenticWebResearch(input: RunInput): Promise<CoreResult
   return withAgenticExecutionScope(scope, async () => {
     const core = await import("./agentic-web-research-core");
 
+    if (input.mode === "discovery") return core.runAgenticWebResearch(input);
+
     const oversightContext = input.jobId ? await loadTargetActOversightContext(input.jobId, input.targetName) : null;
-    if (!oversightContext || input.mode === "discovery") return core.runAgenticWebResearch(input);
+    if (!oversightContext) {
+      return {
+        status: "unavailable",
+        model: "none",
+        iterations: 0,
+        searches: 0,
+        visits: 0,
+        findings: [],
+        modelFindings: [],
+        stopReason: "CONTROL_CONTEXT_UNAVAILABLE",
+        trajectory: [],
+        trajectoryRecords: [],
+        error: "Target-scoped agentic research requires a durable control case; no Gemini Boss + DeepSeek Right Hand context was available.",
+      };
+    }
 
     const startedAt = Date.now();
     const requestedHardTimeout = Math.min(10 * 60_000, Math.max(30_000, Number.isFinite(input.hardTimeoutMs) ? Math.floor(input.hardTimeoutMs!) : 210_000));
