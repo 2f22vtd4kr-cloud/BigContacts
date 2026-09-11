@@ -8,6 +8,9 @@ const checks = [
   ["canonical runner blocks on stop", /if \(lastOversight\.action === "stop"\) break/.test(runner)],
   ["canonical runner fails closed when oversight is unavailable", /!lastOversight \|\| lastOversight\.status !== "completed"/.test(runner)],
   ["redirect becomes a research objective, not a tool command", /Gemini research objective/.test(runner)],
+  ["canonical runner establishes one global target deadline", /const deadline = Date\.now\(\) \+ hardTimeoutMs/.test(runner)],
+  ["each act receives only remaining global budget", /hardTimeoutMs: Math\.max\(30_000, remainingMs\)/.test(runner)],
+  ["act cancellation observes the global deadline", /Date\.now\(\) >= deadline/.test(runner)],
   ["agentic entrypoint performs Right Hand + Boss review after an act", /await reviewTargetInvestigationAct\(/.test(agentic)],
   ["discovery is not accidentally target-gated", /input\.mode === "discovery"/.test(agentic)],
 ];
