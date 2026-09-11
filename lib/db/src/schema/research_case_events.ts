@@ -4,7 +4,8 @@ import { z } from "zod/v4";
 import { researchCasesTable } from "./research_cases";
 
 /**
- * Append-only decisions, assignments, observations, claims, promotions, and directives.
+ * Append-only decisions, assignments, observations, claims, promotions, validations,
+ * projections, and directives.
  *
  * The immutable database `id` is the canonical per-case event sequence. It is
  * intentionally separate from `iteration`: multiple events can legitimately
@@ -15,6 +16,13 @@ import { researchCasesTable } from "./research_cases";
  * `correlationKey` is an optional durable idempotency key. New autonomous
  * trajectory events should populate it from the durable run id, turn, and
  * event role so a retry cannot append a second logical event.
+ *
+ * Validation and projection are explicit ledger stages. A validation event must
+ * reference the claim it adjudicates; a projection event must reference the
+ * validated/promotion boundary that authorized the durable card projection.
+ * These event types are schema vocabulary first; writers must still populate
+ * their causal references before they are considered complete evidence-chain
+ * records.
  */
 export const researchCaseEventsTable = pgTable("research_case_events", {
   id: serial("id").primaryKey(),
@@ -23,7 +31,7 @@ export const researchCaseEventsTable = pgTable("research_case_events", {
     .references(() => researchCasesTable.id, { onDelete: "cascade" }),
   iteration: integer("iteration").notNull().default(0),
   actorRole: text("actor_role").notNull(), // head_investigator | gemini_boss | right_hand | specialist | human_operator | system | bureau
-  eventType: text("event_type").notNull(), // case_opened | decision | control_decision | assignment | observation | tool_observation | claim | promotion | directive | status
+  eventType: text("event_type").notNull(), // case_opened | decision | control_decision | assignment | observation | tool_observation | claim | promotion | validation | projection | directive | status
   status: text("status").notNull().default("recorded"),
   summary: text("summary").notNull(),
   payload: text("payload").notNull().default("{}"),
@@ -53,6 +61,8 @@ export const researchCaseEventTypeSchema = z.enum([
   "tool_observation",
   "claim",
   "promotion",
+  "validation",
+  "projection",
   "directive",
   "status",
 ]);
