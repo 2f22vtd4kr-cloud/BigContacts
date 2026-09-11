@@ -111,7 +111,7 @@ export function replayResearchCaseEvents(events: ResearchReplayEvent[]): Researc
 
   const caseId = ordered[0]?.caseId ?? 0;
   const seenIds = new Set<number>();
-  const knownEventIds = new Set<number>();
+  const knownEvents = new Map<number, ResearchReplayEvent>();
   let previousIteration = 0;
   let actionCount = 0;
   let observationCount = 0;
@@ -133,7 +133,7 @@ export function replayResearchCaseEvents(events: ResearchReplayEvent[]): Researc
     if (!Number.isInteger(event.id) || event.id <= 0) violations.push(`event has invalid id: ${String(event.id)}`);
     if (seenIds.has(event.id)) violations.push(`event ${event.id}: duplicate event ID`);
     seenIds.add(event.id);
-    knownEventIds.add(event.id);
+    knownEvents.set(event.id, event);
     if (!Number.isInteger(event.caseId) || event.caseId <= 0) violations.push(`event ${event.id}: invalid caseId ${String(event.caseId)}`);
     if (event.caseId !== caseId) violations.push(`event ${event.id}: caseId ${event.caseId} differs from replay case ${caseId}`);
     if (!Number.isInteger(event.iteration) || event.iteration < 0) violations.push(`event ${event.id}: invalid iteration ${String(event.iteration)}`);
@@ -164,9 +164,12 @@ export function replayResearchCaseEvents(events: ResearchReplayEvent[]): Researc
       } else {
         for (const observationId of observationIds) {
           causalReferenceCount++;
-          if (!knownEventIds.has(observationId)) {
+          const observation = knownEvents.get(observationId);
+          if (!observation) {
             orphanReferenceCount++;
             violations.push(`event ${event.id}: claim references missing observation event ${observationId}`);
+          } else if (!["observation", "tool_observation"].includes(observation.eventType.toLowerCase())) {
+            violations.push(`event ${event.id}: claim references non-observation event ${observationId}`);
           }
         }
       }
@@ -179,9 +182,12 @@ export function replayResearchCaseEvents(events: ResearchReplayEvent[]): Researc
         violations.push(`event ${event.id}: promotion has no claimEventId`);
       } else {
         causalReferenceCount++;
-        if (!knownEventIds.has(claimEventId)) {
+        const claim = knownEvents.get(claimEventId);
+        if (!claim) {
           orphanReferenceCount++;
           violations.push(`event ${event.id}: promotion references missing claim event ${claimEventId}`);
+        } else if (claim.eventType.toLowerCase() !== "claim") {
+          violations.push(`event ${event.id}: promotion references non-claim event ${claimEventId}`);
         }
       }
     }
