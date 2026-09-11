@@ -27,7 +27,7 @@ import {
 } from "./contact-validation";
 import { formatReachabilityDirective, type ReachabilityDirective } from "./reachability-realism";
 import { canonicalizeUrl } from "./evidence-ledger";
-import { GROQ_DEFAULT_MODEL as GROQ_MODEL, GROQ_CHAT_MODELS } from "./groq-models";
+import { GROQ_DEFAULT_MODEL as GROQ_MODEL } from "./groq-models";
 import {
   adjudicateFinalTargetReview,
   buildFinalTargetReviewPrompt,
@@ -36,7 +36,6 @@ import {
 } from "./final-target-review";
 
 const GROQ_API        = "https://api.groq.com/openai/v1/chat/completions";
-const GROQ_MODEL_FAST = "openai/gpt-oss-20b";
 
 const OPENROUTER_API       = "https://openrouter.ai/api/v1/chat/completions";
 const OPENROUTER_MODEL     = "openai/gpt-oss-120b"; // align with Groq-hosted replacement
@@ -230,47 +229,6 @@ export async function runFinalTargetReview(
     }
   } catch (err: any) {
     logger.debug({ err: err?.message }, "final-review DeepSeek right-hand unavailable");
-  }
-
-  // 3) Groq capacity fallback (multi-model)
-  const models = [...new Set([GROQ_MODEL, ...GROQ_CHAT_MODELS, GROQ_MODEL_FAST].filter(Boolean))];
-  for (const key of getGroqKeys()) {
-    if (isExhausted(_exhaustedGroqKeys, key)) continue;
-    for (const model of models) {
-      try {
-        const response = await fetch(GROQ_API, {
-          method: "POST",
-          headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-          body: JSON.stringify({
-            model,
-            messages: [
-              {
-                role: "system",
-                content:
-                  apexOrientationFor("boss") + "\nCovering final card review because Boss and right-hand were unavailable. ONE JSON object only. Never invent.",
-              },
-              { role: "user", content: prompt },
-            ],
-            temperature: 0,
-            max_tokens: 700,
-            response_format: { type: "json_object" },
-          }),
-          signal: AbortSignal.timeout(20_000),
-        });
-        if (response.status === 429) {
-          _exhaustedGroqKeys.set(key, Date.now() + EXHAUSTED_TTL_MS);
-          break;
-        }
-        if (!response.ok) continue;
-        const data = await response.json() as any;
-        const raw = data?.choices?.[0]?.message?.content ?? "";
-        const json = extractJsonObject(raw);
-        if (!json) continue;
-        return adjudicateFinalTargetReview(input, JSON.parse(json), `groq-final-review-fallback:${model}`);
-      } catch {
-        // next model/key
-      }
-    }
   }
 
   return adjudicateFinalTargetReview(input, {}, "unavailable-final-review");
