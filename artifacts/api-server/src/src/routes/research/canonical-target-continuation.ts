@@ -5,130 +5,31 @@ import { createJob, getActiveJob, getJob, setActiveJob, updateJob, clearActiveJo
 import { claimCanonicalJob } from "../../lib/canonical-job-lock";
 import { runCanonicalSingleTargetInvestigation } from "../../lib/canonical-single-target-runner";
 import { decideTargetNextAction } from "../../lib/target-control-decision";
-
 const router = Router();
-
-function parseFile(raw: string | null): Record<string, any> | null {
-  try { const value = raw ? JSON.parse(raw) : null; return value && typeof value === "object" ? value : null; } catch { return null; }
-}
-
-function contextOf(file: Record<string, any>): string {
-  const context = typeof file.contextDocument === "string" ? file.contextDocument.trim() : "";
-  if (!context) throw new Error("Target case has no durable context document; refusing context-free continuation.");
-  return context.slice(0, 28000);
-}
-
+function parseFile(raw: string | null): Record<string, any> | null { try { const value = raw ? JSON.parse(raw) : null; return value && typeof value === "object" ? value : null; } catch { return null; } }
+function contextOf(file: Record<string, any>): string { const context = typeof file.contextDocument === "string" ? file.contextDocument.trim() : ""; if (!context) throw new Error("Target case has no durable context document; refusing context-free continuation."); return context.slice(0, 28000); }
 router.post("/research/bureau/target-cases/:caseId/run-next-pass", async (req, res): Promise<void> => {
-  const caseId = Number(req.params.caseId);
-  if (!Number.isInteger(caseId) || caseId <= 0) { res.status(400).json({ error: "Invalid target case ID" }); return; }
-
-  const [current] = await db.select().from(researchCasesTable).where(eq(researchCasesTable.id, caseId)).limit(1);
-  if (!current) { res.status(404).json({ error: "Target case not found" }); return; }
-  const file = parseFile(current.caseFile);
-  if (!file || file.target == null || current.caseType !== "target") { res.status(409).json({ error: "Only a canonical target case can run target continuation" }); return; }
+  const caseId = Number(req.params.caseId); if (!Number.isInteger(caseId) || caseId <= 0) { res.status(400).json({ error: "Invalid target case ID" }); return; }
+  const [current] = await db.select().from(researchCasesTable).where(eq(researchCasesTable.id, caseId)).limit(1); if (!current) { res.status(404).json({ error: "Target case not found" }); return; }
+  const file = parseFile(current.caseFile); if (!file || file.target == null || current.caseType !== "target") { res.status(409).json({ error: "Only a canonical target case can run target continuation" }); return; }
   if (!Number.isInteger(Number(current.targetEntityId)) || Number(current.targetEntityId) <= 0) { res.status(409).json({ error: "Target case has no durable target entity" }); return; }
-
-  const active = await getActiveJob("atlas-run");
-  if (active) {
-    const existing = await getJob(active);
-    if (existing?.status === "running" || existing?.status === "queued") { res.status(409).json({ error: "An Atlas investigation is already running.", jobId: active }); return; }
-  }
-
-  let contextDocument: string;
-  try { contextDocument = contextOf(file); } catch (error) { res.status(409).json({ error: error instanceof Error ? error.message : "Durable target context is missing." }); return; }
-
+  const active = await getActiveJob("atlas-run"); if (active) { const existing = await getJob(active); if (existing?.status === "running" || existing?.status === "queued") { res.status(409).json({ error: "An Atlas investigation is already running.", jobId: active }); return; } }
+  let contextDocument: string; try { contextDocument = contextOf(file); } catch (error) { res.status(409).json({ error: error instanceof Error ? error.message : "Durable target context is missing." }); return; }
   let jobId: string | null = null;
-  try {
-    jobId = await createJob("atlas-run");
-    const claimed = await claimCanonicalJob("atlas-run", jobId);
-    if (!claimed) {
-      await updateJob(jobId, { status: "failed", outcome: "incomplete", message: "Another canonical Atlas job owns the distributed execution lock.", finishedAt: new Date().toISOString() });
-      res.status(409).json({ error: "Another canonical Atlas investigation owns the execution lock.", jobId });
-      return;
-    }
-    await setActiveJob("atlas-run", jobId);
-  } catch (error) {
-    if (jobId) {
-      await updateJob(jobId, { status: "failed", outcome: "incomplete", message: error instanceof Error ? error.message : "Canonical Atlas lock acquisition failed.", finishedAt: new Date().toISOString() }).catch(() => undefined);
-      await clearActiveJobIfOwned("atlas-run", jobId).catch(() => undefined);
-    }
-    res.status(503).json({ error: error instanceof Error ? error.message : "Canonical Atlas lock acquisition failed.", jobId });
-    return;
-  }
-
-  const targetName = typeof file.target.name === "string" ? file.target.name : "";
-  const targetType = typeof file.target.type === "string" ? file.target.type : "unknown";
-  const objective = typeof current.objective === "string" && current.objective ? current.objective : `Investigate the exact named target ${targetName} for realistic public contact routes.`;
-  const priorInvestigator = Array.isArray(file.investigatorReports) ? file.investigatorReports.slice(-8) : [];
-  const trajectoryRecords = Array.isArray(file.investigatorTrajectoryRecords) ? file.investigatorTrajectoryRecords.slice(-40) : [];
-  const latestReport = priorInvestigator.length ? priorInvestigator[priorInvestigator.length - 1] : null;
-  const controlTurn = Math.max(0, Number(current.iteration ?? 0)) + 1;
-
+  try { jobId = await createJob("atlas-run"); const claimed = await claimCanonicalJob("atlas-run", jobId); if (!claimed) { await updateJob(jobId, { status: "failed", outcome: "incomplete", message: "Another canonical Atlas job owns the distributed execution lock.", finishedAt: new Date().toISOString() }); res.status(409).json({ error: "Another canonical Atlas investigation owns the execution lock.", jobId }); return; } await setActiveJob("atlas-run", jobId); } catch (error) { if (jobId) { await updateJob(jobId, { status: "failed", outcome: "incomplete", message: error instanceof Error ? error.message : "Canonical Atlas lock acquisition failed.", finishedAt: new Date().toISOString() }).catch(() => undefined); await clearActiveJobIfOwned("atlas-run", jobId).catch(() => undefined); } res.status(503).json({ error: error instanceof Error ? error.message : "Canonical Atlas lock acquisition failed.", jobId }); return; }
+  const targetName = typeof file.target.name === "string" ? file.target.name : ""; const targetType = typeof file.target.type === "string" ? file.target.type : "unknown"; const objective = typeof current.objective === "string" && current.objective ? current.objective : `Investigate the exact named target ${targetName} for realistic public contact routes.`; const priorInvestigator = Array.isArray(file.investigatorReports) ? file.investigatorReports.slice(-8) : []; const trajectoryRecords = Array.isArray(file.investigatorTrajectoryRecords) ? file.investigatorTrajectoryRecords.slice(-40) : []; const latestReport = priorInvestigator.length ? priorInvestigator[priorInvestigator.length - 1] : null; const controlTurn = Math.max(0, Number(current.iteration ?? 0)) + 1;
   try {
     await updateJob(jobId, { status: "running", progress: 0, total: 5, message: `Gemini Boss reviewing continuation options for ${targetName}…` });
-    const decision = await decideTargetNextAction({
-      caseId,
-      controlTurn,
-      targetName,
-      targetType,
-      objective,
-      contextDocument,
-      trajectoryRecords,
-      investigatorStatus: typeof latestReport?.status === "string" ? latestReport.status : current.status,
-      investigatorStopReason: typeof file.investigatorStopReason === "string" ? file.investigatorStopReason : null,
-    });
-
-    if (decision.status !== "completed" || decision.action === "stop") {
-      await db.update(researchCasesTable).set({ status: "review", currentAction: "gemini-target-stop", lastDecisionAt: new Date(), updatedAt: new Date() }).where(eq(researchCasesTable.id, caseId));
-      await updateJob(jobId, { status: "done", progress: 5, total: 5, outcome: "complete", message: `Gemini target control closed continuation for ${targetName}; case remains in review.`, result: JSON.stringify({ caseId, decision }), finishedAt: new Date().toISOString() });
-      await clearActiveJobIfOwned("atlas-run", jobId);
-      res.status(200).json({ caseId, jobId, status: "review", decision });
-      return;
-    }
-
+    const decision = await decideTargetNextAction({ caseId, controlTurn, targetName, targetType, objective, contextDocument, trajectoryRecords, investigatorStatus: typeof latestReport?.status === "string" ? latestReport.status : current.status, investigatorStopReason: typeof file.investigatorStopReason === "string" ? file.investigatorStopReason : null });
+    if (decision.status !== "completed" || decision.action === "stop") { await db.update(researchCasesTable).set({ status: "review", currentAction: "gemini-target-stop", lastDecisionAt: new Date(), updatedAt: new Date() }).where(eq(researchCasesTable.id, caseId)); await updateJob(jobId, { status: "done", progress: 5, total: 5, outcome: "complete", message: `Gemini target control closed continuation for ${targetName}; case remains in review.`, result: JSON.stringify({ caseId, decision }), finishedAt: new Date().toISOString() }); await clearActiveJobIfOwned("atlas-run", jobId); res.status(200).json({ caseId, jobId, status: "review", decision }); return; }
     const direction = decision.direction?.trim() || "Reassess the strongest unresolved evidence question within the exact target scope.";
     const nextContext = `${contextDocument}\n\n## Gemini Boss — explicit continuation decision\nAction: ${decision.action}\nResearch direction: ${direction}\nReason: ${decision.reason ?? "not supplied"}\nConfidence: ${decision.confidence ?? "unknown"}\nThis direction is a research objective, not a prescribed tool sequence. Investigator retains control of every search, visit, pivot, evidence judgment, and stopping decision.`.slice(-32000);
-    const nextFile = {
-      ...file,
-      contextDocument: nextContext,
-      nextInvestigation: {
-        ...(file.nextInvestigation ?? {}),
-        targetControl: {
-          action: decision.action,
-          direction,
-          reason: decision.reason,
-          confidence: decision.confidence,
-          rightHand: decision.rightHand,
-          bossModel: decision.bossModel,
-          recordedAt: new Date().toISOString(),
-        },
-      },
-      lastUpdatedBy: "gemini-boss-target-control",
-    };
+    const nextFile = { ...file, contextDocument: nextContext, nextInvestigation: { ...(file.nextInvestigation ?? {}), targetControl: { action: decision.action, direction, reason: decision.reason, confidence: decision.confidence, rightHand: decision.rightHand, bossModel: decision.bossModel, recordedAt: new Date().toISOString() } }, lastUpdatedBy: "gemini-boss-target-control" };
     await db.update(researchCasesTable).set({ caseFile: JSON.stringify(nextFile), status: "active", currentAction: `gemini-${decision.action}`, updatedAt: new Date() }).where(eq(researchCasesTable.id, caseId));
     await db.insert(researchCaseEventsTable).values({ caseId, iteration: controlTurn, actorRole: "gemini_boss", eventType: "assignment", summary: `Gemini authorized ${decision.action} for target continuation.`, payload: JSON.stringify({ direction, reason: decision.reason, confidence: decision.confidence, bossModel: decision.bossModel, jobId }) });
-
     await updateJob(jobId, { progress: 1, message: `Gemini authorized ${decision.action}; remounting target context for ${targetName}…`, result: JSON.stringify({ caseId, decision }) });
-    void (async () => {
-      try {
-        await runCanonicalSingleTargetInvestigation(jobId!, Number(current.targetEntityId), {});
-      } catch (error) {
-        const message = error instanceof Error ? error.message : "Target continuation failed.";
-        await db.update(researchCasesTable).set({ status: "review", currentAction: "target-continuation-error", updatedAt: new Date() }).where(eq(researchCasesTable.id, caseId));
-        await updateJob(jobId!, { status: "failed", outcome: "incomplete", message, finishedAt: new Date().toISOString() });
-      } finally {
-        await clearActiveJobIfOwned("atlas-run", jobId!);
-      }
-    })();
-
+    void (async () => { try { await runCanonicalSingleTargetInvestigation(jobId!, Number(current.targetEntityId), { existingCaseId: caseId, initialDirection: direction }); } catch (error) { const message = error instanceof Error ? error.message : "Target continuation failed."; await db.update(researchCasesTable).set({ status: "review", currentAction: "target-continuation-error", updatedAt: new Date() }).where(eq(researchCasesTable.id, caseId)); await updateJob(jobId!, { status: "failed", outcome: "incomplete", message, finishedAt: new Date().toISOString() }); } finally { await clearActiveJobIfOwned("atlas-run", jobId!); } })();
     res.status(202).json({ caseId, jobId, status: "running", decision, mode: "canonical-model-owned-target-continuation" });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Target control decision failed.";
-    await db.update(researchCasesTable).set({ status: "review", currentAction: "target-control-error", updatedAt: new Date() }).where(eq(researchCasesTable.id, caseId));
-    await updateJob(jobId, { status: "failed", outcome: "incomplete", message, finishedAt: new Date().toISOString() });
-    await clearActiveJobIfOwned("atlas-run", jobId);
-    res.status(503).json({ error: message, jobId });
-  }
+  } catch (error) { const message = error instanceof Error ? error.message : "Target control decision failed."; await db.update(researchCasesTable).set({ status: "review", currentAction: "target-control-error", updatedAt: new Date() }).where(eq(researchCasesTable.id, caseId)); await updateJob(jobId, { status: "failed", outcome: "incomplete", message, finishedAt: new Date().toISOString() }); await clearActiveJobIfOwned("atlas-run", jobId); res.status(503).json({ error: message, jobId }); }
 });
-
 export default router;
