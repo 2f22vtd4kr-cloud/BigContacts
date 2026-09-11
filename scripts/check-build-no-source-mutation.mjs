@@ -6,7 +6,7 @@ const launchGate = fs.readFileSync("scripts/check-apex-launch-gate.mjs", "utf8")
 
 const scripts = [
   rootPackage.scripts?.build ?? "",
-  rootPackage.scripts?.check\:bureau ?? "",
+  rootPackage.scripts?.["check:bureau"] ?? "",
   apiPackage.scripts?.build ?? "",
   apiPackage.scripts?.test ?? "",
   launchGate,
