@@ -7,10 +7,9 @@ const marker = "INVESTIGATOR_LLM_CAPABILITY_POOL";
 const llmStart = source.indexOf(marker);
 const llmEnd = source.indexOf("function formatFindingsBag", llmStart);
 const extractorStart = source.indexOf("function extractContactFactsFromHtml");
-const extractorEndMarker = source.indexOf("function isMostlyBinaryGarbage", extractorStart);
-const extractorEnd = extractorEndMarker > extractorStart
-  ? extractorEndMarker
-  : source.indexOf("function findingsFromProxyPage", extractorStart);
+const extractorNextFunction = extractorStart >= 0 ? source.indexOf("function ", extractorStart + 1) : -1;
+const extractorEnd = extractorNextFunction > extractorStart ? extractorNextFunction : source.length;
+const extractorSource = extractorStart >= 0 ? source.slice(extractorStart, extractorEnd) : "";
 
 const checks = [
   ["canonical investigator wrapper exists", wrapper.includes("agentic-web-research-core")],
@@ -20,8 +19,8 @@ const checks = [
   ["investigator lane does not call Gemini", llmStart >= 0 && llmEnd > llmStart && !/callGeminiJson/.test(source.slice(llmStart, llmEnd))],
   ["investigator lane does not call NVIDIA", llmStart >= 0 && llmEnd > llmStart && !/callNvidiaJson/.test(source.slice(llmStart, llmEnd))],
   ["Dig lane uses compact orientation", /apexOrientationCompact\("dig_agent"\)/.test(source.slice(llmStart))],
-  ["raw HTML extractor is observation-only", extractorStart >= 0 && extractorEnd > extractorStart && !/\bPERSON\s*:/.test(source.slice(extractorStart, extractorEnd))],
-  ["raw HTML extractor has no name promotion", extractorStart >= 0 && extractorEnd > extractorStart && !/\bNAME\s*:/.test(source.slice(extractorStart, extractorEnd))],
+  ["raw HTML extractor is observation-only", extractorSource.length > 0 && !/\bPERSON\s*:/.test(extractorSource)],
+  ["raw HTML extractor has no name promotion", extractorSource.length > 0 && !/\bNAME\s*:/.test(extractorSource)],
   ["search capability pool exposes multiple backends", /Serper|Tavily|Exa/.test(source)],
 ];
 
