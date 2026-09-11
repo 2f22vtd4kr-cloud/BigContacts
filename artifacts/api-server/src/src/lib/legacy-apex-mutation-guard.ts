@@ -18,153 +18,97 @@ const RETIRED_MUTATING_ENRICHMENT_PATHS = new Set([
 ]);
 const APEX_TYPES = new Set(["HNWI", "Gatekeeper"]);
 const DIRECT_CONTACT_FIELDS = new Set([
-  "email",
-  "phone",
-  "phoneSource",
-  "emailSource",
-  "linkedinUrl",
-  "twitterHandle",
-  "instagramHandle",
-  "telegramHandle",
-  "contactMethod",
-  "knownResidences",
-  "contactOutcome",
-  "contactConfidence",
-  "metadata",
+  "email", "phone", "phoneSource", "emailSource", "linkedinUrl", "twitterHandle",
+  "instagramHandle", "telegramHandle", "contactMethod", "knownResidences",
+  "contactOutcome", "contactConfidence", "metadata",
 ]);
 
-function isRetiredEnrichmentPath(path: string): boolean {
-  return RETIRED_MUTATING_ENRICHMENT_PATHS.has(path);
+function isRetiredEnrichmentPath(path: string): boolean { return RETIRED_MUTATING_ENRICHMENT_PATHS.has(path); }
+function isLegacyScopedEnrichmentPath(path: string): boolean { return path.startsWith("/enrich/"); }
+function isDirectEntityCardPatch(path: string): boolean { return /^\/entities\/\d+$/.test(path); }
+function isRejectedContactPatch(path: string): boolean { return /^\/entities\/\d+\/reject-contact$/.test(path); }
+
+function touchesApexContactFields(value: Record<string, unknown>): boolean {
+  return Object.keys(value).some((key) => DIRECT_CONTACT_FIELDS.has(key));
 }
 
-function isLegacyScopedEnrichmentPath(path: string): boolean {
-  return path.startsWith("/enrich/");
+function draftTouchesApexContactFields(draft: Record<string, unknown>): boolean {
+  if (!APEX_TYPES.has(String(draft.type ?? ""))) return false;
+  if (touchesApexContactFields(draft)) return true;
+  const contacts = Array.isArray(draft.contacts) ? draft.contacts : [];
+  return contacts.some((contact) => contact && typeof contact === "object" && Object.keys(contact as Record<string, unknown>).some((key) => ["email", "phone", "linkedinUrl", "twitterHandle", "instagramHandle", "telegramHandle", "contactMethod", "value", "sourceUrls"].includes(key)));
 }
 
-function isDirectEntityCardPatch(path: string): boolean {
-  return /^\/entities\/\d+$/.test(path);
-}
-
-function isRejectedContactPatch(path: string): boolean {
-  return /^\/entities\/\d+\/reject-contact$/.test(path);
+function rejectDirectApexCreation(res: Response, path: string): void {
+  res.status(409).json({
+    error: "Direct Apex contact-card creation is not permitted.",
+    reason: "HNWI/Gatekeeper contact state may cross the trusted card boundary only through explicit Investigator-selected promotion with immutable evidence provenance.",
+    path,
+  });
 }
 
 /**
  * Legacy/deterministic enrichment is not a second research control plane.
  * Canonical Atlas owns research strategy through the Investigator ReAct loop.
- * Known legacy enrichment, contact-repair and global remediation endpoints are
- * therefore retired unconditionally. Generic entity PATCHes remain available
- * for non-contact UI fields, but Apex contact state may cross the card boundary
- * only through explicit Investigator-selected promotion with immutable evidence
- * provenance.
+ * Apex contact state may cross the trusted card boundary only through explicit
+ * Investigator-selected promotion with immutable evidence provenance.
  */
-export async function legacyApexMutationGuard(
-  req: Request,
-  res: Response,
-  next: NextFunction,
-): Promise<void> {
+export async function legacyApexMutationGuard(req: Request, res: Response, next: NextFunction): Promise<void> {
   if (req.method === "PATCH" && isRejectedContactPatch(req.path)) {
-    res.status(410).json({
-      error: "Legacy contact rejection route retired.",
-      reason: "Contact-card state cannot be manually nulled or repaired outside the explicit Investigator promotion boundary.",
-      path: req.path,
-    });
+    res.status(410).json({ error: "Legacy contact rejection route retired.", reason: "Contact-card state cannot be manually nulled or repaired outside the explicit Investigator promotion boundary.", path: req.path });
     return;
   }
 
   if (req.method === "PATCH" && isDirectEntityCardPatch(req.path)) {
     const body = (req.body ?? {}) as Record<string, unknown>;
     const touchesContactState = Object.keys(body).some((key) => DIRECT_CONTACT_FIELDS.has(key));
-    if (!touchesContactState) {
-      next();
-      return;
-    }
-
+    if (!touchesContactState) { next(); return; }
     const entityId = Number(req.params.id);
-    if (!Number.isInteger(entityId) || entityId <= 0) {
-      res.status(400).json({ error: "Invalid entity id" });
-      return;
-    }
-    const [row] = await db
-      .select({ id: entitiesTable.id, type: entitiesTable.type })
-      .from(entitiesTable)
-      .where(eq(entitiesTable.id, entityId))
-      .limit(1);
+    if (!Number.isInteger(entityId) || entityId <= 0) { res.status(400).json({ error: "Invalid entity id" }); return; }
+    const [row] = await db.select({ id: entitiesTable.id, type: entitiesTable.type }).from(entitiesTable).where(eq(entitiesTable.id, entityId)).limit(1);
     if (row && APEX_TYPES.has(row.type)) {
-      res.status(409).json({
-        error: "Direct Apex contact-card mutation is not permitted.",
-        reason: "Apex HNWI/Gatekeeper contact state may cross the card boundary only through explicit Investigator-selected model promotion with immutable evidence provenance.",
-        entityId,
-      });
+      res.status(409).json({ error: "Direct Apex contact-card mutation is not permitted.", reason: "Apex HNWI/Gatekeeper contact state may cross the card boundary only through explicit Investigator-selected model promotion with immutable evidence provenance.", entityId });
       return;
     }
-    next();
-    return;
+    next(); return;
   }
 
-  if (req.method !== "POST") {
-    next();
-    return;
-  }
+  if (req.method !== "POST") { next(); return; }
 
   if (isRetiredEnrichmentPath(req.path)) {
-    res.status(410).json({
-      error: "Legacy enrichment route retired.",
-      reason: "Canonical Atlas Investigator research is the only supported research control plane, and contact cards may only be mutated through explicit model promotion.",
-      path: req.path,
-    });
+    res.status(410).json({ error: "Legacy enrichment route retired.", reason: "Canonical Atlas Investigator research is the only supported research control plane, and contact cards may only be mutated through explicit model promotion.", path: req.path });
     return;
   }
 
-  if (!isLegacyScopedEnrichmentPath(req.path)) {
-    next();
-    return;
+  // Generic entity creation is intentionally still available, but it cannot
+  // establish trusted Apex contact state. Manual creation may create an empty
+  // HNWI/Gatekeeper identity; researched contact fields must arrive via strict
+  // promotion with case/run provenance.
+  if (req.path === "/entities") {
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    const type = String(body.type ?? "");
+    if (APEX_TYPES.has(type) && touchesApexContactFields(body)) { rejectDirectApexCreation(res, req.path); return; }
+    next(); return;
   }
 
+  if (req.path === "/entities/import/batch") {
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    const drafts = Array.isArray(body.drafts) ? body.drafts : [];
+    if (drafts.some((draft) => draft && typeof draft === "object" && draftTouchesApexContactFields(draft as Record<string, unknown>))) { rejectDirectApexCreation(res, req.path); return; }
+    next(); return;
+  }
+
+  if (!isLegacyScopedEnrichmentPath(req.path)) { next(); return; }
   const body = (req.body ?? {}) as Record<string, unknown>;
   const entityType = typeof body.entityType === "string" ? body.entityType : undefined;
   const rawIds = Array.isArray(body.entityIds) ? body.entityIds : [];
-  const entityIds = rawIds
-    .map((value) => Number(value))
-    .filter((value) => Number.isInteger(value) && value > 0)
-    .slice(0, 1_000);
+  const entityIds = rawIds.map((value) => Number(value)).filter((value) => Number.isInteger(value) && value > 0).slice(0, 1_000);
   const singularEntityId = Number(body.entityId);
   if (Number.isInteger(singularEntityId) && singularEntityId > 0) entityIds.push(singularEntityId);
-
-  if (entityType && APEX_TYPES.has(entityType)) {
-    res.status(409).json({
-      error: "Legacy enrichment cannot mutate Apex HNWI/Gatekeeper cards.",
-      reason: "Use the canonical Investigator research path; only explicit model promotion may cross the card boundary.",
-    });
-    return;
-  }
-
-  if (entityIds.length === 0) {
-    if (!entityType) {
-      res.status(409).json({
-        error: "Legacy enrichment requires an explicit non-Apex target scope.",
-        reason: "Unscoped enrichment cannot be allowed to mutate HNWI/Gatekeeper cards.",
-      });
-      return;
-    }
-    next();
-    return;
-  }
-
-  const rows = await db
-    .select({ id: entitiesTable.id, type: entitiesTable.type })
-    .from(entitiesTable)
-    .where(inArray(entitiesTable.id, entityIds));
-
+  if (entityType && APEX_TYPES.has(entityType)) { res.status(409).json({ error: "Legacy enrichment cannot mutate Apex HNWI/Gatekeeper cards.", reason: "Use the canonical Investigator research path; only explicit model promotion may cross the card boundary." }); return; }
+  if (entityIds.length === 0) { if (!entityType) { res.status(409).json({ error: "Legacy enrichment requires an explicit non-Apex target scope.", reason: "Unscoped enrichment cannot be allowed to mutate HNWI/Gatekeeper cards." }); return; } next(); return; }
+  const rows = await db.select({ id: entitiesTable.id, type: entitiesTable.type }).from(entitiesTable).where(inArray(entitiesTable.id, entityIds));
   const apexRows = rows.filter((row) => APEX_TYPES.has(row.type));
-  if (apexRows.length > 0) {
-    res.status(409).json({
-      error: "Legacy enrichment cannot mutate Apex HNWI/Gatekeeper cards.",
-      reason: "Use the canonical Investigator research path; only explicit model promotion may cross the card boundary.",
-      entityIds: apexRows.map((row) => row.id),
-    });
-    return;
-  }
-
+  if (apexRows.length > 0) { res.status(409).json({ error: "Legacy enrichment cannot mutate Apex HNWI/Gatekeeper cards.", reason: "Use the canonical Investigator research path; only explicit model promotion may cross the card boundary.", entityIds: apexRows.map((row) => row.id) }); return; }
   next();
 }
