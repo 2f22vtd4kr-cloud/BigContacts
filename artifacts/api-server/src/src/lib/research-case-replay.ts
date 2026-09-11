@@ -33,6 +33,8 @@ export type ResearchCaseReplay = {
   directiveCount: number;
   claimCount: number;
   promotionCount: number;
+  validationCount: number;
+  projectionCount: number;
   causalReferenceCount: number;
   orphanReferenceCount: number;
   failureCount: number;
@@ -63,6 +65,8 @@ const ALLOWED_EVENT_TYPES = new Set([
   "tool_observation",
   "claim",
   "promotion",
+  "validation",
+  "projection",
   "directive",
   "status",
 ]);
@@ -90,6 +94,31 @@ function asPositiveInteger(value: unknown): number | null {
   return Number.isInteger(value) && Number(value) > 0 ? Number(value) : null;
 }
 
+function requireReferencedEvent(
+  eventId: number,
+  reference: unknown,
+  expectedTypes: Set<string>,
+  label: string,
+  knownEvents: Map<number, ResearchReplayEvent>,
+  violations: string[],
+): boolean {
+  const referencedId = asPositiveInteger(reference);
+  if (referencedId === null) {
+    violations.push(`event ${eventId}: ${label} has no valid event reference`);
+    return false;
+  }
+  const referenced = knownEvents.get(referencedId);
+  if (!referenced) {
+    violations.push(`event ${eventId}: ${label} references missing event ${referencedId}`);
+    return false;
+  }
+  if (!expectedTypes.has(referenced.eventType.toLowerCase())) {
+    violations.push(`event ${eventId}: ${label} references incompatible event ${referencedId} (${referenced.eventType})`);
+    return false;
+  }
+  return true;
+}
+
 /**
  * Replay events in the immutable database sequence (`id`) order.
  *
@@ -98,9 +127,9 @@ function asPositiveInteger(value: unknown): number | null {
  * sequence allocation. `iteration` is likewise not a sequence because several
  * actor/tool events can occur during one iteration.
  *
- * Claim and promotion events are part of the canonical ledger. Their payloads
- * contain first-class event references, so replay validates the causal edges
- * rather than treating copied URLs/values as sufficient provenance.
+ * Claim, promotion, validation, and projection events form an explicit causal
+ * chain. Replay validates those edges instead of treating copied URLs/values
+ * in mutable projections as sufficient provenance.
  */
 export function replayResearchCaseEvents(events: ResearchReplayEvent[]): ResearchCaseReplay {
   const violations: string[] = [];
@@ -120,6 +149,8 @@ export function replayResearchCaseEvents(events: ResearchReplayEvent[]): Researc
   let directiveCount = 0;
   let claimCount = 0;
   let promotionCount = 0;
+  let validationCount = 0;
+  let projectionCount = 0;
   let causalReferenceCount = 0;
   let orphanReferenceCount = 0;
   let failureCount = 0;
@@ -148,7 +179,7 @@ export function replayResearchCaseEvents(events: ResearchReplayEvent[]): Researc
     const payload = parsePayload(event.payload, event.id, violations);
     const type = event.eventType.toLowerCase();
     const status = event.status.toLowerCase();
-    if (["decision", "control_decision", "assignment", "observation", "tool_observation", "claim", "promotion", "directive"].includes(type)) actionCount++;
+    if (["decision", "control_decision", "assignment", "observation", "tool_observation", "claim", "promotion", "validation", "projection", "directive"].includes(type)) actionCount++;
     if (type === "decision" || type === "control_decision") { decisionCount++; latestDecision = payload; }
     if (type === "assignment") assignmentCount++;
     if (type === "observation" || type === "tool_observation") { observationCount++; latestObservation = payload; }
@@ -177,19 +208,55 @@ export function replayResearchCaseEvents(events: ResearchReplayEvent[]): Researc
 
     if (type === "promotion") {
       promotionCount++;
-      const claimEventId = asPositiveInteger(payload.claimEventId);
-      if (claimEventId === null) {
-        violations.push(`event ${event.id}: promotion has no claimEventId`);
-      } else {
-        causalReferenceCount++;
-        const claim = knownEvents.get(claimEventId);
-        if (!claim) {
-          orphanReferenceCount++;
-          violations.push(`event ${event.id}: promotion references missing claim event ${claimEventId}`);
-        } else if (claim.eventType.toLowerCase() !== "claim") {
-          violations.push(`event ${event.id}: promotion references non-claim event ${claimEventId}`);
-        }
+      if (status !== "promote" && status !== "reject") {
+        violations.push(`event ${event.id}: promotion status must be promote or reject`);
       }
+      if (requireReferencedEvent(event.id, payload.claimEventId, new Set(["claim"]), "promotion claimEventId", knownEvents, violations)) {
+        causalReferenceCount++;
+      } else {
+        orphanReferenceCount++;
+      }
+    }
+
+    if (type === "validation") {
+      validationCount++;
+      const referenced = requireReferencedEvent(
+        event.id,
+        payload.claimEventId,
+        new Set(["claim"]),
+        "validation claimEventId",
+        knownEvents,
+        violations,
+      );
+      if (referenced) causalReferenceCount++;
+      else orphanReferenceCount++;
+      if (!["verified", "rejected", "candidate", "blocked"].includes(status)) {
+        violations.push(`event ${event.id}: validation status must be verified, rejected, candidate, or blocked`);
+      }
+    }
+
+    if (type === "projection") {
+      projectionCount++;
+      const validationRef = payload.validationEventId;
+      const promotionRef = payload.promotionEventId;
+      if (validationRef !== undefined) {
+        if (requireReferencedEvent(event.id, validationRef, new Set(["validation"]), "projection validationEventId", knownEvents, violations)) {
+          causalReferenceCount++;
+        } else {
+          orphanReferenceCount++;
+        }
+      } else if (promotionRef !== undefined) {
+        if (requireReferencedEvent(event.id, promotionRef, new Set(["promotion"]), "projection promotionEventId", knownEvents, violations)) {
+          causalReferenceCount++;
+        } else {
+          orphanReferenceCount++;
+        }
+      } else {
+        violations.push(`event ${event.id}: projection has no validationEventId or promotionEventId`);
+        orphanReferenceCount++;
+      }
+      const entityId = asPositiveInteger(payload.entityId);
+      if (entityId === null) violations.push(`event ${event.id}: projection has no positive entityId`);
     }
 
     if (status === "failed" || status === "error" || /\bfailed\b|\berror\b/i.test(event.summary)) failureCount++;
@@ -212,6 +279,8 @@ export function replayResearchCaseEvents(events: ResearchReplayEvent[]): Researc
     directiveCount,
     claimCount,
     promotionCount,
+    validationCount,
+    projectionCount,
     causalReferenceCount,
     orphanReferenceCount,
     failureCount,
