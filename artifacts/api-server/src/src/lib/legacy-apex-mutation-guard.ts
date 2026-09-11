@@ -12,6 +12,7 @@ const RETIRED_MUTATING_ENRICHMENT_PATHS = new Set([
   "/ingest/occrp",
   "/ingest/deep-web-osint",
   "/ingest/broad-discovery",
+  "/entities/rehydrate-contacts",
 ]);
 const APEX_TYPES = new Set(["HNWI", "Gatekeeper"]);
 
@@ -28,8 +29,9 @@ function isLegacyScopedEnrichmentPath(path: string): boolean {
  * Canonical Atlas owns research strategy through the Investigator ReAct loop.
  *
  * Known legacy enrichment endpoints are therefore retired unconditionally,
- * including from internal cold-start callers. This prevents old scheduled jobs
- * from silently re-entering the research system around the canonical boundary.
+ * including from internal cold-start callers. The durable evidence projector
+ * `/entities/rehydrate-contacts` is also retired: replaying contact_evidence
+ * into an entity card is not allowed to become an implicit promotion path.
  * The generic /enrich/* compatibility surface remains scope-checked for
  * explicitly non-Apex maintenance callers until each endpoint is retired.
  */
@@ -46,7 +48,7 @@ export async function legacyApexMutationGuard(
   if (isRetiredEnrichmentPath(req.path)) {
     res.status(410).json({
       error: "Legacy enrichment route retired.",
-      reason: "Canonical Atlas Investigator research is the only supported research control plane.",
+      reason: "Canonical Atlas Investigator research is the only supported research control plane, and contact cards may only be mutated through explicit model promotion.",
       path: req.path,
     });
     return;
