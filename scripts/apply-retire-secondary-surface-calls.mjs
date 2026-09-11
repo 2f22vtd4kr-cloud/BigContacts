@@ -3,7 +3,6 @@ import fs from "node:fs";
 const targets = [
   "artifacts/api-server/src/src/routes/entities.ts",
   "artifacts/api-server/src/src/lib/atlas-orchestrator.ts",
-  "artifacts/api-server/src/src/routes/research/cases.ts",
 ];
 
 function findCallEnd(source, openIndex) {
@@ -37,17 +36,12 @@ function findCallEnd(source, openIndex) {
 
 function findStatementStart(source, callStart) {
   const lineStart = source.lastIndexOf("\n", callStart - 1) + 1;
-  const prefix = source.slice(lineStart, callStart);
-  const assignment = prefix.match(/^(\s*(?:const|let|var)\s+[A-Za-z_$][\w$]*\s*=\s*)$/);
-  if (assignment) return lineStart;
-  const awaitPrefix = prefix.match(/^(\s*await\s+)$/);
-  if (awaitPrefix) return lineStart;
   return lineStart;
 }
 
 function findStatementEnd(source, callEnd) {
   let i = callEnd;
-  while (i < source.length && /[ \t]/.test(source[i]!)) i++;
+  while (i < source.length && /[ \t]/.test(source[i])) i++;
   if (source[i] === ";") return i + 1;
   return callEnd;
 }
