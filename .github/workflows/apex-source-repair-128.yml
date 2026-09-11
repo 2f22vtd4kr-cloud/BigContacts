@@ -90,3 +90,5 @@ jobs:
           fi
           git commit -m 'Remove Groq final-review fallback at source [skip apex repair]'
           git push origin HEAD:main
+
+# Follow-up push activates this one-time migration workflow.
