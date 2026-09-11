@@ -31,6 +31,10 @@ export type ResearchCaseReplay = {
   decisionCount: number;
   assignmentCount: number;
   directiveCount: number;
+  claimCount: number;
+  promotionCount: number;
+  causalReferenceCount: number;
+  orphanReferenceCount: number;
   failureCount: number;
   cancellationCount: number;
   latestDecision: Record<string, unknown> | null;
@@ -57,6 +61,8 @@ const ALLOWED_EVENT_TYPES = new Set([
   "assignment",
   "observation",
   "tool_observation",
+  "claim",
+  "promotion",
   "directive",
   "status",
 ]);
@@ -80,6 +86,10 @@ function asTime(value: string | Date): number {
   return Number.isFinite(time) ? time : NaN;
 }
 
+function asPositiveInteger(value: unknown): number | null {
+  return Number.isInteger(value) && Number(value) > 0 ? Number(value) : null;
+}
+
 /**
  * Replay events in the immutable database sequence (`id`) order.
  *
@@ -87,6 +97,10 @@ function asTime(value: string | Date): number {
  * can legitimately receive timestamps that do not have the same total order as
  * sequence allocation. `iteration` is likewise not a sequence because several
  * actor/tool events can occur during one iteration.
+ *
+ * Claim and promotion events are part of the canonical ledger. Their payloads
+ * contain first-class event references, so replay validates the causal edges
+ * rather than treating copied URLs/values as sufficient provenance.
  */
 export function replayResearchCaseEvents(events: ResearchReplayEvent[]): ResearchCaseReplay {
   const violations: string[] = [];
@@ -97,12 +111,17 @@ export function replayResearchCaseEvents(events: ResearchReplayEvent[]): Researc
 
   const caseId = ordered[0]?.caseId ?? 0;
   const seenIds = new Set<number>();
+  const knownEvents = new Map<number, ResearchReplayEvent>();
   let previousIteration = 0;
   let actionCount = 0;
   let observationCount = 0;
   let decisionCount = 0;
   let assignmentCount = 0;
   let directiveCount = 0;
+  let claimCount = 0;
+  let promotionCount = 0;
+  let causalReferenceCount = 0;
+  let orphanReferenceCount = 0;
   let failureCount = 0;
   let cancellationCount = 0;
   let latestDecision: Record<string, unknown> | null = null;
@@ -114,6 +133,7 @@ export function replayResearchCaseEvents(events: ResearchReplayEvent[]): Researc
     if (!Number.isInteger(event.id) || event.id <= 0) violations.push(`event has invalid id: ${String(event.id)}`);
     if (seenIds.has(event.id)) violations.push(`event ${event.id}: duplicate event ID`);
     seenIds.add(event.id);
+    knownEvents.set(event.id, event);
     if (!Number.isInteger(event.caseId) || event.caseId <= 0) violations.push(`event ${event.id}: invalid caseId ${String(event.caseId)}`);
     if (event.caseId !== caseId) violations.push(`event ${event.id}: caseId ${event.caseId} differs from replay case ${caseId}`);
     if (!Number.isInteger(event.iteration) || event.iteration < 0) violations.push(`event ${event.id}: invalid iteration ${String(event.iteration)}`);
@@ -128,11 +148,50 @@ export function replayResearchCaseEvents(events: ResearchReplayEvent[]): Researc
     const payload = parsePayload(event.payload, event.id, violations);
     const type = event.eventType.toLowerCase();
     const status = event.status.toLowerCase();
-    if (["decision", "control_decision", "assignment", "observation", "tool_observation", "directive"].includes(type)) actionCount++;
+    if (["decision", "control_decision", "assignment", "observation", "tool_observation", "claim", "promotion", "directive"].includes(type)) actionCount++;
     if (type === "decision" || type === "control_decision") { decisionCount++; latestDecision = payload; }
     if (type === "assignment") assignmentCount++;
     if (type === "observation" || type === "tool_observation") { observationCount++; latestObservation = payload; }
     if (type === "directive") { directiveCount++; latestDirective = payload; }
+
+    if (type === "claim") {
+      claimCount++;
+      const observationIds = Array.isArray(payload.observationEventIds)
+        ? payload.observationEventIds.map(asPositiveInteger).filter((id): id is number => id !== null)
+        : [];
+      if (observationIds.length === 0) {
+        violations.push(`event ${event.id}: claim has no observationEventIds`);
+      } else {
+        for (const observationId of observationIds) {
+          causalReferenceCount++;
+          const observation = knownEvents.get(observationId);
+          if (!observation) {
+            orphanReferenceCount++;
+            violations.push(`event ${event.id}: claim references missing observation event ${observationId}`);
+          } else if (!["observation", "tool_observation"].includes(observation.eventType.toLowerCase())) {
+            violations.push(`event ${event.id}: claim references non-observation event ${observationId}`);
+          }
+        }
+      }
+    }
+
+    if (type === "promotion") {
+      promotionCount++;
+      const claimEventId = asPositiveInteger(payload.claimEventId);
+      if (claimEventId === null) {
+        violations.push(`event ${event.id}: promotion has no claimEventId`);
+      } else {
+        causalReferenceCount++;
+        const claim = knownEvents.get(claimEventId);
+        if (!claim) {
+          orphanReferenceCount++;
+          violations.push(`event ${event.id}: promotion references missing claim event ${claimEventId}`);
+        } else if (claim.eventType.toLowerCase() !== "claim") {
+          violations.push(`event ${event.id}: promotion references non-claim event ${claimEventId}`);
+        }
+      }
+    }
+
     if (status === "failed" || status === "error" || /\bfailed\b|\berror\b/i.test(event.summary)) failureCount++;
     if (status === "cancelled" || /\bcancel(?:led|lation)\b/i.test(event.summary)) cancellationCount++;
     if (event.summary.trim()) summaries.push(event.summary.trim().slice(0, 500));
@@ -151,6 +210,10 @@ export function replayResearchCaseEvents(events: ResearchReplayEvent[]): Researc
     decisionCount,
     assignmentCount,
     directiveCount,
+    claimCount,
+    promotionCount,
+    causalReferenceCount,
+    orphanReferenceCount,
     failureCount,
     cancellationCount,
     latestDecision,
