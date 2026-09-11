@@ -1,5 +1,4 @@
 import fs from "node:fs";
-
 const runner = fs.readFileSync("artifacts/api-server/src/src/lib/canonical-single-target-runner.ts", "utf8");
 const agentic = fs.readFileSync("artifacts/api-server/src/src/lib/agentic-web-research.ts", "utf8");
 const oversight = fs.readFileSync("artifacts/api-server/src/src/lib/target-act-oversight.ts", "utf8");
@@ -11,6 +10,7 @@ const checks = [
   ["canonical runner does not consume stale targetControlDecisions", !/readContinuationControl\(/.test(runner)],
   ["canonical target case reuse is bound to current atlas job", /state\.atlasJobId === atlasJobId/.test(runner)],
   ["canonical runner passes exact case identity into Investigator", /caseId: caseRow\.id/.test(runner)],
+  ["canonical target control iteration is durably monotonic", /iteration: caseRow\.iteration \+ completedActs/.test(runner)],
   ["canonical runner blocks on stop", /if \(lastOversight\.action === "stop"\) break/.test(runner)],
   ["canonical runner fails closed when oversight is unavailable", /!lastOversight \|\| lastOversight\.status !== "completed"/.test(runner)],
   ["redirect becomes a research objective, not a tool command", /Gemini research objective/.test(runner)],
