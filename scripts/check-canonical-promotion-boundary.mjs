@@ -39,6 +39,8 @@ const checks = [
   ["strict boundary requires explicit promotion for card mutation", strict.includes("if (row.item.promote !== true) continue")],
   ["strict boundary requires candidate scope", strict.includes('String(row.item.scope ?? "").toLowerCase() !== "candidate"')],
   ["strict boundary requires explicit person identity", strict.includes('typeof row.item.personName === "string"')],
+  ["strict boundary requires destination person identity", strict.includes("entity.name.trim().toLowerCase() !== personName.toLowerCase()") && strict.includes('["HNWI", "Gatekeeper"].includes(entity.type)')],
+  ["strict boundary retains card provenance", strict.includes("agenticContactProvenance") && strict.includes("sourceUrls: candidate.sourceUrls")],
   ["strict boundary requires run-scoped observed provenance", strict.includes("observedSourceBackedBureauContacts") && strict.includes("observedSourceUrls") && !strict.includes("getDiscoveryTrace")],
   ["strict boundary rejects search-query provenance", strict.includes("SEARCH_QUERY_URL") && strict.includes("isClaimSourceUrl")],
   ["strict boundary fails closed without source", strict.includes("if (!sourceUrls.length) continue")],
