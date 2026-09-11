@@ -3,6 +3,13 @@ import fs from "node:fs";
 const path = "artifacts/api-server/src/src/lib/registry-client.ts";
 let source = fs.readFileSync(path, "utf8");
 
+if (!source.includes("function createRegistryRequestSignal")) {
+  source = source.replace(
+    'import { logger } from "./logger";\n',
+    'import { logger } from "./logger";\n\nfunction createRegistryRequestSignal(signal: AbortSignal | undefined, timeoutMs: number): AbortSignal {\n  const timeoutSignal = AbortSignal.timeout(timeoutMs);\n  return signal ? AbortSignal.any([signal, timeoutSignal]) : timeoutSignal;\n}\n',
+  );
+}
+
 if (!source.includes("signal?: AbortSignal;")) {
   source = source.replace(
     "  limit?: number;\n}",
@@ -21,17 +28,17 @@ for (const name of networkFunctions) {
   const match = source.match(re);
   if (!match) throw new Error(`registry cancellation: function ${name} not found`);
   if (!match[1].includes("signal?: AbortSignal")) {
-    const params = match[1].trimEnd();
+    const params = match[1].trimEnd().replace(/,\s*$/, "");
     source = source.replace(match[0], `async function ${name}(${params}${params.trim() ? "," : ""}\n  signal?: AbortSignal,\n): Promise`);
   }
 }
 
 source = source.replace(
   "  const signal = AbortSignal.timeout(10_000);\n  const n = Math.min(limit, 20);",
-  "  const requestSignal = signal ?? AbortSignal.timeout(10_000);\n  const n = Math.min(limit, 20);",
+  "  const requestSignal = createRegistryRequestSignal(signal, 10_000);\n  const n = Math.min(limit, 20);",
 );
 source = source.replaceAll("{ headers, signal },", "{ headers, signal: requestSignal },");
-source = source.replace(/signal:\s*AbortSignal\.timeout\(/g, "signal: signal ?? AbortSignal.timeout(");
+source = source.replace(/signal:\s*AbortSignal\.timeout\((\d+)\)/g, "signal: createRegistryRequestSignal(signal, $1)");
 
 source = source.replace(
   "  const { query, registry, limit = 10 } = params;",
@@ -62,6 +69,7 @@ source = source.replace(
 );
 
 if (!source.includes("signal?: AbortSignal;")) throw new Error("registry cancellation: public signal field missing");
+if (!source.includes("function createRegistryRequestSignal")) throw new Error("registry cancellation: timeout composition helper missing");
 if (!source.includes("searchOpenCorporates(query.trim(), limit, signal)")) throw new Error("registry cancellation: public signal is not propagated");
 if (!source.includes("searchGleif(query.trim(), limit, signal)")) throw new Error("registry cancellation: GLEIF signal is not propagated");
 if (/searchOpenCorporates\(query\.trim\(\), limit\)\b/.test(source)) throw new Error("registry cancellation: stale OpenCorporates call remains");
