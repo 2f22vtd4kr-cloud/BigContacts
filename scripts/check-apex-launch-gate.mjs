@@ -5,9 +5,7 @@ import { execFileSync } from "node:child_process";
 const hardeners = [
   "apply-harvest-domain-egress-quarantine.mjs",
   "apply-agentic-domain-signal-hardening.mjs",
-  "apply-final-review-role-boundary.mjs",
   "apply-retire-secondary-surface-calls.mjs",
-  "apply-investigator-identity-observation-boundary.mjs",
   "apply-registry-cancellation-boundary.mjs",
   "apply-agentic-registry-signal-wiring.mjs",
   "apply-retire-deterministic-atlas-osint.mjs",
