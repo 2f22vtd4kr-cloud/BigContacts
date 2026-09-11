@@ -49,14 +49,13 @@ async function persistDiscoveryTrajectory(caseId: number, input: { objective?: s
 
       if (record.action !== "done") continue;
       for (const [findingIndex, finding] of record.findings.entries()) {
-        const observationEventIds = trajectoryRecords
+        if (!claimAppearsInObservedMaterial(finding, trajectoryRecords)) continue;
+        const observationTurns = trajectoryRecords
           .filter((candidate) => candidate.execution === "success" && candidate.observedUrls.some((url) => finding.sourceUrls.some((source) => { try { return new URL(url).href === new URL(source).href; } catch { return false; } })))
-          .map((candidate) => `${input.jobId ?? "case"}:turn:${candidate.turn}:trajectory`)
-          .filter((key, index, keys) => keys.indexOf(key) === index)
-          .map((key) => trajectoryRecords.find((candidate) => `${input.jobId ?? "case"}:turn:${candidate.turn}:trajectory` === key)?.turn)
-          .filter((turn): turn is number => Number.isInteger(turn));
+          .map((candidate) => candidate.turn)
+          .filter((turn, index, turns) => turns.indexOf(turn) === index);
         const resolvedObservationIds: number[] = [];
-        for (const turn of observationEventIds) {
+        for (const turn of observationTurns) {
           const key = `${input.jobId ?? "case"}:turn:${turn}:trajectory`;
           const observationId = (await tx.select({ id: researchCaseEventsTable.id }).from(researchCaseEventsTable).where(and(eq(researchCaseEventsTable.caseId, caseId), eq(researchCaseEventsTable.correlationKey, key))).limit(1))[0]?.id;
           if (observationId) resolvedObservationIds.push(observationId);
