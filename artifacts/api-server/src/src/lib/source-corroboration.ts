@@ -7,7 +7,7 @@
  */
 
 const AGGREGATOR_HOST_RE =
-  /(?:zoominfo|apollo\.io|rocketreach|signalhire|contactout|hunter\.io|clearbit|lusha|spokeo|whitepages|beenverified|intelius|peoplefinder|fastpeoplesearch|truepeoplesearch|thats them|radaris|beenverified)/i;
+  /(?:zoominfo|apollo\.io|rocketreach|signalhire|contactout|hunter\.io|clearbit|lusha|spokeo|whitepages|beenverified|intelius|peoplefinder|fastpeoplesearch|truepeoplesearch|thats them|radaris)/i;
 
 export type EvidenceNodeKind = "observation" | "claim" | "promotion" | "validation";
 export type EvidenceEdgeKind =
@@ -27,6 +27,8 @@ export interface EvidenceObservation {
   caseId?: number | null;
   turn?: number | null;
   collectionMethod?: string | null;
+  /** Immutable research_case_events row containing the observation. */
+  eventId?: number | null;
   excerpt?: string | null;
 }
 
@@ -91,7 +93,7 @@ export function meetsTwoSourceRule(urls: string[] | null | undefined): boolean {
 
 export function observationsFromSourceUrls(
   urls: readonly string[],
-  metadata: Pick<EvidenceObservation, "observedAt" | "runId" | "caseId" | "turn" | "collectionMethod"> & { idPrefix?: string } = { observedAt: new Date().toISOString() },
+  metadata: Pick<EvidenceObservation, "observedAt" | "runId" | "caseId" | "turn" | "collectionMethod" | "eventId"> & { idPrefix?: string; excerptByUrl?: Record<string, string> } = { observedAt: new Date().toISOString() },
 ): EvidenceObservation[] {
   const seen = new Set<string>();
   const observations: EvidenceObservation[] = [];
@@ -115,6 +117,8 @@ export function observationsFromSourceUrls(
       caseId: metadata.caseId ?? null,
       turn: metadata.turn ?? null,
       collectionMethod: metadata.collectionMethod ?? null,
+      eventId: metadata.eventId ?? null,
+      excerpt: metadata.excerptByUrl?.[canonical] ?? null,
     });
   }
   return observations;
@@ -154,5 +158,6 @@ export function validateClaimSupportGraph(graph: EvidenceGraph): { valid: boolea
   if (!supportingIds.size) return { valid: false, reason: "claim has no supporting observations" };
   if (graph.observations.some((observation) => !supportingIds.has(observation.id))) return { valid: false, reason: "graph contains unattributed observations" };
   if (graph.observations.some((observation) => !/^https?:\/\//i.test(observation.sourceUrl))) return { valid: false, reason: "non-http observation" };
+  if (graph.observations.some((observation) => observation.eventId == null)) return { valid: false, reason: "observation is not anchored to an immutable event" };
   return { valid: true, reason: null };
 }
