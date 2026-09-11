@@ -4,7 +4,7 @@
 
 **Repository:** `2f22vtd4kr-cloud/BigContacts`  
 **Branch:** `main`  
-**Current reviewed tip:** `5c786037c5341de2a5db7ff79201567741797d26`
+**Current reviewed tip:** `3e5d77c8048b2b162b9e88cd333cd2526cac8853`
 
 ## 1. Institutional architecture
 
@@ -84,7 +84,7 @@ Issue #148 is closed after regression coverage for same-observation identity/cla
 
 Canonical discovery trajectory persistence now records each structured Investigator turn as its own durable case event inside the same DB transaction as the case snapshot update. Tool turns are `tool_observation`; an explicit `done` turn is a `decision`. Event payloads retain model/action/args/execution/observation/observedUrls/findings/provider-fallback/stop metadata.
 
-The event schema/replay layer now explicitly accepts the canonical `control_decision` and `tool_observation` event types and the deterministic `bureau` actor used by the single-target context projector. Regression coverage exercises these live event forms.
+The event schema/replay layer explicitly accepts the canonical `control_decision` and `tool_observation` event types and the deterministic `bureau` actor used by the single-target context projector. Regression coverage exercises these live event forms.
 
 This improves causal reconstruction but is not yet the final claim-to-event graph: persisted findings still need first-class immutable claim/source references and idempotent run correlation. That remains part of #151/#152.
 
@@ -105,7 +105,7 @@ case
   -> entity/contact projection
 ```
 
-The dossier/card must be a projection of evidence, never the source of truth. The strict card boundary now additionally refuses candidate-person promotion unless the destination entity itself is an HNWI/Gatekeeper whose name exactly matches the model-authored person identity, preventing organization-card contamination. Promoted card values retain source URLs in `metadata.agenticContactProvenance`.
+The dossier/card must be a projection of evidence, never the source of truth. The strict card boundary now additionally refuses candidate-person promotion unless the destination entity itself is an HNWI/Gatekeeper whose name exactly matches the model-authored person identity, preventing organization-card contamination. Promoted card values retain exact claim source URLs and run/job provenance in `metadata.agenticContactProvenance`.
 
 Remaining work is to classify all readers/writers of `research_evidence`, `contact_evidence`, entity fields, relationships and identity candidates and retire/migrate proven legacy consumers.
 
@@ -130,7 +130,7 @@ transformed source
   -> repeat
 ```
 
-Completed in this audit: `apply-free-react-opening-repair.mjs` has been deleted and removed from API build/test after source parity verification. The launch gate was also corrected so it no longer tries to execute the deleted hardener.
+Completed in this audit: `apply-free-react-opening-repair.mjs` has been deleted and removed from API build/test. The launch gate was also corrected so it no longer tries to execute the deleted hardener.
 
 Still requiring direct source migration before deletion include the final-review role boundary, discovery initial-state boundary, secondary-surface retirement, registry cancellation, Python egress quarantine, and other explicitly tracked hardeners.
 
@@ -140,7 +140,7 @@ The historical deterministic secondary-surface expansion remains a source-level 
 
 The historical Atlas POST launch route is explicitly quarantined to HTTP 410. The historical Atlas orchestrator remains on disk for controlled retirement/reachability analysis.
 
-Legacy `/api/enrich/*` and old case execution routes are retired/unmounted where guards establish the boundary. Issues #125/#126, #132, and #137/#138 remain relevant for final source/API-contract cleanup.
+Legacy `/api/enrich/*` and old case execution routes are retired/unmounted where guards establish the boundary. The deterministic `/entities/rehydrate-contacts` route is now also retired through the legacy mutation guard because replaying evidence into cards is an implicit promotion bypass. Issues #125/#126, #132, and #137/#138 remain relevant for final source/API-contract cleanup.
 
 Issue #147 is closed: the model-facing username footprint capability is represented as individual Maigret and Sherlock actions after the canonical username capability split.
 
@@ -156,9 +156,13 @@ Canonical strict persistence (`bureau-contact-persist-strict.ts`) persists sourc
 
 Candidate-person card promotion additionally requires the destination entity to be an HNWI/Gatekeeper and its name to exactly match the model-authored person identity. This prevents a discovery/organization entity from receiving a person's contact vector through a caller-supplied entity ID.
 
-Promoted values retain source URLs, observed URLs, identity and note metadata under `agenticContactProvenance`. This is provenance preservation, not proof that the complete immutable claim/event graph is finished.
+Promoted values retain exact claim source URLs, observed URLs and job/run correlation under `agenticContactProvenance`. This is provenance preservation, not proof that the complete immutable claim/event graph is finished.
 
-## 13. Runtime verification state
+## 13. Identity review boundary
+
+The mounted `/identity/resolve` route deterministically builds identity bundles/candidates and writes `identityCandidatesTable`. It is currently review-only and was not found to directly mutate a card, but it can manufacture identity candidates without an Investigator finding. This is tracked as **#154** and must be explicitly classified as a non-autonomous review utility or converted/retired before final acceptance.
+
+## 14. Runtime verification state
 
 **No runtime/CI/provider/Replit success is currently claimed.** The user will manually launch Replit for the live phase. Static source changes, guards and GitHub commits are not runtime proof.
 
@@ -181,16 +185,16 @@ Gemini Boss
 
 Do not seed the first action, inject a known URL, force a provider, fabricate provenance, or use legacy enrichment to make the smoke test pass.
 
-## 14. Current priorities
+## 15. Current priorities
 
 1. Direct source cleanup of #128 and the remaining migration hardeners, beginning with the canonical Groq reviewer.
 2. Directly migrate `case-bureau.ts` discovery initial state, then delete its hardener.
 3. Remove deterministic secondary-surface source callers, then delete that migration hardener.
 4. Complete the immutable claim → observation/event → promotion → projection graph and run correlation (#151/#152).
 5. Finish real subprocess sandbox/egress architecture for Python OSINT; keep fail-closed until enforceable.
-6. Finish duplicate-tree and legacy writer reachability proof.
-7. Audit all entity/contact/relationship writers and generated/API compatibility surfaces.
-8. Optimize coordinated Boss/Right-Hand/Investigator token use without reducing autonomy.
+6. Resolve #154's live deterministic identity-review boundary.
+7. Finish duplicate-tree and legacy writer reachability proof.
+8. Audit all entity/contact/relationship writers and generated/API compatibility surfaces.
 9. Only then perform the user's live Replit acceptance experiment.
 
 **Working rule:** after every fix, trace callers, transitive callers, error paths, persistence, cancellation, provenance and legacy duplicates. Never convert “I found no caller” into “there is no caller.” Never claim runtime success without runtime evidence.
