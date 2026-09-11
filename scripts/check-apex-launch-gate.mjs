@@ -36,7 +36,7 @@ pass("canonical Dig lane has no Gemini implementation", !/callGeminiJson/.test(a
 pass("canonical Dig lane has no NVIDIA implementation", !/callNvidiaJson/.test(agentic));
 pass("strict boundary does not import legacy projector", !/from [\"']\.\/bureau-contact-persist[\"']/.test(strict));
 pass("strict boundary has explicit investigator selection API", /applyInvestigatorSelectedContactToEntityCard/.test(strict));
-pass("strict boundary rejects query URLs", /SEARCH_QUERY_URL/.test(strict) && /efts\\.sec\\.gov/.test(strict));
+pass("strict boundary rejects query URLs", /SEARCH_QUERY_URL/.test(strict) && strict.includes("efts.sec.gov"));
 pass("manual live audit is bounded to three targets", /[\"']targetCount[\"']\s*:\s*3/.test(batch) && !/[\"']targetCount[\"']\s*:\s*10/.test(batch));
 pass("manual audit runs agentic runtime checks", /check:agentic-runtime/.test(batch));
 pass("discovery emits model-selection progress", /onSlotProgress\?/.test(discovery));
