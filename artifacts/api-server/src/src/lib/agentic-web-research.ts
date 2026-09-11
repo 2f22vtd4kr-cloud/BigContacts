@@ -26,7 +26,8 @@ function enrichObjective(base: string, context: { sharedContext: string; directi
 /** Canonical target runs step exactly one Investigator action across a durable observation + Right Hand + Boss boundary. Discovery retains the core multi-step path because it has no target-scoped Boss/Right-hand case at this boundary. */
 export async function runAgenticWebResearch(input: RunInput): Promise<AgenticRunResult> {
   const executionId = typeof crypto?.randomUUID === "function" ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-  const scope = `agentic:${executionId}`;
+  const selectedInvestigator = input.investigatorLlm ?? "unknown";
+  const scope = `agentic:${executionId}:investigator:${selectedInvestigator}`;
   return withAgenticExecutionScope(scope, async () => {
     const core = await import("./agentic-web-research-core");
     if (input.mode === "discovery") return { ...(await core.runAgenticWebResearch(input)), executionId };
