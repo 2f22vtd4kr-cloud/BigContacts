@@ -33,19 +33,16 @@ const required = [
 ];
 for (const [label, pattern] of required) if (!pattern.test(source)) throw new Error(`agentic runtime invariant failed: ${label}`);
 
-const subprocessRequired = [
-  ["Python subprocess API accepts AbortSignal", /interface SubprocessOptions\s*\{\s*signal\?: AbortSignal/],
-  ["Python subprocesses use detached process groups on POSIX", /detached: process\.platform !== "win32"/],
-  ["Python subprocess cancellation kills the process group", /process\.kill\(-proc\.pid, signal\)/],
-  ["Python subprocess cancellation has a hard kill backstop", /if \(!settled\) terminateProcessTree\(proc, "SIGKILL"\)/],
-  ["Python subprocess output is bounded", /MAX_SUBPROCESS_OUTPUT_BYTES\s*=\s*2_000_000/],
-  ["Python cancellation has a distinct exit state", /CANCELLED_EXIT_CODE\s*=\s*-3/],
-  ["Holehe exposes subprocess options", /runHolehe\(email: string, options: SubprocessOptions = \{\}\)/],
-  ["Maigret exposes subprocess options", /runMaigret\(username: string, options: SubprocessOptions = \{\}\)/],
-  ["Sherlock exposes subprocess options", /runSherlock\(username: string, options: SubprocessOptions = \{\}\)/],
-  ["theHarvester exposes subprocess options", /runTheHarvester\(domain: string,[\s\S]{0,160}options: SubprocessOptions = \{\}\)/],
+const pythonBoundaryRequired = [
+  ["Python OSINT source explicitly fails closed", /const PYTHON_OSINT_EGRESS_GOVERNED = false;/],
+  ["Python OSINT quarantine names the missing sandbox boundary", /subprocess network egress is not yet governed by the Apex sandbox\/egress boundary/],
+  ["Holehe is source-gated", /runHolehe\([\s\S]{0,260}if \(!PYTHON_OSINT_EGRESS_GOVERNED\) return \{ \.\.\.base, error: PYTHON_OSINT_EGRESS_ERROR \};/],
+  ["Maigret is source-gated", /runMaigret\([\s\S]{0,260}if \(!PYTHON_OSINT_EGRESS_GOVERNED\) return \{ \.\.\.base, error: PYTHON_OSINT_EGRESS_ERROR \};/],
+  ["Sherlock is source-gated", /runSherlock\([\s\S]{0,260}if \(!PYTHON_OSINT_EGRESS_GOVERNED\) return \{ \.\.\.base, error: PYTHON_OSINT_EGRESS_ERROR \};/],
+  ["theHarvester is source-gated", /runTheHarvester\([\s\S]{0,260}if \(!PYTHON_OSINT_EGRESS_GOVERNED\) return \{ \.\.\.base, error: PYTHON_OSINT_EGRESS_ERROR \};/],
+  ["Python deep research is source-gated", /runOpenDeepResearch\([\s\S]{0,360}if \(!PYTHON_OSINT_EGRESS_GOVERNED\) return \{ \.\.\.base, error: PYTHON_OSINT_EGRESS_ERROR \};/],
 ];
-for (const [label, pattern] of subprocessRequired) if (!pattern.test(pythonTools)) throw new Error(`python subprocess invariant failed: ${label}`);
+for (const [label, pattern] of pythonBoundaryRequired) if (!pattern.test(pythonTools)) throw new Error(`python OSINT boundary invariant failed: ${label}`);
 
 const llmStepMatch = source.match(/async function llmStep\([\s\S]*?\n\}\nfunction formatFindingsBag/);
 if (!llmStepMatch) throw new Error("agentic runtime invariant failed: llmStep implementation missing");
