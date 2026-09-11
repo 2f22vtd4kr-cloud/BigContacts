@@ -45,6 +45,7 @@ const checks = [
   ["strict boundary requires run-scoped observed provenance", strict.includes("observedSourceBackedBureauContacts") && strict.includes("observedSourceUrls") && !strict.includes("getDiscoveryTrace")],
   ["strict boundary rejects search-query provenance", strict.includes("SEARCH_QUERY_URL") && strict.includes("isClaimSourceUrl")],
   ["strict boundary fails closed without source", strict.includes("if (!sourceUrls.length) continue")],
+  ["Atlas cannot pass synthetic person markers as contact values", !atlas.includes('value: `person:${name}`')],
   ["target oversight mounts structured trajectory", targetRunner.includes("trajectoryRecords") && targetRunner.includes("Structured Investigator turns")],
   ["Atlas control receives structured trajectory", atlas.includes("discoveryTrajectoryRecords: discovery.trajectoryRecords")],
   ["Atlas control prompts include structured observations", control.includes("STRUCTURED OBSERVATIONS") && control.includes("discoveryTrajectoryRecords")],
