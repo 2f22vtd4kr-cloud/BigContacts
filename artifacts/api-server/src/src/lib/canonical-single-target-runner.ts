@@ -167,7 +167,7 @@ export async function runCanonicalSingleTargetInvestigation(atlasJobId: string, 
     const direction = boss.nextDirections[0];
     if (direction) contextDocument = `${contextDocument}\n\n## Gemini continuation direction\n${direction}`.slice(-32000);
     await updateJob(atlasJobId, { progress: 2 + pass, atlasPhase: 2 + pass, message: `${boss.investigatorLlm.toUpperCase()} Investigator pass ${pass}/${maxPasses} researching ${target.name} from durable case context…` });
-    result = await runTargetContactAgent({ entityId: target.id, targetName: target.name, companyName, jobId: atlasJobId, investigatorLlm: boss.investigatorLlm, maxIterations: depth.agenticMaxIterations, hardTimeoutMs, contextDocument });
+    result = await runTargetContactAgent({ entityId: target.id, targetName: target.name, companyName, jobId: atlasJobId, investigatorLlm: boss.investigatorLlm, maxIterations: depth.agenticMaxIterations, hardTimeoutMs, contextDocument, shouldCancel: async () => { const job = await getJob(atlasJobId); return !job || job.status === "failed" || job.status === "cancelled"; } });
     trajectorySummary = [`pass=${pass}`, `Investigator model=${result.model}`, `status=${result.status}`, `findings=${result.findings}`, `searches=${result.searches}`, `visits=${result.visits}`, `trajectoryRecords=${result.trajectory.length}`];
     trajectoryRecords = (result as unknown as { trajectoryRecords?: InvestigatorTrajectoryRecord[] }).trajectoryRecords ?? [];
     priorContext = contextDocument;
