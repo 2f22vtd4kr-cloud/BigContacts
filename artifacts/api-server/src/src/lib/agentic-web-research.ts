@@ -82,6 +82,7 @@ export async function runAgenticWebResearch(input: RunInput): Promise<CoreResult
     const abortExternal = () => overallController.abort();
     input.signal?.addEventListener("abort", abortExternal, { once: true });
     const deadline = startedAt + requestedHardTimeout;
+    const deadlineTimer = setTimeout(() => overallController.abort(), requestedHardTimeout);
 
     let objective = input.objective || `Research the public web for the strongest attributable public contact path for ${input.targetName}.`;
     let records: CoreResult["trajectoryRecords"] = [];
@@ -171,6 +172,7 @@ export async function runAgenticWebResearch(input: RunInput): Promise<CoreResult
 
       return { status: lastStatus === "completed" ? "completed" : lastStatus, model, iterations: records.length, searches, visits, findings, modelFindings, stopReason: "ITERATION_BUDGET", trajectory, trajectoryRecords: records.slice(-100), ...(error ? { error } : {}) };
     } finally {
+      clearTimeout(deadlineTimer);
       input.signal?.removeEventListener("abort", abortExternal);
     }
   });
