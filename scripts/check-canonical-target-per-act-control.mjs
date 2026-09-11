@@ -27,6 +27,9 @@ const checks = [
   ["canonical act graphs require immutable observation anchors", /validateClaimSupportGraph\(graph, true\)/.test(oversight)],
   ["Right Hand is mandatory before Boss continuation", /if \(rightHand\.status !== "completed"\)/.test(oversight)],
   ["Right Hand failure stops the next Investigator act", /DeepSeek\/NVIDIA Right Hand oversight was unavailable/.test(oversight)],
+  ["Boss stop has a distinct external stop reason", /stopReason: "BOSS_STOP"/.test(agentic)],
+  ["Investigator completion has a distinct external stop reason", /stopReason: "INVESTIGATOR_DONE"/.test(agentic)],
+  ["control unavailability has a distinct external stop reason", /stopReason: "CONTROL_UNAVAILABLE"/.test(agentic)],
   ["discovery is not accidentally target-gated", /input\.mode === "discovery"/.test(agentic)],
 ];
 let failed = false;
