@@ -9,3 +9,9 @@ export function withAgenticExecutionScope<T>(scope: string, fn: () => Promise<T>
 export function getAgenticExecutionScope(): string {
   return storage.getStore() ?? "process";
 }
+
+/** Extract the Boss-selected Investigator provider from the execution scope. */
+export function getAgenticSelectedInvestigator(): "groq" | "mistral" | null {
+  const match = /^agentic:[^:]+:investigator:(groq|mistral)$/.exec(getAgenticExecutionScope());
+  return match?.[1] === "groq" || match?.[1] === "mistral" ? match[1] : null;
+}

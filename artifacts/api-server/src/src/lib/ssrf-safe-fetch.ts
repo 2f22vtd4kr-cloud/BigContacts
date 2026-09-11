@@ -14,6 +14,7 @@ import { lookup } from "node:dns/promises";
 import http from "node:http";
 import https from "node:https";
 import net from "node:net";
+import { getAgenticSelectedInvestigator } from "./agentic-execution-context";
 
 const BLOCKED_HOSTNAMES = new Set(["localhost", "localhost.localdomain", "metadata.google.internal", "metadata"]);
 const MAX_RESPONSE_BYTES = 2_000_000;
@@ -108,7 +109,20 @@ async function pinnedFetch(input: RequestInfo | URL, init: RequestInit, address:
   });
 }
 
-export async function safeOutboundFetch(input: RequestInfo | URL, init: RequestInit = {}): Promise<Response> { const nextUrl = typeof input === "string" || input instanceof URL ? String(input) : input.url; const validated = parseSafeUrl(nextUrl); const hostname = validated.hostname.replace(/^\[|\]$/g, "").toLowerCase().replace(/\.$/, ""); const address = await resolveSafeAddress(hostname); return pinnedFetch(input, { ...init, redirect: "manual" }, address); }
+export async function safeOutboundFetch(input: RequestInfo | URL, init: RequestInit = {}): Promise<Response> {
+  const nextUrl = typeof input === "string" || input instanceof URL ? String(input) : input.url;
+  const validated = parseSafeUrl(nextUrl);
+  const selectedInvestigator = getAgenticSelectedInvestigator();
+  if (selectedInvestigator) {
+    const hostname = validated.hostname.toLowerCase();
+    const isGroq = hostname === "api.groq.com" || hostname.endsWith(".groq.com");
+    const isMistral = hostname === "api.mistral.ai" || hostname.endsWith(".mistral.ai");
+    if ((selectedInvestigator === "groq" && isMistral) || (selectedInvestigator === "mistral" && isGroq)) {
+      throw new Error(`Cross-provider Investigator fallback blocked: Boss selected ${selectedInvestigator}`);
+    }
+  }
+  const hostname = validated.hostname.replace(/^\[|\]$/g, "").toLowerCase().replace(/\.$/, ""); const address = await resolveSafeAddress(hostname); return pinnedFetch(input, { ...init, redirect: "manual" }, address);
+}
 export function isBlockedOutboundIpForTest(address: string): boolean { return isBlockedIp(address); }
 export const MAX_SAFE_OUTBOUND_RESPONSE_BYTES = MAX_RESPONSE_BYTES;
 export const MAX_SAFE_OUTBOUND_REQUEST_BYTES = MAX_REQUEST_BYTES;

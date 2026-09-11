@@ -1,6 +1,7 @@
 import { safeOutboundFetch } from "./ssrf-safe-fetch";
 import { classifyExternalProvider, runProviderCall } from "./provider-gate";
 import { getAgenticExecutionScope, withAgenticExecutionScope } from "./agentic-execution-context";
+import { validateGeminiResearchObjective } from "./gemini-research-objective";
 import { reviewTargetInvestigationAct, loadTargetActOversightContext, type TargetActOversight } from "./target-act-oversight";
 const nativeFetch = globalThis.fetch.bind(globalThis);
 type GuardedFetch = typeof fetch & { __apexSsrfGuard?: boolean; __apexQuotaGuard?: boolean };
@@ -26,17 +27,20 @@ function enrichObjective(base: string, context: { sharedContext: string; directi
 /** Canonical target runs step exactly one Investigator action across a durable observation + Right Hand + Boss boundary. Discovery retains the core multi-step path because it has no target-scoped Boss/Right-hand case at this boundary. */
 export async function runAgenticWebResearch(input: RunInput): Promise<AgenticRunResult> {
   const executionId = typeof crypto?.randomUUID === "function" ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-  const scope = `agentic:${executionId}`;
+  const selectedInvestigator = input.investigatorLlm ?? "unknown";
+  const scope = `agentic:${executionId}:investigator:${selectedInvestigator}`;
   return withAgenticExecutionScope(scope, async () => {
     const core = await import("./agentic-web-research-core");
     if (input.mode === "discovery") return { ...(await core.runAgenticWebResearch(input)), executionId };
     const oversightContext = input.caseId ? await loadTargetActOversightContext(input.caseId, input.targetName) : null;
     if (!oversightContext) return { status: "unavailable", model: "none", iterations: 0, searches: 0, visits: 0, findings: [], modelFindings: [], stopReason: "CONTROL_CONTEXT_UNAVAILABLE", trajectory: [], trajectoryRecords: [], error: "Target-scoped agentic research requires a durable control case; no Gemini Boss + DeepSeek Right Hand context was available.", executionId };
+    const initialDirection = validateGeminiResearchObjective(oversightContext.liveOversightDirection);
+    if (oversightContext.liveOversightDirection && !initialDirection.valid) return { status: "unavailable", model: "none", iterations: 0, searches: 0, visits: 0, findings: [], modelFindings: [], stopReason: "LLM_UNAVAILABLE", trajectory: [], trajectoryRecords: [], error: `Invalid durable Gemini research objective: ${initialDirection.reason}`, executionId };
     const startedAt = Date.now(); const requestedHardTimeout = Math.min(10 * 60_000, Math.max(30_000, Number.isFinite(input.hardTimeoutMs) ? Math.floor(input.hardTimeoutMs!) : 210_000));
     const overallController = new AbortController(); const abortExternal = () => overallController.abort(); input.signal?.addEventListener("abort", abortExternal, { once: true }); const deadline = startedAt + requestedHardTimeout; const deadlineTimer = setTimeout(() => overallController.abort(), requestedHardTimeout);
     let objective = input.objective || `Research the public web for the strongest attributable public contact path for ${input.targetName}.`;
     let records: CoreResult["trajectoryRecords"] = []; let trajectory: string[] = []; let findings: CoreResult["findings"] = []; let modelFindings: CoreResult["modelFindings"] = [];
-    let model = "none"; let searches = 0; let visits = 0; let lastStatus: CoreResult["status"] = "completed"; let error: string | undefined; let direction: string | null = oversightContext.liveOversightDirection; let oversight: TargetActOversight | null = null;
+    let model = "none"; let searches = 0; let visits = 0; let lastStatus: CoreResult["status"] = "completed"; let error: string | undefined; let direction: string | null = initialDirection.valid ? initialDirection.direction : null; let oversight: TargetActOversight | null = null;
     try {
       for (let actionTurn = 1; actionTurn <= (input.maxIterations ?? 40); actionTurn++) {
         if (overallController.signal.aborted || input.signal?.aborted) return { status: "cancelled", model, iterations: actionTurn - 1, searches, visits, findings, modelFindings, stopReason: "CANCELLED", trajectory, trajectoryRecords: records.slice(-100), error: "cancelled by operator", executionId };
@@ -47,9 +51,10 @@ export async function runAgenticWebResearch(input: RunInput): Promise<AgenticRun
         const actRecord = actResult.trajectoryRecords[actResult.trajectoryRecords.length - 1];
         if (actRecord) {
           const normalizedRecord = { ...actRecord, turn: actionTurn }; records = [...records, normalizedRecord].slice(-100); trajectory = [...trajectory, ...actResult.trajectory.map((line) => renumberTrajectory(line, actionTurn))].slice(-100); if (actResult.modelFindings.length) modelFindings = [...modelFindings, ...actResult.modelFindings]; if (actRecord.findings.length) findings = [...findings, ...(actRecord.findings as CoreResult["findings"])];
-          oversight = await reviewTargetInvestigationAct({ caseId: oversightContext.caseId, controlTurn: actionTurn, runId: executionId, targetName: input.targetName, targetType: oversightContext.targetType, objective, sharedContext: oversightContext.contextDocument, act: normalizedRecord, recentActs: records.slice(-12) }); direction = oversight.direction ?? direction;
+          oversight = await reviewTargetInvestigationAct({ caseId: oversightContext.caseId, controlTurn: actionTurn, runId: executionId, targetName: input.targetName, targetType: oversightContext.targetType, objective, sharedContext: oversightContext.contextDocument, act: normalizedRecord, recentActs: records.slice(-12) });
+          if (oversight.direction) { const checkedDirection = validateGeminiResearchObjective(oversight.direction); if (!checkedDirection.valid) return { status: "unavailable", model, iterations: actionTurn, searches, visits, findings, modelFindings, stopReason: "LLM_UNAVAILABLE", trajectory, trajectoryRecords: records.slice(-100), error: `Gemini produced an invalid research objective: ${checkedDirection.reason}`, executionId }; direction = checkedDirection.direction; } else direction = null;
           if (actRecord.action === "done" || oversight.action === "stop" || oversight.status !== "completed") return { status: actResult.status === "completed" ? "completed" : actResult.status, model, iterations: actionTurn, searches, visits, findings, modelFindings, stopReason: actRecord.action === "done" ? "MODEL_DECIDED_DONE" : oversight.status !== "completed" ? "LLM_UNAVAILABLE" : "MODEL_DECIDED_DONE", trajectory, trajectoryRecords: records.slice(-100), error: oversight.error ?? error, executionId };
-          if (oversight.action === "redirect" && oversight.direction) objective = `${input.objective || objective}\n\nGemini redirected the research objective:\n${oversight.direction}`;
+          if (oversight.action === "redirect" && direction) objective = `${input.objective || objective}\n\nGemini redirected the research objective:\n${direction}`;
           continue;
         }
         if (actResult.status !== "completed" || actResult.stopReason !== "ITERATION_BUDGET") return { ...actResult, searches, visits, findings, modelFindings, trajectory, trajectoryRecords: records.slice(-100), executionId };
