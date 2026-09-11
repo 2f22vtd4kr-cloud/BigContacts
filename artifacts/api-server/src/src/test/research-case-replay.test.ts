@@ -32,6 +32,21 @@ describe("research case replay", () => {
     expect(replay.latestDecision).toMatchObject({ action: "continue_target" });
   });
 
+  it("replays claim and promotion events through explicit observation references", () => {
+    const replay = replayResearchCaseEvents([
+      { id: 1, caseId: 31, iteration: 0, actorRole: "system", eventType: "case_opened", status: "recorded", summary: "Case opened", payload: "{}", createdAt: "2026-09-11T01:00:00Z" },
+      { id: 2, caseId: 31, iteration: 1, actorRole: "head_investigator", eventType: "tool_observation", status: "success", summary: "Observed source", payload: JSON.stringify({ observedUrls: ["https://example.test/source"], observation: "alice@example.test" }), createdAt: "2026-09-11T01:00:01Z" },
+      { id: 3, caseId: 31, iteration: 2, actorRole: "head_investigator", eventType: "claim", status: "recorded", summary: "Investigator authored email claim", payload: JSON.stringify({ claim: { vectorType: "email", value: "alice@example.test" }, observationEventIds: [2] }), createdAt: "2026-09-11T01:00:02Z" },
+      { id: 4, caseId: 31, iteration: 2, actorRole: "head_investigator", eventType: "promotion", status: "promote", summary: "Investigator explicitly promoted claim", payload: JSON.stringify({ claimEventId: 3, decision: "promote" }), createdAt: "2026-09-11T01:00:03Z" },
+    ]);
+
+    expect(replay.valid).toBe(true);
+    expect(replay.claimCount).toBe(1);
+    expect(replay.promotionCount).toBe(1);
+    expect(replay.causalReferenceCount).toBe(2);
+    expect(replay.orphanReferenceCount).toBe(0);
+  });
+
   it("uses database sequence rather than wall-clock time as the canonical order", () => {
     const replay = replayResearchCaseEvents([
       { id: 2, caseId: 12, iteration: 1, actorRole: "specialist", eventType: "observation", status: "recorded", summary: "Later sequence observation", payload: JSON.stringify({ step: 2 }), createdAt: "2026-09-10T09:59:00Z" },
@@ -65,5 +80,18 @@ describe("research case replay", () => {
     expect(replay.valid).toBe(false);
     expect(replay.violations.some((v) => v.includes("unknown actorRole"))).toBe(true);
     expect(replay.violations.some((v) => v.includes("unknown eventType"))).toBe(true);
+  });
+
+  it("fails closed on orphaned causal references", () => {
+    const replay = replayResearchCaseEvents([
+      { id: 1, caseId: 44, iteration: 0, actorRole: "system", eventType: "case_opened", status: "recorded", summary: "Case opened", payload: "{}", createdAt: "2026-09-11T02:00:00Z" },
+      { id: 2, caseId: 44, iteration: 1, actorRole: "head_investigator", eventType: "claim", status: "recorded", summary: "Orphan claim", payload: JSON.stringify({ observationEventIds: [99] }), createdAt: "2026-09-11T02:00:01Z" },
+      { id: 3, caseId: 44, iteration: 1, actorRole: "head_investigator", eventType: "promotion", status: "promote", summary: "Orphan promotion", payload: JSON.stringify({ claimEventId: 98 }), createdAt: "2026-09-11T02:00:02Z" },
+    ]);
+
+    expect(replay.valid).toBe(false);
+    expect(replay.orphanReferenceCount).toBe(2);
+    expect(replay.violations.some((v) => v.includes("missing observation event 99"))).toBe(true);
+    expect(replay.violations.some((v) => v.includes("missing claim event 98"))).toBe(true);
   });
 });
