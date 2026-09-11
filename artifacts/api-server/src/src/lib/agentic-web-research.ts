@@ -5,7 +5,6 @@ import { reviewTargetInvestigationAct, loadTargetActOversightContext, type Targe
 
 const nativeFetch = globalThis.fetch.bind(globalThis);
 type GuardedFetch = typeof fetch & { __apexSsrfGuard?: boolean; __apexQuotaGuard?: boolean };
-
 if (!(globalThis.fetch as GuardedFetch).__apexSsrfGuard) {
   const guardedFetch = ((input: RequestInfo | URL, init?: RequestInit) => {
     if (getAgenticExecutionScope() === "process") return nativeFetch(input, init);
@@ -20,11 +19,9 @@ if (!(globalThis.fetch as GuardedFetch).__apexSsrfGuard) {
 
 export type { AgenticFinding, AgenticWebResearchResult, AgenticTrajectoryRecord } from "./agentic-web-research-core";
 export { getAgenticLlmHealth } from "./agentic-web-research-core";
-
 type CoreModule = typeof import("./agentic-web-research-core");
 type RunInput = Parameters<CoreModule["runAgenticWebResearch"]>[0];
 type CoreResult = Awaited<ReturnType<CoreModule["runAgenticWebResearch"]>>;
-
 function renumberTrajectory(value: string, turn: number): string { return value.replace(/^step\d+:/, `step${turn}:`); }
 function enrichObjective(base: string, context: { sharedContext: string; direction: string | null; records: CoreResult["trajectoryRecords"]; }): string {
   const recent = context.records.slice(-12).map((record) => ({ turn: record.turn, action: record.action, execution: record.execution, args: record.args, observation: typeof record.observation === "string" ? record.observation.slice(0, 4000) : undefined, observedUrls: record.observedUrls.slice(0, 12), findings: record.findings.slice(0, 10) }));
@@ -40,7 +37,6 @@ export async function runAgenticWebResearch(input: RunInput): Promise<CoreResult
     if (input.mode === "discovery") return core.runAgenticWebResearch(input);
     const oversightContext = input.jobId ? await loadTargetActOversightContext(input.jobId, input.targetName) : null;
     if (!oversightContext) return { status: "unavailable", model: "none", iterations: 0, searches: 0, visits: 0, findings: [], modelFindings: [], stopReason: "CONTROL_CONTEXT_UNAVAILABLE", trajectory: [], trajectoryRecords: [], error: "Target-scoped agentic research requires a durable control case; no Gemini Boss + DeepSeek Right Hand context was available." };
-
     const startedAt = Date.now();
     const requestedHardTimeout = Math.min(10 * 60_000, Math.max(30_000, Number.isFinite(input.hardTimeoutMs) ? Math.floor(input.hardTimeoutMs!) : 210_000));
     const overallController = new AbortController();
@@ -48,7 +44,6 @@ export async function runAgenticWebResearch(input: RunInput): Promise<CoreResult
     input.signal?.addEventListener("abort", abortExternal, { once: true });
     const deadline = startedAt + requestedHardTimeout;
     const deadlineTimer = setTimeout(() => overallController.abort(), requestedHardTimeout);
-
     let objective = input.objective || `Research the public web for the strongest attributable public contact path for ${input.targetName}.`;
     let records: CoreResult["trajectoryRecords"] = [];
     let trajectory: string[] = [];
@@ -61,7 +56,6 @@ export async function runAgenticWebResearch(input: RunInput): Promise<CoreResult
     let error: string | undefined;
     let direction: string | null = oversightContext.liveOversightDirection;
     let oversight: TargetActOversight | null = null;
-
     try {
       for (let actionTurn = 1; actionTurn <= (input.maxIterations ?? 40); actionTurn++) {
         if (overallController.signal.aborted || input.signal?.aborted) return { status: "cancelled", model, iterations: actionTurn - 1, searches, visits, findings, modelFindings, stopReason: "CANCELLED", trajectory, trajectoryRecords: records.slice(-100), error: "cancelled by operator" };
@@ -78,7 +72,7 @@ export async function runAgenticWebResearch(input: RunInput): Promise<CoreResult
           trajectory = [...trajectory, ...actResult.trajectory.map((line) => renumberTrajectory(line, actionTurn))].slice(-100);
           if (actResult.modelFindings.length) modelFindings = [...modelFindings, ...actResult.modelFindings];
           if (actRecord.findings.length) findings = [...findings, ...(actRecord.findings as CoreResult["findings"])];
-          oversight = await reviewTargetInvestigationAct({ caseId: oversightContext.caseId, controlTurn: actionTurn, runId: executionId, targetName: input.targetName, targetType: oversightContext.targetType, objective, sharedContext: oversightContext.contextDocument, act: normalizedRecord, recentActs: records.slice(-12) });
+          oversight = await reviewTargetInvestigationAct({ caseId: oversightContext.caseId, controlTurn: actionTurn, targetName: input.targetName, targetType: oversightContext.targetType, objective, sharedContext: oversightContext.contextDocument, act: normalizedRecord, recentActs: records.slice(-12) });
           direction = oversight.direction ?? direction;
           if (actRecord.action === "done" || oversight.action === "stop" || oversight.status !== "completed") return { status: actResult.status === "completed" ? "completed" : actResult.status, model, iterations: actionTurn, searches, visits, findings, modelFindings, stopReason: actRecord.action === "done" ? "MODEL_DECIDED_DONE" : oversight.status !== "completed" ? "LLM_UNAVAILABLE" : "MODEL_DECIDED_DONE", trajectory, trajectoryRecords: records.slice(-100), error: oversight.error ?? error };
           if (oversight.action === "redirect" && oversight.direction) objective = `${input.objective || objective}\n\nGemini redirected the research objective:\n${oversight.direction}`;
