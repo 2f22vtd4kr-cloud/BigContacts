@@ -30,8 +30,8 @@ const checks = [
   ["agentic pass threads case and run provenance into persistence", /durableCaseId != null \? \{ caseId: durableCaseId, runId \} : undefined/.test(bureau)],
   ["target contact agent resolves the durable target oversight run", /resolvePromotionProvenance/.test(targetAgent) && /target-oversight:case:\$\{context\.caseId\}:run:/.test(targetAgent)],
   ["target contact persistence receives resolved promotion provenance", /promotionProvenance = await resolvePromotionProvenance/.test(targetAgent) && /observedSourceUrls, promotionProvenance/.test(targetAgent)],
-  ["canonical discovery admission requires an immutable claim event", /hasImmutableDiscoveryClaim/.test(atlas) && /discoveryRunId: discovery\.runId/.test(atlas)],
-  ["canonical discovery admission validates successful Investigator observations", /eventType==="tool_observation"&&obs\.status==="success"/.test(atlas)],
+  ["canonical discovery admission is model-explicit and source-backed", /promotionDecision === "promote"/.test(atlas) && /scope === "candidate"/.test(atlas) && /sourceUrls/.test(atlas)],
+  ["canonical discovery materialization does not auto-promote contact vectors", /Discovery admission is identity state, not contact evidence/.test(atlas) && /target-scoped Investigator research required before contact promotion/.test(atlas)],
   ["promotion metadata records immutable claim and observation event IDs", /claimEventId:support\.claimEventId/.test(persist) && /observationEventIds:support\.observationEventIds/.test(persist)],
   ["durable discovery projection does not recursively copy the prior context document", !/memoryProjection\s*=\s*\{[^}]*contextDocument/s.test(bureau)],
 ];
