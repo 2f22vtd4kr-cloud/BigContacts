@@ -47,6 +47,7 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
   }
   const jobId = await createJob("case-bureau-discovery");
   await setActiveJob("case-bureau-discovery", jobId);
+  await db.update(researchCasesTable).set({ status: "active", currentAction: "canonical-investigator-discovery", updatedAt: new Date() }).where(eq(researchCasesTable.id, caseId));
   const depth = resolveResearchDepth({ explicit: typeof file.researchDepth === "string" ? file.researchDepth : undefined });
   void (async () => {
     try {
@@ -68,6 +69,7 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
         lockKey: "case-bureau-discovery",
       });
     } catch {
+      await db.update(researchCasesTable).set({ status: "error", currentAction: "canonical-discovery-error", updatedAt: new Date() }).where(eq(researchCasesTable.id, caseId));
       await clearActiveJobIfOwned("case-bureau-discovery", jobId);
     }
   })();
