@@ -16,9 +16,16 @@ const continuation = read("artifacts/api-server/src/src/routes/research/canonica
 const researchRoutes = read("artifacts/api-server/src/src/routes/research.ts");
 const claimValidator = (source) => {
   const start = source.indexOf("function claimAppearsInObservedMaterial");
-  const end = source.indexOf("\n}", start);
-  const body = start >= 0 && end > start ? source.slice(start, end + 2) : "";
-  return body.includes("for (const record of records)") && body.includes("record.observation") && !body.includes("matching.map") && !body.includes('.join("\\n")');
+  const endCandidates = [source.indexOf("\nexport function", start), source.indexOf("\nasync function", start), source.indexOf("\nexport async function", start)].filter((value) => value > start);
+  const end = endCandidates.length ? Math.min(...endCandidates) : source.length;
+  const body = start >= 0 && end > start ? source.slice(start, end) : "";
+  return body.includes("for (const record of records)")
+    && body.includes("record.observation")
+    && body.includes("valueObserved")
+    && body.includes("identityObserved")
+    && body.includes("supportingObservationCount")
+    && !body.includes("matching.map")
+    && !body.includes('.join("\\n")');
 };
 const checks = [
   ["target Dig uses strict persistence", target.includes("persistSourceBackedBureauContactsForEntity")],
@@ -27,14 +34,14 @@ const checks = [
   ["target Dig persists only model-emitted findings", target.includes("const modelFindings = agentic.modelFindings ?? []") && target.includes("sourceBackedFindings(modelFindings, agentic.trajectory, agentic.trajectoryRecords") && !target.includes("sourceBackedFindings(agentic.findings, agentic.trajectory)")],
   ["target Dig supplies successful observed provenance", target.includes("execution=success") && target.includes("observed=(https?:")],
   ["target Dig validates claims against observed material", target.includes("claimAppearsInObservedMaterial") && target.includes("record.observation")],
-  ["target claim binding is single-observation", claimValidator(target)],
+  ["target claim binding supports multi-observation attribution", claimValidator(target)],
   ["target preserves cancellation as a distinct result state", target.includes('agentic.status === "cancelled" ? "cancelled"') && target.includes('status: "cancelled"')],
   ["target Dig exposes structured trajectory records", target.includes("trajectoryRecords: AgenticTrajectoryRecord[]") && target.includes("trajectoryRecords: agentic.trajectoryRecords")],
   ["bureau pass uses strict persistence", bureau.includes("persistSourceBackedBureauContactsForEntity")],
   ["bureau pass preserves explicit investigator promotion", bureau.includes('promote: isExplicitCandidate && f.promotionDecision === "promote"')],
   ["bureau pass uses only model-emitted findings", bureau.includes("const modelFindings = agentic.modelFindings ?? []") && bureau.includes("sourceBackedAgenticFindings(modelFindings, agentic.trajectory, agentic.trajectoryRecords)") && !bureau.includes("sourceBackedAgenticFindings(agentic.findings, agentic.trajectory)")],
-  ["bureau pass validates claims against observed material", bureau.includes("claimAppearsInObservedMaterial") && bureau.includes("r.observation")],
-  ["bureau claim binding is single-observation", claimValidator(bureau)],
+  ["bureau pass validates claims against observed material", bureau.includes("claimAppearsInObservedMaterial") && bureau.includes("record.observation")],
+  ["bureau claim binding supports multi-observation attribution", claimValidator(bureau)],
   ["bureau preserves cancellation as a distinct result state", bureau.includes('agentic.status === "cancelled" ? "cancelled"') && bureau.includes('status: "cancelled"')],
   ["bureau creates a distinct run id per Investigator execution", bureau.includes("const runId = input.runId?.trim() || randomUUID()") && bureau.includes("runId?: string")],
   ["bureau trajectory correlation is run-scoped", bureau.includes("const correlationKey = `${input.runId}:turn:${record.turn}:trajectory`")],
