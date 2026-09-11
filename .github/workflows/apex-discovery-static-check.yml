@@ -1,0 +1,14 @@
+name: apex-discovery-static-check
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: node scripts/check-single-canonical-discovery-control-plane.mjs
+      - run: node scripts/check-discovery-mode-boundary.mjs
+      - run: node scripts/check-atlas-control-durability.mjs
