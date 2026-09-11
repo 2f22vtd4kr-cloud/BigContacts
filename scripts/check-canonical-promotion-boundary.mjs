@@ -16,8 +16,9 @@ const continuation = read("artifacts/api-server/src/src/routes/research/canonica
 const researchRoutes = read("artifacts/api-server/src/src/routes/research.ts");
 const claimValidator = (source) => {
   const start = source.indexOf("function claimAppearsInObservedMaterial");
-  const end = source.indexOf("\n}", start);
-  const body = start >= 0 && end > start ? source.slice(start, end + 2) : "";
+  const endCandidates = [source.indexOf("\nexport function", start), source.indexOf("\nasync function", start), source.indexOf("\nexport async function", start)].filter((value) => value > start);
+  const end = endCandidates.length ? Math.min(...endCandidates) : source.length;
+  const body = start >= 0 && end > start ? source.slice(start, end) : "";
   return body.includes("for (const record of records)")
     && body.includes("record.observation")
     && body.includes("valueObserved")
