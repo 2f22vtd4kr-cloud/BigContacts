@@ -12,7 +12,6 @@ const both = `${build}\n${test}`;
 const migrationHardeners = [
   "apply-final-review-role-boundary.mjs",
   "apply-retire-secondary-surface-calls.mjs",
-  "apply-investigator-identity-observation-boundary.mjs",
   "apply-registry-cancellation-boundary.mjs",
   "apply-agentic-registry-signal-wiring.mjs",
   "apply-retire-deterministic-atlas-osint.mjs",
