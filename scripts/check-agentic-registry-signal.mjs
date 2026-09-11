@@ -17,7 +17,8 @@ for (const name of ["searchOpenCorporates", "searchCompaniesHouse", "searchSecEd
   assert(new RegExp(`async function ${name}\\([\\s\\S]*signal\\?: AbortSignal`).test(registry), `${name} lacks AbortSignal parameter`);
 }
 assert(gleif.includes("signal?: AbortSignal"), "GLEIF client lacks AbortSignal contract");
-assert(gleif.includes("signal: signal ?? AbortSignal.timeout("), "GLEIF transport does not compose caller cancellation with bounded timeout");
+assert(gleif.includes("const requestSignal = signal ? AbortSignal.any([signal, AbortSignal.timeout(12_000)]) : AbortSignal.timeout(12_000)"), "GLEIF transport does not compose caller cancellation with bounded timeout");
+assert(gleif.includes("signal: requestSignal"), "GLEIF fetch does not use its composed cancellation signal");
 assert(registry.includes("signal: createRegistryRequestSignal(signal,"), "registry HTTP calls do not use the composed cancellation boundary");
 assert(!/signal:\s*AbortSignal\.timeout\(/.test(registry), "registry contains timeout-only HTTP transport that ignores caller cancellation");
 assert(core.includes("limit: 8, signal: runController.signal"), "canonical ReAct registry action does not pass run cancellation");
