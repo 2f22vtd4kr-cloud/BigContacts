@@ -19,12 +19,16 @@ import bureauStreamRouter from "./bureau-stream";
 import systemStatusRouter from "./system-status";
 import investigatorTraceRouter from "./investigator-trace";
 import { legacyApexMutationGuard } from "../lib/legacy-apex-mutation-guard";
+import { normalizeAtlasLaunchBody } from "../middlewares/normalize-atlas-launch-body";
 
 const router: IRouter = Router();
 router.use(healthRouter);
 // Browser login/session bootstrap is public; all other API routes remain behind
 // apiAuth at the application boundary.
 router.use(authRouter);
+// Normalize the canonical launch contract before any launcher reads Boolean(...)
+// from operator/form input. This is intentionally narrow, not a generic coercer.
+router.use(normalizeAtlasLaunchBody);
 // The legacy Apex mutation boundary wraps remaining compatibility/mutation routes.
 // Direct deterministic extended-OSINT execution is intentionally NOT mounted here:
 // research capabilities must be selected and executed by the canonical Investigator.
