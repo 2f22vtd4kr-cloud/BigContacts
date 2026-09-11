@@ -2,6 +2,7 @@ import fs from "node:fs";
 
 const lock = fs.readFileSync("artifacts/api-server/src/src/lib/canonical-job-lock.ts", "utf8");
 const launch = fs.readFileSync("artifacts/api-server/src/src/routes/research/canonical-atlas-launch.ts", "utf8");
+const targetRunner = fs.readFileSync("artifacts/api-server/src/src/lib/canonical-single-target-runner.ts", "utf8");
 const failures = [];
 const assert = (ok, message) => { if (!ok) failures.push(message); };
 
@@ -14,6 +15,8 @@ assert(launch.includes("claimCanonicalJob(\"atlas-run\", atlasJobId)"), "canonic
 assert(launch.includes("releaseCanonicalJob(\"atlas-run\", existingId)"), "canonical launch does not atomically clear a completed stale lock");
 assert(launch.includes("releaseCanonicalJob(\"atlas-run\", atlasJobId)"), "canonical launch does not release its own lock through the atomic owner check");
 assert(!/clearActiveJobIf(?:Owned|Matches)\(/.test(launch), "canonical launch still uses a read-then-delete active-job release");
+assert(targetRunner.includes("clearActiveJobIfMatches(\"atlas-run\", atlasJobId)"), "canonical target runner does not use the exported job-queue lock release API");
+assert(!targetRunner.includes("clearActiveJobIfOwned"), "canonical target runner references a nonexistent clearActiveJobIfOwned export");
 
 if (failures.length) {
   console.error("CANONICAL JOB LOCK: FAIL");
