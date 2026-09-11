@@ -1,5 +1,5 @@
 import { and, eq, like } from "drizzle-orm";
-import { db, researchCaseEventsTable, researchCasesTable } from "@workspace/db";
+import { db, entitiesTable, researchCaseEventsTable, researchCasesTable } from "@workspace/db";
 import { apexOrientationFor } from "./apex-bureau-orientation";
 import { resolveGeminiBossModel, generateGeminiBossText } from "./case-bureau";
 import { runDeepSeekFreeJson } from "./deepseek-case-reasoning";
@@ -71,11 +71,10 @@ function compactAct(record: ActRecord): Record<string, unknown> {
 }
 
 async function findTargetCase(jobId: string): Promise<{ id: number; targetEntityId: number | null; objective: string | null; caseFile: string | null } | null> {
-  const escaped = jobId.replace(/[%_\\]/g, "\\$&");
   const [row] = await db
     .select({ id: researchCasesTable.id, targetEntityId: researchCasesTable.targetEntityId, objective: researchCasesTable.objective, caseFile: researchCasesTable.caseFile })
     .from(researchCasesTable)
-    .where(and(eq(researchCasesTable.caseType, "target"), like(researchCasesTable.caseFile, `%${escaped}%`)))
+    .where(and(eq(researchCasesTable.caseType, "target"), like(researchCasesTable.caseFile, `%${jobId}%`)))
     .limit(1);
   return row ?? null;
 }
@@ -159,10 +158,11 @@ export async function reviewTargetInvestigationAct(input: {
   }
 }
 
-export async function loadTargetActOversightContext(jobId: string): Promise<{ caseId: number; targetEntityId: number; objective: string; contextDocument: string; liveOversightDirection: string | null } | null> {
+export async function loadTargetActOversightContext(jobId: string): Promise<{ caseId: number; targetEntityId: number; targetType: string; objective: string; contextDocument: string; liveOversightDirection: string | null } | null> {
   const row = await findTargetCase(jobId);
   if (!row || !row.targetEntityId) return null;
+  const [target] = await db.select({ type: entitiesTable.type }).from(entitiesTable).where(eq(entitiesTable.id, row.targetEntityId)).limit(1);
   let caseFile: Record<string, unknown> = {};
   try { caseFile = row.caseFile ? JSON.parse(row.caseFile) as Record<string, unknown> : {}; } catch {}
-  return { caseId: row.id, targetEntityId: row.targetEntityId, objective: row.objective ?? "", contextDocument: typeof caseFile.contextDocument === "string" ? caseFile.contextDocument : "", liveOversightDirection: typeof caseFile.liveOversightDirection === "string" ? caseFile.liveOversightDirection : null };
+  return { caseId: row.id, targetEntityId: row.targetEntityId, targetType: target?.type ?? "unknown", objective: row.objective ?? "", contextDocument: typeof caseFile.contextDocument === "string" ? caseFile.contextDocument : "", liveOversightDirection: typeof caseFile.liveOversightDirection === "string" ? caseFile.liveOversightDirection : null };
 }
