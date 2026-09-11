@@ -1,10 +1,10 @@
 # Apex Atlas / BigContacts — Living Context
 
-> **Updated:** 2026-09-10. Repository source and runtime evidence are authoritative over this document.
+> **Updated:** 2026-09-11. Repository source and runtime evidence are authoritative over this document.
 
 **Repository:** `2f22vtd4kr-cloud/BigContacts`  
 **Branch:** `main`  
-**Current reviewed tip:** `f9e96c718e65e0e55cc2f8dfa6d03e449a245181`
+**Current reviewed tip:** `9f88c2289d28b1a24396e9431172f7a7b96083b0`
 
 ## 1. Institutional architecture
 
@@ -36,20 +36,11 @@ institutional constitution
 
 Canonical files include `agentic-web-research-core.ts`, `agentic-web-research.ts`, `target-contact-agent.ts`, `bureau-agentic-pass.ts`, `canonical-single-target-runner.ts`, `atlas-control-decision.ts`, and `canonical-atlas-discovery.ts` under `artifacts/api-server/src/src/lib/`.
 
-The Investigator action surface is model-selectable. Current individual OSINT actions include `web_search`, `visit`, `browser_fetch`, `footprint_email`, `footprint_username_maigret`, `footprint_username_sherlock`, `domain_lookup`, `harvest_domain`, `registry_search`, `reverse_whois`, and `done` where the corresponding capability is available. Maigret and Sherlock are separate model actions; the old compound username action is retired.
+The Investigator action surface is model-selectable. Current individual OSINT actions include `web_search`, `visit`, `browser_fetch`, `footprint_email`, `footprint_username_maigret`, `footprint_username_sherlock`, `domain_lookup`, `harvest_domain`, `registry_search`, `reverse_whois`, and `done` where the corresponding capability is available. Maigret and Sherlock are separate model actions; the old compound username action is retired in the canonical source/runtime transformation.
 
-Hardening includes:
+Hardening includes maximum effective ReAct iterations = 40; run-scoped cancellation through canonical LLM/provider/search/page/browser paths; SSRF-safe HTTP/browser transport and redirect/subresource egress checks; bounded network/browser reads; model-selectable search locale; provider quota composition without duplicate counting; explicit successful-observation states; structured trajectory records; explicit model promotion and strict source-backed persistence; and candidate admission safety caps that fail closed rather than silently selecting the first N candidates.
 
-- maximum effective ReAct iterations = 40;
-- run-scoped cancellation through canonical LLM/provider/search/page/browser paths;
-- SSRF-safe HTTP/browser transport and redirect/subresource egress checks;
-- bounded network/browser reads;
-- model-selectable search locale rather than hidden US/English forcing;
-- provider quota composition without duplicate counting;
-- explicit successful-observation states so attempted/failed URLs cannot become evidence;
-- structured trajectory records;
-- explicit model promotion and strict source-backed persistence;
-- candidate admission safety caps fail closed instead of silently selecting the first N candidates.
+The forced initial `web_search` migration has now been removed from API build/test and deleted after direct source verification; issue #120 is closed. Permanent Free-ReAct guards remain.
 
 ## 3. Python OSINT boundary
 
@@ -61,19 +52,15 @@ Canonical Python network capabilities therefore remain **fail-closed**. Do not r
 
 Canonical discovery is `mode="discovery"`, not a fake person such as `Discovery slot`.
 
-Gemini owns discovery/continuation control actions:
-
-- `continue_discovery`
-- `research_candidate`
-- `revisit_candidate`
-- `pivot_discovery`
-- `stop`
+Gemini owns discovery/continuation control actions: `continue_discovery`, `research_candidate`, `revisit_candidate`, `pivot_discovery`, and `stop`.
 
 Invalid Boss decisions fail closed. Candidate safety validation may reject invalid/over-cap state but must not substitute a research strategy.
 
 The canonical Atlas launch boundary is `research/canonical-atlas-launch.ts`, which dispatches to the canonical model-owned discovery or single-target runner. The historical Atlas router/orchestrator remains retirement material and is not the canonical launch plane.
 
-The legacy mixed `research/cases.ts` executor is deliberately unmounted from the live research router. It must not be treated as canonical merely because it remains on disk.
+The legacy mixed `research/cases.ts` executor is deliberately unmounted from the live research router.
+
+A remaining source-level issue is the legacy `case-bureau.ts` discovery `initialAction` shape, which is still transformed by `apply-discovery-case-initial-action-state.mjs`; this must be migrated directly before that hardener can be removed.
 
 ## 5. Evidence law
 
@@ -89,17 +76,15 @@ raw observation
 
 Canonical person/contact promotion requires explicit model authorship, appropriate candidate/person scope, successful observed HTTP(S) provenance, explicit promotion, and strict claim-to-observation validation. For candidate contact claims, the claimed value and model-authored person identity must co-occur in the same successful bounded observation; independent pages cannot be silently combined into one source claim.
 
-Deterministic code may sanitize/validate/collision-check. It must not invent identities, inherit target names, fabricate URLs, or select among competing research findings.
-
-Issue #148 is closed after regression coverage was added for same-observation identity/claim binding, failed-observation rejection, and split-source rejection.
+Issue #148 is closed after regression coverage for same-observation identity/claim binding, failed-observation rejection, and split-source rejection.
 
 ## 6. Durable event ledger
 
 `research_case_events` is append-only case history. Immutable database `id` is the canonical per-case event sequence. `iteration` and `createdAt` are metadata, not ordering authorities.
 
-Recent hardening includes explicit actor/event enums, bounded fields, JSON-object payload validation, fail-closed replay validation, serialized/drained Investigator action callbacks, replay ordered by event ID, and regression tests for timestamp-vs-sequence ordering and malformed/cross-case events.
+Canonical discovery trajectory persistence now records each structured Investigator turn as its own durable case event inside the same DB transaction as the case snapshot update. Tool turns are `tool_observation`; an explicit `done` turn is a `decision`. Event payloads retain model/action/args/execution/observation/observedUrls/findings/provider-fallback/stop metadata.
 
-Issue #140 remains open for full runtime proof and stronger turn-level reconstruction. The eventual ledger must allow oversight to reconstruct model-selected actions, arguments, observations, successful provenance, findings, promotions, capacity/fallback events and stop reasons without relying on mutable projections.
+This improves causal reconstruction but is not yet the final claim-to-event graph: persisted findings still need first-class immutable claim/source references and idempotent run correlation. That remains part of #151/#152.
 
 ## 7. Evidence graph
 
@@ -118,11 +103,13 @@ case
   -> entity/contact projection
 ```
 
-The dossier/card must be a projection of evidence, never the source of truth. Remaining work is to classify all readers/writers of `research_evidence`, `contact_evidence`, entity fields, relationships and identity candidates and retire/migrate proven legacy consumers.
+The dossier/card must be a projection of evidence, never the source of truth. The strict card boundary now additionally refuses candidate-person promotion unless the destination entity itself is an HNWI/Gatekeeper whose name exactly matches the model-authored person identity, preventing organization-card contamination. Promoted card values retain source URLs in `metadata.agenticContactProvenance`.
+
+Remaining work is to classify all readers/writers of `research_evidence`, `contact_evidence`, entity fields, relationships and identity candidates and retire/migrate proven legacy consumers.
 
 ## 8. Duplicate source trees
 
-API server has canonical `artifacts/api-server/src/src/*` and legacy/compatibility `artifacts/api-server/src/*` trees. `tsconfig.json` includes only `src/src/**/*.ts`, and `build.mjs` bundles `src/src/index.ts`; this establishes a strong static exclusion of the top-level source tree from TypeScript compilation/bundling. A new guard also prevents canonical production source from importing the legacy top-level `src/lib/*` tree.
+API server has canonical `artifacts/api-server/src/src/*` and legacy/compatibility `artifacts/api-server/src/*` trees. `tsconfig.json` includes only `src/src/**/*.ts`, and `build.mjs` bundles `src/src/index.ts`; a guard also prevents canonical production source from importing the legacy top-level `src/lib/*` tree.
 
 Issue #129 remains open until remaining compatibility/build/test references are reconciled and deletion/quarantine is proven safe.
 
@@ -141,37 +128,37 @@ transformed source
   -> repeat
 ```
 
-Do not delete hardeners blindly or replace complete files with approximations.
+Completed in this audit: `apply-free-react-opening-repair.mjs` has been deleted and removed from API build/test after source parity verification.
+
+Still requiring direct source migration before deletion include the final-review role boundary, discovery initial-state boundary, secondary-surface retirement, registry cancellation, Python egress quarantine, and other explicitly tracked hardeners.
 
 ## 10. Legacy deterministic research
 
-The historical deterministic secondary-surface expansion is being retired. Its canonical callers are guarded/unmounted; direct discovered-URL fetching in that legacy implementation must not be reintroduced into the canonical research path.
+The historical deterministic secondary-surface expansion remains a source-level legacy playbook. Its canonical callers are guarded/transformed out of the canonical execution path, but direct source cleanup is still required before its migration hardener can be deleted.
 
 The historical Atlas POST launch route is explicitly quarantined to HTTP 410. The historical Atlas orchestrator remains on disk for controlled retirement/reachability analysis.
 
 Legacy `/api/enrich/*` and old case execution routes are retired/unmounted where guards establish the boundary. Issues #125/#126, #132, and #137/#138 remain relevant for final source/API-contract cleanup.
 
-Issue #147 is closed: the model-facing username footprint capability is now split into individual Maigret and Sherlock actions. The trajectory evaluator was updated to recognize those canonical actions.
+Issue #147 is closed: the model-facing username footprint capability is represented as individual Maigret and Sherlock actions after the canonical username capability split.
 
 ## 11. Role boundary
 
 Groq must never become Boss or final reviewer. Gemini is Boss. DeepSeek/NVIDIA is Right Hand. Groq/Mistral are Investigators.
 
-The canonical final-review boundary now fails closed to the deterministic adjudicator when Gemini/DeepSeek oversight is unavailable; Groq is not a final reviewer. Issue #128 remains open until final direct-source cleanup and runtime verification are complete.
+The canonical final-review boundary is intended to be Gemini Boss → DeepSeek/NVIDIA Right Hand → deterministic fail-closed adjudication. **The canonical `ai-extractor.ts` source still contains the Groq tertiary reviewer implementation and its migration hardener remains active. Issue #128 is therefore still an open source-level blocker.**
 
 ## 12. Persistence and provenance
 
 Canonical strict persistence (`bureau-contact-persist-strict.ts`) persists source-backed candidate evidence and only applies a card field when the Investigator explicitly promoted exactly one candidate-scoped value with valid run-scoped observed provenance and acceptable identity-collision validation.
 
-Card/contact outcome recomputation after persistence is deterministic projection metadata; it must not choose a missing contact or invent evidence.
+Candidate-person card promotion additionally requires the destination entity to be an HNWI/Gatekeeper and its name to exactly match the model-authored person identity. This prevents a discovery/organization entity from receiving a person's contact vector through a caller-supplied entity ID.
 
-Current provenance regression tests cover successful observation requirements, same-observation identity/value binding, failed/attempted observation rejection, synthetic search URL rejection, and organization-vs-person scope.
+Promoted values retain source URLs, observed URLs, identity and note metadata under `agenticContactProvenance`. This is provenance preservation, not proof that the complete immutable claim/event graph is finished.
 
 ## 13. Runtime verification state
 
-**No runtime/CI/provider/Replit success is currently claimed.** GitHub currently reports no combined status checks for the reviewed tip. Static source changes and guards are not runtime proof.
-
-The user will manually launch Replit for the live phase.
+**No runtime/CI/provider/Replit success is currently claimed.** The user will manually launch Replit for the live phase. Static source changes, guards and GitHub commits are not runtime proof.
 
 Final acceptance must demonstrate a real run resembling:
 
@@ -194,13 +181,14 @@ Do not seed the first action, inject a known URL, force a provider, fabricate pr
 
 ## 14. Current priorities
 
-1. Real subprocess sandbox/egress architecture for Python OSINT; keep fail-closed until enforceable.
-2. Convert build-time migration hardeners into direct canonical source, one invariant at a time.
-3. Finish duplicate-tree reachability and retirement.
-4. Audit every model-output -> evidence -> entity/contact/relationship persistence path.
-5. Finish production-grade event-ledger integrity and full turn-level forensic reconstruction.
-6. Unify the evidence graph without deleting legitimate legacy consumers prematurely.
-7. Optimize coordinated Boss/Right-Hand/Investigator token use without reducing autonomy.
-8. Complete live Replit acceptance testing only after the static architecture is sufficiently clean.
+1. Direct source cleanup of #128 and the remaining migration hardeners, beginning with the canonical Groq reviewer.
+2. Directly migrate `case-bureau.ts` discovery initial state, then delete its hardener.
+3. Remove deterministic secondary-surface source callers, then delete that migration hardener.
+4. Complete the immutable claim → observation/event → promotion → projection graph and run correlation (#151/#152).
+5. Finish real subprocess sandbox/egress architecture for Python OSINT; keep fail-closed until enforceable.
+6. Finish duplicate-tree and legacy writer reachability proof.
+7. Audit all entity/contact/relationship writers and generated/API compatibility surfaces.
+8. Optimize coordinated Boss/Right-Hand/Investigator token use without reducing autonomy.
+9. Only then perform the user's live Replit acceptance experiment.
 
 **Working rule:** after every fix, trace callers, transitive callers, error paths, persistence, cancellation, provenance and legacy duplicates. Never convert “I found no caller” into “there is no caller.” Never claim runtime success without runtime evidence.
