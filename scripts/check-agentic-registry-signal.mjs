@@ -21,6 +21,7 @@ assert(gleif.includes("const requestSignal = signal ? AbortSignal.any([signal, A
 assert(gleif.includes("signal: requestSignal"), "GLEIF fetch does not use its composed cancellation signal");
 assert(registry.includes("signal: createRegistryRequestSignal(signal,"), "registry HTTP calls do not use the composed cancellation boundary");
 assert(!/signal:\s*AbortSignal\.timeout\(/.test(registry), "registry contains timeout-only HTTP transport that ignores caller cancellation");
+assert(registry.includes('if (signal?.aborted) throw new Error("cancelled");\n  return results;'), "registry can swallow caller cancellation and return an ordinary empty/partial result");
 assert(core.includes("limit: 8, signal: runController.signal"), "canonical ReAct registry action does not pass run cancellation");
 if (failures.length) {
   console.error("AGENTIC REGISTRY SIGNAL: FAIL");
