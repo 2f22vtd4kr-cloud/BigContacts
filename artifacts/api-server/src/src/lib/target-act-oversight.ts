@@ -98,22 +98,24 @@ async function findTargetCase(jobId: string, targetName: string): Promise<{ id: 
 
 async function persistActOversight(caseId: number, controlTurn: number, act: ActRecord, oversight: TargetActOversight): Promise<void> {
   const payload = { controlTurn, act: compactAct(act), oversight, recordedAt: new Date().toISOString() };
+  const correlationKey = `target-oversight:case:${caseId}:turn:${controlTurn}`;
   await db.insert(researchCaseEventsTable).values({
     caseId,
     iteration: controlTurn,
     actorRole: "gemini_boss",
     eventType: "control_decision",
-    status: "recorded",
+    status: oversight.status === "completed" ? "recorded" : "unavailable",
     summary: `Per-act oversight: ${act.action} -> ${oversight.action}`.slice(0, 1000),
+    correlationKey,
     payload: JSON.stringify(payload),
-  });
+  }).onConflictDoNothing({ target: [researchCaseEventsTable.caseId, researchCaseEventsTable.correlationKey] });
 
   const [row] = await db.select({ caseFile: researchCasesTable.caseFile }).from(researchCasesTable).where(eq(researchCasesTable.id, caseId)).limit(1);
   if (!row) return;
   let caseFile: Record<string, unknown> = {};
   try { caseFile = row.caseFile ? JSON.parse(row.caseFile) as Record<string, unknown> : {}; } catch {}
   const history = Array.isArray(caseFile.investigatorActOversight) ? caseFile.investigatorActOversight : [];
-  history.push(payload);
+  if (!history.some((item) => item && typeof item === "object" && (item as Record<string, unknown>).controlTurn === controlTurn)) history.push(payload);
   caseFile.investigatorActOversight = history.slice(-40);
   if (oversight.direction) caseFile.liveOversightDirection = oversight.direction;
   await db.update(researchCasesTable).set({ caseFile: JSON.stringify(caseFile), updatedAt: new Date() }).where(eq(researchCasesTable.id, caseId));
@@ -131,7 +133,7 @@ export async function reviewTargetInvestigationAct(input: {
 }): Promise<TargetActOversight> {
   const trajectory = [...input.recentActs, input.act].slice(-12).map(compactAct);
   const rightRaw = await runDeepSeekFreeJson(
-    `${apexOrientationFor("right_hand")}\n\nYou are reviewing ONE completed Investigator act in an active target-scoped Apex Atlas investigation. You are the Right Hand, not the Investigator. Do not browse, do not select a tool, and do not invent evidence.\n\nIdentify whether the act is useful, redundant, identity-risky, unsupported, contradictory, or likely to justify a different research question. Give Gemini concise advisory input for the next act. Do not make the final continuation decision.\n\nTARGET: ${input.targetName} (${input.targetType})\nOBJECTIVE: ${input.objective.slice(0, 6000)}\nSHARED CASE STATE:\n${input.sharedContext.slice(0, 22000)}\n\nJUST-COMPLETED ACT:\n${JSON.stringify(compactAct(input.act)).slice(0, 7000)}\n\nRECENT ACTS:\n${JSON.stringify(trajectory).slice(0, 16000)}\n\nReturn ONE JSON object: {"decision":"...","reason":"...","focusLanes":["..."],"confidence":0.0}`,
+    `${apexOrientationFor("right_hand")}\n\nYou are reviewing ONE completed Investigator act in an active target-scoped Apex Atlas investigation. You are the Right Hand, not the Investigator. Do not browse, do not select a tool, and do not invent evidence.\n\nIdentify whether the act is useful, redundant, identity-risky, unsupported, contradictory, or likely to justify a different research question. Give Gemini concise advisory input for the next act. Do not make the final continuation decision. Do not provide a tool/provider/query/URL sequence.\n\nTARGET: ${input.targetName} (${input.targetType})\nOBJECTIVE: ${input.objective.slice(0, 6000)}\nSHARED CASE STATE:\n${input.sharedContext.slice(0, 22000)}\n\nJUST-COMPLETED ACT:\n${JSON.stringify(compactAct(input.act)).slice(0, 7000)}\n\nRECENT ACTS:\n${JSON.stringify(trajectory).slice(0, 16000)}\n\nReturn ONE JSON object: {"decision":"...","reason":"...","focusLanes":["..."],"confidence":0.0}`,
     `${apexOrientationFor("right_hand")}\nYou are DeepSeek/NVIDIA Right Hand. Review the just-completed Investigator act only. Never browse, never choose tools, never invent evidence. Return one JSON object.`,
   ).catch((error) => ({ status: "unavailable" as const, model: "none", raw: null, error: error instanceof Error ? error.message : "Right-hand unavailable" }));
 
@@ -145,6 +147,23 @@ export async function reviewTargetInvestigationAct(input: {
     model: rightRaw.model,
     error: rightParsed ? null : (rightRaw.error ?? "Right-hand returned no valid advice."),
   };
+
+  // Both control layers are mandatory. Gemini must never become an implicit
+  // replacement for a failed Right Hand review.
+  if (rightHand.status !== "completed") {
+    const unavailable: TargetActOversight = {
+      status: "unavailable",
+      action: "stop",
+      direction: null,
+      reason: "DeepSeek/NVIDIA Right Hand oversight was unavailable; the next Investigator act is fail-closed.",
+      confidence: null,
+      rightHand,
+      bossModel: null,
+      error: rightHand.error ?? "Right-hand returned no valid advice.",
+    };
+    await persistActOversight(input.caseId, input.controlTurn, input.act, unavailable);
+    return unavailable;
+  }
 
   const selection = await resolveGeminiBossModel();
   if (!selection?.model) {
@@ -169,7 +188,7 @@ export async function reviewTargetInvestigationAct(input: {
     await persistActOversight(input.caseId, input.controlTurn, input.act, oversight);
     return oversight;
   } catch (error) {
-    const failed: TargetActOversight = { status: "unavailable", action: "stop", direction: null, reason: "Gemini per-act oversight failed; continuation is fail-closed.", confidence: null, rightHand, bossModel: selection.model, error: error instanceof Error ? error.message : "Gemini per-act oversight failed." };
+    const failed: TargetActOversight = { status: "unavailable", action: "stop", direction: null, reason: "Gemini per-act oversight failed; continuation is fail-closed.", confidence: null, bossModel: selection.model, rightHand, error: error instanceof Error ? error.message : "Gemini per-act oversight failed." };
     await persistActOversight(input.caseId, input.controlTurn, input.act, failed);
     return failed;
   }
