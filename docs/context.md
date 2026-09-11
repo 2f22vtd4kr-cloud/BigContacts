@@ -4,7 +4,7 @@
 
 **Repository:** `2f22vtd4kr-cloud/BigContacts`  
 **Branch:** `main`  
-**Current reviewed tip:** `7e1cadd89d0b61789d78209018ebf7109575442c`
+**Current reviewed tip:** `e8c16e41981efa96a26e12c0c2af5df0b24daef6`
 
 ## 1. Institutional architecture
 
@@ -40,7 +40,7 @@ The Investigator action surface is model-selectable. Current individual OSINT ac
 
 Hardening includes maximum effective ReAct iterations = 40; run-scoped cancellation through canonical LLM/provider/search/page/browser paths; SSRF-safe HTTP/browser transport and redirect/subresource egress checks; bounded network/browser reads; model-selectable search locale; provider quota composition without duplicate counting; explicit successful-observation states; structured trajectory records; explicit model promotion and strict source-backed persistence; and candidate admission safety caps that fail closed rather than silently selecting the first N candidates.
 
-The forced initial `web_search` migration has now been removed from API build/test and deleted after direct source verification; issue #120 is closed. Permanent Free-ReAct guards remain.
+The forced initial `web_search` migration has been removed from API build/test and its source-mutator has been deleted after direct source verification. Permanent Free-ReAct guards remain.
 
 ## 3. Python OSINT boundary
 
@@ -52,7 +52,7 @@ Canonical Python network capabilities therefore remain **fail-closed**. Do not r
 
 Canonical discovery is `mode="discovery"`, not a fake person such as `Discovery slot`.
 
-Gemini owns discovery/continuation control actions: `continue_discovery`, `research_candidate`, `revisit_candidate`, `pivot_discovery`, and `stop`.
+Gemini currently owns a bounded transition vocabulary: `continue_discovery`, `research_candidate`, `revisit_candidate`, `pivot_discovery`, and `stop`. These are AI-returned control decisions; the harness validates them and does not infer the action from candidate count or scores. This remains an architectural seam to revisit: the long-term target is for the Boss to express the next research objective without a deterministic phase/playbook vocabulary constraining legitimate hypotheses.
 
 Invalid Boss decisions fail closed. Candidate safety validation may reject invalid/over-cap state but must not substitute a research strategy.
 
@@ -60,7 +60,7 @@ The canonical Atlas launch boundary is `research/canonical-atlas-launch.ts`, whi
 
 The legacy mixed `research/cases.ts` executor is deliberately unmounted from the live research router.
 
-A remaining source-level issue is the legacy `case-bureau.ts` discovery `initialAction` shape, which is still transformed by `apply-discovery-case-initial-action-state.mjs`; this must be migrated directly before that hardener can be removed.
+The legacy `case-bureau.ts` discovery `initialAction` type still contains historical `broad-web-discovery` vocabulary in source, although the live build/test hardener that rewrote it has now been retired. New canonical discovery case creation itself uses Boss-controlled state. Direct source cleanup of the legacy type is still desirable, but it is no longer an active build mutation.
 
 ## 5. Evidence law
 
@@ -74,19 +74,32 @@ raw observation
   -> persistence
 ```
 
-Canonical person/contact promotion requires explicit model authorship, appropriate candidate/person scope, successful observed HTTP(S) provenance, explicit promotion, and strict claim-to-observation validation. For candidate contact claims, the claimed value and model-authored person identity must co-occur in the same successful bounded observation; independent pages cannot be silently combined into one source claim.
+Canonical person/contact promotion requires explicit model authorship, appropriate candidate/person scope, successful observed HTTP(S) provenance, explicit promotion, and strict claim-to-observation validation.
 
-Issue #148 is closed after regression coverage for same-observation identity/claim binding, failed-observation rejection, and split-source rejection.
+**Important research-quality limitation:** the current canonical contact boundary still requires the claimed contact value and model-authored person identity to co-occur in one successful bounded observation. This is deliberately conservative, but it creates false negatives for legitimate multi-source attribution. Do not weaken the boundary. The intended next architecture is a typed evidence graph in which identity, role, organization and contact-value observations can support separate claims that are then joined by explicit model reasoning and deterministic attribution/collision checks.
+
+Example target state:
+
+```text
+Observation A -> John Smith is CFO of Company X
+Observation B -> john.smith@company-x.com is published
+             -> separate claims with immutable observation references
+             -> model attribution reasoning
+             -> deterministic identity/scope/provenance validation
+             -> explicit promotion
+```
+
+Issue #148 is closed for the original same-observation regression boundary. The multi-source evidence-graph extension is a separate quality improvement and remains strategically important even though #152 is marked completed.
 
 ## 6. Durable event ledger
 
 `research_case_events` is append-only case history. Immutable database `id` is the canonical per-case event sequence. `iteration` and `createdAt` are metadata, not ordering authorities.
 
-Canonical discovery trajectory persistence now records each structured Investigator turn as its own durable case event inside the same DB transaction as the case snapshot update. Tool turns are `tool_observation`; an explicit `done` turn is a `decision`. Event payloads retain model/action/args/execution/observation/observedUrls/findings/provider-fallback/stop metadata.
+Canonical discovery trajectory persistence records each structured Investigator turn as its own durable case event inside the same DB transaction as the case snapshot update. Tool turns are `tool_observation`; an explicit `done` turn is a `decision`. Event payloads retain model/action/args/execution/observation/observedUrls/findings/provider-fallback/stop metadata.
 
-The event schema/replay layer explicitly accepts the canonical `control_decision` and `tool_observation` event types and the deterministic `bureau` actor used by the single-target context projector. Regression coverage exercises these live event forms.
+The event schema/replay layer accepts canonical `control_decision` and `tool_observation` event types and validates claim → observation, promotion → claim, validation → claim, and projection → validation/promotion causal references. Correlation keys make autonomous trajectory events idempotent across retries.
 
-This improves causal reconstruction but is not yet the final claim-to-event graph: persisted findings still need first-class immutable claim/source references and idempotent run correlation. That remains part of #151/#152.
+The graph is therefore substantially implemented, but it is not yet the mature semantic evidence graph: observations and claims are stored as event payloads rather than as a fully typed relational graph with independent contradiction, temporal, scope and derivation edges. The remaining work is to make those relationships first-class without turning the graph into a deterministic research planner.
 
 ## 7. Evidence graph
 
@@ -105,9 +118,9 @@ case
   -> entity/contact projection
 ```
 
-The dossier/card must be a projection of evidence, never the source of truth. The strict card boundary now additionally refuses candidate-person promotion unless the destination entity itself is an HNWI/Gatekeeper whose name exactly matches the model-authored person identity, preventing organization-card contamination. Promoted card values retain exact claim source URLs, observed URLs and job/run correlation in `metadata.agenticContactProvenance`.
+The dossier/card must be a projection of evidence, never the source of truth. The strict card boundary refuses candidate-person promotion unless the destination entity itself is an HNWI/Gatekeeper whose name exactly matches the model-authored person identity, preventing organization-card contamination. Promoted card values retain exact claim source URLs, observed URLs and job/run correlation in `metadata.agenticContactProvenance`.
 
-Remaining work is to classify all readers/writers of `research_evidence`, `contact_evidence`, entity fields, relationships and identity candidates and retire/migrate proven legacy consumers.
+The strategic next step is **multi-source claim attribution**, not weaker validation: the graph should allow a claim to depend on several independently observed facts while keeping every edge and uncertainty explicit.
 
 ## 8. Duplicate source trees
 
@@ -130,17 +143,17 @@ transformed source
   -> repeat
 ```
 
-Completed in this audit: `apply-free-react-opening-repair.mjs` has been deleted and removed from API build/test. The launch gate was also corrected so it no longer tries to execute the deleted hardener.
+Completed during this session: the obsolete discovery initial-state mutator was removed from API build/test and deleted because the relevant canonical case state was already in place. Its migration-parity inventory entry was removed at the same time.
 
-Still requiring direct source migration before deletion include the final-review role boundary, discovery initial-state boundary, secondary-surface retirement, registry cancellation, Python egress quarantine, and other explicitly tracked hardeners.
+Still requiring direct source migration before deletion include registry cancellation, deterministic secondary-surface retirement, several cancellation/event hardeners, Python egress quarantine, and other explicitly tracked source migrations. A hardener must not be deleted merely because a guard exists; the underlying source must first contain the invariant itself.
 
 ## 10. Legacy deterministic research
 
-The historical deterministic secondary-surface expansion remains a source-level legacy playbook. Its canonical callers are guarded/transformed out of the canonical execution path, but direct source cleanup is still required before its migration hardener can be deleted.
+The historical deterministic secondary-surface expansion remains a source-level legacy playbook. Its build-time retirement hardener is still active because live source callers remain in legacy/manual entity surfaces; those callers must be removed or converted to explicit model-selected capability execution before the hardener can be deleted.
 
 The historical Atlas POST launch route is explicitly quarantined to HTTP 410. The historical Atlas orchestrator remains on disk for controlled retirement/reachability analysis.
 
-Legacy `/api/enrich/*` and old case execution routes are retired/unmounted where guards establish the boundary. The deterministic `/entities/rehydrate-contacts` route is now also retired through the legacy mutation guard because replaying evidence into cards is an implicit promotion bypass. Issues #125/#126, #132, and #137/#138 remain relevant for final source/API-contract cleanup.
+Legacy `/api/enrich/*` and old case execution routes are retired/unmounted where guards establish the boundary. The deterministic `/entities/rehydrate-contacts` route is also retired through the legacy mutation guard because replaying evidence into cards is an implicit promotion bypass. Issues #125/#126, #132, and #137/#138 remain relevant for final source/API-contract cleanup.
 
 Issue #147 is closed: the model-facing username footprint capability is represented as individual Maigret and Sherlock actions after the canonical username capability split.
 
@@ -148,7 +161,7 @@ Issue #147 is closed: the model-facing username footprint capability is represen
 
 Groq must never become Boss or final reviewer. Gemini is Boss. DeepSeek/NVIDIA is Right Hand. Groq/Mistral are Investigators.
 
-The canonical final-review boundary is intended to be Gemini Boss → DeepSeek/NVIDIA Right Hand → deterministic fail-closed adjudication. **The canonical `ai-extractor.ts` source still contains the Groq tertiary reviewer implementation and its migration hardener remains active. Issue #128 is therefore still an open source-level blocker.**
+The canonical final-review boundary is now **Gemini Boss → DeepSeek/NVIDIA Right Hand → deterministic fail-closed adjudication**. The canonical `ai-extractor.ts` source no longer contains the former Groq tertiary reviewer loop; the role-boundary guard remains active. Issue #128's source-level blocker has been repaired.
 
 ## 12. Persistence and provenance
 
@@ -156,7 +169,7 @@ Canonical strict persistence (`bureau-contact-persist-strict.ts`) persists sourc
 
 Candidate-person card promotion additionally requires the destination entity to be an HNWI/Gatekeeper and its name to exactly match the model-authored person identity. This prevents a discovery/organization entity from receiving a person's contact vector through a caller-supplied entity ID.
 
-Promoted values retain exact claim source URLs, observed URLs and job/run correlation under `agenticContactProvenance`. This is provenance preservation, not proof that the complete immutable claim/event graph is finished.
+Promoted values retain exact claim source URLs, observed URLs and job/run correlation under `agenticContactProvenance`. This is provenance preservation, not proof that the complete semantic claim/event graph is finished.
 
 ## 13. Identity review boundary
 
@@ -187,10 +200,10 @@ Do not seed the first action, inject a known URL, force a provider, fabricate pr
 
 ## 15. Current priorities
 
-1. Direct source cleanup of #128 and the remaining migration hardeners, beginning with the canonical Groq reviewer.
-2. Directly migrate `case-bureau.ts` discovery initial state, then delete its hardener.
-3. Remove deterministic secondary-surface source callers, then delete that migration hardener.
-4. Complete the immutable claim → observation/event → promotion → projection graph and run correlation (#151/#152).
+1. Complete the direct-source migration of the remaining build-time hardeners; do not let build scripts remain the source of runtime behavior.
+2. Replace the remaining deterministic secondary-surface callers with explicit model-selected capability execution or retire those manual endpoints if they are not part of the Bureau product.
+3. Mature the immutable claim → observation/event → promotion → projection graph into a true multi-source evidence graph with explicit attribution, contradiction, temporal and scope edges (#151/#152 direction).
+4. Revisit the Gemini control vocabulary so the Boss selects the next research objective rather than being constrained by a pseudo-phase taxonomy; keep deterministic validation of safety and candidate identity.
 5. Finish real subprocess sandbox/egress architecture for Python OSINT; keep fail-closed until enforceable.
 6. Resolve #154's live deterministic identity-review boundary.
 7. Finish duplicate-tree and legacy writer reachability proof.
