@@ -48,12 +48,15 @@ const ALLOWED_ACTOR_ROLES = new Set([
   "specialist",
   "human_operator",
   "system",
+  "bureau",
 ]);
 const ALLOWED_EVENT_TYPES = new Set([
   "case_opened",
   "decision",
+  "control_decision",
   "assignment",
   "observation",
+  "tool_observation",
   "directive",
   "status",
 ]);
@@ -125,8 +128,8 @@ export function replayResearchCaseEvents(events: ResearchReplayEvent[]): Researc
     const payload = parsePayload(event.payload, event.id, violations);
     const type = event.eventType.toLowerCase();
     const status = event.status.toLowerCase();
-    if (["decision", "assignment", "observation", "tool_observation", "directive"].includes(type)) actionCount++;
-    if (type === "decision") { decisionCount++; latestDecision = payload; }
+    if (["decision", "control_decision", "assignment", "observation", "tool_observation", "directive"].includes(type)) actionCount++;
+    if (type === "decision" || type === "control_decision") { decisionCount++; latestDecision = payload; }
     if (type === "assignment") assignmentCount++;
     if (type === "observation" || type === "tool_observation") { observationCount++; latestObservation = payload; }
     if (type === "directive") { directiveCount++; latestDirective = payload; }
