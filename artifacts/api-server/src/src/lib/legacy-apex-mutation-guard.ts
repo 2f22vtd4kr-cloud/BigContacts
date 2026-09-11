@@ -1,6 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 import { db, entitiesTable } from "@workspace/db";
-import { inArray } from "drizzle-orm";
+import { inArray, eq } from "drizzle-orm";
 
 const RETIRED_MUTATING_ENRICHMENT_PATHS = new Set([
   "/ingest/web-osint-enrich",
@@ -15,6 +15,21 @@ const RETIRED_MUTATING_ENRICHMENT_PATHS = new Set([
   "/entities/rehydrate-contacts",
 ]);
 const APEX_TYPES = new Set(["HNWI", "Gatekeeper"]);
+const DIRECT_CONTACT_FIELDS = new Set([
+  "email",
+  "phone",
+  "phoneSource",
+  "emailSource",
+  "linkedinUrl",
+  "twitterHandle",
+  "instagramHandle",
+  "telegramHandle",
+  "contactMethod",
+  "knownResidences",
+  "contactOutcome",
+  "contactConfidence",
+  "metadata",
+]);
 
 function isRetiredEnrichmentPath(path: string): boolean {
   return RETIRED_MUTATING_ENRICHMENT_PATHS.has(path);
@@ -22,6 +37,10 @@ function isRetiredEnrichmentPath(path: string): boolean {
 
 function isLegacyScopedEnrichmentPath(path: string): boolean {
   return path.startsWith("/enrich/");
+}
+
+function isDirectEntityCardPatch(path: string): boolean {
+  return /^\/entities\/\d+$/.test(path);
 }
 
 /**
@@ -32,14 +51,45 @@ function isLegacyScopedEnrichmentPath(path: string): boolean {
  * including from internal cold-start callers. The durable evidence projector
  * `/entities/rehydrate-contacts` is also retired: replaying contact_evidence
  * into an entity card is not allowed to become an implicit promotion path.
- * The generic /enrich/* compatibility surface remains scope-checked for
- * explicitly non-Apex maintenance callers until each endpoint is retired.
+ * Generic entity PATCHes remain available for non-contact UI fields, but a
+ * direct Apex contact-field write is rejected unless it comes through the
+ * explicit investigator-selected promotion boundary.
  */
 export async function legacyApexMutationGuard(
   req: Request,
   res: Response,
   next: NextFunction,
 ): Promise<void> {
+  if (req.method === "PATCH" && isDirectEntityCardPatch(req.path)) {
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    const touchesContactState = Object.keys(body).some((key) => DIRECT_CONTACT_FIELDS.has(key));
+    if (!touchesContactState) {
+      next();
+      return;
+    }
+
+    const entityId = Number(req.params.id);
+    if (!Number.isInteger(entityId) || entityId <= 0) {
+      res.status(400).json({ error: "Invalid entity id" });
+      return;
+    }
+    const [row] = await db
+      .select({ id: entitiesTable.id, type: entitiesTable.type })
+      .from(entitiesTable)
+      .where(eq(entitiesTable.id, entityId))
+      .limit(1);
+    if (row && APEX_TYPES.has(row.type)) {
+      res.status(409).json({
+        error: "Direct Apex contact-card mutation is not permitted.",
+        reason: "Apex HNWI/Gatekeeper contact state may cross the card boundary only through explicit Investigator-selected model promotion with immutable evidence provenance.",
+        entityId,
+      });
+      return;
+    }
+    next();
+    return;
+  }
+
   if (req.method !== "POST") {
     next();
     return;
