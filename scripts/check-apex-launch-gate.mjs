@@ -3,7 +3,6 @@ import fs from "node:fs";
 import { execFileSync } from "node:child_process";
 
 const hardeners = [
-  "apply-agentic-domain-signal-hardening.mjs",
   "apply-retire-secondary-surface-calls.mjs",
   "apply-registry-cancellation-boundary.mjs",
   "apply-agentic-registry-signal-wiring.mjs",
@@ -37,7 +36,7 @@ pass("canonical Dig lane has no Gemini implementation", !/callGeminiJson/.test(a
 pass("canonical Dig lane has no NVIDIA implementation", !/callNvidiaJson/.test(agentic));
 pass("strict boundary does not import legacy projector", !/from [\"']\.\/bureau-contact-persist[\"']/.test(strict));
 pass("strict boundary has explicit investigator selection API", /applyInvestigatorSelectedContactToEntityCard/.test(strict));
-pass("strict boundary rejects query URLs", /SEARCH_QUERY_URL/.test(strict) && /efts\\?\.sec\\?\.gov/.test(strict));
+pass("strict boundary rejects query URLs", /SEARCH_QUERY_URL/.test(strict) && /efts\\?\.sec\\?gov/.test(strict));
 pass("manual live audit is bounded to three targets", /[\"']targetCount[\"']\s*:\s*3/.test(batch) && !/[\"']targetCount[\"']\s*:\s*10/.test(batch));
 pass("manual audit runs agentic runtime checks", /check:agentic-runtime/.test(batch));
 pass("discovery emits model-selection progress", /onSlotProgress\?/.test(discovery));
@@ -52,9 +51,9 @@ pass("Sherlock receives run cancellation", /runSherlock\([^\n]*signal:\s*runCont
 pass("registry receives run cancellation", agentic.includes("limit: 8, signal: runController.signal"));
 pass("registry transport composes cancellation with timeout", registry.includes("signal: signal ?? AbortSignal.timeout("));
 pass("registry has no timeout-only fetch signal", !/signal:\s*AbortSignal\.timeout\(/.test(registry));
-pass("Python subprocesses have AbortSignal", /signal\?: AbortSignal/.test(pythonTools));
-pass("Python subprocesses use detached POSIX groups", /detached: process\.platform !== "win32"/.test(pythonTools));
-pass("Python subprocess cancellation has hard kill backstop", /SIGKILL/.test(pythonTools));
+pass("Python OSINT source fails closed", /const PYTHON_OSINT_EGRESS_GOVERNED = false;/.test(pythonTools));
+pass("Python OSINT names the missing sandbox boundary", /subprocess network egress is not yet governed by the Apex sandbox\/egress boundary/.test(pythonTools));
+pass("Python OSINT availability is fail-closed", /holehe: false[\s\S]*maigret: false[\s\S]*sherlock: false[\s\S]*theHarvester: false[\s\S]*openDeepResearch: false/.test(pythonTools));
 pass("harvest_domain fails closed pending governed egress", /HARVEST_DOMAIN blocked: network-capable subprocess egress is not yet governed/.test(agentic) && !/runTheHarvester\(/.test(agentic));
 pass("Groq is not a final reviewer", !/Groq capacity fallback|groq-final-review-fallback/.test(aiExtractor));
 pass("DeepSeek final review remains available", /runDeepSeekFinalReview/.test(aiExtractor));
