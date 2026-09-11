@@ -1,13 +1,5 @@
 #!/usr/bin/env node
 import fs from "node:fs";
-import { execFileSync } from "node:child_process";
-
-const hardeners = [
-  "apply-retire-secondary-surface-calls.mjs",
-  "apply-registry-cancellation-boundary.mjs",
-  "apply-agentic-registry-signal-wiring.mjs",
-];
-for (const script of hardeners) execFileSync(process.execPath, [`scripts/${script}`], { stdio: "inherit" });
 
 const read = (p) => fs.readFileSync(p, "utf8");
 const checks = [];
@@ -25,7 +17,9 @@ const aiExtractor = read("artifacts/api-server/src/src/lib/ai-extractor.ts");
 const entities = read("artifacts/api-server/src/src/routes/entities.ts");
 const legacyAtlas = read("artifacts/api-server/src/src/routes/atlas.ts");
 const packageJson = read("artifacts/api-server/package.json");
+const canonicalRunner = read("artifacts/api-server/src/src/lib/canonical-single-target-runner.ts");
 
+pass("launch gate is observation-only", !/execFileSync\(|apply-.*\.mjs/.test(read("scripts/check-apex-launch-gate.mjs")));
 pass("Investigator wrapper mounts canonical core", wrapper.includes("agentic-web-research-core"));
 pass("Investigator adapter pool contains Groq", /callGroqJson/.test(agentic));
 pass("Investigator adapter pool contains Mistral", /callMistralJson/.test(agentic));
@@ -49,11 +43,11 @@ pass("compound username action is gone", !/action === "footprint_username"/.test
 pass("Maigret receives run cancellation", /runMaigret\([^\n]*signal:\s*runController\.signal/.test(agentic));
 pass("Sherlock receives run cancellation", /runSherlock\([^\n]*signal:\s*runController\.signal/.test(agentic));
 pass("registry receives run cancellation", agentic.includes("limit: 8, signal: runController.signal"));
-pass("registry transport composes cancellation with timeout", registry.includes("signal: signal ?? AbortSignal.timeout("));
+pass("registry transport composes caller cancellation with local timeout", registry.includes("function createRegistryRequestSignal") && registry.includes("AbortSignal.any([signal, timeoutSignal])"));
 pass("registry has no timeout-only fetch signal", !/signal:\s*AbortSignal\.timeout\(/.test(registry));
-pass("Python OSINT source fails closed", /const PYTHON_OSINT_EGRESS_GOVERNED = false;/.test(pythonTools));
-pass("Python OSINT names the missing sandbox boundary", /subprocess network egress is not yet governed by the Apex sandbox\/egress boundary/.test(pythonTools));
-pass("Python OSINT availability is fail-closed", /holehe: false[\s\S]*maigret: false[\s\S]*sherlock: false[\s\S]*theHarvester: false[\s\S]*openDeepResearch: false/.test(pythonTools));
+pass("Python OSINT source fails closed", pythonTools.includes("authorizePythonSandboxRequest") && pythonTools.includes("available: false"));
+pass("Python OSINT does not directly spawn subprocesses", !/from [\"']node:child_process[\"']|from [\"']child_process[\"']|execFile|spawn\(|spawnSync\(/.test(pythonTools));
+pass("Python OSINT availability requires attestation", pythonTools.includes('state === "attested"') && pythonTools.includes('allowedCapabilities.includes("network_osint")'));
 pass("harvest_domain fails closed pending governed egress", /HARVEST_DOMAIN blocked: network-capable subprocess egress is not yet governed/.test(agentic) && !/runTheHarvester\(/.test(agentic));
 pass("Groq is not a final reviewer", !/Groq capacity fallback|groq-final-review-fallback/.test(aiExtractor));
 pass("DeepSeek final review remains available", /runDeepSeekFinalReview/.test(aiExtractor));
@@ -64,6 +58,11 @@ pass("Atlas does not script Python OSINT", !/runMaigret\(|runHolehe\(|runSherloc
 pass("legacy Atlas launch is quarantined", /router\.post\(\"\/ingest\/atlas-run\"[\s\S]{0,500}status\(410\)/.test(legacyAtlas));
 pass("legacy Atlas route cannot call historical orchestrator", !/runAtlasPipeline\(|from [\"']\.\.\/lib\/atlas-orchestrator[\"']/.test(legacyAtlas));
 pass("username migration hardener is no longer in API scripts", !packageJson.includes("apply-agentic-username-capability-split.mjs"));
+pass("canonical target runner steps one Investigator act", /maxIterations:\s*1/.test(canonicalRunner));
+pass("canonical target runner requires durable oversight", /!lastOversight \|\| lastOversight\.status !== "completed"/.test(canonicalRunner));
+pass("canonical target runner uses one global deadline", /const deadline = Date\.now\(\) \+ hardTimeoutMs/.test(canonicalRunner));
+pass("target wrapper fails closed without control context", /CONTROL_CONTEXT_UNAVAILABLE/.test(wrapper));
+pass("target wrapper actively aborts at global deadline", /setTimeout\(\(\) => overallController\.abort\(\), requestedHardTimeout\)/.test(wrapper));
 
 let failed = false;
 for (const [name, ok] of checks) {
