@@ -4,7 +4,7 @@
 
 **Repository:** `2f22vtd4kr-cloud/BigContacts`  
 **Branch:** `main`  
-**Current reviewed tip:** `9f88c2289d28b1a24396e9431172f7a7b96083b0`
+**Current reviewed tip:** `5c786037c5341de2a5db7ff79201567741797d26`
 
 ## 1. Institutional architecture
 
@@ -84,6 +84,8 @@ Issue #148 is closed after regression coverage for same-observation identity/cla
 
 Canonical discovery trajectory persistence now records each structured Investigator turn as its own durable case event inside the same DB transaction as the case snapshot update. Tool turns are `tool_observation`; an explicit `done` turn is a `decision`. Event payloads retain model/action/args/execution/observation/observedUrls/findings/provider-fallback/stop metadata.
 
+The event schema/replay layer now explicitly accepts the canonical `control_decision` and `tool_observation` event types and the deterministic `bureau` actor used by the single-target context projector. Regression coverage exercises these live event forms.
+
 This improves causal reconstruction but is not yet the final claim-to-event graph: persisted findings still need first-class immutable claim/source references and idempotent run correlation. That remains part of #151/#152.
 
 ## 7. Evidence graph
@@ -128,7 +130,7 @@ transformed source
   -> repeat
 ```
 
-Completed in this audit: `apply-free-react-opening-repair.mjs` has been deleted and removed from API build/test after source parity verification.
+Completed in this audit: `apply-free-react-opening-repair.mjs` has been deleted and removed from API build/test after source parity verification. The launch gate was also corrected so it no longer tries to execute the deleted hardener.
 
 Still requiring direct source migration before deletion include the final-review role boundary, discovery initial-state boundary, secondary-surface retirement, registry cancellation, Python egress quarantine, and other explicitly tracked hardeners.
 
