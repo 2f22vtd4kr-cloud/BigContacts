@@ -167,7 +167,7 @@ export async function runCanonicalSingleTargetInvestigation(atlasJobId: string, 
     const direction = boss.nextDirections[0];
     if (direction) contextDocument = `${contextDocument}\n\n## Gemini continuation direction\n${direction}`.slice(-32000);
     await updateJob(atlasJobId, { progress: 2 + pass, atlasPhase: 2 + pass, message: `${boss.investigatorLlm.toUpperCase()} Investigator pass ${pass}/${maxPasses} researching ${target.name} from durable case context…` });
-    result = await runTargetContactAgent({ entityId: target.id, targetName: target.name, companyName, jobId: atlasJobId, investigatorLlm: boss.investigatorLlm, maxIterations: depth.agenticMaxIterations, hardTimeoutMs, contextDocument, shouldCancel: async () => { const job = await getJob(atlasJobId); return !job || job.status === "failed" || job.status === "cancelled"; } });
+    result = await runTargetContactAgent({ entityId: target.id, targetName: target.name, companyName, jobId: atlasJobId, investigatorLlm: boss.investigatorLlm, maxIterations: depth.agenticMaxIterations, hardTimeoutMs, contextDocument, shouldCancel: async () => { const job = await getJob(atlasJobId); return !job || job.status === "failed" || job.status === "cancelled"; }, onInvestigationAct: async (step) => { await db.insert(researchCaseEventsTable).values({ caseId, iteration: baseIteration + 3 + pass, actorRole: step.action === "done" ? "head_investigator" : "specialist", eventType: step.action === "done" ? "decision" : "observation", status: "recorded", summary: `Investigator ${step.action}${step.query ? ` · ${step.query}` : step.url ? ` · ${step.url}` : ""}`.slice(0, 1000), payload: JSON.stringify({ investigatorLlm: boss.investigatorLlm, action: step.action, provider: step.provider, query: step.query, url: step.url, summary: step.summary }) }); } });
     trajectorySummary = [`pass=${pass}`, `Investigator model=${result.model}`, `status=${result.status}`, `findings=${result.findings}`, `searches=${result.searches}`, `visits=${result.visits}`, `trajectoryRecords=${result.trajectory.length}`];
     trajectoryRecords = (result as unknown as { trajectoryRecords?: InvestigatorTrajectoryRecord[] }).trajectoryRecords ?? [];
     priorContext = contextDocument;
@@ -196,6 +196,7 @@ export async function runCanonicalSingleTargetInvestigation(atlasJobId: string, 
     await persistContext(caseId, contextDocument, baseIteration + 7 + pass * 2, "head_investigator", `Gemini final review ${boss.status} after explicit target stop; structured trajectory retained.`);
   }
 
+  const stoppedByBoss = lastControl?.action === "stop";
   const resourceLimited = !stoppedByBoss;
   const incomplete = result.status !== "completed" || resourceLimited;
   await db.update(researchCasesTable).set({ status: incomplete ? "review" : "complete", currentAction: incomplete ? "investigator-incomplete-or-resource-limited" : "awaiting-human-review", lastDecisionAt: new Date(), updatedAt: new Date() }).where(eq(researchCasesTable.id, caseId));
