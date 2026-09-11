@@ -3,6 +3,7 @@ import fs from "node:fs";
 const control = fs.readFileSync("artifacts/api-server/src/src/lib/atlas-control-decision.ts", "utf8");
 const compactor = fs.readFileSync("artifacts/api-server/src/src/lib/investigation-context-compaction.ts", "utf8");
 const bureau = fs.readFileSync("artifacts/api-server/src/src/lib/bureau-agentic-pass.ts", "utf8");
+const targetAgent = fs.readFileSync("artifacts/api-server/src/src/lib/target-contact-agent.ts", "utf8");
 const persist = fs.readFileSync("artifacts/api-server/src/src/lib/bureau-contact-persist-strict.ts", "utf8");
 const checks = [
   ["discovery control imports semantic context compaction", /import \{ compactInvestigationContext \}/.test(control)],
@@ -26,6 +27,8 @@ const checks = [
   ["agentic persistence requires immutable promotion provenance", /InvestigatorPromotionProvenance/.test(persist) && /resolveImmutablePromotionSupport/.test(persist) && /if\(!support\)continue/.test(persist)],
   ["agentic card mutation revalidates immutable promotion support", /const support=await resolveImmutablePromotionSupport/.test(persist) && /if\(!support\)return false/.test(persist)],
   ["agentic pass threads case and run provenance into persistence", /durableCaseId != null \? \{ caseId: durableCaseId, runId \} : undefined/.test(bureau)],
+  ["target contact agent resolves the durable target oversight run", /resolvePromotionProvenance/.test(targetAgent) && /target-oversight:case:\$\{context\.caseId\}:run:/.test(targetAgent)],
+  ["target contact persistence receives resolved promotion provenance", /promotionProvenance = await resolvePromotionProvenance/.test(targetAgent) && /observedSourceUrls, promotionProvenance/.test(targetAgent)],
   ["promotion metadata records immutable claim and observation event IDs", /claimEventId:support\.claimEventId/.test(persist) && /observationEventIds:support\.observationEventIds/.test(persist)],
   ["durable discovery projection does not recursively copy the prior context document", !/memoryProjection\s*=\s*\{[^}]*contextDocument/s.test(bureau)],
 ];
