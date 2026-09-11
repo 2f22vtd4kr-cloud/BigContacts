@@ -2,6 +2,7 @@ import fs from "node:fs";
 
 const runner = fs.readFileSync("artifacts/api-server/src/src/lib/canonical-single-target-runner.ts", "utf8");
 const agentic = fs.readFileSync("artifacts/api-server/src/src/lib/agentic-web-research.ts", "utf8");
+const oversight = fs.readFileSync("artifacts/api-server/src/src/lib/target-act-oversight.ts", "utf8");
 const checks = [
   ["canonical runner invokes exactly one Investigator iteration", /maxIterations:\s*1/.test(runner)],
   ["canonical runner reads durable oversight after each act", /readOversight\(caseState\)/.test(runner)],
@@ -9,13 +10,16 @@ const checks = [
   ["canonical runner fails closed when oversight is unavailable", /!lastOversight \|\| lastOversight\.status !== "completed"/.test(runner)],
   ["redirect becomes a research objective, not a tool command", /Gemini research objective/.test(runner)],
   ["canonical runner establishes one global target deadline", /const deadline = Date\.now\(\) \+ hardTimeoutMs/.test(runner)],
-  ["each act receives only remaining global budget", /hardTimeoutMs: Math\.max\(30_000, remainingMs\)/.test(runner)],
+  ["canonical runner refuses to start a sub-30-second act", /remainingMs < 30_000/.test(runner)],
   ["canonical agentic target wrapper actively aborts at its deadline", /setTimeout\(\(\) => overallController\.abort\(\), requestedHardTimeout\)/.test(agentic)],
   ["canonical agentic target wrapper clears its deadline timer", /clearTimeout\(deadlineTimer\)/.test(agentic)],
   ["target control context is mandatory", /if \(!oversightContext\)/.test(agentic)],
   ["missing target control context fails closed", /CONTROL_CONTEXT_UNAVAILABLE/.test(agentic)],
   ["act cancellation observes the global deadline", /Date\.now\(\) >= deadline/.test(runner)],
   ["agentic entrypoint performs Right Hand + Boss review after an act", /await reviewTargetInvestigationAct\(/.test(agentic)],
+  ["Right Hand is mandatory before Boss continuation", /if \(rightHand\.status !== "completed"\)/.test(oversight)],
+  ["Right Hand failure stops the next Investigator act", /DeepSeek\/NVIDIA Right Hand oversight was unavailable/.test(oversight)],
+  ["oversight events are idempotently correlated by case and turn", /target-oversight:case:\$\{caseId\}:turn:\$\{controlTurn\}/.test(oversight)],
   ["discovery is not accidentally target-gated", /input\.mode === "discovery"/.test(agentic)],
 ];
 let failed = false;
