@@ -1,13 +1,12 @@
 import fs from "node:fs";
-
 const runner = fs.readFileSync("artifacts/api-server/src/src/lib/canonical-single-target-runner.ts", "utf8");
 const oversight = fs.readFileSync("artifacts/api-server/src/src/lib/target-act-oversight.ts", "utf8");
 const wrapper = fs.readFileSync("artifacts/api-server/src/src/lib/agentic-web-research.ts", "utf8");
 const targetAgent = fs.readFileSync("artifacts/api-server/src/src/lib/target-contact-agent.ts", "utf8");
 const mutationGuard = fs.readFileSync("artifacts/api-server/src/src/lib/legacy-apex-mutation-guard.ts", "utf8");
-
 const checks = [
   ["canonical runner does not consume stale targetControlDecisions", !/readContinuationControl\(/.test(runner)],
+  ["canonical target case lookup is explicitly target-scoped", /eq\(researchCasesTable\.caseType, "target"\)/.test(runner)],
   ["canonical target case reuse is bound to atlasJobId", /state\.atlasJobId === atlasJobId/.test(runner)],
   ["canonical runner passes caseId into target Investigator", /runTargetContactAgent\(\{[^}]*caseId: caseRow\.id/.test(runner)],
   ["target oversight loads by exact case id", /where\(and\(eq\(researchCasesTable\.id, caseId\), eq\(researchCasesTable\.caseType, "target"\)\)\)/.test(oversight)],
@@ -20,10 +19,6 @@ const checks = [
   ["generic Apex entity creation contact fields are blocked", /req\.path === "\/entities"/.test(mutationGuard) && /touchesApexContactFields\(body\)/.test(mutationGuard)],
   ["manual Apex batch contact fields are blocked", /req\.path === "\/entities\/import\/batch"/.test(mutationGuard) && /draftTouchesApexContactFields/.test(mutationGuard)],
 ];
-
 let failed = false;
-for (const [name, ok] of checks) {
-  console.log(`${ok ? "PASS" : "FAIL"} ${name}`);
-  if (!ok) failed = true;
-}
+for (const [name, ok] of checks) { console.log(`${ok ? "PASS" : "FAIL"} ${name}`); if (!ok) failed = true; }
 if (failed) process.exit(1);
