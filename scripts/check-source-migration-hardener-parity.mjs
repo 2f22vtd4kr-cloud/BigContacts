@@ -25,7 +25,7 @@ const sourceChecks = [
   [
     "free-ReAct source contains no forced opening instruction",
     "artifacts/api-server/src/src/lib/agentic-web-research-core.ts",
-    [/Begin\\. Choose an initial web_search query/i, /\\(none — begin with web_search\\)/i],
+    [/Begin\. Choose an initial web_search query/i, /\(none — begin with web_search\)/i],
   ],
   [
     "canonical final review source contains no Groq reviewer fallback",
