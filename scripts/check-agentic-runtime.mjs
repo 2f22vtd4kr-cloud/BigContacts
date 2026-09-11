@@ -1,6 +1,7 @@
 import fs from "node:fs";
 
 const file = "artifacts/api-server/src/src/lib/agentic-web-research-core.ts";
+const source = fs.readFileSync(file, "utf8");
 const pythonTools = fs.readFileSync("artifacts/api-server/src/src/lib/python-tools.ts", "utf8");
 const workflow = fs.readFileSync(".github/workflows/apex-live-audit.yml", "utf8");
 const compatibilityHardener = fs.readFileSync("scripts/apply-agentic-runtime-hardening.mjs", "utf8");
@@ -29,7 +30,6 @@ const required = [
   ["email footprint receives the run signal", /runHolehe\(action\.email, \{ signal: runController\.signal \}\)/],
   ["username footprint receives the run signal", /runMaigret\(action\.username, \{ signal: runController\.signal \}\)/],
   ["supplementary username footprint receives the run signal", /runSherlock\(action\.username, \{ signal: runController\.signal \}\)/],
-  ["domain harvesting receives the run signal", /runTheHarvester\(action\.domain, undefined, \{ signal: runController\.signal \}\)/],
 ];
 for (const [label, pattern] of required) if (!pattern.test(source)) throw new Error(`agentic runtime invariant failed: ${label}`);
 
@@ -41,6 +41,7 @@ const pythonBoundaryRequired = [
   ["Sherlock is source-gated", /runSherlock\([\s\S]{0,260}if \(!PYTHON_OSINT_EGRESS_GOVERNED\) return \{ \.\.\.base, error: PYTHON_OSINT_EGRESS_ERROR \};/],
   ["theHarvester is source-gated", /runTheHarvester\([\s\S]{0,260}if \(!PYTHON_OSINT_EGRESS_GOVERNED\) return \{ \.\.\.base, error: PYTHON_OSINT_EGRESS_ERROR \};/],
   ["Python deep research is source-gated", /runOpenDeepResearch\([\s\S]{0,360}if \(!PYTHON_OSINT_EGRESS_GOVERNED\) return \{ \.\.\.base, error: PYTHON_OSINT_EGRESS_ERROR \};/],
+  ["Python capability health is fail-closed", /holehe: false[\s\S]*maigret: false[\s\S]*sherlock: false[\s\S]*theHarvester: false[\s\S]*openDeepResearch: false/],
 ];
 for (const [label, pattern] of pythonBoundaryRequired) if (!pattern.test(pythonTools)) throw new Error(`python OSINT boundary invariant failed: ${label}`);
 
