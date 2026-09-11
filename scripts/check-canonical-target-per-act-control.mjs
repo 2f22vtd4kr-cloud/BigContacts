@@ -6,7 +6,7 @@ const evidence = fs.readFileSync("artifacts/api-server/src/src/lib/source-corrob
 const mutationGuard = fs.readFileSync("artifacts/api-server/src/src/lib/legacy-apex-mutation-guard.ts", "utf8");
 const checks = [
   ["canonical runner invokes exactly one Investigator iteration", /maxIterations:\s*1/.test(runner)],
-  ["canonical runner reads durable act oversight after each act", /readOversight\(caseState\)/.test(runner)],
+  ["canonical runner reads durable act oversight after each act with exact run and turn", /readOversight\(caseState,\s*latestResult\.executionId\s*\?\?\s*null,\s*actNumber\)/.test(runner)],
   ["canonical runner does not consume stale targetControlDecisions", !/readContinuationControl\(/.test(runner)],
   ["canonical target case reuse is bound to current atlas job", /state\.atlasJobId === atlasJobId/.test(runner)],
   ["canonical runner passes exact case identity into Investigator", /caseId: caseRow\.id/.test(runner)],
