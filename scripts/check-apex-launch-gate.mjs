@@ -3,7 +3,6 @@ import fs from "node:fs";
 import { execFileSync } from "node:child_process";
 
 const hardeners = [
-  "apply-free-react-opening-repair.mjs",
   "apply-harvest-domain-egress-quarantine.mjs",
   "apply-agentic-domain-signal-hardening.mjs",
   "apply-agentic-username-capability-split.mjs",
