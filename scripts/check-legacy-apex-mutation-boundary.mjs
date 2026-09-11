@@ -23,6 +23,7 @@ const ingestIndex = routes.indexOf("router.use(ingestRouter)");
 
 const checks = [
   ["guard names all retired legacy enrichment routes", retiredRoutes.every((p) => guard.includes(`\"/ingest/${p}\"`))],
+  ["deterministic contact rehydration is retired", guard.includes('"/entities/rehydrate-contacts"')],
   ["legacy routes return explicit 410", guard.includes('res.status(410).json({') && guard.includes("Legacy enrichment route retired.")],
   ["guard blocks Apex entity types on generic enrich routes", guard.includes('["HNWI", "Gatekeeper"]')],
   ["guard rejects unscoped generic legacy enrichment", guard.includes("Legacy enrichment requires an explicit non-Apex target scope")],
