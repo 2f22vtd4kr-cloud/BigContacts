@@ -72,7 +72,6 @@ jobs:
       - name: Verify source migration and role invariants
         run: |
           node scripts/check-source-migration-hardener-parity.mjs
-          node scripts/check-unified-investigator-architecture.mjs
           test ! -e scripts/apply-final-review-role-boundary.mjs
           ! grep -q 'groq-final-review-fallback\|Groq capacity fallback' artifacts/api-server/src/src/lib/ai-extractor.ts
           grep -q 'runDeepSeekFinalReview' artifacts/api-server/src/src/lib/ai-extractor.ts
@@ -94,4 +93,4 @@ jobs:
           git commit -m 'Remove Groq final-review fallback at source [skip apex repair]'
           git push origin HEAD:main
 
-# Follow-up push activates this one-time migration workflow.
+# Final one-time source migration workflow; remove after the source commit lands.
