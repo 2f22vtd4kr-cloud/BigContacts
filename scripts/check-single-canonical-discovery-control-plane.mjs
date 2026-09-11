@@ -4,6 +4,8 @@ const route = fs.readFileSync("artifacts/api-server/src/src/routes/research/cano
 const control = fs.readFileSync("artifacts/api-server/src/src/lib/canonical-atlas-discovery.ts", "utf8");
 const researchRouter = fs.readFileSync("artifacts/api-server/src/src/routes/research.ts", "utf8");
 
+const canonicalMount = 'router.use(canonicalCaseDiscoveryRouter)';
+const legacyMount = 'router.use(legacyCaseExecutionRetirementRouter)';
 const checks = [
   ["case discovery route delegates to canonical Atlas control plane", route.includes('runCanonicalAtlasPipeline')],
   ["case discovery route is HTTP/lifecycle-only", !/runGeminiBossDiscovery|runDeepSeekFreeJson|runBureauAgenticWebPass|persistSourceBackedBureauContactsForEntity/.test(route)],
@@ -17,7 +19,8 @@ const checks = [
   ["discovery identity admission no longer creates synthetic contact evidence", !control.includes('value: `person:${name}`')],
   ["discovery admission requires candidate scope", control.includes('f.scope === "candidate"')],
   ["discovery admission requires successful observed HTTP provenance", control.includes('f.sourceUrls.some(isObservedHttpSource)')],
-  ["canonical route wins before legacy case routes", researchRouter.indexOf('router.use(canonicalCaseDiscoveryRouter)') >= 0 && researchRouter.indexOf('router.use(canonicalCaseDiscoveryRouter)') < researchRouter.indexOf('router.use(casesRouter)')],
+  ["canonical route is mounted before retired legacy execution routes", researchRouter.indexOf(canonicalMount) >= 0 && researchRouter.indexOf(legacyMount) >= 0 && researchRouter.indexOf(canonicalMount) < researchRouter.indexOf(legacyMount)],
+  ["research router no longer mounts the retired casesRouter", !/router\.use\(casesRouter\)/.test(researchRouter)],
 ];
 
 const failures = checks.filter(([, ok]) => !ok).map(([name]) => name);
