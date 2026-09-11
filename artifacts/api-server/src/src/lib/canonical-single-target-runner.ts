@@ -196,7 +196,6 @@ export async function runCanonicalSingleTargetInvestigation(atlasJobId: string, 
     await persistContext(caseId, contextDocument, baseIteration + 7 + pass * 2, "head_investigator", `Gemini final review ${boss.status} after explicit target stop; structured trajectory retained.`);
   }
 
-  const stoppedByBoss = lastControl?.action === "stop";
   const resourceLimited = !stoppedByBoss;
   const incomplete = result.status !== "completed" || resourceLimited;
   await db.update(researchCasesTable).set({ status: incomplete ? "review" : "complete", currentAction: incomplete ? "investigator-incomplete-or-resource-limited" : "awaiting-human-review", lastDecisionAt: new Date(), updatedAt: new Date() }).where(eq(researchCasesTable.id, caseId));
