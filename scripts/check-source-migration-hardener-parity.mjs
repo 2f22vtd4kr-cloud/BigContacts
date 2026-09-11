@@ -14,7 +14,6 @@ const migrationHardeners = [
   "apply-registry-cancellation-boundary.mjs",
   "apply-agentic-registry-signal-wiring.mjs",
   "apply-retire-deterministic-atlas-osint.mjs",
-  "apply-retire-legacy-atlas-launch.mjs",
   "apply-discovery-case-initial-action-state.mjs",
 ];
 
