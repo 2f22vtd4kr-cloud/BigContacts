@@ -1,14 +1,9 @@
 /**
  * Independent source corroboration and evidence-graph primitives.
  *
- * References (method, not product deps):
- * - Two-source rule: independent sources, not the same feed mirrored
- * - Attribution: URL + collection method; primary over aggregator
- * - Evidence-guided research benefits from keeping claims and observations
- *   explicit instead of collapsing them into a single finding.
- *
- * Aggregator hosts often recycle one underlying feed — counting three
- * people-search URLs is still one weak source class.
+ * The graph is operational state, not a post-hoc decoration: a model-authored
+ * claim points at immutable observations, while deterministic code validates
+ * the observation set and source independence before any promotion decision.
  */
 
 const AGGREGATOR_HOST_RE =
@@ -23,11 +18,6 @@ export type EvidenceEdgeKind =
   | "promotes"
   | "validates";
 
-/**
- * An immutable reference to something the runtime actually observed.
- * Observation text is deliberately optional: the graph can reference a
- * durable event without duplicating potentially large source material.
- */
 export interface EvidenceObservation {
   id: string;
   sourceUrl: string;
@@ -79,11 +69,6 @@ export function isAggregatorHost(host: string | null | undefined): boolean {
   return AGGREGATOR_HOST_RE.test(host);
 }
 
-/**
- * Count independent corroborating hosts among source URLs.
- * Aggregator hosts collapse to a single "aggregator" bucket.
- * Primary/registry hosts each count fully.
- */
 export function countIndependentSourceHosts(urls: string[] | null | undefined): number {
   if (!urls?.length) return 0;
   const hosts = new Set<string>();
@@ -100,22 +85,17 @@ export function countIndependentSourceHosts(urls: string[] | null | undefined): 
   return hosts.size + (sawAggregator ? 1 : 0);
 }
 
-/** True when ≥2 independent non-empty host buckets (classic two-source rule). */
 export function meetsTwoSourceRule(urls: string[] | null | undefined): boolean {
   return countIndependentSourceHosts(urls) >= 2;
 }
 
-/**
- * Construct immutable observation nodes from source URLs. This is intentionally
- * a graph representation only; it does not assert that the observations prove
- * any claim and it never promotes a value into an entity card.
- */
 export function observationsFromSourceUrls(
   urls: readonly string[],
-  metadata: Pick<EvidenceObservation, "observedAt" | "runId" | "caseId" | "turn" | "collectionMethod"> = { observedAt: new Date().toISOString() },
+  metadata: Pick<EvidenceObservation, "observedAt" | "runId" | "caseId" | "turn" | "collectionMethod"> & { idPrefix?: string } = { observedAt: new Date().toISOString() },
 ): EvidenceObservation[] {
   const seen = new Set<string>();
   const observations: EvidenceObservation[] = [];
+  const idPrefix = String(metadata.idPrefix ?? "run").replace(/[^a-zA-Z0-9:_-]/g, "_").slice(0, 80) || "run";
   for (const raw of urls) {
     if (typeof raw !== "string") continue;
     const sourceUrl = raw.trim();
@@ -127,7 +107,7 @@ export function observationsFromSourceUrls(
     if (!canonical || seen.has(canonical)) continue;
     seen.add(canonical);
     observations.push({
-      id: `observation:${sourceHost}:${observations.length + 1}`,
+      id: `observation:${idPrefix}:${observations.length + 1}`,
       sourceUrl: canonical,
       sourceHost,
       observedAt: metadata.observedAt,
@@ -140,34 +120,39 @@ export function observationsFromSourceUrls(
   return observations;
 }
 
-/**
- * Build a claim-support graph without deciding whether the claim is true.
- * Multiple observations may support one claim; that is the key distinction
- * from the old single-observation co-occurrence rule.
- */
+/** Build a claim graph from the exact source URLs the Investigator attributed. */
 export function buildClaimSupportGraph(
   claim: EvidenceClaim,
   observations: readonly EvidenceObservation[],
-  reason = "model-attributed multi-source support",
+  reason = "model-attributed source support",
 ): EvidenceGraph {
-  const edges: EvidenceEdge[] = observations.map((observation) => ({
-    from: claim.id,
-    to: observation.id,
-    kind: "supports",
-    createdAt: new Date().toISOString(),
-    reason,
-  }));
-  return {
-    observations: [...observations],
-    claims: [claim],
-    edges,
-  };
+  const observationIds = new Set(observations.map((observation) => observation.id));
+  const edges: EvidenceEdge[] = observations
+    .filter((observation) => observationIds.has(observation.id))
+    .map((observation) => ({
+      from: claim.id,
+      to: observation.id,
+      kind: "supports",
+      createdAt: new Date().toISOString(),
+      reason,
+    }));
+  return { observations: [...observations], claims: [claim], edges };
+}
+
+export function graphHasIndependentCorroboration(graph: EvidenceGraph): boolean {
+  return meetsTwoSourceRule(graph.observations.map((observation) => observation.sourceUrl));
 }
 
 /**
- * Require at least two independent source buckets before a graph is considered
- * corroborated. This is a quality signal, not an automatic promotion rule.
+ * Deterministic structural check for a claim graph. It validates only the
+ * model's declared attribution; it does not decide whether the claim is true.
  */
-export function graphHasIndependentCorroboration(graph: EvidenceGraph): boolean {
-  return meetsTwoSourceRule(graph.observations.map((observation) => observation.sourceUrl));
+export function validateClaimSupportGraph(graph: EvidenceGraph): { valid: boolean; reason: string | null } {
+  if (graph.claims.length !== 1) return { valid: false, reason: "graph must contain exactly one claim" };
+  const claim = graph.claims[0];
+  const supportingIds = new Set(graph.edges.filter((edge) => edge.from === claim.id && edge.kind === "supports").map((edge) => edge.to));
+  if (!supportingIds.size) return { valid: false, reason: "claim has no supporting observations" };
+  if (graph.observations.some((observation) => !supportingIds.has(observation.id))) return { valid: false, reason: "graph contains unattributed observations" };
+  if (graph.observations.some((observation) => !/^https?:\/\//i.test(observation.sourceUrl))) return { valid: false, reason: "non-http observation" };
+  return { valid: true, reason: null };
 }
