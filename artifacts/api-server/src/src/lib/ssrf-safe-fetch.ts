@@ -10,7 +10,7 @@
  * Hostname validation and connection are one operation here: the address used
  * by the socket is the address returned by the safety-checked DNS lookup.
  */
-import { lookup } from "node:dns/promises";
+import { Resolver } from "node:dns/promises";
 import http from "node:http";
 import https from "node:https";
 import net from "node:net";
@@ -19,6 +19,7 @@ import { getAgenticSelectedInvestigator } from "./agentic-execution-context";
 const BLOCKED_HOSTNAMES = new Set(["localhost", "localhost.localdomain", "metadata.google.internal", "metadata"]);
 const MAX_RESPONSE_BYTES = 2_000_000;
 const MAX_REQUEST_BYTES = 1_000_000;
+const DNS_TIMEOUT_MS = 10_000;
 
 function isBlockedIp(address: string): boolean {
   const normalized = address.toLowerCase().replace(/^\[|\]$/g, "");
@@ -38,12 +39,70 @@ function isBlockedIp(address: string): boolean {
   return true;
 }
 
-async function resolveSafeAddress(hostname: string): Promise<string> {
-  if (net.isIP(hostname)) { if (isBlockedIp(hostname)) throw new Error("Outbound URL targets a blocked IP address"); return hostname; }
-  let records: Array<{ address: string }>;
-  try { records = await lookup(hostname, { all: true, verbatim: true }); } catch { throw new Error("Outbound URL hostname could not be resolved safely"); }
-  if (!records.length || records.some((record) => isBlockedIp(record.address))) throw new Error("Outbound URL resolves to a blocked IP address");
-  return records[0].address;
+async function resolveSafeAddress(hostname: string, signal?: AbortSignal): Promise<string> {
+  if (net.isIP(hostname)) {
+    if (isBlockedIp(hostname)) throw new Error("Outbound URL targets a blocked IP address");
+    return hostname;
+  }
+
+  if (signal?.aborted) throw new Error("Outbound DNS resolution aborted");
+  const resolver = new Resolver({ timeout: DNS_TIMEOUT_MS, tries: 1 });
+  let abort: (() => void) | undefined;
+  try {
+    const addresses = await new Promise<Array<{ address: string }>>((resolve, reject) => {
+      let settled = false;
+      const cleanup = () => {
+        if (abort && signal) signal.removeEventListener("abort", abort);
+        abort = undefined;
+      };
+      const finishError = (error: unknown) => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        reject(error instanceof Error ? error : new Error(String(error)));
+      };
+      const finishSuccess = (value: Array<{ address: string }>) => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        resolve(value);
+      };
+      abort = () => {
+        resolver.cancel();
+        finishError(new Error("Outbound DNS resolution aborted"));
+      };
+      if (signal?.aborted) return abort();
+      signal?.addEventListener("abort", abort, { once: true });
+      resolver.resolve4(hostname).then(
+        (ipv4) => resolver.resolve6(hostname).then(
+          (ipv6) => finishSuccess([...ipv4.map((address) => ({ address })), ...ipv6.map((address) => ({ address }))]),
+          (error) => {
+            if ((error as NodeJS.ErrnoException)?.code === "ENODATA" || (error as NodeJS.ErrnoException)?.code === "ENOTFOUND") {
+              finishSuccess(ipv4.map((address) => ({ address })));
+            } else finishError(error);
+          },
+        ),
+        (error) => {
+          if ((error as NodeJS.ErrnoException)?.code === "ENODATA" || (error as NodeJS.ErrnoException)?.code === "ENOTFOUND") {
+            resolver.resolve6(hostname).then(
+              (ipv6) => finishSuccess(ipv6.map((address) => ({ address }))),
+              (ipv6Error) => {
+                if ((ipv6Error as NodeJS.ErrnoException)?.code === "ENODATA" || (ipv6Error as NodeJS.ErrnoException)?.code === "ENOTFOUND") finishSuccess([]);
+                else finishError(ipv6Error);
+              },
+            );
+          } else finishError(error);
+        },
+      );
+    });
+    if (!addresses.length || addresses.some((record) => isBlockedIp(record.address))) throw new Error("Outbound URL resolves to a blocked IP address");
+    return addresses[0].address;
+  } catch (error) {
+    if (signal?.aborted) throw new Error("Outbound DNS resolution aborted");
+    throw new Error(error instanceof Error && error.message === "Outbound DNS resolution aborted" ? error.message : "Outbound URL hostname could not be resolved safely");
+  } finally {
+    resolver.cancel();
+  }
 }
 
 function parseSafeUrl(rawUrl: string): URL {
@@ -121,8 +180,9 @@ export async function safeOutboundFetch(input: RequestInfo | URL, init: RequestI
       throw new Error(`Cross-provider Investigator fallback blocked: Boss selected ${selectedInvestigator}`);
     }
   }
-  const hostname = validated.hostname.replace(/^\[|\]$/g, "").toLowerCase().replace(/\.$/, ""); const address = await resolveSafeAddress(hostname); return pinnedFetch(input, { ...init, redirect: "manual" }, address);
+  const hostname = validated.hostname.replace(/^\[|\]$/g, "").toLowerCase().replace(/\.$/, ""); const address = await resolveSafeAddress(hostname, init.signal); return pinnedFetch(input, { ...init, redirect: "manual" }, address);
 }
 export function isBlockedOutboundIpForTest(address: string): boolean { return isBlockedIp(address); }
 export const MAX_SAFE_OUTBOUND_RESPONSE_BYTES = MAX_RESPONSE_BYTES;
 export const MAX_SAFE_OUTBOUND_REQUEST_BYTES = MAX_REQUEST_BYTES;
+export const SAFE_OUTBOUND_DNS_TIMEOUT_MS = DNS_TIMEOUT_MS;
