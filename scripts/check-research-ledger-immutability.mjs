@@ -17,6 +17,11 @@ pass("trigger raises an error", /RAISE EXCEPTION ['\"]research_case_events is ap
 pass("missing ledger fails closed", /Apex research_case_events ledger is missing; refusing to start/.test(dbIndex));
 pass("bootstrap is serialized across instances", /pg_advisory_xact_lock\(hashtext\('apex:research_case_events:immutability'\)\)/.test(dbIndex));
 pass("public write privileges are removed", /REVOKE UPDATE, DELETE, TRUNCATE ON public\.research_case_events FROM PUBLIC/.test(dbIndex));
+pass("correlated event replays are serialized by key", /apex:research_case_events:replay:/.test(dbIndex) && /pg_advisory_xact_lock\(\s*hashtext\('apex:research_case_events:replay:'/.test(dbIndex));
+pass("correlated event replay payloads are compared", /existing_payload text/.test(dbIndex) && /existing_payload IS DISTINCT FROM NEW\.payload/.test(dbIndex));
+pass("correlated event replay mismatch fails closed", /correlation key replay has different payload/.test(dbIndex));
+pass("replay integrity is installed as a BEFORE INSERT trigger", /CREATE TRIGGER apex_research_case_events_replay_integrity\s+BEFORE INSERT ON public\.research_case_events/.test(dbIndex));
+pass("ledger correlation keys remain uniquely indexed", /uniqueIndex\("research_case_events_case_id_correlation_key_uidx"\)/.test(schema));
 pass("ledger remains explicitly documented append-only", /Append-only decisions, assignments, observations, claims, promotions/.test(schema));
 
 if (failures.length) {
@@ -24,4 +29,4 @@ if (failures.length) {
   for (const failure of failures) console.error(`- ${failure}`);
   process.exit(1);
 }
-console.log("RESEARCH LEDGER IMMUTABILITY: PASS — PostgreSQL rejects UPDATE, DELETE, and TRUNCATE on the control/provenance ledger and startup fails closed if the ledger is absent");
+console.log("RESEARCH LEDGER IMMUTABILITY: PASS — PostgreSQL rejects mutation, blocks conflicting correlation-key replays, and startup fails closed if the ledger is absent");
