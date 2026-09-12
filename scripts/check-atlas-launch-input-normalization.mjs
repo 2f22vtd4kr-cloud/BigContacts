@@ -36,10 +36,10 @@ if (!canonicalLauncher.includes("router.post(\"/ingest/atlas-run\"")) {
   console.error("ATLAS INPUT NORMALIZATION FAIL: canonical launcher route missing");
   failed = true;
 }
-// The old atlas.ts launch handler still contains compatibility code, but it is
-// intentionally unreachable because canonicalAtlasLaunchRouter is mounted first.
-if (!legacyAtlas.includes('router.post("/ingest/atlas-run"')) {
-  console.error("ATLAS INPUT NORMALIZATION FAIL: expected legacy launch handler is missing; review route retirement assumptions");
+// atlas.ts is now a compatibility quarantine stub. Keep the route-shape check
+// but bind it to the exported router name and require an explicit 410 response.
+if (!legacyAtlas.includes('atlasRouter.post("/ingest/atlas-run"') || !legacyAtlas.includes("res.status(410)")) {
+  console.error("ATLAS INPUT NORMALIZATION FAIL: legacy Atlas compatibility stub is not an explicit 410 quarantine");
   failed = true;
 }
 if (failed) process.exit(1);
