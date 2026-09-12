@@ -26,10 +26,12 @@ const files = {
   architecture: path.join(root, "docs/BUREAU_REACT_ARCHITECTURE.md"),
 };
 
-const source = Object.fromEntries(Object.entries(files).map(([name, file]) => {
-  if (!fs.existsSync(file)) throw new Error(`missing required architecture file: ${file}`);
-  return [name, fs.readFileSync(file, "utf8")];
-}));
+const readRequired = (file) => { if (!fs.existsSync(file)) throw new Error(`missing required architecture file: ${file}`); return fs.readFileSync(file, "utf8"); };
+const readOptional = (file) => fs.existsSync(file) ? fs.readFileSync(file, "utf8") : "";
+const source = {
+  ...Object.fromEntries(Object.entries(files).map(([name, file]) => [name, (name === "finalReview" || name === "legacyFinalReview") ? readOptional(file) : readRequired(file)])),
+};
+const legacyExtractionRetired = !fs.existsSync(files.finalReview) && !fs.existsSync(files.legacyFinalReview);
 const failures = [];
 const assert = (ok, message) => { if (!ok) failures.push(message); };
 
@@ -42,15 +44,12 @@ assert(!/web_search routes Serper\s*[→>-]+\s*Tavily/i.test(source.orientation)
 assert(!/Begin\. Choose an initial web_search query/i.test(source.research), "Investigator ReAct still contains a forced initial web_search instruction.");
 assert(!/web_search.*(?:fallback|default provider)/i.test(source.research), "web_search still contains an implicit provider fallback/default.");
 assert(!/generateGroqBossText|Groq text fallback for Boss/i.test(source.bureau), "Groq is still exposed as a Boss planning fallback.");
-const groqFinalFallback = /groq-final-review-fallback/i;
-assert(!groqFinalFallback.test(source.finalReview), "Groq is still exposed as a final card review/decision layer in canonical source.");
-assert(!groqFinalFallback.test(source.legacyFinalReview), "Groq is still exposed as a final card review/decision layer in legacy source.");
+assert(legacyExtractionRetired || !/groq-final-review-fallback/i.test(source.finalReview), "Groq is still exposed as a final card review/decision layer in canonical source.");
+assert(legacyExtractionRetired || !/groq-final-review-fallback/i.test(source.legacyFinalReview), "Groq is still exposed as a final card review/decision layer in legacy source.");
 
 assert(/investigatorLlm/.test(source.bureau), "Boss plan does not expose investigatorLlm.");
 assert(/investigatorLlm/.test(source.pass), "ReAct pass does not accept investigatorLlm.");
 assert(/investigatorLlm/.test(source.research), "ReAct research runtime does not receive investigatorLlm.");
-// The HTTP case-discovery adapter intentionally delegates to the canonical Atlas pipeline;
-// the pipeline is the binding point for the selected Investigator and durable case context.
 assert(/runCanonicalAtlasPipeline\(/.test(source.canonicalCase) && /discoveryCaseId\s*:\s*caseId/.test(source.canonicalCase), "Case discovery adapter does not delegate with its durable discovery case binding.");
 assert(/investigatorLlm\s*:/.test(source.canonicalAtlas), "Canonical Atlas discovery does not bind the selected Investigator.");
 assert(/discoveryCaseId|caseId/.test(source.canonicalAtlas) && /runBureauAgenticWebPass\(/.test(source.canonicalAtlas), "Canonical Atlas discovery does not mount a durable discovery case context into the Investigator.");
@@ -64,7 +63,6 @@ assert(/refusing context-free Investigator run/.test(source.targetAgent), "Targe
 assert(/contextDocument/.test(source.targetAgent), "Target Investigator does not normalize its durable context input.");
 assert(/!contextDocument/.test(source.targetAgent) && /status: "unavailable"/.test(source.targetAgent), "Target Investigator does not fail closed when durable context is absent.");
 assert(/runCanonicalSingleTargetInvestigation/.test(source.launchRoute), "Atlas launch route does not expose the canonical single-target control plane.");
-
 assert(/canonical-case-discovery/.test(source.researchRoutes), "Canonical case-discovery router is not mounted.");
 assert(/canonical-case-continuation/.test(source.researchRoutes), "Canonical case-continuation router is not mounted.");
 assert(/case-data/.test(source.researchRoutes), "Durable case data router is not mounted.");
@@ -74,7 +72,6 @@ assert(!/router\.use\(casesRouter\)/.test(source.researchRoutes), "Legacy mixed 
 assert(/status\(410\)/.test(source.caseRetirement), "Legacy case execution retirement router does not return explicit HTTP 410 responses.");
 assert(/initial-research/.test(source.caseRetirement) && /admit-candidate/.test(source.caseRetirement) && /promote-target/.test(source.caseRetirement) && /run-boss-review/.test(source.caseRetirement), "Legacy case execution retirement router does not cover every retired manual execution endpoint.");
 assert(!/runBureauAgenticWebPass|runBroadDiscovery|runMistralWebSearch|searchRegistry|expandSecondaryPublicSurface/.test(source.caseData), "Case data router contains research execution logic; persistence/read surfaces must remain non-research.");
-
 assert(/canonical-atlas-discovery/.test(source.launchRoute), "Atlas launch route is not wired to canonical model-owned discovery.");
 assert(!/atlas-orchestrator/.test(source.launchRoute), "Atlas launch route still imports the legacy deterministic orchestrator.");
 assert(!/\brunPhaseJBatch\s*\(|\bexpandSecondaryPublicSurface\s*\(|\brunBroadDiscovery\s*|\brunMcts\s*\(|\brunTargetResearch\s*\(/.test(source.canonicalAtlas), "Canonical Atlas runner contains a retired deterministic research path.");
@@ -92,11 +89,7 @@ assert(!/findingsFrom(?:PeopleSnippet|ProxyPage|IrAndRelatedBlocks|ContactFacts)
 assert(/Gemini/.test(source.architecture) && /DeepSeek/.test(source.architecture) && /Investigator LLM pool/.test(source.architecture), "Canonical ReAct architecture document is missing the two-layer role law.");
 assert(/no forced search order/i.test(source.architecture), "Canonical ReAct architecture document does not state the no-forced-search-order invariant.");
 
-if (failures.length) {
-  console.error("UNIFIED INVESTIGATOR ARCHITECTURE: FAIL");
-  for (const failure of failures) console.error(`- ${failure}`);
-  process.exit(1);
-}
+if (failures.length) { console.error("UNIFIED INVESTIGATOR ARCHITECTURE: FAIL"); for (const failure of failures) console.error(`- ${failure}`); process.exit(1); }
 console.log("UNIFIED INVESTIGATOR ARCHITECTURE: PASS");
 console.log("- Gemini remains Boss only");
 console.log("- DeepSeek remains Right-hand only");
