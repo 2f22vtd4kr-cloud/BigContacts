@@ -102,7 +102,4 @@ jobs:
       - name: Typecheck workspace
         run: pnpm run typecheck
       - name: Run strict provenance and provider-cache regression tests
-        env:
-          # The strict persistence test exercises pure provenance validation and never opens a DB connection.
-          DATABASE_URL: postgresql://audit:audit@127.0.0.1:1/audit
         run: pnpm --dir artifacts/api-server exec vitest run src/src/test/bureau-contact-persist-strict.test.ts src/src/test/provider-gate-cache-bounds.test.ts
