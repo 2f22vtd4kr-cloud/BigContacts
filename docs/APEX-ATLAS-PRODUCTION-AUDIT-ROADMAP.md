@@ -35,6 +35,8 @@ The canonical API gate is frozen to the committed lockfile. Live audit is explic
 
 Final hardening added an immutable GitHub Action pin guard. GitHub's current security guidance recommends pinning third-party actions to full commit SHAs as the immutable-release control. The audited workflows now pin checkout/setup-node/upload-artifact to verified full SHAs.
 
+A final trigger audit found that the single-target workflow's synthetic "deny push" branch filter did not behave as a safe deny control: GitHub executed the workflow on an ordinary branch push during this audit. The workflow was corrected to use `workflow_dispatch` only. This is now a regression fact in the roadmap, not an assumption.
+
 ### Phase 2 — Control-plane and act linearization
 **COMPLETE**
 
@@ -105,6 +107,7 @@ Final hardening implemented:
 - provider cache memory/privacy boundaries;
 - workflow pinning regression guard;
 - production boot runtime regression guard;
+- strictly manual single-target audit trigger;
 - retained provenance/auth/sandbox/concurrency/legacy gates.
 
 The final launch gate is evidence-based: API build, strict workspace typecheck, complete static architecture suite, targeted regression tests, workflow integrity checks, and (when credentials exist) live provider smoke must be green. A missing external credential is an evidence gap, not a fabricated success.
@@ -135,6 +138,9 @@ Direct deployment inspection found Replit configured Node 20. Current Node.js da
 ### A5 — Live evidence
 The live audit is deliberately separate from static proof. Provider availability, quotas, and credentials are external evidence and must be reported rather than inferred.
 
+### A6 — Workflow trigger reality
+The audit directly observed a supposedly manual single-target workflow executing on an ordinary push. The synthetic branch filter was therefore treated as unsafe and removed. Manual-only sensitive workflows now use only `workflow_dispatch`; trigger behavior is considered an empirically tested security property, not a YAML comment.
+
 ## Final working rule
 
-Do not optimize for changed-line count. Optimize for provable invariants, bounded resources, explicit authority, causal provenance, race-safe transitions, reproducible builds, immutable CI dependencies, and honest operational evidence.
+Do not optimize for changed-line count. Optimize for provable invariants, bounded resources, explicit authority, causal provenance, race-safe transitions, reproducible builds, immutable CI dependencies, trigger correctness, and honest operational evidence.
