@@ -44,6 +44,8 @@ jobs:
         run: node scripts/check-case-event-retention-bounds.mjs
       - name: Check canonical job lock lease
         run: node scripts/check-canonical-job-lock-lease.mjs
+      - name: Check atomic active-job release
+        run: node scripts/check-active-job-release-atomicity.mjs
       - name: Check canonical discovery case binding
         run: node scripts/check-canonical-discovery-case-binding.mjs
       - name: Check deterministic research strategy
