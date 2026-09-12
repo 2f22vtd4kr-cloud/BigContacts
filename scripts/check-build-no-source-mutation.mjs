@@ -31,7 +31,14 @@ const workflowText = fs.existsSync(workflowDir)
   ? fs.readdirSync(workflowDir).filter((name) => /\.(?:yml|yaml)$/.test(name)).map((name) => fs.readFileSync(path.join(workflowDir, name), "utf8")).join("\n")
   : "";
 
-if (/\bapply-[a-z0-9-]+\.mjs\b/i.test(scriptText) || /execFileSync\([^\n]*apply-/i.test(scriptText) || /\b(?:node|pnpm|npm|yarn)\s+(?:[^\n]*\s)?scripts\/apply-[a-z0-9-]+\.mjs\b/i.test(workflowText)) {
+// A workflow may legitimately mention apply-* files in path filters so that
+// changing a migration helper triggers the verification gate. Only executable
+// command forms constitute a build-time source mutation.
+const workflowCommands = workflowText.split(/\r?\n/).map((line) => line.replace(/#.*$/, "")).join("\n");
+const invokesMutator = /\b(?:node|pnpm|npm|yarn)\s+(?:[^\n]*\s)?scripts\/apply-[a-z0-9-]+\.mjs\b/i.test(workflowCommands);
+const packageInvokesMutator = /\b(?:node|pnpm|npm|yarn)\s+(?:[^\n]*\s)?scripts\/apply-[a-z0-9-]+\.mjs\b/i.test(scriptText) || /execFileSync\([^\n]*apply-[a-z0-9-]+\.mjs/i.test(scriptText);
+
+if (packageInvokesMutator || invokesMutator) {
   failures.push("a package lifecycle/build/test script or GitHub workflow invokes a source-mutating scripts/apply-*.mjs helper");
 }
 
