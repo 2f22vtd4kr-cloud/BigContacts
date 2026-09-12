@@ -34,6 +34,7 @@ permissions:
 
 jobs:
   single-target:
+    if: ${{ github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
@@ -124,7 +125,6 @@ jobs:
           redis-cli ping
           node artifacts/api-server/dist/index.mjs > /tmp/apex-api.log 2>&1 &
           for i in $(seq 1 45); do sleep 1; test "$(curl -sS -m 2 -o /tmp/health.json -w '%{http_code}' http://127.0.0.1:8080/api/healthz || true)" = 200 && break; done
-          cat /tmp/health.json
           test "$(curl -sS -m 5 -o /tmp/health.json -w '%{http_code}' http://127.0.0.1:8080/api/healthz)" = 200
       - name: Seed exact target
         run: |
@@ -143,7 +143,7 @@ jobs:
           for i in $(seq 1 360); do
             sleep 5
             curl -sS -m 10 http://127.0.0.1:8080/api/ingest/atlas-status > /tmp/atlas-status.json || true
-            S=$(node -e 'const fs=require("fs");try{const x=JSON.parse(fs.readFileSync("/tmp/atlas-status.json"));console.log(JSON.stringify({status:x.status,phase:x.atlasPhase,progress:x.entityProgress,total:x.entityTotal}));process.stdout.write(String(x.status||x.job?.status||""))}catch{}')
+            S=$(node -e 'const fs=require("fs");try{const x=JSON.parse(fs.readFileSync("/tmp/atlas-status.json"));process.stdout.write(String(x.status||x.job?.status||""))}catch{}')
             case "$S" in *done|*completed|*idle) exit 0;; *failed|*cancelled) exit 1;; esac
           done
           exit 1
