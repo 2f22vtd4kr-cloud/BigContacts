@@ -12,6 +12,7 @@ pass("projection update is transaction-scoped",/tx\.update\(researchCasesTable\)
 pass("same-turn replay cannot cross run identity",/Stale control replay/.test(oversight));
 pass("projection is monotonic by control turn",/latestTurn/.test(oversight));
 pass("concurrent control commits serialize",/isolationLevel:"serializable"/.test(oversight));
+pass("oversight entry revalidates exact case/target binding",/const boundCase=await findTargetCase\(input\.caseId,input\.targetName\)/.test(oversight));
 pass("target case must be target case",/caseType !== "target"/.test(target));
 pass("target case must match entity",/targetEntityId !== entityId/.test(target));
 pass("target case must match Atlas job",/parsed\.atlasJobId === jobId/.test(target));
