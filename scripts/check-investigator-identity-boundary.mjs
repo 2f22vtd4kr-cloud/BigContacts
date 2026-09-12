@@ -13,8 +13,8 @@ const assert = (condition, message) => { if (!condition) failures.push(message);
 // inherit the input target as a person identity. Identity attribution belongs to the
 // Investigator model's explicit done/promotion decision.
 const proxyStart = source.indexOf("function findingsFromProxyPage(");
-const contactStart = source.indexOf("function findingsFromContactFacts(");
-const loopStart = source.indexOf("async function runAgenticWebResearchUnbounded(");
+const contactStart = source.indexOf("function extractContactFactsFromHtml(");
+const loopStart = source.indexOf("export async function runAgenticWebResearch(");
 const proxyEnd = contactStart > proxyStart ? contactStart : source.length;
 const contactEnd = loopStart > contactStart ? loopStart : source.length;
 const proxy = proxyStart >= 0 ? source.slice(proxyStart, proxyEnd) : "";
