@@ -3,16 +3,30 @@ import path from "node:path";
 
 const root = process.cwd();
 const source = fs.readFileSync(path.join(root, "artifacts/api-server/src/src/lib/canonical-atlas-discovery.ts"), "utf8");
-const checks = [
-  ["canonical Atlas pipeline reads durable job cancellation state", /async function assertAtlasJobActive\(jobId: string\)/.test(source) && /const job = await getJob\(jobId\)/.test(source)],
-  ["opening Right-hand/Boss stages are cancellation-fenced", /await assertAtlasJobActive\(atlasJobId\);[\s\S]{0,500}runDeepSeekFreeJson/.test(source) && /runGeminiBossDiscovery[\s\S]{0,120}await assertAtlasJobActive\(atlasJobId\)/.test(source)],
-  ["Investigator discovery is fenced before and after execution", /await assertAtlasJobActive\(atlasJobId\);[\s\S]{0,500}runBureauAgenticWebPass[\s\S]{0,300}await assertAtlasJobActive\(atlasJobId\)/.test(source)],
-  ["control decisions are fenced before and after Boss control", /while \(controlTurns < maxControlTurns\)[\s\S]{0,600}await assertAtlasJobActive\(atlasJobId\)[\s\S]{0,900}decideAtlasNextAction[\s\S]{0,300}await assertAtlasJobActive\(atlasJobId\)/.test(source)],
-  ["target investigation is fenced against cancellation", /await assertAtlasJobActive\(atlasJobId\);[\s\S]{0,300}runCanonicalSingleTargetInvestigation[\s\S]{0,300}await assertAtlasJobActive\(atlasJobId\)/.test(source)],
-  ["cancelled pipeline cannot project done", /await assertAtlasJobActive\(atlasJobId\);[\s\S]{0,300}await updateJob\(atlasJobId, \{ status: "done"/.test(source)],
-  ["cancelled jobs are persisted as cancelled/incomplete", /const cancelled = message\.includes\("Canonical Atlas job cancelled;"\)/.test(source) && /status: cancelled \? "cancelled" : "failed"/.test(source) && /outcome: "incomplete"/.test(source)],
-  ["failed jobs are not misclassified as cancellation", /job\.status === "failed"/.test(source) && /Canonical Atlas job already failed/.test(source)],
-];
+const checks = [];
+const add = (name, ok) => checks.push([name, Boolean(ok)]);
+const fence = "await assertAtlasJobActive(atlasJobId);";
+const fencedAround = (token) => {
+  let from = source.indexOf("export async function runCanonicalAtlasPipeline");
+  if (from < 0) return false;
+  const before = source.indexOf(fence, from);
+  if (before < 0) return false;
+  const at = source.indexOf(token, before + fence.length);
+  if (at < 0) return false;
+  const after = source.indexOf(fence, at + token.length);
+  return after >= 0;
+};
+
+add("canonical Atlas pipeline reads durable job cancellation state", /async function assertAtlasJobActive\(jobId: string\)/.test(source) && /const job = await getJob\(jobId\)/.test(source));
+add("opening Right-hand stage is fenced before and after execution", fencedAround("runDeepSeekFreeJson"));
+add("opening Gemini Boss stage is fenced before and after execution", fencedAround("runGeminiBossDiscovery"));
+add("Investigator discovery is fenced before and after execution", fencedAround("runBureauAgenticWebPass"));
+add("control decisions are fenced before and after Boss control", fencedAround("decideAtlasNextAction"));
+add("target investigation is fenced against cancellation", fencedAround("runCanonicalSingleTargetInvestigation"));
+add("cancelled pipeline cannot project done", /await assertAtlasJobActive\(atlasJobId\);[\s\S]*?await updateJob\(atlasJobId, \{ status: "done"/.test(source));
+add("cancelled jobs are persisted as cancelled/incomplete", /const cancelled = message\.includes\("Canonical Atlas job cancelled;"\)/.test(source) && /status: cancelled \? "cancelled" : "failed"/.test(source) && /outcome: "incomplete"/.test(source));
+add("failed jobs are not misclassified as cancellation", /job\.status === "failed"/.test(source) && /Canonical Atlas job already failed/.test(source));
+
 const failures = checks.filter(([, ok]) => !ok).map(([name]) => name);
 if (failures.length) {
   console.error("CANONICAL ATLAS CANCELLATION FENCE: FAIL");

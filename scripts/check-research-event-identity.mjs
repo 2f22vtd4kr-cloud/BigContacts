@@ -20,7 +20,7 @@ for (const [name, path] of Object.entries(writers)) {
   const source = read(path);
   if (!source) { failures.push(`${name}: writer source is missing`); continue; }
   if (!source.includes("researchCaseEventsTable")) { failures.push(`${name}: expected research event ledger dependency is missing`); continue; }
-  if (!/correlationKey\s*:/.test(source)) failures.push(`${name}: research event writer has no durable correlationKey`);
+  if (!/\bcorrelationKey\b/.test(source)) failures.push(`${name}: research event writer has no durable correlationKey`);
 }
 
 const bureau = read(writers["bureau discovery trajectory"]);

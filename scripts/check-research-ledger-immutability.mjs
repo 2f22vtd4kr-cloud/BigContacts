@@ -5,9 +5,7 @@ const dbIndex = fs.readFileSync("lib/db/src/index.ts", "utf8");
 const schema = fs.readFileSync("lib/db/src/schema/research_case_events.ts", "utf8");
 const failures = [];
 
-const pass = (name, ok) => {
-  if (!ok) failures.push(name);
-};
+const pass = (name, ok) => { if (!ok) failures.push(name); };
 
 pass("DB bootstrap installs an append-only trigger", /CREATE TRIGGER apex_research_case_events_no_update_delete/.test(dbIndex));
 pass("DB bootstrap blocks TRUNCATE", /CREATE TRIGGER apex_research_case_events_no_truncate/.test(dbIndex));
@@ -20,7 +18,7 @@ pass("public write privileges are removed", /REVOKE UPDATE, DELETE, TRUNCATE ON 
 pass("correlation key NULLs fail closed", /SELECT count\(\*\) INTO null_correlation_count[\s\S]*WHERE correlation_key IS NULL[\s\S]*refusing to enable mandatory event identity/.test(dbIndex));
 pass("live ledger correlation key is forced NOT NULL", /ALTER TABLE public\.research_case_events\s+ALTER COLUMN correlation_key SET NOT NULL/.test(dbIndex));
 pass("schema declares correlation key NOT NULL", /correlationKey:\s*text\("correlation_key"\)\.notNull\(\)/.test(schema));
-pass("correlated event replays are serialized by key", /apex:research_case_events:replay:/.test(dbIndex) && /pg_advisory_xact_lock\(\s*hashtext\('apex:research_case_events:replay:'/.test(dbIndex));
+pass("correlated event replays are serialized by key", /apex:research_case_events:replay:/.test(dbIndex) && /pg_advisory_xact_lock\(\s*hashtextextended\('apex:research_case_events:replay:'/.test(dbIndex));
 pass("correlated event replay payloads are compared", /existing_payload text/.test(dbIndex) && /existing_payload IS DISTINCT FROM NEW\.payload/.test(dbIndex));
 pass("correlated event replay mismatch fails closed", /correlation key replay has different payload/.test(dbIndex));
 pass("replay integrity is installed as a BEFORE INSERT trigger", /CREATE TRIGGER apex_research_case_events_replay_integrity\s+BEFORE INSERT ON public\.research_case_events/.test(dbIndex));

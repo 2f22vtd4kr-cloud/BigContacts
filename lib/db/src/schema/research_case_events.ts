@@ -1,4 +1,5 @@
-import { pgTable, serial, integer, text, timestamp, index, uniqueIndex, check, sql } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
+import { pgTable, serial, integer, text, timestamp, index, uniqueIndex, check } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { researchCasesTable } from "./research_cases";
