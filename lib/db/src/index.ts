@@ -58,13 +58,22 @@ async function ensureResearchCaseEventsImmutable(): Promise<void> {
           CREATE TRIGGER apex_research_case_events_no_truncate BEFORE TRUNCATE ON public.research_case_events FOR EACH STATEMENT EXECUTE FUNCTION public.apex_research_case_events_immutable();
         END IF;
         CREATE OR REPLACE FUNCTION public.apex_research_case_events_replay_integrity() RETURNS trigger LANGUAGE plpgsql AS $fn$
-        DECLARE existing_payload text; event_count bigint;
+        DECLARE existing_payload text; event_count bigint; stored_job_id text; event_job_id text;
         BEGIN
           IF NEW.correlation_key IS NULL THEN RAISE EXCEPTION 'research_case_events correlation_key is mandatory' USING ERRCODE = '23502'; END IF;
           PERFORM pg_advisory_xact_lock(hashtext('apex:research_case_events:case:' || NEW.case_id::text));
           SELECT count(*) INTO event_count FROM public.research_case_events WHERE case_id = NEW.case_id;
           IF event_count >= 50000 THEN
             RAISE EXCEPTION 'research case % has reached the 50000-event lifecycle ceiling; refusing another event', NEW.case_id USING ERRCODE = '54000';
+          END IF;
+          IF NEW.payload IS NOT NULL AND NEW.payload::jsonb ? 'jobId' THEN
+            event_job_id := NULLIF(btrim(NEW.payload::jsonb ->> 'jobId'), '');
+            IF event_job_id IS NOT NULL THEN
+              SELECT NULLIF(btrim(case_file::jsonb ->> 'jobId'), '') INTO stored_job_id FROM public.research_cases WHERE id = NEW.case_id FOR KEY SHARE;
+              IF stored_job_id IS NULL OR stored_job_id IS DISTINCT FROM event_job_id THEN
+                RAISE EXCEPTION 'research_case_events job binding mismatch: case_id=%, event_job_id=%', NEW.case_id, event_job_id USING ERRCODE = '55000';
+              END IF;
+            END IF;
           END IF;
           PERFORM pg_advisory_xact_lock(hashtext('apex:research_case_events:replay:' || NEW.case_id::text || ':' || NEW.correlation_key));
           SELECT payload INTO existing_payload FROM public.research_case_events WHERE case_id = NEW.case_id AND correlation_key = NEW.correlation_key LIMIT 1;
