@@ -20,6 +20,7 @@ async function ensureResearchCaseEventsImmutable(): Promise<void> {
       DO $$
       DECLARE
         null_correlation_count bigint;
+        oversized_payload_count bigint;
       BEGIN
         IF to_regclass('public.research_case_events') IS NULL THEN
           RAISE EXCEPTION 'Apex research_case_events ledger is missing; refusing to start without the provenance ledger';
@@ -38,8 +39,29 @@ async function ensureResearchCaseEventsImmutable(): Promise<void> {
             USING ERRCODE = '55000';
         END IF;
 
+        -- Event payloads are an audit ledger, not an unbounded object store.
+        -- Refuse startup if historical data already violates the resource
+        -- ceiling rather than silently truncating evidence.
+        SELECT count(*) INTO oversized_payload_count
+          FROM public.research_case_events
+         WHERE octet_length(payload) > 131072;
+        IF oversized_payload_count > 0 THEN
+          RAISE EXCEPTION 'Apex research_case_events contains % payload(s) larger than 131072 bytes; refusing to enable the bounded ledger', oversized_payload_count
+            USING ERRCODE = '55000';
+        END IF;
+
         ALTER TABLE public.research_case_events
           ALTER COLUMN correlation_key SET NOT NULL;
+
+        IF NOT EXISTS (
+          SELECT 1 FROM pg_constraint
+          WHERE conrelid = 'public.research_case_events'::regclass
+            AND conname = 'research_case_events_payload_size_ck'
+        ) THEN
+          ALTER TABLE public.research_case_events
+            ADD CONSTRAINT research_case_events_payload_size_ck
+            CHECK (octet_length(payload) <= 131072);
+        END IF;
 
         CREATE OR REPLACE FUNCTION public.apex_research_case_events_immutable()
         RETURNS trigger
