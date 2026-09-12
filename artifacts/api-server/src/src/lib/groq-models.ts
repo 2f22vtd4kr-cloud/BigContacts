@@ -34,3 +34,6 @@ export const GROQ_FAST_MODELS: readonly string[] = unique([
   "openai/gpt-oss-20b",
   "openai/gpt-oss-120b",
 ]);
+
+/** Legacy extraction compatibility alias. */
+export const GROQ_MODEL_FAST = GROQ_FAST_MODELS[0] ?? GROQ_DEFAULT_MODEL;
