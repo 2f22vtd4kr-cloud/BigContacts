@@ -7,11 +7,14 @@ const checks = [];
 const add = (name, ok) => checks.push([name, Boolean(ok)]);
 const fence = "await assertAtlasJobActive(atlasJobId);";
 const fencedAround = (token) => {
-  const at = source.indexOf(token);
+  let from = source.indexOf("export async function runCanonicalAtlasPipeline");
+  if (from < 0) return false;
+  const before = source.indexOf(fence, from);
+  if (before < 0) return false;
+  const at = source.indexOf(token, before + fence.length);
   if (at < 0) return false;
-  const before = source.lastIndexOf(fence, at);
   const after = source.indexOf(fence, at + token.length);
-  return before >= 0 && after >= 0;
+  return after >= 0;
 };
 
 add("canonical Atlas pipeline reads durable job cancellation state", /async function assertAtlasJobActive\(jobId: string\)/.test(source) && /const job = await getJob\(jobId\)/.test(source));
