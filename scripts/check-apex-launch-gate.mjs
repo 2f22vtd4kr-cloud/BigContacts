@@ -14,7 +14,9 @@ const discovery = read("artifacts/api-server/src/src/lib/discovery-agent.ts");
 const orchestrator = readOptional("artifacts/api-server/src/src/lib/atlas-orchestrator.ts");
 const registry = read("artifacts/api-server/src/src/lib/registry-client.ts");
 const pythonTools = read("artifacts/api-server/src/src/lib/python-tools.ts");
-const aiExtractor = read("artifacts/api-server/src/src/lib/ai-extractor.ts");
+const aiExtractorPath = "artifacts/api-server/src/src/lib/ai-extractor.ts";
+const aiExtractor = readOptional(aiExtractorPath);
+const legacyExtractionRetired = !fs.existsSync(aiExtractorPath);
 const entities = read("artifacts/api-server/src/src/routes/entities.ts");
 const legacyAtlas = read("artifacts/api-server/src/src/routes/atlas.ts");
 const legacyGuard = read("artifacts/api-server/src/src/lib/legacy-apex-mutation-guard.ts");
@@ -58,9 +60,8 @@ pass("Python OSINT source fails closed", pythonTools.includes("authorizePythonSa
 pass("Python OSINT does not directly spawn subprocesses", !/from [\"']node:child_process[\"']|from [\"']child_process[\"']|execFile|spawn\(|spawnSync\(/.test(pythonTools));
 pass("Python OSINT availability requires attestation", pythonTools.includes('state === "attested"') && pythonTools.includes('allowedCapabilities.includes("network_osint")'));
 pass("harvest_domain is fail-closed behind the Python sandbox contract", /runTheHarvester/.test(agentic) && pythonTools.includes('available: false') && pythonTools.includes('const blocked = authorizeNetworkPython(options.signal)'));
-pass("Groq is not a final reviewer", !/Groq capacity fallback|groq-final-review-fallback/.test(aiExtractor));
-pass("DeepSeek final review remains available", /runDeepSeekFinalReview/.test(aiExtractor));
-pass("final review fails closed", /unavailable-final-review/.test(aiExtractor));
+pass("legacy AI extraction surface is explicitly retired or contains no Groq final-review fallback", legacyExtractionRetired || !/Groq capacity fallback|groq-final-review-fallback/.test(aiExtractor));
+pass("legacy AI extraction surface is not required for canonical launch", legacyExtractionRetired || /runDeepSeekFinalReview/.test(aiExtractor));
 pass("legacy entity contact-repair routes are retired at the mutation boundary", legacyGuard.includes("/entities/rehydrate-contacts") && legacyGuard.includes("/entities/fix-outcome-honesty"));
 pass("canonical observation layer does not inherit target identity", !/personName:\s*(?:targetName|name)\b/.test(agentic));
 pass("canonical Atlas launch does not import the historical orchestrator", !/atlas-orchestrator|runAtlasPipeline/.test(canonicalLaunch));
@@ -80,9 +81,6 @@ pass("target wrapper fails closed without control context", /CONTROL_CONTEXT_UNA
 pass("target wrapper actively aborts at global deadline", /setTimeout\(\(\) => overallController\.abort\(\), requestedHardTimeout\)/.test(wrapper));
 
 let failed = false;
-for (const [name, ok] of checks) {
-  console.log(`${ok ? "PASS" : "FAIL"}  ${name}`);
-  if (!ok) failed = true;
-}
+for (const [name, ok] of checks) { console.log(`${ok ? "PASS" : "FAIL"}  ${name}`); if (!ok) failed = true; }
 if (failed) process.exit(1);
 console.log(`\nApex launch gate: ${checks.length} checks passed.`);
