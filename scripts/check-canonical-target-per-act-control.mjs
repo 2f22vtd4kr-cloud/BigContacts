@@ -20,7 +20,7 @@ const checks=[
 ["canonical agentic target wrapper actively aborts at its deadline",/setTimeout\(\(\) => overallController\.abort\(\), requestedHardTimeout\)/.test(agentic)],
 ["canonical agentic target wrapper clears its deadline timer",/clearTimeout\(deadlineTimer\)/.test(agentic)],
 ["target control context is mandatory",/if \(!oversightContext\)/.test(agentic)],
-["missing target control context fails closed",/CONTROL_CONTEXT_UNAVAILABLE/.test(agentic)],
+["missing target control context fails closed",/(?:CONTROL_CONTEXT_UNAVAILABLE|stopReason:\s*"LLM_UNAVAILABLE")[\s\S]*?Target-scoped agentic research requires a durable control case/.test(agentic)],
 ["Gemini research redirects are validated as objective-only text",/validateGeminiResearchObjective/.test(agentic)],
 ["Gemini redirects containing concrete provider/tool/URL directives fail closed",/Gemini produced an invalid research objective/.test(agentic)],
 ["act cancellation observes the global deadline",/Date\.now\(\) >= deadline/.test(runner)],
