@@ -1,5 +1,4 @@
 import fs from "node:fs";
-
 const file = "artifacts/api-server/src/src/lib/agentic-web-research-core.ts";
 const source = fs.readFileSync(file, "utf8");
 const pythonTools = fs.readFileSync("artifacts/api-server/src/src/lib/python-tools.ts", "utf8");
@@ -7,9 +6,7 @@ const workflow = fs.readFileSync(".github/workflows/apex-live-audit.yml", "utf8"
 const compatibilityHardener = fs.readFileSync("scripts/apply-agentic-runtime-hardening.mjs", "utf8");
 const canonicalHardener = fs.readFileSync("scripts/apply-agentic-concurrency-hardening.mjs", "utf8");
 const apexRuntimeShim = fs.readFileSync("artifacts/apex-runtime/lib/agentic-web-research.ts", "utf8");
-
 if (!/^\/\*\*[\s\S]*Compatibility shim only[\s\S]*export \* from \"\.\.\/\.\.\/api-server\/src\/src\/lib\/agentic-web-research\.ts\";\s*$/m.test(apexRuntimeShim)) throw new Error("apex-runtime invariant failed: stale standalone agentic implementation is not quarantined to canonical production source");
-
 const required = [
   ["investigator LLM capability pool is explicit", /INVESTIGATOR_LLM_CAPABILITY_POOL/],
   ["Dig action schema is present", /const AGENTIC_ACTION_SCHEMA\s*=/],
@@ -22,7 +19,7 @@ const required = [
   ["run has a run-scoped AbortController", /const runController = new AbortController\(\)/],
   ["hard timeout aborts the run", /setTimeout\(\(\) => runController\.abort\(\), hardTimeoutMs\)/],
   ["external cancellation is wired into the run", /input\.signal\?\.addEventListener\("abort", abortExternal/],
-  ["cooperative cancellation is checked at the turn boundary", /runController\.signal\.aborted\)[\s\S]{0,240}input\.shouldCancel\?\.\(\)/],
+  ["cooperative cancellation is checked at the turn boundary", /for \(let i = 0; i < maxIter; i\+\+\) \{[\s\S]{0,700}if \(runController\.signal\.aborted\)[\s\S]{0,900}if \(input\.shouldCancel && await input\.shouldCancel\(\)\)/],
   ["browser escalation receives run cancellation", /browserFetchHtml\(action\.url, \{ signal: runController\.signal \}\)/],
   ["provider HTTP response reads are bounded", /MAX_NETWORK_RESPONSE_BYTES/],
   ["browser/tool observations distinguish failed provenance", /execution=\$\{page\.status\}/],
@@ -32,7 +29,6 @@ const required = [
   ["supplementary username footprint receives the run signal", /runSherlock\(action\.username, \{ signal: runController\.signal \}\)/],
 ];
 for (const [label, pattern] of required) if (!pattern.test(source)) throw new Error(`agentic runtime invariant failed: ${label}`);
-
 const pythonBoundaryRequired = [
   ["Python OSINT source explicitly fails closed", /const PYTHON_OSINT_EGRESS_GOVERNED = false;/],
   ["Python OSINT quarantine names the missing sandbox boundary", /subprocess network egress is not yet governed by the Apex sandbox\/egress boundary/],
@@ -44,7 +40,6 @@ const pythonBoundaryRequired = [
   ["Python capability health is fail-closed", /holehe: false[\s\S]*maigret: false[\s\S]*sherlock: false[\s\S]*theHarvester: false[\s\S]*openDeepResearch: false/],
 ];
 for (const [label, pattern] of pythonBoundaryRequired) if (!pattern.test(pythonTools)) throw new Error(`python OSINT boundary invariant failed: ${label}`);
-
 const llmStepMatch = source.match(/async function llmStep\([\s\S]*?\n\}\nfunction formatFindingsBag/);
 if (!llmStepMatch) throw new Error("agentic runtime invariant failed: llmStep implementation missing");
 const llmStep = llmStepMatch[0];
@@ -57,7 +52,6 @@ if (source.includes("const maxIter = Math.min(input.maxIterations ?? MAX_ITER, 2
 if (source.includes("agenticProviderCircuitUntil")) throw new Error("agentic runtime invariant failed: module-global provider circuit can contaminate concurrent targets");
 if (!/investigatorLlm\?: "groq" \| "mistral"/.test(source)) throw new Error("agentic runtime invariant failed: selected Investigator field missing from ReAct input");
 if (!/const orderedProviders = \[selectedInvestigatorLlm/.test(llmStep)) throw new Error("agentic runtime invariant failed: Boss-selected Investigator is not bound to provider ordering");
-
 if (!/async function probe\(url,key,model,provider\)/.test(workflow)) throw new Error("live audit provider gate missing generic capability probe");
 if (!/digReady = groq \|\| mistral;/.test(workflow)) throw new Error("live audit provider gate must derive readiness from configured investigator adapters");
 if (!/if\(!digReady\)/.test(workflow)) throw new Error("live audit must gate launch on an actual investigator generation");
@@ -68,7 +62,6 @@ if (!/Observation-only contact enrichment/.test(canonicalHardener)) throw new Er
 if (!/const observationBoundaryRe\s*=/.test(canonicalHardener) || !/const observationReplacement\s*=/.test(canonicalHardener)) throw new Error("canonical hardener does not define an explicit observation replacement");
 if (!/return facts\.join/.test(canonicalHardener)) throw new Error("canonical hardener observation replacement does not preserve literal contact facts");
 if (/push\(`PERSON:/.test(canonicalHardener)) throw new Error("canonical hardener still manufactures PERSON findings from page extraction");
-
 const forbidden = [
   ["forced stagnation nudge", /\[STAGNATION\]/],
   ["forced first-search completion gate", /done_rejected \(no research yet\)/],
@@ -78,5 +71,4 @@ const forbidden = [
   ["fake discovery target convention in canonical core", /Discovery slot/],
 ];
 for (const [label, pattern] of forbidden) if (pattern.test(source)) throw new Error(`agentic runtime invariant failed: ${label}`);
-
 console.log("agentic runtime invariants: PASS");
