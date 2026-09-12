@@ -2,16 +2,17 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { NextFunction, Request, Response } from "express";
 import { apiAuth } from "../lib/api-auth";
 
-type TestResponse = Response & { statusCode: number; jsonBody: unknown };
-
 function run(path: string, method: string, authorization?: string) {
   const req = { path, method, header(name: string) { return name.toLowerCase() === "authorization" ? authorization : undefined; } } as unknown as Request;
-  const response = { statusCode: 200, jsonBody: undefined } as unknown as TestResponse;
-  response.status = ((code: number) => { response.statusCode = code; return response; }) as unknown as Response["status"];
-  response.json = ((body: unknown) => { response.jsonBody = body; return response; }) as unknown as Response["json"];
+  const response = {
+    statusCode: 200,
+    jsonBody: undefined as unknown,
+    status(code: number) { response.statusCode = code; return response; },
+    json(body: unknown) { response.jsonBody = body; return response; },
+  };
   let nextCalled = false;
   const next = (() => { nextCalled = true; }) as NextFunction;
-  apiAuth(req, response, next);
+  apiAuth(req, response as unknown as Response, next);
   return { response, nextCalled };
 }
 
