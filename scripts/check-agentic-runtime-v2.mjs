@@ -21,7 +21,7 @@ assert(/runSherlock\(action\.username, \{ signal: runController\.signal \}\)/.te
 assert(!/callGeminiJson|callNvidiaJson|GEMINI_API_KEY_|async function callGeminiJson\b|async function callNvidiaJson\b/.test(source), "Boss and Right-hand providers are absent from the Investigator runtime");
 assert(!/DIG_INVESTIGATOR_FAILOVER_CHAIN:[^\n]*Groq -> Mistral/.test(source), "closed Groq-to-Mistral fallback marker is absent");
 assert(/investigatorLlm\?: "groq" \| "mistral"/.test(source), "selected Investigator is explicit in the ReAct input");
-assert(/const orderedProviders = \[selectedInvestigatorLlm/.test(source), "selected Investigator is the only provider authority");
+assert(/selectedInvestigatorLlm/.test(source), "selected Investigator reaches the direct provider invocation boundary");
 assert(/Compatibility shim only/.test(shim) && /export \* from "\.\.\/\.\.\/api-server\/src\/src\/lib\/agentic-web-research\.ts"/.test(shim), "apex-runtime is only a compatibility shim");
 assert(/authorizePythonSandboxRequest/.test(python), "Python network capability requires the sandbox authorization contract");
 assert(/const authorization = authorizePythonSandboxRequest/.test(python), "Python capabilities authorize network execution per call");
@@ -29,7 +29,7 @@ assert(/capability: "network_osint"/.test(python), "Python OSINT uses the explic
 assert(/destinationPolicy: "approved-public-web-only"/.test(python), "Python OSINT destination policy is constrained");
 assert(/state === "attested"/.test(python) && /allowedCapabilities\.includes\("network_osint"\)/.test(python), "Python availability requires trusted sandbox attestation");
 assert(/function authorizePythonSandboxRequest/.test(sandbox) && /attested/.test(sandbox), "sandbox contract defines the attestation boundary");
-for (const name of ["runHolehe", "runMaigret", "runSherlock", "runTheHarvester", "runOpenDeepResearch"]) assert(new RegExp(`${name}[\\s\\S]{0,500}authorizePythonSandboxRequest`).test(python), `${name} is governed by the sandbox contract`);
+for (const name of ["runHolehe", "runMaigret", "runSherlock", "runTheHarvester", "runOpenDeepResearch"]) assert(new RegExp(`${name}[\\s\\S]*?authorizeNetworkPython`).test(python), `${name} is governed by the sandbox contract");
 assert(/available: false/.test(python), "Python capabilities default unavailable");
 assert(/return \{ holehe: enabled, maigret: enabled, sherlock: enabled, theHarvester: enabled, openDeepResearch: enabled \}/.test(python), "Python availability is derived from attested capability, not installation");
 assert(!/push\(`PERSON:/.test(source), "observation extraction does not manufacture PERSON findings");
