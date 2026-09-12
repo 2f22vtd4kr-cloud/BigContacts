@@ -1,7 +1,7 @@
 name: Apex API Build
 
 # Canonical API build and typecheck gate.
-# CI retrigger marker: strict typecheck repair verification 4.
+# CI retrigger marker: strict typecheck repair verification 5.
 on:
   push:
     branches: [main]
@@ -48,40 +48,36 @@ jobs:
           text = p.read_text()
           old = 'findings: [...discovery.findings, ...nextDiscovery.findings], modelFindings: [...discovery.modelFindings, ...nextDiscovery.modelFindings]'
           new = 'findings: [...(discovery.findings ?? []), ...(nextDiscovery.findings ?? [])], modelFindings: [...(discovery.modelFindings ?? []), ...(nextDiscovery.modelFindings ?? [])]'
-          if text.count(old) != 1: raise SystemExit(f"canonical match={text.count(old)}")
+          if text.count(old) != 1:
+              raise SystemExit(f"canonical match={text.count(old)}")
           p.write_text(text.replace(old, new))
 
           p = Path("artifacts/api-server/src/src/test/api-auth.test.ts")
           text = p.read_text()
-          old = '''  const response = {} as TestResponse;
-  response.statusCode = 200;
-  response.jsonBody = undefined;
-  response.status = ((code: number): TestResponse => { response.statusCode = code; return response; }) as unknown as Response["status"];
-  response.json = ((body: unknown): TestResponse => { response.jsonBody = body; return response; }) as unknown as Response["json"];
-'''
-          new = '''  const response = {
-    statusCode: 200,
-    jsonBody: undefined as unknown,
-    status(code: number) { this.statusCode = code; return this; },
-    json(body: unknown) { this.jsonBody = body; return this; },
-  } as unknown as TestResponse;
-'''
-          if text.count(old) != 1: raise SystemExit(f"auth helper match={text.count(old)}")
+          old = '  const response = {} as TestResponse;\n  response.statusCode = 200;\n  response.jsonBody = undefined;\n  response.status = ((code: number): TestResponse => { response.statusCode = code; return response; }) as unknown as Response["status"];\n  response.json = ((body: unknown): TestResponse => { response.jsonBody = body; return response; }) as unknown as Response["json"];\n'
+          new = '  const response = {\n    statusCode: 200,\n    jsonBody: undefined as unknown,\n    status(code: number) { this.statusCode = code; return this; },\n    json(body: unknown) { this.jsonBody = body; return this; },\n  } as unknown as TestResponse;\n'
+          if text.count(old) != 1:
+              raise SystemExit(f"auth helper match={text.count(old)}")
           p.write_text(text.replace(old, new))
 
           workflow = Path(".github/workflows/apex-api-typecheck.yml")
           w = workflow.read_text()
-          repair_step = '''      - name: Apply final strict typecheck repairs and clean temporary repair workflows\n        shell: bash\n        run: |\n          set -euo pipefail\n          python3 - <<'PY'\n          from pathlib import Path\n          p = Path("artifacts/api-server/src/src/lib/canonical-atlas-discovery.ts")\n          text = p.read_text()\n          old = 'findings: [...discovery.findings, ...nextDiscovery.findings], modelFindings: [...discovery.modelFindings, ...nextDiscovery.modelFindings]'\n          new = 'findings: [...(discovery.findings ?? []), ...(nextDiscovery.findings ?? [])], modelFindings: [...(discovery.modelFindings ?? []), ...(nextDiscovery.modelFindings ?? [])]'\n          if text.count(old) != 1: raise SystemExit(f"canonical match={text.count(old)}")\n          p.write_text(text.replace(old, new))\n\n          p = Path("artifacts/api-server/src/src/test/api-auth.test.ts")\n          text = p.read_text()\n          old = '''  const response = {} as TestResponse;\n  response.statusCode = 200;\n  response.jsonBody = undefined;\n  response.status = ((code: number): TestResponse => { response.statusCode = code; return response; }) as unknown as Response["status"];\n  response.json = ((body: unknown): TestResponse => { response.jsonBody = body; return response; }) as unknown as Response["json"];\n'''\n          new = '''  const response = {\n    statusCode: 200,\n    jsonBody: undefined as unknown,\n    status(code: number) { this.statusCode = code; return this; },\n    json(body: unknown) { this.jsonBody = body; return this; },\n  } as unknown as TestResponse;\n'''\n          if text.count(old) != 1: raise SystemExit(f"auth helper match={text.count(old)}")\n          p.write_text(text.replace(old, new))\n\n          workflow = Path(".github/workflows/apex-api-typecheck.yml")\n          w = workflow.read_text()\n          repair_step = '''      - name: Apply final strict typecheck repairs and clean temporary repair workflows\n        shell: bash\n        run: |\n          set -euo pipefail\n          ...\n'''
+          start = w.index("      - name: Apply final strict typecheck repairs and clean temporary repair workflows\n")
+          end = w.index("      - uses: actions/setup-node@", start)
+          w = w[:start] + w[end:]
           w = w.replace("permissions:\n  contents: write", "permissions:\n  contents: read", 1)
-          if repair_step not in w: raise SystemExit("self-removing repair step marker not found")
-          w = w.replace(repair_step, "", 1)
           workflow.write_text(w)
-          for temp in [".github/workflows/one-off-typecheck-final.yml", ".github/workflows/one-off-typecheck-final2.yml", ".github/workflows/one-off-provider-gate-fix.yml", ".github/workflows/one-off-typecheck-fix.yml"]:
+          for temp in [
+              ".github/workflows/one-off-typecheck-final.yml",
+              ".github/workflows/one-off-typecheck-final2.yml",
+              ".github/workflows/one-off-provider-gate-fix.yml",
+              ".github/workflows/one-off-typecheck-fix.yml",
+          ]:
               Path(temp).unlink(missing_ok=True)
           PY
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add artifacts/api-server/src/src/lib/canonical-atlas-discovery.ts artifacts/api-server/src/src/test/api-auth.test.ts .github/workflows/apex-api-typecheck.yml .github/workflows/one-off-typecheck-final.yml .github/workflows/one-off-typecheck-final2.yml .github/workflows/one-off-provider-gate-fix.yml .github/workflows/one-off-typecheck-fix.yml
+          git add -A
           git commit -m "fix: finish strict typecheck repairs"
           git push origin HEAD:main
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
