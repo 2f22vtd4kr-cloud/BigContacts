@@ -60,6 +60,8 @@ jobs:
         run: node scripts/check-active-job-release-atomicity.mjs
       - name: Check job-state Redis fail-closed semantics
         run: node scripts/check-job-state-redis-fail-closed.mjs
+      - name: Check durable case-job and promotion fences
+        run: node scripts/check-durable-case-job-fence.mjs
       - name: Check canonical discovery case binding
         run: node scripts/check-canonical-discovery-case-binding.mjs
       - name: Check deterministic research strategy
