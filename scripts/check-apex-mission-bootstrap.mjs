@@ -32,7 +32,7 @@ assert(/INSTITUTIONAL BOOTSTRAP/.test(source.orientation), "canonical orientatio
 assert(/PRE-INVESTIGATION CONTRACT/.test(source.orientation), "canonical orientation does not establish a pre-investigation contract.");
 assert(/before any operator supplies case-specific instructions/i.test(source.orientation), "institutional purpose is not explicitly established before operator input.");
 assert(/Operator input/i.test(source.architecture), "mission bootstrap document does not distinguish operator input from institutional purpose.");
-assert(/does not redefine Apex's institutional purpose/i.test(source.architecture), "mission bootstrap document permits operator input to redefine institutional purpose.");
+assert(/cannot redefine Apex's institutional purpose/i.test(source.architecture), "mission bootstrap document does not forbid operator input from redefining institutional purpose.");
 assert(/APEX INSTITUTIONAL MISSION/.test(source.firstDecision), "first-decision contract omits institutional mission from the context order.");
 assert(/ROLE PURPOSE/.test(source.firstDecision), "first-decision contract omits role purpose.");
 assert(/DURABLE CASE CONTEXT/.test(source.firstDecision), "first-decision contract omits durable case context.");
@@ -59,8 +59,7 @@ assert(/contextDocument/.test(source.target), "target Investigator does not expo
 assert(!/fixed\s+(search|research)\s+(order|sequence)/i.test(source.orientation), "orientation teaches a fixed research order.");
 assert(!/step\s*1.*web_search.*step\s*2.*visit/is.test(source.orientation), "orientation contains a deterministic web-research sequence.");
 
-// This guard is deliberately strict about the known opening-autonomy defect. It must fail
-// until the runtime stops seeding the first ReAct turn with a forced web_search instruction.
+// The opening action must remain model-selected rather than seeded by the harness.
 assert(!/Begin\. Choose an initial web_search query/i.test(source.research), "ReAct still forces web_search as the initial action; #120 remains unresolved.");
 assert(!/\(none — begin with web_search\)/i.test(source.research), "ReAct prompt still tells a contextually autonomous Investigator to begin with web_search.");
 
