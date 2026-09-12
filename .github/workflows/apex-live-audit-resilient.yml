@@ -17,7 +17,7 @@ on:
 
 concurrency:
   group: apex-live-bureau-resilient-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 permissions:
   contents: read
@@ -79,7 +79,7 @@ jobs:
           ref: ${{ github.sha }}
       - name: Show exact tip
         run: git log -1 --oneline
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5021 # v7.0.0
         with:
           node-version: 22
           registry-url: https://registry.npmjs.org/
@@ -169,7 +169,7 @@ jobs:
             sleep 5
             curl -sS -m 10 http://127.0.0.1:8080/api/ingest/atlas-status > /tmp/atlas-status.json || true
             STATUS=$(node -e 'const fs=require("fs");try{const x=JSON.parse(fs.readFileSync("/tmp/atlas-status.json","utf8"));process.stdout.write(String(x.status||x.job?.status||""))}catch{}')
-            case "$STATUS" in done|completed|idle) exit 0;; failed|cancelled) exit 1;; esac
+            case "$STATUS" in done|completed) exit 0;; failed|cancelled) exit 1;; esac
           done
           exit 1
       - name: Collect live state
