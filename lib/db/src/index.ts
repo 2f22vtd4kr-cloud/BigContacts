@@ -18,10 +18,28 @@ async function ensureResearchCaseEventsImmutable(): Promise<void> {
     await client.query("SELECT pg_advisory_xact_lock(hashtext('apex:research_case_events:immutability'))");
     await client.query(`
       DO $$
+      DECLARE
+        null_correlation_count bigint;
       BEGIN
         IF to_regclass('public.research_case_events') IS NULL THEN
           RAISE EXCEPTION 'Apex research_case_events ledger is missing; refusing to start without the provenance ledger';
         END IF;
+
+        -- A correlation key is part of the immutable event identity. PostgreSQL
+        -- normally allows multiple NULLs through a UNIQUE index, which would
+        -- permit distinct logical acts to share the same absent identity. Do
+        -- not silently repair that state: fail closed and require remediation
+        -- before making the stronger invariant active.
+        SELECT count(*) INTO null_correlation_count
+          FROM public.research_case_events
+         WHERE correlation_key IS NULL;
+        IF null_correlation_count > 0 THEN
+          RAISE EXCEPTION 'Apex research_case_events contains % NULL correlation_key row(s); refusing to enable mandatory event identity', null_correlation_count
+            USING ERRCODE = '55000';
+        END IF;
+
+        ALTER TABLE public.research_case_events
+          ALTER COLUMN correlation_key SET NOT NULL;
 
         CREATE OR REPLACE FUNCTION public.apex_research_case_events_immutable()
         RETURNS trigger
@@ -60,8 +78,12 @@ async function ensureResearchCaseEventsImmutable(): Promise<void> {
         DECLARE
           existing_payload text;
         BEGIN
+          -- correlation_key is NOT NULL at the table boundary. Keep this
+          -- defensive branch so the trigger itself remains fail-closed if the
+          -- function is inspected or reused before schema initialization.
           IF NEW.correlation_key IS NULL THEN
-            RETURN NEW;
+            RAISE EXCEPTION 'research_case_events correlation_key is mandatory'
+              USING ERRCODE = '23502';
           END IF;
 
           -- Serialize writers for the same logical event key. Without this,
@@ -107,7 +129,8 @@ async function ensureResearchCaseEventsImmutable(): Promise<void> {
 }
 
 // The control/provenance ledger must be immutable before any application query
-// can rely on it. A missing ledger is a startup failure, not a degraded mode.
+// can rely on it. A missing ledger or malformed event identity is a startup
+// failure, not a degraded mode.
 await ensureResearchCaseEventsImmutable();
 
 export const db = drizzle(pool, { schema });
