@@ -1,0 +1,40 @@
+name: Apex Typecheck Debug
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "**/*.ts"
+      - "**/*.tsx"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - ".github/workflows/apex-typecheck-debug.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with: { node-version: 22, registry-url: https://registry.npmjs.org/ }
+      - run: npm install -g pnpm@9.15.9
+      - run: pnpm install --frozen-lockfile --ignore-scripts --fetch-retries=8 --fetch-timeout=120000 --registry=https://registry.npmjs.org/
+      - name: Capture typecheck output
+        shell: bash
+        run: |
+          set +e
+          pnpm run typecheck > /tmp/typecheck.txt 2>&1
+          code=$?
+          cat /tmp/typecheck.txt
+          echo "$code" > /tmp/typecheck.exit
+          exit 0
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: apex-typecheck-debug
+          path: |
+            /tmp/typecheck.txt
+            /tmp/typecheck.exit
