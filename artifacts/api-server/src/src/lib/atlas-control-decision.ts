@@ -2,7 +2,7 @@ import { apexOrientationFor } from "./apex-bureau-orientation";
 import { resolveGeminiBossModel, generateGeminiBossText } from "./case-bureau";
 import { runDeepSeekFreeJson } from "./deepseek-case-reasoning";
 import { db, researchCasesTable, researchCaseEventsTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { compactInvestigationContext } from "./investigation-context-compaction";
 import { logger } from "./logger";
 export type AtlasControlAction = "continue_discovery" | "research_candidate" | "revisit_candidate" | "pivot_discovery" | "stop";
@@ -11,7 +11,29 @@ function parseObject(raw: string | null | undefined): Record<string, unknown> | 
 function clampConfidence(value: unknown): number | null { return typeof value === "number" && Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : null; }
 const ALLOWED_ACTIONS = new Set<AtlasControlAction>(["continue_discovery", "research_candidate", "revisit_candidate", "pivot_discovery", "stop"]);
 type TrajectoryRecordInput = { turn: number; model: string; action: string; args: Record<string, unknown>; thought?: string; execution: string; observation?: string; observedUrls: string[]; findings: unknown[]; providerFallback?: string[]; stopReason?: string };
-async function persistControlDecision(input: { caseId: number; controlTurn: number; decision: AtlasControlDecision }): Promise<boolean> { try { const [caseRow] = await db.select({ caseFile: researchCasesTable.caseFile }).from(researchCasesTable).where(eq(researchCasesTable.id, input.caseId)).limit(1); if (!caseRow) throw new Error(`Atlas discovery case ${input.caseId} does not exist.`); const payload = { action: input.decision.action, status: input.decision.status, candidateName: input.decision.candidateName, direction: input.decision.direction, reason: input.decision.reason, confidence: input.decision.confidence, bossModel: input.decision.bossModel, bossError: input.decision.error, rightHand: input.decision.rightHand, controlTurn: input.controlTurn }; const correlationKey = `atlas-control:case:${input.caseId}:turn:${input.controlTurn}`; await db.insert(researchCaseEventsTable).values({ caseId: input.caseId, iteration: input.controlTurn, actorRole: "gemini_boss", eventType: "control_decision", summary: `Atlas control decision: ${input.decision.action}${input.decision.candidateName ? ` → ${input.decision.candidateName}` : ""}`, correlationKey, payload: JSON.stringify(payload) }).onConflictDoNothing({ target: [researchCaseEventsTable.caseId, researchCaseEventsTable.correlationKey] }); let caseFile: Record<string, unknown> = {}; try { caseFile = caseRow.caseFile ? JSON.parse(caseRow.caseFile) as Record<string, unknown> : {}; } catch { throw new Error(`Atlas discovery case ${input.caseId} has unreadable durable state.`); } const history = Array.isArray(caseFile.atlasControlDecisions) ? caseFile.atlasControlDecisions : []; if (!history.some((item) => item && typeof item === "object" && (item as Record<string, unknown>).controlTurn === input.controlTurn)) history.push({ ...payload, recordedAt: new Date().toISOString() }); caseFile.atlasControlDecisions = history.slice(-24); await db.update(researchCasesTable).set({ caseFile: JSON.stringify(caseFile), updatedAt: new Date() }).where(eq(researchCasesTable.id, input.caseId)); return true; } catch (error) { logger.error({ error, caseId: input.caseId, controlTurn: input.controlTurn }, "Failed to persist Atlas control decision"); return false; } }
+async function persistControlDecision(input: { caseId: number; controlTurn: number; decision: AtlasControlDecision }): Promise<boolean> {
+  try {
+    await db.transaction(async (tx) => {
+      const [caseRow] = await tx.select({ caseFile: researchCasesTable.caseFile }).from(researchCasesTable).where(eq(researchCasesTable.id, input.caseId)).for("update").limit(1);
+      if (!caseRow) throw new Error(`Atlas discovery case ${input.caseId} does not exist.`);
+      const payload = { action: input.decision.action, status: input.decision.status, candidateName: input.decision.candidateName, direction: input.decision.direction, reason: input.decision.reason, confidence: input.decision.confidence, bossModel: input.decision.bossModel, bossError: input.decision.error, rightHand: input.decision.rightHand, controlTurn: input.controlTurn };
+      const payloadJson = JSON.stringify(payload);
+      const correlationKey = `atlas-control:case:${input.caseId}:turn:${input.controlTurn}`;
+      const [existingEvent] = await tx.select({ payload: researchCaseEventsTable.payload }).from(researchCaseEventsTable).where(and(eq(researchCaseEventsTable.caseId, input.caseId), eq(researchCaseEventsTable.correlationKey, correlationKey))).limit(1);
+      if (existingEvent && existingEvent.payload !== payloadJson) throw new Error(`Atlas control replay collision for case ${input.caseId}, turn ${input.controlTurn}.`);
+      if (!existingEvent) {
+        await tx.insert(researchCaseEventsTable).values({ caseId: input.caseId, iteration: input.controlTurn, actorRole: "gemini_boss", eventType: "control_decision", summary: `Atlas control decision: ${input.decision.action}${input.decision.candidateName ? ` → ${input.decision.candidateName}` : ""}`, correlationKey, payload: payloadJson });
+      }
+      let caseFile: Record<string, unknown> = {};
+      try { caseFile = caseRow.caseFile ? JSON.parse(caseRow.caseFile) as Record<string, unknown> : {}; } catch { throw new Error(`Atlas discovery case ${input.caseId} has unreadable durable state.`); }
+      const history = Array.isArray(caseFile.atlasControlDecisions) ? caseFile.atlasControlDecisions : [];
+      if (!history.some((item) => item && typeof item === "object" && (item as Record<string, unknown>).controlTurn === input.controlTurn)) history.push({ ...payload, recordedAt: new Date().toISOString() });
+      caseFile.atlasControlDecisions = history.slice(-24);
+      await tx.update(researchCasesTable).set({ caseFile: JSON.stringify(caseFile), updatedAt: new Date() }).where(eq(researchCasesTable.id, input.caseId));
+    });
+    return true;
+  } catch (error) { logger.error({ error, caseId: input.caseId, controlTurn: input.controlTurn }, "Failed to persist Atlas control decision"); return false; }
+}
 export async function decideAtlasNextAction(input: { objective: string; admittedCandidates: Array<{ name: string; role: string | null; sourceUrls: string[] }>; discoveryStatus: string; discoveryTrajectory: string[]; discoveryTrajectoryRecords?: TrajectoryRecordInput[]; discoveryFindings: Array<{ personName: string | null; role: string | null; scope: string; promotionDecision?: string; sourceUrls: string[]; note: string }>; priorAction?: AtlasControlAction | null; priorCandidate?: string | null; caseId: number; controlTurn: number }): Promise<AtlasControlDecision> {
   if (!Number.isSafeInteger(input.caseId) || input.caseId <= 0) throw new Error("Atlas control decision requires a valid durable caseId.");
   if (!Number.isSafeInteger(input.controlTurn) || input.controlTurn <= 0) throw new Error("Atlas control decision requires a valid positive controlTurn.");
