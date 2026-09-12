@@ -3,6 +3,7 @@ import path from "node:path";
 
 const root = process.cwd();
 const boot = fs.readFileSync(path.join(root, "scripts/replit-boot.sh"), "utf8");
+const repl = fs.readFileSync(path.join(root, ".replit"), "utf8");
 const auth = fs.readFileSync(path.join(root, "artifacts/api-server/src/src/lib/api-auth.ts"), "utf8");
 const app = fs.readFileSync(path.join(root, "artifacts/api-server/src/src/app.ts"), "utf8");
 const checks = [
@@ -13,6 +14,7 @@ const checks = [
   ["production startup requires operator password", /requireProductionSecret\("APEX_OPERATOR_PASSWORD", 16\)/.test(app)],
   ["production startup requires session signing secret", /requireProductionSecret\("APEX_SESSION_SECRET", 32\)/.test(app)],
   ["runtime refuses to start without durable DB invariants", /ensureResearchCaseEventsImmutable/.test(fs.readFileSync(path.join(root, "lib/db/src/index.ts"), "utf8"))],
+  ["Replit production runtime is Node 22", /modules\s*=\s*\[\"nodejs-22\"/.test(repl)],
 ];
 const failures = checks.filter(([, ok]) => !ok).map(([name]) => name);
 if (failures.length) {
