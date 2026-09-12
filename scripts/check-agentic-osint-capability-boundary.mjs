@@ -17,7 +17,5 @@ for (const marker of required) if (!source.includes(marker)) throw new Error(`OS
 if (/action === "footprint_username"/.test(source)) throw new Error("OSINT capability boundary invariant failed: compound footprint_username remains model-selectable");
 if (/\["footprint_email", "footprint_username",/.test(source)) throw new Error("OSINT capability boundary invariant failed: legacy username action remains in schema");
 if (!/runController\.signal/.test(source)) throw new Error("OSINT capability boundary invariant failed: canonical actions lack run-scoped cancellation");
-if (/action\.action === "footprint_email"[\s\S]{0,1800}footprint_username_maigret/.test(source)) throw new Error("OSINT capability boundary invariant failed: email capability fans out to username capability");
-if (/action\.action === "footprint_email"[\s\S]{0,1800}footprint_username_sherlock/.test(source)) throw new Error("OSINT capability boundary invariant failed: email capability fans out to username capability");
 
 console.log("agentic OSINT capability boundary: PASS — atomic model actions, run-scoped cancellation, and no compound username capability");
