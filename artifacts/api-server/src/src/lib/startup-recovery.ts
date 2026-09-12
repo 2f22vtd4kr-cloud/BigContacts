@@ -9,7 +9,7 @@ import {
   getActiveJob,
   getJob,
   updateJob,
-  clearActiveJob,
+  clearActiveJobIfOwned,
 } from "./job-queue";
 import { logger } from "./logger";
 
@@ -40,7 +40,14 @@ async function clearGhostJobLocks(): Promise<void> {
         message: "Job stopped before completion because the server process restarted.",
         finishedAt: new Date().toISOString(),
       });
-      await clearActiveJob(type);
+      // Never unconditionally delete the active pointer: another instance may
+      // have acquired the same lane after our initial read. The release is
+      // owner-bound and atomic in Redis.
+      const released = await clearActiveJobIfOwned(type, jobId);
+      if (!released) {
+        logger.warn({ type, jobId }, "Startup recovery could not release the job lock because ownership changed");
+        continue;
+      }
       logger.warn({ type, jobId }, "Cleared process-owned job lock after restart");
     } catch (err) {
       logger.warn(
