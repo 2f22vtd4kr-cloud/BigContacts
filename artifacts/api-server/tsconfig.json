@@ -5,7 +5,9 @@
     "tsBuildInfoFile": ".tsbuildinfo",
     "outDir": "dist",
     "rootDir": "src",
-    "types": ["node"]
+    "lib": ["es2022", "dom"],
+    "types": ["node", "express", "cors"],
+    "skipLibCheck": true
   },
   "include": ["src/src/**/*.ts"],
   "references": [
