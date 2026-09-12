@@ -1,8 +1,12 @@
 name: One-off Typecheck Final 2
 
-# retrigger marker
+# PR trigger marker
 on:
   push:
+    branches: [main]
+    paths:
+      - ".github/workflows/one-off-typecheck-final2.yml"
+  pull_request:
     branches: [main]
     paths:
       - ".github/workflows/one-off-typecheck-final2.yml"
