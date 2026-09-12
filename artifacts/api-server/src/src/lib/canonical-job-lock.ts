@@ -4,6 +4,8 @@ import { withPermanentClient } from "../../lib/redis";
 // owners renew the lease; recovery after a crash is therefore bounded by this
 // window rather than by the historical job TTL.
 const JOB_LOCK_TTL_SECONDS = 60 * 60;
+const JOB_LOCK_RENEW_INTERVAL_MS = 20 * 60 * 1000;
+const leaseTimers = new Map<string, ReturnType<typeof setInterval>>();
 
 type ClaimResult = { available: true; result: string | null };
 
@@ -16,13 +18,27 @@ export async function claimCanonicalJob(type: string, jobId: string): Promise<bo
     null,
   );
   if (!outcome?.available) throw new Error("Canonical Atlas launch requires an available permanent Redis lock service");
-  return outcome.result === "OK";
+  if (outcome.result !== "OK") return false;
+
+  const timerKey = `${type}:${jobId}`;
+  const prior = leaseTimers.get(timerKey);
+  if (prior) clearInterval(prior);
+  const timer = setInterval(() => {
+    void renewCanonicalJob(type, jobId).then((renewed) => {
+      if (!renewed) {
+        const current = leaseTimers.get(timerKey);
+        if (current) clearInterval(current);
+        leaseTimers.delete(timerKey);
+      }
+    }).catch(() => undefined);
+  }, JOB_LOCK_RENEW_INTERVAL_MS);
+  timer.unref?.();
+  leaseTimers.set(timerKey, timer);
+  return true;
 }
 
 type LeaseResult = { available: true; renewed: boolean };
 
-/** Renew only when this job still owns the lock. A stale worker can never
- * resurrect or extend a newer owner's lease. */
 export async function renewCanonicalJob(type: string, jobId: string): Promise<boolean> {
   const outcome = await withPermanentClient<LeaseResult | null>(
     async (redis) => ({
@@ -44,6 +60,10 @@ export async function renewCanonicalJob(type: string, jobId: string): Promise<bo
 type ReleaseResult = { available: true; released: boolean };
 
 export async function releaseCanonicalJob(type: string, jobId: string): Promise<boolean> {
+  const timerKey = `${type}:${jobId}`;
+  const timer = leaseTimers.get(timerKey);
+  if (timer) clearInterval(timer);
+  leaseTimers.delete(timerKey);
   const outcome = await withPermanentClient<ReleaseResult | null>(
     async (redis) => ({
       available: true,
