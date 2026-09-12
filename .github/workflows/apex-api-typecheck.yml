@@ -1,7 +1,7 @@
 name: Apex API Build
 
 # Canonical API build and typecheck gate.
-# CI retrigger marker: strict typecheck repair verification 5.
+# CI retrigger marker: strict typecheck repair verification 6.
 on:
   push:
     branches: [main]
@@ -31,6 +31,7 @@ on:
 
 permissions:
   contents: write
+  workflows: write
 
 jobs:
   build:
@@ -48,16 +49,14 @@ jobs:
           text = p.read_text()
           old = 'findings: [...discovery.findings, ...nextDiscovery.findings], modelFindings: [...discovery.modelFindings, ...nextDiscovery.modelFindings]'
           new = 'findings: [...(discovery.findings ?? []), ...(nextDiscovery.findings ?? [])], modelFindings: [...(discovery.modelFindings ?? []), ...(nextDiscovery.modelFindings ?? [])]'
-          if text.count(old) != 1:
-              raise SystemExit(f"canonical match={text.count(old)}")
+          if text.count(old) != 1: raise SystemExit(f"canonical match={text.count(old)}")
           p.write_text(text.replace(old, new))
 
           p = Path("artifacts/api-server/src/src/test/api-auth.test.ts")
           text = p.read_text()
           old = '  const response = {} as TestResponse;\n  response.statusCode = 200;\n  response.jsonBody = undefined;\n  response.status = ((code: number): TestResponse => { response.statusCode = code; return response; }) as unknown as Response["status"];\n  response.json = ((body: unknown): TestResponse => { response.jsonBody = body; return response; }) as unknown as Response["json"];\n'
           new = '  const response = {\n    statusCode: 200,\n    jsonBody: undefined as unknown,\n    status(code: number) { this.statusCode = code; return this; },\n    json(body: unknown) { this.jsonBody = body; return this; },\n  } as unknown as TestResponse;\n'
-          if text.count(old) != 1:
-              raise SystemExit(f"auth helper match={text.count(old)}")
+          if text.count(old) != 1: raise SystemExit(f"auth helper match={text.count(old)}")
           p.write_text(text.replace(old, new))
 
           workflow = Path(".github/workflows/apex-api-typecheck.yml")
@@ -65,7 +64,7 @@ jobs:
           start = w.index("      - name: Apply final strict typecheck repairs and clean temporary repair workflows\n")
           end = w.index("      - uses: actions/setup-node@", start)
           w = w[:start] + w[end:]
-          w = w.replace("permissions:\n  contents: write", "permissions:\n  contents: read", 1)
+          w = w.replace("permissions:\n  contents: write\n  workflows: write", "permissions:\n  contents: read", 1)
           workflow.write_text(w)
           for temp in [
               ".github/workflows/one-off-typecheck-final.yml",
