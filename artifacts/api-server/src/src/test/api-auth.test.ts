@@ -9,8 +9,8 @@ function run(path: string, method: string, authorization?: string) {
   const response = {} as TestResponse;
   response.statusCode = 200;
   response.jsonBody = undefined;
-  response.status = ((code: number) => { response.statusCode = code; return response; }) as Response["status"];
-  response.json = ((body: unknown) => { response.jsonBody = body; return response; }) as Response["json"];
+  response.status = ((code: number): TestResponse => { response.statusCode = code; return response; }) as unknown as Response["status"];
+  response.json = ((body: unknown): TestResponse => { response.jsonBody = body; return response; }) as unknown as Response["json"];
   let nextCalled = false;
   const next = (() => { nextCalled = true; }) as NextFunction;
   apiAuth(req, response, next);
