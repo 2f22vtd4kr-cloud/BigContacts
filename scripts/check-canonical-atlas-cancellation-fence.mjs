@@ -10,7 +10,8 @@ const checks = [
   ["control decisions are fenced before and after Boss control", /while \(controlTurns < maxControlTurns\)[\s\S]{0,600}await assertAtlasJobActive\(atlasJobId\)[\s\S]{0,900}decideAtlasNextAction[\s\S]{0,300}await assertAtlasJobActive\(atlasJobId\)/.test(source)],
   ["target investigation is fenced against cancellation", /await assertAtlasJobActive\(atlasJobId\);[\s\S]{0,300}runCanonicalSingleTargetInvestigation[\s\S]{0,300}await assertAtlasJobActive\(atlasJobId\)/.test(source)],
   ["cancelled pipeline cannot project done", /await assertAtlasJobActive\(atlasJobId\);[\s\S]{0,300}await updateJob\(atlasJobId, \{ status: "done"/.test(source)],
-  ["cancellation is persisted as cancelled/incomplete", /const cancelled = message\.includes\("cancelled or failed"\)/.test(source) && /status: cancelled \? "cancelled" : "failed"/.test(source) && /outcome: "incomplete"/.test(source)],
+  ["cancelled jobs are persisted as cancelled/incomplete", /const cancelled = message\.includes\("Canonical Atlas job cancelled;"\)/.test(source) && /status: cancelled \? "cancelled" : "failed"/.test(source) && /outcome: "incomplete"/.test(source)],
+  ["failed jobs are not misclassified as cancellation", /job\.status === "failed"/.test(source) && /Canonical Atlas job already failed/.test(source)],
 ];
 const failures = checks.filter(([, ok]) => !ok).map(([name]) => name);
 if (failures.length) {
