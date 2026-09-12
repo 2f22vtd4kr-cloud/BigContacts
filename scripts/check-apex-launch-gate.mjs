@@ -70,7 +70,7 @@ const canonicalMount = routesIndex.indexOf("router.use(canonicalAtlasLaunchRoute
 const quarantineMount = routesIndex.indexOf("router.use(legacyAtlasLaunchQuarantine)");
 const legacyMount = routesIndex.indexOf("router.use(atlasRouter)");
 pass("historical Atlas router is not the canonical launch boundary", canonicalMount >= 0 && quarantineMount > canonicalMount && legacyMount > quarantineMount);
-pass("legacy Atlas launch cannot be reached through the quarantine boundary", /router\.post\(\"\/ingest\/atlas-run\"/.test(legacyAtlas) && /Legacy Atlas launch route retired/.test(launchQuarantine));
+pass("legacy Atlas launch cannot be reached through the quarantine boundary", /(?:router|atlasRouter)\.post\(\"\/ingest\/atlas-run\"/.test(legacyAtlas) && /status\(410\)/.test(legacyAtlas));
 pass("username migration hardener is no longer in API scripts", !packageJson.includes("apply-agentic-username-capability-split.mjs"));
 pass("canonical target runner steps one Investigator act", /maxIterations:\s*1/.test(canonicalRunner));
 pass("canonical target runner requires durable oversight", /!lastOversight \|\| lastOversight\.status !== "completed"/.test(canonicalRunner));
