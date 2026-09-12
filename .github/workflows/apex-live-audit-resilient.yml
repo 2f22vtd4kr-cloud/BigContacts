@@ -3,7 +3,6 @@ name: Apex Live Bureau Audit — Resilient Groq 3.8
 # Provider-resilient real-run lane. This is deliberately separate from the
 # historical audit workflow so an experimental provider change cannot cancel
 # or rewrite an already-running audit.
-# Control-plane smoke revision: modelFindings admission boundary landed at fa3efd8.
 on:
   workflow_dispatch:
   push:
@@ -72,21 +71,20 @@ jobs:
       AGENTIC_PROVIDER_DECISION_TIMEOUT_MS: "55000"
       GROQ_AGENTIC_MIN_INTERVAL_MS: "30000"
       LIVE_AUDIT_TARGET_COUNT: "3"
-      # Smoke acceptance is ≥1 real person; 3 is the bounded exploration budget.
       LIVE_AUDIT_MIN_ADMITS: "1"
       NODE_OPTIONS: --max-old-space-size=1536
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.sha }}
       - name: Show exact tip
         run: git log -1 --oneline
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
           registry-url: https://registry.npmjs.org/
       - name: Install pnpm
-        run: npm install -g pnpm@9
+        run: npm install -g pnpm@9.15.9
       - name: Install API workspace graph with registry retries
         shell: bash
         run: |
@@ -118,6 +116,7 @@ jobs:
           pnpm run check:comparison-contract
           pnpm run check:agentic-runtime
           node scripts/check-agentic-timeout.mjs
+          node scripts/check-workflow-action-pins.mjs
           pnpm --dir artifacts/api-server exec vitest run src/src/test/discovery-agent-parse.test.ts src/src/test/discovery-runtime-correctness.test.ts src/src/test/agentic-scope-boundary.test.ts src/src/test/agentic-source-provenance.test.ts src/src/test/bureau-contact-persist-strict.test.ts
       - name: Provider catalog and generation preflight
         shell: bash
@@ -133,13 +132,9 @@ jobs:
               await r.text();
               const remaining = Number(r.headers.get('x-ratelimit-remaining-tokens') || 'NaN');
               const limit = Number(r.headers.get('x-ratelimit-limit-tokens') || 'NaN');
-              const result={provider,model,status:r.status,retryAfter:r.headers.get('retry-after'),remainingTokens:r.headers.get('x-ratelimit-remaining-tokens'),limitTokens:r.headers.get('x-ratelimit-limit-tokens'),resetTokens:r.headers.get('x-ratelimit-reset-tokens')};
-              results.push(result);
+              results.push({provider,model,status:r.status,retryAfter:r.headers.get('retry-after'),remainingTokens:r.headers.get('x-ratelimit-remaining-tokens'),limitTokens:r.headers.get('x-ratelimit-limit-tokens'),resetTokens:r.headers.get('x-ratelimit-reset-tokens')});
               if (!r.ok) return false;
-              if (provider === 'groq-dig' && Number.isFinite(remaining) && Number.isFinite(limit) && remaining < Math.min(6500, limit * 0.8)) {
-                results.push({provider,state:'insufficient_tpm_headroom',remainingTokens:remaining,requiredAtLeast:Math.min(6500, limit * 0.8)});
-                return false;
-              }
+              if (provider === 'groq-dig' && Number.isFinite(remaining) && Number.isFinite(limit) && remaining < Math.min(6500, limit * 0.8)) { results.push({provider,state:'insufficient_tpm_headroom',remainingTokens:remaining}); return false; }
               return true;
             } catch(e) { results.push({provider,model,state:'transport_error',error:String(e?.message||e)}); return false; }
           }
@@ -163,11 +158,9 @@ jobs:
           redis-cli ping
           node artifacts/api-server/dist/index.mjs > /tmp/apex-api.log 2>&1 &
           for i in $(seq 1 45); do sleep 1; test "$(curl -sS -m 2 -o /tmp/health.json -w '%{http_code}' http://127.0.0.1:8080/api/healthz || true)" = 200 && break; done
-          cat /tmp/health.json || true
           test "$(curl -sS -m 5 -o /tmp/health.json -w '%{http_code}' http://127.0.0.1:8080/api/healthz)" = 200
       - name: Launch bounded 3-target discovery-first Bureau smoke
         run: |
-          # Keep this proof run narrow: first establish a real admit → Dig chain.
           curl -sS -m 15 -X POST http://127.0.0.1:8080/api/ingest/atlas-run -H 'Content-Type: application/json' -d '{"discoveryFirst":true,"targetCount":3,"researchLimit":2,"runResearch":true,"skipFaa":true,"targetTimeoutMs":300000,"researchDepth":"standard"}' | tee /tmp/launch.json
           node -e 'const x=require("/tmp/launch.json"); if(!x.jobId){console.error(JSON.stringify(x));process.exit(1)}; console.log(x.jobId)'
       - name: Poll Bureau
@@ -175,7 +168,6 @@ jobs:
           for i in $(seq 1 1200); do
             sleep 5
             curl -sS -m 10 http://127.0.0.1:8080/api/ingest/atlas-status > /tmp/atlas-status.json || true
-            node -e 'const fs=require("fs");try{const x=JSON.parse(fs.readFileSync("/tmp/atlas-status.json","utf8"));console.log(JSON.stringify({status:x.status,jobId:x.jobId||x.job?.jobId,phase:x.atlasPhase,progress:x.entityProgress,total:x.entityTotal,names:x.entityNames}))}catch{}'
             STATUS=$(node -e 'const fs=require("fs");try{const x=JSON.parse(fs.readFileSync("/tmp/atlas-status.json","utf8"));process.stdout.write(String(x.status||x.job?.status||""))}catch{}')
             case "$STATUS" in done|completed|idle) exit 0;; failed|cancelled) exit 1;; esac
           done
@@ -186,3 +178,18 @@ jobs:
           curl -sS -m 10 http://127.0.0.1:8080/api/healthz | tee /tmp/health.json || true
           curl -sS -m 10 http://127.0.0.1:8080/api/ingest/atlas-status | tee /tmp/atlas-status.json || true
           curl -sS -m 10 'http://127.0.0.1:8080/api/entities?limit=50&offset=0' | tee /tmp/entities.json || true
+      - name: Live autonomy and provenance audit
+        if: always()
+        run: node scripts/audit-live-bureau.mjs
+      - name: Upload live audit artifacts
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: apex-live-audit-resilient
+          path: |
+            /tmp/launch.json
+            /tmp/atlas-status.json
+            /tmp/entities.json
+            /tmp/health.json
+            /tmp/apex-api.log
+          if-no-files-found: ignore
