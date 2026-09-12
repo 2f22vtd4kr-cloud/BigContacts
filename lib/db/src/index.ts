@@ -9,6 +9,10 @@ export const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
 const MAX_EVENTS_PER_CASE = 50_000;
 const MAX_CASE_FILE_BYTES = 1_048_576;
+const MAX_ENTITY_METADATA_BYTES = 262_144;
+const MAX_ENTITY_NOTES_BYTES = 65_536;
+const MAX_ENTITY_SOURCE_REGISTRIES_BYTES = 131_072;
+const MAX_ENTITY_RESIDENCES_BYTES = 131_072;
 
 async function ensureResearchCaseEventsImmutable(): Promise<void> {
   const client = await pool.connect();
@@ -17,6 +21,8 @@ async function ensureResearchCaseEventsImmutable(): Promise<void> {
     await client.query(`
       DO $$
       DECLARE null_correlation_count bigint; oversized_payload_count bigint; oversized_case_count bigint; oversized_case_file_count bigint;
+              oversized_metadata_count bigint; oversized_notes_count bigint; oversized_sources_count bigint; oversized_residences_count bigint;
+              invalid_score_count bigint; invalid_contact_confidence_count bigint;
       BEGIN
         IF to_regclass('public.research_case_events') IS NULL THEN
           RAISE EXCEPTION 'Apex research_case_events ledger is missing; refusing to start without the provenance ledger';
@@ -45,12 +51,55 @@ async function ensureResearchCaseEventsImmutable(): Promise<void> {
         IF oversized_case_file_count > 0 THEN
           RAISE EXCEPTION 'Apex research_cases contains % case_file value(s) larger than 1048576 bytes; refusing startup until archived/remediated', oversized_case_file_count USING ERRCODE = '55000';
         END IF;
+        SELECT count(*) INTO oversized_metadata_count FROM public.entities WHERE metadata IS NOT NULL AND octet_length(metadata) > 262144;
+        IF oversized_metadata_count > 0 THEN
+          RAISE EXCEPTION 'Apex entities contains % metadata value(s) larger than 262144 bytes; refusing startup', oversized_metadata_count USING ERRCODE = '55000';
+        END IF;
+        SELECT count(*) INTO oversized_notes_count FROM public.entities WHERE notes IS NOT NULL AND octet_length(notes) > 65536;
+        IF oversized_notes_count > 0 THEN
+          RAISE EXCEPTION 'Apex entities contains % notes value(s) larger than 65536 bytes; refusing startup', oversized_notes_count USING ERRCODE = '55000';
+        END IF;
+        SELECT count(*) INTO oversized_sources_count FROM public.entities WHERE source_registries IS NOT NULL AND octet_length(source_registries) > 131072;
+        IF oversized_sources_count > 0 THEN
+          RAISE EXCEPTION 'Apex entities contains % source_registries value(s) larger than 131072 bytes; refusing startup', oversized_sources_count USING ERRCODE = '55000';
+        END IF;
+        SELECT count(*) INTO oversized_residences_count FROM public.entities WHERE known_residences IS NOT NULL AND octet_length(known_residences) > 131072;
+        IF oversized_residences_count > 0 THEN
+          RAISE EXCEPTION 'Apex entities contains % known_residences value(s) larger than 131072 bytes; refusing startup', oversized_residences_count USING ERRCODE = '55000';
+        END IF;
+        SELECT count(*) INTO invalid_score_count FROM public.entities WHERE bayesian_score < 0 OR bayesian_score > 1 OR bayesian_score IS NULL;
+        IF invalid_score_count > 0 THEN
+          RAISE EXCEPTION 'Apex entities contains % invalid bayesian_score value(s); expected 0..1', invalid_score_count USING ERRCODE = '55000';
+        END IF;
+        SELECT count(*) INTO invalid_contact_confidence_count FROM public.entities WHERE contact_confidence < 0 OR contact_confidence > 100 OR contact_confidence IS NULL;
+        IF invalid_contact_confidence_count > 0 THEN
+          RAISE EXCEPTION 'Apex entities contains % invalid contact_confidence value(s); expected 0..100', invalid_contact_confidence_count USING ERRCODE = '55000';
+        END IF;
+
         ALTER TABLE public.research_case_events ALTER COLUMN correlation_key SET NOT NULL;
         IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'public.research_case_events'::regclass AND conname = 'research_case_events_payload_size_ck') THEN
           ALTER TABLE public.research_case_events ADD CONSTRAINT research_case_events_payload_size_ck CHECK (octet_length(payload) <= 131072);
         END IF;
         IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'public.research_cases'::regclass AND conname = 'research_cases_case_file_size_ck') THEN
           ALTER TABLE public.research_cases ADD CONSTRAINT research_cases_case_file_size_ck CHECK (octet_length(case_file) <= 1048576);
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'public.entities'::regclass AND conname = 'entities_metadata_size_ck') THEN
+          ALTER TABLE public.entities ADD CONSTRAINT entities_metadata_size_ck CHECK (metadata IS NULL OR octet_length(metadata) <= 262144);
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'public.entities'::regclass AND conname = 'entities_notes_size_ck') THEN
+          ALTER TABLE public.entities ADD CONSTRAINT entities_notes_size_ck CHECK (notes IS NULL OR octet_length(notes) <= 65536);
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'public.entities'::regclass AND conname = 'entities_sources_size_ck') THEN
+          ALTER TABLE public.entities ADD CONSTRAINT entities_sources_size_ck CHECK (source_registries IS NULL OR octet_length(source_registries) <= 131072);
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'public.entities'::regclass AND conname = 'entities_residences_size_ck') THEN
+          ALTER TABLE public.entities ADD CONSTRAINT entities_residences_size_ck CHECK (known_residences IS NULL OR octet_length(known_residences) <= 131072);
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'public.entities'::regclass AND conname = 'entities_bayesian_score_range_ck') THEN
+          ALTER TABLE public.entities ADD CONSTRAINT entities_bayesian_score_range_ck CHECK (bayesian_score >= 0 AND bayesian_score <= 1);
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'public.entities'::regclass AND conname = 'entities_contact_confidence_range_ck') THEN
+          ALTER TABLE public.entities ADD CONSTRAINT entities_contact_confidence_range_ck CHECK (contact_confidence >= 0 AND contact_confidence <= 100);
         END IF;
         CREATE OR REPLACE FUNCTION public.apex_research_case_events_immutable() RETURNS trigger LANGUAGE plpgsql AS $fn$
         BEGIN RAISE EXCEPTION 'research_case_events is append-only; % is forbidden', TG_OP USING ERRCODE = '55000'; END; $fn$;
