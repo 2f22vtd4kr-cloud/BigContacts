@@ -1,0 +1,40 @@
+name: Apex Launch Gate Debug
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "scripts/check-apex-launch-gate.mjs"
+      - "artifacts/api-server/src/src/lib/**"
+      - "artifacts/api-server/src/src/routes/**"
+      - ".github/workflows/apex-launch-gate-debug.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+      - run: npm install -g pnpm@9.15.9
+      - run: pnpm install --frozen-lockfile --ignore-scripts --fetch-retries=8 --fetch-timeout=120000 --filter @workspace/api-server... --registry=https://registry.npmjs.org/
+      - name: Capture launch gate output
+        shell: bash
+        run: |
+          set +e
+          node scripts/check-apex-launch-gate.mjs > /tmp/apex-launch-gate.txt 2>&1
+          code=$?
+          cat /tmp/apex-launch-gate.txt
+          echo "$code" > /tmp/apex-launch-gate.exit
+          exit 0
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: apex-launch-gate-debug
+          path: |
+            /tmp/apex-launch-gate.txt
+            /tmp/apex-launch-gate.exit
