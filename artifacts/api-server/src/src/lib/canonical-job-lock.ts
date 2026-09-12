@@ -9,7 +9,20 @@ const leaseTimers = new Map<string, ReturnType<typeof setInterval>>();
 
 type ClaimResult = { available: true; result: string | null };
 async function fenceLeaseLostCases(jobId: string): Promise<void> {
+  const finishedAt = new Date().toISOString();
   await db.update(researchCasesTable).set({ status: "review", currentAction: "canonical-lease-lost", updatedAt: new Date() }).where(and(eq(researchCasesTable.status, "active"), or(sql`${researchCasesTable.caseFile}::jsonb ->> 'atlasJobId' = ${jobId}`, sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${jobId}`)));
+  // Also fence the Redis job state. Canonical workers check this state between
+  // control-plane acts; without it a worker whose lease expired could continue
+  // indefinitely after another process acquired the same canonical lane.
+  await withPermanentClient(async (redis) => {
+    const key = `apex:job:${jobId}`;
+    const owner = await redis.get(`apex:activejob:atlas-run`);
+    // Never mutate a job that has become the new lock owner. The old job is
+    // cancelled only when the canonical lock no longer points at it.
+    if (owner !== jobId) {
+      await redis.hset(key, { status: "cancelled", outcome: "incomplete", message: "Canonical lease lost; refusing further work.", finishedAt });
+    }
+  }, undefined);
 }
 
 export async function claimCanonicalJob(type: string, jobId: string): Promise<boolean> {
