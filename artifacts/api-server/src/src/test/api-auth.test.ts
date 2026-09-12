@@ -6,12 +6,9 @@ type TestResponse = Response & { statusCode: number; jsonBody: unknown };
 
 function run(path: string, method: string, authorization?: string) {
   const req = { path, method, header(name: string) { return name.toLowerCase() === "authorization" ? authorization : undefined; } } as unknown as Request;
-  const response = {
-    statusCode: 200,
-    jsonBody: undefined as unknown,
-    status(code: number) { this.statusCode = code; return this; },
-    json(body: unknown) { this.jsonBody = body; return this; },
-  } as unknown as TestResponse;
+  const response = { statusCode: 200, jsonBody: undefined } as unknown as TestResponse;
+  response.status = ((code: number) => { response.statusCode = code; return response; }) as unknown as Response["status"];
+  response.json = ((body: unknown) => { response.jsonBody = body; return response; }) as unknown as Response["json"];
   let nextCalled = false;
   const next = (() => { nextCalled = true; }) as NextFunction;
   apiAuth(req, response, next);
