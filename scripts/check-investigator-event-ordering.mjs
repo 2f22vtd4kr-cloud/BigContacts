@@ -14,7 +14,7 @@ const checks = [
   ["bureau no fire-and-forget investigation callback", !/void input\.onInvestigationAct\?\./.test(bureau)],
   ["target Investigator is stepped one act at a time", /maxIterations:\s*1/.test(entrypoint)],
   ["target act waits for Right Hand and Boss review", /await reviewTargetInvestigationAct\(/.test(entrypoint)],
-  ["target act lookup is tied to durable case state", /loadTargetActOversightContext\(input\.jobId, input\.targetName\)/.test(entrypoint)],
+  ["target act lookup is tied to durable case state", /loadTargetActOversightContext\(input\.caseId, input\.targetName\)/.test(entrypoint) && /caseId:\s*input\.caseId/.test(entrypoint)],
   ["discovery bypasses target per-act gate", /input\.mode === "discovery"/.test(entrypoint)],
   ["oversight has explicit continue redirect stop dispositions", /continue.*redirect.*stop/s.test(oversight)],
   ["oversight fail-closes when Gemini is unavailable", /action: "stop"/.test(oversight) && /fail-closed/.test(oversight)],
