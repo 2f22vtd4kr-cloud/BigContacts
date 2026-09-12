@@ -45,8 +45,11 @@ async function materializeAtlasAdmissions(input: { findings: Array<{ promotionDe
 
 async function assertAtlasJobActive(jobId: string): Promise<void> {
   const job = await getJob(jobId);
-  if (!job || job.status === "cancelled" || job.status === "failed") {
-    throw new Error("Canonical Atlas job cancelled or failed; refusing further control-plane work.");
+  if (!job || job.status === "cancelled") {
+    throw new Error("Canonical Atlas job cancelled; refusing further control-plane work.");
+  }
+  if (job.status === "failed") {
+    throw new Error("Canonical Atlas job already failed; refusing further control-plane work.");
   }
 }
 
@@ -129,7 +132,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     await clearActiveJobIfOwned(lockKey, atlasJobId); return { phase: 4, ingested: 0, enriched: materialized, contactsFound, hotLeads: admitted.length, durationMs: Date.now() - startedAt, phaseSummary };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Canonical Atlas discovery failed.";
-    const cancelled = message.includes("cancelled or failed");
+    const cancelled = message.includes("Canonical Atlas job cancelled;");
     await updateJob(atlasJobId, { status: cancelled ? "cancelled" : "failed", outcome: "incomplete", message, finishedAt: new Date().toISOString() });
     await clearActiveJobIfOwned(lockKey, atlasJobId);
     throw error;
