@@ -118,9 +118,12 @@ router.post("/research/bureau/cases", async (req, res): Promise<void> => {
   }
   await db.insert(researchCaseEventsTable).values({
     caseId: created.id,
+    iteration: 0,
     actorRole: "head_investigator",
     eventType: "case_opened",
+    status: "recorded",
     summary: "Discovery case opened; durable context created without executing research.",
+    correlationKey: `case:${created.id}:opened`,
     payload: JSON.stringify({
       caseType: "discovery",
       directorProvider: "gemini",
