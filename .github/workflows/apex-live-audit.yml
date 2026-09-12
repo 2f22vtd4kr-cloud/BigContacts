@@ -71,7 +71,7 @@ jobs:
           ref: ${{ github.sha }}
       - name: Show exact tip
         run: git log -1 --oneline
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5021 # v7.0.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
           registry-url: https://registry.npmjs.org/
@@ -158,7 +158,7 @@ jobs:
         run: node scripts/audit-live-bureau.mjs
       - name: Upload live audit artifacts
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a0 # v7.0.1
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: apex-live-audit
           path: |
