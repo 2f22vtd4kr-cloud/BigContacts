@@ -12,6 +12,7 @@ const checks = [
   ["lease loss durably fences bound cases", /fenceLeaseLostCases[\s\S]*status: "review"[\s\S]*canonical-lease-lost/.test(lock)],
   ["lease loss fences both target and discovery job bindings", /atlasJobId/.test(lock) && /jobId/.test(lock)],
   ["release remains owner-bound", /releaseCanonicalJob[\s\S]*redis\.eval/.test(lock)],
+  ["canonical lease transitions invalidate the job-state cache", /invalidateActiveJobCache\(type\)/.test(lock)],
   ["launch does not perform an unconditional second lock SET", !/setActiveJob\("atlas-run"/.test(launch)],
   ["lease renewal timer is cleaned on release", /leaseTimers\.delete\(timerKey\)/.test(lock)],
   ["startup recovery never mutates a distributed job owned by another replica", /distributed jobs left untouched/.test(recovery) && !/updateJob|clearActiveJobIfOwned/.test(recovery)],
