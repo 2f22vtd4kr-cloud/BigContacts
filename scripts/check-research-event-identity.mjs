@@ -43,6 +43,8 @@ const discoveryContinuation = read(writers["discovery continuation"]);
 if (discoveryContinuation && /researchCaseEventsTable/.test(discoveryContinuation)) {
   if (!/discovery-continuation:case:\$\{caseId\}:job:\$\{jobId\}:turn:\$\{iteration\}:assignment/.test(discoveryContinuation)) failures.push("discovery continuation assignment is not bound to case/job/turn");
   if (!/discovery-continuation:case:\$\{caseId\}:job:\$\{jobId\}:turn:\$\{iteration\}:observation/.test(discoveryContinuation)) failures.push("discovery continuation observation is not bound to case/job/turn");
+  if (!/Discovery continuation observation replay mismatch/.test(discoveryContinuation)) failures.push("discovery continuation observation conflict path does not verify exact replay payload");
+  if (!/onConflictDoNothing\(\{ target: \[researchCaseEventsTable\.caseId, researchCaseEventsTable\.correlationKey\]/.test(discoveryContinuation)) failures.push("discovery continuation observation is missing explicit idempotent conflict handling");
   if (!/isolationLevel: "serializable"/.test(discoveryContinuation)) failures.push("discovery continuation DB projection/event persistence is not serialized");
 }
 
