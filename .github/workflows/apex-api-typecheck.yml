@@ -44,6 +44,8 @@ jobs:
         run: node scripts/check-agentic-source-parity.mjs
       - name: Check Apex launch gate
         run: node scripts/check-apex-launch-gate.mjs
+      - name: Check research ledger immutability
+        run: node scripts/check-research-ledger-immutability.mjs
       - name: Build API
         run: pnpm --dir artifacts/api-server run build
       - name: Typecheck workspace
