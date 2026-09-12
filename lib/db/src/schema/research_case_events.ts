@@ -1,7 +1,10 @@
-import { pgTable, serial, integer, text, timestamp, index, uniqueIndex } from "drizzle-orm/pg-core";
+import { pgTable, serial, integer, text, timestamp, index, uniqueIndex, check, sql } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { researchCasesTable } from "./research_cases";
+
+/** Maximum durable event payload size in bytes. */
+export const RESEARCH_CASE_EVENT_PAYLOAD_MAX_BYTES = 128 * 1024;
 
 /**
  * Append-only decisions, assignments, observations, claims, promotions, validations,
@@ -42,6 +45,10 @@ export const researchCaseEventsTable = pgTable("research_case_events", {
 }, (table) => ({
   caseEventSequenceIdx: index("research_case_events_case_id_id_idx").on(table.caseId, table.id),
   caseEventCorrelationUniqueIdx: uniqueIndex("research_case_events_case_id_correlation_key_uidx").on(table.caseId, table.correlationKey),
+  caseEventPayloadSizeCheck: check(
+    "research_case_events_payload_size_ck",
+    sql`octet_length(${table.payload}) <= ${RESEARCH_CASE_EVENT_PAYLOAD_MAX_BYTES}`,
+  ),
 }));
 
 export const researchCaseEventActorRoleSchema = z.enum([
@@ -69,7 +76,7 @@ export const researchCaseEventTypeSchema = z.enum([
   "status",
 ]);
 
-const eventPayloadSchema = z.string().refine((value) => {
+const eventPayloadSchema = z.string().max(RESEARCH_CASE_EVENT_PAYLOAD_MAX_BYTES, `research case event payload must be <= ${RESEARCH_CASE_EVENT_PAYLOAD_MAX_BYTES} characters`).refine((value) => {
   try {
     const parsed: unknown = JSON.parse(value);
     return parsed !== null && typeof parsed === "object" && !Array.isArray(parsed);
