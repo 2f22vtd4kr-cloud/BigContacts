@@ -22,8 +22,8 @@ import { semanticSearch } from "./tfidf-embedder";
 import { semanticEngineSearch, getEmbeddingCacheSize } from "./semantic-engine";
 
 const RRF_K = 60;
-
-// ── Types ─────────────────────────────────────────────────────────────────────
+const MAX_QUERY_CHARS = 2_000;
+const MAX_TOP_K = 100;
 
 export interface HybridResult {
   id: number;
@@ -40,11 +40,11 @@ export interface HybridResult {
   sourceRegistries: string[];
   metadata: Record<string, unknown>;
   scores: {
-    bm25: number;       // normalised 0–1
-    semantic: number;   // TF-IDF cosine similarity 0–1
-    graph: number;      // normalised 0–1
-    embedding: number;  // true semantic similarity 0–1 (all-MiniLM-L6-v2)
-    rrf: number;        // final RRF score
+    bm25: number;
+    semantic: number;
+    graph: number;
+    embedding: number;
+    rrf: number;
   };
   rank: number;
 }
@@ -59,13 +59,9 @@ export interface HybridSearchMeta {
   durationMs: number;
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
 function rrfScore(rank: number): number {
   return 1 / (RRF_K + rank + 1);
 }
-
-// ── Main function ─────────────────────────────────────────────────────────────
 
 export async function hybridSearch(
   query: string,
@@ -73,15 +69,21 @@ export async function hybridSearch(
   topK = 30,
 ): Promise<{ results: HybridResult[]; meta: HybridSearchMeta }> {
   const t0 = Date.now();
+  const safeQuery = query.trim().slice(0, MAX_QUERY_CHARS);
+  const safeTopK = Math.min(Math.max(Math.trunc(Number(topK)) || 30, 1), MAX_TOP_K);
+  if (!safeQuery) {
+    return {
+      results: [],
+      meta: { bm25Hits: 0, semanticHits: 0, embeddingHits: 0, embeddingCacheSize: getEmbeddingCacheSize(), graphHits: 0, totalCandidates: 0, durationMs: 0 },
+    };
+  }
 
-  // ── Signals 1, 2, 4 in parallel ──────────────────────────────────────────
   const [bm25Results, semanticResults, embeddingResults] = await Promise.all([
-    bm25Search(query, 100),
-    semanticSearch(query, 100),
-    semanticEngineSearch(query, 100), // signal 4: true sentence embeddings
+    bm25Search(safeQuery, 100),
+    semanticSearch(safeQuery, 100),
+    semanticEngineSearch(safeQuery, 100),
   ]);
 
-  // Collect all candidate IDs
   const allIds = new Set<number>();
   for (const r of bm25Results) allIds.add(r.id);
   for (const r of semanticResults) allIds.add(r.id);
@@ -108,118 +110,80 @@ export async function hybridSearch(
     };
   }
 
-  // ── Fetch entity + asset data for candidates ──────────────────────────────
   const ids200 = candidateIds.slice(0, 200);
   const [entities, assets] = await Promise.all([
     db.select().from(entitiesTable).where(inArray(entitiesTable.id, ids200)),
-    db
-      .select({ ownerId: assetsTable.ownerEntityId, category: assetsTable.category })
+    db.select({ ownerId: assetsTable.ownerEntityId, category: assetsTable.category })
       .from(assetsTable)
       .where(inArray(assetsTable.ownerEntityId, ids200)),
   ]);
 
-  // Asset maps
   const assetCounts: Record<number, number> = {};
   const assetTypeMap: Record<number, string[]> = {};
   for (const a of assets) {
     if (!a.ownerId) continue;
     assetCounts[a.ownerId] = (assetCounts[a.ownerId] ?? 0) + 1;
     if (!assetTypeMap[a.ownerId]) assetTypeMap[a.ownerId] = [];
-    if (!assetTypeMap[a.ownerId]!.includes(a.category))
-      assetTypeMap[a.ownerId]!.push(a.category);
+    if (!assetTypeMap[a.ownerId]!.includes(a.category)) assetTypeMap[a.ownerId]!.push(a.category);
   }
 
-  // ── Signal 3: graph/Bayesian ──────────────────────────────────────────────
   const graphSignal = entities
-    .map((e) => ({
-      id: e.id,
-      score:
-        (e.bayesianScore ?? 0.05) +
-        (assetCounts[e.id] ?? 0) * 0.05 +
-        (e.isHot ? 0.1 : 0),
-    }))
+    .map((e) => ({ id: e.id, score: (e.bayesianScore ?? 0.05) + (assetCounts[e.id] ?? 0) * 0.05 + (e.isHot ? 0.1 : 0) }))
     .sort((a, b) => b.score - a.score);
 
-  // ── Build rank maps ───────────────────────────────────────────────────────
-  const bm25RankMap    = new Map(bm25Results.map((r, i) => [r.id, i]));
-  const semRankMap     = new Map(semanticResults.map((r, i) => [r.id, i]));
-  const graphRankMap   = new Map(graphSignal.map((r, i) => [r.id, i]));
-  const embRankMap     = new Map(embeddingResults.map((r, i) => [r.id, i]));
-
-  const bm25ScoreMap   = new Map(bm25Results.map((r) => [r.id, r.score]));
-  const semScoreMap    = new Map(semanticResults.map((r) => [r.id, r.score]));
-  const graphScoreMap  = new Map(graphSignal.map((r) => [r.id, r.score]));
-  const embScoreMap    = new Map(embeddingResults.map((r) => [r.id, r.score]));
-
+  const bm25RankMap = new Map(bm25Results.map((r, i) => [r.id, i]));
+  const semRankMap = new Map(semanticResults.map((r, i) => [r.id, i]));
+  const graphRankMap = new Map(graphSignal.map((r, i) => [r.id, i]));
+  const embRankMap = new Map(embeddingResults.map((r, i) => [r.id, i]));
+  const bm25ScoreMap = new Map(bm25Results.map((r) => [r.id, r.score]));
+  const semScoreMap = new Map(semanticResults.map((r) => [r.id, r.score]));
+  const graphScoreMap = new Map(graphSignal.map((r) => [r.id, r.score]));
+  const embScoreMap = new Map(embeddingResults.map((r) => [r.id, r.score]));
   const hasEmbeddings = embeddingResults.length > 0;
-
-  // ── RRF fusion ────────────────────────────────────────────────────────────
   const entityMap = new Map(entities.map((e) => [e.id, e]));
-  const maxBm25  = Math.max(...bm25Results.map((r) => r.score), 1);
+  const maxBm25 = Math.max(...bm25Results.map((r) => r.score), 1);
   const maxGraph = Math.max(...graphSignal.map((r) => r.score), 1);
 
   const fused = candidateIds
     .map((id) => ({
       id,
-      bm25:      bm25ScoreMap.get(id) ?? 0,
-      semantic:  semScoreMap.get(id) ?? 0,
-      graph:     graphScoreMap.get(id) ?? 0,
+      bm25: bm25ScoreMap.get(id) ?? 0,
+      semantic: semScoreMap.get(id) ?? 0,
+      graph: graphScoreMap.get(id) ?? 0,
       embedding: embScoreMap.get(id) ?? 0,
-      rrf:
-        rrfScore(bm25RankMap.get(id) ?? 9999) +
-        rrfScore(semRankMap.get(id)  ?? 9999) +
-        rrfScore(graphRankMap.get(id) ?? 9999) +
-        // Signal 4 only contributes when embedding cache is populated
-        (hasEmbeddings ? rrfScore(embRankMap.get(id) ?? 9999) : 0),
+      rrf: rrfScore(bm25RankMap.get(id) ?? 9999) + rrfScore(semRankMap.get(id) ?? 9999) + rrfScore(graphRankMap.get(id) ?? 9999) + (hasEmbeddings ? rrfScore(embRankMap.get(id) ?? 9999) : 0),
     }))
     .sort((a, b) => b.rrf - a.rrf)
-    .slice(0, topK);
+    .slice(0, safeTopK);
 
-  const results = fused
-    .map((r, i) => {
-      const e = entityMap.get(r.id);
-      if (!e) return null;
-      let meta: Record<string, unknown> = {};
-      try { meta = JSON.parse(e.metadata ?? "{}"); } catch { /* */ }
-      let srcs: string[] = [];
-      try { srcs = JSON.parse(e.sourceRegistries ?? "[]"); } catch { /* */ }
-
-      return {
-        id: e.id,
-        name: e.name,
-        type: e.type,
-        nationality: e.nationality,
-        bayesianScore: e.bayesianScore,
-        estimatedNetWorth: e.estimatedNetWorth,
-        knownResidences: e.knownResidences,
-        isHot: e.isHot,
-        notes: e.notes,
-        assetCount: assetCounts[e.id] ?? 0,
-        assetTypes: assetTypeMap[e.id] ?? [],
-        sourceRegistries: srcs,
-        metadata: meta,
-        scores: {
-          bm25:      r.bm25 / maxBm25,
-          semantic:  r.semantic,
-          graph:     r.graph / maxGraph,
-          embedding: r.embedding,
-          rrf:       r.rrf,
-        },
-        rank: i + 1,
-      };
-    })
-    .filter((r) => r !== null) as HybridResult[];
+  const results = fused.map((r, i) => {
+    const e = entityMap.get(r.id);
+    if (!e) return null;
+    let meta: Record<string, unknown> = {};
+    try { meta = JSON.parse(e.metadata ?? "{}"); } catch { /* malformed legacy metadata stays non-fatal */ }
+    let srcs: string[] = [];
+    try { srcs = JSON.parse(e.sourceRegistries ?? "[]"); } catch { /* malformed legacy source list stays non-fatal */ }
+    return {
+      id: e.id,
+      name: e.name,
+      type: e.type,
+      nationality: e.nationality,
+      bayesianScore: e.bayesianScore,
+      estimatedNetWorth: e.estimatedNetWorth,
+      knownResidences: e.knownResidences,
+      isHot: e.isHot,
+      notes: e.notes,
+      assetCount: assetCounts[e.id] ?? 0,
+      assetTypes: assetTypeMap[e.id] ?? [],
+      sourceRegistries: srcs,
+      metadata: meta,
+      scores: { bm25: r.bm25 / maxBm25, semantic: r.semantic, graph: r.graph / maxGraph, embedding: r.embedding, rrf: r.rrf },
+      rank: i + 1,
+    };
+  }).filter((r) => r !== null) as HybridResult[];
 
   return {
     results,
-    meta: {
-      bm25Hits:          bm25Results.length,
-      semanticHits:      semanticResults.length,
-      embeddingHits:     embeddingResults.length,
-      graphHits:         graphSignal.length,
-      embeddingCacheSize: getEmbeddingCacheSize(),
-      totalCandidates:   candidateIds.length,
-      durationMs:        Date.now() - t0,
-    },
+    meta: { bm25Hits: bm25Results.length, semanticHits: semanticResults.length, embeddingHits: embeddingResults.length, graphHits: graphSignal.length, embeddingCacheSize: getEmbeddingCacheSize(), totalCandidates: candidateIds.length, durationMs: Date.now() - t0 },
   };
 }
