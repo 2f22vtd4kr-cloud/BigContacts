@@ -13,7 +13,6 @@ async function loadTransformers(): Promise<boolean> {
   if (_transformersLoad) return _transformersLoad;
   _transformersLoad = (async () => {
     try {
-      // Keep this optional dependency genuinely optional on the Replit host.
       const transformersModule = "@huggingface/transformers";
       const mod = await import(transformersModule);
       env = mod.env;
@@ -32,61 +31,43 @@ let _pipelinePromise: Promise<FeatureExtractionPipeline> | null = null;
 let _pipelineLoaded = false;
 
 async function getEmbeddingPipeline(): Promise<FeatureExtractionPipeline> {
-  if (
-    process.env.APEX_SKIP_SEMANTIC === "1" ||
-    process.env.APEX_TINY_HOST === "1" ||
-    process.env.REPL_ID
-  ) {
+  if (process.env.APEX_SKIP_SEMANTIC === "1" || process.env.APEX_TINY_HOST === "1" || process.env.REPL_ID) {
     throw new Error("semantic model skipped on tiny host (APEX_SKIP_SEMANTIC / APEX_TINY_HOST)");
   }
   if (!_pipelinePromise) {
     const ok = await loadTransformers();
-    if (!ok || !pipeline) {
-      throw new Error("semantic model unavailable (@huggingface/transformers not installed)");
-    }
+    if (!ok || !pipeline) throw new Error("semantic model unavailable (@huggingface/transformers not installed)");
     if (env) {
       env.cacheDir = "/tmp/hf-cache";
       env.allowLocalModels = false;
     }
     console.log("[semantic-engine] Loading all-MiniLM-L6-v2 (first time, ~23 MB download)...");
-    _pipelinePromise = pipeline(
-      "feature-extraction",
-      "Xenova/all-MiniLM-L6-v2",
-      { dtype: "fp32" },
-    ).then((p: FeatureExtractionPipeline) => {
-      _pipelineLoaded = true;
-      console.log("[semantic-engine] Model ready.");
-      return p;
-    }).catch((err: unknown) => {
-      _pipelinePromise = null;
-      throw err;
-    });
+    _pipelinePromise = pipeline("feature-extraction", "Xenova/all-MiniLM-L6-v2", { dtype: "fp32" })
+      .then((p: FeatureExtractionPipeline) => { _pipelineLoaded = true; console.log("[semantic-engine] Model ready."); return p; })
+      .catch((err: unknown) => { _pipelinePromise = null; throw err; });
   }
   return _pipelinePromise;
 }
 
-export function isModelLoaded(): boolean {
-  return _pipelineLoaded;
-}
+export function isModelLoaded(): boolean { return _pipelineLoaded; }
 
 export async function embedText(text: string): Promise<Float32Array> {
   try {
     const pipe = await getEmbeddingPipeline();
     const output = await pipe(text.slice(0, 512), { pooling: "mean", normalize: true });
-    return output.data as Float32Array;
+    const data = output.data as Float32Array;
+    if (!(data instanceof Float32Array) || data.length !== 384) throw new Error("semantic model returned an invalid embedding dimension");
+    return data;
   } catch (err: any) {
-    if (String(err?.message || err).includes("skipped on tiny host")) {
-      return new Float32Array(384);
-    }
+    if (String(err?.message || err).includes("skipped on tiny host")) return new Float32Array(384);
     throw err;
   }
 }
 
 function cosineSim(a: Float32Array, b: Float32Array): number {
-  let dot = 0;
-  let normA = 0;
-  let normB = 0;
-  for (let i = 0; i < a.length; i++) {
+  if (a.length !== 384 || b.length !== 384) return 0;
+  let dot = 0, normA = 0, normB = 0;
+  for (let i = 0; i < 384; i++) {
     dot += a[i]! * b[i]!;
     normA += a[i]! * a[i]!;
     normB += b[i]! * b[i]!;
@@ -96,88 +77,78 @@ function cosineSim(a: Float32Array, b: Float32Array): number {
 }
 
 const _embCache = new Map<number, Float32Array>();
+const boundedEnv = (name: string, fallback: number, min: number, max: number): number => {
+  const parsed = Number(process.env[name]);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.min(max, Math.max(min, Math.trunc(parsed)));
+};
+const MAX_EMBEDDING_CACHE_ENTRIES = () => boundedEnv("APEX_MAX_EMBEDDING_CACHE_ENTRIES", 25_000, 100, 100_000);
 
-export function getEmbeddingCacheSize(): number {
-  return _embCache.size;
+function putBoundedEmbedding(entityId: number, emb: Float32Array): void {
+  if (emb.length !== 384 || !Number.isInteger(entityId) || entityId <= 0) return;
+  _embCache.delete(entityId);
+  while (_embCache.size >= MAX_EMBEDDING_CACHE_ENTRIES()) {
+    const oldest = _embCache.keys().next().value as number | undefined;
+    if (oldest === undefined) break;
+    _embCache.delete(oldest);
+  }
+  _embCache.set(entityId, emb);
 }
 
-export function entityToEmbedText(entity: {
-  name: string;
-  notes?: string | null;
-  nationality?: string | null;
-  knownResidences?: string | null;
-  metadata?: string | null;
-}): string {
-  let meta: Record<string, unknown> = {};
-  try { meta = JSON.parse(entity.metadata ?? "{}"); } catch { /* */ }
+export function getEmbeddingCacheSize(): number { return _embCache.size; }
 
-  return [
-    entity.name, entity.name,
-    entity.notes ?? "",
-    entity.nationality ?? "",
-    entity.knownResidences ?? "",
-    meta["engineLabel"] ?? "",
-    meta["state"] ?? "",
-    meta["nNumber"] ?? "",
-    meta["formType"] ?? "",
-    meta["bizLocation"] ?? "",
-  ]
-    .filter(Boolean)
-    .join(" ")
-    .slice(0, 512);
+export function entityToEmbedText(entity: { name: string; notes?: string | null; nationality?: string | null; knownResidences?: string | null; metadata?: string | null }): string {
+  let meta: Record<string, unknown> = {};
+  try { meta = JSON.parse(entity.metadata ?? "{}"); } catch { /* malformed legacy metadata stays non-fatal */ }
+  return [entity.name, entity.name, entity.notes ?? "", entity.nationality ?? "", entity.knownResidences ?? "", meta["engineLabel"] ?? "", meta["state"] ?? "", meta["nNumber"] ?? "", meta["formType"] ?? "", meta["bizLocation"] ?? ""].filter(Boolean).join(" ").slice(0, 512);
 }
 
 const EMB_KEY_PREFIX = "emb:v1:";
 const EMB_TTL_SECONDS = 60 * 60 * 24 * 14;
-
-function float32ToBase64(arr: Float32Array): string {
-  return Buffer.from(arr.buffer).toString("base64");
-}
-
-function base64ToFloat32(b64: string): Float32Array {
-  const buf = Buffer.from(b64, "base64");
-  return new Float32Array(buf.buffer, buf.byteOffset, buf.byteLength / 4);
+function float32ToBase64(arr: Float32Array): string { return Buffer.from(arr.buffer).toString("base64"); }
+function base64ToFloat32(b64: string): Float32Array | null {
+  try {
+    const buf = Buffer.from(b64, "base64");
+    if (buf.byteLength !== 384 * 4) return null;
+    return new Float32Array(buf.buffer, buf.byteOffset, 384);
+  } catch { return null; }
 }
 
 export async function storeEmbedding(entityId: number, emb: Float32Array): Promise<void> {
-  _embCache.set(entityId, emb);
+  if (emb.length !== 384 || !Number.isInteger(entityId) || entityId <= 0) return;
+  putBoundedEmbedding(entityId, emb);
   try {
     const redis = await getRedisClient();
-    if (redis) {
-      await redis.set(`${EMB_KEY_PREFIX}${entityId}`, float32ToBase64(emb), "EX", EMB_TTL_SECONDS);
-    }
-  } catch {
-  }
+    if (redis) await redis.set(`${EMB_KEY_PREFIX}${entityId}`, float32ToBase64(emb), "EX", EMB_TTL_SECONDS);
+  } catch { /* cache failure does not corrupt the entity record */ }
 }
 
 export async function loadEmbeddingsFromRedis(): Promise<number> {
   try {
     const redis = await getRedisClient();
     if (!redis) return 0;
-
     let cursor = "0";
     let loaded = 0;
     do {
       const [nextCursor, keys] = await redis.scan(cursor, "MATCH", `${EMB_KEY_PREFIX}*`, "COUNT", 500);
       cursor = nextCursor;
       if (keys.length === 0) continue;
-
       const values = await redis.mget(...keys);
       for (let i = 0; i < keys.length; i++) {
-        const key = keys[i];
-        const val = values[i];
+        if (_embCache.size >= MAX_EMBEDDING_CACHE_ENTRIES()) break;
+        const key = keys[i], val = values[i];
         if (!key || !val) continue;
-        const idStr = key.replace(EMB_KEY_PREFIX, "");
-        const entityId = parseInt(idStr, 10);
-        if (isNaN(entityId)) continue;
-        _embCache.set(entityId, base64ToFloat32(val));
+        const idStr = key.slice(EMB_KEY_PREFIX.length);
+        const entityId = Number.parseInt(idStr, 10);
+        if (!Number.isSafeInteger(entityId) || entityId <= 0) continue;
+        const emb = base64ToFloat32(val);
+        if (!emb) continue;
+        putBoundedEmbedding(entityId, emb);
         loaded++;
       }
+      if (_embCache.size >= MAX_EMBEDDING_CACHE_ENTRIES()) break;
     } while (cursor !== "0");
-
-    if (loaded > 0) {
-      console.log(`[semantic-engine] Loaded ${loaded} embeddings from Redis.`);
-    }
+    if (loaded > 0) console.log(`[semantic-engine] Loaded ${loaded} embeddings from Redis (bounded at ${MAX_EMBEDDING_CACHE_ENTRIES()}).`);
     return loaded;
   } catch (err) {
     console.warn("[semantic-engine] Redis load failed:", (err as Error).message);
@@ -185,42 +156,19 @@ export async function loadEmbeddingsFromRedis(): Promise<number> {
   }
 }
 
-export interface SemanticEngineResult {
-  id: number;
-  score: number;
-}
+export interface SemanticEngineResult { id: number; score: number; }
 
-export async function semanticEngineSearch(
-  query: string,
-  topK = 100,
-): Promise<SemanticEngineResult[]> {
+export async function semanticEngineSearch(query: string, topK = 100): Promise<SemanticEngineResult[]> {
   if (_embCache.size < 100) return [];
-
+  const safeQuery = query.trim().slice(0, 2_000);
+  const safeTopK = Math.min(Math.max(Math.trunc(Number(topK)) || 100, 1), 100);
+  if (!safeQuery) return [];
   let queryEmb: Float32Array;
-  try {
-    queryEmb = await embedText(query);
-  } catch {
-    return [];
-  }
-
+  try { queryEmb = await embedText(safeQuery); } catch { return []; }
   const scored: SemanticEngineResult[] = [];
-  for (const [id, emb] of _embCache) {
-    scored.push({ id, score: cosineSim(queryEmb, emb) });
-  }
-
-  return scored
-    .sort((a, b) => b.score - a.score)
-    .slice(0, topK);
+  for (const [id, emb] of _embCache) scored.push({ id, score: cosineSim(queryEmb, emb) });
+  return scored.sort((a, b) => b.score - a.score).slice(0, safeTopK);
 }
 
-export function getAllEmbeddings(): ReadonlyMap<number, Float32Array> {
-  return _embCache;
-}
-
-export function warmUpSemanticEngine(): void {
-  getEmbeddingPipeline()
-    .then(() => loadEmbeddingsFromRedis())
-    .catch((err: unknown) =>
-      console.warn("[semantic-engine] Warm-up failed (non-fatal):", (err as Error).message),
-    );
-}
+export function getAllEmbeddings(): ReadonlyMap<number, Float32Array> { return _embCache; }
+export function warmUpSemanticEngine(): void { getEmbeddingPipeline().then(() => loadEmbeddingsFromRedis()).catch((err: unknown) => console.warn("[semantic-engine] Warm-up failed (non-fatal):", (err as Error).message)); }
