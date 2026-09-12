@@ -12,7 +12,8 @@ const checks = [
   ["orchestrator start is explicitly retired", orchestrator.includes("The legacy contact-research control plane is retired")],
   ["public contact-research launch is retired", route.includes('router.post("/ingest/contact-research"') && route.includes('res.status(410)')],
   ["public contact-research cancel is retired", route.includes('router.post("/ingest/contact-research/cancel"') && route.includes('res.status(410)')],
-  ["legacy MCTS/bulk research remains unmounted", researchRoutes.includes("intentionally not mounted")],
+  ["research router mounts only canonical execution/retirement modules", researchRoutes.includes('canonicalCaseDiscoveryRouter') && researchRoutes.includes('canonicalCaseContinuationRouter') && researchRoutes.includes('canonicalTargetContinuationRouter') && researchRoutes.includes('legacyCaseExecutionRetirementRouter')],
+  ["research router does not mount legacy MCTS/bulk or phase-j execution", !/from ["']\.\/.*(?:mcts|bulk|phase-j)["']/i.test(researchRoutes)],
 ];
 
 let failed = false;
