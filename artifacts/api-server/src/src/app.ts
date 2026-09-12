@@ -10,28 +10,49 @@ import { logger } from "./lib/logger";
 
 const app: Express = express();
 
+app.disable("x-powered-by");
+app.set("trust proxy", false);
+app.use((_req, res, next) => {
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("Referrer-Policy", "no-referrer");
+  res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+  if (process.env.NODE_ENV === "production") {
+    res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+  }
+  next();
+});
+
 app.use(
   pinoHttp({
     logger,
     serializers: {
       req(req) {
-        return {
-          id: req.id,
-          method: req.method,
-          url: req.url?.split("?")[0],
-        };
+        return { id: req.id, method: req.method, url: req.url?.split("?")[0] };
       },
-      res(res) {
-        return {
-          statusCode: res.statusCode,
-        };
-      },
+      res(res) { return { statusCode: res.statusCode }; },
     },
   }),
 );
-app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+
+// The desk is same-origin by default. Explicitly list additional origins when
+// a separate operator UI is deployed; never enable wildcard credentialed CORS.
+const allowedOrigins = new Set(
+  (process.env.APEX_ALLOWED_ORIGINS ?? "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean),
+);
+app.use(cors({
+  origin(origin, callback) {
+    if (!origin || allowedOrigins.has(origin)) { callback(null, true); return; }
+    callback(null, false);
+  },
+  credentials: true,
+}));
+
+app.use(express.json({ limit: "128kb" }));
+app.use(express.urlencoded({ extended: true, limit: "128kb" }));
 
 // The API is reachable from the public Replit/Vercel surface. Authenticate
 // before any route can read or mutate case/entity data. /api/healthz remains
@@ -55,9 +76,7 @@ function resolveFrontendDist(): string | null {
     path.resolve(process.cwd(), "artifacts/apex-finder/dist"),
     path.resolve(process.cwd(), "dist/public"),
   ];
-  for (const dir of candidates) {
-    if (fs.existsSync(path.join(dir, "index.html"))) return dir;
-  }
+  for (const dir of candidates) if (fs.existsSync(path.join(dir, "index.html"))) return dir;
   return null;
 }
 
@@ -67,9 +86,7 @@ if (frontendDist) {
   app.use(express.static(frontendDist, { index: false, maxAge: "1h" }));
   app.get(/^(?!\/api(?:\/|$)).*/, (req, res, next) => {
     if (req.method !== "GET" && req.method !== "HEAD") return next();
-    res.sendFile(path.join(frontendDist, "index.html"), (err) => {
-      if (err) next(err);
-    });
+    res.sendFile(path.join(frontendDist, "index.html"), (err) => { if (err) next(err); });
   });
 } else {
   app.get("/", (_req, res) => {
