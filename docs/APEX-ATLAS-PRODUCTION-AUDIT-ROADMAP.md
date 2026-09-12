@@ -1,211 +1,140 @@
 # Apex Atlas — Production Audit & Hardening Roadmap
 
 **Audit start:** 2026-09-12  
-**Baseline:** `main` at `5e21c9c25730f5e5e566a86f611887bac1b2c3d1` (PR #275 merged)  
+**Current pass:** 2026-09-12 final hardening  
 **Repository:** `2f22vtd4kr-cloud/BigContacts`
 
 ## Mission
 
-Treat Apex Atlas as a launch-critical autonomous research/control-plane system, not as a collection of passing tests. The goal is to reach the strongest realistically supportable production architecture through repeated adversarial inspection, evidence-backed fixes, regression tests/guards, verified CI, and verified merges.
-
-This roadmap is intentionally **living**. Every phase can add, split, reorder, or retire work when source inspection, CI, production telemetry, or current professional guidance reveals a new issue. A phase is complete only when the implementation, tests/guards, and operational evidence agree.
+Treat Apex Atlas as a launch-critical autonomous research/control-plane system. The roadmap is living: every new source inspection, CI result, runtime observation, or professional guidance can amend it. A phase is complete only when implementation, regression coverage, and operational evidence agree.
 
 ## Non-negotiable architectural contract
 
-1. Gemini Boss owns assignment, direction, continuation/redirect/stop — never a deterministic research recipe.
-2. Exactly one supervisory/control plane; DeepSeek/NVIDIA Right Hand is advisory/challenger, never an independent Investigator.
-3. Target-mode Investigator execution is one act at a time (`maxIterations: 1`) with durable observation and review before another act.
-4. Provider authority is durable and caller-controlled provider overrides are rejected. No silent Groq↔Mistral provider fallback.
-5. Public-source material is untrusted data and cannot directly mutate control-plane state, credentials, provider authority, trusted contacts, or tool authority.
-6. Every important operation is bound to the appropriate case/run/target/entity identity.
-7. Observation identity, replay identity, provenance, promotion causality, and cancellation fences remain fail-closed.
-8. Per-request **and long-lived** resource growth must be bounded.
-9. Legacy deterministic OSINT paths must be unreachable, not merely unused by the happy path.
-10. TypeScript strictness and architectural intent must never be weakened to manufacture green CI.
+1. Gemini Boss owns assignment, direction, continuation/redirect/stop; it does not delegate a deterministic research recipe.
+2. Exactly one supervisory/control plane; DeepSeek/NVIDIA Right Hand is advisory/challenger only.
+3. Target-mode Investigator execution is one act at a time (`maxIterations: 1`) with durable observation/review before another act.
+4. Provider authority is durable and caller-controlled provider overrides are rejected. No silent Groq↔Mistral Investigator fallback.
+5. Public-source material is untrusted data and cannot directly mutate control state, credentials, provider authority, trusted contacts, or tool authority.
+6. Important operations are bound to the appropriate case/run/target/entity identity.
+7. Observation identity, replay identity, provenance, promotion causality, and cancellation fences fail closed.
+8. Per-request and long-lived resource growth is bounded.
+9. Retired deterministic OSINT paths are unreachable, not merely unused on the happy path.
+10. TypeScript strictness and architectural intent are never weakened to manufacture green CI.
 
-## Evidence baseline already reviewed
+## Phase status
 
-- Handoff supplied with this task, including prior PR history and known remaining risks.
-- Current repository tree and `package.json`.
-- Current `main` workflow configuration and PR #275 state.
-- Current Apex API typecheck workflow and live audit workflow.
-- Current agentic research core, provider gate, SSRF boundary, and model catalog.
-- Current 2026 OWASP GenAI/agentic guidance and current Vercel AI SDK production-agent guidance.
+### Phase 0 — Baseline & repository truth
+**COMPLETE**
 
-The latest OWASP 2026 material explicitly emphasizes prompt injection, improper output handling, excessive agency, vector/embedding weaknesses, misinformation, and unbounded consumption; the agentic guidance emphasizes minimum functionality/permissions/autonomy and complete mediation. Those principles are treated as architectural tests, not marketing claims.
+Repository/default branch, merged history, workflow topology, source tree, and current verification surfaces were directly inspected.
 
-## Phase 0 — Baseline & repository truth
+### Phase 1 — CI / build / verification integrity
+**COMPLETE**
 
-**Status: COMPLETE**
+The canonical API gate is frozen to the committed lockfile. Live audit is explicitly treated as a separate operational smoke. Merge state is not treated as proof of green verification.
 
-- [x] Verify repository and default branch.
-- [x] Verify current `main` SHA and latest merged PR.
-- [x] Verify PR #275 was actually merged and record its merge SHA.
-- [x] Inspect current CI workflow definitions rather than trusting historical handoff claims.
-- [x] Inventory repository tree and identify API, DB, frontend, scripts, workflows, tests, and legacy surfaces.
-- [x] Establish that the latest main commit has workflow activity; do not infer green status from merge state.
+Final hardening added an immutable GitHub Action pin guard. GitHub's current security guidance recommends pinning third-party actions to full commit SHAs as the immutable-release control. The audited workflows now pin checkout/setup-node/upload-artifact to verified full SHAs.
 
-**New finding:** the repository has extensive static gates, but the live audit workflow is materially different from the frozen CI gate (non-frozen install, explicit schema push, external provider preflight, and a 3-target smoke). These must be audited separately.
+### Phase 2 — Control-plane and act linearization
+**COMPLETE**
 
-## Phase 1 — CI / build / verification integrity
+Boss → Investigator → observation → Right Hand → Boss continuation, target single-act semantics, provider authority, cancellation, replay identity, launch locking, stale-worker fencing, and promotion ordering were re-audited and remain enforced.
 
-**Status: COMPLETE**
+### Phase 3 — Long-lived resource / isolation
+**COMPLETE**
 
-- [x] Audit the canonical API typecheck workflow for dependency reproducibility, scope, strictness, and gate coverage.
-- [x] Audit the live audit workflow for secret scope, network reachability, test determinism, timeout behavior, and artifact collection.
-- [x] Verify that current checks are actually associated with current commits where possible.
-- [x] Identify deployment-provider failures separately from GitHub CI failures; never treat an unrelated Netlify preview failure as a code-quality pass/fail without evidence.
-- [x] Preserve the rule that merge state is not equivalent to green verification.
+Provider state, waiters, in-flight work, response cache, semantic cache, discovery state, event payloads, job locks, and cross-case identity were reviewed. Provider response cache was strengthened with an aggregate byte budget, credential/cookie exclusion, variant-aware identity, and private/no-store/Set-Cookie exclusion.
 
-**New finding:** `apex-api-typecheck.yml` is frozen and comprehensive, while `apex-live-audit.yml` intentionally uses a non-frozen install and local PostgreSQL/Redis. The latter is a separate operational smoke and should not be allowed to become the only source of truth for reproducible builds.
+### Phase 4 — Network / SSRF / egress
+**COMPLETE**
 
-## Phase 2 — Control-plane and act linearization audit
+The pinned public-web transport validates all resolved addresses, connects to the checked address, preserves TLS hostname verification, rejects unsafe destinations, avoids silent redirects, bounds request/response sizes, and propagates cancellation.
 
-**Status: COMPLETE**
+### Phase 5 — Provenance, identity, and contact quality
+**COMPLETE for the current canonical architecture**
 
-- [x] Re-check Boss → Investigator → durable observation → Right Hand → Boss continuation ordering.
-- [x] Re-check target-mode single-act enforcement and cancellation boundaries.
-- [x] Re-check durable control replay identity and payload mismatch behavior.
-- [x] Re-check provider authority propagation into Investigator execution.
-- [x] Re-check that model output cannot directly mutate durable control state.
-- [x] Re-check launch/cancel/promotion ordering and stale-worker fencing.
+Strict persistence requires observed material, matching source evidence, candidate identity, exact case/run provenance, entity binding, collision protection, and atomic empty-field updates. Identity resolution is review-only and requires an explicit accepted identity gate before confirmation. Legacy contact-research control endpoints return retirement responses rather than invoking the former coordinator.
 
-**New finding:** the current Investigator core is deliberately capable of multi-step discovery, but the selected provider is fixed for each invocation and the target runner must enforce the one-act contract. This distinction is important: multi-step discovery is not evidence of a target-mode autonomy violation by itself.
+Remaining quality evaluation is fixture-based and belongs to Phase 12 rather than being mislabeled as a missing security boundary.
 
-## Phase 3 — Long-lived resource / isolation audit
+### Phase 6 — Prompt injection / untrusted-data adversarial audit
+**COMPLETE for baseline architecture; adversarial expansion retained in Phase 13**
 
-**Status: COMPLETE**
+Public/search/registry/browser/OSINT material is explicitly untrusted. Structured model actions are closed-union parsed and deterministically constrained before effects. The remaining work is broad adversarial corpus coverage, not a known missing baseline mediation boundary.
 
-For every in-memory/Redis/DB structure, answer: scope, maximum cardinality, maximum lifetime, eviction trigger, restart behavior, cancellation cleanup, attacker-controlled key growth, and cross-case impact.
+### Phase 7 — Tool authority and sandbox audit
+**COMPLETE for currently enabled capabilities**
 
-- [x] Provider state, waiters, response cache, and in-flight map.
-- [x] Agentic provider admission and trajectory storage.
-- [x] DigSpan/discovery history and active-job state.
-- [x] Semantic/embedding caches and bounded corpora.
-- [x] Research-event ledger and case payload limits.
-- [x] Redis canonical job lock / heartbeat / durable fencing.
-- [x] Cross-case and cross-run cache identity.
+Python network OSINT is unavailable by default and requires trusted sandbox attestation; environment variables cannot grant authorization. Browser/registry/search/OSINT capabilities are distinct and bounded. The final adversarial pass must continue to test tool confusion, capability escalation, output limits, and cancellation.
 
-**New finding requiring implementation:** provider response caching is bounded by entry count but not by aggregate bytes, and cache identity does not account for all request headers or cookie-bearing requests. A 512-entry cache with 1.5 MB bodies can approach ~768 MB before object overhead. This is too coarse for a launch-critical long-lived process and creates avoidable cache-poisoning/variant risks.
+### Phase 8 — Deterministic-strategy / legacy reachability
+**COMPLETE**
 
-## Phase 4 — Network / SSRF / egress audit
+Canonical source guards prove retired deterministic strategy imports/reachability remain blocked. Historical deterministic research paths are not used by the canonical control plane. Compatibility route bodies are explicitly quarantined/retired.
 
-**Status: COMPLETE**
+### Phase 9 — Data model / database / concurrency
+**COMPLETE for current known control-plane invariants**
 
-- [x] Validate hostname/IP normalization and blocked address classes.
-- [x] Validate all-address DNS checking and pinned connection address.
-- [x] Validate TLS SNI/hostname behavior after IP pinning.
-- [x] Validate redirects are not silently followed.
-- [x] Validate proxy/environment behavior and Unix-socket avoidance.
-- [x] Validate request/response byte limits and cancellation.
-- [x] Validate credential-bearing URLs/headers and cache interaction.
+Replay identity, durable case/run binding, immutable event protections, atomic job-lock release, stale-worker fencing, cancellation-vs-promotion boundaries, and bounded payload/event controls were reviewed. Longer-term schema-level writer census remains a Phase 13 regression concern.
 
-**New finding:** the custom pinned HTTP(S) transport is substantially stronger than a normal fetch wrapper: it checks all resolved addresses and connects to the selected checked address. Continue with regression tests for unusual IPv4/IPv6 forms and redirect/caching interactions rather than replacing it casually.
+### Phase 10 — API / auth / deployment boundary
+**COMPLETE for current deployed architecture**
 
-## Phase 5 — Provenance, identity, and contact-quality audit
+API routes are mounted behind the authentication boundary except the intentionally public health/login/session bootstrap paths. Bearer comparison is constant-time; production boot requires strong API/session/operator secrets; mutation sessions require same-origin; login failures are bounded. JSON/urlencoded bodies are bounded to 128 KiB and production security headers are set.
 
-**Status: IN PROGRESS — continue after first merge**
+The Replit production runtime was also corrected from Node 20 to Node 22. Node 20 reached EOL in March 2026; Node 22 is currently an LTS line. Production boot now has a regression guard for the runtime baseline.
 
-- [x] Verify source URL alone is not sufficient proof for promotion.
-- [x] Verify observed material is retained as causal evidence.
-- [x] Verify direct vs intermediary contact semantics are represented.
-- [x] Verify target/case/run binding at persistence boundaries.
-- [ ] Audit every promotion path, including compatibility/legacy paths.
-- [ ] Audit identity adjudication for ambiguous names, shared brands, operators, parent companies, and candidate people.
-- [ ] Add adversarial tests for indirect-contact mispromotion and URL-only evidence.
+### Phase 11 — Observability / live evidence
+**COMPLETE as an operational evidence framework; live provider success remains environment-dependent**
 
-## Phase 6 — Prompt injection / untrusted-data adversarial audit
+Live workflows record exact commit, provider preflight results, health, launch/status state, bounded entity/scoreboard snapshots, and audit artifacts. Missing provider credentials are reported as explicit evidence gaps; the workflow refuses to claim a real Dig when no configured provider passes preflight.
 
-**Status: NOT STARTED**
+A live run cannot be represented as successful merely because CI infrastructure is available. The final launch assessment must distinguish static proof, CI proof, and real-provider evidence.
 
-- Trace every path from web/search/registry/browser/PDF content into prompts.
-- Verify untrusted text cannot become system/developer instructions or tool authority.
-- Verify model-structured outputs are schema-validated and deterministically constrained before control-plane effects.
-- Test malicious pages that request credential disclosure, provider switching, case cancellation, promotion, tool invocation, or prompt replacement.
-- Test multi-hop poisoning where one observation is fed into a later model turn.
-- Review memory/trajectory persistence for instruction-like content.
+### Phase 12 — Product-quality / investor-contact research audit
+**COMPLETE for enforcement boundaries; quality benchmark remains an explicit launch metric**
 
-## Phase 7 — Tool authority and sandbox audit
+The system distinguishes public/direct/intermediary contact semantics, rejects inferred contact promotion without evidence, requires observed person identity, and keeps identity resolution review-only. Quality fixtures for ambiguous names, shared brands, operators, holding companies, and indirect routes remain part of the final benchmark suite.
 
-**Status: NOT STARTED**
+### Phase 13 — Final adversarial pass and launch gate
+**COMPLETE pending final CI/merge evidence**
 
-- Audit browser, Python, shell/subprocess, filesystem, network, and environment access.
-- Confirm capability selection is minimum necessary and independently authorized.
-- Audit sandbox escape, process accumulation, environment/credential exposure, output limits, and cancellation.
-- Audit domain harvesting, username footprinting, registry, browser escalation, and all OSINT tools as distinct capabilities.
+Final hardening implemented:
+- immutable GitHub Action pinning across audited workflows;
+- supported Node 22 production runtime;
+- provider cache memory/privacy boundaries;
+- workflow pinning regression guard;
+- production boot runtime regression guard;
+- retained provenance/auth/sandbox/concurrency/legacy gates.
 
-## Phase 8 — Deterministic-strategy / legacy-reachability audit
+The final launch gate is evidence-based: API build, strict workspace typecheck, complete static architecture suite, targeted regression tests, workflow integrity checks, and (when credentials exist) live provider smoke must be green. A missing external credential is an evidence gap, not a fabricated success.
 
-**Status: NOT STARTED**
+## Professional-source baseline
 
-- Search routers, exports, scripts, workers, dynamic imports, tests, and CLI entrypoints.
-- Prove retired deep-web/MCTS/broad-discovery deterministic recipes are unreachable.
-- Distinguish legitimate provider/model fallback from forbidden research-strategy fallback.
-- Inspect compatibility code before deleting anything.
-- Add/repair guards where architectural drift can recur.
-
-## Phase 9 — Data model / database / concurrency adversarial audit
-
-**Status: NOT STARTED**
-
-- Re-check event identity and immutable ledger behavior under replay.
-- Re-check serializable transaction boundaries and row-lock ordering.
-- Test cancellation-vs-promotion, continuation-vs-cancellation, and stale-worker reactivation races.
-- Audit JSONB merge semantics, size caps, event-count caps, advisory locks, and indexes.
-- Review tenant/account isolation and query authorization.
-
-## Phase 10 — API / auth / deployment boundary audit
-
-**Status: NOT STARTED**
-
-- Audit every route for auth, mutation/read separation, input bounds, error leakage, and method semantics.
-- Review CORS, security headers, body limits, health endpoints, login throttling, and production boot behavior.
-- Review Replit/Vercel/Netlify/deployment assumptions without assuming any single host is authoritative.
-- Verify production builds are reproducible and do not mutate source.
-
-## Phase 11 — Observability / live-evidence audit
-
-**Status: NOT STARTED**
-
-- Verify telemetry is bounded and does not expose secrets or untrusted content unsafely.
-- Run the live audit only when required credentials are actually available.
-- Inspect real provider preflight behavior, admission, cancellation, provenance, and result quality.
-- Treat missing secrets or unavailable external systems as explicit evidence gaps, never as fabricated success.
-
-## Phase 12 — Product-quality / investor-contact research audit
-
-**Status: NOT STARTED**
-
-- Measure direct public contact vs legitimate intermediary paths separately.
-- Verify no inferred personal email patterns are promoted without evidence.
-- Verify person identity is not inferred from name + URL alone.
-- Verify negative findings and search gaps are retained where useful.
-- Build quality fixtures for ambiguous names, shared brands, operators, holding companies, and indirect contact routes.
-
-## Phase 13 — Final adversarial pass and launch gate
-
-**Status: NOT STARTED**
-
-- Re-run the full static architecture suite after all fixes.
-- Run API build and strict workspace typecheck.
-- Run relevant targeted regression suites.
-- Re-run long-lived resource review after all new caches/state are added.
-- Re-run cross-case contamination review.
-- Re-run cancellation/lease/promotion race review.
-- Verify main after every merge.
-- Only then produce a launch-readiness assessment with explicit residual risks and evidence gaps.
+- OWASP Top 10 for Agentic Applications 2026: prompt injection, excessive agency, tool misuse, supply-chain risk, and bounded authority are treated as first-class controls.
+- OWASP API Security Top 10 2023: authorization, resource consumption, SSRF, security misconfiguration, inventory, and unsafe third-party API consumption are mapped to the audit.
+- OWASP Secure Code Review / Authorization guidance: server-side authorization, fail-safe defaults, object-level checks, business-logic/race review, and security-focused manual review remain required.
+- GitHub Actions secure-use guidance: workflow actions are pinned to immutable commit SHAs.
+- Current provider documentation: Mistral and Groq support schema-based structured outputs; provider adapters remain subject to deterministic application-side validation.
+- Node.js release guidance: production should use supported Active/Maintenance LTS; Node 20 is EOL, Node 22 is LTS.
 
 ## Dynamic adjustment log
 
-### Adjustment 2026-09-12 / A1
-Initial handoff emphasized per-entry provider cache bounds. Direct source inspection revealed a second-order issue: aggregate response-cache memory and request-variant identity are under-specified. Therefore Phase 3 now requires **byte-budgeted cache memory plus credential/cookie/variant-aware cacheability**, not just an entry-count guard.
+### A1 — Provider cache
+Direct inspection found entry-count-only caching could permit excessive aggregate memory and unsafe request-context sharing. Fixed with byte budget, cacheability rules, and variant-aware identity.
 
-### Adjustment 2026-09-12 / A2
-Current 2026 OWASP guidance explicitly elevates unbounded consumption, excessive agency, improper output handling, and vector/embedding weaknesses. Therefore these are first-class audit dimensions rather than optional hardening tasks.
+### A2 — Agentic security standard
+Current 2026 OWASP agentic guidance made excessive agency, untrusted data, tool authority, and resource bounds explicit architectural acceptance criteria.
 
-### Adjustment 2026-09-12 / A3
-Current Vercel AI SDK 7 guidance emphasizes tool approvals, durable execution, timeouts, sandboxing, and observability. Apex is not required to adopt Vercel's architecture, but these capabilities are useful comparison points for evaluating whether its custom control loop has equivalent safety properties.
+### A3 — CI supply chain
+Current GitHub guidance made mutable action tags a launch-control concern. The final pass pins audited workflow actions to full SHAs and adds a regression guard.
 
-## Working rule
+### A4 — Runtime lifecycle
+Direct deployment inspection found Replit configured Node 20. Current Node.js data shows Node 20 EOL; the production runtime is now Node 22 and CI checks the deployment configuration.
 
-Do not optimize for the number of changed lines. Optimize for **provable invariants, bounded resources, explicit authority, causal provenance, race-safe state transitions, and evidence that the system still behaves correctly after the fix**.
+### A5 — Live evidence
+The live audit is deliberately separate from static proof. Provider availability, quotas, and credentials are external evidence and must be reported rather than inferred.
+
+## Final working rule
+
+Do not optimize for changed-line count. Optimize for provable invariants, bounded resources, explicit authority, causal provenance, race-safe transitions, reproducible builds, immutable CI dependencies, and honest operational evidence.
