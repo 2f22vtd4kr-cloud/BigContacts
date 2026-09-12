@@ -29,7 +29,7 @@ assert(/capability: "network_osint"/.test(python), "Python OSINT uses the explic
 assert(/destinationPolicy: "approved-public-web-only"/.test(python), "Python OSINT destination policy is constrained");
 assert(/state === "attested"/.test(python) && /allowedCapabilities\.includes\("network_osint"\)/.test(python), "Python availability requires trusted sandbox attestation");
 assert(/function authorizePythonSandboxRequest/.test(sandbox) && /attested/.test(sandbox), "sandbox contract defines the attestation boundary");
-for (const name of ["runHolehe", "runMaigret", "runSherlock", "runTheHarvester", "runOpenDeepResearch"]) assert(new RegExp(`${name}[\\s\\S]*?authorizeNetworkPython`).test(python), `${name} is governed by the sandbox contract");
+for (const name of ["runHolehe", "runMaigret", "runSherlock", "runTheHarvester", "runOpenDeepResearch"]) assert(new RegExp(`${name}[\\s\\S]*?authorizeNetworkPython`).test(python), `${name} is governed by the sandbox contract`);
 assert(/available: false/.test(python), "Python capabilities default unavailable");
 assert(/return \{ holehe: enabled, maigret: enabled, sherlock: enabled, theHarvester: enabled, openDeepResearch: enabled \}/.test(python), "Python availability is derived from attested capability, not installation");
 assert(!/push\(`PERSON:/.test(source), "observation extraction does not manufacture PERSON findings");
