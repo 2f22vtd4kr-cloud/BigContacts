@@ -16,3 +16,4 @@ if (failures.length) {
   process.exit(1);
 }
 console.log("SEMANTIC CACHE BOUNDS: PASS");
+// CI retrigger: guard intentionally tracks source formatting independently of runtime semantics.
