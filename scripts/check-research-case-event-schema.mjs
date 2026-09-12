@@ -42,7 +42,7 @@ const checks = [
   ["status has a bounded size", schema.includes("status: z.string().trim().min(1).max(64)")],
   ["case event API reads use immutable id ordering", caseData.includes(".orderBy(researchCaseEventsTable.id)") && !caseData.includes(".orderBy(desc(researchCaseEventsTable.createdAt))")],
   ["replay accepts canonical actor roles", replay.includes("\"bureau\"") && replay.includes("\"head_investigator\"") && replay.includes("\"gemini_boss\"")],
-  ["replay accepts canonical control and trajectory events", replay.includes("\"control_decision\"") && replay.includes("\"tool_observation\")],
+  ["replay accepts canonical control and trajectory events", replay.includes('"control_decision"') && replay.includes('"tool_observation"')],
   ["replay validates validation and projection causal edges", replay.includes("validationCount") && replay.includes("projectionCount") && replay.includes("validationEventId") && replay.includes("promotionEventId")],
   ["target control writes a declared event type", targetControl.includes('eventType: "control_decision"') && schema.includes('"control_decision"')],
   ["bureau trajectory writes declared event types", bureauPass.includes('eventType = record.action === "done" ? "decision" : "tool_observation"') && schema.includes('"tool_observation"')],
