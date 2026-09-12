@@ -24,7 +24,7 @@ router.post("/research/bureau/cases/:caseId/run-next-pass", async (req, res): Pr
       const [locked] = await tx.select({ caseFile: researchCasesTable.caseFile, caseType: researchCasesTable.caseType }).from(researchCasesTable).where(eq(researchCasesTable.id, caseId)).for("update").limit(1);
       if (!locked || locked.caseType !== "discovery") throw new Error("Discovery case disappeared or changed type before continuation binding.");
       const lockedFile = parseFile(locked.caseFile); if (!lockedFile) throw new Error("Discovery case state is unreadable before continuation binding.");
-      const priorJobs = Array.isArray(lockedFile.jobIds) ? lockedFile.jobIds.filter((value: unknown): value is string => typeof value === "string" && value.trim()) : [];
+      const priorJobs = Array.isArray(lockedFile.jobIds) ? lockedFile.jobIds.filter((value: unknown): value is string => typeof value === "string" && value.trim().length > 0) : [];
       const nextFile = { ...lockedFile, jobId, jobIds: [...new Set([...priorJobs, jobId])].slice(-32) };
       await tx.update(researchCasesTable).set({ caseFile: JSON.stringify(nextFile), status: "active", currentAction: "canonical-case-continuation", updatedAt: new Date() }).where(eq(researchCasesTable.id, caseId));
       await tx.insert(researchCaseEventsTable).values({ caseId, iteration, actorRole: "head_investigator", eventType: "assignment", summary: "Canonical case continuation started from shared investigation context; no fixed search/registry lane is used.", correlationKey: `discovery-continuation:case:${caseId}:job:${jobId}:turn:${iteration}:assignment`, payload: JSON.stringify({ jobId, mode: "discovery", caseId, controlTurn: iteration }) });
