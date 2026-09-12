@@ -7,7 +7,8 @@ import { entitiesTable } from "./entities";
  * One durable investigation. A case starts as discovery (no entity required)
  * and can later become target-scoped after the Boss identifies a candidate.
  * The JSON caseFile is a compact working snapshot; the append-only case
- * events table remains the audit trail.
+ * events table remains the audit trail. caseFile is intentionally bounded so
+ * multi-run memory cannot become an unbounded durable resource sink.
  */
 export const researchCasesTable = pgTable("research_cases", {
   id: serial("id").primaryKey(),
