@@ -65,12 +65,12 @@ jobs:
       GROQ_AGENTIC_MIN_INTERVAL_MS: "30000"
       NODE_OPTIONS: --max-old-space-size=1536
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.sha }}
       - name: Show exact tip
         run: git log -1 --oneline
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
           registry-url: https://registry.npmjs.org/
@@ -111,6 +111,7 @@ jobs:
           node scripts/check-agentic-timeout.mjs
           node scripts/check-api-auth-boundary.mjs
           node scripts/check-retired-research-routes.mjs
+          node scripts/check-workflow-action-pins.mjs
           pnpm --dir artifacts/api-server exec vitest run src/src/test/discovery-agent-parse.test.ts src/src/test/discovery-runtime-correctness.test.ts src/src/test/agentic-scope-boundary.test.ts src/src/test/agentic-source-provenance.test.ts src/src/test/bureau-contact-persist-strict.test.ts
       - name: Provider catalog and generation preflight
         shell: bash
@@ -156,7 +157,7 @@ jobs:
         run: node scripts/audit-live-bureau.mjs
       - name: Upload live audit artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: apex-live-audit
           path: |
