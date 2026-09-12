@@ -1,3 +1,4 @@
+// CI verification marker: this branch intentionally contains no production behavior change.
 import fs from "node:fs";
 import path from "node:path";
 
