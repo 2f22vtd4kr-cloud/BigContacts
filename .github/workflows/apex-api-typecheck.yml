@@ -40,6 +40,14 @@ jobs:
         run: node scripts/check-agentic-concurrency-admission.mjs
       - name: Check research event payload boundary
         run: node scripts/check-research-event-payload-boundary.mjs
+      - name: Check research event lifecycle bounds
+        run: node scripts/check-case-event-retention-bounds.mjs
+      - name: Check canonical job lock lease
+        run: node scripts/check-canonical-job-lock-lease.mjs
+      - name: Check canonical discovery case binding
+        run: node scripts/check-canonical-discovery-case-binding.mjs
+      - name: Check deterministic research strategy
+        run: node scripts/check-deterministic-research-strategy.mjs
       - name: Check canonical Atlas cancellation fence
         run: node scripts/check-canonical-atlas-cancellation-fence.mjs
       - name: Check research event identity and replay semantics
