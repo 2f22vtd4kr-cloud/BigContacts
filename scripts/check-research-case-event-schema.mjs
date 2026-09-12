@@ -14,7 +14,7 @@ const allowedActorRoles = new Set(["head_investigator", "gemini_boss", "right_ha
 const writerFiles = [];
 function collectTsFiles(dir) {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-    if (entry.name === "node_modules" || entry.name === "dist") continue;
+    if (entry.name === "node_modules" || entry.name === "dist" || entry.name === "test" || entry.name === "__tests__") continue;
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) collectTsFiles(full);
     else if (/\.tsx?$/.test(entry.name)) writerFiles.push(full);
@@ -55,4 +55,4 @@ const checks = [
 if (writerViolations.length) console.error(writerViolations.join("\n"));
 const failed = checks.filter(([, ok]) => !ok).map(([name]) => name);
 if (failed.length) throw new Error(`Research case event schema guard failed: ${failed.join("; ")}`);
-console.log(`Research case event schema guard passed (${checks.length} invariants; ${writerFiles.length} canonical TypeScript files scanned).`);
+console.log(`Research case event schema guard passed (${checks.length} invariants; ${writerFiles.length} canonical TypeScript files scanned; negative test fixtures excluded from writer census).`);
