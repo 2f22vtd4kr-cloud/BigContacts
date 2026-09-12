@@ -3,6 +3,7 @@ import { classifyExternalProvider, runProviderCall } from "./provider-gate";
 import { getAgenticExecutionScope, withAgenticExecutionScope } from "./agentic-execution-context";
 import { validateGeminiResearchObjective } from "./gemini-research-objective";
 import { reviewTargetInvestigationAct, loadTargetActOversightContext, type TargetActOversight } from "./target-act-oversight";
+import { getJob } from "./job-queue";
 const nativeFetch = globalThis.fetch.bind(globalThis);
 type GuardedFetch = typeof fetch & { __apexSsrfGuard?: boolean; __apexQuotaGuard?: boolean };
 if (!(globalThis.fetch as GuardedFetch).__apexSsrfGuard) {
@@ -31,7 +32,31 @@ export async function runAgenticWebResearch(input: RunInput): Promise<AgenticRun
   const scope = `agentic:${executionId}:investigator:${selectedInvestigator}`;
   return withAgenticExecutionScope(scope, async () => {
     const core = await import("./agentic-web-research-core");
-    if (input.mode === "discovery") return { ...(await core.runAgenticWebResearch(input)), executionId };
+    if (input.mode === "discovery") {
+      const startedAt = Date.now();
+      const requestedHardTimeout = Math.min(10 * 60_000, Math.max(30_000, Number.isFinite(input.hardTimeoutMs) ? Math.floor(input.hardTimeoutMs!) : 210_000));
+      const controller = new AbortController();
+      const abortExternal = () => controller.abort();
+      input.signal?.addEventListener("abort", abortExternal, { once: true });
+      const deadlineTimer = setTimeout(() => controller.abort(), requestedHardTimeout);
+      try {
+        const discoveryInput: RunInput = {
+          ...input,
+          hardTimeoutMs: Math.min(requestedHardTimeout, Math.max(30_000, requestedHardTimeout - Math.max(0, Date.now() - startedAt))),
+          signal: controller.signal,
+          shouldCancel: async () => {
+            if (controller.signal.aborted || input.signal?.aborted) return true;
+            if (!input.jobId) return false;
+            const job = await getJob(input.jobId);
+            return !job || job.status !== "running";
+          },
+        };
+        return { ...(await core.runAgenticWebResearch(discoveryInput)), executionId };
+      } finally {
+        clearTimeout(deadlineTimer);
+        input.signal?.removeEventListener("abort", abortExternal);
+      }
+    }
     const oversightContext = input.caseId ? await loadTargetActOversightContext(input.caseId, input.targetName) : null;
     if (!oversightContext) return { status: "unavailable", model: "none", iterations: 0, searches: 0, visits: 0, findings: [], modelFindings: [], stopReason: "CONTROL_CONTEXT_UNAVAILABLE", trajectory: [], trajectoryRecords: [], error: "Target-scoped agentic research requires a durable control case; no Gemini Boss + DeepSeek Right Hand context was available.", executionId };
     const initialDirection = validateGeminiResearchObjective(oversightContext.liveOversightDirection);
