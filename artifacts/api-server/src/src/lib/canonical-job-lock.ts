@@ -1,63 +1,61 @@
 import { withPermanentClient } from "../../lib/redis";
 
-const JOB_LOCK_TTL_SECONDS = 60 * 60 * 24 * 7;
+// A crashed process must not strand the canonical lane for seven days. Live
+// owners renew the lease; recovery after a crash is therefore bounded by this
+// window rather than by the historical job TTL.
+const JOB_LOCK_TTL_SECONDS = 60 * 60;
 
 type ClaimResult = { available: true; result: string | null };
 
-/**
- * Atomically claim a canonical job lock across API instances.
- *
- * getActiveJob()+setActiveJob() is not a distributed lock: two instances can
- * observe the same empty/stale state and both launch work. Canonical research
- * must fail closed if Redis cannot perform the atomic claim.
- */
 export async function claimCanonicalJob(type: string, jobId: string): Promise<boolean> {
   const outcome = await withPermanentClient<ClaimResult | null>(
     async (redis) => ({
       available: true,
-      result: await redis.set(
-        `apex:activejob:${type}`,
-        jobId,
-        "EX",
-        JOB_LOCK_TTL_SECONDS,
-        "NX",
-      ),
+      result: await redis.set(`apex:activejob:${type}`, jobId, "EX", JOB_LOCK_TTL_SECONDS, "NX"),
     }),
     null,
   );
-
-  if (!outcome?.available) {
-    throw new Error("Canonical Atlas launch requires an available permanent Redis lock service");
-  }
-
+  if (!outcome?.available) throw new Error("Canonical Atlas launch requires an available permanent Redis lock service");
   return outcome.result === "OK";
+}
+
+type LeaseResult = { available: true; renewed: boolean };
+
+/** Renew only when this job still owns the lock. A stale worker can never
+ * resurrect or extend a newer owner's lease. */
+export async function renewCanonicalJob(type: string, jobId: string): Promise<boolean> {
+  const outcome = await withPermanentClient<LeaseResult | null>(
+    async (redis) => ({
+      available: true,
+      renewed: Number(await redis.eval(
+        "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('expire', KEYS[1], ARGV[2]) else return 0 end",
+        1,
+        `apex:activejob:${type}`,
+        jobId,
+        String(JOB_LOCK_TTL_SECONDS),
+      )) === 1,
+    }),
+    null,
+  );
+  if (!outcome?.available) throw new Error("Canonical Atlas job lock renewal requires an available permanent Redis lock service");
+  return outcome.renewed;
 }
 
 type ReleaseResult = { available: true; released: boolean };
 
-/**
- * Release the canonical job lock only when the same job still owns it.
- *
- * This is intentionally a single Redis transaction boundary. A read followed
- * by DEL can erase a newer launch that wins the lock between those operations.
- */
 export async function releaseCanonicalJob(type: string, jobId: string): Promise<boolean> {
   const outcome = await withPermanentClient<ReleaseResult | null>(
-    async (redis) => {
-      const released = await redis.eval(
+    async (redis) => ({
+      available: true,
+      released: Number(await redis.eval(
         "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end",
         1,
         `apex:activejob:${type}`,
         jobId,
-      );
-      return { available: true, released: Number(released) === 1 };
-    },
+      )) === 1,
+    }),
     null,
   );
-
-  if (!outcome?.available) {
-    throw new Error("Canonical Atlas job lock release requires an available permanent Redis lock service");
-  }
-
+  if (!outcome?.available) throw new Error("Canonical Atlas job lock release requires an available permanent Redis lock service");
   return outcome.released;
 }
