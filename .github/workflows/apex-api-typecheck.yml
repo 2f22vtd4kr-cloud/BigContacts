@@ -1,7 +1,7 @@
 name: Apex API Build
 
 # Canonical API build and typecheck gate.
-# Strict typecheck repair is complete; this workflow is the steady-state gate.
+# Steady-state audit gate; no repair steps or bypasses.
 on:
   push:
     branches: [main]
