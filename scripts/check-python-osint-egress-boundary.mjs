@@ -1,15 +1,18 @@
 import fs from "node:fs";
 
-const source = fs.readFileSync("artifacts/api-server/src/src/lib/python-tools.ts", "utf8");
-const gate = 'if (!PYTHON_OSINT_EGRESS_GOVERNED) return { ...base, error: PYTHON_OSINT_EGRESS_ERROR };';
-const gateCount = source.split(gate).length - 1;
+const pythonSource = fs.readFileSync("artifacts/api-server/src/src/lib/python-tools.ts", "utf8");
+const coreSource = fs.readFileSync("artifacts/api-server/src/src/lib/agentic-web-research-core.ts", "utf8");
 
 const checks = [
-  ["Python OSINT egress is explicitly quarantined", source.includes("const PYTHON_OSINT_EGRESS_GOVERNED = false;")],
-  ["Python OSINT quarantine has a non-bypassable error message", source.includes("subprocess network egress is not yet governed")],
-  ["all three username/email network tools are gated", gateCount >= 3],
-  ["theHarvester remains fail-closed in the canonical ReAct boundary", fs.readFileSync("artifacts/api-server/src/src/lib/agentic-web-research-core.ts", "utf8").includes("HARVEST_DOMAIN blocked")],
+  ["Python OSINT is fail-closed behind the sandbox contract", pythonSource.includes("authorizePythonSandboxRequest") && pythonSource.includes("PYTHON_SANDBOX_UNAVAILABLE_REASON")],
+  ["Python network capability is explicitly constrained to approved public web", pythonSource.includes('capability: "network_osint"') && pythonSource.includes('destinationPolicy: "approved-public-web-only"')],
+  ["all network-capable Python tools call the common authorization gate", (pythonSource.match(/authorizeNetworkPython\(options\.signal\)/g) ?? []).length >= 4],
+  ["Python tool availability requires attested network capability", pythonSource.includes('sandbox.state === "attested"') && pythonSource.includes('network_osint')],
+  ["theHarvester remains behind the same sandbox contract", pythonSource.includes("runTheHarvester") && pythonSource.includes("authorizeNetworkPython")],
+  ["canonical ReAct passes cancellation into theHarvester", coreSource.includes("runTheHarvester") && coreSource.includes("signal: runController.signal")],
+  ["canonical ReAct treats theHarvester as a capability, not a deterministic research step", coreSource.includes('action === "harvest_domain"') && coreSource.includes("runTheHarvester")],
 ];
+
 let failed = false;
 for (const [name, ok] of checks) {
   console.log(`${ok ? "PASS" : "FAIL"} ${name}`);
