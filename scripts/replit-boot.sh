@@ -20,7 +20,14 @@ echo "[replit-boot] $(git log -1 --oneline 2>/dev/null || echo unknown)"
 fuser -k "${PORT}/tcp" 2>/dev/null || true
 sleep 1
 # Runtime hardening is canonical source now. Boot must never rewrite TS files.
-pnpm --filter @workspace/db run push
+# Production schema changes are an explicit deployment operation, never an
+# implicit side effect of starting a replica. Set APEX_ALLOW_SCHEMA_PUSH=true
+# only during a deliberate schema migration window.
+if [[ "${APEX_ALLOW_SCHEMA_PUSH:-false}" == "true" ]]; then
+  pnpm --filter @workspace/db run push
+else
+  echo "[replit-boot] schema push skipped (set APEX_ALLOW_SCHEMA_PUSH=true only for an explicit migration)"
+fi
 if [[ ! -f artifacts/apex-finder/dist/public/index.html ]]; then
   pnpm --dir artifacts/apex-finder run build
 fi
