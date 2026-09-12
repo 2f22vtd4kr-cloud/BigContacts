@@ -2,27 +2,29 @@
  * Bureau live stream routes (SSE + snapshot).
  * GET /api/ingest/bureau-events  — recent JSON events
  * GET /api/ingest/bureau-stream  — SSE with heartbeats
+ *
+ * Live events are emitted by trusted server-side research code. The transport
+ * surface is intentionally read-only; an HTTP caller must not be able to forge
+ * investigator/control-plane telemetry.
  */
 
 import { Router, type Request, type Response } from "express";
 import {
   listBureauEvents,
-  publishBureauEvent,
   sseComment,
   sseSend,
   writeSseHeaders,
-  type BureauLiveEvent,
 } from "../lib/bureau-live-log";
 import { logger } from "../lib/logger";
 
 const router = Router();
-
 const HEARTBEAT_MS = 15_000;
 const POLL_MS = 2_000;
 
 router.get("/ingest/bureau-events", async (req: Request, res: Response): Promise<void> => {
   const caseId = typeof req.query.caseId === "string" ? req.query.caseId : null;
-  const limit = Number(req.query.limit) || 80;
+  const parsedLimit = Number(req.query.limit);
+  const limit = Math.min(200, Math.max(1, Number.isFinite(parsedLimit) ? Math.trunc(parsedLimit) : 80));
   const events = await listBureauEvents({ caseId, limit });
   res.json({
     events,
@@ -38,13 +40,11 @@ router.get("/ingest/bureau-stream", async (req: Request, res: Response): Promise
 
   let lastTsMs = 0;
   let closed = false;
-
   const sendSnapshot = async () => {
     const events = await listBureauEvents({ caseId, limit: 50 });
     if (events.length) lastTsMs = Math.max(lastTsMs, events[0]!.tsMs);
     sseSend(res, "snapshot", { events, caseId, serverTime: new Date().toISOString() });
   };
-
   const tick = async () => {
     if (closed) return;
     try {
@@ -60,45 +60,20 @@ router.get("/ingest/bureau-stream", async (req: Request, res: Response): Promise
   };
 
   await sendSnapshot().catch(() => undefined);
-
-  const pollId = setInterval(() => {
-    void tick();
-  }, POLL_MS);
-
+  const pollId = setInterval(() => { void tick(); }, POLL_MS);
   const hbId = setInterval(() => {
     if (closed) return;
     sseComment(res, "ping");
     sseSend(res, "heartbeat", { serverTime: new Date().toISOString(), caseId });
   }, HEARTBEAT_MS);
-
-  req.on("close", () => {
-    closed = true;
-    clearInterval(pollId);
-    clearInterval(hbId);
-  });
+  req.on("close", () => { closed = true; clearInterval(pollId); clearInterval(hbId); });
 });
 
-router.post("/ingest/bureau-events", async (req: Request, res: Response): Promise<void> => {
-  const body = (req.body ?? {}) as Partial<BureauLiveEvent>;
-  if (!body.title || !body.actor) {
-    res.status(400).json({ error: "title and actor required" });
-    return;
-  }
-  const event = await publishBureauEvent({
-    actor: body.actor as BureauLiveEvent["actor"],
-    title: String(body.title),
-    caseId: body.caseId,
-    jobId: body.jobId,
-    targetName: body.targetName,
-    provider: body.provider,
-    kind: typeof body.kind === "string" ? body.kind : undefined,
-    why: typeof body.why === "string" ? body.why : undefined,
-    ask: body.ask,
-    responseSummary: body.responseSummary,
-    detail: body.detail,
-    level: body.level,
-  });
-  res.status(201).json({ event });
+// There is deliberately no HTTP event-ingest endpoint. Internal event writers
+// call publishBureauEvent in-process so the authenticated public API cannot
+// manufacture audit history.
+router.post("/ingest/bureau-events", (_req: Request, res: Response): void => {
+  res.status(410).json({ error: "Bureau event ingestion is server-internal and cannot be called over HTTP." });
 });
 
 export default router;
