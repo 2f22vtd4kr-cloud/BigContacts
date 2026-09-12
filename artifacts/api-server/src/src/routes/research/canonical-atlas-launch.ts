@@ -1,4 +1,6 @@
 import { Router, type Request, type Response } from "express";
+import { or, sql } from "drizzle-orm";
+import { db, researchCasesTable } from "@workspace/db";
 import { createJob, getActiveJob, getJob, updateJob } from "../../lib/job-queue";
 import { claimCanonicalJob, releaseCanonicalJob } from "../../lib/canonical-job-lock";
 import { enablePermanentRedis } from "../../lib/redis";
@@ -81,6 +83,44 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
     message: singleTargetId ? `Canonical single-target investigation started (job: ${atlasJobId}).` : `Canonical model-owned discovery started (job: ${atlasJobId}).`,
     options: { targetCount, singleTargetId: singleTargetId ?? null, researchDepth: researchDepth ?? "configured", targetTimeoutMs },
   });
+});
+
+/**
+ * Canonical operator stop. Cancellation is durable in PostgreSQL before the
+ * Redis job state is changed, so trusted-contact promotion cannot race a stop
+ * and win merely because the Redis and database operations were ordered apart.
+ */
+router.post("/ingest/atlas-stop", async (req: Request, res: Response): Promise<void> => {
+  const activeJobId = await getActiveJob("atlas-run");
+  if (!activeJobId) {
+    res.status(404).json({ ok: false, message: "No active Atlas job to stop." });
+    return;
+  }
+  const requestedJobId = typeof req.body?.jobId === "string" ? req.body.jobId.trim() : "";
+  if (requestedJobId && requestedJobId !== activeJobId) {
+    res.status(409).json({ ok: false, message: "Requested job is not the active Atlas job.", activeJobId });
+    return;
+  }
+  const now = new Date();
+  try {
+    await db.update(researchCasesTable)
+      .set({ status: "review", currentAction: "canonical-atlas-cancelled", updatedAt: now })
+      .where(or(
+        sql`${researchCasesTable.caseFile}::jsonb ->> 'atlasJobId' = ${activeJobId}`,
+        sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${activeJobId}`,
+      ));
+  } catch (error) {
+    res.status(503).json({ ok: false, message: "Atlas stop could not establish the durable database cancellation fence; job remains active.", error: error instanceof Error ? error.message : String(error) });
+    return;
+  }
+
+  await updateJob(activeJobId, {
+    status: "cancelled",
+    outcome: "incomplete",
+    message: "Stopped by operator.",
+    finishedAt: now.toISOString(),
+  });
+  res.json({ ok: true, jobId: activeJobId, status: "cancelled", message: "Atlas stopped." });
 });
 
 export default router;
