@@ -8,6 +8,7 @@ if (!process.env.DATABASE_URL) throw new Error("DATABASE_URL must be set. Did yo
 export const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
 const MAX_EVENTS_PER_CASE = 50_000;
+const MAX_CASE_FILE_BYTES = 1_048_576;
 
 async function ensureResearchCaseEventsImmutable(): Promise<void> {
   const client = await pool.connect();
@@ -15,10 +16,13 @@ async function ensureResearchCaseEventsImmutable(): Promise<void> {
     await client.query("SELECT pg_advisory_xact_lock(hashtext('apex:research_case_events:immutability'))");
     await client.query(`
       DO $$
-      DECLARE null_correlation_count bigint; oversized_payload_count bigint; oversized_case_count bigint;
+      DECLARE null_correlation_count bigint; oversized_payload_count bigint; oversized_case_count bigint; oversized_case_file_count bigint;
       BEGIN
         IF to_regclass('public.research_case_events') IS NULL THEN
           RAISE EXCEPTION 'Apex research_case_events ledger is missing; refusing to start without the provenance ledger';
+        END IF;
+        IF to_regclass('public.research_cases') IS NULL THEN
+          RAISE EXCEPTION 'Apex research_cases table is missing; refusing to start without durable case state';
         END IF;
         SELECT count(*) INTO null_correlation_count FROM public.research_case_events WHERE correlation_key IS NULL;
         IF null_correlation_count > 0 THEN
@@ -34,9 +38,16 @@ async function ensureResearchCaseEventsImmutable(): Promise<void> {
         IF oversized_case_count > 0 THEN
           RAISE EXCEPTION 'Apex research_case_events contains % case(s) above the 50000-event lifecycle ceiling; refusing startup until archived/remediated', oversized_case_count USING ERRCODE = '55000';
         END IF;
+        SELECT count(*) INTO oversized_case_file_count FROM public.research_cases WHERE octet_length(case_file) > 1048576;
+        IF oversized_case_file_count > 0 THEN
+          RAISE EXCEPTION 'Apex research_cases contains % case_file value(s) larger than 1048576 bytes; refusing startup until archived/remediated', oversized_case_file_count USING ERRCODE = '55000';
+        END IF;
         ALTER TABLE public.research_case_events ALTER COLUMN correlation_key SET NOT NULL;
         IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'public.research_case_events'::regclass AND conname = 'research_case_events_payload_size_ck') THEN
           ALTER TABLE public.research_case_events ADD CONSTRAINT research_case_events_payload_size_ck CHECK (octet_length(payload) <= 131072);
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid = 'public.research_cases'::regclass AND conname = 'research_cases_case_file_size_ck') THEN
+          ALTER TABLE public.research_cases ADD CONSTRAINT research_cases_case_file_size_ck CHECK (octet_length(case_file) <= 1048576);
         END IF;
         CREATE OR REPLACE FUNCTION public.apex_research_case_events_immutable() RETURNS trigger LANGUAGE plpgsql AS $fn$
         BEGIN RAISE EXCEPTION 'research_case_events is append-only; % is forbidden', TG_OP USING ERRCODE = '55000'; END; $fn$;
