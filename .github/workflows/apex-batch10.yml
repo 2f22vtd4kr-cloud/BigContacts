@@ -6,7 +6,7 @@ on:
 # Manual replay harness. The authoritative audit remains in apex-live-audit.yml.
 concurrency:
   group: apex-batch3-manual
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 permissions:
   contents: read
@@ -17,9 +17,11 @@ jobs:
     timeout-minutes: 60
     env:
       DATABASE_URL: postgresql://apex:apex_local_dev@127.0.0.1:5432/apex
+      REDIS_URL: redis://127.0.0.1:6379
       REDIS_URL_1: redis://127.0.0.1:6379
       PORT: 8080
       ENABLE_AUTO_PIPELINE: "false"
+      ENABLE_REDIS_ON_BOOT: "true"
       NODE_ENV: development
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
@@ -39,9 +41,9 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: { ref: main }
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5021 # v7.0.0
         with: { node-version: 22, registry-url: https://registry.npmjs.org/ }
-      - run: npm install -g pnpm@9
+      - run: npm install -g pnpm@9.15.9
       - name: Install workspace dependencies
         run: pnpm install --no-frozen-lockfile --filter @workspace/db... --filter @workspace/api-server... --filter @workspace/api-zod... --filter apex-finder-local... --registry=https://registry.npmjs.org/
       - name: Install services
@@ -77,14 +79,14 @@ jobs:
         run: |
           curl -sS -m 15 -X POST http://127.0.0.1:8080/api/ingest/atlas-run -H 'Content-Type: application/json' -d '{"discoveryFirst":true,"targetCount":3,"researchLimit":3,"runResearch":true,"skipFaa":true,"targetTimeoutMs":180000,"researchDepth":"standard"}' | tee /tmp/launch.json
           node -e 'const fs=require("fs"); const x=JSON.parse(fs.readFileSync("/tmp/launch.json")); if(!x.jobId) throw Error(JSON.stringify(x)); console.log(x.jobId)'
-      - name: Poll until idle
+      - name: Poll until completed
         run: |
           for i in $(seq 1 600); do
             sleep 5
             curl -sS -m 10 http://127.0.0.1:8080/api/ingest/atlas-status > /tmp/atlas-status.json || true
             node -e 'const fs=require("fs");try{const x=JSON.parse(fs.readFileSync("/tmp/atlas-status.json"));console.log(JSON.stringify({status:x.status,jobId:x.jobId||x.job?.jobId,phase:x.phase,processed:x.processed,admitted:x.admitted,target:x.currentTarget||x.currentTargetName}))}catch{}'
             S=$(node -e 'const fs=require("fs");try{const x=JSON.parse(fs.readFileSync("/tmp/atlas-status.json"));process.stdout.write(String(x.status||x.job?.status||""))}catch{}')
-            case "$S" in idle|done|completed) exit 0;; failed|cancelled) exit 1;; esac
+            case "$S" in done|completed) exit 0;; failed|cancelled) exit 1;; esac
           done
           exit 1
       - name: Freeze bounded output
@@ -93,7 +95,7 @@ jobs:
           curl -sS -m 10 'http://127.0.0.1:8080/api/entities?limit=50&offset=0' | tee /tmp/entities.json || true
           curl -sS -m 10 'http://127.0.0.1:8080/api/ingest/scoreboard-snapshot?limit=50' | tee /tmp/scoreboard.json || true
           curl -sS -m 10 http://127.0.0.1:8080/api/healthz | tee /tmp/health.json || true
-          node scripts/audit-live-bureau.mjs || true
+          node scripts/audit-live-bureau.mjs
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:
