@@ -84,9 +84,9 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: { ref: ${{ github.sha }} }
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5021 # v7.0.0
         with: { node-version: 22, registry-url: https://registry.npmjs.org/ }
-      - run: npm install -g pnpm@9
+      - run: npm install -g pnpm@9.15.9
       - name: Install API workspace
         run: pnpm install --no-frozen-lockfile --ignore-scripts --fetch-retries=8 --fetch-timeout=120000 --filter @workspace/api-server... --registry=https://registry.npmjs.org/
       - name: Install local services
@@ -144,7 +144,7 @@ jobs:
             sleep 5
             curl -sS -m 10 http://127.0.0.1:8080/api/ingest/atlas-status > /tmp/atlas-status.json || true
             S=$(node -e 'const fs=require("fs");try{const x=JSON.parse(fs.readFileSync("/tmp/atlas-status.json"));process.stdout.write(String(x.status||x.job?.status||""))}catch{}')
-            case "$S" in *done|*completed|*idle) exit 0;; *failed|*cancelled) exit 1;; esac
+            case "$S" in *done|*completed) exit 0;; *failed|*cancelled) exit 1;; esac
           done
           exit 1
       - name: Freeze and audit
@@ -154,7 +154,7 @@ jobs:
           curl -sS -m 10 "http://127.0.0.1:8080/api/entities/$ID" | tee /tmp/entity.json || true
           curl -sS -m 10 'http://127.0.0.1:8080/api/ingest/scoreboard-snapshot?limit=50' | tee /tmp/scoreboard.json || true
           curl -sS -m 10 http://127.0.0.1:8080/api/healthz | tee /tmp/health.json || true
-          node scripts/audit-live-bureau.mjs || true
+          node scripts/audit-live-bureau.mjs
       - name: Upload audit artifacts
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
