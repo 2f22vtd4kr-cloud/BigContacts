@@ -24,6 +24,9 @@ on:
         default: standard
         type: choice
         options: [fast, standard, deep]
+  # Explicitly deny ordinary pushes; this workflow is an operator-triggered audit.
+  push:
+    branches: [__manual_single_target_only__]
 
 concurrency:
   group: apex-single-target-${{ github.run_id }}
