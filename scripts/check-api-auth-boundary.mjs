@@ -1,3 +1,4 @@
+// Final CI verification marker; no production behavior change.
 import fs from "node:fs";
 import path from "node:path";
 
