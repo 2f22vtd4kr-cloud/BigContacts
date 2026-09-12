@@ -25,8 +25,9 @@ const routesIndex = read("artifacts/api-server/src/src/routes/index.ts");
 const canonicalLaunch = read("artifacts/api-server/src/src/routes/research/canonical-atlas-launch.ts");
 const packageJson = read("artifacts/api-server/package.json");
 const canonicalRunner = read("artifacts/api-server/src/src/lib/canonical-single-target-runner.ts");
+const jobQueue = read("artifacts/api-server/src/src/lib/job-queue.ts");
 
-const canonicalSources = [wrapper, agentic, strict, batch, discovery, orchestrator, registry, pythonTools, aiExtractor, entities, legacyAtlas, legacyGuard, launchQuarantine, routesIndex, canonicalLaunch, canonicalRunner];
+const canonicalSources = [wrapper, agentic, strict, batch, discovery, orchestrator, registry, pythonTools, aiExtractor, entities, legacyAtlas, legacyGuard, launchQuarantine, routesIndex, canonicalLaunch, canonicalRunner, jobQueue];
 
 pass("launch gate inspects source without executing repository code", !canonicalSources.some((source) => /execFileSync\(|spawnSync\(|child_process/.test(source)));
 pass("Investigator wrapper mounts canonical core", wrapper.includes("agentic-web-research-core"));
@@ -76,7 +77,8 @@ pass("username migration hardener is no longer in API scripts", !packageJson.inc
 pass("canonical target runner steps one Investigator act", /maxIterations:\s*1/.test(canonicalRunner));
 pass("canonical target runner requires durable oversight", /!lastOversight \|\| lastOversight\.status !== "completed"/.test(canonicalRunner));
 pass("canonical target runner uses one global deadline", /const deadline = Date\.now\(\) \+ hardTimeoutMs/.test(canonicalRunner));
-pass("canonical target runner releases the Atlas lock owner-atomically", /releaseCanonicalJob\("atlas-run", atlasJobId\)/.test(canonicalRunner) && !/clearActiveJobIfMatches\("atlas-run", atlasJobId\)/.test(canonicalRunner));
+pass("canonical target runner does not release the outer Atlas lock", !canonicalRunner.includes("releaseCanonicalJob") && !/clearActiveJobIf(?:Owned|Matches)\(/.test(canonicalRunner));
+pass("canonical Atlas lock release is bridged through the atomic owner check", /type===\"atlas-run\"\|\|type===\"case-bureau-discovery\"/.test(jobQueue) && /releaseCanonicalJob\(type,jobId\)/.test(jobQueue));
 pass("target wrapper fails closed without control context", /loadTargetActOversightContext\(input\.caseId, input\.targetName\)/.test(wrapper) && /if \(!oversightContext\) return \{ status: "unavailable"/.test(wrapper) && /durable control case/.test(wrapper));
 pass("target wrapper actively aborts at global deadline", /setTimeout\(\(\) => overallController\.abort\(\), requestedHardTimeout\)/.test(wrapper));
 
