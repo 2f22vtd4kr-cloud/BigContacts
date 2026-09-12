@@ -15,8 +15,9 @@ assert(launch.includes("claimCanonicalJob(\"atlas-run\", atlasJobId)"), "canonic
 assert(launch.includes("releaseCanonicalJob(\"atlas-run\", existingId)"), "canonical launch does not atomically clear a completed stale lock");
 assert(launch.includes("releaseCanonicalJob(\"atlas-run\", atlasJobId)"), "canonical launch does not release its own lock through the atomic owner check");
 assert(!/clearActiveJobIf(?:Owned|Matches)\(/.test(launch), "canonical launch still uses a read-then-delete active-job release");
-assert(targetRunner.includes("clearActiveJobIfMatches(\"atlas-run\", atlasJobId)"), "canonical target runner does not use the exported job-queue lock release API");
+assert(targetRunner.includes("releaseCanonicalJob(\"atlas-run\", atlasJobId)"), "canonical target runner does not use the exported atomic job-lock release API");
 assert(!targetRunner.includes("clearActiveJobIfOwned"), "canonical target runner references a nonexistent clearActiveJobIfOwned export");
+assert(!targetRunner.includes("clearActiveJobIfMatches"), "canonical target runner bypasses the canonical distributed-lock release helper");
 
 if (failures.length) {
   console.error("CANONICAL JOB LOCK: FAIL");

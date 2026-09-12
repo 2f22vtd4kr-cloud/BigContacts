@@ -17,7 +17,7 @@ const retiredRoutes = [
   "broad-discovery",
 ];
 
-const guardIndex = routes.indexOf("legacyApexMutationGuard");
+const guardIndex = routes.indexOf("router.use(legacyApexMutationGuard)");
 const healthIndex = routes.indexOf("router.use(healthRouter)");
 const ingestIndex = routes.indexOf("router.use(ingestRouter)");
 

@@ -32,7 +32,7 @@ const checks = [
   ["target contact agent binds promotion provenance to the Investigator execution", /const runId = input\.caseId \? \(agentic\.executionId \?\? null\) : null/.test(targetAgent)],
   ["target contact persistence receives the exact promotion provenance", /const provenance: InvestigatorPromotionProvenance \| undefined = input\.caseId && runId \? \{ caseId: input\.caseId, runId \} : undefined/.test(targetAgent) && /observedSourceUrls, provenance\)/.test(targetAgent)],
   ["canonical discovery admission is model-explicit and source-backed", /promotionDecision === "promote"/.test(atlas) && /scope === "candidate"/.test(atlas) && /sourceUrls/.test(atlas)],
-  ["canonical discovery materialization does not auto-promote contact vectors", /Discovery admission is identity state, not contact evidence/.test(atlas) && /target-scoped Investigator research required before contact promotion/.test(atlas)],
+  ["canonical discovery materialization remains evidence-only and review-only", /contactOutcome: "evidence_only"/.test(atlas) && /reviewOnly: true/.test(atlas) && /target-scoped Investigator research required before contact promotion/.test(atlas)],
   ["promotion metadata records immutable claim and observation event IDs", /claimEventId:support\.claimEventId/.test(persist) && /observationEventIds:support\.observationEventIds/.test(persist)],
   ["durable discovery projection does not recursively copy the prior context document", !/memoryProjection\s*=\s*\{[^}]*contextDocument/s.test(bureau)],
 ];

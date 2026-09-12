@@ -6,6 +6,6 @@ const canonical = fs.readFileSync("artifacts/api-server/src/src/lib/canonical-si
 
 assert(target.includes("refusing context-free Investigator run"), "Target Investigator must refuse context-free execution.");
 assert(/const contextDocument = typeof input\.contextDocument === "string" \? input\.contextDocument\.trim\(\) : "";/.test(target), "Target Investigator must normalize durable context before execution.");
-assert(/if \(!contextDocument\)\s*\{[\s\S]*?return \{ status: "unavailable"/.test(target), "Missing durable context must fail closed before Investigator execution.");
-assert(/runTargetContactAgent\(\{[\s\S]*?contextDocument\s*\}/.test(canonical), "Canonical single-target runner must mount durable context into Target Investigator.");
+assert(/if \(!contextDocument\)\s*\{[\s\S]*?status:\s*["']unavailable["']/.test(target), "Missing durable context must fail closed before Investigator execution.");
+assert(/runTargetContactAgent\(\{[\s\S]*?contextDocument:\s*actContext/.test(canonical), "Canonical single-target runner must mount the durable act context into Target Investigator.");
 console.log("Target Investigator context-boundary checks passed.");
