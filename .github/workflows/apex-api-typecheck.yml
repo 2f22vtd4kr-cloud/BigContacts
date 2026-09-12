@@ -1,6 +1,7 @@
 name: Apex API Build
 
 # Canonical API build and typecheck gate.
+# CI retrigger marker: strict typecheck repair verification.
 on:
   push:
     branches: [main]
