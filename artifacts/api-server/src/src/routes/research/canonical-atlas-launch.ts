@@ -1,5 +1,5 @@
 import { Router, type Request, type Response } from "express";
-import { createJob, getActiveJob, getJob, setActiveJob, updateJob } from "../../lib/job-queue";
+import { createJob, getActiveJob, getJob, updateJob } from "../../lib/job-queue";
 import { claimCanonicalJob, releaseCanonicalJob } from "../../lib/canonical-job-lock";
 import { enablePermanentRedis } from "../../lib/redis";
 import { runCanonicalAtlasPipeline } from "../../lib/canonical-atlas-discovery";
@@ -43,7 +43,10 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
     return;
   }
 
-  await setActiveJob("atlas-run", atlasJobId);
+  // claimCanonicalJob owns the distributed pointer. Do not perform a second
+  // unconditional SET here: if the process is descheduled long enough for its
+  // lease to expire and another launch claims the key, an unconditional write
+  // would overwrite the newer owner's lock.
   await updateJob(atlasJobId, {
     status: "running",
     progress: 0,
@@ -67,7 +70,7 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
       try {
         await releaseCanonicalJob("atlas-run", atlasJobId);
       } catch {
-        // Keep the durable TTL lock when release is unavailable; never delete another owner's lock.
+        // Keep the durable TTL lease when release is unavailable; never delete another owner's lock.
       }
     }
   })();
