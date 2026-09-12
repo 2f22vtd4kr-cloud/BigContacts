@@ -10,6 +10,7 @@ const checks = [
   ["response cache cardinality is bounded", /APEX_EXTERNAL_MAX_RESPONSE_CACHE_ENTRIES/.test(source) && /responseCache\.size >= maxResponseCacheEntries\(\)/.test(source)],
   ["expired cache entries are pruned", /function pruneResponseCache\(now: number\)/.test(source) && /entry\.expiresAt <= now/.test(source)],
   ["cache keys strip credential query parameters", /for \(const key of \["key", "apikey", "api_key", "token"\]\) parsed\.searchParams\.delete\(key\)/.test(source)],
+  ["credential-bearing cache keys retain an account fingerprint", /function cacheKey[\s\S]{0,1200}accountFingerprint\(input, init\)[\s\S]{0,500}return `\$\{provider\}\|\$\{account\}\|/.test(source)],
   ["fetch concurrency acquisition receives the request AbortSignal", /acquireConcurrency\(provider, init\?\.signal\)/.test(source)],
   ["provider snapshot aggregates keyed state instead of assuming bare provider keys", /key\.split\("\\|", 1\)/.test(source)],
 ];
