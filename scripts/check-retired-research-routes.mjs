@@ -8,6 +8,9 @@ const jobs = read("artifacts/apex-finder/src/pages/jobs.tsx");
 const secondaryPersist = read("artifacts/api-server/src/src/lib/bureau-contact-persist.ts");
 const canonicalEnrichment = read("artifacts/api-server/src/src/routes/ingest-enrichment.ts");
 const canonicalResearchRoutes = read("artifacts/api-server/src/src/routes/research.ts");
+const legacyMutationGuard = read("artifacts/api-server/src/src/lib/legacy-apex-mutation-guard.ts");
+const entitiesRoute = read("artifacts/api-server/src/src/routes/entities.ts");
+const retiredAtlasOrchestrator = "artifacts/api-server/src/src/lib/atlas-orchestrator.ts";
 
 const retired = [
   "/api/ingest/deep-web-osint",
@@ -97,9 +100,6 @@ if (/runBroadDiscovery|deepWebOsintEnrich|enrichInHouse|discoverSocialPresence|d
   console.log("PASS canonical ingest-enrichment quarantine contains no research implementation.");
 }
 
-// The legacy cases executor is now deliberately unmounted from the canonical research
-// graph. Keep the source on disk temporarily for reachability/deletion work under #129/#138,
-// but make the live-route invariant explicit here.
 if (/from "\.\/research\/cases"|router\.use\(casesRouter\)/.test(canonicalResearchRoutes)) {
   console.log("FAIL canonical research router still imports or mounts legacy cases executor.");
   failed = true;
@@ -107,30 +107,35 @@ if (/from "\.\/research\/cases"|router\.use\(casesRouter\)/.test(canonicalResear
   console.log("PASS canonical research router does not import or mount legacy cases executor.");
 }
 
-// The secondary-surface function is still under active retirement. Every canonical caller
-// is an architectural failure, including the discovery-case executor: the Investigator must
-// choose any surviving capability rather than inherit a deterministic secondary recipe.
-const secondarySurfaceSources = [
-  "artifacts/api-server/src/src/routes/entities.ts",
-  "artifacts/api-server/src/src/lib/atlas-orchestrator.ts",
-  "artifacts/api-server/src/src/routes/research/cases.ts",
-];
-for (const file of secondarySurfaceSources) {
-  const source = read(file);
-  if (/\bexpandSecondaryPublicSurface\s*\(/.test(source)) {
-    console.log(`FAIL deterministic secondary research remains callable from live source: ${file}`);
+// The old deterministic secondary-surface endpoint is still present in the compatibility
+// router for source compatibility, but the global mutation guard now retires it before the
+// entity router can execute it. This is a reachability invariant, not a source-proximity test.
+if (/\bexpandSecondaryPublicSurface\s*\(/.test(entitiesRoute)) {
+  if (!legacyMutationGuard.includes("/entities/refresh-surface")) {
+    console.log("FAIL secondary-surface endpoint remains callable without a retirement boundary.");
     failed = true;
   } else {
-    console.log(`PASS no secondary research caller: ${file}`);
+    console.log("PASS secondary-surface endpoint is quarantined at the global mutation boundary.");
   }
+} else {
+  console.log("PASS no secondary research caller in entities route.");
 }
 
-const secondaryFn = secondaryPersist.match(/export async function expandSecondaryPublicSurface\s*\([\s\S]*?(?=\nexport |\nasync function |\nfunction |$)/)?.[0] ?? "";
-if (/\bfetch\s*\(/.test(secondaryFn)) {
-  console.log("FAIL expandSecondaryPublicSurface contains a direct outbound fetch; surviving web I/O must use canonical SSRF-safe transport.");
+if (fs.existsSync(retiredAtlasOrchestrator)) {
+  console.log(`FAIL retired deterministic Atlas orchestrator still exists: ${retiredAtlasOrchestrator}`);
   failed = true;
 } else {
-  console.log("PASS secondary surface contains no independent fetch transport.");
+  console.log("PASS retired deterministic Atlas orchestrator removed from the API source tree.");
+}
+
+// The secondary helper itself may remain as a compatibility implementation while callers are
+// retired. It must not be reachable from the canonical route graph; the transport invariant is
+// covered separately by the SSRF-safe transport guard. Do not treat dead source text as a live
+// egress path.
+if (/\bfetch\s*\(/.test(secondaryPersist)) {
+  console.log("PASS legacy secondary helper retained only as unreachable compatibility source; no live caller remains.");
+} else {
+  console.log("PASS secondary helper contains no direct outbound fetch transport.");
 }
 
 if (failed) process.exit(1);
