@@ -2,6 +2,7 @@
 import fs from "node:fs";
 
 const read = (p) => fs.readFileSync(p, "utf8");
+const readOptional = (p) => fs.existsSync(p) ? fs.readFileSync(p, "utf8") : "";
 const checks = [];
 const pass = (name, ok) => checks.push([name, Boolean(ok)]);
 
@@ -10,7 +11,7 @@ const agentic = read("artifacts/api-server/src/src/lib/agentic-web-research-core
 const strict = read("artifacts/api-server/src/src/lib/bureau-contact-persist-strict.ts");
 const batch = read(".github/workflows/apex-batch10.yml");
 const discovery = read("artifacts/api-server/src/src/lib/discovery-agent.ts");
-const orchestrator = read("artifacts/api-server/src/src/lib/atlas-orchestrator.ts");
+const orchestrator = readOptional("artifacts/api-server/src/src/lib/atlas-orchestrator.ts");
 const registry = read("artifacts/api-server/src/src/lib/registry-client.ts");
 const pythonTools = read("artifacts/api-server/src/src/lib/python-tools.ts");
 const aiExtractor = read("artifacts/api-server/src/src/lib/ai-extractor.ts");
@@ -43,8 +44,7 @@ pass("strict promotion merges provenance atomically", /jsonb_set\(/.test(strict)
 pass("manual live audit is bounded to three targets", /[\"']targetCount[\"']\s*:\s*3/.test(batch) && !/[\"']targetCount[\"']\s*:\s*10/.test(batch));
 pass("manual audit runs agentic runtime checks", /check:agentic-runtime/.test(batch));
 pass("discovery emits model-selection progress", /onSlotProgress\?/.test(discovery));
-pass("orchestrator defaults target limit to three", /opts\.targetCount \?\? 3/.test(orchestrator));
-pass("orchestrator does not force a ten-target default", !/opts\.targetCount \?\? 10/.test(orchestrator));
+pass("historical deterministic Atlas orchestrator is removed", orchestrator === "");
 pass("first Investigator action is not seeded with web_search", !/Begin\. Choose an initial web_search query/i.test(agentic) && !/\(none — begin with web_search\)/i.test(agentic));
 pass("Maigret is individually selectable", agentic.includes('"footprint_username_maigret"'));
 pass("Sherlock is individually selectable", agentic.includes('"footprint_username_sherlock"'));
