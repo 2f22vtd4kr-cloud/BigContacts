@@ -36,6 +36,8 @@ jobs:
         run: node scripts/check-source-migration-hardener-parity.mjs
       - name: Check provider gate resource bounds
         run: node scripts/check-provider-gate-resource-bounds.mjs
+      - name: Check agentic concurrency admission
+        run: node scripts/check-agentic-concurrency-admission.mjs
       - name: Check research event identity and replay semantics
         run: node scripts/check-research-event-identity.mjs
       - name: Check canonical target per-act control
