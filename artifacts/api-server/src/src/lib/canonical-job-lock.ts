@@ -8,8 +8,13 @@ const JOB_LOCK_RENEW_INTERVAL_MS = 5 * 60 * 1000;
 const leaseTimers = new Map<string, ReturnType<typeof setInterval>>();
 
 type ClaimResult = { available: true; result: string | null };
-async function fenceLeaseLostCases(jobId: string): Promise<void> {
-  await db.update(researchCasesTable).set({ status: "review", currentAction: "canonical-lease-lost", updatedAt: new Date() }).where(and(eq(researchCasesTable.status, "active"), or(sql`${researchCasesTable.caseFile}::jsonb ->> 'atlasJobId' = ${jobId}`, sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${jobId}`)));
+async function fenceLeaseLostCases(type: string, jobId: string): Promise<void> {
+  const finishedAt = new Date().toISOString();
+  const redisFence = withPermanentClient(async (redis) => {
+    await redis.hset(`apex:job:${jobId}`, { status: "cancelled", outcome: "incomplete", message: "Canonical lease lost; refusing further work.", finishedAt });
+  }, undefined);
+  const dbFence = db.update(researchCasesTable).set({ status: "review", currentAction: "canonical-lease-lost", updatedAt: new Date() }).where(and(eq(researchCasesTable.status, "active"), or(sql`${researchCasesTable.caseFile}::jsonb ->> 'atlasJobId' = ${jobId}`, sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${jobId}`)));
+  await Promise.allSettled([redisFence, dbFence]);
 }
 
 export async function claimCanonicalJob(type: string, jobId: string): Promise<boolean> {
@@ -18,7 +23,7 @@ export async function claimCanonicalJob(type: string, jobId: string): Promise<bo
   if (outcome.result !== "OK") return false;
   invalidateActiveJobCache(type);
   const timerKey = `${type}:${jobId}`; const prior = leaseTimers.get(timerKey); if (prior) clearInterval(prior);
-  const timer = setInterval(() => { void renewCanonicalJob(type, jobId).then((renewed) => { if (!renewed) { const current = leaseTimers.get(timerKey); if (current) clearInterval(current); leaseTimers.delete(timerKey); void fenceLeaseLostCases(jobId).catch(() => undefined); } }).catch(() => { const current = leaseTimers.get(timerKey); if (current) clearInterval(current); leaseTimers.delete(timerKey); void fenceLeaseLostCases(jobId).catch(() => undefined); }); }, JOB_LOCK_RENEW_INTERVAL_MS);
+  const timer = setInterval(() => { void renewCanonicalJob(type, jobId).then((renewed) => { if (!renewed) { const current = leaseTimers.get(timerKey); if (current) clearInterval(current); leaseTimers.delete(timerKey); void fenceLeaseLostCases(type, jobId).catch(() => undefined); } }).catch(() => { const current = leaseTimers.get(timerKey); if (current) clearInterval(current); leaseTimers.delete(timerKey); void fenceLeaseLostCases(type, jobId).catch(() => undefined); }); }, JOB_LOCK_RENEW_INTERVAL_MS);
   timer.unref?.(); leaseTimers.set(timerKey, timer); return true;
 }
 
