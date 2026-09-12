@@ -8,15 +8,15 @@ const JOB_LOCK_RENEW_INTERVAL_MS = 5 * 60 * 1000;
 const leaseTimers = new Map<string, ReturnType<typeof setInterval>>();
 
 type ClaimResult = { available: true; result: string | null };
-async function fenceLeaseLostCases(jobId: string): Promise<void> {
+async function fenceLeaseLostCases(type: string, jobId: string): Promise<void> {
   const finishedAt = new Date().toISOString();
   await db.update(researchCasesTable).set({ status: "review", currentAction: "canonical-lease-lost", updatedAt: new Date() }).where(and(eq(researchCasesTable.status, "active"), or(sql`${researchCasesTable.caseFile}::jsonb ->> 'atlasJobId' = ${jobId}`, sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${jobId}`)));
   // Also fence the Redis job state. Canonical workers check this state between
   // control-plane acts; without it a worker whose lease expired could continue
-  // indefinitely after another process acquired the same canonical lane.
+  // after another process acquired the same canonical lane.
   await withPermanentClient(async (redis) => {
     const key = `apex:job:${jobId}`;
-    const owner = await redis.get(`apex:activejob:atlas-run`);
+    const owner = await redis.get(`apex:activejob:${type}`);
     // Never mutate a job that has become the new lock owner. The old job is
     // cancelled only when the canonical lock no longer points at it.
     if (owner !== jobId) {
@@ -31,7 +31,7 @@ export async function claimCanonicalJob(type: string, jobId: string): Promise<bo
   if (outcome.result !== "OK") return false;
   invalidateActiveJobCache(type);
   const timerKey = `${type}:${jobId}`; const prior = leaseTimers.get(timerKey); if (prior) clearInterval(prior);
-  const timer = setInterval(() => { void renewCanonicalJob(type, jobId).then((renewed) => { if (!renewed) { const current = leaseTimers.get(timerKey); if (current) clearInterval(current); leaseTimers.delete(timerKey); void fenceLeaseLostCases(jobId).catch(() => undefined); } }).catch(() => { const current = leaseTimers.get(timerKey); if (current) clearInterval(current); leaseTimers.delete(timerKey); void fenceLeaseLostCases(jobId).catch(() => undefined); }); }, JOB_LOCK_RENEW_INTERVAL_MS);
+  const timer = setInterval(() => { void renewCanonicalJob(type, jobId).then((renewed) => { if (!renewed) { const current = leaseTimers.get(timerKey); if (current) clearInterval(current); leaseTimers.delete(timerKey); void fenceLeaseLostCases(type, jobId).catch(() => undefined); } }).catch(() => { const current = leaseTimers.get(timerKey); if (current) clearInterval(current); leaseTimers.delete(timerKey); void fenceLeaseLostCases(type, jobId).catch(() => undefined); }); }, JOB_LOCK_RENEW_INTERVAL_MS);
   timer.unref?.(); leaseTimers.set(timerKey, timer); return true;
 }
 
