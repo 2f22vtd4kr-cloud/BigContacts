@@ -11,8 +11,18 @@ const checks = [
   ["agentic discovery has an explicit deadline timer", /input\.mode === "discovery"[\s\S]{0,1800}setTimeout\(\(\) => controller\.abort\(\), requestedHardTimeout\)/.test(agentic)],
   ["agentic discovery checks durable job state when a job is supplied", /input\.mode === "discovery"[\s\S]{0,2600}const job = await getJob\(input\.jobId\)/.test(agentic) && /job\.status !== "running"/.test(agentic)],
   ["agentic discovery passes cancellation into the canonical core", /input\.mode === "discovery"[\s\S]{0,2600}shouldCancel: async \(\) =>/.test(agentic) && /signal: controller\.signal/.test(agentic)],
-  ["discovery delegates only after installing the cancellation fence", /return \{\.\.\.\(await core\.runAgenticWebResearch\(discoveryInput\)\), executionId \}/.test(agentic)],
 ];
+
+const discoveryStart = agentic.indexOf('if (input.mode === "discovery")');
+const controllerIndex = agentic.indexOf("const controller = new AbortController();", discoveryStart);
+const cancellationListenerIndex = agentic.indexOf('input.signal?.addEventListener("abort", abortExternal', controllerIndex);
+const deadlineTimerIndex = agentic.indexOf("const deadlineTimer = setTimeout(() => controller.abort(), requestedHardTimeout);", controllerIndex);
+const coreDelegationIndex = agentic.indexOf("core.runAgenticWebResearch(discoveryInput)", controllerIndex);
+checks.push([
+  "discovery installs its abort/cancellation fence before delegating to core",
+  discoveryStart >= 0 && controllerIndex > discoveryStart && cancellationListenerIndex > controllerIndex && deadlineTimerIndex > cancellationListenerIndex && coreDelegationIndex > deadlineTimerIndex,
+]);
+
 let failed = false;
 for (const [name, ok] of checks) {
   console.log(`${ok ? "PASS" : "FAIL"} ${name}`);
