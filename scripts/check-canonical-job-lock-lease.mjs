@@ -6,7 +6,7 @@ const lock = fs.readFileSync(path.join(root, "artifacts/api-server/src/src/lib/c
 const launch = fs.readFileSync(path.join(root, "artifacts/api-server/src/src/routes/research/canonical-atlas-launch.ts"), "utf8");
 const recovery = fs.readFileSync(path.join(root, "artifacts/api-server/src/src/lib/startup-recovery.ts"), "utf8");
 const checks = [
-  ["lock lease is bounded", /JOB_LOCK_TTL_SECONDS\s*=\s*60\s*\*\s*60/.test(lock)],
+  ["lock lease is bounded to a short stale-recovery window", /JOB_LOCK_TTL_SECONDS\s*=\s*15\s*\*\s*60/.test(lock)],
   ["owner-bound heartbeat exists", /renewCanonicalJob/.test(lock) && /ARGV\[1\]/.test(lock)],
   ["renewal cannot replace another owner", /== ARGV\[1\].*expire/s.test(lock)],
   ["lease loss durably fences bound cases", /fenceLeaseLostCases[\s\S]*status: "review"[\s\S]*canonical-lease-lost/.test(lock)],
@@ -14,7 +14,7 @@ const checks = [
   ["release remains owner-bound", /releaseCanonicalJob[\s\S]*redis\.eval/.test(lock)],
   ["launch does not perform an unconditional second lock SET", !/setActiveJob\("atlas-run"/.test(launch)],
   ["lease renewal timer is cleaned on release", /leaseTimers\.delete\(timerKey\)/.test(lock)],
-  ["startup recovery uses owner-bound release", /clearActiveJobIfOwned/.test(recovery) && !/\bclearActiveJob\(type\s*,/.test(recovery)],
+  ["startup recovery never mutates a distributed job owned by another replica", /distributed jobs left untouched/.test(recovery) && !/updateJob|clearActiveJobIfOwned/.test(recovery)],
 ];
 const failures = checks.filter(([, ok]) => !ok).map(([name]) => name);
 if (failures.length) {
