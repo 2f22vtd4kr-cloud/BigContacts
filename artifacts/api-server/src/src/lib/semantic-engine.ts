@@ -18,9 +18,7 @@ async function loadTransformers(): Promise<boolean> {
       env = mod.env;
       pipeline = mod.pipeline;
       return true;
-    } catch {
-      return false;
-    }
+    } catch { return false; }
   })();
   return _transformersLoad;
 }
@@ -37,10 +35,7 @@ async function getEmbeddingPipeline(): Promise<FeatureExtractionPipeline> {
   if (!_pipelinePromise) {
     const ok = await loadTransformers();
     if (!ok || !pipeline) throw new Error("semantic model unavailable (@huggingface/transformers not installed)");
-    if (env) {
-      env.cacheDir = "/tmp/hf-cache";
-      env.allowLocalModels = false;
-    }
+    if (env) { env.cacheDir = "/tmp/hf-cache"; env.allowLocalModels = false; }
     console.log("[semantic-engine] Loading all-MiniLM-L6-v2 (first time, ~23 MB download)...");
     _pipelinePromise = pipeline("feature-extraction", "Xenova/all-MiniLM-L6-v2", { dtype: "fp32" })
       .then((p: FeatureExtractionPipeline) => { _pipelineLoaded = true; console.log("[semantic-engine] Model ready."); return p; })
@@ -51,27 +46,26 @@ async function getEmbeddingPipeline(): Promise<FeatureExtractionPipeline> {
 
 export function isModelLoaded(): boolean { return _pipelineLoaded; }
 
+function isNonZeroEmbedding(data: Float32Array): boolean {
+  let magnitude = 0;
+  for (const value of data) magnitude += value * value;
+  return magnitude > 1e-12;
+}
+
 export async function embedText(text: string): Promise<Float32Array> {
-  try {
-    const pipe = await getEmbeddingPipeline();
-    const output = await pipe(text.slice(0, 512), { pooling: "mean", normalize: true });
-    const data = output.data as Float32Array;
-    if (!(data instanceof Float32Array) || data.length !== 384) throw new Error("semantic model returned an invalid embedding dimension");
-    return data;
-  } catch (err: any) {
-    if (String(err?.message || err).includes("skipped on tiny host")) return new Float32Array(384);
-    throw err;
+  const pipe = await getEmbeddingPipeline();
+  const output = await pipe(text.slice(0, 512), { pooling: "mean", normalize: true });
+  const data = output.data as Float32Array;
+  if (!(data instanceof Float32Array) || data.length !== 384 || !isNonZeroEmbedding(data)) {
+    throw new Error("semantic model returned an invalid or empty embedding");
   }
+  return data;
 }
 
 function cosineSim(a: Float32Array, b: Float32Array): number {
-  if (a.length !== 384 || b.length !== 384) return 0;
+  if (a.length !== 384 || b.length !== 384 || !isNonZeroEmbedding(a) || !isNonZeroEmbedding(b)) return 0;
   let dot = 0, normA = 0, normB = 0;
-  for (let i = 0; i < 384; i++) {
-    dot += a[i]! * b[i]!;
-    normA += a[i]! * a[i]!;
-    normB += b[i]! * b[i]!;
-  }
+  for (let i = 0; i < 384; i++) { dot += a[i]! * b[i]!; normA += a[i]! * a[i]!; normB += b[i]! * b[i]!; }
   const denom = Math.sqrt(normA) * Math.sqrt(normB);
   return denom === 0 ? 0 : dot / denom;
 }
@@ -85,7 +79,7 @@ const boundedEnv = (name: string, fallback: number, min: number, max: number): n
 const MAX_EMBEDDING_CACHE_ENTRIES = () => boundedEnv("APEX_MAX_EMBEDDING_CACHE_ENTRIES", 25_000, 100, 100_000);
 
 function putBoundedEmbedding(entityId: number, emb: Float32Array): void {
-  if (emb.length !== 384 || !Number.isInteger(entityId) || entityId <= 0) return;
+  if (emb.length !== 384 || !Number.isInteger(entityId) || entityId <= 0 || !isNonZeroEmbedding(emb)) return;
   _embCache.delete(entityId);
   while (_embCache.size >= MAX_EMBEDDING_CACHE_ENTRIES()) {
     const oldest = _embCache.keys().next().value as number | undefined;
@@ -110,22 +104,23 @@ function base64ToFloat32(b64: string): Float32Array | null {
   try {
     const buf = Buffer.from(b64, "base64");
     if (buf.byteLength !== 384 * 4) return null;
-    return new Float32Array(buf.buffer, buf.byteOffset, 384);
+    const emb = new Float32Array(buf.buffer, buf.byteOffset, 384);
+    return isNonZeroEmbedding(emb) ? emb : null;
   } catch { return null; }
 }
 
 export async function storeEmbedding(entityId: number, emb: Float32Array): Promise<void> {
-  if (emb.length !== 384 || !Number.isInteger(entityId) || entityId <= 0) return;
+  if (emb.length !== 384 || !Number.isInteger(entityId) || entityId <= 0 || !isNonZeroEmbedding(emb)) return;
   putBoundedEmbedding(entityId, emb);
   try {
-    const redis = await getRedisClient();
+    const redis = getRedisClient();
     if (redis) await redis.set(`${EMB_KEY_PREFIX}${entityId}`, float32ToBase64(emb), "EX", EMB_TTL_SECONDS);
   } catch { /* cache failure does not corrupt the entity record */ }
 }
 
 export async function loadEmbeddingsFromRedis(): Promise<number> {
   try {
-    const redis = await getRedisClient();
+    const redis = getRedisClient();
     if (!redis) return 0;
     let cursor = "0";
     let loaded = 0;
@@ -138,8 +133,7 @@ export async function loadEmbeddingsFromRedis(): Promise<number> {
         if (_embCache.size >= MAX_EMBEDDING_CACHE_ENTRIES()) break;
         const key = keys[i], val = values[i];
         if (!key || !val) continue;
-        const idStr = key.slice(EMB_KEY_PREFIX.length);
-        const entityId = Number.parseInt(idStr, 10);
+        const entityId = Number.parseInt(key.slice(EMB_KEY_PREFIX.length), 10);
         if (!Number.isSafeInteger(entityId) || entityId <= 0) continue;
         const emb = base64ToFloat32(val);
         if (!emb) continue;
