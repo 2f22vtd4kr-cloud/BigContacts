@@ -2,7 +2,7 @@ import type { NextFunction, Request, Response } from "express";
 import { db, entitiesTable } from "@workspace/db";
 import { inArray, eq } from "drizzle-orm";
 
-const RETIRED_MUTATING_ENRICHMENT_PATHS = new Set(["/ingest/web-osint-enrich", "/ingest/in-house-enrich", "/ingest/social-discovery", "/ingest/messenger-discovery", "/ingest/foundation-filings", "/ingest/companies-house-enrich", "/ingest/occrp", "/ingest/deep-web-osint", "/ingest/broad-discovery", "/entities/rehydrate-contacts", "/entities/fix-outcome-honesty", "/improve/apply-safe"]);
+const RETIRED_MUTATING_ENRICHMENT_PATHS = new Set(["/ingest/web-osint-enrich", "/ingest/in-house-enrich", "/ingest/social-discovery", "/ingest/messenger-discovery", "/ingest/foundation-filings", "/ingest/companies-house-enrich", "/ingest/occrp", "/ingest/deep-web-osint", "/ingest/broad-discovery", "/entities/rehydrate-contacts", "/entities/fix-outcome-honesty", "/entities/refresh-surface", "/improve/apply-safe"]);
 const APEX_TYPES = new Set(["HNWI", "Gatekeeper"]);
 const DIRECT_CONTACT_FIELDS = new Set(["email", "phone", "phoneSource", "emailSource", "linkedinUrl", "twitterHandle", "instagramHandle", "telegramHandle", "contactMethod", "knownResidences", "contactOutcome", "contactConfidence"]);
 const CONTACT_METADATA_FIELDS = new Set(["email", "phone", "phoneSource", "emailSource", "linkedinUrl", "twitterHandle", "instagramHandle", "telegramHandle", "contactMethod", "contactOutcome", "contactConfidence", "agenticContactProvenance"]);
