@@ -77,7 +77,7 @@ pass("canonical target runner steps one Investigator act", /maxIterations:\s*1/.
 pass("canonical target runner requires durable oversight", /!lastOversight \|\| lastOversight\.status !== "completed"/.test(canonicalRunner));
 pass("canonical target runner uses one global deadline", /const deadline = Date\.now\(\) \+ hardTimeoutMs/.test(canonicalRunner));
 pass("canonical target runner releases the Atlas lock owner-atomically", /releaseCanonicalJob\("atlas-run", atlasJobId\)/.test(canonicalRunner) && !/clearActiveJobIfMatches\("atlas-run", atlasJobId\)/.test(canonicalRunner));
-pass("target wrapper fails closed without control context", /CONTROL_CONTEXT_UNAVAILABLE/.test(wrapper));
+pass("target wrapper fails closed without control context", /loadTargetActOversightContext\(input\.caseId, input\.targetName\)/.test(wrapper) && /if \(!oversightContext\) return \{ status: "unavailable"/.test(wrapper) && /durable control case/.test(wrapper));
 pass("target wrapper actively aborts at global deadline", /setTimeout\(\(\) => overallController\.abort\(\), requestedHardTimeout\)/.test(wrapper));
 
 let failed = false;
