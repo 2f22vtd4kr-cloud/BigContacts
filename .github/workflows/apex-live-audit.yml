@@ -43,9 +43,6 @@ jobs:
       GEMINI_API_KEY_13: ${{ secrets.GEMINI_API_KEY_13 }}
       GEMINI_AGENTIC_MODEL: gemini-3.7-flash
       GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
-      # Qwen3.8 has a materially larger current TPD allowance than the exhausted
-      # GPT-OSS/Qwen3.6 lane. Explicit configuration is strict: no silent quota
-      # fallthrough to a different Groq model.
       GROQ_AGENTIC_MODEL: qwen/qwen3.8-27b
       MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
       MISTRAL_AGENTIC_MODEL: mistral-small-latest
@@ -63,14 +60,9 @@ jobs:
       WHOISJSON_API_KEY: ${{ secrets.WHOISJSON_API_KEY }}
       RESEARCH_DEPTH: standard
       APEX_SKIP_SEMANTIC: "1"
-      # Groq's current Qwen3.8 on-demand lane is 8K TPM. A prior 5s interval
-      # still collided with that ceiling because each agentic prompt is ~1.8–2.1K
-      # input tokens. Serialize with a 30s floor so one turn cannot crowd the next.
       APEX_AGENTIC_CONCURRENCY: "1"
       APEX_AGENTIC_PROVIDER_CONCURRENCY: "1"
-      # Must match the bounded launch body below; audit defaults to 10 otherwise.
       LIVE_AUDIT_TARGET_COUNT: "3"
-      # Smoke acceptance is ≥1 real person; 3 is the bounded exploration budget.
       LIVE_AUDIT_MIN_ADMITS: "1"
       AGENTIC_PROVIDER_DECISION_TIMEOUT_MS: "55000"
       GROQ_AGENTIC_MIN_INTERVAL_MS: "30000"
@@ -87,6 +79,12 @@ jobs:
           registry-url: https://registry.npmjs.org/
       - name: Install pnpm
         run: npm install -g pnpm@9
+      - name: Create ephemeral CI API credential
+        shell: bash
+        run: |
+          set -euo pipefail
+          token="$(openssl rand -hex 32)"
+          echo "APEX_API_AUTH_TOKEN=${token}" >> "$GITHUB_ENV"
       - name: Install API workspace graph with registry retries
         shell: bash
         run: |
@@ -118,6 +116,7 @@ jobs:
           pnpm run check:comparison-contract
           pnpm run check:agentic-runtime
           node scripts/check-agentic-timeout.mjs
+          node scripts/check-api-auth-boundary.mjs
           pnpm --dir artifacts/api-server exec vitest run src/src/test/discovery-agent-parse.test.ts src/src/test/discovery-runtime-correctness.test.ts src/src/test/agentic-scope-boundary.test.ts src/src/test/agentic-source-provenance.test.ts src/src/test/bureau-contact-persist-strict.test.ts
       - name: Provider catalog and generation preflight
         shell: bash
@@ -167,15 +166,13 @@ jobs:
           test "$(curl -sS -m 5 -o /tmp/health.json -w '%{http_code}' http://127.0.0.1:8080/api/healthz)" = 200
       - name: Launch bounded 3-target discovery-first smoke
         run: |
-          # Proof gate, not a scale audit: establish one honest admit → Dig → card
-          # chain before spending quota on the 10-target comparison workflow.
-          curl -sS -m 15 -X POST http://127.0.0.1:8080/api/ingest/atlas-run -H 'Content-Type: application/json' -d '{"discoveryFirst":true,"targetCount":3,"researchLimit":2,"runResearch":true,"skipFaa":true,"targetTimeoutMs":300000,"researchDepth":"standard"}' | tee /tmp/launch.json
+          curl -sS -m 15 -X POST http://127.0.0.1:8080/api/ingest/atlas-run -H "Authorization: Bearer ${APEX_API_AUTH_TOKEN}" -H 'Content-Type: application/json' -d '{"discoveryFirst":true,"targetCount":3,"researchLimit":2,"runResearch":true,"skipFaa":true,"targetTimeoutMs":300000,"researchDepth":"standard"}' | tee /tmp/launch.json
           node -e 'const x=require("/tmp/launch.json"); if(!x.jobId){console.error(JSON.stringify(x));process.exit(1)}; console.log(x.jobId)'
       - name: Poll Bureau
         run: |
           for i in $(seq 1 900); do
             sleep 5
-            curl -sS -m 10 http://127.0.0.1:8080/api/ingest/atlas-status > /tmp/atlas-status.json || true
+            curl -sS -m 10 -H "Authorization: Bearer ${APEX_API_AUTH_TOKEN}" http://127.0.0.1:8080/api/ingest/atlas-status > /tmp/atlas-status.json || true
             node -e 'const fs=require("fs");try{const x=JSON.parse(fs.readFileSync("/tmp/atlas-status.json","utf8"));console.log(JSON.stringify({status:x.status,jobId:x.jobId||x.job?.jobId,phase:x.atlasPhase,progress:x.entityProgress,total:x.entityTotal,names:x.entityNames}))}catch{}'
             STATUS=$(node -e 'const fs=require("fs");try{const x=JSON.parse(fs.readFileSync("/tmp/atlas-status.json","utf8"));process.stdout.write(String(x.status||x.job?.status||""))}catch{}')
             case "$STATUS" in done|completed|idle) exit 0;; failed|cancelled) exit 1;; esac
@@ -185,9 +182,9 @@ jobs:
         if: always()
         run: |
           curl -sS -m 10 http://127.0.0.1:8080/api/healthz | tee /tmp/health.json || true
-          curl -sS -m 10 http://127.0.0.1:8080/api/ingest/atlas-status | tee /tmp/atlas-status.json || true
-          curl -sS -m 10 'http://127.0.0.1:8080/api/entities?limit=50&offset=0' | tee /tmp/entities.json || true
-          curl -sS -m 10 'http://127.0.0.1:8080/api/ingest/scoreboard-snapshot?limit=50' | tee /tmp/scoreboard.json || true
+          curl -sS -m 10 -H "Authorization: Bearer ${APEX_API_AUTH_TOKEN}" http://127.0.0.1:8080/api/ingest/atlas-status | tee /tmp/atlas-status.json || true
+          curl -sS -m 10 -H "Authorization: Bearer ${APEX_API_AUTH_TOKEN}" 'http://127.0.0.1:8080/api/entities?limit=50&offset=0' | tee /tmp/entities.json || true
+          curl -sS -m 10 -H "Authorization: Bearer ${APEX_API_AUTH_TOKEN}" 'http://127.0.0.1:8080/api/ingest/scoreboard-snapshot?limit=50' | tee /tmp/scoreboard.json || true
       - name: Live autonomy and provenance audit
         if: always()
         run: node scripts/audit-live-bureau.mjs
