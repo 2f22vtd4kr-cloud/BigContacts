@@ -6,10 +6,10 @@
  * endpoints are lifecycle/status utilities and the optional semantic-cache job.
  */
 import { Router, type Request, type Response } from "express";
-import { db, entitiesTable, contactEvidenceTable } from "@workspace/db";
-import { sql, eq, count, inArray } from "drizzle-orm";
+import { db, entitiesTable } from "@workspace/db";
+import { sql, eq, count } from "drizzle-orm";
 import {
-  createJob, updateJob, getJob, getActiveJob, getActiveJobs, ownsActiveJob, clearActiveJobIfOwned,
+  createJob, updateJob, getJob, getActiveJob, getActiveJobs, setActiveJob, ownsActiveJob, clearActiveJobIfOwned,
 } from "../lib/job-queue";
 import { entityToEmbedText, embedText, storeEmbedding, getAllEmbeddings, getEmbeddingCacheSize, isModelLoaded } from "../lib/semantic-engine";
 import { logger } from "../lib/logger";
@@ -49,15 +49,7 @@ router.get("/pipeline/status", async (_req: Request, res: Response): Promise<voi
       db.select({ count: count() }).from(entitiesTable).where(sql`${entitiesTable.notes} IS NULL OR length(${entitiesTable.notes}) < 50`),
       db.execute(sql`SELECT ((SELECT COUNT(*) FROM entities) - (SELECT COUNT(DISTINCT e_id) FROM (SELECT source_entity_id AS e_id FROM relationships UNION SELECT target_id AS e_id FROM relationships WHERE target_type = 'Entity') t))::int AS count`),
     ]);
-    res.json({
-      totalEntities: Number(totalRow[0]?.count ?? 0),
-      hotLeads: Number(hotRow[0]?.count ?? 0),
-      coldMcts: Number((coldMctsRow.rows[0] as any)?.count ?? 0),
-      needsEnrichment: Number(needsEnrichmentRow[0]?.count ?? 0),
-      zeroContact: Number(zeroContactRow[0]?.count ?? 0),
-      sparseNotes: Number(sparseNotesRow[0]?.count ?? 0),
-      zeroRelationships: Number((zeroRelRow.rows[0] as any)?.count ?? 0),
-    });
+    res.json({ totalEntities: Number(totalRow[0]?.count ?? 0), hotLeads: Number(hotRow[0]?.count ?? 0), coldMcts: Number((coldMctsRow.rows[0] as any)?.count ?? 0), needsEnrichment: Number(needsEnrichmentRow[0]?.count ?? 0), zeroContact: Number(zeroContactRow[0]?.count ?? 0), sparseNotes: Number(sparseNotesRow[0]?.count ?? 0), zeroRelationships: Number((zeroRelRow.rows[0] as any)?.count ?? 0) });
   } catch (err: any) { res.status(500).json({ error: err?.message ?? "Failed to fetch pipeline status" }); }
 });
 
@@ -74,21 +66,26 @@ router.post("/ingest/compute-embeddings", async (req: Request, res: Response): P
   const existing = await getActiveJob("compute-embeddings");
   if (existing && !force) { res.status(409).json({ error: "compute-embeddings already running", jobId: existing }); return; }
   if (existing && force) {
-    await updateJob(existing, { status: "failed", message: "Superseded by force restart.", finishedAt: new Date().toISOString() });
+    await updateJob(existing, { status: "cancelled", message: "Superseded by force restart.", finishedAt: new Date().toISOString() });
     await clearActiveJobIfOwned("compute-embeddings", existing);
   }
 
   const jobId = await createJob("compute-embeddings");
   try {
+    await setActiveJob("compute-embeddings", jobId);
     await updateJob(jobId, { status: "running", message: "Loading semantic embedding model (all-MiniLM-L6-v2)…" });
     await import("../lib/semantic-engine").then((m) => m.loadEmbeddingsFromRedis());
-  } catch { /* model/cache may be unavailable; job will report skips */ }
+  } catch (err: any) {
+    await clearActiveJobIfOwned("compute-embeddings", jobId).catch(() => false);
+    await updateJob(jobId, { status: "failed", message: err?.message ?? "Could not claim embedding job" });
+    res.status(503).json({ error: "Could not claim compute-embeddings job." });
+    return;
+  }
   res.status(202).json({ jobId, message: "Semantic embedding computation started." });
 
   void (async () => {
     try {
-      const rows = await db.select({ id: entitiesTable.id, name: entitiesTable.name, notes: entitiesTable.notes, nationality: entitiesTable.nationality, knownResidences: entitiesTable.knownResidences, metadata: entitiesTable.metadata })
-        .from(entitiesTable).offset(offset).limit(batchSize);
+      const rows = await db.select({ id: entitiesTable.id, name: entitiesTable.name, notes: entitiesTable.notes, nationality: entitiesTable.nationality, knownResidences: entitiesTable.knownResidences, metadata: entitiesTable.metadata }).from(entitiesTable).offset(offset).limit(batchSize);
       const existingCache = getAllEmbeddings();
       const toEmbed = force ? rows : rows.filter((e) => !existingCache.has(e.id));
       await updateJob(jobId, { status: "running", total: toEmbed.length, progress: 0, message: `Embedding ${toEmbed.length} entities (${rows.length - toEmbed.length} already cached)…` });
@@ -101,9 +98,7 @@ router.post("/ingest/compute-embeddings", async (req: Request, res: Response): P
           try { await storeEmbedding(entity.id, await embedText(entityToEmbedText(entity))); processed++; }
           catch { skipped++; }
         }));
-        if (i % 200 === 0 || i + CHUNK >= toEmbed.length) {
-          await updateJob(jobId, { progress: processed + skipped, inserted: processed, skipped, message: `Embedded ${processed}/${toEmbed.length} (cache: ${getEmbeddingCacheSize()})` });
-        }
+        if (i % 200 === 0 || i + CHUNK >= toEmbed.length) await updateJob(jobId, { progress: processed + skipped, inserted: processed, skipped, message: `Embedded ${processed}/${toEmbed.length} (cache: ${getEmbeddingCacheSize()})` });
       }
       if (!(await ownsActiveJob("compute-embeddings", jobId))) throw new Error("compute-embeddings job ownership lost before completion");
       await updateJob(jobId, { status: "done", progress: toEmbed.length, total: toEmbed.length, inserted: processed, skipped, finishedAt: new Date().toISOString(), message: `Done — ${processed} embeddings computed, ${skipped} skipped.` });
