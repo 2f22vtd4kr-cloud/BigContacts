@@ -14,6 +14,18 @@ on:
       - "lib/**"
       - "pnpm-lock.yaml"
       - ".github/workflows/apex-api-typecheck.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "artifacts/api-server/src/**"
+      - "artifacts/api-server/build.mjs"
+      - "artifacts/api-server/package.json"
+      - "artifacts/api-server/tsconfig.json"
+      - "scripts/apply-*.mjs"
+      - "scripts/check-*.mjs"
+      - "lib/**"
+      - "pnpm-lock.yaml"
+      - ".github/workflows/apex-api-typecheck.yml"
   workflow_dispatch:
 
 permissions:
@@ -46,6 +58,8 @@ jobs:
         run: node scripts/check-canonical-job-lock-lease.mjs
       - name: Check atomic active-job release
         run: node scripts/check-active-job-release-atomicity.mjs
+      - name: Check job-state Redis fail-closed semantics
+        run: node scripts/check-job-state-redis-fail-closed.mjs
       - name: Check canonical discovery case binding
         run: node scripts/check-canonical-discovery-case-binding.mjs
       - name: Check deterministic research strategy
