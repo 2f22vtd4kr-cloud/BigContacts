@@ -1,8 +1,9 @@
+import { createHash } from "node:crypto";
 import { apexOrientationFor } from "./apex-bureau-orientation";
 import { resolveGeminiBossModel, generateGeminiBossText } from "./case-bureau";
 import { runDeepSeekFreeJson } from "./deepseek-case-reasoning";
 import { db, researchCasesTable, researchCaseEventsTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 export type TargetControlAction = "research" | "stop";
 
@@ -58,42 +59,85 @@ function clampConfidence(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : null;
 }
 
+function payloadDigest(payload: unknown): string {
+  return createHash("sha256").update(JSON.stringify(payload)).digest("hex");
+}
+
 const ALLOWED_ACTIONS = new Set<TargetControlAction>(["research", "stop"]);
 
-async function persistDecision(caseId: number, controlTurn: number, decision: TargetControlDecision): Promise<void> {
-  const [caseRow] = await db.select({ caseFile: researchCasesTable.caseFile }).from(researchCasesTable).where(eq(researchCasesTable.id, caseId)).limit(1);
-  if (!caseRow) throw new Error(`Target case ${caseId} does not exist.`);
+async function persistDecision(input: { caseId: number; controlTurn: number; jobId: string; decision: TargetControlDecision }): Promise<void> {
   const payload = {
-    action: decision.action,
-    status: decision.status,
-    direction: decision.direction,
-    reason: decision.reason,
-    confidence: decision.confidence,
-    bossModel: decision.bossModel,
-    bossError: decision.error,
-    rightHand: decision.rightHand,
-    controlTurn,
+    action: input.decision.action,
+    status: input.decision.status,
+    direction: input.decision.direction,
+    reason: input.decision.reason,
+    confidence: input.decision.confidence,
+    bossModel: input.decision.bossModel,
+    bossError: input.decision.error,
+    rightHand: input.decision.rightHand,
+    controlTurn: input.controlTurn,
+    jobId: input.jobId,
   };
-  await db.insert(researchCaseEventsTable).values({
-    caseId,
-    iteration: controlTurn,
-    actorRole: "gemini_boss",
-    eventType: "control_decision",
-    summary: `Target control decision: ${decision.action}`,
-    payload: JSON.stringify(payload),
-  });
-  let caseFile: Record<string, unknown> = {};
-  try { caseFile = caseRow.caseFile ? JSON.parse(caseRow.caseFile) as Record<string, unknown> : {}; } catch { caseFile = {}; }
-  const history = Array.isArray(caseFile.targetControlDecisions) ? caseFile.targetControlDecisions : [];
-  history.push({ ...payload, recordedAt: new Date().toISOString() });
-  caseFile.targetControlDecisions = history.slice(-24);
-  await db.update(researchCasesTable).set({ caseFile: JSON.stringify(caseFile), updatedAt: new Date() }).where(eq(researchCasesTable.id, caseId));
+  const digest = payloadDigest(payload);
+  const correlationKey = `target-control:case:${input.caseId}:job:${input.jobId}:turn:${input.controlTurn}`;
+
+  await db.transaction(async (tx) => {
+    const [caseRow] = await tx
+      .select({ caseFile: researchCasesTable.caseFile, targetEntityId: researchCasesTable.targetEntityId, caseType: researchCasesTable.caseType })
+      .from(researchCasesTable)
+      .where(eq(researchCasesTable.id, input.caseId))
+      .for("update")
+      .limit(1);
+    if (!caseRow || caseRow.caseType !== "target" || !caseRow.targetEntityId) {
+      throw new Error(`Target case ${input.caseId} does not exist or is not target-scoped.`);
+    }
+
+    const payloadJson = JSON.stringify({ ...payload, controlDigest: digest });
+    const inserted = await tx.insert(researchCaseEventsTable).values({
+      caseId: input.caseId,
+      iteration: input.controlTurn,
+      actorRole: "gemini_boss",
+      eventType: "control_decision",
+      status: input.decision.status === "completed" ? "recorded" : "unavailable",
+      summary: `Target control decision: ${input.decision.action}`,
+      correlationKey,
+      payload: payloadJson,
+    }).onConflictDoNothing({ target: [researchCaseEventsTable.caseId, researchCaseEventsTable.correlationKey] }).returning({ id: researchCaseEventsTable.id });
+
+    if (!inserted[0]?.id) {
+      const [existing] = await tx.select({ payload: researchCaseEventsTable.payload, eventType: researchCaseEventsTable.eventType, actorRole: researchCaseEventsTable.actorRole })
+        .from(researchCaseEventsTable)
+        .where(and(eq(researchCaseEventsTable.caseId, input.caseId), eq(researchCaseEventsTable.correlationKey, correlationKey)))
+        .limit(1);
+      if (!existing || existing.eventType !== "control_decision" || existing.actorRole !== "gemini_boss") {
+        throw new Error(`Target control replay collision for case ${input.caseId}, job ${input.jobId}, turn ${input.controlTurn}.`);
+      }
+      let prior: Record<string, unknown>;
+      try { prior = JSON.parse(existing.payload ?? "{}") as Record<string, unknown>; } catch { throw new Error(`Existing target control ${correlationKey} has invalid payload.`); }
+      if (String(prior.controlDigest ?? "") !== digest || String(prior.jobId ?? "") !== input.jobId || Number(prior.controlTurn) !== input.controlTurn) {
+        throw new Error(`Target control replay mismatch for case ${input.caseId}, job ${input.jobId}, turn ${input.controlTurn}.`);
+      }
+    }
+
+    let caseFile: Record<string, unknown> = {};
+    try { caseFile = caseRow.caseFile ? JSON.parse(caseRow.caseFile) as Record<string, unknown> : {}; } catch { throw new Error(`Target case ${input.caseId} has unreadable durable state.`); }
+    const history = Array.isArray(caseFile.targetControlDecisions) ? caseFile.targetControlDecisions : [];
+    const existingProjection = history.find((item) => item && typeof item === "object" && String((item as Record<string, unknown>).jobId ?? "") === input.jobId && Number((item as Record<string, unknown>).controlTurn) === input.controlTurn);
+    if (existingProjection) {
+      if (String((existingProjection as Record<string, unknown>).controlDigest ?? "") !== digest) throw new Error(`Target control projection replay mismatch for ${correlationKey}.`);
+    } else {
+      history.push({ ...payload, controlDigest: digest, recordedAt: new Date().toISOString() });
+    }
+    caseFile.targetControlDecisions = history.slice(-24);
+    await tx.update(researchCasesTable).set({ caseFile: JSON.stringify(caseFile), updatedAt: new Date() }).where(eq(researchCasesTable.id, input.caseId));
+  }, { isolationLevel: "serializable" });
 }
 
 /** Gemini owns target continuation. Deterministic code validates only the minimal continuation disposition and persists the decision. */
 export async function decideTargetNextAction(input: {
   caseId: number;
   controlTurn: number;
+  jobId: string;
   targetName: string;
   targetType: string;
   objective: string;
@@ -104,6 +148,7 @@ export async function decideTargetNextAction(input: {
 }): Promise<TargetControlDecision> {
   if (!Number.isSafeInteger(input.caseId) || input.caseId <= 0) throw new Error("Target control requires a valid durable caseId.");
   if (!Number.isSafeInteger(input.controlTurn) || input.controlTurn <= 0) throw new Error("Target control requires a positive controlTurn.");
+  if (!input.jobId?.trim()) throw new Error("Target control requires a durable jobId.");
 
   const structuredTrajectory = (input.trajectoryRecords ?? []).slice(-20).map((record) => ({
     ...record,
@@ -134,7 +179,7 @@ export async function decideTargetNextAction(input: {
       reason: "Gemini Boss unavailable; target continuation is fail-closed rather than deterministic.",
       confidence: null, rightHand, bossModel: null, error: "No Gemini Boss model available.",
     };
-    await persistDecision(input.caseId, input.controlTurn, decision);
+    await persistDecision({ caseId: input.caseId, controlTurn: input.controlTurn, jobId: input.jobId, decision });
     return decision;
   }
 
@@ -156,7 +201,7 @@ export async function decideTargetNextAction(input: {
       bossModel: selection.model,
       error: null,
     };
-    await persistDecision(input.caseId, input.controlTurn, decision);
+    await persistDecision({ caseId: input.caseId, controlTurn: input.controlTurn, jobId: input.jobId, decision });
     return decision;
   } catch (error) {
     const decision: TargetControlDecision = {
@@ -165,7 +210,7 @@ export async function decideTargetNextAction(input: {
       confidence: null, rightHand, bossModel: selection.model,
       error: error instanceof Error ? error.message : "Gemini target control decision failed.",
     };
-    await persistDecision(input.caseId, input.controlTurn, decision);
+    await persistDecision({ caseId: input.caseId, controlTurn: input.controlTurn, jobId: input.jobId, decision });
     return decision;
   }
 }

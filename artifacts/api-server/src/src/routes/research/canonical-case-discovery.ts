@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { eq } from "drizzle-orm";
 import { db, researchCasesTable } from "@workspace/db";
-import { createJob, getActiveJob, getJob, setActiveJob, clearActiveJobIfOwned } from "../../lib/job-queue";
+import { createJob, getActiveJob, getJob, setActiveJob, clearActiveJobIfOwned, updateJob } from "../../lib/job-queue";
 import { runCanonicalAtlasPipeline } from "../../lib/canonical-atlas-discovery";
 import { resolveResearchDepth } from "../../lib/research-depth";
 
@@ -47,7 +47,22 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
   }
   const jobId = await createJob("case-bureau-discovery");
   await setActiveJob("case-bureau-discovery", jobId);
-  await db.update(researchCasesTable).set({ status: "active", currentAction: "canonical-investigator-discovery", updatedAt: new Date() }).where(eq(researchCasesTable.id, caseId));
+  try {
+    await db.transaction(async (tx) => {
+      const [locked] = await tx.select({ caseFile: researchCasesTable.caseFile, caseType: researchCasesTable.caseType }).from(researchCasesTable).where(eq(researchCasesTable.id, caseId)).for("update").limit(1);
+      if (!locked || locked.caseType !== "discovery") throw new Error("Discovery case disappeared or changed type before job binding.");
+      const currentFile = parseFile(locked.caseFile);
+      if (!currentFile) throw new Error("Discovery case state is unreadable before job binding.");
+      const priorJobs = Array.isArray(currentFile.jobIds) ? currentFile.jobIds.filter((value: unknown): value is string => typeof value === "string" && value.trim()) : [];
+      const nextFile = { ...currentFile, jobId, jobIds: [...new Set([...priorJobs, jobId])].slice(-32) };
+      await tx.update(researchCasesTable).set({ caseFile: JSON.stringify(nextFile), status: "active", currentAction: "canonical-investigator-discovery", updatedAt: new Date() }).where(eq(researchCasesTable.id, caseId));
+    }, { isolationLevel: "serializable" });
+  } catch (error) {
+    await updateJob(jobId, { status: "failed", outcome: "incomplete", message: error instanceof Error ? error.message : "Discovery case job binding failed.", finishedAt: new Date().toISOString() }).catch(() => undefined);
+    await clearActiveJobIfOwned("case-bureau-discovery", jobId).catch(() => undefined);
+    res.status(409).json({ error: error instanceof Error ? error.message : "Discovery case job binding failed.", jobId });
+    return;
+  }
   const depth = resolveResearchDepth({ explicit: typeof file.researchDepth === "string" ? file.researchDepth : undefined });
   void (async () => {
     try {

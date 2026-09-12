@@ -34,6 +34,8 @@ jobs:
         run: pnpm install --no-frozen-lockfile --ignore-scripts --fetch-retries=8 --fetch-timeout=120000 --registry=https://registry.npmjs.org/
       - name: Check source-migration hardener parity
         run: node scripts/check-source-migration-hardener-parity.mjs
+      - name: Check research event identity and replay semantics
+        run: node scripts/check-research-event-identity.mjs
       - name: Check canonical target per-act control
         run: node scripts/check-canonical-target-per-act-control.mjs
       - name: Check discovery context control
