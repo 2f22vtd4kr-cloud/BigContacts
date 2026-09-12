@@ -30,10 +30,6 @@ const scriptEntries = packages.flatMap(({ path: packagePath, scripts }) =>
   Object.entries(scripts).map(([name, value]) => ({ packagePath, name, value: String(value) }))
 );
 const scriptText = scriptEntries.map(({ packagePath, name, value }) => `${packagePath}:${name}=${value}`).join("\n");
-const workflowDir = path.join(root, ".github", "workflows");
-const workflowText = fs.existsSync(workflowDir)
-  ? fs.readdirSync(workflowDir).filter((name) => /\.(?:yml|yaml)$/.test(name)).map((name) => fs.readFileSync(path.join(workflowDir, name), "utf8")).join("\n")
-  : "";
 
 // Workflow path filters may mention apply-* files so changes to safety helpers
 // trigger verification. They are not execution. Package scripts are execution,
@@ -54,7 +50,11 @@ if (!fs.existsSync(safetyScriptPath)) {
   failures.push(`missing allowlisted safety helper: ${ALLOWED_SAFETY_MUTATOR}`);
 } else {
   const safetyScript = fs.readFileSync(safetyScriptPath, "utf8");
-  if (!/artifacts\/apex-finder\/src\/pages\/data-sources\.tsx/.test(safetyScript) || !/\/api\/enrich\//.test(safetyScript) || !/Selected by the canonical Investigator/.test(safetyScript)) {
+  // The helper intentionally searches for /api/enrich/ in a regex literal,
+  // so its source contains escaped slash characters. Validate the source form
+  // rather than requiring an unescaped runtime string that is not present.
+  const hasEnrichPattern = safetyScript.includes("/\\/api\\/enrich\\/") || safetyScript.includes("/api/enrich/");
+  if (!/artifacts\/apex-finder\/src\/pages\/data-sources\.tsx/.test(safetyScript) || !hasEnrichPattern || !/Selected by the canonical Investigator/.test(safetyScript)) {
     failures.push(`${ALLOWED_SAFETY_MUTATOR} no longer matches the narrow UI research-boundary contract`);
   }
 }
