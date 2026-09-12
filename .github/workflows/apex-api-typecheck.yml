@@ -40,6 +40,8 @@ jobs:
         run: node scripts/check-agentic-concurrency-admission.mjs
       - name: Check research event payload boundary
         run: node scripts/check-research-event-payload-boundary.mjs
+      - name: Check canonical Atlas cancellation fence
+        run: node scripts/check-canonical-atlas-cancellation-fence.mjs
       - name: Check research event identity and replay semantics
         run: node scripts/check-research-event-identity.mjs
       - name: Check canonical target per-act control
