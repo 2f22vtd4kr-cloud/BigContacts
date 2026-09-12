@@ -2,19 +2,15 @@ import { or, sql } from "drizzle-orm";
 import { db, researchCasesTable } from "@workspace/db";
 import { withPermanentClient } from "../../lib/redis";
 
-// A crashed process must not strand the canonical lane for seven days. Live
-// owners renew the lease; recovery after a crash is therefore bounded by this
-// window rather than by the historical job TTL.
-const JOB_LOCK_TTL_SECONDS = 60 * 60;
-const JOB_LOCK_RENEW_INTERVAL_MS = 20 * 60 * 1000;
+// Crashed processes must not strand the canonical lane for hours. Live owners
+// renew the lease; recovery after a crash is therefore bounded by this window.
+const JOB_LOCK_TTL_SECONDS = 15 * 60;
+const JOB_LOCK_RENEW_INTERVAL_MS = 5 * 60 * 1000;
 const leaseTimers = new Map<string, ReturnType<typeof setInterval>>();
 
 type ClaimResult = { available: true; result: string | null };
 
 async function fenceLeaseLostCases(jobId: string): Promise<void> {
-  // Redis leases cannot themselves fence a stale process after expiry. The
-  // durable case state is the second half of the fence: once ownership is lost,
-  // stop any target case bound to this job from reaching trusted promotion.
   await db.update(researchCasesTable)
     .set({ status: "review", currentAction: "canonical-lease-lost", updatedAt: new Date() })
     .where(or(
@@ -73,7 +69,7 @@ export async function renewCanonicalJob(type: string, jobId: string): Promise<bo
     }),
     null,
   );
-  if (!outcome?.available) throw new Error("Canonical Atlas job lock renewal requires an available permanent Redis lock service");
+  if (!outcome?.available) throw new Error("Canonical Atlas job lock renewal requires an available permanent Redis service");
   return outcome.renewed;
 }
 
@@ -96,6 +92,6 @@ export async function releaseCanonicalJob(type: string, jobId: string): Promise<
     }),
     null,
   );
-  if (!outcome?.available) throw new Error("Canonical Atlas job lock release requires an available permanent Redis lock service");
+  if (!outcome?.available) throw new Error("Canonical Atlas job lock release requires an available permanent Redis service");
   return outcome.released;
 }
