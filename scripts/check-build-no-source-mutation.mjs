@@ -30,10 +30,6 @@ const scriptEntries = packages.flatMap(({ path: packagePath, scripts }) =>
   Object.entries(scripts).map(([name, value]) => ({ packagePath, name, value: String(value) }))
 );
 const scriptText = scriptEntries.map(({ packagePath, name, value }) => `${packagePath}:${name}=${value}`).join("\n");
-const workflowDir = path.join(root, ".github", "workflows");
-const workflowText = fs.existsSync(workflowDir)
-  ? fs.readdirSync(workflowDir).filter((name) => /\.(?:yml|yaml)$/.test(name)).map((name) => fs.readFileSync(path.join(workflowDir, name), "utf8")).join("\n")
-  : "";
 
 // Workflow path filters may mention apply-* files so changes to safety helpers
 // trigger verification. They are not execution. Package scripts are execution,
