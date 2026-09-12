@@ -46,6 +46,8 @@ jobs:
         run: pnpm install --frozen-lockfile --ignore-scripts --fetch-retries=8 --fetch-timeout=120000 --registry=https://registry.npmjs.org/
       - name: Run complete Apex/Bureau static audit suite
         run: pnpm run check:bureau
+      - name: Check API authentication boundary
+        run: node scripts/check-api-auth-boundary.mjs
       - name: Check provider gate resource bounds
         run: node scripts/check-provider-gate-resource-bounds.mjs
       - name: Check semantic cache bounds
