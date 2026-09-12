@@ -22,6 +22,13 @@ export async function claimCanonicalJob(type: string, jobId: string): Promise<bo
   timer.unref?.(); leaseTimers.set(timerKey, timer); return true;
 }
 
+export async function isCanonicalJobOwner(type: string, jobId: string): Promise<boolean> {
+  if (!type || !jobId) return false;
+  const outcome = await withPermanentClient<{ available: true; owner: string | null } | null>(async (redis) => ({ available: true, owner: await redis.get(`apex:activejob:${type}`) }), null);
+  if (!outcome?.available) throw new Error("Canonical Atlas job ownership requires an available permanent Redis lock service");
+  return outcome.owner === jobId;
+}
+
 type LeaseResult = { available: true; renewed: boolean };
 export async function renewCanonicalJob(type: string, jobId: string): Promise<boolean> {
   const outcome = await withPermanentClient<LeaseResult | null>(async (redis) => ({ available: true, renewed: Number(await redis.eval("if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('expire', KEYS[1], ARGV[2]) else return 0 end", 1, `apex:activejob:${type}`, jobId, String(JOB_LOCK_TTL_SECONDS))) === 1 }), null);
