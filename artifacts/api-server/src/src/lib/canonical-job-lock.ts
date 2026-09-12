@@ -1,3 +1,5 @@
+import { or, sql } from "drizzle-orm";
+import { db, researchCasesTable } from "@workspace/db";
 import { withPermanentClient } from "../../lib/redis";
 
 // A crashed process must not strand the canonical lane for seven days. Live
@@ -8,6 +10,18 @@ const JOB_LOCK_RENEW_INTERVAL_MS = 20 * 60 * 1000;
 const leaseTimers = new Map<string, ReturnType<typeof setInterval>>();
 
 type ClaimResult = { available: true; result: string | null };
+
+async function fenceLeaseLostCases(jobId: string): Promise<void> {
+  // Redis leases cannot themselves fence a stale process after expiry. The
+  // durable case state is the second half of the fence: once ownership is lost,
+  // stop any target case bound to this job from reaching trusted promotion.
+  await db.update(researchCasesTable)
+    .set({ status: "review", currentAction: "canonical-lease-lost", updatedAt: new Date() })
+    .where(or(
+      sql`${researchCasesTable.caseFile}::jsonb ->> 'atlasJobId' = ${jobId}`,
+      sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${jobId}`,
+    ));
+}
 
 export async function claimCanonicalJob(type: string, jobId: string): Promise<boolean> {
   const outcome = await withPermanentClient<ClaimResult | null>(
@@ -29,8 +43,14 @@ export async function claimCanonicalJob(type: string, jobId: string): Promise<bo
         const current = leaseTimers.get(timerKey);
         if (current) clearInterval(current);
         leaseTimers.delete(timerKey);
+        void fenceLeaseLostCases(jobId).catch(() => undefined);
       }
-    }).catch(() => undefined);
+    }).catch(() => {
+      const current = leaseTimers.get(timerKey);
+      if (current) clearInterval(current);
+      leaseTimers.delete(timerKey);
+      void fenceLeaseLostCases(jobId).catch(() => undefined);
+    });
   }, JOB_LOCK_RENEW_INTERVAL_MS);
   timer.unref?.();
   leaseTimers.set(timerKey, timer);
