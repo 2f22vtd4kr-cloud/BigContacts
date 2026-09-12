@@ -1,12 +1,16 @@
 import fs from "node:fs";
 import path from "node:path";
 
-const source = fs.readFileSync(path.join(process.cwd(), "artifacts/api-server/src/src/lib/canonical-job-lock.ts"), "utf8");
+const root = process.cwd();
+const lock = fs.readFileSync(path.join(root, "artifacts/api-server/src/src/lib/canonical-job-lock.ts"), "utf8");
+const launch = fs.readFileSync(path.join(root, "artifacts/api-server/src/src/routes/research/canonical-atlas-launch.ts"), "utf8");
 const checks = [
-  ["lock lease is bounded", /JOB_LOCK_TTL_SECONDS\s*=\s*60\s*\*\s*60/.test(source)],
-  ["owner-bound heartbeat exists", /renewCanonicalJob/.test(source) && /ARGV\[1\]/.test(source)],
-  ["renewal cannot replace another owner", /== ARGV\[1\].*expire/s.test(source)],
-  ["release remains owner-bound", /releaseCanonicalJob[\s\S]*redis\.eval/.test(source)],
+  ["lock lease is bounded", /JOB_LOCK_TTL_SECONDS\s*=\s*60\s*\*\s*60/.test(lock)],
+  ["owner-bound heartbeat exists", /renewCanonicalJob/.test(lock) && /ARGV\[1\]/.test(lock)],
+  ["renewal cannot replace another owner", /== ARGV\[1\].*expire/s.test(lock)],
+  ["release remains owner-bound", /releaseCanonicalJob[\s\S]*redis\.eval/.test(lock)],
+  ["launch does not perform an unconditional second lock SET", !/setActiveJob\("atlas-run"/.test(launch)],
+  ["lease renewal timer is cleaned on release", /leaseTimers\.delete\(timerKey\)/.test(lock)],
 ];
 const failures = checks.filter(([, ok]) => !ok).map(([name]) => name);
 if (failures.length) {
