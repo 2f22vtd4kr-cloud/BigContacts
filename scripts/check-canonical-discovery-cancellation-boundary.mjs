@@ -11,7 +11,7 @@ const checks = [
   ["agentic discovery has an explicit deadline timer", /input\.mode === "discovery"[\s\S]{0,1800}setTimeout\(\(\) => controller\.abort\(\), requestedHardTimeout\)/.test(agentic)],
   ["agentic discovery checks durable job state when a job is supplied", /input\.mode === "discovery"[\s\S]{0,2600}const job = await getJob\(input\.jobId\)/.test(agentic) && /job\.status !== "running"/.test(agentic)],
   ["agentic discovery passes cancellation into the canonical core", /input\.mode === "discovery"[\s\S]{0,2600}shouldCancel: async \(\) =>/.test(agentic) && /signal: controller\.signal/.test(agentic)],
-  ["discovery cancellation is enforced before the multi-step core can continue", /return \{ \Q...\E\(await core\.runAgenticWebResearch\(discoveryInput\)\)/.test(agentic) || /return \{\.\.\.\(await core\.runAgenticWebResearch\(discoveryInput\)\), executionId \}/.test(agentic)],
+  ["discovery delegates only after installing the cancellation fence", /return \{\.\.\.\(await core\.runAgenticWebResearch\(discoveryInput\)\), executionId \}/.test(agentic)],
 ];
 let failed = false;
 for (const [name, ok] of checks) {
