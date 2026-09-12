@@ -14,7 +14,7 @@ import osintToolsRouter from "./osint-tools";
 import identityRouter from "./identity";
 import contactResearchRouter from "./contact-research";
 import canonicalAtlasLaunchRouter from "./research/canonical-atlas-launch";
-import atlasRouter from "./atlas";
+import { atlasRouter } from "./atlas";
 import bureauStreamRouter from "./bureau-stream";
 import systemStatusRouter from "./system-status";
 import investigatorTraceRouter from "./investigator-trace";
