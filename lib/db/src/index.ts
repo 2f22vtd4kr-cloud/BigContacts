@@ -119,6 +119,19 @@ async function ensureResearchCaseEventsImmutable(): Promise<void> {
           CREATE TRIGGER apex_agentic_promotion_active_case BEFORE UPDATE ON public.entities FOR EACH ROW EXECUTE FUNCTION public.apex_agentic_promotion_active_case();
         END IF;
 
+        CREATE OR REPLACE FUNCTION public.apex_research_case_cancellation_fence() RETURNS trigger LANGUAGE plpgsql AS $fn$
+        BEGIN
+          IF OLD.status = 'review'
+             AND OLD.current_action IN ('canonical-atlas-cancelled', 'canonical-lease-lost')
+             AND NEW.status = 'active' THEN
+            RAISE EXCEPTION 'research case % is durably fenced after cancellation/lease loss; a stale worker cannot reactivate it', NEW.id USING ERRCODE = '55000';
+          END IF;
+          RETURN NEW;
+        END; $fn$;
+        IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgrelid = 'public.research_cases'::regclass AND tgname = 'apex_research_case_cancellation_fence') THEN
+          CREATE TRIGGER apex_research_case_cancellation_fence BEFORE UPDATE ON public.research_cases FOR EACH ROW EXECUTE FUNCTION public.apex_research_case_cancellation_fence();
+        END IF;
+
         REVOKE UPDATE, DELETE, TRUNCATE ON public.research_case_events FROM PUBLIC;
       END $$;
     `);
