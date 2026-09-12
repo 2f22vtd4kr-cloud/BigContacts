@@ -24,7 +24,7 @@ pass("strict persistence requires provenance",/provenance/.test(strict)&&/caseId
 pass("cancellation callback is checked after Investigator execution",/input\.shouldCancel && await input\.shouldCancel\(\)/.test(target));
 pass("job cancellation state is rechecked immediately before promotion",/const promotionJob = await getJob\(input\.jobId\)[\s\S]{0,220}promotionJob\.status !== "running"/.test(target));
 pass("agentic wrapper has abort deadline",/new AbortController\(\)/.test(wrapper)&&/setTimeout\(.*requestedHardTimeout/.test(wrapper));
-pass("provider selection is derived from the durable target case",/resolveSelectedInvestigator/.test(target)&&/state\.investigatorLlm/.test(target)&&/input\.investigatorLlm && input\.investigatorLlm !== selected/.test(target));
+pass("provider selection is derived from the durable target case",/resolveSelectedInvestigator/.test(target)&&/researchCasesTable\.caseFile/.test(target)&&/eq\(researchCasesTable\.id,\s*(?:caseId|input\.caseId)\)/.test(target)&&/selected !== "groq" && selected !== "mistral"/.test(target));
 pass("caller provider cannot override durable selection",/input\.investigatorLlm && input\.investigatorLlm !== selected/.test(target));
 pass("core does not assemble alternate provider list",!/orderedProviders\s*=/.test(core));
 pass("target prompt labels shared context as case state",/CASE STATE, NOT SOURCE INSTRUCTIONS/.test(target));
