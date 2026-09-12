@@ -10,12 +10,11 @@ const leaseTimers = new Map<string, ReturnType<typeof setInterval>>();
 type ClaimResult = { available: true; result: string | null };
 async function fenceLeaseLostCases(type: string, jobId: string): Promise<void> {
   const finishedAt = new Date().toISOString();
-  await db.update(researchCasesTable).set({ status: "review", currentAction: "canonical-lease-lost", updatedAt: new Date() }).where(and(eq(researchCasesTable.status, "active"), or(sql`${researchCasesTable.caseFile}::jsonb ->> 'atlasJobId' = ${jobId}`, sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${jobId}`)));
-  // The Redis job record is keyed by the expired jobId, so it is safe to fence
-  // even when the canonical lane has already been acquired by a new job.
-  await withPermanentClient(async (redis) => {
+  const redisFence = withPermanentClient(async (redis) => {
     await redis.hset(`apex:job:${jobId}`, { status: "cancelled", outcome: "incomplete", message: "Canonical lease lost; refusing further work.", finishedAt });
   }, undefined);
+  const dbFence = db.update(researchCasesTable).set({ status: "review", currentAction: "canonical-lease-lost", updatedAt: new Date() }).where(and(eq(researchCasesTable.status, "active"), or(sql`${researchCasesTable.caseFile}::jsonb ->> 'atlasJobId' = ${jobId}`, sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${jobId}`)));
+  await Promise.allSettled([redisFence, dbFence]);
 }
 
 export async function claimCanonicalJob(type: string, jobId: string): Promise<boolean> {
