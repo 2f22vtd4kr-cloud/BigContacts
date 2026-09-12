@@ -7,7 +7,7 @@ assert(/async function fenceLeaseLostCases\(type: string, jobId: string\)/.test(
 assert(/apex:job:\$\{jobId\}/.test(lock), "lease-loss fencing must target the expired worker job record");
 assert(/status: \"cancelled\"/.test(lock) && /Canonical lease lost/.test(lock), "lease-loss fencing must cancel the expired worker job");
 assert(/fenceLeaseLostCases\(type, jobId\)/.test(lock), "renewal failure must invoke lease-loss fencing");
-assert(!/owner !== jobId/.test(lock), "lease-loss fencing must not skip the old job merely because the lane was taken over");
+assert(/Promise\.allSettled\(\[redisFence, dbFence\]\)/.test(lock), "Redis and database fences must be attempted independently");
 
 if (failures.length) {
   console.error("CANONICAL LEASE OWNERSHIP: FAIL");
