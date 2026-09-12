@@ -9,6 +9,8 @@ const checks = [
   ["lock lease is bounded", /JOB_LOCK_TTL_SECONDS\s*=\s*60\s*\*\s*60/.test(lock)],
   ["owner-bound heartbeat exists", /renewCanonicalJob/.test(lock) && /ARGV\[1\]/.test(lock)],
   ["renewal cannot replace another owner", /== ARGV\[1\].*expire/s.test(lock)],
+  ["lease loss durably fences bound cases", /fenceLeaseLostCases[\s\S]*status: "review"[\s\S]*canonical-lease-lost/.test(lock)],
+  ["lease loss fences both target and discovery job bindings", /atlasJobId/.test(lock) && /jobId/.test(lock)],
   ["release remains owner-bound", /releaseCanonicalJob[\s\S]*redis\.eval/.test(lock)],
   ["launch does not perform an unconditional second lock SET", !/setActiveJob\("atlas-run"/.test(launch)],
   ["lease renewal timer is cleaned on release", /leaseTimers\.delete\(timerKey\)/.test(lock)],
