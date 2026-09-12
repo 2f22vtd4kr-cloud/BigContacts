@@ -6,12 +6,11 @@ type TestResponse = Response & { statusCode: number; jsonBody: unknown };
 
 function run(path: string, method: string, authorization?: string) {
   const req = { path, method, header(name: string) { return name.toLowerCase() === "authorization" ? authorization : undefined; } } as unknown as Request;
-  const response = {
-    statusCode: 200,
-    status(code: number) { this.statusCode = code; return this; },
-    jsonBody: undefined as unknown,
-    json(body: unknown) { this.jsonBody = body; return this; },
-  } as unknown as TestResponse;
+  const response = {} as TestResponse;
+  response.statusCode = 200;
+  response.jsonBody = undefined;
+  response.status = ((code: number) => { response.statusCode = code; return response; }) as Response["status"];
+  response.json = ((body: unknown) => { response.jsonBody = body; return response; }) as Response["json"];
   let nextCalled = false;
   const next = (() => { nextCalled = true; }) as NextFunction;
   apiAuth(req, response, next);
@@ -26,5 +25,5 @@ describe("API authentication", () => {
   it("fails closed when the token is not configured", () => { const result = run("/api/entities", "GET"); expect(result.nextCalled).toBe(false); expect(result.response.statusCode).toBe(503); });
   it("rejects missing and incorrect credentials", () => { process.env.APEX_API_AUTH_TOKEN = "x".repeat(32); expect(run("/api/entities", "GET").response.statusCode).toBe(401); expect(run("/api/entities", "GET", "Bearer wrong").response.statusCode).toBe(401); });
   it("accepts the configured bearer token", () => { const token = "x".repeat(32); process.env.APEX_API_AUTH_TOKEN = token; expect(run("/api/entities", "GET", `Bearer ${token}`).nextCalled).toBe(true); });
-  it("allows only the explicit non-production CI compatibility boundary", () => { process.env.CI = "true"; process.env.NODE_ENV = "development"; expect(run("/api/entities", "GET").nextCalled).toBe(true); process.env.NODE_ENV = "production"; expect(run("/api/entities", "GET").response.statusCode).toBe(503); });
+  it("does not bypass authentication merely because CI is set", () => { process.env.CI = "true"; process.env.NODE_ENV = "development"; expect(run("/api/entities", "GET").nextCalled).toBe(false); expect(run("/api/entities", "GET").response.statusCode).toBe(503); });
 });
