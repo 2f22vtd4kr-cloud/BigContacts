@@ -24,6 +24,9 @@ async function ensureResearchCaseEventsImmutable(): Promise<void> {
         IF to_regclass('public.research_cases') IS NULL THEN
           RAISE EXCEPTION 'Apex research_cases table is missing; refusing to start without durable case state';
         END IF;
+        IF to_regclass('public.entities') IS NULL THEN
+          RAISE EXCEPTION 'Apex entities table is missing; refusing to start without durable contact state';
+        END IF;
         SELECT count(*) INTO null_correlation_count FROM public.research_case_events WHERE correlation_key IS NULL;
         IF null_correlation_count > 0 THEN
           RAISE EXCEPTION 'Apex research_case_events contains % NULL correlation_key row(s); refusing to enable mandatory event identity', null_correlation_count USING ERRCODE = '55000';
@@ -85,6 +88,37 @@ async function ensureResearchCaseEventsImmutable(): Promise<void> {
         IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgrelid = 'public.research_case_events'::regclass AND tgname = 'apex_research_case_events_replay_integrity') THEN
           CREATE TRIGGER apex_research_case_events_replay_integrity BEFORE INSERT ON public.research_case_events FOR EACH ROW EXECUTE FUNCTION public.apex_research_case_events_replay_integrity();
         END IF;
+
+        CREATE OR REPLACE FUNCTION public.apex_agentic_promotion_active_case() RETURNS trigger LANGUAGE plpgsql AS $fn$
+        DECLARE old_provenance jsonb; new_provenance jsonb; entry record; job_id text; active_case_count bigint;
+        BEGIN
+          IF TG_OP <> 'UPDATE' OR NEW.metadata IS NOT DISTINCT FROM OLD.metadata THEN RETURN NEW; END IF;
+          BEGIN old_provenance := COALESCE(OLD.metadata::jsonb -> 'agenticContactProvenance', '{}'::jsonb); EXCEPTION WHEN others THEN old_provenance := '{}'::jsonb; END;
+          BEGIN new_provenance := COALESCE(NEW.metadata::jsonb -> 'agenticContactProvenance', '{}'::jsonb); EXCEPTION WHEN others THEN RETURN NEW; END;
+          FOR entry IN SELECT key, value FROM jsonb_each(new_provenance) LOOP
+            IF old_provenance ? entry.key AND (old_provenance -> entry.key) IS NOT DISTINCT FROM entry.value THEN CONTINUE; END IF;
+            job_id := NULLIF(btrim(entry.value ->> 'jobId'), '');
+            IF job_id IS NULL THEN
+              RAISE EXCEPTION 'agentic contact promotion requires a durable job identity for entity %', NEW.id USING ERRCODE = '55000';
+            END IF;
+            SELECT count(*) INTO active_case_count
+            FROM public.research_cases
+            WHERE target_entity_id = NEW.id
+              AND status = 'active'
+              AND (
+                NULLIF(btrim(case_file::jsonb ->> 'atlasJobId'), '') = job_id
+                OR NULLIF(btrim(case_file::jsonb ->> 'jobId'), '') = job_id
+              );
+            IF active_case_count = 0 THEN
+              RAISE EXCEPTION 'agentic contact promotion is fenced: entity % has no active target case bound to job %', NEW.id, job_id USING ERRCODE = '55000';
+            END IF;
+          END LOOP;
+          RETURN NEW;
+        END; $fn$;
+        IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgrelid = 'public.entities'::regclass AND tgname = 'apex_agentic_promotion_active_case') THEN
+          CREATE TRIGGER apex_agentic_promotion_active_case BEFORE UPDATE ON public.entities FOR EACH ROW EXECUTE FUNCTION public.apex_agentic_promotion_active_case();
+        END IF;
+
         REVOKE UPDATE, DELETE, TRUNCATE ON public.research_case_events FROM PUBLIC;
       END $$;
     `);
