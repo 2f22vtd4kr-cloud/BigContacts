@@ -1,4 +1,15 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+// These tests exercise the pure provenance validators only. The production persistence module
+// installs a database immutability guard at import time, so isolate that side effect here.
+vi.mock("@workspace/db", () => ({
+  db: {},
+  contactEvidenceTable: {},
+  entitiesTable: {},
+  researchCaseEventsTable: {},
+  researchCasesTable: {},
+}));
+
 import { observedSourceBackedBureauContacts, sourceBackedBureauContacts } from "../lib/bureau-contact-persist-strict";
 
 describe("strict bureau contact persistence boundary", () => {
