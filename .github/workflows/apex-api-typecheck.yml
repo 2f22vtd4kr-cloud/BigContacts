@@ -50,6 +50,8 @@ jobs:
         run: node scripts/check-production-boot-safety.mjs
       - name: Check API authentication boundary
         run: node scripts/check-api-auth-boundary.mjs
+      - name: Check search route bounds
+        run: node scripts/check-search-route-bounds.mjs
       - name: Check provider gate resource bounds
         run: node scripts/check-provider-gate-resource-bounds.mjs
       - name: Check semantic cache bounds
