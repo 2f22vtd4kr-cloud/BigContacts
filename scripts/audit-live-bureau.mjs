@@ -131,9 +131,6 @@ for (const entity of rows) {
   const entityName = entity.name || entity.id;
   if (looksMalformedTarget(entity.name)) fail(`malformed/non-person entity admitted as target: ${entityName}`);
 
-  // A discovery-first admit must carry the actual discovery provenance. Do not
-  // let a clean-looking card name substitute for evidence that the model chose
-  // and sourced the person.
   let discoveryMeta = {};
   try {
     discoveryMeta = typeof entity.metadata === "string" ? JSON.parse(entity.metadata) : (entity.metadata || {});
@@ -167,11 +164,11 @@ for (const entity of rows) {
   candidate += candidateRoutes.length;
   collisionRisk += risky.length;
 
-  if (entity.contactOutcome === "direct_contact") {
+  if (entity.contactOutcome === "direct_contact_verified") {
     direct++;
-    if (personalRoutes.length === 0) fail(`entity ${entityName} claims direct_contact without a personal/verified route`);
-    if (sourced.length === 0) fail(`entity ${entityName} claims direct_contact without HTTP(S)-backed contact evidence`);
-    if (risky.length) fail(`entity ${entityName} claims direct_contact while identity collision risk remains`);
+    if (personalRoutes.length === 0) fail(`entity ${entityName} claims direct_contact_verified without a personal/verified route`);
+    if (sourced.length === 0) fail(`entity ${entityName} claims direct_contact_verified without HTTP(S)-backed contact evidence`);
+    if (risky.length) fail(`entity ${entityName} claims direct_contact_verified while identity collision risk remains`);
   }
   if (entity.contactOutcome === "organization_contact") {
     org++;
