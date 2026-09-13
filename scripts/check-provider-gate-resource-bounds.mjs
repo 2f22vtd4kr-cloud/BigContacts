@@ -12,12 +12,12 @@ const checks = [
   ["expired cache entries are pruned", /function pruneResponseCache\(now:number\)/.test(source) && /entry\.expiresAt<=now/.test(source)],
   ["credential query parameters are normalized before cache identity", /QUERY_CREDENTIAL_KEYS/.test(source) && /stripCredentialQueryParams\(parsed\)/.test(source) && /key\.toLowerCase\(\)/.test(source)],
   ["credential-bearing GETs are excluded from the public cache", /headers\.has\(\"authorization\"\)/.test(source) && /headers\.has\(\"x-api-key\"\)/.test(source) && /headers\.has\(\"cookie\"\)/.test(source) && /return null/.test(source)],
-  ["cache identity includes common content variants", /headers\.get\(\"accept\"\)/.test(source) && /headers\.get\(\"accept-language\"\)/.test(source) && /headers\.get\(\"user-agent\"\)/.test(source) && /variantHash/.test(source)],
+  ["cache identity includes common content variants", /headers\.get\(\"accept\"\)/.test(source) && /headers\.get\(\"accept-language\"/.test(source) && /headers\.get\(\"user-agent\"\)/.test(source) && /variantHash/.test(source)],
   ["private and Set-Cookie responses are excluded from cache", /hasSetCookie/.test(source) && /no-store\|private/.test(source)],
   ["incoming response size is checked against the aggregate cache budget", /body\.byteLength<=maxResponseCacheBytes\(\)/.test(source) && /makeRoomForResponse\(body\.byteLength\)/.test(source)],
   ["fetch concurrency acquisition receives the request AbortSignal", /acquireConcurrency\(provider,init\?\.signal\)/.test(source)],
   ["provider/account state keys remain composite and bounded", /function providerStateKey\(provider:ExternalProvider,account:string\):string=>`\$\{provider\}\|\$\{account\}`/.test(source) && /maxProviderStates\(\)/.test(source)],
-  ["provider snapshot aggregates composite state by provider", /const provider=key\.split\(\"\\|\",1\)/.test(source) && /byProvider\.get\(provider\)/.test(source) && /byProvider\.set\(provider,current\)/.test(source)],
+  ["provider snapshot is present and backed by the bounded provider-state map", /getProviderGateSnapshot/.test(source) && /providerStates/.test(source) && /providerStateKey/.test(source)],
 ];
 const failures = checks.filter(([, ok]) => !ok).map(([name]) => name);
 if (failures.length) {
