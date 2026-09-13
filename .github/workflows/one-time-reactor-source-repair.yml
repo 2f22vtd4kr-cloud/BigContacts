@@ -1,3 +1,4 @@
+# One-time source repair; remove after the repair commit lands.
 name: One-time Reactor source repair
 on:
   push:
