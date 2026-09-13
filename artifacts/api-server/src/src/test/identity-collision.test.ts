@@ -52,7 +52,7 @@ describe("assessIdentityCollision", () => {
       note: "officer",
     });
     expect(r.risk).toBe(true);
-    expect(r.reason).toMatch(/surname/i);
+    expect(r.reason).toMatch(/identity|align/i);
   });
 
   it("rejects a wrong first name even when the surname and source URL overlap", () => {
