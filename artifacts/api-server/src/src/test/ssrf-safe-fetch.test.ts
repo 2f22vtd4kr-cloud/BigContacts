@@ -19,6 +19,8 @@ describe("SSRF outbound boundary", () => {
       "ff02::1",
       "2001:db8::1",
       "::ffff:127.0.0.1",
+      "::ffff:7f00:1",
+      "0:0:0:0:0:ffff:7f00:1",
     ]) {
       expect(isBlockedOutboundIpForTest(ip), ip).toBe(true);
     }

@@ -21,6 +21,20 @@ const MAX_RESPONSE_BYTES = 2_000_000;
 const MAX_REQUEST_BYTES = 1_000_000;
 const DNS_TIMEOUT_MS = 10_000;
 
+function mappedIpv4FromIpv6(address: string): string | null {
+  const normalized = address.toLowerCase().replace(/^\[|\]$/g, "").replace(/%.*$/, "");
+  const halves = normalized.split("::");
+  if (halves.length > 2) return null;
+  const left = halves[0] ? halves[0].split(":") : [];
+  const right = halves.length === 2 && halves[1] ? halves[1].split(":") : [];
+  if (left.some((part) => !/^[0-9a-f]{1,4}$/i.test(part)) || right.some((part) => !/^[0-9a-f]{1,4}$/i.test(part))) return null;
+  const groups = halves.length === 2 ? [...left, ...Array(8 - left.length - right.length).fill("0"), ...right] : [...left, ...right];
+  if (groups.length !== 8 || groups.slice(0, 5).some((part) => part !== "0") || groups[5] !== "ffff") return null;
+  const hi = Number.parseInt(groups[6]!, 16), lo = Number.parseInt(groups[7]!, 16);
+  if (!Number.isInteger(hi) || !Number.isInteger(lo)) return null;
+  return `${hi >> 8}.${hi & 255}.${lo >> 8}.${lo & 255}`;
+}
+
 function isBlockedIp(address: string): boolean {
   const normalized = address.toLowerCase().replace(/^\[|\]$/g, "");
   const version = net.isIP(normalized);
@@ -32,8 +46,9 @@ function isBlockedIp(address: string): boolean {
   if (version === 6) {
     const compact = normalized.replace(/%.*$/, "");
     if (compact === "::1" || compact === "::") return true;
+    const mappedIpv4 = mappedIpv4FromIpv6(compact);
+    if (mappedIpv4 && isBlockedIp(mappedIpv4)) return true;
     if (/^ff/i.test(compact) || /^fe[89ab]/i.test(compact) || /^(fc|fd)/i.test(compact) || /^2001:db8:/i.test(compact)) return true;
-    if (/^::ffff:/i.test(compact)) return isBlockedIp(compact.slice(7));
     return false;
   }
   return true;
