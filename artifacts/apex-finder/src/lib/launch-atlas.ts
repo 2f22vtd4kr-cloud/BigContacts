@@ -84,28 +84,18 @@ export async function launchAtlasPipeline(
   } catch { /* healthz optional */ }
 
   try {
-    let res = await postLaunch();
-    let data = await readApiJson(res);
+    const res = await postLaunch();
+    const data = await readApiJson(res);
 
-    if (res.status === 409) {
-      try {
-        await fetch(`${BASE}/api/ingest/atlas-stop`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(data?.jobId ? { jobId: data.jobId } : {}),
-        });
-        await fetch(`${BASE}/api/ingest/atlas-lock`, { method: "DELETE" });
-      } catch { /* best-effort */ }
-      res = await postLaunch();
-      data = await readApiJson(res);
-    }
-
+    // A 409 is an authoritative distributed-lock response. Never attempt to
+    // stop/delete the active job or retry: doing so could terminate another
+    // operator's run and violate canonical lock ownership.
     if (res.status === 409) {
       return {
         ok: false,
         alreadyRunning: true,
         jobId: data?.jobId,
-        message: data?.error ?? "Atlas still locked — wait 2s and press Launch again.",
+        message: data?.error ?? "Atlas already has an active run — wait for it to finish before launching again.",
       };
     }
 
@@ -144,15 +134,6 @@ export async function stopAtlasPipeline(jobId?: string): Promise<LaunchAtlasResu
     const data = await readApiJson(res);
     if (res.ok) {
       return { ok: true, jobId: data?.jobId, message: data?.message ?? "Atlas research stopped." };
-    }
-    if (res.status === 404) {
-      const q = jobId ? `?jobId=${encodeURIComponent(jobId)}` : "";
-      const lockRes = await fetch(`${BASE}/api/ingest/atlas-lock${q}`, { method: "DELETE" });
-      const lockData = await readApiJson(lockRes);
-      if (!lockRes.ok) {
-        return { ok: false, message: lockData?.message ?? lockData?.error ?? `Stop failed (HTTP ${lockRes.status})` };
-      }
-      return { ok: true, jobId: lockData?.jobId, message: lockData?.message ?? "Atlas research stopped." };
     }
     return { ok: false, message: data?.message ?? data?.error ?? `Stop failed (HTTP ${res.status})` };
   } catch (e: any) {
