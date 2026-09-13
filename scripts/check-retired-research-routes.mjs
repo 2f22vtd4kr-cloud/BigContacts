@@ -49,7 +49,15 @@ for (const task of retiredUiTasks) {
 if (/\bfetch\s*\(/.test(jobs) || /\bTrigger Task\b|\bonTrigger\b|\bJOB_DEFS\b/.test(jobs)) { console.log("FAIL workspace activity desk contains executable job-launcher logic."); failed = true; }
 else console.log("PASS workspace activity desk contains no executable job-launcher logic.");
 
-const retiredControlPlaneFiles = ["artifacts/api-server/src/routes/research/mcts.ts", "artifacts/api-server/src/routes/research/bulk.ts"];
+// The canonical route tree lives under src/src/routes. Check both the current
+// path and the old path so this guard cannot silently miss a retired module after
+// a source-layout migration.
+const retiredControlPlaneFiles = [
+  "artifacts/api-server/src/src/routes/research/mcts.ts",
+  "artifacts/api-server/src/src/routes/research/bulk.ts",
+  "artifacts/api-server/src/routes/research/mcts.ts",
+  "artifacts/api-server/src/routes/research/bulk.ts",
+];
 for (const file of retiredControlPlaneFiles) {
   if (fs.existsSync(file)) { console.log(`FAIL retired deterministic research control-plane file still exists: ${file}`); failed = true; }
   else console.log(`PASS retired deterministic research control-plane file absent: ${file}`);
