@@ -9,11 +9,8 @@ import { isMockMode } from "@/lib/dev-mock-data";
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
 export type LaunchAtlasOptions = {
-  /** Prefer diversified discovery over bulk FAA-scale ingest */
   discoveryFirst?: boolean;
-  /** End-to-end people goal: discovery and research target the same count. */
   targetCount?: number;
-  /** Full target-research budget; canonical default equals targetCount. */
   researchLimit?: number;
   runResearch?: boolean;
   hotLeadsOnly?: boolean;
@@ -29,9 +26,7 @@ export type LaunchAtlasResult = {
   mock?: boolean;
 };
 
-export async function launchAtlasPipeline(
-  opts: LaunchAtlasOptions = {},
-): Promise<LaunchAtlasResult> {
+export async function launchAtlasPipeline(opts: LaunchAtlasOptions = {}): Promise<LaunchAtlasResult> {
   if (isMockMode()) {
     return {
       ok: true,
@@ -41,12 +36,6 @@ export async function launchAtlasPipeline(
     };
   }
 
-  // Must match api-server CANONICAL_ATLAS_LAUNCH_BODY (docs/RUN_BUREAU.md).
-  // singleTargetId digs: never default discoveryFirst — dig one person, no people hunt.
-  // Normal discovery-first runs use one end-to-end target goal: the number of
-  // people requested for research is the number discovery is asked to deliver.
-  // Discovery may return fewer if it cannot establish enough qualified people;
-  // it must never manufacture weak candidates merely to hit the requested count.
   const isSingle = opts.singleTargetId != null;
   const targetGoal = opts.targetCount ?? (isSingle ? 1 : 3);
   const body = {
@@ -64,32 +53,26 @@ export async function launchAtlasPipeline(
     ...(isSingle ? { singleTargetId: opts.singleTargetId } : {}),
   };
 
-  const postLaunch = () =>
-    fetch(`${BASE}/api/ingest/atlas-run`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-
   let integrityNote = "";
   try {
     const hr = await fetch(`${BASE}/api/healthz`, { cache: "no-store" });
     if (hr.ok) {
       const hj = await readApiJson(hr);
       const level = hj?.bureauIntegrity ?? hj?.lanesHonesty?.bureauIntegrity;
-      if (level === "critical") {
-        integrityNote = " (bureauIntegrity=critical — dig may underperform; check search/LLM secrets)";
-      }
+      if (level === "critical") integrityNote = " (bureauIntegrity=critical — dig may underperform; check search/LLM secrets)";
     }
   } catch { /* healthz optional */ }
 
   try {
-    const res = await postLaunch();
+    const res = await fetch(`${BASE}/api/ingest/atlas-run`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
     const data = await readApiJson(res);
 
-    // A 409 is an authoritative distributed-lock response. Never attempt to
-    // stop/delete the active job or retry: doing so could terminate another
-    // operator's run and violate canonical lock ownership.
+    // 409 is authoritative distributed-lock state. Never terminate, delete, or
+    // retry another operator's active job from the client.
     if (res.status === 409) {
       return {
         ok: false,
@@ -98,33 +81,15 @@ export async function launchAtlasPipeline(
         message: data?.error ?? "Atlas already has an active run — wait for it to finish before launching again.",
       };
     }
-
-    if (!res.ok) {
-      return {
-        ok: false,
-        message: data?.error ?? `Launch failed (HTTP ${res.status})`,
-      };
-    }
-
-    return {
-      ok: true,
-      jobId: data?.jobId,
-      message: (data?.message ?? "Apex Atlas pipeline started.") + integrityNote,
-    };
+    if (!res.ok) return { ok: false, message: data?.error ?? `Launch failed (HTTP ${res.status})` };
+    return { ok: true, jobId: data?.jobId, message: (data?.message ?? "Apex Atlas pipeline started.") + integrityNote };
   } catch (e: any) {
-    return {
-      ok: false,
-      message:
-        e?.message ??
-        "Could not reach api-server. Deploy the research API and proxy /api to launch Atlas.",
-    };
+    return { ok: false, message: e?.message ?? "Could not reach api-server. Deploy the research API and proxy /api to launch Atlas." };
   }
 }
 
 export async function stopAtlasPipeline(jobId?: string): Promise<LaunchAtlasResult> {
-  if (isMockMode()) {
-    return { ok: true, mock: true, message: "Mock mode — nothing to stop." };
-  }
+  if (isMockMode()) return { ok: true, mock: true, message: "Mock mode — nothing to stop." };
   try {
     const res = await fetch(`${BASE}/api/ingest/atlas-stop`, {
       method: "POST",
@@ -132,43 +97,9 @@ export async function stopAtlasPipeline(jobId?: string): Promise<LaunchAtlasResu
       body: JSON.stringify(jobId ? { jobId } : {}),
     });
     const data = await readApiJson(res);
-    if (res.ok) {
-      return { ok: true, jobId: data?.jobId, message: data?.message ?? "Atlas research stopped." };
-    }
+    if (res.ok) return { ok: true, jobId: data?.jobId, message: data?.message ?? "Atlas research stopped." };
     return { ok: false, message: data?.message ?? data?.error ?? `Stop failed (HTTP ${res.status})` };
   } catch (e: any) {
     return { ok: false, message: e?.message ?? "Could not reach api-server to stop Atlas." };
-  }
-}
-
-export async function pauseAtlasPipeline(jobId?: string): Promise<LaunchAtlasResult> {
-  if (isMockMode()) return { ok: true, mock: true, message: "Mock mode — nothing to pause." };
-  try {
-    const res = await fetch(`${BASE}/api/ingest/atlas-pause`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(jobId ? { jobId } : {}),
-    });
-    const data = await readApiJson(res);
-    if (!res.ok) return { ok: false, message: data?.message ?? data?.error ?? `Pause failed (HTTP ${res.status})` };
-    return { ok: true, jobId: data?.jobId, message: data?.message ?? "Atlas paused." };
-  } catch (e: any) {
-    return { ok: false, message: e?.message ?? "Could not reach api-server to pause Atlas." };
-  }
-}
-
-export async function resumeAtlasPipeline(jobId?: string): Promise<LaunchAtlasResult> {
-  if (isMockMode()) return { ok: true, mock: true, message: "Mock mode — nothing to resume." };
-  try {
-    const res = await fetch(`${BASE}/api/ingest/atlas-resume`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(jobId ? { jobId } : {}),
-    });
-    const data = await readApiJson(res);
-    if (!res.ok) return { ok: false, message: data?.message ?? data?.error ?? `Resume failed (HTTP ${res.status})` };
-    return { ok: true, jobId: data?.jobId, message: data?.message ?? "Atlas resumed." };
-  } catch (e: any) {
-    return { ok: false, message: e?.message ?? "Could not reach api-server to resume Atlas." };
   }
 }
