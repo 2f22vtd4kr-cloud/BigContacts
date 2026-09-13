@@ -117,12 +117,15 @@ export async function hybridSearch(
     };
   }
 
-  const ids200 = candidateIds.slice(0, 200);
+  // Each signal contributes up to 100 candidates. Hydrate the complete union
+  // before RRF fusion; truncating the union here could silently discard a strong
+  // candidate that only appeared in the later-ranked signal (typically embeddings).
+  const idsForHydration = candidateIds;
   const [entities, assets] = await Promise.all([
-    db.select().from(entitiesTable).where(inArray(entitiesTable.id, ids200)),
+    db.select().from(entitiesTable).where(inArray(entitiesTable.id, idsForHydration)),
     db.select({ ownerId: assetsTable.ownerEntityId, category: assetsTable.category })
       .from(assetsTable)
-      .where(inArray(assetsTable.ownerEntityId, ids200)),
+      .where(inArray(assetsTable.ownerEntityId, idsForHydration)),
   ]);
 
   const assetCounts: Record<number, number> = {};
