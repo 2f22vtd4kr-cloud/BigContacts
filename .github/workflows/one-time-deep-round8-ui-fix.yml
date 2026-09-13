@@ -1,0 +1,44 @@
+name: One-time deep audit UI source repair
+
+on:
+  push:
+    branches: [audit/deep-round8]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Repair entities page and remove this one-shot workflow
+        shell: python
+        run: |
+          from pathlib import Path
+          import subprocess
+
+          path = Path("artifacts/apex-finder/src/pages/entities.tsx")
+          text = path.read_text()
+          duplicate_import = '''import {\n  Plus, Search, Trash2, Loader2, Target as TargetIcon, Globe, ChevronDown, ChevronUp, X, Loader2,\n  ChevronRight, Network, Target as TargetIcon, Download, ShieldAlert,\n  Filter, IdCard,\n  CheckSquare, Square, Users2, CheckCheck, Database, XCircle,\n  Star, EyeOff, Eye, CheckCircle2, Flame,\n} from "lucide-react";'''
+          clean_import = '''import {\n  Plus, Search, Trash2, Loader2, Target as TargetIcon, Globe, ChevronDown, ChevronUp, X,\n  ChevronRight, Network, Download, ShieldAlert,\n  Filter, IdCard,\n  CheckSquare, Square, Users2, CheckCheck, Database, XCircle,\n  Star, EyeOff, Eye, CheckCircle2, Flame,\n} from "lucide-react";'''
+          if duplicate_import not in text:
+              raise SystemExit("Expected duplicate lucide import block was not found")
+          text = text.replace(duplicate_import, clean_import, 1)
+          start_marker = "// ─── Re-run Research button ───────────────────────────────────────────────────"
+          end_marker = "// ─── Mobile card ──────────────────────────────────────────────────────────────"
+          start = text.index(start_marker)
+          end = text.index(end_marker, start)
+          replacement = '''// ─── Re-run Research button ───────────────────────────────────────────────────\n\nfunction RerunButton({ entityId }: { entityId: number }) {\n  const [state, setState] = useState<"idle" | "running" | "done" | "error">("idle");\n  const handleRerun = async (e: React.MouseEvent) => {\n    e.stopPropagation();\n    if (state === "running") return;\n    setState("running");\n    try {\n      const result = await launchAtlasPipeline({ singleTargetId: entityId, targetCount: 1, researchDepth: "standard" });\n      if (!result.ok) throw new Error(result.message || "failed");\n      setState("done");\n      setTimeout(() => setState("idle"), 3000);\n    } catch {\n      setState("error");\n      setTimeout(() => setState("idle"), 2000);\n    }\n  };\n  const icon = state === "running" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : state === "done" ? <CheckCheck className="w-3.5 h-3.5" /> : state === "error" ? <XCircle className="w-3.5 h-3.5" /> : <TargetIcon className="w-3.5 h-3.5" />;\n  const label = state === "running" ? "Running" : state === "done" ? "Started" : state === "error" ? "Failed" : "Re-run";\n  const cls = state === "done" ? "bg-[#9CFF1A]/10 border-[#9CFF1A]/30 text-[#b8ff4d]" : state === "error" ? "bg-red-500/10 border-red-500/30 text-red-400" : "bg-primary/10 border-primary/20 text-primary hover:bg-primary/20";\n  return <button onClick={handleRerun} disabled={state === "running"} className={cn("flex flex-col items-center justify-center gap-1.5 py-2 border rounded transition-colors disabled:opacity-60", cls)} title="Start a canonical single-target Atlas investigation">{icon}<span className="text-[11px] font-mono uppercase">{label}</span></button>;\n}\n\n'''
+          text = text[:start] + replacement + text[end:]
+          path.write_text(text)
+          subprocess.run(["git", "config", "user.name", "github-actions[bot]"], check=True)
+          subprocess.run(["git", "config", "user.email", "41898282+github-actions[bot]@users.noreply.github.com"], check=True)
+          subprocess.run(["git", "rm", "-f", ".github/workflows/one-time-deep-round8-ui-fix.yml"], check=True)
+          subprocess.run(["git", "add", "artifacts/apex-finder/src/pages/entities.tsx"], check=True)
+          subprocess.run(["git", "commit", "-m", "fix: repair entities UI canonical rerun path and imports"], check=True)
+          subprocess.run(["git", "push", "origin", "HEAD:audit/deep-round8"], check=True)
