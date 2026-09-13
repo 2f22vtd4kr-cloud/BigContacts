@@ -22,21 +22,19 @@ function response(status: number, body: unknown): Response {
   });
 }
 
-describe("Gemini Boss text-only fallback", () => {
-  it.each([429, 503])("tries the next compatible model after HTTP %s", async (status) => {
+describe("Gemini Boss text-only model authority", () => {
+  it.each([429, 503])("does not silently switch Gemini models after HTTP %s", async (status) => {
     process.env.GEMINI_API_KEY = "test-key";
     const fetchMock = vi.spyOn(globalThis, "fetch")
-      .mockResolvedValueOnce(response(status, { error: "temporarily unavailable" }))
-      .mockResolvedValueOnce(response(200, {
-        candidates: [{ content: { parts: [{ text: '{"ok":true}' }] } }],
-      }));
+      .mockResolvedValueOnce(response(status, { error: "temporarily unavailable" }));
 
     const result = await generateGeminiBossText(selection, "Return JSON.");
 
-    expect(result).toEqual({ model: "gemini-2.0-flash", raw: '{"ok":true}', error: null });
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(result.model).toBe("gemini-2.5-flash");
+    expect(result.raw).toBeNull();
+    expect(result.error).toContain(`HTTP ${status}`);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(String(fetchMock.mock.calls[0]?.[0])).toContain("gemini-2.5-flash:generateContent");
-    expect(String(fetchMock.mock.calls[1]?.[0])).toContain("gemini-2.0-flash:generateContent");
   });
 
   it("stops after the first successful response", async () => {
