@@ -108,13 +108,13 @@ describe("research case replay", () => {
       { id: 2, caseId: 45, iteration: 1, actorRole: "head_investigator", eventType: "claim", status: "recorded", summary: "Claim", payload: JSON.stringify({ observationEventIds: [1] }), createdAt: "2026-09-11T03:00:01Z" },
       { id: 3, caseId: 45, iteration: 1, actorRole: "head_investigator", eventType: "promotion", status: "recorded", summary: "Bad promotion", payload: JSON.stringify({ claimEventId: 2 }), createdAt: "2026-09-11T03:00:02Z" },
       { id: 4, caseId: 45, iteration: 1, actorRole: "system", eventType: "validation", status: "unknown", summary: "Bad validation", payload: JSON.stringify({ claimEventId: 2 }), createdAt: "2026-09-11T03:00:03Z" },
-      { id: 5, caseId: 45, iteration: 1, actorRole: "system", eventType: "projection", status: "applied", summary: "Bad projection", payload: JSON.stringify({ validationEventId: 4 }), createdAt: "2026-09-11T03:00:04Z" },
+      { id: 5, caseId: 45, iteration: 1, actorRole: "system", eventType: "projection", status: "applied", summary: "Bad projection", payload: JSON.stringify({ validationEventId: 4, entityId: 77 }), createdAt: "2026-09-11T03:00:04Z" },
     ]);
 
     expect(replay.valid).toBe(false);
     expect(replay.violations.some((v) => v.includes("promotion status must be promote or reject"))).toBe(true);
     expect(replay.violations.some((v) => v.includes("validation status must be"))).toBe(true);
-    expect(replay.violations.some((v) => v.includes("projection has no validationEventId or promotionEventId") || v.includes("projection"))).toBe(false);
+    expect(replay.violations.some((v) => v.includes("projection has no validationEventId or promotionEventId"))).toBe(false);
     expect(replay.projectionCount).toBe(1);
   });
 });
