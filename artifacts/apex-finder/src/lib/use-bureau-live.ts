@@ -33,8 +33,13 @@ function mapBureauPayload(parsed: any, atlasLive: boolean): BureauDeskEvent {
   const isNarration = parsed?.kind === "narration" || parsed?.actor === "right_hand";
   // Bureau events are supplemental. They may only carry active chrome while
   // Atlas is actually running and the producer explicitly emitted a recent event.
-  let status = "done";
-  if (atlasLive) {
+  const recordedStatus = String(parsed?.status ?? "").toLowerCase();
+  let status = recordedStatus === "failed" || recordedStatus === "error"
+    ? "failed"
+    : recordedStatus === "active" || recordedStatus === "running"
+      ? "active"
+      : "done";
+  if (status === "done" && atlasLive) {
     try {
       const ts = parsed?.timestamp ? Date.parse(String(parsed.timestamp)) : NaN;
       if (Number.isFinite(ts) && Date.now() - ts < 25_000) status = "active";
