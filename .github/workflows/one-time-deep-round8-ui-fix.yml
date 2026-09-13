@@ -1,0 +1,46 @@
+name: One-time deep audit UI source repair
+
+on:
+  pull_request_target:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: audit/deep-round8
+          fetch-depth: 0
+      - name: Repair UI source through contents API
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: python
+        run: |
+          from pathlib import Path
+          import base64, json, os, re, subprocess, urllib.request
+          owner = "2f22vtd4kr-cloud"; repo = "BigContacts"; branch = "audit/deep-round8"
+          path = Path("artifacts/apex-finder/src/pages/entities.tsx")
+          text = path.read_text()
+          duplicate_import = '''import {\n  Plus, Search, Trash2, Loader2, Target as TargetIcon, Globe, ChevronDown, ChevronUp, X, Loader2,\n  ChevronRight, Network, Target as TargetIcon, Download, ShieldAlert,\n  Filter, IdCard,\n  CheckSquare, Square, Users2, CheckCheck, Database, XCircle,\n  Star, EyeOff, Eye, CheckCircle2, Flame,\n} from "lucide-react";'''
+          clean_import = '''import {\n  Plus, Search, Trash2, Loader2, Target as TargetIcon, Globe, ChevronDown, ChevronUp, X,\n  ChevronRight, Network, Download, ShieldAlert,\n  Filter, IdCard,\n  CheckSquare, Square, Users2, CheckCheck, Database, XCircle,\n  Star, EyeOff, Eye, CheckCircle2, Flame,\n} from "lucide-react";'''
+          if duplicate_import in text: text = text.replace(duplicate_import, clean_import, 1)
+          start_marker = "// ─── Re-run Research button ───────────────────────────────────────────────────"
+          end_marker = "// ─── Mobile card ──────────────────────────────────────────────────────────────"
+          if start_marker in text and end_marker in text:
+              start = text.index(start_marker); end = text.index(end_marker, start)
+              replacement = '''// ─── Re-run Research button ───────────────────────────────────────────────────\n\nfunction RerunButton({ entityId }: { entityId: number }) {\n  const [state, setState] = useState<"idle" | "running" | "done" | "error">("idle");\n  const handleRerun = async (e: React.MouseEvent) => {\n    e.stopPropagation();\n    if (state === "running") return;\n    setState("running");\n    try {\n      const result = await launchAtlasPipeline({ singleTargetId: entityId, targetCount: 1, researchDepth: "standard" });\n      if (!result.ok) throw new Error(result.message || "failed");\n      setState("done"); setTimeout(() => setState("idle"), 3000);\n    } catch { setState("error"); setTimeout(() => setState("idle"), 2000); }\n  };\n  const icon = state === "running" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : state === "done" ? <CheckCheck className="w-3.5 h-3.5" /> : state === "error" ? <XCircle className="w-3.5 h-3.5" /> : <TargetIcon className="w-3.5 h-3.5" />;\n  const label = state === "running" ? "Running" : state === "done" ? "Started" : state === "error" ? "Failed" : "Re-run";\n  const cls = state === "done" ? "bg-[#9CFF1A]/10 border-[#9CFF1A]/30 text-[#b8ff4d]" : state === "error" ? "bg-red-500/10 border-red-500/30 text-red-400" : "bg-primary/10 border-primary/20 text-primary hover:bg-primary/20";\n  return <button onClick={handleRerun} disabled={state === "running"} className={cn("flex flex-col items-center justify-center gap-1.5 py-2 border rounded transition-colors disabled:opacity-60", cls)} title="Start a canonical single-target Atlas investigation">{icon}<span className="text-[11px] font-mono uppercase">{label}</span></button>;\n}\n\n'''
+              text = text[:start] + replacement + text[end:]
+          text, removed = re.subn(r'\n\s*<button\s+type="button"\s+data-testid="rehydrate-thin-cards"[\s\S]*?\n\s*</button>', '', text, count=1)
+          if removed: print("Removed retired rehydrate UI action")
+          path.write_text(text)
+          token = os.environ["GH_TOKEN"]
+          headers = {"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28", "Content-Type": "application/json"}
+          def request(method, url, payload):
+              req = urllib.request.Request(url, data=json.dumps(payload).encode(), method=method, headers=headers)
+              with urllib.request.urlopen(req) as resp: return json.load(resp)
+          blob_sha = subprocess.check_output(["git", "rev-parse", f"HEAD:{path.as_posix()}"]).decode().strip()
+          request("PUT", f"https://api.github.com/repos/{owner}/{repo}/contents/{path.as_posix()}", {"message":"fix: remove retired entity UI actions and enforce canonical rerun","content":base64.b64encode(text.encode()).decode(),"sha":blob_sha,"branch":branch})
