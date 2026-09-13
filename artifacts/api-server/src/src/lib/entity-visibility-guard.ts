@@ -1,5 +1,5 @@
 import type { Request, Response, NextFunction } from "express";
-import { eq, inArray } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { db, entitiesTable } from "@workspace/db";
 
 /**
