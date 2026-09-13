@@ -1,8 +1,9 @@
-name: Deep Round 11 audit gate
+name: Deep audit gate
 on:
   push:
     branches:
       - "audit/deep-round11"
+      - "audit/deep-round12"
   workflow_dispatch:
 permissions:
   contents: read
