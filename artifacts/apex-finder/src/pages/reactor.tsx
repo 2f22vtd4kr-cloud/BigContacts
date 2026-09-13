@@ -655,7 +655,7 @@ function AtlasPhaseStrip({ state, liveNodes, compact = false }: { state?: AtlasL
       <div style={{ display:"flex", flexDirection:"column", gap:compact ? 4 : 6 }}>
         <div role="status" aria-label={running ? "Free dig activity in progress" : "Free dig activity idle"} style={{ height: compact ? 5 : 6, borderRadius:4, background:"#1a2740", overflow:"hidden" }}>
           <div style={{
-            height:"100%", borderRadius:4, width: running ? "42%" : state?.runStatus === "done" ? "100%" : "0%",
+            height:"100%", borderRadius:4, width: state?.runStatus === "done" ? "100%" : running && state?.phaseTotal && Number.isFinite(state.phaseProgress) ? `${Math.min(Math.max((state.phaseProgress / state.phaseTotal) * 100, 0), 100)}%` : "0%",
             background: running ? "linear-gradient(90deg,#9CFF1A,#b8ff4d)" : "#263d59",
             boxShadow: running ? "0 0 10px #9CFF1A66" : "none",
             transition:"width .4s ease",
