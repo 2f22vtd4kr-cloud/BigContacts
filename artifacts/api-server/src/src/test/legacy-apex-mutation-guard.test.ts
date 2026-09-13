@@ -7,9 +7,13 @@ vi.mock("@workspace/db", () => ({
   db: {
     select: () => ({
       from: () => ({
-        where: () => ({
-          limit: async () => rows.current,
-        }),
+        where: () => {
+          const result = [...rows.current] as Array<{ id: number; type: string }> & {
+            limit: () => Promise<Array<{ id: number; type: string }>>;
+          };
+          result.limit = async () => rows.current.slice(0, 1);
+          return result;
+        },
       }),
     }),
   },
