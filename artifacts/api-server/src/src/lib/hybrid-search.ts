@@ -78,10 +78,20 @@ export async function hybridSearch(
     };
   }
 
+  // An explicitly supplied empty filter means no entity is eligible. Do not
+  // silently reinterpret it as "no filter" after a restrictive SQL pre-filter.
+  if (filterIds && filterIds.length === 0) {
+    return {
+      results: [],
+      meta: { bm25Hits: 0, semanticHits: 0, embeddingHits: 0, embeddingCacheSize: getEmbeddingCacheSize(), graphHits: 0, totalCandidates: 0, durationMs: Date.now() - t0 },
+    };
+  }
+
+  const filterSet = filterIds ? new Set(filterIds) : undefined;
   const [bm25Results, semanticResults, embeddingResults] = await Promise.all([
-    bm25Search(safeQuery, 100),
-    semanticSearch(safeQuery, 100),
-    semanticEngineSearch(safeQuery, 100),
+    bm25Search(safeQuery, 100, filterSet),
+    semanticSearch(safeQuery, 100, filterSet),
+    semanticEngineSearch(safeQuery, 100, filterSet),
   ]);
 
   const allIds = new Set<number>();
@@ -90,10 +100,7 @@ export async function hybridSearch(
   for (const r of embeddingResults) allIds.add(r.id);
 
   let candidateIds = [...allIds];
-  if (filterIds && filterIds.length > 0) {
-    const filterSet = new Set(filterIds);
-    candidateIds = candidateIds.filter((id) => filterSet.has(id));
-  }
+  if (filterSet) candidateIds = candidateIds.filter((id) => filterSet.has(id));
 
   if (candidateIds.length === 0) {
     return {
