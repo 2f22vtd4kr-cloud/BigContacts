@@ -94,9 +94,7 @@ function sanitizeStoryText(s: string | undefined): string | undefined {
   if (!s) return undefined;
   let t = s.replace(/\s+/g, " ").trim();
   if (isLogGarbage(t)) {
-    const name = t.match(/(?:targetName|TARGET)[\"':\s]+([A-Za-z][A-Za-z .'-]{2,60})/i);
-    if (name?.[1]) return `working on ${name[1].trim()}`;
-    return undefined; // caller falls back to plain storyFor body
+    return undefined; // caller falls back to plain storyFor body; never invent live activity
   }
   // Drop leading ISO + DIRECTOR noise
   t = t.replace(/^DIRECTOR\s+\d{4}-\d{2}-\d{2}T[^\s]+\s*/i, "");
