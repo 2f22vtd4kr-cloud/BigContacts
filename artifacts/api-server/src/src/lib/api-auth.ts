@@ -22,7 +22,11 @@ function readCookie(req: Request, name: string): string | undefined {
   const header = req.header("cookie") ?? "";
   for (const part of header.split(";")) {
     const [key, ...rest] = part.trim().split("=");
-    if (key === name) return decodeURIComponent(rest.join("="));
+    if (key !== name) continue;
+    const raw = rest.join("=");
+    if (raw.length > 512) return undefined;
+    try { return decodeURIComponent(raw); }
+    catch { return undefined; }
   }
   return undefined;
 }
