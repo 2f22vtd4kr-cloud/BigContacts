@@ -65,6 +65,7 @@ type Scene = {
   story: string;
   /** Adaptive right-hand narration for the desk */
   narration?: string;
+  links?: Array<{ title?: string; url: string }>;
 };
 
 function pickTool(e: OpsEvent): string {
@@ -123,7 +124,7 @@ function humanStageTitle(stage: string | undefined, tool: string): string {
   if (stage && stage.length < 40 && !isLogGarbage(stage)) {
     return stage.replace(/[_·]+/g, " ").replace(/\s+/g, " ").trim();
   }
-  return "Working on this person";
+  return "Processing recorded step";
 }
 
 function isDiscoveryPhase(stage: string | undefined, tool: string, methodKind?: string): boolean {
@@ -200,7 +201,16 @@ function providerUnavailable(e: OpsEvent, slots?: ProviderSlotMap | null): boole
   return false;
 }
 
+function hasObservedVisit(e: OpsEvent): boolean {
+  const method = String(e.methodKind || "").toLowerCase();
+  const tool = `${pickTool(e)} ${e.stage || ""}`.toLowerCase();
+  return method === "fetch" || /browser_fetch|scrapfly|zenrows|\bvisit\b|contact-attribution|contact-facts|webdisc/i.test(tool);
+}
+
 function extractUrl(e: OpsEvent): string | undefined {
+  // Search-result links/source URLs are not proof of visitation. Only expose URLs
+  // when the event explicitly identifies an observed fetch/visit capability.
+  if (!hasObservedVisit(e)) return undefined;
   if (e.links?.[0]?.url) return e.links[0].url;
   if (e.sourceUrls?.[0]) return e.sourceUrls[0];
   const blob = [e.resultSummary, e.inputSummary, e.raw].filter(Boolean).join(" ");
@@ -446,7 +456,7 @@ function toScene(e: OpsEvent, index: number, slots: ProviderSlotMap | null = nul
   }
   const safeQuery = query && !isLogGarbage(query) && !isInternalLanePrompt(query)
     ? query
-    : (e.targetName ? `${e.targetName}` : undefined);
+    : undefined;
   return {
     id: `${e.timestamp || index}-${tool}-${index}`,
     kind,
@@ -456,7 +466,7 @@ function toScene(e: OpsEvent, index: number, slots: ProviderSlotMap | null = nul
       ? (honestSubtitle || "This search tool is offline")
       : (discovery ? "Discovery" : "Research"),
     phaseTone: discovery ? "discovery" : "research",
-    query: unavailable ? (e.targetName ? `${e.targetName} (search offline)` : safeQuery) : safeQuery,
+    query: unavailable ? undefined : safeQuery,
     url,
     prompt: safePrompt,
     resultLines: lines.slice(0, 4),
@@ -472,10 +482,12 @@ function toScene(e: OpsEvent, index: number, slots: ProviderSlotMap | null = nul
     story: unavailable
       ? (honestSubtitle || "This search tool is offline or returned nothing useful")
       : (e.narration || storyFor(kind, e, safeQuery)),
-    links: (e.links && e.links.length
-      ? e.links
-      : (e.sourceUrls ?? []).map((url) => ({ url }))
-    ).slice(0, 5),
+    links: hasObservedVisit(e)
+      ? (e.links && e.links.length
+        ? e.links
+        : (e.sourceUrls ?? []).map((url) => ({ url }))
+      ).slice(0, 5)
+      : undefined,
     actor: e.actor,
     caseUpdate: e.caseUpdate,
   };
@@ -897,7 +909,7 @@ function SerpScene({ scene, compact }: { scene: Scene; compact?: boolean }) {
 }
 
 function FootprintScene({ scene, compact }: { scene: Scene; compact?: boolean }) {
-  const p = (scene.provider || scene.tool || "").toLowerCase();
+  const p = (scene.provider || "").toLowerCase();
   const title = /holehe/i.test(p) ? "Email footprint · Holehe"
     : /maigret/i.test(p) ? "Username dossier · Maigret"
     : /harvester|theharvester/i.test(p) ? "Domain harvest · theHarvester"
@@ -935,7 +947,7 @@ function BureauScene({ scene, compact }: { scene: Scene; compact?: boolean }) {
         {scene.targetName && (
           <div className="text-[13px] font-mono text-lime-400/80 uppercase tracking-wider">{scene.targetName}</div>
         )}
-        {(scene.resultLines.length ? scene.resultLines : [scene.subtitle || "Working on this person…"]).map((l, i) => (
+        {(scene.resultLines.length ? scene.resultLines : [scene.subtitle || "Waiting for recorded detail…"]).map((l, i) => (
           <div key={i} className={`text-stone-200 leading-snug ${compact ? "text-[11px]" : "text-[12px]"}`}>
             {l}
           </div>
