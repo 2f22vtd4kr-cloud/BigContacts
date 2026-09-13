@@ -152,7 +152,7 @@ export async function loadEmbeddingsFromRedis(): Promise<number> {
 
 export interface SemanticEngineResult { id: number; score: number; }
 
-export async function semanticEngineSearch(query: string, topK = 100): Promise<SemanticEngineResult[]> {
+export async function semanticEngineSearch(query: string, topK = 100, filterIds?: ReadonlySet<number>): Promise<SemanticEngineResult[]> {
   if (_embCache.size < 100) return [];
   const safeQuery = query.trim().slice(0, 2_000);
   const safeTopK = Math.min(Math.max(Math.trunc(Number(topK)) || 100, 1), 100);
@@ -160,7 +160,10 @@ export async function semanticEngineSearch(query: string, topK = 100): Promise<S
   let queryEmb: Float32Array;
   try { queryEmb = await embedText(safeQuery); } catch { return []; }
   const scored: SemanticEngineResult[] = [];
-  for (const [id, emb] of _embCache) scored.push({ id, score: cosineSim(queryEmb, emb) });
+  for (const [id, emb] of _embCache) {
+    if (filterIds && !filterIds.has(id)) continue;
+    scored.push({ id, score: cosineSim(queryEmb, emb) });
+  }
   return scored.sort((a, b) => b.score - a.score).slice(0, safeTopK);
 }
 
