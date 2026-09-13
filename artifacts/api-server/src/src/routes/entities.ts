@@ -212,15 +212,20 @@ router.get("/entities", async (req, res): Promise<void> => {
   // ── Legacy channel filters (kept for backward compat) ──────────────────────
   if (hasEmail) {
     conditions.push(hasValue(entitiesTable.email));
-  } else if (hasPhone) {
+  }
+  if (hasPhone) {
     conditions.push(hasValue(entitiesTable.phone));
-  } else if (hasWhatsapp) {
+  }
+  if (hasWhatsapp) {
     conditions.push(ilike(entitiesTable.contactMethod, "%whatsapp%"));
-  } else if (hasTelegram) {
+  }
+  if (hasTelegram) {
     conditions.push(hasValue(entitiesTable.telegramHandle));
-  } else if (hasInstagram) {
+  }
+  if (hasInstagram) {
     conditions.push(hasValue(entitiesTable.instagramHandle));
-  } else if (contactable) {
+  }
+  if (contactable) {
     // Contactable is an operational reachability filter, not a generic
     // "has a public vector" filter. Candidates and organization routes remain
     // reviewable through contactOutcome, but do not appear as reachable.
