@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import healthRouter from "./health";
 import authRouter from "./auth";
 import entitiesRouter from "./entities";
+import safeEntityMergeRouter from "./entity-merge-safe";
 import assetsRouter from "./assets";
 import relationshipsRouter from "./relationships";
 import researchRouter from "./research";
@@ -25,19 +26,13 @@ import { normalizeAtlasLaunchBody } from "../middlewares/normalize-atlas-launch-
 
 const router: IRouter = Router();
 router.use(healthRouter);
-// Browser login/session bootstrap is public; all other API routes remain behind
-// apiAuth at the application boundary.
 router.use(authRouter);
-// Normalize the canonical launch contract before any launcher reads Boolean(...)
-// from operator/form input. This is intentionally narrow, not a generic coercer.
 router.use(normalizeAtlasLaunchBody);
-// Hidden entities are a visibility boundary, not merely a list filter. Guard
-// entity-specific reads before any compatibility router can expose them.
 router.use(entityVisibilityGuard);
-// The legacy Apex mutation boundary wraps remaining compatibility/mutation routes.
-// Direct deterministic extended-OSINT execution is intentionally NOT mounted here:
-// research capabilities must be selected and executed by the canonical Investigator.
 router.use(legacyApexMutationGuard);
+// Transactional merge must precede the historical entities router so the old
+// non-atomic implementation cannot execute for any operator request.
+router.use(safeEntityMergeRouter);
 router.use(entitiesRouter);
 router.use(assetsRouter);
 router.use(relationshipsRouter);
@@ -50,12 +45,8 @@ router.use(improveRouter);
 router.use(osintToolsRouter);
 router.use(identityRouter);
 router.use(contactResearchRouter);
-// The canonical launch handler owns POST /ingest/atlas-run.
 router.use(canonicalAtlasLaunchRouter);
-// Defense in depth: even if the canonical router ever declines the launch
-// request, the historical orchestrator remains unreachable.
 router.use(legacyAtlasLaunchQuarantine);
-// Keep the legacy Atlas router mounted only for status/lock compatibility.
 router.use(atlasRouter);
 router.use(bureauStreamRouter);
 router.use(systemStatusRouter);
