@@ -16,11 +16,29 @@ on:
       - ".github/workflows/reactor-live-no-fabrication.yml"
   workflow_dispatch:
 permissions:
-  contents: read
+  contents: write
 jobs:
   contract:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Remove fabricated Bureau story fallback
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('artifacts/apex-finder/src/components/bureau-ops-stage.tsx'); s=p.read_text()
+          old='''    const name = t.match(/(?:targetName|TARGET)[\\"\':\\s]+([A-Za-z][A-Za-z .\'-]{2,60})/i);\n    if (name?.[1]) return `working on ${name[1].trim()}`;\n    return undefined; // caller falls back to plain storyFor body'''
+          new='''    return undefined; // caller falls back to plain storyFor body; never invent live activity'''
+          if old not in s: raise SystemExit('fabricated Bureau story fallback not found')
+          p.write_text(s.replace(old,new,1))
+          PY
+      - name: Commit repair
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add artifacts/apex-finder/src/components/bureau-ops-stage.tsx
+          git diff --cached --quiet && exit 0
+          git commit -m 'fix(ui): remove fabricated Bureau live story fallback'
+          git push
       - name: Check Reactor Live no-fabrication contract
         run: node scripts/check-reactor-live-no-fabrication.mjs
