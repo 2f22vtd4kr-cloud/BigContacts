@@ -1,4 +1,14 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+// This suite exercises pure evidence-shaping boundaries. The production wrapper
+// imports the database for its persistence path, so keep the unit boundary
+// database-free rather than requiring DATABASE_URL for a pure transformation test.
+vi.mock("@workspace/db", () => ({
+  db: {},
+  researchCasesTable: {},
+  researchCaseEventsTable: {},
+}));
+
 import { findingsToContactEvidence, findingsToBureauContacts } from "../lib/bureau-agentic-pass";
 import { findingsToContacts } from "../lib/target-contact-agent";
 import type { AgenticFinding, AgenticTrajectoryRecord } from "../lib/agentic-web-research";
