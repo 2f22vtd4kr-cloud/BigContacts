@@ -1,4 +1,5 @@
 // Final CI verification marker; no production behavior change.
+// Audit round 10: execute the complete API/Bureau gate against the current audit branch.
 import fs from "node:fs";
 import path from "node:path";
 
