@@ -1,6 +1,7 @@
 # Five consecutive complete audits. Each pass gets a fresh checkout and independently reruns the full repository contract suite, typecheck, build, every API test file, and source-mutation check.
 # Final verification run: no merge until all five complete audits pass consecutively.
 # Audit chain activation: this workflow is intentionally the complete five-pass gate, not a five-lane shortcut.
+# Final-tree verification marker: this comment change intentionally triggers the complete chain on main.
 name: Five Consecutive Full Code Audits
 
 on:
