@@ -8,6 +8,8 @@ const checks = [
   ["owner mismatch cannot clear the Redis pointer", /return 0 end/.test(source)],
   ["active-job claim is atomic under concurrent callers", /setActiveJob[\s\S]{0,1200}redis\.call\('get',k\)[\s\S]{0,500}redis\.call\('set',k,ARGV\[1\]/.test(source)],
   ["unconditional clear only deletes terminal jobs", /hget',ARGV\[1\]\.\.id,'status'[\s\S]{0,300}s=='done' or s=='failed' or s=='cancelled'[\s\S]{0,100}redis\.call\('del',k\)/.test(source)],
+  ["canonical release special-case is limited to the canonical Atlas lane", /if\(type==="atlas-run"\)\{[\s\S]{0,300}releaseCanonicalJob\(type,jobId\)/.test(source) && !/type==="atlas-run"\|\|type==="case-bureau-discovery"/.test(source)],
+  ["case-bureau discovery falls through to its own owner-bound active lane", /if\(type==="atlas-run"\)\{[\s\S]{0,420}\}\s*invalidateActiveJobCache\(type\);let ok=false/.test(source)],
 ];
 const failures = checks.filter(([, ok]) => !ok).map(([name]) => name);
 if (failures.length) {

@@ -17,6 +17,7 @@ const checks=[
 ["redirect becomes a research objective, not a tool command",/Gemini research objective/.test(runner)],
 ["canonical runner establishes one global target deadline",/const deadline = Date\.now\(\) \+ hardTimeoutMs/.test(runner)],
 ["canonical runner refuses to start a sub-30-second act",/remainingMs < 30_000/.test(runner)],
+["canonical target finalization is fenced to an active case",/\.where\(and\(eq\(researchCasesTable\.id, caseRow\.id\), eq\(researchCasesTable\.status, \"active\"\)\)\)/.test(runner)],
 ["canonical agentic target wrapper actively aborts at its deadline",/setTimeout\(\(\) => overallController\.abort\(\), requestedHardTimeout\)/.test(agentic)],
 ["canonical agentic target wrapper clears its deadline timer",/clearTimeout\(deadlineTimer\)/.test(agentic)],
 ["target control context is mandatory",/if \(!oversightContext\)/.test(agentic)],

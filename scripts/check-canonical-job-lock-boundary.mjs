@@ -19,9 +19,11 @@ assert(!/clearActiveJobIf(?:Owned|Matches)\(/.test(launch), "canonical launch st
 assert(!targetRunner.includes("releaseCanonicalJob"), "canonical target runner must not release the outer Atlas lane");
 assert(!targetRunner.includes("clearActiveJobIfOwned"), "canonical target runner must not release the outer Atlas lane through the generic job queue");
 assert(!targetRunner.includes("clearActiveJobIfMatches"), "canonical target runner must not bypass outer canonical lock ownership");
-assert(/type===\"atlas-run\"\|\|type===\"case-bureau-discovery\"/.test(jobQueue), "job queue must recognize canonical Atlas lock lanes");
+assert(/type===\"atlas-run\"/.test(jobQueue), "job queue must recognize the canonical Atlas lock lane");
+assert(!/type===\"atlas-run\"\|\|type===\"case-bureau-discovery\"/.test(jobQueue), "case-bureau discovery must not be misidentified as the canonical Atlas lock lane");
 assert(/import\(\"\.\/canonical-job-lock\"\)/.test(jobQueue), "job queue must bridge canonical lane release to the canonical lock module");
 assert(/releaseCanonicalJob\(type,jobId\)/.test(jobQueue), "canonical lane release must use the atomic owner-checked release API");
+assert(/apex:activejob:\$\{type\}/.test(jobQueue), "non-canonical active lanes must retain their own owner-bound release path");
 
 if (failures.length) {
   console.error("CANONICAL JOB LOCK: FAIL");

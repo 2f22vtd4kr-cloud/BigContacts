@@ -1,13 +1,21 @@
 import fs from "node:fs";
 
-const source = fs.readFileSync("artifacts/api-server/src/src/routes/search.ts", "utf8");
+const route = fs.readFileSync("artifacts/api-server/src/src/routes/search.ts", "utf8");
+const orchestrator = fs.readFileSync("artifacts/api-server/src/src/lib/agent-orchestrator.ts", "utf8");
 const checks = [
-  ["query length is bounded", /MAX_QUERY_CHARS\s*=\s*2_000/.test(source) && /slice\(0, MAX_QUERY_CHARS\)/.test(source)],
-  ["filter cardinality is bounded", /MAX_FILTER_VALUES\s*=\s*25/.test(source) && /slice\(0, MAX_FILTER_VALUES\)/.test(source)],
-  ["search result limit is bounded", /Math\.min\(200/.test(source) && /Math\.min\(50/.test(source)],
-  ["offset is bounded and non-negative", /MAX_OFFSET\s*=\s*100_000/.test(source) && /Math\.max\(0/.test(source)],
-  ["asset lookup uses parameterized inArray", /inArray\(assetsTable\.ownerEntityId, ids\)/.test(source) && !/ARRAY\[\$\{ids\.join/.test(source)],
-  ["filter booleans require literal true", /body\.hotOnly === true/.test(source) && /body\.filterHasContact === true/.test(source)],
+  ["query length is bounded", /MAX_QUERY_CHARS\s*=\s*2_000/.test(route) && /slice\(\s*0\s*,\s*MAX_QUERY_CHARS\s*\)/.test(route)],
+  ["filter cardinality is bounded", /MAX_FILTER_VALUES\s*=\s*25/.test(route) && /slice\(\s*0\s*,\s*MAX_FILTER_VALUES\s*\)/.test(route)],
+  ["search result limit is bounded", /Math\.min\(\s*200/.test(route) && /Math\.min\(\s*50/.test(route)],
+  ["offset is bounded and non-negative", /MAX_OFFSET\s*=\s*100_000/.test(route) && /Math\.max\(\s*0/.test(route)],
+  ["asset lookup uses parameterized inArray", /inArray\(assetsTable\.ownerEntityId\s*,\s*ids\)/.test(route) && !/ARRAY\[\$\{ids\.join/.test(route)],
+  ["filter booleans require literal true", /body\.hotOnly\s*===\s*true/.test(route) && /body\.filterHasContact\s*===\s*true/.test(route)],
+  ["intelligent search accepts the frontend source-filter contract", /filterSources=boundedStringList\(body\.filterSources\)/.test(route) && /sourceNeedle/.test(route) && /filterSources\.some/.test(route)],
+  ["intelligent search geography uses token boundaries", /function containsBoundaryTerm/.test(route) && /containsBoundaryTerm\(r\.nationality,j\)/.test(route) && /containsBoundaryTerm\(r\.knownResidences,j\)/.test(route)],
+  ["HNWI country filters use token boundaries", /if\(countries\.length\)[\s\S]{0,500}sqlBoundaryPattern\(c\)[\s\S]{0,300}entitiesTable\.nationality/.test(route) && !/countries\.map\(c=>ilike\(entitiesTable\.nationality/.test(route)],
+  ["explicit intelligent filters are resolved before orchestration", /resolveExplicitFilterIds/.test(route) && /const forcedFilterIds=await resolveExplicitFilterIds/.test(route) && /orchestrate\([^;]*forcedFilterIds/.test(route)],
+  ["orchestration carries forced eligibility into hybrid retrieval", /retrieve\(query,plan,forcedFilterIds\)/.test(orchestrator) && /if\(forcedFilterIds\)/.test(orchestrator)],
+  ["planner geography matching is boundary-safe", /function containsTerm\(text:string,term:string\)/.test(orchestrator) && /\\p\{L\}/.test(orchestrator) && /\\p\{N\}/.test(orchestrator)],
+  ["planner SQL prefilter is not top-N truncated", /SELECT id FROM entities \$\{whereClause\}`\)/.test(orchestrator) && !/SELECT id FROM entities \$\{whereClause\} LIMIT 10000/.test(orchestrator)],
 ];
 const failures = checks.filter(([, ok]) => !ok).map(([name]) => name);
 if (failures.length) {

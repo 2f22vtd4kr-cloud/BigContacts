@@ -7,7 +7,7 @@ export const researchRunEventsTable = pgTable("research_run_events", {
   id: serial("id").primaryKey(),
   sessionId: integer("session_id")
     .notNull()
-    .references(() => researchSessionsTable.id, { onDelete: "cascade" }),
+    .references(() => researchSessionsTable.id, { onDelete: "restrict" }),
   phase: text("phase").notNull(),
   status: text("status").notNull(), // done | skipped | failed
   durationMs: integer("duration_ms").notNull().default(0),

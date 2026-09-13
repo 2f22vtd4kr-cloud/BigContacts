@@ -29,24 +29,16 @@ export type BureauDeskEvent = {
   provider?: string;
 };
 
-function mapBureauPayload(parsed: any, atlasLive: boolean): BureauDeskEvent {
+function mapBureauPayload(parsed: any, _atlasLive: boolean): BureauDeskEvent {
   const isNarration = parsed?.kind === "narration" || parsed?.actor === "right_hand";
-  // Bureau events are supplemental. They may only carry active chrome while
-  // Atlas is actually running and the producer explicitly emitted a recent event.
+  // Bureau events are supplemental. Their recorded status is authoritative;
+  // event age alone must never manufacture an active/live state.
   const recordedStatus = String(parsed?.status ?? "").toLowerCase();
-  let status = recordedStatus === "failed" || recordedStatus === "error"
+  const status = recordedStatus === "failed" || recordedStatus === "error"
     ? "failed"
     : recordedStatus === "active" || recordedStatus === "running"
       ? "active"
       : "done";
-  if (status === "done" && atlasLive) {
-    try {
-      const ts = parsed?.timestamp ? Date.parse(String(parsed.timestamp)) : NaN;
-      if (Number.isFinite(ts) && Date.now() - ts < 25_000) status = "active";
-    } catch {
-      status = "done";
-    }
-  }
   return {
     timestamp: parsed?.timestamp,
     kind: parsed?.kind || (isNarration ? "narration" : "log"),
@@ -151,8 +143,6 @@ export function useBureauLiveDesk(
   }, [bureauEvents, atlasLive]);
 
   return {
-    // During a live run this is intentionally empty. The legacy scene stage
-    // must not render a second interpretation of live execution telemetry.
     deskEvents: terminalEvents,
     bureauCount: bureauEvents.length,
     latestNarration,

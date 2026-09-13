@@ -178,7 +178,7 @@ function parseAtlasEventLog(raw: unknown) {
       return { ...event, timestamp, raw: text };
     } catch {
       if (/ATLAS_EVENT|DIRECTOR\s+20\d{2}-|"kind"\s*:\s*"telemetry"/i.test(text)) {
-        return { kind: "log", resultSummary: "Working on this person", timestamp, raw: text };
+        return { kind: "log", timestamp, raw: text };
       }
       const cleaned = text
         .replace(/^\d{4}-\d{2}-\d{2}T[\d:.Z+-]+\s*/, "")
@@ -186,7 +186,7 @@ function parseAtlasEventLog(raw: unknown) {
         .trim();
       return {
         kind: "log",
-        resultSummary: cleaned.length > 8 && cleaned.length < 160 ? cleaned : "Working on this person",
+        ...(cleaned.length > 8 && cleaned.length < 160 ? { resultSummary: cleaned } : {}),
         timestamp,
         raw: text,
       };
@@ -531,7 +531,8 @@ function LiveHeaderDetail({ isLive, atlasState, liveLabel, livePhaseDetail, comp
   compact?: boolean;
 }) {
   if (!isLive && !atlasState) return null;
-  const detail = atlasState?.detail || livePhaseDetail || liveLabel || "Processing live research";
+  const detail = atlasState?.detail || livePhaseDetail || liveLabel;
+  if (!detail) return null;
   const failed = atlasState?.runStatus === "failed";
   const cancelled = atlasState?.runStatus === "cancelled";
   const done = atlasState?.runStatus === "done";
@@ -644,6 +645,9 @@ function AtlasPhaseStrip({ state, liveNodes, compact = false }: { state?: AtlasL
   const running = Boolean(state && (state.runStatus === "running" || state.runStatus === "paused"));
   const activeCount = liveNodes?.size ?? 0;
   const source = state?.sourceStep != null ? `SOURCE ${state.sourceStep}` : activeCount ? `${activeCount} LIVE TOOLS` : "AWAITING TOOL EVENT";
+  const telemetryProgress = state && Number.isFinite(state.phaseProgress) && Number.isFinite(state.phaseTotal) && state.phaseTotal > 0
+    ? Math.max(0, Math.min(100, (state.phaseProgress / state.phaseTotal) * 100))
+    : null;
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:compact ? 5 : 7, minWidth:0, width:"100%" }}>
       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:8 }}>
@@ -655,7 +659,7 @@ function AtlasPhaseStrip({ state, liveNodes, compact = false }: { state?: AtlasL
       <div style={{ display:"flex", flexDirection:"column", gap:compact ? 4 : 6 }}>
         <div role="status" aria-label={running ? "Free dig activity in progress" : "Free dig activity idle"} style={{ height: compact ? 5 : 6, borderRadius:4, background:"#1a2740", overflow:"hidden" }}>
           <div style={{
-            height:"100%", borderRadius:4, width: running ? "42%" : state?.runStatus === "done" ? "100%" : "0%",
+            height:"100%", borderRadius:4, width: telemetryProgress != null ? `${telemetryProgress}%` : state?.runStatus === "done" ? "100%" : "0%",
             background: running ? "linear-gradient(90deg,#9CFF1A,#b8ff4d)" : "#263d59",
             boxShadow: running ? "0 0 10px #9CFF1A66" : "none",
             transition:"width .4s ease",
@@ -677,7 +681,7 @@ function EntityWorkbench({ state, liveNodes, compact = false }: {
 }) {
   if (!state) return null;
   const active = [...(liveNodes ?? new Set<string>())];
-  const current = state.currentEntities.length > 0 ? state.currentEntities.join(" · ") : "Batch activity detected";
+  const current = state.currentEntities.length > 0 ? state.currentEntities.join(" · ") : "No entity detail recorded";
   const batchStart = state.entityProgress != null && state.entityTotal != null
     ? Math.min(state.entityProgress + 1, state.entityTotal)
     : null;
@@ -714,7 +718,7 @@ function EntityWorkbench({ state, liveNodes, compact = false }: {
           fontSize: compact ? 10 : 12, color:"#b8ff4d", letterSpacing:"0.09em",
           overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", flex:1,
         }}>
-          {state.detail || "Collecting evidence and passing it to the next rod"}
+          {state.detail || "No activity detail recorded"}
         </span>
         <span style={{ fontSize: compact ? 10 : 12, color:"#526b86", whiteSpace:"nowrap", textAlign:"right" }}>
           {batchStart != null ? `ENTITIES ${batchStart}–${batchEnd}/${state.entityTotal}` : `${active.length} RODS ACTIVE`}
@@ -2572,7 +2576,7 @@ export default function IntelligenceReactorPage() {
         const plainMsg = (raw: string) => {
           let t = raw.replace(/\s+/g, " ").trim();
           if (/ATLAS_EVENT|DIRECTOR\s+20\d{2}-|\"kind\"\s*:\s*\"telemetry\"/i.test(t)) {
-            return "Working on this person";
+            return "Live event received";
           }
           t = t.replace(/^Phase\s+\d+\/[^:]+:\s*/i, "");
           t = t.replace(/^[🤖\s]+/, "");

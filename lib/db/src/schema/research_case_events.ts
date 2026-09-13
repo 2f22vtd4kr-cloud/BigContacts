@@ -4,6 +4,7 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { researchCasesTable } from "./research_cases";
 export const RESEARCH_CASE_EVENT_PAYLOAD_MAX_BYTES = 128 * 1024;
+/** Append-only decisions, assignments, observations, claims, promotions. PostgreSQL enforces immutability at the database boundary. */
 export const researchCaseEventsTable = pgTable("research_case_events", {
   id: serial("id").primaryKey(),
   caseId: integer("case_id").notNull().references(() => researchCasesTable.id, { onDelete: "restrict" }),

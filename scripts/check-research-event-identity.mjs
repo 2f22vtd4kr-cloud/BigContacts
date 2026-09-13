@@ -24,16 +24,16 @@ for (const [name, path] of Object.entries(writers)) {
 }
 
 const bureau = read(writers["bureau discovery trajectory"]);
-if (bureau && /onConflictDoNothing\(\{ target: \[researchCaseEventsTable\.caseId, researchCaseEventsTable\.correlationKey\]/.test(bureau)) {
+if (bureau && /onConflictDoNothing\(\{\s*target:\s*\[researchCaseEventsTable\.caseId,\s*researchCaseEventsTable\.correlationKey\]/.test(bureau)) {
   if (!/Discovery trajectory replay mismatch/.test(bureau)) failures.push("bureau trajectory writer uses idempotent conflict handling without payload replay verification");
   if (!/Discovery claim replay mismatch/.test(bureau)) failures.push("bureau claim writer uses idempotent conflict handling without payload replay verification");
   if (!/Discovery promotion replay mismatch/.test(bureau)) failures.push("bureau promotion writer uses idempotent conflict handling without payload replay verification");
 }
 
 const targetControl = read(writers["target control decision"]);
-if (targetControl && /onConflictDoNothing\(\{ target: \[researchCaseEventsTable\.caseId, researchCaseEventsTable\.correlationKey\]/.test(targetControl)) {
+if (targetControl && /onConflictDoNothing\(\{\s*target:\s*\[researchCaseEventsTable\.caseId,\s*researchCaseEventsTable\.correlationKey\]/.test(targetControl)) {
   if (!/Target control replay mismatch/.test(targetControl)) failures.push("target control writer uses idempotent conflict handling without payload replay verification");
-  if (!/isolationLevel: "serializable"/.test(targetControl)) failures.push("target control projection/event persistence is not serialized");
+  if (!/isolationLevel:\s*"serializable"/.test(targetControl)) failures.push("target control projection/event persistence is not serialized");
 }
 
 const continuation = read(writers["target continuation authorization"]);
@@ -44,8 +44,8 @@ if (discoveryContinuation && /researchCaseEventsTable/.test(discoveryContinuatio
   if (!/discovery-continuation:case:\$\{caseId\}:job:\$\{jobId\}:turn:\$\{iteration\}:assignment/.test(discoveryContinuation)) failures.push("discovery continuation assignment is not bound to case/job/turn");
   if (!/discovery-continuation:case:\$\{caseId\}:job:\$\{jobId\}:turn:\$\{iteration\}:observation/.test(discoveryContinuation)) failures.push("discovery continuation observation is not bound to case/job/turn");
   if (!/Discovery continuation observation replay mismatch/.test(discoveryContinuation)) failures.push("discovery continuation observation conflict path does not verify exact replay payload");
-  if (!/onConflictDoNothing\(\{ target: \[researchCaseEventsTable\.caseId, researchCaseEventsTable\.correlationKey\]/.test(discoveryContinuation)) failures.push("discovery continuation observation is missing explicit idempotent conflict handling");
-  if (!/isolationLevel: "serializable"/.test(discoveryContinuation)) failures.push("discovery continuation DB projection/event persistence is not serialized");
+  if (!/onConflictDoNothing\(\{\s*target:\s*\[researchCaseEventsTable\.caseId,\s*researchCaseEventsTable\.correlationKey\]/.test(discoveryContinuation)) failures.push("discovery continuation observation is missing explicit idempotent conflict handling");
+  if (!/isolationLevel:\s*"serializable"/.test(discoveryContinuation)) failures.push("discovery continuation DB projection/event persistence is not serialized");
 }
 
 if (failures.length) {

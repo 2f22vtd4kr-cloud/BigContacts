@@ -7,7 +7,7 @@ import { researchSessionsTable } from "./research_sessions";
 /** Claim-level evidence produced during a research run. Entity deletion is restricted so historical evidence cannot disappear silently. */
 export const researchEvidenceTable = pgTable("research_evidence", {
   id: serial("id").primaryKey(),
-  sessionId: integer("session_id").notNull().references(() => researchSessionsTable.id, { onDelete: "cascade" }),
+  sessionId: integer("session_id").notNull().references(() => researchSessionsTable.id, { onDelete: "restrict" }),
   entityId: integer("entity_id").notNull().references(() => entitiesTable.id, { onDelete: "restrict" }),
   claimType: text("claim_type").notNull(),
   claim: text("claim").notNull(),

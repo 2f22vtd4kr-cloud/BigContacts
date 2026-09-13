@@ -7,6 +7,8 @@ describe("provider gate response cache boundaries", () => {
     vi.unstubAllGlobals();
     delete process.env.APEX_EXTERNAL_MAX_RESPONSE_CACHE_BYTES;
     delete process.env.APEX_EXTERNAL_MAX_RESPONSE_CACHE_ENTRIES;
+    delete process.env.APEX_EXTERNAL_GLOBAL_CONCURRENCY;
+    delete process.env.APEX_EXTERNAL_PROVIDER_CONCURRENCY;
   });
 
   it("keeps aggregate cached response bytes below the configured budget", async () => {
@@ -60,5 +62,31 @@ describe("provider gate response cache boundaries", () => {
     await fetch("https://example.test/private?api_key=three");
 
     expect(calls).toBe(4);
+  });
+
+  it("does not admit an aborted waiter into the concurrency slot", async () => {
+    process.env.APEX_EXTERNAL_GLOBAL_CONCURRENCY = "1";
+    process.env.APEX_EXTERNAL_PROVIDER_CONCURRENCY = "1";
+    let releaseFirst!: () => void;
+    const firstDone = new Promise<void>((resolve) => { releaseFirst = resolve; });
+    let calls = 0;
+    vi.stubGlobal("fetch", vi.fn(async () => {
+      calls += 1;
+      await firstDone;
+      return new Response("ok", { status: 200 });
+    }));
+    installExternalQuotaGuard();
+
+    const first = fetch("https://example.test/one");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const controller = new AbortController();
+    const second = fetch("https://example.test/two", { signal: controller.signal });
+    controller.abort();
+    await expect(second).rejects.toThrow("cancelled");
+
+    releaseFirst();
+    await expect(first).resolves.toMatchObject({ ok: true });
+    await expect(fetch("https://example.test/three")).resolves.toMatchObject({ ok: true });
+    expect(calls).toBe(2);
   });
 });

@@ -4,6 +4,7 @@ on:
     paths:
       - "artifacts/apex-finder/src/components/bureau-ops-stage.tsx"
       - "artifacts/apex-finder/src/lib/reactor-live-model.ts"
+      - "artifacts/apex-finder/src/lib/use-bureau-live.ts"
       - "artifacts/apex-finder/src/pages/reactor.tsx"
       - "scripts/check-reactor-live-no-fabrication.mjs"
       - ".github/workflows/reactor-live-no-fabrication.yml"
@@ -11,6 +12,7 @@ on:
     paths:
       - "artifacts/apex-finder/src/components/bureau-ops-stage.tsx"
       - "artifacts/apex-finder/src/lib/reactor-live-model.ts"
+      - "artifacts/apex-finder/src/lib/use-bureau-live.ts"
       - "artifacts/apex-finder/src/pages/reactor.tsx"
       - "scripts/check-reactor-live-no-fabrication.mjs"
       - ".github/workflows/reactor-live-no-fabrication.yml"

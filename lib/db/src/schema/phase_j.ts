@@ -8,7 +8,7 @@ import { enrichmentRunsTable } from "./enrichment_runs";
  */
 export const contactEvidenceTable = pgTable("contact_evidence", {
   id: serial("id").primaryKey(),
-  entityId: integer("entity_id").notNull().references(() => entitiesTable.id, { onDelete: "cascade" }),
+  entityId: integer("entity_id").notNull().references(() => entitiesTable.id, { onDelete: "restrict" }),
   runId: integer("run_id").references(() => enrichmentRunsTable.id, { onDelete: "set null" }),
   vectorType: text("vector_type").notNull(), // email | phone | social | domain | website | address
   value: text("value").notNull(),

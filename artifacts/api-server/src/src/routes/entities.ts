@@ -212,15 +212,20 @@ router.get("/entities", async (req, res): Promise<void> => {
   // ── Legacy channel filters (kept for backward compat) ──────────────────────
   if (hasEmail) {
     conditions.push(hasValue(entitiesTable.email));
-  } else if (hasPhone) {
+  }
+  if (hasPhone) {
     conditions.push(hasValue(entitiesTable.phone));
-  } else if (hasWhatsapp) {
+  }
+  if (hasWhatsapp) {
     conditions.push(ilike(entitiesTable.contactMethod, "%whatsapp%"));
-  } else if (hasTelegram) {
+  }
+  if (hasTelegram) {
     conditions.push(hasValue(entitiesTable.telegramHandle));
-  } else if (hasInstagram) {
+  }
+  if (hasInstagram) {
     conditions.push(hasValue(entitiesTable.instagramHandle));
-  } else if (contactable) {
+  }
+  if (contactable) {
     // Contactable is an operational reachability filter, not a generic
     // "has a public vector" filter. Candidates and organization routes remain
     // reviewable through contactOutcome, but do not appear as reachable.
@@ -1146,17 +1151,18 @@ router.post("/entities/:id/merge/:targetId", async (req, res): Promise<void> => 
     phoneSource: primary.phoneSource ?? target.phoneSource,
   });
 
-  await Promise.all([
+  await db.transaction(async (tx) => {
+    await Promise.all([
     // Reassign assets owned by target → primary
-    db.update(assetsTable).set({ ownerEntityId: id }).where(eq(assetsTable.ownerEntityId, targetId)),
+      tx.update(assetsTable).set({ ownerEntityId: id }).where(eq(assetsTable.ownerEntityId, targetId)),
     // Reassign relationships where target is the source entity
-    db.update(relationshipsTable).set({ sourceEntityId: id }).where(eq(relationshipsTable.sourceEntityId, targetId)),
+      tx.update(relationshipsTable).set({ sourceEntityId: id }).where(eq(relationshipsTable.sourceEntityId, targetId)),
     // Reassign relationships where target is referenced as the target (Entity targetType)
-    db.update(relationshipsTable)
+      tx.update(relationshipsTable)
       .set({ targetId: id })
       .where(and(eq(relationshipsTable.targetId, targetId), eq(relationshipsTable.targetType, "Entity"))),
     // Update primary entity with merged data
-    db.update(entitiesTable).set({
+      tx.update(entitiesTable).set({
       sourceRegistries: JSON.stringify(mergedSources),
       metadata: JSON.stringify(mergedMeta),
       knownResidences: mergedResidences ?? null,
@@ -1174,10 +1180,11 @@ router.post("/entities/:id/merge/:targetId", async (req, res): Promise<void> => 
        isHot: mergedIsHot,
       updatedAt: new Date(),
     }).where(eq(entitiesTable.id, id)),
-  ]);
+    ]);
 
-  // Delete target entity (cascade deletes its remaining relationships/assets via FK)
-  await db.delete(entitiesTable).where(eq(entitiesTable.id, targetId));
+    // Delete target entity (cascade deletes its remaining relationships/assets via FK)
+    await tx.delete(entitiesTable).where(eq(entitiesTable.id, targetId));
+  });
 
   await Promise.all([
     delCachePattern("entities:list:*"),

@@ -1,39 +1,14 @@
-name: Apex API Build
-
-# Canonical API build and typecheck gate.
-# Steady-state audit gate; no repair steps or bypasses.
+name: Deep audit gate
 on:
   push:
-    branches: [main]
-    paths:
-      - "artifacts/api-server/src/**"
-      - "artifacts/api-server/build.mjs"
-      - "artifacts/api-server/package.json"
-      - "artifacts/api-server/tsconfig.json"
-      - "scripts/apply-*.mjs"
-      - "scripts/check-*.mjs"
-      - "lib/**"
-      - "pnpm-lock.yaml"
-      - ".github/workflows/apex-api-typecheck.yml"
-  pull_request:
-    branches: [main]
-    paths:
-      - "artifacts/api-server/src/**"
-      - "artifacts/api-server/build.mjs"
-      - "artifacts/api-server/package.json"
-      - "artifacts/api-server/tsconfig.json"
-      - "scripts/apply-*.mjs"
-      - "scripts/check-*.mjs"
-      - "lib/**"
-      - "pnpm-lock.yaml"
-      - ".github/workflows/apex-api-typecheck.yml"
+    branches:
+      - "audit/deep-round11"
+      - "audit/deep-round12"
   workflow_dispatch:
-
 permissions:
   contents: read
-
 jobs:
-  build:
+  audit:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -105,3 +80,5 @@ jobs:
         run: pnpm run typecheck
       - name: Run strict provenance and provider-cache regression tests
         run: pnpm --dir artifacts/api-server exec vitest run src/src/test/bureau-contact-persist-strict.test.ts src/src/test/provider-gate-cache-bounds.test.ts
+      - name: Build frontend
+        run: pnpm --dir artifacts/apex-finder run build
