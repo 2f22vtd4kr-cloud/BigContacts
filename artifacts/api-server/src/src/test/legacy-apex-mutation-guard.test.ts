@@ -13,24 +13,33 @@ vi.mock("@workspace/db", () => ({
       }),
     }),
   },
-  entitiesTable: { id: "id", type: "type" },
+  entitiesTable: { id: "id", type: "type", name: "name" },
 }));
 
 vi.mock("drizzle-orm", () => ({
   eq: (_a: unknown, _b: unknown) => "eq",
   inArray: (_a: unknown, _b: unknown) => "inArray",
+  or: (..._conditions: unknown[]) => "or",
+  sql: Object.assign((..._args: unknown[]) => "sql", { raw: (_value: string) => "raw" }),
 }));
 
 import { legacyApexMutationGuard } from "../lib/legacy-apex-mutation-guard";
 
+type TestResponse = {
+  statusCode: number;
+  body: unknown;
+  status: (code: number) => TestResponse;
+  json: (body: unknown) => TestResponse;
+};
+
 function invoke(input: { method: string; path: string; params?: Record<string, string>; body?: unknown; rows?: Array<{ id: number; type: string }> }) {
   rows.current = input.rows ?? [];
-  const response = {
+  const response: TestResponse = {
     statusCode: 200,
-    body: undefined as unknown,
-    status(code: number) { response.statusCode = code; return response; },
-    json(body: unknown) { response.body = body; return response; },
-  } as unknown as Response;
+    body: undefined,
+    status(code) { response.statusCode = code; return response; },
+    json(body) { response.body = body; return response; },
+  };
   let nextCalled = false;
   const next = (() => { nextCalled = true; }) as NextFunction;
   void legacyApexMutationGuard({
@@ -38,8 +47,8 @@ function invoke(input: { method: string; path: string; params?: Record<string, s
     path: input.path,
     params: input.params ?? {},
     body: input.body ?? {},
-  } as unknown as Request, response, next);
-  return new Promise((resolve) => setImmediate(() => resolve({ response, nextCalled })));
+  } as unknown as Request, response as unknown as Response, next);
+  return new Promise<{ response: TestResponse; nextCalled: boolean }>((resolve) => setImmediate(() => resolve({ response, nextCalled })));
 }
 
 describe("legacy Apex mutation boundary", () => {
@@ -60,6 +69,17 @@ describe("legacy Apex mutation boundary", () => {
       method: "POST",
       path: "/entities/import/batch",
       body: { drafts: [{ name: "Example Person", type: "Person", email: "person@example.com" }] },
+    });
+    expect(result.response.statusCode).toBe(409);
+    expect(result.nextCalled).toBe(false);
+  });
+
+  it("blocks a duplicate-name batch import from attaching contact state to an existing Apex card", async () => {
+    const result = await invoke({
+      method: "POST",
+      path: "/entities/import/batch",
+      body: { drafts: [{ name: "Example Person", type: "Corporation", email: "person@example.com" }] },
+      rows: [{ id: 7, type: "HNWI" }],
     });
     expect(result.response.statusCode).toBe(409);
     expect(result.nextCalled).toBe(false);
