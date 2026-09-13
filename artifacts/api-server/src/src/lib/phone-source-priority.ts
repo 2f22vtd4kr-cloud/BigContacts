@@ -4,7 +4,7 @@
  */
 
 export function isAgenticPhoneSource(source: string | null | undefined): boolean {
-  return typeof source === "string" && /^agentic-web/i.test(source);
+  return typeof source === "string" && /^agentic-web(?!-org(?:$|-))/i.test(source);
 }
 
 /** Issuer switchboards + parallel pipeline sources that must not beat dig/notice. */
