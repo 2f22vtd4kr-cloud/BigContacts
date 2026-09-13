@@ -59,7 +59,6 @@ export function ContactSurface({
   evidenceCount,
   density = "row",
   className,
-  onRehydrate,
 }: {
   contacts?: ContactRouteView[] | null;
   phone?: string | null;
@@ -69,7 +68,6 @@ export function ContactSurface({
   evidenceCount?: number;
   density?: "row" | "card" | "mobile";
   className?: string;
-  onRehydrate?: () => void;
 }) {
   const routes: ContactRouteView[] = [];
   const seen = new Set<string>();
@@ -129,13 +127,7 @@ export function ContactSurface({
         data-testid="contact-surface-empty"
       >
         {hasEvidence ? (
-          <button
-            type="button"
-            onClick={onRehydrate}
-            className="text-left text-[#9CFF1A]/90 underline-offset-2 hover:underline"
-          >
-            Evidence on file — rehydrate card
-          </button>
+          <span>Evidence on file — review the profile evidence before using a route</span>
         ) : (
           <span>No public routes yet</span>
         )}
