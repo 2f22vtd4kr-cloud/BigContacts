@@ -1,0 +1,134 @@
+# Five consecutive complete audits. Each pass gets a fresh checkout and independently reruns the full repository contract suite, typecheck, build, every API test file, and source-mutation check.
+name: Five Consecutive Full Code Audits
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: full-code-five-consecutive-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  PNPM_VERSION: 9.15.9
+
+jobs:
+  audit-1:
+    name: Audit 1 — complete codebase
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with: { node-version: 22 }
+      - run: npm install -g pnpm@${PNPM_VERSION}
+      - run: pnpm install --frozen-lockfile --ignore-scripts --registry=https://registry.npmjs.org/
+      - name: Repository architecture contract suite
+        run: pnpm run check:bureau
+      - name: Typecheck
+        run: pnpm run typecheck
+      - name: Build
+        run: pnpm run build
+      - name: Every API test file, isolated
+        run: |
+          set -euo pipefail
+          cd artifacts/api-server
+          for test_file in src/src/test/*.test.ts; do
+            echo "===== FULL AUDIT TEST: ${test_file} ====="
+            pnpm exec vitest run --maxWorkers=1 "${test_file}"
+          done
+      - name: Build must not mutate source
+        run: git diff --exit-code
+
+  audit-2:
+    name: Audit 2 — complete codebase
+    needs: audit-1
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with: { node-version: 22 }
+      - run: npm install -g pnpm@${PNPM_VERSION}
+      - run: pnpm install --frozen-lockfile --ignore-scripts --registry=https://registry.npmjs.org/
+      - run: pnpm run check:bureau
+      - run: pnpm run typecheck
+      - run: pnpm run build
+      - run: |
+          set -euo pipefail
+          cd artifacts/api-server
+          for test_file in src/src/test/*.test.ts; do
+            echo "===== FULL AUDIT TEST: ${test_file} ====="
+            pnpm exec vitest run --maxWorkers=1 "${test_file}"
+          done
+      - run: git diff --exit-code
+
+  audit-3:
+    name: Audit 3 — complete codebase
+    needs: audit-2
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with: { node-version: 22 }
+      - run: npm install -g pnpm@${PNPM_VERSION}
+      - run: pnpm install --frozen-lockfile --ignore-scripts --registry=https://registry.npmjs.org/
+      - run: pnpm run check:bureau
+      - run: pnpm run typecheck
+      - run: pnpm run build
+      - run: |
+          set -euo pipefail
+          cd artifacts/api-server
+          for test_file in src/src/test/*.test.ts; do
+            echo "===== FULL AUDIT TEST: ${test_file} ====="
+            pnpm exec vitest run --maxWorkers=1 "${test_file}"
+          done
+      - run: git diff --exit-code
+
+  audit-4:
+    name: Audit 4 — complete codebase
+    needs: audit-3
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with: { node-version: 22 }
+      - run: npm install -g pnpm@${PNPM_VERSION}
+      - run: pnpm install --frozen-lockfile --ignore-scripts --registry=https://registry.npmjs.org/
+      - run: pnpm run check:bureau
+      - run: pnpm run typecheck
+      - run: pnpm run build
+      - run: |
+          set -euo pipefail
+          cd artifacts/api-server
+          for test_file in src/src/test/*.test.ts; do
+            echo "===== FULL AUDIT TEST: ${test_file} ====="
+            pnpm exec vitest run --maxWorkers=1 "${test_file}"
+          done
+      - run: git diff --exit-code
+
+  audit-5:
+    name: Audit 5 — complete codebase
+    needs: audit-4
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with: { node-version: 22 }
+      - run: npm install -g pnpm@${PNPM_VERSION}
+      - run: pnpm install --frozen-lockfile --ignore-scripts --registry=https://registry.npmjs.org/
+      - run: pnpm run check:bureau
+      - run: pnpm run typecheck
+      - run: pnpm run build
+      - run: |
+          set -euo pipefail
+          cd artifacts/api-server
+          for test_file in src/src/test/*.test.ts; do
+            echo "===== FULL AUDIT TEST: ${test_file} ====="
+            pnpm exec vitest run --maxWorkers=1 "${test_file}"
+          done
+      - run: git diff --exit-code
