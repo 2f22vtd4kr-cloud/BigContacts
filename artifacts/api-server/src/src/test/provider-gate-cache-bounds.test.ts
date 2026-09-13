@@ -25,8 +25,6 @@ describe("provider gate response cache boundaries", () => {
       expect(response.ok).toBe(true);
     }
 
-    // The fourth unique response must not cause unbounded accumulation. A fifth
-    // request to an evicted oldest key proves the cache is actually evicting.
     await fetch("https://example.test/public-0");
     expect(calls).toBe(5);
     expect(originalFetch).toBeTypeOf("function");
@@ -44,6 +42,22 @@ describe("provider gate response cache boundaries", () => {
     await fetch("https://example.test/private", { headers: { Authorization: "Bearer one" } });
     await fetch("https://example.test/cookie", { headers: { Cookie: "session=one" } });
     await fetch("https://example.test/cookie", { headers: { Cookie: "session=one" } });
+
+    expect(calls).toBe(4);
+  });
+
+  it("does not cache GET requests carrying credentials in the query string", async () => {
+    let calls = 0;
+    vi.stubGlobal("fetch", vi.fn(async () => {
+      calls += 1;
+      return new Response("private-query", { status: 200 });
+    }));
+    installExternalQuotaGuard();
+
+    await fetch("https://example.test/private?token=one");
+    await fetch("https://example.test/private?token=one");
+    await fetch("https://example.test/private?token=two");
+    await fetch("https://example.test/private?api_key=three");
 
     expect(calls).toBe(4);
   });
