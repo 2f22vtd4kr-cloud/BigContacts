@@ -3,7 +3,7 @@ name: One-time deep audit UI source repair
 on:
   push:
     branches: [audit/deep-round8]
-  pull_request:
+  pull_request_target:
     branches: [main]
 
 permissions:
@@ -15,7 +15,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: audit/deep-round8
           fetch-depth: 0
+          persist-credentials: true
       - name: Repair entities page and remove this one-shot workflow
         shell: python
         run: |
