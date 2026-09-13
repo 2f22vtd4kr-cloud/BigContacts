@@ -1,4 +1,4 @@
-# Five consecutive complete audits. Each pass gets a fresh checkout and independently reruns the full repository contract suite, typecheck, build, API tests, and source-mutation check.
+# Five consecutive complete audits. Each pass gets a fresh checkout and independently reruns the full repository contract suite, typecheck, build, every API test file, and source-mutation check.
 name: Five Consecutive Full Code Audits
 
 on:
@@ -34,8 +34,14 @@ jobs:
         run: pnpm run typecheck
       - name: Build
         run: pnpm run build
-      - name: Complete API test suite
-        run: pnpm --dir artifacts/api-server exec vitest run --maxWorkers=1
+      - name: Every API test file, isolated
+        run: |
+          set -euo pipefail
+          cd artifacts/api-server
+          for test_file in src/src/test/*.test.ts; do
+            echo "===== FULL AUDIT TEST: ${test_file} ====="
+            pnpm exec vitest run --maxWorkers=1 "${test_file}"
+          done
       - name: Build must not mutate source
         run: git diff --exit-code
 
@@ -52,7 +58,13 @@ jobs:
       - run: pnpm run check:bureau
       - run: pnpm run typecheck
       - run: pnpm run build
-      - run: pnpm --dir artifacts/api-server exec vitest run --maxWorkers=1
+      - run: |
+          set -euo pipefail
+          cd artifacts/api-server
+          for test_file in src/src/test/*.test.ts; do
+            echo "===== FULL AUDIT TEST: ${test_file} ====="
+            pnpm exec vitest run --maxWorkers=1 "${test_file}"
+          done
       - run: git diff --exit-code
 
   audit-3:
@@ -68,7 +80,13 @@ jobs:
       - run: pnpm run check:bureau
       - run: pnpm run typecheck
       - run: pnpm run build
-      - run: pnpm --dir artifacts/api-server exec vitest run --maxWorkers=1
+      - run: |
+          set -euo pipefail
+          cd artifacts/api-server
+          for test_file in src/src/test/*.test.ts; do
+            echo "===== FULL AUDIT TEST: ${test_file} ====="
+            pnpm exec vitest run --maxWorkers=1 "${test_file}"
+          done
       - run: git diff --exit-code
 
   audit-4:
@@ -84,7 +102,13 @@ jobs:
       - run: pnpm run check:bureau
       - run: pnpm run typecheck
       - run: pnpm run build
-      - run: pnpm --dir artifacts/api-server exec vitest run --maxWorkers=1
+      - run: |
+          set -euo pipefail
+          cd artifacts/api-server
+          for test_file in src/src/test/*.test.ts; do
+            echo "===== FULL AUDIT TEST: ${test_file} ====="
+            pnpm exec vitest run --maxWorkers=1 "${test_file}"
+          done
       - run: git diff --exit-code
 
   audit-5:
@@ -100,5 +124,11 @@ jobs:
       - run: pnpm run check:bureau
       - run: pnpm run typecheck
       - run: pnpm run build
-      - run: pnpm --dir artifacts/api-server exec vitest run --maxWorkers=1
+      - run: |
+          set -euo pipefail
+          cd artifacts/api-server
+          for test_file in src/src/test/*.test.ts; do
+            echo "===== FULL AUDIT TEST: ${test_file} ====="
+            pnpm exec vitest run --maxWorkers=1 "${test_file}"
+          done
       - run: git diff --exit-code
