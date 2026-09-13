@@ -22,7 +22,7 @@ jobs:
   audit-1:
     name: Audit 1 — complete codebase
     runs-on: ubuntu-latest
-    steps: &audit_steps
+    steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with: { node-version: 22 }
@@ -45,22 +45,66 @@ jobs:
     name: Audit 2 — complete codebase
     needs: audit-1
     runs-on: ubuntu-latest
-    steps: *audit_steps
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with: { node-version: 22 }
+      - run: npm install -g pnpm@${PNPM_VERSION}
+      - run: pnpm install --frozen-lockfile --ignore-scripts --registry=https://registry.npmjs.org/
+      - run: pnpm run check:bureau
+      - run: pnpm run typecheck
+      - run: pnpm run build
+      - run: pnpm -r --if-present test
+      - run: pnpm --dir artifacts/api-server exec vitest run
+      - run: git diff --exit-code
 
   audit-3:
     name: Audit 3 — complete codebase
     needs: audit-2
     runs-on: ubuntu-latest
-    steps: *audit_steps
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with: { node-version: 22 }
+      - run: npm install -g pnpm@${PNPM_VERSION}
+      - run: pnpm install --frozen-lockfile --ignore-scripts --registry=https://registry.npmjs.org/
+      - run: pnpm run check:bureau
+      - run: pnpm run typecheck
+      - run: pnpm run build
+      - run: pnpm -r --if-present test
+      - run: pnpm --dir artifacts/api-server exec vitest run
+      - run: git diff --exit-code
 
   audit-4:
     name: Audit 4 — complete codebase
     needs: audit-3
     runs-on: ubuntu-latest
-    steps: *audit_steps
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with: { node-version: 22 }
+      - run: npm install -g pnpm@${PNPM_VERSION}
+      - run: pnpm install --frozen-lockfile --ignore-scripts --registry=https://registry.npmjs.org/
+      - run: pnpm run check:bureau
+      - run: pnpm run typecheck
+      - run: pnpm run build
+      - run: pnpm -r --if-present test
+      - run: pnpm --dir artifacts/api-server exec vitest run
+      - run: git diff --exit-code
 
   audit-5:
     name: Audit 5 — complete codebase
     needs: audit-4
     runs-on: ubuntu-latest
-    steps: *audit_steps
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with: { node-version: 22 }
+      - run: npm install -g pnpm@${PNPM_VERSION}
+      - run: pnpm install --frozen-lockfile --ignore-scripts --registry=https://registry.npmjs.org/
+      - run: pnpm run check:bureau
+      - run: pnpm run typecheck
+      - run: pnpm run build
+      - run: pnpm -r --if-present test
+      - run: pnpm --dir artifacts/api-server exec vitest run
+      - run: git diff --exit-code
