@@ -31,8 +31,7 @@ import { db, assetsTable, entitiesTable } from "@workspace/db";
 import { eq, sql } from "drizzle-orm";
 import { updateJob, appendJobLog } from "./job-queue";
 import { logger } from "./logger";
-
-// ── Types ─────────────────────────────────────────────────────────────────────
+import { readsbToStateVector, type ReadsbAircraft, type StateVector } from "./opensky-normalize";
 
 export interface OpenSkyEnrichParams {
   jobId: string;
@@ -46,8 +45,6 @@ export interface OpenSkyEnrichResult {
   durationMs: number;
 }
 
-type StateVector = (string | number | boolean | null)[];
-
 interface OpenSkyResponse {
   time: number;
   states: StateVector[] | null;
@@ -56,27 +53,10 @@ interface OpenSkyResponse {
 const OPENSKY_URL = "https://opensky-network.org/api/states/all";
 const ADSB_LOL_GLOBAL_URL = "https://api.adsb.lol/v2/point/0/0/25000";
 
-interface ReadsbAircraft {
-  hex?: string;
-  flight?: string;
-  r?: string;
-  ownOp?: string;
-  lat?: number;
-  lon?: number;
-  alt_baro?: number | string;
-  gs?: number;
-  track?: number;
-  squawk?: string;
-  seen?: number;
-  on_ground?: boolean;
-}
-
 interface ReadsbResponse {
   ac?: ReadsbAircraft[];
   total?: number;
 }
-
-// ── Helper ────────────────────────────────────────────────────────────────────
 
 function mpsToKnots(mps: number | null): number | null {
   return mps == null ? null : Math.round(mps * 1.944);
@@ -97,30 +77,6 @@ async function fetchReadsb(url: string): Promise<ReadsbAircraft[]> {
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
   const data = (await response.json()) as ReadsbResponse;
   return data.ac ?? [];
-}
-
-export function readsbToStateVector(aircraft: ReadsbAircraft): StateVector {
-  const altitude = typeof aircraft.alt_baro === "number" ? aircraft.alt_baro / 3.281 : null;
-  const speed = typeof aircraft.gs === "number" ? aircraft.gs / 1.944 : null;
-  return [
-    aircraft.hex ?? null,
-    // Keep the registration in the callsign slot used by the matching loop.
-    // For readsb feeds this is more reliable than the operator callsign.
-    aircraft.r ?? aircraft.flight ?? null,
-    aircraft.ownOp ?? null,
-    null,
-    null,
-    typeof aircraft.lon === "number" ? aircraft.lon : null,
-    typeof aircraft.lat === "number" ? aircraft.lat : null,
-    altitude,
-    aircraft.on_ground ?? (typeof aircraft.alt_baro === "string" && aircraft.alt_baro === "ground"),
-    speed,
-    typeof aircraft.track === "number" ? aircraft.track : null,
-    null,
-    null,
-    null,
-    aircraft.squawk ?? null,
-  ];
 }
 
 async function fetchLiveStates(): Promise<{ states: StateVector[]; source: string }> {
@@ -149,8 +105,6 @@ async function fetchLiveStates(): Promise<{ states: StateVector[]; source: strin
   throw new Error(`No live ADS-B source available (${failures.join("; ")})`);
 }
 
-// ── Main enrichment function ──────────────────────────────────────────────────
-
 export async function runOpenSkyEnrichment(
   params: OpenSkyEnrichParams,
 ): Promise<OpenSkyEnrichResult> {
@@ -160,7 +114,6 @@ export async function runOpenSkyEnrichment(
   let skipped = 0;
   let errors = 0;
 
-  // ── Step 0: Load aviation assets first — skip global ADS-B if none ────────
   await updateJob(jobId, { message: "Loading aviation assets from DB…", progress: 5 });
   const assets = await db
     .select({
@@ -178,7 +131,6 @@ export async function runOpenSkyEnrichment(
     return { inserted: 0, skipped: 0, errors: 0, liveAircraft: 0, durationMs: Date.now() - startTime };
   }
 
-  // ── Step 1: Fetch live state vectors ──────────────────────────────────────
   await updateJob(jobId, { message: "Querying free public ADS-B feeds for live aircraft positions…", progress: 10 });
   await appendJobLog(jobId, "✈️  Fetching live state vectors from adsb.lol (OpenSky compatibility fallback enabled)…");
 
@@ -194,7 +146,6 @@ export async function runOpenSkyEnrichment(
     throw new Error(`Live ADS-B fetch failed: ${err.message}`);
   }
 
-  // ── Step 2: Build registration/callsign lookup map ───────────────────────
   await updateJob(jobId, { message: `Building aircraft registration index (${states.length} live aircraft)…`, progress: 15, total: states.length });
 
   const callsignMap = new Map<string, StateVector>();
@@ -213,7 +164,6 @@ export async function runOpenSkyEnrichment(
   });
   await appendJobLog(jobId, `🗂  ${assets.length} aviation assets loaded. Matching against live traffic…`);
 
-  // ── Step 4: Match and update ──────────────────────────────────────────────
   for (let i = 0; i < assets.length; i++) {
     const asset = assets[i]!;
     const identifier = (asset.identifier ?? "").toUpperCase();
@@ -259,9 +209,6 @@ export async function runOpenSkyEnrichment(
         })
         .where(sql`${assetsTable.id} = ${asset.id}`);
 
-      // Live flight activity contributes to Signal only. It must not create an
-      // Access-hot lead without a validated person-level contact vector.
-
       updated++;
 
       await appendJobLog(
@@ -273,7 +220,6 @@ export async function runOpenSkyEnrichment(
       errors++;
     }
 
-    // Progress update every 500 assets
     if ((i + 1) % 500 === 0) {
       const progress = Math.min(25 + Math.floor(((i + 1) / assets.length) * 70), 95);
       await updateJob(jobId, {
