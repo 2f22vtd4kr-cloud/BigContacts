@@ -1,9 +1,22 @@
 import { describe, expect, it } from "vitest";
 import { findingsToContactEvidence, findingsToBureauContacts } from "../lib/bureau-agentic-pass";
 import { findingsToContacts } from "../lib/target-contact-agent";
-import type { AgenticFinding } from "../lib/agentic-web-research";
+import type { AgenticFinding, AgenticTrajectoryRecord } from "../lib/agentic-web-research";
 
 const source = "https://example.com/contact";
+const trajectory = [`step1: visit ${source} execution=success observed=${source}`];
+function observedRecord(observation: string): AgenticTrajectoryRecord {
+  return {
+    turn: 1,
+    model: "test-investigator",
+    action: "visit",
+    args: { url: source },
+    execution: "success",
+    observation,
+    observedUrls: [source],
+    findings: [],
+  };
+}
 
 describe("agentic evidence scope boundary", () => {
   it("keeps explicit candidate findings personal", () => {
@@ -16,17 +29,18 @@ describe("agentic evidence scope boundary", () => {
       sourceUrls: [source],
       note: "named email on source",
     };
+    const records = [observedRecord("Jane Example — Founder — jane@example.com")];
 
-    expect(findingsToBureauContacts([finding], "Jane Example")[0]).toMatchObject({
+    expect(findingsToBureauContacts([finding], "Jane Example", trajectory, records)[0]).toMatchObject({
       scope: "candidate",
       personName: "Jane Example",
       promote: false,
     });
-    expect(findingsToContactEvidence([finding])[0]).toMatchObject({
+    expect(findingsToContactEvidence([finding], trajectory, records)[0]).toMatchObject({
       scope: "candidate",
       personName: "Jane Example",
     });
-    expect(findingsToContacts([finding], "Jane Example")[0]).toMatchObject({
+    expect(findingsToContacts([finding], "Jane Example", trajectory, records)[0]).toMatchObject({
       scope: "candidate",
       personName: "Jane Example",
     });
@@ -44,7 +58,9 @@ describe("agentic evidence scope boundary", () => {
       promotionDecision: "promote",
       promotionReason: "Exact named contact on the visited company page.",
     };
-    expect(findingsToBureauContacts([finding], "Jane Example")[0]).toMatchObject({
+    const records = [observedRecord("Jane Example — Founder — jane@example.com")];
+
+    expect(findingsToBureauContacts([finding], "Jane Example", trajectory, records)[0]).toMatchObject({
       promote: true,
     });
   });
@@ -59,17 +75,18 @@ describe("agentic evidence scope boundary", () => {
       sourceUrls: [source],
       note: "generic public mailbox",
     };
+    const records = [observedRecord("Contact email: info@example.com")];
 
-    expect(findingsToBureauContacts([finding], "Jane Example")[0]).toMatchObject({
+    expect(findingsToBureauContacts([finding], "Jane Example", trajectory, records)[0]).toMatchObject({
       scope: "organization",
       personName: null,
       promote: false,
     });
-    expect(findingsToContactEvidence([finding])[0]).toMatchObject({
+    expect(findingsToContactEvidence([finding], trajectory, records)[0]).toMatchObject({
       scope: "organization",
       personName: null,
     });
-    expect(findingsToContacts([finding], "Jane Example")[0]).toMatchObject({
+    expect(findingsToContacts([finding], "Jane Example", trajectory, records)[0]).toMatchObject({
       scope: "organization",
       personName: null,
     });
