@@ -68,7 +68,7 @@ async function getCorpus(): Promise<TFIDFCorpus> { if (!_corpus || Date.now() - 
 export function invalidateTFIDFCorpus(): void { _corpus = null; }
 export interface SemanticResult { id: number; score: number; }
 
-export async function semanticSearch(query: string, topK = 100): Promise<SemanticResult[]> {
+export async function semanticSearch(query: string, topK = 100, filterIds?: ReadonlySet<number>): Promise<SemanticResult[]> {
   const corpus = await getCorpus();
   if (corpus.docs.length === 0) return [];
   const safeQuery = query.trim().slice(0, 2_000);
@@ -86,6 +86,7 @@ export async function semanticSearch(query: string, topK = 100): Promise<Semanti
 
   const results: SemanticResult[] = [];
   for (const doc of corpus.docs) {
+    if (filterIds && !filterIds.has(doc.id)) continue;
     if (doc.magnitude === 0) continue;
     let dot = 0;
     for (const [term, qval] of qvec) { const dval = doc.vector.get(term); if (dval) dot += qval * dval; }
