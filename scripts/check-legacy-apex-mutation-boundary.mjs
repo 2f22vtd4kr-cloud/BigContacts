@@ -27,7 +27,7 @@ const checks = [
   ["legacy routes return explicit 410", guard.includes('res.status(410).json({') && guard.includes("Legacy enrichment route retired.")],
   ["guard blocks Apex entity types on generic enrich routes", /APEX_TYPES\s*=\s*new Set\(\[\s*"HNWI"\s*,\s*"Gatekeeper"\s*\]\)/.test(guard)],
   ["guard rejects unscoped generic legacy enrichment", guard.includes("Legacy enrichment requires an explicit non-Apex target scope")],
-  ["guard queries concrete entity IDs before allowing generic mutation", guard.includes("inArray(entitiesTable.id, entityIds)")],
+  ["guard queries concrete entity IDs before allowing generic mutation", /inArray\(entitiesTable\.id\s*,\s*entityIds\)/.test(guard)],
   ["guard is mounted after public health", healthIndex >= 0 && guardIndex > healthIndex],
   ["guard is mounted before ingest routes", guardIndex >= 0 && ingestIndex >= 0 && guardIndex < ingestIndex],
   ["canonical API does not mount deterministic extended OSINT router", !routes.includes('router.use(extendedOsintRouter)') && !routes.includes('import extendedOsintRouter from "./extended-osint"')],
