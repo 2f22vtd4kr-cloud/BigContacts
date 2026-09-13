@@ -18,12 +18,20 @@ jobs:
           ref: audit/deep-round8
           fetch-depth: 0
           persist-credentials: true
-      - name: Repair entities page and remove this one-shot workflow
+      - name: Repair entities page and commit through GitHub contents API
+        env:
+          GH_TOKEN: ${{ github.token }}
         shell: python
         run: |
           from pathlib import Path
+          import base64
+          import json
           import subprocess
+          import urllib.request
 
+          owner = "2f22vtd4kr-cloud"
+          repo = "BigContacts"
+          branch = "audit/deep-round8"
           path = Path("artifacts/apex-finder/src/pages/entities.tsx")
           text = path.read_text()
           duplicate_import = '''import {\n  Plus, Search, Trash2, Loader2, Target as TargetIcon, Globe, ChevronDown, ChevronUp, X, Loader2,\n  ChevronRight, Network, Target as TargetIcon, Download, ShieldAlert,\n  Filter, IdCard,\n  CheckSquare, Square, Users2, CheckCheck, Database, XCircle,\n  Star, EyeOff, Eye, CheckCircle2, Flame,\n} from "lucide-react";'''
@@ -38,9 +46,30 @@ jobs:
           replacement = '''// ─── Re-run Research button ───────────────────────────────────────────────────\n\nfunction RerunButton({ entityId }: { entityId: number }) {\n  const [state, setState] = useState<"idle" | "running" | "done" | "error">("idle");\n  const handleRerun = async (e: React.MouseEvent) => {\n    e.stopPropagation();\n    if (state === "running") return;\n    setState("running");\n    try {\n      const result = await launchAtlasPipeline({ singleTargetId: entityId, targetCount: 1, researchDepth: "standard" });\n      if (!result.ok) throw new Error(result.message || "failed");\n      setState("done");\n      setTimeout(() => setState("idle"), 3000);\n    } catch {\n      setState("error");\n      setTimeout(() => setState("idle"), 2000);\n    }\n  };\n  const icon = state === "running" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : state === "done" ? <CheckCheck className="w-3.5 h-3.5" /> : state === "error" ? <XCircle className="w-3.5 h-3.5" /> : <TargetIcon className="w-3.5 h-3.5" />;\n  const label = state === "running" ? "Running" : state === "done" ? "Started" : state === "error" ? "Failed" : "Re-run";\n  const cls = state === "done" ? "bg-[#9CFF1A]/10 border-[#9CFF1A]/30 text-[#b8ff4d]" : state === "error" ? "bg-red-500/10 border-red-500/30 text-red-400" : "bg-primary/10 border-primary/20 text-primary hover:bg-primary/20";\n  return <button onClick={handleRerun} disabled={state === "running"} className={cn("flex flex-col items-center justify-center gap-1.5 py-2 border rounded transition-colors disabled:opacity-60", cls)} title="Start a canonical single-target Atlas investigation">{icon}<span className="text-[11px] font-mono uppercase">{label}</span></button>;\n}\n\n'''
           text = text[:start] + replacement + text[end:]
           path.write_text(text)
-          subprocess.run(["git", "config", "user.name", "github-actions[bot]"], check=True)
-          subprocess.run(["git", "config", "user.email", "41898282+github-actions[bot]@users.noreply.github.com"], check=True)
-          subprocess.run(["git", "rm", "-f", ".github/workflows/one-time-deep-round8-ui-fix.yml"], check=True)
-          subprocess.run(["git", "add", "artifacts/apex-finder/src/pages/entities.tsx"], check=True)
-          subprocess.run(["git", "commit", "-m", "fix: repair entities UI canonical rerun path and imports"], check=True)
-          subprocess.run(["git", "push", "origin", "HEAD:audit/deep-round8"], check=True)
+
+          def api(method, api_path, payload):
+              url = f"https://api.github.com/repos/{owner}/{repo}/{api_path}"
+              data = json.dumps(payload).encode()
+              req = urllib.request.Request(url, data=data, method=method, headers={"Authorization": f"Bearer {subprocess.check_output(['bash','-lc','printf %s "$GH_TOKEN"']).decode()}", "Accept": "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28", "Content-Type": "application/json"})
+              with urllib.request.urlopen(req) as resp:
+                  return json.load(resp)
+
+          # Read the current branch blob SHA from Git, then create the repaired file commit.
+          blob_sha = subprocess.check_output(["git", "rev-parse", f"HEAD:{path.as_posix()}"]).decode().strip()
+          token = subprocess.check_output(["bash", "-lc", "printf %s \"$GH_TOKEN\""]).decode()
+          url = f"https://api.github.com/repos/{owner}/{repo}/contents/{path.as_posix()}"
+          payload = {"message": "fix: repair entities UI canonical rerun path and imports", "content": base64.b64encode(text.encode()).decode(), "sha": blob_sha, "branch": branch}
+          req = urllib.request.Request(url, data=json.dumps(payload).encode(), method="PUT", headers={"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28", "Content-Type": "application/json"})
+          with urllib.request.urlopen(req) as resp:
+              result = json.load(resp)
+          print(result.get("commit", {}).get("sha", "UI repair commit created"))
+
+          # Delete this one-shot workflow through the API so no transient automation remains.
+          wf = ".github/workflows/one-time-deep-round8-ui-fix.yml"
+          wf_sha = subprocess.check_output(["git", "rev-parse", f"HEAD:{wf}"]).decode().strip()
+          delete_url = f"https://api.github.com/repos/{owner}/{repo}/contents/{wf}"
+          delete_payload = {"message": "chore: remove one-shot deep audit UI repair workflow", "sha": wf_sha, "branch": branch}
+          req = urllib.request.Request(delete_url, data=json.dumps(delete_payload).encode(), method="DELETE", headers={"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28", "Content-Type": "application/json"})
+          with urllib.request.urlopen(req) as resp:
+              result = json.load(resp)
+          print(result.get("commit", {}).get("sha", "One-shot workflow removed"))
