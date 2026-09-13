@@ -531,7 +531,8 @@ function LiveHeaderDetail({ isLive, atlasState, liveLabel, livePhaseDetail, comp
   compact?: boolean;
 }) {
   if (!isLive && !atlasState) return null;
-  const detail = atlasState?.detail || livePhaseDetail || liveLabel || "Processing live research";
+  const detail = atlasState?.detail || livePhaseDetail || liveLabel;
+  if (!detail) return null;
   const failed = atlasState?.runStatus === "failed";
   const cancelled = atlasState?.runStatus === "cancelled";
   const done = atlasState?.runStatus === "done";
