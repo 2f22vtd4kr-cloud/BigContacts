@@ -1,3 +1,4 @@
+# Final five-pass gate activation: this file is deliberately included in its own trigger paths.
 name: Five Consecutive Full Code Audits
 on:
   push:
@@ -38,7 +39,6 @@ jobs:
           done
       - run: node scripts/check-reactor-live-no-fabrication.mjs
       - run: git diff --exit-code
-
   audit-2:
     name: Audit 2 — complete codebase
     needs: audit-1
@@ -58,7 +58,6 @@ jobs:
           for test_file in src/src/test/*.test.ts; do pnpm exec vitest run --maxWorkers=1 "${test_file}"; done
       - run: node scripts/check-reactor-live-no-fabrication.mjs
       - run: git diff --exit-code
-
   audit-3:
     name: Audit 3 — complete codebase
     needs: audit-2
@@ -78,7 +77,6 @@ jobs:
           for test_file in src/src/test/*.test.ts; do pnpm exec vitest run --maxWorkers=1 "${test_file}"; done
       - run: node scripts/check-reactor-live-no-fabrication.mjs
       - run: git diff --exit-code
-
   audit-4:
     name: Audit 4 — complete codebase
     needs: audit-3
@@ -98,7 +96,6 @@ jobs:
           for test_file in src/src/test/*.test.ts; do pnpm exec vitest run --maxWorkers=1 "${test_file}"; done
       - run: node scripts/check-reactor-live-no-fabrication.mjs
       - run: git diff --exit-code
-
   audit-5:
     name: Audit 5 — complete codebase
     needs: audit-4
