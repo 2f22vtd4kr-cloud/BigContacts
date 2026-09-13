@@ -8,6 +8,8 @@ const checks = [
   ["offset is bounded and non-negative", /MAX_OFFSET\s*=\s*100_000/.test(source) && /Math\.max\(\s*0/.test(source)],
   ["asset lookup uses parameterized inArray", /inArray\(assetsTable\.ownerEntityId\s*,\s*ids\)/.test(source) && !/ARRAY\[\$\{ids\.join/.test(source)],
   ["filter booleans require literal true", /body\.hotOnly\s*===\s*true/.test(source) && /body\.filterHasContact\s*===\s*true/.test(source)],
+  ["intelligent search accepts the frontend source-filter contract", /filterSources=boundedStringList\(body\.filterSources\)/.test(source) && /sourceNeedle/.test(source) && /filterSources\.some/.test(source)],
+  ["intelligent search geography uses token boundaries", /function containsBoundaryTerm/.test(source) && /containsBoundaryTerm\(r\.nationality,j\)/.test(source) && /containsBoundaryTerm\(r\.knownResidences,j\)/.test(source)],
 ];
 const failures = checks.filter(([, ok]) => !ok).map(([name]) => name);
 if (failures.length) {
