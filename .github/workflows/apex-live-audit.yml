@@ -44,13 +44,11 @@ jobs:
       GROQ_AGENTIC_MODEL: qwen/qwen3.8-27b
       MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
       MISTRAL_AGENTIC_MODEL: mistral-small-latest
-      NVIDIA_NIM_API_KEY: ${{ secrets.NVIDIA_NIM_API_KEY }}
-      NVIDIA_AGENTIC_MODEL: nvidia/nemotron-3.5-lightning-30b-a3b
-      NVIDIA_NIM_MODEL: nvidia/nemotron-3.5-lightning-30b-a3b
+      DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+      DEEPSEEK_MODEL: deepseek-ai/deepseek-v4-flash-0731
       SERPER_API_KEY: ${{ secrets.SERPER_API_KEY }}
       TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
       EXA_API_KEY: ${{ secrets.EXA_API_KEY }}
-      EXA_1: ${{ secrets.EXA_1 }}
       SCRAPFLY_API_KEY: ${{ secrets.SCRAPFLY_API_KEY }}
       ZENROWS_API_KEY: ${{ secrets.ZENROWS_API_KEY }}
       COMPANIES_HOUSE_API_KEY: ${{ secrets.COMPANIES_HOUSE_API_KEY }}
@@ -121,7 +119,7 @@ jobs:
           node --input-type=module <<'NODE'
           const results=[]; let digReady=false;
           async function probe(url,key,model,provider){if(!key){results.push({provider,state:'not_configured'});return false}try{const r=await fetch(url,{method:'POST',headers:{Authorization:`Bearer ${key}`,'content-type':'application/json'},body:JSON.stringify({model,messages:[{role:'user',content:'Reply READY only.'}],max_tokens:32}),signal:AbortSignal.timeout(15000)});await r.text();results.push({provider,model,status:r.status,retryAfter:r.headers.get('retry-after'),remainingTokens:r.headers.get('x-ratelimit-remaining-tokens'),limitTokens:r.headers.get('x-ratelimit-limit-tokens'),resetTokens:r.headers.get('x-ratelimit-reset-tokens')});return r.ok}catch(e){results.push({provider,model,state:'transport_error',error:String(e?.message||e)});return false}}
-          const groq=await probe('https://api.groq.com/openai/v1/chat/completions',process.env.GROQ_API_KEY,process.env.GROQ_AGENTIC_MODEL,'groq-dig'); const mistral=await probe('https://api.mistral.ai/v1/chat/completions',process.env.MISTRAL_API_KEY,process.env.MISTRAL_AGENTIC_MODEL||'mistral-small-latest','mistral-dig'); digReady=groq||mistral; await probe('https://integrate.api.nvidia.com/v1/chat/completions',process.env.NVIDIA_NIM_API_KEY,process.env.NVIDIA_NIM_MODEL||'nvidia/nemotron-3.5-lightning-30b-a3b','nvidia-right-hand');
+          const groq=await probe('https://api.groq.com/openai/v1/chat/completions',process.env.GROQ_API_KEY,process.env.GROQ_AGENTIC_MODEL,'groq-dig'); const mistral=await probe('https://api.mistral.ai/v1/chat/completions',process.env.MISTRAL_API_KEY,process.env.MISTRAL_AGENTIC_MODEL||'mistral-small-latest','mistral-dig'); digReady=groq||mistral; await probe('https://integrate.api.nvidia.com/v1/chat/completions',process.env.DEEPSEEK_API_KEY,process.env.DEEPSEEK_MODEL||'deepseek-ai/deepseek-v4-flash-0731','nvidia-right-hand');
           const keys=[process.env.GEMINI_API_KEY,...Array.from({length:13},(_,i)=>process.env[`GEMINI_API_KEY_${i+1}`])].filter(Boolean); let bossReady=false; for(const [i,key] of keys.entries()){try{const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(process.env.GEMINI_AGENTIC_MODEL||'gemini-3.7-flash')}:generateContent`,{method:'POST',headers:{'x-goog-api-key':key,'content-type':'application/json'},body:JSON.stringify({contents:[{parts:[{text:'Reply READY only.'}]}],generationConfig:{maxOutputTokens:8}}),signal:AbortSignal.timeout(15000)});await r.text();results.push({provider:'gemini-boss',key:`${i+1}`,status:r.status});if(r.ok){bossReady=true;break}}catch(e){results.push({provider:'gemini-boss',key:`${i+1}`,state:'transport_error',error:String(e?.message||e)})}}
           console.log(JSON.stringify({digReady,bossReady,results},null,2)); if(!digReady){console.error('No configured Dig provider passed generation preflight.');process.exit(2)}
           NODE
