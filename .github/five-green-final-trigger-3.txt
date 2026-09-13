@@ -1,0 +1,1 @@
+Trigger marker for the genuine five-consecutive full-codebase audit gate.
