@@ -35,7 +35,7 @@ jobs:
       - name: Build
         run: pnpm run build
       - name: Complete API test suite
-        run: pnpm --dir artifacts/api-server exec vitest run --maxWorkers=1 --minWorkers=1
+        run: pnpm --dir artifacts/api-server exec vitest run --maxWorkers=1
       - name: Build must not mutate source
         run: git diff --exit-code
 
@@ -52,7 +52,7 @@ jobs:
       - run: pnpm run check:bureau
       - run: pnpm run typecheck
       - run: pnpm run build
-      - run: pnpm --dir artifacts/api-server exec vitest run --maxWorkers=1 --minWorkers=1
+      - run: pnpm --dir artifacts/api-server exec vitest run --maxWorkers=1
       - run: git diff --exit-code
 
   audit-3:
@@ -68,7 +68,7 @@ jobs:
       - run: pnpm run check:bureau
       - run: pnpm run typecheck
       - run: pnpm run build
-      - run: pnpm --dir artifacts/api-server exec vitest run --maxWorkers=1 --minWorkers=1
+      - run: pnpm --dir artifacts/api-server exec vitest run --maxWorkers=1
       - run: git diff --exit-code
 
   audit-4:
@@ -84,7 +84,7 @@ jobs:
       - run: pnpm run check:bureau
       - run: pnpm run typecheck
       - run: pnpm run build
-      - run: pnpm --dir artifacts/api-server exec vitest run --maxWorkers=1 --minWorkers=1
+      - run: pnpm --dir artifacts/api-server exec vitest run --maxWorkers=1
       - run: git diff --exit-code
 
   audit-5:
@@ -100,5 +100,5 @@ jobs:
       - run: pnpm run check:bureau
       - run: pnpm run typecheck
       - run: pnpm run build
-      - run: pnpm --dir artifacts/api-server exec vitest run --maxWorkers=1 --minWorkers=1
+      - run: pnpm --dir artifacts/api-server exec vitest run --maxWorkers=1
       - run: git diff --exit-code
