@@ -1,4 +1,13 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+// These assertions exercise pure provenance shaping. Keep the unit boundary
+// independent of the persistence bootstrap so DATABASE_URL is not required.
+vi.mock("@workspace/db", () => ({
+  db: {},
+  researchCasesTable: {},
+  researchCaseEventsTable: {},
+}));
+
 import { findingsToBureauContacts, sourceBackedAgenticFindings } from "../lib/bureau-agentic-pass";
 import { findingsToContacts, sourceBackedFindings } from "../lib/target-contact-agent";
 import type { AgenticFinding, AgenticTrajectoryRecord } from "../lib/agentic-web-research";
@@ -91,14 +100,20 @@ describe("agentic source provenance", () => {
   });
 
   it("keeps organization scope organization-scoped", () => {
-    const contacts = findingsToBureauContacts([
-      finding({
-        value: "info@example.com",
-        personName: "Jane Example",
-        scope: "organization",
-        sourceUrls: ["https://example.com/contact"],
-      }),
-    ], "Jane Example");
+    const orgFinding = finding({
+      value: "info@example.com",
+      personName: "Jane Example",
+      scope: "organization",
+      sourceUrls: ["https://example.com/contact"],
+    });
+    const orgTrajectory = [
+      "step1: visit https://example.com/contact execution=success observed=https://example.com/contact",
+    ];
+    const orgRecord = observation({
+      observation: "Contact email: info@example.com",
+      observedUrls: ["https://example.com/contact"],
+    });
+    const contacts = findingsToBureauContacts([orgFinding], "Jane Example", orgTrajectory, [orgRecord]);
 
     expect(contacts).toHaveLength(1);
     expect(contacts[0]?.scope).toBe("organization");
