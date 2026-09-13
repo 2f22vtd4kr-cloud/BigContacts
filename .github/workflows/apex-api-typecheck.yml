@@ -4,7 +4,7 @@ name: Apex API Build
 # Steady-state audit gate; no repair steps or bypasses.
 on:
   push:
-    branches: [main]
+    branches: [main, audit/round10-full-fix]
     paths:
       - "artifacts/api-server/src/**"
       - "artifacts/api-server/build.mjs"
@@ -45,8 +45,72 @@ jobs:
       - run: npm install -g pnpm@9.15.9
       - name: Install exactly the committed dependency graph
         run: pnpm install --frozen-lockfile --ignore-scripts --fetch-retries=8 --fetch-timeout=120000 --registry=https://registry.npmjs.org/
-      - name: Run complete Apex/Bureau static audit suite
-        run: pnpm run check:bureau
+      - name: Bureau checks 1-5
+        run: |
+          pnpm run check:build-no-source-mutation
+          pnpm run check:source-migration-parity
+          pnpm run check:atlas-launch-input
+          pnpm run check:browser-fetch-memory-bound
+          pnpm run check:canonical-lease-ownership
+      - name: Bureau checks 6-10
+        run: |
+          pnpm run check:canonical-target-lock-ownership
+          pnpm run check:canonical-active-release-bridge
+          pnpm run check:active-job-lease
+          pnpm run check:hnwi-dedup-key-consistency
+          pnpm run check:permanent-redis-fail-closed
+      - name: Bureau checks 11-15
+        run: |
+          pnpm run check:job-queue-memory-bounds
+          bash scripts/check-no-force-dig.sh
+          pnpm run check:free-react
+          pnpm run check:discovery-quality
+          pnpm run check:comparison-contract
+      - name: Bureau checks 16-20
+        run: |
+          pnpm run check:trajectory
+          pnpm run check:agentic-runtime
+          pnpm run check:agentic-timeout
+          pnpm run check:provider-role-docs
+          pnpm run check:unified-investigator
+      - name: Bureau checks 21-25
+        run: |
+          pnpm run check:discovery-mode
+          pnpm run check:single-discovery-control-plane
+          pnpm run check:agentic-core-transport
+          pnpm run check:mission-bootstrap
+          pnpm run check:investigator-identity-boundary
+      - name: Bureau checks 26-30
+        run: |
+          pnpm run check:investigator-provider-selection
+          pnpm run check:agentic-efficiency
+          pnpm run check:target-agent-context
+          pnpm run check:target-investigator-autonomy
+          pnpm run check:atlas-control-durability
+      - name: Check legacy mutation boundary
+        run: pnpm run check:legacy-mutation-boundary
+      - name: Check retired research routes
+        run: pnpm run check:retired-research-routes
+      - name: Check contact research retirement
+        run: pnpm run check:contact-research-retirement
+      - name: Check harvest domain egress
+        run: pnpm run check:harvest-domain-egress
+      - name: Check investigator observation attribution
+        run: pnpm run check:investigator-observation-attribution
+      - name: Bureau checks 36-40
+        run: |
+          pnpm run check:investigator-event-ordering
+          pnpm run check:investigation-context-compaction
+          pnpm run check:canonical-target-per-act-control
+          pnpm run check:apex-target-control-boundary
+          pnpm run check:retired-provider-mutators
+      - name: Bureau checks 41-45
+        run: |
+          pnpm run check:discovery-context-control
+          pnpm run check:python-osint-fail-closed
+          pnpm run check:agentic-registry-signal
+          pnpm run check:canonical-job-lock-boundary
+          pnpm run test:phone-priority
       - name: Check production boot safety
         run: node scripts/check-production-boot-safety.mjs
       - name: Check API authentication boundary

@@ -125,7 +125,7 @@ function humanStageTitle(stage: string | undefined, tool: string): string {
   if (stage && stage.length < 40 && !isLogGarbage(stage)) {
     return stage.replace(/[_·]+/g, " ").replace(/\s+/g, " ").trim();
   }
-  return "Working on this person";
+  return "Live research activity";
 }
 
 function isDiscoveryPhase(stage: string | undefined, tool: string, methodKind?: string): boolean {
@@ -248,7 +248,7 @@ function storyFor(kind: SceneKind, e: OpsEvent, query?: string): string {
   const live = !/complete|done|success/i.test(String(e.status || "active"));
   const failed = /fail|error|blocked/i.test(String(e.status || ""));
   const prefix = failed ? "Failed:" : live ? "Now:" : "Done:";
-  const t = (e.targetName || "this person").trim();
+  const t = (e.targetName || "the current case").trim()
 
   if (e.story && e.story.trim().length >= 8) {
     const cleaned = sanitizeStoryText(e.story.trim());
@@ -448,7 +448,7 @@ function toScene(e: OpsEvent, index: number, slots: ProviderSlotMap | null = nul
   }
   const safeQuery = query && !isLogGarbage(query) && !isInternalLanePrompt(query)
     ? query
-    : (e.targetName ? `${e.targetName}` : undefined);
+    : undefined;
   return {
     id: `${e.timestamp || index}-${tool}-${index}`,
     kind,
@@ -458,7 +458,7 @@ function toScene(e: OpsEvent, index: number, slots: ProviderSlotMap | null = nul
       ? (honestSubtitle || "This search tool is offline")
       : (discovery ? "Discovery" : "Research"),
     phaseTone: discovery ? "discovery" : "research",
-    query: unavailable ? (e.targetName ? `${e.targetName} (search offline)` : safeQuery) : safeQuery,
+    query: unavailable ? undefined : safeQuery,
     url,
     prompt: safePrompt,
     resultLines: lines.slice(0, 4),
@@ -937,7 +937,7 @@ function BureauScene({ scene, compact }: { scene: Scene; compact?: boolean }) {
         {scene.targetName && (
           <div className="text-[13px] font-mono text-lime-400/80 uppercase tracking-wider">{scene.targetName}</div>
         )}
-        {(scene.resultLines.length ? scene.resultLines : [scene.subtitle || "Working on this person…"]).map((l, i) => (
+        {(scene.resultLines.length ? scene.resultLines : [scene.subtitle || "Live research activity…"]).map((l, i) => (
           <div key={i} className={`text-stone-200 leading-snug ${compact ? "text-[11px]" : "text-[12px]"}`}>
             {l}
           </div>

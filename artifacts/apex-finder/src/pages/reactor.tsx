@@ -178,7 +178,7 @@ function parseAtlasEventLog(raw: unknown) {
       return { ...event, timestamp, raw: text };
     } catch {
       if (/ATLAS_EVENT|DIRECTOR\s+20\d{2}-|"kind"\s*:\s*"telemetry"/i.test(text)) {
-        return { kind: "log", resultSummary: "Working on this person", timestamp, raw: text };
+        return { kind: "log", resultSummary: "", timestamp, raw: text };
       }
       const cleaned = text
         .replace(/^\d{4}-\d{2}-\d{2}T[\d:.Z+-]+\s*/, "")
@@ -186,7 +186,7 @@ function parseAtlasEventLog(raw: unknown) {
         .trim();
       return {
         kind: "log",
-        resultSummary: cleaned.length > 8 && cleaned.length < 160 ? cleaned : "Working on this person",
+        resultSummary: cleaned.length > 8 && cleaned.length < 160 ? cleaned : "",
         timestamp,
         raw: text,
       };
@@ -655,7 +655,7 @@ function AtlasPhaseStrip({ state, liveNodes, compact = false }: { state?: AtlasL
       <div style={{ display:"flex", flexDirection:"column", gap:compact ? 4 : 6 }}>
         <div role="status" aria-label={running ? "Free dig activity in progress" : "Free dig activity idle"} style={{ height: compact ? 5 : 6, borderRadius:4, background:"#1a2740", overflow:"hidden" }}>
           <div style={{
-            height:"100%", borderRadius:4, width: running ? "42%" : state?.runStatus === "done" ? "100%" : "0%",
+            height:"100%", borderRadius:4, width: state?.runStatus === "done" ? "100%" : running && state?.phaseTotal && Number.isFinite(state.phaseProgress) ? `${Math.min(Math.max((state.phaseProgress / state.phaseTotal) * 100, 0), 100)}%` : "0%",
             background: running ? "linear-gradient(90deg,#9CFF1A,#b8ff4d)" : "#263d59",
             boxShadow: running ? "0 0 10px #9CFF1A66" : "none",
             transition:"width .4s ease",
@@ -2572,7 +2572,7 @@ export default function IntelligenceReactorPage() {
         const plainMsg = (raw: string) => {
           let t = raw.replace(/\s+/g, " ").trim();
           if (/ATLAS_EVENT|DIRECTOR\s+20\d{2}-|\"kind\"\s*:\s*\"telemetry\"/i.test(t)) {
-            return "Working on this person";
+            return "";
           }
           t = t.replace(/^Phase\s+\d+\/[^:]+:\s*/i, "");
           t = t.replace(/^[🤖\s]+/, "");
