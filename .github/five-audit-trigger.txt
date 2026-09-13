@@ -1,1 +1,1 @@
-Trigger for the registered five-consecutive complete-code audit gate.
+Trigger for the registered five-consecutive complete-code audit gate. Second trigger after the workflow registration update.
