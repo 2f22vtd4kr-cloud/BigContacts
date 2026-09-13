@@ -1,49 +1,112 @@
-name: audit-round10-source-repair
+name: Five Consecutive Full Code Audits
 on:
   push:
-    branches: [audit/deep-round10]
+    branches: [audit/genuine-five-green-final]
+  pull_request:
+    branches: [main]
 permissions:
-  contents: write
+  contents: read
+concurrency:
+  group: genuine-five-${{ github.ref }}
+  cancel-in-progress: false
+env:
+  PNPM_VERSION: 9.15.9
+
 jobs:
-  repair:
-    if: github.event.head_commit.message != 'audit: apply round 10 Reactor live truth fixes'
+  audit-1:
+    name: Audit 1 — complete codebase
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-      - name: Repair Reactor live truth violations
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with: { node-version: 22 }
+      - run: npm install -g pnpm@${PNPM_VERSION}
+      - run: pnpm install --frozen-lockfile --ignore-scripts --registry=https://registry.npmjs.org/
+      - run: pnpm run check:bureau
+      - run: pnpm run typecheck
+      - run: pnpm run build
+      - name: Every API test file, isolated
         run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          p = Path('artifacts/apex-finder/src/pages/reactor.tsx')
-          s = p.read_text()
-          old = 'return { kind: "log", resultSummary: "Working on this person", timestamp, raw: text };'
-          new = 'return { kind: "log", resultSummary: "Live telemetry unavailable", timestamp, raw: text };'
-          if old not in s:
-              raise SystemExit('expected telemetry fallback #1 not found')
-          s = s.replace(old, new, 1)
-          old = 'resultSummary: cleaned.length > 8 && cleaned.length < 160 ? cleaned : "Working on this person",'
-          new = 'resultSummary: cleaned.length > 8 && cleaned.length < 160 ? cleaned : "Live telemetry unavailable",'
-          if old not in s:
-              raise SystemExit('expected telemetry fallback #2 not found')
-          s = s.replace(old, new, 1)
-          old = 'return "Working on this person";'
-          new = 'return "Live telemetry unavailable";'
-          if old not in s:
-              raise SystemExit('expected plain telemetry fallback not found')
-          s = s.replace(old, new, 1)
-          old = 'width: running ? "42%" : state?.runStatus === "done" ? "100%" : "0%",'
-          new = 'width: state?.phaseTotal && state.phaseTotal > 0 ? `${Math.min(100, Math.max(0, (state.phaseProgress / state.phaseTotal) * 100))}%` : state?.runStatus === "done" ? "100%" : "0%",'
-          if old not in s:
-              raise SystemExit('expected synthetic progress width not found')
-          s = s.replace(old, new, 1)
-          p.write_text(s)
-          PY
-      - name: Verify repaired source contract
-        run: node scripts/check-reactor-live-no-fabrication.mjs
-      - name: Commit repaired source
-        run: |
-          git config user.name '2f22vtd4kr-cloud'
-          git config user.email '2f22vtd4kr@privaterelay.appleid.com'
-          git add artifacts/apex-finder/src/pages/reactor.tsx
-          git commit -m 'audit: apply round 10 Reactor live truth fixes'
-          git push origin HEAD:audit/deep-round10
+          set -euo pipefail
+          cd artifacts/api-server
+          for test_file in src/src/test/*.test.ts; do
+            echo "===== FULL AUDIT TEST: ${test_file} ====="
+            pnpm exec vitest run --maxWorkers=1 "${test_file}"
+          done
+      - run: git diff --exit-code
+
+  audit-2:
+    name: Audit 2 — complete codebase
+    needs: audit-1
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with: { node-version: 22 }
+      - run: npm install -g pnpm@${PNPM_VERSION}
+      - run: pnpm install --frozen-lockfile --ignore-scripts --registry=https://registry.npmjs.org/
+      - run: pnpm run check:bureau
+      - run: pnpm run typecheck
+      - run: pnpm run build
+      - run: |
+          set -euo pipefail
+          cd artifacts/api-server
+          for test_file in src/src/test/*.test.ts; do pnpm exec vitest run --maxWorkers=1 "${test_file}"; done
+      - run: git diff --exit-code
+
+  audit-3:
+    name: Audit 3 — complete codebase
+    needs: audit-2
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with: { node-version: 22 }
+      - run: npm install -g pnpm@${PNPM_VERSION}
+      - run: pnpm install --frozen-lockfile --ignore-scripts --registry=https://registry.npmjs.org/
+      - run: pnpm run check:bureau
+      - run: pnpm run typecheck
+      - run: pnpm run build
+      - run: |
+          set -euo pipefail
+          cd artifacts/api-server
+          for test_file in src/src/test/*.test.ts; do pnpm exec vitest run --maxWorkers=1 "${test_file}"; done
+      - run: git diff --exit-code
+
+  audit-4:
+    name: Audit 4 — complete codebase
+    needs: audit-3
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with: { node-version: 22 }
+      - run: npm install -g pnpm@${PNPM_VERSION}
+      - run: pnpm install --frozen-lockfile --ignore-scripts --registry=https://registry.npmjs.org/
+      - run: pnpm run check:bureau
+      - run: pnpm run typecheck
+      - run: pnpm run build
+      - run: |
+          set -euo pipefail
+          cd artifacts/api-server
+          for test_file in src/src/test/*.test.ts; do pnpm exec vitest run --maxWorkers=1 "${test_file}"; done
+      - run: git diff --exit-code
+
+  audit-5:
+    name: Audit 5 — complete codebase
+    needs: audit-4
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with: { node-version: 22 }
+      - run: npm install -g pnpm@${PNPM_VERSION}
+      - run: pnpm install --frozen-lockfile --ignore-scripts --registry=https://registry.npmjs.org/
+      - run: pnpm run check:bureau
+      - run: pnpm run typecheck
+      - run: pnpm run build
+      - run: |
+          set -euo pipefail
+          cd artifacts/api-server
+          for test_file in src/src/test/*.test.ts; do pnpm exec vitest run --maxWorkers=1 "${test_file}"; done
+      - run: git diff --exit-code
