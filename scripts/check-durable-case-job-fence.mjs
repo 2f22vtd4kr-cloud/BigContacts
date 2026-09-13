@@ -11,7 +11,7 @@ const checks = [
   ["operator stop establishes the durable case fence before job cancellation", /await db\.update\(researchCasesTable\)[\s\S]*canonical-atlas-cancelled[\s\S]*await updateJob\(activeJobId/.test(stopSource)],
   ["agentic promotion requires an active target case", /apex_agentic_promotion_active_case[\s\S]*bound_case\.status\s*<>\s*'active'[\s\S]*agentic contact promotion is fenced/.test(dbSource)],
   ["promotion locks the exact bound case row", /FROM public\.research_cases[\s\S]*target_entity_id\s*=\s*NEW\.id[\s\S]*LIMIT 1 FOR UPDATE/.test(dbSource)],
-  ["stale workers cannot reactivate cancelled or lease-lost cases", /apex_research_case_cancellation_fence[\s\S]*canonical-atlas-cancelled[\s\S]*canonical-lease-lost[\s\S]*NEW\.status\s*=\s*'active'/.test(dbSource)],
+  ["stale workers cannot reactivate cancelled or lease-lost cases", /apex_research_case_cancellation_fence[\s\S]*NEW\.status\s*=\s*'active'[\s\S]*OLD\.status\s*=\s*'cancelled'[\s\S]*canonical-atlas-cancelled[\s\S]*canonical-lease-lost/.test(dbSource)],
   ["lease loss uses the same durable cancellation fence", /canonical-lease-lost/.test(dbSource) && /fenceLeaseLostCases/.test(lockSource)],
 ];
 const failures = checks.filter(([, ok]) => !ok).map(([name]) => name);
