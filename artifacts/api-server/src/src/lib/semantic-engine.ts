@@ -99,7 +99,7 @@ export function entityToEmbedText(entity: { name: string; notes?: string | null;
 
 const EMB_KEY_PREFIX = "emb:v1:";
 const EMB_TTL_SECONDS = 60 * 60 * 24 * 14;
-function float32ToBase64(arr: Float32Array): string { return Buffer.from(arr.buffer).toString("base64"); }
+function float32ToBase64(arr: Float32Array): string { return Buffer.from(arr.buffer, arr.byteOffset, arr.byteLength).toString("base64"); }
 function base64ToFloat32(b64: string): Float32Array | null {
   try {
     const buf = Buffer.from(b64, "base64");

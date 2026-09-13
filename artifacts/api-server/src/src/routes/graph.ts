@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { eq, sql } from "drizzle-orm";
+import { eq, sql, and } from "drizzle-orm";
 import { db, entitiesTable } from "@workspace/db";
 import { GetEntityGraphParams, GetEntityGraphQueryParams, GetConnectionPathQueryParams } from "@workspace/api-zod";
 import { buildGraph, extractSubgraph, findShortestPath, computeCentrality, type GraphVertex, type GraphArc } from "../lib/graph-engine";
@@ -11,13 +11,13 @@ function arcToEdge(arc: GraphArc) { return { id: arc.id.replace("_rev", ""), sou
 
 router.get("/graph/hub-entity", async (_req, res): Promise<void> => {
   try {
-    const geoRows = await db.execute<{ id: number; cnt: string }>(sql`SELECT source_entity_id AS id, COUNT(*) AS cnt FROM relationships WHERE relationship_type = 'PROPERTY_AREA_PEER' GROUP BY source_entity_id HAVING COUNT(*) BETWEEN 5 AND 80 ORDER BY cnt DESC LIMIT 1`);
+    const geoRows = await db.execute<{ id: number; cnt: string }>(sql`SELECT r.source_entity_id AS id, COUNT(*) AS cnt FROM relationships r JOIN entities e ON e.id=r.source_entity_id WHERE e.is_hidden=false AND r.relationship_type = 'PROPERTY_AREA_PEER' GROUP BY r.source_entity_id HAVING COUNT(*) BETWEEN 5 AND 80 ORDER BY cnt DESC LIMIT 1`);
     const geoId = (geoRows as any).rows?.[0]?.id ?? (geoRows as any)[0]?.id;
     if (geoId) { res.json({ entityId: Number(geoId) }); return; }
-    const fallbackRows = await db.execute<{ id: number; cnt: string }>(sql`SELECT from_e AS id, COUNT(*) AS cnt FROM (SELECT source_entity_id AS from_e FROM relationships UNION ALL SELECT target_id AS from_e FROM relationships WHERE target_type = 'Entity') t GROUP BY from_e HAVING COUNT(*) BETWEEN 10 AND 150 ORDER BY cnt DESC LIMIT 1`);
+    const fallbackRows = await db.execute<{ id: number; cnt: string }>(sql`SELECT from_e AS id, COUNT(*) AS cnt FROM (SELECT r.source_entity_id AS from_e FROM relationships r JOIN entities e ON e.id=r.source_entity_id WHERE e.is_hidden=false UNION ALL SELECT r.target_id AS from_e FROM relationships r JOIN entities e ON e.id=r.target_id WHERE r.target_type='Entity' AND e.is_hidden=false) t GROUP BY from_e HAVING COUNT(*) BETWEEN 10 AND 150 ORDER BY cnt DESC LIMIT 1`);
     const fallbackId = (fallbackRows as any).rows?.[0]?.id ?? (fallbackRows as any)[0]?.id;
     if (fallbackId) { res.json({ entityId: Number(fallbackId) }); return; }
-    const [anyEntity] = await db.select({ id: entitiesTable.id }).from(entitiesTable).orderBy(entitiesTable.id).limit(1);
+    const [anyEntity] = await db.select({ id: entitiesTable.id }).from(entitiesTable).where(eq(entitiesTable.isHidden,false)).orderBy(entitiesTable.id).limit(1);
     res.json({ entityId: anyEntity?.id ?? null });
   } catch { res.json({ entityId: null }); }
 });
@@ -28,7 +28,7 @@ router.get("/graph/entity/:id", async (req, res): Promise<void> => {
   if (!params.success) { res.status(400).json({ error: params.error.message }); return; }
   const depth = Math.min(Math.max(query.success ? (query.data.depth ?? 2) : 2, 1), 4);
   const entityId = params.data.id;
-  const [entity] = await db.select().from(entitiesTable).where(eq(entitiesTable.id, entityId));
+  const [entity] = await db.select().from(entitiesTable).where(and(eq(entitiesTable.id, entityId),eq(entitiesTable.isHidden,false)));
   if (!entity) { res.status(404).json({ error: "Entity not found" }); return; }
   const { entities, assets, relationships, truncated } = await loadNeighborhood(entityId, depth);
   const graph = buildGraph(entities, assets, relationships);
@@ -47,8 +47,8 @@ router.get("/graph/path", async (req, res): Promise<void> => {
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
   const { sourceId, targetId } = parsed.data;
   const [sourceEntity, targetEntity] = await Promise.all([
-    db.select().from(entitiesTable).where(eq(entitiesTable.id, sourceId)).then((r) => r[0]),
-    db.select().from(entitiesTable).where(eq(entitiesTable.id, targetId)).then((r) => r[0]),
+    db.select().from(entitiesTable).where(and(eq(entitiesTable.id, sourceId),eq(entitiesTable.isHidden,false))).then((r) => r[0]),
+    db.select().from(entitiesTable).where(and(eq(entitiesTable.id, targetId),eq(entitiesTable.isHidden,false))).then((r) => r[0]),
   ]);
   if (!sourceEntity || !targetEntity) { res.status(404).json({ error: "One or both entities not found" }); return; }
   if (sourceId === targetId) {

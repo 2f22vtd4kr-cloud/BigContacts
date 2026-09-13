@@ -7,6 +7,8 @@ type StoreSnapshot = {
 };
 
 const EMPTY: StoreSnapshot = { runStatus: "idle", activities: [] };
+const ACTIVE_POLL_MS = 1_200;
+const IDLE_POLL_MS = 8_000;
 
 let snapshot: StoreSnapshot = EMPTY;
 let listeners = new Set<() => void>();
@@ -42,7 +44,8 @@ function stopPolling(): void {
 function schedule(): void {
   if (listeners.size === 0) return;
   if (timer != null) window.clearTimeout(timer);
-  timer = window.setTimeout(() => void pull(), 1200);
+  const active = snapshot.runStatus === "running" || snapshot.runStatus === "paused" || snapshot.activities.some((activity) => activity.status === "active");
+  timer = window.setTimeout(() => void pull(), active ? ACTIVE_POLL_MS : IDLE_POLL_MS);
 }
 
 async function pull(): Promise<void> {

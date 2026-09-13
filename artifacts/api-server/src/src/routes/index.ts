@@ -19,6 +19,7 @@ import bureauStreamRouter from "./bureau-stream";
 import systemStatusRouter from "./system-status";
 import investigatorTraceRouter from "./investigator-trace";
 import { legacyApexMutationGuard } from "../lib/legacy-apex-mutation-guard";
+import { entityVisibilityGuard } from "../lib/entity-visibility-guard";
 import { legacyAtlasLaunchQuarantine } from "../lib/legacy-atlas-launch-quarantine";
 import { normalizeAtlasLaunchBody } from "../middlewares/normalize-atlas-launch-body";
 
@@ -30,6 +31,9 @@ router.use(authRouter);
 // Normalize the canonical launch contract before any launcher reads Boolean(...)
 // from operator/form input. This is intentionally narrow, not a generic coercer.
 router.use(normalizeAtlasLaunchBody);
+// Hidden entities are a visibility boundary, not merely a list filter. Guard
+// entity-specific reads before any compatibility router can expose them.
+router.use(entityVisibilityGuard);
 // The legacy Apex mutation boundary wraps remaining compatibility/mutation routes.
 // Direct deterministic extended-OSINT execution is intentionally NOT mounted here:
 // research capabilities must be selected and executed by the canonical Investigator.

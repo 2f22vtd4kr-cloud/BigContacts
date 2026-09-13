@@ -26,6 +26,16 @@ function mailHref(value: string): string {
   return `mailto:${value}`;
 }
 
+function safeExternalHref(value?: string | null): string | undefined {
+  if (!value) return undefined;
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:" ? url.href : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 function iconFor(vectorType: string, mark?: string) {
   if (vectorType === "phone") return Phone;
   if (vectorType === "email") return Mail;
@@ -49,7 +59,6 @@ export function ContactSurface({
   evidenceCount,
   density = "row",
   className,
-  onRehydrate,
 }: {
   contacts?: ContactRouteView[] | null;
   phone?: string | null;
@@ -59,7 +68,6 @@ export function ContactSurface({
   evidenceCount?: number;
   density?: "row" | "card" | "mobile";
   className?: string;
-  onRehydrate?: () => void;
 }) {
   const routes: ContactRouteView[] = [];
   const seen = new Set<string>();
@@ -119,13 +127,7 @@ export function ContactSurface({
         data-testid="contact-surface-empty"
       >
         {hasEvidence ? (
-          <button
-            type="button"
-            onClick={onRehydrate}
-            className="text-left text-[#9CFF1A]/90 underline-offset-2 hover:underline"
-          >
-            Evidence on file — rehydrate card
-          </button>
+          <span>Evidence on file — review the profile evidence before using a route</span>
         ) : (
           <span>No public routes yet</span>
         )}
@@ -142,7 +144,7 @@ export function ContactSurface({
       ? telHref(primary.value!)
       : primary.vectorType === "email"
         ? mailHref(primary.value!)
-        : primary.sourceUrl || (String(primary.value).startsWith("http") ? primary.value : undefined);
+        : safeExternalHref(primary.sourceUrl) || safeExternalHref(String(primary.value).startsWith("http") ? primary.value : undefined);
 
   return (
     <div
@@ -190,7 +192,7 @@ export function ContactSurface({
               ? telHref(r.value!)
               : r.vectorType === "email"
                 ? mailHref(r.value!)
-                : r.sourceUrl || undefined;
+                : safeExternalHref(r.sourceUrl);
           return (
             <span
               key={`${r.vectorType}-${r.value}-${i}`}
