@@ -16,29 +16,11 @@ on:
       - ".github/workflows/reactor-live-no-fabrication.yml"
   workflow_dispatch:
 permissions:
-  contents: write
+  contents: read
 jobs:
   contract:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Apply audited entity filter fix
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          p=Path('artifacts/api-server/src/src/routes/entities.ts'); s=p.read_text()
-          old='''  if (hasEmail) {\n    whereParts.push(sql`${entitiesTable.email} IS NOT NULL AND btrim(${entitiesTable.email}) <> ''`);\n  } else if (hasPhone) {\n    whereParts.push(sql`${entitiesTable.phone} IS NOT NULL AND btrim(${entitiesTable.phone}) <> ''`);\n  }'''
-          new='''  if (hasEmail) {\n    whereParts.push(sql`${entitiesTable.email} IS NOT NULL AND btrim(${entitiesTable.email}) <> ''`);\n  }\n  if (hasPhone) {\n    whereParts.push(sql`${entitiesTable.phone} IS NOT NULL AND btrim(${entitiesTable.phone}) <> ''`);\n  }'''
-          if old not in s: raise SystemExit('combined email/phone filter bug not found')
-          p.write_text(s.replace(old,new,1))
-          PY
-      - name: Commit audited entity filter fix
-        run: |
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add artifacts/api-server/src/src/routes/entities.ts
-          git diff --cached --quiet && exit 0
-          git commit -m 'fix(api): combine entity email and phone filters'
-          git push
       - name: Check Reactor Live no-fabrication contract
         run: node scripts/check-reactor-live-no-fabrication.mjs
