@@ -5,39 +5,22 @@ on:
       - "artifacts/apex-finder/src/components/bureau-ops-stage.tsx"
       - "artifacts/apex-finder/src/lib/reactor-live-model.ts"
       - "artifacts/apex-finder/src/pages/reactor.tsx"
+      - "scripts/check-reactor-live-no-fabrication.mjs"
       - ".github/workflows/reactor-live-no-fabrication.yml"
   pull_request:
     paths:
       - "artifacts/apex-finder/src/components/bureau-ops-stage.tsx"
       - "artifacts/apex-finder/src/lib/reactor-live-model.ts"
       - "artifacts/apex-finder/src/pages/reactor.tsx"
+      - "scripts/check-reactor-live-no-fabrication.mjs"
       - ".github/workflows/reactor-live-no-fabrication.yml"
   workflow_dispatch:
 permissions:
-  contents: write
+  contents: read
 jobs:
   contract:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Apply audited Reactor truthfulness repair
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          p = Path('artifacts/apex-finder/src/pages/reactor.tsx')
-          s = p.read_text()
-          old = '  const detail = atlasState?.detail || livePhaseDetail || liveLabel || "Processing live research";\n'
-          new = '  const detail = atlasState?.detail || livePhaseDetail || liveLabel;\n  if (!detail) return null;\n'
-          if old not in s: raise SystemExit('live header fallback anchor not found')
-          p.write_text(s.replace(old, new, 1))
-          PY
-      - name: Commit audited Reactor truthfulness repair
-        run: |
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add artifacts/apex-finder/src/pages/reactor.tsx
-          git diff --cached --quiet && exit 0
-          git commit -m 'fix(reactor): remove synthetic live header fallback'
-          git push
       - name: Check Reactor Live no-fabrication contract
         run: node scripts/check-reactor-live-no-fabrication.mjs
