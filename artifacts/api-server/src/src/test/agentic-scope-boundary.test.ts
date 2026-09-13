@@ -36,11 +36,12 @@ describe("agentic evidence scope boundary", () => {
       personName: "Jane Example",
       promote: false,
     });
-    expect(findingsToContactEvidence([finding], trajectory, records)[0]).toMatchObject({
+    const evidence = findingsToContactEvidence([finding], trajectory, records);
+    expect(evidence[0]).toMatchObject({
       scope: "candidate",
       personName: "Jane Example",
     });
-    expect(findingsToContacts([finding], "Jane Example", trajectory, records)[0]).toMatchObject({
+    expect(findingsToContacts(evidence, "Jane Example")[0]).toMatchObject({
       scope: "candidate",
       personName: "Jane Example",
     });
@@ -82,11 +83,12 @@ describe("agentic evidence scope boundary", () => {
       personName: null,
       promote: false,
     });
-    expect(findingsToContactEvidence([finding], trajectory, records)[0]).toMatchObject({
+    const evidence = findingsToContactEvidence([finding], trajectory, records);
+    expect(evidence[0]).toMatchObject({
       scope: "organization",
       personName: null,
     });
-    expect(findingsToContacts([finding], "Jane Example", trajectory, records)[0]).toMatchObject({
+    expect(findingsToContacts(evidence, "Jane Example")[0]).toMatchObject({
       scope: "organization",
       personName: null,
     });
