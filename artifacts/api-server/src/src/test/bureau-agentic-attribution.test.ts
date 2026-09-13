@@ -1,4 +1,13 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+// The assertion covers provenance shaping only; do not bootstrap persistence
+// for a unit test whose contract is independent of the database.
+vi.mock("@workspace/db", () => ({
+  db: {},
+  researchCasesTable: {},
+  researchCaseEventsTable: {},
+}));
+
 import { sourceBackedAgenticFindings } from "../lib/bureau-agentic-pass";
 
 describe("Bureau multi-source attribution", () => {
