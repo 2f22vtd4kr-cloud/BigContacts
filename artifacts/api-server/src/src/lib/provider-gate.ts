@@ -62,6 +62,7 @@ function cacheKey(provider: ExternalProvider, input: string | URL | Request, ini
   const headers = new Headers(input instanceof Request ? input.headers : init?.headers);
   if (headers.has("authorization") || headers.has("x-api-key") || headers.has("cookie")) return null;
   const url = requestUrl(input); if (isLocalUrl(url)) return null;
+  if (findQueryCredential(url)) return null;
   try {
     const parsed = new URL(url); stripCredentialQueryParams(parsed);
     const variant = [headers.get("accept") ?? "", headers.get("accept-language") ?? "", headers.get("user-agent") ?? ""].join("\n");
