@@ -1,0 +1,81 @@
+name: Deep Round 11 audit gate
+on:
+  push:
+    branches:
+      - "audit/deep-round11"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org/
+      - run: npm install -g pnpm@9.15.9
+      - name: Install exactly the committed dependency graph
+        run: pnpm install --frozen-lockfile --ignore-scripts --fetch-retries=8 --fetch-timeout=120000 --registry=https://registry.npmjs.org/
+      - name: Run complete Apex/Bureau static audit suite
+        run: pnpm run check:bureau
+      - name: Check production boot safety
+        run: node scripts/check-production-boot-safety.mjs
+      - name: Check API authentication boundary
+        run: node scripts/check-api-auth-boundary.mjs
+      - name: Check workflow action pinning
+        run: node scripts/check-workflow-action-pins.mjs
+      - name: Check search route bounds
+        run: node scripts/check-search-route-bounds.mjs
+      - name: Check dev-persona boundary
+        run: node scripts/check-dev-persona-boundary.mjs
+      - name: Check provider gate resource bounds
+        run: node scripts/check-provider-gate-resource-bounds.mjs
+      - name: Check semantic cache bounds
+        run: node scripts/check-semantic-cache-bounds.mjs
+      - name: Check search index bounds
+        run: node scripts/check-search-index-bounds.mjs
+      - name: Check agentic concurrency admission
+        run: node scripts/check-agentic-concurrency-admission.mjs
+      - name: Check research event payload boundary
+        run: node scripts/check-research-event-payload-boundary.mjs
+      - name: Check research event lifecycle bounds
+        run: node scripts/check-case-event-retention-bounds.mjs
+      - name: Check canonical job lock lease
+        run: node scripts/check-canonical-job-lock-lease.mjs
+      - name: Check atomic active-job release
+        run: node scripts/check-active-job-release-atomicity.mjs
+      - name: Check job-state Redis fail-closed semantics
+        run: node scripts/check-job-state-redis-fail-closed.mjs
+      - name: Check durable case-job and promotion fences
+        run: node scripts/check-durable-case-job-fence.mjs
+      - name: Check canonical discovery case binding
+        run: node scripts/check-canonical-discovery-case-binding.mjs
+      - name: Check deterministic research strategy
+        run: node scripts/check-deterministic-research-strategy.mjs
+      - name: Check canonical Atlas cancellation fence
+        run: node scripts/check-canonical-atlas-cancellation-fence.mjs
+      - name: Check research event identity and replay semantics
+        run: node scripts/check-research-event-identity.mjs
+      - name: Check canonical target per-act control
+        run: node scripts/check-canonical-target-per-act-control.mjs
+      - name: Check discovery context control
+        run: node scripts/check-discovery-context-control.mjs
+      - name: Check Atlas launch input normalization
+        run: node scripts/check-atlas-launch-input-normalization.mjs
+      - name: Check canonical agentic source parity
+        run: node scripts/check-agentic-source-parity.mjs
+      - name: Check Apex launch gate
+        run: node scripts/check-apex-launch-gate.mjs
+      - name: Check research ledger immutability
+        run: node scripts/check-research-ledger-immutability.mjs
+      - name: Build API
+        run: pnpm --dir artifacts/api-server run build
+      - name: Typecheck workspace
+        run: pnpm run typecheck
+      - name: Run strict provenance and provider-cache regression tests
+        run: pnpm --dir artifacts/api-server exec vitest run src/src/test/bureau-contact-persist-strict.test.ts src/src/test/provider-gate-cache-bounds.test.ts
+      - name: Build frontend
+        run: pnpm --dir artifacts/apex-finder run build
