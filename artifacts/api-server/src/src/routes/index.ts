@@ -23,6 +23,7 @@ import { legacyApexMutationGuard } from "../lib/legacy-apex-mutation-guard";
 import { entityVisibilityGuard } from "../lib/entity-visibility-guard";
 import { legacyAtlasLaunchQuarantine } from "../lib/legacy-atlas-launch-quarantine";
 import { normalizeAtlasLaunchBody } from "../middlewares/normalize-atlas-launch-body";
+import { canonicalCaseContinuationGuard } from "../middlewares/canonical-case-continuation-guard";
 
 const router: IRouter = Router();
 router.use(healthRouter);
@@ -30,12 +31,10 @@ router.use(authRouter);
 router.use(normalizeAtlasLaunchBody);
 router.use(entityVisibilityGuard);
 router.use(legacyApexMutationGuard);
-// Transactional merge must precede the historical entities router so the old
-// non-atomic implementation cannot execute for any operator request.
 router.use(safeEntityMergeRouter);
 router.use(entitiesRouter);
 router.use(assetsRouter);
-router.use(relationshipsRouter);
+router.use(canonicalCaseContinuationGuard);
 router.use(researchRouter);
 router.use(dashboardRouter);
 router.use(graphRouter);
