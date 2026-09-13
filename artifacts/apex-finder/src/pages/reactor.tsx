@@ -178,7 +178,7 @@ function parseAtlasEventLog(raw: unknown) {
       return { ...event, timestamp, raw: text };
     } catch {
       if (/ATLAS_EVENT|DIRECTOR\s+20\d{2}-|"kind"\s*:\s*"telemetry"/i.test(text)) {
-        return { kind: "log", resultSummary: "Working on this person", timestamp, raw: text };
+        return { kind: "log", resultSummary: "", timestamp, raw: text };
       }
       const cleaned = text
         .replace(/^\d{4}-\d{2}-\d{2}T[\d:.Z+-]+\s*/, "")
@@ -186,7 +186,7 @@ function parseAtlasEventLog(raw: unknown) {
         .trim();
       return {
         kind: "log",
-        resultSummary: cleaned.length > 8 && cleaned.length < 160 ? cleaned : "Working on this person",
+        resultSummary: cleaned.length > 8 && cleaned.length < 160 ? cleaned : "",
         timestamp,
         raw: text,
       };
@@ -2572,7 +2572,7 @@ export default function IntelligenceReactorPage() {
         const plainMsg = (raw: string) => {
           let t = raw.replace(/\s+/g, " ").trim();
           if (/ATLAS_EVENT|DIRECTOR\s+20\d{2}-|\"kind\"\s*:\s*\"telemetry\"/i.test(t)) {
-            return "Working on this person";
+            return "";
           }
           t = t.replace(/^Phase\s+\d+\/[^:]+:\s*/i, "");
           t = t.replace(/^[🤖\s]+/, "");
