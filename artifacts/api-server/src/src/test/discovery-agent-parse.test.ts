@@ -1,4 +1,13 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
+
+// Discovery parsing is a pure model-output boundary. Do not require the
+// persistence bootstrap just to validate identity/provenance admission.
+vi.mock("@workspace/db", () => ({
+  db: {},
+  researchCasesTable: {},
+  researchCaseEventsTable: {},
+}));
+
 import {
   hasStrongIdentityEvidence,
   isWellFormedPersonCandidate,
