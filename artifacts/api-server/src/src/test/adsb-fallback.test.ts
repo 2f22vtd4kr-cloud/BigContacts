@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { readsbToStateVector } from "../lib/opensky-ingestor";
+import { readsbToStateVector } from "../lib/opensky-normalize";
 
 describe("free ADS-B fallback normalization", () => {
   it("maps the aircraft registration before the operator callsign", () => {
