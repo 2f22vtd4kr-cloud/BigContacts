@@ -25,7 +25,7 @@ const checks = [
   ["guard names all retired legacy enrichment routes", retiredRoutes.every((p) => guard.includes(`\"/ingest/${p}\"`))],
   ["deterministic contact rehydration is retired", guard.includes('"/entities/rehydrate-contacts"')],
   ["legacy routes return explicit 410", guard.includes('res.status(410).json({') && guard.includes("Legacy enrichment route retired.")],
-  ["guard blocks Apex entity types on generic enrich routes", guard.includes('["HNWI", "Gatekeeper"]')],
+  ["guard blocks Apex entity types on generic enrich routes", /APEX_TYPES\s*=\s*new Set\(\[\s*"HNWI"\s*,\s*"Gatekeeper"\s*\]\)/.test(guard)],
   ["guard rejects unscoped generic legacy enrichment", guard.includes("Legacy enrichment requires an explicit non-Apex target scope")],
   ["guard queries concrete entity IDs before allowing generic mutation", guard.includes("inArray(entitiesTable.id, entityIds)")],
   ["guard is mounted after public health", healthIndex >= 0 && guardIndex > healthIndex],
