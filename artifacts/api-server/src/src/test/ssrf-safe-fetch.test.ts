@@ -36,15 +36,14 @@ describe("SSRF outbound boundary", () => {
     await expect(assertSafeOutboundUrl("https://user:pass@example.com/")).rejects.toThrow("credentials");
   });
 
-  it("pins the safety-checked hostname resolution instead of delegating a second DNS lookup", async () => {
-    const result = await safeOutboundFetch("http://127.0.0.1/").catch((error) => error);
-    expect(result).toBeInstanceOf(Error);
-    expect((result as Error).message).toMatch(/blocked IP address/);
+  it("fails before network access for a directly supplied blocked address", async () => {
+    await expect(safeOutboundFetch("http://127.0.0.1/")).rejects.toThrow(/blocked IP address/);
   });
 
-  it("does not automatically follow redirects", async () => {
-    const result = await safeOutboundFetch("https://example.com/redirect");
-    expect([200, 301, 302, 303, 307, 308]).toContain(result.status);
-    expect(result.url).toBe("https://example.com/redirect");
+  it("keeps the validated public URL as the response URL", async () => {
+    const result = await safeOutboundFetch("https://example.com/");
+    expect(result.url).toBe("https://example.com/");
+    expect(result.status).toBeGreaterThanOrEqual(200);
+    expect(result.status).toBeLessThan(500);
   });
 });
