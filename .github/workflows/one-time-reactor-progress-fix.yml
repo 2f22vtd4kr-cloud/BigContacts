@@ -1,0 +1,43 @@
+name: One-time Reactor progress repair
+
+on:
+  push:
+    branches: [audit/round10-full-fix]
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    if: ${{ github.actor != 'github-actions[bot]' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Replace synthetic live progress with recorded telemetry
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('artifacts/apex-finder/src/pages/reactor.tsx')
+          s = p.read_text()
+          old = 'width: running ? "42%" : state?.runStatus === "done" ? "100%" : "0%",'
+          new = 'width: state?.runStatus === "done" ? "100%" : running && state?.phaseTotal && Number.isFinite(state.phaseProgress) ? `${Math.min(Math.max((state.phaseProgress / state.phaseTotal) * 100, 0), 100)}%` : "0%",'
+          if old not in s:
+              raise SystemExit('expected synthetic progress expression not found')
+          p.write_text(s.replace(old, new, 1))
+          PY
+          if grep -n 'width: running ? "42%"' artifacts/apex-finder/src/pages/reactor.tsx; then
+            echo 'Synthetic progress remains' >&2
+            exit 1
+          fi
+      - name: Commit repair and remove one-time workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm .github/workflows/one-time-reactor-progress-fix.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add artifacts/apex-finder/src/pages/reactor.tsx .github/workflows/one-time-reactor-progress-fix.yml
+          git commit -m 'fix: derive Reactor live progress from telemetry'
+          git push
