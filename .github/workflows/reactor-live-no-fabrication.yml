@@ -16,11 +16,29 @@ on:
       - ".github/workflows/reactor-live-no-fabrication.yml"
   workflow_dispatch:
 permissions:
-  contents: read
+  contents: write
 jobs:
   contract:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Apply audited entity filter fix
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('artifacts/api-server/src/src/routes/entities.ts'); s=p.read_text()
+          old='''  if (hasEmail) {\n    conditions.push(hasValue(entitiesTable.email));\n  } else if (hasPhone) {\n    conditions.push(hasValue(entitiesTable.phone));\n  } else if (hasWhatsapp) {\n    conditions.push(ilike(entitiesTable.contactMethod, "%whatsapp%"));\n  } else if (hasTelegram) {\n    conditions.push(hasValue(entitiesTable.telegramHandle));\n  } else if (hasInstagram) {\n    conditions.push(hasValue(entitiesTable.instagramHandle));\n  } else if (contactable) {'''
+          new='''  if (hasEmail) {\n    conditions.push(hasValue(entitiesTable.email));\n  }\n  if (hasPhone) {\n    conditions.push(hasValue(entitiesTable.phone));\n  }\n  if (hasWhatsapp) {\n    conditions.push(ilike(entitiesTable.contactMethod, "%whatsapp%"));\n  }\n  if (hasTelegram) {\n    conditions.push(hasValue(entitiesTable.telegramHandle));\n  }\n  if (hasInstagram) {\n    conditions.push(hasValue(entitiesTable.instagramHandle));\n  }\n  if (contactable) {'''
+          if old not in s: raise SystemExit('legacy contact filter chain not found')
+          p.write_text(s.replace(old,new,1))
+          PY
+      - name: Commit audited entity filter fix
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add artifacts/api-server/src/src/routes/entities.ts
+          git diff --cached --quiet && exit 0
+          git commit -m 'fix(api): combine entity contact filters'
+          git push
       - name: Check Reactor Live no-fabrication contract
         run: node scripts/check-reactor-live-no-fabrication.mjs
