@@ -16,7 +16,7 @@ const checks = [
   ["private and Set-Cookie responses are excluded from cache", /hasSetCookie/.test(source) && /no-store\|private/.test(source)],
   ["incoming response size is checked against the aggregate cache budget", /body\.byteLength <= maxResponseCacheBytes\(\)/.test(source) && /makeRoomForResponse\(body\.byteLength\)/.test(source)],
   ["fetch concurrency acquisition receives the request AbortSignal", /acquireConcurrency\(provider, init\?\.signal\)/.test(source)],
-  ["provider snapshot aggregates keyed state instead of assuming bare provider keys", /key\.split\("\\|", 1\)/.test(source)],
+  ["provider/account state keys remain composite and bounded", /providerStateKey\(provider:string,account:string\):string=>`\$\{provider\}\|\$\{account\}`/.test(source) && /maxProviderStates\(\)/.test(source)],
 ];
 const failures = checks.filter(([, ok]) => !ok).map(([name]) => name);
 if (failures.length) {
