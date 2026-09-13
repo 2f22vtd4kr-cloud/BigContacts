@@ -4,12 +4,6 @@ name: Five Green Current-Main Audit
 on:
   push:
     branches: [main]
-    paths:
-      - "artifacts/api-server/**"
-      - "artifacts/apex-finder/**"
-      - "scripts/**"
-      - "lib/db/**"
-      - ".github/workflows/**"
   workflow_dispatch:
 
 permissions:
