@@ -1,5 +1,5 @@
 import type { Request, Response, NextFunction } from "express";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { db, entitiesTable } from "@workspace/db";
 
 /**
@@ -39,9 +39,9 @@ export async function entityVisibilityGuard(req: Request, res: Response, next: N
   }
 
   const visible = await db
-    .select({ id: entitiesTable.id, isHidden: entitiesTable.isHidden })
+    .select({ id: entitiesTable.id })
     .from(entitiesTable)
-    .where(eq(entitiesTable.isHidden, false));
+    .where(and(inArray(entitiesTable.id, uniqueIds), eq(entitiesTable.isHidden, false)));
   const visibleIds = new Set(visible.map((entity) => entity.id));
   if (uniqueIds.some((id) => !visibleIds.has(id))) {
     res.status(404).json({ error: "Entity not found" });
