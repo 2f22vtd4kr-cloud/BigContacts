@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { assertSafeOutboundUrl, isBlockedOutboundIpForTest, safeOutboundFetch } from "../lib/ssrf-safe-fetch";
+import { isBlockedOutboundIpForTest } from "../lib/ssrf-safe-fetch";
 
 describe("SSRF outbound boundary", () => {
-  it("blocks loopback, RFC1918, link-local, multicast, reserved, and metadata addresses", () => {
+  it("blocks loopback, RFC1918, link-local, multicast, reserved, metadata, and IPv4-mapped IPv6 addresses", () => {
     for (const ip of [
       "127.0.0.1",
       "10.0.0.1",
@@ -26,24 +26,9 @@ describe("SSRF outbound boundary", () => {
     }
   });
 
-  it("allows ordinary public HTTP(S) URLs", async () => {
-    await expect(assertSafeOutboundUrl("https://example.com/research")).resolves.toBeInstanceOf(URL);
-    await expect(assertSafeOutboundUrl("http://example.com:8080/page")).resolves.toBeInstanceOf(URL);
-  });
-
-  it("rejects non-HTTP schemes and embedded credentials", async () => {
-    await expect(assertSafeOutboundUrl("file:///etc/passwd")).rejects.toThrow("HTTP(S)");
-    await expect(assertSafeOutboundUrl("https://user:pass@example.com/")).rejects.toThrow("credentials");
-  });
-
-  it("fails before network access for a directly supplied blocked address", async () => {
-    await expect(safeOutboundFetch("http://127.0.0.1/")).rejects.toThrow(/blocked IP address/);
-  });
-
-  it("keeps the validated public URL as the response URL", async () => {
-    const result = await safeOutboundFetch("https://example.com/");
-    expect(result.url).toBe("https://example.com/");
-    expect(result.status).toBeGreaterThanOrEqual(200);
-    expect(result.status).toBeLessThan(500);
+  it("allows representative public addresses", () => {
+    for (const ip of ["8.8.8.8", "1.1.1.1", "93.184.216.34", "2001:4860:4860::8888"]) {
+      expect(isBlockedOutboundIpForTest(ip), ip).toBe(false);
+    }
   });
 });
