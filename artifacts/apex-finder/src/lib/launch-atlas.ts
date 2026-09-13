@@ -1,6 +1,5 @@
 /**
- * Launch the full Apex Atlas pipeline (api-server job queue).
- * POST /api/ingest/atlas-run — not a navigation-only link.
+ * Launch the canonical Apex Atlas pipeline through the API job boundary.
  */
 
 import { readApiJson } from "@/lib/api-json";
@@ -9,11 +8,7 @@ import { isMockMode } from "@/lib/dev-mock-data";
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
 export type LaunchAtlasOptions = {
-  discoveryFirst?: boolean;
   targetCount?: number;
-  researchLimit?: number;
-  runResearch?: boolean;
-  hotLeadsOnly?: boolean;
   researchDepth?: "fast" | "standard" | "deep";
   singleTargetId?: number;
 };
@@ -37,19 +32,10 @@ export async function launchAtlasPipeline(opts: LaunchAtlasOptions = {}): Promis
   }
 
   const isSingle = opts.singleTargetId != null;
-  const targetGoal = opts.targetCount ?? (isSingle ? 1 : 3);
   const body = {
-    discoveryFirst: opts.discoveryFirst ?? (isSingle ? false : true),
-    targetCount: targetGoal,
-    researchLimit: opts.researchLimit ?? (isSingle ? 1 : targetGoal),
-    runResearch: opts.runResearch !== false,
-    hotLeadsOnly: opts.hotLeadsOnly ?? false,
-    skipFaa: true,
-    broadCategories: isSingle ? 0 : 3,
-    batchSize: 50,
-    phaseJBatchSize: 10,
-    targetTimeoutMs: 420_000,
+    targetCount: opts.targetCount ?? (isSingle ? 1 : 3),
     researchDepth: opts.researchDepth ?? "standard",
+    targetTimeoutMs: 420_000,
     ...(isSingle ? { singleTargetId: opts.singleTargetId } : {}),
   };
 
