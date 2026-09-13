@@ -13,6 +13,8 @@ const checks = [
   ["intelligent search geography uses token boundaries", /function containsBoundaryTerm/.test(route) && /containsBoundaryTerm\(r\.nationality,j\)/.test(route) && /containsBoundaryTerm\(r\.knownResidences,j\)/.test(route)],
   ["explicit intelligent filters are resolved before orchestration", /resolveExplicitFilterIds/.test(route) && /const forcedFilterIds=await resolveExplicitFilterIds/.test(route) && /orchestrate\([^;]*forcedFilterIds/.test(route)],
   ["orchestration carries forced eligibility into hybrid retrieval", /retrieve\(query,plan,forcedFilterIds\)/.test(orchestrator) && /if\(forcedFilterIds\)/.test(orchestrator)],
+  ["planner geography matching is boundary-safe", /function containsTerm\(text:string,term:string\)/.test(orchestrator) && /\\p\{L\}/.test(orchestrator) && /\\p\{N\}/.test(orchestrator)],
+  ["planner SQL prefilter is not top-N truncated", /SELECT id FROM entities \$\{whereClause\}`\)/.test(orchestrator) && !/SELECT id FROM entities \$\{whereClause\} LIMIT 10000/.test(orchestrator)],
 ];
 const failures = checks.filter(([, ok]) => !ok).map(([name]) => name);
 if (failures.length) {
