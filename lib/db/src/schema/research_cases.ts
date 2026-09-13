@@ -4,19 +4,18 @@ import { z } from "zod/v4";
 import { entitiesTable } from "./entities";
 
 /**
- * One durable investigation. A case starts as discovery (no entity required)
- * and can later become target-scoped after the Boss identifies a candidate.
- * The JSON caseFile is a compact working snapshot; the append-only case
- * events table remains the audit trail. caseFile is intentionally bounded so
- * multi-run memory cannot become an unbounded durable resource sink.
+ * One durable investigation. A case can later become target-scoped after the
+ * Boss identifies a candidate. The case and its append-only event ledger are
+ * retained even if the target card is removed; targetEntityId is therefore
+ * deliberately SET NULL rather than CASCADE.
  */
 export const researchCasesTable = pgTable("research_cases", {
   id: serial("id").primaryKey(),
   targetEntityId: integer("target_entity_id")
-    .references(() => entitiesTable.id, { onDelete: "cascade" }),
-  caseType: text("case_type").notNull().default("discovery"), // discovery | target
-  status: text("status").notNull().default("ready"), // ready | active | paused | complete | review
-  directorMode: text("director_mode").notNull().default("gemini_boss_pending"), // gemini_boss_pending | gemini_boss | local_planner
+    .references(() => entitiesTable.id, { onDelete: "set null" }),
+  caseType: text("case_type").notNull().default("discovery"),
+  status: text("status").notNull().default("ready"),
+  directorMode: text("director_mode").notNull().default("gemini_boss_pending"),
   directorProvider: text("director_provider").notNull().default("gemini"),
   directorModel: text("director_model").notNull().default("auto-low-cost-pending"),
   objective: text("objective").notNull(),
@@ -30,11 +29,6 @@ export const researchCasesTable = pgTable("research_cases", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
 });
 
-export const insertResearchCaseSchema = createInsertSchema(researchCasesTable).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
-
+export const insertResearchCaseSchema = createInsertSchema(researchCasesTable).omit({ id: true, createdAt: true, updatedAt: true });
 export type InsertResearchCase = z.infer<typeof insertResearchCaseSchema>;
 export type ResearchCase = typeof researchCasesTable.$inferSelect;
