@@ -1,4 +1,5 @@
 # Temporary audit repair; remove after repair.
+# Triggered on the next workflow-file update.
 name: One-time round11 source repair
 on:
   push:
