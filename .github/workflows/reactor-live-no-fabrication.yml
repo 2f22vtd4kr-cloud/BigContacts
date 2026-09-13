@@ -22,36 +22,23 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Apply pending audit repairs
+      - name: Apply pending audit repair
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          p=Path('artifacts/apex-finder/src/pages/reactor.tsx'); s=p.read_text()
-          s=s.replace('return { kind: "log", resultSummary: "Working on this person", timestamp, raw: text };','return { kind: "log", timestamp, raw: text };')
-          s=s.replace('resultSummary: cleaned.length > 8 && cleaned.length < 160 ? cleaned : "Working on this person",','...(cleaned.length > 8 && cleaned.length < 160 ? { resultSummary: cleaned } : {}),')
-          p.write_text(s)
-          p=Path('artifacts/api-server/src/src/routes/entities.ts'); s=p.read_text()
-          start='  await Promise.all([\n    // Reassign assets owned by target → primary'; end='  await db.delete(entitiesTable).where(eq(entitiesTable.id, targetId));'; i=s.find(start); j=s.find(end,i)
-          if i>=0 and j>=0:
-            old=s[i:j+len(end)]; new=old.replace('  await Promise.all([','  await db.transaction(async (tx) => {\n    await Promise.all([',1)
-            for a,b in [('    db.update(assetsTable)','      tx.update(assetsTable)'),('    db.update(relationshipsTable)','      tx.update(relationshipsTable)'),('    db.update(relationshipsTable)','      tx.update(relationshipsTable)'),('    db.update(entitiesTable)','      tx.update(entitiesTable)')]: new=new.replace(a,b,1)
-            new=new.replace('  ]);\n\n  // Delete target entity','    ]);\n\n    // Delete target entity',1).replace('  await db.delete(entitiesTable).where(eq(entitiesTable.id, targetId));','    await tx.delete(entitiesTable).where(eq(entitiesTable.id, targetId));\n  });',1)
-            p.write_text(s[:i]+new+s[j+len(end):])
           p=Path('artifacts/api-server/src/src/lib/bureau-contact-persist-strict.ts'); s=p.read_text()
-          old='where(and(eq(entitiesTable.id,entityId),or(isNull(fieldColumn),eq(fieldColumn,""))));'; new='where(and(eq(entitiesTable.id,entityId),or(isNull(fieldColumn),eq(fieldColumn,"")),sql`EXISTS (SELECT 1 FROM research_cases rc WHERE rc.id = ${provenance.caseId} AND rc.status = \'active\' AND (rc.case_file::jsonb ->> \'atlasJobId\') = ${provenance.runId})`));'
-          if old in s: p.write_text(s.replace(old,new,1))
-          p=Path('artifacts/api-server/src/src/routes/research/canonical-target-continuation.ts'); s=p.read_text()
-          old='const [locked] = await tx.select({ caseFile: researchCasesTable.caseFile, caseType: researchCasesTable.caseType, targetEntityId: researchCasesTable.targetEntityId }).from(researchCasesTable).where(eq(researchCasesTable.id, caseId)).for("update").limit(1);'; new='const [locked] = await tx.select({ caseFile: researchCasesTable.caseFile, caseType: researchCasesTable.caseType, targetEntityId: researchCasesTable.targetEntityId, status: researchCasesTable.status, currentAction: researchCasesTable.currentAction }).from(researchCasesTable).where(eq(researchCasesTable.id, caseId)).for("update").limit(1);'
-          if old in s:
-            s=s.replace(old,new,1); marker='if (!locked || locked.caseType !== "target" || locked.targetEntityId !== current.targetEntityId) throw new Error("Target continuation case binding changed before authorization projection.");'; repl=marker+'\n      if (locked.status === "cancelled" || (locked.status === "review" && ["canonical-atlas-cancelled", "canonical-lease-lost"].includes(String(locked.currentAction ?? "")))) throw new Error("Target continuation case is durably cancelled and cannot be resumed.");'; s=s.replace(marker,repl,1); p.write_text(s)
+          old='where(and(eq(entitiesTable.id,entityId),or(isNull(fieldColumn),eq(fieldColumn,""))))'
+          new='where(and(eq(entitiesTable.id,entityId),or(isNull(fieldColumn),eq(fieldColumn,"")),sql`EXISTS (SELECT 1 FROM research_cases rc WHERE rc.id = ${provenance.caseId} AND rc.status = \'active\' AND (rc.case_file::jsonb ->> \'atlasJobId\') = ${provenance.runId})`))'
+          if old not in s: raise SystemExit('promotion update guard not found')
+          p.write_text(s.replace(old,new,1))
           PY
-      - name: Commit pending audit repairs
+      - name: Commit pending audit repair
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add artifacts/apex-finder/src/pages/reactor.tsx artifacts/api-server/src/src/routes/entities.ts artifacts/api-server/src/src/lib/bureau-contact-persist-strict.ts artifacts/api-server/src/src/routes/research/canonical-target-continuation.ts
-          if git diff --cached --quiet; then exit 0; fi
-          git commit -m 'fix(audit): close cancellation and merge race boundaries'
+          git add artifacts/api-server/src/src/lib/bureau-contact-persist-strict.ts
+          git diff --cached --quiet && exit 0
+          git commit -m 'fix(audit): fence card promotion on active case'
           git push
       - name: Check Reactor Live no-fabrication contract
         run: node scripts/check-reactor-live-no-fabrication.mjs
