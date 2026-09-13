@@ -1,4 +1,4 @@
-// Final CI verification marker; no production behavior change.
+// Temporary audit execution marker; remove after the isolated Bureau suite run.
 import fs from "node:fs";
 import path from "node:path";
 
