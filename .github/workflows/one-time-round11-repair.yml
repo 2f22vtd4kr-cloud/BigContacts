@@ -14,21 +14,38 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Remove fabricated Reactor fallback
+      - name: Repair Reactor fallback and make entity merge atomic
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          p=Path('artifacts/apex-finder/src/pages/reactor.tsx')
-          s=p.read_text()
+          import re
+          reactor=Path('artifacts/apex-finder/src/pages/reactor.tsx')
+          s=reactor.read_text()
           s=s.replace('return { kind: "log", resultSummary: "Working on this person", timestamp, raw: text };','return { kind: "log", timestamp, raw: text };')
           s=s.replace('resultSummary: cleaned.length > 8 && cleaned.length < 160 ? cleaned : "Working on this person",','...(cleaned.length > 8 && cleaned.length < 160 ? { resultSummary: cleaned } : {}),')
-          p.write_text(s)
+          reactor.write_text(s)
+          p=Path('artifacts/api-server/src/src/routes/entities.ts')
+          s=p.read_text()
+          start='  await Promise.all([\n    // Reassign assets owned by target → primary'
+          end='  await db.delete(entitiesTable).where(eq(entitiesTable.id, targetId));'
+          i=s.find(start)
+          j=s.find(end,i)
+          if i<0 or j<0: raise SystemExit('entity merge mutation block not found')
+          old=s[i:j+len(end)]
+          new=old.replace('  await Promise.all([','  await db.transaction(async (tx) => {\n    await Promise.all([' ,1)
+          new=new.replace('    db.update(assetsTable)','      tx.update(assetsTable)',1)
+          new=new.replace('    db.update(relationshipsTable)','      tx.update(relationshipsTable)',1)
+          new=new.replace('    db.update(relationshipsTable)','      tx.update(relationshipsTable)',1)
+          new=new.replace('    db.update(entitiesTable)','      tx.update(entitiesTable)',1)
+          new=new.replace('  ]);\n\n  // Delete target entity','    ]);\n\n    // Delete target entity',1)
+          new=new.replace('  await db.delete(entitiesTable).where(eq(entitiesTable.id, targetId));','    await tx.delete(entitiesTable).where(eq(entitiesTable.id, targetId));\n  });',1)
+          p.write_text(s[:i]+new+s[j+len(end):])
           PY
       - name: Commit repair
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add artifacts/apex-finder/src/pages/reactor.tsx
+          git add artifacts/apex-finder/src/pages/reactor.tsx artifacts/api-server/src/src/routes/entities.ts
           git diff --cached --quiet && exit 0
-          git commit -m 'fix(reactor): remove fabricated live-state fallback'
+          git commit -m 'fix(entities): make entity merge atomic'
           git push
