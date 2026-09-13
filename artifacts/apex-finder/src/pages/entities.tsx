@@ -6,8 +6,8 @@ import { cn } from "@/lib/utils";
 import { entityMeta, EntityTypeMark, entityMetric, ENTITY_TYPES } from "@/lib/entity-taxonomy";
 import { isMockMode, MOCK_ENTITIES } from "@/lib/dev-mock-data";
 import {
-  Plus, Search, Trash2, Loader2, Target as TargetIcon, Globe, ChevronDown, ChevronUp, X, Loader2,
-  ChevronRight, Network, Target as TargetIcon, Download, ShieldAlert,
+  Plus, Search, Trash2, Loader2, Target as TargetIcon, Globe, ChevronDown, ChevronUp, X,
+  ChevronRight, Network, Download, ShieldAlert,
   Filter, IdCard,
   CheckSquare, Square, Users2, CheckCheck, Database, XCircle,
   Star, EyeOff, Eye, CheckCircle2, Flame,
@@ -184,19 +184,14 @@ function exportToCsv(entities: any[]) {
 
 function RerunButton({ entityId }: { entityId: number }) {
   const [state, setState] = useState<"idle" | "running" | "done" | "error">("idle");
-  const baseUrl = (import.meta as any).env.BASE_URL?.replace(/\/$/, "") ?? "";
 
   const handleRerun = async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (state === "running") return;
     setState("running");
     try {
-      const r = await fetch(`${baseUrl}/api/ingest/web-osint-enrich`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ entityIds: [entityId], batchSize: 1, force: true }),
-      });
-      if (!r.ok) throw new Error("failed");
+      const result = await launchAtlasPipeline({ singleTargetId: entityId, targetCount: 1, researchDepth: "standard" });
+      if (!result.ok) throw new Error(result.message || "failed");
       setState("done");
       setTimeout(() => setState("idle"), 3000);
     } catch {
@@ -209,7 +204,7 @@ function RerunButton({ entityId }: { entityId: number }) {
     : state === "done" ? <CheckCheck className="w-3.5 h-3.5" />
     : state === "error" ? <XCircle className="w-3.5 h-3.5" />
     : <TargetIcon className="w-3.5 h-3.5" />;
-  const label = state === "running" ? "Running" : state === "done" ? "Done" : state === "error" ? "Failed" : "Re-run";
+  const label = state === "running" ? "Running" : state === "done" ? "Started" : state === "error" ? "Failed" : "Re-run";
   const cls = state === "done"
     ? "bg-[#9CFF1A]/10 border-[#9CFF1A]/30 text-[#b8ff4d]"
     : state === "error"
@@ -221,6 +216,7 @@ function RerunButton({ entityId }: { entityId: number }) {
       onClick={handleRerun}
       disabled={state === "running"}
       className={cn("flex flex-col items-center justify-center gap-1.5 py-2 border rounded transition-colors disabled:opacity-60", cls)}
+      title="Start a canonical single-target Atlas investigation"
     >
       {icon}
       <span className="text-[11px] font-mono uppercase">{label}</span>
