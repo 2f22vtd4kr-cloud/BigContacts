@@ -5,9 +5,18 @@ import path from "path";
 import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
 import { mockupPreviewPlugin } from "./mockupPreviewPlugin";
 
-export default defineConfig(async ({ command }) => {
-  // Runtime serving needs explicit deployment configuration; a production
-  // build must remain reproducible without a live server environment.
+// Runtime serving needs explicit deployment configuration; a production build
+// must remain reproducible without a live server environment.
+const cartographerPlugins =
+  process.env.NODE_ENV !== "production" && process.env.REPL_ID !== undefined
+    ? [
+        (await import("@replit/vite-plugin-cartographer")).cartographer({
+          root: path.resolve(import.meta.dirname, ".."),
+        }),
+      ]
+    : [];
+
+export default defineConfig(({ command }) => {
   const isBuild = command === "build";
   const rawPort = process.env.PORT ?? (isBuild ? "5000" : undefined);
   if (!rawPort) {
@@ -22,15 +31,6 @@ export default defineConfig(async ({ command }) => {
   if (!basePath) {
     throw new Error("BASE_PATH environment variable is required when serving the sandbox.");
   }
-
-  const cartographerPlugins =
-    process.env.NODE_ENV !== "production" && process.env.REPL_ID !== undefined
-      ? [
-          (await import("@replit/vite-plugin-cartographer")).cartographer({
-            root: path.resolve(import.meta.dirname, ".."),
-          }),
-        ]
-      : [];
 
   return {
     base: basePath,
