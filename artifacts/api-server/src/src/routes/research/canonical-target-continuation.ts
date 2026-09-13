@@ -27,9 +27,9 @@ router.post("/research/bureau/target-cases/:caseId/run-next-pass", async (req, r
     const continuationEventKey = `target-continuation:case:${caseId}:job:${jobId}:turn:${controlTurn}`;
     await db.transaction(async (tx) => {
       const [locked] = await tx.select({ caseFile: researchCasesTable.caseFile, caseType: researchCasesTable.caseType, targetEntityId: researchCasesTable.targetEntityId, status: researchCasesTable.status, currentAction: researchCasesTable.currentAction }).from(researchCasesTable).where(eq(researchCasesTable.id, caseId)).for("update").limit(1);
-      if (!locked || locked.caseType !== "target" || locked.targetEntityId !== current.targetEntityId) throw new Error("Target continuation case binding changed before authorization projection.");
-      if (locked.status === "cancelled" || (locked.status === "review" && ["canonical-atlas-cancelled", "canonical-lease-lost"].includes(String(locked.currentAction ?? "")))) throw new Error("Target continuation case is durably cancelled and cannot be resumed.");
-      const lockedFile = parseFile(locked.caseFile); if (!lockedFile) throw new Error("Target continuation case state became unreadable before authorization projection.");
+      if (!locked || locked.caseType !== "target" || locked.targetEntityId !== current.targetEntityId) throw Object.assign(new Error("Target continuation case binding changed before authorization projection."), { statusCode: 409 });
+      if (locked.status === "cancelled" || (locked.status === "review" && ["canonical-atlas-cancelled", "canonical-lease-lost"].includes(String(locked.currentAction ?? "")))) throw Object.assign(new Error("Target continuation case is durably cancelled and cannot be resumed."), { statusCode: 409, cancellationFence: true });
+      const lockedFile = parseFile(locked.caseFile); if (!lockedFile) throw Object.assign(new Error("Target continuation case state became unreadable before authorization projection."), { statusCode: 409 });
       const nextFile = { ...lockedFile, contextDocument: nextContext, nextInvestigation: { ...(lockedFile.nextInvestigation ?? {}), targetControl: { action: decision.action, direction, reason: decision.reason, confidence: decision.confidence, rightHand: decision.rightHand, bossModel: decision.bossModel, jobId, controlTurn, recordedAt: new Date().toISOString() } }, lastUpdatedBy: "gemini-boss-target-control" };
       await tx.update(researchCasesTable).set({ caseFile: JSON.stringify(nextFile), status: "active", currentAction: `gemini-${decision.action}`, updatedAt: new Date() }).where(eq(researchCasesTable.id, caseId));
       await tx.insert(researchCaseEventsTable).values({ caseId, iteration: controlTurn, actorRole: "gemini_boss", eventType: "assignment", status: "recorded", summary: `Gemini authorized ${decision.action} for target continuation.`, correlationKey: continuationEventKey, payload: JSON.stringify({ direction, reason: decision.reason, confidence: decision.confidence, bossModel: decision.bossModel, jobId, controlTurn, targetEntityId: current.targetEntityId }) }).onConflictDoNothing({ target: [researchCaseEventsTable.caseId, researchCaseEventsTable.correlationKey] });
@@ -37,6 +37,17 @@ router.post("/research/bureau/target-cases/:caseId/run-next-pass", async (req, r
     await updateJob(jobId, { progress: 1, message: `Gemini authorized ${decision.action}; remounting target context for ${targetName}…`, result: JSON.stringify({ caseId, decision }) });
     void (async () => { try { await runCanonicalSingleTargetInvestigation(jobId!, Number(current.targetEntityId), { existingCaseId: caseId, initialDirection: direction }); } catch (error) { const message = error instanceof Error ? error.message : "Target continuation failed."; await db.update(researchCasesTable).set({ status: "review", currentAction: "target-continuation-error", updatedAt: new Date() }).where(eq(researchCasesTable.id, caseId)); await updateJob(jobId!, { status: "failed", outcome: "incomplete", message, finishedAt: new Date().toISOString() }); } finally { await clearActiveJobIfOwned("atlas-run", jobId!); } })();
     res.status(202).json({ caseId, jobId, status: "running", decision, mode: "canonical-model-owned-target-continuation" });
-  } catch (error) { const message = error instanceof Error ? error.message : "Target control decision failed."; await db.update(researchCasesTable).set({ status: "review", currentAction: "target-control-error", updatedAt: new Date() }).where(eq(researchCasesTable.id, caseId)); await updateJob(jobId, { status: "failed", outcome: "incomplete", message, finishedAt: new Date().toISOString() }); await clearActiveJobIfOwned("atlas-run", jobId); res.status(503).json({ error: message, jobId }); }
+  } catch (error) {
+    const statusCode = Number((error as { statusCode?: unknown })?.statusCode ?? 503);
+    const cancellationFence = Boolean((error as { cancellationFence?: unknown })?.cancellationFence);
+    if (cancellationFence) {
+      await updateJob(jobId, { status: "cancelled", outcome: "incomplete", message: "Continuation rejected by the durable cancellation fence.", finishedAt: new Date().toISOString() }).catch(() => undefined);
+      await clearActiveJobIfOwned("atlas-run", jobId).catch(() => undefined);
+      res.status(409).json({ error: "This canonical target case is durably cancelled and cannot be resumed." });
+      return;
+    }
+    const message = error instanceof Error ? error.message : "Target control decision failed.";
+    await db.update(researchCasesTable).set({ status: "review", currentAction: "target-control-error", updatedAt: new Date() }).where(eq(researchCasesTable.id, caseId)); await updateJob(jobId, { status: "failed", outcome: "incomplete", message, finishedAt: new Date().toISOString() }); await clearActiveJobIfOwned("atlas-run", jobId); res.status(statusCode >= 400 && statusCode < 600 ? statusCode : 503).json({ error: message, jobId });
+  }
 });
 export default router;
