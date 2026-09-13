@@ -1,5 +1,5 @@
-# Current-main audit harness; intentionally CI-only.
-name: Five Green Current-Main Audit
+# Canonical five-green gate: five consecutive fresh full-codebase audits.
+name: Five Green Complete Codebase Audit
 
 on:
   push:
@@ -12,71 +12,57 @@ permissions:
   contents: read
 
 concurrency:
-  group: five-green-current-main-${{ github.ref }}
+  group: five-green-complete-${{ github.ref }}
   cancel-in-progress: false
 
+env:
+  PNPM_VERSION: 9.15.9
+
 jobs:
-  security-ssrf:
-    name: Green 1 — SSRF boundary
+  audit-1:
+    name: Audit 1 — complete codebase
     runs-on: ubuntu-latest
-    steps:
+    steps: &audit_steps
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with: { node-version: 22 }
-      - run: npm install -g pnpm@9.15.9
-      - run: pnpm install --frozen-lockfile --ignore-scripts --filter @workspace/api-server... --registry=https://registry.npmjs.org/
-      - run: pnpm --dir artifacts/api-server exec vitest run src/src/test/ssrf-safe-fetch.test.ts
+        with:
+          node-version: 22
+          package-manager-cache: true
+      - run: npm install -g pnpm@${PNPM_VERSION}
+      - run: pnpm install --frozen-lockfile --ignore-scripts --registry=https://registry.npmjs.org/
+      - run: pnpm run check:bureau
+      - run: pnpm run typecheck
+      - run: pnpm run build
+      - name: Every API test file, isolated
+        run: |
+          set -euo pipefail
+          cd artifacts/api-server
+          for test_file in src/src/test/*.test.ts; do
+            echo "===== FULL AUDIT TEST: ${test_file} ====="
+            pnpm exec vitest run --maxWorkers=1 "${test_file}"
+          done
+      - run: git diff --exit-code
 
-  autonomy:
-    name: Green 2 — autonomy contracts
+  audit-2:
+    name: Audit 2 — complete codebase
+    needs: audit-1
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with: { node-version: 22 }
-      - run: npm install -g pnpm@9.15.9
-      - run: pnpm install --frozen-lockfile --ignore-scripts --filter @workspace/api-server... --registry=https://registry.npmjs.org/
-      - run: |
-          pnpm run check:no-force-dig
-          pnpm run check:agentic-runtime
-          node scripts/check-agentic-timeout.mjs
-          node scripts/check-api-auth-boundary.mjs
-          node scripts/check-retired-research-routes.mjs
+    steps: *audit_steps
 
-  discovery:
-    name: Green 3 — discovery control plane
+  audit-3:
+    name: Audit 3 — complete codebase
+    needs: audit-2
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with: { node-version: 22 }
-      - run: npm install -g pnpm@9.15.9
-      - run: |
-          node scripts/check-single-canonical-discovery-control-plane.mjs
-          node scripts/check-discovery-mode-boundary.mjs
-          node scripts/check-atlas-control-durability.mjs
-          node scripts/check-workflow-action-pins.mjs
+    steps: *audit_steps
 
-  provenance:
-    name: Green 4 — provenance boundaries
+  audit-4:
+    name: Audit 4 — complete codebase
+    needs: audit-3
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with: { node-version: 22 }
-      - run: |
-          node scripts/check-investigator-observation-attribution.mjs
-          node scripts/check-investigator-event-ordering.mjs
-          node scripts/check-contact-research-retirement.mjs
-          node scripts/check-python-osint-fail-closed.mjs
+    steps: *audit_steps
 
-  workflow-integrity:
-    name: Green 5 — workflow integrity
+  audit-5:
+    name: Audit 5 — complete codebase
+    needs: audit-4
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with: { node-version: 22 }
-      - run: node scripts/check-workflow-action-pins.mjs
-      - run: node scripts/check-api-auth-boundary.mjs
-      - run: node scripts/check-build-no-source-mutation.mjs
+    steps: *audit_steps
