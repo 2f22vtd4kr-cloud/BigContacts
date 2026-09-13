@@ -18,7 +18,7 @@ jobs:
           from pathlib import Path
           p=Path('artifacts/apex-finder/src/components/bureau-ops-stage.tsx')
           s=p.read_text()
-          s=s.replace('"Working on this person"','"Live research activity"')
+          s=s.replace('Working on this person','Live research activity')
           s=s.replace('  const t = (e.targetName || "this person").trim();','  const t = (e.targetName || "the current case").trim()')
           s=s.replace('  const safeQuery = query && !isLogGarbage(query) && !isInternalLanePrompt(query)\n    ? query\n    : (e.targetName ? `${e.targetName}` : undefined);','  const safeQuery = query && !isLogGarbage(query) && !isInternalLanePrompt(query)\n    ? query\n    : undefined;')
           s=s.replace('    query: unavailable ? (e.targetName ? `${e.targetName} (search offline)` : safeQuery) : safeQuery,','    query: unavailable ? undefined : safeQuery,')
