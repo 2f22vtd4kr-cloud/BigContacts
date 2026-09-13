@@ -1,0 +1,1 @@
+Five-pass audit activation marker: every audit is a fresh, complete repository verification.
