@@ -16,7 +16,11 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
   const existingId = await getActiveJob("atlas-run");
   if (existingId) {
     const existing = await getJob(existingId);
-    if (existing?.status === "running" || existing?.status === "paused") {
+    // A lock owner is authoritative until its job reaches a terminal state.
+    // This includes queued jobs: superseding one during the tiny window between
+    // lock claim and job-state persistence could orphan a live pipeline owner.
+    const terminal = existing?.status === "done" || existing?.status === "failed" || existing?.status === "cancelled";
+    if (!terminal) {
       res.status(409).json({ error: "Atlas pipeline already running.", jobId: existingId, status: existing });
       return;
     }
@@ -45,10 +49,6 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
     return;
   }
 
-  // claimCanonicalJob owns the distributed pointer. Do not perform a second
-  // unconditional SET here: if the process is descheduled long enough for its
-  // lease to expire and another launch claims the key, an unconditional write
-  // would overwrite the newer owner's lock.
   await updateJob(atlasJobId, {
     status: "running",
     progress: 0,
