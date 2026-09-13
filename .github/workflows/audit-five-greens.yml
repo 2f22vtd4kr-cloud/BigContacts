@@ -1,3 +1,4 @@
+# Current-main audit harness; intentionally CI-only.
 name: Five Green Current-Main Audit
 
 on:
