@@ -75,7 +75,7 @@ async function getIndex(): Promise<BM25Index> { if (!_index || Date.now() - _ind
 export function invalidateBM25Index(): void { _index = null; }
 export interface BM25Result { id: number; score: number; }
 
-export async function bm25Search(query: string, topK = 100): Promise<BM25Result[]> {
+export async function bm25Search(query: string, topK = 100, filterIds?: ReadonlySet<number>): Promise<BM25Result[]> {
   const index = await getIndex();
   const queryTokens = tokenize(query.slice(0, 2_000));
   const safeTopK = Math.min(Math.max(Math.trunc(Number(topK)) || 100, 1), 100);
@@ -85,6 +85,7 @@ export async function bm25Search(query: string, topK = 100): Promise<BM25Result[
     const idfVal = index.idf.get(qTerm);
     if (!idfVal) continue;
     for (const doc of index.docs) {
+      if (filterIds && !filterIds.has(doc.id)) continue;
       const tf = doc.termCounts.get(qTerm) ?? 0;
       if (tf === 0) continue;
       const dl = doc.tokens.length;
