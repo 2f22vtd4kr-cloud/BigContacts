@@ -4,30 +4,46 @@ import { db, entitiesTable } from "@workspace/db";
 
 /**
  * Hidden entities are an application-level visibility boundary, not merely a
- * list filter. Entity-specific read endpoints must not disclose their names,
- * metadata, contact evidence, graph neighborhood, or enrichment payloads.
+ * list filter. Entity-specific reads must not disclose their metadata, contact
+ * evidence, graph neighborhood, assets, or relationships.
  */
 export async function entityVisibilityGuard(req: Request, res: Response, next: NextFunction): Promise<void> {
-  if (req.method !== "GET" && !(req.method === "POST" && /\/entities\/\d+\/refresh-surface\/?$/.test(req.path))) {
+  const entityIds: number[] = [];
+  if (req.method === "GET") {
+    const path = req.path;
+    if (/^\/entities\/\d+(?:\/|$)/.test(path)) {
+      const match = path.match(/^\/entities\/(\d+)/);
+      if (match) entityIds.push(Number(match[1]));
+    }
+    if (path === "/assets" || path.startsWith("/assets/")) {
+      for (const key of ["entityId", "ownerEntityId"]) {
+        const value = req.query[key];
+        if (typeof value === "string" && /^\d+$/.test(value)) entityIds.push(Number(value));
+      }
+    }
+    if (path === "/relationships" || path.startsWith("/relationships/")) {
+      for (const key of ["sourceEntityId", "targetId", "entityId"]) {
+        const value = req.query[key];
+        if (typeof value === "string" && /^\d+$/.test(value)) entityIds.push(Number(value));
+      }
+    }
+  } else if (req.method === "POST" && /\/entities\/\d+\/refresh-surface\/?$/.test(req.path)) {
+    const match = req.path.match(/^\/entities\/(\d+)/);
+    if (match) entityIds.push(Number(match[1]));
+  }
+
+  const uniqueIds = [...new Set(entityIds)].filter((id) => Number.isSafeInteger(id) && id > 0);
+  if (uniqueIds.length === 0) {
     next();
     return;
   }
-  const match = req.path.match(/^\/entities\/(\d+)(?:\/|$)/);
-  if (!match) {
-    next();
-    return;
-  }
-  const entityId = Number(match[1]);
-  if (!Number.isSafeInteger(entityId) || entityId <= 0) {
-    res.status(400).json({ error: "Invalid entity ID" });
-    return;
-  }
-  const [entity] = await db
+
+  const visible = await db
     .select({ id: entitiesTable.id, isHidden: entitiesTable.isHidden })
     .from(entitiesTable)
-    .where(eq(entitiesTable.id, entityId))
-    .limit(1);
-  if (!entity || entity.isHidden) {
+    .where(eq(entitiesTable.isHidden, false));
+  const visibleIds = new Set(visible.map((entity) => entity.id));
+  if (uniqueIds.some((id) => !visibleIds.has(id))) {
     res.status(404).json({ error: "Entity not found" });
     return;
   }
