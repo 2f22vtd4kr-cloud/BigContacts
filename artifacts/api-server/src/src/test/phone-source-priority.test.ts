@@ -10,15 +10,16 @@ import {
 } from "../lib/phone-source-priority";
 
 describe("phone-source-priority", () => {
-  it("detects agentic sources", () => {
+  it("detects personal agentic sources but not organization switchboards", () => {
     expect(isAgenticPhoneSource("agentic-web")).toBe(true);
-    expect(isAgenticPhoneSource("agentic-web-org")).toBe(true);
+    expect(isAgenticPhoneSource("agentic-web-person")).toBe(true);
+    expect(isAgenticPhoneSource("agentic-web-org")).toBe(false);
     expect(isAgenticPhoneSource("EDGAR-Phone")).toBe(false);
   });
 
-  it("blocks issuer overwrite of agentic and notice", () => {
+  it("blocks issuer overwrite of personal agentic and notice phones", () => {
     expect(shouldBlockIssuerOverwrite("agentic-web", "EDGAR-Phone")).toBe(true);
-    expect(shouldBlockIssuerOverwrite("agentic-web-org", "CompaniesHouse-Phone")).toBe(true);
+    expect(shouldBlockIssuerOverwrite("agentic-web-org", "CompaniesHouse-Phone")).toBe(false);
     expect(shouldBlockIssuerOverwrite("EDGAR-Notice-Phone", "EDGAR-Phone")).toBe(true);
     expect(shouldBlockIssuerOverwrite("EDGAR-Phone", "EDGAR-Phone")).toBe(false);
     expect(shouldBlockIssuerOverwrite(null, "EDGAR-Phone")).toBe(false);
@@ -35,11 +36,12 @@ describe("phone-source-priority", () => {
     expect(isIssuerSwitchboardSource("EDGAR-Phone")).toBe(true);
     expect(isIssuerSwitchboardSource("EDGAR-Notice-Phone")).toBe(false);
     expect(isProtectedPhoneSource("agentic-web")).toBe(true);
+    expect(isProtectedPhoneSource("agentic-web-org")).toBe(false);
     expect(isProtectedPhoneSource("EDGAR-Notice-Phone")).toBe(true);
     expect(isProtectedPhoneSource("web-osint")).toBe(false);
   });
 
-  it("resolveProtectedCardPhone keeps dig phone over null final-review", () => {
+  it("resolveProtectedCardPhone keeps personal dig phone over null final-review", () => {
     const r = resolveProtectedCardPhone({
       currentPhone: "+16099213633",
       currentSource: "agentic-web",
@@ -61,15 +63,15 @@ describe("phone-source-priority", () => {
     expect(r.phoneSource).toBe("EDGAR-Notice-Phone");
   });
 
-  it("resolveProtectedCardPhone keeps agentic-web-org over web-osint", () => {
+  it("allows a verified issuer phone to replace an organization switchboard", () => {
     const r = resolveProtectedCardPhone({
       currentPhone: "+12125550100",
       currentSource: "agentic-web-org",
       incomingPhone: "+18005550100",
-      incomingSource: "web-osint",
+      incomingSource: "EDGAR-Phone",
     });
-    expect(r.phone).toBe("+12125550100");
-    expect(r.phoneSource).toBe("agentic-web-org");
+    expect(r.phone).toBe("+18005550100");
+    expect(r.phoneSource).toBe("EDGAR-Phone");
   });
 
   it("resolveProtectedCardPhone allows empty card to take issuer when no dig", () => {
