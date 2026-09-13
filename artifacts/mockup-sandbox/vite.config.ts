@@ -5,7 +5,7 @@ import path from "path";
 import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
 import { mockupPreviewPlugin } from "./mockupPreviewPlugin";
 
-export default defineConfig(({ command }) => {
+export default defineConfig(async ({ command }) => {
   // Runtime serving needs explicit deployment configuration; a production
   // build must remain reproducible without a live server environment.
   const isBuild = command === "build";
@@ -23,6 +23,15 @@ export default defineConfig(({ command }) => {
     throw new Error("BASE_PATH environment variable is required when serving the sandbox.");
   }
 
+  const cartographerPlugins =
+    process.env.NODE_ENV !== "production" && process.env.REPL_ID !== undefined
+      ? [
+          (await import("@replit/vite-plugin-cartographer")).cartographer({
+            root: path.resolve(import.meta.dirname, ".."),
+          }),
+        ]
+      : [];
+
   return {
     base: basePath,
     plugins: [
@@ -32,16 +41,7 @@ export default defineConfig(({ command }) => {
       // The runtime overlay publishes Vite 5/6-oriented types while this
       // sandbox runs Vite 7. The plugin API is compatible at runtime.
       runtimeErrorOverlay() as any,
-      ...(process.env.NODE_ENV !== "production" &&
-      process.env.REPL_ID !== undefined
-        ? [
-            import("@replit/vite-plugin-cartographer").then((m) =>
-              m.cartographer({
-                root: path.resolve(import.meta.dirname, ".."),
-              }),
-            ),
-          ]
-        : []),
+      ...cartographerPlugins,
     ],
     resolve: {
       alias: {
