@@ -16,35 +16,11 @@ on:
       - ".github/workflows/reactor-live-no-fabrication.yml"
   workflow_dispatch:
 permissions:
-  contents: write
+  contents: read
 jobs:
   contract:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Apply audited Reactor truthfulness repair
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          p = Path('artifacts/apex-finder/src/pages/reactor.tsx')
-          s = p.read_text()
-          old = '  const source = state?.sourceStep != null ? `SOURCE ${state.sourceStep}` : activeCount ? `${activeCount} LIVE TOOLS` : "AWAITING TOOL EVENT";\n'
-          new = old + '  const telemetryProgress = state && Number.isFinite(state.phaseProgress) && Number.isFinite(state.phaseTotal) && state.phaseTotal > 0\n    ? Math.max(0, Math.min(100, (state.phaseProgress / state.phaseTotal) * 100))\n    : null;\n'
-          if old not in s: raise SystemExit('phase-strip anchor not found')
-          s = s.replace(old, new, 1)
-          s = s.replace('width: running ? "42%" : state?.runStatus === "done" ? "100%" : "0%",', 'width: telemetryProgress != null ? `${telemetryProgress}%` : state?.runStatus === "done" ? "100%" : "0%",', 1)
-          s = s.replace('return "Working on this person";', 'return "Live event received";', 1)
-          s = s.replace('state.currentEntities.length > 0 ? state.currentEntities.join(" · ") : "Batch activity detected"', 'state.currentEntities.length > 0 ? state.currentEntities.join(" · ") : "No entity detail recorded"', 1)
-          s = s.replace('{state.detail || "Collecting evidence and passing it to the next rod"}', '{state.detail || "No activity detail recorded"}', 1)
-          p.write_text(s)
-          PY
-      - name: Commit audited Reactor truthfulness repair
-        run: |
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add artifacts/apex-finder/src/pages/reactor.tsx
-          git diff --cached --quiet && exit 0
-          git commit -m 'fix(reactor): drive live progress from telemetry'
-          git push
       - name: Check Reactor Live no-fabrication contract
         run: node scripts/check-reactor-live-no-fabrication.mjs
