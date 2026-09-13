@@ -1,0 +1,49 @@
+name: audit-round10-source-repair
+on:
+  push:
+    branches: [audit/deep-round10]
+permissions:
+  contents: write
+jobs:
+  repair:
+    if: github.event.head_commit.message != 'audit: apply round 10 Reactor live truth fixes'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Repair Reactor live truth violations
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('artifacts/apex-finder/src/pages/reactor.tsx')
+          s = p.read_text()
+          old = 'return { kind: "log", resultSummary: "Working on this person", timestamp, raw: text };'
+          new = 'return { kind: "log", resultSummary: "Live telemetry unavailable", timestamp, raw: text };'
+          if old not in s:
+              raise SystemExit('expected telemetry fallback #1 not found')
+          s = s.replace(old, new, 1)
+          old = 'resultSummary: cleaned.length > 8 && cleaned.length < 160 ? cleaned : "Working on this person",'
+          new = 'resultSummary: cleaned.length > 8 && cleaned.length < 160 ? cleaned : "Live telemetry unavailable",'
+          if old not in s:
+              raise SystemExit('expected telemetry fallback #2 not found')
+          s = s.replace(old, new, 1)
+          old = 'return "Working on this person";'
+          new = 'return "Live telemetry unavailable";'
+          if old not in s:
+              raise SystemExit('expected plain telemetry fallback not found')
+          s = s.replace(old, new, 1)
+          old = 'width: running ? "42%" : state?.runStatus === "done" ? "100%" : "0%",'
+          new = 'width: state?.phaseTotal && state.phaseTotal > 0 ? `${Math.min(100, Math.max(0, (state.phaseProgress / state.phaseTotal) * 100))}%` : state?.runStatus === "done" ? "100%" : "0%",'
+          if old not in s:
+              raise SystemExit('expected synthetic progress width not found')
+          s = s.replace(old, new, 1)
+          p.write_text(s)
+          PY
+      - name: Verify repaired source contract
+        run: node scripts/check-reactor-live-no-fabrication.mjs
+      - name: Commit repaired source
+        run: |
+          git config user.name '2f22vtd4kr-cloud'
+          git config user.email '2f22vtd4kr@privaterelay.appleid.com'
+          git add artifacts/apex-finder/src/pages/reactor.tsx
+          git commit -m 'audit: apply round 10 Reactor live truth fixes'
+          git push origin HEAD:audit/deep-round10
