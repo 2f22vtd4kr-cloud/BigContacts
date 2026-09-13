@@ -4,7 +4,7 @@ name: Apex API Build
 # Steady-state audit gate; no repair steps or bypasses.
 on:
   push:
-    branches: [main]
+    branches: [main, audit/round10-full-fix]
     paths:
       - "artifacts/api-server/src/**"
       - "artifacts/api-server/build.mjs"
