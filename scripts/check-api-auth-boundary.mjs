@@ -7,7 +7,7 @@ const auth = fs.readFileSync(path.join(root, "artifacts/api-server/src/src/lib/a
 const login = fs.readFileSync(path.join(root, "artifacts/api-server/src/src/routes/auth.ts"), "utf8");
 const app = fs.readFileSync(path.join(root, "artifacts/api-server/src/src/app.ts"), "utf8");
 const checks = [
-  ["API is mounted behind apiAuth", /app\.use\(\s*"\/api"\s*,\s*apiAuth\s*,\s*router\s*\)/.test(app)],
+  ["API authentication is mounted before body parsers", /app\.use\(\s*"\/api"\s*,\s*apiAuth\s*\)/.test(app) && app.indexOf('app.use("/api",apiAuth)') < app.indexOf("express.json") && /app\.use\(\s*"\/api"\s*,\s*router\s*\)/.test(app)],
   ["CI does not bypass API authentication", !/process\.env\.CI|isLoopbackAddress|NODE_ENV !== "production"/.test(auth)],
   ["bearer authentication uses constant-time comparison", /timingSafeEqual/.test(auth) && /tokenMatches/.test(auth)],
   ["operator session mutations require same origin", /Cross-site mutation blocked/.test(auth) && /sameOrigin/.test(auth)],
