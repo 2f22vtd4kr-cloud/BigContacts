@@ -2,7 +2,7 @@ import { timingSafeEqual } from "node:crypto";
 import type { NextFunction, Request, Response } from "express";
 import { verifyOperatorSession } from "../routes/auth";
 
-const PUBLIC_PATHS = new Set(["/healthz", "/auth/login", "/auth/session"]);
+const PUBLIC_PATHS = new Set(["/healthz", "/api/healthz", "/auth/login", "/api/auth/login", "/auth/session", "/api/auth/session"]);
 const TOKEN_ENV = "APEX_API_AUTH_TOKEN";
 const SESSION_SECRET_ENV = "APEX_SESSION_SECRET";
 const SESSION_COOKIE = "apex_session";
