@@ -4,12 +4,17 @@ import { verifyOperatorSession } from "../routes/auth";
 
 const PUBLIC_PATHS = new Set(["/healthz", "/auth/login", "/auth/session"]);
 const TOKEN_ENV = "APEX_API_AUTH_TOKEN";
+const SESSION_SECRET_ENV = "APEX_SESSION_SECRET";
 const SESSION_COOKIE = "apex_session";
 
 function configuredToken(): string {
   const token = process.env[TOKEN_ENV];
   if (!token || token.length < 32) throw new Error(`${TOKEN_ENV} must be configured with at least 32 characters`);
   return token;
+}
+
+function sessionAuthConfigured(): boolean {
+  return (process.env[SESSION_SECRET_ENV]?.trim().length ?? 0) >= 32;
 }
 
 function tokenMatches(provided: string, expected: string): boolean {
@@ -55,6 +60,14 @@ export function apiAuth(req: Request, res: Response, next: NextFunction): void {
     try { expected = configuredToken(); }
     catch { res.status(503).json({ error: "API authentication is not configured" }); return; }
     if (tokenMatches(match[1], expected)) { next(); return; }
+  }
+
+  // If neither supported authentication mechanism is configured, distinguish
+  // an unavailable security boundary (503) from a configured boundary rejecting
+  // an unauthenticated request (401). This is fail-closed in both cases.
+  if (!process.env[TOKEN_ENV] && !sessionAuthConfigured()) {
+    res.status(503).json({ error: "API authentication is not configured" });
+    return;
   }
 
   const session = readCookie(req, SESSION_COOKIE);
