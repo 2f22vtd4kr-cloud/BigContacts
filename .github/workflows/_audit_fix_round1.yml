@@ -1,0 +1,49 @@
+name: Audit round 1 source repair
+on:
+  push:
+    branches: ["audit/launch-readiness-round1"]
+permissions:
+  contents: write
+jobs:
+  repair:
+    if: ${{ !contains(github.event.head_commit.message, 'fix: remove Reactor synthetic live-state fallbacks') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Remove synthetic live-state fallbacks
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('artifacts/apex-finder/src/pages/reactor.tsx')
+          s = p.read_text()
+          replacements = [
+            ('return { kind: "log", resultSummary: "Working on this person", timestamp, raw: text };',
+             'return { kind: "log", resultSummary: "Live telemetry unavailable", timestamp, raw: text };'),
+            ('resultSummary: cleaned.length > 8 && cleaned.length < 160 ? cleaned : "Working on this person",',
+             'resultSummary: cleaned.length > 8 && cleaned.length < 160 ? cleaned : "Live telemetry unavailable",'),
+            ('return "Working on this person";',
+             'return "Live telemetry unavailable";'),
+            ('width: running ? "42%" : state?.runStatus === "done" ? "100%" : "0%",',
+             'width: state?.phaseTotal && state.phaseTotal > 0 ? `${Math.min(100, Math.max(0, (state.phaseProgress / state.phaseTotal) * 100))}%` : state?.runStatus === "done" ? "100%" : "0%",'),
+            ('const current = state.currentEntities.length > 0 ? state.currentEntities.join(" · ") : "Batch activity detected";',
+             'const current = state.currentEntities.length > 0 ? state.currentEntities.join(" · ") : "No entity telemetry recorded";'),
+            ('{state.detail || "Collecting evidence and passing it to the next rod"}',
+             '{state.detail || "Awaiting recorded tool telemetry"}'),
+          ]
+          for old, new in replacements:
+              if old not in s:
+                  raise SystemExit(f'expected source pattern not found: {old}')
+              s = s.replace(old, new, 1)
+          p.write_text(s)
+          PY
+      - name: Verify contract
+        run: node scripts/check-reactor-live-no-fabrication.mjs
+      - name: Commit source repair
+        shell: bash
+        run: |
+          git config user.name '2f22vtd4kr-cloud'
+          git config user.email '2f22vtd4kr@users.noreply.github.com'
+          git add artifacts/apex-finder/src/pages/reactor.tsx
+          git commit -m 'fix: remove Reactor synthetic live-state fallbacks'
+          git push origin HEAD:audit/launch-readiness-round1
