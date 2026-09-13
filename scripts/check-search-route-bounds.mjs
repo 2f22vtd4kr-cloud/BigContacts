@@ -11,6 +11,7 @@ const checks = [
   ["filter booleans require literal true", /body\.hotOnly\s*===\s*true/.test(route) && /body\.filterHasContact\s*===\s*true/.test(route)],
   ["intelligent search accepts the frontend source-filter contract", /filterSources=boundedStringList\(body\.filterSources\)/.test(route) && /sourceNeedle/.test(route) && /filterSources\.some/.test(route)],
   ["intelligent search geography uses token boundaries", /function containsBoundaryTerm/.test(route) && /containsBoundaryTerm\(r\.nationality,j\)/.test(route) && /containsBoundaryTerm\(r\.knownResidences,j\)/.test(route)],
+  ["HNWI country filters use token boundaries", /if\(countries\.length\)[\s\S]{0,500}sqlBoundaryPattern\(c\)[\s\S]{0,300}entitiesTable\.nationality/.test(route) && !/countries\.map\(c=>ilike\(entitiesTable\.nationality/.test(route)],
   ["explicit intelligent filters are resolved before orchestration", /resolveExplicitFilterIds/.test(route) && /const forcedFilterIds=await resolveExplicitFilterIds/.test(route) && /orchestrate\([^;]*forcedFilterIds/.test(route)],
   ["orchestration carries forced eligibility into hybrid retrieval", /retrieve\(query,plan,forcedFilterIds\)/.test(orchestrator) && /if\(forcedFilterIds\)/.test(orchestrator)],
   ["planner geography matching is boundary-safe", /function containsTerm\(text:string,term:string\)/.test(orchestrator) && /\\p\{L\}/.test(orchestrator) && /\\p\{N\}/.test(orchestrator)],
