@@ -1,1 +1,1 @@
-Trigger for the registered five-consecutive complete-code audit gate. Noninteractive database provisioning verified in workflow.
+Trigger for the registered five-consecutive complete-code audit gate. CI schema bootstrap uses generated SQL from the canonical Drizzle schema.
