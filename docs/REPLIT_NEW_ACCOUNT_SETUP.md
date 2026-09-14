@@ -12,13 +12,13 @@ Do not ask the operator for a GitHub PAT, `GITHUB_TOKEN`, or any other GitHub cr
 
 ## First action
 
-Before modifying, installing, or running anything, read `docs/context.md` completely. It is the living development transcription and architecture source of truth.
+Before modifying, installing, or running anything, read `docs/context.md` completely. It is the living development and architecture source of truth.
 
 Do not scaffold a new application, replace the project, simplify the existing architecture, or redesign Apex during setup.
 
 ## Runtime secrets
 
-Ask the operator for exactly these 14 runtime secrets, using these canonical names:
+Ask the operator for exactly these 17 runtime secrets, using these canonical names:
 
 1. `REDIS_URL_1`
 2. `GROQ_API_KEY`
@@ -34,6 +34,15 @@ Ask the operator for exactly these 14 runtime secrets, using these canonical nam
 12. `ZENROWS_API_KEY`
 13. `COMPANIES_HOUSE_API_KEY`
 14. `WHOISJSON_API_KEY`
+15. `APEX_API_AUTH_TOKEN`
+16. `APEX_OPERATOR_PASSWORD`
+17. `APEX_SESSION_SECRET`
+
+The final three are production security controls required by the API before a production process can start:
+
+- `APEX_API_AUTH_TOKEN`: machine/API bearer authentication token; use a random value of at least 32 characters.
+- `APEX_OPERATOR_PASSWORD`: operator login password; use a strong random value of at least 16 characters.
+- `APEX_SESSION_SECRET`: session-signing secret; use a strong random value of at least 32 characters and keep it stable across replicas/restarts.
 
 Mappings:
 
