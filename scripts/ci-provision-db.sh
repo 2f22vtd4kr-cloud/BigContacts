@@ -3,14 +3,14 @@ set -euo pipefail
 
 : "${DATABASE_URL:?DATABASE_URL must be set}"
 
-MIGRATION_DIR="$(mktemp -d /tmp/apex-drizzle-XXXXXX)"
+MIGRATION_DIR="./drizzle"
+rm -rf "$MIGRATION_DIR"
 trap 'rm -rf "$MIGRATION_DIR"' EXIT
 
 pnpm exec drizzle-kit generate \
-  --dialect=postgresql \
-  --schema=./src/schema/index.ts \
-  --out "$MIGRATION_DIR" \
-  --name ci_schema
+  --config ./drizzle.config.ts \
+  --name ci_schema \
+  --ignore-conflicts
 
 shopt -s nullglob
 migrations=("$MIGRATION_DIR"/*/migration.sql)
