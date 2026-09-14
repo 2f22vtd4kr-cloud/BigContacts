@@ -70,7 +70,21 @@ Use the repository's existing package manager, lockfiles, scripts, and configura
 
 Run the existing Replit preflight and architecture checks. Build the desk and API using the repository's existing commands. Start the application through the canonical API workflow on port `8080`.
 
-Fix genuine install, build, or boot failures at their root cause. Do not weaken tests, bypass checks, disable architecture guards, or apply cosmetic patches merely to obtain green output.
+### First-time database initialization
+
+A brand-new Replit Postgres instance may not yet contain the Drizzle schema. Schema mutation is deliberately **not** part of ordinary replica boot.
+
+For the first deployment, after `DATABASE_URL` is available and dependencies are installed:
+
+```bash
+APEX_ALLOW_SCHEMA_PUSH=true pnpm --filter @workspace/db run push
+```
+
+Verify the command succeeds, then remove `APEX_ALLOW_SCHEMA_PUSH` from the workflow environment and start the normal boot. Do not leave schema push enabled on a persistent production workflow. Subsequent schema changes are explicit deployment operations, followed by a normal restart.
+
+The canonical `scripts/replit-boot.sh` already refuses to mutate schema unless `APEX_ALLOW_SCHEMA_PUSH=true` is explicitly set.
+
+Fix genuine install, build, migration, or boot failures at their root cause. Do not weaken tests, bypass checks, disable architecture guards, or apply cosmetic patches merely to obtain green output.
 
 ## Expected setup behavior
 
@@ -79,6 +93,7 @@ A successful setup means:
 - the repository remains on the imported GitHub source of truth;
 - the canonical runtime secret names are present without exposing values;
 - dependencies install;
+- the platform database is initialized explicitly if it is new;
 - the frontend/desk builds;
 - the API builds;
 - the canonical regression and architecture checks run;
@@ -97,6 +112,7 @@ Report:
 - configured secret names only, never values;
 - dependency installation result;
 - preflight result;
+- database initialization result (if first deployment);
 - frontend build result;
 - API build result;
 - application boot result;
