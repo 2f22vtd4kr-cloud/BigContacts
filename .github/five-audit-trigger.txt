@@ -1,1 +1,1 @@
-Trigger for the registered five-consecutive complete-code audit gate. Registered gate now includes live authenticated smoke tests and generated-SQL DB bootstrap.
+Trigger for the registered five-consecutive complete-code audit gate. PostgreSQL payload check now emits a literal bounded constant.
