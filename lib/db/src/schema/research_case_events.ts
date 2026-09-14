@@ -19,7 +19,10 @@ export const researchCaseEventsTable = pgTable("research_case_events", {
 }, (table) => ({
   caseEventSequenceIdx: index("research_case_events_case_id_id_idx").on(table.caseId, table.id),
   caseEventCorrelationUniqueIdx: uniqueIndex("research_case_events_case_id_correlation_key_uidx").on(table.caseId, table.correlationKey),
-  caseEventPayloadSizeCheck: check("research_case_events_payload_size_ck", sql`octet_length(${table.payload}) <= ${RESEARCH_CASE_EVENT_PAYLOAD_MAX_BYTES}`),
+  caseEventPayloadSizeCheck: check(
+    "research_case_events_payload_size_ck",
+    sql`octet_length(${table.payload}) <= ${sql.raw(String(RESEARCH_CASE_EVENT_PAYLOAD_MAX_BYTES))}`,
+  ),
 }));
 export const researchCaseEventActorRoleSchema = z.enum(["head_investigator","gemini_boss","right_hand","specialist","human_operator","system","bureau"]);
 export const researchCaseEventTypeSchema = z.enum(["case_opened","decision","control_decision","assignment","observation","tool_observation","claim","promotion","validation","projection","directive","status"]);
