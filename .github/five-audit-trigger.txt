@@ -1,1 +1,1 @@
-Trigger for the registered five-consecutive complete-code audit gate. Noninteractive database provisioning verified in workflow.
+Trigger for the registered five-consecutive complete-code audit gate. Final-2 clean-tree verification.
