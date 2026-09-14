@@ -1,1 +1,1 @@
-Trigger for the registered five-consecutive complete-code audit gate. PostgreSQL payload check now emits a literal bounded constant.
+Trigger for the registered five-consecutive complete-code audit gate. Final-4 verification on the corrected tree.
