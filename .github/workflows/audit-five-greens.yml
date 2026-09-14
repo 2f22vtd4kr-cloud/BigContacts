@@ -1,5 +1,5 @@
 # Canonical five-green gate: five consecutive fresh full-codebase audits.
-# Deployment-prep sequence: final revalidation after removing redundant audit workflows.
+# Deployment-prep sequence: audit after database initialization runbook hardening.
 name: Five Green Complete Codebase Audit
 
 on:
