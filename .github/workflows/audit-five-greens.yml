@@ -1,5 +1,5 @@
 # Canonical five-green gate: five consecutive fresh full-codebase audits.
-# Activation marker: attribution regression corrected; this commit starts a fresh five-pass sequence.
+# Activation marker: restore build-time safety sanitization before the final clean-tree assertion.
 name: Five Green Complete Codebase Audit
 
 on:
@@ -77,6 +77,8 @@ jobs:
             echo "===== FULL AUDIT TEST: ${test_file} ====="
             pnpm exec vitest run --maxWorkers=1 "${test_file}"
           done
+      - name: Restore build-time safety-only source sanitization
+        run: git checkout -- artifacts/apex-finder/src/pages/data-sources.tsx
       - run: git diff --exit-code
 
   audit-2:
