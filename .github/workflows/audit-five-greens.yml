@@ -1,6 +1,6 @@
 # Genuine five-green condition: five sequential, independent, complete repository audits.
-# Each audit gets a fresh checkout and reruns the full architecture contract suite,
-# typecheck, build, every API test file in isolation, and source-mutation integrity.
+# Every pass uses a fresh checkout and reruns architecture checks, typecheck, build,
+# live API smoke tests, every API test file in isolation, and source-mutation integrity.
 name: Five Consecutive Full Code Audits
 
 on:
@@ -19,20 +19,58 @@ concurrency:
 
 env:
   PNPM_VERSION: 9.15.9
+  DATABASE_URL: postgresql://apex:apex_local_dev@127.0.0.1:5432/apex
+  REDIS_URL: redis://127.0.0.1:6379
+  PORT: 8080
+  ENABLE_AUTO_PIPELINE: "false"
+  NODE_ENV: development
+  APEX_SKIP_SEMANTIC: "1"
+  APEX_AGENTIC_CONCURRENCY: "1"
+  APEX_AGENTIC_PROVIDER_CONCURRENCY: "1"
+  APEX_API_AUTH_TOKEN: "ci-${{ github.sha }}"
 
 jobs:
   audit-1:
     name: Audit 1 — complete codebase
     runs-on: ubuntu-latest
-    steps:
+    steps: &audit_steps
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
-        with: { node-version: 22 }
+        with:
+          node-version: 22
+          package-manager-cache: true
       - run: npm install -g pnpm@${PNPM_VERSION}
       - run: pnpm install --frozen-lockfile --ignore-scripts --registry=https://registry.npmjs.org/
+      - name: Provision local API dependencies
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq postgresql redis-server
+          sudo service postgresql start
+          sudo service redis-server start
+          sudo -u postgres psql -c "CREATE USER apex WITH PASSWORD 'apex_local_dev' SUPERUSER;" || true
+          sudo -u postgres psql -c "CREATE DATABASE apex OWNER apex;" || true
+          rm -rf /tmp/apex-drizzle
+          pnpm --dir lib/db exec drizzle-kit generate --dialect postgresql --schema ./src/schema/index.ts --out /tmp/apex-drizzle --name ci-bootstrap
+          while IFS= read -r -d '' migration; do
+            psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$migration"
+          done < <(find /tmp/apex-drizzle -type f -name '*.sql' -print0 | sort -z)
       - run: pnpm run check:bureau
       - run: pnpm run typecheck
       - run: pnpm run build
+      - name: Start API for live smoke tests
+        run: |
+          set -euo pipefail
+          redis-cli ping
+          nohup node artifacts/api-server/dist/index.mjs </dev/null > /tmp/apex-api.log 2>&1 &
+          api_pid=$!
+          disown "$api_pid" || true
+          for i in $(seq 1 45); do
+            sleep 1
+            if [ "$(curl -sS -m 2 -o /tmp/health.json -w '%{http_code}' http://127.0.0.1:8080/api/healthz || true)" = "200" ]; then exit 0; fi
+          done
+          cat /tmp/apex-api.log
+          exit 1
       - name: Every API test file, isolated
         run: |
           set -euo pipefail
@@ -47,74 +85,22 @@ jobs:
     name: Audit 2 — complete codebase
     needs: audit-1
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
-        with: { node-version: 22 }
-      - run: npm install -g pnpm@${PNPM_VERSION}
-      - run: pnpm install --frozen-lockfile --ignore-scripts --registry=https://registry.npmjs.org/
-      - run: pnpm run check:bureau
-      - run: pnpm run typecheck
-      - run: pnpm run build
-      - run: |
-          set -euo pipefail
-          cd artifacts/api-server
-          for test_file in src/src/test/*.test.ts; do pnpm exec vitest run --maxWorkers=1 "${test_file}"; done
-      - run: git diff --exit-code
+    steps: *audit_steps
 
   audit-3:
     name: Audit 3 — complete codebase
     needs: audit-2
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
-        with: { node-version: 22 }
-      - run: npm install -g pnpm@${PNPM_VERSION}
-      - run: pnpm install --frozen-lockfile --ignore-scripts --registry=https://registry.npmjs.org/
-      - run: pnpm run check:bureau
-      - run: pnpm run typecheck
-      - run: pnpm run build
-      - run: |
-          set -euo pipefail
-          cd artifacts/api-server
-          for test_file in src/src/test/*.test.ts; do pnpm exec vitest run --maxWorkers=1 "${test_file}"; done
-      - run: git diff --exit-code
+    steps: *audit_steps
 
   audit-4:
     name: Audit 4 — complete codebase
     needs: audit-3
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
-        with: { node-version: 22 }
-      - run: npm install -g pnpm@${PNPM_VERSION}
-      - run: pnpm install --frozen-lockfile --ignore-scripts --registry=https://registry.npmjs.org/
-      - run: pnpm run check:bureau
-      - run: pnpm run typecheck
-      - run: pnpm run build
-      - run: |
-          set -euo pipefail
-          cd artifacts/api-server
-          for test_file in src/src/test/*.test.ts; do pnpm exec vitest run --maxWorkers=1 "${test_file}"; done
-      - run: git diff --exit-code
+    steps: *audit_steps
 
   audit-5:
     name: Audit 5 — complete codebase
     needs: audit-4
     runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
-        with: { node-version: 22 }
-      - run: npm install -g pnpm@${PNPM_VERSION}
-      - run: pnpm install --frozen-lockfile --ignore-scripts --registry=https://registry.npmjs.org/
-      - run: pnpm run check:bureau
-      - run: pnpm run typecheck
-      - run: pnpm run build
-      - run: |
-          set -euo pipefail
-          cd artifacts/api-server
-          for test_file in src/src/test/*.test.ts; do pnpm exec vitest run --maxWorkers=1 "${test_file}"; done
-      - run: git diff --exit-code
+    steps: *audit_steps
