@@ -36,7 +36,7 @@ Do not invent alternate startups, random scripts, partial pipelines, or a second
    RESEARCH_DEPTH=standard
    NODE_OPTIONS=--max-old-space-size=1536
    ```
-6. Ask the operator for exactly these 17 runtime secret names:
+6. Ask the operator for exactly these 14 canonical provider/integration secret names:
 
    ```text
    REDIS_URL_1
@@ -53,16 +53,13 @@ Do not invent alternate startups, random scripts, partial pipelines, or a second
    ZENROWS_API_KEY
    COMPANIES_HOUSE_API_KEY
    WHOISJSON_API_KEY
-   APEX_API_AUTH_TOKEN
-   APEX_OPERATOR_PASSWORD
-   APEX_SESSION_SECRET
    ```
-
-   Production security requirements: `APEX_API_AUTH_TOKEN` must be at least 32 characters, `APEX_OPERATOR_PASSWORD` at least 16 characters, and `APEX_SESSION_SECRET` at least 32 characters and stable across replicas/restarts. `APEX_API_AUTH_TOKEN` supports machine/API bearer authentication; the operator password/session secret support the desk's browser session login.
 
    `REDIS_URL` and `EXA_1` are compatibility aliases, not additional operator asks. Never ask for `DATABASE_URL`, `WHOXY_*`, or `REDIS_URL_2`–`REDIS_URL_5`. Never print secret values.
 
-7. Run `node scripts/replit-preflight.mjs` after secrets are configured. Then follow the repository's install, build, check, and boot commands.
+   The API/browser authentication boundary is separate from the 14 provider/integration keys. Its controls are `APEX_API_AUTH_TOKEN`, `APEX_OPERATOR_PASSWORD`, and `APEX_SESSION_SECRET`; these are not part of the canonical provider-key count and must be provisioned by the deployment environment when protected API access or browser operator login is used. The API token requires at least 32 characters, the operator password at least 16 characters, and the session secret at least 32 characters and must remain stable across replicas/restarts.
+
+7. Run `node scripts/replit-preflight.mjs` after the canonical provider secrets are configured. Then follow the repository's install, build, check, and boot commands.
 
 ---
 
