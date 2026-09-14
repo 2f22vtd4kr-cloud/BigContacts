@@ -128,10 +128,10 @@ describe("GET /api/entities/:id/opensky", () => {
 });
 
 describe("POST /api/registry-search", () => {
-  it("endpoint is reachable and returns a JSON body", async () => {
+  it("is reachable and either serves the provider or fails closed with JSON", async () => {
     const res = await fetch(`${BASE}/api/registry-search`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ query: "Holdings", registry: "opencorporates", limit: 3 }) });
     const body: unknown = await res.json();
-    expect(res.status).toBe(200);
+    expect([200, 503]).toContain(res.status);
     expect(typeof body).toBe("object");
     expect(body).not.toBeNull();
   });
