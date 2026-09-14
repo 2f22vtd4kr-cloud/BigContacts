@@ -8,7 +8,7 @@ permissions:
   contents: read
 concurrency:
   group: genuine-five-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 env:
   PNPM_VERSION: 9.15.9
   DATABASE_URL: postgresql://apex:apex_local_dev@127.0.0.1:5432/apex
@@ -47,7 +47,10 @@ jobs:
         run: |
           set -euo pipefail
           redis-cli ping
-          node artifacts/api-server/dist/index.mjs > /tmp/apex-api.log 2>&1 &
+          nohup node artifacts/api-server/dist/index.mjs </dev/null > /tmp/apex-api.log 2>&1 &
+          api_pid=$!
+          echo "$api_pid" > /tmp/apex-api.pid
+          disown "$api_pid" || true
           for i in $(seq 1 45); do
             sleep 1
             if [ "$(curl -sS -m 2 -o /tmp/health.json -w '%{http_code}' http://127.0.0.1:8080/api/healthz || true)" = "200" ]; then exit 0; fi
@@ -91,7 +94,9 @@ jobs:
         run: |
           set -euo pipefail
           redis-cli ping
-          node artifacts/api-server/dist/index.mjs > /tmp/apex-api.log 2>&1 &
+          nohup node artifacts/api-server/dist/index.mjs </dev/null > /tmp/apex-api.log 2>&1 &
+          api_pid=$!
+          disown "$api_pid" || true
           for i in $(seq 1 45); do sleep 1; if [ "$(curl -sS -m 2 -o /tmp/health.json -w '%{http_code}' http://127.0.0.1:8080/api/healthz || true)" = "200" ]; then exit 0; fi; done
           cat /tmp/apex-api.log
           exit 1
@@ -128,7 +133,9 @@ jobs:
         run: |
           set -euo pipefail
           redis-cli ping
-          node artifacts/api-server/dist/index.mjs > /tmp/apex-api.log 2>&1 &
+          nohup node artifacts/api-server/dist/index.mjs </dev/null > /tmp/apex-api.log 2>&1 &
+          api_pid=$!
+          disown "$api_pid" || true
           for i in $(seq 1 45); do sleep 1; if [ "$(curl -sS -m 2 -o /tmp/health.json -w '%{http_code}' http://127.0.0.1:8080/api/healthz || true)" = "200" ]; then exit 0; fi; done
           cat /tmp/apex-api.log
           exit 1
@@ -165,7 +172,9 @@ jobs:
         run: |
           set -euo pipefail
           redis-cli ping
-          node artifacts/api-server/dist/index.mjs > /tmp/apex-api.log 2>&1 &
+          nohup node artifacts/api-server/dist/index.mjs </dev/null > /tmp/apex-api.log 2>&1 &
+          api_pid=$!
+          disown "$api_pid" || true
           for i in $(seq 1 45); do sleep 1; if [ "$(curl -sS -m 2 -o /tmp/health.json -w '%{http_code}' http://127.0.0.1:8080/api/healthz || true)" = "200" ]; then exit 0; fi; done
           cat /tmp/apex-api.log
           exit 1
@@ -202,7 +211,9 @@ jobs:
         run: |
           set -euo pipefail
           redis-cli ping
-          node artifacts/api-server/dist/index.mjs > /tmp/apex-api.log 2>&1 &
+          nohup node artifacts/api-server/dist/index.mjs </dev/null > /tmp/apex-api.log 2>&1 &
+          api_pid=$!
+          disown "$api_pid" || true
           for i in $(seq 1 45); do sleep 1; if [ "$(curl -sS -m 2 -o /tmp/health.json -w '%{http_code}' http://127.0.0.1:8080/api/healthz || true)" = "200" ]; then exit 0; fi; done
           cat /tmp/apex-api.log
           exit 1
