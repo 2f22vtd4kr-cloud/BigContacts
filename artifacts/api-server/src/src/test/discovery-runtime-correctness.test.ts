@@ -8,7 +8,7 @@ const researchSource = fs.readFileSync(path.join(libDir, "agentic-web-research.t
 const orchestratorPath = path.join(libDir, "atlas-orchestrator.ts");
 const orchestratorExists = fs.existsSync(orchestratorPath);
 const orchestratorSource = orchestratorExists ? fs.readFileSync(orchestratorPath, "utf8") : "";
-const runtimeHardener = fs.readFileSync(path.resolve(process.cwd(), "scripts/check-agentic-runtime-v2.mjs"), "utf8");
+const runtimeHardener = fs.readFileSync(path.resolve(process.cwd(), "../../scripts/check-agentic-runtime-v2.mjs"), "utf8");
 
 describe("discovery runtime architecture", () => {
   it("keeps discovery model-owned", () => {
