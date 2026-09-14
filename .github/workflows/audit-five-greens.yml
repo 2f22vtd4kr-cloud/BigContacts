@@ -1,5 +1,5 @@
 # Canonical five-green gate: five consecutive fresh full-codebase audits.
-# Deployment-prep sequence: revalidate the tree after production auth documentation/preflight hardening.
+# Deployment-prep sequence: final revalidation after removing redundant audit workflows.
 name: Five Green Complete Codebase Audit
 
 on:
