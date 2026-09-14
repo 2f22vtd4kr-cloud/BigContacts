@@ -86,7 +86,7 @@ Most tools stop at the company.
 - Classic OSINT frameworks map infrastructure and usernames, not investor reachability.
 - Generic AI chat can summarize the web, but it does not run a disciplined, multi-source research desk or keep a living ledger of people, roles, and evidence.
 
-If your work depends on **reaching the human who controls or influences capital** — mid-market owners, private-company leadership, family offices, succession-linked principals — those gaps compound quickly quickly. Apex Atlas is built for that job.
+If your work depends on **reaching the human who controls or influences capital** — mid-market owners, private-company leadership, family offices, succession-linked principals — those gaps compound quickly. Apex Atlas is built for that job.
 
 ## What Apex Atlas does
 
