@@ -25,10 +25,11 @@ describe("target Investigator multi-source attribution", () => {
     expect(backed[0]?.sourceUrls).toHaveLength(2);
   });
 
-  it("still rejects an unobserved attribution URL", () => {
+  it("strips an unobserved attribution URL while retaining an independently observed supporting source", () => {
     const findings = [{ vectorType: "email" as const, value: "john.smith@example.com", personName: "John Smith", role: "CFO", scope: "candidate" as const, sourceUrls: ["https://company.example/leadership", "https://unseen.example/contact"], note: "model claim", promotionDecision: "promote" as const }];
     const records = [{ turn: 1, model: "groq", action: "visit", args: {}, execution: "success" as const, observation: "John Smith is CFO of Example Corp. Contact: john.smith@example.com", observedUrls: ["https://company.example/leadership"], findings: [] }];
     const backed = sourceBackedFindings(findings, ["step1: visit https://company.example/leadership execution=success observed=https://company.example/leadership"], records);
-    expect(backed).toHaveLength(0);
+    expect(backed).toHaveLength(1);
+    expect(backed[0]?.sourceUrls).toEqual(["https://company.example/leadership"]);
   });
 });
