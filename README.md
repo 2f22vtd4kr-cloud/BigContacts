@@ -23,7 +23,7 @@ It is designed for operators who need more than a company name and a generic inb
 
 ### Canonical operator secret names
 
-The new-account operator secret list contains exactly these 14 names:
+The new-account operator secret list contains exactly these 17 names:
 
 ```text
 REDIS_URL_1
@@ -40,7 +40,12 @@ SCRAPFLY_API_KEY
 ZENROWS_API_KEY
 COMPANIES_HOUSE_API_KEY
 WHOISJSON_API_KEY
+APEX_API_AUTH_TOKEN
+APEX_OPERATOR_PASSWORD
+APEX_SESSION_SECRET
 ```
+
+The final three are production security controls required by the API before a production process can start. `APEX_API_AUTH_TOKEN` is the machine/API bearer token (at least 32 characters); `APEX_OPERATOR_PASSWORD` is the operator login password (at least 16 characters); `APEX_SESSION_SECRET` signs operator sessions (at least 32 characters and stable across replicas/restarts).
 
 Important mappings: the operator's Redis/Upstash URL goes in `REDIS_URL_1`; the Hugging Face token goes in `HF_TOKEN`; NVIDIA uses `DEEPSEEK_API_KEY`; Exa uses `EXA_API_KEY`. `REDIS_URL` and `EXA_1` are compatibility aliases, not additional operator asks. Do not ask for `DATABASE_URL`, `WHOXY_*`, `REDIS_URL_2`–`REDIS_URL_5`, or duplicate GitHub credentials.
 
@@ -69,7 +74,7 @@ Never print or commit secret values.
 - `ENABLE_AUTO_PIPELINE=false`
 - **Postgres:** Replit platform-managed (`DATABASE_URL` is not an operator secret)
 - **Redis:** operator Upstash URL as `REDIS_URL_1`
-- Canonical 14 runtime keys listed above
+- Canonical 17 runtime keys listed above
 - Dig is **free ReAct**: no force-hop scripts, no invented people or contacts
 - Living handoff: **[docs/context.md](docs/context.md)**
 
