@@ -1,3 +1,7 @@
+# Five consecutive complete audits. Each pass gets a fresh checkout and independently reruns the full repository contract suite, typecheck, build, every API test file, and source-mutation check.
+# Final verification run: no merge until all five complete audits pass consecutively.
+# Audit chain activation: this workflow is intentionally the complete five-pass gate, not a five-lane shortcut.
+# Final-tree verification marker: authenticated complete-audit restart after the prior smoke-test failure.
 name: Five Consecutive Full Code Audits
 on:
   push:
@@ -106,7 +110,10 @@ jobs:
       - run: |
           set -euo pipefail
           cd artifacts/api-server
-          for test_file in src/src/test/*.test.ts; do pnpm exec vitest run --maxWorkers=1 "${test_file}"; done
+          for test_file in src/src/test/*.test.ts; do
+            echo "===== FULL AUDIT TEST: ${test_file} ====="
+            pnpm exec vitest run --maxWorkers=1 "${test_file}"
+          done
       - run: git diff --exit-code
 
   audit-3:
@@ -146,7 +153,10 @@ jobs:
       - run: |
           set -euo pipefail
           cd artifacts/api-server
-          for test_file in src/src/test/*.test.ts; do pnpm exec vitest run --maxWorkers=1 "${test_file}"; done
+          for test_file in src/src/test/*.test.ts; do
+            echo "===== FULL AUDIT TEST: ${test_file} ====="
+            pnpm exec vitest run --maxWorkers=1 "${test_file}"
+          done
       - run: git diff --exit-code
 
   audit-4:
@@ -186,7 +196,10 @@ jobs:
       - run: |
           set -euo pipefail
           cd artifacts/api-server
-          for test_file in src/src/test/*.test.ts; do pnpm exec vitest run --maxWorkers=1 "${test_file}"; done
+          for test_file in src/src/test/*.test.ts; do
+            echo "===== FULL AUDIT TEST: ${test_file} ====="
+            pnpm exec vitest run --maxWorkers=1 "${test_file}"
+          done
       - run: git diff --exit-code
 
   audit-5:
@@ -226,5 +239,8 @@ jobs:
       - run: |
           set -euo pipefail
           cd artifacts/api-server
-          for test_file in src/src/test/*.test.ts; do pnpm exec vitest run --maxWorkers=1 "${test_file}"; done
+          for test_file in src/src/test/*.test.ts; do
+            echo "===== FULL AUDIT TEST: ${test_file} ====="
+            pnpm exec vitest run --maxWorkers=1 "${test_file}"
+          done
       - run: git diff --exit-code
