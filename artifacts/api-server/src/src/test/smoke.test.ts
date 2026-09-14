@@ -28,24 +28,19 @@ describe("GET /api/healthz", () => {
 });
 
 describe("GET /api/ingest/contact-research/status", () => {
-  it("returns resumable coordinator state without starting work", async () => {
+  it("is explicitly retired", async () => {
     const { status, body } = await get("/api/ingest/contact-research/status");
-    expect(status).toBe(200);
-    expect(body).toHaveProperty("active");
-    expect(body).toHaveProperty("latest");
-    if (body.latest) {
-      expect(body.latest).toHaveProperty("jobId");
-      expect(body.latest).toHaveProperty("currentPhase");
-    }
+    expect(status).toBe(410);
+    expect(body.error).toContain("retired");
   });
 });
 
 describe("POST /api/ingest/contact-research/cancel", () => {
-  it("returns a safe error when no coordinator is active", async () => {
+  it("is explicitly retired", async () => {
     const res = await fetch(`${BASE}/api/ingest/contact-research/cancel`, { method: "POST", headers: authHeaders("application/json"), body: "{}" });
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(410);
     const body: any = await res.json();
-    expect(body.error).toContain("No contact-research job is active");
+    expect(body.error).toContain("retired");
   });
 });
 
