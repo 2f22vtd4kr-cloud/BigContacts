@@ -1,4 +1,5 @@
 # Canonical five-green gate: five consecutive fresh full-codebase audits.
+# Activation marker: the corrected retired-route smoke contract is now on the audit tree.
 name: Five Green Complete Codebase Audit
 
 on:
