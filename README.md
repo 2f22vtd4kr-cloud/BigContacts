@@ -18,12 +18,13 @@ It is designed for operators who need more than a company name and a generic inb
 3. Before changing, installing, or running anything, read `docs/context.md` completely. It is the living development and architecture handoff.
 4. Use the repository's existing package manager, lockfiles, scripts, and configuration. Do not scaffold a replacement application or redesign Apex during setup.
 5. Replit Postgres is platform-managed. Do **not** ask the operator for `DATABASE_URL` or a Postgres connection string.
-6. Configure exactly the operator runtime secret set documented below and in `docs/REPLIT_NEW_ACCOUNT_SETUP.md`.
-7. Run the existing preflight, checks, builds, and boot flow. Fix real failures at the root cause; do not weaken tests or bypass architecture checks to obtain green output.
+6. Configure exactly the canonical 14 provider/integration secrets documented below and in `docs/REPLIT_NEW_ACCOUNT_SETUP.md`.
+7. Provision the separate API/browser authentication controls required by the application security boundary; these are not counted as provider/integration keys.
+8. Run the existing preflight, checks, builds, and boot flow. Fix real failures at the root cause; do not weaken tests or bypass architecture checks to obtain green output.
 
-### Canonical operator secret names
+### Canonical operator provider/integration secret names
 
-The new-account operator secret list contains exactly these 17 names:
+The new-account operator provider/integration secret list contains exactly these 14 names:
 
 ```text
 REDIS_URL_1
@@ -40,16 +41,11 @@ SCRAPFLY_API_KEY
 ZENROWS_API_KEY
 COMPANIES_HOUSE_API_KEY
 WHOISJSON_API_KEY
-APEX_API_AUTH_TOKEN
-APEX_OPERATOR_PASSWORD
-APEX_SESSION_SECRET
 ```
-
-The final three are production security controls required by the API before a production process can start. `APEX_API_AUTH_TOKEN` is the machine/API bearer token (at least 32 characters); `APEX_OPERATOR_PASSWORD` is the operator login password (at least 16 characters); `APEX_SESSION_SECRET` signs operator sessions (at least 32 characters and stable across replicas/restarts).
 
 Important mappings: the operator's Redis/Upstash URL goes in `REDIS_URL_1`; the Hugging Face token goes in `HF_TOKEN`; NVIDIA uses `DEEPSEEK_API_KEY`; Exa uses `EXA_API_KEY`. `REDIS_URL` and `EXA_1` are compatibility aliases, not additional operator asks. Do not ask for `DATABASE_URL`, `WHOXY_*`, `REDIS_URL_2`–`REDIS_URL_5`, or duplicate GitHub credentials.
 
-Never print or commit secret values.
+The API/browser authentication boundary is separate from the 14 provider/integration keys. Its controls are `APEX_API_AUTH_TOKEN`, `APEX_OPERATOR_PASSWORD`, and `APEX_SESSION_SECRET`; they must be provisioned by the deployment environment when protected API access or browser operator login is used, but they are **not** part of the canonical 14 provider-key count. The API token requires at least 32 characters, the operator password at least 16 characters, and the session secret at least 32 characters and must remain stable across replicas/restarts. Never print or commit secret values.
 
 **Detailed new-account setup contract:** `docs/REPLIT_NEW_ACCOUNT_SETUP.md`  
 **Living development context:** `docs/context.md`  
@@ -74,7 +70,8 @@ Never print or commit secret values.
 - `ENABLE_AUTO_PIPELINE=false`
 - **Postgres:** Replit platform-managed (`DATABASE_URL` is not an operator secret)
 - **Redis:** operator Upstash URL as `REDIS_URL_1`
-- Canonical 17 runtime keys listed above
+- Canonical 14 provider/integration keys listed above
+- API/browser authentication controls provisioned separately from the provider-key count
 - Dig is **free ReAct**: no force-hop scripts, no invented people or contacts
 - Living handoff: **[docs/context.md](docs/context.md)**
 
@@ -89,11 +86,7 @@ Most tools stop at the company.
 - Classic OSINT frameworks map infrastructure and usernames, not investor reachability.
 - Generic AI chat can summarize the web, but it does not run a disciplined, multi-source research desk or keep a living ledger of people, roles, and evidence.
 
-If your work depends on **reaching the human who controls or influences capital** — mid-market owners, private-company leadership, family offices, succession-linked principals — those gaps compound quickly.
-
-Apex Atlas is built for that job.
-
----
+If your work depends on **reaching the human who controls or influences capital** — mid-market owners, private-company leadership, family offices, succession-linked principals — those gaps compound quickly quickly. Apex Atlas is built for that job.
 
 ## What Apex Atlas does
 
@@ -114,8 +107,6 @@ Entity ledger, relationship graph, live research activity, jobs, and review flow
 
 In short: **discover → attribute people → maximize reachable contacts → keep evidence.**
 
----
-
 ## Who it is for
 
 - Teams researching **private mid-market companies** and their owners or officers  
@@ -123,8 +114,6 @@ In short: **discover → attribute people → maximize reachable contacts → ke
 - Analysts tracing **ownership, succession, and related principals**
 
 It is **not** a mass email database, a CRM, or a replacement for legal counsel on outreach compliance. It is a **public-records research product** for serious contact intelligence.
-
----
 
 ## Repository (engineering)
 
@@ -137,8 +126,6 @@ docs/                   → context and operational setup/run contracts
 ```
 
 Use **pnpm**. Full runs need the API, database, Redis, and research provider keys.
-
----
 
 ## Principle
 
