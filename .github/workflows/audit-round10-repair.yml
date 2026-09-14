@@ -19,6 +19,7 @@ env:
   APEX_SKIP_SEMANTIC: "1"
   APEX_AGENTIC_CONCURRENCY: "1"
   APEX_AGENTIC_PROVIDER_CONCURRENCY: "1"
+  APEX_API_AUTH_TOKEN: "ci-five-green-audit-token-0123456789abcdef0123456789abcdef"
 
 jobs:
   audit-1:
