@@ -18,7 +18,7 @@ Do not scaffold a new application, replace the project, simplify the existing ar
 
 ## Runtime secrets
 
-Ask the operator for exactly these 17 runtime secrets, using these canonical names:
+Ask the operator for exactly these 14 canonical provider/integration secrets, using these names:
 
 1. `REDIS_URL_1`
 2. `GROQ_API_KEY`
@@ -34,15 +34,6 @@ Ask the operator for exactly these 17 runtime secrets, using these canonical nam
 12. `ZENROWS_API_KEY`
 13. `COMPANIES_HOUSE_API_KEY`
 14. `WHOISJSON_API_KEY`
-15. `APEX_API_AUTH_TOKEN`
-16. `APEX_OPERATOR_PASSWORD`
-17. `APEX_SESSION_SECRET`
-
-The final three are production security controls required by the API before a production process can start:
-
-- `APEX_API_AUTH_TOKEN`: machine/API bearer authentication token; use a random value of at least 32 characters.
-- `APEX_OPERATOR_PASSWORD`: operator login password; use a strong random value of at least 16 characters.
-- `APEX_SESSION_SECRET`: session-signing secret; use a strong random value of at least 32 characters and keep it stable across replicas/restarts.
 
 Mappings:
 
@@ -51,6 +42,8 @@ Mappings:
 - The NVIDIA credential belongs in `DEEPSEEK_API_KEY`.
 - The Exa credential belongs in `EXA_API_KEY`.
 - `REDIS_URL` and `EXA_1` are compatibility aliases and are not additional operator asks.
+
+The application also has a separate API/browser authentication boundary. Its security controls are `APEX_API_AUTH_TOKEN`, `APEX_OPERATOR_PASSWORD`, and `APEX_SESSION_SECRET`. These are **not counted as provider/integration keys** and are not part of the canonical 14-key provider list. When protected API access or browser operator login is enabled, the deployment environment must provision them: API token at least 32 characters, operator password at least 16 characters, and session secret at least 32 characters and stable across replicas/restarts.
 
 Do not ask for:
 
@@ -91,7 +84,8 @@ Fix genuine install, build, migration, or boot failures at their root cause. Do 
 A successful setup means:
 
 - the repository remains on the imported GitHub source of truth;
-- the canonical runtime secret names are present without exposing values;
+- the canonical 14 provider/integration secret names are present without exposing values;
+- required deployment authentication controls are provisioned separately from the provider-key count;
 - dependencies install;
 - the platform database is initialized explicitly if it is new;
 - the frontend/desk builds;
@@ -109,7 +103,7 @@ Report:
 
 - branch;
 - commit SHA;
-- configured secret names only, never values;
+- configured provider secret names only, never values;
 - dependency installation result;
 - preflight result;
 - database initialization result (if first deployment);
