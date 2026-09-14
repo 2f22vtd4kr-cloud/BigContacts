@@ -1,5 +1,5 @@
 # Canonical five-green gate: five consecutive fresh full-codebase audits.
-# Activation marker: fresh sequence after the latest complete-audit finding was corrected.
+# Deployment-prep sequence: revalidate the tree after production auth documentation/preflight hardening.
 name: Five Green Complete Codebase Audit
 
 on:
