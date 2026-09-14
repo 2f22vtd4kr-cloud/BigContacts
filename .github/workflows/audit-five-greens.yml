@@ -13,7 +13,9 @@ permissions:
   contents: read
 
 concurrency:
-  group: five-green-complete-${{ github.ref }}
+  # Never let an older commit's queued audit block the current final tree.
+  # Each commit gets its own complete five-audit sequence.
+  group: five-green-complete-${{ github.ref }}-${{ github.sha }}
   cancel-in-progress: false
 
 env:
