@@ -50,7 +50,7 @@ jobs:
           sudo -u postgres psql -c "CREATE USER apex WITH PASSWORD 'apex_local_dev' SUPERUSER;" || true
           sudo -u postgres psql -c "CREATE DATABASE apex OWNER apex;" || true
           rm -rf /tmp/apex-drizzle
-          pnpm --dir lib/db exec drizzle-kit generate --config ./drizzle.config.ts --out /tmp/apex-drizzle --name ci-bootstrap
+          pnpm --dir lib/db exec drizzle-kit generate --dialect postgresql --schema ./src/schema/index.ts --out /tmp/apex-drizzle --name ci-bootstrap
           while IFS= read -r -d '' migration; do
             psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$migration"
           done < <(find /tmp/apex-drizzle -type f -name '*.sql' -print0 | sort -z)
