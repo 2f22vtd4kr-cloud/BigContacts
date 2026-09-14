@@ -17,6 +17,7 @@ concurrency:
 
 env:
   PNPM_VERSION: 9.15.9
+  APEX_API_AUTH_TOKEN: ci-${{ github.run_id }}-audit-token-${{ github.run_attempt }}-local-only
 
 jobs:
   audit-1:
