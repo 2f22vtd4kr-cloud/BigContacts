@@ -7,7 +7,8 @@ MIGRATION_DIR="$(mktemp -d /tmp/apex-drizzle-XXXXXX)"
 trap 'rm -rf "$MIGRATION_DIR"' EXIT
 
 pnpm exec drizzle-kit generate \
-  --config ./drizzle.config.ts \
+  --dialect=postgresql \
+  --schema=./src/schema/index.ts \
   --out "$MIGRATION_DIR" \
   --name ci_schema
 
