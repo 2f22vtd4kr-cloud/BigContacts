@@ -12,7 +12,7 @@ timeout 120s pnpm exec drizzle-kit generate \
   --name ci_schema
 
 shopt -s nullglob
-migrations=("$MIGRATION_DIR"/*/migration.sql)
+migrations=("$MIGRATION_DIR"/*.sql)
 if [ "${#migrations[@]}" -eq 0 ]; then
   echo "CI database provisioning generated no migration SQL" >&2
   exit 1
