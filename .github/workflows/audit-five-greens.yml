@@ -1,5 +1,5 @@
 # Canonical five-green gate: five consecutive fresh full-codebase audits.
-# Activation marker: the corrected retired-route smoke contract is now on the audit tree.
+# Activation marker: attribution regression corrected; this commit starts a fresh five-pass sequence.
 name: Five Green Complete Codebase Audit
 
 on:
@@ -26,7 +26,7 @@ env:
   APEX_SKIP_SEMANTIC: "1"
   APEX_AGENTIC_CONCURRENCY: "1"
   APEX_AGENTIC_PROVIDER_CONCURRENCY: "1"
-  APEX_API_AUTH_TOKEN: ci-${{ github.run_id }}-audit-token-${{ github.run_attempt }}-local-only
+  APEX_API_AUTH_TOKEN: audit-${{ github.run_id }}
 
 jobs:
   audit-1:
