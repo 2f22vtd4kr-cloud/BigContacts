@@ -1,4 +1,4 @@
-# Run Apex Atlas research / bureau — precise procedure
+# Apex Atlas — precise deployment and bureau run procedure
 
 This is the canonical operational meaning of “Run Apex Atlas”, “Start the bureau”, or “Launch research”.
 
@@ -36,7 +36,7 @@ Do not invent alternate startups, random scripts, partial pipelines, or a second
    RESEARCH_DEPTH=standard
    NODE_OPTIONS=--max-old-space-size=1536
    ```
-6. Ask the operator for exactly these 14 runtime secret names:
+6. Ask the operator for exactly these 17 runtime secret names:
 
    ```text
    REDIS_URL_1
@@ -53,7 +53,12 @@ Do not invent alternate startups, random scripts, partial pipelines, or a second
    ZENROWS_API_KEY
    COMPANIES_HOUSE_API_KEY
    WHOISJSON_API_KEY
+   APEX_API_AUTH_TOKEN
+   APEX_OPERATOR_PASSWORD
+   APEX_SESSION_SECRET
    ```
+
+   Production security requirements: `APEX_API_AUTH_TOKEN` must be at least 32 characters, `APEX_OPERATOR_PASSWORD` at least 16 characters, and `APEX_SESSION_SECRET` at least 32 characters and stable across replicas/restarts. `APEX_API_AUTH_TOKEN` supports machine/API bearer authentication; the operator password/session secret support the desk's browser session login.
 
    `REDIS_URL` and `EXA_1` are compatibility aliases, not additional operator asks. Never ask for `DATABASE_URL`, `WHOXY_*`, or `REDIS_URL_2`–`REDIS_URL_5`. Never print secret values.
 
