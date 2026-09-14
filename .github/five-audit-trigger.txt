@@ -1,1 +1,1 @@
-Trigger for the registered five-consecutive complete-code audit gate. CI schema bootstrap uses generated SQL from the canonical Drizzle schema.
+Trigger for the registered five-consecutive complete-code audit gate. Drizzle bootstrap uses CLI schema/dialect flags without config conflicts.
