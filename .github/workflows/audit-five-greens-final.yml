@@ -38,7 +38,8 @@ jobs:
           sudo service redis-server start
           sudo -u postgres psql -c "CREATE USER apex WITH PASSWORD 'apex_local_dev' SUPERUSER;" || true
           sudo -u postgres psql -c "CREATE DATABASE apex OWNER apex;" || true
-          cd lib/db && pnpm exec drizzle-kit push --config ./drizzle.config.ts
+          cd lib/db
+          bash ../../scripts/ci-provision-db.sh
       - run: pnpm run check:bureau
       - run: pnpm run typecheck
       - run: pnpm run build
@@ -50,10 +51,7 @@ jobs:
           api_pid=$!
           trap 'kill "$api_pid" 2>/dev/null || true; wait "$api_pid" 2>/dev/null || true' EXIT
           ready=0
-          for i in $(seq 1 45); do
-            sleep 1
-            if [ "$(curl -sS -m 2 -o /tmp/health.json -w '%{http_code}' http://127.0.0.1:8080/api/healthz || true)" = "200" ]; then ready=1; break; fi
-          done
+          for i in $(seq 1 45); do sleep 1; if [ "$(curl -sS -m 2 -o /tmp/health.json -w '%{http_code}' http://127.0.0.1:8080/api/healthz || true)" = "200" ]; then ready=1; break; fi; done
           if [ "$ready" -ne 1 ]; then cat /tmp/apex-api.log; exit 1; fi
           cd artifacts/api-server
           for test_file in src/src/test/*.test.ts; do
@@ -80,7 +78,8 @@ jobs:
           sudo service redis-server start
           sudo -u postgres psql -c "CREATE USER apex WITH PASSWORD 'apex_local_dev' SUPERUSER;" || true
           sudo -u postgres psql -c "CREATE DATABASE apex OWNER apex;" || true
-          cd lib/db && pnpm exec drizzle-kit push --config ./drizzle.config.ts
+          cd lib/db
+          bash ../../scripts/ci-provision-db.sh
       - run: pnpm run check:bureau
       - run: pnpm run typecheck
       - run: pnpm run build
@@ -116,7 +115,8 @@ jobs:
           sudo service redis-server start
           sudo -u postgres psql -c "CREATE USER apex WITH PASSWORD 'apex_local_dev' SUPERUSER;" || true
           sudo -u postgres psql -c "CREATE DATABASE apex OWNER apex;" || true
-          cd lib/db && pnpm exec drizzle-kit push --config ./drizzle.config.ts
+          cd lib/db
+          bash ../../scripts/ci-provision-db.sh
       - run: pnpm run check:bureau
       - run: pnpm run typecheck
       - run: pnpm run build
@@ -152,7 +152,8 @@ jobs:
           sudo service redis-server start
           sudo -u postgres psql -c "CREATE USER apex WITH PASSWORD 'apex_local_dev' SUPERUSER;" || true
           sudo -u postgres psql -c "CREATE DATABASE apex OWNER apex;" || true
-          cd lib/db && pnpm exec drizzle-kit push --config ./drizzle.config.ts
+          cd lib/db
+          bash ../../scripts/ci-provision-db.sh
       - run: pnpm run check:bureau
       - run: pnpm run typecheck
       - run: pnpm run build
@@ -188,7 +189,8 @@ jobs:
           sudo service redis-server start
           sudo -u postgres psql -c "CREATE USER apex WITH PASSWORD 'apex_local_dev' SUPERUSER;" || true
           sudo -u postgres psql -c "CREATE DATABASE apex OWNER apex;" || true
-          cd lib/db && pnpm exec drizzle-kit push --config ./drizzle.config.ts
+          cd lib/db
+          bash ../../scripts/ci-provision-db.sh
       - run: pnpm run check:bureau
       - run: pnpm run typecheck
       - run: pnpm run build
