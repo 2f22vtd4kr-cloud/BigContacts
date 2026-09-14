@@ -11,6 +11,14 @@ concurrency:
   cancel-in-progress: false
 env:
   PNPM_VERSION: 9.15.9
+  DATABASE_URL: postgresql://apex:apex_local_dev@127.0.0.1:5432/apex
+  REDIS_URL: redis://127.0.0.1:6379
+  PORT: 8080
+  ENABLE_AUTO_PIPELINE: "false"
+  NODE_ENV: development
+  APEX_SKIP_SEMANTIC: "1"
+  APEX_AGENTIC_CONCURRENCY: "1"
+  APEX_AGENTIC_PROVIDER_CONCURRENCY: "1"
 
 jobs:
   audit-1:
@@ -22,9 +30,30 @@ jobs:
         with: { node-version: 22 }
       - run: npm install -g pnpm@${PNPM_VERSION}
       - run: pnpm install --frozen-lockfile --ignore-scripts --registry=https://registry.npmjs.org/
+      - name: Provision local API dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq postgresql redis-server
+          sudo service postgresql start
+          sudo service redis-server start
+          sudo -u postgres psql -c "CREATE USER apex WITH PASSWORD 'apex_local_dev' SUPERUSER;" || true
+          sudo -u postgres psql -c "CREATE DATABASE apex OWNER apex;" || true
+          cd lib/db
+          pnpm exec drizzle-kit push --config ./drizzle.config.ts
       - run: pnpm run check:bureau
       - run: pnpm run typecheck
       - run: pnpm run build
+      - name: Start API for live smoke tests
+        run: |
+          set -euo pipefail
+          redis-cli ping
+          node artifacts/api-server/dist/index.mjs > /tmp/apex-api.log 2>&1 &
+          for i in $(seq 1 45); do
+            sleep 1
+            if [ "$(curl -sS -m 2 -o /tmp/health.json -w '%{http_code}' http://127.0.0.1:8080/api/healthz || true)" = "200" ]; then exit 0; fi
+          done
+          cat /tmp/apex-api.log
+          exit 1
       - name: Every API test file, isolated
         run: |
           set -euo pipefail
@@ -45,9 +74,27 @@ jobs:
         with: { node-version: 22 }
       - run: npm install -g pnpm@${PNPM_VERSION}
       - run: pnpm install --frozen-lockfile --ignore-scripts --registry=https://registry.npmjs.org/
+      - name: Provision local API dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq postgresql redis-server
+          sudo service postgresql start
+          sudo service redis-server start
+          sudo -u postgres psql -c "CREATE USER apex WITH PASSWORD 'apex_local_dev' SUPERUSER;" || true
+          sudo -u postgres psql -c "CREATE DATABASE apex OWNER apex;" || true
+          cd lib/db
+          pnpm exec drizzle-kit push --config ./drizzle.config.ts
       - run: pnpm run check:bureau
       - run: pnpm run typecheck
       - run: pnpm run build
+      - name: Start API for live smoke tests
+        run: |
+          set -euo pipefail
+          redis-cli ping
+          node artifacts/api-server/dist/index.mjs > /tmp/apex-api.log 2>&1 &
+          for i in $(seq 1 45); do sleep 1; if [ "$(curl -sS -m 2 -o /tmp/health.json -w '%{http_code}' http://127.0.0.1:8080/api/healthz || true)" = "200" ]; then exit 0; fi; done
+          cat /tmp/apex-api.log
+          exit 1
       - run: |
           set -euo pipefail
           cd artifacts/api-server
@@ -64,9 +111,27 @@ jobs:
         with: { node-version: 22 }
       - run: npm install -g pnpm@${PNPM_VERSION}
       - run: pnpm install --frozen-lockfile --ignore-scripts --registry=https://registry.npmjs.org/
+      - name: Provision local API dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq postgresql redis-server
+          sudo service postgresql start
+          sudo service redis-server start
+          sudo -u postgres psql -c "CREATE USER apex WITH PASSWORD 'apex_local_dev' SUPERUSER;" || true
+          sudo -u postgres psql -c "CREATE DATABASE apex OWNER apex;" || true
+          cd lib/db
+          pnpm exec drizzle-kit push --config ./drizzle.config.ts
       - run: pnpm run check:bureau
       - run: pnpm run typecheck
       - run: pnpm run build
+      - name: Start API for live smoke tests
+        run: |
+          set -euo pipefail
+          redis-cli ping
+          node artifacts/api-server/dist/index.mjs > /tmp/apex-api.log 2>&1 &
+          for i in $(seq 1 45); do sleep 1; if [ "$(curl -sS -m 2 -o /tmp/health.json -w '%{http_code}' http://127.0.0.1:8080/api/healthz || true)" = "200" ]; then exit 0; fi; done
+          cat /tmp/apex-api.log
+          exit 1
       - run: |
           set -euo pipefail
           cd artifacts/api-server
@@ -83,9 +148,27 @@ jobs:
         with: { node-version: 22 }
       - run: npm install -g pnpm@${PNPM_VERSION}
       - run: pnpm install --frozen-lockfile --ignore-scripts --registry=https://registry.npmjs.org/
+      - name: Provision local API dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq postgresql redis-server
+          sudo service postgresql start
+          sudo service redis-server start
+          sudo -u postgres psql -c "CREATE USER apex WITH PASSWORD 'apex_local_dev' SUPERUSER;" || true
+          sudo -u postgres psql -c "CREATE DATABASE apex OWNER apex;" || true
+          cd lib/db
+          pnpm exec drizzle-kit push --config ./drizzle.config.ts
       - run: pnpm run check:bureau
       - run: pnpm run typecheck
       - run: pnpm run build
+      - name: Start API for live smoke tests
+        run: |
+          set -euo pipefail
+          redis-cli ping
+          node artifacts/api-server/dist/index.mjs > /tmp/apex-api.log 2>&1 &
+          for i in $(seq 1 45); do sleep 1; if [ "$(curl -sS -m 2 -o /tmp/health.json -w '%{http_code}' http://127.0.0.1:8080/api/healthz || true)" = "200" ]; then exit 0; fi; done
+          cat /tmp/apex-api.log
+          exit 1
       - run: |
           set -euo pipefail
           cd artifacts/api-server
@@ -102,9 +185,27 @@ jobs:
         with: { node-version: 22 }
       - run: npm install -g pnpm@${PNPM_VERSION}
       - run: pnpm install --frozen-lockfile --ignore-scripts --registry=https://registry.npmjs.org/
+      - name: Provision local API dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq postgresql redis-server
+          sudo service postgresql start
+          sudo service redis-server start
+          sudo -u postgres psql -c "CREATE USER apex WITH PASSWORD 'apex_local_dev' SUPERUSER;" || true
+          sudo -u postgres psql -c "CREATE DATABASE apex OWNER apex;" || true
+          cd lib/db
+          pnpm exec drizzle-kit push --config ./drizzle.config.ts
       - run: pnpm run check:bureau
       - run: pnpm run typecheck
       - run: pnpm run build
+      - name: Start API for live smoke tests
+        run: |
+          set -euo pipefail
+          redis-cli ping
+          node artifacts/api-server/dist/index.mjs > /tmp/apex-api.log 2>&1 &
+          for i in $(seq 1 45); do sleep 1; if [ "$(curl -sS -m 2 -o /tmp/health.json -w '%{http_code}' http://127.0.0.1:8080/api/healthz || true)" = "200" ]; then exit 0; fi; done
+          cat /tmp/apex-api.log
+          exit 1
       - run: |
           set -euo pipefail
           cd artifacts/api-server
