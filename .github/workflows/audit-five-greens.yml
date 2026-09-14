@@ -1,5 +1,5 @@
 # Canonical five-green gate: five consecutive fresh full-codebase audits.
-# Activation marker: expose the exact failing isolated API test without weakening the gate.
+# Activation marker: fresh sequence after the latest complete-audit finding was corrected.
 name: Five Green Complete Codebase Audit
 
 on:
@@ -32,8 +32,6 @@ jobs:
   audit-1:
     name: Audit 1 — complete codebase
     runs-on: ubuntu-latest
-    outputs:
-      failed_test: ${{ steps.api_tests.outputs.failed_test }}
     steps: &audit_steps
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -72,57 +70,38 @@ jobs:
           cat /tmp/apex-api.log
           exit 1
       - name: Every API test file, isolated
-        id: api_tests
         run: |
-          set -uo pipefail
+          set -euo pipefail
           cd artifacts/api-server
           for test_file in src/src/test/*.test.ts; do
             echo "===== FULL AUDIT TEST: ${test_file} ====="
-            if ! pnpm exec vitest run --maxWorkers=1 "${test_file}"; then
-              echo "failed_test=${test_file}" >> "$GITHUB_OUTPUT"
-              exit 1
-            fi
+            pnpm exec vitest run --maxWorkers=1 "${test_file}"
           done
-          echo "failed_test=" >> "$GITHUB_OUTPUT"
       - name: Restore build-time safety-only source sanitization
         if: always()
         run: git checkout -- artifacts/apex-finder/src/pages/data-sources.tsx
-      - name: Final clean-tree assertion
-        if: always()
-        run: git diff --exit-code
-
-  audit-1-diagnostic:
-    name: Audit 1 diagnostic — ${{ needs.audit-1.outputs.failed_test || 'not needed' }}
-    needs: audit-1
-    if: ${{ always() && needs.audit-1.result == 'failure' && needs.audit-1.outputs.failed_test != '' }}
-    runs-on: ubuntu-latest
-    steps:
-      - run: echo "Audit 1 failed isolated API test: ${{ needs.audit-1.outputs.failed_test }}"
+      - run: git diff --exit-code
 
   audit-2:
     name: Audit 2 — complete codebase
     needs: audit-1
-    if: ${{ needs.audit-1.result == 'success' }}
     runs-on: ubuntu-latest
     steps: *audit_steps
 
   audit-3:
     name: Audit 3 — complete codebase
     needs: audit-2
-    if: ${{ needs.audit-2.result == 'success' }}
     runs-on: ubuntu-latest
     steps: *audit_steps
 
   audit-4:
     name: Audit 4 — complete codebase
     needs: audit-3
-    if: ${{ needs.audit-3.result == 'success' }}
     runs-on: ubuntu-latest
     steps: *audit_steps
 
   audit-5:
     name: Audit 5 — complete codebase
     needs: audit-4
-    if: ${{ needs.audit-4.result == 'success' }}
     runs-on: ubuntu-latest
     steps: *audit_steps
