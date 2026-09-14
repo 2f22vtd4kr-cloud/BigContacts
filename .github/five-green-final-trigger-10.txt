@@ -1,1 +1,1 @@
-Trigger marker after research-case replay fixture repair.
+Trigger marker after authentication-aware smoke-test correction; starts a new genuine five-pass sequence.
