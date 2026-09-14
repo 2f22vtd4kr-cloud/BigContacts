@@ -7,7 +7,7 @@ MIGRATION_DIR="./drizzle"
 rm -rf "$MIGRATION_DIR"
 trap 'rm -rf "$MIGRATION_DIR"' EXIT
 
-pnpm exec drizzle-kit generate \
+timeout 120s pnpm exec drizzle-kit generate \
   --config ./drizzle.config.ts \
   --name ci_schema \
   --ignore-conflicts
@@ -21,5 +21,5 @@ fi
 
 for migration in "${migrations[@]}"; do
   echo "Applying generated schema migration: ${migration}"
-  psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$migration"
+  timeout 120s psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$migration"
 done
