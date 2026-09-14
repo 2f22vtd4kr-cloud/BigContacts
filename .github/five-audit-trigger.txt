@@ -1,1 +1,1 @@
-Trigger for the registered five-consecutive complete-code audit gate. Drizzle bootstrap uses CLI schema/dialect flags without config conflicts.
+Trigger for the registered five-consecutive complete-code audit gate. Registered gate now includes live authenticated smoke tests and generated-SQL DB bootstrap.
