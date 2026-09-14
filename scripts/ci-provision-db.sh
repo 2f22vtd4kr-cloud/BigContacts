@@ -9,8 +9,7 @@ trap 'rm -rf "$MIGRATION_DIR"' EXIT
 
 timeout 120s pnpm exec drizzle-kit generate \
   --config ./drizzle.config.ts \
-  --name ci_schema \
-  --ignore-conflicts
+  --name ci_schema
 
 shopt -s nullglob
 migrations=("$MIGRATION_DIR"/*/migration.sql)
