@@ -23,7 +23,7 @@ describe("Gemini transient generation retry boundary", () => {
     globalThis.setTimeout = ((handler: TimerHandler) => {
       if (typeof handler === "function") handler();
       return 0 as unknown as ReturnType<typeof setTimeout>;
-    }) as typeof setTimeout;
+    }) as unknown as typeof setTimeout;
 
     vi.resetModules();
     await import("../lib/apex-bureau-orientation");
@@ -43,7 +43,7 @@ describe("Gemini transient generation retry boundary", () => {
     globalThis.setTimeout = ((handler: TimerHandler) => {
       if (typeof handler === "function") handler();
       return 0 as unknown as ReturnType<typeof setTimeout>;
-    }) as typeof setTimeout;
+    }) as unknown as typeof setTimeout;
 
     vi.resetModules();
     await import("../lib/apex-bureau-orientation");
