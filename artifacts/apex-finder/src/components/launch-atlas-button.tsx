@@ -8,7 +8,9 @@ import { useAtlasRun } from "@/lib/use-atlas-run";
 type Variant = "primary" | "header" | "reactor" | "ghost";
 
 const VARIANT_CLASS: Record<Variant, string> = {
-  primary: "atlas-launch-cta relative min-h-[3.25rem] h-13 w-full sm:w-auto min-w-[11rem] px-8 text-[15px] font-extrabold tracking-[0.03em] rounded-full",
+  // Keep the home-page primary CTA on the same 48px visual rail as Reactor/Discover.
+  // The previous h-13/min-h-[3.25rem] made the launch button visibly taller.
+  primary: "atlas-launch-cta relative h-12 min-h-12 w-full sm:w-auto min-w-[11rem] px-8 text-[15px] font-extrabold tracking-[0.03em] rounded-full",
   header: "atlas-launch-cta relative h-8 shrink-0 px-2.5 text-[11px] font-extrabold tracking-wide rounded-full whitespace-nowrap sm:h-9 sm:px-3.5 sm:text-[12px]",
   reactor: "atlas-launch-cta relative min-h-[3rem] h-12 w-full sm:w-auto min-w-[12rem] px-8 text-[15px] font-extrabold tracking-[0.03em] rounded-full",
   ghost: "atlas-outline-btn h-10 px-4 text-xs font-semibold active:scale-[0.97]",
@@ -97,14 +99,7 @@ export function LaunchAtlasButton({
 
   const controls = inFlight ? (
     <div className="relative z-20 flex shrink-0 flex-nowrap items-center gap-2 sm:gap-2.5" role="group" aria-label="Atlas run controls">
-      <button
-        type="button"
-        onClick={handleStop}
-        disabled={stopping || busy || !run.jobId}
-        data-testid="button-stop-apex-atlas"
-        aria-label="Stop Atlas research"
-        className={cn(CTRL, CTRL_STOP)}
-      >
+      <button type="button" onClick={handleStop} disabled={stopping || busy || !run.jobId} data-testid="button-stop-apex-atlas" aria-label="Stop Atlas research" className={cn(CTRL, CTRL_STOP)}>
         {stopping ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> : <Square className="h-3 w-3 fill-current" aria-hidden />}
         <span>{stopping ? "Stopping…" : "Stop"}</span>
       </button>
@@ -112,24 +107,14 @@ export function LaunchAtlasButton({
   ) : null;
 
   if (variant === "header" && inFlight) {
-    return (
-      <div className="flex min-h-[40px] flex-shrink-0 items-center justify-end gap-2 py-1 pl-2" data-testid="atlas-header-inflight-controls">
-        {controls}
-      </div>
-    );
+    return <div className="flex min-h-[40px] flex-shrink-0 items-center justify-end gap-2 py-1 pl-2" data-testid="atlas-header-inflight-controls">{controls}</div>;
   }
 
   if (inFlight && (variant === "primary" || variant === "reactor")) {
     return (
       <div className="flex w-full flex-col gap-2" data-testid="atlas-inflight-controls">
-        <button
-          type="button"
-          onClick={() => navigateToReactor && setLocation("/reactor")}
-          className={cn("inline-flex w-full items-center justify-center gap-2 rounded-xl border border-[#9CFF1A]/45 bg-[#9CFF1A]/12 px-4 py-3 text-sm font-semibold text-[#9CFF1A]", flash && "atlas-click-flash")}
-          aria-label="Open Reactor while Atlas research is active"
-        >
-          <Loader2 className="h-4 w-4 animate-spin shrink-0" aria-hidden />
-          <span className="truncate">{runningLabel}</span>
+        <button type="button" onClick={() => navigateToReactor && setLocation("/reactor")} className={cn("inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-[#9CFF1A]/45 bg-[#9CFF1A]/12 px-4 text-sm font-semibold text-[#9CFF1A]", flash && "atlas-click-flash")} aria-label="Open Reactor while Atlas research is active">
+          <Loader2 className="h-4 w-4 animate-spin shrink-0" aria-hidden /><span className="truncate">{runningLabel}</span>
         </button>
         {controls}
       </div>
@@ -139,33 +124,12 @@ export function LaunchAtlasButton({
   return (
     <div className={cn("flex gap-2 sm:gap-2.5", variant === "header" ? "flex-row items-center justify-end" : "flex-col sm:flex-row sm:items-center")}>
       {variant !== "header" && !opts?.researchDepth && !inFlight && (
-        <select
-          aria-label="Research depth"
-          data-testid="select-launch-depth"
-          value={launchDepth}
-          onChange={(e) => setLaunchDepth(e.target.value === "deep" ? "deep" : e.target.value === "fast" ? "fast" : "standard")}
-          className="rounded-lg border border-border bg-background/80 px-2 py-1.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground"
-          title="fast / standard / deep — free dig budget only"
-        >
-          <option value="fast">Depth · fast</option>
-          <option value="standard">Depth · standard</option>
-          <option value="deep">Depth · deep</option>
+        <select aria-label="Research depth" data-testid="select-launch-depth" value={launchDepth} onChange={(e) => setLaunchDepth(e.target.value === "deep" ? "deep" : e.target.value === "fast" ? "fast" : "standard")} className="h-12 rounded-lg border border-border bg-background/80 px-2 py-1.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground" title="fast / standard / deep — free dig budget only">
+          <option value="fast">Depth · fast</option><option value="standard">Depth · standard</option><option value="deep">Depth · deep</option>
         </select>
       )}
-      <button
-        type="button"
-        onClick={handleLaunch}
-        disabled={busy || stopping}
-        data-testid="button-launch-apex-atlas"
-        data-atlas-running={running ? "true" : "false"}
-        aria-label="Launch Apex Atlas free dig"
-        className={cn("atlas-pressable inline-flex items-center justify-center gap-2 rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime-400/60 disabled:opacity-60 disabled:cursor-not-allowed", inFlight ? VARIANT_RUNNING[variant] : VARIANT_CLASS[variant], flash && "atlas-click-flash", className)}
-      >
-        <span className="relative z-10 inline-flex items-center gap-2">
-          {(busy || running) && <Loader2 className="h-4 w-4 animate-spin shrink-0" aria-hidden />}
-          {variant === "header" && !inFlight && <Crosshair className="h-3.5 w-3.5 shrink-0" aria-hidden />}
-          <span className="whitespace-nowrap">{inFlight ? runningLabel : (label ?? (variant === "header" ? "Launch" : "Launch Apex Atlas"))}</span>
-        </span>
+      <button type="button" onClick={handleLaunch} disabled={busy || stopping} data-testid="button-launch-apex-atlas" data-atlas-running={running ? "true" : "false"} aria-label="Launch Apex Atlas free dig" className={cn("atlas-pressable inline-flex items-center justify-center gap-2 rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime-400/60 disabled:opacity-60 disabled:cursor-not-allowed", inFlight ? VARIANT_RUNNING[variant] : VARIANT_CLASS[variant], flash && "atlas-click-flash", className)}>
+        <span className="relative z-10 inline-flex items-center gap-2">{(busy || running) && <Loader2 className="h-4 w-4 animate-spin shrink-0" aria-hidden />}{variant === "header" && !inFlight && <Crosshair className="h-3.5 w-3.5 shrink-0" aria-hidden />}<span className="whitespace-nowrap">{inFlight ? runningLabel : (label ?? (variant === "header" ? "Launch" : "Launch Apex Atlas"))}</span></span>
       </button>
       {variant !== "header" && controls}
       {status && <p className={cn("w-full text-[10px] leading-relaxed font-mono", variant === "header" && "text-right", status.toLowerCase().includes("failed") || status.toLowerCase().includes("error") ? "text-rose-300" : "text-muted-foreground")} role="status">{status}</p>}
