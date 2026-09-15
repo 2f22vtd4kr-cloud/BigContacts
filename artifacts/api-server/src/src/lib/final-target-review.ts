@@ -78,6 +78,14 @@ function exactMatch(value: string, allowed: readonly string[]): boolean {
   return allowed.some((candidate) => candidate === v || candidate.trim().toLowerCase() === v.toLowerCase());
 }
 
+function publicationConflictKey(vectorType: string, value: string): string {
+  const vector = vectorType.trim().toLowerCase();
+  const normalized = vector === "phone"
+    ? value.replace(/\D/g, "")
+    : value.trim().toLowerCase();
+  return `${vector}|${normalized}`;
+}
+
 function collectEligibleContactValues(input: FinalTargetReviewInput): string[] {
   if (input.reachabilityStatus === "research_only") return [];
   const organizationTarget = input.targetType === "Corporation"
@@ -103,6 +111,12 @@ function collectEligibleContactValues(input: FinalTargetReviewInput): string[] {
 }
 
 function collectEligibleRelatedValues(input: FinalTargetReviewInput): string[] {
+  const conflictedContactKeys = new Set(
+    input.candidates
+      .filter((candidate) => candidate.conflictCount > 0)
+      .filter((candidate) => ["email", "phone", "social"].includes(candidate.vectorType))
+      .map((candidate) => publicationConflictKey(candidate.vectorType, candidate.value)),
+  );
   const fromCandidates = input.candidates
     .filter((c) => c.state !== "rejected")
     // A conflicted candidate is not safe merely because the reviewer labels it
@@ -114,6 +128,7 @@ function collectEligibleRelatedValues(input: FinalTargetReviewInput): string[] {
     .map((c) => c.value);
   const fromEvidence = input.evidence
     .filter((e) => e.validationStatus !== "rejected")
+    .filter((e) => !["email", "phone", "social"].includes(e.vectorType) || !conflictedContactKeys.has(publicationConflictKey(e.vectorType, e.value)))
     .map((e) => e.value);
   return Array.from(new Set([...fromCandidates, ...fromEvidence].filter(Boolean)));
 }
