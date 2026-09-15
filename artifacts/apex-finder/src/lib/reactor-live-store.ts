@@ -54,38 +54,23 @@ async function pull(): Promise<void> {
   controller?.abort();
   controller = new AbortController();
   try {
-    // Canonical Atlas status source. The historical /ingest/atlas-status endpoint
-    // is intentionally quarantined and returns 410; the active-job projection is
-    // the same source used by Launch/Stop controls and cannot drift from them.
-    const activeResponse = await fetch(`${baseUrl()}/api/ingest/job/active/atlas-run`, {
+    const response = await fetch(`${baseUrl()}/api/ingest/atlas-status`, {
       credentials: "same-origin",
       cache: "no-store",
       signal: controller.signal,
     });
-    if (!activeResponse.ok) {
+    if (!response.ok) {
       if (myGeneration === generation && listeners.size > 0) emit(EMPTY);
       return;
     }
-    const activeData = await activeResponse.json() as {
-      active?: boolean;
-      jobId?: string | null;
-      job?: Record<string, unknown> | null;
-      jobStatus?: string | null;
-    };
+    const data = await response.json();
     if (myGeneration !== generation || listeners.size === 0) return;
-
-    const job = activeData?.job ?? null;
-    const runStatus = String(job?.status ?? activeData?.jobStatus ?? "idle").toLowerCase();
-    const active = Boolean(activeData?.active) && (runStatus === "running" || runStatus === "paused" || runStatus === "queued");
+    const runStatus = String(data?.runStatus ?? data?.status ?? "idle").toLowerCase();
     const activities = normalizeLiveActivities(
-      Array.isArray(job?.recentSpans) ? job.recentSpans as ReactorSpanLike[] : [],
+      Array.isArray(data?.recentSpans) ? data.recentSpans as ReactorSpanLike[] : [],
       50,
     );
-
-    // The active-job endpoint is authoritative for run state. Telemetry is
-    // best-effort: when spans are not included by the job projection, keep the
-    // feed empty rather than inventing activity from prose/status text.
-    emit({ runStatus: active ? runStatus : (job?.status ? runStatus : "idle"), activities });
+    emit({ runStatus, activities });
   } catch (error) {
     if (myGeneration === generation && !(error instanceof DOMException && error.name === "AbortError")) {
       emit(EMPTY);
