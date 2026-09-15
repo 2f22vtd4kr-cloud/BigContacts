@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { adjudicateFinalTargetReview } from "../lib/final-target-review";
+import type { ReconciledCandidate } from "../lib/contact-candidate";
 
-function candidate(overrides: Record<string, unknown> = {}) {
+function candidate(overrides: Partial<ReconciledCandidate> = {}): ReconciledCandidate {
   return {
     key: "email|conflicted@example.com",
     vectorType: "email",
@@ -29,63 +30,21 @@ const baseInput = {
 
 describe("final target review conflict fencing", () => {
   it("cannot bypass contact conflict fencing through related candidate publication", () => {
-    const result = adjudicateFinalTargetReview(
-      { ...baseInput, candidates: [candidate()], evidence: [] },
-      {
-        decision: "publish",
-        approvedContactValues: [],
-        approvedRelatedValues: ["conflicted@example.com"],
-        relatedDescriptions: ["conflicted email"],
-      },
-      "test-reviewer",
-    );
-
+    const result = adjudicateFinalTargetReview({ ...baseInput, candidates: [candidate()], evidence: [] }, { decision: "publish", approvedContactValues: [], approvedRelatedValues: ["conflicted@example.com"], relatedDescriptions: ["conflicted email"] }, "test-reviewer");
     expect(result.approvedContactValues).toEqual([]);
     expect(result.approvedRelatedValues).toEqual([]);
     expect(result.decision).toBe("review");
   });
 
   it("cannot bypass the same conflict through durable evidence", () => {
-    const result = adjudicateFinalTargetReview(
-      {
-        ...baseInput,
-        candidates: [candidate()],
-        evidence: [{
-          vectorType: "email",
-          value: "conflicted@example.com",
-          source: "durable-evidence",
-          sourceUrl: "https://example.com/profile",
-          validationStatus: "validated",
-        }],
-      },
-      {
-        decision: "publish",
-        approvedRelatedValues: ["conflicted@example.com"],
-        relatedDescriptions: ["conflicted email"],
-      },
-      "test-reviewer",
-    );
-
+    const result = adjudicateFinalTargetReview({ ...baseInput, candidates: [candidate()], evidence: [{ vectorType: "email", value: "conflicted@example.com", source: "durable-evidence", sourceUrl: "https://example.com/profile", validationStatus: "validated" }] }, { decision: "publish", approvedRelatedValues: ["conflicted@example.com"], relatedDescriptions: ["conflicted email"] }, "test-reviewer");
     expect(result.approvedRelatedValues).toEqual([]);
     expect(result.decision).toBe("review");
   });
 
   it("still permits a non-conflicted related role", () => {
-    const result = adjudicateFinalTargetReview(
-      {
-        ...baseInput,
-        candidates: [candidate({ conflictCount: 0, vectorType: "role", value: "Director" })],
-        evidence: [],
-      },
-      {
-        decision: "publish",
-        approvedRelatedValues: ["Director"],
-        relatedDescriptions: ["role"],
-      },
-      "test-reviewer",
-    );
-
-    expect(result.approvedRelatedValues).toEqual(["Director"]);
+    const result = adjudicateFinalTargetReview({ ...baseInput, candidates: [candidate({ conflictCount: 0, vectorType: "ownership", value: "10% owner" })], evidence: [] }, { decision: "publish", approvedRelatedValues: ["10% owner"], relatedDescriptions: ["ownership"] }, "test-reviewer");
+    expect(result.approvedRelatedValues).toEqual(["10% owner"]);
     expect(result.decision).toBe("publish");
   });
 });
