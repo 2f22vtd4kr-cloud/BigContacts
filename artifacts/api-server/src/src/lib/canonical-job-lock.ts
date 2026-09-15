@@ -68,7 +68,7 @@ type LeaseResult = { available: true; renewed: boolean };
 export async function renewCanonicalJob(type: string, jobId: string): Promise<boolean> {
   const outcome: LeaseResult = {
     available: true,
-    renewed: Number(await withStrictPermanentClient((redis) => redis.eval("if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('expire', KEYS[1], ARGV[2]) else return 0 end", 1, `apex:activejob:${type}`, jobId, String(JOB_LOCK_TTL_SECONDS))) === 1,
+    renewed: Number(await withStrictPermanentClient((redis) => redis.eval("if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('expire', KEYS[1], ARGV[2]) else return 0 end", 1, `apex:activejob:${type}`, jobId, String(JOB_LOCK_TTL_SECONDS)))) === 1,
   };
   if (outcome.renewed) invalidateActiveJobCache(type);
   return outcome.renewed;
@@ -79,7 +79,7 @@ export async function releaseCanonicalJob(type: string, jobId: string): Promise<
   const timerKey = `${type}:${jobId}`; const timer = leaseTimers.get(timerKey); if (timer) clearInterval(timer); leaseTimers.delete(timerKey);
   const outcome: ReleaseResult = {
     available: true,
-    released: Number(await withStrictPermanentClient((redis) => redis.eval("if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end", 1, `apex:activejob:${type}`, jobId)) === 1,
+    released: Number(await withStrictPermanentClient((redis) => redis.eval("if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end", 1, `apex:activejob:${type}`, jobId))) === 1,
   };
   invalidateActiveJobCache(type);
   return outcome.released;
