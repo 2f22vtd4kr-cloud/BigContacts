@@ -49,9 +49,6 @@ for (const task of retiredUiTasks) {
 if (/\bfetch\s*\(/.test(jobs) || /\bTrigger Task\b|\bonTrigger\b|\bJOB_DEFS\b/.test(jobs)) { console.log("FAIL workspace activity desk contains executable job-launcher logic."); failed = true; }
 else console.log("PASS workspace activity desk contains no executable job-launcher logic.");
 
-// The canonical route tree lives under src/src/routes. Check both the current
-// path and the old path so this guard cannot silently miss a retired module after
-// a source-layout migration.
 const retiredControlPlaneFiles = [
   "artifacts/api-server/src/src/routes/research/mcts.ts",
   "artifacts/api-server/src/src/routes/research/bulk.ts",
@@ -86,5 +83,24 @@ else console.log("PASS retired deterministic Atlas orchestrator removed from the
 
 if (/\bfetch\s*\(/.test(secondaryPersist)) console.log("PASS legacy secondary helper retained only as unreachable compatibility source; no live caller remains.");
 else console.log("PASS secondary helper contains no direct outbound fetch transport.");
+
+// Atlas status is now a retired route. Keep CI, frontend telemetry, and audit
+// workflows on the canonical active-job + structured-trace projections so the
+// retirement cannot silently regress through an operational script.
+const retiredAtlasStatusRefs = [
+  "artifacts/apex-finder/src/lib/reactor-live-store.ts",
+  ".github/workflows/apex-live-audit.yml",
+  ".github/workflows/apex-single-target-audit.yml",
+  "scripts/audit-live-bureau.mjs",
+];
+for (const file of retiredAtlasStatusRefs) {
+  const content = read(file);
+  if (content.includes("/api/ingest/atlas-status")) {
+    console.log(`FAIL retired Atlas status endpoint remains referenced by ${file}`);
+    failed = true;
+  } else {
+    console.log(`PASS retired Atlas status endpoint absent from ${file}`);
+  }
+}
 
 if (failed) process.exit(1);
