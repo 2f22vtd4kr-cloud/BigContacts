@@ -67,88 +67,52 @@ export function assessIdentityCollision(input: {
 }): IdentityCollisionResult {
   const targetToks = identityNameTokens(input.targetName);
   const companyToks = identityNameTokens(input.companyName);
-
-  // Identity overlap is deliberately computed from explicit person/evidence
-  // text, not from URLs. A source URL is provenance, not a substitute for a
-  // model-authored person identity; otherwise a URL slug containing the target
-  // name could make an unrelated person appear to match.
   const identityBlob = [input.personName ?? "", input.value, input.note ?? ""].join(" ").toLowerCase();
   const sourceBlob = input.sourceUrls.join(" ").toLowerCase();
   const overlap = targetToks.filter((t) => identityBlob.includes(t));
   const personToks = identityNameTokens(input.personName);
   const personOverlap = targetToks.filter((t) => personToks.includes(t));
   const hostBlob = `${identityBlob} ${sourceBlob}`;
-
   const value = String(input.value ?? "").trim();
   const contactLike =
     /^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/i.test(value)
     || /^(?:\+?\d[\d\s().-]{6,})$/.test(value);
 
   if (contactLike && !input.personName?.trim()) {
-    return {
-      risk: true,
-      identityMatch: 0.3,
-      reason: "contact has no explicit person attribution; keep as organization/unknown route",
-    };
+    return { risk: true, identityMatch: 0.3, reason: "contact has no explicit person attribution; keep as organization/unknown route" };
   }
 
-  // Aggregator evidence can remain visible as review-only lead material, but it
-  // must never be sufficient to promote a personal contact onto the canonical
-  // entity card. A matching name alone does not make a people-data aggregator
-  // an acceptable primary/public attribution source.
-  if (input.sourceUrls.some(isAggregatorSourceUrl)) {
-    return {
-      risk: true,
-      identityMatch: 0.3,
-      reason: "aggregator-only source; personal contact promotion requires a non-aggregator public source",
-    };
+  // Aggregator evidence may accompany a stronger public source and remain
+  // visible as supporting lead material. It is disqualifying only when every
+  // supplied source is an aggregator, so an official source can still establish
+  // the canonical attribution.
+  if (input.sourceUrls.length > 0 && input.sourceUrls.every(isAggregatorSourceUrl)) {
+    return { risk: true, identityMatch: 0.3, reason: "aggregator-only source; personal contact promotion requires a non-aggregator public source" };
   }
 
-  // For a multi-token target, an explicit multi-token personName must actually
-  // align with the target. Evidence URLs cannot rescue a conflicting name.
   if (targetToks.length >= 2 && input.personName?.trim()) {
     if (personToks.length < 2 || personOverlap.length < 2) {
-      return {
-        risk: true,
-        identityMatch: 0.18,
-        reason: "explicit personName does not sufficiently align with target identity",
-      };
+      return { risk: true, identityMatch: 0.18, reason: "explicit personName does not sufficiently align with target identity" };
     }
   }
 
   const hostHit = COLLISION_HOSTS.some((h) => hostBlob.includes(h));
-  const educationHostHit =
-    /^[a-z0-9._%+-]+@([a-z0-9.-]+)$/i.test(value)
-      ? INSTITUTIONAL_EDUCATION_HOSTS.some((marker) => hostBlob.includes(marker))
-      : false;
+  const educationHostHit = /^[a-z0-9._%+-]+@([a-z0-9.-]+)$/i.test(value)
+    ? INSTITUTIONAL_EDUCATION_HOSTS.some((marker) => hostBlob.includes(marker))
+    : false;
 
   if (targetToks.length >= 2 && personToks.length >= 2) {
     const targetSurname = targetToks[targetToks.length - 1]!;
     const personSurname = personToks[personToks.length - 1]!;
-    if (
-      targetSurname.length >= 3 &&
-      personSurname.length >= 3 &&
-      targetSurname !== personSurname
-    ) {
-      return {
-        risk: true,
-        identityMatch: 0.18,
-        reason: `personName surname "${personSurname}" ≠ target surname "${targetSurname}"`,
-      };
+    if (targetSurname.length >= 3 && personSurname.length >= 3 && targetSurname !== personSurname) {
+      return { risk: true, identityMatch: 0.18, reason: `personName surname "${personSurname}" ≠ target surname "${targetSurname}"` };
     }
   }
 
   if (contactLike && educationHostHit) {
-    return {
-      risk: true,
-      identityMatch: 0.2,
-      reason: "institutional school/district contact surface; personal attribution requires stronger evidence",
-    };
+    return { risk: true, identityMatch: 0.2, reason: "institutional school/district contact surface; personal attribution requires stronger evidence" };
   }
 
-  // High confidence is reserved for an explicit personName whose complete
-  // token set matches the target. Evidence URLs/values cannot manufacture the
-  // missing identity match.
   if (
     targetToks.length >= 2
     && personToks.length >= 2
@@ -161,11 +125,7 @@ export function assessIdentityCollision(input: {
   if (targetToks.length >= 2) {
     const surname = targetToks[targetToks.length - 1]!;
     if (surname.length >= 3 && !identityBlob.includes(surname) && overlap.length < 2) {
-      return {
-        risk: true,
-        identityMatch: 0.22,
-        reason: "surname token missing from explicit evidence text; likely name collision",
-      };
+      return { risk: true, identityMatch: 0.22, reason: "surname token missing from explicit evidence text; likely name collision" };
     }
   }
 
@@ -174,58 +134,28 @@ export function assessIdentityCollision(input: {
   }
 
   if (hostHit && companyToks.length && !companyToks.some((t) => hostBlob.includes(t))) {
-    return {
-      risk: true,
-      identityMatch: 0.15,
-      reason: "source host/org does not match target issuer; likely name collision",
-    };
+    return { risk: true, identityMatch: 0.15, reason: "source host/org does not match target issuer; likely name collision" };
   }
   if (targetToks.length >= 2 && overlap.length === 0) {
-    return {
-      risk: true,
-      identityMatch: 0.2,
-      reason: "no name-token overlap between target and explicit evidence text",
-    };
+    return { risk: true, identityMatch: 0.2, reason: "no name-token overlap between target and explicit evidence text" };
   }
   if (targetToks.length >= 2 && overlap.length === 1 && hostHit) {
-    return {
-      risk: true,
-      identityMatch: 0.25,
-      reason: "weak name overlap with collision-prone host",
-    };
+    return { risk: true, identityMatch: 0.25, reason: "weak name overlap with collision-prone host" };
   }
-  return {
-    risk: false,
-    identityMatch: overlap.length >= 2 ? 0.65 : 0.45,
-    reason: null,
-  };
+  return { risk: false, identityMatch: overlap.length >= 2 ? 0.65 : 0.45, reason: null };
 }
 
 export function assessGraphNamePairRisk(leftName: string, rightName: string): IdentityCollisionResult {
   const left = identityNameTokens(leftName);
   const right = identityNameTokens(rightName);
-  if (left.length < 2 || right.length < 2) {
-    return { risk: false, identityMatch: 0.4, reason: null };
-  }
+  if (left.length < 2 || right.length < 2) return { risk: false, identityMatch: 0.4, reason: null };
   const leftSur = left[left.length - 1]!;
   const rightSur = right[right.length - 1]!;
   if (leftSur !== rightSur && left[0] === right[0]) {
-    return {
-      risk: true,
-      identityMatch: 0.2,
-      reason: `same given name, different surname (${leftSur} vs ${rightSur})`,
-    };
+    return { risk: true, identityMatch: 0.2, reason: `same given name, different surname (${leftSur} vs ${rightSur})` };
   }
   if (leftSur !== rightSur && !left.some((t) => right.includes(t))) {
-    return {
-      risk: true,
-      identityMatch: 0.15,
-      reason: "no shared name tokens between graph endpoints",
-    };
+    return { risk: true, identityMatch: 0.15, reason: "no shared name tokens between graph endpoints" };
   }
-  return {
-    risk: false,
-    identityMatch: leftSur === rightSur ? 0.7 : 0.5,
-    reason: null,
-  };
+  return { risk: false, identityMatch: leftSur === rightSur ? 0.7 : 0.5, reason: null };
 }
