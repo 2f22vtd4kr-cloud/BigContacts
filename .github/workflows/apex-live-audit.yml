@@ -24,7 +24,6 @@ jobs:
       REDIS_URL: redis://127.0.0.1:6379
       PORT: 8080
       ENABLE_AUTO_PIPELINE: "false"
-      ENABLE_AUTO_PIPELINE: "false"
       NODE_ENV: development
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       GEMINI_API_KEY_1: ${{ secrets.GEMINI_API_KEY_1 }}
