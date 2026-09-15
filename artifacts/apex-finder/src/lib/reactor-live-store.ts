@@ -51,8 +51,11 @@ function schedule(): void {
 async function pull(): Promise<void> {
   if (listeners.size === 0) return;
   const myGeneration = generation;
+  // Keep ownership local to this pull. A stale pull's finally block must never
+  // clear or overwrite the controller belonging to a newer pull.
   controller?.abort();
-  controller = new AbortController();
+  const myController = new AbortController();
+  controller = myController;
   try {
     // Canonical Atlas status is the active-job projection. Legacy
     // /api/ingest/atlas-status was intentionally retired and must not be
@@ -60,7 +63,7 @@ async function pull(): Promise<void> {
     const activeResponse = await fetch(`${baseUrl()}/api/ingest/job/active/atlas-run`, {
       credentials: "same-origin",
       cache: "no-store",
-      signal: controller.signal,
+      signal: myController.signal,
     });
     if (!activeResponse.ok) {
       if (myGeneration === generation && listeners.size > 0) emit(EMPTY);
@@ -89,7 +92,7 @@ async function pull(): Promise<void> {
         const traceResponse = await fetch(`${baseUrl()}/api/ingest/atlas-trace/${encodeURIComponent(jobId)}`, {
           credentials: "same-origin",
           cache: "no-store",
-          signal: controller.signal,
+          signal: myController.signal,
         });
         if (traceResponse.ok) {
           const traceData = await traceResponse.json() as Record<string, unknown>;
@@ -110,8 +113,12 @@ async function pull(): Promise<void> {
       emit(EMPTY);
     }
   } finally {
-    controller = null;
-    schedule();
+    // Only the current pull may clear the shared controller reference or arm
+    // the next timer. Stale pulls can finish after a newer pull has started.
+    if (controller === myController && myGeneration === generation) {
+      controller = null;
+      schedule();
+    }
   }
 }
 
