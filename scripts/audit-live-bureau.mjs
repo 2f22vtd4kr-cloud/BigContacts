@@ -13,8 +13,14 @@ const log = readText("/tmp/apex-api.log");
 const entities = readJson("/tmp/entities.json", {});
 const rows = Array.isArray(entities) ? entities : (entities.entities || entities.rows || []);
 const status = readJson("/tmp/atlas-status.json", {});
+const trace = readJson("/tmp/atlas-trace.json", {});
 const health = readJson("/tmp/health.json", {});
 const launch = readJson("/tmp/launch.json", {});
+
+// The active-job response is lifecycle authority; the structured trace is the
+// authoritative execution feed. Keep the audit contract independent of the
+// retired /api/ingest/atlas-status route and merge the trace projection here.
+if (Array.isArray(trace?.trace)) status.recentSpans = trace.trace;
 
 const fail = (msg) => { console.error(`FAIL: ${msg}`); process.exitCode = 1; };
 const isHttpUrl = (value) => {
@@ -110,15 +116,9 @@ for (const line of actualSearches) {
 }
 
 if (status.status !== "done" && status.outcome !== "complete") fail(`Bureau did not finish cleanly: ${status.status || status.outcome || "unknown"}`);
-if (status.outcome && status.outcome !== "complete") {
-  fail(`Bureau terminal outcome is ${status.outcome}; provider failure cannot count as research-quality proof`);
-}
-if (health?.bureauIntegrity === "critical") {
-  fail(`bureauIntegrity=critical: ${(health.bureauIntegrityReasons || []).join("; ") || "agentic runtime degraded"}`);
-}
-if (/\b(?:discovery)?degraded=true\b/i.test(String(status.message || ""))) {
-  fail("Bureau completed with degraded=true; provider failure cannot count as research-quality proof");
-}
+if (status.outcome && status.outcome !== "complete") fail(`Bureau terminal outcome is ${status.outcome}; provider failure cannot count as research-quality proof`);
+if (health?.bureauIntegrity === "critical") fail(`bureauIntegrity=critical: ${(health.bureauIntegrityReasons || []).join("; ") || "agentic runtime degraded"}`);
+if (/\b(?:discovery)?degraded=true\b/i.test(String(status.message || ""))) fail("Bureau completed with degraded=true; provider failure cannot count as research-quality proof");
 const minAdmits = Math.max(1, Number(process.env.LIVE_AUDIT_MIN_ADMITS || "1"));
 if (rows.length < minAdmits) fail(`discovery-first proof produced ${rows.length} entities; require at least ${minAdmits} real admitted person(s)`);
 
@@ -132,19 +132,12 @@ for (const entity of rows) {
   if (looksMalformedTarget(entity.name)) fail(`malformed/non-person entity admitted as target: ${entityName}`);
 
   let discoveryMeta = {};
-  try {
-    discoveryMeta = typeof entity.metadata === "string" ? JSON.parse(entity.metadata) : (entity.metadata || {});
-  } catch {
-    fail(`entity ${entityName} has unreadable discovery metadata`);
-  }
+  try { discoveryMeta = typeof entity.metadata === "string" ? JSON.parse(entity.metadata) : (entity.metadata || {}); }
+  catch { fail(`entity ${entityName} has unreadable discovery metadata`); }
   if (launch?.options?.discoveryFirst === true) {
-    if (discoveryMeta.discoveryAgent !== true) {
-      fail(`entity ${entityName} lacks discovery-agent admission provenance`);
-    }
+    if (discoveryMeta.discoveryAgent !== true) fail(`entity ${entityName} lacks discovery-agent admission provenance`);
     const admitUrls = Array.isArray(discoveryMeta.sourceUrls) ? discoveryMeta.sourceUrls : [];
-    if (!admitUrls.some(isHttpUrl)) {
-      fail(`entity ${entityName} lacks HTTP(S) discovery admission evidence`);
-    }
+    if (!admitUrls.some(isHttpUrl)) fail(`entity ${entityName} lacks HTTP(S) discovery admission evidence`);
   }
 
   const contacts = Array.isArray(entity.contacts) ? entity.contacts : [];
@@ -155,10 +148,8 @@ for (const entity of rows) {
 
   const sourced = contacts.filter((c) => isHttpUrl(c?.sourceUrl));
   sourceBacked += sourced.length;
-  const personalRoutes = contacts.filter((c) => ["personal", "verified_direct_route"].includes(String(c?.mark ?? "").toLowerCase())
-    || String(c?.validationStatus ?? "").toLowerCase() === "verified_direct_route");
-  const organizationRoutes = contacts.filter((c) => String(c?.mark ?? "").toLowerCase() === "organization"
-    || String(c?.label ?? "").toLowerCase().includes("organization"));
+  const personalRoutes = contacts.filter((c) => ["personal", "verified_direct_route"].includes(String(c?.mark ?? "").toLowerCase()) || String(c?.validationStatus ?? "").toLowerCase() === "verified_direct_route");
+  const organizationRoutes = contacts.filter((c) => String(c?.mark ?? "").toLowerCase() === "organization" || String(c?.label ?? "").toLowerCase().includes("organization"));
   const candidateRoutes = contacts.filter((c) => String(c?.mark ?? "").toLowerCase() === "candidate");
   const risky = contacts.filter((c) => c?.identityCollisionRisk === true);
   candidate += candidateRoutes.length;
@@ -174,7 +165,6 @@ for (const entity of rows) {
     org++;
     if (organizationRoutes.length === 0) fail(`entity ${entityName} claims organization_contact without an explicitly organization-scoped route`);
   }
-
   console.log(`QUALITY entity=${entityName} outcome=${entity.contactOutcome || "none"} sourcedContacts=${contacts.length} personal=${personalRoutes.length} organization=${organizationRoutes.length} candidate=${candidateRoutes.length} collisionRisk=${risky.length}`);
 }
 
