@@ -1,0 +1,15 @@
+/* Responsive shell guardrails for the public Apex Atlas desk. */
+.atlas-page {
+  width: 100%;
+  max-width: 1800px;
+  margin-inline: auto;
+  padding-inline: 1rem;
+}
+
+@media (min-width: 640px) {
+  .atlas-page { padding-inline: 1.25rem; }
+}
+
+@media (min-width: 768px) {
+  .atlas-page { padding-inline: 1.5rem; }
+}

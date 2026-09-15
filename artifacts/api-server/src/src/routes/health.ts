@@ -20,10 +20,35 @@ async function redisSnapshot() {
 
 router.get("/healthz", async (_req, res) => {
   const snap = await redisSnapshot();
-  // Public probes intentionally reveal only liveness and the distributed-store
-  // health needed by the load balancer. Provider inventory and research posture
-  // belong to the authenticated diagnostic endpoint below.
-  res.json({ status: "ok", redis: { status: snap.status, latencyMs: snap.latencyMs, cached: snap.cached } });
+  // Public probes reveal only liveness, distributed-store health, and a coarse
+  // research-key readiness bit. Provider names, counts, models, and secret state
+  // remain behind the authenticated diagnostic endpoint below.
+  let researchKeysConfigured = false;
+  try {
+    const providerKeys = [
+      process.env.GROQ_API_KEY,
+      process.env.GEMINI_API_KEY,
+      process.env.DEEPSEEK_API_KEY,
+      process.env.MISTRAL_API_KEY,
+      process.env.HF_TOKEN,
+      process.env.SERPER_API_KEY,
+      process.env.TAVILY_API_KEY,
+      process.env.SERPAPI_API_KEY,
+      process.env.EXA_API_KEY,
+      process.env.SCRAPFLY_API_KEY,
+      process.env.ZENROWS_API_KEY,
+      process.env.COMPANIES_HOUSE_API_KEY,
+      process.env.WHOISJSON_API_KEY,
+    ];
+    researchKeysConfigured = providerKeys.some((key) => Boolean(key?.trim()));
+  } catch {
+    researchKeysConfigured = false;
+  }
+  res.json({
+    status: "ok",
+    redis: { status: snap.status, latencyMs: snap.latencyMs, cached: snap.cached },
+    researchKeysConfigured,
+  });
 });
 
 router.get("/healthz/details", async (_req, res) => {
