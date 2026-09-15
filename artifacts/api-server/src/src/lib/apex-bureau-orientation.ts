@@ -28,10 +28,13 @@ function installGeminiTransientRetry(): void {
     const isGeminiGeneration = method === "POST" && requestUrl.includes(GEMINI_GENERATION_PATH) && requestUrl.includes(":generateContent");
     const isGeminiCatalog = method === "GET" && requestUrl.startsWith(`https://${GEMINI_CATALOG_PATH}`);
 
+    // Model discovery is part of the Boss control-plane bootstrap. Treat a
+    // transient 5xx exactly like generation capacity: bounded retry, jitter,
+    // and Retry-After, while keeping the catalog request time-limited.
     if (isGeminiCatalog && !init?.signal) {
-      return originalFetch(input, { ...init, signal: AbortSignal.timeout(GEMINI_CATALOG_TIMEOUT_MS) });
+      init = { ...init, signal: AbortSignal.timeout(GEMINI_CATALOG_TIMEOUT_MS) };
     }
-    if (!isGeminiGeneration) return originalFetch(input, init);
+    if (!isGeminiGeneration && !isGeminiCatalog) return originalFetch(input, init);
 
     let lastResponse: Response | null = null;
     for (let attempt = 0; attempt < GEMINI_TRANSIENT_RETRY_ATTEMPTS; attempt += 1) {
