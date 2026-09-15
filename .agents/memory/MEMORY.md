@@ -5,3 +5,4 @@
 - [Frontend dist rebuild](frontend-dist-rebuild.md) — the API boot script skips frontend builds when dist exists, so UI edits need an explicit client build before restart.
 - [Agentic provider quota](agentic-provider-quota.md) — configured provider keys can appear healthy while Groq/Mistral capacity is exhausted; wait for reset instead of retrying a smoke.
 - [Blind review truth boundary](blind-review-truth-boundary.md) — deterministic approved values and scope must outrank a reviewer narrative or publish status when they disagree.
+- [GitHub import proxy limits](github-import-proxy-limits.md) — archive downloads can be denied and bursty blob reads can 429; prefer read-only git fetch or batched GraphQL reads.
