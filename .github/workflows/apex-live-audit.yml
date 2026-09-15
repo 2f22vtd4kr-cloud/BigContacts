@@ -111,14 +111,14 @@ jobs:
           node scripts/check-api-auth-boundary.mjs
           node scripts/check-retired-research-routes.mjs
           node scripts/check-workflow-action-pins.mjs
-          pnpm --dir artifacts/api-server exec vitest run src/src/test/discovery-agent-parse.test.ts src/src/test/discovery-runtime-correctness.test.ts src/src/test/agentic-scope-boundary.test.ts src/src/test/agentic-source-provenance.test.ts src/src/test/bureau-contact-persist-strict.test.ts
+          pnpm --dir artifacts/api-server exec vitest run src/src/test/discovery-agent-parse.test.ts src/src/test/discovery-runtime-correctness.test.ts src/src/test/agentic-scope-boundary.test.ts src/src/test/agentic-source-provenance.test.ts src/src/test/bureau-contact-persist-strict.test.ts src/src/test/bureau-stream-close-race.test.ts src/src/test/bureau-live-log-concurrency.test.ts
       - name: Provider catalog and generation preflight
         shell: bash
         run: |
           set -euo pipefail
           node --input-type=module <<'NODE'
           const results=[]; let digReady=false;
-          async function probe(url,key,model,provider){if(!key){results.push({provider,state:'not_configured'});return false}try{const r=await fetch(url,{method:'POST',headers:{Authorization:`Bearer ${key}`,'content-type':'application/json'},body:JSON.stringify({model,messages:[{role:'user',content:'Reply READY only.'}],max_tokens:32}),signal:AbortSignal.timeout(15000)});await r.text();results.push({provider,model,status:r.status,retryAfter:r.headers.get('retry-after'),remainingTokens:r.headers.get('x-ratelimit-remaining-tokens'),limitTokens:r.headers.get('x-ratelimit-limit-tokens'),resetTokens:r.headers.get('x-ratelimit-reset-tokens')});return r.ok}catch(e){results.push({provider,model,state:'transport_error',error:String(e?.message||e)});return false}}
+          async function probe(url,key,model,provider){if(!key){results.push({provider,state:'not_configured'});return false}try{const r=await fetch(url,{method:'POST',headers:{Authorization:`Bearer ${key}`,'content-type':'application/json'},body:JSON.stringify({model,messages:[{role:'user',content:'Reply READY only.'}],max_tokens:32}),signal:AbortSignal.timeout(15000)});await r.text();results.push({provider,model,status:r.status,retryAfter:r.headers.get('retry-after'),remainingTokens:r.headers.get('x-ratelimit-remaining-tokens'),limitTokens:r.headers.get('x-ratelimit-limit-tokens'),resetTokens:r.headers.get('x-ratelimit-reset-tokens')});return r.ok}catch(e){results.push({provider,model,state:'transport_error',error:String(e?.message||e)})}}
           const groq=await probe('https://api.groq.com/openai/v1/chat/completions',process.env.GROQ_API_KEY,process.env.GROQ_AGENTIC_MODEL,'groq-dig'); const mistral=await probe('https://api.mistral.ai/v1/chat/completions',process.env.MISTRAL_API_KEY,process.env.MISTRAL_AGENTIC_MODEL||'mistral-small-latest','mistral-dig'); digReady=groq||mistral; await probe('https://integrate.api.nvidia.com/v1/chat/completions',process.env.DEEPSEEK_API_KEY,process.env.DEEPSEEK_MODEL||'deepseek-ai/deepseek-v4-flash-0731','nvidia-right-hand');
           const keys=[process.env.GEMINI_API_KEY,...Array.from({length:13},(_,i)=>process.env[`GEMINI_API_KEY_${i+1}`])].filter(Boolean); let bossReady=false; for(const [i,key] of keys.entries()){try{const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(process.env.GEMINI_AGENTIC_MODEL||'gemini-3.7-flash')}:generateContent`,{method:'POST',headers:{'x-goog-api-key':key,'content-type':'application/json'},body:JSON.stringify({contents:[{parts:[{text:'Reply READY only.'}]}],generationConfig:{maxOutputTokens:8}}),signal:AbortSignal.timeout(15000)});await r.text();results.push({provider:'gemini-boss',key:`${i+1}`,status:r.status});if(r.ok){bossReady=true;break}}catch(e){results.push({provider:'gemini-boss',key:`${i+1}`,state:'transport_error',error:String(e?.message||e)})}}
           console.log(JSON.stringify({digReady,bossReady,results},null,2)); if(!digReady){console.error('No configured Dig provider passed generation preflight.');process.exit(2)}
@@ -135,20 +135,22 @@ jobs:
         run: |
           curl -sS -m 15 -X POST http://127.0.0.1:8080/api/ingest/atlas-run -H "Authorization: Bearer ${APEX_API_AUTH_TOKEN}" -H 'Content-Type: application/json' -d '{"discoveryFirst":true,"targetCount":3,"researchLimit":2,"runResearch":true,"skipFaa":true,"targetTimeoutMs":300000,"researchDepth":"standard"}' | tee /tmp/launch.json
           node -e 'const x=require("/tmp/launch.json"); if(!x.jobId){console.error(JSON.stringify(x));process.exit(1)}; console.log(x.jobId)'
-      - name: Poll Bureau
+      - name: Poll canonical Atlas state
         run: |
           for i in $(seq 1 900); do
             sleep 5
-            curl -sS -m 10 -H "Authorization: Bearer ${APEX_API_AUTH_TOKEN}" http://127.0.0.1:8080/api/ingest/atlas-status > /tmp/atlas-status.json || true
-            STATUS=$(node -e 'const fs=require("fs");try{const x=JSON.parse(fs.readFileSync("/tmp/atlas-status.json","utf8"));process.stdout.write(String(x.status||x.job?.status||""))}catch{}')
+            curl -sS -m 10 -H "Authorization: Bearer ${APEX_API_AUTH_TOKEN}" http://127.0.0.1:8080/api/ingest/job/active/atlas-run > /tmp/atlas-status.json || true
+            STATUS=$(node -e 'const fs=require("fs");try{const x=JSON.parse(fs.readFileSync("/tmp/atlas-status.json","utf8"));const j=x.job||{};process.stdout.write(String(j.status||x.jobStatus||(x.active?"running":"idle")))}catch{}')
             case "$STATUS" in done|completed) exit 0;; failed|cancelled) exit 1;; esac
           done
           exit 1
-      - name: Collect live state
+      - name: Collect canonical live state
         if: always()
         run: |
           curl -sS -m 10 -H "Authorization: Bearer ${APEX_API_AUTH_TOKEN}" http://127.0.0.1:8080/api/healthz/details | tee /tmp/health.json || true
-          curl -sS -m 10 -H "Authorization: Bearer ${APEX_API_AUTH_TOKEN}" http://127.0.0.1:8080/api/ingest/atlas-status | tee /tmp/atlas-status.json || true
+          curl -sS -m 10 -H "Authorization: Bearer ${APEX_API_AUTH_TOKEN}" http://127.0.0.1:8080/api/ingest/job/active/atlas-run | tee /tmp/atlas-status.json || true
+          JOB_ID=$(node -e 'const fs=require("fs");try{const x=JSON.parse(fs.readFileSync("/tmp/atlas-status.json","utf8"));const j=x.job||{};process.stdout.write(String(x.jobId||j.jobId||""))}catch{}')
+          if [ -n "$JOB_ID" ]; then curl -sS -m 10 -H "Authorization: Bearer ${APEX_API_AUTH_TOKEN}" "http://127.0.0.1:8080/api/ingest/atlas-trace/${JOB_ID}" | tee /tmp/atlas-trace.json || true; else echo '{"trace":[]}' > /tmp/atlas-trace.json; fi
           curl -sS -m 10 -H "Authorization: Bearer ${APEX_API_AUTH_TOKEN}" 'http://127.0.0.1:8080/api/entities?limit=50&offset=0' | tee /tmp/entities.json || true
           curl -sS -m 10 -H "Authorization: Bearer ${APEX_API_AUTH_TOKEN}" 'http://127.0.0.1:8080/api/ingest/scoreboard-snapshot?limit=50' | tee /tmp/scoreboard.json || true
       - name: Live autonomy and provenance audit
@@ -162,6 +164,7 @@ jobs:
           path: |
             /tmp/launch.json
             /tmp/atlas-status.json
+            /tmp/atlas-trace.json
             /tmp/entities.json
             /tmp/health.json
             /tmp/scoreboard.json
