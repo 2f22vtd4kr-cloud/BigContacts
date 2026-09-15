@@ -2,160 +2,28 @@
  * Shared name/host collision heuristics for card promote and graph bind.
  * Pure functions — safe for unit tests without DB.
  */
-
 const STOP = new Set(["the", "and", "for", "inc", "llc", "ltd", "company", "corp", "group", "plc"]);
-
-export function identityNameTokens(value: string | null | undefined): string[] {
-  return String(value ?? "")
-    .toLowerCase()
-    .replace(/[^a-z0-9\s]/g, " ")
-    .split(/\s+/)
-    .map((t) => t.trim())
-    .filter((t) => t.length >= 3 && !STOP.has(t));
+export function identityNameTokens(value: string | null | undefined): string[] { return String(value ?? "").toLowerCase().replace(/[^a-z0-9\s]/g, " ").split(/\s+/).map((t) => t.trim()).filter((t) => t.length >= 3 && !STOP.has(t)); }
+const COLLISION_HOSTS = ["edwardjones", "edward-jones", "immunovant", "alvarezandmarsal", "alvarez-marsal", "fidelity", "vanguard", "schwab", "morganstanley", "goldmansachs", "andrewjohnsonbank", "bankofamerica", "wellsfargo", "jpmorgan", "citigroup", "raymondjames", "ameriprise", "northwesternmutual", "prudential", "merceradvisors", "mercer-advisors", "wealthadvisor", "wealth-advisor", "rocketreach", "zoominfo", "signalhire", "contactout", "apollo.io", "majesco", "bbgigroup", "bbgi.com", "spokeo", "whitepages", "beenverified", "intelius", "truepeoplesearch", "fastpeoplesearch", "thatsthem", "radaris", "peoplefinder", "hunter.io", "clearbit", "lusha", "crunchbase", "pitchbook", "bloomberg.com/profile", "dnb.com", "opencorporates", "bbb.org", "yelp.com", "yellowpages", "superpages", "manta.com", "bizapedia", "prospeo", "adapt.io", "growjo", "theorg.com", "equilar"];
+const AGGREGATOR_HOSTS = ["rocketreach.co", "zoominfo.com", "signalhire.com", "contactout.com", "apollo.io", "spokeo.com", "whitepages.com", "beenverified.com", "intelius.com", "truepeoplesearch.com", "fastpeoplesearch.com", "thatsthem.com", "radaris.com", "peoplefinder.com", "peoplefinders.com", "hunter.io", "clearbit.com", "lusha.com", "crunchbase.com", "pitchbook.com", "dnb.com", "opencorporates.com", "veripages.com", "idcrawl.com", "theorg.com"];
+function isAggregatorSourceUrl(url: string): boolean { try { const hostname = new URL(url).hostname.toLowerCase().replace(/^www\./, ""); return AGGREGATOR_HOSTS.some((host) => hostname === host || hostname.endsWith(`.${host}`)); } catch { return false; } }
+const INSTITUTIONAL_EDUCATION_HOSTS = ["kyschools", "schools", "school", "k12", "district", "isd.", "usd.", "edu."];
+export type IdentityCollisionResult = { risk:boolean; identityMatch:number; reason:string|null };
+export function assessIdentityCollision(input:{targetName:string;companyName?:string|null;personName?:string|null;value:string;sourceUrls:string[];note?:string|null}):IdentityCollisionResult{
+  const targetToks=identityNameTokens(input.targetName),companyToks=identityNameTokens(input.companyName),identityBlob=[input.personName??"",input.value,input.note??""].join(" ").toLowerCase(),sourceBlob=input.sourceUrls.join(" ").toLowerCase(),overlap=targetToks.filter((t)=>identityBlob.includes(t)),personToks=identityNameTokens(input.personName),personOverlap=targetToks.filter((t)=>personToks.includes(t)),hostBlob=`${identityBlob} ${sourceBlob}`,value=String(input.value??"").trim(),contactLike=/^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/i.test(value)||/^(?:\+?\d[\d\s().-]{6,})$/.test(value);
+  if(contactLike&&!input.personName?.trim())return{risk:true,identityMatch:.3,reason:"contact has no explicit person attribution; keep as organization/unknown route"};
+  if(input.sourceUrls.length>0&&input.sourceUrls.every(isAggregatorSourceUrl))return{risk:true,identityMatch:.3,reason:"aggregator-only source; personal contact promotion requires a non-aggregator public source"};
+  if(targetToks.length>=2&&input.personName?.trim()&&(personToks.length<2||personOverlap.length<2))return{risk:true,identityMatch:.18,reason:"explicit personName does not sufficiently align with target identity"};
+  const hostHit=COLLISION_HOSTS.some((h)=>hostBlob.includes(h));
+  const educationHostHit=/^[a-z0-9._%+-]+@([a-z0-9.-]+)$/i.test(value)?INSTITUTIONAL_EDUCATION_HOSTS.some((marker)=>hostBlob.includes(marker)):false;
+  if(targetToks.length>=2&&personToks.length>=2){const targetSurname=targetToks[targetToks.length-1]!,personSurname=personToks[personToks.length-1]!;if(targetSurname.length>=3&&personSurname.length>=3&&targetSurname!==personSurname)return{risk:true,identityMatch:.18,reason:`personName surname "${personSurname}" ≠ target surname "${targetSurname}"`};}
+  if(contactLike&&educationHostHit)return{risk:true,identityMatch:.2,reason:"institutional school/district contact surface; personal attribution requires stronger evidence"};
+  if(targetToks.length>=2&&personToks.length>=2&&personToks.length===targetToks.length&&personOverlap.length===targetToks.length)return{risk:false,identityMatch:.85,reason:null};
+  if(targetToks.length>=2){const surname=targetToks[targetToks.length-1]!;if(surname.length>=3&&!identityBlob.includes(surname)&&overlap.length<2)return{risk:true,identityMatch:.22,reason:"surname token missing from explicit evidence text; likely name collision"};}
+  if(companyToks.length&&companyToks.some((t)=>identityBlob.includes(t)))return{risk:false,identityMatch:.55,reason:null};
+  if(hostHit&&companyToks.length&&!companyToks.some((t)=>hostBlob.includes(t)))return{risk:true,identityMatch:.15,reason:"source host/org does not match target issuer; likely name collision"};
+  if(targetToks.length>=2&&overlap.length===0)return{risk:true,identityMatch:.2,reason:"no name-token overlap between target and explicit evidence text"};
+  if(targetToks.length>=2&&overlap.length===1&&hostHit)return{risk:true,identityMatch:.25,reason:"weak name overlap with collision-prone host"};
+  return{risk:false,identityMatch:overlap.length>=2?.65:.45,reason:null};
 }
-
-const COLLISION_HOSTS = [
-  "edwardjones", "edward-jones", "immunovant", "alvarezandmarsal", "alvarez-marsal",
-  "fidelity", "vanguard", "schwab", "morganstanley", "goldmansachs",
-  "andrewjohnsonbank", "bankofamerica", "wellsfargo", "jpmorgan", "citigroup",
-  "raymondjames", "ameriprise", "northwesternmutual", "prudential",
-  "merceradvisors", "mercer-advisors", "wealthadvisor", "wealth-advisor",
-  "rocketreach", "zoominfo", "signalhire", "contactout", "apollo.io",
-  "majesco", "bbgigroup", "bbgi.com",
-  "spokeo", "whitepages", "beenverified", "intelius", "truepeoplesearch",
-  "fastpeoplesearch", "thatsthem", "radaris", "peoplefinder",
-  "hunter.io", "clearbit", "lusha",
-  "crunchbase", "pitchbook", "bloomberg.com/profile",
-  "dnb.com", "opencorporates", "bbb.org", "yelp.com",
-  "yellowpages", "superpages", "manta.com", "bizapedia",
-  "prospeo", "adapt.io", "growjo", "theorg.com", "equilar",
-];
-
-const AGGREGATOR_HOSTS = [
-  "rocketreach.co", "zoominfo.com", "signalhire.com", "contactout.com", "apollo.io",
-  "spokeo.com", "whitepages.com", "beenverified.com", "intelius.com", "truepeoplesearch.com",
-  "fastpeoplesearch.com", "thatsthem.com", "radaris.com", "peoplefinder.com", "hunter.io",
-  "clearbit.com", "lusha.com", "crunchbase.com", "pitchbook.com", "dnb.com", "opencorporates.com",
-];
-
-function isAggregatorSourceUrl(url: string): boolean {
-  try {
-    const hostname = new URL(url).hostname.toLowerCase().replace(/^www\./, "");
-    return AGGREGATOR_HOSTS.some((host) => hostname === host || hostname.endsWith(`.${host}`));
-  } catch {
-    return false;
-  }
-}
-
-const INSTITUTIONAL_EDUCATION_HOSTS = [
-  "kyschools", "schools", "school", "k12", "district", "isd.", "usd.", "edu.",
-];
-
-export type IdentityCollisionResult = {
-  risk: boolean;
-  identityMatch: number;
-  reason: string | null;
-};
-
-export function assessIdentityCollision(input: {
-  targetName: string;
-  companyName?: string | null;
-  personName?: string | null;
-  value: string;
-  sourceUrls: string[];
-  note?: string | null;
-}): IdentityCollisionResult {
-  const targetToks = identityNameTokens(input.targetName);
-  const companyToks = identityNameTokens(input.companyName);
-  const identityBlob = [input.personName ?? "", input.value, input.note ?? ""].join(" ").toLowerCase();
-  const sourceBlob = input.sourceUrls.join(" ").toLowerCase();
-  const overlap = targetToks.filter((t) => identityBlob.includes(t));
-  const personToks = identityNameTokens(input.personName);
-  const personOverlap = targetToks.filter((t) => personToks.includes(t));
-  const hostBlob = `${identityBlob} ${sourceBlob}`;
-  const value = String(input.value ?? "").trim();
-  const contactLike =
-    /^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/i.test(value)
-    || /^(?:\+?\d[\d\s().-]{6,})$/.test(value);
-
-  if (contactLike && !input.personName?.trim()) {
-    return { risk: true, identityMatch: 0.3, reason: "contact has no explicit person attribution; keep as organization/unknown route" };
-  }
-
-  // Aggregator evidence may accompany a stronger public source and remain
-  // visible as supporting lead material. It is disqualifying only when every
-  // supplied source is an aggregator, so an official source can still establish
-  // the canonical attribution.
-  if (input.sourceUrls.length > 0 && input.sourceUrls.every(isAggregatorSourceUrl)) {
-    return { risk: true, identityMatch: 0.3, reason: "aggregator-only source; personal contact promotion requires a non-aggregator public source" };
-  }
-
-  if (targetToks.length >= 2 && input.personName?.trim()) {
-    if (personToks.length < 2 || personOverlap.length < 2) {
-      return { risk: true, identityMatch: 0.18, reason: "explicit personName does not sufficiently align with target identity" };
-    }
-  }
-
-  const hostHit = COLLISION_HOSTS.some((h) => hostBlob.includes(h));
-  const educationHostHit = /^[a-z0-9._%+-]+@([a-z0-9.-]+)$/i.test(value)
-    ? INSTITUTIONAL_EDUCATION_HOSTS.some((marker) => hostBlob.includes(marker))
-    : false;
-
-  if (targetToks.length >= 2 && personToks.length >= 2) {
-    const targetSurname = targetToks[targetToks.length - 1]!;
-    const personSurname = personToks[personToks.length - 1]!;
-    if (targetSurname.length >= 3 && personSurname.length >= 3 && targetSurname !== personSurname) {
-      return { risk: true, identityMatch: 0.18, reason: `personName surname "${personSurname}" ≠ target surname "${targetSurname}"` };
-    }
-  }
-
-  if (contactLike && educationHostHit) {
-    return { risk: true, identityMatch: 0.2, reason: "institutional school/district contact surface; personal attribution requires stronger evidence" };
-  }
-
-  if (
-    targetToks.length >= 2
-    && personToks.length >= 2
-    && personToks.length === targetToks.length
-    && personOverlap.length === targetToks.length
-  ) {
-    return { risk: false, identityMatch: 0.85, reason: null };
-  }
-
-  if (targetToks.length >= 2) {
-    const surname = targetToks[targetToks.length - 1]!;
-    if (surname.length >= 3 && !identityBlob.includes(surname) && overlap.length < 2) {
-      return { risk: true, identityMatch: 0.22, reason: "surname token missing from explicit evidence text; likely name collision" };
-    }
-  }
-
-  if (companyToks.length && companyToks.some((t) => identityBlob.includes(t))) {
-    return { risk: false, identityMatch: 0.55, reason: null };
-  }
-
-  if (hostHit && companyToks.length && !companyToks.some((t) => hostBlob.includes(t))) {
-    return { risk: true, identityMatch: 0.15, reason: "source host/org does not match target issuer; likely name collision" };
-  }
-  if (targetToks.length >= 2 && overlap.length === 0) {
-    return { risk: true, identityMatch: 0.2, reason: "no name-token overlap between target and explicit evidence text" };
-  }
-  if (targetToks.length >= 2 && overlap.length === 1 && hostHit) {
-    return { risk: true, identityMatch: 0.25, reason: "weak name overlap with collision-prone host" };
-  }
-  return { risk: false, identityMatch: overlap.length >= 2 ? 0.65 : 0.45, reason: null };
-}
-
-export function assessGraphNamePairRisk(leftName: string, rightName: string): IdentityCollisionResult {
-  const left = identityNameTokens(leftName);
-  const right = identityNameTokens(rightName);
-  if (left.length < 2 || right.length < 2) return { risk: false, identityMatch: 0.4, reason: null };
-  const leftSur = left[left.length - 1]!;
-  const rightSur = right[right.length - 1]!;
-  if (leftSur !== rightSur && left[0] === right[0]) {
-    return { risk: true, identityMatch: 0.2, reason: `same given name, different surname (${leftSur} vs ${rightSur})` };
-  }
-  if (leftSur !== rightSur && !left.some((t) => right.includes(t))) {
-    return { risk: true, identityMatch: 0.15, reason: "no shared name tokens between graph endpoints" };
-  }
-  return { risk: false, identityMatch: leftSur === rightSur ? 0.7 : 0.5, reason: null };
-}
+export function assessGraphNamePairRisk(leftName:string,rightName:string):IdentityCollisionResult{const left=identityNameTokens(leftName),right=identityNameTokens(rightName);if(left.length<2||right.length<2)return{risk:false,identityMatch:.4,reason:null};const leftSur=left[left.length-1]!,rightSur=right[right.length-1]!;if(leftSur!==rightSur&&left[0]===right[0])return{risk:true,identityMatch:.2,reason:`same given name, different surname (${leftSur} vs ${rightSur})`};if(leftSur!==rightSur&&!left.some((t)=>right.includes(t)))return{risk:true,identityMatch:.15,reason:"no shared name tokens between graph endpoints"};return{risk:false,identityMatch:leftSur===rightSur?.7:.5,reason:null};}
