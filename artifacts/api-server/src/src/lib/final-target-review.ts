@@ -119,15 +119,18 @@ function collectEligibleRelatedValues(input: FinalTargetReviewInput): string[] {
   );
   const fromCandidates = input.candidates
     .filter((c) => c.state !== "rejected")
-    // A conflicted candidate is not safe merely because the reviewer labels it
-    // as a related finding instead of a contact. Keep the same conflict fence
-    // across both publication surfaces so a contradictory email/phone cannot
-    // bypass the primary contact eligibility gate.
     .filter((c) => c.conflictCount === 0)
+    // Related publication is still publication. A candidate must carry an
+    // actual source URL and an observed claim anchor; provider repetition or
+    // an ungrounded model value is not sufficient provenance.
+    .filter((c) => c.sourceUrls.length > 0 && c.exactClaimObserved)
     .filter((c) => ["address", "domain", "name", "role", "organization"].includes(c.vectorType) || c.vectorType === "email" || c.vectorType === "phone")
     .map((c) => c.value);
   const fromEvidence = input.evidence
     .filter((e) => e.validationStatus !== "rejected")
+    // Durable evidence is publishable only when it retains its source anchor.
+    // Contact conflicts are additionally fenced against a conflicting candidate.
+    .filter((e) => typeof e.sourceUrl === "string" && /^https?:\/\//i.test(e.sourceUrl))
     .filter((e) => !["email", "phone", "social"].includes(e.vectorType) || !conflictedContactKeys.has(publicationConflictKey(e.vectorType, e.value)))
     .map((e) => e.value);
   return Array.from(new Set([...fromCandidates, ...fromEvidence].filter(Boolean)));
@@ -208,8 +211,6 @@ export function adjudicateFinalTargetReview(
     || approvedRelatedValues.length > 0
     || approvedAssetIdentifiers.length > 0;
 
-  // Deterministic code validates exact provenance and schema; it never creates
-  // a promotion decision when the reviewer abstains or returns malformed output.
   const decision: FinalReviewDecision =
     requestedDecision === "reject" && !hasCardMaterial
       ? "reject"
