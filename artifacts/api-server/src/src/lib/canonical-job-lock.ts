@@ -1,6 +1,6 @@
 import { and, or, eq, sql } from "drizzle-orm";
 import { db, researchCasesTable } from "@workspace/db";
-import { getAllPermanentClients, markClientExhausted } from "../../lib/redis";
+import { getAllPermanentClients, markClientExhausted } from "./redis";
 import { invalidateActiveJobCache } from "./job-queue";
 
 const JOB_LOCK_TTL_SECONDS = 15 * 60;
