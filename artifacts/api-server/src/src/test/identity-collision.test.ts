@@ -117,6 +117,31 @@ describe("assessIdentityCollision", () => {
     expect(r.risk).toBe(false);
     expect(r.identityMatch).toBeGreaterThanOrEqual(0.65);
   });
+
+  it("blocks aggregator-only evidence even when the name and contact look like an exact match", () => {
+    const r = assessIdentityCollision({
+      targetName: "Jane Example",
+      companyName: "Example Holdings",
+      personName: "Jane Example",
+      value: "jane@exampleholdings.com",
+      sourceUrls: ["https://www.rocketreach.co/jane-example_email_123"],
+      note: "matching person and contact from a people-data aggregator",
+    });
+    expect(r.risk).toBe(true);
+    expect(r.reason).toMatch(/aggregator-only/i);
+  });
+
+  it("blocks Thatsthem aggregator evidence by exact hostname", () => {
+    const r = assessIdentityCollision({
+      targetName: "Jane Example",
+      companyName: "Example Holdings",
+      personName: "Jane Example",
+      value: "jane@exampleholdings.com",
+      sourceUrls: ["https://thatsthem.com/name/jane-example"],
+      note: "matching person and contact from a people-data aggregator",
+    });
+    expect(r.risk).toBe(true);
+  });
 });
 
 describe("assessGraphNamePairRisk", () => {
