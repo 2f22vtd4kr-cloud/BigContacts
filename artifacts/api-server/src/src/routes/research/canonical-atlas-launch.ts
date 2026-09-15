@@ -1,5 +1,5 @@
 import { Router, type Request, type Response } from "express";
-import { or, sql } from "drizzle-orm";
+import { and, or, sql } from "drizzle-orm";
 import { db, researchCasesTable } from "@workspace/db";
 import { createJob, getActiveJob, getJob, updateJob } from "../../lib/job-queue";
 import { claimCanonicalJob, releaseCanonicalJob } from "../../lib/canonical-job-lock";
@@ -67,6 +67,17 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : "Canonical Atlas pipeline failed";
+      try {
+        await db.update(researchCasesTable)
+          .set({ status: "review", currentAction: "canonical-atlas-failed", updatedAt: new Date() })
+          .where(and(
+            eq(researchCasesTable.caseType, "target"),
+            eq(researchCasesTable.status, "active"),
+            sql`${researchCasesTable.caseFile}::jsonb ->> 'atlasJobId' = ${atlasJobId}`,
+          ));
+      } catch {
+        // Preserve the original job failure even if durable case cleanup is unavailable.
+      }
       await updateJob(atlasJobId, { status: "failed", outcome: "incomplete", message, finishedAt: new Date().toISOString() });
     } finally {
       try {
