@@ -142,6 +142,22 @@ describe("assessIdentityCollision", () => {
     });
     expect(r.risk).toBe(true);
   });
+
+  it("allows a stronger official source alongside an aggregator lead", () => {
+    const r = assessIdentityCollision({
+      targetName: "Jane Example",
+      companyName: "Example Holdings",
+      personName: "Jane Example",
+      value: "jane@exampleholdings.com",
+      sourceUrls: [
+        "https://www.rocketreach.co/jane-example_email_123",
+        "https://exampleholdings.com/team/jane-example",
+      ],
+      note: "official company profile corroborates the route; aggregator retained as lead context",
+    });
+    expect(r.risk).toBe(false);
+    expect(r.identityMatch).toBeGreaterThanOrEqual(0.65);
+  });
 });
 
 describe("assessGraphNamePairRisk", () => {
