@@ -31,6 +31,22 @@ const COLLISION_HOSTS = [
   "prospeo", "adapt.io", "growjo", "theorg.com", "equilar",
 ];
 
+const AGGREGATOR_HOSTS = [
+  "rocketreach.co", "zoominfo.com", "signalhire.com", "contactout.com", "apollo.io",
+  "spokeo.com", "whitepages.com", "beenverified.com", "intelius.com", "truepeoplesearch.com",
+  "fastpeoplesearch.com", "thatsthem.com", "radaris.com", "peoplefinder.com", "hunter.io",
+  "clearbit.com", "lusha.com", "crunchbase.com", "pitchbook.com", "dnb.com", "opencorporates.com",
+];
+
+function isAggregatorSourceUrl(url: string): boolean {
+  try {
+    const hostname = new URL(url).hostname.toLowerCase().replace(/^www\./, "");
+    return AGGREGATOR_HOSTS.some((host) => hostname === host || hostname.endsWith(`.${host}`));
+  } catch {
+    return false;
+  }
+}
+
 const INSTITUTIONAL_EDUCATION_HOSTS = [
   "kyschools", "schools", "school", "k12", "district", "isd.", "usd.", "edu.",
 ];
@@ -73,6 +89,18 @@ export function assessIdentityCollision(input: {
       risk: true,
       identityMatch: 0.3,
       reason: "contact has no explicit person attribution; keep as organization/unknown route",
+    };
+  }
+
+  // Aggregator evidence can remain visible as review-only lead material, but it
+  // must never be sufficient to promote a personal contact onto the canonical
+  // entity card. A matching name alone does not make a people-data aggregator
+  // an acceptable primary/public attribution source.
+  if (input.sourceUrls.some(isAggregatorSourceUrl)) {
+    return {
+      risk: true,
+      identityMatch: 0.3,
+      reason: "aggregator-only source; personal contact promotion requires a non-aggregator public source",
     };
   }
 
