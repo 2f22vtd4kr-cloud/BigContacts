@@ -1,6 +1,5 @@
 {
   "name": "apex-finder-local",
-  "description": "Apex Atlas desktop/web research finder",
   "private": true,
   "type": "module",
   "dependencies": {
