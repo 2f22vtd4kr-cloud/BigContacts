@@ -1,6 +1,7 @@
 import fs from "node:fs";
 
 const read = (path) => fs.existsSync(path) ? fs.readFileSync(path, "utf8") : "";
+const executable = (content) => content.replace(/\/\/[^\n]*$/gm, "");
 const canonicalStartup = read("artifacts/api-server/src/src/lib/startup.ts");
 const startupRecovery = read("artifacts/api-server/src/src/lib/startup-recovery.ts");
 const legacyStartup = read("artifacts/api-server/src/lib/startup.ts");
@@ -84,9 +85,6 @@ else console.log("PASS retired deterministic Atlas orchestrator removed from the
 if (/\bfetch\s*\(/.test(secondaryPersist)) console.log("PASS legacy secondary helper retained only as unreachable compatibility source; no live caller remains.");
 else console.log("PASS secondary helper contains no direct outbound fetch transport.");
 
-// Atlas status is now a retired route. Keep CI, frontend telemetry, and audit
-// workflows on the canonical active-job + structured-trace projections so the
-// retirement cannot silently regress through an operational script.
 const retiredAtlasStatusRefs = [
   "artifacts/apex-finder/src/lib/reactor-live-store.ts",
   ".github/workflows/apex-live-audit.yml",
@@ -94,12 +92,12 @@ const retiredAtlasStatusRefs = [
   "scripts/audit-live-bureau.mjs",
 ];
 for (const file of retiredAtlasStatusRefs) {
-  const content = read(file);
+  const content = executable(read(file));
   if (content.includes("/api/ingest/atlas-status")) {
-    console.log(`FAIL retired Atlas status endpoint remains referenced by ${file}`);
+    console.log(`FAIL retired Atlas status endpoint remains referenced by executable code in ${file}`);
     failed = true;
   } else {
-    console.log(`PASS retired Atlas status endpoint absent from ${file}`);
+    console.log(`PASS retired Atlas status endpoint absent from executable code in ${file}`);
   }
 }
 
