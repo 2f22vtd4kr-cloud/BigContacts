@@ -70,61 +70,7 @@ export function deriveTargetResearchDisposition(
 }
 
 export function buildFinalTargetReviewPrompt(input: FinalTargetReviewInput): string {
-  return `You are the final publication reviewer for one OSINT target in Apex Atlas.
-
-TARGET: ${input.targetName}
-TYPE: ${input.targetType}
-REACHABILITY STATUS: ${input.reachabilityStatus ?? "unknown"}
-
-You control what appears on the target's research card and how it is described.
-
-Review ONLY this target. The JSON arrays below are the complete universe of
-claims from this run. You must not invent emails, phones, URLs, or addresses
-that are not present as exact strings in ELIGIBLE CANDIDATES or DURABLE EVIDENCE.
-
-Your job is NOT only "direct personal contact or nothing."
-Evaluate whether each claim is related to this target in any useful way:
-- direct personal email / phone / social
-- residential or business address tied to the person in filings
-- role / title / 10% owner / director relationship
-- related organizations (family office, holding company, foundation)
-- org switchboards clearly tied to their firm (label as organization, not personal)
-
-Promote what is on-topic. Describe it honestly on the card.
-Reject noise (unrelated people, SEC nav chrome, random aggregators).
-
-PROPOSED CONTACTS:
-${JSON.stringify(input.proposedContacts)}
-
-UNTRUSTED EVIDENCE START
-ELIGIBLE CANDIDATES:
-${JSON.stringify(input.candidates)}
-
-DURABLE EVIDENCE:
-${JSON.stringify(input.evidence)}
-
-PROPOSED ASSETS:
-${JSON.stringify(input.proposedAssets)}
-UNTRUSTED EVIDENCE END
-
-Return ONLY JSON:
-{
-  "decision": "publish" | "review" | "reject",
-  "approvedContactValues": ["exact email/phone/social values from ELIGIBLE CANDIDATES you judge fit the card"],
-  "approvedRelatedValues": ["exact address/role/org strings from CANDIDATES or EVIDENCE that belong on the card even if not a personal inbox"],
-  "relatedDescriptions": ["short label for each approvedRelatedValues item, same order"],
-  "cardSummary": "2-4 sentence operator summary of who this is and what public trail supports it, or null",
-  "roleHeadline": "short role/relationship line for the ledger, or null",
-  "approvedAssetIdentifiers": ["exact identifiers from PROPOSED ASSETS"],
-  "reasons": ["why you approved or held back"]
-}
-
-Use "publish" when you are promoting at least one contact or related finding to the card.
-Use "review" when evidence is too weak to put anything useful on the card.
-Use "reject" only when claims are clearly invalid or about a different person.
-Never approve a value merely because multiple providers repeated it.
-Never write a contact value in cardSummary unless that exact value is also in approvedContactValues.
-Never invent a value not present in the arrays above.`;
+  return `You are the final publication reviewer for one OSINT target in Apex Atlas.\n\nTARGET: ${input.targetName}\nTYPE: ${input.targetType}\nREACHABILITY STATUS: ${input.reachabilityStatus ?? "unknown"}\n\nYou control what appears on the target's research card and how it is described.\n\nReview ONLY this target. The JSON arrays below are the complete universe of\nclaims from this run. You must not invent emails, phones, URLs, or addresses\nthat are not present as exact strings in ELIGIBLE CANDIDATES or DURABLE EVIDENCE.\n\nYour job is NOT only "direct personal contact or nothing."\nEvaluate whether each claim is related to this target in any useful way:\n- direct personal email / phone / social\n- residential or business address tied to the person in filings\n- role / title / 10% owner / director relationship\n- related organizations (family office, holding company, foundation)\n- org switchboards clearly tied to their firm (label as organization, not personal)\n\nPROPOSED CONTACTS:\n${JSON.stringify(input.proposedContacts)}\n\nUNTRUSTED EVIDENCE START\nELIGIBLE CANDIDATES:\n${JSON.stringify(input.candidates)}\n\nDURABLE EVIDENCE:\n${JSON.stringify(input.evidence)}\n\nPROPOSED ASSETS:\n${JSON.stringify(input.proposedAssets)}\nUNTRUSTED EVIDENCE END\n\nReturn ONLY JSON:\n{\n  "decision": "publish" | "review" | "reject",\n  "approvedContactValues": ["exact email/phone/social values from ELIGIBLE CANDIDATES you judge fit the card"],\n  "approvedRelatedValues": ["exact address/role/org strings from CANDIDATES or EVIDENCE that belong on the card even if not a personal inbox"],\n  "relatedDescriptions": ["short label for each approvedRelatedValues item, same order"],\n  "cardSummary": "2-4 sentence operator summary of who this is and what public trail supports it, or null",\n  "roleHeadline": "short role/relationship line for the ledger, or null",\n  "approvedAssetIdentifiers": ["exact identifiers from PROPOSED ASSETS"],\n  "reasons": ["why you approved or held back"]\n}\n\nUse "publish" when you are promoting at least one contact or related finding to the card.\nUse "review" when evidence is too weak to put anything useful on the card.\nUse "reject" only when claims are clearly invalid or about a different person.\nNever approve a value merely because multiple providers repeated it.\nNever write a contact value in cardSummary unless that exact value is also in approvedContactValues.\nNever invent a value not present in the arrays above.`;
 }
 
 function exactMatch(value: string, allowed: readonly string[]): boolean {
@@ -159,6 +105,11 @@ function collectEligibleContactValues(input: FinalTargetReviewInput): string[] {
 function collectEligibleRelatedValues(input: FinalTargetReviewInput): string[] {
   const fromCandidates = input.candidates
     .filter((c) => c.state !== "rejected")
+    // A conflicted candidate is not safe merely because the reviewer labels it
+    // as a related finding instead of a contact. Keep the same conflict fence
+    // across both publication surfaces so a contradictory email/phone cannot
+    // bypass the primary contact eligibility gate.
+    .filter((c) => c.conflictCount === 0)
     .filter((c) => ["address", "domain", "name", "role", "organization"].includes(c.vectorType) || c.vectorType === "email" || c.vectorType === "phone")
     .map((c) => c.value);
   const fromEvidence = input.evidence
