@@ -6,6 +6,68 @@
 /** Version the standing institutional contract independently from any case. */
 export const APEX_INSTITUTIONAL_MISSION_VERSION = "2026-09-10.1";
 
+const GEMINI_GENERATION_PATH = "generativelanguage.googleapis.com/v1beta/models/";
+const GEMINI_TRANSIENT_RETRY_ATTEMPTS = 4;
+const GEMINI_TRANSIENT_RETRY_BASE_MS = 1_000;
+const GEMINI_TRANSIENT_RETRY_MAX_MS = 8_000;
+
+let geminiRetryInstalled = false;
+
+/**
+ * Google documents 5xx/503 as transient service-capacity failures and recommends
+ * bounded exponential backoff with jitter. Keep this transport concern at the
+ * Gemini request boundary so a temporary provider outage does not immediately
+ * abort the Boss control loop, while preserving fail-closed behavior after the
+ * bounded retry budget is exhausted.
+ *
+ * This wrapper is deliberately narrow: only POST generateContent requests to
+ * Google's Gemini API are retried. It never changes status codes, request bodies,
+ * authentication, model selection, or non-Gemini traffic.
+ */
+function installGeminiTransientRetry(): void {
+  if (geminiRetryInstalled || typeof globalThis.fetch !== "function") return;
+  const originalFetch = globalThis.fetch.bind(globalThis);
+  globalThis.fetch = async (input, init) => {
+    const requestUrl = typeof input === "string"
+      ? input
+      : input instanceof URL
+        ? input.toString()
+        : input.url;
+    const method = (init?.method ?? (typeof input === "object" && "method" in input ? input.method : "GET")).toUpperCase();
+    const isGeminiGeneration =
+      method === "POST" &&
+      requestUrl.includes(GEMINI_GENERATION_PATH) &&
+      requestUrl.includes(":generateContent");
+
+    if (!isGeminiGeneration) return originalFetch(input, init);
+
+    let lastResponse: Response | null = null;
+    for (let attempt = 0; attempt < GEMINI_TRANSIENT_RETRY_ATTEMPTS; attempt += 1) {
+      const response = await originalFetch(input, init);
+      if (![500, 502, 503, 504].includes(response.status)) return response;
+      lastResponse = response;
+      if (attempt === GEMINI_TRANSIENT_RETRY_ATTEMPTS - 1) return response;
+
+      const retryAfter = response.headers.get("retry-after");
+      const retryAfterSeconds = retryAfter ? Number(retryAfter) : Number.NaN;
+      const retryAfterMs = Number.isFinite(retryAfterSeconds) && retryAfterSeconds >= 0
+        ? Math.min(GEMINI_TRANSIENT_RETRY_MAX_MS, retryAfterSeconds * 1_000)
+        : null;
+      const exponentialMs = Math.min(
+        GEMINI_TRANSIENT_RETRY_MAX_MS,
+        GEMINI_TRANSIENT_RETRY_BASE_MS * (2 ** attempt),
+      );
+      const jitterMs = Math.floor(Math.random() * Math.max(250, Math.floor(exponentialMs * 0.25)));
+      const delayMs = Math.min(GEMINI_TRANSIENT_RETRY_MAX_MS, (retryAfterMs ?? exponentialMs) + jitterMs);
+      await new Promise<void>((resolve) => setTimeout(resolve, delayMs));
+    }
+    return lastResponse as Response;
+  };
+  geminiRetryInstalled = true;
+}
+
+installGeminiTransientRetry();
+
 export const APEX_WHAT_IS_ATLAS = `APEX ATLAS is an AI-driven investigatory bureau (product: Apex Atlas / BigContacts desk).
 It is not a generic chatbot and not a fixed search script.
 
