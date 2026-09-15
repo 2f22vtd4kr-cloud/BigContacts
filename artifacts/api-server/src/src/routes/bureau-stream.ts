@@ -20,6 +20,7 @@ import { logger } from "../lib/logger";
 const router = Router();
 const HEARTBEAT_MS = 15_000;
 const POLL_MS = 2_000;
+const SEEN_ID_CAP = 500;
 
 router.get("/ingest/bureau-events", async (req: Request, res: Response): Promise<void> => {
   const caseId = typeof req.query.caseId === "string" ? req.query.caseId : null;
@@ -38,20 +39,36 @@ router.get("/ingest/bureau-stream", async (req: Request, res: Response): Promise
   writeSseHeaders(res);
   res.write(`retry: 3000\n\n`);
 
-  let lastTsMs = 0;
+  // Do not use timestamp-only cursors here. Multiple Bureau events can be
+  // published within the same millisecond; a `tsMs > lastTsMs` cursor can then
+  // silently drop real research actions from the live Reactor. Event IDs are
+  // unique, so a bounded seen-set gives us exact per-connection de-duplication
+  // without inventing an ordering field in the durable event contract.
+  const seenIds = new Set<string>();
+  const remember = (id: string) => {
+    if (!id) return;
+    seenIds.add(id);
+    if (seenIds.size <= SEEN_ID_CAP) return;
+    const oldest = seenIds.values().next().value as string | undefined;
+    if (oldest) seenIds.delete(oldest);
+  };
+
   let closed = false;
   const sendSnapshot = async () => {
     const events = await listBureauEvents({ caseId, limit: 50 });
-    if (events.length) lastTsMs = Math.max(lastTsMs, events[0]!.tsMs);
+    for (const event of events) remember(event.id);
     sseSend(res, "snapshot", { events, caseId, serverTime: new Date().toISOString() });
   };
   const tick = async () => {
     if (closed) return;
     try {
-      const events = await listBureauEvents({ caseId, limit: 40 });
-      const fresh = events.filter((e) => e.tsMs > lastTsMs).reverse();
+      const events = await listBureauEvents({ caseId, limit: 50 });
+      // Redis returns newest-first. Reverse only the unseen subset so the client
+      // receives a causal oldest -> newest burst when several actions arrived
+      // between polls. No timestamp tie-breaker is needed for de-duplication.
+      const fresh = events.filter((event) => !seenIds.has(event.id)).reverse();
       for (const event of fresh) {
-        lastTsMs = Math.max(lastTsMs, event.tsMs);
+        remember(event.id);
         sseSend(res, "bureau", event);
       }
     } catch (err: any) {
