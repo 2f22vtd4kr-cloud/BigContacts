@@ -11,6 +11,7 @@ const files = {
   bureau: path.join(src, "components", "bureau-ops-stage.tsx"),
   page: path.join(src, "pages", "reactor.tsx"),
   mobile: path.join(src, "components", "mobile-reactor-flow.tsx"),
+  hook: path.join(src, "lib", "use-bureau-live.ts"),
 };
 
 for (const [name, file] of Object.entries(files)) {
@@ -25,6 +26,7 @@ const surface = read(files.surface);
 const bureau = read(files.bureau);
 const page = read(files.page);
 const mobile = read(files.mobile);
+const hook = read(files.hook);
 
 const legacyCanvasMarker = "Scheme canvas — standby/explanatory only; live mode uses telemetry activity above";
 const activityMarker = "<ReactorActivityOnly";
@@ -55,6 +57,7 @@ const checks = [
   ["recorded input is explicitly labelled", /Recorded action input/.test(surface)],
   ["source links come from event evidence", /sourceList\(event\)/.test(surface)],
   ["topology only claims observed nodes and hand-offs", /Nodes appear when the Bureau actually records that lane/.test(surface) && /observed hand-offs/.test(surface)],
+  ["supplemental Bureau polling fences stale responses", /let generation = 0/.test(hook) && /myGeneration !== generation/.test(hook) && /controller === myController/.test(hook)],
   ["desktop/mobile legacy stage remains evidence-aware", /sourceUrls|links/.test(bureau)],
   ["desktop live mode has a telemetry ActivityOnly surface", /<ReactorActivityOnly\b/.test(page)],
   ["legacy desktop scheme is standby/explanatory only", staticCanvasIsAfterLiveSurface && staticCanvasIsExplicitlyStandby],
