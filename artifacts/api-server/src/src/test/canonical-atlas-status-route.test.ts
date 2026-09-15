@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
 
-const routesDir = path.resolve(process.cwd(), "src/routes");
+const routesDir = path.resolve(process.cwd(), "src/src/routes");
 
 function read(name: string): string {
   return fs.readFileSync(path.join(routesDir, name), "utf8");
