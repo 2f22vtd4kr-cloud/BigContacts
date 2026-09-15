@@ -263,7 +263,8 @@ export function writeSseHeaders(res: {
   res.setHeader("Cache-Control", "no-cache, no-transform");
   res.setHeader("Connection", "keep-alive");
   res.setHeader("X-Accel-Buffering", "no");
-  res.setHeader("Access-Control-Allow-Origin", "*");
+  // CORS is owned by the application-level allowlist in app.ts. This helper
+  // must not widen the authenticated SSE stream with `Access-Control-Allow-Origin: *`.
   res.flushHeaders?.();
 }
 
