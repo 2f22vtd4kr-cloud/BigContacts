@@ -33,8 +33,8 @@ const scriptText = scriptEntries.map(({ packagePath, name, value }) => `${packag
 
 // Workflow path filters may mention apply-* files so changes to safety helpers
 // trigger verification. They are not execution. Package scripts are execution,
-// so every executable mutator is rejected except the single safety-only UI
-// boundary sanitizer below.
+// so every executable mutator is rejected except the single read-only UI
+// boundary verifier below.
 const invokedMutators = [...scriptText.matchAll(/\b(?:node|pnpm|npm|yarn)\s+(?:[^\n]*\s)?(scripts\/apply-[a-z0-9-]+\.mjs)\b/gi)].map((m) => m[1]);
 const disallowed = invokedMutators.filter((name) => name !== ALLOWED_SAFETY_MUTATOR);
 if (disallowed.length) {
@@ -50,12 +50,13 @@ if (!fs.existsSync(safetyScriptPath)) {
   failures.push(`missing allowlisted safety helper: ${ALLOWED_SAFETY_MUTATOR}`);
 } else {
   const safetyScript = fs.readFileSync(safetyScriptPath, "utf8");
-  // The helper intentionally searches for /api/enrich/ in a regex literal,
-  // so its source contains escaped slash characters. Validate the source form
-  // rather than requiring an unescaped runtime string that is not present.
-  const hasEnrichPattern = safetyScript.includes("/\\/api\\/enrich\\/") || safetyScript.includes("/api/enrich/");
-  if (!/artifacts\/apex-finder\/src\/pages\/data-sources\.tsx/.test(safetyScript) || !hasEnrichPattern || !/Selected by the canonical Investigator/.test(safetyScript)) {
-    failures.push(`${ALLOWED_SAFETY_MUTATOR} no longer matches the narrow UI research-boundary contract`);
+  const writesSource = /(?:writeFile|writeFileSync|appendFile|appendFileSync|renameSync|rmSync)\s*\(/.test(safetyScript);
+  if (
+    !/artifacts\/apex-finder\/src\/pages\/data-sources\.tsx/.test(safetyScript) ||
+    !/canonical Investigator/.test(safetyScript) ||
+    writesSource
+  ) {
+    failures.push(`${ALLOWED_SAFETY_MUTATOR} must be a read-only UI research-boundary verifier`);
   }
 }
 
@@ -65,4 +66,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log(`BUILD SOURCE MUTATION: PASS — inspected ${packages.length} package.json script surfaces; arbitrary source mutators are forbidden and the sole allowlisted mutation is a safety-only Investigator UI boundary sanitizer`);
+console.log(`BUILD SOURCE MUTATION: PASS — inspected ${packages.length} package.json script surfaces; arbitrary source mutators are forbidden and the sole allowlisted source-boundary helper is read-only`);

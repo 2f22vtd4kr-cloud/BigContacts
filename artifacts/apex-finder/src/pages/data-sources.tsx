@@ -159,7 +159,6 @@ const SOURCES: SourceDef[] = [
     bg: "rgba(16,185,129,0.1)",
     phase: 1,
     homepage: "https://developer-specs.company-information.service.gov.uk",
-    endpoint: "/api/ingest/companies-house-enrich",
     jobType: "companies-house-enrich",
     bodyParams: { batchSize: 50 },
     note: "Requires COMPANIES_HOUSE_API_KEY secret. Without it, still recomputes contactConfidence for all entities.",
@@ -176,7 +175,6 @@ const SOURCES: SourceDef[] = [
     bg: "rgba(239,68,68,0.1)",
     phase: 8,
     homepage: "https://aleph.occrp.org",
-    endpoint: "/api/ingest/occrp",
     jobType: "occrp",
     bodyParams: { limit: 500 },
   },
@@ -235,7 +233,6 @@ const SOURCES: SourceDef[] = [
     bg: "rgba(16,185,129,0.1)",
     phase: 9,
     homepage: "https://query.wikidata.org",
-    endpoint: "/api/ingest/in-house-enrich",
     jobType: "in-house-enrich",
     bodyParams: { batchSize: 200 },
     note: "Fully in-house — no Hunter.io, no Apollo.io, no paid plans. Wikidata covers public figures; GitHub covers founders/tech execs; Gravatar-verified email patterns work for most corporate emails. Run after Web OSINT Enrich for best coverage.",
@@ -297,8 +294,7 @@ const SOURCES: SourceDef[] = [
     bg: "rgba(139,92,246,0.1)",
     phase: 11,
     homepage: "https://www.openownership.org",
-    endpoint: "/api/enrich/openownership",
-    note: "Available via /api/enrich/openownership?entityId=<id>. Also queries UK PSC via Companies House.",
+    note: "Available through the canonical Investigator when model-selected and permitted by the evidence trajectory. Also queries UK PSC via Companies House.",
   },
   {
     id: "whoxy-rdap",
@@ -324,7 +320,6 @@ const SOURCES: SourceDef[] = [
     bg: "rgba(14,165,233,0.1)",
     phase: 11,
     homepage: "https://www.equasis.org",
-    endpoint: "/api/enrich/equasis",
     note: "Requires EQUASIS_SESSION cookie for full data. VesselFinder API used as fallback.",
   },
   {
@@ -338,8 +333,7 @@ const SOURCES: SourceDef[] = [
     bg: "rgba(245,158,11,0.1)",
     phase: 11,
     homepage: "https://globe.adsbexchange.com",
-    endpoint: "/api/enrich/adsb-history",
-    note: "Available via /api/enrich/adsb-history?entityId=<id>. Reads registration from entity metadata.",
+    note: "Available through the canonical Investigator when model-selected and permitted by the evidence trajectory. Reads registration from entity metadata.",
   },
   {
     id: "holehe-maigret",
@@ -352,8 +346,7 @@ const SOURCES: SourceDef[] = [
     bg: "rgba(236,72,153,0.1)",
     phase: 11,
     homepage: "https://github.com/megadose/holehe",
-    endpoint: "/api/enrich/holehe",
-    note: "Runs server-side Python. Both tools installed. Use /api/enrich/holehe?entityId=<id> and /api/enrich/maigret?entityId=<id>.",
+    note: "Runs inside the canonical Investigator when model-selected and permitted by the evidence trajectory.",
   },
   {
     id: "theharvester",
@@ -366,7 +359,6 @@ const SOURCES: SourceDef[] = [
     bg: "rgba(107,114,128,0.1)",
     phase: 11,
     homepage: "https://github.com/laramies/theHarvester",
-    endpoint: "/api/enrich/theharvester",
     note: "Requires Python ≥3.12. Install status shown in the Phase L tool health panel above.",
   },
   {
@@ -846,7 +838,7 @@ type ToolMeta = {
   desc: string;
   usage: "auto" | "on-demand";
   usageNote: string;
-  endpoint: string;
+  endpoint?: string;
   input: string;
 };
 
@@ -856,7 +848,6 @@ const TOOL_META: Record<string, ToolMeta> = {
     desc: "Checks a known email address against 200+ online platforms to reveal linked social accounts and registrations.",
     usage: "on-demand",
     usageNote: "Run after a verified email is found",
-    endpoint: "/api/enrich/holehe?entityId=<id>",
     input: "Email address",
   },
   maigret: {
@@ -864,7 +855,6 @@ const TOOL_META: Record<string, ToolMeta> = {
     desc: "Takes a username and searches 3,000+ sites for matching profiles — exposes social footprint across platforms.",
     usage: "on-demand",
     usageNote: "Run after a username or handle is found",
-    endpoint: "/api/enrich/maigret?entityId=<id>",
     input: "Username / handle",
   },
   sherlock: {
@@ -872,7 +862,6 @@ const TOOL_META: Record<string, ToolMeta> = {
     desc: "Supplementary username search across public sites. Used only as a review-only fallback when Maigret has no or limited results.",
     usage: "on-demand",
     usageNote: "Review-only fallback after Maigret",
-    endpoint: "/api/enrich/sherlock?entityId=<id>",
     input: "Username / handle",
   },
   theHarvester: {
@@ -880,7 +869,6 @@ const TOOL_META: Record<string, ToolMeta> = {
     desc: "Queries public search, DNS, and certificate sources for emails and subdomains belonging to a domain.",
     usage: "on-demand",
     usageNote: "On-demand when the upstream tool is available",
-    endpoint: "/api/enrich/theharvester?entityId=<id>",
     input: "Domain name",
   },
 };
@@ -1065,9 +1053,11 @@ function PythonToolsPanel() {
                   <p className="text-[10px] font-mono text-muted-foreground leading-relaxed">{meta.desc}</p>
                   <div className="flex flex-wrap items-center gap-3 pt-0.5">
                     <span className="text-[11px] font-mono text-muted-foreground/70">{meta.usageNote}</span>
-                    <code className="text-[11px] font-mono text-muted-foreground/50 bg-muted/40 px-1.5 py-0.5 rounded">
-                      {meta.endpoint}
-                    </code>
+                    {meta.endpoint && (
+                      <code className="text-[11px] font-mono text-muted-foreground/50 bg-muted/40 px-1.5 py-0.5 rounded">
+                        {meta.endpoint}
+                      </code>
+                    )}
                   </div>
                 </div>
               </div>

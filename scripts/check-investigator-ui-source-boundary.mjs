@@ -6,7 +6,10 @@ const source = fs.readFileSync(path.join(root, "artifacts/apex-finder/src/pages/
 
 const checks = [
   ["source catalogue has no direct extended-OSINT trigger", !/endpoint:\s*["']\/api\/enrich\//.test(source)],
-  ["source catalogue has no stale direct extended-OSINT URL", !/\/api\/enrich\//.test(source)],
+  [
+    "source catalogue has no stale retired extended-OSINT URL",
+    !/\/api\/enrich\/(?:openownership|equasis|adsb-history|holehe|maigret|sherlock|theharvester)\b/.test(source),
+  ],
   ["source catalogue describes model-owned research boundary", /canonical Investigator/i.test(source)],
 ];
 

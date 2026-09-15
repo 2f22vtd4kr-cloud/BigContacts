@@ -21,6 +21,7 @@
     "check:agentic-core-transport": "node scripts/check-agentic-core-transport.mjs",
     "check:mission-bootstrap": "node scripts/check-apex-mission-bootstrap.mjs",
     "check:investigator-identity-boundary": "node scripts/check-investigator-identity-boundary.mjs",
+    "check:ui-source-boundary-idempotence": "node scripts/check-investigator-ui-source-boundary-idempotence.mjs",
     "check:investigator-provider-selection": "node scripts/check-investigator-provider-selection.mjs",
     "check:agentic-efficiency": "node scripts/check-agentic-llm-efficiency.mjs",
     "check:target-agent-context": "node scripts/check-target-agent-context-boundary.mjs",
