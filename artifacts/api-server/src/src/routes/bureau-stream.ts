@@ -54,8 +54,20 @@ router.get("/ingest/bureau-stream", async (req: Request, res: Response): Promise
   };
 
   let closed = false;
+  let pollId: NodeJS.Timeout | undefined;
+  let hbId: NodeJS.Timeout | undefined;
+
+  const close = () => {
+    if (closed) return;
+    closed = true;
+    if (pollId) clearInterval(pollId);
+    if (hbId) clearInterval(hbId);
+  };
+  req.on("close", close);
+
   const sendSnapshot = async () => {
     const events = await listBureauEvents({ caseId, limit: 50 });
+    if (closed) return;
     for (const event of events) remember(event.id);
     sseSend(res, "snapshot", { events, caseId, serverTime: new Date().toISOString() });
   };
@@ -63,27 +75,30 @@ router.get("/ingest/bureau-stream", async (req: Request, res: Response): Promise
     if (closed) return;
     try {
       const events = await listBureauEvents({ caseId, limit: 50 });
+      if (closed) return;
       // Redis returns newest-first. Reverse only the unseen subset so the client
       // receives a causal oldest -> newest burst when several actions arrived
       // between polls. No timestamp tie-breaker is needed for de-duplication.
       const fresh = events.filter((event) => !seenIds.has(event.id)).reverse();
       for (const event of fresh) {
+        if (closed) return;
         remember(event.id);
         sseSend(res, "bureau", event);
       }
     } catch (err: any) {
-      logger.debug({ err: err?.message }, "bureau-stream poll failed");
+      if (!closed) logger.debug({ err: err?.message }, "bureau-stream poll failed");
     }
   };
 
   await sendSnapshot().catch(() => undefined);
-  const pollId = setInterval(() => { void tick(); }, POLL_MS);
-  const hbId = setInterval(() => {
+  if (closed) return;
+
+  pollId = setInterval(() => { void tick(); }, POLL_MS);
+  hbId = setInterval(() => {
     if (closed) return;
     sseComment(res, "ping");
     sseSend(res, "heartbeat", { serverTime: new Date().toISOString(), caseId });
   }, HEARTBEAT_MS);
-  req.on("close", () => { closed = true; clearInterval(pollId); clearInterval(hbId); });
 });
 
 // There is deliberately no HTTP event-ingest endpoint. Internal event writers
