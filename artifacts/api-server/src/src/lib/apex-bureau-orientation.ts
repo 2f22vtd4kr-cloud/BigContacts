@@ -13,17 +13,6 @@ const GEMINI_TRANSIENT_RETRY_MAX_MS = 8_000;
 
 let geminiRetryInstalled = false;
 
-/**
- * Google documents 5xx/503 as transient service-capacity failures and recommends
- * bounded exponential backoff with jitter. Keep this transport concern at the
- * Gemini request boundary so a temporary provider outage does not immediately
- * abort the Boss control loop, while preserving fail-closed behavior after the
- * bounded retry budget is exhausted.
- *
- * This wrapper is deliberately narrow: only POST generateContent requests to
- * Google's Gemini API are retried. It never changes status codes, request bodies,
- * authentication, model selection, or non-Gemini traffic.
- */
 function installGeminiTransientRetry(): void {
   if (geminiRetryInstalled || typeof globalThis.fetch !== "function") return;
   const originalFetch = globalThis.fetch.bind(globalThis);
@@ -47,6 +36,9 @@ function installGeminiTransientRetry(): void {
       if (![500, 502, 503, 504].includes(response.status)) return response;
       lastResponse = response;
       if (attempt === GEMINI_TRANSIENT_RETRY_ATTEMPTS - 1) return response;
+
+      // Release the failed response body before reissuing the same request.
+      await response.body?.cancel().catch(() => undefined);
 
       const retryAfter = response.headers.get("retry-after");
       const retryAfterSeconds = retryAfter ? Number(retryAfter) : Number.NaN;
