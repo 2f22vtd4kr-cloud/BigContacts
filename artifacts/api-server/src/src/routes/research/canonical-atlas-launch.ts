@@ -1,5 +1,5 @@
 import { Router, type Request, type Response } from "express";
-import { and, or, sql } from "drizzle-orm";
+import { and, eq, or, sql } from "drizzle-orm";
 import { db, researchCasesTable } from "@workspace/db";
 import { createJob, getActiveJob, getJob, updateJob } from "../../lib/job-queue";
 import { claimCanonicalJob, releaseCanonicalJob } from "../../lib/canonical-job-lock";
