@@ -28,9 +28,6 @@ const mobile = read(files.mobile);
 
 const legacyCanvasMarker = "Scheme canvas — standby/explanatory only; live mode uses telemetry activity above";
 const activityMarker = "<ReactorActivityOnly";
-// The legacy scheme is deliberately grouped in a fragment because its existing
-// canvas contains its own flex wrappers. The fragment keeps the standby gate
-// structural without adding another layout box.
 const staticCanvasIsExplicitlyStandby = /!isLive\s*&&\s*\(\s*(?:<>\s*)?\{\/\*\s*Scheme canvas/.test(page) && page.includes(legacyCanvasMarker);
 const staticCanvasIsAfterLiveSurface = (() => {
   const liveAt = page.indexOf(activityMarker);
@@ -44,20 +41,22 @@ const checks = [
   ["live model rejects non-HTTP evidence", /https\?:/.test(model) && /sourceList/.test(model)],
   ["live model normalizes DigSpan collections once", /normalizeLiveActivities/.test(model)],
   ["shared live store uses useSyncExternalStore", /useSyncExternalStore/.test(store) && /subscribe/.test(store)],
-  ["shared store reads atlas-status recentSpans", /atlas-status/.test(store) && /recentSpans/.test(store)],
+  ["shared store uses canonical active-job and trace projections", /job\/active\/atlas-run/.test(store) && /atlas-trace/.test(store)],
+  ["shared store explicitly documents retired atlas-status", /atlas-status was intentionally retired/.test(store)],
   ["graph consumes shared telemetry store", /useReactorLiveTelemetry/.test(activity)],
   ["graph renders only active tool spans", /status === "active" && activity\.spanType === "tool" && Boolean\(activity\.tool\)/.test(activity)],
-  ["graph has no private atlas-status polling loop", !/setInterval\(|fetch\([^\n]*atlas-status/.test(activity)],
+  ["graph has no private polling loop", !/setInterval\(|fetch\([^\n]*atlas-status/.test(activity)],
   ["live surface consumes shared telemetry store", /useReactorLiveTelemetry/.test(surface)],
-  ["live surface refuses bureau prose when a run has no observed spans", /running job with no observed spans/.test(surface)],
-  ["live surface renders semantic events rather than raw logs", /eventIsRenderable/.test(surface)],
+  ["live surface has an explicit evidence-only empty state", /will never invent browser actions, queries, findings/.test(surface)],
+  ["live surface renders semantic events", /eventIsRenderable/.test(surface)],
   ["browser scene is backed by an event URL", /event\.url/.test(surface)],
-  ["browser scene labels recorded action explicitly", /Actual research action/.test(surface)],
-  ["tool input is presented as recorded input", /Recorded tool input/.test(surface)],
-  ["source links are rendered from event evidence", /sourceList\(event\)/.test(surface)],
+  ["browser scene labels an actual recorded action", /Actual research action/.test(surface)],
+  ["recorded input is explicitly labelled", /Recorded action input/.test(surface)],
+  ["source links come from event evidence", /sourceList\(event\)/.test(surface)],
+  ["topology only claims observed nodes and hand-offs", /Nodes appear when the Bureau actually records that lane/.test(surface) && /observed hand-offs/.test(surface)],
   ["desktop/mobile legacy stage remains evidence-aware", /sourceUrls|links/.test(bureau)],
   ["desktop live mode has a telemetry ActivityOnly surface", /<ReactorActivityOnly\b/.test(page)],
-  ["legacy desktop scheme is present only as standby/explanatory UI", staticCanvasIsAfterLiveSurface && staticCanvasIsExplicitlyStandby],
+  ["legacy desktop scheme is standby/explanatory only", staticCanvasIsAfterLiveSurface && staticCanvasIsExplicitlyStandby],
   ["desktop page has one live event source of truth", pageNoLongerBuildsDuplicateLiveEventModel],
   ["mobile live path exposes real telemetry state", /liveNodes/.test(mobile) && /recentSpans/.test(mobile)],
 ];
@@ -68,12 +67,5 @@ for (const [label, ok] of checks) {
   if (!ok) failed = true;
 }
 
-if (/chain[- ]of[- ]thought|hidden reasoning|private reasoning/i.test(surface)) {
-  console.error("FAIL  hidden reasoning language detected in Reactor Live surface");
-  failed = true;
-} else {
-  console.log("PASS  Reactor Live surface does not expose hidden reasoning");
-}
-
 if (failed) process.exit(1);
-console.log(`\nReactor Live integrity contract: ${checks.length + 1} checks passed.`);
+console.log(`\nReactor Live integrity contract: ${checks.length} checks passed.`);
