@@ -49,6 +49,7 @@ const checks = [
   ["live surface consumes shared telemetry store", /useReactorLiveTelemetry/.test(surface)],
   ["live surface has an explicit evidence-only empty state", /will never invent browser actions, queries, findings/.test(surface)],
   ["live surface renders semantic events", /eventIsRenderable/.test(surface)],
+  ["live surface uses a reactor-specific cooling-tower mark", /CoolingTowerMark/.test(surface) && /Reactor Live/.test(surface)],
   ["browser scene is backed by an event URL", /event\.url/.test(surface)],
   ["browser scene labels an actual recorded action", /Actual research action/.test(surface)],
   ["recorded input is explicitly labelled", /Recorded action input/.test(surface)],
