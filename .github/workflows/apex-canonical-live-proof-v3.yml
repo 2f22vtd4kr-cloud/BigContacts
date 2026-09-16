@@ -5,6 +5,8 @@ on:
     paths:
       - ".github/workflows/apex-canonical-live-proof-v3.yml"
       - "artifacts/api-server/src/src/lib/agentic-web-research.ts"
+      - "artifacts/api-server/src/src/routes/research/canonical-case-discovery.ts"
+      - "artifacts/api-server/src/src/test/canonical-discovery-failure-boundary.test.ts"
   workflow_dispatch:
 permissions:
   contents: read
@@ -72,7 +74,7 @@ jobs:
           pnpm run check:comparison-contract
           node scripts/check-agentic-timeout.mjs
           node scripts/check-workflow-action-pins.mjs
-          pnpm --dir artifacts/api-server exec vitest run src/src/test/gemini-transient-retry.test.ts src/src/test/discovery-agent-parse.test.ts src/src/test/discovery-runtime-correctness.test.ts src/src/test/agentic-scope-boundary.test.ts src/src/test/agentic-source-provenance.test.ts --maxWorkers=1
+          pnpm --dir artifacts/api-server exec vitest run src/src/test/gemini-transient-retry.test.ts src/src/test/discovery-agent-parse.test.ts src/src/test/discovery-runtime-correctness.test.ts src/src/test/agentic-scope-boundary.test.ts src/src/test/agentic-source-provenance.test.ts src/src/test/canonical-discovery-failure-boundary.test.ts --maxWorkers=1
       - name: Provider readiness
         run: |
           node --input-type=module <<'NODE'
