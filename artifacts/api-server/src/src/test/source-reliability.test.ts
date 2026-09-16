@@ -16,6 +16,11 @@ describe("source reliability registry", () => {
     expect(result.rationale).toMatch(/review/i);
   });
 
+  it("does not let derived text inherit SEC authority", () => {
+    expect(getSourceReliability("AI summary of SEC filing").reliability).toBe(0.3);
+    expect(getSourceReliability("AI-generated aircraft registry summary").reliability).toBe(0.3);
+  });
+
   it("deduplicates source labels when calculating an average", () => {
     expect(averageSourceReliability(["SEC EDGAR", "SEC EDGAR"])).toBe(0.94);
   });
