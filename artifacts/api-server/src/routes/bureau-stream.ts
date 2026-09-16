@@ -47,10 +47,22 @@ router.get("/ingest/bureau-stream", async (req: Request, res: Response): Promise
 
   let lastTsMs = 0;
   let closed = false;
+  let pollId: NodeJS.Timeout | undefined;
+  let hbId: NodeJS.Timeout | undefined;
+
+  const close = () => {
+    if (closed) return;
+    closed = true;
+    if (pollId) clearInterval(pollId);
+    if (hbId) clearInterval(hbId);
+  };
+  req.on("close", close);
 
   const sendSnapshot = () => {
+    if (closed) return;
     const events = listBureauEvents({ caseId, limit: 50 });
     if (events.length) lastTsMs = Math.max(lastTsMs, events[0]!.tsMs);
+    if (closed) return;
     sseSend(res, "snapshot", { events, caseId, serverTime: new Date().toISOString() });
   };
 
@@ -60,25 +72,22 @@ router.get("/ingest/bureau-stream", async (req: Request, res: Response): Promise
       const events = listBureauEvents({ caseId, limit: 40 });
       const fresh = events.filter((e) => e.tsMs > lastTsMs).reverse();
       for (const event of fresh) {
+        if (closed) return;
         lastTsMs = Math.max(lastTsMs, event.tsMs);
         sseSend(res, "bureau", event);
       }
     } catch (err: any) {
-      logger.debug?.({ err: err?.message }, "bureau-stream poll failed");
+      if (!closed) logger.debug?.({ err: err?.message }, "bureau-stream poll failed");
     }
   };
 
   sendSnapshot();
-  const pollId = setInterval(tick, POLL_MS);
-  const hbId = setInterval(() => {
+  if (closed) return;
+
+  pollId = setInterval(tick, POLL_MS);
+  hbId = setInterval(() => {
     if (!closed) sseComment(res, `hb ${new Date().toISOString()}`);
   }, HEARTBEAT_MS);
-
-  req.on("close", () => {
-    closed = true;
-    clearInterval(pollId);
-    clearInterval(hbId);
-  });
 });
 
 export default router;
