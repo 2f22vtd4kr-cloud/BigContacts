@@ -1,4 +1,5 @@
 name: Apex Canonical Live Proof v3
+# Re-run this proof whenever the canonical provider/runtime transform changes.
 
 on:
   push:
@@ -100,12 +101,12 @@ jobs:
       - name: Open fresh discovery case
         run: |
           curl -sS -m 20 -X POST http://127.0.0.1:8080/api/research/bureau/cases -H "Authorization: Bearer ${APEX_API_AUTH_TOKEN}" -H 'Content-Type: application/json' -d '{"objective":"Identify current senior partnerships, business development, or commercial leaders at a real European B2B software company and investigate only source-backed professional contact routes.","motivation":"Produce one evidence-backed named-person discovery with truthful professional contact routing.","geography":"Europe","exclusions":["Do not invent people, contact values, or source URLs."]}' | tee /tmp/case.json
-          node -e 'const x=require("/tmp/case.json"); if(!x.id){console.error(JSON.stringify(x));process.exit(1)}; console.log(`case=${x.id}`)'
+          node -e 'const x=require("/tmp/case.json"); if(!x.id){console.error(JSON.stringify(x));process.exit(1)}'
       - name: Start canonical case discovery
         run: |
           CASE_ID=$(node -e 'console.log(require("/tmp/case.json").id)')
           curl -sS -m 20 -X POST "http://127.0.0.1:8080/api/research/bureau/cases/${CASE_ID}/run-discovery" -H "Authorization: Bearer ${APEX_API_AUTH_TOKEN}" -H 'Content-Type: application/json' -d '{}' | tee /tmp/run.json
-          node -e 'const x=require("/tmp/run.json"); if(!x.jobId){console.error(JSON.stringify(x));process.exit(1)}; console.log(`job=${x.jobId}`)'
+          node -e 'const x=require("/tmp/run.json"); if(!x.jobId){console.error(JSON.stringify(x));process.exit(1)}'
       - name: Poll canonical discovery job
         run: |
           JOB_ID=$(node -e 'console.log(require("/tmp/run.json").jobId)')
@@ -114,7 +115,6 @@ jobs:
             sleep 5
             curl -sS -m 10 -H "Authorization: Bearer ${APEX_API_AUTH_TOKEN}" "http://127.0.0.1:8080/api/ingest/job/${JOB_ID}" > /tmp/job.json || true
             STATUS=$(node -e 'const fs=require("fs");try{process.stdout.write(String(JSON.parse(fs.readFileSync("/tmp/job.json","utf8")).status||""))}catch{}')
-            echo "job=${JOB_ID} status=${STATUS}"
             case "$STATUS" in done) break;; failed|cancelled) cat /tmp/job.json; exit 1;; esac
           done
           test "$STATUS" = done
@@ -124,14 +124,10 @@ jobs:
         run: |
           node --input-type=module <<'NODE'
           import fs from 'node:fs';
-          const job=JSON.parse(fs.readFileSync('/tmp/job.json','utf8'));
-          const c=JSON.parse(fs.readFileSync('/tmp/case-final.json','utf8'));
-          const events=JSON.parse(fs.readFileSync('/tmp/events.json','utf8'));
-          const file=JSON.parse(c.caseFile);
-          const text=JSON.stringify({job,c,events});
-          const hasInvestigator=Boolean(file.investigatorReports?.some((r)=>r.status==='completed' && (r.provider==='groq'||r.provider==='mistral')));
+          const job=JSON.parse(fs.readFileSync('/tmp/job.json','utf8')); const c=JSON.parse(fs.readFileSync('/tmp/case-final.json','utf8')); const events=JSON.parse(fs.readFileSync('/tmp/events.json','utf8')); const file=JSON.parse(c.caseFile); const text=JSON.stringify({job,c,events});
+          const hasInvestigator=Boolean(file.investigatorReports?.some((r)=>r.status==='completed'&&(r.provider==='groq'||r.provider==='mistral')));
           const hasSource=Boolean(file.discoveredCandidates?.some((x)=>Array.isArray(x.sourceUrls)&&x.sourceUrls.length>0));
-          const hasNamed=Boolean(file.discoveredCandidates?.some((x)=>typeof x.name==='string'&&x.name.trim().length>0));
+          const hasNamed=Boolean(file.discoveredCandidates?.some((x)=>typeof x.name==='string'&&x.name.trim()));
           const hasPromotion=Boolean(file.discoveredCandidates?.some((x)=>x.admittedEntityId));
           const hasSearchTelemetry=events.some((e)=>/search|browse|fetch|http|research/i.test(`${e.eventType||''} ${e.summary||''} ${e.payload||''}`));
           console.log(JSON.stringify({caseId:c.id,jobId:job.id,status:job.status,caseStatus:c.status,investigatorSelected:hasInvestigator,modelDirectedEvidence:hasSearchTelemetry,namedCandidate:hasNamed,sourceBacked:hasSource,promotion:hasPromotion},null,2));
