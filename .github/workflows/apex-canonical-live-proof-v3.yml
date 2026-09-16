@@ -96,15 +96,12 @@ jobs:
           test "$(curl -sS -m 5 -o /tmp/health.json -w '%{http_code}' http://127.0.0.1:8080/api/healthz)" = 200
       - name: Open fresh discovery case
         run: |
-          curl -sS -m 20 -X POST http://127.0.0.1:8080/api/research/bureau/cases \
-            -H "Authorization: Bearer ${APEX_API_AUTH_TOKEN}" -H 'Content-Type: application/json' \
-            -d '{"objective":"Identify current senior partnerships, business development, or commercial leaders at a real European B2B software company and investigate only source-backed professional contact routes.","motivation":"Produce one evidence-backed named-person discovery with truthful professional contact routing.","geography":"Europe","exclusions":["Do not invent people, contact values, or source URLs."]}' | tee /tmp/case.json
+          curl -sS -m 20 -X POST http://127.0.0.1:8080/api/research/bureau/cases -H "Authorization: Bearer ${APEX_API_AUTH_TOKEN}" -H 'Content-Type: application/json' -d '{"objective":"Identify current senior partnerships, business development, or commercial leaders at a real European B2B software company and investigate only source-backed professional contact routes.","motivation":"Produce one evidence-backed named-person discovery with truthful professional contact routing.","geography":"Europe","exclusions":["Do not invent people, contact values, or source URLs."]}' | tee /tmp/case.json
           node -e 'const x=require("/tmp/case.json"); if(!x.id){console.error(JSON.stringify(x));process.exit(1)}; console.log(`case=${x.id}`)'
       - name: Start canonical case discovery
         run: |
           CASE_ID=$(node -e 'console.log(require("/tmp/case.json").id)')
-          curl -sS -m 20 -X POST "http://127.0.0.1:8080/api/research/bureau/cases/${CASE_ID}/run-discovery" \
-            -H "Authorization: Bearer ${APEX_API_AUTH_TOKEN}" -H 'Content-Type: application/json' -d '{}' | tee /tmp/run.json
+          curl -sS -m 20 -X POST "http://127.0.0.1:8080/api/research/bureau/cases/${CASE_ID}/run-discovery" -H "Authorization: Bearer ${APEX_API_AUTH_TOKEN}" -H 'Content-Type: application/json' -d '{}' | tee /tmp/run.json
           node -e 'const x=require("/tmp/run.json"); if(!x.jobId){console.error(JSON.stringify(x));process.exit(1)}; console.log(`job=${x.jobId}`)'
       - name: Poll canonical discovery job
         run: |
@@ -135,11 +132,8 @@ jobs:
           const hasPromotion=Boolean(file.discoveredCandidates?.some((x)=>x.admittedEntityId));
           const hasSearchTelemetry=events.some((e)=>/search|browse|fetch|http|research/i.test(`${e.eventType||''} ${e.summary||''} ${e.payload||''}`));
           console.log(JSON.stringify({caseId:c.id,jobId:job.id,status:job.status,caseStatus:c.status,investigatorSelected:hasInvestigator,modelDirectedEvidence:hasSearchTelemetry,namedCandidate:hasNamed,sourceBacked:hasSource,promotion:hasPromotion},null,2));
-          if(!hasInvestigator||!hasSearchTelemetry||!hasNamed||!hasSource||!hasPromotion){
-            console.error('LIVE PROOF GATE FAILED: Investigator trajectory, genuine source evidence, named candidate, or promotion was not durably observed.');
-            process.exit(1);
-          }
-          if(/Jane Doe|John Doe|example\.com/i.test(text)){ console.error('Synthetic/example data detected in live state.'); process.exit(1); }
+          if(!hasInvestigator||!hasSearchTelemetry||!hasNamed||!hasSource||!hasPromotion) process.exit(1);
+          if(/Jane Doe|John Doe|example\.com/i.test(text)) process.exit(2);
           NODE
       - name: Upload proof artifacts
         if: always()
