@@ -43,7 +43,7 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
   void (async () => {
     try {
       await runCanonicalAtlasPipeline(jobId, {
-        targetCount: 20,
+        targetCount: 3,
         researchDepth: depth.depth,
         targetTimeoutMs: depth.agenticHardTimeoutMs,
         discoveryCaseId: caseId,
@@ -54,11 +54,6 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
         discoveryExclusions: Array.isArray(file.humanBrief?.exclusions) ? file.humanBrief.exclusions : [],
         lockKey: "case-bureau-discovery",
       });
-
-      // The canonical pipeline must never convert a non-completed Investigator pass
-      // into a successful zero-candidate discovery. The pipeline historically returned
-      // normally after persisting `discovery.status=error`; this boundary reconciles
-      // the durable job/case state before the HTTP lane can be considered successful.
       const finishedJob = await getJob(jobId);
       let discoveryStatus: string | null = null;
       let discoveryError: string | null = null;
@@ -67,14 +62,10 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
           const result = JSON.parse(finishedJob.result) as { discovery?: { status?: unknown; error?: unknown } };
           discoveryStatus = typeof result.discovery?.status === "string" ? result.discovery.status : null;
           discoveryError = typeof result.discovery?.error === "string" ? result.discovery.error : null;
-        } catch {
-          discoveryStatus = null;
-        }
+        } catch { discoveryStatus = null; }
       }
       if (discoveryStatus !== "completed") {
-        const message = discoveryError
-          ? `Canonical discovery Investigator pass did not complete: ${discoveryError}`
-          : `Canonical discovery Investigator pass did not complete (status=${discoveryStatus ?? "unknown"}).`;
+        const message = discoveryError ? `Canonical discovery Investigator pass did not complete: ${discoveryError}` : `Canonical discovery Investigator pass did not complete (status=${discoveryStatus ?? "unknown"}).`;
         await updateJob(jobId, { status: "failed", outcome: "incomplete", message, finishedAt: new Date().toISOString() }).catch(() => undefined);
         await db.update(researchCasesTable).set({ status: "error", currentAction: "canonical-discovery-error", updatedAt: new Date() }).where(eq(researchCasesTable.id, caseId)).catch(() => undefined);
       }
