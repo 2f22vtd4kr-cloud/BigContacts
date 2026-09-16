@@ -1,6 +1,7 @@
 import fs from "node:fs";
 
 const source = fs.readFileSync("artifacts/api-server/src/src/lib/agentic-web-research-core.ts", "utf8");
+const wrapper = fs.readFileSync("artifacts/api-server/src/src/lib/agentic-web-research.ts", "utf8");
 const python = fs.readFileSync("artifacts/api-server/src/src/lib/python-tools.ts", "utf8");
 const sandbox = fs.readFileSync("artifacts/api-server/src/src/lib/python-sandbox-contract.ts", "utf8");
 const workflow = fs.readFileSync(".github/workflows/apex-canonical-live-proof-v3.yml", "utf8");
@@ -24,6 +25,7 @@ assert(/runMaigret\(action\.username, \{ signal: runController\.signal \}\)/.tes
 assert(/runSherlock\(action\.username, \{ signal: runController\.signal \}\)/.test(source), "Sherlock receives cancellation");
 assert(!/callGeminiJson|callNvidiaJson|GEMINI_API_KEY_|async function callGeminiJson\b|async function callNvidiaJson\b/.test(source), "Boss/Right-Hand providers are absent from Investigator runtime");
 assert(!/orderedProviders\s*=/.test(source), "Investigator core has no alternate-provider fallback list");
+assert(!/TRANSPORT FALLBACK:|groq->mistral|investigatorLlm: \"mistral\"/.test(wrapper), "Investigator wrapper has no sequential Groq-to-Mistral fallback");
 assert(/const fn = selectedInvestigatorLlm === "groq"/.test(source), "selected Investigator reaches direct provider boundary");
 assert(/investigatorLlm\?: "groq" \| "mistral"/.test(source), "selected Investigator is explicit in ReAct input");
 assert(/authorizePythonSandboxRequest/.test(python) && /const authorization = authorizePythonSandboxRequest/.test(python), "Python capability uses sandbox authorization");
