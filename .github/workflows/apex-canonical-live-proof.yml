@@ -5,6 +5,12 @@ on:
     branches: [main]
     paths:
       - ".github/workflows/apex-canonical-live-proof.yml"
+      - "artifacts/api-server/src/**"
+      - "lib/db/src/**"
+      - "scripts/audit-live-bureau.mjs"
+      - "scripts/check-*.mjs"
+      - "scripts/check-*.sh"
+      - "scripts/fixtures/**"
   workflow_dispatch:
 
 permissions:
@@ -14,37 +20,38 @@ concurrency:
   group: apex-canonical-live-proof-${{ github.ref }}
   cancel-in-progress: false
 
+env:
+  DATABASE_URL: postgresql://apex:apex_local_dev@127.0.0.1:5432/apex
+  REDIS_URL: redis://127.0.0.1:6379
+  PORT: 8080
+  ENABLE_AUTO_PIPELINE: "false"
+  NODE_ENV: development
+  GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+  GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+  MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
+  DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+  SERPER_API_KEY: ${{ secrets.SERPER_API_KEY }}
+  TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
+  EXA_API_KEY: ${{ secrets.EXA_API_KEY }}
+  SCRAPFLY_API_KEY: ${{ secrets.SCRAPFLY_API_KEY }}
+  ZENROWS_API_KEY: ${{ secrets.ZENROWS_API_KEY }}
+  COMPANIES_HOUSE_API_KEY: ${{ secrets.COMPANIES_HOUSE_API_KEY }}
+  HF_TOKEN: ${{ secrets.HF_TOKEN }}
+  WHOISJSON_API_KEY: ${{ secrets.WHOISJSON_API_KEY }}
+  RESEARCH_DEPTH: standard
+  APEX_SKIP_SEMANTIC: "1"
+  APEX_AGENTIC_CONCURRENCY: "1"
+  APEX_AGENTIC_PROVIDER_CONCURRENCY: "1"
+  AGENTIC_PROVIDER_DECISION_TIMEOUT_MS: "55000"
+  GROQ_AGENTIC_MIN_INTERVAL_MS: "30000"
+  LIVE_AUDIT_TARGET_COUNT: "1"
+  LIVE_AUDIT_MIN_ADMITS: "1"
+  NODE_OPTIONS: --max-old-space-size=1536
+
 jobs:
   live-proof:
     runs-on: ubuntu-latest
     timeout-minutes: 90
-    env:
-      DATABASE_URL: postgresql://apex:apex_local_dev@127.0.0.1:5432/apex
-      REDIS_URL: redis://127.0.0.1:6379
-      PORT: 8080
-      ENABLE_AUTO_PIPELINE: "false"
-      NODE_ENV: development
-      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
-      MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
-      DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
-      SERPER_API_KEY: ${{ secrets.SERPER_API_KEY }}
-      TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
-      EXA_API_KEY: ${{ secrets.EXA_API_KEY }}
-      SCRAPFLY_API_KEY: ${{ secrets.SCRAPFLY_API_KEY }}
-      ZENROWS_API_KEY: ${{ secrets.ZENROWS_API_KEY }}
-      COMPANIES_HOUSE_API_KEY: ${{ secrets.COMPANIES_HOUSE_API_KEY }}
-      HF_TOKEN: ${{ secrets.HF_TOKEN }}
-      WHOISJSON_API_KEY: ${{ secrets.WHOISJSON_API_KEY }}
-      RESEARCH_DEPTH: standard
-      APEX_SKIP_SEMANTIC: "1"
-      APEX_AGENTIC_CONCURRENCY: "1"
-      APEX_AGENTIC_PROVIDER_CONCURRENCY: "1"
-      AGENTIC_PROVIDER_DECISION_TIMEOUT_MS: "55000"
-      GROQ_AGENTIC_MIN_INTERVAL_MS: "30000"
-      LIVE_AUDIT_TARGET_COUNT: "1"
-      LIVE_AUDIT_MIN_ADMITS: "1"
-      NODE_OPTIONS: --max-old-space-size=1536
     steps:
       - name: Checkout exact main tip
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -63,6 +70,7 @@ jobs:
         run: pnpm install --frozen-lockfile --ignore-scripts --fetch-retries=8 --fetch-timeout=120000 --filter @workspace/api-server... --registry=https://registry.npmjs.org/
       - name: Install local services
         run: |
+          set -euo pipefail
           sudo apt-get update -qq
           sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq postgresql redis-server
           sudo service postgresql start
@@ -71,31 +79,29 @@ jobs:
           sudo -u postgres psql -c "CREATE DATABASE apex OWNER apex;" || true
       - name: Schema and API build
         run: |
+          set -euo pipefail
           cd lib/db
           npx drizzle-kit push --config ./drizzle.config.ts
           cd ../../
           pnpm --dir artifacts/api-server run build
       - name: Static architecture gates
         run: |
-          pnpm run check:no-force-dig
-          pnpm run check:free-react
-          pnpm run check:trajectory
-          pnpm run check:agentic-runtime
-          pnpm run check:comparison-contract
-          node scripts/check-agentic-timeout.mjs
+          set -euo pipefail
+          pnpm run check:bureau
           node scripts/check-workflow-action-pins.mjs
       - name: Focused runtime tests
-        run: pnpm --dir artifacts/api-server exec vitest run src/src/test/gemini-transient-retry.test.ts src/src/test/discovery-agent-parse.test.ts src/src/test/discovery-runtime-correctness.test.ts src/src/test/agentic-scope-boundary.test.ts src/src/test/agentic-source-provenance.test.ts --maxWorkers=1
+        run: pnpm --dir artifacts/api-server exec vitest run src/src/test/gemini-transient-retry.test.ts src/src/test/discovery-agent-parse.test.ts src/src/test/discovery-runtime-correctness.test.ts src/src/test/agentic-scope-boundary.test.ts src/src/test/agentic-source-provenance.test.ts src/src/test/legacy-apex-mutation-guard.test.ts --maxWorkers=1
       - name: Provider readiness preflight
         run: |
+          set -euo pipefail
           node --input-type=module <<'NODE'
           const results = [];
           async function probe(name, url, headers, body) {
             if (Object.values(headers).some((v) => !v)) { results.push({name, state:'not_configured'}); return false; }
             try {
-              const r = await fetch(url, { method:'POST', headers, body:JSON.stringify(body), signal:AbortSignal.timeout(15000) });
-              await r.text();
-              results.push({name, status:r.status});
+              const r = await fetch(url, { method:'POST', headers, body:JSON.stringify(body), signal:AbortSignal.timeout(20000) });
+              const text = await r.text();
+              results.push({name, status:r.status, body:text.slice(0,300)});
               return r.ok;
             } catch (e) {
               results.push({name, state:'transport_error', error:String(e?.message || e)});
@@ -105,19 +111,23 @@ jobs:
           const groq = await probe('groq', 'https://api.groq.com/openai/v1/chat/completions', {Authorization:`Bearer ${process.env.GROQ_API_KEY}`,'content-type':'application/json'}, {model:process.env.GROQ_AGENTIC_MODEL || 'qwen/qwen3.8-27b',messages:[{role:'user',content:'Reply READY only.'}],max_tokens:8});
           const mistral = await probe('mistral', 'https://api.mistral.ai/v1/chat/completions', {Authorization:`Bearer ${process.env.MISTRAL_API_KEY}`,'content-type':'application/json'}, {model:process.env.MISTRAL_AGENTIC_MODEL || 'mistral-small-latest',messages:[{role:'user',content:'Reply READY only.'}],max_tokens:8});
           const deepseek = await probe('deepseek-right-hand', 'https://integrate.api.nvidia.com/v1/chat/completions', {Authorization:`Bearer ${process.env.DEEPSEEK_API_KEY}`,'content-type':'application/json'}, {model:'deepseek-ai/deepseek-v4-flash-0731',messages:[{role:'user',content:'Reply READY only.'}],temperature:1,top_p:0.95,max_tokens:32,reasoning_effort:'high',stream:false});
-          if (!groq && !mistral) { console.error(JSON.stringify(results,null,2)); process.exit(2); }
+          const gemini = await probe('gemini-boss', 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent', {'x-goog-api-key':process.env.GEMINI_API_KEY,'content-type':'application/json'}, {contents:[{role:'user',parts:[{text:'Reply READY only.'}]}],generationConfig:{maxOutputTokens:8}});
+          if (!gemini || (!groq && !mistral) || !deepseek) { console.error(JSON.stringify(results,null,2)); process.exit(2); }
           console.log(JSON.stringify(results,null,2));
           NODE
       - name: Start API
         run: |
+          set -euo pipefail
           redis-cli ping
+          export APEX_API_AUTH_TOKEN="$(openssl rand -hex 32)"
+          echo "APEX_API_AUTH_TOKEN=${APEX_API_AUTH_TOKEN}" >> "$GITHUB_ENV"
           node artifacts/api-server/dist/index.mjs > /tmp/apex-api.log 2>&1 &
+          echo $! > /tmp/apex-api.pid
           for i in $(seq 1 45); do sleep 1; test "$(curl -sS -m 2 -o /tmp/health.json -w '%{http_code}' http://127.0.0.1:8080/api/healthz || true)" = 200 && break; done
           test "$(curl -sS -m 5 -o /tmp/health.json -w '%{http_code}' http://127.0.0.1:8080/api/healthz)" = 200
       - name: Launch one bounded discovery-first Bureau proof
         run: |
-          export APEX_API_AUTH_TOKEN="$(openssl rand -hex 32)"
-          echo "APEX_API_AUTH_TOKEN=${APEX_API_AUTH_TOKEN}" >> "$GITHUB_ENV"
+          set -euo pipefail
           curl -sS -m 15 -X POST http://127.0.0.1:8080/api/ingest/atlas-run \
             -H "Authorization: Bearer ${APEX_API_AUTH_TOKEN}" \
             -H 'Content-Type: application/json' \
@@ -125,6 +135,7 @@ jobs:
           node -e 'const x=require("/tmp/launch.json"); if(!x.jobId){console.error(JSON.stringify(x));process.exit(1)}; console.log(`job=${x.jobId}`)'
       - name: Poll Bureau to terminal state
         run: |
+          set -euo pipefail
           for i in $(seq 1 900); do
             sleep 5
             curl -sS -m 10 -H "Authorization: Bearer ${APEX_API_AUTH_TOKEN}" http://127.0.0.1:8080/api/ingest/atlas-status > /tmp/atlas-status.json || true
@@ -137,7 +148,7 @@ jobs:
         if: always()
         run: |
           curl -sS -m 10 -H "Authorization: Bearer ${APEX_API_AUTH_TOKEN}" http://127.0.0.1:8080/api/ingest/atlas-status | tee /tmp/atlas-status.json || true
-          curl -sS -m 10 'http://127.0.0.1:8080/api/entities?limit=50&offset=0' | tee /tmp/entities.json || true
+          curl -sS -m 10 -H "Authorization: Bearer ${APEX_API_AUTH_TOKEN}" 'http://127.0.0.1:8080/api/entities?limit=50&offset=0' | tee /tmp/entities.json || true
           node scripts/audit-live-bureau.mjs
       - name: Upload live proof artifacts
         if: always()
