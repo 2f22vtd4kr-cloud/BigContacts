@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - ".github/workflows/apex-canonical-live-proof-v3.yml"
+      - "scripts/apply-investigator-provider-routing.mjs"
   workflow_dispatch:
 
 permissions:
