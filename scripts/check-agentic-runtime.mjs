@@ -46,10 +46,11 @@ assert(!/push\(`PERSON:/.test(hardener), "retired hardener does not manufacture 
 // explicit in the source guard so a coordination checker cannot silently drift.
 assert(/deepseek-ai\/deepseek-v4-flash-0731/.test(rightHand), "DeepSeek production model is canonical");
 assert(/https:\/\/integrate\.api\.nvidia\.com\/v1\/chat\/completions/.test(rightHand), "DeepSeek production endpoint is canonical");
-assert(/temperature:\s*1/.test(rightHand) && /top_p:\s*0\.95/.test(rightHand), "DeepSeek production sampling contract is exact");
+assert(/temperature:\s*1/.test(rightHand) && !/top_p:\s*0\.95/.test(rightHand), "DeepSeek production sampling contract matches NVIDIA guidance");
 assert(/max_tokens:\s*16384/.test(rightHand), "DeepSeek production token budget is exact");
 assert(/reasoning_effort:\s*\"high\"/.test(rightHand) && /stream:\s*false/.test(rightHand), "DeepSeek production reasoning/stream contract is exact");
 assert(/response\.status === 202/.test(rightHand) && /integrate\.api\.nvidia\.com\/v1\/status\//.test(rightHand), "DeepSeek production client polls NVIDIA asynchronous 202 responses");
+assert(!/response_format/.test(rightHand), "DeepSeek production client does not send unsupported response_format");
 
 // Static contract only: the live proof must contain a real runtime/evidence gate.
 // The actual external-provider result belongs to the live-proof job, not this source guard.
