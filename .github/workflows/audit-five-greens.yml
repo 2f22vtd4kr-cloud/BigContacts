@@ -1,6 +1,7 @@
 # Canonical five-green gate: five consecutive fresh full-codebase audits.
 # Deployment-prep sequence: audit after database initialization runbook hardening.
 # Certification runs are intentionally push-triggered on the authoritative branch so every fresh tree can earn a new 5/5 streak.
+# Re-certification pass: this commit intentionally starts a fresh five-audit streak.
 name: Five Green Complete Codebase Audit
 
 on:
@@ -14,8 +15,6 @@ permissions:
   contents: read
 
 concurrency:
-  # Never let an older commit's queued audit block the current final tree.
-  # Each commit gets its own complete five-audit sequence.
   group: five-green-complete-${{ github.ref }}-${{ github.sha }}
   cancel-in-progress: false
 
@@ -90,19 +89,16 @@ jobs:
     needs: audit-1
     runs-on: ubuntu-latest
     steps: *audit_steps
-
   audit-3:
     name: Audit 3 — complete codebase
     needs: audit-2
     runs-on: ubuntu-latest
     steps: *audit_steps
-
   audit-4:
     name: Audit 4 — complete codebase
     needs: audit-3
     runs-on: ubuntu-latest
     steps: *audit_steps
-
   audit-5:
     name: Audit 5 — complete codebase
     needs: audit-4
