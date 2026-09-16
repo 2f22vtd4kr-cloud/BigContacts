@@ -7,7 +7,7 @@ import {
   buildBossOpeningPrompt,
   DEFAULT_DISCOVERY_MOTIVATION,
   DEFAULT_DISCOVERY_OBJECTIVE,
-  resolveGeminiBossModel,
+  GEMINI_BOSS_MODEL_PENDING,
 } from "../../lib/case-bureau";
 import { computeDiscoveryQualityMetrics } from "../../lib/discovery-metrics";
 
@@ -97,14 +97,13 @@ router.post("/research/bureau/cases", async (req, res): Promise<void> => {
     geography: parsed.data.geography,
     exclusions: parsed.data.exclusions,
   });
-  const bossModel = await resolveGeminiBossModel();
   const [created] = await db.insert(researchCasesTable).values({
     targetEntityId: null,
     caseType: "discovery",
     status: "ready",
     directorMode: "gemini_boss_pending",
     directorProvider: "gemini",
-    directorModel: bossModel.model,
+    directorModel: GEMINI_BOSS_MODEL_PENDING,
     objective,
     motivation,
     openingPrompt,
@@ -127,9 +126,9 @@ router.post("/research/bureau/cases", async (req, res): Promise<void> => {
     payload: JSON.stringify({
       caseType: "discovery",
       directorProvider: "gemini",
-      directorModel: bossModel.model,
-      modelSelectionStatus: bossModel.status,
-      modelCandidateCount: bossModel.candidateCount,
+      directorModel: GEMINI_BOSS_MODEL_PENDING,
+      modelSelectionStatus: "pending",
+      modelCandidateCount: 0,
     }),
   });
   res.status(201).json(serializeCase(created, null));
