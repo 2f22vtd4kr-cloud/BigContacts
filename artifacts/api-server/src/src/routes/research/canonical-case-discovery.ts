@@ -20,10 +20,6 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
   const file = parseFile(current.caseFile);
   if (!file || file.caseType !== "discovery") { res.status(409).json({ error: "Only a discovery case can run the canonical discovery investigation" }); return; }
 
-  // This route owns a durable/distributed job lane. Manual Launch mode intentionally
-  // skips permanent Redis at boot, so establish the permanent Redis service at the
-  // canonical research boundary before touching the lane lock. Never fall back to
-  // local Redis for this state.
   await enablePermanentRedis();
 
   const existingJobId = await getActiveJob("case-bureau-discovery");
@@ -58,8 +54,34 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
         discoveryExclusions: Array.isArray(file.humanBrief?.exclusions) ? file.humanBrief.exclusions : [],
         lockKey: "case-bureau-discovery",
       });
-    } catch {
+
+      // The canonical pipeline must never convert a non-completed Investigator pass
+      // into a successful zero-candidate discovery. The pipeline historically returned
+      // normally after persisting `discovery.status=error`; this boundary reconciles
+      // the durable job/case state before the HTTP lane can be considered successful.
+      const finishedJob = await getJob(jobId);
+      let discoveryStatus: string | null = null;
+      let discoveryError: string | null = null;
+      if (finishedJob?.result) {
+        try {
+          const result = JSON.parse(finishedJob.result) as { discovery?: { status?: unknown; error?: unknown } };
+          discoveryStatus = typeof result.discovery?.status === "string" ? result.discovery.status : null;
+          discoveryError = typeof result.discovery?.error === "string" ? result.discovery.error : null;
+        } catch {
+          discoveryStatus = null;
+        }
+      }
+      if (discoveryStatus !== "completed") {
+        const message = discoveryError
+          ? `Canonical discovery Investigator pass did not complete: ${discoveryError}`
+          : `Canonical discovery Investigator pass did not complete (status=${discoveryStatus ?? "unknown"}).`;
+        await updateJob(jobId, { status: "failed", outcome: "incomplete", message, finishedAt: new Date().toISOString() }).catch(() => undefined);
+        await db.update(researchCasesTable).set({ status: "error", currentAction: "canonical-discovery-error", updatedAt: new Date() }).where(eq(researchCasesTable.id, caseId)).catch(() => undefined);
+      }
+      await clearActiveJobIfOwned("case-bureau-discovery", jobId).catch(() => undefined);
+    } catch (error) {
       await db.update(researchCasesTable).set({ status: "error", currentAction: "canonical-discovery-error", updatedAt: new Date() }).where(eq(researchCasesTable.id, caseId));
+      await updateJob(jobId, { status: "failed", outcome: "incomplete", message: error instanceof Error ? error.message : "Canonical discovery failed.", finishedAt: new Date().toISOString() }).catch(() => undefined);
       await clearActiveJobIfOwned("case-bureau-discovery", jobId);
     }
   })();
