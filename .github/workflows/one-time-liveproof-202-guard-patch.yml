@@ -1,0 +1,44 @@
+name: One-time live proof 202 guard patch
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/one-time-liveproof-202-guard-patch.yml"
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Patch live proof readiness and static guard
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          wf = Path('.github/workflows/apex-canonical-live-proof-v3.yml')
+          s = wf.read_text(encoding='utf-8')
+          old = '''                const r = await fetch(url,{...init,signal:AbortSignal.timeout(60000)});\n                const body = await r.text();\n                if (r.ok) return { ok: true, body };'''
+          new = '''                const r = await fetch(url,{...init,signal:AbortSignal.timeout(60000)});\n                let body = await r.text();\n                if (r.status === 202 && url === 'https://integrate.api.nvidia.com/v1/chat/completions') {\n                  let requestId = null;\n                  try {\n                    const pending = JSON.parse(body);\n                    requestId = typeof pending.requestId === 'string' ? pending.requestId : (typeof pending.request_id === 'string' ? pending.request_id : null);\n                  } catch {}\n                  if (!requestId) { last = 'http-202-no-request-id'; }\n                  else {\n                    const statusUrl = `https://integrate.api.nvidia.com/v1/status/${encodeURIComponent(requestId)}`;\n                    for (let poll = 0; poll < 20; poll++) {\n                      await new Promise((resolve) => setTimeout(resolve, 1000));\n                      const pendingResponse = await fetch(statusUrl,{method:'GET',headers:init.headers,signal:AbortSignal.timeout(10000)});\n                      body = await pendingResponse.text();\n                      if (pendingResponse.ok) return { ok: true, body };\n                      if (![202,408,425,429,500,502,503,504,529].includes(pendingResponse.status)) { last = `status-http-${pendingResponse.status}`; break; }\n                      last = `status-http-${pendingResponse.status}`;\n                    }\n                  }\n                } else if (r.ok) return { ok: true, body };'''
+          if old not in s:
+              raise SystemExit('live-proof request helper pattern not found')
+          wf.write_text(s.replace(old, new, 1), encoding='utf-8')
+
+          guard = Path('scripts/check-agentic-runtime.mjs')
+          g = guard.read_text(encoding='utf-8')
+          old_guard = 'assert(/reasoning_effort:\\s*\\"high\\"/.test(rightHand) && /stream:\\s*false/.test(rightHand), "DeepSeek production reasoning/stream contract is exact");'
+          new_guard = old_guard + '\nassert(/response\\.status === 202/.test(rightHand) && /integrate\\.api\\.nvidia\\.com\\/v1\\/status\\//.test(rightHand), "DeepSeek production client polls NVIDIA asynchronous 202 responses");'
+          if old_guard not in g:
+              raise SystemExit('agentic runtime DeepSeek guard pattern not found')
+          guard.write_text(g.replace(old_guard, new_guard, 1), encoding='utf-8')
+          PY
+      - name: Validate and commit
+        run: |
+          git diff --check
+          grep -n "202\|v1/status" .github/workflows/apex-canonical-live-proof-v3.yml scripts/check-agentic-runtime.mjs artifacts/api-server/src/src/lib/nvidia-nim-case-reasoning.ts
+          git diff -- .github/workflows/apex-canonical-live-proof-v3.yml scripts/check-agentic-runtime.mjs
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/workflows/apex-canonical-live-proof-v3.yml scripts/check-agentic-runtime.mjs
+          git commit -m "fix: prove DeepSeek async status handling in live readiness"
+          git push
