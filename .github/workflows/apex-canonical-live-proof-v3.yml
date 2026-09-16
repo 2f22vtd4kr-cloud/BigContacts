@@ -1,4 +1,5 @@
 name: Apex Canonical Live Proof v3
+# Canonical runtime proof: tracked source, failure boundary, provider readiness, and genuine evidence gate.
 on:
   push:
     branches: [main]
@@ -7,6 +8,7 @@ on:
       - "artifacts/api-server/src/src/lib/agentic-web-research.ts"
       - "artifacts/api-server/src/src/routes/research/canonical-case-discovery.ts"
       - "artifacts/api-server/src/src/test/canonical-discovery-failure-boundary.test.ts"
+      - "scripts/check-agentic-runtime.mjs"
   workflow_dispatch:
 permissions:
   contents: read
