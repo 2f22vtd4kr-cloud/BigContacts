@@ -65,7 +65,7 @@ function extractAssistantText(message: ChatMessage | undefined): string {
 
 async function requestDeepSeekCompletion(
   messages: Array<{ role: "system" | "user"; content: string }>,
-  options: { timeoutMs: number; responseFormat?: { type: "json_object" } },
+  options: { timeoutMs: number },
 ): Promise<{ raw: string; error: string | null }> {
   const key = getDeepSeekKey();
   if (!key) return { raw: "", error: "DEEPSEEK_API_KEY is not configured." };
@@ -85,13 +85,17 @@ async function requestDeepSeekCompletion(
       body: JSON.stringify({
         model: DEEPSEEK_CASE_REASONING_MODEL,
         messages,
+        // NVIDIA documents temperature=1 as the default for DeepSeek V4 Flash.
+        // Do not also override top_p: NVIDIA explicitly advises against changing
+        // both sampling controls in the same request.
         temperature: 1,
-        top_p: 0.95,
         // Right-hand output is intentionally bounded: its job is strategic
         // diagnosis, not to consume an investigator-sized reasoning budget.
         max_tokens: 16384,
         reasoning_effort: "high",
-        ...(options.responseFormat ? { response_format: options.responseFormat } : {}),
+        // DeepSeek V4 Flash's hosted NVIDIA endpoint does not expose the
+        // response_format parameter in its documented request schema. JSON
+        // discipline is enforced in the prompt and validated by the parser.
         stream: false,
       }),
       signal: remainingSignal(),
@@ -564,7 +568,7 @@ export async function runDeepSeekFreeJson(
       content: apexOrientationFor("right_hand") + "\n\n---\n\n" + systemExtra,
     },
     { role: "user", content: userPrompt },
-  ], { timeoutMs: 180_000, responseFormat: { type: "json_object" } });
+  ], { timeoutMs: 180_000 });
   if (result.error) {
     return {
       status: "unavailable",
@@ -597,7 +601,7 @@ export async function runDeepSeekFinalReview(prompt: string): Promise<{
         "Reply with ONE JSON object only. Never invent contacts, people, or URLs — only exact values from the prompt.",
     },
     { role: "user", content: prompt },
-  ], { timeoutMs: 180_000, responseFormat: { type: "json_object" } });
+  ], { timeoutMs: 180_000 });
   if (result.error) {
     return {
       status: "unavailable",
