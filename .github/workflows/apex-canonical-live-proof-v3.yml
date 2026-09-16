@@ -4,7 +4,6 @@ on:
     branches: [main]
     paths:
       - ".github/workflows/apex-canonical-live-proof-v3.yml"
-      - "scripts/apply-investigator-provider-routing.mjs"
       - "artifacts/api-server/src/src/lib/agentic-web-research.ts"
   workflow_dispatch:
 permissions:
@@ -60,9 +59,8 @@ jobs:
           sudo service redis-server start
           sudo -u postgres psql -c "CREATE USER apex WITH PASSWORD 'apex_local_dev' SUPERUSER;" || true
           sudo -u postgres psql -c "CREATE DATABASE apex OWNER apex;" || true
-      - name: Apply canonical provider/runtime transforms and build
+      - name: Build tracked canonical application
         run: |
-          node scripts/apply-investigator-provider-routing.mjs
           cd lib/db && npx drizzle-kit push --config ./drizzle.config.ts && cd ../../
           pnpm --dir artifacts/api-server run build
       - name: Static and focused gates
