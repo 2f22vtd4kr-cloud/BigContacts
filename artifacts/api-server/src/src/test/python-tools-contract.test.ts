@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { runHolehe, runMaigret, runSherlock, runTheHarvester, runOpenDeepResearch } from "../lib/python-tools";
 
 const QUARANTINE_ERROR =
-  "No trusted Apex Python sandbox attestation is installed; network-capable Python remains fail-closed";
+  "No trusted Apex Python sandbox attestation is installed; network-capable Python remains fail-closed.";
 
 describe("Python OSINT source boundary", () => {
   it("fails closed before Holehe can start a network-capable subprocess", async () => {
