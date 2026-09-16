@@ -1,1 +1,0 @@
-This file intentionally contains no credentials. Live proof must validate durable Investigator trajectory records and observed-source provenance.
