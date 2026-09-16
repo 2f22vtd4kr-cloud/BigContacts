@@ -46,6 +46,7 @@ assert(/https:\/\/integrate\.api\.nvidia\.com\/v1\/chat\/completions/.test(right
 assert(/temperature:\s*1/.test(rightHand) && /top_p:\s*0\.95/.test(rightHand), "DeepSeek production sampling contract is exact");
 assert(/max_tokens:\s*16384/.test(rightHand), "DeepSeek production token budget is exact");
 assert(/reasoning_effort:\s*\"high\"/.test(rightHand) && /stream:\s*false/.test(rightHand), "DeepSeek production reasoning/stream contract is exact");
+assert(/response\.status === 202/.test(rightHand) && /integrate\.api\.nvidia\.com\/v1\/status\//.test(rightHand), "DeepSeek production client polls NVIDIA asynchronous 202 responses");
 
 // Static contract only: the live proof must contain a real runtime/evidence gate.
 // The actual external-provider result belongs to the live-proof job, not this source guard.
@@ -53,6 +54,7 @@ assert(/Provider readiness/.test(workflow), "canonical live proof performs provi
 assert(/generativelanguage\.googleapis\.com/.test(workflow) && /integrate\.api\.nvidia\.com/.test(workflow), "canonical live proof covers mandatory Gemini and DeepSeek control-plane providers");
 assert(/api\.groq\.com\/openai\/v1\/chat\/completions/.test(workflow) && /api\.mistral\.ai\/v1\/chat\/completions/.test(workflow), "canonical live proof covers the explicit Investigator provider pool");
 assert(/Reply READY only\./.test(workflow) && /max_tokens:8/.test(workflow), "provider readiness is a bounded generation, not a research strategy");
+assert(/v1\/status\//.test(workflow) && /r\.status === 202/.test(workflow), "live proof polls asynchronous NVIDIA readiness responses");
 assert(/Open fresh discovery case/.test(workflow) && /POST http:\/\/127\.0\.0\.1:8080\/api\/research\/bureau\/cases/.test(workflow), "canonical live proof opens a real durable discovery case");
 assert(/Start canonical case discovery/.test(workflow) && /\/run-discovery/.test(workflow), "canonical live proof invokes the canonical discovery route");
 assert(/Enforce genuine live evidence gate/.test(workflow) && /hasSearch/.test(workflow) && /hasVisit/.test(workflow) && /sourceBacked/.test(workflow), "canonical live proof requires genuine search, visit, and source-backed evidence");
