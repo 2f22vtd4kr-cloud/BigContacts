@@ -9,6 +9,7 @@ on:
       - "artifacts/api-server/src/src/routes/research/canonical-case-discovery.ts"
       - "artifacts/api-server/src/src/test/canonical-discovery-failure-boundary.test.ts"
       - "scripts/check-agentic-runtime.mjs"
+      - "artifacts/api-server/src/src/lib/nvidia-nim-case-reasoning.ts"
   workflow_dispatch:
 permissions:
   contents: read
@@ -86,8 +87,30 @@ jobs:
             for (let attempt = 1; attempt <= attempts; attempt++) {
               try {
                 const r = await fetch(url,{...init,signal:AbortSignal.timeout(60000)});
-                const body = await r.text();
-                if (r.ok) return { ok: true, body };
+                let body = await r.text();
+                if (r.status === 202 && url === 'https://integrate.api.nvidia.com/v1/chat/completions') {
+                  let requestId = null;
+                  try {
+                    const pending = JSON.parse(body);
+                    requestId = typeof pending.requestId === 'string' ? pending.requestId : (typeof pending.request_id === 'string' ? pending.request_id : null);
+                  } catch {}
+                  if (!requestId) {
+                    last = 'http-202-no-request-id';
+                  } else {
+                    const statusUrl = `https://integrate.api.nvidia.com/v1/status/${encodeURIComponent(requestId)}`;
+                    for (let poll = 0; poll < 20; poll++) {
+                      await new Promise((resolve) => setTimeout(resolve, 1000));
+                      const pendingResponse = await fetch(statusUrl,{method:'GET',headers:init.headers,signal:AbortSignal.timeout(10000)});
+                      body = await pendingResponse.text();
+                      if (pendingResponse.ok) return { ok: true, body };
+                      if (![202,408,425,429,500,502,503,504,529].includes(pendingResponse.status)) {
+                        last = `status-http-${pendingResponse.status}`;
+                        break;
+                      }
+                      last = `status-http-${pendingResponse.status}`;
+                    }
+                  }
+                } else if (r.ok) return { ok: true, body };
                 last = `http-${r.status}`;
                 if (![408,425,429,500,502,503,504,529].includes(r.status) || attempt === attempts) break;
               } catch (error) {
