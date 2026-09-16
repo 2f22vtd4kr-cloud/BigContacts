@@ -1,0 +1,133 @@
+name: Apex Canonical Live Proof v2
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/apex-canonical-live-proof-v2.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: apex-canonical-live-proof-v2-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  live-proof:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      DATABASE_URL: postgresql://apex:apex_local_dev@127.0.0.1:5432/apex
+      REDIS_URL: redis://127.0.0.1:6379
+      PORT: 8080
+      ENABLE_AUTO_PIPELINE: "false"
+      NODE_ENV: development
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+      MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
+      DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+      SERPER_API_KEY: ${{ secrets.SERPER_API_KEY }}
+      TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
+      EXA_API_KEY: ${{ secrets.EXA_API_KEY }}
+      SCRAPFLY_API_KEY: ${{ secrets.SCRAPFLY_API_KEY }}
+      ZENROWS_API_KEY: ${{ secrets.ZENROWS_API_KEY }}
+      COMPANIES_HOUSE_API_KEY: ${{ secrets.COMPANIES_HOUSE_API_KEY }}
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      WHOISJSON_API_KEY: ${{ secrets.WHOISJSON_API_KEY }}
+      RESEARCH_DEPTH: standard
+      APEX_SKIP_SEMANTIC: "1"
+      APEX_AGENTIC_CONCURRENCY: "1"
+      APEX_AGENTIC_PROVIDER_CONCURRENCY: "1"
+      AGENTIC_PROVIDER_DECISION_TIMEOUT_MS: "55000"
+      GROQ_AGENTIC_MIN_INTERVAL_MS: "30000"
+      LIVE_AUDIT_TARGET_COUNT: "1"
+      LIVE_AUDIT_MIN_ADMITS: "1"
+      NODE_OPTIONS: --max-old-space-size=1536
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org/
+      - run: npm install -g pnpm@9.15.9
+      - run: pnpm install --frozen-lockfile --ignore-scripts --fetch-retries=8 --fetch-timeout=120000 --filter @workspace/api-server... --registry=https://registry.npmjs.org/
+      - name: Install local services
+        run: |
+          sudo apt-get update -qq
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq postgresql redis-server
+          sudo service postgresql start
+          sudo service redis-server start
+          sudo -u postgres psql -c "CREATE USER apex WITH PASSWORD 'apex_local_dev' SUPERUSER;" || true
+          sudo -u postgres psql -c "CREATE DATABASE apex OWNER apex;" || true
+      - name: Schema and build
+        run: |
+          cd lib/db && npx drizzle-kit push --config ./drizzle.config.ts && cd ../../
+          pnpm --dir artifacts/api-server run build
+      - name: Static and focused gates
+        run: |
+          pnpm run check:no-force-dig
+          pnpm run check:free-react
+          pnpm run check:trajectory
+          pnpm run check:agentic-runtime
+          pnpm run check:comparison-contract
+          node scripts/check-agentic-timeout.mjs
+          node scripts/check-workflow-action-pins.mjs
+          pnpm --dir artifacts/api-server exec vitest run src/src/test/gemini-transient-retry.test.ts src/src/test/discovery-agent-parse.test.ts src/src/test/discovery-runtime-correctness.test.ts src/src/test/agentic-scope-boundary.test.ts src/src/test/agentic-source-provenance.test.ts --maxWorkers=1
+      - name: Provider readiness
+        run: |
+          node --input-type=module <<'NODE'
+          async function ok(url, key, body) {
+            if (!key) return false;
+            try {
+              const r = await fetch(url,{method:'POST',headers:{Authorization:`Bearer ${key}`,'content-type':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(15000)});
+              await r.text();
+              return r.ok;
+            } catch { return false; }
+          }
+          const groq = await ok('https://api.groq.com/openai/v1/chat/completions',process.env.GROQ_API_KEY,{model:process.env.GROQ_AGENTIC_MODEL||'qwen/qwen3.8-27b',messages:[{role:'user',content:'Reply READY only.'}],max_tokens:8});
+          const mistral = await ok('https://api.mistral.ai/v1/chat/completions',process.env.MISTRAL_API_KEY,{model:process.env.MISTRAL_AGENTIC_MODEL||'mistral-small-latest',messages:[{role:'user',content:'Reply READY only.'}],max_tokens:8});
+          if (!groq && !mistral) process.exit(2);
+          NODE
+      - name: Create API auth token before process start
+        run: echo "APEX_API_AUTH_TOKEN=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
+      - name: Start API
+        run: |
+          redis-cli ping
+          node artifacts/api-server/dist/index.mjs > /tmp/apex-api.log 2>&1 &
+          for i in $(seq 1 45); do sleep 1; test "$(curl -sS -m 2 -o /tmp/health.json -w '%{http_code}' http://127.0.0.1:8080/api/healthz || true)" = 200 && break; done
+          test "$(curl -sS -m 5 -o /tmp/health.json -w '%{http_code}' http://127.0.0.1:8080/api/healthz)" = 200
+      - name: Launch one bounded discovery-first proof
+        run: |
+          curl -sS -m 15 -X POST http://127.0.0.1:8080/api/ingest/atlas-run -H "Authorization: Bearer ${APEX_API_AUTH_TOKEN}" -H 'Content-Type: application/json' -d '{"discoveryFirst":true,"targetCount":1,"researchLimit":2,"runResearch":true,"skipFaa":true,"targetTimeoutMs":300000,"researchDepth":"standard"}' | tee /tmp/launch.json
+          node -e 'const x=require("/tmp/launch.json"); if(!x.jobId){console.error(JSON.stringify(x));process.exit(1)}'
+      - name: Poll to terminal state
+        run: |
+          for i in $(seq 1 900); do
+            sleep 5
+            curl -sS -m 10 -H "Authorization: Bearer ${APEX_API_AUTH_TOKEN}" http://127.0.0.1:8080/api/ingest/atlas-status > /tmp/atlas-status.json || true
+            STATUS=$(node -e 'const fs=require("fs");try{const x=JSON.parse(fs.readFileSync("/tmp/atlas-status.json","utf8"));process.stdout.write(String(x.status||x.job?.status||""))}catch{}')
+            case "$STATUS" in done|completed) exit 0;; failed|cancelled) exit 1;; esac
+          done
+          exit 1
+      - name: Audit live provenance and admission
+        if: always()
+        run: |
+          curl -sS -m 10 -H "Authorization: Bearer ${APEX_API_AUTH_TOKEN}" http://127.0.0.1:8080/api/ingest/atlas-status | tee /tmp/atlas-status.json || true
+          curl -sS -m 10 'http://127.0.0.1:8080/api/entities?limit=50&offset=0' | tee /tmp/entities.json || true
+          node scripts/audit-live-bureau.mjs
+      - name: Upload proof artifacts
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: apex-canonical-live-proof-v2
+          path: |
+            /tmp/launch.json
+            /tmp/atlas-status.json
+            /tmp/entities.json
+            /tmp/health.json
+            /tmp/apex-api.log
+          if-no-files-found: ignore
