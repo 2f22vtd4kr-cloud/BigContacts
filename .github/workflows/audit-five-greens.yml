@@ -1,5 +1,6 @@
 # Canonical five-green gate: five consecutive fresh full-codebase audits.
 # Deployment-prep sequence: audit after database initialization runbook hardening.
+# Certification runs are intentionally push-triggered on the authoritative branch so every fresh tree can earn a new 5/5 streak.
 name: Five Green Complete Codebase Audit
 
 on:
