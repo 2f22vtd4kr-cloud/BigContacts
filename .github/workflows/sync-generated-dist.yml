@@ -37,23 +37,23 @@ jobs:
       - run: npm install -g pnpm@9.15.9
       - run: pnpm install --frozen-lockfile --ignore-scripts --filter @workspace/api-server... --filter apex-finder-local... --registry=https://registry.npmjs.org/
       - name: Canonicalize Investigator UI safety boundary
-        run: pnpm --dir artifacts/apex-finder run build --if-present
+        run: pnpm --dir artifacts/apex-finder run build
       - name: Build generated API dist
         run: pnpm --dir artifacts/api-server run build
       - name: Commit canonical source and generated dist only
         run: |
           set -euo pipefail
           if git diff --quiet; then
-            echo "Generated outputs and safety-boundary source already match the canonical build."
+            echo "Generated outputs already match the canonical build."
             exit 0
           fi
-          if git diff --name-only | grep -v -E '^(artifacts/api-server/dist/|artifacts/apex-finder/dist/|artifacts/apex-finder/src/pages/data-sources\.tsx)$' | grep -q .; then
-            echo "Build mutated files outside generated output and the narrow Investigator UI safety boundary; refusing to commit them."
+          if git diff --name-only | grep -v -E '^(artifacts/api-server/dist/|artifacts/apex-finder/dist/)$' | grep -q .; then
+            echo "Build mutated files outside generated output; refusing to commit them."
             git diff --name-only
             exit 1
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add artifacts/api-server/dist artifacts/apex-finder/dist artifacts/apex-finder/src/pages/data-sources.tsx
-          git commit -m "chore: sync generated outputs and Investigator UI boundary"
+          git add artifacts/api-server/dist artifacts/apex-finder/dist
+          git commit -m "chore: sync generated outputs"
           git push origin HEAD:main
