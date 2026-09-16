@@ -33,7 +33,7 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
     await clearActiveJobIfOwned("case-bureau-discovery", jobId).catch(() => undefined);
     res.status(409).json({ error: error instanceof Error ? error.message : "Discovery case job binding failed.", jobId }); return;
   }
-  const depth = resolveResearchDepth({ explicit: typeof file.researchDepth === "string" ? file.researchDepth : undefined });
+  const depth = resolveResearchDepth({ explicit: typeof file.researchDepth === "string" ? file.researchDepth : "fast" });
   void (async () => {
     try {
       await runCanonicalAtlasPipeline(jobId, {
