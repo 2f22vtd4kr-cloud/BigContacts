@@ -135,22 +135,30 @@ jobs:
         run: |
           curl -sS -m 15 -X POST http://127.0.0.1:8080/api/ingest/atlas-run -H "Authorization: Bearer ${APEX_API_AUTH_TOKEN}" -H 'Content-Type: application/json' -d '{"discoveryFirst":true,"targetCount":3,"researchLimit":2,"runResearch":true,"skipFaa":true,"targetTimeoutMs":300000,"researchDepth":"standard"}' | tee /tmp/launch.json
           node -e 'const x=require("/tmp/launch.json"); if(!x.jobId){console.error(JSON.stringify(x));process.exit(1)}; console.log(x.jobId)'
+          node -e 'const fs=require("fs"); const x=require("/tmp/launch.json"); fs.writeFileSync("/tmp/atlas-job-id.txt",String(x.jobId));'
       - name: Poll canonical Atlas state
         run: |
+          set -euo pipefail
+          JOB_ID=$(cat /tmp/atlas-job-id.txt)
           for i in $(seq 1 900); do
             sleep 5
-            curl -sS -m 10 -H "Authorization: Bearer ${APEX_API_AUTH_TOKEN}" http://127.0.0.1:8080/api/ingest/job/active/atlas-run > /tmp/atlas-status.json || true
-            STATUS=$(node -e 'const fs=require("fs");try{const x=JSON.parse(fs.readFileSync("/tmp/atlas-status.json","utf8"));const j=x.job||{};process.stdout.write(String(j.status||x.jobStatus||(x.active?"running":"idle")))}catch{}')
+            curl -sS -m 10 -H "Authorization: Bearer ${APEX_API_AUTH_TOKEN}" "http://127.0.0.1:8080/api/ingest/job/${JOB_ID}" > /tmp/atlas-status.json || true
+            STATUS=$(node -e 'const fs=require("fs");try{const x=JSON.parse(fs.readFileSync("/tmp/atlas-status.json","utf8"));process.stdout.write(String(x.status||""))}catch{}')
             case "$STATUS" in done|completed) exit 0;; failed|cancelled) exit 1;; esac
           done
           exit 1
       - name: Collect canonical live state
         if: always()
         run: |
+          JOB_ID=$(cat /tmp/atlas-job-id.txt 2>/dev/null || true)
+          if [ -n "$JOB_ID" ]; then
+            curl -sS -m 10 -H "Authorization: Bearer ${APEX_API_AUTH_TOKEN}" "http://127.0.0.1:8080/api/ingest/job/${JOB_ID}" | tee /tmp/atlas-status.json || true
+            curl -sS -m 10 -H "Authorization: Bearer ${APEX_API_AUTH_TOKEN}" "http://127.0.0.1:8080/api/ingest/atlas-trace/${JOB_ID}" | tee /tmp/atlas-trace.json || true
+          else
+            echo '{"status":"unknown","outcome":"incomplete"}' | tee /tmp/atlas-status.json
+            echo '{"trace":[]}' | tee /tmp/atlas-trace.json
+          fi
           curl -sS -m 10 -H "Authorization: Bearer ${APEX_API_AUTH_TOKEN}" http://127.0.0.1:8080/api/healthz/details | tee /tmp/health.json || true
-          curl -sS -m 10 -H "Authorization: Bearer ${APEX_API_AUTH_TOKEN}" http://127.0.0.1:8080/api/ingest/job/active/atlas-run | tee /tmp/atlas-status.json || true
-          JOB_ID=$(node -e 'const fs=require("fs");try{const x=JSON.parse(fs.readFileSync("/tmp/atlas-status.json","utf8"));const j=x.job||{};process.stdout.write(String(x.jobId||j.jobId||""))}catch{}')
-          if [ -n "$JOB_ID" ]; then curl -sS -m 10 -H "Authorization: Bearer ${APEX_API_AUTH_TOKEN}" "http://127.0.0.1:8080/api/ingest/atlas-trace/${JOB_ID}" | tee /tmp/atlas-trace.json || true; else echo '{"trace":[]}' > /tmp/atlas-trace.json; fi
           curl -sS -m 10 -H "Authorization: Bearer ${APEX_API_AUTH_TOKEN}" 'http://127.0.0.1:8080/api/entities?limit=50&offset=0' | tee /tmp/entities.json || true
           curl -sS -m 10 -H "Authorization: Bearer ${APEX_API_AUTH_TOKEN}" 'http://127.0.0.1:8080/api/ingest/scoreboard-snapshot?limit=50' | tee /tmp/scoreboard.json || true
       - name: Live autonomy and provenance audit
