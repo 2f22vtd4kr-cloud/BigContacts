@@ -27,8 +27,11 @@ env:
   ENABLE_AUTO_PIPELINE: "false"
   NODE_ENV: development
   GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+  GEMINI_AGENTIC_MODEL: gemini-3.7-flash
   GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+  GROQ_AGENTIC_MODEL: qwen/qwen3.8-27b
   MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
+  MISTRAL_AGENTIC_MODEL: mistral-small-latest
   DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
   SERPER_API_KEY: ${{ secrets.SERPER_API_KEY }}
   TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
@@ -90,7 +93,7 @@ jobs:
           pnpm run check:bureau
           node scripts/check-workflow-action-pins.mjs
       - name: Focused runtime tests
-        run: pnpm --dir artifacts/api-server exec vitest run src/src/test/gemini-transient-retry.test.ts src/src/test/discovery-agent-parse.test.ts src/src/test/discovery-runtime-correctness.test.ts src/src/test/agentic-scope-boundary.test.ts src/src/test/agentic-source-provenance.test.ts src/src/test/legacy-apex-mutation-guard.test.ts --maxWorkers=1
+        run: pnpm --dir artifacts/api-server exec vitest run src/src/test/gemini-transient-retry.test.ts src/src/test/discovery-agent-parse.test.ts src/src/test/discovery-runtime-correctness.test.ts src/src/test/agentic-scope-boundary.test.ts src/src/test/agentic-source-provenance.test.ts src/src/test/legacy-apex-mutation-guard.test.ts src/src/test/python-tools-contract.test.ts --maxWorkers=1
       - name: Provider readiness preflight
         run: |
           set -euo pipefail
@@ -108,10 +111,10 @@ jobs:
               return false;
             }
           }
-          const groq = await probe('groq', 'https://api.groq.com/openai/v1/chat/completions', {Authorization:`Bearer ${process.env.GROQ_API_KEY}`,'content-type':'application/json'}, {model:process.env.GROQ_AGENTIC_MODEL || 'qwen/qwen3.8-27b',messages:[{role:'user',content:'Reply READY only.'}],max_tokens:8});
-          const mistral = await probe('mistral', 'https://api.mistral.ai/v1/chat/completions', {Authorization:`Bearer ${process.env.MISTRAL_API_KEY}`,'content-type':'application/json'}, {model:process.env.MISTRAL_AGENTIC_MODEL || 'mistral-small-latest',messages:[{role:'user',content:'Reply READY only.'}],max_tokens:8});
+          const groq = await probe('groq', 'https://api.groq.com/openai/v1/chat/completions', {Authorization:`Bearer ${process.env.GROQ_API_KEY}`,'content-type':'application/json'}, {model:process.env.GROQ_AGENTIC_MODEL,messages:[{role:'user',content:'Reply READY only.'}],max_tokens:8});
+          const mistral = await probe('mistral', 'https://api.mistral.ai/v1/chat/completions', {Authorization:`Bearer ${process.env.MISTRAL_API_KEY}`,'content-type':'application/json'}, {model:process.env.MISTRAL_AGENTIC_MODEL,messages:[{role:'user',content:'Reply READY only.'}],max_tokens:8});
           const deepseek = await probe('deepseek-right-hand', 'https://integrate.api.nvidia.com/v1/chat/completions', {Authorization:`Bearer ${process.env.DEEPSEEK_API_KEY}`,'content-type':'application/json'}, {model:'deepseek-ai/deepseek-v4-flash-0731',messages:[{role:'user',content:'Reply READY only.'}],temperature:1,top_p:0.95,max_tokens:32,reasoning_effort:'high',stream:false});
-          const gemini = await probe('gemini-boss', 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent', {'x-goog-api-key':process.env.GEMINI_API_KEY,'content-type':'application/json'}, {contents:[{role:'user',parts:[{text:'Reply READY only.'}]}],generationConfig:{maxOutputTokens:8}});
+          const gemini = await probe('gemini-boss', `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(process.env.GEMINI_AGENTIC_MODEL)}:generateContent`, {'x-goog-api-key':process.env.GEMINI_API_KEY,'content-type':'application/json'}, {contents:[{role:'user',parts:[{text:'Reply READY only.'}]}],generationConfig:{maxOutputTokens:8}});
           if (!gemini || (!groq && !mistral) || !deepseek) { console.error(JSON.stringify(results,null,2)); process.exit(2); }
           console.log(JSON.stringify(results,null,2));
           NODE
