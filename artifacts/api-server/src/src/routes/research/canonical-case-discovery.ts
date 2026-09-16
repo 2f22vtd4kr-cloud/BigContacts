@@ -2,6 +2,7 @@ import { Router } from "express";
 import { eq } from "drizzle-orm";
 import { db, researchCasesTable } from "@workspace/db";
 import { createJob, getActiveJob, getJob, setActiveJob, clearActiveJobIfOwned, updateJob } from "../../lib/job-queue";
+import { enablePermanentRedis } from "../../lib/redis";
 import { runCanonicalAtlasPipeline } from "../../lib/canonical-atlas-discovery";
 import { resolveResearchDepth } from "../../lib/research-depth";
 
@@ -18,6 +19,13 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
   if (!current) { res.status(404).json({ error: "Bureau case not found" }); return; }
   const file = parseFile(current.caseFile);
   if (!file || file.caseType !== "discovery") { res.status(409).json({ error: "Only a discovery case can run the canonical discovery investigation" }); return; }
+
+  // This route owns a durable/distributed job lane. Manual Launch mode intentionally
+  // skips permanent Redis at boot, so establish the permanent Redis service at the
+  // canonical research boundary before touching the lane lock. Never fall back to
+  // local Redis for this state.
+  await enablePermanentRedis();
+
   const existingJobId = await getActiveJob("case-bureau-discovery");
   if (existingJobId) { const existing = await getJob(existingJobId); if (existing?.status === "running" || existing?.status === "queued") { res.status(409).json({ error: "A bureau discovery investigation is already running.", jobId: existingJobId }); return; } }
   const jobId = await createJob("case-bureau-discovery"); await setActiveJob("case-bureau-discovery", jobId);
