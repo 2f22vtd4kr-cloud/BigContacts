@@ -7,7 +7,7 @@ vi.mock("@workspace/db", () => ({
   db: {
     select: () => ({
       from: () => ({
-        where: () => ({
+        where: () => Object.assign(Promise.resolve(rows.current), {
           limit: async () => rows.current,
         }),
       }),
