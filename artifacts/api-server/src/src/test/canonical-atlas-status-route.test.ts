@@ -3,16 +3,21 @@ import fs from "node:fs";
 import path from "node:path";
 
 const routesDir = path.resolve(process.cwd(), "src/src/routes");
+const libDir = path.resolve(process.cwd(), "src/src/lib");
 
-function read(name: string): string {
+function readRoute(name: string): string {
   return fs.readFileSync(path.join(routesDir, name), "utf8");
+}
+
+function readLib(name: string): string {
+  return fs.readFileSync(path.join(libDir, name), "utf8");
 }
 
 describe("canonical Atlas status boundary", () => {
   it("keeps the retired legacy status path quarantined while canonical status uses the active job/trace surface", () => {
-    const index = read("index.ts");
-    const legacy = read("atlas.ts");
-    const quarantine = read("legacy-atlas-launch-quarantine.ts");
+    const index = readRoute("index.ts");
+    const legacy = readRoute("atlas.ts");
+    const quarantine = readLib("legacy-atlas-launch-quarantine.ts");
     const statusPath = path.join(routesDir, "research/canonical-atlas-status.ts");
 
     expect(fs.existsSync(statusPath)).toBe(false);
