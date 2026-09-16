@@ -1,0 +1,93 @@
+name: One-time live proof readiness bound
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  fix:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Replace unbounded provider readiness fetches
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('.github/workflows/apex-canonical-live-proof-v3.yml')
+          s = p.read_text()
+          start = s.index('      - name: Provider readiness\n')
+          end = s.index('      - name: Create API auth token before process start\n', start)
+          block = '''      - name: Provider readiness
+        run: |
+          set -euo pipefail
+          transient='408 425 429 500 502 503 504 529'
+          bounded_post() {
+            local url="$1"; shift
+            local body="$1"; shift
+            local out="$1"; shift
+            local code
+            code=$(curl --silent --show-error --location --connect-timeout 10 --max-time 30 --retry 2 --retry-delay 2 --retry-all-errors -o "$out" -w '%{http_code}' "$url" "$@" || true)
+            printf '%s' "$code"
+          }
+          test -n "${GEMINI_API_KEY:-}" || { echo 'Gemini Boss key missing'; exit 2; }
+          test -n "${DEEPSEEK_API_KEY:-}" || { echo 'DeepSeek Right Hand key missing'; exit 3; }
+          GEMINI_CATALOG=/tmp/gemini-models.json
+          GEMINI_CODE=$(curl --silent --show-error --location --connect-timeout 10 --max-time 20 -o "$GEMINI_CATALOG" -w '%{http_code}' \
+            -H "x-goog-api-key: ${GEMINI_API_KEY}" -H 'accept: application/json' \
+            'https://generativelanguage.googleapis.com/v1beta/models' || true)
+          test "$GEMINI_CODE" = 200 || { echo "Gemini catalog failed HTTP $GEMINI_CODE"; cat "$GEMINI_CATALOG" || true; exit 2; }
+          GEMINI_MODEL=$(node -e 'const x=require(process.argv[1]); const retired=/^(gemini-1\\.5-flash|gemini-1\\.0-pro|gemini-2\\.5-flash|gemini-2\\.5-pro|gemini-2\\.5-flash-lite|gemini-2\\.0-flash|gemini-pro|gemini-pro-vision)(?:-|$)/i; const a=(x.models??[]).map(e=>({name:String(e.name||"").replace(/^models\\//,""),methods:Array.isArray(e.supportedGenerationMethods)?e.supportedGenerationMethods:[]})).filter(e=>/^gemini-\\d+(?:\\.\\d+)?-flash(?:-[a-z0-9]+)?$/i.test(e.name)&&e.methods.includes("generateContent")&&!retired.test(e.name)&&!/embedding|aqa|robotics|image|tts|deep-research|latest/i.test(e.name)).sort((a,b)=>b.name.localeCompare(a.name)); if(!a[0]) process.exit(1); console.log(a[0].name);' "$GEMINI_CATALOG") || { echo 'No compatible Gemini generateContent model'; exit 2; }
+          GEMINI_BODY=/tmp/gemini-ready.json
+          printf '%s' '{"contents":[{"parts":[{"text":"Reply READY only."}]}]}' > "$GEMINI_BODY"
+          GEMINI_READY=/tmp/gemini-ready-out.json
+          GEMINI_CODE=$(curl --silent --show-error --location --connect-timeout 10 --max-time 30 --retry 2 --retry-delay 2 --retry-all-errors -o "$GEMINI_READY" -w '%{http_code}' \
+            -H "x-goog-api-key: ${GEMINI_API_KEY}" -H 'content-type: application/json' \
+            -X POST "https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent" --data-binary "@$GEMINI_BODY" || true)
+          test "$GEMINI_CODE" = 200 || { echo "Gemini generation failed HTTP $GEMINI_CODE"; cat "$GEMINI_READY" || true; exit 2; }
+
+          DEEPSEEK_BODY=/tmp/deepseek-ready.json
+          printf '%s' '{"model":"deepseek-ai/deepseek-v4-flash-0731","messages":[{"role":"user","content":"Reply READY only."}],"temperature":1,"top_p":0.95,"max_tokens":8,"reasoning_effort":"high","stream":false}' > "$DEEPSEEK_BODY"
+          DEEPSEEK_READY=/tmp/deepseek-ready-out.json
+          DEEPSEEK_CODE=$(curl --silent --show-error --location --connect-timeout 10 --max-time 30 -o "$DEEPSEEK_READY" -w '%{http_code}' \
+            -H "Authorization: Bearer ${DEEPSEEK_API_KEY}" -H 'content-type: application/json' \
+            -X POST 'https://integrate.api.nvidia.com/v1/chat/completions' --data-binary "@$DEEPSEEK_BODY" || true)
+          if [ "$DEEPSEEK_CODE" = 202 ]; then
+            REQUEST_ID=$(node -e 'const x=require(process.argv[1]); const v=x.requestId??x.request_id; if(typeof v!=="string"||!v.trim())process.exit(1); console.log(v.trim())' "$DEEPSEEK_READY") || { echo 'DeepSeek 202 without request id'; cat "$DEEPSEEK_READY"; exit 3; }
+            DEEPSEEK_CODE=202
+            for poll in $(seq 1 20); do
+              sleep 1
+              STATUS_OUT=/tmp/deepseek-status.json
+              STATUS_CODE=$(curl --silent --show-error --location --connect-timeout 5 --max-time 10 -o "$STATUS_OUT" -w '%{http_code}' \
+                -H "Authorization: Bearer ${DEEPSEEK_API_KEY}" -H 'accept: application/json' \
+                "https://integrate.api.nvidia.com/v1/status/${REQUEST_ID}" || true)
+              if [ "$STATUS_CODE" = 200 ]; then DEEPSEEK_CODE=200; break; fi
+              case " $transient " in *" $STATUS_CODE "*) ;; *) echo "DeepSeek status failed HTTP $STATUS_CODE"; cat "$STATUS_OUT" || true; exit 3;; esac
+            done
+          fi
+          test "$DEEPSEEK_CODE" = 200 || { echo "DeepSeek readiness failed HTTP $DEEPSEEK_CODE"; cat "$DEEPSEEK_READY" || true; exit 3; }
+
+          probe_investigator() {
+            local name="$1"; local key="$2"; local url="$3"; local model="$4"; local out="/tmp/${name}-ready.json"; local code
+            [ -n "$key" ] || return 1
+            code=$(curl --silent --show-error --location --connect-timeout 10 --max-time 30 --retry 2 --retry-delay 2 --retry-all-errors -o "$out" -w '%{http_code}' \
+              -H "Authorization: Bearer $key" -H 'content-type: application/json' -X POST "$url" \
+              --data-binary "{\\"model\\":\\"$model\\",\\"messages\\":[{\\"role\\":\\"user\\",\\"content\\":\\"Reply READY only.\\"}],\\"max_tokens\\":8}" || true)
+            [ "$code" = 200 ]
+          }
+          GROQ_READY=false; MISTRAL_READY=false
+          if probe_investigator groq "${GROQ_API_KEY:-}" 'https://api.groq.com/openai/v1/chat/completions' "${GROQ_AGENTIC_MODEL:-qwen/qwen3.8-27b}"; then GROQ_READY=true; fi
+          if probe_investigator mistral "${MISTRAL_API_KEY:-}" 'https://api.mistral.ai/v1/chat/completions' "${MISTRAL_AGENTIC_MODEL:-mistral-small-latest}"; then MISTRAL_READY=true; fi
+          echo "Provider readiness: Gemini=${GEMINI_MODEL} DeepSeek=ready Groq=${GROQ_READY} Mistral=${MISTRAL_READY}"
+          if [ "$GROQ_READY" != true ] && [ "$MISTRAL_READY" != true ]; then echo 'No Investigator LLM is ready'; exit 4; fi
+'''
+          p.write_text(s[:start] + block + s[end:])
+          Path('.github/workflows/fix-live-proof-readiness-bounds.yml').unlink()
+          PY
+      - name: Commit readiness bounds
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add .github/workflows/apex-canonical-live-proof-v3.yml .github/workflows/fix-live-proof-readiness-bounds.yml
+          git commit -m 'fix: bound live provider readiness probes'
+          git push
