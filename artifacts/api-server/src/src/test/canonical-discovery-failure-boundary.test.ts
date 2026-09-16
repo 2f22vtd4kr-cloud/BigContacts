@@ -11,6 +11,8 @@ describe("canonical discovery failure boundary", () => {
     expect(source).toContain("currentAction: \"canonical-discovery-error\"");
   });
 
+  // Investigator provider selection happens once; execution failure is truthful
+  // failure, never a second deterministic research trajectory.
   it("does not introduce a sequential Investigator provider fallback into the research decision loop", async () => {
     const source = await readFile(resolve(process.cwd(), "src/src/lib/agentic-web-research.ts"), "utf8");
     expect(source).not.toContain("TRANSPORT FALLBACK");
