@@ -26,6 +26,7 @@ assert(/runSherlock\(action\.username, \{ signal: runController\.signal \}\)/.te
 assert(!/callGeminiJson|callNvidiaJson|GEMINI_API_KEY_|async function callGeminiJson\b|async function callNvidiaJson\b/.test(source), "Boss/Right-Hand providers are absent from Investigator runtime");
 assert(!/orderedProviders\s*=/.test(source), "Investigator core has no alternate-provider fallback list");
 assert(!/TRANSPORT FALLBACK:|groq->mistral|investigatorLlm: \"mistral\"/.test(wrapper), "Investigator wrapper has no sequential Groq-to-Mistral fallback");
+assert(!/SERPER_API_KEY_[0-9]+|TAVILY_API_KEY_[0-9]+|EXA_API_KEY_[0-9]+|process\.env\.EXA_[12]|process\.env\.SERPER_KEY|GROQ_API_KEY_[0-9]+/.test(source), "Investigator uses only canonical provider environment names");
 assert(/const fn = selectedInvestigatorLlm === "groq"/.test(source), "selected Investigator reaches direct provider boundary");
 assert(/investigatorLlm\?: "groq" \| "mistral"/.test(source), "selected Investigator is explicit in ReAct input");
 assert(/authorizePythonSandboxRequest/.test(python) && /const authorization = authorizePythonSandboxRequest/.test(python), "Python capability uses sandbox authorization");
@@ -77,4 +78,4 @@ if (failures.length) {
   for (const failure of failures) console.error(`- ${failure}`);
   process.exit(1);
 }
-console.log("AGENTIC RUNTIME: PASS — Investigator authority, cancellation, capability gating, bounded live execution and autonomy invariants align");
+console.log("AGENTIC RUNTIME: PASS — Investigator authority, cancellation, canonical provider environment surface, bounded live execution and autonomy invariants align");
