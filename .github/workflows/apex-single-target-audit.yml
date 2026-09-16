@@ -137,13 +137,16 @@ jobs:
           ID=$(node -p 'require("/tmp/target.json").id')
           curl -sS -m 15 -X POST http://127.0.0.1:8080/api/ingest/atlas-run -H 'Content-Type: application/json' -d "{\"singleTargetId\":${ID},\"runResearch\":true,\"researchDepth\":\"${RESEARCH_DEPTH}\",\"targetTimeoutMs\":420000}" | tee /tmp/launch.json
           node -e 'const x=require("/tmp/launch.json");if(!x.jobId)throw Error(JSON.stringify(x))'
+          node -e 'const fs=require("fs"); const x=require("/tmp/launch.json"); fs.writeFileSync("/tmp/atlas-job-id.txt",String(x.jobId));'
       - name: Poll canonical Atlas state
         run: |
+          set -euo pipefail
+          JOB_ID=$(cat /tmp/atlas-job-id.txt)
           for i in $(seq 1 360); do
             sleep 5
-            curl -sS -m 10 http://127.0.0.1:8080/api/ingest/job/active/atlas-run > /tmp/atlas-status.json || true
-            S=$(node -e 'const fs=require("fs");try{const x=JSON.parse(fs.readFileSync("/tmp/atlas-status.json"));const j=x.job||{};process.stdout.write(String(j.status||x.jobStatus||""))}catch{}')
-            case "$S" in *done|*completed) exit 0;; *failed|*cancelled) exit 1;; esac
+            curl -sS -m 10 "http://127.0.0.1:8080/api/ingest/job/${JOB_ID}" > /tmp/atlas-status.json || true
+            S=$(node -e 'const fs=require("fs");try{const x=JSON.parse(fs.readFileSync("/tmp/atlas-status.json"));process.stdout.write(String(x.status||""))}catch{}')
+            case "$S" in done|completed) exit 0;; failed|cancelled) exit 1;; esac
           done
           exit 1
       - name: Freeze and audit
@@ -153,7 +156,7 @@ jobs:
           curl -sS -m 10 "http://127.0.0.1:8080/api/entities/$ID" | tee /tmp/entity.json || true
           curl -sS -m 10 'http://127.0.0.1:8080/api/ingest/scoreboard-snapshot?limit=50' | tee /tmp/scoreboard.json || true
           curl -sS -m 10 http://127.0.0.1:8080/api/healthz | tee /tmp/health.json || true
-          JOB_ID=$(node -e 'const fs=require("fs");try{const x=JSON.parse(fs.readFileSync("/tmp/atlas-status.json","utf8"));const j=x.job||{};process.stdout.write(String(x.jobId||j.jobId||""))}catch{}')
+          JOB_ID=$(cat /tmp/atlas-job-id.txt 2>/dev/null || true)
           if [ -n "$JOB_ID" ]; then curl -sS -m 10 "http://127.0.0.1:8080/api/ingest/atlas-trace/${JOB_ID}" | tee /tmp/atlas-trace.json || true; else echo '{"trace":[]}' > /tmp/atlas-trace.json; fi
           node scripts/audit-live-bureau.mjs
       - name: Upload audit artifacts
