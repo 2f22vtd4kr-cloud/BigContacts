@@ -70,14 +70,18 @@ async function requestDeepSeekCompletion(
   const key = getDeepSeekKey();
   if (!key) return { raw: "", error: "DEEPSEEK_API_KEY is not configured." };
 
+  const headers = {
+    Accept: "application/json",
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${key}`,
+  };
+  const deadline = Date.now() + options.timeoutMs;
+  const remainingSignal = () => AbortSignal.timeout(Math.max(1000, Math.min(15000, deadline - Date.now())));
+
   try {
     const response = await fetch(DEEPSEEK_CHAT_API, {
       method: "POST",
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${key}`,
-      },
+      headers,
       body: JSON.stringify({
         model: DEEPSEEK_CASE_REASONING_MODEL,
         messages,
@@ -90,18 +94,50 @@ async function requestDeepSeekCompletion(
         ...(options.responseFormat ? { response_format: options.responseFormat } : {}),
         stream: false,
       }),
-      signal: AbortSignal.timeout(options.timeoutMs),
+      signal: remainingSignal(),
     });
 
+    let payloadText = await response.text().catch(() => "");
+    if (response.status === 202) {
+      let requestId: string | null = null;
+      try {
+        const pending = JSON.parse(payloadText) as { requestId?: unknown; request_id?: unknown };
+        const candidate = pending.requestId ?? pending.request_id;
+        requestId = typeof candidate === "string" && candidate.trim() ? candidate.trim() : null;
+      } catch {}
+      if (!requestId) {
+        return { raw: "", error: `DeepSeek via NVIDIA Integrate ${DEEPSEEK_CASE_REASONING_MODEL} HTTP 202 without requestId` };
+      }
+
+      const statusUrl = `https://integrate.api.nvidia.com/v1/status/${encodeURIComponent(requestId)}`;
+      while (Date.now() < deadline) {
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        if (Date.now() >= deadline) break;
+        const polled = await fetch(statusUrl, { method: "GET", headers, signal: remainingSignal() });
+        payloadText = await polled.text().catch(() => "");
+        if (polled.ok) {
+          const payload = JSON.parse(payloadText) as ChatCompletionResponse;
+          return { raw: extractAssistantText(payload.choices?.[0]?.message), error: null };
+        }
+        if (polled.status === 202 || [408, 425, 429, 500, 502, 503, 504, 529].includes(polled.status)) continue;
+        const detail = payloadText.slice(0, 300);
+        return {
+          raw: "",
+          error: `DeepSeek via NVIDIA Integrate status HTTP ${polled.status}${detail ? `: ${detail}` : ""}`,
+        };
+      }
+      return { raw: "", error: `DeepSeek via NVIDIA Integrate ${DEEPSEEK_CASE_REASONING_MODEL} status polling timed out.` };
+    }
+
     if (!response.ok) {
-      const detail = (await response.text().catch(() => "")).slice(0, 300);
+      const detail = payloadText.slice(0, 300);
       return {
         raw: "",
         error: `DeepSeek via NVIDIA Integrate ${DEEPSEEK_CASE_REASONING_MODEL} HTTP ${response.status}${detail ? `: ${detail}` : ""}`,
       };
     }
 
-    const payload = await response.json() as ChatCompletionResponse;
+    const payload = JSON.parse(payloadText) as ChatCompletionResponse;
     return { raw: extractAssistantText(payload.choices?.[0]?.message), error: null };
   } catch (error) {
     return {
