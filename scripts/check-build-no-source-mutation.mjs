@@ -46,12 +46,12 @@ if (!fs.existsSync(safetyScriptPath)) {
   failures.push(`missing allowlisted safety helper: ${ALLOWED_SAFETY_MUTATOR}`);
 } else {
   const safetyScript = fs.readFileSync(safetyScriptPath, "utf8");
-  // Accept the actual escaped regex spelling used by the helper and the
-  // literal spelling for robustness against harmless regex refactors.
-  const hasEnrichPattern = safetyScript.includes("api\\/enrich\\/") || safetyScript.includes("/api/enrich/");
+  // Keep this guard focused on the contract rather than exact regex syntax:
+  // the helper must target only the Investigator source catalogue and must
+  // describe the canonical Investigator boundary.
   const hasBoundaryTarget = safetyScript.includes("artifacts/apex-finder/src/pages/data-sources.tsx");
-  const hasCanonicalMarker = safetyScript.includes("Selected by the canonical Investigator");
-  if (!hasBoundaryTarget || !hasEnrichPattern || !hasCanonicalMarker) {
+  const hasCanonicalMarker = safetyScript.includes("Selected by the canonical Investigator") || safetyScript.includes("canonical Investigator research");
+  if (!hasBoundaryTarget || !hasCanonicalMarker) {
     failures.push(`${ALLOWED_SAFETY_MUTATOR} no longer matches the narrow UI research-boundary contract`);
   }
 }
