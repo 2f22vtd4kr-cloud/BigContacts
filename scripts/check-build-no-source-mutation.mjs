@@ -50,11 +50,13 @@ if (!fs.existsSync(safetyScriptPath)) {
   failures.push(`missing allowlisted safety helper: ${ALLOWED_SAFETY_MUTATOR}`);
 } else {
   const safetyScript = fs.readFileSync(safetyScriptPath, "utf8");
-  // The helper intentionally searches for /api/enrich/ in a regex literal,
-  // so its source contains escaped slash characters. Validate the source form
-  // rather than requiring an unescaped runtime string that is not present.
-  const hasEnrichPattern = safetyScript.includes("/\\/api\\/enrich\\/") || safetyScript.includes("/api/enrich/");
-  if (!/artifacts\/apex-finder\/src\/pages\/data-sources\.tsx/.test(safetyScript) || !hasEnrichPattern || !/Selected by the canonical Investigator/.test(safetyScript)) {
+  // The helper intentionally searches for /api/enrich/ in regex literals, so
+  // the source may contain either escaped or literal slash forms depending on
+  // how the regex is written. Validate the semantic marker, not one spelling.
+  const hasEnrichPattern = /api(?:\\\\)?\/enrich\//.test(safetyScript) || /\/api\/enrich\//.test(safetyScript);
+  const hasBoundaryTarget = /artifacts\/apex-finder\/src\/pages\/data-sources\.tsx/.test(safetyScript);
+  const hasCanonicalMarker = /Selected by the canonical Investigator/.test(safetyScript);
+  if (!hasBoundaryTarget || !hasEnrichPattern || !hasCanonicalMarker) {
     failures.push(`${ALLOWED_SAFETY_MUTATOR} no longer matches the narrow UI research-boundary contract`);
   }
 }
