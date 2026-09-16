@@ -34,7 +34,7 @@ MISTRAL_API_KEY
 HF_TOKEN
 SERPER_API_KEY
 TAVILY_API_KEY
-SERPAPI_KEY
+SERPAPI_API_KEY
 EXA_API_KEY
 SCRAPFLY_API_KEY
 ZENROWS_API_KEY
@@ -72,6 +72,8 @@ Never print or commit secret values.
 - Canonical 14 runtime keys listed above
 - Dig is **free ReAct**: no force-hop scripts, no invented people or contacts
 - Living handoff: **[docs/context.md](docs/context.md)**
+- Gemini Boss control-plane generation has bounded transient 5xx retry; provider capacity errors remain fail-closed after the bounded retry budget.
+- Failed canonical discovery jobs reconcile their durable discovery case to an explicit error state instead of leaving a stale active case.
 
 ---
 
@@ -127,7 +129,7 @@ It is **not** a mass email database, a CRM, or a replacement for legal counsel o
 artifacts/apex-finder   → web research desk
 artifacts/api-server    → API, orchestration, free-ReAct Dig
 lib/                    → shared client, schema, contracts
-scripts/                → quality floors, regression guards, Replit boot
+scripts/                → quality floors, regression guards, Replit boot, CI provisioning
 docs/                   → context and operational setup/run contracts
 ```
 
