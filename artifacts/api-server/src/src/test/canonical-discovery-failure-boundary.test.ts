@@ -11,10 +11,11 @@ describe("canonical discovery failure boundary", () => {
     expect(source).toContain("currentAction: \"canonical-discovery-error\"");
   });
 
-  it("keeps the Investigator transport fallback outside the research decision loop", async () => {
+  it("does not introduce a sequential Investigator provider fallback into the research decision loop", async () => {
     const source = await readFile(resolve(process.cwd(), "src/src/lib/agentic-web-research.ts"), "utf8");
-    expect(source).toContain("TRANSPORT FALLBACK");
-    expect(source).toContain("investigatorLlm: \"mistral\"");
-    expect(source).toContain("providerFallback: [\"groq->mistral\"");
+    expect(source).not.toContain("TRANSPORT FALLBACK");
+    expect(source).not.toContain("investigatorLlm: \"mistral\"");
+    expect(source).not.toContain("providerFallback: [\"groq->mistral\"");
+    expect(source).toContain("const primary = await core.runAgenticWebResearch(discoveryInput); return { ...primary, executionId };");
   });
 });
