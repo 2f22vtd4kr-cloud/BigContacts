@@ -4,6 +4,7 @@ const source = fs.readFileSync("artifacts/api-server/src/src/lib/agentic-web-res
 const python = fs.readFileSync("artifacts/api-server/src/src/lib/python-tools.ts", "utf8");
 const sandbox = fs.readFileSync("artifacts/api-server/src/src/lib/python-sandbox-contract.ts", "utf8");
 const workflow = fs.readFileSync(".github/workflows/apex-canonical-live-proof-v3.yml", "utf8");
+const rightHand = fs.readFileSync("artifacts/api-server/src/src/lib/nvidia-nim-case-reasoning.ts", "utf8");
 const shim = fs.readFileSync("artifacts/apex-runtime/lib/agentic-web-research.ts", "utf8");
 const hardener = fs.readFileSync("scripts/apply-agentic-concurrency-hardening.mjs", "utf8");
 const liveAudit = fs.readFileSync("scripts/audit-live-bureau.mjs", "utf8");
@@ -37,6 +38,14 @@ assert(/return \{ holehe: enabled, maigret: enabled, sherlock: enabled, theHarve
 assert(/Compatibility shim only/.test(shim) && /export \* from "\.\.\/\.\.\/api-server\/src\/src\/lib\/agentic-web-research\.ts"/.test(shim), "apex-runtime is compatibility-only");
 assert(/RETIRED:/.test(hardener) && /must not mutate Apex source/.test(hardener), "historical concurrency hardener remains non-executable");
 assert(!/push\(`PERSON:/.test(hardener), "retired hardener does not manufacture PERSON findings");
+
+// DeepSeek is the mandatory Right Hand in production. Keep its transport contract
+// explicit in the source guard so a coordination checker cannot silently drift.
+assert(/deepseek-ai\/deepseek-v4-flash-0731/.test(rightHand), "DeepSeek production model is canonical");
+assert(/https:\/\/integrate\.api\.nvidia\.com\/v1\/chat\/completions/.test(rightHand), "DeepSeek production endpoint is canonical");
+assert(/temperature:\s*1/.test(rightHand) && /top_p:\s*0\.95/.test(rightHand), "DeepSeek production sampling contract is exact");
+assert(/max_tokens:\s*16384/.test(rightHand), "DeepSeek production token budget is exact");
+assert(/reasoning_effort:\s*\"high\"/.test(rightHand) && /stream:\s*false/.test(rightHand), "DeepSeek production reasoning/stream contract is exact");
 
 // Static contract only: the live proof must contain a real runtime/evidence gate.
 // The actual external-provider result belongs to the live-proof job, not this source guard.
