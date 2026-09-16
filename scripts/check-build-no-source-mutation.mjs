@@ -47,10 +47,10 @@ if (!fs.existsSync(safetyScriptPath)) {
 } else {
   const safetyScript = fs.readFileSync(safetyScriptPath, "utf8");
   // Keep this guard focused on the contract rather than exact regex syntax:
-  // the helper must target only the Investigator source catalogue and must
-  // describe the canonical Investigator boundary.
+  // the helper must target only the Investigator source catalogue and state
+  // that Investigator research is the supported research control plane.
   const hasBoundaryTarget = safetyScript.includes("artifacts/apex-finder/src/pages/data-sources.tsx");
-  const hasCanonicalMarker = safetyScript.includes("Selected by the canonical Investigator") || safetyScript.includes("canonical Investigator research");
+  const hasCanonicalMarker = safetyScript.includes("Investigator research is the only supported research control plane");
   if (!hasBoundaryTarget || !hasCanonicalMarker) {
     failures.push(`${ALLOWED_SAFETY_MUTATOR} no longer matches the narrow UI research-boundary contract`);
   }
