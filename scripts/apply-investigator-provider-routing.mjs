@@ -11,9 +11,9 @@ let caseBureau = fs.readFileSync(caseBureauFile, "utf8");
 
 // The canonical source is already installed by the preceding build transforms.
 // This compatibility script verifies the explicit provider contract and applies
-// one narrow capability-availability guard to the Boss opening prompt. The guard
-// does not rank research providers or choose a research trajectory; it only tells
-// Gemini which already-allowlisted Investigator adapters are actually configured.
+// two narrow runtime guards: actual Investigator capability availability is shown
+// to Gemini, and transient Gemini Boss capacity errors are retried locally at the
+// Boss call site. Neither guard chooses a research trajectory or ranks providers.
 const canonicalRouting =
   source.includes('provider?: "serper" | "tavily" | "exa"') &&
   /async function toolWebSearch\(query: string, requestedProvider\?: "serper" \| "tavily" \| "exa"\)/.test(source) &&
@@ -48,11 +48,58 @@ if (!caseBureau.includes("const configuredInvestigatorProviders = [")) {
     throw new Error("investigator provider routing: Boss discovery prompt anchor missing");
   }
   caseBureau = caseBureau.replace(openingAnchor, availabilityGuard.trimEnd());
-  fs.writeFileSync(caseBureauFile, caseBureau);
 }
+
+const retryInitAnchor = "  let lastError = `Gemini Boss ${selection.model} did not return text.`;";
+const retryInitReplacement = `${retryInitAnchor}\n  let transientCapacityAttempts = 0;`;
+if (!caseBureau.includes("let transientCapacityAttempts = 0;")) {
+  if (!caseBureau.includes(retryInitAnchor)) {
+    throw new Error("investigator provider routing: Gemini Boss retry anchor missing");
+  }
+  caseBureau = caseBureau.replace(retryInitAnchor, retryInitReplacement);
+}
+
+const transientBlock = `        if (response.status === 429 || response.status === 503) {
+          const detail = (await response.text().catch(() => "")).slice(0, 300);
+          lastError = \`Gemini Boss \${model} text-generation HTTP \${response.status}\${detail ? \`: \${detail}\` : ""}\`;
+          logger.warn(
+            { model, status: response.status, keyName: entry.name, detail, attempt: transientCapacityAttempts + 1 },
+            "Gemini Boss text-generation capacity busy; retrying bounded Boss transport attempt",
+          );
+          if (transientCapacityAttempts < 3) {
+            transientCapacityAttempts += 1;
+            await new Promise((resolve) => setTimeout(resolve, 1000 * 2 ** (transientCapacityAttempts - 1)));
+            continue;
+          }
+          return { model, raw: null, error: lastError };
+        }`;
+
+const oldTransientBlock = `        if (response.status === 429 || response.status === 503) {
+          const detail = (await response.text().catch(() => "")).slice(0, 300);
+          lastError = \`Gemini Boss \${model} text-generation HTTP \${response.status}\${detail ? \`: \${detail}\` : ""}\`;
+          logger.warn(
+            { model, status: response.status, keyName: entry.name, detail },
+            "Gemini Boss text-generation capacity busy; stopping this Boss attempt (not a web-search failure)",
+          );
+          // A 429/503 is commonly project/model capacity, not a model-local
+          // failure. Do not fan out across the catalog and spend more quota.
+          return { model, raw: null, error: lastError };
+        }`;
+
+if (!caseBureau.includes("retrying bounded Boss transport attempt")) {
+  if (!caseBureau.includes(oldTransientBlock)) {
+    throw new Error("investigator provider routing: Gemini Boss transient block anchor missing");
+  }
+  caseBureau = caseBureau.replace(oldTransientBlock, transientBlock);
+}
+
+fs.writeFileSync(caseBureauFile, caseBureau);
 
 if (!caseBureau.includes("CAPABILITY AVAILABILITY: only these Investigator adapters are configured and usable for this run")) {
   throw new Error("investigator provider routing: Boss capability-availability guard was not installed");
 }
+if (!caseBureau.includes("retrying bounded Boss transport attempt")) {
+  throw new Error("investigator provider routing: bounded Gemini Boss transient retry was not installed");
+}
 
-console.log("DONE apply-investigator-provider-routing: explicit provider contract and configured-Investigator availability guard verified");
+console.log("DONE apply-investigator-provider-routing: explicit provider contract, configured-Investigator availability, and bounded Boss retry verified");
