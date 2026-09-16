@@ -27,12 +27,14 @@ function mappedIpv4FromIpv6(address: string): string | null {
   if (halves.length > 2) return null;
   const left = halves[0] ? halves[0].split(":") : [];
   const right = halves.length === 2 && halves[1] ? halves[1].split(":") : [];
-  const dottedTailIndex = right.findIndex((part) => part.includes("."));
-  if (dottedTailIndex !== -1) {
-    if (dottedTailIndex !== right.length - 1 || net.isIP(right[dottedTailIndex]!) !== 4) return null;
-    const octets = right[dottedTailIndex]!.split(".").map(Number);
+  const dottedIndex = [...left, ...right].findIndex((part) => part.includes("."));
+  if (dottedIndex !== -1) {
+    const target = dottedIndex < left.length ? left[dottedIndex]! : right[dottedIndex - left.length]!;
+    if (net.isIP(target) !== 4) return null;
+    const octets = target.split(".").map(Number);
     if (octets.length !== 4 || octets.some((octet) => !Number.isInteger(octet) || octet < 0 || octet > 255)) return null;
-    right.splice(dottedTailIndex, 1, ((octets[0]! << 8) | octets[1]!).toString(16), ((octets[2]! << 8) | octets[3]!).toString(16));
+    const replacement = [((octets[0]! << 8) | octets[1]!).toString(16), ((octets[2]! << 8) | octets[3]!).toString(16)];
+    if (dottedIndex < left.length) left.splice(dottedIndex, 1, ...replacement); else right.splice(dottedIndex - left.length, 1, ...replacement);
   }
   if (left.some((part) => !/^[0-9a-f]{1,4}$/i.test(part)) || right.some((part) => !/^[0-9a-f]{1,4}$/i.test(part))) return null;
   const groups = halves.length === 2 ? [...left, ...Array(8 - left.length - right.length).fill("0"), ...right] : [...left, ...right];
