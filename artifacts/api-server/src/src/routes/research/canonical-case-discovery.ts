@@ -7,11 +7,7 @@ import { runCanonicalAtlasPipeline } from "../../lib/canonical-atlas-discovery";
 import { resolveResearchDepth } from "../../lib/research-depth";
 
 const router = Router();
-
-function parseFile(raw: string | null): Record<string, any> | null {
-  try { const value = raw ? JSON.parse(raw) : null; return value && typeof value === "object" ? value : null; } catch { return null; }
-}
-
+function parseFile(raw: string | null): Record<string, any> | null { try { const value = raw ? JSON.parse(raw) : null; return value && typeof value === "object" ? value : null; } catch { return null; } }
 router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Promise<void> => {
   const caseId = Number(req.params.caseId);
   if (!Number.isInteger(caseId) || caseId <= 0) { res.status(400).json({ error: "Invalid bureau case ID" }); return; }
@@ -19,9 +15,7 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
   if (!current) { res.status(404).json({ error: "Bureau case not found" }); return; }
   const file = parseFile(current.caseFile);
   if (!file || file.caseType !== "discovery") { res.status(409).json({ error: "Only a discovery case can run the canonical discovery investigation" }); return; }
-
   await enablePermanentRedis();
-
   const existingJobId = await getActiveJob("case-bureau-discovery");
   if (existingJobId) { const existing = await getJob(existingJobId); if (existing?.status === "running" || existing?.status === "queued") { res.status(409).json({ error: "A bureau discovery investigation is already running.", jobId: existingJobId }); return; } }
   const jobId = await createJob("case-bureau-discovery"); await setActiveJob("case-bureau-discovery", jobId);
@@ -43,7 +37,7 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
   void (async () => {
     try {
       await runCanonicalAtlasPipeline(jobId, {
-        targetCount: 3,
+        targetCount: 1,
         researchDepth: depth.depth,
         targetTimeoutMs: depth.agenticHardTimeoutMs,
         discoveryCaseId: caseId,
@@ -55,15 +49,8 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
         lockKey: "case-bureau-discovery",
       });
       const finishedJob = await getJob(jobId);
-      let discoveryStatus: string | null = null;
-      let discoveryError: string | null = null;
-      if (finishedJob?.result) {
-        try {
-          const result = JSON.parse(finishedJob.result) as { discovery?: { status?: unknown; error?: unknown } };
-          discoveryStatus = typeof result.discovery?.status === "string" ? result.discovery.status : null;
-          discoveryError = typeof result.discovery?.error === "string" ? result.discovery.error : null;
-        } catch { discoveryStatus = null; }
-      }
+      let discoveryStatus: string | null = null; let discoveryError: string | null = null;
+      if (finishedJob?.result) { try { const result = JSON.parse(finishedJob.result) as { discovery?: { status?: unknown; error?: unknown } }; discoveryStatus = typeof result.discovery?.status === "string" ? result.discovery.status : null; discoveryError = typeof result.discovery?.error === "string" ? result.discovery.error : null; } catch { discoveryStatus = null; } }
       if (discoveryStatus !== "completed") {
         const message = discoveryError ? `Canonical discovery Investigator pass did not complete: ${discoveryError}` : `Canonical discovery Investigator pass did not complete (status=${discoveryStatus ?? "unknown"}).`;
         await updateJob(jobId, { status: "failed", outcome: "incomplete", message, finishedAt: new Date().toISOString() }).catch(() => undefined);
@@ -78,5 +65,4 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
   })();
   res.status(202).json({ jobId, caseId, status: "running", mode: "canonical-model-owned-discovery" });
 });
-
 export default router;
