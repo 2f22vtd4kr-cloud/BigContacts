@@ -1,28 +1,11 @@
 import { describe, expect, it } from "vitest";
-import {
-  adjudicateFinalTargetReview,
-  deriveTargetResearchDisposition,
-  type FinalTargetReviewInput,
-} from "../lib/final-target-review";
+import { adjudicateFinalTargetReview, deriveTargetResearchDisposition, type FinalTargetReviewInput } from "../lib/final-target-review";
 
 const baseInput = (overrides: Partial<FinalTargetReviewInput> = {}): FinalTargetReviewInput => ({
   targetName: "Jane Example",
   targetType: "HNWI",
   proposedContacts: { email: "jane@example.org", phone: null, linkedin: null, instagram: null, twitter: null },
-  candidates: [{
-    key: "email|jane@example.org",
-    vectorType: "email",
-    value: "jane@example.org",
-    providers: ["web"],
-    sourceDomains: ["example.org"],
-    sourceUrls: ["https://example.org/contact"],
-    scopes: ["target_person"],
-    personNames: ["Jane Example"],
-    state: "verified_direct_route",
-    conflictCount: 0,
-    exactClaimObserved: true,
-    blockedSourceUrls: [],
-  }],
+  candidates: [{ key: "email|jane@example.org", vectorType: "email", value: "jane@example.org", providers: ["web"], sourceDomains: ["example.org"], sourceUrls: ["https://example.org/contact"], scopes: ["target_person"], personNames: ["Jane Example"], state: "verified_direct_route", conflictCount: 0, exactClaimObserved: true, blockedSourceUrls: [] }],
   evidence: [{ vectorType: "email", value: "jane@example.org", source: "web", sourceUrl: "https://example.org/contact", validationStatus: "candidate" }],
   proposedAssets: [{ category: "Business", identifier: "Example Holdings", jurisdiction: "UK", description: "Observed business identifier" }],
   ...overrides,
@@ -41,36 +24,31 @@ describe("final target review", () => {
     expect(result.decision).toBe("publish");
     expect(result.approvedContactValues).toEqual(["jane@example.org"]);
     expect(result.approvedAssetIdentifiers).toEqual(["Example Holdings"]);
+    expect(result.cardSummary).toContain("Jane Example");
   });
 
   it("does not promote a baseline proposed contact when the current-run candidate set does not support it", () => {
-    const result = adjudicateFinalTargetReview(baseInput({
-      candidates: [],
-      evidence: [],
-      proposedContacts: { email: "historical@example.org", phone: null, linkedin: null, instagram: null, twitter: null },
-    }), { decision: "review" }, "test");
+    const result = adjudicateFinalTargetReview(baseInput({ candidates: [], evidence: [], proposedContacts: { email: "historical@example.org", phone: null, linkedin: null, instagram: null, twitter: null } }), { decision: "review" }, "test");
     expect(result.approvedContactValues).toEqual([]);
     expect(result.decision).toBe("review");
   });
 
   it("does not let reviewer prose create a contact route", () => {
-    const result = adjudicateFinalTargetReview(baseInput({ candidates: [], evidence: [] }), {
-      decision: "publish",
-      approvedContactValues: [],
-      approvedRelatedValues: [],
-      cardSummary: "Jane Example's direct email is jane@example.org and she can be reached there.",
-    }, "test");
+    const result = adjudicateFinalTargetReview(baseInput({ candidates: [], evidence: [] }), { decision: "publish", approvedContactValues: [], approvedRelatedValues: [], cardSummary: "Jane Example's direct email is jane@example.org and she can be reached there." }, "test");
     expect(result.approvedContactValues).toEqual([]);
     expect(result.cardSummary).toBeNull();
     expect(result.decision).toBe("review");
   });
 
+  it("does not publish disputed evidence as a related finding", () => {
+    const result = adjudicateFinalTargetReview(baseInput({ candidates: [], evidence: [{ vectorType: "role", value: "10% owner", source: "web", sourceUrl: "https://example.org", validationStatus: "disputed" }] }), { decision: "publish", approvedRelatedValues: ["10% owner"], roleHeadline: "10% owner" }, "test");
+    expect(result.approvedRelatedValues).toEqual([]);
+    expect(result.roleHeadline).toBeNull();
+    expect(result.decision).toBe("review");
+  });
+
   it("does not treat narrative alone as contact_route_found", () => {
-    const disposition = deriveTargetResearchDisposition({
-      approvedContactValues: [],
-      approvedRelatedValues: [],
-      cardSummary: "A narrative without an approved evidence value.",
-    });
+    const disposition = deriveTargetResearchDisposition({ approvedContactValues: [], approvedRelatedValues: [], cardSummary: "A narrative without an approved evidence value." });
     expect(disposition.disposition).toBe("needs_follow_up");
   });
 
@@ -93,35 +71,12 @@ describe("final target review", () => {
     expect(disposition.nextAction.toLowerCase()).toContain("approved");
   });
 
-  it("lets the model promote related SEC address material without inventing", () => {
-    const result = adjudicateFinalTargetReview(baseInput({
-      candidates: [{
-        key: "address|2099 Pennsylvania",
-        vectorType: "address",
-        value: "2099 Pennsylvania Avenue NW, Washington, DC 20006",
-        providers: ["edgar"],
-        sourceDomains: ["sec.gov"],
-        sourceUrls: ["https://www.sec.gov/example"],
-        scopes: ["target_person"],
-        personNames: ["Frank H Pearl"],
-        state: "source_linked",
-        conflictCount: 0,
-        exactClaimObserved: true,
-        blockedSourceUrls: [],
-      }],
-      evidence: [{ vectorType: "address", value: "2099 Pennsylvania Avenue NW, Washington, DC 20006", source: "edgar", sourceUrl: "https://www.sec.gov/example", validationStatus: "candidate" }],
-    }), {
-      decision: "publish",
-      approvedContactValues: [],
-      approvedRelatedValues: ["2099 Pennsylvania Avenue NW, Washington, DC 20006"],
-      relatedDescriptions: ["SEC reporting address"],
-      cardSummary: "Frank H. Pearl is tied to Perseus via SEC beneficial ownership filings.",
-      roleHeadline: "10% owner / Perseus control person",
-      reasons: ["Exact address from SEC filing evidence."],
-    }, "test");
+  it("grounds role headlines and summaries in deterministic evidence", () => {
+    const result = adjudicateFinalTargetReview(baseInput({ candidates: [{ key: "address|2099 Pennsylvania", vectorType: "address", value: "2099 Pennsylvania Avenue NW, Washington, DC 20006", providers: ["edgar"], sourceDomains: ["sec.gov"], sourceUrls: ["https://www.sec.gov/example"], scopes: ["target_person"], personNames: ["Frank H Pearl"], state: "source_linked", conflictCount: 0, exactClaimObserved: true, blockedSourceUrls: [] }], evidence: [{ vectorType: "address", value: "2099 Pennsylvania Avenue NW, Washington, DC 20006", source: "edgar", sourceUrl: "https://www.sec.gov/example", validationStatus: "candidate" }] }), { decision: "publish", approvedContactValues: [], approvedRelatedValues: ["2099 Pennsylvania Avenue NW, Washington, DC 20006"], relatedDescriptions: ["SEC reporting address"], cardSummary: "Frank H. Pearl is tied to Perseus via SEC beneficial ownership filings.", roleHeadline: "10% owner / Perseus control person" }, "test");
     expect(result.decision).toBe("publish");
     expect(result.approvedRelatedValues).toEqual(["2099 Pennsylvania Avenue NW, Washington, DC 20006"]);
-    expect(result.roleHeadline).toContain("Perseus");
-    expect(result.cardSummary).toContain("Pearl");
+    expect(result.roleHeadline).toBeNull();
+    expect(result.cardSummary).toContain("1 public finding");
+    expect(result.cardSummary).not.toContain("Perseus");
   });
 });
