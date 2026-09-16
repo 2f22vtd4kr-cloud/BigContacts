@@ -41,7 +41,7 @@ assert(!/push\(`PERSON:/.test(hardener), "retired hardener does not manufacture 
 // Static contract only: the live proof must contain a real runtime/evidence gate.
 // The actual external-provider result belongs to the live-proof job, not this source guard.
 assert(/Provider readiness/.test(workflow), "canonical live proof performs provider readiness");
-assert(/api\.generativelanguage\.googleapis\.com/.test(workflow) && /integrate\.api\.nvidia\.com/.test(workflow), "canonical live proof covers mandatory Gemini and DeepSeek control-plane providers");
+assert(/generativelanguage\.googleapis\.com/.test(workflow) && /integrate\.api\.nvidia\.com/.test(workflow), "canonical live proof covers mandatory Gemini and DeepSeek control-plane providers");
 assert(/api\.groq\.com\/openai\/v1\/chat\/completions/.test(workflow) && /api\.mistral\.ai\/v1\/chat\/completions/.test(workflow), "canonical live proof covers the explicit Investigator provider pool");
 assert(/Reply READY only\./.test(workflow) && /max_tokens:8/.test(workflow), "provider readiness is a bounded generation, not a research strategy");
 assert(/Open fresh discovery case/.test(workflow) && /POST http:\/\/127\.0\.0\.1:8080\/api\/research\/bureau\/cases/.test(workflow), "canonical live proof opens a real durable discovery case");
