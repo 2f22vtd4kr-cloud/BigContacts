@@ -85,7 +85,7 @@ jobs:
             let last = 'unknown';
             for (let attempt = 1; attempt <= attempts; attempt++) {
               try {
-                const r = await fetch(url,{...init,signal:AbortSignal.timeout(20000)});
+                const r = await fetch(url,{...init,signal:AbortSignal.timeout(60000)});
                 const body = await r.text();
                 if (r.ok) return { ok: true, body };
                 last = `http-${r.status}`;
