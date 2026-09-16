@@ -81,12 +81,12 @@ jobs:
       - name: Provider readiness
         run: |
           node --input-type=module <<'NODE'
-          async function request(url, key, init, attempts = 3) {
+          async function request(url, key, init, attempts = 2) {
             if (!key) return { ok: false, reason: 'missing-key' };
             let last = 'unknown';
             for (let attempt = 1; attempt <= attempts; attempt++) {
               try {
-                const r = await fetch(url,{...init,signal:AbortSignal.timeout(60000)});
+                const r = await fetch(url,{...init,signal:AbortSignal.timeout(20000)});
                 let body = await r.text();
                 if (r.status === 202 && url === 'https://integrate.api.nvidia.com/v1/chat/completions') {
                   let requestId = null;
@@ -121,7 +121,7 @@ jobs:
             }
             return { ok: false, reason: last };
           }
-          const geminiCatalog = await request('https://generativelanguage.googleapis.com/v1beta/models',process.env.GEMINI_API_KEY,{method:'GET',headers:{'x-goog-api-key':process.env.GEMINI_API_KEY,'accept':'application/json'}},3);
+          const geminiCatalog = await request('https://generativelanguage.googleapis.com/v1beta/models',process.env.GEMINI_API_KEY,{method:'GET',headers:{'x-goog-api-key':process.env.GEMINI_API_KEY,'accept':'application/json','x-goog-api-client':'apex-atlas-live-proof/1.0'}},2);
           let geminiModel = null;
           if (geminiCatalog.ok) {
             try {
@@ -130,11 +130,11 @@ jobs:
               geminiModel = entries.map((entry) => ({name:String(entry.name||'').replace(/^models\//,''),methods:Array.isArray(entry.supportedGenerationMethods)?entry.supportedGenerationMethods:[]})).filter((entry)=>/^gemini-\d+(?:\.\d+)?-flash(?:-[a-z0-9]+)?$/i.test(entry.name)&&entry.methods.includes('generateContent')&&!retired.test(entry.name)&&!/embedding|aqa|robotics|image|tts|deep-research|latest/i.test(entry.name)).sort((a,b)=>b.name.localeCompare(a.name))[0]?.name ?? null;
             } catch {}
           }
-          const gemini = geminiModel ? await request(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(geminiModel)}:generateContent`,process.env.GEMINI_API_KEY,{method:'POST',headers:{'x-goog-api-key':process.env.GEMINI_API_KEY,'content-type':'application/json'},body:JSON.stringify({contents:[{parts:[{text:'Reply READY only.'}]}]})},3) : {ok:false,reason:geminiCatalog.ok?'no-compatible-generateContent-model':'catalog-'+geminiCatalog.reason};
-          const deepseek = await request('https://integrate.api.nvidia.com/v1/chat/completions',process.env.DEEPSEEK_API_KEY,{method:'POST',headers:{Authorization:`Bearer ${process.env.DEEPSEEK_API_KEY}`,'content-type':'application/json'},body:JSON.stringify({model:'deepseek-ai/deepseek-v4-flash-0731',messages:[{role:'user',content:'Reply READY only.'}],temperature:1,top_p:0.95,max_tokens:8,reasoning_effort:'high',stream:false})},3);
-          const groq = await request('https://api.groq.com/openai/v1/chat/completions',process.env.GROQ_API_KEY,{method:'POST',headers:{Authorization:`Bearer ${process.env.GROQ_API_KEY}`,'content-type':'application/json'},body:JSON.stringify({model:process.env.GROQ_AGENTIC_MODEL||'qwen/qwen3.8-27b',messages:[{role:'user',content:'Reply READY only.'}],max_tokens:8})},3);
-          const mistral = await request('https://api.mistral.ai/v1/chat/completions',process.env.MISTRAL_API_KEY,{method:'POST',headers:{Authorization:`Bearer ${process.env.MISTRAL_API_KEY}`,'content-type':'application/json'},body:JSON.stringify({model:process.env.MISTRAL_AGENTIC_MODEL||'mistral-small-latest',messages:[{role:'user',content:'Reply READY only.'}],max_tokens:8})},3);
-          console.log(JSON.stringify({gemini:{ok:gemini.ok,reason:gemini.reason,model:geminiModel},deepseek,groq:{ok:groq.ok,reason:groq.reason},mistral:{ok:mistral.ok,reason:mistral.reason}}));
+          const gemini = geminiModel ? await request(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(geminiModel)}:generateContent`,process.env.GEMINI_API_KEY,{method:'POST',headers:{'x-goog-api-key':process.env.GEMINI_API_KEY,'content-type':'application/json','x-goog-api-client':'apex-atlas-live-proof/1.0'},body:JSON.stringify({contents:[{parts:[{text:'Reply READY only.'}]}]})},2) : {ok:false,reason:geminiCatalog.ok?'no-compatible-generateContent-model':'catalog-'+geminiCatalog.reason};
+          const deepseek = await request('https://integrate.api.nvidia.com/v1/chat/completions',process.env.DEEPSEEK_API_KEY,{method:'POST',headers:{Authorization:`Bearer ${process.env.DEEPSEEK_API_KEY}`,'content-type':'application/json'},body:JSON.stringify({model:'deepseek-ai/deepseek-v4-flash-0731',messages:[{role:'user',content:'Reply READY only.'}],temperature:1,top_p:0.95,max_tokens:8,reasoning_effort:'high',stream:false})},2);
+          const groq = await request('https://api.groq.com/openai/v1/chat/completions',process.env.GROQ_API_KEY,{method:'POST',headers:{Authorization:`Bearer ${process.env.GROQ_API_KEY}`,'content-type':'application/json'},body:JSON.stringify({model:process.env.GROQ_AGENTIC_MODEL||'qwen/qwen3.8-27b',messages:[{role:'user',content:'Reply READY only.'}],max_tokens:8})},2);
+          const mistral = await request('https://api.mistral.ai/v1/chat/completions',process.env.MISTRAL_API_KEY,{method:'POST',headers:{Authorization:`Bearer ${process.env.MISTRAL_API_KEY}`,'content-type':'application/json'},body:JSON.stringify({model:process.env.MISTRAL_AGENTIC_MODEL||'mistral-small-latest',messages:[{role:'user',content:'Reply READY only.'}],max_tokens:8})},2);
+          console.log(JSON.stringify({gemini:{ok:gemini.ok,reason:gemini.reason,model:geminiModel},deepseek:{ok:deepseek.ok,reason:deepseek.reason},groq:{ok:groq.ok,reason:groq.reason},mistral:{ok:mistral.ok,reason:mistral.reason}}));
           if (!gemini.ok) { console.error('Gemini Boss readiness failed:', gemini.reason); process.exit(2); }
           if (!deepseek.ok) { console.error('DeepSeek Right Hand readiness failed:', deepseek.reason); process.exit(3); }
           if (!groq.ok && !mistral.ok) { console.error('No Investigator LLM is ready:', {groq,mistral}); process.exit(4); }
