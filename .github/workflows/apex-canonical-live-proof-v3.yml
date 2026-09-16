@@ -80,15 +80,14 @@ jobs:
       - name: Provider readiness
         run: |
           node --input-type=module <<'NODE'
-          async function probe(url, key, body, attempts = 3, authMode = 'bearer') {
+          async function request(url, key, init, attempts = 3) {
             if (!key) return { ok: false, reason: 'missing-key' };
             let last = 'unknown';
             for (let attempt = 1; attempt <= attempts; attempt++) {
               try {
-                const auth = authMode === 'gemini-api-key' ? {'x-goog-api-key': key} : {Authorization:`Bearer ${key}`};
-                const r = await fetch(url,{method:'POST',headers:{...auth,'content-type':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(20000)});
-                await r.text();
-                if (r.ok) return { ok: true };
+                const r = await fetch(url,{...init,signal:AbortSignal.timeout(20000)});
+                const body = await r.text();
+                if (r.ok) return { ok: true, body };
                 last = `http-${r.status}`;
                 if (![408,425,429,500,502,503,504,529].includes(r.status) || attempt === attempts) break;
               } catch (error) {
@@ -99,11 +98,20 @@ jobs:
             }
             return { ok: false, reason: last };
           }
-          const gemini = await probe('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',process.env.GEMINI_API_KEY,{contents:[{parts:[{text:'Reply READY only.'}]}]},3,'gemini-api-key');
-          const deepseek = await probe('https://integrate.api.nvidia.com/v1/chat/completions',process.env.DEEPSEEK_API_KEY,{model:'deepseek-ai/deepseek-v4-flash-0731',messages:[{role:'user',content:'Reply READY only.'}],temperature:1,top_p:0.95,max_tokens:8,reasoning_effort:'high',stream:false});
-          const groq = await probe('https://api.groq.com/openai/v1/chat/completions',process.env.GROQ_API_KEY,{model:process.env.GROQ_AGENTIC_MODEL||'qwen/qwen3.8-27b',messages:[{role:'user',content:'Reply READY only.'}],max_tokens:8});
-          const mistral = await probe('https://api.mistral.ai/v1/chat/completions',process.env.MISTRAL_API_KEY,{model:process.env.MISTRAL_AGENTIC_MODEL||'mistral-small-latest',messages:[{role:'user',content:'Reply READY only.'}],max_tokens:8});
-          console.log(JSON.stringify({gemini,deepseek,groq,mistral}));
+          const geminiCatalog = await request('https://generativelanguage.googleapis.com/v1beta/models',process.env.GEMINI_API_KEY,{method:'GET',headers:{'x-goog-api-key':process.env.GEMINI_API_KEY,'accept':'application/json'}},3);
+          let geminiModel = null;
+          if (geminiCatalog.ok) {
+            try {
+              const entries = JSON.parse(geminiCatalog.body).models ?? [];
+              const retired = /^(gemini-1\.5-flash|gemini-1\.0-pro|gemini-2\.5-flash|gemini-2\.5-pro|gemini-2\.5-flash-lite|gemini-2\.0-flash|gemini-pro|gemini-pro-vision)(?:-|$)/i;
+              geminiModel = entries.map((entry) => ({name:String(entry.name||'').replace(/^models\//,''),methods:Array.isArray(entry.supportedGenerationMethods)?entry.supportedGenerationMethods:[]})).filter((entry)=>/^gemini-\d+(?:\.\d+)?-flash(?:-[a-z0-9]+)?$/i.test(entry.name)&&entry.methods.includes('generateContent')&&!retired.test(entry.name)&&!/embedding|aqa|robotics|image|tts|deep-research|latest/i.test(entry.name)).sort((a,b)=>b.name.localeCompare(a.name))[0]?.name ?? null;
+            } catch {}
+          }
+          const gemini = geminiModel ? await request(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(geminiModel)}:generateContent`,process.env.GEMINI_API_KEY,{method:'POST',headers:{'x-goog-api-key':process.env.GEMINI_API_KEY,'content-type':'application/json'},body:JSON.stringify({contents:[{parts:[{text:'Reply READY only.'}]}]})},3) : {ok:false,reason:geminiCatalog.ok?'no-compatible-generateContent-model':'catalog-'+geminiCatalog.reason};
+          const deepseek = await request('https://integrate.api.nvidia.com/v1/chat/completions',process.env.DEEPSEEK_API_KEY,{method:'POST',headers:{Authorization:`Bearer ${process.env.DEEPSEEK_API_KEY}`,'content-type':'application/json'},body:JSON.stringify({model:'deepseek-ai/deepseek-v4-flash-0731',messages:[{role:'user',content:'Reply READY only.'}],temperature:1,top_p:0.95,max_tokens:8,reasoning_effort:'high',stream:false})},3);
+          const groq = await request('https://api.groq.com/openai/v1/chat/completions',process.env.GROQ_API_KEY,{method:'POST',headers:{Authorization:`Bearer ${process.env.GROQ_API_KEY}`,'content-type':'application/json'},body:JSON.stringify({model:process.env.GROQ_AGENTIC_MODEL||'qwen/qwen3.8-27b',messages:[{role:'user',content:'Reply READY only.'}],max_tokens:8})},3);
+          const mistral = await request('https://api.mistral.ai/v1/chat/completions',process.env.MISTRAL_API_KEY,{method:'POST',headers:{Authorization:`Bearer ${process.env.MISTRAL_API_KEY}`,'content-type':'application/json'},body:JSON.stringify({model:process.env.MISTRAL_AGENTIC_MODEL||'mistral-small-latest',messages:[{role:'user',content:'Reply READY only.'}],max_tokens:8})},3);
+          console.log(JSON.stringify({gemini:{ok:gemini.ok,reason:gemini.reason,model:geminiModel},deepseek,groq:{ok:groq.ok,reason:groq.reason},mistral:{ok:mistral.ok,reason:mistral.reason}}));
           if (!gemini.ok) { console.error('Gemini Boss readiness failed:', gemini.reason); process.exit(2); }
           if (!deepseek.ok) { console.error('DeepSeek Right Hand readiness failed:', deepseek.reason); process.exit(3); }
           if (!groq.ok && !mistral.ok) { console.error('No Investigator LLM is ready:', {groq,mistral}); process.exit(4); }
