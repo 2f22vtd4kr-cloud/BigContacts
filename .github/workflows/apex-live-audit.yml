@@ -8,6 +8,7 @@ on:
       - "scripts/live-batch-trigger.md"
       - "scripts/apply-investigator-ui-source-boundary.mjs"
       - "artifacts/apex-finder/src/pages/data-sources.tsx"
+      - "artifacts/apex-finder/package.json"
       - ".github/workflows/apex-live-audit.yml"
 
 concurrency:
@@ -201,6 +202,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with: { node-version: 22 }
+      - run: npm install -g pnpm@${PNPM_VERSION}
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
         with: { node-version: 22 }
       - run: npm install -g pnpm@${PNPM_VERSION}
