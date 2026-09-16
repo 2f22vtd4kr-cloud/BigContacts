@@ -12,7 +12,7 @@ const boss = fs.readFileSync(
 );
 
 const rightHandRequired = [
-  "max_tokens: 4096",
+  "max_tokens: 16384",
   "BUREAU CHAIN OF COMMAND / SHARED MIND",
   "Every iteration must produce a meaningful delta in the case frontier",
   "do not merely repeat the previous Investigator result",
