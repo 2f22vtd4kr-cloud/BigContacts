@@ -63,8 +63,9 @@ jobs:
           sudo service redis-server start
           sudo -u postgres psql -c "CREATE USER apex WITH PASSWORD 'apex_local_dev' SUPERUSER;" || true
           sudo -u postgres psql -c "CREATE DATABASE apex OWNER apex;" || true
-      - name: Schema and build
+      - name: Apply canonical provider/runtime transforms and build
         run: |
+          node scripts/apply-investigator-provider-routing.mjs
           cd lib/db && npx drizzle-kit push --config ./drizzle.config.ts && cd ../../
           pnpm --dir artifacts/api-server run build
       - name: Static and focused gates
