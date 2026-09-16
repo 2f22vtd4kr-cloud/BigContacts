@@ -1,0 +1,54 @@
+name: Sync generated API dist
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "artifacts/api-server/src/**"
+      - "artifacts/api-server/package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "scripts/**"
+      - ".github/workflows/sync-generated-dist.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-generated-dist-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org/
+      - run: npm install -g pnpm@9.15.9
+      - run: pnpm install --frozen-lockfile --ignore-scripts --filter @workspace/api-server... --registry=https://registry.npmjs.org/
+      - run: pnpm --dir artifacts/api-server run build
+      - name: Commit generated dist only
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- artifacts/api-server/dist; then
+            echo "Generated dist already matches source."
+            exit 0
+          fi
+          if git diff --name-only | grep -v '^artifacts/api-server/dist/' | grep -q .; then
+            echo "Build mutated files outside generated dist; refusing to commit them."
+            git diff --name-only
+            exit 1
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add artifacts/api-server/dist
+          git commit -m "chore: sync generated API dist"
+          git push origin HEAD:main
