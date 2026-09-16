@@ -80,12 +80,13 @@ jobs:
       - name: Provider readiness
         run: |
           node --input-type=module <<'NODE'
-          async function probe(url, key, body, attempts = 3) {
+          async function probe(url, key, body, attempts = 3, authMode = 'bearer') {
             if (!key) return { ok: false, reason: 'missing-key' };
             let last = 'unknown';
             for (let attempt = 1; attempt <= attempts; attempt++) {
               try {
-                const r = await fetch(url,{method:'POST',headers:{Authorization:`Bearer ${key}`,'content-type':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(20000)});
+                const auth = authMode === 'gemini-api-key' ? {'x-goog-api-key': key} : {Authorization:`Bearer ${key}`};
+                const r = await fetch(url,{method:'POST',headers:{...auth,'content-type':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(20000)});
                 await r.text();
                 if (r.ok) return { ok: true };
                 last = `http-${r.status}`;
@@ -98,7 +99,7 @@ jobs:
             }
             return { ok: false, reason: last };
           }
-          const gemini = await probe('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',process.env.GEMINI_API_KEY,{contents:[{parts:[{text:'Reply READY only.'}]}]});
+          const gemini = await probe('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',process.env.GEMINI_API_KEY,{contents:[{parts:[{text:'Reply READY only.'}]}]},3,'gemini-api-key');
           const deepseek = await probe('https://integrate.api.nvidia.com/v1/chat/completions',process.env.DEEPSEEK_API_KEY,{model:'deepseek-ai/deepseek-v4-flash-0731',messages:[{role:'user',content:'Reply READY only.'}],temperature:1,top_p:0.95,max_tokens:8,reasoning_effort:'high',stream:false});
           const groq = await probe('https://api.groq.com/openai/v1/chat/completions',process.env.GROQ_API_KEY,{model:process.env.GROQ_AGENTIC_MODEL||'qwen/qwen3.8-27b',messages:[{role:'user',content:'Reply READY only.'}],max_tokens:8});
           const mistral = await probe('https://api.mistral.ai/v1/chat/completions',process.env.MISTRAL_API_KEY,{model:process.env.MISTRAL_AGENTIC_MODEL||'mistral-small-latest',messages:[{role:'user',content:'Reply READY only.'}],max_tokens:8});
