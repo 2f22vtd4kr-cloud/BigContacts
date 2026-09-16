@@ -38,15 +38,15 @@ assert(/Compatibility shim only/.test(shim) && /export \* from "\.\.\/\.\.\/api-
 assert(/RETIRED:/.test(hardener) && /must not mutate Apex source/.test(hardener), "historical concurrency hardener remains non-executable");
 assert(!/push\(`PERSON:/.test(hardener), "retired hardener does not manufacture PERSON findings");
 
-// The canonical live proof is the only runtime workflow checked here. It must
-// exercise the same discovery endpoint that operators use, without prescribing
-// a research sequence.
+// Static contract only: the live proof must contain a real runtime/evidence gate.
+// The actual external-provider result belongs to the live-proof job, not this source guard.
 assert(/Provider readiness/.test(workflow), "canonical live proof performs provider readiness");
+assert(/api\.generativelanguage\.googleapis\.com/.test(workflow) && /integrate\.api\.nvidia\.com/.test(workflow), "canonical live proof covers mandatory Gemini and DeepSeek control-plane providers");
 assert(/api\.groq\.com\/openai\/v1\/chat\/completions/.test(workflow) && /api\.mistral\.ai\/v1\/chat\/completions/.test(workflow), "canonical live proof covers the explicit Investigator provider pool");
 assert(/Reply READY only\./.test(workflow) && /max_tokens:8/.test(workflow), "provider readiness is a bounded generation, not a research strategy");
 assert(/Open fresh discovery case/.test(workflow) && /POST http:\/\/127\.0\.0\.1:8080\/api\/research\/bureau\/cases/.test(workflow), "canonical live proof opens a real durable discovery case");
 assert(/Start canonical case discovery/.test(workflow) && /\/run-discovery/.test(workflow), "canonical live proof invokes the canonical discovery route");
-assert(/Enforce genuine live evidence gate/.test(workflow) && /hasSearchTelemetry/.test(workflow), "canonical live proof requires genuine model-directed research evidence");
+assert(/Enforce genuine live evidence gate/.test(workflow) && /hasSearch/.test(workflow) && /hasVisit/.test(workflow) && /sourceBacked/.test(workflow), "canonical live proof requires genuine search, visit, and source-backed evidence");
 assert(/canonical-discovery-failure-boundary\.test\.ts/.test(workflow), "canonical live proof includes the discovery failure regression test");
 assert(/discoveryModel/.test(liveAudit) && /discoveryTools/.test(liveAudit) && /actual web tooling/.test(liveAudit), "live verifier requires model-selected discovery with actual web tooling");
 assert(/discoveryAgent !== true/.test(liveAudit) && /sourceUrls/.test(liveAudit), "live verifier requires discovery admission provenance");
