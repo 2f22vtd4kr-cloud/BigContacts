@@ -8,6 +8,12 @@ import { resolveResearchDepth } from "../../lib/research-depth";
 
 const router = Router();
 function parseFile(raw: string | null): Record<string, any> | null { try { const value = raw ? JSON.parse(raw) : null; return value && typeof value === "object" ? value : null; } catch { return null; } }
+function isTransientGeminiCapacityFailure(job: Awaited<ReturnType<typeof getJob>>): boolean {
+  const resultText = job?.result ?? "";
+  const message = job?.message ?? "";
+  return /Gemini Boss[^\n]*(?:HTTP (?:429|500|502|503|504)|capacity|temporarily unavailable|temporarily busy|timeout)/i.test(`${message}\n${resultText}`);
+}
+function transientRetryDelayMs(attempt: number): number { return Math.min(12_000, 2_000 * 2 ** Math.max(0, attempt - 1)); }
 router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Promise<void> => {
   const caseId = Number(req.params.caseId);
   if (!Number.isInteger(caseId) || caseId <= 0) { res.status(400).json({ error: "Invalid bureau case ID" }); return; }
@@ -36,19 +42,27 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
   const depth = resolveResearchDepth({ explicit: typeof file.researchDepth === "string" ? file.researchDepth : "fast" });
   void (async () => {
     try {
-      await runCanonicalAtlasPipeline(jobId, {
-        targetCount: 1,
-        researchDepth: depth.depth,
-        targetTimeoutMs: depth.agenticHardTimeoutMs,
-        discoveryCaseId: caseId,
-        discoveryOnly: true,
-        discoveryObjective: [String(file.humanBrief?.objective ?? ""), String(file.humanBrief?.motivation ?? ""), file.humanBrief?.geography ? `Geography: ${file.humanBrief.geography}` : "", "Discover exact named people only when the observed public source supports the identity. You own every search/tool choice and stopping point. Emit promotionDecision=promote only for an exact named-person admission candidate. Never invent."].filter(Boolean).join("\n"),
-        discoveryMotivation: String(file.humanBrief?.motivation ?? ""),
-        discoveryGeography: String(file.humanBrief?.geography ?? ""),
-        discoveryExclusions: Array.isArray(file.humanBrief?.exclusions) ? file.humanBrief.exclusions : [],
-        lockKey: "case-bureau-discovery",
-      });
-      const finishedJob = await getJob(jobId);
+      const maxTransientAttempts = 3;
+      let finishedJob = await getJob(jobId);
+      for (let attempt = 1; attempt <= maxTransientAttempts; attempt += 1) {
+        await runCanonicalAtlasPipeline(jobId, {
+          targetCount: 1,
+          researchDepth: depth.depth,
+          targetTimeoutMs: depth.agenticHardTimeoutMs,
+          discoveryCaseId: caseId,
+          discoveryOnly: true,
+          discoveryObjective: [String(file.humanBrief?.objective ?? ""), String(file.humanBrief?.motivation ?? ""), file.humanBrief?.geography ? `Geography: ${file.humanBrief.geography}` : "", "Discover exact named people only when the observed public source supports the identity. You own every search/tool choice and stopping point. Emit promotionDecision=promote only for an exact named-person admission candidate. Never invent."].filter(Boolean).join("\n"),
+          discoveryMotivation: String(file.humanBrief?.motivation ?? ""),
+          discoveryGeography: String(file.humanBrief?.geography ?? ""),
+          discoveryExclusions: Array.isArray(file.humanBrief?.exclusions) ? file.humanBrief.exclusions : [],
+          lockKey: "case-bureau-discovery",
+        });
+        finishedJob = await getJob(jobId);
+        if (!isTransientGeminiCapacityFailure(finishedJob) || attempt >= maxTransientAttempts) break;
+        await updateJob(jobId, { status: "queued", progress: 0, message: `Transient Gemini Boss capacity failure; bounded retry ${attempt + 1}/${maxTransientAttempts} after backoff.`, result: finishedJob?.result ?? undefined }).catch(() => undefined);
+        await new Promise((resolve) => setTimeout(resolve, transientRetryDelayMs(attempt)));
+      }
+      finishedJob = await getJob(jobId);
       let discoveryStatus: string | null = null; let discoveryError: string | null = null;
       if (finishedJob?.result) { try { const result = JSON.parse(finishedJob.result) as { discovery?: { status?: unknown; error?: unknown } }; discoveryStatus = typeof result.discovery?.status === "string" ? result.discovery.status : null; discoveryError = typeof result.discovery?.error === "string" ? result.discovery.error : null; } catch { discoveryStatus = null; } }
       if (discoveryStatus !== "completed") {
