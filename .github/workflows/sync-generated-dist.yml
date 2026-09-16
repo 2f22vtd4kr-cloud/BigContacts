@@ -6,6 +6,8 @@ on:
     paths:
       - "artifacts/api-server/src/**"
       - "artifacts/api-server/package.json"
+      - "artifacts/apex-finder/src/pages/data-sources.tsx"
+      - "artifacts/apex-finder/package.json"
       - "pnpm-lock.yaml"
       - "pnpm-workspace.yaml"
       - "scripts/**"
@@ -33,22 +35,25 @@ jobs:
           node-version: 22
           registry-url: https://registry.npmjs.org/
       - run: npm install -g pnpm@9.15.9
-      - run: pnpm install --frozen-lockfile --ignore-scripts --filter @workspace/api-server... --registry=https://registry.npmjs.org/
-      - run: pnpm --dir artifacts/api-server run build
-      - name: Commit generated dist only
+      - run: pnpm install --frozen-lockfile --ignore-scripts --filter @workspace/api-server... --filter apex-finder-local... --registry=https://registry.npmjs.org/
+      - name: Canonicalize Investigator UI safety boundary
+        run: pnpm --dir artifacts/apex-finder run build --if-present
+      - name: Build generated API dist
+        run: pnpm --dir artifacts/api-server run build
+      - name: Commit canonical source and generated dist only
         run: |
           set -euo pipefail
-          if git diff --quiet -- artifacts/api-server/dist; then
-            echo "Generated dist already matches source."
+          if git diff --quiet; then
+            echo "Generated outputs and safety-boundary source already match the canonical build."
             exit 0
           fi
-          if git diff --name-only | grep -v '^artifacts/api-server/dist/' | grep -q .; then
-            echo "Build mutated files outside generated dist; refusing to commit them."
+          if git diff --name-only | grep -v -E '^(artifacts/api-server/dist/|artifacts/apex-finder/dist/|artifacts/apex-finder/src/pages/data-sources\.tsx)$' | grep -q .; then
+            echo "Build mutated files outside generated output and the narrow Investigator UI safety boundary; refusing to commit them."
             git diff --name-only
             exit 1
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add artifacts/api-server/dist
-          git commit -m "chore: sync generated API dist"
+          git add artifacts/api-server/dist artifacts/apex-finder/dist artifacts/apex-finder/src/pages/data-sources.tsx
+          git commit -m "chore: sync generated outputs and Investigator UI boundary"
           git push origin HEAD:main
