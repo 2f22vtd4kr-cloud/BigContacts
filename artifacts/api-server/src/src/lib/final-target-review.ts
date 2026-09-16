@@ -63,7 +63,7 @@ function collectEligibleRelatedValues(input: FinalTargetReviewInput): string[] {
 
 function collectEligibleRoleValues(input: FinalTargetReviewInput): string[] {
   const roles = input.candidates
-    .filter((candidate) => candidate.state !== "rejected" && candidate.conflictCount === 0 && candidate.vectorType === "role")
+    .filter((candidate) => candidate.state !== "rejected" && candidate.conflictCount === 0 && String(candidate.vectorType) === "role")
     .map((candidate) => candidate.value);
   roles.push(...input.evidence.filter((evidence) => evidence.vectorType === "role" && evidence.validationStatus === "supported").map((evidence) => evidence.value));
   return [...new Set(roles.filter(Boolean))];
