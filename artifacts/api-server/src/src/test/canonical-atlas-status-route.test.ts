@@ -9,24 +9,23 @@ function read(name: string): string {
 }
 
 describe("canonical Atlas status boundary", () => {
-  it("owns the live status path without restoring legacy Atlas execution", () => {
-    const status = read("research/canonical-atlas-status.ts");
+  it("keeps the retired legacy status path quarantined while canonical status uses the active job/trace surface", () => {
     const index = read("index.ts");
     const legacy = read("atlas.ts");
+    const quarantine = read("legacy-atlas-launch-quarantine.ts");
+    const statusPath = path.join(routesDir, "research/canonical-atlas-status.ts");
 
-    expect(status).toContain('router.get("/ingest/atlas-status"');
-    expect(status).toContain("getRecentDigSpans");
-    expect(status).toContain('res.setHeader("Cache-Control", "no-store")');
-    expect(status).not.toContain("runAtlasPipeline");
-    expect(status).not.toContain("runCanonicalAtlasPipeline");
-
-    const canonicalMount = index.indexOf('router.use(canonicalAtlasStatusRouter);');
-    const legacyQuarantine = index.indexOf('router.use(legacyAtlasLaunchQuarantine);');
-    expect(canonicalMount).toBeGreaterThanOrEqual(0);
-    expect(legacyQuarantine).toBeGreaterThanOrEqual(0);
-    expect(canonicalMount).toBeLessThan(legacyQuarantine);
-
-    expect(legacy).toContain('status(410)');
+    expect(fs.existsSync(statusPath)).toBe(false);
+    expect(index).not.toContain("canonical-atlas-status");
+    expect(index).toContain("legacyAtlasLaunchQuarantine");
+    expect(quarantine).toContain("status(410)");
     expect(legacy).not.toContain('router.get("/ingest/atlas-status"');
+    expect(legacy).toContain("status(410)");
+
+    const storePath = path.resolve(process.cwd(), "../apex-finder/src/lib/reactor-live-store.ts");
+    const store = fs.readFileSync(storePath, "utf8");
+    expect(store).toContain("job/active/atlas-run");
+    expect(store).toContain("atlas-trace/");
+    expect(store).not.toContain("fetch(\"/api/ingest/atlas-status");
   });
 });
