@@ -72,7 +72,7 @@ Never print or commit secret values.
 - Canonical 14 runtime keys listed above
 - Dig is **free ReAct**: no force-hop scripts, no invented people or contacts
 - Living handoff: **[docs/context.md](docs/context.md)**
-- Gemini Boss control-plane generation has bounded transient 5xx retry; provider capacity errors remain fail-closed after the bounded retry budget.
+- Gemini Boss control-plane generation has bounded transient 5xx retry; provider capacity errors remain fail-closed after that bounded retry budget.
 - Failed canonical discovery jobs reconcile their durable discovery case to an explicit error state instead of leaving a stale active case.
 
 ---
