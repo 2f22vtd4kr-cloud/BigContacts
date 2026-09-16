@@ -59,6 +59,7 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
         });
         finishedJob = await getJob(jobId);
         if (!isTransientGeminiCapacityFailure(finishedJob) || attempt >= maxTransientAttempts) break;
+        await setActiveJob("case-bureau-discovery", jobId).catch(() => undefined);
         await updateJob(jobId, { status: "queued", progress: 0, message: `Transient Gemini Boss capacity failure; bounded retry ${attempt + 1}/${maxTransientAttempts} after backoff.`, result: finishedJob?.result ?? undefined }).catch(() => undefined);
         await new Promise((resolve) => setTimeout(resolve, transientRetryDelayMs(attempt)));
       }
