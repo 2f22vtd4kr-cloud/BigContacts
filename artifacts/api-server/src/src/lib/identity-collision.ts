@@ -52,10 +52,6 @@ export function assessIdentityCollision(input: {
   const targetToks = identityNameTokens(input.targetName);
   const companyToks = identityNameTokens(input.companyName);
 
-  // Identity overlap is deliberately computed from explicit person/evidence
-  // text, not from URLs. A source URL is provenance, not a substitute for a
-  // model-authored person identity; otherwise a URL slug containing the target
-  // name could make an unrelated person appear to match.
   const identityBlob = [input.personName ?? "", input.value, input.note ?? ""].join(" ").toLowerCase();
   const sourceBlob = input.sourceUrls.join(" ").toLowerCase();
   const overlap = targetToks.filter((t) => identityBlob.includes(t));
@@ -76,24 +72,8 @@ export function assessIdentityCollision(input: {
     };
   }
 
-  // For a multi-token target, an explicit multi-token personName must actually
-  // align with the target. Evidence URLs cannot rescue a conflicting name.
-  if (targetToks.length >= 2 && input.personName?.trim()) {
-    if (personToks.length < 2 || personOverlap.length < 2) {
-      return {
-        risk: true,
-        identityMatch: 0.18,
-        reason: "explicit personName does not sufficiently align with target identity",
-      };
-    }
-  }
-
-  const hostHit = COLLISION_HOSTS.some((h) => hostBlob.includes(h));
-  const educationHostHit =
-    /^[a-z0-9._%+-]+@([a-z0-9.-]+)$/i.test(value)
-      ? INSTITUTIONAL_EDUCATION_HOSTS.some((marker) => hostBlob.includes(marker))
-      : false;
-
+  // Resolve explicit surname conflicts before the broader multi-token alignment
+  // guard so callers receive a precise collision reason when the surnames differ.
   if (targetToks.length >= 2 && personToks.length >= 2) {
     const targetSurname = targetToks[targetToks.length - 1]!;
     const personSurname = personToks[personToks.length - 1]!;
@@ -109,6 +89,22 @@ export function assessIdentityCollision(input: {
       };
     }
   }
+
+  if (targetToks.length >= 2 && input.personName?.trim()) {
+    if (personToks.length < 2 || personOverlap.length < 2) {
+      return {
+        risk: true,
+        identityMatch: 0.18,
+        reason: "explicit personName does not sufficiently align with target identity",
+      };
+    }
+  }
+
+  const hostHit = COLLISION_HOSTS.some((h) => hostBlob.includes(h));
+  const educationHostHit =
+    /^[a-z0-9._%+-]+@([a-z0-9.-]+)$/i.test(value)
+      ? INSTITUTIONAL_EDUCATION_HOSTS.some((marker) => hostBlob.includes(marker))
+      : false;
 
   if (contactLike && educationHostHit) {
     return {
