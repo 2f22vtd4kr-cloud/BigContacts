@@ -1,0 +1,39 @@
+name: One-time Investigator fallback cleanup
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  cleanup:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Remove sequential Investigator fallback
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('artifacts/api-server/src/src/lib/agentic-web-research.ts')
+          s = p.read_text()
+          start = s.find('const primary = await core.runAgenticWebResearch(discoveryInput);')
+          if start < 0:
+              raise SystemExit('fallback block start not found')
+          end_marker = ' } finally { clearTimeout(deadlineTimer); input.signal?.removeEventListener("abort", abortExternal); }'
+          end = s.find(end_marker, start)
+          if end < 0:
+              raise SystemExit('fallback block end not found')
+          replacement = 'const primary = await core.runAgenticWebResearch(discoveryInput); return { ...primary, executionId };'
+          block = s[start:end]
+          if 'TRANSPORT FALLBACK:' not in block or 'groq->mistral' not in block:
+              raise SystemExit('expected Groq->Mistral fallback not present; refusing mutation')
+          p.write_text(s[:start] + replacement + s[end:])
+          Path('.github/workflows/fix-agentic-fallback.yml').unlink()
+          PY
+      - name: Commit cleanup
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add artifacts/api-server/src/src/lib/agentic-web-research.ts .github/workflows/fix-agentic-fallback.yml
+          git commit -m 'fix: remove sequential Investigator provider fallback'
+          git push
