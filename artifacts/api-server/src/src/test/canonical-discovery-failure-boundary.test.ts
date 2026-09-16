@@ -20,4 +20,6 @@ describe("canonical discovery failure boundary", () => {
     expect(source).not.toContain("providerFallback: [\"groq->mistral\"");
     expect(source).toContain("const primary = await core.runAgenticWebResearch(discoveryInput); return { ...primary, executionId };");
   });
+
+  // This fixture intentionally stays tiny so the live proof is the only external-provider gate.
 });
