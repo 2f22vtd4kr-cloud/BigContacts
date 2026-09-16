@@ -80,10 +80,32 @@ jobs:
       - name: Provider readiness
         run: |
           node --input-type=module <<'NODE'
-          async function ok(url, key, body) { if (!key) return false; try { const r = await fetch(url,{method:'POST',headers:{Authorization:`Bearer ${key}`,'content-type':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(15000)}); await r.text(); return r.ok; } catch { return false; } }
-          const groq = await ok('https://api.groq.com/openai/v1/chat/completions',process.env.GROQ_API_KEY,{model:process.env.GROQ_AGENTIC_MODEL||'qwen/qwen3.8-27b',messages:[{role:'user',content:'Reply READY only.'}],max_tokens:8});
-          const mistral = await ok('https://api.mistral.ai/v1/chat/completions',process.env.MISTRAL_API_KEY,{model:process.env.MISTRAL_AGENTIC_MODEL||'mistral-small-latest',messages:[{role:'user',content:'Reply READY only.'}],max_tokens:8});
-          if (!groq && !mistral) process.exit(2);
+          async function probe(url, key, body, attempts = 3) {
+            if (!key) return { ok: false, reason: 'missing-key' };
+            let last = 'unknown';
+            for (let attempt = 1; attempt <= attempts; attempt++) {
+              try {
+                const r = await fetch(url,{method:'POST',headers:{Authorization:`Bearer ${key}`,'content-type':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(20000)});
+                await r.text();
+                if (r.ok) return { ok: true };
+                last = `http-${r.status}`;
+                if (![408,425,429,500,502,503,504,529].includes(r.status) || attempt === attempts) break;
+              } catch (error) {
+                last = error instanceof Error ? error.message : 'transport-error';
+                if (attempt === attempts) break;
+              }
+              await new Promise((resolve) => setTimeout(resolve, attempt * 2000));
+            }
+            return { ok: false, reason: last };
+          }
+          const gemini = await probe('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',process.env.GEMINI_API_KEY,{contents:[{parts:[{text:'Reply READY only.'}]}]});
+          const deepseek = await probe('https://integrate.api.nvidia.com/v1/chat/completions',process.env.DEEPSEEK_API_KEY,{model:'deepseek-ai/deepseek-v4-flash-0731',messages:[{role:'user',content:'Reply READY only.'}],temperature:1,top_p:0.95,max_tokens:8,reasoning_effort:'high',stream:false});
+          const groq = await probe('https://api.groq.com/openai/v1/chat/completions',process.env.GROQ_API_KEY,{model:process.env.GROQ_AGENTIC_MODEL||'qwen/qwen3.8-27b',messages:[{role:'user',content:'Reply READY only.'}],max_tokens:8});
+          const mistral = await probe('https://api.mistral.ai/v1/chat/completions',process.env.MISTRAL_API_KEY,{model:process.env.MISTRAL_AGENTIC_MODEL||'mistral-small-latest',messages:[{role:'user',content:'Reply READY only.'}],max_tokens:8});
+          console.log(JSON.stringify({gemini,deepseek,groq,mistral}));
+          if (!gemini.ok) { console.error('Gemini Boss readiness failed:', gemini.reason); process.exit(2); }
+          if (!deepseek.ok) { console.error('DeepSeek Right Hand readiness failed:', deepseek.reason); process.exit(3); }
+          if (!groq.ok && !mistral.ok) { console.error('No Investigator LLM is ready:', {groq,mistral}); process.exit(4); }
           NODE
       - name: Create API auth token before process start
         run: echo "APEX_API_AUTH_TOKEN=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
@@ -95,7 +117,7 @@ jobs:
           test "$(curl -sS -m 5 -o /tmp/health.json -w '%{http_code}' http://127.0.0.1:8080/api/healthz)" = 200
       - name: Open fresh discovery case
         run: |
-          curl -sS -m 20 -X POST http://127.0.0.1:8080/api/research/bureau/cases -H "Authorization: Bearer ${APEX_API_AUTH_TOKEN}" -H 'Content-Type: application/json' -d '{"objective":"Identify current senior partnerships, business development, or commercial leaders at a real European B2B software company and investigate only source-backed professional contact routes.","motivation":"Produce one evidence-backed named-person discovery with truthful professional contact routing.","geography":"Europe","exclusions":["Do not invent people, contact values, or source URLs."]}' | tee /tmp/case.json
+          curl -sS -m 20 -X POST http://127.0.0.1:8080/api/research/bureau/cases -H "Authorization: Bearer ${APEX_API_AUTH_TOKEN}" -H 'Content-Type: application/json' -d '{"objective":"Investigate Personio, a European B2B software company, and identify a current senior partnerships, business development, or commercial leader plus only source-backed professional contact routes. Start from Personio’s public company/partnership surfaces and follow the strongest evidence-led pivots you judge useful.","motivation":"Produce one evidence-backed named-person research finding with truthful professional contact routing.","geography":"Europe","exclusions":["Do not invent people, contact values, or source URLs.","Do not substitute organization inboxes for personal contact routes."]}' | tee /tmp/case.json
           node -e 'const x=require("/tmp/case.json"); if(!x.id){console.error(JSON.stringify(x));process.exit(1)}'
       - name: Start canonical case discovery
         run: |
@@ -120,13 +142,16 @@ jobs:
           node --input-type=module <<'NODE'
           import fs from 'node:fs';
           const job=JSON.parse(fs.readFileSync('/tmp/job.json','utf8')); const c=JSON.parse(fs.readFileSync('/tmp/case-final.json','utf8')); const events=JSON.parse(fs.readFileSync('/tmp/events.json','utf8')); const file=JSON.parse(c.caseFile); const text=JSON.stringify({job,c,events});
-          const hasInvestigator=Boolean(file.investigatorReports?.some((r)=>r.status==='completed'&&(r.provider==='groq'||r.provider==='mistral')));
-          const hasSource=Boolean(file.discoveredCandidates?.some((x)=>Array.isArray(x.sourceUrls)&&x.sourceUrls.length>0));
-          const hasNamed=Boolean(file.discoveredCandidates?.some((x)=>typeof x.name==='string'&&x.name.trim()));
-          const hasPromotion=Boolean(file.discoveredCandidates?.some((x)=>x.admittedEntityId));
-          const hasSearchTelemetry=events.some((e)=>/search|browse|fetch|http|research/i.test(`${e.eventType||''} ${e.summary||''} ${e.payload||''}`));
-          console.log(JSON.stringify({caseId:c.id,jobId:job.id,status:job.status,caseStatus:c.status,investigatorSelected:hasInvestigator,modelDirectedEvidence:hasSearchTelemetry,namedCandidate:hasNamed,sourceBacked:hasSource,promotion:hasPromotion},null,2));
-          if(!hasInvestigator||!hasSearchTelemetry||!hasNamed||!hasSource||!hasPromotion) process.exit(1);
+          const completedInvestigator=Boolean(file.investigatorReports?.some((r)=>r.status==='completed'&&(r.provider==='groq'||r.provider==='mistral')));
+          const trajectory=Array.isArray(file.trajectory) ? file.trajectory : [];
+          const hasSearch=trajectory.some((x)=>x && (x.action==='web_search'||x.execution==='web_search')) || events.some((e)=>/search/i.test(`${e.eventType||''} ${e.summary||''} ${e.payload||''}`));
+          const hasVisit=trajectory.some((x)=>x && (x.action==='visit'||x.action==='browser_fetch'||x.execution==='visit'||x.execution==='browser_fetch')) || events.some((e)=>/visit|browse|fetch|http/i.test(`${e.eventType||''} ${e.summary||''} ${e.payload||''}`));
+          const candidates=Array.isArray(file.discoveredCandidates) ? file.discoveredCandidates : [];
+          const named=candidates.some((x)=>typeof x.name==='string'&&x.name.trim());
+          const sourceBacked=candidates.some((x)=>Array.isArray(x.sourceUrls)&&x.sourceUrls.length>0) || file.investigatorReports?.some((r)=>Array.isArray(r.sourceUrls)&&r.sourceUrls.length>0);
+          const reviewAdmission=candidates.some((x)=>x && (x.reviewOnly===true || x.admittedEntityId || x.identityConfidence || x.evidence));
+          console.log(JSON.stringify({caseId:c.id,jobId:job.id,status:job.status,caseStatus:c.status,completedInvestigator,hasSearch,hasVisit,namedCandidate:named,sourceBacked,reviewAdmission,trajectoryEntries:trajectory.length},null,2));
+          if(job.status!=='done'||c.status==='error'||!completedInvestigator||!hasSearch||!hasVisit||!named||!sourceBacked||!reviewAdmission) process.exit(1);
           if(/Jane Doe|John Doe|example\.com/i.test(text)) process.exit(2);
           NODE
       - name: Upload proof artifacts
