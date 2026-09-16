@@ -1,0 +1,157 @@
+name: Apex Canonical Live Proof v3
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/apex-canonical-live-proof-v3.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: apex-canonical-live-proof-v3-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  live-proof:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      DATABASE_URL: postgresql://apex:apex_local_dev@127.0.0.1:5432/apex
+      REDIS_URL: redis://127.0.0.1:6379
+      PORT: 8080
+      ENABLE_AUTO_PIPELINE: "false"
+      NODE_ENV: development
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+      MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
+      DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+      SERPER_API_KEY: ${{ secrets.SERPER_API_KEY }}
+      TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
+      EXA_API_KEY: ${{ secrets.EXA_API_KEY }}
+      SCRAPFLY_API_KEY: ${{ secrets.SCRAPFLY_API_KEY }}
+      ZENROWS_API_KEY: ${{ secrets.ZENROWS_API_KEY }}
+      COMPANIES_HOUSE_API_KEY: ${{ secrets.COMPANIES_HOUSE_API_KEY }}
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      WHOISJSON_API_KEY: ${{ secrets.WHOISJSON_API_KEY }}
+      RESEARCH_DEPTH: standard
+      APEX_SKIP_SEMANTIC: "1"
+      APEX_AGENTIC_CONCURRENCY: "1"
+      APEX_AGENTIC_PROVIDER_CONCURRENCY: "1"
+      AGENTIC_PROVIDER_DECISION_TIMEOUT_MS: "55000"
+      GROQ_AGENTIC_MIN_INTERVAL_MS: "30000"
+      NODE_OPTIONS: --max-old-space-size=1536
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org/
+      - run: npm install -g pnpm@9.15.9
+      - run: pnpm install --frozen-lockfile --ignore-scripts --fetch-retries=8 --fetch-timeout=120000 --filter @workspace/api-server... --registry=https://registry.npmjs.org/
+      - name: Install local services
+        run: |
+          sudo apt-get update -qq
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq postgresql redis-server
+          sudo service postgresql start
+          sudo service redis-server start
+          sudo -u postgres psql -c "CREATE USER apex WITH PASSWORD 'apex_local_dev' SUPERUSER;" || true
+          sudo -u postgres psql -c "CREATE DATABASE apex OWNER apex;" || true
+      - name: Schema and build
+        run: |
+          cd lib/db && npx drizzle-kit push --config ./drizzle.config.ts && cd ../../
+          pnpm --dir artifacts/api-server run build
+      - name: Static and focused gates
+        run: |
+          pnpm run check:no-force-dig
+          pnpm run check:free-react
+          pnpm run check:trajectory
+          pnpm run check:agentic-runtime
+          pnpm run check:comparison-contract
+          node scripts/check-agentic-timeout.mjs
+          node scripts/check-workflow-action-pins.mjs
+          pnpm --dir artifacts/api-server exec vitest run src/src/test/gemini-transient-retry.test.ts src/src/test/discovery-agent-parse.test.ts src/src/test/discovery-runtime-correctness.test.ts src/src/test/agentic-scope-boundary.test.ts src/src/test/agentic-source-provenance.test.ts --maxWorkers=1
+      - name: Provider readiness
+        run: |
+          node --input-type=module <<'NODE'
+          async function ok(url, key, body) {
+            if (!key) return false;
+            try { const r = await fetch(url,{method:'POST',headers:{Authorization:`Bearer ${key}`,'content-type':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(15000)}); await r.text(); return r.ok; } catch { return false; }
+          }
+          const groq = await ok('https://api.groq.com/openai/v1/chat/completions',process.env.GROQ_API_KEY,{model:process.env.GROQ_AGENTIC_MODEL||'qwen/qwen3.8-27b',messages:[{role:'user',content:'Reply READY only.'}],max_tokens:8});
+          const mistral = await ok('https://api.mistral.ai/v1/chat/completions',process.env.MISTRAL_API_KEY,{model:process.env.MISTRAL_AGENTIC_MODEL||'mistral-small-latest',messages:[{role:'user',content:'Reply READY only.'}],max_tokens:8});
+          if (!groq && !mistral) process.exit(2);
+          NODE
+      - name: Create API auth token before process start
+        run: echo "APEX_API_AUTH_TOKEN=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
+      - name: Start API
+        run: |
+          redis-cli ping
+          node artifacts/api-server/dist/index.mjs > /tmp/apex-api.log 2>&1 &
+          for i in $(seq 1 45); do sleep 1; test "$(curl -sS -m 2 -o /tmp/health.json -w '%{http_code}' http://127.0.0.1:8080/api/healthz || true)" = 200 && break; done
+          test "$(curl -sS -m 5 -o /tmp/health.json -w '%{http_code}' http://127.0.0.1:8080/api/healthz)" = 200
+      - name: Open fresh discovery case
+        run: |
+          curl -sS -m 20 -X POST http://127.0.0.1:8080/api/research/bureau/cases \
+            -H "Authorization: Bearer ${APEX_API_AUTH_TOKEN}" -H 'Content-Type: application/json' \
+            -d '{"objective":"Identify current senior partnerships, business development, or commercial leaders at a real European B2B software company and investigate only source-backed professional contact routes.","motivation":"Produce one evidence-backed named-person discovery with truthful professional contact routing.","geography":"Europe","exclusions":["Do not invent people, contact values, or source URLs."]}' | tee /tmp/case.json
+          node -e 'const x=require("/tmp/case.json"); if(!x.id){console.error(JSON.stringify(x));process.exit(1)}; console.log(`case=${x.id}`)'
+      - name: Start canonical case discovery
+        run: |
+          CASE_ID=$(node -e 'console.log(require("/tmp/case.json").id)')
+          curl -sS -m 20 -X POST "http://127.0.0.1:8080/api/research/bureau/cases/${CASE_ID}/run-discovery" \
+            -H "Authorization: Bearer ${APEX_API_AUTH_TOKEN}" -H 'Content-Type: application/json' -d '{}' | tee /tmp/run.json
+          node -e 'const x=require("/tmp/run.json"); if(!x.jobId){console.error(JSON.stringify(x));process.exit(1)}; console.log(`job=${x.jobId}`)'
+      - name: Poll canonical discovery job
+        run: |
+          JOB_ID=$(node -e 'console.log(require("/tmp/run.json").jobId)')
+          CASE_ID=$(node -e 'console.log(require("/tmp/case.json").id)')
+          for i in $(seq 1 900); do
+            sleep 5
+            curl -sS -m 10 -H "Authorization: Bearer ${APEX_API_AUTH_TOKEN}" "http://127.0.0.1:8080/api/ingest/job/${JOB_ID}" > /tmp/job.json || true
+            STATUS=$(node -e 'const fs=require("fs");try{process.stdout.write(String(JSON.parse(fs.readFileSync("/tmp/job.json","utf8")).status||""))}catch{}')
+            echo "job=${JOB_ID} status=${STATUS}"
+            case "$STATUS" in done) break;; failed|cancelled) cat /tmp/job.json; exit 1;; esac
+          done
+          test "$STATUS" = done
+          curl -sS -m 10 -H "Authorization: Bearer ${APEX_API_AUTH_TOKEN}" "http://127.0.0.1:8080/api/research/bureau/cases/${CASE_ID}" > /tmp/case-final.json
+          curl -sS -m 10 -H "Authorization: Bearer ${APEX_API_AUTH_TOKEN}" "http://127.0.0.1:8080/api/research/bureau/cases/${CASE_ID}/events?limit=200" > /tmp/events.json
+      - name: Enforce genuine live evidence gate
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const job=JSON.parse(fs.readFileSync('/tmp/job.json','utf8'));
+          const c=JSON.parse(fs.readFileSync('/tmp/case-final.json','utf8'));
+          const events=JSON.parse(fs.readFileSync('/tmp/events.json','utf8'));
+          const file=JSON.parse(c.caseFile);
+          const text=JSON.stringify({job,c,events});
+          const hasInvestigator=Boolean(file.investigatorReports?.some((r)=>r.status==='completed' && (r.provider==='groq'||r.provider==='mistral')));
+          const hasSource=Boolean(file.discoveredCandidates?.some((x)=>Array.isArray(x.sourceUrls)&&x.sourceUrls.length>0));
+          const hasNamed=Boolean(file.discoveredCandidates?.some((x)=>typeof x.name==='string'&&x.name.trim().length>0));
+          const hasPromotion=Boolean(file.discoveredCandidates?.some((x)=>x.admittedEntityId));
+          const hasSearchTelemetry=events.some((e)=>/search|browse|fetch|http|research/i.test(`${e.eventType||''} ${e.summary||''} ${e.payload||''}`));
+          console.log(JSON.stringify({caseId:c.id,jobId:job.id,status:job.status,caseStatus:c.status,investigatorSelected:hasInvestigator,modelDirectedEvidence:hasSearchTelemetry,namedCandidate:hasNamed,sourceBacked:hasSource,promotion:hasPromotion},null,2));
+          if(!hasInvestigator||!hasSearchTelemetry||!hasNamed||!hasSource||!hasPromotion){
+            console.error('LIVE PROOF GATE FAILED: Investigator trajectory, genuine source evidence, named candidate, or promotion was not durably observed.');
+            process.exit(1);
+          }
+          if(/Jane Doe|John Doe|example\.com/i.test(text)){ console.error('Synthetic/example data detected in live state.'); process.exit(1); }
+          NODE
+      - name: Upload proof artifacts
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: apex-canonical-live-proof-v3
+          path: |
+            /tmp/case.json
+            /tmp/run.json
+            /tmp/job.json
+            /tmp/case-final.json
+            /tmp/events.json
+            /tmp/health.json
+            /tmp/apex-api.log
+          if-no-files-found: ignore
