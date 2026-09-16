@@ -21,7 +21,7 @@ jobs:
     env:
       DATABASE_URL: postgresql://apex:apex_local_dev@127.0.0.1:5432/apex
       REDIS_URL: redis://127.0.0.1:6379
-      REDIS_URL_1: ${{ secrets.REDIS_URL_1 }}
+      REDIS_URL_1: redis://127.0.0.1:6379
       PORT: 8080
       ENABLE_AUTO_PIPELINE: "false"
       NODE_ENV: development
