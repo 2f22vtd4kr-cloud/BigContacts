@@ -4,6 +4,7 @@ import { runHolehe, runMaigret, runSherlock, runTheHarvester, runOpenDeepResearc
 const QUARANTINE_ERROR =
   "No trusted Apex Python sandbox attestation is installed; network-capable Python remains fail-closed.";
 
+// Network-capable Python stays explicitly quarantined until a trusted sandbox attestation exists.
 describe("Python OSINT source boundary", () => {
   it("fails closed before Holehe can start a network-capable subprocess", async () => {
     const result = await runHolehe("person@example.com");
