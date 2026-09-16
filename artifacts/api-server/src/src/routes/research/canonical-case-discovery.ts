@@ -43,7 +43,8 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
   void (async () => {
     try {
       const maxTransientAttempts = 3;
-      let finishedJob = await getJob(jobId);
+      const finishedJob = await getJob(jobId);
+      let latestJob = finishedJob;
       for (let attempt = 1; attempt <= maxTransientAttempts; attempt += 1) {
         await runCanonicalAtlasPipeline(jobId, {
           targetCount: 1,
@@ -57,15 +58,15 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
           discoveryExclusions: Array.isArray(file.humanBrief?.exclusions) ? file.humanBrief.exclusions : [],
           lockKey: "case-bureau-discovery",
         });
-        finishedJob = await getJob(jobId);
-        if (!isTransientGeminiCapacityFailure(finishedJob) || attempt >= maxTransientAttempts) break;
+        latestJob = await getJob(jobId);
+        if (!isTransientGeminiCapacityFailure(latestJob) || attempt >= maxTransientAttempts) break;
         await setActiveJob("case-bureau-discovery", jobId).catch(() => undefined);
-        await updateJob(jobId, { status: "queued", progress: 0, message: `Transient Gemini Boss capacity failure; bounded retry ${attempt + 1}/${maxTransientAttempts} after backoff.`, result: finishedJob?.result ?? undefined }).catch(() => undefined);
+        await updateJob(jobId, { status: "queued", progress: 0, message: `Transient Gemini Boss capacity failure; bounded retry ${attempt + 1}/${maxTransientAttempts} after backoff.`, result: latestJob?.result ?? undefined }).catch(() => undefined);
         await new Promise((resolve) => setTimeout(resolve, transientRetryDelayMs(attempt)));
       }
-      finishedJob = await getJob(jobId);
+      latestJob = await getJob(jobId);
       let discoveryStatus: string | null = null; let discoveryError: string | null = null;
-      if (finishedJob?.result) { try { const result = JSON.parse(finishedJob.result) as { discovery?: { status?: unknown; error?: unknown } }; discoveryStatus = typeof result.discovery?.status === "string" ? result.discovery.status : null; discoveryError = typeof result.discovery?.error === "string" ? result.discovery.error : null; } catch { discoveryStatus = null; } }
+      if (latestJob?.result) { try { const result = JSON.parse(latestJob.result) as { discovery?: { status?: unknown; error?: unknown } }; discoveryStatus = typeof result.discovery?.status === "string" ? result.discovery.status : null; discoveryError = typeof result.discovery?.error === "string" ? result.discovery.error : null; } catch { discoveryStatus = null; } }
       if (discoveryStatus !== "completed") {
         const message = discoveryError ? `Canonical discovery Investigator pass did not complete: ${discoveryError}` : `Canonical discovery Investigator pass did not complete (status=${discoveryStatus ?? "unknown"}).`;
         await updateJob(jobId, { status: "failed", outcome: "incomplete", message, finishedAt: new Date().toISOString() }).catch(() => undefined);
