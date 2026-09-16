@@ -14,20 +14,32 @@ describe("SSRF outbound boundary", () => {
       "203.0.113.1",
       "224.0.0.1",
       "::1",
+      "::",
       "fd00::1",
       "fe80::1",
       "ff02::1",
       "2001:db8::1",
+      "2001:2::1",
+      "2001:10::1",
+      "2001::1",
+      "2002:c000:0201::1",
+      "3fff::1",
+      "5f00::1",
+      "100::1",
+      "100:0:0:1::1",
+      "64:ff9b:1::1",
       "::ffff:127.0.0.1",
       "::ffff:7f00:1",
       "0:0:0:0:0:ffff:7f00:1",
+      "0:0:0:0:0:ffff:0a00:1",
+      "::ffff:a9fe:a9fe",
     ]) {
       expect(isBlockedOutboundIpForTest(ip), ip).toBe(true);
     }
   });
 
   it("allows representative public addresses, including dotted IPv4-mapped IPv6", () => {
-    for (const ip of ["8.8.8.8", "1.1.1.1", "93.184.216.34", "2001:4860:4860::8888", "::ffff:8.8.8.8"]) {
+    for (const ip of ["8.8.8.8", "1.1.1.1", "93.184.216.34", "2001:4860:4860::8888", "2001:3::1", "2001:20::1", "::ffff:8.8.8.8", "100:1::1"]) {
       expect(isBlockedOutboundIpForTest(ip), ip).toBe(false);
     }
   });
