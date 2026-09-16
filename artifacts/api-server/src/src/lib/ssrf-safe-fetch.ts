@@ -57,7 +57,7 @@ function isBlockedIp(address: string): boolean {
     if (compact === "::1" || compact === "::") return true;
     const mappedIpv4 = mappedIpv4FromIpv6(compact);
     if (mappedIpv4 && isBlockedIp(mappedIpv4)) return true;
-    if (/^ff/i.test(compact) || /^fe[89ab]/i.test(compact) || /^(fc|fd)/i.test(compact) || /^2001:db8:/i.test(compact) || /^2001:2:/i.test(compact) || /^2001:10:/i.test(compact) || /^2001::/i.test(compact) || /^2002:/i.test(compact) || /^3fff:/i.test(compact) || /^5f[0-9a-f]{2}:/i.test(compact) || /^100:/i.test(compact)) return true;
+    if (/^ff/i.test(compact) || /^fe[89ab]/i.test(compact) || /^(fc|fd)/i.test(compact) || /^2001:db8:/i.test(compact) || /^2001:2:/i.test(compact) || /^2001:10:/i.test(compact) || /^2001::/i.test(compact) || /^2002:/i.test(compact) || /^3fff:/i.test(compact) || /^5f[0-9a-f]{2}:/i.test(compact) || /^100:0:0:0:/i.test(compact) || /^100:0:0:1:/i.test(compact)) return true;
     if (/^64:ff9b:1:/i.test(compact)) return true;
     return false;
   }
