@@ -42,8 +42,6 @@ assert(/Compatibility shim only/.test(shim) && /export \* from "\.\.\/\.\.\/api-
 assert(/RETIRED:/.test(hardener) && /must not mutate Apex source/.test(hardener), "historical concurrency hardener remains non-executable");
 assert(!/push\(`PERSON:/.test(hardener), "retired hardener does not manufacture PERSON findings");
 
-// DeepSeek is the mandatory Right Hand in production. Keep its transport contract
-// explicit in the source guard so a coordination checker cannot silently drift.
 assert(/deepseek-ai\/deepseek-v4-flash-0731/.test(rightHand), "DeepSeek production model is canonical");
 assert(/https:\/\/integrate\.api\.nvidia\.com\/v1\/chat\/completions/.test(rightHand), "DeepSeek production endpoint is canonical");
 assert(/temperature:\s*1/.test(rightHand) && !/top_p:\s*0\.95/.test(rightHand), "DeepSeek production sampling contract matches NVIDIA guidance");
@@ -52,12 +50,12 @@ assert(/reasoning_effort:\s*\"high\"/.test(rightHand) && /stream:\s*false/.test(
 assert(/response\.status === 202/.test(rightHand) && /integrate\.api\.nvidia\.com\/v1\/status\//.test(rightHand), "DeepSeek production client polls NVIDIA asynchronous 202 responses");
 assert(!/response_format/.test(rightHand), "DeepSeek production client does not send unsupported response_format");
 
-// Static contract only: the live proof must contain a real runtime/evidence gate.
-// The actual external-provider result belongs to the live-proof job, not this source guard.
 assert(/Provider readiness/.test(workflow), "canonical live proof performs provider readiness");
 assert(/generativelanguage\.googleapis\.com/.test(workflow) && /integrate\.api\.nvidia\.com/.test(workflow), "canonical live proof covers mandatory Gemini and DeepSeek control-plane providers");
 assert(/api\.groq\.com\/openai\/v1\/chat\/completions/.test(workflow) && /api\.mistral\.ai\/v1\/chat\/completions/.test(workflow), "canonical live proof covers the explicit Investigator provider pool");
-assert(/Reply READY only\./.test(workflow) && /max_tokens:8/.test(workflow), "provider readiness is a bounded generation, not a research strategy");
+assert(/Reply READY only\./.test(workflow) && /max_tokens:64/.test(workflow), "provider readiness uses a bounded non-thinking DeepSeek probe");
+assert(/reasoning_effort:'none'/.test(workflow) && !/deepseek[\s\S]{0,500}top_p:0\.95/.test(workflow), "DeepSeek live probe does not waste readiness budget on reasoning or dual sampling controls");
+assert(/deepseekReady/.test(workflow) && /text\.includes\('READY'\)/.test(workflow), "DeepSeek readiness validates actual generated content");
 assert(/v1\/status\//.test(workflow) && /r\.status === 202/.test(workflow), "live proof polls asynchronous NVIDIA readiness responses");
 assert(/Open fresh discovery case/.test(workflow) && /POST http:\/\/127\.0\.0\.1:8080\/api\/research\/bureau\/cases/.test(workflow), "canonical live proof opens a real durable discovery case");
 assert(/Start canonical case discovery/.test(workflow) && /\/run-discovery/.test(workflow), "canonical live proof invokes the canonical discovery route");
