@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
 
-const sourcePath = path.resolve(process.cwd(), "src/lib/bureau-live-log.ts");
+const sourcePath = path.resolve(process.cwd(), "src/src/lib/bureau-live-log.ts");
 
 describe("Bureau live mirror concurrency contract", () => {
   it("keeps suppression and rate-limit state scoped per Atlas job", () => {
