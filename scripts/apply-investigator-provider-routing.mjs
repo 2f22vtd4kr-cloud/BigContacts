@@ -38,9 +38,9 @@ const availabilityGuard = `const configuredInvestigatorProviders = [
     process.env.MISTRAL_API_KEY ? "mistral" : null,
   ].filter((value): value is "groq" | "mistral" => value !== null);
   const investigatorAvailabilityInstruction = configuredInvestigatorProviders.length > 0
-    ? `\n\nCAPABILITY AVAILABILITY: only these Investigator adapters are configured and usable for this run: ${configuredInvestigatorProviders.join(", ")}. Gemini must select one of these already-allowlisted Investigator adapters. This is a transport/capability constraint, not a research preference; do not rank providers or choose a research trajectory from it.`
+    ? \`\\n\\nCAPABILITY AVAILABILITY: only these Investigator adapters are configured and usable for this run: \${configuredInvestigatorProviders.join(", ")}. Gemini must select one of these already-allowlisted Investigator adapters. This is a transport/capability constraint, not a research preference; do not rank providers or choose a research trajectory from it.\`
     : "\\n\\nCAPABILITY AVAILABILITY: no Investigator adapter is configured. Return investigatorLlm=null and fail closed.";
-  const prompt = `${buildBossOpeningPrompt(input)}${investigatorAvailabilityInstruction}`;
+  const prompt = \`\${buildBossOpeningPrompt(input)}\${investigatorAvailabilityInstruction}\`;
 `;
 
 if (!caseBureau.includes("const configuredInvestigatorProviders = [")) {
