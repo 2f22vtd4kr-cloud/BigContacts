@@ -85,7 +85,7 @@ async function requestDeepSeekCompletion(
         top_p: 0.95,
         // Right-hand output is intentionally bounded: its job is strategic
         // diagnosis, not to consume an investigator-sized reasoning budget.
-        max_tokens: 4096,
+        max_tokens: 16384,
         reasoning_effort: "high",
         ...(options.responseFormat ? { response_format: options.responseFormat } : {}),
         stream: false,
