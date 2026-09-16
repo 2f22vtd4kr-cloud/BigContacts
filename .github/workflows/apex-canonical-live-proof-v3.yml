@@ -1,6 +1,4 @@
 name: Apex Canonical Live Proof v3
-# Re-run this proof whenever the canonical provider/runtime transform changes.
-
 on:
   push:
     branches: [main]
@@ -9,14 +7,11 @@ on:
       - "scripts/apply-investigator-provider-routing.mjs"
       - "artifacts/api-server/src/src/lib/agentic-web-research.ts"
   workflow_dispatch:
-
 permissions:
   contents: read
-
 concurrency:
   group: apex-canonical-live-proof-v3-${{ github.ref }}
   cancel-in-progress: false
-
 jobs:
   live-proof:
     runs-on: ubuntu-latest
@@ -79,14 +74,11 @@ jobs:
           pnpm run check:comparison-contract
           node scripts/check-agentic-timeout.mjs
           node scripts/check-workflow-action-pins.mjs
-          pnpm --dir artifacts/api-server exec vitest run src/src/test/gemini-transient-retry.test.ts src/src/test/discovery-agent-parse.test.test.ts src/src/test/discovery-runtime-correctness.test.ts src/src/test/agentic-scope-boundary.test.ts src/src/test/agentic-source-provenance.test.ts --maxWorkers=1
+          pnpm --dir artifacts/api-server exec vitest run src/src/test/gemini-transient-retry.test.ts src/src/test/discovery-agent-parse.test.ts src/src/test/discovery-runtime-correctness.test.ts src/src/test/agentic-scope-boundary.test.ts src/src/test/agentic-source-provenance.test.ts --maxWorkers=1
       - name: Provider readiness
         run: |
           node --input-type=module <<'NODE'
-          async function ok(url, key, body) {
-            if (!key) return false;
-            try { const r = await fetch(url,{method:'POST',headers:{Authorization:`Bearer ${key}`,'content-type':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(15000)}); await r.text(); return r.ok; } catch { return false; }
-          }
+          async function ok(url, key, body) { if (!key) return false; try { const r = await fetch(url,{method:'POST',headers:{Authorization:`Bearer ${key}`,'content-type':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(15000)}); await r.text(); return r.ok; } catch { return false; } }
           const groq = await ok('https://api.groq.com/openai/v1/chat/completions',process.env.GROQ_API_KEY,{model:process.env.GROQ_AGENTIC_MODEL||'qwen/qwen3.8-27b',messages:[{role:'user',content:'Reply READY only.'}],max_tokens:8});
           const mistral = await ok('https://api.mistral.ai/v1/chat/completions',process.env.MISTRAL_API_KEY,{model:process.env.MISTRAL_AGENTIC_MODEL||'mistral-small-latest',messages:[{role:'user',content:'Reply READY only.'}],max_tokens:8});
           if (!groq && !mistral) process.exit(2);
