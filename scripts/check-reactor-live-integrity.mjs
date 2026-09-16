@@ -57,7 +57,7 @@ const checks = [
   ["browser scene labels an actual recorded action", /Actual research action/.test(surface)],
   ["recorded input is explicitly labelled", /Recorded action input/.test(surface)],
   ["source links come from event evidence", /sourceList\(event\)/.test(surface)],
-  ["topology only claims observed nodes and hand-offs", /Nodes appear when the Bureau actually records that lane/.test(surface) && /observed hand-offs/.test(surface)],
+  ["topology only claims observed nodes and explicit hand-offs", /Nodes appear when the Bureau actually records that lane/.test(surface) && /explicit recorded span parentage/.test(surface)],
   ["topology edges require explicit recorded parentage", /if\(!e\.parentId\)return \[\];/.test(surface) && /const parent=byId\.get\(e\.parentId\)/.test(surface) && !/events\.map\(\(e,i\).*events\[i\+1\]/.test(surface)],
   ["supplemental Bureau polling fences stale responses", /let generation = 0/.test(hook) && /myGeneration !== generation/.test(hook) && /controller === myController/.test(hook)],
   ["desktop/mobile legacy stage remains evidence-aware", /sourceUrls|links/.test(bureau)],
