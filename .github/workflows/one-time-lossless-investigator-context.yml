@@ -10,40 +10,81 @@ permissions:
 
 jobs:
   patch:
-    if: startsWith(github.event.head_commit.message, 'Remove scripted investigator search angles')
+    if: startsWith(github.event.head_commit.message, 'Apply lossless Investigator context')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Remove lossy Investigator context caps
+      - name: Remove lossy Investigator context and observation caps
         shell: python
         run: |
           from pathlib import Path
-
           path = Path('artifacts/api-server/src/src/lib/agentic-web-research-core.ts')
           text = path.read_text()
           replacements = {
-              'const MAX_ITER = 40; const MAX_OBS = 5_000; const MAX_NETWORK_RESPONSE_BYTES = 2_000_000; const MAX_TRAJECTORY_RECORDS = 100;':
+            'const MAX_ITER = 40; const MAX_OBS = 5_000; const MAX_NETWORK_RESPONSE_BYTES = 2_000_000; const MAX_TRAJECTORY_RECORDS = 100;':
               'const MAX_ITER = Number.POSITIVE_INFINITY; const MAX_OBS = Number.POSITIVE_INFINITY; const MAX_NETWORK_RESPONSE_BYTES = 2_000_000; const MAX_TRAJECTORY_RECORDS = Number.POSITIVE_INFINITY;',
-              'records.slice(-MAX_TRAJECTORY_RECORDS)': 'records',
-              'findings.slice(-12)': 'findings',
-              'input.history.slice(-10)': 'input.history',
-              'input.lastObservation.slice(0, 4000)': 'input.lastObservation',
-              'input.objective.slice(0, 4500)': 'input.objective',
-              'return [...new Set(facts)].slice(0, 60);': 'return [...new Set(facts)];',
-              '.slice(0, MAX_OBS + 800)': '',
-              '.slice(0, MAX_OBS + 1800)': '',
-              '.slice(0, MAX_OBS)': '',
+            'return typeof value === "string" ? value.trim().slice(0, max) : "";':
+              'return typeof value === "string" ? value.trim() : "";',
+            'return [...new Set(facts)].slice(0, 60);':
+              'return [...new Set(facts)];',
+            '.map((r) => normalizedUrl(r.link || "")).filter((u): u is string => Boolean(u)).slice(0, 10);':
+              '.map((r) => normalizedUrl(r.link || "")).filter((u): u is string => Boolean(u));',
+            '.map((r) => normalizedUrl(r.url || "")).filter((u): u is string => Boolean(u)).slice(0, 10);':
+              '.map((r) => normalizedUrl(r.url || "")).filter((u): u is string => Boolean(u));',
+            'filterPassagesForQuery((data.organic || []).map((r) => `${r.title || ""}\\nURL: ${r.link || ""}\\n${r.snippet || ""}`).join("\\n"), query, { maxChars: MAX_OBS })':
+              '(data.organic || []).map((r) => `${r.title || ""}\\nURL: ${r.link || ""}\\n${r.snippet || ""}`).join("\\n")',
+            'filterPassagesForQuery([data.answer || "", ...(data.results || []).map((r) => `${r.title || ""}\\nURL: ${r.url || ""}\\n${r.content || ""}`)].join("\\n"), query, { maxChars: MAX_OBS })':
+              '[data.answer || "", ...(data.results || []).map((r) => `${r.title || ""}\\nURL: ${r.url || ""}\\n${r.content || ""}`)].join("\\n")',
+            'filterPassagesForQuery((data.results || []).map((r) => `${r.title || ""}\\nURL: ${r.url || ""}\\n${r.text || ""}`).join("\\n"), query, { maxChars: MAX_OBS })':
+              '(data.results || []).map((r) => `${r.title || ""}\\nURL: ${r.url || ""}\\n${r.text || ""}`).join("\\n")',
+            'filterPassagesForQuery(stripHtml(raw), url, { maxChars: MAX_OBS, minScore: 0.02 })':
+              'stripHtml(raw)',
+            'return { observation: `${facts.length ? `CONTACT FACTS (observed, not attributed):\\n${facts.join("\\n")}\\n\\n` : ""}PAGE ${url}\\n${body}`.slice(0, MAX_OBS + 1800), status: "success", observedUrl: normalizedUrl(url) };':
+              'return { observation: `${facts.length ? `CONTACT FACTS (observed, not attributed):\\n${facts.join("\\n")}\\n\\n` : ""}PAGE ${url}\\n${body}`, status: "success", observedUrl: normalizedUrl(url) };',
+            'return resultBase(status, iterations, stopReason, error);':
+              'return resultBase(status, iterations, stopReason, error);',
+            'records.slice(-MAX_TRAJECTORY_RECORDS)':
+              'records',
+            'findings.slice(-12)':
+              'findings',
+            'input.objective.slice(0, 4500)':
+              'input.objective',
+            'input.history.slice(-10).join("\\n")':
+              'input.history.join("\\n")',
+            'input.lastObservation.slice(0, 4000)':
+              'input.lastObservation',
           }
           for old, new in replacements.items():
-              count = text.count(old)
-              if count == 0:
-                  raise SystemExit(f'missing expected source pattern: {old}')
-              text = text.replace(old, new)
+            if old == new:
+              continue
+            count = text.count(old)
+            if count == 0:
+              raise SystemExit(f'missing expected source pattern: {old}')
+            text = text.replace(old, new)
+
+          marker = 'function buildStepPrompt(input: { targetName: string; companyName?: string | null; objective: string; history: string[]; lastObservation: string; findings: AgenticFinding[]; mode?: "target" | "discovery" }): string {'
+          replacement_marker = 'function buildStepPrompt(input: { targetName: string; companyName?: string | null; objective: string; history: string[]; trajectoryRecords: AgenticTrajectoryRecord[]; lastObservation: string; findings: AgenticFinding[]; mode?: "target" | "discovery" }): string {'
+          if marker not in text:
+            raise SystemExit('buildStepPrompt signature not found')
+          text = text.replace(marker, replacement_marker, 1)
+
+          old_trajectory = '${input.history.join("\\n") || "(no prior actions)"}'
+          new_trajectory = '${input.trajectoryRecords.map((r) => JSON.stringify({ turn: r.turn, model: r.model, action: r.action, args: r.args, thought: r.thought, execution: r.execution, observation: r.observation, observedUrls: r.observedUrls, findings: r.findings, providerFallback: r.providerFallback, stopReason: r.stopReason })).join("\\n") || input.history.join("\\n") || "(no prior actions)"}'
+          if old_trajectory not in text:
+            raise SystemExit('trajectory prompt expression not found')
+          text = text.replace(old_trajectory, new_trajectory, 1)
+
+          old_call = 'buildStepPrompt({ targetName: name || "", companyName: input.companyName, objective, history, lastObservation, findings, mode: input.mode })'
+          new_call = 'buildStepPrompt({ targetName: name || "", companyName: input.companyName, objective, history, trajectoryRecords: records, lastObservation, findings, mode: input.mode })'
+          if old_call not in text:
+            raise SystemExit('buildStepPrompt call not found')
+          text = text.replace(old_call, new_call, 1)
+
           path.write_text(text)
-      - name: Verify no lossy core context caps remain
+      - name: Verify lossless trajectory/context invariants
         run: |
-          grep -nE 'slice\(-10\)|slice\(-12\)|slice\(0, 4000\)|slice\(0, 4500\)|MAX_OBS = 5_000|MAX_TRAJECTORY_RECORDS = 100' artifacts/api-server/src/src/lib/agentic-web-research-core.ts && exit 1 || true
-          grep -n 'Number.POSITIVE_INFINITY' artifacts/api-server/src/src/lib/agentic-web-research-core.ts
+          ! grep -nE 'MAX_ITER = 40|MAX_OBS = 5_000|MAX_TRAJECTORY_RECORDS = 100|slice\(-10\)|slice\(-12\)|slice\(0, 4000\)|slice\(0, 4500\)' artifacts/api-server/src/src/lib/agentic-web-research-core.ts
+          grep -n 'trajectoryRecords' artifacts/api-server/src/src/lib/agentic-web-research-core.ts
       - name: Commit source patch and remove one-time workflow
         run: |
           git config user.name 'github-actions[bot]'
