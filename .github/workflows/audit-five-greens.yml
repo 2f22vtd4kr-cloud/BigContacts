@@ -1,6 +1,7 @@
 # Canonical five-green gate: five consecutive fresh full-codebase audits.
 # Certification runs are intentionally push-triggered on the authoritative branch so every fresh tree can earn a new 5/5 streak.
 # Each audit is a fresh checkout of the authoritative branch; the audit itself never patches source.
+# The certification gate itself is part of the final verification tree.
 name: Five Green Complete Codebase Audit
 
 on:
