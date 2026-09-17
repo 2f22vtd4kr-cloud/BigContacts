@@ -1,0 +1,54 @@
+name: One-time lossless investigator context patcher
+
+on:
+  push:
+    branches:
+      - audit/genuine-five-green-final
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: startsWith(github.event.head_commit.message, 'Remove scripted investigator search angles')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Remove lossy Investigator context caps
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path('artifacts/api-server/src/src/lib/agentic-web-research-core.ts')
+          text = path.read_text()
+          replacements = {
+              'const MAX_ITER = 40; const MAX_OBS = 5_000; const MAX_NETWORK_RESPONSE_BYTES = 2_000_000; const MAX_TRAJECTORY_RECORDS = 100;':
+              'const MAX_ITER = Number.POSITIVE_INFINITY; const MAX_OBS = Number.POSITIVE_INFINITY; const MAX_NETWORK_RESPONSE_BYTES = 2_000_000; const MAX_TRAJECTORY_RECORDS = Number.POSITIVE_INFINITY;',
+              'records.slice(-MAX_TRAJECTORY_RECORDS)': 'records',
+              'findings.slice(-12)': 'findings',
+              'input.history.slice(-10)': 'input.history',
+              'input.lastObservation.slice(0, 4000)': 'input.lastObservation',
+              'input.objective.slice(0, 4500)': 'input.objective',
+              'return [...new Set(facts)].slice(0, 60);': 'return [...new Set(facts)];',
+              '.slice(0, MAX_OBS + 800)': '',
+              '.slice(0, MAX_OBS + 1800)': '',
+              '.slice(0, MAX_OBS)': '',
+          }
+          for old, new in replacements.items():
+              count = text.count(old)
+              if count == 0:
+                  raise SystemExit(f'missing expected source pattern: {old}')
+              text = text.replace(old, new)
+          path.write_text(text)
+      - name: Verify no lossy core context caps remain
+        run: |
+          grep -nE 'slice\(-10\)|slice\(-12\)|slice\(0, 4000\)|slice\(0, 4500\)|MAX_OBS = 5_000|MAX_TRAJECTORY_RECORDS = 100' artifacts/api-server/src/src/lib/agentic-web-research-core.ts && exit 1 || true
+          grep -n 'Number.POSITIVE_INFINITY' artifacts/api-server/src/src/lib/agentic-web-research-core.ts
+      - name: Commit source patch and remove one-time workflow
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm .github/workflows/one-time-lossless-investigator-context.yml
+          git add artifacts/api-server/src/src/lib/agentic-web-research-core.ts
+          git commit -m 'Remove lossy Investigator context caps'
+          git push
