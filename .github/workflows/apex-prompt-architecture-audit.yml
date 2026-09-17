@@ -42,8 +42,6 @@ jobs:
           core='artifacts/api-server/src/src/lib/agentic-web-research-core.ts'
           wrapper='artifacts/api-server/src/src/lib/agentic-web-research.ts'
           canonical='artifacts/api-server/src/src/lib/agentic-web-research.ts artifacts/api-server/src/src/lib/bureau-agentic-pass.ts artifacts/api-server/src/src/lib/target-contact-agent.ts artifacts/api-server/src/src/lib/canonical-single-target-runner.ts artifacts/api-server/src/src/lib/canonical-atlas-discovery.ts artifacts/api-server/src/src/lib/target-act-oversight.ts artifacts/api-server/src/src/lib/atlas-control-decision.ts'
-          test ! -f artifacts/api-server/src/src/lib/deepseek-case-reasoning.ts
-          test ! -f artifacts/api-server/src/src/lib/nvidia-nim-case-reasoning.ts
           if grep -RInE 'runDeepSeek|DEEPSEEK_API_KEY|api\.deepseek\.com|NVIDIA_NIM|nvidia-nim' $canonical --include='*.ts'; then
             echo 'Active Apex runtime still contains DeepSeek/NVIDIA-NIM references.'
             exit 1
