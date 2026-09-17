@@ -474,11 +474,11 @@ export async function generateGeminiBossText(
           lastError = `Gemini Boss ${model} text-generation HTTP ${response.status}${detail ? `: ${detail}` : ""}`;
           logger.warn(
             { model, status: response.status, keyName: entry.name, detail },
-            "Gemini Boss text-generation capacity busy; stopping this Boss attempt (not a web-search failure)",
+            "Gemini Boss text-generation capacity busy; trying the next compatible Gemini model",
           );
           // A 429/503 is commonly project/model capacity, not a model-local
           // failure. Do not fan out across the catalog and spend more quota.
-          return { model, raw: null, error: lastError };
+          continue;
         }
         if (!response.ok) {
           const detail = (await response.text().catch(() => "")).slice(0, 300);
@@ -623,12 +623,12 @@ function parseBossDiscoveryResponse(raw: string): {
         relevance: typeof candidate.relevance === "string" ? candidate.relevance : undefined,
         reachability: typeof candidate.reachability === "string" ? candidate.reachability : undefined,
         sourceUrls: Array.isArray(candidate.sourceUrls)
-          ? candidate.sourceUrls.filter((url): url is string => typeof url === "string" && /^https?:\/\//i.test(url)).slice(0, 8)
+          ? candidate.sourceUrls.filter((url): url is string => typeof url === "string" && /^https?:\/\//i.test(url))
           : undefined,
         contactEvidence: parseDiscoveryContactEvidence(candidate.contactEvidence),
       }))
       .filter((candidate) => candidate.name.length >= 3)
-      .slice(0, 30);
+      ;
     const report = typeof parsed.report === "string"
       ? parsed.report
       : typeof parsed.summary === "string"
@@ -666,12 +666,12 @@ function parseDiscoveryContactEvidence(value: unknown): DiscoveryContactEvidence
       personName: typeof record.personName === "string" && record.personName.trim() ? record.personName.trim().slice(0, 200) : null,
       role: typeof record.role === "string" && record.role.trim() ? record.role.trim().slice(0, 200) : null,
       sourceUrls: Array.isArray(record.sourceUrls)
-        ? record.sourceUrls.filter((url): url is string => typeof url === "string" && /^https?:\/\//i.test(url)).slice(0, 8)
+        ? record.sourceUrls.filter((url): url is string => typeof url === "string" && /^https?:\/\//i.test(url))
         : [],
       note: typeof record.note === "string" && record.note.trim() ? record.note.trim().slice(0, 500) : null,
     } satisfies DiscoveryContactEvidence];
   });
-  return evidence.length > 0 ? evidence.slice(0, 12) : undefined;
+  return evidence.length > 0 ? evidence : undefined;
 }
 
 /**
@@ -824,7 +824,7 @@ function parseBossPlanResponse(raw: string, queuedActions: BureauAction[]): Omit
           parsed.reprioritize
             .filter((id): id is string => typeof id === "string" && allowedIds.has(id.trim()))
             .map((id) => id.trim()),
-        )].slice(0, 20)
+        )]
       : [];
 
     // Phase 1: Boss may reject or reframe without selecting an action.
@@ -870,10 +870,10 @@ function parseBossPlanResponse(raw: string, queuedActions: BureauAction[]): Omit
       progressAssessment ??
       `Selected ${action.id}: ${reason.slice(0, 400)}`;
     const tools = Array.isArray(parsed.tools)
-      ? parsed.tools.filter((tool): tool is string => typeof tool === "string" && action.tools.includes(tool)).slice(0, 12)
+      ? parsed.tools.filter((tool): tool is string => typeof tool === "string" && action.tools.includes(tool))
       : [];
     const restrictions = Array.isArray(parsed.restrictions)
-      ? parsed.restrictions.filter((value): value is string => typeof value === "string" && value.trim().length > 0).map((value) => value.trim()).slice(0, 12)
+      ? parsed.restrictions.filter((value): value is string => typeof value === "string" && value.trim().length > 0).map((value) => value.trim())
       : [];
     const evidenceRequirements = Array.isArray(parsed.evidenceRequirements)
       ? parsed.evidenceRequirements.filter((value): value is string => typeof value === "string" && value.trim().length > 0).map((value) => value.trim()).slice(0, 10)
@@ -1252,12 +1252,12 @@ export function appendDiscoveryReport(
     id: report.id ?? `${report.lane}-${report.iteration}-${Date.parse(createdAt) || Date.now()}`,
     createdAt,
   };
-  const reports = [...file.investigatorReports, entry].slice(-100);
+  const reports = [...file.investigatorReports, entry];
   const completedLanes = [...new Set(reports.filter((item) => item.status === "completed").map((item) => item.lane))];
   const openQuestions = [...new Set([
     ...file.currentProgress.openQuestions,
     ...reports.flatMap((item) => item.nextQuestions),
-  ])].filter(Boolean).slice(-30);
+  ])].filter(Boolean);
   return {
     ...file,
     version: 3,
@@ -1280,9 +1280,9 @@ export function buildDiscoveryProgressSnapshot(file: DiscoveryCaseFile): string 
     rules: file.investigationRules,
     candidates: file.discoveredCandidates,
     progress: file.currentProgress,
-    investigatorReports: file.investigatorReports.slice(-30),
-    decisions: file.decisionLog.slice(-20),
-  }, null, 2).slice(0, 100_000);
+    investigatorReports: file.investigatorReports,
+    decisions: file.decisionLog,
+  }, null, 2);
 }
 
 function parseJson<T>(value: string | null | undefined, fallback: T): T {
@@ -1299,7 +1299,7 @@ function uniqueStrings(values: unknown[], limit = 20): string[] {
   for (const value of values) {
     if (typeof value === "string" && value.trim()) strings.push(value.trim());
   }
-  return [...new Set(strings)].slice(0, limit);
+  return [...new Set(strings)];
 }
 
 function domainsFromUrls(urls: unknown[]): string[] {
@@ -1365,7 +1365,7 @@ function normalizeRoutes(metadata: Record<string, unknown>): BureauContactRoute[
     })
     .sort((a, b) => b.score - a.score)
     .map((route, index) => ({ ...route, rank: index + 1 }))
-    .slice(0, 40);
+    ;
 }
 
 function buildActions(file: Omit<ResearchCaseFile, "actionQueue" | "nextBestAction">): BureauAction[] {
@@ -1520,7 +1520,7 @@ export function advanceCaseFile(file: ResearchCaseFile, iteration: number, now =
     ...file,
     actionQueue: updatedQueue,
     nextBestAction: next ? { ...next, status: "active" } : null,
-    decisionLog: [...file.decisionLog, { iteration, decision, reason: next?.rationale ?? "Action queue exhausted.", createdAt: now }].slice(-50),
+    decisionLog: [...file.decisionLog, { iteration, decision, reason: next?.rationale ?? "Action queue exhausted.", createdAt: now }],
     lastUpdatedBy: "boss-local-planner",
   };
 }
@@ -1599,7 +1599,7 @@ export function applyGeminiBossPlan(
           reason: `${input.reason}${progressNote}`,
           createdAt: now,
         },
-      ].slice(-50),
+      ],
       lastUpdatedBy: "gemini-boss",
     };
   }
@@ -1663,7 +1663,7 @@ export function applyGeminiBossPlan(
         reason: `${input.reason}${progressNote}${reprioritizeNote}`,
         createdAt: now,
       },
-    ].slice(-50),
+    ],
     lastUpdatedBy: "gemini-boss",
   };
 }
@@ -1722,7 +1722,7 @@ export function contactEvidenceToRoutes(
       relationship: scope || null,
       score: tier === "person" ? 55 : tier === "organization" ? 38 : 30,
       state: item.state ?? "review_only",
-      sourceUrls: Array.isArray(item.sourceUrls) ? item.sourceUrls.filter(Boolean).slice(0, 8) : [],
+      sourceUrls: Array.isArray(item.sourceUrls) ? item.sourceUrls.filter(Boolean) : [],
       sourceDomains: [],
       rationale: item.note ?? "Captured from investigator or discovery contact evidence; human review required before personal promotion.",
       humanReview: "use_judgment",
@@ -1751,8 +1751,8 @@ export function mergeContactRoutes(
       ...route,
       rank: Math.min(prior.rank, route.rank),
       score: Math.max(prior.score, route.score),
-      sourceUrls: [...new Set([...(prior.sourceUrls ?? []), ...(route.sourceUrls ?? [])])].slice(0, 12),
-      sourceDomains: [...new Set([...(prior.sourceDomains ?? []), ...(route.sourceDomains ?? [])])].slice(0, 12),
+      sourceUrls: [...new Set([...(prior.sourceUrls ?? []), ...(route.sourceUrls ?? [])])],
+      sourceDomains: [...new Set([...(prior.sourceDomains ?? []), ...(route.sourceDomains ?? [])])],
       personName: prior.personName || route.personName,
       role: prior.role || route.role,
       rationale: route.rationale || prior.rationale,
