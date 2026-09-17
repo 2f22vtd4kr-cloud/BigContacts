@@ -42,21 +42,23 @@ jobs:
           core='artifacts/api-server/src/src/lib/agentic-web-research-core.ts'
           wrapper='artifacts/api-server/src/src/lib/agentic-web-research.ts'
           canonical='artifacts/api-server/src/src/lib/agentic-web-research.ts artifacts/api-server/src/src/lib/bureau-agentic-pass.ts artifacts/api-server/src/src/lib/target-contact-agent.ts artifacts/api-server/src/src/lib/canonical-single-target-runner.ts artifacts/api-server/src/src/lib/canonical-atlas-discovery.ts artifacts/api-server/src/src/lib/target-act-oversight.ts artifacts/api-server/src/src/lib/atlas-control-decision.ts'
+          assert_contains() { local pattern="$1"; local file="$2"; if ! grep -q -- "$pattern" "$file"; then echo "ASSERTION FAILED: expected '$pattern' in $file"; exit 1; fi; echo "ASSERTION PASS: '$pattern' in $file"; }
+          assert_absent() { local pattern="$1"; local file="$2"; if grep -Fqi -- "$pattern" "$file"; then echo "ASSERTION FAILED: forbidden '$pattern' in $file"; exit 1; fi; echo "ASSERTION PASS: forbidden '$pattern' absent from $file"; }
           if grep -RInE 'runDeepSeek|DEEPSEEK_API_KEY|api\.deepseek\.com|NVIDIA_NIM|nvidia-nim' $canonical --include='*.ts'; then
             echo 'Active Apex runtime still contains DeepSeek/NVIDIA-NIM references.'
             exit 1
           fi
-          grep -q 'trajectoryRecords' "$core"
-          grep -q 'Choose the next action yourself' "$core"
-          grep -q 'CONTINUATION STATE' "$wrapper"
-          grep -qE 'Do not prescribe a fixed search/provider/tool/query sequence|There is no fixed checklist, provider order, query sequence, or mandatory hop order' artifacts/api-server/src/src/lib/target-contact-agent.ts
-          grep -q '"serper"' "$core"
-          grep -q '"tavily"' "$core"
-          grep -q '"exa"' "$core"
-          grep -q 'history' "$core"
-          grep -q 'lastObservation' "$core"
-          grep -q 'Number.POSITIVE_INFINITY' "$core"
-          ! grep -Fqi 'Begin. Choose an initial web_search query' "$core"
+          assert_contains 'trajectoryRecords' "$core"
+          assert_contains 'Choose the next action yourself' "$core"
+          assert_contains 'CONTINUATION STATE' "$wrapper"
+          assert_contains 'Do not prescribe a fixed search/provider/tool/query sequence' artifacts/api-server/src/src/lib/target-contact-agent.ts
+          assert_contains '"serper"' "$core"
+          assert_contains '"tavily"' "$core"
+          assert_contains '"exa"' "$core"
+          assert_contains 'history' "$core"
+          assert_contains 'lastObservation' "$core"
+          assert_contains 'Number.POSITIVE_INFINITY' "$core"
+          assert_absent 'Begin. Choose an initial web_search query' "$core"
       - name: Check workflow source is not itself introducing fixed research sequencing
         shell: bash
         run: |
