@@ -24,17 +24,27 @@ jobs:
           grep -RInE 'type AgentAction|interface AgentAction|web_search|action.*query|provider' artifacts/api-server/src/src/lib/agentic-web-research-core.ts artifacts/api-server/src/src/lib/agentic-web-research.ts --include='*.ts' || true
           echo '=== WEB PROVIDER EXECUTION ==='
           grep -RInE 'webSearchSerper|webSearchTavily|webSearchExa|filterPassagesForQuery|readResponseTextCapped' artifacts/api-server/src/src/lib/agentic-web-research-core.ts --include='*.ts' || true
-          echo '=== ADAPTIVE DIRECTOR REFERENCES ==='
-          grep -RInE 'adaptive-research-director|selectNextAdaptiveAction|ACTION_LIMIT|mapBossToolToAction' artifacts/api-server/src artifacts/api-server/src/src --include='*.ts' || true
+          echo '=== LEGACY ADAPTIVE DIRECTOR ISOLATION ==='
+          grep -RInE 'adaptive-research-director|selectNextAdaptiveAction|ACTION_LIMIT|mapBossToolToAction' artifacts/api-server/src/src/lib --include='*.ts' || true
+          canonical='artifacts/api-server/src/src/lib/agentic-web-research.ts artifacts/api-server/src/src/lib/bureau-agentic-pass.ts artifacts/api-server/src/src/lib/target-contact-agent.ts artifacts/api-server/src/src/lib/canonical-single-target-runner.ts artifacts/api-server/src/src/lib/canonical-atlas-discovery.ts artifacts/api-server/src/src/lib/target-act-oversight.ts artifacts/api-server/src/src/lib/atlas-control-decision.ts'
+          if grep -RInE 'adaptive-research-director|selectNextAdaptiveAction|ACTION_LIMIT|mapBossToolToAction|runAdaptiveResearchDirector' $canonical --include='*.ts'; then
+            echo 'Canonical Apex runtime still references the legacy adaptive director.'
+            exit 1
+          fi
+          if grep -RInE 'web-enricher|adaptive-research-director' artifacts/api-server/src/src/routes artifacts/api-server/src/src/lib/canonical-*.ts --include='*.ts'; then
+            echo 'Canonical Apex entrypoints still reference the legacy enrichment/director route.'
+            exit 1
+          fi
       - name: Enforce model-owned query and context invariants
         shell: bash
         run: |
           set -euo pipefail
           core='artifacts/api-server/src/src/lib/agentic-web-research-core.ts'
           wrapper='artifacts/api-server/src/src/lib/agentic-web-research.ts'
+          canonical='artifacts/api-server/src/src/lib/agentic-web-research.ts artifacts/api-server/src/src/lib/bureau-agentic-pass.ts artifacts/api-server/src/src/lib/target-contact-agent.ts artifacts/api-server/src/src/lib/canonical-single-target-runner.ts artifacts/api-server/src/src/lib/canonical-atlas-discovery.ts artifacts/api-server/src/src/lib/target-act-oversight.ts artifacts/api-server/src/src/lib/atlas-control-decision.ts'
           test ! -f artifacts/api-server/src/src/lib/deepseek-case-reasoning.ts
           test ! -f artifacts/api-server/src/src/lib/nvidia-nim-case-reasoning.ts
-          if grep -RInE 'runDeepSeek|DEEPSEEK_API_KEY|api\.deepseek\.com|NVIDIA_NIM|nvidia-nim' artifacts/api-server/src/src/lib artifacts/api-server/src/src/routes --include='*.ts'; then
+          if grep -RInE 'runDeepSeek|DEEPSEEK_API_KEY|api\.deepseek\.com|NVIDIA_NIM|nvidia-nim' $canonical --include='*.ts'; then
             echo 'Active Apex runtime still contains DeepSeek/NVIDIA-NIM references.'
             exit 1
           fi
