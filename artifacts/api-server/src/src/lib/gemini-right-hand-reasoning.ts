@@ -1,4 +1,5 @@
 import type { BureauAction, DiscoveryCaseFile, ResearchCaseFile } from "./case-bureau";
+import { apexOrientationCompact } from "./apex-bureau-orientation";
 import { installGeminiTransientRetry } from "./gemini-transient-retry";
 
 installGeminiTransientRetry();
@@ -26,7 +27,7 @@ async function request(system: string, user: string): Promise<{ raw: string; err
       method: "POST",
       headers: { Accept: "application/json", "Content-Type": "application/json", "x-goog-api-key": apiKey },
       body: JSON.stringify({
-        system_instruction: { parts: [{ text: system }] },
+        system_instruction: { parts: [{ text: `${apexOrientationCompact("right_hand")}\n\n${system}` }] },
         contents: [{ role: "user", parts: [{ text: user }] }],
         generationConfig: { temperature: 0.2, maxOutputTokens: 2048, responseMimeType: "application/json", thinkingConfig: { thinkingLevel: "high" } },
       }),
@@ -67,7 +68,7 @@ export async function runGeminiRightHandCaseReasoning(input: { file: ResearchCas
 }
 
 export async function runGeminiRightHandDiscoveryAdvice(input: { file: DiscoveryCaseFile; iteration: number }): Promise<GeminiRightHandDiscoveryAdviceResult> {
-  const system = "You are Apex Atlas Right Hand for public-record discovery. Reason only over supplied case evidence. Never browse, use external research, or invent people, contacts, relationships, or URLs. Return JSON only.";
+  const system = "You are Apex Atlas Right Hand for public-record discovery. Reason only over supplied discovery case evidence. Never browse, use external research, or invent people, contacts, relationships, or URLs. Return JSON only.";
   const user = `Iteration ${input.iteration}. Recommend the most useful next research direction from the existing discovery frontier.\nDISCOVERY CASE:\n${compactDiscovery(input.file)}\n\nReturn {\"decision\":\"...\",\"reason\":\"...\",\"focusLanes\":[\"...\"],\"confidence\":0.0}.`;
   const result = await request(system, user);
   if (result.error) return { status: "unavailable", model: GEMINI_RIGHT_HAND_MODEL, decision: null, reason: null, focusLanes: [], confidence: null, error: result.error };
