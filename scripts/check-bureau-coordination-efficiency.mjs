@@ -3,7 +3,7 @@ import path from "node:path";
 
 const root = process.cwd();
 const rightHand = fs.readFileSync(
-  path.join(root, "artifacts/api-server/src/src/lib/nvidia-nim-case-reasoning.ts"),
+  path.join(root, "artifacts/api-server/src/src/lib/gemini-right-hand-reasoning.ts"),
   "utf8",
 );
 const boss = fs.readFileSync(
@@ -16,7 +16,6 @@ const rightHandRequired = [
   "BUREAU CHAIN OF COMMAND / SHARED MIND",
   "Every iteration must produce a meaningful delta in the case frontier",
   "do not merely repeat the previous Investigator result",
-  "recentDecisions: (file.decisionLog ?? []).slice(-8)",
   "function buildRightHandDecisionContext(file: ResearchCaseFile)",
   "${buildRightHandDecisionContext(file)}",
   "actionFrontier: { queued, recentCompleted }",
@@ -30,7 +29,7 @@ for (const marker of rightHandRequired) {
 
 const bossRequired = [
   "=== BUREAU CHAIN OF COMMAND / SHARED MIND ===",
-  "RIGHT-HAND (DeepSeek) = diagnostic strategist",
+  "RIGHT-HAND (Gemini) = diagnostic strategist",
   "BOSS (Gemini) = head investigator and integrator",
   "INVESTIGATOR (Groq/Mistral) = execution intelligence",
   "=== MOUNTING CASE STATE / COORDINATION LEDGER ===",
