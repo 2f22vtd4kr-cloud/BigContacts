@@ -12,7 +12,8 @@ const assert = (ok, name) => { if (!ok) failures.push(name); };
 
 assert(/INVESTIGATOR_LLM_CAPABILITY_POOL/.test(source), "Investigator capability pool is explicit");
 assert(/const AGENTIC_ACTION_SCHEMA\s*=/.test(source) && /function parseAction/.test(source), "action schema/parser are fail-closed");
-assert(/const MAX_ITER = 40/.test(source) && /Math\.min\(MAX_ITER, Math\.max\(1, requestedIterations\)\)/.test(source), "iteration ceiling is hard and caller input is clamped");
+assert(/MAX_ITER = Number\.POSITIVE_INFINITY/.test(source), "Investigator iteration count is not an arbitrary hard ceiling");
+assert(!/Math\.min\(MAX_ITER, Math\.max\(1, requestedIterations\)\)/.test(source), "caller input is not clamped to an arbitrary iteration ceiling");
 assert(/new AbortController\(\)/.test(source) && /input\.signal\?\.addEventListener\("abort", abortExternal/.test(source), "run-scoped cancellation is wired");
 assert(/setTimeout\(\(\) => runController\.abort\(\), hardTimeoutMs\)/.test(source), "hard timeout aborts the run");
 assert(/runController\.signal\.aborted/.test(source) && /input\.shouldCancel && await input\.shouldCancel\(\)/.test(source), "turn boundaries honor cancellation");
@@ -35,16 +36,8 @@ for (const name of ["runHolehe", "runMaigret", "runSherlock", "runTheHarvester"]
 assert(/available: false/.test(python), "Python capabilities default unavailable");
 assert(/return \{ holehe: enabled, maigret: enabled, sherlock: enabled, theHarvester: enabled, openDeepResearch: enabled \}/.test(python), "Python availability derives from attested capability");
 assert(/Compatibility shim only/.test(shim) && /export \* from "\.\.\/\.\.\/api-server\/src\/src\/lib\/agentic-web-research\.ts"/.test(shim), "apex-runtime is compatibility-only");
-
-// The historical source mutator is deliberately retired. Keeping this assertion
-// prevents a future change from silently reintroducing a deterministic mutation
-// pass that encoded Investigator provider fallback or research strategy.
 assert(/RETIRED:/.test(hardener) && /must not mutate Apex source/.test(hardener), "historical concurrency hardener remains non-executable");
 assert(!/push\(`PERSON:/.test(hardener), "retired hardener does not manufacture PERSON findings");
-
-// The live audit must exercise the current architecture: an explicit Groq/Mistral
-// generation preflight, then a real discovery-first Atlas launch with research
-// enabled. Do not encode the old `digReady` variable or a specific provider order.
 assert(/async function probe\(url,key,model,provider\)/.test(workflow), "live audit performs an actual Investigator-provider generation preflight");
 assert(/api\.groq\.com\/openai\/v1\/chat\/completions/.test(workflow) && /api\.mistral\.ai\/v1\/chat\/completions/.test(workflow), "live audit covers the explicit Investigator provider pool");
 assert(/Reply READY only\./.test(workflow) && /max_tokens:32/.test(workflow), "provider preflight is a bounded generation, not a search strategy");
