@@ -16,7 +16,7 @@ jobs:
           from pathlib import Path
           import re
           p=Path('artifacts/api-server/src/src/lib/bureau-agentic-pass.ts'); t=p.read_text()
-          pat=r'runIds:\[\.\.\.new Set\(\[\.\.\.\(Array\.isArray\(current\.runIds\)\s*\?\s*current\.runIds\s*:\s*\[\]\s*\),\s*input\.runId\]\)\]\)'
+          pat=r'runIds:\[\.\.\.new Set\(\[\.\.\.\(Array\.isArray\(current\.runIds\).*?input\.runId\]\)\]\)'
           t,n=re.subn(pat,'runIds:[...new Set([...(Array.isArray(current.runIds)?current.runIds:[]),input.runId])]',t)
           if n!=1: raise SystemExit(f'runIds malformed expression count={n}')
           p.write_text(t)
