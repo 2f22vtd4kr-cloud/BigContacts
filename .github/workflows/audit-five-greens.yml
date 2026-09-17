@@ -1,4 +1,5 @@
 # Canonical five-green gate: five consecutive fresh full-codebase audits.
+# Gemini Right-hand migration gate: non-mutating verification only.
 name: Five Green Complete Codebase Audit
 
 on:
