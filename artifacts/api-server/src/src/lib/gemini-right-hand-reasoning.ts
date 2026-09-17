@@ -1,11 +1,13 @@
 import type { BureauAction, DiscoveryCaseFile, ResearchCaseFile } from "./case-bureau";
+import { installGeminiTransientRetry } from "./gemini-transient-retry";
+
+installGeminiTransientRetry();
 
 export const GEMINI_RIGHT_HAND_MODEL = "gemini-3.8-flash";
 const GEMINI_CHAT_API = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_RIGHT_HAND_MODEL}:generateContent`;
 const REQUEST_TIMEOUT_MS = 45_000;
 
 type GeminiResponse = { candidates?: Array<{ content?: { parts?: Array<{ text?: string | null }> } }> };
-
 export type GeminiRightHandStatus = { configured: boolean; model: string; endpoint: string; role: "right_hand_advisor"; capability: "case_file_reasoning_only" };
 export type GeminiRightHandCaseReasoningResult = { status: "completed" | "unavailable"; model: string; actionId: string | null; decision: string | null; reason: string | null; confidence: number | null; error: string | null };
 export type GeminiRightHandDiscoveryAdviceResult = { status: "completed" | "unavailable"; model: string; decision: string | null; reason: string | null; focusLanes: string[]; confidence: number | null; error: string | null };
@@ -40,24 +42,18 @@ async function request(system: string, user: string): Promise<{ raw: string; err
     }
   } catch (error) {
     return { raw: "", error: error instanceof Error && error.name === "AbortError" ? `Gemini Right-hand request timed out after ${REQUEST_TIMEOUT_MS}ms.` : error instanceof Error ? error.message : "Gemini Right-hand request failed." };
-  } finally {
-    clearTimeout(timer);
-  }
+  } finally { clearTimeout(timer); }
 }
 
-function compactCase(file: ResearchCaseFile): string {
-  return JSON.stringify({ target: file.target, hypotheses: file.hypotheses?.slice(-12), evidenceSummary: file.evidenceSummary, specialistRoster: file.specialistRoster, actionQueue: file.actionQueue, contactRoutes: file.contactRoutes?.slice(-16), investigationProgress: file.investigationProgress, researchDepth: file.researchDepth, decisionLog: file.decisionLog?.slice(-8), rightHandAdvice: file.rightHandAdvice, bossPlan: file.bossPlan }, null, 2);
-}
-function compactDiscovery(file: DiscoveryCaseFile): string {
-  return JSON.stringify({ humanBrief: file.humanBrief, bossPremise: file.bossPremise, candidateLanes: file.candidateLanes, initialResearch: file.initialResearch, investigatorReports: file.investigatorReports?.slice(-10), currentProgress: file.currentProgress, discoveredCandidates: file.discoveredCandidates?.slice(-20), orgFootprint: file.orgFootprint, decisionLog: file.decisionLog?.slice(-8) }, null, 2);
-}
+function compactCase(file: ResearchCaseFile): string { return JSON.stringify({ target: file.target, hypotheses: file.hypotheses?.slice(-12), evidenceSummary: file.evidenceSummary, specialistRoster: file.specialistRoster, actionQueue: file.actionQueue, contactRoutes: file.contactRoutes?.slice(-16), investigationProgress: file.investigationProgress, researchDepth: file.researchDepth, decisionLog: file.decisionLog?.slice(-8), rightHandAdvice: file.rightHandAdvice, bossPlan: file.bossPlan }, null, 2); }
+function compactDiscovery(file: DiscoveryCaseFile): string { return JSON.stringify({ humanBrief: file.humanBrief, bossPremise: file.bossPremise, candidateLanes: file.candidateLanes, initialResearch: file.initialResearch, investigatorReports: file.investigatorReports?.slice(-10), currentProgress: file.currentProgress, discoveredCandidates: file.discoveredCandidates?.slice(-20), orgFootprint: file.orgFootprint, decisionLog: file.decisionLog?.slice(-8) }, null, 2); }
 
 export function getGeminiRightHandStatus(): GeminiRightHandStatus { return { configured: Boolean(key()), model: GEMINI_RIGHT_HAND_MODEL, endpoint: GEMINI_CHAT_API, role: "right_hand_advisor", capability: "case_file_reasoning_only" }; }
 
 export async function runGeminiRightHandCaseReasoning(input: { file: ResearchCaseFile; iteration: number }): Promise<GeminiRightHandCaseReasoningResult> {
   const queued = input.file.actionQueue.filter((action) => action.status === "queued").slice(0, 16);
-  const system = "You are Apex Atlas Right Hand. Reason only over the supplied case file. Never browse, invent evidence, contacts, people, URLs, or facts. Recommend exactly one existing queued action. Return JSON only.";
-  const user = `Iteration ${input.iteration}. Identify what is newly unresolved, which contact vectors are still pending, and the highest-leverage complementary queued action.\nCASE:\n${compactCase(input.file)}\n\nQUEUED ACTIONS:\n${JSON.stringify(queued, null, 2)}\n\nReturn {\"actionId\":\"exact queued id\",\"decision\":\"short recommendation\",\"reason\":\"concrete evidence-gap reason\",\"confidence\":0.0}.`;
+  const system = "You are Apex Atlas Right Hand. Reason only over the supplied case file. Never browse, use external research, or invent evidence, contacts, people, URLs, or facts. Recommend exactly one existing queued action. Return JSON only.";
+  const user = `Iteration ${input.iteration}. Identify what is newly unresolved, which contact vectors are still pending, and the highest-leverage complementary queued action.\nCASE:\n${compactCase(input.file)}\n\nQUEUED ACTIONS:\n${JSON.stringify(queued, null, 2)}\n\nReturn {\"actionId\":\"exact queued action id\",\"decision\":\"short recommendation\",\"reason\":\"concrete case-file evidence-gap reason\",\"confidence\":0.0}.`;
   const result = await request(system, user);
   if (result.error) return { status: "unavailable", model: GEMINI_RIGHT_HAND_MODEL, actionId: null, decision: null, reason: null, confidence: null, error: result.error };
   const parsed = extractJson(result.raw);
@@ -71,7 +67,7 @@ export async function runGeminiRightHandCaseReasoning(input: { file: ResearchCas
 }
 
 export async function runGeminiRightHandDiscoveryAdvice(input: { file: DiscoveryCaseFile; iteration: number }): Promise<GeminiRightHandDiscoveryAdviceResult> {
-  const system = "You are Apex Atlas Right Hand for public-record discovery. Reason only over supplied evidence. Never invent people, contacts, relationships, or URLs. Return JSON only.";
+  const system = "You are Apex Atlas Right Hand for public-record discovery. Reason only over supplied case evidence. Never browse, use external research, or invent people, contacts, relationships, or URLs. Return JSON only.";
   const user = `Iteration ${input.iteration}. Recommend the most useful next research direction from the existing discovery frontier.\nDISCOVERY CASE:\n${compactDiscovery(input.file)}\n\nReturn {\"decision\":\"...\",\"reason\":\"...\",\"focusLanes\":[\"...\"],\"confidence\":0.0}.`;
   const result = await request(system, user);
   if (result.error) return { status: "unavailable", model: GEMINI_RIGHT_HAND_MODEL, decision: null, reason: null, focusLanes: [], confidence: null, error: result.error };
