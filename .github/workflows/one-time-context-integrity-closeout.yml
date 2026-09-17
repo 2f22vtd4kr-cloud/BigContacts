@@ -15,11 +15,6 @@ jobs:
         run: |
           from pathlib import Path
           import re
-          p=Path('artifacts/api-server/src/src/lib/bureau-agentic-pass.ts'); t=p.read_text()
-          pat=r'runIds:\[\.\.\.new Set\(\[\.\.\.\(Array\.isArray\(current\.runIds\).*?input\.runId\]\)\]\)'
-          t,n=re.subn(pat,'runIds:[...new Set([...(Array.isArray(current.runIds)?current.runIds:[]),input.runId])]',t)
-          if n > 1: raise SystemExit(f'runIds malformed expression count={n}')
-          p.write_text(t)
           for f in ['artifacts/api-server/src/src/lib/gemini-right-hand-reasoning.ts','artifacts/api-server/src/src/lib/target-control-decision.ts','artifacts/api-server/src/src/lib/atlas-control-decision.ts','artifacts/api-server/src/src/lib/final-target-review.ts']:
             p=Path(f); t=p.read_text(); t=re.sub(r'\.slice\(-\d+\)','',t); t=re.sub(r'\.slice\(\d+\s*,\s*\d+\)','',t); p.write_text(t)
           p=Path('artifacts/api-server/src/src/lib/agentic-web-research-core.ts'); t=p.read_text(); old='const body = await response.text(); return body.slice(0, MAX_NETWORK_RESPONSE_BYTES);'; new='const body = await response.text(); if (Buffer.byteLength(body, "utf8") > MAX_NETWORK_RESPONSE_BYTES) throw new Error(`Network response exceeds the configured memory safety bound (${MAX_NETWORK_RESPONSE_BYTES} bytes); response was rejected, not truncated.`); return body;';
@@ -47,6 +42,6 @@ jobs:
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git rm .github/workflows/one-time-context-integrity-closeout.yml
-          git add artifacts/api-server/src/src/lib/bureau-agentic-pass.ts artifacts/api-server/src/src/lib/gemini-right-hand-reasoning.ts artifacts/api-server/src/src/lib/target-control-decision.ts artifacts/api-server/src/src/lib/atlas-control-decision.ts artifacts/api-server/src/src/lib/final-target-review.ts artifacts/api-server/src/src/lib/agentic-web-research-core.ts artifacts/api-server/src/src/lib/case-bureau.ts
+          git add artifacts/api-server/src/src/lib/gemini-right-hand-reasoning.ts artifacts/api-server/src/src/lib/target-control-decision.ts artifacts/api-server/src/src/lib/atlas-control-decision.ts artifacts/api-server/src/src/lib/final-target-review.ts artifacts/api-server/src/src/lib/agentic-web-research-core.ts artifacts/api-server/src/src/lib/case-bureau.ts
           git commit -m 'Close out context integrity and Gemini fallback audit'
           git push
