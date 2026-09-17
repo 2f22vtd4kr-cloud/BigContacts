@@ -1,13 +1,10 @@
 name: migrate-right-hand-to-gemini
-
 on:
   push:
     branches:
       - audit/genuine-five-green-final
-
 permissions:
   contents: write
-
 jobs:
   migrate:
     if: github.event.head_commit.author.name != 'gemini-right-hand-migration'
@@ -17,71 +14,48 @@ jobs:
         with:
           ref: audit/genuine-five-green-final
           fetch-depth: 0
-      - name: Replace DeepSeek Right-hand with Gemini
-        env:
-          BRANCH: audit/genuine-five-green-final
+      - name: Migrate active Apex references
+        shell: bash
         run: |
           set -euo pipefail
-          python3 <<'PY'
-          from pathlib import Path
-          root = Path('.')
-          src = root / 'artifacts/api-server/src/src'
-          adapter = '''import type { BureauAction, DiscoveryCaseFile, ResearchCaseFile } from "./case-bureau";
-
-export const GEMINI_RIGHT_HAND_MODEL = "gemini-3.8-flash";
-const GEMINI_CHAT_API = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_RIGHT_HAND_MODEL}:generateContent`;
-const REQUEST_TIMEOUT_MS = 45_000;
-const MAX_RETRIES = 2;
-
-type GeminiMessageResponse = { content?: string | null; parts?: Array<{ text?: string | null }> };
-type GeminiResponse = { candidates?: Array<{ content?: GeminiMessageResponse }> };
-
-export type GeminiRightHandStatus = { configured: boolean; model: string; endpoint: string; role: "right_hand_advisor"; capability: "case_file_reasoning_only" };
-export type GeminiRightHandCaseReasoningResult = { status: "completed" | "unavailable"; model: string; actionId: string | null; decision: string | null; reason: string | null; confidence: number | null; error: string | null };
-export type GeminiRightHandDiscoveryAdviceResult = { status: "completed" | "unavailable"; model: string; decision: string | null; reason: string | null; focusLanes: string[]; confidence: number | null; error: string | null };
-function key(): string | null { return process.env.GEMINI_API_KEY?.trim() || null; }
-function textOf(response: GeminiResponse | null): string { return (response?.candidates?.[0]?.content?.parts ?? []).map((part) => part.text ?? "").join(" ").trim(); }
-function extractJson(raw: string): Record<string, unknown> | null { const fenced = raw.match(/```(?:json)?\\s*([\\s\\S]*?)```/i)?.[1]?.trim(); const source = fenced || raw.trim(); const start = source.indexOf("{"), end = source.lastIndexOf("}"); if (start < 0 || end <= start) return null; try { const value = JSON.parse(source.slice(start, end + 1)); return value && typeof value === "object" ? value as Record<string, unknown> : null; } catch { return null; } }
-async function request(system: string, user: string): Promise<{ raw: string; error: string | null }> {
-  const apiKey = key(); if (!apiKey) return { raw: "", error: "GEMINI_API_KEY is not configured." }; let lastError = "Gemini Right-hand request failed.";
-  for (let attempt = 0; attempt <= MAX_RETRIES; attempt += 1) { const controller = new AbortController(); const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS); try {
-    const response = await fetch(GEMINI_CHAT_API, { method: "POST", headers: { Accept: "application/json", "Content-Type": "application/json", "x-goog-api-key": apiKey }, body: JSON.stringify({ system_instruction: { parts: [{ text: system }] }, contents: [{ role: "user", parts: [{ text: user }] }], generationConfig: { temperature: 0.2, maxOutputTokens: 2048, responseMimeType: "application/json", thinkingConfig: { thinkingLevel: "high" } } }), signal: controller.signal });
-    const body = await response.text(); if (response.ok) { try { const raw = textOf(JSON.parse(body) as GeminiResponse); if (raw) return { raw, error: null }; lastError = "Gemini Right-hand returned an empty response."; } catch { lastError = "Gemini Right-hand returned invalid JSON."; } break; }
-    lastError = `Gemini API ${GEMINI_RIGHT_HAND_MODEL} HTTP ${response.status}${body ? `: ${body.slice(0, 300)}` : ""}`; const transient = response.status === 408 || response.status === 429 || response.status >= 500; if (!transient || attempt >= MAX_RETRIES) break; await new Promise((resolve) => setTimeout(resolve, 750 * 2 ** attempt));
-  } catch (error) { lastError = error instanceof Error && error.name === "AbortError" ? `Gemini Right-hand request timed out after ${REQUEST_TIMEOUT_MS}ms.` : error instanceof Error ? error.message : "Gemini Right-hand request failed."; if (attempt >= MAX_RETRIES) break; await new Promise((resolve) => setTimeout(resolve, 750 * 2 ** attempt)); } finally { clearTimeout(timer); } }
-  return { raw: "", error: lastError };
-}
-function compactCase(file: ResearchCaseFile): string { return JSON.stringify({ target: file.target, hypotheses: file.hypotheses?.slice(-12), evidenceSummary: file.evidenceSummary, specialistRoster: file.specialistRoster, actionQueue: file.actionQueue, contactRoutes: file.contactRoutes?.slice(-16), investigationProgress: file.investigationProgress, researchDepth: file.researchDepth, decisionLog: file.decisionLog?.slice(-8), rightHandAdvice: file.rightHandAdvice, bossPlan: file.bossPlan }, null, 2); }
-function compactDiscovery(file: DiscoveryCaseFile): string { return JSON.stringify({ humanBrief: file.humanBrief, bossPremise: file.bossPremise, candidateLanes: file.candidateLanes, initialResearch: file.initialResearch, investigatorReports: file.investigatorReports?.slice(-10), currentProgress: file.currentProgress, discoveredCandidates: file.discoveredCandidates?.slice(-20), orgFootprint: file.orgFootprint, decisionLog: file.decisionLog?.slice(-8) }, null, 2); }
-export function getGeminiRightHandStatus(): GeminiRightHandStatus { return { configured: Boolean(key()), model: GEMINI_RIGHT_HAND_MODEL, endpoint: GEMINI_CHAT_API, role: "right_hand_advisor", capability: "case_file_reasoning_only" }; }
-export async function runGeminiRightHandCaseReasoning(input: { file: ResearchCaseFile; iteration: number }): Promise<GeminiRightHandCaseReasoningResult> { const queued = input.file.actionQueue.filter((action) => action.status === "queued").slice(0, 16); const system = "You are Apex Atlas Right Hand. Reason only over the supplied case file. Never browse, invent evidence, contacts, people, URLs, or facts. Recommend exactly one existing queued action. Return JSON only."; const user = `Iteration ${input.iteration}. Identify what is newly unresolved, which contact vectors are still pending, and the highest-leverage complementary queued action.\\nCASE:\\n${compactCase(input.file)}\\n\\nQUEUED ACTIONS:\\n${JSON.stringify(queued, null, 2)}\\n\\nReturn {\"actionId\":\"exact queued id\",\"decision\":\"short recommendation\",\"reason\":\"concrete evidence-gap reason\",\"confidence\":0.0}.`; const result = await request(system, user); if (result.error) return { status: "unavailable", model: GEMINI_RIGHT_HAND_MODEL, actionId: null, decision: null, reason: null, confidence: null, error: result.error }; const parsed = extractJson(result.raw); const actionId = typeof parsed?.actionId === "string" ? parsed.actionId.trim() : ""; const action = queued.find((candidate) => candidate.id === actionId); const decision = typeof parsed?.decision === "string" ? parsed.decision.trim() : ""; const reason = typeof parsed?.reason === "string" ? parsed.reason.trim() : ""; const confidence = typeof parsed?.confidence === "number" && Number.isFinite(parsed.confidence) ? Math.max(0, Math.min(1, parsed.confidence)) : null; if (!action || !decision || !reason) return { status: "unavailable", model: GEMINI_RIGHT_HAND_MODEL, actionId: null, decision: null, reason: null, confidence, error: "Gemini Right-hand returned an invalid or non-queued recommendation." }; return { status: "completed", model: GEMINI_RIGHT_HAND_MODEL, actionId: action.id, decision: decision.slice(0, 500), reason: reason.slice(0, 1000), confidence, error: null }; }
-export async function runGeminiRightHandDiscoveryAdvice(input: { file: DiscoveryCaseFile; iteration: number }): Promise<GeminiRightHandDiscoveryAdviceResult> { const system = "You are Apex Atlas Right Hand for public-record discovery. Reason only over supplied evidence. Never invent people, contacts, relationships, or URLs. Return JSON only."; const user = `Iteration ${input.iteration}. Recommend the most useful next research direction from the existing discovery frontier.\\nDISCOVERY CASE:\\n${compactDiscovery(input.file)}\\n\\nReturn {\"decision\":\"...\",\"reason\":\"...\",\"focusLanes\":[\"...\"],\"confidence\":0.0}.`; const result = await request(system, user); if (result.error) return { status: "unavailable", model: GEMINI_RIGHT_HAND_MODEL, decision: null, reason: null, focusLanes: [], confidence: null, error: result.error }; const parsed = extractJson(result.raw); if (!parsed) return { status: "unavailable", model: GEMINI_RIGHT_HAND_MODEL, decision: null, reason: null, focusLanes: [], confidence: null, error: "Gemini Right-hand returned invalid discovery JSON." }; return { status: "completed", model: GEMINI_RIGHT_HAND_MODEL, decision: typeof parsed.decision === "string" ? parsed.decision.slice(0, 800) : null, reason: typeof parsed.reason === "string" ? parsed.reason.slice(0, 1200) : null, focusLanes: Array.isArray(parsed.focusLanes) ? parsed.focusLanes.filter((v): v is string => typeof v === "string").slice(0, 8) : [], confidence: typeof parsed.confidence === "number" ? Math.max(0, Math.min(1, parsed.confidence)) : null, error: null }; }
-export async function runGeminiRightHandFreeJson(userPrompt: string, systemExtra = "Reply with ONE JSON object only. Never invent contacts, people, or URLs."): Promise<{ status: "completed" | "unavailable"; model: string; raw: string | null; error: string | null }> { const result = await request("You are the Apex Atlas Right Hand. Advise the Boss only. Never browse or act as Investigator. Never invent evidence, contacts, people, relationships, or URLs. " + systemExtra, userPrompt); return result.raw ? { status: "completed", model: GEMINI_RIGHT_HAND_MODEL, raw: result.raw, error: null } : { status: "unavailable", model: GEMINI_RIGHT_HAND_MODEL, raw: null, error: result.error }; }
-export async function runGeminiRightHandFinalReview(prompt: string): Promise<{ status: "completed" | "unavailable"; model: string; raw: string | null; error: string | null }> { return runGeminiRightHandFreeJson(prompt, "You are the Apex Atlas Right Hand reviewing final public-contact evidence. Return ONE JSON object only. Never invent contacts, people, or URLs."); }
-export type GeminiRightHandResultAction = BureauAction;
-'''
-          old = src / 'lib/deepseek-case-reasoning.ts'; new = src / 'lib/gemini-right-hand-reasoning.ts'; new.write_text(adapter, encoding='utf-8'); old.unlink()
-          replacements = {'./deepseek-case-reasoning':'./gemini-right-hand-reasoning','getDeepSeekCaseReasoningStatus':'getGeminiRightHandStatus','runDeepSeekCaseReasoning':'runGeminiRightHandCaseReasoning','runDeepSeekDiscoveryAdvice':'runGeminiRightHandDiscoveryAdvice','runDeepSeekFreeJson':'runGeminiRightHandFreeJson','runDeepSeekFinalReview':'runGeminiRightHandFinalReview','DEEPSEEK_CASE_REASONING_MODEL':'GEMINI_RIGHT_HAND_MODEL','DeepSeekCaseReasoningResult':'GeminiRightHandCaseReasoningResult','DeepSeekCaseReasoningStatus':'GeminiRightHandStatus','DeepSeekDiscoveryAdviceResult':'GeminiRightHandDiscoveryAdviceResult','DeepSeekResultAction':'GeminiRightHandResultAction','deepseek-ai/deepseek-v4-flash-0731':'gemini-3.8-flash','deepseek-v4-flash-0731':'gemini-3.8-flash','deepseek-flash':'gemini-3.8-flash','DeepSeek/NVIDIA':'Gemini Right-hand','DeepSeek Right-hand':'Gemini Right-hand','DeepSeek-V4-Flash-0731 right-hand':'Gemini Right-hand','DeepSeek-V4-Flash right-hand':'Gemini Right-hand','DeepSeek-V4-Flash':'Gemini Right-hand','DeepSeek Right Hand':'Gemini Right Hand','deepseek-right-hand':'gemini-right-hand','provider: "deepseek"':'provider: "gemini"','"provider":"deepseek"':'"provider":"gemini"','"lane": "deepseek-right-hand"':'"lane": "gemini-right-hand"','lane: "deepseek-right-hand"':'lane: "gemini-right-hand"'}
-          for path in src.rglob('*.ts'):
-            text = path.read_text(encoding='utf-8'); updated = text
-            for a,b in replacements.items(): updated = updated.replace(a,b)
-            if updated != text: path.write_text(updated, encoding='utf-8')
-          for path in root.rglob('*'):
-            if not path.is_file() or '.git' in path.parts or path.suffix not in {'.ts','.tsx','.js','.mjs','.json','.md','.yml','.yaml'}: continue
-            try: text = path.read_text(encoding='utf-8')
-            except Exception: continue
-            lines = [line for line in text.splitlines() if 'DEEPSEEK_API_KEY' not in line]
-            updated = '\n'.join(lines) + ('\n' if text.endswith('\n') else '')
-            if updated != text: path.write_text(updated, encoding='utf-8')
-          workflow = root / '.github/workflows/migrate-right-hand-to-gemini.yml'
-          if workflow.exists(): workflow.unlink()
-          PY
-          if git grep -n -i -E 'deepseek|DEEPSEEK_API_KEY|api\.deepseek\.com|deepseek-ai/' -- ':!*.lock' ':!docs/**'; then echo 'ERROR: DeepSeek references remain in active repository files.'; exit 1; fi
+          files=$(find . -type f \( -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.mjs' -o -name '*.json' -o -name '*.md' -o -name '*.yml' -o -name '*.yaml' \) -not -path './.git/*')
+          for f in $files; do
+            sed -i \
+              -e 's#./deepseek-case-reasoning#./gemini-right-hand-reasoning#g' \
+              -e 's/getDeepSeekCaseReasoningStatus/getGeminiRightHandStatus/g' \
+              -e 's/runDeepSeekCaseReasoning/runGeminiRightHandCaseReasoning/g' \
+              -e 's/runDeepSeekDiscoveryAdvice/runGeminiRightHandDiscoveryAdvice/g' \
+              -e 's/runDeepSeekFreeJson/runGeminiRightHandFreeJson/g' \
+              -e 's/runDeepSeekFinalReview/runGeminiRightHandFinalReview/g' \
+              -e 's/DEEPSEEK_CASE_REASONING_MODEL/GEMINI_RIGHT_HAND_MODEL/g' \
+              -e 's/DeepSeekCaseReasoningResult/GeminiRightHandCaseReasoningResult/g' \
+              -e 's/DeepSeekCaseReasoningStatus/GeminiRightHandStatus/g' \
+              -e 's/DeepSeekDiscoveryAdviceResult/GeminiRightHandDiscoveryAdviceResult/g' \
+              -e 's/DeepSeekResultAction/GeminiRightHandResultAction/g' \
+              -e 's/DeepSeek\/NVIDIA/Gemini Right-hand/g' \
+              -e 's/DeepSeek Right-hand/Gemini Right-hand/g' \
+              -e 's/DeepSeek Right Hand/Gemini Right Hand/g' \
+              -e 's/deepseek-right-hand/gemini-right-hand/g' \
+              -e 's/provider: "deepseek"/provider: "gemini"/g' \
+              -e 's/"provider":"deepseek"/"provider":"gemini"/g' \
+              -e 's/"lane": "deepseek-right-hand"/"lane": "gemini-right-hand"/g' \
+              -e 's/lane: "deepseek-right-hand"/lane: "gemini-right-hand"/g' \
+              -e 's/deepseek-ai\/deepseek-v4-flash-0731/gemini-3.8-flash/g' \
+              -e 's/deepseek-v4-flash-0731/gemini-3.8-flash/g' \
+              -e 's/deepseek-flash/gemini-3.8-flash/g' \
+              "$f"
+            sed -i '/DEEPSEEK_API_KEY/d' "$f"
+          done
+          rm -f artifacts/api-server/src/src/lib/deepseek-case-reasoning.ts
+          rm -f .github/workflows/migrate-right-hand-to-gemini-clean.yml
+          rm -f .github/workflows/migrate-right-hand-to-gemini.yml
+          if git grep -n -i -E 'deepseek|api\.deepseek\.com|deepseek-ai/|NVIDIA NIM|NVIDIA_NIM_API_KEY|DEEPSEEK_API_KEY' -- ':!*.lock'; then
+            echo 'ERROR: DeepSeek/NVIDIA NIM references remain'
+            exit 1
+          fi
           git diff --check
           git config user.name 'gemini-right-hand-migration'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -A
           git commit -m 'refactor: replace DeepSeek Right-hand with Gemini'
-          git push origin "$BRANCH"
-
-# trigger migration
+          git push origin audit/genuine-five-green-final
