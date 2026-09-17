@@ -1,3 +1,4 @@
+// Gemini Right-hand migration invariant: oversight remains a separate case-file-only layer.
 import fs from "node:fs";
 import path from "node:path";
 
