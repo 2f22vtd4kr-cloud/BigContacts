@@ -27,7 +27,7 @@ const checks = [
   ["discovery promotions reference the immutable claim event", /claimEventId:claimInserted\[0\]\?\.id/.test(bureau)],
   ["agentic persistence requires immutable promotion provenance", /InvestigatorPromotionProvenance/.test(persist) && /resolveImmutablePromotionSupport/.test(persist) && /if\(!support\)continue/.test(persist)],
   ["agentic card mutation revalidates immutable promotion support", /const support=await resolveImmutablePromotionSupport/.test(persist) && /if\(!support\)return false/.test(persist)],
-  ["agentic pass threads exact case and run provenance into persistence", /provenance:\{caseId:durableCaseId,runId:agentic\.runId\?\?runId\}/.test(bureau)],
+  ["agentic pass threads exact case and run provenance into persistence", /persistSourceBackedBureauContactsForEntity\(input\.entityId,[\s\S]*?\{caseId:durableCaseId,runId:agentic\.runId\?\?runId\}\)/.test(bureau)],
   ["target contact agent passes exact caseId into Investigator", /caseId: input\.caseId/.test(targetAgent)],
   ["target contact agent binds promotion provenance to the Investigator execution", /const runId = input\.caseId \? \(agentic\.executionId \?\? null\) : null/.test(targetAgent)],
   ["target contact persistence receives the exact promotion provenance", /const provenance: InvestigatorPromotionProvenance \| undefined = input\.caseId && runId \? \{ caseId: input\.caseId, runId \} : undefined/.test(targetAgent) && /observedSourceUrls, provenance\)/.test(targetAgent)],
