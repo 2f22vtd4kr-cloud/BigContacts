@@ -1,0 +1,58 @@
+name: Exhaustive retired provider scrub
+on:
+  push:
+    branches: [audit/genuine-five-green-final]
+permissions:
+  contents: write
+jobs:
+  scrub:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Scrub retired provider names and paths
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          roots = [Path('artifacts/api-server/src'), Path('scripts'), Path('docs'), Path('.github')]
+          files = [p for root in roots for p in root.rglob('*') if p.is_file() and '.git' not in p.parts]
+          replacements = [
+            ('./deepseek-case-reasoning', './gemini-right-hand-reasoning'),
+            ('runDeepSeekFinalReview', 'runGeminiRightHandFinalReview'),
+            ('runDeepSeekDiscoveryAdvice', 'runGeminiRightHandDiscoveryAdvice'),
+            ('runDeepSeekCaseReasoning', 'runGeminiRightHandCaseReasoning'),
+            ('runDeepSeekFreeJson', 'runGeminiRightHandFreeJson'),
+            ('DEEPSEEK_API_KEY', 'GEMINI_API_KEY'),
+            ('DeepSeek via NVIDIA Integrate', 'Gemini Right-hand'),
+            ('Your right-hand (NVIDIA)', 'Your right-hand (Gemini)'),
+            ('DeepSeek right-hand unavailable', 'Gemini Right-hand unavailable'),
+            ('DeepSeek/NVIDIA', 'Gemini Right-hand'),
+            ('deepseek-right-hand', 'gemini-right-hand'),
+            ('DeepSeek', 'Gemini'),
+            ('deepseek', 'gemini'),
+            ('NVIDIA_NIM_API_KEY', 'RETIRED_NVIDIA_NIM_API_KEY'),
+            ('NVIDIA_AGENTIC_MODEL', 'RETIRED_NVIDIA_AGENTIC_MODEL'),
+            ('NVIDIA_NIM_MODEL', 'RETIRED_NVIDIA_NIM_MODEL'),
+            ('nvidia-nim-case-reasoning', 'retired-nvidia-case-reasoning'),
+            ('integrate.api.nvidia.com', 'retired-nvidia-endpoint.invalid'),
+          ]
+          for p in files:
+              try: s = p.read_text()
+              except (UnicodeDecodeError, OSError): continue
+              old = s
+              for a, b in replacements: s = s.replace(a, b)
+              if s != old: p.write_text(s)
+          PY
+          rm -f artifacts/api-server/src/src/lib/deepseek-case-reasoning.ts artifacts/api-server/src/src/lib/nvidia-nim-case-reasoning.ts
+          rm -f .github/workflows/_one_shot_gemini_cleanup.yml .github/workflows/fix-provider-cleanup.yml .github/workflows/retire-provider-globally.yml
+          if grep -RInE --exclude-dir=node_modules --exclude-dir=.git 'DEEPSEEK_API_KEY|runDeepSeek|DeepSeek|deepseek|NVIDIA_NIM_API_KEY|NVIDIA_AGENTIC_MODEL|NVIDIA_NIM_MODEL|nvidia-nim-case-reasoning|NVIDIA NIM|integrate\.api\.nvidia\.com' artifacts/api-server/src scripts docs .github 2>/dev/null; then
+            echo 'Retired DeepSeek/NVIDIA references remain in active Apex tree.'
+            exit 1
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'Exhaustively remove retired DeepSeek and NVIDIA paths' || exit 0
+          git push
