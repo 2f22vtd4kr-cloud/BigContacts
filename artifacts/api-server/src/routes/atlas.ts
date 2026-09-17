@@ -75,8 +75,8 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
 
   const executionModel = "AI-owned control: discovery, target research, revisit, pivot, continuation, and stop are model decisions, not mandatory phases.";
   const phases = singleTargetId != null
-    ? ["0 — Canonical intake", "1 — Gemini/DeepSeek oversight", "2 — Model-directed Investigator research", "3 — Explicit promotion/final state"]
-    : ["0 — Canonical intake", "1 — Gemini/DeepSeek oversight", "2 — Model-directed research (discovery/target/revisit/pivot/stop)", "3 — Explicit promotion/final state"];
+    ? ["0 — Canonical intake", "1 — Gemini/Gemini oversight", "2 — Model-directed Investigator research", "3 — Explicit promotion/final state"]
+    : ["0 — Canonical intake", "1 — Gemini/Gemini oversight", "2 — Model-directed research (discovery/target/revisit/pivot/stop)", "3 — Explicit promotion/final state"];
 
   res.status(202).json({
     jobId: atlasJobId,

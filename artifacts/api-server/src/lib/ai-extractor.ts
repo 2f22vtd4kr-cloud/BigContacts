@@ -211,10 +211,10 @@ export async function runFinalTargetReview(
     logger.debug({ err: err?.message }, "final-review Gemini Boss unavailable");
   }
 
-  // 2) Right-hand — NVIDIA NIM
+  // 2) Right-hand — Gemini Right-hand
   try {
-    const { runNvidiaNimFinalReview } = await import("./nvidia-nim-case-reasoning");
-    const nv = await runNvidiaNimFinalReview(bossPrompt);
+    const { runGeminiRightHandFinalReview } = await import("./gemini-right-hand-reasoning");
+    const nv = await runGeminiRightHandFinalReview(bossPrompt);
     if (nv.status === "completed" && nv.raw) {
       const json = extractJsonObject(nv.raw);
       if (json) {
@@ -232,7 +232,7 @@ export async function runFinalTargetReview(
   }
 
   // Only the two oversight roles may adjudicate final card publication:
-  // Gemini Boss first, then NVIDIA/DeepSeek right-hand. Investigator models
+  // Gemini Boss first, then NVIDIA/Gemini right-hand. Investigator models
   // such as Groq/Mistral are never promoted into the final-review role.
   return adjudicateFinalTargetReview(input, {}, "unavailable-final-review");
 }

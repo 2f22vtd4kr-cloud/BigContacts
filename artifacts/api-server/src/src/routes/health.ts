@@ -2,7 +2,7 @@ import { Router, type IRouter } from "express";
 import { pingRedis, getPermanentClient, getRedisHealthSnapshot } from "../lib/redis";
 import { getAIKeyStatus } from "../lib/ai-extractor";
 import { getMistralWebSearchStatus } from "../lib/mistral-web-search";
-import { getDeepSeekCaseReasoningStatus } from "../lib/deepseek-case-reasoning";
+import { getGeminiRightHandStatus } from "../lib/gemini-right-hand-reasoning";
 import { buildLanesHonestySnapshot } from "../lib/lanes-honesty";
 
 const router: IRouter = Router();
@@ -28,7 +28,7 @@ router.get("/healthz", async (_req, res) => {
     const providerKeys = [
       process.env.GROQ_API_KEY,
       process.env.GEMINI_API_KEY,
-      process.env.DEEPSEEK_API_KEY,
+      process.env.GEMINI_API_KEY,
       process.env.MISTRAL_API_KEY,
       process.env.HF_TOKEN,
       process.env.SERPER_API_KEY,
@@ -59,7 +59,7 @@ router.get("/healthz/details", async (_req, res) => {
     const status = getAIKeyStatus();
     const active = (slots: Array<{ state: string }>) => slots.filter((s) => s.state === "active").length;
     const mistral = getMistralWebSearchStatus();
-    const nvidia = getDeepSeekCaseReasoningStatus();
+    const nvidia = getGeminiRightHandStatus();
     providers = {
       groq: active(status.groq), gemini: active(status.gemini), perplexity: active(status.perplexity), tavily: active(status.tavily), exa: active(status.exa),
       mistral: mistral.configured ? 1 : 0, nvidiaNim: nvidia.configured ? 1 : 0,
