@@ -176,7 +176,7 @@ export interface DiscoveryPersonCandidate {
   attributionStatus: "unverified" | "ambiguous" | "probable";
 }
 
-/** Final card publication review: Boss (Gemini) primary → NVIDIA right-hand.
+/** Final card publication review: Boss (Gemini) primary → Gemini right-hand.
  * Deterministic adjudicator always fail-closes on exact eligible values. */
 export async function runFinalTargetReview(
   input: FinalTargetReviewInput,
@@ -184,7 +184,7 @@ export async function runFinalTargetReview(
   const prompt = buildFinalTargetReviewPrompt(input);
   const bossPrompt =
     apexOrientationFor("boss") + "\n\n---\n\nYou are Gemini Boss, Head Investigator for Apex Atlas final card publication.\n" +
-    "Your right-hand (NVIDIA) may advise; you decide publish/review/reject using ONLY exact values supplied below.\n" +
+    "Your right-hand (Gemini) may advise; you decide publish/review/reject using ONLY exact values supplied below.\n" +
     "Never invent contacts, people, addresses, or URLs.\n\n" +
     prompt;
 

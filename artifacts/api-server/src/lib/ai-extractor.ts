@@ -176,7 +176,7 @@ export interface DiscoveryPersonCandidate {
   attributionStatus: "unverified" | "ambiguous" | "probable";
 }
 
-/** Final card publication review: Boss (Gemini) primary → NVIDIA right-hand → Groq.
+/** Final card publication review: Boss (Gemini) primary → Gemini right-hand → Groq.
  * Deterministic adjudicator always fail-closes on exact eligible values. */
 export async function runFinalTargetReview(
   input: FinalTargetReviewInput,
@@ -184,7 +184,7 @@ export async function runFinalTargetReview(
   const prompt = buildFinalTargetReviewPrompt(input);
   const bossPrompt =
     "You are Gemini Boss, Head Investigator for Apex Atlas final card publication.\n" +
-    "Your right-hand (NVIDIA) may advise; you decide publish/review/reject using ONLY exact values supplied below.\n" +
+    "Your right-hand (Gemini) may advise; you decide publish/review/reject using ONLY exact values supplied below.\n" +
     "Never invent contacts, people, addresses, or URLs.\n\n" +
     prompt;
 
@@ -228,11 +228,11 @@ export async function runFinalTargetReview(
       }
     }
   } catch (err: any) {
-    logger.debug({ err: err?.message }, "final-review NVIDIA right-hand unavailable");
+    logger.debug({ err: err?.message }, "final-review Gemini right-hand unavailable");
   }
 
   // Only the two oversight roles may adjudicate final card publication:
-  // Gemini Boss first, then NVIDIA/Gemini right-hand. Investigator models
+  // Gemini Boss first, then Gemini/Gemini right-hand. Investigator models
   // such as Groq/Mistral are never promoted into the final-review role.
   return adjudicateFinalTargetReview(input, {}, "unavailable-final-review");
 }

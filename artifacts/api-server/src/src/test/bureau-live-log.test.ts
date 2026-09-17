@@ -15,7 +15,7 @@ describe("bureau-live-log classification", () => {
 
   it("classifies actors from free-text job logs", () => {
     expect(classifyJobLogLine("Gemini Boss decision: continue registry").actor).toBe("boss");
-    expect(classifyJobLogLine("NVIDIA right-hand advisor note").actor).toBe("right_hand");
+    expect(classifyJobLogLine("Gemini right-hand advisor note").actor).toBe("right_hand");
     expect(classifyJobLogLine("Tavily web search completed").actor).toBe("web");
     expect(classifyJobLogLine("Maigret footprint scan started").actor).toBe("tool");
     expect(classifyJobLogLine("Companies House registry pull").actor).toBe("registry");

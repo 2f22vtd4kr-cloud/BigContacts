@@ -1,7 +1,7 @@
 /**
  * Right-hand live narration for Reactor — adaptive prose, never scripted templates.
  *
- * Boss keeps orchestration. Right-hand (NVIDIA) writes short operator-facing
+ * Boss keeps orchestration. Right-hand (Gemini) writes short operator-facing
  * commentary in parallel so the desk explains what is happening under the hood.
  * Non-blocking: never delays research; rate-limited; fails soft without key.
  */
