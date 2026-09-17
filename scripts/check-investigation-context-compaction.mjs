@@ -9,6 +9,7 @@ const checks = [
   ["complete evidence attribution is preserved", /Complete evidence attribution state/.test(source)],
   ["no deterministic max-character clipping remains", !/MAX_MAX_CHARS|return clip\(|compactRecords\(|compactEvidence\(/.test(source)],
   ["no bounded tail slicing remains", !/slice\(\s*-\d+/.test(source)],
+  ["maxChars is not used as a clipping boundary", !/maxChars\s*\)\s*\{|maxChars\s*[<>=]/.test(source)],
 ];
 let failed = false;
 for (const [name, ok] of checks) {
