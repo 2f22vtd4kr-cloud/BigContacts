@@ -41,7 +41,7 @@ jobs:
           grep -q 'trajectoryRecords' "$core"
           grep -q 'Choose the next action yourself' "$core"
           grep -q 'CONTINUATION STATE' "$wrapper"
-          grep -q 'Do not prescribe a fixed search/provider/tool/query sequence' artifacts/api-server/src/src/lib/target-contact-agent.ts
+          grep -qE 'Do not prescribe a fixed search/provider/tool/query sequence|There is no fixed checklist, provider order, query sequence, or mandatory hop order' artifacts/api-server/src/src/lib/target-contact-agent.ts
           grep -q '"serper"' "$core"
           grep -q '"tavily"' "$core"
           grep -q '"exa"' "$core"
