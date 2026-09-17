@@ -15,19 +15,21 @@ describe("passage-filter", () => {
     expect(scorePassage(contact, q)).toBeGreaterThan(scorePassage(noise, q));
   });
 
-  it("filters text toward query-relevant sentences", () => {
+  it("preserves complete observed text instead of clipping or dropping low-score sentences", () => {
     const text = [
       "Irrelevant sports scores from last night filled the page.",
       "Andrew F. Johnson is listed as a principal of Hastings Manufacturing Co in Michigan.",
       "Cookie policy and privacy settings for this website.",
       "Contact the Hastings office via linkedin.com/in/example-profile for business inquiries.",
     ].join(" ");
-    const filtered = filterPassagesForQuery(text, "Andrew Johnson Hastings contact", {
-      maxChars: 500,
+    const observed = filterPassagesForQuery(text, "Andrew Johnson Hastings contact", {
+      maxChars: 20,
       minScore: 0.05,
+      maxPassages: 1,
     });
-    expect(filtered.toLowerCase()).toContain("hastings");
-    expect(filtered.toLowerCase()).not.toContain("cookie policy");
+    expect(observed).toBe(text);
+    expect(observed.toLowerCase()).toContain("hastings");
+    expect(observed.toLowerCase()).toContain("cookie policy");
   });
 
   it("fail-closes contact URLs without http support", () => {
