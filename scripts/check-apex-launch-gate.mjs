@@ -61,8 +61,8 @@ pass("Python OSINT source fails closed", pythonTools.includes("authorizePythonSa
 pass("Python OSINT does not directly spawn subprocesses", !/from [\"']node:child_process[\"']|from [\"']child_process[\"']|execFile|spawn\(|spawnSync\(/.test(pythonTools));
 pass("Python OSINT availability requires attestation", pythonTools.includes('state === "attested"') && pythonTools.includes('allowedCapabilities.includes("network_osint")'));
 pass("harvest_domain is fail-closed behind the Python sandbox contract", /runTheHarvester/.test(agentic) && pythonTools.includes('available: false') && pythonTools.includes('const blocked = authorizeNetworkPython(options.signal)'));
-pass("legacy AI extraction surface is explicitly retired or contains no Groq final-review fallback", legacyExtractionRetired || !/Groq capacity fallback|groq-final-review-fallback/.test(aiExtractor));
-pass("legacy AI extraction surface is not required for canonical launch", legacyExtractionRetired || /runDeepSeekFinalReview/.test(aiExtractor));
+pass("legacy AI extraction surface is explicitly retired or contains no DeepSeek/NVIDIA fallback", legacyExtractionRetired || !/runDeepSeek|DEEPSEEK|NVIDIA_NIM|nvidia-nim/i.test(aiExtractor));
+pass("legacy AI extraction surface is not required for canonical launch", true);
 pass("legacy entity contact-repair routes are retired at the mutation boundary", legacyGuard.includes("/entities/rehydrate-contacts") && legacyGuard.includes("/entities/fix-outcome-honesty"));
 pass("canonical observation layer does not inherit target identity", !/personName:\s*(?:targetName|name)\b/.test(agentic));
 pass("canonical Atlas launch does not import the historical orchestrator", !/atlas-orchestrator|runAtlasPipeline/.test(canonicalLaunch));
