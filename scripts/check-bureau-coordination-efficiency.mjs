@@ -2,29 +2,22 @@ import fs from "node:fs";
 import path from "node:path";
 
 const root = process.cwd();
-const rightHand = fs.readFileSync(
-  path.join(root, "artifacts/api-server/src/src/lib/gemini-right-hand-reasoning.ts"),
-  "utf8",
-);
-const boss = fs.readFileSync(
-  path.join(root, "artifacts/api-server/src/src/lib/case-bureau-prompt.ts"),
-  "utf8",
-);
+const rightHand = fs.readFileSync(path.join(root, "artifacts/api-server/src/src/lib/gemini-right-hand-reasoning.ts"), "utf8");
+const boss = fs.readFileSync(path.join(root, "artifacts/api-server/src/src/lib/case-bureau-prompt.ts"), "utf8");
 
 const rightHandRequired = [
-  "max_tokens: 4096",
+  "GEMINI_RIGHT_HAND_MODEL",
+  "case_file_reasoning_only",
+  "maxOutputTokens: 2048",
   "BUREAU CHAIN OF COMMAND / SHARED MIND",
-  "Every iteration must produce a meaningful delta in the case frontier",
-  "do not merely repeat the previous Investigator result",
-  "function buildRightHandDecisionContext(file: ResearchCaseFile)",
-  "${buildRightHandDecisionContext(file)}",
-  "actionFrontier: { queued, recentCompleted }",
-  "searchGaps: (evidence.searchGaps ?? []).slice(-16)",
+  "Never browse, use external research, or invent evidence",
+  "compactCase(file: ResearchCaseFile)",
+  "actionQueue",
+  "investigationProgress",
+  "decisionLog",
 ];
 for (const marker of rightHandRequired) {
-  if (!rightHand.includes(marker)) {
-    throw new Error(`bureau coordination guard failed in right-hand: missing ${marker}`);
-  }
+  if (!rightHand.includes(marker)) throw new Error(`bureau coordination guard failed in Gemini right-hand: missing ${marker}`);
 }
 
 const bossRequired = [
@@ -43,9 +36,7 @@ const bossRequired = [
   "negativeFindings: (evidence.negativeFindings ?? []).slice(-16)",
 ];
 for (const marker of bossRequired) {
-  if (!boss.includes(marker)) {
-    throw new Error(`bureau coordination guard failed in Boss prompt: missing ${marker}`);
-  }
+  if (!boss.includes(marker)) throw new Error(`bureau coordination guard failed in Boss prompt: missing ${marker}`);
 }
 
 console.log("bureau coordination + efficiency guard: PASS");
