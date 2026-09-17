@@ -13,7 +13,7 @@ export interface ContextCompactionInput {
   evidenceGraphSummaries?: readonly string[];
 }
 
-function preserveRecursivePrior(value: string): string {
+function removeOnlyRecursivePrior(value: string): string {
   const marker = "## Prior durable context";
   const start = value.indexOf(marker);
   if (start < 0) return value;
@@ -34,7 +34,7 @@ function preserveRecursivePrior(value: string): string {
 export function compactInvestigationContext(input: ContextCompactionInput): string {
   const raw = String(input.raw ?? "").trim();
   const sections: string[] = [];
-  const base = preserveRecursivePrior(raw);
+  const base = removeOnlyRecursivePrior(raw);
   if (base) sections.push(base);
   if (input.trajectoryRecords?.length) sections.push(`## Complete Investigator trajectory records\n${JSON.stringify(input.trajectoryRecords)}`);
   if (input.trajectory?.length) sections.push(`## Complete Investigator trajectory\n${input.trajectory.join("\n")}`);
