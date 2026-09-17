@@ -1,5 +1,4 @@
 # Canonical five-green gate: five consecutive fresh full-codebase audits.
-# Deployment-prep sequence: audit after database initialization runbook hardening.
 name: Five Green Complete Codebase Audit
 
 on:
@@ -10,7 +9,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: five-green-complete-${{ github.ref }}-${{ github.sha }}
@@ -29,109 +28,24 @@ env:
   APEX_API_AUTH_TOKEN: audit-${{ github.run_id }}-apex-five-green-token
 
 jobs:
-  provider-scrub:
-    name: Final Gemini provider scrub
-    if: github.actor != 'github-actions[bot]'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: audit/genuine-five-green-final
-          fetch-depth: 0
-      - name: Remove retired provider paths and stale active references
-        shell: bash
-        run: |
-          set -euo pipefail
-          python3 - <<'PY'
-          from pathlib import Path
-          import re
-          roots = [Path('artifacts/api-server/src'), Path('scripts'), Path('docs'), Path('.github/workflows')]
-          replacements = [
-            ('./deepseek-case-reasoning', './gemini-right-hand-reasoning'),
-            ('deepseek-case-reasoning', 'gemini-right-hand-reasoning'),
-            ('getDeepSeekCaseReasoningStatus', 'getGeminiRightHandStatus'),
-            ('runDeepSeekCaseReasoning', 'runGeminiRightHandCaseReasoning'),
-            ('runDeepSeekDiscoveryAdvice', 'runGeminiRightHandDiscoveryAdvice'),
-            ('runDeepSeekFreeJson', 'runGeminiRightHandFreeJson'),
-            ('runDeepSeekFinalReview', 'runGeminiRightHandFinalReview'),
-            ('DeepSeekCaseReasoningResult', 'GeminiRightHandCaseReasoningResult'),
-            ('DeepSeekCaseReasoningStatus', 'GeminiRightHandStatus'),
-            ('DeepSeekDiscoveryAdviceResult', 'GeminiRightHandDiscoveryAdviceResult'),
-            ('DEEPSEEK_CASE_REASONING_MODEL', 'GEMINI_RIGHT_HAND_MODEL'),
-            ('deepseek-right-hand-final-review', 'gemini-right-hand-final-review'),
-            ('deepseek-right-hand', 'gemini-right-hand'),
-            ('DeepSeek via NVIDIA Integrate', 'Gemini Right-hand'),
-            ('DeepSeek via Gemini API', 'Gemini Right-hand'),
-            ('DeepSeek/NVIDIA Right Hand', 'Gemini Right-hand'),
-            ('DeepSeek/NVIDIA Right-hand', 'Gemini Right-hand'),
-            ('DeepSeek/NVIDIA', 'Gemini Right-hand'),
-            ('DeepSeek Right-hand', 'Gemini Right-hand'),
-            ('DeepSeek', 'Gemini Right-hand'),
-            ('deepseek', 'gemini'),
-            ('DEEPSEEK_API_KEY', 'GEMINI_API_KEY'),
-            ('NVIDIA_NIM_API_KEY', 'RETIRED_RIGHT_HAND_KEY'),
-            ('NVIDIA_AGENTIC_MODEL', 'RETIRED_RIGHT_HAND_MODEL'),
-            ('NVIDIA_NIM_MODEL', 'RETIRED_RIGHT_HAND_MODEL'),
-            ('NVIDIA NIM', 'Gemini Right-hand'),
-            ('NVIDIA Integrate', 'Gemini API'),
-            ('nvidia/nemotron-3.5-lightning-30b-a3b', 'gemini-3.8-flash'),
-            ('nvidia/nemotron-3-nano-30b-a3b', 'gemini-3.8-flash'),
-            ('nvidia-nim-case-reasoning', 'retired-right-hand-reasoning'),
-            ('integrate.api.nvidia.com', 'retired-right-hand-endpoint.invalid'),
-          ]
-          for root in roots:
-              for p in root.rglob('*'):
-                  if not p.is_file() or '.git' in p.parts or p.name == 'audit-five-greens.yml': continue
-                  try: s = p.read_text()
-                  except (UnicodeDecodeError, OSError): continue
-                  old = s
-                  for a, b in replacements: s = s.replace(a, b)
-                  if s != old: p.write_text(s)
-          p = Path('artifacts/api-server/src/src/lib/provider-gate.ts')
-          if p.exists():
-              s = p.read_text()
-              s = s.replace('|"nvidia-nim"', '').replace(',"nvidia-nim":"llm"', '').replace('if(host.includes("nvidia.com"))return "nvidia-nim";', '')
-              p.write_text(s)
-          p = Path('docs/APEX_REPLIT_STARTUP_PROMPT.md')
-          if p.exists():
-              s = p.read_text()
-              s = re.sub(r'={20,}\nDEEPSEEK SMOKE — BEFORE DISCOVERY\n={20,}\n[\s\S]*?(?=\n={20,}|\Z)', '============================================================\nGEMINI RIGHT-HAND SMOKE — BEFORE DISCOVERY\n============================================================\n\nPerform one tiny Right-hand provider smoke through the application\'s actual Gemini abstraction using GEMINI_API_KEY. Do not browse.\n', s, count=1)
-              p.write_text(s)
-          p = Path('docs/bureau-plan/40K_CANONICAL_ARCHITECTURE_ADDENDUM_2026-08-30.md')
-          if p.exists():
-              s = p.read_text().replace('provider = nvidia-nim', 'provider = gemini')
-              p.write_text(s)
-          for path in [
-              'scripts/patch-provider-lifecycle-final.mjs',
-              '.github/workflows/_one_shot_gemini_cleanup.yml',
-              '.github/workflows/fix-provider-cleanup.yml',
-              '.github/workflows/retire-provider-globally.yml',
-              '.github/workflows/final-provider-role-scrub.yml',
-              '.github/workflows/finish-gemini-migration.yml',
-          ]:
-              Path(path).unlink(missing_ok=True)
-          PY
-          if grep -RInE --exclude-dir=node_modules --exclude-dir=.git --exclude='check-*.mjs' --exclude='audit-five-greens.yml' 'DEEPSEEK_API_KEY|runDeepSeek|DeepSeek|deepseek|NVIDIA_NIM|NVIDIA_AGENTIC|NVIDIA NIM|NVIDIA Integrate|nvidia/nemotron|nvidia-nim|integrate\.api\.nvidia\.com' artifacts/api-server/src scripts docs .github/workflows 2>/dev/null; then
-            echo 'Retired provider references remain in active runtime/docs/workflows.'
-            exit 1
-          fi
-          if git diff --quiet; then echo 'Final provider scrub: already clean.'; exit 0; fi
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -A
-          git commit -m 'Finalize Gemini Right-hand provider migration'
-          git push
-
   audit-1:
     name: Audit 1 — complete codebase
-    needs: provider-scrub
-    if: always() && needs.provider-scrub.result == 'success'
     runs-on: ubuntu-latest
     steps: &audit_steps
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: audit/genuine-five-green-final
           fetch-depth: 0
+      - name: Verify retired DeepSeek/NVIDIA paths are absent from active Apex
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git grep -n -E 'DEEPSEEK_API_KEY|runDeepSeek|DeepSeek|deepseek|NVIDIA_NIM_API_KEY|NVIDIA_AGENTIC_MODEL|NVIDIA_NIM_MODEL|NVIDIA NIM|NVIDIA Integrate|nvidia/nemotron|nvidia-nim|integrate\.api\.nvidia\.com' -- artifacts/api-server/src scripts/check-unified-investigator-architecture.mjs docs/BUREAU_REACT_ARCHITECTURE.md; then
+            echo 'Retired DeepSeek/NVIDIA reference found in active Apex/runtime architecture.'
+            exit 1
+          fi
+          test ! -e artifacts/api-server/src/src/lib/deepseek-case-reasoning.ts
+          test ! -e artifacts/api-server/src/src/lib/nvidia-nim-case-reasoning.ts
       - name: Assert unified investigator architecture
         run: node scripts/check-unified-investigator-architecture.mjs
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
