@@ -9,11 +9,11 @@ const hardener = fs.readFileSync("scripts/apply-agentic-concurrency-hardening.mj
 const liveAudit = fs.readFileSync("scripts/audit-live-bureau.mjs", "utf8");
 const failures = [];
 const assert = (ok, name) => { if (!ok) failures.push(name); };
-
 assert(/INVESTIGATOR_LLM_CAPABILITY_POOL/.test(source), "Investigator capability pool is explicit");
 assert(/const AGENTIC_ACTION_SCHEMA\s*=/.test(source) && /function parseAction/.test(source), "action schema/parser are fail-closed");
 assert(/MAX_ITER = Number\.POSITIVE_INFINITY/.test(source), "Investigator iteration count is not an arbitrary hard ceiling");
 assert(!/Math\.min\(MAX_ITER, Math\.max\(1, requestedIterations\)\)/.test(source), "caller input is not clamped to an arbitrary iteration ceiling");
+assert(/const maxIter = requestedIterations > 0 \? requestedIterations : Number\.POSITIVE_INFINITY;/.test(source), "valid caller iteration budget is honored without an artificial ceiling");
 assert(/new AbortController\(\)/.test(source) && /input\.signal\?\.addEventListener\("abort", abortExternal/.test(source), "run-scoped cancellation is wired");
 assert(/setTimeout\(\(\) => runController\.abort\(\), hardTimeoutMs\)/.test(source), "hard timeout aborts the run");
 assert(/runController\.signal\.aborted/.test(source) && /input\.shouldCancel && await input\.shouldCancel\(\)/.test(source), "turn boundaries honor cancellation");
@@ -30,9 +30,7 @@ assert(/authorizePythonSandboxRequest/.test(python) && /const authorization = au
 assert(/capability: "network_osint"/.test(python) && /destinationPolicy: "approved-public-web-only"/.test(python), "Python OSINT egress policy is constrained");
 assert(/state === "attested"/.test(python) && /allowedCapabilities\.includes\("network_osint"\)/.test(python), "Python availability requires attested capability");
 assert(/function authorizePythonSandboxRequest/.test(sandbox) && /attested/.test(sandbox), "sandbox contract defines attestation boundary");
-for (const name of ["runHolehe", "runMaigret", "runSherlock", "runTheHarvester"]) {
-  assert(new RegExp(`${name}[\\s\\S]*?authorizeNetworkPython`).test(python), `${name} is governed by sandbox authorization`);
-}
+for (const name of ["runHolehe", "runMaigret", "runSherlock", "runTheHarvester"]) assert(new RegExp(`${name}[\\s\\S]*?authorizeNetworkPython`).test(python), `${name} is governed by sandbox authorization`);
 assert(/available: false/.test(python), "Python capabilities default unavailable");
 assert(/return \{ holehe: enabled, maigret: enabled, sherlock: enabled, theHarvester: enabled, openDeepResearch: enabled \}/.test(python), "Python availability derives from attested capability");
 assert(/Compatibility shim only/.test(shim) && /export \* from "\.\.\/\.\.\/api-server\/src\/src\/lib\/agentic-web-research\.ts"/.test(shim), "apex-runtime is compatibility-only");
@@ -42,22 +40,10 @@ assert(/async function probe\(url,key,model,provider\)/.test(workflow), "live au
 assert(/api\.groq\.com\/openai\/v1\/chat\/completions/.test(workflow) && /api\.mistral\.ai\/v1\/chat\/completions/.test(workflow), "live audit covers the explicit Investigator provider pool");
 assert(/Reply READY only\./.test(workflow) && /max_tokens:32/.test(workflow), "provider preflight is a bounded generation, not a search strategy");
 assert(/Launch bounded 3-target discovery-first smoke/.test(workflow) && /"discoveryFirst":true/.test(workflow) && /"runResearch":true/.test(workflow), "live audit launches the real discovery-first research path");
-assert(/POST http:\/\/127\.0\.0\.1:8080\/api\/ingest\/atlas-run/.test(workflow), "live audit invokes the canonical Atlas launch route");
+assert(/POST http:\/\/127\.0\.0.1:8080\/api\/ingest\/atlas-run/.test(workflow), "live audit invokes the canonical Atlas launch route");
 assert(/node scripts\/audit-live-bureau\.mjs/.test(workflow), "live audit applies the research-quality/provenance verifier after execution");
 assert(/discoveryModel/.test(liveAudit) && /discoveryTools/.test(liveAudit) && /actual web tooling/.test(liveAudit), "live verifier requires model-selected discovery with actual web tooling");
 assert(/discoveryAgent !== true/.test(liveAudit) && /sourceUrls/.test(liveAudit), "live verifier requires discovery admission provenance");
-
-for (const [label, pattern] of [
-  ["stagnation nudge", /\[STAGNATION\]/],
-  ["first-search completion gate", /done_rejected \(no research yet\)/],
-  ["automatic post-search visit instruction", /Soft nudge: if we already have company-looking URLs/],
-  ["Gemini temperature clamp", /generationConfig:[\s\S]{0,250}temperature:\s*0\.25/],
-  ["forced initial web search", /Begin\. Choose an initial web_search query/],
-]) assert(!pattern.test(source), `${label} is absent`);
-
-if (failures.length) {
-  console.error("AGENTIC RUNTIME: FAIL");
-  for (const failure of failures) console.error(`- ${failure}`);
-  process.exit(1);
-}
+for (const [label, pattern] of [["stagnation nudge", /\[STAGNATION\]/],["first-search completion gate", /done_rejected \(no research yet\)/],["automatic post-search visit instruction", /Soft nudge: if we already have company-looking URLs/],["Gemini temperature clamp", /generationConfig:[\s\S]{0,250}temperature:\s*0\.25/],["forced initial web search", /Begin\. Choose an initial web_search query/]]) assert(!pattern.test(source), `${label} is absent`);
+if (failures.length) { console.error("AGENTIC RUNTIME: FAIL"); for (const failure of failures) console.error(`- ${failure}`); process.exit(1); }
 console.log("AGENTIC RUNTIME: PASS — Investigator authority, cancellation, capability gating, bounded live execution and autonomy invariants align");
