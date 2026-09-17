@@ -19,7 +19,7 @@ jobs:
           echo '=== PROMPT/CONTEXT FUNCTIONS ==='
           grep -RInE 'enrichObjective|runAgenticWebResearch|runDynamicDiscovery|CONTINUATION STATE|ACT HISTORY|research.*prompt|search.*query|query.*search' artifacts/api-server/src/src/lib scripts --include='*.ts' --include='*.mjs' || true
           echo '=== POTENTIAL TRUNCATION BOUNDARIES ==='
-          grep -RInE 'slice\(|substring\(|substr\(|\.splice\(|MAX_(ITER|OBS|TRAJECTORY)|ACTION_LIMIT|MAX_.*(FIND|RESULT|SOURCE|URL|CHAR|CONTEXT)|max[A-Za-z]*(Chars|Items|Results|Sources|Findings|Actions|Iterations))' artifacts/api-server/src/src/lib/agentic-web-research-core.ts artifacts/api-server/src/src/lib/agentic-web-research.ts artifacts/api-server/src/src/lib/target-act-oversight.ts artifacts/api-server/src/src/lib/atlas-control-decision.ts artifacts/api-server/src/src/lib/bureau-agentic-pass.ts scripts/check-*investigator* scripts/check-*react* scripts/check-*prompt* --include='*.ts' --include='*.mjs' || true
+          grep -RInE 'MAX_(ITER|OBS|TRAJECTORY)|ACTION_LIMIT|MAX_.*(FIND|RESULT|SOURCE|URL|CHAR|CONTEXT)|max[A-Za-z]*(Chars|Items|Results|Sources|Findings|Actions|Iterations)' artifacts/api-server/src/src/lib/agentic-web-research-core.ts artifacts/api-server/src/src/lib/agentic-web-research.ts artifacts/api-server/src/src/lib/target-act-oversight.ts artifacts/api-server/src/src/lib/atlas-control-decision.ts artifacts/api-server/src/src/lib/bureau-agentic-pass.ts scripts/check-*investigator* scripts/check-*react* --include='*.ts' --include='*.mjs' || true
           echo '=== INVESTIGATOR ACTION SCHEMA ==='
           grep -RInE 'type AgentAction|interface AgentAction|web_search|action.*query|provider' artifacts/api-server/src/src/lib/agentic-web-research-core.ts artifacts/api-server/src/src/lib/agentic-web-research.ts --include='*.ts' || true
           echo '=== WEB PROVIDER EXECUTION ==='
@@ -34,17 +34,22 @@ jobs:
           wrapper='artifacts/api-server/src/src/lib/agentic-web-research.ts'
           test ! -f artifacts/api-server/src/src/lib/deepseek-case-reasoning.ts
           test ! -f artifacts/api-server/src/src/lib/nvidia-nim-case-reasoning.ts
-          ! grep -RInE 'runDeepSeek|DEEPSEEK_API_KEY|api\.deepseek\.com|NVIDIA_NIM|nvidia-nim' artifacts/api-server/src/src/lib artifacts/api-server/src/src/routes --include='*.ts'
+          if grep -RInE 'runDeepSeek|DEEPSEEK_API_KEY|api\.deepseek\.com|NVIDIA_NIM|nvidia-nim' artifacts/api-server/src/src/lib artifacts/api-server/src/src/routes --include='*.ts'; then
+            echo 'Active Apex runtime still contains DeepSeek/NVIDIA-NIM references.'
+            exit 1
+          fi
           grep -q 'trajectoryRecords' "$core"
           grep -q 'Choose the next action yourself' "$core"
           grep -q 'CONTINUATION STATE' "$wrapper"
           grep -q 'Do not prescribe a fixed search/provider/tool/query sequence' artifacts/api-server/src/src/lib/target-contact-agent.ts
-          grep -q 'provider.*serper.*tavily.*exa' "$core"
-          ! grep -q 'Begin. Choose an initial web_search query' "$core"
-          ! grep -q 'begin with web_search' "$core"
-          grep -q 'Number.POSITIVE_INFINITY' "$core"
+          grep -q '"serper"' "$core"
+          grep -q '"tavily"' "$core"
+          grep -q '"exa"' "$core"
           grep -q 'input.history' "$core"
           grep -q 'input.lastObservation' "$core"
+          grep -q 'Number.POSITIVE_INFINITY' "$core"
+          ! grep -q 'Begin. Choose an initial web_search query' "$core"
+          ! grep -q 'begin with web_search' "$core"
       - name: Check workflow source is not itself introducing fixed research sequencing
         shell: bash
         run: |
