@@ -31,7 +31,6 @@ jobs:
           PY
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add docs/APEX_REPLIT_STARTUP_PROMPT.md docs/bureau-plan/40K_CANONICAL_ARCHITECTURE_ADDENDUM-2026-08-30.md artifacts/api-server/src/src/lib/provider-gate.ts
           git add docs/APEX_REPLIT_STARTUP_PROMPT.md docs/bureau-plan/40K_CANONICAL_ARCHITECTURE_ADDENDUM_2026-08-30.md artifacts/api-server/src/src/lib/provider-gate.ts
           git commit -m 'Remove stale retired provider references' || exit 0
           git push
