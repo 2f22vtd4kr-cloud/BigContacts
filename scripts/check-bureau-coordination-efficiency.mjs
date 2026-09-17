@@ -11,7 +11,7 @@ const rightHandRequired = [
   "GEMINI_RIGHT_HAND_MODEL",
   "case_file_reasoning_only",
   "maxOutputTokens: 2048",
-  "BUREAU CHAIN OF COMMAND / SHARED MIND",
+  "You are Apex Atlas Right Hand. Reason only over the supplied case file.",
   "Never browse, use external research, or invent evidence",
   "compactCase(file: ResearchCaseFile)",
   "actionQueue",
