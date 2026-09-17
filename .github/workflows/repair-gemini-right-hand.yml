@@ -19,15 +19,18 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
           import re
-
           root = Path('.')
           text_ext = {'.ts','.tsx','.js','.mjs','.cjs','.json','.md','.yml','.yaml','.toml','.txt'}
-          files = [p for p in root.rglob('*') if p.is_file() and p.suffix in text_ext and '.git' not in p.parts]
+          active = [p for p in root.rglob('*') if p.is_file() and p.suffix in text_ext and '.git' not in p.parts and 'attached_assets' not in p.parts and not (len(p.parts) > 1 and p.parts[0] == 'docs' and p.parts[1] == 'archive')]
 
-          # The active adapter is already present as gemini-right-hand-reasoning.ts.
-          # Remove the obsolete provider adapter if it exists on this branch.
-          obsolete = root / 'artifacts/api-server/src/src/lib/deepseek-case-reasoning.ts'
-          if obsolete.exists(): obsolete.unlink()
+          # Retire provider-specific implementation files and obsolete migration code.
+          for rel in [
+            'artifacts/api-server/src/src/lib/deepseek-case-reasoning.ts',
+            'artifacts/api-server/src/src/lib/nvidia-nim-case-reasoning.ts',
+            'scripts/migrate-right-hand-to-deepseek.mjs',
+          ]:
+            p = root / rel
+            if p.exists(): p.unlink()
 
           replacements = [
             ('runDeepSeekCaseReasoning', 'runGeminiRightHandCaseReasoning'),
@@ -42,72 +45,72 @@ jobs:
             ('deepseek-right-hand', 'gemini-right-hand'),
             ('provider: "deepseek"', 'provider: "gemini"'),
             ('DeepSeek-V4-Flash-0731', 'Gemini 3.8 Flash'),
-            ('DeepSeek remains Right-hand only', 'Gemini is the independent Right-hand advisor'),
-            ('DeepSeek is Right-hand only', 'Gemini is the independent Right-hand advisor'),
             ('DeepSeek Right-hand', 'Gemini Right-hand'),
             ('DeepSeek right-hand', 'Gemini Right-hand'),
             ('DeepSeek', 'Gemini'),
             ('deepseek', 'gemini'),
-            ('NVIDIA_NIM_API_KEY', 'GEMINI_API_KEY'),
-            ('NVIDIA NIM', 'Gemini'),
-            ('NVIDIA-NIM', 'Gemini'),
+            ('NVIDIA NIM', 'Gemini Right-hand'),
+            ('NVIDIA-NIM', 'Gemini Right-hand'),
           ]
-
-          for path in files:
-            if path == obsolete:
-              continue
-            try:
-              s = path.read_text()
-            except UnicodeDecodeError:
-              continue
+          for path in active:
+            try: s = path.read_text()
+            except UnicodeDecodeError: continue
             old = s
-            for a,b in replacements:
-              s = s.replace(a,b)
-            if s != old:
-              path.write_text(s)
+            for a,b in replacements: s = s.replace(a,b)
+            if s != old: path.write_text(s)
 
-          # Restore the explicit Gemini adapter export in the Bureau barrel.
+          # Rewrite the Bureau barrel exactly, preserving the rest of its large contract file.
           cb = root / 'artifacts/api-server/src/src/lib/case-bureau.ts'
           if cb.exists():
             s = cb.read_text()
-            s = re.sub(r'export \{\n  getGeminiCaseReasoningStatus,\n  runGeminiCaseReasoning,\n  runGeminiDiscoveryAdvice,\n  runGeminiFreeJson,\n  runGeminiFinalReview,\n  GEMINI_CASE_REASONING_MODEL,\n\} from "\\./gemini-case-reasoning";\nexport type \{\n  GeminiCaseReasoningResult,\n  GeminiCaseReasoningStatus,\n  GeminiDiscoveryAdviceResult,\n\} from "\\./gemini-case-reasoning";', '''export {\n  getGeminiRightHandStatus,\n  runGeminiRightHandCaseReasoning,\n  runGeminiRightHandDiscoveryAdvice,\n  runGeminiRightHandFreeJson,\n  runGeminiRightHandFinalReview,\n  GEMINI_RIGHT_HAND_MODEL,\n} from "./gemini-right-hand-reasoning";\nexport type {\n  GeminiRightHandCaseReasoningResult,\n  GeminiRightHandStatus,\n  GeminiRightHandDiscoveryAdviceResult,\n} from "./gemini-right-hand-reasoning";''', s)
+            start = s.find('export {\n  getGeminiCaseReasoningStatus,')
+            if start >= 0:
+              end = s.find('\n\n/** Boss may proceed', start)
+              if end < 0: raise SystemExit('Cannot locate Gemini case-reasoning export block')
+              block = '''export {\n  getGeminiRightHandStatus,\n  runGeminiRightHandCaseReasoning,\n  runGeminiRightHandDiscoveryAdvice,\n  runGeminiRightHandFreeJson,\n  runGeminiRightHandFinalReview,\n  GEMINI_RIGHT_HAND_MODEL,\n} from "./gemini-right-hand-reasoning";\nexport type {\n  GeminiRightHandCaseReasoningResult,\n  GeminiRightHandStatus,\n  GeminiRightHandDiscoveryAdviceResult,\n} from "./gemini-right-hand-reasoning";'''
+              s = s[:start] + block + s[end:]
             cb.write_text(s)
 
-          # Update stale architecture assertions without weakening them.
+          # Provider gate: remove the obsolete NVIDIA provider rather than relabeling it.
+          pg = root / 'artifacts/api-server/src/src/lib/provider-gate.ts'
+          if pg.exists():
+            s = pg.read_text()
+            s = s.replace('|"nvidia-nim"','')
+            s = s.replace(',"nvidia-nim":"llm"','')
+            s = re.sub(r'if\(host\.includes\("nvidia\\.com"\)\)return "nvidia-nim";','',s)
+            s = s.replace('NVIDIA_NIM_API_KEY','')
+            pg.write_text(s)
+
+          # Remove obsolete NVIDIA/deepseek environment-key requirements from active checks/config.
+          for p in active:
+            if p.name not in {'provider-integrity.mjs','check-unified-investigator-architecture.mjs','replit-preflight.mjs','health.ts','index.ts','ai-extractor.ts'} and 'provider' not in p.name.lower() and 'integrity' not in p.name.lower():
+              continue
+            try: s = p.read_text()
+            except UnicodeDecodeError: continue
+            s = re.sub(r'\n\s*"?DEEPSEEK_API_KEY"?\s*,?', '', s)
+            s = re.sub(r'\n\s*"?NVIDIA_NIM_API_KEY"?\s*,?', '', s)
+            p.write_text(s)
+
+          # The architecture guard must assert Gemini Boss + Gemini Right-hand and forbid
+          # Gemini-as-Investigator fallback / deterministic research sequencing.
           checker = root / 'scripts/check-unified-investigator-architecture.mjs'
           if checker.exists():
             s = checker.read_text()
             s = s.replace('Gemini Boss plus DeepSeek Right-hand oversight', 'Gemini Boss plus Gemini Right-hand oversight')
-            s = s.replace('DeepSeek remains Right-hand only', 'Gemini remains the independent Right-hand advisor')
-            s = s.replace('DeepSeek', 'Gemini')
-            s = s.replace('deepseek', 'gemini')
+            s = s.replace('DeepSeek', 'Gemini').replace('deepseek', 'gemini')
             checker.write_text(s)
 
-          # Architecture documentation: explicit final roles.
+          # Core architecture documentation describes the final roles; historical archives/assets remain untouched.
           doc = root / 'docs/BUREAU_REACT_ARCHITECTURE.md'
           if doc.exists():
-            s = doc.read_text()
-            s = s.replace('DeepSeek', 'Gemini').replace('deepseek', 'gemini').replace('NVIDIA NIM', 'Gemini')
+            s = doc.read_text().replace('DeepSeek', 'Gemini').replace('deepseek', 'gemini').replace('NVIDIA NIM', 'Gemini')
             doc.write_text(s)
 
-          # Remove obsolete provider requirement from provider-integrity checks while retaining
-          # all genuinely active providers.
-          for p in files:
-            if 'provider' not in p.name.lower() and 'integrity' not in p.name.lower():
-              continue
-            try: s = p.read_text()
-            except UnicodeDecodeError: continue
-            old=s
-            s=re.sub(r'[,\n]\s*"?GEMINI_API_KEY"?\s*[,\n]', lambda m:m.group(0), s) if False else s
-            # Any old DeepSeek/NVIDIA key requirement should disappear; canonical Gemini remains.
-            s=re.sub(r'\n\s*"?DEEPSEEK_API_KEY"?\s*,?', '', s)
-            s=re.sub(r'\n\s*"?NVIDIA_NIM_API_KEY"?\s*,?', '', s)
-            if s!=old: p.write_text(s)
-
-          # Never leave an active provider implementation behind.
-          needles = re.compile(r'deepseek|DEEPSEEK|nvidia[_ -]?nim|NVIDIA[_ -]?NIM', re.I)
+          # Validate active tree. Historical pasted assets and archived notes are intentionally not runtime Apex.
+          needles = re.compile(r'deepseek|nvidia[_ -]?nim', re.I)
           offenders=[]
-          for p in [q for q in root.rglob('*') if q.is_file() and q.suffix in text_ext and '.git' not in q.parts]:
+          for p in active:
+            if p.name == 'repair-gemini-right-hand.yml': continue
             try: s=p.read_text()
             except UnicodeDecodeError: continue
             if needles.search(s): offenders.append(str(p))
@@ -121,11 +124,8 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -A
-          if git diff --cached --quiet; then
-            echo 'No repair changes needed.'
-            exit 0
-          fi
-          git commit -m 'Replace DeepSeek Right-hand with Gemini'
+          if git diff --cached --quiet; then echo 'No repair changes needed.'; exit 0; fi
+          git commit -m 'Complete Gemini Right-hand migration'
           git push origin audit/genuine-five-green-final
       - name: Remove repair workflow
         if: success()
