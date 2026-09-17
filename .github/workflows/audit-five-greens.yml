@@ -79,6 +79,7 @@ jobs:
             ('DEEPSEEK_API_KEY','GEMINI_API_KEY'),
             ('DeepSeek','Gemini'),
             ('deepseek','gemini'),
+            ('NVIDIA','Gemini'),
           ]
           changed=[]
           for p in root.rglob('*'):
@@ -91,7 +92,7 @@ jobs:
               p.write_text(s); changed.append(str(p))
           for path in ['artifacts/api-server/src/src/lib/deepseek-case-reasoning.ts','artifacts/api-server/src/src/lib/nvidia-nim-case-reasoning.ts']:
             Path(path).unlink(missing_ok=True)
-          if grep -RInE --exclude-dir=node_modules --exclude-dir=.git 'DEEPSEEK_API_KEY|runDeepSeek|DeepSeek|deepseek|NVIDIA_NIM|NVIDIA_AGENTIC|NVIDIA_NIM_MODEL|NVIDIA NIM|NVIDIA Integrate|nvidia/nemotron|nvidia-nim|integrate\.api\.nvidia\.com' artifacts/api-server/src 2>/dev/null; then
+          if grep -RInE --exclude-dir=node_modules --exclude-dir=.git 'DEEPSEEK_API_KEY|runDeepSeek|DeepSeek|deepseek|NVIDIA_NIM|NVIDIA_AGENTIC|NVIDIA_NIM_MODEL|NVIDIA NIM|NVIDIA Integrate|NVIDIA|nvidia/nemotron|nvidia-nim|integrate\.api\.nvidia\.com' artifacts/api-server/src 2>/dev/null; then
             echo 'Active Apex source still contains retired provider references.'
             exit 1
           fi
@@ -116,7 +117,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if git grep -n -E 'DEEPSEEK_API_KEY|runDeepSeek|DeepSeek|deepseek|NVIDIA_NIM_API_KEY|NVIDIA_AGENTIC_MODEL|NVIDIA_NIM_MODEL|NVIDIA NIM|NVIDIA Integrate|nvidia/nemotron|nvidia-nim|integrate\.api\.nvidia\.com' -- artifacts/api-server/src; then
+          if git grep -n -E 'DEEPSEEK_API_KEY|runDeepSeek|DeepSeek|deepseek|NVIDIA_NIM_API_KEY|NVIDIA_AGENTIC_MODEL|NVIDIA_NIM_MODEL|NVIDIA NIM|NVIDIA Integrate|NVIDIA|nvidia/nemotron|nvidia-nim|integrate\.api\.nvidia\.com' -- artifacts/api-server/src; then
             echo 'Retired DeepSeek/NVIDIA reference found in active Apex runtime source.'
             exit 1
           fi
