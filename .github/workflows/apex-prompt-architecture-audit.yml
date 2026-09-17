@@ -1,0 +1,28 @@
+name: Apex Prompt Architecture Audit
+on:
+  push:
+    branches: [audit/genuine-five-green-final]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Inspect research prompt/data-flow boundaries
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo '=== CURRENT SHA ==='
+          git rev-parse HEAD
+          echo '=== PROMPT/CONTEXT FUNCTIONS ==='
+          grep -RInE 'enrichObjective|runAgenticWebResearch|runDynamicDiscovery|CONTINUATION STATE|ACT HISTORY|research.*prompt|search.*query|query.*search' artifacts/api-server/src/src/lib scripts --include='*.ts' --include='*.mjs' | head -n 300
+          echo '=== POTENTIAL TRUNCATION BOUNDARIES ==='
+          grep -RInE 'slice\(|substring\(|substr\(|\.splice\(|MAX_(ITER|OBS|TRAJECTORY)|ACTION_LIMIT|MAX_.*(FIND|RESULT|SOURCE|URL|CHAR|CONTEXT)|max[A-Za-z]*(Chars|Items|Results|Sources|Findings|Actions|Iterations))' artifacts/api-server/src/src/lib artifacts/api-server/src/src/routes scripts --include='*.ts' --include='*.mjs' | head -n 500
+          echo '=== INVESTIGATOR ACTION SCHEMA ==='
+          grep -RInE 'type AgentAction|interface AgentAction|web_search|action.*query|provider' artifacts/api-server/src/src/lib/agentic-web-research-core.ts artifacts/api-server/src/src/lib/agentic-web-research.ts --include='*.ts' | head -n 250
+          echo '=== WEB PROVIDER EXECUTION ==='
+          grep -RInE 'webSearchSerper|webSearchTavily|webSearchExa|filterPassagesForQuery|readResponseTextCapped' artifacts/api-server/src/src/lib/agentic-web-research-core.ts --include='*.ts' | head -n 250
+          echo '=== ADAPTIVE DIRECTOR REFERENCES ==='
+          grep -RInE 'adaptive-research-director|selectNextAdaptiveAction|ACTION_LIMIT|mapBossToolToAction' artifacts/api-server/src artifacts/api-server/src/src --include='*.ts' | head -n 250 || true
