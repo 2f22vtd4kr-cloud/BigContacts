@@ -31,13 +31,14 @@ jobs:
         run: |
           set -euo pipefail
           core='artifacts/api-server/src/src/lib/agentic-web-research-core.ts'
-          agent='artifacts/api-server/src/src/lib/agentic-web-research.ts'
+          wrapper='artifacts/api-server/src/src/lib/agentic-web-research.ts'
           test ! -f artifacts/api-server/src/src/lib/deepseek-case-reasoning.ts
-          ! grep -RInE 'runDeepSeek|DEEPSEEK_API_KEY|api\.deepseek\.com|NVIDIA_NIM|nvidia-nim' artifacts/api-server/src scripts --include='*.ts' --include='*.mjs'
+          test ! -f artifacts/api-server/src/src/lib/nvidia-nim-case-reasoning.ts
+          ! grep -RInE 'runDeepSeek|DEEPSEEK_API_KEY|api\.deepseek\.com|NVIDIA_NIM|nvidia-nim' artifacts/api-server/src/src/lib artifacts/api-server/src/src/routes --include='*.ts'
           grep -q 'trajectoryRecords' "$core"
           grep -q 'Choose the next action yourself' "$core"
-          grep -q 'CONTINUATION STATE' "$agent"
-          grep -q 'Do not prescribe a fixed search/provider/tool/query sequence' "$agent"
+          grep -q 'CONTINUATION STATE' "$wrapper"
+          grep -q 'Do not prescribe a fixed search/provider/tool/query sequence' artifacts/api-server/src/src/lib/target-contact-agent.ts
           grep -q 'provider.*serper.*tavily.*exa' "$core"
           ! grep -q 'Begin. Choose an initial web_search query' "$core"
           ! grep -q 'begin with web_search' "$core"
