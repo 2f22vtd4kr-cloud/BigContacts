@@ -17,15 +17,30 @@ function isGeminiGenerationRequest(url: string): boolean {
   }
 }
 
+function isLikelyBossGeneration(init?: RequestInit): boolean {
+  if (typeof init?.body !== "string") return false;
+  try {
+    const body = JSON.parse(init.body) as { generationConfig?: { maxOutputTokens?: number } };
+    // Boss requests currently reserve the larger output budget (8192); the
+    // Right-hand is deliberately bounded to 2048. This keeps the transport
+    // fallback independent of the Boss implementation while preserving the
+    // Right-hand's own explicit model chain and returned model identity.
+    return Number(body.generationConfig?.maxOutputTokens ?? 0) >= 4096;
+  } catch {
+    return false;
+  }
+}
+
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 /**
- * Google documents 429/503 as transient Gemini capacity failures and recommends
- * bounded exponential backoff. This wrapper keeps that transport concern out of
- * Bureau reasoning logic; it never changes prompts, models, providers, or the
- * research decision. Non-transient responses pass through untouched.
+ * Google documents 429/503 as transient Gemini capacity failures. Right-hand
+ * requests use bounded retry. Boss requests deliberately fail-fast after the
+ * first capacity response so the Boss catalog loop can select the next
+ * compatible/lower Gemini model instead of spending the whole budget retrying
+ * a globally busy model.
  */
 export function installGeminiTransientRetry(): void {
   const current = globalThis.fetch as RetryFetch;
@@ -35,9 +50,15 @@ export function installGeminiTransientRetry(): void {
     const url = requestUrl(input);
     if (!isGeminiGenerationRequest(url)) return current(input, init);
 
+    const bossRequest = isLikelyBossGeneration(init);
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt += 1) {
       const response = await current(input, init);
-      if ((response.status !== 429 && response.status !== 503) || attempt >= MAX_RETRIES) return response;
+      if (response.status !== 429 && response.status !== 503) return response;
+      if (bossRequest) {
+        await response.body?.cancel().catch(() => undefined);
+        throw new Error(`Gemini Boss capacity response ${response.status}; advance to the next compatible model.`);
+      }
+      if (attempt >= MAX_RETRIES) return response;
       await response.body?.cancel().catch(() => undefined);
       await delay(RETRY_BASE_MS * 2 ** attempt + Math.floor(Math.random() * 250));
     }
