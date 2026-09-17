@@ -33,9 +33,9 @@ const bossRequired = [
   "What would be redundant with work already done?",
   "function buildBossDecisionContext(file: PlanInput[\"file\"]): string",
   "${buildBossDecisionContext(input.file)}",
-  "actionFrontier: { queued, recentCompleted }",
-  "contactRoutes: recentContacts",
-  "negativeFindings: (evidence.negativeFindings ?? []).slice(-16)",
+  "actionFrontier: { queued, completed }",
+  "contactRoutes: file.contactRoutes ?? []",
+  "negativeFindings: evidence.negativeFindings ?? [],",
 ];
 for (const marker of bossRequired) {
   if (!boss.includes(marker)) throw new Error(`bureau coordination guard failed in Boss prompt: missing ${marker}`);
