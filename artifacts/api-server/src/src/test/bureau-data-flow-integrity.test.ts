@@ -11,13 +11,13 @@ function source(path: string): string {
 describe("Apex Atlas Bureau data-flow integrity", () => {
   it("does not truncate canonical case context or Investigator history", () => {
     const files = [
-      "src/src/lib/case-bureau-prompt.ts",
-      "src/src/lib/agentic-web-research.ts",
-      "src/src/lib/canonical-atlas-discovery.ts",
-      "src/src/lib/canonical-single-target-runner.ts",
-      "src/src/lib/target-contact-agent.ts",
-      "src/src/lib/investigation-context-compaction.ts",
-      "src/src/routes/research/canonical-case-discovery.ts",
+      "artifacts/api-server/src/src/lib/case-bureau-prompt.ts",
+      "artifacts/api-server/src/src/lib/agentic-web-research.ts",
+      "artifacts/api-server/src/src/lib/canonical-atlas-discovery.ts",
+      "artifacts/api-server/src/src/lib/canonical-single-target-runner.ts",
+      "artifacts/api-server/src/src/lib/target-contact-agent.ts",
+      "artifacts/api-server/src/src/lib/investigation-context-compaction.ts",
+      "artifacts/api-server/src/src/routes/research/canonical-case-discovery.ts",
     ].map((file) => source(file));
 
     for (const content of files) {
@@ -29,7 +29,7 @@ describe("Apex Atlas Bureau data-flow integrity", () => {
   });
 
   it("keeps the research-depth action budget model-decided", () => {
-    const content = source("src/src/lib/research-depth.ts");
+    const content = source("artifacts/api-server/src/src/lib/research-depth.ts");
     expect(content).toContain("agenticMaxIterations: UNBOUNDED");
     expect(content).toContain("adaptiveMaxActions: UNBOUNDED");
     expect(content).toContain("maxPersonFollowUps: UNBOUNDED");
@@ -37,8 +37,8 @@ describe("Apex Atlas Bureau data-flow integrity", () => {
   });
 
   it("keeps the Investigator-to-card path evidence-backed", () => {
-    const agent = source("src/src/lib/target-contact-agent.ts");
-    const persistence = source("src/src/lib/bureau-contact-persist-strict.ts");
+    const agent = source("artifacts/api-server/src/src/lib/target-contact-agent.ts");
+    const persistence = source("artifacts/api-server/src/src/lib/bureau-contact-persist-strict.ts");
     expect(agent).toContain("sourceBackedFindings");
     expect(agent).toContain("persistSourceBackedBureauContactsForEntity");
     expect(persistence).toContain("resolveImmutablePromotionSupport");
