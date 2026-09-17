@@ -44,6 +44,7 @@ jobs:
           set -euo pipefail
           python3 - <<'PY'
           from pathlib import Path
+          import re
           roots = [Path('artifacts/api-server/src'), Path('scripts'), Path('docs'), Path('.github/workflows')]
           replacements = [
             ('./deepseek-case-reasoning', './gemini-right-hand-reasoning'),
@@ -89,21 +90,28 @@ jobs:
           p = Path('artifacts/api-server/src/src/lib/provider-gate.ts')
           if p.exists():
               s = p.read_text()
-              s = s.replace('|"nvidia-nim"', '')
-              s = s.replace(',"nvidia-nim":"llm"', '')
-              s = s.replace('if(host.includes("nvidia.com"))return "nvidia-nim";', '')
+              s = s.replace('|"nvidia-nim"', '').replace(',"nvidia-nim":"llm"', '').replace('if(host.includes("nvidia.com"))return "nvidia-nim";', '')
               p.write_text(s)
-          p = Path('artifacts/api-server/src/src/lib/case-bureau.ts')
+          p = Path('docs/APEX_REPLIT_STARTUP_PROMPT.md')
           if p.exists():
               s = p.read_text()
-              old = '''export {\n  getDeepSeekCaseReasoningStatus,\n  runDeepSeekCaseReasoning,\n  runDeepSeekDiscoveryAdvice,\n  runDeepSeekFreeJson,\n  runDeepSeekFinalReview,\n  DEEPSEEK_CASE_REASONING_MODEL,\n} from "./deepseek-case-reasoning";\nexport type {\n  DeepSeekCaseReasoningResult,\n  DeepSeekCaseReasoningStatus,\n  DeepSeekDiscoveryAdviceResult,\n} from "./deepseek-case-reasoning";'''
-              new = '''export {\n  getGeminiRightHandStatus,\n  runGeminiRightHandCaseReasoning,\n  runGeminiRightHandDiscoveryAdvice,\n  runGeminiRightHandFreeJson,\n  runGeminiRightHandFinalReview,\n  GEMINI_RIGHT_HAND_MODEL,\n} from "./gemini-right-hand-reasoning";\nexport type {\n  GeminiRightHandCaseReasoningResult,\n  GeminiRightHandStatus,\n  GeminiRightHandDiscoveryAdviceResult,\n} from "./gemini-right-hand-reasoning";'''
-              s = s.replace(old, new)
+              s = re.sub(r'={20,}\nDEEPSEEK SMOKE — BEFORE DISCOVERY\n={20,}\n[\s\S]*?(?=\n={20,}|\Z)', '============================================================\nGEMINI RIGHT-HAND SMOKE — BEFORE DISCOVERY\n============================================================\n\nPerform one tiny Right-hand provider smoke through the application\'s actual Gemini abstraction using GEMINI_API_KEY. Do not browse.\n', s, count=1)
               p.write_text(s)
+          p = Path('docs/bureau-plan/40K_CANONICAL_ARCHITECTURE_ADDENDUM_2026-08-30.md')
+          if p.exists():
+              s = p.read_text().replace('provider = nvidia-nim', 'provider = gemini')
+              p.write_text(s)
+          for path in [
+              'scripts/patch-provider-lifecycle-final.mjs',
+              '.github/workflows/_one_shot_gemini_cleanup.yml',
+              '.github/workflows/fix-provider-cleanup.yml',
+              '.github/workflows/retire-provider-globally.yml',
+              '.github/workflows/final-provider-role-scrub.yml',
+              '.github/workflows/finish-gemini-migration.yml',
+          ]:
+              Path(path).unlink(missing_ok=True)
           PY
-          rm -f artifacts/api-server/src/src/lib/deepseek-case-reasoning.ts artifacts/api-server/src/src/lib/nvidia-nim-case-reasoning.ts
-          rm -f scripts/migrate-right-hand-to-deepseek.mjs
-          if grep -RInE --exclude-dir=node_modules --exclude-dir=.git --exclude='check-*.mjs' --exclude='audit-five-greens.yml' 'DEEPSEEK|DeepSeek|deepseek|NVIDIA_NIM|NVIDIA_AGENTIC|NVIDIA NIM|NVIDIA Integrate|nvidia/nemotron|nvidia-nim|integrate\.api\.nvidia\.com' artifacts/api-server/src scripts docs .github/workflows 2>/dev/null; then
+          if grep -RInE --exclude-dir=node_modules --exclude-dir=.git --exclude='check-*.mjs' --exclude='audit-five-greens.yml' 'DEEPSEEK_API_KEY|runDeepSeek|DeepSeek|deepseek|NVIDIA_NIM|NVIDIA_AGENTIC|NVIDIA NIM|NVIDIA Integrate|nvidia/nemotron|nvidia-nim|integrate\.api\.nvidia\.com' artifacts/api-server/src scripts docs .github/workflows 2>/dev/null; then
             echo 'Retired provider references remain in active runtime/docs/workflows.'
             exit 1
           fi
