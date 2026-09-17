@@ -1,6 +1,6 @@
 # Apex Atlas — ReAct Bureau Architecture
 
-**Canonical role law:** Boss = **Gemini**. Right-hand = **DeepSeek via NVIDIA NIM**. Investigation = **the configured Investigator LLM pool + non-LLM research tools**.
+**Canonical role law:** Boss = **Gemini**. Right-hand = **Gemini**. Investigation = **the configured Investigator LLM pool + non-LLM research tools**.
 
 Apex is a model-led research bureau. There are **two AI layers only**: the Boss/Right-hand oversight layer and the Investigator LLM layer. There is no extra Investigator decision model between them.
 
@@ -12,13 +12,15 @@ Apex is a model-led research bureau. There are **two AI layers only**: the Boss/
 
 Owns case direction, strategic prioritization, assignment, selection of an Investigator LLM from the Investigator pool, ongoing orchestration and final case-level judgment.
 
-### Right-hand — DeepSeek via NVIDIA NIM
+### Right-hand — Gemini
 
 Consults with the Boss, critiques the case, analyses evidence gaps and the ongoing bureau work/results, and advises which Investigator LLM or research capability should be used next.
 
-DeepSeek via NVIDIA NIM is **not an Investigator** and is never an Investigator fallback. Gemini is also never an Investigator.
+Gemini Right-hand is **not an Investigator** and is never an Investigator fallback. Gemini remains an independent bounded oversight invocation; it does not call the Boss or become an Investigator merely because the same provider is used for both oversight roles.
 
 Boss/Right-hand suggestions are guidance. They do not turn the investigation into a fixed checklist.
+
+DeepSeek and NVIDIA NIM are no longer part of Apex's active architecture or provider path.
 
 ---
 
@@ -44,7 +46,7 @@ Tools are capabilities, not stages. The Investigator can use a tool even when Bo
 ## 3. Two-layer ReAct loop
 
 ```text
-BOSS (Gemini) + RIGHT-HAND (DeepSeek/NVIDIA)
+BOSS (Gemini) + RIGHT-HAND (Gemini)
         │
         │ consult + choose Investigator LLM + suggest tools
         ↓
@@ -123,8 +125,8 @@ Deterministic extraction may preserve literal observations, but it cannot manufa
 1. There are only two AI layers: **Boss+Right-hand** and **Investigator LLM pool**.
 2. There is no separate "Investigator LLM decision" layer.
 3. Groq/Mistral/etc. are investigators when designated in the Investigator pool — not a control layer.
-4. DeepSeek via NVIDIA NIM is Right-hand only.
-5. Gemini is Boss only.
+4. Gemini is used for both Boss and Right-hand oversight; the Right-hand is a separate bounded invocation, not an Investigator.
+5. DeepSeek and NVIDIA NIM are absent from Apex's active execution architecture.
 6. Search/browser/registry/OSINT providers are non-LLM tools.
 7. Investigator models may independently choose permitted tools.
 8. Boss + Right-hand see every investigation act through the living target/run document.
