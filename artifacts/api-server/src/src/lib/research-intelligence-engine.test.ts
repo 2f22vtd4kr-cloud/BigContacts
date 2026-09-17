@@ -15,8 +15,8 @@ describe("ResearchIntelligenceEngine", () => {
 
   it("surfaces contradictions instead of collapsing them into one fact", () => {
     const engine = new ResearchIntelligenceEngine({ executionId: "exec-2", target: "Alex Example", objective: "Resolve identity" });
-    engine.recordAction({ turn: 1, action: "registry_search", execution: "success", urls: ["https://registry.example.gov/a"], observation: "Alex Example is director of Alpha", findings: [{ vectorType: "other", value: "director of Alpha", personName: "Alex Example", sourceUrls: ["https://registry.example.gov/a"] }] });
-    engine.recordAction({ turn: 2, action: "web_search", execution: "success", urls: ["https://news.example.com/b"], observation: "Alex Example is director of Beta", findings: [{ vectorType: "other", value: "director of Beta", personName: "Alex Example", sourceUrls: ["https://news.example.com/b"] }] });
+    engine.recordAction({ turn: 1, action: "registry_search", execution: "success", urls: ["https://registry.example.gov/a"], observation: "Alex Example is director of Alpha", findings: [{ vectorType: "is", value: "director of Alpha", personName: "Alex Example", sourceUrls: ["https://registry.example.gov/a"] }] });
+    engine.recordAction({ turn: 2, action: "web_search", execution: "success", urls: ["https://news.example.com/b"], observation: "Alex Example is director of Beta", findings: [{ vectorType: "is", value: "director of Beta", personName: "Alex Example", sourceUrls: ["https://news.example.com/b"] }] });
     const state = engine.buildContext();
     expect(state.contradictions.length).toBeGreaterThan(0);
     expect(state.openQuestions.some((question) => question.startsWith("Resolve contradiction:"))).toBe(true);
