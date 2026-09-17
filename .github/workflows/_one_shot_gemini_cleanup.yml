@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Remove retired NVIDIA/DeepSeek active references
+      - name: Remove retired provider references and validate the active Apex tree
         shell: bash
         run: |
           set -euo pipefail
@@ -28,14 +28,16 @@ jobs:
             ],
           }
           for name, pairs in replacements.items():
-            p=Path(name); s=p.read_text()
-            for a,b in pairs: s=s.replace(a,b)
+            p = Path(name)
+            s = p.read_text()
+            for a, b in pairs:
+              s = s.replace(a, b)
             p.write_text(s)
           PY
           rm -f artifacts/api-server/src/src/lib/nvidia-nim-case-reasoning.ts artifacts/api-server/src/src/lib/deepseek-case-reasoning.ts
           rm -f .github/workflows/_one_shot_gemini_cleanup.yml
-          if grep -RInE --exclude-dir=node_modules --exclude-dir=.git 'DEEPSEEK_API_KEY|runDeepSeek|DeepSeek|deepseek|NVIDIA_NIM_API_KEY|nvidia-nim-case-reasoning|NVIDIA NIM' artifacts/api-server/src scripts docs .github 2>/dev/null; then
-            echo 'Retired provider references remain in active Apex tree.'
+          if grep -RInE --exclude-dir=node_modules --exclude-dir=.git 'DEEPSEEK_API_KEY|runDeepSeek|DeepSeek|deepseek|NVIDIA_NIM_API_KEY|nvidia-nim-case-reasoning|NVIDIA NIM|NVIDIA_AGENTIC_MODEL|NVIDIA_NIM_MODEL|integrate\.api\.nvidia\.com' artifacts/api-server/src scripts docs .github 2>/dev/null; then
+            echo 'Retired DeepSeek/NVIDIA provider references remain in active Apex tree.'
             exit 1
           fi
           git config user.name 'github-actions[bot]'
