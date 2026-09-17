@@ -13,7 +13,7 @@ assert(/INVESTIGATOR_LLM_CAPABILITY_POOL/.test(source), "Investigator capability
 assert(/const AGENTIC_ACTION_SCHEMA\s*=/.test(source) && /function parseAction/.test(source), "action schema/parser are fail-closed");
 assert(/MAX_ITER = Number\.POSITIVE_INFINITY/.test(source), "Investigator iteration count is not an arbitrary hard ceiling");
 assert(!/Math\.min\(MAX_ITER,/.test(source), "caller input is not capped by an upper iteration ceiling");
-assert(/Math\.max\(1, requestedIterations\)/.test(source), "invalid non-positive caller input is validated with a lower bound only");
+assert(/requestedIterations > 0 \? requestedIterations : Number\.POSITIVE_INFINITY/.test(source), "invalid/non-positive caller input fails open to the resource-owned timeout rather than an artificial action ceiling");
 assert(/new AbortController\(\)/.test(source) && /input\.signal\?\.addEventListener\("abort", abortExternal/.test(source), "run-scoped cancellation is wired");
 assert(/setTimeout\(\(\) => runController\.abort\(\), hardTimeoutMs\)/.test(source), "hard timeout aborts the run");
 assert(/runController\.signal\.aborted/.test(source) && /input\.shouldCancel && await input\.shouldCancel\(\)/.test(source), "turn boundaries honor cancellation");
