@@ -63,4 +63,4 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ! grep -RInE 'force_[a-z_]+|Groq[[:space:]]*[→>-]+[[:space:]]*Mistral|Mistral[[:space:]]*[→>-]+[[:space:]]*Groq|Serper.*then.*Tavily|Tavily.*then.*Exa' scripts artifacts/api-server/src/src/lib/agentic-web-research*.ts
+          ! grep -RInE 'force_[a-z_]+|Groq[[:space:]]*[→>-]+[[:space:]]*Mistral|Mistral[[:space:]]*[→>-]+[[:space:]]*Groq|Serper.*then.*Tavily|Tavily.*then.*Exa' scripts/check-*.mjs artifacts/api-server/src/src/lib/agentic-web-research*.ts
