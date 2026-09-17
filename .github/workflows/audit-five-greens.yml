@@ -38,7 +38,7 @@ jobs:
           ref: audit/genuine-five-green-final
           fetch-depth: 0
       - name: Apply Gemini Right-hand migration before audit
-        if: github.run_number >= 377
+        if: github.job == 'audit-1'
         run: |
           set -euo pipefail
           python3 scripts/migrate-right-hand-to-gemini.py
@@ -96,7 +96,6 @@ jobs:
         if: always()
         run: git checkout -- artifacts/apex-finder/src/pages/data-sources.tsx
       - run: git diff --exit-code
-
   audit-2:
     name: Audit 2 — complete codebase
     needs: audit-1
