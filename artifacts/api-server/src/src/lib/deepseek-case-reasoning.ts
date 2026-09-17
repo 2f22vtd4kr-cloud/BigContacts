@@ -2,7 +2,7 @@ import type { BureauAction, DiscoveryCaseFile, ResearchCaseFile } from "./case-b
 
 export const DEEPSEEK_CASE_REASONING_MODEL = "deepseek-flash";
 const DEEPSEEK_CHAT_API = "https://api.deepseek.com/chat/completions";
-const REQUEST_TIMEOUT_MS = 120_000;
+const REQUEST_TIMEOUT_MS = 45_000;
 const MAX_RETRIES = 2;
 
 type DeepSeekMessage = { role: "system" | "user"; content: string };
