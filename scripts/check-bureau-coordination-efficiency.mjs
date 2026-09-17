@@ -34,7 +34,7 @@ const bossRequired = [
   "function buildBossDecisionContext(file: PlanInput[\"file\"]): string",
   "${buildBossDecisionContext(input.file)}",
   "actionFrontier: { queued, completed }",
-  "contactRoutes: file.contactRoutes ?? []",
+  "contactRoutes: file.contactRoutes ?? [],",
   "negativeFindings: evidence.negativeFindings ?? [],",
 ];
 for (const marker of bossRequired) {
