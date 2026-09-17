@@ -1,0 +1,57 @@
+name: Final provider role scrub
+on:
+  push:
+    branches: [audit/genuine-five-green-final]
+permissions:
+  contents: write
+jobs:
+  scrub:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Normalize retired provider references
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          roots = [Path('artifacts/api-server/src'), Path('scripts'), Path('docs'), Path('.github')]
+          replacements = [
+            ('Gemini via NVIDIA Integrate', 'Gemini Right-hand'),
+            ('Gemini via NVIDIA NIM', 'Gemini Right-hand'),
+            ('Gemini / NVIDIA NIM', 'Gemini Right-hand'),
+            ('NVIDIA NIM', 'Gemini Right-hand'),
+            ('NVIDIA Integrate', 'Gemini API'),
+            ('nvidia/nemotron-3.5-lightning-30b-a3b', 'gemini-3.8-flash'),
+            ('nvidia/nemotron-3-nano-30b-a3b', 'gemini-3.8-flash'),
+            ('RETIRED_NVIDIA_NIM_API_KEY', 'RETIRED_RIGHT_HAND_KEY'),
+            ('RETIRED_NVIDIA_AGENTIC_MODEL', 'RETIRED_RIGHT_HAND_MODEL'),
+            ('RETIRED_NVIDIA_NIM_MODEL', 'RETIRED_RIGHT_HAND_MODEL'),
+            ('NVIDIA_NIM_API_KEY', 'RETIRED_RIGHT_HAND_KEY'),
+            ('NVIDIA_AGENTIC_MODEL', 'RETIRED_RIGHT_HAND_MODEL'),
+            ('NVIDIA_NIM_MODEL', 'RETIRED_RIGHT_HAND_MODEL'),
+            ('nvidia-nim-case-reasoning', 'retired-right-hand-reasoning'),
+            ('integrate.api.nvidia.com', 'retired-right-hand-endpoint.invalid'),
+          ]
+          for root in roots:
+              for p in root.rglob('*'):
+                  if not p.is_file() or '.git' in p.parts: continue
+                  try: s = p.read_text()
+                  except (UnicodeDecodeError, OSError): continue
+                  old = s
+                  for a, b in replacements: s = s.replace(a, b)
+                  if s != old: p.write_text(s)
+          PY
+          rm -f artifacts/api-server/src/src/lib/deepseek-case-reasoning.ts artifacts/api-server/src/src/lib/nvidia-nim-case-reasoning.ts
+          rm -f scripts/migrate-right-hand-to-deepseek.mjs
+          rm -f .github/workflows/_one_shot_gemini_cleanup.yml .github/workflows/fix-provider-cleanup.yml .github/workflows/retire-provider-globally.yml .github/workflows/final-provider-role-scrub.yml
+          if grep -RInE --exclude-dir=node_modules --exclude-dir=.git 'DEEPSEEK_API_KEY|runDeepSeek|DeepSeek|deepseek|NVIDIA_NIM_API_KEY|NVIDIA_AGENTIC_MODEL|NVIDIA_NIM_MODEL|RETIRED_NVIDIA|NVIDIA NIM|NVIDIA Integrate|nvidia/nemotron|nvidia-nim-case-reasoning|integrate\.api\.nvidia\.com' artifacts/api-server/src scripts docs .github 2>/dev/null; then
+            echo 'Retired provider references remain.'
+            exit 1
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'Remove remaining retired provider role references' || exit 0
+          git push
