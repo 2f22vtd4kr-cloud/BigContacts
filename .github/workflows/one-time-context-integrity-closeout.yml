@@ -16,7 +16,8 @@ jobs:
           from pathlib import Path
           import re
           p=Path('artifacts/api-server/src/src/lib/bureau-agentic-pass.ts'); t=p.read_text()
-          t,n=re.subn(r'runIds:\[\.\.\.new Set\(\[\.\.\.\(Array\.isArray\(current\.runIds\)\?current\.runIds:\[\]\),input\.runId\]\)\]\),','runIds:[...new Set([...(Array.isArray(current.runIds)?current.runIds:[]),input.runId])],',t)
+          pat=r'runIds:\[\.\.\.new Set\(\[\.\.\.\(Array\.isArray\(current\.runIds\)\s*\?\s*current\.runIds\s*:\s*\[\]\s*\),\s*input\.runId\]\)\]\)'
+          t,n=re.subn(pat,'runIds:[...new Set([...(Array.isArray(current.runIds)?current.runIds:[]),input.runId])]',t)
           if n!=1: raise SystemExit(f'runIds malformed expression count={n}')
           p.write_text(t)
           for f in ['artifacts/api-server/src/src/lib/gemini-right-hand-reasoning.ts','artifacts/api-server/src/src/lib/target-control-decision.ts','artifacts/api-server/src/src/lib/atlas-control-decision.ts','artifacts/api-server/src/src/lib/final-target-review.ts']:
