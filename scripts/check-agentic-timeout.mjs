@@ -10,7 +10,8 @@ const ok =
   source.includes("fn(prompt, controller.signal)") &&
   source.includes("clearTimeout(timer)") &&
   source.includes("runController.abort()") &&
-  source.includes("Math.min(MAX_ITER, Math.max(1, requestedIterations))") &&
+  source.includes("MAX_ITER = Number.POSITIVE_INFINITY") &&
+  !source.includes("Math.min(MAX_ITER,") &&
   pkg.scripts?.build?.includes("check-agentic-timeout-abort-safety.mjs");
 
 if (!ok) {
@@ -18,4 +19,4 @@ if (!ok) {
   process.exit(1);
 }
 
-console.log("OK: agentic provider and run-level timeouts are bounded and abortable");
+console.log("OK: agentic provider and run-level timeouts are bounded and abortable without imposing an action-count ceiling");
