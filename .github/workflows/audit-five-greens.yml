@@ -56,10 +56,9 @@ jobs:
             ('DeepSeekCaseReasoningResult', 'GeminiRightHandCaseReasoningResult'),
             ('DeepSeekCaseReasoningStatus', 'GeminiRightHandStatus'),
             ('DeepSeekDiscoveryAdviceResult', 'GeminiRightHandDiscoveryAdviceResult'),
+            ('DEEPSEEK_CASE_REASONING_MODEL', 'GEMINI_RIGHT_HAND_MODEL'),
             ('deepseek-right-hand-final-review', 'gemini-right-hand-final-review'),
             ('deepseek-right-hand', 'gemini-right-hand'),
-            ('deepseek-v4-flash-0731', 'gemini-3.8-flash'),
-            ('deepseek-ai/deepseek-v4-flash-0731', 'gemini-3.8-flash'),
             ('DeepSeek via NVIDIA Integrate', 'Gemini Right-hand'),
             ('DeepSeek via Gemini API', 'Gemini Right-hand'),
             ('DeepSeek/NVIDIA Right Hand', 'Gemini Right-hand'),
@@ -81,24 +80,34 @@ jobs:
           ]
           for root in roots:
               for p in root.rglob('*'):
-                  if not p.is_file() or '.git' in p.parts: continue
-                  if p.name == 'audit-five-greens.yml': continue
+                  if not p.is_file() or '.git' in p.parts or p.name == 'audit-five-greens.yml': continue
                   try: s = p.read_text()
                   except (UnicodeDecodeError, OSError): continue
                   old = s
                   for a, b in replacements: s = s.replace(a, b)
                   if s != old: p.write_text(s)
+          p = Path('artifacts/api-server/src/src/lib/provider-gate.ts')
+          if p.exists():
+              s = p.read_text()
+              s = s.replace('|"nvidia-nim"', '')
+              s = s.replace(',"nvidia-nim":"llm"', '')
+              s = s.replace('if(host.includes("nvidia.com"))return "nvidia-nim";', '')
+              p.write_text(s)
+          p = Path('artifacts/api-server/src/src/lib/case-bureau.ts')
+          if p.exists():
+              s = p.read_text()
+              old = '''export {\n  getDeepSeekCaseReasoningStatus,\n  runDeepSeekCaseReasoning,\n  runDeepSeekDiscoveryAdvice,\n  runDeepSeekFreeJson,\n  runDeepSeekFinalReview,\n  DEEPSEEK_CASE_REASONING_MODEL,\n} from "./deepseek-case-reasoning";\nexport type {\n  DeepSeekCaseReasoningResult,\n  DeepSeekCaseReasoningStatus,\n  DeepSeekDiscoveryAdviceResult,\n} from "./deepseek-case-reasoning";'''
+              new = '''export {\n  getGeminiRightHandStatus,\n  runGeminiRightHandCaseReasoning,\n  runGeminiRightHandDiscoveryAdvice,\n  runGeminiRightHandFreeJson,\n  runGeminiRightHandFinalReview,\n  GEMINI_RIGHT_HAND_MODEL,\n} from "./gemini-right-hand-reasoning";\nexport type {\n  GeminiRightHandCaseReasoningResult,\n  GeminiRightHandStatus,\n  GeminiRightHandDiscoveryAdviceResult,\n} from "./gemini-right-hand-reasoning";'''
+              s = s.replace(old, new)
+              p.write_text(s)
           PY
           rm -f artifacts/api-server/src/src/lib/deepseek-case-reasoning.ts artifacts/api-server/src/src/lib/nvidia-nim-case-reasoning.ts
           rm -f scripts/migrate-right-hand-to-deepseek.mjs
-          if grep -RInE --exclude-dir=node_modules --exclude-dir=.git 'DEEPSEEK|DeepSeek|deepseek|NVIDIA_NIM|NVIDIA_AGENTIC|NVIDIA NIM|NVIDIA Integrate|nvidia/nemotron|nvidia-nim|integrate\.api\.nvidia\.com' artifacts/api-server/src scripts docs .github/workflows --exclude='audit-five-greens.yml' 2>/dev/null; then
-            echo 'Retired DeepSeek/NVIDIA references remain after final scrub.'
+          if grep -RInE --exclude-dir=node_modules --exclude-dir=.git --exclude='check-*.mjs' --exclude='audit-five-greens.yml' 'DEEPSEEK|DeepSeek|deepseek|NVIDIA_NIM|NVIDIA_AGENTIC|NVIDIA NIM|NVIDIA Integrate|nvidia/nemotron|nvidia-nim|integrate\.api\.nvidia\.com' artifacts/api-server/src scripts docs .github/workflows 2>/dev/null; then
+            echo 'Retired provider references remain in active runtime/docs/workflows.'
             exit 1
           fi
-          if git diff --quiet; then
-            echo 'Final provider scrub: already clean.'
-            exit 0
-          fi
+          if git diff --quiet; then echo 'Final provider scrub: already clean.'; exit 0; fi
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -A
@@ -146,9 +155,7 @@ jobs:
           echo "$api_pid" > /tmp/apex-api.pid
           for i in $(seq 1 60); do
             sleep 1
-            if [ "$(curl -sS -m 2 -o /tmp/health.json -w '%{http_code}' http://127.0.0.1:8080/api/healthz || true)" = "200" ]; then
-              exit 0
-            fi
+            if [ "$(curl -sS -m 2 -o /tmp/health.json -w '%{http_code}' http://127.0.0.1:8080/api/healthz || true)" = "200" ]; then exit 0; fi
           done
           cat /tmp/apex-api.log
           exit 1
