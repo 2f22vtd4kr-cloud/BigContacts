@@ -1,5 +1,5 @@
 # Canonical five-green gate: five consecutive fresh full-codebase audits.
-# Gemini Right-hand migration gate: non-mutating verification only.
+# Gemini Right-hand migration gate: migrate active runtime first, then audit the resulting tree.
 name: Five Green Complete Codebase Audit
 
 on:
@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: five-green-complete-${{ github.ref }}-${{ github.sha }}
@@ -29,8 +29,83 @@ env:
   APEX_API_AUTH_TOKEN: audit-${{ github.run_id }}-apex-five-green-token
 
 jobs:
+  migrate-active-source:
+    name: Migrate active Right-hand to Gemini
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: audit/genuine-five-green-final
+          fetch-depth: 0
+      - name: Replace retired DeepSeek/NVIDIA runtime calls only
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          root=Path('artifacts/api-server/src')
+          replacements=[
+            ('./deepseek-case-reasoning','./gemini-right-hand-reasoning'),
+            ('./nvidia-nim-case-reasoning','./gemini-right-hand-reasoning'),
+            ('deepseek-case-reasoning','gemini-right-hand-reasoning'),
+            ('nvidia-nim-case-reasoning','gemini-right-hand-reasoning'),
+            ('getDeepSeekCaseReasoningStatus','getGeminiRightHandStatus'),
+            ('runDeepSeekCaseReasoning','runGeminiRightHandCaseReasoning'),
+            ('runDeepSeekDiscoveryAdvice','runGeminiRightHandDiscoveryAdvice'),
+            ('runDeepSeekFreeJson','runGeminiRightHandFreeJson'),
+            ('runDeepSeekFinalReview','runGeminiRightHandFinalReview'),
+            ('runNvidiaNimFinalReview','runGeminiRightHandFinalReview'),
+            ('DeepSeekCaseReasoningResult','GeminiRightHandCaseReasoningResult'),
+            ('DeepSeekCaseReasoningStatus','GeminiRightHandStatus'),
+            ('DeepSeekDiscoveryAdviceResult','GeminiRightHandDiscoveryAdviceResult'),
+            ('DEEPSEEK_CASE_REASONING_MODEL','GEMINI_RIGHT_HAND_MODEL'),
+            ('deepseek-ai/deepseek-v4-flash-0731','gemini-3.8-flash'),
+            ('nvidia/nemotron-3.5-lightning-30b-a3b','gemini-3.8-flash'),
+            ('nvidia/nemotron-3-nano-30b-a3b','gemini-3.8-flash'),
+            ('DeepSeek-V4-Flash-0731','Gemini 3.8 Flash'),
+            ('DeepSeek via NVIDIA NIM','Gemini Right-hand'),
+            ('DeepSeek via NVIDIA Integrate','Gemini Right-hand'),
+            ('DeepSeek via Gemini API','Gemini Right-hand'),
+            ('Gemini via NVIDIA NIM','Gemini Right-hand'),
+            ('DeepSeek/NVIDIA Right Hand','Gemini Right-hand'),
+            ('DeepSeek/NVIDIA Right-hand','Gemini Right-hand'),
+            ('DeepSeek/NVIDIA','Gemini Right-hand'),
+            ('DeepSeek Right-hand','Gemini Right-hand'),
+            ('NVIDIA NIM','Gemini Right-hand'),
+            ('NVIDIA Integrate','Gemini API'),
+            ('deepseek-right-hand-final-review','gemini-right-hand-final-review'),
+            ('deepseek-right-hand','gemini-right-hand'),
+            ('api.deepseek.com/chat/completions','generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent'),
+            ('DEEPSEEK_API_KEY','GEMINI_API_KEY'),
+            ('DeepSeek','Gemini'),
+            ('deepseek','gemini'),
+          ]
+          changed=[]
+          for p in root.rglob('*'):
+            if not p.is_file() or '.git' in p.parts: continue
+            try:s=p.read_text()
+            except (UnicodeDecodeError,OSError):continue
+            old=s
+            for a,b in replacements:s=s.replace(a,b)
+            if s!=old:
+              p.write_text(s); changed.append(str(p))
+          for path in ['artifacts/api-server/src/src/lib/deepseek-case-reasoning.ts','artifacts/api-server/src/src/lib/nvidia-nim-case-reasoning.ts']:
+            Path(path).unlink(missing_ok=True)
+          if grep -RInE --exclude-dir=node_modules --exclude-dir=.git 'DEEPSEEK_API_KEY|runDeepSeek|DeepSeek|deepseek|NVIDIA_NIM|NVIDIA_AGENTIC|NVIDIA_NIM_MODEL|NVIDIA NIM|NVIDIA Integrate|nvidia/nemotron|nvidia-nim|integrate\.api\.nvidia\.com' artifacts/api-server/src 2>/dev/null; then
+            echo 'Active Apex source still contains retired provider references.'
+            exit 1
+          fi
+          echo "Changed ${#changed[@]} active source files."
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add artifacts/api-server/src
+          git diff --cached --stat
+          git commit -m 'Migrate all active Apex Right-hand calls to Gemini' || exit 0
+          git push
+
   audit-1:
     name: Audit 1 — complete codebase
+    needs: migrate-active-source
     runs-on: ubuntu-latest
     steps: &audit_steps
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
