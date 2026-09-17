@@ -1,0 +1,61 @@
+name: migrate-right-hand-to-gemini-clean
+on:
+  push:
+    branches:
+      - audit/genuine-five-green-final
+permissions:
+  contents: write
+jobs:
+  migrate:
+    if: github.event.head_commit.author.name != 'gemini-right-hand-migration'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: audit/genuine-five-green-final
+          fetch-depth: 0
+      - name: Migrate active Apex references
+        shell: bash
+        run: |
+          set -euo pipefail
+          files=$(find . -type f \( -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.mjs' -o -name '*.json' -o -name '*.md' -o -name '*.yml' -o -name '*.yaml' \) -not -path './.git/*')
+          for f in $files; do
+            sed -i \
+              -e 's#./deepseek-case-reasoning#./gemini-right-hand-reasoning#g' \
+              -e 's/getDeepSeekCaseReasoningStatus/getGeminiRightHandStatus/g' \
+              -e 's/runDeepSeekCaseReasoning/runGeminiRightHandCaseReasoning/g' \
+              -e 's/runDeepSeekDiscoveryAdvice/runGeminiRightHandDiscoveryAdvice/g' \
+              -e 's/runDeepSeekFreeJson/runGeminiRightHandFreeJson/g' \
+              -e 's/runDeepSeekFinalReview/runGeminiRightHandFinalReview/g' \
+              -e 's/DEEPSEEK_CASE_REASONING_MODEL/GEMINI_RIGHT_HAND_MODEL/g' \
+              -e 's/DeepSeekCaseReasoningResult/GeminiRightHandCaseReasoningResult/g' \
+              -e 's/DeepSeekCaseReasoningStatus/GeminiRightHandStatus/g' \
+              -e 's/DeepSeekDiscoveryAdviceResult/GeminiRightHandDiscoveryAdviceResult/g' \
+              -e 's/DeepSeekResultAction/GeminiRightHandResultAction/g' \
+              -e 's/DeepSeek\/NVIDIA/Gemini Right-hand/g' \
+              -e 's/DeepSeek Right-hand/Gemini Right-hand/g' \
+              -e 's/DeepSeek Right Hand/Gemini Right Hand/g' \
+              -e 's/deepseek-right-hand/gemini-right-hand/g' \
+              -e 's/provider: "deepseek"/provider: "gemini"/g' \
+              -e 's/"provider":"deepseek"/"provider":"gemini"/g' \
+              -e 's/"lane": "deepseek-right-hand"/"lane": "gemini-right-hand"/g' \
+              -e 's/lane: "deepseek-right-hand"/lane: "gemini-right-hand"/g' \
+              -e 's/deepseek-ai\/deepseek-v4-flash-0731/gemini-3.8-flash/g' \
+              -e 's/deepseek-v4-flash-0731/gemini-3.8-flash/g' \
+              -e 's/deepseek-flash/gemini-3.8-flash/g' \
+              "$f"
+            sed -i '/DEEPSEEK_API_KEY/d' "$f"
+          done
+          rm -f artifacts/api-server/src/src/lib/deepseek-case-reasoning.ts
+          rm -f .github/workflows/migrate-right-hand-to-gemini.yml
+          rm -f .github/workflows/migrate-right-hand-to-gemini-clean.yml
+          if git grep -n -i -E 'deepseek|api\.deepseek\.com|deepseek-ai/|NVIDIA NIM|NVIDIA_NIM_API_KEY|DEEPSEEK_API_KEY' -- ':!*.lock'; then
+            echo 'ERROR: active DeepSeek/NVIDIA NIM references remain'
+            exit 1
+          fi
+          git diff --check
+          git config user.name 'gemini-right-hand-migration'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'refactor: replace DeepSeek Right-hand with Gemini'
+          git push origin audit/genuine-five-green-final
