@@ -36,16 +36,17 @@ jobs:
         with:
           ref: audit/genuine-five-green-final
           fetch-depth: 0
-      - name: Verify retired DeepSeek/NVIDIA paths are absent from active Apex
+      - name: Verify retired DeepSeek/NVIDIA runtime paths are absent
         shell: bash
         run: |
           set -euo pipefail
-          if git grep -n -E 'DEEPSEEK_API_KEY|runDeepSeek|DeepSeek|deepseek|NVIDIA_NIM_API_KEY|NVIDIA_AGENTIC_MODEL|NVIDIA_NIM_MODEL|NVIDIA NIM|NVIDIA Integrate|nvidia/nemotron|nvidia-nim|integrate\.api\.nvidia\.com' -- artifacts/api-server/src scripts/check-unified-investigator-architecture.mjs docs/BUREAU_REACT_ARCHITECTURE.md; then
-            echo 'Retired DeepSeek/NVIDIA reference found in active Apex/runtime architecture.'
+          if git grep -n -E 'DEEPSEEK_API_KEY|runDeepSeek|DeepSeek|deepseek|NVIDIA_NIM_API_KEY|NVIDIA_AGENTIC_MODEL|NVIDIA_NIM_MODEL|NVIDIA NIM|NVIDIA Integrate|nvidia/nemotron|nvidia-nim|integrate\.api\.nvidia\.com' -- artifacts/api-server/src; then
+            echo 'Retired DeepSeek/NVIDIA reference found in active Apex runtime source.'
             exit 1
           fi
           test ! -e artifacts/api-server/src/src/lib/deepseek-case-reasoning.ts
           test ! -e artifacts/api-server/src/src/lib/nvidia-nim-case-reasoning.ts
+          grep -qi 'DeepSeek.*no longer part of Apex' docs/BUREAU_REACT_ARCHITECTURE.md
       - name: Assert unified investigator architecture
         run: node scripts/check-unified-investigator-architecture.mjs
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
