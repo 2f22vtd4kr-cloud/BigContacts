@@ -27,7 +27,7 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
       if (!locked || locked.caseType !== "discovery") throw new Error("Discovery case disappeared or changed type before job binding.");
       const currentFile = parseFile(locked.caseFile); if (!currentFile) throw new Error("Discovery case state is unreadable before job binding.");
       const priorJobs = Array.isArray(currentFile.jobIds) ? currentFile.jobIds.filter((value: unknown): value is string => typeof value === "string" && value.trim().length > 0) : [];
-      const nextFile = { ...currentFile, jobId, jobIds: [...new Set([...priorJobs, jobId])].slice(-32) };
+      const nextFile = { ...currentFile, jobId, jobIds: [...new Set([...priorJobs, jobId])] };
       await tx.update(researchCasesTable).set({ caseFile: JSON.stringify(nextFile), status: "active", currentAction: "canonical-investigator-discovery", updatedAt: new Date() }).where(eq(researchCasesTable.id, caseId));
     }, { isolationLevel: "serializable" });
   } catch (error) {
@@ -39,7 +39,6 @@ router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Pr
   void (async () => {
     try {
       await runCanonicalAtlasPipeline(jobId, {
-        targetCount: 20,
         researchDepth: depth.depth,
         targetTimeoutMs: depth.agenticHardTimeoutMs,
         discoveryCaseId: caseId,
