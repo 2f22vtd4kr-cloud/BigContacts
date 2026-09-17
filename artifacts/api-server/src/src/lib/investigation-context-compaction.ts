@@ -13,13 +13,17 @@ export interface ContextCompactionInput {
   evidenceGraphSummaries?: readonly string[];
 }
 
-function removeOnlyRecursivePrior(value: string): string {
+function preserveRecursivePrior(value: string): string {
   const marker = "## Prior durable context";
   const start = value.indexOf(marker);
   if (start < 0) return value;
-  const next = value.indexOf("\n## ", start + marker.length);
-  if (next < 0) return value.slice(0, start).trim();
-  return `${value.slice(0, start).trim()}\n${value.slice(next).trim()}`.trim();
+  const bodyStart = start + marker.length;
+  const next = value.indexOf("\n## ", bodyStart);
+  const priorBody = value.slice(bodyStart, next < 0 ? value.length : next).trim();
+  const prefix = value.slice(0, start).trim();
+  const suffix = next < 0 ? "" : value.slice(next).trim();
+  const preserved = priorBody ? `## Preserved prior durable context\n${priorBody}` : "";
+  return [prefix, preserved, suffix].filter(Boolean).join("\n\n").trim();
 }
 
 /**
@@ -30,7 +34,7 @@ function removeOnlyRecursivePrior(value: string): string {
 export function compactInvestigationContext(input: ContextCompactionInput): string {
   const raw = String(input.raw ?? "").trim();
   const sections: string[] = [];
-  const base = removeOnlyRecursivePrior(raw);
+  const base = preserveRecursivePrior(raw);
   if (base) sections.push(base);
   if (input.trajectoryRecords?.length) sections.push(`## Complete Investigator trajectory records\n${JSON.stringify(input.trajectoryRecords)}`);
   if (input.trajectory?.length) sections.push(`## Complete Investigator trajectory\n${input.trajectory.join("\n")}`);
