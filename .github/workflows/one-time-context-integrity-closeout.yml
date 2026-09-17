@@ -17,9 +17,9 @@ jobs:
           import re
           for f in ['artifacts/api-server/src/src/lib/gemini-right-hand-reasoning.ts','artifacts/api-server/src/src/lib/target-control-decision.ts','artifacts/api-server/src/src/lib/atlas-control-decision.ts','artifacts/api-server/src/src/lib/final-target-review.ts']:
             p=Path(f); t=p.read_text(); t=re.sub(r'\.slice\(-\d+\)','',t); t=re.sub(r'\.slice\(\d+\s*,\s*\d+\)','',t); p.write_text(t)
-          p=Path('artifacts/api-server/src/src/lib/agentic-web-research-core.ts'); t=p.read_text(); old='const body = await response.text(); return body.slice(0, MAX_NETWORK_RESPONSE_BYTES);'; new='const body = await response.text(); if (Buffer.byteLength(body, "utf8") > MAX_NETWORK_RESPONSE_BYTES) throw new Error(`Network response exceeds the configured memory safety bound (${MAX_NETWORK_RESPONSE_BYTES} bytes); response was rejected, not truncated.`); return body;';
+          p=Path('artifacts/api-server/src/src/lib/agentic-web-research-core.ts'); t=p.read_text(); old='if (!reader) return (await response.text()).slice(0, MAX_NETWORK_RESPONSE_BYTES);'; new='if (!reader) { const body = await response.text(); if (Buffer.byteLength(body, "utf8") > MAX_NETWORK_RESPONSE_BYTES) throw new Error(`provider response exceeds ${MAX_NETWORK_RESPONSE_BYTES} byte limit`); return body; }';
           if old in t: t=t.replace(old,new,1)
-          elif 'response was rejected, not truncated' not in t: raise SystemExit('network response pattern missing')
+          elif 'response exceeds ${MAX_NETWORK_RESPONSE_BYTES} byte limit' not in t: raise SystemExit('network response pattern missing')
           p.write_text(t)
           p=Path('artifacts/api-server/src/src/lib/case-bureau.ts'); t=p.read_text()
           for old,new in [('.slice(0, 8)',''),('.slice(0, 12)',''),('.slice(0, 20)',''),('.slice(0, 30)',''),('.slice(0, 40)',''),('.slice(-100)',''),('.slice(-50)',''),('.slice(-30)',''),('.slice(-20)',''),('.slice(0, 100_000)','')]: t=t.replace(old,new)
