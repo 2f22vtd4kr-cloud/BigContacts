@@ -1,0 +1,88 @@
+name: Finish Gemini Right-hand Migration
+on:
+  push:
+    branches: [audit/genuine-five-green-final]
+permissions:
+  contents: write
+jobs:
+  finish:
+    if: github.event.head_commit.author.name != 'apex-gemini-migration'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: audit/genuine-five-green-final
+          fetch-depth: 0
+      - name: Replace Right-hand and harden architecture checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          p = Path('artifacts/api-server/src/src/lib/atlas-control-decision.ts')
+          t = p.read_text()
+          replacements = [
+            ('runDeepSeekFreeJson', 'runGeminiRightHandFreeJson'),
+            ('./deepseek-case-reasoning', './gemini-right-hand-reasoning'),
+            ('Gemini is Boss. DeepSeek/NVIDIA is Right Hand Advisor.', 'Gemini is Boss. Gemini is Right Hand Advisor. The Investigator LLM pool remains separate.'),
+            ('You are the DeepSeek/NVIDIA Right-hand.', 'You are the Gemini Right-hand.'),
+            ('DeepSeek/NVIDIA Right Hand was unavailable', 'Gemini Right Hand was unavailable'),
+          ]
+          for a,b in replacements: t=t.replace(a,b)
+          p.write_text(t)
+
+          p = Path('scripts/check-unified-investigator-architecture.mjs')
+          t = p.read_text()
+          old = 'assert(/resolveGeminiBossModel\\s*\\(/.test(source.atlasControl) && /runDeepSeekFreeJson\\s*\\(/.test(source.atlasControl), "Atlas transition control does not use Gemini Boss plus DeepSeek Right-hand oversight.");'
+          new = 'assert(/resolveGeminiBossModel\\s*\\(/.test(source.atlasControl) && /runGeminiRightHandFreeJson\\s*\\(/.test(source.atlasControl) && /gemini-right-hand-reasoning/.test(source.atlasControl), "Atlas transition control does not use Gemini Boss plus Gemini Right-hand oversight.");'
+          if old not in t: raise SystemExit('expected stale Atlas control architecture assertion not found')
+          t=t.replace(old,new)
+          t=t.replace('assert(!/DEEPSEEK_INVESTIGATOR_MODEL|\\["deepseek",\\s*callDeepSeekJson\\]|\\bname === "deepseek"/.test(source.research), "DeepSeek is present in the Investigator adapter pool; DeepSeek must remain Right-hand only.");', 'assert(!/DEEPSEEK_INVESTIGATOR_MODEL|\\["deepseek",\\s*callDeepSeekJson\\]|\\bname === "deepseek"/.test(source.research), "Removed DeepSeek is present in the Investigator adapter pool.");')
+          t=t.replace('console.log("- Gemini remains Boss only");', 'console.log("- Gemini is Boss and Gemini Right-hand oversight");')
+          t=t.replace('console.log("- DeepSeek remains Right-hand only");', 'console.log("- DeepSeek/NVIDIA NIM is removed from active Apex execution");')
+          t=t.replace('console.log("- Atlas transition is selected by Gemini after DeepSeek advice and bounded by deterministic safety validation");', 'console.log("- Atlas transition is selected by Gemini after Gemini Right-hand advice and bounded by deterministic safety validation");')
+          # The architecture document must describe the active two-layer law, not the retired provider.
+          t=t.replace('assert(/Gemini/.test(source.architecture) && /DeepSeek/.test(source.architecture) && /Investigator LLM pool/.test(source.architecture), "Canonical ReAct architecture document is missing the two-layer role law.");', 'assert(/Gemini/.test(source.architecture) && /Right-hand = Gemini/i.test(source.architecture) && /Investigator LLM pool/.test(source.architecture), "Canonical ReAct architecture document is missing the two-layer role law.");')
+          p.write_text(t)
+
+          p = Path('docs/BUREAU_REACT_ARCHITECTURE.md')
+          t = p.read_text()
+          t=t.replace('Right-hand = DeepSeek via NVIDIA NIM.', 'Right-hand = Gemini via the canonical Gemini API. The former DeepSeek/NVIDIA NIM dependency is removed from Apex.')
+          t=t.replace('Right-hand = DeepSeek', 'Right-hand = Gemini')
+          t=t.replace('Gemini Boss + DeepSeek', 'Gemini Boss + Gemini Right-hand')
+          t=t.replace('DeepSeek Right-hand', 'Gemini Right-hand')
+          t=t.replace('DeepSeek right-hand', 'Gemini Right-hand')
+          t=t.replace('DeepSeek/NVIDIA Right Hand', 'Gemini Right-hand')
+          t=t.replace('DeepSeek/NVIDIA', 'former DeepSeek/NVIDIA')
+          p.write_text(t)
+          PY
+
+          # Remove the obsolete adapter if still present.
+          rm -f artifacts/api-server/src/src/lib/deepseek-case-reasoning.ts
+
+          # Active source/config/tests must contain no DeepSeek/NVIDIA-NIM execution dependency.
+          matches=$(git grep -ni -E 'DEEPSEEK_API_KEY|runDeepSeek|callDeepSeek|deepseek-case-reasoning|api\\.deepseek\\.com|deepseek-ai/|NVIDIA_NIM_API_KEY|NVIDIA NIM|\\bDeepSeek\\b|\\bdeepseek\\b' -- ':!*.lock' ':!docs/**' ':!.github/**' || true)
+          if [ -n "$matches" ]; then
+            echo 'ERROR: active non-documentation DeepSeek/NVIDIA references remain:'
+            printf '%s\n' "$matches"
+            exit 1
+          fi
+
+          # Provider integrity: DeepSeek is no longer a required canonical provider key.
+          for f in $(git grep -Il 'DEEPSEEK_API_KEY' -- ':!*.lock' || true); do
+            if [[ "$f" != docs/* && "$f" != .github/* ]]; then
+              sed -i '/DEEPSEEK_API_KEY/d' "$f"
+            fi
+          done
+
+          # Remove this one-shot workflow before committing the finished tree.
+          rm -f .github/workflows/finish-gemini-right-hand.yml
+
+          git config user.name apex-gemini-migration
+          git config user.email apex-gemini-migration@users.noreply.github.com
+          git add -A
+          git diff --cached --check
+          git diff --cached --name-status
+          git commit -m 'feat(bureau): replace DeepSeek Right-hand with Gemini'
+          git push origin audit/genuine-five-green-final
