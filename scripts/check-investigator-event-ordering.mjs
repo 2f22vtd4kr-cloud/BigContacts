@@ -6,8 +6,8 @@ const oversight=fs.readFileSync("artifacts/api-server/src/src/lib/target-act-ove
 const checks=[
 ["target event callback is serialized",/investigationEventChain\s*=\s*investigationEventChain\.then/.test(target)],
 ["target event callback is drained",/await investigationEventChain;/.test(target)],
-["bureau event callback is serialized",/investigationEventChain\s*=\s*investigationEventChain\.then/.test(bureau)],
-["bureau event callback is drained",/await investigationEventChain;/.test(bureau)],
+["bureau event callback is serialized",/(?:investigationEventChain|eventChain)\s*=\s*(?:investigationEventChain|eventChain)\.then/.test(bureau)],
+["bureau event callback is drained",/await (?:investigationEventChain|eventChain);/.test(bureau)],
 ["target no fire-and-forget investigation callback",!/void input\.onInvestigationAct\?\./.test(target)],
 ["bureau no fire-and-forget investigation callback",!/void input\.onInvestigationAct\?\./.test(bureau)],
 ["target Investigator is stepped one act at a time",/maxIterations:\s*1/.test(entrypoint)],
