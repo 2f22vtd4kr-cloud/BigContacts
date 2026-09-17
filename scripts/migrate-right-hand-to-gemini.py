@@ -1,9 +1,10 @@
 from pathlib import Path
+import subprocess
 
 root = Path('.')
 src = root / 'artifacts/api-server/src/src'
 
-adapter = r'''import type { BureauAction, DiscoveryCaseFile, ResearchCaseFile } from "./case-bureau";
+adapter = r"""import type { BureauAction, DiscoveryCaseFile, ResearchCaseFile } from "./case-bureau";
 
 export const GEMINI_RIGHT_HAND_MODEL = "gemini-3.8-flash";
 const GEMINI_CHAT_API = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_RIGHT_HAND_MODEL}:generateContent`;
@@ -34,7 +35,7 @@ export async function runGeminiRightHandDiscoveryAdvice(input: { file: Discovery
 export async function runGeminiRightHandFreeJson(userPrompt: string, systemExtra = "Reply with ONE JSON object only. Never invent contacts, people, or URLs."): Promise<{ status: "completed" | "unavailable"; model: string; raw: string | null; error: string | null }> { const result = await request("You are the Apex Atlas Right Hand. Advise the Boss only. Never browse or act as Investigator. Never invent evidence, contacts, people, relationships, or URLs. " + systemExtra, userPrompt); return result.raw ? { status: "completed", model: GEMINI_RIGHT_HAND_MODEL, raw: result.raw, error: null } : { status: "unavailable", model: GEMINI_RIGHT_HAND_MODEL, raw: null, error: result.error }; }
 export async function runGeminiRightHandFinalReview(prompt: string): Promise<{ status: "completed" | "unavailable"; model: string; raw: string | null; error: string | null }> { return runGeminiRightHandFreeJson(prompt, "You are the Apex Atlas Right Hand reviewing final public-contact evidence. Return ONE JSON object only. Never invent contacts, people, or URLs."); }
 export type GeminiRightHandResultAction = BureauAction;
-'''
+"""
 
 old = src / 'lib/deepseek-case-reasoning.ts'
 new = src / 'lib/gemini-right-hand-reasoning.ts'
@@ -81,118 +82,13 @@ for path in root.rglob('*'):
     updated = '\n'.join(lines) + ('\n' if text.endswith('\n') else '')
     if updated != text: path.write_text(updated, encoding='utf-8')
 
-# Retire the old DeepSeek migration helper; it is no longer part of the Apex toolchain.
 (root / 'scripts/migrate-right-hand-to-deepseek.mjs').unlink(missing_ok=True)
-
-# Restore the canonical, commit-isolated five-green workflow after this one-time migration.
-canonical = '''# Canonical five-green gate: five consecutive fresh full-codebase audits.
-# Deployment-prep sequence: audit after database initialization runbook hardening.
-# Certification runs are intentionally push-triggered on the authoritative branch so every fresh tree can earn a new 5/5 streak.
-name: Five Green Complete Codebase Audit
-
-on:
-  push:
-    branches: [audit/genuine-five-green-final]
-  pull_request:
-    branches: [main]
-  workflow_dispatch:
-
-permissions:
-  contents: read
-
-concurrency:
-  group: five-green-complete-${{ github.ref }}-${{ github.sha }}
-  cancel-in-progress: false
-
-env:
-  PNPM_VERSION: 9.15.9
-  DATABASE_URL: postgresql://apex:apex_local_dev@127.0.0.1:5432/apex
-  REDIS_URL: redis://127.0.0.1:6379
-  PORT: 8080
-  NODE_ENV: development
-  ENABLE_AUTO_PIPELINE: "false"
-  APEX_SKIP_SEMANTIC: "1"
-  APEX_AGENTIC_CONCURRENCY: "1"
-  APEX_AGENTIC_PROVIDER_CONCURRENCY: "1"
-  APEX_API_AUTH_TOKEN: audit-${{ github.run_id }}-apex-five-green-token
-
-jobs:
-  audit-1:
-    name: Audit 1 — complete codebase
-    runs-on: ubuntu-latest
-    steps: &audit_steps
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: 22
-          package-manager-cache: true
-      - run: npm install -g pnpm@${PNPM_VERSION}
-      - run: pnpm install --frozen-lockfile --ignore-scripts --registry=https://registry.npmjs.org/
-      - name: Provision local API dependencies
-        run: |
-          set -euo pipefail
-          sudo apt-get update -qq
-          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq postgresql redis-server
-          sudo service postgresql start
-          sudo service redis-server start
-          sudo -u postgres psql -c "CREATE USER apex WITH PASSWORD 'apex_local_dev' SUPERUSER;" || true
-          sudo -u postgres psql -c "CREATE DATABASE apex OWNER apex;" || true
-          cd lib/db
-          bash ../../scripts/ci-provision-db.sh
-      - run: pnpm run check:bureau
-      - run: pnpm run typecheck
-      - run: pnpm run build
-      - name: Start API for live smoke tests
-        run: |
-          set -euo pipefail
-          redis-cli ping
-          nohup node artifacts/api-server/dist/index.mjs </dev/null > /tmp/apex-api.log 2>&1 &
-          api_pid=$!
-          echo "$api_pid" > /tmp/apex-api.pid
-          for i in $(seq 1 60); do
-            sleep 1
-            if [ "$(curl -sS -m 2 -o /tmp/health.json -w '%{http_code}' http://127.0.0.1:8080/api/healthz || true)" = "200" ]; then
-              exit 0
-            fi
-          done
-          cat /tmp/apex-api.log
-          exit 1
-      - name: Every API test file, isolated
-        run: |
-          set -euo pipefail
-          cd artifacts/api-server
-          for test_file in src/src/test/*.test.ts; do
-            echo "===== FULL AUDIT TEST: ${test_file} ====="
-            pnpm exec vitest run --maxWorkers=1 "${test_file}"
-          done
-      - name: Restore build-time safety-only source sanitization
-        if: always()
-        run: git checkout -- artifacts/apex-finder/src/pages/data-sources.tsx
-      - run: git diff --exit-code
-  audit-2:
-    name: Audit 2 — complete codebase
-    needs: audit-1
-    runs-on: ubuntu-latest
-    steps: *audit_steps
-  audit-3:
-    name: Audit 3 — complete codebase
-    needs: audit-2
-    runs-on: ubuntu-latest
-    steps: *audit_steps
-  audit-4:
-    name: Audit 4 — complete codebase
-    needs: audit-3
-    runs-on: ubuntu-latest
-    steps: *audit_steps
-  audit-5:
-    name: Audit 5 — complete codebase
-    needs: audit-4
-    runs-on: ubuntu-latest
-    steps: *audit_steps
-'''
-(root / '.github/workflows/audit-five-greens.yml').write_text(canonical, encoding='utf-8')
 (root / '.github/workflows/migrate-right-hand-to-gemini.yml').unlink(missing_ok=True)
 (root / 'scripts/migrate-right-hand-to-gemini.py').unlink(missing_ok=True)
+
+# Restore the last known canonical commit-isolated workflow exactly, without retaining migration machinery.
+workflow = subprocess.check_output(['git', 'show', 'c5b45a0ad51f2d8f25c1363469f0f41da1102e74:.github/workflows/audit-five-greens.yml'])
+(root / '.github/workflows/audit-five-greens.yml').write_bytes(workflow)
 
 bad = []
 for base in (root / 'artifacts', root / '.github/workflows'):
@@ -202,4 +98,3 @@ for base in (root / 'artifacts', root / '.github/workflows'):
         except Exception: continue
         if any(token in text for token in ('deepseek', 'deepseek_api_key', 'api.deepseek.com', 'deepseek-ai/')): bad.append(str(path))
 if bad: raise SystemExit('DeepSeek references remain in active Apex files: ' + ', '.join(bad[:20]))
-'''
