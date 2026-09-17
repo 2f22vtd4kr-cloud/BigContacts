@@ -6,14 +6,15 @@ const REQUEST_TIMEOUT_MS = 120_000;
 const MAX_RETRIES = 2;
 
 type DeepSeekMessage = { role: "system" | "user"; content: string };
-type DeepSeekResponse = { choices?: Array<{ message?: { content?: string | null; reasoning_content?: string | null; reasoning?: string | null } }> };
+type DeepSeekMessageResponse = { content?: string | null; reasoning_content?: string | null; reasoning?: string | null };
+type DeepSeekResponse = { choices?: Array<{ message?: DeepSeekMessageResponse }> };
 
 export type DeepSeekCaseReasoningStatus = { configured: boolean; model: string; endpoint: string; role: "right_hand_advisor"; capability: "case_file_reasoning_only" };
 export type DeepSeekCaseReasoningResult = { status: "completed" | "unavailable"; model: string; actionId: string | null; decision: string | null; reason: string | null; confidence: number | null; error: string | null };
 export type DeepSeekDiscoveryAdviceResult = { status: "completed" | "unavailable"; model: string; decision: string | null; reason: string | null; focusLanes: string[]; confidence: number | null; error: string | null };
 
 function key(): string | null { return process.env.DEEPSEEK_API_KEY?.trim() || null; }
-function textOf(message: DeepSeekResponse["choices"][number]["message"] | undefined): string { return (message?.content || message?.reasoning_content || message?.reasoning || "").trim(); }
+function textOf(message: DeepSeekMessageResponse | undefined): string { return (message?.content || message?.reasoning_content || message?.reasoning || "").trim(); }
 function extractJson(raw: string): Record<string, unknown> | null { const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)```/i)?.[1]?.trim(); const source = fenced || raw.trim(); const start = source.indexOf("{"), end = source.lastIndexOf("}"); if (start < 0 || end <= start) return null; try { const value = JSON.parse(source.slice(start, end + 1)); return value && typeof value === "object" ? value as Record<string, unknown> : null; } catch { return null; } }
 
 async function request(messages: DeepSeekMessage[], responseFormat = false): Promise<{ raw: string; error: string | null }> {
