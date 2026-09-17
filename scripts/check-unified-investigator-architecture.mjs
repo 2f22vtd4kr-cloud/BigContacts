@@ -25,16 +25,12 @@ const files = {
   legacyFinalReview: path.join(root, "artifacts/api-server/src/lib/ai-extractor.ts"),
   architecture: path.join(root, "docs/BUREAU_REACT_ARCHITECTURE.md"),
 };
-
 const readRequired = (file) => { if (!fs.existsSync(file)) throw new Error(`missing required architecture file: ${file}`); return fs.readFileSync(file, "utf8"); };
 const readOptional = (file) => fs.existsSync(file) ? fs.readFileSync(file, "utf8") : "";
-const source = {
-  ...Object.fromEntries(Object.entries(files).map(([name, file]) => [name, (name === "finalReview" || name === "legacyFinalReview") ? readOptional(file) : readRequired(file)])),
-};
+const source = { ...Object.fromEntries(Object.entries(files).map(([name, file]) => [name, (name === "finalReview" || name === "legacyFinalReview") ? readOptional(file) : readRequired(file)])) };
 const legacyExtractionRetired = !fs.existsSync(files.finalReview) && !fs.existsSync(files.legacyFinalReview);
 const failures = [];
 const assert = (ok, message) => { if (!ok) failures.push(message); };
-
 assert(!/DEEPSEEK_INVESTIGATOR_MODEL|\["deepseek",\s*callDeepSeekJson\]|\bname === "deepseek"/.test(source.research), "Removed DeepSeek is present in the Investigator adapter pool.");
 assert(!/Gemini.*Investigator fallback|investigator.*Gemini.*fallback/i.test(source.prompt + source.bureau), "Gemini appears to be an Investigator fallback.");
 assert(!/Groq\s*[→>-]+\s*Mistral|Mistral\s*[→>-]+\s*Groq/.test(source.research + source.bureau + source.prompt), "Active runtime still contains a Groq→Mistral Investigator chain.");
@@ -46,7 +42,6 @@ assert(!/web_search.*(?:fallback|default provider)/i.test(source.research), "web
 assert(!/generateGroqBossText|Groq text fallback for Boss/i.test(source.bureau), "Groq is still exposed as a Boss planning fallback.");
 assert(legacyExtractionRetired || !/groq-final-review-fallback/i.test(source.finalReview), "Groq is still exposed as a final card review/decision layer in canonical source.");
 assert(legacyExtractionRetired || !/groq-final-review-fallback/i.test(source.legacyFinalReview), "Groq is still exposed as a final card review/decision layer in legacy source.");
-
 assert(/investigatorLlm/.test(source.bureau), "Boss plan does not expose investigatorLlm.");
 assert(/investigatorLlm/.test(source.pass), "ReAct pass does not accept investigatorLlm.");
 assert(/investigatorLlm/.test(source.research), "ReAct research runtime does not receive investigatorLlm.");
@@ -86,7 +81,7 @@ assert(/Startup recovery complete/.test(source.startupRecovery), "Lifecycle-only
 assert(!/runBroadDiscovery|bulk-run|deep-web-osint|social-discovery|messenger-discovery|in-house-enrich/.test(source.startupRecovery), "Lifecycle-only startup recovery contains a research/enrichment trigger.");
 assert(!/findingsFrom(?:PeopleSnippet|ProxyPage|IrAndRelatedBlocks|ContactFacts)[\s\S]{0,18000}personName:\s*targetName/.test(source.research), "ReAct observation extraction still injects target-derived personName into deterministic findings; #136 remains unresolved.");
 assert(!/findingsFrom(?:PeopleSnippet|ProxyPage|IrAndRelatedBlocks|ContactFacts)[\s\S]{0,18000}scope:\s*"candidate"/.test(source.research), "ReAct observation extraction still manufactures candidate scope before an Investigator promotion decision; #136 remains unresolved.");
-assert(/Gemini/.test(source.architecture) && /Right-hand = Gemini/i.test(source.architecture) && /Investigator LLM pool/.test(source.architecture), "Canonical ReAct architecture document is missing the two-layer role law.");
+assert(/Gemini/.test(source.architecture) && /Right-hand\s*=\s*(?:\*\*)?Gemini/i.test(source.architecture) && /Investigator LLM pool/.test(source.architecture), "Canonical ReAct architecture document is missing the two-layer role law.");
 assert(/no forced search order/i.test(source.architecture), "Canonical ReAct architecture document does not state the no-forced-search-order invariant.");
 
 if (failures.length) { console.error("UNIFIED INVESTIGATOR ARCHITECTURE: FAIL"); for (const failure of failures) console.error(`- ${failure}`); process.exit(1); }
