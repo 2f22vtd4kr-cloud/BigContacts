@@ -48,8 +48,8 @@ jobs:
           grep -q 'history' "$core"
           grep -q 'lastObservation' "$core"
           grep -q 'Number.POSITIVE_INFINITY' "$core"
-          ! grep -q 'Begin. Choose an initial web_search query' "$core"
-          ! grep -q 'begin with web_search' "$core"
+          ! grep -Fqi 'Begin. Choose an initial web_search query' "$core"
+          ! grep -Fqi 'begin with web_search' "$core"
       - name: Check workflow source is not itself introducing fixed research sequencing
         shell: bash
         run: |
