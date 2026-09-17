@@ -1,4 +1,5 @@
 // Gemini Right-hand migration invariant: oversight remains a separate case-file-only layer.
+// Final migration gate: investigators remain a distinct execution layer.
 import fs from "node:fs";
 import path from "node:path";
 
