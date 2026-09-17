@@ -44,6 +44,8 @@ jobs:
             ('DeepSeek/NVIDIA Right-hand','Gemini Right-hand'),
             ('DeepSeek/NVIDIA','Gemini Right-hand'),
             ('DeepSeek Right-hand','Gemini Right-hand'),
+            ('NVIDIA NIM','Gemini Right-hand'),
+            ('NVIDIA Integrate','Gemini API'),
             ('deepseek-right-hand-final-review','gemini-right-hand-final-review'),
             ('deepseek-right-hand','gemini-right-hand'),
             ('api.deepseek.com/chat/completions','generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent'),
