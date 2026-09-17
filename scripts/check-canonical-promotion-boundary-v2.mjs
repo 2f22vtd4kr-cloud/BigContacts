@@ -23,7 +23,7 @@ assert(hasAll(target, ['promote: isExplicitCandidate && f.promotionDecision === 
 assert(hasAll(target, ["execution=success", "observed=(https?:", "claimAppearsInObservedMaterial", "record.observation"]), "target validates claims against successful observed material");
 assert(hasAll(target, ["status: \"cancelled\"", "executionId: agentic.executionId"]), "target preserves cancellation as a distinct result and execution identity");
 assert(hasAll(bureau, ["persistSourceBackedBureauContactsForEntity", "sourceBackedAgenticFindings", "claimAppearsInObservedMaterial", "record.observation"]), "bureau pass uses strict persistence and observed-material claim validation");
-assert(hasAll(bureau, ['promote: isExplicitCandidate && f.promotionDecision === "promote"', "state: \"review_only\"", "tier: \"candidate\""]), "bureau pass preserves explicit Investigator promotion semantics");
+assert(hasAll(bureau, ['promote: candidate&&f.promotionDecision==="promote"', "state:\"review_only\"", "tier:\"candidate\""]), "bureau pass preserves explicit Investigator promotion semantics");
 assert(hasAll(bureau, ["runId?: string", "randomUUID()", "trajectoryRecords"]), "bureau pass creates run-scoped Investigator executions with structured trajectory");
 assert(hasAll(bureau, ["correlationKey", "record.turn", "runId: input.runId"]), "bureau trajectory/event persistence is run-scoped");
 assert(bureau.includes('agentic.status === "cancelled" ? "cancelled"') && bureau.includes("mappedStatus"), "bureau result preserves the distinct cancelled state");
