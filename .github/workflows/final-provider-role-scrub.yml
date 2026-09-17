@@ -43,10 +43,14 @@ jobs:
                   for a, b in replacements: s = s.replace(a, b)
                   if s != old: p.write_text(s)
           PY
+          p=artifacts/api-server/src/src/lib/provider-gate.ts
+          if [ -f "$p" ]; then
+            sed -i 's/|"nvidia-nim"//g; s/,"nvidia-nim":"llm"//g; s/if(host.includes("nvidia.com"))return "nvidia-nim";//g' "$p"
+          fi
           rm -f artifacts/api-server/src/src/lib/deepseek-case-reasoning.ts artifacts/api-server/src/src/lib/nvidia-nim-case-reasoning.ts
           rm -f scripts/migrate-right-hand-to-deepseek.mjs
           rm -f .github/workflows/_one_shot_gemini_cleanup.yml .github/workflows/fix-provider-cleanup.yml .github/workflows/retire-provider-globally.yml .github/workflows/final-provider-role-scrub.yml
-          if grep -RInE --exclude-dir=node_modules --exclude-dir=.git 'DEEPSEEK_API_KEY|runDeepSeek|DeepSeek|deepseek|NVIDIA_NIM_API_KEY|NVIDIA_AGENTIC_MODEL|NVIDIA_NIM_MODEL|RETIRED_NVIDIA|NVIDIA NIM|NVIDIA Integrate|nvidia/nemotron|nvidia-nim-case-reasoning|integrate\.api\.nvidia\.com' artifacts/api-server/src scripts docs .github 2>/dev/null; then
+          if grep -RInE --exclude-dir=node_modules --exclude-dir=.git 'DEEPSEEK_API_KEY|runDeepSeek|DeepSeek|deepseek|NVIDIA_NIM_API_KEY|NVIDIA_AGENTIC_MODEL|NVIDIA_NIM_MODEL|RETIRED_NVIDIA|NVIDIA NIM|NVIDIA Integrate|nvidia/nemotron|nvidia-nim-case-reasoning|integrate\.api\.nvidia\.com|nvidia-nim' artifacts/api-server/src scripts docs .github 2>/dev/null; then
             echo 'Retired provider references remain.'
             exit 1
           fi
