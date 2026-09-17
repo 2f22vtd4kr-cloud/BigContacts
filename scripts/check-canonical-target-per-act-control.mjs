@@ -36,7 +36,7 @@ const checks=[
 ["evidence graph observations can carry immutable event IDs",/eventId\?\s*:\s*number\s*\|\s*null/.test(evidence)],
 ["canonical act graphs require immutable observation anchors",/validateClaimSupportGraph\(graph,true\)/.test(oversight)],
 ["Right Hand is mandatory before Boss continuation",/if\(rightHand\.status!=="completed"\)/.test(oversight)],
-["Right Hand failure stops the next Investigator act",/DeepSeek\/NVIDIA Right Hand oversight was unavailable/.test(oversight)],
+["Right Hand failure stops the next Investigator act",/Gemini Right-hand oversight was unavailable/.test(oversight)],
 ["discovery is not accidentally target-gated",/input\.mode === "discovery"/.test(agentic)],
 ["selected Investigator executes only the Boss-selected provider",/const fn = selectedInvestigatorLlm === "groq"/.test(core)&&!/orderedProviders/.test(core)&&!/for\s*\(const \[name, fn\] of orderedProviders\)/.test(core)],
 ["selected Investigator records no cross-provider fallback",/fallback: \[\]/.test(core)],
