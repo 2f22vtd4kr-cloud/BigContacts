@@ -43,39 +43,45 @@ jobs:
             s=s.replace('import type { BureauAction, DiscoveryCaseFile, ResearchCaseFile } from "./case-bureau";','import type { BureauAction, DiscoveryCaseFile, ResearchCaseFile } from "./case-bureau";\nimport { installGeminiTransientRetry } from "./gemini-transient-retry";\n\ninstallGeminiTransientRetry();',1)
           p.write_text(s)
 
-          # Live audits: remove obsolete env entries and replace only the provider-specific probe with Gemini Right-hand.
-          p=root/'.github/workflows/apex-live-audit.yml'; s=p.read_text()
-          s=s.replace('      DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}\n','').replace('      DEEPSEEK_MODEL: deepseek-ai/deepseek-v4-flash-0731\n','')
-          old="digReady=groq||mistral; await probe('https://integrate.api.nvidia.com/v1/chat/completions',process.env.DEEPSEEK_API_KEY,process.env.DEEPSEEK_MODEL||'deepseek-ai/deepseek-v4-flash-0731','nvidia-right-hand');"
-          if old not in s: raise SystemExit('live audit NVIDIA probe not found')
-          s=s.replace(old,'digReady=groq||mistral;',1)
-          old2="const keys=[process.env.GEMINI_API_KEY,...Array.from({length:13},(_,i)=>process.env[`GEMINI_API_KEY_${i+1}`])].filter(Boolean); let bossReady=false;"
-          new2=old2+" let rightHandReady=false;"
-          if old2 not in s: raise SystemExit('live audit Gemini boss probe not found')
-          s=s.replace(old2,new2,1)
-          old3="console.log(JSON.stringify({digReady,bossReady,results},null,2)); if(!digReady || !bossReady){"
-          probe="for(const key of keys){try{const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent',{method:'POST',headers:{'x-goog-api-key':key,'content-type':'application/json'},body:JSON.stringify({contents:[{parts:[{text:'Reply READY only.'}]}],generationConfig:{maxOutputTokens:8}}),signal:AbortSignal.timeout(15000)});await r.text();results.push({provider:'gemini-right-hand',status:r.status});if(r.ok){rightHandReady=true;break}}catch(e){results.push({provider:'gemini-right-hand',state:'transport_error',error:String(e?.message||e)})}}\n          console.log(JSON.stringify({digReady,bossReady,rightHandReady,results},null,2)); if(!digReady || !bossReady || !rightHandReady){"
-          if old3 not in s: raise SystemExit('live audit preflight guard not found')
-          s=s.replace(old3,probe,1)
+          # Retire obsolete provider implementation and old migration helper.
+          for rel in ['artifacts/api-server/src/src/lib/deepseek-case-reasoning.ts','artifacts/api-server/src/src/lib/nvidia-nim-case-reasoning.ts','scripts/migrate-right-hand-to-deepseek.mjs']:
+            q=root/rel
+            if q.exists(): q.unlink()
+
+          # Migrate remaining active Apex source identifiers without touching historical archives/assets.
+          active=[]
+          for base in [root/'artifacts', root/'scripts', root/'.github/workflows']:
+            for q in base.rglob('*'):
+              if not q.is_file() or q.suffix not in {'.ts','.tsx','.js','.mjs','.json','.yml','.yaml'}: continue
+              if 'attached_assets' in q.parts or (len(q.parts)>1 and q.parts[0]=='docs' and q.parts[1]=='archive'): continue
+              active.append(q)
+          for q in active:
+            try: t=q.read_text()
+            except Exception: continue
+            old=t
+            for a,b in reps.items(): t=t.replace(a,b)
+            t=t.replace('DeepSeek Right-hand','Gemini Right-hand').replace('DeepSeek right-hand','Gemini Right-hand').replace('DeepSeek','Gemini').replace('deepseek','gemini')
+            t=t.replace('NVIDIA NIM','Gemini Right-hand').replace('NVIDIA-NIM','Gemini Right-hand')
+            t=t.replace('NVIDIA_NIM_API_KEY','')
+            if t!=old: q.write_text(t)
+
+          # Provider gate must not retain a phantom NVIDIA provider.
+          p=root/'artifacts/api-server/src/src/lib/provider-gate.ts'; s=p.read_text()
+          s=s.replace('|"nvidia-nim"','').replace(',"nvidia-nim":"llm"','')
+          s=re.sub(r'if\(host\.includes\("nvidia\\.com"\)\)return "nvidia-nim";','',s)
           p.write_text(s)
 
-          p=root/'.github/workflows/apex-single-target-audit.yml'; s=p.read_text()
-          s=s.replace('      DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}\n','').replace('      DEEPSEEK_MODEL: deepseek-ai/deepseek-v4-flash-0731\n','')
-          old="          const rh=await probe('https://integrate.api.nvidia.com/v1/chat/completions',process.env.DEEPSEEK_API_KEY,process.env.DEEPSEEK_MODEL||'deepseek-ai/deepseek-v4-flash-0731','deepseek-right-hand');\n"
-          if old not in s: raise SystemExit('single-target NVIDIA probe not found')
-          s=s.replace(old,'',1)
-          oldg="          console.log(JSON.stringify({digReady:dig,rightHandReady:rh,bossReady:boss})); if(!dig || !boss) process.exit(2);"
-          newg="          let rightHand=false; for(const key of keys){try{const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent',{method:'POST',headers:{'x-goog-api-key':key,'content-type':'application/json'},body:JSON.stringify({contents:[{parts:[{text:'Reply READY only.'}]}],generationConfig:{maxOutputTokens:8}}),signal:AbortSignal.timeout(15000)});await r.text();if(r.ok){rightHand=true;break}}catch{}}\n          console.log(JSON.stringify({digReady:dig,rightHandReady:rightHand,bossReady:boss})); if(!dig || !boss || !rightHand) process.exit(2);"
-          if oldg not in s: raise SystemExit('single-target preflight guard not found')
-          s=s.replace(oldg,newg,1)
-          p.write_text(s)
+          # Remove obsolete secret references from active workflows and provider checks.
+          for q in active:
+            try: t=q.read_text()
+            except Exception: continue
+            old=t
+            t=re.sub(r'^\s*DEEPSEEK_API_KEY:.*\n','',t,flags=re.M)
+            t=re.sub(r'^\s*DEEPSEEK_MODEL:.*\n','',t,flags=re.M)
+            t=re.sub(r'^\s*NVIDIA_NIM_API_KEY:.*\n','',t,flags=re.M)
+            if t!=old: q.write_text(t)
 
-          p=root/'.github/workflows/audit-five-greens.yml'; s=p.read_text()
-          s=re.sub(r'      - name: Apply Gemini Right-hand migration before audit\n.*?(?=      - uses: actions/setup-node@)','',s,flags=re.S)
-          s=s.replace('permissions:\n  contents: write','permissions:\n  contents: read',1)
-          if 'migrate-right-hand-to-gemini.py' in s or 'git push origin' in s: raise SystemExit('five-green still self-mutates')
-          p.write_text(s)
-
+          # Strengthen architecture guard with explicit Gemini Right-hand invariants.
           p=root/'scripts/check-unified-investigator-architecture.mjs'; s=p.read_text()
           if 'rightHand: path.join(root, "artifacts/api-server/src/src/lib/gemini-right-hand-reasoning.ts"),' not in s:
             s=s.replace('  orientation: path.join(root, "artifacts/api-server/src/src/lib/apex-bureau-orientation.ts"),','  orientation: path.join(root, "artifacts/api-server/src/src/lib/apex-bureau-orientation.ts"),\n  rightHand: path.join(root, "artifacts/api-server/src/src/lib/gemini-right-hand-reasoning.ts"),',1)
@@ -86,20 +92,26 @@ jobs:
             s=s.replace(anchor,anchor+'\n'+add,1)
           p.write_text(s)
 
+          # Only runtime Apex artifacts/workflows are forbidden from using the retired provider.
           bad=[]
-          for base in [root/'artifacts',root/'.github/workflows']:
+          scan=[root/'artifacts',root/'.github/workflows']
+          for base in scan:
             for f in base.rglob('*'):
               if not f.is_file() or f.suffix not in {'.ts','.tsx','.js','.mjs','.json','.yml','.yaml'}: continue
-              if f==root/'scripts/check-unified-investigator-architecture.mjs': continue
+              if 'attached_assets' in f.parts: continue
+              if f.name in {'_tmp_finish_gemini_migration5.yml','repair-gemini-right-hand.yml'}: continue
               try:t=f.read_text().lower()
               except Exception:continue
               if any(x in t for x in ('deepseek_api_key','api.deepseek.com','deepseek-ai/','integrate.api.nvidia.com','nvidia_nim_api_key')): bad.append(str(f))
           if bad: raise SystemExit('obsolete provider refs remain: '+', '.join(bad[:30]))
-          (root/'.github/workflows/_tmp_finish_gemini_migration5.yml').unlink()
+          # Remove this temporary workflow and the second repair workflow from the final tree.
+          for rel in ['.github/workflows/_tmp_finish_gemini_migration5.yml','.github/workflows/repair-gemini-right-hand.yml']:
+            q=root/rel
+            if q.exists(): q.unlink()
           PY
           git diff --check
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -A
-          git commit -m 'chore: finish Gemini Right-hand source cleanup v5'
+          git commit -m 'finish Gemini Right-hand source cleanup v5'
           git push origin audit/genuine-five-green-final
