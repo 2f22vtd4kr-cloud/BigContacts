@@ -37,7 +37,7 @@ durable case + evidence graph + event ledger
 
 ## Research-quality program
 
-The next phase is **Apex Research Gauntlet v1**: a 30–50 case benchmark covering ambiguous identities, sparse footprints, collisions, stale/conflicting contacts, negative findings, misleading sources and multi-pivot investigations.
+The next phase is **Apex Research Gauntlet v1**: a 38-case grounded benchmark covering ambiguous identities, sparse footprints, collisions, stale/conflicting contacts, negative findings, misleading sources and multi-pivot investigations.
 
 The benchmark compares complete research systems under matched tasks and resource envelopes. It measures identity accuracy, contact attribution, evidence support, contradiction handling, unsupported claims, false positives, useful pivots and operational efficiency. It deliberately does not reduce the system to a single “smartness” score.
 
