@@ -30,7 +30,7 @@ The live audit workflow now pins pnpm to 9.15.9 and installs from the committed 
 
 The current authoritative branch now documents the certified two-layer architecture: Gemini Boss + Gemini Right-hand for bounded oversight, and a Groq/Mistral Investigator pool for actual research. DeepSeek/NVIDIA is no longer an active Apex execution path. The Investigator owns research trajectory; deterministic code supplies safety, authorization, provenance, persistence and resource ceilings without prescribing a hidden research sequence.
 
-The latest five-green certification is tied to exact SHA 338c0e22902f2f01d9df07c86a72a5e62c1421bd. This is structural/regression evidence, not research-quality evidence.
+The five-green certification is structural/regression evidence, not research-quality evidence. The exact certified SHA is tracked by the successful CI run rather than hard-coded in this historical note.
 
 The next phase is Apex Research Gauntlet v1. A versioned 36-case registry, deterministic artifact validator and deterministic scorer have been added. Ground truth remains explicitly pending until independently reviewed case packets are populated. The benchmark separates identity precision/recall, contact attribution, claim support, unsupported claims, false positives, contradiction recall and operational trajectory metrics. It intentionally does not collapse results into a single smartness score or rank systems.
 
