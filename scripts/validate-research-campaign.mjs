@@ -15,6 +15,7 @@ for(const r of runs){
  if(!Array.isArray(r.observations)||!Array.isArray(r.trajectory)) throw new Error("Run "+key+" lacks observations/trajectory arrays.");
  const obsIds=r.observations.map(o=>String(o?.id||"")); if(obsIds.some(x=>!x)||new Set(obsIds).size!==obsIds.length) throw new Error("Run "+key+" has invalid observation IDs.");
  const obs=new Set(obsIds);
+ for(const identity of r.identities||[]) for(const id of identity.supportingObservationIds||[]) if(!obs.has(String(id))) throw new Error("Run "+key+" identity references unknown observation "+id+".");
  for(const item of [...(r.claims||[]),...(r.contacts||[])]) for(const id of item.supportingObservationIds||[]) if(!obs.has(String(id))) throw new Error("Run "+key+" references unknown observation "+id+".");
  for(const f of r.failureRecords||[]) for(const id of f.evidenceObservationIds||[]) if(!obs.has(String(id))) throw new Error("Run "+key+" failure references unknown observation "+id+".");
 }
