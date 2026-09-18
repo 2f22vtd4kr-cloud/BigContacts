@@ -195,7 +195,7 @@
             "object": "CEO since 2018 and Chairman since 2019",
             "requiredSourceUrls": [
               "https://www.pepsico.com/leadership/ramon-laguarta",
-              "https://www.pepsico.com/docs/default-source/leadership-bio/ramonlaguartabiography.pdf?sfvrsn=7348434e_20"
+              "https://www.pepsico.com/docs/default-source/leadership-bio/ramonlaguartabiography.pdf?sfvrsn=7348434e_14"
             ],
             "requiredSourceClasses": [
               "official"
@@ -214,7 +214,7 @@
         },
         {
           "sourceId": "GT-rg-042-s2",
-          "url": "https://www.pepsico.com/docs/default-source/leadership-bio/ramonlaguartabiography.pdf?sfvrsn=7348434e_20",
+          "url": "https://www.pepsico.com/docs/default-source/leadership-bio/ramonlaguartabiography.pdf?sfvrsn=7348434e_14",
           "sourceClass": "official",
           "independentReview": true
         }
@@ -302,7 +302,7 @@
             "predicate": "historicalRoleOrStatus",
             "object": "President and CEO of Walmart U.S. before becoming Walmart Inc. President and CEO on February 1, 2026",
             "requiredSourceUrls": [
-              "https://corporate.walmart.com/news/2025/11/14/walmart-announces-john-furner-as-president-and-chief-executive-officer",
+              "https://corporate.walmart.com/news/2025/11/14/walmart-announces-john-furner-as-president-and-chief-executive-o0",
               "https://stock.walmart.com/sec-filings/all-sec-filings/content/0000104169-26-000023/wmt-20260115.htm"
             ],
             "requiredSourceClasses": [
@@ -316,7 +316,7 @@
       "sources": [
         {
           "sourceId": "GT-rg-044-s1",
-          "url": "https://corporate.walmart.com/news/2025/11/14/walmart-announces-john-furner-as-president-and-chief-executive-officer",
+          "url": "https://corporate.walmart.com/news/2025/11/14/walmart-announces-john-furner-as-president-and-chief-executive-o0",
           "sourceClass": "official",
           "independentReview": true
         },
