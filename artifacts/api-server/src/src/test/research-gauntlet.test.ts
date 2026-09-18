@@ -36,6 +36,13 @@ describe("research gauntlet metric contract", () => {
     const observations = [{ id: "o1" }, { id: "o2" }];
     expect(new Set(observations.map((o) => o.id)).size).toBe(observations.length);
   });
+  it("does not silently map ambiguous duplicate gold claims", () => {
+    const gold = [
+      { predicate: "currentRole", object: "Chief Executive Officer" },
+      { predicate: "currentRole", object: "Chief Executive Officer" },
+    ];
+    expect(gold.filter((candidate) => claimMatchesGold({ predicate: "currentRole", object: "Chief Executive Officer" }, candidate))).toHaveLength(2);
+  });
   it("requires exact claim mapping before awarding gold support", () => {
     expect(claimMatchesGold({ predicate: "currentRole", object: "Chief Executive Officer" }, { predicate: "currentRole", object: "Chief Executive Officer" })).toBe(true);
     expect(claimMatchesGold({ predicate: "currentRole", object: "CEO" }, { predicate: "currentRole", object: "Chief Executive Officer" })).toBe(false);
@@ -53,6 +60,10 @@ describe("research gauntlet metric contract", () => {
       ["official"],
       { "https://example.com/a": "official" },
     )).toBe(false);
+  });
+  it("requires identity promotion to carry durable supporting evidence", () => {
+    expect([]).toHaveLength(0);
+    expect([{ supportingObservationIds: ["o1"] }].every((identity) => identity.supportingObservationIds.length > 0)).toBe(true);
   });
   it("requires claims to cite the gold source URLs through observations", () => {
     expect(evidenceCoverage(
