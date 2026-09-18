@@ -36,8 +36,9 @@ function collectActs(caseFile) {
   }
   return acts;
 }
-function buildObservations(acts) {
+function buildObservations(acts, gtCase) {
   const observations = [];
+  const sourceClasses = new Map((gtCase.sources ?? []).map(source => [normalizeUrl(source.url), String(source.sourceClass ?? "unknown")]));
   const seen = new Set();
   for (const act of acts) for (const record of act.trajectoryRecords ?? []) {
     if (!["success"].includes(String(record.execution))) continue;
@@ -46,14 +47,14 @@ function buildObservations(acts) {
       const id = `${act.executionId ?? "run"}:turn:${record.turn}:url:${observations.length + 1}`;
       if (seen.has(url)) continue;
       seen.add(url);
-      observations.push({ id, url, originalUrl: url, normalizedUrl: url, retrievedAt: new Date().toISOString(), sourceClass: "public-web", execution: "success", turn: record.turn, collectionMethod: record.action, excerpt: String(record.observation ?? "").slice(0, 1200) });
+      observations.push({ id, url, originalUrl: url, normalizedUrl: url, retrievedAt: new Date().toISOString(), sourceClass: sourceClasses.get(url) ?? "public-web", execution: "success", turn: record.turn, collectionMethod: record.action, excerpt: String(record.observation ?? "").slice(0, 1200) });
     }
   }
   for (const act of acts) for (const graph of act.evidenceGraphs ?? []) for (const obs of graph.observations ?? []) {
     const url = normalizeUrl(obs.sourceUrl);
     if (!url || seen.has(url)) continue;
     seen.add(url);
-    observations.push({ id: String(obs.id), url, originalUrl: obs.sourceUrl, normalizedUrl: url, retrievedAt: obs.observedAt, sourceClass: "public-web", execution: "success", turn: obs.turn ?? null, collectionMethod: obs.collectionMethod ?? "evidence-graph", excerpt: obs.excerpt ?? null });
+    observations.push({ id: String(obs.id), url, originalUrl: obs.sourceUrl, normalizedUrl: url, retrievedAt: obs.observedAt, sourceClass: sourceClasses.get(url) ?? "public-web", execution: "success", turn: obs.turn ?? null, collectionMethod: obs.collectionMethod ?? "evidence-graph", excerpt: obs.excerpt ?? null });
   }
   return observations;
 }
@@ -70,7 +71,8 @@ function buildClaims(acts, observations, gtCase) {
   for (const act of acts) for (const graph of act.evidenceGraphs ?? []) {
     const claim = graph.claims?.[0]; if (!claim) continue;
     const refs = (graph.observations ?? []).map(o => byUrl.get(normalizeUrl(o.sourceUrl))).filter(Boolean);
-    const gold = goldClaims.find(candidate => claimMatchesGroundTruth(claim, candidate));
+    const matches = goldClaims.filter(candidate => claimMatchesGroundTruth(claim, candidate));
+    const gold = matches.length === 1 ? matches[0] : null;
     claims.push({ id: String(claim.id), groundTruthClaimId: gold?.id ?? null, groundTruthIdentityId: gold?.subjectIdentityId ?? null, subject: claim.subject, predicate: claim.predicate, object: claim.object, scope: claim.scope, supportingObservationIds: [...new Set(refs)] });
   }
   return claims;
@@ -83,6 +85,7 @@ function buildIdentities(acts, targetName, observations) {
   }
   if (!promoted.length) return [];
   const supportingObservationIds = [...new Set(promoted.flatMap(f => (Array.isArray(f.sourceUrls) ? f.sourceUrls : []).map(normalizeUrl).map(url => byUrl.get(url)).filter(Boolean)))];
+  if (!supportingObservationIds.length) return [];
   return [{ id: targetName + ":target", groundTruthIdentityId: "target", canonicalName: targetName, organization: null, supportingObservationIds }];
 }
 function makeFailure(run, gtCase, status) {
@@ -119,7 +122,7 @@ async function runOne(gtCase, trialIndex) {
   const latest = parseJson(job?.result);
   const investigator = latest.investigator ?? {};
   if (!acts.length && investigator.trajectoryRecords) acts.push({ executionId: investigator.executionId, trajectoryRecords: investigator.trajectoryRecords, evidenceGraphs: investigator.evidenceGraphs ?? [] });
-  const observations = buildObservations(acts);
+  const observations = buildObservations(acts, gtCase);
   const claims = buildClaims(acts, observations, gtCase);
   const identities = buildIdentities(acts, gtCase.target, observations);
   const trajectory = acts.flatMap(a => Array.isArray(a.trajectory) ? a.trajectory : []);
