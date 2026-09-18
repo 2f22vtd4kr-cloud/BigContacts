@@ -521,6 +521,9 @@ importers:
       '@workspace/db':
         specifier: workspace:*
         version: link:../lib/db
+      drizzle-orm:
+        specifier: 'catalog:'
+        version: 0.45.2
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
