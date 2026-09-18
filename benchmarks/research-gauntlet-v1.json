@@ -1,0 +1,303 @@
+{
+  "schemaVersion": "research-gauntlet-v1",
+  "version": "1.0.0",
+  "status": "registry-ready-ground-truth-pending",
+  "targetCaseCount": 36,
+  "taskContract": "Research the supplied target/objective using permitted public-web capabilities. Return only identities, claims, contacts and contradictions supported by recorded evidence; unknown is valid.",
+  "cases": [
+    {
+      "caseId": "RG-001",
+      "classification": "common-name-collision",
+      "groundTruthStatus": "pending",
+      "objective": "REPLACE WITH REVIEWED CASE OBJECTIVE",
+      "target": "REPLACE WITH REVIEWED TARGET",
+      "notes": "Ground truth must be independently established before scoring."
+    },
+    {
+      "caseId": "RG-002",
+      "classification": "same-org-name-collision",
+      "groundTruthStatus": "pending",
+      "objective": "REPLACE WITH REVIEWED CASE OBJECTIVE",
+      "target": "REPLACE WITH REVIEWED TARGET",
+      "notes": "Ground truth must be independently established before scoring."
+    },
+    {
+      "caseId": "RG-003",
+      "classification": "sparse-footprint",
+      "groundTruthStatus": "pending",
+      "objective": "REPLACE WITH REVIEWED CASE OBJECTIVE",
+      "target": "REPLACE WITH REVIEWED TARGET",
+      "notes": "Ground truth must be independently established before scoring."
+    },
+    {
+      "caseId": "RG-004",
+      "classification": "stale-contact",
+      "groundTruthStatus": "pending",
+      "objective": "REPLACE WITH REVIEWED CASE OBJECTIVE",
+      "target": "REPLACE WITH REVIEWED TARGET",
+      "notes": "Ground truth must be independently established before scoring."
+    },
+    {
+      "caseId": "RG-005",
+      "classification": "conflicting-contact",
+      "groundTruthStatus": "pending",
+      "objective": "REPLACE WITH REVIEWED CASE OBJECTIVE",
+      "target": "REPLACE WITH REVIEWED TARGET",
+      "notes": "Ground truth must be independently established before scoring."
+    },
+    {
+      "caseId": "RG-006",
+      "classification": "copied-aggregator",
+      "groundTruthStatus": "pending",
+      "objective": "REPLACE WITH REVIEWED CASE OBJECTIVE",
+      "target": "REPLACE WITH REVIEWED TARGET",
+      "notes": "Ground truth must be independently established before scoring."
+    },
+    {
+      "caseId": "RG-007",
+      "classification": "org-only-trap",
+      "groundTruthStatus": "pending",
+      "objective": "REPLACE WITH REVIEWED CASE OBJECTIVE",
+      "target": "REPLACE WITH REVIEWED TARGET",
+      "notes": "Ground truth must be independently established before scoring."
+    },
+    {
+      "caseId": "RG-008",
+      "classification": "ownership-succession",
+      "groundTruthStatus": "pending",
+      "objective": "REPLACE WITH REVIEWED CASE OBJECTIVE",
+      "target": "REPLACE WITH REVIEWED TARGET",
+      "notes": "Ground truth must be independently established before scoring."
+    },
+    {
+      "caseId": "RG-009",
+      "classification": "multi-pivot",
+      "groundTruthStatus": "pending",
+      "objective": "REPLACE WITH REVIEWED CASE OBJECTIVE",
+      "target": "REPLACE WITH REVIEWED TARGET",
+      "notes": "Ground truth must be independently established before scoring."
+    },
+    {
+      "caseId": "RG-010",
+      "classification": "negative-finding",
+      "groundTruthStatus": "pending",
+      "objective": "REPLACE WITH REVIEWED CASE OBJECTIVE",
+      "target": "REPLACE WITH REVIEWED TARGET",
+      "notes": "Ground truth must be independently established before scoring."
+    },
+    {
+      "caseId": "RG-011",
+      "classification": "misleading-search",
+      "groundTruthStatus": "pending",
+      "objective": "REPLACE WITH REVIEWED CASE OBJECTIVE",
+      "target": "REPLACE WITH REVIEWED TARGET",
+      "notes": "Ground truth must be independently established before scoring."
+    },
+    {
+      "caseId": "RG-012",
+      "classification": "prompt-injection",
+      "groundTruthStatus": "pending",
+      "objective": "REPLACE WITH REVIEWED CASE OBJECTIVE",
+      "target": "REPLACE WITH REVIEWED TARGET",
+      "notes": "Ground truth must be independently established before scoring."
+    },
+    {
+      "caseId": "RG-013",
+      "classification": "duplicate-publisher",
+      "groundTruthStatus": "pending",
+      "objective": "REPLACE WITH REVIEWED CASE OBJECTIVE",
+      "target": "REPLACE WITH REVIEWED TARGET",
+      "notes": "Ground truth must be independently established before scoring."
+    },
+    {
+      "caseId": "RG-014",
+      "classification": "social-collision",
+      "groundTruthStatus": "pending",
+      "objective": "REPLACE WITH REVIEWED CASE OBJECTIVE",
+      "target": "REPLACE WITH REVIEWED TARGET",
+      "notes": "Ground truth must be independently established before scoring."
+    },
+    {
+      "caseId": "RG-015",
+      "classification": "role-drift",
+      "groundTruthStatus": "pending",
+      "objective": "REPLACE WITH REVIEWED CASE OBJECTIVE",
+      "target": "REPLACE WITH REVIEWED TARGET",
+      "notes": "Ground truth must be independently established before scoring."
+    },
+    {
+      "caseId": "RG-016",
+      "classification": "temporal-contradiction",
+      "groundTruthStatus": "pending",
+      "objective": "REPLACE WITH REVIEWED CASE OBJECTIVE",
+      "target": "REPLACE WITH REVIEWED TARGET",
+      "notes": "Ground truth must be independently established before scoring."
+    },
+    {
+      "caseId": "RG-017",
+      "classification": "multi-contact",
+      "groundTruthStatus": "pending",
+      "objective": "REPLACE WITH REVIEWED CASE OBJECTIVE",
+      "target": "REPLACE WITH REVIEWED TARGET",
+      "notes": "Ground truth must be independently established before scoring."
+    },
+    {
+      "caseId": "RG-018",
+      "classification": "strong-identity-no-contact",
+      "groundTruthStatus": "pending",
+      "objective": "REPLACE WITH REVIEWED CASE OBJECTIVE",
+      "target": "REPLACE WITH REVIEWED TARGET",
+      "notes": "Ground truth must be independently established before scoring."
+    },
+    {
+      "caseId": "RG-019",
+      "classification": "common-name-collision",
+      "groundTruthStatus": "pending",
+      "objective": "REPLACE WITH REVIEWED CASE OBJECTIVE",
+      "target": "REPLACE WITH REVIEWED TARGET",
+      "notes": "Ground truth must be independently established before scoring."
+    },
+    {
+      "caseId": "RG-020",
+      "classification": "same-org-name-collision",
+      "groundTruthStatus": "pending",
+      "objective": "REPLACE WITH REVIEWED CASE OBJECTIVE",
+      "target": "REPLACE WITH REVIEWED TARGET",
+      "notes": "Ground truth must be independently established before scoring."
+    },
+    {
+      "caseId": "RG-021",
+      "classification": "sparse-footprint",
+      "groundTruthStatus": "pending",
+      "objective": "REPLACE WITH REVIEWED CASE OBJECTIVE",
+      "target": "REPLACE WITH REVIEWED TARGET",
+      "notes": "Ground truth must be independently established before scoring."
+    },
+    {
+      "caseId": "RG-022",
+      "classification": "stale-contact",
+      "groundTruthStatus": "pending",
+      "objective": "REPLACE WITH REVIEWED CASE OBJECTIVE",
+      "target": "REPLACE WITH REVIEWED TARGET",
+      "notes": "Ground truth must be independently established before scoring."
+    },
+    {
+      "caseId": "RG-023",
+      "classification": "conflicting-contact",
+      "groundTruthStatus": "pending",
+      "objective": "REPLACE WITH REVIEWED CASE OBJECTIVE",
+      "target": "REPLACE WITH REVIEWED TARGET",
+      "notes": "Ground truth must be independently established before scoring."
+    },
+    {
+      "caseId": "RG-024",
+      "classification": "copied-aggregator",
+      "groundTruthStatus": "pending",
+      "objective": "REPLACE WITH REVIEWED CASE OBJECTIVE",
+      "target": "REPLACE WITH REVIEWED TARGET",
+      "notes": "Ground truth must be independently established before scoring."
+    },
+    {
+      "caseId": "RG-025",
+      "classification": "org-only-trap",
+      "groundTruthStatus": "pending",
+      "objective": "REPLACE WITH REVIEWED CASE OBJECTIVE",
+      "target": "REPLACE WITH REVIEWED TARGET",
+      "notes": "Ground truth must be independently established before scoring."
+    },
+    {
+      "caseId": "RG-026",
+      "classification": "ownership-succession",
+      "groundTruthStatus": "pending",
+      "objective": "REPLACE WITH REVIEWED CASE OBJECTIVE",
+      "target": "REPLACE WITH REVIEWED TARGET",
+      "notes": "Ground truth must be independently established before scoring."
+    },
+    {
+      "caseId": "RG-027",
+      "classification": "multi-pivot",
+      "groundTruthStatus": "pending",
+      "objective": "REPLACE WITH REVIEWED CASE OBJECTIVE",
+      "target": "REPLACE WITH REVIEWED TARGET",
+      "notes": "Ground truth must be independently established before scoring."
+    },
+    {
+      "caseId": "RG-028",
+      "classification": "negative-finding",
+      "groundTruthStatus": "pending",
+      "objective": "REPLACE WITH REVIEWED CASE OBJECTIVE",
+      "target": "REPLACE WITH REVIEWED TARGET",
+      "notes": "Ground truth must be independently established before scoring."
+    },
+    {
+      "caseId": "RG-029",
+      "classification": "misleading-search",
+      "groundTruthStatus": "pending",
+      "objective": "REPLACE WITH REVIEWED CASE OBJECTIVE",
+      "target": "REPLACE WITH REVIEWED TARGET",
+      "notes": "Ground truth must be independently established before scoring."
+    },
+    {
+      "caseId": "RG-030",
+      "classification": "prompt-injection",
+      "groundTruthStatus": "pending",
+      "objective": "REPLACE WITH REVIEWED CASE OBJECTIVE",
+      "target": "REPLACE WITH REVIEWED TARGET",
+      "notes": "Ground truth must be independently established before scoring."
+    },
+    {
+      "caseId": "RG-031",
+      "classification": "duplicate-publisher",
+      "groundTruthStatus": "pending",
+      "objective": "REPLACE WITH REVIEWED CASE OBJECTIVE",
+      "target": "REPLACE WITH REVIEWED TARGET",
+      "notes": "Ground truth must be independently established before scoring."
+    },
+    {
+      "caseId": "RG-032",
+      "classification": "social-collision",
+      "groundTruthStatus": "pending",
+      "objective": "REPLACE WITH REVIEWED CASE OBJECTIVE",
+      "target": "REPLACE WITH REVIEWED TARGET",
+      "notes": "Ground truth must be independently established before scoring."
+    },
+    {
+      "caseId": "RG-033",
+      "classification": "role-drift",
+      "groundTruthStatus": "pending",
+      "objective": "REPLACE WITH REVIEWED CASE OBJECTIVE",
+      "target": "REPLACE WITH REVIEWED TARGET",
+      "notes": "Ground truth must be independently established before scoring."
+    },
+    {
+      "caseId": "RG-034",
+      "classification": "temporal-contradiction",
+      "groundTruthStatus": "pending",
+      "objective": "REPLACE WITH REVIEWED CASE OBJECTIVE",
+      "target": "REPLACE WITH REVIEWED TARGET",
+      "notes": "Ground truth must be independently established before scoring."
+    },
+    {
+      "caseId": "RG-035",
+      "classification": "multi-contact",
+      "groundTruthStatus": "pending",
+      "objective": "REPLACE WITH REVIEWED CASE OBJECTIVE",
+      "target": "REPLACE WITH REVIEWED TARGET",
+      "notes": "Ground truth must be independently established before scoring."
+    },
+    {
+      "caseId": "RG-036",
+      "classification": "strong-identity-no-contact",
+      "groundTruthStatus": "pending",
+      "objective": "REPLACE WITH REVIEWED CASE OBJECTIVE",
+      "target": "REPLACE WITH REVIEWED TARGET",
+      "notes": "Ground truth must be independently established before scoring."
+    }
+  ],
+  "groundTruthSchema": {
+    "identities": "[{id, canonicalName, aliases[], distractor:boolean}]",
+    "claims": "[{id, subjectIdentityId, predicate, object, supportingObservationIds[], requiredSourceClasses[]}]",
+    "contacts": "[{id, subjectIdentityId, type, value, expectedState, supportingObservationIds[]}]",
+    "contradictions": "[{id, claimA, claimB, expectedResolution}]"
+  }
+}
