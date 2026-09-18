@@ -1,9 +1,9 @@
 {
   "schemaVersion": "research-gauntlet-v1",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "status": "grounded-reviewed",
   "groundTruthAsOf": "2026-09-18",
-  "targetCaseCount": 36,
+  "targetCaseCount": 38,
   "taskContract": "Research the supplied target/objective using permitted public-web capabilities. Return only identities, claims, contacts and contradictions supported by recorded evidence; unknown is valid.",
   "evaluationContract": "Gold claims are keyed to canonical source URLs rather than predicted observation IDs. A submitted claim/contact must still reference its own observation IDs; the scorer resolves those observations to URLs and verifies source coverage.",
   "cases": [
