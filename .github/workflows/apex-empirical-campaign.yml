@@ -54,6 +54,8 @@ jobs:
       - run: pnpm install --frozen-lockfile --ignore-scripts
       - name: Compose grounded 50-case registry
         run: node scripts/build-research-gauntlet.mjs benchmarks/research-gauntlet-v1.json benchmarks/research-gauntlet-v1-extension.json /tmp/research-gauntlet-v1-combined.json
+      - name: Validate composed 50-case registry
+        run: node scripts/validate-research-gauntlet.mjs /tmp/research-gauntlet-v1-combined.json
       - name: Push database schema
         run: cd lib/db && pnpm exec drizzle-kit push --config ./drizzle.config.ts
       - name: Run matched 3-trial campaign
