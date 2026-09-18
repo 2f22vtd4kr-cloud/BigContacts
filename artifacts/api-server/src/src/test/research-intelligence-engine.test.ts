@@ -16,6 +16,15 @@ describe("Apex research intelligence", () => {
     expect(state.missionBriefs.map((brief) => brief.mission)).toEqual(["identity", "organization", "contact", "disproof"]);
   });
 
+  it("does not treat multiple attributable emails as contradictory and refreshes evidence timestamps", () => {
+    const engine = new ResearchIntelligenceEngine({ executionId: "multi-contact", target: "Example Target", objective: "find public contacts" });
+    engine.recordAction({ turn: 1, action: "web_search", execution: "success", urls: ["https://example.com/a"], findings: [{ vectorType: "email", value: "one@example.com", personName: "Example Target", sourceUrls: ["https://example.com/a"] }] });
+    engine.recordAction({ turn: 2, action: "web_search", execution: "success", urls: ["https://example.org/b"], findings: [{ vectorType: "email", value: "two@example.com", personName: "Example Target", sourceUrls: ["https://example.org/b"] }] });
+    const state = engine.buildContext();
+    expect(state.contradictions).toHaveLength(0);
+    expect(state.facts.some((fact) => fact.claim.includes("email one@example.com"))).toBe(true);
+  });
+
   it("keeps competing identity hypotheses explicit", () => {
     const engine = new ResearchIntelligenceEngine({ executionId: "hypotheses", target: "Jordan Example", objective: "resolve identity" });
     engine.addHypothesis({ label: "H1", entity: "Jordan Example A", score: 0.9 });
