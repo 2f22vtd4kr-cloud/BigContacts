@@ -23,6 +23,7 @@ describe("Apex research intelligence", () => {
     const state = engine.buildContext();
     expect(state.contradictions).toHaveLength(0);
     expect(state.facts.some((fact) => fact.claim.includes("email one@example.com"))).toBe(true);
+    expect(state.recentActions[0]?.informationGain).toBeGreaterThan(0.5);
   });
 
   it("keeps competing identity hypotheses explicit", () => {
