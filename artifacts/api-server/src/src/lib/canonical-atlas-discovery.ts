@@ -1,5 +1,5 @@
 import { and, eq, inArray } from "drizzle-orm";
-import { db, entitiesTable, researchCasesTable, researchCaseEventsTable } from "@workspace/db";
+import { db, entitiesTable, researchCasesTable, researchCaseEventsTable, researchSessionsTable, researchEvidenceTable } from "@workspace/db";
 import { updateJob, clearActiveJobIfOwned, getJob } from "./job-queue";
 import { runGeminiBossDiscovery } from "./case-bureau";
 import { runBureauAgenticWebPass } from "./bureau-agentic-pass";
@@ -32,10 +32,11 @@ async function createAtlasDiscoveryCase(input: { atlasJobId: string; objective: 
 async function materializeAtlasAdmissions(input: { findings: Array<{ promotionDecision?: "promote" | "reject"; scope: "organization" | "candidate" | "unknown"; personName: string | null; role: string | null; sourceUrls: string[] }>; atlasJobId: string; discoveryCaseId: number }): Promise<{ names: string[]; materialized: number; evidenceRows: number }> {
   const admitted = uniqueNames(input.findings.filter((f) => f.promotionDecision === "promote").filter((f) => f.scope === "candidate").filter((f) => typeof f.personName === "string" && f.personName.trim().length >= 3).filter((f) => Array.isArray(f.sourceUrls) && f.sourceUrls.some(isObservedHttpSource)).map((f) => f.personName as string));
   let materialized = 0;
+  let evidenceRows = 0;
   for (const name of admitted) {
     const finding = input.findings.find((candidate) => candidate.personName?.trim().toLowerCase() === name.toLowerCase() && candidate.promotionDecision === "promote" && candidate.scope === "candidate" && Array.isArray(candidate.sourceUrls) && candidate.sourceUrls.some(isObservedHttpSource));
     const sourceUrl = finding?.sourceUrls?.find(isObservedHttpSource) ?? null; if (!sourceUrl) continue;
-    const caseEvents = await db.select({ eventType: researchCaseEventsTable.eventType, payload: researchCaseEventsTable.payload }).from(researchCaseEventsTable).where(eq(researchCaseEventsTable.caseId, input.discoveryCaseId));
+    const caseEvents = await db.select({ id: researchCaseEventsTable.id, eventType: researchCaseEventsTable.eventType, payload: researchCaseEventsTable.payload, createdAt: researchCaseEventsTable.createdAt }).from(researchCaseEventsTable).where(eq(researchCaseEventsTable.caseId, input.discoveryCaseId));
     const normalizedSource = new URL(sourceUrl).href;
     const supported = caseEvents.some((event) => {
       if (event.eventType !== "tool_observation" || typeof event.payload !== "string") return false;
@@ -48,8 +49,12 @@ async function materializeAtlasAdmissions(input: { findings: Array<{ promotionDe
     const existingRows = await db.select({ id: entitiesTable.id }).from(entitiesTable).where(and(eq(entitiesTable.name, name), inArray(entitiesTable.type, ["HNWI", "Gatekeeper"]))).limit(1);
     const existing = existingRows[0]; let entityId = existing?.id ?? null;
     if (!entityId) { const [created] = await db.insert(entitiesTable).values({ name, type: "HNWI", bayesianScore: 0.05, contactConfidence: 0, contactOutcome: "evidence_only", isHot: false, isStarred: false, isHidden: false, sourceRegistries: JSON.stringify(["canonical-agentic-discovery"]), notes: "Model-selected discovery candidate; target-scoped Investigator research required before contact promotion.", metadata: JSON.stringify({ reviewOnly: true, admission: "investigator-explicit-promotion", sourceUrl, discoveryCaseId: input.discoveryCaseId }) }).returning({ id: entitiesTable.id }); entityId = created?.id ?? null; if (entityId) materialized += 1; }
+    if (!entityId) continue;
+    const supportingEvent = caseEvents.find((event) => { if (event.eventType !== "tool_observation" || typeof event.payload !== "string") return false; try { const payload = JSON.parse(event.payload) as { execution?: string; observedUrls?: unknown[] }; return payload.execution === "success" && Array.isArray(payload.observedUrls) && payload.observedUrls.some((url) => { try { return new URL(String(url)).href === normalizedSource; } catch { return false; } }); } catch { return false; } });
+    const [session] = await db.insert(researchSessionsTable).values({ targetEntityId: entityId, winningPath: JSON.stringify([{ sourceUrl: normalizedSource, caseId: input.discoveryCaseId, admission: "investigator-explicit-promotion" }]), notes: "Canonical discovery admission evidence; target-scoped investigation required before contact promotion.", safeUseStatus: "manual_review", crmStatus: "Lead Gen" }).returning({ id: researchSessionsTable.id });
+    if (session?.id) { await db.insert(researchEvidenceTable).values({ sessionId: session.id, entityId, claimType: "identity_candidate", claim: `Investigator-discovered candidate: ${name}`, value: name, sourceName: "canonical-agentic-discovery", sourceUrl: normalizedSource, sourceDomain: new URL(normalizedSource).hostname, status: "review", confidence: 0.5, observedAt: supportingEvent?.createdAt ?? new Date(), freshnessScore: 1, metadata: JSON.stringify({ discoveryCaseId: input.discoveryCaseId, atlasJobId: input.atlasJobId, supportingEventId: supportingEvent?.id ?? null, promotionDecision: "promote", reviewOnly: true }) }); evidenceRows += 1; }
   }
-  return { names: admitted, materialized, evidenceRows: 0 };
+  return { names: admitted, materialized, evidenceRows };
 }
 
 async function assertAtlasJobActive(jobId: string): Promise<void> {
