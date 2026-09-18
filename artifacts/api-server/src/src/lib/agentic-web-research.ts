@@ -58,7 +58,7 @@ async function runDynamicDiscovery(core: CoreModule, input: RunInput, controller
   let lastStatus: CoreResult["status"] = "completed";
   let error: string | undefined;
   const intelligence = new ResearchIntelligenceEngine({ executionId, target: input.targetName, objective: input.objective || `Research ${input.targetName}` });
-  for (let actionTurn = 1; actionTurn <= (input.maxIterations ?? Number.POSITIVE_INFINITY); actionTurn++) {
+  for (let actionTurn = 1; actionTurn <= (input.maxIterations ?? 64); actionTurn++) {
     if (controller.signal.aborted || input.signal?.aborted) return { status: "cancelled", model, iterations: actionTurn - 1, searches, visits, findings, modelFindings, stopReason: "CANCELLED", trajectory, trajectoryRecords: records, error: "cancelled by operator", executionId };
     const remaining = deadline - Date.now();
     if (remaining <= 0) return { status: "timeout", model, iterations: actionTurn - 1, searches, visits, findings, modelFindings, stopReason: "HARD_TIMEOUT", trajectory, trajectoryRecords: records, error: `hard timeout ${requestedHardTimeout}ms`, executionId };
