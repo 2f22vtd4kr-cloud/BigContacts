@@ -22,7 +22,7 @@ const evidenceCoverage=(refs,gold,idx)=>{
   const requiredUrls=asSet((gold?.requiredSourceUrls||[]).map(normUrl));
   const requiredClasses=asSet(gold?.requiredSourceClasses||[]);
   const urlsCovered=[...requiredUrls].every(url=>observedUrls.has(url));
-  const classByUrl=new Map((gold?.requiredSourceUrls||[]).map(url=>[normUrl(url), String((gold?.requiredSourceClasses||[])[0] ?? "unknown")]));
+  const classByUrl=new Map((gold?.sources||[]).map(source=>[normUrl(source.url), String(source.sourceClass ?? "unknown")]));
   const classCovered=requiredClasses.length===0 || [...requiredClasses].every(requiredClass=>[...observedUrls].some(url=>classByUrl.get(url)===requiredClass));
   return {urlsCovered,classCovered,covered:urlsCovered&&classCovered};
 };
