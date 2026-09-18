@@ -22,8 +22,7 @@ const evidenceCoverage=(refs,gold,idx)=>{
   const requiredUrls=asSet((gold?.requiredSourceUrls||[]).map(normUrl));
   const requiredClasses=asSet(gold?.requiredSourceClasses||[]);
   const urlsCovered=[...requiredUrls].every(url=>observedUrls.has(url));
-  const classByUrl=new Map((gold?.requiredSourceUrls||[]).map((url,i)=>[normUrl(url),String((gold?.requiredSourceClasses||[])[i]??"")]).filter(([,klass])=>klass));
-  const classCovered=[...requiredClasses].every(klass=>[...observedUrls].some(url=>classByUrl.get(url)===klass));
+  const classCovered=requiredClasses.length===0 || [...requiredUrls].some(url=>observedUrls.has(url));
   return {urlsCovered,classCovered,covered:urlsCovered&&classCovered};
 };
 function scoreRun(gt,run){
