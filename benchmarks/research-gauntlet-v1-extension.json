@@ -574,7 +574,7 @@
             "predicate": "currentRole",
             "object": "Chairman and Chief Executive Officer",
             "requiredSourceUrls": [
-              "https://www.jnj.com/corporate-governance",
+              "https://www.jnj.com/joaquin-duato",
               "https://www.jnj.com/corporate-governance"
             ],
             "requiredSourceClasses": [
@@ -630,8 +630,8 @@
             "predicate": "historicalRoleOrStatus",
             "object": "Chairman and Chief Executive Officer of Johnson & Johnson",
             "requiredSourceUrls": [
-              "https://www.jnj.com/media-center/press-releases/johnson-johnson-names-ceo-joaquin-duato-as-chairman-of-the-board",
-              "https://www.jnj.com/download/johnson-johnson-2026-proxy.pdf"
+              "https://www.jnj.com/joaquin-duato",
+              "https://www.jnj.com/media-center/press-releases/johnson-johnson-names-ceo-joaquin-duato-as-chairman-of-the-board"
             ],
             "requiredSourceClasses": [
               "official"
