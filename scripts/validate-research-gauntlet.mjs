@@ -5,8 +5,9 @@ const doc=JSON.parse(fs.readFileSync(file,"utf8"));
 if(doc.schemaVersion==="research-gauntlet-v1"){
  const cases=doc.cases||[];
  if(!Array.isArray(cases)||cases.length<30||doc.targetCaseCount<30)throw new Error("Registry must define at least 30 cases.");
+ if(doc.targetCaseCount!==cases.length)throw new Error(`targetCaseCount ${doc.targetCaseCount} does not equal cases.length ${cases.length}.`);
  if(doc.status!=="grounded-reviewed")throw new Error("Registry must be grounded-reviewed before scoring.");
- const ids=new Set();
+ const ids=new Set(); const claimIds=new Set();
  for(const c of cases){
   if(!c.caseId||ids.has(c.caseId)||!c.classification||c.groundTruthStatus!=="ready"||c.reviewStatus!=="independently-cross-checked")throw new Error("Invalid or unreviewed registry case: "+c.caseId);
   ids.add(c.caseId);
@@ -15,7 +16,7 @@ if(doc.schemaVersion==="research-gauntlet-v1"){
   const sources=Array.isArray(c.sources)?c.sources:[];
   if(sources.length<2||sources.some(s=>!s.url||s.independentReview!==true))throw new Error("Case "+c.caseId+" needs at least two independently reviewed source records.");
   for(const claim of gt.claims){
-   if(!claim.id||!claim.subjectIdentityId||!claim.predicate||claim.object===undefined||!Array.isArray(claim.requiredSourceUrls)||claim.requiredSourceUrls.length<2)throw new Error("Claim in "+c.caseId+" lacks two required source URLs.");
+   if(!claim.id||claimIds.has(claim.id)||!claim.subjectIdentityId||!claim.predicate||claim.object===undefined||!Array.isArray(claim.requiredSourceUrls)||claim.requiredSourceUrls.length<2)throw new Error("Claim in "+c.caseId+" lacks two required source URLs or has a duplicate id."); claimIds.add(claim.id);
   }
  }
  console.log(JSON.stringify({valid:true,type:"registry",cases:cases.length,target:doc.targetCaseCount,status:doc.status},null,2)); process.exit(0);
