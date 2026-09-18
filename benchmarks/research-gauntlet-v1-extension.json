@@ -249,7 +249,7 @@
             "object": "President and Chief Executive Officer",
             "requiredSourceUrls": [
               "https://corporate.walmart.com/news/2026/04/23/walmart-releases-2026-annual-report-and-proxy-statement",
-              "https://stock.walmart.com/sec-filings/all-sec-filings/content/0001123292-26-001073/exhibit99.htm"
+              "https://corporate.walmart.com/about/leadership/john-furner"
             ],
             "requiredSourceClasses": [
               "official"
@@ -430,7 +430,7 @@
         },
         {
           "sourceId": "GT-rg-046-s2",
-          "url": "https://www.mastercard.com/us/en/news-and-trends/stories/2026/Michael-Miebach-ceo-2025-annual-letter-to-shareholders.html",
+          "url": "https://investor.mastercard.com/investor-news/investor-news-details/2020/Mastercard-Announces-Leadership-Transition/default.aspx",
           "sourceClass": "official",
           "independentReview": true
         }
