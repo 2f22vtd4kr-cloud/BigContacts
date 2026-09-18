@@ -1,0 +1,7 @@
+#!/usr/bin/env node
+import fs from "node:fs";
+const file=process.argv[2]; if(!file){console.error("Usage: node scripts/validate-research-gauntlet.mjs <artifact.json>");process.exit(2);} const doc=JSON.parse(fs.readFileSync(file,"utf8"));
+if(doc.schemaVersion==="research-gauntlet-v1"){const cases=doc.cases||[]; if(!Array.isArray(cases)||cases.length<30||doc.targetCaseCount<30)throw new Error("Registry must define at least 30 cases."); for(const c of cases)if(!c.caseId||!c.classification)throw new Error("Invalid registry case."); console.log(JSON.stringify({valid:true,type:"registry",cases:cases.length,target:doc.targetCaseCount},null,2));process.exit(0);}
+if(doc.schemaVersion==="research-run-v1"){if(!doc.caseId||!doc.system||!doc.trialId||!Array.isArray(doc.observations))throw new Error("Run requires caseId/system/trialId/observations."); const ids=doc.observations.map(o=>o&&o.id); if(ids.some(x=>!x)||ids.length!==new Set(ids).size)throw new Error("Observation IDs must be unique and non-empty."); console.log(JSON.stringify({valid:true,type:"run",caseId:doc.caseId,trialId:doc.trialId,observations:ids.length},null,2));process.exit(0);}
+if(doc.schemaVersion==="research-runs-v1"){if(!Array.isArray(doc.runs))throw new Error("research-runs-v1 requires runs[]."); for(const run of doc.runs)if(!run.caseId||!run.system||!run.trialId)throw new Error("Each run needs caseId/system/trialId."); console.log(JSON.stringify({valid:true,type:"runs",count:doc.runs.length},null,2));process.exit(0);}
+throw new Error("Unknown Gauntlet schemaVersion.");
