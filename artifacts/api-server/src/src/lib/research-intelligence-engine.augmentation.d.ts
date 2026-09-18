@@ -1,6 +1,6 @@
 declare module "./research-intelligence-engine" {
   interface IntelligenceEvidence {
-    lastSeen?: string;
+    lastSeen: string;
   }
 }
 export {};
