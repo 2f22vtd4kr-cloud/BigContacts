@@ -17,12 +17,12 @@ const observationIndex=(run)=>{
   }
   return {byId,urls,classes};
 };
-const evidenceCoverage=(refs,gold,idx)=>{
+const evidenceCoverage=(refs,gold,idx,sourceRegistry)=>{
   const observedUrls=asSet(refs.map(id=>idx.urls.get(String(id))).filter(Boolean).map(normUrl));
   const requiredUrls=asSet((gold?.requiredSourceUrls||[]).map(normUrl));
   const requiredClasses=asSet(gold?.requiredSourceClasses||[]);
   const urlsCovered=[...requiredUrls].every(url=>observedUrls.has(url));
-  const classByUrl=new Map((gold?.sources||[]).map(source=>[normUrl(source.url), String(source.sourceClass ?? "unknown")]));
+  const classByUrl=new Map((sourceRegistry||[]).map(source=>[normUrl(source.url), String(source.sourceClass ?? "unknown")]));
   const classCovered=requiredClasses.length===0 || [...requiredClasses].every(requiredClass=>[...observedUrls].some(url=>classByUrl.get(url)===requiredClass));
   return {urlsCovered,classCovered,covered:urlsCovered&&classCovered};
 };
@@ -33,7 +33,7 @@ function scoreRun(gt,run){
  const identityPrecision=rate(tp,predictedIds.size), identityRecall=rate(tp,expectedIds.size), fp=[...predictedIds].filter(id=>!expectedIds.has(id)||distractors.has(id)).length;
  const idx=observationIndex(run);
  const expectedClaims=new Map((gt.claims||[]).map(c=>[String(c.id),c])), claims=Array.isArray(run.claims)?run.claims:[]; let supported=0;
- for(const claim of claims){const e=expectedClaims.get(String(claim.groundTruthClaimId||"")); const refs=(claim.supportingObservationIds||[]).map(String); if(e&&e.subjectIdentityId===claim.groundTruthIdentityId&&e.predicate===claim.predicate&&String(e.object)===String(claim.object)&&evidenceCoverage(refs,e,idx).covered)supported++;}
+ for(const claim of claims){const e=expectedClaims.get(String(claim.groundTruthClaimId||"")); const refs=(claim.supportingObservationIds||[]).map(String); if(e&&e.subjectIdentityId===claim.groundTruthIdentityId&&e.predicate===claim.predicate&&String(e.object)===String(claim.object)&&evidenceCoverage(refs,e,idx,gt.sources).covered)supported++;}
  const expectedContacts=new Map((gt.contacts||[]).map(c=>[String(c.id),c])), contacts=Array.isArray(run.contacts)?run.contacts:[]; let contactTp=0;
  for(const c of contacts){const e=expectedContacts.get(String(c.groundTruthContactId||"")); const refs=(c.supportingObservationIds||[]).map(String); if(e&&String(c.groundTruthIdentityId||"")===String(e.subjectIdentityId)&&String(c.type||"")===String(e.type)&&String(c.value||"")===String(e.value||"")&&String(c.state||"")===String(e.expectedState||"")&&evidenceCoverage(refs,e,idx).covered)contactTp++;}
  const expectedContradictions=asSet((gt.contradictions||[]).map(c=>String(c.id))), predictedContradictions=asSet((run.contradictions||[]).map(c=>String(c.groundTruthContradictionId||""))), contradictionTp=[...expectedContradictions].filter(id=>predictedContradictions.has(id)).length;
