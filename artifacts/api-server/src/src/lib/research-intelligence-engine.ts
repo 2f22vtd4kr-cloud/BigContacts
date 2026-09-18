@@ -223,7 +223,7 @@ export class ResearchIntelligenceEngine {
       if (values.length < 2) continue;
       for (const current of values) current.contradicts = [...new Set(values.filter((item) => item.id !== current.id).map((item) => item.id))];
     }
-    for (const claim of this.claims.values()) { const related = claim.evidenceIds.map((id) => [...this.evidence.values()].find((item) => item.id === id)).filter(Boolean) as IntelligenceEvidence[]; claim.status = related.some((item) => item.contradicts.length > 0) ? "contradicted" : "supported"; }
+    for (const claim of this.claims.values()) { const related = claim.evidenceIds.map((id) => [...this.evidence.values()].find((item) => item.id === id)).filter(Boolean) as IntelligenceEvidence[]; const predicate = claim.predicate; const key = normalize(`${claim.subject}|${predicate}`); const group = [...this.evidence.values()].filter((item) => { const parsed = extractPredicate(item.claim); return normalize(`${parsed.subject}|${parsed.predicate}`) === key; }); claim.status = group.some((item) => item.contradicts.length > 0) ? "contradicted" : related.length ? "supported" : "unresolved"; }
   }
 
   private rankHypotheses(): void { const ranked = [...this.hypotheses.values()].sort((a, b) => b.score - a.score); ranked.forEach((hypothesis, index) => { hypothesis.status = index === 0 ? "leading" : hypothesis.score < 0.2 ? "rejected" : "alternative"; }); }
