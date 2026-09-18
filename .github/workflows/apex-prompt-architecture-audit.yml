@@ -2,6 +2,8 @@ name: Apex Prompt Architecture Audit
 on:
   push:
     branches: [audit/genuine-five-green-final]
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 permissions:
   contents: read
