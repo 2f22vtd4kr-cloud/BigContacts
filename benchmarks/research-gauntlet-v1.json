@@ -41,8 +41,7 @@
               "https://news.microsoft.com/Leadership/"
             ],
             "requiredSourceClasses": [
-              "official",
-              "regulatory-or-company-record"
+              "official"
             ]
           }
         ],
@@ -98,8 +97,7 @@
               "https://news.microsoft.com/Leadership/"
             ],
             "requiredSourceClasses": [
-              "official",
-              "regulatory-or-company-record"
+              "official"
             ]
           }
         ],
@@ -155,8 +153,7 @@
               "https://images.apple.com/uk/newsroom/2026/04/tim-cook-to-become-apple-executive-chairman-john-ternus-to-become-apple-ceo/"
             ],
             "requiredSourceClasses": [
-              "official",
-              "regulatory-or-company-record"
+              "official"
             ]
           }
         ],
@@ -212,8 +209,7 @@
               "https://images.apple.com/uk/newsroom/2026/04/tim-cook-to-become-apple-executive-chairman-john-ternus-to-become-apple-ceo/"
             ],
             "requiredSourceClasses": [
-              "official",
-              "regulatory-or-company-record"
+              "official"
             ]
           }
         ],
@@ -269,8 +265,7 @@
               "https://blog.google/company-news/inside-google/message-ceo/alphabet-earnings-q2-2026/"
             ],
             "requiredSourceClasses": [
-              "official",
-              "regulatory-or-company-record"
+              "official"
             ]
           }
         ],
@@ -326,8 +321,7 @@
               "https://blog.google/company-news/inside-google/message-ceo/alphabet-earnings-q2-2026/"
             ],
             "requiredSourceClasses": [
-              "official",
-              "regulatory-or-company-record"
+              "official"
             ]
           }
         ],
@@ -383,8 +377,7 @@
               "https://www.ibm.com/investor/governance/arvind-krishna"
             ],
             "requiredSourceClasses": [
-              "official",
-              "regulatory-or-company-record"
+              "official"
             ]
           }
         ],
@@ -440,8 +433,7 @@
               "https://www.ibm.com/investor/governance/arvind-krishna"
             ],
             "requiredSourceClasses": [
-              "official",
-              "regulatory-or-company-record"
+              "official"
             ]
           }
         ],
@@ -497,8 +489,7 @@
               "https://www.adobe.com/uk/about-adobe/newsroom.html"
             ],
             "requiredSourceClasses": [
-              "official",
-              "regulatory-or-company-record"
+              "official"
             ]
           }
         ],
@@ -554,8 +545,7 @@
               "https://www.adobe.com/uk/about-adobe/newsroom.html"
             ],
             "requiredSourceClasses": [
-              "official",
-              "regulatory-or-company-record"
+              "official"
             ]
           }
         ],
@@ -611,8 +601,7 @@
               "https://news.adobe.com/news/2026/03/leadership-update"
             ],
             "requiredSourceClasses": [
-              "official",
-              "regulatory-or-company-record"
+              "official"
             ]
           }
         ],
@@ -668,8 +657,7 @@
               "https://news.adobe.com/news/2026/03/leadership-update"
             ],
             "requiredSourceClasses": [
-              "official",
-              "regulatory-or-company-record"
+              "official"
             ]
           }
         ],
@@ -725,8 +713,7 @@
               "https://www.salesforce.com/news/press-releases/2020/02/25/keith-block-steps-down-as-salesforce-co-ceo-marc-benioff-is-chair-and-ceo/"
             ],
             "requiredSourceClasses": [
-              "official",
-              "regulatory-or-company-record"
+              "official"
             ]
           }
         ],
@@ -782,8 +769,7 @@
               "https://www.salesforce.com/news/press-releases/2020/02/25/keith-block-steps-down-as-salesforce-co-ceo-marc-benioff-is-chair-and-ceo/"
             ],
             "requiredSourceClasses": [
-              "official",
-              "regulatory-or-company-record"
+              "official"
             ]
           }
         ],
@@ -839,8 +825,7 @@
               "https://investor.uber.com/news-events/news/press-release-details/2026/Uber-CEO-to-Participate-in-Fireside-Chat-Hosted-by-Goldman-Sachs/default.aspx"
             ],
             "requiredSourceClasses": [
-              "official",
-              "regulatory-or-company-record"
+              "official"
             ]
           }
         ],
@@ -896,8 +881,7 @@
               "https://investor.uber.com/news-events/news/press-release-details/2026/Uber-CEO-to-Participate-in-Fireside-Chat-Hosted-by-Goldman-Sachs/default.aspx"
             ],
             "requiredSourceClasses": [
-              "official",
-              "regulatory-or-company-record"
+              "official"
             ]
           }
         ],
@@ -953,8 +937,7 @@
               "https://news.airbnb.com/an-important-announcement-from-airbnb"
             ],
             "requiredSourceClasses": [
-              "official",
-              "regulatory-or-company-record"
+              "official"
             ]
           }
         ],
@@ -1010,8 +993,7 @@
               "https://news.airbnb.com/an-important-announcement-from-airbnb"
             ],
             "requiredSourceClasses": [
-              "official",
-              "regulatory-or-company-record"
+              "official"
             ]
           }
         ],
@@ -1067,8 +1049,7 @@
               "https://nvidianews.nvidia.com/bios/jensen-huang"
             ],
             "requiredSourceClasses": [
-              "official",
-              "regulatory-or-company-record"
+              "official"
             ]
           }
         ],
@@ -1124,8 +1105,7 @@
               "https://nvidianews.nvidia.com/bios/jensen-huang"
             ],
             "requiredSourceClasses": [
-              "official",
-              "regulatory-or-company-record"
+              "official"
             ]
           }
         ],
@@ -1181,8 +1161,7 @@
               "https://www.zoom.com/en/about/media-kit/"
             ],
             "requiredSourceClasses": [
-              "official",
-              "regulatory-or-company-record"
+              "official"
             ]
           }
         ],
@@ -1238,8 +1217,7 @@
               "https://www.zoom.com/en/about/media-kit/"
             ],
             "requiredSourceClasses": [
-              "official",
-              "regulatory-or-company-record"
+              "official"
             ]
           }
         ],
@@ -1295,8 +1273,7 @@
               "https://www.sec.gov/Archives/edgar/data/1594805/000159480526000007/exhibit311302soxceoandcfo-.htm"
             ],
             "requiredSourceClasses": [
-              "official",
-              "regulatory-or-company-record"
+              "official"
             ]
           }
         ],
@@ -1352,8 +1329,7 @@
               "https://www.sec.gov/Archives/edgar/data/1594805/000159480526000007/exhibit311302soxceoandcfo-.htm"
             ],
             "requiredSourceClasses": [
-              "official",
-              "regulatory-or-company-record"
+              "official"
             ]
           }
         ],
@@ -1409,8 +1385,7 @@
               "https://www.sec.gov/Archives/edgar/data/1679788/000167978826000045/coin-20260424.htm"
             ],
             "requiredSourceClasses": [
-              "official",
-              "regulatory-or-company-record"
+              "official"
             ]
           }
         ],
@@ -1466,8 +1441,7 @@
               "https://www.sec.gov/Archives/edgar/data/1679788/000167978826000045/coin-20260424.htm"
             ],
             "requiredSourceClasses": [
-              "official",
-              "regulatory-or-company-record"
+              "official"
             ]
           }
         ],
@@ -1523,8 +1497,7 @@
               "https://about.netflix.com/en/news/ted-sarandos-greg-peters-co-ceos-netflix"
             ],
             "requiredSourceClasses": [
-              "official",
-              "regulatory-or-company-record"
+              "official"
             ]
           }
         ],
@@ -1580,8 +1553,7 @@
               "https://about.netflix.com/en/news/ted-sarandos-greg-peters-co-ceos-netflix"
             ],
             "requiredSourceClasses": [
-              "official",
-              "regulatory-or-company-record"
+              "official"
             ]
           }
         ],
@@ -1637,8 +1609,7 @@
               "https://about.netflix.com/en/news/ted-sarandos-greg-peters-co-ceos-netflix"
             ],
             "requiredSourceClasses": [
-              "official",
-              "regulatory-or-company-record"
+              "official"
             ]
           }
         ],
@@ -1694,8 +1665,7 @@
               "https://about.netflix.com/en/news/ted-sarandos-greg-peters-co-ceos-netflix"
             ],
             "requiredSourceClasses": [
-              "official",
-              "regulatory-or-company-record"
+              "official"
             ]
           }
         ],
@@ -1751,8 +1721,7 @@
               "https://newsroom.spotify.com/2025-09-30/spotify-announcement-daniel-ek-executive-chairman/"
             ],
             "requiredSourceClasses": [
-              "official",
-              "regulatory-or-company-record"
+              "official"
             ]
           }
         ],
@@ -1808,8 +1777,7 @@
               "https://newsroom.spotify.com/2025-09-30/spotify-announcement-daniel-ek-executive-chairman/"
             ],
             "requiredSourceClasses": [
-              "official",
-              "regulatory-or-company-record"
+              "official"
             ]
           }
         ],
@@ -1865,8 +1833,7 @@
               "https://newsroom.spotify.com/2026-01-12/alex-norstrom-gustav-soderstrom-co-ceos-message/"
             ],
             "requiredSourceClasses": [
-              "official",
-              "regulatory-or-company-record"
+              "official"
             ]
           }
         ],
@@ -1922,8 +1889,7 @@
               "https://newsroom.spotify.com/2026-01-12/alex-norstrom-gustav-soderstrom-co-ceos-message/"
             ],
             "requiredSourceClasses": [
-              "official",
-              "regulatory-or-company-record"
+              "official"
             ]
           }
         ],
@@ -1979,8 +1945,7 @@
               "https://newsroom.spotify.com/2026-01-12/alex-norstrom-gustav-soderstrom-co-ceos-message/"
             ],
             "requiredSourceClasses": [
-              "official",
-              "regulatory-or-company-record"
+              "official"
             ]
           }
         ],
@@ -2036,8 +2001,7 @@
               "https://newsroom.spotify.com/2026-01-12/alex-norstrom-gustav-soderstrom-co-ceos-message/"
             ],
             "requiredSourceClasses": [
-              "official",
-              "regulatory-or-company-record"
+              "official"
             ]
           }
         ],
@@ -2092,8 +2056,7 @@
               "https://www.sec.gov/Archives/edgar/data/1326801/000162828026050705/meta-20260630.htm"
             ],
             "requiredSourceClasses": [
-              "official",
-              "regulatory-or-company-record"
+              "official"
             ]
           }
         ],
@@ -2149,8 +2112,7 @@
               "https://www.sec.gov/Archives/edgar/data/1326801/000162828026050705/meta-20260630.htm"
             ],
             "requiredSourceClasses": [
-              "official",
-              "regulatory-or-company-record"
+              "official"
             ]
           }
         ],
