@@ -188,7 +188,7 @@ export class ResearchIntelligenceEngine {
     this.rankHypotheses();
   }
 
-  private recordEvidence(input: Omit<IntelligenceEvidence, "id" | "retrievedAt" | "fingerprint" | "sourceHost">): string {
+  private recordEvidence(input: Omit<IntelligenceEvidence, "id" | "retrievedAt" | "lastSeen" | "fingerprint" | "sourceHost">): string {
     const retrievedAt = new Date().toISOString();
     const sourceHost = hostOf(input.sourceUrl);
     const fingerprint = hash(`${input.kind}|${normalize(input.claim)}|${normalize(input.value)}|${input.sourceUrl ?? ""}`);
