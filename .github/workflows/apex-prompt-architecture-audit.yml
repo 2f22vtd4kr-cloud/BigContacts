@@ -59,7 +59,9 @@ jobs:
           assert_contains '"exa"' "$core"
           assert_contains 'history' "$core"
           assert_contains 'lastObservation' "$core"
-          assert_contains 'Number.POSITIVE_INFINITY' "$core"
+          assert_contains 'const MAX_ITER = 64' "$core"
+          assert_contains 'const MAX_OBS = 16_000' "$core"
+          assert_contains 'const MAX_TRAJECTORY_RECORDS = 512' "$core"
           assert_absent 'Begin. Choose an initial web_search query' "$core"
           intelligence='artifacts/api-server/src/src/lib/research-intelligence-engine.ts'
           assert_contains 'IdentityHypothesis' "$intelligence"
