@@ -31,6 +31,6 @@ jobs:
       - name: Validate roadmap implementation
         run: node scripts/check-apex-roadmap-implementation.mjs
       - name: Research contract tests
-        run: pnpm exec vitest run artifacts/api-server/src/src/test/research-run-contract.test.ts
+        run: pnpm --dir artifacts/api-server exec vitest run src/src/test/research-run-contract.test.ts
       - name: Typecheck
         run: pnpm run typecheck
