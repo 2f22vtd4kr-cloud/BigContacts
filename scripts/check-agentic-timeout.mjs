@@ -10,8 +10,8 @@ const ok =
   source.includes("fn(prompt, controller.signal)") &&
   source.includes("clearTimeout(timer)") &&
   source.includes("runController.abort()") &&
-  source.includes("MAX_ITER = Number.POSITIVE_INFINITY") &&
-  !source.includes("Math.min(MAX_ITER,") &&
+  source.includes("const MAX_ITER = 64") &&
+  source.includes("Math.min(requestedIterations, MAX_ITER)") &&
   pkg.scripts?.build?.includes("check-agentic-timeout-abort-safety.mjs");
 
 if (!ok) {
