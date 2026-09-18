@@ -25,12 +25,12 @@ function parseJson(raw) { try { const v = raw ? JSON.parse(raw) : {}; return v &
 function normalizeUrl(raw) { try { const u = new URL(String(raw)); u.hash = ""; u.hostname = u.hostname.toLowerCase(); u.protocol = u.protocol.toLowerCase(); return u.href; } catch { return ""; } }
 function collectActs(caseFile) {
   const context = String(caseFile.contextDocument ?? "");
-  const marker = /## Durable Investigator act (\\d+)\\n/g;
+  const marker = /## Durable Investigator act (\d+)\n/g;
   const acts = [];
   let match;
   while ((match = marker.exec(context))) {
     const start = marker.lastIndex;
-    const next = context.indexOf("\\n\\n## Durable Investigator act ", start);
+    const next = context.indexOf("\n\n## Durable Investigator act ", start);
     const raw = context.slice(start, next < 0 ? context.length : next).trim();
     try { acts.push(JSON.parse(raw)); } catch { /* keep going; final job result is still retained */ }
   }
