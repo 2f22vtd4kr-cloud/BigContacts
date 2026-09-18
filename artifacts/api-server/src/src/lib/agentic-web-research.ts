@@ -81,7 +81,7 @@ async function runDynamicDiscovery(core: CoreModule, input: RunInput, controller
   return { status: lastStatus === "completed" ? "completed" : lastStatus, model, iterations: records.length, searches, visits, findings, modelFindings, stopReason: "ITERATION_BUDGET", trajectory, trajectoryRecords: records, ...(error ? { error } : {}), executionId };
 }
 
-/** Canonical target research: independent Investigator missions create fresh evidence in parallel; Gemini Right-hand reviews the acts; Gemini Boss controls the Investigator model and durable objective. */
+/** Canonical target research: the selected Investigator owns the sequential research trajectory; Gemini Right-hand reviews each completed act and Gemini Boss controls continuation. */
 export async function runAgenticWebResearch(input: RunInput): Promise<AgenticRunResult> {
   acquireCoreRunSlot();
   const executionId = typeof crypto?.randomUUID === "function" ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -127,7 +127,6 @@ export async function runAgenticWebResearch(input: RunInput): Promise<AgenticRun
       let error: string | undefined;
       let direction: string | null = initialDirection.valid ? initialDirection.direction : null;
       let oversight: TargetActOversight | null = null;
-      let missionPassComplete = false;
 
       try {
         const requestedMaxActionTurns = Number.isFinite(input.maxIterations) ? Math.floor(input.maxIterations!) : MAX_TARGET_ACTION_TURNS;
