@@ -19,15 +19,13 @@
       "groundTruth": {
         "identities": [
           {
-            "identity": {
-              "id": "target",
-              "canonicalName": "Satya Nadella",
-              "aliases": [
-                "Satya Nadella"
-              ],
-              "distractor": false,
-              "organization": "Microsoft"
-            }
+            "id": "target",
+            "canonicalName": "Satya Nadella",
+            "aliases": [
+              "Satya Nadella"
+            ],
+            "distractor": false,
+            "organization": "Microsoft"
           }
         ],
         "claims": [
@@ -75,15 +73,13 @@
       "groundTruth": {
         "identities": [
           {
-            "identity": {
-              "id": "target",
-              "canonicalName": "Satya Nadella",
-              "aliases": [
-                "Satya Nadella"
-              ],
-              "distractor": false,
-              "organization": "Microsoft"
-            }
+            "id": "target",
+            "canonicalName": "Satya Nadella",
+            "aliases": [
+              "Satya Nadella"
+            ],
+            "distractor": false,
+            "organization": "Microsoft"
           }
         ],
         "claims": [
@@ -131,15 +127,13 @@
       "groundTruth": {
         "identities": [
           {
-            "identity": {
-              "id": "target",
-              "canonicalName": "Tim Cook",
-              "aliases": [
-                "Tim Cook"
-              ],
-              "distractor": false,
-              "organization": "Apple"
-            }
+            "id": "target",
+            "canonicalName": "Tim Cook",
+            "aliases": [
+              "Tim Cook"
+            ],
+            "distractor": false,
+            "organization": "Apple"
           }
         ],
         "claims": [
@@ -187,15 +181,13 @@
       "groundTruth": {
         "identities": [
           {
-            "identity": {
-              "id": "target",
-              "canonicalName": "Tim Cook",
-              "aliases": [
-                "Tim Cook"
-              ],
-              "distractor": false,
-              "organization": "Apple"
-            }
+            "id": "target",
+            "canonicalName": "Tim Cook",
+            "aliases": [
+              "Tim Cook"
+            ],
+            "distractor": false,
+            "organization": "Apple"
           }
         ],
         "claims": [
@@ -243,15 +235,13 @@
       "groundTruth": {
         "identities": [
           {
-            "identity": {
-              "id": "target",
-              "canonicalName": "Sundar Pichai",
-              "aliases": [
-                "Sundar Pichai"
-              ],
-              "distractor": false,
-              "organization": "Alphabet/Google"
-            }
+            "id": "target",
+            "canonicalName": "Sundar Pichai",
+            "aliases": [
+              "Sundar Pichai"
+            ],
+            "distractor": false,
+            "organization": "Alphabet/Google"
           }
         ],
         "claims": [
@@ -299,15 +289,13 @@
       "groundTruth": {
         "identities": [
           {
-            "identity": {
-              "id": "target",
-              "canonicalName": "Sundar Pichai",
-              "aliases": [
-                "Sundar Pichai"
-              ],
-              "distractor": false,
-              "organization": "Alphabet/Google"
-            }
+            "id": "target",
+            "canonicalName": "Sundar Pichai",
+            "aliases": [
+              "Sundar Pichai"
+            ],
+            "distractor": false,
+            "organization": "Alphabet/Google"
           }
         ],
         "claims": [
@@ -355,15 +343,13 @@
       "groundTruth": {
         "identities": [
           {
-            "identity": {
-              "id": "target",
-              "canonicalName": "Arvind Krishna",
-              "aliases": [
-                "Arvind Krishna"
-              ],
-              "distractor": false,
-              "organization": "IBM"
-            }
+            "id": "target",
+            "canonicalName": "Arvind Krishna",
+            "aliases": [
+              "Arvind Krishna"
+            ],
+            "distractor": false,
+            "organization": "IBM"
           }
         ],
         "claims": [
@@ -411,15 +397,13 @@
       "groundTruth": {
         "identities": [
           {
-            "identity": {
-              "id": "target",
-              "canonicalName": "Arvind Krishna",
-              "aliases": [
-                "Arvind Krishna"
-              ],
-              "distractor": false,
-              "organization": "IBM"
-            }
+            "id": "target",
+            "canonicalName": "Arvind Krishna",
+            "aliases": [
+              "Arvind Krishna"
+            ],
+            "distractor": false,
+            "organization": "IBM"
           }
         ],
         "claims": [
@@ -467,15 +451,13 @@
       "groundTruth": {
         "identities": [
           {
-            "identity": {
-              "id": "target",
-              "canonicalName": "Anil Chakravarthy",
-              "aliases": [
-                "Anil Chakravarthy"
-              ],
-              "distractor": false,
-              "organization": "Adobe"
-            }
+            "id": "target",
+            "canonicalName": "Anil Chakravarthy",
+            "aliases": [
+              "Anil Chakravarthy"
+            ],
+            "distractor": false,
+            "organization": "Adobe"
           }
         ],
         "claims": [
@@ -523,15 +505,13 @@
       "groundTruth": {
         "identities": [
           {
-            "identity": {
-              "id": "target",
-              "canonicalName": "Anil Chakravarthy",
-              "aliases": [
-                "Anil Chakravarthy"
-              ],
-              "distractor": false,
-              "organization": "Adobe"
-            }
+            "id": "target",
+            "canonicalName": "Anil Chakravarthy",
+            "aliases": [
+              "Anil Chakravarthy"
+            ],
+            "distractor": false,
+            "organization": "Adobe"
           }
         ],
         "claims": [
@@ -579,15 +559,13 @@
       "groundTruth": {
         "identities": [
           {
-            "identity": {
-              "id": "target",
-              "canonicalName": "Shantanu Narayen",
-              "aliases": [
-                "Shantanu Narayen"
-              ],
-              "distractor": false,
-              "organization": "Adobe"
-            }
+            "id": "target",
+            "canonicalName": "Shantanu Narayen",
+            "aliases": [
+              "Shantanu Narayen"
+            ],
+            "distractor": false,
+            "organization": "Adobe"
           }
         ],
         "claims": [
@@ -635,15 +613,13 @@
       "groundTruth": {
         "identities": [
           {
-            "identity": {
-              "id": "target",
-              "canonicalName": "Shantanu Narayen",
-              "aliases": [
-                "Shantanu Narayen"
-              ],
-              "distractor": false,
-              "organization": "Adobe"
-            }
+            "id": "target",
+            "canonicalName": "Shantanu Narayen",
+            "aliases": [
+              "Shantanu Narayen"
+            ],
+            "distractor": false,
+            "organization": "Adobe"
           }
         ],
         "claims": [
@@ -691,15 +667,13 @@
       "groundTruth": {
         "identities": [
           {
-            "identity": {
-              "id": "target",
-              "canonicalName": "Marc Benioff",
-              "aliases": [
-                "Marc Benioff"
-              ],
-              "distractor": false,
-              "organization": "Salesforce"
-            }
+            "id": "target",
+            "canonicalName": "Marc Benioff",
+            "aliases": [
+              "Marc Benioff"
+            ],
+            "distractor": false,
+            "organization": "Salesforce"
           }
         ],
         "claims": [
@@ -747,15 +721,13 @@
       "groundTruth": {
         "identities": [
           {
-            "identity": {
-              "id": "target",
-              "canonicalName": "Marc Benioff",
-              "aliases": [
-                "Marc Benioff"
-              ],
-              "distractor": false,
-              "organization": "Salesforce"
-            }
+            "id": "target",
+            "canonicalName": "Marc Benioff",
+            "aliases": [
+              "Marc Benioff"
+            ],
+            "distractor": false,
+            "organization": "Salesforce"
           }
         ],
         "claims": [
@@ -803,15 +775,13 @@
       "groundTruth": {
         "identities": [
           {
-            "identity": {
-              "id": "target",
-              "canonicalName": "Dara Khosrowshahi",
-              "aliases": [
-                "Dara Khosrowshahi"
-              ],
-              "distractor": false,
-              "organization": "Uber"
-            }
+            "id": "target",
+            "canonicalName": "Dara Khosrowshahi",
+            "aliases": [
+              "Dara Khosrowshahi"
+            ],
+            "distractor": false,
+            "organization": "Uber"
           }
         ],
         "claims": [
@@ -859,15 +829,13 @@
       "groundTruth": {
         "identities": [
           {
-            "identity": {
-              "id": "target",
-              "canonicalName": "Dara Khosrowshahi",
-              "aliases": [
-                "Dara Khosrowshahi"
-              ],
-              "distractor": false,
-              "organization": "Uber"
-            }
+            "id": "target",
+            "canonicalName": "Dara Khosrowshahi",
+            "aliases": [
+              "Dara Khosrowshahi"
+            ],
+            "distractor": false,
+            "organization": "Uber"
           }
         ],
         "claims": [
@@ -915,15 +883,13 @@
       "groundTruth": {
         "identities": [
           {
-            "identity": {
-              "id": "target",
-              "canonicalName": "Brian Chesky",
-              "aliases": [
-                "Brian Chesky"
-              ],
-              "distractor": false,
-              "organization": "Airbnb"
-            }
+            "id": "target",
+            "canonicalName": "Brian Chesky",
+            "aliases": [
+              "Brian Chesky"
+            ],
+            "distractor": false,
+            "organization": "Airbnb"
           }
         ],
         "claims": [
@@ -971,15 +937,13 @@
       "groundTruth": {
         "identities": [
           {
-            "identity": {
-              "id": "target",
-              "canonicalName": "Brian Chesky",
-              "aliases": [
-                "Brian Chesky"
-              ],
-              "distractor": false,
-              "organization": "Airbnb"
-            }
+            "id": "target",
+            "canonicalName": "Brian Chesky",
+            "aliases": [
+              "Brian Chesky"
+            ],
+            "distractor": false,
+            "organization": "Airbnb"
           }
         ],
         "claims": [
@@ -1027,15 +991,13 @@
       "groundTruth": {
         "identities": [
           {
-            "identity": {
-              "id": "target",
-              "canonicalName": "Jensen Huang",
-              "aliases": [
-                "Jensen Huang"
-              ],
-              "distractor": false,
-              "organization": "NVIDIA"
-            }
+            "id": "target",
+            "canonicalName": "Jensen Huang",
+            "aliases": [
+              "Jensen Huang"
+            ],
+            "distractor": false,
+            "organization": "NVIDIA"
           }
         ],
         "claims": [
@@ -1083,15 +1045,13 @@
       "groundTruth": {
         "identities": [
           {
-            "identity": {
-              "id": "target",
-              "canonicalName": "Jensen Huang",
-              "aliases": [
-                "Jensen Huang"
-              ],
-              "distractor": false,
-              "organization": "NVIDIA"
-            }
+            "id": "target",
+            "canonicalName": "Jensen Huang",
+            "aliases": [
+              "Jensen Huang"
+            ],
+            "distractor": false,
+            "organization": "NVIDIA"
           }
         ],
         "claims": [
@@ -1139,15 +1099,13 @@
       "groundTruth": {
         "identities": [
           {
-            "identity": {
-              "id": "target",
-              "canonicalName": "Eric S. Yuan",
-              "aliases": [
-                "Eric S. Yuan"
-              ],
-              "distractor": false,
-              "organization": "Zoom"
-            }
+            "id": "target",
+            "canonicalName": "Eric S. Yuan",
+            "aliases": [
+              "Eric S. Yuan"
+            ],
+            "distractor": false,
+            "organization": "Zoom"
           }
         ],
         "claims": [
@@ -1195,15 +1153,13 @@
       "groundTruth": {
         "identities": [
           {
-            "identity": {
-              "id": "target",
-              "canonicalName": "Eric S. Yuan",
-              "aliases": [
-                "Eric S. Yuan"
-              ],
-              "distractor": false,
-              "organization": "Zoom"
-            }
+            "id": "target",
+            "canonicalName": "Eric S. Yuan",
+            "aliases": [
+              "Eric S. Yuan"
+            ],
+            "distractor": false,
+            "organization": "Zoom"
           }
         ],
         "claims": [
@@ -1251,15 +1207,13 @@
       "groundTruth": {
         "identities": [
           {
-            "identity": {
-              "id": "target",
-              "canonicalName": "Tobias Lütke",
-              "aliases": [
-                "Tobias Lütke"
-              ],
-              "distractor": false,
-              "organization": "Shopify"
-            }
+            "id": "target",
+            "canonicalName": "Tobias Lütke",
+            "aliases": [
+              "Tobias Lütke"
+            ],
+            "distractor": false,
+            "organization": "Shopify"
           }
         ],
         "claims": [
@@ -1307,15 +1261,13 @@
       "groundTruth": {
         "identities": [
           {
-            "identity": {
-              "id": "target",
-              "canonicalName": "Tobias Lütke",
-              "aliases": [
-                "Tobias Lütke"
-              ],
-              "distractor": false,
-              "organization": "Shopify"
-            }
+            "id": "target",
+            "canonicalName": "Tobias Lütke",
+            "aliases": [
+              "Tobias Lütke"
+            ],
+            "distractor": false,
+            "organization": "Shopify"
           }
         ],
         "claims": [
@@ -1363,15 +1315,13 @@
       "groundTruth": {
         "identities": [
           {
-            "identity": {
-              "id": "target",
-              "canonicalName": "Brian Armstrong",
-              "aliases": [
-                "Brian Armstrong"
-              ],
-              "distractor": false,
-              "organization": "Coinbase"
-            }
+            "id": "target",
+            "canonicalName": "Brian Armstrong",
+            "aliases": [
+              "Brian Armstrong"
+            ],
+            "distractor": false,
+            "organization": "Coinbase"
           }
         ],
         "claims": [
@@ -1419,15 +1369,13 @@
       "groundTruth": {
         "identities": [
           {
-            "identity": {
-              "id": "target",
-              "canonicalName": "Brian Armstrong",
-              "aliases": [
-                "Brian Armstrong"
-              ],
-              "distractor": false,
-              "organization": "Coinbase"
-            }
+            "id": "target",
+            "canonicalName": "Brian Armstrong",
+            "aliases": [
+              "Brian Armstrong"
+            ],
+            "distractor": false,
+            "organization": "Coinbase"
           }
         ],
         "claims": [
@@ -1475,15 +1423,13 @@
       "groundTruth": {
         "identities": [
           {
-            "identity": {
-              "id": "target",
-              "canonicalName": "Ted Sarandos",
-              "aliases": [
-                "Ted Sarandos"
-              ],
-              "distractor": false,
-              "organization": "Netflix"
-            }
+            "id": "target",
+            "canonicalName": "Ted Sarandos",
+            "aliases": [
+              "Ted Sarandos"
+            ],
+            "distractor": false,
+            "organization": "Netflix"
           }
         ],
         "claims": [
@@ -1531,15 +1477,13 @@
       "groundTruth": {
         "identities": [
           {
-            "identity": {
-              "id": "target",
-              "canonicalName": "Ted Sarandos",
-              "aliases": [
-                "Ted Sarandos"
-              ],
-              "distractor": false,
-              "organization": "Netflix"
-            }
+            "id": "target",
+            "canonicalName": "Ted Sarandos",
+            "aliases": [
+              "Ted Sarandos"
+            ],
+            "distractor": false,
+            "organization": "Netflix"
           }
         ],
         "claims": [
@@ -1587,15 +1531,13 @@
       "groundTruth": {
         "identities": [
           {
-            "identity": {
-              "id": "target",
-              "canonicalName": "Greg Peters",
-              "aliases": [
-                "Greg Peters"
-              ],
-              "distractor": false,
-              "organization": "Netflix"
-            }
+            "id": "target",
+            "canonicalName": "Greg Peters",
+            "aliases": [
+              "Greg Peters"
+            ],
+            "distractor": false,
+            "organization": "Netflix"
           }
         ],
         "claims": [
@@ -1643,15 +1585,13 @@
       "groundTruth": {
         "identities": [
           {
-            "identity": {
-              "id": "target",
-              "canonicalName": "Greg Peters",
-              "aliases": [
-                "Greg Peters"
-              ],
-              "distractor": false,
-              "organization": "Netflix"
-            }
+            "id": "target",
+            "canonicalName": "Greg Peters",
+            "aliases": [
+              "Greg Peters"
+            ],
+            "distractor": false,
+            "organization": "Netflix"
           }
         ],
         "claims": [
@@ -1699,15 +1639,13 @@
       "groundTruth": {
         "identities": [
           {
-            "identity": {
-              "id": "target",
-              "canonicalName": "Daniel Ek",
-              "aliases": [
-                "Daniel Ek"
-              ],
-              "distractor": false,
-              "organization": "Spotify"
-            }
+            "id": "target",
+            "canonicalName": "Daniel Ek",
+            "aliases": [
+              "Daniel Ek"
+            ],
+            "distractor": false,
+            "organization": "Spotify"
           }
         ],
         "claims": [
@@ -1755,15 +1693,13 @@
       "groundTruth": {
         "identities": [
           {
-            "identity": {
-              "id": "target",
-              "canonicalName": "Daniel Ek",
-              "aliases": [
-                "Daniel Ek"
-              ],
-              "distractor": false,
-              "organization": "Spotify"
-            }
+            "id": "target",
+            "canonicalName": "Daniel Ek",
+            "aliases": [
+              "Daniel Ek"
+            ],
+            "distractor": false,
+            "organization": "Spotify"
           }
         ],
         "claims": [
@@ -1811,15 +1747,13 @@
       "groundTruth": {
         "identities": [
           {
-            "identity": {
-              "id": "target",
-              "canonicalName": "Alex Norström",
-              "aliases": [
-                "Alex Norström"
-              ],
-              "distractor": false,
-              "organization": "Spotify"
-            }
+            "id": "target",
+            "canonicalName": "Alex Norström",
+            "aliases": [
+              "Alex Norström"
+            ],
+            "distractor": false,
+            "organization": "Spotify"
           }
         ],
         "claims": [
@@ -1867,15 +1801,13 @@
       "groundTruth": {
         "identities": [
           {
-            "identity": {
-              "id": "target",
-              "canonicalName": "Alex Norström",
-              "aliases": [
-                "Alex Norström"
-              ],
-              "distractor": false,
-              "organization": "Spotify"
-            }
+            "id": "target",
+            "canonicalName": "Alex Norström",
+            "aliases": [
+              "Alex Norström"
+            ],
+            "distractor": false,
+            "organization": "Spotify"
           }
         ],
         "claims": [
@@ -1923,15 +1855,13 @@
       "groundTruth": {
         "identities": [
           {
-            "identity": {
-              "id": "target",
-              "canonicalName": "Gustav Söderström",
-              "aliases": [
-                "Gustav Söderström"
-              ],
-              "distractor": false,
-              "organization": "Spotify"
-            }
+            "id": "target",
+            "canonicalName": "Gustav Söderström",
+            "aliases": [
+              "Gustav Söderström"
+            ],
+            "distractor": false,
+            "organization": "Spotify"
           }
         ],
         "claims": [
@@ -1979,15 +1909,13 @@
       "groundTruth": {
         "identities": [
           {
-            "identity": {
-              "id": "target",
-              "canonicalName": "Gustav Söderström",
-              "aliases": [
-                "Gustav Söderström"
-              ],
-              "distractor": false,
-              "organization": "Spotify"
-            }
+            "id": "target",
+            "canonicalName": "Gustav Söderström",
+            "aliases": [
+              "Gustav Söderström"
+            ],
+            "distractor": false,
+            "organization": "Spotify"
           }
         ],
         "claims": [
@@ -2034,15 +1962,13 @@
       "groundTruth": {
         "identities": [
           {
-            "identity": {
-              "id": "target",
-              "canonicalName": "Mark Zuckerberg",
-              "aliases": [
-                "Mark Zuckerberg"
-              ],
-              "distractor": false,
-              "organization": "Meta"
-            }
+            "id": "target",
+            "canonicalName": "Mark Zuckerberg",
+            "aliases": [
+              "Mark Zuckerberg"
+            ],
+            "distractor": false,
+            "organization": "Meta"
           }
         ],
         "claims": [
@@ -2076,7 +2002,8 @@
           "sourceClass": "regulatory",
           "independentReview": true
         }
-      ]
+      ],
+      "classification": "current-role-verification"
     },
     {
       "caseId": "RG-038",
@@ -2090,15 +2017,13 @@
       "groundTruth": {
         "identities": [
           {
-            "identity": {
-              "id": "target",
-              "canonicalName": "Mark Zuckerberg",
-              "aliases": [
-                "Mark Zuckerberg"
-              ],
-              "distractor": false,
-              "organization": "Meta"
-            }
+            "id": "target",
+            "canonicalName": "Mark Zuckerberg",
+            "aliases": [
+              "Mark Zuckerberg"
+            ],
+            "distractor": false,
+            "organization": "Meta"
           }
         ],
         "claims": [
