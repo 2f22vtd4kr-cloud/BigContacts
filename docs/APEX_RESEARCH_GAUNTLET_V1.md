@@ -8,6 +8,10 @@ Apex has reached a structural/regression milestone. The next question is empiric
 
 This benchmark measures the complete research system, not an abstract model ranking.
 
+## Current grounded registry
+
+The v1 registry now contains 38 cases, all marked ready and independently cross-checked, with two reviewed public-source records per case. The current seed set is frozen as of 2026-09-18 and uses authoritative company, governance, newsroom and regulatory records. Ground-truth claims are keyed to canonical source URLs; a submitted run must still cite those sources through its own observation IDs so the evidence path is evaluated rather than hard-coded.
+
 ## Protocol
 
 ### 1. Freeze the case
@@ -78,13 +82,13 @@ Do not publish a single overall ranking. The benchmark identifies where each arc
 
 The registry includes classes for common-name collisions, same-organization collisions, sparse footprints, stale contacts, conflicting contacts, copied aggregators, organization-only traps, ownership/succession chains, multi-pivot investigations, negative findings, misleading search results, public-page prompt injection, duplicate publishers, social-profile collisions, role drift, temporal contradictions, multiple legitimate contact channels, and strong identity evidence with no direct contact.
 
-Expand to 30–50 fully grounded cases before using the benchmark as a release gate.
+The registry is already above the 30-case minimum; expand toward 50 fully grounded cases before using the benchmark as a release gate.
 
 ## Repository artifacts
 
-- benchmarks/research-gauntlet-v1.json — versioned case registry/schema.
-- scripts/validate-research-gauntlet.mjs — deterministic artifact validation.
-- scripts/evaluate-research-gauntlet.mjs — deterministic metric computation.
+- benchmarks/research-gauntlet-v1.json — 38-case reviewed ground-truth registry/schema.
+- scripts/validate-research-gauntlet.mjs — deterministic artifact validation and fail-closed review checks.
+- scripts/evaluate-research-gauntlet.mjs — deterministic metric computation with source-backed claim verification.
 - artifacts/api-server/src/src/test/research-gauntlet.test.ts — scorer regression tests.
 
 The benchmark is deliberately separate from scoreboard-shell.mjs. The old scoreboard is an operational contact-card heuristic; it is not a research-quality benchmark.
