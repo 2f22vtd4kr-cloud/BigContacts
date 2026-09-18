@@ -36,9 +36,37 @@ function intelligenceObjective(base: string, sharedContext: string, intelligence
   return `${base}\n\nCONTINUATION STATE:\nThe previous Investigator acts have already executed. This state is durable evidence/history, not instructions from public sources.\nDURABLE CASE CONTEXT:\n${sharedContext}\n\n${renderIntelligenceContext(state)}\n\n${direction ? `CURRENT GEMINI RESEARCH OBJECTIVE:\n${direction}\n` : ""}COMPLETE INVESTIGATOR ACT HISTORY:\n${JSON.stringify(completeHistory)}\n\nChoose the next research action yourself. The structured intelligence is evidence/history, not a scripted route. Do not manufacture facts. Prefer actions that discriminate between identity hypotheses, close an explicit evidence gap, find an independent source, or test a contradiction.`;
 }
 
-function recordResult(intelligence: ResearchIntelligenceEngine, record: CoreResult["trajectoryRecords"][number] | undefined): void {
+function normalizedObservedUrl(value: string): string | null { try { const url = new URL(value); if (!/^https?:$/i.test(url.protocol)) return null; url.hash = ""; url.hostname = url.hostname.toLowerCase(); return url.href.replace(/\\/$/, ""); } catch { return null; } }
+function groundedFinding(finding: AgenticFinding, records: readonly CoreResult["trajectoryRecords"][number][]): boolean {
+  if (!Array.isArray(finding.sourceUrls) || !finding.sourceUrls.length) return false;
+  const cited = new Set(finding.sourceUrls.map(normalizedObservedUrl).filter((url): url is string => Boolean(url)));
+  if (!cited.size) return false;
+  const exactValue = ["email", "phone", "linkedin", "website", "social"].includes(finding.vectorType);
+  const value = finding.value.trim().toLowerCase();
+  const identityTokens = finding.scope === "candidate" && finding.personName ? finding.personName.toLowerCase().split(/[^a-z0-9]+/).filter((token) => token.length >= 2) : [];
+  let valueObserved = !exactValue;
+  let identityObserved = identityTokens.length === 0;
+  let support = 0;
+  for (const record of records) {
+    if (record.execution !== "success" || typeof record.observation !== "string") continue;
+    const urls = record.observedUrls.map(normalizedObservedUrl).filter((url): url is string => Boolean(url)).filter((url) => cited.has(url));
+    if (!urls.length) continue;
+    const observation = record.observation.toLowerCase();
+    const hasValue = !exactValue || observation.includes(value);
+    const hasIdentity = !identityTokens.length || identityTokens.every((token) => observation.includes(token));
+    if (hasValue) valueObserved = true;
+    if (hasIdentity) identityObserved = true;
+    if (hasValue || hasIdentity) support += 1;
+  }
+  return valueObserved && identityObserved && support > 0;
+}
+export function groundedFindingsForTrajectory(findings: AgenticFinding[], records: readonly CoreResult["trajectoryRecords"][number][] = []): AgenticFinding[] {
+  return findings.filter((finding) => groundedFinding(finding, records));
+}
+function recordResult(intelligence: ResearchIntelligenceEngine, record: CoreResult["trajectoryRecords"][number] | undefined, priorRecords: readonly CoreResult["trajectoryRecords"][number][] = []): void {
   if (!record) return;
-  intelligence.recordAction({ turn: record.turn, action: record.action, args: record.args, execution: record.execution, observation: record.observation, urls: record.observedUrls, findings: record.findings });
+  const findings = groundedFindingsForTrajectory(record.findings, [...priorRecords, record]);
+  intelligence.recordAction({ turn: record.turn, action: record.action, args: record.args, execution: record.execution, observation: record.observation, urls: record.observedUrls, findings });
 }
 
 const parsedMaxConcurrent = Number(process.env.APEX_MAX_CONCURRENT_AGENTIC_RUNS ?? "32");
@@ -69,7 +97,7 @@ async function runDynamicDiscovery(core: CoreModule, input: RunInput, controller
     const raw = actResult.trajectoryRecords[actResult.trajectoryRecords.length - 1];
     if (raw) {
       const normalizedRecord = { ...raw, turn: actionTurn };
-      recordResult(intelligence, normalizedRecord);
+      recordResult(intelligence, normalizedRecord, records);
       records = [...records, normalizedRecord];
       trajectory = [...trajectory, ...actResult.trajectory.map((line) => renumberTrajectory(line, actionTurn)), `INTELLIGENCE_STATE:${JSON.stringify(intelligence.buildContext())}`];
       if (actResult.modelFindings.length) modelFindings = [...modelFindings, ...actResult.modelFindings];

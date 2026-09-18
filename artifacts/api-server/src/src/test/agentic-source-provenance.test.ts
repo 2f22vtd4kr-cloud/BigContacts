@@ -40,6 +40,7 @@ const successfulTrajectory = [
 ];
 
 describe("agentic source provenance", () => {
+  it("keeps structured intelligence grounded in actually observed claim material", async () => {\n    const { groundedFindingsForTrajectory } = await import("../lib/agentic-web-research");\n    expect(groundedFindingsForTrajectory([finding()], [observation()])).toHaveLength(1);\n    expect(groundedFindingsForTrajectory([finding()], [observation({ observation: "Jane Example — Founder" })])).toHaveLength(0);\n    expect(groundedFindingsForTrajectory([finding()], [observation({ observedUrls: ["https://other.example/source"] })])).toHaveLength(0);\n  });
   it("drops contact findings without a successful observed source", () => {
     const raw = [finding({ sourceUrls: [] }), finding({ sourceUrls: ["google-search://jane@example.com"] })];
     expect(sourceBackedFindings(raw)).toHaveLength(0);
