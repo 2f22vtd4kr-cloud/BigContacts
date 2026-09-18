@@ -14,7 +14,7 @@ export interface IntelligenceEvidence {
   sourceHost: string | null;
   sourceTier: IntelligenceSourceTier;
   retrievedAt: string;
-  lastSeen: string;
+  readonly lastSeen: string;
   turn: number;
   action: string;
   execution: string;

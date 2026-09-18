@@ -5,6 +5,7 @@ import { validateGeminiResearchObjective } from "./gemini-research-objective";
 import { reviewTargetInvestigationAct, loadTargetActOversightContext, type TargetActOversight } from "./target-act-oversight";
 import { getJob } from "./job-queue";
 import { ResearchIntelligenceEngine, renderIntelligenceContext } from "./research-intelligence-engine";
+import type { AgenticFinding } from "./agentic-web-research-core";
 
 const nativeFetch = globalThis.fetch.bind(globalThis);
 type GuardedFetch = typeof fetch & { __apexSsrfGuard?: boolean; __apexQuotaGuard?: boolean };
