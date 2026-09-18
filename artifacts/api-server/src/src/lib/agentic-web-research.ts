@@ -71,7 +71,7 @@ async function runDynamicDiscovery(core: CoreModule, input: RunInput, controller
       const normalizedRecord = { ...raw, turn: actionTurn };
       recordResult(intelligence, normalizedRecord);
       records = [...records, normalizedRecord];
-      trajectory = [...trajectory, ...actResult.trajectory.map((line) => renumberTrajectory(line, actionTurn)), `INTELLIGENCE_DIGEST:${intelligence.buildContext().provenanceDigest}`];
+      trajectory = [...trajectory, ...actResult.trajectory.map((line) => renumberTrajectory(line, actionTurn)), `INTELLIGENCE_STATE:${JSON.stringify(intelligence.buildContext())}`];
       if (actResult.modelFindings.length) modelFindings = [...modelFindings, ...actResult.modelFindings];
       if (raw.findings.length) findings = [...findings, ...(raw.findings as CoreResult["findings"])];
       if (raw.action === "done") return { status: "completed", model, iterations: actionTurn, searches, visits, findings, modelFindings, stopReason: "MODEL_DECIDED_DONE", trajectory, trajectoryRecords: records, ...(error ? { error } : {}), executionId };
@@ -177,7 +177,7 @@ export async function runAgenticWebResearch(input: RunInput): Promise<AgenticRun
             modelFindings = [...modelFindings, ...parallel.modelFindings];
             searches += parallel.searches; visits += parallel.visits; direction = parallel.direction; error = parallel.error ?? error;
             trajectory.push(`PARALLEL_MISSION_PASS:${JSON.stringify(intelligence.buildContext().missionBriefs)}`);
-            trajectory.push(`INTELLIGENCE_DIGEST:${intelligence.buildContext().provenanceDigest}`);
+            trajectory.push(`INTELLIGENCE_STATE:${JSON.stringify(intelligence.buildContext())}`);
             missionPassComplete = true;
             if (parallel.stop) return { status: "completed", model, iterations: actionTurn, searches, visits, findings, modelFindings, stopReason: "MODEL_DECIDED_DONE", trajectory, trajectoryRecords: records, ...(error ? { error } : {}), executionId };
           }
@@ -191,7 +191,7 @@ export async function runAgenticWebResearch(input: RunInput): Promise<AgenticRun
             const normalizedRecord = { ...raw, turn: actionTurn };
             recordResult(intelligence, normalizedRecord);
             records = [...records, normalizedRecord];
-            trajectory = [...trajectory, ...actResult.trajectory.map((line) => renumberTrajectory(line, actionTurn)), `INTELLIGENCE_DIGEST:${intelligence.buildContext().provenanceDigest}`];
+            trajectory = [...trajectory, ...actResult.trajectory.map((line) => renumberTrajectory(line, actionTurn)), `INTELLIGENCE_STATE:${JSON.stringify(intelligence.buildContext())}`];
             if (actResult.modelFindings.length) modelFindings = [...modelFindings, ...actResult.modelFindings];
             if (raw.findings.length) findings = [...findings, ...(raw.findings as CoreResult["findings"])];
             if (raw.action === "done") return { status: "completed", model, iterations: actionTurn, searches, visits, findings, modelFindings, stopReason: "MODEL_DECIDED_DONE", trajectory, trajectoryRecords: records, ...(error ? { error } : {}), executionId };
