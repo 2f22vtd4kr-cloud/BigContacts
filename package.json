@@ -71,7 +71,7 @@
     "check:research-campaign": "pnpm run build:research-gauntlet && node scripts/validate-research-campaign.mjs /tmp/research-gauntlet-v1-combined.json benchmarks/research-runs-v1.example.json",
     "check:failure-records": "node scripts/validate-failure-records.mjs benchmarks/research-runs-v1.example.json",
     "build:research-gauntlet": "node scripts/build-research-gauntlet.mjs benchmarks/research-gauntlet-v1.json benchmarks/research-gauntlet-v1-extension.json /tmp/research-gauntlet-v1-combined.json",
-    "bench:empirical-campaign": "pnpm run build:research-gauntlet && pnpm exec tsx scripts/run-research-campaign.mjs /tmp/research-gauntlet-v1-combined.json research-runs-v1.json"
+    "bench:empirical-campaign": "pnpm run build:research-gauntlet && pnpm dlx tsx@4.20.5 scripts/run-research-campaign.mjs /tmp/research-gauntlet-v1-combined.json research-runs-v1.json"
   },
   "private": true,
   "dependencies": {
