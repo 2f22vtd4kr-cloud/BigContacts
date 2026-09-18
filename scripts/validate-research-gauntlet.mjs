@@ -14,9 +14,18 @@ if(doc.schemaVersion==="research-gauntlet-v1"){
   const gt=c.groundTruth;
   if(!gt||!Array.isArray(gt.identities)||!Array.isArray(gt.claims)||!Array.isArray(gt.contacts)||!Array.isArray(gt.contradictions))throw new Error("Case "+c.caseId+" is missing ground truth arrays.");
   const sources=Array.isArray(c.sources)?c.sources:[];
-  if(sources.length<2||sources.some(s=>!s.url||s.independentReview!==true))throw new Error("Case "+c.caseId+" needs at least two independently reviewed source records.");
+  const normalizeUrl=value=>{try{const u=new URL(String(value));u.hash="";u.hostname=u.hostname.toLowerCase();u.protocol=u.protocol.toLowerCase();return u.toString().replace(/\/$/,"");}catch{return String(value??"").trim();}};
+  const sourceUrls=new Set(sources.map(s=>normalizeUrl(s.url)).filter(Boolean));
+  if(sources.length<2||sources.some(s=>!s.url||s.independentReview!==true)||sourceUrls.size<sources.length)throw new Error("Case "+c.caseId+" needs at least two distinct independently reviewed source records.");
   for(const claim of gt.claims){
-   if(!claim.id||claimIds.has(claim.id)||!claim.subjectIdentityId||!claim.predicate||claim.object===undefined||!Array.isArray(claim.requiredSourceUrls)||claim.requiredSourceUrls.length<2)throw new Error("Claim in "+c.caseId+" lacks two required source URLs or has a duplicate id."); claimIds.add(claim.id);
+   if(!claim.id||claimIds.has(claim.id)||!claim.subjectIdentityId||!claim.predicate||claim.object===undefined||!Array.isArray(claim.requiredSourceUrls)||claim.requiredSourceUrls.length<2)throw new Error("Claim in "+c.caseId+" lacks two required source URLs or has a duplicate id.");
+   const requiredUrls=[...new Set(claim.requiredSourceUrls.map(normalizeUrl).filter(Boolean))];
+   if(requiredUrls.length<2||requiredUrls.some(url=>!sourceUrls.has(url)))throw new Error("Claim in "+c.caseId+" requires source URLs not present in its reviewed source registry.");
+   if(claim.requiredSourceClasses!==undefined){
+    if(!Array.isArray(claim.requiredSourceClasses)||claim.requiredSourceClasses.length===0)throw new Error("Claim in "+c.caseId+" has invalid requiredSourceClasses.");
+    for(const requiredClass of claim.requiredSourceClasses){if(!requiredUrls.some(url=>sources.some(source=>normalizeUrl(source.url)===url&&source.sourceClass===requiredClass)))throw new Error("Claim in "+c.caseId+" requires an unavailable source class: "+requiredClass);}
+   }
+   claimIds.add(claim.id);
   }
  }
  console.log(JSON.stringify({valid:true,type:"registry",cases:cases.length,target:doc.targetCaseCount,status:doc.status},null,2)); process.exit(0);
