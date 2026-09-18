@@ -72,6 +72,8 @@ jobs:
           assert_contains 'reconcileContradictions' "$intelligence"
           assert_contains 'ResearchIntelligenceEngine' "$intelligence"
           assert_contains 'runParallelMissionPass' artifacts/api-server/src/src/lib/agentic-web-research.ts
+          assert_contains 'evidenceState:durableEvidenceState' artifacts/api-server/src/src/lib/bureau-agentic-pass.ts
+          if grep -RIn 'Number.POSITIVE_INFINITY' "$core" artifacts/api-server/src/src/lib/agentic-web-research.ts --include='*.ts'; then echo 'Unbounded Infinity safety budget remains in canonical agentic runtime.'; exit 1; fi
       - name: Check workflow source is not itself introducing fixed research sequencing
         shell: bash
         run: |
