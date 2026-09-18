@@ -62,14 +62,16 @@
     "scoreboard:fixture-template": "node scripts/fixture-registry-template.mjs",
     "check:bureau": "pnpm run check:build-no-source-mutation && pnpm run check:source-migration-parity && pnpm run check:atlas-launch-input && pnpm run check:browser-fetch-memory-bound && pnpm run check:canonical-lease-ownership && pnpm run check:canonical-target-lock-ownership && pnpm run check:canonical-active-release-bridge && pnpm run check:active-job-lease && pnpm run check:hnwi-dedup-key-consistency && pnpm run check:permanent-redis-fail-closed && pnpm run check:job-queue-memory-bounds && bash scripts/check-no-force-dig.sh && pnpm run check:free-react && pnpm run check:discovery-quality && pnpm run check:comparison-contract && pnpm run check:trajectory && pnpm run check:agentic-runtime && pnpm run check:agentic-timeout && pnpm run check:provider-role-docs && pnpm run check:unified-investigator && pnpm run check:discovery-mode && pnpm run check:single-discovery-control-plane && pnpm run check:agentic-core-transport && pnpm run check:mission-bootstrap && pnpm run check:investigator-identity-boundary && pnpm run check:investigator-provider-selection && pnpm run check:agentic-efficiency && pnpm run check:target-agent-context && pnpm run check:target-investigator-autonomy && pnpm run check:atlas-control-durability && pnpm run check:legacy-mutation-boundary && pnpm run check:retired-research-routes && pnpm run check:contact-research-retirement && pnpm run check:harvest-domain-egress && pnpm run check:investigator-observation-attribution && pnpm run check:investigator-event-ordering && pnpm run check:investigation-context-compaction && pnpm run check:canonical-target-per-act-control && pnpm run check:apex-target-control-boundary && pnpm run check:retired-provider-mutators && pnpm run check:discovery-context-control && pnpm run check:python-osint-fail-closed && pnpm run check:research-gauntlet && pnpm run check:agentic-registry-signal && pnpm run check:canonical-job-lock-boundary && pnpm run test:phone-priority",
     "scoreboard:lcode": "node scripts/lcode-suggest.mjs",
-    "check:research-gauntlet": "node scripts/validate-research-gauntlet.mjs benchmarks/research-gauntlet-v1.json",
+    "check:research-gauntlet": "pnpm run build:research-gauntlet && node scripts/validate-research-gauntlet.mjs /tmp/research-gauntlet-v1-combined.json",
     "bench:score": "node scripts/evaluate-research-gauntlet.mjs",
     "check:research-run": "node scripts/validate-research-run.mjs benchmarks/research-run-v1.example.json",
-    "bench:campaign": "node scripts/score-research-campaign.mjs benchmarks/research-gauntlet-v1.json",
+    "bench:campaign": "pnpm run build:research-gauntlet && node scripts/score-research-campaign.mjs /tmp/research-gauntlet-v1-combined.json benchmarks/research-runs-v1.example.json",
     "bench:failure-observatory": "node scripts/build-failure-observatory.mjs",
     "check:evidence-graph": "node scripts/validate-evidence-graph.mjs benchmarks/evidence-graph-v2.example.json",
-    "check:research-campaign": "node scripts/validate-research-campaign.mjs benchmarks/research-gauntlet-v1.json benchmarks/research-runs-v1.example.json",
-    "check:failure-records": "node scripts/validate-failure-records.mjs benchmarks/research-runs-v1.example.json"
+    "check:research-campaign": "pnpm run build:research-gauntlet && node scripts/validate-research-campaign.mjs /tmp/research-gauntlet-v1-combined.json benchmarks/research-runs-v1.example.json",
+    "check:failure-records": "node scripts/validate-failure-records.mjs benchmarks/research-runs-v1.example.json",
+    "build:research-gauntlet": "node scripts/build-research-gauntlet.mjs benchmarks/research-gauntlet-v1.json benchmarks/research-gauntlet-v1-extension.json /tmp/research-gauntlet-v1-combined.json",
+    "bench:empirical-campaign": "pnpm run build:research-gauntlet && pnpm exec tsx scripts/run-research-campaign.mjs /tmp/research-gauntlet-v1-combined.json research-runs-v1.json"
   },
   "private": true,
   "dependencies": {
