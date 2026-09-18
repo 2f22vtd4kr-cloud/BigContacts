@@ -12,7 +12,6 @@
     "tsx": "catalog:"
   },
   "dependencies": {
-    "@workspace/db": "workspace:*",
-    "drizzle-orm": "catalog:"
+    "@workspace/db": "workspace:*"
   }
 }
