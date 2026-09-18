@@ -14,6 +14,7 @@ export interface IntelligenceEvidence {
   sourceHost: string | null;
   sourceTier: IntelligenceSourceTier;
   retrievedAt: string;
+  lastSeen: string;
   turn: number;
   action: string;
   execution: string;
@@ -127,7 +128,9 @@ function extractPredicate(claim: string): { subject: string; predicate: string; 
   const text = claim.trim();
   const match = text.match(/^(.{2,100}?)(?:\s+is\s+|\s+works?\s+at\s+|\s+founded\s+|\s+owns?\s+|\s+email(?:s)?\s+|\s+phone(?:s)?\s+)(.{2,220})$/i);
   if (!match) return { subject: text.slice(0, 120), predicate: "asserts", object: text.slice(0, 220) };
-  return { subject: match[1]!.trim(), predicate: "asserts", object: match[2]!.trim() };
+  const lower = text.toLowerCase();
+  const predicate = lower.includes(" works at ") ? "works_at" : lower.includes(" founded ") ? "founded" : lower.includes(" owns ") ? "owns" : lower.includes(" email ") || lower.includes(" emails ") ? "email" : lower.includes(" phone ") || lower.includes(" phones ") ? "phone" : "is";
+  return { subject: match[1]!.trim(), predicate, object: match[2]!.trim() };
 }
 
 export class ResearchIntelligenceEngine {
@@ -191,7 +194,7 @@ export class ResearchIntelligenceEngine {
     const existing = this.evidence.get(fingerprint);
     if (existing) { existing.lastSeen = retrievedAt; return existing.id; }
     const id = `ev_${fingerprint.slice(0, 20)}`;
-    this.evidence.set(fingerprint, { ...input, id, retrievedAt, sourceHost, fingerprint });
+    this.evidence.set(fingerprint, { ...input, id, retrievedAt, lastSeen: retrievedAt, sourceHost, fingerprint });
     const parsed = extractPredicate(input.claim);
     const claimKey = hash(`${normalize(parsed.subject)}|${normalize(parsed.predicate)}|${normalize(parsed.object)}`);
     const previous = this.claims.get(claimKey);
@@ -214,6 +217,8 @@ export class ResearchIntelligenceEngine {
     for (const evidence of this.evidence.values()) evidence.contradicts = [];
     for (const list of grouped.values()) {
       const values = [...new Map(list.map((item) => [normalize(extractPredicate(item.claim).object), item])).values()];
+      const parsed = extractPredicate(list[0]?.claim ?? "");
+      if (["email", "phone", "social", "website"].includes(parsed.predicate)) continue;
       if (values.length < 2) continue;
       for (const current of values) current.contradicts = [...new Set(values.filter((item) => item.id !== current.id).map((item) => item.id))];
     }
@@ -225,8 +230,10 @@ export class ResearchIntelligenceEngine {
   buildContext(): IntelligenceContext {
     this.rankHypotheses();
     const claims = [...this.claims.values()];
-    const facts = claims.filter((claim) => claim.status === "supported").sort((a, b) => b.evidenceIds.length - a.evidenceIds.length).map((claim) => ({ claim: `${claim.subject} ${claim.object}`, evidenceIds: [...claim.evidenceIds], sources: [...claim.sourceHosts] }));
-    const contradictions = claims.filter((claim) => claim.status === "contradicted").map((claim) => ({ claim: `${claim.subject} ${claim.object}`, evidenceIds: [...claim.evidenceIds], sources: [...claim.sourceHosts] }));
+    const evidenceFor = (claim: IntelligenceClaim) => claim.evidenceIds.map((id) => this.evidence.get(id)).filter((item): item is IntelligenceEvidence => Boolean(item));
+    const substantive = (claim: IntelligenceClaim) => evidenceFor(claim).some((item) => item.kind === "finding" || item.kind === "claim");
+    const facts = claims.filter((claim) => claim.status === "supported" && substantive(claim)).sort((a, b) => b.evidenceIds.length - a.evidenceIds.length).map((claim) => ({ claim: `${claim.subject} ${claim.predicate} ${claim.object}`, evidenceIds: [...claim.evidenceIds], sources: [...claim.sourceHosts] }));
+    const contradictions = claims.filter((claim) => claim.status === "contradicted" && substantive(claim)).map((claim) => ({ claim: `${claim.subject} ${claim.predicate} ${claim.object}`, evidenceIds: [...claim.evidenceIds], sources: [...claim.sourceHosts] }));
     const unresolved = [...this.hypotheses.values()].flatMap((item) => item.missingDiscriminators).filter(Boolean);
     const openQuestions = [...new Set([...unresolved, ...contradictions.map((item) => `Resolve contradiction: ${item.claim}`)])];
     const sourceDiversity = new Set([...this.evidence.values()].map((item) => item.sourceHost).filter(Boolean)).size;
