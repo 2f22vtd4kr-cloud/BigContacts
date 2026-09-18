@@ -35,6 +35,16 @@ async function materializeAtlasAdmissions(input: { findings: Array<{ promotionDe
   for (const name of admitted) {
     const finding = input.findings.find((candidate) => candidate.personName?.trim().toLowerCase() === name.toLowerCase() && candidate.promotionDecision === "promote" && candidate.scope === "candidate" && Array.isArray(candidate.sourceUrls) && candidate.sourceUrls.some(isObservedHttpSource));
     const sourceUrl = finding?.sourceUrls?.find(isObservedHttpSource) ?? null; if (!sourceUrl) continue;
+    const caseEvents = await db.select({ eventType: researchCaseEventsTable.eventType, payload: researchCaseEventsTable.payload }).from(researchCaseEventsTable).where(eq(researchCaseEventsTable.caseId, input.discoveryCaseId));
+    const normalizedSource = new URL(sourceUrl).href;
+    const supported = caseEvents.some((event) => {
+      if (event.eventType !== "tool_observation" || typeof event.payload !== "string") return false;
+      try {
+        const payload = JSON.parse(event.payload) as { execution?: string; observedUrls?: unknown[] };
+        return payload.execution === "success" && Array.isArray(payload.observedUrls) && payload.observedUrls.some((url) => { try { return new URL(String(url)).href === normalizedSource; } catch { return false; } });
+      } catch { return false; }
+    });
+    if (!supported) continue;
     const existingRows = await db.select({ id: entitiesTable.id }).from(entitiesTable).where(and(eq(entitiesTable.name, name), inArray(entitiesTable.type, ["HNWI", "Gatekeeper"]))).limit(1);
     const existing = existingRows[0]; let entityId = existing?.id ?? null;
     if (!entityId) { const [created] = await db.insert(entitiesTable).values({ name, type: "HNWI", bayesianScore: 0.05, contactConfidence: 0, contactOutcome: "evidence_only", isHot: false, isStarred: false, isHidden: false, sourceRegistries: JSON.stringify(["canonical-agentic-discovery"]), notes: "Model-selected discovery candidate; target-scoped Investigator research required before contact promotion.", metadata: JSON.stringify({ reviewOnly: true, admission: "investigator-explicit-promotion", sourceUrl, discoveryCaseId: input.discoveryCaseId }) }).returning({ id: entitiesTable.id }); entityId = created?.id ?? null; if (entityId) materialized += 1; }
