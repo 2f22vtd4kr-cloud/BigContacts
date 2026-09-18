@@ -59,6 +59,15 @@ jobs:
           assert_contains 'lastObservation' "$core"
           assert_contains 'Number.POSITIVE_INFINITY' "$core"
           assert_absent 'Begin. Choose an initial web_search query' "$core"
+          intelligence='artifacts/api-server/src/src/lib/research-intelligence-engine.ts'
+          assert_contains 'IdentityHypothesis' "$intelligence"
+          assert_contains 'ContactEvidenceState' "$intelligence"
+          assert_contains 'negativeFindings' "$intelligence"
+          assert_contains 'provenanceDigest' "$intelligence"
+          assert_contains 'missionBriefs' "$intelligence"
+          assert_contains 'reconcileContradictions' "$intelligence"
+          assert_contains 'ResearchIntelligenceEngine' "$intelligence"
+          assert_contains 'runParallelMissionPass' artifacts/api-server/src/src/lib/agentic-web-research.ts
       - name: Check workflow source is not itself introducing fixed research sequencing
         shell: bash
         run: |
