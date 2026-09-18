@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "research-run-v1",
+  "caseId": "RG-001",
+  "system": "apex-canonical",
+  "trialId": "trial-001",
+  "runId": "run-2026-09-18-0001",
+  "registryVersion": "1.1.1",
+  "systemVersion": "1711617003b2ffc0c6964567a809add4b7f811bf",
+  "taskEnvelope": {
+    "maxIterations": 64,
+    "maxObservations": 16000,
+    "maxTrajectoryRecords": 512
+  },
+  "configuration": {
+    "investigatorPool": ["groq", "mistral"],
+    "oversight": ["gemini-right-hand", "gemini-boss"]
+  },
+  "identities": [],
+  "claims": [],
+  "contacts": [],
+  "contradictions": [],
+  "observations": [],
+  "trajectory": [],
+  "outcome": "insufficient_evidence",
+  "failureRecords": []
+}
