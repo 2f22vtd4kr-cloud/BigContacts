@@ -18,7 +18,7 @@ Consults with the Boss, critiques the case, analyses evidence gaps and the ongoi
 
 Gemini Right-hand is **not an Investigator** and is never an Investigator fallback. Gemini remains an independent bounded oversight invocation; it does not call the Boss or become an Investigator merely because the same provider is used for both oversight roles.
 
-Boss/Right-hand suggestions are guidance. They do not turn the investigation into a fixed checklist.
+Boss/Right-hand suggestions are guidance. They do not turn the investigation into a fixed checklist. Mission briefs are advisory context; the runtime does not automatically fan out a fixed identity/organization/contact/disproof pass.
 
 DeepSeek and NVIDIA NIM are no longer part of Apex's active architecture or provider path.
 
