@@ -12,7 +12,7 @@ const assert = (ok, name) => { if (!ok) failures.push(name); };
 assert(/INVESTIGATOR_LLM_CAPABILITY_POOL/.test(source), "Investigator capability pool is explicit");
 assert(/const AGENTIC_ACTION_SCHEMA\s*=/.test(source) && /function parseAction/.test(source), "action schema/parser are fail-closed");
 assert(/const MAX_ITER = 64/.test(source), "Investigator iteration count has the bounded runtime ceiling");
-assert(/Math\.min\(MAX_ITER,/.test(source), "caller input is bounded by the runtime action ceiling");
+assert(/Math\.min\(requestedIterations,\s*MAX_ITER\)/.test(source), "caller input is bounded by the runtime action ceiling");
 assert(/requestedIterations > 0/.test(source) && /Math\.min\(requestedIterations, MAX_ITER\)/.test(source), "invalid/non-positive caller input fails closed to the bounded runtime action ceiling");
 assert(/new AbortController\(\)/.test(source) && /input\.signal\?\.addEventListener\("abort", abortExternal/.test(source), "run-scoped cancellation is wired");
 assert(/setTimeout\(\(\) => runController\.abort\(\), hardTimeoutMs\)/.test(source), "hard timeout aborts the run");
