@@ -189,7 +189,7 @@ The benchmark must not use the existing single-number scoreboard as a proxy for 
 
 ### Benchmark design
 
-Start with 30–50 cases, then expand. Include:
+The grounded v1 registry now contains 38 independently cross-checked cases with two public-source records per case; expand toward 50 before using the benchmark as a release gate. Include:
 
 - ambiguous/common names;
 - sparse public footprints;
@@ -251,7 +251,7 @@ Investigate failures before changing architecture. Candidate interventions inclu
 
 ## 9. Benchmark implementation
 
-The repository now treats the Gauntlet as a versioned evaluation artifact:
+The repository now treats the Gauntlet as a versioned, source-grounded evaluation artifact:
 
 - `docs/APEX_RESEARCH_GAUNTLET_V1.md` — protocol and interpretation rules;
 - `benchmarks/research-gauntlet-v1.json` — case registry and ground-truth schema;
@@ -259,7 +259,7 @@ The repository now treats the Gauntlet as a versioned evaluation artifact:
 - `scripts/validate-research-gauntlet.mjs` — fixture/run schema validation;
 - `artifacts/api-server/src/src/test/research-gauntlet.test.ts` — evaluator regression coverage.
 
-The evaluator scores supplied ground truth against recorded claims; it never invents ground truth, calls the web, or declares a model/system globally superior.
+The evaluator scores supplied ground truth against recorded claims and verifies that claim support resolves through the run's observation IDs to the frozen gold source URLs; it never invents ground truth, calls the web, or declares a model/system globally superior.
 
 ## 10. Acceptance rules for the Gauntlet
 
