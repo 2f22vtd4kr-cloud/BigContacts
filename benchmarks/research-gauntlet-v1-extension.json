@@ -214,7 +214,7 @@
         },
         {
           "sourceId": "GT-rg-042-s2",
-          "url": "https://www.pepsico.com/docs/default-source/leadership-bio/ramonlaguartabiography.pdf?sfvrsn=7348434e_14",
+          "url": "https://www.pepsico.com/newsroom/press-releases/2018/ramon-laguarta-elected-chief-executive-officer-of-pepsico",
           "sourceClass": "official",
           "independentReview": true
         }
@@ -315,16 +315,18 @@
       },
       "sources": [
         {
-          "sourceId": "GT-rg-044-s1",
           "url": "https://corporate.walmart.com/news/2025/11/14/walmart-announces-john-furner-as-president-and-chief-executive-o0",
           "sourceClass": "official",
-          "independentReview": true
+          "sourceType": "company-press-release",
+          "independentReview": true,
+          "reviewedAt": "2026-09-18"
         },
         {
-          "sourceId": "GT-rg-044-s2",
-          "url": "https://stock.walmart.com/sec-filings/all-sec-filings/content/0000104169-26-000023/wmt-20260115.htm",
+          "url": "https://corporate.walmart.com/about/leadership/john-furner",
           "sourceClass": "official",
-          "independentReview": true
+          "sourceType": "company-leadership",
+          "independentReview": true,
+          "reviewedAt": "2026-09-18"
         }
       ]
     },
@@ -585,16 +587,18 @@
       },
       "sources": [
         {
-          "sourceId": "GT-rg-049-s1",
-          "url": "https://www.jnj.com/corporate-governance",
+          "url": "https://www.jnj.com/joaquin-duato",
           "sourceClass": "official",
-          "independentReview": true
+          "sourceType": "company-leadership",
+          "independentReview": true,
+          "reviewedAt": "2026-09-18"
         },
         {
-          "sourceId": "GT-rg-049-s2",
-          "url": "https://www.jnj.com/media-center/press-releases/johnson-johnson-reports-q2-2026-results-raises-2026-outlook",
+          "url": "https://www.jnj.com/corporate-governance",
           "sourceClass": "official",
-          "independentReview": true
+          "sourceType": "company-governance",
+          "independentReview": true,
+          "reviewedAt": "2026-09-18"
         }
       ]
     },
@@ -639,16 +643,18 @@
       },
       "sources": [
         {
-          "sourceId": "GT-rg-050-s1",
-          "url": "https://www.investor.jnj.com/governance/annual-meeting-of-shareholders/default.aspx",
+          "url": "https://www.jnj.com/joaquin-duato",
           "sourceClass": "official",
-          "independentReview": true
+          "sourceType": "company-leadership",
+          "independentReview": true,
+          "reviewedAt": "2026-09-18"
         },
         {
-          "sourceId": "GT-rg-050-s2",
-          "url": "https://www.jnj.com/download/johnson-johnson-2026-proxy.pdf",
+          "url": "https://www.jnj.com/media-center/press-releases/johnson-johnson-names-ceo-joaquin-duato-as-chairman-of-the-board",
           "sourceClass": "official",
-          "independentReview": true
+          "sourceType": "company-press-release",
+          "independentReview": true,
+          "reviewedAt": "2026-09-18"
         }
       ]
     }
