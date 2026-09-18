@@ -1,0 +1,80 @@
+name: Apex Empirical Research Campaign
+on:
+  workflow_dispatch:
+  push:
+    branches: [audit/genuine-five-green-final]
+permissions:
+  contents: read
+jobs:
+  campaign:
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    env:
+      DATABASE_URL: postgresql://apex:apex_local_dev@127.0.0.1:5432/apex
+      REDIS_URL: redis://127.0.0.1:6379
+      NODE_ENV: test
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      GEMINI_AGENTIC_MODEL: gemini-3.8-flash
+      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+      MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
+      MISTRAL_AGENTIC_MODEL: mistral-small-latest
+      SERPER_API_KEY: ${{ secrets.SERPER_API_KEY }}
+      TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
+      EXA_API_KEY: ${{ secrets.EXA_API_KEY }}
+      APEX_AGENTIC_CONCURRENCY: "1"
+      APEX_AGENTIC_PROVIDER_CONCURRENCY: "1"
+      AGENTIC_PROVIDER_DECISION_TIMEOUT_MS: "55000"
+      CAMPAIGN_CASE_LIMIT: "50"
+      CAMPAIGN_TRIALS: "3"
+      CAMPAIGN_TARGET_TIMEOUT_MS: "70000"
+      NODE_OPTIONS: --max-old-space-size=2048
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: apex
+          POSTGRES_PASSWORD: apex_local_dev
+          POSTGRES_DB: apex
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U apex -d apex"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+      redis:
+        image: redis:7
+        ports: ["6379:6379"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install -g pnpm@9.15.9
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Compose grounded 50-case registry
+        run: node scripts/build-research-gauntlet.mjs benchmarks/research-gauntlet-v1.json benchmarks/research-gauntlet-v1-extension.json /tmp/research-gauntlet-v1-combined.json
+      - name: Push database schema
+        run: cd lib/db && pnpm exec drizzle-kit push --config ./drizzle.config.ts
+      - name: Run matched 3-trial campaign
+        run: pnpm exec tsx scripts/run-research-campaign.mjs /tmp/research-gauntlet-v1-combined.json /tmp/research-runs-v1.json
+      - name: Validate complete campaign contract
+        run: node scripts/validate-research-campaign.mjs /tmp/research-gauntlet-v1-combined.json /tmp/research-runs-v1.json --require-complete
+      - name: Validate failure records
+        run: node scripts/validate-failure-records.mjs /tmp/research-runs-v1.json
+      - name: Score campaign
+        run: node scripts/score-research-campaign.mjs /tmp/research-gauntlet-v1-combined.json /tmp/research-runs-v1.json /tmp/research-campaign-results.json
+      - name: Score Gauntlet dimensions
+        run: node scripts/evaluate-research-gauntlet.mjs /tmp/research-gauntlet-v1-combined.json /tmp/research-runs-v1.json > /tmp/research-gauntlet-results.json
+      - name: Build failure observatory
+        run: node scripts/build-failure-observatory.mjs /tmp/research-runs-v1.json > /tmp/research-failure-observatory.json
+      - name: Upload empirical artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: apex-empirical-campaign
+          path: |
+            /tmp/research-gauntlet-v1-combined.json
+            /tmp/research-runs-v1.json
+            /tmp/research-campaign-results.json
+            /tmp/research-gauntlet-results.json
+            /tmp/research-failure-observatory.json
