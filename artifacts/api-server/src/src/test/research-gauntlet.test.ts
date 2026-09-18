@@ -22,10 +22,10 @@ function claimMatchesGold(claim: { predicate: string; object: string }, gold: { 
     && claim.object.trim().replace(/\s+/g, " ").toLowerCase() === gold.object.trim().replace(/\s+/g, " ").toLowerCase();
 }
 
-function groundedClassCovered(observationUrls: string[], requiredUrls: string[], requiredClasses: string[]) {
+function groundedClassCovered(observationUrls: string[], requiredUrls: string[], requiredClasses: string[], sourceClasses: Record<string, string>) {
   const observed = new Set(observationUrls.map(normalizeUrl));
   const required = new Set(requiredUrls.map(normalizeUrl));
-  return requiredClasses.length === 0 || [...required].some((url) => observed.has(url));
+  return requiredClasses.length === 0 || requiredClasses.every((requiredClass) => [...observed].some((url) => required.has(url) && sourceClasses[url] === requiredClass));
 }
 
 describe("research gauntlet metric contract", () => {
@@ -45,11 +45,13 @@ describe("research gauntlet metric contract", () => {
       ["https://example.com/a"],
       ["https://example.com/a"],
       ["official"],
+      { "https://example.com/a": "official" },
     )).toBe(true);
     expect(groundedClassCovered(
       ["https://example.com/other"],
       ["https://example.com/a"],
       ["official"],
+      { "https://example.com/a": "official" },
     )).toBe(false);
   });
   it("requires claims to cite the gold source URLs through observations", () => {
