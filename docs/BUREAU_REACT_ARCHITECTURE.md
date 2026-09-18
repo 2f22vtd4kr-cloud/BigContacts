@@ -51,7 +51,7 @@ durable evidence graph + event ledger
 Right-hand review → Boss disposition → next Investigator act
 ```
 
-The runtime must not impose a hidden fixed sequence such as identity → organization → contact → disproof. Those are possible research objectives/actions, not mandatory hops.
+The runtime must not impose a hidden fixed sequence such as identity → organization → contact → disproof. There is **no forced search order** and no mandatory hop recipe; these are possible research objectives/actions, not required stages.
 
 ## 4. Continuous visibility
 
