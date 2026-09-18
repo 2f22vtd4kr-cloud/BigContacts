@@ -28,7 +28,7 @@ const evidenceCoverage=(refs,gold,idx,sourceRegistry)=>{
 };
 function scoreRun(gt,run){
  const expected=Array.isArray(gt.identities)?gt.identities:[], expectedIds=asSet(expected.filter(x=>!x.distractor).map(x=>String(x.id))), distractors=asSet(expected.filter(x=>x.distractor).map(x=>String(x.id)));
- const evidenceBackedPredictedIds=asSet((run.identities||[]).filter(x=>Array.isArray(x.supportingObservationIds)&&x.supportingObservationIds.length>0).map(x=>String(x.groundTruthIdentityId||""))), predictedIds=evidenceBackedPredictedIds;
+ const observedIdentityEvidenceIds=new Set((run.observations||[]).map(o=>String(o?.id||"")).filter(Boolean)); const evidenceBackedPredictedIds=asSet((run.identities||[]).filter(x=>Array.isArray(x.supportingObservationIds)&&x.supportingObservationIds.length>0&&x.supportingObservationIds.every(id=>observedIdentityEvidenceIds.has(String(id)))).map(x=>String(x.groundTruthIdentityId||""))), predictedIds=evidenceBackedPredictedIds;
  const tp=[...predictedIds].filter(id=>expectedIds.has(id)).length;
  const identityPrecision=rate(tp,predictedIds.size), identityRecall=rate(tp,expectedIds.size), fp=[...predictedIds].filter(id=>!expectedIds.has(id)||distractors.has(id)).length;
  const idx=observationIndex(run);
