@@ -9,9 +9,7 @@ It is a model-led research bureau, not a fixed enrichment script: Gemini Boss + 
 ## Current engineering state
 
 - **Authoritative branch:** `audit/genuine-five-green-final`
-- **Latest certified SHA:** `338c0e22902f2f01d9df07c86a72a5e62c1421bd`
-- **Five-green certification:** 5 consecutive complete codebase audits GREEN at that exact SHA.
-- **Independent prompt-architecture audit:** GREEN at the same SHA.
+- **Certification:** 5 consecutive complete codebase audits GREEN on the authoritative branch, with an independent prompt-architecture audit. The exact certified SHA is the SHA of the latest successful CI runs; this README intentionally does not hard-code a stale historical SHA.
 - The certification is an architecture/regression milestone; it is **not** a claim that Apex has won an external research-quality benchmark.
 
 ## Architecture in one view
