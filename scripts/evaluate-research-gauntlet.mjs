@@ -19,11 +19,11 @@ const observationIndex=(run)=>{
 };
 const evidenceCoverage=(refs,gold,idx)=>{
   const observedUrls=asSet(refs.map(id=>idx.urls.get(String(id))).filter(Boolean).map(normUrl));
-  const observedClasses=asSet(refs.map(id=>idx.classes.get(String(id))).filter(Boolean));
   const requiredUrls=asSet((gold?.requiredSourceUrls||[]).map(normUrl));
   const requiredClasses=asSet(gold?.requiredSourceClasses||[]);
   const urlsCovered=[...requiredUrls].every(url=>observedUrls.has(url));
-  const classCovered=[...requiredClasses].every(c=>observedClasses.has(c)||[...observedClasses].some(x=>x.includes(c)||c.includes(x)));
+  const classByUrl=new Map((gold?.requiredSourceUrls||[]).map((url,i)=>[normUrl(url),String((gold?.requiredSourceClasses||[])[i]??"")]).filter(([,klass])=>klass));
+  const classCovered=[...requiredClasses].every(klass=>[...observedUrls].some(url=>classByUrl.get(url)===klass));
   return {urlsCovered,classCovered,covered:urlsCovered&&classCovered};
 };
 function scoreRun(gt,run){
