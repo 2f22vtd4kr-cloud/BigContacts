@@ -1,0 +1,656 @@
+{
+  "schemaVersion": "research-gauntlet-v1-extension",
+  "version": "1.0.0",
+  "status": "grounded-reviewed",
+  "groundTruthAsOf": "2026-09-18",
+  "cases": [
+    {
+      "caseId": "RG-039",
+      "classification": "current-role-verification",
+      "groundTruthStatus": "ready",
+      "reviewStatus": "independently-cross-checked",
+      "reviewedAt": "2026-09-18",
+      "objective": "Identify Julie Sweet and determine the relevant current role at Accenture as of 2026-09-18. Do not infer identity from the name alone; corroborate the organization and role.",
+      "target": "Julie Sweet",
+      "challengeNotes": "Use the target name as a lead only. Prefer authoritative sources and preserve temporal distinctions.",
+      "groundTruth": {
+        "identities": [
+          {
+            "id": "target",
+            "canonicalName": "Julie Sweet",
+            "aliases": [
+              "Julie Sweet"
+            ],
+            "distractor": false,
+            "organization": "Accenture"
+          }
+        ],
+        "claims": [
+          {
+            "id": "GT-rg-039-currentRole",
+            "subjectIdentityId": "target",
+            "predicate": "currentRole",
+            "object": "Chair and Chief Executive Officer",
+            "requiredSourceUrls": [
+              "https://www.accenture.com/en/about/leadership",
+              "https://www.accenture.com/en/about/leadership/julie-sweet"
+            ],
+            "requiredSourceClasses": [
+              "official"
+            ]
+          }
+        ],
+        "contacts": [],
+        "contradictions": []
+      },
+      "sources": [
+        {
+          "sourceId": "GT-rg-039-s1",
+          "url": "https://www.accenture.com/en/about/leadership",
+          "sourceClass": "official",
+          "independentReview": true
+        },
+        {
+          "sourceId": "GT-rg-039-s2",
+          "url": "https://www.accenture.com/en/about/leadership/julie-sweet",
+          "sourceClass": "official",
+          "independentReview": true
+        }
+      ]
+    },
+    {
+      "caseId": "RG-040",
+      "classification": "role-history",
+      "groundTruthStatus": "ready",
+      "reviewStatus": "independently-cross-checked",
+      "reviewedAt": "2026-09-18",
+      "objective": "Identify Julie Sweet and determine the relevant historical role/status at Accenture as of 2026-09-18. Do not infer identity from the name alone; corroborate the organization and role.",
+      "target": "Julie Sweet",
+      "challengeNotes": "Use the target name as a lead only. Prefer authoritative sources and preserve temporal distinctions.",
+      "groundTruth": {
+        "identities": [
+          {
+            "id": "target",
+            "canonicalName": "Julie Sweet",
+            "aliases": [
+              "Julie Sweet"
+            ],
+            "distractor": false,
+            "organization": "Accenture"
+          }
+        ],
+        "claims": [
+          {
+            "id": "GT-rg-040-historicalRoleOrStatus",
+            "subjectIdentityId": "target",
+            "predicate": "historicalRoleOrStatus",
+            "object": "CEO since September 2019 and Chair since September 2021",
+            "requiredSourceUrls": [
+              "https://www.accenture.com/en/about/leadership/julie-sweet",
+              "https://investor.accenture.com/corporate-governance/board-of-directors/julie-sweet"
+            ],
+            "requiredSourceClasses": [
+              "official"
+            ]
+          }
+        ],
+        "contacts": [],
+        "contradictions": []
+      },
+      "sources": [
+        {
+          "sourceId": "GT-rg-040-s1",
+          "url": "https://www.accenture.com/en/about/leadership/julie-sweet",
+          "sourceClass": "official",
+          "independentReview": true
+        },
+        {
+          "sourceId": "GT-rg-040-s2",
+          "url": "https://investor.accenture.com/corporate-governance/board-of-directors/julie-sweet",
+          "sourceClass": "official",
+          "independentReview": true
+        }
+      ]
+    },
+    {
+      "caseId": "RG-041",
+      "classification": "current-role-verification",
+      "groundTruthStatus": "ready",
+      "reviewStatus": "independently-cross-checked",
+      "reviewedAt": "2026-09-18",
+      "objective": "Identify Ramon L. Laguarta and determine the relevant current role at PepsiCo as of 2026-09-18. Do not infer identity from the name alone; corroborate the organization and role.",
+      "target": "Ramon L. Laguarta",
+      "challengeNotes": "Use the target name as a lead only. Prefer authoritative sources and preserve temporal distinctions.",
+      "groundTruth": {
+        "identities": [
+          {
+            "id": "target",
+            "canonicalName": "Ramon L. Laguarta",
+            "aliases": [
+              "Ramon L. Laguarta"
+            ],
+            "distractor": false,
+            "organization": "PepsiCo"
+          }
+        ],
+        "claims": [
+          {
+            "id": "GT-rg-041-currentRole",
+            "subjectIdentityId": "target",
+            "predicate": "currentRole",
+            "object": "Chairman and Chief Executive Officer",
+            "requiredSourceUrls": [
+              "https://www.pepsico.com/leadership/ramon-laguarta",
+              "https://www.pepsico.com/leadership"
+            ],
+            "requiredSourceClasses": [
+              "official"
+            ]
+          }
+        ],
+        "contacts": [],
+        "contradictions": []
+      },
+      "sources": [
+        {
+          "sourceId": "GT-rg-041-s1",
+          "url": "https://www.pepsico.com/leadership/ramon-laguarta",
+          "sourceClass": "official",
+          "independentReview": true
+        },
+        {
+          "sourceId": "GT-rg-041-s2",
+          "url": "https://www.pepsico.com/leadership",
+          "sourceClass": "official",
+          "independentReview": true
+        }
+      ]
+    },
+    {
+      "caseId": "RG-042",
+      "classification": "role-history",
+      "groundTruthStatus": "ready",
+      "reviewStatus": "independently-cross-checked",
+      "reviewedAt": "2026-09-18",
+      "objective": "Identify Ramon L. Laguarta and determine the relevant historical role/status at PepsiCo as of 2026-09-18. Do not infer identity from the name alone; corroborate the organization and role.",
+      "target": "Ramon L. Laguarta",
+      "challengeNotes": "Use the target name as a lead only. Prefer authoritative sources and preserve temporal distinctions.",
+      "groundTruth": {
+        "identities": [
+          {
+            "id": "target",
+            "canonicalName": "Ramon L. Laguarta",
+            "aliases": [
+              "Ramon L. Laguarta"
+            ],
+            "distractor": false,
+            "organization": "PepsiCo"
+          }
+        ],
+        "claims": [
+          {
+            "id": "GT-rg-042-historicalRoleOrStatus",
+            "subjectIdentityId": "target",
+            "predicate": "historicalRoleOrStatus",
+            "object": "CEO since 2018 and Chairman since 2019",
+            "requiredSourceUrls": [
+              "https://www.pepsico.com/leadership/ramon-laguarta",
+              "https://www.pepsico.com/docs/default-source/leadership-bio/ramonlaguartabiography.pdf?sfvrsn=7348434e_14"
+            ],
+            "requiredSourceClasses": [
+              "official"
+            ]
+          }
+        ],
+        "contacts": [],
+        "contradictions": []
+      },
+      "sources": [
+        {
+          "sourceId": "GT-rg-042-s1",
+          "url": "https://www.pepsico.com/leadership/ramon-laguarta",
+          "sourceClass": "official",
+          "independentReview": true
+        },
+        {
+          "sourceId": "GT-rg-042-s2",
+          "url": "https://www.pepsico.com/docs/default-source/leadership-bio/ramonlaguartabiography.pdf?sfvrsn=7348434e_14",
+          "sourceClass": "official",
+          "independentReview": true
+        }
+      ]
+    },
+    {
+      "caseId": "RG-043",
+      "classification": "current-role-verification",
+      "groundTruthStatus": "ready",
+      "reviewStatus": "independently-cross-checked",
+      "reviewedAt": "2026-09-18",
+      "objective": "Identify John Furner and determine the relevant current role at Walmart as of 2026-09-18. Do not infer identity from the name alone; corroborate the organization and role.",
+      "target": "John Furner",
+      "challengeNotes": "Use the target name as a lead only. Prefer authoritative sources and preserve temporal distinctions.",
+      "groundTruth": {
+        "identities": [
+          {
+            "id": "target",
+            "canonicalName": "John Furner",
+            "aliases": [
+              "John Furner"
+            ],
+            "distractor": false,
+            "organization": "Walmart"
+          }
+        ],
+        "claims": [
+          {
+            "id": "GT-rg-043-currentRole",
+            "subjectIdentityId": "target",
+            "predicate": "currentRole",
+            "object": "President and Chief Executive Officer",
+            "requiredSourceUrls": [
+              "https://corporate.walmart.com/news/2026/04/23/walmart-releases-2026-annual-report-and-proxy-statement",
+              "https://stock.walmart.com/sec-filings/all-sec-filings/content/0001123292-26-001073/exhibit99.htm"
+            ],
+            "requiredSourceClasses": [
+              "official"
+            ]
+          }
+        ],
+        "contacts": [],
+        "contradictions": []
+      },
+      "sources": [
+        {
+          "sourceId": "GT-rg-043-s1",
+          "url": "https://corporate.walmart.com/news/2026/04/23/walmart-releases-2026-annual-report-and-proxy-statement",
+          "sourceClass": "official",
+          "independentReview": true
+        },
+        {
+          "sourceId": "GT-rg-043-s2",
+          "url": "https://stock.walmart.com/sec-filings/all-sec-filings/content/0001123292-26-001073/exhibit99.htm",
+          "sourceClass": "official",
+          "independentReview": true
+        }
+      ]
+    },
+    {
+      "caseId": "RG-044",
+      "classification": "role-transition",
+      "groundTruthStatus": "ready",
+      "reviewStatus": "independently-cross-checked",
+      "reviewedAt": "2026-09-18",
+      "objective": "Identify John Furner and determine the relevant historical role/status at Walmart as of 2026-09-18. Do not infer identity from the name alone; corroborate the organization and role.",
+      "target": "John Furner",
+      "challengeNotes": "Use the target name as a lead only. Prefer authoritative sources and preserve temporal distinctions.",
+      "groundTruth": {
+        "identities": [
+          {
+            "id": "target",
+            "canonicalName": "John Furner",
+            "aliases": [
+              "John Furner"
+            ],
+            "distractor": false,
+            "organization": "Walmart"
+          }
+        ],
+        "claims": [
+          {
+            "id": "GT-rg-044-historicalRoleOrStatus",
+            "subjectIdentityId": "target",
+            "predicate": "historicalRoleOrStatus",
+            "object": "President and CEO of Walmart U.S. before becoming Walmart Inc. President and CEO on February 1, 2026",
+            "requiredSourceUrls": [
+              "https://corporate.walmart.com/news/2025/11/14/walmart-announces-john-furner-as-president-and-chief-executive-o0/press-center",
+              "https://stock.walmart.com/sec-filings/all-sec-filings/content/0000104169-26-000055/wmt-20260131.htm/z14q%22s"
+            ],
+            "requiredSourceClasses": [
+              "official"
+            ]
+          }
+        ],
+        "contacts": [],
+        "contradictions": []
+      },
+      "sources": [
+        {
+          "sourceId": "GT-rg-044-s1",
+          "url": "https://corporate.walmart.com/news/2025/11/14/walmart-announces-john-furner-as-president-and-chief-executive-o0/press-center",
+          "sourceClass": "official",
+          "independentReview": true
+        },
+        {
+          "sourceId": "GT-rg-044-s2",
+          "url": "https://stock.walmart.com/sec-filings/all-sec-filings/content/0000104169-26-000055/wmt-20260131.htm/z14q%22s",
+          "sourceClass": "official",
+          "independentReview": true
+        }
+      ]
+    },
+    {
+      "caseId": "RG-045",
+      "classification": "current-role-verification",
+      "groundTruthStatus": "ready",
+      "reviewStatus": "independently-cross-checked",
+      "reviewedAt": "2026-09-18",
+      "objective": "Identify Michael Miebach and determine the relevant current role at Mastercard as of 2026-09-18. Do not infer identity from the name alone; corroborate the organization and role.",
+      "target": "Michael Miebach",
+      "challengeNotes": "Use the target name as a lead only. Prefer authoritative sources and preserve temporal distinctions.",
+      "groundTruth": {
+        "identities": [
+          {
+            "id": "target",
+            "canonicalName": "Michael Miebach",
+            "aliases": [
+              "Michael Miebach"
+            ],
+            "distractor": false,
+            "organization": "Mastercard"
+          }
+        ],
+        "claims": [
+          {
+            "id": "GT-rg-045-currentRole",
+            "subjectIdentityId": "target",
+            "predicate": "currentRole",
+            "object": "Chief Executive Officer",
+            "requiredSourceUrls": [
+              "https://investor.mastercard.com/corporate-governance/management-committee/default.aspx",
+              "https://investor.mastercard.com/investor-news/investor-news-details/2026/Mastercard-announces-leadership-updates-to-advance-strategy-and-support-continued-growth/default.aspx"
+            ],
+            "requiredSourceClasses": [
+              "official"
+            ]
+          }
+        ],
+        "contacts": [],
+        "contradictions": []
+      },
+      "sources": [
+        {
+          "sourceId": "GT-rg-045-s1",
+          "url": "https://investor.mastercard.com/corporate-governance/management-committee/default.aspx",
+          "sourceClass": "official",
+          "independentReview": true
+        },
+        {
+          "sourceId": "GT-rg-045-s2",
+          "url": "https://investor.mastercard.com/investor-news/investor-news-details/2026/Mastercard-announces-leadership-updates-to-advance-strategy-and-support-continued-growth/default.aspx",
+          "sourceClass": "official",
+          "independentReview": true
+        }
+      ]
+    },
+    {
+      "caseId": "RG-046",
+      "classification": "role-history",
+      "groundTruthStatus": "ready",
+      "reviewStatus": "independently-cross-checked",
+      "reviewedAt": "2026-09-18",
+      "objective": "Identify Michael Miebach and determine the relevant historical role/status at Mastercard as of 2026-09-18. Do not infer identity from the name alone; corroborate the organization and role.",
+      "target": "Michael Miebach",
+      "challengeNotes": "Use the target name as a lead only. Prefer authoritative sources and preserve temporal distinctions.",
+      "groundTruth": {
+        "identities": [
+          {
+            "id": "target",
+            "canonicalName": "Michael Miebach",
+            "aliases": [
+              "Michael Miebach"
+            ],
+            "distractor": false,
+            "organization": "Mastercard"
+          }
+        ],
+        "claims": [
+          {
+            "id": "GT-rg-046-historicalRoleOrStatus",
+            "subjectIdentityId": "target",
+            "predicate": "historicalRoleOrStatus",
+            "object": "Chief Executive Officer of Mastercard",
+            "requiredSourceUrls": [
+              "https://investor.mastercard.com/corporate-governance/management-committee/default.aspx",
+              "https://www.mastercard.com/content/mccom/language-masters/en/news-and-trends/stories/2026/Michael-Miebach-ceo-2025-annual-letter-to-shareholders.html"
+            ],
+            "requiredSourceClasses": [
+              "official"
+            ]
+          }
+        ],
+        "contacts": [],
+        "contradictions": []
+      },
+      "sources": [
+        {
+          "sourceId": "GT-rg-046-s1",
+          "url": "https://investor.mastercard.com/corporate-governance/management-committee/default.aspx",
+          "sourceClass": "official",
+          "independentReview": true
+        },
+        {
+          "sourceId": "GT-rg-046-s2",
+          "url": "https://www.mastercard.com/content/mccom/language-masters/en/news-and-trends/stories/2026/Michael-Miebach-ceo-2025-annual-letter-to-shareholders.html",
+          "sourceClass": "official",
+          "independentReview": true
+        }
+      ]
+    },
+    {
+      "caseId": "RG-047",
+      "classification": "current-role-verification",
+      "groundTruthStatus": "ready",
+      "reviewStatus": "independently-cross-checked",
+      "reviewedAt": "2026-09-18",
+      "objective": "Identify Ryan McInerney and determine the relevant current role at Visa as of 2026-09-18. Do not infer identity from the name alone; corroborate the organization and role.",
+      "target": "Ryan McInerney",
+      "challengeNotes": "Use the target name as a lead only. Prefer authoritative sources and preserve temporal distinctions.",
+      "groundTruth": {
+        "identities": [
+          {
+            "id": "target",
+            "canonicalName": "Ryan McInerney",
+            "aliases": [
+              "Ryan McInerney"
+            ],
+            "distractor": false,
+            "organization": "Visa"
+          }
+        ],
+        "claims": [
+          {
+            "id": "GT-rg-047-currentRole",
+            "subjectIdentityId": "target",
+            "predicate": "currentRole",
+            "object": "Chief Executive Officer",
+            "requiredSourceUrls": [
+              "https://investor.visa.com/corporate-governance/board-of-directors/person-details/default.aspx?ItemId=4d30facb-d4f1-4a5d-a653-84bc56f39ff6",
+              "https://investor.visa.com/news/news-details/2026/Visa-to-Acquire-Prisma-Medios-de-Pago-and-Newpay-in-Argentina/default.aspx"
+            ],
+            "requiredSourceClasses": [
+              "official"
+            ]
+          }
+        ],
+        "contacts": [],
+        "contradictions": []
+      },
+      "sources": [
+        {
+          "sourceId": "GT-rg-047-s1",
+          "url": "https://investor.visa.com/corporate-governance/board-of-directors/person-details/default.aspx?ItemId=4d30facb-d4f1-4a5d-a653-84bc56f39ff6",
+          "sourceClass": "official",
+          "independentReview": true
+        },
+        {
+          "sourceId": "GT-rg-047-s2",
+          "url": "https://investor.visa.com/news/news-details/2026/Visa-to-Acquire-Prisma-Medios-de-Pago-and-Newpay-in-Argentina/default.aspx",
+          "sourceClass": "official",
+          "independentReview": true
+        }
+      ]
+    },
+    {
+      "caseId": "RG-048",
+      "classification": "role-history",
+      "groundTruthStatus": "ready",
+      "reviewStatus": "independently-cross-checked",
+      "reviewedAt": "2026-09-18",
+      "objective": "Identify Ryan McInerney and determine the relevant historical role/status at Visa as of 2026-09-18. Do not infer identity from the name alone; corroborate the organization and role.",
+      "target": "Ryan McInerney",
+      "challengeNotes": "Use the target name as a lead only. Prefer authoritative sources and preserve temporal distinctions.",
+      "groundTruth": {
+        "identities": [
+          {
+            "id": "target",
+            "canonicalName": "Ryan McInerney",
+            "aliases": [
+              "Ryan McInerney"
+            ],
+            "distractor": false,
+            "organization": "Visa"
+          }
+        ],
+        "claims": [
+          {
+            "id": "GT-rg-048-historicalRoleOrStatus",
+            "subjectIdentityId": "target",
+            "predicate": "historicalRoleOrStatus",
+            "object": "President of Visa before assuming CEO in February 2023",
+            "requiredSourceUrls": [
+              "https://investor.visa.com/investor-relations/corporate-governance/board-of-directors/Person-Details/",
+              "https://investor.visa.com/news/news-details/2026/Visa-to-Acquire-Prisma-Medios-de-Pago-and-Newpay-in-Argentina/default.aspx"
+            ],
+            "requiredSourceClasses": [
+              "official"
+            ]
+          }
+        ],
+        "contacts": [],
+        "contradictions": []
+      },
+      "sources": [
+        {
+          "sourceId": "GT-rg-048-s1",
+          "url": "https://investor.visa.com/investor-relations/corporate-governance/board-of-directors/Person-Details/",
+          "sourceClass": "official",
+          "independentReview": true
+        },
+        {
+          "sourceId": "GT-rg-048-s2",
+          "url": "https://investor.visa.com/news/news-details/2026/Visa-to-Acquire-Prisma-Medios-de-Pago-and-Newpay-in-Argentina/default.aspx",
+          "sourceClass": "official",
+          "independentReview": true
+        }
+      ]
+    },
+    {
+      "caseId": "RG-049",
+      "classification": "current-role-verification",
+      "groundTruthStatus": "ready",
+      "reviewStatus": "independently-cross-checked",
+      "reviewedAt": "2026-09-18",
+      "objective": "Identify Joaquin Duato and determine the relevant current role at Johnson & Johnson as of 2026-09-18. Do not infer identity from the name alone; corroborate the organization and role.",
+      "target": "Joaquin Duato",
+      "challengeNotes": "Use the target name as a lead only. Prefer authoritative sources and preserve temporal distinctions.",
+      "groundTruth": {
+        "identities": [
+          {
+            "id": "target",
+            "canonicalName": "Joaquin Duato",
+            "aliases": [
+              "Joaquin Duato"
+            ],
+            "distractor": false,
+            "organization": "Johnson & Johnson"
+          }
+        ],
+        "claims": [
+          {
+            "id": "GT-rg-049-currentRole",
+            "subjectIdentityId": "target",
+            "predicate": "currentRole",
+            "object": "Chairman and Chief Executive Officer",
+            "requiredSourceUrls": [
+              "https://www.jnj.com/corporate-governance",
+              "https://www.jnj.com/media-center/press-releases/johnson-johnson-reports-q2-2026-results-raises-2026-outlook"
+            ],
+            "requiredSourceClasses": [
+              "official"
+            ]
+          }
+        ],
+        "contacts": [],
+        "contradictions": []
+      },
+      "sources": [
+        {
+          "sourceId": "GT-rg-049-s1",
+          "url": "https://www.jnj.com/corporate-governance",
+          "sourceClass": "official",
+          "independentReview": true
+        },
+        {
+          "sourceId": "GT-rg-049-s2",
+          "url": "https://www.jnj.com/media-center/press-releases/johnson-johnson-reports-q2-2026-results-raises-2026-outlook",
+          "sourceClass": "official",
+          "independentReview": true
+        }
+      ]
+    },
+    {
+      "caseId": "RG-050",
+      "classification": "role-history",
+      "groundTruthStatus": "ready",
+      "reviewStatus": "independently-cross-checked",
+      "reviewedAt": "2026-09-18",
+      "objective": "Identify Joaquin Duato and determine the relevant historical role/status at Johnson & Johnson as of 2026-09-18. Do not infer identity from the name alone; corroborate the organization and role.",
+      "target": "Joaquin Duato",
+      "challengeNotes": "Use the target name as a lead only. Prefer authoritative sources and preserve temporal distinctions.",
+      "groundTruth": {
+        "identities": [
+          {
+            "id": "target",
+            "canonicalName": "Joaquin Duato",
+            "aliases": [
+              "Joaquin Duato"
+            ],
+            "distractor": false,
+            "organization": "Johnson & Johnson"
+          }
+        ],
+        "claims": [
+          {
+            "id": "GT-rg-050-historicalRoleOrStatus",
+            "subjectIdentityId": "target",
+            "predicate": "historicalRoleOrStatus",
+            "object": "Chairman and Chief Executive Officer of Johnson & Johnson",
+            "requiredSourceUrls": [
+              "https://www.investor.jnj.com/governance/annual-meeting-of-shareholders/default.aspx",
+              "https://www.jnj.com/download/johnson-johnson-2026-proxy.pdf"
+            ],
+            "requiredSourceClasses": [
+              "official"
+            ]
+          }
+        ],
+        "contacts": [],
+        "contradictions": []
+      },
+      "sources": [
+        {
+          "sourceId": "GT-rg-050-s1",
+          "url": "https://www.investor.jnj.com/governance/annual-meeting-of-shareholders/default.aspx",
+          "sourceClass": "official",
+          "independentReview": true
+        },
+        {
+          "sourceId": "GT-rg-050-s2",
+          "url": "https://www.jnj.com/download/johnson-johnson-2026-proxy.pdf",
+          "sourceClass": "official",
+          "independentReview": true
+        }
+      ]
+    }
+  ]
+}
