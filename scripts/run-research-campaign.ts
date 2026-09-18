@@ -3,6 +3,7 @@ import fs from "node:fs";
 import { db, entitiesTable, researchCasesTable } from "@workspace/db";
 import { eq } from "../lib/db/node_modules/drizzle-orm";
 import { createJob, setActiveJob, clearActiveJobIfOwned, getJob } from "../artifacts/api-server/src/src/lib/job-queue";
+import { connectPermanentRedis } from "../artifacts/api-server/src/src/lib/redis";
 import { runCanonicalSingleTargetInvestigation } from "../artifacts/api-server/src/src/lib/canonical-single-target-runner";
 
 const [groundTruthFile, outputFile] = process.argv.slice(2);
@@ -20,6 +21,7 @@ const selectedCases = cases.slice(0, maxCases);
 const systemVersion = String(process.env.GITHUB_SHA ?? "local");
 const taskEnvelope = { maxIterations: 64, maxObservations: 16000, maxTrajectoryRecords: 512, researchDepth: "standard", targetTimeoutMs: timeoutMs, investigatorPool: ["groq", "mistral"], oversight: ["gemini-right-hand", "gemini-boss"] };
 const runs = [];
+await connectPermanentRedis();
 
 function parseJson(raw) { try { const v = raw ? JSON.parse(raw) : {}; return v && typeof v === "object" ? v : {}; } catch { return {}; } }
 function normalizeUrl(raw) { try { const u = new URL(String(raw)); u.hash = ""; u.hostname = u.hostname.toLowerCase(); u.protocol = u.protocol.toLowerCase(); return u.href; } catch { return ""; } }
