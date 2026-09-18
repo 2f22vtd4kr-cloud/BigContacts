@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import fs from "node:fs";
-import { db, entitiesTable, researchCasesTable } from "@workspace/db";
+import { db, entitiesTable, researchCasesTable } from "../lib/db/src/index.ts";
 import { eq } from "../lib/db/node_modules/drizzle-orm";
 import { createJob, setActiveJob, clearActiveJobIfOwned, getJob } from "../artifacts/api-server/src/src/lib/job-queue";
 import { connectPermanentRedis } from "../artifacts/api-server/src/src/lib/redis";
@@ -8,7 +8,7 @@ import { runCanonicalSingleTargetInvestigation } from "../artifacts/api-server/s
 
 const [groundTruthFile, outputFile] = process.argv.slice(2);
 if (!groundTruthFile || !outputFile) {
-  console.error("Usage: node scripts/run-research-campaign.mjs <ground-truth.json> <runs.json>");
+  console.error("Usage: npx tsx@4.20.5 scripts/run-research-campaign.ts <ground-truth.json> <runs.json>");
   process.exit(2);
 }
 const gt = JSON.parse(fs.readFileSync(groundTruthFile, "utf8"));
