@@ -1,3 +1,1 @@
-Trigger the 50-case, three-trial empirical campaign. This file is intentionally inert and is only changed when a new matched campaign is requested.
-
-Campaign trigger refreshed after permanent Redis initialization fix: 2026-09-18T18:45Z
+2026-09-18T19:05:00Z
