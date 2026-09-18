@@ -1,6 +1,6 @@
 # Apex Post-Certification Roadmap v2
 
-Status: implementation complete on the authoritative branch, 2026-09-18.
+Status: empirical campaign implementation complete; release gate remains evidence-dependent, 2026-09-18.
 
 This roadmap follows the latest implementation bugs rather than assuming the first quality-contract layer is sufficient.
 
