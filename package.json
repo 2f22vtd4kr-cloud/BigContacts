@@ -68,8 +68,8 @@
     "bench:campaign": "node scripts/score-research-campaign.mjs benchmarks/research-gauntlet-v1.json",
     "bench:failure-observatory": "node scripts/build-failure-observatory.mjs",
     "check:evidence-graph": "node scripts/validate-evidence-graph.mjs benchmarks/evidence-graph-v2.example.json",
-    "check:research-campaign": "node scripts/validate-research-campaign.mjs benchmarks/research-gauntlet-v1.json benchmarks/research-run-v1.example.json",
-    "check:failure-records": "node scripts/validate-failure-records.mjs benchmarks/research-run-v1.example.json"
+    "check:research-campaign": "node scripts/validate-research-campaign.mjs benchmarks/research-gauntlet-v1.json benchmarks/research-runs-v1.example.json",
+    "check:failure-records": "node scripts/validate-failure-records.mjs benchmarks/research-runs-v1.example.json"
   },
   "private": true,
   "dependencies": {
