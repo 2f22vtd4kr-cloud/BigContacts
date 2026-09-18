@@ -43,6 +43,12 @@ describe("research gauntlet metric contract", () => {
     ];
     expect(gold.filter((candidate) => claimMatchesGold({ predicate: "currentRole", object: "Chief Executive Officer" }, candidate))).toHaveLength(2);
   });
+  it("requires exact three trials per case for campaign certification", () => {
+    const grouped = new Map([["RG-001", [1, 2, 3]], ["RG-002", [1, 2, 3, 4]]]);
+    const over = [...grouped.entries()].filter(([, trials]) => trials.length > 3);
+    expect(over).toHaveLength(1);
+    expect(over[0][0]).toBe("RG-002");
+  });
   it("requires exact claim mapping before awarding gold support", () => {
     expect(claimMatchesGold({ predicate: "currentRole", object: "Chief Executive Officer" }, { predicate: "currentRole", object: "Chief Executive Officer" })).toBe(true);
     expect(claimMatchesGold({ predicate: "currentRole", object: "CEO" }, { predicate: "currentRole", object: "Chief Executive Officer" })).toBe(false);
