@@ -57,25 +57,38 @@ function buildObservations(acts) {
   }
   return observations;
 }
-function buildClaims(acts, observations) {
+function claimMatchesGroundTruth(claim, gold) {
+  if (!gold) return false;
+  const same = (a, b) => String(a ?? "").trim().toLowerCase() === String(b ?? "").trim().toLowerCase();
+  const object = String(claim.object ?? "").trim().toLowerCase();
+  const goldObject = String(gold.object ?? "").trim().toLowerCase();
+  return same(claim.predicate, gold.predicate) && (same(object, goldObject) || object.includes(goldObject) || goldObject.includes(object));
+}
+function buildClaims(acts, observations, gtCase) {
   const byUrl = new Map(observations.map(o => [normalizeUrl(o.url), o.id]));
+  const goldClaims = Array.isArray(gtCase.groundTruth?.claims) ? gtCase.groundTruth.claims : [];
   const claims = [];
   for (const act of acts) for (const graph of act.evidenceGraphs ?? []) {
     const claim = graph.claims?.[0]; if (!claim) continue;
     const refs = (graph.observations ?? []).map(o => byUrl.get(normalizeUrl(o.sourceUrl))).filter(Boolean);
-    claims.push({ id: String(claim.id), groundTruthClaimId: null, groundTruthIdentityId: null, subject: claim.subject, predicate: claim.predicate, object: claim.object, scope: claim.scope, supportingObservationIds: [...new Set(refs)] });
+    const gold = goldClaims.find(candidate => claimMatchesGroundTruth(claim, candidate));
+    claims.push({ id: String(claim.id), groundTruthClaimId: gold?.id ?? null, groundTruthIdentityId: gold?.subjectIdentityId ?? null, subject: claim.subject, predicate: claim.predicate, object: claim.object, scope: claim.scope, supportingObservationIds: [...new Set(refs)] });
   }
   return claims;
 }
-function buildIdentities(acts, targetName) {
+function buildIdentities(acts, targetName, observations) {
+  const byUrl = new Map(observations.map(o => [normalizeUrl(o.url), o.id]));
   const promoted = [];
   for (const act of acts) for (const record of act.trajectoryRecords ?? []) for (const finding of record.findings ?? []) {
     if (finding.scope === "candidate" && finding.promotionDecision === "promote" && String(finding.personName ?? "").trim().toLowerCase() === targetName.toLowerCase()) promoted.push(finding);
   }
-  return promoted.length ? [{ id: `${targetName}:target`, groundTruthIdentityId: "target", canonicalName: targetName, organization: null, supportingObservationIds: [] }] : [];
+  if (!promoted.length) return [];
+  const supportingObservationIds = [...new Set(promoted.flatMap(f => (Array.isArray(f.sourceUrls) ? f.sourceUrls : []).map(normalizeUrl).map(url => byUrl.get(url)).filter(Boolean)))];
+  return [{ id: targetName + ":target", groundTruthIdentityId: "target", canonicalName: targetName, organization: null, supportingObservationIds }];
 }
 function makeFailure(run, gtCase, status) {
   if (status === "system_failure") return [{ failureId: `${run.runId}:system`, class: "SYSTEM_FAILURE", severity: "high", evidenceObservationIds: [], description: "Canonical campaign execution failed before producing a completed research result.", rootCause: "The canonical target investigation or required provider/oversight path failed.", regressionCaseId: gtCase.caseId }];
+  if (status === "cancelled") return [{ failureId: run.runId + ":cancelled", class: "RESOURCE_LIMITED", severity: "medium", evidenceObservationIds: run.observations.slice(0, 3).map(o => o.id), description: "The campaign run was cancelled before a complete result was produced.", rootCause: "The canonical target investigation was cancelled or exceeded its cancellation boundary.", regressionCaseId: gtCase.caseId }];
   if (run.identities.length === 0) return [{ failureId: `${run.runId}:evidence`, class: "INSUFFICIENT_EVIDENCE", severity: "medium", evidenceObservationIds: run.observations.slice(0, 3).map(o => o.id), description: "The run completed without an evidence-backed promoted identity.", rootCause: "The Investigator did not produce a promoted candidate identity with durable source evidence.", regressionCaseId: gtCase.caseId }];
   return [];
 }
@@ -108,8 +121,8 @@ async function runOne(gtCase, trialIndex) {
   const investigator = latest.investigator ?? {};
   if (!acts.length && investigator.trajectoryRecords) acts.push({ executionId: investigator.executionId, trajectoryRecords: investigator.trajectoryRecords, evidenceGraphs: investigator.evidenceGraphs ?? [] });
   const observations = buildObservations(acts);
-  const claims = buildClaims(acts, observations);
-  const identities = buildIdentities(acts, gtCase.target);
+  const claims = buildClaims(acts, observations, gtCase);
+  const identities = buildIdentities(acts, gtCase.target, observations);
   const trajectory = acts.flatMap(a => Array.isArray(a.trajectory) ? a.trajectory : []);
   const status = String(job?.status ?? "failed");
   const outcome = status === "done" && identities.length ? "verified" : status === "done" ? "insufficient_evidence" : status === "cancelled" ? "cancelled" : "system_failure";
