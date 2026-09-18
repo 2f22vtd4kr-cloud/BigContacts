@@ -15,4 +15,21 @@ describe("Apex research intelligence", () => {
     expect(state.provenanceDigest).toHaveLength(64);
     expect(state.missionBriefs.map((brief) => brief.mission)).toEqual(["identity", "organization", "contact", "disproof"]);
   });
+
+  it("keeps competing identity hypotheses explicit", () => {
+    const engine = new ResearchIntelligenceEngine({ executionId: "hypotheses", target: "Jordan Example", objective: "resolve identity" });
+    engine.addHypothesis({ label: "H1", entity: "Jordan Example A", score: 0.9 });
+    engine.addHypothesis({ label: "H2", entity: "Jordan Example B", score: 0.1 });
+    const state = engine.buildContext();
+    expect(state.hypotheses.find((h) => h.label === "H1")?.status).toBe("leading");
+    expect(state.hypotheses.find((h) => h.label === "H2")?.status).toBe("rejected");
+  });
+
+  it("moves contact evidence through outcome feedback without inventing proof", () => {
+    const engine = new ResearchIntelligenceEngine({ executionId: "feedback", target: "Example Target", objective: "find a public contact" });
+    engine.recordAction({ turn: 1, action: "done", execution: "success", findings: [{ vectorType: "email", value: "person@example.com", personName: "Example Target", sourceUrls: ["https://example.com/contact"] }] });
+    engine.recordFeedback({ outcome: "bounced", value: "person@example.com" });
+    expect(engine.buildContext().contacts[0]?.state).toBe("STALE");
+    expect(engine.getFeedbackStats().bounced).toBe(1);
+  });
 });
