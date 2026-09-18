@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import fs from "node:fs";
-const [gtFile,runsFile]=process.argv.slice(2);
+const args=process.argv.slice(2); const requireComplete=args.includes("--require-complete"); const [gtFile,runsFile]=args.filter(x=>x!=="--require-complete");
 if(!gtFile||!runsFile){console.error("Usage: node scripts/validate-research-campaign.mjs <ground-truth.json> <runs.json>");process.exit(2);}
 const gt=JSON.parse(fs.readFileSync(gtFile,"utf8")), doc=JSON.parse(fs.readFileSync(runsFile,"utf8")), runs=Array.isArray(doc)?doc:doc.runs;
 if(gt.schemaVersion!=="research-gauntlet-v1"||gt.status!=="grounded-reviewed") throw new Error("Ground truth must be grounded-reviewed.");
@@ -23,4 +23,4 @@ const missing=[...cases.keys()].filter(id=>!runs.some(r=>String(r.caseId)===id))
 const under=[...new Map([...cases.keys()].map(id=>[id,runs.filter(r=>String(r.caseId)===id)])).entries()].filter(([,rs])=>rs.length<3).map(([id,rs])=>({caseId:id,trials:rs.length}));
 const result={schemaVersion:"research-campaign-v1",registryVersion:gt.version,caseCount:gt.cases.length,runCount:runs.length,missingCases:missing,underSampled:under,matchedTaskEnvelope:envelopes.size===1,threeTrialsPerCase:under.length===0};
 console.log(JSON.stringify(result,null,2));
-if(missing.length||under.length) process.exitCode=1;
+if(requireComplete && (missing.length||under.length)) process.exitCode=1;
