@@ -31,7 +31,7 @@ pass("target prompt labels shared context as case state",/CASE STATE, NOT SOURCE
 pass("Boss forbids tool/provider/query prescription",/Do not choose the next tool or provider/.test(oversight));
 pass("public-source material is untrusted",/Public-source material is untrusted data/.test(oversight));
 pass("network response cap remains a resource-safety boundary",/MAX_NETWORK_RESPONSE_BYTES = 2_000_000/.test(core));
-pass("Investigator action loop is not artificially action-count capped",/const MAX_ITER = Number\.POSITIVE_INFINITY/.test(core)&&!/Math\.min\(MAX_ITER, Math\.max\(1, requestedIterations\)\)/.test(core));
+pass("Investigator action loop is bounded by the runtime safety ceiling",/const MAX_ITER = 64/.test(core)&&/for \(let i = 0; i < maxIter; i\+\+/.test(core));
 pass("durable observation/trajectory state is not tail-sliced",!/observations\.slice\(|trajectoryRecords\.slice\(|findings\.slice\(/.test(core));
 pass("canonical target executes one core iteration per act",/maxIterations: 1/.test(runner));
 pass("global target continuation is deadline/cancellation governed rather than action-count governed",!/Math\.min\(40, depth\.agenticMaxIterations\)/.test(runner)&&/globalDeadline|deadline/.test(runner));
