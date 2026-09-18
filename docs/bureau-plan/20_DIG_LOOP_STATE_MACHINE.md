@@ -9,7 +9,7 @@ There are **two AI layers**, not three:
 
 1. **Bureau oversight: Boss + Right-hand**
    - Boss = Gemini.
-   - Right-hand = DeepSeek via NVIDIA NIM.
+   - Right-hand = Gemini.
    - Together they decide the research assignment, choose an Investigator LLM from the Investigator LLM pool, suggest useful non-LLM tools/capabilities, and continuously review the work.
 2. **Investigation: Investigator LLM pool + non-LLM tools**
    - The selected Investigator LLM conducts the actual research.
@@ -61,7 +61,7 @@ The living investigation document belongs to the **specific research run for the
 
 The pool means **all configured LLMs that are designated as investigators**. Provider names must never be mistaken for the role itself. Groq and Mistral are current investigator implementations; they are investigators, full stop. They are not an extra decision layer.
 
-DeepSeek via NVIDIA NIM belongs only to the Right-hand role. Gemini belongs only to the Boss role. Neither may be inserted into the Investigator pool by fallback.
+Gemini is used for both bounded oversight roles. Gemini is never inserted into the Investigator pool by fallback. DeepSeek/NVIDIA is not an active Apex execution path.
 
 ## Tool surface
 
@@ -99,7 +99,7 @@ Boss + Right-hand are the oversight layer that watches the accumulating work and
 
 1. No fixed search checklist or forced research hop.
 2. No the selected Investigator LLM owns the investigation decision between Boss/Right-hand and the Investigator pool.
-3. No DeepSeek/NVIDIA Investigator fallback.
+3. No Gemini-as-Investigator fallback and no DeepSeek/NVIDIA execution path.
 4. No Gemini Investigator fallback.
 5. Every tool action is selected by an Investigator LLM, unless Boss/Right-hand explicitly reassign the investigation.
 6. Every action produces a report visible to Boss + Right-hand and appended to the target/run document.
