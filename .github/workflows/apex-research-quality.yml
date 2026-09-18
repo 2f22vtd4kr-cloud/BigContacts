@@ -22,7 +22,15 @@ jobs:
         run: pnpm run check:research-gauntlet
       - name: Validate research-run contract
         run: pnpm run check:research-run
+      - name: Validate research campaign contract
+        run: pnpm run check:research-campaign
+      - name: Validate failure records
+        run: pnpm run check:failure-records
+      - name: Validate evidence graph
+        run: pnpm run check:evidence-graph
       - name: Validate roadmap implementation
         run: node scripts/check-apex-roadmap-implementation.mjs
+      - name: Research contract tests
+        run: pnpm exec vitest run artifacts/api-server/src/src/test/research-run-contract.test.ts
       - name: Typecheck
         run: pnpm run typecheck
