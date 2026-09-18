@@ -29,5 +29,5 @@ const prompt=core.toLowerCase();
 for(const marker of ["you own the research trajectory","never inherit the target name as proof","only you may author a person identity"]) if(!prompt.includes(marker)) throw new Error("Investigator autonomy/evidence law missing: "+marker);
 const uiFiles=["artifacts/apex-finder/src/pages/profile.tsx","artifacts/apex-finder/src/pages/research.tsx","artifacts/apex-finder/src/pages/graph.tsx","artifacts/apex-finder/src/router.tsx"]; for(const f of uiFiles) if(!fs.existsSync(path.join(root,f))) throw new Error("Investigator workstation surface missing: "+f);
 const pkg=JSON.parse(fs.readFileSync(path.join(root,"package.json"),"utf8"));
-for(const s of ["check:research-run","bench:campaign","bench:failure-observatory","check:evidence-graph","check:research-campaign","check:failure-records"]) if(!pkg.scripts?.[s]) throw new Error("Package script missing: "+s);
+for(const s of ["check:research-run","bench:campaign","bench:failure-observatory","check:evidence-graph","check:research-campaign","check:failure-records","build:research-gauntlet","bench:empirical-campaign"]) if(!pkg.scripts?.[s]) throw new Error("Package script missing: "+s);
 console.log("Apex 10-phase implementation contract: PASS");
