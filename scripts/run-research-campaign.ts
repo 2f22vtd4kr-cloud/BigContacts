@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import fs from "node:fs";
 import { db, entitiesTable, researchCasesTable } from "@workspace/db";
-import { and, eq } from "drizzle-orm";
+import { eq } from "../lib/db/node_modules/drizzle-orm";
 import { createJob, setActiveJob, clearActiveJobIfOwned, getJob } from "../artifacts/api-server/src/src/lib/job-queue";
 import { runCanonicalSingleTargetInvestigation } from "../artifacts/api-server/src/src/lib/canonical-single-target-runner";
 
