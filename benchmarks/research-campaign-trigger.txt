@@ -1,0 +1,1 @@
+Trigger the 50-case, three-trial empirical campaign. This file is intentionally inert and is only changed when a new matched campaign is requested.
