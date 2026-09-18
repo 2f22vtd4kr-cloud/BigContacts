@@ -59,9 +59,10 @@ function buildObservations(acts, gtCase) {
     if (!["success"].includes(String(record.execution))) continue;
     const urls = Array.isArray(record.observedUrls) ? record.observedUrls.map(normalizeUrl).filter(Boolean) : [];
     for (const url of urls) {
+      const observationKey = `${act.executionId ?? "run"}:turn:${record.turn}:url:${url}`;
+      if (seen.has(observationKey)) continue;
+      seen.add(observationKey);
       const id = `${act.executionId ?? "run"}:turn:${record.turn}:url:${observations.length + 1}`;
-      if (seen.has(url)) continue;
-      seen.add(url);
       observations.push({ id, url, originalUrl: url, normalizedUrl: url, retrievedAt: new Date().toISOString(), sourceClass: sourceClasses.get(url) ?? "public-web", execution: "success", turn: record.turn, collectionMethod: record.action, excerpt: String(record.observation ?? "").slice(0, 1200) });
     }
   }
