@@ -22,11 +22,13 @@ const evidenceCoverage=(refs,gold,idx)=>{
   const requiredUrls=asSet((gold?.requiredSourceUrls||[]).map(normUrl));
   const requiredClasses=asSet(gold?.requiredSourceClasses||[]);
   const urlsCovered=[...requiredUrls].every(url=>observedUrls.has(url));
-  const classCovered=requiredClasses.length===0 || [...requiredUrls].some(url=>observedUrls.has(url));
+  const classByUrl=new Map((gold?.requiredSourceUrls||[]).map(url=>[normUrl(url), String((gold?.requiredSourceClasses||[])[0] ?? "unknown")]));
+  const classCovered=requiredClasses.length===0 || [...requiredClasses].every(requiredClass=>[...observedUrls].some(url=>classByUrl.get(url)===requiredClass));
   return {urlsCovered,classCovered,covered:urlsCovered&&classCovered};
 };
 function scoreRun(gt,run){
  const expected=Array.isArray(gt.identities)?gt.identities:[], expectedIds=asSet(expected.filter(x=>!x.distractor).map(x=>String(x.id))), distractors=asSet(expected.filter(x=>x.distractor).map(x=>String(x.id))), predictedIds=asSet((run.identities||[]).map(x=>String(x.groundTruthIdentityId||"")));
+ const evidenceBackedPredictedIds=asSet((run.identities||[]).filter(x=>Array.isArray(x.supportingObservationIds)&&x.supportingObservationIds.length>0).map(x=>String(x.groundTruthIdentityId||""))), predictedIds=evidenceBackedPredictedIds;
  const tp=[...predictedIds].filter(id=>expectedIds.has(id)).length;
  const identityPrecision=rate(tp,predictedIds.size), identityRecall=rate(tp,expectedIds.size), fp=[...predictedIds].filter(id=>!expectedIds.has(id)||distractors.has(id)).length;
  const idx=observationIndex(run);
