@@ -60,9 +60,8 @@ function buildObservations(acts) {
 function claimMatchesGroundTruth(claim, gold) {
   if (!gold) return false;
   const same = (a, b) => String(a ?? "").trim().toLowerCase() === String(b ?? "").trim().toLowerCase();
-  const object = String(claim.object ?? "").trim().toLowerCase();
-  const goldObject = String(gold.object ?? "").trim().toLowerCase();
-  return same(claim.predicate, gold.predicate) && (same(object, goldObject) || object.includes(goldObject) || goldObject.includes(object));
+  const normalize = value => String(value ?? "").trim().replace(/\\s+/g, " ").toLowerCase();
+  return same(claim.predicate, gold.predicate) && normalize(claim.object) === normalize(gold.object);
 }
 function buildClaims(acts, observations, gtCase) {
   const byUrl = new Map(observations.map(o => [normalizeUrl(o.url), o.id]));
