@@ -9,6 +9,8 @@ const required=[
  "benchmarks/research-run-v1.example.json",
  "benchmarks/research-failure-v1.json",
  "benchmarks/evidence-graph-v2.schema.json",
+ "benchmarks/source-intelligence-v1.schema.json",
+ "scripts/validate-evidence-graph.mjs",
  "scripts/validate-research-gauntlet.mjs",
  "scripts/validate-research-run.mjs",
  "scripts/score-research-campaign.mjs",
@@ -23,5 +25,5 @@ for(const marker of ["tool_observation","control_decision","fail-closed"]) if(!o
 const prompt=core.toLowerCase();
 for(const marker of ["investigator owns research trajectory","never inherit target name as proof","only investigator may author identity"]) if(!prompt.includes(marker)) throw new Error("Investigator autonomy/evidence law missing: "+marker);
 const pkg=JSON.parse(fs.readFileSync(path.join(root,"package.json"),"utf8"));
-for(const s of ["check:research-run","bench:campaign","bench:failure-observatory"]) if(!pkg.scripts?.[s]) throw new Error("Package script missing: "+s);
+for(const s of ["check:research-run","bench:campaign","bench:failure-observatory","check:evidence-graph"]) if(!pkg.scripts?.[s]) throw new Error("Package script missing: "+s);
 console.log("Apex 10-phase implementation contract: PASS");
