@@ -66,7 +66,8 @@
     "bench:score": "node scripts/evaluate-research-gauntlet.mjs",
     "check:research-run": "node scripts/validate-research-run.mjs benchmarks/research-run-v1.example.json",
     "bench:campaign": "node scripts/score-research-campaign.mjs benchmarks/research-gauntlet-v1.json",
-    "bench:failure-observatory": "node scripts/build-failure-observatory.mjs"
+    "bench:failure-observatory": "node scripts/build-failure-observatory.mjs",
+    "check:evidence-graph": "node scripts/validate-evidence-graph.mjs benchmarks/evidence-graph-v2.example.json"
   },
   "private": true,
   "dependencies": {
