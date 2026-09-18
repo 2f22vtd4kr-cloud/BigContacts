@@ -62,7 +62,7 @@ jobs:
       - name: Push database schema
         run: cd lib/db && pnpm exec drizzle-kit push --config ./drizzle.config.ts
       - name: Run matched 3-trial campaign
-        run: pnpm dlx tsx@4.20.5 scripts/run-research-campaign.mjs /tmp/research-gauntlet-v1-combined.json /tmp/research-runs-v1.json
+        run: npx --yes tsx@4.20.5 scripts/run-research-campaign.mjs /tmp/research-gauntlet-v1-combined.json /tmp/research-runs-v1.json
       - name: Validate complete campaign contract
         run: node scripts/validate-research-campaign.mjs /tmp/research-gauntlet-v1-combined.json /tmp/research-runs-v1.json --require-complete
       - name: Validate failure records
