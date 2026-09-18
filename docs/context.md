@@ -4,8 +4,7 @@
 
 **Repository:** `2f22vtd4kr-cloud/BigContacts`  
 **Authoritative branch:** `audit/genuine-five-green-final`  
-**Latest certified SHA:** `338c0e22902f2f01d9df07c86a72a5e62c1421bd`  
-**Certification:** five consecutive complete codebase audits GREEN at that exact SHA; independent Apex Prompt Architecture Audit also GREEN at that SHA. Keep the PR open unless explicitly instructed otherwise.
+**Certification:** the authoritative branch is continuously re-certified by the five-consecutive workflow and independent prompt-architecture audit. Treat the exact SHA reported by the latest successful runs as authoritative; never copy an older SHA into this handoff.
 
 ## 1. System constitution
 
