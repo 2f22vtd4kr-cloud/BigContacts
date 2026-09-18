@@ -2,94 +2,68 @@
 
 This is the canonical operational meaning of “Run Apex Atlas”, “Start the bureau”, or “Launch research”.
 
-Do not invent alternate startups, random scripts, partial pipelines, or a second application.
+**Authoritative engineering branch:** `audit/genuine-five-green-final`  
+**Living context:** `docs/context.md`  
+**Research benchmark:** `docs/APEX_RESEARCH_GAUNTLET_V1.md`
 
-**Repository:** `https://github.com/2f22vtd4kr-cloud/BigContacts` · branch `main`  
-**New-account setup:** `docs/REPLIT_NEW_ACCOUNT_SETUP.md`  
-**Living architecture/development transcription:** `docs/context.md`
+## 0. Product law
 
----
-
-## 0. Product law (do not regress)
-
-- Dig is **free ReAct**: investigators invent queries and choose actions; tools execute.
+- Dig is **free ReAct**: the Investigator invents queries and chooses actions.
+- Tools execute capabilities selected by the Investigator; they are not a hidden fixed sequence.
 - Never add `force_*` hops, GROK-PARITY, ranked prefer-lists, or scripted research playbooks.
-- Never invent people, contacts, relationships, or URLs. Contact claims need real `http(s)` source URLs.
-- `bureauIntegrity=critical` means research quality is unhealthy; do not claim quality in that state.
-- Boot/build success is not proof of research success. A live claim requires trajectory evidence.
+- Never invent people, contacts, relationships or URLs.
+- Contact claims require actual source-backed provenance.
+- Boot/build success is not research success.
+- Tool/provider failures remain failures and are reported honestly.
 
----
+## 1. Runtime prerequisites
 
-## 1. Runtime prerequisites (once per app)
-
-1. Import the repository through the connected Replit ↔ GitHub integration. Do not ask for GitHub PATs or `GITHUB_TOKEN`.
-2. Read `docs/context.md` before modifying or running the project.
-3. Replit Postgres is platform-managed. `DATABASE_URL` is injected and is not an operator secret.
-4. Run one API workflow on `PORT=8080`. Public `/` is the desk; `/api` is the API. Do not run a separate frontend preview as the product entry.
-5. Set workflow environment (not operator secrets):
-   ```
-   ENABLE_AUTO_PIPELINE=false
-   INSTALL_PYTHON_OSINT=false
-   PORT=8080
-   APEX_SKIP_SEMANTIC=1
-   CI=true
-   RESEARCH_DEPTH=standard
-   NODE_OPTIONS=--max-old-space-size=1536
-   ```
-6. Ask the operator for exactly these 14 canonical provider/integration secret names:
-
-   ```text
-   REDIS_URL_1
-   GROQ_API_KEY
-   GEMINI_API_KEY
-   DEEPSEEK_API_KEY
-   MISTRAL_API_KEY
-   HF_TOKEN
-   SERPER_API_KEY
-   TAVILY_API_KEY
-   SERPAPI_KEY
-   EXA_API_KEY
-   SCRAPFLY_API_KEY
-   ZENROWS_API_KEY
-   COMPANIES_HOUSE_API_KEY
-   WHOISJSON_API_KEY
-   ```
-
-   `REDIS_URL` and `EXA_1` are compatibility aliases, not additional operator asks. Never ask for `DATABASE_URL`, `WHOXY_*`, or `REDIS_URL_2`–`REDIS_URL_5`. Never print secret values.
-
-   The API/browser authentication boundary is separate from the 14 provider/integration keys. Its controls are `APEX_API_AUTH_TOKEN`, `APEX_OPERATOR_PASSWORD`, and `APEX_SESSION_SECRET`; these are not part of the canonical provider-key count and must be provisioned by the deployment environment when protected API access or browser operator login is used. The API token requires at least 32 characters, the operator password at least 16 characters, and the session secret at least 32 characters and must remain stable across replicas/restarts.
-
-7. Run `node scripts/replit-preflight.mjs` after the canonical provider secrets are configured. Then follow the repository's install, build, check, and boot commands.
-
----
+1. Import the GitHub repository through the connected integration; do not ask for GitHub credentials.
+2. Read `docs/context.md`.
+3. Use the platform-managed Postgres and canonical Redis configuration.
+4. Run one API workflow on `PORT=8080`; desk at `/`, API at `/api/`.
+5. Keep `ENABLE_AUTO_PIPELINE=false` unless the documented deployment explicitly requires otherwise.
+6. Request only the 13 active provider/integration secrets documented in `docs/REPLIT_NEW_ACCOUNT_SETUP.md`.
+7. Provision API/browser authentication controls separately when protected access is enabled.
+8. Run the repository preflight and full existing checks before claiming readiness.
 
 ## 2. Canonical research launch
 
-Use the repository's current API launch contract. Do not substitute ad-hoc startup scripts or scripted research paths.
+Use the repository's canonical Atlas launch/API contract. Do not substitute ad-hoc scripts or a scripted research path.
 
-For a bounded discovery-first smoke, use the current target count and trajectory acceptance criteria documented in `docs/context.md`.
+A canonical run must show:
 
-For an existing admitted entity, a single-target Dig run uses the repository's `singleTargetId` launch path and is judged by actual investigator trajectory and source-backed evidence, not merely by job completion.
+```
+Gemini oversight
+  → Groq/Mistral Investigator
+  → model-selected action
+  → actual tool execution
+  → observation + provenance
+  → claim / identity / contradiction / contact state
+  → durable event/evidence graph
+  → Right-hand + Boss review
+  ↺ next Investigator act
+```
 
-Poll `GET /api/ingest/atlas-status` until terminal state. Do not start a second job while the first lock is active. Use `DELETE /api/ingest/atlas-lock` only as the documented stop/recovery action.
+Poll the canonical job-status endpoint until terminal state and preserve the run identifiers. A completed job without a valid trajectory/evidence record is not a successful research result.
 
----
+## 3. Research-quality evaluation
 
-## 3. What this is NOT
+Use **Apex Research Gauntlet v1** for empirical quality evaluation. It requires frozen case definitions, blind/repeated runs, matched baselines and deterministic scoring. Do not infer system superiority from model names, architecture diagrams or CI status.
+
+## 4. What this is NOT
 
 | Do not | Why |
 |---|---|
-| Ask for GitHub credentials | Replit GitHub integration handles repository access |
-| Ask for DATABASE_URL / “attach Postgres” | Platform manages/injects DB |
-| Add a second Replit app mid-setup | Stay on the GitHub-imported App |
-| Use detached agent execution without project runtime | Environment/runtime may be missing |
-| Fake people for demos | Corrupts ledger and proof |
-| Treat boot as research proof | Architecture requires trajectory evidence |
-| Disable checks for green output | Hides real defects |
+| Ask for GitHub credentials | GitHub integration handles repository access |
+| Ask for DATABASE_URL as an operator secret | Postgres is platform-managed |
+| Add a second app | Stay on the imported application |
+| Fake people or contacts | Corrupts the evidence ledger |
+| Treat snippets/LLM prose as proof | Attribution requires source-backed observation |
+| Disable checks for green output | Hides defects |
+| Treat CI green as research-quality proof | Structural correctness and research quality are separate |
 
----
-
-## 4. Quick setup verify
+## 5. Quick verification
 
 ```bash
 git log -1 --oneline
@@ -97,7 +71,8 @@ node scripts/replit-preflight.mjs
 pnpm run check:no-force-dig
 pnpm run check:free-react
 pnpm run check:discovery-quality
+pnpm run check:agentic-runtime
+pnpm run check:agentic-timeout
+pnpm run check:provider-role-docs
 curl -sS http://127.0.0.1:8080/api/healthz
 ```
-
-For full setup details, use `docs/REPLIT_NEW_ACCOUNT_SETUP.md`. For product behavior and architecture, use `docs/context.md`.
