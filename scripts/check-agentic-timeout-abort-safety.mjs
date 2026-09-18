@@ -11,8 +11,8 @@ const required = [
   "const timeout = setTimeout(() => runController.abort(), hardTimeoutMs)",
   "await acquireProviderSlot(parentSignal)",
   "fn(prompt, controller.signal)",
-  "MAX_ITER = Number.POSITIVE_INFINITY",
-  "requestedIterations > 0 ? requestedIterations : Number.POSITIVE_INFINITY",
+  "MAX_ITER = 64",
+  "requestedIterations > 0 ? Math.min(requestedIterations, MAX_ITER) : MAX_ITER",
   "status: \"cancelled\"",
 ];
 for (const marker of required) {
