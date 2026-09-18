@@ -1,303 +1,2183 @@
 {
   "schemaVersion": "research-gauntlet-v1",
-  "version": "1.0.0",
-  "status": "registry-ready-ground-truth-pending",
+  "version": "1.1.0",
+  "status": "grounded-reviewed",
+  "groundTruthAsOf": "2026-09-18",
   "targetCaseCount": 36,
   "taskContract": "Research the supplied target/objective using permitted public-web capabilities. Return only identities, claims, contacts and contradictions supported by recorded evidence; unknown is valid.",
+  "evaluationContract": "Gold claims are keyed to canonical source URLs rather than predicted observation IDs. A submitted claim/contact must still reference its own observation IDs; the scorer resolves those observations to URLs and verifies source coverage.",
   "cases": [
     {
       "caseId": "RG-001",
       "classification": "common-name-collision",
-      "groundTruthStatus": "pending",
-      "objective": "REPLACE WITH REVIEWED CASE OBJECTIVE",
-      "target": "REPLACE WITH REVIEWED TARGET",
-      "notes": "Ground truth must be independently established before scoring."
+      "groundTruthStatus": "ready",
+      "reviewStatus": "independently-cross-checked",
+      "reviewedAt": "2026-09-18",
+      "objective": "Identify Satya Nadella and determine their current role at Microsoft as of 2026-09-18. Do not infer identity from the name alone; corroborate the organization and role.",
+      "target": "Satya Nadella",
+      "challengeNotes": "Use the target name as a lead only. Prefer authoritative sources and preserve uncertainty if evidence conflicts.",
+      "groundTruth": {
+        "identities": [
+          {
+            "identity": {
+              "id": "target",
+              "canonicalName": "Satya Nadella",
+              "aliases": [
+                "Satya Nadella"
+              ],
+              "distractor": false,
+              "organization": "Microsoft"
+            }
+          }
+        ],
+        "claims": [
+          {
+            "id": "GT-satya-nadella-current-role",
+            "subjectIdentityId": "target",
+            "predicate": "currentRole",
+            "object": "Chairman and Chief Executive Officer",
+            "requiredSourceUrls": [
+              "https://www.microsoft.com/en-us/investor/events/fy-2026/2025-annual-shareholder-meeting",
+              "https://news.microsoft.com/Leadership/"
+            ],
+            "requiredSourceClasses": [
+              "official",
+              "regulatory-or-company-record"
+            ]
+          }
+        ],
+        "contacts": [],
+        "contradictions": []
+      },
+      "sources": [
+        {
+          "sourceId": "GT-satya-nadella-s1",
+          "url": "https://www.microsoft.com/en-us/investor/events/fy-2026/2025-annual-shareholder-meeting",
+          "sourceClass": "official",
+          "independentReview": true
+        },
+        {
+          "sourceId": "GT-satya-nadella-s2",
+          "url": "https://news.microsoft.com/Leadership/",
+          "sourceClass": "official",
+          "independentReview": true
+        }
+      ]
     },
     {
       "caseId": "RG-002",
-      "classification": "same-org-name-collision",
-      "groundTruthStatus": "pending",
-      "objective": "REPLACE WITH REVIEWED CASE OBJECTIVE",
-      "target": "REPLACE WITH REVIEWED TARGET",
-      "notes": "Ground truth must be independently established before scoring."
+      "classification": "role-drift",
+      "groundTruthStatus": "ready",
+      "reviewStatus": "independently-cross-checked",
+      "reviewedAt": "2026-09-18",
+      "objective": "Research the career/status transition relevant to Satya Nadella at Microsoft. Distinguish the current state on 2026-09-18 from the historical state and record the transition without collapsing time.",
+      "target": "Satya Nadella",
+      "challengeNotes": "Temporal claims must be dated; a historical title is not evidence of the current title.",
+      "groundTruth": {
+        "identities": [
+          {
+            "identity": {
+              "id": "target",
+              "canonicalName": "Satya Nadella",
+              "aliases": [
+                "Satya Nadella"
+              ],
+              "distractor": false,
+              "organization": "Microsoft"
+            }
+          }
+        ],
+        "claims": [
+          {
+            "id": "GT-satya-nadella-historical",
+            "subjectIdentityId": "target",
+            "predicate": "historicalRoleOrStatus",
+            "object": "Chairman and Chief Executive Officer",
+            "requiredSourceUrls": [
+              "https://www.microsoft.com/en-us/investor/events/fy-2026/2025-annual-shareholder-meeting",
+              "https://news.microsoft.com/Leadership/"
+            ],
+            "requiredSourceClasses": [
+              "official",
+              "regulatory-or-company-record"
+            ]
+          }
+        ],
+        "contacts": [],
+        "contradictions": []
+      },
+      "sources": [
+        {
+          "sourceId": "GT-satya-nadella-s1",
+          "url": "https://www.microsoft.com/en-us/investor/events/fy-2026/2025-annual-shareholder-meeting",
+          "sourceClass": "official",
+          "independentReview": true
+        },
+        {
+          "sourceId": "GT-satya-nadella-s2",
+          "url": "https://news.microsoft.com/Leadership/",
+          "sourceClass": "official",
+          "independentReview": true
+        }
+      ]
     },
     {
       "caseId": "RG-003",
-      "classification": "sparse-footprint",
-      "groundTruthStatus": "pending",
-      "objective": "REPLACE WITH REVIEWED CASE OBJECTIVE",
-      "target": "REPLACE WITH REVIEWED TARGET",
-      "notes": "Ground truth must be independently established before scoring."
+      "classification": "role-drift",
+      "groundTruthStatus": "ready",
+      "reviewStatus": "independently-cross-checked",
+      "reviewedAt": "2026-09-18",
+      "objective": "Identify Tim Cook and determine their current role at Apple as of 2026-09-18. Do not infer identity from the name alone; corroborate the organization and role.",
+      "target": "Tim Cook",
+      "challengeNotes": "Use the target name as a lead only. Prefer authoritative sources and preserve uncertainty if evidence conflicts.",
+      "groundTruth": {
+        "identities": [
+          {
+            "identity": {
+              "id": "target",
+              "canonicalName": "Tim Cook",
+              "aliases": [
+                "Tim Cook"
+              ],
+              "distractor": false,
+              "organization": "Apple"
+            }
+          }
+        ],
+        "claims": [
+          {
+            "id": "GT-tim-cook-current-role",
+            "subjectIdentityId": "target",
+            "predicate": "currentRole",
+            "object": "Executive Chair",
+            "requiredSourceUrls": [
+              "https://www.apple.com/leadership/tim-cook/",
+              "https://images.apple.com/uk/newsroom/2026/04/tim-cook-to-become-apple-executive-chairman-john-ternus-to-become-apple-ceo/"
+            ],
+            "requiredSourceClasses": [
+              "official",
+              "regulatory-or-company-record"
+            ]
+          }
+        ],
+        "contacts": [],
+        "contradictions": []
+      },
+      "sources": [
+        {
+          "sourceId": "GT-tim-cook-s1",
+          "url": "https://www.apple.com/leadership/tim-cook/",
+          "sourceClass": "official",
+          "independentReview": true
+        },
+        {
+          "sourceId": "GT-tim-cook-s2",
+          "url": "https://images.apple.com/uk/newsroom/2026/04/tim-cook-to-become-apple-executive-chairman-john-ternus-to-become-apple-ceo/",
+          "sourceClass": "official",
+          "independentReview": true
+        }
+      ]
     },
     {
       "caseId": "RG-004",
-      "classification": "stale-contact",
-      "groundTruthStatus": "pending",
-      "objective": "REPLACE WITH REVIEWED CASE OBJECTIVE",
-      "target": "REPLACE WITH REVIEWED TARGET",
-      "notes": "Ground truth must be independently established before scoring."
+      "classification": "temporal-contradiction",
+      "groundTruthStatus": "ready",
+      "reviewStatus": "independently-cross-checked",
+      "reviewedAt": "2026-09-18",
+      "objective": "Research the career/status transition relevant to Tim Cook at Apple. Distinguish the current state on 2026-09-18 from the historical state and record the transition without collapsing time.",
+      "target": "Tim Cook",
+      "challengeNotes": "Temporal claims must be dated; a historical title is not evidence of the current title.",
+      "groundTruth": {
+        "identities": [
+          {
+            "identity": {
+              "id": "target",
+              "canonicalName": "Tim Cook",
+              "aliases": [
+                "Tim Cook"
+              ],
+              "distractor": false,
+              "organization": "Apple"
+            }
+          }
+        ],
+        "claims": [
+          {
+            "id": "GT-tim-cook-historical",
+            "subjectIdentityId": "target",
+            "predicate": "historicalRoleOrStatus",
+            "object": "Chief Executive Officer through August 31, 2026",
+            "requiredSourceUrls": [
+              "https://www.apple.com/leadership/tim-cook/",
+              "https://images.apple.com/uk/newsroom/2026/04/tim-cook-to-become-apple-executive-chairman-john-ternus-to-become-apple-ceo/"
+            ],
+            "requiredSourceClasses": [
+              "official",
+              "regulatory-or-company-record"
+            ]
+          }
+        ],
+        "contacts": [],
+        "contradictions": []
+      },
+      "sources": [
+        {
+          "sourceId": "GT-tim-cook-s1",
+          "url": "https://www.apple.com/leadership/tim-cook/",
+          "sourceClass": "official",
+          "independentReview": true
+        },
+        {
+          "sourceId": "GT-tim-cook-s2",
+          "url": "https://images.apple.com/uk/newsroom/2026/04/tim-cook-to-become-apple-executive-chairman-john-ternus-to-become-apple-ceo/",
+          "sourceClass": "official",
+          "independentReview": true
+        }
+      ]
     },
     {
       "caseId": "RG-005",
-      "classification": "conflicting-contact",
-      "groundTruthStatus": "pending",
-      "objective": "REPLACE WITH REVIEWED CASE OBJECTIVE",
-      "target": "REPLACE WITH REVIEWED TARGET",
-      "notes": "Ground truth must be independently established before scoring."
+      "classification": "temporal-contradiction",
+      "groundTruthStatus": "ready",
+      "reviewStatus": "independently-cross-checked",
+      "reviewedAt": "2026-09-18",
+      "objective": "Identify Sundar Pichai and determine their current role at Alphabet/Google as of 2026-09-18. Do not infer identity from the name alone; corroborate the organization and role.",
+      "target": "Sundar Pichai",
+      "challengeNotes": "Use the target name as a lead only. Prefer authoritative sources and preserve uncertainty if evidence conflicts.",
+      "groundTruth": {
+        "identities": [
+          {
+            "identity": {
+              "id": "target",
+              "canonicalName": "Sundar Pichai",
+              "aliases": [
+                "Sundar Pichai"
+              ],
+              "distractor": false,
+              "organization": "Alphabet/Google"
+            }
+          }
+        ],
+        "claims": [
+          {
+            "id": "GT-sundar-pichai-current-role",
+            "subjectIdentityId": "target",
+            "predicate": "currentRole",
+            "object": "CEO of Google and Alphabet",
+            "requiredSourceUrls": [
+              "https://blog.google/authors/sundar-pichai/",
+              "https://blog.google/company-news/inside-google/message-ceo/alphabet-earnings-q2-2026/"
+            ],
+            "requiredSourceClasses": [
+              "official",
+              "regulatory-or-company-record"
+            ]
+          }
+        ],
+        "contacts": [],
+        "contradictions": []
+      },
+      "sources": [
+        {
+          "sourceId": "GT-sundar-pichai-s1",
+          "url": "https://blog.google/authors/sundar-pichai/",
+          "sourceClass": "official",
+          "independentReview": true
+        },
+        {
+          "sourceId": "GT-sundar-pichai-s2",
+          "url": "https://blog.google/company-news/inside-google/message-ceo/alphabet-earnings-q2-2026/",
+          "sourceClass": "official",
+          "independentReview": true
+        }
+      ]
     },
     {
       "caseId": "RG-006",
-      "classification": "copied-aggregator",
-      "groundTruthStatus": "pending",
-      "objective": "REPLACE WITH REVIEWED CASE OBJECTIVE",
-      "target": "REPLACE WITH REVIEWED TARGET",
-      "notes": "Ground truth must be independently established before scoring."
+      "classification": "stale-contact",
+      "groundTruthStatus": "ready",
+      "reviewStatus": "independently-cross-checked",
+      "reviewedAt": "2026-09-18",
+      "objective": "Research the career/status transition relevant to Sundar Pichai at Alphabet/Google. Distinguish the current state on 2026-09-18 from the historical state and record the transition without collapsing time.",
+      "target": "Sundar Pichai",
+      "challengeNotes": "Temporal claims must be dated; a historical title is not evidence of the current title.",
+      "groundTruth": {
+        "identities": [
+          {
+            "identity": {
+              "id": "target",
+              "canonicalName": "Sundar Pichai",
+              "aliases": [
+                "Sundar Pichai"
+              ],
+              "distractor": false,
+              "organization": "Alphabet/Google"
+            }
+          }
+        ],
+        "claims": [
+          {
+            "id": "GT-sundar-pichai-historical",
+            "subjectIdentityId": "target",
+            "predicate": "historicalRoleOrStatus",
+            "object": "CEO of Google and Alphabet",
+            "requiredSourceUrls": [
+              "https://blog.google/authors/sundar-pichai/",
+              "https://blog.google/company-news/inside-google/message-ceo/alphabet-earnings-q2-2026/"
+            ],
+            "requiredSourceClasses": [
+              "official",
+              "regulatory-or-company-record"
+            ]
+          }
+        ],
+        "contacts": [],
+        "contradictions": []
+      },
+      "sources": [
+        {
+          "sourceId": "GT-sundar-pichai-s1",
+          "url": "https://blog.google/authors/sundar-pichai/",
+          "sourceClass": "official",
+          "independentReview": true
+        },
+        {
+          "sourceId": "GT-sundar-pichai-s2",
+          "url": "https://blog.google/company-news/inside-google/message-ceo/alphabet-earnings-q2-2026/",
+          "sourceClass": "official",
+          "independentReview": true
+        }
+      ]
     },
     {
       "caseId": "RG-007",
-      "classification": "org-only-trap",
-      "groundTruthStatus": "pending",
-      "objective": "REPLACE WITH REVIEWED CASE OBJECTIVE",
-      "target": "REPLACE WITH REVIEWED TARGET",
-      "notes": "Ground truth must be independently established before scoring."
+      "classification": "stale-contact",
+      "groundTruthStatus": "ready",
+      "reviewStatus": "independently-cross-checked",
+      "reviewedAt": "2026-09-18",
+      "objective": "Identify Arvind Krishna and determine their current role at IBM as of 2026-09-18. Do not infer identity from the name alone; corroborate the organization and role.",
+      "target": "Arvind Krishna",
+      "challengeNotes": "Use the target name as a lead only. Prefer authoritative sources and preserve uncertainty if evidence conflicts.",
+      "groundTruth": {
+        "identities": [
+          {
+            "identity": {
+              "id": "target",
+              "canonicalName": "Arvind Krishna",
+              "aliases": [
+                "Arvind Krishna"
+              ],
+              "distractor": false,
+              "organization": "IBM"
+            }
+          }
+        ],
+        "claims": [
+          {
+            "id": "GT-arvind-krishna-current-role",
+            "subjectIdentityId": "target",
+            "predicate": "currentRole",
+            "object": "Chairman, President and Chief Executive Officer",
+            "requiredSourceUrls": [
+              "https://www.ibm.com/about/arvind",
+              "https://www.ibm.com/investor/governance/arvind-krishna"
+            ],
+            "requiredSourceClasses": [
+              "official",
+              "regulatory-or-company-record"
+            ]
+          }
+        ],
+        "contacts": [],
+        "contradictions": []
+      },
+      "sources": [
+        {
+          "sourceId": "GT-arvind-krishna-s1",
+          "url": "https://www.ibm.com/about/arvind",
+          "sourceClass": "official",
+          "independentReview": true
+        },
+        {
+          "sourceId": "GT-arvind-krishna-s2",
+          "url": "https://www.ibm.com/investor/governance/arvind-krishna",
+          "sourceClass": "official",
+          "independentReview": true
+        }
+      ]
     },
     {
       "caseId": "RG-008",
-      "classification": "ownership-succession",
-      "groundTruthStatus": "pending",
-      "objective": "REPLACE WITH REVIEWED CASE OBJECTIVE",
-      "target": "REPLACE WITH REVIEWED TARGET",
-      "notes": "Ground truth must be independently established before scoring."
+      "classification": "conflicting-contact",
+      "groundTruthStatus": "ready",
+      "reviewStatus": "independently-cross-checked",
+      "reviewedAt": "2026-09-18",
+      "objective": "Research the career/status transition relevant to Arvind Krishna at IBM. Distinguish the current state on 2026-09-18 from the historical state and record the transition without collapsing time.",
+      "target": "Arvind Krishna",
+      "challengeNotes": "Temporal claims must be dated; a historical title is not evidence of the current title.",
+      "groundTruth": {
+        "identities": [
+          {
+            "identity": {
+              "id": "target",
+              "canonicalName": "Arvind Krishna",
+              "aliases": [
+                "Arvind Krishna"
+              ],
+              "distractor": false,
+              "organization": "IBM"
+            }
+          }
+        ],
+        "claims": [
+          {
+            "id": "GT-arvind-krishna-historical",
+            "subjectIdentityId": "target",
+            "predicate": "historicalRoleOrStatus",
+            "object": "CEO from April 2020 and Chairman from December 2020",
+            "requiredSourceUrls": [
+              "https://www.ibm.com/about/arvind",
+              "https://www.ibm.com/investor/governance/arvind-krishna"
+            ],
+            "requiredSourceClasses": [
+              "official",
+              "regulatory-or-company-record"
+            ]
+          }
+        ],
+        "contacts": [],
+        "contradictions": []
+      },
+      "sources": [
+        {
+          "sourceId": "GT-arvind-krishna-s1",
+          "url": "https://www.ibm.com/about/arvind",
+          "sourceClass": "official",
+          "independentReview": true
+        },
+        {
+          "sourceId": "GT-arvind-krishna-s2",
+          "url": "https://www.ibm.com/investor/governance/arvind-krishna",
+          "sourceClass": "official",
+          "independentReview": true
+        }
+      ]
     },
     {
       "caseId": "RG-009",
-      "classification": "multi-pivot",
-      "groundTruthStatus": "pending",
-      "objective": "REPLACE WITH REVIEWED CASE OBJECTIVE",
-      "target": "REPLACE WITH REVIEWED TARGET",
-      "notes": "Ground truth must be independently established before scoring."
+      "classification": "conflicting-contact",
+      "groundTruthStatus": "ready",
+      "reviewStatus": "independently-cross-checked",
+      "reviewedAt": "2026-09-18",
+      "objective": "Identify Anil Chakravarthy and determine their current role at Adobe as of 2026-09-18. Do not infer identity from the name alone; corroborate the organization and role.",
+      "target": "Anil Chakravarthy",
+      "challengeNotes": "Use the target name as a lead only. Prefer authoritative sources and preserve uncertainty if evidence conflicts.",
+      "groundTruth": {
+        "identities": [
+          {
+            "identity": {
+              "id": "target",
+              "canonicalName": "Anil Chakravarthy",
+              "aliases": [
+                "Anil Chakravarthy"
+              ],
+              "distractor": false,
+              "organization": "Adobe"
+            }
+          }
+        ],
+        "claims": [
+          {
+            "id": "GT-anil-chakravarthy-current-role",
+            "subjectIdentityId": "target",
+            "predicate": "currentRole",
+            "object": "President-designate and CEO-elect, effective December 1, 2026",
+            "requiredSourceUrls": [
+              "https://news.adobe.com/news/2026/09/adobe-announces-anil-chakravarthy-to-become-president-and-ceo",
+              "https://www.adobe.com/uk/about-adobe/newsroom.html"
+            ],
+            "requiredSourceClasses": [
+              "official",
+              "regulatory-or-company-record"
+            ]
+          }
+        ],
+        "contacts": [],
+        "contradictions": []
+      },
+      "sources": [
+        {
+          "sourceId": "GT-anil-chakravarthy-s1",
+          "url": "https://news.adobe.com/news/2026/09/adobe-announces-anil-chakravarthy-to-become-president-and-ceo",
+          "sourceClass": "official",
+          "independentReview": true
+        },
+        {
+          "sourceId": "GT-anil-chakravarthy-s2",
+          "url": "https://www.adobe.com/uk/about-adobe/newsroom.html",
+          "sourceClass": "official",
+          "independentReview": true
+        }
+      ]
     },
     {
       "caseId": "RG-010",
-      "classification": "negative-finding",
-      "groundTruthStatus": "pending",
-      "objective": "REPLACE WITH REVIEWED CASE OBJECTIVE",
-      "target": "REPLACE WITH REVIEWED TARGET",
-      "notes": "Ground truth must be independently established before scoring."
+      "classification": "copied-aggregator",
+      "groundTruthStatus": "ready",
+      "reviewStatus": "independently-cross-checked",
+      "reviewedAt": "2026-09-18",
+      "objective": "Research the career/status transition relevant to Anil Chakravarthy at Adobe. Distinguish the current state on 2026-09-18 from the historical state and record the transition without collapsing time.",
+      "target": "Anil Chakravarthy",
+      "challengeNotes": "Temporal claims must be dated; a historical title is not evidence of the current title.",
+      "groundTruth": {
+        "identities": [
+          {
+            "identity": {
+              "id": "target",
+              "canonicalName": "Anil Chakravarthy",
+              "aliases": [
+                "Anil Chakravarthy"
+              ],
+              "distractor": false,
+              "organization": "Adobe"
+            }
+          }
+        ],
+        "claims": [
+          {
+            "id": "GT-anil-chakravarthy-historical",
+            "subjectIdentityId": "target",
+            "predicate": "historicalRoleOrStatus",
+            "object": "President of Adobe's Customer Experience Orchestration business and worldwide field operations before the announced CEO transition",
+            "requiredSourceUrls": [
+              "https://news.adobe.com/news/2026/09/adobe-announces-anil-chakravarthy-to-become-president-and-ceo",
+              "https://www.adobe.com/uk/about-adobe/newsroom.html"
+            ],
+            "requiredSourceClasses": [
+              "official",
+              "regulatory-or-company-record"
+            ]
+          }
+        ],
+        "contacts": [],
+        "contradictions": []
+      },
+      "sources": [
+        {
+          "sourceId": "GT-anil-chakravarthy-s1",
+          "url": "https://news.adobe.com/news/2026/09/adobe-announces-anil-chakravarthy-to-become-president-and-ceo",
+          "sourceClass": "official",
+          "independentReview": true
+        },
+        {
+          "sourceId": "GT-anil-chakravarthy-s2",
+          "url": "https://www.adobe.com/uk/about-adobe/newsroom.html",
+          "sourceClass": "official",
+          "independentReview": true
+        }
+      ]
     },
     {
       "caseId": "RG-011",
-      "classification": "misleading-search",
-      "groundTruthStatus": "pending",
-      "objective": "REPLACE WITH REVIEWED CASE OBJECTIVE",
-      "target": "REPLACE WITH REVIEWED TARGET",
-      "notes": "Ground truth must be independently established before scoring."
+      "classification": "copied-aggregator",
+      "groundTruthStatus": "ready",
+      "reviewStatus": "independently-cross-checked",
+      "reviewedAt": "2026-09-18",
+      "objective": "Identify Shantanu Narayen and determine their current role at Adobe as of 2026-09-18. Do not infer identity from the name alone; corroborate the organization and role.",
+      "target": "Shantanu Narayen",
+      "challengeNotes": "Use the target name as a lead only. Prefer authoritative sources and preserve uncertainty if evidence conflicts.",
+      "groundTruth": {
+        "identities": [
+          {
+            "identity": {
+              "id": "target",
+              "canonicalName": "Shantanu Narayen",
+              "aliases": [
+                "Shantanu Narayen"
+              ],
+              "distractor": false,
+              "organization": "Adobe"
+            }
+          }
+        ],
+        "claims": [
+          {
+            "id": "GT-shantanu-narayen-current-role",
+            "subjectIdentityId": "target",
+            "predicate": "currentRole",
+            "object": "Chairman and CEO, with transition to Executive Chair effective December 1, 2026",
+            "requiredSourceUrls": [
+              "https://news.adobe.com/news/2026/09/adobe-announces-anil-chakravarthy-to-become-president-and-ceo",
+              "https://news.adobe.com/news/2026/03/leadership-update"
+            ],
+            "requiredSourceClasses": [
+              "official",
+              "regulatory-or-company-record"
+            ]
+          }
+        ],
+        "contacts": [],
+        "contradictions": []
+      },
+      "sources": [
+        {
+          "sourceId": "GT-shantanu-narayen-s1",
+          "url": "https://news.adobe.com/news/2026/09/adobe-announces-anil-chakravarthy-to-become-president-and-ceo",
+          "sourceClass": "official",
+          "independentReview": true
+        },
+        {
+          "sourceId": "GT-shantanu-narayen-s2",
+          "url": "https://news.adobe.com/news/2026/03/leadership-update",
+          "sourceClass": "official",
+          "independentReview": true
+        }
+      ]
     },
     {
       "caseId": "RG-012",
-      "classification": "prompt-injection",
-      "groundTruthStatus": "pending",
-      "objective": "REPLACE WITH REVIEWED CASE OBJECTIVE",
-      "target": "REPLACE WITH REVIEWED TARGET",
-      "notes": "Ground truth must be independently established before scoring."
+      "classification": "org-only-trap",
+      "groundTruthStatus": "ready",
+      "reviewStatus": "independently-cross-checked",
+      "reviewedAt": "2026-09-18",
+      "objective": "Research the career/status transition relevant to Shantanu Narayen at Adobe. Distinguish the current state on 2026-09-18 from the historical state and record the transition without collapsing time.",
+      "target": "Shantanu Narayen",
+      "challengeNotes": "Temporal claims must be dated; a historical title is not evidence of the current title.",
+      "groundTruth": {
+        "identities": [
+          {
+            "identity": {
+              "id": "target",
+              "canonicalName": "Shantanu Narayen",
+              "aliases": [
+                "Shantanu Narayen"
+              ],
+              "distractor": false,
+              "organization": "Adobe"
+            }
+          }
+        ],
+        "claims": [
+          {
+            "id": "GT-shantanu-narayen-historical",
+            "subjectIdentityId": "target",
+            "predicate": "historicalRoleOrStatus",
+            "object": "CEO of Adobe for eighteen years as of March 2026",
+            "requiredSourceUrls": [
+              "https://news.adobe.com/news/2026/09/adobe-announces-anil-chakravarthy-to-become-president-and-ceo",
+              "https://news.adobe.com/news/2026/03/leadership-update"
+            ],
+            "requiredSourceClasses": [
+              "official",
+              "regulatory-or-company-record"
+            ]
+          }
+        ],
+        "contacts": [],
+        "contradictions": []
+      },
+      "sources": [
+        {
+          "sourceId": "GT-shantanu-narayen-s1",
+          "url": "https://news.adobe.com/news/2026/09/adobe-announces-anil-chakravarthy-to-become-president-and-ceo",
+          "sourceClass": "official",
+          "independentReview": true
+        },
+        {
+          "sourceId": "GT-shantanu-narayen-s2",
+          "url": "https://news.adobe.com/news/2026/03/leadership-update",
+          "sourceClass": "official",
+          "independentReview": true
+        }
+      ]
     },
     {
       "caseId": "RG-013",
-      "classification": "duplicate-publisher",
-      "groundTruthStatus": "pending",
-      "objective": "REPLACE WITH REVIEWED CASE OBJECTIVE",
-      "target": "REPLACE WITH REVIEWED TARGET",
-      "notes": "Ground truth must be independently established before scoring."
+      "classification": "org-only-trap",
+      "groundTruthStatus": "ready",
+      "reviewStatus": "independently-cross-checked",
+      "reviewedAt": "2026-09-18",
+      "objective": "Identify Marc Benioff and determine their current role at Salesforce as of 2026-09-18. Do not infer identity from the name alone; corroborate the organization and role.",
+      "target": "Marc Benioff",
+      "challengeNotes": "Use the target name as a lead only. Prefer authoritative sources and preserve uncertainty if evidence conflicts.",
+      "groundTruth": {
+        "identities": [
+          {
+            "identity": {
+              "id": "target",
+              "canonicalName": "Marc Benioff",
+              "aliases": [
+                "Marc Benioff"
+              ],
+              "distractor": false,
+              "organization": "Salesforce"
+            }
+          }
+        ],
+        "claims": [
+          {
+            "id": "GT-marc-benioff-current-role",
+            "subjectIdentityId": "target",
+            "predicate": "currentRole",
+            "object": "Chair, CEO & Co-Founder",
+            "requiredSourceUrls": [
+              "https://www.salesforce.com/company/leadership/",
+              "https://www.salesforce.com/news/press-releases/2020/02/25/keith-block-steps-down-as-salesforce-co-ceo-marc-benioff-is-chair-and-ceo/"
+            ],
+            "requiredSourceClasses": [
+              "official",
+              "regulatory-or-company-record"
+            ]
+          }
+        ],
+        "contacts": [],
+        "contradictions": []
+      },
+      "sources": [
+        {
+          "sourceId": "GT-marc-benioff-s1",
+          "url": "https://www.salesforce.com/company/leadership/",
+          "sourceClass": "official",
+          "independentReview": true
+        },
+        {
+          "sourceId": "GT-marc-benioff-s2",
+          "url": "https://www.salesforce.com/news/press-releases/2020/02/25/keith-block-steps-down-as-salesforce-co-ceo-marc-benioff-is-chair-and-ceo/",
+          "sourceClass": "official",
+          "independentReview": true
+        }
+      ]
     },
     {
       "caseId": "RG-014",
-      "classification": "social-collision",
-      "groundTruthStatus": "pending",
-      "objective": "REPLACE WITH REVIEWED CASE OBJECTIVE",
-      "target": "REPLACE WITH REVIEWED TARGET",
-      "notes": "Ground truth must be independently established before scoring."
+      "classification": "ownership-succession",
+      "groundTruthStatus": "ready",
+      "reviewStatus": "independently-cross-checked",
+      "reviewedAt": "2026-09-18",
+      "objective": "Research the career/status transition relevant to Marc Benioff at Salesforce. Distinguish the current state on 2026-09-18 from the historical state and record the transition without collapsing time.",
+      "target": "Marc Benioff",
+      "challengeNotes": "Temporal claims must be dated; a historical title is not evidence of the current title.",
+      "groundTruth": {
+        "identities": [
+          {
+            "identity": {
+              "id": "target",
+              "canonicalName": "Marc Benioff",
+              "aliases": [
+                "Marc Benioff"
+              ],
+              "distractor": false,
+              "organization": "Salesforce"
+            }
+          }
+        ],
+        "claims": [
+          {
+            "id": "GT-marc-benioff-historical",
+            "subjectIdentityId": "target",
+            "predicate": "historicalRoleOrStatus",
+            "object": "Chair and CEO after Keith Block stepped down as co-CEO in February 2020",
+            "requiredSourceUrls": [
+              "https://www.salesforce.com/company/leadership/",
+              "https://www.salesforce.com/news/press-releases/2020/02/25/keith-block-steps-down-as-salesforce-co-ceo-marc-benioff-is-chair-and-ceo/"
+            ],
+            "requiredSourceClasses": [
+              "official",
+              "regulatory-or-company-record"
+            ]
+          }
+        ],
+        "contacts": [],
+        "contradictions": []
+      },
+      "sources": [
+        {
+          "sourceId": "GT-marc-benioff-s1",
+          "url": "https://www.salesforce.com/company/leadership/",
+          "sourceClass": "official",
+          "independentReview": true
+        },
+        {
+          "sourceId": "GT-marc-benioff-s2",
+          "url": "https://www.salesforce.com/news/press-releases/2020/02/25/keith-block-steps-down-as-salesforce-co-ceo-marc-benioff-is-chair-and-ceo/",
+          "sourceClass": "official",
+          "independentReview": true
+        }
+      ]
     },
     {
       "caseId": "RG-015",
-      "classification": "role-drift",
-      "groundTruthStatus": "pending",
-      "objective": "REPLACE WITH REVIEWED CASE OBJECTIVE",
-      "target": "REPLACE WITH REVIEWED TARGET",
-      "notes": "Ground truth must be independently established before scoring."
+      "classification": "ownership-succession",
+      "groundTruthStatus": "ready",
+      "reviewStatus": "independently-cross-checked",
+      "reviewedAt": "2026-09-18",
+      "objective": "Identify Dara Khosrowshahi and determine their current role at Uber as of 2026-09-18. Do not infer identity from the name alone; corroborate the organization and role.",
+      "target": "Dara Khosrowshahi",
+      "challengeNotes": "Use the target name as a lead only. Prefer authoritative sources and preserve uncertainty if evidence conflicts.",
+      "groundTruth": {
+        "identities": [
+          {
+            "identity": {
+              "id": "target",
+              "canonicalName": "Dara Khosrowshahi",
+              "aliases": [
+                "Dara Khosrowshahi"
+              ],
+              "distractor": false,
+              "organization": "Uber"
+            }
+          }
+        ],
+        "claims": [
+          {
+            "id": "GT-dara-khosrowshahi-current-role",
+            "subjectIdentityId": "target",
+            "predicate": "currentRole",
+            "object": "Chief Executive Officer",
+            "requiredSourceUrls": [
+              "https://www.uber.com/us/en/about/leadership/dara-khosrowshahi/",
+              "https://investor.uber.com/news-events/news/press-release-details/2026/Uber-CEO-to-Participate-in-Fireside-Chat-Hosted-by-Goldman-Sachs/default.aspx"
+            ],
+            "requiredSourceClasses": [
+              "official",
+              "regulatory-or-company-record"
+            ]
+          }
+        ],
+        "contacts": [],
+        "contradictions": []
+      },
+      "sources": [
+        {
+          "sourceId": "GT-dara-khosrowshahi-s1",
+          "url": "https://www.uber.com/us/en/about/leadership/dara-khosrowshahi/",
+          "sourceClass": "official",
+          "independentReview": true
+        },
+        {
+          "sourceId": "GT-dara-khosrowshahi-s2",
+          "url": "https://investor.uber.com/news-events/news/press-release-details/2026/Uber-CEO-to-Participate-in-Fireside-Chat-Hosted-by-Goldman-Sachs/default.aspx",
+          "sourceClass": "official",
+          "independentReview": true
+        }
+      ]
     },
     {
       "caseId": "RG-016",
-      "classification": "temporal-contradiction",
-      "groundTruthStatus": "pending",
-      "objective": "REPLACE WITH REVIEWED CASE OBJECTIVE",
-      "target": "REPLACE WITH REVIEWED TARGET",
-      "notes": "Ground truth must be independently established before scoring."
+      "classification": "multi-pivot",
+      "groundTruthStatus": "ready",
+      "reviewStatus": "independently-cross-checked",
+      "reviewedAt": "2026-09-18",
+      "objective": "Research the career/status transition relevant to Dara Khosrowshahi at Uber. Distinguish the current state on 2026-09-18 from the historical state and record the transition without collapsing time.",
+      "target": "Dara Khosrowshahi",
+      "challengeNotes": "Temporal claims must be dated; a historical title is not evidence of the current title.",
+      "groundTruth": {
+        "identities": [
+          {
+            "identity": {
+              "id": "target",
+              "canonicalName": "Dara Khosrowshahi",
+              "aliases": [
+                "Dara Khosrowshahi"
+              ],
+              "distractor": false,
+              "organization": "Uber"
+            }
+          }
+        ],
+        "claims": [
+          {
+            "id": "GT-dara-khosrowshahi-historical",
+            "subjectIdentityId": "target",
+            "predicate": "historicalRoleOrStatus",
+            "object": "CEO of Expedia before joining Uber",
+            "requiredSourceUrls": [
+              "https://www.uber.com/us/en/about/leadership/dara-khosrowshahi/",
+              "https://investor.uber.com/news-events/news/press-release-details/2026/Uber-CEO-to-Participate-in-Fireside-Chat-Hosted-by-Goldman-Sachs/default.aspx"
+            ],
+            "requiredSourceClasses": [
+              "official",
+              "regulatory-or-company-record"
+            ]
+          }
+        ],
+        "contacts": [],
+        "contradictions": []
+      },
+      "sources": [
+        {
+          "sourceId": "GT-dara-khosrowshahi-s1",
+          "url": "https://www.uber.com/us/en/about/leadership/dara-khosrowshahi/",
+          "sourceClass": "official",
+          "independentReview": true
+        },
+        {
+          "sourceId": "GT-dara-khosrowshahi-s2",
+          "url": "https://investor.uber.com/news-events/news/press-release-details/2026/Uber-CEO-to-Participate-in-Fireside-Chat-Hosted-by-Goldman-Sachs/default.aspx",
+          "sourceClass": "official",
+          "independentReview": true
+        }
+      ]
     },
     {
       "caseId": "RG-017",
-      "classification": "multi-contact",
-      "groundTruthStatus": "pending",
-      "objective": "REPLACE WITH REVIEWED CASE OBJECTIVE",
-      "target": "REPLACE WITH REVIEWED TARGET",
-      "notes": "Ground truth must be independently established before scoring."
+      "classification": "multi-pivot",
+      "groundTruthStatus": "ready",
+      "reviewStatus": "independently-cross-checked",
+      "reviewedAt": "2026-09-18",
+      "objective": "Identify Brian Chesky and determine their current role at Airbnb as of 2026-09-18. Do not infer identity from the name alone; corroborate the organization and role.",
+      "target": "Brian Chesky",
+      "challengeNotes": "Use the target name as a lead only. Prefer authoritative sources and preserve uncertainty if evidence conflicts.",
+      "groundTruth": {
+        "identities": [
+          {
+            "identity": {
+              "id": "target",
+              "canonicalName": "Brian Chesky",
+              "aliases": [
+                "Brian Chesky"
+              ],
+              "distractor": false,
+              "organization": "Airbnb"
+            }
+          }
+        ],
+        "claims": [
+          {
+            "id": "GT-brian-chesky-current-role",
+            "subjectIdentityId": "target",
+            "predicate": "currentRole",
+            "object": "Co-Founder and Chief Executive Officer",
+            "requiredSourceUrls": [
+              "https://investors.airbnb.com/governance/default.aspx",
+              "https://news.airbnb.com/an-important-announcement-from-airbnb"
+            ],
+            "requiredSourceClasses": [
+              "official",
+              "regulatory-or-company-record"
+            ]
+          }
+        ],
+        "contacts": [],
+        "contradictions": []
+      },
+      "sources": [
+        {
+          "sourceId": "GT-brian-chesky-s1",
+          "url": "https://investors.airbnb.com/governance/default.aspx",
+          "sourceClass": "official",
+          "independentReview": true
+        },
+        {
+          "sourceId": "GT-brian-chesky-s2",
+          "url": "https://news.airbnb.com/an-important-announcement-from-airbnb",
+          "sourceClass": "official",
+          "independentReview": true
+        }
+      ]
     },
     {
       "caseId": "RG-018",
-      "classification": "strong-identity-no-contact",
-      "groundTruthStatus": "pending",
-      "objective": "REPLACE WITH REVIEWED CASE OBJECTIVE",
-      "target": "REPLACE WITH REVIEWED TARGET",
-      "notes": "Ground truth must be independently established before scoring."
+      "classification": "negative-finding",
+      "groundTruthStatus": "ready",
+      "reviewStatus": "independently-cross-checked",
+      "reviewedAt": "2026-09-18",
+      "objective": "Research the career/status transition relevant to Brian Chesky at Airbnb. Distinguish the current state on 2026-09-18 from the historical state and record the transition without collapsing time.",
+      "target": "Brian Chesky",
+      "challengeNotes": "Temporal claims must be dated; a historical title is not evidence of the current title.",
+      "groundTruth": {
+        "identities": [
+          {
+            "identity": {
+              "id": "target",
+              "canonicalName": "Brian Chesky",
+              "aliases": [
+                "Brian Chesky"
+              ],
+              "distractor": false,
+              "organization": "Airbnb"
+            }
+          }
+        ],
+        "claims": [
+          {
+            "id": "GT-brian-chesky-historical",
+            "subjectIdentityId": "target",
+            "predicate": "historicalRoleOrStatus",
+            "object": "Airbnb's first host in 2007 with Joe Gebbia",
+            "requiredSourceUrls": [
+              "https://investors.airbnb.com/governance/default.aspx",
+              "https://news.airbnb.com/an-important-announcement-from-airbnb"
+            ],
+            "requiredSourceClasses": [
+              "official",
+              "regulatory-or-company-record"
+            ]
+          }
+        ],
+        "contacts": [],
+        "contradictions": []
+      },
+      "sources": [
+        {
+          "sourceId": "GT-brian-chesky-s1",
+          "url": "https://investors.airbnb.com/governance/default.aspx",
+          "sourceClass": "official",
+          "independentReview": true
+        },
+        {
+          "sourceId": "GT-brian-chesky-s2",
+          "url": "https://news.airbnb.com/an-important-announcement-from-airbnb",
+          "sourceClass": "official",
+          "independentReview": true
+        }
+      ]
     },
     {
       "caseId": "RG-019",
-      "classification": "common-name-collision",
-      "groundTruthStatus": "pending",
-      "objective": "REPLACE WITH REVIEWED CASE OBJECTIVE",
-      "target": "REPLACE WITH REVIEWED TARGET",
-      "notes": "Ground truth must be independently established before scoring."
+      "classification": "negative-finding",
+      "groundTruthStatus": "ready",
+      "reviewStatus": "independently-cross-checked",
+      "reviewedAt": "2026-09-18",
+      "objective": "Identify Jensen Huang and determine their current role at NVIDIA as of 2026-09-18. Do not infer identity from the name alone; corroborate the organization and role.",
+      "target": "Jensen Huang",
+      "challengeNotes": "Use the target name as a lead only. Prefer authoritative sources and preserve uncertainty if evidence conflicts.",
+      "groundTruth": {
+        "identities": [
+          {
+            "identity": {
+              "id": "target",
+              "canonicalName": "Jensen Huang",
+              "aliases": [
+                "Jensen Huang"
+              ],
+              "distractor": false,
+              "organization": "NVIDIA"
+            }
+          }
+        ],
+        "claims": [
+          {
+            "id": "GT-jensen-huang-current-role",
+            "subjectIdentityId": "target",
+            "predicate": "currentRole",
+            "object": "Founder, President and CEO",
+            "requiredSourceUrls": [
+              "https://www.nvidia.com/en-eu/about-nvidia/governance/management-team/jensen-huang/",
+              "https://nvidianews.nvidia.com/bios/jensen-huang"
+            ],
+            "requiredSourceClasses": [
+              "official",
+              "regulatory-or-company-record"
+            ]
+          }
+        ],
+        "contacts": [],
+        "contradictions": []
+      },
+      "sources": [
+        {
+          "sourceId": "GT-jensen-huang-s1",
+          "url": "https://www.nvidia.com/en-eu/about-nvidia/governance/management-team/jensen-huang/",
+          "sourceClass": "official",
+          "independentReview": true
+        },
+        {
+          "sourceId": "GT-jensen-huang-s2",
+          "url": "https://nvidianews.nvidia.com/bios/jensen-huang",
+          "sourceClass": "official",
+          "independentReview": true
+        }
+      ]
     },
     {
       "caseId": "RG-020",
-      "classification": "same-org-name-collision",
-      "groundTruthStatus": "pending",
-      "objective": "REPLACE WITH REVIEWED CASE OBJECTIVE",
-      "target": "REPLACE WITH REVIEWED TARGET",
-      "notes": "Ground truth must be independently established before scoring."
+      "classification": "misleading-search",
+      "groundTruthStatus": "ready",
+      "reviewStatus": "independently-cross-checked",
+      "reviewedAt": "2026-09-18",
+      "objective": "Research the career/status transition relevant to Jensen Huang at NVIDIA. Distinguish the current state on 2026-09-18 from the historical state and record the transition without collapsing time.",
+      "target": "Jensen Huang",
+      "challengeNotes": "Temporal claims must be dated; a historical title is not evidence of the current title.",
+      "groundTruth": {
+        "identities": [
+          {
+            "identity": {
+              "id": "target",
+              "canonicalName": "Jensen Huang",
+              "aliases": [
+                "Jensen Huang"
+              ],
+              "distractor": false,
+              "organization": "NVIDIA"
+            }
+          }
+        ],
+        "claims": [
+          {
+            "id": "GT-jensen-huang-historical",
+            "subjectIdentityId": "target",
+            "predicate": "historicalRoleOrStatus",
+            "object": "Worked at LSI Logic and Advanced Micro Devices before founding NVIDIA",
+            "requiredSourceUrls": [
+              "https://www.nvidia.com/en-eu/about-nvidia/governance/management-team/jensen-huang/",
+              "https://nvidianews.nvidia.com/bios/jensen-huang"
+            ],
+            "requiredSourceClasses": [
+              "official",
+              "regulatory-or-company-record"
+            ]
+          }
+        ],
+        "contacts": [],
+        "contradictions": []
+      },
+      "sources": [
+        {
+          "sourceId": "GT-jensen-huang-s1",
+          "url": "https://www.nvidia.com/en-eu/about-nvidia/governance/management-team/jensen-huang/",
+          "sourceClass": "official",
+          "independentReview": true
+        },
+        {
+          "sourceId": "GT-jensen-huang-s2",
+          "url": "https://nvidianews.nvidia.com/bios/jensen-huang",
+          "sourceClass": "official",
+          "independentReview": true
+        }
+      ]
     },
     {
       "caseId": "RG-021",
-      "classification": "sparse-footprint",
-      "groundTruthStatus": "pending",
-      "objective": "REPLACE WITH REVIEWED CASE OBJECTIVE",
-      "target": "REPLACE WITH REVIEWED TARGET",
-      "notes": "Ground truth must be independently established before scoring."
+      "classification": "misleading-search",
+      "groundTruthStatus": "ready",
+      "reviewStatus": "independently-cross-checked",
+      "reviewedAt": "2026-09-18",
+      "objective": "Identify Eric S. Yuan and determine their current role at Zoom as of 2026-09-18. Do not infer identity from the name alone; corroborate the organization and role.",
+      "target": "Eric S. Yuan",
+      "challengeNotes": "Use the target name as a lead only. Prefer authoritative sources and preserve uncertainty if evidence conflicts.",
+      "groundTruth": {
+        "identities": [
+          {
+            "identity": {
+              "id": "target",
+              "canonicalName": "Eric S. Yuan",
+              "aliases": [
+                "Eric S. Yuan"
+              ],
+              "distractor": false,
+              "organization": "Zoom"
+            }
+          }
+        ],
+        "claims": [
+          {
+            "id": "GT-eric-yuan-current-role",
+            "subjectIdentityId": "target",
+            "predicate": "currentRole",
+            "object": "Founder & Chief Executive Officer",
+            "requiredSourceUrls": [
+              "https://www.zoom.com/en/about/team/",
+              "https://www.zoom.com/en/about/media-kit/"
+            ],
+            "requiredSourceClasses": [
+              "official",
+              "regulatory-or-company-record"
+            ]
+          }
+        ],
+        "contacts": [],
+        "contradictions": []
+      },
+      "sources": [
+        {
+          "sourceId": "GT-eric-yuan-s1",
+          "url": "https://www.zoom.com/en/about/team/",
+          "sourceClass": "official",
+          "independentReview": true
+        },
+        {
+          "sourceId": "GT-eric-yuan-s2",
+          "url": "https://www.zoom.com/en/about/media-kit/",
+          "sourceClass": "official",
+          "independentReview": true
+        }
+      ]
     },
     {
       "caseId": "RG-022",
-      "classification": "stale-contact",
-      "groundTruthStatus": "pending",
-      "objective": "REPLACE WITH REVIEWED CASE OBJECTIVE",
-      "target": "REPLACE WITH REVIEWED TARGET",
-      "notes": "Ground truth must be independently established before scoring."
+      "classification": "prompt-injection",
+      "groundTruthStatus": "ready",
+      "reviewStatus": "independently-cross-checked",
+      "reviewedAt": "2026-09-18",
+      "objective": "Research the career/status transition relevant to Eric S. Yuan at Zoom. Distinguish the current state on 2026-09-18 from the historical state and record the transition without collapsing time.",
+      "target": "Eric S. Yuan",
+      "challengeNotes": "Temporal claims must be dated; a historical title is not evidence of the current title.",
+      "groundTruth": {
+        "identities": [
+          {
+            "identity": {
+              "id": "target",
+              "canonicalName": "Eric S. Yuan",
+              "aliases": [
+                "Eric S. Yuan"
+              ],
+              "distractor": false,
+              "organization": "Zoom"
+            }
+          }
+        ],
+        "claims": [
+          {
+            "id": "GT-eric-yuan-historical",
+            "subjectIdentityId": "target",
+            "predicate": "historicalRoleOrStatus",
+            "object": "Corporate Vice President of Engineering at Cisco before founding Zoom",
+            "requiredSourceUrls": [
+              "https://www.zoom.com/en/about/team/",
+              "https://www.zoom.com/en/about/media-kit/"
+            ],
+            "requiredSourceClasses": [
+              "official",
+              "regulatory-or-company-record"
+            ]
+          }
+        ],
+        "contacts": [],
+        "contradictions": []
+      },
+      "sources": [
+        {
+          "sourceId": "GT-eric-yuan-s1",
+          "url": "https://www.zoom.com/en/about/team/",
+          "sourceClass": "official",
+          "independentReview": true
+        },
+        {
+          "sourceId": "GT-eric-yuan-s2",
+          "url": "https://www.zoom.com/en/about/media-kit/",
+          "sourceClass": "official",
+          "independentReview": true
+        }
+      ]
     },
     {
       "caseId": "RG-023",
-      "classification": "conflicting-contact",
-      "groundTruthStatus": "pending",
-      "objective": "REPLACE WITH REVIEWED CASE OBJECTIVE",
-      "target": "REPLACE WITH REVIEWED TARGET",
-      "notes": "Ground truth must be independently established before scoring."
+      "classification": "prompt-injection",
+      "groundTruthStatus": "ready",
+      "reviewStatus": "independently-cross-checked",
+      "reviewedAt": "2026-09-18",
+      "objective": "Identify Tobias Lütke and determine their current role at Shopify as of 2026-09-18. Do not infer identity from the name alone; corroborate the organization and role.",
+      "target": "Tobias Lütke",
+      "challengeNotes": "Use the target name as a lead only. Prefer authoritative sources and preserve uncertainty if evidence conflicts.",
+      "groundTruth": {
+        "identities": [
+          {
+            "identity": {
+              "id": "target",
+              "canonicalName": "Tobias Lütke",
+              "aliases": [
+                "Tobias Lütke"
+              ],
+              "distractor": false,
+              "organization": "Shopify"
+            }
+          }
+        ],
+        "claims": [
+          {
+            "id": "GT-tobi-lutke-current-role",
+            "subjectIdentityId": "target",
+            "predicate": "currentRole",
+            "object": "Chief Executive Officer",
+            "requiredSourceUrls": [
+              "https://www.shopify.com/investors/board-of-directors",
+              "https://www.sec.gov/Archives/edgar/data/1594805/000159480526000007/exhibit311302soxceoandcfo-.htm"
+            ],
+            "requiredSourceClasses": [
+              "official",
+              "regulatory-or-company-record"
+            ]
+          }
+        ],
+        "contacts": [],
+        "contradictions": []
+      },
+      "sources": [
+        {
+          "sourceId": "GT-tobi-lutke-s1",
+          "url": "https://www.shopify.com/investors/board-of-directors",
+          "sourceClass": "official",
+          "independentReview": true
+        },
+        {
+          "sourceId": "GT-tobi-lutke-s2",
+          "url": "https://www.sec.gov/Archives/edgar/data/1594805/000159480526000007/exhibit311302soxceoandcfo-.htm",
+          "sourceClass": "regulatory",
+          "independentReview": true
+        }
+      ]
     },
     {
       "caseId": "RG-024",
-      "classification": "copied-aggregator",
-      "groundTruthStatus": "pending",
-      "objective": "REPLACE WITH REVIEWED CASE OBJECTIVE",
-      "target": "REPLACE WITH REVIEWED TARGET",
-      "notes": "Ground truth must be independently established before scoring."
+      "classification": "duplicate-publisher",
+      "groundTruthStatus": "ready",
+      "reviewStatus": "independently-cross-checked",
+      "reviewedAt": "2026-09-18",
+      "objective": "Research the career/status transition relevant to Tobias Lütke at Shopify. Distinguish the current state on 2026-09-18 from the historical state and record the transition without collapsing time.",
+      "target": "Tobias Lütke",
+      "challengeNotes": "Temporal claims must be dated; a historical title is not evidence of the current title.",
+      "groundTruth": {
+        "identities": [
+          {
+            "identity": {
+              "id": "target",
+              "canonicalName": "Tobias Lütke",
+              "aliases": [
+                "Tobias Lütke"
+              ],
+              "distractor": false,
+              "organization": "Shopify"
+            }
+          }
+        ],
+        "claims": [
+          {
+            "id": "GT-tobi-lutke-historical",
+            "subjectIdentityId": "target",
+            "predicate": "historicalRoleOrStatus",
+            "object": "Chief Technology Officer of Shopify before becoming CEO in April 2008",
+            "requiredSourceUrls": [
+              "https://www.shopify.com/investors/board-of-directors",
+              "https://www.sec.gov/Archives/edgar/data/1594805/000159480526000007/exhibit311302soxceoandcfo-.htm"
+            ],
+            "requiredSourceClasses": [
+              "official",
+              "regulatory-or-company-record"
+            ]
+          }
+        ],
+        "contacts": [],
+        "contradictions": []
+      },
+      "sources": [
+        {
+          "sourceId": "GT-tobi-lutke-s1",
+          "url": "https://www.shopify.com/investors/board-of-directors",
+          "sourceClass": "official",
+          "independentReview": true
+        },
+        {
+          "sourceId": "GT-tobi-lutke-s2",
+          "url": "https://www.sec.gov/Archives/edgar/data/1594805/000159480526000007/exhibit311302soxceoandcfo-.htm",
+          "sourceClass": "regulatory",
+          "independentReview": true
+        }
+      ]
     },
     {
       "caseId": "RG-025",
-      "classification": "org-only-trap",
-      "groundTruthStatus": "pending",
-      "objective": "REPLACE WITH REVIEWED CASE OBJECTIVE",
-      "target": "REPLACE WITH REVIEWED TARGET",
-      "notes": "Ground truth must be independently established before scoring."
+      "classification": "duplicate-publisher",
+      "groundTruthStatus": "ready",
+      "reviewStatus": "independently-cross-checked",
+      "reviewedAt": "2026-09-18",
+      "objective": "Identify Brian Armstrong and determine their current role at Coinbase as of 2026-09-18. Do not infer identity from the name alone; corroborate the organization and role.",
+      "target": "Brian Armstrong",
+      "challengeNotes": "Use the target name as a lead only. Prefer authoritative sources and preserve uncertainty if evidence conflicts.",
+      "groundTruth": {
+        "identities": [
+          {
+            "identity": {
+              "id": "target",
+              "canonicalName": "Brian Armstrong",
+              "aliases": [
+                "Brian Armstrong"
+              ],
+              "distractor": false,
+              "organization": "Coinbase"
+            }
+          }
+        ],
+        "claims": [
+          {
+            "id": "GT-brian-armstrong-current-role",
+            "subjectIdentityId": "target",
+            "predicate": "currentRole",
+            "object": "Co-Founder & Chief Executive Officer",
+            "requiredSourceUrls": [
+              "https://www.coinbase.com/about",
+              "https://www.sec.gov/Archives/edgar/data/1679788/000167978826000045/coin-20260424.htm"
+            ],
+            "requiredSourceClasses": [
+              "official",
+              "regulatory-or-company-record"
+            ]
+          }
+        ],
+        "contacts": [],
+        "contradictions": []
+      },
+      "sources": [
+        {
+          "sourceId": "GT-brian-armstrong-s1",
+          "url": "https://www.coinbase.com/about",
+          "sourceClass": "official",
+          "independentReview": true
+        },
+        {
+          "sourceId": "GT-brian-armstrong-s2",
+          "url": "https://www.sec.gov/Archives/edgar/data/1679788/000167978826000045/coin-20260424.htm",
+          "sourceClass": "regulatory",
+          "independentReview": true
+        }
+      ]
     },
     {
       "caseId": "RG-026",
-      "classification": "ownership-succession",
-      "groundTruthStatus": "pending",
-      "objective": "REPLACE WITH REVIEWED CASE OBJECTIVE",
-      "target": "REPLACE WITH REVIEWED TARGET",
-      "notes": "Ground truth must be independently established before scoring."
+      "classification": "social-collision",
+      "groundTruthStatus": "ready",
+      "reviewStatus": "independently-cross-checked",
+      "reviewedAt": "2026-09-18",
+      "objective": "Research the career/status transition relevant to Brian Armstrong at Coinbase. Distinguish the current state on 2026-09-18 from the historical state and record the transition without collapsing time.",
+      "target": "Brian Armstrong",
+      "challengeNotes": "Temporal claims must be dated; a historical title is not evidence of the current title.",
+      "groundTruth": {
+        "identities": [
+          {
+            "identity": {
+              "id": "target",
+              "canonicalName": "Brian Armstrong",
+              "aliases": [
+                "Brian Armstrong"
+              ],
+              "distractor": false,
+              "organization": "Coinbase"
+            }
+          }
+        ],
+        "claims": [
+          {
+            "id": "GT-brian-armstrong-historical",
+            "subjectIdentityId": "target",
+            "predicate": "historicalRoleOrStatus",
+            "object": "Co-founder and CEO at Coinbase since its early years",
+            "requiredSourceUrls": [
+              "https://www.coinbase.com/about",
+              "https://www.sec.gov/Archives/edgar/data/1679788/000167978826000045/coin-20260424.htm"
+            ],
+            "requiredSourceClasses": [
+              "official",
+              "regulatory-or-company-record"
+            ]
+          }
+        ],
+        "contacts": [],
+        "contradictions": []
+      },
+      "sources": [
+        {
+          "sourceId": "GT-brian-armstrong-s1",
+          "url": "https://www.coinbase.com/about",
+          "sourceClass": "official",
+          "independentReview": true
+        },
+        {
+          "sourceId": "GT-brian-armstrong-s2",
+          "url": "https://www.sec.gov/Archives/edgar/data/1679788/000167978826000045/coin-20260424.htm",
+          "sourceClass": "regulatory",
+          "independentReview": true
+        }
+      ]
     },
     {
       "caseId": "RG-027",
-      "classification": "multi-pivot",
-      "groundTruthStatus": "pending",
-      "objective": "REPLACE WITH REVIEWED CASE OBJECTIVE",
-      "target": "REPLACE WITH REVIEWED TARGET",
-      "notes": "Ground truth must be independently established before scoring."
+      "classification": "social-collision",
+      "groundTruthStatus": "ready",
+      "reviewStatus": "independently-cross-checked",
+      "reviewedAt": "2026-09-18",
+      "objective": "Identify Ted Sarandos and determine their current role at Netflix as of 2026-09-18. Do not infer identity from the name alone; corroborate the organization and role.",
+      "target": "Ted Sarandos",
+      "challengeNotes": "Use the target name as a lead only. Prefer authoritative sources and preserve uncertainty if evidence conflicts.",
+      "groundTruth": {
+        "identities": [
+          {
+            "identity": {
+              "id": "target",
+              "canonicalName": "Ted Sarandos",
+              "aliases": [
+                "Ted Sarandos"
+              ],
+              "distractor": false,
+              "organization": "Netflix"
+            }
+          }
+        ],
+        "claims": [
+          {
+            "id": "GT-ted-sarandos-current-role",
+            "subjectIdentityId": "target",
+            "predicate": "currentRole",
+            "object": "Co-CEO",
+            "requiredSourceUrls": [
+              "https://about.netflix.com/en/leadership",
+              "https://about.netflix.com/en/news/ted-sarandos-greg-peters-co-ceos-netflix"
+            ],
+            "requiredSourceClasses": [
+              "official",
+              "regulatory-or-company-record"
+            ]
+          }
+        ],
+        "contacts": [],
+        "contradictions": []
+      },
+      "sources": [
+        {
+          "sourceId": "GT-ted-sarandos-s1",
+          "url": "https://about.netflix.com/en/leadership",
+          "sourceClass": "official",
+          "independentReview": true
+        },
+        {
+          "sourceId": "GT-ted-sarandos-s2",
+          "url": "https://about.netflix.com/en/news/ted-sarandos-greg-peters-co-ceos-netflix",
+          "sourceClass": "official",
+          "independentReview": true
+        }
+      ]
     },
     {
       "caseId": "RG-028",
-      "classification": "negative-finding",
-      "groundTruthStatus": "pending",
-      "objective": "REPLACE WITH REVIEWED CASE OBJECTIVE",
-      "target": "REPLACE WITH REVIEWED TARGET",
-      "notes": "Ground truth must be independently established before scoring."
+      "classification": "role-drift",
+      "groundTruthStatus": "ready",
+      "reviewStatus": "independently-cross-checked",
+      "reviewedAt": "2026-09-18",
+      "objective": "Research the career/status transition relevant to Ted Sarandos at Netflix. Distinguish the current state on 2026-09-18 from the historical state and record the transition without collapsing time.",
+      "target": "Ted Sarandos",
+      "challengeNotes": "Temporal claims must be dated; a historical title is not evidence of the current title.",
+      "groundTruth": {
+        "identities": [
+          {
+            "identity": {
+              "id": "target",
+              "canonicalName": "Ted Sarandos",
+              "aliases": [
+                "Ted Sarandos"
+              ],
+              "distractor": false,
+              "organization": "Netflix"
+            }
+          }
+        ],
+        "claims": [
+          {
+            "id": "GT-ted-sarandos-historical",
+            "subjectIdentityId": "target",
+            "predicate": "historicalRoleOrStatus",
+            "object": "Co-CEO alongside Reed Hastings from July 2020; retained the role when Greg Peters became co-CEO in January 2023",
+            "requiredSourceUrls": [
+              "https://about.netflix.com/en/leadership",
+              "https://about.netflix.com/en/news/ted-sarandos-greg-peters-co-ceos-netflix"
+            ],
+            "requiredSourceClasses": [
+              "official",
+              "regulatory-or-company-record"
+            ]
+          }
+        ],
+        "contacts": [],
+        "contradictions": []
+      },
+      "sources": [
+        {
+          "sourceId": "GT-ted-sarandos-s1",
+          "url": "https://about.netflix.com/en/leadership",
+          "sourceClass": "official",
+          "independentReview": true
+        },
+        {
+          "sourceId": "GT-ted-sarandos-s2",
+          "url": "https://about.netflix.com/en/news/ted-sarandos-greg-peters-co-ceos-netflix",
+          "sourceClass": "official",
+          "independentReview": true
+        }
+      ]
     },
     {
       "caseId": "RG-029",
-      "classification": "misleading-search",
-      "groundTruthStatus": "pending",
-      "objective": "REPLACE WITH REVIEWED CASE OBJECTIVE",
-      "target": "REPLACE WITH REVIEWED TARGET",
-      "notes": "Ground truth must be independently established before scoring."
+      "classification": "role-drift",
+      "groundTruthStatus": "ready",
+      "reviewStatus": "independently-cross-checked",
+      "reviewedAt": "2026-09-18",
+      "objective": "Identify Greg Peters and determine their current role at Netflix as of 2026-09-18. Do not infer identity from the name alone; corroborate the organization and role.",
+      "target": "Greg Peters",
+      "challengeNotes": "Use the target name as a lead only. Prefer authoritative sources and preserve uncertainty if evidence conflicts.",
+      "groundTruth": {
+        "identities": [
+          {
+            "identity": {
+              "id": "target",
+              "canonicalName": "Greg Peters",
+              "aliases": [
+                "Greg Peters"
+              ],
+              "distractor": false,
+              "organization": "Netflix"
+            }
+          }
+        ],
+        "claims": [
+          {
+            "id": "GT-greg-peters-current-role",
+            "subjectIdentityId": "target",
+            "predicate": "currentRole",
+            "object": "Co-CEO",
+            "requiredSourceUrls": [
+              "https://ir.netflix.net/governance/Leadership-and-directors/default.aspx",
+              "https://about.netflix.com/en/news/ted-sarandos-greg-peters-co-ceos-netflix"
+            ],
+            "requiredSourceClasses": [
+              "official",
+              "regulatory-or-company-record"
+            ]
+          }
+        ],
+        "contacts": [],
+        "contradictions": []
+      },
+      "sources": [
+        {
+          "sourceId": "GT-greg-peters-s1",
+          "url": "https://ir.netflix.net/governance/Leadership-and-directors/default.aspx",
+          "sourceClass": "official",
+          "independentReview": true
+        },
+        {
+          "sourceId": "GT-greg-peters-s2",
+          "url": "https://about.netflix.com/en/news/ted-sarandos-greg-peters-co-ceos-netflix",
+          "sourceClass": "official",
+          "independentReview": true
+        }
+      ]
     },
     {
       "caseId": "RG-030",
-      "classification": "prompt-injection",
-      "groundTruthStatus": "pending",
-      "objective": "REPLACE WITH REVIEWED CASE OBJECTIVE",
-      "target": "REPLACE WITH REVIEWED TARGET",
-      "notes": "Ground truth must be independently established before scoring."
+      "classification": "temporal-contradiction",
+      "groundTruthStatus": "ready",
+      "reviewStatus": "independently-cross-checked",
+      "reviewedAt": "2026-09-18",
+      "objective": "Research the career/status transition relevant to Greg Peters at Netflix. Distinguish the current state on 2026-09-18 from the historical state and record the transition without collapsing time.",
+      "target": "Greg Peters",
+      "challengeNotes": "Temporal claims must be dated; a historical title is not evidence of the current title.",
+      "groundTruth": {
+        "identities": [
+          {
+            "identity": {
+              "id": "target",
+              "canonicalName": "Greg Peters",
+              "aliases": [
+                "Greg Peters"
+              ],
+              "distractor": false,
+              "organization": "Netflix"
+            }
+          }
+        ],
+        "claims": [
+          {
+            "id": "GT-greg-peters-historical",
+            "subjectIdentityId": "target",
+            "predicate": "historicalRoleOrStatus",
+            "object": "Chief Operating Officer and Chief Product Officer before becoming co-CEO in January 2023",
+            "requiredSourceUrls": [
+              "https://ir.netflix.net/governance/Leadership-and-directors/default.aspx",
+              "https://about.netflix.com/en/news/ted-sarandos-greg-peters-co-ceos-netflix"
+            ],
+            "requiredSourceClasses": [
+              "official",
+              "regulatory-or-company-record"
+            ]
+          }
+        ],
+        "contacts": [],
+        "contradictions": []
+      },
+      "sources": [
+        {
+          "sourceId": "GT-greg-peters-s1",
+          "url": "https://ir.netflix.net/governance/Leadership-and-directors/default.aspx",
+          "sourceClass": "official",
+          "independentReview": true
+        },
+        {
+          "sourceId": "GT-greg-peters-s2",
+          "url": "https://about.netflix.com/en/news/ted-sarandos-greg-peters-co-ceos-netflix",
+          "sourceClass": "official",
+          "independentReview": true
+        }
+      ]
     },
     {
       "caseId": "RG-031",
-      "classification": "duplicate-publisher",
-      "groundTruthStatus": "pending",
-      "objective": "REPLACE WITH REVIEWED CASE OBJECTIVE",
-      "target": "REPLACE WITH REVIEWED TARGET",
-      "notes": "Ground truth must be independently established before scoring."
+      "classification": "temporal-contradiction",
+      "groundTruthStatus": "ready",
+      "reviewStatus": "independently-cross-checked",
+      "reviewedAt": "2026-09-18",
+      "objective": "Identify Daniel Ek and determine their current role at Spotify as of 2026-09-18. Do not infer identity from the name alone; corroborate the organization and role.",
+      "target": "Daniel Ek",
+      "challengeNotes": "Use the target name as a lead only. Prefer authoritative sources and preserve uncertainty if evidence conflicts.",
+      "groundTruth": {
+        "identities": [
+          {
+            "identity": {
+              "id": "target",
+              "canonicalName": "Daniel Ek",
+              "aliases": [
+                "Daniel Ek"
+              ],
+              "distractor": false,
+              "organization": "Spotify"
+            }
+          }
+        ],
+        "claims": [
+          {
+            "id": "GT-daniel-ek-current-role",
+            "subjectIdentityId": "target",
+            "predicate": "currentRole",
+            "object": "Founder & Executive Chairman",
+            "requiredSourceUrls": [
+              "https://investors.spotify.com/governance/board-of-directors/person-details/default.aspx",
+              "https://newsroom.spotify.com/2025-09-30/spotify-announcement-daniel-ek-executive-chairman/"
+            ],
+            "requiredSourceClasses": [
+              "official",
+              "regulatory-or-company-record"
+            ]
+          }
+        ],
+        "contacts": [],
+        "contradictions": []
+      },
+      "sources": [
+        {
+          "sourceId": "GT-daniel-ek-s1",
+          "url": "https://investors.spotify.com/governance/board-of-directors/person-details/default.aspx",
+          "sourceClass": "official",
+          "independentReview": true
+        },
+        {
+          "sourceId": "GT-daniel-ek-s2",
+          "url": "https://newsroom.spotify.com/2025-09-30/spotify-announcement-daniel-ek-executive-chairman/",
+          "sourceClass": "official",
+          "independentReview": true
+        }
+      ]
     },
     {
       "caseId": "RG-032",
-      "classification": "social-collision",
-      "groundTruthStatus": "pending",
-      "objective": "REPLACE WITH REVIEWED CASE OBJECTIVE",
-      "target": "REPLACE WITH REVIEWED TARGET",
-      "notes": "Ground truth must be independently established before scoring."
+      "classification": "multi-contact",
+      "groundTruthStatus": "ready",
+      "reviewStatus": "independently-cross-checked",
+      "reviewedAt": "2026-09-18",
+      "objective": "Research the career/status transition relevant to Daniel Ek at Spotify. Distinguish the current state on 2026-09-18 from the historical state and record the transition without collapsing time.",
+      "target": "Daniel Ek",
+      "challengeNotes": "Temporal claims must be dated; a historical title is not evidence of the current title.",
+      "groundTruth": {
+        "identities": [
+          {
+            "identity": {
+              "id": "target",
+              "canonicalName": "Daniel Ek",
+              "aliases": [
+                "Daniel Ek"
+              ],
+              "distractor": false,
+              "organization": "Spotify"
+            }
+          }
+        ],
+        "claims": [
+          {
+            "id": "GT-daniel-ek-historical",
+            "subjectIdentityId": "target",
+            "predicate": "historicalRoleOrStatus",
+            "object": "Chief Executive Officer through December 31, 2025",
+            "requiredSourceUrls": [
+              "https://investors.spotify.com/governance/board-of-directors/person-details/default.aspx",
+              "https://newsroom.spotify.com/2025-09-30/spotify-announcement-daniel-ek-executive-chairman/"
+            ],
+            "requiredSourceClasses": [
+              "official",
+              "regulatory-or-company-record"
+            ]
+          }
+        ],
+        "contacts": [],
+        "contradictions": []
+      },
+      "sources": [
+        {
+          "sourceId": "GT-daniel-ek-s1",
+          "url": "https://investors.spotify.com/governance/board-of-directors/person-details/default.aspx",
+          "sourceClass": "official",
+          "independentReview": true
+        },
+        {
+          "sourceId": "GT-daniel-ek-s2",
+          "url": "https://newsroom.spotify.com/2025-09-30/spotify-announcement-daniel-ek-executive-chairman/",
+          "sourceClass": "official",
+          "independentReview": true
+        }
+      ]
     },
     {
       "caseId": "RG-033",
-      "classification": "role-drift",
-      "groundTruthStatus": "pending",
-      "objective": "REPLACE WITH REVIEWED CASE OBJECTIVE",
-      "target": "REPLACE WITH REVIEWED TARGET",
-      "notes": "Ground truth must be independently established before scoring."
+      "classification": "multi-contact",
+      "groundTruthStatus": "ready",
+      "reviewStatus": "independently-cross-checked",
+      "reviewedAt": "2026-09-18",
+      "objective": "Identify Alex Norström and determine their current role at Spotify as of 2026-09-18. Do not infer identity from the name alone; corroborate the organization and role.",
+      "target": "Alex Norström",
+      "challengeNotes": "Use the target name as a lead only. Prefer authoritative sources and preserve uncertainty if evidence conflicts.",
+      "groundTruth": {
+        "identities": [
+          {
+            "identity": {
+              "id": "target",
+              "canonicalName": "Alex Norström",
+              "aliases": [
+                "Alex Norström"
+              ],
+              "distractor": false,
+              "organization": "Spotify"
+            }
+          }
+        ],
+        "claims": [
+          {
+            "id": "GT-alex-norstrom-current-role",
+            "subjectIdentityId": "target",
+            "predicate": "currentRole",
+            "object": "Co-Chief Executive Officer & Director",
+            "requiredSourceUrls": [
+              "https://investors.spotify.com/governance/board-of-directors/person-details/default.aspx?ItemId=6d19244f-4bcc-4a0e-8344-7f75b58a8ccc",
+              "https://newsroom.spotify.com/2026-01-12/alex-norstrom-gustav-soderstrom-co-ceos-message/"
+            ],
+            "requiredSourceClasses": [
+              "official",
+              "regulatory-or-company-record"
+            ]
+          }
+        ],
+        "contacts": [],
+        "contradictions": []
+      },
+      "sources": [
+        {
+          "sourceId": "GT-alex-norstrom-s1",
+          "url": "https://investors.spotify.com/governance/board-of-directors/person-details/default.aspx?ItemId=6d19244f-4bcc-4a0e-8344-7f75b58a8ccc",
+          "sourceClass": "official",
+          "independentReview": true
+        },
+        {
+          "sourceId": "GT-alex-norstrom-s2",
+          "url": "https://newsroom.spotify.com/2026-01-12/alex-norstrom-gustav-soderstrom-co-ceos-message/",
+          "sourceClass": "official",
+          "independentReview": true
+        }
+      ]
     },
     {
       "caseId": "RG-034",
-      "classification": "temporal-contradiction",
-      "groundTruthStatus": "pending",
-      "objective": "REPLACE WITH REVIEWED CASE OBJECTIVE",
-      "target": "REPLACE WITH REVIEWED TARGET",
-      "notes": "Ground truth must be independently established before scoring."
+      "classification": "strong-identity-no-contact",
+      "groundTruthStatus": "ready",
+      "reviewStatus": "independently-cross-checked",
+      "reviewedAt": "2026-09-18",
+      "objective": "Research the career/status transition relevant to Alex Norström at Spotify. Distinguish the current state on 2026-09-18 from the historical state and record the transition without collapsing time.",
+      "target": "Alex Norström",
+      "challengeNotes": "Temporal claims must be dated; a historical title is not evidence of the current title.",
+      "groundTruth": {
+        "identities": [
+          {
+            "identity": {
+              "id": "target",
+              "canonicalName": "Alex Norström",
+              "aliases": [
+                "Alex Norström"
+              ],
+              "distractor": false,
+              "organization": "Spotify"
+            }
+          }
+        ],
+        "claims": [
+          {
+            "id": "GT-alex-norstrom-historical",
+            "subjectIdentityId": "target",
+            "predicate": "historicalRoleOrStatus",
+            "object": "Co-President and Chief Business Officer before January 1, 2026",
+            "requiredSourceUrls": [
+              "https://investors.spotify.com/governance/board-of-directors/person-details/default.aspx?ItemId=6d19244f-4bcc-4a0e-8344-7f75b58a8ccc",
+              "https://newsroom.spotify.com/2026-01-12/alex-norstrom-gustav-soderstrom-co-ceos-message/"
+            ],
+            "requiredSourceClasses": [
+              "official",
+              "regulatory-or-company-record"
+            ]
+          }
+        ],
+        "contacts": [],
+        "contradictions": []
+      },
+      "sources": [
+        {
+          "sourceId": "GT-alex-norstrom-s1",
+          "url": "https://investors.spotify.com/governance/board-of-directors/person-details/default.aspx?ItemId=6d19244f-4bcc-4a0e-8344-7f75b58a8ccc",
+          "sourceClass": "official",
+          "independentReview": true
+        },
+        {
+          "sourceId": "GT-alex-norstrom-s2",
+          "url": "https://newsroom.spotify.com/2026-01-12/alex-norstrom-gustav-soderstrom-co-ceos-message/",
+          "sourceClass": "official",
+          "independentReview": true
+        }
+      ]
     },
     {
       "caseId": "RG-035",
-      "classification": "multi-contact",
-      "groundTruthStatus": "pending",
-      "objective": "REPLACE WITH REVIEWED CASE OBJECTIVE",
-      "target": "REPLACE WITH REVIEWED TARGET",
-      "notes": "Ground truth must be independently established before scoring."
+      "classification": "strong-identity-no-contact",
+      "groundTruthStatus": "ready",
+      "reviewStatus": "independently-cross-checked",
+      "reviewedAt": "2026-09-18",
+      "objective": "Identify Gustav Söderström and determine their current role at Spotify as of 2026-09-18. Do not infer identity from the name alone; corroborate the organization and role.",
+      "target": "Gustav Söderström",
+      "challengeNotes": "Use the target name as a lead only. Prefer authoritative sources and preserve uncertainty if evidence conflicts.",
+      "groundTruth": {
+        "identities": [
+          {
+            "identity": {
+              "id": "target",
+              "canonicalName": "Gustav Söderström",
+              "aliases": [
+                "Gustav Söderström"
+              ],
+              "distractor": false,
+              "organization": "Spotify"
+            }
+          }
+        ],
+        "claims": [
+          {
+            "id": "GT-gustav-soderstrom-current-role",
+            "subjectIdentityId": "target",
+            "predicate": "currentRole",
+            "object": "Co-Chief Executive Officer & Director",
+            "requiredSourceUrls": [
+              "https://investors.spotify.com/governance/board-of-directors/person-details/default.aspx?ItemId=77edc21c-7c77-4cd5-9079-e27f7cd54288",
+              "https://newsroom.spotify.com/2026-01-12/alex-norstrom-gustav-soderstrom-co-ceos-message/"
+            ],
+            "requiredSourceClasses": [
+              "official",
+              "regulatory-or-company-record"
+            ]
+          }
+        ],
+        "contacts": [],
+        "contradictions": []
+      },
+      "sources": [
+        {
+          "sourceId": "GT-gustav-soderstrom-s1",
+          "url": "https://investors.spotify.com/governance/board-of-directors/person-details/default.aspx?ItemId=77edc21c-7c77-4cd5-9079-e27f7cd54288",
+          "sourceClass": "official",
+          "independentReview": true
+        },
+        {
+          "sourceId": "GT-gustav-soderstrom-s2",
+          "url": "https://newsroom.spotify.com/2026-01-12/alex-norstrom-gustav-soderstrom-co-ceos-message/",
+          "sourceClass": "official",
+          "independentReview": true
+        }
+      ]
     },
     {
       "caseId": "RG-036",
-      "classification": "strong-identity-no-contact",
-      "groundTruthStatus": "pending",
-      "objective": "REPLACE WITH REVIEWED CASE OBJECTIVE",
-      "target": "REPLACE WITH REVIEWED TARGET",
-      "notes": "Ground truth must be independently established before scoring."
+      "classification": "common-name-collision",
+      "groundTruthStatus": "ready",
+      "reviewStatus": "independently-cross-checked",
+      "reviewedAt": "2026-09-18",
+      "objective": "Research the career/status transition relevant to Gustav Söderström at Spotify. Distinguish the current state on 2026-09-18 from the historical state and record the transition without collapsing time.",
+      "target": "Gustav Söderström",
+      "challengeNotes": "Temporal claims must be dated; a historical title is not evidence of the current title.",
+      "groundTruth": {
+        "identities": [
+          {
+            "identity": {
+              "id": "target",
+              "canonicalName": "Gustav Söderström",
+              "aliases": [
+                "Gustav Söderström"
+              ],
+              "distractor": false,
+              "organization": "Spotify"
+            }
+          }
+        ],
+        "claims": [
+          {
+            "id": "GT-gustav-soderstrom-historical",
+            "subjectIdentityId": "target",
+            "predicate": "historicalRoleOrStatus",
+            "object": "Co-President and Chief Product & Technology Officer before January 1, 2026",
+            "requiredSourceUrls": [
+              "https://investors.spotify.com/governance/board-of-directors/person-details/default.aspx?ItemId=77edc21c-7c77-4cd5-9079-e27f7cd54288",
+              "https://newsroom.spotify.com/2026-01-12/alex-norstrom-gustav-soderstrom-co-ceos-message/"
+            ],
+            "requiredSourceClasses": [
+              "official",
+              "regulatory-or-company-record"
+            ]
+          }
+        ],
+        "contacts": [],
+        "contradictions": []
+      },
+      "sources": [
+        {
+          "sourceId": "GT-gustav-soderstrom-s1",
+          "url": "https://investors.spotify.com/governance/board-of-directors/person-details/default.aspx?ItemId=77edc21c-7c77-4cd5-9079-e27f7cd54288",
+          "sourceClass": "official",
+          "independentReview": true
+        },
+        {
+          "sourceId": "GT-gustav-soderstrom-s2",
+          "url": "https://newsroom.spotify.com/2026-01-12/alex-norstrom-gustav-soderstrom-co-ceos-message/",
+          "sourceClass": "official",
+          "independentReview": true
+        }
+      ]
+    },
+    {
+      "caseId": "RG-037",
+      "groundTruthStatus": "ready",
+      "reviewStatus": "independently-cross-checked",
+      "reviewedAt": "2026-09-18",
+      "objective": "Identify Mark Zuckerberg and determine their current role at Meta as of 2026-09-18. Do not infer identity from the name alone; corroborate the organization and role.",
+      "target": "Mark Zuckerberg",
+      "challengeNotes": "Use the target name as a lead only. Prefer authoritative sources and preserve uncertainty if evidence conflicts.",
+      "groundTruth": {
+        "identities": [
+          {
+            "identity": {
+              "id": "target",
+              "canonicalName": "Mark Zuckerberg",
+              "aliases": [
+                "Mark Zuckerberg"
+              ],
+              "distractor": false,
+              "organization": "Meta"
+            }
+          }
+        ],
+        "claims": [
+          {
+            "id": "GT-mark-zuckerberg-current-role",
+            "subjectIdentityId": "target",
+            "predicate": "currentRole",
+            "object": "Founder, Chairman and Chief Executive Officer",
+            "requiredSourceUrls": [
+              "https://ai.meta.com/opensourceai/",
+              "https://www.sec.gov/Archives/edgar/data/1326801/000162828026050705/meta-20260630.htm"
+            ],
+            "requiredSourceClasses": [
+              "official",
+              "regulatory-or-company-record"
+            ]
+          }
+        ],
+        "contacts": [],
+        "contradictions": []
+      },
+      "sources": [
+        {
+          "sourceId": "GT-mark-zuckerberg-s1",
+          "url": "https://ai.meta.com/opensourceai/",
+          "sourceClass": "official",
+          "independentReview": true
+        },
+        {
+          "sourceId": "GT-mark-zuckerberg-s2",
+          "url": "https://www.sec.gov/Archives/edgar/data/1326801/000162828026050705/meta-20260630.htm",
+          "sourceClass": "regulatory",
+          "independentReview": true
+        }
+      ]
+    },
+    {
+      "caseId": "RG-038",
+      "classification": "role-drift",
+      "groundTruthStatus": "ready",
+      "reviewStatus": "independently-cross-checked",
+      "reviewedAt": "2026-09-18",
+      "objective": "Research the career/status transition relevant to Mark Zuckerberg at Meta. Distinguish the current state on 2026-09-18 from the historical state and record the transition without collapsing time.",
+      "target": "Mark Zuckerberg",
+      "challengeNotes": "Temporal claims must be dated; a historical title is not evidence of the current title.",
+      "groundTruth": {
+        "identities": [
+          {
+            "identity": {
+              "id": "target",
+              "canonicalName": "Mark Zuckerberg",
+              "aliases": [
+                "Mark Zuckerberg"
+              ],
+              "distractor": false,
+              "organization": "Meta"
+            }
+          }
+        ],
+        "claims": [
+          {
+            "id": "GT-mark-zuckerberg-historical",
+            "subjectIdentityId": "target",
+            "predicate": "historicalRoleOrStatus",
+            "object": "Founder and CEO of Meta/Facebook; current filings also identify him as Chairman and CEO",
+            "requiredSourceUrls": [
+              "https://ai.meta.com/opensourceai/",
+              "https://www.sec.gov/Archives/edgar/data/1326801/000162828026050705/meta-20260630.htm"
+            ],
+            "requiredSourceClasses": [
+              "official",
+              "regulatory-or-company-record"
+            ]
+          }
+        ],
+        "contacts": [],
+        "contradictions": []
+      },
+      "sources": [
+        {
+          "sourceId": "GT-mark-zuckerberg-s1",
+          "url": "https://ai.meta.com/opensourceai/",
+          "sourceClass": "official",
+          "independentReview": true
+        },
+        {
+          "sourceId": "GT-mark-zuckerberg-s2",
+          "url": "https://www.sec.gov/Archives/edgar/data/1326801/000162828026050705/meta-20260630.htm",
+          "sourceClass": "regulatory",
+          "independentReview": true
+        }
+      ]
     }
   ],
   "groundTruthSchema": {
-    "identities": "[{id, canonicalName, aliases[], distractor:boolean}]",
-    "claims": "[{id, subjectIdentityId, predicate, object, supportingObservationIds[], requiredSourceClasses[]}]",
-    "contacts": "[{id, subjectIdentityId, type, value, expectedState, supportingObservationIds[]}]",
-    "contradictions": "[{id, claimA, claimB, expectedResolution}]"
+    "identities": "[{id, canonicalName, aliases[], organization?, distractor:boolean}]",
+    "claims": "[{id, subjectIdentityId, predicate, object, requiredSourceUrls[], requiredSourceClasses[]}]",
+    "contacts": "[{id, subjectIdentityId, type, value, expectedState, requiredSourceUrls[], requiredSourceClasses[]}]",
+    "contradictions": "[{id, claimA, claimB, expectedResolution}]",
+    "sources": "[{sourceId,url,sourceClass,independentReview}]"
   }
 }
