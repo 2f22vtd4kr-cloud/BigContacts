@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-function metric(tp, predicted, expected) {
+function metric(tp: number, predicted: number, expected: number) {
   return { precision: predicted ? tp / predicted : null, recall: expected ? tp / expected : null };
 }
 
