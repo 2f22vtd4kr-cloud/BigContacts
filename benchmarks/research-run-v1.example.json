@@ -12,15 +12,35 @@
     "maxTrajectoryRecords": 512
   },
   "configuration": {
-    "investigatorPool": ["groq", "mistral"],
-    "oversight": ["gemini-right-hand", "gemini-boss"]
+    "investigatorPool": [
+      "groq",
+      "mistral"
+    ],
+    "oversight": [
+      "gemini-right-hand",
+      "gemini-boss"
+    ]
   },
   "identities": [],
   "claims": [],
   "contacts": [],
   "contradictions": [],
-  "observations": [],
-  "trajectory": [],
+  "observations": [
+    {
+      "id": "obs-example-1",
+      "url": "https://example.invalid/evidence",
+      "retrievedAt": "2026-09-18T00:00:00Z",
+      "sourceClass": "UNKNOWN",
+      "execution": "success"
+    }
+  ],
+  "trajectory": [
+    {
+      "turn": 1,
+      "action": "example",
+      "status": "success"
+    }
+  ],
   "outcome": "insufficient_evidence",
   "failureRecords": []
 }
