@@ -1,3 +1,3 @@
 Trigger the 50-case, three-trial empirical campaign. This file is intentionally inert and is only changed when a new matched campaign is requested.
 
-Campaign trigger refreshed after source and scoring fixes: 2026-09-18T14:40Z
+Campaign trigger refreshed after PR synchronization trigger hardening: 2026-09-18T14:55Z
