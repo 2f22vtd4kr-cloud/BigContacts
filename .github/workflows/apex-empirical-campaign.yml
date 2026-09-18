@@ -2,8 +2,8 @@ name: Apex Empirical Research Campaign
 on:
   workflow_dispatch:
   pull_request:
-    branches: [main]
-    types: [synchronize]
+    branches: [main, ci-base-338]
+    types: [synchronize, edited]
   push:
     branches: [audit/genuine-five-green-final]
     paths: [benchmarks/research-campaign-trigger.txt]
