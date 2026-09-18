@@ -20,7 +20,9 @@ for(const r of runs){
 }
 if(envelopes.size>1) throw new Error("Matched campaign requires one shared task envelope.");
 const missing=[...cases.keys()].filter(id=>!runs.some(r=>String(r.caseId)===id));
-const under=[...new Map([...cases.keys()].map(id=>[id,runs.filter(r=>String(r.caseId)===id)])).entries()].filter(([,rs])=>rs.length<3).map(([id,rs])=>({caseId:id,trials:rs.length}));
-const result={schemaVersion:"research-campaign-v1",registryVersion:gt.version,caseCount:gt.cases.length,runCount:runs.length,missingCases:missing,underSampled:under,matchedTaskEnvelope:envelopes.size===1,threeTrialsPerCase:under.length===0};
+const grouped=[...new Map([...cases.keys()].map(id=>[id,runs.filter(r=>String(r.caseId)===id)])).entries()];
+const under=grouped.filter(([,rs])=>rs.length<3).map(([id,rs])=>({caseId:id,trials:rs.length}));
+const over=grouped.filter(([,rs])=>rs.length>3).map(([id,rs])=>({caseId:id,trials:rs.length}));
+const result={schemaVersion:"research-campaign-v1",registryVersion:gt.version,caseCount:gt.cases.length,runCount:runs.length,missingCases:missing,underSampled:under,overSampled:over,matchedTaskEnvelope:envelopes.size===1,threeTrialsPerCase:under.length===0&&over.length===0};
 console.log(JSON.stringify(result,null,2));
-if(requireComplete && (missing.length||under.length)) process.exitCode=1;
+if(requireComplete && (gt.cases.length<50||missing.length||under.length||over.length||envelopes.size!==1)) process.exitCode=1;
