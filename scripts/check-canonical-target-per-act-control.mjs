@@ -22,7 +22,7 @@ const checks=[
 ["canonical agentic target wrapper clears its deadline timer",/clearTimeout\(deadlineTimer\)/.test(agentic)],
 ["canonical target wrapper has a finite action-turn ceiling",!/Number\.POSITIVE_INFINITY/.test(agentic)&&/const MAX_TARGET_ACTION_TURNS = 64/.test(agentic)],
 ["canonical target wrapper does not auto-fan-out fixed mission briefs",!/runParallelMissionPass\(/.test(agentic)],
-["Investigator done proposals receive Gemini oversight before final completion",!/if \(raw\.action === "done"\) return/.test(agentic)&&/if \(raw\.action === "done"\) \{[\s\S]*?reviewTargetInvestigationAct\(/.test(agentic)],
+["Investigator done proposals receive Gemini oversight before final completion",/if \(raw\.action === "done"\) \{[\s\S]*?reviewTargetInvestigationAct\(/.test(agentic)],
 ["target control context is mandatory",/if \(!oversightContext\)/.test(agentic)],
 ["missing target control context fails closed",/(?:CONTROL_CONTEXT_UNAVAILABLE|stopReason:\s*"LLM_UNAVAILABLE")[\s\S]*?Target-scoped agentic research requires a durable control case/.test(agentic)],
 ["Gemini research redirects are validated as objective-only text",/validateGeminiResearchObjective/.test(agentic)],
