@@ -21,6 +21,19 @@ const selectedCases = cases.slice(0, maxCases);
 const systemVersion = String(process.env.GITHUB_SHA ?? "local");
 const taskEnvelope = { maxIterations: 64, maxObservations: 16000, maxTrajectoryRecords: 512, researchDepth: "standard", targetTimeoutMs: timeoutMs, investigatorPool: ["groq", "mistral"], oversight: ["gemini-right-hand", "gemini-boss"] };
 const runs = [];
+const existingRunKeys = new Set();
+if (fs.existsSync(outputFile)) {
+  try {
+    const prior = JSON.parse(fs.readFileSync(outputFile, "utf8"));
+    const priorRuns = Array.isArray(prior) ? prior : prior.runs;
+    if (Array.isArray(priorRuns)) for (const priorRun of priorRuns) {
+      if (priorRun?.caseId && priorRun?.trialId && priorRun?.runId && !existingRunKeys.has(`${priorRun.caseId}::${priorRun.trialId}`)) {
+        runs.push(priorRun);
+        existingRunKeys.add(`${priorRun.caseId}::${priorRun.trialId}`);
+      }
+    }
+  } catch { /* malformed/incomplete prior artifact is ignored; the current campaign starts cleanly */ }
+}
 await connectPermanentRedis();
 
 function parseJson(raw) { try { const v = raw ? JSON.parse(raw) : {}; return v && typeof v === "object" ? v : {}; } catch { return {}; } }
@@ -54,8 +67,9 @@ function buildObservations(acts, gtCase) {
   }
   for (const act of acts) for (const graph of act.evidenceGraphs ?? []) for (const obs of graph.observations ?? []) {
     const url = normalizeUrl(obs.sourceUrl);
-    if (!url || seen.has(url)) continue;
-    seen.add(url);
+    const observationKey = `evidence:${String(obs.id)}:${url}`;
+    if (!url || seen.has(observationKey)) continue;
+    seen.add(observationKey);
     observations.push({ id: String(obs.id), url, originalUrl: obs.sourceUrl, normalizedUrl: url, retrievedAt: obs.observedAt, sourceClass: sourceClasses.get(url) ?? "public-web", execution: "success", turn: obs.turn ?? null, collectionMethod: obs.collectionMethod ?? "evidence-graph", excerpt: obs.excerpt ?? null });
   }
   return observations;
@@ -141,9 +155,15 @@ async function runOne(gtCase, trialIndex) {
 for (let caseIndex = 0; caseIndex < selectedCases.length; caseIndex++) {
   const gtCase = selectedCases[caseIndex];
   for (let trialIndex = 1; trialIndex <= trials; trialIndex++) {
+    const trialKey = `${gtCase.caseId}::trial-${String(trialIndex).padStart(3, "0")}`;
+    if (existingRunKeys.has(trialKey)) {
+      process.stdout.write(`[campaign] RESUME skip ${caseIndex + 1}/${selectedCases.length} ${gtCase.caseId} trial ${trialIndex}/${trials}\\n`);
+      continue;
+    }
     process.stdout.write(`[campaign] ${caseIndex + 1}/${selectedCases.length} ${gtCase.caseId} trial ${trialIndex}/${trials}\\n`);
     const run = await runOne(gtCase, trialIndex);
     runs.push(run);
+    existingRunKeys.add(`${run.caseId}::${run.trialId}`);
     fs.writeFileSync(outputFile, JSON.stringify({ schemaVersion:"research-runs-v1", registryVersion:gt.version, generatedAt:new Date().toISOString(), taskEnvelope, runs }, null, 2) + "\\n");
   }
 }
