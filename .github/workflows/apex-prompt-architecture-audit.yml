@@ -63,4 +63,5 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ! grep -RInE 'force_[a-z_]+|Groq[[:space:]]*[→>-]+[[:space:]]*Mistral|Mistral[[:space:]]*[→>-]+[[:space:]]*Groq|Serper.*then.*Tavily|Tavily.*then.*Exa' scripts/check-*.mjs artifacts/api-server/src/src/lib/agentic-web-research*.ts
+          canonical='artifacts/api-server/src/src/lib/agentic-web-research-core.ts artifacts/api-server/src/src/lib/agentic-web-research.ts artifacts/api-server/src/src/lib/bureau-agentic-pass.ts artifacts/api-server/src/src/lib/target-contact-agent.ts artifacts/api-server/src/src/lib/canonical-single-target-runner.ts artifacts/api-server/src/src/lib/canonical-atlas-discovery.ts artifacts/api-server/src/src/lib/target-act-oversight.ts artifacts/api-server/src/src/lib/atlas-control-decision.ts'
+          ! grep -RInE 'force_[a-z_]+|Groq[[:space:]]*[→>-]+[[:space:]]*Mistral|Mistral[[:space:]]*[→>-]+[[:space:]]*Groq|Serper.*then.*Tavily|Tavily.*then.*Exa' $canonical --include='*.ts'
