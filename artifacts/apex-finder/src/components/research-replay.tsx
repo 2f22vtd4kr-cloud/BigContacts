@@ -129,7 +129,7 @@ export function ResearchReplay({
                   title={url}
                 >
                   <ExternalLink className="h-3 w-3 shrink-0" aria-hidden="true" />
-                  <span className="max-w-[260px] truncate">{new URL(url).hostname}</span>
+                  <span className="max-w-[260px] truncate">{(() => { try { return new URL(url).hostname; } catch { return "Recorded source"; } })()}</span>
                 </a>
               ))}
             </div>
