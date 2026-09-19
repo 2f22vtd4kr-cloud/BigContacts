@@ -318,12 +318,13 @@ body {
   }
   .atlas-home-primary-row > .atlas-launch-primary-root {
     display: grid;
-    grid-template-columns: 9rem minmax(0, 14.75rem);
+    /* Depth selector is deliberately narrower; the green command rail matches the secondary rail exactly. */
+    grid-template-columns: 7.625rem 14.75rem;
     gap: var(--atlas-hero-gap);
     width: 100%;
   }
   .atlas-home-primary-row > .atlas-launch-primary-root > select {
-    width: 9rem;
+    width: 7.625rem;
     min-width: 0;
   }
   .atlas-home-primary-row > .atlas-launch-primary-root > .atlas-home-launch {
