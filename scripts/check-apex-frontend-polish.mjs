@@ -26,7 +26,7 @@ const checks = [
   ["home depth selector remains subordinate", /grid-template-columns:\s*7\.625rem 14\.75rem/.test(css)],
   ["Reactor uses product-specific mark", /ReactorMark/.test(dashboard) && /ReactorMark/.test(reactor) && /ReactorMark/.test(mark)],
   ["generic nuclear Reactor glyph is gone", !/☢|nuclear icon/i.test(reactor)],
-  ["replay is evidence-grounded", /Recorded sources/.test(replay) && /sourceUrls|links/.test(replay) && /https\?:\\/\\//.test(replay)],
+  ["replay is evidence-grounded", /Recorded sources/.test(replay) && /sourceUrls|links/.test(replay) && /https?:\/\//.test(replay)],
   ["replay is bounded", /slice\(0, 40\)/.test(replay)],
   ["replay supports reduced-motion through shared CSS", /prefers-reduced-motion/.test(css) && /reactor-pressable/.test(replay)],
   ["mobile replay is archive-only", /showHistory && <ResearchReplay/.test(mobile)],
