@@ -10,7 +10,12 @@ on:
 permissions:
   contents: read
 
-# Only the latest PR head may consume the finite empirical campaign budget.\n# Frontend commits must cancel stale runs rather than run 150 cases in parallel.\nconcurrency:\n  group: apex-empirical-campaign\n  cancel-in-progress: true\njobs:
+# Only the latest PR head may consume the finite empirical campaign budget.
+# Frontend commits must cancel stale runs rather than run 150 cases in parallel.
+concurrency:
+  group: apex-empirical-campaign
+  cancel-in-progress: true
+jobs:
   campaign:
     runs-on: ubuntu-latest
     timeout-minutes: 330
