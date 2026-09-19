@@ -4,7 +4,12 @@ describe("Gemini transient retry boundary", () => {
   const nativeFetch = globalThis.fetch;
   const nativeSetTimeout = globalThis.setTimeout;
 
+  const nativeRightHandKey = process.env.GEMINI_RIGHT_HAND_API_KEY;
+  const nativeBossKey = process.env.GEMINI_API_KEY;
+
   afterEach(() => {
+    if (nativeRightHandKey === undefined) delete process.env.GEMINI_RIGHT_HAND_API_KEY; else process.env.GEMINI_RIGHT_HAND_API_KEY = nativeRightHandKey;
+    if (nativeBossKey === undefined) delete process.env.GEMINI_API_KEY; else process.env.GEMINI_API_KEY = nativeBossKey;
     globalThis.fetch = nativeFetch;
     globalThis.setTimeout = nativeSetTimeout;
     vi.restoreAllMocks();
@@ -78,4 +83,35 @@ describe("Gemini transient retry boundary", () => {
     expect(nonGemini.status).toBe(503);
     expect(providerFetch).toHaveBeenCalledTimes(1);
   });
+
+  it("uses only the dedicated Right-hand credential and never the Boss credential", async () => {
+    process.env.GEMINI_API_KEY = "boss-secret";
+    process.env.GEMINI_RIGHT_HAND_API_KEY = "right-hand-secret";
+    const providerFetch = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response('{"candidates":[{"content":{"parts":[{"text":"{\"decision\":\"continue\"}"}]}}]}', { status: 200 }),
+    );
+    globalThis.fetch = providerFetch;
+    vi.resetModules();
+    const { runGeminiRightHandFreeJson } = await import("../lib/gemini-right-hand-reasoning");
+    const result = await runGeminiRightHandFreeJson("Review this completed act.");
+    expect(result.status).toBe("completed");
+    expect(providerFetch).toHaveBeenCalledTimes(1);
+    const request = providerFetch.mock.calls[0]?.[1] as RequestInit;
+    expect(new Headers(request?.headers).get("x-goog-api-key")).toBe("right-hand-secret");
+    expect(new Headers(request?.headers).get("x-goog-api-key")).not.toBe("boss-secret");
+  });
+
+  it("fails closed when the dedicated Right-hand credential is missing even if the Boss credential exists", async () => {
+    process.env.GEMINI_API_KEY = "boss-secret";
+    delete process.env.GEMINI_RIGHT_HAND_API_KEY;
+    const providerFetch = vi.fn<typeof fetch>();
+    globalThis.fetch = providerFetch;
+    vi.resetModules();
+    const { runGeminiRightHandFreeJson } = await import("../lib/gemini-right-hand-reasoning");
+    const result = await runGeminiRightHandFreeJson("Review this completed act.");
+    expect(result.status).toBe("unavailable");
+    expect(result.error).toContain("GEMINI_RIGHT_HAND_API_KEY");
+    expect(providerFetch).not.toHaveBeenCalled();
+  });
+
 });
