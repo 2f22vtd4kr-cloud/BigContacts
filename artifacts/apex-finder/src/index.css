@@ -280,49 +280,45 @@ body {
 .atlas-focus-ring:focus-visible { outline: 2px solid #9CFF1A; outline-offset: 3px; }
 .atlas-scroll { scrollbar-width: thin; scrollbar-color: rgba(156, 255, 26, 0.45) #111827; }
 
-/* Dashboard hero controls: on desktop the Launch CTA occupies the upper-right
-   cell and Reactor/Discover form a second aligned row directly underneath it.
-   This fixes the optical left overhang without changing the mobile stack. */
-@media (min-width: 640px) {
-  .atlas-page > section.atlas-enter.atlas-ambient-gold.relative > div:nth-of-type(3) {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    gap: 8px;
-    width: min(100%, 28rem);
-    align-items: center;
-  }
-
-  .atlas-page > section.atlas-enter.atlas-ambient-gold.relative > div:nth-of-type(3) > div:first-child {
-    grid-column: 1 / -1;
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+/* Dashboard hero controls: explicit rails, never DOM-position dependent. */
+.atlas-home-actions {
+  --atlas-hero-gap: 8px;
+}
+.atlas-home-primary-row {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+}
+.atlas-home-primary-row > * {
+  width: 100%;
+  min-width: 0;
+}
+.atlas-home-launch {
+  width: 100% !important;
+  min-width: 0 !important;
+}
+.atlas-home-secondary-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--atlas-hero-gap);
+  width: 100%;
+  min-width: 0;
+}
+.atlas-home-secondary-row > a {
+  min-width: 0;
+}
+@media (max-width: 639px) {
+  .atlas-home-actions {
     width: 100%;
-    gap: 8px;
-    align-items: center;
-  }
-
-  .atlas-page > section.atlas-enter.atlas-ambient-gold.relative > div:nth-of-type(3) > div:first-child > select {
-    width: 100%;
-    min-width: 0;
-  }
-
-  .atlas-page > section.atlas-enter.atlas-ambient-gold.relative > div:nth-of-type(3) > div:first-child > button {
-    width: 100%;
-    min-width: 0;
-  }
-
-  .atlas-page > section.atlas-enter.atlas-ambient-gold.relative > div:nth-of-type(3) > div:nth-child(2) {
-    grid-column: 2;
-    width: 100%;
-    min-width: 0;
-  }
-
-  .atlas-page > section.atlas-enter.atlas-ambient-gold.relative > div:nth-of-type(3) > div:nth-child(2) > a {
-    min-width: 0;
-    width: 50%;
+    max-width: none;
   }
 }
-
+@media (min-width: 640px) {
+  .atlas-home-primary-row,
+  .atlas-home-secondary-row {
+    width: 100%;
+  }
+}
 /* Final Reactor affordances: quiet surfaces, strong focus, safe-area-aware touch targets. */
 .reactor-surface {
   background: var(--atlas-surface-0);
