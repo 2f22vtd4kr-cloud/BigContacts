@@ -11,5 +11,5 @@ The previous roadmap established the final visual system, desktop/mobile Reactor
 - [x] Empty/terminal states do not fabricate progress.
 - [x] Frontend route lazy loading is in place.
 - [x] Responsive frontend and Reactor integrity/no-fabrication contracts have passed on the current line of work.
-- [ ] Home hero command rail and Reactor iconography — closed by this overhaul.
+- [x] Home hero command rail and Reactor iconography — closed by this overhaul.
 - [ ] Final current-SHA empirical campaign — backend certification gate, not a frontend blocker, must remain independently verified.
