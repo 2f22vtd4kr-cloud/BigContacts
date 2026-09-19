@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo, type ReactNode, type PointerEvent as ReactPointerEvent, type MouseEvent as ReactMouseEvent } from "react";
 import {
   Plane, Building2, Globe, Search, Brain, Zap, Network,
-  Target, Cpu, Radio, Activity, BarChart2, Shield,
+  Target, Radio, Activity, BarChart2, Shield,
   TrendingUp, Eye, RefreshCw, GitMerge, Layers, Crosshair, MapPin,
   Sparkles, Compass, Rss, Users,
 } from "lucide-react";
@@ -18,6 +18,7 @@ import { isMockMode, mockAtlasLiveState, mockLiveNodes } from "@/lib/dev-mock-da
 import { formatSchedulerCountdown, schedulerWaitRemaining } from "../components/scheduler-utils";
 import { readApiJson } from "@/lib/api-json";
 import { ReactorLiveSurface } from "../components/reactor-live-surface";
+import { ReactorMark } from "../components/reactor-mark";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 interface NodeDef {
@@ -263,7 +264,7 @@ const NODES: NodeDef[] = [
   { id:"target",  label:"TARGET",          sub:"Person · company · query",   cx:800,  cy:72,  w:240, h:52,  type:"input",    Icon:Crosshair, color:"#e8e0cc" },
 
   /* Dig core — unconstrained ReAct agent */
-  { id:"mcts",    label:"FREE DIG",        sub:"Model chooses next step",    cx:800,  cy:200, w:240, h:72,  type:"reactor",  Icon:Cpu,        color:"#b8ff4d" },
+  { id:"mcts",    label:"FREE DIG",        sub:"Model chooses next step",    cx:800,  cy:200, w:240, h:72,  type:"reactor",  Icon:ReactorMark,        color:"#b8ff4d" },
   { id:"groq",    label:"DIG LLM",         sub:"Groq → Mistral",             cx:560,  cy:200, w:150, h:56,  type:"ai-lime",  Icon:Brain,      color:"#b8ff4d" },
   { id:"gemini",  label:"GEMINI",          sub:"Boss · judgment",            cx:1040, cy:200, w:150, h:56,  type:"ai-yellow",Icon:Sparkles,   color:"#9CFF1A" },
   { id:"perpfu",  label:"FOLLOW-UP",       sub:"Adaptive re-query",          cx:1280, cy:200, w:150, h:56,  type:"ai-yellow",Icon:RefreshCw,  color:"#9CFF1A" },
@@ -1317,7 +1318,7 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
                   display:"flex", flexDirection:"column", alignItems:"center",
                   gap:10, textAlign:"center",
                 }}>
-                  <Cpu style={{ width:22, height:22, color:"#253850" }} />
+                  <ReactorMark size={22} style={{ color:"#253850" }} />
                   <div>
                     <div style={{ fontSize: 13, fontWeight:700, letterSpacing:"0.16em", color:"#64748b", marginBottom:4 }}>
                       NO SESSIONS YET
@@ -1354,7 +1355,7 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
                     >
                       {/* Row 1: name + status */}
                       <div style={{ display:"flex", alignItems:"center", gap:8, minWidth:0 }}>
-                        <Cpu style={{ width:11, height:11, color:"#a78bfa", flexShrink:0 }} />
+                        <ReactorMark size={11} style={{ color:"#a78bfa", flexShrink:0 }} />
                         <div style={{
                           flex:1, minWidth:0,
                           fontSize: 16, fontWeight:700, letterSpacing:"0.1em",
