@@ -283,6 +283,7 @@ body {
 /* Dashboard hero controls: explicit rails, never DOM-position dependent. */
 .atlas-home-actions {
   --atlas-hero-gap: 8px;
+  width: 100%;
 }
 .atlas-home-primary-row {
   display: flex;
@@ -292,10 +293,6 @@ body {
 .atlas-home-primary-row > * {
   width: 100%;
   min-width: 0;
-}
-.atlas-home-launch {
-  width: 100% !important;
-  min-width: 0 !important;
 }
 .atlas-home-secondary-row {
   display: grid;
@@ -307,16 +304,41 @@ body {
 .atlas-home-secondary-row > a {
   min-width: 0;
 }
+.atlas-home-launch {
+  width: 100% !important;
+  min-width: 0 !important;
+}
+@media (min-width: 640px) {
+  .atlas-home-actions {
+    width: 22.375rem;
+    max-width: 22.375rem;
+  }
+  .atlas-home-primary-row {
+    width: 100%;
+  }
+  .atlas-home-primary-row > * {
+    display: grid;
+    grid-template-columns: 9rem minmax(0, 14.75rem);
+    gap: var(--atlas-hero-gap);
+    width: 100%;
+  }
+  .atlas-home-primary-row > * > select {
+    width: 9rem;
+    min-width: 0;
+  }
+  .atlas-home-primary-row .atlas-home-launch {
+    width: 14.75rem !important;
+    min-width: 14.75rem !important;
+  }
+  .atlas-home-secondary-row {
+    width: 14.75rem;
+    margin-left: auto;
+  }
+}
 @media (max-width: 639px) {
   .atlas-home-actions {
     width: 100%;
     max-width: none;
-  }
-}
-@media (min-width: 640px) {
-  .atlas-home-primary-row,
-  .atlas-home-secondary-row {
-    width: 100%;
   }
 }
 /* Final Reactor affordances: quiet surfaces, strong focus, safe-area-aware touch targets. */
