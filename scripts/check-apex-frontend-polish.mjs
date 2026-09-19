@@ -31,9 +31,9 @@ const checks = [
   ["replay supports reduced-motion through shared CSS", /prefers-reduced-motion/.test(css) && /reactor-pressable/.test(replay)],
   ["mobile replay is archive-only", /showHistory && <ResearchReplay/.test(mobile)],
   ["mobile remains feed-first", /showTopology=\{false\}/.test(mobile)],
-  ["live topology remains telemetry bounded", /<ReactorActivityOnly\b/.test(reactor) && /active tool spans only/.test(reactor)],
+  ["live topology remains telemetry bounded", /<ReactorActivityOnly\b/.test(reactor) && /schemeNodesFromSpans/.test(reactor) && /schemeToolsOnly/.test(reactor)],
   ["desktop live desk has explicit accessible region", /role="complementary"/.test(reactor) && /aria-label="Apex Atlas Live Desk"/.test(reactor)],
-  ["mobile controls retain touch-safe targets", /min-h-\[44px\]/.test(mobile)],
+  ["mobile controls retain touch-safe targets", /--atlas-touch:\s*44px/.test(css) && /reactor-touch-target/.test(css) && /reactor-mobile-safe/.test(css)],
   ["focus ring remains explicit", /focus-visible/.test(css)],
   ["terminal state does not require animation", /atlasTerminal|reactor-terminal-banner/.test(reactor) && /prefers-reduced-motion/.test(css)],
 ];
