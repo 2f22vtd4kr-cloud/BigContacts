@@ -1,6 +1,7 @@
 import { useGetDashboardStats, useGetHotLeads } from "@workspace/api-client-react";
 import { isMockMode, mockDashboardStats, mockHotLeads } from "@/lib/dev-mock-data";
 import {
+  Activity,
   ArrowUpRight,
   ChevronRight,
   CircleAlert,
