@@ -972,7 +972,7 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
         background:"rgba(11,17,32,0.95)",
       }}>
         <div style={{ display:"flex", alignItems:"center", gap:10, minWidth:0 }}>
-          {/* Nuclear icon */}
+          {/* Reactor identity mark */}
           <span aria-hidden="true" style={{ width:32, height:32, flexShrink:0, display:"grid", placeItems:"center", color: hasSessions ? "#b8ff4d" : "#253850", filter: hasSessions ? "drop-shadow(0 0 8px rgba(184,255,77,.22))" : "none", transition:"all 0.4s" }}><ReactorMark size={32} /></span>>
 
           <div style={{ flex:1, minWidth:0 }}>
