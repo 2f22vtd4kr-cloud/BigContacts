@@ -112,7 +112,7 @@ export function LaunchAtlasButton({
 
   if (inFlight && (variant === "primary" || variant === "reactor")) {
     return (
-      <div className="flex w-full flex-col gap-2" data-testid="atlas-inflight-controls">
+      <div className={cn("flex w-full flex-col gap-2", variant === "primary" && "atlas-launch-primary-root")} data-testid="atlas-inflight-controls">
         <button type="button" onClick={() => navigateToReactor && setLocation("/reactor")} className={cn("inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-[#9CFF1A]/45 bg-[#9CFF1A]/12 px-4 text-sm font-semibold text-[#9CFF1A]", flash && "atlas-click-flash")} aria-label="Open Reactor while Atlas research is active">
           <Loader2 className="h-4 w-4 animate-spin shrink-0" aria-hidden /><span className="truncate">{runningLabel}</span>
         </button>
@@ -122,7 +122,7 @@ export function LaunchAtlasButton({
   }
 
   return (
-    <div className={cn("flex gap-2 sm:gap-2.5", variant === "header" ? "flex-row items-center justify-end" : "flex-col sm:flex-row sm:items-center")}>
+    <div className={cn("flex gap-2 sm:gap-2.5", variant === "primary" && "atlas-launch-primary-root", variant === "header" ? "flex-row items-center justify-end" : "flex-col sm:flex-row sm:items-center")}>
       {variant !== "header" && !opts?.researchDepth && !inFlight && (
         <select aria-label="Research depth" data-testid="select-launch-depth" value={launchDepth} onChange={(e) => setLaunchDepth(e.target.value === "deep" ? "deep" : e.target.value === "fast" ? "fast" : "standard")} className="h-12 rounded-lg border border-border bg-background/80 px-2 py-1.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground" title="fast / standard / deep — free dig budget only">
           <option value="fast">Depth · fast</option><option value="standard">Depth · standard</option><option value="deep">Depth · deep</option>
