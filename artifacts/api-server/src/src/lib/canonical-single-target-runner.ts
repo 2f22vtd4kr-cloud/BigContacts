@@ -5,15 +5,10 @@ import { runGeminiBossDiscovery } from "./case-bureau";
 import { runTargetContactAgent } from "./target-contact-agent";
 import { resolveResearchDepth, type ResearchDepth } from "./research-depth";
 import { compactInvestigationContext } from "./investigation-context-compaction";
+import { deriveCanonicalTerminalDecision } from "./canonical-terminal-state";
 export type CanonicalSingleTargetOptions = { researchDepth?: ResearchDepth; targetTimeoutMs?: number; existingCaseId?: number; initialDirection?: string };
 type StoredOversight = { action: "continue" | "redirect" | "stop"; direction?: string | null; reason?: string | null; status?: string; bossModel?: string | null; error?: string | null };
 type TargetCase = { id: number; targetEntityId: number; status: string; iteration: number; objective: string; caseFile: string | null };
-export type CanonicalTerminalDecision = { jobStatus: "done" | "failed" | "cancelled"; outcome: "complete" | "incomplete"; caseStatus: "complete" | "review" | "unknown" };
-export function deriveCanonicalTerminalDecision(input: { durableCaseStatus: string | null | undefined; locallyCancelled: boolean }): CanonicalTerminalDecision {
-  if (input.durableCaseStatus === "complete") return { jobStatus: "done", outcome: "complete", caseStatus: "complete" };
-  if (input.locallyCancelled) return { jobStatus: "cancelled", outcome: "incomplete", caseStatus: input.durableCaseStatus === "review" ? "review" : "unknown" };
-  return { jobStatus: "failed", outcome: "incomplete", caseStatus: input.durableCaseStatus === "review" ? "review" : "unknown" };
-}
 function parseCaseFile(raw: string | null): Record<string, unknown> { try { const value = raw ? JSON.parse(raw) : {}; return value && typeof value === "object" ? value as Record<string, unknown> : {}; } catch { return {}; } }
 function readOversight(caseFile: Record<string, unknown>, runId: string | null, controlTurn: number): StoredOversight | null { const history = Array.isArray(caseFile.investigatorActOversight) ? caseFile.investigatorActOversight : []; const latest = [...history].reverse().find((item) => { if (!item || typeof item !== "object") return false; const value = item as Record<string, unknown>; return value.runId === runId && Number(value.controlTurn) === controlTurn; }); if (!latest || typeof latest !== "object") return null; const value = (latest as Record<string, unknown>).oversight; if (!value || typeof value !== "object") return null; const action = (value as Record<string, unknown>).action; if (action !== "continue" && action !== "redirect" && action !== "stop") return null; const oversight = value as Record<string, unknown>; return { action, direction: typeof oversight.direction === "string" ? oversight.direction : null, reason: typeof oversight.reason === "string" ? oversight.reason : null, status: typeof oversight.status === "string" ? oversight.status : undefined, bossModel: typeof oversight.bossModel === "string" ? oversight.bossModel : null, error: typeof oversight.error === "string" ? oversight.error : null }; }
 function appendDurableActContext(contextDocument: string, actNumber: number, result: Awaited<ReturnType<typeof runTargetContactAgent>>, oversight: StoredOversight | null): string {
