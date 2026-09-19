@@ -351,6 +351,24 @@ body {
   border: 1px solid var(--atlas-border);
   border-radius: 16px;
 }
+
+/* Long evidence archives should not keep off-screen cards in the active paint tree. */
+.research-replay {
+  contain: layout paint;
+  content-visibility: auto;
+  contain-intrinsic-size: 280px;
+}
+.research-replay a,
+.research-replay button,
+.research-replay select {
+  touch-action: manipulation;
+}
+@media (prefers-reduced-motion: reduce) {
+  .research-replay * {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}
 .reactor-touch-target {
   min-width: var(--atlas-touch);
   min-height: var(--atlas-touch);
