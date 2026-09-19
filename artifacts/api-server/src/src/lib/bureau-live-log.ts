@@ -26,9 +26,7 @@ export type BureauLiveEvent = {
   jobId?: string;
   targetName?: string;
   provider?: string;
-  /** Short action kind: plan | gate | search | page-fetch | extract | decision | registry … */
   kind?: string;
-  /** Operator-facing reason (rendered as WHY). */
   why?: string;
   ask?: string;
   responseSummary?: string;
@@ -39,15 +37,29 @@ export type BureauLiveEvent = {
 const GLOBAL_KEY = "apex:bureau:live:events";
 const CAP = 300;
 const TTL_SEC = 60 * 60 * 24 * 3;
-
-let mirrorWindowStart = 0;
-let mirrorWindowCount = 0;
 const MIRROR_WINDOW_MS = 10_000;
 const MIRROR_MAX_PER_WINDOW = 40;
-let lastBossTitleMirror = "";
+const MIRROR_STATE_CAP = 200;
+
+type MirrorWindow = { startedAt: number; count: number };
+const mirrorWindows = new Map<string, MirrorWindow>();
+const lastBossTitleByJob = new Map<string, string>();
 
 function caseKey(caseId: string) {
   return `apex:bureau:live:case:${caseId}`;
+}
+
+function mirrorState(jobId: string): MirrorWindow {
+  const existing = mirrorWindows.get(jobId);
+  const now = Date.now();
+  if (existing && now - existing.startedAt <= MIRROR_WINDOW_MS) return existing;
+  const fresh = { startedAt: now, count: 0 };
+  mirrorWindows.set(jobId, fresh);
+  if (mirrorWindows.size > MIRROR_STATE_CAP) {
+    const oldest = mirrorWindows.keys().next().value as string | undefined;
+    if (oldest) mirrorWindows.delete(oldest);
+  }
+  return fresh;
 }
 
 export function nowIsoMs(date = new Date()): string {
@@ -105,7 +117,6 @@ export async function publishBureauEvent(
     logger.debug({ err: err?.message }, "bureau-live-log publish failed (non-fatal)");
   });
 
-  // Mirror into Atlas job log so Reactor atlas-status eventLog sees dig steps
   if (event.jobId) {
     void import("./job-queue")
       .then(({ appendJobLog }) =>
@@ -128,7 +139,6 @@ export async function publishBureauEvent(
       .catch(() => {});
   }
 
-  // Right-hand adaptive narration for Reactor (non-blocking; never delays research)
   if (event.kind !== "narration") {
     try {
       const { scheduleBureauLiveNarration } = await import("./bureau-live-narration");
@@ -174,13 +184,7 @@ export function tryParseBureauLogLine(line: string): BureauLiveEvent | null {
 }
 
 export function formatBureauEventLine(event: BureauLiveEvent): string {
-  const bits = [
-    event.timestamp,
-    event.actor.toUpperCase(),
-    event.kind ? event.kind : "",
-    event.provider ? `[${event.provider}]` : "",
-    event.title,
-  ].filter(Boolean);
+  const bits = [event.timestamp, event.actor.toUpperCase(), event.kind || "", event.provider ? `[${event.provider}]` : "", event.title].filter(Boolean);
   if (event.why) bits.push(`WHY: ${event.why}`);
   if (event.ask) bits.push(`ASK: ${event.ask}`);
   if (event.responseSummary) bits.push(`OUT: ${event.responseSummary}`);
@@ -188,90 +192,60 @@ export function formatBureauEventLine(event: BureauLiveEvent): string {
   return bits.join(" · ");
 }
 
-export function classifyJobLogLine(line: string): {
-  publish: boolean;
-  actor: BureauActor;
-  title: string;
-} {
+export function classifyJobLogLine(line: string): { publish: boolean; actor: BureauActor; title: string } {
   const trimmed = (line || "").trim();
   if (trimmed.length < 8) return { publish: false, actor: "system", title: trimmed };
-
   const lower = trimmed.toLowerCase();
   if (/^\d+%/.test(trimmed)) return { publish: false, actor: "system", title: trimmed };
-  if (/\b(heartbeat|ping|noop)\b/.test(lower) && trimmed.length < 40) {
-    return { publish: false, actor: "system", title: trimmed };
-  }
-
+  if (/\b(heartbeat|ping|noop)\b/.test(lower) && trimmed.length < 40) return { publish: false, actor: "system", title: trimmed };
   let actor: BureauActor = "system";
-  if (/\b(gemini|boss|case bureau decision|decision:)\b/.test(lower)) actor = "boss";
-  else if (/\b(nvidia|right[- ]hand|advisor)\b/.test(lower)) actor = "right_hand";
+  if (/\b(right[- ]hand|advisor)\b/.test(lower)) actor = "right_hand";
+  else if (/\b(gemini|boss|case bureau decision|decision:)\b/.test(lower)) actor = "boss";
   else if (/\b(tavily|perplexity|exa|web search|open-web|serper)\b/.test(lower)) actor = "web";
   else if (/\b(maigret|holehe|sherlock|python-tool|footprint)\b/.test(lower)) actor = "tool";
   else if (/\b(registry|edgar|companies house|brreg|bodacc|gleif)\b/.test(lower)) actor = "registry";
   else if (/\b(discovery|broad categor|intake)\b/.test(lower)) actor = "discovery";
-
-  const interesting =
-    actor !== "system" ||
-    /\b(phase|started|failed|error|complete|admitted|target|contact|email|phone|telegram|instagram)\b/.test(lower);
-
+  const interesting = actor !== "system" || /\b(phase|started|failed|error|complete|admitted|target|contact|email|phone|telegram|instagram)\b/.test(lower);
   return { publish: interesting, actor, title: trimmed.slice(0, 240) };
 }
 
-/** Rate-limited mirror used by job-queue.appendJobLog */
+/** Rate-limited mirror used by job-queue.appendJobLog. State is job-scoped so concurrent investigations cannot suppress each other. */
 export async function mirrorJobLogLine(jobId: string, line: string): Promise<void> {
-  // publishBureauEvent mirrors structured BUREAU lines back into the job log.
-  // Never mirror those lines into Bureau again or the two mirrors can recurse.
   if (line.trimStart().startsWith("BUREAU|")) return;
+  const previousBossTitle = lastBossTitleByJob.get(jobId) || "";
 
   if (/BOSS_DISCOVERY_DIRECTION/i.test(line)) {
     const sig = line.slice(0, 160);
-    if (sig === lastBossTitleMirror) return;
-    lastBossTitleMirror = sig;
+    if (sig === previousBossTitle) return;
+    lastBossTitleByJob.set(jobId, sig);
   }
   const structured = tryParseBureauLogLine(line);
   if (structured) {
-    if (structured.actor === "boss" && structured.title && structured.title === lastBossTitleMirror) return;
-    if (structured.actor === "boss") lastBossTitleMirror = structured.title || lastBossTitleMirror;
+    if (structured.actor === "boss" && structured.title && structured.title === (lastBossTitleByJob.get(jobId) || "")) return;
+    if (structured.actor === "boss") lastBossTitleByJob.set(jobId, structured.title || "");
     await publishBureauEvent({ ...structured, jobId: structured.jobId ?? jobId });
     return;
   }
   const { publish, actor, title } = classifyJobLogLine(line);
   if (!publish) return;
 
-  const now = Date.now();
-  if (now - mirrorWindowStart > MIRROR_WINDOW_MS) {
-    mirrorWindowStart = now;
-    mirrorWindowCount = 0;
-  }
-  if (mirrorWindowCount >= MIRROR_MAX_PER_WINDOW) return;
-  mirrorWindowCount += 1;
+  const window = mirrorState(jobId);
+  if (window.count >= MIRROR_MAX_PER_WINDOW) return;
+  window.count += 1;
 
-  await publishBureauEvent({
-    actor,
-    title,
-    jobId,
-    detail: line.length > 240 ? line.slice(0, 500) : undefined,
-  });
+  await publishBureauEvent({ actor, title, jobId, detail: line.length > 240 ? line.slice(0, 500) : undefined });
 }
 
-export function writeSseHeaders(res: {
-  setHeader: (k: string, v: string) => void;
-  write: (chunk: string) => unknown;
-  flushHeaders?: () => void;
-}): void {
+export function writeSseHeaders(res: { setHeader: (k: string, v: string) => void; write: (chunk: string) => unknown; flushHeaders?: () => void }): void {
   res.setHeader("Content-Type", "text/event-stream; charset=utf-8");
   res.setHeader("Cache-Control", "no-cache, no-transform");
   res.setHeader("Connection", "keep-alive");
   res.setHeader("X-Accel-Buffering", "no");
-  res.setHeader("Access-Control-Allow-Origin", "*");
+  // CORS is owned by the application-level allowlist in app.ts. This helper must not widen the authenticated SSE stream.
   res.flushHeaders?.();
 }
 
-export function sseSend(
-  res: { write: (chunk: string) => unknown },
-  event: string,
-  data: unknown,
-): void {
+export function sseSend(res: { write: (chunk: string) => unknown }, event: string, data: unknown): void {
   res.write(`event: ${event}\n`);
   res.write(`data: ${JSON.stringify(data)}\n\n`);
 }

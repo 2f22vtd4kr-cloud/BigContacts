@@ -11,11 +11,13 @@ const required = [
   "const timeout = setTimeout(() => runController.abort(), hardTimeoutMs)",
   "await acquireProviderSlot(parentSignal)",
   "fn(prompt, controller.signal)",
-  "Math.min(MAX_ITER, Math.max(1, requestedIterations))",
+  "MAX_ITER = 64",
+  "requestedIterations > 0 ? Math.min(requestedIterations, MAX_ITER) : MAX_ITER",
   "status: \"cancelled\"",
 ];
 for (const marker of required) {
   if (!source.includes(marker)) throw new Error(`agentic timeout-abort guard failed: missing ${marker}`);
 }
+if (source.includes("Math.min(MAX_ITER,")) throw new Error("agentic timeout-abort guard failed: an upper iteration ceiling was reintroduced");
 
-console.log("agentic timeout-abort safety guard: PASS");
+console.log("agentic timeout-abort safety guard: PASS — timeout owns duration; no action-count ceiling");

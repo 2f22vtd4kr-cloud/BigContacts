@@ -27,7 +27,6 @@
   --color-sidebar-accent-foreground: #9CFF1A;
 }
 
-
 html, body, #root { min-height: 100%; }
 
 body {
@@ -127,11 +126,25 @@ body {
    Hierarchy: primary (animated gradient) > secondary outline > state (pause/stop)
 */
 :root {
+  /* Final product-system tokens: state is semantic, decoration is subordinate. */
   --atlas-teal: #00b3b8;
   --atlas-lime: #9cff1a;
   --atlas-navy: #111827;
   --atlas-white: #f8fafc;
   --atlas-coral: #ff4d6d;
+
+  --atlas-surface-0: #0a1018;
+  --atlas-surface-1: #0d1219;
+  --atlas-surface-2: #111827;
+  --atlas-border: rgba(255,255,255,.08);
+  --atlas-border-strong: rgba(156,255,26,.28);
+  --atlas-text-soft: #94a3b8;
+  --atlas-text-dim: #64748b;
+  --atlas-focus: #b8ff4d;
+  --atlas-warning: #fbbf24;
+  --atlas-danger: #fb7185;
+  --atlas-touch: 44px;
+  --atlas-ease: cubic-bezier(.2,1,.32,1);
 }
 
 /* Primary CTA — Figma-style animated gradient (teal ↔ lime), readable white type */
@@ -266,3 +279,116 @@ body {
 .atlas-panel-glow:hover { border-color: rgba(156, 255, 26, 0.3); box-shadow: 0 0 24px rgba(156, 255, 26, 0.08); }
 .atlas-focus-ring:focus-visible { outline: 2px solid #9CFF1A; outline-offset: 3px; }
 .atlas-scroll { scrollbar-width: thin; scrollbar-color: rgba(156, 255, 26, 0.45) #111827; }
+
+/* Dashboard hero controls: explicit rails, never DOM-position dependent. */
+.atlas-home-actions {
+  --atlas-hero-gap: 8px;
+  width: 100%;
+}
+.atlas-home-primary-row {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+}
+.atlas-home-primary-row > * {
+  width: 100%;
+  min-width: 0;
+}
+.atlas-home-secondary-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--atlas-hero-gap);
+  width: 100%;
+  min-width: 0;
+}
+.atlas-home-secondary-row > a {
+  min-width: 0;
+}
+.atlas-home-launch {
+  width: 100% !important;
+  min-width: 0 !important;
+}
+@media (min-width: 640px) {
+  .atlas-home-actions {
+    width: 22.375rem;
+    max-width: 22.375rem;
+  }
+  .atlas-home-primary-row {
+    width: 100%;
+  }
+  .atlas-home-primary-row > .atlas-launch-primary-root {
+    display: grid;
+    /* Depth selector is deliberately narrower; the green command rail matches the secondary rail exactly. */
+    grid-template-columns: 7.625rem 14.75rem;
+    gap: var(--atlas-hero-gap);
+    width: 100%;
+  }
+  .atlas-home-primary-row > .atlas-launch-primary-root > select {
+    width: 7.625rem;
+    min-width: 0;
+  }
+  .atlas-home-primary-row > .atlas-launch-primary-root > .atlas-home-launch {
+    width: 14.75rem !important;
+    min-width: 14.75rem !important;
+  }
+  .atlas-home-primary-row > .atlas-launch-primary-root > p {
+    grid-column: 1 / -1;
+  }
+  .atlas-home-secondary-row {
+    width: 14.75rem;
+    margin-left: auto;
+  }
+}
+@media (max-width: 639px) {
+  .atlas-home-actions {
+    width: 100%;
+    max-width: none;
+  }
+}
+/* Final Reactor affordances: quiet surfaces, strong focus, safe-area-aware touch targets. */
+.reactor-surface {
+  background: var(--atlas-surface-0);
+  border: 1px solid var(--atlas-border);
+  border-radius: 16px;
+}
+
+/* Long evidence archives should not keep off-screen cards in the active paint tree. */
+.research-replay {
+  contain: layout paint;
+  content-visibility: auto;
+  contain-intrinsic-size: 280px;
+}
+.research-replay a,
+.research-replay button,
+.research-replay select {
+  touch-action: manipulation;
+}
+@media (prefers-reduced-motion: reduce) {
+  .research-replay * {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+.reactor-touch-target {
+  min-width: var(--atlas-touch);
+  min-height: var(--atlas-touch);
+  touch-action: manipulation;
+}
+.reactor-focus-ring:focus-visible {
+  outline: 2px solid var(--atlas-focus);
+  outline-offset: 3px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .reactor-live-pulse,
+  .reactor-live-pulse::before,
+  .reactor-live-pulse::after {
+    animation: none !important;
+  }
+}
+@media (max-width: 639px) {
+  .reactor-mobile-safe {
+    padding-left: max(12px, env(safe-area-inset-left));
+    padding-right: max(12px, env(safe-area-inset-right));
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
+  }
+}

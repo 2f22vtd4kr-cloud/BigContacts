@@ -10,7 +10,7 @@ import { checkPythonToolsAvailability } from "../lib/python-tools";
 import { getLocalRedisStatus, getPermanentClientStatuses, pingRedis } from "../lib/redis";
 import { getMistralWebSearchStatus } from "../lib/mistral-web-search";
 import { getGeminiBossStatus } from "../lib/case-bureau";
-import { getDeepSeekCaseReasoningStatus } from "../lib/deepseek-case-reasoning";
+import { getGeminiRightHandStatus } from "../lib/gemini-right-hand-reasoning";
 import { buildLanesHonestySnapshot } from "../lib/lanes-honesty";
 const router: IRouter = Router();
 const CACHE_TTL_MS = 15_000;
@@ -20,7 +20,7 @@ router.get("/system/status", async (_req,res) => {
     if (_cached && Date.now()-_cachedAt<CACHE_TTL_MS) return res.json({ ...(typeof _cached === "object" ? _cached : {}), cached:true, cachedAgoMs:Date.now()-_cachedAt });
     const ai=getAIKeyStatus();
     const pythonTools=await checkPythonToolsAvailability();
-    const bureauReasoning=getDeepSeekCaseReasoningStatus();
+    const bureauReasoning=getGeminiRightHandStatus();
     const geminiBoss=await getGeminiBossStatus();
     let pgStatus:"ok"|"error"="ok"; let pgLatencyMs:number|null=null;
     try{const t0=Date.now();await db.execute(sql`SELECT 1`);pgLatencyMs=Date.now()-t0;}catch{pgStatus="error";}

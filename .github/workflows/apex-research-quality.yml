@@ -1,0 +1,36 @@
+name: Apex Research Quality Contracts
+on:
+  push:
+    branches: [audit/genuine-five-green-final]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  research-quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install -g pnpm@9.15.9
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Validate grounded registry
+        run: pnpm run check:research-gauntlet
+      - name: Validate research-run contract
+        run: pnpm run check:research-run
+      - name: Validate research campaign contract
+        run: pnpm run check:research-campaign
+      - name: Validate failure records
+        run: pnpm run check:failure-records
+      - name: Validate evidence graph
+        run: pnpm run check:evidence-graph
+      - name: Validate roadmap implementation
+        run: node scripts/check-apex-roadmap-implementation.mjs
+      - name: Research contract tests
+        run: pnpm --dir artifacts/api-server exec vitest run src/src/test/research-run-contract.test.ts
+      - name: Typecheck
+        run: pnpm run typecheck

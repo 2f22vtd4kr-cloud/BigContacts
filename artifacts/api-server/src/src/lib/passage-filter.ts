@@ -1,10 +1,12 @@
 /**
- * Lightweight passage / snippet filter before LLM synthesis.
- * Prefer query-relevant sentences over full noisy page text (token economy + less drift).
- * Deterministic — no embeddings required.
+ * Evidence-preserving passage helper.
+ *
+ * Ranking is still available to callers that want a relevance view, but this
+ * boundary never discards observed source material. The bureau must be able
+ * to revisit the complete observation rather than inherit a lossy summary.
  */
 
-const SENTENCE_SPLIT = /(?<=[.!?])\s+(?=[A-Z0-9"'(])|\n+/;
+const SENTENCE_SPLIT = /(?<=[.!?])\s+(?=[A-Z0-9\"'(])|\n+/;
 
 function tokenize(text: string): string[] {
   return text
@@ -14,9 +16,6 @@ function tokenize(text: string): string[] {
     .filter((t) => t.length >= 2);
 }
 
-/**
- * Score a passage against query tokens (overlap + light boosts for contact-ish cues).
- */
 export function scorePassage(passage: string, queryTokens: Set<string>): number {
   if (!passage.trim() || queryTokens.size === 0) return 0;
   const tokens = tokenize(passage);
@@ -33,54 +32,20 @@ export function scorePassage(passage: string, queryTokens: Set<string>): number 
 }
 
 /**
- * Filter and rank sentences/snippets for a search query.
- * Returns concatenated top passages, capped by maxChars.
+ * Return the complete supplied material. `maxChars`, `minScore`, and
+ * `maxPassages` remain accepted for source compatibility but are deliberately
+ * non-destructive: they can no longer remove evidence from the bureau state.
  */
 export function filterPassagesForQuery(
   text: string,
-  query: string,
-  opts?: { maxChars?: number; minScore?: number; maxPassages?: number },
+  _query: string,
+  _opts?: { maxChars?: number; minScore?: number; maxPassages?: number },
 ): string {
-  const maxChars = opts?.maxChars ?? 4_000;
-  const minScore = opts?.minScore ?? 0.12;
-  const maxPassages = opts?.maxPassages ?? 24;
-  const queryTokens = new Set(tokenize(query));
-  if (queryTokens.size === 0) return text.slice(0, maxChars);
-
-  const rawParts = text
-    .split(SENTENCE_SPLIT)
-    .map((s) => s.replace(/\s+/g, " ").trim())
-    .filter((s) => s.length >= 40 && s.length <= 800);
-
-  // Also accept short lines that look like contact evidence
-  const extras = text
-    .split(/\n+/)
-    .map((s) => s.replace(/\s+/g, " ").trim())
-    .filter((s) => s.length >= 12 && s.length < 40 && /@|linkedin\.com|\+\d|\(\d{3}\)/i.test(s));
-
-  const scored = [...rawParts, ...extras]
-    .map((passage) => ({ passage, score: scorePassage(passage, queryTokens) }))
-    .filter((row) => row.score >= minScore)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, maxPassages);
-
-  if (scored.length === 0) {
-    // Fallback: keep head of text so callers never get empty when source had content
-    return text.slice(0, maxChars);
-  }
-
-  let out = "";
-  for (const row of scored) {
-    if (out.length + row.passage.length + 1 > maxChars) break;
-    out += (out ? " " : "") + row.passage;
-  }
-  return out || text.slice(0, maxChars);
+  return String(text ?? "");
 }
 
-/**
- * Fail-closed URL gate for contact claims.
- * Returns only http(s) URLs; if allowed set provided, require membership / loose containment.
- */
+/** Fail-closed URL gate for contact claims; it validates scheme but does not
+ * discard additional observed source URLs merely because there are many. */
 export function filterClaimUrls(
   urls: unknown,
   allowed?: Iterable<string> | null,
@@ -88,18 +53,14 @@ export function filterClaimUrls(
   if (!Array.isArray(urls)) return [];
   const http = urls
     .filter((u): u is string => typeof u === "string" && /^https?:\/\//i.test(u.trim()))
-    .map((u) => u.trim())
-    .slice(0, 12);
+    .map((u) => u.trim());
   if (!allowed) return [...new Set(http)];
   const allow = [...allowed].filter(Boolean);
   if (allow.length === 0) return [...new Set(http)];
-  const kept = http.filter(
-    (url) => allow.some((a) => url === a || url.includes(a) || a.includes(url)),
-  );
+  const kept = http.filter((url) => allow.some((a) => url === a || url.includes(a) || a.includes(url)));
   return [...new Set(kept)];
 }
 
-/** True when a contact vector may be admitted (at least one supporting URL). */
 export function hasClaimUrlSupport(urls: string[] | null | undefined): boolean {
-  return Array.isArray(urls) && urls.some((u) => /^https?:\/\//i.test(u));
+  return Array.isArray(urls) && urls.some((u) => /^https?:\/\/\S+$/i.test(u));
 }

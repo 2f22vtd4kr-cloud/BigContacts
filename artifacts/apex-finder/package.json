@@ -6,7 +6,7 @@
     "react": "catalog:",
     "react-dom": "catalog:",
     "wouter": "3.7.1",
-    "framer-motion": "12.23.12",
+    "framer-motion": "12.42.2",
     "lucide-react": "0.511.0",
     "@tanstack/react-query": "catalog:",
     "clsx": "2.1.1",

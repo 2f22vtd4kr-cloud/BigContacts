@@ -1,0 +1,1 @@
+Trigger marker after authentication-aware smoke-test correction; starts a new genuine five-pass sequence.

@@ -2,13 +2,14 @@ import fs from "node:fs";
 
 const source = fs.readFileSync("artifacts/api-server/src/src/lib/investigation-context-compaction.ts", "utf8");
 const checks = [
-  ["bounded maximum", /MAX_MAX_CHARS\s*=\s*64_000/.test(source)],
-  ["prior context is explicitly bounded", /Prior durable context \(bounded historical summary\)/.test(source)],
-  ["nested prior context is removed", /removeNestedPrior/.test(source)],
-  ["structured observations are preferred", /Recent structured Investigator observations/.test(source)],
-  ["structured records are clipped before prompt assembly", /compactRecords\(trajectoryRecords, trajectoryBudget\)/.test(source)],
-  ["evidence attribution remains represented", /Evidence attribution state/.test(source)],
-  ["final deterministic bound exists", /return clip\(result, maxChars\)/.test(source)],
+  ["lossless context assembly is explicit", /Lossless assembly of durable investigation context/.test(source)],
+  ["recursive prior snapshot is preserved without data-budget clipping", /removeOnlyRecursivePrior/.test(source) && /Preserved prior durable context/.test(source)],
+  ["complete Investigator records are preserved", /Complete Investigator trajectory records/.test(source)],
+  ["complete Investigator trajectory is preserved", /Complete Investigator trajectory/.test(source)],
+  ["complete evidence attribution is preserved", /Complete evidence attribution state/.test(source)],
+  ["no deterministic max-character clipping remains", !/MAX_MAX_CHARS|return clip\(|compactRecords\(|compactEvidence\(/.test(source)],
+  ["no bounded tail slicing remains", !/slice\(\s*-\d+/.test(source)],
+  ["maxChars is not used as a clipping boundary", !/maxChars\s*[<>=]/.test(source)],
 ];
 let failed = false;
 for (const [name, ok] of checks) {

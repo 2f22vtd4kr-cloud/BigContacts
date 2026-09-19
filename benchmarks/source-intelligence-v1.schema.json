@@ -1,0 +1,17 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "$id":"https://apex.local/schemas/source-intelligence-v1.json",
+  "title":"Apex Source Intelligence v1",
+  "type":"object",
+  "required":["url","sourceClass","retrievedAt","extractionMethod","provenance"],
+  "properties":{
+    "url":{"type":"string","format":"uri"},
+    "originalUrl":{"type":"string","format":"uri"},
+    "sourceClass":{"enum":["REGULATORY","OFFICIAL_COMPANY","OFFICIAL_GOVERNANCE","OFFICIAL_PERSONAL","REPUTABLE_NEWS","PROFESSIONAL_DIRECTORY","SOCIAL_PROFILE","SEARCH_RESULT","AGGREGATOR","SCRAPED_DIRECTORY","UNKNOWN"]},
+    "retrievedAt":{"type":"string"},
+    "firstSeenAt":{"type":"string"},
+    "lastSeenAt":{"type":"string"},
+    "extractionMethod":{"type":"string"},
+    "provenance":{"type":"object","required":["observationId"],"properties":{"observationId":{"type":"string"},"passage":{"type":"string"},"contentHash":{"type":"string"}}}
+  }
+}

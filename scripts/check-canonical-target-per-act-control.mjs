@@ -20,6 +20,9 @@ const checks=[
 ["canonical target finalization is fenced to an active case",/\.where\(and\(eq\(researchCasesTable\.id, caseRow\.id\), eq\(researchCasesTable\.status, \"active\"\)\)\)/.test(runner)],
 ["canonical agentic target wrapper actively aborts at its deadline",/setTimeout\(\(\) => overallController\.abort\(\), requestedHardTimeout\)/.test(agentic)],
 ["canonical agentic target wrapper clears its deadline timer",/clearTimeout\(deadlineTimer\)/.test(agentic)],
+["canonical target wrapper has a finite action-turn ceiling",!/Number\.POSITIVE_INFINITY/.test(agentic)&&/const MAX_TARGET_ACTION_TURNS = 64/.test(agentic)],
+["canonical target wrapper does not auto-fan-out fixed mission briefs",!/runParallelMissionPass\(/.test(agentic)],
+["Investigator done proposals receive Gemini oversight before final completion",/if \(raw\.action === "done"\) \{[\s\S]*?reviewTargetInvestigationAct\(/.test(agentic)],
 ["target control context is mandatory",/if \(!oversightContext\)/.test(agentic)],
 ["missing target control context fails closed",/(?:CONTROL_CONTEXT_UNAVAILABLE|stopReason:\s*"LLM_UNAVAILABLE")[\s\S]*?Target-scoped agentic research requires a durable control case/.test(agentic)],
 ["Gemini research redirects are validated as objective-only text",/validateGeminiResearchObjective/.test(agentic)],
@@ -36,7 +39,7 @@ const checks=[
 ["evidence graph observations can carry immutable event IDs",/eventId\?\s*:\s*number\s*\|\s*null/.test(evidence)],
 ["canonical act graphs require immutable observation anchors",/validateClaimSupportGraph\(graph,true\)/.test(oversight)],
 ["Right Hand is mandatory before Boss continuation",/if\(rightHand\.status!=="completed"\)/.test(oversight)],
-["Right Hand failure stops the next Investigator act",/DeepSeek\/NVIDIA Right Hand oversight was unavailable/.test(oversight)],
+["Right Hand failure stops the next Investigator act",/Gemini Right-hand oversight was unavailable/.test(oversight)],
 ["discovery is not accidentally target-gated",/input\.mode === "discovery"/.test(agentic)],
 ["selected Investigator executes only the Boss-selected provider",/const fn = selectedInvestigatorLlm === "groq"/.test(core)&&!/orderedProviders/.test(core)&&!/for\s*\(const \[name, fn\] of orderedProviders\)/.test(core)],
 ["selected Investigator records no cross-provider fallback",/fallback: \[\]/.test(core)],
@@ -46,4 +49,5 @@ const checks=[
 ["Apex contact fields are explicitly enumerated at the card boundary",/DIRECT_CONTACT_FIELDS/.test(mutationGuard)&&/contactOutcome/.test(mutationGuard)&&/metadata/.test(mutationGuard)],
 ["legacy enrichment routes remain retired",/RETIRED_MUTATING_ENRICHMENT_PATHS/.test(mutationGuard)&&/status\(410\)/.test(mutationGuard)],
 ];
+checks.push(["structured intelligence only receives grounded Investigator findings",/groundedFindingsForTrajectory/.test(agentic)&&/recordResult\(intelligence, normalizedRecord, records\)/.test(agentic)]);
 let failed=false;for(const[name,ok]of checks){console.log(`${ok?"PASS":"FAIL"} ${name}`);if(!ok)failed=true;}if(failed)process.exit(1);

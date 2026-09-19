@@ -3,12 +3,13 @@ import fs from "node:fs";
 import path from "node:path";
 
 const libDir = path.resolve(process.cwd(), "src/src/lib");
+const repoRoot = path.resolve(process.cwd(), "../..");
 const discoverySource = fs.readFileSync(path.join(libDir, "discovery-agent.ts"), "utf8");
 const researchSource = fs.readFileSync(path.join(libDir, "agentic-web-research.ts"), "utf8");
 const orchestratorPath = path.join(libDir, "atlas-orchestrator.ts");
 const orchestratorExists = fs.existsSync(orchestratorPath);
 const orchestratorSource = orchestratorExists ? fs.readFileSync(orchestratorPath, "utf8") : "";
-const runtimeHardener = fs.readFileSync(path.resolve(process.cwd(), "scripts/check-agentic-runtime-v2.mjs"), "utf8");
+const runtimeHardener = fs.readFileSync(path.join(repoRoot, "scripts/check-agentic-runtime-v2.mjs"), "utf8");
 
 describe("discovery runtime architecture", () => {
   it("keeps discovery model-owned", () => {

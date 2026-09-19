@@ -6,7 +6,7 @@ const required = {
   orientation: path.join(root, "artifacts/api-server/src/src/lib/apex-bureau-orientation.ts"),
   research: path.join(root, "artifacts/api-server/src/src/lib/agentic-web-research-core.ts"),
   bureau: path.join(root, "artifacts/api-server/src/src/lib/case-bureau.ts"),
-  rightHand: path.join(root, "artifacts/api-server/src/src/lib/nvidia-nim-case-reasoning.ts"),
+  rightHand: path.join(root, "artifacts/api-server/src/src/lib/gemini-right-hand-reasoning.ts"),
   pass: path.join(root, "artifacts/api-server/src/src/lib/bureau-agentic-pass.ts"),
   target: path.join(root, "artifacts/api-server/src/src/lib/target-contact-agent.ts"),
   architecture: path.join(root, "docs/APEX_AUTONOMOUS_MISSION_BOOTSTRAP.md"),
@@ -21,7 +21,6 @@ const source = Object.fromEntries(Object.entries(required).map(([name, file]) =>
 const failures = [];
 const assert = (condition, message) => { if (!condition) failures.push(message); };
 
-// Institutional identity must be a runtime source, not an operator-authored prompt fragment.
 assert(/APEX_INSTITUTIONAL_MISSION_VERSION\s*=/.test(source.orientation), "canonical orientation is not versioned as an institutional contract.");
 assert(/APEX_WHAT_IS_ATLAS\s*=/.test(source.orientation), "canonical orientation has no institutional Apex identity/mission constant.");
 assert(/AI-driven investigatory bureau/.test(source.orientation), "canonical orientation does not identify Apex as an AI-driven investigatory bureau.");
@@ -37,31 +36,29 @@ assert(/APEX INSTITUTIONAL MISSION/.test(source.firstDecision), "first-decision 
 assert(/ROLE PURPOSE/.test(source.firstDecision), "first-decision contract omits role purpose.");
 assert(/DURABLE CASE CONTEXT/.test(source.firstDecision), "first-decision contract omits durable case context.");
 assert(/first model-facing decision/i.test(source.firstDecision), "first-decision contract does not define the first model-facing decision.");
-
-// The compact orientation is used in actual provider system messages. It must carry the
-// institutional bootstrap itself rather than relying on an unrelated outer prompt.
 assert(/apexOrientationCompact/.test(source.orientation), "canonical orientation has no compact provider orientation.");
 assert(/APEX MISSION CONTRACT v\$\{APEX_INSTITUTIONAL_MISSION_VERSION\}/.test(source.orientation), "compact AI orientation does not expose the institutional mission version.");
 assert(/institutional purpose, evidence discipline, autonomy law, and role separation exist before operator case input/i.test(source.orientation), "compact AI orientation does not carry institutional bootstrap context.");
 assert(/role purpose exists before discovery\/research begins/i.test(source.orientation), "compact AI orientation does not establish role purpose before discovery/research.");
 assert(/Discovery and research are capabilities, not fixed stages/i.test(source.orientation), "compact AI orientation does not reject deterministic discovery/research stages.");
-
-// All three live reasoning roles must receive the canonical orientation before role work.
 assert(/apexOrientationFor\("boss"\)/.test(source.bureau) || /apexOrientationCompact\("boss"\)/.test(source.bureau), "Boss path does not visibly consume canonical Apex orientation.");
 assert(/apexOrientationFor\("right_hand"\)/.test(source.rightHand) || /apexOrientationCompact\("right_hand"\)/.test(source.rightHand), "Right-hand path does not visibly consume canonical Apex orientation.");
 assert(/apexOrientationFor\("dig_agent"\)|apexOrientationCompact\("dig_agent"\)/.test(source.research), "Investigator ReAct path does not visibly consume canonical Apex orientation.");
-
-// Target work must remain context-bound, and the shared ReAct pass must carry case context.
 assert(/contextDocument/.test(source.pass), "agentic pass does not expose durable case context to the Investigator.");
 assert(/contextDocument/.test(source.target), "target Investigator does not expose durable case context.");
-
-// The institutional orientation must not become a deterministic research recipe.
 assert(!/fixed\s+(search|research)\s+(order|sequence)/i.test(source.orientation), "orientation teaches a fixed research order.");
 assert(!/step\s*1.*web_search.*step\s*2.*visit/is.test(source.orientation), "orientation contains a deterministic web-research sequence.");
-
-// The opening action must remain model-selected rather than seeded by the harness.
 assert(!/Begin\. Choose an initial web_search query/i.test(source.research), "ReAct still forces web_search as the initial action; #120 remains unresolved.");
 assert(!/\(none — begin with web_search\)/i.test(source.research), "ReAct prompt still tells a contextually autonomous Investigator to begin with web_search.");
+
+// Right-hand is Gemini oversight, independent of Boss and never an Investigator fallback.
+assert(/GEMINI_RIGHT_HAND_API_KEY/.test(source.rightHand), "Gemini Right-hand does not use the dedicated GEMINI_RIGHT_HAND_API_KEY.");
+assert(!/process\.env\.GEMINI_API_KEY/.test(source.rightHand), "Gemini Right-hand still directly reads the Boss GEMINI_API_KEY.");
+assert(/gemini-3\.8-flash/i.test(source.rightHand), "Gemini Right-hand model is not pinned to Gemini 3.8 Flash.");
+assert(!/DEEPSEEK|NVIDIA_NIM|nvidia/i.test(source.rightHand), "retired DeepSeek/NVIDIA provider remains in the Right-hand implementation.");
+assert(/case-file|case file/i.test(source.rightHand) && /brows/i.test(source.rightHand), "Right-hand is not explicitly case-file-only/no-browse.");
+assert(/actionId|decision|confidence/.test(source.rightHand), "Right-hand structured decision contract is missing.");
+assert(/existing|queued|queue/i.test(source.rightHand), "Right-hand lacks the existing queued-action constraint.");
 
 if (failures.length) {
   console.error("APEX MISSION BOOTSTRAP: FAIL");
@@ -72,8 +69,9 @@ if (failures.length) {
 console.log("APEX MISSION BOOTSTRAP: PASS");
 console.log("- institutional Apex purpose is a versioned runtime contract");
 console.log("- compact provider orientation carries institutional bootstrap");
-console.log("- Boss, Right Hand, and Investigator receive standing role orientation");
+console.log("- Boss, Gemini Right-hand, and Investigator receive standing role orientation");
 console.log("- durable context is part of the Investigator boundary");
 console.log("- first-decision contract forbids hidden deterministic sequencing");
 console.log("- operator input cannot redefine institutional purpose");
 console.log("- first research action remains model-selected");
+console.log("- Gemini Right-hand is case-file-only oversight, independent from Boss and Investigator execution");

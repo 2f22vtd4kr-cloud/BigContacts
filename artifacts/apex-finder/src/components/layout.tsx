@@ -8,7 +8,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Crosshair,
-  Cpu,
+
   Database,
   GitCompare,
   Bot,
@@ -24,13 +24,14 @@ import { ApiKeyHealth } from "@/components/api-key-health";
 import { WorkspaceStatus } from "@/components/workspace-status";
 import { LaunchAtlasButton } from "@/components/launch-atlas-button";
 import { BureauIntegrityBanner } from "@/components/bureau-integrity-banner";
+import { ReactorMark } from "@/components/reactor-mark";
 
 const mainNav = [
   { name: "Overview", href: "/", icon: Crosshair },
   { name: "Entity ledger", href: "/profiles", icon: List },
   { name: "Discover", href: "/search", icon: Search },
   { name: "Connections", href: "/network", icon: Network },
-  { name: "Reactor", href: "/reactor", icon: Cpu },
+  { name: "Reactor", href: "/reactor", icon: ReactorMark },
 ];
 
 const referenceNav = [

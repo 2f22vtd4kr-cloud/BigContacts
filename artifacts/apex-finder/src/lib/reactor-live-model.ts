@@ -30,6 +30,7 @@ export interface ReactorSource {
 
 export interface ReactorLiveEvent {
   id: string;
+  parentId?: string;
   timestamp?: string;
   status: ReactorEventStatus;
   method: ReactorMethod;

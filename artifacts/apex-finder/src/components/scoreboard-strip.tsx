@@ -1,6 +1,8 @@
 /**
  * Operator scoreboard strip — GET /api/ingest/scoreboard-snapshot
  * Milestone "pass" is suppressed when bureau integrity is critical.
+ * The scoreboard is operator-only; anonymous runtime shells do not render a
+ * noisy "unavailable" error when the protected endpoint returns 401/403.
  */
 import { useCallback, useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
@@ -26,6 +28,7 @@ export function ScoreboardStrip({ className, refreshKey }: { className?: string;
   const [data, setData] = useState<Snapshot | null>(null);
   const [integrity, setIntegrity] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [authBlocked, setAuthBlocked] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -34,9 +37,17 @@ export function ScoreboardStrip({ className, refreshKey }: { className?: string;
         fetch(`${BASE}/api/ingest/scoreboard-snapshot?limit=12`, { credentials: "include" }),
         fetch(`${BASE}/api/healthz`, { credentials: "include" }).catch(() => null),
       ]);
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      if (!r.ok) {
+        if (r.status === 401 || r.status === 403) {
+          setAuthBlocked(true);
+          setErr(null);
+          return;
+        }
+        throw new Error(`HTTP ${r.status}`);
+      }
       const j = (await r.json()) as Snapshot;
       setData(j);
+      setAuthBlocked(false);
       let integ = String(j.bureauIntegrity ?? "");
       if (h && h.ok) {
         const hj = await h.json();
@@ -55,6 +66,7 @@ export function ScoreboardStrip({ className, refreshKey }: { className?: string;
     return () => window.clearInterval(id);
   }, [load, refreshKey]);
 
+  if (authBlocked && !data) return null;
   if (err && !data) {
     return (
       <div className={cn("text-[10px] font-mono text-slate-500", className)} data-testid="scoreboard-strip">

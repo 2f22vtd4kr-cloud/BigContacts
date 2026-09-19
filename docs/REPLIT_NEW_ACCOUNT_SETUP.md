@@ -2,102 +2,87 @@
 
 ## Repository
 
-Import this existing repository through the connected Replit ↔ GitHub integration:
+Import the existing repository through the connected Replit ↔ GitHub integration:
 
 `https://github.com/2f22vtd4kr-cloud/BigContacts`
 
-Use branch `main`.
+Use the authoritative branch `audit/genuine-five-green-final` for the current engineering/certification state unless the operator explicitly selects another reviewed branch.
 
-Do not ask the operator for a GitHub PAT, `GITHUB_TOKEN`, or any other GitHub credential. Repository access is provided by the connected Replit ↔ GitHub integration.
+Do not ask for a GitHub PAT, `GITHUB_TOKEN`, or any other GitHub credential. Read `docs/context.md` completely before modifying, installing or running anything.
 
-## First action
+## Architecture that must remain intact
 
-Before modifying, installing, or running anything, read `docs/context.md` completely. It is the living development transcription and architecture source of truth.
+Apex has two AI layers only:
 
-Do not scaffold a new application, replace the project, simplify the existing architecture, or redesign Apex during setup.
+- Gemini Boss + Gemini Right-hand for bounded oversight.
+- A selected Groq or Mistral Investigator for actual research.
 
-## Runtime secrets
+The Investigator owns its research trajectory. Tools are capabilities, not fixed phases. Deterministic code enforces safety, authorization, provenance, identity, persistence and resource limits; it must not secretly substitute a scripted research sequence.
 
-Ask the operator for exactly these 14 runtime secrets, using these canonical names:
+DeepSeek/NVIDIA is not an active Apex provider path and must not be requested as an Investigator or Right-hand secret.
 
-1. `REDIS_URL_1`
-2. `GROQ_API_KEY`
-3. `GEMINI_API_KEY`
-4. `DEEPSEEK_API_KEY`
-5. `MISTRAL_API_KEY`
-6. `HF_TOKEN`
-7. `SERPER_API_KEY`
-8. `TAVILY_API_KEY`
-9. `SERPAPI_KEY`
-10. `EXA_API_KEY`
-11. `SCRAPFLY_API_KEY`
-12. `ZENROWS_API_KEY`
-13. `COMPANIES_HOUSE_API_KEY`
-14. `WHOISJSON_API_KEY`
+## Runtime provider/integration secrets
 
-Mappings:
+The active provider/integration contract contains exactly these **13** names:
 
-- The operator's Upstash Redis connection URL belongs in `REDIS_URL_1`.
-- The Hugging Face token belongs in `HF_TOKEN`.
-- The NVIDIA credential belongs in `DEEPSEEK_API_KEY`.
-- The Exa credential belongs in `EXA_API_KEY`.
-- `REDIS_URL` and `EXA_1` are compatibility aliases and are not additional operator asks.
+```text
+REDIS_URL_1
+GROQ_API_KEY
+GEMINI_API_KEY
+MISTRAL_API_KEY
+HF_TOKEN
+SERPER_API_KEY
+TAVILY_API_KEY
+SERPAPI_KEY
+EXA_API_KEY
+SCRAPFLY_API_KEY
+ZENROWS_API_KEY
+COMPANIES_HOUSE_API_KEY
+WHOISJSON_API_KEY
+```
 
-Do not ask for:
+`REDIS_URL` and `EXA_1` are compatibility aliases, not additional operator asks.
 
-- GitHub credentials;
-- `DATABASE_URL`;
-- `WHOXY_*` credentials;
-- `REDIS_URL_2` through `REDIS_URL_5`;
-- duplicate Redis or Exa credentials.
+The separate API/browser security boundary uses:
 
-Replit Postgres is platform-managed. `DATABASE_URL` is not an operator-provided secret. If the platform database is unavailable, use the platform database tooling rather than inventing a connection string.
+```text
+APEX_API_AUTH_TOKEN
+APEX_OPERATOR_PASSWORD
+APEX_SESSION_SECRET
+```
 
-Never print secret values, write them to source, commit them, or include them in reports.
+These are deployment security controls, not provider keys. Never print or commit secret values.
+
+Do not ask for GitHub credentials, `DATABASE_URL`, `WHOXY_*`, `REDIS_URL_2`–`REDIS_URL_5`, or DeepSeek/NVIDIA credentials.
 
 ## Install and run
 
-Use the repository's existing package manager, lockfiles, scripts, and configuration. Do not replace dependency management.
+Use the repository's existing pnpm scripts, lockfiles and configuration. Do not scaffold a replacement application.
 
-Run the existing Replit preflight and architecture checks. Build the desk and API using the repository's existing commands. Start the application through the canonical API workflow on port `8080`.
+Replit Postgres is platform-managed. A first-time schema initialization may use the repository's explicit `APEX_ALLOW_SCHEMA_PUSH=true` procedure; schema mutation must not remain enabled during ordinary replica boot.
 
-Fix genuine install, build, or boot failures at their root cause. Do not weaken tests, bypass checks, disable architecture guards, or apply cosmetic patches merely to obtain green output.
+Run the existing preflight, architecture checks, typecheck and build. Start the canonical API workflow on port `8080`. Fix genuine failures at root cause; never weaken tests or architecture checks to obtain green output.
 
-## Expected setup behavior
+## Research acceptance
 
-A successful setup means:
+Boot success is not research success.
 
-- the repository remains on the imported GitHub source of truth;
-- the canonical runtime secret names are present without exposing values;
-- dependencies install;
-- the frontend/desk builds;
-- the API builds;
-- the canonical regression and architecture checks run;
-- the application starts on the expected API workflow;
-- `/api/healthz` can be checked;
-- failures are reported honestly with their actual blocker.
+For live research, preserve the complete Investigator trajectory, actual tool observations, provenance, evidence graph, claims, contradictions, contact states and oversight decisions. Do not seed known URLs or manufacture evidence.
 
-A successful boot is not by itself proof that a research trajectory succeeded. Research readiness and live trajectory evidence are governed by `docs/context.md` and `docs/RUN_BUREAU.md`.
+The next research-quality phase is **Apex Research Gauntlet v1**. Its protocol is in `docs/APEX_RESEARCH_GAUNTLET_V1.md`; its versioned registry is in `benchmarks/research-gauntlet-v1.json`.
 
 ## Final report
 
-Report:
+Report branch, exact commit SHA, configured secret names only, install/preflight/typecheck/build/boot/health results, database initialization status if applicable, and exact blockers.
 
-- branch;
-- commit SHA;
-- configured secret names only, never values;
-- dependency installation result;
-- preflight result;
-- frontend build result;
-- API build result;
-- application boot result;
-- health result;
-- exact remaining blockers, if any.
+A successful setup is not evidence that Apex is better than another research system. Research-system comparisons require matched benchmark runs and the frozen Gauntlet scoring protocol.
 
-Finish with exactly one of:
 
-`SETUP COMPLETE — READY FOR NEXT INSTRUCTIONS`
+## Apex Gemini role-separated credentials
 
-or:
+The canonical Apex Bureau uses separate Gemini credentials by role:
 
-`SETUP BLOCKED — [specific blocker]`
+- `GEMINI_API_KEY` — Gemini Boss.
+- `GEMINI_RIGHT_HAND_API_KEY` — Gemini Right-hand Advisor; there is no fallback to the Boss credential.
+
+Keep both secrets configured in environments that execute the canonical Bureau or the empirical campaign. Never print or expose either secret in logs, reports, screenshots, or client-side code.

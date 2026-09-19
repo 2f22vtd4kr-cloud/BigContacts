@@ -176,7 +176,7 @@ export interface DiscoveryPersonCandidate {
   attributionStatus: "unverified" | "ambiguous" | "probable";
 }
 
-/** Final card publication review: Boss (Gemini) primary → NVIDIA right-hand.
+/** Final card publication review: Boss (Gemini) primary → Gemini right-hand.
  * Deterministic adjudicator always fail-closes on exact eligible values. */
 export async function runFinalTargetReview(
   input: FinalTargetReviewInput,
@@ -184,7 +184,7 @@ export async function runFinalTargetReview(
   const prompt = buildFinalTargetReviewPrompt(input);
   const bossPrompt =
     apexOrientationFor("boss") + "\n\n---\n\nYou are Gemini Boss, Head Investigator for Apex Atlas final card publication.\n" +
-    "Your right-hand (NVIDIA) may advise; you decide publish/review/reject using ONLY exact values supplied below.\n" +
+    "Your right-hand (Gemini) may advise; you decide publish/review/reject using ONLY exact values supplied below.\n" +
     "Never invent contacts, people, addresses, or URLs.\n\n" +
     prompt;
 
@@ -211,10 +211,10 @@ export async function runFinalTargetReview(
     logger.debug({ err: err?.message }, "final-review Gemini Boss unavailable");
   }
 
-  // 2) Right-hand — DeepSeek via NVIDIA Integrate
+  // 2) Right-hand — Gemini Right-hand
   try {
-    const { runDeepSeekFinalReview } = await import("./deepseek-case-reasoning");
-    const rightHand = await runDeepSeekFinalReview(bossPrompt);
+    const { runGeminiRightHandFinalReview } = await import("./gemini-right-hand-reasoning");
+    const rightHand = await runGeminiRightHandFinalReview(bossPrompt);
     if (rightHand.status === "completed" && rightHand.raw) {
       const json = extractJsonObject(rightHand.raw);
       if (json) {
@@ -222,13 +222,13 @@ export async function runFinalTargetReview(
           return adjudicateFinalTargetReview(
             input,
             JSON.parse(json),
-            `deepseek-right-hand-final-review:${rightHand.model}`,
+            `gemini-right-hand-final-review:${rightHand.model}`,
           );
         } catch { /* fall through */ }
       }
     }
   } catch (err: any) {
-    logger.debug({ err: err?.message }, "final-review DeepSeek right-hand unavailable");
+    logger.debug({ err: err?.message }, "final-review Gemini right-hand unavailable");
   }
 
   return adjudicateFinalTargetReview(input, {}, "unavailable-final-review");
@@ -1654,7 +1654,7 @@ export function getAIKeyStatus(): AIKeyStatus {
   const exaNames  = ["EXA_API_KEY", "EXA_1", "EXA_2", ...Array.from({ length: 8 }, (_, i) => `EXA_API_KEY_${i + 1}`)];
   const serperNames = ["SERPER_API_KEY", "SERPER_KEY", "SERPER_API_KEY_2", "SERPER_API_KEY_3"];
   const mistralNames = ["MISTRAL_API_KEY", "MISTRAL_KEY"];
-  const nvidiaNames = ["DEEPSEEK_API_KEY", "DEEPSEEK_API_KEY", "DEEPSEEK_API_KEY"];
+  const nvidiaNames = ["GEMINI_API_KEY", "GEMINI_API_KEY", "GEMINI_API_KEY"];
 
   return {
     groq:       groqNames.map((n, i) => slotState(n, _exhaustedGroqKeys,             i)),

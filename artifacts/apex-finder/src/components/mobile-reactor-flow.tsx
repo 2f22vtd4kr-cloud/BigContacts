@@ -9,8 +9,10 @@ import { DigSpanTrajectory } from "@/components/dig-span-trajectory";
 import { humanizeLiveStep, isInternalLiveDump } from "@/lib/humanize-live-copy";
 import { formatSchedulerCountdown, schedulerWaitRemaining } from "./scheduler-utils";
 import { BureauOpsStage } from "./bureau-ops-stage";
+import { ResearchReplay } from "./research-replay";
 import { useBureauLiveDesk } from "../lib/use-bureau-live";
 import { useReactorLiveTelemetry } from "../lib/reactor-live-store";
+import { ReactorLiveSurface } from "./reactor-live-surface";
 import { REACTOR_ARM_MS, REACTOR_CSS, REACTOR_CELEBRATE_MS, REACTOR_SHIMMER_MS, REACTOR_SCENE_MS, REACTOR_UI_MS, motionOrNone, prefersReducedMotion } from "../lib/reactor-motion";
 
 interface ResearchSession {
@@ -638,6 +640,17 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
           {edgeHint}
         </div>
       )}
+      {isLive && (
+        <div className="mx-auto w-full max-w-lg px-3 pt-2" data-testid="mobile-reactor-live-feed">
+          <ReactorLiveSurface
+            events={[]}
+            activities={telemetryActivities}
+            targetName={atlasState?.atlasTelemetry?.targetName || atlasState?.currentEntities?.[0]}
+            compact
+            showTopology={false}
+          />
+        </div>
+      )}
       {/* Primary: immersive tool window — what Atlas is doing right now */}
       <div
         className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-4"
@@ -874,6 +887,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
                     }
                   }}
                 />
+                {showHistory && <ResearchReplay events={deskEvents as any} compact />}
               </div>
             </section>
           ) : (

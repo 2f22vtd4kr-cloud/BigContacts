@@ -5,7 +5,7 @@
 There are only two AI layers:
 
 ```text
-BOSS (Gemini) + RIGHT-HAND (DeepSeek via NVIDIA NIM)
+BOSS (Gemini) + RIGHT-HAND (Gemini)
         │
         │ consult + select Investigator LLM + suggest tools
         ↓
@@ -19,7 +19,7 @@ REPORT EVERY ACT → target/run living investigation document
                     ↺ continue / redirect / challenge / stop
 ```
 
-Groq, Mistral, or any other configured Investigator LLM is an **investigator**, not an additional decision layer. DeepSeek/NVIDIA is Right-hand only. Gemini is Boss only.
+Groq or Mistral is an **investigator**, not an additional decision layer. Gemini is used for both bounded oversight roles and is never an Investigator.
 
 ## Mode 1 — Single-target re-cook
 
@@ -54,13 +54,13 @@ Operator → Atlas
   → Investigator proposes promotion
 ```
 
-There is no the selected Investigator LLM owns the investigation decision between the oversight layer and the Investigator LLM. There is no forced search sequence or deterministic research fallback.
+The selected Investigator LLM owns the investigation decision between the oversight layer and the Investigator LLM. There is no forced search sequence or deterministic research fallback.
 
 ## Mode 3 — Case Bureau adaptive
 
 ```text
 Case file
-  → Boss (Gemini) + Right-hand (DeepSeek/NVIDIA)
+  → Boss (Gemini) + Right-hand (Gemini)
        → choose Investigator LLM
        → set assignment / constraints
        → suggest useful tools
@@ -85,7 +85,7 @@ No usable Investigator LLM
   → stop/fail closed
 ```
 
-Never replace a failed Investigator with Gemini or DeepSeek/NVIDIA. Never replace it with deterministic research.
+Never replace a failed Investigator with Gemini. Never replace it with deterministic research.
 
 ## Tool semantics
 

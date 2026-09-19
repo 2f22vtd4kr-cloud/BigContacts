@@ -210,24 +210,10 @@ If Redis is down, verify REDIS_URL_1, canonical boot aliasing, and workflow comm
 If bureauIntegrity=critical, do not run a fake proof. Diagnose whether the cause is provider key/auth/quota, endpoint/model failure, timeout, malformed response, or source/runtime failure.
 
 ============================================================
-DEEPSEEK SMOKE — BEFORE DISCOVERY
+GEMINI RIGHT-HAND SMOKE — BEFORE DISCOVERY
 ============================================================
 
-Perform one tiny right-hand provider smoke through the application's actual provider abstraction.
-
-The smoke must:
-- use DEEPSEEK_API_KEY
-- use NVIDIA Integrate
-- use deepseek-ai/deepseek-v4-flash-0731
-- use high reasoning effort
-- return actual model content
-- handle reasoning/reasoning_content if exposed
-- not browse
-- not create entities
-- not execute Dig tools
-- not print the secret
-
-This is a provider readiness test, not research proof.
+Perform one tiny Right-hand provider smoke through the application's actual Gemini abstraction using GEMINI_API_KEY. Do not browse.
 
 ============================================================
 DESK

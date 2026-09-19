@@ -20,6 +20,7 @@ import { logger } from "../lib/logger";
 const router = Router();
 const HEARTBEAT_MS = 15_000;
 const POLL_MS = 2_000;
+const SEEN_ID_CAP = 500;
 
 router.get("/ingest/bureau-events", async (req: Request, res: Response): Promise<void> => {
   const caseId = typeof req.query.caseId === "string" ? req.query.caseId : null;
@@ -38,35 +39,66 @@ router.get("/ingest/bureau-stream", async (req: Request, res: Response): Promise
   writeSseHeaders(res);
   res.write(`retry: 3000\n\n`);
 
-  let lastTsMs = 0;
+  // Do not use timestamp-only cursors here. Multiple Bureau events can be
+  // published within the same millisecond; a `tsMs > lastTsMs` cursor can then
+  // silently drop real research actions from the live Reactor. Event IDs are
+  // unique, so a bounded seen-set gives us exact per-connection de-duplication
+  // without inventing an ordering field in the durable event contract.
+  const seenIds = new Set<string>();
+  const remember = (id: string) => {
+    if (!id) return;
+    seenIds.add(id);
+    if (seenIds.size <= SEEN_ID_CAP) return;
+    const oldest = seenIds.values().next().value as string | undefined;
+    if (oldest) seenIds.delete(oldest);
+  };
+
   let closed = false;
+  let pollId: NodeJS.Timeout | undefined;
+  let hbId: NodeJS.Timeout | undefined;
+
+  const close = () => {
+    if (closed) return;
+    closed = true;
+    if (pollId) clearInterval(pollId);
+    if (hbId) clearInterval(hbId);
+  };
+  req.on("close", close);
+
   const sendSnapshot = async () => {
     const events = await listBureauEvents({ caseId, limit: 50 });
-    if (events.length) lastTsMs = Math.max(lastTsMs, events[0]!.tsMs);
+    if (closed) return;
+    for (const event of events) remember(event.id);
     sseSend(res, "snapshot", { events, caseId, serverTime: new Date().toISOString() });
   };
   const tick = async () => {
     if (closed) return;
     try {
-      const events = await listBureauEvents({ caseId, limit: 40 });
-      const fresh = events.filter((e) => e.tsMs > lastTsMs).reverse();
+      const events = await listBureauEvents({ caseId, limit: 50 });
+      if (closed) return;
+      // Redis returns newest-first. Reverse only the unseen subset so the client
+      // receives a causal oldest -> newest burst when several actions arrived
+      // between polls. No timestamp tie-breaker is needed for de-duplication.
+      const fresh = events.filter((event) => !seenIds.has(event.id)).reverse();
       for (const event of fresh) {
-        lastTsMs = Math.max(lastTsMs, event.tsMs);
+        if (closed) return;
+        remember(event.id);
         sseSend(res, "bureau", event);
       }
     } catch (err: any) {
-      logger.debug({ err: err?.message }, "bureau-stream poll failed");
+      if (!closed) logger.debug({ err: err?.message }, "bureau-stream poll failed");
     }
   };
 
   await sendSnapshot().catch(() => undefined);
-  const pollId = setInterval(() => { void tick(); }, POLL_MS);
-  const hbId = setInterval(() => {
+  if (closed) return;
+
+  pollId = setInterval(() => { void tick(); }, POLL_MS);
+  hbId = setInterval(() => {
     if (closed) return;
     sseComment(res, "ping");
     sseSend(res, "heartbeat", { serverTime: new Date().toISOString(), caseId });
   }, HEARTBEAT_MS);
-  req.on("close", () => { closed = true; clearInterval(pollId); clearInterval(hbId); });
 });
 
 // There is deliberately no HTTP event-ingest endpoint. Internal event writers

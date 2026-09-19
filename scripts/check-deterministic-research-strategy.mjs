@@ -2,7 +2,14 @@ import fs from "node:fs";
 import path from "node:path";
 
 const root = process.cwd();
-const source = fs.readFileSync(path.join(root, "artifacts/api-server/src/src/lib/canonical-atlas-discovery.ts"), "utf8");
+const paths = [
+  "artifacts/api-server/src/src/lib/canonical-atlas-discovery.ts",
+  "artifacts/api-server/src/src/lib/agentic-web-research-core.ts",
+  "artifacts/api-server/src/src/lib/bureau-agentic-pass.ts",
+  "artifacts/api-server/src/src/lib/target-contact-agent.ts",
+  "artifacts/api-server/src/src/lib/canonical-single-target-runner.ts",
+];
+const source = paths.map((relative) => `\\n--- ${relative} ---\\n${fs.readFileSync(path.join(root, relative), "utf8")}`).join("\\n");
 const forbidden = [
   /google(?:Search|SearchQuery)/i,
   /bing(?:Search|SearchQuery)/i,

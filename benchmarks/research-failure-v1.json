@@ -1,0 +1,21 @@
+{
+  "schemaVersion": "research-failure-v1",
+  "failureClasses": [
+    "IDENTITY_COLLISION","IDENTITY_OVERCOMMITMENT","INSUFFICIENT_EVIDENCE",
+    "MISLEADING_SEARCH_RESULT","STALE_SOURCE","COPIED_CONTACT","WRONG_ENTITY",
+    "CONTACT_MISATTRIBUTION","CONTRADICTION_MISCLASSIFICATION","MISSED_PIVOT",
+    "UNNECESSARY_PIVOT","TOOL_SELECTION_ERROR","PREMATURE_STOP","LATE_STOP",
+    "PROMPT_INJECTION","SOURCE_QUALITY_ERROR","SYSTEM_FAILURE"
+  ],
+  "record": {
+    "failureId": "required",
+    "runId": "required",
+    "caseId": "required",
+    "class": "required",
+    "severity": "low|medium|high|critical",
+    "evidenceObservationIds": [],
+    "description": "required",
+    "rootCause": "required",
+    "regressionCaseId": null
+  }
+}

@@ -1,8 +1,8 @@
 /**
  * Compact header chip: API key / provider health.
  * Soft-fails offline so the shell still renders.
- * Falls back to /api/healthz when /api/system/status is slow or fails —
- * so Overview never shows KEYS OFF while the ledger shows 5 LIVE.
+ * Public healthz exposes only a coarse key-readiness bit; detailed provider
+ * counts remain behind the authenticated system-status endpoint.
  */
 import { useEffect, useState } from "react";
 import { KeyRound, Loader2 } from "lucide-react";
@@ -14,23 +14,15 @@ const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
 type ChipState = "loading" | "ok" | "degraded" | "offline";
 
-async function countLiveFromHealthz(): Promise<number | null> {
+type PublicHealth = {
+  researchKeysConfigured?: boolean;
+};
+
+async function fetchPublicHealth(): Promise<PublicHealth | null> {
   try {
-    const r = await fetch(`${BASE}/api/healthz`, { cache: "no-store" });
+    const r = await fetch(`${BASE}/api/healthz`, { cache: "no-store", credentials: "same-origin" });
     if (!r.ok) return null;
-    const j = await r.json();
-    const prov = j.providers ?? {};
-    const lanes = j.lanesHonesty ?? {};
-    let n = 0;
-    for (const k of ["groq", "gemini", "tavily", "exa", "mistral", "nvidiaNim", "serper", "companiesHouse", "scrapfly", "zenrows"] as const) {
-      const v = prov[k] ?? lanes[k];
-      if (typeof v === "number" && v > 0) n += v;
-    }
-    // Prefer lane aggregates when they are higher (honest total capacity)
-    const web = typeof lanes.webSearchActive === "number" ? lanes.webSearchActive : 0;
-    const agentic = typeof lanes.agenticLlmSlots === "number" ? lanes.agenticLlmSlots : 0;
-    n = Math.max(n, web + agentic, web, agentic);
-    return n > 0 ? n : 0;
+    return (await r.json()) as PublicHealth;
   } catch {
     return null;
   }
@@ -43,29 +35,18 @@ export function ApiKeyHealth({ className }: { className?: string }) {
   useEffect(() => {
     let cancelled = false;
     const tick = async () => {
-      // Prefer healthz first — includes serper/mistral/nvidiaNim/webSearchActive.
-      // system/status alone can under-count and paint false KEYS OFF (LIVE-18).
-      const hz = await countLiveFromHealthz();
+      const health = await fetchPublicHealth();
       if (cancelled) return;
-      if (hz != null && hz > 0) {
+
+      // This is intentionally only a coarse public readiness signal. Never expose
+      // provider names, counts, rate limits, or secret state on the public shell.
+      if (health?.researchKeysConfigured) {
         setState("ok");
-        setLabel(`${hz} LIVE`);
-        // Still merge system/status for rate-limit tone when available
-        try {
-          const status = await fetchSystemStatus(BASE || "");
-          if (cancelled) return;
-          const summary = summarizeApiKeys(status);
-          if (summary.rateLimited > 0) {
-            setState("degraded");
-            if (summary.active > 0) setLabel(`${Math.max(hz, summary.active)} LIVE`);
-          } else if (summary.active > hz) {
-            setLabel(`${summary.active} LIVE`);
-          }
-        } catch {
-          /* healthz already won */
-        }
-        return;
+        setLabel("KEYS SET");
       }
+
+      // If an operator session exists, upgrade the coarse state to the precise
+      // authenticated provider summary. If not, keep the honest public signal.
       try {
         const status = await fetchSystemStatus(BASE || "");
         if (cancelled) return;
@@ -84,8 +65,10 @@ export function ApiKeyHealth({ className }: { className?: string }) {
         setLabel("KEYS OFF");
       } catch {
         if (cancelled) return;
-        setState("offline");
-        setLabel("KEYS OFF");
+        if (!health?.researchKeysConfigured) {
+          setState("offline");
+          setLabel("KEYS OFF");
+        }
       }
     };
     tick();

@@ -23,10 +23,10 @@ assert(hasAll(target, ['promote: isExplicitCandidate && f.promotionDecision === 
 assert(hasAll(target, ["execution=success", "observed=(https?:", "claimAppearsInObservedMaterial", "record.observation"]), "target validates claims against successful observed material");
 assert(hasAll(target, ["status: \"cancelled\"", "executionId: agentic.executionId"]), "target preserves cancellation as a distinct result and execution identity");
 assert(hasAll(bureau, ["persistSourceBackedBureauContactsForEntity", "sourceBackedAgenticFindings", "claimAppearsInObservedMaterial", "record.observation"]), "bureau pass uses strict persistence and observed-material claim validation");
-assert(hasAll(bureau, ['promote: isExplicitCandidate && f.promotionDecision === "promote"', "state: \"review_only\"", "tier: \"candidate\""]), "bureau pass preserves explicit Investigator promotion semantics");
-assert(hasAll(bureau, ["runId?: string", "randomUUID()", "trajectoryRecords"]), "bureau pass creates run-scoped Investigator executions with structured trajectory");
-assert(hasAll(bureau, ["correlationKey", "record.turn", "runId: input.runId"]), "bureau trajectory/event persistence is run-scoped");
-assert(bureau.includes('agentic.status === "cancelled" ? "cancelled"') && bureau.includes("mappedStatus"), "bureau result preserves the distinct cancelled state");
+assert(hasAll(bureau, ['promote:candidate&&f.promotionDecision==="promote"', "state:\"review_only\"", "tier:\"candidate\""]), "bureau pass preserves explicit Investigator promotion semantics");
+assert(hasAll(bureau, ["runId?:string", "randomUUID()", "trajectoryRecords"]), "bureau pass creates run-scoped Investigator executions with structured trajectory");
+assert(hasAll(bureau, ["correlationKey", "record.turn", "runId:input.runId"]), "bureau trajectory/event persistence is run-scoped");
+assert(bureau.includes('agentic.status==="cancelled"?"cancelled"') && bureau.includes("mappedStatus"), "bureau result preserves the distinct cancelled state");
 assert(hasAll(strict, ["export type InvestigatorPromotionProvenance", "isClaimSourceUrl", "SEARCH_QUERY_URL", "observedSourceUrls"]), "strict boundary requires typed promotion provenance and rejects query URLs");
 assert(hasAll(strict, ["item.promote", "scope", "personName", "candidate", "Gatekeeper"]), "strict boundary requires explicit promotion, candidate scope, and person identity");
 assert(hasAll(strict, ["entity.name", "personName", "assessIdentityCollision"]), "strict boundary verifies destination identity before trusted mutation");
@@ -40,7 +40,7 @@ assert(hasAll(control, ["structuredTrajectory", "discoveryTrajectoryRecords", "P
 assert(atlas.includes("trajectoryRecords: [...(discovery.trajectoryRecords ?? []), ...(nextDiscovery.trajectoryRecords ?? [])]"), "Atlas preserves trajectory records across discovery pivots");
 assert(atlas.includes('mode: "discovery"'), "Atlas uses explicit discovery mode");
 assert(!atlas.includes("Discovery slot"), "Atlas has no fake Discovery target slot");
-assert(hasAll(bureau, ['mode?: "target" | "discovery"', 'input.mode !== "discovery"']), "Bureau discovery mode is explicit");
+assert(hasAll(bureau, ['mode?:"target"|"discovery"', 'input.mode!=="discovery"']), "Bureau discovery mode is explicit");
 assert(atlas.includes("runCanonicalSingleTargetInvestigation"), "Atlas routes admitted targets through canonical single-target control");
 assert(hasAll(atlas, ["reviewOnly: true", "admission: \"investigator-explicit-promotion\"", "sourceUrl", "target-scoped Investigator research required"]), "discovery admission remains review-only identity state with source provenance and requires target-scoped research before contact promotion");
 assert(continuation.includes("refusing context-free continuation"), "case continuation fails closed without durable context");
