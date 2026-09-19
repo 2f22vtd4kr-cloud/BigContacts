@@ -973,13 +973,7 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
       }}>
         <div style={{ display:"flex", alignItems:"center", gap:10, minWidth:0 }}>
           {/* Nuclear icon */}
-          <span style={{
-            fontSize:32, lineHeight:1, flexShrink:0,
-            color: hasSessions ? "#b8ff4d" : "#253850",
-            textShadow: hasSessions ? "0 0 12px #b8ff4d44" : "none",
-            animation: hasSessions ? motionOrNone("breathe 3s ease-in-out infinite") : "none",
-            transition:"all 0.4s",
-          }}>☢</span>
+          <span aria-hidden="true" style={{ width:32, height:32, flexShrink:0, display:"grid", placeItems:"center", color: hasSessions ? "#b8ff4d" : "#253850", filter: hasSessions ? "drop-shadow(0 0 8px rgba(184,255,77,.22))" : "none", transition:"all 0.4s" }}><ReactorMark size={32} /></span>>
 
           <div style={{ flex:1, minWidth:0 }}>
             <div style={{
@@ -2000,6 +1994,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
               compact
               title=""
             />
+            {!isLive && deskEvents.length > 0 && <ResearchReplay events={deskEvents as any} />}
             </div>{/* desk scroll body */}
           </div>
         )}
