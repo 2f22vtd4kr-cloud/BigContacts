@@ -76,3 +76,13 @@ The next research-quality phase is **Apex Research Gauntlet v1**. Its protocol i
 Report branch, exact commit SHA, configured secret names only, install/preflight/typecheck/build/boot/health results, database initialization status if applicable, and exact blockers.
 
 A successful setup is not evidence that Apex is better than another research system. Research-system comparisons require matched benchmark runs and the frozen Gauntlet scoring protocol.
+
+
+## Apex Gemini role-separated credentials
+
+The canonical Apex Bureau uses separate Gemini credentials by role:
+
+- `GEMINI_API_KEY` — Gemini Boss.
+- `GEMINI_RIGHT_HAND_API_KEY` — Gemini Right-hand Advisor; there is no fallback to the Boss credential.
+
+Keep both secrets configured in environments that execute the canonical Bureau or the empirical campaign. Never print or expose either secret in logs, reports, screenshots, or client-side code.
