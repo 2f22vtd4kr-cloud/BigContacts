@@ -548,6 +548,8 @@ export async function resolveGeminiBossModel(preferredKeyName?: string): Promise
     try {
       const response = await fetch(`${GEMINI_MODELS_API}?key=${encodeURIComponent(entry.key)}`, {
         headers: { Accept: "application/json" },
+        // Model discovery must fail closed within the investigation budget.
+        signal: AbortSignal.timeout(15_000),
       });
       if (!response.ok) continue;
       const payload = await response.json() as { models?: GeminiModelCatalogEntry[] };
