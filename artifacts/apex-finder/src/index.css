@@ -316,19 +316,22 @@ body {
   .atlas-home-primary-row {
     width: 100%;
   }
-  .atlas-home-primary-row > * {
+  .atlas-home-primary-row > .atlas-launch-primary-root {
     display: grid;
     grid-template-columns: 9rem minmax(0, 14.75rem);
     gap: var(--atlas-hero-gap);
     width: 100%;
   }
-  .atlas-home-primary-row > * > select {
+  .atlas-home-primary-row > .atlas-launch-primary-root > select {
     width: 9rem;
     min-width: 0;
   }
-  .atlas-home-primary-row .atlas-home-launch {
+  .atlas-home-primary-row > .atlas-launch-primary-root > .atlas-home-launch {
     width: 14.75rem !important;
     min-width: 14.75rem !important;
+  }
+  .atlas-home-primary-row > .atlas-launch-primary-root > p {
+    grid-column: 1 / -1;
   }
   .atlas-home-secondary-row {
     width: 14.75rem;
