@@ -444,9 +444,14 @@ export async function generateGeminiBossText(
     ...(selection.candidateModels ?? []),
   ])];
   let lastError = `Gemini Boss ${selection.model} did not return text.`;
+  // Boss generation is part of the target investigation deadline. Bound the entire
+  // model/key fallback chain, not just each individual HTTP request.
+  const bossDeadline = Date.now() + 55_000;
 
   for (const entry of keyEntries) {
     for (const model of models) {
+      const remainingMs = bossDeadline - Date.now();
+      if (remainingMs <= 0) return { model: selection.model, raw: null, error: "Gemini Boss generation deadline exceeded." };
       try {
         const response = await fetch(
           `${GEMINI_MODELS_API.replace("/models", `/models/${encodeURIComponent(model)}:generateContent`)}`,
@@ -465,7 +470,7 @@ export async function generateGeminiBossText(
                 responseMimeType: "application/json",
               },
             }),
-            signal: AbortSignal.timeout(45_000),
+            signal: AbortSignal.timeout(Math.min(15_000, Math.max(1_000, remainingMs))),
           },
         );
 
@@ -506,6 +511,7 @@ export async function generateGeminiBossText(
         lastError = `Gemini Boss ${model} returned no text.`;
       } catch (error) {
         lastError = error instanceof Error ? error.message : "Gemini Boss generation failed.";
+        if (Date.now() >= bossDeadline) return { model: selection.model, raw: null, error: "Gemini Boss generation deadline exceeded." };
       }
     }
   }
