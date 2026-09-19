@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+vi.mock("../lib/gemini-transient-retry", () => ({
+  installGeminiTransientRetry: vi.fn(),
+}));
+
 describe("Gemini transient retry boundary", () => {
   const nativeFetch = globalThis.fetch;
   const nativeSetTimeout = globalThis.setTimeout;
@@ -113,5 +117,4 @@ describe("Gemini transient retry boundary", () => {
     expect(result.error).toContain("GEMINI_RIGHT_HAND_API_KEY");
     expect(providerFetch).not.toHaveBeenCalled();
   });
-
 });
