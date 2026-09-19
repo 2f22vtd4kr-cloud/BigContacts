@@ -10,11 +10,12 @@ describe("Gemini Right-hand free-model fallback", () => {
 
   afterEach(() => {
     globalThis.fetch = originalFetch;
+    delete process.env.GEMINI_RIGHT_HAND_API_KEY;
     vi.restoreAllMocks();
   });
 
   it("falls from Gemini 3.8 Flash to the next free Flash model on capacity 429", async () => {
-    process.env.GEMINI_API_KEY = "test-key";
+    process.env.GEMINI_RIGHT_HAND_API_KEY = "test-key";
     const calls: string[] = [];
     globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
@@ -34,7 +35,7 @@ describe("Gemini Right-hand free-model fallback", () => {
   });
 
   it("walks the complete bounded free-model chain when every model is capacity-limited", async () => {
-    process.env.GEMINI_API_KEY = "test-key";
+    process.env.GEMINI_RIGHT_HAND_API_KEY = "test-key";
     const calls: string[] = [];
     globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {
       calls.push(String(input));
