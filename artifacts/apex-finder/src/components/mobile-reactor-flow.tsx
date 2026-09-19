@@ -9,6 +9,7 @@ import { DigSpanTrajectory } from "@/components/dig-span-trajectory";
 import { humanizeLiveStep, isInternalLiveDump } from "@/lib/humanize-live-copy";
 import { formatSchedulerCountdown, schedulerWaitRemaining } from "./scheduler-utils";
 import { BureauOpsStage } from "./bureau-ops-stage";
+import { ResearchReplay } from "./research-replay";
 import { useBureauLiveDesk } from "../lib/use-bureau-live";
 import { useReactorLiveTelemetry } from "../lib/reactor-live-store";
 import { ReactorLiveSurface } from "./reactor-live-surface";
@@ -886,6 +887,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
                     }
                   }}
                 />
+                {showHistory && <ResearchReplay events={deskEvents as any} compact />}
               </div>
             </section>
           ) : (
