@@ -14,14 +14,15 @@ type GeminiRequestResult = { raw: string; error: string | null; model: string };
 export type GeminiRightHandStatus = { configured: boolean; model: string; fallbackModels: string[]; endpoint: string; role: "right_hand_advisor"; capability: "case_file_reasoning_only" };
 export type GeminiRightHandCaseReasoningResult = { status: "completed" | "unavailable"; model: string; actionId: string | null; decision: string | null; reason: string | null; confidence: number | null; error: string | null };
 export type GeminiRightHandDiscoveryAdviceResult = { status: "completed" | "unavailable"; model: string; decision: string | null; reason: string | null; focusLanes: string[]; confidence: number | null; error: string | null };
-function key(): string | null { return process.env.GEMINI_API_KEY?.trim() || null; }
+const RIGHT_HAND_KEY_ENV = "GEMINI_RIGHT_HAND_API_KEY";
+function key(): string | null { return process.env[RIGHT_HAND_KEY_ENV]?.trim() || null; }
 function modelChain(): string[] { const configured = process.env.GEMINI_RIGHT_HAND_MODEL_CHAIN?.split(",").map((value) => value.trim()).filter(Boolean); if (!configured?.length) return [...GEMINI_RIGHT_HAND_MODEL_CHAIN]; return Array.from(new Set([configured[0], ...configured.slice(1), ...GEMINI_RIGHT_HAND_FALLBACK_MODELS])); }
 function textOf(response: GeminiResponse | null): string { return (response?.candidates?.[0]?.content?.parts ?? []).map((part) => part.text ?? "").join(" ").trim(); }
 function extractJson(raw: string): Record<string, unknown> | null { const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)```/i)?.[1]?.trim(); const source = fenced || raw.trim(); const start = source.indexOf("{"), end = source.lastIndexOf("}"); if (start < 0 || end <= start) return null; try { const value = JSON.parse(source.slice(start, end + 1)); return value && typeof value === "object" ? value as Record<string, unknown> : null; } catch { return null; } }
 function shouldFallback(status: number): boolean { return status === 404 || status === 408 || status === 429 || status === 500 || status === 502 || status === 503 || status === 504; }
 function isLiteModel(model: string): boolean { return /flash-lite/i.test(model); }
 async function request(system: string, user: string): Promise<GeminiRequestResult> {
-  const apiKey = key(); if (!apiKey) return { raw: "", error: "GEMINI_API_KEY is not configured.", model: GEMINI_RIGHT_HAND_MODEL }; const chain = modelChain(); const failures: string[] = [];
+  const apiKey = key(); if (!apiKey) return { raw: "", error: "GEMINI_RIGHT_HAND_API_KEY is not configured.", model: GEMINI_RIGHT_HAND_MODEL }; const chain = modelChain(); const failures: string[] = [];
   for (const model of chain) {
     const controller = new AbortController(); const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
     try {
