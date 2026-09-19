@@ -1,7 +1,8 @@
 import { Layout } from "@/components/layout";
 import { Route, Switch, Redirect, useParams, useSearch } from "wouter";
+import { lazy, Suspense } from "react";
 import Dashboard from "@/pages/dashboard";
-import GraphViewer from "@/pages/graph";
+const GraphViewer = lazy(() => import("@/pages/graph"));
 import EntityLedger from "@/pages/entities";
 import ApexProfile from "@/pages/profile";
 import FieldManual from "@/pages/manual";
@@ -41,6 +42,7 @@ function ProfileRoute() {
 export default function AppRouter() {
   return (
     <Layout>
+      <Suspense fallback={<div className="flex min-h-[40vh] items-center justify-center text-xs font-mono uppercase tracking-[.18em] text-stone-600" role="status">Loading workspace…</div>}>
       <Switch>
         {/* ── Primary routes ── */}
         <Route path="/" component={Dashboard} />
@@ -69,6 +71,7 @@ export default function AppRouter() {
 
         <Route component={NotFound} />
       </Switch>
+      </Suspense>
     </Layout>
   );
 }
