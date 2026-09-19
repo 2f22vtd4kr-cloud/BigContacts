@@ -18,10 +18,10 @@ describe("canonical terminal state", () => {
     });
   });
 
-  it("cannot convert a local cancellation into a successful completion", () => {
+  it("treats durable completion as authoritative even if the worker notices a late cancellation", () => {
     expect(deriveCanonicalTerminalDecision({ durableCaseStatus: "complete", locallyCancelled: true })).toEqual({
-      jobStatus: "cancelled",
-      outcome: "incomplete",
+      jobStatus: "done",
+      outcome: "complete",
       caseStatus: "complete",
     });
   });
