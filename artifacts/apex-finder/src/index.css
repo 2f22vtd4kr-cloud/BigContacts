@@ -126,11 +126,25 @@ body {
    Hierarchy: primary (animated gradient) > secondary outline > state (pause/stop)
 */
 :root {
+  /* Final product-system tokens: state is semantic, decoration is subordinate. */
   --atlas-teal: #00b3b8;
   --atlas-lime: #9cff1a;
   --atlas-navy: #111827;
   --atlas-white: #f8fafc;
   --atlas-coral: #ff4d6d;
+
+  --atlas-surface-0: #0a1018;
+  --atlas-surface-1: #0d1219;
+  --atlas-surface-2: #111827;
+  --atlas-border: rgba(255,255,255,.08);
+  --atlas-border-strong: rgba(156,255,26,.28);
+  --atlas-text-soft: #94a3b8;
+  --atlas-text-dim: #64748b;
+  --atlas-focus: #b8ff4d;
+  --atlas-warning: #fbbf24;
+  --atlas-danger: #fb7185;
+  --atlas-touch: 44px;
+  --atlas-ease: cubic-bezier(.2,1,.32,1);
 }
 
 /* Primary CTA — Figma-style animated gradient (teal ↔ lime), readable white type */
@@ -306,5 +320,35 @@ body {
   .atlas-page > section.atlas-enter.atlas-ambient-gold.relative > div:nth-of-type(3) > div:nth-child(2) > a {
     min-width: 0;
     width: 50%;
+  }
+}
+
+/* Final Reactor affordances: quiet surfaces, strong focus, safe-area-aware touch targets. */
+.reactor-surface {
+  background: var(--atlas-surface-0);
+  border: 1px solid var(--atlas-border);
+  border-radius: 16px;
+}
+.reactor-touch-target {
+  min-width: var(--atlas-touch);
+  min-height: var(--atlas-touch);
+  touch-action: manipulation;
+}
+.reactor-focus-ring:focus-visible {
+  outline: 2px solid var(--atlas-focus);
+  outline-offset: 3px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .reactor-live-pulse,
+  .reactor-live-pulse::before,
+  .reactor-live-pulse::after {
+    animation: none !important;
+  }
+}
+@media (max-width: 639px) {
+  .reactor-mobile-safe {
+    padding-left: max(12px, env(safe-area-inset-left));
+    padding-right: max(12px, env(safe-area-inset-right));
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
   }
 }
