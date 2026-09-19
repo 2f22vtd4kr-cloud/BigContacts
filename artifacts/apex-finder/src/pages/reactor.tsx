@@ -1635,7 +1635,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
             boxShadow:`0 0 14px ${adaptive ? "#9CFF1A55" : "#b8ff4d55"}`,
             animation: adaptive ? motionOrNone("pulseGlow 0.7s ease-in-out infinite") : motionOrNone("breathe 3s ease-in-out infinite"),
           }}>
-            <span style={{ lineHeight:1, display:"block", marginTop:1 }}>☢</span>
+            <ReactorMark size={18} />
           </div>
           <div style={{ minWidth:200, flexShrink:0 }}>
             <div style={{ fontSize:12, fontWeight:700, letterSpacing:"0.2em", color:"#e8e0cc" }}>
