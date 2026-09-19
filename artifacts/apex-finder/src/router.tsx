@@ -12,7 +12,7 @@ const DataSources = lazy(() => import("@/pages/data-sources"));
 const Duplicates = lazy(() => import("@/pages/duplicates"));
 const OsintToolsDirectory = lazy(() => import("@/pages/osint-tools"));
 const BackgroundJobs = lazy(() => import("@/pages/jobs"));
-import IntelligenceReactorPage from "@/pages/reactor";
+const IntelligenceReactorPage = lazy(() => import("@/pages/reactor"));
 const IntelTerminal = lazy(() => import("@/pages/research"));
 import NotFound from "@/pages/not-found";
 const SystemStatusPage = lazy(() => import("@/pages/status"));
