@@ -12,6 +12,7 @@ on:
       - "scripts/check-frontend-responsive.mjs"
       - "scripts/check-reactor-live-integrity.mjs"
       - "scripts/check-apex-home-ui.mjs"
+      - "scripts/check-apex-frontend-polish.mjs"
       - "scripts/apply-reactor-live-integration.mjs"
       - "scripts/apply-reactor-activity-only.mjs"
       - "scripts/apply-profile-commit-timestamp.mjs"
@@ -58,6 +59,8 @@ jobs:
         run: node scripts/check-reactor-live-integrity.mjs
       - name: Check Apex home UI contract
         run: node scripts/check-apex-home-ui.mjs
+      - name: Check Apex frontend polish contract
+        run: node scripts/check-apex-frontend-polish.mjs
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
