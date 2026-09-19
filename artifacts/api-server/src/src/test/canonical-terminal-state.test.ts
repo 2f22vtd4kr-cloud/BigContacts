@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { deriveCanonicalTerminalDecision } from "../lib/canonical-single-target-runner";
+import { deriveCanonicalTerminalDecision } from "../lib/canonical-terminal-state";
 
 describe("canonical terminal state", () => {
   it("marks the job done only when the durable case is complete", () => {
