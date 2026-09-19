@@ -52,7 +52,8 @@ assert(!/Begin\. Choose an initial web_search query/i.test(source.research), "Re
 assert(!/\(none — begin with web_search\)/i.test(source.research), "ReAct prompt still tells a contextually autonomous Investigator to begin with web_search.");
 
 // Right-hand is Gemini oversight, independent of Boss and never an Investigator fallback.
-assert(/GEMINI_API_KEY/.test(source.rightHand), "Gemini Right-hand does not use the canonical GEMINI_API_KEY.");
+assert(/GEMINI_RIGHT_HAND_API_KEY/.test(source.rightHand), "Gemini Right-hand does not use the dedicated GEMINI_RIGHT_HAND_API_KEY.");
+assert(!/process\.env\.GEMINI_API_KEY/.test(source.rightHand), "Gemini Right-hand still directly reads the Boss GEMINI_API_KEY.");
 assert(/gemini-3\.8-flash/i.test(source.rightHand), "Gemini Right-hand model is not pinned to Gemini 3.8 Flash.");
 assert(!/DEEPSEEK|NVIDIA_NIM|nvidia/i.test(source.rightHand), "retired DeepSeek/NVIDIA provider remains in the Right-hand implementation.");
 assert(/case-file|case file/i.test(source.rightHand) && /brows/i.test(source.rightHand), "Right-hand is not explicitly case-file-only/no-browse.");
