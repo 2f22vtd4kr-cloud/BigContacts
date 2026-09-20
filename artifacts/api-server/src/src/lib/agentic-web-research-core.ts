@@ -51,7 +51,7 @@ async function callGroqJson(prompt: string, signal: AbortSignal): Promise<{ mode
         body: JSON.stringify({
           model,
           max_completion_tokens: 768,
-          ...(\/^(qwen\\/qwen3\\.8|openai\\/gpt-oss-)/.test(model) ? { reasoning_effort: (process.env.GROQ_AGENTIC_REASONING_EFFORT || "medium") } : {}),
+          ...(/^(qwen\/qwen3\.8|openai\/gpt-oss-)/.test(model) ? { reasoning_effort: (process.env.GROQ_AGENTIC_REASONING_EFFORT || "medium") } : {}),
           response_format: { type: "json_object" },
           messages: [
             { role: "system", content: apexOrientationCompact("dig_agent") + "\nReturn one JSON action object only." },
