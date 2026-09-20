@@ -3,6 +3,7 @@ import { allocateDiscoveryPortfolio, scoreDiscoveryLane } from "../lib/atlas-ada
 import { assessResearchMove, diversifyPortfolio } from "../lib/atlas-research-strategy";
 import { ATLAS_CAPABILITIES, capabilityForAction } from "../lib/atlas-capability-registry";
 import { ResearchIntelligenceEngine } from "../lib/research-intelligence-engine";
+import { classifyTrajectorySignals } from "../lib/atlas-failure-observatory";
 
 describe("Apex Atlas very-strong research mechanism", () => {
   it("exposes purpose-aware capability semantics", () => {
