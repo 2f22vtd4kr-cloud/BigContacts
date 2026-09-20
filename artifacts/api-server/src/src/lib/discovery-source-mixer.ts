@@ -368,3 +368,54 @@ export function pickWesternBroadCategory(lastUsed?: number, rng: () => number = 
   const pool = ids.length ? ids : [...WESTERN_BROAD_CATEGORY_IDS];
   return pool[Math.floor(rng() * pool.length)]!;
 }
+
+export type DiscoveryLaneFeedback = {
+  slotId: string;
+  candidates: number;
+  admitted: number;
+  rejected: number;
+  usefulEvidence: number;
+  duplicateRate: number;
+  reachableRate: number;
+};
+
+export function adaptDiscoverySlate(options: {
+  feedback: DiscoveryLaneFeedback[];
+  count?: number;
+  includeFaa?: boolean;
+  priorSlotIds?: string[];
+  rng?: () => number;
+}): MixedDiscoverySlot[] {
+  const feedback = new Map(options.feedback.map((row) => [row.slotId, row]));
+  const scored = MIXED_DISCOVERY_POOL.map((slot) => {
+    const row = feedback.get(slot.id);
+    if (!row) return { slot, score: 0.5 };
+    const admission = row.candidates > 0 ? row.admitted / row.candidates : 0;
+    const reachability = row.candidates > 0 ? row.reachableRate : 0;
+    const evidence = row.candidates > 0 ? row.usefulEvidence / row.candidates : 0;
+    const novelty = 1 - Math.max(0, Math.min(1, row.duplicateRate));
+    return {
+      slot,
+      // Exploit demonstrated yield while retaining novelty and person-fit signals.
+      score: admission * 0.30 + reachability * 0.30 + evidence * 0.20 + novelty * 0.20 + personRecipeScore(slot) * 0.01,
+    };
+  }).sort((a, b) => b.score - a.score);
+
+  const selected: MixedDiscoverySlot[] = [];
+  const seen = new Set<string>();
+  const prior = new Set(options.priorSlotIds ?? []);
+  const take = (slot: MixedDiscoverySlot) => {
+    if (selected.length >= (options.count ?? 8) || seen.has(slot.id) || prior.has(slot.id)) return;
+    selected.push(slot); seen.add(slot.id);
+  };
+
+  // Keep diversity floors: registry + broad web + optional FAA when available.
+  take(scored.find((x) => x.slot.kind === "registry" && !prior.has(x.slot.id))?.slot);
+  take(scored.find((x) => x.slot.kind === "broad_web" && !prior.has(x.slot.id))?.slot);
+  if (options.includeFaa !== false) take(scored.find((x) => x.slot.kind === "faa" && !prior.has(x.slot.id))?.slot);
+  for (const row of scored) {
+    if (selected.length >= (options.count ?? 8)) break;
+    take(row.slot);
+  }
+  return selected;
+}
