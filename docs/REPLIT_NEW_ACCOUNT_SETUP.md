@@ -23,7 +23,7 @@ DeepSeek/NVIDIA is not an active Apex provider path and must not be requested as
 
 ## Runtime provider/integration secrets
 
-The active provider/integration contract contains exactly these **13** names:
+The active provider/integration contract contains exactly these **13** names after WHOIS retirement:
 
 ```text
 REDIS_URL_1
@@ -38,7 +38,7 @@ EXA_API_KEY
 SCRAPFLY_API_KEY
 ZENROWS_API_KEY
 COMPANIES_HOUSE_API_KEY
-WHOISJSON_API_KEY
+GEMINI_RIGHT_HAND_API_KEY
 ```
 
 `REDIS_URL` and `EXA_1` are compatibility aliases, not additional operator asks.
@@ -53,7 +53,7 @@ APEX_SESSION_SECRET
 
 These are deployment security controls, not provider keys. Never print or commit secret values.
 
-Do not ask for GitHub credentials, `DATABASE_URL`, `WHOXY_*`, `REDIS_URL_2`–`REDIS_URL_5`, or DeepSeek/NVIDIA credentials.
+Do not ask for GitHub credentials, `DATABASE_URL`, `WHOISJSON_API_KEY`, `WHOXY_*`, `REDIS_URL_2`–`REDIS_URL_5`, or DeepSeek/NVIDIA credentials. WHOIS is retired from Apex.
 
 ## Install and run
 
