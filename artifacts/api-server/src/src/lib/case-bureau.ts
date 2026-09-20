@@ -439,14 +439,21 @@ export async function generateGeminiBossText(
     return { model: selection.model, raw: null, error: "The resolved Gemini Boss key is unavailable." };
   }
 
+  // A Boss control response is a small JSON decision, not a long-form generation.
+  // The previous implementation allowed every catalog candidate to consume a full
+  // 15s request timeout, producing a misleading ~55s "Boss timeout" before the
+  // Investigator was ever selected. Keep model fallback bounded and size the
+  // response budget to the actual control contract.
   const models = [...new Set([
     selection.model,
     ...(selection.candidateModels ?? []),
-  ])];
+  ])].slice(0, 2);
   let lastError = `Gemini Boss ${selection.model} did not return text.`;
-  // Boss generation is part of the target investigation deadline. Bound the entire
-  // model/key fallback chain, not just each individual HTTP request.
-  const bossDeadline = Date.now() + 55_000;
+  // Bound the entire Boss control-plane attempt, including at most two compatible
+  // models. The outer research job remains responsible for any explicit retry.
+  const bossDeadline = Date.now() + 35_000;
+  const bossRequestTimeoutMs = 15_000;
+  const bossMaxOutputTokens = 2_048;
 
   for (const entry of keyEntries) {
     for (const model of models) {
@@ -466,11 +473,11 @@ export async function generateGeminiBossText(
               contents: [{ role: "user", parts: [{ text: prompt }] }],
               generationConfig: {
                 temperature: 0.2,
-                maxOutputTokens: 8192,
+                maxOutputTokens: bossMaxOutputTokens,
                 responseMimeType: "application/json",
               },
             }),
-            signal: AbortSignal.timeout(Math.min(15_000, Math.max(1_000, remainingMs))),
+            signal: AbortSignal.timeout(Math.min(bossRequestTimeoutMs, Math.max(1_000, remainingMs))),
           },
         );
 
