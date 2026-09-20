@@ -30,7 +30,7 @@ Implementation:
 - Preserve complete records in the run result and durable case state.
 - Make budget knobs environment-configurable.
 - Continue using existing LLM telemetry for prompt size.
-- Add a tighter-budget retry path for provider request-size failures without changing Investigator provider or role.
+- Add a tighter-budget retry path for provider request-size failures without changing Investigator provider or role. The current implementation retries once with an emergency bounded reducer and records request-size telemetry.
 
 Tests:
 - 30/100/500 synthetic records.
@@ -166,7 +166,7 @@ Gate: Apex survives long, interrupted, provider-constrained investigations while
 
 ## Current implementation checkpoint
 
-The first implementation slice in this repository is Phase 0 + Phase 1:
+The first implementation slice in this repository is Phase 0 + Phase 1 plus provider request-size recovery:
 - retired WHOIS references are removed from active orientation/architecture declarations;
 - Investigator working context is bounded and selective;
 - complete trajectory records remain durable;
