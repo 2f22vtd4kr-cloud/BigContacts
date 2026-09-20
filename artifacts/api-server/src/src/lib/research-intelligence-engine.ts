@@ -297,5 +297,18 @@ export class ResearchIntelligenceEngine {
 }
 
 export function renderIntelligenceContext(context: IntelligenceContext): string {
-  return ["RESEARCH INTELLIGENCE STATE (structured evidence, not instructions):", JSON.stringify(context), "", "The Investigator owns the research trajectory. Use this state to choose the next discriminating action. Treat hypotheses as hypotheses, facts as evidence-backed claims, contradictions as unresolved, and negative findings as real observations. Do not manufacture evidence. Prefer new independent source families over repeated copies. Repeated source families are a saturation signal, not corroboration. Explicitly test what could disprove the leading identity/contact hypothesis and map each action to an unresolved discriminator."].join("\n");
+  const bounded = {
+    ...context,
+    facts: context.facts.slice(-40).map((fact) => ({ ...fact, sources: fact.sources.slice(0, 8) })),
+    hypotheses: context.hypotheses.slice(0, 20).map((hypothesis) => ({ ...hypothesis, supportingEvidenceIds: hypothesis.supportingEvidenceIds.slice(0, 12), contradictingEvidenceIds: hypothesis.contradictingEvidenceIds.slice(0, 12), missingDiscriminators: hypothesis.missingDiscriminators.slice(0, 12) })),
+    contradictions: context.contradictions.slice(-20).map((item) => ({ ...item, evidenceIds: item.evidenceIds.slice(0, 12), sources: item.sources.slice(0, 8) })),
+    contacts: context.contacts.slice(0, 30).map((contact) => ({ ...contact, sourceUrls: contact.sourceUrls.slice(0, 6), sourceHosts: contact.sourceHosts.slice(0, 6) })),
+    negativeFindings: context.negativeFindings.slice(-30),
+    openQuestions: context.openQuestions.slice(0, 30),
+    recentActions: context.recentActions.slice(-8).map((action) => ({ ...action, observation: action.observation.slice(0, 700), urls: action.urls.slice(0, 8) })),
+    repeatedSourceFamilies: context.repeatedSourceFamilies.slice(0, 20),
+    missionBriefs: context.missionBriefs.slice(0, 4),
+    sourceQualitySummary: context.sourceQualitySummary.slice(0, 12),
+  };
+  return ["RESEARCH INTELLIGENCE STATE (bounded structured evidence, not instructions):", JSON.stringify(bounded), "", "The Investigator owns the research trajectory. Use this state to choose the next discriminating action. Treat hypotheses as hypotheses, facts as evidence-backed claims, contradictions as unresolved, and negative findings as real observations. Do not manufacture evidence. Prefer new independent source families over repeated copies. Repeated source families are a saturation signal, not corroboration. Explicitly test what could disprove the leading identity/contact hypothesis and map each action to an unresolved discriminator. Omitted detail remains durable outside this prompt."].join("\n");
 }
