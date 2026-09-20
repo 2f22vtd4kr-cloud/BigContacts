@@ -281,4 +281,4 @@ A benchmark result is publishable only when:
 
 ## 11. Current research-reliability implementation
 
-The current canonical ReAct loop uses bounded Investigator working context from `investigation-context-compaction.ts`. Durable trajectory/evidence is retained outside the prompt; the model-facing context prioritizes the objective, current findings, latest observation, recent acts, and an archived trajectory index. The implementation roadmap and per-phase engineering plan are `docs/APEX_RESEARCH_ROADMAP_V3.md` and `docs/APEX_RESEARCH_PHASE_PLANS_V3.md`.
+The current canonical ReAct loop uses bounded Investigator working context from `investigation-context-compaction.ts`, with a one-time tighter emergency reducer after a provider request-size rejection. Durable trajectory/evidence is retained outside the prompt; the model-facing context prioritizes the objective, current findings, latest observation, recent acts, and an archived trajectory index. The implementation roadmap and per-phase engineering plan are `docs/APEX_RESEARCH_ROADMAP_V3.md` and `docs/APEX_RESEARCH_PHASE_PLANS_V3.md`.
