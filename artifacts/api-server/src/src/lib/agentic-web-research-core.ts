@@ -53,7 +53,7 @@ async function callGroqJson(prompt: string, signal: AbortSignal): Promise<{ mode
           model,
           max_completion_tokens: 768,
           ...(/^(qwen\/qwen3\.8|openai\/gpt-oss-)/.test(model) ? { reasoning_effort: (process.env.GROQ_AGENTIC_REASONING_EFFORT || "medium") } : {}),
-          response_format: { type: "json_object" },
+          response_format: structuredActionResponseFormat(model),
           messages: [
             { role: "system", content: apexOrientationCompact("dig_agent") + "\nReturn one JSON action object only." },
             { role: "user", content: workingPrompt },
@@ -97,7 +97,7 @@ async function callMistralJson(prompt: string, signal: AbortSignal): Promise<{ m
       const response = await safeOutboundFetch("https://api.mistral.ai/v1/chat/completions", {
         method: "POST",
         headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ model, max_tokens: 768, messages: [{ role: "system", content: apexOrientationCompact("dig_agent") + "\nReturn one JSON action object only." }, { role: "user", content: workingPrompt }] }),
+        body: JSON.stringify({ model, max_tokens: 768, response_format: { type: "json_schema", json_schema: { name: "apex_investigator_action", strict: true, schema: AGENTIC_STRUCTURED_SCHEMA } }, messages: [{ role: "system", content: apexOrientationCompact("dig_agent") + "\nReturn one JSON action object only." }, { role: "user", content: workingPrompt }] }),
         signal,
       });
       if (!response.ok) {
@@ -123,6 +123,52 @@ async function callMistralJson(prompt: string, signal: AbortSignal): Promise<{ m
 }
 async function llmStep(prompt: string, selectedInvestigatorLlm: "groq" | "mistral" | undefined, parentSignal: AbortSignal): Promise<{ model: string; raw: string; fallback: string[] } | null> { await acquireProviderSlot(parentSignal); try { if (!selectedInvestigatorLlm) { setAgenticLlmHealth(false, null, "No Boss-selected Investigator LLM was propagated into ReAct"); return null; } const fn = selectedInvestigatorLlm === "groq" ? (process.env.GROQ_API_KEY ? callGroqJson : null) : (process.env.MISTRAL_API_KEY ? callMistralJson : null); if (!fn) { setAgenticLlmHealth(false, null, `${selectedInvestigatorLlm}:selected provider unavailable`); return null; } if (parentSignal.aborted) throw new Error("cancelled"); const controller = new AbortController(); const abortParent = () => controller.abort(); parentSignal.addEventListener("abort", abortParent, { once: true }); const timer = setTimeout(() => controller.abort(), PROVIDER_DECISION_TIMEOUT_MS); try { const result = await fn(prompt, controller.signal); if (!result?.raw) throw new Error(`${selectedInvestigatorLlm}:empty`); setAgenticLlmHealth(true, result.model, null); return { ...result, fallback: [] }; } finally { clearTimeout(timer); parentSignal.removeEventListener("abort", abortParent); } } finally { releaseProviderSlot(); } }
 function formatFindingsBag(findings: AgenticFinding[]): string { if (!findings.length) return "(none yet)"; return findings.map((f) => `- ${f.vectorType}: ${f.value} (${f.scope})${f.personName ? ` person=${f.personName}` : ""}${f.role ? ` role=${f.role}` : ""}${f.sourceUrls[0] ? ` src=${f.sourceUrls[0]}` : ""}`).join("\n"); }
+const AGENTIC_STRUCTURED_SCHEMA = {
+  type: "object",
+  properties: {
+    action: { type: "string", enum: ["web_search","visit","footprint_email","footprint_username_maigret","footprint_username_sherlock","domain_lookup","registry_search","harvest_domain","browser_fetch","done"] },
+    query: { type: ["string","null"] },
+    provider: { type: ["string","null"], enum: ["serper","tavily","exa",null] },
+    url: { type: ["string","null"] },
+    email: { type: ["string","null"] },
+    username: { type: ["string","null"] },
+    domain: { type: ["string","null"] },
+    registry: { type: ["string","null"] },
+    thought: { type: ["string","null"] },
+    hypothesis: { type: ["string","null"] },
+    purpose: { type: ["string","null"] },
+    expectedInformationGain: { type: ["number","null"], minimum: 0, maximum: 1 },
+    findings: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          vectorType: { type: "string", enum: ["email","phone","linkedin","website","social","other"] },
+          value: { type: "string" },
+          personName: { type: ["string","null"] },
+          role: { type: ["string","null"] },
+          scope: { type: "string", enum: ["organization","candidate","unknown"] },
+          sourceUrls: { type: "array", items: { type: "string" } },
+          note: { type: "string" },
+          promotionDecision: { type: ["string","null"], enum: ["promote","reject",null] },
+          promotionReason: { type: ["string","null"] }
+        },
+        required: ["vectorType","value","personName","role","scope","sourceUrls","note","promotionDecision","promotionReason"],
+        additionalProperties: false
+      }
+    }
+  },
+  required: ["action","query","provider","url","email","username","domain","registry","thought","hypothesis","purpose","expectedInformationGain","findings"],
+  additionalProperties: false
+} as const;
+
+function structuredActionResponseFormat(model: string): Record<string, unknown> {
+  const strictSupported = /^(qwen\/qwen3\.8-27b|openai\/gpt-oss-(20b|120b))$/.test(model);
+  return strictSupported
+    ? { type: "json_schema", json_schema: { name: "apex_investigator_action", strict: true, schema: AGENTIC_STRUCTURED_SCHEMA } }
+    : { type: "json_object" };
+}
+
 const AGENTIC_ACTION_SCHEMA = { type: "object", properties: { action: { type: "string", enum: ["web_search", "visit", "footprint_email", "footprint_username_maigret", "footprint_username_sherlock", "domain_lookup", "registry_search", "harvest_domain", "browser_fetch", "done"] }, query: { type: "string" }, provider: { type: "string", enum: ["serper", "tavily", "exa"] }, url: { type: "string" }, email: { type: "string" }, username: { type: "string" }, domain: { type: "string" }, registry: { type: "string" }, thought: { type: "string" }, hypothesis: { type: "string" }, purpose: { type: "string" }, expectedInformationGain: { type: "number", minimum: 0, maximum: 1 }, findings: { type: "array" } }, required: ["action"], additionalProperties: false };
 function buildStepPrompt(input: { targetName: string; companyName?: string | null; objective: string; history: string[]; trajectoryRecords: AgenticTrajectoryRecord[]; lastObservation: string; findings: AgenticFinding[]; intelligenceContext?: string; mode?: "target" | "discovery" }): string {
   const assignment = input.mode === "discovery"
