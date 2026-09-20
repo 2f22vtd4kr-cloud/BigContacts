@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { ATLAS_CAPABILITIES, capabilityForAction, renderAtlasCapabilityGuidance } from "../src/lib/atlas-capability-registry";
 import { assessResearchMove, diversifyPortfolio, rankPortfolioCandidate } from "../src/lib/atlas-research-strategy";
+import { MIXED_DISCOVERY_POOL, pickAdaptiveMixedDiscoverySlots, type DiscoveryLaneFeedback } from "../src/lib/discovery-source-mixer";
 
 describe("Apex Atlas capability registry", () => {
   it("documents purpose, prerequisites, complements and limitations for every capability", () => {
@@ -61,5 +62,28 @@ describe("Apex Atlas research strategy", () => {
     const selected = diversifyPortfolio(candidates, 2);
     expect(selected).toHaveLength(2);
     expect(new Set(selected.map((x) => x.geography)).size).toBe(2);
+  });
+});
+
+
+describe("Apex Atlas adaptive discovery", () => {
+  it("learns across the full eligible pool instead of only a pre-randomized slate", () => {
+    const best = MIXED_DISCOVERY_POOL[MIXED_DISCOVERY_POOL.length - 1]!;
+    const feedback: DiscoveryLaneFeedback[] = [{
+      slotId: best.id,
+      candidates: 20,
+      admitted: 12,
+      rejected: 8,
+      usefulEvidence: 16,
+      duplicateRate: 0.05,
+      reachableRate: 0.9,
+    }];
+    const selected = pickAdaptiveMixedDiscoverySlots({
+      count: 5,
+      includeFaa: true,
+      feedback,
+      rng: () => 0.999,
+    });
+    expect(selected.map((slot) => slot.id)).toContain(best.id);
   });
 });
