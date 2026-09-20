@@ -33,7 +33,7 @@ export type AtlasFailureSignal = {
 };
 
 export function classifyTrajectorySignals(input: {
-  records: readonly Array<{
+  records: ReadonlyArray<{
     turn: number;
     action: string;
     execution: string;
