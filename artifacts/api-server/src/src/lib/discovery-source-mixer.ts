@@ -434,16 +434,40 @@ export function pickAdaptiveMixedDiscoverySlots(options?: {
   feedback?: readonly DiscoveryLaneFeedback[];
   rng?: () => number;
 }): MixedDiscoverySlot[] {
-  const base = pickMixedDiscoverySlots(options);
-  const lanes = base.map((slot) => ({
+  const count = Math.max(3, Math.min(options?.count ?? 8, MIXED_DISCOVERY_POOL.length));
+  const prior = new Set(options?.priorSlotIds ?? []);
+  const eligiblePool = MIXED_DISCOVERY_POOL.filter((slot) => {
+    if (prior.has(slot.id)) return false;
+    if (slot.kind === "faa" && options?.includeFaa === false) return false;
+    return true;
+  });
+  const lanes = eligiblePool.map((slot) => ({
     id: slot.id,
     geography: slot.geography,
     occupation: slot.kind === "registry" ? "corporate-principal" : slot.kind === "faa" ? "asset-owner" : "operator-investor",
     wealthMechanism: slot.kind === "faa" ? "asset-ownership" : slot.kind === "registry" ? "company-ownership" : "investment-business",
     sourceKind: slot.kind,
   }));
-  const selected = allocateDiscoveryPortfolio(lanes, options?.feedback ?? [], options?.count ?? base.length);
+  const selected = allocateDiscoveryPortfolio(lanes, options?.feedback ?? [], count);
   const selectedIds = new Set(selected.map((lane) => lane.id));
-  const selectedSlots = base.filter((slot) => selectedIds.has(slot.id));
-  return selectedSlots.length >= Math.min(options?.count ?? base.length, base.length) ? selectedSlots : base.slice(0, options?.count ?? base.length);
+  const selectedSlots = eligiblePool.filter((slot) => selectedIds.has(slot.id));
+
+  // The adaptive allocator is allowed to choose from the whole eligible pool, not only
+  // from a pre-randomized slate. Otherwise historical feedback can never promote a lane
+  // that happened not to appear in the random slate.
+  if (selectedSlots.length >= count) return selectedSlots.slice(0, count);
+
+  // Defensive fallback preserves the base diversity behavior if the allocator ever
+  // returns an undersized portfolio.
+  const fallback = pickMixedDiscoverySlots({ ...options, count });
+  const merged = [...selectedSlots];
+  const seen = new Set(merged.map((slot) => slot.id));
+  for (const slot of fallback) {
+    if (merged.length >= count) break;
+    if (!seen.has(slot.id) && !prior.has(slot.id)) {
+      merged.push(slot);
+      seen.add(slot.id);
+    }
+  }
+  return merged.slice(0, count);
 }
