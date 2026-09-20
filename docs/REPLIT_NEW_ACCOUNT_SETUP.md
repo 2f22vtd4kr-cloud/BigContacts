@@ -6,9 +6,11 @@ Import the existing repository through the connected Replit ↔ GitHub integrati
 
 `https://github.com/2f22vtd4kr-cloud/BigContacts`
 
-Use the authoritative branch `audit/genuine-five-green-final` for the current engineering/certification state unless the operator explicitly selects another reviewed branch.
+Use the reviewed branch `audit/apex-atlas-very-strong-v1` only for this engineering review/build. The production/certification branch remains `audit/genuine-five-green-final` until the reviewed changes are accepted.
 
-Do not ask for a GitHub PAT, `GITHUB_TOKEN`, or any other GitHub credential. Read `docs/context.md` completely before modifying, installing or running anything.
+Do not ask for a GitHub PAT, `GITHUB_TOKEN`, or any other GitHub credential.
+
+Read `docs/context.md` before modifying, installing or running anything.
 
 ## Architecture that must remain intact
 
@@ -23,7 +25,7 @@ DeepSeek/NVIDIA is not an active Apex provider path and must not be requested as
 
 ## Runtime provider/integration secrets
 
-The active provider/integration contract contains exactly these **13** names after WHOIS retirement:
+The active provider/integration contract contains exactly these **13** names:
 
 ```text
 REDIS_URL_1
@@ -41,8 +43,6 @@ COMPANIES_HOUSE_API_KEY
 GEMINI_RIGHT_HAND_API_KEY
 ```
 
-`REDIS_URL` and `EXA_1` are compatibility aliases, not additional operator asks.
-
 The separate API/browser security boundary uses:
 
 ```text
@@ -53,36 +53,63 @@ APEX_SESSION_SECRET
 
 These are deployment security controls, not provider keys. Never print or commit secret values.
 
-Do not ask for GitHub credentials, `DATABASE_URL`, `WHOISJSON_API_KEY`, `WHOXY_*`, `REDIS_URL_2`–`REDIS_URL_5`, or DeepSeek/NVIDIA credentials. WHOIS is retired from Apex.
+Do not ask for GitHub credentials, `DATABASE_URL`, `WHOISJSON_API_KEY`, `WHOXY_*`, `REDIS_URL_2`–`REDIS_URL_5`, or DeepSeek/NVIDIA credentials.
 
 ## Install and run
 
 Use the repository's existing pnpm scripts, lockfiles and configuration. Do not scaffold a replacement application.
 
-Replit Postgres is platform-managed. A first-time schema initialization uses `APEX_ALLOW_SCHEMA_PUSH=true bash scripts/initialize-apex-schema.sh`; the helper runs the repository's current Drizzle schema push and verifies the required durable tables. Schema mutation must not remain enabled during ordinary replica boot.
+For first-time Postgres initialization only:
 
-Run the existing preflight, architecture checks, typecheck and build. Start the canonical API workflow on port `8080`. Fix genuine failures at root cause; never weaken tests or architecture checks to obtain green output.
+```bash
+APEX_ALLOW_SCHEMA_PUSH=true bash scripts/initialize-apex-schema.sh
+```
+
+The helper runs the repository's current schema push and verifies required durable tables. Schema mutation must not remain enabled during ordinary boot.
+
+Run preflight, architecture checks, typecheck, builds, and focused tests. Start the canonical API workflow on port `8080`.
+
+## Very Strong engineering state
+
+The reviewed branch adds:
+
+- evidence-graph cognition with bounded working context;
+- information-gain research assessment;
+- adaptive discovery portfolio allocation;
+- optional independent Investigator trajectories;
+- provider-native structured Investigator action outputs;
+- source-family/source-class intelligence;
+- diagnostic failure signals.
+
+These features are structural research-quality infrastructure. They are not evidence that the application has passed a live empirical research benchmark.
 
 ## Research acceptance
 
 Boot success is not research success.
 
-For live research, preserve the complete Investigator trajectory, actual tool observations, provenance, evidence graph, claims, contradictions, contact states and oversight decisions. Do not seed known URLs or manufacture evidence.
+For live research, preserve the complete Investigator trajectory, actual tool observations, provenance, evidence graph, claims, contradictions, contact states and oversight decisions.
 
-The next research-quality phase is **Apex Research Gauntlet v1**. Its protocol is in `docs/APEX_RESEARCH_GAUNTLET_V1.md`; its versioned registry is in `benchmarks/research-gauntlet-v1.json`.
+The current Research Gauntlet v1 registry is 38 grounded-reviewed cases, version 1.1.1, with ground truth as of 2026-09-18.
 
 ## Final report
 
-Report branch, exact commit SHA, configured secret names only, install/preflight/typecheck/build/boot/health results, database initialization status if applicable, and exact blockers.
+Report:
 
-A successful setup is not evidence that Apex is better than another research system. Research-system comparisons require matched benchmark runs and the frozen Gauntlet scoring protocol.
+- branch;
+- exact commit SHA;
+- configured secret names only;
+- install/preflight/typecheck/build/boot/health results;
+- database initialization status;
+- live research result and durable evidence identifiers;
+- exact blockers.
 
+A successful setup is not evidence that Apex is better than another research system. Research comparisons require matched benchmark runs and the frozen Gauntlet scoring protocol.
 
-## Apex Gemini role-separated credentials
+## Gemini role-separated credentials
 
-The canonical Apex Bureau uses separate Gemini credentials by role:
+The canonical bureau uses separate Gemini credentials:
 
 - `GEMINI_API_KEY` — Gemini Boss.
-- `GEMINI_RIGHT_HAND_API_KEY` — Gemini Right-hand Advisor; there is no fallback to the Boss credential.
+- `GEMINI_RIGHT_HAND_API_KEY` — Gemini Right-hand.
 
-Keep both secrets configured in environments that execute the canonical Bureau or the empirical campaign. Never print or expose either secret in logs, reports, screenshots, or client-side code.
+There is no fallback from Right-hand to Boss credentials. Never print or expose either secret.
