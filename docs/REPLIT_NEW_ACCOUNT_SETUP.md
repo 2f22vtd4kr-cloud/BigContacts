@@ -59,7 +59,7 @@ Do not ask for GitHub credentials, `DATABASE_URL`, `WHOISJSON_API_KEY`, `WHOXY_*
 
 Use the repository's existing pnpm scripts, lockfiles and configuration. Do not scaffold a replacement application.
 
-Replit Postgres is platform-managed. A first-time schema initialization may use the repository's explicit `APEX_ALLOW_SCHEMA_PUSH=true` procedure; schema mutation must not remain enabled during ordinary replica boot.
+Replit Postgres is platform-managed. A first-time schema initialization uses `APEX_ALLOW_SCHEMA_PUSH=true bash scripts/initialize-apex-schema.sh`; the helper runs the repository's current Drizzle schema push and verifies the required durable tables. Schema mutation must not remain enabled during ordinary replica boot.
 
 Run the existing preflight, architecture checks, typecheck and build. Start the canonical API workflow on port `8080`. Fix genuine failures at root cause; never weaken tests or architecture checks to obtain green output.
 
