@@ -52,9 +52,9 @@ export function scoreDiscoveryLane(
   const candidates = feedback?.candidates ?? 0;
   const prior = 1;
   const yieldRate = (candidates + prior) / (attempts + 2 * prior);
-  const admissionRate = (feedback?.admitted ?? 0 + 1) / (candidates + 2);
-  const evidenceRate = (feedback?.usefulEvidence ?? 0 + 1) / (Math.max(1, feedback?.admitted ?? 0) + 2);
-  const reachability = (feedback?.reachable ?? 0 + 1) / (Math.max(1, feedback?.admitted ?? 0) + 2);
+  const admissionRate = ((feedback?.admitted ?? 0) + 1) / (candidates + 2);
+  const evidenceRate = ((feedback?.usefulEvidence ?? 0) + 1) / (Math.max(1, feedback?.admitted ?? 0) + 2);
+  const reachability = ((feedback?.reachable ?? 0) + 1) / (Math.max(1, feedback?.admitted ?? 0) + 2);
   const duplicatePenalty = normalizedRate(feedback?.duplicates ?? 0, Math.max(1, candidates));
   const failurePenalty = normalizedRate(feedback?.failures ?? 0, Math.max(1, attempts));
 
