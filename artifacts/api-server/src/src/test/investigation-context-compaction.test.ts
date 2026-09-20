@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildInvestigatorContext, compactInvestigationContext, getInvestigatorContextBudget } from "../lib/investigation-context-compaction";
+import { buildInvestigatorContext, compactInvestigationContext, getInvestigatorContextBudget, tightenInvestigatorPrompt } from "../lib/investigation-context-compaction";
 
 describe("investigator context compaction", () => {
   it("bounds working context while retaining old source URLs in the archive index", () => {
@@ -32,6 +32,15 @@ describe("investigator context compaction", () => {
     ], lastObservation: "latest", findings: [] });
     expect(context).toContain("https://example.com/a#fragment");
     expect(context).toContain("https://example.com/b");
+  });
+
+  it("emergency request-size compaction preserves prompt contract boundaries", () => {
+    const prompt = "INSTITUTIONAL CONTRACT\nOBJECTIVE: preserve this\n" + "M".repeat(20_000) + "\nLATEST ACTION INSTRUCTIONS: choose one action and return JSON.";
+    const reduced = tightenInvestigatorPrompt(prompt, 12_000);
+    expect(reduced.length).toBeLessThanOrEqual(12_000);
+    expect(reduced).toContain("INSTITUTIONAL CONTRACT");
+    expect(reduced).toContain("LATEST ACTION INSTRUCTIONS");
+    expect(reduced).toContain("EMERGENCY REQUEST-SIZE COMPACTION");
   });
 
   it("keeps the compatibility helper bounded", () => {
