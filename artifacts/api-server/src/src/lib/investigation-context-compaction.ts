@@ -182,3 +182,16 @@ export function compactInvestigationContext(input: {
   ].filter(Boolean);
   return pieces.join("\n\n").slice(0, maxChars);
 }
+/**
+ * Emergency provider-rejection reducer. Used only after a request-size rejection.
+ * It preserves the beginning (institutional/task contract) and end (latest state/action
+ * instructions) while shrinking the middle. Durable records are unaffected.
+ */
+export function tightenInvestigatorPrompt(prompt: string, maxChars = 12_000): string {
+  if (prompt.length <= maxChars) return prompt;
+  const headChars = Math.floor(maxChars * 0.58);
+  const tailChars = maxChars - headChars;
+  return prompt.slice(0, headChars).trimEnd()
+    + "\n\n[EMERGENCY REQUEST-SIZE COMPACTION: middle working-context detail omitted; durable records retained]\n\n"
+    + prompt.slice(-tailChars).trimStart();
+}
