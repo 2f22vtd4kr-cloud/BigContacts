@@ -6,7 +6,7 @@ import { GROQ_CHAT_MODELS } from "./groq-models";
 import { filterClaimUrls, filterPassagesForQuery } from "./passage-filter";
 import { sanitizePublicEmail, sanitizePublicPhone, isTrashContactValue } from "./contact-validation";
 import { safeOutboundFetch } from "./ssrf-safe-fetch";
-import { buildInvestigatorContext } from "./investigation-context-compaction";
+import { buildInvestigatorContext, tightenInvestigatorPrompt } from "./investigation-context-compaction";
 export { getAgenticLlmHealth };
 export const INVESTIGATOR_LLM_CAPABILITY_POOL = ["groq", "mistral"] as const;
 export type AgenticFinding = { vectorType: "email" | "phone" | "linkedin" | "website" | "other" | "social"; value: string; personName: string | null; role: string | null; scope: "organization" | "candidate" | "unknown"; sourceUrls: string[]; note: string; promotionDecision?: "promote" | "reject"; promotionReason?: string };
@@ -32,8 +32,91 @@ async function toolWebSearch(query: string, provider: "serper" | "tavily" | "exa
 async function toolVisit(url: string, signal?: AbortSignal): Promise<{ observation: string; status: "success" | "http_error" | "timeout" | "error" | "cancelled"; observedUrl: string | null }> { try { const response = await safeOutboundFetch(url, { signal: signal ?? AbortSignal.timeout(15_000), headers: { "User-Agent": "Apex-Atlas/1.0", Accept: "text/html,application/xhtml+xml,application/pdf;q=0.9,*/*;q=0.8" }, redirect: "manual" }); const location = response.headers.get("location"); if (!response.ok) return { observation: `HTTP ${response.status} from ${url}${location ? `\nREDIRECT_LOCATION: ${location}` : ""}`, status: "http_error", observedUrl: null }; const raw = await readResponseTextCapped(response, signal); const facts = extractContactFactsFromHtml(raw); const body = stripHtml(raw); const boundedBody = body.slice(0, MAX_OBS); return { observation: `${facts.length ? `CONTACT FACTS (observed, not attributed):\n${facts.join("\n")}\n\n` : ""}PAGE ${url}\n${boundedBody}${body.length > MAX_OBS ? "\n[PAGE OBSERVATION TRUNCATED; SOURCE URL RETAINED FOR REVISIT]" : ""}`, status: "success", observedUrl: normalizedUrl(url) }; } catch (error: any) { if (signal?.aborted) return { observation: `visit cancelled for ${url}`, status: "cancelled", observedUrl: null }; const timed = error?.name === "TimeoutError" || /timeout/i.test(String(error?.message || "")); return { observation: `visit failed for ${url}: ${error?.message || "error"}`, status: timed ? "timeout" : "error", observedUrl: null }; } }
 function extractJsonObject(raw: string): string | null { const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)```/i)?.[1]?.trim(); const source = fenced || raw.trim(); const start = source.indexOf("{"), end = source.lastIndexOf("}"); return start >= 0 && end > start ? source.slice(start, end + 1) : null; }
 function parseAction(raw: string): AgentAction | null { const json = extractJsonObject(raw); if (!json) return null; try { const value = JSON.parse(json) as Record<string, unknown>; const action = cleanText(value.action, 40).toLowerCase(); if (action === "web_search" && cleanText(value.query, 300) && ["serper", "tavily", "exa"].includes(cleanText(value.provider, 20))) return { action: "web_search", query: cleanText(value.query, 300), provider: cleanText(value.provider, 20) as "serper" | "tavily" | "exa", locale: cleanText(value.locale, 16) || undefined, market: cleanText(value.market, 16) || undefined, thought: cleanText(value.thought, 500) || undefined }; if (action === "visit" && isSafeHttpUrl(cleanText(value.url, 500))) return { action: "visit", url: cleanText(value.url, 500), thought: cleanText(value.thought, 500) || undefined }; if (action === "footprint_email" && cleanText(value.email, 120).includes("@")) return { action: "footprint_email", email: cleanText(value.email, 120), thought: cleanText(value.thought, 500) || undefined }; const username = cleanText(value.username, 80).replace(/^@/, ""); if (action === "footprint_username_maigret" && username.length >= 2) return { action: "footprint_username_maigret", username, thought: cleanText(value.thought, 500) || undefined }; if (action === "footprint_username_sherlock" && username.length >= 2) return { action: "footprint_username_sherlock", username, thought: cleanText(value.thought, 500) || undefined }; if (action === "domain_lookup" && cleanText(value.domain, 120).includes(".")) return { action: "domain_lookup", domain: cleanText(value.domain, 120).replace(/^https?:\/\//i, "").split("/")[0]!, thought: cleanText(value.thought, 500) || undefined }; if (action === "registry_search" && cleanText(value.query, 200).length >= 2 && cleanText(value.registry, 60)) return { action: "registry_search", query: cleanText(value.query, 200), registry: cleanText(value.registry, 60).toLowerCase(), thought: cleanText(value.thought, 500) || undefined }; if (action === "harvest_domain" && cleanText(value.domain, 120).includes(".")) return { action: "harvest_domain", domain: cleanText(value.domain, 120).replace(/^https?:\/\//i, "").split("/")[0]!, thought: cleanText(value.thought, 500) || undefined }; if (action === "browser_fetch" && isSafeHttpUrl(cleanText(value.url, 500))) return { action: "browser_fetch", url: cleanText(value.url, 500), thought: cleanText(value.thought, 500) || undefined }; if (action === "done") { const findings: AgenticFinding[] = []; for (const rawFinding of Array.isArray(value.findings) ? value.findings : []) { if (!rawFinding || typeof rawFinding !== "object") continue; const f = rawFinding as Record<string, unknown>; const vector = cleanText(f.vectorType, 30).toLowerCase(); const valueText = cleanText(f.value, 500); const sourceUrls = filterClaimUrls(Array.isArray(f.sourceUrls) ? f.sourceUrls.filter((u): u is string => typeof u === "string") : []).map(normalizedUrl).filter((u): u is string => Boolean(u)); if (!valueText || !["email", "phone", "linkedin", "website", "social", "other"].includes(vector) || (vector !== "other" && sourceUrls.length === 0)) continue; let finalValue = valueText; if (vector === "email") { const e = sanitizePublicEmail(valueText); if (!e || isTrashContactValue("email", e)) continue; finalValue = e; } if (vector === "phone") { const p = sanitizePublicPhone(valueText); if (!p || isTrashContactValue("phone", p)) continue; finalValue = p; } if (vector === "website" && !isSafeHttpUrl(finalValue)) continue; findings.push({ vectorType: vector as AgenticFinding["vectorType"], value: finalValue, personName: typeof f.personName === "string" ? f.personName.trim().slice(0, 120) : null, role: typeof f.role === "string" ? f.role.trim().slice(0, 120) : null, scope: f.scope === "candidate" || f.scope === "organization" ? f.scope : "unknown", sourceUrls, note: cleanText(f.note, 400) || "Investigator-authored finding", promotionDecision: f.promotionDecision === "promote" || f.promotionDecision === "reject" ? f.promotionDecision : undefined, promotionReason: cleanText(f.promotionReason, 500) || undefined }); } return { action: "done", findings, thought: cleanText(value.thought, 500) || undefined }; } } catch { return null; } return null; }
-async function callGroqJson(prompt: string, signal: AbortSignal): Promise<{ model: string; raw: string } | null> { const keys = ["GROQ_API_KEY", ...Array.from({ length: 5 }, (_, i) => `GROQ_API_KEY_${i + 1}`)].map((n) => (process.env[n] || "").trim()).filter(Boolean); if (!keys.length) return null; let attempt = 0; for (const key of keys) for (const model of GROQ_CHAT_MODELS) { if (signal.aborted) throw new Error("cancelled"); attempt += 1; const started = Date.now(); try { const response = await safeOutboundFetch("https://api.groq.com/openai/v1/chat/completions", { method: "POST", headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" }, body: JSON.stringify({ model, max_completion_tokens: 768, response_format: { type: "json_object" }, messages: [{ role: "system", content: apexOrientationCompact("dig_agent") + "\nReturn one JSON action object only." }, { role: "user", content: prompt }] }), signal }); if (!response.ok) { recordAgenticLlmAttempt({ provider: "groq", model, promptChars: prompt.length, status: response.status, success: false, latencyMs: Date.now() - started, retryIndex: attempt, reason: response.status === 429 ? "rate_limited" : "provider_rejected" }); if ([401, 403, 429].includes(response.status)) break; continue; } const data = await readJsonCapped<{ choices?: Array<{ message?: { content?: string } }> }>(response, signal); const raw = data.choices?.[0]?.message?.content?.trim() || ""; recordAgenticLlmAttempt({ provider: "groq", model, promptChars: prompt.length, status: response.status, success: Boolean(raw), latencyMs: Date.now() - started, retryIndex: attempt, reason: raw ? undefined : "empty_response" }); if (raw) return { model, raw }; } catch (error: any) { if (signal.aborted) throw new Error("cancelled"); recordAgenticLlmAttempt({ provider: "groq", model, promptChars: prompt.length, status: "error", success: false, latencyMs: Date.now() - started, retryIndex: attempt, reason: error?.message || "exception" }); } } return null; }
-async function callMistralJson(prompt: string, signal: AbortSignal): Promise<{ model: string; raw: string } | null> { const key = (process.env.MISTRAL_API_KEY || "").trim(); if (!key) return null; const models = [process.env.MISTRAL_AGENTIC_MODEL, "mistral-small-latest", "mistral-large-latest", "open-mistral-nemo"].filter((m): m is string => Boolean(m?.trim())); let attempt = 0; for (const model of models) { if (signal.aborted) throw new Error("cancelled"); attempt += 1; const started = Date.now(); try { const response = await safeOutboundFetch("https://api.mistral.ai/v1/chat/completions", { method: "POST", headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" }, body: JSON.stringify({ model, max_tokens: 768, messages: [{ role: "system", content: apexOrientationCompact("dig_agent") + "\nReturn one JSON action object only." }, { role: "user", content: prompt }] }), signal }); if (!response.ok) { recordAgenticLlmAttempt({ provider: "mistral", model, promptChars: prompt.length, status: response.status, success: false, latencyMs: Date.now() - started, retryIndex: attempt, reason: response.status === 429 ? "rate_limited" : "provider_rejected" }); if ([401, 403, 429].includes(response.status)) break; continue; } const data = await readJsonCapped<{ choices?: Array<{ message?: { content?: string } }> }>(response, signal); const raw = data.choices?.[0]?.message?.content?.trim() || ""; recordAgenticLlmAttempt({ provider: "mistral", model, promptChars: prompt.length, status: response.status, success: Boolean(raw), latencyMs: Date.now() - started, retryIndex: attempt, reason: raw ? undefined : "empty_response" }); if (raw) return { model: `mistral:${model}`, raw }; } catch (error: any) { if (signal.aborted) throw new Error("cancelled"); recordAgenticLlmAttempt({ provider: "mistral", model, promptChars: prompt.length, status: "error", success: false, latencyMs: Date.now() - started, retryIndex: attempt, reason: error?.message || "exception" }); } } return null; }
+async function callGroqJson(prompt: string, signal: AbortSignal): Promise<{ model: string; raw: string } | null> {
+  const keys = ["GROQ_API_KEY", ...Array.from({ length: 5 }, (_, i) => `GROQ_API_KEY_${i + 1}`)].map((n) => (process.env[n] || "").trim()).filter(Boolean);
+  if (!keys.length) return null;
+  let attempt = 0;
+  let workingPrompt = prompt;
+  let sizeReductionApplied = false;
+  for (const key of keys) for (const model of GROQ_CHAT_MODELS) {
+    if (signal.aborted) throw new Error("cancelled");
+    attempt += 1;
+    const started = Date.now();
+    try {
+      const response = await safeOutboundFetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model,
+          max_completion_tokens: 768,
+          response_format: { type: "json_object" },
+          messages: [
+            { role: "system", content: apexOrientationCompact("dig_agent") + "\nReturn one JSON action object only." },
+            { role: "user", content: workingPrompt },
+          ],
+        }),
+        signal,
+      });
+      if (!response.ok) {
+        recordAgenticLlmAttempt({ provider: "groq", model, promptChars: workingPrompt.length, status: response.status, success: false, latencyMs: Date.now() - started, retryIndex: attempt, reason: response.status === 413 ? "request_size" : response.status === 429 ? "rate_limited" : "provider_rejected" });
+        if (response.status === 413 && !sizeReductionApplied) {
+          workingPrompt = tightenInvestigatorPrompt(workingPrompt);
+          sizeReductionApplied = true;
+          continue;
+        }
+        if ([401, 403, 429].includes(response.status)) break;
+        continue;
+      }
+      const data = await readJsonCapped<{ choices?: Array<{ message?: { content?: string } }> }>(response, signal);
+      const raw = data.choices?.[0]?.message?.content?.trim() || "";
+      recordAgenticLlmAttempt({ provider: "groq", model, promptChars: workingPrompt.length, status: response.status, success: Boolean(raw), latencyMs: Date.now() - started, retryIndex: attempt, reason: raw ? undefined : "empty_response" });
+      if (raw) return { model, raw };
+    } catch (error: any) {
+      if (signal.aborted) throw new Error("cancelled");
+      recordAgenticLlmAttempt({ provider: "groq", model, promptChars: workingPrompt.length, status: "error", success: false, latencyMs: Date.now() - started, retryIndex: attempt, reason: error?.message || "exception" });
+    }
+  }
+  return null;
+}
+async function callMistralJson(prompt: string, signal: AbortSignal): Promise<{ model: string; raw: string } | null> {
+  const key = (process.env.MISTRAL_API_KEY || "").trim();
+  if (!key) return null;
+  const models = [process.env.MISTRAL_AGENTIC_MODEL, "mistral-small-latest", "mistral-large-latest", "open-mistral-nemo"].filter((m): m is string => Boolean(m?.trim()));
+  let attempt = 0;
+  let workingPrompt = prompt;
+  let sizeReductionApplied = false;
+  for (const model of models) {
+    if (signal.aborted) throw new Error("cancelled");
+    attempt += 1;
+    const started = Date.now();
+    try {
+      const response = await safeOutboundFetch("https://api.mistral.ai/v1/chat/completions", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ model, max_tokens: 768, messages: [{ role: "system", content: apexOrientationCompact("dig_agent") + "\nReturn one JSON action object only." }, { role: "user", content: workingPrompt }] }),
+        signal,
+      });
+      if (!response.ok) {
+        recordAgenticLlmAttempt({ provider: "mistral", model, promptChars: workingPrompt.length, status: response.status, success: false, latencyMs: Date.now() - started, retryIndex: attempt, reason: response.status === 413 ? "request_size" : response.status === 429 ? "rate_limited" : "provider_rejected" });
+        if (response.status === 413 && !sizeReductionApplied) {
+          workingPrompt = tightenInvestigatorPrompt(workingPrompt);
+          sizeReductionApplied = true;
+          continue;
+        }
+        if ([401, 403, 429].includes(response.status)) break;
+        continue;
+      }
+      const data = await readJsonCapped<{ choices?: Array<{ message?: { content?: string } }> }>(response, signal);
+      const raw = data.choices?.[0]?.message?.content?.trim() || "";
+      recordAgenticLlmAttempt({ provider: "mistral", model, promptChars: workingPrompt.length, status: response.status, success: Boolean(raw), latencyMs: Date.now() - started, retryIndex: attempt, reason: raw ? undefined : "empty_response" });
+      if (raw) return { model: `mistral:${model}`, raw };
+    } catch (error: any) {
+      if (signal.aborted) throw new Error("cancelled");
+      recordAgenticLlmAttempt({ provider: "mistral", model, promptChars: workingPrompt.length, status: "error", success: false, latencyMs: Date.now() - started, retryIndex: attempt, reason: error?.message || "exception" });
+    }
+  }
+  return null;
+}
 async function llmStep(prompt: string, selectedInvestigatorLlm: "groq" | "mistral" | undefined, parentSignal: AbortSignal): Promise<{ model: string; raw: string; fallback: string[] } | null> { await acquireProviderSlot(parentSignal); try { if (!selectedInvestigatorLlm) { setAgenticLlmHealth(false, null, "No Boss-selected Investigator LLM was propagated into ReAct"); return null; } const fn = selectedInvestigatorLlm === "groq" ? (process.env.GROQ_API_KEY ? callGroqJson : null) : (process.env.MISTRAL_API_KEY ? callMistralJson : null); if (!fn) { setAgenticLlmHealth(false, null, `${selectedInvestigatorLlm}:selected provider unavailable`); return null; } if (parentSignal.aborted) throw new Error("cancelled"); const controller = new AbortController(); const abortParent = () => controller.abort(); parentSignal.addEventListener("abort", abortParent, { once: true }); const timer = setTimeout(() => controller.abort(), PROVIDER_DECISION_TIMEOUT_MS); try { const result = await fn(prompt, controller.signal); if (!result?.raw) throw new Error(`${selectedInvestigatorLlm}:empty`); setAgenticLlmHealth(true, result.model, null); return { ...result, fallback: [] }; } finally { clearTimeout(timer); parentSignal.removeEventListener("abort", abortParent); } } finally { releaseProviderSlot(); } }
 function formatFindingsBag(findings: AgenticFinding[]): string { if (!findings.length) return "(none yet)"; return findings.map((f) => `- ${f.vectorType}: ${f.value} (${f.scope})${f.personName ? ` person=${f.personName}` : ""}${f.role ? ` role=${f.role}` : ""}${f.sourceUrls[0] ? ` src=${f.sourceUrls[0]}` : ""}`).join("\n"); }
 const AGENTIC_ACTION_SCHEMA = { type: "object", properties: { action: { type: "string", enum: ["web_search", "visit", "footprint_email", "footprint_username_maigret", "footprint_username_sherlock", "domain_lookup", "registry_search", "harvest_domain", "browser_fetch", "done"] }, query: { type: "string" }, provider: { type: "string", enum: ["serper", "tavily", "exa"] }, url: { type: "string" }, email: { type: "string" }, username: { type: "string" }, domain: { type: "string" }, registry: { type: "string" }, thought: { type: "string" }, findings: { type: "array" } }, required: ["action"], additionalProperties: false };
