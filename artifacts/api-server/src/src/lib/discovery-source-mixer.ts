@@ -1,3 +1,4 @@
+import { allocateDiscoveryPortfolio, type DiscoveryLaneFeedback } from "./atlas-adaptive-portfolio";
 /**
  * Discovery source mixer — randomized, mixed Western-ally target finding.
  *
@@ -418,4 +419,31 @@ export function adaptDiscoverySlate(options: {
     take(row.slot);
   }
   return selected;
+}
+
+
+/**
+ * Adaptive Atlas discovery slate. Historical lane feedback changes allocation, but
+ * the allocator still enforces geography/occupation/wealth-mechanism/source-kind
+ * diversity floors so one successful lane cannot monopolize discovery.
+ */
+export function pickAdaptiveMixedDiscoverySlots(options?: {
+  count?: number;
+  includeFaa?: boolean;
+  priorSlotIds?: string[];
+  feedback?: readonly DiscoveryLaneFeedback[];
+  rng?: () => number;
+}): MixedDiscoverySlot[] {
+  const base = pickMixedDiscoverySlots(options);
+  const lanes = base.map((slot) => ({
+    id: slot.id,
+    geography: slot.geography,
+    occupation: slot.kind === "registry" ? "corporate-principal" : slot.kind === "faa" ? "asset-owner" : "operator-investor",
+    wealthMechanism: slot.kind === "faa" ? "asset-ownership" : slot.kind === "registry" ? "company-ownership" : "investment-business",
+    sourceKind: slot.kind,
+  }));
+  const selected = allocateDiscoveryPortfolio(lanes, options?.feedback ?? [], options?.count ?? base.length);
+  const selectedIds = new Set(selected.map((lane) => lane.id));
+  const selectedSlots = base.filter((slot) => selectedIds.has(slot.id));
+  return selectedSlots.length >= Math.min(options?.count ?? base.length, base.length) ? selectedSlots : base.slice(0, options?.count ?? base.length);
 }
