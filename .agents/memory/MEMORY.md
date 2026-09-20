@@ -4,5 +4,6 @@
 - [Bureau admission telemetry](bureau-admission-telemetry.md) — a discovery run can finish with contact facts yet zero new ledger admissions; trust the ledger delta for proof.
 - [Frontend dist rebuild](frontend-dist-rebuild.md) — the API boot script skips frontend builds when dist exists, so UI edits need an explicit client build before restart.
 - [Agentic provider quota](agentic-provider-quota.md) — configured provider keys can appear healthy while Groq/Mistral capacity is exhausted; wait for reset instead of retrying a smoke.
+- [Agentic prompt size](agentic-prompt-size.md) — HTTP 413 after early successful Investigator turns means mounted context exceeded the provider request boundary.
 - [Blind review truth boundary](blind-review-truth-boundary.md) — deterministic approved values and scope must outrank a reviewer narrative or publish status when they disagree.
 - [GitHub import proxy limits](github-import-proxy-limits.md) — archive downloads can be denied and bursty blob reads can 429; prefer read-only git fetch or batched GraphQL reads.
