@@ -1,6 +1,7 @@
 # Apex Atlas Research & Reliability Roadmap v3
 
-Status: implementation program opened from the first real canonical ReAct smoke failure, 2026-09-20.
+**Updated:** 2026-09-20  
+**Status:** Phases 0–6 have substantial implemented foundations on the current reviewed branch; empirical release gates remain open.
 
 ## Purpose
 
@@ -12,146 +13,82 @@ The governing principle:
 
 The phases describe engineering capabilities and evaluation gates, not mandatory investigation hops.
 
+## Phase status
+
+| Phase | Current state |
+|---|---|
+| 0 — Canonicalize research surface | Implemented baseline |
+| 1 — Context engineering / working memory | Implemented baseline |
+| 2 — Observation shaping / evidence-first retrieval | Implemented baseline through bounded cognitive projections and source metadata |
+| 3 — Long-horizon investigation memory | Implemented baseline through durable evidence state, hypotheses, contradictions, negatives, and compacted context |
+| 4 — Research decision quality | Implemented baseline through capability semantics and information-gain assessment |
+| 5 — Identity, attribution, contact resolution | Implemented baseline; empirical false-positive gate remains open |
+| 6 — Tool resilience / provider-aware execution | Implemented baseline including structured outputs and bounded request-size recovery |
+| 7 — Empirical research gauntlet | Registry implemented; live repeated campaign not yet completed |
+| 8 — Release and operational hardening | Not complete; runtime/schema/UI/recovery gates remain |
+
 ## Phase 0 — Canonicalize the research surface
 
-Goal: eliminate stale/retired capability references and make the current active tool surface truthful.
+Active provider/role contracts are explicit. Retired DeepSeek/NVIDIA and WHOISJSON paths are not active requirements.
 
-Steps:
-1. Remove retired WHOIS references from institutional orientation and architecture documentation.
-2. Keep RDAP/domain inspection only where it is actually implemented and permitted.
-3. Audit provider/model names against active code.
-4. Add a static audit that rejects retired-provider references in active Apex prompt/tool-surface files.
-5. Record the canonical source SHA and branch for every release checkpoint.
-
-Exit gate: no active Apex orientation/documentation tells an Investigator to use a retired WHOIS provider; active-provider audits remain green.
+Exit condition: active prompt/tool surfaces and deployment docs agree with the current 13-secret contract and Groq/Mistral Investigator pool.
 
 ## Phase 1 — Context engineering / working memory
 
-Goal: prevent ReAct trajectory growth from becoming a provider request failure or a quality-degrading memory dump.
+Investigator working context is bounded and selective. Durable trajectory/evidence remains outside the prompt. A tighter emergency reducer handles an unexpected provider request-size rejection without changing role/provider.
 
-Steps:
-1. Treat durable trajectory as append-only research history, not prompt storage.
-2. Build a bounded Investigator working context with an immutable objective, current findings, latest observation, recent full acts, compact archived trajectory index, and explicit context-management law.
-3. Preserve every durable observation and URL outside the prompt.
-4. Never use arbitrary tail truncation that can erase the only source for a claim.
-5. Make the context budget configurable and conservative.
-6. Measure prompt characters before every Investigator call.
-7. Add regression tests for 10x/100x trajectory growth.
-8. Add an adaptive tighter-budget path after provider request-size rejection.
+Exit condition: long synthetic trajectories remain below the configured working-context ceiling while source URLs and findings remain represented.
 
-Exit gate: synthetic long trajectories remain below the configured working-context ceiling, retain source URLs/findings, and continue the next model turn without 413-class request failure. A second bounded emergency reducer handles an unexpected provider-size rejection.
+## Phase 2 — Observation shaping
 
-## Phase 2 — Observation shaping and evidence-first retrieval
+Model-facing context prioritizes evidence-bearing content and bounds raw observation size. Source class and extraction method are retained as intelligence metadata.
 
-Goal: make each observation dense enough to support the next decision without flooding context.
+Exit condition: large observations do not dominate the Investigator request.
 
-Steps:
-1. Keep raw observations durable.
-2. Create bounded model-facing observation packets.
-3. Prioritize source URL, page title/host, exact supporting passages, contact facts, identity discriminators, contradictions, and execution status.
-4. Deduplicate repeated source content while retaining all source references.
-5. Distinguish search leads from verified page observations.
-6. Preserve negative findings and failed avenues as compact research state.
-7. Add source-quality and freshness metadata where available.
+## Phase 3 — Long-horizon memory
 
-Exit gate: large search/page outputs do not dominate the working context, while evidence-bearing passages remain available.
+The evidence graph preserves hypotheses, discriminators, contradictions, contacts, negative findings, open questions, recent actions, source families, and durable observation references.
 
-## Phase 3 — Long-horizon investigation memory
-
-Goal: let Apex resume a 20–64 turn investigation as a researcher rather than as a transcript reader.
-
-Steps:
-1. Maintain explicit active hypotheses and missing discriminators.
-2. Maintain a dead-end ledger.
-3. Maintain an evidence ledger keyed by durable observation IDs.
-4. Rehydrate objective, hypotheses, contradictions and unresolved questions after compaction.
-5. Prevent repeated searches that already failed without new justification.
-6. Keep current target identity separate from discovered candidates.
-7. Preserve temporal changes instead of flattening them into contradictions.
-8. Add restart/replay tests from compacted state.
-
-Exit gate: long synthetic investigations preserve identity hypotheses, contradictions, dead ends and evidence references across repeated compaction boundaries.
+Exit condition: compacted/restarted investigations preserve the active objective and evidence state.
 
 ## Phase 4 — Research decision quality
 
-Goal: improve what Apex chooses to investigate, not merely how much context it can carry.
+The capability registry and deterministic strategy assessor expose expected information gain, identity discrimination, contact relevance, source independence, success probability, and cost. The model remains responsible for the actual route.
 
-A strong human researcher generally establishes the exact question, forms competing hypotheses, seeks high-discrimination sources, triangulates independent sources, deliberately tests disproof, separates discovery leads from verification evidence, pivots from low-yield avenues, and stops when evidence is sufficient or public avenues are exhausted.
+Exit condition: live evaluations demonstrate better useful-pivot/evidence behavior without increasing unsupported claims.
 
-Engineering steps:
-1. Expose expected-information-gain signals without prescribing a fixed tool order.
-2. Make open questions and missing discriminators first-class Investigator state.
-3. Track source independence and copied-source clusters.
-4. Track useful vs low-yield actions.
-5. Feed contradiction and disproof state into the next decision.
-6. Preserve abstention as a valid outcome.
+## Phase 5 — Identity and attribution
 
-Exit gate: evaluation cases show fewer repeated/low-yield actions without reducing evidence coverage or increasing unsupported claims.
+Source-backed promotion, contact scope, source-family independence, and attribution states are explicit.
 
-## Phase 5 — Identity, attribution, and contact resolution
+Exit condition: grounded cases demonstrate reduced false-person and false-contact admissions.
 
-Goal: make the jump from interesting lead to defensible person/contact attribution explicit and testable.
+## Phase 6 — Provider resilience
 
-Steps:
-1. Separate person discovery, identity resolution, attribution, corroboration and verification.
-2. Require supporting observation IDs for promoted identities.
-3. Score candidate hypotheses against discriminators, not name similarity alone.
-4. Track contradictory identity evidence explicitly.
-5. Treat organization contact routes as organization-scoped unless attribution is evidenced.
-6. Handle stale/temporal contact data.
-7. Require independent-source corroboration for high-confidence contact claims.
+Provider-aware structured outputs, bounded request-size recovery, explicit provider/model attribution, and failure diagnostics are implemented.
 
-Exit gate: grounded cases show reduced false-person and false-contact admissions while preserving legitimate multi-valued/temporal contacts.
+Exit condition: 413/429/5xx/timeout/cancellation tests and live drills remain truthful and durable.
 
-## Phase 6 — Tool resilience and provider-aware execution
+## Phase 7 — Empirical gauntlet
 
-Goal: make provider failures ordinary execution events rather than research-ending surprises.
+The current grounded registry is 38 cases, version 1.1.1. The next step is repeated matched live runs with preserved raw trajectories/evidence and deterministic scoring.
 
-Steps:
-1. Classify 4xx/5xx/timeouts/cancellation separately.
-2. Distinguish request-size failure from rate limiting and provider outage.
-3. Use bounded same-provider request reduction before any allowed retry.
-4. Never cross provider roles merely to hide an Investigator failure.
-5. Preserve actual provider/model in every trajectory record.
-6. Track provider request size and response size.
-7. Add replayable tests for 413, 429, 5xx, timeout and cancellation.
+Exit condition: release claims are reproducible from frozen artifacts and acceptable failure rates.
 
-Exit gate: provider failures are observable, bounded, and do not corrupt durable case/job state.
+## Phase 8 — Release hardening
 
-## Phase 7 — Empirical research gauntlet
+Remaining gates:
 
-Goal: measure investigative quality independently from architecture certification.
-
-Steps:
-1. Freeze versioned grounded cases.
-2. Run repeated blind trials under matched resource envelopes.
-3. Preserve raw trajectories and evidence graphs.
-4. Score identity precision/recall, attribution, supported claims, unsupported claims, contradictions, source quality and negative-finding calibration separately.
-5. Report operational cost/latency/tool-use metrics separately.
-6. Analyze failure classes before changing prompts/models.
-7. Never collapse the evaluation into a single winner score.
-
-Exit gate: repeated runs across the expanded grounded registry demonstrate stable evidence-backed behavior; release claims are based on measured artifacts.
-
-## Phase 8 — Release and operational hardening
-
-Goal: make the bureau dependable in continuous real use.
-
-Steps:
-1. Add long-run memory and provider health telemetry.
-2. Add durable checkpoint/recovery semantics.
-3. Verify cancellation and restart recovery.
-4. Keep UI as a projection over canonical evidence state.
-5. Keep retired-provider and architecture audits in CI.
-6. Require real smoke investigations before release.
-7. Keep live empirical quality separate from structural CI.
-
-Exit gate: a fresh environment can import the authoritative branch, launch Apex, complete controlled real investigations, recover from provider/context failures, and expose truthful evidence state.
+1. initialize and verify production schema;
+2. canonical boot/health;
+3. real Gemini Boss + Right-hand + Investigator smoke;
+4. provider/timeout/cancellation/prompt-injection failure drills;
+5. UI truth verification;
+6. repeated Gauntlet campaign;
+7. release artifact pinned to branch/SHA/configuration.
 
 ## Roadmap acceptance law
 
 No phase may solve research quality by adding a fixed search sequence, forcing a provider, substituting Gemini for an Investigator, promoting LLM prose without source evidence, deleting durable observations to make prompts fit, or silently converting provider failures into success.
 
 The runtime may compress presentation. It may never rewrite history.
-
-Current implementation slice: Phase 0 + Phase 1 working-memory boundary, plus bounded 413/request-size recovery. Phase 2+ remain explicitly gated by their tests and research-quality evidence.
