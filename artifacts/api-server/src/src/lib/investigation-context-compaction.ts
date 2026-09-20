@@ -136,7 +136,18 @@ export function buildInvestigatorContext(input: InvestigatorContextInput): strin
   sections.push("LATEST OBSERVATION\n" + (trim(input.lastObservation, budget.recentObservationChars) || "(none)"));
 
   if (recent.length) {
-    sections.push(["RECENT TRAJECTORY (full bounded observations)", ...recent.map((record) => compactRecord(record, budget.recentObservationChars, Math.max(1_200, Math.floor(budget.maxChars / Math.max(2, recent.length + 1))))].join("\n---\n"));
+    sections.push(
+      [
+        "RECENT TRAJECTORY (full bounded observations)",
+        ...recent.map((record) =>
+          compactRecord(
+            record,
+            budget.recentObservationChars,
+            Math.max(1_200, Math.floor(budget.maxChars / Math.max(2, recent.length + 1))),
+          ),
+        ),
+      ].join("\n---\n"),
+    );
   }
 
   if (older.length) {
@@ -189,9 +200,12 @@ export function compactInvestigationContext(input: {
  */
 export function tightenInvestigatorPrompt(prompt: string, maxChars = 12_000): string {
   if (prompt.length <= maxChars) return prompt;
-  const headChars = Math.floor(maxChars * 0.58);
-  const tailChars = maxChars - headChars;
-  return prompt.slice(0, headChars).trimEnd()
-    + "\n\n[EMERGENCY REQUEST-SIZE COMPACTION: middle working-context detail omitted; durable records retained]\n\n"
-    + prompt.slice(-tailChars).trimStart();
+  const marker = "[EMERGENCY REQUEST-SIZE COMPACTION: middle working-context detail omitted; durable records retained]";
+  const separator = "\n\n";
+  const available = Math.max(0, maxChars - marker.length - separator.length * 2);
+  const headChars = Math.floor(available * 0.58);
+  const tailChars = available - headChars;
+  return (prompt.slice(0, headChars).trimEnd()
+    + separator + marker + separator
+    + prompt.slice(-tailChars).trimStart()).slice(0, maxChars);
 }

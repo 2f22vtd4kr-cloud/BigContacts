@@ -3,14 +3,14 @@ import { resolveGeminiBossModel, generateGeminiBossText } from "./case-bureau";
 import { runGeminiRightHandFreeJson } from "./gemini-right-hand-reasoning";
 import { db, researchCasesTable, researchCaseEventsTable } from "@workspace/db";
 import { and, eq } from "drizzle-orm";
-import { compactInvestigationContext } from "./investigation-context-compaction";
+import { compactInvestigationContext, type CompactionFinding } from "./investigation-context-compaction";
 import { logger } from "./logger";
 export type AtlasControlAction = "continue_discovery" | "research_candidate" | "revisit_candidate" | "pivot_discovery" | "stop";
 export type AtlasControlDecision = { status: "completed" | "unavailable"; action: AtlasControlAction; candidateName: string | null; direction: string | null; reason: string | null; confidence: number | null; rightHand: { status: "completed" | "unavailable"; decision: string | null; reason: string | null; direction: string | null; confidence: number | null; model: string; error: string | null }; bossModel: string | null; error: string | null };
 function parseObject(raw: string | null | undefined): Record<string, unknown> | null { if (!raw) return null; const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)```/i)?.[1]?.trim(); const source = fenced || raw.trim(); const start = source.indexOf("{"), end = source.lastIndexOf("}"); if (start < 0 || end <= start) return null; try { const parsed = JSON.parse(source.slice(start, end + 1)); return parsed && typeof parsed === "object" ? parsed as Record<string, unknown> : null; } catch { return null; } }
 function clampConfidence(value: unknown): number | null { return typeof value === "number" && Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : null; }
 const ALLOWED_ACTIONS = new Set<AtlasControlAction>(["continue_discovery", "research_candidate", "revisit_candidate", "pivot_discovery", "stop"]);
-type TrajectoryRecordInput = { turn: number; model: string; action: string; args: Record<string, unknown>; thought?: string; execution: string; observation?: string; observedUrls: string[]; findings: unknown[]; providerFallback?: string[]; stopReason?: string };
+type TrajectoryRecordInput = { turn: number; model: string; action: string; args: Record<string, unknown>; thought?: string; execution: string; observation?: string; observedUrls: string[]; findings: CompactionFinding[]; providerFallback?: string[]; stopReason?: string };
 async function persistControlDecision(input: { caseId: number; controlTurn: number; decision: AtlasControlDecision }): Promise<boolean> {
   try {
     await db.transaction(async (tx) => {
