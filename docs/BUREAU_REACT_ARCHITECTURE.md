@@ -25,7 +25,7 @@ mistral
 
 The selected Investigator is the researcher. It receives the assignment and durable case/run context and owns the research trajectory.
 
-Permitted non-LLM capabilities include Serper, Tavily and Exa search; HTTP/page visits; Scrapfly and ZenRows browser/fetch; RDAP/WhoisJSON; registries; public footprinting; and approved OSINT executors.
+Permitted non-LLM capabilities include Serper, Tavily and Exa search; HTTP/page visits; Scrapfly and ZenRows browser/fetch; RDAP/domain inspection; registries; public footprinting; and approved OSINT executors.
 
 Tools are capabilities, not stages. The Investigator may choose among permitted capabilities based on its current evidence and hypotheses.
 
