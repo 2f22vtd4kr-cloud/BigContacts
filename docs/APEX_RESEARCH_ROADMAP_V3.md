@@ -39,7 +39,7 @@ Steps:
 7. Add regression tests for 10x/100x trajectory growth.
 8. Add an adaptive tighter-budget path after provider request-size rejection.
 
-Exit gate: synthetic long trajectories remain below the configured working-context ceiling, retain source URLs/findings, and continue the next model turn without 413-class request failure.
+Exit gate: synthetic long trajectories remain below the configured working-context ceiling, retain source URLs/findings, and continue the next model turn without 413-class request failure. A second bounded emergency reducer handles an unexpected provider-size rejection.
 
 ## Phase 2 — Observation shaping and evidence-first retrieval
 
@@ -153,3 +153,5 @@ Exit gate: a fresh environment can import the authoritative branch, launch Apex,
 No phase may solve research quality by adding a fixed search sequence, forcing a provider, substituting Gemini for an Investigator, promoting LLM prose without source evidence, deleting durable observations to make prompts fit, or silently converting provider failures into success.
 
 The runtime may compress presentation. It may never rewrite history.
+
+Current implementation slice: Phase 0 + Phase 1 working-memory boundary, plus bounded 413/request-size recovery. Phase 2+ remain explicitly gated by their tests and research-quality evidence.
