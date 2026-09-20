@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 
 export type IntelligenceSourceTier = "A" | "B" | "C" | "D" | "unknown";
 export type IntelligenceEvidenceKind = "observation" | "finding" | "negative" | "contradiction" | "claim";
+export type IntelligenceSourceClass = "REGULATORY" | "OFFICIAL_COMPANY" | "OFFICIAL_GOVERNANCE" | "OFFICIAL_PERSONAL" | "REPUTABLE_NEWS" | "PROFESSIONAL_DIRECTORY" | "SOCIAL_PROFILE" | "SEARCH_RESULT" | "AGGREGATOR" | "SCRAPED_DIRECTORY" | "UNKNOWN";
 export type IntelligenceClaimStatus = "supported" | "contradicted" | "unresolved";
 export type ContactEvidenceState = "DISCOVERED" | "OBSERVED" | "ATTRIBUTED" | "CORROBORATED" | "VERIFIED" | "STALE" | "CONTRADICTED" | "REJECTED";
 
@@ -13,6 +14,8 @@ export interface IntelligenceEvidence {
   sourceUrl: string | null;
   sourceHost: string | null;
   sourceTier: IntelligenceSourceTier;
+  sourceClass: IntelligenceSourceClass;
+  extractionMethod: string;
   retrievedAt: string;
   lastSeen: string;
   turn: number;
@@ -103,6 +106,7 @@ export interface IntelligenceContext {
   evidenceCount: number;
   provenanceDigest: string;
   missionBriefs: IntelligenceMissionBrief[];
+  sourceQualitySummary: Array<{ sourceClass: IntelligenceSourceClass; count: number }>;
   stoppingAssessment: {
     evidenceCoverage: number;
     unresolvedQuestions: number;
@@ -116,6 +120,26 @@ function normalize(value: string): string { return value.toLowerCase().replace(/
 function hostOf(url: string | null): string | null { if (!url) return null; try { return new URL(url).hostname.toLowerCase().replace(/^www\./, ""); } catch { return null; } }
 function canonicalUrl(url: string): string | null { try { const parsed = new URL(url); if (!/^https?:$/.test(parsed.protocol)) return null; parsed.hash = ""; parsed.hostname = parsed.hostname.toLowerCase(); return parsed.href.replace(/\/$/, ""); } catch { return null; } }
 function sourceFamily(host: string | null): string { if (!host) return "unknown"; if (/companieshouse\.gov\.uk$|sec\.gov$|brreg\.no$|bodacc\.fr$|gleif\.org$/.test(host)) return "registry"; if (/google\.|bing\.|serper\.dev$|tavily\.com$|exa\.ai$/.test(host)) return "search"; if (/linkedin\.com$|x\.com$|twitter\.com$|instagram\.com$/.test(host)) return "social"; if (/gov\.|europa\.eu$/.test(host)) return "government"; return host; }
+function sourceClassForHost(host: string | null): IntelligenceSourceClass {
+  if (!host) return "UNKNOWN";
+  if (/companieshouse\.gov\.uk$|company-information\.service\.gov\.uk$|sec\.gov$|brreg\.no$|bodacc\.fr$|gleif\.org$/.test(host)) return "REGULATORY";
+  if (/linkedin\.com$|x\.com$|twitter\.com$|instagram\.com$/.test(host)) return "SOCIAL_PROFILE";
+  if (/crunchbase\.com$|pitchbook\.com$|opencorporates\.com$/.test(host)) return "PROFESSIONAL_DIRECTORY";
+  if (/google\.|bing\.|serper\.dev$|tavily\.com$|exa\.ai$/.test(host)) return "SEARCH_RESULT";
+  if (/wikipedia\.org$|yahoo\.com$|medium\.com$/.test(host)) return "AGGREGATOR";
+  if (/gov\.|europa\.eu$/.test(host)) return "OFFICIAL_GOVERNANCE";
+  if (/news|reuters\.com$|ft\.com$|bloomberg\.com$|wsj\.com$/.test(host)) return "REPUTABLE_NEWS";
+  return "UNKNOWN";
+}
+function extractionMethodForAction(action: string): string {
+  if (action.includes("registry")) return "registry_api";
+  if (action.includes("search")) return "search_result";
+  if (action.includes("browser")) return "browser_fetch";
+  if (action.includes("visit")) return "http_page";
+  if (action.includes("harvest")) return "domain_harvest";
+  if (action.includes("footprint")) return "osint_enrichment";
+  return "agent_observation";
+}
 function tierForHost(host: string | null): IntelligenceSourceTier {
   if (!host) return "unknown";
   if (/\.(gov|gov\.uk|gc\.ca|europa\.eu)$/.test(host) || /(^|\.)sec\.gov$/.test(host) || /(^|\.)companieshouse\.gov\.uk$/.test(host)) return "A";
@@ -191,14 +215,16 @@ export class ResearchIntelligenceEngine {
     this.rankHypotheses();
   }
 
-  private recordEvidence(input: Omit<IntelligenceEvidence, "id" | "retrievedAt" | "lastSeen" | "fingerprint" | "sourceHost">): string {
+  private recordEvidence(input: Omit<IntelligenceEvidence, "id" | "retrievedAt" | "lastSeen" | "fingerprint" | "sourceHost" | "sourceClass" | "extractionMethod">): string {
     const retrievedAt = new Date().toISOString();
     const sourceHost = hostOf(input.sourceUrl);
+    const sourceClass = sourceClassForHost(sourceHost);
+    const extractionMethod = extractionMethodForAction(input.action);
     const fingerprint = hash(`${input.kind}|${normalize(input.claim)}|${normalize(input.value)}|${input.sourceUrl ?? ""}`);
     const existing = this.evidence.get(fingerprint);
     if (existing) { existing.lastSeen = retrievedAt; return existing.id; }
     const id = `ev_${fingerprint.slice(0, 20)}`;
-    this.evidence.set(fingerprint, { ...input, id, retrievedAt, lastSeen: retrievedAt, sourceHost, fingerprint });
+    this.evidence.set(fingerprint, { ...input, id, retrievedAt, lastSeen: retrievedAt, sourceHost, sourceClass, extractionMethod, fingerprint });
     const parsed = extractPredicate(input.claim);
     const claimKey = hash(`${normalize(parsed.subject)}|${normalize(parsed.predicate)}|${normalize(parsed.object)}`);
     const previous = this.claims.get(claimKey);
@@ -246,9 +272,12 @@ export class ResearchIntelligenceEngine {
     const repeatedSourceFamilies = [...familyCounts.entries()].filter(([, count]) => count >= 3).map(([family]) => family);
     const sourceDiversity = sourceHosts.length;
     const sourceFamilyDiversity = new Set(sourceFamilies).size;
+    const sourceQualityCounts = new Map<IntelligenceSourceClass, number>();
+    for (const evidence of this.evidence.values()) sourceQualityCounts.set(evidence.sourceClass, (sourceQualityCounts.get(evidence.sourceClass) ?? 0) + 1);
+    const sourceQualitySummary = [...sourceQualityCounts.entries()].map(([sourceClass, count]) => ({ sourceClass, count })).sort((a, b) => b.count - a.count);
     const missionBriefs = this.buildMissionBriefs(openQuestions, facts, contradictions);
     const coverage = clamp((facts.length * 0.035) + (sourceDiversity * 0.05) + (this.contacts.size * 0.03) - (contradictions.length * 0.04));
-    return { version: 1, caseId: this.input.caseId ?? null, executionId: this.input.executionId, target: this.input.target, objective: this.input.objective, facts, hypotheses: [...this.hypotheses.values()], contradictions, contacts: [...this.contacts.values()], negativeFindings: [...this.negativeFindings], openQuestions, recentActions: [...this.actions], sourceDiversity, sourceFamilyDiversity, repeatedSourceFamilies, evidenceCount: this.evidence.size, provenanceDigest: this.chain, missionBriefs, stoppingAssessment: { evidenceCoverage: coverage, unresolvedQuestions: openQuestions.length, recommendation: openQuestions.length > 0 || coverage < 0.8 ? "continue" : "review" } };
+    return { version: 1, caseId: this.input.caseId ?? null, executionId: this.input.executionId, target: this.input.target, objective: this.input.objective, facts, hypotheses: [...this.hypotheses.values()], contradictions, contacts: [...this.contacts.values()], negativeFindings: [...this.negativeFindings], openQuestions, recentActions: [...this.actions], sourceDiversity, sourceFamilyDiversity, repeatedSourceFamilies, evidenceCount: this.evidence.size, provenanceDigest: this.chain, missionBriefs, sourceQualitySummary, stoppingAssessment: { evidenceCoverage: coverage, unresolvedQuestions: openQuestions.length, recommendation: openQuestions.length > 0 || coverage < 0.8 ? "continue" : "review" } };
   }
 
   private buildMissionBriefs(openQuestions: string[], facts: Array<{ claim: string }>, contradictions: Array<{ claim: string }>): IntelligenceMissionBrief[] {
