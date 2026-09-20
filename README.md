@@ -179,6 +179,7 @@ Never print or commit secret values. Do not ask for GitHub credentials or `DATAB
 - `benchmarks/research-gauntlet-v1.json` — versioned grounded registry.
 - `docs/REPLIT_NEW_ACCOUNT_SETUP.md` — deployment/import contract.
 - `docs/RUN_BUREAU.md` — canonical operational run procedure.
+- `docs/APEX_ATLAS_CEO_RELEASE_REVIEW_2026-09-20.md` — current CEO/lead-engineer release gate and risk review.
 
 ## Product principle
 
