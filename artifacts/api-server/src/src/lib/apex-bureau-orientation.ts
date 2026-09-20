@@ -91,10 +91,10 @@ SEARCH/BROWSE TOOLS (not promotion authorities): web_search executes only the pr
 - footprint_email — Holehe (email → platform presence)
 - footprint_username_maigret — Maigret (username → platform presence)
 - footprint_username_sherlock — Sherlock (username → platform presence)
-- domain_lookup — RDAP / WhoisJSON
+- domain_lookup — RDAP
 - harvest_domain — theHarvester (emails/hosts for a domain)
 - registry_search — SEC EDGAR, Companies House, BRREG, GLEIF, OpenCorporates, and other registry-client sources
-- domain_lookup — RDAP → WhoisJSON (Whoxy removed)
+- domain_lookup — RDAP only
 - done — finish the dig; keep auto-extracted findings already in the bag`;
 
 export type ApexOrientationRole = "boss" | "right_hand" | "investigator" | "dig_agent";
