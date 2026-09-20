@@ -67,7 +67,7 @@ EXA_API_KEY
 SCRAPFLY_API_KEY
 ZENROWS_API_KEY
 COMPANIES_HOUSE_API_KEY
-WHOISJSON_API_KEY
+GEMINI_RIGHT_HAND_API_KEY
 ```
 
 That is **13 active provider/integration secrets**. DeepSeek/NVIDIA is not an active Apex provider path and must not be requested as an Investigator or Right-hand secret.
