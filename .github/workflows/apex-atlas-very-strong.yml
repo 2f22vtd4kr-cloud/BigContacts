@@ -1,0 +1,47 @@
+name: Apex Atlas Very Strong Verification
+
+on:
+  pull_request:
+    branches:
+      - audit/genuine-five-green-final
+  push:
+    branches:
+      - audit/apex-atlas-very-strong-v1
+
+permissions:
+  contents: read
+
+jobs:
+  static-and-agentic-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.26.1
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: Typecheck
+        run: pnpm run typecheck
+      - name: Atlas roadmap contract
+        run: pnpm run check:apex-roadmap-implementation
+      - name: Deterministic strategy
+        run: pnpm run check:deterministic-research-strategy
+      - name: Investigation context
+        run: pnpm run check:investigation-context-compaction
+      - name: Target autonomy
+        run: pnpm run check:target-investigator-autonomy
+      - name: Agentic runtime
+        run: pnpm run check:agentic-runtime
+      - name: Agentic timeout
+        run: pnpm run check:agentic-timeout
+      - name: Atlas unit tests
+        run: pnpm --dir artifacts/api-server exec vitest run src/src/test/apex-atlas-very-strong.test.ts src/src/test/atlas-very-strong-strategy.test.ts src/src/lib/research-intelligence-engine.test.ts

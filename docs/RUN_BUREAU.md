@@ -1,20 +1,20 @@
 # Apex Atlas — precise deployment and bureau run procedure
 
-This is the canonical operational meaning of “Run Apex Atlas”, “Start the bureau”, or “Launch research”.
-
-**Authoritative engineering branch:** `audit/genuine-five-green-final`  
-**Living context:** `docs/context.md`  
-**Research benchmark:** `docs/APEX_RESEARCH_GAUNTLET_V1.md`
+**Updated:** 2026-09-20  
+**Reviewed development branch:** `audit/apex-atlas-very-strong-v1`  
+**Production/certification branch:** `audit/genuine-five-green-final`  
+**Living context:** `docs/context.md`
 
 ## 0. Product law
 
 - Dig is **free ReAct**: the Investigator invents queries and chooses actions.
-- Tools execute capabilities selected by the Investigator; they are not a hidden fixed sequence.
-- Never add `force_*` hops, GROK-PARITY, ranked prefer-lists, or scripted research playbooks.
-- Never invent people, contacts, relationships or URLs.
+- Tools are capabilities selected by the Investigator; they are not a hidden fixed sequence.
+- Never add `force_*` hops, ranked prefer-lists, or scripted research playbooks.
+- Never invent people, contacts, relationships, wealth, or URLs.
 - Contact claims require actual source-backed provenance.
 - Boot/build success is not research success.
 - Tool/provider failures remain failures and are reported honestly.
+- Unknown/insufficient evidence is a valid terminal research outcome.
 
 ## 1. Runtime prerequisites
 
@@ -24,34 +24,74 @@ This is the canonical operational meaning of “Run Apex Atlas”, “Start the 
 4. Run one API workflow on `PORT=8080`; desk at `/`, API at `/api/`.
 5. Keep `ENABLE_AUTO_PIPELINE=false` unless the documented deployment explicitly requires otherwise.
 6. Request only the 13 active provider/integration secrets documented in `docs/REPLIT_NEW_ACCOUNT_SETUP.md`.
-7. Provision API/browser authentication controls separately when protected access is enabled.
-8. Run the repository preflight and full existing checks before claiming readiness.
+7. Provision the three API/browser authentication controls separately when protected access is enabled.
+8. Run preflight, architecture checks, typecheck, builds, and focused tests before claiming readiness.
 
-## 2. Canonical research launch
+## 2. First-time schema initialization
 
-Use the repository's canonical Atlas launch/API contract. Do not substitute ad-hoc scripts or a scripted research path.
+Apex intentionally fails closed if the durable provenance schema is missing.
 
-A canonical run must show:
+For first-time initialization only:
+
+```bash
+APEX_ALLOW_SCHEMA_PUSH=true bash scripts/initialize-apex-schema.sh
+```
+
+The helper verifies required durable tables after the repository's current Drizzle schema push.
+
+Do **not** leave `APEX_ALLOW_SCHEMA_PUSH=true` enabled for ordinary runtime boot.
+
+## 3. Canonical research launch
+
+A canonical run is:
 
 ```
-Gemini oversight
+Gemini Boss
+  → Investigator selection
   → Groq/Mistral Investigator
   → model-selected action
-  → actual tool execution
+  → validated tool execution
   → observation + provenance
-  → claim / identity / contradiction / contact state
-  → durable event/evidence graph
-  → Right-hand + Boss review
+  → evidence graph / contact / contradiction state
+  → Gemini Right-hand review
+  → Boss disposition
   ↺ next Investigator act
 ```
 
-Poll the canonical job-status endpoint until terminal state and preserve the run identifiers. A completed job without a valid trajectory/evidence record is not a successful research result.
+The Investigator can choose search, page retrieval, browser escalation, registries, domain inspection, footprint tools, disproof, revisits, or stopping. The runtime does not impose a fixed order.
 
-## 3. Research-quality evaluation
+Poll the canonical job-status endpoint until terminal state and preserve the job/run identifiers. A completed job without valid durable trajectory/evidence is not a successful research result.
 
-Use **Apex Research Gauntlet v1** for empirical quality evaluation. It requires frozen case definitions, blind/repeated runs, matched baselines and deterministic scoring. Do not infer system superiority from model names, architecture diagrams or CI status.
+## 4. Very Strong research controls
 
-## 4. What this is NOT
+The current reviewed branch additionally includes:
+
+- bounded evidence-graph cognitive context;
+- information-gain action assessment;
+- adaptive discovery portfolios;
+- optional independent Investigator trajectories;
+- structured Investigator action outputs;
+- source-family/source-class intelligence;
+- diagnostic failure signals for identity, source, attribution, stopping, injection, and system errors.
+
+These controls are quality infrastructure. They are not a substitute for live research evaluation.
+
+## 5. Research-quality evaluation
+
+Use **Apex Research Gauntlet v1** for empirical quality evaluation.
+
+Current registry: 38 grounded-reviewed cases, version 1.1.1, ground truth as of 2026-09-18.
+
+For release-quality evaluation:
+
+- use repeated matched runs;
+- preserve raw outputs, trajectories, observations, and evidence graph;
+- keep system failures separate from research failures;
+- report identity, attribution, evidence, contradiction, source-quality, and negative-finding metrics separately;
+- allow unknown/insufficient evidence;
+- do not publish a single overall winner score.
+
+## 6. What this is NOT
 
 | Do not | Why |
 |---|---|
@@ -62,8 +102,9 @@ Use **Apex Research Gauntlet v1** for empirical quality evaluation. It requires 
 | Treat snippets/LLM prose as proof | Attribution requires source-backed observation |
 | Disable checks for green output | Hides defects |
 | Treat CI green as research-quality proof | Structural correctness and research quality are separate |
+| Enable schema push for ordinary boot | Runtime must fail closed rather than mutate production state |
 
-## 5. Quick verification
+## 7. Quick verification
 
 ```bash
 git log -1 --oneline
@@ -76,3 +117,18 @@ pnpm run check:agentic-timeout
 pnpm run check:provider-role-docs
 curl -sS http://127.0.0.1:8080/api/healthz
 ```
+
+## 8. Release stop condition
+
+Do not publish Apex until a fresh environment can:
+
+1. initialize the required schema explicitly;
+2. boot canonically with schema mutation disabled;
+3. authenticate safely;
+4. execute a real Groq/Mistral Investigator run;
+5. persist observations, provenance, evidence, contacts, and oversight;
+6. survive controlled provider/tool/cancellation failures truthfully;
+7. render the same durable truth in the UI;
+8. complete a controlled empirical campaign.
+
+A green static check is necessary. It is not sufficient.

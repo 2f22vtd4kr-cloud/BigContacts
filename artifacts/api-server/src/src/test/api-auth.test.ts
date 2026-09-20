@@ -1,28 +1,17 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { NextFunction, Request, Response } from "express";
 import { apiAuth } from "../lib/api-auth";
-
 function run(path: string, method: string, authorization?: string) {
   const req = { path, method, header(name: string) { return name.toLowerCase() === "authorization" ? authorization : undefined; } } as unknown as Request;
-  const response = {
-    statusCode: 200,
-    jsonBody: undefined as unknown,
-    status(code: number) { response.statusCode = code; return response; },
-    json(body: unknown) { response.jsonBody = body; return response; },
-  };
-  let nextCalled = false;
-  const next = (() => { nextCalled = true; }) as NextFunction;
-  apiAuth(req, response as unknown as Response, next);
-  return { response, nextCalled };
+  const response = { statusCode: 200, jsonBody: undefined as unknown, status(code: number) { response.statusCode = code; return response; }, json(body: unknown) { response.jsonBody = body; return response; } };
+  let nextCalled = false; const next = (() => { nextCalled = true; }) as NextFunction; apiAuth(req, response as unknown as Response, next); return { response, nextCalled };
 }
-
-beforeEach(() => { delete process.env.CI; process.env.NODE_ENV = "test"; });
-afterEach(() => { delete process.env.APEX_API_AUTH_TOKEN; delete process.env.CI; delete process.env.NODE_ENV; });
-
+beforeEach(() => { delete process.env.CI; delete process.env.APEX_API_AUTH_TOKEN; delete process.env.APEX_SESSION_SECRET; process.env.NODE_ENV = "test"; });
+afterEach(() => { delete process.env.APEX_API_AUTH_TOKEN; delete process.env.APEX_SESSION_SECRET; delete process.env.CI; delete process.env.NODE_ENV; });
 describe("API authentication", () => {
   it("leaves health probes public", () => { expect(run("/api/healthz", "GET").nextCalled).toBe(true); });
-  it("fails closed when the token is not configured", () => { const result = run("/api/entities", "GET"); expect(result.nextCalled).toBe(false); expect(result.response.statusCode).toBe(503); });
-  it("rejects missing and incorrect credentials", () => { process.env.APEX_API_AUTH_TOKEN = "x".repeat(32); expect(run("/api/entities", "GET").response.statusCode).toBe(401); expect(run("/api/entities", "GET", "Bearer wrong").response.statusCode).toBe(401); });
+  it("fails closed when no authentication boundary is configured", () => { const result = run("/api/entities", "GET"); expect(result.nextCalled).toBe(false); expect(result.response.statusCode).toBe(503); });
+  it("rejects missing and incorrect bearer credentials when token auth is configured", () => { process.env.APEX_API_AUTH_TOKEN = "x".repeat(32); expect(run("/api/entities", "GET").response.statusCode).toBe(401); expect(run("/api/entities", "GET", "Bearer wrong").response.statusCode).toBe(401); });
   it("accepts the configured bearer token", () => { const token = "x".repeat(32); process.env.APEX_API_AUTH_TOKEN = token; expect(run("/api/entities", "GET", `Bearer ${token}`).nextCalled).toBe(true); });
-  it("does not bypass authentication merely because CI is set", () => { process.env.CI = "true"; process.env.NODE_ENV = "development"; expect(run("/api/entities", "GET").nextCalled).toBe(false); expect(run("/api/entities", "GET").response.statusCode).toBe(503); });
+  it("does not bypass authentication merely because CI is set", () => { process.env.CI = "true"; process.env.NODE_ENV = "development"; expect(run("/api/entities", "GET").nextCalled).toBe(false); expect(run("/api/entities", "GET").response.statusCode).toBe(503); process.env.APEX_SESSION_SECRET = "s".repeat(32); expect(run("/api/entities", "GET").nextCalled).toBe(false); expect(run("/api/entities", "GET").response.statusCode).toBe(401); });
 });

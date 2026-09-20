@@ -1,3 +1,4 @@
+import { allocateDiscoveryPortfolio, type DiscoveryLaneFeedback } from "./atlas-adaptive-portfolio";
 /**
  * Discovery source mixer — randomized, mixed Western-ally target finding.
  *
@@ -367,4 +368,106 @@ export function pickWesternBroadCategory(lastUsed?: number, rng: () => number = 
   const ids = WESTERN_BROAD_CATEGORY_IDS.filter((id) => id !== lastUsed);
   const pool = ids.length ? ids : [...WESTERN_BROAD_CATEGORY_IDS];
   return pool[Math.floor(rng() * pool.length)]!;
+}
+
+export type DiscoveryLaneFeedback = {
+  slotId: string;
+  candidates: number;
+  admitted: number;
+  rejected: number;
+  usefulEvidence: number;
+  duplicateRate: number;
+  reachableRate: number;
+};
+
+export function adaptDiscoverySlate(options: {
+  feedback: DiscoveryLaneFeedback[];
+  count?: number;
+  includeFaa?: boolean;
+  priorSlotIds?: string[];
+  rng?: () => number;
+}): MixedDiscoverySlot[] {
+  const feedback = new Map(options.feedback.map((row) => [row.slotId, row]));
+  const scored = MIXED_DISCOVERY_POOL.map((slot) => {
+    const row = feedback.get(slot.id);
+    if (!row) return { slot, score: 0.5 };
+    const admission = row.candidates > 0 ? row.admitted / row.candidates : 0;
+    const reachability = row.candidates > 0 ? row.reachableRate : 0;
+    const evidence = row.candidates > 0 ? row.usefulEvidence / row.candidates : 0;
+    const novelty = 1 - Math.max(0, Math.min(1, row.duplicateRate));
+    return {
+      slot,
+      // Exploit demonstrated yield while retaining novelty and person-fit signals.
+      score: admission * 0.30 + reachability * 0.30 + evidence * 0.20 + novelty * 0.20 + personRecipeScore(slot) * 0.01,
+    };
+  }).sort((a, b) => b.score - a.score);
+
+  const selected: MixedDiscoverySlot[] = [];
+  const seen = new Set<string>();
+  const prior = new Set(options.priorSlotIds ?? []);
+  const take = (slot: MixedDiscoverySlot) => {
+    if (selected.length >= (options.count ?? 8) || seen.has(slot.id) || prior.has(slot.id)) return;
+    selected.push(slot); seen.add(slot.id);
+  };
+
+  // Keep diversity floors: registry + broad web + optional FAA when available.
+  take(scored.find((x) => x.slot.kind === "registry" && !prior.has(x.slot.id))?.slot);
+  take(scored.find((x) => x.slot.kind === "broad_web" && !prior.has(x.slot.id))?.slot);
+  if (options.includeFaa !== false) take(scored.find((x) => x.slot.kind === "faa" && !prior.has(x.slot.id))?.slot);
+  for (const row of scored) {
+    if (selected.length >= (options.count ?? 8)) break;
+    take(row.slot);
+  }
+  return selected;
+}
+
+
+/**
+ * Adaptive Atlas discovery slate. Historical lane feedback changes allocation, but
+ * the allocator still enforces geography/occupation/wealth-mechanism/source-kind
+ * diversity floors so one successful lane cannot monopolize discovery.
+ */
+export function pickAdaptiveMixedDiscoverySlots(options?: {
+  count?: number;
+  includeFaa?: boolean;
+  priorSlotIds?: string[];
+  feedback?: readonly DiscoveryLaneFeedback[];
+  rng?: () => number;
+}): MixedDiscoverySlot[] {
+  const count = Math.max(3, Math.min(options?.count ?? 8, MIXED_DISCOVERY_POOL.length));
+  const prior = new Set(options?.priorSlotIds ?? []);
+  const eligiblePool = MIXED_DISCOVERY_POOL.filter((slot) => {
+    if (prior.has(slot.id)) return false;
+    if (slot.kind === "faa" && options?.includeFaa === false) return false;
+    return true;
+  });
+  const lanes = eligiblePool.map((slot) => ({
+    id: slot.id,
+    geography: slot.geography,
+    occupation: slot.kind === "registry" ? "corporate-principal" : slot.kind === "faa" ? "asset-owner" : "operator-investor",
+    wealthMechanism: slot.kind === "faa" ? "asset-ownership" : slot.kind === "registry" ? "company-ownership" : "investment-business",
+    sourceKind: slot.kind,
+  }));
+  const selected = allocateDiscoveryPortfolio(lanes, options?.feedback ?? [], count);
+  const selectedIds = new Set(selected.map((lane) => lane.id));
+  const selectedSlots = eligiblePool.filter((slot) => selectedIds.has(slot.id));
+
+  // The adaptive allocator is allowed to choose from the whole eligible pool, not only
+  // from a pre-randomized slate. Otherwise historical feedback can never promote a lane
+  // that happened not to appear in the random slate.
+  if (selectedSlots.length >= count) return selectedSlots.slice(0, count);
+
+  // Defensive fallback preserves the base diversity behavior if the allocator ever
+  // returns an undersized portfolio.
+  const fallback = pickMixedDiscoverySlots({ ...options, count });
+  const merged = [...selectedSlots];
+  const seen = new Set(merged.map((slot) => slot.id));
+  for (const slot of fallback) {
+    if (merged.length >= count) break;
+    if (!seen.has(slot.id) && !prior.has(slot.id)) {
+      merged.push(slot);
+      seen.add(slot.id);
+    }
+  }
+  return merged.slice(0, count);
 }
