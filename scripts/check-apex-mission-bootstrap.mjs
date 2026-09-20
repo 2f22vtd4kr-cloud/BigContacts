@@ -50,6 +50,10 @@ assert(!/fixed\s+(search|research)\s+(order|sequence)/i.test(source.orientation)
 assert(!/step\s*1.*web_search.*step\s*2.*visit/is.test(source.orientation), "orientation contains a deterministic web-research sequence.");
 assert(!/Begin\. Choose an initial web_search query/i.test(source.research), "ReAct still forces web_search as the initial action; #120 remains unresolved.");
 assert(!/\(none — begin with web_search\)/i.test(source.research), "ReAct prompt still tells a contextually autonomous Investigator to begin with web_search.");
+assert(!/WHOISJSON|Whoxy|WhoisJSON/i.test(source.orientation), "retired WHOIS provider is still advertised by the canonical orientation.");
+assert(!/WHOISJSON|Whoxy|WhoisJSON/i.test(source.research), "retired WHOIS provider is still advertised by the Investigator ReAct surface.");
+assert(/buildInvestigatorContext/.test(source.research), "Investigator ReAct prompt does not consume bounded working context.");
+assert(/investigation-context-compaction/.test(source.research), "Investigator ReAct path does not import the context-management boundary.");
 
 // Right-hand is Gemini oversight, independent of Boss and never an Investigator fallback.
 assert(/GEMINI_RIGHT_HAND_API_KEY/.test(source.rightHand), "Gemini Right-hand does not use the dedicated GEMINI_RIGHT_HAND_API_KEY.");
