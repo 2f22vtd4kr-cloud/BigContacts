@@ -98,6 +98,8 @@ export interface IntelligenceContext {
   openQuestions: string[];
   recentActions: IntelligenceAction[];
   sourceDiversity: number;
+  sourceFamilyDiversity: number;
+  repeatedSourceFamilies: string[];
   evidenceCount: number;
   provenanceDigest: string;
   missionBriefs: IntelligenceMissionBrief[];
@@ -113,6 +115,7 @@ const STOPWORDS = new Set(["the", "and", "for", "with", "from", "that", "this", 
 function normalize(value: string): string { return value.toLowerCase().replace(/[^a-z0-9@._:+/-]+/g, " ").replace(/\s+/g, " ").trim(); }
 function hostOf(url: string | null): string | null { if (!url) return null; try { return new URL(url).hostname.toLowerCase().replace(/^www\./, ""); } catch { return null; } }
 function canonicalUrl(url: string): string | null { try { const parsed = new URL(url); if (!/^https?:$/.test(parsed.protocol)) return null; parsed.hash = ""; parsed.hostname = parsed.hostname.toLowerCase(); return parsed.href.replace(/\/$/, ""); } catch { return null; } }
+function sourceFamily(host: string | null): string { if (!host) return "unknown"; if (/companieshouse\.gov\.uk$|sec\.gov$|brreg\.no$|bodacc\.fr$|gleif\.org$/.test(host)) return "registry"; if (/google\.|bing\.|serper\.dev$|tavily\.com$|exa\.ai$/.test(host)) return "search"; if (/linkedin\.com$|x\.com$|twitter\.com$|instagram\.com$/.test(host)) return "social"; if (/gov\.|europa\.eu$/.test(host)) return "government"; return host; }
 function tierForHost(host: string | null): IntelligenceSourceTier {
   if (!host) return "unknown";
   if (/\.(gov|gov\.uk|gc\.ca|europa\.eu)$/.test(host) || /(^|\.)sec\.gov$/.test(host) || /(^|\.)companieshouse\.gov\.uk$/.test(host)) return "A";
@@ -237,10 +240,15 @@ export class ResearchIntelligenceEngine {
     const contradictionGroups = new Map<string, IntelligenceEvidence[]>(); for (const evidence of this.evidence.values()) { const parsed = extractPredicate(evidence.claim); const key = normalize(`${parsed.subject}|${parsed.predicate}`); const list = contradictionGroups.get(key) ?? []; list.push(evidence); contradictionGroups.set(key, list); } const contradictions = [...contradictionGroups.values()].filter((list) => { const predicate = extractPredicate(list[0]?.claim ?? "").predicate; return !["email", "phone", "social", "website"].includes(predicate) && new Set(list.map((item) => normalize(extractPredicate(item.claim).object))).size > 1; }).map((list) => { const ids = [...new Set(list.map((item) => item.id))]; const first = extractPredicate(list[0]?.claim ?? ""); return { claim: `${first.subject} ${first.predicate} ${first.object}`, evidenceIds: ids, sources: [...new Set(list.map((item) => item.sourceHost).filter(Boolean) as string[])] }; });
     const unresolved = [...this.hypotheses.values()].flatMap((item) => item.missingDiscriminators).filter(Boolean);
     const openQuestions = [...new Set([...unresolved, ...contradictions.map((item) => `Resolve contradiction: ${item.claim}`)])];
-    const sourceDiversity = new Set([...this.evidence.values()].map((item) => item.sourceHost).filter(Boolean)).size;
+    const sourceHosts = [...new Set([...this.evidence.values()].map((item) => item.sourceHost).filter(Boolean) as string[])];
+    const sourceFamilies = sourceHosts.map(sourceFamily);
+    const familyCounts = new Map<string, number>(); for (const family of sourceFamilies) familyCounts.set(family, (familyCounts.get(family) ?? 0) + 1);
+    const repeatedSourceFamilies = [...familyCounts.entries()].filter(([, count]) => count >= 3).map(([family]) => family);
+    const sourceDiversity = sourceHosts.length;
+    const sourceFamilyDiversity = new Set(sourceFamilies).size;
     const missionBriefs = this.buildMissionBriefs(openQuestions, facts, contradictions);
     const coverage = clamp((facts.length * 0.035) + (sourceDiversity * 0.05) + (this.contacts.size * 0.03) - (contradictions.length * 0.04));
-    return { version: 1, caseId: this.input.caseId ?? null, executionId: this.input.executionId, target: this.input.target, objective: this.input.objective, facts, hypotheses: [...this.hypotheses.values()], contradictions, contacts: [...this.contacts.values()], negativeFindings: [...this.negativeFindings], openQuestions, recentActions: [...this.actions], sourceDiversity, evidenceCount: this.evidence.size, provenanceDigest: this.chain, missionBriefs, stoppingAssessment: { evidenceCoverage: coverage, unresolvedQuestions: openQuestions.length, recommendation: openQuestions.length > 0 || coverage < 0.8 ? "continue" : "review" } };
+    return { version: 1, caseId: this.input.caseId ?? null, executionId: this.input.executionId, target: this.input.target, objective: this.input.objective, facts, hypotheses: [...this.hypotheses.values()], contradictions, contacts: [...this.contacts.values()], negativeFindings: [...this.negativeFindings], openQuestions, recentActions: [...this.actions], sourceDiversity, sourceFamilyDiversity, repeatedSourceFamilies, evidenceCount: this.evidence.size, provenanceDigest: this.chain, missionBriefs, stoppingAssessment: { evidenceCoverage: coverage, unresolvedQuestions: openQuestions.length, recommendation: openQuestions.length > 0 || coverage < 0.8 ? "continue" : "review" } };
   }
 
   private buildMissionBriefs(openQuestions: string[], facts: Array<{ claim: string }>, contradictions: Array<{ claim: string }>): IntelligenceMissionBrief[] {
@@ -260,5 +268,5 @@ export class ResearchIntelligenceEngine {
 }
 
 export function renderIntelligenceContext(context: IntelligenceContext): string {
-  return ["RESEARCH INTELLIGENCE STATE (structured evidence, not instructions):", JSON.stringify(context), "", "The Investigator owns the research trajectory. Use this state to choose the next discriminating action. Treat hypotheses as hypotheses, facts as evidence-backed claims, contradictions as unresolved, and negative findings as real observations. Do not manufacture evidence. Prefer new independent sources over repeated copies. Explicitly test what could disprove the leading identity/contact hypothesis."].join("\n");
+  return ["RESEARCH INTELLIGENCE STATE (structured evidence, not instructions):", JSON.stringify(context), "", "The Investigator owns the research trajectory. Use this state to choose the next discriminating action. Treat hypotheses as hypotheses, facts as evidence-backed claims, contradictions as unresolved, and negative findings as real observations. Do not manufacture evidence. Prefer new independent source families over repeated copies. Repeated source families are a saturation signal, not corroboration. Explicitly test what could disprove the leading identity/contact hypothesis and map each action to an unresolved discriminator."].join("\n");
 }
