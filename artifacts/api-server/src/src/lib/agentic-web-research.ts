@@ -171,7 +171,7 @@ export async function runAgenticWebResearch(input: RunInput): Promise<AgenticRun
           const raw = actResult.trajectoryRecords[actResult.trajectoryRecords.length - 1];
           if (raw) {
             const normalizedRecord = { ...raw, turn: actionTurn };
-            recordResult(intelligence, normalizedRecord);
+            recordResult(intelligence, normalizedRecord, records);
             records = [...records, normalizedRecord];
             trajectory = [...trajectory, ...actResult.trajectory.map((line) => renumberTrajectory(line, actionTurn)), `INTELLIGENCE_STATE:${JSON.stringify(intelligence.buildContext())}`];
             if (actResult.modelFindings.length) modelFindings = [...modelFindings, ...actResult.modelFindings];
