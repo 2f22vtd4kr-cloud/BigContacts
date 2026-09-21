@@ -39,9 +39,9 @@ describe("Gemini Right-hand free-model fallback", () => {
 
     expect(result.status).toBe("completed");
     expect(result.model).toBe(GEMINI_RIGHT_HAND_FALLBACK_MODELS[0]);
-    expect(calls).toHaveLength(4);
-    expect(calls.slice(0, 3).every((url) => url.includes(`/${GEMINI_RIGHT_HAND_MODEL}:generateContent`))).toBe(true);
-    expect(calls[3]).toContain(`/${GEMINI_RIGHT_HAND_FALLBACK_MODELS[0]}:generateContent`);
+    expect(calls).toHaveLength(2);
+    expect(calls[0]).toContain(`/${GEMINI_RIGHT_HAND_MODEL}:generateContent`);
+    expect(calls[1]).toContain(`/${GEMINI_RIGHT_HAND_FALLBACK_MODELS[0]}:generateContent`);
   });
 
   it("walks the complete bounded free-model chain when every model is capacity-limited", async () => {
@@ -56,11 +56,11 @@ describe("Gemini Right-hand free-model fallback", () => {
     const result = await runGeminiRightHandFreeJson("Return JSON.");
 
     expect(result.status).toBe("unavailable");
-    expect(calls).toHaveLength(4);
+    expect(calls).toHaveLength(2);
     expect(calls.map((url) => url.match(/models\/([^:]+):generateContent/)?.[1])).toEqual([
       GEMINI_RIGHT_HAND_MODEL,
-      ...GEMINI_RIGHT_HAND_FALLBACK_MODELS,
+      GEMINI_RIGHT_HAND_FALLBACK_MODELS[0],
     ]);
-    expect(result.error).toContain("exhausted fallback models");
+    expect(result.error).toContain("exhausted bounded model attempts");
   });
 });
