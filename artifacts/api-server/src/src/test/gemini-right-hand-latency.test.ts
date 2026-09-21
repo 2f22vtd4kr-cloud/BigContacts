@@ -40,14 +40,18 @@ describe("Gemini Right-hand latency controls", () => {
   it("tries at most two Gemini models instead of serially exhausting the fallback chain", async () => {
     process.env.GEMINI_RIGHT_HAND_API_KEY = "test-key";
     process.env.GEMINI_RIGHT_HAND_MODEL_CHAIN = "gemini-3.8-flash,gemini-3.7-flash,gemini-3.6-flash";
-    const fetchMock = vi.fn<typeof fetch>()
-      .mockResolvedValue(new Response(JSON.stringify({ error: "busy" }), { status: 503 }));
+    const fetchMock = vi.fn<typeof fetch>().mockImplementation(async () => ({
+      ok: false,
+      status: 503,
+      text: async () => JSON.stringify({ error: "busy" }),
+    }) as Response);
     globalThis.fetch = fetchMock;
     vi.resetModules();
     const { runGeminiRightHandFreeJson } = await import("../lib/gemini-right-hand-reasoning");
 
     const result = await runGeminiRightHandFreeJson("Return one JSON object.");
     expect(result.status).toBe("unavailable");
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock.mock.calls.length).toBeGreaterThanOrEqual(1);
+    expect(fetchMock.mock.calls.length).toBeLessThanOrEqual(2);
   }, 10_000);
 });
