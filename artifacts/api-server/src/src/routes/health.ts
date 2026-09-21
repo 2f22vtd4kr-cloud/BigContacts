@@ -28,17 +28,17 @@ router.get("/healthz", async (_req, res) => {
     const providerKeys = [
       process.env.GROQ_API_KEY,
       process.env.GEMINI_API_KEY,
-      process.env.GEMINI_API_KEY,
       process.env.MISTRAL_API_KEY,
+      process.env.GEMINI_RIGHT_HAND_API_KEY,
       process.env.HF_TOKEN,
       process.env.SERPER_API_KEY,
       process.env.TAVILY_API_KEY,
-      process.env.SERPAPI_API_KEY,
+      process.env.SERPAPI_KEY,
       process.env.EXA_API_KEY,
       process.env.SCRAPFLY_API_KEY,
       process.env.ZENROWS_API_KEY,
       process.env.COMPANIES_HOUSE_API_KEY,
-      process.env.WHOISJSON_API_KEY,
+      process.env.REDIS_URL_1 ?? process.env.REDIS_URL,
     ];
     researchKeysConfigured = providerKeys.some((key) => Boolean(key?.trim()));
   } catch {
@@ -59,16 +59,14 @@ router.get("/healthz/details", async (_req, res) => {
     const status = getAIKeyStatus();
     const active = (slots: Array<{ state: string }>) => slots.filter((s) => s.state === "active").length;
     const mistral = getMistralWebSearchStatus();
-    const nvidia = getGeminiRightHandStatus();
+    const rightHand = getGeminiRightHandStatus();
     providers = {
       groq: active(status.groq), gemini: active(status.gemini), perplexity: active(status.perplexity), tavily: active(status.tavily), exa: active(status.exa),
-      mistral: mistral.configured ? 1 : 0, nvidiaNim: nvidia.configured ? 1 : 0,
+      mistral: mistral.configured ? 1 : 0, geminiRightHand: rightHand.configured ? 1 : 0,
       companiesHouse: process.env.COMPANIES_HOUSE_API_KEY ? 1 : 0,
       serper: [process.env.SERPER_API_KEY, process.env.SERPER_API_KEY_2, process.env.SERPER_API_KEY_3, process.env.SERPER_KEY].some((k) => Boolean(k?.trim())) ? 1 : 0,
       scrapfly: process.env.SCRAPFLY_API_KEY ? 1 : 0, zenrows: process.env.ZENROWS_API_KEY ? 1 : 0,
-      whoxy: [process.env.WHOXY_API_KEY, process.env.WHOXY_KEY, process.env.Whoxy_Key, process.env.WHOXY].some((k) => Boolean(k?.trim())) ? 1 : 0,
-      whoisjson: process.env.WHOISJSON_API_KEY ? 1 : 0,
-    };
+          };
     lanesHonesty = buildLanesHonestySnapshot();
   } catch { providers = undefined; lanesHonesty = undefined; }
   const registryShallowRisk = lanesHonesty?.registryShallowRisk ?? (providers ? (providers.perplexity + providers.tavily + providers.exa + providers.serper) === 0 : true);
