@@ -41,8 +41,10 @@ async function materializeAtlasAdmissions(input: { findings: Array<{ promotionDe
     const supported = caseEvents.some((event) => {
       if (event.eventType !== "tool_observation" || typeof event.payload !== "string") return false;
       try {
-        const payload = JSON.parse(event.payload) as { execution?: string; observedUrls?: unknown[] };
-        return payload.execution === "success" && Array.isArray(payload.observedUrls) && payload.observedUrls.some((url) => { try { return new URL(String(url)).href === normalizedSource; } catch { return false; } });
+        const payload = JSON.parse(event.payload) as { execution?: string; observation?: string; observedUrls?: unknown[] };
+        const identityTokens = name.toLowerCase().split(/[^a-z0-9]+/).filter((token) => token.length >= 2);
+        const observedIdentity = identityTokens.length > 0 && typeof payload.observation === "string" && identityTokens.every((token) => payload.observation!.toLowerCase().includes(token));
+        return payload.execution === "success" && observedIdentity && Array.isArray(payload.observedUrls) && payload.observedUrls.some((url) => { try { return new URL(String(url)).href === normalizedSource; } catch { return false; } });
       } catch { return false; }
     });
     if (!supported) continue;
@@ -50,7 +52,7 @@ async function materializeAtlasAdmissions(input: { findings: Array<{ promotionDe
     const existing = existingRows[0]; let entityId = existing?.id ?? null;
     if (!entityId) { const [created] = await db.insert(entitiesTable).values({ name, type: "HNWI", bayesianScore: 0.05, contactConfidence: 0, contactOutcome: "evidence_only", isHot: false, isStarred: false, isHidden: false, sourceRegistries: JSON.stringify(["canonical-agentic-discovery"]), notes: "Model-selected discovery candidate; target-scoped Investigator research required before contact promotion.", metadata: JSON.stringify({ reviewOnly: true, admission: "investigator-explicit-promotion", sourceUrl, discoveryCaseId: input.discoveryCaseId }) }).returning({ id: entitiesTable.id }); entityId = created?.id ?? null; if (entityId) materialized += 1; }
     if (!entityId) continue;
-    const supportingEvent = caseEvents.find((event) => { if (event.eventType !== "tool_observation" || typeof event.payload !== "string") return false; try { const payload = JSON.parse(event.payload) as { execution?: string; observedUrls?: unknown[] }; return payload.execution === "success" && Array.isArray(payload.observedUrls) && payload.observedUrls.some((url) => { try { return new URL(String(url)).href === normalizedSource; } catch { return false; } }); } catch { return false; } });
+    const supportingEvent = caseEvents.find((event) => { if (event.eventType !== "tool_observation" || typeof event.payload !== "string") return false; try { const payload = JSON.parse(event.payload) as { execution?: string; observation?: string; observedUrls?: unknown[] }; const identityTokens = name.toLowerCase().split(/[^a-z0-9]+/).filter((token) => token.length >= 2); const observedIdentity = identityTokens.length > 0 && typeof payload.observation === "string" && identityTokens.every((token) => payload.observation!.toLowerCase().includes(token)); return payload.execution === "success" && observedIdentity && Array.isArray(payload.observedUrls) && payload.observedUrls.some((url) => { try { return new URL(String(url)).href === normalizedSource; } catch { return false; } }); } catch { return false; } });
     const [existingEvidence] = await db.select({ id: researchEvidenceTable.id }).from(researchEvidenceTable).where(and(eq(researchEvidenceTable.entityId, entityId), eq(researchEvidenceTable.sourceUrl, normalizedSource))).limit(1);
     if (!existingEvidence) {
       const [session] = await db.insert(researchSessionsTable).values({ targetEntityId: entityId, winningPath: JSON.stringify([{ sourceUrl: normalizedSource, caseId: input.discoveryCaseId, admission: "investigator-explicit-promotion" }]), notes: "Canonical discovery admission evidence; target-scoped investigation required before contact promotion.", safeUseStatus: "manual_review", crmStatus: "Lead Gen" }).returning({ id: researchSessionsTable.id });
