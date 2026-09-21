@@ -160,12 +160,37 @@ Do NOT add:
 
 Deterministic code may enforce safety, authorization, schema, provenance, cancellation, resource limits and promotion integrity. It must not secretly own research strategy.
 
-LIVE INVESTIGATION
+LIVE INVESTIGATION / DISCOVERY-FIRST SMOKE TEST
 Do not launch the 150-run campaign during initialization.
 
-Once the application is genuinely healthy, the operator will conduct exactly ONE real investigation first.
+Once the application is genuinely healthy, the initialization smoke test MUST exercise Apex's existing canonical **discovery-first** path.
 
-The objective will be supplied by the operator.
+Apex is an autonomous OSINT bureau. A cold/discovery-first run does NOT require the operator to name a person or provide a target. The operator may provide a high-level research objective in normal product use, but target discovery is an internal Investigator-owned phase that happens before target-scoped research.
+
+For the first runtime smoke test, Replit MUST NOT stop and ask:
+- "What person should I research?"
+- "What target should I research?"
+- "What investigation should I run first?"
+
+Instead use the canonical discovery objective already supported by the current code:
+
+"Discover real named people for subsequent target-scoped public-contact research. Choose every search, page visit, registry/domain/OSINT action and stopping point yourself. Emit a person only when the observed public source supports the identity. Promote only an exact named-person admission candidate. Never invent a person, contact, or URL."
+
+Create/run a genuine discovery case through the repository's canonical discovery route. Do not bypass discovery by supplying a hardcoded person/entity ID.
+
+The expected sequence is:
+
+high-level discovery objective
+→ Gemini Right-hand advisory
+→ Gemini Boss oversight/Investigator selection
+→ Groq or Mistral Investigator
+→ Investigator-owned autonomous discovery
+→ real web observations
+→ validated named-person candidate(s), or honest no-admission outcome
+→ durable discovery evidence/provenance
+→ only then, if the canonical pipeline calls for it, target-scoped research of an admitted person.
+
+A UI prompt asking the operator to name a specific investigation/target is NOT a substitute for this smoke test. If the UI displays such a prompt during initialization, use the canonical backend discovery route instead of asking the operator for a target.
 
 Verify:
 - actual Gemini Boss invocation;
@@ -189,11 +214,15 @@ The UI must project real backend state.
 Never create fake progress, fake searches, fake observations, fake sources or fake confidence just to make the UI look alive.
 
 USER-OPERATED REPLIT RULE
-The human operator, not an autonomous Replit Agent, conducts the live runtime investigation.
-When a live run is needed:
-- tell the operator exactly what to execute;
-- wait for the returned output;
-- do not claim that a run occurred unless actual output proves it.
+The human operator owns the Replit environment and credentials. The Replit Agent may execute the documented initialization/build/runtime smoke-test commands inside that environment.
+
+Do not confuse "operator-owned Replit" with "operator must manually invent a research target."
+
+For initialization, the Agent MUST be able to exercise the canonical discovery-first smoke test using the repository's built-in discovery objective. It must not block on a request for a named target.
+
+For later user-driven investigations, the product may accept a high-level objective from the operator. When that objective is discovery-first/cold, Apex itself must discover the people to investigate.
+
+Never claim a live run occurred unless actual runtime output proves it.
 
 WHAT TO REPORT
 At the end of initialization, report exactly:
@@ -411,7 +440,34 @@ Never:
 
 ---
 
-# 7. RUNTIME SUCCESS CRITERIA
+# 7. DISCOVERY-FIRST IS THE DEFAULT FOR COLD RESEARCH
+
+The distinction between these two modes is mandatory:
+
+### Single-target mode
+The operator already has a specific entity/person. Apex researches that target.
+
+### Discovery-first mode
+The operator has a research objective but does NOT have a target. Apex discovers suitable named people first, using the Investigator's autonomous web research.
+
+Discovery is not a manual pre-step where the operator supplies names.
+
+Discovery is an actual Apex research phase.
+
+The discovery layer already exists in the canonical implementation under:
+- `artifacts/api-server/src/src/lib/canonical-atlas-discovery.ts`
+- `artifacts/api-server/src/src/lib/discovery-agent.ts`
+- `artifacts/api-server/src/src/lib/discovery-intake.ts`
+- `artifacts/api-server/src/src/routes/research/canonical-case-discovery.ts`
+
+Relevant repository design documents include:
+- `docs/bureau-plan/216_DISCOVERY_NORTH_STAR.md`
+- `docs/bureau-plan/221_DISCOVERY_HANDOFF_TO_DIG.md`
+- `docs/bureau-plan/254_SINGLE_TARGET_VS_DISCOVERY.md`
+
+Do not replace this with a manual target-selection prompt.
+
+# 8. RUNTIME SUCCESS CRITERIA
 
 Initialization is successful only when the requested layer is verified.
 
@@ -450,7 +506,7 @@ Empirical readiness additionally requires the controlled Research Gauntlet.
 
 ---
 
-# 8. DO NOT BURN ANOTHER ACCOUNT
+# 9. DO NOT BURN ANOTHER ACCOUNT
 
 If initialization fails, preserve the exact evidence.
 
@@ -471,7 +527,7 @@ A fresh Replit account should be used only when there is a demonstrated platform
 
 ---
 
-# 9. RELATIONSHIP TO OTHER CANONICAL DOCUMENTS
+# 10. RELATIONSHIP TO OTHER CANONICAL DOCUMENTS
 
 This blueprint answers:
 
@@ -493,7 +549,7 @@ All four should be read together.
 
 ---
 
-# 10. FINAL INITIALIZATION PRINCIPLE
+# 11. FINAL INITIALIZATION PRINCIPLE
 
 The objective is not:
 
@@ -514,7 +570,7 @@ When a run did not happen, say it did not happen.
 Never manufacture success.
 
 
-# 11. POST-RUN HARDENING NOW IN MAIN
+# 12. POST-RUN HARDENING NOW IN MAIN
 
 The following two runtime protections are now committed to `main`:
 
@@ -525,6 +581,6 @@ These are safety rails, not a replacement for the one-workflow rule.
 
 The previous captured run also established that Gemini Boss may need bounded same-role model fallback when a configured Gemini model is capacity-limited. A new agent must preserve that same-role fallback and its bounded control-plane deadline if those changes are already present on the checked-out `main`.
 
-# 12. FINAL NEW-ACCOUNT PROMPT RULE
+# 13. FINAL NEW-ACCOUNT PROMPT RULE
 
-The operator should use the exact prompt in section 0. Do not improvise a shorter prompt that makes credentials conditional, starts multiple workflows, or launches research before runtime/schema/provider gates are proven.
+The operator should use the exact prompt in section 0. Do not improvise a shorter prompt that makes credentials conditional, starts multiple workflows, asks the operator to supply a target for discovery, or launches research before runtime/schema/provider gates are proven.
