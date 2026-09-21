@@ -11,7 +11,20 @@ import { publishBureauEvent } from "./bureau-live-log";
 export type BureauAgenticPassResult = { status:"completed"|"unavailable"|"error"|"skipped"|"timeout"|"cancelled"; model:string; iterations:number; searches:number; visits:number; findings:AgenticFinding[]; modelFindings?:AgenticFinding[]; contactEvidence:Array<{vectorType:string;value:string;scope:string;personName:string|null;role:string|null;sourceUrls:string[];note:string}>; trajectory:string[]; trajectoryRecords?:AgenticTrajectoryRecord[]; caseId?:number; runId?:string; stopReason?:string; error?:string };
 const WEB_SPECIALISTS=new Set(["web","contact","footprint"]);
 export function isWebSpecialistAction(specialistId:string|null|undefined):boolean{return WEB_SPECIALISTS.has(String(specialistId??"").toLowerCase());}
-function observedUrlsFromTrajectory(trajectory:string[]):Set<string>{const observed=new Set<string>();for(const line of trajectory){const match=String(line).match(/step\d+:\s+(?:visit|browser_fetch)\s+https?:\/\/\S+\s+execution=success\s+observed=(https?:\/\/\S+)/i);if(match?.[1])try{observed.add(new URL(match[1]).href);}catch{}}return observed;}
+function observedUrlsFromTrajectory(trajectory:string[], records:AgenticTrajectoryRecord[]=[]):Set<string>{
+  const observed=new Set<string>();
+  for(const record of records){
+    if(record.execution!=="success") continue;
+    for(const raw of record.observedUrls??[]) try{observed.add(new URL(raw).href);}catch{}
+  }
+  if(observed.size===0){
+    for(const line of trajectory){
+      const match=String(line).match(/step\d+:\s+(?:visit|browser_fetch)\s+https?:\/\/\S+\s+execution=success(?:\s+observed=(https?:\/\/\S+))?/i);
+      if(match?.[1])try{observed.add(new URL(match[1]).href);}catch{}
+    }
+  }
+  return observed;
+}catch{}}return observed;}
 function claimAppearsInObservedMaterial(finding:AgenticFinding,records:AgenticTrajectoryRecord[]):boolean{if(!records.length)return false;const sources=new Set(finding.sourceUrls.map((url)=>{try{return new URL(url).href;}catch{return "";}}).filter(Boolean));const value=finding.value.trim().toLowerCase();const exact=["email","phone","linkedin","website","social"].includes(finding.vectorType);const tokens=finding.scope==="candidate"&&finding.personName?finding.personName.toLowerCase().split(/[^a-z0-9]+/).filter((v)=>v.length>=2):[];let valueObserved=!exact,identityObserved=!tokens.length,support=0;for(const record of records){if(record.execution!=="success"||typeof record.observation!=="string"||!record.observedUrls.some((url)=>sources.has(url)))continue;const text=record.observation.toLowerCase();const hasValue=!exact||text.includes(value);const hasIdentity=!tokens.length||tokens.every((token)=>text.includes(token));if(hasValue)valueObserved=true;if(hasIdentity)identityObserved=true;if(hasValue||hasIdentity)support++;}return valueObserved&&identityObserved&&support>0;}
 export function sourceBackedAgenticFindings(findings:AgenticFinding[],trajectory:string[]=[],records:AgenticTrajectoryRecord[]=[]):AgenticFinding[]{const observed=observedUrlsFromTrajectory(trajectory);return findings.filter((f)=>Array.isArray(f.sourceUrls)).map((f)=>({...f,sourceUrls:f.sourceUrls.filter((url)=>{try{return observed.has(new URL(String(url)).href);}catch{return false;}})})).filter((f)=>f.sourceUrls.length>0&&claimAppearsInObservedMaterial(f,records));}
 export function findingsToContactEvidence(findings:AgenticFinding[],trajectory:string[]=[],records:AgenticTrajectoryRecord[]=[]){return sourceBackedAgenticFindings(findings,trajectory,records).map((f)=>({vectorType:f.vectorType,value:f.value,scope:f.scope==="candidate"?"candidate":"organization",personName:f.scope==="candidate"?f.personName:null,role:f.role,sourceUrls:f.sourceUrls.filter((u)=>/^https?:\/\/\S+$/i.test(String(u))),note:f.note}));}
