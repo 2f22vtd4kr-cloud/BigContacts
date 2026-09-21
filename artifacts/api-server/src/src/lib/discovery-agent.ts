@@ -61,6 +61,17 @@ export function isWellFormedPersonCandidate(candidate: Pick<DiscoveryCandidate, 
   const sourceUrls = (candidate.sourceUrls ?? []).map(normalizeUrl);
   return sourceUrls.some((url) => /^https?:\/\/\S+$/i.test(url)) && hasIndependentSource(sourceUrls);
 }
+function hasObservedPersonEvidence(name: string, sourceUrls: string[], trajectoryRecords: Array<{ execution: string; observation?: string; observedUrls: string[] }> = []): boolean {
+  const tokens = normalizedPersonText(name).split(" ").filter((token) => token.length >= 2);
+  if (!tokens.length) return false;
+  const sources = new Set(sourceUrls.map(normalizeUrl));
+  return trajectoryRecords.some((record) => {
+    if (record.execution !== "success" || typeof record.observation !== "string") return false;
+    if (!record.observedUrls.some((url) => sources.has(normalizeUrl(url)))) return false;
+    const observation = record.observation.toLowerCase();
+    return tokens.every((token) => observation.includes(token));
+  });
+}
 function hasObservedPageSource(sourceUrls: string[], trajectory: string[]): boolean {
   const observed = new Set<string>();
   for (const line of trajectory) { const match = String(line).match(/step\d+:\s+(?:visit|browser_fetch)\s+(https?:\/\/\S+)/i); if (match?.[1]) observed.add(normalizeUrl(match[1])); }
