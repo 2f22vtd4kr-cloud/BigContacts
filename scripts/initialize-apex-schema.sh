@@ -9,6 +9,20 @@ if [[ "${APEX_ALLOW_SCHEMA_PUSH:-false}" != "true" ]]; then
   exit 2
 fi
 
+LOCK_DIR="/tmp/apex-schema-push.lock"
+LOCK_WAIT_SECONDS="${APEX_SCHEMA_LOCK_WAIT_SECONDS:-120}"
+LOCK_START="$(date +%s)"
+while ! mkdir "$LOCK_DIR" 2>/dev/null; do
+  NOW="$(date +%s)"
+  if (( NOW - LOCK_START >= LOCK_WAIT_SECONDS )); then
+    echo "[apex-schema] another schema operation is still running after ${LOCK_WAIT_SECONDS}s; refusing to race it."
+    exit 11
+  fi
+  sleep 1
+done
+trap 'rmdir "$LOCK_DIR" 2>/dev/null || true' EXIT
+
+echo "[apex-schema] acquired single-writer schema lock."
 echo "[apex-schema] applying the repository's current Drizzle schema..."
 pnpm --filter @workspace/db run push
 
