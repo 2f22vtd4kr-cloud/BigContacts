@@ -20,13 +20,9 @@ describe("Gemini transient retry boundary", () => {
     vi.resetModules();
   });
 
-  it("retries 503/5xx generation failures with bounded backoff and returns the eventual response", async () => {
+  it("does not retry Gemini generation transport failures", async () => {
     const providerFetch = vi.fn<typeof fetch>();
-    providerFetch
-      .mockResolvedValueOnce(new Response("busy", { status: 503 }))
-      .mockResolvedValueOnce(new Response("busy", { status: 502 }))
-      .mockResolvedValueOnce(new Response("busy", { status: 504 }))
-      .mockResolvedValueOnce(new Response('{"candidates":[{"content":{"parts":[{"text":"ok"}]}}]}', { status: 200 }));
+    providerFetch.mockResolvedValueOnce(new Response("busy", { status: 503 }));
 
     globalThis.fetch = providerFetch;
     globalThis.setTimeout = ((handler: TimerHandler) => {
@@ -42,16 +38,13 @@ describe("Gemini transient retry boundary", () => {
       { method: "POST" },
     );
 
-    expect(response.status).toBe(200);
-    expect(providerFetch).toHaveBeenCalledTimes(4);
+    expect(response.status).toBe(503);
+    expect(providerFetch).toHaveBeenCalledTimes(1);
   });
 
-  it("also retries transient Gemini model-catalog failures before declaring the Boss unavailable", async () => {
+  it("does not retry Gemini model-catalog transport failures", async () => {
     const providerFetch = vi.fn<typeof fetch>();
-    providerFetch
-      .mockResolvedValueOnce(new Response("busy", { status: 503 }))
-      .mockResolvedValueOnce(new Response("busy", { status: 503 }))
-      .mockResolvedValueOnce(new Response('{"models":[]}', { status: 200 }));
+    providerFetch.mockResolvedValueOnce(new Response("busy", { status: 503 }));
 
     globalThis.fetch = providerFetch;
     globalThis.setTimeout = ((handler: TimerHandler) => {
@@ -67,8 +60,8 @@ describe("Gemini transient retry boundary", () => {
       { method: "GET" },
     );
 
-    expect(response.status).toBe(200);
-    expect(providerFetch).toHaveBeenCalledTimes(3);
+    expect(response.status).toBe(503);
+    expect(providerFetch).toHaveBeenCalledTimes(1);
   });
 
   it("does not retry non-Gemini requests", async () => {
