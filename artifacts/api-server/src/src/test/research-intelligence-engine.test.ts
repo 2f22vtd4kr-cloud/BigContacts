@@ -26,6 +26,17 @@ describe("Apex research intelligence", () => {
     expect(state.recentActions[0]?.informationGain).toBeGreaterThan(0.5);
   });
 
+
+  it("rejects findings attached to failed actions", () => {
+    const engine = new ResearchIntelligenceEngine({ executionId: "failed-finding", target: "Example Target", objective: "preserve failure truth" });
+    engine.recordAction({ turn: 1, action: "visit", execution: "http_error", urls: ["https://example.com/contact"], observation: "HTTP 500", findings: [{ vectorType: "email", value: "person@example.com", personName: "Example Target", sourceUrls: ["https://example.com/contact"] }] });
+    const state = engine.buildContext();
+    expect(state.contacts).toHaveLength(0);
+    expect(state.facts).toHaveLength(0);
+    expect(state.negativeFindings).toContain("visit produced no usable evidence (http_error)");
+    expect(state.recentActions[0]?.useful).toBe(false);
+  });
+
   it("keeps competing identity hypotheses explicit", () => {
     const engine = new ResearchIntelligenceEngine({ executionId: "hypotheses", target: "Jordan Example", objective: "resolve identity" });
     engine.addHypothesis({ label: "H1", entity: "Jordan Example A", score: 0.9 });
