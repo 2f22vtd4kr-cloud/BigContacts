@@ -113,7 +113,19 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       const decision = await decideAtlasNextAction({ objective: discoveryObjective, admittedCandidates: admitted.map((name) => { const finding = discovery.findings.find((candidate) => candidate.personName?.trim().toLowerCase() === name.toLowerCase()); return { name, role: finding?.role ?? null, sourceUrls: finding?.sourceUrls?.filter(isObservedHttpSource) ?? [] }; }), discoveryStatus: discovery.status, discoveryTrajectory: discovery.trajectory, discoveryTrajectoryRecords: discovery.trajectoryRecords, discoveryFindings: discovery.findings.map((finding) => ({ personName: finding.personName, role: finding.role, scope: finding.scope, promotionDecision: finding.promotionDecision, sourceUrls: finding.sourceUrls, note: finding.note })), priorAction, priorCandidate, caseId: discoveryCaseId, controlTurn: controlTurns });
       await assertAtlasJobActive(atlasJobId);
       phaseSummary[`control_${controlTurns}`] = `${decision.action}${decision.candidateName ? `:${decision.candidateName}` : ""}${decision.direction ? ` — ${decision.direction}` : ""}`;
-      if (decision.status !== "completed" || decision.action === "stop") break;
+      await db.update(researchCasesTable).set({
+        status: decision.status === "completed" ? (decision.action === "stop" ? "review" : "active") : "review",
+        currentAction: decision.status === "completed" ? (decision.action === "stop" ? "canonical-discovery-stopped" : `canonical-control-${decision.action}`) : "canonical-control-unavailable",
+        lastDecisionAt: new Date(),
+        updatedAt: new Date(),
+      }).where(eq(researchCasesTable.id, discoveryCaseId));
+      if (decision.status !== "completed") {
+        const terminalMessage = decision.reason || decision.error || "Atlas control decision became unavailable; discovery stopped fail-closed for review.";
+        await updateJob(atlasJobId, { status: "failed", progress: 3, total: 4, atlasPhase: 3, atlasPhaseTotal: 4, outcome: "incomplete", message: terminalMessage, result: JSON.stringify({ rightHand, boss: { status: boss.status, model: boss.model, investigatorLlm: boss.investigatorLlm }, discovery: { status: discovery.status, findings: discovery.findings.length, searches: discovery.searches, visits: discovery.visits, caseId: discoveryCaseId, runs: discoveryRuns }, control: { turns: controlTurns, decision } }), finishedAt: new Date().toISOString() });
+        await clearActiveJobIfOwned(lockKey, atlasJobId);
+        return { phase: 3, ingested: 0, enriched: materialized, contactsFound, hotLeads: admitted.length, durationMs: Date.now() - startedAt, phaseSummary };
+      }
+      if (decision.action === "stop") break;
       priorAction = decision.action; priorCandidate = decision.candidateName;
       if (decision.action === "research_candidate" || decision.action === "revisit_candidate") {
         await assertAtlasJobActive(atlasJobId);
