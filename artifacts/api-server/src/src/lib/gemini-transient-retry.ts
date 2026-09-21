@@ -1,5 +1,5 @@
 const GEMINI_API_HOST = "generativelanguage.googleapis.com";
-const MAX_RETRIES = 2;
+const MAX_RETRIES = 0;
 const RETRY_BASE_MS = 1_000;
 
 type RetryFetch = typeof fetch & { __apexGeminiTransientRetry?: boolean };
@@ -21,10 +21,8 @@ function isLikelyBossGeneration(init?: RequestInit): boolean {
   if (typeof init?.body !== "string") return false;
   try {
     const body = JSON.parse(init.body) as { generationConfig?: { maxOutputTokens?: number } };
-    // Boss requests currently reserve the larger output budget (8192); the
-    // Right-hand is deliberately bounded to 2048. This keeps the transport
-    // fallback independent of the Boss implementation while preserving the
-    // Right-hand's own explicit model chain and returned model identity.
+    // Gemini callers own bounded model fallback at the role boundary.
+    // Transport-level retries would multiply latency and quota consumption.
     return Number(body.generationConfig?.maxOutputTokens ?? 0) >= 4096;
   } catch {
     return false;
@@ -36,11 +34,9 @@ function delay(ms: number): Promise<void> {
 }
 
 /**
- * Google documents 429/503 as transient Gemini capacity failures. Right-hand
- * requests use bounded retry. Boss requests deliberately fail-fast after the
- * first capacity response so the Boss catalog loop can select the next
- * compatible/lower Gemini model instead of spending the whole budget retrying
- * a globally busy model.
+ * Gemini role boundaries own their bounded model fallback. Do not add a second
+ * transport retry loop here: identical transport retries can consume the act
+ * deadline before the next model is tried.
  */
 export function installGeminiTransientRetry(): void {
   const current = globalThis.fetch as RetryFetch;
