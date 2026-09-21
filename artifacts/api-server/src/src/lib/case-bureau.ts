@@ -513,7 +513,8 @@ export async function generateGeminiBossText(
           continue;
         }
 
-        const payload = await response.json() as {
+        const responseText = await response.text();
+        const payload = JSON.parse(responseText) as {
           candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
         };
         const raw = payload.candidates?.[0]?.content?.parts?.map((part) => part.text ?? "").join("").trim() ?? "";
