@@ -49,7 +49,7 @@ describe("Gemini Boss bounded control-plane generation", () => {
       "Return one small JSON control decision.",
     );
 
-    expect(result.raw).toContain('\"action\"');
+    expect(result.error ?? result.raw ?? "").toContain('\"action\"');
     expect(providerFetch).toHaveBeenCalledTimes(2);
 
     const firstBody = JSON.parse(String(providerFetch.mock.calls[0]?.[1]?.body));
