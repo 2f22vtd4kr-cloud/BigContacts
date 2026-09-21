@@ -1,4 +1,4 @@
-import { allocateDiscoveryPortfolio, type DiscoveryLaneFeedback } from "./atlas-adaptive-portfolio";
+import { allocateDiscoveryPortfolio, type DiscoveryLaneFeedback as AdaptiveDiscoveryLaneFeedback } from "./atlas-adaptive-portfolio";
 /**
  * Discovery source mixer — randomized, mixed Western-ally target finding.
  *
@@ -405,7 +405,8 @@ export function adaptDiscoverySlate(options: {
   const selected: MixedDiscoverySlot[] = [];
   const seen = new Set<string>();
   const prior = new Set(options.priorSlotIds ?? []);
-  const take = (slot: MixedDiscoverySlot) => {
+  const take = (slot: MixedDiscoverySlot | undefined) => {
+    if (!slot) return;
     if (selected.length >= (options.count ?? 8) || seen.has(slot.id) || prior.has(slot.id)) return;
     selected.push(slot); seen.add(slot.id);
   };
@@ -448,7 +449,17 @@ export function pickAdaptiveMixedDiscoverySlots(options?: {
     wealthMechanism: slot.kind === "faa" ? "asset-ownership" : slot.kind === "registry" ? "company-ownership" : "investment-business",
     sourceKind: slot.kind,
   }));
-  const selected = allocateDiscoveryPortfolio(lanes, options?.feedback ?? [], count);
+  const adaptiveFeedback: AdaptiveDiscoveryLaneFeedback[] = (options?.feedback ?? []).map((row) => ({
+    laneId: row.slotId,
+    attempts: row.candidates + row.rejected,
+    candidates: row.candidates,
+    admitted: row.admitted,
+    usefulEvidence: row.usefulEvidence,
+    duplicates: Math.round(row.duplicateRate * row.candidates),
+    reachable: Math.round(row.reachableRate * row.candidates),
+    failures: row.rejected,
+  }));
+  const selected = allocateDiscoveryPortfolio(lanes, adaptiveFeedback, count);
   const selectedIds = new Set(selected.map((lane) => lane.id));
   const selectedSlots = eligiblePool.filter((slot) => selectedIds.has(slot.id));
 

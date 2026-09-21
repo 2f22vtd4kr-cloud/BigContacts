@@ -13,7 +13,7 @@ echo "[apex-schema] applying the repository's current Drizzle schema..."
 pnpm --filter @workspace/db run push
 
 echo "[apex-schema] verifying required Apex durable tables..."
-node --input-type=module <<'NODE'
+(cd lib/db && node --input-type=module <<'NODE'
 import pg from "pg";
 const { Pool } = pg;
 if (!process.env.DATABASE_URL) throw new Error("DATABASE_URL must be available from the platform for schema verification.");
@@ -40,5 +40,6 @@ try {
   await pool.end();
 }
 NODE
+)
 
 echo "[apex-schema] complete. Disable APEX_ALLOW_SCHEMA_PUSH before ordinary application boot."

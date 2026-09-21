@@ -447,11 +447,11 @@ export async function generateGeminiBossText(
   const models = [...new Set([
     selection.model,
     ...(selection.candidateModels ?? []),
-  ])].slice(0, 2);
+  ])].slice(0, 4);
   let lastError = `Gemini Boss ${selection.model} did not return text.`;
-  // Bound the entire Boss control-plane attempt, including at most two compatible
+  // Bound the entire Boss control-plane attempt, including at most four compatible
   // models. The outer research job remains responsible for any explicit retry.
-  const bossDeadline = Date.now() + 35_000;
+  const bossDeadline = Date.now() + 75_000;
   const bossRequestTimeoutMs = 15_000;
   const bossMaxOutputTokens = 2_048;
 

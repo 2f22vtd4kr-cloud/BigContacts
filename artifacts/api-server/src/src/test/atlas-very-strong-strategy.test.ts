@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { ATLAS_CAPABILITIES, capabilityForAction, renderAtlasCapabilityGuidance } from "../src/lib/atlas-capability-registry";
-import { assessResearchMove, diversifyPortfolio, rankPortfolioCandidate } from "../src/lib/atlas-research-strategy";
-import { MIXED_DISCOVERY_POOL, pickAdaptiveMixedDiscoverySlots, type DiscoveryLaneFeedback } from "../src/lib/discovery-source-mixer";
+import { ATLAS_CAPABILITIES, capabilityForAction, renderAtlasCapabilityGuidance } from "../lib/atlas-capability-registry";
+import { assessResearchMove, diversifyPortfolio, rankPortfolioCandidate } from "../lib/atlas-research-strategy";
+import { MIXED_DISCOVERY_POOL, pickAdaptiveMixedDiscoverySlots, type DiscoveryLaneFeedback } from "../lib/discovery-source-mixer";
 
 describe("Apex Atlas capability registry", () => {
   it("documents purpose, prerequisites, complements and limitations for every capability", () => {

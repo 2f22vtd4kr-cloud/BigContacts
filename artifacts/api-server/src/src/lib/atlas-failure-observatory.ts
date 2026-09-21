@@ -36,6 +36,7 @@ export function classifyTrajectorySignals(input: {
   records: ReadonlyArray<{
     turn: number;
     action: string;
+    args?: Record<string, unknown>;
     execution: string;
     observation?: string;
     observedUrls?: string[];

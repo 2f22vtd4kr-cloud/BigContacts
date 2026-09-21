@@ -31,6 +31,8 @@ The selected Investigator is the researcher. It receives the assignment plus dur
 
 Permitted non-LLM capabilities include web search, page/HTTP retrieval, browser/fetch escalation, public registries, domain/RDAP inspection, approved footprint/contact tools, and disproof/verification capabilities.
 
+The search capability surface includes Tavily and Exa. The browser/fetch capability surface includes Scrapfly and ZenRows.
+
 Tools are capabilities, not stages.
 
 ## 3. ReAct loop
@@ -53,7 +55,7 @@ evidence graph state
 Right-hand review → Boss disposition → next Investigator act
 ```
 
-There is **no forced identity → organization → contact sequence** and no mandatory search-provider order.
+There is **no forced identity → organization → contact sequence**, no mandatory search-provider order, and no forced search order.
 
 ## 4. Evidence graph cognition
 
