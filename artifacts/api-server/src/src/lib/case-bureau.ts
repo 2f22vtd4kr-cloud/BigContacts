@@ -452,8 +452,8 @@ export async function generateGeminiBossText(
   // Boss is a small control-plane JSON decision. Keep it latency-bounded: two
   // compatible model candidates are enough to survive model retirement/capacity
   // drift without turning one decision into a minute-long serial generation chain.
-  const bossDeadline = Date.now() + 30_000;
-  const bossRequestTimeoutMs = 12_000;
+  const bossDeadline = Date.now() + 20_000;
+  const bossRequestTimeoutMs = 10_000;
   const bossMaxOutputTokens = 1_024;
 
   for (const entry of keyEntries) {
@@ -565,7 +565,7 @@ export async function resolveGeminiBossModel(preferredKeyName?: string): Promise
       const response = await fetch(`${GEMINI_MODELS_API}?key=${encodeURIComponent(entry.key)}`, {
         headers: { Accept: "application/json" },
         // Model discovery must fail closed within the investigation budget.
-        signal: AbortSignal.timeout(15_000),
+        signal: AbortSignal.timeout(6_000),
       });
       if (!response.ok) continue;
       const payload = await response.json() as { models?: GeminiModelCatalogEntry[] };
