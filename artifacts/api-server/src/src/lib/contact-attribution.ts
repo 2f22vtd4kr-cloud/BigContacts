@@ -198,7 +198,17 @@ export function scoreAttribution(params: {
  * whether any one of them clears the threshold.
  */
 export function anyAttributed(
-  candidates: Array<{ email: string | null; phone: string | null; sources: string[]; entityType: string; resolvedDomain: string | null; isValidEmail: boolean; isValidPhone: boolean }>,
+  candidates: Array<{
+    email: string | null;
+    phone: string | null;
+    sources: string[];
+    entityType: string;
+    resolvedDomain: string | null;
+    isValidEmail: boolean;
+    isValidPhone: boolean;
+    exactClaimObserved?: boolean;
+    targetPersonEvidence?: boolean;
+  }>,
 ): boolean {
   return candidates.some(c => scoreAttribution(c).attributed);
 }
