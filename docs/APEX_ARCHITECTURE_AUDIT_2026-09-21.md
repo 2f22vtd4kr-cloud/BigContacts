@@ -101,6 +101,7 @@ Provider failure, no-result search, transport failure, model unavailability, can
 ## Changes applied on main
 
 - Transactional PostgreSQL startup hardening.
+- A bounded Gemini-specific external-provider concurrency lane so Right-hand/Boss calls do not unnecessarily serialize behind a single Gemini slot.
 - Discovery terminal-stop integrity gate.
 - Direct-source requirement for discovery candidate admission.
 - Truthful discovery-only terminal-state persistence.
