@@ -98,7 +98,7 @@ async function callMistralJson(prompt: string, signal: AbortSignal): Promise<{ m
       const response = await safeOutboundFetch("https://api.mistral.ai/v1/chat/completions", {
         method: "POST",
         headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ model, max_tokens: 768, response_format: { type: "json_schema", json_schema: { name: "apex_investigator_action", strict: true, schema: AGENTIC_STRUCTURED_SCHEMA } }, messages: [{ role: "system", content: apexOrientationCompact("dig_agent") + "\nReturn one JSON action object only." }, { role: "user", content: workingPrompt }] }),
+        body: JSON.stringify({ model, max_tokens: 768, response_format: { type: "json_object" }, messages: [{ role: "system", content: apexOrientationCompact("dig_agent") + "\nReturn one JSON action object only." }, { role: "user", content: workingPrompt }] }),
         signal,
       });
       if (!response.ok) {
