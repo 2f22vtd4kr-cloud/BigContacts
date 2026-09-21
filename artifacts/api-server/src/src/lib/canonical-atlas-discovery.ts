@@ -94,7 +94,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     await assertAtlasJobActive(atlasJobId);
     let admission = await materializeAtlasAdmissions({ findings: discovery.findings, atlasJobId, discoveryCaseId });
     let admitted = admission.names; let materialized = admission.materialized; let evidenceRows = admission.evidenceRows; let researched = 0; let contactsFound = 0; let controlTurns = 0; let discoveryRuns = 1; let priorAction: AtlasControlAction | null = null; let priorCandidate: string | null = null;
-    const MAX_ATLAS_CONTROL_TURNS = 64; let controlBudgetExhausted = false;
+    const MAX_ATLAS_CONTROL_TURNS = 64; const MAX_ATLAS_TRAJECTORY_RECORDS = 512; let controlBudgetExhausted = false; let trajectoryBudgetExhausted = false;
     const researchedNames = new Set<string>();
     phaseSummary.assignment = `${boss.investigatorLlm} selected by Gemini; discovery completed=${discovery.status}; durableCase=${discoveryCaseId}.`; phaseSummary.discovery = `admitted=${admitted.length}; materialized=${materialized}; evidenceRows=${evidenceRows}; searches=${discovery.searches}; visits=${discovery.visits}; trajectory=${discovery.trajectory.length}; structuredTurns=${discovery.trajectoryRecords?.length ?? 0}`;
     if (discoveryOnly) {
@@ -115,6 +115,11 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       if (controlTurns >= MAX_ATLAS_CONTROL_TURNS) {
         controlBudgetExhausted = true;
         phaseSummary.control_budget = `safety ceiling reached at ${MAX_ATLAS_CONTROL_TURNS} control turns; no further model transition was executed`;
+        break;
+      }
+      if ((discovery.trajectoryRecords?.length ?? 0) >= MAX_ATLAS_TRAJECTORY_RECORDS) {
+        trajectoryBudgetExhausted = true;
+        phaseSummary.trajectory_budget = `safety ceiling reached at ${MAX_ATLAS_TRAJECTORY_RECORDS} trajectory records; no further discovery run was executed`;
         break;
       }
       controlTurns += 1;
@@ -140,7 +145,13 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       if (decision.action === "continue_discovery" || decision.action === "pivot_discovery") {
         await assertAtlasJobActive(atlasJobId);
         const directedObjective = `${discoveryObjective}\n\nBOSS-DIRECTED RESEARCH QUESTION / PIVOT:\n${decision.direction || "Reassess the open evidence and choose the highest-information next action yourself."}`;
-        const nextDiscovery = await runBureauAgenticWebPass({ mode: "discovery", targetName: "", objective: directedObjective, investigatorLlm: boss.investigatorLlm, caseId: discoveryCaseId, jobId: atlasJobId, maxIterations: depth.agenticMaxIterations, hardTimeoutMs: opts.targetTimeoutMs ?? depth.agenticHardTimeoutMs });
+        const remainingTrajectoryBudget = MAX_ATLAS_TRAJECTORY_RECORDS - (discovery.trajectoryRecords?.length ?? 0);
+        if (remainingTrajectoryBudget <= 0) {
+          trajectoryBudgetExhausted = true;
+          phaseSummary.trajectory_budget = `safety ceiling reached at ${MAX_ATLAS_TRAJECTORY_RECORDS} trajectory records; no further discovery run was executed`;
+          break;
+        }
+        const nextDiscovery = await runBureauAgenticWebPass({ mode: "discovery", targetName: "", objective: directedObjective, investigatorLlm: boss.investigatorLlm, caseId: discoveryCaseId, jobId: atlasJobId, maxIterations: Math.min(depth.agenticMaxIterations, remainingTrajectoryBudget), hardTimeoutMs: opts.targetTimeoutMs ?? depth.agenticHardTimeoutMs });
         await assertAtlasJobActive(atlasJobId);
         discoveryRuns += 1;
         discovery = { ...nextDiscovery, searches: discovery.searches + nextDiscovery.searches, visits: discovery.visits + nextDiscovery.visits, iterations: discovery.iterations + nextDiscovery.iterations, findings: [...(discovery.findings ?? []), ...(nextDiscovery.findings ?? [])], modelFindings: [...(discovery.modelFindings ?? []), ...(nextDiscovery.modelFindings ?? [])], trajectory: [...discovery.trajectory, ...nextDiscovery.trajectory], trajectoryRecords: [...(discovery.trajectoryRecords ?? []), ...(nextDiscovery.trajectoryRecords ?? [])] };
@@ -150,11 +161,15 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     await assertAtlasJobActive(atlasJobId);
     phaseSummary.discovery = `runs=${discoveryRuns}; admitted=${admitted.length}; materialized=${materialized}; evidenceRows=${evidenceRows}; searches=${discovery.searches}; visits=${discovery.visits}; trajectory=${discovery.trajectory.length}; structuredTurns=${discovery.trajectoryRecords?.length ?? 0}`;
     phaseSummary.research = `researched=${researched}; explicitCardPromotions=${contactsFound}; controlTurns=${controlTurns}; finalAction=${priorAction ?? "none"}`;
-    if (controlBudgetExhausted) {
-      phaseSummary.terminal = "incomplete: Atlas control-turn safety ceiling reached";
+    if (controlBudgetExhausted || trajectoryBudgetExhausted) {
+      phaseSummary.terminal = controlBudgetExhausted
+        ? "incomplete: Atlas control-turn safety ceiling reached"
+        : "incomplete: Atlas trajectory-record safety ceiling reached";
     }
     await assertAtlasJobActive(atlasJobId);
-    await updateJob(atlasJobId, { status: controlBudgetExhausted ? "failed" : "done", progress: 4, total: 4, atlasPhase: 4, atlasPhaseTotal: 4, outcome: controlBudgetExhausted ? "incomplete" : "complete", message: controlBudgetExhausted ? `Canonical Investigator control loop stopped at the ${MAX_ATLAS_CONTROL_TURNS}-turn safety ceiling; further model transitions were not executed.` : `Canonical Investigator control loop complete: ${researched} target investigation(s); AI chose the transition trajectory.`, result: JSON.stringify({ rightHand, boss: { status: boss.status, model: boss.model, investigatorLlm: boss.investigatorLlm }, discovery: { status: discovery.status, findings: discovery.findings.length, searches: discovery.searches, visits: discovery.visits, caseId: discoveryCaseId, trajectoryEntries: discovery.trajectory.length, trajectoryRecords: discovery.trajectoryRecords ?? [], runs: discoveryRuns }, control: { turns: controlTurns, finalAction: priorAction, finalCandidate: priorCandidate, budgetExhausted: controlBudgetExhausted }, phaseSummary }), finishedAt: new Date().toISOString() });
+    await updateJob(atlasJobId, { status: controlBudgetExhausted || trajectoryBudgetExhausted ? "failed" : "done", progress: 4, total: 4, atlasPhase: 4, atlasPhaseTotal: 4, outcome: controlBudgetExhausted || trajectoryBudgetExhausted ? "incomplete" : "complete", message: controlBudgetExhausted || trajectoryBudgetExhausted ? `controlBudgetExhausted
+        ? `Canonical Investigator control loop stopped at the ${MAX_ATLAS_CONTROL_TURNS}-turn safety ceiling; further model transitions were not executed.`
+        : `Canonical Investigator discovery stopped at the ${MAX_ATLAS_TRAJECTORY_RECORDS}-record trajectory safety ceiling; further discovery runs were not executed.`` : `Canonical Investigator control loop complete: ${researched} target investigation(s); AI chose the transition trajectory.`, result: JSON.stringify({ rightHand, boss: { status: boss.status, model: boss.model, investigatorLlm: boss.investigatorLlm }, discovery: { status: discovery.status, findings: discovery.findings.length, searches: discovery.searches, visits: discovery.visits, caseId: discoveryCaseId, trajectoryEntries: discovery.trajectory.length, trajectoryRecords: discovery.trajectoryRecords ?? [], runs: discoveryRuns }, control: { turns: controlTurns, finalAction: priorAction, finalCandidate: priorCandidate, budgetExhausted: controlBudgetExhausted || trajectoryBudgetExhausted, controlBudgetExhausted, trajectoryBudgetExhausted }, phaseSummary }), finishedAt: new Date().toISOString() });
     await clearActiveJobIfOwned(lockKey, atlasJobId); return { phase: 4, ingested: 0, enriched: materialized, contactsFound, hotLeads: admitted.length, durationMs: Date.now() - startedAt, phaseSummary };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Canonical Atlas discovery failed.";
