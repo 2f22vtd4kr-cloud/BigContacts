@@ -22,6 +22,11 @@ describe("discovery runtime architecture", () => {
     expect(orchestratorSource).toBe("");
   });
 
+  it("does not promote discovery candidates from search snippets alone", async () => {
+    const canonicalSource = fs.readFileSync(path.join(libDir, "canonical-atlas-discovery.ts"), "utf8");
+    expect(canonicalSource).toMatch(/directSourceAction\s*=\s*payload\.action\s*===\s*"visit"\s*\|\|\s*payload\.action\s*===\s*"browser_fetch"/);
+  });
+
   it("keeps agentic web research capability-oriented rather than a hard-coded research ladder", () => {
     expect(researchSource).toMatch(/tool|capabilit|action/i);
     expect(researchSource).not.toMatch(/force[_-]?dig|fixed.*provider.*sequence|always.*search.*then.*visit/i);
