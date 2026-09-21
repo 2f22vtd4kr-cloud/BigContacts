@@ -42,10 +42,9 @@ function groundedFinding(finding: AgenticFinding, records: readonly CoreResult["
   if (!Array.isArray(finding.sourceUrls) || !finding.sourceUrls.length) return false;
   const cited = new Set(finding.sourceUrls.map(normalizedObservedUrl).filter((url): url is string => Boolean(url)));
   if (!cited.size) return false;
-  const exactValue = ["email", "phone", "linkedin", "website", "social"].includes(finding.vectorType);
   const value = finding.value.trim().toLowerCase();
   const identityTokens = finding.scope === "candidate" && finding.personName ? finding.personName.toLowerCase().split(/[^a-z0-9]+/).filter((token) => token.length >= 2) : [];
-  let valueObserved = !exactValue;
+  let valueObserved = false;
   let identityObserved = identityTokens.length === 0;
   let support = 0;
   for (const record of records) {
@@ -53,7 +52,7 @@ function groundedFinding(finding: AgenticFinding, records: readonly CoreResult["
     const urls = record.observedUrls.map(normalizedObservedUrl).filter((url): url is string => Boolean(url)).filter((url) => cited.has(url));
     if (!urls.length) continue;
     const observation = record.observation.toLowerCase();
-    const hasValue = !exactValue || observation.includes(value);
+    const hasValue = value.length > 0 && observation.includes(value);
     const hasIdentity = !identityTokens.length || identityTokens.every((token) => observation.includes(token));
     if (hasValue) valueObserved = true;
     if (hasIdentity) identityObserved = true;
