@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+vi.mock("../lib/gemini-transient-retry", () => ({
+  installGeminiTransientRetry: vi.fn(),
+}));
+
 describe("Gemini Right-hand latency controls", () => {
   const nativeFetch = globalThis.fetch;
 
