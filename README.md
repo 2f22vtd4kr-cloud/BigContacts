@@ -15,7 +15,7 @@ It is a model-led research bureau, not a fixed enrichment script:
 
 **`main` is the canonical working and integration branch for all future Apex Atlas work.**
 
-The repository default branch is `main`. Git comparison on 2026-09-21 showed `main` was 60 commits ahead and 0 commits behind `audit/genuine-five-green-final`, with that branch's HEAD as the merge base. The newer Very Strong implementation/documentation work is therefore on `main`.
+The repository default branch is `main`. Git comparison on 2026-09-21 showed `main` was 67 commits ahead and 0 commits behind `audit/genuine-five-green-final`, with that branch's HEAD as the merge base. The newer Very Strong implementation/documentation work is therefore on `main`.
 
 `audit/genuine-five-green-final` remains a historical architecture/regression milestone. Do not switch future work back to it merely because older documents call it the production/certification branch.
 
