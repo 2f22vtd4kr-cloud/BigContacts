@@ -14,7 +14,7 @@ import { buildClaimSupportGraph, graphHasIndependentCorroboration, observationsF
 export type TargetContactAgentResult = { status: "completed" | "timeout" | "unavailable" | "error" | "cancelled" | "skipped"; model: string; findings: number; searches: number; visits: number; trajectory: string[]; trajectoryRecords: AgenticTrajectoryRecord[]; evidenceGraphs: EvidenceGraph[]; phone: string | null; email: string | null; phoneSource: string | null; contactOutcome: string | null; executionId?: string };
 type InvestigationAct = { action: string; provider?: string; query?: string; url?: string; summary?: string };
 function normalizeObservedUrl(raw: string): string | null { try { const url = new URL(raw); if (!/^https?:$/i.test(url.protocol)) return null; url.hash = ""; url.hostname = url.hostname.toLowerCase(); return url.href.endsWith("/") ? url.href.slice(0, -1) : url.href; } catch { return null; } }
-function (trajectory: string[], records: AgenticTrajectoryRecord[] = []): Set<string> {
+function observedUrlsFromTrajectory(trajectory: string[], records: AgenticTrajectoryRecord[] = []): Set<string> {
   const observed = new Set<string>();
   for (const record of records) {
     if (record.execution !== "success") continue;
