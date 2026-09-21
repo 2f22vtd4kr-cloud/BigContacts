@@ -22,7 +22,7 @@ export type CanonicalAtlasOptions = {
 };
 export type CanonicalAtlasResult = { phase: number; ingested: number; enriched: number; contactsFound: number; hotLeads: number; durationMs: number; phaseSummary: Record<string, string> };
 function uniqueNames(values: string[]): string[] { return [...new Set(values.map((value) => value.trim()).filter((value) => value.length >= 3))]; }
-function isObservedHttpSource(value: unknown): value is string { return typeof value === "string" && /^https?:\/\/\S+$/i.test(value); }\nfunction candidateIdentityObserved(personName: string, observation: unknown): boolean { const text = typeof observation === "string" ? observation.toLowerCase() : ""; const tokens = personName.toLowerCase().split(/[^a-z0-9]+/).filter((token) => token.length >= 2); return tokens.length > 0 && tokens.every((token) => text.includes(token)); }
+function isObservedHttpSource(value: unknown): value is string { return typeof value === "string" && /^https?:\/\/\S+$/i.test(value); }\nfunction normalizeSourceUrl(raw: string): string | null { try { const url = new URL(raw); if (!/^https?:$/i.test(url.protocol)) return null; url.hash = ""; url.hostname = url.hostname.toLowerCase(); return url.href.endsWith("/") ? url.href.slice(0, -1) : url.href; } catch { return null; } }\nfunction candidateIdentityObserved(personName: string, observation: unknown): boolean { const text = typeof observation === "string" ? observation.toLowerCase() : ""; const tokens = personName.toLowerCase().split(/[^a-z0-9]+/).filter((token) => token.length >= 2); return tokens.length > 0 && tokens.every((token) => text.includes(token)); }
 
 async function createAtlasDiscoveryCase(input: { atlasJobId: string; objective: string; investigatorLlm: "groq" | "mistral" }): Promise<number> {
   const [created] = await db.insert(researchCasesTable).values({ caseType: "discovery", status: "active", directorMode: "gemini_boss", directorProvider: "gemini", directorModel: "pending", objective: input.objective, motivation: "Durable memory for canonical Atlas Investigator discovery.", openingPrompt: "Investigator chooses every research action; this case is memory/state, not a deterministic research plan.", caseFile: JSON.stringify({ caseType: "discovery", contextDocument: ["CANONICAL ATLAS DISCOVERY CASE", `JOB: ${input.atlasJobId}`, `INVESTIGATOR: ${input.investigatorLlm}`, `OBJECTIVE: ${input.objective}`, "STATE: Initial discovery; Investigator owns the next action.", "TRAJECTORY: []"].join("\n"), investigatorTrajectory: [], investigatorTrajectoryRecords: [], investigationTimeline: [], jobId: input.atlasJobId }), currentAction: "canonical-investigator-discovery", iteration: 0 }).returning({ id: researchCasesTable.id });
@@ -36,9 +36,9 @@ async function materializeAtlasAdmissions(input: { discoveryRunId: string; findi
   let evidenceRows = 0;
   for (const name of admitted) {
     const finding = input.findings.find((candidate) => candidate.personName?.trim().toLowerCase() === name.toLowerCase() && candidate.promotionDecision === "promote" && candidate.scope === "candidate" && Array.isArray(candidate.sourceUrls) && candidate.sourceUrls.some(isObservedHttpSource));
-    const sourceUrl = finding?.sourceUrls?.find(isObservedHttpSource) ?? null; if (!sourceUrl) continue;
+    const sourceUrlRaw = finding?.sourceUrls?.find(isObservedHttpSource) ?? null; const sourceUrl = sourceUrlRaw ? normalizeSourceUrl(sourceUrlRaw) : null; if (!sourceUrl) continue;
     const caseEvents = await db.select({ id: researchCaseEventsTable.id, eventType: researchCaseEventsTable.eventType, payload: researchCaseEventsTable.payload, createdAt: researchCaseEventsTable.createdAt }).from(researchCaseEventsTable).where(eq(researchCaseEventsTable.caseId, input.discoveryCaseId));
-    const normalizedSource = new URL(sourceUrl).href;
+    const normalizedSource = sourceUrl;
     const supported = caseEvents.some((event) => {
       if (event.eventType !== "tool_observation" || typeof event.payload !== "string") return false;
       try {
@@ -46,7 +46,7 @@ async function materializeAtlasAdmissions(input: { discoveryRunId: string; findi
         // Search results are leads, not admission-grade identity evidence. A named
         // discovery candidate must be grounded in an actually retrieved source page.
         const directSourceAction = payload.action === "visit" || payload.action === "browser_fetch";
-        return payload.runId === input.discoveryRunId && candidateIdentityObserved(name, payload.observation) && directSourceAction && payload.execution === "success" && Array.isArray(payload.observedUrls) && payload.observedUrls.some((url) => { try { return new URL(String(url)).href === normalizedSource; } catch { return false; } });
+        return payload.runId === input.discoveryRunId && candidateIdentityObserved(name, payload.observation) && directSourceAction && payload.execution === "success" && Array.isArray(payload.observedUrls) && payload.observedUrls.some((url) => { const normalized = normalizeSourceUrl(String(url)); return normalized === normalizedSource; });
       } catch { return false; }
     });
     if (!supported) continue;
