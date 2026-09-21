@@ -90,6 +90,7 @@ jobs:
           NODE
       - name: Start API
         run: |
+          unset APEX_ALLOW_SCHEMA_PUSH
           node artifacts/api-server/dist/index.mjs > /tmp/apex-api.log 2>&1 &
           for i in $(seq 1 45); do sleep 1; test "$(curl -sS -m 2 -o /tmp/health.json -w '%{http_code}' http://127.0.0.1:8080/api/healthz || true)" = 200 && break; done
           test "$(curl -sS -m 5 -o /tmp/health.json -w '%{http_code}' http://127.0.0.1:8080/api/healthz)" = 200
