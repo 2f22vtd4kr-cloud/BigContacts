@@ -59,7 +59,7 @@ describe("agentic source provenance", () => {
   });
 
   it("accepts a candidate claim when identity and contact value are split across observations", () => {
-    const raw = [finding()];
+    const raw = [finding({ sourceUrls: ["https://example.com/team/jane", "https://example.com/contact"] })];
     const records = [
       observation({ observation: "Jane Example — Founder", observedUrls: ["https://example.com/team/jane"] }),
       observation({ turn: 2, observation: "jane@example.com", observedUrls: ["https://example.com/contact"] }),
