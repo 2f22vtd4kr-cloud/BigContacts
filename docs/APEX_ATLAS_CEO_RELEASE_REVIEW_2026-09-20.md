@@ -1,8 +1,9 @@
 # Apex Atlas — CEO / Lead-Engineer Release Review
 
 **Review date:** 2026-09-20  
-**Reviewed branch:** `audit/apex-atlas-very-strong-v1`  
-**Production/certification branch:** `audit/genuine-five-green-final`  
+**Reviewed historical branch:** `audit/apex-atlas-very-strong-v1`  
+**Canonical future-work branch:** `main`  
+**Historical five-green branch:** `audit/genuine-five-green-final`  
 **PR:** #347, draft
 
 ## Executive decision
