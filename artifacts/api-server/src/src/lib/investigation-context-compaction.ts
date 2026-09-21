@@ -185,13 +185,20 @@ export function compactInvestigationContext(input: {
   evidenceGraphSummaries?: readonly string[];
 }): string {
   const maxChars = Math.min(MAX_MAX_CHARS, Math.max(MIN_MAX_CHARS, input.maxChars ?? DEFAULT_MAX_CHARS));
-  const pieces = [
-    trim(input.raw, Math.floor(maxChars * 0.35)),
-    ...(input.evidenceGraphSummaries ?? []).map((value) => trim(value, 900)),
-    ...(input.trajectoryRecords ?? []).map((record) => archiveRecord(record, 650)),
-    ...(input.trajectory ?? []).map((value) => trim(value, 420)),
-  ].filter(Boolean);
-  return pieces.join("\n\n").slice(0, maxChars);
+  const sections = [
+    "CURRENT STATE\n" + trim(input.raw, Math.floor(maxChars * 0.35)),
+    "EVIDENCE GRAPH SUMMARY\n" + (input.evidenceGraphSummaries ?? []).map((value) => trim(value, 900)).filter(Boolean).join("\n"),
+    "TRAJECTORY RECORDS\n" + (input.trajectoryRecords ?? []).map((record) => archiveRecord(record, 650)).filter(Boolean).join("\n"),
+    "TRAJECTORY NOTES\n" + (input.trajectory ?? []).map((value) => trim(value, 420)).filter(Boolean).join("\n"),
+  ].filter((section) => section.split("\n").slice(1).join("\n").trim().length > 0);
+  let result = "";
+  for (const section of sections) {
+    const separator = result ? "\n\n" : "";
+    const remaining = maxChars - result.length - separator.length;
+    if (remaining <= 0) break;
+    result += separator + fitSection(section, remaining);
+  }
+  return result.slice(0, maxChars);
 }
 /**
  * Emergency provider-rejection reducer. Used only after a request-size rejection.
