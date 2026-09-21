@@ -25,6 +25,22 @@ jobs:
   audit-1:
     name: Audit 1 — complete codebase
     runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgresql://apex:apex_local_dev@127.0.0.1:5432/apex
+      NODE_ENV: test
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: apex
+          POSTGRES_PASSWORD: apex_local_dev
+          POSTGRES_DB: apex
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U apex -d apex"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -37,6 +53,8 @@ jobs:
         run: pnpm run typecheck
       - name: Build
         run: pnpm run build
+      - name: Push database schema for live smoke tests
+        run: cd lib/db && pnpm exec drizzle-kit push --config ./drizzle.config.ts
       - name: Start API server for live smoke tests
         run: |
           set -euo pipefail
@@ -77,6 +95,22 @@ jobs:
     name: Audit 2 — complete codebase
     needs: audit-1
     runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgresql://apex:apex_local_dev@127.0.0.1:5432/apex
+      NODE_ENV: test
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: apex
+          POSTGRES_PASSWORD: apex_local_dev
+          POSTGRES_DB: apex
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U apex -d apex"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -86,6 +120,8 @@ jobs:
       - run: pnpm run check:bureau
       - run: pnpm run typecheck
       - run: pnpm run build
+      - name: Push database schema for live smoke tests
+        run: cd lib/db && pnpm exec drizzle-kit push --config ./drizzle.config.ts
       - name: Start API server for live smoke tests
         run: |
           set -euo pipefail
@@ -125,6 +161,22 @@ jobs:
     name: Audit 3 — complete codebase
     needs: audit-2
     runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgresql://apex:apex_local_dev@127.0.0.1:5432/apex
+      NODE_ENV: test
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: apex
+          POSTGRES_PASSWORD: apex_local_dev
+          POSTGRES_DB: apex
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U apex -d apex"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -134,6 +186,8 @@ jobs:
       - run: pnpm run check:bureau
       - run: pnpm run typecheck
       - run: pnpm run build
+      - name: Push database schema for live smoke tests
+        run: cd lib/db && pnpm exec drizzle-kit push --config ./drizzle.config.ts
       - name: Start API server for live smoke tests
         run: |
           set -euo pipefail
@@ -173,6 +227,22 @@ jobs:
     name: Audit 4 — complete codebase
     needs: audit-3
     runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgresql://apex:apex_local_dev@127.0.0.1:5432/apex
+      NODE_ENV: test
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: apex
+          POSTGRES_PASSWORD: apex_local_dev
+          POSTGRES_DB: apex
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U apex -d apex"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -182,6 +252,8 @@ jobs:
       - run: pnpm run check:bureau
       - run: pnpm run typecheck
       - run: pnpm run build
+      - name: Push database schema for live smoke tests
+        run: cd lib/db && pnpm exec drizzle-kit push --config ./drizzle.config.ts
       - name: Start API server for live smoke tests
         run: |
           set -euo pipefail
@@ -221,6 +293,22 @@ jobs:
     name: Audit 5 — complete codebase
     needs: audit-4
     runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgresql://apex:apex_local_dev@127.0.0.1:5432/apex
+      NODE_ENV: test
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: apex
+          POSTGRES_PASSWORD: apex_local_dev
+          POSTGRES_DB: apex
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U apex -d apex"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -230,6 +318,8 @@ jobs:
       - run: pnpm run check:bureau
       - run: pnpm run typecheck
       - run: pnpm run build
+      - name: Push database schema for live smoke tests
+        run: cd lib/db && pnpm exec drizzle-kit push --config ./drizzle.config.ts
       - name: Start API server for live smoke tests
         run: |
           set -euo pipefail
