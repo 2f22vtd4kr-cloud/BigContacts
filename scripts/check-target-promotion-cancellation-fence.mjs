@@ -9,6 +9,7 @@ pass("target agent has a durable job-state read at the promotion boundary", /get
 pass("target promotion is blocked unless the job remains running", /currentJob\.status !== \"running\"/.test(target) && /promotionJob\.status !== \"running\"/.test(target));
 pass("caller cancellation is rechecked after the Investigator act", /if \(input\.shouldCancel && await input\.shouldCancel\(\)/.test(target));
 pass("final cancellation fence sits immediately before strict contact persistence", /promotionJob\.status !== \"running\"[\s\S]{0,500}persistSourceBackedBureauContactsForEntity/.test(target));
+pass("target persistence receives structured observed URLs", /persistSourceBackedBureauContactsForEntity\(input\.entityId, contacts, evidenceSource, input\.jobId, observedSourceUrls, provenance\)/.test(target));
 pass("cancelled target runs do not emit trusted contact persistence", /return \{ status: \"cancelled\"[\s\S]{0,500}executionId: agentic\.executionId \}/.test(target));
 
 if (failures.length) {
