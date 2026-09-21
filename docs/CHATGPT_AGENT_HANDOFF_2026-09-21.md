@@ -414,7 +414,7 @@ head: main
 
 Current comparison:
 
-- `main` is **72 commits ahead**;
+- `main` contains `audit/genuine-five-green-final` as an ancestor;
 - `main` is **0 commits behind**;
 - merge base is `7cb15619113cad7c19750bdcf7747e7bf39970a8`.
 
