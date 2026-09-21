@@ -236,6 +236,12 @@ A model assertion is not evidence.
 A guessed email is not a contact.
 Unknown is a valid outcome.
 
+PROVIDER CONCURRENCY
+
+Gemini Right-hand and Gemini Boss are distinct oversight roles but share the external-provider budget. The current provider gate gives Gemini a bounded concurrency lane of two by default so oversight calls do not unnecessarily serialize behind one Gemini slot.
+
+This is a capacity safeguard, not a research strategy. Do not remove it by starting duplicate workflows or by creating unbounded retries.
+
 DISCOVERY INTEGRITY GATES
 
 The current canonical runtime includes two deterministic discovery integrity gates:
