@@ -71,7 +71,7 @@ async function assertAtlasJobActive(jobId: string): Promise<void> {
 }
 
 export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: CanonicalAtlasOptions = {}): Promise<CanonicalAtlasResult> {
-  const startedAt = Date.now(); const depth = resolveResearchDepth({ explicit: opts.researchDepth }); const discoveryOnly = opts.discoveryOnly === true; const lockKey = opts.lockKey ?? "atlas-run"; const phaseSummary: Record<string, string> = {};
+  const startedAt = Date.now(); const depth = resolveResearchDepth({ explicit: opts.researchDepth }); const discoveryOnly = opts.discoveryOnly === true; const lockKey = opts.lockKey ?? "atlas-run"; const phaseSummary: Record<string, string> = {}; const targetLimit = Math.max(1, Math.min(25, Number(opts.targetCount ?? 3) || 3)); const configuredAtlasTimeout = Number(process.env.APEX_ATLAS_RUN_TIMEOUT_MS ?? 15 * 60 * 1000); const atlasTimeoutMs = Math.min(30 * 60 * 1000, Math.max(2 * 60 * 1000, Number.isFinite(configuredAtlasTimeout) ? configuredAtlasTimeout : 15 * 60 * 1000)); const atlasDeadline = startedAt + atlasTimeoutMs; const remainingBudget = () => atlasDeadline - Date.now(); const assertAtlasDeadline = () => { const remaining = remainingBudget(); if (remaining <= 30_000) throw new Error("Canonical Atlas global deadline reached; refusing another research/control turn."); return remaining; };
   const discoveryObjective = opts.discoveryObjective?.trim() || "Discover real named people for subsequent target-scoped public-contact research. Choose every search, page visit, registry/domain/OSINT action and stopping point yourself. Emit a person only when you can attribute the observed source to that person; use promotionDecision=promote only for an exact named-person admission candidate. Never invent a person, contact, or URL.";
   await assertAtlasJobActive(atlasJobId);
   await updateJob(atlasJobId, { status: "running", progress: 0, total: discoveryOnly ? 1 : 4, atlasPhase: 0, atlasPhaseTotal: discoveryOnly ? 1 : 4, message: "Gemini Boss + Gemini Right-hand opening model-owned discovery…" });
@@ -92,7 +92,8 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     await db.insert(researchCaseEventsTable).values({ caseId: discoveryCaseId, iteration: 0, actorRole: "head_investigator", eventType: "assignment", status: "recorded", summary: "Canonical discovery Investigator assigned after Gemini/Gemini coordination.", correlationKey: `${atlasJobId}:discovery-assignment`, payload: JSON.stringify({ jobId: atlasJobId, investigatorLlm: boss.investigatorLlm, mode: "discovery", controlPlane: "canonical-atlas-discovery" }) });
     await updateJob(atlasJobId, { progress: 1, atlasPhase: 1, message: `${boss.investigatorLlm.toUpperCase()} Investigator running free-ReAct discovery…`, result: JSON.stringify({ rightHand, boss: { status: boss.status, model: boss.model, investigatorLlm: boss.investigatorLlm }, discoveryCaseId }) });
     await assertAtlasJobActive(atlasJobId);
-    let discovery = await runBureauAgenticWebPass({ mode: "discovery", targetName: "", objective: discoveryObjective, investigatorLlm: boss.investigatorLlm, caseId: discoveryCaseId, jobId: atlasJobId, maxIterations: depth.agenticMaxIterations, hardTimeoutMs: opts.targetTimeoutMs ?? depth.agenticHardTimeoutMs });
+    const openingDiscoveryBudget = Math.min(opts.targetTimeoutMs ?? depth.agenticHardTimeoutMs, assertAtlasDeadline() - 5_000); if (openingDiscoveryBudget < 30_000) throw new Error("Insufficient remaining Atlas budget for discovery Investigator.");
+    let discovery = await runBureauAgenticWebPass({ mode: "discovery", targetName: "", objective: discoveryObjective, investigatorLlm: boss.investigatorLlm, caseId: discoveryCaseId, jobId: atlasJobId, maxIterations: depth.agenticMaxIterations, hardTimeoutMs: openingDiscoveryBudget });
     await assertAtlasJobActive(atlasJobId);
     let admission = await materializeAtlasAdmissions({ findings: discovery.findings, atlasJobId, discoveryCaseId });
     let admitted = admission.names; let materialized = admission.materialized; let evidenceRows = admission.evidenceRows; let researched = 0; let contactsFound = 0; let controlTurns = 0; let discoveryRuns = 1; let priorAction: AtlasControlAction | null = null; let priorCandidate: string | null = null;
@@ -132,6 +133,8 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     }
     while (true) {
       await assertAtlasJobActive(atlasJobId);
+      assertAtlasDeadline();
+      if (researched >= targetLimit) break;
       controlTurns += 1;
       const decision = await decideAtlasNextAction({ objective: discoveryObjective, admittedCandidates: admitted.map((name) => { const finding = discovery.findings.find((candidate) => candidate.personName?.trim().toLowerCase() === name.toLowerCase()); return { name, role: finding?.role ?? null, sourceUrls: finding?.sourceUrls?.filter(isObservedHttpSource) ?? [] }; }), discoveryStatus: discovery.status, discoveryTrajectory: discovery.trajectory, discoveryTrajectoryRecords: discovery.trajectoryRecords, discoveryFindings: discovery.findings.map((finding) => ({ personName: finding.personName, role: finding.role, scope: finding.scope, promotionDecision: finding.promotionDecision, sourceUrls: finding.sourceUrls, note: finding.note })), priorAction, priorCandidate, caseId: discoveryCaseId, controlTurn: controlTurns });
       await assertAtlasJobActive(atlasJobId);
@@ -157,7 +160,8 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         if (!entity) continue; if (decision.action === "research_candidate" && researchedNames.has(name.toLowerCase())) continue;
         const before = await db.select({ email: entitiesTable.email, phone: entitiesTable.phone, linkedinUrl: entitiesTable.linkedinUrl, twitterHandle: entitiesTable.twitterHandle, instagramHandle: entitiesTable.instagramHandle, telegramHandle: entitiesTable.telegramHandle, personalWebsite: entitiesTable.personalWebsite }).from(entitiesTable).where(eq(entitiesTable.id, entity.id)).limit(1); const beforeCard = before[0] ?? null;
         await assertAtlasJobActive(atlasJobId);
-        await runCanonicalSingleTargetInvestigation(atlasJobId, entity.id, { researchDepth: opts.researchDepth, targetTimeoutMs: opts.targetTimeoutMs });
+        const targetBudget = Math.min(opts.targetTimeoutMs ?? depth.agenticHardTimeoutMs, assertAtlasDeadline() - 5_000); if (targetBudget < 30_000) throw new Error("Insufficient remaining Atlas budget for target investigation.");
+        await runCanonicalSingleTargetInvestigation(atlasJobId, entity.id, { researchDepth: opts.researchDepth, targetTimeoutMs: targetBudget });
         await assertAtlasJobActive(atlasJobId);
         researched += 1; researchedNames.add(name.toLowerCase());
         const after = await db.select({ email: entitiesTable.email, phone: entitiesTable.phone, linkedinUrl: entitiesTable.linkedinUrl, twitterHandle: entitiesTable.twitterHandle, instagramHandle: entitiesTable.instagramHandle, telegramHandle: entitiesTable.telegramHandle, personalWebsite: entitiesTable.personalWebsite }).from(entitiesTable).where(eq(entitiesTable.id, entity.id)).limit(1); const afterCard = after[0] ?? null;
@@ -167,7 +171,8 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       if (decision.action === "continue_discovery" || decision.action === "pivot_discovery") {
         await assertAtlasJobActive(atlasJobId);
         const directedObjective = `${discoveryObjective}\n\nBOSS-DIRECTED RESEARCH QUESTION / PIVOT:\n${decision.direction || "Reassess the open evidence and choose the highest-information next action yourself."}`;
-        const nextDiscovery = await runBureauAgenticWebPass({ mode: "discovery", targetName: "", objective: directedObjective, investigatorLlm: boss.investigatorLlm, caseId: discoveryCaseId, jobId: atlasJobId, maxIterations: depth.agenticMaxIterations, hardTimeoutMs: opts.targetTimeoutMs ?? depth.agenticHardTimeoutMs });
+        const discoveryBudget = Math.min(opts.targetTimeoutMs ?? depth.agenticHardTimeoutMs, assertAtlasDeadline() - 5_000); if (discoveryBudget < 30_000) throw new Error("Insufficient remaining Atlas budget for continued discovery.");
+        const nextDiscovery = await runBureauAgenticWebPass({ mode: "discovery", targetName: "", objective: directedObjective, investigatorLlm: boss.investigatorLlm, caseId: discoveryCaseId, jobId: atlasJobId, maxIterations: depth.agenticMaxIterations, hardTimeoutMs: discoveryBudget });
         await assertAtlasJobActive(atlasJobId);
         discoveryRuns += 1;
         discovery = { ...nextDiscovery, searches: discovery.searches + nextDiscovery.searches, visits: discovery.visits + nextDiscovery.visits, iterations: discovery.iterations + nextDiscovery.iterations, findings: [...(discovery.findings ?? []), ...(nextDiscovery.findings ?? [])], modelFindings: [...(discovery.modelFindings ?? []), ...(nextDiscovery.modelFindings ?? [])], trajectory: [...discovery.trajectory, ...nextDiscovery.trajectory], trajectoryRecords: [...(discovery.trajectoryRecords ?? []), ...(nextDiscovery.trajectoryRecords ?? [])] };
