@@ -34,6 +34,7 @@ const checks = [
 ["target contact persistence receives the exact promotion provenance", /const provenance: InvestigatorPromotionProvenance \| undefined = input\.caseId && runId \? \{ caseId: input\.caseId, runId \} : undefined/.test(targetAgent) && /observedSourceUrls, provenance\)/.test(targetAgent)],
 ["canonical discovery admission is model-explicit and source-backed", /promotionDecision === "promote"/.test(atlas) && /scope === "candidate"/.test(atlas) && /sourceUrls/.test(atlas)],
 ["discovery admission is bound to the current Investigator run", /discoveryRunId: string/.test(atlas) && /payload\.runId === input\.discoveryRunId/.test(atlas)],
+["discovery admission requires the candidate identity in observed material", /candidateIdentityObserved\(name, payload\.observation\)/.test(atlas)],
 ["discovery pivot materializes the latest run findings", /findings: nextDiscovery\.findings/.test(atlas) && /discoveryRunId: nextDiscovery\.runId/.test(atlas)],
 ["discovery pivot retains prior admissions", /admitted = uniqueNames\(\[\.\.\.admitted, \.\.\.admission\.names\]\)/.test(atlas)],
 ["canonical discovery materialization remains evidence-only and review-only", /contactOutcome: "evidence_only"/.test(atlas) && /reviewOnly: true/.test(atlas) && /target-scoped Investigator research required before contact promotion/.test(atlas)],
