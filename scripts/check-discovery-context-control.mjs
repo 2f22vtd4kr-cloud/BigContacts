@@ -6,6 +6,8 @@ const targetAgent = fs.readFileSync("artifacts/api-server/src/src/lib/target-con
 const atlas = fs.readFileSync("artifacts/api-server/src/src/lib/canonical-atlas-discovery.ts", "utf8");
 const persist = fs.readFileSync("artifacts/api-server/src/src/lib/bureau-contact-persist-strict.ts", "utf8");
 const checks = [
+["canonical discovery has a global run deadline", /atlasDeadline/.test(atlas) && /APEX_ATLAS_RUN_TIMEOUT_MS/.test(atlas)],
+["canonical discovery honors targetLimit as an operational ceiling", /const targetLimit/.test(atlas) && /researched >= targetLimit/.test(atlas)],
 ["discovery control imports semantic context compaction", /investigation-context-compaction/.test(control) && /compactInvestigationContext|buildInvestigatorContext/.test(control)],
 ["discovery control compacts the state before model review", /const compactState = compactInvestigationContext\(/.test(control)],
 ["discovery control supplies structured trajectory records to compaction", /trajectoryRecords: structuredTrajectory/.test(control)],
