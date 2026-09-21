@@ -17,8 +17,11 @@ if [[ -z "${REDIS_URL:-}" && -n "${REDIS_URL_1:-}" ]]; then
 fi
 cd "$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 echo "[replit-boot] $(git log -1 --oneline 2>/dev/null || echo unknown)"
-fuser -k "${PORT}/tcp" 2>/dev/null || true
-sleep 1
+if fuser "${PORT}/tcp" >/dev/null 2>&1; then
+  echo "[replit-boot] port ${PORT} is already owned by another process."
+  echo "[replit-boot] refusing to kill a sibling workflow; run exactly one Apex Atlas API workflow."
+  exit 12
+fi
 # Runtime hardening is canonical source now. Boot must never rewrite TS files.
 # Production schema changes are an explicit deployment operation, never an
 # implicit side effect of starting a replica. Set APEX_ALLOW_SCHEMA_PUSH=true
