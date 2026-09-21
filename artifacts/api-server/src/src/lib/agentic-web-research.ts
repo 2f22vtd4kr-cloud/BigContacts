@@ -53,7 +53,7 @@ function groundedFinding(finding: AgenticFinding, records: readonly CoreResult["
     const urls = record.observedUrls.map(normalizedObservedUrl).filter((url): url is string => Boolean(url)).filter((url) => cited.has(url));
     if (!urls.length) continue;
     const observation = record.observation.toLowerCase();
-    const hasValue = !exactValue || observation.includes(value);
+    const hasValue = observation.includes(value);
     const hasIdentity = !identityTokens.length || identityTokens.every((token) => observation.includes(token));
     if (hasValue) valueObserved = true;
     if (hasIdentity) identityObserved = true;
