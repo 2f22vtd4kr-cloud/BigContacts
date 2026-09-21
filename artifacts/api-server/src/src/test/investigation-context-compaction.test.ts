@@ -43,6 +43,21 @@ describe("investigator context compaction", () => {
     expect(reduced).toContain("EMERGENCY REQUEST-SIZE COMPACTION");
   });
 
+  it("keeps state, evidence, and trajectory sections visible in compatibility compaction", () => {
+    const result = compactInvestigationContext({
+      raw: "CURRENT CASE STATE " + "X".repeat(10_000),
+      evidenceGraphSummaries: ["EVIDENCE SOURCE https://evidence.example/source"],
+      trajectoryRecords: [{ turn: 4, action: "visit", execution: "success", observedUrls: ["https://trajectory.example/page"], observation: "latest structured observation" }],
+      trajectory: ["step4: visit https://trajectory.example/page execution=success observed=https://trajectory.example/page"],
+      maxChars: 10_000,
+    });
+    expect(result).toContain("CURRENT STATE");
+    expect(result).toContain("EVIDENCE GRAPH SUMMARY");
+    expect(result).toContain("TRAJECTORY RECORDS");
+    expect(result).toContain("TRAJECTORY NOTES");
+    expect(result).toContain("trajectory.example/page");
+  });
+
   it("keeps the compatibility helper bounded", () => {
     const result = compactInvestigationContext({ raw: "X".repeat(30_000), maxChars: 10_000, trajectory: ["Y".repeat(10_000)], evidenceGraphSummaries: ["Z".repeat(10_000)] });
     expect(result.length).toBeLessThanOrEqual(10_000);
