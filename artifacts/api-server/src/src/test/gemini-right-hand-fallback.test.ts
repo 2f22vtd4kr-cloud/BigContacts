@@ -1,10 +1,8 @@
-import { vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../lib/gemini-transient-retry", () => ({
   installGeminiTransientRetry: vi.fn(),
 }));
-
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   GEMINI_RIGHT_HAND_FALLBACK_MODELS,
   GEMINI_RIGHT_HAND_MODEL,
