@@ -13,12 +13,17 @@ describe("Gemini Boss bounded control-plane generation", () => {
   it("caps model attempts at two and uses a control-sized output budget", async () => {
     process.env.GEMINI_API_KEY = "test-key";
 
-    const providerFetch = vi.fn<typeof fetch>()
-      .mockResolvedValueOnce(new Response("retired", { status: 404 }))
-      .mockResolvedValueOnce(new Response(
-        '{"candidates":[{"content":{"parts":[{"text":"{\"action\":\"stop\"}"}]}}]}',
-        { status: 200 },
-      ));
+    const providerFetch = vi.fn<typeof fetch>(async (input) => {
+      const url = String(input);
+      if (url.includes("gemini-test-a:generateContent")) return new Response("retired", { status: 404 });
+      if (url.includes("gemini-test-b:generateContent")) {
+        return new Response(
+          '{"candidates":[{"content":{"parts":[{"text":"{\"action\":\"stop\"}"}]}}]}',
+          { status: 200 },
+        );
+      }
+      return new Response("unexpected", { status: 500 });
+    });
 
     globalThis.fetch = providerFetch;
 
