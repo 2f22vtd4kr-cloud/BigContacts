@@ -80,23 +80,32 @@ export function diversifyPortfolio<T extends TargetPortfolioDimensions>(
 ): T[] {
   const max = Math.max(1, Math.floor(limit));
   const chosen: T[] = [];
+  const remaining = [...candidates];
   const seenGeography = new Set<string>();
   const seenOccupation = new Set<string>();
   const seenWealth = new Set<string>();
-  const sorted = [...candidates].sort((a, b) => rankPortfolioCandidate(b) - rankPortfolioCandidate(a));
 
-  for (const candidate of sorted) {
-    if (chosen.length >= max) break;
-    const geo = candidate.geography.toLowerCase();
-    const occ = candidate.occupation.toLowerCase();
-    const wealth = candidate.wealthMechanism.toLowerCase();
-    const novel = !seenGeography.has(geo) || !seenOccupation.has(occ) || !seenWealth.has(wealth);
-    if (novel || chosen.length < Math.min(3, max)) {
-      chosen.push(candidate);
-      seenGeography.add(geo);
-      seenOccupation.add(occ);
-      seenWealth.add(wealth);
+  while (chosen.length < max && remaining.length > 0) {
+    let bestIndex = 0;
+    let bestScore = Number.NEGATIVE_INFINITY;
+    for (let index = 0; index < remaining.length; index += 1) {
+      const candidate = remaining[index]!;
+      const geo = candidate.geography.toLowerCase();
+      const occ = candidate.occupation.toLowerCase();
+      const wealth = candidate.wealthMechanism.toLowerCase();
+      const novelty = (seenGeography.has(geo) ? 0 : 0.18) + (seenOccupation.has(occ) ? 0 : 0.12) + (seenWealth.has(wealth) ? 0 : 0.10);
+      const score = rankPortfolioCandidate(candidate) + novelty;
+      if (score > bestScore) {
+        bestScore = score;
+        bestIndex = index;
+      }
     }
+    const [candidate] = remaining.splice(bestIndex, 1);
+    if (!candidate) break;
+    chosen.push(candidate);
+    seenGeography.add(candidate.geography.toLowerCase());
+    seenOccupation.add(candidate.occupation.toLowerCase());
+    seenWealth.add(candidate.wealthMechanism.toLowerCase());
   }
   return chosen;
 }
