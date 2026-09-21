@@ -84,7 +84,7 @@ ENVIRONMENT / KEYS
 
 The startup credential gate is NOT conditional.
 
-At initialization, ask the operator to configure ALL of the following exact secret names in Replit Secrets / environment variables, in this order. Check presence only; never display values.
+The canonical fresh-account setup contract is the complete 16-name list below. Ask the operator for these exact names in this order and verify presence only; never display or echo values.
 
 1. REDIS_URL_1
 2. GROQ_API_KEY
@@ -103,9 +103,11 @@ At initialization, ask the operator to configure ALL of the following exact secr
 15. APEX_OPERATOR_PASSWORD
 16. APEX_SESSION_SECRET
 
-DATABASE_URL is supplied by the Replit/Postgres environment.
+`DATABASE_URL` is supplied by the Replit/Postgres environment and must not be requested from the operator.
 
-The Agent must ask for the complete list above before proceeding to the live investigation. Do not turn this into a "discover which keys are needed" exercise.
+This is an explicit configuration checklist, not a provider-discovery exercise. Do not omit a name because a first smoke test does not use that capability. Do not request historical/retired provider credentials.
+
+IMPORTANT: older `docs/bureau-plan/*` files contain historical secret/provider contracts. They are not authoritative for fresh-account setup. This section and `docs/REPLIT_NEW_ACCOUNT_SETUP.md` are the current key contract.
 
 Rules:
 - Never ask the operator to paste secret values into chat.
@@ -304,37 +306,32 @@ Do not say “complete” unless the requested layer has actually been verified.
 
 # 1. OPERATOR KEY CHECKLIST
 
-Create/configure these in Replit Secrets, using the exact names used by the current repository:
-
-## Core
+For a fresh Replit account, configure the complete canonical 16-name startup contract in Replit Secrets, in this exact order:
 
 ```
-GEMINI_API_KEY
-GROQ_API_KEY
-MISTRAL_API_KEY
-REDIS_URL_1
-APEX_API_AUTH_TOKEN
-APEX_OPERATOR_PASSWORD
-APEX_SESSION_SECRET
+1. REDIS_URL_1
+2. GROQ_API_KEY
+3. GEMINI_API_KEY
+4. MISTRAL_API_KEY
+5. HF_TOKEN
+6. SERPER_API_KEY
+7. TAVILY_API_KEY
+8. SERPAPI_KEY
+9. EXA_API_KEY
+10. SCRAPFLY_API_KEY
+11. ZENROWS_API_KEY
+12. COMPANIES_HOUSE_API_KEY
+13. GEMINI_RIGHT_HAND_API_KEY
+14. APEX_API_AUTH_TOKEN
+15. APEX_OPERATOR_PASSWORD
+16. APEX_SESSION_SECRET
 ```
 
-## Optional / capability-dependent
+The startup contract is intentionally explicit: do not turn key setup into conditional provider discovery. Presence checks are enough; never print values.
 
-```
-SERPER_API_KEY
-TAVILY_API_KEY
-SERPAPI_API_KEY
-EXA_API_KEY
-SCRAPFLY_API_KEY
-ZENROWS_API_KEY
-COMPANIES_HOUSE_API_KEY
-HF_TOKEN
-GEMINI_RIGHT_HAND_API_KEY
-```
+`DATABASE_URL` is supplied by Replit/Postgres and is not part of the operator-entered list.
 
-**Do not populate every optional key merely because it is listed.** The code/configuration should determine which capability is actually enabled.
-
-A future agent should inspect the current repository before telling you that a particular optional key is mandatory.
+Historical provider keys such as DeepSeek/NVIDIA/WhoisJSON/Whoxy are retired and must not be requested.
 
 ---
 
@@ -429,6 +426,28 @@ That historical failure is a warning, not permission to blindly execute the same
 ---
 
 # 4. NEW REPLIT ACCOUNT CHECKLIST
+
+Before spending live-research credits, verify all of the following:
+
+- GitHub repository imported from `2f22vtd4kr-cloud/BigContacts`;
+- branch is `main`;
+- HEAD SHA is recorded;
+- worktree is clean or pre-existing changes are explicitly recorded;
+- canonical handoff/study/blueprint docs have been read;
+- no replacement app was generated;
+- lockfile/package manager recognized;
+- all 16 startup secret names are present;
+- database attached and `DATABASE_URL` available;
+- Redis available;
+- port 8080 available;
+- canonical boot script exists;
+- health route exists;
+- authentication configuration exists;
+- exactly one API workflow will be used.
+
+If any of these fail, diagnose the specific failure before consuming the live investigation budget.
+
+Do not burn a new Replit account just because an agent produced a bad prompt, started duplicate workflows, raced schema initialization, or attempted a speculative rewrite.
 
 Before consuming a new account, verify:
 
