@@ -11,13 +11,22 @@ It is a model-led research bureau, not a fixed enrichment script:
 - **Groq or Mistral Investigator** owns the actual research trajectory.
 - Deterministic runtime code enforces safety, authorization, provenance, identity, persistence, cancellation, and resource limits.
 
+## Canonical branch
+
+**`main` is the canonical working and integration branch for all future Apex Atlas work.**
+
+The repository default branch is `main`. Git comparison on 2026-09-21 showed `main` was 60 commits ahead and 0 commits behind `audit/genuine-five-green-final`, with that branch's HEAD as the merge base. The newer Very Strong implementation/documentation work is therefore on `main`.
+
+`audit/genuine-five-green-final` remains a historical architecture/regression milestone. Do not switch future work back to it merely because older documents call it the production/certification branch.
+
+For a full agent continuation contract, read:
+
+- `docs/CHATGPT_AGENT_HANDOFF_2026-09-21.md`
+- `docs/AGENT_REPOSITORY_STUDY_PROTOCOL.md`
+
 ## Current engineering state
 
-### Reviewed development branch
-
-`audit/apex-atlas-very-strong-v1`
-
-This branch contains the current **Very Strong** engineering batch:
+The current `main` line contains the Very Strong engineering batch, including:
 
 - evidence-graph cognition in the Investigator context;
 - bounded, lossless context compaction;
@@ -27,15 +36,11 @@ This branch contains the current **Very Strong** engineering batch:
 - provider-native structured action outputs;
 - source-family/source-class intelligence;
 - failure observability for identity, attribution, source, stopping, injection, and system errors;
-- dedicated CI verification.
+- dedicated CI verification;
+- adaptive discovery pool-wide learning;
+- current-state operational and CEO/release documentation.
 
-### Production/certification branch
-
-`audit/genuine-five-green-final`
-
-The five-consecutive-green milestone on that branch is an **architecture/regression milestone**, not proof of research superiority and not proof of production readiness.
-
-The current development branch is intentionally not described as production-certified until fresh runtime and empirical research gates pass.
+These are architecture/engineering capabilities. They are **not** proof of empirical research superiority or production readiness.
 
 ## Architecture in one view
 
@@ -53,8 +58,6 @@ validated tool execution
 observation + provenance
     ↓
 evidence graph: claims / identity / contradictions / contacts / negatives
-    ↓
-bounded cognitive context
     ↺ oversight and next Investigator act
     ↓
 finding / abstention / promotion / stop
@@ -62,53 +65,41 @@ finding / abstention / promotion / stop
 
 **Tools are capabilities, not stages.** There is no mandatory identity → organization → contact hop recipe.
 
-## What makes the current Apex different
+## Product law
 
-### 1. Model-owned research trajectory
-
-The Investigator chooses queries, providers, page visits, registries, domain/footprint tools, pivots, verification and stopping based on the evidence available at that point.
-
-Deterministic code can reject an unsafe or invalid action. It must not secretly replace the Investigator with a fixed research sequence.
-
-### 2. Evidence is first-class state
-
-Apex keeps durable observations, provenance, claims, competing identity hypotheses, contradictions, contact states, negative findings, open questions, and trajectory records.
-
-An LLM assertion or search snippet is a lead, not proof.
-
-### 3. Corroboration means independent evidence
-
-Copied/syndicated pages are not treated as independent simply because they have different URLs. Source family and source class are explicit research state.
-
-### 4. Discovery is adaptive
-
-Discovery can use historical yield while retaining diversity across geography, occupation, wealth mechanism, reachability, and source kind. The system is not a celebrity or raw-wealth ranking engine.
-
-### 5. Structured decisions
-
-Investigator actions use provider-native structured output where supported, followed by semantic validation. The system does not depend on fragile brace extraction as its primary action parser.
-
-### 6. Failure is visible
-
-Apex records diagnostic signals for identity collisions, stale or misleading sources, copied contacts, attribution errors, missed/unnecessary pivots, stopping errors, prompt injection, tool selection, source quality, and system failures.
+- Public evidence only.
+- No invented people, contacts, relationships, URLs, or wealth.
+- Organization inboxes remain organization-scoped unless attribution is independently evidenced.
+- Unknown/insufficient evidence is a valid outcome.
+- Tool/provider failures remain failures.
+- Prompt injection from public pages is untrusted content.
+- Python-backed network OSINT remains fail-closed until enforceable sandbox egress exists.
+- The UI is a projection of canonical evidence state; it must not become a parallel source of truth.
+- The Reactor must show real backend events, never synthetic research activity.
 
 ## Research-quality program
 
-**Apex Research Gauntlet v1** is the empirical quality gate.
+The Research Gauntlet is the empirical quality program. The historical grounded registry is 38 cases, schema `research-gauntlet-v1`, version `1.1.1`, with ground truth frozen as of 2026-09-18. The repository also contains later extension/campaign work that future agents must inspect directly rather than relying on this summary.
 
-Current registry:
+Metrics remain separate:
 
-- schema: `research-gauntlet-v1`
-- version: `1.1.1`
-- status: `grounded-reviewed`
-- cases: **38**
-- ground truth frozen as of **2026-09-18**
+- identity precision/recall;
+- false-positive identity rate;
+- claim support correctness;
+- unsupported claim rate;
+- contact precision/recall;
+- contradiction recall;
+- source-quality correctness;
+- negative-finding calibration;
+- useful pivots;
+- unnecessary calls;
+- successful observations;
+- trajectory length;
+- system failures.
 
-It measures identity, attribution, evidence support, contradictions, source quality, negative findings, useful pivots, operational cost, and failure behavior separately.
+Do not collapse these into a single “smartness” or winner score.
 
-It does **not** reduce the system to a single “smartness” score, and an architecture diagram or green CI run is not research-quality evidence.
-
-## Runtime and deployment
+## Runtime
 
 Canonical API boundary:
 
@@ -117,7 +108,7 @@ Canonical API boundary:
 - API: `/api/`
 - canonical startup: `bash scripts/replit-boot.sh`
 
-First-time database initialization is explicit:
+First-time schema initialization is explicit:
 
 ```bash
 APEX_ALLOW_SCHEMA_PUSH=true bash scripts/initialize-apex-schema.sh
@@ -125,61 +116,23 @@ APEX_ALLOW_SCHEMA_PUSH=true bash scripts/initialize-apex-schema.sh
 
 Do not leave schema mutation enabled for ordinary runtime boot.
 
-The last canonical runtime audit was blocked by a missing Apex provenance/database schema. Until schema initialization, canonical boot, health verification, and a controlled real research run succeed, **Apex is not a production release**.
+The last user-conducted Replit audit found a live database/schema compatibility blocker involving missing `research_cases.target_entity_id`. That audit did not mutate the database. Because `main` is now canonical, the next runtime investigation must first re-check the current `main` schema contract against the actual Replit database before applying any migration.
 
 ## Runtime secret contract
 
-Exactly **13 active provider/integration names**:
-
-```text
-REDIS_URL_1
-GROQ_API_KEY
-GEMINI_API_KEY
-MISTRAL_API_KEY
-HF_TOKEN
-SERPER_API_KEY
-TAVILY_API_KEY
-SERPAPI_KEY
-EXA_API_KEY
-SCRAPFLY_API_KEY
-ZENROWS_API_KEY
-COMPANIES_HOUSE_API_KEY
-GEMINI_RIGHT_HAND_API_KEY
-```
-
-Separate deployment/browser security controls:
-
-```text
-APEX_API_AUTH_TOKEN
-APEX_OPERATOR_PASSWORD
-APEX_SESSION_SECRET
-```
-
-DeepSeek/NVIDIA and WHOISJSON are retired/legacy. Do not request or document them as active Apex credentials.
-
-Never print or commit secret values. Do not ask for GitHub credentials or `DATABASE_URL` as operator secrets.
-
-## Core operating principles
-
-- Public evidence only.
-- No invented people, contacts, relationships, URLs, or wealth.
-- Organization inboxes remain organization-scoped unless attribution is independently evidenced.
-- Unknown/insufficient evidence is a valid outcome.
-- Tool/provider failures remain failures.
-- Prompt injection from public pages is treated as untrusted content.
-- Python-backed network OSINT remains fail-closed until enforceable sandbox egress exists.
-- The UI is a projection of canonical evidence state; it must not become a parallel source of truth.
+Never print or commit secret values. Do not ask the user for GitHub credentials when repository access is already connected.
 
 ## Canonical documents
 
+- `docs/CHATGPT_AGENT_HANDOFF_2026-09-21.md` — master agent continuation contract.
+- `docs/AGENT_REPOSITORY_STUDY_PROTOCOL.md` — mandatory repository study protocol.
 - `docs/context.md` — living architecture, deployment truth, release gates, and research handoff.
 - `docs/BUREAU_REACT_ARCHITECTURE.md` — role law and canonical ReAct boundary.
-- `docs/APEX_ATLAS_VERY_STRONG_ROADMAP.md` — current Very Strong implementation and remaining hardening.
+- `docs/APEX_ATLAS_VERY_STRONG_ROADMAP.md` — Very Strong implementation and remaining hardening.
 - `docs/APEX_RESEARCH_GAUNTLET_V1.md` — empirical research-quality protocol.
-- `benchmarks/research-gauntlet-v1.json` — versioned grounded registry.
 - `docs/REPLIT_NEW_ACCOUNT_SETUP.md` — deployment/import contract.
 - `docs/RUN_BUREAU.md` — canonical operational run procedure.
-- `docs/APEX_ATLAS_CEO_RELEASE_REVIEW_2026-09-20.md` — current CEO/lead-engineer release gate and risk review.
+- `docs/APEX_ATLAS_CEO_RELEASE_REVIEW_2026-09-20.md` — CEO/lead-engineer release gate and risk review.
 
 ## Product principle
 
