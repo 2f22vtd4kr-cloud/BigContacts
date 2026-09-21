@@ -41,8 +41,11 @@ async function materializeAtlasAdmissions(input: { findings: Array<{ promotionDe
     const supported = caseEvents.some((event) => {
       if (event.eventType !== "tool_observation" || typeof event.payload !== "string") return false;
       try {
-        const payload = JSON.parse(event.payload) as { execution?: string; observedUrls?: unknown[] };
-        return payload.execution === "success" && Array.isArray(payload.observedUrls) && payload.observedUrls.some((url) => { try { return new URL(String(url)).href === normalizedSource; } catch { return false; } });
+        const payload = JSON.parse(event.payload) as { action?: string; execution?: string; observedUrls?: unknown[] };
+        // Search results are leads, not admission-grade identity evidence. A named
+        // discovery candidate must be grounded in an actually retrieved source page.
+        const directSourceAction = payload.action === "visit" || payload.action === "browser_fetch";
+        return directSourceAction && payload.execution === "success" && Array.isArray(payload.observedUrls) && payload.observedUrls.some((url) => { try { return new URL(String(url)).href === normalizedSource; } catch { return false; } });
       } catch { return false; }
     });
     if (!supported) continue;
