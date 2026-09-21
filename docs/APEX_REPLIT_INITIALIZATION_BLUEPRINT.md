@@ -152,17 +152,19 @@ Canonical API port: 8080.
 Canonical startup:
   bash scripts/replit-boot.sh
 
-After schema compatibility is verified:
+After the audit and local gates are complete, and only after database compatibility is verified:
 1. run exactly ONE long-running Apex Atlas API workflow;
 2. never start Project and Apex Atlas API concurrently, and never start two API workflows;
 3. verify the process is listening on 8080;
-3. verify /api/healthz;
-4. verify the desk at /;
-5. verify authentication;
-6. verify Redis/job locking;
-7. verify provider connectivity without leaking credentials.
+4. verify /api/healthz;
+5. verify the desk at /;
+6. verify authentication;
+7. verify Redis/job locking;
+8. verify provider configuration by secret presence only before the first live investigation;
+9. do NOT make separate paid/outbound probe calls to every configured provider merely to test keys;
+10. let the first genuine investigation provide the real provider connectivity test.
 
-Do not call a healthy build a healthy runtime.
+Do not call a healthy build a healthy runtime. Do not spend live-provider quota before the audit, build, database and runtime health gates are green.
 
 APEX RESEARCH ARCHITECTURE — DO NOT VIOLATE
 The system is:
@@ -292,8 +294,12 @@ Stop and report instead of improvising if:
 - required credentials are missing;
 - authentication cannot be verified safely;
 - the application cannot bind to 8080;
-- a provider call fails;
+- the canonical API/runtime cannot become healthy;
 - source/evidence integrity is uncertain.
+
+A provider failure DURING the live investigation is NOT by itself a setup blocker. Preserve the failure in the trajectory/provenance and allow the selected Investigator to choose another autonomous action, subject to the normal resource and integrity gates.
+
+A missing provider key BEFORE the live investigation is a setup blocker because the fresh-account contract requires all 16 names to be configured.
 
 Do not turn a blocker into a fake success.
 
