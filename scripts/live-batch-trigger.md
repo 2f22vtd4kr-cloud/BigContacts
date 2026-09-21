@@ -10,4 +10,4 @@ This trigger follows the discovery completion-contract repair: discovery investi
 
 Last intentional production-candidate audit trigger: 2026-09-21. This marker exists solely to launch the isolated GitHub Actions live proof workflow; it is not a runtime feature or research instruction.
 
-Follow-up verification trigger: 2026-09-21, after the full runtime-hardening pass, to independently verify the resulting main commit.
+Follow-up verification trigger: 2026-09-21, final runtime-hardening verification after provider-gate, provenance, durability, deadline, and CI-audit repairs.
