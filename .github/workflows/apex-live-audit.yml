@@ -86,7 +86,7 @@ jobs:
           const mistral=await probe('https://api.mistral.ai/v1/chat/completions',process.env.MISTRAL_API_KEY,process.env.MISTRAL_AGENTIC_MODEL,'mistral');
           const keys=[process.env.GEMINI_API_KEY].filter(Boolean);let boss=false;
           for(const key of keys){try{const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(process.env.GEMINI_AGENTIC_MODEL)}:generateContent`,{method:'POST',headers:{'x-goog-api-key':key,'content-type':'application/json'},body:JSON.stringify({contents:[{parts:[{text:'Reply READY only.'}]}],generationConfig:{maxOutputTokens:32}}),signal:AbortSignal.timeout(15000)});await r.text();results.push({provider:'gemini-boss',status:r.status});if(r.ok){boss=true;break}}catch(e){results.push({provider:'gemini-boss',state:'transport_error',error:String(e?.message||e)})}}
-          console.log(JSON.stringify({groq,mistral,boss,results},null,2));if(!groq&&!mistral)process.exit(2);
+          console.log(JSON.stringify({groq,mistral,boss,results},null,2));if(!boss||(!groq&&!mistral))process.exit(2);
           NODE
       - name: Start API
         run: |
