@@ -1,9 +1,20 @@
 import { describe, expect, it } from "vitest";
 import fs from "node:fs";
+import path from "node:path";
+
+function repoRoot(): string {
+  let current = path.resolve(process.cwd());
+  for (let i = 0; i < 8; i += 1) {
+    if (fs.existsSync(path.join(current, "pnpm-workspace.yaml"))) return current;
+    current = path.dirname(current);
+  }
+  throw new Error("Unable to locate Apex repository root from test working directory.");
+}
 
 describe("Gemini Boss opening recovery contract", () => {
-  const caseBureau = fs.readFileSync("artifacts/api-server/src/src/lib/case-bureau.ts", "utf8");
-  const canonical = fs.readFileSync("artifacts/api-server/src/src/lib/canonical-atlas-discovery.ts", "utf8");
+  const root = repoRoot();
+  const caseBureau = fs.readFileSync(path.join(root, "artifacts/api-server/src/src/lib/case-bureau.ts"), "utf8");
+  const canonical = fs.readFileSync(path.join(root, "artifacts/api-server/src/src/lib/canonical-atlas-discovery.ts"), "utf8");
 
   it("has a bounded same-role recovery path", () => {
     expect(caseBureau).toContain("buildBossOpeningRecoveryPrompt");
@@ -15,11 +26,11 @@ describe("Gemini Boss opening recovery contract", () => {
 
   it("never assigns Groq/Mistral directly from the recovery code", () => {
     const recoveryStart = caseBureau.indexOf("// Bounded same-role recovery:");
-    const recoveryEnd = caseBureau.indexOf("return {\n      status: \"unavailable\"", recoveryStart);
+    const recoveryEnd = caseBureau.indexOf('return {\n      status: "unavailable"', recoveryStart);
     const recovery = caseBureau.slice(recoveryStart, recoveryEnd < 0 ? recoveryStart + 6000 : recoveryEnd);
     expect(recovery).toContain("recovered.investigatorLlm");
-    expect(recovery).not.toContain("investigatorLlm: \"groq\"");
-    expect(recovery).not.toContain("investigatorLlm: \"mistral\"");
+    expect(recovery).not.toContain('investigatorLlm: "groq"');
+    expect(recovery).not.toContain('investigatorLlm: "mistral"');
   });
 
   it("reports recovery exhaustion rather than claiming no fallback was attempted", () => {
