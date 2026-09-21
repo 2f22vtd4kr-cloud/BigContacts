@@ -10,6 +10,29 @@ permissions:
 jobs:
   live-bureau-audit:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: apex
+          POSTGRES_PASSWORD: apex_local_dev
+          POSTGRES_DB: apex
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U apex -d apex"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=5s
+          --health-timeout=3s
+          --health-retries=20
     timeout-minutes: 60
     env:
       DATABASE_URL: postgresql://apex:apex_local_dev@127.0.0.1:5432/apex
@@ -33,6 +56,7 @@ jobs:
       APEX_SKIP_SEMANTIC: "1"
       APEX_AGENTIC_CONCURRENCY: "1"
       APEX_AGENTIC_PROVIDER_CONCURRENCY: "1"
+      APEX_ALLOW_SCHEMA_PUSH: "true"
       NODE_OPTIONS: --max-old-space-size=1536
     steps:
       - uses: actions/checkout@v4
@@ -41,6 +65,13 @@ jobs:
         with: { node-version: 22 }
       - run: npm install -g pnpm@9.15.9
       - run: pnpm install --frozen-lockfile --ignore-scripts --registry=https://registry.npmjs.org/
+      - name: Build canonical application
+        run: pnpm run build
+      - name: Initialize canonical Apex schema
+        run: bash scripts/initialize-apex-schema.sh
+      - name: Configure isolated CI API authentication
+        shell: bash
+        run: echo "APEX_API_AUTH_TOKEN=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
       - name: Provider generation preflight
         shell: bash
         run: |
@@ -64,8 +95,19 @@ jobs:
           test "$(curl -sS -m 5 -o /tmp/health.json -w '%{http_code}' http://127.0.0.1:8080/api/healthz)" = 200
       - name: Launch bounded 3-target discovery-first smoke
         run: |
-          curl -sS -m 15 -X POST http://127.0.0.1:8080/api/ingest/atlas-run -H 'Content-Type: application/json' -d '{"discoveryFirst":true,"targetCount":3,"runResearch":true,"skipFaa":true,"targetTimeoutMs":300000,"researchDepth":"standard"}' | tee /tmp/launch.json
-          node -e 'const x=require("/tmp/launch.json");if(!x.jobId)process.exit(1)'
+          curl -sS -m 15 -X POST http://127.0.0.1:8080/api/ingest/atlas-run -H "Authorization: Bearer $APEX_API_AUTH_TOKEN" -H 'Content-Type: application/json' -d '{"discoveryFirst":true,"targetCount":3,"runResearch":true,"skipFaa":true,"targetTimeoutMs":300000,"researchDepth":"standard"}' | tee /tmp/launch.json
+          node -e 'const x=require("/tmp/launch.json");if(!x.jobId)process.exit(1);console.log("job",x.jobId)'
+          JOB_ID="$(node -p 'require("/tmp/launch.json").jobId')"
+          for i in $(seq 1 120); do
+            sleep 5
+            curl -sS -m 10 -H "Authorization: Bearer $APEX_API_AUTH_TOKEN" "http://127.0.0.1:8080/api/ingest/job/$JOB_ID" > /tmp/job.json
+            STATUS="$(node -p 'require("/tmp/job.json").status || ""')"
+            if [ "$STATUS" = "done" ]; then break; fi
+            if [ "$STATUS" = "failed" ] || [ "$STATUS" = "cancelled" ]; then cat /tmp/job.json; exit 2; fi
+          done
+          node -e 'const x=require("/tmp/job.json");if(x.status!=="done"){console.error(x);process.exit(1)}'
+          curl -sS -m 20 -H "Authorization: Bearer $APEX_API_AUTH_TOKEN" "http://127.0.0.1:8080/api/entities?type=HNWI&limit=100" > /tmp/entities.json
+          curl -sS -m 20 -H "Authorization: Bearer $APEX_API_AUTH_TOKEN" "http://127.0.0.1:8080/api/ingest/atlas-trace/$JOB_ID" > /tmp/atlas-trace.json
       - name: Audit live Bureau
         if: always()
         run: node scripts/audit-live-bureau.mjs
