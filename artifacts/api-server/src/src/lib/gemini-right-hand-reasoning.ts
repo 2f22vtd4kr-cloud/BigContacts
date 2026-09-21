@@ -26,7 +26,9 @@ function isGemini3Model(model: string): boolean { return /^gemini-3(?:\.\d+)?-/i
 async function request(system: string, user: string): Promise<GeminiRequestResult> {
   const apiKey = key(); if (!apiKey) return { raw: "", error: "GEMINI_RIGHT_HAND_API_KEY is not configured.", model: GEMINI_RIGHT_HAND_MODEL }; const chain = modelChain(); const failures: string[] = []; const deadline = Date.now() + OVERALL_TIMEOUT_MS;
   for (const model of chain) {
-    const controller = new AbortController(); const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+    const remainingMs = deadline - Date.now();
+    if (remainingMs <= 0) return { raw: "", error: `Gemini Right-hand deadline exceeded after ${OVERALL_TIMEOUT_MS}ms.`, model: chain[chain.length - 1] ?? GEMINI_RIGHT_HAND_MODEL };
+    const controller = new AbortController(); const timer = setTimeout(() => controller.abort(), Math.min(REQUEST_TIMEOUT_MS, remainingMs));
     try {
       const response = await fetch(`${GEMINI_CHAT_API_BASE}/${model}:generateContent`, { method: "POST", headers: { Accept: "application/json", "Content-Type": "application/json", "x-goog-api-key": apiKey }, body: JSON.stringify({ system_instruction: { parts: [{ text: `${apexOrientationCompact("right_hand")}\n\n${system}` }] }, contents: [{ role: "user", parts: [{ text: user }] }], generationConfig: { maxOutputTokens: 768, responseMimeType: "application/json", ...(isGemini3Model(model) ? { thinkingConfig: { thinkingLevel: "low" } } : {}) } }), signal: controller.signal });
       const body = await response.text();
