@@ -1,14 +1,21 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   GEMINI_RIGHT_HAND_FALLBACK_MODELS,
   GEMINI_RIGHT_HAND_MODEL,
   runGeminiRightHandFreeJson,
 } from "../lib/gemini-right-hand-reasoning";
+import { installExternalQuotaGuard, resetProviderGateForTests } from "../lib/provider-gate";
+import { installGeminiTransientRetry } from "../lib/gemini-transient-retry";
 
 describe("Gemini Right-hand free-model fallback", () => {
   const originalFetch = globalThis.fetch;
 
+  beforeEach(() => {
+    resetProviderGateForTests();
+  });
+
   afterEach(() => {
+    resetProviderGateForTests();
     globalThis.fetch = originalFetch;
     delete process.env.GEMINI_RIGHT_HAND_API_KEY;
     vi.restoreAllMocks();
@@ -25,13 +32,16 @@ describe("Gemini Right-hand free-model fallback", () => {
       }
       return new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: '{"decision":"fallback-ok"}' }] } }] }), { status: 200 });
     });
+    installExternalQuotaGuard();
+    installGeminiTransientRetry();
 
     const result = await runGeminiRightHandFreeJson("Return a JSON object with decision.");
 
     expect(result.status).toBe("completed");
     expect(result.model).toBe(GEMINI_RIGHT_HAND_FALLBACK_MODELS[0]);
-    expect(calls[0]).toContain(`/${GEMINI_RIGHT_HAND_MODEL}:generateContent`);
-    expect(calls[1]).toContain(`/${GEMINI_RIGHT_HAND_FALLBACK_MODELS[0]}:generateContent`);
+    expect(calls).toHaveLength(4);
+    expect(calls.slice(0, 3).every((url) => url.includes(`/${GEMINI_RIGHT_HAND_MODEL}:generateContent`))).toBe(true);
+    expect(calls[3]).toContain(`/${GEMINI_RIGHT_HAND_FALLBACK_MODELS[0]}:generateContent`);
   });
 
   it("walks the complete bounded free-model chain when every model is capacity-limited", async () => {
@@ -41,6 +51,7 @@ describe("Gemini Right-hand free-model fallback", () => {
       calls.push(String(input));
       return new Response(JSON.stringify({ error: { message: "service unavailable" } }), { status: 503 });
     });
+    installExternalQuotaGuard();
 
     const result = await runGeminiRightHandFreeJson("Return JSON.");
 
