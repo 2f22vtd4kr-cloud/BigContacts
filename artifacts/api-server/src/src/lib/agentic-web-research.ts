@@ -45,7 +45,7 @@ function groundedFinding(finding: AgenticFinding, records: readonly CoreResult["
   const exactValue = ["email", "phone", "linkedin", "website", "social"].includes(finding.vectorType);
   const value = finding.value.trim().toLowerCase();
   const identityTokens = finding.scope === "candidate" && finding.personName ? finding.personName.toLowerCase().split(/[^a-z0-9]+/).filter((token) => token.length >= 2) : [];
-  let valueObserved = !exactValue;
+  let valueObserved = false;
   let identityObserved = identityTokens.length === 0;
   let support = 0;
   for (const record of records) {
