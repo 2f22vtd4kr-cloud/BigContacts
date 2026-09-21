@@ -1,3 +1,9 @@
+import { vi } from "vitest";
+
+vi.mock("../lib/gemini-transient-retry", () => ({
+  installGeminiTransientRetry: vi.fn(),
+}));
+
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   GEMINI_RIGHT_HAND_FALLBACK_MODELS,
@@ -5,7 +11,6 @@ import {
   runGeminiRightHandFreeJson,
 } from "../lib/gemini-right-hand-reasoning";
 import { installExternalQuotaGuard, resetProviderGateForTests } from "../lib/provider-gate";
-import { installGeminiTransientRetry } from "../lib/gemini-transient-retry";
 
 describe("Gemini Right-hand free-model fallback", () => {
   const originalFetch = globalThis.fetch;
@@ -33,7 +38,6 @@ describe("Gemini Right-hand free-model fallback", () => {
       return new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: '{"decision":"fallback-ok"}' }] } }] }), { status: 200 });
     });
     installExternalQuotaGuard();
-    installGeminiTransientRetry();
 
     const result = await runGeminiRightHandFreeJson("Return a JSON object with decision.");
 
