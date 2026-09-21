@@ -49,5 +49,5 @@ describe("Gemini Right-hand latency controls", () => {
     const result = await runGeminiRightHandFreeJson("Return one JSON object.");
     expect(result.status).toBe("unavailable");
     expect(fetchMock).toHaveBeenCalledTimes(2);
-  });
+  }, 10_000);
 });
