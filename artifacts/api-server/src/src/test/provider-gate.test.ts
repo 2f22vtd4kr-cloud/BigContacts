@@ -10,6 +10,7 @@ describe("provider quota gate", () => {
     delete process.env.APEX_PROVIDER_MAX_REQUESTS_GENERIC;
     delete process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GENERIC;
     delete process.env.APEX_EXTERNAL_MAX_REQUESTS_PER_SCOPE;
+    delete process.env.APEX_EXTERNAL_PROVIDER_CONCURRENCY_GEMINI;
     resetProviderGateForTests();
   });
 
@@ -52,6 +53,25 @@ describe("provider quota gate", () => {
     await expect(
       runProviderCall({ provider: "generic", account: "test-cooldown" }, async () => "unexpected"),
     ).rejects.toMatchObject({ code: "cooldown", provider: "generic" });
+  });
+
+  it("keeps Gemini oversight from being serialized behind a single Gemini slot", async () => {
+    process.env.APEX_PROVIDER_MAX_REQUESTS_GEMINI = "10";
+    process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GEMINI = "0";
+    process.env.APEX_EXTERNAL_MAX_REQUESTS_PER_SCOPE = "100";
+    let active = 0;
+    let peak = 0;
+
+    const work = () =>
+      runProviderCall({ provider: "gemini", account: "right-hand-test" }, async () => {
+        active += 1;
+        peak = Math.max(peak, active);
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        active -= 1;
+      });
+
+    await Promise.all([work(), work()]);
+    expect(peak).toBe(2);
   });
 
   it("does not consume an attempt while waiting behind a concurrency slot", async () => {
