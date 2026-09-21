@@ -236,6 +236,17 @@ A model assertion is not evidence.
 A guessed email is not a contact.
 Unknown is a valid outcome.
 
+DISCOVERY INTEGRITY GATES
+
+The current canonical runtime includes two deterministic discovery integrity gates:
+
+1. A cold discovery run cannot terminate immediately after an unusable/failed external action. The Investigator must choose another action itself.
+2. A named-person discovery admission requires a successfully retrieved source page (visit or browser_fetch). Search-result snippets alone are leads and cannot establish admission.
+
+Do not bypass these gates and do not replace them with a deterministic provider/search ladder.
+
+If the first search returns no usable result, preserve that observation and allow the Investigator to decide the next research action.
+
 REACTOR / FRONTEND
 The UI must project real backend state.
 Never create fake progress, fake searches, fake observations, fake sources or fake confidence just to make the UI look alive.
