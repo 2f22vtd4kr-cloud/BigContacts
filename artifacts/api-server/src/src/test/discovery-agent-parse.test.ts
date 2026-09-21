@@ -136,6 +136,30 @@ describe("discovery agent identity boundary", () => {
     ]);
   });
 
+
+  it("requires the cited observed page to contain the admitted person's identity", () => {
+    const finding = [{
+      personName: "Jane Example",
+      scope: "candidate" as const,
+      sourceUrls: ["https://example.com/page"],
+      note: "model claim",
+      promotionDecision: "promote" as const,
+    }];
+    const trajectory = ["step1: visit https://example.com/page execution=success observed=https://example.com/page"];
+    expect(parsePersonFindings(finding, trajectory, [{
+      execution: "success",
+      observation: "Example Corp contact page with no named person.",
+      observedUrls: ["https://example.com/page"],
+    }])).toEqual([]);
+    expect(parsePersonFindings(finding, trajectory, [{
+      execution: "success",
+      observation: "Jane Example — Founder of Example Corp.",
+      observedUrls: ["https://example.com/page"],
+    }])).toEqual([
+      expect.objectContaining({ name: "Jane Example", promotionDecision: "promote" }),
+    ]);
+  });
+
   it("rejects deterministic proxy-table related-person findings", () => {
     const finding = [{
       value: "related-person: John Example",
