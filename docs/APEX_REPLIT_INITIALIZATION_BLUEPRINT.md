@@ -81,42 +81,69 @@ IMPORTANT:
 - Do not hide schema errors with compatibility hacks.
 
 ENVIRONMENT / KEYS
-Ask the operator to configure secrets through Replit Secrets / environment variables. NEVER print secret values, echo them, commit them, or place them in source files.
 
-Required core AI/runtime secrets to check for presence (not value):
-- GEMINI_API_KEY
-- GROQ_API_KEY
-- MISTRAL_API_KEY
-- REDIS_URL_1
-- APEX_API_AUTH_TOKEN
-- APEX_OPERATOR_PASSWORD
-- APEX_SESSION_SECRET
+The startup credential gate is NOT conditional.
 
-Depending on enabled tools/integrations, check for presence of:
-- SERPER_API_KEY
-- TAVILY_API_KEY
-- SERPAPI_KEY
-- EXA_API_KEY
-- SCRAPFLY_API_KEY
-- ZENROWS_API_KEY
-- COMPANIES_HOUSE_API_KEY
-- HF_TOKEN
-- GEMINI_RIGHT_HAND_API_KEY
+At initialization, ask the operator to configure ALL of the following exact secret names in Replit Secrets / environment variables, in this order. Check presence only; never display values.
+
+1. REDIS_URL_1
+2. GROQ_API_KEY
+3. GEMINI_API_KEY
+4. MISTRAL_API_KEY
+5. HF_TOKEN
+6. SERPER_API_KEY
+7. TAVILY_API_KEY
+8. SERPAPI_KEY
+9. EXA_API_KEY
+10. SCRAPFLY_API_KEY
+11. ZENROWS_API_KEY
+12. COMPANIES_HOUSE_API_KEY
+13. GEMINI_RIGHT_HAND_API_KEY
+14. APEX_API_AUTH_TOKEN
+15. APEX_OPERATOR_PASSWORD
+16. APEX_SESSION_SECRET
+
+DATABASE_URL is supplied by the Replit/Postgres environment.
+
+The Agent must ask for the complete list above before proceeding to the live investigation. Do not turn this into a "discover which keys are needed" exercise.
 
 Rules:
 - Never ask the operator to paste secret values into chat.
-- Ask only for secrets that are actually required by the current code/configuration.
+- Tell the operator to enter each value directly into Replit Secrets.
+- Never print, echo, log, commit, or place secret values in source files.
+- Verify only that each required variable is present/non-empty.
 - Do not manufacture placeholder production keys.
-- If a provider key is absent, report the exact feature/provider that cannot run.
 - Do not silently substitute another provider.
-- Gemini is Boss/Right-hand oversight.
-- Groq/Mistral are the active Investigator providers.
+- Do not omit a listed key because the first smoke test happens not to use that provider.
+- Retired credentials that must NOT be requested or restored:
+  - DEEPSEEK_API_KEY
+  - NVIDIA_API_KEY
+  - WHOISJSON_API_KEY
+  - WHOXY_API_KEY
+
+Role law:
+- Gemini is Boss / Right-hand oversight.
+- Groq/Mistral are Investigator providers.
 
 AUTH
 Verify the current repository's authentication contract before changing anything.
 Do not weaken authentication to make a Replit preview work.
 Do not expose protected APIs publicly merely to simplify testing.
 Do not print credentials.
+
+CANONICAL INITIALIZATION TEST GATE
+
+Use these current canonical gates before spending the live research budget:
+- pnpm install --frozen-lockfile
+- pnpm run typecheck
+- pnpm run build
+- pnpm run test:phone-priority
+- current architecture/integrity guards
+
+An older duplicate smoke suite that calls protected endpoints without bearer authentication is stale if it conflicts with the current authenticated contract. Do NOT weaken authentication to make it pass.
+
+Do not spend the live Replit research budget repairing unrelated historical unit expectations before the first genuine discovery result. Record such failures as test debt and proceed when the canonical gates and security/runtime checks pass.
+
 
 RUNTIME
 Canonical API port: 8080.
