@@ -1,6 +1,6 @@
 # Apex Atlas — Replit Import / Build / Run / Keys Blueprint
 ## Canonical initialization contract for every new Replit account and every future ChatGPT agent
-**Updated:** 2026-09-21
+**Updated:** 2026-09-21 — new-account race/provider hardening
 **Canonical repository:** `2f22vtd4kr-cloud/BigContacts`
 **Canonical branch:** `main`
 
@@ -95,7 +95,7 @@ Required core AI/runtime secrets to check for presence (not value):
 Depending on enabled tools/integrations, check for presence of:
 - SERPER_API_KEY
 - TAVILY_API_KEY
-- SERPAPI_API_KEY
+- SERPAPI_KEY
 - EXA_API_KEY
 - SCRAPFLY_API_KEY
 - ZENROWS_API_KEY
@@ -124,8 +124,9 @@ Canonical startup:
   bash scripts/replit-boot.sh
 
 After schema compatibility is verified:
-1. start the application;
-2. verify the process is listening on 8080;
+1. run exactly ONE long-running Apex Atlas API workflow;
+2. never start Project and Apex Atlas API concurrently, and never start two API workflows;
+3. verify the process is listening on 8080;
 3. verify /api/healthz;
 4. verify the desk at /;
 5. verify authentication;
@@ -324,6 +325,8 @@ APEX_ALLOW_SCHEMA_PUSH=true bash scripts/initialize-apex-schema.sh
 
 Then disable schema mutation and run normal boot.
 
+Schema initialization is single-writer. The schema helper now serializes concurrent schema operations; do not intentionally start concurrent schema commands anyway.
+
 ### Existing Replit database
 
 Never assume it is empty.
@@ -370,7 +373,7 @@ Before consuming a new account, verify:
 
 If any of these fail, diagnose the specific failure before abandoning the account.
 
-**Do not burn a new Replit account just because an agent produced a bad prompt or attempted a speculative rewrite.**
+**Do not burn a new Replit account just because an agent produced a bad prompt, started duplicate workflows, raced schema initialization, or attempted a speculative rewrite.**
 
 ---
 
@@ -509,3 +512,19 @@ When evidence is insufficient, abstain.
 When a run did not happen, say it did not happen.
 
 Never manufacture success.
+
+
+# 11. POST-RUN HARDENING NOW IN MAIN
+
+The following two runtime protections are now committed to `main`:
+
+- `scripts/initialize-apex-schema.sh` uses a single-writer lock so concurrent schema initialization cannot race PostgreSQL DDL.
+- `scripts/replit-boot.sh` refuses to kill another process that owns port 8080. A duplicate workflow must be stopped explicitly instead of one workflow killing another.
+
+These are safety rails, not a replacement for the one-workflow rule.
+
+The previous captured run also established that Gemini Boss may need bounded same-role model fallback when a configured Gemini model is capacity-limited. A new agent must preserve that same-role fallback and its bounded control-plane deadline if those changes are already present on the checked-out `main`.
+
+# 12. FINAL NEW-ACCOUNT PROMPT RULE
+
+The operator should use the exact prompt in section 0. Do not improvise a shorter prompt that makes credentials conditional, starts multiple workflows, or launches research before runtime/schema/provider gates are proven.
