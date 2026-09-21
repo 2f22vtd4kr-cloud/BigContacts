@@ -20,6 +20,8 @@ export type CanonicalAtlasOptions = {
   lockKey?: "atlas-run" | "case-bureau-discovery";
 };
 export type CanonicalAtlasResult = { phase: number; ingested: number; enriched: number; contactsFound: number; hotLeads: number; durationMs: number; phaseSummary: Record<string, string> };
+const MAX_ATLAS_CONTROL_TURNS = 64;
+const MAX_ATLAS_TRAJECTORY_RECORDS = 512;
 function uniqueNames(values: string[]): string[] { return [...new Set(values.map((value) => value.trim()).filter((value) => value.length >= 3))]; }
 function isObservedHttpSource(value: unknown): value is string { return typeof value === "string" && /^https?:\/\/\S+$/i.test(value); }
 
@@ -90,11 +92,11 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     await db.insert(researchCaseEventsTable).values({ caseId: discoveryCaseId, iteration: 0, actorRole: "head_investigator", eventType: "assignment", status: "recorded", summary: "Canonical discovery Investigator assigned after Gemini/Gemini coordination.", correlationKey: `${atlasJobId}:discovery-assignment`, payload: JSON.stringify({ jobId: atlasJobId, investigatorLlm: boss.investigatorLlm, mode: "discovery", controlPlane: "canonical-atlas-discovery" }) });
     await updateJob(atlasJobId, { progress: 1, atlasPhase: 1, message: `${boss.investigatorLlm.toUpperCase()} Investigator running free-ReAct discovery…`, result: JSON.stringify({ rightHand, boss: { status: boss.status, model: boss.model, investigatorLlm: boss.investigatorLlm }, discoveryCaseId }) });
     await assertAtlasJobActive(atlasJobId);
-    let discovery = await runBureauAgenticWebPass({ mode: "discovery", targetName: "", objective: discoveryObjective, investigatorLlm: boss.investigatorLlm, caseId: discoveryCaseId, jobId: atlasJobId, maxIterations: Math.min(depth.agenticMaxIterations, MAX_ATLAS_TRAJECTORY_RECORDS - (discovery.trajectoryRecords?.length ?? 0)), hardTimeoutMs: opts.targetTimeoutMs ?? depth.agenticHardTimeoutMs });
+    let discovery = await runBureauAgenticWebPass({ mode: "discovery", targetName: "", objective: discoveryObjective, investigatorLlm: boss.investigatorLlm, caseId: discoveryCaseId, jobId: atlasJobId, maxIterations: depth.agenticMaxIterations, hardTimeoutMs: opts.targetTimeoutMs ?? depth.agenticHardTimeoutMs });
     await assertAtlasJobActive(atlasJobId);
     let admission = await materializeAtlasAdmissions({ findings: discovery.findings, atlasJobId, discoveryCaseId });
     let admitted = admission.names; let materialized = admission.materialized; let evidenceRows = admission.evidenceRows; let researched = 0; let contactsFound = 0; let controlTurns = 0; let discoveryRuns = 1; let priorAction: AtlasControlAction | null = null; let priorCandidate: string | null = null;
-    const MAX_ATLAS_CONTROL_TURNS = 64; const MAX_ATLAS_TRAJECTORY_RECORDS = 512; let controlBudgetExhausted = false; let trajectoryBudgetExhausted = false;
+    let controlBudgetExhausted = false; let trajectoryBudgetExhausted = false;
     const researchedNames = new Set<string>();
     phaseSummary.assignment = `${boss.investigatorLlm} selected by Gemini; discovery completed=${discovery.status}; durableCase=${discoveryCaseId}.`; phaseSummary.discovery = `admitted=${admitted.length}; materialized=${materialized}; evidenceRows=${evidenceRows}; searches=${discovery.searches}; visits=${discovery.visits}; trajectory=${discovery.trajectory.length}; structuredTurns=${discovery.trajectoryRecords?.length ?? 0}`;
     if (discoveryOnly) {
@@ -145,7 +147,13 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       if (decision.action === "continue_discovery" || decision.action === "pivot_discovery") {
         await assertAtlasJobActive(atlasJobId);
         const directedObjective = `${discoveryObjective}\n\nBOSS-DIRECTED RESEARCH QUESTION / PIVOT:\n${decision.direction || "Reassess the open evidence and choose the highest-information next action yourself."}`;
-        const nextDiscovery = await runBureauAgenticWebPass({ mode: "discovery", targetName: "", objective: directedObjective, investigatorLlm: boss.investigatorLlm, caseId: discoveryCaseId, jobId: atlasJobId, maxIterations: depth.agenticMaxIterations, hardTimeoutMs: opts.targetTimeoutMs ?? depth.agenticHardTimeoutMs });
+        const remainingTrajectoryBudget = MAX_ATLAS_TRAJECTORY_RECORDS - (discovery.trajectoryRecords?.length ?? 0);
+        if (remainingTrajectoryBudget <= 0) {
+          trajectoryBudgetExhausted = true;
+          phaseSummary.trajectory_budget = "Atlas trajectory safety ceiling reached";
+          break;
+        }
+        const nextDiscovery = await runBureauAgenticWebPass({ mode: "discovery", targetName: "", objective: directedObjective, investigatorLlm: boss.investigatorLlm, caseId: discoveryCaseId, jobId: atlasJobId, maxIterations: Math.min(depth.agenticMaxIterations, remainingTrajectoryBudget), hardTimeoutMs: opts.targetTimeoutMs ?? depth.agenticHardTimeoutMs });
         await assertAtlasJobActive(atlasJobId);
         discoveryRuns += 1;
         discovery = { ...nextDiscovery, searches: discovery.searches + nextDiscovery.searches, visits: discovery.visits + nextDiscovery.visits, iterations: discovery.iterations + nextDiscovery.iterations, findings: [...(discovery.findings ?? []), ...(nextDiscovery.findings ?? [])], modelFindings: [...(discovery.modelFindings ?? []), ...(nextDiscovery.modelFindings ?? [])], trajectory: [...discovery.trajectory, ...nextDiscovery.trajectory], trajectoryRecords: [...(discovery.trajectoryRecords ?? []), ...(nextDiscovery.trajectoryRecords ?? [])] };
