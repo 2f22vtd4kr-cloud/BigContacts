@@ -3,9 +3,10 @@
 > **Updated:** 2026-09-20. This is the living engineering, architecture, deployment, and research-quality handoff for the current reviewed Apex Atlas state.
 
 **Repository:** `2f22vtd4kr-cloud/BigContacts`  
-**Current reviewed branch:** `audit/apex-atlas-very-strong-v1`  
-**Production/certification branch:** `audit/genuine-five-green-final`  
-**Review status:** the current branch contains the Very Strong engineering batch and remains a review branch; it is **not** a production certification by itself.
+**Canonical working/integration branch:** `main`  
+**Historical five-green branch:** `audit/genuine-five-green-final`  
+**Historical Very Strong review branch:** `audit/apex-atlas-very-strong-v1`  
+**Review status:** `main` contains the newer Very Strong implementation/documentation line. Neither branch history nor static gates alone constitutes production certification.
 
 ## 1. Executive state
 
@@ -222,6 +223,8 @@ Gemini opening oversight
 Every act must be inspectable: model, action, actual provider/tool, status, observation, provenance, findings, uncertainty, open questions, and oversight result.
 
 ## 12. Runtime/deployment truth
+
+**Branch correction (2026-09-21):** `main` is now the canonical future-work branch. A direct GitHub comparison showed `main` is 60 commits ahead and 0 commits behind `audit/genuine-five-green-final`, with `7cb15619113cad7c19750bdcf7747e7bf39970a8` as the merge base. The newer Very Strong implementation and operational documentation are on `main`. The older branch remains historical only.
 
 Canonical application boundary:
 
