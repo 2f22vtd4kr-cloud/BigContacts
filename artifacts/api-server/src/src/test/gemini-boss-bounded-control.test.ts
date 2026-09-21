@@ -19,7 +19,7 @@ describe("Gemini Boss bounded control-plane generation", () => {
       if (url.includes("gemini-test-a:generateContent")) return new Response("retired", { status: 404 });
       if (url.includes("gemini-test-b:generateContent")) {
         return new Response(
-          '{"candidates":[{"content":{"parts":[{"text":"{\"action\":\"stop\"}"}]}}]}',
+          JSON.stringify({ candidates: [{ content: { parts: [{ text: '{"action":"stop"}' }] } }] }),
           { status: 200 },
         );
       }
