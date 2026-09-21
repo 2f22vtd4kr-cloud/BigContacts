@@ -6,6 +6,7 @@ import { runBureauAgenticWebPass } from "./bureau-agentic-pass";
 import { runCanonicalSingleTargetInvestigation } from "./canonical-single-target-runner";
 import { decideAtlasNextAction, type AtlasControlAction } from "./atlas-control-decision";
 import { resolveResearchDepth } from "./research-depth";
+import { deriveCanonicalTerminalDecision } from "./canonical-terminal-state";
 
 export type CanonicalAtlasOptions = {
   targetCount?: number;
@@ -105,8 +106,27 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       await assertAtlasJobActive(atlasJobId);
       await db.update(researchCasesTable).set({ caseFile: JSON.stringify({ ...caseFile, discoveredCandidates: [...(Array.isArray(caseFile.discoveredCandidates) ? caseFile.discoveredCandidates : []), ...candidates], currentProgress: { ...(caseFile.currentProgress ?? {}), lastDiscoveryAt: new Date().toISOString(), lastReviewedBy: "gemini-boss" } }), currentAction: admitted.length ? "target-scoped-investigator-research" : "review", iteration: Number(current?.iteration ?? 0) + 1, updatedAt: new Date() }).where(eq(researchCasesTable.id, discoveryCaseId));
       await db.insert(researchCaseEventsTable).values({ caseId: discoveryCaseId, iteration: Number(current?.iteration ?? 0) + 1, actorRole: "specialist", eventType: "observation", status: "recorded", summary: `Canonical discovery admission: ${admitted.length} review candidate(s).`, correlationKey: `${atlasJobId}:discovery-admission:${Number(current?.iteration ?? 0) + 1}`, payload: JSON.stringify({ jobId: atlasJobId, investigatorLlm: boss.investigatorLlm, admitted, sourceUrls: (discovery.findings ?? []).flatMap((finding) => finding.sourceUrls) }) });
+      const durableStatus = discovery.status === "completed" ? "complete" : "review";
+      const terminal = deriveCanonicalTerminalDecision({ durableCaseStatus: durableStatus, locallyCancelled: discovery.status === "cancelled" });
+      await db.update(researchCasesTable).set({
+        status: terminal.caseStatus,
+        currentAction: discovery.status === "completed" ? "review" : "canonical-discovery-incomplete",
+        updatedAt: new Date(),
+      }).where(eq(researchCasesTable.id, discoveryCaseId));
       await assertAtlasJobActive(atlasJobId);
-      await updateJob(atlasJobId, { status: "done", progress: 1, total: 1, atlasPhase: 1, atlasPhaseTotal: 1, outcome: "complete", message: `Canonical discovery complete: ${admitted.length} exact named candidate(s) admitted for review.`, result: JSON.stringify({ rightHand, boss, discovery: { status: discovery.status, findings: discovery.findings.length, searches: discovery.searches, visits: discovery.visits, caseId: discoveryCaseId, trajectoryEntries: discovery.trajectory.length, trajectoryRecords: discovery.trajectoryRecords ?? [] } }), finishedAt: new Date().toISOString() });
+      await updateJob(atlasJobId, {
+        status: terminal.jobStatus,
+        progress: 1,
+        total: 1,
+        atlasPhase: 1,
+        atlasPhaseTotal: 1,
+        outcome: terminal.outcome,
+        message: discovery.status === "completed"
+          ? `Canonical discovery complete: ${admitted.length} exact named candidate(s) admitted for review.`
+          : `Canonical discovery incomplete: ${discovery.error ?? discovery.stopReason ?? discovery.status}.`,
+        result: JSON.stringify({ rightHand, boss, discovery: { status: discovery.status, findings: discovery.findings.length, searches: discovery.searches, visits: discovery.visits, caseId: discoveryCaseId, trajectoryEntries: discovery.trajectory.length, trajectoryRecords: discovery.trajectoryRecords ?? [] } }),
+        finishedAt: new Date().toISOString(),
+      });
       await clearActiveJobIfOwned(lockKey, atlasJobId);
       return { phase: 1, ingested: 0, enriched: materialized, contactsFound: 0, hotLeads: admitted.length, durationMs: Date.now() - startedAt, phaseSummary };
     }
