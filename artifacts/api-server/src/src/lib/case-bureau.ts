@@ -447,13 +447,14 @@ export async function generateGeminiBossText(
   const models = [...new Set([
     selection.model,
     ...(selection.candidateModels ?? []),
-  ])].slice(0, 4);
+  ])].slice(0, 2);
   let lastError = `Gemini Boss ${selection.model} did not return text.`;
-  // Bound the entire Boss control-plane attempt, including at most four compatible
-  // models. The outer research job remains responsible for any explicit retry.
-  const bossDeadline = Date.now() + 75_000;
-  const bossRequestTimeoutMs = 15_000;
-  const bossMaxOutputTokens = 2_048;
+  // Boss is a small control-plane JSON decision. Keep it latency-bounded: two
+  // compatible model candidates are enough to survive model retirement/capacity
+  // drift without turning one decision into a minute-long serial generation chain.
+  const bossDeadline = Date.now() + 30_000;
+  const bossRequestTimeoutMs = 12_000;
+  const bossMaxOutputTokens = 1_024;
 
   for (const entry of keyEntries) {
     for (const model of models) {
@@ -472,9 +473,11 @@ export async function generateGeminiBossText(
             body: JSON.stringify({
               contents: [{ role: "user", parts: [{ text: prompt }] }],
               generationConfig: {
-                temperature: 0.2,
                 maxOutputTokens: bossMaxOutputTokens,
                 responseMimeType: "application/json",
+                ...(modelVersion(model)[0] >= 3
+                  ? { thinkingConfig: { thinkingLevel: "low" } }
+                  : {}),
               },
             }),
             signal: AbortSignal.timeout(Math.min(bossRequestTimeoutMs, Math.max(1_000, remainingMs))),
