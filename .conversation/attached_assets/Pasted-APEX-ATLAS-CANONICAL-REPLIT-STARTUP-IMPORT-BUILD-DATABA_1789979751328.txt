@@ -1,0 +1,646 @@
+APEX ATLAS — CANONICAL REPLIT STARTUP / IMPORT / BUILD / DATABASE / LAUNCH
+
+You are initializing the existing Apex Atlas repository in a new Replit workspace.
+
+This is NOT a greenfield project.
+
+DO NOT BUILD A NEW APP.
+DO NOT CREATE A MOCKUP.
+DO NOT SCAFFOLD A REPLACEMENT.
+DO NOT INVENT A NEW ARCHITECTURE.
+DO NOT GENERATE FAKE RESEARCH DATA.
+DO NOT CREATE A DEMO VERSION OF APEX ATLAS.
+
+You are importing and running the existing canonical Apex Atlas code from GitHub.
+
+⸻
+
+1. SOURCE OF TRUTH
+
+Repository:
+
+2f22vtd4kr-cloud/BigContacts
+
+Canonical branch:
+
+main
+
+main is the source of truth.
+
+Import the GitHub repository directly.
+
+Immediately verify:
+
+git remote -v
+git branch --show-current
+git rev-parse HEAD
+git status --short
+
+The active branch MUST be:
+
+main
+
+Do not switch to historical Apex branches.
+
+In particular, do NOT use:
+
+audit/genuine-five-green-final
+audit/apex-atlas-very-strong-v1
+
+Those are historical reference branches, not the current implementation.
+
+Do not reset, rebase, force-push, or rewrite the repository.
+
+⸻
+
+2. READ THE APEX BLUEPRINT BEFORE DOING ANYTHING
+
+Before building or modifying anything, read:
+
+README.md
+docs/CHATGPT_AGENT_HANDOFF_2026-09-21.md
+docs/AGENT_REPOSITORY_STUDY_PROTOCOL.md
+docs/APEX_REPLIT_INITIALIZATION_BLUEPRINT.md
+docs/MAIN_CANONICAL_CONSOLIDATION_2026-09-21.md
+docs/context.md
+docs/RUN_BUREAU.md
+docs/REPLIT_NEW_ACCOUNT_SETUP.md
+
+Also inspect the actual current source, tests, database schema/migrations, scripts, frontend, backend, package configuration, and Replit configuration.
+
+The repository documentation is the blueprint.
+
+Do not invent a different Replit architecture.
+
+⸻
+
+3. CRITICAL: CREDENTIAL GATE
+
+Before attempting the genuine Apex runtime, ask me to configure the following secrets in Replit Secrets / Environment Variables.
+
+These are the known active Apex startup credentials.
+
+Provider / integration secrets
+
+Ask me for these EXACT variable names, in this order:
+
+1. REDIS_URL_1
+
+Purpose: Redis runtime coordination, job locking, and related runtime infrastructure.
+
+2. GROQ_API_KEY
+
+Purpose: Groq Investigator execution.
+
+3. GEMINI_API_KEY
+
+Purpose: Gemini Boss / primary control-plane reasoning.
+
+4. MISTRAL_API_KEY
+
+Purpose: Mistral Investigator execution.
+
+5. HF_TOKEN
+
+Purpose: Hugging Face-backed capabilities used by the current research/tooling configuration.
+
+6. SERPER_API_KEY
+
+Purpose: Serper search capability.
+
+7. TAVILY_API_KEY
+
+Purpose: Tavily search capability.
+
+8. SERPAPI_KEY
+
+Purpose: SerpAPI search capability.
+
+9. EXA_API_KEY
+
+Purpose: Exa search/research capability.
+
+10. SCRAPFLY_API_KEY
+
+Purpose: Scrapfly web retrieval capability.
+
+11. ZENROWS_API_KEY
+
+Purpose: ZenRows web retrieval capability.
+
+12. COMPANIES_HOUSE_API_KEY
+
+Purpose: Companies House research capability.
+
+13. GEMINI_RIGHT_HAND_API_KEY
+
+Purpose: dedicated Gemini Right-hand advisory reasoning.
+
+Apex authentication controls
+
+Then ask for:
+
+14. APEX_API_AUTH_TOKEN
+
+Purpose: Apex API authentication.
+
+15. APEX_OPERATOR_PASSWORD
+
+Purpose: Apex operator authentication.
+
+16. APEX_SESSION_SECRET
+
+Purpose: Apex session/security configuration.
+
+Database
+
+DATABASE_URL is platform-managed by Replit.
+
+Do NOT invent a DATABASE_URL.
+
+Do NOT replace the platform-managed database connection with a fake value.
+
+⸻
+
+4. HOW TO ASK ME FOR THE KEYS
+
+Do NOT ask me to paste secret values into this chat.
+
+Tell me to enter each value directly into:
+
+Replit → Secrets / Environment Variables
+
+Use this format:
+
+1. REDIS_URL_1
+
+Add the value directly to Replit Secrets.
+Do not paste the value into chat.
+When finished, reply added.
+
+Then continue through the list.
+
+Never echo secret values.
+
+Never print secret values.
+
+Never commit secret values.
+
+Never put secret values into source files.
+
+Never put secret values into Git.
+
+After configuration, verify only whether the variable is present/non-empty.
+
+⸻
+
+5. DO NOT SUBSTITUTE OR INVENT KEYS
+
+The following are RETIRED and must NOT be requested:
+
+DEEPSEEK_API_KEY
+NVIDIA_API_KEY
+WHOISJSON_API_KEY
+WHOXY_API_KEY
+
+Do not resurrect their old architecture.
+
+Do not ask me to create them.
+
+Do not install them as a workaround.
+
+Do not substitute another provider because a required credential is missing.
+
+If a required credential is missing, stop and report the exact missing variable.
+
+⸻
+
+6. IMPORTANT AI ARCHITECTURE
+
+Preserve the existing Apex architecture.
+
+Gemini Boss
+
+Gemini Boss provides case direction, control-plane reasoning, Investigator selection, and oversight.
+
+It is NOT the web researcher.
+
+Gemini Right-hand
+
+The Right-hand provides independent bounded advisory reasoning.
+
+It is NOT the Investigator.
+
+It must use:
+
+GEMINI_RIGHT_HAND_API_KEY
+
+where the current implementation requires it.
+
+Do not silently substitute the normal Gemini credential for the dedicated Right-hand credential.
+
+Investigator
+
+The actual research trajectory belongs to the Investigator.
+
+Supported Investigator providers include:
+
+Groq
+Mistral
+
+using:
+
+GROQ_API_KEY
+MISTRAL_API_KEY
+
+Do not turn Gemini Boss into the Investigator.
+
+Do not replace the Investigator with a scripted research pipeline.
+
+⸻
+
+7. NO MOCKUP — THIS IS ABSOLUTE
+
+Do NOT create:
+
+* fake dashboard data
+* fake research cases
+* fake companies
+* fake people
+* fake contacts
+* fake search results
+* fake evidence
+* fake AI responses
+* fake Reactor events
+* fake confidence
+* fake provider responses
+* fake “successful” investigations
+
+If the real system cannot run because something is missing, show the real blocker.
+
+A visible blocker is correct. Fake success is not.
+
+⸻
+
+8. INSTALL THE EXISTING PROJECT
+
+Inspect:
+
+package.json
+pnpm-workspace.yaml
+lockfile
+scripts/replit-boot.sh
+scripts/initialize-apex-schema.sh
+.replit
+replit.nix
+
+Use the repository’s existing package manager.
+
+Do not replace pnpm with npm or yarn.
+
+Do not randomly upgrade dependencies.
+
+Install the existing dependency set.
+
+⸻
+
+9. DATABASE — DO NOT BLINDLY MUTATE IT
+
+Before touching the database:
+
+1. inspect the current main schema;
+2. inspect migration/init scripts;
+3. inspect the actual Replit database;
+4. determine whether the database is genuinely empty or already populated;
+5. compare the live database against the current main schema.
+
+There is a strict distinction between:
+
+fresh database initialization
+
+and:
+
+existing database migration/reconciliation.
+
+Do NOT assume an existing database is empty.
+
+Do NOT drop it.
+
+Do NOT recreate it.
+
+Do NOT blindly push the schema.
+
+Do NOT destroy existing data.
+
+⸻
+
+10. FRESH DATABASE INITIALIZATION
+
+If and only if the database is genuinely a fresh/empty database, use the repository’s canonical initialization procedure:
+
+APEX_ALLOW_SCHEMA_PUSH=true bash scripts/initialize-apex-schema.sh
+
+That is the permitted schema initialization mechanism.
+
+After initialization:
+
+* verify the required tables;
+* verify schema success;
+* disable schema-push authorization for normal runtime.
+
+Do not leave schema mutation enabled during ordinary application boot.
+
+⸻
+
+11. EXISTING DATABASE
+
+If the Replit database already contains data:
+
+STOP before destructive schema operations.
+
+Inspect the exact mismatch between:
+
+current main schema
+
+and:
+
+live Replit database
+
+The known historical issue involving:
+
+research_cases.target_entity_id
+
+must be reconciled against the CURRENT main schema and migration state.
+
+Do not blindly add/remove columns merely because an old error mentioned them.
+
+Preserve existing data.
+
+⸻
+
+12. BUILD AND VALIDATE
+
+After the credential gate and safe database setup:
+
+Run the repository’s actual build/typecheck/test gates.
+
+At minimum, use the commands that actually exist in the current repository for:
+
+dependency installation
+typecheck
+build
+tests
+architecture checks
+
+Do not invent replacement commands.
+
+Do not delete tests because they fail.
+
+Do not weaken assertions.
+
+Do not remove architecture guards.
+
+If something fails, report the real failure.
+
+⸻
+
+13. CANONICAL BOOT
+
+Use:
+
+bash scripts/replit-boot.sh
+
+Do NOT replace the canonical boot process with a temporary server.
+
+Expected application port:
+
+8080
+
+The actual application must run.
+
+⸻
+
+14. HTTP VERIFICATION
+
+Verify:
+
+/
+ /api/
+ /api/healthz
+
+The root / must be the real Apex frontend/application.
+
+A temporary server that only returns health information is NOT success.
+
+Do not declare Apex running if the actual application does not load.
+
+⸻
+
+15. AUTHENTICATION
+
+Verify the actual authentication boundary.
+
+Do not disable authentication to make Replit Preview work.
+
+Do not expose protected APIs merely to simplify testing.
+
+Use the configured:
+
+APEX_API_AUTH_TOKEN
+APEX_OPERATOR_PASSWORD
+APEX_SESSION_SECRET
+
+according to the current repository implementation.
+
+Never print their values.
+
+⸻
+
+16. REDIS
+
+Verify:
+
+REDIS_URL_1
+
+connects successfully.
+
+Report only:
+
+connected
+unavailable
+timeout
+authentication failure
+
+Never print the Redis URL.
+
+⸻
+
+17. REAL APEX RUNTIME
+
+After the application is genuinely healthy, perform the smallest real Apex runtime verification.
+
+Do NOT start the large research campaign.
+
+First perform ONE genuine investigation.
+
+The investigation must use:
+
+* actual Gemini Boss
+* actual Gemini Right-hand where applicable
+* actual Groq or Mistral Investigator
+* actual research tools
+* actual observations
+* actual provenance
+* actual evidence handling
+* actual oversight
+* actual durable events
+
+Do not fabricate any of these.
+
+⸻
+
+18. RESEARCH ARCHITECTURE
+
+Apex is model-led.
+
+The conceptual flow is:
+
+Case / Objective
+        ↓
+Gemini Boss + Gemini Right-hand
+        ↓
+Groq OR Mistral Investigator
+        ↓
+Investigator-owned Free-ReAct trajectory
+        ↓
+validated capabilities
+        ↓
+real observations + provenance
+        ↓
+identity / evidence / contradiction / contact state
+        ↓
+oversight
+        ↓
+durable events
+        ↓
+Reactor
+
+Do NOT convert this into a fixed workflow such as:
+
+identity
+→ company
+→ LinkedIn
+→ email
+→ verification
+
+The Investigator owns its research trajectory.
+
+⸻
+
+19. EVIDENCE MUST BE REAL
+
+Do not turn:
+
+* search snippets
+* model statements
+* copied directories
+* guessed email patterns
+* inherited names
+* unsupported claims
+
+into verified evidence.
+
+Apex follows:
+
+raw observation
+→ claim / identity hypothesis
+→ attribution + provenance + scope validation
+→ durable evidence
+
+Unknown is a valid result.
+
+Failure is a valid result.
+
+Insufficient evidence is a valid result.
+
+⸻
+
+20. REACTOR MUST BE TRUTHFUL
+
+The Reactor/UI must represent actual backend state.
+
+Do not create theatrical fake activity.
+
+Do not animate fake searches.
+
+Do not fabricate observations.
+
+Do not fabricate sources.
+
+Do not fabricate confidence.
+
+If no real research has occurred, the UI must not pretend that it has.
+
+⸻
+
+21. IF YOU HIT A BLOCKER
+
+Do not improvise.
+
+Report:
+
+1. exact failure;
+2. exact command;
+3. relevant non-secret output;
+4. affected component;
+5. likely root cause;
+6. proposed minimal fix;
+7. whether operator approval is required.
+
+Never turn an unresolved blocker into a green-looking success.
+
+⸻
+
+22. FIRST RESPONSE FROM YOU
+
+Your first job is NOT to write new application code.
+
+First:
+
+1. import the repository;
+2. verify main;
+3. read the Apex blueprint;
+4. read the handoff;
+5. inspect the repository;
+6. present the credential checklist above;
+7. ask me to add the secrets to Replit Secrets;
+8. wait for my confirmation;
+9. then proceed through installation/build/database/runtime in the order specified above.
+
+Do not start building a mockup while waiting for credentials.
+
+Do not create a second application.
+
+Do not “helpfully” redesign Apex.
+
+⸻
+
+FINAL RULE
+
+The repository is the product.
+
+main is the canonical code.
+
+The repository’s documentation is the blueprint.
+
+Your job is to make that Apex Atlas run.
+
+Not an approximation.
+
+Not a demo.
+
+Not a mockup.
+
+Not a new architecture.
+
+The real Apex Atlas.
