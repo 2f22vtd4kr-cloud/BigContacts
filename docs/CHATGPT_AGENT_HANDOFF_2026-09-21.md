@@ -548,7 +548,7 @@ APEX_ALLOW_SCHEMA_PUSH=true bash scripts/initialize-apex-schema.sh
 
 Normal runtime must not leave schema mutation enabled.
 
-Known active provider/integration secret names from the current contract include:
+The canonical fresh-account startup contract contains exactly these 16 names, in this order:
 
 ```
 REDIS_URL_1
@@ -558,23 +558,20 @@ MISTRAL_API_KEY
 HF_TOKEN
 SERPER_API_KEY
 TAVILY_API_KEY
-SERPAPI_API_KEY
+SERPAPI_KEY
 EXA_API_KEY
 SCRAPFLY_API_KEY
 ZENROWS_API_KEY
 COMPANIES_HOUSE_API_KEY
 GEMINI_RIGHT_HAND_API_KEY
-```
-
-Deployment/browser controls:
-
-```
 APEX_API_AUTH_TOKEN
 APEX_OPERATOR_PASSWORD
 APEX_SESSION_SECRET
 ```
 
-Never print secret values.
+The first 13 are provider/integration credentials; the final 3 are the API/browser security boundary. Replit setup must ask for all 16 names explicitly and check presence only. `DATABASE_URL` is supplied by Replit/Postgres.
+
+Never print secret values. Historical `docs/bureau-plan/*` secret lists are not authoritative for fresh-account setup; use `docs/APEX_REPLIT_INITIALIZATION_BLUEPRINT.md` and `docs/REPLIT_NEW_ACCOUNT_SETUP.md`.
 
 Do not request GitHub credentials from the user when the GitHub integration already provides repository access.
 
