@@ -1,8 +1,8 @@
 # Apex Atlas — precise deployment and bureau run procedure
 
-**Updated:** 2026-09-20  
+**Updated:** 2026-09-21  
 **Canonical branch:** `main`  
-**Historical Very Strong review branch:** `audit/apex-atlas-very-strong-v1`  
+**Historical Very Strong review branch:** `audit/apex-atlas-very-strong-v1` (fully incorporated into `main`)  
 **Historical five-green branch:** `audit/genuine-five-green-final`  
 **Living context:** `docs/context.md`  
 **Master handoff:** `docs/CHATGPT_AGENT_HANDOFF_2026-09-21.md`
