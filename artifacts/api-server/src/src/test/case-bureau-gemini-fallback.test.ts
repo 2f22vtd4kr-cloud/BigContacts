@@ -68,7 +68,7 @@ describe("Gemini Boss text-only model authority", () => {
       contents: [{ role: "user", parts: [{ text: "Use the persisted case context." }] }],
       generationConfig: {
         temperature: 0.2,
-        maxOutputTokens: 8192,
+        maxOutputTokens: 2048,
         responseMimeType: "application/json",
       },
     });
