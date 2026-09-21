@@ -174,7 +174,7 @@ export class ResearchIntelligenceEngine {
   recordAction(input: { turn: number; action: string; args?: Record<string, unknown>; execution: string; observation?: string; urls?: string[]; findings?: Array<{ vectorType?: string; value?: string; personName?: string | null; role?: string | null; sourceUrls?: string[]; note?: string }> }): void {
     const urls = [...new Set((input.urls ?? []).map(canonicalUrl).filter((value): value is string => Boolean(value)))];
     const newHostCount = this.countNewHosts(urls);
-    const findings = input.findings ?? [];
+    const findings = input.execution === "success" ? (input.findings ?? []) : [];
     let useful = false;
     for (const finding of findings) {
       const value = String(finding.value ?? "").trim();
@@ -190,7 +190,9 @@ export class ResearchIntelligenceEngine {
       this.negativeFindings.add(negative);
       this.recordEvidence({ kind: "negative", claim: negative, value: negative, sourceUrl: null, sourceTier: "unknown", turn: input.turn, action: input.action, execution: input.execution, passage: null, supports: [], contradicts: [] });
     }
-    for (const url of urls) this.recordEvidence({ kind: "observation", claim: `Observed source ${url}`, value: url, sourceUrl: url, sourceTier: tierForHost(hostOf(url)), turn: input.turn, action: input.action, execution: input.execution, passage: input.observation?.slice(0, 1200) ?? null, supports: [], contradicts: [] });
+    if (input.execution === "success") {
+      for (const url of urls) this.recordEvidence({ kind: "observation", claim: `Observed source ${url}`, value: url, sourceUrl: url, sourceTier: tierForHost(hostOf(url)), turn: input.turn, action: input.action, execution: input.execution, passage: input.observation?.slice(0, 1200) ?? null, supports: [], contradicts: [] });
+    }
     const informationGain = clamp((useful ? 0.45 : 0.05) + Math.min(0.35, urls.length * 0.07) + Math.min(0.2, newHostCount * 0.1));
     this.actions.push({ turn: input.turn, action: input.action, args: input.args ?? {}, execution: input.execution, observation: input.observation ?? "", urls, findingCount: findings.length, useful, informationGain });
     this.chain = hash(`${this.chain}|${input.turn}|${input.action}|${input.execution}|${JSON.stringify(urls)}|${findings.map((f) => `${f.vectorType}:${f.value}`).join("|")}`);
@@ -235,7 +237,14 @@ export class ResearchIntelligenceEngine {
 
   private recordContact(vector: string, value: string, urls: string[], personName: string | null): void {
     const key = normalize(value); const existing = this.contacts.get(key); const now = new Date().toISOString(); const hosts = [...new Set(urls.map(hostOf).filter((v): v is string => Boolean(v)))];
-    if (existing) { existing.lastSeen = now; existing.sourceUrls = [...new Set([...existing.sourceUrls, ...urls])]; existing.sourceHosts = [...new Set([...existing.sourceHosts, ...hosts])]; existing.attributionStrength = clamp(Math.max(existing.attributionStrength, personName ? 0.85 : 0.45)); if (existing.sourceHosts.length >= 2 && existing.state !== "REJECTED") existing.state = "CORROBORATED"; return; }
+    if (existing) {
+      existing.lastSeen = now;
+      existing.sourceUrls = [...new Set([...existing.sourceUrls, ...urls])];
+      existing.sourceHosts = [...new Set([...existing.sourceHosts, ...hosts])];
+      existing.attributionStrength = clamp(Math.max(existing.attributionStrength, personName ? 0.85 : 0.45));
+      if (existing.sourceHosts.length >= 2 && !["REJECTED", "VERIFIED", "STALE", "CONTRADICTED"].includes(existing.state)) existing.state = "CORROBORATED";
+      return;
+    }
     this.contacts.set(key, { value, vector, state: personName ? "ATTRIBUTED" : "OBSERVED", sourceUrls: urls, sourceHosts: hosts, firstSeen: now, lastSeen: now, attributionStrength: personName ? 0.85 : 0.45 });
   }
 
