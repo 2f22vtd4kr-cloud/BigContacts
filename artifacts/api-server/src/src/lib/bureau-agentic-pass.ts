@@ -19,7 +19,7 @@ function observedUrlsFromTrajectory(trajectory:string[], records:AgenticTrajecto
   }
   if(observed.size===0){
     for(const line of trajectory){
-      const match=String(line).match(/step\\d+:\\s+(?:visit|browser_fetch)\\s+https?:\\/\\/\\S+\\s+execution=success(?:\\s+observed=(https?:\\/\\/\\S+))?/i);
+      const match=String(line).match(/step\d+:\s+(?:visit|browser_fetch)\s+https?:\/\/\S+\s+execution=success(?:\s+observed=(https?:\/\/\S+))?/i);
       if(match?.[1])try{observed.add(new URL(match[1]).href);}catch{}
     }
   }
