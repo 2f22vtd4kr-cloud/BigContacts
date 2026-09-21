@@ -35,6 +35,26 @@ describe("Apex research intelligence", () => {
     expect(state.hypotheses.find((h) => h.label === "H2")?.status).toBe("rejected");
   });
 
+  it("does not promote failed executions or failed URLs into positive evidence", () => {
+    const engine = new ResearchIntelligenceEngine({ executionId: "failed", target: "Example Target", objective: "audit failed tools" });
+    engine.recordAction({ turn: 1, action: "visit", execution: "http_error", urls: ["https://failed.example/page"], observation: "Jane Example — Founder — jane@example.com", findings: [{ vectorType: "email", value: "jane@example.com", personName: "Jane Example", sourceUrls: ["https://failed.example/page"] }] });
+    const state = engine.buildContext();
+    expect(state.facts.some((fact) => fact.claim.includes("jane@example.com"))).toBe(false);
+    expect(state.evidenceCount).toBe(1);
+    expect(state.negativeFindings.some((finding) => finding.includes("http_error"))).toBe(true);
+  });
+
+  it("preserves VERIFIED and STALE contact states when later sources corroborate the value", () => {
+    const engine = new ResearchIntelligenceEngine({ executionId: "terminal-contact", target: "Example Target", objective: "preserve contact state" });
+    engine.recordAction({ turn: 1, action: "visit", execution: "success", urls: ["https://one.example/contact"], observation: "Example Target email person@example.com", findings: [{ vectorType: "email", value: "person@example.com", personName: "Example Target", sourceUrls: ["https://one.example/contact"] }] });
+    engine.recordFeedback({ outcome: "successful_outreach", value: "person@example.com" });
+    engine.recordAction({ turn: 2, action: "visit", execution: "success", urls: ["https://two.example/contact"], observation: "Example Target email person@example.com", findings: [{ vectorType: "email", value: "person@example.com", personName: "Example Target", sourceUrls: ["https://two.example/contact"] }] });
+    expect(engine.buildContext().contacts[0]?.state).toBe("VERIFIED");
+    engine.recordFeedback({ outcome: "bounced", value: "person@example.com" });
+    engine.recordAction({ turn: 3, action: "visit", execution: "success", urls: ["https://three.example/contact"], observation: "Example Target email person@example.com", findings: [{ vectorType: "email", value: "person@example.com", personName: "Example Target", sourceUrls: ["https://three.example/contact"] }] });
+    expect(engine.buildContext().contacts[0]?.state).toBe("STALE");
+  });
+
   it("moves contact evidence through outcome feedback without inventing proof", () => {
     const engine = new ResearchIntelligenceEngine({ executionId: "feedback", target: "Example Target", objective: "find a public contact" });
     engine.recordAction({ turn: 1, action: "done", execution: "success", findings: [{ vectorType: "email", value: "person@example.com", personName: "Example Target", sourceUrls: ["https://example.com/contact"] }] });
