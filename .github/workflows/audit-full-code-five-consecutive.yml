@@ -61,6 +61,31 @@ jobs:
       - run: pnpm run check:bureau
       - run: pnpm run typecheck
       - run: pnpm run build
+      - name: Start API server for live smoke tests
+        run: |
+          set -euo pipefail
+          cd artifacts/api-server
+          nohup node --enable-source-maps ./dist/index.mjs > /tmp/bigcontacts-api.log 2>&1 &
+          echo $! > /tmp/bigcontacts-api.pid
+          for i in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:8080/api/healthz >/tmp/bigcontacts-health.json; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/bigcontacts-api.log
+          exit 1
+      - name: Live smoke API test
+        run: |
+          set -euo pipefail
+          cd artifacts/api-server
+          pnpm exec vitest run --maxWorkers=1 src/src/test/smoke.test.ts
+      - name: Stop API server
+        if: always()
+        run: |
+          if [ -f /tmp/bigcontacts-api.pid ]; then
+            kill "$(cat /tmp/bigcontacts-api.pid)" 2>/dev/null || true
+          fi
       - run: |
           set -euo pipefail
           cd artifacts/api-server
@@ -83,6 +108,31 @@ jobs:
       - run: pnpm run check:bureau
       - run: pnpm run typecheck
       - run: pnpm run build
+      - name: Start API server for live smoke tests
+        run: |
+          set -euo pipefail
+          cd artifacts/api-server
+          nohup node --enable-source-maps ./dist/index.mjs > /tmp/bigcontacts-api.log 2>&1 &
+          echo $! > /tmp/bigcontacts-api.pid
+          for i in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:8080/api/healthz >/tmp/bigcontacts-health.json; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/bigcontacts-api.log
+          exit 1
+      - name: Live smoke API test
+        run: |
+          set -euo pipefail
+          cd artifacts/api-server
+          pnpm exec vitest run --maxWorkers=1 src/src/test/smoke.test.ts
+      - name: Stop API server
+        if: always()
+        run: |
+          if [ -f /tmp/bigcontacts-api.pid ]; then
+            kill "$(cat /tmp/bigcontacts-api.pid)" 2>/dev/null || true
+          fi
       - run: |
           set -euo pipefail
           cd artifacts/api-server
@@ -105,6 +155,31 @@ jobs:
       - run: pnpm run check:bureau
       - run: pnpm run typecheck
       - run: pnpm run build
+      - name: Start API server for live smoke tests
+        run: |
+          set -euo pipefail
+          cd artifacts/api-server
+          nohup node --enable-source-maps ./dist/index.mjs > /tmp/bigcontacts-api.log 2>&1 &
+          echo $! > /tmp/bigcontacts-api.pid
+          for i in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:8080/api/healthz >/tmp/bigcontacts-health.json; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/bigcontacts-api.log
+          exit 1
+      - name: Live smoke API test
+        run: |
+          set -euo pipefail
+          cd artifacts/api-server
+          pnpm exec vitest run --maxWorkers=1 src/src/test/smoke.test.ts
+      - name: Stop API server
+        if: always()
+        run: |
+          if [ -f /tmp/bigcontacts-api.pid ]; then
+            kill "$(cat /tmp/bigcontacts-api.pid)" 2>/dev/null || true
+          fi
       - run: |
           set -euo pipefail
           cd artifacts/api-server
@@ -127,6 +202,31 @@ jobs:
       - run: pnpm run check:bureau
       - run: pnpm run typecheck
       - run: pnpm run build
+      - name: Start API server for live smoke tests
+        run: |
+          set -euo pipefail
+          cd artifacts/api-server
+          nohup node --enable-source-maps ./dist/index.mjs > /tmp/bigcontacts-api.log 2>&1 &
+          echo $! > /tmp/bigcontacts-api.pid
+          for i in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:8080/api/healthz >/tmp/bigcontacts-health.json; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/bigcontacts-api.log
+          exit 1
+      - name: Live smoke API test
+        run: |
+          set -euo pipefail
+          cd artifacts/api-server
+          pnpm exec vitest run --maxWorkers=1 src/src/test/smoke.test.ts
+      - name: Stop API server
+        if: always()
+        run: |
+          if [ -f /tmp/bigcontacts-api.pid ]; then
+            kill "$(cat /tmp/bigcontacts-api.pid)" 2>/dev/null || true
+          fi
       - run: |
           set -euo pipefail
           cd artifacts/api-server
