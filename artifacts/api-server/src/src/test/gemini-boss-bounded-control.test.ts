@@ -4,6 +4,7 @@ describe("Gemini Boss bounded control-plane generation", () => {
   const nativeFetch = globalThis.fetch;
 
   afterEach(() => {
+    vi.unstubAllGlobals();
     globalThis.fetch = nativeFetch;
     delete process.env.GEMINI_API_KEY;
     vi.resetModules();
@@ -25,7 +26,7 @@ describe("Gemini Boss bounded control-plane generation", () => {
       return new Response("unexpected", { status: 500 });
     });
 
-    globalThis.fetch = providerFetch;
+    vi.stubGlobal("fetch", providerFetch);
 
     vi.resetModules();
     const { generateGeminiBossText } = await import("../lib/case-bureau");
