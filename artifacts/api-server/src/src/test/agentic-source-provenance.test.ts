@@ -52,6 +52,12 @@ describe("agentic source provenance", () => {
     expect(sourceBackedAgenticFindings(raw)).toHaveLength(0);
   });
 
+  it("requires generic findings to contain their claimed value in observed material", () => {
+    const generic = finding({ vectorType: "other", value: "founder of Example Corp" });
+    expect(sourceBackedFindings([generic], successfulTrajectory, [observation({ observation: "Jane Example — Founder" })])).toHaveLength(0);
+    expect(sourceBackedAgenticFindings([generic], successfulTrajectory, [observation({ observation: "Jane Example — founder of Example Corp" })])).toHaveLength(1);
+  });
+
   it("accepts a claim only when the cited source was successfully observed and contains the claim", () => {
     const raw = [finding()];
     expect(sourceBackedFindings(raw, successfulTrajectory, [observation()])).toHaveLength(1);
