@@ -35,7 +35,7 @@ async function ensureDiscoveryCaseContext(input:{mode?:"target"|"discovery";obje
 function compactDurableDiscoveryRecords(records:AgenticTrajectoryRecord[]): AgenticTrajectoryRecord[] {
   // The immutable research_case_events ledger retains the complete observations.
   // caseFile is a bounded working projection and must stay below the 1 MiB DB fence.
-  return records.slice(-64).map((record) => ({
+  return records.slice(Math.max(0, records.length - 64)).map((record) => ({
     ...record,
     args: Object.fromEntries(Object.entries(record.args ?? {}).slice(0, 24).map(([key, value]) => [key, typeof value === "string" ? value.slice(0, 800) : value])),
     thought: record.thought?.slice(0, 600),
