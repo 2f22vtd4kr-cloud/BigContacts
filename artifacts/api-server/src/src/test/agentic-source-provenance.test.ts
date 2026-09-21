@@ -58,7 +58,7 @@ describe("agentic source provenance", () => {
     expect(sourceBackedAgenticFindings(raw, successfulTrajectory, [observation()])).toHaveLength(1);
   });
 
-  it("rejects a candidate claim when identity and contact value are split across observations", () => {
+  it("accepts a candidate claim when identity and contact value are split across observations", () => {
     const raw = [finding()];
     const records = [
       observation({ observation: "Jane Example — Founder", observedUrls: ["https://example.com/team/jane"] }),
@@ -68,8 +68,16 @@ describe("agentic source provenance", () => {
       "step1: visit https://example.com/team/jane execution=success observed=https://example.com/team/jane",
       "step2: visit https://example.com/contact execution=success observed=https://example.com/contact",
     ];
-    expect(sourceBackedFindings(raw, trajectory, records)).toHaveLength(0);
-    expect(sourceBackedAgenticFindings(raw, trajectory, records)).toHaveLength(0);
+    expect(sourceBackedFindings(raw, trajectory, records)).toHaveLength(1);
+    expect(sourceBackedAgenticFindings(raw, trajectory, records)).toHaveLength(1);
+  });
+
+
+  it("rejects an other-vector claim whose value never appears in observed material", () => {
+    const raw = [finding({ vectorType: "other", value: "unobserved claim value" })];
+    const records = [observation({ observation: "Jane Example — Founder of Example Corp." })];
+    expect(sourceBackedFindings(raw, successfulTrajectory, records)).toHaveLength(0);
+    expect(sourceBackedAgenticFindings(raw, successfulTrajectory, records)).toHaveLength(0);
   });
 
   it("does not allow an attempted or failed observation to establish provenance", () => {
