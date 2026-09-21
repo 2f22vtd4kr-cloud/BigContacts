@@ -74,7 +74,7 @@ await client.query(`DO $$ DECLARE null_correlation_count bigint; oversized_paylo
  CREATE OR REPLACE FUNCTION public.apex_research_case_cancellation_fence() RETURNS trigger LANGUAGE plpgsql AS $fn$ BEGIN IF NEW.status='active' AND (OLD.status='cancelled' OR (OLD.status='review' AND OLD.current_action IN ('canonical-atlas-cancelled','canonical-lease-lost'))) THEN RAISE EXCEPTION 'research case % is durably fenced after cancellation/lease loss; a stale worker cannot reactivate it',NEW.id USING ERRCODE='55000'; END IF; RETURN NEW; END; $fn$;
  IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgrelid='public.research_cases'::regclass AND tgname='apex_research_case_cancellation_fence') THEN CREATE TRIGGER apex_research_case_cancellation_fence BEFORE UPDATE ON public.research_cases FOR EACH ROW EXECUTE FUNCTION public.apex_research_case_cancellation_fence(); END IF;
  REVOKE UPDATE,DELETE,TRUNCATE ON public.research_case_events FROM PUBLIC;
-END $;`);await client.query("COMMIT");transactionStarted=false;}catch(error){if(transactionStarted){try{await client.query("ROLLBACK");}catch{} }throw error;}finally{client.release();}}
+ END $$;`);await client.query("COMMIT");transactionStarted=false;}catch(error){if(transactionStarted){try{await client.query("ROLLBACK");}catch{} }throw error;}finally{client.release();}}
 await ensureResearchCaseEventsImmutable();
 export const db=drizzle(pool,{schema});
 export * from "./schema";

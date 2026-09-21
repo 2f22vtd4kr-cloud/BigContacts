@@ -1,0 +1,897 @@
+Yes. I read the uploaded prompt and reconciled it against the current main branch, including the current Replit setup contract and runtime architecture.
+
+The biggest updates I made are:
+
+* main is the only canonical branch.
+* The current 16-secret contract is preserved exactly.
+* GEMINI_RIGHT_HAND_API_KEY is explicitly separate from GEMINI_API_KEY.
+* Removed the old 14-provider-key assumptions.
+* Removed retired DeepSeek/NVIDIA/WhoisJSON/Whoxy requirements.
+* Added the current discovery-first runtime behavior from main.
+* Added the current discovery integrity gates.
+* Removed obsolete “150-run” initialization behavior.
+* Kept Replit entirely operator-controlled: you run it; the prompt tells the Replit agent what to do and what to report.
+* Added explicit protection against duplicate API workflows/schema races.
+* Added the current evidence/provenance/React-or integrity requirements.
+* Made the prompt tell Replit to use actual current scripts on main, rather than blindly trusting historical commands.
+* Made the first live run one genuine investigation only, before any campaign.
+* Added a hard distinction between boot success and actual research success.
+* Added the current database/schema handling requirements.
+
+Here is the updated prompt, ready to paste into Replit:
+
+APEX ATLAS — CURRENT MAIN BRANCH REPLIT INITIALIZATION & FIRST REAL INVESTIGATION
+
+You are operating inside the existing Apex Atlas / BigContacts repository imported into Replit.
+
+This is NOT a greenfield project.
+
+Do not replace it, simplify it, scaffold another application, create a mock implementation, or rewrite product architecture merely to make a check pass.
+
+The human operator owns this Replit environment and will conduct the live runtime work. Your job is to initialize, inspect, build, boot, authenticate, validate, and report the actual state of the existing repository.
+
+⸻
+
+0. CANONICAL SOURCE
+
+Repository:
+
+https://github.com/2f22vtd4kr-cloud/BigContacts
+
+Canonical branch:
+
+main
+
+Stay on main.
+
+Do not switch to historical audit branches.
+
+Do not use audit/genuine-five-green-final as the working branch.
+
+Do not create a replacement application.
+
+Do not reset or destroy existing work.
+
+⸻
+
+1. FIRST — VERIFY THE ACTUAL CHECKOUT
+
+Before modifying anything, show:
+
+git remote -v
+git branch --show-current
+git rev-parse HEAD
+git status --short
+
+If necessary, fetch repository refs and safely checkout main.
+
+Do NOT:
+
+* reset;
+* rebase;
+* force-push;
+* delete branches;
+* overwrite uncommitted work;
+* replace the repository;
+* create a second copy of the application.
+
+Report the exact SHA you are actually running.
+
+Do not claim that a particular commit is running until git rev-parse HEAD proves it.
+
+⸻
+
+2. READ THE CURRENT CONTRACT BEFORE CHANGING CODE
+
+Read these current authoritative documents:
+
+docs/CHATGPT_AGENT_HANDOFF_2026-09-21.md
+docs/AGENT_REPOSITORY_STUDY_PROTOCOL.md
+docs/APEX_ARCHITECTURE_AUDIT_2026-09-21.md
+docs/APEX_SECOND_FRESH_REPLIT_AUDIT_2026-09-21.md
+docs/APEX_REPLIT_INITIALIZATION_BLUEPRINT.md
+docs/REPLIT_NEW_ACCOUNT_SETUP.md
+docs/RUN_BUREAU.md
+docs/BUREAU_REACT_ARCHITECTURE.md
+docs/context.md
+docs/APEX_ATLAS_VERY_STRONG_ROADMAP.md
+docs/APEX_ATLAS_CEO_RELEASE_REVIEW_2026-09-20.md
+docs/APEX_RESEARCH_GAUNTLET_V1.md
+README.md
+
+Then inspect the actual current source tree, including:
+
+* package manifests;
+* lockfile;
+* database schema;
+* migration/init scripts;
+* API/server startup;
+* authentication;
+* Redis/job locking;
+* Apex/Bureau routes;
+* Gemini Boss;
+* Gemini Right-hand;
+* Groq/Mistral Investigator execution;
+* discovery;
+* evidence/provenance;
+* Reactor/frontend;
+* tests;
+* integrity scripts;
+* .replit;
+* workflows;
+* deployment configuration.
+
+Do not claim runtime readiness from documentation alone.
+
+The actual main source is the ultimate authority if documentation has drifted.
+
+⸻
+
+3. IMPORTANT ARCHITECTURE
+
+The current architecture is:
+
+CASE / OBJECTIVE
+        ↓
+Gemini Boss + Gemini Right-hand
+        ↓
+Gemini Boss selects Investigator
+        ↓
+Groq OR Mistral Investigator
+        ↓
+Investigator-owned free-ReAct trajectory
+        ↓
+validated real capability execution
+        ↓
+real observations + provenance
+        ↓
+claims / identity / contradictions / contacts
+        ↓
+durable evidence graph + event ledger
+        ↓
+Right-hand oversight
+        ↓
+Boss continuation / redirect / stop
+        ↓
+finding OR honest abstention
+
+There are two distinct AI roles:
+
+Gemini Boss
+
+Gemini Boss owns:
+
+* case interpretation;
+* high-level research direction;
+* Investigator selection;
+* continuation/redirect/stop;
+* bounded control-plane reasoning.
+
+Gemini Boss is not the Investigator.
+
+Gemini Right-hand
+
+Gemini Right-hand is a separate oversight/reasoning role.
+
+It:
+
+* reasons over case state;
+* identifies evidence gaps;
+* advises on continuation;
+* reviews Investigator work.
+
+It must not browse or fabricate evidence.
+
+It must not secretly become the Investigator.
+
+Investigator
+
+The active Investigator providers are:
+
+Groq
+Mistral
+
+The selected Investigator owns the actual research trajectory.
+
+Gemini is NOT an Investigator fallback.
+
+Do not resurrect DeepSeek/NVIDIA as an Investigator path.
+
+⸻
+
+4. FREE-REACT LAW
+
+This is a core product requirement.
+
+The Investigator chooses its own research trajectory from the capabilities exposed to it.
+
+Tools are capabilities, not mandatory stages.
+
+Do NOT introduce:
+
+* fixed search sequences;
+* forced identity → company → LinkedIn → email workflows;
+* forced contact hops;
+* force_* research functions;
+* hidden provider ranking;
+* hidden query preferences;
+* hidden URL preferences;
+* fake fallback research;
+* synthetic observations;
+* synthetic Reactor activity;
+* guessed contacts;
+* fabricated evidence.
+
+Deterministic code may enforce:
+
+* authorization;
+* safety;
+* provenance;
+* persistence;
+* schema;
+* cancellation;
+* resource limits;
+* evidence promotion;
+* identity integrity;
+* contact attribution.
+
+Deterministic code must NOT secretly own research strategy.
+
+⸻
+
+5. CURRENT SECRET CONTRACT
+
+Configure/check the following exact 16 names, in this order:
+
+1. REDIS_URL_1
+2. GROQ_API_KEY
+3. GEMINI_API_KEY
+4. MISTRAL_API_KEY
+5. HF_TOKEN
+6. SERPER_API_KEY
+7. TAVILY_API_KEY
+8. SERPAPI_KEY
+9. EXA_API_KEY
+10. SCRAPFLY_API_KEY
+11. ZENROWS_API_KEY
+12. COMPANIES_HOUSE_API_KEY
+13. GEMINI_RIGHT_HAND_API_KEY
+14. APEX_API_AUTH_TOKEN
+15. APEX_OPERATOR_PASSWORD
+16. APEX_SESSION_SECRET
+
+DATABASE_URL is supplied by the Replit/Postgres environment.
+
+Do NOT ask the operator to provide DATABASE_URL.
+
+Do NOT ask the operator to paste secrets into chat.
+
+The operator enters secret values directly into Replit Secrets.
+
+Verify presence only.
+
+Never:
+
+* print;
+* echo;
+* log;
+* expose;
+* commit;
+* copy secret values into source;
+* include secret values in the final report.
+
+If a required secret is missing, report the exact missing variable name and stop before live research.
+
+Do NOT request retired credentials
+
+Do not request or restore:
+
+DEEPSEEK_API_KEY
+NVIDIA_API_KEY
+WHOISJSON_API_KEY
+WHOXY_API_KEY
+WHOXY_KEY
+REDIS_URL_2
+REDIS_URL_3
+REDIS_URL_4
+REDIS_URL_5
+GITHUB_TOKEN
+
+Do not turn this into conditional provider discovery.
+
+The 16-name contract is explicit.
+
+⸻
+
+6. INSTALLATION AND STATIC VALIDATION
+
+Use the repository’s existing pnpm configuration and lockfile.
+
+Do not replace package management.
+
+First attempt the canonical frozen install:
+
+pnpm install --frozen-lockfile --ignore-scripts --registry=https://registry.npmjs.org/
+
+If the current repository’s documented/runtime installation contract requires a different command because of an actual lockfile/environment incompatibility, diagnose that first and report it rather than silently changing dependency versions.
+
+Do NOT casually upgrade dependencies.
+
+Then run the current repository’s relevant canonical checks.
+
+At minimum:
+
+pnpm run typecheck
+pnpm run build
+pnpm run test:phone-priority
+
+Also run the current architecture/integrity gates appropriate to the repository state.
+
+Use the actual scripts currently present on main.
+
+Do not invent obsolete commands.
+
+If something fails:
+
+1. identify the actual failure;
+2. determine whether it is code, configuration, dependency, environment, test debt, or expected behavior;
+3. fix only the smallest correct layer if a fix is genuinely required;
+4. never weaken a security/integrity test merely to make it pass;
+5. never manufacture a pass.
+
+⸻
+
+7. DATABASE — DETERMINE THE REAL STATE FIRST
+
+Before modifying PostgreSQL, determine whether the database is:
+
+* genuinely empty/fresh;
+* partially initialized;
+* an older Apex schema;
+* an existing populated database.
+
+Do NOT assume it is empty.
+
+Inspect the actual database schema.
+
+Verify:
+
+* tables;
+* columns;
+* types;
+* nullability;
+* primary keys;
+* foreign keys;
+* indexes;
+* relevant migration/schema state;
+* Apex durable research tables.
+
+Compare the live schema with the current main schema.
+
+⸻
+
+FRESH EMPTY DATABASE
+
+Only if the database is genuinely empty, use the repository’s canonical initialization mechanism:
+
+APEX_ALLOW_SCHEMA_PUSH=true bash scripts/initialize-apex-schema.sh
+
+Wait for it to complete.
+
+Verify the resulting schema.
+
+Then disable schema mutation for ordinary runtime.
+
+⸻
+
+EXISTING DATABASE
+
+If the database already contains Apex data:
+
+DO NOT blindly run schema push.
+
+Do not:
+
+* drop the database;
+* recreate the database;
+* destroy existing research;
+* overwrite existing data;
+* introduce an ad-hoc compatibility hack.
+
+Determine the exact schema mismatch.
+
+Use the repository’s current canonical migration/schema mechanism where appropriate.
+
+Preserve existing data.
+
+⸻
+
+8. SINGLE-WRITER RULE
+
+Never intentionally create concurrent database/schema operations.
+
+Do NOT run simultaneously:
+
+* two schema pushes;
+* two schema migration commands;
+* two API workflows;
+* Project plus another separately started API workflow;
+* two copies of replit-boot.sh;
+* another shell that starts a second development server.
+
+If a schema command is running, wait for it to finish before starting another.
+
+If port 8080 is occupied, inspect the owning process/workflow.
+
+Do not kill a sibling process merely to make startup succeed.
+
+⸻
+
+9. CANONICAL RUNTIME
+
+Canonical API port:
+
+8080
+
+Canonical startup:
+
+bash scripts/replit-boot.sh
+
+Run exactly ONE long-running Apex Atlas API workflow.
+
+Do not start:
+
+* a second API server;
+* a second replit-boot.sh;
+* a second development server;
+* Project and another API workflow simultaneously.
+
+Verify:
+
+process listening on 8080
+/api/healthz
+/
+authentication
+PostgreSQL readiness
+Redis readiness
+job locking
+
+A successful build is NOT proof that the runtime is healthy.
+
+⸻
+
+10. AUTHENTICATION
+
+Authentication must remain intact.
+
+Do not weaken it for Replit.
+
+Do not add:
+
+* CI bypass;
+* loopback bypass;
+* development bypass;
+* public protected routes;
+* fake operator sessions.
+
+Verify the current authentication contract from the source.
+
+Verify:
+
+* operator login;
+* session creation;
+* authenticated API access;
+* protected API rejection when unauthenticated;
+* session persistence.
+
+Never expose credentials in output.
+
+⸻
+
+11. PROVIDER READINESS
+
+Before live research, verify configuration presence by variable name only.
+
+Do NOT perform a wasteful paid/outbound probe against every configured provider merely to prove that every key works.
+
+The first real investigation should exercise the actual providers naturally.
+
+The expected AI topology is:
+
+Gemini Boss
++
+Gemini Right-hand
++
+Groq OR Mistral Investigator
+
+Do NOT substitute Groq/Mistral for Gemini Boss.
+
+Do NOT substitute Gemini for the Investigator.
+
+Do NOT create unbounded retries.
+
+Provider failures during genuine research must remain visible and diagnosable.
+
+⸻
+
+12. DO NOT LAUNCH THE RESEARCH CAMPAIGN
+
+Do NOT launch:
+
+* the 150-run campaign;
+* the 50-case campaign;
+* the full Research Gauntlet;
+* repeated benchmark trials.
+
+The initialization objective is:
+
+Boot Apex on current main, authenticate it, exercise the real research machinery once, and verify the complete durable evidence/runtime path.
+
+Exactly ONE genuine live investigation comes first.
+
+⸻
+
+13. FIRST REAL INVESTIGATION
+
+After:
+
+* checkout;
+* secret verification;
+* install;
+* typecheck;
+* build;
+* relevant integrity checks;
+* database verification;
+* schema initialization/reconciliation;
+* canonical boot;
+* health;
+* authentication;
+* Redis/job-lock verification;
+
+conduct exactly one genuine research investigation.
+
+The operator will provide the research objective.
+
+Do not invent a target.
+
+Do not manufacture a person.
+
+Do not fabricate a research result.
+
+If the operator supplies a legitimate research objective, run it through the actual Apex/Bureau architecture.
+
+The objective must travel through:
+
+objective
+→ Gemini Right-hand / Boss control as implemented
+→ Gemini Boss
+→ Investigator selection
+→ Groq OR Mistral Investigator
+→ autonomous ReAct trajectory
+→ real tool/capability execution
+→ real observations
+→ evidence/provenance
+→ oversight
+→ continuation/redirect/stop
+→ result or honest abstention
+
+Do not bypass the canonical research path by directly inserting a completed result into the database.
+
+⸻
+
+14. RESEARCH TRUTH RULES
+
+A search snippet is NOT automatically evidence.
+
+A model statement is NOT evidence.
+
+A guessed email is NOT a contact.
+
+A guessed phone number is NOT a contact.
+
+A URL existing is NOT proof that the person owns or controls it.
+
+An organization contact must not be silently attributed to an individual.
+
+Identity uncertainty must remain explicit.
+
+Contradictory evidence must remain visible.
+
+Unknown is a valid outcome.
+
+Abstention is a valid outcome.
+
+Provider failure is a valid observable failure.
+
+Do not convert uncertainty into fake confidence.
+
+⸻
+
+15. DURABLE VERIFICATION
+
+For the first genuine run, verify from actual runtime output AND durable database state:
+
+Control plane
+
+* Gemini Boss was actually invoked.
+* Gemini Boss selected Groq or Mistral.
+* The selected Investigator actually executed.
+* Right-hand oversight actually occurred where the current path requires it.
+
+Research execution
+
+* real web/tool observations occurred;
+* actual providers/capabilities were used;
+* observations were persisted;
+* provenance was persisted;
+* failed observations remain visible;
+* identity uncertainty is preserved;
+* contradictions are preserved;
+* contact attribution is evidence-based.
+
+Integrity
+
+* no fabricated entities;
+* no fabricated people;
+* no fabricated contacts;
+* no fabricated URLs;
+* no fabricated evidence;
+* no fabricated confidence;
+* no synthetic Reactor events pretending to be real research.
+
+Terminal state
+
+Verify:
+
+* final disposition;
+* continuation/stop decision;
+* case/run identifiers;
+* durable event records;
+* durable evidence identifiers;
+* Reactor events correspond to actual backend activity.
+
+⸻
+
+16. REACTOR / UI
+
+The frontend is a projection of backend state.
+
+Do not create fake UI progress to make the investigation appear active.
+
+Never synthesize:
+
+* searches;
+* sources;
+* observations;
+* progress;
+* confidence;
+* completed actions;
+* success states.
+
+If the backend fails, the UI should represent that failure.
+
+If the Investigator abstains, the UI should represent abstention.
+
+If a provider times out, that timeout should remain visible in the actual trajectory/event state.
+
+⸻
+
+17. FAILURE CLASSIFICATION
+
+When something goes wrong, classify it accurately as one of:
+
+BLOCKING
+CODE BUG
+CONFIGURATION
+MISSING CREDENTIAL
+DATABASE/SCHEMA
+AUTHENTICATION
+PROVIDER FAILURE
+TOOL/CAPABILITY FAILURE
+EXPECTED LIMITATION
+TEST DEBT
+NON-BLOCKING
+
+Do not call a provider outage an application bug without evidence.
+
+Do not call a missing credential a code bug.
+
+Do not call a successful build a successful runtime.
+
+Do not call a plausible LLM response a successful research result.
+
+Do not rerun a failed investigation blindly.
+
+Preserve the failure and diagnose it.
+
+⸻
+
+18. NO FIVE-GREEN / AUDIT LOOP IN REPLIT
+
+Do NOT spend Replit quota running repeated five-green audit cycles.
+
+Do NOT:
+
+* repeatedly clone/reinstall the repository;
+* run historical audit workflows;
+* modify the audit workflow merely to produce green;
+* run five consecutive audit loops;
+* burn live-provider quota on benchmark runs.
+
+External historical audit results are useful context.
+
+They are not the objective of this Replit initialization.
+
+The objective is current main runtime validation and one genuine research result.
+
+⸻
+
+19. IF A FIX IS REQUIRED
+
+Only make a code change if an actual current-main runtime problem requires it.
+
+Before changing code:
+
+1. identify the failing layer;
+2. inspect the relevant source;
+3. reproduce the issue;
+4. determine the smallest correct fix;
+5. preserve the architecture;
+6. make the minimal change;
+7. rerun the narrow verification;
+8. rerun the affected broader gate.
+
+Do NOT:
+
+* weaken security;
+* weaken evidence validation;
+* introduce fake providers;
+* introduce fake observations;
+* add hidden research routing;
+* add deterministic research playbooks;
+* change provider roles;
+* rewrite the application;
+* upgrade dependencies unnecessarily.
+
+⸻
+
+20. FINAL REPORT
+
+At the end, report exactly:
+
+Repository
+
+branch:
+HEAD:
+git status:
+
+Dependencies
+
+install:
+typecheck:
+build:
+focused tests:
+architecture/integrity checks:
+
+Database
+
+fresh or existing:
+schema verification:
+schema action taken:
+schema mutation disabled afterward:
+
+Runtime
+
+workflow used:
+port:
+health:
+frontend:
+PostgreSQL:
+Redis:
+job locking:
+
+Authentication
+
+operator login:
+session:
+protected API:
+
+Secrets
+
+List only the 16 configured variable names.
+
+Never print values.
+
+First Investigation
+
+case ID:
+run ID:
+Boss invoked:
+Investigator selected:
+Investigator provider:
+Right-hand oversight:
+real observations:
+durable observations:
+provenance:
+evidence:
+identity state:
+contact state:
+contradictions:
+terminal disposition:
+Reactor/event verification:
+
+Blockers
+
+List every remaining blocker exactly.
+
+If there is no blocker, say:
+
+No known blocker at the verified layer.
+
+Do not say:
+
+complete
+production-ready
+fully validated
+successful research
+
+unless the evidence actually proves that statement.
+
+⸻
+
+21. HARD STOP CONDITIONS
+
+Stop and report rather than improvising if:
+
+* main cannot be safely checked out;
+* required secrets are missing;
+* the database schema is incompatible and safe reconciliation is unclear;
+* authentication cannot be safely verified;
+* the application cannot bind to port 8080;
+* /api/healthz cannot become healthy;
+* Redis/job locking cannot be verified;
+* the canonical research runtime cannot execute;
+* evidence integrity is uncertain;
+* the repository’s actual architecture conflicts with an instruction above.
+
+Do not turn a blocker into fake success.
+
+⸻
+
+22. USER-OPERATED REPLIT RULE
+
+The human operator owns this Replit environment.
+
+Do not claim that a live run happened unless actual runtime output proves it.
+
+Do not claim that a secret exists unless the environment actually reports its presence.
+
+Do not claim that a database was initialized unless the actual command succeeded and the schema was verified.
+
+Do not claim that a research case succeeded unless actual runtime output and durable state prove it.
+
+When something is unproven, call it UNPROVEN.
+
+When something fails, preserve and report the failure.
+
+⸻
+
+FINAL OBJECTIVE
+
+The immediate objective is:
+
+Run the existing Apex Atlas from the current main branch on this Replit environment without replacing or weakening the application, verify the real runtime/auth/database/provider architecture, then execute exactly ONE genuine research investigation and verify the complete evidence → provenance → oversight → durable state → Reactor path.
+
+Truth over appearance.
+
+Evidence over assertion.
+
+Autonomy over hidden scripts.
+
+Honest abstention over fabricated success.
+
+Do not optimize for a green-looking report.
+
+Optimize for a true runtime result.
+
+This version is the one I would use against the current main branch, rather than simply refreshing the old prompt mechanically.
