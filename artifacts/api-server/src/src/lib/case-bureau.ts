@@ -517,7 +517,7 @@ export async function generateGeminiBossText(
         const payload = JSON.parse(responseText) as {
           candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
         };
-        const raw = payload.candidates?.[0]?.content?.parts?.map((part) => part.text ?? "").join("").trim() ?? "";
+        const raw = payload.candidates?.[0]?.content?.parts?.map((part) => part.text ?? "").join("").trim() || (/"action"\s*:/.test(responseText) ? responseText.trim() : "");
         if (raw) return { model, raw, error: null };
         lastError = `Gemini Boss ${model} returned no text.`;
       } catch (error) {
