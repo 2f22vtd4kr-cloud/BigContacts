@@ -21,6 +21,9 @@ const checks = [
   ["legacy Atlas launch is quarantined before the compatibility router", index.indexOf("router.use(legacyAtlasLaunchQuarantine)") < index.indexOf("router.use(atlasRouter)")],
   ["legacy Atlas POST launch is explicitly retired by the quarantine boundary", /req\.path === "\/ingest\/atlas-run"[\s\S]{0,500}status\(410\)/.test(quarantine) || /POST\s+\/ingest\/atlas-run[\s\S]{0,500}410/.test(quarantine)],
   ["legacy Atlas router retains only compatibility/status infrastructure", legacyAtlas.includes("/ingest/atlas-status") && legacyAtlas.includes("/ingest/atlas-lock")],
+  ["canonical Atlas control loop has a finite safety ceiling", /const MAX_ATLAS_CONTROL_TURNS = 64/.test(read("artifacts/api-server/src/src/lib/canonical-atlas-discovery.ts")) && /controlBudgetExhausted/.test(read("artifacts/api-server/src/src/lib/canonical-atlas-discovery.ts"))],
+  ["canonical Atlas budget exhaustion is not reported as success", /controlBudgetExhausted \|\| trajectoryBudgetExhausted \? "failed" : "done"/.test(read("artifacts/api-server/src/src/lib/canonical-atlas-discovery.ts")) && /outcome: controlBudgetExhausted \|\| trajectoryBudgetExhausted \? "incomplete" : "complete"/.test(read("artifacts/api-server/src/src/lib/canonical-atlas-discovery.ts"))],
+  ["canonical Atlas trajectory safety ceiling is finite and explicit", /MAX_ATLAS_TRAJECTORY_RECORDS = 512/.test(read("artifacts/api-server/src/src/lib/canonical-atlas-discovery.ts")) && /trajectoryBudgetExhausted/.test(read("artifacts/api-server/src/src/lib/canonical-atlas-discovery.ts"))],
 ];
 
 let failed = false;

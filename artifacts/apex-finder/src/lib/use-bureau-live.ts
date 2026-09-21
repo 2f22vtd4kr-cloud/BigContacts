@@ -79,22 +79,26 @@ export function useBureauLiveDesk(
     }
 
     let cancelled = false;
+    let generation = 0;
     let controller: AbortController | null = null;
     const base = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
 
     const pull = async () => {
+      const myGeneration = ++generation;
       controller?.abort();
-      controller = new AbortController();
+      const myController = new AbortController();
+      controller = myController;
       try {
         const res = await fetch(`${base}/api/ingest/bureau-events?limit=40`, {
           credentials: "same-origin",
-          signal: controller.signal,
+          signal: myController.signal,
           cache: "no-store",
         });
-        if (!res.ok || cancelled) return;
+        if (!res.ok || cancelled || myGeneration !== generation) return;
         const data = await res.json();
+        if (cancelled || myGeneration !== generation) return;
         const list = Array.isArray(data?.events) ? data.events : [];
-        if (!cancelled) {
+        if (!cancelled && myGeneration === generation) {
           setBureauEvents(
             list
               .map((row: any) => mapBureauPayload(row, true))
@@ -102,9 +106,11 @@ export function useBureauLiveDesk(
           );
         }
       } catch (error) {
-        if (!cancelled && !(error instanceof DOMException && error.name === "AbortError")) {
+        if (!cancelled && myGeneration === generation && !(error instanceof DOMException && error.name === "AbortError")) {
           setBureauEvents([]);
         }
+      } finally {
+        if (controller === myController && myGeneration === generation) controller = null;
       }
     };
 
@@ -112,7 +118,9 @@ export function useBureauLiveDesk(
     const id = window.setInterval(() => void pull(), pollMs);
     return () => {
       cancelled = true;
+      generation += 1;
       controller?.abort();
+      controller = null;
       window.clearInterval(id);
     };
   }, [enabled, pollMs, atlasLive]);

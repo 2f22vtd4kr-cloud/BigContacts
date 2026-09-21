@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo, type ReactNode, type PointerEvent as ReactPointerEvent, type MouseEvent as ReactMouseEvent } from "react";
 import {
   Plane, Building2, Globe, Search, Brain, Zap, Network,
-  Target, Cpu, Radio, Activity, BarChart2, Shield,
+  Target, Radio, Activity, BarChart2, Shield,
   TrendingUp, Eye, RefreshCw, GitMerge, Layers, Crosshair, MapPin,
   Sparkles, Compass, Rss, Users,
 } from "lucide-react";
@@ -18,6 +18,7 @@ import { isMockMode, mockAtlasLiveState, mockLiveNodes } from "@/lib/dev-mock-da
 import { formatSchedulerCountdown, schedulerWaitRemaining } from "../components/scheduler-utils";
 import { readApiJson } from "@/lib/api-json";
 import { ReactorLiveSurface } from "../components/reactor-live-surface";
+import { ReactorMark } from "../components/reactor-mark";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 interface NodeDef {
@@ -263,7 +264,7 @@ const NODES: NodeDef[] = [
   { id:"target",  label:"TARGET",          sub:"Person · company · query",   cx:800,  cy:72,  w:240, h:52,  type:"input",    Icon:Crosshair, color:"#e8e0cc" },
 
   /* Dig core — unconstrained ReAct agent */
-  { id:"mcts",    label:"FREE DIG",        sub:"Model chooses next step",    cx:800,  cy:200, w:240, h:72,  type:"reactor",  Icon:Cpu,        color:"#b8ff4d" },
+  { id:"mcts",    label:"FREE DIG",        sub:"Model chooses next step",    cx:800,  cy:200, w:240, h:72,  type:"reactor",  Icon:ReactorMark,        color:"#b8ff4d" },
   { id:"groq",    label:"DIG LLM",         sub:"Groq → Mistral",             cx:560,  cy:200, w:150, h:56,  type:"ai-lime",  Icon:Brain,      color:"#b8ff4d" },
   { id:"gemini",  label:"GEMINI",          sub:"Boss · judgment",            cx:1040, cy:200, w:150, h:56,  type:"ai-yellow",Icon:Sparkles,   color:"#9CFF1A" },
   { id:"perpfu",  label:"FOLLOW-UP",       sub:"Adaptive re-query",          cx:1280, cy:200, w:150, h:56,  type:"ai-yellow",Icon:RefreshCw,  color:"#9CFF1A" },
@@ -971,14 +972,8 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
         background:"rgba(11,17,32,0.95)",
       }}>
         <div style={{ display:"flex", alignItems:"center", gap:10, minWidth:0 }}>
-          {/* Nuclear icon */}
-          <span style={{
-            fontSize:32, lineHeight:1, flexShrink:0,
-            color: hasSessions ? "#b8ff4d" : "#253850",
-            textShadow: hasSessions ? "0 0 12px #b8ff4d44" : "none",
-            animation: hasSessions ? motionOrNone("breathe 3s ease-in-out infinite") : "none",
-            transition:"all 0.4s",
-          }}>☢</span>
+          {/* Reactor identity mark */}
+          <span aria-hidden="true" style={{ width:32, height:32, flexShrink:0, display:"grid", placeItems:"center", color: hasSessions ? "#b8ff4d" : "#253850", filter: hasSessions ? "drop-shadow(0 0 8px rgba(184,255,77,.22))" : "none", transition:"all 0.4s" }}><ReactorMark size={32} /></span>
 
           <div style={{ flex:1, minWidth:0 }}>
             <div style={{
@@ -1317,7 +1312,7 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
                   display:"flex", flexDirection:"column", alignItems:"center",
                   gap:10, textAlign:"center",
                 }}>
-                  <Cpu style={{ width:22, height:22, color:"#253850" }} />
+                  <ReactorMark size={22} style={{ color:"#253850" }} />
                   <div>
                     <div style={{ fontSize: 13, fontWeight:700, letterSpacing:"0.16em", color:"#64748b", marginBottom:4 }}>
                       NO SESSIONS YET
@@ -1354,7 +1349,7 @@ function MobileReactor({ sessions, totalEntities, hotCount, totalAssets, loading
                     >
                       {/* Row 1: name + status */}
                       <div style={{ display:"flex", alignItems:"center", gap:8, minWidth:0 }}>
-                        <Cpu style={{ width:11, height:11, color:"#a78bfa", flexShrink:0 }} />
+                        <ReactorMark size={11} style={{ color:"#a78bfa", flexShrink:0 }} />
                         <div style={{
                           flex:1, minWidth:0,
                           fontSize: 16, fontWeight:700, letterSpacing:"0.1em",
@@ -1640,7 +1635,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
             boxShadow:`0 0 14px ${adaptive ? "#9CFF1A55" : "#b8ff4d55"}`,
             animation: adaptive ? motionOrNone("pulseGlow 0.7s ease-in-out infinite") : motionOrNone("breathe 3s ease-in-out infinite"),
           }}>
-            <span style={{ lineHeight:1, display:"block", marginTop:1 }}>☢</span>
+            <ReactorMark size={18} />
           </div>
           <div style={{ minWidth:200, flexShrink:0 }}>
             <div style={{ fontSize:12, fontWeight:700, letterSpacing:"0.2em", color:"#e8e0cc" }}>
@@ -1999,6 +1994,7 @@ function DesktopReactor({ liveNodes, liveLabel, livePhaseDetail, atlasState, sch
               compact
               title=""
             />
+            {!isLive && deskEvents.length > 0 && <ResearchReplay events={deskEvents as any} />}
             </div>{/* desk scroll body */}
           </div>
         )}

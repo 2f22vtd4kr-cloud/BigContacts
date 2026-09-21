@@ -5,7 +5,7 @@
 | Role | Canonical model/provider | Responsibility |
 |------|--------------------------|----------------|
 | Boss / Head Investigator | **Gemini** | Case direction, assignment, selection of an Investigator LLM, strategic orchestration, ongoing bureau oversight, final case-level judgment |
-| Right-hand | **DeepSeek via NVIDIA NIM** | Consults with Boss, critiques the case, analyses every investigation report, identifies evidence gaps/risk, recommends Investigator LLM/tool choices and course corrections |
+| Right-hand | **Gemini** | Separate bounded oversight invocation; critiques the latest act, evidence gaps and research objective; never browses or invents evidence |
 | Investigator LLM pool | **All configured LLMs designated for investigation** | Actual target research: reasoning, queries, pivots, tool use, evidence evaluation, stopping, and promotion recommendations |
 | Non-LLM research tools | **Capability pool** | Serper, Tavily, Exa, HTTP/page visit, Scrapfly, ZenRows, registries, RDAP/WhoisJSON, Holehe, Maigret/Sherlock, theHarvester, etc. |
 | Promotion / integrity | Deterministic TypeScript | Enforces provenance, identity, scope, lifecycle, schema and persistence; never invents research |
@@ -13,7 +13,7 @@
 ## The only two AI layers
 
 ```text
-BOSS (Gemini) + RIGHT-HAND (DeepSeek / NVIDIA NIM)
+BOSS (Gemini) + RIGHT-HAND (Gemini)
         │
         │ consult, choose Investigator LLM, suggest capabilities
         ↓
@@ -31,7 +31,7 @@ There is **no additional Investigator decision model** between the Boss/Right-ha
 ## Hard role boundaries
 
 - **Gemini = Boss only.** Never an Investigator fallback.
-- **DeepSeek via NVIDIA NIM = Right-hand only.** Never an Investigator adapter or Investigator fallback.
+- **Gemini Right-hand = oversight only.** DeepSeek/NVIDIA is not an active Apex execution path.
 - **Groq/Mistral/etc. = Investigator models only when configured/designated for the Investigator pool.** They are the investigators themselves, not a separate control layer.
 - **Tavily/Exa/Serper/Scrapfly/ZenRows/etc. = tools.** They are not LLMs and never decide research.
 

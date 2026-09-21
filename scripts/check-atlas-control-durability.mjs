@@ -20,6 +20,8 @@ const checks = [
   ["persistence cannot silently skip a missing case ID", !/if\s*\(!input\.caseId\)\s*return/.test(control)],
   ["canonical Atlas passes durable discovery case ID", /caseId:\s*discoveryCaseId/.test(atlas)],
   ["canonical Atlas passes control turn", /controlTurn:\s*controlTurns/.test(atlas)],
+  ["canonical Atlas fails closed when Right-hand is unavailable", /if\s*\(rightHandRaw\.status\s*!==\s*"completed"\)\s*throw new Error\(`Gemini Right-hand unavailable; failing closed/.test(atlas)],
+  ["canonical Atlas fails closed on invalid Right-hand oversight JSON", /if\s*\(rightHand\.error\)\s*throw new Error\(`Gemini Right-hand returned invalid oversight/.test(atlas)],
 ];
 let failed = false; for (const [label, ok] of checks) { console.log(`${ok ? "PASS" : "FAIL"} ${label}`); if (!ok) failed = true; }
 if (failed) { console.error("Atlas control durability guard failed."); process.exit(1); }

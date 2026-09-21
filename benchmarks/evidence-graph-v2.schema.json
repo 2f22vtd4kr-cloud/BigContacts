@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://apex.local/schemas/evidence-graph-v2.json",
+  "title": "Apex Evidence Graph v2",
+  "type": "object",
+  "required": ["entities","hypotheses","claims","observations","sources","contradictions"],
+  "properties": {
+    "entities": {"type":"array"},
+    "hypotheses": {"type":"array","items":{"type":"object","required":["id","entityId","status","supportingObservationIds","disconfirmingObservationIds"]}},
+    "claims": {"type":"array","items":{"type":"object","required":["id","subjectEntityId","predicate","object","supportingObservationIds"]}},
+    "observations": {"type":"array","items":{"type":"object","required":["id","url","retrievedAt","sourceClass","execution"]}},
+    "sources": {"type":"array","items":{"type":"object","required":["url","sourceClass"]}},
+    "contradictions": {"type":"array","items":{"type":"object","required":["id","claimA","claimB","resolutionStatus"]}}
+  }
+}

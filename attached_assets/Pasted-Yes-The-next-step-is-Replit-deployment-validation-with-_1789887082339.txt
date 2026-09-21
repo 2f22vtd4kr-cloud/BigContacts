@@ -1,0 +1,298 @@
+Yes. The next step is Replit deployment validation with the new branch state, but not “just run it.” The purpose now is to verify that the deployed Apex instance is actually running the new reliability architecture:
+
+* new context compaction;
+* provider-size recovery;
+* Gemini Boss / Right-hand separation;
+* Groq/Mistral Investigator path;
+* durable evidence flow;
+* Reactor live updates;
+* no stale imported commit.
+
+Do not start another giant campaign yet. First prove the deployed product can perform a real investigation end-to-end.
+
+The order I would use:
+
+Phase 1 — Replit sync and runtime verification
+
+Replit should:
+
+1. Pull the latest audit/genuine-five-green-final.
+2. Confirm exact HEAD SHA.
+3. Confirm it includes:
+    * APEX_RESEARCH_ROADMAP_V3.md
+    * APEX_RESEARCH_PHASE_PLANS_V3.md
+    * updated investigation-context-compaction.ts
+    * updated agentic-web-research-core.ts
+    * new compaction tests.
+4. Rebuild from clean state.
+5. Verify environment variables.
+6. Start only canonical Apex workflow.
+
+Phase 2 — Real controlled investigation
+
+Run:
+
+* one named executive/person;
+* one company;
+* one ambiguous identity case.
+
+Not a fake empty target.
+
+Examples:
+
+* “Find the current CEO of X company and verify role with evidence.”
+* “Find professional contact routes for person X, but only promote evidence-backed contacts.”
+
+The goal:
+
+Observe:
+
+* Does Investigator choose actions?
+* Does Reactor show live trajectory?
+* Are observations stored?
+* Are evidence graphs populated?
+* Does it abstain when evidence is weak?
+* Does context remain bounded?
+
+Phase 3 — Fix anything found
+
+Likely remaining things to hunt:
+
+1. Context quality
+
+The new compaction prevents crashes, but inspect whether the Investigator loses important history.
+
+Need to watch:
+
+* repeated searches;
+* identity collisions;
+* long cases;
+* contradictions.
+
+2. Evidence admission
+
+Verify:
+
+A model statement ≠ evidence.
+
+Check that:
+
+finding → observation → claim → promotion
+
+is intact.
+
+3. Reactor UX
+
+Now that backend is healthier, test:
+
+* live events;
+* action rendering;
+* waiting states;
+* failure states;
+* cancellation;
+* completion.
+
+4. Production readiness
+
+Check:
+
+* auth;
+* Redis persistence;
+* database migrations;
+* startup recovery;
+* logs;
+* error visibility.
+
+⸻
+
+Replit prompt
+
+Copy this:
+
+⸻
+
+Apex Atlas final runtime validation after latest architecture updates
+
+You are continuing the existing Apex Atlas deployment.
+
+Do NOT rebuild from an old state.
+
+First:
+
+1. Pull the latest audit/genuine-five-green-final branch from GitHub.
+2. Confirm the exact HEAD SHA.
+3. Confirm the latest commits include the recent context reliability work.
+
+Important files that must exist:
+
+* docs/APEX_RESEARCH_ROADMAP_V3.md
+* docs/APEX_RESEARCH_PHASE_PLANS_V3.md
+* artifacts/api-server/src/src/lib/investigation-context-compaction.ts
+* artifacts/api-server/src/src/lib/agentic-web-research-core.ts
+* artifacts/api-server/src/src/test/investigation-context-compaction.test.ts
+
+The purpose of this run is not another benchmark campaign.
+
+The purpose is to validate Apex Atlas as a real deployed investigation bureau.
+
+⸻
+
+Build verification
+
+Run:
+
+* clean dependency install
+* typecheck
+* production build
+* startup validation
+
+Confirm:
+
+* canonical API workflow only;
+* no duplicate mock workflows;
+* Redis healthy;
+* database connected;
+* frontend served;
+* authentication works.
+
+Report exact commit SHA.
+
+⸻
+
+Environment verification
+
+Verify these capabilities exist:
+
+Required:
+
+* GEMINI_API_KEY
+* GEMINI_RIGHT_HAND_API_KEY
+* GROQ_API_KEY
+* MISTRAL_API_KEY
+
+Research tools:
+
+* SERPER_API_KEY
+* TAVILY_API_KEY
+* EXA_API_KEY
+
+Browser/fetch:
+
+* SCRAPEFLY_API_KEY
+* ZENROWS_API_KEY
+
+Company research:
+
+* COMPANIES_HOUSE_API_KEY
+
+Do not add or reintroduce:
+
+* WHOISJSON
+* Whoxy
+* DeepSeek investigator
+* NVIDIA NIM investigator
+
+Gemini is only:
+
+* Boss
+* Right-hand
+
+Groq/Mistral are only:
+
+* Investigator
+
+⸻
+
+Run three controlled investigations
+
+Do not use an empty target.
+
+Run:
+
+Test 1 — straightforward identity
+
+A known executive.
+
+Verify:
+
+* Investigator chooses actions;
+* sources are collected;
+* evidence is stored.
+
+Test 2 — ambiguous identity
+
+A common name with multiple possible people.
+
+Verify:
+
+* competing hypotheses;
+* no forced attribution;
+* contradictions preserved.
+
+Test 3 — contact research
+
+A professional contact discovery case.
+
+Verify:
+
+* discovered ≠ verified;
+* contact promotion requires evidence.
+
+⸻
+
+Inspect Reactor
+
+Confirm the live Bureau experience shows:
+
+* Boss review;
+* Right-hand review;
+* Investigator selection;
+* tool usage;
+* observations;
+* pivots;
+* completion state;
+* failures.
+
+Do not accept a dashboard saying complete unless durable database state agrees.
+
+⸻
+
+Specifically test the previous bug
+
+The previous failure:
+
+Groq HTTP 413 because Investigator context grew too large.
+
+Create a longer investigation trajectory.
+
+Confirm:
+
+* context remains bounded;
+* no provider-size failure;
+* emergency compaction works if triggered;
+* full trajectory remains durable.
+
+⸻
+
+Audit final state
+
+Report:
+
+1. Current Git SHA.
+2. Build status.
+3. Runtime status.
+4. Provider status.
+5. Investigation IDs.
+6. Evidence records created.
+7. Any remaining bugs.
+8. Any architecture concerns.
+
+Do not claim Apex is production-ready unless the actual evidence chain, runtime behavior, and durable state match.
+
+⸻
+
+End prompt.
+
+⸻
+
+After this Replit run, the next meaningful milestone is not more coding — it is watching Apex perform real investigations and attacking the failure modes that appear. The architecture is now at the point where empirical behavior is more valuable than adding more components.

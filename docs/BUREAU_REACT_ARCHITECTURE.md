@@ -1,132 +1,123 @@
 # Apex Atlas — ReAct Bureau Architecture
 
-**Canonical role law:** Boss = **Gemini**. Right-hand = **DeepSeek via NVIDIA NIM**. Investigation = **the configured Investigator LLM pool + non-LLM research tools**.
+**Canonical role law:** Boss = **Gemini**. Right-hand = **Gemini**. Investigation = **the configured Investigator LLM pool + non-LLM research tools**.
 
-Apex is a model-led research bureau. There are **two AI layers only**: the Boss/Right-hand oversight layer and the Investigator LLM layer. There is no extra Investigator decision model between them.
+Apex has **two AI layers only**: the Gemini Boss/Right-hand oversight layer and the Investigator LLM layer. There is no additional Investigator decision model.
 
----
-
-## 1. Boss + Right-hand: continuous bureau oversight
+## 1. Boss + Right-hand
 
 ### Boss — Gemini
+Owns case direction, strategic prioritization, assignment, Investigator selection, continuation disposition and high-level review. It does not browse or invent evidence.
 
-Owns case direction, strategic prioritization, assignment, selection of an Investigator LLM from the Investigator pool, ongoing orchestration and final case-level judgment.
+### Right-hand — Gemini
+A separate bounded Gemini oversight invocation. It critiques the latest act, evidence gaps and research objective. It does not browse, select a tool, or invent evidence, and it is never an Investigator fallback.
 
-### Right-hand — DeepSeek via NVIDIA NIM
+If the Right-hand is unavailable, Apex records that fact and fails closed where oversight is required. It never fabricates a completed review.
 
-Consults with the Boss, critiques the case, analyses evidence gaps and the ongoing bureau work/results, and advises which Investigator LLM or research capability should be used next.
+## 2. Investigator LLM pool
 
-DeepSeek via NVIDIA NIM is **not an Investigator** and is never an Investigator fallback. Gemini is also never an Investigator.
-
-Boss/Right-hand suggestions are guidance. They do not turn the investigation into a fixed checklist.
-
----
-
-## 2. Investigator LLM pool + non-LLM tools
-
-The Investigator LLM pool contains **all LLMs designated for actual investigation**. Those models are the investigators themselves. Current implementations include Groq and Mistral; these names must never be described as a separate `Groq → Mistral` architecture or an additional decision stage.
-
-The selected Investigator LLM receives the assignment and the accumulating target/run research record. It owns the research trajectory and may independently select any permitted non-LLM capability.
-
-Available capabilities include:
-
-- **Serper, Tavily, Exa** search;
-- HTTP/page visits;
-- browser/fetch capabilities including **Scrapfly and ZenRows**;
-- RDAP / WhoisJSON and registries;
-- public email/username footprinting;
-- theHarvester, Maigret, Sherlock and other approved OSINT executors.
-
-Tools are capabilities, not stages. The Investigator can use a tool even when Boss/Right-hand did not explicitly suggest it.
-
----
-
-## 3. Two-layer ReAct loop
+The active pool is exactly:
 
 ```text
-BOSS (Gemini) + RIGHT-HAND (DeepSeek/NVIDIA)
-        │
-        │ consult + choose Investigator LLM + suggest tools
-        ↓
-INVESTIGATOR LLM POOL
-        │
-        │ selected Investigator reasons and acts
-        ├── choose search/browser/registry/OSINT capability
-        ├── receive observation
-        ├── evaluate evidence
-        └── choose next action or stop
-        ↓
-REPORT EVERY INVESTIGATION ACT
-        │
-        ├── action + selected model
-        ├── actual tool/provider
-        ├── observation + provenance
-        ├── findings + uncertainty
-        └── open questions / next leads
-        ↓
-TARGET-SPECIFIC LIVING INVESTIGATION DOCUMENT
-        │
-        └── Boss + Right-hand receive and analyse the new report
-                 ↺ redirect / challenge / continue / stop
+groq
+mistral
 ```
 
-The report is not a final-only summary. It is appended after every act to the document belonging to that **specific target and specific research run**.
+The selected Investigator is the researcher. It receives the assignment and durable case/run context and owns the research trajectory.
 
----
+Permitted non-LLM capabilities include Serper, Tavily and Exa search; HTTP/page visits; Scrapfly and ZenRows browser/fetch; RDAP/domain inspection; registries; public footprinting; and approved OSINT executors.
 
-## 4. Continuous visibility requirement
+Tools are capabilities, not stages. The Investigator may choose among permitted capabilities based on its current evidence and hypotheses.
 
-After every investigation act, the runtime must expose to Boss + Right-hand:
+## 3. ReAct loop
 
-1. which Investigator LLM acted;
-2. what action it selected;
-3. which tool/provider actually executed;
-4. what observation/result came back;
-5. exact source/provenance and retrieval status;
+```
+GEMINI BOSS + RIGHT-HAND
+        ↓
+select Investigator + research objective
+        ↓
+GROQ / MISTRAL INVESTIGATOR
+        ↓
+choose action
+        ↓
+validated tool execution
+        ↓
+observation + provenance
+        ↓
+claim / identity hypothesis / contradiction
+        ↓
+durable evidence graph + event ledger
+        ↺
+Right-hand review → Boss disposition → next Investigator act
+```
+
+The runtime must not impose a hidden fixed sequence such as identity → organization → contact → disproof. There is **no forced search order** and no mandatory hop recipe; these are possible research objectives/actions, not required stages.
+
+## 4. Continuous visibility
+
+After every act, the durable target/run record exposes:
+
+1. Investigator model;
+2. selected action;
+3. actual tool/provider;
+4. execution status;
+5. observation and provenance;
 6. findings, conflicts and uncertainty;
-7. open questions and possible next leads.
+7. open questions and next leads;
+8. Right-hand/Boss oversight disposition.
 
-The accumulated record is the shared working context for the next oversight decision.
+The record is the working context for subsequent reasoning and replay.
 
----
+## 5. Evidence and promotion
 
-## 5. Promotion
+An observation is not an attributed fact.
 
-The Investigator LLM owns the research judgment and proposes which researched findings deserve promotion or rejection.
-
-Boss + Right-hand provide continuous oversight so unsupported, misattributed or contaminated data does not silently become trusted case data.
-
-Deterministic code enforces provenance, identity, scope, schema, lifecycle, budgets and persistence. It does not invent research or replace the Investigator's judgment with a scripted search path.
-
----
-
-## 6. Discovery identity boundary
-
-```text
-RAW TOOL OBSERVATION
-        ↓
-INVESTIGATOR LLM RESEARCH / HYPOTHESIS
-        ↓
-MODEL-EMITTED FINDING
-        ↓
-IDENTITY + PROVENANCE SAFETY GATE
-        ↓
-ADMITTED RESULT
+```
+observation
+  ↓
+model-authored claim/hypothesis
+  ↓
+identity + provenance + scope validation
+  ↓
+evidence graph / immutable event
+  ↓
+explicit promotion
+  ↓
+projection
 ```
 
-Deterministic extraction may preserve literal observations, but it cannot manufacture a person identity from a heading, snippet, address, department, product, organization or other person-shaped string.
+Discovery admission must be tied to actual successful observed evidence. Search-result snippets, LLM prose, inherited target names and guessed contact patterns are not proof.
 
----
+Multi-source corroboration should use typed observation/claim/support relationships. Independent sources can support a claim without making corroboration automatic.
 
-## 7. Hard invariants
+## 6. Safety invariants
 
-1. There are only two AI layers: **Boss+Right-hand** and **Investigator LLM pool**.
-2. There is no separate "Investigator LLM decision" layer.
-3. Groq/Mistral/etc. are investigators when designated in the Investigator pool — not a control layer.
-4. DeepSeek via NVIDIA NIM is Right-hand only.
-5. Gemini is Boss only.
-6. Search/browser/registry/OSINT providers are non-LLM tools.
-7. Investigator models may independently choose permitted tools.
-8. Boss + Right-hand see every investigation act through the living target/run document.
-9. No forced search order or fixed hop recipe.
-10. Promotion is proposed by the Investigator and constrained by deterministic provenance/identity/scope gates plus continuous Boss/Right-hand oversight.
+- Investigator pool remains Groq/Mistral only.
+- Gemini is never an Investigator fallback.
+- DeepSeek/NVIDIA is absent from active execution.
+- Model-selected actions are checked against actual capabilities.
+- Tool failures remain failures.
+- Cancellation propagates through the actual network operation.
+- SSRF/egress, response-size, concurrency, trajectory and iteration ceilings are enforced.
+- Durable evidence and event records are append-only/immutable where the architecture requires them.
+- No arbitrary prompt truncation may erase evidence.
+- Python network OSINT stays fail-closed until enforceable sandbox egress exists.
+
+## 7. Evaluation boundary
+
+The five-green CI result proves structural/regression invariants; it does not prove investigative superiority.
+
+Research quality is now evaluated separately through **Apex Research Gauntlet v1**, using frozen case ground truth, blind repeated runs, matched baselines and deterministic scoring. See `docs/APEX_RESEARCH_GAUNTLET_V1.md`.
+
+## 8. Hard invariants
+
+1. Two AI layers only.
+2. Gemini Boss + Gemini Right-hand are oversight/control.
+3. Groq/Mistral are investigators.
+4. Investigator owns the research trajectory.
+5. Tools are capabilities, not fixed stages.
+6. Every act is durably inspectable.
+7. Promotion requires source-backed deterministic validation.
+8. No provider fallback from Investigator to Gemini/DeepSeek.
+9. No forced research order.
+10. Benchmark conclusions must come from measured system runs, not model-brand comparisons.

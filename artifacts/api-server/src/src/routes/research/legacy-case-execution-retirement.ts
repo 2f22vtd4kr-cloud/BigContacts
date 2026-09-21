@@ -2,7 +2,7 @@ import { Router } from "express";
 
 const router = Router();
 const RETIRED_MESSAGE =
-  "This legacy case execution endpoint is retired. Research decisions belong to the canonical Gemini Boss + DeepSeek Right-hand + selected Groq/Mistral Investigator control plane.";
+  "This legacy case execution endpoint is retired. Research decisions belong to the canonical Gemini Boss + Gemini Right-hand + selected Groq/Mistral Investigator control plane.";
 
 // These endpoints previously exposed deterministic or operator-driven execution paths.
 // Keep an explicit 410 instead of silently falling through to a different control plane.

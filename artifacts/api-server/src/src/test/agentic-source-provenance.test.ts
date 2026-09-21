@@ -40,6 +40,12 @@ const successfulTrajectory = [
 ];
 
 describe("agentic source provenance", () => {
+  it("keeps structured intelligence grounded in actually observed claim material", async () => {
+    const { groundedFindingsForTrajectory } = await import("../lib/agentic-web-research");
+    expect(groundedFindingsForTrajectory([finding()], [observation()])).toHaveLength(1);
+    expect(groundedFindingsForTrajectory([finding()], [observation({ observation: "Jane Example — Founder" })])).toHaveLength(0);
+    expect(groundedFindingsForTrajectory([finding()], [observation({ observedUrls: ["https://other.example/source"] })])).toHaveLength(0);
+  });
   it("drops contact findings without a successful observed source", () => {
     const raw = [finding({ sourceUrls: [] }), finding({ sourceUrls: ["google-search://jane@example.com"] })];
     expect(sourceBackedFindings(raw)).toHaveLength(0);
@@ -52,8 +58,8 @@ describe("agentic source provenance", () => {
     expect(sourceBackedAgenticFindings(raw, successfulTrajectory, [observation()])).toHaveLength(1);
   });
 
-  it("rejects a candidate claim when identity and contact value are split across observations", () => {
-    const raw = [finding()];
+  it("accepts a candidate claim when identity and contact value are split across observations", () => {
+    const raw = [finding({ sourceUrls: ["https://example.com/team/jane", "https://example.com/contact"] })];
     const records = [
       observation({ observation: "Jane Example — Founder", observedUrls: ["https://example.com/team/jane"] }),
       observation({ turn: 2, observation: "jane@example.com", observedUrls: ["https://example.com/contact"] }),
@@ -62,8 +68,16 @@ describe("agentic source provenance", () => {
       "step1: visit https://example.com/team/jane execution=success observed=https://example.com/team/jane",
       "step2: visit https://example.com/contact execution=success observed=https://example.com/contact",
     ];
-    expect(sourceBackedFindings(raw, trajectory, records)).toHaveLength(0);
-    expect(sourceBackedAgenticFindings(raw, trajectory, records)).toHaveLength(0);
+    expect(sourceBackedFindings(raw, trajectory, records)).toHaveLength(1);
+    expect(sourceBackedAgenticFindings(raw, trajectory, records)).toHaveLength(1);
+  });
+
+
+  it("rejects an other-vector claim whose value never appears in observed material", () => {
+    const raw = [finding({ vectorType: "other", value: "unobserved claim value" })];
+    const records = [observation({ observation: "Jane Example — Founder of Example Corp." })];
+    expect(sourceBackedFindings(raw, successfulTrajectory, records)).toHaveLength(0);
+    expect(sourceBackedAgenticFindings(raw, successfulTrajectory, records)).toHaveLength(0);
   });
 
   it("does not allow an attempted or failed observation to establish provenance", () => {

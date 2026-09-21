@@ -61,12 +61,23 @@ export function isWellFormedPersonCandidate(candidate: Pick<DiscoveryCandidate, 
   const sourceUrls = (candidate.sourceUrls ?? []).map(normalizeUrl);
   return sourceUrls.some((url) => /^https?:\/\/\S+$/i.test(url)) && hasIndependentSource(sourceUrls);
 }
+function hasObservedPersonEvidence(name: string, sourceUrls: string[], trajectoryRecords: Array<{ execution: string; observation?: string; observedUrls: string[] }> = []): boolean {
+  const tokens = normalizedPersonText(name).split(" ").filter((token) => token.length >= 2);
+  if (!tokens.length) return false;
+  const sources = new Set(sourceUrls.map(normalizeUrl));
+  return trajectoryRecords.some((record) => {
+    if (record.execution !== "success" || typeof record.observation !== "string") return false;
+    if (!record.observedUrls.some((url) => sources.has(normalizeUrl(url)))) return false;
+    const observation = record.observation.toLowerCase();
+    return tokens.every((token) => observation.includes(token));
+  });
+}
 function hasObservedPageSource(sourceUrls: string[], trajectory: string[]): boolean {
   const observed = new Set<string>();
   for (const line of trajectory) { const match = String(line).match(/step\d+:\s+(?:visit|browser_fetch)\s+(https?:\/\/\S+)/i); if (match?.[1]) observed.add(normalizeUrl(match[1])); }
   return sourceUrls.some((url) => observed.has(normalizeUrl(url)));
 }
-export function parsePersonFindings(findings: DiscoveryFinding[], trajectory: string[] = []): DiscoveryCandidate[] {
+export function parsePersonFindings(findings: DiscoveryFinding[], trajectory: string[] = [], trajectoryRecords: Array<{ execution: string; observation?: string; observedUrls: string[] }> = []): DiscoveryCandidate[] {
   const out: DiscoveryCandidate[] = []; const seen = new Set<string>();
   const add = (name: string, extra: Partial<DiscoveryCandidate>) => {
     const n = name.trim().replace(/\s+/g, " "); if (n.length < 3 || n.length > 120) return;
@@ -75,6 +86,7 @@ export function parsePersonFindings(findings: DiscoveryFinding[], trajectory: st
     if (!isWellFormedPersonCandidate({ name: n, sourceUrls })) return;
     if (!hasStrongIdentityEvidence({ name: n, role: extra.role, company: extra.company, basis: extra.basis, sourceUrls })) return;
     if (!hasObservedPageSource(sourceUrls, trajectory)) return;
+    if (trajectoryRecords.length > 0 && !hasObservedPersonEvidence(n, sourceUrls, trajectoryRecords)) return;
     seen.add(key);
     out.push({ name: n, role: extra.role, company: extra.company, basis: extra.basis || "Public web discovery", sourceUrls, lane: extra.lane || "discovery-agent", confidence: sourceUrls.length ? 0.55 : 0.35, promotionDecision: "promote", promotionReason: extra.promotionReason });
   };
@@ -134,7 +146,7 @@ export async function runDiscoveryAgent(input: { jobId?: string; targetCount?: n
           input.onLiveStep?.({ action: step.action, tool: step.provider || step.action, query: step.query, url: step.url, detail: step.summary, status: "ok" });
         } });
         const admissionFindings = result.modelFindings ?? [];
-        const slotCandidates = parsePersonFindings(admissionFindings, result.trajectory ?? []);
+        const slotCandidates = parsePersonFindings(admissionFindings, result.trajectory ?? [], result.trajectoryRecords ?? []);
         await recordDiscoveryTrace(jobId, {
           slot: slot + 1, recordedAt: new Date().toISOString(), model: result.model, status: result.status, searches: result.searches ?? 0, visits: result.visits ?? 0,
           stopReason: result.stopReason, error: result.error, modelFindings: admissionFindings, parsedCandidates: slotCandidates, trajectory: result.trajectory ?? [],

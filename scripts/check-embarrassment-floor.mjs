@@ -36,7 +36,7 @@ const entities = read("artifacts/api-server/src/src/routes/entities.ts");
 const passage = read("artifacts/api-server/src/src/lib/passage-filter.ts");
 const queries = read("artifacts/api-server/src/src/lib/web-search-queries.ts");
 const mistral = read("artifacts/api-server/src/src/lib/mistral-web-search.ts");
-const nim = read("artifacts/api-server/src/src/lib/nvidia-nim-case-reasoning.ts");
+const rightHand = read("artifacts/api-server/src/src/lib/gemini-right-hand-reasoning.ts");
 const agentic = read("artifacts/api-server/src/src/lib/agentic-web-research-core.ts");
 const bureauAgentic = read("artifacts/api-server/src/src/lib/bureau-agentic-pass.ts");
 
@@ -61,7 +61,8 @@ ok("Boss no erase related", prompt.includes("Never instruct erasure of related")
 
 ok("Boss rightHandDisposition", prompt.includes("rightHandDisposition"));
 ok("SSE surfaces disposition", cases.includes("rightHandDisposition"));
-ok("NIM complementarity confidence", nim.includes("Complementarity") || nim.includes("complementarity"));
+ok("Gemini Right-hand complementarity confidence", rightHand.includes("complementarity") || rightHand.includes("Complementarity"));
+ok("DeepSeek/NVIDIA Right-hand implementation absent", !rightHand.includes("DEEPSEEK") && !rightHand.includes("DeepSeek") && !rightHand.includes("NVIDIA") && !existsSync(join(root, "artifacts/api-server/src/src/lib/nvidia-nim-case-reasoning.ts")));
 
 ok("passage filter module", passage.includes("filterPassagesForQuery"));
 ok("claim URL filter", passage.includes("filterClaimUrls"));

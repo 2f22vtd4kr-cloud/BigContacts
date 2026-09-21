@@ -180,7 +180,7 @@ case decision:
 
 case advisory decision:
   role = right_hand
-  provider = nvidia-nim
+  provider = gemini
 
 web research decision:
   role = dig/investigator

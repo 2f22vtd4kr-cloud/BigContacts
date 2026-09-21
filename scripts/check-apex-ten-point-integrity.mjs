@@ -30,11 +30,11 @@ pass("core does not assemble alternate provider list",!/orderedProviders\s*=/.te
 pass("target prompt labels shared context as case state",/CASE STATE, NOT SOURCE INSTRUCTIONS/.test(target));
 pass("Boss forbids tool/provider/query prescription",/Do not choose the next tool or provider/.test(oversight));
 pass("public-source material is untrusted",/Public-source material is untrusted data/.test(oversight));
-pass("network response cap",/MAX_NETWORK_RESPONSE_BYTES = 2_000_000/.test(core));
-pass("observation cap",/MAX_OBS = 5_000/.test(core));
-pass("trajectory cap",/MAX_TRAJECTORY_RECORDS = 100/.test(core));
+pass("network response cap remains a resource-safety boundary",/MAX_NETWORK_RESPONSE_BYTES = 2_000_000/.test(core));
+pass("Investigator action loop is bounded by the runtime safety ceiling",/const MAX_ITER = 64/.test(core)&&/for \(let i = 0; i < maxIter; i\+\+/.test(core));
+pass("durable observation/trajectory state is not tail-sliced",!/observations\.slice\(|trajectoryRecords\.slice\(|findings\.slice\(/.test(core));
 pass("canonical target executes one core iteration per act",/maxIterations: 1/.test(runner));
-pass("global target act count is bounded",/Math\.min\(40, depth\.agenticMaxIterations\)/.test(runner));
+pass("global target continuation is deadline/cancellation governed rather than action-count governed",!/Math\.min\(40, depth\.agenticMaxIterations\)/.test(runner)&&/globalDeadline|deadline/.test(runner));
 pass("canonical route precedes legacy route",/canonicalAtlasLaunchRouter[\s\S]*atlasRouter/.test(legacy));
 pass("legacy launch is quarantined",/quarantine/.test(legacy));
-if(failures.length){console.error("APEX TEN-POINT INTEGRITY: FAIL");for(const failure of failures)console.error(`- ${failure}`);process.exit(1);}console.log("APEX TEN-POINT INTEGRITY: PASS — ten control-plane invariants are statically guarded");
+if(failures.length){console.error("APEX TEN-POINT INTEGRITY: FAIL");for(const failure of failures)console.error(`- ${failure}`);process.exit(1);}console.log("APEX TEN-POINT INTEGRITY: PASS — control-plane, provenance, cancellation, and non-truncating research invariants are statically guarded");

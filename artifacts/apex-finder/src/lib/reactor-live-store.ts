@@ -51,33 +51,74 @@ function schedule(): void {
 async function pull(): Promise<void> {
   if (listeners.size === 0) return;
   const myGeneration = generation;
+  // Keep ownership local to this pull. A stale pull's finally block must never
+  // clear or overwrite the controller belonging to a newer pull.
   controller?.abort();
-  controller = new AbortController();
+  const myController = new AbortController();
+  controller = myController;
   try {
-    const response = await fetch(`${baseUrl()}/api/ingest/atlas-status`, {
+    // Canonical Atlas status is the active-job projection. Legacy
+    // /api/ingest/atlas-status was intentionally retired and must not be
+    // resurrected merely to feed the Reactor UI.
+    const activeResponse = await fetch(`${baseUrl()}/api/ingest/job/active/atlas-run`, {
       credentials: "same-origin",
       cache: "no-store",
-      signal: controller.signal,
+      signal: myController.signal,
     });
-    if (!response.ok) {
+    if (!activeResponse.ok) {
       if (myGeneration === generation && listeners.size > 0) emit(EMPTY);
       return;
     }
-    const data = await response.json();
+    const activeData = await activeResponse.json() as Record<string, unknown>;
     if (myGeneration !== generation || listeners.size === 0) return;
-    const runStatus = String(data?.runStatus ?? data?.status ?? "idle").toLowerCase();
-    const activities = normalizeLiveActivities(
-      Array.isArray(data?.recentSpans) ? data.recentSpans as ReactorSpanLike[] : [],
-      50,
-    );
+
+    const job = activeData?.job && typeof activeData.job === "object"
+      ? activeData.job as Record<string, unknown>
+      : null;
+    const runStatus = String(job?.status ?? activeData?.jobStatus ?? (activeData?.active ? "running" : "idle")).toLowerCase();
+    const jobId = typeof activeData?.jobId === "string"
+      ? activeData.jobId
+      : typeof job?.jobId === "string"
+        ? job.jobId
+        : null;
+
+    // The forensic trace is the canonical structured activity source. A trace
+    // fetch is only made when an Atlas job exists, so an idle desk performs one
+    // cheap canonical status request rather than repeatedly probing a retired
+    // endpoint.
+    let rawSpans: unknown[] = [];
+    if (jobId) {
+      try {
+        const traceResponse = await fetch(`${baseUrl()}/api/ingest/atlas-trace/${encodeURIComponent(jobId)}`, {
+          credentials: "same-origin",
+          cache: "no-store",
+          signal: myController.signal,
+        });
+        if (traceResponse.ok) {
+          const traceData = await traceResponse.json() as Record<string, unknown>;
+          rawSpans = Array.isArray(traceData?.trace) ? traceData.trace : [];
+        }
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") throw error;
+        // Status remains authoritative even when the optional trace projection
+        // is temporarily unavailable; do not manufacture activity.
+      }
+    }
+
+    if (myGeneration !== generation || listeners.size === 0) return;
+    const activities = normalizeLiveActivities(rawSpans as ReactorSpanLike[], 50);
     emit({ runStatus, activities });
   } catch (error) {
     if (myGeneration === generation && !(error instanceof DOMException && error.name === "AbortError")) {
       emit(EMPTY);
     }
   } finally {
-    controller = null;
-    schedule();
+    // Only the current pull may clear the shared controller reference or arm
+    // the next timer. Stale pulls can finish after a newer pull has started.
+    if (controller === myController && myGeneration === generation) {
+      controller = null;
+      schedule();
+    }
   }
 }
 
@@ -103,8 +144,8 @@ function getServerSnapshot(): StoreSnapshot {
 
 /**
  * Shared React external store for Reactor live telemetry. Graph and feed
- * consumers subscribe to the same normalized recentSpans snapshot, so they
- * cannot drift by independently interpreting the status payload.
+ * consumers subscribe to the same normalized canonical trace snapshot, so
+ * they cannot drift by independently interpreting a retired status payload.
  */
 export function useReactorLiveTelemetry(): StoreSnapshot {
   return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);

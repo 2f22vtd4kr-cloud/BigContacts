@@ -1,0 +1,82 @@
+name: Apex Prompt Architecture Audit
+on:
+  push:
+    branches: [audit/genuine-five-green-final]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Inspect research prompt/data-flow boundaries
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo '=== CURRENT SHA ==='
+          git rev-parse HEAD
+          echo '=== PROMPT/CONTEXT FUNCTIONS ==='
+          grep -RInE 'enrichObjective|runAgenticWebResearch|runDynamicDiscovery|CONTINUATION STATE|ACT HISTORY|research.*prompt|search.*query|query.*search' artifacts/api-server/src/src/lib scripts --include='*.ts' --include='*.mjs' || true
+          echo '=== POTENTIAL TRUNCATION BOUNDARIES ==='
+          grep -RInE 'MAX_(ITER|OBS|TRAJECTORY)|ACTION_LIMIT|MAX_.*(FIND|RESULT|SOURCE|URL|CHAR|CONTEXT)|max[A-Za-z]*(Chars|Items|Results|Sources|Findings|Actions|Iterations)' artifacts/api-server/src/src/lib/agentic-web-research-core.ts artifacts/api-server/src/src/lib/agentic-web-research.ts artifacts/api-server/src/src/lib/target-act-oversight.ts artifacts/api-server/src/src/lib/atlas-control-decision.ts artifacts/api-server/src/src/lib/bureau-agentic-pass.ts scripts/check-*investigator* scripts/check-*react* --include='*.ts' --include='*.mjs' || true
+          echo '=== INVESTIGATOR ACTION SCHEMA ==='
+          grep -RInE 'type AgentAction|interface AgentAction|web_search|action.*query|provider' artifacts/api-server/src/src/lib/agentic-web-research-core.ts artifacts/api-server/src/src/lib/agentic-web-research.ts --include='*.ts' || true
+          echo '=== WEB PROVIDER EXECUTION ==='
+          grep -RInE 'webSearchSerper|webSearchTavily|webSearchExa|filterPassagesForQuery|readResponseTextCapped' artifacts/api-server/src/src/lib/agentic-web-research-core.ts --include='*.ts' || true
+          echo '=== LEGACY ADAPTIVE DIRECTOR ISOLATION ==='
+          grep -RInE 'adaptive-research-director|selectNextAdaptiveAction|ACTION_LIMIT|mapBossToolToAction' artifacts/api-server/src/src/lib --include='*.ts' || true
+          canonical='artifacts/api-server/src/src/lib/agentic-web-research.ts artifacts/api-server/src/src/lib/bureau-agentic-pass.ts artifacts/api-server/src/src/lib/target-contact-agent.ts artifacts/api-server/src/src/lib/canonical-single-target-runner.ts artifacts/api-server/src/src/lib/canonical-atlas-discovery.ts artifacts/api-server/src/src/lib/target-act-oversight.ts artifacts/api-server/src/src/lib/atlas-control-decision.ts'
+          if grep -RInE 'adaptive-research-director|selectNextAdaptiveAction|ACTION_LIMIT|mapBossToolToAction|runAdaptiveResearchDirector' $canonical --include='*.ts'; then
+            echo 'Canonical Apex runtime still references the legacy adaptive director.'
+            exit 1
+          fi
+          if grep -RInE 'web-enricher|adaptive-research-director' artifacts/api-server/src/src/routes artifacts/api-server/src/src/lib/canonical-*.ts --include='*.ts'; then
+            echo 'Canonical Apex entrypoints still reference the legacy enrichment/director route.'
+            exit 1
+          fi
+      - name: Enforce model-owned query and context invariants
+        shell: bash
+        run: |
+          set -euo pipefail
+          core='artifacts/api-server/src/src/lib/agentic-web-research-core.ts'
+          wrapper='artifacts/api-server/src/src/lib/agentic-web-research.ts'
+          canonical='artifacts/api-server/src/src/lib/agentic-web-research.ts artifacts/api-server/src/src/lib/bureau-agentic-pass.ts artifacts/api-server/src/src/lib/target-contact-agent.ts artifacts/api-server/src/src/lib/canonical-single-target-runner.ts artifacts/api-server/src/src/lib/canonical-atlas-discovery.ts artifacts/api-server/src/src/lib/target-act-oversight.ts artifacts/api-server/src/src/lib/atlas-control-decision.ts'
+          assert_contains() { local pattern="$1"; local file="$2"; if ! grep -q -- "$pattern" "$file"; then echo "ASSERTION FAILED: expected '$pattern' in $file"; exit 1; fi; echo "ASSERTION PASS: '$pattern' in $file"; }
+          assert_absent() { local pattern="$1"; local file="$2"; if grep -Fqi -- "$pattern" "$file"; then echo "ASSERTION FAILED: forbidden '$pattern' in $file"; exit 1; fi; echo "ASSERTION PASS: forbidden '$pattern' absent from $file"; }
+          if grep -RInE 'runDeepSeek|DEEPSEEK_API_KEY|api\.deepseek\.com|NVIDIA_NIM|nvidia-nim' $canonical --include='*.ts'; then
+            echo 'Active Apex runtime still contains DeepSeek/NVIDIA-NIM references.'
+            exit 1
+          fi
+          assert_contains 'trajectoryRecords' "$core"
+          assert_contains 'Choose the next action based on expected information gain' "$core"
+          assert_contains 'CONTINUATION STATE' "$wrapper"
+          assert_contains 'no fixed checklist' artifacts/api-server/src/src/lib/target-contact-agent.ts
+          assert_contains '"serper"' "$core"
+          assert_contains '"tavily"' "$core"
+          assert_contains '"exa"' "$core"
+          assert_contains 'history' "$core"
+          assert_contains 'lastObservation' "$core"
+          assert_contains 'const MAX_ITER = 64' "$core"
+          assert_contains 'const MAX_OBS = 16_000' "$core"
+          assert_contains 'const MAX_TRAJECTORY_RECORDS = 512' "$core"
+          assert_absent 'Begin. Choose an initial web_search query' "$core"
+          intelligence='artifacts/api-server/src/src/lib/research-intelligence-engine.ts'
+          assert_contains 'IdentityHypothesis' "$intelligence"
+          assert_contains 'ContactEvidenceState' "$intelligence"
+          assert_contains 'negativeFindings' "$intelligence"
+          assert_contains 'provenanceDigest' "$intelligence"
+          assert_contains 'missionBriefs' "$intelligence"
+          assert_contains 'reconcileContradictions' "$intelligence"
+          assert_contains 'ResearchIntelligenceEngine' "$intelligence"
+          assert_absent 'runParallelMissionPass' artifacts/api-server/src/src/lib/agentic-web-research.ts
+          assert_contains 'evidenceState:durableEvidenceState' artifacts/api-server/src/src/lib/bureau-agentic-pass.ts
+          if grep -RIn 'Number.POSITIVE_INFINITY' "$core" artifacts/api-server/src/src/lib/agentic-web-research.ts --include='*.ts'; then echo 'Unbounded Infinity safety budget remains in canonical agentic runtime.'; exit 1; fi
+      - name: Check workflow source is not itself introducing fixed research sequencing
+        shell: bash
+        run: |
+          set -euo pipefail
+          canonical='artifacts/api-server/src/src/lib/agentic-web-research-core.ts artifacts/api-server/src/src/lib/agentic-web-research.ts artifacts/api-server/src/src/lib/bureau-agentic-pass.ts artifacts/api-server/src/src/lib/target-contact-agent.ts artifacts/api-server/src/src/lib/canonical-single-target-runner.ts artifacts/api-server/src/src/lib/canonical-atlas-discovery.ts artifacts/api-server/src/src/lib/target-act-oversight.ts artifacts/api-server/src/src/lib/atlas-control-decision.ts'
+          ! grep -RInE 'force_[a-z_]+|Groq[[:space:]]*[→>-]+[[:space:]]*Mistral|Mistral[[:space:]]*[→>-]+[[:space:]]*Groq|Serper.*then.*Tavily|Tavily.*then.*Exa' $canonical --include='*.ts'

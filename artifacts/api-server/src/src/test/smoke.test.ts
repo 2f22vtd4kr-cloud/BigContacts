@@ -3,10 +3,18 @@
 import { describe, it, expect, beforeAll } from "vitest";
 
 const BASE = `http://localhost:${process.env.PORT ?? 8080}`;
+const API_TOKEN = process.env.APEX_API_AUTH_TOKEN?.trim();
 type JsonBody = any;
 
+function authHeaders(contentType?: string): Record<string, string> {
+  return {
+    ...(contentType ? { "Content-Type": contentType } : {}),
+    ...(API_TOKEN ? { Authorization: `Bearer ${API_TOKEN}` } : {}),
+  };
+}
+
 async function get(path: string): Promise<{ status: number; body: JsonBody }> {
-  const res = await fetch(`${BASE}${path}`);
+  const res = await fetch(`${BASE}${path}`, { headers: authHeaders() });
   const body: unknown = await res.json();
   return { status: res.status, body: body as JsonBody };
 }
@@ -20,24 +28,19 @@ describe("GET /api/healthz", () => {
 });
 
 describe("GET /api/ingest/contact-research/status", () => {
-  it("returns resumable coordinator state without starting work", async () => {
+  it("is explicitly retired", async () => {
     const { status, body } = await get("/api/ingest/contact-research/status");
-    expect(status).toBe(200);
-    expect(body).toHaveProperty("active");
-    expect(body).toHaveProperty("latest");
-    if (body.latest) {
-      expect(body.latest).toHaveProperty("jobId");
-      expect(body.latest).toHaveProperty("currentPhase");
-    }
+    expect(status).toBe(410);
+    expect(body.error).toContain("retired");
   });
 });
 
 describe("POST /api/ingest/contact-research/cancel", () => {
-  it("returns a safe error when no coordinator is active", async () => {
-    const res = await fetch(`${BASE}/api/ingest/contact-research/cancel`, { method: "POST", headers: { "content-type": "application/json" }, body: "{}" });
-    expect(res.status).toBe(400);
+  it("is explicitly retired", async () => {
+    const res = await fetch(`${BASE}/api/ingest/contact-research/cancel`, { method: "POST", headers: authHeaders("application/json"), body: "{}" });
+    expect(res.status).toBe(410);
     const body: any = await res.json();
-    expect(body.error).toContain("No contact-research job is active");
+    expect(body.error).toContain("retired");
   });
 });
 
@@ -128,15 +131,15 @@ describe("GET /api/entities/:id/opensky", () => {
 });
 
 describe("POST /api/registry-search", () => {
-  it("endpoint is reachable and returns a JSON body", async () => {
-    const res = await fetch(`${BASE}/api/registry-search`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ query: "Holdings", registry: "opencorporates", limit: 3 }) });
+  it("is reachable and either serves the provider or fails closed with JSON", async () => {
+    const res = await fetch(`${BASE}/api/registry-search`, { method: "POST", headers: authHeaders("application/json"), body: JSON.stringify({ query: "Holdings", registry: "opencorporates", limit: 3 }) });
     const body: unknown = await res.json();
-    expect(res.status).toBe(200);
+    expect([200, 503]).toContain(res.status);
     expect(typeof body).toBe("object");
     expect(body).not.toBeNull();
   });
   it("returns 400 for a missing query body", async () => {
-    const res = await fetch(`${BASE}/api/registry-search`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({}) });
+    const res = await fetch(`${BASE}/api/registry-search`, { method: "POST", headers: authHeaders("application/json"), body: JSON.stringify({}) });
     expect(res.status).toBe(400);
   });
 });

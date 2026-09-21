@@ -1,4 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+vi.mock("@workspace/db", () => ({}));
+
 import { parsePersonFindings } from "../lib/discovery-agent";
 
 describe("investigator decision → durable promotion boundary", () => {

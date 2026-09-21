@@ -30,7 +30,7 @@ if (!discovery.includes(proxyReject)) failures.push("discovery-agent.ts must rej
 if (!repair.includes("s.split(gate).join(\"\")")) failures.push("identity repair script is not idempotent");
 if (!repair.includes("state\\\\s+st")) failures.push("identity repair script does not preserve the State St regression repair");
 if (!discovery.includes("const admissionFindings = result.modelFindings ?? [];")) failures.push("discovery-agent.ts must feed only modelFindings into discovery admission");
-if (!discovery.includes("const slotCandidates = parsePersonFindings(admissionFindings, result.trajectory ?? []);")) failures.push("discovery-agent.ts must preserve trajectory when applying the admission gate");
+if (!/const slotCandidates = parsePersonFindings\(admissionFindings, result\.trajectory \?\? \[\], result\.trajectoryRecords \?\? \[\]\);/.test(discovery)) failures.push("discovery-agent.ts must preserve trajectory and structured observations when applying the admission gate");
 if (!discovery.includes("function hasObservedPageSource(sourceUrls: string[], trajectory: string[]): boolean")) failures.push("discovery-agent.ts missing observed-page provenance boundary");
 if (!discovery.includes("if (!hasObservedPageSource(sourceUrls, trajectory)) return;")) failures.push("discovery-agent.ts must require candidate source URL to match a visited/fetched page");
 const modelBranchStart = admit.indexOf("if (options.modelSelected)");

@@ -1,12 +1,12 @@
 import type { NextFunction, Request, Response } from "express";
 
 /**
- * Defense-in-depth quarantine for the retired Atlas launch handler.
+ * Defense-in-depth quarantine for retired Atlas control/status handlers.
  *
- * Canonical Atlas is mounted before this boundary. If the canonical router ever
- * declines a POST /ingest/atlas-run request (for example after a future route
- * refactor), the historical orchestrator must still be impossible to reach.
- * This middleware intentionally does not call next().
+ * Canonical Atlas owns launch and Reactor telemetry consumes the active-job
+ * projection plus forensic trace. The historical launch/status endpoints must
+ * remain impossible to reach even if future route refactors expose them.
+ * This middleware intentionally does not call next() for retired paths.
  */
 export function legacyAtlasLaunchQuarantine(req: Request, res: Response, next: NextFunction): void {
   if (req.method === "POST" && req.path === "/ingest/atlas-run") {
@@ -17,5 +17,15 @@ export function legacyAtlasLaunchQuarantine(req: Request, res: Response, next: N
     });
     return;
   }
+
+  if (req.method === "GET" && req.path === "/ingest/atlas-status") {
+    res.status(410).json({
+      error: "Legacy Atlas status route retired.",
+      reason: "Reactor telemetry uses the canonical active-job projection and forensic trace; the historical status projection is permanently quarantined.",
+      path: req.path,
+    });
+    return;
+  }
+
   next();
 }

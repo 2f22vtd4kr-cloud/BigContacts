@@ -8,4 +8,9 @@ assert(target.includes("refusing context-free Investigator run"), "Target Invest
 assert(/const contextDocument = typeof input\.contextDocument === "string" \? input\.contextDocument\.trim\(\) : "";/.test(target), "Target Investigator must normalize durable context before execution.");
 assert(/if \(!contextDocument\)\s*\{[\s\S]*?status:\s*["']unavailable["']/.test(target), "Missing durable context must fail closed before Investigator execution.");
 assert(/runTargetContactAgent\(\{[\s\S]*?contextDocument:\s*actContext/.test(canonical), "Canonical single-target runner must mount the durable act context into Target Investigator.");
+assert(canonical.includes("appendDurableActContext"), "Canonical single-target runner must append each Investigator result to durable context.");
+assert(/appendDurableActContext\([\s\S]*?lastOversight/.test(canonical), "Canonical single-target runner must persist the completed act result together with oversight context.");
+assert(/caseFile:\s*JSON\.stringify\(\{ \.\.\.caseState, contextDocument, lastOversight \}\)/.test(canonical), "Canonical single-target runner must persist the updated context document after each act.");
+assert(!/slice\(\s*-\d+/.test(canonical), "Canonical target runner must not discard durable history via bounded-tail slicing.");
+assert(!/slice\(\s*0\s*,\s*\d+/.test(canonical), "Canonical target runner must not impose a numeric context clipping boundary.");
 console.log("Target Investigator context-boundary checks passed.");

@@ -1,6 +1,7 @@
 import { useGetDashboardStats, useGetHotLeads } from "@workspace/api-client-react";
 import { isMockMode, mockDashboardStats, mockHotLeads } from "@/lib/dev-mock-data";
 import {
+  Activity,
   ArrowUpRight,
   ChevronRight,
   CircleAlert,
@@ -21,6 +22,7 @@ import { LaunchAtlasButton } from "@/components/launch-atlas-button";
 import { ScoreboardStrip } from "@/components/scoreboard-strip";
 import { entityEvidenceLabel, entityFindingsSummary, entityWorkSummary, NationalityCell } from "@/lib/utils";
 import { entityMeta, EntityTypeMark, entityMetric } from "@/lib/entity-taxonomy";
+import { ReactorMark } from "@/components/reactor-mark";
 
 function scorePercent(score?: number | null) {
   if (score == null || Number.isNaN(score)) return "—";
@@ -271,14 +273,16 @@ export default function Dashboard() {
             Run free dig — the model chooses tools, visits sources, and builds contact routes. Only real research lands on this desk.
           </p>
         </div>
-        <div className="relative z-10 flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center md:justify-end">
-          <LaunchAtlasButton variant="primary" />
-          <div className="flex gap-2">
-            <Link href="/reactor" data-testid="link-dashboard-reactor" className="atlas-outline-btn atlas-pressable inline-flex h-12 flex-1 items-center justify-center gap-2 rounded-xl px-4 text-xs font-semibold sm:flex-none sm:px-5">
-              <Radar className="h-4 w-4" /> Reactor
+        <div className="atlas-home-actions relative z-10 flex w-full flex-col gap-2 sm:w-auto md:w-[28rem] md:max-w-[28rem]">
+          <div className="atlas-home-primary-row">
+            <LaunchAtlasButton variant="primary" className="atlas-home-launch" />
+          </div>
+          <div className="atlas-home-secondary-row" role="group" aria-label="Research desk shortcuts">
+            <Link href="/reactor" data-testid="link-dashboard-reactor" className="atlas-outline-btn atlas-pressable inline-flex h-12 min-h-[44px] w-full items-center justify-center gap-2 rounded-xl px-4 text-xs font-semibold">
+              <ReactorMark size={17} className="shrink-0" /> Reactor
             </Link>
-            <Link href="/search" data-testid="link-dashboard-search" className="atlas-outline-btn atlas-pressable inline-flex h-12 flex-1 items-center justify-center gap-2 rounded-xl px-4 text-xs font-semibold sm:flex-none sm:px-5">
-              <Search className="h-4 w-4" /> Discover
+            <Link href="/search" data-testid="link-dashboard-search" className="atlas-outline-btn atlas-pressable inline-flex h-12 min-h-[44px] w-full items-center justify-center gap-2 rounded-xl px-4 text-xs font-semibold">
+              <Search className="h-4 w-4" aria-hidden="true" /> Discover
             </Link>
           </div>
         </div>
@@ -320,10 +324,10 @@ export default function Dashboard() {
         aria-label="Desk shortcuts"
       >
         {[
-          { href: "/reactor", label: "Reactor", detail: "Live research", testId: "ops-reactor" },
-          { href: "/profiles", label: "Ledger", detail: "People & companies", testId: "ops-ledger" },
-          { href: "/network", label: "Graph", detail: "Connections", testId: "ops-network" },
-          { href: "/status", label: "Status", detail: "Keys & systems", testId: "ops-status" },
+          { href: "/reactor", label: "Reactor", detail: "Live research", testId: "ops-reactor", icon: ReactorMark },
+          { href: "/profiles", label: "Ledger", detail: "People & companies", testId: "ops-ledger", icon: Users },
+          { href: "/network", label: "Graph", detail: "Connections", testId: "ops-network", icon: Network },
+          { href: "/status", label: "Status", detail: "Keys & systems", testId: "ops-status", icon: Activity },
         ].map((item) => (
           <Link
             key={item.href}
@@ -331,7 +335,10 @@ export default function Dashboard() {
             data-testid={item.testId}
             className="atlas-pressable group rounded-xl border border-[#9CFF1A]/14 bg-[#0d1219]/80 px-3 py-3.5 transition-colors hover:border-[#9CFF1A]/40 hover:bg-[#0d1219] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9CFF1A]/50"
           >
-            <div className="font-mono text-[11px] uppercase tracking-[0.16em] text-stone-500 group-hover:text-[#9CFF1A]">{item.label}</div>
+            <div className="flex items-center gap-2">
+              <item.icon className="h-3.5 w-3.5 text-stone-500 transition-colors group-hover:text-[#9CFF1A]" aria-hidden="true" />
+              <div className="font-mono text-[11px] uppercase tracking-[0.16em] text-stone-500 group-hover:text-[#9CFF1A]">{item.label}</div>
+            </div>
             <div className="mt-1 text-[12px] font-medium text-stone-200">{item.detail}</div>
           </Link>
         ))}
