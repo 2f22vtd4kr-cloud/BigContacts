@@ -224,7 +224,7 @@ Every act must be inspectable: model, action, actual provider/tool, status, obse
 
 ## 12. Runtime/deployment truth
 
-**Branch correction (2026-09-21):** `main` is now the canonical future-work branch. A direct GitHub comparison showed `main` is 60 commits ahead and 0 commits behind `audit/genuine-five-green-final`, with `7cb15619113cad7c19750bdcf7747e7bf39970a8` as the merge base. The newer Very Strong implementation and operational documentation are on `main`. The older branch remains historical only.
+**Branch correction (2026-09-21):** `main` is the canonical future-work branch. `audit/genuine-five-green-final` is an ancestor of `main`, with `7cb15619113cad7c19750bdcf7747e7bf39970a8` as the merge base. The newer Very Strong implementation and operational documentation are on `main`. The older branch remains historical only.
 
 Canonical application boundary:
 
