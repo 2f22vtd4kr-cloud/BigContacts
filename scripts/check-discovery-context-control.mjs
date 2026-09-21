@@ -20,7 +20,7 @@ const checks = [
 ["compactor preserves source URLs in the archived trajectory index", /ARCHIVED TRAJECTORY INDEX/.test(compactor) && /observedUrls/.test(compactor)],
 ["compactor preserves evidence attribution summaries", /CURRENT FINDINGS \/ LEADS/.test(compactor) && /sourceUrls/.test(compactor)],
 ["discovery durable projection is explicit", /DURABLE CASE MEMORY PROJECTION/.test(bureau)],
-["discovery full trajectory remains in immutable ledger while caseFile projection is bounded", /complete observations remain in research_case_events/.test(bureau) && /records\.slice\(-64\)/.test(bureau)],
+["discovery full trajectory remains in immutable ledger while caseFile projection is bounded", /complete observations remain in research_case_events/.test(bureau) && /records\.slice\(Math\.max\(0, records\.length - 64\)\)/.test(bureau)],
 ["discovery durable projection stores bounded structured Investigator records", /investigatorTrajectoryRecords:durableProjectionRecords/.test(bureau) && /compactDurableDiscoveryRecords/.test(bureau)],
 ["discovery trajectory is also retained in the immutable event ledger", /eventType=record\.action==="done"\?"decision":"tool_observation"/.test(bureau) && /researchCaseEventsTable/.test(bureau)],
 ["discovery trajectory events have run-turn correlation", /\$\{input\.runId\}:turn:\$\{record\.turn\}:trajectory/.test(bureau)],
