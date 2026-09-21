@@ -176,7 +176,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         await assertAtlasJobActive(atlasJobId);
         discoveryRuns += 1;
         discovery = { ...nextDiscovery, searches: discovery.searches + nextDiscovery.searches, visits: discovery.visits + nextDiscovery.visits, iterations: discovery.iterations + nextDiscovery.iterations, findings: [...(discovery.findings ?? []), ...(nextDiscovery.findings ?? [])], modelFindings: [...(discovery.modelFindings ?? []), ...(nextDiscovery.modelFindings ?? [])], trajectory: [...discovery.trajectory, ...nextDiscovery.trajectory], trajectoryRecords: [...(discovery.trajectoryRecords ?? []), ...(nextDiscovery.trajectoryRecords ?? [])] };
-        admission = await materializeAtlasAdmissions({ discoveryRunId: nextDiscovery.runId ?? "", findings: discovery.findings, atlasJobId, discoveryCaseId }); admitted = admission.names; materialized += admission.materialized; evidenceRows += admission.evidenceRows;
+        admission = await materializeAtlasAdmissions({ discoveryRunId: nextDiscovery.runId ?? "", findings: nextDiscovery.findings, atlasJobId, discoveryCaseId }); admitted = admission.names; materialized += admission.materialized; evidenceRows += admission.evidenceRows;
       }
     }
     await assertAtlasJobActive(atlasJobId);
