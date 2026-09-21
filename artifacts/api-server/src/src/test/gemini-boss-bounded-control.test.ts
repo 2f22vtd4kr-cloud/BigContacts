@@ -48,8 +48,8 @@ describe("Gemini Boss bounded control-plane generation", () => {
 
     const firstBody = JSON.parse(String(providerFetch.mock.calls[0]?.[1]?.body));
     const secondBody = JSON.parse(String(providerFetch.mock.calls[1]?.[1]?.body));
-    expect(firstBody.generationConfig.maxOutputTokens).toBe(2048);
-    expect(secondBody.generationConfig.maxOutputTokens).toBe(2048);
+    expect(firstBody.generationConfig.maxOutputTokens).toBe(1024);
+    expect(secondBody.generationConfig.maxOutputTokens).toBe(1024);
     expect(String(providerFetch.mock.calls[0]?.[0])).toContain("gemini-test-a:generateContent");
     expect(String(providerFetch.mock.calls[1]?.[0])).toContain("gemini-test-b:generateContent");
   });
