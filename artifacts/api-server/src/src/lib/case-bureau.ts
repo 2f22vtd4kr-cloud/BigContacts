@@ -427,6 +427,11 @@ type GeminiTextGenerationResult = {
 export async function generateGeminiBossText(
   selection: GeminiBossModelSelection,
   prompt: string,
+  options: {
+    deadlineMs?: number;
+    requestTimeoutMs?: number;
+    maxModels?: number;
+  } = {},
 ): Promise<GeminiTextGenerationResult> {
   // Text generation only: no tools, no Google Search grounding, no web research.
   // 429/503 here means text-generation capacity — not a web-search constraint.
@@ -447,12 +452,12 @@ export async function generateGeminiBossText(
   const models = [...new Set([
     selection.model,
     ...(selection.candidateModels ?? []),
-  ])].slice(0, 4);
+  ])].slice(0, Math.max(1, Math.min(4, options.maxModels ?? 4)));
   let lastError = `Gemini Boss ${selection.model} did not return text.`;
   // Bound the entire Boss control-plane attempt, including at most four compatible
   // models. The outer research job remains responsible for any explicit retry.
-  const bossDeadline = Date.now() + 75_000;
-  const bossRequestTimeoutMs = 15_000;
+  const bossDeadline = Date.now() + Math.max(5_000, Math.min(120_000, options.deadlineMs ?? 75_000));
+  const bossRequestTimeoutMs = Math.max(3_000, Math.min(30_000, options.requestTimeoutMs ?? 15_000));
   const bossMaxOutputTokens = 2_048;
 
   for (const entry of keyEntries) {
@@ -605,6 +610,37 @@ function extractJsonObject(value: string): string | null {
   const close = open === "{" ? "}" : "]";
   const end = source.lastIndexOf(close);
   return end > start ? source.slice(start, end + 1) : null;
+}
+
+function buildBossOpeningRecoveryPrompt(input: {
+  objective: string;
+  motivation: string;
+  geography?: string;
+  exclusions?: string[];
+  rightHandAdvice?: {
+    status: "completed" | "unavailable";
+    model: string;
+    decision: string | null;
+    reason: string | null;
+    focusLanes: string[];
+    confidence: number | null;
+    error: string | null;
+  };
+  startingLane?: string;
+}, previousError: string): string {
+  const base = buildBossOpeningPrompt(input);
+  return `${base}
+
+RECOVERY MODE:
+The first Gemini Boss control-plane attempt did not complete successfully.
+This is a bounded same-role recovery. You are STILL the Gemini Boss.
+Do not browse. Do not perform Investigator work. Do not delegate to Gemini Right-hand.
+Return a valid JSON control decision immediately.
+The only Investigator values permitted are "groq" or "mistral".
+Choose exactly one Investigator and provide a concise bounded discovery direction.
+Previous control-plane error (diagnostic only): ${previousError.slice(0, 300)}
+Return ONLY the JSON object required by the opening contract.
+`;
 }
 
 function parseBossDiscoveryResponse(raw: string): {
@@ -771,30 +807,60 @@ Return ONLY JSON in this shape:
 Candidates are review-only. Never invent a name, wealth claim, relationship, contact detail, or URL.`;
   try {
     const generated = await generateGeminiBossText(selection, prompt);
-    if (!generated.raw) {
+    const parsed = generated.raw ? parseBossDiscoveryResponse(generated.raw) : null;
+    if (parsed?.investigatorLlm) {
       return {
-        status: "unavailable",
+        status: "completed",
         model: generated.model,
-        investigatorLlm: null,
-        report: null,
-        candidates: [],
+        investigatorLlm: parsed.investigatorLlm,
+        report: parsed.report || generated.raw || null,
+        candidates: parsed.candidates,
         citations: [],
-        nextDirections: [],
-        uncertainties: [],
-        error: generated.error ?? "Gemini Boss text generation returned no text for the discovery brief.",
+        nextDirections: parsed.nextDirections,
+        uncertainties: parsed.uncertainties,
+        error: null,
       };
     }
-    const parsed = parseBossDiscoveryResponse(generated.raw);
+
+    // Bounded same-role recovery: a Boss timeout/invalid control response must not
+    // immediately terminate an otherwise healthy discovery run. Re-resolve the
+    // Gemini Boss catalog (bypassing the cached selection), then give the Boss one
+    // compact recovery attempt. This never assigns Groq/Mistral directly and never
+    // turns the Right-hand into an Investigator.
+    const recoverySelection = await resolveGeminiBossModel(selection.keyName);
+    const recoveryPrompt = buildBossOpeningRecoveryPrompt(input, generated.error ?? "Boss returned no valid Investigator selection.");
+    const recovery = await generateGeminiBossText(recoverySelection, recoveryPrompt, {
+      deadlineMs: 30_000,
+      requestTimeoutMs: 10_000,
+      maxModels: 2,
+    });
+    if (recovery.raw) {
+      const recovered = parseBossDiscoveryResponse(recovery.raw);
+      if (recovered.investigatorLlm) {
+        return {
+          status: "completed",
+          model: recovery.model,
+          investigatorLlm: recovered.investigatorLlm,
+          report: recovered.report || recovery.raw,
+          candidates: recovered.candidates,
+          citations: [],
+          nextDirections: recovered.nextDirections,
+          uncertainties: recovered.uncertainties,
+          error: null,
+        };
+      }
+    }
+
     return {
-      status: "completed",
-      model: generated.model,
-      investigatorLlm: parsed.investigatorLlm,
-      report: parsed.report || generated.raw,
-      candidates: parsed.candidates,
+      status: "unavailable",
+      model: recovery.model || generated.model,
+      investigatorLlm: null,
+      report: null,
+      candidates: [],
       citations: [],
-      nextDirections: parsed.nextDirections,
-      uncertainties: parsed.uncertainties,
-      error: null,
+      nextDirections: [],
+      uncertainties: [],
+      error: recovery.error ?? generated.error ?? "Gemini Boss recovery did not produce a valid Investigator selection.",
     };
   } catch (error) {
     return {
