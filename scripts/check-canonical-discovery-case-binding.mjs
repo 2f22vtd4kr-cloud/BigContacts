@@ -4,7 +4,7 @@ import path from "node:path";
 const root = process.cwd();
 const source = fs.readFileSync(path.join(root, "artifacts/api-server/src/src/lib/bureau-agentic-pass.ts"), "utf8");
 const checks = [
-  ["mounted discovery case validates the case type", /eq\(researchCasesTable\.caseType, mode\)/.test(source)],
+  ["mounted discovery case validates the case type", /eq\(researchCasesTable\.caseType,\s*mode\)/.test(source)],
   ["discovery case is bound to the current Atlas job", /jobId && storedJob !== jobId/.test(source)],
   ["target execution run binding remains strict", /mode === "target" && storedRun && storedRun !== runId/.test(source)],
   ["missing durable context fails closed", /has no durable context document/.test(source)],
