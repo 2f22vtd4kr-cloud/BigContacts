@@ -15,7 +15,7 @@ if (!(globalThis.fetch as GuardedFetch).__apexSsrfGuard) {
     if ((globalThis.fetch as GuardedFetch).__apexQuotaGuard) return safeOutboundFetch(input, init);
     const rawUrl = typeof input === "string" || input instanceof URL ? String(input) : input.url;
     const provider = classifyExternalProvider(rawUrl);
-    return runProviderCall({ provider, account: "agentic-fetch", signal: init?.signal }, () => safeOutboundFetch(input, init));
+    return runProviderCall({ provider, account: "agentic-fetch", signal: init?.signal ?? undefined }, () => safeOutboundFetch(input, init));
   }) as GuardedFetch;
   guardedFetch.__apexSsrfGuard = true;
   globalThis.fetch = guardedFetch;
