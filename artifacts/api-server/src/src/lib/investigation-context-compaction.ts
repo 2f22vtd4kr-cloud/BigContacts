@@ -185,13 +185,22 @@ export function compactInvestigationContext(input: {
   evidenceGraphSummaries?: readonly string[];
 }): string {
   const maxChars = Math.min(MAX_MAX_CHARS, Math.max(MIN_MAX_CHARS, input.maxChars ?? DEFAULT_MAX_CHARS));
-  const pieces = [
-    trim(input.raw, Math.floor(maxChars * 0.35)),
-    ...(input.evidenceGraphSummaries ?? []).map((value) => trim(value, 900)),
-    ...(input.trajectoryRecords ?? []).map((record) => archiveRecord(record, 650)),
-    ...(input.trajectory ?? []).map((value) => trim(value, 420)),
+  const sections = [
+    fitSection("CURRENT STATE\n" + trim(input.raw, Math.floor(maxChars * 0.42)), Math.floor(maxChars * 0.42)),
+    fitSection(
+      "EVIDENCE GRAPH SUMMARY\n" + (input.evidenceGraphSummaries ?? []).map((value) => trim(value, 900)).filter(Boolean).join("\n"),
+      Math.floor(maxChars * 0.23),
+    ),
+    fitSection(
+      "TRAJECTORY RECORDS\n" + (input.trajectoryRecords ?? []).map((record) => archiveRecord(record, 650)).filter(Boolean).join("\n"),
+      Math.floor(maxChars * 0.25),
+    ),
+    fitSection(
+      "TRAJECTORY NOTES\n" + (input.trajectory ?? []).map((value) => trim(value, 420)).filter(Boolean).join("\n"),
+      Math.floor(maxChars * 0.10),
+    ),
   ].filter(Boolean);
-  return pieces.join("\n\n").slice(0, maxChars);
+  return sections.join("\n\n").slice(0, maxChars);
 }
 /**
  * Emergency provider-rejection reducer. Used only after a request-size rejection.
