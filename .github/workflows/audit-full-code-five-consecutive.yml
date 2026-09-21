@@ -55,6 +55,8 @@ jobs:
         run: pnpm run build
       - name: Push database schema for live smoke tests
         run: cd lib/db && pnpm exec drizzle-kit push --config ./drizzle.config.ts
+      - name: Create ephemeral API credential for live smoke tests
+        run: echo "APEX_API_AUTH_TOKEN=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
       - name: Start API server for live smoke tests
         run: |
           set -euo pipefail
@@ -122,6 +124,8 @@ jobs:
       - run: pnpm run build
       - name: Push database schema for live smoke tests
         run: cd lib/db && pnpm exec drizzle-kit push --config ./drizzle.config.ts
+      - name: Create ephemeral API credential for live smoke tests
+        run: echo "APEX_API_AUTH_TOKEN=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
       - name: Start API server for live smoke tests
         run: |
           set -euo pipefail
@@ -188,6 +192,8 @@ jobs:
       - run: pnpm run build
       - name: Push database schema for live smoke tests
         run: cd lib/db && pnpm exec drizzle-kit push --config ./drizzle.config.ts
+      - name: Create ephemeral API credential for live smoke tests
+        run: echo "APEX_API_AUTH_TOKEN=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
       - name: Start API server for live smoke tests
         run: |
           set -euo pipefail
@@ -254,6 +260,8 @@ jobs:
       - run: pnpm run build
       - name: Push database schema for live smoke tests
         run: cd lib/db && pnpm exec drizzle-kit push --config ./drizzle.config.ts
+      - name: Create ephemeral API credential for live smoke tests
+        run: echo "APEX_API_AUTH_TOKEN=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
       - name: Start API server for live smoke tests
         run: |
           set -euo pipefail
@@ -320,6 +328,8 @@ jobs:
       - run: pnpm run build
       - name: Push database schema for live smoke tests
         run: cd lib/db && pnpm exec drizzle-kit push --config ./drizzle.config.ts
+      - name: Create ephemeral API credential for live smoke tests
+        run: echo "APEX_API_AUTH_TOKEN=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
       - name: Start API server for live smoke tests
         run: |
           set -euo pipefail
