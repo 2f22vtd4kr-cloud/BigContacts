@@ -27,6 +27,38 @@ describe("discovery runtime architecture", () => {
     expect(researchSource).not.toMatch(/force[_-]?dig|fixed.*provider.*sequence|always.*search.*then.*visit/i);
   });
 
+
+  it("does not allow a cold discovery run to terminate after a single unusable external search", async () => {
+    const { discoveryTerminalGate } = await import("../lib/agentic-web-research-core");
+    expect(discoveryTerminalGate([{
+      turn: 1,
+      model: "groq",
+      action: "web_search",
+      args: { provider: "serper", query: "discovery" },
+      execution: "error",
+      observation: "serper returned no usable result.",
+      observedUrls: [],
+      findings: [],
+    }])).toEqual({
+      allowed: false,
+      reason: expect.stringContaining("no usable external observation"),
+    });
+  });
+
+  it("allows discovery to terminate after an actual observed external action", async () => {
+    const { discoveryTerminalGate } = await import("../lib/agentic-web-research-core");
+    expect(discoveryTerminalGate([{
+      turn: 1,
+      model: "groq",
+      action: "web_search",
+      args: { provider: "serper", query: "discovery" },
+      execution: "success",
+      observation: "Result",
+      observedUrls: ["https://example.com/source"],
+      findings: [],
+    }])).toEqual({ allowed: true, reason: null });
+  });
+
   it("keeps runtime safety checks fail-closed and bounded", () => {
     expect(runtimeHardener).toMatch(/fail.?closed/i);
     expect(runtimeHardener).toMatch(/timeout|abort|cancel/i);
