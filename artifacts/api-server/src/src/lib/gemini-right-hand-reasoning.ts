@@ -8,7 +8,9 @@ export const GEMINI_RIGHT_HAND_MODEL = "gemini-3.8-flash";
 export const GEMINI_RIGHT_HAND_FALLBACK_MODELS = ["gemini-3.7-flash", "gemini-3.6-flash", "gemini-3.5-flash-lite"] as const;
 const GEMINI_RIGHT_HAND_MODEL_CHAIN = [GEMINI_RIGHT_HAND_MODEL, ...GEMINI_RIGHT_HAND_FALLBACK_MODELS];
 const GEMINI_CHAT_API_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
-const REQUEST_TIMEOUT_MS = 20_000;
+const REQUEST_TIMEOUT_MS = 12_000;
+const OVERALL_TIMEOUT_MS = 28_000;
+const MAX_MODEL_ATTEMPTS = 2;
 type GeminiResponse = { candidates?: Array<{ content?: { parts?: Array<{ text?: string | null }> } }> };
 type GeminiRequestResult = { raw: string; error: string | null; model: string };
 export type GeminiRightHandStatus = { configured: boolean; model: string; fallbackModels: string[]; endpoint: string; role: "right_hand_advisor"; capability: "case_file_reasoning_only" };
@@ -16,17 +18,17 @@ export type GeminiRightHandCaseReasoningResult = { status: "completed" | "unavai
 export type GeminiRightHandDiscoveryAdviceResult = { status: "completed" | "unavailable"; model: string; decision: string | null; reason: string | null; focusLanes: string[]; confidence: number | null; error: string | null };
 const RIGHT_HAND_KEY_ENV = "GEMINI_RIGHT_HAND_API_KEY";
 function key(): string | null { return process.env[RIGHT_HAND_KEY_ENV]?.trim() || null; }
-function modelChain(): string[] { const configured = process.env.GEMINI_RIGHT_HAND_MODEL_CHAIN?.split(",").map((value) => value.trim()).filter(Boolean); if (!configured?.length) return [...GEMINI_RIGHT_HAND_MODEL_CHAIN]; return Array.from(new Set([configured[0], ...configured.slice(1), ...GEMINI_RIGHT_HAND_FALLBACK_MODELS])); }
+function modelChain(): string[] { const configured = process.env.GEMINI_RIGHT_HAND_MODEL_CHAIN?.split(",").map((value) => value.trim()).filter(Boolean); const chain = !configured?.length ? [...GEMINI_RIGHT_HAND_MODEL_CHAIN] : Array.from(new Set([configured[0], ...configured.slice(1), ...GEMINI_RIGHT_HAND_FALLBACK_MODELS])); return chain.slice(0, MAX_MODEL_ATTEMPTS); }
 function textOf(response: GeminiResponse | null): string { return (response?.candidates?.[0]?.content?.parts ?? []).map((part) => part.text ?? "").join(" ").trim(); }
 function extractJson(raw: string): Record<string, unknown> | null { const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)```/i)?.[1]?.trim(); const source = fenced || raw.trim(); const start = source.indexOf("{"), end = source.lastIndexOf("}"); if (start < 0 || end <= start) return null; try { const value = JSON.parse(source.slice(start, end + 1)); return value && typeof value === "object" ? value as Record<string, unknown> : null; } catch { return null; } }
 function shouldFallback(status: number): boolean { return status === 404 || status === 408 || status === 429 || status === 500 || status === 502 || status === 503 || status === 504; }
-function isLiteModel(model: string): boolean { return /flash-lite/i.test(model); }
+function isGemini3Model(model: string): boolean { return /^gemini-3(?:\.\d+)?-/i.test(model); }
 async function request(system: string, user: string): Promise<GeminiRequestResult> {
-  const apiKey = key(); if (!apiKey) return { raw: "", error: "GEMINI_RIGHT_HAND_API_KEY is not configured.", model: GEMINI_RIGHT_HAND_MODEL }; const chain = modelChain(); const failures: string[] = [];
+  const apiKey = key(); if (!apiKey) return { raw: "", error: "GEMINI_RIGHT_HAND_API_KEY is not configured.", model: GEMINI_RIGHT_HAND_MODEL }; const chain = modelChain(); const failures: string[] = []; const deadline = Date.now() + OVERALL_TIMEOUT_MS;
   for (const model of chain) {
     const controller = new AbortController(); const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
     try {
-      const response = await fetch(`${GEMINI_CHAT_API_BASE}/${model}:generateContent`, { method: "POST", headers: { Accept: "application/json", "Content-Type": "application/json", "x-goog-api-key": apiKey }, body: JSON.stringify({ system_instruction: { parts: [{ text: `${apexOrientationCompact("right_hand")}\n\n${system}` }] }, contents: [{ role: "user", parts: [{ text: user }] }], generationConfig: { temperature: 0.2, maxOutputTokens: 2048, responseMimeType: "application/json", ...(isLiteModel(model) ? {} : { thinkingConfig: { thinkingLevel: "high" } }) } }), signal: controller.signal });
+      const response = await fetch(`${GEMINI_CHAT_API_BASE}/${model}:generateContent`, { method: "POST", headers: { Accept: "application/json", "Content-Type": "application/json", "x-goog-api-key": apiKey }, body: JSON.stringify({ system_instruction: { parts: [{ text: `${apexOrientationCompact("right_hand")}\n\n${system}` }] }, contents: [{ role: "user", parts: [{ text: user }] }], generationConfig: { maxOutputTokens: 768, responseMimeType: "application/json", ...(isGemini3Model(model) ? { thinkingConfig: { thinkingLevel: "low" } } : {}) } }), signal: controller.signal });
       const body = await response.text();
       if (response.ok) { try { const raw = textOf(JSON.parse(body) as GeminiResponse); if (raw) return { raw, error: null, model }; return { raw: "", error: `Gemini Right-hand ${model} returned an empty response.`, model }; } catch { return { raw: "", error: `Gemini Right-hand ${model} returned invalid JSON.`, model }; }
       }
@@ -34,7 +36,7 @@ async function request(system: string, user: string): Promise<GeminiRequestResul
     } catch (error) { const message = error instanceof Error && error.name === "AbortError" ? `request timed out after ${REQUEST_TIMEOUT_MS}ms` : error instanceof Error ? error.message : "request failed"; failures.push(`${model} ${message}`); if (!(error instanceof Error && error.name === "AbortError")) return { raw: "", error: `Gemini Right-hand ${model} ${message}.`, model }; }
     finally { clearTimeout(timer); }
   }
-  return { raw: "", error: `Gemini Right-hand exhausted fallback models after transient/capacity failures: ${failures.join("; ")}`, model: chain[chain.length - 1] ?? GEMINI_RIGHT_HAND_MODEL };
+  return { raw: "", error: `Gemini Right-hand exhausted bounded model attempts: ${failures.join("; ")}`, model: chain[chain.length - 1] ?? GEMINI_RIGHT_HAND_MODEL };
 }
 function compactCase(file: ResearchCaseFile): string { return JSON.stringify({ target: file.target, hypotheses: file.hypotheses, evidenceSummary: file.evidenceSummary, specialistRoster: file.specialistRoster, actionQueue: file.actionQueue, contactRoutes: file.contactRoutes, investigationProgress: file.investigationProgress, researchDepth: file.researchDepth, decisionLog: file.decisionLog, rightHandAdvice: file.rightHandAdvice, bossPlan: file.bossPlan }, null, 2); }
 function compactDiscovery(file: DiscoveryCaseFile): string { return JSON.stringify({ humanBrief: file.humanBrief, bossPremise: file.bossPremise, candidateLanes: file.candidateLanes, initialResearch: file.initialResearch, investigatorReports: file.investigatorReports, currentProgress: file.currentProgress, discoveredCandidates: file.discoveredCandidates, orgFootprint: file.orgFootprint, decisionLog: file.decisionLog }, null, 2); }
