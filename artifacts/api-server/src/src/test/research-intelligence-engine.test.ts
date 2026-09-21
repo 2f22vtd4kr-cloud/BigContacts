@@ -37,6 +37,18 @@ describe("Apex research intelligence", () => {
     expect(state.recentActions[0]?.useful).toBe(false);
   });
 
+
+  it("does not downgrade verified or stale contacts after later corroboration", () => {
+    const engine = new ResearchIntelligenceEngine({ executionId: "contact-state", target: "Example Target", objective: "preserve contact state" });
+    engine.recordAction({ turn: 1, action: "visit", execution: "success", findings: [{ vectorType: "email", value: "person@example.com", personName: "Example Target", sourceUrls: ["https://one.example/contact"] }] });
+    engine.recordFeedback({ outcome: "successful_outreach", value: "person@example.com" });
+    engine.recordAction({ turn: 2, action: "visit", execution: "success", findings: [{ vectorType: "email", value: "person@example.com", personName: "Example Target", sourceUrls: ["https://two.example/contact"] }] });
+    expect(engine.buildContext().contacts[0]?.state).toBe("VERIFIED");
+    engine.recordFeedback({ outcome: "bounced", value: "person@example.com" });
+    engine.recordAction({ turn: 3, action: "visit", execution: "success", findings: [{ vectorType: "email", value: "person@example.com", personName: "Example Target", sourceUrls: ["https://three.example/contact"] }] });
+    expect(engine.buildContext().contacts[0]?.state).toBe("STALE");
+  });
+
   it("keeps competing identity hypotheses explicit", () => {
     const engine = new ResearchIntelligenceEngine({ executionId: "hypotheses", target: "Jordan Example", objective: "resolve identity" });
     engine.addHypothesis({ label: "H1", entity: "Jordan Example A", score: 0.9 });
