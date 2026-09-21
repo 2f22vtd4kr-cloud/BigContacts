@@ -6,6 +6,7 @@ import { GROQ_CHAT_MODELS } from "./groq-models";
 import { filterClaimUrls, filterPassagesForQuery } from "./passage-filter";
 import { sanitizePublicEmail, sanitizePublicPhone, isTrashContactValue } from "./contact-validation";
 import { safeOutboundFetch } from "./ssrf-safe-fetch";
+import { runProviderCall } from "./provider-gate";
 import { buildInvestigatorContext, tightenInvestigatorPrompt } from "./investigation-context-compaction";
 import { renderAtlasCapabilityGuidance } from "./atlas-capability-registry";
 import { assessResearchMove } from "./atlas-research-strategy";
@@ -47,7 +48,7 @@ async function callGroqJson(prompt: string, signal: AbortSignal): Promise<{ mode
     attempt += 1;
     const started = Date.now();
     try {
-      const response = await safeOutboundFetch("https://api.groq.com/openai/v1/chat/completions", {
+      const response = await runProviderCall({ provider: "groq", account: key, signal }, () => safeOutboundFetch("https://api.groq.com/openai/v1/chat/completions", {
         method: "POST",
         headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -61,7 +62,7 @@ async function callGroqJson(prompt: string, signal: AbortSignal): Promise<{ mode
           ],
         }),
         signal,
-      });
+      }));
       if (!response.ok) {
         recordAgenticLlmAttempt({ provider: "groq", model, promptChars: workingPrompt.length, status: response.status, success: false, latencyMs: Date.now() - started, retryIndex: attempt, reason: response.status === 413 ? "request_size" : response.status === 429 ? "rate_limited" : "provider_rejected" });
         if (response.status === 413 && !sizeReductionApplied) {
@@ -95,12 +96,12 @@ async function callMistralJson(prompt: string, signal: AbortSignal): Promise<{ m
     attempt += 1;
     const started = Date.now();
     try {
-      const response = await safeOutboundFetch("https://api.mistral.ai/v1/chat/completions", {
+      const response = await runProviderCall({ provider: "mistral", account: key, signal }, () => safeOutboundFetch("https://api.mistral.ai/v1/chat/completions", {
         method: "POST",
         headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
         body: JSON.stringify({ model, max_tokens: 768, response_format: { type: "json_object" }, messages: [{ role: "system", content: apexOrientationCompact("dig_agent") + "\nReturn one JSON action object only." }, { role: "user", content: workingPrompt }] }),
         signal,
-      });
+      }));
       if (!response.ok) {
         recordAgenticLlmAttempt({ provider: "mistral", model, promptChars: workingPrompt.length, status: response.status, success: false, latencyMs: Date.now() - started, retryIndex: attempt, reason: response.status === 413 ? "request_size" : response.status === 429 ? "rate_limited" : "provider_rejected" });
         if (response.status === 413 && !sizeReductionApplied) {
