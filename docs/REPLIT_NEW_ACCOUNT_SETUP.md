@@ -23,37 +23,36 @@ The Investigator owns its research trajectory. Tools are capabilities, not fixed
 
 DeepSeek/NVIDIA is not an active Apex provider path and must not be requested as an Investigator or Right-hand secret.
 
-## Runtime provider/integration secrets
+## Fresh-account secret contract
 
-The active provider/integration contract contains exactly these **13** names:
-
-```text
-REDIS_URL_1
-GROQ_API_KEY
-GEMINI_API_KEY
-MISTRAL_API_KEY
-HF_TOKEN
-SERPER_API_KEY
-TAVILY_API_KEY
-SERPAPI_KEY
-EXA_API_KEY
-SCRAPFLY_API_KEY
-ZENROWS_API_KEY
-COMPANIES_HOUSE_API_KEY
-GEMINI_RIGHT_HAND_API_KEY
-```
-
-The separate API/browser security boundary uses:
+The startup contract is **exactly these 16 names, in this order**. Ask for/configure every one in Replit Secrets. Do not turn setup into conditional provider discovery.
 
 ```text
-APEX_API_AUTH_TOKEN
-APEX_OPERATOR_PASSWORD
-APEX_SESSION_SECRET
+1. REDIS_URL_1
+2. GROQ_API_KEY
+3. GEMINI_API_KEY
+4. MISTRAL_API_KEY
+5. HF_TOKEN
+6. SERPER_API_KEY
+7. TAVILY_API_KEY
+8. SERPAPI_KEY
+9. EXA_API_KEY
+10. SCRAPFLY_API_KEY
+11. ZENROWS_API_KEY
+12. COMPANIES_HOUSE_API_KEY
+13. GEMINI_RIGHT_HAND_API_KEY
+14. APEX_API_AUTH_TOKEN
+15. APEX_OPERATOR_PASSWORD
+16. APEX_SESSION_SECRET
 ```
 
-These are deployment security controls, not provider keys. Never print or commit secret values.
+Check presence only. Never display, echo, log, commit, or paste secret values into chat.
 
-Do not ask for GitHub credentials, `DATABASE_URL`, `WHOISJSON_API_KEY`, `WHOXY_*`, `REDIS_URL_2`–`REDIS_URL_5`, or DeepSeek/NVIDIA credentials.
+`DATABASE_URL` is supplied by Replit/Postgres and must not be requested from the operator.
+
+Do not request GitHub credentials, retired DeepSeek/NVIDIA credentials, `WHOISJSON_API_KEY`, `WHOXY_*`, or `REDIS_URL_2`–`REDIS_URL_5`.
+
+Older `docs/bureau-plan/*` secret lists are historical and are not authoritative for fresh-account setup. This file and `docs/APEX_REPLIT_INITIALIZATION_BLUEPRINT.md` are the current contract.
 
 ## Install and run
 
