@@ -2,11 +2,11 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { generateGeminiBossText } from "../lib/case-bureau";
 
 const selection = {
-  model: "gemini-2.5-flash",
+  model: "gemini-3.8-flash",
   status: "resolved" as const,
   inspectedKeyCount: 1,
   candidateCount: 3,
-  candidateModels: ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"],
+  candidateModels: ["gemini-3.8-flash", "gemini-3.7-flash", "gemini-3.5-flash-lite"],
   keyName: "GEMINI_API_KEY",
 };
 
@@ -33,7 +33,7 @@ describe("Gemini Boss text-only model authority", () => {
 
     const result = await generateGeminiBossText(selection, "Return JSON.");
 
-    expect(result.model).toBe("gemini-2.0-flash");
+    expect(result.model).toBe("gemini-3.7-flash");
     expect(result.raw).toBe('{"decision":"continue"}');
     expect(result.error).toBeNull();
     expect(fetchMock).toHaveBeenCalledTimes(2);
@@ -49,7 +49,7 @@ describe("Gemini Boss text-only model authority", () => {
 
     const result = await generateGeminiBossText(selection, "Review the case.");
 
-    expect(result.model).toBe("gemini-2.5-flash");
+    expect(result.model).toBe("gemini-3.8-flash");
     expect(result.raw).toBe('{"decision":"continue"}');
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
@@ -67,9 +67,9 @@ describe("Gemini Boss text-only model authority", () => {
     expect(body).toEqual({
       contents: [{ role: "user", parts: [{ text: "Use the persisted case context." }] }],
       generationConfig: {
-        temperature: 0.2,
-        maxOutputTokens: 8192,
+        maxOutputTokens: 1024,
         responseMimeType: "application/json",
+        thinkingConfig: { thinkingLevel: "low" },
       },
     });
     expect(body).not.toHaveProperty("tools");
