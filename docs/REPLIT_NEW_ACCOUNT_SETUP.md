@@ -6,7 +6,7 @@ Import the existing repository through the connected Replit ↔ GitHub integrati
 
 `https://github.com/2f22vtd4kr-cloud/BigContacts`
 
-Use the reviewed branch `audit/apex-atlas-very-strong-v1` only for this engineering review/build. The production/certification branch remains `audit/genuine-five-green-final` until the reviewed changes are accepted.
+Use the reviewed branch `audit/apex-atlas-very-strong-v1` only for this engineering review/build. The production/certification branch remains `main` until the reviewed changes are accepted.
 
 Do not ask for a GitHub PAT, `GITHUB_TOKEN`, or any other GitHub credential.
 
