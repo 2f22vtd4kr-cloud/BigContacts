@@ -11,8 +11,25 @@ describe("Gemini Right-hand latency controls", () => {
     globalThis.fetch = nativeFetch;
     delete process.env.GEMINI_RIGHT_HAND_API_KEY;
     delete process.env.GEMINI_RIGHT_HAND_MODEL_CHAIN;
+    delete process.env.APEX_GEMINI_RIGHT_HAND_REQUEST_TIMEOUT_MS;
+    delete process.env.APEX_GEMINI_RIGHT_HAND_OVERALL_TIMEOUT_MS;
     vi.resetModules();
     vi.restoreAllMocks();
+  });
+
+
+  it("does not use the old 8-second provider cutoff and keeps the overall fallback window bounded", async () => {
+    vi.resetModules();
+    const { getGeminiRightHandLatencyConfig } = await import("../lib/gemini-right-hand-reasoning");
+    expect(getGeminiRightHandLatencyConfig()).toEqual({ requestTimeoutMs: 20_000, overallTimeoutMs: 45_000 });
+  });
+
+  it("allows Replit operators to tune latency without removing bounded fail-closed behavior", async () => {
+    process.env.APEX_GEMINI_RIGHT_HAND_REQUEST_TIMEOUT_MS = "25000";
+    process.env.APEX_GEMINI_RIGHT_HAND_OVERALL_TIMEOUT_MS = "55000";
+    vi.resetModules();
+    const { getGeminiRightHandLatencyConfig } = await import("../lib/gemini-right-hand-reasoning");
+    expect(getGeminiRightHandLatencyConfig()).toEqual({ requestTimeoutMs: 25_000, overallTimeoutMs: 55_000 });
   });
 
   it("uses bounded low-thinking Gemini 3 control generation", async () => {
