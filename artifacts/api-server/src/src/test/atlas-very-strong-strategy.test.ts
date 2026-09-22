@@ -26,6 +26,8 @@ describe("Apex Atlas capability registry", () => {
     expect(guidance).toContain("CAPABILITY search.serper");
     expect(guidance).toContain("prerequisites=");
     expect(guidance).toContain("limitations=");
+    expect(guidance).toContain("CAPABILITY osint.spiderfoot");
+    expect(capabilityForAction("footprint_spiderfoot").map((x) => x.id)).toContain("osint.spiderfoot");
   });
 });
 
