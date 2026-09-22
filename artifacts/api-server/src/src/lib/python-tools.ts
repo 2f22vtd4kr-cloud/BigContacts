@@ -24,6 +24,35 @@ export interface SherlockResult { username: string; found: SherlockProfile[]; to
 export interface HarvesterResult { domain: string; emails: string[]; subdomains: string[]; ips: string[]; hosts: string[]; totalFound: number; available: boolean; error?: string; }
 export interface OpenDeepResearchResult { status: "completed" | "failed" | "timeout" | "unavailable"; report: string | null; citations: string[]; searches: number; pages: number; model: string | null; available: boolean; reviewOnly: true; error?: string; }
 
+export type SpiderFootTargetType = "domain" | "hostname" | "ip" | "email" | "username" | "person" | "asn";
+export type SpiderFootProfile = "identity-expansion" | "domain-infrastructure" | "organization-footprint" | "contact-adjacent" | "broad-osint";
+
+export interface SpiderFootObservation {
+  scanId: string;
+  target: string;
+  targetType: SpiderFootTargetType;
+  profile: SpiderFootProfile;
+  sourceModule: string;
+  eventType: string;
+  value: string;
+  sourceUrl?: string;
+  observedAt: string;
+  parentEventId?: string;
+}
+
+export interface SpiderFootResult {
+  target: string;
+  targetType: SpiderFootTargetType;
+  profile: SpiderFootProfile;
+  observations: SpiderFootObservation[];
+  eventsReceived: number;
+  available: boolean;
+  partial: boolean;
+  error?: string;
+  reviewOnly: true;
+}
+
+
 function cancelled(signal?: AbortSignal): never | void { if (signal?.aborted) throw new Error("cancelled"); }
 function authorizeNetworkPython(signal?: AbortSignal): string | null {
   const authorization = authorizePythonSandboxRequest({ capability: "network_osint", signal, timeoutMs: 30_000, maxOutputBytes: 1_000_000, destinationPolicy: "approved-public-web-only" });
@@ -50,6 +79,41 @@ export async function runTheHarvester(domain: string, _sources = "bing,duckduckg
   cancelled(options.signal); const blocked = authorizeNetworkPython(options.signal); if (blocked) return { ...base, error: blocked };
   const cleanDomain = domain.replace(/^https?:\/\//i, "").replace(/\/.*$/, "").trim(); if (!cleanDomain || !cleanDomain.includes(".")) return { ...base, error: "Invalid domain" }; return base;
 }
+export async function runSpiderFoot(
+  target: string,
+  targetType: SpiderFootTargetType,
+  profile: SpiderFootProfile = "identity-expansion",
+  options: { signal?: AbortSignal; timeoutMs?: number; maxOutputBytes?: number } = {},
+): Promise<SpiderFootResult> {
+  const base: SpiderFootResult = {
+    target,
+    targetType,
+    profile,
+    observations: [],
+    eventsReceived: 0,
+    available: false,
+    partial: false,
+    reviewOnly: true,
+  };
+  cancelled(options.signal);
+  const timeoutMs = options.timeoutMs ?? 30_000;
+  const maxOutputBytes = options.maxOutputBytes ?? 1_000_000;
+  const authorization = authorizePythonSandboxRequest({
+    capability: "network_osint",
+    signal: options.signal,
+    timeoutMs,
+    maxOutputBytes,
+    destinationPolicy: "approved-public-web-only",
+  });
+  if (!authorization.allowed) return { ...base, error: authorization.reason ?? PYTHON_SANDBOX_UNAVAILABLE_REASON };
+  const cleanTarget = target.trim();
+  if (!cleanTarget) return { ...base, error: "Invalid SpiderFoot target" };
+  // The actual SpiderFoot subprocess is intentionally not started here until the
+  // trusted sandbox attestation exists. This branch defines the canonical Apex
+  // provider contract and keeps network-capable Python fail-closed.
+  return { ...base, error: "SpiderFoot executor is not installed in the attested Apex Python sandbox." };
+}
+
 export async function runOpenDeepResearch(_prompt: string, options: { timeoutMs?: number; signal?: AbortSignal } = {}): Promise<OpenDeepResearchResult> {
   const base: OpenDeepResearchResult = { status: "unavailable", report: null, citations: [], searches: 0, pages: 0, model: null, available: false, reviewOnly: true };
   cancelled(options.signal); const authorization = authorizePythonSandboxRequest({ capability: "network_osint", signal: options.signal, timeoutMs: options.timeoutMs ?? 30_000, maxOutputBytes: 1_000_000, destinationPolicy: "approved-public-web-only" });
