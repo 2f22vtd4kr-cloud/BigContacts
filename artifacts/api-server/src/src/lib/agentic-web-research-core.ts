@@ -223,6 +223,30 @@ export function discoveryTerminalGate(records: readonly AgenticTrajectoryRecord[
       reason: "Discovery terminal stop is premature: the Investigator has not completed a successful external research action.",
     };
   }
+  const terminal = records[records.length - 1];
+  if (terminal.action === "done" && terminal.findings.length > 0) {
+    const successfulRecords = records.filter((record) => record.execution === "success");
+    const ungrounded = terminal.findings.filter((finding) => {
+      const sources = new Set(finding.sourceUrls.map((url) => {
+        try { const parsed = new URL(url); parsed.hash = ""; parsed.hostname = parsed.hostname.toLowerCase(); return parsed.href.endsWith("/") ? parsed.href.slice(0, -1) : parsed.href; }
+        catch { return ""; }
+      }).filter(Boolean));
+      const value = finding.value.trim().toLowerCase();
+      const personTokens = finding.scope === "candidate" && finding.personName
+        ? finding.personName.toLowerCase().split(/[^a-z0-9]+/).filter((token) => token.length >= 2)
+        : [];
+      return !successfulRecords.some((record) => {
+        const observed = record.observedUrls.map((url) => {
+          try { const parsed = new URL(url); parsed.hash = ""; parsed.hostname = parsed.hostname.toLowerCase(); return parsed.href.endsWith("/") ? parsed.href.slice(0, -1) : parsed.href; }
+          catch { return ""; }
+        });
+        if (!observed.some((url) => sources.has(url)) || typeof record.observation !== "string") return false;
+        const text = record.observation.toLowerCase();
+        return text.includes(value) && personTokens.every((token) => text.includes(token));
+      });
+    });
+    if (ungrounded.length) return { allowed: false, reason: "Discovery terminal stop blocked: one or more claimed findings were not grounded in successfully observed cited material." };
+  }
   return { allowed: true, reason: null };
 }
 
