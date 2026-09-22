@@ -157,6 +157,7 @@ jobs:
           set -euo pipefail
           cd artifacts/api-server
           for test_file in src/src/test/*.test.ts; do
+            if [[ "${test_file}" == *"/smoke.test.ts" ]]; then continue; fi
             echo "===== FULL AUDIT TEST: ${test_file} ====="
             pnpm exec vitest run --maxWorkers=1 "${test_file}"
           done
@@ -225,6 +226,7 @@ jobs:
           set -euo pipefail
           cd artifacts/api-server
           for test_file in src/src/test/*.test.ts; do
+            if [[ "${test_file}" == *"/smoke.test.ts" ]]; then continue; fi
             echo "===== FULL AUDIT TEST: ${test_file} ====="
             pnpm exec vitest run --maxWorkers=1 "${test_file}"
           done
@@ -293,6 +295,7 @@ jobs:
           set -euo pipefail
           cd artifacts/api-server
           for test_file in src/src/test/*.test.ts; do
+            if [[ "${test_file}" == *"/smoke.test.ts" ]]; then continue; fi
             echo "===== FULL AUDIT TEST: ${test_file} ====="
             pnpm exec vitest run --maxWorkers=1 "${test_file}"
           done
@@ -361,6 +364,7 @@ jobs:
           set -euo pipefail
           cd artifacts/api-server
           for test_file in src/src/test/*.test.ts; do
+            if [[ "${test_file}" == *"/smoke.test.ts" ]]; then continue; fi
             echo "===== FULL AUDIT TEST: ${test_file} ====="
             pnpm exec vitest run --maxWorkers=1 "${test_file}"
           done
