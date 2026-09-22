@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { runHolehe, runMaigret, runSherlock, runTheHarvester, runOpenDeepResearch } from "../lib/python-tools";
+import { runHolehe, runMaigret, runSherlock, runTheHarvester, runOpenDeepResearch, runSpiderFoot } from "../lib/python-tools";
 
 const QUARANTINE_ERROR =
   "No trusted Apex Python sandbox attestation is installed; network-capable Python remains fail-closed.";
@@ -31,6 +31,17 @@ describe("Python OSINT source boundary", () => {
     const result = await runTheHarvester("example.com");
     expect(result.available).toBe(false);
     expect(result.emails).toEqual([]);
+    expect(result.error).toBe(QUARANTINE_ERROR);
+  });
+
+
+  it("fails closed before SpiderFoot can start a network-capable subprocess", async () => {
+    const result = await runSpiderFoot("example.com", "domain", "domain-infrastructure");
+    expect(result.available).toBe(false);
+    expect(result.reviewOnly).toBe(true);
+    expect(result.observations).toEqual([]);
+    expect(result.eventsReceived).toBe(0);
+    expect(result.partial).toBe(false);
     expect(result.error).toBe(QUARANTINE_ERROR);
   });
 
