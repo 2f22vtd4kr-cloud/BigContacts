@@ -31,7 +31,8 @@ describe("Gemini Right-hand latency controls", () => {
     const { getGeminiRightHandLatencyConfig } = await import("../lib/gemini-right-hand-reasoning");
     expect(getGeminiRightHandLatencyConfig()).toEqual({ requestTimeoutMs: 25_000, overallTimeoutMs: 55_000 });
   });
-\n  it("uses bounded low-thinking Gemini 3 control generation", async () => {
+
+  it("uses bounded low-thinking Gemini 3 control generation", async () => {
     process.env.GEMINI_RIGHT_HAND_API_KEY = "test-key";
     const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
       new Response(JSON.stringify({
