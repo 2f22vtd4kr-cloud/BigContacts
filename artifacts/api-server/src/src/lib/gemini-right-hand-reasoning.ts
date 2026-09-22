@@ -30,6 +30,10 @@ function overallTimeoutMs(): number {
   const requestMs = requestTimeoutMs();
   return boundedTimeoutEnv("APEX_GEMINI_RIGHT_HAND_OVERALL_TIMEOUT_MS", DEFAULT_OVERALL_TIMEOUT_MS, Math.max(MIN_OVERALL_TIMEOUT_MS, requestMs), MAX_OVERALL_TIMEOUT_MS);
 }
+
+export function getGeminiRightHandLatencyConfig(): { requestTimeoutMs: number; overallTimeoutMs: number } {
+  return { requestTimeoutMs: requestTimeoutMs(), overallTimeoutMs: overallTimeoutMs() };
+}
 type GeminiResponse = { candidates?: Array<{ content?: { parts?: Array<{ text?: string | null }> } }> };
 type GeminiRequestResult = { raw: string; error: string | null; model: string };
 export type GeminiRightHandStatus = { configured: boolean; model: string; fallbackModels: string[]; endpoint: string; role: "right_hand_advisor"; capability: "case_file_reasoning_only" };
