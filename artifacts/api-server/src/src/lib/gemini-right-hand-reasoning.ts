@@ -8,9 +8,28 @@ export const GEMINI_RIGHT_HAND_MODEL = "gemini-3.8-flash";
 export const GEMINI_RIGHT_HAND_FALLBACK_MODELS = ["gemini-3.7-flash", "gemini-3.6-flash", "gemini-3.5-flash-lite"] as const;
 const GEMINI_RIGHT_HAND_MODEL_CHAIN = [GEMINI_RIGHT_HAND_MODEL, ...GEMINI_RIGHT_HAND_FALLBACK_MODELS];
 const GEMINI_CHAT_API_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
-const REQUEST_TIMEOUT_MS = 8_000;
-const OVERALL_TIMEOUT_MS = 16_000;
+const DEFAULT_REQUEST_TIMEOUT_MS = 20_000;
+const DEFAULT_OVERALL_TIMEOUT_MS = 45_000;
+const MIN_REQUEST_TIMEOUT_MS = 10_000;
+const MAX_REQUEST_TIMEOUT_MS = 60_000;
+const MIN_OVERALL_TIMEOUT_MS = 20_000;
+const MAX_OVERALL_TIMEOUT_MS = 120_000;
 const MAX_MODEL_ATTEMPTS = 2;
+
+function boundedTimeoutEnv(name: string, fallback: number, min: number, max: number): number {
+  const parsed = Number(process.env[name]);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.min(max, Math.max(min, Math.floor(parsed)));
+}
+
+function requestTimeoutMs(): number {
+  return boundedTimeoutEnv("APEX_GEMINI_RIGHT_HAND_REQUEST_TIMEOUT_MS", DEFAULT_REQUEST_TIMEOUT_MS, MIN_REQUEST_TIMEOUT_MS, MAX_REQUEST_TIMEOUT_MS);
+}
+
+function overallTimeoutMs(): number {
+  const requestMs = requestTimeoutMs();
+  return boundedTimeoutEnv("APEX_GEMINI_RIGHT_HAND_OVERALL_TIMEOUT_MS", DEFAULT_OVERALL_TIMEOUT_MS, Math.max(MIN_OVERALL_TIMEOUT_MS, requestMs), MAX_OVERALL_TIMEOUT_MS);
+}
 type GeminiResponse = { candidates?: Array<{ content?: { parts?: Array<{ text?: string | null }> } }> };
 type GeminiRequestResult = { raw: string; error: string | null; model: string };
 export type GeminiRightHandStatus = { configured: boolean; model: string; fallbackModels: string[]; endpoint: string; role: "right_hand_advisor"; capability: "case_file_reasoning_only" };
@@ -24,18 +43,18 @@ function extractJson(raw: string): Record<string, unknown> | null { const fenced
 function shouldFallback(status: number): boolean { return status === 404 || status === 408 || status === 429 || status === 500 || status === 502 || status === 503 || status === 504; }
 function isGemini3Model(model: string): boolean { return /^gemini-3(?:\.\d+)?-/i.test(model); }
 async function request(system: string, user: string): Promise<GeminiRequestResult> {
-  const apiKey = key(); if (!apiKey) return { raw: "", error: "GEMINI_RIGHT_HAND_API_KEY is not configured.", model: GEMINI_RIGHT_HAND_MODEL }; const chain = modelChain(); const failures: string[] = []; const deadline = Date.now() + OVERALL_TIMEOUT_MS;
+  const apiKey = key(); if (!apiKey) return { raw: "", error: "GEMINI_RIGHT_HAND_API_KEY is not configured.", model: GEMINI_RIGHT_HAND_MODEL }; const chain = modelChain(); const failures: string[] = []; const configuredRequestTimeoutMs = requestTimeoutMs(); const configuredOverallTimeoutMs = overallTimeoutMs(); const deadline = Date.now() + configuredOverallTimeoutMs;
   for (const model of chain) {
     const remainingMs = deadline - Date.now();
-    if (remainingMs <= 0) return { raw: "", error: `Gemini Right-hand deadline exceeded after ${OVERALL_TIMEOUT_MS}ms.`, model: chain[chain.length - 1] ?? GEMINI_RIGHT_HAND_MODEL };
-    const controller = new AbortController(); const timer = setTimeout(() => controller.abort(), Math.min(REQUEST_TIMEOUT_MS, remainingMs));
+    if (remainingMs <= 0) return { raw: "", error: `Gemini Right-hand deadline exceeded after ${configuredOverallTimeoutMs}ms.`, model: chain[chain.length - 1] ?? GEMINI_RIGHT_HAND_MODEL };
+    const controller = new AbortController(); const timer = setTimeout(() => controller.abort(), Math.min(configuredRequestTimeoutMs, remainingMs));
     try {
       const response = await fetch(`${GEMINI_CHAT_API_BASE}/${model}:generateContent`, { method: "POST", headers: { Accept: "application/json", "Content-Type": "application/json", "x-goog-api-key": apiKey }, body: JSON.stringify({ system_instruction: { parts: [{ text: `${apexOrientationCompact("right_hand")}\n\n${system}` }] }, contents: [{ role: "user", parts: [{ text: user }] }], generationConfig: { maxOutputTokens: 768, responseMimeType: "application/json", ...(isGemini3Model(model) ? { thinkingConfig: { thinkingLevel: "low" } } : {}) } }), signal: controller.signal });
       const body = await response.text();
       if (response.ok) { try { const raw = textOf(JSON.parse(body) as GeminiResponse); if (raw) return { raw, error: null, model }; return { raw: "", error: `Gemini Right-hand ${model} returned an empty response.`, model }; } catch { return { raw: "", error: `Gemini Right-hand ${model} returned invalid JSON.`, model }; }
       }
       const detail = body ? `: ${body}` : ""; failures.push(`${model} HTTP ${response.status}`); if (!shouldFallback(response.status)) return { raw: "", error: `Gemini API ${model} HTTP ${response.status}${detail}`, model };
-    } catch (error) { const message = error instanceof Error && error.name === "AbortError" ? `request timed out after ${REQUEST_TIMEOUT_MS}ms` : error instanceof Error ? error.message : "request failed"; failures.push(`${model} ${message}`); if (!(error instanceof Error && error.name === "AbortError")) return { raw: "", error: `Gemini Right-hand ${model} ${message}.`, model }; }
+    } catch (error) { const message = error instanceof Error && error.name === "AbortError" ? `request timed out after ${configuredRequestTimeoutMs}ms` : error instanceof Error ? error.message : "request failed"; failures.push(`${model} ${message}`); if (!(error instanceof Error && error.name === "AbortError")) return { raw: "", error: `Gemini Right-hand ${model} ${message}.`, model }; }
     finally { clearTimeout(timer); }
   }
   return { raw: "", error: `Gemini Right-hand exhausted bounded model attempts: ${failures.join("; ")}`, model: chain[chain.length - 1] ?? GEMINI_RIGHT_HAND_MODEL };
