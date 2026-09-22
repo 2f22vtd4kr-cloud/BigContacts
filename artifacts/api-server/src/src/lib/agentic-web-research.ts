@@ -101,7 +101,10 @@ async function runDynamicDiscovery(core: CoreModule, input: RunInput, controller
       records = [...records, normalizedRecord];
       trajectory = [...trajectory, ...actResult.trajectory.map((line) => renumberTrajectory(line, actionTurn)), `INTELLIGENCE_STATE:${JSON.stringify(intelligence.buildContext())}`];
       if (actResult.modelFindings.length) modelFindings = [...modelFindings, ...actResult.modelFindings];
-      if (raw.findings.length) findings = [...findings, ...(raw.findings as CoreResult["findings"])];
+      if (raw.findings.length) {
+              const grounded = groundedFindingsForTrajectory(raw.findings as AgenticFinding[], [...records, normalizedRecord]);
+              findings = [...findings, ...(grounded as CoreResult["findings"])];
+            }
       if (raw.action === "done") return { status: "completed", model, iterations: actionTurn, searches, visits, findings, modelFindings, stopReason: "MODEL_DECIDED_DONE", trajectory, trajectoryRecords: records, ...(error ? { error } : {}), executionId };
     }
     if (actResult.status !== "completed" || actResult.stopReason !== "ITERATION_BUDGET") return { status: actResult.status, model, iterations: actionTurn, searches, visits, findings, modelFindings, stopReason: actResult.stopReason, trajectory, trajectoryRecords: records, ...(error ? { error } : {}), executionId };
@@ -175,8 +178,21 @@ export async function runAgenticWebResearch(input: RunInput): Promise<AgenticRun
             records = [...records, normalizedRecord];
             trajectory = [...trajectory, ...actResult.trajectory.map((line) => renumberTrajectory(line, actionTurn)), `INTELLIGENCE_STATE:${JSON.stringify(intelligence.buildContext())}`];
             if (actResult.modelFindings.length) modelFindings = [...modelFindings, ...actResult.modelFindings];
-            if (raw.findings.length) findings = [...findings, ...(raw.findings as CoreResult["findings"])];
+            if (raw.findings.length) {
+              const grounded = groundedFindingsForTrajectory(raw.findings as AgenticFinding[], [...records, normalizedRecord]);
+              findings = [...findings, ...(grounded as CoreResult["findings"])];
+            }
             if (raw.action === "done") {
+              const grounded = groundedFindingsForTrajectory(raw.findings as AgenticFinding[], [...records, normalizedRecord]);
+              if (raw.findings.length > 0 && grounded.length !== raw.findings.length) {
+                normalizedRecord.action = "verification_required";
+                normalizedRecord.execution = "blocked";
+                normalizedRecord.findings = [];
+                normalizedRecord.observation = "Terminal claim verification blocked the stop: at least one Investigator finding was not supported by successfully observed cited material. Continue research and verify each claim before stopping.";
+                records = [...records.slice(0, -1), normalizedRecord];
+                trajectory.push(`VERIFICATION_BLOCKED:turn=${actionTurn}:ungrounded_terminal_claim`);
+                continue;
+              }
               oversight = await reviewTargetInvestigationAct({ caseId: oversightContext.caseId, controlTurn: actionTurn, runId: executionId, targetName: input.targetName, targetType: oversightContext.targetType, objective, sharedContext: `${oversightContext.contextDocument}\\n\\n${renderIntelligenceContext(intelligence.buildContext())}`, act: normalizedRecord, recentActs: records });
               if (oversight.direction) {
                 const checkedDirection = validateGeminiResearchObjective(oversight.direction);
