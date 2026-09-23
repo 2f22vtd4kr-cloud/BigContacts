@@ -744,7 +744,9 @@ export default function EntityLedger() {
       });
       if (!launched.ok) throw new Error(launched.message || "Dig failed to start");
       const base = (import.meta as any).env.BASE_URL.replace(/\/$/, "");
-      // Poll until Atlas idle so ContactSurface refresh sees promoted routes
+      const jobId = launched.jobId;
+      if (!jobId) throw new Error("Atlas launch returned no job ID");
+      // Poll the launched job until terminal; canonical target execution promotes evidence itself.
       let attempts = 0;
       const poll = async () => {
         if (attempts > 90) {
@@ -754,17 +756,10 @@ export default function EntityLedger() {
         }
         attempts++;
         try {
-          const sr = await fetch(`${base}/api/ingest/atlas-status`);
+          const sr = await fetch(`${base}/api/ingest/job/${encodeURIComponent(jobId)}`, { cache: "no-store" });
           const st = await sr.json();
-          const running = st?.status === "running" || st?.status === "paused";
-          if (!running) {
-            try {
-              await fetch(`${base}/api/entities/rehydrate-contacts`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ entityId: id }),
-              });
-            } catch { /* non-fatal */ }
+          const terminal = st?.status === "done" || st?.status === "failed" || st?.status === "cancelled";
+          if (terminal) {
             setDiggingId(null);
             setScoreboardKey((k) => k + 1);
             void refetch();
@@ -800,6 +795,8 @@ export default function EntityLedger() {
           continue;
         }
         const base = (import.meta as any).env.BASE_URL.replace(/\/$/, "");
+        const jobId = launched.jobId;
+        if (!jobId) { console.warn("Atlas launch returned no job ID", id); continue; }
         let attempts = 0;
         await new Promise<void>((resolve) => {
           const poll = async () => {
@@ -809,17 +806,10 @@ export default function EntityLedger() {
             }
             attempts++;
             try {
-              const sr = await fetch(`${base}/api/ingest/atlas-status`);
+              const sr = await fetch(`${base}/api/ingest/job/${encodeURIComponent(jobId)}`, { cache: "no-store" });
               const st = await sr.json();
-              const running = st?.status === "running" || st?.status === "paused";
-              if (!running) {
-                try {
-                  await fetch(`${base}/api/entities/rehydrate-contacts`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ entityId: id }),
-                  });
-                } catch { /* non-fatal */ }
+              const terminal = st?.status === "done" || st?.status === "failed" || st?.status === "cancelled";
+              if (terminal) {
                 resolve();
                 return;
               }
@@ -1068,30 +1058,6 @@ export default function EntityLedger() {
               </button>
             </div>
           )}
-          <button
-            type="button"
-            data-testid="rehydrate-thin-cards"
-            className="text-[10px] font-mono uppercase tracking-wider text-[#9CFF1A]/80 hover:text-[#9CFF1A] border border-[#9CFF1A]/20 rounded-lg px-2.5 py-1.5"
-            onClick={async () => {
-              try {
-                const base = (import.meta as any).env.BASE_URL.replace(/\/$/, "");
-                const r = await fetch(`${base}/api/entities/rehydrate-contacts`, {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ limit: 80 }),
-                });
-                if (!r.ok) throw new Error(`HTTP ${r.status}`);
-                await refetch();
-              } catch (e) {
-                console.warn("rehydrate thin cards failed", e);
-              }
-            }}
-          >
-            Rehydrate cards from evidence
-          </button>
-        </div>
-        {/* Header toolbar */}
-        <div className="flex flex-col gap-2 border-b border-[#9CFF1A]/12 bg-card/30 px-4 py-3 flex-shrink-0">
           <div className="flex items-center justify-between gap-2">
             <div className="min-w-0">
               <p className="text-[11px] text-muted-foreground">Search and filter attributable people and companies</p>
