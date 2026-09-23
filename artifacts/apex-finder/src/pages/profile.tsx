@@ -606,6 +606,7 @@ export default function ApexProfile() {
       setTimeout(poll, 3_000);
     } catch (err: any) {
       setIsEnriching(false);
+      setActiveAtlasJobId(null);
       setEnrichError(err?.message ?? "Dig failed — try again");
     }
   };
@@ -1091,6 +1092,7 @@ export default function ApexProfile() {
                           await stopAtlasPipeline(activeAtlasJobId ?? undefined);
                         } catch { /* best-effort */ }
                         setIsEnriching(false);
+                        setActiveAtlasJobId(null);
                         refetchEntity();
                         setContactEvidenceKey((k) => k + 1);
                       }}
