@@ -3,6 +3,7 @@ import fs from "node:fs";
 
 const routes = fs.readFileSync("artifacts/api-server/src/src/routes/index.ts", "utf8");
 const relationships = fs.readFileSync("artifacts/api-server/src/src/routes/relationships.ts", "utf8");
+const ingest = fs.readFileSync("artifacts/api-server/src/src/routes/ingest.ts", "utf8");
 const frontend = fs.readFileSync("artifacts/apex-finder/src/pages/profile.tsx", "utf8");
 
 const failures = [];
