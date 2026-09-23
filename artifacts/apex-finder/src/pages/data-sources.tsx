@@ -919,14 +919,16 @@ function PythonToolsPanel() {
   const load = () => {
     setLoading(true);
     const base = import.meta.env.BASE_URL.replace(/\/$/, "");
-    fetch(`${base}/api/enrich/python-tools`)
+    fetch(`${base}/api/system/status`)
       .then((r) => (r.ok ? readApiJson(r) : Promise.reject(new Error(String(r.status)))))
       .then((d) => {
         // Reject non-object / incomplete payloads (mock empty arrays crash status.tools[k]).
-        if (!d || typeof d !== "object" || Array.isArray(d) || !d.tools || typeof d.tools !== "object") {
+        const pythonTools = d?.pythonTools;
+        // System status is the canonical read-only health surface; legacy enrichment routes stay retired.
+        if (!pythonTools || typeof pythonTools !== "object" || Array.isArray(pythonTools) || !pythonTools.tools || typeof pythonTools.tools !== "object") {
           setStatus(null);
         } else {
-          setStatus(d as PythonToolsStatus);
+          setStatus(pythonTools as PythonToolsStatus);
         }
         setLoading(false);
         setChecked(true);
@@ -1107,7 +1109,7 @@ function SourceQualityPanel() {
   const load = () => {
     setLoading(true);
     setError("");
-    apiGet("/api/pipeline/phase-j/source-quality")
+    apiGet("/api/system/source-quality")
       .then((d) => { setData(d as SourceQualityData); setLoading(false); })
       .catch((e) => { setError(e instanceof Error ? e.message : "Unavailable"); setLoading(false); });
   };
