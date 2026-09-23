@@ -45,6 +45,10 @@ export async function launchAtlasPipeline(opts: LaunchAtlasOptions = {}): Promis
     ...(opts.researchLimit != null ? { researchLimit: opts.researchLimit } : {}),
     ...(opts.runResearch != null ? { runResearch: opts.runResearch } : {}),
     ...(opts.skipFaa != null ? { skipFaa: opts.skipFaa } : {}),
+    ...(opts.discoveryFirst != null ? { discoveryFirst: opts.discoveryFirst } : {}),
+    ...(opts.researchLimit != null ? { researchLimit: opts.researchLimit } : {}),
+    ...(opts.runResearch != null ? { runResearch: opts.runResearch } : {}),
+    ...(opts.skipFaa != null ? { skipFaa: opts.skipFaa } : {}),
   };
 
   let integrityNote = "";
