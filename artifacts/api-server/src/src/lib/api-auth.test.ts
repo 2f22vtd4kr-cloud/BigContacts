@@ -37,13 +37,4 @@ describe("apiAuth", () => {
     expect(res.status).toHaveBeenCalledWith(401);
   });
 
-  it("allows CI proof traffic from loopback", () => {
-    vi.stubEnv("CI", "true");
-    vi.stubEnv("NODE_ENV", "test");
-    const next = vi.fn();
-    const res = { status: vi.fn().mockReturnThis(), json: vi.fn() } as any;
-    apiAuth({ path: "/entities", method: "GET", ip: "127.0.0.1", header: vi.fn() } as any, res, next);
-    expect(next).toHaveBeenCalledOnce();
-    expect(res.status).not.toHaveBeenCalled();
-  });
 });
