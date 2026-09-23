@@ -34,6 +34,7 @@ router.use(legacyApexMutationGuard);
 router.use(safeEntityMergeRouter);
 router.use(entitiesRouter);
 router.use(assetsRouter);
+router.use(relationshipsRouter);
 router.use(canonicalCaseContinuationGuard);
 router.use(researchRouter);
 router.use(dashboardRouter);
