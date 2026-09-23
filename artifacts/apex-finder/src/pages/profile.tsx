@@ -338,6 +338,7 @@ export default function ApexProfile() {
 
   const [selectedIdx, setSelectedIdx] = useState(0);
   const [isEnriching, setIsEnriching]     = useState(false);
+  const [activeAtlasJobId, setActiveAtlasJobId] = useState<string | null>(null);
   const [digDepth, setDigDepth] = useState<"fast" | "standard" | "deep">("standard");
   const [enrichError, setEnrichError]     = useState<string | null>(null);
   const [enrichDone, setEnrichDone]       = useState(false);
@@ -571,10 +572,12 @@ export default function ApexProfile() {
       // Poll the canonical job lifecycle until terminal (or timeout ~7 min)
       const jobId = launched.jobId;
       if (!jobId) throw new Error("Atlas launch returned no job ID");
+      setActiveAtlasJobId(jobId);
       let attempts = 0;
       const poll = async () => {
         if (attempts > 90) {
           setIsEnriching(false);
+          setActiveAtlasJobId(null);
           setEnrichError("Timed out waiting for Atlas dig.");
           refetchEntity();
           setContactEvidenceKey((k) => k + 1);
@@ -587,6 +590,7 @@ export default function ApexProfile() {
           const terminal = st?.status === "done" || st?.status === "failed" || st?.status === "cancelled" || st?.status === "error";
           if (terminal) {
             setIsEnriching(false);
+            setActiveAtlasJobId(null);
             if (st?.status !== "done") setEnrichError(st?.message ?? "Atlas research did not complete successfully.");
             setEnrichDone(st?.status === "done");
             refetchEntity();
@@ -1084,7 +1088,7 @@ export default function ApexProfile() {
                       data-testid="button-stop-dig"
                       onClick={async () => {
                         try {
-                          await stopAtlasPipeline();
+                          await stopAtlasPipeline(activeAtlasJobId ?? undefined);
                         } catch { /* best-effort */ }
                         setIsEnriching(false);
                         refetchEntity();
