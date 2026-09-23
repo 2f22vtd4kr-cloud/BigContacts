@@ -1,6 +1,6 @@
 /**
  * DigSpan trajectory strip — Honeycomb/LangSmith-style live steps from API recentSpans.
- * Data contract: GET /api/ingest/atlas-status → recentSpans[]
+ * Data contract: GET /api/ingest/atlas-trace/:jobId → trace[]
  */
 import { cn } from "@/lib/utils";
 import { humanizeLiveStep } from "@/lib/humanize-live-copy";
