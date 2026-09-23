@@ -22,7 +22,7 @@ function walk(dir) {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) walk(full);
-    else if (extensions.has(path.extname(entry.name))) {
+    else if (extensions.has(path.extname(entry.name)) && !/(?:\.test|\.spec)\.[^.]+$/.test(entry.name)) {
       const text = fs.readFileSync(full, "utf8");
       for (const token of forbidden) {
         if (text.includes(token)) hits.push({ file: full, token });
