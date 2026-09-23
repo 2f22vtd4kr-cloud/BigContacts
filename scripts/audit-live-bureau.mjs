@@ -19,7 +19,7 @@ const launch = readJson("/tmp/launch.json", {});
 
 // The active-job response is lifecycle authority; the structured trace is the
 // authoritative execution feed. Keep the audit contract independent of the
-// retired /api/ingest/atlas-status route and merge the trace projection here.
+// retired Atlas status route and merge the trace projection here.
 if (Array.isArray(trace?.trace)) status.recentSpans = trace.trace;
 
 const fail = (msg) => { console.error(`FAIL: ${msg}`); process.exitCode = 1; };
