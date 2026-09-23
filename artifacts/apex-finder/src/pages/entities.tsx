@@ -728,6 +728,7 @@ export default function EntityLedger() {
   };
 
   const [diggingId, setDiggingId] = useState<number | null>(null);
+  const [diggingJobId, setDiggingJobId] = useState<string | null>(null);
   const [digDepth, setDigDepth] = useState<"fast" | "standard" | "deep">("standard");
   const [scoreboardKey, setScoreboardKey] = useState(0);
   const handleDigEntity = async (id: number) => {
@@ -746,11 +747,13 @@ export default function EntityLedger() {
       const base = (import.meta as any).env.BASE_URL.replace(/\/$/, "");
       const jobId = launched.jobId;
       if (!jobId) throw new Error("Atlas launch returned no job ID");
+      setDiggingJobId(jobId);
       // Poll the launched job until terminal; canonical target execution promotes evidence itself.
       let attempts = 0;
       const poll = async () => {
         if (attempts > 90) {
           setDiggingId(null);
+          setDiggingJobId(null);
           void refetch();
           return;
         }
@@ -761,6 +764,7 @@ export default function EntityLedger() {
           const terminal = st?.status === "done" || st?.status === "failed" || st?.status === "cancelled";
           if (terminal) {
             setDiggingId(null);
+            setDiggingJobId(null);
             setScoreboardKey((k) => k + 1);
             void refetch();
             return;
@@ -794,6 +798,7 @@ export default function EntityLedger() {
         const base = (import.meta as any).env.BASE_URL.replace(/\/$/, "");
         const jobId = launched.jobId;
         if (!jobId) { console.warn("Atlas launch returned no job ID", id); continue; }
+        setDiggingJobId(jobId);
         let attempts = 0;
         await new Promise<void>((resolve) => {
           const poll = async () => {
@@ -807,6 +812,7 @@ export default function EntityLedger() {
               const st = await sr.json();
               const terminal = st?.status === "done" || st?.status === "failed" || st?.status === "cancelled";
               if (terminal) {
+                setDiggingJobId(null);
                 resolve();
                 return;
               }
@@ -819,6 +825,7 @@ export default function EntityLedger() {
       }
     } finally {
       setDiggingId(null);
+      setDiggingJobId(null);
       setBulkBusy(false);
       setScoreboardKey((k) => k + 1);
       void refetch();
@@ -1045,8 +1052,9 @@ export default function EntityLedger() {
                 className="underline underline-offset-2 hover:text-rose-300 shrink-0"
                 data-testid="button-stop-dig-entities"
                 onClick={async () => {
-                  try { await stopAtlasPipeline(); } catch { /* best-effort */ }
+                  try { await stopAtlasPipeline(diggingJobId ?? undefined); } catch { /* best-effort */ }
                   setDiggingId(null);
+                  setDiggingJobId(null);
                   setScoreboardKey((k) => k + 1);
                   void refetch();
                 }}
