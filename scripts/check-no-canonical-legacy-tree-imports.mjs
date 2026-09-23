@@ -3,7 +3,7 @@ import path from "node:path";
 
 const root = "artifacts/api-server/src/src";
 const failures = [];
-const retiredLegacyModules = new Set(["agent-orchestrator","deep-web-osint","web-osint-enricher","web-enricher","mcts-agent","research-cascade","final-target-review"]);
+const retiredLegacyModules = new Set(["agent-orchestrator","deep-web-osint","web-osint-enricher","web-enricher","mcts-agent","research-cascade","final-target-review","web-enricher","in-house-enricher"]);
 const unreachableCompatibilitySources = new Set([
   path.normalize("artifacts/api-server/src/src/routes/research/mcts.ts"),
   path.normalize("artifacts/api-server/src/src/routes/research/bulk.ts"),
