@@ -55,6 +55,8 @@ jobs:
         run: pnpm run build
       - name: Push database schema for live smoke tests
         run: cd lib/db && pnpm exec drizzle-kit push --config ./drizzle.config.ts
+      - name: Apply explicit Apex database invariants
+        run: pnpm --filter @workspace/db run harden
       - name: Create ephemeral API credential for live smoke tests
         run: echo "APEX_API_AUTH_TOKEN=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
       - name: Start API server for live smoke tests
@@ -125,6 +127,8 @@ jobs:
       - run: pnpm run build
       - name: Push database schema for live smoke tests
         run: cd lib/db && pnpm exec drizzle-kit push --config ./drizzle.config.ts
+      - name: Apply explicit Apex database invariants
+        run: pnpm --filter @workspace/db run harden
       - name: Create ephemeral API credential for live smoke tests
         run: echo "APEX_API_AUTH_TOKEN=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
       - name: Start API server for live smoke tests
@@ -194,6 +198,8 @@ jobs:
       - run: pnpm run build
       - name: Push database schema for live smoke tests
         run: cd lib/db && pnpm exec drizzle-kit push --config ./drizzle.config.ts
+      - name: Apply explicit Apex database invariants
+        run: pnpm --filter @workspace/db run harden
       - name: Create ephemeral API credential for live smoke tests
         run: echo "APEX_API_AUTH_TOKEN=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
       - name: Start API server for live smoke tests
@@ -263,6 +269,8 @@ jobs:
       - run: pnpm run build
       - name: Push database schema for live smoke tests
         run: cd lib/db && pnpm exec drizzle-kit push --config ./drizzle.config.ts
+      - name: Apply explicit Apex database invariants
+        run: pnpm --filter @workspace/db run harden
       - name: Create ephemeral API credential for live smoke tests
         run: echo "APEX_API_AUTH_TOKEN=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
       - name: Start API server for live smoke tests
@@ -332,6 +340,8 @@ jobs:
       - run: pnpm run build
       - name: Push database schema for live smoke tests
         run: cd lib/db && pnpm exec drizzle-kit push --config ./drizzle.config.ts
+      - name: Apply explicit Apex database invariants
+        run: pnpm --filter @workspace/db run harden
       - name: Create ephemeral API credential for live smoke tests
         run: echo "APEX_API_AUTH_TOKEN=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
       - name: Start API server for live smoke tests
