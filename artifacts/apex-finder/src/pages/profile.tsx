@@ -571,7 +571,9 @@ export default function ApexProfile() {
       if (!launched.ok) {
         throw new Error(launched.message || "Failed to start dig");
       }
-      // Poll atlas-status until idle (or timeout ~7 min)
+      // Poll the canonical job lifecycle until terminal (or timeout ~7 min)
+      const jobId = launched.jobId;
+      if (!jobId) throw new Error("Atlas launch returned no job ID");
       let attempts = 0;
       const poll = async () => {
         if (attempts > 90) {
@@ -614,96 +616,13 @@ export default function ApexProfile() {
     }
   };
 
-  const handleEnrich = async () => {
-    setIsEnriching(true);
-    setEnrichError(null);
-    setEnrichDone(false);
-    try {
-      const r = await fetch(`${baseUrl}/api/ingest/web-osint-enrich`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ entityIds: [Number(entityId)], batchSize: 1, force: true }),
-      });
-      const data = await readApiJson(r);
-      if (!r.ok) throw new Error(data.error ?? "Request failed");
-      const { jobId } = data;
-      if (!jobId) {
-        // Entity already fully enriched — just refresh
-        setIsEnriching(false);
-        setEnrichDone(true);
-        refetchEntity();
-        setContactEvidenceKey(k => k + 1);
-        return;
-      }
-      let attempts = 0;
-      const poll = async () => {
-        if (attempts > 40) { setIsEnriching(false); setEnrichError("Timed out waiting for research to finish."); return; }
-        attempts++;
-        try {
-          const jr = await fetch(`${baseUrl}/api/ingest/job/${jobId}`);
-          const job = await readApiJson(jr);
-          if (job.status === "done") {
-            setIsEnriching(false);
-            setEnrichDone(true);
-            refetchEntity();
-            setContactEvidenceKey(k => k + 1); // re-fetch evidence panel
-            return;
-          }
-          if (job.status === "failed" || job.status === "error" || job.status === "cancelled") {
-            setIsEnriching(false);
-            setEnrichError(job.message ?? "Finished — no new public contacts found.");
-            return;
-          }
-        } catch { /* ignore transient poll errors */ }
-        setTimeout(poll, 2_000);
-      };
-      setTimeout(poll, 2_000);
-    } catch (err: any) {
-      setIsEnriching(false);
-      setEnrichError(err.message ?? "Research failed — try again");
-    }
-  };
-
-  /** Promote durable contact_evidence onto the card (no new dig). */
+  /** Refresh the canonical entity projection; durable evidence is promoted by the Atlas target runner. */
   const handleRehydrateContacts = async () => {
-    if (!entityId) return;
     setIsEnriching(true);
-    setEnrichError(null);
     try {
-      const r = await fetch(`${baseUrl}/api/entities/rehydrate-contacts`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ entityId }),
-      });
-      const data = await readApiJson(r);
-      if (!r.ok) throw new Error(data.error ?? data.message ?? "Rehydrate failed");
-      setEnrichDone(true);
-      refetchEntity();
+      await refetchEntity();
       setContactEvidenceKey((k) => k + 1);
-    } catch (err: any) {
-      setEnrichError(err.message ?? "Rehydrate failed");
-    } finally {
-      setIsEnriching(false);
-    }
-  };
-
-  /** Bounded secondary surface expand — never invents Personal contacts. */
-  const handleRefreshSurface = async () => {
-    setIsEnriching(true);
-    setEnrichError(null);
-    try {
-      const r = await fetch(`${baseUrl}/api/entities/${entityId}/refresh-surface`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
-      });
-      const data = await readApiJson(r);
-      if (!r.ok) throw new Error(data.error ?? data.message ?? "Refresh surface failed");
       setEnrichDone(true);
-      refetchEntity();
-      setContactEvidenceKey((k) => k + 1);
-    } catch (err: any) {
-      setEnrichError(err.message ?? "Refresh surface failed");
     } finally {
       setIsEnriching(false);
     }
@@ -1183,7 +1102,6 @@ export default function ApexProfile() {
                   phoneSource={(entity as { phoneSource?: string }).phoneSource}
                   density="card"
                   evidenceCount={contactEvidence.length}
-                  onRehydrate={handleRehydrateContacts}
                 />
                 {isEnriching && (
                   <div
@@ -1266,13 +1184,6 @@ export default function ApexProfile() {
                     className="rounded-lg border border-primary/35 bg-primary/10 px-3 py-1.5 text-[11px] font-medium text-primary hover:bg-primary/15"
                   >
                     Dig contacts
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleRehydrateContacts}
-                    className="rounded-lg border border-border px-3 py-1.5 text-[11px] text-muted-foreground hover:text-foreground"
-                  >
-                    Rehydrate from evidence
                   </button>
                   <Link
                     href="/reactor"
