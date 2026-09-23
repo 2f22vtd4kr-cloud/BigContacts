@@ -1,0 +1,805 @@
+You are continuing work on the Apex Atlas / Bureau investigation system in the canonical GitHub repository:
+
+https://github.com/2f22vtd4kr-cloud/BigContacts
+
+0. NON-NEGOTIABLE OPERATING RULE
+
+Do not stop at analysis, recommendations, or a partial fix.
+
+Work directly on the repository and runtime.
+
+Continue until the current production path has been genuinely exercised, defects have been fixed, and the final implementation tree has passed the repository’s exact audit gate:
+
+Five Consecutive Full Code Audits
+
+Do not report completion merely because unit tests or one audit run passes.
+
+Do not claim that live research works unless the Replit runtime actually demonstrates it.
+
+If you discover another defect, fix it, test it, and rerun the complete audit gate on the resulting final tree.
+
+Do not weaken fail-closed behavior to make a live test appear successful.
+
+⸻
+
+1. STARTING STATE — CONTINUE EXACTLY FROM HERE
+
+The previous investigation stopped at the Gemini Right-hand provider boundary.
+
+At that point:
+
+* The repository was healthy.
+* Replit installation/build/typecheck/database/startup were working.
+* /api/healthz returned 200.
+* Redis was connected.
+* Operator authentication worked.
+* Required provider configuration was detected.
+* Gemini Boss / Investigator had not yet been reached.
+* A genuine investigation had been attempted.
+* Gemini Right-hand was invoked.
+* Both configured Gemini models timed out under the previous hard 8-second request boundary.
+* Apex correctly failed closed.
+* No fabricated observations/evidence/contacts/confidence were created.
+* The result was therefore a safety success but a research-execution failure.
+
+A production fix was then implemented:
+
+Gemini Right-hand latency fix
+
+File:
+
+artifacts/api-server/src/src/lib/gemini-right-hand-reasoning.ts
+
+The previous:
+
+* 8s request timeout
+* 16s overall timeout
+
+were replaced with bounded values:
+
+* default request timeout: 20s
+* default overall timeout: 45s
+* minimum request timeout: 10s
+* maximum request timeout: 60s
+* minimum overall timeout: 20s
+* maximum overall timeout: 120s
+* maximum model attempts: 2
+
+Environment overrides:
+
+APEX_GEMINI_RIGHT_HAND_REQUEST_TIMEOUT_MS
+
+APEX_GEMINI_RIGHT_HAND_OVERALL_TIMEOUT_MS
+
+The implementation must remain bounded and fail closed.
+
+Regression tests were added in:
+
+artifacts/api-server/src/src/test/gemini-right-hand-latency.test.ts
+
+The configuration regression tests passed.
+
+The provider-latency fix was merged to main.
+
+Current expected main SHA:
+
+f3dc44561cbb42973af128fbed3e7bb0004cb9da
+
+The latest repository audit was:
+
+Five Consecutive Full Code Audits — run #399
+
+All five jobs passed.
+
+Important:
+
+That audit proves the codebase passed its audit suite. It does NOT prove that Gemini successfully completes a real investigation in Replit.
+
+That empirical question is exactly where you continue.
+
+⸻
+
+2. FIRST TASK — VERIFY THE ACTUAL REPOSITORY STATE
+
+Before changing anything:
+
+git remote -v
+git branch --show-current
+git rev-parse HEAD
+git status --short
+
+Verify that you are on the canonical repository and that the working tree is understood.
+
+Do not reset, rebase, force-push, delete branches, or discard existing work.
+
+If HEAD differs from the expected SHA, determine why before proceeding.
+
+Read the current repository documentation and relevant implementation rather than relying on this prompt alone.
+
+At minimum inspect:
+
+* current README/project instructions
+* docs/
+* Apex architecture documentation
+* SpiderFoot integration roadmap
+* research architecture
+* Gemini Right-hand implementation
+* Investigator implementation
+* capability registry
+* evidence/provenance logic
+* terminal verification logic
+* failure observatory
+* relevant tests
+
+Do not assume the previous state is unchanged.
+
+⸻
+
+3. RUN THE LOCAL BASELINE BEFORE LIVE TESTING
+
+Run the repository’s normal validation:
+
+pnpm install --frozen-lockfile
+
+Then the appropriate:
+
+pnpm typecheck
+pnpm build
+pnpm run check:bureau
+
+Run the relevant research/provider tests as well.
+
+Record failures precisely.
+
+Do not modify architecture merely to make a check green.
+
+⸻
+
+4. VERIFY REPLIT RUNTIME
+
+Use the established startup path:
+
+cd ../..
+bash scripts/replit-boot.sh
+
+Expected application port:
+
+8080
+
+Verify:
+
+GET /api/healthz
+
+Confirm:
+
+* application starts
+* Redis is available
+* database is available
+* bureau integrity is healthy
+* required provider configuration is present
+* authentication works
+
+Do not proceed by silently substituting fake providers.
+
+⸻
+
+5. THE MAIN OBJECTIVE — RUN ONE GENUINE INVESTIGATION
+
+Now repeat the genuine investigation that previously stopped at Gemini Right-hand.
+
+Use a real but safe investigation target that is suitable for testing the system and does not require intrusive activity.
+
+The objective is not merely to see an API response.
+
+The objective is to verify the complete Apex pipeline:
+
+Case objective
+    ↓
+Gemini Boss
+    ↓
+Gemini Right-hand oversight
+    ↓
+Groq/Mistral Investigator
+    ↓
+research trajectory
+    ↓
+real capabilities
+    ↓
+observations
+    ↓
+provenance
+    ↓
+evidence admission
+    ↓
+identity / contradiction / contact state
+    ↓
+oversight
+    ↓
+continue / redirect / stop
+    ↓
+terminal verification
+    ↓
+grounded finding OR truthful abstention
+
+Observe every stage.
+
+Do not declare success if the pipeline merely creates a case or run.
+
+⸻
+
+6. SPECIAL ATTENTION — GEMINI RIGHT-HAND
+
+The immediate purpose of this run is to determine whether the latency fix solved the actual production boundary.
+
+Capture:
+
+* request start
+* selected model
+* attempt count
+* request duration
+* response duration
+* timeout configuration
+* whether the request completed
+* whether the response was accepted
+* whether fallback was attempted
+* whether the overall deadline was respected
+* whether the request was cancelled correctly
+* resulting oversight decision
+
+If Gemini responds successfully:
+
+continue all the way to Investigator execution.
+
+If Gemini still times out:
+
+Do NOT simply increase the timeout again.
+
+Determine whether the problem is:
+
+* provider latency
+* SDK behavior
+* request construction
+* authentication
+* model availability
+* cancellation handling
+* network boundary
+* Replit environment
+* concurrency
+* event-loop blocking
+* retry behavior
+* incorrect deadline propagation
+* another application-level bottleneck
+
+Fix the actual defect rather than masking it.
+
+⸻
+
+7. DO NOT CONFUSE PROVIDER SUCCESS WITH RESEARCH SUCCESS
+
+Even if Gemini Right-hand returns successfully, the task is not complete.
+
+Verify that:
+
+Gemini Boss
+
+actually produces a usable case direction / assignment.
+
+Investigator
+
+actually starts.
+
+Capability execution
+
+actually happens.
+
+Observations
+
+are persisted.
+
+Provenance
+
+is preserved.
+
+Evidence
+
+is admitted only according to evidence law.
+
+Identity
+
+does not become artificially certain.
+
+Contacts
+
+are not promoted from guesses or failed observations.
+
+Contradictions
+
+are preserved rather than silently discarded.
+
+Failed sources
+
+remain failures and never become positive evidence.
+
+Terminal findings
+
+are grounded in successfully observed cited material.
+
+Unsupported terminal claims
+
+cause continued research / verification rather than premature completion.
+
+⸻
+
+8. TEST THE RESEARCHER-SUPERIORITY PROPERTY
+
+Apex is explicitly designed to outperform a single LLM researcher through architecture rather than simply having a stronger prompt.
+
+Verify that this is actually true in the runtime.
+
+Check that Apex provides things a single model call does not inherently provide:
+
+* durable case state
+* durable observations
+* provenance
+* source-family awareness
+* independent oversight
+* multiple research capabilities
+* identity uncertainty
+* contradiction tracking
+* contact attribution
+* failure visibility
+* continuation after weak findings
+* terminal verification
+* reproducibility
+* deterministic authorization
+* bounded execution
+* truthful abstention
+
+Do not merely state that these properties exist in source code.
+
+Exercise as many of them as possible.
+
+⸻
+
+9. DELIBERATELY HUNT FOR BUGS
+
+After the first genuine run, act as a hostile production QA team.
+
+Do not assume the happy path is sufficient.
+
+Investigate at least these cases.
+
+A. Provider timeout
+
+A provider responds slower than the configured request timeout.
+
+Expected:
+
+* bounded timeout
+* cancellation
+* truthful failure
+* no fabricated evidence
+* no false success
+
+B. Provider succeeds slowly
+
+A provider responds within the overall bound but after normal latency.
+
+Expected:
+
+* response accepted
+* no premature cancellation
+
+C. One model fails, second model works
+
+Expected:
+
+* fallback behavior follows architecture
+* no duplicate contradictory state
+* provenance records which attempt succeeded
+
+D. Both models fail
+
+Expected:
+
+* truthful provider failure
+* no invented oversight decision
+* system remains safe
+* terminal state is honest
+
+E. Investigator returns unsupported terminal findings
+
+Expected:
+
+* findings are not admitted merely because the model says done
+* research continues or requests verification
+* no false terminal success
+
+F. Investigator cites a failed source
+
+Expected:
+
+* failed source cannot ground a finding
+
+G. Mixed supported + unsupported findings
+
+Expected:
+
+* supported material may be retained
+* unsupported terminal claims do not become evidence
+* final disposition remains truthful
+
+H. Contact hallucination
+
+A model proposes an email/phone/contact without successfully observed support.
+
+Expected:
+
+* contact is not promoted as verified
+
+I. Identity collision
+
+Two entities have similar names/usernames.
+
+Expected:
+
+* identity uncertainty remains explicit
+* system does not collapse them into one person without evidence
+
+J. Contradictory sources
+
+Two observations disagree.
+
+Expected:
+
+* contradiction is preserved
+* one source is not silently deleted merely to make the answer cleaner
+
+K. Partial capability failure
+
+One tool succeeds while another fails or times out.
+
+Expected:
+
+* successful observations remain valid
+* failed execution remains failed
+* the research trajectory can continue
+
+L. SpiderFoot
+
+Remember:
+
+SpiderFoot is a discovery/expansion capability, not verification.
+
+It currently intentionally fails closed unless an attested network-capable Python sandbox exists.
+
+Do NOT bypass that restriction.
+
+A SpiderFoot unavailable result must never become positive evidence.
+
+⸻
+
+10. LOOK FOR ARCHITECTURAL BUGS, NOT JUST TEST FAILURES
+
+Review the system from the perspective of:
+
+CEO
+
+Would the resulting research actually help a real investigator make a decision?
+
+Principal engineer
+
+Can any state transition silently produce an incorrect positive?
+
+Adversarial researcher
+
+Can I cause the model to stop early with weak evidence?
+
+Data integrity engineer
+
+Can observations, evidence, identity, or contacts become inconsistent?
+
+Security engineer
+
+Can a model cause unauthorized capability execution?
+
+Reliability engineer
+
+Can a slow provider or partial tool failure poison the research state?
+
+Investigator
+
+Can the system recover intelligently from a dead end?
+
+Auditor
+
+Can the final finding be traced back to the exact observed source material?
+
+Fix any real defects discovered.
+
+⸻
+
+11. PAY SPECIAL ATTENTION TO TIMEOUT SEMANTICS
+
+The latency fix must not introduce a new race.
+
+Verify the distinction between:
+
+* per-request timeout
+* overall Right-hand deadline
+* provider retry
+* model fallback
+* cancellation
+* database persistence
+* run-level timeout
+* investigation-level timeout
+
+Look specifically for:
+
+* duplicate provider requests
+* requests continuing after timeout
+* fallback beginning after the overall deadline
+* responses arriving after state has already been finalized
+* cancellation being mistaken for provider success
+* timeout errors being recorded as positive observations
+* partially completed requests mutating durable intelligence state
+
+If found, fix them.
+
+⸻
+
+12. CHECK DURABLE STATE AFTER EVERY FAILURE
+
+For every intentionally failed test, inspect the durable state.
+
+Confirm:
+
+* no phantom observations
+* no phantom evidence
+* no phantom contacts
+* no false confidence
+* no fake provider success
+* no terminal success created from unsupported findings
+
+Apex’s safety model is:
+
+Failure must remain failure.
+
+Do not let cleanup code accidentally convert a failed run into a successful-looking state.
+
+⸻
+
+13. CHECK TERMINAL INTEGRITY
+
+The current architecture includes terminal verification.
+
+Verify it in the actual runtime.
+
+A model saying:
+
+done
+
+is not sufficient.
+
+A terminal finding must have:
+
+1. a cited source/observation,
+2. successful observation of that source,
+3. preserved provenance,
+4. admissible evidence,
+5. no unresolved contradiction that invalidates the conclusion,
+6. sufficient identity/contact grounding for the claim being made.
+
+If those conditions are not met:
+
+the system must not silently terminate as if the finding were verified.
+
+⸻
+
+14. CHECK CONTINUATION INTELLIGENCE
+
+Apex should not merely repeat the same query forever.
+
+When research stalls:
+
+* detect plateau
+* change capability
+* change pivot
+* change source family
+* inspect contradictions
+* seek missing evidence
+* redirect the Investigator
+* stop only when further work has insufficient value or the case is genuinely resolved
+
+The research strategy should be information-gain driven.
+
+Do not turn the system into a hard-coded Sherlock → Maigret → Serper → SpiderFoot pipeline.
+
+The Investigator owns research strategy.
+
+Capabilities are tools available to it.
+
+⸻
+
+15. IF YOU FIND A BUG
+
+Fix it in the repository.
+
+Add a regression test.
+
+Run the narrow test.
+
+Then run the broader suite.
+
+Then inspect the final diff.
+
+Do not leave experimental changes in the tree.
+
+Do not commit secrets.
+
+Do not weaken security checks.
+
+Do not disable tests.
+
+Do not increase timeouts without proving why the new bound is justified.
+
+⸻
+
+16. SPIDERFOOT RULES
+
+The current SpiderFoot integration is intentionally conservative.
+
+Do not implement a fake SpiderFoot execution path.
+
+Do not bypass:
+
+authorizePythonSandboxRequest(...)
+
+Do not execute network-capable SpiderFoot subprocesses from an untrusted/unauthorized environment.
+
+Current expected behavior without trusted sandbox attestation:
+
+available = false
+observations = []
+eventsReceived = 0
+reviewOnly = true
+truthful unavailable/error state
+
+That is correct.
+
+Only change this if you establish the required trusted sandbox architecture.
+
+⸻
+
+17. FINAL VALIDATION
+
+After all work is complete:
+
+Run:
+
+git status --short
+git diff
+
+Confirm no accidental changes.
+
+Then run the complete repository checks.
+
+Then trigger the exact GitHub workflow:
+
+Five Consecutive Full Code Audits
+
+Do not accept a partial audit.
+
+Do not report completion until all five audit jobs pass against the final implementation tree.
+
+If an audit fails:
+
+1. inspect the failing job,
+2. retrieve logs,
+3. identify root cause,
+4. fix it,
+5. rerun the required audit gate.
+
+If the final tree changes after a successful audit, the previous audit no longer proves the final tree.
+
+Run the gate again.
+
+⸻
+
+18. REQUIRED FINAL REPORT
+
+Only after everything above is complete, report:
+
+Repository state
+
+* branch
+* final HEAD SHA
+* clean/dirty status
+
+Code validation
+
+* typecheck
+* build
+* bureau checks
+* relevant tests
+
+Live investigation
+
+Report:
+
+* case ID
+* run ID
+* whether Gemini Boss actually executed
+* whether Right-hand actually executed
+* which model(s) responded
+* actual latency
+* whether Investigator actually executed
+* which capabilities actually executed
+* observation count
+* provenance verification
+* evidence verification
+* identity verification
+* contradiction verification
+* contact verification
+* terminal disposition
+
+Do not invent IDs or counts.
+
+Bugs found
+
+For each:
+
+* symptom
+* root cause
+* fix
+* regression test
+
+Audit gate
+
+Report:
+
+* workflow name
+* run number
+* commit SHA
+* all five jobs
+* final result
+
+Research-quality conclusion
+
+Separate:
+
+1. what was empirically demonstrated
+2. what was verified only by automated tests
+3. what remains blocked by the environment
+
+Do not blur these categories.
+
+⸻
+
+19. MOST IMPORTANT RULE
+
+The goal is not to make the demo look successful.
+
+The goal is to make Apex Atlas genuinely reliable.
+
+If Gemini works, continue.
+
+If Gemini fails, diagnose why.
+
+If the Investigator works, continue.
+
+If research produces weak evidence, force verification.
+
+If a capability fails, preserve the failure.
+
+If the system discovers a bug, fix it.
+
+If the architecture is wrong, improve it.
+
+If everything is correct, prove it with the live run and the five-consecutive-audit gate.
+
+Never fabricate success.
+
+Never weaken the safety architecture merely to get a green result.
+
+Continue from the exact point where the previous Replit session stopped.
