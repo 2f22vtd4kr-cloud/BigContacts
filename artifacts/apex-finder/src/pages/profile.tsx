@@ -562,9 +562,6 @@ export default function ApexProfile() {
     try {
       const launched = await launchAtlasPipeline({
         singleTargetId: Number(entityId),
-        discoveryFirst: false,
-        researchLimit: 1,
-        runResearch: true,
         researchDepth: digDepth,
         targetCount: 1,
       });
