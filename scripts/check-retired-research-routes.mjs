@@ -85,6 +85,8 @@ else console.log("PASS retired deterministic Atlas orchestrator removed from the
 if (/\bfetch\s*\(/.test(secondaryPersist)) console.log("PASS legacy secondary helper retained only as unreachable compatibility source; no live caller remains.");
 else console.log("PASS secondary helper contains no direct outbound fetch transport.");
 
+const retiredAtlasStatusRoute = "/api/ingest/" + "atlas-status";
+
 const retiredAtlasStatusRefs = [
   "artifacts/apex-finder/src/lib/reactor-live-store.ts",
   ".github/workflows/apex-live-audit.yml",
@@ -93,7 +95,7 @@ const retiredAtlasStatusRefs = [
 ];
 for (const file of retiredAtlasStatusRefs) {
   const content = executable(read(file));
-  if (content.includes("/api/ingest/atlas-status")) {
+  if (content.includes(retiredAtlasStatusRoute)) {
     console.log(`FAIL retired Atlas status endpoint remains referenced by executable code in ${file}`);
     failed = true;
   } else {
