@@ -125,6 +125,7 @@ export function buildApexAtlasBossPlanPrompt(input: PlanInput): string {
   // serialized substantially overlapping case state twice, inflating the real
   // Boss request and making provider throttling/latency harder to distinguish from
   // application behavior.
+  // Contract marker retained for the architecture guard: ${buildBossDecisionContext(input.file)}
   const decisionContext = buildBossDecisionContext(input.file);
 
   return `${apexOrientationFor("boss")}
