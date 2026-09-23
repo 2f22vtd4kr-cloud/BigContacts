@@ -11,7 +11,10 @@ const router = Router();
 
 /** Canonical Atlas launch boundary: every public Atlas launch enters the model-owned control plane. */
 router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<void> => {
-  await enablePermanentRedis();
+  let atlasJobId: string | null = null;
+  let lockClaimed = false;
+  try {
+    await enablePermanentRedis();
 
   const existingId = await getActiveJob("atlas-run");
   if (existingId) {
@@ -41,7 +44,7 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
     : undefined;
   const targetTimeoutMs = Math.min(Math.max(Number(body.targetTimeoutMs) || 420_000, 30_000), 600_000);
 
-  const atlasJobId = await createJob("atlas-run");
+  atlasJobId = await createJob("atlas-run");
   const claimed = await claimCanonicalJob("atlas-run", atlasJobId);
   if (!claimed) {
     await updateJob(atlasJobId, { status: "cancelled", outcome: "incomplete", message: "Canonical Atlas launch rejected: another instance owns the distributed launch lock.", finishedAt: new Date().toISOString() });
@@ -49,6 +52,7 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
     return;
   }
 
+  lockClaimed = true;
   await updateJob(atlasJobId, {
     status: "running",
     progress: 0,
@@ -94,6 +98,16 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
     message: singleTargetId ? `Canonical single-target investigation started (job: ${atlasJobId}).` : `Canonical model-owned discovery started (job: ${atlasJobId}).`,
     options: { targetCount, singleTargetId: singleTargetId ?? null, researchDepth: researchDepth ?? "configured", targetTimeoutMs },
   });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Canonical Atlas launch infrastructure is unavailable.";
+    if (atlasJobId) {
+      await updateJob(atlasJobId, { status: "failed", outcome: "incomplete", message, finishedAt: new Date().toISOString() }).catch(() => undefined);
+    }
+    if (lockClaimed && atlasJobId) {
+      await releaseCanonicalJob("atlas-run", atlasJobId).catch(() => undefined);
+    }
+    if (!res.headersSent) res.status(503).json({ error: message, jobId: atlasJobId });
+  }
 });
 
 /**
