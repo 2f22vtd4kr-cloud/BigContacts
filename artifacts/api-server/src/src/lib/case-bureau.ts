@@ -486,7 +486,7 @@ export async function generateGeminiBossText(
 
   // A Boss control response is a small JSON decision, not a long-form generation.
   // The previous implementation allowed every catalog candidate to consume a full
-  // 15s request timeout, producing a misleading ~55s "Boss timeout" before the
+  // request timeout, producing a misleading long "Boss timeout" before the
   // Investigator was ever selected. Keep model fallback bounded and size the
   // response budget to the actual control contract.
   const models = [...new Set([
@@ -611,7 +611,7 @@ export async function generateGeminiBossText(
             requestPayloadBytes: Buffer.byteLength(requestBody),
             promptBytes: Buffer.byteLength(prompt),
             configuredRequestTimeoutMs: bossRequestTimeoutMs,
-            configuredOverallTimeoutMs: 20_000,
+            configuredOverallTimeoutMs: getGeminiBossOverallTimeoutMs(),
             attemptTimeoutMs,
             remainingMs,
             fetchElapsedMs,
