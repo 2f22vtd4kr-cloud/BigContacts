@@ -2502,7 +2502,7 @@ export default function IntelligenceReactorPage() {
             return t.startsWith("{") || t.startsWith("[") ? JSON.parse(t) : { jobs: [] };
           })
           .catch(() => ({ jobs: [] })),
-        fetch(`${BASE}/api/ingest/atlas-status`, { cache: "no-store" })
+        fetch(`${BASE}/api/ingest/job/active/atlas-run`, { cache: "no-store" })
           .then(async r => {
             if (!r.ok) return null;
             const t = (await r.text()).trim();
