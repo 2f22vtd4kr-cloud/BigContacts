@@ -4,6 +4,7 @@ import { db, researchCasesTable } from "@workspace/db";
 import { createJob, getActiveJob, getJob, setActiveJob, clearActiveJobIfOwned, updateJob } from "../../lib/job-queue";
 import { runCanonicalAtlasPipeline } from "../../lib/canonical-atlas-discovery";
 import { resolveResearchDepth } from "../../lib/research-depth";
+import { enablePermanentRedis } from "../../lib/redis";
 
 const router = Router();
 
@@ -12,6 +13,9 @@ function parseFile(raw: string | null): Record<string, any> | null {
 }
 
 router.post("/research/bureau/cases/:caseId/run-discovery", async (req, res): Promise<void> => {
+  // Manual Launch mode intentionally skips permanent Redis at boot, but this endpoint owns a durable job lane.
+  // Enable the permanent clients at the execution boundary rather than falling back to in-memory state.
+  try { await enablePermanentRedis(); } catch (error) { res.status(503).json({ error: error instanceof Error ? error.message : "Permanent Redis is unavailable for canonical discovery." }); return; }
   const caseId = Number(req.params.caseId);
   if (!Number.isInteger(caseId) || caseId <= 0) { res.status(400).json({ error: "Invalid bureau case ID" }); return; }
   const [current] = await db.select().from(researchCasesTable).where(eq(researchCasesTable.id, caseId)).limit(1);
