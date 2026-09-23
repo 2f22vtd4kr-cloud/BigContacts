@@ -32,6 +32,7 @@ jobs:
       PORT: 8080
       ENABLE_AUTO_PIPELINE: "false"
       NODE_ENV: development
+      APEX_API_AUTH_TOKEN: ${{ secrets.APEX_API_AUTH_TOKEN }}
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       GEMINI_API_KEY_1: ${{ secrets.GEMINI_API_KEY_1 }}
       GEMINI_API_KEY_2: ${{ secrets.GEMINI_API_KEY_2 }}
@@ -51,9 +52,6 @@ jobs:
       GROQ_AGENTIC_MODEL: qwen/qwen3.8-27b
       MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
       MISTRAL_AGENTIC_MODEL: mistral-small-latest
-      NVIDIA_NIM_API_KEY: ${{ secrets.NVIDIA_NIM_API_KEY }}
-      NVIDIA_AGENTIC_MODEL: nvidia/nemotron-3.5-lightning-30b-a3b
-      NVIDIA_NIM_MODEL: nvidia/nemotron-3.5-lightning-30b-a3b
       SERPER_API_KEY: ${{ secrets.SERPER_API_KEY }}
       TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
       EXA_API_KEY: ${{ secrets.EXA_API_KEY }}
@@ -161,13 +159,13 @@ jobs:
           test "$(curl -sS -m 5 -o /tmp/health.json -w '%{http_code}' http://127.0.0.1:8080/api/healthz)" = 200
       - name: Launch bounded 3-target discovery-first Bureau smoke
         run: |
-          curl -sS -m 15 -X POST http://127.0.0.1:8080/api/ingest/atlas-run -H 'Content-Type: application/json' -d '{"discoveryFirst":true,"targetCount":3,"researchLimit":2,"runResearch":true,"skipFaa":true,"targetTimeoutMs":300000,"researchDepth":"standard"}' | tee /tmp/launch.json
+          curl -sS -m 15 -X POST http://127.0.0.1:8080/api/ingest/atlas-run -H "Authorization: Bearer $APEX_API_AUTH_TOKEN" -H 'Content-Type: application/json' -d '{"discoveryFirst":true,"targetCount":3,"researchLimit":2,"runResearch":true,"skipFaa":true,"targetTimeoutMs":300000,"researchDepth":"standard"}' | tee /tmp/launch.json
           node -e 'const x=require("/tmp/launch.json"); if(!x.jobId){console.error(JSON.stringify(x));process.exit(1)}; console.log(x.jobId)'
       - name: Poll Bureau
         run: |
           for i in $(seq 1 1200); do
             sleep 5
-            curl -sS -m 10 http://127.0.0.1:8080/api/ingest/atlas-status > /tmp/atlas-status.json || true
+            curl -sS -m 10 -H "Authorization: Bearer $APEX_API_AUTH_TOKEN" "http://127.0.0.1:8080/api/ingest/job/$JOB_ID" > /tmp/atlas-status.json || true
             STATUS=$(node -e 'const fs=require("fs");try{const x=JSON.parse(fs.readFileSync("/tmp/atlas-status.json","utf8"));process.stdout.write(String(x.status||x.job?.status||""))}catch{}')
             case "$STATUS" in done|completed) exit 0;; failed|cancelled) exit 1;; esac
           done
