@@ -11,6 +11,10 @@ export type LaunchAtlasOptions = {
   targetCount?: number;
   researchDepth?: "fast" | "standard" | "deep";
   singleTargetId?: number;
+  discoveryFirst?: boolean;
+  researchLimit?: number;
+  runResearch?: boolean;
+  skipFaa?: boolean;
 };
 
 export type LaunchAtlasResult = {
@@ -37,6 +41,10 @@ export async function launchAtlasPipeline(opts: LaunchAtlasOptions = {}): Promis
     researchDepth: opts.researchDepth ?? "standard",
     targetTimeoutMs: 420_000,
     ...(isSingle ? { singleTargetId: opts.singleTargetId } : {}),
+    ...(opts.discoveryFirst != null ? { discoveryFirst: opts.discoveryFirst } : {}),
+    ...(opts.researchLimit != null ? { researchLimit: opts.researchLimit } : {}),
+    ...(opts.runResearch != null ? { runResearch: opts.runResearch } : {}),
+    ...(opts.skipFaa != null ? { skipFaa: opts.skipFaa } : {}),
   };
 
   let integrityNote = "";
