@@ -59,4 +59,39 @@ describe("Gemini Boss bounded control-plane generation", () => {
     expect(String(providerFetch.mock.calls[0]?.[0])).toContain("gemini-test-a:generateContent");
     expect(String(providerFetch.mock.calls[1]?.[0])).toContain("gemini-test-b:generateContent");
   });
+  it("advances to the next compatible model on a 429 without retrying the same model", async () => {
+    process.env.GEMINI_API_KEY = "test-key";
+
+    const providerFetch = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        error: { code: 429, status: "RESOURCE_EXHAUSTED", message: "capacity temporarily unavailable" },
+      }), { status: 429 }))
+      .mockResolvedValueOnce(new Response(
+        JSON.stringify({ candidates: [{ content: { parts: [{ text: '{"action":"proceed"}' }] } }] }),
+        { status: 200 },
+      ));
+
+    vi.stubGlobal("fetch", providerFetch);
+    vi.resetModules();
+    const { generateGeminiBossText } = await import("../lib/case-bureau");
+
+    const result = await generateGeminiBossText(
+      {
+        model: "gemini-test-a",
+        status: "resolved",
+        inspectedKeyCount: 1,
+        candidateCount: 2,
+        candidateModels: ["gemini-test-a", "gemini-test-b"],
+        keyName: "GEMINI_API_KEY",
+      },
+      "Return one small JSON control decision.",
+    );
+
+    expect(result.error).toBeNull();
+    expect(result.raw).toContain('"action"');
+    expect(providerFetch).toHaveBeenCalledTimes(2);
+    expect(String(providerFetch.mock.calls[0]?.[0])).toContain("gemini-test-a:generateContent");
+    expect(String(providerFetch.mock.calls[1]?.[0])).toContain("gemini-test-b:generateContent");
+  });
+
 });
