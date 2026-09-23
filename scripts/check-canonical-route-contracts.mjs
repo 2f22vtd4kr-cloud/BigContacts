@@ -14,6 +14,8 @@ assert(/router\.use\(relationshipsRouter\);/.test(routes), "relationships router
 assert(/router\.get\("\/relationships"/.test(relationships), "relationship list endpoint is missing");
 assert(/router\.post\("\/relationships"/.test(relationships), "relationship create endpoint is missing");
 assert(/router\.delete\("\/relationships\/:id"/.test(relationships), "relationship delete endpoint is missing");
+assert(!/\\bfetch\\s*\\(/.test(relationships), "mounted relationship router must not bypass the safe outbound transport");
+assert(/safeOutboundFetch\(/.test(relationships), "mounted relationship router must use safe outbound transport");
 assert(/useListRelationships\(/.test(frontend), "profile relationship consumer is missing");
 
 for (const retired of ["/api/ingest/atlas-status", "/api/ingest/web-osint-enrich", "/api/entities/rehydrate-contacts", "/api/entities/refresh-surface"]) {
