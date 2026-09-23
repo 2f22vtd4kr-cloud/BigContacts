@@ -140,7 +140,6 @@ jobs:
           const groq = await probe('https://api.groq.com/openai/v1/chat/completions',process.env.GROQ_API_KEY,process.env.GROQ_AGENTIC_MODEL,'groq-dig');
           const mistral = await probe('https://api.mistral.ai/v1/chat/completions',process.env.MISTRAL_API_KEY,process.env.MISTRAL_AGENTIC_MODEL || 'mistral-small-latest','mistral-dig');
           digReady = groq || mistral;
-          await probe('https://integrate.api.nvidia.com/v1/chat/completions',process.env.NVIDIA_NIM_API_KEY,process.env.NVIDIA_NIM_MODEL || 'nvidia/nemotron-3.5-lightning-30b-a3b','nvidia-right-hand');
           const keys=[process.env.GEMINI_API_KEY,...Array.from({length:13},(_,i)=>process.env[`GEMINI_API_KEY_${i+1}`])].filter(Boolean);
           let bossReady=false;
           for (const [i,key] of keys.entries()) {
