@@ -49,13 +49,12 @@ Groq/Mistral Investigator
     ↓
 real research capabilities
 
-DeepSeek/NVIDIA Integrate is RETIRED from active Apex execution.
+The previously retired alternative Right-hand provider is not part of active Apex execution.
 
 Do not request, configure, or use:
-- DEEPSEEK_API_KEY
-- NVIDIA_NIM_API_KEY
-- DeepSeek-V4-Flash-0731
-- NVIDIA Integrate
+- retired legacy Right-hand credentials
+- retired legacy Right-hand model identifiers
+- retired legacy Right-hand endpoints
 
 Do not put Gemini or the Right-hand into the Dig web-research lane.
 Do not put Groq/Mistral into the Right-hand oversight lane.
@@ -70,16 +69,13 @@ The active Right-hand provider uses the application's Gemini abstraction and:
 - bounded request and overall deadlines
 - fail-closed behavior when all bounded attempts fail
 
-Historical architecture documents and archived conversation material may mention DeepSeek/NVIDIA. Those are historical records, not active runtime instructions.
+Historical architecture documents and archived conversation material may mention retired provider details. Those are historical records, not active runtime instructions.
 
 ============================================================
 ACTIVE PROVIDER VALIDATION
 ============================================================
 
-Do not run any DeepSeek/NVIDIA migration.
-
-Do not run:
-node scripts/migrate-right-hand-to-deepseek.mjs
+Do not run any retired-provider migration.
 
 Before live research, verify the actual active Gemini Right-hand abstraction and its configured secret name without printing secret values.
 
@@ -139,14 +135,14 @@ REDIS_URL_2
 REDIS_URL_3
 REDIS_URL_4
 REDIS_URL_5
-DEEPSEEK_API_KEY and NVIDIA_NIM_API_KEY (retired; do not request)
+retired legacy Right-hand credentials
 
 Never print secret values.
 
 Run:
 node scripts/replit-preflight.mjs
 
-The preflight must recognize GEMINI_RIGHT_HAND_API_KEY for the active Right-hand. Retired DeepSeek/NVIDIA credentials must not be requested or exposed.
+The preflight must recognize GEMINI_RIGHT_HAND_API_KEY for the active Right-hand. Retired legacy provider credentials must not be requested or exposed.
 
 ============================================================
 INSTALL — LOW OOM / FIREWALL RISK
@@ -272,7 +268,7 @@ Dig MUST remain free-ReAct.
 The investigator model chooses web_search / visit / OSINT tools / pivots / done.
 Do not force hops.
 Do not hardcode target-specific searches.
-Do not reference retired DeepSeek/NVIDIA as an active provider.
+Do not reference any retired provider as an active provider.
 
 Success trajectory should show model-selected actions, not force_* or scripted sequences.
 
