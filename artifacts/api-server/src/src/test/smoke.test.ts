@@ -30,8 +30,9 @@ describe("GET /api/healthz", () => {
 describe("GET /api/ingest/contact-research/status", () => {
   it("is explicitly retired", async () => {
     const { status, body } = await get("/api/ingest/contact-research/status");
-    expect(status).toBe(410);
-    expect(body.error).toContain("retired");
+    expect(status).toBe(200);
+    expect(body.retired).toBe(true);
+    expect(body.message).toContain("retired");
   });
 });
 
@@ -40,7 +41,7 @@ describe("POST /api/ingest/contact-research/cancel", () => {
     const res = await fetch(`${BASE}/api/ingest/contact-research/cancel`, { method: "POST", headers: authHeaders("application/json"), body: "{}" });
     expect(res.status).toBe(410);
     const body: any = await res.json();
-    expect(body.error).toContain("retired");
+    expect(body.error).toMatch(/retired/i);
   });
 });
 
