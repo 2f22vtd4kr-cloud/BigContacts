@@ -1,0 +1,796 @@
+Done. I read the attachment, applied the fixes it called for, and did not start another Replit cycle before doing the repository work and audit gate.
+
+What I changed
+
+Based on the latest Replit evidence, I made the production fixes on PR #369 and merged them into main:
+
+* Boss request timeout: 10s → 20s
+* Boss overall deadline: 20s → 45s
+* Both remain bounded and fail-closed.
+* Added bounded environment overrides:
+    * APEX_GEMINI_BOSS_REQUEST_TIMEOUT_MS
+    * APEX_GEMINI_BOSS_OVERALL_TIMEOUT_MS
+* Preserved two-model fallback.
+* Added explicit regression coverage for HTTP 429 → next compatible model.
+* Removed the duplicated Boss case-state serialization that was unnecessarily inflating the real Gemini request.
+* Preserved the existing architecture guard rather than weakening it.
+* Did not weaken authentication.
+* Did not make SpiderFoot or any other capability bypass its sandbox.
+* Did not fabricate a successful investigation.
+
+The first audit attempt caught one of my context-compaction changes breaking an architecture guard. I fixed that too. Audit run #403 then passed all five complete-codebase audits.
+
+The fix is now merged to main at:
+
+4efb47617730f5db2e1fcc4dcd1b0654532845e6
+
+So the next Replit run should not start from the old f3dc4456... tree.
+
+And importantly: we have not yet called this launch-ready. The next Replit run is the empirical test: Boss → Investigator → real capability → real observation.
+
+Here is the updated startup prompt.
+
+Apex Atlas — CONTINUE FROM CURRENT VERIFIED MAIN
+
+You are continuing the canonical Apex Atlas / Bureau project.
+
+Repository:
+
+https://github.com/2f22vtd4kr-cloud/BigContacts
+
+Do NOT start a new architecture or rebuild the project from scratch.
+
+The repository has already undergone extensive development and audit hardening.
+
+Your job now is to import the current verified main tree, build it cleanly, start the canonical API, and perform the first genuine end-to-end investigation.
+
+⸻
+
+0. NON-NEGOTIABLE RULE
+
+Do not waste the run repeating broad architectural analysis that has already been completed.
+
+Do not reset, rebase, force-push, delete branches, or discard existing work.
+
+Do not weaken authentication.
+
+Do not disable tests.
+
+Do not weaken fail-closed behavior.
+
+Do not fabricate a successful investigation.
+
+Do not increase provider timeouts again merely because a request is slow.
+
+The purpose of this Replit run is empirical validation of the real Apex Atlas production path.
+
+If the production path fails, diagnose the actual failure and fix only what is demonstrated.
+
+⸻
+
+1. CURRENT VERIFIED REPOSITORY
+
+The latest production fix has already been merged to main.
+
+Expected current HEAD:
+
+4efb47617730f5db2e1fcc4dcd1b0654532845e6
+
+This merge contains the fixes from the latest live Replit diagnostic.
+
+Before doing anything else:
+
+git remote -v
+git branch --show-current
+git fetch origin
+git checkout main
+git pull --ff-only origin main
+git rev-parse HEAD
+git status --short
+
+Confirm that the resulting HEAD is the current main revision or a newer legitimate main revision.
+
+If it is newer, inspect the difference before proceeding.
+
+Do not reset local work blindly.
+
+Preserve any pre-existing attachment/bookkeeping changes that are unrelated to source.
+
+⸻
+
+2. WHAT WAS JUST FIXED
+
+The previous genuine Replit run showed:
+
+Gemini Right-hand
+
+Real provider calls were demonstrated successfully, including:
+
+* gemini-3.7-flash around 12.6 seconds
+* gemini-3.8-flash around 6.5 seconds
+
+This established that Gemini is reachable and usable, although provider latency/capacity can vary.
+
+Gemini Boss
+
+The real Apex Boss request was approximately 12 KB.
+
+The previous Boss boundary was:
+
+* 10-second per-request timeout
+* 20-second overall deadline
+
+That was too aggressive relative to observed real Gemini response latency.
+
+The production fix now uses:
+
+* 20-second Boss request timeout
+* 45-second Boss overall deadline
+* maximum bounded environment override:
+    * request: 60 seconds
+    * overall: 120 seconds
+* overall deadline cannot be below the request timeout
+* two compatible model candidates maximum
+* fail-closed behavior retained
+
+Environment overrides exist:
+
+APEX_GEMINI_BOSS_REQUEST_TIMEOUT_MS
+APEX_GEMINI_BOSS_OVERALL_TIMEOUT_MS
+
+Do not set them unless empirical evidence requires it.
+
+The defaults are deliberately:
+
+20s request
+45s overall
+
+Boss prompt reduction
+
+The Boss previously received overlapping case-state serialization.
+
+The production code now keeps a single authoritative compact decision context rather than sending substantially duplicated case state.
+
+This reduces unnecessary request size and redundant model input.
+
+429 behavior
+
+Gemini HTTP 429/503 capacity responses are handled as provider-capacity failures and advance to the next compatible model rather than silently retrying the same model indefinitely.
+
+This remains bounded.
+
+⸻
+
+3. AUDIT STATUS
+
+The final implementation tree was audited after the fixes.
+
+Workflow:
+
+Five Consecutive Full Code Audits
+
+Latest successful audit:
+
+Run #403
+
+All five jobs passed:
+
+Audit 1 — complete codebase   PASS
+Audit 2 — complete codebase   PASS
+Audit 3 — complete codebase   PASS
+Audit 4 — complete codebase   PASS
+Audit 5 — complete codebase   PASS
+
+The audited tree was then merged into main.
+
+Therefore:
+
+Do NOT spend this Replit run repeating the five-audit process before testing the real production path.
+
+The code audit condition is already satisfied for this implementation.
+
+The remaining question is empirical:
+
+Can Apex Atlas actually get through Boss → Investigator → capability execution?
+
+⸻
+
+4. INSTALL THE CURRENT TREE
+
+Run:
+
+pnpm install --frozen-lockfile
+
+Then:
+
+pnpm run typecheck
+pnpm run build
+pnpm run check:bureau
+
+Run the focused Gemini/Bureau regression tests relevant to this change.
+
+At minimum verify:
+
+* Gemini Boss latency tests
+* Gemini Boss bounded-control tests
+* Gemini transient retry tests
+* Gemini Right-hand latency tests
+* relevant phone-priority/Bureau tests
+
+Do not spend the majority of the session on unrelated legacy smoke-test failures.
+
+⸻
+
+5. DATABASE INITIALIZATION
+
+Use the existing Apex schema initialization procedure.
+
+If the Replit database is empty:
+
+bash scripts/initialize-apex-schema.sh
+
+Verify that the required tables, indexes, primary keys, foreign keys, and constraints exist.
+
+Do not invent a new schema.
+
+Do not bypass constraints.
+
+⸻
+
+6. START THE CANONICAL API
+
+Use the canonical workflow:
+
+cd ../..
+bash scripts/replit-boot.sh
+
+Expected port:
+
+8080
+
+Do NOT start the duplicate API-server workflow if the canonical API is already running.
+
+The duplicate process previously failed because it attempted to bind the same port.
+
+That is not a production defect.
+
+⸻
+
+7. HEALTH CHECK
+
+Verify:
+
+GET /api/healthz
+
+Expected:
+
+HTTP 200
+
+Confirm:
+
+* Redis healthy
+* database healthy
+* Bureau integrity healthy
+* provider configuration detected
+* canonical API is the only API process bound to 8080
+
+⸻
+
+8. AUTHENTICATION
+
+Verify operator authentication using the existing supported path.
+
+Do not restore old loopback/CI authentication bypasses.
+
+The current middleware intentionally removed that bypass.
+
+If broad legacy Vitest smoke tests still expect the removed bypass, do not weaken production authentication merely to satisfy them.
+
+Treat those as a separate test-contract issue.
+
+⸻
+
+9. DO THE REAL TEST NOW
+
+Submit the exact generic Launch Apex Atlas request used previously:
+
+{
+  "targetCount": 3,
+  "researchDepth": "standard",
+  "targetTimeoutMs": 420000
+}
+
+Do not substitute a mocked request.
+
+Do not call Gemini manually and declare Apex successful.
+
+The request must go through the actual Apex orchestration.
+
+⸻
+
+10. TRACE THE COMPLETE PIPELINE
+
+The success criterion is NOT:
+
+HTTP 200
+
+The success criterion is:
+
+Launch Apex Atlas
+       ↓
+Gemini Right-hand
+       ↓
+Gemini Boss
+       ↓
+valid Boss decision
+       ↓
+Investigator selected
+       ↓
+Investigator executes
+       ↓
+real capability selected
+       ↓
+real capability executes
+       ↓
+real observation created
+       ↓
+provenance persisted
+       ↓
+evidence admission
+       ↓
+identity / contradiction / contact handling
+       ↓
+continuation / verification
+       ↓
+grounded finding OR truthful abstention
+
+Record exactly where the real run gets.
+
+⸻
+
+11. GEMINI BOSS
+
+Pay particular attention to the new telemetry.
+
+Record:
+
+* model
+* prompt bytes
+* request bytes
+* configured request timeout
+* configured overall timeout
+* fetch elapsed time
+* total elapsed time
+* HTTP status
+* response size
+* abort reason
+* deadline ownership
+
+Never log:
+
+* API keys
+* authorization headers
+* secrets
+* unnecessary sensitive case contents
+
+If Boss returns successfully:
+
+DO NOT STOP.
+
+Continue into Investigator.
+
+⸻
+
+12. IF BOSS GETS A 429
+
+Do not immediately increase the timeout.
+
+Determine:
+
+* provider error code
+* provider status
+* whether it says resource exhaustion / quota / capacity
+* retry-after information if present
+* whether the second model succeeds
+* whether Apex generated concurrent Gemini traffic
+* whether the same request succeeds directly under controlled conditions
+
+A 429 is not equivalent to a timeout.
+
+If the provider returns a capacity/rate-limit response, preserve that truthfully.
+
+Do not turn it into positive research state.
+
+⸻
+
+13. IF BOSS SUCCEEDS
+
+Immediately verify:
+
+* Boss JSON is valid
+* decision is schema-valid
+* selected action is allowlisted
+* selected Investigator is actually configured
+* no unauthorized tool is invented
+* case/target binding remains correct
+
+Then let the run continue.
+
+⸻
+
+14. INVESTIGATOR
+
+The Investigator is the execution intelligence.
+
+It must be allowed to choose its research trajectory from the capabilities exposed to it.
+
+Do NOT turn the system into:
+
+Sherlock
+→ Maigret
+→ Serper
+→ SpiderFoot
+→ done
+
+That is explicitly not the architecture.
+
+The Investigator should be able to:
+
+* invent useful queries
+* choose capabilities
+* visit pages
+* pivot
+* corroborate
+* challenge assumptions
+* change lanes
+* preserve uncertainty
+* stop when evidence is sufficient
+* continue when the evidence is weak
+
+⸻
+
+15. REAL CAPABILITY EXECUTION
+
+Verify that at least one genuine capability actually executes.
+
+Record:
+
+* capability/action name
+* authorization
+* start/end
+* success/failure
+* observation count
+* source URLs
+* provenance
+* cancellation state
+
+A model-generated statement is NOT an observation merely because the model says it is true.
+
+⸻
+
+16. EVIDENCE LAW
+
+The following are NOT automatically evidence:
+
+* model assertions
+* snippets
+* guessed emails
+* guessed phone numbers
+* failed URLs
+* unobserved claims
+* derived SpiderFoot events
+* unsupported Investigator findings
+
+Evidence must be grounded in successfully observed material with provenance.
+
+Failed execution must remain failed.
+
+⸻
+
+17. TERMINAL FINDING VERIFICATION
+
+A model saying:
+
+done
+
+does not prove the investigation is done.
+
+A terminal finding must be grounded in successfully observed cited material.
+
+Verify:
+
+* cited source exists
+* source was successfully observed
+* provenance exists
+* evidence is admissible
+* identity is sufficiently grounded
+* contradictions are handled
+* contact attribution is supported
+
+If terminal findings are unsupported:
+
+Apex must not silently accept them.
+
+It must continue/review/abstain according to the existing terminal-verification architecture.
+
+⸻
+
+18. CONTACT INTEGRITY
+
+Do not promote:
+
+* guessed emails
+* guessed phone numbers
+* inferred personal contact
+* model-only claims
+
+into verified contact state.
+
+Organization routes and review-only candidates may remain appropriately classified.
+
+Personal attribution requires actual grounding.
+
+⸻
+
+19. IDENTITY INTEGRITY
+
+Do not collapse similar names/usernames into one person merely because the model thinks they match.
+
+Preserve:
+
+* identity uncertainty
+* collisions
+* competing hypotheses
+* source provenance
+
+⸻
+
+20. CONTRADICTIONS
+
+If sources disagree:
+
+Do not silently delete one side.
+
+Preserve the contradiction and let the research strategy respond to it.
+
+⸻
+
+21. SPIDERFOOT
+
+SpiderFoot remains discovery/expansion only.
+
+It is intentionally fail-closed until an attested network-capable Python sandbox exists.
+
+Do NOT bypass:
+
+authorizePythonSandboxRequest(...)
+
+Do NOT launch an untrusted network-capable SpiderFoot subprocess.
+
+If SpiderFoot is unavailable:
+
+available = false
+observations = []
+eventsReceived = 0
+reviewOnly = true
+
+That is correct behavior.
+
+⸻
+
+22. FAILURE HANDLING
+
+If any provider fails:
+
+Do not fabricate a result.
+
+If a capability times out:
+
+Do not create positive evidence.
+
+If Investigator fails:
+
+Do not create a fake Investigator result.
+
+If Boss fails:
+
+Do not invent a Boss decision.
+
+If the complete run fails:
+
+inspect durable state and verify that no phantom case/evidence/contact state was created.
+
+⸻
+
+23. DURABLE STATE CHECK
+
+After the real run, inspect the database.
+
+Verify:
+
+* case count
+* case events
+* run events
+* research sessions
+* observations
+* provenance
+* evidence
+* contact evidence
+* identity state
+* contradiction state
+* terminal disposition
+
+The durable database is the truth.
+
+Do not infer success from UI text alone.
+
+⸻
+
+24. IF THE RUN FAILS
+
+Do NOT immediately start changing random timeout values.
+
+Use the telemetry.
+
+Classify the failure:
+
+Provider
+
+Gemini/Groq/Mistral actually unavailable, rate-limited, or slow.
+
+Runtime
+
+Replit/Node/HTTP execution problem.
+
+Application
+
+Apex constructed or handled the request incorrectly.
+
+Architecture
+
+A legitimate response is being rejected incorrectly.
+
+Data integrity
+
+The request succeeds but state is being persisted incorrectly.
+
+Fix only the demonstrated root cause.
+
+Then run the focused tests.
+
+If production code changes:
+
+run the complete five-audit gate again before reporting completion.
+
+⸻
+
+25. DO NOT WASTE THE SESSION
+
+The previous Replit Agent ran out of credits while still performing diagnostics.
+
+Avoid unnecessary work.
+
+Priority order:
+
+1. Import current main
+2. Install/build/typecheck
+3. Initialize database if needed
+4. Start canonical API
+5. Health/auth verification
+6. REAL Launch Apex Atlas request
+7. Follow the pipeline past Boss
+8. Inspect durable state
+9. Fix only demonstrated blockers
+10. Repeat the real run
+
+Do not spend the majority of the available agent budget on another broad audit unless source code changes require it.
+
+The repository has already passed the five-audit gate for the current implementation.
+
+⸻
+
+26. FINAL ACCEPTANCE GATE
+
+Apex Atlas is not considered empirically working until one genuine Replit run demonstrates:
+
+Boss succeeds
+AND
+Investigator starts
+AND
+at least one real capability executes
+AND
+real observations are produced
+AND
+provenance is persisted
+AND
+evidence rules are applied
+AND
+the final result is either grounded or truthfully abstained
+
+If the first successful Boss run exposes an Investigator problem, keep going.
+
+If the first capability exposes a capability problem, keep going.
+
+Do not stop at the first green layer.
+
+⸻
+
+27. FINAL REPORT
+
+When the work is actually complete, report:
+
+Repository
+
+* branch
+* HEAD
+* clean/dirty state
+
+Runtime
+
+* canonical workflow
+* port
+* health
+* Redis
+* database
+* authentication
+
+Real investigation
+
+* case ID
+* run ID
+* Boss model
+* Boss latency
+* Investigator model
+* capabilities executed
+* observation count
+* provenance
+* evidence
+* identity
+* contradictions
+* contacts
+* terminal disposition
+
+Failures
+
+For every failure encountered:
+
+* symptom
+* root cause
+* fix
+* regression test
+
+Audit
+
+If source code changed during this Replit run:
+
+* exact final HEAD
+* Five Consecutive Full Code Audits run
+* all five results
+
+If no source code changed, do not waste time rerunning the full audit solely for reporting purposes; the current main tree already has the verified five-audit result described above.
+
+Critical distinction
+
+Separate:
+
+1. empirically demonstrated by the live Replit run
+2. verified by automated tests/audits
+3. still blocked or unverified
+
+Never represent category 2 as category 1.
+
+⸻
+
+FINAL INSTRUCTION
+
+The mission of this run is simple:
+
+Get Apex Atlas past Gemini Boss and into actual Investigator research.
+
+Do not declare victory because the build is green.
+
+Do not declare victory because the audits are green.
+
+Do not declare victory because Gemini works in a standalone probe.
+
+Prove the actual Apex Atlas research path.
