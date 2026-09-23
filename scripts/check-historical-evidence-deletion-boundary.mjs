@@ -15,9 +15,9 @@ assert(/researchEvidenceTable[\s\S]{0,500}sessionId:[\s\S]{0,180}onDelete:\s*"re
 assert(/researchEvidenceTable[\s\S]{0,700}entityId:[\s\S]{0,180}onDelete:\s*"restrict"/.test(evidence), "research evidence must restrict entity deletion");
 assert(/researchRunEventsTable[\s\S]{0,500}sessionId:[\s\S]{0,180}onDelete:\s*"restrict"/.test(runEvents), "research run ledger must restrict session deletion");
 assert(/public\.contact_evidence[\s\S]{0,900}c\.confdeltype\s*<>\s*'r'[\s\S]{0,900}ON DELETE RESTRICT/.test(migration), "explicit hardening migration must repair legacy contact-evidence cascades");
-assert(/public\.research_evidence[\s\S]{0,900}c\.confdeltype\s*<>\s*'r'[\s\S]{0,900}ON DELETE RESTRICT/.test(db), "boot hardener must repair legacy research-evidence cascades");
-assert(/public\.research_run_events[\s\S]{0,900}c\.confdeltype\s*<>\s*'r'[\s\S]{0,900}ON DELETE RESTRICT/.test(db), "boot hardener must repair legacy research-run-event cascades");
-assert(/research_case_events[\s\S]{0,400}ON DELETE RESTRICT/.test(db), "research case event ledger must remain non-destructible through case deletion");
+assert(/public\.research_evidence[\s\S]{0,900}c\.confdeltype\s*<>\s*'r'[\s\S]{0,900}ON DELETE RESTRICT/.test(migration), "explicit hardening migration must repair legacy research-evidence cascades");
+assert(/public\.research_run_events[\s\S]{0,900}c\.confdeltype\s*<>\s*'r'[\s\S]{0,900}ON DELETE RESTRICT/.test(migration), "explicit hardening migration must repair legacy research-run-event cascades");
+assert(/research_case_events[\s\S]{0,400}ON DELETE RESTRICT/.test(migration), "research case event ledger must remain non-destructible through case deletion");
 
 if (failures.length) {
   console.error("HISTORICAL EVIDENCE DELETION BOUNDARY: FAIL");
