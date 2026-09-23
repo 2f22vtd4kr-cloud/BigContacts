@@ -23,8 +23,8 @@ describe("Gemini Boss latency controls", () => {
     vi.resetModules();
     const { getGeminiBossLatencyConfig } = await import("../lib/case-bureau");
     expect(getGeminiBossLatencyConfig()).toEqual({
-      requestTimeoutMs: 20_000,
-      overallTimeoutMs: 45_000,
+      requestTimeoutMs: 30_000,
+      overallTimeoutMs: 75_000,
     });
   });
 
@@ -119,6 +119,8 @@ describe("Gemini Boss latency controls", () => {
       model: "gemini-3.8-flash",
       keyName: "GEMINI_API_KEY",
       httpStatus: 200,
+      configuredRequestTimeoutMs: 30_000,
+      configuredOverallTimeoutMs: 75_000,
       requestDeadlineFired: false,
       overallDeadlineFired: false,
     });
