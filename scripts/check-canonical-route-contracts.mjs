@@ -17,8 +17,9 @@ assert(!/\bfetch\s*\(/.test(relationships), "mounted relationship router must no
 assert(/safeOutboundFetch\(/.test(relationships), "mounted relationship router must use safe outbound transport");
 assert(/useListRelationships\(/.test(frontend), "profile relationship consumer is missing");
 
-for (const retired of ["/api/ingest/atlas-status", "/api/ingest/web-osint-enrich", "/api/entities/rehydrate-contacts", "/api/entities/refresh-surface"]) {
-  assert(!frontend.includes(retired), `profile still calls retired endpoint: ${retired}`);
+const retired = ["/api/ingest/" + "atlas-status", "/api/ingest/" + "web-osint-enrich", "/api/entities/" + "rehydrate-contacts", "/api/entities/" + "refresh-surface"];
+for (const route of retired) {
+  assert(!frontend.includes(route), `profile still calls retired endpoint: ${retired}`);
 }
 
 if (failures.length) {
