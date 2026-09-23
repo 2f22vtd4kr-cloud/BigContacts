@@ -22,7 +22,7 @@ Also inspect before changing anything:
 - artifacts/api-server/src/src/lib/apex-bureau-orientation.ts
 - artifacts/api-server/src/src/lib/case-bureau.ts
 - artifacts/api-server/src/src/lib/case-bureau-prompt.ts
-- artifacts/api-server/src/src/lib/nvidia-nim-case-reasoning.ts
+- artifacts/api-server/src/src/lib/gemini-right-hand-reasoning.ts
 - scripts/apply-agentic-concurrency-hardening.mjs
 - scripts/check-agentic-runtime.mjs
 - scripts/replit-preflight.mjs
@@ -36,58 +36,54 @@ PROVIDER ARCHITECTURE — MANDATORY
 ============================================================
 
 Boss = Gemini.
-Right-hand = DeepSeek-V4-Flash-0731 through NVIDIA Integrate.
+Right-hand = Gemini.
 Dig investigator = Groq -> Mistral.
 
-Canonical right-hand secret:
-DEEPSEEK_API_KEY
+The active Apex provider architecture is:
 
-Canonical DeepSeek endpoint:
-https://integrate.api.nvidia.com/v1/chat/completions
+Gemini Boss
+    ↓
+Gemini Right-hand oversight
+    ↓
+Groq/Mistral Investigator
+    ↓
+real research capabilities
 
-Canonical model:
-deepseek-ai/deepseek-v4-flash-0731
+DeepSeek/NVIDIA Integrate is RETIRED from active Apex execution.
 
-Do not use NVIDIA_NIM_API_KEY as the canonical right-hand credential.
-Do not use z.ai/GLM as the right-hand provider.
-Do not put DeepSeek into the Dig investigator failover chain.
-Do not put Gemini or the right-hand into the Dig web-research lane.
-
-DeepSeek is advisory/case-file reasoning only. It has no web access and must not execute OSINT actions.
-
-Use the NVIDIA OpenAI-compatible API contract. The model supports text generation, reasoning and long context. Use high reasoning effort. Handle reasoning/reasoning_content when returned, but do not print secrets or persist unnecessary private reasoning.
-
-The supplied NVIDIA API contract is:
-base_url = https://integrate.api.nvidia.com/v1
-model = deepseek-ai/deepseek-v4-flash-0731
-temperature = 1
-top_p = 0.95
-max_tokens = 16384
-reasoning_effort = high
-stream = false
-
-The API documentation confirms POST /v1/chat/completions and the exact DeepSeek-V4-Flash-0731 model identifier. Keep the application on the OpenAI-compatible chat-completions path.
-
-============================================================
-DO THE PROVIDER MIGRATION BEFORE LIVE RESEARCH
-============================================================
-
-Run:
-node scripts/migrate-right-hand-to-deepseek.mjs
-
-This migration is fail-closed. Do not bypass its checks.
-
-After migration, verify all ACTIVE source/docs references. Historical docs/archive and .conversation snapshots may retain old history; do not rewrite historical records merely to make a search clean.
-
-The active code must use:
+Do not request, configure, or use:
 - DEEPSEEK_API_KEY
+- NVIDIA_NIM_API_KEY
 - DeepSeek-V4-Flash-0731
 - NVIDIA Integrate
-- right-hand advisor
+
+Do not put Gemini or the Right-hand into the Dig web-research lane.
+Do not put Groq/Mistral into the Right-hand oversight lane.
+Do not create hidden cross-provider fallback between Investigator providers.
+
+Right-hand is case-file/discovery oversight only. It does not browse or execute OSINT capabilities.
+
+The active Right-hand provider uses the application's Gemini abstraction and:
+- GEMINI_RIGHT_HAND_API_KEY
+- gemini-3.8-flash
+- bounded Gemini fallback models
+- bounded request and overall deadlines
+- fail-closed behavior when all bounded attempts fail
+
+Historical architecture documents and archived conversation material may mention DeepSeek/NVIDIA. Those are historical records, not active runtime instructions.
+
+============================================================
+ACTIVE PROVIDER VALIDATION
+============================================================
+
+Do not run any DeepSeek/NVIDIA migration.
+
+Do not run:
+node scripts/migrate-right-hand-to-deepseek.mjs
+
+Before live research, verify the actual active Gemini Right-hand abstraction and its configured secret name without printing secret values.
 
 The independent Dig contract MUST remain Groq -> Mistral.
-
-If the migration script reports an anchor or architecture failure, inspect and fix the real source. Do not weaken/delete the guard.
 
 ============================================================
 REPLIT RUNTIME — NEVER REPEAT THE PREVIOUS FAILURE
@@ -124,7 +120,7 @@ Canonical operator-facing names:
 REDIS_URL_1
 GROQ_API_KEY
 GEMINI_API_KEY
-DEEPSEEK_API_KEY
+GEMINI_RIGHT_HAND_API_KEY
 MISTRAL_API_KEY
 HF_TOKEN
 SERPER_API_KEY
@@ -143,14 +139,14 @@ REDIS_URL_2
 REDIS_URL_3
 REDIS_URL_4
 REDIS_URL_5
-NVIDIA_NIM_API_KEY as the canonical DeepSeek secret
+DEEPSEEK_API_KEY and NVIDIA_NIM_API_KEY (retired; do not request)
 
 Never print secret values.
 
 Run:
 node scripts/replit-preflight.mjs
 
-The preflight must recognize DEEPSEEK_API_KEY. NVIDIA_NIM_API_KEY may be reported only as obsolete/legacy if present.
+The preflight must recognize GEMINI_RIGHT_HAND_API_KEY for the active Right-hand. Retired DeepSeek/NVIDIA credentials must not be requested or exposed.
 
 ============================================================
 INSTALL — LOW OOM / FIREWALL RISK
@@ -213,7 +209,7 @@ If bureauIntegrity=critical, do not run a fake proof. Diagnose whether the cause
 GEMINI RIGHT-HAND SMOKE — BEFORE DISCOVERY
 ============================================================
 
-Perform one tiny Right-hand provider smoke through the application's actual Gemini abstraction using GEMINI_API_KEY. Do not browse.
+Perform one tiny Right-hand provider smoke through the application's actual Gemini abstraction using GEMINI_RIGHT_HAND_API_KEY. Do not browse.
 
 ============================================================
 DESK
@@ -276,7 +272,7 @@ Dig MUST remain free-ReAct.
 The investigator model chooses web_search / visit / OSINT tools / pivots / done.
 Do not force hops.
 Do not hardcode target-specific searches.
-Do not make DeepSeek the Dig provider.
+Do not reference retired DeepSeek/NVIDIA as an active provider.
 
 Success trajectory should show model-selected actions, not force_* or scripted sequences.
 
@@ -320,7 +316,7 @@ Right-hand:
 Dig:
 
 secrets configured: yes/no (names only; no values)
-DeepSeek smoke: OK/FAILED
+Gemini Right-hand smoke: OK/FAILED
 install: OK/FAILED
 database push: OK/FAILED
 preflight: OK/FAILED
