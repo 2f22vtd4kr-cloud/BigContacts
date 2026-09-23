@@ -96,6 +96,7 @@ jobs:
           curl -sS -m 10 -H "Authorization: Bearer $APEX_API_AUTH_TOKEN" 'http://127.0.0.1:8080/api/entities?limit=50&offset=0' | tee /tmp/entities.json || true
           curl -sS -m 10 -H "Authorization: Bearer $APEX_API_AUTH_TOKEN" 'http://127.0.0.1:8080/api/ingest/scoreboard-snapshot?limit=50' | tee /tmp/scoreboard.json || true
           curl -sS -m 10 http://127.0.0.1:8080/api/healthz | tee /tmp/health.json || true
+          curl -sS -m 10 -H "Authorization: Bearer $APEX_API_AUTH_TOKEN" "http://127.0.0.1:8080/api/ingest/atlas-trace/$JOB_ID" | tee /tmp/atlas-trace.json || true
           node scripts/audit-live-bureau.mjs
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
@@ -107,4 +108,5 @@ jobs:
             /tmp/entities.json
             /tmp/scoreboard.json
             /tmp/health.json
+            /tmp/atlas-trace.json
             /tmp/apex-api.log
