@@ -426,7 +426,7 @@ router.post("/relationships/seed-edgar-associates", async (_req, res): Promise<v
       try {
         await new Promise(r => setTimeout(r, 200)); // stay well under 10 req/s
         const url = `https://efts.sec.gov/LATEST/search-index?q=${encodeURIComponent(term)}&forms=SC+13D,SC+13G&dateRange=custom&startdt=2018-01-01&from=${from}`;
-        const resp = await fetch(url, { headers: EDGAR_HEADERS, signal: AbortSignal.timeout(15_000) });
+        const resp = await safeOutboundFetch(url, { headers: EDGAR_HEADERS, signal: AbortSignal.timeout(15_000) });
         if (!resp.ok) break;
         const data = await resp.json() as any;
         const hits: any[] = data?.hits?.hits ?? [];
@@ -549,7 +549,7 @@ SELECT DISTINCT ?associateLabel ?relType WHERE {
 } LIMIT 20`;
 
       const url = `https://query.wikidata.org/sparql?query=${encodeURIComponent(sparql)}&format=json`;
-      const resp = await fetch(url, {
+      const resp = await safeOutboundFetch(url, {
         signal: AbortSignal.timeout(15_000),
         headers: {
           Accept: "application/sparql-results+json",
