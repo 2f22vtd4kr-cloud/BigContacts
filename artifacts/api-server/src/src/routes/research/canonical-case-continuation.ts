@@ -7,11 +7,13 @@ import { runGeminiBossDiscovery } from "../../lib/case-bureau";
 import { runGeminiRightHandFreeJson } from "../../lib/gemini-right-hand-reasoning";
 import { runBureauAgenticWebPass } from "../../lib/bureau-agentic-pass";
 import { resolveResearchDepth } from "../../lib/research-depth";
+import { enablePermanentRedis } from "../../lib/redis";
 const router=Router();
 const cancellationFenceSql=(caseId:number)=>sql`NOT (status = 'cancelled' OR (status = 'review' AND current_action IN ('canonical-atlas-cancelled','canonical-lease-lost','canonical-continuation-cancelled'))) AND id = ${caseId}`;
 function parseFile(raw:string|null):Record<string,any>|null{try{const value=raw?JSON.parse(raw):null;return value&&typeof value==="object"?value:null;}catch{return null;}}
 function contextOf(file:Record<string,any>):string{const context=typeof file.contextDocument==="string"?file.contextDocument.trim():"";if(!context)throw new Error("Canonical discovery case has no durable context document; refusing context-free continuation.");return context.slice(0,28000);}
 router.post("/research/bureau/cases/:caseId/run-next-pass",async(req,res):Promise<void>=>{
+ try { await enablePermanentRedis(); } catch (error) { res.status(503).json({ error: error instanceof Error ? error.message : "Permanent Redis is unavailable for canonical continuation." }); return; }
  const caseId=Number(req.params.caseId);if(!Number.isInteger(caseId)||caseId<=0){res.status(400).json({error:"Invalid bureau case ID"});return;}
  const [current]=await db.select().from(researchCasesTable).where(eq(researchCasesTable.id,caseId)).limit(1);if(!current){res.status(404).json({error:"Bureau case not found"});return;}
  const file=parseFile(current.caseFile);if(!file||file.caseType!=="discovery"){res.status(409).json({error:"Only a discovery case can run the canonical continuation"});return;}
