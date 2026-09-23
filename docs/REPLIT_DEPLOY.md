@@ -176,3 +176,6 @@ node scripts/check-visibility-floor.mjs
 ---
 
 *Last aligned with tip including Launch CTA (`4bddba9`) and handoff (`e46c66e`). Update this doc when env names change in code.*
+
+
+<!-- Verification branch: complete five-pass audit uses the same main code tree. -->
