@@ -2520,7 +2520,7 @@ export default function IntelligenceReactorPage() {
 
       // ── Key exhaustion ────────────────────────────────────────────────────────
       if (sysData?.ai) {
-        const LABELS: Record<string, string> = { groq: "Groq", perplexity: "Perplexity", gemini: "Gemini", tavily: "Tavily", exa: "Exa", serper: "Serper", mistral: "Mistral", nvidia: "NVIDIA NIM" };
+        const LABELS: Record<string, string> = { groq: "Groq", perplexity: "Perplexity", gemini: "Gemini", tavily: "Tavily", exa: "Exa", serper: "Serper", mistral: "Mistral" };
         const providerWarnings = (Object.entries(sysData.ai) as [string, any[]][])
           .flatMap(([k, slots]) => {
             const configured = slots.filter((s: any) => s.state !== "missing").length;
