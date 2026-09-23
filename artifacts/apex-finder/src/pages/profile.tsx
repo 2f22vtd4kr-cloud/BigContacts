@@ -609,18 +609,6 @@ export default function ApexProfile() {
     }
   };
 
-  /** Refresh the canonical entity projection; durable evidence is promoted by the Atlas target runner. */
-  const handleRehydrateContacts = async () => {
-    setIsEnriching(true);
-    try {
-      await refetchEntity();
-      setContactEvidenceKey((k) => k + 1);
-      setEnrichDone(true);
-    } finally {
-      setIsEnriching(false);
-    }
-  };
-
   // ── Relationship handlers ──────────────────────────────────────────────────
 
   const handleRelSearch = async (q: string) => {
