@@ -111,18 +111,39 @@ export function buildApexAtlasBossPlanPrompt(input: PlanInput): string {
     relatedOrganizations: input.file.evidenceSummary?.relatedOrganizations ?? [],
     depth: depth.depth,
   });
-  const coordinationLedger = JSON.stringify({
+  // Keep one authoritative decision-context serialization. The previous prompt
+  // serialized substantially overlapping case state twice, inflating the real
+  // Boss request and making provider throttling/latency harder to distinguish from
+  // application behavior.
+  const decisionContext = JSON.stringify({
     iteration: input.iteration,
     lastUpdatedBy: input.file.lastUpdatedBy,
-    decisions: input.file.decisionLog ?? [],
-    priorBossPlan: input.file.bossPlan ?? null,
-    priorRightHandAdvice: input.file.rightHandAdvice ?? null,
-    progress: input.file.investigationProgress ?? null,
-    openGaps: input.file.evidenceSummary?.searchGaps ?? [],
-    negativeFindings: input.file.evidenceSummary?.negativeFindings ?? [],
-    discoveredPeople: input.file.evidenceSummary?.discoveredPeople ?? [],
-    relatedOrganizations: input.file.evidenceSummary?.relatedOrganizations ?? [],
+    target: input.file.target ?? null,
+    hypotheses: input.file.hypotheses ?? [],
+    evidenceSummary: {
+      discoveredPeople: input.file.evidenceSummary?.discoveredPeople ?? [],
+      relatedOrganizations: input.file.evidenceSummary?.relatedOrganizations ?? [],
+      searchGaps: input.file.evidenceSummary?.searchGaps ?? [],
+      negativeFindings: input.file.evidenceSummary?.negativeFindings ?? [],
+    },
+    specialistRoster: input.file.specialistRoster ?? [],
+    actionFrontier: {
+      queued: queuedActions,
+      completed: input.file.actionQueue
+        .filter((action) => action.status !== "queued")
+        .map(({ id, title, purpose, specialistId, tools, priority, rationale, status }) => ({
+          id, title, purpose, specialistId, tools, priority, rationale, status,
+        })),
+    },
     contactRoutes: input.file.contactRoutes ?? [],
+    humanDirectives: input.file.humanDirectives ?? [],
+    decisionLog: input.file.decisionLog ?? [],
+    rightHandAdvice: input.file.rightHandAdvice ?? null,
+    bossPlan: input.file.bossPlan ?? null,
+    nextBestAction: input.file.nextBestAction ?? null,
+    investigationProgress: input.file.investigationProgress ?? null,
+    researchDepth: input.file.researchDepth ?? null,
+    noProgressStreak: input.file.noProgressStreak ?? 0,
   }, null, 2);
 
   return `${apexOrientationFor("boss")}
@@ -159,8 +180,8 @@ The three roles must cooperate, not compete:
 - Agreement is not the goal; evidence-backed convergence is. Contradictions must be surfaced, not hidden.
 
 === MOUNTING CASE STATE / COORDINATION LEDGER ===
-The case file is shared memory. The following ledger is the complete available coordination surface for this decision, not a lossy recent-items summary:
-${coordinationLedger}
+The case file is shared memory. The following decision context is the single authoritative coordination surface for this decision:
+${decisionContext}
 
 Treat these as authoritative:
 - investigationProgress = coverage frontier and stalled/pending vectors
@@ -251,13 +272,6 @@ Iteration: ${input.iteration}
 <investigation_progress>
 ${progressBlock}
 </investigation_progress>
-<case_file>
-${buildBossDecisionContext(input.file)}
-</case_file>
-<right_hand_advice>
-${JSON.stringify(input.rightHandAdvice ?? null, null, 2)}
-</right_hand_advice>
-
 Return ONLY this JSON (one of the three shapes):
 {
   "outcome": "proceed",
