@@ -68,6 +68,7 @@ jobs:
           pnpm run check:agentic-runtime
           pnpm run check:agentic-timeout
           node scripts/check-workflow-action-pins.mjs
+          pnpm run check:retired-api-contract-callers
           pnpm --dir artifacts/api-server exec vitest run src/src/test/discovery-agent-parse.test.ts src/src/test/bureau-contact-persist-strict.test.ts
       - name: Start API
         run: |
