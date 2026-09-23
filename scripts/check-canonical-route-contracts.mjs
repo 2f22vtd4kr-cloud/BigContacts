@@ -4,6 +4,7 @@ import fs from "node:fs";
 const routes = fs.readFileSync("artifacts/api-server/src/src/routes/index.ts", "utf8");
 const relationships = fs.readFileSync("artifacts/api-server/src/src/routes/relationships.ts", "utf8");
 const frontend = fs.readFileSync("artifacts/apex-finder/src/pages/profile.tsx", "utf8");
+const relationships = fs.readFileSync("artifacts/api-server/src/src/routes/relationships.ts", "utf8");
 
 const failures = [];
 const assert = (ok, message) => { if (!ok) failures.push(message); };
