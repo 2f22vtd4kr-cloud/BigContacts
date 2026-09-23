@@ -61,6 +61,44 @@ type PlanInput = {
   };
 };
 
+function buildBossDecisionContext(file: PlanInput["file"]): string {
+  const queued = (file.actionQueue ?? [])
+    .filter((action) => action.status === "queued")
+    .slice()
+    .sort((a, b) => Number(b.priority ?? 0) - Number(a.priority ?? 0))
+    .map(({ id, title, purpose, specialistId, tools, priority, rationale }) => ({
+      id, title, purpose, specialistId, tools, priority, rationale,
+    }));
+  const completed = (file.actionQueue ?? [])
+    .filter((action) => action.status !== "queued")
+    .map(({ id, title, purpose, specialistId, tools, priority, rationale, status }) => ({
+      id, title, purpose, specialistId, tools, priority, rationale, status,
+    }));
+  const evidence = file.evidenceSummary ?? {};
+  return JSON.stringify({
+    target: file.target ?? null,
+    hypotheses: file.hypotheses ?? [],
+    evidenceSummary: {
+      discoveredPeople: evidence.discoveredPeople ?? [],
+      relatedOrganizations: evidence.relatedOrganizations ?? [],
+      searchGaps: evidence.searchGaps ?? [],
+      negativeFindings: evidence.negativeFindings ?? [],
+    },
+    specialistRoster: file.specialistRoster ?? [],
+    actionFrontier: { queued, completed },
+    contactRoutes: file.contactRoutes ?? [],
+    humanDirectives: file.humanDirectives ?? [],
+    decisionLog: file.decisionLog ?? [],
+    rightHandAdvice: file.rightHandAdvice ?? null,
+    bossPlan: file.bossPlan ?? null,
+    nextBestAction: file.nextBestAction ?? null,
+    lastUpdatedBy: file.lastUpdatedBy,
+    investigationProgress: file.investigationProgress ?? null,
+    researchDepth: file.researchDepth ?? null,
+    noProgressStreak: file.noProgressStreak ?? 0,
+  }, null, 2);
+}
+
 /** Apex Atlas Boss planning prompt — progress-aware, depth-aware, primary-source OSINT discipline. */
 export function buildApexAtlasBossPlanPrompt(input: PlanInput): string {
   const queuedActions = input.file.actionQueue
@@ -87,36 +125,7 @@ export function buildApexAtlasBossPlanPrompt(input: PlanInput): string {
   // serialized substantially overlapping case state twice, inflating the real
   // Boss request and making provider throttling/latency harder to distinguish from
   // application behavior.
-  const decisionContext = JSON.stringify({
-    iteration: input.iteration,
-    lastUpdatedBy: input.file.lastUpdatedBy,
-    target: input.file.target ?? null,
-    hypotheses: input.file.hypotheses ?? [],
-    evidenceSummary: {
-      discoveredPeople: input.file.evidenceSummary?.discoveredPeople ?? [],
-      relatedOrganizations: input.file.evidenceSummary?.relatedOrganizations ?? [],
-      searchGaps: input.file.evidenceSummary?.searchGaps ?? [],
-      negativeFindings: input.file.evidenceSummary?.negativeFindings ?? [],
-    },
-    specialistRoster: input.file.specialistRoster ?? [],
-    actionFrontier: {
-      queued: queuedActions,
-      completed: input.file.actionQueue
-        .filter((action) => action.status !== "queued")
-        .map(({ id, title, purpose, specialistId, tools, priority, rationale, status }) => ({
-          id, title, purpose, specialistId, tools, priority, rationale, status,
-        })),
-    },
-    contactRoutes: input.file.contactRoutes ?? [],
-    humanDirectives: input.file.humanDirectives ?? [],
-    decisionLog: input.file.decisionLog ?? [],
-    rightHandAdvice: input.file.rightHandAdvice ?? null,
-    bossPlan: input.file.bossPlan ?? null,
-    nextBestAction: input.file.nextBestAction ?? null,
-    investigationProgress: input.file.investigationProgress ?? null,
-    researchDepth: input.file.researchDepth ?? null,
-    noProgressStreak: input.file.noProgressStreak ?? 0,
-  }, null, 2);
+  const decisionContext = buildBossDecisionContext(input.file);
 
   return `${apexOrientationFor("boss")}
 
