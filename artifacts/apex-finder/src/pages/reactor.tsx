@@ -102,7 +102,7 @@ interface AtlasLiveState {
     errors?: number;
     message?: string;
   } | null;
-  /** Honeycomb-style dig spans from GET /api/ingest/atlas-status recentSpans */
+  /** Honeycomb-style dig spans from the canonical Atlas trace recentSpans */
   recentSpans?: DigSpanView[];
   /** Presented routes for Live Desk ContactSurface */
   cardContacts?: Array<Record<string, unknown>>;
