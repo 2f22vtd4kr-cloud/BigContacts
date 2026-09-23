@@ -129,6 +129,7 @@ curl -sS -H "Authorization: Bearer $APEX_API_AUTH_TOKEN" "http://127.0.0.1:8080/
 **DB schema:**
 ```bash
 pnpm --filter @workspace/db run push
+pnpm --filter @workspace/db run harden
 ```
 
 **Floors (when tree complete):**
