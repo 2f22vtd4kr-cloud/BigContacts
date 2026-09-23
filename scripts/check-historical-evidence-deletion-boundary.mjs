@@ -6,6 +6,7 @@ const schema = fs.readFileSync(path.join(root, "lib/db/src/schema/phase_j.ts"), 
 const evidence = fs.readFileSync(path.join(root, "lib/db/src/schema/research_evidence.ts"), "utf8");
 const runEvents = fs.readFileSync(path.join(root, "lib/db/src/schema/research_run_events.ts"), "utf8");
 const db = fs.readFileSync(path.join(root, "lib/db/src/index.ts"), "utf8");
+const migration = fs.readFileSync(path.join(root, "lib/db/migrations/001-apex-invariants.sql"), "utf8");
 const failures = [];
 const assert = (ok, message) => { if (!ok) failures.push(message); };
 
@@ -13,7 +14,7 @@ assert(/contactEvidenceTable[\s\S]{0,500}references\(\(\)\s*=>\s*entitiesTable\.
 assert(/researchEvidenceTable[\s\S]{0,500}sessionId:[\s\S]{0,180}onDelete:\s*"restrict"/.test(evidence), "research evidence must restrict session deletion");
 assert(/researchEvidenceTable[\s\S]{0,700}entityId:[\s\S]{0,180}onDelete:\s*"restrict"/.test(evidence), "research evidence must restrict entity deletion");
 assert(/researchRunEventsTable[\s\S]{0,500}sessionId:[\s\S]{0,180}onDelete:\s*"restrict"/.test(runEvents), "research run ledger must restrict session deletion");
-assert(/public\.contact_evidence[\s\S]{0,900}c\.confdeltype\s*<>\s*'r'[\s\S]{0,900}ON DELETE RESTRICT/.test(db), "boot hardener must repair legacy contact-evidence cascades");
+assert(/public\.contact_evidence[\s\S]{0,900}c\.confdeltype\s*<>\s*'r'[\s\S]{0,900}ON DELETE RESTRICT/.test(migration), "explicit hardening migration must repair legacy contact-evidence cascades");
 assert(/public\.research_evidence[\s\S]{0,900}c\.confdeltype\s*<>\s*'r'[\s\S]{0,900}ON DELETE RESTRICT/.test(db), "boot hardener must repair legacy research-evidence cascades");
 assert(/public\.research_run_events[\s\S]{0,900}c\.confdeltype\s*<>\s*'r'[\s\S]{0,900}ON DELETE RESTRICT/.test(db), "boot hardener must repair legacy research-run-event cascades");
 assert(/research_case_events[\s\S]{0,400}ON DELETE RESTRICT/.test(db), "research case event ledger must remain non-destructible through case deletion");
