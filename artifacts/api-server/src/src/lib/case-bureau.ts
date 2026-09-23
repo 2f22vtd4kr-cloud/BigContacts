@@ -492,7 +492,7 @@ export async function generateGeminiBossText(
   const models = [...new Set([
     selection.model,
     ...(selection.candidateModels ?? []),
-  ])].slice(0, 2);
+  ])].slice(0, 4);
   let lastError = `Gemini Boss ${selection.model} did not return text.`;
   // Boss is a small control-plane JSON decision, but live Gemini latency has
   // already been measured above 10s. Keep the boundary bounded while allowing a
