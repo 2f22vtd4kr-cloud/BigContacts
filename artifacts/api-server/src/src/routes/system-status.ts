@@ -15,6 +15,37 @@ import { buildLanesHonestySnapshot } from "../lib/lanes-honesty";
 const router: IRouter = Router();
 const CACHE_TTL_MS = 15_000;
 let _cached: unknown = null; let _cachedAt = 0;
+router.get("/system/source-quality", async (_req,res) => {
+  try {
+    const [bySource, outcomeSummary] = await Promise.all([
+      db.execute(sql`
+        SELECT source,
+          COUNT(*)::int AS total_evidence,
+          COUNT(*) FILTER (WHERE validation_status = 'verified')::int AS verified_count,
+          COUNT(*) FILTER (WHERE validation_status = 'candidate')::int AS candidate_count,
+          COUNT(*) FILTER (WHERE validation_status = 'rejected')::int AS rejected_count,
+          ROUND(AVG(source_reliability)::numeric, 3)::float AS avg_reliability,
+          ROUND(AVG(directness_score)::numeric, 3)::float AS avg_directness,
+          ROUND(AVG(independent_corroboration)::numeric, 2)::float AS avg_corroboration,
+          COUNT(DISTINCT entity_id)::int AS entities_covered,
+          COUNT(DISTINCT vector_type)::int AS vector_types
+        FROM contact_evidence
+        GROUP BY source
+        ORDER BY verified_count DESC, total_evidence DESC
+        LIMIT 30
+      `),
+      db.execute(sql`
+        SELECT COALESCE(contact_outcome, 'none') AS outcome, COUNT(*)::int AS count,
+          ROUND(100.0 * COUNT(*) / NULLIF(SUM(COUNT(*)) OVER (), 0), 1)::float AS pct
+        FROM entities GROUP BY contact_outcome ORDER BY count DESC
+      `),
+    ]);
+    res.json({ bySource: bySource.rows, outcomeSummary: outcomeSummary.rows, generatedAt: new Date().toISOString() });
+  } catch (err) {
+    res.status(500).json({ error: err instanceof Error ? err.message : "Source quality unavailable" });
+  }
+});
+
 router.get("/system/status", async (_req,res) => {
   try {
     if (_cached && Date.now()-_cachedAt<CACHE_TTL_MS) return res.json({ ...(typeof _cached === "object" ? _cached : {}), cached:true, cachedAgoMs:Date.now()-_cachedAt });
