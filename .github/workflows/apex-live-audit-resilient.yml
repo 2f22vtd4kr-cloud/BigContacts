@@ -160,7 +160,8 @@ jobs:
       - name: Launch bounded 3-target discovery-first Bureau smoke
         run: |
           curl -sS -m 15 -X POST http://127.0.0.1:8080/api/ingest/atlas-run -H "Authorization: Bearer $APEX_API_AUTH_TOKEN" -H 'Content-Type: application/json' -d '{"discoveryFirst":true,"targetCount":3,"researchLimit":2,"runResearch":true,"skipFaa":true,"targetTimeoutMs":300000,"researchDepth":"standard"}' | tee /tmp/launch.json
-          node -e 'const x=require("/tmp/launch.json"); if(!x.jobId){console.error(JSON.stringify(x));process.exit(1)}; console.log(x.jobId)'
+          JOB_ID="$(node -p 'require("/tmp/launch.json").jobId || ""')"
+          test -n "$JOB_ID"
       - name: Poll Bureau
         run: |
           for i in $(seq 1 1200); do
@@ -174,8 +175,9 @@ jobs:
         if: always()
         run: |
           curl -sS -m 10 http://127.0.0.1:8080/api/healthz | tee /tmp/health.json || true
-          curl -sS -m 10 http://127.0.0.1:8080/api/ingest/atlas-status | tee /tmp/atlas-status.json || true
-          curl -sS -m 10 'http://127.0.0.1:8080/api/entities?limit=50&offset=0' | tee /tmp/entities.json || true
+          curl -sS -m 10 -H "Authorization: Bearer $APEX_API_AUTH_TOKEN" "http://127.0.0.1:8080/api/ingest/job/$JOB_ID" | tee /tmp/atlas-status.json || true
+          curl -sS -m 10 -H "Authorization: Bearer $APEX_API_AUTH_TOKEN" "http://127.0.0.1:8080/api/ingest/atlas-trace/$JOB_ID" | tee /tmp/atlas-trace.json || true
+          curl -sS -m 10 -H "Authorization: Bearer $APEX_API_AUTH_TOKEN" 'http://127.0.0.1:8080/api/entities?limit=50&offset=0' | tee /tmp/entities.json || true
       - name: Live autonomy and provenance audit
         if: always()
         run: node scripts/audit-live-bureau.mjs
@@ -187,6 +189,7 @@ jobs:
           path: |
             /tmp/launch.json
             /tmp/atlas-status.json
+            /tmp/atlas-trace.json
             /tmp/entities.json
             /tmp/health.json
             /tmp/apex-api.log
