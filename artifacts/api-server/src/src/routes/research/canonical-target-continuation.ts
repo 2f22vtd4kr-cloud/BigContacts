@@ -5,11 +5,13 @@ import { createJob, getActiveJob, getJob, setActiveJob, updateJob, clearActiveJo
 import { claimCanonicalJob } from "../../lib/canonical-job-lock";
 import { runCanonicalSingleTargetInvestigation } from "../../lib/canonical-single-target-runner";
 import { decideTargetNextAction } from "../../lib/target-control-decision";
+import { enablePermanentRedis } from "../../lib/redis";
 const router = Router();
 const cancellationFenceSql = (caseId: number) => sql`NOT (status = 'cancelled' OR (status = 'review' AND current_action IN ('canonical-atlas-cancelled','canonical-lease-lost'))) AND id = ${caseId}`;
 function parseFile(raw: string | null): Record<string, any> | null { try { const value = raw ? JSON.parse(raw) : null; return value && typeof value === "object" ? value : null; } catch { return null; } }
 function contextOf(file: Record<string, any>): string { const context = typeof file.contextDocument === "string" ? file.contextDocument.trim() : ""; if (!context) throw new Error("Target case has no durable context document; refusing context-free continuation."); return context.slice(0, 28000); }
 router.post("/research/bureau/target-cases/:caseId/run-next-pass", async (req, res): Promise<void> => {
+  try { await enablePermanentRedis(); } catch (error) { res.status(503).json({ error: error instanceof Error ? error.message : "Permanent Redis is unavailable for canonical target continuation." }); return; }
   const caseId = Number(req.params.caseId); if (!Number.isInteger(caseId) || caseId <= 0) { res.status(400).json({ error: "Invalid target case ID" }); return; }
   const [current] = await db.select().from(researchCasesTable).where(eq(researchCasesTable.id, caseId)).limit(1); if (!current) { res.status(404).json({ error: "Target case not found" }); return; }
   const file = parseFile(current.caseFile); if (!file || file.target == null || current.caseType !== "target") { res.status(409).json({ error: "Only a canonical target case can run target continuation" }); return; }
