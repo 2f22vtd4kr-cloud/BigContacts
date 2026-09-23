@@ -418,8 +418,8 @@ type GeminiTextGenerationResult = {
   raw: string | null;
   error: string | null;
 };
-const DEFAULT_GEMINI_BOSS_REQUEST_TIMEOUT_MS = 20_000;
-const DEFAULT_GEMINI_BOSS_OVERALL_TIMEOUT_MS = 45_000;
+const DEFAULT_GEMINI_BOSS_REQUEST_TIMEOUT_MS = 30_000;
+const DEFAULT_GEMINI_BOSS_OVERALL_TIMEOUT_MS = 75_000;
 const MIN_GEMINI_BOSS_REQUEST_TIMEOUT_MS = 10_000;
 const MAX_GEMINI_BOSS_REQUEST_TIMEOUT_MS = 60_000;
 const MIN_GEMINI_BOSS_OVERALL_TIMEOUT_MS = 20_000;
@@ -552,7 +552,7 @@ export async function generateGeminiBossText(
             requestPayloadBytes: Buffer.byteLength(requestBody),
             promptBytes: Buffer.byteLength(prompt),
             configuredRequestTimeoutMs: bossRequestTimeoutMs,
-            configuredOverallTimeoutMs: 20_000,
+            configuredOverallTimeoutMs: getGeminiBossOverallTimeoutMs(),
             attemptTimeoutMs,
             remainingMs,
             fetchElapsedMs,
@@ -624,15 +624,36 @@ export async function generateGeminiBossText(
           },
           "Gemini Boss request rejected",
         );
-        lastError = error instanceof Error ? error.message : "Gemini Boss generation failed.";
-        if (Date.now() >= bossDeadline) return { model: selection.model, raw: null, error: "Gemini Boss generation deadline exceeded." };
+        const isAbort = error instanceof Error && error.name === "AbortError";
+        const elapsedMs = Date.now() - attemptStartedAt;
+        const timeoutKind = overallDeadlineFired
+          ? "overall deadline"
+          : requestDeadlineFired
+            ? "request deadline"
+            : null;
+        lastError = isAbort
+          ? `Gemini Boss ${model} ${timeoutKind ?? "request"} exceeded after ${elapsedMs}ms with no HTTP response.`
+          : error instanceof Error
+            ? `Gemini Boss ${model} request failed: ${error.message}`
+            : `Gemini Boss ${model} request failed.`;
+        if (Date.now() >= bossDeadline) {
+          return {
+            model: selection.model,
+            raw: null,
+            error: `Gemini Boss exhausted its bounded model attempts before receiving a usable response: ${lastError}`,
+          };
+        }
       } finally {
         clearTimeout(timer);
       }
     }
   }
 
-  return { model: selection.model, raw: null, error: lastError };
+  return {
+    model: selection.model,
+    raw: null,
+    error: `Gemini Boss unavailable after bounded same-role model fallback. ${lastError}`,
+  };
 }
 
 export async function getGeminiBossStatus(): Promise<GeminiBossStatus> {
