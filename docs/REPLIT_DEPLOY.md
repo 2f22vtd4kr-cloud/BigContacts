@@ -49,7 +49,7 @@ After changing **any** secret: **restart API Server** so provider slot counts re
 
 **Research integrity (do not skip):**
 1. Pull latest `main` (free ReAct + full OSINT tool surface + session orientation). See `docs/PRE_REPLIT_GO.md`.
-2. Secrets must include **SERPER_API_KEY** + **GROQ_API_KEY** minimum; Tavily, Exa, Gemini, Mistral, NVIDIA, Scrapfly/ZenRows strongly recommended.
+2. Secrets must include **SERPER_API_KEY** + **GROQ_API_KEY** minimum; Tavily, Exa, Gemini Right Hand, Mistral, Scrapfly/ZenRows strongly recommended.
 3. Set `RESEARCH_DEPTH=standard` (or `deep`) for head-to-head vs plain Grok — `fast` is for bulk cost control.
 4. Open status / `GET /api/healthz` — `bureauIntegrity` must be **ok** before Launch.
 5. Stale cards: re-cook with `POST /api/ingest/atlas-run` `{ "singleTargetId": <id> }`.
@@ -70,14 +70,12 @@ Map **one secret name → one value**. Never commit values to git.
 | `REDIS_URL_2` | Upstash #2 (contact cache preferred) |
 | `REDIS_URL_3` … `REDIS_URL_5` | Failover when quota exhausted |
 
-### LLM / bureau (Boss + right hand + extract)
+### LLM / bureau (Gemini oversight + Groq/Mistral Investigator)
 | Secret | Purpose |
 |--------|---------|
 | `GROQ_API_KEY` | Primary fast LLM (also `GROQ_API_KEY_2`… if multi) |
 | `GEMINI_API_KEY` | Gemini Boss (add `GEMINI_API_KEY_2`… for rotation) |
-| `DEEPSEEK_API_KEY` | zAI / NIM case reasoning (right hand) |
 | `MISTRAL_API_KEY` | Mistral web-search lane |
-| `HF_TOKEN` | Hugging Face / deep research tools |
 
 ### Search & web surface
 | Secret | Purpose |
