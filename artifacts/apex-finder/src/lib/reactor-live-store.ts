@@ -58,7 +58,7 @@ async function pull(): Promise<void> {
   controller = myController;
   try {
     // Canonical Atlas status is the active-job projection. Legacy
-    // /api/ingest/atlas-status was intentionally retired and must not be
+    // The retired Atlas status route is intentionally excluded; the canonical active-job endpoint is
     // resurrected merely to feed the Reactor UI.
     const activeResponse = await fetch(`${baseUrl()}/api/ingest/job/active/atlas-run`, {
       credentials: "same-origin",
