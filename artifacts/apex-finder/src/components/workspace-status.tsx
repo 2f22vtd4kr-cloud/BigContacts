@@ -119,7 +119,7 @@ export function WorkspaceStatus() {
     const controller = new AbortController();
     const refresh = async () => {
       const [atlasResult, systemResult] = await Promise.allSettled([
-        fetch(`${BASE}/api/ingest/atlas-status`, { cache: "no-store", signal: controller.signal }),
+        fetch(`${BASE}/api/ingest/job/active/atlas-run`, { cache: "no-store", signal: controller.signal }),
         fetchSystemStatus(BASE, controller.signal),
       ]);
       if (!mounted) return;
