@@ -8,7 +8,7 @@ const stopSource = fs.readFileSync(path.join(root, "artifacts/api-server/src/src
 const lockSource = fs.readFileSync(path.join(root, "artifacts/api-server/src/src/lib/canonical-job-lock.ts"), "utf8");
 const checks = [
   ["event writer jobId is checked against durable case jobId", /event_job_id[\s\S]*stored_job_id[\s\S]*job binding mismatch/.test(migration)],
-  ["case snapshots have a hard byte ceiling", /MAX_CASE_FILE_BYTES\s*=\s*1_048_576/.test(migration) && /research_cases_case_file_size_ck/.test(migration)],
+  ["case snapshots have a hard byte ceiling", /octet_length\(case_file\)\s*>\s*1048576/.test(migration) && /research_cases_case_file_size_ck/.test(migration)],
   ["operator stop establishes the durable case fence before job cancellation", /await db\.update\(researchCasesTable\)[\s\S]*canonical-atlas-cancelled[\s\S]*await updateJob\(activeJobId/.test(stopSource)],
   ["agentic promotion requires an active target case", /apex_agentic_promotion_active_case[\s\S]*bound_case\.status\s*<>\s*'active'[\s\S]*agentic contact promotion is fenced/.test(migration)],
   ["promotion locks the exact bound case row", /FROM public\.research_cases[\s\S]*target_entity_id\s*=\s*NEW\.id[\s\S]*LIMIT 1 FOR UPDATE/.test(migration)],
