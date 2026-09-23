@@ -418,6 +418,51 @@ type GeminiTextGenerationResult = {
   raw: string | null;
   error: string | null;
 };
+const DEFAULT_GEMINI_BOSS_REQUEST_TIMEOUT_MS = 20_000;
+const DEFAULT_GEMINI_BOSS_OVERALL_TIMEOUT_MS = 45_000;
+const MIN_GEMINI_BOSS_REQUEST_TIMEOUT_MS = 10_000;
+const MAX_GEMINI_BOSS_REQUEST_TIMEOUT_MS = 60_000;
+const MIN_GEMINI_BOSS_OVERALL_TIMEOUT_MS = 20_000;
+const MAX_GEMINI_BOSS_OVERALL_TIMEOUT_MS = 120_000;
+
+function boundedPositiveEnvMs(name: string, fallback: number, minimum: number, maximum: number): number {
+  const raw = process.env[name];
+  if (!raw) return fallback;
+  const value = Number(raw);
+  if (!Number.isFinite(value)) return fallback;
+  return Math.min(maximum, Math.max(minimum, Math.round(value)));
+}
+
+export function getGeminiBossLatencyConfig(): {
+  requestTimeoutMs: number;
+  overallTimeoutMs: number;
+} {
+  const requestTimeoutMs = boundedPositiveEnvMs(
+    "APEX_GEMINI_BOSS_REQUEST_TIMEOUT_MS",
+    DEFAULT_GEMINI_BOSS_REQUEST_TIMEOUT_MS,
+    MIN_GEMINI_BOSS_REQUEST_TIMEOUT_MS,
+    MAX_GEMINI_BOSS_REQUEST_TIMEOUT_MS,
+  );
+  const overallTimeoutMs = Math.max(
+    requestTimeoutMs,
+    boundedPositiveEnvMs(
+      "APEX_GEMINI_BOSS_OVERALL_TIMEOUT_MS",
+      DEFAULT_GEMINI_BOSS_OVERALL_TIMEOUT_MS,
+      MIN_GEMINI_BOSS_OVERALL_TIMEOUT_MS,
+      MAX_GEMINI_BOSS_OVERALL_TIMEOUT_MS,
+    ),
+  );
+  return { requestTimeoutMs, overallTimeoutMs };
+}
+
+function getGeminiBossRequestTimeoutMs(): number {
+  return getGeminiBossLatencyConfig().requestTimeoutMs;
+}
+
+function getGeminiBossOverallTimeoutMs(): number {
+  return getGeminiBossLatencyConfig().overallTimeoutMs;
+}
+
 
 /**
  * Gemini is a text-only Boss. If the selected model is temporarily busy,
@@ -449,11 +494,12 @@ export async function generateGeminiBossText(
     ...(selection.candidateModels ?? []),
   ])].slice(0, 2);
   let lastError = `Gemini Boss ${selection.model} did not return text.`;
-  // Boss is a small control-plane JSON decision. Keep it latency-bounded: two
-  // compatible model candidates are enough to survive model retirement/capacity
-  // drift without turning one decision into a minute-long serial generation chain.
-  const bossDeadline = Date.now() + 20_000;
-  const bossRequestTimeoutMs = 10_000;
+  // Boss is a small control-plane JSON decision, but live Gemini latency has
+  // already been measured above 10s. Keep the boundary bounded while allowing a
+  // normal provider response enough time to arrive and leaving a real fallback
+  // window for the second compatible model.
+  const bossRequestTimeoutMs = getGeminiBossRequestTimeoutMs();
+  const bossDeadline = Date.now() + getGeminiBossOverallTimeoutMs();
   const bossMaxOutputTokens = 1_024;
 
   for (const entry of keyEntries) {

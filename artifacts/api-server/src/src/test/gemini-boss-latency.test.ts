@@ -12,8 +12,44 @@ describe("Gemini Boss latency controls", () => {
   afterEach(() => {
     globalThis.fetch = nativeFetch;
     delete process.env.GEMINI_API_KEY;
+    delete process.env.APEX_GEMINI_BOSS_REQUEST_TIMEOUT_MS;
+    delete process.env.APEX_GEMINI_BOSS_OVERALL_TIMEOUT_MS;
     vi.resetModules();
     vi.restoreAllMocks();
+  });
+
+  it("uses a bounded default latency window that leaves room for model fallback", async () => {
+    process.env.GEMINI_API_KEY = "test-key";
+    vi.resetModules();
+    const { getGeminiBossLatencyConfig } = await import("../lib/case-bureau");
+    expect(getGeminiBossLatencyConfig()).toEqual({
+      requestTimeoutMs: 20_000,
+      overallTimeoutMs: 45_000,
+    });
+  });
+
+  it("honors bounded Boss latency overrides", async () => {
+    process.env.GEMINI_API_KEY = "test-key";
+    process.env.APEX_GEMINI_BOSS_REQUEST_TIMEOUT_MS = "25000";
+    process.env.APEX_GEMINI_BOSS_OVERALL_TIMEOUT_MS = "55000";
+    vi.resetModules();
+    const { getGeminiBossLatencyConfig } = await import("../lib/case-bureau");
+    expect(getGeminiBossLatencyConfig()).toEqual({
+      requestTimeoutMs: 25_000,
+      overallTimeoutMs: 55_000,
+    });
+  });
+
+  it("keeps the overall Boss deadline at least as large as the request deadline", async () => {
+    process.env.GEMINI_API_KEY = "test-key";
+    process.env.APEX_GEMINI_BOSS_REQUEST_TIMEOUT_MS = "60000";
+    process.env.APEX_GEMINI_BOSS_OVERALL_TIMEOUT_MS = "20000";
+    vi.resetModules();
+    const { getGeminiBossLatencyConfig } = await import("../lib/case-bureau");
+    expect(getGeminiBossLatencyConfig()).toEqual({
+      requestTimeoutMs: 60_000,
+      overallTimeoutMs: 60_000,
+    });
   });
 
   it("uses low Gemini 3.x thinking and a small control response budget", async () => {
