@@ -3,6 +3,7 @@ import { eq, isNotNull, sql, and, or, inArray, desc } from "drizzle-orm";
 import { db, relationshipsTable, entitiesTable, assetsTable } from "@workspace/db";
 import { getAllEmbeddings } from "../lib/semantic-engine";
 import { assessGraphNamePairRisk } from "../lib/identity-collision";
+import { safeOutboundFetch } from "../lib/ssrf-safe-fetch";
 import {
   ListRelationshipsQueryParams,
   CreateRelationshipBody,
