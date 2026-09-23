@@ -784,9 +784,6 @@ export default function EntityLedger() {
         setDiggingId(id);
         const launched = await launchAtlasPipeline({
           singleTargetId: id,
-          discoveryFirst: false,
-          researchLimit: 1,
-          runResearch: true,
           researchDepth: digDepth,
           targetCount: 1,
         });
