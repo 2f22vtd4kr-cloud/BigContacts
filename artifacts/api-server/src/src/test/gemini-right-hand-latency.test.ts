@@ -3,12 +3,18 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 vi.mock("../lib/gemini-transient-retry", () => ({
   installGeminiTransientRetry: vi.fn(),
 }));
+vi.mock("../lib/logger", () => ({
+  logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
+}));
+
+import { logger } from "../lib/logger";
 
 describe("Gemini Right-hand latency controls", () => {
   const nativeFetch = globalThis.fetch;
 
   afterEach(() => {
     globalThis.fetch = nativeFetch;
+    vi.useRealTimers();
     delete process.env.GEMINI_RIGHT_HAND_API_KEY;
     delete process.env.GEMINI_RIGHT_HAND_MODEL_CHAIN;
     delete process.env.APEX_GEMINI_RIGHT_HAND_REQUEST_TIMEOUT_MS;
@@ -52,6 +58,40 @@ describe("Gemini Right-hand latency controls", () => {
     expect(body.generationConfig.responseMimeType).toBe("application/json");
     expect(body.generationConfig.thinkingConfig.thinkingLevel).toBe("low");
     expect(body.generationConfig.temperature).toBeUndefined();
+  });
+
+  it("records redacted request telemetry without persisting prompt contents", async () => {
+    process.env.GEMINI_RIGHT_HAND_API_KEY = "test-key";
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(JSON.stringify({
+        candidates: [{ content: { parts: [{ text: '{"decision":"continue","reason":"test","focusLanes":[],"confidence":0.5}' }] } }],
+      }), { status: 200 }),
+    );
+    globalThis.fetch = fetchMock;
+    vi.resetModules();
+    const { runGeminiRightHandFreeJson } = await import("../lib/gemini-right-hand-reasoning");
+
+    const result = await runGeminiRightHandFreeJson("unique user prompt that must not be logged");
+    expect(result.status).toBe("completed");
+    const infoCall = vi.mocked(logger.info).mock.calls.find(([, message]) => message === "Gemini Right-hand request resolved");
+    expect(infoCall).toBeDefined();
+    const telemetry = infoCall?.[0] as Record<string, unknown>;
+    expect(telemetry).toMatchObject({
+      role: "gemini_right_hand",
+      phase: "request_resolved",
+      model: "gemini-3.8-flash",
+      httpStatus: 200,
+      requestDeadlineFired: false,
+      overallDeadlineFired: false,
+    });
+    expect(typeof telemetry.requestPayloadBytes).toBe("number");
+    expect(typeof telemetry.systemPromptBytes).toBe("number");
+    expect(typeof telemetry.userPromptBytes).toBe("number");
+    expect(typeof telemetry.fetchElapsedMs).toBe("number");
+    expect(typeof telemetry.totalElapsedMs).toBe("number");
+    expect(telemetry).not.toHaveProperty("systemPrompt");
+    expect(telemetry).not.toHaveProperty("userPrompt");
+    expect(JSON.stringify(telemetry)).not.toContain("unique user prompt");
   });
 
   it("tries at most two Gemini models instead of serially exhausting the fallback chain", async () => {

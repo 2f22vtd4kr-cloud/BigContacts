@@ -460,6 +460,26 @@ export async function generateGeminiBossText(
     for (const model of models) {
       const remainingMs = bossDeadline - Date.now();
       if (remainingMs <= 0) return { model: selection.model, raw: null, error: "Gemini Boss generation deadline exceeded." };
+      const requestBody = JSON.stringify({
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        generationConfig: {
+          maxOutputTokens: bossMaxOutputTokens,
+          responseMimeType: "application/json",
+          ...(modelVersion(model)[0] >= 3
+            ? { thinkingConfig: { thinkingLevel: "low" } }
+            : {}),
+        },
+      });
+      const attemptStartedAt = Date.now();
+      const attemptTimeoutMs = Math.min(bossRequestTimeoutMs, Math.max(1_000, remainingMs));
+      let requestDeadlineFired = false;
+      let overallDeadlineFired = false;
+      const controller = new AbortController();
+      const timer = setTimeout(() => {
+        if (remainingMs <= bossRequestTimeoutMs) overallDeadlineFired = true;
+        else requestDeadlineFired = true;
+        controller.abort();
+      }, attemptTimeoutMs);
       try {
         const response = await fetch(
           `${GEMINI_MODELS_API.replace("/models", `/models/${encodeURIComponent(model)}:generateContent`)}`,
@@ -470,22 +490,37 @@ export async function generateGeminiBossText(
               "Content-Type": "application/json",
               "x-goog-api-key": entry.key,
             },
-            body: JSON.stringify({
-              contents: [{ role: "user", parts: [{ text: prompt }] }],
-              generationConfig: {
-                maxOutputTokens: bossMaxOutputTokens,
-                responseMimeType: "application/json",
-                ...(modelVersion(model)[0] >= 3
-                  ? { thinkingConfig: { thinkingLevel: "low" } }
-                  : {}),
-              },
-            }),
-            signal: AbortSignal.timeout(Math.min(bossRequestTimeoutMs, Math.max(1_000, remainingMs))),
+            body: requestBody,
+            signal: controller.signal,
           },
+        );
+        const fetchElapsedMs = Date.now() - attemptStartedAt;
+        const responseText = await response.text();
+        const totalElapsedMs = Date.now() - attemptStartedAt;
+        logger.info(
+          {
+            role: "gemini_boss",
+            phase: "request_resolved",
+            model,
+            keyName: entry.name,
+            requestPayloadBytes: Buffer.byteLength(requestBody),
+            promptBytes: Buffer.byteLength(prompt),
+            configuredRequestTimeoutMs: bossRequestTimeoutMs,
+            configuredOverallTimeoutMs: 20_000,
+            attemptTimeoutMs,
+            remainingMs,
+            fetchElapsedMs,
+            totalElapsedMs,
+            httpStatus: response.status,
+            responseBytes: Buffer.byteLength(responseText),
+            requestDeadlineFired,
+            overallDeadlineFired,
+          },
+          "Gemini Boss request resolved",
         );
 
         if (response.status === 429 || response.status === 503) {
-          const detail = (await response.text().catch(() => "")).slice(0, 300);
+          const detail = responseText.slice(0, 300);
           lastError = `Gemini Boss ${model} text-generation HTTP ${response.status}${detail ? `: ${detail}` : ""}`;
           logger.warn(
             { model, status: response.status, keyName: entry.name, detail },
@@ -496,7 +531,7 @@ export async function generateGeminiBossText(
           continue;
         }
         if (!response.ok) {
-          const detail = (await response.text().catch(() => "")).slice(0, 300);
+          const detail = responseText.slice(0, 300);
           lastError = `Gemini Boss ${model} HTTP ${response.status}${detail ? `: ${detail}` : ""}`;
           // Auth failures: abandon this key, try next key.
           if (response.status === 401 || response.status === 403) {
@@ -513,7 +548,6 @@ export async function generateGeminiBossText(
           continue;
         }
 
-        const responseText = await response.text();
         const payload = JSON.parse(responseText) as {
           candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
         };
@@ -521,8 +555,33 @@ export async function generateGeminiBossText(
         if (raw) return { model, raw, error: null };
         lastError = `Gemini Boss ${model} returned no text.`;
       } catch (error) {
+        const fetchElapsedMs = Date.now() - attemptStartedAt;
+        logger.warn(
+          {
+            role: "gemini_boss",
+            phase: "request_rejected",
+            model,
+            keyName: entry.name,
+            requestPayloadBytes: Buffer.byteLength(requestBody),
+            promptBytes: Buffer.byteLength(prompt),
+            configuredRequestTimeoutMs: bossRequestTimeoutMs,
+            configuredOverallTimeoutMs: 20_000,
+            attemptTimeoutMs,
+            remainingMs,
+            fetchElapsedMs,
+            httpStatus: null,
+            responseBytes: 0,
+            requestDeadlineFired,
+            overallDeadlineFired,
+            abortReason: requestDeadlineFired ? "per_request_deadline" : overallDeadlineFired ? "overall_deadline" : null,
+            errorName: error instanceof Error ? error.name : "unknown",
+          },
+          "Gemini Boss request rejected",
+        );
         lastError = error instanceof Error ? error.message : "Gemini Boss generation failed.";
         if (Date.now() >= bossDeadline) return { model: selection.model, raw: null, error: "Gemini Boss generation deadline exceeded." };
+      } finally {
+        clearTimeout(timer);
       }
     }
   }

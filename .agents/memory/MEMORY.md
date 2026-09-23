@@ -8,3 +8,4 @@
 - [Gemini retry ownership](gemini-retry-ownership.md) — Gemini 429/503 retry and fallback must not be blocked by the outer provider cooldown gate.
 - [Blind review truth boundary](blind-review-truth-boundary.md) — deterministic approved values and scope must outrank a reviewer narrative or publish status when they disagree.
 - [GitHub import proxy limits](github-import-proxy-limits.md) — archive downloads can be denied and bursty blob reads can 429; prefer read-only git fetch or batched GraphQL reads.
+- [Gemini boundary diagnostics](gemini-boundary-diagnostics.md) — per-model telemetry is required to separate intermittent provider latency from Apex request defects.

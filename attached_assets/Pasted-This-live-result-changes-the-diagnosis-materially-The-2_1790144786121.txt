@@ -1,0 +1,38 @@
+This live result changes the diagnosis materially.
+
+The 20-second timeout is not simply “Gemini is unavailable.” You demonstrated that the same key, models, generation mode, and endpoint can return successfully in ~9.6s and ~11.0s outside the Apex request path, while the Apex path intermittently exceeds 20s. That points us toward the Apex request construction/runtime boundary, including prompt size, runtime fetch behavior, connection reuse, cancellation, or event-loop/provider interaction.
+
+I would not increase the timeout again yet. The next pass should instrument and isolate the difference between:
+
+1. direct Gemini request,
+2. Apex request() with the same minimal payload,
+3. Apex Right-hand request with the real case prompt,
+4. fallback/cancellation behavior.
+
+The important thing is that the system is currently behaving safely: the failed run produced zero durable research state, so there is no evidence contamination to clean up.
+
+The next engineering target
+
+The current Right-hand implementation sends:
+
+* apexOrientationCompact("right_hand")
+* the role-specific system prompt
+* the entire compacted case/discovery object
+* queued actions where applicable
+* responseMimeType: "application/json"
+* Gemini 3 thinkingLevel: "low"
+* maxOutputTokens: 768
+
+The timeout applies to the entire fetch(), including waiting for the response. We therefore need telemetry that distinguishes connection/request latency from provider generation latency, and we need to determine whether the real case payload is substantially larger than the successful direct test.
+
+I would have Replit Agent do the next pass as a diagnostic-first production bug hunt, rather than blindly modifying timeout values.
+
+If you want to continue with the same discipline as before, give Replit Agent this instruction:
+
+Do not change the timeout yet. Instrument the Gemini Right-hand boundary, reproduce the intermittent failure, compare the exact Apex request against the independently successful direct request, identify the root cause, fix only the demonstrated defect, add regression coverage, and then rerun the complete Five Consecutive Full Code Audits against the final tree. Do not report completion until that audit condition is satisfied.
+
+And one especially important requirement:
+
+Capture request payload size, system-prompt size, user-prompt size, model, configured timeout, elapsed milliseconds before fetch resolves/rejects, HTTP status when available, abort reason, and whether the overall deadline or per-request deadline fired. Never log the API key or sensitive case contents.
+
+That should tell us whether we’re dealing with provider variance, oversized/slow prompts, Node/Undici behavior, cancellation semantics, or an Apex-specific execution bottleneck rather than guessing.
