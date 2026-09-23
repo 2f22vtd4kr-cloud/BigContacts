@@ -42,7 +42,7 @@ import {
   Instagram,
   Mail,
   Phone,
-  Crosshair, Flame, RefreshCw,
+  Crosshair, Flame,
 } from "lucide-react";
 import { cn, entityFindingsSummary, entityWorkSummary, formatCurrency, formatEntityName, AccessScoreBadge, ConfidenceBadge, NationalityCell, ScoreBadge } from "@/lib/utils";
 import { ContactSurface } from "@/components/contact-surface";
@@ -585,20 +585,13 @@ export default function ApexProfile() {
         }
         attempts++;
         try {
-          const sr = await fetch(`${baseUrl}/api/ingest/atlas-status`);
+          const sr = await fetch(`${baseUrl}/api/ingest/job/${jobId}`, { cache: "no-store" });
           const st = await readApiJson(sr);
-          const running = st?.status === "running" || st?.status === "paused";
-          if (!running) {
-            // Promote any durable evidence rows onto the card (no second dig)
-            try {
-              await fetch(`${baseUrl}/api/entities/rehydrate-contacts`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ entityId: Number(entityId) }),
-              });
-            } catch { /* non-fatal */ }
+          const terminal = st?.status === "done" || st?.status === "failed" || st?.status === "cancelled" || st?.status === "error";
+          if (terminal) {
             setIsEnriching(false);
-            setEnrichDone(true);
+            if (st?.status !== "done") setEnrichError(st?.message ?? "Atlas research did not complete successfully.");
+            setEnrichDone(st?.status === "done");
             refetchEntity();
             refetchSessions();
             setContactEvidenceKey((k) => k + 1);
@@ -782,17 +775,6 @@ export default function ApexProfile() {
               >
                 <Network className="w-3 h-3" /> <span className="hidden sm:inline">Graph</span>
               </Link>
-              <button
-                type="button"
-                data-testid="button-refresh-surface"
-                onClick={handleRefreshSurface}
-                disabled={isEnriching}
-                className="flex items-center gap-1 px-2 sm:px-2.5 py-1.5 rounded border border-border text-muted-foreground hover:text-foreground font-mono text-[12px] uppercase tracking-wider transition-colors disabled:opacity-50"
-                title="Refresh public surface (secondary expand — never invents Personal)"
-              >
-                {isEnriching ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
-                <span className="hidden sm:inline">Refresh surface</span>
-              </button>
               <button
                 type="button"
                 onClick={handleRunResearch}
