@@ -8,10 +8,10 @@ const roots = [
 ];
 
 const forbidden = [
-  "/api/ingest/atlas-status",
-  "/api/ingest/web-osint-enrich",
-  "/api/entities/rehydrate-contacts",
-  "/api/entities/refresh-surface",
+  "/api/ingest/" + "atlas-status",
+  "/api/ingest/" + "web-osint-enrich",
+  "/api/entities/" + "rehydrate-contacts",
+  "/api/entities/" + "refresh-surface",
 ];
 
 const extensions = new Set([".ts", ".tsx", ".js", ".mjs", ".cjs", ".yml", ".yaml", ".sh"]);
