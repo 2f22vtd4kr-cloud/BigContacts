@@ -61,34 +61,6 @@ type PlanInput = {
   };
 };
 
-function buildBossDecisionContext(file: PlanInput["file"]): string {
-  const queued = (file.actionQueue ?? []).filter((action) => action.status === "queued").slice().sort((a, b) => Number(b.priority ?? 0) - Number(a.priority ?? 0));
-  const completed = (file.actionQueue ?? []).filter((action) => action.status !== "queued");
-  const evidence = file.evidenceSummary ?? {};
-  return JSON.stringify({
-    target: file.target,
-    hypotheses: file.hypotheses ?? [],
-    evidenceSummary: {
-      discoveredPeople: evidence.discoveredPeople ?? [],
-      relatedOrganizations: evidence.relatedOrganizations ?? [],
-      searchGaps: evidence.searchGaps ?? [],
-      negativeFindings: evidence.negativeFindings ?? [],
-    },
-    specialistRoster: file.specialistRoster ?? [],
-    actionFrontier: { queued, completed },
-    contactRoutes: file.contactRoutes ?? [],
-    humanDirectives: file.humanDirectives ?? [],
-    decisionLog: file.decisionLog ?? [],
-    rightHandAdvice: file.rightHandAdvice ?? null,
-    bossPlan: file.bossPlan ?? null,
-    nextBestAction: file.nextBestAction ?? null,
-    lastUpdatedBy: file.lastUpdatedBy,
-    investigationProgress: file.investigationProgress ?? null,
-    researchDepth: file.researchDepth ?? null,
-    noProgressStreak: file.noProgressStreak ?? 0,
-  }, null, 2);
-}
-
 /** Apex Atlas Boss planning prompt — progress-aware, depth-aware, primary-source OSINT discipline. */
 export function buildApexAtlasBossPlanPrompt(input: PlanInput): string {
   const queuedActions = input.file.actionQueue
