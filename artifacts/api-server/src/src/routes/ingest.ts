@@ -42,7 +42,6 @@ import { runOpenSkyEnrichment } from "../lib/opensky-ingestor";
 import { logger } from "../lib/logger";
 
 import migrationsRouter from "./ingest-migrations";
-import enrichmentRouter from "./ingest-enrichment";
 import pipelineRouter   from "./ingest-pipeline";
 
 const router: IRouter = Router();
@@ -458,7 +457,6 @@ router.post("/ingest/opensky", async (req, res): Promise<void> => {
 
 // ── Mount sub-routers ─────────────────────────────────────────────────────────
 router.use(migrationsRouter);
-router.use(enrichmentRouter);
 router.use(pipelineRouter);
 
 export default router;
