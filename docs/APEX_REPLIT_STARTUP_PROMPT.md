@@ -1,347 +1,255 @@
 # Apex Atlas — canonical Replit startup prompt
 
-Paste this into the Replit Agent after importing `2f22vtd4kr-cloud/BigContacts`. It is intentionally runtime-first: the Agent must work inside the real Replit App Shell/workflow, not a detached sandbox.
+Paste this into the Replit Agent after importing `2f22vtd4kr-cloud/BigContacts`. This is the current operator-facing initialization/run prompt and must stay synchronized with the executable architecture.
 
 ```text
-APEX ATLAS — EXECUTE END-TO-END IN THIS EXISTING REPLIT APP ONLY.
-ONE REPORT AT THE END. DO NOT CREATE A SECOND APP. DO NOT REDESIGN.
+APEX ATLAS — CURRENT CANONICAL REPLIT INITIALIZATION / RUNTIME VERIFICATION
 
-REPOSITORY: https://github.com/2f22vtd4kr-cloud/BigContacts
-BRANCH: main
+Operate ONLY inside the existing imported Replit App for:
+https://github.com/2f22vtd4kr-cloud/BigContacts
+Branch: main
 
-FIRST: work inside the actual Replit App project runtime. Read completely:
+This is NOT greenfield work.
+Do not create a second app, replacement frontend, mock ledger, fake contacts, synthetic evidence, fixed research sequence, or alternate architecture.
+Do not reset, rebase, force-push, downgrade main, or destroy uncommitted operator work.
+
+============================================================
+1. VERIFY THE ACTUAL REPOSITORY FIRST
+============================================================
+
+Show:
+  git remote -v
+  git branch --show-current
+  git rev-parse HEAD
+  git status --short
+
+Fetch/update main safely. If main has advanced, use the newest main; never downgrade to an old audit SHA.
+
+Read the current repository contract before changing anything:
+- docs/AGENT_REPOSITORY_STUDY_PROTOCOL.md
+- docs/CHATGPT_AGENT_HANDOFF_2026-09-21.md
 - docs/context.md
+- docs/BUREAU_REACT_ARCHITECTURE.md
+- docs/APEX_ATLAS_VERY_STRONG_ROADMAP.md
+- docs/APEX_ATLAS_CEO_RELEASE_REVIEW_2026-09-20.md
+- docs/APEX_RESEARCH_GAUNTLET_V1.md
 - docs/REPLIT_NEW_ACCOUNT_SETUP.md
-- docs/REPLIT_UPDATE_PROMPT_LATEST.md
 - docs/RUN_BUREAU.md
+- docs/APEX_REPLIT_INITIALIZATION_BLUEPRINT.md
 - docs/APEX_REPLIT_STARTUP_PROMPT.md
 
-Also inspect before changing anything:
-- artifacts/api-server/src/src/lib/agentic-web-research.ts
-- artifacts/api-server/src/src/lib/bureau-agentic-pass.ts
-- artifacts/api-server/src/src/lib/apex-bureau-orientation.ts
-- artifacts/api-server/src/src/lib/case-bureau.ts
-- artifacts/api-server/src/src/lib/case-bureau-prompt.ts
-- artifacts/api-server/src/src/lib/nvidia-nim-case-reasoning.ts
-- scripts/apply-agentic-concurrency-hardening.mjs
-- scripts/check-agentic-runtime.mjs
-- scripts/replit-preflight.mjs
-- scripts/replit-boot.sh
-- package.json
-
-DO NOT create a second Replit App, second frontend, fake ledger, demo contacts, fake URLs, or a replacement architecture.
+Also inspect the actual current source, schemas/migrations, scripts, tests, workflows, frontend and deployment configuration. Documentation never overrides executable behavior.
 
 ============================================================
-PROVIDER ARCHITECTURE — MANDATORY
+2. CURRENT APEX PROVIDER ARCHITECTURE — DO NOT ALTER
 ============================================================
 
-Boss = Gemini.
-Right-hand = DeepSeek-V4-Flash-0731 through NVIDIA Integrate.
-Dig investigator = Groq -> Mistral.
+The active research architecture is:
 
-Canonical right-hand secret:
-DEEPSEEK_API_KEY
+Gemini Boss
+    ↓
+Gemini Right-hand
+    ↓
+Groq OR Mistral Investigator
+    ↓
+Investigator-owned free-ReAct web research
+    ↓
+real tool execution → observations/provenance → evidence graph
+    ↓
+Gemini oversight → continue / redirect / stop
+    ↓
+finding, promotion, contradiction handling, or honest abstention
 
-Canonical DeepSeek endpoint:
-https://integrate.api.nvidia.com/v1/chat/completions
+Provider roles are strict:
 
-Canonical model:
-deepseek-ai/deepseek-v4-flash-0731
+- Gemini Boss: oversight/control plane only. No browsing. No evidence invention.
+- Gemini Right-hand: oversight/advisory only. No browsing. No tool selection/execution. No evidence invention.
+- Investigator pool: ONLY Groq and Mistral.
+- DeepSeek is RETIRED from the active architecture.
+- NVIDIA NIM is RETIRED from the active architecture.
+- Gemini is NOT an Investigator fallback.
+- Boss/Right-hand unavailability is fail-closed.
 
-Do not use NVIDIA_NIM_API_KEY as the canonical right-hand credential.
-Do not use z.ai/GLM as the right-hand provider.
-Do not put DeepSeek into the Dig investigator failover chain.
-Do not put Gemini or the right-hand into the Dig web-research lane.
+Do NOT restore or request any retired DeepSeek/NVIDIA credential.
+Do NOT run any DeepSeek migration.
+Do NOT introduce a new provider merely to bypass a failure.
+Do NOT put fixed search/provider/query/URL sequences into the Investigator.
 
-DeepSeek is advisory/case-file reasoning only. It has no web access and must not execute OSINT actions.
+Current Right-hand credential:
+GEMINI_RIGHT_HAND_API_KEY
 
-Use the NVIDIA OpenAI-compatible API contract. The model supports text generation, reasoning and long context. Use high reasoning effort. Handle reasoning/reasoning_content when returned, but do not print secrets or persist unnecessary private reasoning.
-
-The supplied NVIDIA API contract is:
-base_url = https://integrate.api.nvidia.com/v1
-model = deepseek-ai/deepseek-v4-flash-0731
-temperature = 1
-top_p = 0.95
-max_tokens = 16384
-reasoning_effort = high
-stream = false
-
-The API documentation confirms POST /v1/chat/completions and the exact DeepSeek-V4-Flash-0731 model identifier. Keep the application on the OpenAI-compatible chat-completions path.
-
-============================================================
-DO THE PROVIDER MIGRATION BEFORE LIVE RESEARCH
-============================================================
-
-Run:
-node scripts/migrate-right-hand-to-deepseek.mjs
-
-This migration is fail-closed. Do not bypass its checks.
-
-After migration, verify all ACTIVE source/docs references. Historical docs/archive and .conversation snapshots may retain old history; do not rewrite historical records merely to make a search clean.
-
-The active code must use:
-- DEEPSEEK_API_KEY
-- DeepSeek-V4-Flash-0731
-- NVIDIA Integrate
-- right-hand advisor
-
-The independent Dig contract MUST remain Groq -> Mistral.
-
-If the migration script reports an anchor or architecture failure, inspect and fix the real source. Do not weaken/delete the guard.
-
-============================================================
-REPLIT RUNTIME — NEVER REPEAT THE PREVIOUS FAILURE
-============================================================
-
-This is an existing Replit App.
-
-Postgres is platform-managed. NEVER ask for DATABASE_URL. Verify DATABASE_URL only from the actual project Shell/workflow runtime.
-
-Redis uses ONLY:
-REDIS_URL_1
-
-The canonical boot script may alias REDIS_URL_1 to REDIS_URL internally. Never ask for REDIS_URL_2-5.
-
-Run ONE API workflow only, on:
-PORT=8080
-
-Workflow environment:
-PORT=8080
-ENABLE_AUTO_PIPELINE=false
-INSTALL_PYTHON_OSINT=false
-APEX_SKIP_SEMANTIC=1
-CI=true
-RESEARCH_DEPTH=standard
-NODE_OPTIONS=--max-old-space-size=1536
-
-The managed workflow must invoke the repository's canonical scripts/replit-boot.sh from the workspace root. Do not bypass it by launching the API artifact directly. If the workflow working directory is artifacts/api-server, use the workspace-root path to the boot script.
-
-============================================================
-SECRETS
-============================================================
-
-Canonical operator-facing names:
-REDIS_URL_1
-GROQ_API_KEY
+Current Boss credential:
 GEMINI_API_KEY
-DEEPSEEK_API_KEY
-MISTRAL_API_KEY
-HF_TOKEN
-SERPER_API_KEY
-TAVILY_API_KEY
-SERPAPI_KEY
-EXA_API_KEY
-SCRAPFLY_API_KEY
-ZENROWS_API_KEY
-COMPANIES_HOUSE_API_KEY
-WHOISJSON_API_KEY
 
-Never ask for:
-DATABASE_URL
-WHOXY
-REDIS_URL_2
-REDIS_URL_3
-REDIS_URL_4
-REDIS_URL_5
-NVIDIA_NIM_API_KEY as the canonical DeepSeek secret
-
-Never print secret values.
-
-Run:
-node scripts/replit-preflight.mjs
-
-The preflight must recognize DEEPSEEK_API_KEY. NVIDIA_NIM_API_KEY may be reported only as obsolete/legacy if present.
+The Right-hand has a bounded Gemini model fallback chain implemented by the application. Do not replace it with a second provider.
 
 ============================================================
-INSTALL — LOW OOM / FIREWALL RISK
+3. CANONICAL OPERATOR SECRETS
 ============================================================
 
-export NODE_OPTIONS=--max-old-space-size=1536
-export NPM_CONFIG_REGISTRY=https://registry.npmjs.org
-pnpm config set registry https://registry.npmjs.org
-pnpm config set network-timeout 600000
+For a fresh Replit setup, verify presence of the current required names only:
 
-If pnpm-lock.yaml contains internal proxy tarball hosts, rewrite only those hosts to https://registry.npmjs.org/ while preserving package/version/integrity data.
+1. REDIS_URL_1
+2. GROQ_API_KEY
+3. GEMINI_API_KEY
+4. MISTRAL_API_KEY
+5. HF_TOKEN
+6. SERPER_API_KEY
+7. TAVILY_API_KEY
+8. SERPAPI_KEY
+9. EXA_API_KEY
+10. SCRAPFLY_API_KEY
+11. ZENROWS_API_KEY
+12. COMPANIES_HOUSE_API_KEY
+13. GEMINI_RIGHT_HAND_API_KEY
+14. APEX_API_AUTH_TOKEN
+15. APEX_OPERATOR_PASSWORD
+16. APEX_SESSION_SECRET
 
-pnpm install --no-frozen-lockfile --registry=https://registry.npmjs.org --child-concurrency 1 --network-concurrency 1 --fetch-retries 5 --fetch-timeout 600000
+DATABASE_URL is platform-managed by Replit/Postgres. Never ask the operator to invent or paste it when the platform provides it.
 
-If exit 137, retry once with the same low-concurrency flags.
-Do not strip dependencies.
-Do not empty or replace pnpm-lock.yaml.
+Never request, restore, print, echo, commit or log:
+- DEEPSEEK_API_KEY
+- NVIDIA_NIM_API_KEY / NVIDIA_API_KEY
+- WHOISJSON_API_KEY
+- WHOXY credentials
+- REDIS_URL_2 through REDIS_URL_5
 
-============================================================
-BUILD / STATIC GATES
-============================================================
-
-pnpm --filter @workspace/db run push
-pnpm --dir artifacts/apex-finder run build
-test -f artifacts/apex-finder/dist/public/index.html
-pnpm --dir artifacts/api-server run build
-pnpm run typecheck
-pnpm run check:no-force-dig
-pnpm run check:free-react
-pnpm run check:discovery-quality
-pnpm run check:comparison-contract
-pnpm run check:trajectory
-pnpm run check:agentic-runtime
-pnpm run check:agentic-timeout
-pnpm run check:provider-role-docs
-
-Typecheck MUST pass. Never claim build success while typecheck or architecture checks fail.
-Do not remove/disable a failing check.
+Never expose secret values.
 
 ============================================================
-BOOT / HEALTH
+4. RUNTIME CONTRACT
 ============================================================
 
-Start the managed API workflow using scripts/replit-boot.sh.
+Use the existing package manager, lockfile and scripts.
 
-Then:
-curl -sS http://127.0.0.1:8080/api/healthz
+Canonical API port:
+PORT=8080
 
-Verify:
-status
-redis
-bureauIntegrity
-provider readiness where exposed
+Canonical boot:
+  bash scripts/replit-boot.sh
 
-If Redis is down, verify REDIS_URL_1, canonical boot aliasing, and workflow command/path; restart once and re-check. Do not ask for another Redis key.
+Do not start duplicate API workflows.
 
-If bureauIntegrity=critical, do not run a fake proof. Diagnose whether the cause is provider key/auth/quota, endpoint/model failure, timeout, malformed response, or source/runtime failure.
+Before live research:
+  node scripts/replit-preflight.mjs
+  pnpm run typecheck
+  pnpm run build
+  pnpm run check:bureau
 
-============================================================
-GEMINI RIGHT-HAND SMOKE — BEFORE DISCOVERY
-============================================================
+Use the actual current scripts present in main. Do not resurrect obsolete commands.
 
-Perform one tiny Right-hand provider smoke through the application's actual Gemini abstraction using GEMINI_API_KEY. Do not browse.
+Health:
+  curl -sS http://127.0.0.1:8080/api/healthz
 
-============================================================
-DESK
-============================================================
-
-Open the App public URL at /
-Hard refresh.
-Verify non-blank current desk:
-Entities / Profile / Reactor / Dig contacts where applicable.
-Do not mistake old ApexFinder Pro artifacts for the current desk.
-Do not redesign.
+Verify Redis, bureau integrity, authentication and provider readiness as exposed.
+If a provider is unavailable, diagnose the actual error. Do not fake a successful research result.
 
 ============================================================
-LEDGER / DISCOVERY
+5. ARCHITECTURE INTEGRITY
 ============================================================
 
-GET /api/entities?limit=5
+Never:
+- force research hops;
+- hardcode target-specific searches;
+- replace free-ReAct with deterministic research;
+- fabricate observations or contact data;
+- inherit target names as identity proof;
+- promote a claim without an observed evidence chain;
+- let Boss or Right-hand mutate research reality;
+- weaken authentication;
+- disable a failing architecture guard;
+- delete tests to obtain green CI.
 
-If a real valid entity already exists, do not run discovery just to create another.
+Deterministic code may enforce safety, authorization, schemas, budgets, cancellation, provenance and promotion integrity. It must not secretly own research strategy.
 
-If ledger is empty, run ONE bounded discovery-first smoke only:
+Safety ceilings remain ceilings:
+MAX_ITER 64
+MAX_OBS 16000
+MAX_TRAJECTORY_RECORDS 512
+MAX_NETWORK_RESPONSE_BYTES 2000000
 
-POST /api/ingest/atlas-run
-{
-  "discoveryFirst": true,
-  "targetCount": 3,
-  "researchLimit": 3,
-  "runResearch": true,
-  "skipFaa": true,
-  "broadCategories": 1,
-  "batchSize": 3,
-  "phaseJBatchSize": 3,
-  "targetTimeoutMs": 180000,
-  "researchDepth": "standard"
-}
-
-Poll GET /api/ingest/atlas-status.
-Stop as soon as a valid real entity is admitted OR the job becomes idle/terminal.
-Do not start a second job while locked.
-Do not leave discovery running forever.
-If zero valid entities are admitted, do not fabricate one and do not loop endlessly.
+Cancellation and timeout propagation must remain intact.
 
 ============================================================
-REQUIRED PROOF DIG
+6. LIVE RESEARCH SMOKE
 ============================================================
 
-Once a real entityId exists:
+After build, runtime and integrity checks are genuinely green:
 
-POST /api/ingest/atlas-run
-{
-  "singleTargetId": <REAL_ENTITY_ID>,
-  "runResearch": true,
-  "researchDepth": "standard",
-  "targetTimeoutMs": 420000
-}
+1. Verify the desk at / is non-blank.
+2. Query the real entity ledger.
+3. If a real entity already exists, do not create another merely for testing.
+4. If discovery is genuinely needed, use the existing canonical discovery-first path.
+5. For a real target, run the canonical Investigator path with the real application.
+6. Preserve actual trajectory, tool observations, provenance, evidence graphs, claims, contradictions, identity state and oversight decisions.
 
-Poll /api/ingest/atlas-status until idle/terminal. Record jobId.
-
-Dig MUST remain free-ReAct.
-The investigator model chooses web_search / visit / OSINT tools / pivots / done.
-Do not force hops.
-Do not hardcode target-specific searches.
-Do not make DeepSeek the Dig provider.
-
-Success trajectory should show model-selected actions, not force_* or scripted sequences.
-
-If evidence exists but the card is empty:
-POST /api/entities/rehydrate-contacts
-{"entityId": <REAL_ENTITY_ID>}
+Do not fabricate a result if the provider/network is unavailable.
+A booted API is not a successful investigation.
 
 ============================================================
-SCOREBOARD
+7. RESEARCH CAMPAIGN
 ============================================================
 
-Only if bureauIntegrity is not critical and a real entity + completed Dig exist:
+Do NOT run the 150-run empirical campaign during ordinary fresh-account initialization.
 
-bash scripts/replit-scoreboard-check.sh http://127.0.0.1:8080
+The official campaign is:
+50 grounded cases × 3 matched trials = 150 research runs.
 
-Record mean / n / milestonePass.
-Never fabricate scoreboard values.
+Use:
+  scripts/build-research-gauntlet.mjs
+  scripts/run-research-campaign.ts
+  scripts/validate-research-campaign.mjs
+  scripts/validate-failure-records.mjs
+  scripts/score-research-campaign.mjs
+  scripts/build-failure-observatory.mjs
+
+The campaign envelope and registry in the repository are authoritative.
+Never call a workflow start, queued job, or partial run a successful campaign.
+Inspect the actual artifacts/results.
 
 ============================================================
-STOP CONDITIONS
+8. IF SOMETHING FAILS
 ============================================================
 
-STOP and report if main is below the repository tip floor.
-STOP and report if bureauIntegrity remains critical after legitimate diagnosis/restart.
-STOP and report if provider credentials genuinely require operator action.
-STOP and report if no valid entity can be admitted without inventing one.
+Fix the root cause without weakening the architecture.
 
-Do not stop merely because a recoverable install/workflow/path problem occurred; fix it and continue.
+For installation failures, preserve the lockfile and dependency graph.
+For schema failures, inspect schema/migrations and preserve existing data.
+For provider failures, distinguish auth, quota/capacity, model, timeout and transport failures.
+For research failures, inspect the actual Investigator trajectory and observations.
+For documentation drift, update the active canonical document; do not rewrite genuinely historical archives merely to erase history.
+
+After every fix, rerun the relevant gates.
 
 ============================================================
-FINAL REPORT — ONE MESSAGE
+9. FINAL REPORT
 ============================================================
 
-Apex Atlas execution report
+Report exactly what was empirically verified:
 
-tip SHA:
-public URL:
+branch:
+exact HEAD SHA:
 provider architecture:
 Boss:
 Right-hand:
-Dig:
+Investigator:
 
-secrets configured: yes/no (names only; no values)
-DeepSeek smoke: OK/FAILED
-install: OK/FAILED
-database push: OK/FAILED
-preflight: OK/FAILED
-typecheck: OK/FAILED
-desk index.html: OK/FAILED
-API build: OK/FAILED
-no-force-dig: OK/FAILED
-free-react: OK/FAILED
-discovery-quality: OK/FAILED
-agentic-runtime: OK/FAILED
-provider-role-docs: OK/FAILED
-healthz integrity:
-redis:
-desk non-blank: yes/no
-entityId:
-jobId:
-trajectory:
-scoreboard mean / n / milestonePass:
-blockers: exact error text if any
+configured secret names only:
+install:
+preflight:
+typecheck:
+build:
+architecture checks:
+healthz:
+Redis:
+desk:
+live research:
+entity/run IDs:
+trajectory/evidence status:
+campaign status:
+exact blockers:
 
-Never expose secret values.
-Never claim success without evidence.
+Never claim success without direct evidence.
 END.
 ```
