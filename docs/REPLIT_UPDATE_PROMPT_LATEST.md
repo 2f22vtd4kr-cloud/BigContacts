@@ -1,80 +1,100 @@
 # Replit — canonical new-account setup prompt
 
-This file is the repository's canonical setup handoff for importing Apex Atlas into a new Replit account.
+This is synchronized with the current Apex Atlas provider architecture. For the complete operator/runtime procedure, use `docs/APEX_REPLIT_STARTUP_PROMPT.md`.
 
 ```text
-Import and set up this existing GitHub repository:
-
+Import and set up this existing repository:
 https://github.com/2f22vtd4kr-cloud/BigContacts
 
-Use the current main branch.
+Use the current main branch. Never downgrade main or create a replacement app.
 
-Do not ask me for a GitHub PAT, GITHUB_TOKEN, or any other GitHub credential. Repository access is handled through the connected Replit ↔ GitHub integration.
+Before changing anything, read:
+- docs/context.md
+- docs/REPLIT_NEW_ACCOUNT_SETUP.md
+- docs/RUN_BUREAU.md
+- docs/APEX_REPLIT_INITIALIZATION_BLUEPRINT.md
+- docs/APEX_REPLIT_STARTUP_PROMPT.md
 
-Before doing anything else, read docs/context.md completely. It is the living development transcription and architecture source of truth for Apex Atlas. Also read docs/REPLIT_NEW_ACCOUNT_SETUP.md and docs/RUN_BUREAU.md for the canonical setup and operational contracts.
+CURRENT PROVIDER ARCHITECTURE — DO NOT CHANGE
 
-Do not scaffold a new application. Do not replace, simplify, or redesign the existing project during setup.
+Gemini Boss
+  ↓
+Gemini Right-hand
+  ↓
+Groq OR Mistral Investigator
 
-Create and ask me to provide exactly these 14 runtime secrets using these canonical names:
+Boss and Right-hand are oversight only. They do not browse, execute tools, invent evidence, or choose fixed Investigator search sequences.
+
+The active Investigator pool is ONLY Groq and Mistral.
+DeepSeek and NVIDIA NIM are retired from the active architecture.
+Do not restore them, migrate to them, request their credentials, or use them as fallbacks.
+Gemini is not an Investigator fallback.
+Boss/Right-hand unavailable => fail closed.
+
+Canonical credentials:
+- GEMINI_API_KEY — Gemini Boss
+- GEMINI_RIGHT_HAND_API_KEY — Gemini Right-hand
+
+CURRENT FRESH-ACCOUNT SECRET CHECKLIST
 
 1. REDIS_URL_1
 2. GROQ_API_KEY
 3. GEMINI_API_KEY
-4. DEEPSEEK_API_KEY
-5. MISTRAL_API_KEY
-6. HF_TOKEN
-7. SERPER_API_KEY
-8. TAVILY_API_KEY
-9. SERPAPI_KEY
-10. EXA_API_KEY
-11. SCRAPFLY_API_KEY
-12. ZENROWS_API_KEY
-13. COMPANIES_HOUSE_API_KEY
-14. WHOISJSON_API_KEY
+4. MISTRAL_API_KEY
+5. HF_TOKEN
+6. SERPER_API_KEY
+7. TAVILY_API_KEY
+8. SERPAPI_KEY
+9. EXA_API_KEY
+10. SCRAPFLY_API_KEY
+11. ZENROWS_API_KEY
+12. COMPANIES_HOUSE_API_KEY
+13. GEMINI_RIGHT_HAND_API_KEY
+14. APEX_API_AUTH_TOKEN
+15. APEX_OPERATOR_PASSWORD
+16. APEX_SESSION_SECRET
 
-Important mappings:
-- the operator's Upstash Redis URL goes in REDIS_URL_1;
-- the Hugging Face token goes in HF_TOKEN;
-- the NVIDIA key goes in DEEPSEEK_API_KEY;
-- the Exa key goes in EXA_API_KEY.
+DATABASE_URL is supplied by the Replit/Postgres environment. Do not ask the operator to invent or paste it.
 
-REDIS_URL and EXA_1 are compatibility aliases, not additional operator asks.
+Never request or restore retired credentials:
+- DEEPSEEK_API_KEY
+- NVIDIA_NIM_API_KEY / NVIDIA_API_KEY
+- WHOISJSON_API_KEY
+- WHOXY credentials
+- REDIS_URL_2 through REDIS_URL_5
 
-Do not ask for DATABASE_URL, WHOXY credentials, REDIS_URL_2 through REDIS_URL_5, duplicate Redis/Exa credentials, or any GitHub credential.
+Never print secret values.
 
-Replit Postgres is platform-managed. DATABASE_URL is not an operator-provided secret. Never invent or request a database connection string when the platform database is expected.
+RUNTIME
 
-Never print secret values or place them in source code, commits, logs, or documentation.
+Use the repository's existing pnpm/lockfile/scripts.
+Canonical API port: 8080.
+Canonical boot: bash scripts/replit-boot.sh
 
-Use the repository's existing package manager, lockfiles, scripts, and configuration. Install dependencies without replacing dependency management.
+Before live research:
+- node scripts/replit-preflight.mjs
+- pnpm run typecheck
+- pnpm run build
+- pnpm run check:bureau
 
-Run the existing preflight and architecture checks, then build the desk and API using the repository's existing commands. Start the canonical API workflow on port 8080.
+Use the actual current scripts on main. Do not resurrect obsolete commands or weaken a failing guard.
 
-Fix genuine install, build, or boot failures at their root cause. Do not weaken tests, bypass architecture checks, disable regression guards, or apply cosmetic patches merely to obtain a green result.
+RUNTIME / RESEARCH RULES
 
-Verify that dependencies install, the desk builds, the API builds, the application starts, and /api/healthz can be checked.
+Do not create a second app, fake ledger, fake contacts, synthetic observations, deterministic research strategy, forced hops, hardcoded target searches, or hidden provider/query/URL preferences.
 
-A successful boot is not by itself proof of a successful research trajectory. Live research behavior and acceptance are governed by docs/context.md and docs/RUN_BUREAU.md.
+Deterministic code may enforce safety, authorization, budgets, cancellation, provenance and promotion integrity; research strategy remains Investigator-owned free ReAct.
 
-Keep the imported GitHub repository synchronized through the connected Replit integration. Do not create a parallel or disconnected copy.
+A booted API is not a successful investigation. Verify actual observations, provenance, evidence graphs, identity state, contradictions and oversight decisions.
 
-When setup is complete, report:
-- branch;
-- commit SHA;
-- configured secret names only, never values;
-- dependency installation result;
-- preflight result;
-- frontend build result;
-- API build result;
-- application boot result;
-- health result;
-- exact remaining blockers, if any.
+Do not run the 150-run empirical campaign during fresh-account initialization.
 
-Finish with exactly one of:
+If a live investigation is requested, use the current canonical discovery/target path and preserve the complete trajectory. If a provider/network failure occurs, diagnose and report the real failure; never fabricate success.
 
-SETUP COMPLETE — READY FOR NEXT INSTRUCTIONS
+FINAL REPORT
 
-or:
+Report branch, exact HEAD SHA, configured secret names only, install/preflight/typecheck/build/architecture/boot/health results, actual live research result and exact blockers.
 
-SETUP BLOCKED — [specific blocker]
+Never claim success without evidence.
+END.
 ```
