@@ -11,7 +11,7 @@
 ```
 Browser (apex-finder)
     │  POST /api/ingest/atlas-run   ← Launch Apex Atlas button
-    │  GET  /api/ingest/atlas-status
+    │  GET  /api/ingest/job/<jobId> (then /api/ingest/atlas-trace/<jobId>)
     │  GET  /api/healthz
     ▼
 api-server (always-on process)
@@ -45,7 +45,7 @@ Existing `.replit` runs **parallel** workflows:
 - `REDIS_URL=redis://localhost:6379`
 - `RESEARCH_DEPTH=standard` for research-parity smokes vs a single Grok agent (`fast` is bulk-cheap and can under-dig)
 
-After changing **any** secret: **restart API Server** so provider slot counts refresh (`/api/healthz`).
+After changing **any** secret: **restart API Server** so provider slot counts refresh (`/api/healthz`). Gemini Right Hand uses `GEMINI_RIGHT_HAND_API_KEY` when configured.
 
 **Research integrity (do not skip):**
 1. Pull latest `main` (free ReAct + full OSINT tool surface + session orientation). See `docs/PRE_REPLIT_GO.md`.
@@ -123,7 +123,9 @@ curl -s -X POST http://127.0.0.1:8080/api/ingest/atlas-run \
   -d '{"discoveryFirst":true,"researchLimit":5,"skipFaa":true}' | jq .
 
 # Poll
-curl -s http://127.0.0.1:8080/api/ingest/atlas-status | jq .
+JOB_ID=<job returned by canonical launch>
+curl -sS -H "Authorization: Bearer $APEX_API_AUTH_TOKEN" "http://127.0.0.1:8080/api/ingest/job/$JOB_ID" | jq .
+curl -sS -H "Authorization: Bearer $APEX_API_AUTH_TOKEN" "http://127.0.0.1:8080/api/ingest/atlas-trace/$JOB_ID" | jq .
 ```
 
 **DB schema:**
