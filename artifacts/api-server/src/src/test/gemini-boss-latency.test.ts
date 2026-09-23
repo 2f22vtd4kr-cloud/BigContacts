@@ -10,7 +10,7 @@ describe("Gemini Boss latency controls", () => {
     delete process.env.APEX_GEMINI_BOSS_OVERALL_TIMEOUT_MS;
     vi.resetModules();
     vi.restoreAllMocks();
-  
+  });
 
   it("uses a bounded default latency window that leaves room for model fallback", async () => {
     process.env.GEMINI_API_KEY = "test-key";
@@ -22,7 +22,7 @@ describe("Gemini Boss latency controls", () => {
     });
   });
 
-  it("honors bounded Boss latency overrides without allowing an unsafe floor", async () => {
+  it("honors bounded Boss latency overrides", async () => {
     process.env.GEMINI_API_KEY = "test-key";
     process.env.APEX_GEMINI_BOSS_REQUEST_TIMEOUT_MS = "25000";
     process.env.APEX_GEMINI_BOSS_OVERALL_TIMEOUT_MS = "55000";
@@ -45,7 +45,6 @@ describe("Gemini Boss latency controls", () => {
       overallTimeoutMs: 60_000,
     });
   });
-});
 
   it("uses low Gemini 3.x thinking and a small control response budget", async () => {
     process.env.GEMINI_API_KEY = "test-key";
