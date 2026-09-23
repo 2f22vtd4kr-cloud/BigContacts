@@ -1,4 +1,4 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { db, entitiesTable, researchCasesTable, researchCaseEventsTable, researchSessionsTable, researchEvidenceTable } from "@workspace/db";
 import { updateJob, clearActiveJobIfOwned, getJob } from "./job-queue";
 import { runGeminiBossDiscovery } from "./case-bureau";
@@ -103,11 +103,11 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     phaseSummary.assignment = `${boss.investigatorLlm} selected by Gemini; discovery completed=${discovery.status}; durableCase=${discoveryCaseId}.`; phaseSummary.discovery = `admitted=${admitted.length}; materialized=${materialized}; evidenceRows=${evidenceRows}; searches=${discovery.searches}; visits=${discovery.visits}; trajectory=${discovery.trajectory.length}; structuredTurns=${discovery.trajectoryRecords?.length ?? 0}`;
     if (discoveryOnly) {
       await assertAtlasJobActive(atlasJobId);
-      const [current] = await db.select({ caseFile: researchCasesTable.caseFile, iteration: researchCasesTable.iteration }).from(researchCasesTable).where(eq(researchCasesTable.id, discoveryCaseId)).limit(1);
+      const [current] = await db.select({ caseFile: researchCasesTable.caseFile, iteration: researchCasesTable.iteration }).from(researchCasesTable).where(and(eq(researchCasesTable.id, discoveryCaseId),eq(researchCasesTable.status,"active"),sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${atlasJobId}`,sql`${researchCasesTable.currentAction} NOT IN ('canonical-atlas-cancelled','canonical-lease-lost')`)).limit(1);
       let caseFile: Record<string, any> = {}; try { const parsed = current?.caseFile ? JSON.parse(current.caseFile) : {}; if (parsed && typeof parsed === "object") caseFile = parsed; } catch { caseFile = {}; }
       const candidates = admitted.map((name) => { const finding = (discovery.findings ?? []).find((item) => item.personName?.trim().toLowerCase() === name.toLowerCase() && item.promotionDecision === "promote" && item.scope === "candidate"); return { name, type: "review_candidate", relevance: "Explicit Investigator discovery admission candidate", reachability: "Requires target-scoped Investigator research", sourceUrls: finding?.sourceUrls ?? [], contactEvidence: [], state: "review_only", admittedEntityId: null }; });
       await assertAtlasJobActive(atlasJobId);
-      await db.update(researchCasesTable).set({ caseFile: JSON.stringify({ ...caseFile, discoveredCandidates: [...(Array.isArray(caseFile.discoveredCandidates) ? caseFile.discoveredCandidates : []), ...candidates], currentProgress: { ...(caseFile.currentProgress ?? {}), lastDiscoveryAt: new Date().toISOString(), lastReviewedBy: "gemini-boss" } }), currentAction: admitted.length ? "target-scoped-investigator-research" : "review", iteration: Number(current?.iteration ?? 0) + 1, updatedAt: new Date() }).where(eq(researchCasesTable.id, discoveryCaseId));
+      await db.update(researchCasesTable).set({ caseFile: JSON.stringify({ ...caseFile, discoveredCandidates: [...(Array.isArray(caseFile.discoveredCandidates) ? caseFile.discoveredCandidates : []), ...candidates], currentProgress: { ...(caseFile.currentProgress ?? {}), lastDiscoveryAt: new Date().toISOString(), lastReviewedBy: "gemini-boss" } }), currentAction: admitted.length ? "target-scoped-investigator-research" : "review", iteration: Number(current?.iteration ?? 0) + 1, updatedAt: new Date() }).where(and(eq(researchCasesTable.id, discoveryCaseId),eq(researchCasesTable.status,"active"),sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${atlasJobId}`,sql`${researchCasesTable.currentAction} NOT IN ('canonical-atlas-cancelled','canonical-lease-lost')`));
       await db.insert(researchCaseEventsTable).values({ caseId: discoveryCaseId, iteration: Number(current?.iteration ?? 0) + 1, actorRole: "specialist", eventType: "observation", status: "recorded", summary: `Canonical discovery admission: ${admitted.length} review candidate(s).`, correlationKey: `${atlasJobId}:discovery-admission:${Number(current?.iteration ?? 0) + 1}`, payload: JSON.stringify({ jobId: atlasJobId, investigatorLlm: boss.investigatorLlm, admitted, sourceUrls: (discovery.findings ?? []).flatMap((finding) => finding.sourceUrls) }) });
       const durableStatus = discovery.status === "completed" ? "complete" : "review";
       const terminal = deriveCanonicalTerminalDecision({ durableCaseStatus: durableStatus, locallyCancelled: discovery.status === "cancelled" });
@@ -115,7 +115,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         status: terminal.caseStatus,
         currentAction: discovery.status === "completed" ? "review" : "canonical-discovery-incomplete",
         updatedAt: new Date(),
-      }).where(eq(researchCasesTable.id, discoveryCaseId));
+      }).where(and(eq(researchCasesTable.id, discoveryCaseId),eq(researchCasesTable.status,"active"),sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${atlasJobId}`,sql`${researchCasesTable.currentAction} NOT IN ('canonical-atlas-cancelled','canonical-lease-lost')`));
       await assertAtlasJobActive(atlasJobId);
       await updateJob(atlasJobId, {
         status: terminal.jobStatus,
@@ -146,7 +146,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         currentAction: decision.status === "completed" ? (decision.action === "stop" ? "canonical-discovery-stopped" : `canonical-control-${decision.action}`) : "canonical-control-unavailable",
         lastDecisionAt: new Date(),
         updatedAt: new Date(),
-      }).where(eq(researchCasesTable.id, discoveryCaseId));
+      }).where(and(eq(researchCasesTable.id, discoveryCaseId),eq(researchCasesTable.status,"active"),sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${atlasJobId}`,sql`${researchCasesTable.currentAction} NOT IN ('canonical-atlas-cancelled','canonical-lease-lost')`));
       if (decision.status !== "completed") {
         const terminalMessage = decision.reason || decision.error || "Atlas control decision became unavailable; discovery stopped fail-closed for review.";
         await updateJob(atlasJobId, { status: "failed", progress: 3, total: 4, atlasPhase: 3, atlasPhaseTotal: 4, outcome: "incomplete", message: terminalMessage, result: JSON.stringify({ rightHand, boss: { status: boss.status, model: boss.model, investigatorLlm: boss.investigatorLlm }, discovery: { status: discovery.status, findings: discovery.findings.length, searches: discovery.searches, visits: discovery.visits, caseId: discoveryCaseId, runs: discoveryRuns }, control: { turns: controlTurns, decision } }), finishedAt: new Date().toISOString() });
