@@ -23,10 +23,10 @@ jobs:
       ENABLE_AUTO_PIPELINE: "false"
       ENABLE_REDIS_ON_BOOT: "true"
       NODE_ENV: development
+      APEX_API_AUTH_TOKEN: ${{ secrets.APEX_API_AUTH_TOKEN }}
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
       MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
-      NVIDIA_NIM_API_KEY: ${{ secrets.NVIDIA_NIM_API_KEY }}
       SERPER_API_KEY: ${{ secrets.SERPER_API_KEY }}
       TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
       EXA_API_KEY: ${{ secrets.EXA_API_KEY }}
@@ -77,13 +77,14 @@ jobs:
           test "$(curl -sS -m 5 -o /tmp/health.json -w '%{http_code}' http://127.0.0.1:8080/api/healthz)" = 200
       - name: Launch bounded three-target discovery-first Bureau
         run: |
-          curl -sS -m 15 -X POST http://127.0.0.1:8080/api/ingest/atlas-run -H 'Content-Type: application/json' -d '{"discoveryFirst":true,"targetCount":3,"researchLimit":3,"runResearch":true,"skipFaa":true,"targetTimeoutMs":180000,"researchDepth":"standard"}' | tee /tmp/launch.json
-          node -e 'const fs=require("fs"); const x=JSON.parse(fs.readFileSync("/tmp/launch.json")); if(!x.jobId) throw Error(JSON.stringify(x)); console.log(x.jobId)'
+          curl -sS -m 15 -X POST http://127.0.0.1:8080/api/ingest/atlas-run -H "Authorization: Bearer $APEX_API_AUTH_TOKEN" -H 'Content-Type: application/json' -d '{"discoveryFirst":true,"targetCount":3,"researchLimit":3,"runResearch":true,"skipFaa":true,"targetTimeoutMs":180000,"researchDepth":"standard"}' | tee /tmp/launch.json
+          JOB_ID="$(node -p 'require("/tmp/launch.json").jobId || ""')"
+          test -n "$JOB_ID"
       - name: Poll until completed
         run: |
           for i in $(seq 1 600); do
             sleep 5
-            curl -sS -m 10 http://127.0.0.1:8080/api/ingest/atlas-status > /tmp/atlas-status.json || true
+            curl -sS -m 10 -H "Authorization: Bearer $APEX_API_AUTH_TOKEN" "http://127.0.0.1:8080/api/ingest/job/$JOB_ID" > /tmp/atlas-status.json || true
             node -e 'const fs=require("fs");try{const x=JSON.parse(fs.readFileSync("/tmp/atlas-status.json"));console.log(JSON.stringify({status:x.status,jobId:x.jobId||x.job?.jobId,phase:x.phase,processed:x.processed,admitted:x.admitted,target:x.currentTarget||x.currentTargetName}))}catch{}'
             S=$(node -e 'const fs=require("fs");try{const x=JSON.parse(fs.readFileSync("/tmp/atlas-status.json"));process.stdout.write(String(x.status||x.job?.status||""))}catch{}')
             case "$S" in done|completed) exit 0;; failed|cancelled) exit 1;; esac
@@ -92,8 +93,8 @@ jobs:
       - name: Freeze bounded output
         if: always()
         run: |
-          curl -sS -m 10 'http://127.0.0.1:8080/api/entities?limit=50&offset=0' | tee /tmp/entities.json || true
-          curl -sS -m 10 'http://127.0.0.1:8080/api/ingest/scoreboard-snapshot?limit=50' | tee /tmp/scoreboard.json || true
+          curl -sS -m 10 -H "Authorization: Bearer $APEX_API_AUTH_TOKEN" 'http://127.0.0.1:8080/api/entities?limit=50&offset=0' | tee /tmp/entities.json || true
+          curl -sS -m 10 -H "Authorization: Bearer $APEX_API_AUTH_TOKEN" 'http://127.0.0.1:8080/api/ingest/scoreboard-snapshot?limit=50' | tee /tmp/scoreboard.json || true
           curl -sS -m 10 http://127.0.0.1:8080/api/healthz | tee /tmp/health.json || true
           node scripts/audit-live-bureau.mjs
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
