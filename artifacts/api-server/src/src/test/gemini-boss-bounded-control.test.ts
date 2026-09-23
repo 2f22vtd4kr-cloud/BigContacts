@@ -11,7 +11,7 @@ describe("Gemini Boss bounded control-plane generation", () => {
     vi.restoreAllMocks();
   });
 
-  it("caps model attempts at two and uses a control-sized output budget", async () => {
+  it("caps model attempts at four and uses a control-sized output budget", async () => {
     process.env.GEMINI_API_KEY = "test-key";
 
     const providerFetch = vi.fn<typeof fetch>(async (input) => {
