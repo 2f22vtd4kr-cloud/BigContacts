@@ -41,7 +41,7 @@ outputType = "console"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "bash scripts/replit-boot.sh"
+args = "NODE_ENV=development APEX_DEV_AUTH_BYPASS=true bash scripts/replit-boot.sh"
 waitForPort = 8080
 
 [userenv]
