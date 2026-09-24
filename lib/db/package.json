@@ -10,7 +10,7 @@
   "scripts": {
     "push": "drizzle-kit push --config ./drizzle.config.ts",
     "push-force": "drizzle-kit push --force --config ./drizzle.config.ts",
-    "harden": "psql \"$DATABASE_URL\" -v ON_ERROR_STOP=1 -f ./migrations/001-apex-invariants.sql"
+    "harden": "psql \"$DATABASE_URL\" -v ON_ERROR_STOP=1 -f ./migrations/001-apex-invariants.sql && psql \"$DATABASE_URL\" -v ON_ERROR_STOP=1 -f ./migrations/002-canonical-case-projection-fence.sql"
   },
   "dependencies": {
     "drizzle-orm": "catalog:",
