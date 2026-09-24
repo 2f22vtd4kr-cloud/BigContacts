@@ -36,7 +36,7 @@ assert(/fetch\("\/api\/auth\/session"/.test(authGate), "operator session probe i
 assert(/fetch\("\/api\/auth\/login"/.test(authGate), "operator login flow is missing");
 assert(/credentials:\s*["']same-origin["']/.test(authGate), "operator auth requests must use same-origin credentials");
 assert(/pythonTools/.test(systemStatus), "canonical system status does not expose Python tool health");
-assert(/process\.env\.LOG_LEVEL \?\? \(isProduction \? "info" : "silent"\)/.test(logger), "development logger is not silent");
+assert(/isProduction \? \(process\.env\.LOG_LEVEL \?\? "info"\) : "silent"/.test(logger), "development logger is not silent");
 
 if (failures.length) {
   console.error("CANONICAL ROUTE CONTRACTS: FAIL");
