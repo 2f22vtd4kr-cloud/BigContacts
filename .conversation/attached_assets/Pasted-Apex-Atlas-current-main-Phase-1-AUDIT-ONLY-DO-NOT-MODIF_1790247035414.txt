@@ -1,0 +1,102 @@
+Apex Atlas — current-main Phase 1 AUDIT ONLY. DO NOT MODIFY CODE.
+You are acting as the Apex Atlas audit/runtime-verification agent, not the implementation agent.
+Your job is to inspect the current repository and Replit runtime, reproduce and document the current state, identify the exact proven defects, and report evidence.
+DO NOT:
+* edit or patch code
+* fix tests
+* refactor
+* upgrade dependencies
+* change authentication
+* change production configuration
+* modify schema/data
+* deploy
+* fabricate a green result
+Audit the current canonical main branch and current Replit workspace/runtime.
+1. ESTABLISH THE CURRENT BASELINE
+* Record the exact current main SHA.
+* Record the actual current Replit workflow/runtime state.
+* Compare current source/runtime against the previous audit at 3006c534.
+* Treat previous audit conclusions as historical evidence, not current truth.
+2. INVESTIGATE THE TEST-SUITE CONTRADICTION
+* Run the full Vitest suite.
+* Run the relevant smoke test independently.
+* Use the same relevant environment/configuration when comparing them.
+* Record exact pass/fail counts.
+* Record exact HTTP statuses and error signatures.
+* Determine whether the previously reported 401 failures still occur.
+3. TRACE THE ROOT CAUSE — DIAGNOSIS ONLY
+Inspect at minimum:
+* smoke.test.ts
+* api-auth.test.ts
+* test setup/fixtures
+* api-auth.ts
+* routes/auth.ts
+* app.ts
+* current operator-auth frontend gate
+Determine whether the observed behavior is caused by:
+* shared mutation of APEX_API_AUTH_TOKEN
+* module-level token capture
+* smoke tests lacking an explicit test authentication mechanism
+* deliberate test-only runtime configuration
+* test ordering/process isolation
+* another mechanism
+Do NOT simply repeat the previous hypothesis.
+Provide the concrete evidence proving or disproving each relevant hypothesis.
+4. AUDIT PRODUCTION AUTH INTEGRITY
+Verify the current production authentication boundary:
+* bearer authentication
+* operator-session authentication
+* same-origin protection for session-authenticated mutations
+* fail-closed production startup requirements
+Determine whether the test behavior could weaken or bypass production semantics.
+Do not modify anything.
+5. AUDIT WORKFLOW TOPOLOGY
+The current .replit reportedly contains only the canonical Project workflow, while the previous audit reported:
+artifacts/api-server: API Server
+Verify the ACTUAL LIVE Replit workflow state.
+Report:
+* whether the duplicate workflow actually exists
+* whether it is running, stopped, failed, or stale
+* its exact failure if applicable
+* whether it conflicts with the canonical port 8080 runtime
+* whether the discrepancy is source configuration versus live workspace state
+Do not delete or repair anything.
+6. RUN EXISTING VERIFICATION GATES
+Without changing anything, run the relevant existing:
+* typecheck
+* build
+* architecture/integrity checks
+* auth-boundary checks
+* existing smoke/route checks
+Report exact results.
+Do not create or modify code merely to make a check pass.
+7. PRODUCE A FORENSIC AUDIT
+Your report must contain:
+* current main SHA
+* current Replit runtime/workflow state
+* commands actually executed
+* exact test results
+* exact failure signatures
+* root-cause evidence
+* affected files
+* auth/security implications
+* workflow findings
+* what should be fixed next
+* what must NOT be changed
+* confidence/evidence level for each conclusion
+Clearly separate: FACT / OBSERVED from INFERENCE / LIKELY CAUSE from RECOMMENDED NEXT ACTION.
+Do not call anything GREEN unless the evidence actually supports that conclusion.
+MANDATORY APEX ATLAS STATE DISCIPLINE:
+After every Apex Atlas audit/session, update the Apex Atlas Notion project state automatically.
+This is a permanent operating requirement. The operator should never need to remind you.
+The Notion checkpoint must briefly record:
+* what you audited
+* current SHA/runtime
+* verified findings
+* unresolved items
+* recommended next action
+Then, in your final audit report, include a brief confirmation that the Notion state was updated.
+FINAL RULE:
+You are producing evidence for the implementation agent.
+STOP AT DIAGNOSIS.
+DO NOT FIX THE DEFECT YOURSELF.

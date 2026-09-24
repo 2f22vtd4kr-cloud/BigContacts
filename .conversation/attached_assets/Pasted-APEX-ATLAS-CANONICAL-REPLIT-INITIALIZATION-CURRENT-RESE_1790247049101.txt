@@ -1,0 +1,1042 @@
+APEX ATLAS — CANONICAL REPLIT INITIALIZATION, CURRENT RESEARCH ARCHITECTURE, AND FIRST GENUINE RESULT
+
+You are initializing and operating the EXISTING Apex Atlas repository.
+
+This is NOT a greenfield project.
+
+Do NOT replace it.
+Do NOT simplify it.
+Do NOT scaffold a new application.
+Do NOT create a mock implementation.
+Do NOT rewrite product logic merely to make checks pass.
+Do NOT silently redesign the architecture.
+
+Your job is to bring the EXISTING Apex Atlas system into the Replit runtime faithfully, verify it from actual runtime behavior, and then execute one genuine investigation.
+
+The objective is not merely to make the application start.
+
+The objective is to prove that Apex Atlas can perform real research with durable, provenance-preserving, evidence-grounded results.
+
+TRUTH OVER APPEARANCE.
+
+============================================================
+0. CANONICAL REPOSITORY STATE
+
+Canonical repository:
+
+https://github.com/2f22vtd4kr-cloud/BigContacts
+
+Canonical branch:
+
+main
+
+Current audited HEAD:
+
+45fc8828f95cd40099858d19400cb5c819590761
+
+This commit is the current canonical implementation tree.
+
+The latest Five Consecutive Full Code Audits were run against this tree.
+
+Audit run:
+
+#396
+
+All five complete-codebase audits passed:
+
+1. Audit 1 — complete codebase — PASS
+2. Audit 2 — complete codebase — PASS
+3. Audit 3 — complete codebase — PASS
+4. Audit 4 — complete codebase — PASS
+5. Audit 5 — complete codebase — PASS
+
+Do not checkout an older historical audit branch.
+
+Stay on main.
+
+Do not reset to an earlier SHA.
+
+Do not rebase.
+
+Do not force-push.
+
+Do not delete branches.
+
+Do not destroy uncommitted operator work.
+
+Do not replace the repository.
+
+============================================================
+
+1. PHASE 0 — VERIFY BEFORE TOUCHING ANYTHING
+    ============================================================
+
+First show:
+
+git remote -v
+git branch –show-current
+git rev-parse HEAD
+git status –short
+
+Then:
+
+git fetch origin
+git checkout main
+git pull –ff-only origin main
+
+Verify again:
+
+git rev-parse HEAD
+
+The resulting HEAD MUST be:
+
+45fc8828f95cd40099858d19400cb5c819590761
+
+If the repository is newer than this SHA because the operator intentionally updated main, do NOT downgrade it.
+
+Instead:
+
+* inspect the new HEAD;
+* identify what changed;
+* treat the newest main as canonical;
+* do not overwrite it with the SHA above.
+
+Never claim the runtime is using the canonical tree until the actual checked-out commit has been verified.
+
+============================================================
+2. PHASE 1 — READ THE ACTUAL APEX CONTRACT
+
+Read the repository documentation and source before changing anything.
+
+At minimum inspect:
+
+docs/CHATGPT_AGENT_HANDOFF_2026-09-21.md
+docs/AGENT_REPOSITORY_STUDY_PROTOCOL.md
+README.md
+docs/context.md
+docs/BUREAU_REACT_ARCHITECTURE.md
+docs/APEX_ATLAS_VERY_STRONG_ROADMAP.md
+docs/APEX_ATLAS_CEO_RELEASE_REVIEW_2026-09-20.md
+docs/APEX_RESEARCH_GAUNTLET_V1.md
+docs/REPLIT_NEW_ACCOUNT_SETUP.md
+docs/RUN_BUREAU.md
+docs/APEX_REPLIT_INITIALIZATION_BLUEPRINT.md
+docs/APEX_ATLAS_SPIDERFOOT_INTEGRATION_ROADMAP.md
+
+Also inspect the ACTUAL source tree:
+
+* package.json files
+* pnpm-lock.yaml
+* database schema
+* migrations
+* .replit
+* deployment configuration
+* GitHub workflows
+* API server
+* research orchestration
+* Investigator execution
+* Gemini Boss
+* Gemini Right-hand
+* evidence admission
+* provenance
+* identity resolution
+* contradiction handling
+* contact-state logic
+* Reactor/event system
+* capability registry
+* Python tool boundary
+* SpiderFoot integration
+* tests
+* runtime scripts
+
+Do not infer current behavior from old documentation if the source contradicts it.
+
+Source code is authoritative for actual behavior.
+
+Do not claim readiness from documentation alone.
+
+============================================================
+3. PHASE 2 — CURRENT APEX ARCHITECTURE
+
+The current architecture is:
+
+CASE OBJECTIVE
+
+→ Gemini Boss
+→ Gemini Right-hand bounded oversight
+→ Groq OR Mistral Investigator
+→ Investigator-owned autonomous research trajectory
+→ validated real capability execution
+→ observations + provenance
+→ evidence / identity / contradiction / contact state
+→ oversight
+→ continuation / redirect / stop
+→ grounded finding OR honest abstention
+
+The important architectural principle is:
+
+MODELS OWN RESEARCH STRATEGY.
+
+DETERMINISTIC CODE OWNS SAFETY AND INTEGRITY.
+
+Deterministic code may enforce:
+
+* authorization
+* target binding
+* case binding
+* resource limits
+* deadlines
+* cancellation
+* provenance
+* observation persistence
+* evidence admission
+* identity-state safety
+* contradiction-state safety
+* contact-state safety
+* failure preservation
+* output limits
+* capability authorization
+* promotion integrity
+* terminal verification
+
+Deterministic code must NOT secretly become the researcher.
+
+Do NOT introduce:
+
+* fixed search sequences
+* forced Sherlock → SpiderFoot → Google sequences
+* forced identity/company/contact hops
+* force_* research functions
+* hidden provider preferences
+* hidden query preferences
+* hidden URL preferences
+* fake fallbacks
+* synthetic observations
+* synthetic Reactor activity
+* guessed contacts
+* fabricated evidence
+* fabricated confidence
+* automatic positive evidence from failed tools
+
+============================================================
+4. THE RESEARCHER-QUALITY PRINCIPLE
+
+Think about Apex as a professional research organization rather than as a chatbot.
+
+A single LLM researcher can:
+
+* search
+* read pages
+* reason over evidence
+* generate hypotheses
+* connect entities
+* propose contacts
+* notice contradictions
+* decide what to investigate next
+
+Apex Atlas must do MORE than that.
+
+Apex must outperform a single LLM researcher by providing:
+
+1. durable research memory;
+2. multiple independent research capabilities;
+3. explicit provenance;
+4. evidence admission rules;
+5. identity uncertainty preservation;
+6. contradiction tracking;
+7. contact attribution rules;
+8. failure visibility;
+9. continuation across research turns;
+10. autonomous tool selection;
+11. bounded multi-agent oversight;
+12. deterministic safety;
+13. reproducibility;
+14. auditable trajectories;
+15. cross-run accumulation;
+16. source-family awareness;
+17. explicit abstention;
+18. resistance to hallucinated findings;
+19. adversarial verification;
+20. the ability to exploit specialized tools that a single general-purpose LLM would not naturally execute itself.
+
+Do not measure research quality by:
+
+* number of searches;
+* number of URLs;
+* number of events;
+* number of model tokens;
+* number of entities created;
+* number of contacts guessed.
+
+Those are activity metrics.
+
+The meaningful research metrics are:
+
+* useful new pivots;
+* independently supported facts;
+* identity discriminators;
+* verified relationships;
+* useful infrastructure relationships;
+* contradiction discovery;
+* disproof;
+* independently verifiable contact information;
+* source diversity;
+* reduction of uncertainty;
+* useful continuation decisions;
+* research dead-end detection;
+* honest abstention.
+
+Apex should become better because it has more durable evidence and more research capabilities, not merely because it generates more text.
+
+============================================================
+5. EVIDENCE LAW — NON-NEGOTIABLE
+
+A model assertion is NOT evidence.
+
+A search snippet is NOT automatically evidence.
+
+A URL returned by a failed tool execution is NOT evidence.
+
+A guessed email is NOT a contact.
+
+A guessed social account is NOT an identity match.
+
+A derived SpiderFoot event is NOT automatically independent corroboration.
+
+A tool event count is NOT evidence quality.
+
+A failed execution must remain a failure.
+
+A partial execution must remain partial.
+
+Unknown is a valid outcome.
+
+If evidence is insufficient, abstain.
+
+============================================================
+6. TERMINAL FINDING VERIFICATION
+
+The current Apex implementation contains adversarial terminal verification.
+
+Before a research run is allowed to terminate with findings:
+
+Every claimed finding must be grounded in successfully observed cited material.
+
+The cited source must correspond to successfully observed material.
+
+The observed material must contain the claimed value.
+
+For candidate/person findings, relevant identity tokens must also be supported where applicable.
+
+Failed or errored observations cannot ground positive findings.
+
+If a terminal finding is unsupported:
+
+DO NOT silently discard the finding and then allow the investigation to terminate successfully.
+
+The system must block the terminal claim and require further research/verification.
+
+This is deliberate.
+
+Do not weaken this behavior.
+
+Do not bypass it.
+
+Do not turn it into a warning-only condition.
+
+============================================================
+7. PHASE 3 — SECRETS
+
+Configure required secrets through Replit Secrets / Environment Variables.
+
+Never ask the operator to paste secret values into chat.
+
+Never print secret values.
+
+Never echo secret values.
+
+Never commit secret values.
+
+Only verify variable PRESENCE.
+
+Current required environment variables include:
+
+REDIS_URL_1
+GROQ_API_KEY
+GEMINI_API_KEY
+MISTRAL_API_KEY
+HF_TOKEN
+SERPER_API_KEY
+TAVILY_API_KEY
+SERPAPI_KEY
+EXA_API_KEY
+SCRAPFLY_API_KEY
+ZENROWS_API_KEY
+COMPANIES_HOUSE_API_KEY
+GEMINI_RIGHT_HAND_API_KEY
+APEX_API_AUTH_TOKEN
+APEX_OPERATOR_PASSWORD
+APEX_SESSION_SECRET
+
+DATABASE_URL is supplied by the Replit/Postgres environment when configured.
+
+Before live research, check presence by variable name only.
+
+If required secrets are missing:
+
+STOP before live research.
+
+Report only the missing VARIABLE NAMES.
+
+Never report values.
+
+Do NOT request retired credentials unless the CURRENT repository source explicitly requires them.
+
+Known retired credentials from the previous setup must NOT be restored merely because an old prompt mentioned them:
+
+DEEPSEEK_API_KEY
+NVIDIA_API_KEY
+WHOISJSON_API_KEY
+WHOXY_API_KEY
+
+============================================================
+8. PHASE 4 — DEPENDENCIES AND STATIC VERIFICATION
+
+Use the repository’s existing package manager and lockfile.
+
+Run:
+
+pnpm install –frozen-lockfile
+
+Then inspect package scripts and run the CURRENT repository commands for:
+
+* typecheck
+* build
+* architecture/integrity checks
+* relevant tests
+
+At minimum determine the actual commands represented by:
+
+pnpm run typecheck
+pnpm run build
+pnpm run check:bureau
+
+Do not invent obsolete commands.
+
+Do not modify tests to manufacture a pass.
+
+Do not weaken architecture checks.
+
+If something fails:
+
+1. identify the real cause;
+2. determine whether it is an environment problem or repository problem;
+3. fix the smallest correct layer if fixing is actually required;
+4. rerun the affected verification;
+5. preserve the failure information.
+
+Do not hide failures.
+
+============================================================
+9. PHASE 5 — DATABASE
+
+Determine whether DATABASE_URL points to:
+
+A. a genuinely empty database;
+
+or
+
+B. an existing Apex database.
+
+Do NOT assume either.
+
+Inspect safely.
+
+Verify:
+
+* database connectivity;
+* schema state;
+* required tables;
+* required indexes/constraints;
+* migration/schema compatibility;
+* persistence of research state;
+* persistence of provenance;
+* persistence of trajectory;
+* persistence of evidence;
+* persistence of identity uncertainty;
+* persistence of contradictions;
+* persistence of contact state.
+
+Do not destroy an existing database merely to make initialization easier.
+
+Do not wipe operator data.
+
+If schema migration is required, use the repository’s intended migration/schema procedure.
+
+============================================================
+10. PHASE 6 — RUNTIME
+
+Use the repository’s actual documented Replit startup procedure.
+
+Do not invent a replacement server.
+
+Verify:
+
+* API process;
+* frontend if applicable;
+* port;
+* health endpoint;
+* authentication;
+* database;
+* Redis;
+* worker/job execution;
+* Reactor/event activity.
+
+Verify the actual listening port from the runtime.
+
+Verify health through the actual health endpoint.
+
+Verify authenticated API access.
+
+Do not report “running” because a process merely exists.
+
+The service must actually respond correctly.
+
+============================================================
+11. PHASE 7 — MODEL ROLES
+
+Gemini Boss is the control-plane decision maker.
+
+Gemini Right-hand provides bounded independent oversight.
+
+Groq OR Mistral is the Investigator.
+
+The Investigator owns research strategy.
+
+Gemini Boss may use bounded fallback among compatible Gemini models of the SAME ROLE where the current implementation permits it.
+
+Do NOT:
+
+* retry unavailable models indefinitely;
+* create unbounded retries;
+* replace Gemini Boss with Groq;
+* replace Gemini Boss with Mistral;
+* silently make Groq/Mistral the Boss;
+* fabricate provider success.
+
+The Investigator must actually execute.
+
+The selected provider must be visible in durable/runtime evidence.
+
+============================================================
+12. PHASE 8 — CAPABILITY MODEL
+
+Capabilities are tools available to the Investigator.
+
+They are NOT mandatory pipeline stages.
+
+The Investigator should select tools based on the current research state.
+
+Existing capabilities may include:
+
+* web search
+* page visit
+* browser fetch
+* registry search
+* domain lookup
+* domain harvesting
+* Sherlock
+* Maigret
+* Serper
+* other registered Apex capabilities
+
+SpiderFoot is now also registered as:
+
+osint.spiderfoot
+
+with action:
+
+footprint_spiderfoot
+
+SpiderFoot is an additional capability, not a replacement for Sherlock/Maigret/etc.
+
+Do NOT create a mandatory sequence such as:
+
+Sherlock → SpiderFoot → search → contact.
+
+The Investigator decides.
+
+============================================================
+13. SPIDERFOOT CURRENT STATE
+
+SpiderFoot integration is PRESENT in the Apex architecture.
+
+The current integration includes:
+
+* capability registry;
+* SpiderFoot target types;
+* SpiderFoot research profiles;
+* structured observation contract;
+* provenance fields;
+* resource/authorization boundary;
+* regression tests;
+* model-facing capability semantics.
+
+Current target types include:
+
+domain
+hostname
+ip
+email
+username
+person
+asn
+
+Current profiles include:
+
+identity-expansion
+domain-infrastructure
+organization-footprint
+contact-adjacent
+broad-osint
+
+IMPORTANT:
+
+Actual network-capable SpiderFoot execution is intentionally FAIL-CLOSED until the trusted Apex Python network sandbox attestation/executor exists.
+
+The current SpiderFoot provider must NOT bypass the existing Python sandbox boundary.
+
+Do NOT:
+
+* install and execute arbitrary SpiderFoot networking outside the Apex sandbox;
+* spawn a SpiderFoot process directly from the API server;
+* give SpiderFoot unrestricted network access;
+* bypass authorization;
+* connect SpiderFoot directly to the Atlas database;
+* allow SpiderFoot to mutate canonical Atlas state.
+
+SpiderFoot output is discovery/expansion material.
+
+It must preserve:
+
+* source module;
+* event type;
+* source URL;
+* target;
+* target type;
+* scan identity;
+* timestamp;
+* parent event where applicable.
+
+SpiderFoot events must not automatically become verified facts.
+
+SpiderFoot-derived events from the same source/module chain are not automatically independent corroboration.
+
+Do not claim SpiderFoot is live merely because its capability is registered.
+
+============================================================
+14. PHASE 9 — PYTHON NETWORK SANDBOX
+
+The existing Python sandbox is an architectural security boundary.
+
+Network-capable Python tools must go through the existing authorization mechanism.
+
+The current SpiderFoot provider intentionally fails closed if the trusted executor is unavailable.
+
+This is correct behavior.
+
+Do NOT “fix” a SpiderFoot unavailable result by bypassing the sandbox.
+
+If the operator asks to make actual SpiderFoot execution live, first inspect and understand the existing trusted network-capable Python worker/sandbox architecture.
+
+Then:
+
+* use the existing boundary;
+* pin the approved SpiderFoot version;
+* enforce resource ceilings;
+* enforce module/profile restrictions;
+* enforce deadlines;
+* enforce cancellation;
+* enforce output limits;
+* stream structured observations;
+* preserve provenance;
+* prevent direct Atlas mutation;
+* preserve partial/failure semantics.
+
+Never create an uncontrolled subprocess shortcut.
+
+============================================================
+15. PHASE 10 — RESEARCH STRATEGY
+
+The Investigator should behave like a professional OSINT/research investigator.
+
+For each investigation:
+
+1. Understand the objective.
+2. Establish the known target and known facts.
+3. Identify the largest uncertainties.
+4. Select the next action based on expected information gain.
+5. Execute a real capability.
+6. Inspect the actual returned observation.
+7. Update the working hypothesis.
+8. Identify contradictions.
+9. Identify useful pivots.
+10. Choose the next action.
+11. Verify important claims independently where appropriate.
+12. Stop only when the objective is sufficiently resolved OR further research has genuinely reached a justified plateau.
+13. Abstain where evidence is insufficient.
+
+Do not reward yourself for activity.
+
+Reward useful information.
+
+============================================================
+16. PHASE 11 — IDENTITY RESOLUTION
+
+Identity resolution must remain uncertainty-aware.
+
+Never merge two people/entities merely because:
+
+* names match;
+* usernames resemble each other;
+* an email pattern looks plausible;
+* search results look similar;
+* an LLM says they are the same.
+
+Look for discriminators such as:
+
+* unique usernames;
+* domains;
+* employment;
+* organization;
+* geography;
+* chronology;
+* biography;
+* linked profiles;
+* verified source relationships;
+* multiple independent signals.
+
+Preserve uncertainty when discriminators are insufficient.
+
+Do not manufacture confidence.
+
+============================================================
+17. PHASE 12 — CONTACT RESEARCH
+
+Contact attribution is evidence-based.
+
+Never create a contact because an email pattern can be guessed.
+
+Never promote:
+
+firstname.lastname@company.com
+
+merely because it looks plausible.
+
+A contact should have supporting evidence tying the value to the target person/entity.
+
+Failed tools cannot create positive contacts.
+
+Contradictory evidence must remain visible.
+
+Unknown is acceptable.
+
+============================================================
+18. PHASE 13 — SOURCE QUALITY
+
+Treat sources according to what they actually establish.
+
+Distinguish:
+
+* search result snippet;
+* visited page;
+* observed page content;
+* registry record;
+* first-party source;
+* third-party source;
+* social profile;
+* directory;
+* derived event;
+* inferred relationship;
+* model hypothesis.
+
+Do not collapse these categories.
+
+Prefer independent source families when corroboration matters.
+
+Do not count ten copies of the same underlying source as ten independent confirmations.
+
+============================================================
+19. PHASE 14 — ADVERSARIAL RESEARCH BUG HUNT
+
+Before declaring the runtime successful, actively look for situations where a single LLM would fool itself.
+
+Test mentally and, where safe, through the actual system:
+
+A. unsupported model claim;
+B. citation that was never actually visited;
+C. failed tool returning a URL;
+D. page containing a different person with the same name;
+E. guessed email;
+F. stale profile;
+G. duplicate source copied across websites;
+H. contradictory sources;
+I. partial tool execution;
+J. timeout;
+K. cancellation;
+L. empty result;
+M. SpiderFoot derived event treated as independent evidence;
+N. model claiming success after no real tool execution;
+O. Investigator stopping too early;
+P. Investigator continuing indefinitely without information gain;
+Q. one attractive hypothesis suppressing contradictory evidence;
+R. model-generated identity merge without discriminators;
+S. model-generated confidence without evidence;
+T. terminal findings that are not grounded in successfully observed material.
+
+The correct system behavior is not always “find something.”
+
+Sometimes the correct behavior is:
+
+UNKNOWN.
+
+ABSTAIN.
+
+CONTRADICTED.
+
+INSUFFICIENT EVIDENCE.
+
+RESEARCH CONTINUATION REQUIRED.
+
+============================================================
+20. PHASE 15 — FIRST REAL INVESTIGATION
+
+Do NOT run the 150-run Research Gauntlet.
+
+Do NOT run a mass benchmark.
+
+Do NOT flood external providers.
+
+Do NOT fabricate a test target.
+
+After runtime initialization succeeds, conduct EXACTLY ONE genuine investigation.
+
+The operator will provide the investigation objective.
+
+Before executing it, confirm that the runtime is actually ready.
+
+During the investigation, capture:
+
+* case ID;
+* run ID;
+* Investigator;
+* model role;
+* actual capability actions;
+* actual tool responses;
+* observations;
+* provenance;
+* trajectory;
+* continuation decisions;
+* oversight;
+* final disposition.
+
+============================================================
+21. WHAT MUST BE VERIFIED AFTER THE FIRST INVESTIGATION
+
+Verify from ACTUAL runtime output and durable database state:
+
+1. Gemini Boss was actually invoked.
+2. Gemini Boss selected Groq or Mistral.
+3. The Investigator actually executed.
+4. Real external observations occurred.
+5. Observations were persisted.
+6. Provenance was persisted.
+7. Failed observations remain visible.
+8. Identity uncertainty is preserved.
+9. Contact attribution is evidence-based.
+10. Contradictions remain visible.
+11. Right-hand oversight occurred.
+12. Continuation/stop disposition is recorded.
+13. Reactor events correspond to real backend activity.
+14. No fabricated entities were created.
+15. No fabricated contacts were created.
+16. No fabricated evidence was created.
+17. No fake confidence was created.
+18. Terminal findings were grounded in successfully observed cited material.
+19. The final result can be traced back to actual observations.
+20. The result contains useful information rather than merely a large amount of activity.
+
+============================================================
+22. RESEARCHER SUPERIORITY CHECK
+
+After the first genuine investigation, perform a qualitative “single LLM vs Apex” analysis.
+
+Ask:
+
+“What did Apex know, preserve, verify, or discover that a single stateless LLM researcher would likely lose?”
+
+Look specifically for:
+
+* durable memory;
+* cross-tool pivots;
+* source diversity;
+* contradiction preservation;
+* failed-search visibility;
+* identity uncertainty;
+* contact provenance;
+* independent corroboration;
+* tool specialization;
+* continuation after partial failure;
+* structured evidence;
+* auditability.
+
+If Apex merely produced a polished answer that could have been generated by one LLM from a few searches, do NOT call that a successful demonstration of Apex’s architectural advantage.
+
+Identify the actual gap.
+
+The goal is not to make Apex sound intelligent.
+
+The goal is to make Apex measurably more reliable and more useful as a research system.
+
+============================================================
+23. PHASE 16 — REPLIT OPERATOR SAFETY
+
+The human operator controls the live Replit environment.
+
+You may inspect and operate the runtime only through legitimate repository/runtime mechanisms.
+
+Never claim that something happened live unless actual runtime output proves it.
+
+Never claim:
+
+“database verified”
+
+unless the database was actually inspected.
+
+Never claim:
+
+“research completed”
+
+unless a real investigation produced durable evidence.
+
+Never claim:
+
+“SpiderFoot executed”
+
+unless an actual SpiderFoot execution occurred through the authorized sandbox.
+
+Never claim:
+
+“contact verified”
+
+unless the contact is supported by evidence.
+
+============================================================
+24. IF SOMETHING FAILS
+
+Do not blindly retry.
+
+First classify the failure:
+
+* environment;
+* dependency;
+* configuration;
+* provider;
+* authorization;
+* database;
+* network;
+* model;
+* application;
+* data;
+* evidence-integrity;
+* architecture.
+
+Then preserve the failure.
+
+Diagnose it.
+
+Fix only the correct layer.
+
+Re-run the smallest relevant verification.
+
+Do not weaken tests.
+
+Do not hide failures.
+
+Do not fabricate successful output.
+
+============================================================
+25. FINAL REPORT
+
+At the end report exactly:
+
+1. canonical repository;
+2. branch;
+3. exact HEAD;
+4. git status;
+5. dependency installation result;
+6. typecheck result;
+7. build result;
+8. architecture/integrity result;
+9. relevant test result;
+10. database fresh/existing determination;
+11. schema verification;
+12. runtime startup command;
+13. port;
+14. health status;
+15. authentication status;
+16. Redis/job-lock status;
+17. provider readiness;
+18. Gemini Boss verification;
+19. Investigator verification;
+20. first investigation case ID;
+21. first investigation run ID;
+22. actual capabilities executed;
+23. durable observation count;
+24. provenance verification;
+25. evidence verification;
+26. identity verification;
+27. contradiction verification;
+28. contact verification;
+29. Right-hand oversight verification;
+30. Reactor verification;
+31. terminal-disposition verification;
+32. researcher-superiority observations;
+33. exact remaining blockers, if any.
+
+Do not say “complete” unless that layer was actually verified.
+
+Do not say “production ready” unless production readiness was actually demonstrated.
+
+Do not turn an architectural capability into a claim of live capability without runtime evidence.
+
+============================================================
+26. FINAL RULE
+
+TRUTH OVER APPEARANCE.
+
+EVIDENCE OVER ASSERTION.
+
+OBSERVATION OVER MODEL CONFIDENCE.
+
+PROVENANCE OVER CONVENIENCE.
+
+UNKNOWN OVER FABRICATION.
+
+ABSTENTION OVER FALSE PRECISION.
+
+REAL RESEARCH OVER DEMO THEATER.
+
+Apex Atlas is supposed to be a research organization implemented in software.
+
+It should not merely answer like an LLM.
+
+It should investigate, preserve what it learned, expose what it does not know, exploit specialized capabilities, challenge its own hypotheses, maintain provenance, survive partial failures, and produce results that remain auditable after the model turn is over.
+
+Initialize the existing Apex Atlas faithfully.
+
+Verify every layer from reality.
+
+Then conduct exactly one genuine investigation.
+
+Do not manufacture success.
