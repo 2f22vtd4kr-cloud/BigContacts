@@ -4,6 +4,7 @@ import path from "node:path";
 const root = process.cwd();
 const dbSource = fs.readFileSync(path.join(root, "lib/db/src/index.ts"), "utf8");
 const migration = fs.readFileSync(path.join(root, "lib/db/migrations/001-apex-invariants.sql"), "utf8");
+const projectionFence = fs.readFileSync(path.join(root, "lib/db/migrations/002-canonical-case-projection-fence.sql"), "utf8");
 const stopSource = fs.readFileSync(path.join(root, "artifacts/api-server/src/src/routes/research/canonical-atlas-launch.ts"), "utf8");
 const lockSource = fs.readFileSync(path.join(root, "artifacts/api-server/src/src/lib/canonical-job-lock.ts"), "utf8");
 const checks = [
@@ -13,6 +14,7 @@ const checks = [
   ["agentic promotion requires an active target case", /apex_agentic_promotion_active_case[\s\S]*bound_case\.status\s*<>\s*'active'[\s\S]*agentic contact promotion is fenced/.test(migration)],
   ["promotion locks the exact bound case row", /FROM public\.research_cases[\s\S]*target_entity_id\s*=\s*NEW\.id[\s\S]*LIMIT 1 FOR UPDATE/.test(migration)],
   ["stale workers cannot reactivate cancelled or lease-lost cases", /apex_research_case_cancellation_fence[\s\S]*NEW\.status\s*=\s*'active'[\s\S]*OLD\.status\s*=\s*'cancelled'[\s\S]*canonical-atlas-cancelled[\s\S]*canonical-lease-lost/.test(migration)],
+  ["cancellation and lease-loss markers are immutable", /apex_research_case_terminal_projection_fence/.test(projectionFence) && /canonical-atlas-cancelled/.test(projectionFence) && /canonical-lease-lost/.test(projectionFence)],
   ["lease loss uses the same durable cancellation fence", /canonical-lease-lost/.test(migration) && /fenceLeaseLostCases/.test(lockSource)],
 ];
 const failures = checks.filter(([, ok]) => !ok).map(([name]) => name);
