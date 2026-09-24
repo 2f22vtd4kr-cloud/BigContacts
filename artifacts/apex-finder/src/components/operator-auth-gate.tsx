@@ -1,4 +1,5 @@
-import { FormEvent, ReactNode, useEffect, useState } from "react";
+import type { FormEvent, ReactNode } from "react";
+import { useEffect, useState } from "react";
 import { readApiJson } from "@/lib/api-json";
 
 interface SessionState {
@@ -17,20 +18,24 @@ export function OperatorAuthGate({ children }: { children: ReactNode }) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const checkSession = async () => {
-    try {
-      const response = await fetch("/api/auth/session", { credentials: "same-origin" });
-      const data = await readApiJson(response);
-      if (!response.ok) throw new Error(data?.error ?? `HTTP ${response.status}`);
-      setSession({ loading: false, authenticated: data?.authenticated === true, unavailable: false });
-    } catch (err) {
-      setSession({ loading: false, authenticated: false, unavailable: true });
-      setError(err instanceof Error ? err.message : "Authentication service unavailable");
-    }
-  };
-
   useEffect(() => {
-    void checkSession();
+    let cancelled = false;
+    void (async () => {
+      try {
+        const response = await fetch("/api/auth/session", { credentials: "same-origin" });
+        const data = await readApiJson(response);
+        if (!response.ok) throw new Error(data?.error ?? `HTTP ${response.status}`);
+        if (!cancelled) {
+          setSession({ loading: false, authenticated: data?.authenticated === true, unavailable: false });
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setSession({ loading: false, authenticated: false, unavailable: true });
+          setError(err instanceof Error ? err.message : "Authentication service unavailable");
+        }
+      }
+    })();
+    return () => { cancelled = true; };
   }, []);
 
   const login = async (event: FormEvent) => {
