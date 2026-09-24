@@ -8,11 +8,12 @@ channel = "stable-25_05"
 [deployment]
 deploymentTarget = "cloudrun"
 router = "application"
-run = ["bash scripts/replit-boot.sh"]
+run = ["NODE_ENV=production bash scripts/replit-boot.sh"]
 
 [env]
 PORT = "8080"
-NODE_ENV = "production"
+NODE_ENV = "development"
+APEX_DEV_AUTH_BYPASS = "true"
 ENABLE_AUTO_PIPELINE = "false"
 INSTALL_PYTHON_OSINT = "false"
 APEX_SKIP_SEMANTIC = "1"
@@ -47,10 +48,11 @@ waitForPort = 8080
 
 [userenv.shared]
 NODE_OPTIONS = "--max-old-space-size=1536"
-NODE_ENV = "production"
+NODE_ENV = "development"
 RESEARCH_DEPTH = "standard"
 APEX_SKIP_SEMANTIC = "1"
 CI = "true"
+APEX_DEV_AUTH_BYPASS = "true"
 ENABLE_AUTO_PIPELINE = "false"
 INSTALL_PYTHON_OSINT = "false"
 PORT = "8080"
