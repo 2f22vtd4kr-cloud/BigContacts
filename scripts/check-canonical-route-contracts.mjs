@@ -1,14 +1,30 @@
 #!/usr/bin/env node
 import fs from "node:fs";
-
-const routes = fs.readFileSync("artifacts/api-server/src/src/routes/index.ts", "utf8");
-const relationships = fs.readFileSync("artifacts/api-server/src/src/routes/relationships.ts", "utf8");
-const ingest = fs.readFileSync("artifacts/api-server/src/src/routes/ingest.ts", "utf8");
-const retiredEnrichment = fs.readFileSync("artifacts/api-server/src/src/routes/ingest-enrichment.ts", "utf8");
-const frontend = fs.readFileSync("artifacts/apex-finder/src/pages/profile.tsx", "utf8");
+import path from "node:path";
 
 const failures = [];
 const assert = (ok, message) => { if (!ok) failures.push(message); };
+
+function read(file) {
+  return fs.readFileSync(file, "utf8");
+}
+
+function walk(dir) {
+  const files = [];
+  if (!fs.existsSync(dir)) return files;
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) files.push(...walk(full));
+    else files.push(full);
+  }
+  return files;
+}
+
+const routes = read("artifacts/api-server/src/src/routes/index.ts");
+const relationships = read("artifacts/api-server/src/src/routes/relationships.ts");
+const frontendRoot = "artifacts/apex-finder/src";
+const frontendFiles = walk(frontendRoot).filter((file) => /\.(?:ts|tsx)$/.test(file));
+const workflowFiles = walk(".github/workflows").filter((file) => /\.(?:yml|yaml)$/.test(file));
 
 assert(/import relationshipsRouter from "\.\/relationships";/.test(routes), "relationships router import is missing");
 assert(/router\.use\(relationshipsRouter\);/.test(routes), "relationships router is not mounted");
@@ -17,11 +33,27 @@ assert(/router\.post\("\/relationships"/.test(relationships), "relationship crea
 assert(/router\.delete\("\/relationships\/:id"/.test(relationships), "relationship delete endpoint is missing");
 assert(!/\bfetch\s*\(/.test(relationships), "mounted relationship router must not bypass the safe outbound transport");
 assert(/safeOutboundFetch\(/.test(relationships), "mounted relationship router must use safe outbound transport");
-assert(/useListRelationships\(/.test(frontend), "profile relationship consumer is missing");
+assert(frontendFiles.some((file) => read(file).includes("useListRelationships(")), "frontend has no relationship consumer");
 
-const retired = ["/api/ingest/" + "atlas-status", "/api/ingest/" + "web-osint-enrich", "/api/entities/" + "rehydrate-contacts", "/api/entities/" + "refresh-surface"];
-for (const route of retired) {
-  assert(!frontend.includes(route), `profile still calls retired endpoint: ${retired}`);
+// Retired control-plane routes are forbidden in executable frontend code and live/manual workflows.
+const retiredRoutes = [
+  "/api/ingest/atlas-status",
+  "/api/ingest/web-osint-enrich",
+  "/api/entities/rehydrate-contacts",
+  "/api/entities/refresh-surface",
+];
+for (const route of retiredRoutes) {
+  for (const file of [...frontendFiles, ...workflowFiles]) {
+    const content = read(file);
+    assert(!content.includes(route), `${file} still references retired endpoint ${route}`);
+  }
+}
+
+// Canonical launch must never be replaced by a retired control-plane launch route.
+for (const file of workflowFiles) {
+  const content = read(file);
+  assert(!content.includes("/api/atlas/launch"), `${file} references retired Atlas launch route`);
+  assert(!content.includes("/api/atlas/start"), `${file} references retired Atlas start route`);
 }
 
 if (failures.length) {
