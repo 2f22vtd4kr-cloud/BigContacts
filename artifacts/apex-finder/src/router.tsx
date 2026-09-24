@@ -34,10 +34,10 @@ function ProfileRoute() {
 }
 
 /**
- * The operator password/session remains a server-side API security boundary.
- * The static desk itself must not be blocked by a client-side login wall: it
- * is also used as a Replit/runtime inspection surface, while protected API
- * mutations continue to require the canonical server authentication layer.
+ * The server remains the security boundary. When operator authentication is
+ * configured, App.tsx gates this desk behind the canonical password/session
+ * flow. When it is deliberately not configured for a local inspection run,
+ * the desk can still render, while protected API routes remain fail-closed.
  */
 export default function AppRouter() {
   return (
