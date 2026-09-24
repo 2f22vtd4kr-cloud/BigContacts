@@ -22,7 +22,9 @@
     "vite": "catalog:",
     "@vitejs/plugin-react": "catalog:",
     "@tailwindcss/vite": "catalog:",
-    "tailwindcss": "catalog:"
+    "tailwindcss": "catalog:",
+    "@replit/vite-plugin-cartographer": "catalog:",
+    "@replit/vite-plugin-dev-banner": "catalog:"
   },
   "scripts": {
     "dev": "cd ../.. && node scripts/apply-investigator-ui-source-boundary.mjs && node scripts/check-investigator-ui-source-boundary.mjs && node scripts/check-profile-route-contract.mjs && node scripts/check-generated-reactor-syntax.mjs && cd artifacts/apex-finder && vite",
