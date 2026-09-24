@@ -121,7 +121,8 @@ router.post("/auth/logout", (_req, res): void => {
 });
 
 router.get("/auth/session", (req, res): void => {
-  res.json({ authenticated: verifyOperatorSession(readCookie(req, COOKIE_NAME)) });
+  const configured = Boolean(requiredEnv(PASSWORD_ENV, 16) && requiredEnv(SECRET_ENV, 32));
+  res.json({ authenticated: verifyOperatorSession(readCookie(req, COOKIE_NAME)), configured });
 });
 
 export default router;
