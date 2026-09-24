@@ -7,6 +7,7 @@ import { computeAccessScore } from "../lib/access-score";
 import { reachabilityOrderExpr } from "../lib/reachability-rank";
 import { loadPresentedContactsForEntities } from "../lib/presented-contacts";
 import { buildLanesHonestySnapshot } from "../lib/lanes-honesty";
+import { scoreFixtureCard, meanScore, passesScoreboardMilestone } from "../lib/scoreboard-rubric";
 
 const router: IRouter = Router();
 
@@ -173,6 +174,57 @@ router.get("/dashboard/hot-leads", async (req, res): Promise<void> => {
       })
       .slice(0, limit),
   );
+});
+
+// GET /ingest/scoreboard-snapshot
+// Operator scoreboard for the most recently cooked cards. This reuses the
+// canonical entity/contact-evidence data and the existing pure rubric; it does
+// not create a second scoring or research control plane.
+router.get("/ingest/scoreboard-snapshot", async (req, res): Promise<void> => {
+  const requestedLimit = Number(req.query.limit ?? 12);
+  const limit = Math.min(Math.max(Number.isFinite(requestedLimit) ? Math.trunc(requestedLimit) : 12, 1), 50);
+
+  const entities = await db
+    .select()
+    .from(entitiesTable)
+    .where(and(eq(entitiesTable.isHidden, false), isNotNull(entitiesTable.cookedAt)))
+    .orderBy(desc(entitiesTable.cookedAt))
+    .limit(limit);
+
+  const presented = await loadPresentedContactsForEntities(entities);
+  const rows = entities.map((e) => {
+    const contacts = presented[e.id] ?? [];
+    const hasSourceUrls = contacts.some((contact) => Boolean(contact.sourceUrl));
+    const score = scoreFixtureCard({
+      contactOutcome: e.contactOutcome,
+      phone: e.phone,
+      email: e.email,
+      phoneSource: e.phoneSource,
+      linkedinUrl: e.linkedinUrl,
+      hasSourceUrls,
+    });
+    let suggestedLcode: string | undefined;
+    try {
+      const meta = JSON.parse(e.metadata ?? "{}") as Record<string, unknown>;
+      if (typeof meta.suggestedLcode === "string") suggestedLcode = meta.suggestedLcode;
+    } catch { /* malformed metadata must not break the operator strip */ }
+    return {
+      id: e.id,
+      name: e.name,
+      contactOutcome: e.contactOutcome,
+      score,
+      ...(suggestedLcode ? { suggestedLcode } : {}),
+      evidenceContactCount: contacts.length,
+    };
+  });
+
+  const scores = rows.map((row) => row.score);
+  res.json({
+    count: scores.length,
+    mean: meanScore(scores),
+    milestonePass: passesScoreboardMilestone(scores),
+    rows,
+  });
 });
 
 // GET /dashboard/stats
