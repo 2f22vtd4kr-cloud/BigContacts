@@ -13,6 +13,7 @@ run = ["bash scripts/replit-boot.sh"]
 [env]
 PORT = "8080"
 NODE_ENV = "production"
+LOG_LEVEL = "silent"
 ENABLE_AUTO_PIPELINE = "false"
 INSTALL_PYTHON_OSINT = "false"
 APEX_SKIP_SEMANTIC = "1"
@@ -48,6 +49,7 @@ waitForPort = 8080
 [userenv.shared]
 NODE_OPTIONS = "--max-old-space-size=1536"
 NODE_ENV = "production"
+LOG_LEVEL = "silent"
 RESEARCH_DEPTH = "standard"
 APEX_SKIP_SEMANTIC = "1"
 CI = "true"
