@@ -1,4 +1,5 @@
 import { Layout } from "@/components/layout";
+import { OperatorAuthGate } from "@/components/operator-auth-gate";
 import { Route, Switch, Redirect, useParams, useSearch } from "wouter";
 import { lazy, Suspense } from "react";
 import Dashboard from "@/pages/dashboard";
@@ -33,45 +34,41 @@ function ProfileRoute() {
   );
 }
 
-/**
- * The operator password/session remains a server-side API security boundary.
- * The static desk itself must not be blocked by a client-side login wall: it
- * is also used as a Replit/runtime inspection surface, while protected API
- * mutations continue to require the canonical server authentication layer.
- */
 export default function AppRouter() {
   return (
     <Layout>
-      <Suspense fallback={<div className="flex min-h-[40vh] items-center justify-center text-xs font-mono uppercase tracking-[.18em] text-stone-600" role="status">Loading workspace…</div>}>
-      <Switch>
-        {/* ── Primary routes ── */}
-        <Route path="/" component={Dashboard} />
-        <Route path="/search" component={DeepSearch} />
-        <Route path="/profiles" component={EntityLedger} />
-        <Route path="/network" component={GraphViewer} />
-        <Route path="/jobs" component={BackgroundJobs} />
-        <Route path="/reactor" component={IntelligenceReactorPage} />
-        <Route path="/research" component={IntelTerminal} />
-        <Route path="/manual" component={FieldManual} />
-        <Route path="/profile/:id" component={ProfileRoute} />
+      <OperatorAuthGate>
+        <Suspense fallback={<div className="flex min-h-[40vh] items-center justify-center text-xs font-mono uppercase tracking-[.18em] text-stone-600" role="status">Loading workspace…</div>}>
+          <Switch>
+            {/* ── Primary routes ── */}
+            <Route path="/" component={Dashboard} />
+            <Route path="/search" component={DeepSearch} />
+            <Route path="/profiles" component={EntityLedger} />
+            <Route path="/network" component={GraphViewer} />
+            <Route path="/jobs" component={BackgroundJobs} />
+            <Route path="/reactor" component={IntelligenceReactorPage} />
+            <Route path="/research" component={IntelTerminal} />
+            <Route path="/manual" component={FieldManual} />
+            <Route path="/profile/:id" component={ProfileRoute} />
 
-        {/* ── Tools & Admin pages ── */}
-        <Route path="/improvements" component={Improvements} />
-        <Route path="/data-sources" component={DataSources} />
-        <Route path="/duplicates" component={Duplicates} />
-        <Route path="/osint-tools" component={OsintToolsDirectory} />
-        <Route path="/status" component={SystemStatusPage} />
+            {/* ── Tools & Admin pages ── */}
+            <Route path="/improvements" component={Improvements} />
+            <Route path="/data-sources" component={DataSources} />
+            <Route path="/duplicates" component={Duplicates} />
+            <Route path="/osint-tools" component={OsintToolsDirectory} />
+            <Route path="/status" component={SystemStatusPage} />
 
-        {/* ── Legacy route aliases ── */}
-        <Route path="/entities">{() => { const s = useSearch(); return <Redirect to={`/profiles${s ? `?${s}` : ""}`} />; }}</Route>
-        <Route path="/graph">{() => { const s = useSearch(); return <Redirect to={`/network${s ? `?${s}` : ""}`} />; }}</Route>
-        <Route path="/deep-search">{() => <Redirect to="/search" />}</Route>
-        <Route path="/discover">{() => <Redirect to="/search" />}</Route>
-        <Route path="/ledger">{() => <Redirect to="/profiles" />}</Route>
+            {/* ── Legacy route aliases ── */}
+            <Route path="/entities">{() => { const s = useSearch(); return <Redirect to={`/profiles${s ? `?${s}` : ""}`} />; }}</Route>
+            <Route path="/graph">{() => { const s = useSearch(); return <Redirect to={`/network${s ? `?${s}` : ""}`} />; }}</Route>
+            <Route path="/deep-search">{() => <Redirect to="/search" />}</Route>
+            <Route path="/discover">{() => <Redirect to="/search" />}</Route>
+            <Route path="/ledger">{() => <Redirect to="/profiles" />}</Route>
 
-        <Route component={NotFound} />
-      </Switch>
-      </Suspense>
+            <Route component={NotFound} />
+          </Switch>
+        </Suspense>
+      </OperatorAuthGate>
     </Layout>
   );
 }
