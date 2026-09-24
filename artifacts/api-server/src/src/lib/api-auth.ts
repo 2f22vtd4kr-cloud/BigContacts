@@ -46,9 +46,10 @@ function sameOrigin(req: Request): boolean {
   return origin === `${proto}://${host}`;
 }
 
-/** Public API authentication. There is deliberately no CI/loopback bypass. */
+/** Public API authentication. Development bypass is explicit and never active in production. */
 export function apiAuth(req: Request, res: Response, next: NextFunction): void {
-  if (PUBLIC_PATHS.has(req.path) || req.method === "OPTIONS") {
+  const developmentBypass = process.env.APEX_DEV_AUTH_BYPASS === "true" && process.env.NODE_ENV !== "production";
+  if (developmentBypass || PUBLIC_PATHS.has(req.path) || req.method === "OPTIONS") {
     next();
     return;
   }
