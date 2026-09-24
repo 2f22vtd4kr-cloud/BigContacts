@@ -22,6 +22,8 @@ function walk(dir) {
 
 const routes = read("artifacts/api-server/src/src/routes/index.ts");
 const relationships = read("artifacts/api-server/src/src/routes/relationships.ts");
+const auth = read("artifacts/api-server/src/src/routes/auth.ts");
+const operatorGate = read("artifacts/apex-finder/src/components/operator-gate.tsx");
 const frontendRoot = "artifacts/apex-finder/src";
 const frontendFiles = walk(frontendRoot).filter((file) => /\.(?:ts|tsx)$/.test(file));
 const workflowFiles = walk(".github/workflows").filter((file) => /\.(?:yml|yaml)$/.test(file));
@@ -34,6 +36,13 @@ assert(/router\.delete\("\/relationships\/:id"/.test(relationships), "relationsh
 assert(!/\bfetch\s*\(/.test(relationships), "mounted relationship router must not bypass the safe outbound transport");
 assert(/safeOutboundFetch\(/.test(relationships), "mounted relationship router must use safe outbound transport");
 assert(frontendFiles.some((file) => read(file).includes("useListRelationships(")), "frontend has no relationship consumer");
+
+// The browser gate must consume the existing server-side password/session contract.
+assert(/router\.get\("\/auth\/session"/.test(auth), "operator session endpoint is missing");
+assert(/configured\s*=\s*Boolean\(/.test(auth), "operator session endpoint does not expose auth configuration state");
+assert(/\/auth\/session/.test(operatorGate), "operator gate does not check the canonical session endpoint");
+assert(/\/auth\/login/.test(operatorGate), "operator gate does not use the canonical login endpoint");
+assert(/credentials:\s*"same-origin"/.test(operatorGate), "operator gate must send the HttpOnly session cookie");
 
 // Retired control-plane routes are forbidden in executable frontend code and live/manual workflows.
 const retiredRoutes = [
