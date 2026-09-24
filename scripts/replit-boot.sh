@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 export CI=true
-export PORT="${PORT:-8080}"
+# Development Replit/API starts intentionally run without the operator login wall.\n# api-auth.ts still enforces the bypass only when NODE_ENV is not production.\nif [[ "${NODE_ENV:-development}" != "production" ]]; then\n  export APEX_DEV_AUTH_BYPASS="${APEX_DEV_AUTH_BYPASS:-true}"\nfi\nexport PORT="${PORT:-8080}"
 export ENABLE_AUTO_PIPELINE="${ENABLE_AUTO_PIPELINE:-false}"
 export APEX_SKIP_SEMANTIC="${APEX_SKIP_SEMANTIC:-1}"
 export NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=2048}"
