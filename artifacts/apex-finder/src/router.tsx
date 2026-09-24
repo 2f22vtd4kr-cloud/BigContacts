@@ -1,5 +1,4 @@
 import { Layout } from "@/components/layout";
-import { OperatorAuthGate } from "@/components/operator-auth-gate";
 import { Route, Switch, Redirect, useParams, useSearch } from "wouter";
 import { lazy, Suspense } from "react";
 import Dashboard from "@/pages/dashboard";
@@ -37,7 +36,6 @@ function ProfileRoute() {
 export default function AppRouter() {
   return (
     <Layout>
-      <OperatorAuthGate>
         <Suspense fallback={<div className="flex min-h-[40vh] items-center justify-center text-xs font-mono uppercase tracking-[.18em] text-stone-600" role="status">Loading workspace…</div>}>
           <Switch>
             {/* ── Primary routes ── */}
@@ -68,7 +66,6 @@ export default function AppRouter() {
             <Route component={NotFound} />
           </Switch>
         </Suspense>
-      </OperatorAuthGate>
     </Layout>
   );
 }
