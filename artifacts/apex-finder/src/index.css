@@ -319,7 +319,7 @@ body {
   .atlas-home-primary-row > .atlas-launch-primary-root {
     display: grid;
     /* Depth selector is deliberately narrower; the green command rail matches the secondary rail exactly. */
-    grid-template-columns: 7.625rem 14.75rem;
+    grid-template-columns: 7.125rem 15.25rem;
     gap: var(--atlas-hero-gap);
     width: 100%;
   }
