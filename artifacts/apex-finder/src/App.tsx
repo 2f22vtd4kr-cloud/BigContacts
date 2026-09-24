@@ -1,5 +1,10 @@
 import AppRouter from "./router";
+import { OperatorGate } from "@/components/operator-gate";
 
 export default function App() {
-  return <AppRouter />;
+  return (
+    <OperatorGate>
+      <AppRouter />
+    </OperatorGate>
+  );
 }
