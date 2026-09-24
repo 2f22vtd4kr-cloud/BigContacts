@@ -26,6 +26,28 @@ describe("apiAuth", () => {
     expect(res.status).toHaveBeenCalledWith(401);
   });
 
+
+  it("allows the explicit development bypass outside production", () => {
+    vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("APEX_DEV_AUTH_BYPASS", "true");
+    const next = vi.fn();
+    const res = { status: vi.fn().mockReturnThis(), json: vi.fn() } as any;
+    apiAuth({ path: "/entities", method: "GET", header: vi.fn().mockReturnValue(undefined) } as any, res, next);
+    expect(next).toHaveBeenCalledOnce();
+    expect(res.status).not.toHaveBeenCalled();
+  });
+
+  it("does not allow the development bypass in production", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("APEX_DEV_AUTH_BYPASS", "true");
+    vi.stubEnv("APEX_API_AUTH_TOKEN", "a".repeat(32));
+    const next = vi.fn();
+    const res = { status: vi.fn().mockReturnThis(), json: vi.fn() } as any;
+    apiAuth({ path: "/entities", method: "GET", header: vi.fn().mockReturnValue(undefined) } as any, res, next);
+    expect(next).not.toHaveBeenCalled();
+    expect(res.status).toHaveBeenCalledWith(401);
+  });
+
   it("never lets CI=true bypass auth for a non-loopback caller", () => {
     vi.stubEnv("CI", "true");
     vi.stubEnv("NODE_ENV", "test");
