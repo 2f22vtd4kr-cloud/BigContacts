@@ -7,6 +7,7 @@ import { resolveResearchDepth, type ResearchDepth } from "./research-depth";
 import { compactInvestigationContext } from "./investigation-context-compaction";
 import { deriveCanonicalTerminalDecision } from "./canonical-terminal-state";
 import { reviewTargetInvestigationAct } from "./target-act-oversight";
+import { runGeminiRightHandFreeJson } from "./gemini-right-hand-reasoning";
 export type CanonicalSingleTargetOptions = { researchDepth?: ResearchDepth; targetTimeoutMs?: number; existingCaseId?: number; initialDirection?: string };
 type StoredOversight = { action: "continue" | "redirect" | "stop"; direction?: string | null; reason?: string | null; status?: string; bossModel?: string | null; error?: string | null };
 type TargetCase = { id: number; targetEntityId: number; status: string; iteration: number; objective: string; caseFile: string | null };
@@ -64,6 +65,26 @@ export async function runCanonicalSingleTargetInvestigation(atlasJobId: string, 
       const opening = await runGeminiBossDiscovery({ objective: `${caseRow.objective}\n\nSHARED CASE CONTEXT:\n${contextDocument}`, motivation: "Select the Investigator capability for one target-scoped free-ReAct investigation. Gemini is not the researcher and must not prescribe a tool sequence.", geography: "Target-specific public web and official sources", exclusions: ["Do not browse.", "Do not invent evidence, contacts, relationships or URLs.", "Do not prescribe a fixed search/tool/provider/query sequence.", "Select only groq or mistral as Investigator."], startingLane: "exact target assignment from shared case context" });
       investigatorLlm = opening.investigatorLlm; if (!investigatorLlm) { await db.update(researchCasesTable).set({ status: "review", currentAction: "gemini-opening-assignment-failed", updatedAt: new Date() }).where(and(eq(researchCasesTable.id, caseRow.id), eq(researchCasesTable.status, "active"), sql`${researchCasesTable.caseFile}::jsonb ->> 'atlasJobId' = ${atlasJobId}`, sql`${researchCasesTable.currentAction} NOT IN ('canonical-atlas-cancelled', 'canonical-lease-lost')`)); await updateJob(atlasJobId, { status: "failed", progress: 1, message: `Gemini Boss did not select a usable Investigator for ${target.name}; no fallback permitted.`, result: JSON.stringify({ caseId: caseRow.id, opening }) }); return; }
       contextDocument = compactInvestigationContext({ raw: `${contextDocument}\n\n## Gemini Boss opening state\nmodel=${opening.model}\nselectedInvestigator=${investigatorLlm}\nreport=${opening.report}\nnextDirections=${opening.nextDirections.join(" | ")}\nuncertainties=${opening.uncertainties.join(" | ")}` }); caseState.contextDocument = contextDocument; caseState.investigatorLlm = investigatorLlm; await db.update(researchCasesTable).set({ caseFile: JSON.stringify(caseState), directorMode: "gemini_boss_active", directorModel: opening.model, currentAction: "investigator-act-1", updatedAt: new Date() }).where(and(eq(researchCasesTable.id, caseRow.id), eq(researchCasesTable.status, "active"), sql`${researchCasesTable.caseFile}::jsonb ->> 'atlasJobId' = ${atlasJobId}`, sql`${researchCasesTable.currentAction} NOT IN ('canonical-atlas-cancelled', 'canonical-lease-lost')`));
+      caseState.currentAction = "gemini-right-hand-opening-review";
+      const rightHandPrompt = "Review Gemini Boss opening target assignment before the Investigator starts. Target: " + target.name + " (" + target.type + "). Objective: " + caseRow.objective + ". Boss selected Investigator: " + investigatorLlm + ". Boss report: " + (opening.report ?? "") + ". Next directions: " + JSON.stringify(opening.nextDirections) + ". Uncertainties: " + JSON.stringify(opening.uncertainties) + ". Return concise advisory observations only. Do not browse, choose tools, invent evidence, or replace the Investigator. Return JSON with decision, reason, focusLanes, confidence.";
+      const rightHandRaw = await runGeminiRightHandFreeJson(rightHandPrompt, apexOrientationFor("right_hand") + "\nYou are Gemini Right-hand. Review the Boss opening decision only. Do not browse, choose tools, or replace the selected Groq/Mistral Investigator. Reply with ONE JSON object.").catch((error) => ({ status: "unavailable" as const, model: "none", raw: null, error: error instanceof Error ? error.message : "Right-hand unavailable" }));
+      if (rightHandRaw.status !== "completed" || !rightHandRaw.raw) {
+        await db.update(researchCasesTable).set({ caseFile: JSON.stringify({ ...caseState, rightHandOpening: { status: "unavailable", model: rightHandRaw.model, error: rightHandRaw.error ?? "Right-hand unavailable" } }), status: "review", currentAction: "gemini-right-hand-opening-failed", updatedAt: new Date() }).where(and(eq(researchCasesTable.id, caseRow.id), eq(researchCasesTable.status, "active")));
+        await updateJob(atlasJobId, { status: "failed", progress: 1, outcome: "incomplete", message: "Gemini Right-hand opening review failed for " + target.name + "; Investigator execution blocked.", result: JSON.stringify({ caseId: caseRow.id, opening, rightHand: rightHandRaw }), finishedAt: new Date().toISOString() });
+        return;
+      }
+      let rightHandOpening: Record<string, unknown>;
+      try {
+        const parsed = JSON.parse(rightHandRaw.raw) as Record<string, unknown>;
+        rightHandOpening = { status: "completed", model: rightHandRaw.model, decision: typeof parsed.decision === "string" ? parsed.decision : null, reason: typeof parsed.reason === "string" ? parsed.reason : null, focusLanes: Array.isArray(parsed.focusLanes) ? parsed.focusLanes.filter((v): v is string => typeof v === "string") : [], confidence: typeof parsed.confidence === "number" ? Math.max(0, Math.min(1, parsed.confidence)) : null, error: null };
+      } catch {
+        await db.update(researchCasesTable).set({ status: "review", currentAction: "gemini-right-hand-opening-invalid", updatedAt: new Date() }).where(and(eq(researchCasesTable.id, caseRow.id), eq(researchCasesTable.status, "active")));
+        await updateJob(atlasJobId, { status: "failed", progress: 1, outcome: "incomplete", message: "Gemini Right-hand opening review was invalid for " + target.name + "; Investigator execution blocked.", result: JSON.stringify({ caseId: caseRow.id, opening, rightHand: rightHandRaw }), finishedAt: new Date().toISOString() });
+        return;
+      }
+      caseState.rightHandOpening = rightHandOpening;
+      caseState.currentAction = "investigator-act-1";
+      await db.update(researchCasesTable).set({ caseFile: JSON.stringify(caseState), directorMode: "gemini_boss_active", directorModel: opening.model, currentAction: "investigator-act-1", updatedAt: new Date() }).where(and(eq(researchCasesTable.id, caseRow.id), eq(researchCasesTable.status, "active")));
     }
   }
   for (let actNumber = 1; !deadlineExceeded; actNumber++) {
