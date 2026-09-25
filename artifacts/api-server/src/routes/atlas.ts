@@ -12,6 +12,7 @@ import { runCanonicalAtlasPipeline, type CanonicalAtlasOptions } from "../src/li
 import { runCanonicalSingleTargetInvestigation } from "../src/lib/canonical-single-target-runner";
 import { CANONICAL_ATLAS_LAUNCH_BODY } from "../lib/atlas-launch-defaults";
 import { logger } from "../lib/logger";
+import { classifyApexError } from "../lib/apex-user-errors";
 
 const router = Router();
 
@@ -20,7 +21,7 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
   if (existing) {
     const job = await getJob(existing);
     if (job?.status === "running") {
-      res.status(409).json({ error: "Atlas pipeline already running.", jobId: existing, status: job });
+      res.status(409).json({ error: "Atlas pipeline already running.", jobId: existing, status: job, userError: classifyApexError("Atlas pipeline already running.", 409) });
       return;
     }
   }
@@ -113,14 +114,14 @@ router.get("/ingest/atlas-status", async (_req: Request, res: Response): Promise
   if (!jobId) {
     const latest = await getLatestJob("atlas-run");
     if (latest) {
-      res.json({ ...latest, active: false, latest: true });
+      res.json({ ...latest, active: false, latest: true, ...(latest.status === "failed" ? { userError: classifyApexError(latest.message) } : {}) });
       return;
     }
     res.json({ status: "idle", message: "No Atlas run in progress." });
     return;
   }
   const job = await getJob(jobId);
-  res.json({ ...job, jobId, active: true });
+  res.json({ ...job, jobId, active: true, ...(job?.status === "failed" ? { userError: classifyApexError(job.message) } : {}) });
 });
 
 export default router;
