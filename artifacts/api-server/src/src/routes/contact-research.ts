@@ -1,11 +1,4 @@
 import { Router, type Request, type Response } from "express";
-import {
-  getActiveJob,
-  getJob,
-  getLatestJob,
-} from "../lib/job-queue";
-import { CONTACT_RESEARCH_JOB_TYPE } from "../lib/contact-research-orchestrator";
-
 const router = Router();
 
 const RETIRED_MESSAGE =
