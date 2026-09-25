@@ -32,6 +32,18 @@ describe("discovery runtime architecture", () => {
     expect(canonicalSource).toMatch(/Boss opening decision.*Right-hand.*inspect/is);
   });
 
+  it("actually invokes per-act Right-hand/Boss oversight after a target Investigator act", () => {
+    const runner = fs.readFileSync(path.join(libDir, "canonical-single-target-runner.ts"), "utf8");
+    const oversightImport = runner.indexOf('import { reviewTargetInvestigationAct } from "./target-act-oversight";');
+    const oversightCall = runner.indexOf("await reviewTargetInvestigationAct({");
+    const actExecution = runner.indexOf("latestResult = await runTargetContactAgent({");
+    expect(oversightImport).toBeGreaterThan(-1);
+    expect(actExecution).toBeGreaterThan(-1);
+    expect(oversightCall).toBeGreaterThan(actExecution);
+    expect(runner).toMatch(/runId:\s*latestResult\.executionId/);
+    expect(runner).toMatch(/rightHand.*Boss|Boss.*Right-hand/is);
+  });
+
   it("does not promote discovery candidates from search snippets alone", async () => {
     const canonicalSource = fs.readFileSync(path.join(libDir, "canonical-atlas-discovery.ts"), "utf8");
     expect(canonicalSource).toMatch(/directSourceAction\s*=\s*payload\.action\s*===\s*"visit"\s*\|\|\s*payload\.action\s*===\s*"browser_fetch"/);
