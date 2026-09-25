@@ -203,8 +203,8 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     await db.insert(researchCaseEventsTable).values({
       caseId: discoveryCaseId,
       iteration: 0,
-      actorRole: "gemini_right_hand",
-      eventType: "oversight",
+      actorRole: "right_hand",
+      eventType: "observation",
       status: "recorded",
       summary: "Gemini Right-hand reviewed the Boss opening decision before Investigator execution.",
       correlationKey: `${atlasJobId}:right-hand-opening`,
