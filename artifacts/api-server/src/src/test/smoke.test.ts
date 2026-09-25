@@ -30,8 +30,8 @@ describe("GET /api/healthz", () => {
 describe("GET /api/ingest/contact-research/status", () => {
   it("is explicitly retired", async () => {
     const { status, body } = await get("/api/ingest/contact-research/status");
-    expect(status).toBe(200);
-    expect(body.retired).toBe(true);
+    expect(status).toBe(410);
+    expect(body.error).toMatch(/retired/i);
     expect(body.message).toContain("retired");
   });
 });
