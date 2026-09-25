@@ -44,6 +44,15 @@ describe("discovery runtime architecture", () => {
     expect(runner).toMatch(/rightHand.*Boss|Boss.*Right-hand/is);
   });
 
+  it("keeps target opening Boss-first and requires Right-hand before act 1", () => {
+    const runner = fs.readFileSync(path.join(libDir, "canonical-single-target-runner.ts"), "utf8");
+    const bossOpening = runner.indexOf("runGeminiBossDiscovery({");
+    const rightHandOpening = runner.indexOf("runGeminiRightHandFreeJson(");
+    const firstAct = runner.indexOf("latestResult = await runTargetContactAgent({");
+    expect(bossOpening).toBeGreaterThan(-1);
+    expect(rightHandOpening).toBeGreaterThan(bossOpening);
+    expect(firstAct).toBeGreaterThan(rightHandOpening);
+  });
   it("does not promote discovery candidates from search snippets alone", async () => {
     const canonicalSource = fs.readFileSync(path.join(libDir, "canonical-atlas-discovery.ts"), "utf8");
     expect(canonicalSource).toMatch(/directSourceAction\s*=\s*payload\.action\s*===\s*"visit"\s*\|\|\s*payload\.action\s*===\s*"browser_fetch"/);
