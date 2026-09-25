@@ -6,9 +6,6 @@ on:
     paths:
       - ".github/workflows/apex-canonical-runtime-proof.yml"
       - "scripts/live-batch-trigger.md"
-      - "artifacts/api-server/src/src/lib/**"
-      - "artifacts/api-server/src/src/test/**"
-      - "lib/db/**"
   workflow_dispatch:
 
 permissions:
