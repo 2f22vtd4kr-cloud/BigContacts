@@ -26,6 +26,9 @@ const forbidden = [
   /assessResearchMove/i,
   /atlas-research-strategy/i,
   /_atlasStrategy(?:Score|Rationale)/i,
+  /discovery-intake/i,
+  /discovery-source-mixer/i,
+  /atlas-adaptive-portfolio/i,
 ];
 const failures = forbidden.filter((pattern) => pattern.test(source)).map(String);
 if (failures.length) {
