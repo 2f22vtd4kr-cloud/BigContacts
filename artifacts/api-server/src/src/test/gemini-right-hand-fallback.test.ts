@@ -58,10 +58,12 @@ describe("Gemini Right-hand free-model fallback", () => {
     const result = await runGeminiRightHandFreeJson("Return JSON.");
 
     expect(result.status).toBe("unavailable");
-    expect(calls).toHaveLength(2);
+    expect(calls).toHaveLength(4);
     expect(calls.map((url) => url.match(/models\/([^:]+):generateContent/)?.[1])).toEqual([
       GEMINI_RIGHT_HAND_MODEL,
       GEMINI_RIGHT_HAND_FALLBACK_MODELS[0],
+      GEMINI_RIGHT_HAND_FALLBACK_MODELS[1],
+      GEMINI_RIGHT_HAND_FALLBACK_MODELS[2],
     ]);
     expect(result.error).toContain("exhausted bounded model attempts");
   });
