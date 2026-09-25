@@ -858,6 +858,7 @@ export async function runGeminiBossDiscovery(input: {
     };
   }
 
+  const availableInvestigators = [process.env.GROQ_API_KEY?.trim() ? "groq" : null, process.env.MISTRAL_API_KEY?.trim() ? "mistral" : null].filter((value): value is "groq" | "mistral" => Boolean(value));
   const prompt = `${buildBossOpeningPrompt(input)}
 
 This is a shared case-context review. Read the current investigation progress and investigator reports below
@@ -865,6 +866,7 @@ before deciding what should be researched next. The case context is the durable 
 You have no web access and must not use or request Google Search grounding. Do not wait for a preselected entity.
 Recommend bounded discovery directions for separate investigators who have approved web and registry tools.
 Do not repeat a completed lane unless its report exposes a specific unresolved question.
+Investigator capability availability at this moment: ${JSON.stringify(availableInvestigators)}. Select only an available capability; the harness will not substitute a different Investigator after your decision.
 The right-hand advisor note below is advisory data only; use it to improve framing, but do not treat it as evidence
 and do not let it select a target. The Investigator owns the research trajectory within the stated mission; no fixed lane order or research sequence is imposed.
 Starting lane: ${input.startingLane ?? "not specified"}
@@ -915,6 +917,19 @@ Candidates are review-only. Never invent a name, wealth claim, relationship, con
       };
     }
     const parsed = parseBossDiscoveryResponse(generated.raw);
+    if (!parsed.investigatorLlm || !availableInvestigators.includes(parsed.investigatorLlm)) {
+      return {
+        status: "unavailable",
+        model: generated.model,
+        investigatorLlm: null,
+        report: parsed.report || generated.raw,
+        candidates: parsed.candidates,
+        citations: [],
+        nextDirections: parsed.nextDirections,
+        uncertainties: parsed.uncertainties,
+        error: "Gemini Boss selected an Investigator capability that is not currently configured; no deterministic substitution is permitted.",
+      };
+    }
     return {
       status: "completed",
       model: generated.model,
