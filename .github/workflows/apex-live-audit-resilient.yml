@@ -1,6 +1,6 @@
 name: Apex Live Bureau Audit — Resilient Groq 3.8
 
-# Provider-resilient real-run lane. This is deliberately separate from the
+# Provider-resilient real-run lane. Runtime verification marker: 2026-09-25. This is deliberately separate from the
 # historical audit workflow so an experimental provider change cannot cancel
 # or rewrite an already-running audit.
 on:
