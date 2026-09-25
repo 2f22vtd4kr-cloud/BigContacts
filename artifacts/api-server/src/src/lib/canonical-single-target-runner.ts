@@ -1,5 +1,5 @@
 import { and, eq, sql } from "drizzle-orm";
-import { db, entitiesTable, researchCasesTable } from "@workspace/db";
+import { db, entitiesTable, researchCasesTable, researchCaseEventsTable } from "@workspace/db";
 import { apexOrientationFor } from "./apex-bureau-orientation";
 import { getJob, updateJob } from "./job-queue";
 import { runGeminiBossDiscovery } from "./case-bureau";
@@ -66,6 +66,16 @@ export async function runCanonicalSingleTargetInvestigation(atlasJobId: string, 
       const opening = await runGeminiBossDiscovery({ objective: `${caseRow.objective}\n\nSHARED CASE CONTEXT:\n${contextDocument}`, motivation: "Select the Investigator capability for one target-scoped free-ReAct investigation. Gemini is not the researcher and must not prescribe a tool sequence.", geography: "Target-specific public web and official sources", exclusions: ["Do not browse.", "Do not invent evidence, contacts, relationships or URLs.", "Do not prescribe a fixed search/tool/provider/query sequence.", "Select only groq or mistral as Investigator."], startingLane: "exact target assignment from shared case context" });
       investigatorLlm = opening.investigatorLlm; if (!investigatorLlm) { await db.update(researchCasesTable).set({ status: "review", currentAction: "gemini-opening-assignment-failed", updatedAt: new Date() }).where(and(eq(researchCasesTable.id, caseRow.id), eq(researchCasesTable.status, "active"), sql`${researchCasesTable.caseFile}::jsonb ->> 'atlasJobId' = ${atlasJobId}`, sql`${researchCasesTable.currentAction} NOT IN ('canonical-atlas-cancelled', 'canonical-lease-lost')`)); await updateJob(atlasJobId, { status: "failed", progress: 1, message: `Gemini Boss did not select a usable Investigator for ${target.name}; no fallback permitted.`, result: JSON.stringify({ caseId: caseRow.id, opening }) }); return; }
       contextDocument = compactInvestigationContext({ raw: `${contextDocument}\n\n## Gemini Boss opening state\nmodel=${opening.model}\nselectedInvestigator=${investigatorLlm}\nreport=${opening.report}\nnextDirections=${opening.nextDirections.join(" | ")}\nuncertainties=${opening.uncertainties.join(" | ")}` }); caseState.contextDocument = contextDocument; caseState.investigatorLlm = investigatorLlm; await db.update(researchCasesTable).set({ caseFile: JSON.stringify(caseState), directorMode: "gemini_boss_active", directorModel: opening.model, currentAction: "investigator-act-1", updatedAt: new Date() }).where(and(eq(researchCasesTable.id, caseRow.id), eq(researchCasesTable.status, "active"), sql`${researchCasesTable.caseFile}::jsonb ->> 'atlasJobId' = ${atlasJobId}`, sql`${researchCasesTable.currentAction} NOT IN ('canonical-atlas-cancelled', 'canonical-lease-lost')`));
+      await db.insert(researchCaseEventsTable).values({
+        caseId: caseRow.id,
+        iteration: 0,
+        actorRole: "gemini_boss",
+        eventType: "assignment",
+        status: "recorded",
+        summary: "Gemini Boss opened target investigation and selected the Investigator.",
+        correlationKey: `${atlasJobId}:target-boss-opening:${caseRow.id}`,
+        payload: JSON.stringify({ jobId: atlasJobId, targetId: target.id, model: opening.model, investigatorLlm, report: opening.report, nextDirections: opening.nextDirections, uncertainties: opening.uncertainties }),
+      });
       caseState.currentAction = "gemini-right-hand-opening-review";
       const rightHandPrompt = "Review Gemini Boss opening target assignment before the Investigator starts. Target: " + target.name + " (" + target.type + "). Objective: " + caseRow.objective + ". Boss selected Investigator: " + investigatorLlm + ". Boss report: " + (opening.report ?? "") + ". Next directions: " + JSON.stringify(opening.nextDirections) + ". Uncertainties: " + JSON.stringify(opening.uncertainties) + ". Return concise advisory observations only. Do not browse, choose tools, invent evidence, or replace the Investigator. Return JSON with decision, reason, focusLanes, confidence.";
       const rightHandRaw = await runGeminiRightHandFreeJson(rightHandPrompt, apexOrientationFor("right_hand") + "\nYou are Gemini Right-hand. Review the Boss opening decision only. Do not browse, choose tools, or replace the selected Groq/Mistral Investigator. Reply with ONE JSON object.").catch((error) => ({ status: "unavailable" as const, model: "none", raw: null, error: error instanceof Error ? error.message : "Right-hand unavailable" }));
@@ -83,6 +93,16 @@ export async function runCanonicalSingleTargetInvestigation(atlasJobId: string, 
         await updateJob(atlasJobId, { status: "failed", progress: 1, outcome: "incomplete", message: "Gemini Right-hand opening review was invalid for " + target.name + "; Investigator execution blocked.", result: JSON.stringify({ caseId: caseRow.id, opening, rightHand: rightHandRaw }), finishedAt: new Date().toISOString() });
         return;
       }
+      await db.insert(researchCaseEventsTable).values({
+        caseId: caseRow.id,
+        iteration: 0,
+        actorRole: "right_hand",
+        eventType: "observation",
+        status: "recorded",
+        summary: "Gemini Right-hand reviewed the Boss opening assignment before Investigator execution.",
+        correlationKey: `${atlasJobId}:target-right-hand-opening:${caseRow.id}`,
+        payload: JSON.stringify({ jobId: atlasJobId, targetId: target.id, bossModel: opening.model, investigatorLlm, rightHandOpening }),
+      });
       caseState.rightHandOpening = rightHandOpening;
       caseState.currentAction = "investigator-act-1";
       await db.update(researchCasesTable).set({ caseFile: JSON.stringify(caseState), directorMode: "gemini_boss_active", directorModel: opening.model, currentAction: "investigator-act-1", updatedAt: new Date() }).where(and(eq(researchCasesTable.id, caseRow.id), eq(researchCasesTable.status, "active")));
