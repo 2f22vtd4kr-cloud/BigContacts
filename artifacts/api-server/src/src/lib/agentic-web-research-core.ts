@@ -39,7 +39,7 @@ function providerErrorClass(error: unknown): string {
   return "REQUEST_ERROR";
 }
 
-async function webSearchSerper(query: string, locale?: string, market?: string, signal?: AbortSignal): Promise<ProviderSearchResult> {
+export async function webSearchSerper(query: string, locale?: string, market?: string, signal?: AbortSignal): Promise<ProviderSearchResult> {
   const key = [process.env.SERPER_API_KEY, process.env.SERPER_API_KEY_2, process.env.SERPER_API_KEY_3, process.env.SERPER_KEY].map((x) => (x || "").trim()).find(Boolean);
   if (!key) {
     logger.warn({ provider: "serper", query, locale: locale || null, market: market || null, outcome: "MISSING_API_KEY" }, "agentic provider search unavailable");
