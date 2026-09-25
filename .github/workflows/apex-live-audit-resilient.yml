@@ -48,6 +48,8 @@ jobs:
       GEMINI_API_KEY_12: ${{ secrets.GEMINI_API_KEY_12 }}
       GEMINI_API_KEY_13: ${{ secrets.GEMINI_API_KEY_13 }}
       GEMINI_AGENTIC_MODEL: gemini-3.7-flash
+      GEMINI_RIGHT_HAND_API_KEY: ${{ secrets.GEMINI_RIGHT_HAND_API_KEY }}
+      GEMINI_RIGHT_HAND_MODEL: gemini-3.8-flash
       GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
       GROQ_AGENTIC_MODEL: qwen/qwen3.8-27b
       MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
