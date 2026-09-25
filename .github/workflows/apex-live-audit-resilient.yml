@@ -151,6 +151,9 @@ jobs:
           console.log(JSON.stringify({digReady,bossReady,results},null,2));
           if(!digReady){console.error('No configured Dig provider passed generation preflight.');process.exit(2);}
           NODE
+      - name: Configure isolated CI API authentication
+        shell: bash
+        run: echo "APEX_API_AUTH_TOKEN=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
       - name: Start Apex API
         run: |
           redis-cli ping
