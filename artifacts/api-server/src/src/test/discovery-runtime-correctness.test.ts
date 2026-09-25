@@ -29,7 +29,12 @@ describe("discovery runtime architecture", () => {
     expect(bossIndex).toBeGreaterThan(-1);
     expect(rightHandIndex).toBeGreaterThan(-1);
     expect(bossIndex).toBeLessThan(rightHandIndex);
-    expect(canonicalSource).toMatch(/Boss first, independent Right-hand second/);
+    const bossCall = canonicalSource.indexOf("runGeminiBossDiscovery({");
+    const rightHandCall = canonicalSource.indexOf("runGeminiRightHandFreeJson(");
+    expect(bossCall).toBeGreaterThan(-1);
+    expect(rightHandCall).toBeGreaterThan(-1);
+    expect(bossCall).toBeLessThan(rightHandCall);
+    expect(canonicalSource.slice(rightHandCall, rightHandCall + 1800)).toMatch(/Review Gemini Boss opening decision/);
   });
 
   it("actually invokes per-act Right-hand/Boss oversight after a target Investigator act", () => {
