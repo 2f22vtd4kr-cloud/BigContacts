@@ -1,0 +1,143 @@
+name: Apex Canonical Runtime Proof
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/apex-canonical-runtime-proof.yml"
+      - "scripts/live-batch-trigger.md"
+      - "artifacts/api-server/src/src/lib/**"
+      - "artifacts/api-server/src/src/test/**"
+      - "lib/db/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  canonical-runtime:
+    name: Real canonical Boss → Right-hand → Investigator run
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: apex
+          POSTGRES_PASSWORD: apex_local_dev
+          POSTGRES_DB: apex
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U apex -d apex"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+    env:
+      DATABASE_URL: postgresql://apex:apex_local_dev@127.0.0.1:5432/apex
+      REDIS_URL: redis://127.0.0.1:6379
+      PORT: 8080
+      NODE_ENV: development
+      ENABLE_AUTO_PIPELINE: "false"
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      GEMINI_AGENTIC_MODEL: gemini-3.8-flash
+      GEMINI_RIGHT_HAND_API_KEY: ${{ secrets.GEMINI_RIGHT_HAND_API_KEY }}
+      GEMINI_RIGHT_HAND_MODEL: gemini-3.8-flash
+      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+      MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
+      MISTRAL_AGENTIC_MODEL: mistral-small-latest
+      SERPER_API_KEY: ${{ secrets.SERPER_API_KEY }}
+      TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
+      EXA_API_KEY: ${{ secrets.EXA_API_KEY }}
+      SCRAPFLY_API_KEY: ${{ secrets.SCRAPFLY_API_KEY }}
+      ZENROWS_API_KEY: ${{ secrets.ZENROWS_API_KEY }}
+      COMPANIES_HOUSE_API_KEY: ${{ secrets.COMPANIES_HOUSE_API_KEY }}
+      WHOISJSON_API_KEY: ${{ secrets.WHOISJSON_API_KEY }}
+      RESEARCH_DEPTH: standard
+      APEX_SKIP_SEMANTIC: "1"
+      APEX_AGENTIC_CONCURRENCY: "1"
+      APEX_AGENTIC_PROVIDER_CONCURRENCY: "1"
+      NODE_OPTIONS: --max-old-space-size=1536
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+      - run: npm install -g pnpm@9.15.9
+      - run: pnpm install --frozen-lockfile --ignore-scripts --registry=https://registry.npmjs.org/
+      - name: Build canonical application
+        run: pnpm run build
+      - name: Initialize canonical Apex schema
+        run: bash scripts/initialize-apex-schema.sh
+      - name: Configure isolated API authentication
+        run: echo "APEX_API_AUTH_TOKEN=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
+      - name: Start canonical API
+        run: |
+          set -euo pipefail
+          node artifacts/api-server/dist/index.mjs > /tmp/apex-api.log 2>&1 &
+          echo $! > /tmp/apex-api.pid
+          for i in $(seq 1 45); do
+            sleep 1
+            if curl -fsS -H "Authorization: Bearer $APEX_API_AUTH_TOKEN" http://127.0.0.1:8080/api/healthz >/tmp/health.json; then exit 0; fi
+          done
+          cat /tmp/apex-api.log
+          exit 1
+      - name: Launch one real discovery-first canonical case
+        run: |
+          set -euo pipefail
+          curl -sS -m 20 -X POST http://127.0.0.1:8080/api/ingest/atlas-run \
+            -H "Authorization: Bearer $APEX_API_AUTH_TOKEN" \
+            -H 'Content-Type: application/json' \
+            -d '{"discoveryFirst":true,"targetCount":1,"runResearch":true,"skipFaa":true,"targetTimeoutMs":240000,"researchDepth":"standard"}' | tee /tmp/launch.json
+          node -e 'const x=require("/tmp/launch.json");if(!x.jobId)process.exit(1);console.log("job",x.jobId)'
+      - name: Poll canonical case
+        run: |
+          set -euo pipefail
+          JOB_ID="$(node -p 'require("/tmp/launch.json").jobId')"
+          for i in $(seq 1 300); do
+            sleep 5
+            curl -sS -m 10 -H "Authorization: Bearer $APEX_API_AUTH_TOKEN" "http://127.0.0.1:8080/api/ingest/job/$JOB_ID" > /tmp/job.json || true
+            STATUS="$(node -p 'try{require("/tmp/job.json").status||require("/tmp/job.json").job?.status||""}catch{""}')"
+            echo "poll=$i status=$STATUS"
+            if [ "$STATUS" = "done" ] || [ "$STATUS" = "completed" ]; then exit 0; fi
+            if [ "$STATUS" = "failed" ] || [ "$STATUS" = "cancelled" ]; then cat /tmp/job.json; exit 2; fi
+          done
+          cat /tmp/job.json
+          exit 1
+      - name: Collect canonical trace
+        if: always()
+        run: |
+          JOB_ID="$(node -p 'try{require("/tmp/launch.json").jobId||""}catch{""}')"
+          if [ -n "$JOB_ID" ]; then
+            curl -sS -m 20 -H "Authorization: Bearer $APEX_API_AUTH_TOKEN" "http://127.0.0.1:8080/api/ingest/job/$JOB_ID" | tee /tmp/job-final.json || true
+            curl -sS -m 20 -H "Authorization: Bearer $APEX_API_AUTH_TOKEN" "http://127.0.0.1:8080/api/ingest/atlas-trace/$JOB_ID" | tee /tmp/atlas-trace.json || true
+            curl -sS -m 20 -H "Authorization: Bearer $APEX_API_AUTH_TOKEN" "http://127.0.0.1:8080/api/entities?limit=50&offset=0" | tee /tmp/entities.json || true
+          fi
+          cat /tmp/apex-api.log || true
+      - name: Upload canonical runtime evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: apex-canonical-runtime-proof
+          path: |
+            /tmp/launch.json
+            /tmp/job.json
+            /tmp/job-final.json
+            /tmp/atlas-trace.json
+            /tmp/entities.json
+            /tmp/health.json
+            /tmp/apex-api.log
+          if-no-files-found: ignore
+      - name: Stop canonical API
+        if: always()
+        run: |
+          if [ -f /tmp/apex-api.pid ]; then kill "$(cat /tmp/apex-api.pid)" 2>/dev/null || true; fi
