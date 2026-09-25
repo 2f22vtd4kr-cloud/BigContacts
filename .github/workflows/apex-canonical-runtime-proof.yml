@@ -65,6 +65,7 @@ jobs:
       APEX_AGENTIC_CONCURRENCY: "1"
       APEX_AGENTIC_PROVIDER_CONCURRENCY: "1"
       NODE_OPTIONS: --max-old-space-size=1536
+      APEX_ALLOW_SCHEMA_PUSH: "true"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
