@@ -15,7 +15,7 @@ const MIN_REQUEST_TIMEOUT_MS = 10_000;
 const MAX_REQUEST_TIMEOUT_MS = 60_000;
 const MIN_OVERALL_TIMEOUT_MS = 20_000;
 const MAX_OVERALL_TIMEOUT_MS = 120_000;
-const MAX_MODEL_ATTEMPTS = 2;
+const MAX_MODEL_ATTEMPTS = 4;
 
 function boundedTimeoutEnv(name: string, fallback: number, min: number, max: number): number {
   const parsed = Number(process.env[name]);
