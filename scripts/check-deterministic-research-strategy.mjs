@@ -19,6 +19,9 @@ const forbidden = [
   /providerSequence/i,
   /nextTool\s*:/i,
   /fixedSearch/i,
+  /assessResearchMove/i,
+  /atlas-research-strategy/i,
+  /_atlasStrategy(?:Score|Rationale)/i,
 ];
 const failures = forbidden.filter((pattern) => pattern.test(source)).map(String);
 if (failures.length) {
