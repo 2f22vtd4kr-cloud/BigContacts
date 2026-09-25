@@ -34,7 +34,9 @@ describe("discovery runtime architecture", () => {
     expect(bossCall).toBeGreaterThan(-1);
     expect(rightHandCall).toBeGreaterThan(-1);
     expect(bossCall).toBeLessThan(rightHandCall);
-    expect(canonicalSource.slice(rightHandCall, rightHandCall + 1800)).toMatch(/Review Gemini Boss opening decision/);
+    const rightHandSource = canonicalSource.slice(rightHandCall, rightHandCall + 2200);
+    expect(rightHandSource).toContain("boss.report");
+    expect(rightHandSource).toContain("boss.nextDirections");
   });
 
   it("actually invokes per-act Right-hand/Boss oversight after a target Investigator act", () => {
