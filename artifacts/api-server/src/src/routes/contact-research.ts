@@ -17,39 +17,11 @@ router.post("/ingest/contact-research", (_req: Request, res: Response): void => 
   res.status(410).json({ error: "Retired endpoint", message: RETIRED_MESSAGE });
 });
 
-router.get("/ingest/contact-research/status", async (_req: Request, res: Response): Promise<void> => {
-  const activeId = await getActiveJob(CONTACT_RESEARCH_JOB_TYPE);
-  const active = activeId ? await getJob(activeId) : null;
-  const latest = await getLatestJob(CONTACT_RESEARCH_JOB_TYPE);
-  res.json({
-    retired: true,
-    message: RETIRED_MESSAGE,
-    active: active ? {
-      jobId: active.jobId,
-      status: active.status,
-      progress: active.progress,
-      total: active.total,
-      targetIndex: active.targetIndex,
-      targetTotal: active.targetTotal,
-      currentTargetId: active.currentTargetId,
-      currentPhase: active.currentPhase,
-      errors: active.errors,
-      message: active.message,
-    } : null,
-    latest: latest ? {
-      jobId: latest.jobId,
-      status: latest.status,
-      outcome: latest.outcome,
-      progress: latest.progress,
-      total: latest.total,
-      targetIndex: latest.targetIndex,
-      targetTotal: latest.targetTotal,
-      completedTargetIds: latest.completedTargetIds,
-      failedTargetIds: latest.failedTargetIds,
-      currentPhase: latest.currentPhase,
-      message: latest.message,
-    } : null,
-  });
+router.get("/ingest/contact-research/status", (_req: Request, res: Response): void => {
+  // The legacy control-plane status projection is retired too. Returning its old
+  // live job state would keep an obsolete coordinator observable and implicitly
+  // advertise it as a supported control plane.
+  res.status(410).json({ error: "Retired endpoint", message: RETIRED_MESSAGE });
 });
 
 router.post("/ingest/contact-research/cancel", (_req: Request, res: Response): void => {
