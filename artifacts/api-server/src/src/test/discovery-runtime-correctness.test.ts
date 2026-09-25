@@ -22,6 +22,16 @@ describe("discovery runtime architecture", () => {
     expect(orchestratorSource).toBe("");
   });
 
+  it("keeps the canonical opening order Boss first, Right-hand second", () => {
+    const canonicalSource = fs.readFileSync(path.join(libDir, "canonical-atlas-discovery.ts"), "utf8");
+    const bossIndex = canonicalSource.indexOf("const boss = await runGeminiBossDiscovery(");
+    const rightHandIndex = canonicalSource.indexOf("const rightHandRaw = await import(\"./gemini-right-hand-reasoning\")");
+    expect(bossIndex).toBeGreaterThan(-1);
+    expect(rightHandIndex).toBeGreaterThan(-1);
+    expect(bossIndex).toBeLessThan(rightHandIndex);
+    expect(canonicalSource).toMatch(/Boss opening decision.*Right-hand.*inspect/is);
+  });
+
   it("does not promote discovery candidates from search snippets alone", async () => {
     const canonicalSource = fs.readFileSync(path.join(libDir, "canonical-atlas-discovery.ts"), "utf8");
     expect(canonicalSource).toMatch(/directSourceAction\s*=\s*payload\.action\s*===\s*"visit"\s*\|\|\s*payload\.action\s*===\s*"browser_fetch"/);
