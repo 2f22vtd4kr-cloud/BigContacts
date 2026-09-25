@@ -76,19 +76,91 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
   const startedAt = Date.now(); const depth = resolveResearchDepth({ explicit: opts.researchDepth }); const discoveryOnly = opts.discoveryOnly === true; const lockKey = opts.lockKey ?? "atlas-run"; const phaseSummary: Record<string, string> = {}; const targetLimit = Math.max(1, Math.min(25, Number(opts.targetCount ?? 3) || 3)); const configuredAtlasTimeout = Number(process.env.APEX_ATLAS_RUN_TIMEOUT_MS ?? 15 * 60 * 1000); const atlasTimeoutMs = Math.min(30 * 60 * 1000, Math.max(2 * 60 * 1000, Number.isFinite(configuredAtlasTimeout) ? configuredAtlasTimeout : 15 * 60 * 1000)); const atlasDeadline = startedAt + atlasTimeoutMs; const remainingBudget = () => atlasDeadline - Date.now(); const assertAtlasDeadline = () => { const remaining = remainingBudget(); if (remaining <= 30_000) throw new Error("Canonical Atlas global deadline reached; refusing another research/control turn."); return remaining; };
   const discoveryObjective = opts.discoveryObjective?.trim() || "Discover real named people for subsequent target-scoped public-contact research. Choose every search, page visit, registry/domain/OSINT action and stopping point yourself. Emit a person only when you can attribute the observed source to that person; use promotionDecision=promote only for an exact named-person admission candidate. Never invent a person, contact, or URL.";
   await assertAtlasJobActive(atlasJobId);
-  await updateJob(atlasJobId, { status: "running", progress: 0, total: discoveryOnly ? 1 : 4, atlasPhase: 0, atlasPhaseTotal: discoveryOnly ? 1 : 4, message: "Gemini Boss + Gemini Right-hand opening model-owned discovery…" });
+  await updateJob(atlasJobId, { status: "running", progress: 0, total: discoveryOnly ? 1 : 4, atlasPhase: 0, atlasPhaseTotal: discoveryOnly ? 1 : 4, message: "Gemini Boss opening → Gemini Right-hand review → model-owned Investigator discovery…" });
   try {
     await assertAtlasJobActive(atlasJobId);
-    const rightHandRaw = await import("./gemini-right-hand-reasoning").then(({ runGeminiRightHandFreeJson }) => runGeminiRightHandFreeJson(`Review this discovery mission before Gemini assigns its Investigator. Objective: ${discoveryObjective}. Return concise research priorities only. Do not browse, do not choose contacts, and do not invent people. Return JSON with decision, reason, focusLanes, confidence.`, "You are the Gemini Right-hand. Advise the Boss only. Never act as Investigator and never browse. Reply with ONE JSON object.")).catch((error) => ({ status: "unavailable" as const, model: "none", raw: null, error: error instanceof Error ? error.message : "Right-hand unavailable" }));
+    // Canonical opening order is intentional: Gemini Boss establishes the case direction
+    // and selects the Investigator first. The independent Right-hand reviews that Boss
+    // decision second. It must never become a prerequisite that can silently steer the
+    // Boss's opening assignment.
+    const boss = await runGeminiBossDiscovery({
+      objective: discoveryObjective,
+      motivation: opts.discoveryMotivation || "Find real people for deep target-scoped investigation.",
+      geography: opts.discoveryGeography || "Public web; geography selected by the research objective",
+      exclusions: opts.discoveryExclusions ?? [
+        "Do not browse as Boss.",
+        "Do not prescribe a fixed tool or search sequence.",
+        "Do not invent people, contacts, relationships, or URLs.",
+        "Select only groq or mistral as Investigator.",
+      ],
+      startingLane: "model-selected discovery",
+    });
     await assertAtlasJobActive(atlasJobId);
-    let rightHand: { status: "completed" | "unavailable"; model: string; decision: string | null; reason: string | null; focusLanes: string[]; confidence: number | null; error: string | null } = { status: rightHandRaw.status === "completed" ? "completed" : "unavailable", model: rightHandRaw.model, decision: null, reason: null, focusLanes: [], confidence: null, error: rightHandRaw.error ?? null };
-    if (rightHandRaw.status === "completed" && rightHandRaw.raw) { try { const parsed = JSON.parse(rightHandRaw.raw) as Record<string, unknown>; rightHand = { status: "completed", model: rightHandRaw.model, decision: typeof parsed.decision === "string" ? parsed.decision : null, reason: typeof parsed.reason === "string" ? parsed.reason : null, focusLanes: Array.isArray(parsed.focusLanes) ? parsed.focusLanes.filter((v): v is string => typeof v === "string") : [], confidence: typeof parsed.confidence === "number" ? Math.max(0, Math.min(1, parsed.confidence)) : null, error: null }; } catch { rightHand.error = "Right-hand returned invalid JSON."; } }
+
+    if (!boss.investigatorLlm) {
+      phaseSummary.assignment = "No usable Gemini-selected Investigator; fail closed.";
+      const bossFailureMessage = "Gemini Boss was unavailable after bounded same-role model fallback; no Groq/Mistral Investigator fallback is permitted.";
+      await updateJob(atlasJobId, {
+        status: "failed",
+        progress: 1,
+        atlasPhase: 1,
+        outcome: "incomplete",
+        message: bossFailureMessage,
+        result: JSON.stringify({ boss }),
+        finishedAt: new Date().toISOString(),
+      });
+      if (opts.discoveryCaseId) {
+        await db.update(researchCasesTable)
+          .set({ status: "review", currentAction: "gemini-boss-unavailable", updatedAt: new Date() })
+          .where(eq(researchCasesTable.id, opts.discoveryCaseId));
+      }
+      await clearActiveJobIfOwned(lockKey, atlasJobId);
+      return { phase: 1, ingested: 0, enriched: 0, contactsFound: 0, hotLeads: 0, durationMs: Date.now() - startedAt, phaseSummary };
+    }
+
+    // Only after the Boss has made its opening decision does the independent
+    // Right-hand inspect that decision. Its output is advisory/oversight state;
+    // it cannot replace the Boss's Investigator selection or become the researcher.
+    const rightHandRaw = await import("./gemini-right-hand-reasoning").then(({ runGeminiRightHandFreeJson }) =>
+      runGeminiRightHandFreeJson(
+        `Review Gemini Boss's opening Atlas decision before the Investigator starts. Objective: ${discoveryObjective}. Boss selected Investigator: ${boss.investigatorLlm}. Boss report: ${boss.report ?? ""}. Next directions: ${JSON.stringify(boss.nextDirections)}. Uncertainties: ${JSON.stringify(boss.uncertainties)}. Return concise oversight/advisory observations only. Do not browse, do not choose tools, do not replace the Investigator, and do not invent people or evidence. Return JSON with decision, reason, focusLanes, confidence.`,
+        "You are the Gemini Right-hand. Review the Boss opening decision only. Advise the Boss; do not act as Investigator, do not browse, do not choose tools, and do not replace the selected Groq/Mistral Investigator. Reply with ONE JSON object.",
+      ),
+    ).catch((error) => ({
+      status: "unavailable" as const,
+      model: "none",
+      raw: null,
+      error: error instanceof Error ? error.message : "Right-hand unavailable",
+    }));
+    await assertAtlasJobActive(atlasJobId);
+    let rightHand: { status: "completed" | "unavailable"; model: string; decision: string | null; reason: string | null; focusLanes: string[]; confidence: number | null; error: string | null } = {
+      status: rightHandRaw.status === "completed" ? "completed" : "unavailable",
+      model: rightHandRaw.model,
+      decision: null,
+      reason: null,
+      focusLanes: [],
+      confidence: null,
+      error: rightHandRaw.error ?? null,
+    };
+    if (rightHandRaw.status === "completed" && rightHandRaw.raw) {
+      try {
+        const parsed = JSON.parse(rightHandRaw.raw) as Record<string, unknown>;
+        rightHand = {
+          status: "completed",
+          model: rightHandRaw.model,
+          decision: typeof parsed.decision === "string" ? parsed.decision : null,
+          reason: typeof parsed.reason === "string" ? parsed.reason : null,
+          focusLanes: Array.isArray(parsed.focusLanes) ? parsed.focusLanes.filter((v): v is string => typeof v === "string") : [],
+          confidence: typeof parsed.confidence === "number" ? Math.max(0, Math.min(1, parsed.confidence)) : null,
+          error: null,
+        };
+      } catch {
+        rightHand.error = "Right-hand returned invalid JSON.";
+      }
+    }
     await assertAtlasJobActive(atlasJobId);
     if (rightHandRaw.status !== "completed") throw new Error(`Gemini Right-hand unavailable; failing closed: ${rightHandRaw.error ?? "unknown oversight failure"}`);
     if (rightHand.error) throw new Error(`Gemini Right-hand returned invalid oversight: ${rightHand.error}`);
-    const boss = await runGeminiBossDiscovery({ objective: discoveryObjective, motivation: opts.discoveryMotivation || "Find real people for deep target-scoped investigation.", geography: opts.discoveryGeography || "Public web; geography selected by the research objective", exclusions: opts.discoveryExclusions ?? ["Do not browse as Boss.", "Do not prescribe a fixed tool or search sequence.", "Do not invent people, contacts, relationships, or URLs.", "Select only groq or mistral as Investigator."], rightHandAdvice: rightHand, startingLane: "model-selected discovery" });
-    await assertAtlasJobActive(atlasJobId);
-    if (!boss.investigatorLlm) { phaseSummary.assignment = "No usable Gemini-selected Investigator; fail closed."; const bossFailureMessage = "Gemini Boss was unavailable after bounded same-role model fallback; no Groq/Mistral Investigator fallback is permitted."; await updateJob(atlasJobId, { status: "failed", progress: 1, atlasPhase: 1, outcome: "incomplete", message: bossFailureMessage, result: JSON.stringify({ rightHand, boss }), finishedAt: new Date().toISOString() }); if (opts.discoveryCaseId) { await db.update(researchCasesTable).set({ status: "review", currentAction: "gemini-boss-unavailable", updatedAt: new Date() }).where(eq(researchCasesTable.id, opts.discoveryCaseId)); } await clearActiveJobIfOwned(lockKey, atlasJobId); return { phase: 1, ingested: 0, enriched: 0, contactsFound: 0, hotLeads: 0, durationMs: Date.now() - startedAt, phaseSummary }; }
     const discoveryCaseId = opts.discoveryCaseId ?? await createAtlasDiscoveryCase({ atlasJobId, objective: discoveryObjective, investigatorLlm: boss.investigatorLlm });
     await assertAtlasJobActive(atlasJobId);
     await db.insert(researchCaseEventsTable).values({ caseId: discoveryCaseId, iteration: 0, actorRole: "head_investigator", eventType: "assignment", status: "recorded", summary: "Canonical discovery Investigator assigned after Gemini/Gemini coordination.", correlationKey: `${atlasJobId}:discovery-assignment`, payload: JSON.stringify({ jobId: atlasJobId, investigatorLlm: boss.investigatorLlm, mode: "discovery", controlPlane: "canonical-atlas-discovery" }) });
