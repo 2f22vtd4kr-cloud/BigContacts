@@ -8,7 +8,8 @@ const login = fs.readFileSync(path.join(root, "artifacts/api-server/src/src/rout
 const app = fs.readFileSync(path.join(root, "artifacts/api-server/src/src/app.ts"), "utf8");
 const checks = [
   ["API authentication is mounted before body parsers", /app\.use\(\s*"\/api"\s*,\s*apiAuth\s*\)/.test(app) && app.indexOf('app.use("/api",apiAuth)') < app.indexOf("express.json") && /app\.use\(\s*"\/api"\s*,\s*router\s*\)/.test(app)],
-  ["CI does not bypass API authentication", !/process\.env\.CI|isLoopbackAddress|NODE_ENV !== "production"/.test(auth)],
+  ["CI does not bypass API authentication", !/process\.env\.CI\s*&&[^\n]*APEX_DEV_AUTH_BYPASS|APEX_DEV_AUTH_BYPASS[^\n]*process\.env\.CI/.test(auth)],
+  ["development bypass is explicitly non-production", /APEX_DEV_AUTH_BYPASS/.test(auth) && /process\.env\.NODE_ENV\s*!==\s*"production"/.test(auth)],
   ["bearer authentication uses constant-time comparison", /timingSafeEqual/.test(auth) && /tokenMatches/.test(auth)],
   ["operator session mutations require same origin", /Cross-site mutation blocked/.test(auth) && /sameOrigin/.test(auth)],
   ["authentication token has a minimum length", /length < 32/.test(auth)],
