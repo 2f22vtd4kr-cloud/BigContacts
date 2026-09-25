@@ -130,10 +130,12 @@ router.post("/ingest/atlas-stop", async (req: Request, res: Response): Promise<v
   try {
     await db.update(researchCasesTable)
       .set({ status: "review", currentAction: "canonical-atlas-cancelled", updatedAt: now })
-      .where(or(
+      .where(and(
+        eq(researchCasesTable.status, "active"),
+        or(
         sql`${researchCasesTable.caseFile}::jsonb ->> 'atlasJobId' = ${activeJobId}`,
         sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${activeJobId}`,
-      ));
+      )));
   } catch (error) {
     res.status(503).json({ ok: false, message: "Atlas stop could not establish the durable database cancellation fence; job remains active.", error: error instanceof Error ? error.message : String(error) });
     return;
