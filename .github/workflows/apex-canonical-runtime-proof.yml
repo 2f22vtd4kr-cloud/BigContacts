@@ -57,7 +57,8 @@ jobs:
       ZENROWS_API_KEY: ${{ secrets.ZENROWS_API_KEY }}
       COMPANIES_HOUSE_API_KEY: ${{ secrets.COMPANIES_HOUSE_API_KEY }}
       WHOISJSON_API_KEY: ${{ secrets.WHOISJSON_API_KEY }}
-      RESEARCH_DEPTH: standard
+      RESEARCH_DEPTH: fast
+      APEX_DISCOVERY_BATCH_SIZE: "1"
       APEX_SKIP_SEMANTIC: "1"
       APEX_AGENTIC_CONCURRENCY: "1"
       APEX_AGENTIC_PROVIDER_CONCURRENCY: "1"
@@ -95,7 +96,7 @@ jobs:
           curl -sS -m 20 -X POST http://127.0.0.1:8080/api/ingest/atlas-run \
             -H "Authorization: Bearer $APEX_API_AUTH_TOKEN" \
             -H 'Content-Type: application/json' \
-            -d '{"discoveryFirst":true,"targetCount":1,"runResearch":true,"skipFaa":true,"targetTimeoutMs":240000,"researchDepth":"standard"}' | tee /tmp/launch.json
+            -d '{"discoveryFirst":true,"targetCount":1,"runResearch":true,"skipFaa":true,"targetTimeoutMs":120000,"researchDepth":"fast"}' | tee /tmp/launch.json
           node -e 'const x=require("/tmp/launch.json");if(!x.jobId)process.exit(1);console.log("job",x.jobId)'
       - name: Poll canonical case
         run: |
