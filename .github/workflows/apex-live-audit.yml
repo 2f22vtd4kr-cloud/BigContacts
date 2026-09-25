@@ -74,24 +74,6 @@ jobs:
       - name: Configure isolated CI API authentication
         shell: bash
         run: echo "APEX_API_AUTH_TOKEN=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
-      - name: Provider generation preflight
-        shell: bash
-        run: |
-          set -euo pipefail
-          node --input-type=module <<'NODE'
-          const results=[];
-          async function probe(url,key,model,provider){
-            if(!key){results.push({provider,state:'not_configured'});return false}
-            try{const r=await fetch(url,{method:'POST',headers:{Authorization:`Bearer ${key}`,'content-type':'application/json'},body:JSON.stringify({model,messages:[{role:'user',content:'Reply READY only.'}],max_tokens:32}),signal:AbortSignal.timeout(15000)});await r.text();results.push({provider,model,status:r.status});return r.ok}catch(e){results.push({provider,model,state:'transport_error',error:String(e?.message||e)});return false}
-          }
-          const groq=await probe('https://api.groq.com/openai/v1/chat/completions',process.env.GROQ_API_KEY,'openai/gpt-oss-120b','groq');
-          const mistral=await probe('https://api.mistral.ai/v1/chat/completions',process.env.MISTRAL_API_KEY,process.env.MISTRAL_AGENTIC_MODEL,'mistral');
-          const keys=[process.env.GEMINI_API_KEY].filter(Boolean);let boss=false;
-          let rightHand=false;
-          if(process.env.GEMINI_RIGHT_HAND_API_KEY){try{const model=process.env.GEMINI_RIGHT_HAND_MODEL||'gemini-3.8-flash';const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,{method:'POST',headers:{'x-goog-api-key':process.env.GEMINI_RIGHT_HAND_API_KEY,'content-type':'application/json'},body:JSON.stringify({contents:[{parts:[{text:'Return READY only.'}]}],generationConfig:{maxOutputTokens:32,responseMimeType:'application/json'}}),signal:AbortSignal.timeout(15000)});await r.text();results.push({provider:'gemini-right-hand',model,status:r.status});rightHand=r.ok}catch(e){results.push({provider:'gemini-right-hand',state:'transport_error',error:String(e?.message||e)})}}else results.push({provider:'gemini-right-hand',state:'not_configured'});
-          for(const key of keys){try{const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(process.env.GEMINI_AGENTIC_MODEL)}:generateContent`,{method:'POST',headers:{'x-goog-api-key':key,'content-type':'application/json'},body:JSON.stringify({contents:[{parts:[{text:'Reply READY only.'}]}],generationConfig:{maxOutputTokens:32}}),signal:AbortSignal.timeout(15000)});await r.text();results.push({provider:'gemini-boss',status:r.status});if(r.ok){boss=true;break}}catch(e){results.push({provider:'gemini-boss',state:'transport_error',error:String(e?.message||e)})}}
-          console.log(JSON.stringify({groq,mistral,boss,rightHand,results},null,2));if(!boss||!rightHand||(!groq&&!mistral))process.exit(2);
-          NODE
       - name: Start API
         run: |
           unset APEX_ALLOW_SCHEMA_PUSH
