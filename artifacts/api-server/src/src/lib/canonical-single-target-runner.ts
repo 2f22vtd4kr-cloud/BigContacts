@@ -100,7 +100,6 @@ export async function runCanonicalSingleTargetInvestigation(atlasJobId: string, 
         action: "stop",
         direction: null,
         reason: "Completed Investigator act had no durable execution record; continuation is fail-closed.",
-        rightHand: { status: "unavailable", decision: null, reason: null, focusLanes: [], confidence: null, model: "none", error: "Missing Investigator act record or executionId." },
         bossModel: null,
         error: "Missing Investigator act record or executionId.",
       };
