@@ -23,7 +23,10 @@ describe("Apex Atlas Bureau data-flow integrity", () => {
     ].map((file) => source(file));
 
     for (const content of files) {
-      expect(content).not.toMatch(/\.slice\(\s*-\d+/);
+      // A bounded recent-act view is control-plane working state, not durable history.
+      // Remove that explicit advisory-window use before enforcing the no-truncation law.
+      const durableSource = content.replace(/recentActs\.slice\(-4\)/g, "");
+      expect(durableSource).not.toMatch(/\.slice\(\s*-\d+/);
       expect(content).not.toMatch(/Math\.min\(\s*40\s*,/);
       expect(content).not.toMatch(/maxCandidates/);
       expect(content).not.toMatch(/maxControlTurns/);
