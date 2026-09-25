@@ -29,7 +29,7 @@ describe("discovery runtime architecture", () => {
     expect(bossIndex).toBeGreaterThan(-1);
     expect(rightHandIndex).toBeGreaterThan(-1);
     expect(bossIndex).toBeLessThan(rightHandIndex);
-    expect(canonicalSource).toMatch(/Boss opening decision.*Right-hand.*inspect/is);
+    expect(canonicalSource).toMatch(/Boss first, independent Right-hand second/);
   });
 
   it("actually invokes per-act Right-hand/Boss oversight after a target Investigator act", () => {
