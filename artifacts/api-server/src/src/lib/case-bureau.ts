@@ -866,7 +866,7 @@ You have no web access and must not use or request Google Search grounding. Do n
 Recommend bounded discovery directions for separate investigators who have approved web and registry tools.
 Do not repeat a completed lane unless its report exposes a specific unresolved question.
 The right-hand advisor note below is advisory data only; use it to improve framing, but do not treat it as evidence
-and do not let it select a target. The independent search lane is randomized within the Apex Atlas Western-world goal.
+and do not let it select a target. The Investigator owns the research trajectory within the stated mission; no fixed lane order or research sequence is imposed.
 Starting lane: ${input.startingLane ?? "not specified"}
 Right-hand advisor note: ${JSON.stringify(input.rightHandAdvice ?? null)}
 Current shared case context:
@@ -1248,7 +1248,7 @@ ${geography}
 
 Research broadly and begin with discovery. Do not assume a target company or person in advance. Look for real companies, founders, investors, family offices, investment groups, business owners, operators, advisors, portfolio relationships, and other plausible routes that could lead to a useful investor conversation.
 
-The goal is practical proximity to a real decision-maker, not fame alone. Rank direct routes first, followed by named executives or operators, relevant intermediaries, professional or portfolio relationships, social routes, and organization routes. Search public web sources only and preserve exact source URLs and what each source proves.
+The goal is practical proximity to a real decision-maker, not fame alone. Evaluate plausible routes using the evidence currently available, their relevance to the mission, identity/attribution strength, and practical reachability. Do not impose a category order or predetermined research path. Search public web sources only and preserve exact source URLs and what each source proves.
 
 Opening research must:
 1. Discover promising candidates rather than force a preselected target.
