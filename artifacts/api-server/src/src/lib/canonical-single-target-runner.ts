@@ -1,5 +1,6 @@
 import { and, eq, sql } from "drizzle-orm";
 import { db, entitiesTable, researchCasesTable } from "@workspace/db";
+import { apexOrientationFor } from "./apex-bureau-orientation";
 import { getJob, updateJob } from "./job-queue";
 import { runGeminiBossDiscovery } from "./case-bureau";
 import { runTargetContactAgent } from "./target-contact-agent";
@@ -99,7 +100,6 @@ export async function runCanonicalSingleTargetInvestigation(atlasJobId: string, 
         action: "stop",
         direction: null,
         reason: "Completed Investigator act had no durable execution record; continuation is fail-closed.",
-        confidence: null,
         rightHand: { status: "unavailable", decision: null, reason: null, focusLanes: [], confidence: null, model: "none", error: "Missing Investigator act record or executionId." },
         bossModel: null,
         error: "Missing Investigator act record or executionId.",
