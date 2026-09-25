@@ -118,9 +118,37 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       return { phase: 1, ingested: 0, enriched: 0, contactsFound: 0, hotLeads: 0, durationMs: Date.now() - startedAt, phaseSummary };
     }
 
-    // Only after the Boss has made its opening decision does the independent
-    // Right-hand inspect that decision. Its output is advisory/oversight state;
-    // it cannot replace the Boss's Investigator selection or become the researcher.
+    // The durable discovery case begins as soon as the Boss makes the opening
+    // assignment, so a later Right-hand/provider failure cannot erase the fact
+    // that the Boss decision actually happened.
+    const discoveryCaseId = opts.discoveryCaseId ?? await createAtlasDiscoveryCase({
+      atlasJobId,
+      objective: discoveryObjective,
+      investigatorLlm: boss.investigatorLlm,
+    });
+    await assertAtlasJobActive(atlasJobId);
+    await db.insert(researchCaseEventsTable).values({
+      caseId: discoveryCaseId,
+      iteration: 0,
+      actorRole: "gemini_boss",
+      eventType: "assignment",
+      status: "recorded",
+      summary: "Gemini Boss opened the canonical Atlas discovery case and selected the Investigator.",
+      correlationKey: `${atlasJobId}:boss-opening`,
+      payload: JSON.stringify({
+        jobId: atlasJobId,
+        investigatorLlm: boss.investigatorLlm,
+        model: boss.model,
+        report: boss.report,
+        nextDirections: boss.nextDirections,
+        uncertainties: boss.uncertainties,
+        mode: "discovery",
+        controlPlane: "canonical-atlas-discovery",
+      }),
+    });
+
+    // Boss first, independent Right-hand second. The Right-hand reviews the
+    // actual Boss decision; it does not pre-steer the Boss or choose the tools.
     const rightHandRaw = await import("./gemini-right-hand-reasoning").then(({ runGeminiRightHandFreeJson }) =>
       runGeminiRightHandFreeJson(
         `Review Gemini Boss's opening Atlas decision before the Investigator starts. Objective: ${discoveryObjective}. Boss selected Investigator: ${boss.investigatorLlm}. Boss report: ${boss.report ?? ""}. Next directions: ${JSON.stringify(boss.nextDirections)}. Uncertainties: ${JSON.stringify(boss.uncertainties)}. Return concise oversight/advisory observations only. Do not browse, do not choose tools, do not replace the Investigator, and do not invent people or evidence. Return JSON with decision, reason, focusLanes, confidence.`,
@@ -159,12 +187,55 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       }
     }
     await assertAtlasJobActive(atlasJobId);
-    if (rightHandRaw.status !== "completed") throw new Error(`Gemini Right-hand unavailable; failing closed: ${rightHandRaw.error ?? "unknown oversight failure"}`);
-    if (rightHand.error) throw new Error(`Gemini Right-hand returned invalid oversight: ${rightHand.error}`);
-    const discoveryCaseId = opts.discoveryCaseId ?? await createAtlasDiscoveryCase({ atlasJobId, objective: discoveryObjective, investigatorLlm: boss.investigatorLlm });
+    if (rightHandRaw.status !== "completed") {
+      await db.update(researchCasesTable)
+        .set({ status: "review", currentAction: "gemini-right-hand-unavailable", updatedAt: new Date() })
+        .where(and(eq(researchCasesTable.id, discoveryCaseId), eq(researchCasesTable.status, "active")));
+      throw new Error(`Gemini Right-hand unavailable; failing closed: ${rightHandRaw.error ?? "unknown oversight failure"}`);
+    }
+    if (rightHand.error) {
+      await db.update(researchCasesTable)
+        .set({ status: "review", currentAction: "gemini-right-hand-invalid", updatedAt: new Date() })
+        .where(and(eq(researchCasesTable.id, discoveryCaseId), eq(researchCasesTable.status, "active")));
+      throw new Error(`Gemini Right-hand returned invalid oversight: ${rightHand.error}`);
+    }
+
+    await db.insert(researchCaseEventsTable).values({
+      caseId: discoveryCaseId,
+      iteration: 0,
+      actorRole: "gemini_right_hand",
+      eventType: "oversight",
+      status: "recorded",
+      summary: "Gemini Right-hand reviewed the Boss opening decision before Investigator execution.",
+      correlationKey: `${atlasJobId}:right-hand-opening`,
+      payload: JSON.stringify({
+        jobId: atlasJobId,
+        bossModel: boss.model,
+        investigatorLlm: boss.investigatorLlm,
+        decision: rightHand.decision,
+        reason: rightHand.reason,
+        focusLanes: rightHand.focusLanes,
+        confidence: rightHand.confidence,
+      }),
+    });
+
     await assertAtlasJobActive(atlasJobId);
-    await db.insert(researchCaseEventsTable).values({ caseId: discoveryCaseId, iteration: 0, actorRole: "head_investigator", eventType: "assignment", status: "recorded", summary: "Canonical discovery Investigator assigned after Gemini/Gemini coordination.", correlationKey: `${atlasJobId}:discovery-assignment`, payload: JSON.stringify({ jobId: atlasJobId, investigatorLlm: boss.investigatorLlm, mode: "discovery", controlPlane: "canonical-atlas-discovery" }) });
-    await updateJob(atlasJobId, { progress: 1, atlasPhase: 1, message: `${boss.investigatorLlm.toUpperCase()} Investigator running free-ReAct discovery…`, result: JSON.stringify({ rightHand, boss: { status: boss.status, model: boss.model, investigatorLlm: boss.investigatorLlm }, discoveryCaseId }) });
+    await updateJob(atlasJobId, {
+      progress: 1,
+      atlasPhase: 1,
+      message: `${boss.investigatorLlm.toUpperCase()} Investigator running free-ReAct discovery…`,
+      result: JSON.stringify({ rightHand, boss: { status: boss.status, model: boss.model, investigatorLlm: boss.investigatorLlm }, discoveryCaseId }),
+    });
+    await db.insert(researchCaseEventsTable).values({
+      caseId: discoveryCaseId,
+      iteration: 0,
+      actorRole: "head_investigator",
+      eventType: "assignment",
+      status: "recorded",
+      summary: "Canonical discovery Investigator mounted after Boss opening and Right-hand review.",
+      correlationKey: `${atlasJobId}:discovery-assignment`,
+      payload: JSON.stringify({ jobId: atlasJobId, investigatorLlm: boss.investigatorLlm, mode: "discovery", controlPlane: "canonical-atlas-discovery" }),
+    });
     await assertAtlasJobActive(atlasJobId);
     const openingDiscoveryBudget = Math.min(opts.targetTimeoutMs ?? depth.agenticHardTimeoutMs, assertAtlasDeadline() - 5_000); if (openingDiscoveryBudget < 30_000) throw new Error("Insufficient remaining Atlas budget for discovery Investigator.");
     let discovery = await runBureauAgenticWebPass({ mode: "discovery", targetName: "", objective: discoveryObjective, investigatorLlm: boss.investigatorLlm, caseId: discoveryCaseId, jobId: atlasJobId, maxIterations: depth.agenticMaxIterations, hardTimeoutMs: openingDiscoveryBudget });
