@@ -64,11 +64,29 @@ describe("agentic source provenance", () => {
     expect(sourceBackedAgenticFindings(raw, successfulTrajectory, [observation()])).toHaveLength(1);
   });
 
-  it("rejects a candidate claim when identity and contact value are split across observations", () => {
-    const raw = [finding()];
+  it("accepts multi-source attribution when both exact observed pages are cited on the same finding", () => {
+    const raw = [finding({
+      sourceUrls: ["https://example.com/team/jane", "https://example.com/contact"],
+    })];
     const records = [
       observation({ observation: "Jane Example — Founder", observedUrls: ["https://example.com/team/jane"] }),
-      observation({ turn: 2, observation: "jane@example.com", observedUrls: ["https://example.com/contact"] }),
+      observation({ turn: 2, observation: "Public contact: jane@example.com", observedUrls: ["https://example.com/contact"] }),
+    ];
+    const trajectory = [
+      "step1: visit https://example.com/team/jane execution=success observed=https://example.com/team/jane",
+      "step2: visit https://example.com/contact execution=success observed=https://example.com/contact",
+    ];
+    expect(sourceBackedFindings(raw, trajectory, records)).toHaveLength(1);
+    expect(sourceBackedAgenticFindings(raw, trajectory, records)).toHaveLength(1);
+  });
+
+  it("rejects split identity/contact attribution when the finding cites only the contact page", () => {
+    const raw = [finding({
+      sourceUrls: ["https://example.com/contact"],
+    })];
+    const records = [
+      observation({ observation: "Jane Example — Founder", observedUrls: ["https://example.com/team/jane"] }),
+      observation({ turn: 2, observation: "Public contact: jane@example.com", observedUrls: ["https://example.com/contact"] }),
     ];
     const trajectory = [
       "step1: visit https://example.com/team/jane execution=success observed=https://example.com/team/jane",
