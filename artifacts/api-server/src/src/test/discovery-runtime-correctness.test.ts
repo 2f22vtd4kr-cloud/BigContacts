@@ -52,6 +52,10 @@ describe("discovery runtime architecture", () => {
     expect(bossOpening).toBeGreaterThan(-1);
     expect(rightHandOpening).toBeGreaterThan(bossOpening);
     expect(firstAct).toBeGreaterThan(rightHandOpening);
+    expect(runner).toMatch(/actorRole: "gemini_boss"/);
+    expect(runner).toMatch(/actorRole: "right_hand"/);
+    expect(runner).toMatch(/target-boss-opening/);
+    expect(runner).toMatch(/target-right-hand-opening/);
   });
   it("does not promote discovery candidates from search snippets alone", async () => {
     const canonicalSource = fs.readFileSync(path.join(libDir, "canonical-atlas-discovery.ts"), "utf8");
