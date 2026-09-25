@@ -56,7 +56,7 @@ async function webSearchSerper(query: string, locale?: string, market?: string, 
       body: JSON.stringify(body),
       signal: signal ?? AbortSignal.timeout(15_000),
     });
-    const responseBody = await response.text();
+    const responseBody = await readResponseTextCapped(response, signal);
     const elapsedMs = Date.now() - startedAt;
     if (!response.ok) {
       const outcome = `HTTP_${response.status}`;
@@ -93,7 +93,7 @@ async function webSearchTavily(query: string, signal?: AbortSignal): Promise<Pro
   try {
     const startedAt = Date.now();
     const response = await safeOutboundFetch("https://api.tavily.com/search", { method: "POST", headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" }, body: JSON.stringify({ query, search_depth: "advanced", include_answer: true, max_results: 8, include_raw_content: false }), signal: signal ?? AbortSignal.timeout(18_000) });
-    const responseBody = await response.text();
+    const responseBody = await readResponseTextCapped(response, signal);
     const elapsedMs = Date.now() - startedAt;
     if (!response.ok) {
       const outcome = `HTTP_${response.status}`;
@@ -128,7 +128,7 @@ async function webSearchExa(query: string, signal?: AbortSignal): Promise<Provid
   try {
     const startedAt = Date.now();
     const response = await safeOutboundFetch("https://api.exa.ai/search", { method: "POST", headers: { "x-api-key": key, "Content-Type": "application/json" }, body: JSON.stringify({ query, type: "auto", numResults: 8, contents: { text: { maxCharacters: 1600 } } }), signal: signal ?? AbortSignal.timeout(18_000) });
-    const responseBody = await response.text();
+    const responseBody = await readResponseTextCapped(response, signal);
     const elapsedMs = Date.now() - startedAt;
     if (!response.ok) {
       const outcome = `HTTP_${response.status}`;
