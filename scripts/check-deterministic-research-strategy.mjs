@@ -5,6 +5,7 @@ const root = process.cwd();
 const paths = [
   "artifacts/api-server/src/src/lib/canonical-atlas-discovery.ts",
   "artifacts/api-server/src/src/lib/agentic-web-research-core.ts",
+  "artifacts/api-server/src/src/lib/case-bureau.ts",
   "artifacts/api-server/src/src/lib/bureau-agentic-pass.ts",
   "artifacts/api-server/src/src/lib/target-contact-agent.ts",
   "artifacts/api-server/src/src/lib/canonical-single-target-runner.ts",
@@ -19,6 +20,9 @@ const forbidden = [
   /providerSequence/i,
   /nextTool\s*:/i,
   /fixedSearch/i,
+  /Rank direct routes first/i,
+  /independent search lane is randomized/i,
+  /first, followed by (?:named|relevant|professional)/i,
   /assessResearchMove/i,
   /atlas-research-strategy/i,
   /_atlasStrategy(?:Score|Rationale)/i,
