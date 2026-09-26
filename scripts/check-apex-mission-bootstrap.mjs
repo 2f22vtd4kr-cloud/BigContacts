@@ -59,6 +59,13 @@ assert(/investigation-context-compaction/.test(source.research), "Investigator R
 assert(/GEMINI_RIGHT_HAND_API_KEY/.test(source.rightHand), "Gemini Right-hand does not use the dedicated GEMINI_RIGHT_HAND_API_KEY.");
 assert(!/process\.env\.GEMINI_API_KEY/.test(source.rightHand), "Gemini Right-hand still directly reads the Boss GEMINI_API_KEY.");
 assert(/gemini-3\.8-flash/i.test(source.rightHand), "Gemini Right-hand model is not pinned to Gemini 3.8 Flash.");
+assert(/export const GEMINI_RIGHT_HAND_MODEL = "gemini-3\.8-flash"/.test(source.rightHand), "Gemini Right-hand preferred model must be gemini-3.8-flash.");
+assert(/supportedGenerationMethods/.test(source.rightHand), "Gemini Right-hand fallback discovery does not inspect live catalog capabilities.");
+assert(/models\?key=|GEMINI_CHAT_API_BASE/.test(source.rightHand), "Gemini Right-hand does not resolve candidates from the live Gemini catalog.");
+assert(!/GEMINI_RIGHT_HAND_MODEL_CHAIN/.test(source.rightHand), "Gemini Right-hand still accepts an environment-controlled fallback sequence.");
+assert(!/GEMINI_RIGHT_HAND_FALLBACK_MODELS\s*=\s*\[\s*["']gemini-/i.test(source.rightHand), "Gemini Right-hand contains a hard-coded fallback model list.");
+assert(/MAX_MODEL_ATTEMPTS/.test(source.rightHand), "Gemini Right-hand fallback attempts are not visibly bounded.");
+assert(/catalogModels|compatible/.test(source.rightHand), "Gemini Right-hand does not expose catalog-derived compatible candidates.");
 assert(!/DEEPSEEK|NVIDIA_NIM|nvidia/i.test(source.rightHand), "retired DeepSeek/NVIDIA provider remains in the Right-hand implementation.");
 assert(/case-file|case file/i.test(source.rightHand) && /brows/i.test(source.rightHand), "Right-hand is not explicitly case-file-only/no-browse.");
 assert(/actionId|decision|confidence/.test(source.rightHand), "Right-hand structured decision contract is missing.");
