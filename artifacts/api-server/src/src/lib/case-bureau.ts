@@ -610,9 +610,18 @@ export async function generateGeminiBossText(
 
         const payload = JSON.parse(responseText) as {
           output_text?: string;
-          outputs?: Array<{ type?: string; text?: string }>;
+          outputs?: Array<{ type?: string; text?: string | null }>;
+          steps?: Array<{ type?: string; content?: Array<{ type?: string; text?: string | null }> }>;
         };
+        const stepText = payload.steps
+          ?.filter((step) => step.type === "model_output" || Array.isArray(step.content))
+          .flatMap((step) => step.content ?? [])
+          .filter((part) => part.type === "text" || typeof part.text === "string")
+          .map((part) => part.text ?? "")
+          .join(" ")
+          .trim();
         const raw = payload.output_text?.trim()
+          || stepText
           || payload.outputs?.filter((output) => output.type === "text" || typeof output.text === "string").map((output) => output.text ?? "").join("").trim()
           || (/"action"\\s*:/.test(responseText) ? responseText.trim() : "");
         if (raw) return { model, raw, error: null };
@@ -710,8 +719,8 @@ export async function resolveGeminiBossModel(preferredKeyName?: string): Promise
 
   for (const entry of keys) {
     try {
-      const response = await fetch(`${GEMINI_MODELS_API}?key=${encodeURIComponent(entry.key)}`, {
-        headers: { Accept: "application/json" },
+      const response = await fetch(GEMINI_MODELS_API, {
+        headers: { Accept: "application/json", "x-goog-api-key": entry.key },
         // Model discovery must fail closed within the investigation budget.
         signal: AbortSignal.timeout(6_000),
       });
