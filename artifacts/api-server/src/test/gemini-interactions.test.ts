@@ -45,6 +45,30 @@ describe("Gemini Interactions API transport", () => {
     });
   });
 
+  it("authenticates Boss model catalog discovery with the documented header", async () => {
+    process.env.GEMINI_API_KEY = "test-key";
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({
+        models: [
+          {
+            name: "models/gemini-3.8-flash",
+            supportedGenerationMethods: ["generateContent"],
+          },
+        ],
+      }), { status: 200, headers: { "content-type": "application/json" } }),
+    );
+
+    const { resolveGeminiBossModel } = await import("../src/lib/case-bureau");
+    const result = await resolveGeminiBossModel("GEMINI_API_KEY");
+
+    expect(result.status).toBe("resolved");
+    expect(result.model).toBe("gemini-3.8-flash");
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(String(url)).toBe("https://generativelanguage.googleapis.com/v1beta/models");
+    expect((init?.headers as Record<string, string>)["x-goog-api-key"]).toBe("test-key");
+    expect(String(url)).not.toContain("?key=");
+  });
+
   it("reads current Interactions step-based model output", async () => {
     process.env.GEMINI_API_KEY = "test-key";
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
