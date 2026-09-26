@@ -60,7 +60,7 @@ describe("Gemini Right-hand catalog-driven fallback", () => {
   });
 
   it("walks only the bounded candidates supplied by the live catalog", async () => {
-    process.env.GEMINI_RIGHT_HAND_API_KEY = "test-key";
+    process.env.GEMINI_RIGHT_HAND_API_KEY = "test-key-bounded";
     const calls: string[] = [];
     const liveModels = [
       GEMINI_RIGHT_HAND_MODEL,
