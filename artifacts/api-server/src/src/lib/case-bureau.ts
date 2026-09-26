@@ -523,8 +523,12 @@ export async function generateGeminiBossText(
         else requestDeadlineFired = true;
         controller.abort();
       }, attemptTimeoutMs);
+      const interactionBody = JSON.stringify({
+        model,
+        input: prompt,
+        generation_config: { max_output_tokens: 768 },
+      });
       try {
-        const interactionBody = JSON.stringify({ model, input: prompt });
         const response = await fetch(GEMINI_INTERACTIONS_API, {
           method: "POST",
           headers: {
