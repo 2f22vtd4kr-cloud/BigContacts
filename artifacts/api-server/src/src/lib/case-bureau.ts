@@ -280,6 +280,7 @@ export type DiscoveryCaseFile = {
  */
 export const GEMINI_BOSS_MODEL_PENDING = "auto-low-cost-pending";
 const GEMINI_MODELS_API = "https://generativelanguage.googleapis.com/v1beta/models";
+const GEMINI_INTERACTIONS_API = "https://generativelanguage.googleapis.com/v1beta/interactions";
 const GEMINI_KEY_NAMES = [
   "GEMINI_API_KEY",
   "GEMINI_KEY",
@@ -480,7 +481,7 @@ export async function generateGeminiBossText(
   selection: GeminiBossModelSelection,
   prompt: string,
 ): Promise<GeminiTextGenerationResult> {
-  // Text generation only: no tools, no Google Search grounding, no web research.
+  // Interactions API text generation only: no tools, no Google Search grounding, no web research.
   // 429/503 here means text-generation capacity — not a web-search constraint.
   const primaryName = selection.keyName;
   const keyEntries = [
@@ -534,19 +535,17 @@ export async function generateGeminiBossText(
         controller.abort();
       }, attemptTimeoutMs);
       try {
-        const response = await fetch(
-          `${GEMINI_MODELS_API.replace("/models", `/models/${encodeURIComponent(model)}:generateContent`)}`,
-          {
-            method: "POST",
-            headers: {
-              Accept: "application/json",
-              "Content-Type": "application/json",
-              "x-goog-api-key": entry.key,
-            },
-            body: requestBody,
-            signal: controller.signal,
+        const interactionBody = JSON.stringify({ model, input: prompt });
+        const response = await fetch(GEMINI_INTERACTIONS_API, {
+          method: "POST",
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/json",
+            "x-goog-api-key": entry.key,
           },
-        );
+          body: interactionBody,
+          signal: controller.signal,
+        });
         const fetchElapsedMs = Date.now() - attemptStartedAt;
         const responseText = await response.text();
         const totalElapsedMs = Date.now() - attemptStartedAt;
@@ -558,7 +557,7 @@ export async function generateGeminiBossText(
             phase: "request_resolved",
             model,
             keyName: entry.name,
-            requestPayloadBytes: Buffer.byteLength(requestBody),
+            requestPayloadBytes: Buffer.byteLength(interactionBody),
             promptBytes: Buffer.byteLength(prompt),
             configuredRequestTimeoutMs: bossRequestTimeoutMs,
             configuredOverallTimeoutMs: getGeminiBossOverallTimeoutMs(),
@@ -577,7 +576,7 @@ export async function generateGeminiBossText(
         );
 
         if (response.status === 429 || response.status === 503) {
-          lastError = `Gemini Boss ${model} text-generation ${failureClass ?? "provider_unavailable"} HTTP ${response.status}.`;
+          lastError = `Gemini Boss ${model} Interactions API ${failureClass ?? "provider_unavailable"} HTTP ${response.status}.`;
           logger.warn(
             { model, status: response.status, keyName: entry.name, failureClass, responseShape },
             "Gemini Boss text-generation capacity busy; trying the next compatible Gemini model",
@@ -587,7 +586,7 @@ export async function generateGeminiBossText(
           continue;
         }
         if (!response.ok) {
-          lastError = `Gemini Boss ${model} ${failureClass ?? "http_error"} HTTP ${response.status}.`;
+          lastError = `Gemini Boss ${model} Interactions API ${failureClass ?? "http_error"} HTTP ${response.status}.`;
           // 401 is a credential failure: abandon this key and try the next
           // configured credential. A 403 is different for Gemini API keys:
           // a model can be visible in ListModels yet still be unavailable to
@@ -617,11 +616,14 @@ export async function generateGeminiBossText(
         }
 
         const payload = JSON.parse(responseText) as {
-          candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+          output_text?: string;
+          outputs?: Array<{ type?: string; text?: string }>;
         };
-        const raw = payload.candidates?.[0]?.content?.parts?.map((part) => part.text ?? "").join("").trim() || (/"action"\s*:/.test(responseText) ? responseText.trim() : "");
+        const raw = payload.output_text?.trim()
+          || payload.outputs?.filter((output) => output.type === "text" || typeof output.text === "string").map((output) => output.text ?? "").join("").trim()
+          || (/"action"\\s*:/.test(responseText) ? responseText.trim() : "");
         if (raw) return { model, raw, error: null };
-        lastError = `Gemini Boss ${model} returned no text.`;
+                lastError = `Gemini Boss ${model} Interactions API returned no text.`;
       } catch (error) {
         const fetchElapsedMs = Date.now() - attemptStartedAt;
         const isAbort = error instanceof Error && error.name === "AbortError";
@@ -632,7 +634,7 @@ export async function generateGeminiBossText(
             phase: "request_rejected",
             model,
             keyName: entry.name,
-            requestPayloadBytes: Buffer.byteLength(requestBody),
+            requestPayloadBytes: Buffer.byteLength(interactionBody),
             promptBytes: Buffer.byteLength(prompt),
             configuredRequestTimeoutMs: bossRequestTimeoutMs,
             configuredOverallTimeoutMs: getGeminiBossOverallTimeoutMs(),
