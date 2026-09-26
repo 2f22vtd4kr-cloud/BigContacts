@@ -10,7 +10,7 @@ const boss = fs.readFileSync(path.join(root, "artifacts/api-server/src/src/lib/c
 const rightHandRequired = [
   "GEMINI_RIGHT_HAND_MODEL",
   "case_file_reasoning_only",
-  "maxOutputTokens: 768",
+  "max_output_tokens: 768",
   "You are Apex Atlas Right Hand. Reason only over the supplied case file.",
   "Never browse, use external research, or invent evidence",
   "compactCase(file: ResearchCaseFile)",
