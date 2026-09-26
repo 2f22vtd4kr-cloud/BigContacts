@@ -106,8 +106,8 @@ export async function webSearchSerper(query: string, locale?: string, market?: s
           queryChars: query.length,
           queryDigest: digestDiagnosticText(query),
           num: 10,
-          localeChars: typeof body.gl === "string" ? body.gl.length : 0,
-          marketChars: typeof body.hl === "string" ? body.hl.length : 0,
+          localeChars: typeof body.hl === "string" ? body.hl.length : 0,
+          marketChars: typeof body.gl === "string" ? body.gl.length : 0,
         },
         responseShape: summarizeProviderBody(responseBody),
       }, "agentic provider search rejected");
@@ -139,8 +139,8 @@ export async function webSearchSerper(query: string, locale?: string, market?: s
         queryChars: query.length,
         queryDigest: digestDiagnosticText(query),
         num: 10,
-        localeChars: typeof body.gl === "string" ? body.gl.length : 0,
-        marketChars: typeof body.hl === "string" ? body.hl.length : 0,
+        localeChars: typeof body.hl === "string" ? body.hl.length : 0,
+        marketChars: typeof body.gl === "string" ? body.gl.length : 0,
       },
     }, "agentic provider search completed");
     return { text: text || `serper returned no usable result: ${outcome}.`, urls };
