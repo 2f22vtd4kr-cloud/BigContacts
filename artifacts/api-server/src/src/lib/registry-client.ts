@@ -39,6 +39,25 @@ export interface RegistrySearchParams {
   signal?: AbortSignal;
 }
 
+const REGISTRY_ALIASES: Record<string, RegistryId> = {
+  "sec edgar": "sec-edgar",
+  "sec_edgar": "sec-edgar",
+  "sec": "sec-edgar",
+  "companies house": "companies-house",
+  "companies_house": "companies-house",
+  "company house": "companies-house",
+  "br reg": "brreg",
+  "ares": "ares-czechia",
+  "bodacc": "bodacc-france",
+  "gleif": "gleif",
+};
+
+export function normalizeRegistryId(raw: string): RegistryId | null {
+  const normalized = raw.trim().toLowerCase().replace(/\\s+/g, " ");
+  if ((REGISTRY_IDS as readonly string[]).includes(normalized)) return normalized as RegistryId;
+  return REGISTRY_ALIASES[normalized] ?? null;
+}
+
 export const REGISTRY_IDS = [
   "sec-edgar", "companies-house", "brreg", "ares-czechia", "bodacc-france", "gleif",
   "cvr-denmark", "zefix-switzerland", "offeneregister-germany", "bolagsverket-sweden",
@@ -129,9 +148,11 @@ async function searchKvkNetherlands(query: string, limit: number, signal?: Abort
 async function searchKboBelgium(query: string, limit: number, signal?: AbortSignal): Promise<RegistryResult[]> { const results: RegistryResult[] = []; try { const url = `https://kbopub.economie.fgov.be/kbopub/zoeknaamfonetischform.html?lang=nl&searchWord=${encodeURIComponent(query)}&pstcdeNummer=&postgemeente=&gemeente=&typeVennootschap=&status=&startdatum=&einddatum=&numberOfResults=${Math.min(limit, 10)}&resultaat=`; const resp = await fetch(url, { headers: { Accept: "text/html,application/xhtml+xml", "User-Agent": "ApexFinder/1.0 OSINT-Research (public data only)" }, signal: createRegistryRequestSignal(signal, 5_000) }); if (resp.ok) { const html = await resp.text(); const rowRe = /href="[^"]*ondernemingsnummer=(\d+)[^"]*"\s*>([^<]+)<\/a>/g; const cityRe = /class="resultaatValue"[^>]*>([^<]{3,40})<\/td>/g; let m: RegExpExecArray | null; const cities: string[] = []; let cityMatch; while ((cityMatch = cityRe.exec(html)) !== null) cities.push((cityMatch[1] ?? "").trim()); let idx = 0; while ((m = rowRe.exec(html)) !== null && results.length < limit) { const enterpriseNumber = m[1] ?? ""; const name = (m[2] ?? "").trim(); if (!name || name.length < 2) { idx++; continue; } const city = cities[idx * 2 + 1] ?? cities[idx] ?? ""; results.push({ name, type: "Corporation", nationality: "BE", knownResidences: city ? `${city}, Belgium` : "Belgium", sourceRegistries: JSON.stringify(["KBO Belgium"]), notes: enterpriseNumber ? `KBO: ${enterpriseNumber.replace(/(\d{4})(\d{3})(\d{3})/, "$1.$2.$3")}` : undefined, metadata: JSON.stringify({ source: "kbo-belgium", enterpriseNumber, city, kboUrl: enterpriseNumber ? `https://kbopub.economie.fgov.be/kbopub/toonondernemingps.html?ondernemingsnummer=${enterpriseNumber}` : null }) }); idx++; } } } catch { /* graceful */ } return results; }
 
 export async function searchRegistry(params: RegistrySearchParams): Promise<RegistryResult[]> {
-  const { query, registry, limit = 10, signal } = params;
+  const { query, registry: requestedRegistry, limit = 10, signal } = params;
   if (signal?.aborted) throw new Error("cancelled");
   if (!query.trim()) throw new Error("Search query cannot be empty.");
+  const registry = normalizeRegistryId(requestedRegistry);
+  if (!registry) throw new Error(`Unknown registry: "${requestedRegistry}". Use one of: ${REGISTRY_IDS.join(", ")}.`);
   let results: RegistryResult[];
   if (registry === "opencorporates") results = await searchOpenCorporates(query.trim(), limit, signal);
   else if (registry === "companies-house") {
