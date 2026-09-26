@@ -23,4 +23,30 @@ describe("Bureau multi-source attribution", () => {
     ], records);
     expect(result).toHaveLength(1);
   });
+  it("rejects an other/generic claim when its claimed value never appears in observed material", () => {
+    const finding = {
+      vectorType: "other" as const,
+      value: "secret office route",
+      personName: "Jane Smith",
+      role: "CFO",
+      scope: "candidate" as const,
+      sourceUrls: ["https://company.example/leadership"],
+      note: "model-only value",
+      promotionDecision: "promote" as const,
+    };
+    const records = [{
+      turn: 1,
+      model: "groq",
+      action: "visit",
+      args: {},
+      execution: "success" as const,
+      observation: "Jane Smith is CFO.",
+      observedUrls: ["https://company.example/leadership"],
+      findings: [],
+    }];
+    const result = sourceBackedAgenticFindings([finding], [
+      "step1: visit https://company.example/leadership execution=success observed=https://company.example/leadership",
+    ], records);
+    expect(result).toHaveLength(0);
+  });
 });
