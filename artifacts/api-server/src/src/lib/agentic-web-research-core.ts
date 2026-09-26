@@ -274,37 +274,6 @@ async function callGroqJson(prompt: string, signal: AbortSignal): Promise<{ mode
           continue;
         }
         if (response.status === 401 || response.status === 403) break;
-        if (response.status === 429) {
-          const retries = retryBudgetByModel.get(model) ?? 0;
-          if (retries < 2) {
-            retryBudgetByModel.set(model, retries + 1);
-            const retryAfterHeader = response.headers.get("retry-after");
-            const retryAfterSeconds = retryAfterHeader ? Number(retryAfterHeader) : NaN;
-            const delayMs = Number.isFinite(retryAfterSeconds)
-              ? Math.min(8_000, Math.max(1_000, Math.round(retryAfterSeconds * 1_000)))
-              : Math.min(8_000, 1_000 * (2 ** retries));
-            recordAgenticLlmAttempt({
-              provider: "mistral",
-              model,
-              promptChars: workingPrompt.length,
-              status: response.status,
-              success: false,
-              latencyMs: Date.now() - started,
-              retryIndex: attempt,
-              reason: "rate_limited_retry_" + delayMs + "ms",
-            });
-            await new Promise<void>((resolve, reject) => {
-              const timer = setTimeout(resolve, delayMs);
-              const abort = () => {
-                clearTimeout(timer);
-                reject(new Error("cancelled"));
-              };
-              signal.addEventListener("abort", abort, { once: true });
-            });
-            continue;
-          }
-          continue;
-        }
         continue;
       }
       const data = await readJsonCapped<{ choices?: Array<{ message?: { content?: string } }> }>(response, signal);
@@ -344,7 +313,38 @@ async function callMistralJson(prompt: string, signal: AbortSignal): Promise<{ m
           sizeReductionApplied = true;
           continue;
         }
-        if ([401, 403, 429].includes(response.status)) break;
+        if (response.status === 401 || response.status === 403) break;
+        if (response.status === 429) {
+          const retries = retryBudgetByModel.get(model) ?? 0;
+          if (retries < 2) {
+            retryBudgetByModel.set(model, retries + 1);
+            const retryAfterHeader = response.headers.get("retry-after");
+            const retryAfterSeconds = retryAfterHeader ? Number(retryAfterHeader) : NaN;
+            const delayMs = Number.isFinite(retryAfterSeconds)
+              ? Math.min(8_000, Math.max(1_000, Math.round(retryAfterSeconds * 1_000)))
+              : Math.min(8_000, 1_000 * (2 ** retries));
+            recordAgenticLlmAttempt({
+              provider: "mistral",
+              model,
+              promptChars: workingPrompt.length,
+              status: response.status,
+              success: false,
+              latencyMs: Date.now() - started,
+              retryIndex: attempt,
+              reason: "rate_limited_retry_" + delayMs + "ms",
+            });
+            await new Promise<void>((resolve, reject) => {
+              const timer = setTimeout(resolve, delayMs);
+              const abort = () => {
+                clearTimeout(timer);
+                reject(new Error("cancelled"));
+              };
+              signal.addEventListener("abort", abort, { once: true });
+            });
+            continue;
+          }
+          continue;
+        }
         continue;
       }
       const data = await readJsonCapped<{ choices?: Array<{ message?: { content?: string } }> }>(response, signal);
