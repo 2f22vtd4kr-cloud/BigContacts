@@ -128,6 +128,34 @@ describe("provider quota gate", () => {
     globalThis.fetch = nativeFetch;
   });
 
+  it("does not convert Gemini 403 permission denial into a cooldown", async () => {
+    process.env.APEX_PROVIDER_MAX_REQUESTS_GEMINI = "10";
+    process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GEMINI = "0";
+    process.env.APEX_EXTERNAL_MAX_REQUESTS_PER_SCOPE = "100";
+    let calls = 0;
+
+    const first = await runProviderCall(
+      { provider: "gemini", account: "permission-denied-test" },
+      async () => {
+        calls += 1;
+        return new Response(JSON.stringify({
+          error: { code: 403, status: "PERMISSION_DENIED" },
+        }), { status: 403 }),
+      },
+    );
+    const second = await runProviderCall(
+      { provider: "gemini", account: "permission-denied-test" },
+      async () => {
+        calls += 1;
+        return new Response("", { status: 200 });
+      },
+    );
+
+    expect(first.status).toBe(403);
+    expect(second.status).toBe(200);
+    expect(calls).toBe(2);
+  });
+
   it("delegates Gemini 429/503 cooldown ownership to the role boundary", async () => {
     process.env.APEX_PROVIDER_MAX_REQUESTS_GEMINI = "10";
     process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GEMINI = "0";
