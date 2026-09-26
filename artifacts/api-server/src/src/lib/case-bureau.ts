@@ -508,22 +508,11 @@ export async function generateGeminiBossText(
   // window for the second compatible model.
   const bossRequestTimeoutMs = getGeminiBossRequestTimeoutMs();
   const bossDeadline = Date.now() + getGeminiBossOverallTimeoutMs();
-  const bossMaxOutputTokens = 1_024;
 
   for (const entry of keyEntries) {
     for (const model of models) {
       const remainingMs = bossDeadline - Date.now();
       if (remainingMs <= 0) return { model: selection.model, raw: null, error: "Gemini Boss generation deadline exceeded." };
-      const requestBody = JSON.stringify({
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-        generationConfig: {
-          maxOutputTokens: bossMaxOutputTokens,
-          responseMimeType: "application/json",
-          ...(modelVersion(model)[0] >= 3
-            ? { thinkingConfig: { thinkingLevel: "low" } }
-            : {}),
-        },
-      });
       const attemptStartedAt = Date.now();
       const attemptTimeoutMs = Math.min(bossRequestTimeoutMs, Math.max(1_000, remainingMs));
       let requestDeadlineFired = false;
