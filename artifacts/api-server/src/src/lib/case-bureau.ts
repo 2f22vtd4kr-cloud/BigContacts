@@ -586,9 +586,22 @@ export async function generateGeminiBossText(
         }
         if (!response.ok) {
           lastError = `Gemini Boss ${model} ${failureClass ?? "http_error"} HTTP ${response.status}.`;
-          // Auth failures: abandon this key, try next key.
-          if (response.status === 401 || response.status === 403) {
+          // 401 is a credential failure: abandon this key and try the next
+          // configured credential. A 403 is different for Gemini API keys:
+          // a model can be visible in ListModels yet still be unavailable to
+          // the key/project's entitled tier. Keep the same key and try the next
+          // catalog model before abandoning the credential. This is especially
+          // important for free-tier keys, where model availability is not
+          // equivalent to generateContent authorization.
+          if (response.status === 401) {
             break;
+          }
+          if (response.status === 403) {
+            logger.warn(
+              { model, status: 403, keyName: entry.name },
+              "Gemini Boss model is not authorized for this key; trying the next catalog candidate",
+            );
+            continue;
           }
           // 404 / retired model / other: try next candidate model instead of aborting Boss.
           if (response.status === 404) {
