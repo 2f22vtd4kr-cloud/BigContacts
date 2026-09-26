@@ -16,10 +16,10 @@ describe("Gemini Boss bounded control-plane generation", () => {
 
     const providerFetch = vi.fn<typeof fetch>(async (input) => {
       const url = String(input);
-      if (url.includes("gemini-test-a:generateContent")) return new Response("retired", { status: 404 });
-      if (url.includes("gemini-test-b:generateContent")) {
+      if (url.includes("gemini-test-a")) return new Response("retired", { status: 404 });
+      if (url.includes("gemini-test-b")) {
         return new Response(
-          JSON.stringify({ candidates: [{ content: { parts: [{ text: '{"action":"stop"}' }] } }] }),
+          JSON.stringify({ steps: [{ type: "model_output", content: [{ type: "text", text: '{"action":"stop"}' }] }] }),
           { status: 200 },
         );
       }
@@ -54,10 +54,10 @@ describe("Gemini Boss bounded control-plane generation", () => {
 
     const firstBody = JSON.parse(String(providerFetch.mock.calls[0]?.[1]?.body));
     const secondBody = JSON.parse(String(providerFetch.mock.calls[1]?.[1]?.body));
-    expect(firstBody.generationConfig.maxOutputTokens).toBe(1024);
-    expect(secondBody.generationConfig.maxOutputTokens).toBe(1024);
-    expect(String(providerFetch.mock.calls[0]?.[0])).toContain("gemini-test-a:generateContent");
-    expect(String(providerFetch.mock.calls[1]?.[0])).toContain("gemini-test-b:generateContent");
+    expect(firstBody.generation_config.max_output_tokens).toBe(1024);
+    expect(secondBody.generation_config.max_output_tokens).toBe(1024);
+    expect(String(providerFetch.mock.calls[0]?.[0])).toContain("/v1beta/interactions");
+    expect(String(providerFetch.mock.calls[1]?.[0])).toContain("/v1beta/interactions");
   });
   it("advances to the next compatible model on a 429 without retrying the same model", async () => {
     process.env.GEMINI_API_KEY = "test-key";
@@ -67,7 +67,7 @@ describe("Gemini Boss bounded control-plane generation", () => {
         error: { code: 429, status: "RESOURCE_EXHAUSTED", message: "capacity temporarily unavailable" },
       }), { status: 429 }))
       .mockResolvedValueOnce(new Response(
-        JSON.stringify({ candidates: [{ content: { parts: [{ text: '{"action":"proceed"}' }] } }] }),
+        JSON.stringify({ steps: [{ type: "model_output", content: [{ type: "text", text: '{"action":"proceed"}' }] }] }),
         { status: 200 },
       ));
 
@@ -90,8 +90,8 @@ describe("Gemini Boss bounded control-plane generation", () => {
     expect(result.error).toBeNull();
     expect(result.raw).toContain('"action"');
     expect(providerFetch).toHaveBeenCalledTimes(2);
-    expect(String(providerFetch.mock.calls[0]?.[0])).toContain("gemini-test-a:generateContent");
-    expect(String(providerFetch.mock.calls[1]?.[0])).toContain("gemini-test-b:generateContent");
+    expect(String(providerFetch.mock.calls[0]?.[0])).toContain("gemini-test-a");
+    expect(String(providerFetch.mock.calls[1]?.[0])).toContain("gemini-test-b");
   });
 
 });
