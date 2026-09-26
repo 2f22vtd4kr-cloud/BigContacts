@@ -45,6 +45,21 @@ function providerErrorClass(error: unknown): string {
   return "REQUEST_ERROR";
 }
 
+function normalizeSerperLanguage(locale: string | undefined): string | null {
+  const raw = locale?.trim();
+  if (!raw) return null;
+  const language = raw.split(/[-_]/, 1)[0]?.toLowerCase() ?? "";
+  return /^[a-z]{2,3}$/.test(language) ? language : null;
+}
+
+function normalizeSerperCountry(market: string | undefined): string | null {
+  const raw = market?.trim();
+  if (!raw) return null;
+  const parts = raw.split(/[-_]/).filter(Boolean);
+  const country = (parts.length > 1 ? parts[parts.length - 1] : parts[0])?.toLowerCase() ?? "";
+  return /^[a-z]{2}$/.test(country) ? country : null;
+}
+
 export async function webSearchSerper(query: string, locale?: string, market?: string, signal?: AbortSignal): Promise<ProviderSearchResult> {
   const key = [process.env.SERPER_API_KEY, process.env.SERPER_API_KEY_2, process.env.SERPER_API_KEY_3, process.env.SERPER_KEY].map((x) => (x || "").trim()).find(Boolean);
   if (!key) {
@@ -61,8 +76,10 @@ export async function webSearchSerper(query: string, locale?: string, market?: s
   }
   try {
     const body: Record<string, unknown> = { q: query, num: 10 };
-    if (locale?.trim()) body.gl = locale.trim().slice(0, 8);
-    if (market?.trim()) body.hl = market.trim().slice(0, 16);
+    const language = normalizeSerperLanguage(locale);
+    const country = normalizeSerperCountry(market);
+    if (language) body.hl = language;
+    if (country) body.gl = country;
     const startedAt = Date.now();
     const response = await safeOutboundFetch("https://google.serper.dev/search", {
       method: "POST",
