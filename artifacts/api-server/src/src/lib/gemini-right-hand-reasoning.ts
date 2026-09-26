@@ -139,39 +139,88 @@ async function request(system: string, user: string): Promise<GeminiRequestResul
   const configuredRequestTimeoutMs = requestTimeoutMs();
   const configuredOverallTimeoutMs = overallTimeoutMs();
   const deadline = Date.now() + configuredOverallTimeoutMs;
-  const systemPrompt = `${apexOrientationCompact("right_hand")}\n\n${system}`;
-  const requestPayload = (modelName: string, userPrompt: string) => ({ system_instruction: { parts: [{ text: systemPrompt }] }, contents: [{ role: "user", parts: [{ text: userPrompt }] }], generationConfig: { maxOutputTokens: 768, responseMimeType: "application/json", ...(isGemini3Model(modelName) ? { thinkingConfig: { thinkingLevel: "low" } } : {}) } });
+  const systemPrompt = `${apexOrientationCompact("right_hand")}\\n\\n${system}`;
+
   for (const model of chain) {
     const remainingMs = deadline - Date.now();
-    if (remainingMs <= 0) return { raw: "", error: `Gemini Right-hand deadline exceeded after ${configuredOverallTimeoutMs}ms.`, model: chain[chain.length - 1] ?? GEMINI_RIGHT_HAND_MODEL };
-    const body = JSON.stringify(requestPayload(model, user)); const requestPayloadBytes = Buffer.byteLength(body); const systemPromptBytes = Buffer.byteLength(systemPrompt); const userPromptBytes = Buffer.byteLength(user); const attemptStartedAt = Date.now(); const attemptTimeoutMs = Math.min(configuredRequestTimeoutMs, remainingMs); let requestDeadlineFired = false; let overallDeadlineFired = false; const controller = new AbortController(); const timer = setTimeout(() => { if (remainingMs <= configuredRequestTimeoutMs) overallDeadlineFired = true; else requestDeadlineFired = true; controller.abort(); }, attemptTimeoutMs);
+    if (remainingMs <= 0) {
+      return {
+        raw: "",
+        error: `Gemini Right-hand deadline exceeded after ${configuredOverallTimeoutMs}ms.`,
+        model: chain[chain.length - 1] ?? GEMINI_RIGHT_HAND_MODEL,
+      };
+    }
+
+    const body = JSON.stringify({
+      model,
+      input: `${systemPrompt}\\n\\nUSER REQUEST:\\n${user}`,
+    });
+    const requestPayloadBytes = Buffer.byteLength(body);
+    const systemPromptBytes = Buffer.byteLength(systemPrompt);
+    const userPromptBytes = Buffer.byteLength(user);
+    const attemptStartedAt = Date.now();
+    const attemptTimeoutMs = Math.min(configuredRequestTimeoutMs, remainingMs);
+    let requestDeadlineFired = false;
+    let overallDeadlineFired = false;
+    const controller = new AbortController();
+    const timer = setTimeout(() => {
+      if (remainingMs <= configuredRequestTimeoutMs) overallDeadlineFired = true;
+      else requestDeadlineFired = true;
+      controller.abort();
+    }, attemptTimeoutMs);
+
     try {
-      const body = JSON.stringify({ model, input: `${systemPrompt}\n\nUSER REQUEST:\n${user}` });
-      const requestPayloadBytes = Buffer.byteLength(body);
-      const systemPromptBytes = Buffer.byteLength(systemPrompt);
-      const userPromptBytes = Buffer.byteLength(user);
-      const attemptStartedAt = Date.now();
-      const attemptTimeoutMs = Math.min(configuredRequestTimeoutMs, remainingMs);
-      let requestDeadlineFired = false;
-      let overallDeadlineFired = false;
-      const controller = new AbortController();
-      const timer = setTimeout(() => { if (remainingMs <= configuredRequestTimeoutMs) overallDeadlineFired = true; else requestDeadlineFired = true; controller.abort(); }, attemptTimeoutMs);
-      try {
-        const response = await fetch(GEMINI_INTERACTIONS_API, {
-          method: "POST",
-          headers: { Accept: "application/json", "Content-Type": "application/json", "x-goog-api-key": apiKey },
-          body,
-          signal: controller.signal,
-        });
-      const fetchElapsedMs = Date.now() - attemptStartedAt; const responseBody = await response.text(); const totalElapsedMs = Date.now() - attemptStartedAt;
+      const response = await fetch(GEMINI_INTERACTIONS_API, {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+          "x-goog-api-key": apiKey,
+        },
+        body,
+        signal: controller.signal,
+      });
+      const fetchElapsedMs = Date.now() - attemptStartedAt;
+      const responseBody = await response.text();
+      const totalElapsedMs = Date.now() - attemptStartedAt;
       const responseShape = summarizeProviderBody(responseBody);
       const failureClass = response.ok ? null : classifyProviderHttpStatus(response.status);
-      logger.info({ role: "gemini_right_hand", phase: "request_resolved", model, requestPayloadBytes, systemPromptBytes, userPromptBytes, configuredRequestTimeoutMs, configuredOverallTimeoutMs, attemptTimeoutMs, remainingMs, fetchElapsedMs, totalElapsedMs, httpStatus: response.status, responseBytes: Buffer.byteLength(responseBody), failureClass, responseShape, requestDeadlineFired, overallDeadlineFired }, "Gemini Right-hand request resolved");
+      logger.info(
+        {
+          role: "gemini_right_hand",
+          phase: "request_resolved",
+          model,
+          requestPayloadBytes,
+          systemPromptBytes,
+          userPromptBytes,
+          configuredRequestTimeoutMs,
+          configuredOverallTimeoutMs,
+          attemptTimeoutMs,
+          remainingMs,
+          fetchElapsedMs,
+          totalElapsedMs,
+          httpStatus: response.status,
+          responseBytes: Buffer.byteLength(responseBody),
+          failureClass,
+          responseShape,
+          requestDeadlineFired,
+          overallDeadlineFired,
+        },
+        "Gemini Right-hand request resolved",
+      );
+
       if (response.ok) {
         try {
-          const payload = JSON.parse(responseBody) as { output_text?: string; outputs?: Array<{ type?: string; text?: string | null }> };
+          const payload = JSON.parse(responseBody) as {
+            output_text?: string;
+            outputs?: Array<{ type?: string; text?: string | null }>;
+          };
           const raw = payload.output_text?.trim()
-            || payload.outputs?.filter((output) => output.type === "text" || typeof output.text === "string").map((output) => output.text ?? "").join(" ").trim()
+            || payload.outputs
+              ?.filter((output) => output.type === "text" || typeof output.text === "string")
+              .map((output) => output.text ?? "")
+              .join(" ")
+              .trim()
             || "";
           if (raw) return { raw, error: null, model };
           return { raw: "", error: `Gemini Right-hand ${model} Interactions API returned an empty response.`, model };
@@ -179,29 +228,62 @@ async function request(system: string, user: string): Promise<GeminiRequestResul
           return { raw: "", error: `Gemini Right-hand ${model} Interactions API returned invalid JSON.`, model };
         }
       }
-            failures.push(`${model} ${failureClass ?? "http_error"} HTTP ${response.status}`); if (!shouldFallback(response.status)) return { raw: "", error: `Gemini API ${model} ${failureClass ?? "http_error"} HTTP ${response.status}.`, model }; if (response.status === 403) logger.warn({ role: "gemini_right_hand", phase: "model_not_authorized", model, httpStatus: 403 }, "Gemini Right-hand model is not authorized for this key; trying the next live catalog candidate");
+
+      failures.push(`${model} ${failureClass ?? "http_error"} HTTP ${response.status}`);
+      if (!shouldFallback(response.status)) {
+        return { raw: "", error: `Gemini API ${model} ${failureClass ?? "http_error"} HTTP ${response.status}.`, model };
+      }
+      if (response.status === 403) {
+        logger.warn(
+          { role: "gemini_right_hand", phase: "model_not_authorized", model, httpStatus: 403 },
+          "Gemini Right-hand model is not authorized for this key; trying the next live catalog candidate",
+        );
+      }
       if (response.status === 404) cachedModelChain = null;
     } catch (error) {
-      const fetchElapsedMs = Date.now() - attemptStartedAt; const isAbort = error instanceof Error && error.name === "AbortError";
+      const fetchElapsedMs = Date.now() - attemptStartedAt;
+      const isAbort = error instanceof Error && error.name === "AbortError";
       const deadlineTriggered = requestDeadlineFired || overallDeadlineFired;
       const failureClass = classifyThrownProviderError(error, isAbort && !deadlineTriggered);
-      logger.warn({ role: "gemini_right_hand", phase: "request_rejected", model, requestPayloadBytes, systemPromptBytes, userPromptBytes, configuredRequestTimeoutMs, configuredOverallTimeoutMs, attemptTimeoutMs, remainingMs, fetchElapsedMs, httpStatus: null, responseBytes: 0, failureClass, requestDeadlineFired, overallDeadlineFired, abortReason: requestDeadlineFired ? "per_request_deadline" : overallDeadlineFired ? "overall_deadline" : null, errorName: error instanceof Error ? error.name : "unknown" }, "Gemini Right-hand request rejected");
+      logger.warn(
+        {
+          role: "gemini_right_hand",
+          phase: "request_rejected",
+          model,
+          requestPayloadBytes,
+          systemPromptBytes,
+          userPromptBytes,
+          configuredRequestTimeoutMs,
+          configuredOverallTimeoutMs,
+          attemptTimeoutMs,
+          remainingMs,
+          fetchElapsedMs,
+          httpStatus: null,
+          responseBytes: 0,
+          failureClass,
+          requestDeadlineFired,
+          overallDeadlineFired,
+          abortReason: requestDeadlineFired ? "per_request_deadline" : overallDeadlineFired ? "overall_deadline" : null,
+          errorName: error instanceof Error ? error.name : "unknown",
+        },
+        "Gemini Right-hand request rejected",
+      );
       failures.push(`${model} ${failureClass}`);
-      // Transient network/timeouts should consume a bounded same-role fallback
-      // attempt. Do not terminate the entire Right-hand role on the first
-      // transport failure when the live catalog supplied other Gemini models.
       if (failureClass !== "network_error" && failureClass !== "timeout") {
         return { raw: "", error: `Gemini Right-hand ${model} ${failureClass}.`, model };
       }
-    } finally { clearTimeout(timer); }
+    } finally {
+      clearTimeout(timer);
+    }
   }
-  // A 404 means a catalog entry may have disappeared. Invalidate the cache so the
-  // next invocation re-resolves from the live catalog. Never invent candidates.
+
   if (failures.some((failure) => /HTTP 404/.test(failure))) cachedModelChain = null;
-  return { raw: "", error: chain.length
-    ? `Gemini Right-hand exhausted bounded same-role model attempts: ${failures.join("; ")}`
-    : "Gemini Right-hand has no compatible live catalog model available.",
-    model: chain[chain.length - 1] ?? GEMINI_RIGHT_HAND_MODEL
+  return {
+    raw: "",
+    error: chain.length
+      ? `Gemini Right-hand exhausted bounded same-role model attempts: ${failures.join("; ")}`
+      : "Gemini Right-hand has no compatible live catalog model available.",
+    model: chain[chain.length - 1] ?? GEMINI_RIGHT_HAND_MODEL,
   };
 }
 
