@@ -54,8 +54,8 @@ describe("Gemini Boss bounded control-plane generation", () => {
 
     const firstBody = JSON.parse(String(providerFetch.mock.calls[0]?.[1]?.body));
     const secondBody = JSON.parse(String(providerFetch.mock.calls[1]?.[1]?.body));
-    expect(firstBody.generation_config.max_output_tokens).toBe(1024);
-    expect(secondBody.generation_config.max_output_tokens).toBe(1024);
+    expect(firstBody.generation_config.max_output_tokens).toBe(768);
+    expect(secondBody.generation_config.max_output_tokens).toBe(768);
     expect(String(providerFetch.mock.calls[0]?.[0])).toContain("/v1beta/interactions");
     expect(String(providerFetch.mock.calls[1]?.[0])).toContain("/v1beta/interactions");
   });
