@@ -108,8 +108,8 @@ async function resolveModelChain(): Promise<string[]> {
   }
 
   try {
-    const response = await fetch(`${GEMINI_CHAT_API_BASE}?key=${encodeURIComponent(apiKey)}`, {
-      headers: { Accept: "application/json" },
+    const response = await fetch(GEMINI_CHAT_API_BASE, {
+      headers: { Accept: "application/json", "x-goog-api-key": apiKey },
       signal: AbortSignal.timeout(MODEL_CATALOG_TIMEOUT_MS),
     });
     if (!response.ok) {
