@@ -10,7 +10,8 @@ const required = [
   "recordAgenticLlmAttempt({",
   "const models = [process.env.MISTRAL_AGENTIC_MODEL",
   "for (const key of keys) for (const model of GROQ_CHAT_MODELS)",
-  "if ([401, 403, 429].includes(response.status)) break;",
+  "if (response.status === 401 || response.status === 403) break;",
+  "if (response.status === 429) {",
   "setAgenticLlmHealth(false, null, `${selectedInvestigatorLlm}:selected provider unavailable`)",
 ];
 for (const marker of required) {
