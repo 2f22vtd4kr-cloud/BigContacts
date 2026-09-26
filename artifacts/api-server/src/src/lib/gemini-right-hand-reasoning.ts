@@ -128,7 +128,7 @@ async function resolveModelChain(): Promise<string[]> {
 }
 function textOf(response: GeminiResponse | null): string { return (response?.candidates?.[0]?.content?.parts ?? []).map((part) => part.text ?? "").join(" ").trim(); }
 function extractJson(raw: string): Record<string, unknown> | null { const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)```/i)?.[1]?.trim(); const source = fenced || raw.trim(); const start = source.indexOf("{"), end = source.lastIndexOf("}"); if (start < 0 || end <= start) return null; try { const value = JSON.parse(source.slice(start, end + 1)); return value && typeof value === "object" ? value as Record<string, unknown> : null; } catch { return null; } }
-function shouldFallback(status: number): boolean { return status === 404 || status === 408 || status === 429 || status === 500 || status === 502 || status === 503 || status === 504; }
+function shouldFallback(status: number): boolean { return status === 403 || status === 404 || status === 408 || status === 429 || status === 500 || status === 502 || status === 503 || status === 504; }
 function isGemini3Model(model: string): boolean { return /^gemini-3(?:\.\d+)?-/i.test(model); }
 
 async function request(system: string, user: string): Promise<GeminiRequestResult> {
@@ -153,7 +153,7 @@ async function request(system: string, user: string): Promise<GeminiRequestResul
       logger.info({ role: "gemini_right_hand", phase: "request_resolved", model, requestPayloadBytes, systemPromptBytes, userPromptBytes, configuredRequestTimeoutMs, configuredOverallTimeoutMs, attemptTimeoutMs, remainingMs, fetchElapsedMs, totalElapsedMs, httpStatus: response.status, responseBytes: Buffer.byteLength(responseBody), failureClass, responseShape, requestDeadlineFired, overallDeadlineFired }, "Gemini Right-hand request resolved");
       if (response.ok) { try { const raw = textOf(JSON.parse(responseBody) as GeminiResponse); if (raw) return { raw, error: null, model }; return { raw: "", error: `Gemini Right-hand ${model} returned an empty response.`, model }; } catch { return { raw: "", error: `Gemini Right-hand ${model} returned invalid JSON.`, model }; }
       }
-      failures.push(`${model} ${failureClass ?? "http_error"} HTTP ${response.status}`); if (!shouldFallback(response.status)) return { raw: "", error: `Gemini API ${model} ${failureClass ?? "http_error"} HTTP ${response.status}.`, model };
+      failures.push(`${model} ${failureClass ?? "http_error"} HTTP ${response.status}`); if (!shouldFallback(response.status)) return { raw: "", error: `Gemini API ${model} ${failureClass ?? "http_error"} HTTP ${response.status}.`, model }; if (response.status === 403) logger.warn({ role: "gemini_right_hand", phase: "model_not_authorized", model, httpStatus: 403 }, "Gemini Right-hand model is not authorized for this key; trying the next live catalog candidate");
       if (response.status === 404) cachedModelChain = null;
     } catch (error) {
       const fetchElapsedMs = Date.now() - attemptStartedAt; const isAbort = error instanceof Error && error.name === "AbortError";
