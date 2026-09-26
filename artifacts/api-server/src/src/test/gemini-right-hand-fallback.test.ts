@@ -59,6 +59,34 @@ describe("Gemini Right-hand catalog-driven fallback", () => {
     expect(generationCalls[1]).toContain("/gemini-3.7-flash:generateContent");
   });
 
+  it("falls through the live catalog after a transient network error", async () => {
+    process.env.GEMINI_RIGHT_HAND_API_KEY = "test-key-network";
+    const calls: string[] = [];
+    globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      calls.push(url);
+      if (url.includes("generativelanguage.googleapis.com/v1beta/models?")) {
+        return catalog(GEMINI_RIGHT_HAND_MODEL, "gemini-3.7-flash");
+      }
+      if (url.includes(`/${GEMINI_RIGHT_HAND_MODEL}:generateContent`)) {
+        throw new TypeError("fetch failed");
+      }
+      return new Response(JSON.stringify({
+        candidates: [{ content: { parts: [{ text: '{"decision":"network-fallback-ok"}' }] } }],
+      }), { status: 200 });
+    });
+    installExternalQuotaGuard();
+
+    const result = await runGeminiRightHandFreeJson("Return JSON.");
+
+    const generationCalls = calls.filter((url) => url.includes(":generateContent"));
+    expect(result.status).toBe("completed");
+    expect(result.model).toBe("gemini-3.7-flash");
+    expect(generationCalls).toHaveLength(2);
+    expect(generationCalls[0]).toContain(`/${GEMINI_RIGHT_HAND_MODEL}:generateContent`);
+    expect(generationCalls[1]).toContain("/gemini-3.7-flash:generateContent");
+  });
+
   it("walks only the bounded candidates supplied by the live catalog", async () => {
     process.env.GEMINI_RIGHT_HAND_API_KEY = "test-key-bounded";
     const calls: string[] = [];
