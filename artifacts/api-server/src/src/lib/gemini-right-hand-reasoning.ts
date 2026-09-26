@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import type { BureauAction, DiscoveryCaseFile, ResearchCaseFile } from "./case-bureau";
 import { apexOrientationCompact } from "./apex-bureau-orientation";
 import { installGeminiTransientRetry } from "./gemini-transient-retry";
@@ -24,7 +25,11 @@ const MODEL_CATALOG_TIMEOUT_MS = 6_000;
 const MODEL_CATALOG_CACHE_MS = 60_000;
 
 type GeminiCatalogEntry = { name?: string; supportedGenerationMethods?: string[] };
-let cachedModelChain: { expiresAt: number; models: string[] } | null = null;
+let cachedModelChain: { expiresAt: number; models: string[]; credentialFingerprint: string } | null = null;
+
+function credentialFingerprint(apiKey: string): string {
+  return createHash("sha256").update(apiKey).digest("hex").slice(0, 16);
+}
 
 function boundedTimeoutEnv(name: string, fallback: number, min: number, max: number): number {
   const parsed = Number(process.env[name]);
@@ -92,7 +97,8 @@ async function resolveModelChain(): Promise<string[]> {
   const apiKey = key();
   if (!apiKey) return [];
 
-  if (cachedModelChain && cachedModelChain.expiresAt > Date.now()) {
+  const fingerprint = credentialFingerprint(apiKey);
+  if (cachedModelChain && cachedModelChain.credentialFingerprint === fingerprint && cachedModelChain.expiresAt > Date.now()) {
     return cachedModelChain.models.slice(0, MAX_MODEL_ATTEMPTS);
   }
 
@@ -107,7 +113,7 @@ async function resolveModelChain(): Promise<string[]> {
     }
     const payload = await response.json() as { models?: GeminiCatalogEntry[] };
     const catalogModels = chooseRightHandModels(Array.isArray(payload.models) ? payload.models : []);
-    if (catalogModels.length) cachedModelChain = { expiresAt: Date.now() + MODEL_CATALOG_CACHE_MS, models: catalogModels };
+    if (catalogModels.length) cachedModelChain = { expiresAt: Date.now() + MODEL_CATALOG_CACHE_MS, models: catalogModels, credentialFingerprint: fingerprint };
     logger.info({ role: "gemini_right_hand", phase: "model_catalog_resolved", preferredModel: GEMINI_RIGHT_HAND_MODEL, candidateCount: catalogModels.length, models: catalogModels }, "Gemini Right-hand model catalog resolved");
     return catalogModels.slice(0, MAX_MODEL_ATTEMPTS);
   } catch (error) {
