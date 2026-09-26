@@ -397,20 +397,21 @@ function modelRank(name: string): [number, number, number, number, string] {
 }
 
 function chooseGeminiModelCandidates(entries: GeminiModelCatalogEntry[]): string[] {
-  // Models Google has retired for new API users (404 on generateContent).
-  // Keep denylist explicit so catalog drift cannot re-select a dead id.
-  const RETIRED =
-    /^(gemini-1\.5-flash|gemini-1\.0-pro|gemini-2\.5-flash|gemini-2\.5-pro|gemini-2\.5-flash-lite|gemini-2\.0-flash|gemini-pro|gemini-pro-vision)(?:-|$)/i;
-
+  // Model lifecycle is deliberately provider/catalog-owned. Do not encode
+  // historical retirement assumptions here: a model can be unavailable to one
+  // project while still being valid for another, and Google's catalog changes
+  // independently of this application. Generation authorization is checked at
+  // request time and handled by the bounded same-role fallback.
   return entries
     .filter((entry) => entry.name)
     .map((entry) => entry.name!.replace(/^models\//, ""))
     .filter((name) => /^gemini-/i.test(name))
     .filter((name) => /flash/i.test(name))
-    // Allow gemini-3.6-flash, gemini-2.0-flash, gemini-2.0-flash-001, optional -preview suffix
+    // Accept provider-published numbered Flash and Flash-Lite variants, including
+    // preview/dated suffixes. Compatibility is decided from the live catalog,
+    // not a hard-coded model-version retirement list.
     .filter((name) => /^gemini-\d+(?:\.\d+)?-flash(?:-[a-z0-9]+)?$/i.test(name))
     .filter((name) => !/embedding|aqa|robotics|image|tts|deep-research|latest/i.test(name))
-    .filter((name) => !RETIRED.test(name))
     .sort((left, right) => {
       const a = modelRank(left);
       const b = modelRank(right);
