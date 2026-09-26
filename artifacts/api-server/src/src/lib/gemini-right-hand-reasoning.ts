@@ -126,7 +126,6 @@ async function resolveModelChain(): Promise<string[]> {
     return [];
   }
 }
-function textOf(response: GeminiResponse | null): string { return (response?.candidates?.[0]?.content?.parts ?? []).map((part) => part.text ?? "").join(" ").trim(); }
 function extractJson(raw: string): Record<string, unknown> | null { const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)```/i)?.[1]?.trim(); const source = fenced || raw.trim(); const start = source.indexOf("{"), end = source.lastIndexOf("}"); if (start < 0 || end <= start) return null; try { const value = JSON.parse(source.slice(start, end + 1)); return value && typeof value === "object" ? value as Record<string, unknown> : null; } catch { return null; } }
 function shouldFallback(status: number): boolean { return status === 403 || status === 404 || status === 408 || status === 429 || status === 500 || status === 502 || status === 503 || status === 504; }
 function isGemini3Model(model: string): boolean { return /^gemini-3(?:\.\d+)?-/i.test(model); }
