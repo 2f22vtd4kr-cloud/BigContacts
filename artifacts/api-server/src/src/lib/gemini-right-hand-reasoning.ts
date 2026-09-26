@@ -214,8 +214,17 @@ async function request(system: string, user: string): Promise<GeminiRequestResul
           const payload = JSON.parse(responseBody) as {
             output_text?: string;
             outputs?: Array<{ type?: string; text?: string | null }>;
+          steps?: Array<{ type?: string; content?: Array<{ type?: string; text?: string | null }> }>;
           };
+          const stepText = payload.steps
+            ?.filter((step) => step.type === "model_output" || Array.isArray(step.content))
+            .flatMap((step) => step.content ?? [])
+            .filter((part) => part.type === "text" || typeof part.text === "string")
+            .map((part) => part.text ?? "")
+            .join(" ")
+            .trim();
           const raw = payload.output_text?.trim()
+            || stepText
             || payload.outputs
               ?.filter((output) => output.type === "text" || typeof output.text === "string")
               .map((output) => output.text ?? "")
