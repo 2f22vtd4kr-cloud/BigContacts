@@ -31,6 +31,46 @@ describe("Serper provider observability", () => {
     );
   });
 
+  it("classifies HTTP 400 as an invalid request with only sanitized request/response shape", async () => {
+    process.env.SERPER_API_KEY = "test-key";
+    mocks.safeOutboundFetch.mockResolvedValue(new Response(JSON.stringify({
+      error: {
+        code: "INVALID_ARGUMENT",
+        message: "this provider message must not be logged",
+      },
+    }), { status: 400 }));
+
+    const result = await webSearchSerper("example query", "us", "en");
+
+    expect(result?.text).toContain("INVALID_REQUEST");
+    expect(result?.text).toContain("HTTP_400");
+    const warning = vi.mocked(mocks.logger.warn).mock.calls.find(([, message]) => message === "agentic provider search rejected");
+    expect(warning).toBeDefined();
+    const telemetry = warning?.[0] as Record<string, unknown>;
+    expect(telemetry).toMatchObject({
+      provider: "serper",
+      failureClass: "invalid_request",
+      httpStatus: 400,
+      requestShape: {
+        method: "POST",
+        contentType: "application/json",
+        keys: ["gl", "hl", "num", "q"],
+        num: 10,
+        queryChars: 13,
+        localeChars: 2,
+        marketChars: 2,
+      },
+      responseShape: {
+        bodyKind: "json",
+        topLevelKeys: ["error"],
+        errorKeys: ["code", "message"],
+        errorCode: "INVALID_ARGUMENT",
+        errorMessageChars: 42,
+      },
+    });
+    expect(JSON.stringify(telemetry)).not.toContain("this provider message must not be logged");
+  });
+
   it("distinguishes a successful response with no organic results", async () => {
     process.env.SERPER_API_KEY = "test-key";
     mocks.safeOutboundFetch.mockResolvedValue(new Response(JSON.stringify({ organic: [] }), { status: 200 }));

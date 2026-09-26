@@ -3,6 +3,11 @@ import type { BureauAction, DiscoveryCaseFile, ResearchCaseFile } from "./case-b
 import { apexOrientationCompact } from "./apex-bureau-orientation";
 import { installGeminiTransientRetry } from "./gemini-transient-retry";
 import { logger } from "./logger";
+import {
+  classifyProviderHttpStatus,
+  classifyThrownProviderError,
+  summarizeProviderBody,
+} from "./provider-error-diagnostics";
 
 installGeminiTransientRetry();
 
@@ -143,13 +148,15 @@ async function request(system: string, user: string): Promise<GeminiRequestResul
     try {
       const response = await fetch(`${GEMINI_CHAT_API_BASE}/${model}:generateContent`, { method: "POST", headers: { Accept: "application/json", "Content-Type": "application/json", "x-goog-api-key": apiKey }, body, signal: controller.signal });
       const fetchElapsedMs = Date.now() - attemptStartedAt; const responseBody = await response.text(); const totalElapsedMs = Date.now() - attemptStartedAt;
-      logger.info({ role: "gemini_right_hand", phase: "request_resolved", model, requestPayloadBytes, systemPromptBytes, userPromptBytes, configuredRequestTimeoutMs, configuredOverallTimeoutMs, attemptTimeoutMs, remainingMs, fetchElapsedMs, totalElapsedMs, httpStatus: response.status, responseBytes: Buffer.byteLength(responseBody), requestDeadlineFired, overallDeadlineFired }, "Gemini Right-hand request resolved");
+      const responseShape = summarizeProviderBody(responseBody);
+      const failureClass = response.ok ? null : classifyProviderHttpStatus(response.status);
+      logger.info({ role: "gemini_right_hand", phase: "request_resolved", model, requestPayloadBytes, systemPromptBytes, userPromptBytes, configuredRequestTimeoutMs, configuredOverallTimeoutMs, attemptTimeoutMs, remainingMs, fetchElapsedMs, totalElapsedMs, httpStatus: response.status, responseBytes: Buffer.byteLength(responseBody), failureClass, responseShape, requestDeadlineFired, overallDeadlineFired }, "Gemini Right-hand request resolved");
       if (response.ok) { try { const raw = textOf(JSON.parse(responseBody) as GeminiResponse); if (raw) return { raw, error: null, model }; return { raw: "", error: `Gemini Right-hand ${model} returned an empty response.`, model }; } catch { return { raw: "", error: `Gemini Right-hand ${model} returned invalid JSON.`, model }; }
       }
-      const detail = responseBody ? `: ${responseBody.slice(0, 300)}` : ""; failures.push(`${model} HTTP ${response.status}`); if (!shouldFallback(response.status)) return { raw: "", error: `Gemini API ${model} HTTP ${response.status}${detail}`, model };
+      failures.push(`${model} ${failureClass ?? "http_error"} HTTP ${response.status}`); if (!shouldFallback(response.status)) return { raw: "", error: `Gemini API ${model} ${failureClass ?? "http_error"} HTTP ${response.status}.`, model };
       if (response.status === 404) cachedModelChain = null;
     } catch (error) {
-      const fetchElapsedMs = Date.now() - attemptStartedAt; const isAbort = error instanceof Error && error.name === "AbortError"; const message = isAbort ? `request timed out after ${attemptTimeoutMs}ms` : error instanceof Error ? error.message : "request failed"; logger.warn({ role: "gemini_right_hand", phase: "request_rejected", model, requestPayloadBytes, systemPromptBytes, userPromptBytes, configuredRequestTimeoutMs, configuredOverallTimeoutMs, attemptTimeoutMs, remainingMs, fetchElapsedMs, httpStatus: null, responseBytes: 0, requestDeadlineFired, overallDeadlineFired, abortReason: requestDeadlineFired ? "per_request_deadline" : overallDeadlineFired ? "overall_deadline" : null, errorName: error instanceof Error ? error.name : "unknown" }, "Gemini Right-hand request rejected"); failures.push(`${model} ${message}`); if (!isAbort) return { raw: "", error: `Gemini Right-hand ${model} ${message}.`, model }; }
+      const fetchElapsedMs = Date.now() - attemptStartedAt; const isAbort = error instanceof Error && error.name === "AbortError"; const failureClass = classifyThrownProviderError(error, isAbort); const message = isAbort ? `request timed out after ${attemptTimeoutMs}ms` : "request failed"; logger.warn({ role: "gemini_right_hand", phase: "request_rejected", model, requestPayloadBytes, systemPromptBytes, userPromptBytes, configuredRequestTimeoutMs, configuredOverallTimeoutMs, attemptTimeoutMs, remainingMs, fetchElapsedMs, httpStatus: null, responseBytes: 0, failureClass, requestDeadlineFired, overallDeadlineFired, abortReason: requestDeadlineFired ? "per_request_deadline" : overallDeadlineFired ? "overall_deadline" : null, errorName: error instanceof Error ? error.name : "unknown" }, "Gemini Right-hand request rejected"); failures.push(`${model} ${failureClass}`); if (!isAbort) return { raw: "", error: `Gemini Right-hand ${model} ${failureClass}.`, model }; }
     finally { clearTimeout(timer); }
   }
   // A 404 means a catalog entry may have disappeared. Invalidate the cache so the

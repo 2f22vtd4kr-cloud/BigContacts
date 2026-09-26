@@ -127,4 +127,30 @@ describe("provider quota gate", () => {
     expect(second.status).toBe(200);
     globalThis.fetch = nativeFetch;
   });
+
+  it("delegates Gemini 429/503 cooldown ownership to the role boundary", async () => {
+    process.env.APEX_PROVIDER_MAX_REQUESTS_GEMINI = "10";
+    process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GEMINI = "0";
+    process.env.APEX_EXTERNAL_MAX_REQUESTS_PER_SCOPE = "100";
+    let calls = 0;
+
+    const first = await runProviderCall(
+      { provider: "gemini", account: "transient-test" },
+      async () => {
+        calls += 1;
+        return new Response("", { status: 429 });
+      },
+    );
+    const second = await runProviderCall(
+      { provider: "gemini", account: "transient-test" },
+      async () => {
+        calls += 1;
+        return new Response("", { status: 200 });
+      },
+    );
+
+    expect(first.status).toBe(429);
+    expect(second.status).toBe(200);
+    expect(calls).toBe(2);
+  });
 });
