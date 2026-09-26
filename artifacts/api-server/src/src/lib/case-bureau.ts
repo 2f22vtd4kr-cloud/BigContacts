@@ -616,10 +616,19 @@ export async function generateGeminiBossText(
         }
 
         const payload = JSON.parse(responseText) as {
+          status?: string;
           output_text?: string;
           outputs?: Array<{ type?: string; text?: string | null }>;
           steps?: Array<{ type?: string; content?: Array<{ type?: string; text?: string | null }> }>;
         };
+        if (payload.status === "incomplete") {
+          lastError = `Gemini Boss ${model} Interactions API returned an incomplete control response; trying the next bounded model attempt.`;
+          logger.warn(
+            { model, status: payload.status, keyName: entry.name },
+            "Gemini Boss control response was incomplete",
+          );
+          continue;
+        }
         const stepText = payload.steps
           ?.filter((step) => step.type === "model_output" || Array.isArray(step.content))
           .flatMap((step) => step.content ?? [])
