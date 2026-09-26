@@ -4,7 +4,6 @@ vi.mock("../lib/gemini-transient-retry", () => ({
   installGeminiTransientRetry: vi.fn(),
 }));
 import {
-  GEMINI_RIGHT_HAND_FALLBACK_MODELS,
   GEMINI_RIGHT_HAND_MODEL,
   runGeminiRightHandFreeJson,
 } from "../lib/gemini-right-hand-reasoning";
