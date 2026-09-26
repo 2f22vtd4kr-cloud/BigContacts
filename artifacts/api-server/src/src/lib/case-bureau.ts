@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import type { Entity } from "@workspace/db";
 import { logger } from "./logger";
 import { apexOrientationFor } from "./apex-bureau-orientation";
@@ -416,7 +417,8 @@ function chooseGeminiModelCandidates(entries: GeminiModelCatalogEntry[]): string
     });
 }
 
-let cachedBossModelSelection: { expiresAt: number; selection: GeminiBossModelSelection } | null = null;
+let cachedBossModelSelection: { expiresAt: number; selection: GeminiBossModelSelection; credentialFingerprint: string } | null = null;
+function geminiCredentialFingerprint(key: string): string { return createHash("sha256").update(key).digest("hex").slice(0, 16); }
 
 type GeminiTextGenerationResult = {
   model: string;
@@ -705,7 +707,9 @@ export async function resolveGeminiBossModel(preferredKeyName?: string): Promise
       candidateCount: 0,
     };
   }
-  if (!preferredKeyName && cachedBossModelSelection && cachedBossModelSelection.expiresAt > Date.now()) {
+  const cachedCredential = cachedBossModelSelection?.selection.keyName ? entries.find((entry) => entry.name === cachedBossModelSelection?.selection.keyName) : null;
+  const cachedFingerprint = cachedCredential ? geminiCredentialFingerprint(cachedCredential.key) : null;
+  if (!preferredKeyName && cachedBossModelSelection && cachedBossModelSelection.expiresAt > Date.now() && cachedFingerprint === cachedBossModelSelection.credentialFingerprint) {
     return cachedBossModelSelection.selection;
   }
 
@@ -730,7 +734,7 @@ export async function resolveGeminiBossModel(preferredKeyName?: string): Promise
         keyName: entry.name,
       };
       if (!preferredKeyName) {
-        cachedBossModelSelection = { expiresAt: Date.now() + 10 * 60 * 1000, selection };
+        cachedBossModelSelection = { expiresAt: Date.now() + 10 * 60 * 1000, selection, credentialFingerprint: geminiCredentialFingerprint(entry.key) };
       }
       return selection;
     } catch {
