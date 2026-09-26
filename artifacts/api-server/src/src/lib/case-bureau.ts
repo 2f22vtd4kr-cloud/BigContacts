@@ -403,7 +403,7 @@ function chooseGeminiModelCandidates(entries: GeminiModelCatalogEntry[]): string
     /^(gemini-1\.5-flash|gemini-1\.0-pro|gemini-2\.5-flash|gemini-2\.5-pro|gemini-2\.5-flash-lite|gemini-2\.0-flash|gemini-pro|gemini-pro-vision)(?:-|$)/i;
 
   return entries
-    .filter((entry) => entry.name && entry.supportedGenerationMethods?.includes("generateContent"))
+    .filter((entry) => entry.name)
     .map((entry) => entry.name!.replace(/^models\//, ""))
     .filter((name) => /^gemini-/i.test(name))
     .filter((name) => /flash/i.test(name))
