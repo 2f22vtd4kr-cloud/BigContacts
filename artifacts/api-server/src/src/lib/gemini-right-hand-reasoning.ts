@@ -160,9 +160,7 @@ async function request(system: string, user: string): Promise<GeminiRequestResul
       const deadlineTriggered = requestDeadlineFired || overallDeadlineFired;
       const failureClass = classifyThrownProviderError(error, isAbort && !deadlineTriggered);
       logger.warn({ role: "gemini_right_hand", phase: "request_rejected", model, requestPayloadBytes, systemPromptBytes, userPromptBytes, configuredRequestTimeoutMs, configuredOverallTimeoutMs, attemptTimeoutMs, remainingMs, fetchElapsedMs, httpStatus: null, responseBytes: 0, failureClass, requestDeadlineFired, overallDeadlineFired, abortReason: requestDeadlineFired ? "per_request_deadline" : overallDeadlineFired ? "overall_deadline" : null, errorName: error instanceof Error ? error.name : "unknown" }, "Gemini Right-hand request rejected");
-      failures.push(`${model} ${failureClass}`);
-      if (!isAbort) return { raw: "", error: `Gemini Right-hand ${model} ${failureClass}.`, model };
-    } finally { clearTimeout(timer); }
+      failures.push(`${model} ${failureClass}`);\n      // Transient network/timeouts should consume a bounded same-role fallback\n      // attempt. Do not terminate the entire Right-hand role on the first\n      // transport failure when the live catalog supplied other Gemini models.\n      if (failureClass !== "network_error" && failureClass !== "timeout") {\n        return { raw: "", error: `Gemini Right-hand ${model} ${failureClass}.`, model };\n      }\n    } finally { clearTimeout(timer); }
   }
   // A 404 means a catalog entry may have disappeared. Invalidate the cache so the
   // next invocation re-resolves from the live catalog. Never invent candidates.
