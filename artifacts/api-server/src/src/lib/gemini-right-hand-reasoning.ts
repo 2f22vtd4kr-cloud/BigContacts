@@ -134,7 +134,7 @@ function isGemini3Model(model: string): boolean { return /^gemini-3(?:\.\d+)?-/i
 async function request(system: string, user: string): Promise<GeminiRequestResult> {
   const apiKey = key();
   if (!apiKey) return { raw: "", error: "GEMINI_RIGHT_HAND_API_KEY is not configured.", model: GEMINI_RIGHT_HAND_MODEL };
-  let chain = await resolveModelChain();
+  const chain = await resolveModelChain();
   const failures: string[] = [];
   const configuredRequestTimeoutMs = requestTimeoutMs();
   const configuredOverallTimeoutMs = overallTimeoutMs();
@@ -156,8 +156,13 @@ async function request(system: string, user: string): Promise<GeminiRequestResul
       failures.push(`${model} ${failureClass ?? "http_error"} HTTP ${response.status}`); if (!shouldFallback(response.status)) return { raw: "", error: `Gemini API ${model} ${failureClass ?? "http_error"} HTTP ${response.status}.`, model };
       if (response.status === 404) cachedModelChain = null;
     } catch (error) {
-      const fetchElapsedMs = Date.now() - attemptStartedAt; const isAbort = error instanceof Error && error.name === "AbortError"; const failureClass = classifyThrownProviderError(error, isAbort); const message = isAbort ? `request timed out after ${attemptTimeoutMs}ms` : "request failed"; logger.warn({ role: "gemini_right_hand", phase: "request_rejected", model, requestPayloadBytes, systemPromptBytes, userPromptBytes, configuredRequestTimeoutMs, configuredOverallTimeoutMs, attemptTimeoutMs, remainingMs, fetchElapsedMs, httpStatus: null, responseBytes: 0, failureClass, requestDeadlineFired, overallDeadlineFired, abortReason: requestDeadlineFired ? "per_request_deadline" : overallDeadlineFired ? "overall_deadline" : null, errorName: error instanceof Error ? error.name : "unknown" }, "Gemini Right-hand request rejected"); failures.push(`${model} ${failureClass}`); if (!isAbort) return { raw: "", error: `Gemini Right-hand ${model} ${failureClass}.`, model }; }
-    finally { clearTimeout(timer); }
+      const fetchElapsedMs = Date.now() - attemptStartedAt; const isAbort = error instanceof Error && error.name === "AbortError";
+      const deadlineTriggered = requestDeadlineFired || overallDeadlineFired;
+      const failureClass = classifyThrownProviderError(error, isAbort && !deadlineTriggered);
+      logger.warn({ role: "gemini_right_hand", phase: "request_rejected", model, requestPayloadBytes, systemPromptBytes, userPromptBytes, configuredRequestTimeoutMs, configuredOverallTimeoutMs, attemptTimeoutMs, remainingMs, fetchElapsedMs, httpStatus: null, responseBytes: 0, failureClass, requestDeadlineFired, overallDeadlineFired, abortReason: requestDeadlineFired ? "per_request_deadline" : overallDeadlineFired ? "overall_deadline" : null, errorName: error instanceof Error ? error.name : "unknown" }, "Gemini Right-hand request rejected");
+      failures.push(`${model} ${failureClass}`);
+      if (!isAbort) return { raw: "", error: `Gemini Right-hand ${model} ${failureClass}.`, model };
+    } finally { clearTimeout(timer); }
   }
   // A 404 means a catalog entry may have disappeared. Invalidate the cache so the
   // next invocation re-resolves from the live catalog. Never invent candidates.
@@ -167,21 +172,6 @@ async function request(system: string, user: string): Promise<GeminiRequestResul
     : "Gemini Right-hand has no compatible live catalog model available.",
     model: chain[chain.length - 1] ?? GEMINI_RIGHT_HAND_MODEL
   };
-}
-
-async function requestWithResolvedModel(model: string, systemPrompt: string, user: string, deadline: number, configuredRequestTimeoutMs: number): Promise<GeminiRequestResult> {
-  const remainingMs = deadline - Date.now();
-  if (remainingMs <= 0) return { raw: "", error: "Gemini Right-hand deadline exceeded after bounded model refresh.", model };
-  const body = JSON.stringify({ system_instruction: { parts: [{ text: systemPrompt }] }, contents: [{ role: "user", parts: [{ text: user }] }], generationConfig: { maxOutputTokens: 768, responseMimeType: "application/json", ...(isGemini3Model(model) ? { thinkingConfig: { thinkingLevel: "low" } } : {}) } });
-  const controller = new AbortController(); const timeoutMs = Math.min(configuredRequestTimeoutMs, remainingMs); const timer = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    const apiKey = key(); if (!apiKey) return { raw: "", error: "GEMINI_RIGHT_HAND_API_KEY is not configured.", model };
-    const response = await fetch(`${GEMINI_CHAT_API_BASE}/${model}:generateContent`, { method: "POST", headers: { Accept: "application/json", "Content-Type": "application/json", "x-goog-api-key": apiKey }, body, signal: controller.signal });
-    const responseBody = await response.text();
-    if (!response.ok) return { raw: "", error: `Gemini Right-hand ${model} HTTP ${response.status}${responseBody ? `: ${responseBody.slice(0, 300)}` : ""}`, model };
-    try { const raw = textOf(JSON.parse(responseBody) as GeminiResponse); return raw ? { raw, error: null, model } : { raw: "", error: `Gemini Right-hand ${model} returned an empty response.`, model }; } catch { return { raw: "", error: `Gemini Right-hand ${model} returned invalid JSON.`, model }; }
-  } catch (error) { return { raw: "", error: error instanceof Error ? `Gemini Right-hand ${model} ${error.message}.` : `Gemini Right-hand ${model} request failed.`, model }; }
-  finally { clearTimeout(timer); }
 }
 
 function compactCase(file: ResearchCaseFile): string { return JSON.stringify({ target: file.target, hypotheses: file.hypotheses, evidenceSummary: file.evidenceSummary, specialistRoster: file.specialistRoster, actionQueue: file.actionQueue, contactRoutes: file.contactRoutes, investigationProgress: file.investigationProgress, researchDepth: file.researchDepth, decisionLog: file.decisionLog, rightHandAdvice: file.rightHandAdvice, bossPlan: file.bossPlan }, null, 2); }
