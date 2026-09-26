@@ -132,4 +132,23 @@ describe("Gemini Boss text-only model authority", () => {
     expect(body.response_format.schema.required).toEqual(["investigatorLlm"]);
   });
 
+  it("does not accept an incomplete Interactions response as a Boss decision", async () => {
+    process.env.GEMINI_API_KEY = "test-key";
+    const fetchMock = vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(response(200, {
+        status: "incomplete",
+        steps: [{ type: "model_output", content: [{ type: "text", text: '{"investigatorLlm":"' }] }],
+      }))
+      .mockResolvedValueOnce(response(200, {
+        status: "completed",
+        steps: [{ type: "model_output", content: [{ type: "text", text: '{"investigatorLlm":"groq"}' }] }],
+      }));
+
+    const result = await generateGeminiBossText(selection, "Return JSON.");
+
+    expect(result.model).toBe("gemini-3.7-flash");
+    expect(result.raw).toBe('{"investigatorLlm":"groq"}');
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
 });
