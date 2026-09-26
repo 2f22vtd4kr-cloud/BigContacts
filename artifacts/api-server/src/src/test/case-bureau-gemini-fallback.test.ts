@@ -92,4 +92,44 @@ describe("Gemini Boss text-only model authority", () => {
     expect(body).not.toHaveProperty("googleSearch");
     expect(body).not.toHaveProperty("interactions");
   });
+  it("supports bounded structured JSON for a Boss discovery control response", async () => {
+    process.env.GEMINI_API_KEY = "test-key";
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(response(200, {
+      status: "completed",
+      steps: [{
+        type: "model_output",
+        content: [{
+          type: "text",
+          text: '{"report":"bounded","investigatorLlm":"groq","candidates":[],"nextDirections":[],"uncertainties":[]}',
+        }],
+      }],
+    }));
+
+    const result = await generateGeminiBossText(selection, "Return JSON.", {
+      responseFormat: {
+        type: "text",
+        mime_type: "application/json",
+        schema: {
+          type: "object",
+          properties: {
+            investigatorLlm: { type: "string", enum: ["groq", "mistral"] },
+          },
+          required: ["investigatorLlm"],
+        },
+      },
+      maxOutputTokens: 2048,
+      thinkingLevel: "low",
+    });
+
+    expect(result.raw).toContain('"investigatorLlm"');
+    const request = fetchMock.mock.calls[0]?.[1] as RequestInit;
+    const body = JSON.parse(String(request.body)) as Record<string, any>;
+    expect(body.generation_config).toEqual({ max_output_tokens: 2048, thinking_level: "low" });
+    expect(body.response_format).toMatchObject({
+      type: "text",
+      mime_type: "application/json",
+    });
+    expect(body.response_format.schema.required).toEqual(["investigatorLlm"]);
+  });
+
 });
