@@ -42,7 +42,7 @@ describe("Gemini Right-hand latency controls", () => {
     process.env.GEMINI_RIGHT_HAND_API_KEY = "test-key";
     const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
       new Response(JSON.stringify({
-        candidates: [{ content: { parts: [{ text: '{"decision":"continue","reason":"test","focusLanes":[],"confidence":0.5}' }] } }],
+        steps: [{ type: "model_output", content: [{ type: "text", text: '{"decision":"continue","reason":"test","focusLanes":[],"confidence":0.5}' }] }],
       }), { status: 200 }),
     );
     globalThis.fetch = fetchMock;
@@ -54,17 +54,17 @@ describe("Gemini Right-hand latency controls", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
 
     const body = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body));
-    expect(body.generationConfig.maxOutputTokens).toBe(768);
-    expect(body.generationConfig.responseMimeType).toBe("application/json");
-    expect(body.generationConfig.thinkingConfig.thinkingLevel).toBe("low");
-    expect(body.generationConfig.temperature).toBeUndefined();
+    expect(body.generation_config.max_output_tokens).toBe(768);
+    expect(body.generation_config.responseMimeType).toBeUndefined();
+    expect(body.generation_config.thinking_level).toBeUndefined();
+    expect(body.generation_config.temperature).toBeUndefined();
   });
 
   it("records redacted request telemetry without persisting prompt contents", async () => {
     process.env.GEMINI_RIGHT_HAND_API_KEY = "test-key";
     const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
       new Response(JSON.stringify({
-        candidates: [{ content: { parts: [{ text: '{"decision":"continue","reason":"test","focusLanes":[],"confidence":0.5}' }] } }],
+        steps: [{ type: "model_output", content: [{ type: "text", text: '{"decision":"continue","reason":"test","focusLanes":[],"confidence":0.5}' }] }],
       }), { status: 200 }),
     );
     globalThis.fetch = fetchMock;
