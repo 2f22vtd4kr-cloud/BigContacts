@@ -80,7 +80,7 @@ describe("Gemini Boss latency controls", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
 
     const body = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body));
-    expect(body.generation_config.max_output_tokens).toBe(1024);
+    expect(body.generation_config.max_output_tokens).toBe(768);
     expect(body.generation_config.responseMimeType).toBeUndefined();
     expect(body.generation_config.thinking_level).toBeUndefined();
     expect(body.generation_config.temperature).toBeUndefined();
