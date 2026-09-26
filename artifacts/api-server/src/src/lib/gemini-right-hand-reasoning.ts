@@ -153,6 +153,7 @@ async function request(system: string, user: string): Promise<GeminiRequestResul
     const body = JSON.stringify({
       model,
       input: `${systemPrompt}\\n\\nUSER REQUEST:\\n${user}`,
+      generation_config: { max_output_tokens: 768 },
     });
     const requestPayloadBytes = Buffer.byteLength(body);
     const systemPromptBytes = Buffer.byteLength(systemPrompt);
