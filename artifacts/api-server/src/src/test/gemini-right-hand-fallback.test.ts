@@ -39,7 +39,7 @@ describe("Gemini Right-hand catalog-driven fallback", () => {
     globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
       calls.push(url);
-      if (url.includes("generativelanguage.googleapis.com/v1beta/models?")) {
+      if (url.endsWith("generativelanguage.googleapis.com/v1beta/models")) {
         return catalog(GEMINI_RIGHT_HAND_MODEL, "gemini-3.7-flash");
       }
       if (url.includes("/v1beta/interactions")) {
@@ -65,7 +65,7 @@ describe("Gemini Right-hand catalog-driven fallback", () => {
     globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
       calls.push(url);
-      if (url.includes("generativelanguage.googleapis.com/v1beta/models?")) {
+      if (url.endsWith("generativelanguage.googleapis.com/v1beta/models")) {
         return catalog(GEMINI_RIGHT_HAND_MODEL, "gemini-3.7-flash");
       }
       if (url.includes("/v1beta/interactions")) {
@@ -89,7 +89,7 @@ describe("Gemini Right-hand catalog-driven fallback", () => {
     globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
       calls.push(url);
-      if (url.includes("generativelanguage.googleapis.com/v1beta/models?")) {
+      if (url.endsWith("generativelanguage.googleapis.com/v1beta/models")) {
         return catalog(GEMINI_RIGHT_HAND_MODEL, "gemini-3.7-flash");
       }
       if (url.includes("/v1beta/interactions")) {
@@ -123,7 +123,7 @@ describe("Gemini Right-hand catalog-driven fallback", () => {
     globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
       calls.push(url);
-      if (url.includes("generativelanguage.googleapis.com/v1beta/models?")) return catalog(...liveModels);
+      if (url.endsWith("generativelanguage.googleapis.com/v1beta/models")) return catalog(...liveModels);
       return new Response(JSON.stringify({ error: { message: "service unavailable" } }), { status: 503 });
     });
     installExternalQuotaGuard();
@@ -144,7 +144,7 @@ describe("Gemini Right-hand catalog-driven fallback", () => {
     globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
       calls.push(url);
-      if (url.includes("generativelanguage.googleapis.com/v1beta/models?")) {
+      if (url.endsWith("generativelanguage.googleapis.com/v1beta/models")) {
         return catalog(GEMINI_RIGHT_HAND_MODEL, "gemini-3.7-flash");
       }
       return new Response(JSON.stringify({ steps: [{ type: "model_output", content: [{ type: "text", text: '{"decision":"ok"}' }] }] }), { status: 200 });
@@ -162,7 +162,7 @@ describe("Gemini Right-hand catalog-driven fallback", () => {
     const secretProviderMessage = "secret provider response must never escape the diagnostics boundary";
     globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
-      if (url.includes("generativelanguage.googleapis.com/v1beta/models?")) {
+      if (url.endsWith("generativelanguage.googleapis.com/v1beta/models")) {
         return catalog(GEMINI_RIGHT_HAND_MODEL);
       }
       return new Response(JSON.stringify({ error: { code: "INVALID_ARGUMENT", message: secretProviderMessage } }), { status: 400 });
