@@ -28,7 +28,7 @@ describe("Gemini Boss text-only model authority", () => {
     const fetchMock = vi.spyOn(globalThis, "fetch")
       .mockResolvedValueOnce(response(403, { error: "model not available for this key tier" }))
       .mockResolvedValueOnce(response(200, {
-        candidates: [{ content: { parts: [{ text: '{"decision":"continue"}' }] } }],
+        steps: [{ type: "model_output", content: [{ type: "text", text: '{"decision":"continue"}' }] }],
       }));
 
     const result = await generateGeminiBossText(selection, "Return JSON.");
@@ -37,8 +37,8 @@ describe("Gemini Boss text-only model authority", () => {
     expect(result.raw).toBe('{"decision":"continue"}');
     expect(result.error).toBeNull();
     expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(String(fetchMock.mock.calls[0]?.[0])).toContain("gemini-3.8-flash:generateContent");
-    expect(String(fetchMock.mock.calls[1]?.[0])).toContain("gemini-3.7-flash:generateContent");
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain("v1beta/interactions");
+    expect(String(fetchMock.mock.calls[1]?.[0])).toContain("v1beta/interactions");
   });
 
   it.each([429, 503])("falls back to the next configured Gemini model after HTTP %s", async (status) => {
@@ -46,7 +46,7 @@ describe("Gemini Boss text-only model authority", () => {
     const fetchMock = vi.spyOn(globalThis, "fetch")
       .mockResolvedValueOnce(response(status, { error: "temporarily unavailable" }))
       .mockResolvedValueOnce(response(200, {
-        candidates: [{ content: { parts: [{ text: '{"decision":"continue"}' }] } }],
+        steps: [{ type: "model_output", content: [{ type: "text", text: '{"decision":"continue"}' }] }],
       }));
 
     const result = await generateGeminiBossText(selection, "Return JSON.");
@@ -55,14 +55,14 @@ describe("Gemini Boss text-only model authority", () => {
     expect(result.raw).toBe('{"decision":"continue"}');
     expect(result.error).toBeNull();
     expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(String(fetchMock.mock.calls[0]?.[0])).toContain("gemini-3.8-flash:generateContent");
-    expect(String(fetchMock.mock.calls[1]?.[0])).toContain("gemini-3.7-flash:generateContent");
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain("v1beta/interactions");
+    expect(String(fetchMock.mock.calls[1]?.[0])).toContain("v1beta/interactions");
   });
 
   it("stops after the first successful response", async () => {
     process.env.GEMINI_API_KEY = "test-key";
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(response(200, {
-      candidates: [{ content: { parts: [{ text: '{"decision":"continue"}' }] } }],
+      steps: [{ type: "model_output", content: [{ type: "text", text: '{"decision":"continue"}' }] }],
     }));
 
     const result = await generateGeminiBossText(selection, "Review the case.");
@@ -75,7 +75,7 @@ describe("Gemini Boss text-only model authority", () => {
   it("sends only text-generation fields and never search grounding", async () => {
     process.env.GEMINI_API_KEY = "test-key";
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(response(200, {
-      candidates: [{ content: { parts: [{ text: '{"ok":true}' }] } }],
+      steps: [{ type: "model_output", content: [{ type: "text", text: '{"ok":true}' }] }],
     }));
 
     await generateGeminiBossText(selection, "Use the persisted case context.");
@@ -83,12 +83,9 @@ describe("Gemini Boss text-only model authority", () => {
     const request = fetchMock.mock.calls[0]?.[1] as RequestInit;
     const body = JSON.parse(String(request.body)) as Record<string, unknown>;
     expect(body).toEqual({
-      contents: [{ role: "user", parts: [{ text: "Use the persisted case context." }] }],
-      generationConfig: {
-        maxOutputTokens: 1024,
-        responseMimeType: "application/json",
-        thinkingConfig: { thinkingLevel: "low" },
-      },
+      model: "gemini-3.8-flash",
+      input: "Use the persisted case context.",
+      generation_config: { max_output_tokens: 768 },
     });
     expect(body).not.toHaveProperty("tools");
     expect(body).not.toHaveProperty("grounding");
