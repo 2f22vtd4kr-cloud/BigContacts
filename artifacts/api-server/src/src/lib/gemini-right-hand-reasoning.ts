@@ -10,7 +10,7 @@ installGeminiTransientRetry();
  * a chronological Gemini fallback ladder here: Google's live model catalog is
  * the source of truth for what this credential can currently use.
  */
-export const GEMINI_RIGHT_HAND_MODEL = "auto";
+export const GEMINI_RIGHT_HAND_MODEL = "gemini-3.8-flash";
 export const GEMINI_RIGHT_HAND_FALLBACK_MODELS: readonly string[] = [];
 const GEMINI_CHAT_API_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
 const DEFAULT_REQUEST_TIMEOUT_MS = 20_000;
@@ -68,7 +68,7 @@ function modelRank(name: string): [number, number, number, number, string] {
 }
 
 function chooseRightHandModels(entries: GeminiCatalogEntry[]): string[] {
-  return [...new Set(entries
+  const compatible = [...new Set(entries
     .filter((entry) => entry.name && entry.supportedGenerationMethods?.includes("generateContent"))
     .map((entry) => entry.name!.replace(/^models\//, ""))
     .filter((name) => /^gemini-/i.test(name))
@@ -78,16 +78,24 @@ function chooseRightHandModels(entries: GeminiCatalogEntry[]): string[] {
     .sort((a, b) => {
       const left = modelRank(a); const right = modelRank(b);
       return left[0] - right[0] || left[1] - right[1] || left[2] - right[2] || right[3] - left[3] || left[4].localeCompare(right[4]);
-    }))].slice(0, MAX_MODEL_ATTEMPTS);
+    }))];
+
+  // The preferred model is a preference, not a fallback ladder. The live catalog
+  // remains authoritative for every candidate after capability filtering.
+  return [
+    ...(compatible.includes(GEMINI_RIGHT_HAND_MODEL) ? [GEMINI_RIGHT_HAND_MODEL] : []),
+    ...compatible.filter((model) => model !== GEMINI_RIGHT_HAND_MODEL),
+  ].slice(0, MAX_MODEL_ATTEMPTS);
 }
 
 async function resolveModelChain(): Promise<string[]> {
   const apiKey = key();
   if (!apiKey) return [];
-  const configured = process.env.GEMINI_RIGHT_HAND_MODEL_CHAIN?.split(",").map((value) => value.trim()).filter(Boolean) ?? [];
+
   if (cachedModelChain && cachedModelChain.expiresAt > Date.now()) {
-    return Array.from(new Set([...configured, ...cachedModelChain.models])).slice(0, MAX_MODEL_ATTEMPTS);
+    return cachedModelChain.models.slice(0, MAX_MODEL_ATTEMPTS);
   }
+
   try {
     const response = await fetch(`${GEMINI_CHAT_API_BASE}?key=${encodeURIComponent(apiKey)}`, {
       headers: { Accept: "application/json" },
@@ -95,20 +103,18 @@ async function resolveModelChain(): Promise<string[]> {
     });
     if (!response.ok) {
       logger.warn({ role: "gemini_right_hand", phase: "model_catalog_failed", httpStatus: response.status }, "Gemini Right-hand model catalog unavailable");
-      return configured.slice(0, MAX_MODEL_ATTEMPTS);
+      return [];
     }
     const payload = await response.json() as { models?: GeminiCatalogEntry[] };
     const catalogModels = chooseRightHandModels(Array.isArray(payload.models) ? payload.models : []);
-    const models = Array.from(new Set([...configured, ...catalogModels])).slice(0, MAX_MODEL_ATTEMPTS);
-    if (models.length) cachedModelChain = { expiresAt: Date.now() + MODEL_CATALOG_CACHE_MS, models: catalogModels };
-    logger.info({ role: "gemini_right_hand", phase: "model_catalog_resolved", candidateCount: catalogModels.length, models }, "Gemini Right-hand model catalog resolved");
-    return models;
+    if (catalogModels.length) cachedModelChain = { expiresAt: Date.now() + MODEL_CATALOG_CACHE_MS, models: catalogModels };
+    logger.info({ role: "gemini_right_hand", phase: "model_catalog_resolved", preferredModel: GEMINI_RIGHT_HAND_MODEL, candidateCount: catalogModels.length, models: catalogModels }, "Gemini Right-hand model catalog resolved");
+    return catalogModels.slice(0, MAX_MODEL_ATTEMPTS);
   } catch (error) {
     logger.warn({ role: "gemini_right_hand", phase: "model_catalog_rejected", errorName: error instanceof Error ? error.name : "unknown" }, "Gemini Right-hand model catalog request failed");
-    return configured.slice(0, MAX_MODEL_ATTEMPTS);
+    return [];
   }
 }
-
 function textOf(response: GeminiResponse | null): string { return (response?.candidates?.[0]?.content?.parts ?? []).map((part) => part.text ?? "").join(" ").trim(); }
 function extractJson(raw: string): Record<string, unknown> | null { const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)```/i)?.[1]?.trim(); const source = fenced || raw.trim(); const start = source.indexOf("{"), end = source.lastIndexOf("}"); if (start < 0 || end <= start) return null; try { const value = JSON.parse(source.slice(start, end + 1)); return value && typeof value === "object" ? value as Record<string, unknown> : null; } catch { return null; } }
 function shouldFallback(status: number): boolean { return status === 404 || status === 408 || status === 429 || status === 500 || status === 502 || status === 503 || status === 504; }
@@ -140,20 +146,14 @@ async function request(system: string, user: string): Promise<GeminiRequestResul
       const fetchElapsedMs = Date.now() - attemptStartedAt; const isAbort = error instanceof Error && error.name === "AbortError"; const message = isAbort ? `request timed out after ${attemptTimeoutMs}ms` : error instanceof Error ? error.message : "request failed"; logger.warn({ role: "gemini_right_hand", phase: "request_rejected", model, requestPayloadBytes, systemPromptBytes, userPromptBytes, configuredRequestTimeoutMs, configuredOverallTimeoutMs, attemptTimeoutMs, remainingMs, fetchElapsedMs, httpStatus: null, responseBytes: 0, requestDeadlineFired, overallDeadlineFired, abortReason: requestDeadlineFired ? "per_request_deadline" : overallDeadlineFired ? "overall_deadline" : null, errorName: error instanceof Error ? error.name : "unknown" }, "Gemini Right-hand request rejected"); failures.push(`${model} ${message}`); if (!isAbort) return { raw: "", error: `Gemini Right-hand ${model} ${message}.`, model }; }
     finally { clearTimeout(timer); }
   }
-  // If a catalog cache contained models that have all become unavailable, perform
-  // one fresh catalog resolution inside the same role boundary before failing closed.
-  if (chain.length && cachedModelChain) {
-    cachedModelChain = null;
-    chain = await resolveModelChain();
-    for (const model of chain) {
-      if (failures.some((failure) => failure.startsWith(`${model} `))) continue;
-      if (Date.now() >= deadline) break;
-      const retry = await requestWithResolvedModel(model, systemPrompt, user, deadline, configuredRequestTimeoutMs);
-      if (retry.raw || retry.error?.startsWith("Gemini Right-hand deadline")) return retry;
-      failures.push(`${model} ${retry.error ?? "retry failed"}`);
-    }
-  }
-  return { raw: "", error: `Gemini Right-hand exhausted bounded same-role model attempts: ${failures.join("; ")}`, model: chain[chain.length - 1] ?? GEMINI_RIGHT_HAND_MODEL };
+  // A 404 means a catalog entry may have disappeared. Invalidate the cache so the
+  // next invocation re-resolves from the live catalog. Never invent candidates.
+  if (failures.some((failure) => /HTTP 404/.test(failure))) cachedModelChain = null;
+  return { raw: "", error: chain.length
+    ? `Gemini Right-hand exhausted bounded same-role model attempts: ${failures.join("; ")}`
+    : "Gemini Right-hand has no compatible live catalog model available.",
+    model: chain[chain.length - 1] ?? GEMINI_RIGHT_HAND_MODEL
+  };
 }
 
 async function requestWithResolvedModel(model: string, systemPrompt: string, user: string, deadline: number, configuredRequestTimeoutMs: number): Promise<GeminiRequestResult> {
