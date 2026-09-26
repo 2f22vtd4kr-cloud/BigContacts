@@ -481,6 +481,11 @@ function getGeminiBossOverallTimeoutMs(): number {
 export async function generateGeminiBossText(
   selection: GeminiBossModelSelection,
   prompt: string,
+  options?: {
+    responseFormat?: Record<string, unknown>;
+    maxOutputTokens?: number;
+    thinkingLevel?: "low" | "medium" | "high";
+  },
 ): Promise<GeminiTextGenerationResult> {
   // Interactions API text generation only: no tools, no Google Search grounding, no web research.
   // 429/503 here means text-generation capacity — not a web-search constraint.
@@ -527,7 +532,8 @@ export async function generateGeminiBossText(
       const interactionBody = JSON.stringify({
         model,
         input: prompt,
-        generation_config: { max_output_tokens: 768 },
+        generation_config: { max_output_tokens: options?.maxOutputTokens ?? 768, ...(options?.thinkingLevel ? { thinking_level: options.thinkingLevel } : {}) },
+        ...(options?.responseFormat ? { response_format: options.responseFormat } : {}),
       });
       try {
         const response = await fetch(GEMINI_INTERACTIONS_API, {
@@ -768,6 +774,56 @@ function extractJsonObject(value: string): string | null {
   return end > start ? source.slice(start, end + 1) : null;
 }
 
+const GEMINI_BOSS_DISCOVERY_RESPONSE_FORMAT: Record<string, unknown> = {
+  type: "text",
+  mime_type: "application/json",
+  schema: {
+    type: "object",
+    properties: {
+      report: { type: "string" },
+      investigatorLlm: { type: "string", enum: ["groq", "mistral"] },
+      candidates: {
+        type: "array",
+        maxItems: 6,
+        items: {
+          type: "object",
+          properties: {
+            name: { type: "string" },
+            type: { type: "string" },
+            relevance: { type: "string" },
+            reachability: { type: "string" },
+            sourceUrls: { type: "array", items: { type: "string" }, maxItems: 8 },
+            contactEvidence: {
+              type: "array",
+              maxItems: 8,
+              items: {
+                type: "object",
+                properties: {
+                  vectorType: { type: "string" },
+                  value: { type: "string" },
+                  scope: { type: "string", enum: ["person", "organization", "unknown"] },
+                  personName: { type: ["string", "null"] },
+                  role: { type: ["string", "null"] },
+                  sourceUrls: { type: "array", items: { type: "string" }, maxItems: 6 },
+                  note: { type: ["string", "null"] }
+                },
+                required: ["vectorType", "value", "scope", "personName", "role", "sourceUrls", "note"],
+                additionalProperties: false
+              }
+            }
+          },
+          required: ["name", "type", "relevance", "reachability", "sourceUrls", "contactEvidence"],
+          additionalProperties: false
+        }
+      },
+      nextDirections: { type: "array", items: { type: "string" }, maxItems: 8 },
+      uncertainties: { type: "array", items: { type: "string" }, maxItems: 8 }
+    },
+    required: ["report", "investigatorLlm", "candidates", "nextDirections", "uncertainties"],
+    additionalProperties: false
+  }
+};
+
 function parseBossDiscoveryResponse(raw: string): {
   report: string;
   candidates: GeminiBossDiscoveryResult["candidates"];
@@ -933,7 +989,11 @@ Return ONLY JSON in this shape:
 }
 Candidates are review-only. Never invent a name, wealth claim, relationship, contact detail, or URL.`;
   try {
-    const generated = await generateGeminiBossText(selection, prompt);
+    const generated = await generateGeminiBossText(selection, prompt, {
+      responseFormat: GEMINI_BOSS_DISCOVERY_RESPONSE_FORMAT,
+      maxOutputTokens: 2048,
+      thinkingLevel: "low",
+    });
     if (!generated.raw) {
       return {
         status: "unavailable",
