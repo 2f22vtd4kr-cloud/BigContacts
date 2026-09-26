@@ -53,7 +53,7 @@ const REGISTRY_ALIASES: Record<string, RegistryId> = {
 };
 
 export function normalizeRegistryId(raw: string): RegistryId | null {
-  const normalized = raw.trim().toLowerCase().replace(/\\s+/g, " ");
+  const normalized = raw.trim().toLowerCase().replace(/\s+/g, " ");
   if ((REGISTRY_IDS as readonly string[]).includes(normalized)) return normalized as RegistryId;
   return REGISTRY_ALIASES[normalized] ?? null;
 }
