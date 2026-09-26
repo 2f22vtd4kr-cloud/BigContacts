@@ -20,6 +20,7 @@ describe("Gemini Right-hand catalog-driven fallback", () => {
     resetProviderGateForTests();
     globalThis.fetch = originalFetch;
     delete process.env.GEMINI_RIGHT_HAND_API_KEY;
+    delete process.env.GEMINI_RIGHT_HAND_MODEL_CHAIN;
     vi.restoreAllMocks();
   });
 
@@ -102,5 +103,24 @@ describe("Gemini Right-hand catalog-driven fallback", () => {
 
     expect(result.status).toBe("completed");
     expect(calls.some((url) => url.includes("gemini-9.9-flash") || url.includes("gemini-1.0-flash"))).toBe(false);
+  });
+
+  it("does not expose a provider response body when the preferred model rejects the request", async () => {
+    process.env.GEMINI_RIGHT_HAND_API_KEY = "test-key-sanitized";
+    const secretProviderMessage = "secret provider response must never escape the diagnostics boundary";
+    globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes("generativelanguage.googleapis.com/v1beta/models?")) {
+        return catalog(GEMINI_RIGHT_HAND_MODEL);
+      }
+      return new Response(JSON.stringify({ error: { code: "INVALID_ARGUMENT", message: secretProviderMessage } }), { status: 400 });
+    });
+    installExternalQuotaGuard();
+
+    const result = await runGeminiRightHandFreeJson("Return JSON.");
+
+    expect(result.status).toBe("unavailable");
+    expect(result.error).toContain("invalid_request");
+    expect(result.error).not.toContain(secretProviderMessage);
   });
 });
