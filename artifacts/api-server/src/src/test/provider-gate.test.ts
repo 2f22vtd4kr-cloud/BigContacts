@@ -140,7 +140,7 @@ describe("provider quota gate", () => {
         calls += 1;
         return new Response(JSON.stringify({
           error: { code: 403, status: "PERMISSION_DENIED" },
-        }), { status: 403 }),
+        }), { status: 403 });
       },
     );
     const second = await runProviderCall(
