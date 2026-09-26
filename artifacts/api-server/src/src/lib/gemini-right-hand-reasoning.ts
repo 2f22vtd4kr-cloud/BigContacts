@@ -56,7 +56,6 @@ export function getGeminiRightHandLatencyConfig(): { requestTimeoutMs: number; o
   return { requestTimeoutMs: requestTimeoutMs(), overallTimeoutMs: overallTimeoutMs() };
 }
 
-type GeminiResponse = { candidates?: Array<{ content?: { parts?: Array<{ text?: string | null }> } }> };
 type GeminiRequestResult = { raw: string; error: string | null; model: string };
 export type GeminiRightHandStatus = { configured: boolean; model: string; fallbackModels: string[]; endpoint: string; role: "right_hand_advisor"; capability: "case_file_reasoning_only" };
 export type GeminiRightHandCaseReasoningResult = { status: "completed" | "unavailable"; model: string; actionId: string | null; decision: string | null; reason: string | null; confidence: number | null; error: string | null };
@@ -80,7 +79,7 @@ function modelRank(name: string): [number, number, number, number, string] {
 
 function chooseRightHandModels(entries: GeminiCatalogEntry[]): string[] {
   const compatible = [...new Set(entries
-    .filter((entry) => entry.name && entry.supportedGenerationMethods?.includes("generateContent"))
+    .filter((entry) => entry.name)
     .map((entry) => entry.name!.replace(/^models\//, ""))
     .filter((name) => /^gemini-/i.test(name))
     .filter((name) => /flash/i.test(name))
@@ -147,7 +146,7 @@ async function request(system: string, user: string): Promise<GeminiRequestResul
     if (remainingMs <= 0) return { raw: "", error: `Gemini Right-hand deadline exceeded after ${configuredOverallTimeoutMs}ms.`, model: chain[chain.length - 1] ?? GEMINI_RIGHT_HAND_MODEL };
     const body = JSON.stringify(requestPayload(model, user)); const requestPayloadBytes = Buffer.byteLength(body); const systemPromptBytes = Buffer.byteLength(systemPrompt); const userPromptBytes = Buffer.byteLength(user); const attemptStartedAt = Date.now(); const attemptTimeoutMs = Math.min(configuredRequestTimeoutMs, remainingMs); let requestDeadlineFired = false; let overallDeadlineFired = false; const controller = new AbortController(); const timer = setTimeout(() => { if (remainingMs <= configuredRequestTimeoutMs) overallDeadlineFired = true; else requestDeadlineFired = true; controller.abort(); }, attemptTimeoutMs);
     try {
-      const body = JSON.stringify({ model, input: user });
+      const body = JSON.stringify({ model, input: `${systemPrompt}\n\nUSER REQUEST:\n${user}` });
       const requestPayloadBytes = Buffer.byteLength(body);
       const systemPromptBytes = Buffer.byteLength(systemPrompt);
       const userPromptBytes = Buffer.byteLength(user);
