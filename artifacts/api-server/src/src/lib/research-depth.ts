@@ -18,17 +18,20 @@ export type ResearchDepthConfig = {
   challengePass: boolean;
 };
 
-const UNBOUNDED = Number.POSITIVE_INFINITY;
+const MAX_RESEARCH_ACTIONS = 64;
+const MAX_NO_PROGRESS = 64;
+const MAX_FOLLOW_UPS = 64;
+const MAX_AGENTIC_ITERATIONS = 64;
 
 const CONFIGS: Record<ResearchDepth, ResearchDepthConfig> = {
   fast: {
     depth: "fast",
-    adaptiveMaxActions: UNBOUNDED,
-    noProgressLimit: UNBOUNDED,
-    maxPersonFollowUps: UNBOUNDED,
-    maxDomainFollowUps: UNBOUNDED,
+    adaptiveMaxActions: MAX_RESEARCH_ACTIONS,
+    noProgressLimit: MAX_NO_PROGRESS,
+    maxPersonFollowUps: MAX_FOLLOW_UPS,
+    maxDomainFollowUps: MAX_FOLLOW_UPS,
     forcePendingVectorBias: false,
-    agenticMaxIterations: UNBOUNDED,
+    agenticMaxIterations: MAX_AGENTIC_ITERATIONS,
     agenticHardTimeoutMs: 120_000,
     challengePass: false,
   },
@@ -57,7 +60,7 @@ const CONFIGS: Record<ResearchDepth, ResearchDepthConfig> = {
 };
 
 /** Retained as a compatibility export; it is no longer used as a research cap. */
-export const ABSOLUTE_ADAPTIVE_ACTION_CAP = Number.POSITIVE_INFINITY;
+export const ABSOLUTE_ADAPTIVE_ACTION_CAP = MAX_RESEARCH_ACTIONS;
 
 export const DEFAULT_RESEARCH_DEPTH: ResearchDepth = "fast";
 
