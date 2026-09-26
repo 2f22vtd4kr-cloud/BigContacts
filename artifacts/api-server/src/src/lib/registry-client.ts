@@ -148,31 +148,31 @@ async function searchKvkNetherlands(query: string, limit: number, signal?: Abort
 async function searchKboBelgium(query: string, limit: number, signal?: AbortSignal): Promise<RegistryResult[]> { const results: RegistryResult[] = []; try { const url = `https://kbopub.economie.fgov.be/kbopub/zoeknaamfonetischform.html?lang=nl&searchWord=${encodeURIComponent(query)}&pstcdeNummer=&postgemeente=&gemeente=&typeVennootschap=&status=&startdatum=&einddatum=&numberOfResults=${Math.min(limit, 10)}&resultaat=`; const resp = await fetch(url, { headers: { Accept: "text/html,application/xhtml+xml", "User-Agent": "ApexFinder/1.0 OSINT-Research (public data only)" }, signal: createRegistryRequestSignal(signal, 5_000) }); if (resp.ok) { const html = await resp.text(); const rowRe = /href="[^"]*ondernemingsnummer=(\d+)[^"]*"\s*>([^<]+)<\/a>/g; const cityRe = /class="resultaatValue"[^>]*>([^<]{3,40})<\/td>/g; let m: RegExpExecArray | null; const cities: string[] = []; let cityMatch; while ((cityMatch = cityRe.exec(html)) !== null) cities.push((cityMatch[1] ?? "").trim()); let idx = 0; while ((m = rowRe.exec(html)) !== null && results.length < limit) { const enterpriseNumber = m[1] ?? ""; const name = (m[2] ?? "").trim(); if (!name || name.length < 2) { idx++; continue; } const city = cities[idx * 2 + 1] ?? cities[idx] ?? ""; results.push({ name, type: "Corporation", nationality: "BE", knownResidences: city ? `${city}, Belgium` : "Belgium", sourceRegistries: JSON.stringify(["KBO Belgium"]), notes: enterpriseNumber ? `KBO: ${enterpriseNumber.replace(/(\d{4})(\d{3})(\d{3})/, "$1.$2.$3")}` : undefined, metadata: JSON.stringify({ source: "kbo-belgium", enterpriseNumber, city, kboUrl: enterpriseNumber ? `https://kbopub.economie.fgov.be/kbopub/toonondernemingps.html?ondernemingsnummer=${enterpriseNumber}` : null }) }); idx++; } } } catch { /* graceful */ } return results; }
 
 export async function searchRegistry(params: RegistrySearchParams): Promise<RegistryResult[]> {
-  const { query, registry: requestedRegistry, limit = 10, signal } = params;
+  const { query, registry, limit = 10, signal } = params;
   if (signal?.aborted) throw new Error("cancelled");
   if (!query.trim()) throw new Error("Search query cannot be empty.");
-  const registry = normalizeRegistryId(requestedRegistry);
-  if (!registry) throw new Error(`Unknown registry: "${requestedRegistry}". Use one of: ${REGISTRY_IDS.join(", ")}.`);
+  const normalizedRegistry = normalizeRegistryId(registry);
+  if (!normalizedRegistry) throw new Error(`Unknown registry: "${registry}". Use one of: ${REGISTRY_IDS.join(", ")}.`);
   let results: RegistryResult[];
-  if (registry === "opencorporates") results = await searchOpenCorporates(query.trim(), limit, signal);
-  else if (registry === "companies-house") {
+  if (normalizedRegistry === "opencorporates") results = await searchOpenCorporates(query.trim(), limit, signal);
+  else if (normalizedRegistry === "companies-house") {
     const apiKey = process.env["COMPANIES_HOUSE_API_KEY"];
     if (!apiKey) throw new Error("COMPANIES_HOUSE_API_KEY is not configured. Register for a free key at https://developer.company-information.service.gov.uk/ and set it as an environment variable.");
     results = await searchCompaniesHouse(query.trim(), apiKey, limit, signal);
-  } else if (registry === "sec-edgar") results = await searchSecEdgar(query.trim(), limit, signal);
-  else if (registry === "gleif") { const gleifResults = await searchGleif(query.trim(), limit, signal); results = gleifResults.map((r) => ({ name: r.name, type: r.type, nationality: r.nationality, knownResidences: r.knownResidences, sourceRegistries: r.sourceRegistries, notes: r.notes, metadata: r.metadata })); }
-  else if (registry === "brreg") results = await searchBrreg(query.trim(), limit, signal);
-  else if (registry === "ares-czechia") results = await searchAres(query.trim(), limit, signal);
-  else if (registry === "bodacc-france") results = await searchBodacc(query.trim(), limit, signal);
-  else if (registry === "cvr-denmark") results = await searchCvrDenmark(query.trim(), limit, signal);
-  else if (registry === "zefix-switzerland") results = await searchZefixSwitzerland(query.trim(), limit, signal);
-  else if (registry === "offeneregister-germany") results = await searchOffeneregisterGermany(query.trim(), limit, signal);
-  else if (registry === "bolagsverket-sweden") results = await searchBolagsverketSweden(query.trim(), limit, signal);
-  else if (registry === "ytj-finland") results = await searchYtjFinland(query.trim(), limit, signal);
-  else if (registry === "atoka-italy") results = await searchAtokaItaly(query.trim(), limit, signal);
-  else if (registry === "borme-spain") results = await searchBormeSpain(query.trim(), limit, signal);
-  else if (registry === "kvk-netherlands") results = await searchKvkNetherlands(query.trim(), limit, signal);
-  else if (registry === "kbo-belgium") results = await searchKboBelgium(query.trim(), limit, signal);
+  } else if (normalizedRegistry === "sec-edgar") results = await searchSecEdgar(query.trim(), limit, signal);
+  else if (normalizedRegistry === "gleif") { const gleifResults = await searchGleif(query.trim(), limit, signal); results = gleifResults.map((r) => ({ name: r.name, type: r.type, nationality: r.nationality, knownResidences: r.knownResidences, sourceRegistries: r.sourceRegistries, notes: r.notes, metadata: r.metadata })); }
+  else if (normalizedRegistry === "brreg") results = await searchBrreg(query.trim(), limit, signal);
+  else if (normalizedRegistry === "ares-czechia") results = await searchAres(query.trim(), limit, signal);
+  else if (normalizedRegistry === "bodacc-france") results = await searchBodacc(query.trim(), limit, signal);
+  else if (normalizedRegistry === "cvr-denmark") results = await searchCvrDenmark(query.trim(), limit, signal);
+  else if (normalizedRegistry === "zefix-switzerland") results = await searchZefixSwitzerland(query.trim(), limit, signal);
+  else if (normalizedRegistry === "offeneregister-germany") results = await searchOffeneregisterGermany(query.trim(), limit, signal);
+  else if (normalizedRegistry === "bolagsverket-sweden") results = await searchBolagsverketSweden(query.trim(), limit, signal);
+  else if (normalizedRegistry === "ytj-finland") results = await searchYtjFinland(query.trim(), limit, signal);
+  else if (normalizedRegistry === "atoka-italy") results = await searchAtokaItaly(query.trim(), limit, signal);
+  else if (normalizedRegistry === "borme-spain") results = await searchBormeSpain(query.trim(), limit, signal);
+  else if (normalizedRegistry === "kvk-netherlands") results = await searchKvkNetherlands(query.trim(), limit, signal);
+  else if (normalizedRegistry === "kbo-belgium") results = await searchKboBelgium(query.trim(), limit, signal);
   else throw new Error(`Unknown registry: "${registry}". Use one of: ${REGISTRY_IDS.join(", ")}.`);
   if (signal?.aborted) throw new Error("cancelled");
   return results;
