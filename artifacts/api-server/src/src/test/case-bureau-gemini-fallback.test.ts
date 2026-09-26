@@ -23,6 +23,24 @@ function response(status: number, body: unknown): Response {
 }
 
 describe("Gemini Boss text-only model authority", () => {
+  it("falls through a model-level 403 to a catalog model that the free-tier key can generate with", async () => {
+    process.env.GEMINI_API_KEY = "test-key";
+    const fetchMock = vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(response(403, { error: "model not available for this key tier" }))
+      .mockResolvedValueOnce(response(200, {
+        candidates: [{ content: { parts: [{ text: '{"decision":"continue"}' }] } }],
+      }));
+
+    const result = await generateGeminiBossText(selection, "Return JSON.");
+
+    expect(result.model).toBe("gemini-3.7-flash");
+    expect(result.raw).toBe('{"decision":"continue"}');
+    expect(result.error).toBeNull();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain("gemini-3.8-flash:generateContent");
+    expect(String(fetchMock.mock.calls[1]?.[0])).toContain("gemini-3.7-flash:generateContent");
+  });
+
   it.each([429, 503])("falls back to the next configured Gemini model after HTTP %s", async (status) => {
     process.env.GEMINI_API_KEY = "test-key";
     const fetchMock = vi.spyOn(globalThis, "fetch")
