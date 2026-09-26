@@ -21,7 +21,7 @@ describe("Serper provider observability", () => {
     process.env.SERPER_API_KEY = "test-key";
     mocks.safeOutboundFetch.mockResolvedValue(new Response("quota", { status: 429 }));
 
-    const result = await webSearchSerper("example query", "us", "en");
+    const result = await webSearchSerper("example query", "en-US", "US");
 
     expect(result?.text).toContain("HTTP_429");
     expect(result?.urls).toEqual([]);
@@ -65,7 +65,7 @@ describe("Serper provider observability", () => {
         topLevelKeys: ["error"],
         errorKeys: ["code", "message"],
         errorCode: "INVALID_ARGUMENT",
-        errorMessageChars: 42,
+        errorMessageChars: 40,
       },
     });
     expect(JSON.stringify(telemetry)).not.toContain("this provider message must not be logged");
