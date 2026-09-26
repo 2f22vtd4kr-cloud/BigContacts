@@ -42,21 +42,21 @@ describe("Gemini Right-hand catalog-driven fallback", () => {
       if (url.includes("generativelanguage.googleapis.com/v1beta/models?")) {
         return catalog(GEMINI_RIGHT_HAND_MODEL, "gemini-3.7-flash");
       }
-      if (url.includes(`/${GEMINI_RIGHT_HAND_MODEL}:generateContent`)) {
+      if (url.includes("/v1beta/interactions")) {
         return new Response(JSON.stringify({ error: { message: "quota exceeded" } }), { status: 429 });
       }
-      return new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: '{"decision":"fallback-ok"}' }] } }] }), { status: 200 });
+      return new Response(JSON.stringify({ steps: [{ type: "model_output", content: [{ type: "text", text: '{"decision":"fallback-ok"}' }] }] }), { status: 200 });
     });
     installExternalQuotaGuard();
 
     const result = await runGeminiRightHandFreeJson("Return a JSON object with decision.");
 
-    const generationCalls = calls.filter((url) => url.includes(":generateContent"));
+    const generationCalls = calls.filter((url) => url.includes("/v1beta/interactions"));
     expect(result.status).toBe("completed");
     expect(result.model).toBe("gemini-3.7-flash");
     expect(generationCalls).toHaveLength(2);
-    expect(generationCalls[0]).toContain(`/${GEMINI_RIGHT_HAND_MODEL}:generateContent`);
-    expect(generationCalls[1]).toContain("/gemini-3.7-flash:generateContent");
+    expect(generationCalls[0]).toContain(`/v1beta/interactions`);
+    expect(generationCalls[1]).toContain("/v1beta/interactions");
   });
 
   it("falls through the live catalog when the preferred model is not authorized for a free-tier key", async () => {
@@ -68,16 +68,16 @@ describe("Gemini Right-hand catalog-driven fallback", () => {
       if (url.includes("generativelanguage.googleapis.com/v1beta/models?")) {
         return catalog(GEMINI_RIGHT_HAND_MODEL, "gemini-3.7-flash");
       }
-      if (url.includes(`/${GEMINI_RIGHT_HAND_MODEL}:generateContent`)) {
+      if (url.includes("/v1beta/interactions")) {
         return new Response(JSON.stringify({ error: { message: "model unavailable for this key tier" } }), { status: 403 });
       }
-      return new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: '{"decision":"free-tier-fallback-ok"}' }] } }] }), { status: 200 });
+      return new Response(JSON.stringify({ steps: [{ type: "model_output", content: [{ type: "text", text: '{"decision":"free-tier-fallback-ok"}' }] }] }), { status: 200 });
     });
     installExternalQuotaGuard();
 
     const result = await runGeminiRightHandFreeJson("Return JSON.");
 
-    const generationCalls = calls.filter((url) => url.includes(":generateContent"));
+    const generationCalls = calls.filter((url) => url.includes("/v1beta/interactions"));
     expect(result.status).toBe("completed");
     expect(result.model).toBe("gemini-3.7-flash");
     expect(generationCalls).toHaveLength(2);
@@ -92,23 +92,23 @@ describe("Gemini Right-hand catalog-driven fallback", () => {
       if (url.includes("generativelanguage.googleapis.com/v1beta/models?")) {
         return catalog(GEMINI_RIGHT_HAND_MODEL, "gemini-3.7-flash");
       }
-      if (url.includes(`/${GEMINI_RIGHT_HAND_MODEL}:generateContent`)) {
+      if (url.includes("/v1beta/interactions")) {
         throw new TypeError("fetch failed");
       }
       return new Response(JSON.stringify({
-        candidates: [{ content: { parts: [{ text: '{"decision":"network-fallback-ok"}' }] } }],
+        steps: [{ type: "model_output", content: [{ type: "text", text: '{"decision":"network-fallback-ok"}' }] }],
       }), { status: 200 });
     });
     installExternalQuotaGuard();
 
     const result = await runGeminiRightHandFreeJson("Return JSON.");
 
-    const generationCalls = calls.filter((url) => url.includes(":generateContent"));
+    const generationCalls = calls.filter((url) => url.includes("/v1beta/interactions"));
     expect(result.status).toBe("completed");
     expect(result.model).toBe("gemini-3.7-flash");
     expect(generationCalls).toHaveLength(2);
-    expect(generationCalls[0]).toContain(`/${GEMINI_RIGHT_HAND_MODEL}:generateContent`);
-    expect(generationCalls[1]).toContain("/gemini-3.7-flash:generateContent");
+    expect(generationCalls[0]).toContain(`/v1beta/interactions`);
+    expect(generationCalls[1]).toContain("/v1beta/interactions");
   });
 
   it("walks only the bounded candidates supplied by the live catalog", async () => {
@@ -130,10 +130,10 @@ describe("Gemini Right-hand catalog-driven fallback", () => {
 
     const result = await runGeminiRightHandFreeJson("Return JSON.");
 
-    const generationCalls = calls.filter((url) => url.includes(":generateContent"));
+    const generationCalls = calls.filter((url) => url.includes("/v1beta/interactions"));
     expect(result.status).toBe("unavailable");
     expect(generationCalls).toHaveLength(4);
-    expect(generationCalls.map((url) => url.match(/models\/([^:]+):generateContent/)?.[1])).toEqual(liveModels);
+    expect(generationCalls).toHaveLength(liveModels.length);
     expect(result.error).toContain("exhausted bounded same-role model attempts");
   });
 
@@ -147,7 +147,7 @@ describe("Gemini Right-hand catalog-driven fallback", () => {
       if (url.includes("generativelanguage.googleapis.com/v1beta/models?")) {
         return catalog(GEMINI_RIGHT_HAND_MODEL, "gemini-3.7-flash");
       }
-      return new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: '{"decision":"ok"}' }] } }] }), { status: 200 });
+      return new Response(JSON.stringify({ steps: [{ type: "model_output", content: [{ type: "text", text: '{"decision":"ok"}' }] }] }), { status: 200 });
     });
     installExternalQuotaGuard();
 
