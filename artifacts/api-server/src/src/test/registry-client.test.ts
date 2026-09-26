@@ -108,7 +108,7 @@ describe("Phase J2 registry normalization", () => {
     expect(randomSources).not.toContain("faa");
     expect(randomSources).not.toContain("hmlr-ppd");
   });
-})
+
   it("normalizes Investigator registry aliases before dispatch", () => {
     expect(normalizeRegistryId("sec edgar")).toBe("sec-edgar");
     expect(normalizeRegistryId("SEC_EDGAR")).toBe("sec-edgar");
@@ -116,4 +116,4 @@ describe("Phase J2 registry normalization", () => {
     expect(normalizeRegistryId("sec-edgar")).toBe("sec-edgar");
     expect(normalizeRegistryId("unknown-registry")).toBeNull();
   });
-;
+});
