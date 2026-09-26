@@ -11,6 +11,13 @@ import { buildInvestigatorContext, tightenInvestigatorPrompt } from "./investiga
 import { renderAtlasCapabilityGuidance } from "./atlas-capability-registry";
 import { classifyTrajectorySignals, type AtlasFailureSignal } from "./atlas-failure-observatory";
 import { ResearchIntelligenceEngine, renderIntelligenceContext } from "./research-intelligence-engine";
+import {
+  classifyProviderHttpStatus,
+  classifyThrownProviderError,
+  digestDiagnosticText,
+  summarizeProviderBody,
+  type ProviderFailureClass,
+} from "./provider-error-diagnostics";
 export { getAgenticLlmHealth };
 export const INVESTIGATOR_LLM_CAPABILITY_POOL = ["groq", "mistral"] as const;
 export type AgenticFinding = { vectorType: "email" | "phone" | "linkedin" | "website" | "other" | "social"; value: string; personName: string | null; role: string | null; scope: "organization" | "candidate" | "unknown"; sourceUrls: string[]; note: string; promotionDecision?: "promote" | "reject"; promotionReason?: string };
@@ -29,7 +36,7 @@ function extractContactFactsFromHtml(html: string): string[] { const facts: stri
 function stripHtml(html: string): string { return html.replace(/<script[\s\S]*?<\/script>/gi, " ").replace(/<style[\s\S]*?<\/style>/gi, " ").replace(/<noscript[\s\S]*?<\/noscript>/gi, " ").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim(); }
 async function readResponseTextCapped(response: Response, signal?: AbortSignal): Promise<string> { if (signal?.aborted) throw new Error("cancelled"); const declared = Number(response.headers.get("content-length") ?? NaN); if (Number.isFinite(declared) && declared > MAX_NETWORK_RESPONSE_BYTES) throw new Error(`provider response exceeds ${MAX_NETWORK_RESPONSE_BYTES} byte limit`); const reader = response.body?.getReader(); if (!reader) { const body = await response.text(); if (Buffer.byteLength(body, "utf8") > MAX_NETWORK_RESPONSE_BYTES) throw new Error(`provider response exceeds ${MAX_NETWORK_RESPONSE_BYTES} byte limit`); return body; } const chunks: Uint8Array[] = []; let bytes = 0; try { for (;;) { if (signal?.aborted) throw new Error("cancelled"); const part = await reader.read(); if (part.done) break; bytes += part.value.byteLength; if (bytes > MAX_NETWORK_RESPONSE_BYTES) { await reader.cancel().catch(() => undefined); throw new Error(`provider response exceeds ${MAX_NETWORK_RESPONSE_BYTES} byte limit`); } chunks.push(part.value); } } finally { reader.releaseLock(); } return new TextDecoder().decode(Buffer.concat(chunks.map((x) => Buffer.from(x)))); }
 async function readJsonCapped<T>(response: Response, signal?: AbortSignal): Promise<T> { return JSON.parse(await readResponseTextCapped(response, signal)) as T; }
-type ProviderSearchResult = { text: string; urls: string[] } | null;
+type ProviderSearchResult = { text: string; urls: string[]; failureClass?: ProviderFailureClass } | null;
 
 function providerErrorClass(error: unknown): string {
   const message = error instanceof Error ? error.message : String(error ?? "request failed");
@@ -41,8 +48,16 @@ function providerErrorClass(error: unknown): string {
 export async function webSearchSerper(query: string, locale?: string, market?: string, signal?: AbortSignal): Promise<ProviderSearchResult> {
   const key = [process.env.SERPER_API_KEY, process.env.SERPER_API_KEY_2, process.env.SERPER_API_KEY_3, process.env.SERPER_KEY].map((x) => (x || "").trim()).find(Boolean);
   if (!key) {
-    logger.warn({ provider: "serper", query, locale: locale || null, market: market || null, outcome: "MISSING_API_KEY" }, "agentic provider search unavailable");
-    return { text: "serper returned no usable result: missing API key.", urls: [] };
+    logger.warn({
+      provider: "serper",
+      outcome: "MISSING_API_KEY",
+      failureClass: "unauthorized",
+      queryChars: query.length,
+      queryDigest: digestDiagnosticText(query),
+      localeProvided: Boolean(locale?.trim()),
+      marketProvided: Boolean(market?.trim()),
+    }, "agentic provider search unavailable");
+    return { text: "serper returned no usable result: missing API key.", urls: [], failureClass: "unauthorized" };
   }
   try {
     const body: Record<string, unknown> = { q: query, num: 10 };
@@ -59,8 +74,27 @@ export async function webSearchSerper(query: string, locale?: string, market?: s
     const elapsedMs = Date.now() - startedAt;
     if (!response.ok) {
       const outcome = `HTTP_${response.status}`;
-      logger.warn({ provider: "serper", query, locale: locale || null, market: market || null, outcome, httpStatus: response.status, responseBytes: Buffer.byteLength(responseBody), elapsedMs }, "agentic provider search rejected");
-      return { text: `serper returned no usable result: ${outcome}.`, urls: [] };
+      const failureClass = classifyProviderHttpStatus(response.status);
+      logger.warn({
+        provider: "serper",
+        outcome,
+        failureClass,
+        httpStatus: response.status,
+        responseBytes: Buffer.byteLength(responseBody),
+        elapsedMs,
+        requestShape: {
+          method: "POST",
+          contentType: "application/json",
+          keys: Object.keys(body).sort(),
+          queryChars: query.length,
+          queryDigest: digestDiagnosticText(query),
+          num: 10,
+          localeChars: typeof body.gl === "string" ? body.gl.length : 0,
+          marketChars: typeof body.hl === "string" ? body.hl.length : 0,
+        },
+        responseShape: summarizeProviderBody(responseBody),
+      }, "agentic provider search rejected");
+      return { text: `serper returned no usable result: ${failureClass.toUpperCase()} (HTTP_${response.status}).`, urls: [], failureClass };
     }
     let data: { organic?: Array<{ title?: string; link?: string; snippet?: string }> };
     try {
@@ -73,13 +107,41 @@ export async function webSearchSerper(query: string, locale?: string, market?: s
     const urls = organic.map((item) => normalizedUrl(item.link || "")).filter((u): u is string => Boolean(u));
     const text = organic.map((item) => `${item.title || ""}\nURL: ${item.link || ""}\n${item.snippet || ""}`).join("\n");
     const outcome = organic.length === 0 ? "EMPTY_ORGANIC" : urls.length === 0 ? "INVALID_RESULTS" : "SUCCESS";
-    logger.info({ provider: "serper", query, locale: locale || null, market: market || null, outcome, httpStatus: response.status, responseBytes: Buffer.byteLength(responseBody), organicCount: organic.length, validUrlCount: urls.length, elapsedMs }, "agentic provider search completed");
+    logger.info({
+      provider: "serper",
+      outcome,
+      httpStatus: response.status,
+      responseBytes: Buffer.byteLength(responseBody),
+      organicCount: organic.length,
+      validUrlCount: urls.length,
+      elapsedMs,
+      requestShape: {
+        method: "POST",
+        contentType: "application/json",
+        keys: Object.keys(body).sort(),
+        queryChars: query.length,
+        queryDigest: digestDiagnosticText(query),
+        num: 10,
+        localeChars: typeof body.gl === "string" ? body.gl.length : 0,
+        marketChars: typeof body.hl === "string" ? body.hl.length : 0,
+      },
+    }, "agentic provider search completed");
     return { text: text || `serper returned no usable result: ${outcome}.`, urls };
   } catch (error) {
     if (signal?.aborted) throw new Error("cancelled");
     const outcome = providerErrorClass(error);
-    logger.warn({ provider: "serper", query, locale: locale || null, market: market || null, outcome, errorName: error instanceof Error ? error.name : "unknown", errorMessage: error instanceof Error ? error.message : String(error) }, "agentic provider search failed");
-    return { text: `serper returned no usable result: ${outcome}.`, urls: [] };
+    const failureClass = classifyThrownProviderError(error);
+    logger.warn({
+      provider: "serper",
+      outcome,
+      failureClass,
+      queryChars: query.length,
+      queryDigest: digestDiagnosticText(query),
+      localeProvided: Boolean(locale?.trim()),
+      marketProvided: Boolean(market?.trim()),
+      errorName: error instanceof Error ? error.name : "unknown",
+    }, "agentic provider search failed");
+    return { text: `serper returned no usable result: ${failureClass.toUpperCase()}.`, urls: [], failureClass };
   }
 }
 

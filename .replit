@@ -20,29 +20,6 @@ APEX_SKIP_SEMANTIC = "1"
 CI = "true"
 
 [workflows]
-runButton = "Project"
-
-[[workflows.workflow]]
-name = "Project"
-mode = "sequential"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "workflow.run"
-args = "Apex Atlas API"
-waitForPort = 8080
-
-[[workflows.workflow]]
-name = "Apex Atlas API"
-author = "agent"
-
-[workflows.workflow.metadata]
-outputType = "console"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "NODE_ENV=development APEX_DEV_AUTH_BYPASS=true bash scripts/replit-boot.sh"
-waitForPort = 8080
 
 [userenv]
 

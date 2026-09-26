@@ -3,6 +3,11 @@ import { logger } from "./logger";
 import { apexOrientationFor } from "./apex-bureau-orientation";
 import { buildApexAtlasBossPlanPrompt } from "./case-bureau-prompt";
 import { extractWalletSeedsFromText, buildWalletSeedPlan, formatWalletSeedPlanForPrompt, objectiveLooksWalletFirst } from "./wallet-seed";
+import {
+  classifyProviderHttpStatus,
+  classifyThrownProviderError,
+  summarizeProviderBody,
+} from "./provider-error-diagnostics";
 export {
   getMistralWebSearchStatus,
   runMistralWebSearch,
@@ -543,6 +548,8 @@ export async function generateGeminiBossText(
         const fetchElapsedMs = Date.now() - attemptStartedAt;
         const responseText = await response.text();
         const totalElapsedMs = Date.now() - attemptStartedAt;
+        const responseShape = summarizeProviderBody(responseText);
+        const failureClass = response.ok ? null : classifyProviderHttpStatus(response.status);
         logger.info(
           {
             role: "gemini_boss",
@@ -559,6 +566,8 @@ export async function generateGeminiBossText(
             totalElapsedMs,
             httpStatus: response.status,
             responseBytes: Buffer.byteLength(responseText),
+            failureClass,
+            responseShape,
             requestDeadlineFired,
             overallDeadlineFired,
           },
@@ -566,10 +575,9 @@ export async function generateGeminiBossText(
         );
 
         if (response.status === 429 || response.status === 503) {
-          const detail = responseText.slice(0, 300);
-          lastError = `Gemini Boss ${model} text-generation HTTP ${response.status}${detail ? `: ${detail}` : ""}`;
+          lastError = `Gemini Boss ${model} text-generation ${failureClass ?? "provider_unavailable"} HTTP ${response.status}.`;
           logger.warn(
-            { model, status: response.status, keyName: entry.name, detail },
+            { model, status: response.status, keyName: entry.name, failureClass, responseShape },
             "Gemini Boss text-generation capacity busy; trying the next compatible Gemini model",
           );
           // A 429/503 is commonly project/model capacity, not a model-local
@@ -577,8 +585,7 @@ export async function generateGeminiBossText(
           continue;
         }
         if (!response.ok) {
-          const detail = responseText.slice(0, 300);
-          lastError = `Gemini Boss ${model} HTTP ${response.status}${detail ? `: ${detail}` : ""}`;
+          lastError = `Gemini Boss ${model} ${failureClass ?? "http_error"} HTTP ${response.status}.`;
           // Auth failures: abandon this key, try next key.
           if (response.status === 401 || response.status === 403) {
             break;
@@ -602,6 +609,8 @@ export async function generateGeminiBossText(
         lastError = `Gemini Boss ${model} returned no text.`;
       } catch (error) {
         const fetchElapsedMs = Date.now() - attemptStartedAt;
+        const isAbort = error instanceof Error && error.name === "AbortError";
+        const thrownFailureClass = classifyThrownProviderError(error, isAbort);
         logger.warn(
           {
             role: "gemini_boss",
@@ -620,11 +629,11 @@ export async function generateGeminiBossText(
             requestDeadlineFired,
             overallDeadlineFired,
             abortReason: requestDeadlineFired ? "per_request_deadline" : overallDeadlineFired ? "overall_deadline" : null,
+            failureClass: thrownFailureClass,
             errorName: error instanceof Error ? error.name : "unknown",
           },
           "Gemini Boss request rejected",
         );
-        const isAbort = error instanceof Error && error.name === "AbortError";
         const elapsedMs = Date.now() - attemptStartedAt;
         const timeoutKind = overallDeadlineFired
           ? "overall deadline"
