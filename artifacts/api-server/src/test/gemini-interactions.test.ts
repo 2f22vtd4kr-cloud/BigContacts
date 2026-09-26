@@ -41,7 +41,35 @@ describe("Gemini Interactions API transport", () => {
     expect(JSON.parse(String(init?.body))).toEqual({
       model: "gemini-3.8-flash",
       input: "Return a JSON control decision.",
+      generation_config: { max_output_tokens: 768 },
     });
+  });
+
+  it("reads current Interactions step-based model output", async () => {
+    process.env.GEMINI_API_KEY = "test-key";
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({
+        steps: [{
+          type: "model_output",
+          content: [{ type: "text", text: '{"action":"proceed"}' }],
+        }],
+      }), { status: 200, headers: { "content-type": "application/json" } }),
+    );
+
+    const result = await generateGeminiBossText(
+      {
+        model: "gemini-3.8-flash",
+        status: "resolved",
+        inspectedKeyCount: 1,
+        candidateCount: 1,
+        candidateModels: ["gemini-3.8-flash"],
+        keyName: "GEMINI_API_KEY",
+      },
+      "Return a JSON control decision.",
+    );
+
+    expect(result.error).toBeNull();
+    expect(result.raw).toBe('{"action":"proceed"}');
   });
 
   it("falls through to the next catalog model when the preferred model returns 403", async () => {
