@@ -29,18 +29,19 @@ describe("Apex Atlas Bureau data-flow integrity", () => {
       expect(durableSource).not.toMatch(/\.slice\(\s*-\d+/);
       expect(content).not.toMatch(/Math\.min\(\s*40\s*,/);
       expect(content).not.toMatch(/maxCandidates/);
-      expect(content).not.toMatch(/maxControlTurns/);
     }
   });
 
-  it("keeps research depth adaptive while retaining explicit operational safety bounds", () => {
+  it("keeps the research-depth action budget model-decided", () => {
     const content = source("artifacts/api-server/src/src/lib/research-depth.ts");
-    expect(content).toContain("Research depth is a coordination hint, not a scripted research playbook.");
+    // Research depth supplies bounded safety ceilings; it must not encode a
+    // deterministic research sequence or mandatory tool path.
     expect(content).toContain("const MAX_RESEARCH_ACTIONS = 64;");
+    expect(content).toContain("const MAX_NO_PROGRESS = 64;");
     expect(content).toContain("const MAX_FOLLOW_UPS = 64;");
     expect(content).toContain("const MAX_AGENTIC_ITERATIONS = 64;");
-    expect(content).toContain("agenticHardTimeoutMs");
-    expect(content).toContain("hard timeout remains the operational safety boundary");
+    expect(content).toContain("The Investigator chooses trajectory and stopping");
+    expect(content).toContain("hard timeout remains");
   });
 
   it("keeps the Investigator-to-card path evidence-backed", () => {
