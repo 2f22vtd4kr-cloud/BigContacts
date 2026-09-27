@@ -215,6 +215,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       ? "Private public-records research workspace"
       : "Evidence workspace";
   const isReactorRoute = location === "/reactor";
+  const isDashboardRoute = location === "/";
   /** Pages that already render their own title chrome */
   /** Pages that already render their own title / immersive chrome */
   useEffect(() => {
@@ -367,7 +368,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <div
           data-nav-open={desktopNavOpen ? "true" : "false"}
           style={{ "--atlas-sidebar-offset": sidebarOffset } as React.CSSProperties}
-          className={`relative z-10 flex min-h-0 min-w-0 w-full max-w-full flex-1 flex-col overflow-x-hidden ${desktopNavOpen ? "md:pl-[250px]" : "md:pl-0"} ${isReactorRoute ? "overflow-hidden" : "overflow-y-auto"}`}
+          className={`relative z-10 flex min-h-0 min-w-0 w-full max-w-full flex-1 flex-col ${desktopNavOpen && !isDashboardRoute ? "md:pl-[250px]" : "md:pl-0"} ${isReactorRoute ? "overflow-hidden" : "overflow-y-auto"}`}
         >
           {children}
         </div>
