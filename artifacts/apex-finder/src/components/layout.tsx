@@ -308,7 +308,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         />
       )}
       {sidebarOpen && (
-        <div className="fixed inset-0 z-50 flex md:hidden">
+        <div className="fixed inset-0 z-50 flex lg:hidden">
           <button
             aria-label="Close menu"
             data-testid="button-overlay-close-menu"
@@ -325,18 +325,18 @@ export function Layout({ children }: { children: React.ReactNode }) {
         className="relative z-0 flex min-h-[100dvh] min-h-[100svh] w-full min-w-0 flex-col overflow-hidden bg-[#111827]"
       >
         <div className="atlas-grid pointer-events-none absolute inset-0" />
-        <header className={cn("relative z-40 flex min-h-14 shrink-0 items-center gap-1 border-b border-white/[0.03] bg-[#111827]/95 pl-[max(0.5rem,env(safe-area-inset-left))] pr-[max(0.5rem,env(safe-area-inset-right))] pt-[max(0.25rem,env(safe-area-inset-top))] backdrop-blur-lg sm:gap-2 sm:px-5 md:h-16 md:pr-6", desktopNavOpen ? "lg:pl-[274px]" : "lg:pl-6")}>
+        <header className={cn("relative z-40 flex min-h-14 shrink-0 items-center gap-1 border-b border-white/[0.03] bg-[#111827]/95 pl-[max(0.5rem,env(safe-area-inset-left))] pr-[max(0.5rem,env(safe-area-inset-right))] pt-[max(0.25rem,env(safe-area-inset-top))] backdrop-blur-lg sm:gap-2 sm:px-5 lg:h-16 lg:pr-6", desktopNavOpen ? "lg:pl-[274px]" : "lg:pl-6")}>
           {/* Mobile: menu first so Launch/status never collide with it */}
           <button
             ref={mobileMenuButtonRef}
             onClick={() => setSidebarOpen(true)}
             aria-label="Open menu"
             data-testid="button-open-menu"
-            className="atlas-pressable order-first shrink-0 rounded-lg p-2 text-stone-400 hover:bg-white/[0.06] hover:text-stone-100 md:hidden"
+            className="atlas-pressable order-first shrink-0 rounded-lg p-2 text-stone-400 hover:bg-white/[0.06] hover:text-stone-100 lg:hidden"
           >
             <Menu className="h-5 w-5" />
           </button>
-          <div className="mr-1 hidden min-w-0 items-center md:flex">
+          <div className="mr-1 hidden min-w-0 items-center lg:flex">
             <div className="min-w-0">
               <div className="font-mono text-[11px] uppercase tracking-[0.2em] text-stone-500">
                 Apex Atlas · Research desk
