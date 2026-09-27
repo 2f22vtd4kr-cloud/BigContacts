@@ -254,11 +254,11 @@ export default function Dashboard() {
   const hasError = mock ? false : (statsQuery.isError || leadsQuery.isError);
 
   return (
-    <div className="atlas-page pb-12 md:pl-[274px]">
+    <div className="atlas-page w-full min-w-0 max-w-full pb-12">
       <div className="px-0 pt-2 md:pt-4">
         <ScoreboardStrip className="mb-2" />
       </div>
-      <section className="atlas-enter atlas-dashboard-hero atlas-ambient-gold relative flex flex-col gap-8 py-8 md:flex-row md:items-end md:justify-between md:py-12">
+      <section className="atlas-enter atlas-dashboard-hero atlas-ambient-gold relative flex flex-col gap-8 py-8 lg:flex-row lg:items-end lg:justify-between lg:py-12">
         {/* Wash only — must not mask headline or Launch */}
         <div className="atlas-ambient-wash" aria-hidden />
         <div className="atlas-dashboard-hero-copy relative z-10 max-w-2xl">
@@ -273,7 +273,7 @@ export default function Dashboard() {
             Run free dig — the model chooses tools, visits sources, and builds contact routes. Only real research lands on this desk.
           </p>
         </div>
-        <div className="atlas-home-actions relative z-10 flex w-full flex-col gap-2 sm:w-auto md:w-[28rem] md:max-w-[28rem]">
+        <div className="atlas-home-actions relative z-10 flex w-full flex-col gap-2 sm:w-auto lg:w-[28rem] lg:max-w-[28rem]">
           <div className="atlas-home-primary-row">
             <LaunchAtlasButton variant="primary" className="atlas-home-launch" />
           </div>
@@ -360,9 +360,9 @@ export default function Dashboard() {
           <Link href="/profiles" data-testid="link-view-all-leads" className="inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-primary">View all profiles <ChevronRight className="h-3.5 w-3.5" /></Link>
         </div>
         {hasError ? <ErrorState onRetry={() => { void statsQuery.refetch(); void leadsQuery.refetch(); }} /> :
-          isLoading ? <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">{[0, 1, 2, 3].map((item) => <LeadSkeleton key={item} />)}</div> :
+          isLoading ? <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{[0, 1, 2, 3].map((item) => <LeadSkeleton key={item} />)}</div> :
           leads.length === 0 ? <EmptyLeads /> :
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">{leads.map((lead: any, index: number) => <LeadCard key={lead.entityId} lead={lead} index={index} />)}</div>}
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{leads.map((lead: any, index: number) => <LeadCard key={lead.entityId} lead={lead} index={index} />)}</div>}
       </section>
 
       <section className="atlas-enter atlas-dashboard-wide mt-10 grid gap-4 border-t border-[#9CFF1A]/10 pt-7 md:grid-cols-[1fr_auto]" style={{ animationDelay: "210ms" }}>
