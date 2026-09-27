@@ -40,6 +40,8 @@ const tabletSurfaces = [
 const checks = [
   ["dashboard desktop sidebar is content-height overlay rail", /absolute left-0 top-0/.test(layout) && /h-fit/.test(layout)],
   ["atlas grain is visible on the app canvas", /className="relative min-h-\[100dvh\]/.test(layout) && /className="atlas-noise relative z-0 flex/.test(layout) && /\.atlas-noise::before\s*\{[\s\S]*background-image:[\s\S]*url\("data:image\/svg\+xml/.test(css) && /opacity:\s*0\.72/.test(css)],
+  ["grain is neutral texture-only, not a color treatment", /\.atlas-noise::before[\\s\\S]*background-image:[\\s\\S]*fill(?:%3D|=)[\\s\\S]*%23fff/.test(css) && !/atlas-noise::before[\\s\\S]*(?:110,210,255|156,255,26)/.test(css) && !/fractalNoise|feTurbulence/.test(css)],
+
     ["route canvas is shrinkable at every viewport", /\.atlas-page \{/.test(css) && /width:\s*100%/.test(css) && /max-width:\s*100%/.test(css) && /min-width:\s*0/.test(css)],
   ["all routed frontend surfaces remain registered", ["/", "/search", "/profiles", "/network", "/jobs", "/reactor", "/research", "/manual", "/profile/:id", "/improvements", "/data-sources", "/duplicates", "/osint-tools", "/status"].every((route) => router.includes(`path="${route}"`))],
   ["tablet desk switches use laptop breakpoint", tabletSurfaces.every((source) => !/(?:hidden|flex|flex-row) md:(?:hidden|flex|flex-row)/.test(source))],
@@ -54,6 +56,7 @@ const checks = [
   ["generic nuclear Reactor glyph is gone", !/☢|nuclear icon/i.test(reactor)],
   ["replay is evidence-grounded", /Recorded sources/.test(replay) && /sourceUrls|links/.test(replay) && /sourceUrlsFor/.test(replay)],
   ["replay is bounded", /slice\(0, 40\)/.test(replay)],
+  ["research replay controls meet 44px touch target", (replay.match(/min-h-\[44px\]/g) || []).length >= 3 && /reactor-touch-target/.test(replay)],
   ["replay supports reduced-motion through shared CSS", /prefers-reduced-motion/.test(css) && /reactor-pressable/.test(replay)],
   ["mobile replay is archive-only", /showHistory && <ResearchReplay/.test(mobile)],
   ["mobile remains feed-first", /showTopology=\{false\}/.test(mobile)],
@@ -68,6 +71,7 @@ const checks = [
   ["global error notice is bounded on short/mobile screens", /max-h-\[38dvh\]/.test(errorNotice) && /sm:max-h-\[min\(52dvh,360px\)\]/.test(errorNotice)],
   ["global mobile menu meets 44px touch target", /min-h-\[44px\]/.test(layout) && /min-w-\[44px\]/.test(layout) && /data-testid="button-open-menu"/.test(layout)],
   ["workspace status trigger meets 44px touch target", /min-h-\[44px\]/.test(workspaceStatus) && /data-testid="button-workspace-status"/.test(workspaceStatus)],
+  ["system status refresh control meets 44px touch target", /min-h-\[44px\]/.test(read("artifacts/apex-finder/src/pages/status.tsx")) && /onClick=\{fetchStatus\}/.test(read("artifacts/apex-finder/src/pages/status.tsx"))],
   ["global error notice actions meet 44px touch targets", (errorNotice.match(/min-h-\[44px\]/g) || []).length >= 2 && /min-w-\[44px\]/.test(errorNotice)],
   ["desktop shell updates document title by route", /document\.title/.test(layout) && /Apex Atlas/.test(layout)],
   ["desktop shell exposes a bypass link", /Skip to main content/.test(layout) && /id="main-content"/.test(layout)],
