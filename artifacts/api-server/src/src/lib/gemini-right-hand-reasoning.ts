@@ -27,6 +27,12 @@ const MAX_REQUEST_TIMEOUT_MS = 60_000;
 const MIN_OVERALL_TIMEOUT_MS = 20_000;
 const MAX_OVERALL_TIMEOUT_MS = 120_000;
 const MAX_MODEL_ATTEMPTS = 4;
+const GEMINI_INTERACTIONS_FALLBACK_MODELS = [
+  "gemini-3.8-flash",
+  "gemini-3.7-flash",
+  "gemini-3.6-flash",
+  "gemini-3.5-flash",
+] as const;
 const MODEL_CATALOG_TIMEOUT_MS = 6_000;
 const MODEL_CATALOG_CACHE_MS = 60_000;
 
@@ -113,17 +119,35 @@ async function resolveModelChain(): Promise<string[]> {
       signal: AbortSignal.timeout(MODEL_CATALOG_TIMEOUT_MS),
     });
     if (!response.ok) {
-      logger.warn({ role: "gemini_right_hand", phase: "model_catalog_failed", httpStatus: response.status }, "Gemini Right-hand model catalog unavailable");
-      return [];
+      logger.warn({
+        role: "gemini_right_hand",
+        phase: "model_catalog_failed",
+        httpStatus: response.status,
+        fallbackCandidateCount: GEMINI_INTERACTIONS_FALLBACK_MODELS.length,
+      }, "Gemini Right-hand model catalog unavailable; using documented Interactions candidates");
+      return [...GEMINI_INTERACTIONS_FALLBACK_MODELS];
     }
     const payload = await response.json() as { models?: GeminiCatalogEntry[] };
     const catalogModels = chooseRightHandModels(Array.isArray(payload.models) ? payload.models : []);
-    if (catalogModels.length) cachedModelChain = { expiresAt: Date.now() + MODEL_CATALOG_CACHE_MS, models: catalogModels, credentialFingerprint: fingerprint };
-    logger.info({ role: "gemini_right_hand", phase: "model_catalog_resolved", preferredModel: GEMINI_RIGHT_HAND_MODEL, candidateCount: catalogModels.length, models: catalogModels }, "Gemini Right-hand model catalog resolved");
-    return catalogModels.slice(0, MAX_MODEL_ATTEMPTS);
+    if (catalogModels.length) {
+      cachedModelChain = { expiresAt: Date.now() + MODEL_CATALOG_CACHE_MS, models: catalogModels, credentialFingerprint: fingerprint };
+      logger.info({ role: "gemini_right_hand", phase: "model_catalog_resolved", preferredModel: GEMINI_RIGHT_HAND_MODEL, candidateCount: catalogModels.length, models: catalogModels }, "Gemini Right-hand model catalog resolved");
+      return catalogModels.slice(0, MAX_MODEL_ATTEMPTS);
+    }
+    logger.warn({
+      role: "gemini_right_hand",
+      phase: "model_catalog_empty",
+      fallbackCandidateCount: GEMINI_INTERACTIONS_FALLBACK_MODELS.length,
+    }, "Gemini Right-hand model catalog returned no usable candidates; using documented Interactions candidates");
+    return [...GEMINI_INTERACTIONS_FALLBACK_MODELS];
   } catch (error) {
-    logger.warn({ role: "gemini_right_hand", phase: "model_catalog_rejected", errorName: error instanceof Error ? error.name : "unknown" }, "Gemini Right-hand model catalog request failed");
-    return [];
+    logger.warn({
+      role: "gemini_right_hand",
+      phase: "model_catalog_rejected",
+      errorName: error instanceof Error ? error.name : "unknown",
+      fallbackCandidateCount: GEMINI_INTERACTIONS_FALLBACK_MODELS.length,
+    }, "Gemini Right-hand model catalog request failed; using documented Interactions candidates");
+    return [...GEMINI_INTERACTIONS_FALLBACK_MODELS];
   }
 }
 function extractJson(raw: string): Record<string, unknown> | null { const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)```/i)?.[1]?.trim(); const source = fenced || raw.trim(); const start = source.indexOf("{"), end = source.lastIndexOf("}"); if (start < 0 || end <= start) return null; try { const value = JSON.parse(source.slice(start, end + 1)); return value && typeof value === "object" ? value as Record<string, unknown> : null; } catch { return null; } }
