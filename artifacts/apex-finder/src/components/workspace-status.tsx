@@ -254,7 +254,7 @@ export function WorkspaceStatus() {
         aria-label={`${copy.label}. Open whole workspace status.`}
         data-testid="button-workspace-status"
         className={cn(
-          "group flex h-8 max-w-full items-center gap-1 rounded-lg border px-1.5 transition-colors sm:h-9 sm:max-w-none sm:gap-1.5 sm:px-2",
+          "group flex min-h-[44px] min-w-[44px] h-auto max-w-full items-center gap-1 rounded-lg border px-1.5 transition-colors sm:min-h-[44px] sm:max-w-none sm:gap-1.5 sm:px-2",
           "border-[#9CFF1A]/15 bg-background/70 hover:border-primary/40 hover:bg-muted/50",
           (state === "degraded" || state === "researching-degraded" || state === "offline") && "border-[#9CFF1A]/30",
         )}
