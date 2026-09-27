@@ -147,7 +147,7 @@ function CandidateRow({
           <div className="flex flex-col lg:flex-row items-stretch gap-2">
             <EntityCard entity={keepA ? candidate.entityA : candidate.entityB} role="primary" />
             <div className="flex lg:flex-col items-center justify-center px-1">
-              <ArrowRight className="h-4 w-4 text-muted-foreground md:rotate-0 rotate-90" />
+              <ArrowRight className="h-4 w-4 text-muted-foreground lg:rotate-0 rotate-90" />
             </div>
             <EntityCard entity={keepA ? candidate.entityB : candidate.entityA} role="target" />
           </div>
