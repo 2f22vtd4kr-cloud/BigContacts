@@ -340,7 +340,7 @@ export default function SystemStatusPage() {
           )}
           <button
             onClick={fetchStatus}
-            className="atlas-outline-btn atlas-pressable flex min-h-[40px] w-full sm:w-auto items-center justify-center gap-2 rounded-lg px-3 py-1.5 font-mono text-[11px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime-400/50"
+            className="atlas-outline-btn atlas-pressable flex min-h-[44px] w-full sm:w-auto items-center justify-center gap-2 rounded-lg px-3 py-1.5 font-mono text-[11px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lime-400/50"
           >
             <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
             Refresh
