@@ -215,7 +215,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
     || location === "/manual";
 
   return (
-    <div className="atlas-noise flex min-h-[100dvh] min-h-[100svh] overflow-hidden bg-background text-foreground">
+    <div className="atlas-noise relative min-h-[100dvh] min-h-[100svh] overflow-hidden bg-background text-foreground">
       <svg aria-hidden="true" width="0" height="0" style={{ position: "absolute", width: 0, height: 0, overflow: "hidden" }}>
         <defs>
           <filter id="atlas-liquid-distort" x="-50%" y="-50%" width="200%" height="200%" colorInterpolationFilters="sRGB">
@@ -231,7 +231,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       {/* Desktop collapsible nav */}
       <div
         className={cn(
-          "relative hidden shrink-0 self-start transition-[width] duration-200 ease-out md:flex",
+          "absolute left-0 top-0 z-50 hidden h-fit transition-[width] duration-200 ease-out md:flex",
           desktopNavOpen ? "w-[250px]" : "w-0 overflow-hidden",
         )}
       >
@@ -285,9 +285,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
           <div className="relative z-10 h-full"><Sidebar mobile /></div>
         </div>
       )}
-      <main className="relative z-0 flex min-w-0 flex-1 flex-col overflow-hidden bg-[#111827]">
+      <main className="relative z-0 flex min-h-[100dvh] min-h-[100svh] w-full min-w-0 flex-col overflow-hidden bg-[#111827]">
         <div className="atlas-grid pointer-events-none absolute inset-0" />
-        <header className="relative z-40 flex min-h-14 shrink-0 items-center gap-1 border-b border-white/[0.03] bg-[#111827]/95 pl-[max(0.5rem,env(safe-area-inset-left))] pr-[max(0.5rem,env(safe-area-inset-right))] pt-[max(0.25rem,env(safe-area-inset-top))] backdrop-blur-lg sm:gap-2 sm:px-5 md:h-16 md:px-6">
+        <header className="relative z-40 flex min-h-14 shrink-0 items-center gap-1 border-b border-white/[0.03] bg-[#111827]/95 pl-[max(0.5rem,env(safe-area-inset-left))] pr-[max(0.5rem,env(safe-area-inset-right))] pt-[max(0.25rem,env(safe-area-inset-top))] backdrop-blur-lg sm:gap-2 sm:px-5 md:h-16 md:pl-[274px] md:pr-6">
           {/* Mobile: menu first so Launch/status never collide with it */}
           <button
             onClick={() => setSidebarOpen(true)}
@@ -328,7 +328,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </div>
         </div>
         )}
-        <div className={`relative z-10 flex min-h-0 min-w-0 w-full max-w-full flex-1 flex-col overflow-x-hidden ${isReactorRoute ? "overflow-hidden" : "overflow-y-auto"}`}>
+        <div className={`relative z-10 flex min-h-0 min-w-0 w-full max-w-full flex-1 flex-col overflow-x-hidden md:pl-[250px] ${isReactorRoute ? "overflow-hidden" : "overflow-y-auto"}`}>
           {children}
         </div>
       </main>

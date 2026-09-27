@@ -24,10 +24,11 @@ const mark = read(files.mark);
 const layout = read("artifacts/apex-finder/src/components/layout.tsx");
 
 const checks = [
-  ["dashboard desktop sidebar is content-height", /self-start/.test(layout) && /h-fit flex-col/.test(layout)],
-  ["dashboard lower sections reclaim the sidebar column", /atlas-dashboard-wide/.test(dashboard) && /--atlas-sidebar-width:\s*250px/.test(css) && /margin-inline-start:\s*calc\(var\(--atlas-sidebar-width\) \* -1\)/.test(css)],
+  ["dashboard desktop sidebar is content-height overlay rail", /absolute left-0 top-0/.test(layout) && /h-fit/.test(layout)],
+  ["dashboard main canvas is independent of sidebar rail", /w-full min-w-0 flex-col/.test(layout) && /md:pl-\[250px\]/.test(layout)],
+  ["dashboard lower sections reclaim the sidebar column", /atlas-dashboard-wide/.test(dashboard) && /--atlas-sidebar-width:\s*250px/.test(css) && /inline-size:\s*100vw/.test(css) && /margin-inline-start:\s*calc\(-1 \* \(var\(--atlas-sidebar-width\) \+ 1\.5rem\)\)/.test(css)],
   ["dashboard hero copy is explicitly start-aligned", /atlas-dashboard-hero-copy/.test(dashboard) && /margin-inline-start:\s*0/.test(css)],
-  ["home CTA has explicit matching desktop rail width", /--atlas-command-width:\s*14\.75rem/.test(css) && /width:\s*var\(--atlas-command-width\)/.test(css) && /margin-inline-start:\s*calc\(var\(--atlas-depth-width\) \+ var\(--atlas-hero-gap\)\)/.test(css)],
+  ["home CTA has exact matching desktop rail width", /--atlas-command-width:\s*14\.75rem/.test(css) && /width:\s*calc\(var\(--atlas-depth-width\) \+ var\(--atlas-hero-gap\) \+ var\(--atlas-command-width\)\)/.test(css) && /width:\s*var\(--atlas-command-width\)/.test(css)],
   ["home depth selector remains subordinate", /--atlas-depth-width:\s*7\.625rem/.test(css) && /grid-template-columns:\s*var\(--atlas-depth-width\) var\(--atlas-command-width\)/.test(css)],
   ["Reactor uses product-specific mark", /ReactorMark/.test(dashboard) && /ReactorMark/.test(reactor) && /ReactorMark/.test(mark)],
   ["generic nuclear Reactor glyph is gone", !/☢|nuclear icon/i.test(reactor)],
