@@ -140,7 +140,7 @@ export function ResearchReplay({
       <div className="mt-2 flex flex-wrap items-center gap-1.5">
         <button
           type="button"
-          className="reactor-pressable inline-flex min-h-[36px] items-center gap-1.5 rounded-lg border border-[#9CFF1A]/20 bg-[#9CFF1A]/[0.06] px-2.5 font-mono text-[10px] font-bold uppercase tracking-wider text-[#d4ff8a] hover:border-[#9CFF1A]/40"
+          className="reactor-touch-target reactor-pressable inline-flex min-h-[44px] items-center gap-1.5 rounded-lg border border-[#9CFF1A]/20 bg-[#9CFF1A]/[0.06] px-2.5 font-mono text-[10px] font-bold uppercase tracking-wider text-[#d4ff8a] hover:border-[#9CFF1A]/40"
           onClick={() => setPlaying((value) => !value)}
           aria-label={playing ? "Pause research replay" : "Play research replay"}
           data-testid="button-research-replay-play"
@@ -150,14 +150,14 @@ export function ResearchReplay({
         </button>
         <button
           type="button"
-          className="reactor-pressable inline-flex min-h-[36px] items-center gap-1.5 rounded-lg border border-white/[0.08] bg-white/[0.025] px-2.5 font-mono text-[10px] uppercase tracking-wider text-stone-400 hover:border-white/20 hover:text-stone-200"
+          className="reactor-touch-target reactor-pressable inline-flex min-h-[44px] items-center gap-1.5 rounded-lg border border-white/[0.08] bg-white/[0.025] px-2.5 font-mono text-[10px] uppercase tracking-wider text-stone-400 hover:border-white/20 hover:text-stone-200"
           onClick={() => { setPlaying(false); setIndex(0); }}
           aria-label="Restart research replay"
           data-testid="button-research-replay-restart"
         >
           <RotateCcw className="h-3 w-3" aria-hidden="true" /> Restart
         </button>
-        <label className="ml-auto inline-flex min-h-[36px] items-center gap-1.5 rounded-lg border border-white/[0.06] px-2 font-mono text-[9px] uppercase tracking-wider text-stone-600">
+        <label className="reactor-touch-target ml-auto inline-flex min-h-[44px] items-center gap-1.5 rounded-lg border border-white/[0.06] px-2 font-mono text-[9px] uppercase tracking-wider text-stone-600">
           Speed
           <select
             value={speed}
