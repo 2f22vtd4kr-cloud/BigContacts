@@ -408,7 +408,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
               />
               <button
                 type="button"
-                className={`reactor-touch-target inline-flex items-center ${isLive ? "text-[#d4ff8a]" : "text-stone-500"}`}
+                className={`reactor-touch-target inline-flex min-h-[44px] items-center text-[14px] font-bold uppercase tracking-[0.16em] ${isLive ? "text-[#d4ff8a]" : "text-stone-500"}`}
                 onClick={() => {
                   setShowHistory(false);
                   setJumpToLiveSignal((n) => n + 1);
