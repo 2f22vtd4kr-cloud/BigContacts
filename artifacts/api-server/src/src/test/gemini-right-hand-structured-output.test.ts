@@ -38,6 +38,7 @@ describe("Gemini Right-hand structured output", () => {
     const result = await runGeminiRightHandCaseReasoning({
       iteration: 1,
       file: {
+        version: 1,
         target: { name: "Example", type: "person", nationality: null, knownResidences: [], knownDomains: [] },
         hypotheses: [],
         evidenceSummary: { sourceRegistries: [], discoveredPeople: [], relatedOrganizations: [], evidenceCount: 0, searchGaps: [], negativeFindings: [] },
