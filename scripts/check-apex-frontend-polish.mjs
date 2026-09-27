@@ -24,6 +24,7 @@ const mark = read(files.mark);
 const layout = read("artifacts/apex-finder/src/components/layout.tsx");
 const router = read("artifacts/apex-finder/src/router.tsx");
 const tabletSurfaces = [
+  "artifacts/apex-finder/src/pages/duplicates.tsx",
   "artifacts/apex-finder/src/pages/entities.tsx",
   "artifacts/apex-finder/src/pages/graph.tsx",
   "artifacts/apex-finder/src/pages/research.tsx",
