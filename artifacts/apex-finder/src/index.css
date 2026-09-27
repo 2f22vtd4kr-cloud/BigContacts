@@ -294,7 +294,7 @@ body {
   /* The nav is a content-height overlay rail. Dashboard rows below the hero are
      allowed to break out to the viewport edge instead of preserving a dead 250px column. */
   .atlas-dashboard-wide {
-    margin-inline-start: calc(-1 * (var(--atlas-sidebar-width) + 1.5rem));
+    margin-inline-start: calc(-1 * (var(--atlas-sidebar-offset, var(--atlas-sidebar-width)) + 1.5rem));
     inline-size: 100vw;
     padding-inline: 1.5rem;
   }
