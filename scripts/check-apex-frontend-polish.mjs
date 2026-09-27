@@ -38,7 +38,7 @@ const tabletSurfaces = [
 ].map(read);
 
 const checks = [
-  ["dashboard desktop sidebar is content-height overlay rail", /absolute left-0 top-0/.test(layout) && /h-fit/.test(layout)],
+  ["desktop sidebar fills viewport and anchors footer", /absolute inset-y-0 left-0/.test(layout) && /h-full w-\[250px\] shrink-0/.test(layout) && /h-full transition-\[width\]/.test(layout)],
   ["atlas grain is visible on the app canvas", /className="relative min-h-\[100dvh\]/.test(layout) && /className="atlas-noise relative z-0 flex/.test(layout) && /\.atlas-noise::before\s*\{[\s\S]*background-image:[\s\S]*url\("data:image\/svg\+xml/.test(css) && /opacity:\s*0\.72/.test(css)],
   ["grain is neutral texture-only, not a color treatment", (() => { const grain = css.slice(css.indexOf(".atlas-noise::before"), css.indexOf(".atlas-noise > *")); return grain.includes("fill%3D%22%23fff") && !grain.includes("110,210,255") && !grain.includes("156,255,26") && !grain.includes("fractalNoise") && !grain.includes("feTurbulence"); })()],
 
@@ -67,6 +67,8 @@ const checks = [
   ["focus ring remains explicit", /focus-visible/.test(css)],
   ["terminal state does not require animation", /atlasTerminal|reactor-terminal-banner/.test(reactor) && /prefers-reduced-motion/.test(css)],
   ["desktop shell uses laptop breakpoint for rail", /lg:flex/.test(layout) && /lg:pl-\[274px\]/.test(layout) && /lg:pl-6/.test(layout)],
+  ["sidebar has no decorative active-route dots", !/ml-auto h-1\.5 w-1\.5 rounded-full bg-primary/.test(layout)],
+  ["sidebar footer has no decorative status dot", !/Public records workspace[\s\S]{0,180}h-1\.5 w-1\.5 rounded-full bg-primary/.test(layout)],
   ["mobile shell remains available below laptop width", /lg:hidden/.test(layout) && /lg:hidden/.test(layout) && /lg:flex/.test(layout)],
   ["global error notice is bounded on short/mobile screens", /max-h-\[38dvh\]/.test(errorNotice) && /sm:max-h-\[min\(52dvh,360px\)\]/.test(errorNotice)],
   ["global mobile menu meets 44px touch target", /min-h-\[44px\]/.test(layout) && /min-w-\[44px\]/.test(layout) && /data-testid="button-open-menu"/.test(layout)],
