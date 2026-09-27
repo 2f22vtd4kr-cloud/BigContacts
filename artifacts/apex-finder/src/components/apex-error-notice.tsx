@@ -31,13 +31,13 @@ export function ApexErrorNotice() {
   },[]);
   if(!error) return null;
   const t=tone[error.severity];
-  return <div className="fixed inset-x-3 bottom-3 z-[100] flex justify-center sm:inset-x-auto sm:bottom-5 sm:right-5 sm:w-[min(440px,calc(100vw-2rem))]" role="alert" aria-live="assertive">
-    <section className={`w-full rounded-2xl border ${t.border} ${t.bg} p-4 shadow-2xl backdrop-blur-xl sm:p-5`}>
+  return <div className="fixed inset-x-3 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-[100] flex max-h-[38dvh] justify-center overflow-hidden sm:inset-x-auto sm:bottom-5 sm:right-5 sm:max-h-[min(52dvh,360px)] sm:w-[min(360px,calc(100vw-2rem))]" role="alert" aria-live="assertive">
+    <section className={`w-full overflow-y-auto rounded-2xl border ${t.border} ${t.bg} p-3 shadow-2xl backdrop-blur-xl sm:p-4`}>
       <div className="flex items-start gap-3">
         <span className={`mt-0.5 shrink-0 ${t.icon}`}><Icon severity={error.severity}/></span>
         <div className="min-w-0 flex-1">
-          <div className="pr-7 text-[14px] font-semibold text-stone-100">{error.title}</div>
-          <p className="mt-1 text-[12px] leading-5 text-stone-300">{error.message}</p>
+          <div className="pr-6 text-[13px] font-semibold text-stone-100 sm:text-[14px]">{error.title}</div>
+          <p className="mt-1 text-[11px] leading-4 text-stone-300 sm:text-[12px] sm:leading-5">{error.message}</p>
           <p className="mt-2 text-[11px] leading-5 text-stone-400"><span className="font-semibold text-stone-300">Why:</span> {error.why}</p>
           <div className="mt-3">
             <div className="font-mono text-[10px] uppercase tracking-[.16em] text-stone-500">Next steps</div>

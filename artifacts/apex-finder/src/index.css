@@ -280,7 +280,9 @@ body {
 .atlas-focus-ring:focus-visible { outline: 2px solid #9CFF1A; outline-offset: 3px; }
 .atlas-scroll { scrollbar-width: thin; scrollbar-color: rgba(156, 255, 26, 0.45) #111827; }
 
-/* Dashboard shell polish — keep the desktop rail content-height and let lower dashboard sections reclaim the freed column. */
+/* Dashboard shell polish — rows stay inside the shell's usable canvas.
+   The rail occupies its own content column at laptop widths and becomes a drawer
+   below that breakpoint; dashboard sections must never paint underneath the rail. */
 :root { --atlas-sidebar-width: 250px; }
 
 .atlas-dashboard-hero-copy {
@@ -288,25 +290,19 @@ body {
   text-wrap: balance;
 }
 
-.atlas-dashboard-wide { width: 100%; }
+.atlas-dashboard-wide {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
 
-@media (min-width: 768px) {
-  /* The nav is a content-height overlay rail. Dashboard rows below the hero are
-     allowed to break out to the viewport edge instead of preserving a dead 250px column. */
-  .atlas-dashboard-wide {
-    margin-inline-start: calc(-1 * (var(--atlas-sidebar-offset, var(--atlas-sidebar-width)) + 1.5rem));
-    inline-size: 100vw;
-    padding-inline: 1.5rem;
-  }
+.atlas-dashboard-hero-copy {
+  max-inline-size: 42rem;
+}
 
-  .atlas-dashboard-hero-copy {
-    margin-inline-start: 0;
-    max-inline-size: 42rem;
-  }
-
-  .atlas-dashboard-hero {
-    padding-inline: 0;
-  }
+.atlas-dashboard-hero {
+  min-width: 0;
+  max-width: 100%;
 }
 
 /* Dashboard hero controls: explicit rails, never DOM-position dependent. */
