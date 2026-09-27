@@ -461,7 +461,7 @@ function GraphViewerInner() {
 
       {/* ── Mobile top bar — only when the desk has people ── */}
       {deskHasPeople && (
-      <div className="flex md:hidden flex-col border-b border-[#9CFF1A]/12 bg-card/90 backdrop-blur z-30 flex-shrink-0"><div className="flex items-center gap-2 px-3 py-2">
+      <div className="flex lg:hidden flex-col border-b border-[#9CFF1A]/12 bg-card/90 backdrop-blur z-30 flex-shrink-0"><div className="flex items-center gap-2 px-3 py-2">
         {entityIdFromUrl && (
           <Link
             href={`/profile/${entityIdFromUrl}`}
@@ -507,7 +507,7 @@ function GraphViewerInner() {
 
       {/* ── Mobile filter sheet ── */}
       {deskHasPeople && filterOpen && (
-        <div className="md:hidden absolute left-3 right-3 top-[57px] z-50 bg-card border border-[#9CFF1A]/12 rounded shadow-2xl p-4 space-y-4">
+        <div className="lg:hidden absolute left-3 right-3 top-[57px] z-50 bg-card border border-[#9CFF1A]/12 rounded shadow-2xl p-4 space-y-4">
           <div className="flex items-center justify-between">
             <span className="text-[10px] font-mono text-muted-foreground uppercase tracking-wider">Graph Filters</span>
             <button onClick={() => setFilterOpen(false)} className="text-muted-foreground hover:text-foreground">
@@ -557,7 +557,7 @@ function GraphViewerInner() {
 
       {/* ── Desktop floating toolbar ── */}
       {deskHasPeople && (
-      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 hidden md:flex items-center space-x-2 max-w-[90vw]">
+      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 hidden lg:flex items-center space-x-2 max-w-[90vw]">
         {/* Back to profile */}
         {entityIdFromUrl && (
           <Link
@@ -726,7 +726,7 @@ function GraphViewerInner() {
       <div className={cn(
         "absolute bottom-4 left-4 z-10 flex-col space-y-1 bg-card/80 backdrop-blur border border-[#9CFF1A]/12 p-2 md:p-3 rounded text-[10px] md:text-xs font-mono",
         // Hide on mobile when node detail bottom sheet is open (it sits at bottom-0 and would overlap)
-        selectedNode ? "hidden md:flex" : "flex"
+        selectedNode ? "hidden lg:flex" : "flex"
       )}>
         <div className="flex items-center"><div className="w-2.5 h-2.5 rounded-full bg-primary mr-1.5 md:mr-2" /> HNWI</div>
         <div className="flex items-center"><div className="w-2.5 h-2.5 rounded-full bg-[#9CFF1A] mr-1.5 md:mr-2" /> Corp</div>
