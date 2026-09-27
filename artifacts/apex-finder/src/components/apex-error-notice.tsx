@@ -44,11 +44,11 @@ export function ApexErrorNotice() {
             <ul className="mt-1 list-inside list-disc space-y-0.5 text-[11px] leading-5 text-stone-300">{error.nextSteps.slice(0,3).map((s,i)=><li key={i}>{s}</li>)}</ul>
           </div>
           <div className="mt-3 flex flex-wrap items-center gap-2">
-            {error.retryable && <button type="button" onClick={()=>window.location.reload()} className="atlas-btn-success atlas-pressable min-h-10 rounded-lg px-3 text-[11px]">Try again</button>}
-            <Link href="/status" onClick={()=>setError(null)} className="atlas-outline-btn atlas-pressable inline-flex min-h-10 items-center gap-1.5 rounded-lg px-3 text-[11px]">System Status <ArrowUpRight className="h-3 w-3"/></Link>
+            {error.retryable && <button type="button" onClick={()=>window.location.reload()} className="atlas-btn-success atlas-pressable min-h-[44px] rounded-lg px-3 text-[11px]">Try again</button>}
+            <Link href="/status" onClick={()=>setError(null)} className="atlas-outline-btn atlas-pressable inline-flex min-h-[44px] items-center gap-1.5 rounded-lg px-3 text-[11px]">System Status <ArrowUpRight className="h-3 w-3"/></Link>
           </div>
         </div>
-        <button type="button" onClick={()=>setError(null)} aria-label="Dismiss message" className="atlas-pressable shrink-0 rounded-lg p-2 text-stone-500 hover:text-stone-200"><X className="h-4 w-4"/></button>
+        <button type="button" onClick={()=>setError(null)} aria-label="Dismiss message" className="atlas-pressable flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-lg p-2 text-stone-500 hover:text-stone-200"><X className="h-4 w-4"/></button>
       </div>
     </section>
   </div>;

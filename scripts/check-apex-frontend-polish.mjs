@@ -10,6 +10,8 @@ const files = {
   mobile: "artifacts/apex-finder/src/components/mobile-reactor-flow.tsx",
   replay: "artifacts/apex-finder/src/components/research-replay.tsx",
   mark: "artifacts/apex-finder/src/components/reactor-mark.tsx",
+  workspaceStatus: "artifacts/apex-finder/src/components/workspace-status.tsx",
+  errorNotice: "artifacts/apex-finder/src/components/apex-error-notice.tsx",
 };
 for (const [name, file] of Object.entries(files)) {
   if (!fs.existsSync(path.join(root, file))) throw new Error(`Missing frontend polish source: ${name}`);
@@ -20,6 +22,8 @@ const reactor = read(files.reactor);
 const mobile = read(files.mobile);
 const replay = read(files.replay);
 const mark = read(files.mark);
+const workspaceStatus = read(files.workspaceStatus);
+const errorNotice = read(files.errorNotice);
 const reactorTouchSource = read("artifacts/apex-finder/src/components/mobile-reactor-flow.tsx");
 
 const layout = read("artifacts/apex-finder/src/components/layout.tsx");
@@ -60,7 +64,10 @@ const checks = [
   ["terminal state does not require animation", /atlasTerminal|reactor-terminal-banner/.test(reactor) && /prefers-reduced-motion/.test(css)],
   ["desktop shell uses laptop breakpoint for rail", /lg:flex/.test(layout) && /lg:pl-\[274px\]/.test(layout) && /lg:pl-6/.test(layout)],
   ["mobile shell remains available below laptop width", /lg:hidden/.test(layout) && /lg:hidden/.test(layout) && /lg:flex/.test(layout)],
-  ["global error notice is bounded on short/mobile screens", /max-h-\[38dvh\]/.test(read("artifacts/apex-finder/src/components/apex-error-notice.tsx")) && /sm:max-h-\[min\(52dvh,360px\)\]/.test(read("artifacts/apex-finder/src/components/apex-error-notice.tsx"))],
+  ["global error notice is bounded on short/mobile screens", /max-h-\[38dvh\]/.test(errorNotice) && /sm:max-h-\[min\(52dvh,360px\)\]/.test(errorNotice)],
+  ["global mobile menu meets 44px touch target", /min-h-\[44px\]/.test(layout) && /min-w-\[44px\]/.test(layout) && /data-testid="button-open-menu"/.test(layout)],
+  ["workspace status trigger meets 44px touch target", /min-h-\[44px\]/.test(workspaceStatus) && /data-testid="button-workspace-status"/.test(workspaceStatus)],
+  ["global error notice actions meet 44px touch targets", (errorNotice.match(/min-h-\[44px\]/g) || []).length >= 2 && /min-w-\[44px\]/.test(errorNotice)],
   ["desktop shell updates document title by route", /document\.title/.test(layout) && /Apex Atlas/.test(layout)],
   ["desktop shell exposes a bypass link", /Skip to main content/.test(layout) && /id="main-content"/.test(layout)],
 ];

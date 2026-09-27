@@ -332,7 +332,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             onClick={() => setSidebarOpen(true)}
             aria-label="Open menu"
             data-testid="button-open-menu"
-            className="atlas-pressable order-first shrink-0 rounded-lg p-2 text-stone-400 hover:bg-white/[0.06] hover:text-stone-100 lg:hidden"
+            className="atlas-pressable order-first flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-lg p-2 text-stone-400 hover:bg-white/[0.06] hover:text-stone-100 lg:hidden"
           >
             <Menu className="h-5 w-5" />
           </button>
