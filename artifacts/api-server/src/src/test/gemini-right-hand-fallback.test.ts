@@ -87,6 +87,30 @@ describe("Gemini Right-hand catalog-driven fallback", () => {
     expect(generationCalls).toHaveLength(2);
   });
 
+  it("retries the same model once before falling through the live catalog", async () => {
+    process.env.GEMINI_RIGHT_HAND_API_KEY = "test-key-same-model-retry";
+    const attempts: string[] = [];
+    globalThis.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      const body = init?.body ? JSON.parse(String(init.body)) as { model?: string } : {};
+      if (url.endsWith("generativelanguage.googleapis.com/v1beta/models")) {
+        return catalog(GEMINI_RIGHT_HAND_MODEL, "gemini-3.7-flash");
+      }
+      attempts.push(body.model ?? "");
+      if (attempts.length === 1) throw new TypeError("fetch failed");
+      return new Response(JSON.stringify({
+        steps: [{ type: "model_output", content: [{ type: "text", text: '{"decision":"same-model-retry-ok"}' }] }],
+      }), { status: 200 });
+    });
+    installExternalQuotaGuard();
+
+    const result = await runGeminiRightHandFreeJson("Return JSON.");
+
+    expect(result.status).toBe("completed");
+    expect(result.model).toBe(GEMINI_RIGHT_HAND_MODEL);
+    expect(attempts).toEqual([GEMINI_RIGHT_HAND_MODEL, GEMINI_RIGHT_HAND_MODEL]);
+  });
+
   it("falls through the live catalog after a transient network error", async () => {
     process.env.GEMINI_RIGHT_HAND_API_KEY = "test-key-network";
     const calls: string[] = [];
