@@ -287,10 +287,69 @@ async function callGroqJson(prompt: string, signal: AbortSignal): Promise<{ mode
   }
   return null;
 }
+type MistralModelCard = {
+  id?: unknown;
+  created?: unknown;
+  archived?: unknown;
+  object?: unknown;
+  TYPE?: unknown;
+  type?: unknown;
+  capabilities?: { completion_chat?: unknown };
+};
+
+function isUsableMistralChatModel(card: MistralModelCard): card is MistralModelCard & { id: string } {
+  const id = typeof card.id === "string" ? card.id.trim() : "";
+  const archived = card.archived === true || String(card.archived).toLowerCase() === "true";
+  const fineTuned = String(card.TYPE ?? card.type ?? "").toLowerCase() === "fine-tuned" || id.startsWith("ft:");
+  return Boolean(id) && !archived && !fineTuned && card.capabilities?.completion_chat === true;
+}
+
+async function resolveMistralChatModels(key: string, signal: AbortSignal): Promise<string[]> {
+  try {
+    const response = await runProviderCall(
+      { provider: "mistral", account: key, signal },
+      () => safeOutboundFetch("https://api.mistral.ai/v1/models", {
+        method: "GET",
+        headers: { Authorization: `Bearer ${key}`, Accept: "application/json" },
+        signal,
+      }),
+    );
+    const body = await readResponseTextCapped(response, signal);
+    if (!response.ok) {
+      logger.warn({ provider: "mistral", model: "catalog", httpStatus: response.status }, "Mistral model catalog unavailable");
+      return [];
+    }
+    const payload = JSON.parse(body) as { data?: unknown };
+    const cards = Array.isArray(payload.data) ? payload.data.filter((item): item is MistralModelCard => Boolean(item && typeof item === "object")) : [];
+    const compatible = cards.filter(isUsableMistralChatModel);
+    const configured = (process.env.MISTRAL_AGENTIC_MODEL || "").trim();
+    const byCreated = [...compatible].sort((a, b) => {
+      const createdA = typeof a.created === "number" ? a.created : Number(a.created);
+      const createdB = typeof b.created === "number" ? b.created : Number(b.created);
+      const safeA = Number.isFinite(createdA) ? createdA : 0;
+      const safeB = Number.isFinite(createdB) ? createdB : 0;
+      return safeB - safeA || String(a.id).localeCompare(String(b.id));
+    });
+    const ordered = [
+      ...(configured && compatible.some((card) => card.id === configured) ? [configured] : []),
+      ...byCreated.map((card) => card.id as string),
+    ];
+    return [...new Set(ordered)];
+  } catch (error) {
+    if (signal.aborted) throw new Error("cancelled");
+    logger.warn({ provider: "mistral", model: "catalog", error: error instanceof Error ? error.message : String(error) }, "Mistral model catalog request failed");
+    return [];
+  }
+}
+
 async function callMistralJson(prompt: string, signal: AbortSignal): Promise<{ model: string; raw: string } | null> {
   const key = (process.env.MISTRAL_API_KEY || "").trim();
   if (!key) return null;
-  const models = [process.env.MISTRAL_AGENTIC_MODEL, "mistral-small-latest", "mistral-large-latest", "open-mistral-nemo"].filter((m): m is string => Boolean(m?.trim()));
+  const models = await resolveMistralChatModels(key, signal);
+  if (models.length === 0) {
+    setAgenticLlmHealth(false, null, "Mistral model catalog returned no usable chat-capable model");
+    return null;
+  }
   let attempt = 0;
   let workingPrompt = prompt;
   let sizeReductionApplied = false;
