@@ -343,3 +343,14 @@ Architecture maturity is strong. Deployment/research maturity is still gated by 
 If a check fails, fix the root cause. Do not weaken the check, seed evidence, force a research route, or convert an unavailable capability into a fake success merely to obtain a green release report.
 
 This file is the source-of-truth handoff for what Apex **is**, what it **is not**, and what remains necessary before publication.
+
+
+## 2026-09-27 recovery audit continuation
+
+The live Replit audit reached Gemini Right-hand after the Gemini Boss compatibility repair. The next failure was Right-hand returning invalid JSON. Source inspection identified the boundary defect: the Right-hand Interactions adapter relied on prompt text saying JSON-only without enforcing a structured-output response format for its typed contracts.
+
+The recovery branch now enforces Gemini Interactions structured JSON for case-reasoning and discovery-advice contracts, keeps local parsing/validation, and adds a bounded same-model/same-key HTTP 400 compatibility retry that removes only response_format. No Groq/Mistral substitution is permitted. A regression test covers the 400 -> same-model unstructured retry path.
+
+Current verification status: PR #384 is the implementation vehicle. CI must be green before merge. After merge, the real Replit canonical launch remains mandatory evidence; a passing test suite alone does not establish live provider success.
+
+The Investigator architecture was also re-audited: Boss-selected Groq or Mistral owns one ReAct trajectory; deterministic capability execution supplies Serper/Tavily/Exa, public HTTP, browser escalation, domain/registry, harvesting, email and username footprint tools; observations remain distinct from promoted evidence; cancellation, SSRF, provider budgets, and lifecycle fences remain deterministic boundaries.
