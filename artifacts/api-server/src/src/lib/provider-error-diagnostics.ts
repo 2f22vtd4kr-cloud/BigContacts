@@ -90,6 +90,45 @@ export function summarizeProviderBody(body: string): ProviderBodyShape {
   }
 }
 
+export type ProviderThrownDiagnostic = {
+  errorName: string;
+  errorCode: string | null;
+  errorErrno: string | number | null;
+  errorSyscall: string | null;
+  errorHostname: string | null;
+  causeName: string | null;
+  causeCode: string | null;
+  causeErrno: string | number | null;
+  causeSyscall: string | null;
+  causeHostname: string | null;
+  messageDigest: string | null;
+  messageChars: number;
+};
+
+function diagnosticPart(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" ? value as Record<string, unknown> : null;
+}
+
+export function describeThrownProviderError(error: unknown): ProviderThrownDiagnostic {
+  const top = diagnosticPart(error);
+  const cause = diagnosticPart(top?.cause);
+  const message = error instanceof Error ? error.message : typeof top?.message === "string" ? top.message : "";
+  return {
+    errorName: error instanceof Error ? error.name : typeof top?.name === "string" ? top.name : "unknown",
+    errorCode: typeof top?.code === "string" ? top.code : null,
+    errorErrno: typeof top?.errno === "string" || typeof top?.errno === "number" ? top.errno : null,
+    errorSyscall: typeof top?.syscall === "string" ? top.syscall : null,
+    errorHostname: typeof top?.hostname === "string" ? top.hostname : null,
+    causeName: typeof cause?.name === "string" ? cause.name : null,
+    causeCode: typeof cause?.code === "string" ? cause.code : null,
+    causeErrno: typeof cause?.errno === "string" || typeof cause?.errno === "number" ? cause.errno : null,
+    causeSyscall: typeof cause?.syscall === "string" ? cause.syscall : null,
+    causeHostname: typeof cause?.hostname === "string" ? cause.hostname : null,
+    messageDigest: message ? digestDiagnosticText(message) : null,
+    messageChars: message.length,
+  };
+}
+
 export function classifyThrownProviderError(error: unknown, aborted = false): ProviderFailureClass {
   if (aborted) return "cancelled";
   if (error instanceof Error && error.name === "AbortError") return "timeout";
