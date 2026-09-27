@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   classifyProviderHttpStatus,
   classifyThrownProviderError,
+  describeThrownProviderError,
   summarizeProviderBody,
 } from "../lib/provider-error-diagnostics";
 
