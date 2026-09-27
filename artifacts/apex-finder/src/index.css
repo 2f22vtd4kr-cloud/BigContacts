@@ -280,9 +280,29 @@ body {
 .atlas-focus-ring:focus-visible { outline: 2px solid #9CFF1A; outline-offset: 3px; }
 .atlas-scroll { scrollbar-width: thin; scrollbar-color: rgba(156, 255, 26, 0.45) #111827; }
 
+/* Dashboard shell polish — keep the desktop rail content-height and let lower dashboard sections reclaim the freed column. */
+:root { --atlas-sidebar-width: 250px; }
+
+.atlas-dashboard-hero-copy {
+  margin-inline-start: 0;
+  text-wrap: balance;
+}
+
+.atlas-dashboard-wide { width: 100%; }
+
+@media (min-width: 768px) {
+  .atlas-dashboard-wide {
+    margin-inline-start: calc(var(--atlas-sidebar-width) * -1);
+    inline-size: calc(100% + var(--atlas-sidebar-width));
+    padding-inline-start: var(--atlas-sidebar-width);
+  }
+}
+
 /* Dashboard hero controls: explicit rails, never DOM-position dependent. */
 .atlas-home-actions {
   --atlas-hero-gap: 8px;
+  --atlas-depth-width: 7.625rem;
+  --atlas-command-width: 14.75rem;
   width: 100%;
 }
 .atlas-home-primary-row {
@@ -319,24 +339,27 @@ body {
   .atlas-home-primary-row > .atlas-launch-primary-root {
     display: grid;
     /* Depth selector is deliberately narrower; the green command rail matches the secondary rail exactly. */
-    grid-template-columns: 7.625rem 14.75rem;
+    grid-template-columns: var(--atlas-depth-width) var(--atlas-command-width);
     gap: var(--atlas-hero-gap);
     width: 100%;
   }
   .atlas-home-primary-row > .atlas-launch-primary-root > select {
-    width: 7.625rem;
+    width: var(--atlas-depth-width);
     min-width: 0;
   }
   .atlas-home-primary-row > .atlas-launch-primary-root > .atlas-home-launch {
-    width: 14.75rem !important;
-    min-width: 14.75rem !important;
+    width: var(--atlas-command-width) !important;
+    min-width: var(--atlas-command-width) !important;
+    justify-self: stretch;
   }
   .atlas-home-primary-row > .atlas-launch-primary-root > p {
     grid-column: 1 / -1;
   }
   .atlas-home-secondary-row {
-    width: 14.75rem;
-    margin-left: auto;
+    width: var(--atlas-command-width);
+    margin-inline-start: calc(var(--atlas-depth-width) + var(--atlas-hero-gap));
+    margin-inline-end: 0;
+    justify-self: start;
   }
 }
 @media (max-width: 639px) {

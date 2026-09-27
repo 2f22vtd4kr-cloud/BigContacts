@@ -103,7 +103,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
   const Sidebar = ({ mobile = false }: { mobile?: boolean }) => (
     <aside className={cn(
-      "flex h-full flex-col bg-[#111827]",
+      "flex h-fit flex-col bg-[#111827]",
       mobile ? "w-[min(300px,86vw)]" : "w-[250px] shrink-0",
     )}>
       <div className="flex h-[76px] shrink-0 items-center border-b border-white/[0.03] px-5">
@@ -231,7 +231,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       {/* Desktop collapsible nav */}
       <div
         className={cn(
-          "relative hidden shrink-0 transition-[width] duration-200 ease-out md:flex",
+          "relative hidden shrink-0 self-start transition-[width] duration-200 ease-out md:flex",
           desktopNavOpen ? "w-[250px]" : "w-0 overflow-hidden",
         )}
       >
