@@ -44,6 +44,7 @@ const checks = [
   ["focus ring remains explicit", /focus-visible/.test(css)],
   ["terminal state does not require animation", /atlasTerminal|reactor-terminal-banner/.test(reactor) && /prefers-reduced-motion/.test(css)],
   ["desktop shell uses laptop breakpoint for rail", /lg:flex/.test(layout) && /lg:pl-\[274px\]/.test(layout) && /lg:pl-6/.test(layout)],
+  ["mobile shell remains available below laptop width", /lg:hidden/.test(layout) && /lg:hidden/.test(layout) && /lg:flex/.test(layout)],
   ["global error notice is bounded on short/mobile screens", /max-h-\[38dvh\]/.test(read("artifacts/apex-finder/src/components/apex-error-notice.tsx")) && /sm:max-h-\[min\(52dvh,360px\)\]/.test(read("artifacts/apex-finder/src/components/apex-error-notice.tsx"))],
   ["desktop shell updates document title by route", /document\.title/.test(layout) && /Apex Atlas/.test(layout)],
   ["desktop shell exposes a bypass link", /Skip to main content/.test(layout) && /id="main-content"/.test(layout)],
