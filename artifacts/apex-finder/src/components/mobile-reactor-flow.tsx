@@ -408,7 +408,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
               />
               <button
                 type="button"
-                className={`text-[14px] font-bold uppercase tracking-[0.16em] ${isLive ? "text-[#d4ff8a]" : "text-stone-500"}`}
+                className={`reactor-touch-target inline-flex min-h-[44px] items-center text-[14px] font-bold uppercase tracking-[0.16em] ${isLive ? "text-[#d4ff8a]" : "text-stone-500"}`}
                 onClick={() => {
                   setShowHistory(false);
                   setJumpToLiveSignal((n) => n + 1);
@@ -449,7 +449,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
                 setShowHistory(true);
               }
             }}
-            className={`reactor-pressable flex h-10 shrink-0 items-center gap-1 rounded-lg border px-2.5 text-[14px] font-bold uppercase tracking-wider ${
+            className={`reactor-pressable reactor-touch-target flex min-h-[44px] shrink-0 items-center gap-1 rounded-lg border px-2.5 text-[14px] font-bold uppercase tracking-wider ${
               showHistory ? "border-[#9CFF1A]/40 bg-[#9CFF1A]/10 text-[#d4ff8a]" : "border-[#9CFF1A]/14 bg-[#0d1219] text-stone-400 hover:border-[#9CFF1A]/35"
             }`}
             data-testid="button-history"
@@ -462,7 +462,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
             type="button"
             onClick={onRefresh}
             disabled={syncing}
-            className="reactor-pressable flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-[#9CFF1A]/14 bg-[#0d1219] text-stone-400 hover:border-[#9CFF1A]/35 hover:text-[#d4ff8a] disabled:pointer-events-none disabled:opacity-50"
+            className="reactor-pressable reactor-touch-target flex h-10 min-h-[44px] w-10 min-w-[44px] shrink-0 items-center justify-center rounded-lg border border-[#9CFF1A]/14 bg-[#0d1219] text-stone-400 hover:border-[#9CFF1A]/35 hover:text-[#d4ff8a] disabled:pointer-events-none disabled:opacity-50"
             aria-label="Refresh Atlas status"
             data-testid="button-refresh-atlas"
           >
@@ -839,7 +839,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
                         role="tab"
                         aria-selected={selected}
                         onClick={() => setHistoryFilter(id)}
-                        className={`reactor-pressable min-h-[32px] rounded-full border px-2.5 py-1 text-[14px] font-mono font-bold uppercase tracking-wider transition-colors ${
+                        className={`reactor-pressable reactor-touch-target min-h-[44px] rounded-full border px-2.5 py-1 text-[14px] font-mono font-bold uppercase tracking-wider transition-colors ${
                           selected
                             ? "border-[#9CFF1A]/50 bg-[#9CFF1A]/15 text-[#d4ff8a]"
                             : "border-[#9CFF1A]/12 bg-white/[0.03] text-muted-foreground hover:border-white/20 hover:text-stone-300"
@@ -995,7 +995,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
               <div className="mt-2 flex flex-wrap gap-2">
                 <button
                   type="button"
-                  className="reactor-pressable inline-flex min-h-[36px] items-center gap-1.5 rounded-lg border border-[#9CFF1A]/40 bg-[#9CFF1A]/10 px-2.5 py-1.5 text-[11px] font-semibold text-[#fef3c7] hover:bg-[#9CFF1A]/15"
+                  className="reactor-pressable reactor-touch-target inline-flex min-h-[44px] items-center gap-1.5 rounded-lg border border-[#9CFF1A]/40 bg-[#9CFF1A]/10 px-2.5 py-1.5 text-[11px] font-semibold text-[#fef3c7] hover:bg-[#9CFF1A]/15"
                   onClick={() => onRefresh()}
                   disabled={syncing}
                   data-testid="button-rate-limit-refresh"
@@ -1005,7 +1005,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
                 </button>
                 <button
                   type="button"
-                  className="reactor-pressable inline-flex min-h-[36px] items-center rounded-lg border border-[#9CFF1A]/12 bg-white/[0.04] px-2.5 py-1.5 text-[11px] font-medium text-stone-300 hover:border-white/20"
+                  className="reactor-pressable reactor-touch-target inline-flex min-h-[44px] items-center rounded-lg border border-[#9CFF1A]/12 bg-white/[0.04] px-2.5 py-1.5 text-[11px] font-medium text-stone-300 hover:border-white/20"
                   onClick={() => setRateLimitDismissed(true)}
                   data-testid="button-rate-limit-dismiss"
                 >
