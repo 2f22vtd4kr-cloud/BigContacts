@@ -43,10 +43,30 @@ body {
 .font-display { font-family: var(--font-display); }
 .font-mono { font-family: var(--font-mono); }
 
-/* Film grain (very subtle) */
+/* Film grain — visible atmospheric texture, deliberately restrained. */
 .atlas-noise {
+  position: relative;
+  isolation: isolate;
   background-color: #111827;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.028'/%3E%3C/svg%3E");
+}
+.atlas-noise::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    radial-gradient(circle at 12% 18%, rgba(255,255,255,0.08) 0 0.7px, transparent 0.9px),
+    radial-gradient(circle at 76% 32%, rgba(110,210,255,0.065) 0 0.8px, transparent 1px),
+    radial-gradient(circle at 42% 81%, rgba(156,255,26,0.035) 0 0.7px, transparent 0.9px),
+    url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.78' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.075'/%3E%3C/svg%3E");
+  background-size: 173px 173px, 211px 211px, 257px 257px, 256px 256px;
+  mix-blend-mode: screen;
+  opacity: 0.72;
+}
+.atlas-noise > * {
+  position: relative;
+  z-index: 1;
 }
 
 /* Enter */
