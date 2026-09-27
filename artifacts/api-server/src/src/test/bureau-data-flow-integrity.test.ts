@@ -40,7 +40,7 @@ describe("Apex Atlas Bureau data-flow integrity", () => {
     expect(content).toContain("const MAX_FOLLOW_UPS = 64;");
     expect(content).toContain("const MAX_AGENTIC_ITERATIONS = 64;");
     expect(content).toContain("agenticHardTimeoutMs");
-    expect(content).toContain("The hard timeout remains the operational safety boundary");
+    expect(content).toContain("hard timeout remains the operational safety boundary");
   });
 
   it("keeps the Investigator-to-card path evidence-backed", () => {
