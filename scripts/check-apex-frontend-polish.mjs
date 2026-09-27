@@ -27,7 +27,7 @@ const checks = [
   ["dashboard desktop sidebar is content-height overlay rail", /absolute left-0 top-0/.test(layout) && /h-fit/.test(layout)],
   ["dashboard main canvas is independent of sidebar rail", /w-full min-w-0 flex-col/.test(layout) && /lg:pl-\[250px\]/.test(layout) && /lg:pl-0/.test(layout) && /const contentPadding = desktopContentPadding;/.test(layout)],
   ["dashboard rows stay inside the shell canvas", /atlas-dashboard-wide/.test(dashboard) && /max-width:\s*100%/.test(css) && /min-width:\s*0/.test(css) && !/inline-size:\s*100vw/.test(css) && !/atlas-sidebar-offset/.test(css)],
-  ["dashboard has no rail-overlap compensation", !dashboard.includes("md:pl-[274px]") && !dashboard.includes("atlas-dashboard-wide") || /atlas-dashboard-wide/.test(dashboard)],
+  ["dashboard has no rail-overlap compensation", !dashboard.includes("md:pl-[274px]") && /atlas-dashboard-wide/.test(dashboard)],
   ["dashboard hero copy is explicitly start-aligned", /atlas-dashboard-hero-copy/.test(dashboard) && /margin-inline-start:\s*0/.test(css)],
   ["home CTA has exact matching desktop rail width", /--atlas-command-width:\s*14\.75rem/.test(css) && /width:\s*calc\(var\(--atlas-depth-width\) \+ var\(--atlas-hero-gap\) \+ var\(--atlas-command-width\)\)/.test(css) && /width:\s*var\(--atlas-command-width\)/.test(css)],
   ["home depth selector remains subordinate", /--atlas-depth-width:\s*7\.625rem/.test(css) && /grid-template-columns:\s*var\(--atlas-depth-width\) var\(--atlas-command-width\)/.test(css)],
