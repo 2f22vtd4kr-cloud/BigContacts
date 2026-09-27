@@ -5,6 +5,7 @@ vi.mock("../lib/gemini-transient-retry", () => ({
 }));
 import {
   GEMINI_RIGHT_HAND_MODEL,
+  runGeminiRightHandCaseReasoning,
   runGeminiRightHandFreeJson,
 } from "../lib/gemini-right-hand-reasoning";
 import { installExternalQuotaGuard, resetProviderGateForTests } from "../lib/provider-gate";
