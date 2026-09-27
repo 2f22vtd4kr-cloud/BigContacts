@@ -291,10 +291,21 @@ body {
 .atlas-dashboard-wide { width: 100%; }
 
 @media (min-width: 768px) {
+  /* The nav is a content-height overlay rail. Dashboard rows below the hero are
+     allowed to break out to the viewport edge instead of preserving a dead 250px column. */
   .atlas-dashboard-wide {
-    margin-inline-start: calc(var(--atlas-sidebar-width) * -1);
-    inline-size: calc(100% + var(--atlas-sidebar-width));
-    padding-inline-start: var(--atlas-sidebar-width);
+    margin-inline-start: calc(-1 * (var(--atlas-sidebar-width) + 1.5rem));
+    inline-size: 100vw;
+    padding-inline: 1.5rem;
+  }
+
+  .atlas-dashboard-hero-copy {
+    margin-inline-start: 0;
+    max-inline-size: 42rem;
+  }
+
+  .atlas-dashboard-hero {
+    padding-inline: 0;
   }
 }
 
