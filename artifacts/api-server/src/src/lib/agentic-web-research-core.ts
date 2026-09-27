@@ -334,7 +334,7 @@ export async function resolveMistralChatModels(key: string, signal: AbortSignal)
       ...(configured && compatible.some((card) => card.id === configured) ? [configured] : []),
       ...byCreated.map((card) => card.id as string),
     ];
-    return [...new Set(ordered)];
+    return [...new Set(ordered)].slice(0, 4);
   } catch (error) {
     if (signal.aborted) throw new Error("cancelled");
     logger.warn({ provider: "mistral", model: "catalog", error: error instanceof Error ? error.message : String(error) }, "Mistral model catalog request failed");
