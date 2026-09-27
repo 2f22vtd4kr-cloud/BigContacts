@@ -36,13 +36,15 @@ describe("Gemini Right-hand catalog-driven fallback", () => {
   it("falls from the preferred model to the next compatible live-catalog model on capacity 429", async () => {
     process.env.GEMINI_RIGHT_HAND_API_KEY = "test-key";
     const calls: string[] = [];
-    globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {
+    globalThis.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
-      calls.push(url);
+      const body = init?.body ? JSON.parse(String(init.body)) as { model?: string } : {};
+      calls.push(url + "#" + (body.model ?? ""));
+
       if (url.endsWith("generativelanguage.googleapis.com/v1beta/models")) {
         return catalog(GEMINI_RIGHT_HAND_MODEL, "gemini-3.7-flash");
       }
-      if (url.includes("/v1beta/interactions")) {
+      if (url.includes("/v1beta/interactions") && body.model === GEMINI_RIGHT_HAND_MODEL) {
         return new Response(JSON.stringify({ error: { message: "quota exceeded" } }), { status: 429 });
       }
       return new Response(JSON.stringify({ steps: [{ type: "model_output", content: [{ type: "text", text: '{"decision":"fallback-ok"}' }] }] }), { status: 200 });
@@ -62,13 +64,15 @@ describe("Gemini Right-hand catalog-driven fallback", () => {
   it("falls through the live catalog when the preferred model is not authorized for a free-tier key", async () => {
     process.env.GEMINI_RIGHT_HAND_API_KEY = "test-key-free-tier";
     const calls: string[] = [];
-    globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {
+    globalThis.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
-      calls.push(url);
+      const body = init?.body ? JSON.parse(String(init.body)) as { model?: string } : {};
+      calls.push(url + "#" + (body.model ?? ""));
+
       if (url.endsWith("generativelanguage.googleapis.com/v1beta/models")) {
         return catalog(GEMINI_RIGHT_HAND_MODEL, "gemini-3.7-flash");
       }
-      if (url.includes("/v1beta/interactions")) {
+      if (url.includes("/v1beta/interactions") && body.model === GEMINI_RIGHT_HAND_MODEL) {
         return new Response(JSON.stringify({ error: { message: "model unavailable for this key tier" } }), { status: 403 });
       }
       return new Response(JSON.stringify({ steps: [{ type: "model_output", content: [{ type: "text", text: '{"decision":"free-tier-fallback-ok"}' }] }] }), { status: 200 });
@@ -86,13 +90,15 @@ describe("Gemini Right-hand catalog-driven fallback", () => {
   it("falls through the live catalog after a transient network error", async () => {
     process.env.GEMINI_RIGHT_HAND_API_KEY = "test-key-network";
     const calls: string[] = [];
-    globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {
+    globalThis.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
-      calls.push(url);
+      const body = init?.body ? JSON.parse(String(init.body)) as { model?: string } : {};
+      calls.push(url + "#" + (body.model ?? ""));
+
       if (url.endsWith("generativelanguage.googleapis.com/v1beta/models")) {
         return catalog(GEMINI_RIGHT_HAND_MODEL, "gemini-3.7-flash");
       }
-      if (url.includes("/v1beta/interactions")) {
+      if (url.includes("/v1beta/interactions") && body.model === GEMINI_RIGHT_HAND_MODEL) {
         throw new TypeError("fetch failed");
       }
       return new Response(JSON.stringify({
