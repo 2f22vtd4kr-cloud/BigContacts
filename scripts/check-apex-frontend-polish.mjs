@@ -20,6 +20,7 @@ const reactor = read(files.reactor);
 const mobile = read(files.mobile);
 const replay = read(files.replay);
 const mark = read(files.mark);
+const reactorTouchSource = read("artifacts/apex-finder/src/components/mobile-reactor-flow.tsx");
 
 const layout = read("artifacts/apex-finder/src/components/layout.tsx");
 const router = read("artifacts/apex-finder/src/router.tsx");
@@ -53,6 +54,7 @@ const checks = [
   ["live topology remains telemetry bounded", /<ReactorActivityOnly\b/.test(reactor) && /schemeNodesFromSpans/.test(reactor) && /schemeToolsOnly/.test(reactor)],
   ["desktop live desk has explicit accessible region", /role="complementary"/.test(reactor) && /aria-label="Apex Atlas Live Desk"/.test(reactor)],
   ["mobile controls retain touch-safe targets", /--atlas-touch:\s*44px/.test(css) && /reactor-touch-target/.test(css) && /reactor-mobile-safe/.test(css)],
+  ["mobile Reactor controls use 44px touch targets", /reactor-touch-target/.test(reactorTouchSource) && (reactorTouchSource.match(/reactor-touch-target/g) || []).length >= 5 && /min-h-\[44px\]/.test(reactorTouchSource)],
   ["focus ring remains explicit", /focus-visible/.test(css)],
   ["terminal state does not require animation", /atlasTerminal|reactor-terminal-banner/.test(reactor) && /prefers-reduced-motion/.test(css)],
   ["desktop shell uses laptop breakpoint for rail", /lg:flex/.test(layout) && /lg:pl-\[274px\]/.test(layout) && /lg:pl-6/.test(layout)],
