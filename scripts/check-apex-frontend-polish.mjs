@@ -25,8 +25,8 @@ const layout = read("artifacts/apex-finder/src/components/layout.tsx");
 
 const checks = [
   ["dashboard desktop sidebar is content-height overlay rail", /absolute left-0 top-0/.test(layout) && /h-fit/.test(layout)],
-  ["dashboard main canvas is independent of sidebar rail", /w-full min-w-0 flex-col/.test(layout) && /md:pl-\[250px\]/.test(layout)],
-  ["dashboard lower sections reclaim the sidebar column", /atlas-dashboard-wide/.test(dashboard) && /--atlas-sidebar-width:\s*250px/.test(css) && /inline-size:\s*100vw/.test(css) && /margin-inline-start:\s*calc\(-1 \* \(var\(--atlas-sidebar-width\) \+ 1\.5rem\)\)/.test(css)],
+  ["dashboard main canvas is independent of sidebar rail", /w-full min-w-0 flex-col/.test(layout) && /md:pl-\[250px\]/.test(layout) && /md:pl-0/.test(layout)],
+  ["dashboard lower sections reclaim the sidebar column", /atlas-dashboard-wide/.test(dashboard) && /--atlas-sidebar-width:\s*250px/.test(css) && /--atlas-sidebar-offset/.test(css) && /inline-size:\s*100vw/.test(css) && /margin-inline-start:\s*calc\(-1 \* \(var\(--atlas-sidebar-offset, var\(--atlas-sidebar-width\)\) \+ 1\.5rem\)\)/.test(css)],
   ["dashboard hero copy is explicitly start-aligned", /atlas-dashboard-hero-copy/.test(dashboard) && /margin-inline-start:\s*0/.test(css)],
   ["home CTA has exact matching desktop rail width", /--atlas-command-width:\s*14\.75rem/.test(css) && /width:\s*calc\(var\(--atlas-depth-width\) \+ var\(--atlas-hero-gap\) \+ var\(--atlas-command-width\)\)/.test(css) && /width:\s*var\(--atlas-command-width\)/.test(css)],
   ["home depth selector remains subordinate", /--atlas-depth-width:\s*7\.625rem/.test(css) && /grid-template-columns:\s*var\(--atlas-depth-width\) var\(--atlas-command-width\)/.test(css)],
@@ -42,6 +42,8 @@ const checks = [
   ["mobile controls retain touch-safe targets", /--atlas-touch:\s*44px/.test(css) && /reactor-touch-target/.test(css) && /reactor-mobile-safe/.test(css)],
   ["focus ring remains explicit", /focus-visible/.test(css)],
   ["terminal state does not require animation", /atlasTerminal|reactor-terminal-banner/.test(reactor) && /prefers-reduced-motion/.test(css)],
+  ["desktop shell updates document title by route", /document\.title/.test(layout) && /Apex Atlas/.test(layout)],
+  ["desktop shell exposes a bypass link", /Skip to main content/.test(layout) && /id="main-content"/.test(layout)],
 ];
 
 let failed = false;
