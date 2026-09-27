@@ -8,8 +8,10 @@ const source = fs.readFileSync(target, "utf8");
 const required = [
   'from "./agentic-llm-telemetry"',
   "recordAgenticLlmAttempt({",
-  "const models = [process.env.MISTRAL_AGENTIC_MODEL",
-  "for (const key of keys) for (const model of GROQ_CHAT_MODELS)",
+  "export async function resolveMistralChatModels",
+  "card.capabilities?.completion_chat === true",
+  "const models = await resolveMistralChatModels(key, signal)",
+  "for (const model of models)",
   "if (response.status === 401 || response.status === 403) break;",
   "if (response.status === 429) {",
   "setAgenticLlmHealth(false, null, `${selectedInvestigatorLlm}:selected provider unavailable`)",
