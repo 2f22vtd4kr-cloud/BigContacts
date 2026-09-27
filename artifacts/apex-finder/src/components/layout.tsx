@@ -322,7 +322,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         className="relative z-0 flex min-h-[100dvh] min-h-[100svh] w-full min-w-0 flex-col overflow-hidden bg-[#111827]"
       >
         <div className="atlas-grid pointer-events-none absolute inset-0" />
-        <header className="relative z-40 flex min-h-14 shrink-0 items-center gap-1 border-b border-white/[0.03] bg-[#111827]/95 pl-[max(0.5rem,env(safe-area-inset-left))] pr-[max(0.5rem,env(safe-area-inset-right))] pt-[max(0.25rem,env(safe-area-inset-top))] backdrop-blur-lg sm:gap-2 sm:px-5 md:h-16 ${desktopNavOpen ? "md:pl-[274px]" : "md:pl-6"} md:pr-6">
+        <header className={cn("relative z-40 flex min-h-14 shrink-0 items-center gap-1 border-b border-white/[0.03] bg-[#111827]/95 pl-[max(0.5rem,env(safe-area-inset-left))] pr-[max(0.5rem,env(safe-area-inset-right))] pt-[max(0.25rem,env(safe-area-inset-top))] backdrop-blur-lg sm:gap-2 sm:px-5 md:h-16 md:pr-6", desktopNavOpen ? "md:pl-[274px]" : "md:pl-6")}>
           {/* Mobile: menu first so Launch/status never collide with it */}
           <button
             ref={mobileMenuButtonRef}
