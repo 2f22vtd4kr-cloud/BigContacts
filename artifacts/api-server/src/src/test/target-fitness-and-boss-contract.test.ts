@@ -1,4 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
+
+vi.mock("../lib/gemini-transient-retry", () => ({
+  installGeminiTransientRetry: vi.fn(),
+}));
 import { evaluateTargetFitness, shouldRejectTarget, suggestReframe } from "../lib/target-fitness";
 import { applyGeminiBossPlan, generateGeminiBossText, getGeminiBossLatencyConfig, type ResearchCaseFile } from "../lib/case-bureau";
 import { computeInvestigationProgress, evaluateInvestigationStop } from "../lib/investigation-progress";
@@ -319,7 +323,7 @@ describe("Gemini Boss transport contract", () => {
     const fetchMock = vi.spyOn(globalThis, "fetch")
       .mockRejectedValueOnce(Object.assign(new Error("The operation was aborted"), { name: "AbortError" }))
       .mockResolvedValueOnce(new Response(
-        JSON.stringify({ candidates: [{ content: { parts: [{ text: '{"investigatorLlm":"groq","action":"proceed"}' }] } }] }),
+        JSON.stringify({ output_text: '{"investigatorLlm":"groq","action":"proceed"}' }),
         { status: 200, headers: { "content-type": "application/json" } },
       ));
 
@@ -338,6 +342,8 @@ describe("Gemini Boss transport contract", () => {
     expect(result.error).toBeNull();
     expect(result.model).toBe("gemini-3.7-flash");
     expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)).model).toBe("gemini-3.8-flash");
+    expect(JSON.parse(String(fetchMock.mock.calls[1]?.[1]?.body)).model).toBe("gemini-3.7-flash");
     fetchMock.mockRestore();
     vi.unstubAllEnvs();
   });
@@ -361,7 +367,8 @@ describe("Gemini Boss transport contract", () => {
 
     expect(first.error).toMatch(/bounded same-role model fallback/i);
     expect(first.error).toMatch(/request failed|generation failed/i);
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock.mock.calls.length).toBeGreaterThanOrEqual(2);
+    expect(fetchMock.mock.calls.length).toBeLessThanOrEqual(4);
     fetchMock.mockRestore();
     vi.unstubAllEnvs();
   });

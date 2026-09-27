@@ -14,10 +14,11 @@ describe("Gemini Boss bounded control-plane generation", () => {
   it("caps model attempts at four and uses a control-sized output budget", async () => {
     process.env.GEMINI_API_KEY = "test-key";
 
-    const providerFetch = vi.fn<typeof fetch>(async (input) => {
+    const providerFetch = vi.fn<typeof fetch>(async (input, init) => {
       const url = String(input);
-      if (url.includes("gemini-test-a")) return new Response("retired", { status: 404 });
-      if (url.includes("gemini-test-b")) {
+      const body = JSON.parse(String(init?.body ?? "{}")) as { model?: string };
+      if (body.model === "gemini-test-a") return new Response("retired", { status: 404 });
+      if (body.model === "gemini-test-b") {
         return new Response(
           JSON.stringify({ steps: [{ type: "model_output", content: [{ type: "text", text: '{"action":"stop"}' }] }] }),
           { status: 200 },
@@ -58,6 +59,8 @@ describe("Gemini Boss bounded control-plane generation", () => {
     expect(secondBody.generation_config.max_output_tokens).toBe(768);
     expect(String(providerFetch.mock.calls[0]?.[0])).toContain("/v1beta/interactions");
     expect(String(providerFetch.mock.calls[1]?.[0])).toContain("/v1beta/interactions");
+    expect(firstBody.model).toBe("gemini-test-a");
+    expect(secondBody.model).toBe("gemini-test-b");
   });
   it("retries the same Gemini model without structured output after a 400 invalid_request", async () => {
     process.env.GEMINI_API_KEY = "test-key";
@@ -136,8 +139,8 @@ describe("Gemini Boss bounded control-plane generation", () => {
     expect(result.error).toBeNull();
     expect(result.raw).toContain('"action"');
     expect(providerFetch).toHaveBeenCalledTimes(2);
-    expect(String(providerFetch.mock.calls[0]?.[0])).toContain("gemini-test-a");
-    expect(String(providerFetch.mock.calls[1]?.[0])).toContain("gemini-test-b");
+    expect(JSON.parse(String(providerFetch.mock.calls[0]?.[1]?.body)).model).toBe("gemini-test-a");
+    expect(JSON.parse(String(providerFetch.mock.calls[1]?.[1]?.body)).model).toBe("gemini-test-b");
   });
 
 });

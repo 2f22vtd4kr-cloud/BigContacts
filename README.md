@@ -116,7 +116,7 @@ APEX_ALLOW_SCHEMA_PUSH=true bash scripts/initialize-apex-schema.sh
 
 Do not leave schema mutation enabled for ordinary runtime boot.
 
-The last user-conducted Replit audit found a live database/schema compatibility blocker involving missing `research_cases.target_entity_id`. That audit did not mutate the database. Because `main` is now canonical, the next runtime investigation must first re-check the current `main` schema contract against the actual Replit database before applying any migration.
+The latest user-conducted Replit audit initialized the fresh database explicitly and verified the canonical API routes and durable empty state. The first live provider failure was Gemini Boss structured-output HTTP 400; the subsequent same-model compatibility repair allowed the run to reach Gemini Right-hand, where the next failure was invalid JSON. PR #384 hardens the Right-hand structured JSON contract. The repair is not considered live-proven until the canonical Replit launch succeeds after merge.
 
 ## Runtime secret contract
 
@@ -139,3 +139,5 @@ Never print or commit secret values. Do not ask the user for GitHub credentials 
 **Every contact should be a person you can justify from the public record — not a guess that looks like one.**
 
 Architecture makes that behavior enforceable. Only controlled live investigations can prove that Apex consistently achieves it.
+
+<!-- Recovery verification remains empirical: static green gates do not replace the canonical Replit launch. -->
