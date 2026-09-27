@@ -242,7 +242,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const sidebarOffset = desktopNavOpen ? "250px" : "0px";
 
   return (
-    <div className="atlas-noise relative min-h-[100dvh] min-h-[100svh] overflow-hidden bg-background text-foreground">
+    <div className="relative min-h-[100dvh] min-h-[100svh] overflow-hidden bg-background text-foreground">
       <a
         href="#main-content"
         className="sr-only fixed left-3 top-3 z-[100] rounded-md bg-[#9CFF1A] px-3 py-2 text-xs font-bold text-black shadow-lg focus:not-sr-only focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
@@ -322,7 +322,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         id="main-content"
         tabIndex={-1}
         aria-label="Apex Atlas workspace"
-        className="relative z-0 flex min-h-[100dvh] min-h-[100svh] w-full min-w-0 flex-col overflow-hidden bg-[#111827]"
+        className="atlas-noise relative z-0 flex min-h-[100dvh] min-h-[100svh] w-full min-w-0 flex-col overflow-hidden bg-[#111827]"
       >
         <div className="atlas-grid pointer-events-none absolute inset-0" />
         <header className={cn("relative z-40 flex min-h-14 shrink-0 items-center gap-1 border-b border-white/[0.03] bg-[#111827]/95 pl-[max(0.5rem,env(safe-area-inset-left))] pr-[max(0.5rem,env(safe-area-inset-right))] pt-[max(0.25rem,env(safe-area-inset-top))] backdrop-blur-lg sm:gap-2 sm:px-5 lg:h-16 lg:pr-6", desktopNavOpen ? "lg:pl-[274px]" : "lg:pl-6")}>
