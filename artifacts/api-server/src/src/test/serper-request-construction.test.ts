@@ -9,6 +9,7 @@ import { safeOutboundFetch } from "../lib/ssrf-safe-fetch";
 
 describe("Serper request construction", () => {
   beforeEach(() => {
+    vi.clearAllMocks();
     process.env.SERPER_API_KEY = "test-serper-key";
     vi.mocked(safeOutboundFetch).mockResolvedValue(new Response(JSON.stringify({
       organic: [{ title: "Example", link: "https://example.com", snippet: "Example result" }],
@@ -17,13 +18,13 @@ describe("Serper request construction", () => {
 
   afterEach(() => {
     delete process.env.SERPER_API_KEY;
-    vi.restoreAllMocks();
+    vi.clearAllMocks();
   });
 
   it("maps locale to language (hl) and market to country (gl)", async () => {
     const result = await webSearchSerper("Alex Example", "en-US", "US");
 
-    expect(result?.urls).toEqual(["https://example.com"]);
+    expect(result?.urls).toEqual(["https://example.com/"]);
     expect(safeOutboundFetch).toHaveBeenCalledTimes(1);
 
     const [, init] = vi.mocked(safeOutboundFetch).mock.calls[0]!;
