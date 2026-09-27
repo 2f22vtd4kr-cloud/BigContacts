@@ -28,7 +28,7 @@ const failures = [];
 const assert = (ok, message) => { if (!ok) failures.push(message); };
 
 assert(/export function setAuthTokenGetter/.test(client), "shared API client no longer exposes its auth-token hook");
-assert(/function OperatorGate/.test(router) && /\/api\/auth\/session/.test(router), "browser application does not gate the desk on an authenticated operator session");
+assert(/function OperatorAuthGate/.test(router) && /\/api\/auth\/session/.test(router), "browser application does not gate the desk on an authenticated operator session");
 assert(/\/api\/auth\/login/.test(router) && /credentials:\s*["']include["']/.test(router), "browser login does not establish a credentialed same-origin session");
 assert(/verifyOperatorSession/.test(authRoute) && /HttpOnly/.test(authRoute) && /SameSite=Strict/.test(authRoute), "operator auth route does not issue a hardened HttpOnly session cookie");
 assert(/verifyOperatorSession\(session\)/.test(apiAuth), "API auth middleware does not accept the browser operator session");
