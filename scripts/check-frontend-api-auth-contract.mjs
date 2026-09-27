@@ -22,14 +22,16 @@ function walk(dir) {
 
 const application = app.map(walk).join("\n");
 const router = fs.readFileSync(path.join(root, "artifacts/apex-finder/src/router.tsx"), "utf8");
+const authGate = fs.readFileSync(path.join(root, "artifacts/apex-finder/src/components/operator-auth-gate.tsx"), "utf8");
 const authRoute = fs.readFileSync(path.join(root, "artifacts/api-server/src/src/routes/auth.ts"), "utf8");
 const apiAuth = fs.readFileSync(path.join(root, "artifacts/api-server/src/src/lib/api-auth.ts"), "utf8");
 const failures = [];
 const assert = (ok, message) => { if (!ok) failures.push(message); };
 
 assert(/export function setAuthTokenGetter/.test(client), "shared API client no longer exposes its auth-token hook");
-assert(/function OperatorAuthGate/.test(router) && /\/api\/auth\/session/.test(router), "browser application does not gate the desk on an authenticated operator session");
-assert(/\/api\/auth\/login/.test(router) && /credentials:\s*["']include["']/.test(router), "browser login does not establish a credentialed same-origin session");
+assert(/OperatorAuthGate/.test(router) && /<OperatorAuthGate>/.test(router), "browser application does not wrap the desk in the operator auth gate");
+assert(/export function OperatorAuthGate/.test(authGate) && /\/api\/auth\/session/.test(authGate), "operator auth gate does not verify the server-side session");
+assert(/\/api\/auth\/login/.test(authGate) && /credentials:\s*["']same-origin["']/.test(authGate), "browser login does not establish a credentialed same-origin session");
 assert(/verifyOperatorSession/.test(authRoute) && /HttpOnly/.test(authRoute) && /SameSite=Strict/.test(authRoute), "operator auth route does not issue a hardened HttpOnly session cookie");
 assert(/verifyOperatorSession\(session\)/.test(apiAuth), "API auth middleware does not accept the browser operator session");
 assert(/Cross-site mutation blocked/.test(apiAuth) && /sameOrigin/.test(apiAuth), "cookie-authenticated API mutations lack a same-origin CSRF boundary");
