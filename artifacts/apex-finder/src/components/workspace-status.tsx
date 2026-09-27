@@ -307,7 +307,7 @@ export function WorkspaceStatus() {
             </div>
             <button
               type="button"
-              className="shrink-0 rounded-md px-2 py-1 font-mono text-[14px] text-muted-foreground hover:bg-muted hover:text-foreground"
+              className="flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-md px-2 py-1 font-mono text-[14px] text-muted-foreground hover:bg-muted hover:text-foreground"
               onClick={() => setOpen(false)}
               aria-label="Close"
             >
