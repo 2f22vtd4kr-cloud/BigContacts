@@ -37,6 +37,11 @@ const checks = [
   ["main shell prevents flex-width blowout", /min-w-0/.test(layout)],
   ["mobile nav is hidden behind md breakpoint", /md:hidden/.test(layout)],
   ["desktop nav has md breakpoint", /hidden[^\n]*md:flex/.test(layout)],
+  ["mobile drawer fills the viewport", /mobile \? "h-full w-\[min\(300px,86vw\)\]"/.test(layout)],
+  ["mobile drawer closes on Escape and restores focus", /key === "Escape"/.test(layout) && /mobileMenuButtonRef\.current\?\.focus/.test(layout)],
+  ["skip link reaches the main landmark", /href="#main-content"/.test(layout) && /id="main-content"/.test(layout)],
+  ["collapsed desktop nav releases the content column", /desktopNavOpen \? "md:pl-\[250px\]" : "md:pl-0"/.test(layout) && /desktopNavOpen \? "md:pl-\[274px\]" : "md:pl-6"/.test(layout)],
+
   ["mobile reactor uses a dedicated flow surface", /MobileReactorFlow/.test(reactor)],
   ["reactor derives visible tools from observed spans", /schemeNodesFromSpans/.test(reactor)],
   ["reactor supports pointer panning", /setPointerCapture/.test(reactor)],

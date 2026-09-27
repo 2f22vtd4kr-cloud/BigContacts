@@ -23,7 +23,6 @@ import {
 import { ApiKeyHealth } from "@/components/api-key-health";
 import { WorkspaceStatus } from "@/components/workspace-status";
 import { LaunchAtlasButton } from "@/components/launch-atlas-button";
-import { BureauIntegrityBanner } from "@/components/bureau-integrity-banner";
 import { ReactorMark } from "@/components/reactor-mark";
 
 const mainNav = [
@@ -57,6 +56,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const [desktopNavOpen, setDesktopNavOpen] = useState(true);
   const [edgeHot, setEdgeHot] = useState(false);
   const edgeHotTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const mobileMenuButtonRef = useRef<HTMLButtonElement | null>(null);
+  const mobileCloseButtonRef = useRef<HTMLButtonElement | null>(null);
+  const wasSidebarOpen = useRef(false);
   const armEdgeHot = () => {
     if (edgeHotTimer.current) clearTimeout(edgeHotTimer.current);
     setEdgeHot(true);
@@ -76,6 +78,21 @@ export function Layout({ children }: { children: React.ReactNode }) {
       setToolsOpen(true);
     }
   }, [location]);
+
+  useEffect(() => {
+    if (sidebarOpen) {
+      mobileCloseButtonRef.current?.focus();
+      const onKeyDown = (event: KeyboardEvent) => {
+        if (event.key === "Escape") setSidebarOpen(false);
+      };
+      window.addEventListener("keydown", onKeyDown);
+      wasSidebarOpen.current = true;
+      return () => window.removeEventListener("keydown", onKeyDown);
+    }
+    if (wasSidebarOpen.current) mobileMenuButtonRef.current?.focus();
+    wasSidebarOpen.current = false;
+    return undefined;
+  }, [sidebarOpen]);
 
   const isActive = (href: string) =>
     location === href || (href !== "/" && location.startsWith(href));
@@ -103,8 +120,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
   const Sidebar = ({ mobile = false }: { mobile?: boolean }) => (
     <aside className={cn(
-      "flex h-fit flex-col bg-[#111827]",
-      mobile ? "w-[min(300px,86vw)]" : "w-[250px] shrink-0",
+      "flex flex-col bg-[#111827]",
+      mobile ? "h-full w-[min(300px,86vw)]" : "h-fit w-[250px] shrink-0",
     )}>
       <div className="flex h-[76px] shrink-0 items-center border-b border-white/[0.03] px-5">
         <Link
@@ -126,6 +143,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         </Link>
         {mobile && (
           <button
+            ref={mobileCloseButtonRef}
             onClick={() => setSidebarOpen(false)}
             aria-label="Close menu"
             data-testid="button-close-menu"
@@ -199,6 +217,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const isReactorRoute = location === "/reactor";
   /** Pages that already render their own title chrome */
   /** Pages that already render their own title / immersive chrome */
+  useEffect(() => {
+    document.title = pageTitle === "Overview" ? "Apex Atlas" : pageTitle + " · Apex Atlas";
+  }, [pageTitle]);
+
   const hideDeskTitle =
     isReactorRoute
     || location === "/"
@@ -214,8 +236,16 @@ export function Layout({ children }: { children: React.ReactNode }) {
     || location === "/network"
     || location === "/manual";
 
+  const sidebarOffset = desktopNavOpen ? "250px" : "0px";
+
   return (
     <div className="atlas-noise relative min-h-[100dvh] min-h-[100svh] overflow-hidden bg-background text-foreground">
+      <a
+        href="#main-content"
+        className="sr-only fixed left-3 top-3 z-[100] rounded-md bg-[#9CFF1A] px-3 py-2 text-xs font-bold text-black shadow-lg focus:not-sr-only focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+      >
+        Skip to main content
+      </a>
       <svg aria-hidden="true" width="0" height="0" style={{ position: "absolute", width: 0, height: 0, overflow: "hidden" }}>
         <defs>
           <filter id="atlas-liquid-distort" x="-50%" y="-50%" width="200%" height="200%" colorInterpolationFilters="sRGB">
@@ -285,11 +315,17 @@ export function Layout({ children }: { children: React.ReactNode }) {
           <div className="relative z-10 h-full"><Sidebar mobile /></div>
         </div>
       )}
-      <main className="relative z-0 flex min-h-[100dvh] min-h-[100svh] w-full min-w-0 flex-col overflow-hidden bg-[#111827]">
+      <main
+        id="main-content"
+        tabIndex={-1}
+        aria-label="Apex Atlas workspace"
+        className="relative z-0 flex min-h-[100dvh] min-h-[100svh] w-full min-w-0 flex-col overflow-hidden bg-[#111827]"
+      >
         <div className="atlas-grid pointer-events-none absolute inset-0" />
-        <header className="relative z-40 flex min-h-14 shrink-0 items-center gap-1 border-b border-white/[0.03] bg-[#111827]/95 pl-[max(0.5rem,env(safe-area-inset-left))] pr-[max(0.5rem,env(safe-area-inset-right))] pt-[max(0.25rem,env(safe-area-inset-top))] backdrop-blur-lg sm:gap-2 sm:px-5 md:h-16 md:pl-[274px] md:pr-6">
+        <header className={cn("relative z-40 flex min-h-14 shrink-0 items-center gap-1 border-b border-white/[0.03] bg-[#111827]/95 pl-[max(0.5rem,env(safe-area-inset-left))] pr-[max(0.5rem,env(safe-area-inset-right))] pt-[max(0.25rem,env(safe-area-inset-top))] backdrop-blur-lg sm:gap-2 sm:px-5 md:h-16 md:pr-6", desktopNavOpen ? "md:pl-[274px]" : "md:pl-6")}>
           {/* Mobile: menu first so Launch/status never collide with it */}
           <button
+            ref={mobileMenuButtonRef}
             onClick={() => setSidebarOpen(true)}
             aria-label="Open menu"
             data-testid="button-open-menu"
@@ -328,7 +364,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </div>
         </div>
         )}
-        <div className={`relative z-10 flex min-h-0 min-w-0 w-full max-w-full flex-1 flex-col overflow-x-hidden md:pl-[250px] ${isReactorRoute ? "overflow-hidden" : "overflow-y-auto"}`}>
+        <div
+          data-nav-open={desktopNavOpen ? "true" : "false"}
+          style={{ "--atlas-sidebar-offset": sidebarOffset } as React.CSSProperties}
+          className={`relative z-10 flex min-h-0 min-w-0 w-full max-w-full flex-1 flex-col overflow-x-hidden ${desktopNavOpen ? "md:pl-[250px]" : "md:pl-0"} ${isReactorRoute ? "overflow-hidden" : "overflow-y-auto"}`}
+        >
           {children}
         </div>
       </main>
