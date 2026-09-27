@@ -23,11 +23,20 @@ const mark = read(files.mark);
 
 const layout = read("artifacts/apex-finder/src/components/layout.tsx");
 const router = read("artifacts/apex-finder/src/router.tsx");
+const tabletSurfaces = [
+  "artifacts/apex-finder/src/pages/entities.tsx",
+  "artifacts/apex-finder/src/pages/graph.tsx",
+  "artifacts/apex-finder/src/pages/research.tsx",
+  "artifacts/apex-finder/src/pages/profile.tsx",
+  "artifacts/apex-finder/src/pages/deep-search.tsx",
+].map(read);
+
 
 const checks = [
   ["dashboard desktop sidebar is content-height overlay rail", /absolute left-0 top-0/.test(layout) && /h-fit/.test(layout)],
     ["route canvas is shrinkable at every viewport", /\.atlas-page \{/.test(css) && /width:\s*100%/.test(css) && /max-width:\s*100%/.test(css) && /min-width:\s*0/.test(css)],
   ["all routed frontend surfaces remain registered", ["/", "/search", "/profiles", "/network", "/jobs", "/reactor", "/research", "/manual", "/profile/:id", "/improvements", "/data-sources", "/duplicates", "/osint-tools", "/status"].every((route) => router.includes(`path="${route}"`))],
+  ["tablet desk switches use laptop breakpoint", tabletSurfaces.every((source) => !/(?:hidden|flex|flex-row) md:(?:hidden|flex|flex-row)/.test(source))],
 ["dashboard main canvas is independent of sidebar rail", /w-full min-w-0 flex-col/.test(layout) && /lg:pl-\[250px\]/.test(layout) && /lg:pl-0/.test(layout) && /const contentPadding = desktopContentPadding;/.test(layout)],
   ["dashboard rows stay inside the shell canvas", /atlas-dashboard-wide/.test(dashboard) && /max-width:\s*100%/.test(css) && /min-width:\s*0/.test(css) && !/inline-size:\s*100vw/.test(css) && !/atlas-sidebar-offset/.test(css)],
   ["dashboard has no rail-overlap compensation", !dashboard.includes("md:pl-[274px]") && /atlas-dashboard-wide/.test(dashboard)],
