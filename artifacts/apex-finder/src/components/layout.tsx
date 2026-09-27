@@ -113,7 +113,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       >
         <item.icon className={cn("h-[17px] w-[17px] shrink-0", active ? "text-primary" : "text-muted-foreground/80")} />
         <span className="truncate">{item.name}</span>
-        {active && <span className="ml-auto h-1.5 w-1.5 rounded-full bg-primary" />}
+        
       </Link>
     );
   };
@@ -121,7 +121,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const Sidebar = ({ mobile = false }: { mobile?: boolean }) => (
     <aside className={cn(
       "flex flex-col bg-[#111827]",
-      mobile ? "h-full w-[min(300px,86vw)]" : "h-fit w-[250px] shrink-0",
+      mobile ? "h-full w-[min(300px,86vw)]" : "h-full w-[250px] shrink-0",
     )}>
       <div className="flex h-[76px] shrink-0 items-center border-b border-white/[0.03] px-5">
         <Link
@@ -180,8 +180,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       </nav>
 
       <div className="border-t border-white/[0.04] px-5 py-4">
-        <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground/60">
-          <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+        <div className="min-w-0 truncate font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground/60">
           Public records workspace
         </div>
       </div>
@@ -264,7 +263,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       {/* Desktop collapsible nav */}
       <div
         className={cn(
-          "absolute left-0 top-0 z-50 hidden h-fit transition-[width] duration-200 ease-out lg:flex",
+          "absolute inset-y-0 left-0 z-50 hidden h-full transition-[width] duration-200 ease-out lg:flex",
           desktopNavOpen ? "w-[250px]" : "w-0 overflow-hidden",
         )}
       >
