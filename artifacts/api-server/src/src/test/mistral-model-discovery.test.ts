@@ -1,4 +1,8 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("../lib/ssrf-safe-fetch", () => ({
+  safeOutboundFetch: (input: string | URL, init?: RequestInit) => globalThis.fetch(input, init),
+}));
 import { resetProviderGateForTests } from "../lib/provider-gate";
 import { resolveMistralChatModels } from "../lib/agentic-web-research-core";
 
