@@ -56,10 +56,9 @@ describe("Gemini Right-hand catalog-driven fallback", () => {
     const generationCalls = calls.filter((url) => url.includes("/v1beta/interactions"));
     expect(result.status).toBe("completed");
     expect(result.model).toBe("gemini-3.7-flash");
-    expect(generationCalls).toHaveLength(3);
+    expect(generationCalls).toHaveLength(2);
     expect(generationCalls[0]).toContain(`/v1beta/interactions`);
     expect(generationCalls[1]).toContain("/v1beta/interactions");
-    expect(generationCalls[2]).toContain("/v1beta/interactions");
   });
 
   it("falls through the live catalog when the preferred model is not authorized for a free-tier key", async () => {
@@ -137,9 +136,10 @@ describe("Gemini Right-hand catalog-driven fallback", () => {
     const generationCalls = calls.filter((url) => url.includes("/v1beta/interactions"));
     expect(result.status).toBe("completed");
     expect(result.model).toBe("gemini-3.7-flash");
-    expect(generationCalls).toHaveLength(2);
+    expect(generationCalls).toHaveLength(3);
     expect(generationCalls[0]).toContain(`/v1beta/interactions`);
     expect(generationCalls[1]).toContain("/v1beta/interactions");
+    expect(generationCalls[2]).toContain("/v1beta/interactions");
   });
 
   it("walks only the bounded candidates supplied by the live catalog", async () => {
