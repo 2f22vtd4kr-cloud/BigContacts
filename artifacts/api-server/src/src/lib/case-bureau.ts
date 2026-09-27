@@ -536,7 +536,7 @@ export async function generateGeminiBossText(
         ...(options?.responseFormat ? { response_format: options.responseFormat } : {}),
       });
       try {
-        const response = await fetch(GEMINI_INTERACTIONS_API, {
+        let response = await fetch(GEMINI_INTERACTIONS_API, {
           method: "POST",
           headers: {
             Accept: "application/json",
@@ -546,8 +546,46 @@ export async function generateGeminiBossText(
           body: interactionBody,
           signal: controller.signal,
         });
+        let responseText = await response.text();
+
+        // Google documents structured output on the Interactions API for Gemini
+        // 3.5+; however, a model/project can still reject a structured request
+        // with invalid_request. Because Boss JSON is also validated locally after
+        // generation, retry the same Gemini model once without response_format.
+        // This is a same-role compatibility retry, not a provider substitution.
+        if (response.status === 400 && options?.responseFormat && Date.now() < bossDeadline) {
+          const compatibilityBody = JSON.stringify({
+            model,
+            input: prompt,
+            generation_config: { max_output_tokens: options?.maxOutputTokens ?? 768, ...(options?.thinkingLevel ? { thinking_level: options.thinkingLevel } : {}) },
+          });
+          logger.warn(
+            {
+              role: "gemini_boss",
+              phase: "structured_output_compatibility_retry",
+              model,
+              keyName: entry.name,
+              initialHttpStatus: response.status,
+              initialResponseShape: summarizeProviderBody(responseText),
+              initialRequestPayloadBytes: Buffer.byteLength(interactionBody),
+              compatibilityRequestPayloadBytes: Buffer.byteLength(compatibilityBody),
+            },
+            "Gemini Boss rejected structured output with HTTP 400; retrying the same model without response_format",
+          );
+          response = await fetch(GEMINI_INTERACTIONS_API, {
+            method: "POST",
+            headers: {
+              Accept: "application/json",
+              "Content-Type": "application/json",
+              "x-goog-api-key": entry.key,
+            },
+            body: compatibilityBody,
+            signal: controller.signal,
+          });
+          responseText = await response.text();
+        }
+
         const fetchElapsedMs = Date.now() - attemptStartedAt;
-        const responseText = await response.text();
         const totalElapsedMs = Date.now() - attemptStartedAt;
         const responseShape = summarizeProviderBody(responseText);
         const failureClass = response.ok ? null : classifyProviderHttpStatus(response.status);
