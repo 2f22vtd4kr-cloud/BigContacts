@@ -1,4 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
+
+vi.mock("../lib/gemini-transient-retry", () => ({
+  installGeminiTransientRetry: vi.fn(),
+}));
 import { evaluateTargetFitness, shouldRejectTarget, suggestReframe } from "../lib/target-fitness";
 import { applyGeminiBossPlan, generateGeminiBossText, getGeminiBossLatencyConfig, type ResearchCaseFile } from "../lib/case-bureau";
 import { computeInvestigationProgress, evaluateInvestigationStop } from "../lib/investigation-progress";
