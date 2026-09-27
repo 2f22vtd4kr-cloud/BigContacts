@@ -355,9 +355,10 @@ async function callMistralJson(prompt: string, signal: AbortSignal): Promise<{ m
   let sizeReductionApplied = false;
   const retryBudgetByModel = new Map<string, number>();
   for (const model of models) {
-    if (signal.aborted) throw new Error("cancelled");
-    attempt += 1;
-    const started = Date.now();
+    for (;;) {
+      if (signal.aborted) throw new Error("cancelled");
+      attempt += 1;
+      const started = Date.now();
     try {
       const response = await runProviderCall({ provider: "mistral", account: key, signal }, () => safeOutboundFetch("https://api.mistral.ai/v1/chat/completions", {
         method: "POST",
@@ -402,9 +403,9 @@ async function callMistralJson(prompt: string, signal: AbortSignal): Promise<{ m
             });
             continue;
           }
-          continue;
+          break;
         }
-        continue;
+        break;
       }
       const data = await readJsonCapped<{ choices?: Array<{ message?: { content?: string } }> }>(response, signal);
       const raw = data.choices?.[0]?.message?.content?.trim() || "";
@@ -425,6 +426,7 @@ async function callMistralJson(prompt: string, signal: AbortSignal): Promise<{ m
         }
       }
       recordAgenticLlmAttempt({ provider: "mistral", model, promptChars: workingPrompt.length, status: "error", success: false, latencyMs: Date.now() - started, retryIndex: attempt, reason: error?.message || "exception" });
+      }
     }
   }
   return null;
