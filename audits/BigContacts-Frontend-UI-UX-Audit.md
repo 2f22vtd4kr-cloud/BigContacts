@@ -537,3 +537,28 @@ The first managed browser capture confirmed the layout/gutter repairs, but the s
 - Updated the frontend regression contract to require the visible grain pseudo-element and its opacity.
 - This repair requires a fresh Replit screenshot pass before it can be considered visually accepted.
 
+
+
+## Source verification after grain repair — 2026-09-27
+
+Merged repair commit: `5c64752ef0ab29022e8671089429b027a1c5700e`.
+
+The repair changes the existing grain implementation from a barely perceptible background-image treatment to a dedicated layered `.atlas-noise::before` canvas texture. It remains behind all UI content, uses low-opacity irregular micro-specks plus fractal noise, and does not change product structure or route behavior.
+
+### Five consecutive clean source audits after the repair
+
+1. **CLEAN AUDIT 4C/5 — PASS** — fresh recheck after the audit-checker-only mismatch; grain layer, dashboard geometry, dense routes, touch targets, error layer, and regression contract showed no source defect.
+2. **CLEAN AUDIT 5C/5 — PASS** — grain layering, shell gutters, accessibility anchor, and complete route inventory.
+3. **CLEAN AUDIT 6C/5 — PASS** — Entity/Graph/Research/Profile/Deep Search/Duplicate Review/Dashboard responsive geometry.
+4. **CLEAN AUDIT 7C/5 — PASS** — focus, drawer dismissal, ARIA semantics, 44px touch targets, focus-visible behavior, reduced-motion support.
+5. **CLEAN AUDIT 8C/5 — PASS** — bounded error/replay surfaces, loading/empty route contracts, and audit documentation.
+
+The five-consecutive-clean **source** condition is therefore satisfied again after the grain repair.
+
+### Empirical browser condition
+
+The Replit run has supplied one empirical capture at 390×844, 768×1024, and 1280×720. It specifically reported that the requested reference-style grain was still not visually apparent. That finding triggered the repair above.
+
+A new Replit browser cycle has been requested against the latest source. The browser condition must remain open until five complete empirical passes are actually documented with zero new findings. Source-level clean audits do not substitute for those browser passes.
+
+Current repository main: `5c64752ef0ab29022e8671089429b027a1c5700e`.
