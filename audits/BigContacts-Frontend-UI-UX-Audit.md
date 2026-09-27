@@ -562,3 +562,45 @@ The Replit run has supplied one empirical capture at 390×844, 768×1024, and 12
 A new Replit browser cycle has been requested against the latest source. The browser condition must remain open until five complete empirical passes are actually documented with zero new findings. Source-level clean audits do not substitute for those browser passes.
 
 Current repository main: `5c64752ef0ab29022e8671089429b027a1c5700e`.
+
+
+## Implementation pass — neutral grain refinement and control polish — 2026-09-27
+
+The latest repository main was verified as `f2c1a7ba6f25bb6714765fadecf7af84e50577b2` before this implementation branch was created.
+
+### Grain decision
+
+The supplied reference is used **only as a texture reference**. It is not a color reference and does not authorize any change to the Apex Atlas palette.
+
+The previous grain implementation was rejected for the requested visual target because its fractal/noise wash could read as a milky light overlay. The implementation has therefore been narrowed to:
+
+- the existing Apex Atlas navy remains the base color;
+- decorative grain uses neutral white pinpricks only;
+- no cyan, blue, lime, or other reference-derived color is introduced into the grain;
+- the texture is sparse and irregular rather than a continuous veil;
+- no animation is attached to the grain;
+- the grain layer is pointer-inert and remains behind application content;
+- the embedded texture was kept compact enough to avoid turning the main CSS into a large visual asset.
+
+This direction is consistent with the platform behavior of decorative backgrounds: the texture is presentation-only and should not carry semantic information. CSS/SVG filter and blending primitives are appropriate mechanisms for texture rendering, while the UI content remains in the normal document/accessibility tree.
+
+### Control polish
+
+- Research replay controls were normalized to the project's 44px touch-target convention.
+- System Status refresh was normalized to the same 44px minimum.
+- Regression coverage now checks these controls as well as the neutral grain contract.
+
+### Source-quality note
+
+The Replit capture reported an existing React list-key warning on System Status. Static inspection of the visible `.map()` sites in that page found keys on the rendered list items, so the warning is not being reclassified as a confirmed defect without a reproducible browser stack trace.
+
+### Browser verification boundary
+
+The five-consecutive-clean **source** condition must be restarted after this implementation pass. Empirical browser passes remain separate: a browser pass counts only when the Replit audit workspace actually completes the prescribed route/viewport sweep and records zero new findings. Workspace API 404s remain an environment limitation unless a repository-specific API implementation is present in that audit environment.
+
+### External engineering references used for this pass
+
+- Tailwind responsive breakpoints: `md` starts at 768px and `lg` at 1024px; the existing dense-desk strategy continues to use the laptop breakpoint for desktop geometry.
+- W3C WCAG 2.2 Target Size guidance establishes 24×24 CSS px as the Level AA minimum, while the project deliberately uses a stricter 44px interaction convention for its touch controls.
+- MDN documents `mix-blend-mode` and `isolation` as the relevant stacking/blending primitives, and SVG `feTurbulence`/component-transfer primitives as texture-generation tools.
+- web.dev notes that CSS background images are discovered later than markup resources and that large visual assets can affect CSS/rendering cost; the grain asset is consequently kept small and static.
