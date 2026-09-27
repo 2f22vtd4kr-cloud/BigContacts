@@ -258,10 +258,10 @@ export default function Dashboard() {
       <div className="px-0 pt-2 md:pt-4">
         <ScoreboardStrip className="mb-2" />
       </div>
-      <section className="atlas-enter atlas-ambient-gold relative flex flex-col gap-8 py-8 md:flex-row md:items-end md:justify-between md:py-12">
+      <section className="atlas-enter atlas-dashboard-hero atlas-ambient-gold relative flex flex-col gap-8 py-8 md:flex-row md:items-end md:justify-between md:py-12">
         {/* Wash only — must not mask headline or Launch */}
         <div className="atlas-ambient-wash" aria-hidden />
-        <div className="relative z-10 max-w-2xl">
+        <div className="atlas-dashboard-hero-copy relative z-10 max-w-2xl">
           <div className="mb-4 flex items-center gap-2.5 font-mono text-[12px] uppercase tracking-[0.2em] text-[#9CFF1A]">
             <span className="atlas-live-dot atlas-live-dot-pulse" aria-hidden />
             Research desk
@@ -318,7 +318,7 @@ export default function Dashboard() {
 
       {/* Desk shortcuts — product map without burying the hero */}
       <section
-        className="atlas-enter grid grid-cols-2 gap-2 pb-2 pt-5 md:grid-cols-4"
+        className="atlas-enter atlas-dashboard-wide grid grid-cols-2 gap-2 pb-2 pt-5 md:grid-cols-4"
         style={{ animationDelay: "40ms" }}
         data-testid="dashboard-ops-strip"
         aria-label="Desk shortcuts"
@@ -344,14 +344,14 @@ export default function Dashboard() {
         ))}
       </section>
 
-      <section className="atlas-enter grid grid-cols-2 gap-2.5 py-6 md:grid-cols-4 md:gap-3" style={{ animationDelay: "70ms" }}>
+      <section className="atlas-enter atlas-dashboard-wide grid grid-cols-2 gap-2.5 py-6 md:grid-cols-4 md:gap-3" style={{ animationDelay: "70ms" }}>
         <StatTile href="/profiles" label="Entities" value={stats?.totalEntities ?? "—"} detail="people · companies · trusts" icon={Users} testId="stat-total-entities" />
         <StatTile href="/profiles" label="Priority" value={stats?.hotLeadsCount ?? "—"} detail="strongest contact paths" icon={Sparkles} testId="stat-hot-leads" />
         <StatTile href="/profiles" label="Assets" value={stats?.totalAssets ?? "—"} detail="linked public evidence" icon={Database} testId="stat-total-assets" />
         <StatTile href="/network" label="Links" value={stats?.totalRelationships ?? "—"} detail="known relationships" icon={Network} testId="stat-total-relationships" />
       </section>
 
-      <section className="atlas-enter pt-3" style={{ animationDelay: "140ms" }}>
+      <section className="atlas-enter atlas-dashboard-wide pt-3" style={{ animationDelay: "140ms" }}>
         <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <div className="atlas-section-label flex items-center gap-2"><Sparkles className="h-3 w-3" /> Priority profiles</div>
@@ -365,7 +365,7 @@ export default function Dashboard() {
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">{leads.map((lead: any, index: number) => <LeadCard key={lead.entityId} lead={lead} index={index} />)}</div>}
       </section>
 
-      <section className="atlas-enter mt-10 grid gap-4 border-t border-[#9CFF1A]/10 pt-7 md:grid-cols-[1fr_auto]" style={{ animationDelay: "210ms" }}>
+      <section className="atlas-enter atlas-dashboard-wide mt-10 grid gap-4 border-t border-[#9CFF1A]/10 pt-7 md:grid-cols-[1fr_auto]" style={{ animationDelay: "210ms" }}>
         <div>
           <div className="atlas-section-label flex items-center gap-2"><ShieldCheck className="h-3 w-3" /> Evidence, not guesses</div>
           <p className="mt-2 max-w-xl text-sm leading-6 text-stone-400">Open a profile for registries, ownership, assets, and public contact channels — then decide what deserves attention.</p>
