@@ -408,7 +408,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
               />
               <button
                 type="button"
-                className={`text-[14px] font-bold uppercase tracking-[0.16em] ${isLive ? "text-[#d4ff8a]" : "text-stone-500"}`}
+                className={`reactor-touch-target inline-flex items-center ${isLive ? "text-[#d4ff8a]" : "text-stone-500"}`}
                 onClick={() => {
                   setShowHistory(false);
                   setJumpToLiveSignal((n) => n + 1);
@@ -449,7 +449,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
                 setShowHistory(true);
               }
             }}
-            className={`reactor-pressable flex h-10 shrink-0 items-center gap-1 rounded-lg border px-2.5 text-[14px] font-bold uppercase tracking-wider ${
+            className={`reactor-pressable reactor-touch-target flex min-h-[44px] shrink-0 items-center gap-1 rounded-lg border px-2.5 text-[14px] font-bold uppercase tracking-wider ${
               showHistory ? "border-[#9CFF1A]/40 bg-[#9CFF1A]/10 text-[#d4ff8a]" : "border-[#9CFF1A]/14 bg-[#0d1219] text-stone-400 hover:border-[#9CFF1A]/35"
             }`}
             data-testid="button-history"
@@ -462,7 +462,7 @@ export function MobileReactorFlow(props: MobileReactorFlowProps) {
             type="button"
             onClick={onRefresh}
             disabled={syncing}
-            className="reactor-pressable flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-[#9CFF1A]/14 bg-[#0d1219] text-stone-400 hover:border-[#9CFF1A]/35 hover:text-[#d4ff8a] disabled:pointer-events-none disabled:opacity-50"
+            className="reactor-pressable reactor-touch-target flex h-10 min-h-[44px] w-10 min-w-[44px] shrink-0 items-center justify-center rounded-lg border border-[#9CFF1A]/14 bg-[#0d1219] text-stone-400 hover:border-[#9CFF1A]/35 hover:text-[#d4ff8a] disabled:pointer-events-none disabled:opacity-50"
             aria-label="Refresh Atlas status"
             data-testid="button-refresh-atlas"
           >
