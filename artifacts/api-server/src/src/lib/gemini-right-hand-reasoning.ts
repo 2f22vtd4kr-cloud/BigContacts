@@ -6,6 +6,7 @@ import { logger } from "./logger";
 import {
   classifyProviderHttpStatus,
   classifyThrownProviderError,
+  describeThrownProviderError,
   summarizeProviderBody,
 } from "./provider-error-diagnostics";
 
@@ -27,6 +28,8 @@ const MAX_REQUEST_TIMEOUT_MS = 60_000;
 const MIN_OVERALL_TIMEOUT_MS = 20_000;
 const MAX_OVERALL_TIMEOUT_MS = 120_000;
 const MAX_MODEL_ATTEMPTS = 4;
+const MAX_TRANSIENT_TRANSPORT_RETRIES = 1;
+const TRANSIENT_TRANSPORT_RETRY_DELAY_MS = 600;
 const GEMINI_INTERACTIONS_FALLBACK_MODELS = [
   "gemini-3.8-flash",
   "gemini-3.7-flash",
@@ -221,16 +224,43 @@ async function request(system: string, user: string, responseFormat?: Record<str
     }, attemptTimeoutMs);
 
     try {
-      const response = await fetch(GEMINI_INTERACTIONS_API, {
-        method: "POST",
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-          "x-goog-api-key": apiKey,
-        },
-        body,
-        signal: controller.signal,
-      });
+      let response: Response;
+      let transportRetry = 0;
+      while (true) {
+        try {
+          response = await fetch(GEMINI_INTERACTIONS_API, {
+            method: "POST",
+            headers: {
+              Accept: "application/json",
+              "Content-Type": "application/json",
+              "x-goog-api-key": apiKey,
+            },
+            body,
+            signal: controller.signal,
+          });
+          break;
+        } catch (transportError) {
+          const isAbort = transportError instanceof Error && transportError.name === "AbortError";
+          const failureClass = classifyThrownProviderError(transportError, isAbort && !(requestDeadlineFired || overallDeadlineFired));
+          const retryable = (failureClass === "network_error" || failureClass === "timeout")
+            && transportRetry < MAX_TRANSIENT_TRANSPORT_RETRIES
+            && Date.now() < deadline
+            && !overallDeadlineFired;
+          if (!retryable) throw transportError;
+          transportRetry += 1;
+          logger.warn({
+            role: "gemini_right_hand",
+            phase: "transient_transport_retry",
+            model,
+            retryNumber: transportRetry,
+            maxRetries: MAX_TRANSIENT_TRANSPORT_RETRIES,
+            failureClass,
+            transportDiagnostic: describeThrownProviderError(transportError),
+          }, "Gemini Right-hand retrying the same model after a transient transport failure");
+          await new Promise<void>((resolve) => setTimeout(resolve, Math.min(TRANSIENT_TRANSPORT_RETRY_DELAY_MS, Math.max(0, deadline - Date.now()))));
+          if (Date.now() >= deadline) throw transportError;
+        }
+      }
       const fetchElapsedMs = Date.now() - attemptStartedAt;
       let responseBody = await response.text();
 
@@ -344,6 +374,7 @@ async function request(system: string, user: string, responseFormat?: Record<str
           overallDeadlineFired,
           abortReason: requestDeadlineFired ? "per_request_deadline" : overallDeadlineFired ? "overall_deadline" : null,
           errorName: error instanceof Error ? error.name : "unknown",
+          transportDiagnostic: describeThrownProviderError(error),
         },
         "Gemini Right-hand request rejected",
       );
