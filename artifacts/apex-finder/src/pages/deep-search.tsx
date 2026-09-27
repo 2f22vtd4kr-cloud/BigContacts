@@ -409,7 +409,7 @@ export default function DeepSearch() {
         {result?.isEmpty && <div className="m-6 flex items-center gap-3 border border-[#9CFF1A]/30 bg-[#9CFF1A]/5 rounded-lg p-4"><AlertCircle className="w-4 h-4 text-[#9CFF1A] flex-shrink-0"/><span className="text-xs font-mono text-[#9CFF1A]">No matches yet. Try a broader query, or load registry data from Data Sources first.</span></div>}
 
         {(loading || result) && (
-          <div className="flex flex-col md:flex-row h-full overflow-hidden">
+          <div className="flex flex-col lg:flex-row h-full overflow-hidden">
             <div className="w-full md:w-80 xl:w-96 flex-shrink-0 max-h-[270px] md:max-h-none md:border-r border-[#9CFF1A]/12 p-4 sm:p-5 overflow-y-auto">
               <div className="text-xs font-mono text-muted-foreground uppercase tracking-widest mb-4">Agent Pipeline</div>
               {loading && <div className="mb-3 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-xs font-mono text-primary/80">Search request in flight; stage telemetry appears when the response is available.</div>}
