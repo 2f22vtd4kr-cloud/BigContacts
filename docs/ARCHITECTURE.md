@@ -1,38 +1,39 @@
 # Apex Atlas architecture
 
-## Packages
+## Canonical control plane
 
-| Package | Responsibility |
-|---------|----------------|
-| `@workspace/apex-finder` | Research desk UI (React, Vite, wouter) |
-| `@workspace/api-server` | HTTP API, Redis job queue, Atlas orchestrator, enrichers |
-| `@workspace/db` | Drizzle schema (entities, contact evidence, assets, jobs) |
-| `@workspace/api-client-react` | Typed React Query client |
-| `@workspace/api-zod` | Shared Zod contracts |
+Apex Atlas is a model-led research bureau. Deterministic code enforces safety, provenance, identity, persistence, cancellation, lifecycle, and resource limits; models own research judgment within those boundaries.
 
-## Atlas pipeline (high level)
+Operator/UI -> canonical Atlas job -> Gemini Boss -> Gemini Right-hand oversight -> Boss-selected Groq or Mistral Investigator -> model-owned ReAct trajectory -> validated capabilities -> observations and source URLs -> evidence graph and attribution -> deterministic promotion -> Right-hand review -> Boss continuation/redirect/stop -> durable terminal state -> UI projection.
 
-1. **Pre-run / discovery** — registries, broad discovery, optional FAA/HNWI ingest  
-2. **Identity & ownership** — Companies House, OpenOwnership, foundation filings  
-3. **Contact evidence** — multi-provider web research + HTML CONTACT FACTS  
-4. **Social / messenger / digital footprint**  
-5. **Scoring** — contact confidence, reachability, wealth signals  
-6. **MCTS / deep research** on hot leads (optional)
+## Model roles
 
-## Research providers (Phase 0)
+- Gemini Boss: case framing, discovery/target control, Investigator selection, continuation.
+- Gemini Right-hand: bounded independent oversight of supplied case state; never researches or invents evidence.
+- Groq or Mistral Investigator: owns the actual research trajectory and chooses permitted tools.
 
-Parallel: **Perplexity Sonar**, **Gemini** (Google Search grounding), **Tavily**, **Exa**.  
-Structure extraction via **Groq** (Llama).  
-Outputs pass through `contact-validation` and AI placeholder filters before ledger write.
+Investigator selection is Boss-owned. The runtime never silently substitutes the other Investigator provider.
 
-## Fail-closed rules
+## Current Investigator providers
 
-- No invented emails/phones  
-- No org inbox as personal  
-- No HQ switchboard as HNWI personal mobile  
-- Placeholder locals (`jdoe`, `john.doe`, …) rejected in `ai-extractor`  
-- Evidence rows prefer explicit `sourceUrls`
+Groq uses Chat Completions with the current agentic model pool qwen/qwen3.8-27b, openai/gpt-oss-120b, and openai/gpt-oss-20b. Mistral uses Chat Completions and resolves live /v1/models capability data, admitting non-archived, non-fine-tuned chat-capable models. Both use bounded same-role model attempts and JSON action contracts.
 
-## Jobs
+## Capabilities
 
-`POST /api/ingest/atlas-run` creates an `atlas-run` job, runs `runAtlasPipeline` in the background, status via job poll endpoints. Requires Redis permanent slots for locks and progress.
+The Investigator may choose among Serper, Tavily, Exa, ordinary public HTTP visits, browser escalation, domain lookup, public registry search, domain harvesting, public email footprinting, and public username footprinting. Tools are capabilities, not mandatory stages.
+
+Public web content is untrusted data. It cannot issue tool commands, override policy, promote itself, or establish identity merely by assertion.
+
+## Network and OSINT safety
+
+Autonomous HTTP access passes through the SSRF-safe boundary: DNS results are checked and the selected address is pinned; redirects are manual; private, loopback, link-local, multicast, reserved, and metadata destinations are blocked; request/response limits and cancellation are enforced. Python-backed network OSINT fails closed when enforceable egress is unavailable.
+
+## Evidence law
+
+Public evidence only. No invented people, contacts, relationships, URLs, or wealth. Organization inboxes remain organization-scoped unless independently attributed. Unknown or insufficient evidence is valid. Provider/tool failures remain failures. Important claims require observed source URLs. Investigator findings pass deterministic validation before promotion. The UI is a projection of durable canonical state.
+
+## Verification law
+
+Static checks are not empirical proof. Release verification requires repository/build/typecheck gates, the five-green complete-codebase audit condition, live provider verification on the canonical launch, durable-state verification, and documentation that matches the actual repository state.
+
+Historical documents may describe retired designs; this file describes the current canonical architecture.
