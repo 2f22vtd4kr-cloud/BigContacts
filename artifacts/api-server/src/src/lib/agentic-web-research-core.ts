@@ -426,6 +426,7 @@ async function callMistralJson(prompt: string, signal: AbortSignal): Promise<{ m
         }
       }
       recordAgenticLlmAttempt({ provider: "mistral", model, promptChars: workingPrompt.length, status: "error", success: false, latencyMs: Date.now() - started, retryIndex: attempt, reason: error?.message || "exception" });
+      break;
       }
     }
   }
