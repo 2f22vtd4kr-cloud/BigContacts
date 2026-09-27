@@ -797,7 +797,7 @@ export default function ApexProfile() {
         </div>
       </div>
 
-      {/* Mobile Hero - md:hidden */}
+      {/* Mobile Hero - lg:hidden */}
       <div className="lg:hidden bg-card border-b border-border flex-shrink-0">
         {/* Hero content */}
         <div className="px-4 pt-4 pb-4"><div className="flex items-center justify-between mb-2">
