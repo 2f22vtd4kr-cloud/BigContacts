@@ -216,8 +216,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
       : "Evidence workspace";
   const isReactorRoute = location === "/reactor";
   const isDashboardRoute = location === "/";
-  const desktopContentPadding = desktopNavOpen ? "md:pl-[250px]" : "md:pl-0";
-  const contentPadding = isDashboardRoute ? "md:pl-0" : desktopContentPadding;
+  const desktopContentPadding = desktopNavOpen ? "lg:pl-[250px]" : "lg:pl-0";
+  const contentPadding = desktopContentPadding;
   /** Pages that already render their own title chrome */
   /** Pages that already render their own title / immersive chrome */
   useEffect(() => {
@@ -264,7 +264,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       {/* Desktop collapsible nav */}
       <div
         className={cn(
-          "absolute left-0 top-0 z-50 hidden h-fit transition-[width] duration-200 ease-out md:flex",
+          "absolute left-0 top-0 z-50 hidden h-fit transition-[width] duration-200 ease-out lg:flex",
           desktopNavOpen ? "w-[250px]" : "w-0 overflow-hidden",
         )}
       >
@@ -278,7 +278,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         onMouseEnter={armEdgeHot}
         onMouseLeave={disarmEdgeHot}
         className={cn(
-          "fixed z-[61] hidden h-10 w-6 items-center justify-center rounded-r-md border border-l-0 border-[#9CFF1A]/30 bg-[#0c1220] text-[#9CFF1A] shadow-none transition-opacity duration-150 md:flex",
+          "fixed z-[61] hidden h-10 w-6 items-center justify-center rounded-r-md border border-l-0 border-[#9CFF1A]/30 bg-[#0c1220] text-[#9CFF1A] shadow-none transition-opacity duration-150 lg:flex",
           "top-1/2 -translate-y-1/2",
           desktopNavOpen ? "left-[250px]" : "left-0",
           /* Fully gone unless mouse is on the left edge hit target */
@@ -294,14 +294,14 @@ export function Layout({ children }: { children: React.ReactNode }) {
       {/* Invisible left-edge hit target when collapsed so button can appear */}
       {!desktopNavOpen && (
         <div
-          className="fixed left-0 top-0 z-[59] hidden h-full w-3 md:block"
+          className="fixed left-0 top-0 z-[59] hidden h-full w-3 lg:block"
           onMouseEnter={armEdgeHot}
           onMouseLeave={disarmEdgeHot}
         />
       )}
       {desktopNavOpen && (
         <div
-          className="fixed top-0 z-[59] hidden h-full w-3 md:block"
+          className="fixed top-0 z-[59] hidden h-full w-3 lg:block"
           style={{ left: 247 }}
           onMouseEnter={armEdgeHot}
           onMouseLeave={disarmEdgeHot}
@@ -325,7 +325,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         className="relative z-0 flex min-h-[100dvh] min-h-[100svh] w-full min-w-0 flex-col overflow-hidden bg-[#111827]"
       >
         <div className="atlas-grid pointer-events-none absolute inset-0" />
-        <header className={cn("relative z-40 flex min-h-14 shrink-0 items-center gap-1 border-b border-white/[0.03] bg-[#111827]/95 pl-[max(0.5rem,env(safe-area-inset-left))] pr-[max(0.5rem,env(safe-area-inset-right))] pt-[max(0.25rem,env(safe-area-inset-top))] backdrop-blur-lg sm:gap-2 sm:px-5 md:h-16 md:pr-6", desktopNavOpen ? "md:pl-[274px]" : "md:pl-6")}>
+        <header className={cn("relative z-40 flex min-h-14 shrink-0 items-center gap-1 border-b border-white/[0.03] bg-[#111827]/95 pl-[max(0.5rem,env(safe-area-inset-left))] pr-[max(0.5rem,env(safe-area-inset-right))] pt-[max(0.25rem,env(safe-area-inset-top))] backdrop-blur-lg sm:gap-2 sm:px-5 md:h-16 md:pr-6", desktopNavOpen ? "lg:pl-[274px]" : "lg:pl-6")}>
           {/* Mobile: menu first so Launch/status never collide with it */}
           <button
             ref={mobileMenuButtonRef}
