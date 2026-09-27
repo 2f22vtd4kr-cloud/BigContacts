@@ -280,6 +280,19 @@ body {
 .atlas-focus-ring:focus-visible { outline: 2px solid #9CFF1A; outline-offset: 3px; }
 .atlas-scroll { scrollbar-width: thin; scrollbar-color: rgba(156, 255, 26, 0.45) #111827; }
 
+/* Shared route canvas contract — every routed page must be allowed to shrink
+   inside the shell instead of forcing the scroll container wider than the viewport. */
+.atlas-page {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow-wrap: break-word;
+}
+
+.atlas-page table {
+  max-width: 100%;
+}
+
 /* Dashboard shell polish — rows stay inside the shell's usable canvas.
    The rail occupies its own content column at laptop widths and becomes a drawer
    below that breakpoint; dashboard sections must never paint underneath the rail. */
