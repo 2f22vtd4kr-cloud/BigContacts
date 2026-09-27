@@ -301,6 +301,8 @@ body {
 /* Dashboard hero controls: explicit rails, never DOM-position dependent. */
 .atlas-home-actions {
   --atlas-hero-gap: 8px;
+  --atlas-depth-width: 7.625rem;
+  --atlas-command-width: 14.75rem;
   width: 100%;
 }
 .atlas-home-primary-row {
@@ -337,24 +339,27 @@ body {
   .atlas-home-primary-row > .atlas-launch-primary-root {
     display: grid;
     /* Depth selector is deliberately narrower; the green command rail matches the secondary rail exactly. */
-    grid-template-columns: 7.625rem 14.75rem;
+    grid-template-columns: var(--atlas-depth-width) var(--atlas-command-width);
     gap: var(--atlas-hero-gap);
     width: 100%;
   }
   .atlas-home-primary-row > .atlas-launch-primary-root > select {
-    width: 7.625rem;
+    width: var(--atlas-depth-width);
     min-width: 0;
   }
   .atlas-home-primary-row > .atlas-launch-primary-root > .atlas-home-launch {
-    width: 14.75rem !important;
-    min-width: 14.75rem !important;
+    width: var(--atlas-command-width) !important;
+    min-width: var(--atlas-command-width) !important;
+    justify-self: stretch;
   }
   .atlas-home-primary-row > .atlas-launch-primary-root > p {
     grid-column: 1 / -1;
   }
   .atlas-home-secondary-row {
-    width: 14.75rem;
-    margin-left: auto;
+    width: var(--atlas-command-width);
+    margin-inline-start: calc(var(--atlas-depth-width) + var(--atlas-hero-gap));
+    margin-inline-end: 0;
+    justify-self: start;
   }
 }
 @media (max-width: 639px) {
