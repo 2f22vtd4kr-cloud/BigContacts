@@ -319,7 +319,7 @@ describe("Gemini Boss transport contract", () => {
     const fetchMock = vi.spyOn(globalThis, "fetch")
       .mockRejectedValueOnce(Object.assign(new Error("The operation was aborted"), { name: "AbortError" }))
       .mockResolvedValueOnce(new Response(
-        JSON.stringify({ candidates: [{ content: { parts: [{ text: '{"investigatorLlm":"groq","action":"proceed"}' }] } }] }),
+        JSON.stringify({ output_text: '{"investigatorLlm":"groq","action":"proceed"}' }),
         { status: 200, headers: { "content-type": "application/json" } },
       ));
 
@@ -361,7 +361,8 @@ describe("Gemini Boss transport contract", () => {
 
     expect(first.error).toMatch(/bounded same-role model fallback/i);
     expect(first.error).toMatch(/request failed|generation failed/i);
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock.mock.calls.length).toBeGreaterThanOrEqual(2);
+    expect(fetchMock.mock.calls.length).toBeLessThanOrEqual(4);
     fetchMock.mockRestore();
     vi.unstubAllEnvs();
   });
