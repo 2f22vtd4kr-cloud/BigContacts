@@ -304,7 +304,7 @@ function isUsableMistralChatModel(card: MistralModelCard): card is MistralModelC
   return Boolean(id) && !archived && !fineTuned && card.capabilities?.completion_chat === true;
 }
 
-async function resolveMistralChatModels(key: string, signal: AbortSignal): Promise<string[]> {
+export async function resolveMistralChatModels(key: string, signal: AbortSignal): Promise<string[]> {
   try {
     const response = await runProviderCall(
       { provider: "mistral", account: key, signal },
