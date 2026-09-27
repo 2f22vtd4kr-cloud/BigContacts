@@ -40,7 +40,7 @@ const tabletSurfaces = [
 const checks = [
   ["dashboard desktop sidebar is content-height overlay rail", /absolute left-0 top-0/.test(layout) && /h-fit/.test(layout)],
   ["atlas grain is visible on the app canvas", /className="relative min-h-\[100dvh\]/.test(layout) && /className="atlas-noise relative z-0 flex/.test(layout) && /\.atlas-noise::before\s*\{[\s\S]*background-image:[\s\S]*url\("data:image\/svg\+xml/.test(css) && /opacity:\s*0\.72/.test(css)],
-  ["grain is neutral texture-only, not a color treatment", /\.atlas-noise::before[\\s\\S]*background-image:[\\s\\S]*fill(?:%3D|=)[\\s\\S]*%23fff/.test(css) && !/atlas-noise::before[\\s\\S]*(?:110,210,255|156,255,26)/.test(css) && !/fractalNoise|feTurbulence/.test(css)],
+  ["grain is neutral texture-only, not a color treatment", (() => { const grain = css.slice(css.indexOf(".atlas-noise::before"), css.indexOf(".atlas-noise > *")); return grain.includes("fill%3D%22%23fff") && !grain.includes("110,210,255") && !grain.includes("156,255,26") && !grain.includes("fractalNoise") && !grain.includes("feTurbulence"); })()],
 
     ["route canvas is shrinkable at every viewport", /\.atlas-page \{/.test(css) && /width:\s*100%/.test(css) && /max-width:\s*100%/.test(css) && /min-width:\s*0/.test(css)],
   ["all routed frontend surfaces remain registered", ["/", "/search", "/profiles", "/network", "/jobs", "/reactor", "/research", "/manual", "/profile/:id", "/improvements", "/data-sources", "/duplicates", "/osint-tools", "/status"].every((route) => router.includes(`path="${route}"`))],
