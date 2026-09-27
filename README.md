@@ -139,3 +139,5 @@ Never print or commit secret values. Do not ask the user for GitHub credentials 
 **Every contact should be a person you can justify from the public record — not a guess that looks like one.**
 
 Architecture makes that behavior enforceable. Only controlled live investigations can prove that Apex consistently achieves it.
+
+<!-- Recovery verification remains empirical: static green gates do not replace the canonical Replit launch. -->
