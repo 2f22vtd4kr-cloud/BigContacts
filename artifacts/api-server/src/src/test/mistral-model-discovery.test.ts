@@ -71,15 +71,14 @@ describe("Mistral live model discovery", () => {
       .resolves.toEqual([]);
   });
 
-  it("does not revive the retired open-mistral-nemo fallback", async () => {
+  it("does not invent a retired fallback when it is absent from the live catalog", async () => {
     process.env.APEX_PROVIDER_MAX_REQUESTS_MISTRAL = "20";
     process.env.APEX_PROVIDER_MIN_INTERVAL_MS_MISTRAL = "0";
     globalThis.fetch = async () => catalog([
       { id: "mistral-small-latest", created: 20, archived: false, capabilities: { completion_chat: true } },
-      { id: "open-mistral-nemo", created: 10, archived: false, capabilities: { completion_chat: true } },
     ]);
 
     await expect(resolveMistralChatModels("test-key", new AbortController().signal))
-      .resolves.toEqual(["mistral-small-latest", "open-mistral-nemo"]);
+      .resolves.toEqual(["mistral-small-latest"]);
   });
 });
