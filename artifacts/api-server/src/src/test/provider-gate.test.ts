@@ -10,7 +10,11 @@ describe("provider quota gate", () => {
     delete process.env.APEX_PROVIDER_MAX_REQUESTS_GENERIC;
     delete process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GENERIC;
     delete process.env.APEX_PROVIDER_MAX_REQUESTS_GEMINI;
+    delete process.env.APEX_PROVIDER_MAX_REQUESTS_GROQ;
+    delete process.env.APEX_PROVIDER_MAX_REQUESTS_MISTRAL;
     delete process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GEMINI;
+    delete process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GROQ;
+    delete process.env.APEX_PROVIDER_MIN_INTERVAL_MS_MISTRAL;
     delete process.env.APEX_EXTERNAL_MAX_REQUESTS_PER_SCOPE;
     delete process.env.APEX_EXTERNAL_PROVIDER_CONCURRENCY_GEMINI;
     resetProviderGateForTests();
@@ -181,4 +185,57 @@ describe("provider quota gate", () => {
     expect(second.status).toBe(200);
     expect(calls).toBe(2);
   });
+
+  it("does not convert Groq 403 permission denial into a cooldown", async () => {
+    process.env.APEX_PROVIDER_MAX_REQUESTS_GROQ = "10";
+    process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GROQ = "0";
+    process.env.APEX_EXTERNAL_MAX_REQUESTS_PER_SCOPE = "100";
+    let calls = 0;
+
+    const first = await runProviderCall(
+      { provider: "groq", account: "permission-denied-test" },
+      async () => {
+        calls += 1;
+        return new Response(JSON.stringify({ error: { type: "permissions_error" } }), { status: 403 });
+      },
+    );
+    const second = await runProviderCall(
+      { provider: "groq", account: "permission-denied-test" },
+      async () => {
+        calls += 1;
+        return new Response("", { status: 200 });
+      },
+    );
+
+    expect(first.status).toBe(403);
+    expect(second.status).toBe(200);
+    expect(calls).toBe(2);
+  });
+
+  it("does not convert Mistral 403 permission denial into a cooldown", async () => {
+    process.env.APEX_PROVIDER_MAX_REQUESTS_MISTRAL = "10";
+    process.env.APEX_PROVIDER_MIN_INTERVAL_MS_MISTRAL = "0";
+    process.env.APEX_EXTERNAL_MAX_REQUESTS_PER_SCOPE = "100";
+    let calls = 0;
+
+    const first = await runProviderCall(
+      { provider: "mistral", account: "permission-denied-test" },
+      async () => {
+        calls += 1;
+        return new Response(JSON.stringify({ object: "error", type: "permission_error" }), { status: 403 });
+      },
+    );
+    const second = await runProviderCall(
+      { provider: "mistral", account: "permission-denied-test" },
+      async () => {
+        calls += 1;
+        return new Response("", { status: 200 });
+      },
+    );
+
+    expect(first.status).toBe(403);
+    expect(second.status).toBe(200);
+    expect(calls).toBe(2);
+  });
+
 });
