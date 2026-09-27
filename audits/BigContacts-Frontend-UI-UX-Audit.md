@@ -507,3 +507,33 @@ For the empirical browser cycle, use:
 - portrait and landscape where relevant.
 
 Capture the same routes and states each pass. After every pass, persist the audit file before starting the next. Any new visual/product defect resets the clean counter after its repair.
+
+
+## Replit empirical follow-up — grain visibility defect
+
+The first managed browser capture confirmed the layout/gutter repairs, but the supplied reference-style grain was still not visually apparent enough in the rendered UI.
+
+### New P1 visual finding — grain exists in source but is too weak to read as intentional texture
+
+- The source contained the grain layer and the host had already been moved onto the visible app canvas.
+- The implementation used a single SVG noise layer at approximately 2.8% source opacity.
+- In the actual 390×844, 768×1024, and 1280×720 preview captures, that treatment did not read like the supplied reference's fine grain field.
+- This is therefore a visual/aesthetic defect, not a missing-source-class defect.
+
+### Repair direction
+
+- Keep the grain behind all UI content.
+- Increase visibility enough that a screenshot clearly shows a fine atmospheric texture.
+- Use several extremely sparse micro-speck/radial layers plus a stronger fractal-noise layer so the texture does not read as a simple repeated dot pattern.
+- Keep contrast restrained; the goal is subtle film grain, not stars/sparkle.
+- Keep content, controls, borders, and focus rings unaffected.
+- Add a regression contract that specifically checks for the visible pseudo-element grain layer rather than only checking that an old background-image declaration exists.
+
+### Repair status
+
+- Updated `.atlas-noise` to render the texture through a dedicated `::before` layer above the background but below all application content.
+- Increased the underlying fractal noise opacity and added three very low-opacity micro-speck layers with different scales.
+- Added `isolation: isolate`, explicit z-ordering, and pointer-event isolation.
+- Updated the frontend regression contract to require the visible grain pseudo-element and its opacity.
+- This repair requires a fresh Replit screenshot pass before it can be considered visually accepted.
+
