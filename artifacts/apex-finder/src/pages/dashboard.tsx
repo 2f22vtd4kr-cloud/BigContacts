@@ -254,7 +254,7 @@ export default function Dashboard() {
   const hasError = mock ? false : (statsQuery.isError || leadsQuery.isError);
 
   return (
-    <div className="atlas-page pb-12">
+    <div className="atlas-page pb-12 md:pl-[274px]">
       <div className="px-0 pt-2 md:pt-4">
         <ScoreboardStrip className="mb-2" />
       </div>
