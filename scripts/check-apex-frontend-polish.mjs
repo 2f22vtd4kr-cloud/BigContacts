@@ -39,7 +39,7 @@ const tabletSurfaces = [
 
 const checks = [
   ["dashboard desktop sidebar is content-height overlay rail", /absolute left-0 top-0/.test(layout) && /h-fit/.test(layout)],
-  ["atlas grain is attached to the visible app canvas", /className="relative min-h-\[100dvh\]/.test(layout) && /className="atlas-noise relative z-0 flex/.test(layout) && /\.atlas-noise\s*\{[\s\S]*background-image:\s*url\("data:image\/svg\+xml/.test(css)],
+  ["atlas grain is visible on the app canvas", /className="relative min-h-\[100dvh\]/.test(layout) && /className="atlas-noise relative z-0 flex/.test(layout) && /\.atlas-noise::before\s*\{[\s\S]*background-image:[\s\S]*url\("data:image\/svg\+xml/.test(css) && /opacity:\s*0\.72/.test(css)],
     ["route canvas is shrinkable at every viewport", /\.atlas-page \{/.test(css) && /width:\s*100%/.test(css) && /max-width:\s*100%/.test(css) && /min-width:\s*0/.test(css)],
   ["all routed frontend surfaces remain registered", ["/", "/search", "/profiles", "/network", "/jobs", "/reactor", "/research", "/manual", "/profile/:id", "/improvements", "/data-sources", "/duplicates", "/osint-tools", "/status"].every((route) => router.includes(`path="${route}"`))],
   ["tablet desk switches use laptop breakpoint", tabletSurfaces.every((source) => !/(?:hidden|flex|flex-row) md:(?:hidden|flex|flex-row)/.test(source))],
