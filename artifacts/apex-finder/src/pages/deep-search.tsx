@@ -410,7 +410,7 @@ export default function DeepSearch() {
 
         {(loading || result) && (
           <div className="flex flex-col lg:flex-row h-full overflow-hidden">
-            <div className="w-full md:w-80 xl:w-96 flex-shrink-0 max-h-[270px] md:max-h-none md:border-r border-[#9CFF1A]/12 p-4 sm:p-5 overflow-y-auto">
+            <div className="w-full lg:w-80 xl:w-96 flex-shrink-0 max-h-[270px] lg:max-h-none lg:border-r border-[#9CFF1A]/12 p-4 sm:p-5 overflow-y-auto">
               <div className="text-xs font-mono text-muted-foreground uppercase tracking-widest mb-4">Agent Pipeline</div>
               {loading && <div className="mb-3 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-xs font-mono text-primary/80">Search request in flight; stage telemetry appears when the response is available.</div>}
               <div className="grid grid-cols-2 md:grid-cols-1 gap-2 lg:grid-cols-2">
