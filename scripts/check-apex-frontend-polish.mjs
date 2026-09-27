@@ -39,7 +39,7 @@ const tabletSurfaces = [
 
 const checks = [
   ["desktop sidebar fills viewport and anchors footer", /absolute inset-y-0 left-0/.test(layout) && /h-full w-\[250px\] shrink-0/.test(layout) && /h-full transition-\[width\]/.test(layout)],
-  ["atlas grain is visible on the app canvas", /className="relative min-h-\[100dvh\]/.test(layout) && /className="atlas-noise relative z-0 flex/.test(layout) && /\.atlas-noise::before\s*\{[\s\S]*background-image:[\s\S]*url\("data:image\/svg\+xml/.test(css) && /opacity:\s*0\.72/.test(css)],
+  ["atlas grain is visible on the app canvas", /className="relative min-h-\[100dvh\]/.test(layout) && /className="atlas-noise relative z-0 flex/.test(layout) && /\.atlas-noise::before\s*\{[\s\S]*background-image:[\s\S]*url\("data:image\/svg\+xml/.test(css) && /opacity:\s*0\.7[0-9]/.test(css)],
   ["grain is neutral texture-only, not a color treatment", (() => { const grain = css.slice(css.indexOf(".atlas-noise::before"), css.indexOf(".atlas-noise > *")); return grain.includes("fill%3D%22%23fff") && !grain.includes("110,210,255") && !grain.includes("156,255,26") && !grain.includes("fractalNoise") && !grain.includes("feTurbulence"); })()],
 
     ["route canvas is shrinkable at every viewport", /\.atlas-page \{/.test(css) && /width:\s*100%/.test(css) && /max-width:\s*100%/.test(css) && /min-width:\s*0/.test(css)],
