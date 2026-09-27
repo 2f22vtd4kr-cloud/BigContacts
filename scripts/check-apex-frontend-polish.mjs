@@ -21,7 +21,12 @@ const mobile = read(files.mobile);
 const replay = read(files.replay);
 const mark = read(files.mark);
 
+const layout = read("artifacts/apex-finder/src/components/layout.tsx");
+
 const checks = [
+  ["dashboard desktop sidebar is content-height", /self-start/.test(layout) && /h-fit flex-col/.test(layout)],
+  ["dashboard lower sections reclaim the sidebar column", /atlas-dashboard-wide/.test(dashboard) && /--atlas-sidebar-width:\s*250px/.test(css) && /margin-inline-start:\s*calc\(var\(--atlas-sidebar-width\) \* -1\)/.test(css)],
+  ["dashboard hero copy is explicitly start-aligned", /atlas-dashboard-hero-copy/.test(dashboard) && /margin-inline-start:\s*0/.test(css)],
   ["home CTA has explicit matching desktop rail width", /atlas-home-secondary-row[\s\S]{0,900}width: 14\.75rem/.test(css) && /atlas-home-launch[\s\S]{0,500}14\.75rem/.test(css)],
   ["home depth selector remains subordinate", /grid-template-columns:\s*7\.625rem 14\.75rem/.test(css)],
   ["Reactor uses product-specific mark", /ReactorMark/.test(dashboard) && /ReactorMark/.test(reactor) && /ReactorMark/.test(mark)],
