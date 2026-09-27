@@ -17,7 +17,6 @@ const IntelTerminal = lazy(() => import("@/pages/research"));
 import NotFound from "@/pages/not-found";
 const SystemStatusPage = lazy(() => import("@/pages/status"));
 import { ProfileErrorBoundary } from "@/components/profile-error-boundary";
-import { OperatorAuthGate } from "@/components/operator-auth-gate";
 
 /**
  * Keep profile failure state scoped to the concrete entity route. Without the
@@ -36,8 +35,7 @@ function ProfileRoute() {
 
 export default function AppRouter() {
   return (
-    <OperatorAuthGate>
-      <Layout>
+    <Layout>
         <Suspense fallback={<div className="flex min-h-[40vh] items-center justify-center text-xs font-mono uppercase tracking-[.18em] text-stone-600" role="status">Loading workspace…</div>}>
           <Switch>
             {/* ── Primary routes ── */}
@@ -68,7 +66,6 @@ export default function AppRouter() {
             <Route component={NotFound} />
           </Switch>
         </Suspense>
-      </Layout>
-    </OperatorAuthGate>
+    </Layout>
   );
 }
