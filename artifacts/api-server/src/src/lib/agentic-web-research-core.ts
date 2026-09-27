@@ -6,7 +6,7 @@ import { GROQ_CHAT_MODELS } from "./groq-models";
 import { filterClaimUrls, filterPassagesForQuery } from "./passage-filter";
 import { sanitizePublicEmail, sanitizePublicPhone, isTrashContactValue } from "./contact-validation";
 import { safeOutboundFetch } from "./ssrf-safe-fetch";
-import { runProviderCall } from "./provider-gate";
+import { ProviderQuotaError, runProviderCall } from "./provider-gate";
 import { buildInvestigatorContext, tightenInvestigatorPrompt } from "./investigation-context-compaction";
 import { renderAtlasCapabilityGuidance } from "./atlas-capability-registry";
 import { classifyTrajectorySignals, type AtlasFailureSignal } from "./atlas-failure-observatory";
@@ -412,6 +412,18 @@ async function callMistralJson(prompt: string, signal: AbortSignal): Promise<{ m
       if (raw) return { model: `mistral:${model}`, raw };
     } catch (error: any) {
       if (signal.aborted) throw new Error("cancelled");
+      if (error instanceof ProviderQuotaError && error.provider === "mistral" && error.code === "cooldown") {
+        const retries = retryBudgetByModel.get(model) ?? 0;
+        if (retries > 0) {
+          recordAgenticLlmAttempt({ provider: "mistral", model, promptChars: workingPrompt.length, status: "error", success: false, latencyMs: Date.now() - started, retryIndex: attempt, reason: "provider_gate_cooldown_" + error.retryAfterMs + "ms" });
+          await new Promise<void>((resolve, reject) => {
+            const timer = setTimeout(resolve, error.retryAfterMs);
+            const abort = () => { clearTimeout(timer); reject(new Error("cancelled")); };
+            signal.addEventListener("abort", abort, { once: true });
+          });
+          continue;
+        }
+      }
       recordAgenticLlmAttempt({ provider: "mistral", model, promptChars: workingPrompt.length, status: "error", success: false, latencyMs: Date.now() - started, retryIndex: attempt, reason: error?.message || "exception" });
     }
   }
