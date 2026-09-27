@@ -10,7 +10,11 @@ describe("provider quota gate", () => {
     delete process.env.APEX_PROVIDER_MAX_REQUESTS_GENERIC;
     delete process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GENERIC;
     delete process.env.APEX_PROVIDER_MAX_REQUESTS_GEMINI;
+    delete process.env.APEX_PROVIDER_MAX_REQUESTS_GROQ;
+    delete process.env.APEX_PROVIDER_MAX_REQUESTS_MISTRAL;
     delete process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GEMINI;
+    delete process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GROQ;
+    delete process.env.APEX_PROVIDER_MIN_INTERVAL_MS_MISTRAL;
     delete process.env.APEX_EXTERNAL_MAX_REQUESTS_PER_SCOPE;
     delete process.env.APEX_EXTERNAL_PROVIDER_CONCURRENCY_GEMINI;
     resetProviderGateForTests();
