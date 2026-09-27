@@ -242,7 +242,7 @@ async function request(system: string, user: string, responseFormat?: Record<str
         } catch (transportError) {
           const isAbort = transportError instanceof Error && transportError.name === "AbortError";
           const failureClass = classifyThrownProviderError(transportError, isAbort && !(requestDeadlineFired || overallDeadlineFired));
-          const retryable = (failureClass === "network_error" || failureClass === "timeout")
+          const retryable = failureClass === "network_error"
             && transportRetry < MAX_TRANSIENT_TRANSPORT_RETRIES
             && Date.now() < deadline
             && !overallDeadlineFired;
