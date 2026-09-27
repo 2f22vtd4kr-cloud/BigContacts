@@ -341,8 +341,8 @@ body {
 }
 @media (min-width: 640px) {
   .atlas-home-actions {
-    width: 22.375rem;
-    max-width: 22.375rem;
+    width: calc(var(--atlas-depth-width) + var(--atlas-hero-gap) + var(--atlas-command-width));
+    max-width: calc(var(--atlas-depth-width) + var(--atlas-hero-gap) + var(--atlas-command-width));
   }
   .atlas-home-primary-row {
     width: 100%;
