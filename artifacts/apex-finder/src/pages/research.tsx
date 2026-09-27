@@ -539,10 +539,10 @@ export default function IntelTerminal() {
   }, [terminalLog]);
 
   return (
-    <div className="flex h-full w-full bg-background overflow-hidden flex-col md:flex-row">
+    <div className="flex h-full w-full bg-background overflow-hidden flex-col lg:flex-row">
 
       {/* ── Mobile header: compact entity picker + run button ── */}
-      <div className="md:hidden flex-shrink-0 border-b border-border bg-card/80 backdrop-blur p-3 space-y-2 z-20">
+      <div className="lg:hidden flex-shrink-0 border-b border-border bg-card/80 backdrop-blur p-3 space-y-2 z-20">
         <div className="flex items-center gap-2 mb-1">
           <Cpu className="w-3.5 h-3.5 text-primary" />
           <span className="text-[12px] font-mono text-primary uppercase tracking-widest">Target Selection</span>
@@ -622,7 +622,7 @@ export default function IntelTerminal() {
       </div>
 
       {/* ── Desktop Left Panel: Entity Selector ── */}
-      <div className="hidden md:flex w-80 border-r border-border bg-card flex-col flex-shrink-0 z-10 shadow-xl">
+      <div className="hidden lg:flex w-80 border-r border-border bg-card flex-col flex-shrink-0 z-10 shadow-xl">
         <div className="p-4 border-b border-border space-y-2">
           <h2 className="text-sm font-bold font-mono tracking-wider flex items-center uppercase text-foreground">
             <Cpu className="w-4 h-4 mr-2 text-primary" /> Target Selection
@@ -796,7 +796,7 @@ export default function IntelTerminal() {
             </div>
 
             {/* Mobile: vertical stack */}
-            <div className="flex md:hidden flex-col space-y-2">
+            <div className="flex lg:hidden flex-col space-y-2">
               {winningPath.map((node, i) => (
                 <div key={i}>
                   <div className={cn("flex flex-col border p-3 rounded", roleColor(node.role))}>

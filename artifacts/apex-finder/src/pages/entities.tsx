@@ -990,7 +990,7 @@ export default function EntityLedger() {
   return (
     <>
       {/* ── Desktop ── */}
-      <div className="hidden md:flex h-full min-w-0 w-full max-w-full flex-col overflow-hidden">
+      <div className="hidden lg:flex h-full min-w-0 w-full max-w-full flex-col overflow-hidden">
         {/* Active filter banner */}
         {(hotOnly || anyContactFilter) && (
           <div className={cn(
@@ -1633,7 +1633,7 @@ export default function EntityLedger() {
       </div>
 
       {/* ── Mobile ── */}
-      <div className="flex md:hidden flex-col h-full overflow-hidden min-w-0">
+      <div className="flex lg:hidden flex-col h-full overflow-hidden min-w-0">
         {/* Mobile active filter banner */}
         {(hotOnly || anyContactFilter) && (
           <div className={cn(
@@ -1677,7 +1677,7 @@ export default function EntityLedger() {
         ) && (
         <>
         {/* Mobile view mode + filter chips */}
-        <div className="flex md:hidden flex-col border-b border-[#9CFF1A]/12 bg-card/30 shrink-0">
+        <div className="flex lg:hidden flex-col border-b border-[#9CFF1A]/12 bg-card/30 shrink-0">
           {/* View mode row */}
           <div className="atlas-h-scroll flex items-center gap-1.5 px-3 py-2 pr-10 border-b border-[#9CFF1A]/10 overflow-x-auto overscroll-x-contain touch-pan-x" style={{ scrollbarWidth: "thin" }}>
             {([
@@ -1839,7 +1839,7 @@ export default function EntityLedger() {
       ) && (
       <button
         onClick={() => openAddModal()}
-        className="fixed bottom-6 right-5 w-12 h-12 rounded-full flex items-center justify-center shadow-lg z-40 md:hidden"
+        className="fixed bottom-6 right-5 w-12 h-12 rounded-full flex items-center justify-center shadow-lg z-40 lg:hidden"
         style={{ backgroundColor: "#9CFF1A", boxShadow: "0 0 20px rgba(156,255,26,0.4)" }}
         aria-label="Add entity"
       >

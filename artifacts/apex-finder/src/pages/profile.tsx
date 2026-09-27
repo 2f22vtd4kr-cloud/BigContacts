@@ -798,7 +798,7 @@ export default function ApexProfile() {
       </div>
 
       {/* Mobile Hero - md:hidden */}
-      <div className="md:hidden bg-card border-b border-border flex-shrink-0">
+      <div className="lg:hidden bg-card border-b border-border flex-shrink-0">
         {/* Hero content */}
         <div className="px-4 pt-4 pb-4"><div className="flex items-center justify-between mb-2">
             <EntityTypeMark type={(entity as any).type} compact />
@@ -2204,7 +2204,7 @@ export default function ApexProfile() {
       </div>
 
       {/* Mobile Action Bar */}
-      <div className="md:hidden shrink-0 h-[72px] bg-background border-t border-border px-4 flex items-center gap-3 z-20">
+      <div className="lg:hidden shrink-0 h-[72px] bg-background border-t border-border px-4 flex items-center gap-3 z-20">
         <button
           type="button"
           onClick={handleRunResearch}
