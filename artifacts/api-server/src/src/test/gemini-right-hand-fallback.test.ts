@@ -83,7 +83,7 @@ describe("Gemini Right-hand text-only control transport", () => {
 
     expect(result.status).toBe("unavailable");
     expect(attempts).toEqual([GEMINI_RIGHT_HAND_MODEL])
-    expect(result.error).toContain("rate limit persisted");
+    expect(result.error).toContain("bounded same-role model attempts");
   });
 
   it("does not model-hop on HTTP 503; it remains bounded to the configured Right-hand model", async () => {
