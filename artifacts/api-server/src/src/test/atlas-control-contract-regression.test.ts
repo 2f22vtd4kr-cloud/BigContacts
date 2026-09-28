@@ -31,6 +31,9 @@ describe("Atlas control-plane contract regression", () => {
     expect(rightHandSource).toContain("rateLimitRetryDelayMs");
     expect(rightHandSource).toContain("phase: \"rate_limit_backoff\"");
     expect(rightHandSource).toContain("if (response.status === 429)");
+    expect(rightHandSource).toContain("const chain = [GEMINI_RIGHT_HAND_MODEL]");
+    expect(rightHandSource).toContain("Never browse or act as Investigator");
+    expect(controlSource).toContain("INVESTIGATOR TEXT REPORT");
     expect(rightHandSource).toContain("MAX_RATE_LIMIT_RETRIES = 1");
     expect(controlSource).toContain('reason: "Gemini returned an invalid Atlas control action; fail-closed."');
   });
