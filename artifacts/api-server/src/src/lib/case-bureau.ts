@@ -433,6 +433,8 @@ const MIN_GEMINI_BOSS_REQUEST_TIMEOUT_MS = 10_000;
 const MAX_GEMINI_BOSS_REQUEST_TIMEOUT_MS = 60_000;
 const MIN_GEMINI_BOSS_OVERALL_TIMEOUT_MS = 20_000;
 const MAX_GEMINI_BOSS_OVERALL_TIMEOUT_MS = 120_000;
+const MAX_GEMINI_BOSS_TRANSPORT_RETRIES = 1;
+const GEMINI_BOSS_TRANSPORT_RETRY_DELAY_MS = 600;
 
 function boundedPositiveEnvMs(name: string, fallback: number, minimum: number, maximum: number): number {
   const raw = process.env[name];
@@ -536,17 +538,51 @@ export async function generateGeminiBossText(
         ...(options?.responseFormat ? { response_format: options.responseFormat } : {}),
       });
       try {
-        let response = await fetch(GEMINI_INTERACTIONS_API, {
-          method: "POST",
-          headers: {
-            Accept: "application/json",
-            "Content-Type": "application/json",
-            "x-goog-api-key": entry.key,
-          },
-          body: interactionBody,
-          signal: controller.signal,
-        });
-        let responseText = await response.text();
+        let response: Response;
+        let responseText = "";
+        let transportRetry = 0;
+        while (true) {
+          try {
+            response = await fetch(GEMINI_INTERACTIONS_API, {
+              method: "POST",
+              headers: {
+                Accept: "application/json",
+                "Content-Type": "application/json",
+                "x-goog-api-key": entry.key,
+              },
+              body: interactionBody,
+              signal: controller.signal,
+            });
+            responseText = await response.text();
+            break;
+          } catch (transportError) {
+            const isAbort = transportError instanceof Error && transportError.name === "AbortError";
+            const failureClass = classifyThrownProviderError(transportError, isAbort && !(requestDeadlineFired || overallDeadlineFired));
+            const retryable = failureClass === "network_error"
+              && transportRetry < MAX_GEMINI_BOSS_TRANSPORT_RETRIES
+              && Date.now() < bossDeadline
+              && !overallDeadlineFired;
+            if (!retryable) throw transportError;
+            transportRetry += 1;
+            logger.warn(
+              {
+                role: "gemini_boss",
+                phase: "transient_transport_retry",
+                model,
+                keyName: entry.name,
+                retryNumber: transportRetry,
+                maxRetries: MAX_GEMINI_BOSS_TRANSPORT_RETRIES,
+                failureClass,
+              },
+              "Gemini Boss retrying the same model after a transient transport failure",
+            );
+            await new Promise<void>((resolve) => setTimeout(resolve, Math.min(
+              GEMINI_BOSS_TRANSPORT_RETRY_DELAY_MS,
+              Math.max(0, bossDeadline - Date.now()),
+            )));
+            if (Date.now() >= bossDeadline) throw transportError;
+          }
+        }
 
         // Google documents structured output on the Interactions API for Gemini
         // 3.5+; however, a model/project can still reject a structured request
