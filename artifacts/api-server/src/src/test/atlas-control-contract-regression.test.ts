@@ -14,7 +14,7 @@ describe("Atlas control-plane contract regression", () => {
     expect(controlSource).toContain('required: ["decision", "reason", "direction", "confidence"]');
     expect(controlSource).toContain('required: ["action", "candidateName", "direction", "reason", "confidence"]');
     expect(controlSource).toContain("additionalProperties: false");
-    expect(bossSource).toContain("required: ["outcome", "actionId", "decision", "reason", "investigatorPrompt", "investigatorLlm", "restrictions", "tools", "evidenceRequirements", "confidence", "progressAssessment", "reprioritize", "suggestedScope", "rightHandDisposition", "rightHandNote"]");
+    expect(bossSource).toContain(`required: ["outcome", "actionId", "decision", "reason", "investigatorPrompt", "investigatorLlm", "restrictions", "tools", "evidenceRequirements", "confidence", "progressAssessment", "reprioritize", "suggestedScope", "rightHandDisposition", "rightHandNote"]`);
     expect(bossSource).toContain("additionalProperties: false");
     expect(controlSource).toContain("runGeminiRightHandFreeJson(");
     expect(controlSource).toContain("ATLAS_RIGHT_HAND_CONTROL_RESPONSE_FORMAT).catch");
