@@ -200,7 +200,10 @@ function parseGeminiRightHandResponse(responseBody: string, model: string): Gemi
 async function request(system: string, user: string, responseFormat?: Record<string, unknown>): Promise<GeminiRequestResult> {
   const apiKey = key();
   if (!apiKey) return { raw: "", error: "GEMINI_RIGHT_HAND_API_KEY is not configured.", model: GEMINI_RIGHT_HAND_MODEL };
-  const chain = await resolveModelChain();
+  // Right-hand is a text-only oversight role. One control turn must be one bounded
+  // request to the configured model; model catalog probing and equivalent-model
+  // fan-out consume free-tier request budget and are not research capabilities.
+  const chain = [GEMINI_RIGHT_HAND_MODEL];
   const failures: string[] = [];
   const configuredRequestTimeoutMs = requestTimeoutMs();
   const configuredOverallTimeoutMs = overallTimeoutMs();
