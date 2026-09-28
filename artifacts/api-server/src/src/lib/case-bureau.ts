@@ -436,6 +436,22 @@ const MIN_GEMINI_BOSS_OVERALL_TIMEOUT_MS = 20_000;
 const MAX_GEMINI_BOSS_OVERALL_TIMEOUT_MS = 120_000;
 const MAX_GEMINI_BOSS_TRANSPORT_RETRIES = 1;
 const GEMINI_BOSS_TRANSPORT_RETRY_DELAY_MS = 600;
+const MAX_GEMINI_BOSS_503_RETRIES_PER_MODEL = 1;
+const GEMINI_BOSS_503_RETRY_DELAY_MS = 750;
+
+function retryAfterDelayMs(response: Response, fallbackMs: number): number {
+  const value = response.headers.get("retry-after")?.trim();
+  if (!value) return fallbackMs;
+  const seconds = Number(value);
+  if (Number.isFinite(seconds) && seconds >= 0) {
+    return Math.min(5_000, Math.max(0, Math.round(seconds * 1_000)));
+  }
+  const dateMs = Date.parse(value);
+  if (Number.isFinite(dateMs)) {
+    return Math.min(5_000, Math.max(0, dateMs - Date.now()));
+  }
+  return fallbackMs;
+}
 
 function boundedPositiveEnvMs(name: string, fallback: number, minimum: number, maximum: number): number {
   const raw = process.env[name];
@@ -542,6 +558,7 @@ export async function generateGeminiBossText(
         let response: Response;
         let responseText = "";
         let transportRetry = 0;
+        let capacityRetry = 0;
         while (true) {
           try {
             response = await fetchGeminiInteractions(GEMINI_INTERACTIONS_API, {
@@ -617,6 +634,40 @@ export async function generateGeminiBossText(
               "x-goog-api-key": entry.key,
             },
             body: compatibilityBody,
+            signal: controller.signal,
+          });
+          responseText = await response.text();
+        }
+
+        if (response.status === 503 && capacityRetry < MAX_GEMINI_BOSS_503_RETRIES_PER_MODEL && Date.now() < bossDeadline) {
+          const retryDelayMs = Math.min(
+            retryAfterDelayMs(response, GEMINI_BOSS_503_RETRY_DELAY_MS),
+            Math.max(0, bossDeadline - Date.now()),
+          );
+          await response.body?.cancel().catch(() => undefined);
+          capacityRetry += 1;
+          logger.warn(
+            {
+              role: "gemini_boss",
+              phase: "transient_capacity_retry",
+              model,
+              keyName: entry.name,
+              httpStatus: response.status,
+              retryNumber: capacityRetry,
+              maxRetries: MAX_GEMINI_BOSS_503_RETRIES_PER_MODEL,
+              retryDelayMs,
+            },
+            "Gemini Boss retrying the same model after HTTP 503 before bounded same-role model fallback",
+          );
+          if (retryDelayMs > 0) await new Promise<void>((resolve) => setTimeout(resolve, retryDelayMs));
+          response = await fetchGeminiInteractions(GEMINI_INTERACTIONS_API, {
+            method: "POST",
+            headers: {
+              Accept: "application/json",
+              "Content-Type": "application/json",
+              "x-goog-api-key": entry.key,
+            },
+            body: interactionBody,
             signal: controller.signal,
           });
           responseText = await response.text();

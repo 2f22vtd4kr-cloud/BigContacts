@@ -41,10 +41,28 @@ describe("Gemini Boss text-only model authority", () => {
     expect(String(fetchMock.mock.calls[1]?.[0])).toContain("v1beta/interactions");
   });
 
-  it.each([429, 503])("falls back to the next configured Gemini model after HTTP %s", async (status) => {
+  it("retries a transient HTTP 503 once on the same Gemini model before falling through", async () => {
     process.env.GEMINI_API_KEY = "test-key";
     const fetchMock = vi.spyOn(globalThis, "fetch")
-      .mockResolvedValueOnce(response(status, { error: "temporarily unavailable" }))
+      .mockResolvedValueOnce(response(503, { error: "temporarily unavailable" }))
+      .mockResolvedValueOnce(response(200, {
+        steps: [{ type: "model_output", content: [{ type: "text", text: '{"decision":"continue"}' }] }],
+      }));
+
+    const result = await generateGeminiBossText(selection, "Return JSON.");
+
+    expect(result.model).toBe("gemini-3.8-flash");
+    expect(result.raw).toBe('{"decision":"continue"}');
+    expect(result.error).toBeNull();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain("v1beta/interactions");
+    expect(String(fetchMock.mock.calls[1]?.[0])).toContain("v1beta/interactions");
+  });
+
+  it("falls through a transient HTTP 429 to the next configured Gemini model", async () => {
+    process.env.GEMINI_API_KEY = "test-key";
+    const fetchMock = vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(response(429, { error: "rate limited" }))
       .mockResolvedValueOnce(response(200, {
         steps: [{ type: "model_output", content: [{ type: "text", text: '{"decision":"continue"}' }] }],
       }));
@@ -55,8 +73,23 @@ describe("Gemini Boss text-only model authority", () => {
     expect(result.raw).toBe('{"decision":"continue"}');
     expect(result.error).toBeNull();
     expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(String(fetchMock.mock.calls[0]?.[0])).toContain("v1beta/interactions");
-    expect(String(fetchMock.mock.calls[1]?.[0])).toContain("v1beta/interactions");
+  });
+
+  it("does not retry HTTP 503 more than once for the same model", async () => {
+    process.env.GEMINI_API_KEY = "test-key";
+    const fetchMock = vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(response(503, { error: "busy" }))
+      .mockResolvedValueOnce(response(503, { error: "still busy" }))
+      .mockResolvedValueOnce(response(200, {
+        steps: [{ type: "model_output", content: [{ type: "text", text: '{"decision":"continue"}' }] }],
+      }));
+
+    const result = await generateGeminiBossText(selection, "Return JSON.");
+
+    expect(result.model).toBe("gemini-3.7-flash");
+    expect(result.raw).toBe('{"decision":"continue"}');
+    expect(result.error).toBeNull();
+    expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 
   it("stops after the first successful response", async () => {
