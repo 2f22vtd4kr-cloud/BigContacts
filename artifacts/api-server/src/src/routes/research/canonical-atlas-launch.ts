@@ -6,6 +6,7 @@ import { claimCanonicalJob, releaseCanonicalJob } from "../../lib/canonical-job-
 import { enablePermanentRedis } from "../../lib/redis";
 import { runCanonicalAtlasPipeline } from "../../lib/canonical-atlas-discovery";
 import { runCanonicalSingleTargetInvestigation } from "../../lib/canonical-single-target-runner";
+import { checkAtlasSchemaReadiness } from "../../lib/schema-readiness";
 
 const router = Router();
 
@@ -14,6 +15,18 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
   let atlasJobId: string | null = null;
   let lockClaimed = false;
   try {
+    const schema = await checkAtlasSchemaReadiness();
+    if (!schema.ready) {
+      res.status(503).json({
+        error: "Atlas database schema is not ready for canonical research.",
+        code: "DATABASE_SCHEMA_INCOMPATIBLE",
+        missingTables: schema.missingTables,
+        missingColumns: schema.missingColumns,
+        remediation: "Run the repository's explicit schema initialization command, then restart the canonical API workflow.",
+      });
+      return;
+    }
+
     await enablePermanentRedis();
 
   const existingId = await getActiveJob("atlas-run");
