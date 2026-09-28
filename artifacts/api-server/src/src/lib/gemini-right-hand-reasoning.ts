@@ -34,6 +34,11 @@ const TRANSIENT_TRANSPORT_RETRY_DELAY_MS = 600;
 const MAX_RATE_LIMIT_RETRIES = 1;
 const DEFAULT_RATE_LIMIT_RETRY_DELAY_MS = 60_000;
 const MAX_RATE_LIMIT_RETRY_DELAY_MS = 90_000;
+const MIN_RATE_LIMIT_RETRY_DELAY_MS = 10;
+function configuredRateLimitRetryDelayMs(): number {
+  const parsed = Number(process.env.APEX_GEMINI_RIGHT_HAND_RATE_LIMIT_RETRY_DELAY_MS);
+  return Number.isFinite(parsed) ? Math.min(MAX_RATE_LIMIT_RETRY_DELAY_MS, Math.max(MIN_RATE_LIMIT_RETRY_DELAY_MS, Math.floor(parsed))) : DEFAULT_RATE_LIMIT_RETRY_DELAY_MS;
+}
 const GEMINI_INTERACTIONS_FALLBACK_MODELS = [
   "gemini-3.8-flash",
   "gemini-3.7-flash",
@@ -167,7 +172,7 @@ function rateLimitRetryDelayMs(response: Response, remainingMs: number): number 
     const dateMs = Date.parse(retryAfter);
     if (Number.isFinite(dateMs)) return Math.min(MAX_RATE_LIMIT_RETRY_DELAY_MS, Math.max(0, dateMs - Date.now()), remainingMs);
   }
-  return Math.min(DEFAULT_RATE_LIMIT_RETRY_DELAY_MS, MAX_RATE_LIMIT_RETRY_DELAY_MS, Math.max(0, remainingMs));
+  return Math.min(configuredRateLimitRetryDelayMs(), MAX_RATE_LIMIT_RETRY_DELAY_MS, Math.max(0, remainingMs));
 }
 function isGemini3Model(model: string): boolean { return /^gemini-3(?:\.\d+)?-/i.test(model); }
 
