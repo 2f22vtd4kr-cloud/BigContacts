@@ -858,6 +858,33 @@ function extractJsonObject(value: string): string | null {
   return end > start ? source.slice(start, end + 1) : null;
 }
 
+const GEMINI_BOSS_PLAN_RESPONSE_FORMAT: Record<string, unknown> = {
+  type: "text",
+  mime_type: "application/json",
+  schema: {
+    type: "object",
+    properties: {
+      outcome: { type: "string", enum: ["proceed", "reject_target", "reframe"] },
+      actionId: { type: ["string", "null"] },
+      decision: { type: "string" },
+      reason: { type: "string" },
+      investigatorPrompt: { type: ["string", "null"] },
+      investigatorLlm: { type: ["string", "null"] },
+      restrictions: { type: "array", items: { type: "string" } },
+      tools: { type: "array", items: { type: "string" } },
+      evidenceRequirements: { type: "array", items: { type: "string" } },
+      confidence: { type: ["number", "null"] },
+      progressAssessment: { type: ["string", "null"] },
+      reprioritize: { type: "array", items: { type: "string" } },
+      suggestedScope: { type: ["string", "null"] },
+      rightHandDisposition: { type: ["string", "null"] },
+      rightHandNote: { type: ["string", "null"] },
+    },
+    required: ["outcome", "actionId", "decision", "reason", "investigatorPrompt", "investigatorLlm", "restrictions", "tools", "evidenceRequirements", "confidence", "progressAssessment", "reprioritize", "suggestedScope", "rightHandDisposition", "rightHandNote"],
+    additionalProperties: false,
+  },
+};
+
 const GEMINI_BOSS_DISCOVERY_RESPONSE_FORMAT: Record<string, unknown> = {
   type: "text",
   mime_type: "application/json",
@@ -1299,7 +1326,7 @@ export async function runGeminiBossPlan(input: {
   if (queuedActions.length === 0) return unavailable("The case file has no queued actions.");
   try {
     const planPrompt = buildGeminiBossPlanPrompt(input);
-    const generated = await generateGeminiBossText(selection, planPrompt);
+    const generated = await generateGeminiBossText(selection, planPrompt, { responseFormat: GEMINI_BOSS_PLAN_RESPONSE_FORMAT, maxOutputTokens: 1536, thinkingLevel: "low" });
     if (!generated.raw) return unavailable(generated.error ?? "Boss plan text generation returned no text.");
     const parsed = parseBossPlanResponse(generated.raw, queuedActions);
     return parsed
