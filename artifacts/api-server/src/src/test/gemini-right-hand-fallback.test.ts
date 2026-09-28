@@ -3,19 +3,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("../lib/gemini-transient-retry", () => ({
   installGeminiTransientRetry: vi.fn(),
 }));
-import {
-  GEMINI_RIGHT_HAND_MODEL,
-  runGeminiRightHandFreeJson,
-} from "../lib/gemini-right-hand-reasoning";
+
+import { GEMINI_RIGHT_HAND_MODEL, runGeminiRightHandFreeJson } from "../lib/gemini-right-hand-reasoning";
 import { installExternalQuotaGuard, resetProviderGateForTests } from "../lib/provider-gate";
 
-describe("Gemini Right-hand catalog-driven fallback", () => {
+describe("Gemini Right-hand text-only control transport", () => {
   const originalFetch = globalThis.fetch;
 
-  beforeEach(() => {
-    resetProviderGateForTests();
-  });
-
+  beforeEach(() => resetProviderGateForTests());
   afterEach(() => {
     resetProviderGateForTests();
     globalThis.fetch = originalFetch;
@@ -24,147 +19,87 @@ describe("Gemini Right-hand catalog-driven fallback", () => {
     vi.restoreAllMocks();
   });
 
-  function catalog(...models: string[]) {
+  function ok(text = '{"decision":"ok"}') {
     return new Response(JSON.stringify({
-      models: models.map((name) => ({
-        name: `models/${name}`,
-        supportedGenerationMethods: ["generateContent"],
-      })),
+      steps: [{ type: "model_output", content: [{ type: "text", text }] }],
     }), { status: 200 });
   }
 
-  it("falls from the preferred model to the next compatible live-catalog model on capacity 429", async () => {
+  it("uses one configured text model without a catalog probe or equivalent-model fan-out", async () => {
     process.env.GEMINI_RIGHT_HAND_API_KEY = "test-key";
-    const calls: string[] = [];
+    const calls: Array<{ url: string; model?: string }> = [];
     globalThis.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
       const body = init?.body ? JSON.parse(String(init.body)) as { model?: string } : {};
-      calls.push(url + "#" + (body.model ?? ""));
-
-      if (url.endsWith("generativelanguage.googleapis.com/v1beta/models")) {
-        return catalog(GEMINI_RIGHT_HAND_MODEL, "gemini-3.7-flash");
-      }
-      if (url.includes("/v1beta/interactions") && body.model === GEMINI_RIGHT_HAND_MODEL) {
-        return new Response(JSON.stringify({ error: { message: "quota exceeded" } }), { status: 429 });
-      }
-      return new Response(JSON.stringify({ steps: [{ type: "model_output", content: [{ type: "text", text: '{"decision":"fallback-ok"}' }] }] }), { status: 200 });
+      calls.push({ url, model: body.model });
+      return ok();
     });
     installExternalQuotaGuard();
 
-    const result = await runGeminiRightHandFreeJson("Return a JSON object with decision.");
+    const result = await runGeminiRightHandFreeJson("Review this Investigator text report and return JSON.");
 
-    const generationCalls = calls.filter((url) => url.includes("/v1beta/interactions"));
+    const generationCalls = calls.filter((call) => call.url.includes("/v1beta/interactions"));
     expect(result.status).toBe("completed");
-    expect(result.model).toBe("gemini-3.7-flash");
-    expect(generationCalls).toHaveLength(2);
-    expect(generationCalls[0]).toContain(`/v1beta/interactions`);
-    expect(generationCalls[1]).toContain("/v1beta/interactions");
+    expect(result.model).toBe(GEMINI_RIGHT_HAND_MODEL);
+    expect(calls.every((call) => call.url.includes("/v1beta/interactions"))).toBe(true);
+    expect(generationCalls).toHaveLength(1);
+    expect(generationCalls[0]?.model).toBe(GEMINI_RIGHT_HAND_MODEL);
   });
 
-  it("falls through the live catalog when the preferred model is not authorized for a free-tier key", async () => {
-    process.env.GEMINI_RIGHT_HAND_API_KEY = "test-key-free-tier";
-    const calls: string[] = [];
-    globalThis.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-      const url = String(input);
-      const body = init?.body ? JSON.parse(String(init.body)) as { model?: string } : {};
-      calls.push(url + "#" + (body.model ?? ""));
-
-      if (url.endsWith("generativelanguage.googleapis.com/v1beta/models")) {
-        return catalog(GEMINI_RIGHT_HAND_MODEL, "gemini-3.7-flash");
-      }
-      if (url.includes("/v1beta/interactions") && body.model === GEMINI_RIGHT_HAND_MODEL) {
-        return new Response(JSON.stringify({ error: { message: "model unavailable for this key tier" } }), { status: 403 });
-      }
-      return new Response(JSON.stringify({ steps: [{ type: "model_output", content: [{ type: "text", text: '{"decision":"free-tier-fallback-ok"}' }] }] }), { status: 200 });
-    });
-    installExternalQuotaGuard();
-
-    const result = await runGeminiRightHandFreeJson("Return JSON.");
-
-    const generationCalls = calls.filter((url) => url.includes("/v1beta/interactions"));
-    expect(result.status).toBe("completed");
-    expect(result.model).toBe("gemini-3.7-flash");
-    expect(generationCalls).toHaveLength(2);
-  });
-
-  it("retries the same model once before falling through the live catalog", async () => {
-    process.env.GEMINI_RIGHT_HAND_API_KEY = "test-key-same-model-retry";
+  it("retries the same model once on transient network failure", async () => {
+    process.env.GEMINI_RIGHT_HAND_API_KEY = "test-key-network";
     const attempts: string[] = [];
     globalThis.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
       const body = init?.body ? JSON.parse(String(init.body)) as { model?: string } : {};
-      if (url.endsWith("generativelanguage.googleapis.com/v1beta/models")) {
-        return catalog(GEMINI_RIGHT_HAND_MODEL, "gemini-3.7-flash");
-      }
+      if (!url.includes("/v1beta/interactions")) throw new Error("unexpected non-generation request");
       attempts.push(body.model ?? "");
       if (attempts.length === 1) throw new TypeError("fetch failed");
-      return new Response(JSON.stringify({
-        steps: [{ type: "model_output", content: [{ type: "text", text: '{"decision":"same-model-retry-ok"}' }] }],
-      }), { status: 200 });
+      return ok('{"decision":"same-model-retry-ok"}');
     });
     installExternalQuotaGuard();
 
     const result = await runGeminiRightHandFreeJson("Return JSON.");
 
     expect(result.status).toBe("completed");
-    expect(result.model).toBe(GEMINI_RIGHT_HAND_MODEL);
     expect(attempts).toEqual([GEMINI_RIGHT_HAND_MODEL, GEMINI_RIGHT_HAND_MODEL]);
   });
 
-  it("falls through the live catalog after a transient network error", async () => {
-    process.env.GEMINI_RIGHT_HAND_API_KEY = "test-key-network";
-    const calls: string[] = [];
+  it("does not model-hop on HTTP 429; it returns bounded rate-limit failure after same-model retry", async () => {
+    process.env.GEMINI_RIGHT_HAND_API_KEY = "test-key-429";
+    const attempts: string[] = [];
     globalThis.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
       const body = init?.body ? JSON.parse(String(init.body)) as { model?: string } : {};
-      calls.push(url + "#" + (body.model ?? ""));
-
-      if (url.endsWith("generativelanguage.googleapis.com/v1beta/models")) {
-        return catalog(GEMINI_RIGHT_HAND_MODEL, "gemini-3.7-flash");
-      }
-      if (url.includes("/v1beta/interactions") && body.model === GEMINI_RIGHT_HAND_MODEL) {
-        throw new TypeError("fetch failed");
-      }
-      return new Response(JSON.stringify({
-        steps: [{ type: "model_output", content: [{ type: "text", text: '{"decision":"network-fallback-ok"}' }] }],
-      }), { status: 200 });
+      if (!url.includes("/v1beta/interactions")) throw new Error("unexpected non-generation request");
+      attempts.push(body.model ?? "");
+      return new Response(JSON.stringify({ error: { message: "quota exceeded" } }), { status: 429 });
     });
     installExternalQuotaGuard();
 
     const result = await runGeminiRightHandFreeJson("Return JSON.");
 
-    const generationCalls = calls.filter((url) => url.includes("/v1beta/interactions"));
-    expect(result.status).toBe("completed");
-    expect(result.model).toBe("gemini-3.7-flash");
-    expect(generationCalls).toHaveLength(3);
-    expect(generationCalls[0]).toContain(`/v1beta/interactions`);
-    expect(generationCalls[1]).toContain("/v1beta/interactions");
-    expect(generationCalls[2]).toContain("/v1beta/interactions");
+    expect(result.status).toBe("unavailable");
+    expect(attempts).toEqual([GEMINI_RIGHT_HAND_MODEL, GEMINI_RIGHT_HAND_MODEL]);
+    expect(result.error).toContain("rate limit persisted");
   });
 
-  it("walks only the bounded candidates supplied by the live catalog", async () => {
-    process.env.GEMINI_RIGHT_HAND_API_KEY = "test-key-bounded";
-    const calls: string[] = [];
-    const liveModels = [
-      GEMINI_RIGHT_HAND_MODEL,
-      "gemini-3.7-flash",
-      "gemini-3.6-flash",
-      "gemini-3.5-flash",
-    ];
-    globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {
+  it("does not model-hop on HTTP 503; it remains bounded to the configured Right-hand model", async () => {
+    process.env.GEMINI_RIGHT_HAND_API_KEY = "test-key-503";
+    const attempts: string[] = [];
+    globalThis.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
-      calls.push(url);
-      if (url.endsWith("generativelanguage.googleapis.com/v1beta/models")) return catalog(...liveModels);
+      const body = init?.body ? JSON.parse(String(init.body)) as { model?: string } : {};
+      if (!url.includes("/v1beta/interactions")) throw new Error("unexpected non-generation request");
+      attempts.push(body.model ?? "");
       return new Response(JSON.stringify({ error: { message: "service unavailable" } }), { status: 503 });
     });
     installExternalQuotaGuard();
 
     const result = await runGeminiRightHandFreeJson("Return JSON.");
 
-    const generationCalls = calls.filter((url) => url.includes("/v1beta/interactions"));
     expect(result.status).toBe("unavailable");
-    expect(generationCalls).toHaveLength(4);
-    expect(generationCalls).toHaveLength(liveModels.length);
+    expect(attempts).toEqual([GEMINI_RIGHT_HAND_MODEL]);
     expect(result.error).toContain("exhausted bounded same-role model attempts");
   });
 
@@ -172,30 +107,26 @@ describe("Gemini Right-hand catalog-driven fallback", () => {
     process.env.GEMINI_RIGHT_HAND_API_KEY = "test-key";
     process.env.GEMINI_RIGHT_HAND_MODEL_CHAIN = "gemini-9.9-flash,gemini-1.0-flash";
     const calls: string[] = [];
-    globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {
+    globalThis.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
       calls.push(url);
-      if (url.endsWith("generativelanguage.googleapis.com/v1beta/models")) {
-        return catalog(GEMINI_RIGHT_HAND_MODEL, "gemini-3.7-flash");
-      }
-      return new Response(JSON.stringify({ steps: [{ type: "model_output", content: [{ type: "text", text: '{"decision":"ok"}' }] }] }), { status: 200 });
+      if (!url.includes("/v1beta/interactions")) throw new Error("unexpected non-generation request");
+      return ok();
     });
     installExternalQuotaGuard();
 
     const result = await runGeminiRightHandFreeJson("Return JSON.");
 
     expect(result.status).toBe("completed");
-    expect(calls.some((url) => url.includes("gemini-9.9-flash") || url.includes("gemini-1.0-flash"))).toBe(false);
+    expect(calls).toHaveLength(1);
   });
 
-  it("does not expose a provider response body when the preferred model rejects the request", async () => {
+  it("does not expose provider response bodies", async () => {
     process.env.GEMINI_RIGHT_HAND_API_KEY = "test-key-sanitized";
     const secretProviderMessage = "secret provider response must never escape the diagnostics boundary";
     globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
-      if (url.endsWith("generativelanguage.googleapis.com/v1beta/models")) {
-        return catalog(GEMINI_RIGHT_HAND_MODEL);
-      }
+      if (!url.includes("/v1beta/interactions")) throw new Error("unexpected non-generation request");
       return new Response(JSON.stringify({ error: { code: "INVALID_ARGUMENT", message: secretProviderMessage } }), { status: 400 });
     });
     installExternalQuotaGuard();
