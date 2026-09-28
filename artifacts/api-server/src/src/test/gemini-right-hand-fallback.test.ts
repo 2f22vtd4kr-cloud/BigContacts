@@ -63,10 +63,10 @@ describe("Gemini Right-hand text-only control transport", () => {
     const result = await runGeminiRightHandFreeJson("Return JSON.");
 
     expect(result.status).toBe("completed");
-    expect(attempts).toEqual([GEMINI_RIGHT_HAND_MODEL, GEMINI_RIGHT_HAND_MODEL]);
+    expect(attempts).toEqual([GEMINI_RIGHT_HAND_MODEL]);
   });
 
-  it("does not model-hop on HTTP 429; it returns bounded rate-limit failure after same-model retry", async () => {
+  it("does not model-hop on HTTP 429; quota guard fails closed without burning another model request", async () => {
     process.env.GEMINI_RIGHT_HAND_API_KEY = "test-key-429";
     process.env.APEX_GEMINI_RIGHT_HAND_RATE_LIMIT_RETRY_DELAY_MS = "10";
     const attempts: string[] = [];
