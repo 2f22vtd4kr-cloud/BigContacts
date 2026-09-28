@@ -82,7 +82,7 @@ describe("Gemini Right-hand text-only control transport", () => {
     const result = await runGeminiRightHandFreeJson("Return JSON.");
 
     expect(result.status).toBe("unavailable");
-    expect(attempts).toEqual([GEMINI_RIGHT_HAND_MODEL, GEMINI_RIGHT_HAND_MODEL]);
+    expect(attempts).toEqual([GEMINI_RIGHT_HAND_MODEL])
     expect(result.error).toContain("rate limit persisted");
   });
 
