@@ -23,12 +23,12 @@ jobs:
       - name: Install locked dependencies
         run: pnpm install --frozen-lockfile --ignore-scripts --registry=https://registry.npmjs.org/
       - name: Condition 1 — sidebar decorative indicators are absent
-        run: pnpm exec tsx scripts/check-apex-frontend-polish.mjs
+        run: node scripts/check-apex-frontend-polish.mjs
       - name: Condition 2 — lower sidebar occupies the available rail
-        run: pnpm exec tsx scripts/check-apex-frontend-polish.mjs
+        run: node scripts/check-apex-frontend-polish.mjs
       - name: Condition 3 — desktop shell has no rail-overlap compensation
-        run: pnpm exec tsx scripts/check-apex-frontend-polish.mjs
+        run: node scripts/check-apex-frontend-polish.mjs
       - name: Condition 4 — responsive shell remains bounded
-        run: pnpm exec tsx scripts/check-frontend-responsive.mjs
+        run: node scripts/check-frontend-responsive.mjs
       - name: Condition 5 — whole-desk frontend integrity and build
         run: pnpm --filter @workspace/apex-finder build
