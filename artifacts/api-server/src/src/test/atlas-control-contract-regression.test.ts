@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
+import { validateAtlasBossControl, validateAtlasRightHandControl } from "../lib/atlas-control-decision";
 
 const controlSource = readFileSync(resolve(process.cwd(), "src/src/lib/atlas-control-decision.ts"), "utf8");
 const bossSource = readFileSync(resolve(process.cwd(), "src/src/lib/case-bureau.ts"), "utf8");
@@ -24,8 +25,56 @@ describe("Atlas control-plane contract regression", () => {
   it("keeps local validation after provider structured-output compatibility fallback", () => {
     expect(controlSource).toContain("const rightHandContractValid =");
     expect(controlSource).toContain("const bossContractValid =");
-    expect(controlSource).toContain("ALLOWED_ACTIONS.has(rightDecision as AtlasControlAction)");
-    expect(controlSource).toContain("requestedConfidence !== null");
+    expect(controlSource).toContain("validateAtlasRightHandControl(rightParsed)");
+    expect(controlSource).toContain("validateAtlasBossControl(parsed)");
     expect(controlSource).toContain('reason: "Gemini returned an invalid Atlas control action; fail-closed."');
   });
+  it("replays valid and malformed provider contracts through the real validators", () => {
+    expect(validateAtlasRightHandControl({
+      decision: "continue_discovery",
+      reason: "The current evidence is insufficient.",
+      direction: "Search a new lane.",
+      confidence: 0.7,
+    })).toBe(true);
+    expect(validateAtlasRightHandControl({
+      decision: "stop",
+      reason: "The case is exhausted.",
+      direction: null,
+      confidence: 0.9,
+    })).toBe(true);
+    expect(validateAtlasRightHandControl({
+      decision: "continue discovery",
+      reason: "Invalid non-contract action label.",
+      direction: "Search.",
+      confidence: 0.5,
+    })).toBe(false);
+    expect(validateAtlasRightHandControl({
+      decision: "stop",
+      reason: "Missing confidence.",
+      direction: null,
+    })).toBe(false);
+
+    expect(validateAtlasBossControl({
+      action: "research_candidate",
+      candidateName: "Example Person",
+      direction: "Verify the role.",
+      reason: "Candidate is admitted.",
+      confidence: 0.8,
+    })).toBe(true);
+    expect(validateAtlasBossControl({
+      action: "stop",
+      candidateName: null,
+      direction: null,
+      reason: "No further justified work.",
+      confidence: 0.9,
+    })).toBe(true);
+    expect(validateAtlasBossControl({
+      action: "invented_action",
+      candidateName: null,
+      direction: null,
+      reason: "Invalid.",
+      confidence: 0.9,
+    })).toBe(false);
+  });
+
 });
