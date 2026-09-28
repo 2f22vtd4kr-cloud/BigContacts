@@ -10,6 +10,39 @@ export type AtlasControlDecision = { status: "completed" | "unavailable"; action
 function parseObject(raw: string | null | undefined): Record<string, unknown> | null { if (!raw) return null; const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)```/i)?.[1]?.trim(); const source = fenced || raw.trim(); const start = source.indexOf("{"), end = source.lastIndexOf("}"); if (start < 0 || end <= start) return null; try { const parsed = JSON.parse(source.slice(start, end + 1)); return parsed && typeof parsed === "object" ? parsed as Record<string, unknown> : null; } catch { return null; } }
 function clampConfidence(value: unknown): number | null { return typeof value === "number" && Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : null; }
 const ALLOWED_ACTIONS = new Set<AtlasControlAction>(["continue_discovery", "research_candidate", "revisit_candidate", "pivot_discovery", "stop"]);
+
+export const ATLAS_RIGHT_HAND_CONTROL_RESPONSE_FORMAT = {
+  type: "text",
+  mime_type: "application/json",
+  schema: {
+    type: "object",
+    properties: {
+      decision: { type: "string" },
+      reason: { type: "string" },
+      direction: { type: "string" },
+      confidence: { type: "number" },
+    },
+    required: ["decision", "reason", "direction", "confidence"],
+    additionalProperties: false,
+  },
+} as const;
+
+export const ATLAS_BOSS_CONTROL_RESPONSE_FORMAT = {
+  type: "text",
+  mime_type: "application/json",
+  schema: {
+    type: "object",
+    properties: {
+      action: { type: "string" },
+      candidateName: { type: ["string", "null"] },
+      direction: { type: ["string", "null"] },
+      reason: { type: ["string", "null"] },
+      confidence: { type: "number" },
+    },
+    required: ["action", "candidateName", "direction", "reason", "confidence"],
+    additionalProperties: false,
+  },
+} as const;
 type TrajectoryRecordInput = { turn: number; model: string; action: string; args: Record<string, unknown>; thought?: string; execution: string; observation?: string; observedUrls: string[]; findings: CompactionFinding[]; providerFallback?: string[]; stopReason?: string };
 async function persistControlDecision(input: { caseId: number; controlTurn: number; decision: AtlasControlDecision }): Promise<boolean> {
   try {
