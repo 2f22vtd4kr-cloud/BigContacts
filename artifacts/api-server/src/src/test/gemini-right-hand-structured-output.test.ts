@@ -1,184 +1,59 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { runGeminiRightHandCaseReasoning } from "../lib/gemini-right-hand-reasoning";
+
+vi.mock("../lib/gemini-transient-retry", () => ({ installGeminiTransientRetry: vi.fn() }));
+
+import { GEMINI_RIGHT_HAND_MODEL, runGeminiRightHandFreeJson } from "../lib/gemini-right-hand-reasoning";
 
 describe("Gemini Right-hand structured output", () => {
   afterEach(() => {
-    vi.unstubAllGlobals();
     delete process.env.GEMINI_RIGHT_HAND_API_KEY;
+    vi.restoreAllMocks();
   });
 
-  it("enforces structured JSON and retries the same model without response_format on HTTP 400", async () => {
+  function response(text: string, status = 200) {
+    return new Response(JSON.stringify({
+      steps: [{ type: "model_output", content: [{ type: "text", text }] }],
+    }), { status });
+  }
+
+  it("uses Interactions structured JSON and the configured text-only model", async () => {
     process.env.GEMINI_RIGHT_HAND_API_KEY = "test-key";
-    const calls: Array<{ url: string; body?: Record<string, unknown> }> = [];
-
-    vi.stubGlobal("fetch", vi.fn(async (url: string, init?: RequestInit) => {
-      const body = init?.body ? JSON.parse(String(init.body)) as Record<string, unknown> : undefined;
-      calls.push({ url, body });
-
-      if (calls.length === 1) {
-        return new Response(JSON.stringify({
-          models: [{ name: "models/gemini-3.8-flash", supportedGenerationMethods: ["generateContent"] }],
-        }), { status: 200, headers: { "content-type": "application/json" } });
-      }
-      if (calls.length === 2) {
-        return new Response(JSON.stringify({
-          error: { code: "invalid_request", message: "structured output rejected" },
-        }), { status: 400, headers: { "content-type": "application/json" } });
-      }
-      return new Response(JSON.stringify({
-        output_text: JSON.stringify({
-          actionId: "act-1",
-          decision: "Run the queued action",
-          reason: "It addresses the open evidence gap.",
-          confidence: 0.8,
-        }),
-      }), { status: 200, headers: { "content-type": "application/json" } });
-    }));
-
-    const result = await runGeminiRightHandCaseReasoning({
-      iteration: 1,
-      file: {
-        version: 1,
-        target: { name: "Example", type: "person", nationality: null, knownResidences: [], knownDomains: [] },
-        hypotheses: [],
-        evidenceSummary: { sourceRegistries: [], discoveredPeople: [], relatedOrganizations: [], evidenceCount: 0, searchGaps: [], negativeFindings: [] },
-        specialistRoster: [],
-        actionQueue: [{
-          id: "act-1",
-          title: "Test action",
-          purpose: "Test",
-          specialistId: "test",
-          tools: [],
-          priority: 1,
-          status: "queued",
-          rationale: "Test",
-        }],
-        contactRoutes: [],
-        humanDirectives: [],
-        decisionLog: [],
-        nextBestAction: null,
-        lastUpdatedBy: "test",
-      },
-    });
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(response(
+      '{"decision":"continue","reason":"report is actionable","focusLanes":[],"confidence":0.8}'
+    ));
+    globalThis.fetch = fetchMock;
+    const result = await runGeminiRightHandFreeJson("Investigator report: three observed sources.");
 
     expect(result.status).toBe("completed");
-    expect(result.actionId).toBe("act-1");
-    expect(calls).toHaveLength(3);
-    expect(calls[1].body?.model).toBe("gemini-3.8-flash");
-    expect(calls[1].body?.response_format).toBeDefined();
-    expect(calls[2].body?.model).toBe("gemini-3.8-flash");
-    expect(calls[2].body?.response_format).toBeUndefined();
+    expect(result.model).toBe(GEMINI_RIGHT_HAND_MODEL);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchMock.mock.calls[0]!;
+    expect(String(url)).toContain("/v1beta/interactions");
+    const body = JSON.parse(String(init?.body));
+    expect(body.model).toBe(GEMINI_RIGHT_HAND_MODEL);
+    expect(body.generation_config?.responseMimeType).toBe("application/json");
+    expect(body.generation_config?.thinking_level).toBe("low");
   });
 
-  it("uses documented Interactions candidates when the live catalog lookup is unavailable", async () => {
-    process.env.GEMINI_RIGHT_HAND_API_KEY = "catalog-unavailable-key";
-    const calls: Array<{ url: string; body?: Record<string, unknown> }> = [];
-
-    vi.stubGlobal("fetch", vi.fn(async (url: string, init?: RequestInit) => {
-      const body = init?.body ? JSON.parse(String(init.body)) as Record<string, unknown> : undefined;
-      calls.push({ url, body });
-
-      if (calls.length === 1) {
-        return new Response(JSON.stringify({ error: { code: "unavailable" } }), { status: 503 });
-      }
-      return new Response(JSON.stringify({
-        output_text: JSON.stringify({
-          actionId: "act-1",
-          decision: "Run the queued action",
-          reason: "The catalog is unavailable, but the documented Interactions model is directly usable.",
-          confidence: 0.9,
-        }),
-      }), { status: 200, headers: { "content-type": "application/json" } });
-    }));
-
-    const result = await runGeminiRightHandCaseReasoning({
-      iteration: 1,
-      file: {
-        version: 1,
-        target: { name: "Example", type: "person", nationality: null, knownResidences: [], knownDomains: [] },
-        hypotheses: [],
-        evidenceSummary: { sourceRegistries: [], discoveredPeople: [], relatedOrganizations: [], evidenceCount: 0, searchGaps: [], negativeFindings: [] },
-        specialistRoster: [],
-        actionQueue: [{
-          id: "act-1",
-          title: "Test action",
-          purpose: "Test",
-          specialistId: "test",
-          tools: [],
-          priority: 1,
-          status: "queued",
-          rationale: "Test",
-        }],
-        contactRoutes: [],
-        humanDirectives: [],
-        decisionLog: [],
-        nextBestAction: null,
-        lastUpdatedBy: "test",
-      },
-    });
-
+  it("fails closed on malformed control output rather than model-hopping or browsing", async () => {
+    process.env.GEMINI_RIGHT_HAND_API_KEY = "test-key";
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(response('{"unexpected":"shape"}'));
+    globalThis.fetch = fetchMock;
+    const result = await runGeminiRightHandFreeJson("Investigator report.");
     expect(result.status).toBe("completed");
-    expect(result.model).toBe("gemini-3.8-flash");
-    expect(calls).toHaveLength(2);
-    expect(calls[1].body?.model).toBe("gemini-3.8-flash");
-    expect(calls[1].body?.response_format).toBeDefined();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
-  it("uses documented Interactions candidates when the live catalog returns no usable models", async () => {
-    process.env.GEMINI_RIGHT_HAND_API_KEY = "empty-catalog-key";
-    const calls: Array<{ url: string; body?: Record<string, unknown> }> = [];
-
-    vi.stubGlobal("fetch", vi.fn(async (url: string, init?: RequestInit) => {
-      const body = init?.body ? JSON.parse(String(init.body)) as Record<string, unknown> : undefined;
-      calls.push({ url, body });
-
-      if (calls.length === 1) {
-        return new Response(JSON.stringify({ models: [] }), {
-          status: 200,
-          headers: { "content-type": "application/json" },
-        });
-      }
-      return new Response(JSON.stringify({
-        output_text: JSON.stringify({
-          actionId: "act-1",
-          decision: "Run the queued action",
-          reason: "The catalog returned no usable models, so use the documented Interactions candidate within the same Gemini role.",
-          confidence: 0.9,
-        }),
-      }), { status: 200, headers: { "content-type": "application/json" } });
-    }));
-
-    const result = await runGeminiRightHandCaseReasoning({
-      iteration: 1,
-      file: {
-        version: 1,
-        target: { name: "Example", type: "person", nationality: null, knownResidences: [], knownDomains: [] },
-        hypotheses: [],
-        evidenceSummary: { sourceRegistries: [], discoveredPeople: [], relatedOrganizations: [], evidenceCount: 0, searchGaps: [], negativeFindings: [] },
-        specialistRoster: [],
-        actionQueue: [{
-          id: "act-1",
-          title: "Test action",
-          purpose: "Test",
-          specialistId: "test",
-          tools: [],
-          priority: 1,
-          status: "queued",
-          rationale: "Test",
-        }],
-        contactRoutes: [],
-        humanDirectives: [],
-        decisionLog: [],
-        nextBestAction: null,
-        lastUpdatedBy: "test",
-      },
+  it("does not probe a model catalog before the control request", async () => {
+    process.env.GEMINI_RIGHT_HAND_API_KEY = "test-key";
+    const calls: string[] = [];
+    globalThis.fetch = vi.fn<typeof fetch>(async (input) => {
+      calls.push(String(input));
+      return response('{"decision":"continue","reason":"ok","focusLanes":[],"confidence":0.5}');
     });
-
-    expect(result.status).toBe("completed");
-    expect(result.model).toBe("gemini-3.8-flash");
-    expect(calls).toHaveLength(2);
-    expect(calls[1].body?.model).toBe("gemini-3.8-flash");
-    expect(calls[1].body?.response_format).toBeDefined();
+    await runGeminiRightHandFreeJson("Investigator report.");
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toContain("/v1beta/interactions");
+    expect(calls[0]).not.toContain("/v1beta/models");
   });
-
 });
