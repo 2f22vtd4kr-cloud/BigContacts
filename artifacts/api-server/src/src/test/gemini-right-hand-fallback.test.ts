@@ -63,7 +63,7 @@ describe("Gemini Right-hand text-only control transport", () => {
     const result = await runGeminiRightHandFreeJson("Return JSON.");
 
     expect(result.status).toBe("completed");
-    expect(attempts).toEqual([GEMINI_RIGHT_HAND_MODEL]);
+    expect(attempts).toEqual([GEMINI_RIGHT_HAND_MODEL, GEMINI_RIGHT_HAND_MODEL]);
   });
 
   it("does not model-hop on HTTP 429; quota guard fails closed without burning another model request", async () => {
