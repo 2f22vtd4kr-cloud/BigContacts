@@ -660,7 +660,17 @@ export async function generateGeminiBossText(
             "Gemini Boss retrying the same model after HTTP 503 before bounded same-role model fallback",
           );
           if (retryDelayMs > 0) await new Promise<void>((resolve) => setTimeout(resolve, retryDelayMs));
-          continue;
+          response = await fetchGeminiInteractions(GEMINI_INTERACTIONS_API, {
+            method: "POST",
+            headers: {
+              Accept: "application/json",
+              "Content-Type": "application/json",
+              "x-goog-api-key": entry.key,
+            },
+            body: interactionBody,
+            signal: controller.signal,
+          });
+          responseText = await response.text();
         }
 
         const fetchElapsedMs = Date.now() - attemptStartedAt;
