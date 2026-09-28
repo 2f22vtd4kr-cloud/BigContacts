@@ -1,7 +1,7 @@
 # Five consecutive complete audits. Each pass gets a fresh checkout and independently reruns the full repository contract suite, typecheck, build, every API test file, and source-mutation check.
 # Final verification run: no merge until all five complete audits pass consecutively.
 # Audit chain activation: this workflow is intentionally the complete five-pass gate, not a five-lane shortcut.
-# Final-tree verification marker: current complete-audit restart after Gemini latency fixture hardening.
+# Final-tree verification marker: each pass now includes an explicit Atlas control-contract regression gate in addition to every API test.
 name: Five Consecutive Full Code Audits
 
 on:
@@ -53,6 +53,8 @@ jobs:
         run: pnpm run typecheck
       - name: Build
         run: pnpm run build
+      - name: Atlas control contract regression
+        run: cd artifacts/api-server && pnpm exec vitest run --maxWorkers=1 src/src/test/atlas-control-contract-regression.test.ts
       - name: Push database schema for live smoke tests
         run: cd lib/db && pnpm exec drizzle-kit push --config ./drizzle.config.ts
       - name: Apply explicit Apex database invariants
@@ -125,6 +127,8 @@ jobs:
       - run: pnpm run check:bureau
       - run: pnpm run typecheck
       - run: pnpm run build
+      - name: Atlas control contract regression
+        run: cd artifacts/api-server && pnpm exec vitest run --maxWorkers=1 src/src/test/atlas-control-contract-regression.test.ts
       - name: Push database schema for live smoke tests
         run: cd lib/db && pnpm exec drizzle-kit push --config ./drizzle.config.ts
       - name: Apply explicit Apex database invariants
@@ -196,6 +200,8 @@ jobs:
       - run: pnpm run check:bureau
       - run: pnpm run typecheck
       - run: pnpm run build
+      - name: Atlas control contract regression
+        run: cd artifacts/api-server && pnpm exec vitest run --maxWorkers=1 src/src/test/atlas-control-contract-regression.test.ts
       - name: Push database schema for live smoke tests
         run: cd lib/db && pnpm exec drizzle-kit push --config ./drizzle.config.ts
       - name: Apply explicit Apex database invariants
@@ -267,6 +273,8 @@ jobs:
       - run: pnpm run check:bureau
       - run: pnpm run typecheck
       - run: pnpm run build
+      - name: Atlas control contract regression
+        run: cd artifacts/api-server && pnpm exec vitest run --maxWorkers=1 src/src/test/atlas-control-contract-regression.test.ts
       - name: Push database schema for live smoke tests
         run: cd lib/db && pnpm exec drizzle-kit push --config ./drizzle.config.ts
       - name: Apply explicit Apex database invariants
@@ -338,6 +346,8 @@ jobs:
       - run: pnpm run check:bureau
       - run: pnpm run typecheck
       - run: pnpm run build
+      - name: Atlas control contract regression
+        run: cd artifacts/api-server && pnpm exec vitest run --maxWorkers=1 src/src/test/atlas-control-contract-regression.test.ts
       - name: Push database schema for live smoke tests
         run: cd lib/db && pnpm exec drizzle-kit push --config ./drizzle.config.ts
       - name: Apply explicit Apex database invariants
