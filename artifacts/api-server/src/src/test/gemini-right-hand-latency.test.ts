@@ -23,10 +23,10 @@ describe("Gemini Right-hand latency controls", () => {
   });
 
 
-  it("does not use the old 8-second provider cutoff and keeps the overall fallback window bounded", async () => {
+  it("does not use the old 8-second provider cutoff and keeps the overall text-only control window bounded", async () => {
     vi.resetModules();
     const { getGeminiRightHandLatencyConfig } = await import("../lib/gemini-right-hand-reasoning");
-    expect(getGeminiRightHandLatencyConfig()).toEqual({ requestTimeoutMs: 20_000, overallTimeoutMs: 45_000 });
+    expect(getGeminiRightHandLatencyConfig()).toEqual({ requestTimeoutMs: 20_000, overallTimeoutMs: 120_000 });
   });
 
   it("allows Replit operators to tune latency without removing bounded fail-closed behavior", async () => {
@@ -41,9 +41,6 @@ describe("Gemini Right-hand latency controls", () => {
     process.env.GEMINI_RIGHT_HAND_API_KEY = "test-key";
     const fetchMock = vi.fn<typeof fetch>()
       .mockResolvedValueOnce(new Response(JSON.stringify({
-        models: [{ name: "models/gemini-3.8-flash", supportedGenerationMethods: ["generateContent"] }],
-      }), { status: 200 }))
-      .mockResolvedValueOnce(new Response(JSON.stringify({
         steps: [{ type: "model_output", content: [{ type: "text", text: '{"decision":"continue","reason":"test","focusLanes":[],"confidence":0.5}' }] }],
       }), { status: 200 }));
     globalThis.fetch = fetchMock;
@@ -52,9 +49,9 @@ describe("Gemini Right-hand latency controls", () => {
 
     const result = await runGeminiRightHandFreeJson("Return one JSON object.");
     expect(result.status).toBe("completed");
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
 
-    const body = JSON.parse(String(fetchMock.mock.calls[1]?.[1]?.body));
+    const body = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body));
     expect(body.generation_config.max_output_tokens).toBe(768);
     expect(body.generation_config.responseMimeType).toBeUndefined();
     expect(body.generation_config.thinking_level).toBeUndefined();
@@ -64,9 +61,6 @@ describe("Gemini Right-hand latency controls", () => {
   it("records redacted request telemetry without persisting prompt contents", async () => {
     process.env.GEMINI_RIGHT_HAND_API_KEY = "test-key";
     const fetchMock = vi.fn<typeof fetch>()
-      .mockResolvedValueOnce(new Response(JSON.stringify({
-        models: [{ name: "models/gemini-3.8-flash", supportedGenerationMethods: ["generateContent"] }],
-      }), { status: 200 }))
       .mockResolvedValueOnce(new Response(JSON.stringify({
         steps: [{ type: "model_output", content: [{ type: "text", text: '{"decision":"continue","reason":"test","focusLanes":[],"confidence":0.5}' }] }],
       }), { status: 200 }));
@@ -97,24 +91,18 @@ describe("Gemini Right-hand latency controls", () => {
     expect(JSON.stringify(telemetry)).not.toContain("unique user prompt");
   });
 
-  it("tries only the bounded live-catalog Gemini candidates instead of using an unbounded fallback chain", async () => {
+  it("uses only the configured Right-hand model and never performs a catalog probe", async () => {
     process.env.GEMINI_RIGHT_HAND_API_KEY = "test-key";
-    const fetchMock = vi.fn<typeof fetch>()
-      .mockResolvedValueOnce(new Response(JSON.stringify({
-        models: [
-          { name: "models/gemini-3.8-flash", supportedGenerationMethods: ["generateContent"] },
-          { name: "models/gemini-3.7-flash", supportedGenerationMethods: ["generateContent"] },
-          { name: "models/gemini-3.6-flash", supportedGenerationMethods: ["generateContent"] },
-        ],
-      }), { status: 200 }))
-      .mockResolvedValue(new Response(JSON.stringify({ error: "busy" }), { status: 503 }));
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify({
+      steps: [{ type: "model_output", content: [{ type: "text", text: '{"decision":"continue","reason":"test","focusLanes":[],"confidence":0.5}' }] }],
+    }), { status: 200 }));
     globalThis.fetch = fetchMock;
     vi.resetModules();
     const { runGeminiRightHandFreeJson } = await import("../lib/gemini-right-hand-reasoning");
 
     const result = await runGeminiRightHandFreeJson("Return one JSON object.");
-    expect(result.status).toBe("unavailable");
-    expect(fetchMock.mock.calls.length).toBeGreaterThanOrEqual(1);
-    expect(fetchMock.mock.calls.length).toBeLessThanOrEqual(4);
-  }, 10_000);
+    expect(result.status).toBe("completed");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain("/v1beta/interactions");
+  });
 });
