@@ -51,7 +51,7 @@ export async function fetchGeminiInteractions(input: RequestInfo | URL, init?: R
         {
           method: init?.method ?? "GET",
           headers: Object.fromEntries(headers.entries()),
-          signal: init?.signal,
+          ...(init?.signal ? { signal: init.signal } : {}),
         },
         (response) => {
           const chunks: Buffer[] = [];
