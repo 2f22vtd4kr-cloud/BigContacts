@@ -23,14 +23,17 @@ export const GEMINI_RIGHT_HAND_FALLBACK_MODELS: readonly string[] = [];
 const GEMINI_CHAT_API_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
 const GEMINI_INTERACTIONS_API = "https://generativelanguage.googleapis.com/v1beta/interactions";
 const DEFAULT_REQUEST_TIMEOUT_MS = 20_000;
-const DEFAULT_OVERALL_TIMEOUT_MS = 45_000;
+const DEFAULT_OVERALL_TIMEOUT_MS = 120_000;
 const MIN_REQUEST_TIMEOUT_MS = 10_000;
 const MAX_REQUEST_TIMEOUT_MS = 60_000;
 const MIN_OVERALL_TIMEOUT_MS = 20_000;
-const MAX_OVERALL_TIMEOUT_MS = 120_000;
+const MAX_OVERALL_TIMEOUT_MS = 180_000;
 const MAX_MODEL_ATTEMPTS = 4;
 const MAX_TRANSIENT_TRANSPORT_RETRIES = 1;
 const TRANSIENT_TRANSPORT_RETRY_DELAY_MS = 600;
+const MAX_RATE_LIMIT_RETRIES = 1;
+const DEFAULT_RATE_LIMIT_RETRY_DELAY_MS = 60_000;
+const MAX_RATE_LIMIT_RETRY_DELAY_MS = 90_000;
 const GEMINI_INTERACTIONS_FALLBACK_MODELS = [
   "gemini-3.8-flash",
   "gemini-3.7-flash",
@@ -156,6 +159,16 @@ async function resolveModelChain(): Promise<string[]> {
 }
 function extractJson(raw: string): Record<string, unknown> | null { const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)```/i)?.[1]?.trim(); const source = fenced || raw.trim(); const start = source.indexOf("{"), end = source.lastIndexOf("}"); if (start < 0 || end <= start) return null; try { const value = JSON.parse(source.slice(start, end + 1)); return value && typeof value === "object" ? value as Record<string, unknown> : null; } catch { return null; } }
 function shouldFallback(status: number): boolean { return status === 403 || status === 404 || status === 408 || status === 429 || status === 500 || status === 502 || status === 503 || status === 504; }
+function rateLimitRetryDelayMs(response: Response, remainingMs: number): number {
+  const retryAfter = response.headers.get("retry-after")?.trim();
+  if (retryAfter) {
+    const seconds = Number(retryAfter);
+    if (Number.isFinite(seconds) && seconds >= 0) return Math.min(MAX_RATE_LIMIT_RETRY_DELAY_MS, Math.max(0, Math.ceil(seconds * 1000)), remainingMs);
+    const dateMs = Date.parse(retryAfter);
+    if (Number.isFinite(dateMs)) return Math.min(MAX_RATE_LIMIT_RETRY_DELAY_MS, Math.max(0, dateMs - Date.now()), remainingMs);
+  }
+  return Math.min(DEFAULT_RATE_LIMIT_RETRY_DELAY_MS, MAX_RATE_LIMIT_RETRY_DELAY_MS, Math.max(0, remainingMs));
+}
 function isGemini3Model(model: string): boolean { return /^gemini-3(?:\.\d+)?-/i.test(model); }
 
 function parseGeminiRightHandResponse(responseBody: string, model: string): GeminiRequestResult {
@@ -338,6 +351,20 @@ async function request(system: string, user: string, responseFormat?: Record<str
       );
 
       if (response.ok) return parseGeminiRightHandResponse(responseBody, model);
+
+      if (response.status === 429) {
+        if (transportRetry < MAX_RATE_LIMIT_RETRIES && Date.now() < deadline) {
+          const retryDelayMs = rateLimitRetryDelayMs(response, Math.max(0, deadline - Date.now()));
+          if (retryDelayMs > 0) {
+            transportRetry += 1;
+            logger.warn({ role: "gemini_right_hand", phase: "rate_limit_backoff", model, retryNumber: transportRetry, maxRetries: MAX_RATE_LIMIT_RETRIES, retryDelayMs }, "Gemini Right-hand rate limited; waiting before retrying the same model instead of burning through equivalent model fallbacks");
+            await new Promise<void>((resolve) => setTimeout(resolve, retryDelayMs));
+            if (Date.now() < deadline) continue;
+          }
+        }
+        failures.push(`${model} rate_limited HTTP 429`);
+        return { raw: "", error: `Gemini Right-hand rate limit persisted after bounded backoff: ${failures.join("; ")}`, model };
+      }
 
       failures.push(`${model} ${failureClass ?? "http_error"} HTTP ${response.status}`);
       if (!shouldFallback(response.status)) {
