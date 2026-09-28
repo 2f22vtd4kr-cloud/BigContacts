@@ -5,6 +5,7 @@ import { validateAtlasBossControl, validateAtlasRightHandControl } from "../lib/
 
 const controlSource = readFileSync(resolve(process.cwd(), "src/src/lib/atlas-control-decision.ts"), "utf8");
 const bossSource = readFileSync(resolve(process.cwd(), "src/src/lib/case-bureau.ts"), "utf8");
+const rightHandSource = readFileSync(resolve(process.cwd(), "src/src/lib/gemini-right-hand-reasoning.ts"), "utf8");
 
 describe("Atlas control-plane contract regression", () => {
   it("requires strict structured schemas at both Gemini control boundaries", () => {
@@ -27,6 +28,10 @@ describe("Atlas control-plane contract regression", () => {
     expect(controlSource).toContain("const bossContractValid =");
     expect(controlSource).toContain("validateAtlasRightHandControl(rightParsed)");
     expect(controlSource).toContain("validateAtlasBossControl(parsed)");
+    expect(rightHandSource).toContain("rateLimitRetryDelayMs");
+    expect(rightHandSource).toContain("phase: \"rate_limit_backoff\"");
+    expect(rightHandSource).toContain("if (response.status === 429)");
+    expect(rightHandSource).toContain("MAX_RATE_LIMIT_RETRIES = 1");
     expect(controlSource).toContain('reason: "Gemini returned an invalid Atlas control action; fail-closed."');
   });
   it("replays valid and malformed provider contracts through the real validators", () => {
