@@ -9,6 +9,7 @@ vi.mock("../lib/python-tools", () => ({
   runMaigret: vi.fn(async () => ({ username: "example", found: [], totalSitesChecked: 0, available: false, error: "Python network sandbox is unavailable." })),
   runSherlock: vi.fn(async () => ({ username: "example", found: [], totalSitesChecked: 0, available: false, reviewOnly: true, error: "Python network sandbox is unavailable." })),
   runTheHarvester: vi.fn(async () => ({ domain: "example.com", emails: [], subdomains: [], ips: [], hosts: [], totalFound: 0, available: false, error: "Python network sandbox is unavailable." })),
+  runSpiderFoot: vi.fn(async () => ({ target: "example.com", targetType: "domain", profile: "domain-infrastructure", observations: [], eventsReceived: 0, available: false, partial: false, reviewOnly: true, error: "Python network sandbox is unavailable." })),
 }));
 
 import { runAgenticWebResearch } from "../lib/agentic-web-research-core";
@@ -24,6 +25,7 @@ describe("agentic Python capability execution state", () => {
     ["footprint_username_maigret", '{"action":"footprint_username_maigret","username":"example"}'],
     ["footprint_username_sherlock", '{"action":"footprint_username_sherlock","username":"example"}'],
     ["harvest_domain", '{"action":"harvest_domain","domain":"example.com"}'],
+    ["footprint_spiderfoot", '{"action":"footprint_spiderfoot","target":"example.com","targetType":"domain","profile":"domain-infrastructure"}'],
   ])("records %s as blocked when the Python capability is unavailable", async (_action, actionJson) => {
     process.env.GROQ_API_KEY = "test-groq-key";
     const responses = [
