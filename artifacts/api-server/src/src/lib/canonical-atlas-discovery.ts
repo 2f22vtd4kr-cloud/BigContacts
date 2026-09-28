@@ -316,7 +316,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         visits: discovery.visits,
         findings: discovery.findings,
         modelFindings: discovery.modelFindings,
-        openQuestions: discovery.trajectoryRecords?.slice(-8).map((record) => ({
+        openQuestions: discovery.trajectoryRecords?.map((record) => ({
           turn: record.turn,
           action: record.action,
           execution: record.execution,
