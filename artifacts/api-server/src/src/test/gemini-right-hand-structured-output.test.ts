@@ -31,8 +31,9 @@ describe("Gemini Right-hand structured output", () => {
     expect(String(url)).toContain("/v1beta/interactions");
     const body = JSON.parse(String(init?.body));
     expect(body.model).toBe(GEMINI_RIGHT_HAND_MODEL);
-    expect(body.generation_config?.responseMimeType).toBe("application/json");
-    expect(body.generation_config?.thinking_level).toBe("low");
+    expect(body.response_format).toMatchObject({ type: "text", mime_type: "application/json" });
+    expect(body.response_format.schema).toEqual({ type: "object" });
+    expect(body.generation_config?.max_output_tokens).toBe(768);
   });
 
   it("fails closed on malformed control output rather than model-hopping or browsing", async () => {
