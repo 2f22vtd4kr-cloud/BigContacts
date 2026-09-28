@@ -3,6 +3,7 @@ import type { BureauAction, DiscoveryCaseFile, ResearchCaseFile } from "./case-b
 import { apexOrientationCompact } from "./apex-bureau-orientation";
 import { installGeminiTransientRetry } from "./gemini-transient-retry";
 import { logger } from "./logger";
+import { fetchGeminiInteractions } from "./gemini-interactions-transport";
 import {
   classifyProviderHttpStatus,
   classifyThrownProviderError,
@@ -228,7 +229,7 @@ async function request(system: string, user: string, responseFormat?: Record<str
       let transportRetry = 0;
       while (true) {
         try {
-          response = await fetch(GEMINI_INTERACTIONS_API, {
+          response = await fetchGeminiInteractions(GEMINI_INTERACTIONS_API, {
             method: "POST",
             headers: {
               Accept: "application/json",
@@ -277,7 +278,7 @@ async function request(system: string, user: string, responseFormat?: Record<str
         const compatibilityTimeout = Math.min(requestTimeoutMs(), Math.max(1_000, deadline - Date.now()));
         const compatibilityTimer = setTimeout(() => compatibilityController.abort(), compatibilityTimeout);
         try {
-          const compatibilityResponse = await fetch(GEMINI_INTERACTIONS_API, {
+          const compatibilityResponse = await fetchGeminiInteractions(GEMINI_INTERACTIONS_API, {
             method: "POST",
             headers: {
               Accept: "application/json",
