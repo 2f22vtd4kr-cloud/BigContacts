@@ -23,8 +23,7 @@ function isNetworkFailure(error: unknown): boolean {
     "UND_ERR_HEADERS_TIMEOUT",
   ]);
   return codes.has(code)
-    || codes.has(causeCode)
-    || /fetch failed|network error|socket|connect|dns|timed out/i.test(error.message);
+    || codes.has(causeCode);
 }
 
 /**
