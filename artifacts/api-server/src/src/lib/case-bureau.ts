@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import type { Entity } from "@workspace/db";
 import { logger } from "./logger";
+import { fetchGeminiInteractions } from "./gemini-interactions-transport";
 import { apexOrientationFor } from "./apex-bureau-orientation";
 import { buildApexAtlasBossPlanPrompt } from "./case-bureau-prompt";
 import { extractWalletSeedsFromText, buildWalletSeedPlan, formatWalletSeedPlanForPrompt, objectiveLooksWalletFirst } from "./wallet-seed";
@@ -543,7 +544,7 @@ export async function generateGeminiBossText(
         let transportRetry = 0;
         while (true) {
           try {
-            response = await fetch(GEMINI_INTERACTIONS_API, {
+            response = await fetchGeminiInteractions(GEMINI_INTERACTIONS_API, {
               method: "POST",
               headers: {
                 Accept: "application/json",
@@ -608,7 +609,7 @@ export async function generateGeminiBossText(
             },
             "Gemini Boss rejected structured output with HTTP 400; retrying the same model without response_format",
           );
-          response = await fetch(GEMINI_INTERACTIONS_API, {
+          response = await fetchGeminiInteractions(GEMINI_INTERACTIONS_API, {
             method: "POST",
             headers: {
               Accept: "application/json",
