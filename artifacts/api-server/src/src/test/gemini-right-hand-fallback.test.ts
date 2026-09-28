@@ -16,6 +16,7 @@ describe("Gemini Right-hand text-only control transport", () => {
     globalThis.fetch = originalFetch;
     delete process.env.GEMINI_RIGHT_HAND_API_KEY;
     delete process.env.GEMINI_RIGHT_HAND_MODEL_CHAIN;
+    delete process.env.APEX_GEMINI_RIGHT_HAND_RATE_LIMIT_RETRY_DELAY_MS;
     vi.restoreAllMocks();
   });
 
@@ -67,6 +68,7 @@ describe("Gemini Right-hand text-only control transport", () => {
 
   it("does not model-hop on HTTP 429; it returns bounded rate-limit failure after same-model retry", async () => {
     process.env.GEMINI_RIGHT_HAND_API_KEY = "test-key-429";
+    process.env.APEX_GEMINI_RIGHT_HAND_RATE_LIMIT_RETRY_DELAY_MS = "10";
     const attempts: string[] = [];
     globalThis.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
