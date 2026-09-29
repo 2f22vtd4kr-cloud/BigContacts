@@ -346,3 +346,11 @@ No secrets were modified. and record the result without exposing secret values
 - evidence: source inspection confirms the production pipeline still receives the real `runBureauAgenticWebPass`, `materializeAtlasAdmissions`, `runCanonicalSingleTargetInvestigation`, durable event ledger, evidence gates, and entity/card projection. Only Gemini Boss/Right-hand module boundaries remain mocked.
 - interpretation: this is a development-only reproducibility correction, not a production architecture bypass. If real Investigator/search providers cannot produce an admission candidate, the test must still fail honestly.
 - next action: run `pnpm test:apex-development-bypass` from the clean canonical checkout and preserve every generated audit entry plus raw provider/test output before any further source change.
+
+## 2026-09-29T05:55:14.436Z
+- action: corrected a Vitest mock-hoisting defect in the new bounded discovery-turn state
+- exact command/request: updated `artifacts/api-server/src/src/test/apex-atlas-development-bypass.dev.ts` to store the mutable discovery-turn counter in `vi.hoisted()`
+- observed result: the development-only `vi.mock()` factory no longer references a normal top-level variable that Vitest hoists before initialization; the counter is now explicitly hoisted with the mock state.
+- evidence: commit `d8f9b8fd74068cc92512949874cec0dfc303a0f0`; Vitest's documented mock contract requires external variables used by a hoisted mock factory to be defined through `vi.hoisted()`.
+- interpretation: this is a harness correctness fix only; production modules and provider roles are unchanged.
+- next action: start the next fresh Replit run from `main`, verify the checkout SHA, and execute the explicit development bypass once with the committed harness.
