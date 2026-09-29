@@ -23,6 +23,7 @@ describe("Gemini Right-hand structured output", () => {
         { name: "models/gemini-3.7-flash" },
         { name: "models/gemini-3.6-flash" },
         { name: "models/gemini-3.5-flash" },
+        { name: "models/gemini-3.5-flash-lite" },
       ],
     }), { status: 200 });
   }
