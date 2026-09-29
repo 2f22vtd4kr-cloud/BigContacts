@@ -61,7 +61,6 @@ assert(!/process\.env\.GEMINI_API_KEY/.test(source.rightHand), "Gemini Right-han
 assert(/GEMINI_RIGHT_HAND_MODEL\s*=/.test(source.rightHand), "Gemini Right-hand does not declare a canonical preferred model.");
 assert(/chooseRightHandModels|resolveModelChain/.test(source.rightHand), "Gemini Right-hand does not expose runtime model selection.");
 assert(/supportedGenerationMethods/.test(source.rightHand), "Gemini Right-hand fallback discovery does not inspect live catalog capabilities.");
-assert(/supportedGenerationMethods/.test(source.rightHand), "Gemini Right-hand fallback discovery does not inspect live catalog capabilities.");
 assert(/models\?key=|GEMINI_CHAT_API_BASE/.test(source.rightHand), "Gemini Right-hand does not resolve candidates from the live Gemini catalog.");
 assert(!/GEMINI_RIGHT_HAND_MODEL_CHAIN/.test(source.rightHand), "Gemini Right-hand still accepts an environment-controlled fallback sequence.");
 assert(!/GEMINI_RIGHT_HAND_FALLBACK_MODELS\s*=\s*\[\s*["']gemini-/i.test(source.rightHand), "Gemini Right-hand contains a hard-coded fallback model list.");
