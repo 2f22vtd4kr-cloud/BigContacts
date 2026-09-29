@@ -16,18 +16,31 @@ describe("Gemini Right-hand structured output", () => {
     }), { status });
   }
 
-  it("uses Interactions structured JSON and the configured text-only model", async () => {
+  function catalog() {
+    return new Response(JSON.stringify({
+      models: [
+        { name: "models/gemini-3.8-flash" },
+        { name: "models/gemini-3.7-flash" },
+        { name: "models/gemini-3.6-flash" },
+        { name: "models/gemini-3.5-flash" },
+      ],
+    }), { status: 200 });
+  }
+
+  it("uses Interactions structured JSON and the preferred text-only model after catalog resolution", async () => {
     process.env.GEMINI_RIGHT_HAND_API_KEY = "test-key";
-    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(response(
-      '{"decision":"continue","reason":"report is actionable","focusLanes":[],"confidence":0.8}'
-    ));
+    const fetchMock = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(catalog())
+      .mockResolvedValueOnce(response(
+        '{"decision":"continue","reason":"report is actionable","focusLanes":[],"confidence":0.8}'
+      ));
     globalThis.fetch = fetchMock;
     const result = await runGeminiRightHandFreeJson("Investigator report: three observed sources.");
 
     expect(result.status).toBe("completed");
     expect(result.model).toBe(GEMINI_RIGHT_HAND_MODEL);
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    const [url, init] = fetchMock.mock.calls[0]!;
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const [url, init] = fetchMock.mock.calls[1]!;
     expect(String(url)).toContain("/v1beta/interactions");
     const body = JSON.parse(String(init?.body));
     expect(body.model).toBe(GEMINI_RIGHT_HAND_MODEL);
@@ -38,23 +51,26 @@ describe("Gemini Right-hand structured output", () => {
 
   it("fails closed on malformed control output rather than model-hopping or browsing", async () => {
     process.env.GEMINI_RIGHT_HAND_API_KEY = "test-key";
-    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(response('{"unexpected":"shape"}'));
+    const fetchMock = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(catalog())
+      .mockResolvedValueOnce(response('{"unexpected":"shape"}'));
     globalThis.fetch = fetchMock;
     const result = await runGeminiRightHandFreeJson("Investigator report.");
     expect(result.status).toBe("completed");
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
-  it("does not probe a model catalog before the control request", async () => {
+  it("probes the model catalog before the control request", async () => {
     process.env.GEMINI_RIGHT_HAND_API_KEY = "test-key";
     const calls: string[] = [];
     globalThis.fetch = vi.fn<typeof fetch>(async (input) => {
       calls.push(String(input));
+      if (String(input).endsWith("/v1beta/models")) return catalog();
       return response('{"decision":"continue","reason":"ok","focusLanes":[],"confidence":0.5}');
     });
     await runGeminiRightHandFreeJson("Investigator report.");
-    expect(calls).toHaveLength(1);
-    expect(calls[0]).toContain("/v1beta/interactions");
-    expect(calls[0]).not.toContain("/v1beta/models");
+    expect(calls).toHaveLength(2);
+    expect(calls[1]).toContain("/v1beta/interactions");
+    expect(calls[0]).toContain("/v1beta/models");
   });
 });
