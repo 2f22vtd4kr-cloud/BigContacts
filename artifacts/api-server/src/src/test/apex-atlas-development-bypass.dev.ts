@@ -80,8 +80,8 @@ let discoveryControlTurns = 0;\n\nvi.mock("../lib/case-bureau", async () => {
                 confidence: 0.8,
               }
             : (() => {
-              discoveryControlTurns += 1;
-              if (discoveryControlTurns <= 4) {
+              discoveryControlState.turns += 1;
+              if (discoveryControlState.turns <= 4) {
                 return {
                   action: "continue_discovery",
                   candidateName: null,
