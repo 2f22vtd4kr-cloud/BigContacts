@@ -147,7 +147,7 @@
 - **Next action:** Re-run the same temporary test with the repository's permanent Redis boot flag enabled in the test process, without changing application source or substituting any downstream role.
 
 ### 17
-- **UTC timestamp:** 2026-09-29T05:xx:xxZ
+- **UTC timestamp:** 2026-09-29T05:27:14Z
 - **Action:** Corrected the development-only downstream harness after the Redis preflight failure.
 - **Observed defect:** The first harness invoked `connectPermanentRedis()` while the repository's permanent Redis module was intentionally disabled by default in standalone test processes, so the canonical active-job lock correctly failed closed. The harness also mocked only the opening Boss/Right-hand calls; later canonical control transitions and per-act target oversight still resolve Gemini Boss/Right-hand through their normal module boundaries.
 - **Correction:** The development-only harness now calls the repository's `enablePermanentRedis()` before creating/claiming the real job, is explicitly opt-in rather than part of the ordinary Vitest filename pattern, and substitutes only the Gemini Boss/Right-hand model boundaries. The real canonical pipeline, Groq/Mistral Investigator, web tools, durable case/event ledger, evidence gates, target investigation, and card/entity persistence remain untouched.
