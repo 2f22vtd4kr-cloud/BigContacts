@@ -428,7 +428,9 @@ async function request(system: string, user: string, responseFormat?: Record<str
             error: `Gemini Right-hand rate limit persisted after bounded backoff: ${failures.join("; ")}.${quotaNote}`,
             model,
           };
-        }      failures.push(`${model} ${failureClass ?? "http_error"} HTTP ${response.status}`);
+        }
+      }
+      failures.push(`${model} ${failureClass ?? "http_error"} HTTP ${response.status}`);
       if (!shouldFallback(response.status)) {
         return { raw: "", error: `Gemini API ${model} ${failureClass ?? "http_error"} HTTP ${response.status}.`, model };
       }
