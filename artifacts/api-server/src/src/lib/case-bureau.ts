@@ -379,11 +379,12 @@ function modelVersion(name: string): [number, number] {
 function modelRank(name: string): [number, number, number, number, string] {
   const normalized = name.toLowerCase();
   const [major, minor] = modelVersion(normalized);
-  // Prefer the current full Flash family for the Interactions API, then
-  // Flash-Lite, and keep both ahead of Pro or specialized models.
-  const family = normalized.includes("flash") && !normalized.includes("flash-lite")
+  // The Boss emits a small control-plane JSON decision. Prefer the
+  // provider's Flash-Lite family for this low-cost control role, then
+  // full Flash, while keeping the live catalog authoritative.
+  const family = normalized.includes("flash-lite")
     ? 0
-    : normalized.includes("flash-lite")
+    : normalized.includes("flash") && !normalized.includes("flash-lite")
       ? 1
       : 2;
   const lifecycle = normalized.includes("preview") || normalized.includes("experimental") ? 1 : 0;
@@ -438,6 +439,8 @@ const MAX_GEMINI_BOSS_TRANSPORT_RETRIES = 1;
 const GEMINI_BOSS_TRANSPORT_RETRY_DELAY_MS = 600;
 const MAX_GEMINI_BOSS_503_RETRIES_PER_MODEL = 1;
 const GEMINI_BOSS_503_RETRY_DELAY_MS = 750;
+const MAX_GEMINI_BOSS_429_RETRIES_PER_MODEL = 1;
+const GEMINI_BOSS_429_RETRY_DELAY_MS = 1_000;
 
 function retryAfterDelayMs(response: Response, fallbackMs: number): number {
   const value = response.headers.get("retry-after")?.trim();
@@ -553,6 +556,7 @@ export async function generateGeminiBossText(
         let responseText = "";
         let transportRetry = 0;
         let capacityRetry = 0;
+        let rateLimitRetry = 0;
         while (true) {
           try {
             const perRequestController = new AbortController();
@@ -720,14 +724,62 @@ export async function generateGeminiBossText(
           "Gemini Boss request resolved",
         );
 
-        if (response.status === 429 || response.status === 503) {
-          lastError = `Gemini Boss ${model} Interactions API ${failureClass ?? "provider_unavailable"} HTTP ${response.status}.`;
+        if (response.status === 429) {
+          lastError = `Gemini Boss ${model} Interactions API ${failureClass ?? "rate_limited"} HTTP 429.`;
+          if (rateLimitRetry < MAX_GEMINI_BOSS_429_RETRIES_PER_MODEL && Date.now() < bossDeadline) {
+            const retryDelayMs = Math.min(
+              retryAfterDelayMs(response, GEMINI_BOSS_429_RETRY_DELAY_MS),
+              Math.max(0, bossDeadline - Date.now()),
+            );
+            rateLimitRetry += 1;
+            logger.warn(
+              {
+                role: "gemini_boss",
+                phase: "rate_limit_backoff",
+                model,
+                keyName: entry.name,
+                httpStatus: response.status,
+                retryNumber: rateLimitRetry,
+                maxRetries: MAX_GEMINI_BOSS_429_RETRIES_PER_MODEL,
+                retryDelayMs,
+              },
+              "Gemini Boss rate limited; retrying the same model once instead of burning quota on equivalent model fallbacks",
+            );
+            if (retryDelayMs > 0) await new Promise<void>((resolve) => setTimeout(resolve, retryDelayMs));
+            const rateLimitController = new AbortController();
+            const rateLimitTimeout = Math.max(1_000, Math.min(bossRequestTimeoutMs, bossDeadline - Date.now()));
+            const rateLimitTimer = setTimeout(() => rateLimitController.abort(), rateLimitTimeout);
+            try {
+              response = await fetchGeminiInteractions(GEMINI_INTERACTIONS_API, {
+                method: "POST",
+                headers: {
+                  Accept: "application/json",
+                  "Content-Type": "application/json",
+                  "x-goog-api-key": entry.key,
+                },
+                body: interactionBody,
+                signal: rateLimitController.signal,
+              });
+              responseText = await response.text();
+            } finally {
+              clearTimeout(rateLimitTimer);
+            }
+          }
+          if (response.status === 429) {
+            return {
+              model,
+              raw: null,
+              error: `Gemini Boss ${model} rate limit persisted after bounded backoff; no equivalent-model quota fan-out permitted.`,
+            };
+          }
+        }
+
+        if (response.status === 503) {
+          lastError = `Gemini Boss ${model} Interactions API ${failureClass ?? "provider_unavailable"} HTTP 503.`;
           logger.warn(
             { model, status: response.status, keyName: entry.name, failureClass, responseShape },
-            "Gemini Boss text-generation capacity busy; trying the next compatible Gemini model",
+            "Gemini Boss service unavailable; advancing through the bounded same-role Gemini catalog",
           );
-          // A 429/503 is commonly project/model capacity, not a model-local
-          // failure. Do not fan out across the catalog and spend more quota.
           continue;
         }
         if (!response.ok) {
