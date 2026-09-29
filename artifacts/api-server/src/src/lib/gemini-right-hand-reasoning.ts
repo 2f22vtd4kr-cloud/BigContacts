@@ -18,7 +18,7 @@ installGeminiTransientRetry();
  * a chronological Gemini fallback ladder here: Google's live model catalog is
  * the source of truth for what this credential can currently use.
  */
-export const GEMINI_RIGHT_HAND_MODEL = "gemini-3.8-flash";
+export const GEMINI_RIGHT_HAND_MODEL = "gemini-3.5-flash-lite";
 export const GEMINI_RIGHT_HAND_FALLBACK_MODELS: readonly string[] = [];
 const GEMINI_CHAT_API_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
 const GEMINI_INTERACTIONS_API = "https://generativelanguage.googleapis.com/v1beta/interactions";
@@ -40,10 +40,10 @@ function configuredRateLimitRetryDelayMs(): number {
   return Number.isFinite(parsed) ? Math.min(MAX_RATE_LIMIT_RETRY_DELAY_MS, Math.max(MIN_RATE_LIMIT_RETRY_DELAY_MS, Math.floor(parsed))) : DEFAULT_RATE_LIMIT_RETRY_DELAY_MS;
 }
 const GEMINI_INTERACTIONS_FALLBACK_MODELS = [
+  "gemini-3.5-flash-lite",
   "gemini-3.8-flash",
   "gemini-3.7-flash",
   "gemini-3.6-flash",
-  "gemini-3.5-flash",
 ] as const;
 const MODEL_CATALOG_TIMEOUT_MS = 6_000;
 const MODEL_CATALOG_CACHE_MS = 60_000;
@@ -108,8 +108,9 @@ function chooseRightHandModels(entries: GeminiCatalogEntry[]): string[] {
       return left[0] - right[0] || left[1] - right[1] || left[2] - right[2] || right[3] - left[3] || left[4].localeCompare(right[4]);
     }))];
 
-  // The preferred model is a preference, not a fallback ladder. The live catalog
-  // remains authoritative for every candidate after capability filtering.
+  // Flash-Lite is the preferred low-cost control model, not a scripted
+  // provider ladder. The live catalog remains authoritative for every
+  // candidate after capability filtering.
   return [
     ...(compatible.includes(GEMINI_RIGHT_HAND_MODEL) ? [GEMINI_RIGHT_HAND_MODEL] : []),
     ...compatible.filter((model) => model !== GEMINI_RIGHT_HAND_MODEL),
