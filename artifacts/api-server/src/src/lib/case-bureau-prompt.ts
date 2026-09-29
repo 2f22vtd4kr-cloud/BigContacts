@@ -253,7 +253,7 @@ Consult the investigation-progress map on every decision. Prefer actions that cl
 LEAD-CHAINING RULE:
 When the case already lists named people or domains, consider those leads first, but change course whenever another evidence-backed lane has greater information value.
 
-RIGHT-HAND ADVICE (Gemini 3.8 Flash via Gemini Right-hand — advisory only):
+RIGHT-HAND ADVICE (Gemini 3.1 Flash-Lite via Gemini Right-hand — advisory only):
 The right-hand is a complementary reasoner, not a search tool. It sees the mounting case state and should diagnose what the rest of the Bureau has not yet done. It must not merely repeat the previous Investigator result.
 Coordination rules (mandatory):
 1. Always emit "rightHandDisposition": "accept" | "override".
