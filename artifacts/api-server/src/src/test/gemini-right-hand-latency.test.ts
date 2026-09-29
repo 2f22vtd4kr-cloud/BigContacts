@@ -40,6 +40,12 @@ describe("Gemini Right-hand latency controls", () => {
   it("uses bounded low-thinking Gemini 3 control generation", async () => {
     process.env.GEMINI_RIGHT_HAND_API_KEY = "test-key";
     const fetchMock = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ models: [
+        { name: "models/gemini-3.8-flash" },
+        { name: "models/gemini-3.7-flash" },
+        { name: "models/gemini-3.6-flash" },
+        { name: "models/gemini-3.5-flash" },
+      ] }), { status: 200 }))
       .mockResolvedValueOnce(new Response(JSON.stringify({
         steps: [{ type: "model_output", content: [{ type: "text", text: '{"decision":"continue","reason":"test","focusLanes":[],"confidence":0.5}' }] }],
       }), { status: 200 }));
@@ -49,9 +55,9 @@ describe("Gemini Right-hand latency controls", () => {
 
     const result = await runGeminiRightHandFreeJson("Return one JSON object.");
     expect(result.status).toBe("completed");
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
 
-    const body = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body));
+    const body = JSON.parse(String(fetchMock.mock.calls[1]?.[1]?.body));
     expect(body.generation_config.max_output_tokens).toBe(768);
     expect(body.generation_config.responseMimeType).toBeUndefined();
     expect(body.generation_config.thinking_level).toBeUndefined();
@@ -61,6 +67,12 @@ describe("Gemini Right-hand latency controls", () => {
   it("records redacted request telemetry without persisting prompt contents", async () => {
     process.env.GEMINI_RIGHT_HAND_API_KEY = "test-key";
     const fetchMock = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ models: [
+        { name: "models/gemini-3.8-flash" },
+        { name: "models/gemini-3.7-flash" },
+        { name: "models/gemini-3.6-flash" },
+        { name: "models/gemini-3.5-flash" },
+      ] }), { status: 200 }))
       .mockResolvedValueOnce(new Response(JSON.stringify({
         steps: [{ type: "model_output", content: [{ type: "text", text: '{"decision":"continue","reason":"test","focusLanes":[],"confidence":0.5}' }] }],
       }), { status: 200 }));
@@ -91,18 +103,26 @@ describe("Gemini Right-hand latency controls", () => {
     expect(JSON.stringify(telemetry)).not.toContain("unique user prompt");
   });
 
-  it("uses only the configured Right-hand model and never performs a catalog probe", async () => {
+  it("uses the preferred Right-hand model from the live catalog", async () => {
     process.env.GEMINI_RIGHT_HAND_API_KEY = "test-key";
-    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify({
-      steps: [{ type: "model_output", content: [{ type: "text", text: '{"decision":"continue","reason":"test","focusLanes":[],"confidence":0.5}' }] }],
-    }), { status: 200 }));
+    const fetchMock = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ models: [
+        { name: "models/gemini-3.8-flash" },
+        { name: "models/gemini-3.7-flash" },
+        { name: "models/gemini-3.6-flash" },
+        { name: "models/gemini-3.5-flash" },
+      ] }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        steps: [{ type: "model_output", content: [{ type: "text", text: '{"decision":"continue","reason":"test","focusLanes":[],"confidence":0.5}' }] }],
+      }), { status: 200 }));
     globalThis.fetch = fetchMock;
     vi.resetModules();
     const { runGeminiRightHandFreeJson } = await import("../lib/gemini-right-hand-reasoning");
 
     const result = await runGeminiRightHandFreeJson("Return one JSON object.");
     expect(result.status).toBe("completed");
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(String(fetchMock.mock.calls[0]?.[0])).toContain("/v1beta/interactions");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain("/v1beta/models");
+    expect(String(fetchMock.mock.calls[1]?.[0])).toContain("/v1beta/interactions");
   });
 });
