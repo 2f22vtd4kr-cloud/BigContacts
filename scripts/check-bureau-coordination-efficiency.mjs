@@ -10,7 +10,7 @@ const boss = fs.readFileSync(path.join(root, "artifacts/api-server/src/src/lib/c
 const rightHandRequired = [
   "GEMINI_RIGHT_HAND_MODEL",
   "case_file_reasoning_only",
-  "max_output_tokens: 768",
+  "max_output_tokens: 512",
   "You are Apex Atlas Right Hand. Reason only over the supplied case file.",
   "Never browse, use external research, or invent evidence",
   "compactCase(file: ResearchCaseFile)",
@@ -34,8 +34,8 @@ const bossRequired = [
   "function buildBossDecisionContext(file: PlanInput[\"file\"]): string",
   "${buildBossDecisionContext(input.file)}",
   "actionFrontier: { queued, completed }",
-  "contactRoutes: file.contactRoutes ?? [],",
-  "negativeFindings: evidence.negativeFindings ?? [],",
+  "contactRoutes: routes",
+  "negativeFindings: clipPromptList(evidence.negativeFindings, 10, 220)",
 ];
 for (const marker of bossRequired) {
   if (!boss.includes(marker)) throw new Error(`bureau coordination guard failed in Boss prompt: missing ${marker}`);
