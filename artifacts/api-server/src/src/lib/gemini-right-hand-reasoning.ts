@@ -368,19 +368,23 @@ async function request(system: string, user: string, responseFormat?: Record<str
       if (response.ok) return parseGeminiRightHandResponse(responseBody, model);
 
       if (response.status === 429) {
+        // A 429 is credential/project quota, not model capacity. One bounded
+        // Retry-After wait is allowed for the same model, but never advance to
+        // another Gemini model and multiply quota pressure.
         if (transportRetry < MAX_RATE_LIMIT_RETRIES && Date.now() < deadline) {
           const retryDelayMs = rateLimitRetryDelayMs(response, Math.max(0, deadline - Date.now()));
           if (retryDelayMs > 0) {
             transportRetry += 1;
-            logger.warn({ role: "gemini_right_hand", phase: "rate_limit_backoff", model, retryNumber: transportRetry, maxRetries: MAX_RATE_LIMIT_RETRIES, retryDelayMs }, "Gemini Right-hand rate limited; waiting before retrying the same model instead of burning through equivalent model fallbacks");
+            logger.warn(
+              { role: "gemini_right_hand", phase: "rate_limit_backoff", model, retryNumber: transportRetry, maxRetries: MAX_RATE_LIMIT_RETRIES, retryDelayMs },
+              "Gemini Right-hand rate limited; waiting before failing closed instead of burning through equivalent model fallbacks",
+            );
             await new Promise<void>((resolve) => setTimeout(resolve, retryDelayMs));
-            if (Date.now() < deadline) continue;
           }
         }
         failures.push(`${model} rate_limited HTTP 429`);
         return { raw: "", error: `Gemini Right-hand rate limit persisted after bounded backoff: ${failures.join("; ")}`, model };
       }
-
       failures.push(`${model} ${failureClass ?? "http_error"} HTTP ${response.status}`);
       if (!shouldFallback(response.status)) {
         return { raw: "", error: `Gemini API ${model} ${failureClass ?? "http_error"} HTTP ${response.status}.`, model };
