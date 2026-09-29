@@ -542,12 +542,6 @@ export async function generateGeminiBossText(
       const attemptTimeoutMs = Math.min(bossRequestTimeoutMs, Math.max(1_000, remainingMs));
       let requestDeadlineFired = false;
       let overallDeadlineFired = false;
-      const controller = new AbortController();
-      const timer = setTimeout(() => {
-        if (remainingMs <= bossRequestTimeoutMs) overallDeadlineFired = true;
-        else requestDeadlineFired = true;
-        controller.abort();
-      }, attemptTimeoutMs);
       const interactionBody = JSON.stringify({
         model,
         input: prompt,
@@ -561,16 +555,27 @@ export async function generateGeminiBossText(
         let capacityRetry = 0;
         while (true) {
           try {
-            response = await fetchGeminiInteractions(GEMINI_INTERACTIONS_API, {
-              method: "POST",
-              headers: {
-                Accept: "application/json",
-                "Content-Type": "application/json",
-                "x-goog-api-key": entry.key,
-              },
-              body: interactionBody,
-              signal: controller.signal,
-            });
+            const perRequestController = new AbortController();
+            const perRequestRemainingMs = Math.max(1_000, Math.min(bossRequestTimeoutMs, bossDeadline - Date.now()));
+            const perRequestTimer = setTimeout(() => {
+              requestDeadlineFired = Date.now() < bossDeadline;
+              overallDeadlineFired = Date.now() >= bossDeadline;
+              perRequestController.abort();
+            }, perRequestRemainingMs);
+            try {
+              response = await fetchGeminiInteractions(GEMINI_INTERACTIONS_API, {
+                method: "POST",
+                headers: {
+                  Accept: "application/json",
+                  "Content-Type": "application/json",
+                  "x-goog-api-key": entry.key,
+                },
+                body: interactionBody,
+                signal: perRequestController.signal,
+              });
+            } finally {
+              clearTimeout(perRequestTimer);
+            }
             responseText = await response.text();
             break;
           } catch (transportError) {
@@ -626,17 +631,24 @@ export async function generateGeminiBossText(
             },
             "Gemini Boss rejected structured output with HTTP 400; retrying the same model without response_format",
           );
-          response = await fetchGeminiInteractions(GEMINI_INTERACTIONS_API, {
-            method: "POST",
-            headers: {
-              Accept: "application/json",
-              "Content-Type": "application/json",
-              "x-goog-api-key": entry.key,
-            },
-            body: compatibilityBody,
-            signal: controller.signal,
-          });
-          responseText = await response.text();
+          const compatibilityController = new AbortController();
+          const compatibilityTimeout = Math.max(1_000, Math.min(bossRequestTimeoutMs, bossDeadline - Date.now()));
+          const compatibilityTimer = setTimeout(() => compatibilityController.abort(), compatibilityTimeout);
+          try {
+            response = await fetchGeminiInteractions(GEMINI_INTERACTIONS_API, {
+              method: "POST",
+              headers: {
+                Accept: "application/json",
+                "Content-Type": "application/json",
+                "x-goog-api-key": entry.key,
+              },
+              body: compatibilityBody,
+              signal: compatibilityController.signal,
+            });
+            responseText = await response.text();
+          } finally {
+            clearTimeout(compatibilityTimer);
+          }
         }
 
         if (response.status === 503 && capacityRetry < MAX_GEMINI_BOSS_503_RETRIES_PER_MODEL && Date.now() < bossDeadline) {
@@ -660,17 +672,24 @@ export async function generateGeminiBossText(
             "Gemini Boss retrying the same model after HTTP 503 before bounded same-role model fallback",
           );
           if (retryDelayMs > 0) await new Promise<void>((resolve) => setTimeout(resolve, retryDelayMs));
-          response = await fetchGeminiInteractions(GEMINI_INTERACTIONS_API, {
-            method: "POST",
-            headers: {
-              Accept: "application/json",
-              "Content-Type": "application/json",
-              "x-goog-api-key": entry.key,
-            },
-            body: interactionBody,
-            signal: controller.signal,
-          });
-          responseText = await response.text();
+          const capacityController = new AbortController();
+          const capacityTimeout = Math.max(1_000, Math.min(bossRequestTimeoutMs, bossDeadline - Date.now()));
+          const capacityTimer = setTimeout(() => capacityController.abort(), capacityTimeout);
+          try {
+            response = await fetchGeminiInteractions(GEMINI_INTERACTIONS_API, {
+              method: "POST",
+              headers: {
+                Accept: "application/json",
+                "Content-Type": "application/json",
+                "x-goog-api-key": entry.key,
+              },
+              body: interactionBody,
+              signal: capacityController.signal,
+            });
+            responseText = await response.text();
+          } finally {
+            clearTimeout(capacityTimer);
+          }
         }
 
         const fetchElapsedMs = Date.now() - attemptStartedAt;
