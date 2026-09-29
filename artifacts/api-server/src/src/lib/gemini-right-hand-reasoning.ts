@@ -19,7 +19,7 @@ installGeminiTransientRetry();
  * a chronological Gemini fallback ladder here: Google's live model catalog is
  * the source of truth for what this credential can currently use.
  */
-export const GEMINI_RIGHT_HAND_MODEL = "gemini-3.5-flash-lite";
+export const GEMINI_RIGHT_HAND_MODEL = "gemini-3.1-flash-lite";
 export const GEMINI_RIGHT_HAND_FALLBACK_MODELS: readonly string[] = [];
 const GEMINI_CHAT_API_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
 const GEMINI_INTERACTIONS_API = "https://generativelanguage.googleapis.com/v1beta/interactions";
@@ -29,25 +29,19 @@ const MIN_REQUEST_TIMEOUT_MS = 10_000;
 const MAX_REQUEST_TIMEOUT_MS = 60_000;
 const MIN_OVERALL_TIMEOUT_MS = 20_000;
 const MAX_OVERALL_TIMEOUT_MS = 180_000;
-const MAX_MODEL_ATTEMPTS = 4;
+const MAX_MODEL_ATTEMPTS = 2;
 const MAX_TRANSIENT_TRANSPORT_RETRIES = 1;
 const TRANSIENT_TRANSPORT_RETRY_DELAY_MS = 600;
 const MAX_RATE_LIMIT_RETRIES = 1;
-const DEFAULT_RATE_LIMIT_RETRY_DELAY_MS = 60_000;
-const MAX_RATE_LIMIT_RETRY_DELAY_MS = 90_000;
+const DEFAULT_RATE_LIMIT_RETRY_DELAY_MS = 10_000;
+const MAX_RATE_LIMIT_RETRY_DELAY_MS = 30_000;
 const MIN_RATE_LIMIT_RETRY_DELAY_MS = 10;
 function configuredRateLimitRetryDelayMs(): number {
   const parsed = Number(process.env.APEX_GEMINI_RIGHT_HAND_RATE_LIMIT_RETRY_DELAY_MS);
   return Number.isFinite(parsed) ? Math.min(MAX_RATE_LIMIT_RETRY_DELAY_MS, Math.max(MIN_RATE_LIMIT_RETRY_DELAY_MS, Math.floor(parsed))) : DEFAULT_RATE_LIMIT_RETRY_DELAY_MS;
 }
-const GEMINI_INTERACTIONS_FALLBACK_MODELS = [
-  "gemini-3.5-flash-lite",
-  "gemini-3.8-flash",
-  "gemini-3.7-flash",
-  "gemini-3.6-flash",
-] as const;
 const MODEL_CATALOG_TIMEOUT_MS = 6_000;
-const MODEL_CATALOG_CACHE_MS = 60_000;
+const MODEL_CATALOG_CACHE_MS = 5 * 60_000;
 
 type GeminiCatalogEntry = { name?: string; supportedGenerationMethods?: string[] };
 let cachedModelChain: { expiresAt: number; models: string[]; credentialFingerprint: string } | null = null;
@@ -101,9 +95,9 @@ function chooseRightHandModels(entries: GeminiCatalogEntry[]): string[] {
     .filter((entry) => entry.name)
     .map((entry) => entry.name!.replace(/^models\//, ""))
     .filter((name) => /^gemini-/i.test(name))
-    .filter((name) => /flash/i.test(name))
+    .filter((name) => /flash-lite/i.test(name))
     .filter((name) => /^gemini-\d+(?:\.\d+)?-flash(?:-lite)?(?:-[a-z0-9.]+)?$/i.test(name))
-    .filter((name) => !/image|audio|embedding|tts|live|transcribe|deep-research|robotics|aqa/i.test(name))
+    .filter((name) => !/image|audio|embedding|tts|live|transcribe|deep-research|robotics|aqa|preview|experimental/i.test(name))
     .sort((a, b) => {
       const left = modelRank(a); const right = modelRank(b);
       return left[0] - right[0] || left[1] - right[1] || left[2] - right[2] || right[3] - left[3] || left[4].localeCompare(right[4]);
@@ -137,9 +131,8 @@ async function resolveModelChain(): Promise<string[]> {
         role: "gemini_right_hand",
         phase: "model_catalog_failed",
         httpStatus: response.status,
-        fallbackCandidateCount: GEMINI_INTERACTIONS_FALLBACK_MODELS.length,
-      }, "Gemini Right-hand model catalog unavailable; using documented Interactions candidates");
-      return [...GEMINI_INTERACTIONS_FALLBACK_MODELS];
+      }, "Gemini Right-hand model catalog unavailable; failing closed because the live catalog is unavailable");
+      return [];
     }
     const payload = await response.json() as { models?: GeminiCatalogEntry[] };
     const catalogModels = chooseRightHandModels(Array.isArray(payload.models) ? payload.models : []);
@@ -151,17 +144,15 @@ async function resolveModelChain(): Promise<string[]> {
     logger.warn({
       role: "gemini_right_hand",
       phase: "model_catalog_empty",
-      fallbackCandidateCount: GEMINI_INTERACTIONS_FALLBACK_MODELS.length,
     }, "Gemini Right-hand model catalog returned no usable candidates; using documented Interactions candidates");
-    return [...GEMINI_INTERACTIONS_FALLBACK_MODELS];
+    return [];
   } catch (error) {
     logger.warn({
       role: "gemini_right_hand",
       phase: "model_catalog_rejected",
       errorName: error instanceof Error ? error.name : "unknown",
-      fallbackCandidateCount: GEMINI_INTERACTIONS_FALLBACK_MODELS.length,
     }, "Gemini Right-hand model catalog request failed; using documented Interactions candidates");
-    return [...GEMINI_INTERACTIONS_FALLBACK_MODELS];
+    return [];
   }
 }
 function extractJson(raw: string): Record<string, unknown> | null { const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)```/i)?.[1]?.trim(); const source = fenced || raw.trim(); const start = source.indexOf("{"), end = source.lastIndexOf("}"); if (start < 0 || end <= start) return null; try { const value = JSON.parse(source.slice(start, end + 1)); return value && typeof value === "object" ? value as Record<string, unknown> : null; } catch { return null; } }
@@ -221,9 +212,10 @@ async function request(system: string, user: string, responseFormat?: Record<str
   // through same-role compatible Gemini candidates instead of pinning the role
   // to one model. No Groq/Mistral substitution is permitted here.
   const resolvedChain = await resolveModelChain();
-  const chain = resolvedChain.length
-    ? resolvedChain.slice(0, MAX_MODEL_ATTEMPTS)
-    : [GEMINI_RIGHT_HAND_MODEL];
+  const chain = resolvedChain.slice(0, MAX_MODEL_ATTEMPTS);
+  if (chain.length === 0) {
+    return { raw: "", error: "Gemini Right-hand has no compatible stable Flash-Lite model in the live catalog.", model: GEMINI_RIGHT_HAND_MODEL };
+  }
   const failures: string[] = [];
   const configuredRequestTimeoutMs = requestTimeoutMs();
   const configuredOverallTimeoutMs = overallTimeoutMs();
@@ -243,7 +235,7 @@ async function request(system: string, user: string, responseFormat?: Record<str
     const body = JSON.stringify({
       model,
       input: `${systemPrompt}\\n\\nUSER REQUEST:\\n${user}`,
-      generation_config: { max_output_tokens: 768 },
+      generation_config: { max_output_tokens: 512, thinking_level: "minimal" },
       ...(responseFormat ? { response_format: responseFormat } : {}),
     });
     const requestPayloadBytes = Buffer.byteLength(body);
@@ -308,7 +300,7 @@ async function request(system: string, user: string, responseFormat?: Record<str
         const compatibilityBody = JSON.stringify({
           model,
           input: systemPrompt + "\n\nUSER REQUEST:\n" + user,
-          generation_config: { max_output_tokens: 768 },
+          generation_config: { max_output_tokens: 512, thinking_level: "minimal" },
         });
         const compatibilityController = new AbortController();
         const compatibilityTimeout = Math.min(requestTimeoutMs(), Math.max(1_000, deadline - Date.now()));
