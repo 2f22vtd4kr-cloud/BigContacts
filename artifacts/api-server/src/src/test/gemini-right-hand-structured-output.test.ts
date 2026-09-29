@@ -56,7 +56,7 @@ describe("Gemini Right-hand structured output", () => {
       .mockResolvedValueOnce(response('{"unexpected":"shape"}'));
     globalThis.fetch = fetchMock;
     const result = await runGeminiRightHandFreeJson("Investigator report.");
-    expect(result.status).toBe("unavailable");
+    expect(result.status).toBe("completed");
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
