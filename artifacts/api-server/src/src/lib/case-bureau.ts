@@ -556,6 +556,7 @@ export async function generateGeminiBossText(
         let responseText = "";
         let transportRetry = 0;
         let capacityRetry = 0;
+        let rateLimitRetry = 0;
         while (true) {
           try {
             const perRequestController = new AbortController();
@@ -725,12 +726,12 @@ export async function generateGeminiBossText(
 
         if (response.status === 429) {
           lastError = `Gemini Boss ${model} Interactions API ${failureClass ?? "rate_limited"} HTTP 429.`;
-          if (capacityRetry < MAX_GEMINI_BOSS_429_RETRIES_PER_MODEL && Date.now() < bossDeadline) {
+          if (rateLimitRetry < MAX_GEMINI_BOSS_429_RETRIES_PER_MODEL && Date.now() < bossDeadline) {
             const retryDelayMs = Math.min(
               retryAfterDelayMs(response, GEMINI_BOSS_429_RETRY_DELAY_MS),
               Math.max(0, bossDeadline - Date.now()),
             );
-            capacityRetry += 1;
+            rateLimitRetry += 1;
             logger.warn(
               {
                 role: "gemini_boss",
@@ -738,7 +739,7 @@ export async function generateGeminiBossText(
                 model,
                 keyName: entry.name,
                 httpStatus: response.status,
-                retryNumber: capacityRetry,
+                retryNumber: rateLimitRetry,
                 maxRetries: MAX_GEMINI_BOSS_429_RETRIES_PER_MODEL,
                 retryDelayMs,
               },
