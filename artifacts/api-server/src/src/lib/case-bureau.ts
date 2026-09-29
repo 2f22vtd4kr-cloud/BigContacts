@@ -9,6 +9,7 @@ import {
   classifyProviderHttpStatus,
   classifyThrownProviderError,
   summarizeProviderBody,
+  providerErrorCode,
 } from "./provider-error-diagnostics";
 export {
   getMistralWebSearchStatus,
@@ -280,6 +281,7 @@ export type DiscoveryCaseFile = {
  * availability and pricing vary by key/project and change over time.
  */
 export const GEMINI_BOSS_MODEL_PENDING = "auto-low-cost-pending";
+const GEMINI_BOSS_PREFERRED_MODEL = "gemini-3.1-flash-lite";
 const GEMINI_MODELS_API = "https://generativelanguage.googleapis.com/v1beta/models";
 const GEMINI_INTERACTIONS_API = "https://generativelanguage.googleapis.com/v1beta/interactions";
 const GEMINI_KEY_NAMES = [
@@ -408,17 +410,23 @@ function chooseGeminiModelCandidates(entries: GeminiModelCatalogEntry[]): string
     .filter((entry) => entry.name)
     .map((entry) => entry.name!.replace(/^models\//, ""))
     .filter((name) => /^gemini-/i.test(name))
-    .filter((name) => /flash/i.test(name))
-    // Accept provider-published numbered Flash and Flash-Lite variants, including
-    // preview/dated suffixes. Compatibility is decided from the live catalog,
-    // not a hard-coded model-version retirement list.
-    .filter((name) => /^gemini-\d+(?:\.\d+)?-flash(?:-[a-z0-9]+)?$/i.test(name))
-    .filter((name) => !/embedding|aqa|robotics|image|tts|deep-research|latest/i.test(name))
+    .filter((name) => /flash-lite/i.test(name))
+    // Keep the Boss on the provider's efficiency-oriented Flash-Lite family.
+    // Availability remains live-catalog driven; this is a role capability
+    // boundary, not a historical fallback ladder.
+    .filter((name) => /^gemini-\d+(?:\.\d+)?-flash-lite(?:-[a-z0-9.]+)?$/i.test(name))
+    .filter((name) => !/embedding|aqa|robotics|image|tts|deep-research|latest|preview|experimental/i.test(name))
     .sort((left, right) => {
       const a = modelRank(left);
       const b = modelRank(right);
-      return a[0] - b[0] || a[2] - b[2] || b[3] - a[3] || a[4].localeCompare(b[4]);
-    });
+      return a[2] - b[2] || b[3] - a[3] || a[4].localeCompare(b[4]);
+    })
+    .slice(0, 4)
+    ;
+  return [
+    ...(candidates.includes(GEMINI_BOSS_PREFERRED_MODEL) ? [GEMINI_BOSS_PREFERRED_MODEL] : []),
+    ...candidates.filter((model) => model !== GEMINI_BOSS_PREFERRED_MODEL),
+  ].slice(0, 2);
 }
 
 let cachedBossModelSelection: { expiresAt: number; selection: GeminiBossModelSelection; credentialFingerprint: string } | null = null;
@@ -506,7 +514,7 @@ export async function generateGeminiBossText(
   options?: {
     responseFormat?: Record<string, unknown>;
     maxOutputTokens?: number;
-    thinkingLevel?: "low" | "medium" | "high";
+    thinkingLevel?: "minimal" | "low" | "medium" | "high";
   },
 ): Promise<GeminiTextGenerationResult> {
   // Interactions API text generation only: no tools, no Google Search grounding, no web research.
@@ -528,7 +536,7 @@ export async function generateGeminiBossText(
   const models = [...new Set([
     selection.model,
     ...(selection.candidateModels ?? []),
-  ])].slice(0, 4);
+  ])].slice(0, 2);
   let lastError = `Gemini Boss ${selection.model} did not return text.`;
   // Boss is a small control-plane JSON decision, but live Gemini latency has
   // already been measured above 10s. Keep the boundary bounded while allowing a
@@ -548,7 +556,7 @@ export async function generateGeminiBossText(
       const interactionBody = JSON.stringify({
         model,
         input: prompt,
-        generation_config: { max_output_tokens: options?.maxOutputTokens ?? 768, ...(options?.thinkingLevel ? { thinking_level: options.thinkingLevel } : {}) },
+        generation_config: { max_output_tokens: options?.maxOutputTokens ?? 768, thinking_level: options?.thinkingLevel ?? "minimal" },
         ...(options?.responseFormat ? { response_format: options.responseFormat } : {}),
       });
       try {
@@ -620,7 +628,7 @@ export async function generateGeminiBossText(
           const compatibilityBody = JSON.stringify({
             model,
             input: prompt,
-            generation_config: { max_output_tokens: options?.maxOutputTokens ?? 768, ...(options?.thinkingLevel ? { thinking_level: options.thinkingLevel } : {}) },
+            generation_config: { max_output_tokens: options?.maxOutputTokens ?? 768, thinking_level: options?.thinkingLevel ?? "minimal" },
           });
           logger.warn(
             {
@@ -699,6 +707,7 @@ export async function generateGeminiBossText(
         const fetchElapsedMs = Date.now() - attemptStartedAt;
         const totalElapsedMs = Date.now() - attemptStartedAt;
         const responseShape = summarizeProviderBody(responseText);
+        const providerErrorCodeValue = response.ok ? null : providerErrorCode(responseText);
         const failureClass = response.ok ? null : classifyProviderHttpStatus(response.status);
         logger.info(
           {
@@ -717,6 +726,7 @@ export async function generateGeminiBossText(
             httpStatus: response.status,
             responseBytes: Buffer.byteLength(responseText),
             failureClass,
+            providerErrorCode: providerErrorCodeValue,
             responseShape,
             requestDeadlineFired,
             overallDeadlineFired,
@@ -725,7 +735,14 @@ export async function generateGeminiBossText(
         );
 
         if (response.status === 429) {
-          lastError = `Gemini Boss ${model} Interactions API ${failureClass ?? "rate_limited"} HTTP 429.`;
+          lastError = `Gemini Boss ${model} Interactions API ${failureClass ?? "rate_limited"} HTTP 429${providerErrorCodeValue ? ` ${providerErrorCodeValue}` : ""}.`;
+          if (providerErrorCodeValue === "quota_exceeded") {
+            return {
+              model,
+              raw: null,
+              error: `Gemini Boss ${model} reports daily quota exhaustion; no retry or equivalent-model fan-out will repair the project quota.`,
+            };
+          }
           if (rateLimitRetry < MAX_GEMINI_BOSS_429_RETRIES_PER_MODEL && Date.now() < bossDeadline) {
             const retryDelayMs = Math.min(
               retryAfterDelayMs(response, GEMINI_BOSS_429_RETRY_DELAY_MS),
@@ -743,7 +760,7 @@ export async function generateGeminiBossText(
                 maxRetries: MAX_GEMINI_BOSS_429_RETRIES_PER_MODEL,
                 retryDelayMs,
               },
-              "Gemini Boss rate limited; retrying the same model once instead of burning quota on equivalent model fallbacks",
+              "Gemini Boss rate limited; retrying the same model once instead of burning quota on equivalent Flash-Lite model fallbacks",
             );
             if (retryDelayMs > 0) await new Promise<void>((resolve) => setTimeout(resolve, retryDelayMs));
             const rateLimitController = new AbortController();
@@ -769,7 +786,7 @@ export async function generateGeminiBossText(
             return {
               model,
               raw: null,
-              error: `Gemini Boss ${model} rate limit persisted after bounded backoff; no equivalent-model quota fan-out permitted.`,
+              error: `Gemini Boss ${model} rate limit persisted after bounded backoff${providerErrorCodeValue ? ` (${providerErrorCodeValue})` : ""}; no equivalent-model quota fan-out permitted.`,
             };
           }
         }
@@ -1446,7 +1463,7 @@ export async function runGeminiBossPlan(input: {
   if (queuedActions.length === 0) return unavailable("The case file has no queued actions.");
   try {
     const planPrompt = buildGeminiBossPlanPrompt(input);
-    const generated = await generateGeminiBossText(selection, planPrompt, { responseFormat: GEMINI_BOSS_PLAN_RESPONSE_FORMAT, maxOutputTokens: 1536, thinkingLevel: "low" });
+    const generated = await generateGeminiBossText(selection, planPrompt, { responseFormat: GEMINI_BOSS_PLAN_RESPONSE_FORMAT, maxOutputTokens: 1536, thinkingLevel: "minimal" });
     if (!generated.raw) return unavailable(generated.error ?? "Boss plan text generation returned no text.");
     const parsed = parseBossPlanResponse(generated.raw, queuedActions);
     return parsed
