@@ -145,3 +145,13 @@
 - **Evidence:** Vitest exited in 2.05 seconds with one failed test; no API source was changed and no durable database rows were created. The temporary test file is the only test seam added for this development-only attempt.
 - **Interpretation:** This was a test-harness runtime configuration failure, not a Gemini or Investigator result. The managed API remained running and its canonical workflow was not altered.
 - **Next action:** Re-run the same temporary test with the repository's permanent Redis boot flag enabled in the test process, without changing application source or substituting any downstream role.
+
+### 17
+- **UTC timestamp:** 2026-09-29T05:xx:xxZ
+- **Action:** Corrected the development-only downstream harness after the Redis preflight failure.
+- **Observed defect:** The first harness invoked `connectPermanentRedis()` while the repository's permanent Redis module was intentionally disabled by default in standalone test processes, so the canonical active-job lock correctly failed closed. The harness also mocked only the opening Boss/Right-hand calls; later canonical control transitions and per-act target oversight still resolve Gemini Boss/Right-hand through their normal module boundaries.
+- **Correction:** The development-only harness now calls the repository's `enablePermanentRedis()` before creating/claiming the real job, is explicitly opt-in rather than part of the ordinary Vitest filename pattern, and substitutes only the Gemini Boss/Right-hand model boundaries. The real canonical pipeline, Groq/Mistral Investigator, web tools, durable case/event ledger, evidence gates, target investigation, and card/entity persistence remain untouched.
+- **Control surrogate:** The Boss surrogate reads the actual admitted-candidate state from the canonical control prompt, selects an actually admitted candidate for one bounded target test, and stops after the real target Investigator act. If no candidate is admitted by the real Investigator, it stops rather than inventing one; the test then fails its downstream assertions rather than fabricating success. The Right-hand surrogate supplies advisory JSON only and never chooses tools/providers.
+- **Assertions:** The harness now requires canonical job completion, phase 4, a target case bound to the test job, at least one real Investigator tool-observation event for that target case, and at least one entity/card associated with the test job.
+- **Scope:** Development-only validation seam; no production runtime behavior or Gemini provider logic was changed.
+- **Next action:** Run the opt-in harness with the repository's configured real Groq/search providers and append raw results immediately after each stage.
