@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { generateGeminiBossText } from "../lib/case-bureau";
+import { generateGeminiBossText, resolveGeminiBossModel } from "../lib/case-bureau";
 
 const selection = {
   model: "gemini-3.8-flash",
@@ -59,20 +59,37 @@ describe("Gemini Boss text-only model authority", () => {
     expect(String(fetchMock.mock.calls[1]?.[0])).toContain("v1beta/interactions");
   });
 
-  it("falls through a transient HTTP 429 to the next configured Gemini model", async () => {
+  it("keeps HTTP 429 on the same model and does not fan out quota pressure", async () => {
     process.env.GEMINI_API_KEY = "test-key";
     const fetchMock = vi.spyOn(globalThis, "fetch")
       .mockResolvedValueOnce(response(429, { error: "rate limited" }))
-      .mockResolvedValueOnce(response(200, {
-        steps: [{ type: "model_output", content: [{ type: "text", text: '{"decision":"continue"}' }] }],
-      }));
+      .mockResolvedValueOnce(response(429, { error: "rate limited" }));
 
     const result = await generateGeminiBossText(selection, "Return JSON.");
 
-    expect(result.model).toBe("gemini-3.7-flash");
-    expect(result.raw).toBe('{"decision":"continue"}');
-    expect(result.error).toBeNull();
+    expect(result.model).toBe("gemini-3.8-flash");
+    expect(result.raw).toBeNull();
+    expect(result.error).toContain("rate limit persisted");
     expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("prefers a live Flash-Lite model for the Boss control plane", async () => {
+    process.env.GEMINI_API_KEY = "test-key";
+    const fetchMock = vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(response(200, {
+        models: [
+          { name: "models/gemini-3.8-flash" },
+          { name: "models/gemini-3.7-flash" },
+          { name: "models/gemini-3.5-flash-lite" },
+        ],
+      }));
+
+    const result = await resolveGeminiBossModel();
+
+    expect(result.status).toBe("resolved");
+    expect(result.model).toBe("gemini-3.5-flash-lite");
+    expect(result.candidateModels?.[0]).toBe("gemini-3.5-flash-lite");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it("does not retry HTTP 503 more than once for the same model", async () => {
