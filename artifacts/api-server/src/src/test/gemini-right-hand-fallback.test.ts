@@ -102,6 +102,29 @@ describe("Gemini Right-hand text-only control transport", () => {
     expect(result.error).toContain("rate limit persisted");
   });
 
+  it("retries short-burst too_many_requests on the same model without equivalent-model fan-out", async () => {
+    process.env.GEMINI_RIGHT_HAND_API_KEY = "test-key-too-many";
+    const attempts: string[] = [];
+    globalThis.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith("/v1beta/models")) return catalog();
+      const body = init?.body ? JSON.parse(String(init.body)) as { model?: string } : {};
+      if (!url.includes("/v1beta/interactions")) throw new Error("unexpected non-generation request");
+      attempts.push(body.model ?? "");
+      return new Response(JSON.stringify({ error: { code: "too_many_requests", message: "burst" } }), {
+        status: 429,
+        headers: { "retry-after": "0" },
+      });
+    });
+    installExternalQuotaGuard();
+
+    const result = await runGeminiRightHandFreeJson("Return JSON.");
+
+    expect(result.status).toBe("unavailable");
+    expect(attempts).toEqual([GEMINI_RIGHT_HAND_MODEL, GEMINI_RIGHT_HAND_MODEL]);
+    expect(result.error).toContain("rate limit persisted");
+  });
+
   it("uses at most two live same-role Flash-Lite candidates on HTTP 503", async () => {
     process.env.GEMINI_RIGHT_HAND_API_KEY = "test-key-503";
     const attempts: string[] = [];

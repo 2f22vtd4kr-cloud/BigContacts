@@ -157,7 +157,7 @@ async function resolveModelChain(): Promise<string[]> {
 }
 function extractJson(raw: string): Record<string, unknown> | null { const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)```/i)?.[1]?.trim(); const source = fenced || raw.trim(); const start = source.indexOf("{"), end = source.lastIndexOf("}"); if (start < 0 || end <= start) return null; try { const value = JSON.parse(source.slice(start, end + 1)); return value && typeof value === "object" ? value as Record<string, unknown> : null; } catch { return null; } }
 function shouldFallback(status: number): boolean { return status === 403 || status === 404 || status === 408 || status === 429 || status === 500 || status === 502 || status === 503 || status === 504; }
-function rateLimitRetryDelayMs(response: Response, remainingMs: number): number {
+function rateLimitRetryDelayMs(response: Response, remainingMs: number, errorCode: string | null): number {
   const retryAfter = response.headers.get("retry-after")?.trim();
   if (retryAfter) {
     const seconds = Number(retryAfter);
@@ -165,7 +165,14 @@ function rateLimitRetryDelayMs(response: Response, remainingMs: number): number 
     const dateMs = Date.parse(retryAfter);
     if (Number.isFinite(dateMs)) return Math.min(MAX_RATE_LIMIT_RETRY_DELAY_MS, Math.max(0, dateMs - Date.now()), remainingMs);
   }
-  return Math.min(configuredRateLimitRetryDelayMs(), MAX_RATE_LIMIT_RETRY_DELAY_MS, Math.max(0, remainingMs));
+
+  // Gemini documents too_many_requests as a short-period burst condition.
+  // Give that subtype a longer bounded recovery window than the generic
+  // rate-limit case so the retry does not immediately reproduce the burst.
+  const fallbackDelayMs = errorCode === "too_many_requests"
+    ? MAX_RATE_LIMIT_RETRY_DELAY_MS
+    : configuredRateLimitRetryDelayMs();
+  return Math.min(fallbackDelayMs, MAX_RATE_LIMIT_RETRY_DELAY_MS, Math.max(0, remainingMs));
 }
 function shouldRetry429(errorCode: string | null): boolean {
   // Gemini Interactions distinguishes burst/rate exhaustion from daily quota
@@ -373,7 +380,7 @@ async function request(system: string, user: string, responseFormat?: Record<str
         // quota exhaustion fails closed immediately because this turn cannot
         // restore the quota.
         if (shouldRetry429(providerErrorCodeValue) && transportRetry < MAX_RATE_LIMIT_RETRIES && Date.now() < deadline) {
-          const retryDelayMs = rateLimitRetryDelayMs(response, Math.max(0, deadline - Date.now()));
+          const retryDelayMs = rateLimitRetryDelayMs(response, Math.max(0, deadline - Date.now()), providerErrorCodeValue);
           if (retryDelayMs > 0) {
             transportRetry += 1;
             logger.warn(
