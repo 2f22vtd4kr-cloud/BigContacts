@@ -22,8 +22,7 @@ function isNetworkFailure(error: unknown): boolean {
     "UND_ERR_SOCKET",
     "UND_ERR_HEADERS_TIMEOUT",
   ]);
-  return codes.has(code)
-    || codes.has(causeCode);
+  return codes.has(code) || codes.has(causeCode);
 }
 
 /**
@@ -32,6 +31,10 @@ function isNetworkFailure(error: unknown): boolean {
  * a fresh native HTTPS connection. This is transport-only recovery: the Gemini
  * role still owns model selection, retry budgets, prompts, credentials, and all
  * research/control decisions.
+ *
+ * The native retry deliberately uses a fresh AbortController. Reusing the first
+ * attempt's signal can leave the fresh socket with only the tail of the original
+ * timeout budget after an undici connect/headers failure.
  */
 export async function fetchGeminiInteractions(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
   try {
@@ -44,12 +47,6 @@ export async function fetchGeminiInteractions(input: RequestInfo | URL, init?: R
     const body = typeof init?.body === "string" ? init.body : null;
     if (body === null) throw error;
 
-    // Do not reuse the same signal directly for the native retry. The first
-    // undici/fetch attempt may have consumed most of the caller's timeout budget
-    // before failing, and passing that same signal to a fresh socket leaves the
-    // fallback with only the tail of the original deadline. Relay cancellation
-    // instead: the native retry gets a fresh controller while still respecting
-    // the caller's eventual abort.
     const fallbackController = new AbortController();
     const callerSignal = init?.signal;
     const relayAbort = () => fallbackController.abort(callerSignal?.reason);
@@ -67,32 +64,31 @@ export async function fetchGeminiInteractions(input: RequestInfo | URL, init?: R
             headers: Object.fromEntries(headers.entries()),
             signal: fallbackController.signal,
           },
-        (response) => {
-          const chunks: Buffer[] = [];
-          response.on("data", (chunk: Buffer | string) => {
-            chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
-          });
-          response.on("end", () => {
-            const responseHeaders = new Headers();
-            for (const [name, value] of Object.entries(response.headers)) {
-              if (Array.isArray(value)) {
-                for (const item of value) responseHeaders.append(name, item);
-              } else if (value != null) {
-                responseHeaders.set(name, value);
+          (response) => {
+            const chunks: Buffer[] = [];
+            response.on("data", (chunk: Buffer | string) => {
+              chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+            });
+            response.on("end", () => {
+              const responseHeaders = new Headers();
+              for (const [name, value] of Object.entries(response.headers)) {
+                if (Array.isArray(value)) {
+                  for (const item of value) responseHeaders.append(name, item);
+                } else if (value != null) {
+                  responseHeaders.set(name, value);
+                }
               }
-            }
-            resolve(new Response(Buffer.concat(chunks), {
-              status: response.statusCode ?? 0,
-              statusText: response.statusMessage ?? "",
-              headers: responseHeaders,
-            }));
-          });
-          response.on("error", reject);
-        },
-      );
-          request.on("error", reject);
-          request.end(body);
-        });
+              resolve(new Response(Buffer.concat(chunks), {
+                status: response.statusCode ?? 0,
+                statusText: response.statusMessage ?? "",
+                headers: responseHeaders,
+              }));
+            });
+            response.on("error", reject);
+          },
+        );
+        request.on("error", reject);
+        request.end(body);
       });
     } finally {
       callerSignal?.removeEventListener("abort", relayAbort);
