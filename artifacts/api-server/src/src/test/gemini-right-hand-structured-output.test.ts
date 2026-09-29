@@ -50,7 +50,7 @@ describe("Gemini Right-hand structured output", () => {
   });
 
   it("fails closed on malformed control output rather than model-hopping or browsing", async () => {
-    process.env.GEMINI_RIGHT_HAND_API_KEY = "test-key";
+    process.env.GEMINI_RIGHT_HAND_API_KEY = "test-key-malformed";
     const fetchMock = vi.fn<typeof fetch>()
       .mockResolvedValueOnce(catalog())
       .mockResolvedValueOnce(response('{"unexpected":"shape"}'));
@@ -61,7 +61,7 @@ describe("Gemini Right-hand structured output", () => {
   });
 
   it("probes the model catalog before the control request", async () => {
-    process.env.GEMINI_RIGHT_HAND_API_KEY = "test-key";
+    process.env.GEMINI_RIGHT_HAND_API_KEY = "test-key-catalog";
     const calls: string[] = [];
     globalThis.fetch = vi.fn<typeof fetch>(async (input) => {
       calls.push(String(input));
