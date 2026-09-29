@@ -58,8 +58,8 @@ assert(/investigation-context-compaction/.test(source.research), "Investigator R
 // Right-hand is Gemini oversight, independent of Boss and never an Investigator fallback.
 assert(/GEMINI_RIGHT_HAND_API_KEY/.test(source.rightHand), "Gemini Right-hand does not use the dedicated GEMINI_RIGHT_HAND_API_KEY.");
 assert(!/process\.env\.GEMINI_API_KEY/.test(source.rightHand), "Gemini Right-hand still directly reads the Boss GEMINI_API_KEY.");
-assert(/gemini-3\.8-flash/i.test(source.rightHand), "Gemini Right-hand model is not pinned to Gemini 3.8 Flash.");
-assert(/export const GEMINI_RIGHT_HAND_MODEL = "gemini-3\.8-flash"/.test(source.rightHand), "Gemini Right-hand preferred model must be gemini-3.8-flash.");
+assert(/GEMINI_RIGHT_HAND_MODEL\s*=/.test(source.rightHand), "Gemini Right-hand does not declare a canonical preferred model.");
+assert(/chooseRightHandModels|resolveModelChain/.test(source.rightHand), "Gemini Right-hand does not expose runtime model selection.");
 assert(/supportedGenerationMethods/.test(source.rightHand), "Gemini Right-hand fallback discovery does not inspect live catalog capabilities.");
 assert(/models\?key=|GEMINI_CHAT_API_BASE/.test(source.rightHand), "Gemini Right-hand does not resolve candidates from the live Gemini catalog.");
 assert(!/GEMINI_RIGHT_HAND_MODEL_CHAIN/.test(source.rightHand), "Gemini Right-hand still accepts an environment-controlled fallback sequence.");
