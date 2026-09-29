@@ -379,11 +379,12 @@ function modelVersion(name: string): [number, number] {
 function modelRank(name: string): [number, number, number, number, string] {
   const normalized = name.toLowerCase();
   const [major, minor] = modelVersion(normalized);
-  // Prefer the current full Flash family for the Interactions API, then
-  // Flash-Lite, and keep both ahead of Pro or specialized models.
-  const family = normalized.includes("flash") && !normalized.includes("flash-lite")
+  // The Boss emits a small control-plane JSON decision. Prefer the
+  // provider's Flash-Lite family for this low-cost control role, then
+  // full Flash, while keeping the live catalog authoritative.
+  const family = normalized.includes("flash-lite")
     ? 0
-    : normalized.includes("flash-lite")
+    : normalized.includes("flash") && !normalized.includes("flash-lite")
       ? 1
       : 2;
   const lifecycle = normalized.includes("preview") || normalized.includes("experimental") ? 1 : 0;
