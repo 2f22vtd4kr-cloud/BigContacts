@@ -80,7 +80,7 @@
     "check:failure-records": "node scripts/validate-failure-records.mjs benchmarks/research-runs-v1.example.json",
     "build:research-gauntlet": "node scripts/build-research-gauntlet.mjs benchmarks/research-gauntlet-v1.json benchmarks/research-gauntlet-v1-extension.json /tmp/research-gauntlet-v1-combined.json",
     "bench:empirical-campaign": "pnpm run build:research-gauntlet && npx --yes tsx@4.20.5 scripts/run-research-campaign.ts /tmp/research-gauntlet-v1-combined.json research-runs-v1.json",
-    "test:apex-development-bypass": "ENABLE_REDIS_ON_BOOT=true pnpm --dir artifacts/api-server exec vitest run src/src/test/apex-atlas-development-bypass.dev.ts --reporter=verbose"
+    "test:apex-development-bypass": "ENABLE_REDIS_ON_BOOT=true pnpm --dir artifacts/api-server exec vitest run --config vitest.development-bypass.config.ts --reporter=verbose"
   },
   "private": true,
   "dependencies": {

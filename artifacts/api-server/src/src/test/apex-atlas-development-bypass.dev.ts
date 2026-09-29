@@ -97,8 +97,9 @@ vi.mock("../lib/gemini-right-hand-reasoning", async () => {
       status: "completed" as const,
       model: "development-test-right-hand",
       raw: JSON.stringify({
-        decision: "continue",
+        decision: "continue_discovery",
         reason: "Development-only surrogate reviewed the supplied state without browsing, selecting tools, or inventing evidence.",
+          direction: null,
         focusLanes: ["identity", "source support", "next useful research question"],
         confidence: 0.8,
       }),
