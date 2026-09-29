@@ -401,19 +401,14 @@ function modelRank(name: string): [number, number, number, number, string] {
 }
 
 function chooseGeminiModelCandidates(entries: GeminiModelCatalogEntry[]): string[] {
-  // Model lifecycle is deliberately provider/catalog-owned. Do not encode
-  // historical retirement assumptions here: a model can be unavailable to one
-  // project while still being valid for another, and Google's catalog changes
-  // independently of this application. Generation authorization is checked at
-  // request time and handled by the bounded same-role fallback.
-  return entries
+  // Model lifecycle and entitlement remain provider/catalog-owned. This role
+  // deliberately stays on stable Flash-Lite models to control cost and token
+  // pressure; availability is still resolved from the live catalog.
+  const candidates = entries
     .filter((entry) => entry.name)
     .map((entry) => entry.name!.replace(/^models\//, ""))
     .filter((name) => /^gemini-/i.test(name))
     .filter((name) => /flash-lite/i.test(name))
-    // Keep the Boss on the provider's efficiency-oriented Flash-Lite family.
-    // Availability remains live-catalog driven; this is a role capability
-    // boundary, not a historical fallback ladder.
     .filter((name) => /^gemini-\d+(?:\.\d+)?-flash-lite(?:-[a-z0-9.]+)?$/i.test(name))
     .filter((name) => !/embedding|aqa|robotics|image|tts|deep-research|latest|preview|experimental/i.test(name))
     .sort((left, right) => {
@@ -421,8 +416,7 @@ function chooseGeminiModelCandidates(entries: GeminiModelCatalogEntry[]): string
       const b = modelRank(right);
       return a[2] - b[2] || b[3] - a[3] || a[4].localeCompare(b[4]);
     })
-    .slice(0, 4)
-    ;
+    .slice(0, 4);
   return [
     ...(candidates.includes(GEMINI_BOSS_PREFERRED_MODEL) ? [GEMINI_BOSS_PREFERRED_MODEL] : []),
     ...candidates.filter((model) => model !== GEMINI_BOSS_PREFERRED_MODEL),
