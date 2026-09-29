@@ -135,7 +135,7 @@ describe("Gemini Boss text-only model authority", () => {
     expect(body).toEqual({
       model: "gemini-3.8-flash",
       input: "Use the persisted case context.",
-      generation_config: { max_output_tokens: 768 },
+      generation_config: { max_output_tokens: 768, thinking_level: "minimal" },
     });
     expect(body).not.toHaveProperty("tools");
     expect(body).not.toHaveProperty("grounding");
