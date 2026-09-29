@@ -52,7 +52,7 @@ describe("Gemini Boss latency controls", () => {
     });
   });
 
-  it("uses low Gemini 3.x thinking and a small control response budget", async () => {
+  it("uses minimal Gemini 3.x thinking and a small control response budget", async () => {
     process.env.GEMINI_API_KEY = "test-key";
     const fetchMock = vi.fn<typeof fetch>()
       .mockResolvedValueOnce(new Response(JSON.stringify({
@@ -82,7 +82,7 @@ describe("Gemini Boss latency controls", () => {
     const body = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body));
     expect(body.generation_config.max_output_tokens).toBe(768);
     expect(body.generation_config.responseMimeType).toBeUndefined();
-    expect(body.generation_config.thinking_level).toBeUndefined();
+    expect(body.generation_config.thinking_level).toBe("minimal");
     expect(body.generation_config.temperature).toBeUndefined();
   });
 
