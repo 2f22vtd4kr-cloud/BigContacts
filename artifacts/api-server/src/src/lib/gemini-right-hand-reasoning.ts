@@ -409,27 +409,26 @@ async function request(system: string, user: string, responseFormat?: Record<str
                 retryError,
                 retryError instanceof Error && retryError.name === "AbortError",
               );
-              failures.push(``${model} rate_limit_retry_${retryFailureClass}``);
+              failures.push(`${model} rate_limit_retry_${retryFailureClass}`);
               return {
                 raw: "",
-                error: ``Gemini Right-hand rate-limit retry failed: ${model} ${retryFailureClass}.``,
+                error: `Gemini Right-hand rate-limit retry failed: ${model} ${retryFailureClass}.`,
                 model,
               };
             }
           }
         }
         if (response.status === 429) {
-          failures.push(``${model} rate_limited HTTP 429${providerErrorCodeValue ? ` ${providerErrorCodeValue}` : ""}``);
-        const quotaNote = providerErrorCodeValue === "quota_exceeded"
-          ? " Gemini reports daily quota exhaustion; model fallback would not repair a project quota."
-          : "";
-        return {
-          raw: "",
-          error: `Gemini Right-hand rate limit persisted after bounded backoff: ${failures.join("; ")}.${quotaNote}`,
-          model,
-        };
-      }
-      failures.push(`${model} ${failureClass ?? "http_error"} HTTP ${response.status}`);
+          failures.push(`${model} rate_limited HTTP 429${providerErrorCodeValue ? ` ${providerErrorCodeValue}` : ""}`);
+          const quotaNote = providerErrorCodeValue === "quota_exceeded"
+            ? " Gemini reports daily quota exhaustion; model fallback would not repair a project quota."
+            : "";
+          return {
+            raw: "",
+            error: `Gemini Right-hand rate limit persisted after bounded backoff: ${failures.join("; ")}.${quotaNote}`,
+            model,
+          };
+        }      failures.push(`${model} ${failureClass ?? "http_error"} HTTP ${response.status}`);
       if (!shouldFallback(response.status)) {
         return { raw: "", error: `Gemini API ${model} ${failureClass ?? "http_error"} HTTP ${response.status}.`, model };
       }
