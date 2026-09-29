@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from "vitest";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 
 function extractAdmittedCandidates(prompt: string): string[] {
   const match = prompt.match(/## Admitted candidates\s+([\s\S]*?)\s+## Investigator text report/);
@@ -156,6 +156,7 @@ it("runs the real canonical downstream pipeline with only Gemini Boss and Right-
         .select({ id: researchCaseEventsTable.id })
         .from(researchCaseEventsTable)
         .where(and(
+          inArray(researchCaseEventsTable.caseId, targetCaseIds),
           eq(researchCaseEventsTable.eventType, "tool_observation"),
           eq(researchCaseEventsTable.actorRole, "head_investigator"),
         ));
