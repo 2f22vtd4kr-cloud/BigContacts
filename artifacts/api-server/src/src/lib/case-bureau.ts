@@ -346,7 +346,7 @@ export type GeminiBossPlanResult = {
    * Only ids that already exist in the case file queue are applied; no tool invention.
    */
   reprioritize: string[];
-  /** Explicit coordination with Gemini 3.8 Flash right-hand: accept or override advisory. */
+  /** Explicit coordination with Gemini 3.1 Flash-Lite right-hand: accept or override advisory. */
   rightHandDisposition: "accept" | "override" | "unknown";
   /** One-line note: why accept, or which right-hand action was overridden and why. */
   rightHandNote: string | null;
