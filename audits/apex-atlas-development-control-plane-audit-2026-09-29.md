@@ -354,3 +354,11 @@ No secrets were modified. and record the result without exposing secret values
 - evidence: commit `d8f9b8fd74068cc92512949874cec0dfc303a0f0`; Vitest's documented mock contract requires external variables used by a hoisted mock factory to be defined through `vi.hoisted()`.
 - interpretation: this is a harness correctness fix only; production modules and provider roles are unchanged.
 - next action: start the next fresh Replit run from `main`, verify the checkout SHA, and execute the explicit development bypass once with the committed harness.
+
+## 2026-09-29T06:20:00Z
+- action: corrected the committed development bypass parser and hoisted discovery state
+- exact command/request: updated `artifacts/api-server/src/src/test/apex-atlas-development-bypass.dev.ts` on `main` in two minimal commits (`fe3866516a4c1c73ab9353b3c56f58fe7b4bf093`, `ed4d861f316bff332b6919308724721a6cd083c6`)
+- observed result: removed the literal escaped-newline declaration defect, replaced the undefined discovery state with `vi.hoisted(() => ({ turns: 0 }))`, and closed the `JSON.stringify` ternary expression correctly before the `error` field. No production runtime modules or provider-role boundaries were changed.
+- evidence: the current GitHub file contains valid TypeScript structure, the hoisted `discoveryControlState`, and the completed `JSON.stringify(...)` expression.
+- interpretation: the previously committed development-only harness syntax/state defect is corrected. This is a test-harness repair only; it does not weaken canonical validation or fabricate candidates/evidence.
+- next action: from a clean `main` checkout at the new HEAD, run `pnpm install --frozen-lockfile`, `pnpm run check:bureau`, `pnpm run typecheck`, `pnpm --filter @workspace/api-server run build`, then run exactly one `pnpm test:apex-development-bypass` and preserve raw output and durable results before any further source change.
