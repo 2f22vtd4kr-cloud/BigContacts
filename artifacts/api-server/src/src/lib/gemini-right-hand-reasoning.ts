@@ -338,8 +338,8 @@ async function request(system: string, user: string, responseFormat?: Record<str
       }
       const totalElapsedMs = Date.now() - attemptStartedAt;
       const responseShape = summarizeProviderBody(responseBody);
-      const providerErrorCodeValue = response.ok ? null : providerErrorCode(responseBody);
-      const failureClass = response.ok ? null : classifyProviderHttpStatus(response.status);
+      let providerErrorCodeValue = response.ok ? null : providerErrorCode(responseBody);
+      let failureClass = response.ok ? null : classifyProviderHttpStatus(response.status);
       logger.info(
         {
           role: "gemini_right_hand",
@@ -378,12 +378,48 @@ async function request(system: string, user: string, responseFormat?: Record<str
             transportRetry += 1;
             logger.warn(
               { role: "gemini_right_hand", phase: "rate_limit_backoff", model, retryNumber: transportRetry, maxRetries: MAX_RATE_LIMIT_RETRIES, retryDelayMs },
-              "Gemini Right-hand rate limited; waiting before failing closed instead of burning through equivalent model fallbacks",
+              "Gemini Right-hand rate limited; waiting before one bounded same-model retry",
             );
             await new Promise<void>((resolve) => setTimeout(resolve, retryDelayMs));
           }
+          if (Date.now() < deadline && !controller.signal.aborted) {
+            try {
+              response = await fetchGeminiInteractions(GEMINI_INTERACTIONS_API, {
+                method: "POST",
+                headers: {
+                  Accept: "application/json",
+                  "Content-Type": "application/json",
+                  "x-goog-api-key": apiKey,
+                },
+                body,
+                signal: controller.signal,
+              });
+              responseBody = await response.text();
+              providerErrorCodeValue = response.ok ? null : providerErrorCode(responseBody);
+              failureClass = response.ok ? null : classifyProviderHttpStatus(response.status);
+              logger.info({
+                role: "gemini_right_hand",
+                phase: "rate_limit_retry_resolved",
+                model,
+                httpStatus: response.status,
+                providerErrorCode: providerErrorCodeValue,
+              }, "Gemini Right-hand same-model rate-limit retry resolved");
+            } catch (retryError) {
+              const retryFailureClass = classifyThrownProviderError(
+                retryError,
+                retryError instanceof Error && retryError.name === "AbortError",
+              );
+              failures.push(``${model} rate_limit_retry_${retryFailureClass}``);
+              return {
+                raw: "",
+                error: ``Gemini Right-hand rate-limit retry failed: ${model} ${retryFailureClass}.``,
+                model,
+              };
+            }
+          }
         }
-        failures.push(`${model} rate_limited HTTP 429${providerErrorCodeValue ? ` ${providerErrorCodeValue}` : ""}`);
+        if (response.status === 429) {
+          failures.push(``${model} rate_limited HTTP 429${providerErrorCodeValue ? ` ${providerErrorCodeValue}` : ""}``);
         const quotaNote = providerErrorCodeValue === "quota_exceeded"
           ? " Gemini reports daily quota exhaustion; model fallback would not repair a project quota."
           : "";
