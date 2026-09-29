@@ -832,8 +832,6 @@ export async function generateGeminiBossText(
             error: `Gemini Boss exhausted its bounded model attempts before receiving a usable response: ${lastError}`,
           };
         }
-      } finally {
-        clearTimeout(timer);
       }
     }
   }
