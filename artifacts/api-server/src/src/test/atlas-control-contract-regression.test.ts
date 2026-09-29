@@ -31,7 +31,9 @@ describe("Atlas control-plane contract regression", () => {
     expect(rightHandSource).toContain("rateLimitRetryDelayMs");
     expect(rightHandSource).toContain("phase: \"rate_limit_backoff\"");
     expect(rightHandSource).toContain("if (response.status === 429)");
-    expect(rightHandSource).toContain("const chain = [GEMINI_RIGHT_HAND_MODEL]");
+    expect(rightHandSource).toContain("const resolvedChain = await resolveModelChain()");
+    expect(rightHandSource).toContain("resolvedChain.length");
+    expect(rightHandSource).toContain("No Groq/Mistral substitution is permitted here.");
     expect(rightHandSource).toContain("Never browse or act as Investigator");
     expect(controlSource).toContain("INVESTIGATOR TEXT REPORT");
     expect(rightHandSource).toContain("MAX_RATE_LIMIT_RETRIES = 1");

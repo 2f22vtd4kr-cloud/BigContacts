@@ -26,11 +26,23 @@ describe("Gemini Right-hand text-only control transport", () => {
     }), { status: 200 });
   }
 
-  it("uses one configured text model without a catalog probe or equivalent-model fan-out", async () => {
+  function catalog() {
+    return new Response(JSON.stringify({
+      models: [
+        { name: "models/gemini-3.8-flash" },
+        { name: "models/gemini-3.7-flash" },
+        { name: "models/gemini-3.6-flash" },
+        { name: "models/gemini-3.5-flash" },
+      ],
+    }), { status: 200 });
+  }
+
+  it("uses the preferred model first after resolving the live catalog", async () => {
     process.env.GEMINI_RIGHT_HAND_API_KEY = "test-key";
     const calls: Array<{ url: string; model?: string }> = [];
     globalThis.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
+      if (url.endsWith("/v1beta/models")) return catalog();
       const body = init?.body ? JSON.parse(String(init.body)) as { model?: string } : {};
       calls.push({ url, model: body.model });
       return ok();
@@ -52,6 +64,7 @@ describe("Gemini Right-hand text-only control transport", () => {
     const attempts: string[] = [];
     globalThis.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
+      if (url.endsWith("/v1beta/models")) return catalog();
       const body = init?.body ? JSON.parse(String(init.body)) as { model?: string } : {};
       if (!url.includes("/v1beta/interactions")) throw new Error("unexpected non-generation request");
       attempts.push(body.model ?? "");
@@ -66,12 +79,13 @@ describe("Gemini Right-hand text-only control transport", () => {
     expect(attempts).toEqual([GEMINI_RIGHT_HAND_MODEL, GEMINI_RIGHT_HAND_MODEL]);
   });
 
-  it("does not model-hop on HTTP 429; quota guard fails closed without burning another model request", async () => {
+  it("keeps HTTP 429 on the same model and does not burn equivalent model requests", async () => {
     process.env.GEMINI_RIGHT_HAND_API_KEY = "test-key-429";
     process.env.APEX_GEMINI_RIGHT_HAND_RATE_LIMIT_RETRY_DELAY_MS = "10";
     const attempts: string[] = [];
     globalThis.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
+      if (url.endsWith("/v1beta/models")) return catalog();
       const body = init?.body ? JSON.parse(String(init.body)) as { model?: string } : {};
       if (!url.includes("/v1beta/interactions")) throw new Error("unexpected non-generation request");
       attempts.push(body.model ?? "");
@@ -82,15 +96,16 @@ describe("Gemini Right-hand text-only control transport", () => {
     const result = await runGeminiRightHandFreeJson("Return JSON.");
 
     expect(result.status).toBe("unavailable");
-    expect(attempts).toEqual([GEMINI_RIGHT_HAND_MODEL])
-    expect(result.error).toContain("bounded same-role model attempts");
+    expect(attempts).toEqual([GEMINI_RIGHT_HAND_MODEL]);
+    expect(result.error).toContain("rate limit persisted");
   });
 
-  it("does not model-hop on HTTP 503; it remains bounded to the configured Right-hand model", async () => {
+  it("model-hops through the bounded live same-role chain on HTTP 503", async () => {
     process.env.GEMINI_RIGHT_HAND_API_KEY = "test-key-503";
     const attempts: string[] = [];
     globalThis.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
+      if (url.endsWith("/v1beta/models")) return catalog();
       const body = init?.body ? JSON.parse(String(init.body)) as { model?: string } : {};
       if (!url.includes("/v1beta/interactions")) throw new Error("unexpected non-generation request");
       attempts.push(body.model ?? "");
@@ -101,16 +116,22 @@ describe("Gemini Right-hand text-only control transport", () => {
     const result = await runGeminiRightHandFreeJson("Return JSON.");
 
     expect(result.status).toBe("unavailable");
-    expect(attempts).toEqual([GEMINI_RIGHT_HAND_MODEL]);
+    expect(attempts).toEqual([
+      "gemini-3.8-flash",
+      "gemini-3.7-flash",
+      "gemini-3.6-flash",
+      "gemini-3.5-flash",
+    ]);
     expect(result.error).toContain("exhausted bounded same-role model attempts");
   });
 
-  it("ignores environment-controlled fallback chains", async () => {
+  it("ignores environment-controlled fallback chains and uses the provider catalog", async () => {
     process.env.GEMINI_RIGHT_HAND_API_KEY = "test-key";
     process.env.GEMINI_RIGHT_HAND_MODEL_CHAIN = "gemini-9.9-flash,gemini-1.0-flash";
     const calls: string[] = [];
     globalThis.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
+      if (url.endsWith("/v1beta/models")) return catalog();
       calls.push(url);
       if (!url.includes("/v1beta/interactions")) throw new Error("unexpected non-generation request");
       return ok();
@@ -121,6 +142,7 @@ describe("Gemini Right-hand text-only control transport", () => {
 
     expect(result.status).toBe("completed");
     expect(calls).toHaveLength(1);
+    expect(calls[0]).toContain("/v1beta/interactions");
   });
 
   it("does not expose provider response bodies", async () => {
@@ -128,6 +150,7 @@ describe("Gemini Right-hand text-only control transport", () => {
     const secretProviderMessage = "secret provider response must never escape the diagnostics boundary";
     globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
+      if (url.endsWith("/v1beta/models")) return catalog();
       if (!url.includes("/v1beta/interactions")) throw new Error("unexpected non-generation request");
       return new Response(JSON.stringify({ error: { code: "INVALID_ARGUMENT", message: secretProviderMessage } }), { status: 400 });
     });

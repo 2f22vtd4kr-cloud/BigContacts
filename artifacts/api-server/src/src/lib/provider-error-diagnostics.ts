@@ -130,6 +130,10 @@ export function describeThrownProviderError(error: unknown): ProviderThrownDiagn
 }
 
 export function classifyThrownProviderError(error: unknown, aborted = false): ProviderFailureClass {
+  // The provider quota gate throws this locally before another HTTP request can
+  // be attempted. Treat it as rate limiting, never as a transport failure that
+  // could accidentally advance to another same-role model.
+  if (error instanceof Error && error.name === "ProviderQuotaError") return "rate_limited";
   if (aborted) return "cancelled";
   if (error instanceof Error && error.name === "AbortError") return "timeout";
   if (error instanceof Error && /timeout|timed out/i.test(error.message)) return "timeout";
