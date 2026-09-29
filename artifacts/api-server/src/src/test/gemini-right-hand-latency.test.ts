@@ -37,14 +37,15 @@ describe("Gemini Right-hand latency controls", () => {
     expect(getGeminiRightHandLatencyConfig()).toEqual({ requestTimeoutMs: 25_000, overallTimeoutMs: 55_000 });
   });
 
-  it("uses bounded low-thinking Gemini 3 control generation", async () => {
+  it("uses bounded minimal-thinking Gemini 3 Flash-Lite control generation", async () => {
     process.env.GEMINI_RIGHT_HAND_API_KEY = "test-key";
     const fetchMock = vi.fn<typeof fetch>()
       .mockResolvedValueOnce(new Response(JSON.stringify({ models: [
         { name: "models/gemini-3.8-flash" },
         { name: "models/gemini-3.7-flash" },
         { name: "models/gemini-3.6-flash" },
-        { name: "models/gemini-3.5-flash" },
+        { name: "models/gemini-3.5-flash-lite" },
+        { name: "models/gemini-3.1-flash-lite" },
       ] }), { status: 200 }))
       .mockResolvedValueOnce(new Response(JSON.stringify({
         steps: [{ type: "model_output", content: [{ type: "text", text: '{"decision":"continue","reason":"test","focusLanes":[],"confidence":0.5}' }] }],
@@ -58,9 +59,9 @@ describe("Gemini Right-hand latency controls", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
 
     const body = JSON.parse(String(fetchMock.mock.calls[1]?.[1]?.body));
-    expect(body.generation_config.max_output_tokens).toBe(768);
+    expect(body.generation_config.max_output_tokens).toBe(512);
     expect(body.generation_config.responseMimeType).toBeUndefined();
-    expect(body.generation_config.thinking_level).toBeUndefined();
+    expect(body.generation_config.thinking_level).toBe("minimal");
     expect(body.generation_config.temperature).toBeUndefined();
   });
 
@@ -71,7 +72,8 @@ describe("Gemini Right-hand latency controls", () => {
         { name: "models/gemini-3.8-flash" },
         { name: "models/gemini-3.7-flash" },
         { name: "models/gemini-3.6-flash" },
-        { name: "models/gemini-3.5-flash" },
+        { name: "models/gemini-3.5-flash-lite" },
+        { name: "models/gemini-3.1-flash-lite" },
       ] }), { status: 200 }))
       .mockResolvedValueOnce(new Response(JSON.stringify({
         steps: [{ type: "model_output", content: [{ type: "text", text: '{"decision":"continue","reason":"test","focusLanes":[],"confidence":0.5}' }] }],
@@ -88,7 +90,7 @@ describe("Gemini Right-hand latency controls", () => {
     expect(telemetry).toMatchObject({
       role: "gemini_right_hand",
       phase: "request_resolved",
-      model: "gemini-3.8-flash",
+      model: "gemini-3.1-flash-lite",
       httpStatus: 200,
       requestDeadlineFired: false,
       overallDeadlineFired: false,
@@ -110,7 +112,8 @@ describe("Gemini Right-hand latency controls", () => {
         { name: "models/gemini-3.8-flash" },
         { name: "models/gemini-3.7-flash" },
         { name: "models/gemini-3.6-flash" },
-        { name: "models/gemini-3.5-flash" },
+        { name: "models/gemini-3.5-flash-lite" },
+        { name: "models/gemini-3.1-flash-lite" },
       ] }), { status: 200 }))
       .mockResolvedValueOnce(new Response(JSON.stringify({
         steps: [{ type: "model_output", content: [{ type: "text", text: '{"decision":"continue","reason":"test","focusLanes":[],"confidence":0.5}' }] }],
