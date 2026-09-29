@@ -9,6 +9,7 @@ import {
   classifyThrownProviderError,
   describeThrownProviderError,
   summarizeProviderBody,
+  providerErrorCode,
 } from "./provider-error-diagnostics";
 
 installGeminiTransientRetry();
@@ -177,6 +178,12 @@ function rateLimitRetryDelayMs(response: Response, remainingMs: number): number 
 }
 function isGemini3Model(model: string): boolean { return /^gemini-3(?:\.\d+)?-/i.test(model); }
 
+function shouldRetry429(errorCode: string | null): boolean {
+  // Gemini Interactions distinguishes burst/rate exhaustion from daily quota
+  // exhaustion. Only the former is worth a bounded same-model retry.
+  return errorCode !== "quota_exceeded";
+}
+
 function parseGeminiRightHandResponse(responseBody: string, model: string): GeminiRequestResult {
   try {
     const payload = JSON.parse(responseBody) as {
@@ -341,6 +348,7 @@ async function request(system: string, user: string, responseFormat?: Record<str
       }
       const totalElapsedMs = Date.now() - attemptStartedAt;
       const responseShape = summarizeProviderBody(responseBody);
+      const providerErrorCodeValue = response.ok ? null : providerErrorCode(responseBody);
       const failureClass = response.ok ? null : classifyProviderHttpStatus(response.status);
       logger.info(
         {
@@ -359,6 +367,7 @@ async function request(system: string, user: string, responseFormat?: Record<str
           httpStatus: response.status,
           responseBytes: Buffer.byteLength(responseBody),
           failureClass,
+          providerErrorCode: providerErrorCodeValue,
           responseShape,
           requestDeadlineFired,
           overallDeadlineFired,
@@ -372,7 +381,7 @@ async function request(system: string, user: string, responseFormat?: Record<str
         // A 429 is credential/project quota, not model capacity. One bounded
         // Retry-After wait is allowed for the same model, but never advance to
         // another Gemini model and multiply quota pressure.
-        if (transportRetry < MAX_RATE_LIMIT_RETRIES && Date.now() < deadline) {
+        if (shouldRetry429(providerErrorCodeValue) && transportRetry < MAX_RATE_LIMIT_RETRIES && Date.now() < deadline) {
           const retryDelayMs = rateLimitRetryDelayMs(response, Math.max(0, deadline - Date.now()));
           if (retryDelayMs > 0) {
             transportRetry += 1;
@@ -383,8 +392,15 @@ async function request(system: string, user: string, responseFormat?: Record<str
             await new Promise<void>((resolve) => setTimeout(resolve, retryDelayMs));
           }
         }
-        failures.push(`${model} rate_limited HTTP 429`);
-        return { raw: "", error: `Gemini Right-hand rate limit persisted after bounded backoff: ${failures.join("; ")}`, model };
+        failures.push(`${model} rate_limited HTTP 429${providerErrorCodeValue ? ` ${providerErrorCodeValue}` : ""}`);
+        const quotaNote = providerErrorCodeValue === "quota_exceeded"
+          ? " Gemini reports daily quota exhaustion; model fallback would not repair a project quota."
+          : "";
+        return {
+          raw: "",
+          error: `Gemini Right-hand rate limit persisted after bounded backoff: ${failures.join("; ")}.${quotaNote}`,
+          model,
+        };
       }
       failures.push(`${model} ${failureClass ?? "http_error"} HTTP ${response.status}`);
       if (!shouldFallback(response.status)) {
