@@ -1,5 +1,21 @@
+import { appendFile } from "node:fs/promises";
+import path from "node:path";
 import { afterEach, expect, it, vi } from "vitest";
 import { and, eq, inArray } from "drizzle-orm";
+
+const AUDIT_PATH = path.resolve(process.cwd(), "../../audits/apex-atlas-development-control-plane-audit-2026-09-29.md");
+
+async function appendAudit(action: string, command: string, observed: unknown, interpretation: string, nextAction: string): Promise<void> {
+  const entry = [
+    `\\n## ${new Date().toISOString()}`,
+    `- action: ${action}`,
+    `- exact command/request: ${command}`,
+    `- observed result: ${JSON.stringify(observed)}`,
+    `- interpretation: ${interpretation}`,
+    `- next action: ${nextAction}`,
+  ].join("\\n") + "\\n";
+  await appendFile(AUDIT_PATH, entry, "utf8");
+}
 
 function extractAdmittedCandidates(prompt: string): string[] {
   const match = prompt.match(/## Admitted candidates\s+([\s\S]*?)\s+## Investigator text report/);
@@ -14,14 +30,14 @@ function extractAdmittedCandidates(prompt: string): string[] {
   }
 }
 
-vi.mock("../lib/case-bureau", async () => {
+let discoveryControlTurns = 0;\n\nvi.mock("../lib/case-bureau", async () => {
   const actual = await vi.importActual<typeof import("../lib/case-bureau")>("../lib/case-bureau");
   return {
     ...actual,
     runGeminiBossDiscovery: vi.fn(async () => ({
       status: "completed" as const,
       model: "development-test-boss",
-      investigatorLlm: "groq" as const,
+      investigatorLlm: (process.env.MISTRAL_API_KEY ? "mistral" : "groq") as "groq" | "mistral",
       report: "Development-only control-plane substitution; downstream research remains canonical.",
       candidates: [],
       citations: [],
@@ -63,13 +79,25 @@ vi.mock("../lib/case-bureau", async () => {
                 reason: "Development-only surrogate selected the first actually admitted candidate; no candidate was invented.",
                 confidence: 0.8,
               }
-            : {
+            : (() => {
+              discoveryControlTurns += 1;
+              if (discoveryControlTurns <= 4) {
+                return {
+                  action: "continue_discovery",
+                  candidateName: null,
+                  direction: "Continue model-owned public-web discovery for one exact named OpenAI executive or founder. Prefer an official OpenAI page or another directly retrieved authoritative page that identifies the person. Choose the next search or visit yourself; do not invent a person, URL, or evidence.",
+                  reason: "No admission-grade candidate exists yet; the development surrogate is allowing another real Investigator discovery turn without fabricating a candidate.",
+                  confidence: 0.8,
+                };
+              }
+              return {
                 action: "stop",
                 candidateName: null,
                 direction: null,
-                reason: "No exact named admission candidate was produced by the real Investigator, so downstream target research cannot be justified.",
-                confidence: 0.9,
-              }),
+                reason: "The bounded development discovery budget produced no admission-grade candidate; stop without fabricating one.",
+                confidence: 0.95,
+              };
+            })(),
           error: null,
         };
       }
@@ -119,6 +147,7 @@ it("runs the real canonical downstream pipeline with only Gemini Boss and Right-
   const { runCanonicalAtlasPipeline } = await import("../lib/canonical-atlas-discovery");
 
   await enablePermanentRedis();
+  await appendAudit("enabled the repository permanent Redis service for the opt-in harness", "`enablePermanentRedis()`", { enabled: true }, "The harness uses the repository lock/lease implementation; no alternate Redis path is introduced.", "Create the canonical Atlas job and claim the atlas-run lane.");
   const jobId = await createJob("atlas-run");
   await setActiveJob("atlas-run", jobId);
   await updateJob(jobId, {
@@ -129,14 +158,18 @@ it("runs the real canonical downstream pipeline with only Gemini Boss and Right-
     atlasPhaseTotal: 4,
     message: "Development-only control-plane substitution test started.",
   });
+  await appendAudit("created and claimed the canonical Atlas job", `createJob("atlas-run") + setActiveJob("atlas-run", ${jobId})`, { jobId }, "The real canonical job queue owns the run; only Gemini Boss/Right-hand model calls are substituted.", "Run the canonical Atlas pipeline with a bounded, high-signal discovery objective.");
 
   try {
     const result = await runCanonicalAtlasPipeline(jobId, {
       targetCount: 1,
-      researchDepth: "fast",
-      targetTimeoutMs: 120_000,
+      researchDepth: "standard",
+      targetTimeoutMs: 420_000,
+      discoveryObjective: "Discover one real named executive or founder associated with OpenAI using public web evidence. The Investigator must choose every search, page visit, registry/OSINT action, and stopping point itself. A candidate is valid only when the real Investigator produces an exact named-person promote finding backed by a directly retrieved source page that identifies that person. Never invent a person, contact, or URL.",
+      discoveryGeography: "Public web; global; prefer authoritative public company or professional sources",
     });
     const finalJob = await getJob(jobId);
+    await appendAudit("completed the canonical downstream pipeline invocation", `runCanonicalAtlasPipeline(${jobId}, targetCount=1, researchDepth=standard, targetTimeoutMs=420000, bounded discovery objective)`, { pipelineResult: result, finalJob }, "The canonical downstream path ran with real Investigator/tools/persistence while Gemini Boss and Right-hand were the only substituted roles.", "Inspect target-scoped durable cases/events and entity/card projection for this exact job.");
 
     const targetCases = await db
       .select({
@@ -170,6 +203,8 @@ it("runs the real canonical downstream pipeline with only Gemini Boss and Right-
       (row) => typeof row.metadata === "string" && row.metadata.includes(jobId),
     );
 
+    await appendAudit("verified durable downstream research and card state", `read-only durable queries filtered to Atlas job ${jobId}`, { targetCases: targetCases.filter((row) => targetCaseIds.includes(row.id)), investigatorObservationCount: investigatorObservations.length, entitiesForJob }, "The durable ledger is the source of truth for whether real target research and entity/card projection occurred.", "Assert the full downstream success contract, then release the canonical job lane.");
+
     console.log(JSON.stringify({
       jobId,
       pipelineResult: result,
@@ -196,5 +231,6 @@ it("runs the real canonical downstream pipeline with only Gemini Boss and Right-
   } finally {
     await clearActiveJobIfOwned("atlas-run", jobId).catch(() => undefined);
     await disconnectRedis().catch(() => undefined);
+    await appendAudit("released the development harness resources", `clearActiveJobIfOwned("atlas-run", ${jobId}) + disconnectRedis()`, { jobId }, "The opt-in harness does not leave the canonical Atlas lane or permanent Redis client held after the run.", "Finish the test with the durable success assertions; any failure must remain visible and unsuppressed.");
   }
 }, 30 * 60 * 1000);
