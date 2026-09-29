@@ -24,6 +24,7 @@ describe("Gemini Right-hand structured output", () => {
         { name: "models/gemini-3.6-flash" },
         { name: "models/gemini-3.5-flash" },
         { name: "models/gemini-3.5-flash-lite" },
+        { name: "models/gemini-3.1-flash-lite" },
       ],
     }), { status: 200 });
   }
@@ -47,7 +48,8 @@ describe("Gemini Right-hand structured output", () => {
     expect(body.model).toBe(GEMINI_RIGHT_HAND_MODEL);
     expect(body.response_format).toMatchObject({ type: "text", mime_type: "application/json" });
     expect(body.response_format.schema).toEqual({ type: "object" });
-    expect(body.generation_config?.max_output_tokens).toBe(768);
+    expect(body.generation_config?.max_output_tokens).toBe(512);
+    expect(body.generation_config?.thinking_level).toBe("minimal");
   });
 
   it("fails closed on malformed control output rather than model-hopping or browsing", async () => {
