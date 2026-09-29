@@ -150,6 +150,7 @@ describe("Gemini Right-hand text-only control transport", () => {
     const secretProviderMessage = "secret provider response must never escape the diagnostics boundary";
     globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {
       const url = String(input);
+      if (url.endsWith("/v1beta/models")) return catalog();
       if (!url.includes("/v1beta/interactions")) throw new Error("unexpected non-generation request");
       return new Response(JSON.stringify({ error: { code: "INVALID_ARGUMENT", message: secretProviderMessage } }), { status: 400 });
     });
