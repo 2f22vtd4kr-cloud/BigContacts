@@ -701,7 +701,7 @@ export async function generateGeminiBossText(
         const fetchElapsedMs = Date.now() - attemptStartedAt;
         const totalElapsedMs = Date.now() - attemptStartedAt;
         const responseShape = summarizeProviderBody(responseText);
-        const providerErrorCodeValue = response.ok ? null : providerErrorCode(responseText);
+        let providerErrorCodeValue = response.ok ? null : providerErrorCode(responseText);
         const failureClass = response.ok ? null : classifyProviderHttpStatus(response.status);
         logger.info(
           {
@@ -772,6 +772,7 @@ export async function generateGeminiBossText(
                 signal: rateLimitController.signal,
               });
               responseText = await response.text();
+              providerErrorCodeValue = response.ok ? null : providerErrorCode(responseText);
             } finally {
               clearTimeout(rateLimitTimer);
             }
