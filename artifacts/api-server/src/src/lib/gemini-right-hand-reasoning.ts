@@ -378,9 +378,10 @@ async function request(system: string, user: string, responseFormat?: Record<str
       if (response.ok) return parseGeminiRightHandResponse(responseBody, model);
 
       if (response.status === 429) {
-        // A 429 is credential/project quota, not model capacity. One bounded
-        // Retry-After wait is allowed for the same model, but never advance to
-        // another Gemini model and multiply quota pressure.
+        // Never model-hop on 429: the provider may be enforcing a project-level
+        // limit. Burst/rate-limit 429s get one bounded same-model backoff; daily
+        // quota exhaustion fails closed immediately because this turn cannot
+        // restore the quota.
         if (shouldRetry429(providerErrorCodeValue) && transportRetry < MAX_RATE_LIMIT_RETRIES && Date.now() < deadline) {
           const retryDelayMs = rateLimitRetryDelayMs(response, Math.max(0, deadline - Date.now()));
           if (retryDelayMs > 0) {
