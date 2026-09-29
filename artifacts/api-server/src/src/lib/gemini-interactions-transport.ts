@@ -44,14 +44,29 @@ export async function fetchGeminiInteractions(input: RequestInfo | URL, init?: R
     const body = typeof init?.body === "string" ? init.body : null;
     if (body === null) throw error;
 
-    return await new Promise<Response>((resolve, reject) => {
-      const request = httpsRequest(
-        url,
-        {
-          method: init?.method ?? "GET",
-          headers: Object.fromEntries(headers.entries()),
-          ...(init?.signal ? { signal: init.signal } : {}),
-        },
+    // Do not reuse the same signal directly for the native retry. The first
+    // undici/fetch attempt may have consumed most of the caller's timeout budget
+    // before failing, and passing that same signal to a fresh socket leaves the
+    // fallback with only the tail of the original deadline. Relay cancellation
+    // instead: the native retry gets a fresh controller while still respecting
+    // the caller's eventual abort.
+    const fallbackController = new AbortController();
+    const callerSignal = init?.signal;
+    const relayAbort = () => fallbackController.abort(callerSignal?.reason);
+    if (callerSignal) {
+      if (callerSignal.aborted) throw error;
+      callerSignal.addEventListener("abort", relayAbort, { once: true });
+    }
+
+    try {
+      return await new Promise<Response>((resolve, reject) => {
+        const request = httpsRequest(
+          url,
+          {
+            method: init?.method ?? "GET",
+            headers: Object.fromEntries(headers.entries()),
+            signal: fallbackController.signal,
+          },
         (response) => {
           const chunks: Buffer[] = [];
           response.on("data", (chunk: Buffer | string) => {
@@ -75,8 +90,12 @@ export async function fetchGeminiInteractions(input: RequestInfo | URL, init?: R
           response.on("error", reject);
         },
       );
-      request.on("error", reject);
-      request.end(body);
-    });
+          request.on("error", reject);
+          request.end(body);
+        });
+      });
+    } finally {
+      callerSignal?.removeEventListener("abort", relayAbort);
+    }
   }
 }
