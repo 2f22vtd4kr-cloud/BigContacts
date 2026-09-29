@@ -30,7 +30,9 @@ function extractAdmittedCandidates(prompt: string): string[] {
   }
 }
 
-let discoveryControlTurns = 0;\n\nvi.mock("../lib/case-bureau", async () => {
+const discoveryControlState = vi.hoisted(() => ({ turns: 0 }));
+
+vi.mock("../lib/case-bureau", async () => {
   const actual = await vi.importActual<typeof import("../lib/case-bureau")>("../lib/case-bureau");
   return {
     ...actual,
