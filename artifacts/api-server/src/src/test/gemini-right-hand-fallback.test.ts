@@ -33,6 +33,7 @@ describe("Gemini Right-hand text-only control transport", () => {
         { name: "models/gemini-3.7-flash" },
         { name: "models/gemini-3.6-flash" },
         { name: "models/gemini-3.5-flash" },
+        { name: "models/gemini-3.5-flash-lite" },
       ],
     }), { status: 200 });
   }
@@ -117,10 +118,10 @@ describe("Gemini Right-hand text-only control transport", () => {
 
     expect(result.status).toBe("unavailable");
     expect(attempts).toEqual([
+      "gemini-3.5-flash-lite",
       "gemini-3.8-flash",
       "gemini-3.7-flash",
       "gemini-3.6-flash",
-      "gemini-3.5-flash",
     ]);
     expect(result.error).toContain("exhausted bounded same-role model attempts");
   });
