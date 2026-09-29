@@ -7,13 +7,13 @@ const AUDIT_PATH = path.resolve(process.cwd(), "../../audits/apex-atlas-developm
 
 async function appendAudit(action: string, command: string, observed: unknown, interpretation: string, nextAction: string): Promise<void> {
   const entry = [
-    `\\n## ${new Date().toISOString()}`,
+    `\n## ${new Date().toISOString()}`,
     `- action: ${action}`,
     `- exact command/request: ${command}`,
     `- observed result: ${JSON.stringify(observed)}`,
     `- interpretation: ${interpretation}`,
     `- next action: ${nextAction}`,
-  ].join("\\n") + "\\n";
+  ].join("\n") + "\n";
   await appendFile(AUDIT_PATH, entry, "utf8");
 }
 
