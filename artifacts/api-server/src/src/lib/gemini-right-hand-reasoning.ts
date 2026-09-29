@@ -208,7 +208,14 @@ async function request(system: string, user: string, responseFormat?: Record<str
   // Right-hand is a text-only oversight role. One control turn must be one bounded
   // request to the configured model; model catalog probing and equivalent-model
   // fan-out consume free-tier request budget and are not research capabilities.
-  const chain = [GEMINI_RIGHT_HAND_MODEL];
+  // Resolve the live Gemini catalog for this credential. The preferred model
+  // remains 3.8 Flash, but provider capacity/entitlement failures must advance
+  // through same-role compatible Gemini candidates instead of pinning the role
+  // to one model. No Groq/Mistral substitution is permitted here.
+  const resolvedChain = await resolveModelChain();
+  const chain = resolvedChain.length
+    ? resolvedChain.slice(0, MAX_MODEL_ATTEMPTS)
+    : [GEMINI_RIGHT_HAND_MODEL];
   const failures: string[] = [];
   const configuredRequestTimeoutMs = requestTimeoutMs();
   const configuredOverallTimeoutMs = overallTimeoutMs();
