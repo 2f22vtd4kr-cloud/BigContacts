@@ -144,14 +144,14 @@ async function resolveModelChain(): Promise<string[]> {
     logger.warn({
       role: "gemini_right_hand",
       phase: "model_catalog_empty",
-    }, "Gemini Right-hand model catalog returned no usable candidates; using documented Interactions candidates");
+    }, "Gemini Right-hand model catalog returned no usable stable Flash-Lite candidates");
     return [];
   } catch (error) {
     logger.warn({
       role: "gemini_right_hand",
       phase: "model_catalog_rejected",
       errorName: error instanceof Error ? error.name : "unknown",
-    }, "Gemini Right-hand model catalog request failed; using documented Interactions candidates");
+    }, "Gemini Right-hand model catalog request failed; failing closed without a hardcoded model ladder");
     return [];
   }
 }
@@ -167,8 +167,6 @@ function rateLimitRetryDelayMs(response: Response, remainingMs: number): number 
   }
   return Math.min(configuredRateLimitRetryDelayMs(), MAX_RATE_LIMIT_RETRY_DELAY_MS, Math.max(0, remainingMs));
 }
-function isGemini3Model(model: string): boolean { return /^gemini-3(?:\.\d+)?-/i.test(model); }
-
 function shouldRetry429(errorCode: string | null): boolean {
   // Gemini Interactions distinguishes burst/rate exhaustion from daily quota
   // exhaustion. Only the former is worth a bounded same-model retry.
@@ -208,9 +206,9 @@ async function request(system: string, user: string, responseFormat?: Record<str
   // request to the configured model; model catalog probing and equivalent-model
   // fan-out consume free-tier request budget and are not research capabilities.
   // Resolve the live Gemini catalog for this credential. The preferred model
-  // remains 3.8 Flash, but provider capacity/entitlement failures must advance
-  // through same-role compatible Gemini candidates instead of pinning the role
-  // to one model. No Groq/Mistral substitution is permitted here.
+  // remains the low-cost Flash-Lite role; provider capacity/entitlement failures
+  // may advance only through stable Flash-Lite candidates from the live catalog.
+  // No Groq/Mistral substitution is permitted here.
   const resolvedChain = await resolveModelChain();
   const chain = resolvedChain.slice(0, MAX_MODEL_ATTEMPTS);
   if (chain.length === 0) {
