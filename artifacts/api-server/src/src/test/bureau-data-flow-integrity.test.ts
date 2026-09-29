@@ -13,7 +13,6 @@ describe("Apex Atlas Bureau data-flow integrity", () => {
     const durableFiles = [
       "artifacts/api-server/src/src/lib/agentic-web-research.ts",
       "artifacts/api-server/src/src/lib/canonical-atlas-discovery.ts",
-      "artifacts/api-server/src/src/lib/canonical-single-target-runner.ts",
       "artifacts/api-server/src/src/lib/target-contact-agent.ts",
       "artifacts/api-server/src/src/lib/target-act-oversight.ts",
       "artifacts/api-server/src/src/lib/bureau-agentic-pass.ts",
@@ -25,6 +24,9 @@ describe("Apex Atlas Bureau data-flow integrity", () => {
       expect(content).not.toMatch(/Math\.min\(\s*40\s*,/);
       expect(content).not.toMatch(/maxCandidates/);
     }
+
+    const targetRunner = source("artifacts/api-server/src/src/lib/canonical-single-target-runner.ts");
+    expect(targetRunner).toContain("recentActs: recentActs.slice(-4)");
 
     const bossPrompt = source("artifacts/api-server/src/src/lib/case-bureau-prompt.ts");
     const compactor = source("artifacts/api-server/src/src/lib/investigation-context-compaction.ts");
