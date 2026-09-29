@@ -454,8 +454,149 @@ async function request(system: string, user: string, responseFormat?: Record<str
   };
 }
 
-function compactCase(file: ResearchCaseFile): string { return JSON.stringify({ target: file.target, hypotheses: file.hypotheses, evidenceSummary: file.evidenceSummary, specialistRoster: file.specialistRoster, actionQueue: file.actionQueue, contactRoutes: file.contactRoutes, investigationProgress: file.investigationProgress, researchDepth: file.researchDepth, decisionLog: file.decisionLog, rightHandAdvice: file.rightHandAdvice, bossPlan: file.bossPlan }, null, 2); }
-function compactDiscovery(file: DiscoveryCaseFile): string { return JSON.stringify({ humanBrief: file.humanBrief, bossPremise: file.bossPremise, candidateLanes: file.candidateLanes, initialResearch: file.initialResearch, investigatorReports: file.investigatorReports, currentProgress: file.currentProgress, discoveredCandidates: file.discoveredCandidates, orgFootprint: file.orgFootprint, decisionLog: file.decisionLog }, null, 2); }
+function clip(value: string | null | undefined, maxChars = 360): string | null {
+  if (typeof value !== "string") return value ?? null;
+  const trimmed = value.trim();
+  return trimmed.length <= maxChars ? trimmed : `${trimmed.slice(0, Math.max(0, maxChars - 1))}…`;
+}
+function clipStrings(values: readonly string[] | null | undefined, maxItems = 8, maxChars = 360): string[] {
+  return (values ?? []).slice(0, maxItems).map((value) => clip(value, maxChars) ?? "");
+}
+function compactCase(file: ResearchCaseFile): string {
+  const queued = file.actionQueue
+    .filter((action) => action.status === "queued")
+    .map((action) => ({
+      id: action.id,
+      title: action.title,
+      purpose: clip(action.purpose, 280),
+      specialistId: action.specialistId,
+      priority: action.priority,
+      rationale: clip(action.rationale, 280),
+    }));
+  const routes = file.contactRoutes.slice(0, 12).map((route) => ({
+    rank: route.rank,
+    vectorType: route.vectorType,
+    value: clip(route.value, 180),
+    personName: clip(route.personName, 120),
+    role: clip(route.role, 120),
+    state: route.state,
+    sourceUrls: route.sourceUrls.slice(0, 2),
+  }));
+  const progress = file.investigationProgress
+    ? {
+        pendingVectors: file.investigationProgress.pendingVectors,
+        foundPersonalCount: file.investigationProgress.foundPersonalCount,
+        foundAnyCount: file.investigationProgress.foundAnyCount,
+        coverageRatio: file.investigationProgress.coverageRatio,
+        vectors: file.investigationProgress.vectors.map((vector) => ({
+          id: vector.id,
+          status: vector.status,
+          values: vector.values.slice(0, 2).map((value) => clip(value, 140)),
+          note: clip(vector.note, 180),
+        })),
+      }
+    : null;
+  const bossPlan = file.bossPlan
+    ? {
+        model: file.bossPlan.model,
+        status: file.bossPlan.status,
+        outcome: file.bossPlan.outcome,
+        actionId: file.bossPlan.actionId,
+        decision: clip(file.bossPlan.decision, 300),
+        reason: clip(file.bossPlan.reason, 360),
+        progressAssessment: clip(file.bossPlan.progressAssessment, 240),
+        rightHandDisposition: file.bossPlan.rightHandDisposition,
+        rightHandNote: clip(file.bossPlan.rightHandNote, 240),
+      }
+    : null;
+  return JSON.stringify({
+    target: file.target,
+    hypotheses: clipStrings(file.hypotheses, 6),
+    evidenceSummary: {
+      sourceRegistries: clipStrings(file.evidenceSummary.sourceRegistries, 8, 180),
+      discoveredPeople: clipStrings(file.evidenceSummary.discoveredPeople, 12, 180),
+      relatedOrganizations: clipStrings(file.evidenceSummary.relatedOrganizations, 12, 180),
+      evidenceCount: file.evidenceSummary.evidenceCount,
+      searchGaps: clipStrings(file.evidenceSummary.searchGaps, 8),
+      negativeFindings: clipStrings(file.evidenceSummary.negativeFindings, 8),
+    },
+    specialistRoster: file.specialistRoster.map((specialist) => ({
+      id: specialist.id,
+      title: specialist.title,
+      status: specialist.status,
+    })),
+    actionQueue: queued,
+    contactRoutes: routes,
+    investigationProgress: progress,
+    researchDepth: file.researchDepth,
+    decisionLog: file.decisionLog.slice(-6).map((entry) => ({
+      iteration: entry.iteration,
+      decision: clip(entry.decision, 260),
+      reason: clip(entry.reason, 320),
+    })),
+    rightHandAdvice: file.rightHandAdvice
+      ? {
+          status: file.rightHandAdvice.status,
+          actionId: file.rightHandAdvice.actionId,
+          decision: clip(file.rightHandAdvice.decision, 240),
+          reason: clip(file.rightHandAdvice.reason, 300),
+        }
+      : null,
+    bossPlan,
+  }, null, 2);
+}
+function compactDiscovery(file: DiscoveryCaseFile): string {
+  return JSON.stringify({
+    humanBrief: {
+      objective: clip(file.humanBrief.objective, 420),
+      motivation: clip(file.humanBrief.motivation, 280),
+      geography: clip(file.humanBrief.geography, 220),
+      exclusions: clipStrings(file.humanBrief.exclusions, 8, 180),
+    },
+    bossPremise: clip(file.bossPremise, 420),
+    investigationRules: clipStrings(file.investigationRules, 8, 240),
+    candidateLanes: clipStrings(file.candidateLanes, 10, 180),
+    initialResearch: {
+      status: file.initialResearch.status,
+      researchResponse: clip(file.initialResearch.researchResponse, 900),
+      bossCommentary: clip(file.initialResearch.bossCommentary, 500),
+      sourceUrls: file.initialResearch.sourceUrls.slice(0, 8),
+    },
+    investigatorReports: file.investigatorReports.slice(-6).map((report) => ({
+      id: report.id,
+      lane: report.lane,
+      provider: report.provider,
+      status: report.status,
+      iteration: report.iteration,
+      summary: clip(report.summary, 420),
+      findings: clipStrings(report.findings, 8, 240),
+      candidateNames: clipStrings(report.candidateNames, 8, 160),
+      sourceUrls: report.sourceUrls.slice(0, 6),
+      nextQuestions: clipStrings(report.nextQuestions, 6, 220),
+      error: clip(report.error, 240),
+    })),
+    currentProgress: {
+      reportCount: file.currentProgress.reportCount,
+      completedLanes: clipStrings(file.currentProgress.completedLanes, 10, 120),
+      openQuestions: clipStrings(file.currentProgress.openQuestions, 8, 240),
+      lastReviewedBy: file.currentProgress.lastReviewedBy,
+    },
+    discoveredCandidates: file.discoveredCandidates.slice(0, 12).map((candidate) => ({
+      name: candidate.name,
+      type: candidate.type,
+      relevance: clip(candidate.relevance, 280),
+      reachability: clip(candidate.reachability, 220),
+      sourceUrls: candidate.sourceUrls.slice(0, 3),
+      state: candidate.state,
+    })),
+    orgFootprint: file.orgFootprint,
+    decisionLog: file.decisionLog.slice(-6).map((entry) => ({
+      iteration: entry.iteration,
+      decision: clip(entry.decision, 260),
+      reason: clip(entry.reason, 320),
+    })),
+  }, null, 2);
+}
 export function getGeminiRightHandStatus(): GeminiRightHandStatus { return { configured: Boolean(key()), model: GEMINI_RIGHT_HAND_MODEL, fallbackModels: [...GEMINI_RIGHT_HAND_FALLBACK_MODELS], endpoint: GEMINI_INTERACTIONS_API, role: "right_hand_advisor", capability: "case_file_reasoning_only" }; }
 export async function runGeminiRightHandCaseReasoning(input: { file: ResearchCaseFile; iteration: number }): Promise<GeminiRightHandCaseReasoningResult> { const queued = input.file.actionQueue.filter((action) => action.status === "queued"); const system = "You are Apex Atlas Right Hand. Reason only over the supplied case file. Never browse, use external research, or invent evidence, contacts, people, URLs, or facts. Recommend exactly one existing queued action. Return JSON only."; const user = `Iteration ${input.iteration}. Identify what is newly unresolved, which contact vectors are still pending, and the highest-leverage complementary queued action.\nCASE:\n${compactCase(input.file)}\n\nQUEUED ACTIONS:\n${JSON.stringify(queued, null, 2)}\n\nReturn {\"actionId\":\"exact queued action id\",\"decision\":\"short recommendation\",\"reason\":\"concrete case-file evidence-gap reason\",\"confidence\":0.0}.`; const result = await request(system, user, { type: "text", mime_type: "application/json", schema: { type: "object", properties: { actionId: { type: "string" }, decision: { type: "string" }, reason: { type: "string" }, confidence: { type: "number" } }, required: ["actionId", "decision", "reason", "confidence"] } }); if (result.error) return { status: "unavailable", model: result.model, actionId: null, decision: null, reason: null, confidence: null, error: result.error }; const parsed = extractJson(result.raw); const actionId = typeof parsed?.actionId === "string" ? parsed.actionId.trim() : ""; const action = queued.find((candidate) => candidate.id === actionId); const decision = typeof parsed?.decision === "string" ? parsed.decision.trim() : ""; const reason = typeof parsed?.reason === "string" ? parsed.reason.trim() : ""; const confidence = typeof parsed?.confidence === "number" && Number.isFinite(parsed.confidence) ? Math.max(0, Math.min(1, parsed.confidence)) : null; if (!action || !decision || !reason) return { status: "unavailable", model: result.model, actionId: null, decision: null, reason: null, confidence, error: `Gemini Right-hand ${result.model} returned an invalid or non-queued recommendation.` }; return { status: "completed", model: result.model, actionId: action.id, decision, reason, confidence, error: null }; }
 export async function runGeminiRightHandDiscoveryAdvice(input: { file: DiscoveryCaseFile; iteration: number }): Promise<GeminiRightHandDiscoveryAdviceResult> { const system = "You are Apex Atlas Right Hand for public-record discovery. Reason only over supplied discovery case evidence. Never browse, use external research, or invent people, contacts, relationships, or URLs. Return JSON only."; const user = `Iteration ${input.iteration}. Recommend the most useful next research direction from the existing discovery frontier.\nDISCOVERY CASE:\n${compactDiscovery(input.file)}\n\nReturn {\"decision\":\"...\",\"reason\":\"...\",\"focusLanes\":[\"...\"],\"confidence\":0.0}.`; const result = await request(system, user, { type: "text", mime_type: "application/json", schema: { type: "object", properties: { decision: { type: "string" }, reason: { type: "string" }, focusLanes: { type: "array", items: { type: "string" } }, confidence: { type: "number" } }, required: ["decision", "reason", "focusLanes", "confidence"] } }); if (result.error) return { status: "unavailable", model: result.model, decision: null, reason: null, focusLanes: [], confidence: null, error: result.error }; const parsed = extractJson(result.raw); if (!parsed) return { status: "unavailable", model: result.model, decision: null, reason: null, focusLanes: [], confidence: null, error: `Gemini Right-hand ${result.model} returned invalid discovery JSON.` }; return { status: "completed", model: result.model, decision: typeof parsed.decision === "string" ? parsed.decision : null, reason: typeof parsed.reason === "string" ? parsed.reason : null, focusLanes: Array.isArray(parsed.focusLanes) ? parsed.focusLanes.filter((v): v is string => typeof v === "string") : [], confidence: typeof parsed.confidence === "number" ? Math.max(0, Math.min(1, parsed.confidence)) : null, error: null }; }
