@@ -29,11 +29,12 @@ describe("Gemini Right-hand text-only control transport", () => {
   function catalog() {
     return new Response(JSON.stringify({
       models: [
-        { name: "models/gemini-3.8-flash" },
-        { name: "models/gemini-3.7-flash" },
-        { name: "models/gemini-3.6-flash" },
-        { name: "models/gemini-3.5-flash" },
-        { name: "models/gemini-3.5-flash-lite" },
+        { name: "models/gemini-3.8-flash", supportedGenerationMethods: ["generateContent"] },
+        { name: "models/gemini-3.7-flash", supportedGenerationMethods: ["generateContent"] },
+        { name: "models/gemini-3.6-flash", supportedGenerationMethods: ["generateContent"] },
+        { name: "models/gemini-3.5-flash", supportedGenerationMethods: ["generateContent"] },
+        { name: "models/gemini-3.5-flash-lite", supportedGenerationMethods: ["generateContent"] },
+        { name: "models/gemini-3.1-flash-lite", supportedGenerationMethods: ["generateContent"] },
       ],
     }), { status: 200 });
   }
@@ -90,7 +91,7 @@ describe("Gemini Right-hand text-only control transport", () => {
       const body = init?.body ? JSON.parse(String(init.body)) as { model?: string } : {};
       if (!url.includes("/v1beta/interactions")) throw new Error("unexpected non-generation request");
       attempts.push(body.model ?? "");
-      return new Response(JSON.stringify({ error: { message: "quota exceeded" } }), { status: 429 });
+      return new Response(JSON.stringify({ error: { code: "quota_exceeded", message: "quota exceeded" } }), { status: 429 });
     });
     installExternalQuotaGuard();
 
@@ -101,7 +102,7 @@ describe("Gemini Right-hand text-only control transport", () => {
     expect(result.error).toContain("rate limit persisted");
   });
 
-  it("model-hops through the bounded live same-role chain on HTTP 503", async () => {
+  it("uses at most two live same-role Flash-Lite candidates on HTTP 503", async () => {
     process.env.GEMINI_RIGHT_HAND_API_KEY = "test-key-503";
     const attempts: string[] = [];
     globalThis.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -118,10 +119,8 @@ describe("Gemini Right-hand text-only control transport", () => {
 
     expect(result.status).toBe("unavailable");
     expect(attempts).toEqual([
+      "gemini-3.1-flash-lite",
       "gemini-3.5-flash-lite",
-      "gemini-3.8-flash",
-      "gemini-3.7-flash",
-      "gemini-3.6-flash",
     ]);
     expect(result.error).toContain("exhausted bounded same-role model attempts");
   });
