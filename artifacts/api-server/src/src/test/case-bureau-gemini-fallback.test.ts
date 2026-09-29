@@ -6,7 +6,7 @@ const selection = {
   status: "resolved" as const,
   inspectedKeyCount: 1,
   candidateCount: 3,
-  candidateModels: ["gemini-3.8-flash", "gemini-3.7-flash", "gemini-3.5-flash-lite"],
+  candidateModels: ["gemini-3.8-flash", "gemini-3.7-flash", "gemini-3.5-flash-lite", "gemini-3.1-flash-lite"],
   keyName: "GEMINI_API_KEY",
 };
 
@@ -81,14 +81,15 @@ describe("Gemini Boss text-only model authority", () => {
           { name: "models/gemini-3.8-flash" },
           { name: "models/gemini-3.7-flash" },
           { name: "models/gemini-3.5-flash-lite" },
+          { name: "models/gemini-3.1-flash-lite" },
         ],
       }));
 
     const result = await resolveGeminiBossModel();
 
     expect(result.status).toBe("resolved");
-    expect(result.model).toBe("gemini-3.5-flash-lite");
-    expect(result.candidateModels?.[0]).toBe("gemini-3.5-flash-lite");
+    expect(result.model).toBe("gemini-3.1-flash-lite");
+    expect(result.candidateModels?.[0]).toBe("gemini-3.1-flash-lite");
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
@@ -135,7 +136,7 @@ describe("Gemini Boss text-only model authority", () => {
     expect(body).toEqual({
       model: "gemini-3.8-flash",
       input: "Use the persisted case context.",
-      generation_config: { max_output_tokens: 768 },
+      generation_config: { max_output_tokens: 768, thinking_level: "minimal" },
     });
     expect(body).not.toHaveProperty("tools");
     expect(body).not.toHaveProperty("grounding");

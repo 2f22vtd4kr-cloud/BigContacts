@@ -41,6 +41,21 @@ function safeString(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value.trim().slice(0, 80) : null;
 }
 
+export function providerErrorCode(body: string): string | null {
+  if (!body) return null;
+  try {
+    const parsed = JSON.parse(body) as unknown;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
+    const record = parsed as Record<string, unknown>;
+    const error = record.error && typeof record.error === "object" && !Array.isArray(record.error)
+      ? record.error as Record<string, unknown>
+      : null;
+    return safeString(error?.code) ?? safeString(record.code);
+  } catch {
+    return null;
+  }
+}
+
 export function summarizeProviderBody(body: string): ProviderBodyShape {
   if (!body) {
     return {

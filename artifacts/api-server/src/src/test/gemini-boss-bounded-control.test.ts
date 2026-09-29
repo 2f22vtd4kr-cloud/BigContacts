@@ -11,7 +11,7 @@ describe("Gemini Boss bounded control-plane generation", () => {
     vi.restoreAllMocks();
   });
 
-  it("caps model attempts at four and uses a control-sized output budget", async () => {
+  it("caps live model attempts at two and uses a control-sized output budget", async () => {
     process.env.GEMINI_API_KEY = "test-key";
 
     const providerFetch = vi.fn<typeof fetch>(async (input, init) => {
@@ -108,12 +108,12 @@ describe("Gemini Boss bounded control-plane generation", () => {
     expect(secondBody.generation_config.thinking_level).toBe("low");
   });
 
-  it("advances to the next compatible model on a 429 without retrying the same model", async () => {
+  it("retries the same model once on a retryable 429 without equivalent-model fan-out", async () => {
     process.env.GEMINI_API_KEY = "test-key";
 
     const providerFetch = vi.fn<typeof fetch>()
       .mockResolvedValueOnce(new Response(JSON.stringify({
-        error: { code: 429, status: "RESOURCE_EXHAUSTED", message: "capacity temporarily unavailable" },
+        error: { code: "rate_limit_exceeded", status: "RESOURCE_EXHAUSTED", message: "capacity temporarily unavailable" },
       }), { status: 429 }))
       .mockResolvedValueOnce(new Response(
         JSON.stringify({ steps: [{ type: "model_output", content: [{ type: "text", text: '{"action":"proceed"}' }] }] }),
@@ -140,7 +140,7 @@ describe("Gemini Boss bounded control-plane generation", () => {
     expect(result.raw).toContain('"action"');
     expect(providerFetch).toHaveBeenCalledTimes(2);
     expect(JSON.parse(String(providerFetch.mock.calls[0]?.[1]?.body)).model).toBe("gemini-test-a");
-    expect(JSON.parse(String(providerFetch.mock.calls[1]?.[1]?.body)).model).toBe("gemini-test-b");
+    expect(JSON.parse(String(providerFetch.mock.calls[1]?.[1]?.body)).model).toBe("gemini-test-a");
   });
 
 });

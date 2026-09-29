@@ -9,6 +9,7 @@ import {
   classifyThrownProviderError,
   describeThrownProviderError,
   summarizeProviderBody,
+  providerErrorCode,
 } from "./provider-error-diagnostics";
 
 installGeminiTransientRetry();
@@ -18,7 +19,7 @@ installGeminiTransientRetry();
  * a chronological Gemini fallback ladder here: Google's live model catalog is
  * the source of truth for what this credential can currently use.
  */
-export const GEMINI_RIGHT_HAND_MODEL = "gemini-3.5-flash-lite";
+export const GEMINI_RIGHT_HAND_MODEL = "gemini-3.1-flash-lite";
 export const GEMINI_RIGHT_HAND_FALLBACK_MODELS: readonly string[] = [];
 const GEMINI_CHAT_API_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
 const GEMINI_INTERACTIONS_API = "https://generativelanguage.googleapis.com/v1beta/interactions";
@@ -28,25 +29,19 @@ const MIN_REQUEST_TIMEOUT_MS = 10_000;
 const MAX_REQUEST_TIMEOUT_MS = 60_000;
 const MIN_OVERALL_TIMEOUT_MS = 20_000;
 const MAX_OVERALL_TIMEOUT_MS = 180_000;
-const MAX_MODEL_ATTEMPTS = 4;
+const MAX_MODEL_ATTEMPTS = 2;
 const MAX_TRANSIENT_TRANSPORT_RETRIES = 1;
 const TRANSIENT_TRANSPORT_RETRY_DELAY_MS = 600;
 const MAX_RATE_LIMIT_RETRIES = 1;
-const DEFAULT_RATE_LIMIT_RETRY_DELAY_MS = 60_000;
-const MAX_RATE_LIMIT_RETRY_DELAY_MS = 90_000;
+const DEFAULT_RATE_LIMIT_RETRY_DELAY_MS = 10_000;
+const MAX_RATE_LIMIT_RETRY_DELAY_MS = 30_000;
 const MIN_RATE_LIMIT_RETRY_DELAY_MS = 10;
 function configuredRateLimitRetryDelayMs(): number {
   const parsed = Number(process.env.APEX_GEMINI_RIGHT_HAND_RATE_LIMIT_RETRY_DELAY_MS);
   return Number.isFinite(parsed) ? Math.min(MAX_RATE_LIMIT_RETRY_DELAY_MS, Math.max(MIN_RATE_LIMIT_RETRY_DELAY_MS, Math.floor(parsed))) : DEFAULT_RATE_LIMIT_RETRY_DELAY_MS;
 }
-const GEMINI_INTERACTIONS_FALLBACK_MODELS = [
-  "gemini-3.5-flash-lite",
-  "gemini-3.8-flash",
-  "gemini-3.7-flash",
-  "gemini-3.6-flash",
-] as const;
 const MODEL_CATALOG_TIMEOUT_MS = 6_000;
-const MODEL_CATALOG_CACHE_MS = 60_000;
+const MODEL_CATALOG_CACHE_MS = 5 * 60_000;
 
 type GeminiCatalogEntry = { name?: string; supportedGenerationMethods?: string[] };
 let cachedModelChain: { expiresAt: number; models: string[]; credentialFingerprint: string } | null = null;
@@ -100,9 +95,9 @@ function chooseRightHandModels(entries: GeminiCatalogEntry[]): string[] {
     .filter((entry) => entry.name)
     .map((entry) => entry.name!.replace(/^models\//, ""))
     .filter((name) => /^gemini-/i.test(name))
-    .filter((name) => /flash/i.test(name))
+    .filter((name) => /flash-lite/i.test(name))
     .filter((name) => /^gemini-\d+(?:\.\d+)?-flash(?:-lite)?(?:-[a-z0-9.]+)?$/i.test(name))
-    .filter((name) => !/image|audio|embedding|tts|live|transcribe|deep-research|robotics|aqa/i.test(name))
+    .filter((name) => !/image|audio|embedding|tts|live|transcribe|deep-research|robotics|aqa|preview|experimental/i.test(name))
     .sort((a, b) => {
       const left = modelRank(a); const right = modelRank(b);
       return left[0] - right[0] || left[1] - right[1] || left[2] - right[2] || right[3] - left[3] || left[4].localeCompare(right[4]);
@@ -136,9 +131,8 @@ async function resolveModelChain(): Promise<string[]> {
         role: "gemini_right_hand",
         phase: "model_catalog_failed",
         httpStatus: response.status,
-        fallbackCandidateCount: GEMINI_INTERACTIONS_FALLBACK_MODELS.length,
-      }, "Gemini Right-hand model catalog unavailable; using documented Interactions candidates");
-      return [...GEMINI_INTERACTIONS_FALLBACK_MODELS];
+      }, "Gemini Right-hand model catalog unavailable; failing closed because the live catalog is unavailable");
+      return [];
     }
     const payload = await response.json() as { models?: GeminiCatalogEntry[] };
     const catalogModels = chooseRightHandModels(Array.isArray(payload.models) ? payload.models : []);
@@ -150,17 +144,15 @@ async function resolveModelChain(): Promise<string[]> {
     logger.warn({
       role: "gemini_right_hand",
       phase: "model_catalog_empty",
-      fallbackCandidateCount: GEMINI_INTERACTIONS_FALLBACK_MODELS.length,
-    }, "Gemini Right-hand model catalog returned no usable candidates; using documented Interactions candidates");
-    return [...GEMINI_INTERACTIONS_FALLBACK_MODELS];
+    }, "Gemini Right-hand model catalog returned no usable stable Flash-Lite candidates");
+    return [];
   } catch (error) {
     logger.warn({
       role: "gemini_right_hand",
       phase: "model_catalog_rejected",
       errorName: error instanceof Error ? error.name : "unknown",
-      fallbackCandidateCount: GEMINI_INTERACTIONS_FALLBACK_MODELS.length,
-    }, "Gemini Right-hand model catalog request failed; using documented Interactions candidates");
-    return [...GEMINI_INTERACTIONS_FALLBACK_MODELS];
+    }, "Gemini Right-hand model catalog request failed; failing closed without a hardcoded model ladder");
+    return [];
   }
 }
 function extractJson(raw: string): Record<string, unknown> | null { const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)```/i)?.[1]?.trim(); const source = fenced || raw.trim(); const start = source.indexOf("{"), end = source.lastIndexOf("}"); if (start < 0 || end <= start) return null; try { const value = JSON.parse(source.slice(start, end + 1)); return value && typeof value === "object" ? value as Record<string, unknown> : null; } catch { return null; } }
@@ -175,7 +167,11 @@ function rateLimitRetryDelayMs(response: Response, remainingMs: number): number 
   }
   return Math.min(configuredRateLimitRetryDelayMs(), MAX_RATE_LIMIT_RETRY_DELAY_MS, Math.max(0, remainingMs));
 }
-function isGemini3Model(model: string): boolean { return /^gemini-3(?:\.\d+)?-/i.test(model); }
+function shouldRetry429(errorCode: string | null): boolean {
+  // Gemini Interactions distinguishes burst/rate exhaustion from daily quota
+  // exhaustion. Only the former is worth a bounded same-model retry.
+  return errorCode !== "quota_exceeded";
+}
 
 function parseGeminiRightHandResponse(responseBody: string, model: string): GeminiRequestResult {
   try {
@@ -210,13 +206,14 @@ async function request(system: string, user: string, responseFormat?: Record<str
   // request to the configured model; model catalog probing and equivalent-model
   // fan-out consume free-tier request budget and are not research capabilities.
   // Resolve the live Gemini catalog for this credential. The preferred model
-  // remains 3.8 Flash, but provider capacity/entitlement failures must advance
-  // through same-role compatible Gemini candidates instead of pinning the role
-  // to one model. No Groq/Mistral substitution is permitted here.
+  // remains the low-cost Flash-Lite role; provider capacity/entitlement failures
+  // may advance only through stable Flash-Lite candidates from the live catalog.
+  // No Groq/Mistral substitution is permitted here.
   const resolvedChain = await resolveModelChain();
-  const chain = resolvedChain.length
-    ? resolvedChain.slice(0, MAX_MODEL_ATTEMPTS)
-    : [GEMINI_RIGHT_HAND_MODEL];
+  const chain = resolvedChain.slice(0, MAX_MODEL_ATTEMPTS);
+  if (chain.length === 0) {
+    return { raw: "", error: "Gemini Right-hand has no compatible stable Flash-Lite model in the live catalog.", model: GEMINI_RIGHT_HAND_MODEL };
+  }
   const failures: string[] = [];
   const configuredRequestTimeoutMs = requestTimeoutMs();
   const configuredOverallTimeoutMs = overallTimeoutMs();
@@ -236,7 +233,7 @@ async function request(system: string, user: string, responseFormat?: Record<str
     const body = JSON.stringify({
       model,
       input: `${systemPrompt}\\n\\nUSER REQUEST:\\n${user}`,
-      generation_config: { max_output_tokens: 768 },
+      generation_config: { max_output_tokens: 512, thinking_level: "minimal" },
       ...(responseFormat ? { response_format: responseFormat } : {}),
     });
     const requestPayloadBytes = Buffer.byteLength(body);
@@ -301,7 +298,7 @@ async function request(system: string, user: string, responseFormat?: Record<str
         const compatibilityBody = JSON.stringify({
           model,
           input: systemPrompt + "\n\nUSER REQUEST:\n" + user,
-          generation_config: { max_output_tokens: 768 },
+          generation_config: { max_output_tokens: 512, thinking_level: "minimal" },
         });
         const compatibilityController = new AbortController();
         const compatibilityTimeout = Math.min(requestTimeoutMs(), Math.max(1_000, deadline - Date.now()));
@@ -341,7 +338,8 @@ async function request(system: string, user: string, responseFormat?: Record<str
       }
       const totalElapsedMs = Date.now() - attemptStartedAt;
       const responseShape = summarizeProviderBody(responseBody);
-      const failureClass = response.ok ? null : classifyProviderHttpStatus(response.status);
+      let providerErrorCodeValue = response.ok ? null : providerErrorCode(responseBody);
+      let failureClass = response.ok ? null : classifyProviderHttpStatus(response.status);
       logger.info(
         {
           role: "gemini_right_hand",
@@ -359,6 +357,7 @@ async function request(system: string, user: string, responseFormat?: Record<str
           httpStatus: response.status,
           responseBytes: Buffer.byteLength(responseBody),
           failureClass,
+          providerErrorCode: providerErrorCodeValue,
           responseShape,
           requestDeadlineFired,
           overallDeadlineFired,
@@ -369,22 +368,67 @@ async function request(system: string, user: string, responseFormat?: Record<str
       if (response.ok) return parseGeminiRightHandResponse(responseBody, model);
 
       if (response.status === 429) {
-        // A 429 is credential/project quota, not model capacity. One bounded
-        // Retry-After wait is allowed for the same model, but never advance to
-        // another Gemini model and multiply quota pressure.
-        if (transportRetry < MAX_RATE_LIMIT_RETRIES && Date.now() < deadline) {
+        // Never model-hop on 429: the provider may be enforcing a project-level
+        // limit. Burst/rate-limit 429s get one bounded same-model backoff; daily
+        // quota exhaustion fails closed immediately because this turn cannot
+        // restore the quota.
+        if (shouldRetry429(providerErrorCodeValue) && transportRetry < MAX_RATE_LIMIT_RETRIES && Date.now() < deadline) {
           const retryDelayMs = rateLimitRetryDelayMs(response, Math.max(0, deadline - Date.now()));
           if (retryDelayMs > 0) {
             transportRetry += 1;
             logger.warn(
               { role: "gemini_right_hand", phase: "rate_limit_backoff", model, retryNumber: transportRetry, maxRetries: MAX_RATE_LIMIT_RETRIES, retryDelayMs },
-              "Gemini Right-hand rate limited; waiting before failing closed instead of burning through equivalent model fallbacks",
+              "Gemini Right-hand rate limited; waiting before one bounded same-model retry",
             );
             await new Promise<void>((resolve) => setTimeout(resolve, retryDelayMs));
           }
+          if (Date.now() < deadline && !controller.signal.aborted) {
+            try {
+              response = await fetchGeminiInteractions(GEMINI_INTERACTIONS_API, {
+                method: "POST",
+                headers: {
+                  Accept: "application/json",
+                  "Content-Type": "application/json",
+                  "x-goog-api-key": apiKey,
+                },
+                body,
+                signal: controller.signal,
+              });
+              responseBody = await response.text();
+              providerErrorCodeValue = response.ok ? null : providerErrorCode(responseBody);
+              failureClass = response.ok ? null : classifyProviderHttpStatus(response.status);
+              logger.info({
+                role: "gemini_right_hand",
+                phase: "rate_limit_retry_resolved",
+                model,
+                httpStatus: response.status,
+                providerErrorCode: providerErrorCodeValue,
+              }, "Gemini Right-hand same-model rate-limit retry resolved");
+            } catch (retryError) {
+              const retryFailureClass = classifyThrownProviderError(
+                retryError,
+                retryError instanceof Error && retryError.name === "AbortError",
+              );
+              failures.push(`${model} rate_limit_retry_${retryFailureClass}`);
+              return {
+                raw: "",
+                error: `Gemini Right-hand rate-limit retry failed: ${model} ${retryFailureClass}.`,
+                model,
+              };
+            }
+          }
         }
-        failures.push(`${model} rate_limited HTTP 429`);
-        return { raw: "", error: `Gemini Right-hand rate limit persisted after bounded backoff: ${failures.join("; ")}`, model };
+        if (response.status === 429) {
+          failures.push(`${model} rate_limited HTTP 429${providerErrorCodeValue ? ` ${providerErrorCodeValue}` : ""}`);
+          const quotaNote = providerErrorCodeValue === "quota_exceeded"
+            ? " Gemini reports daily quota exhaustion; model fallback would not repair a project quota."
+            : "";
+          return {
+            raw: "",
+            error: `Gemini Right-hand rate limit persisted after bounded backoff: ${failures.join("; ")}.${quotaNote}`,
+            model,
+          };
+        }
       }
       failures.push(`${model} ${failureClass ?? "http_error"} HTTP ${response.status}`);
       if (!shouldFallback(response.status)) {
@@ -445,10 +489,151 @@ async function request(system: string, user: string, responseFormat?: Record<str
   };
 }
 
-function compactCase(file: ResearchCaseFile): string { return JSON.stringify({ target: file.target, hypotheses: file.hypotheses, evidenceSummary: file.evidenceSummary, specialistRoster: file.specialistRoster, actionQueue: file.actionQueue, contactRoutes: file.contactRoutes, investigationProgress: file.investigationProgress, researchDepth: file.researchDepth, decisionLog: file.decisionLog, rightHandAdvice: file.rightHandAdvice, bossPlan: file.bossPlan }, null, 2); }
-function compactDiscovery(file: DiscoveryCaseFile): string { return JSON.stringify({ humanBrief: file.humanBrief, bossPremise: file.bossPremise, candidateLanes: file.candidateLanes, initialResearch: file.initialResearch, investigatorReports: file.investigatorReports, currentProgress: file.currentProgress, discoveredCandidates: file.discoveredCandidates, orgFootprint: file.orgFootprint, decisionLog: file.decisionLog }, null, 2); }
+function clip(value: string | null | undefined, maxChars = 360): string | null {
+  if (typeof value !== "string") return value ?? null;
+  const trimmed = value.trim();
+  return trimmed.length <= maxChars ? trimmed : `${trimmed.slice(0, Math.max(0, maxChars - 1))}…`;
+}
+function clipStrings(values: readonly string[] | null | undefined, maxItems = 8, maxChars = 360): string[] {
+  return (values ?? []).slice(0, maxItems).map((value) => clip(value, maxChars) ?? "");
+}
+function compactCase(file: ResearchCaseFile): string {
+  const queued = file.actionQueue
+    .filter((action) => action.status === "queued")
+    .map((action) => ({
+      id: action.id,
+      title: action.title,
+      purpose: clip(action.purpose, 280),
+      specialistId: action.specialistId,
+      priority: action.priority,
+      rationale: clip(action.rationale, 280),
+    }));
+  const routes = file.contactRoutes.slice(0, 12).map((route) => ({
+    rank: route.rank,
+    vectorType: route.vectorType,
+    value: clip(route.value, 180),
+    personName: clip(route.personName, 120),
+    role: clip(route.role, 120),
+    state: route.state,
+    sourceUrls: route.sourceUrls.slice(0, 2),
+  }));
+  const progress = file.investigationProgress
+    ? {
+        pendingVectors: file.investigationProgress.pendingVectors,
+        foundPersonalCount: file.investigationProgress.foundPersonalCount,
+        foundAnyCount: file.investigationProgress.foundAnyCount,
+        coverageRatio: file.investigationProgress.coverageRatio,
+        vectors: file.investigationProgress.vectors.map((vector) => ({
+          id: vector.id,
+          status: vector.status,
+          values: vector.values.slice(0, 2).map((value) => clip(value, 140)),
+          note: clip(vector.note, 180),
+        })),
+      }
+    : null;
+  const bossPlan = file.bossPlan
+    ? {
+        model: file.bossPlan.model,
+        status: file.bossPlan.status,
+        outcome: file.bossPlan.outcome,
+        actionId: file.bossPlan.actionId,
+        decision: clip(file.bossPlan.decision, 300),
+        reason: clip(file.bossPlan.reason, 360),
+        progressAssessment: clip(file.bossPlan.progressAssessment, 240),
+        rightHandDisposition: file.bossPlan.rightHandDisposition,
+        rightHandNote: clip(file.bossPlan.rightHandNote, 240),
+      }
+    : null;
+  return JSON.stringify({
+    target: file.target,
+    hypotheses: clipStrings(file.hypotheses, 6),
+    evidenceSummary: {
+      sourceRegistries: clipStrings(file.evidenceSummary.sourceRegistries, 8, 180),
+      discoveredPeople: clipStrings(file.evidenceSummary.discoveredPeople, 12, 180),
+      relatedOrganizations: clipStrings(file.evidenceSummary.relatedOrganizations, 12, 180),
+      evidenceCount: file.evidenceSummary.evidenceCount,
+      searchGaps: clipStrings(file.evidenceSummary.searchGaps, 8),
+      negativeFindings: clipStrings(file.evidenceSummary.negativeFindings, 8),
+    },
+    specialistRoster: file.specialistRoster.map((specialist) => ({
+      id: specialist.id,
+      title: specialist.title,
+      status: specialist.status,
+    })),
+    actionQueue: queued,
+    contactRoutes: routes,
+    investigationProgress: progress,
+    researchDepth: file.researchDepth,
+    decisionLog: file.decisionLog.slice(-6).map((entry) => ({
+      iteration: entry.iteration,
+      decision: clip(entry.decision, 260),
+      reason: clip(entry.reason, 320),
+    })),
+    rightHandAdvice: file.rightHandAdvice
+      ? {
+          status: file.rightHandAdvice.status,
+          actionId: file.rightHandAdvice.actionId,
+          decision: clip(file.rightHandAdvice.decision, 240),
+          reason: clip(file.rightHandAdvice.reason, 300),
+        }
+      : null,
+    bossPlan,
+  }, null, 2);
+}
+function compactDiscovery(file: DiscoveryCaseFile): string {
+  return JSON.stringify({
+    humanBrief: {
+      objective: clip(file.humanBrief.objective, 420),
+      motivation: clip(file.humanBrief.motivation, 280),
+      geography: clip(file.humanBrief.geography, 220),
+      exclusions: clipStrings(file.humanBrief.exclusions, 8, 180),
+    },
+    bossPremise: clip(file.bossPremise, 420),
+    investigationRules: clipStrings(file.investigationRules, 8, 240),
+    candidateLanes: clipStrings(file.candidateLanes, 10, 180),
+    initialResearch: {
+      status: file.initialResearch.status,
+      researchResponse: clip(file.initialResearch.researchResponse, 900),
+      bossCommentary: clip(file.initialResearch.bossCommentary, 500),
+      sourceUrls: file.initialResearch.sourceUrls.slice(0, 8),
+    },
+    investigatorReports: file.investigatorReports.slice(-6).map((report) => ({
+      id: report.id,
+      lane: report.lane,
+      provider: report.provider,
+      status: report.status,
+      iteration: report.iteration,
+      summary: clip(report.summary, 420),
+      findings: clipStrings(report.findings, 8, 240),
+      candidateNames: clipStrings(report.candidateNames, 8, 160),
+      sourceUrls: report.sourceUrls.slice(0, 6),
+      nextQuestions: clipStrings(report.nextQuestions, 6, 220),
+      error: clip(report.error, 240),
+    })),
+    currentProgress: {
+      reportCount: file.currentProgress.reportCount,
+      completedLanes: clipStrings(file.currentProgress.completedLanes, 10, 120),
+      openQuestions: clipStrings(file.currentProgress.openQuestions, 8, 240),
+      lastReviewedBy: file.currentProgress.lastReviewedBy,
+    },
+    discoveredCandidates: file.discoveredCandidates.slice(0, 12).map((candidate) => ({
+      name: candidate.name,
+      type: candidate.type,
+      relevance: clip(candidate.relevance, 280),
+      reachability: clip(candidate.reachability, 220),
+      sourceUrls: candidate.sourceUrls.slice(0, 3),
+      state: candidate.state,
+    })),
+    orgFootprint: file.orgFootprint,
+    decisionLog: file.decisionLog.slice(-6).map((entry) => ({
+      iteration: entry.iteration,
+      decision: clip(entry.decision, 260),
+      reason: clip(entry.reason, 320),
+    })),
+  }, null, 2);
+}
 export function getGeminiRightHandStatus(): GeminiRightHandStatus { return { configured: Boolean(key()), model: GEMINI_RIGHT_HAND_MODEL, fallbackModels: [...GEMINI_RIGHT_HAND_FALLBACK_MODELS], endpoint: GEMINI_INTERACTIONS_API, role: "right_hand_advisor", capability: "case_file_reasoning_only" }; }
-export async function runGeminiRightHandCaseReasoning(input: { file: ResearchCaseFile; iteration: number }): Promise<GeminiRightHandCaseReasoningResult> { const queued = input.file.actionQueue.filter((action) => action.status === "queued"); const system = "You are Apex Atlas Right Hand. Reason only over the supplied case file. Never browse, use external research, or invent evidence, contacts, people, URLs, or facts. Recommend exactly one existing queued action. Return JSON only."; const user = `Iteration ${input.iteration}. Identify what is newly unresolved, which contact vectors are still pending, and the highest-leverage complementary queued action.\nCASE:\n${compactCase(input.file)}\n\nQUEUED ACTIONS:\n${JSON.stringify(queued, null, 2)}\n\nReturn {\"actionId\":\"exact queued action id\",\"decision\":\"short recommendation\",\"reason\":\"concrete case-file evidence-gap reason\",\"confidence\":0.0}.`; const result = await request(system, user, { type: "text", mime_type: "application/json", schema: { type: "object", properties: { actionId: { type: "string" }, decision: { type: "string" }, reason: { type: "string" }, confidence: { type: "number" } }, required: ["actionId", "decision", "reason", "confidence"] } }); if (result.error) return { status: "unavailable", model: result.model, actionId: null, decision: null, reason: null, confidence: null, error: result.error }; const parsed = extractJson(result.raw); const actionId = typeof parsed?.actionId === "string" ? parsed.actionId.trim() : ""; const action = queued.find((candidate) => candidate.id === actionId); const decision = typeof parsed?.decision === "string" ? parsed.decision.trim() : ""; const reason = typeof parsed?.reason === "string" ? parsed.reason.trim() : ""; const confidence = typeof parsed?.confidence === "number" && Number.isFinite(parsed.confidence) ? Math.max(0, Math.min(1, parsed.confidence)) : null; if (!action || !decision || !reason) return { status: "unavailable", model: result.model, actionId: null, decision: null, reason: null, confidence, error: `Gemini Right-hand ${result.model} returned an invalid or non-queued recommendation.` }; return { status: "completed", model: result.model, actionId: action.id, decision, reason, confidence, error: null }; }
+export async function runGeminiRightHandCaseReasoning(input: { file: ResearchCaseFile; iteration: number }): Promise<GeminiRightHandCaseReasoningResult> { const queued = input.file.actionQueue.filter((action) => action.status === "queued"); const system = "You are Apex Atlas Right Hand. Reason only over the supplied case file. Never browse, use external research, or invent evidence, contacts, people, URLs, or facts. Recommend exactly one existing queued action. Return JSON only."; const user = `Iteration ${input.iteration}. Identify what is newly unresolved, which contact vectors are still pending, and the highest-leverage complementary queued action.\nCASE:\n${compactCase(input.file)}\n\nReturn {\"actionId\":\"exact queued action id\",\"decision\":\"short recommendation\",\"reason\":\"concrete case-file evidence-gap reason\",\"confidence\":0.0}.`; const result = await request(system, user, { type: "text", mime_type: "application/json", schema: { type: "object", properties: { actionId: { type: "string" }, decision: { type: "string" }, reason: { type: "string" }, confidence: { type: "number" } }, required: ["actionId", "decision", "reason", "confidence"] } }); if (result.error) return { status: "unavailable", model: result.model, actionId: null, decision: null, reason: null, confidence: null, error: result.error }; const parsed = extractJson(result.raw); const actionId = typeof parsed?.actionId === "string" ? parsed.actionId.trim() : ""; const action = queued.find((candidate) => candidate.id === actionId); const decision = typeof parsed?.decision === "string" ? parsed.decision.trim() : ""; const reason = typeof parsed?.reason === "string" ? parsed.reason.trim() : ""; const confidence = typeof parsed?.confidence === "number" && Number.isFinite(parsed.confidence) ? Math.max(0, Math.min(1, parsed.confidence)) : null; if (!action || !decision || !reason) return { status: "unavailable", model: result.model, actionId: null, decision: null, reason: null, confidence, error: `Gemini Right-hand ${result.model} returned an invalid or non-queued recommendation.` }; return { status: "completed", model: result.model, actionId: action.id, decision, reason, confidence, error: null }; }
 export async function runGeminiRightHandDiscoveryAdvice(input: { file: DiscoveryCaseFile; iteration: number }): Promise<GeminiRightHandDiscoveryAdviceResult> { const system = "You are Apex Atlas Right Hand for public-record discovery. Reason only over supplied discovery case evidence. Never browse, use external research, or invent people, contacts, relationships, or URLs. Return JSON only."; const user = `Iteration ${input.iteration}. Recommend the most useful next research direction from the existing discovery frontier.\nDISCOVERY CASE:\n${compactDiscovery(input.file)}\n\nReturn {\"decision\":\"...\",\"reason\":\"...\",\"focusLanes\":[\"...\"],\"confidence\":0.0}.`; const result = await request(system, user, { type: "text", mime_type: "application/json", schema: { type: "object", properties: { decision: { type: "string" }, reason: { type: "string" }, focusLanes: { type: "array", items: { type: "string" } }, confidence: { type: "number" } }, required: ["decision", "reason", "focusLanes", "confidence"] } }); if (result.error) return { status: "unavailable", model: result.model, decision: null, reason: null, focusLanes: [], confidence: null, error: result.error }; const parsed = extractJson(result.raw); if (!parsed) return { status: "unavailable", model: result.model, decision: null, reason: null, focusLanes: [], confidence: null, error: `Gemini Right-hand ${result.model} returned invalid discovery JSON.` }; return { status: "completed", model: result.model, decision: typeof parsed.decision === "string" ? parsed.decision : null, reason: typeof parsed.reason === "string" ? parsed.reason : null, focusLanes: Array.isArray(parsed.focusLanes) ? parsed.focusLanes.filter((v): v is string => typeof v === "string") : [], confidence: typeof parsed.confidence === "number" ? Math.max(0, Math.min(1, parsed.confidence)) : null, error: null }; }
 export async function runGeminiRightHandFreeJson(userPrompt: string, systemExtra = "Reply with ONE JSON object only. Never invent contacts, people, or URLs.", responseFormat?: Record<string, unknown>): Promise<{ status: "completed" | "unavailable"; model: string; raw: string | null; error: string | null }> { const result = await request("You are the Apex Atlas Right Hand. Advise the Boss only. Never browse or act as Investigator. Never invent evidence, contacts, people, relationships, or URLs. " + systemExtra, userPrompt, responseFormat ?? { type: "text", mime_type: "application/json", schema: { type: "object" } }); return result.raw ? { status: "completed", model: result.model, raw: result.raw, error: null } : { status: "unavailable", model: result.model, raw: null, error: result.error }; }
 export async function runGeminiRightHandFinalReview(prompt: string): Promise<{ status: "completed" | "unavailable"; model: string; raw: string | null; error: string | null }> { return runGeminiRightHandFreeJson(prompt, "You are the Apex Atlas Right Hand reviewing final public-contact evidence. Return ONE JSON object only. Never invent contacts, people, or URLs."); }

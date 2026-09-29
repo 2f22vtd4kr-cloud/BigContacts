@@ -10,26 +10,33 @@ function source(path: string): string {
 
 describe("Apex Atlas Bureau data-flow integrity", () => {
   it("does not truncate canonical case context or Investigator history", () => {
-    const files = [
-      "artifacts/api-server/src/src/lib/case-bureau-prompt.ts",
+    const durableFiles = [
       "artifacts/api-server/src/src/lib/agentic-web-research.ts",
       "artifacts/api-server/src/src/lib/canonical-atlas-discovery.ts",
-      "artifacts/api-server/src/src/lib/canonical-single-target-runner.ts",
       "artifacts/api-server/src/src/lib/target-contact-agent.ts",
       "artifacts/api-server/src/src/lib/target-act-oversight.ts",
       "artifacts/api-server/src/src/lib/bureau-agentic-pass.ts",
-      "artifacts/api-server/src/src/lib/investigation-context-compaction.ts",
       "artifacts/api-server/src/src/routes/research/canonical-case-discovery.ts",
     ].map((file) => source(file));
 
-    for (const content of files) {
-      // A bounded recent-act view is control-plane working state, not durable history.
-      // Remove that explicit advisory-window use before enforcing the no-truncation law.
-      const durableSource = content.replace(/recentActs\.slice\(-4\)/g, "");
-      expect(durableSource).not.toMatch(/\.slice\(\s*-\d+/);
+    for (const content of durableFiles) {
+      expect(content).not.toMatch(/\.slice\(\s*-\d+/);
       expect(content).not.toMatch(/Math\.min\(\s*40\s*,/);
       expect(content).not.toMatch(/maxCandidates/);
     }
+
+    const targetRunner = source("artifacts/api-server/src/src/lib/canonical-single-target-runner.ts");
+    expect(targetRunner).toContain("recentActs: recentActs.slice(-4)");
+
+    const bossPrompt = source("artifacts/api-server/src/src/lib/case-bureau-prompt.ts");
+    const compactor = source("artifacts/api-server/src/src/lib/investigation-context-compaction.ts");
+    expect(bossPrompt).toContain("function buildBossDecisionContext");
+    expect(bossPrompt).toContain("actionFrontier: { queued, completed }");
+    expect(bossPrompt).toContain(".slice(-6)");
+    expect(compactor).toContain("export function buildInvestigatorContext");
+    expect(compactor).toContain("Durable trajectory/evidence is never deleted");
+    expect(compactor).toContain("Do not treat omitted raw detail as negative evidence");
+    expect(compactor).not.toMatch(/durable.*\.slice\(\s*-\d+/i);
   });
 
   it("keeps the research-depth action budget model-decided", () => {

@@ -1,4 +1,4 @@
-import { formatProgressForPrompt, type InvestigationProgress } from "./investigation-progress";
+import type { InvestigationProgress } from "./investigation-progress";
 import { buildCreativeInvestigatorAngles } from "./investigator-prompt-guide";
 import { resolveResearchDepth, type ResearchDepth } from "./research-depth";
 import { apexOrientationFor } from "./apex-bureau-orientation";
@@ -61,39 +61,94 @@ type PlanInput = {
   };
 };
 
+function clipPrompt(value: string | null | undefined, maxChars = 320): string | null {
+  if (typeof value !== "string") return value ?? null;
+  const trimmed = value.trim();
+  return trimmed.length <= maxChars ? trimmed : `${trimmed.slice(0, Math.max(0, maxChars - 1))}…`;
+}
+function clipPromptList(values: readonly string[] | null | undefined, maxItems = 10, maxChars = 260): string[] {
+  return (values ?? []).slice(0, maxItems).map((value) => clipPrompt(value, maxChars) ?? "");
+}
 function buildBossDecisionContext(file: PlanInput["file"]): string {
+  const compactAction = (action: QueuedAction & { status?: string }) => ({
+    id: action.id,
+    title: clipPrompt(action.title, 180),
+    purpose: clipPrompt(action.purpose, 280),
+    specialistId: action.specialistId,
+    tools: action.tools.slice(0, 8),
+    priority: action.priority,
+    rationale: clipPrompt(action.rationale, 280),
+    ...(action.status ? { status: action.status } : {}),
+  });
   const queued = (file.actionQueue ?? [])
     .filter((action) => action.status === "queued")
     .slice()
     .sort((a, b) => Number(b.priority ?? 0) - Number(a.priority ?? 0))
-    .map(({ id, title, purpose, specialistId, tools, priority, rationale }) => ({
-      id, title, purpose, specialistId, tools, priority, rationale,
-    }));
+    .map(compactAction);
   const completed = (file.actionQueue ?? [])
     .filter((action) => action.status !== "queued")
-    .map(({ id, title, purpose, specialistId, tools, priority, rationale, status }) => ({
-      id, title, purpose, specialistId, tools, priority, rationale, status,
-    }));
+    .slice(-12)
+    .map(compactAction);
   const evidence = file.evidenceSummary ?? {};
+  const routes = (file.contactRoutes ?? []).slice(0, 12).map((route) => ({
+    vectorType: route.vectorType,
+    value: clipPrompt(route.value, 180),
+    personName: clipPrompt(route.personName, 120),
+    role: clipPrompt(route.role, 120),
+    relationship: clipPrompt(route.relationship, 140),
+    state: route.state,
+    sourceUrls: (route.sourceUrls ?? []).slice(0, 2),
+  }));
+  const bossPlan = file.bossPlan
+    ? {
+        outcome: file.bossPlan.outcome,
+        actionId: file.bossPlan.actionId,
+        decision: clipPrompt(file.bossPlan.decision, 280),
+        progressAssessment: clipPrompt(file.bossPlan.progressAssessment, 280),
+        rightHandDisposition: file.bossPlan.rightHandDisposition,
+        rightHandNote: clipPrompt(file.bossPlan.rightHandNote, 220),
+      }
+    : null;
   return JSON.stringify({
     target: file.target ?? null,
-    hypotheses: file.hypotheses ?? [],
+    hypotheses: clipPromptList((file.hypotheses ?? []).map(String), 6, 260),
     evidenceSummary: {
-      discoveredPeople: evidence.discoveredPeople ?? [],
-      relatedOrganizations: evidence.relatedOrganizations ?? [],
-      searchGaps: evidence.searchGaps ?? [],
-      negativeFindings: evidence.negativeFindings ?? [],
+      discoveredPeople: clipPromptList(evidence.discoveredPeople, 12, 180),
+      relatedOrganizations: clipPromptList(evidence.relatedOrganizations, 12, 180),
+      searchGaps: clipPromptList(evidence.searchGaps, 10, 220),
+      negativeFindings: clipPromptList(evidence.negativeFindings, 10, 220),
     },
-    specialistRoster: file.specialistRoster ?? [],
+    specialistRoster: (file.specialistRoster ?? []).map((specialist) =>
+      typeof specialist === "object" && specialist !== null
+        ? (() => {
+            const value = specialist as Record<string, unknown>;
+            return { id: value.id, title: value.title, status: value.status };
+          })()
+        : specialist,
+    ),
     actionFrontier: { queued, completed },
-    contactRoutes: file.contactRoutes ?? [],
-    humanDirectives: file.humanDirectives ?? [],
-    decisionLog: file.decisionLog ?? [],
+    contactRoutes: routes,
+    humanDirectives: clipPromptList((file.humanDirectives ?? []).map(String), 8, 220),
+    decisionLog: (file.decisionLog ?? []).slice(-6).map((entry) => ({
+      iteration: entry.iteration,
+      decision: clipPrompt(entry.decision, 260),
+      reason: clipPrompt(entry.reason, 320),
+    })),
     rightHandAdvice: file.rightHandAdvice ?? null,
-    bossPlan: file.bossPlan ?? null,
-    nextBestAction: file.nextBestAction ?? null,
+    bossPlan,
+    nextBestAction: typeof file.nextBestAction === "object" && file.nextBestAction !== null
+      ? compactAction(file.nextBestAction as QueuedAction & { status?: string })
+      : null,
     lastUpdatedBy: file.lastUpdatedBy,
-    investigationProgress: file.investigationProgress ?? null,
+    investigationProgress: file.investigationProgress
+      ? {
+          pendingVectors: file.investigationProgress.pendingVectors,
+          foundPersonalCount: file.investigationProgress.foundPersonalCount,
+          foundAnyCount: file.investigationProgress.foundAnyCount,
+          coverageRatio: file.investigationProgress.coverageRatio,
+          lastAssessedAt: file.investigationProgress.lastAssessedAt,
+        }
+      : null,
     researchDepth: file.researchDepth ?? null,
     noProgressStreak: file.noProgressStreak ?? 0,
   }, null, 2);
@@ -101,14 +156,6 @@ function buildBossDecisionContext(file: PlanInput["file"]): string {
 
 /** Apex Atlas Boss planning prompt — progress-aware, depth-aware, primary-source OSINT discipline. */
 export function buildApexAtlasBossPlanPrompt(input: PlanInput): string {
-  const queuedActions = input.file.actionQueue
-    .filter((action) => action.status === "queued")
-    .map(({ id, title, purpose, specialistId, tools, priority, rationale }) => ({
-      id, title, purpose, specialistId, tools, priority, rationale,
-    }));
-  const progressBlock = input.file.investigationProgress
-    ? formatProgressForPrompt(input.file.investigationProgress)
-    : "No investigation progress map yet.";
   const depth = resolveResearchDepth({ explicit: input.file.researchDepth ?? null });
   const targetName = String(input.file.target?.name ?? "target");
   const creative = buildCreativeInvestigatorAngles({
@@ -206,7 +253,7 @@ Consult the investigation-progress map on every decision. Prefer actions that cl
 LEAD-CHAINING RULE:
 When the case already lists named people or domains, consider those leads first, but change course whenever another evidence-backed lane has greater information value.
 
-RIGHT-HAND ADVICE (Gemini 3.8 Flash via Gemini Right-hand — advisory only):
+RIGHT-HAND ADVICE (Gemini 3.1 Flash-Lite via Gemini Right-hand — advisory only):
 The right-hand is a complementary reasoner, not a search tool. It sees the mounting case state and should diagnose what the rest of the Bureau has not yet done. It must not merely repeat the previous Investigator result.
 Coordination rules (mandatory):
 1. Always emit "rightHandDisposition": "accept" | "override".
@@ -251,9 +298,6 @@ Write search-discipline restrictions that prevent hallucinated web findings.
 Do not invent names, relationships, URLs, contact data, or facts.
 
 Iteration: ${input.iteration}
-<investigation_progress>
-${progressBlock}
-</investigation_progress>
 Return ONLY this JSON (one of the three shapes):
 {
   "outcome": "proceed",
@@ -298,6 +342,5 @@ OR
   "evidenceRequirements": [],
   "confidence": 0.0
 }
-Current queued assignments are supplied below as context. Use one only when it remains valid; do not invent or rename an assignment.
-${JSON.stringify(queuedActions, null, 2)}`;
+The current queued assignments are already included in the authoritative decision context above. Use one only when it remains valid; do not invent or rename an assignment.`;
 }
