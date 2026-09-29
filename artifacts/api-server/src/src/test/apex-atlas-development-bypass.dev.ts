@@ -99,7 +99,7 @@ vi.mock("../lib/case-bureau", async () => {
                 reason: "The bounded development discovery budget produced no admission-grade candidate; stop without fabricating one.",
                 confidence: 0.95,
               };
-            })(),
+            })()),
           error: null,
         };
       }
