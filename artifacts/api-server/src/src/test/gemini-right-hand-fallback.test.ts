@@ -196,7 +196,9 @@ describe("Gemini Right-hand text-only control transport", () => {
     expect(result.status).toBe("unavailable");
     expect(attempts).toEqual([
       "gemini-3.5-flash-lite",
-      "gemini-3.5-flash-lite",
+      "gemini-3.1-flash-lite",
+      "gemini-3.6-flash",
+      "gemini-3.5-flash",
     ]);
     expect(result.error).toContain("exhausted bounded same-role model attempts");
   });
