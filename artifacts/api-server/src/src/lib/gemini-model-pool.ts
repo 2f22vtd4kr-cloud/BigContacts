@@ -77,9 +77,13 @@ export function getGeminiRolePreferences(role: GeminiControlRole): readonly stri
 
 const cooldownUntilByModel = new Map<string, number>();
 
-export function markGeminiModelRateLimited(model: string, cooldownMs: number): void {
-  const bounded = Math.max(1_000, Math.min(15 * 60_000, Math.floor(cooldownMs)));
+function setGeminiModelCooldown(model: string, cooldownMs: number, maxCooldownMs: number): void {
+  const bounded = Math.max(1_000, Math.min(maxCooldownMs, Math.floor(cooldownMs)));
   cooldownUntilByModel.set(model, Date.now() + bounded);
+}
+
+export function markGeminiModelRateLimited(model: string, cooldownMs: number): void {
+  setGeminiModelCooldown(model, cooldownMs, 15 * 60_000);
 }
 
 export function markGeminiModelDailyQuotaExhausted(model: string, now = Date.now()): number {
@@ -117,11 +121,11 @@ export function markGeminiModelDailyQuotaExhausted(model: string, now = Date.now
     nextLocalMidnight.setUTCHours(0, 0, 0, 0);
     const nextReset = nextLocalMidnight.getTime() - offsetMs;
     const cooldownMs = Math.max(60_000, nextReset - now + 60_000);
-    markGeminiModelRateLimited(model, cooldownMs);
+    setGeminiModelCooldown(model, cooldownMs, 26 * 60 * 60_000);
     return cooldownMs;
   } catch {
     const cooldownMs = 24 * 60 * 60_000;
-    markGeminiModelRateLimited(model, cooldownMs);
+    setGeminiModelCooldown(model, cooldownMs, 26 * 60 * 60_000);
     return cooldownMs;
   }
 }
