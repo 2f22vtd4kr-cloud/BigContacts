@@ -12,7 +12,12 @@ import { logger } from "../lib/logger";
 describe("Gemini Right-hand latency controls", () => {
   const nativeFetch = globalThis.fetch;
 
-  beforeEach(() => {\n    delete process.env.APEX_GEMINI_RIGHT_HAND_REQUEST_TIMEOUT_MS;\n    delete process.env.APEX_GEMINI_RIGHT_HAND_OVERALL_TIMEOUT_MS;\n  });\n\n  afterEach(() => {
+  beforeEach(() => {
+    delete process.env.APEX_GEMINI_RIGHT_HAND_REQUEST_TIMEOUT_MS;
+    delete process.env.APEX_GEMINI_RIGHT_HAND_OVERALL_TIMEOUT_MS;
+  });
+
+  afterEach(() => {
     globalThis.fetch = nativeFetch;
     vi.useRealTimers();
     delete process.env.GEMINI_RIGHT_HAND_API_KEY;
