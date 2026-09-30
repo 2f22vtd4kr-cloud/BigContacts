@@ -12,7 +12,7 @@ const checks = [
   ["Right-hand has the full stable Gemini text fallback pool", source.includes('"gemini-3.1-flash-lite"') && source.includes('"gemini-3.8-flash"') && source.includes("chooseAvailableGeminiControlModels")],
   ["Live/audio/preview models are excluded from the text control registry", !pool.includes('"gemini-3.8-live"') && !pool.includes("-preview") && !pool.includes("-image") && !pool.includes("-tts")],
   ["Right-hand uses the shared model-specific thinking contract", source.includes("getGeminiThinkingLevel(model)")],
-  ["Daily quota exhaustion rotates to another eligible model", source.includes("markGeminiModelDailyQuotaExhausted") && source.includes("phase: \"daily_quota_model_cooldown\"") && source.includes("continue;")],
+  ["Daily quota exhaustion fails closed without another provider request", source.includes("markGeminiModelDailyQuotaExhausted") && source.includes("phase: \"daily_quota_exhausted\"") && source.includes("daily quota exhaustion") && !source.includes("phase: \"daily_quota_model_cooldown\"")],
   ["Transient 429 recovery is bounded and then advances the model pool", source.includes("MAX_RATE_LIMIT_RETRIES = 1") && source.includes('phase: "rate_limit_model_fallback"') && source.includes("markGeminiModelRateLimited")],
   ["Successful 429 retry responses are returned immediately", source.includes("if (response.ok) return parseGeminiRightHandResponse(responseBody, model);")],
 ];
