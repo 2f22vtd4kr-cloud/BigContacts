@@ -440,7 +440,10 @@ const DEFAULT_GEMINI_BOSS_REQUEST_TIMEOUT_MS = 30_000;
 const DEFAULT_GEMINI_BOSS_OVERALL_TIMEOUT_MS = 240_000;
 const MIN_GEMINI_BOSS_REQUEST_TIMEOUT_MS = 10_000;
 const MAX_GEMINI_BOSS_REQUEST_TIMEOUT_MS = 60_000;
-const MIN_GEMINI_BOSS_OVERALL_TIMEOUT_MS = 20_000;
+// Boss has a bounded 3-step 429 recovery ladder. A very small environment
+// override can otherwise expire the control-plane budget before recovery can
+// complete, causing Atlas to fail before selecting the Investigator.
+const MIN_GEMINI_BOSS_OVERALL_TIMEOUT_MS = DEFAULT_GEMINI_BOSS_OVERALL_TIMEOUT_MS;
 const MAX_GEMINI_BOSS_OVERALL_TIMEOUT_MS = 300_000;
 const MAX_GEMINI_BOSS_TRANSPORT_RETRIES = 1;
 const GEMINI_BOSS_TRANSPORT_RETRY_DELAY_MS = 600;
@@ -471,16 +474,21 @@ function boundedPositiveEnvMs(name: string, fallback: number, minimum: number, m
   return Math.min(maximum, Math.max(minimum, Math.round(value)));
 }
 
-export function getGeminiBossLatencyConfig(): {
+export type GeminiBossLatencyConfig = {
   requestTimeoutMs: number;
   overallTimeoutMs: number;
-} {
+  minimumOverallTimeoutMs: number;
+  overallTimeoutClamped: boolean;
+};
+
+export function getGeminiBossLatencyConfig(): GeminiBossLatencyConfig {
   const requestTimeoutMs = boundedPositiveEnvMs(
     "APEX_GEMINI_BOSS_REQUEST_TIMEOUT_MS",
     DEFAULT_GEMINI_BOSS_REQUEST_TIMEOUT_MS,
     MIN_GEMINI_BOSS_REQUEST_TIMEOUT_MS,
     MAX_GEMINI_BOSS_REQUEST_TIMEOUT_MS,
   );
+  const rawOverall = Number(process.env.APEX_GEMINI_BOSS_OVERALL_TIMEOUT_MS);
   const overallTimeoutMs = Math.max(
     requestTimeoutMs,
     boundedPositiveEnvMs(
@@ -490,7 +498,12 @@ export function getGeminiBossLatencyConfig(): {
       MAX_GEMINI_BOSS_OVERALL_TIMEOUT_MS,
     ),
   );
-  return { requestTimeoutMs, overallTimeoutMs };
+  return {
+    requestTimeoutMs,
+    overallTimeoutMs,
+    minimumOverallTimeoutMs: MIN_GEMINI_BOSS_OVERALL_TIMEOUT_MS,
+    overallTimeoutClamped: Number.isFinite(rawOverall) && Math.floor(rawOverall) < overallTimeoutMs,
+  };
 }
 
 function getGeminiBossRequestTimeoutMs(): number {
