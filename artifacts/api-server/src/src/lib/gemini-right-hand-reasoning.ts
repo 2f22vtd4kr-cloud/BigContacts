@@ -39,10 +39,9 @@ const DEFAULT_REQUEST_TIMEOUT_MS = 20_000;
 const DEFAULT_OVERALL_TIMEOUT_MS = 300_000;
 const MIN_REQUEST_TIMEOUT_MS = 10_000;
 const MAX_REQUEST_TIMEOUT_MS = 60_000;
-// The Right-hand has a 3-step rate-limit recovery ladder (30s/60s/120s)
-// plus bounded provider requests. Allowing a smaller environment override can
-// silently abort the ladder before the first real Investigator action. Keep the
-// floor at the default recovery budget while still honoring a higher override.
+// The Right-hand has a bounded same-model recovery step plus a wider
+// free-tier model pool. Allowing a smaller environment override can silently
+// abort even that recovery step before the first real Investigator action.
 const MIN_OVERALL_TIMEOUT_MS = DEFAULT_OVERALL_TIMEOUT_MS;
 const MAX_OVERALL_TIMEOUT_MS = 360_000;
 const MAX_MODEL_ATTEMPTS = 4;
