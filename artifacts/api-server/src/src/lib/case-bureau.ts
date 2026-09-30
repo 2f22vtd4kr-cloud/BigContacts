@@ -282,6 +282,7 @@ export type DiscoveryCaseFile = {
  */
 export const GEMINI_BOSS_MODEL_PENDING = "auto-low-cost-pending";
 const GEMINI_BOSS_PREFERRED_MODEL = "gemini-3.1-flash-lite";
+const GEMINI_BOSS_FALLBACK_MODELS: readonly string[] = ["gemini-3.8-flash"];
 const GEMINI_MODELS_API = "https://generativelanguage.googleapis.com/v1beta/models";
 const GEMINI_INTERACTIONS_API = "https://generativelanguage.googleapis.com/v1beta/interactions";
 const GEMINI_KEY_NAMES = [
@@ -401,25 +402,29 @@ function modelRank(name: string): [number, number, number, number, string] {
 }
 
 function chooseGeminiModelCandidates(entries: GeminiModelCatalogEntry[]): string[] {
-  // Model lifecycle and entitlement remain provider/catalog-owned. This role
-  // deliberately stays on stable Flash-Lite models to control cost and token
-  // pressure; availability is still resolved from the live catalog.
+  // Model lifecycle and entitlement remain provider/catalog-owned. Boss uses
+  // stable text Flash models only: Flash-Lite is preferred for low-cost control,
+  // with standard Flash available as a same-role capacity fallback. Live/audio
+  // models are intentionally excluded because Boss requires text/JSON output.
   const candidates = entries
     .filter((entry) => entry.name)
     .map((entry) => entry.name!.replace(/^models\//, ""))
     .filter((name) => /^gemini-/i.test(name))
-    .filter((name) => /flash-lite/i.test(name))
-    .filter((name) => /^gemini-\d+(?:\.\d+)?-flash-lite(?:-[a-z0-9.]+)?$/i.test(name))
-    .filter((name) => !/embedding|aqa|robotics|image|tts|deep-research|latest|preview|experimental/i.test(name))
+    .filter((name) => /flash(?:-lite)?/i.test(name))
+    .filter((name) => /^gemini-\d+(?:\.\d+)?-flash(?:-lite)?$/i.test(name))
+    .filter((name) => !/image|audio|embedding|tts|live|transcribe|deep-research|robotics|aqa|latest|preview|experimental/i.test(name))
     .sort((left, right) => {
       const a = modelRank(left);
       const b = modelRank(right);
       return a[2] - b[2] || b[3] - a[3] || a[4].localeCompare(b[4]);
-    })
-    .slice(0, 4);
+    });
+  const preferred = [
+    GEMINI_BOSS_PREFERRED_MODEL,
+    ...GEMINI_BOSS_FALLBACK_MODELS,
+  ];
   return [
-    ...(candidates.includes(GEMINI_BOSS_PREFERRED_MODEL) ? [GEMINI_BOSS_PREFERRED_MODEL] : []),
-    ...candidates.filter((model) => model !== GEMINI_BOSS_PREFERRED_MODEL),
+    ...preferred.filter((model) => candidates.includes(model)),
+    ...candidates.filter((model) => !preferred.includes(model)),
   ].slice(0, 2);
 }
 
@@ -498,9 +503,9 @@ function getGeminiBossOverallTimeoutMs(): number {
 
 
 /**
- * Gemini is a text-only Boss. If the selected model is temporarily busy,
- * immediately try the next lower compatible model from the same catalog
- * instead of retrying the same model or starting another search lane.
+ * Gemini is a text-only Boss. If the selected model is temporarily rate-limited,
+ * retry it once, then try the next compatible stable Gemini text model from
+ * the same catalog. Live/audio models are never eligible for this role.
  */
 export async function generateGeminiBossText(
   selection: GeminiBossModelSelection,
@@ -777,12 +782,24 @@ export async function generateGeminiBossText(
               clearTimeout(rateLimitTimer);
             }
           }
-          if (response.status === 429) {
+          if (response.status === 429 && providerErrorCodeValue === "quota_exceeded") {
             return {
               model,
               raw: null,
-              error: `Gemini Boss ${model} rate limit persisted after bounded backoff${providerErrorCodeValue ? ` (${providerErrorCodeValue})` : ""}; no equivalent-model quota fan-out permitted.`,
+              error: `Gemini Boss ${model} reports daily quota exhaustion after bounded backoff; no equivalent-model fallback will repair the project quota.`,
             };
+          }
+          if (response.status === 429) {
+            // A burst/rate-limit 429 can be model-specific, so after one
+            // bounded same-model retry, advance to the next stable Gemini
+            // text model. Daily/project quota exhaustion is handled above and
+            // never model-hops because another model cannot repair that quota.
+            lastError = `Gemini Boss ${model} rate limit persisted after bounded backoff${providerErrorCodeValue ? ` (${providerErrorCodeValue})` : ""}.`;
+            logger.warn(
+              { role: "gemini_boss", phase: "rate_limit_model_fallback", model, keyName: entry.name, providerErrorCode: providerErrorCodeValue },
+              "Gemini Boss rate limit persisted; advancing to the next bounded same-role Gemini text model",
+            );
+            continue;
           }
         }
 
