@@ -385,26 +385,35 @@ async function request(system: string, user: string, responseFormat?: Record<str
       if (response.ok) return parseGeminiRightHandResponse(responseBody, model);
 
       if (response.status === 429) {
-        // A burst/rate-limit 429 gets one bounded same-model retry first.
-        // If that retry still fails, a different stable Gemini text model may
-        // serve the same Right-hand role when the live catalog offers one.
-        // Daily quota exhaustion never model-hops: another model cannot repair
-        // a project/account quota condition.
-        if (shouldRetry429(providerErrorCodeValue) && rateLimitRetry < MAX_RATE_LIMIT_RETRIES && Date.now() < deadline) {
-          const retryNumber = rateLimitRetry + 1;
-          rateLimitRetry += 1;
-          const retryDelayMs = rateLimitRetryDelayMs(response, Math.max(0, deadline - Date.now()), providerErrorCodeValue, retryNumber);
-          // The original request timer only bounds the original provider call.
-          // It must not abort the bounded recovery sleep or the subsequent retry.
-          clearTimeout(timer);
-          if (retryDelayMs > 0) {
-            logger.warn(
-              { role: "gemini_right_hand", phase: "rate_limit_backoff", model, retryNumber: rateLimitRetry, maxRetries: MAX_RATE_LIMIT_RETRIES, retryDelayMs },
-              "Gemini Right-hand rate limited; waiting before bounded same-model retry",
+        // A burst/rate-limit 429 gets bounded same-model recovery before any
+        // same-role model fallback. Daily quota exhaustion never model-hops.
+        if (shouldRetry429(providerErrorCodeValue)) {
+          while (rateLimitRetry < MAX_RATE_LIMIT_RETRIES && Date.now() < deadline) {
+            const retryNumber = rateLimitRetry + 1;
+            rateLimitRetry += 1;
+            const retryDelayMs = rateLimitRetryDelayMs(
+              response,
+              Math.max(0, deadline - Date.now()),
+              providerErrorCodeValue,
+              retryNumber,
             );
-            await new Promise<void>((resolve) => setTimeout(resolve, retryDelayMs));
-          }
-          if (Date.now() < deadline) {
+            clearTimeout(timer);
+            if (retryDelayMs > 0) {
+              logger.warn(
+                {
+                  role: "gemini_right_hand",
+                  phase: "rate_limit_backoff",
+                  model,
+                  retryNumber,
+                  maxRetries: MAX_RATE_LIMIT_RETRIES,
+                  retryDelayMs,
+                },
+                "Gemini Right-hand rate limited; waiting before bounded same-model retry",
+              );
+              await new Promise<void>((resolve) => setTimeout(resolve, retryDelayMs));
+            }
+            if (Date.now() >= deadline) break;
+
             const retryController = new AbortController();
             const retryAttemptTimeoutMs = Math.min(
               configuredRequestTimeoutMs,
@@ -425,13 +434,18 @@ async function request(system: string, user: string, responseFormat?: Record<str
               responseBody = await response.text();
               providerErrorCodeValue = response.ok ? null : providerErrorCode(responseBody);
               failureClass = response.ok ? null : classifyProviderHttpStatus(response.status);
-              logger.info({
-                role: "gemini_right_hand",
-                phase: "rate_limit_retry_resolved",
-                model,
-                httpStatus: response.status,
-                providerErrorCode: providerErrorCodeValue,
-              }, "Gemini Right-hand same-model rate-limit retry resolved");
+              logger.info(
+                {
+                  role: "gemini_right_hand",
+                  phase: "rate_limit_retry_resolved",
+                  model,
+                  retryNumber,
+                  maxRetries: MAX_RATE_LIMIT_RETRIES,
+                  httpStatus: response.status,
+                  providerErrorCode: providerErrorCodeValue,
+                },
+                "Gemini Right-hand same-model rate-limit retry resolved",
+              );
             } catch (retryError) {
               const retryFailureClass = classifyThrownProviderError(
                 retryError,
@@ -446,8 +460,11 @@ async function request(system: string, user: string, responseFormat?: Record<str
             } finally {
               clearTimeout(retryTimer);
             }
+
+            if (response.status !== 429) break;
           }
         }
+
         if (response.status === 429) {
           failures.push(`${model} rate_limited HTTP 429${providerErrorCodeValue ? ` ${providerErrorCodeValue}` : ""}`);
           const quotaNote = providerErrorCodeValue === "quota_exceeded"
@@ -456,11 +473,10 @@ async function request(system: string, user: string, responseFormat?: Record<str
           if (providerErrorCodeValue === "quota_exceeded" || model !== chain[0]) {
             return {
               raw: "",
-              error: `Gemini Right-hand rate limit persisted after bounded backoff: ${failures.join("; ")}.${quotaNote}`,
+              error: `Gemini Right-hand rate limit persisted after ${rateLimitRetry} bounded same-model retries: ${failures.join("; ")}.${quotaNote}`,
               model,
             };
           }
-          failures.push(`${model} rate_limited HTTP 429${providerErrorCodeValue ? ` ${providerErrorCodeValue}` : ""}`);
           continue;
         }
       }
