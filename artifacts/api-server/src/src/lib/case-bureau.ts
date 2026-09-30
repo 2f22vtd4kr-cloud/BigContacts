@@ -406,9 +406,9 @@ const DEFAULT_GEMINI_BOSS_REQUEST_TIMEOUT_MS = 30_000;
 const DEFAULT_GEMINI_BOSS_OVERALL_TIMEOUT_MS = 240_000;
 const MIN_GEMINI_BOSS_REQUEST_TIMEOUT_MS = 10_000;
 const MAX_GEMINI_BOSS_REQUEST_TIMEOUT_MS = 60_000;
-// Boss has a bounded 3-step 429 recovery ladder. A very small environment
-// override can otherwise expire the control-plane budget before recovery can
-// complete, causing Atlas to fail before selecting the Investigator.
+// Boss has a bounded same-model recovery step plus a wider free-tier model pool.
+// A very small environment override can otherwise expire the control-plane budget
+// before recovery can complete, causing Atlas to fail before selecting the Investigator.
 const MIN_GEMINI_BOSS_OVERALL_TIMEOUT_MS = DEFAULT_GEMINI_BOSS_OVERALL_TIMEOUT_MS;
 const MAX_GEMINI_BOSS_OVERALL_TIMEOUT_MS = 300_000;
 const MAX_GEMINI_BOSS_TRANSPORT_RETRIES = 1;
@@ -789,11 +789,19 @@ export async function generateGeminiBossText(
           }
 
           if (response.status === 429 && providerErrorCodeValue === "quota_exceeded") {
-            return {
-              model,
-              raw: null,
-              error: `Gemini Boss ${model} reports daily quota exhaustion after bounded backoff; no equivalent-model fallback will repair the project quota.`,
-            };
+            const cooldownMs = markGeminiModelDailyQuotaExhausted(model);
+            logger.warn(
+              {
+                role: "gemini_boss",
+                phase: "daily_quota_model_cooldown",
+                model,
+                keyName: entry.name,
+                cooldownMs,
+                providerErrorCode: providerErrorCodeValue,
+              },
+              "Gemini Boss model daily quota exhausted after retry; rotating to another eligible text model",
+            );
+            continue;
           }
           if (response.status === 429) {
             const cooldownMs = Math.max(GEMINI_BOSS_429_RETRY_DELAY_MS, 60_000);
