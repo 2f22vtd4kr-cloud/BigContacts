@@ -59,18 +59,21 @@ describe("Gemini Boss text-only model authority", () => {
     expect(String(fetchMock.mock.calls[1]?.[0])).toContain("v1beta/interactions");
   });
 
-  it("keeps HTTP 429 on the same model and does not fan out quota pressure", async () => {
+  it("falls back to the next same-role model after bounded persistent 429s", async () => {
     process.env.GEMINI_API_KEY = "test-key";
     const fetchMock = vi.spyOn(globalThis, "fetch")
       .mockResolvedValueOnce(response(429, { error: "rate limited" }))
-      .mockResolvedValueOnce(response(429, { error: "rate limited" }));
+      .mockResolvedValueOnce(response(429, { error: "rate limited" }))
+      .mockResolvedValueOnce(response(200, {
+        steps: [{ type: "model_output", content: [{ type: "text", text: '{"decision":"continue"}' }] }],
+      }));
 
     const result = await generateGeminiBossText(selection, "Return JSON.");
 
-    expect(result.model).toBe("gemini-3.8-flash");
-    expect(result.raw).toBeNull();
-    expect(result.error).toContain("rate limit persisted");
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(result.model).toBe("gemini-3.7-flash");
+    expect(result.raw).toBe('{"decision":"continue"}');
+    expect(result.error).toBeNull();
+    expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 
   it("prefers a live Flash-Lite model for the Boss control plane", async () => {

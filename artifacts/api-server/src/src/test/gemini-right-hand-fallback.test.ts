@@ -102,7 +102,7 @@ describe("Gemini Right-hand text-only control transport", () => {
     expect(result.error).toContain("rate limit persisted");
   });
 
-  it("retries short-burst too_many_requests on the same model without equivalent-model fan-out", async () => {
+  it("falls back after bounded short-burst too_many_requests retries", async () => {
     process.env.GEMINI_RIGHT_HAND_API_KEY = "test-key-too-many";
     const attempts: string[] = [];
     globalThis.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -111,21 +111,24 @@ describe("Gemini Right-hand text-only control transport", () => {
       const body = init?.body ? JSON.parse(String(init.body)) as { model?: string } : {};
       if (!url.includes("/v1beta/interactions")) throw new Error("unexpected non-generation request");
       attempts.push(body.model ?? "");
-      return new Response(JSON.stringify({ error: { code: "too_many_requests", message: "burst" } }), {
-        status: 429,
-        headers: { "retry-after": "0" },
-      });
+      if (attempts.length < 3) {
+        return new Response(JSON.stringify({ error: { code: "too_many_requests", message: "burst" } }), {
+          status: 429,
+          headers: { "retry-after": "0" },
+        });
+      }
+      return ok('{"decision":"fallback-ok"}');
     });
     installExternalQuotaGuard();
 
     const result = await runGeminiRightHandFreeJson("Return JSON.");
 
-    expect(result.status).toBe("unavailable");
-    expect(attempts).toEqual([GEMINI_RIGHT_HAND_MODEL, GEMINI_RIGHT_HAND_MODEL]);
-    expect(result.error).toContain("rate limit persisted");
+    expect(result.status).toBe("completed");
+    expect(attempts).toEqual([GEMINI_RIGHT_HAND_MODEL, GEMINI_RIGHT_HAND_MODEL, "gemini-3.8-flash"]);
+    expect(result.model).toBe("gemini-3.8-flash");
   });
 
-  it("uses at most two live same-role Flash-Lite candidates on HTTP 503", async () => {
+  it("uses the configured same-role fallback on HTTP 503", async () => {
     process.env.GEMINI_RIGHT_HAND_API_KEY = "test-key-503";
     const attempts: string[] = [];
     globalThis.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -143,7 +146,7 @@ describe("Gemini Right-hand text-only control transport", () => {
     expect(result.status).toBe("unavailable");
     expect(attempts).toEqual([
       "gemini-3.1-flash-lite",
-      "gemini-3.5-flash-lite",
+      "gemini-3.8-flash",
     ]);
     expect(result.error).toContain("exhausted bounded same-role model attempts");
   });
