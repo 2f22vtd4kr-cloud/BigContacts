@@ -24,17 +24,17 @@ export const GEMINI_RIGHT_HAND_FALLBACK_MODELS: readonly string[] = ["gemini-3.8
 const GEMINI_CHAT_API_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
 const GEMINI_INTERACTIONS_API = "https://generativelanguage.googleapis.com/v1beta/interactions";
 const DEFAULT_REQUEST_TIMEOUT_MS = 20_000;
-const DEFAULT_OVERALL_TIMEOUT_MS = 120_000;
+const DEFAULT_OVERALL_TIMEOUT_MS = 300_000;
 const MIN_REQUEST_TIMEOUT_MS = 10_000;
 const MAX_REQUEST_TIMEOUT_MS = 60_000;
 const MIN_OVERALL_TIMEOUT_MS = 20_000;
-const MAX_OVERALL_TIMEOUT_MS = 180_000;
+const MAX_OVERALL_TIMEOUT_MS = 360_000;
 const MAX_MODEL_ATTEMPTS = 2;
 const MAX_TRANSIENT_TRANSPORT_RETRIES = 1;
 const TRANSIENT_TRANSPORT_RETRY_DELAY_MS = 600;
-const MAX_RATE_LIMIT_RETRIES = 1;
-const DEFAULT_RATE_LIMIT_RETRY_DELAY_MS = 10_000;
-const MAX_RATE_LIMIT_RETRY_DELAY_MS = 30_000;
+const MAX_RATE_LIMIT_RETRIES = 3;
+const DEFAULT_RATE_LIMIT_RETRY_DELAY_MS = 30_000;
+const MAX_RATE_LIMIT_RETRY_DELAY_MS = 120_000;
 const MIN_RATE_LIMIT_RETRY_DELAY_MS = 10;
 function configuredRateLimitRetryDelayMs(): number {
   const parsed = Number(process.env.APEX_GEMINI_RIGHT_HAND_RATE_LIMIT_RETRY_DELAY_MS);
@@ -162,7 +162,7 @@ async function resolveModelChain(): Promise<string[]> {
 }
 function extractJson(raw: string): Record<string, unknown> | null { const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)```/i)?.[1]?.trim(); const source = fenced || raw.trim(); const start = source.indexOf("{"), end = source.lastIndexOf("}"); if (start < 0 || end <= start) return null; try { const value = JSON.parse(source.slice(start, end + 1)); return value && typeof value === "object" ? value as Record<string, unknown> : null; } catch { return null; } }
 function shouldFallback(status: number): boolean { return status === 403 || status === 404 || status === 408 || status === 429 || status === 500 || status === 502 || status === 503 || status === 504; }
-function rateLimitRetryDelayMs(response: Response, remainingMs: number, errorCode: string | null): number {
+function rateLimitRetryDelayMs(response: Response, remainingMs: number, errorCode: string | null, retryNumber = 1): number {
   const retryAfter = response.headers.get("retry-after")?.trim();
   if (retryAfter) {
     const seconds = Number(retryAfter);
@@ -174,9 +174,13 @@ function rateLimitRetryDelayMs(response: Response, remainingMs: number, errorCod
   // Gemini documents too_many_requests as a short-period burst condition.
   // Give that subtype a longer bounded recovery window than the generic
   // rate-limit case so the retry does not immediately reproduce the burst.
+  const exponentialDelayMs = Math.min(
+    MAX_RATE_LIMIT_RETRY_DELAY_MS,
+    configuredRateLimitRetryDelayMs() * (2 ** Math.max(0, retryNumber - 1)),
+  );
   const fallbackDelayMs = errorCode === "too_many_requests"
-    ? MAX_RATE_LIMIT_RETRY_DELAY_MS
-    : configuredRateLimitRetryDelayMs();
+    ? exponentialDelayMs
+    : exponentialDelayMs;
   return Math.min(fallbackDelayMs, MAX_RATE_LIMIT_RETRY_DELAY_MS, Math.max(0, remainingMs));
 }
 function shouldRetry429(errorCode: string | null): boolean {
@@ -268,6 +272,7 @@ async function request(system: string, user: string, responseFormat?: Record<str
     try {
       let response: Response;
       let transportRetry = 0;
+      let rateLimitRetry = 0;
       while (true) {
         try {
           response = await fetchGeminiInteractions(GEMINI_INTERACTIONS_API, {
@@ -388,16 +393,17 @@ async function request(system: string, user: string, responseFormat?: Record<str
         // serve the same Right-hand role when the live catalog offers one.
         // Daily quota exhaustion never model-hops: another model cannot repair
         // a project/account quota condition.
-        if (shouldRetry429(providerErrorCodeValue) && transportRetry < MAX_RATE_LIMIT_RETRIES && Date.now() < deadline) {
-          const retryDelayMs = rateLimitRetryDelayMs(response, Math.max(0, deadline - Date.now()), providerErrorCodeValue);
+        if (shouldRetry429(providerErrorCodeValue) && rateLimitRetry < MAX_RATE_LIMIT_RETRIES && Date.now() < deadline) {
+          const retryNumber = rateLimitRetry + 1;
+          const retryDelayMs = rateLimitRetryDelayMs(response, Math.max(0, deadline - Date.now()), providerErrorCodeValue, retryNumber);
           if (retryDelayMs > 0) {
             // The original request timer only bounds the original provider call.
             // It must not abort the bounded recovery sleep or the subsequent retry.
             clearTimeout(timer);
-            transportRetry += 1;
+            rateLimitRetry += 1;
             logger.warn(
               { role: "gemini_right_hand", phase: "rate_limit_backoff", model, retryNumber: transportRetry, maxRetries: MAX_RATE_LIMIT_RETRIES, retryDelayMs },
-              "Gemini Right-hand rate limited; waiting before one bounded same-model retry",
+              "Gemini Right-hand rate limited; waiting before bounded same-model retry",
             );
             await new Promise<void>((resolve) => setTimeout(resolve, retryDelayMs));
           }
