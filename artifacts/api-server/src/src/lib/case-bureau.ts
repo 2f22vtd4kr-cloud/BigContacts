@@ -759,7 +759,7 @@ export async function generateGeminiBossText(
                 maxRetries: MAX_GEMINI_BOSS_429_RETRIES_PER_MODEL,
                 retryDelayMs,
               },
-              "Gemini Boss rate limited; retrying the same model once instead of burning quota on equivalent Flash-Lite model fallbacks",
+              "Gemini Boss rate limited; retrying the same model once before bounded same-role Flash model fallback",
             );
             if (retryDelayMs > 0) await new Promise<void>((resolve) => setTimeout(resolve, retryDelayMs));
             const rateLimitController = new AbortController();
