@@ -107,20 +107,20 @@ export type GeminiRightHandDiscoveryAdviceResult = { status: "completed" | "unav
 const RIGHT_HAND_KEY_ENV = "GEMINI_RIGHT_HAND_API_KEY";
 function key(): string | null { return process.env[RIGHT_HAND_KEY_ENV]?.trim() || null; }
 
-function chooseRightHandModels(entries: GeminiCatalogEntry[]): string[] {
+function chooseRightHandModels(entries: GeminiCatalogEntry[], scope = "global"): string[] {
   const catalogModels = entries
     .filter((entry) => entry.name)
     .map((entry) => entry.name!.replace(/^models\//, ""));
-  return chooseAvailableGeminiControlModels("right_hand", catalogModels);
+  return chooseAvailableGeminiControlModels("right_hand", catalogModels, scope);
 }
 
-async function resolveModelChain(): Promise<string[]> {
+async function resolveModelChain(scope = "global"): Promise<string[]> {
   const apiKey = key();
   if (!apiKey) return [];
 
   const fingerprint = credentialFingerprint(apiKey);
   if (cachedModelChain && cachedModelChain.credentialFingerprint === fingerprint && cachedModelChain.expiresAt > Date.now()) {
-    return chooseAvailableGeminiControlModels("right_hand", cachedModelChain.models).slice(0, MAX_MODEL_ATTEMPTS);
+    return chooseAvailableGeminiControlModels("right_hand", cachedModelChain.models, scope).slice(0, MAX_MODEL_ATTEMPTS);
   }
 
   try {
@@ -137,7 +137,7 @@ async function resolveModelChain(): Promise<string[]> {
       return [];
     }
     const payload = await response.json() as { models?: GeminiCatalogEntry[] };
-    const catalogModels = chooseRightHandModels(Array.isArray(payload.models) ? payload.models : []);
+    const catalogModels = chooseRightHandModels(Array.isArray(payload.models) ? payload.models : [], scope);
     if (catalogModels.length) {
       cachedModelChain = { expiresAt: Date.now() + MODEL_CATALOG_CACHE_MS, models: catalogModels, credentialFingerprint: fingerprint };
       logger.info({ role: "gemini_right_hand", phase: "model_catalog_resolved", preferredModel: GEMINI_RIGHT_HAND_MODEL, candidateCount: catalogModels.length, models: catalogModels }, "Gemini Right-hand model catalog resolved");
@@ -219,7 +219,8 @@ async function request(system: string, user: string, responseFormat?: Record<str
   // are the current high-volume Flash-Lite models; provider capacity/entitlement
   // failures may advance through the full stable Flash text pool.
   // No Groq/Mistral substitution is permitted here.
-  const resolvedChain = await resolveModelChain();
+  const modelScope = credentialFingerprint(apiKey);
+  const resolvedChain = await resolveModelChain(modelScope);
   const chain = resolvedChain.slice(0, MAX_MODEL_ATTEMPTS);
   if (chain.length === 0) {
     return { raw: "", error: "Gemini Right-hand has no compatible stable Gemini Flash model in the live catalog.", model: GEMINI_RIGHT_HAND_MODEL };
@@ -312,7 +313,7 @@ async function request(system: string, user: string, responseFormat?: Record<str
         const compatibilityBody = JSON.stringify({
           model,
           input: systemPrompt + "\n\nUSER REQUEST:\n" + user,
-          generation_config: { max_output_tokens: 512, thinking_level: model === "gemini-3.8-flash" ? "low" : "minimal" },
+          generation_config: { max_output_tokens: 512, thinking_level: getGeminiThinkingLevel(model) },
         });
         const compatibilityController = new AbortController();
         const compatibilityTimeout = Math.min(requestTimeoutMs(), Math.max(1_000, deadline - Date.now()));
@@ -386,7 +387,7 @@ async function request(system: string, user: string, responseFormat?: Record<str
         // burn another request on an exhausted model; rotate to another eligible
         // stable text model.
         if (providerErrorCodeValue === "quota_exceeded") {
-          const cooldownMs = markGeminiModelDailyQuotaExhausted(model);
+          const cooldownMs = markGeminiModelDailyQuotaExhausted(model, Date.now(), modelScope);
           logger.warn(
             {
               role: "gemini_right_hand",
@@ -484,7 +485,7 @@ async function request(system: string, user: string, responseFormat?: Record<str
 
         if (response.status === 429) {
           const cooldownMs = Math.max(DEFAULT_RATE_LIMIT_RETRY_DELAY_MS, 60_000);
-          markGeminiModelRateLimited(model, cooldownMs);
+          markGeminiModelRateLimited(model, cooldownMs, modelScope);
           failures.push(`${model} rate_limited HTTP 429${providerErrorCodeValue ? ` ${providerErrorCodeValue}` : ""}`);
           logger.warn(
             {
