@@ -102,6 +102,52 @@ describe("Gemini Right-hand text-only control transport", () => {
     expect(result.error).toContain("rate limit persisted");
   });
 
+  it("does not retry or model-hop when the provider message explicitly names a daily Free-tier quota", async () => {
+    process.env.GEMINI_RIGHT_HAND_API_KEY = "test-key-daily-quota";
+    process.env.APEX_GEMINI_RIGHT_HAND_RATE_LIMIT_RETRY_DELAY_MS = "10";
+    const attempts: string[] = [];
+    globalThis.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith("/v1beta/models")) return catalog();
+      const body = init?.body ? JSON.parse(String(init.body)) as { model?: string } : {};
+      if (!url.includes("/v1beta/interactions")) throw new Error("unexpected non-generation request");
+      attempts.push(body.model ?? "");
+      return new Response(JSON.stringify({
+        error: { code: "too_many_requests", message: "Free Tier limit of 500 requests per day has been exceeded." },
+      }), { status: 429 });
+    });
+    installExternalQuotaGuard();
+
+    const result = await runGeminiRightHandFreeJson("Return JSON.");
+
+    expect(result.status).toBe("unavailable");
+    expect(attempts).toEqual([GEMINI_RIGHT_HAND_MODEL]);
+    expect(result.error).toContain("daily quota exhaustion");
+  });
+
+  it("does not retry or model-hop when the provider message explicitly names a daily Free-tier quota", async () => {
+    process.env.GEMINI_RIGHT_HAND_API_KEY = "test-key-daily-quota";
+    process.env.APEX_GEMINI_RIGHT_HAND_RATE_LIMIT_RETRY_DELAY_MS = "10";
+    const attempts: string[] = [];
+    globalThis.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith("/v1beta/models")) return catalog();
+      const body = init?.body ? JSON.parse(String(init.body)) as { model?: string } : {};
+      if (!url.includes("/v1beta/interactions")) throw new Error("unexpected non-generation request");
+      attempts.push(body.model ?? "");
+      return new Response(JSON.stringify({
+        error: { code: "too_many_requests", message: "Free Tier limit of 500 requests per day has been exceeded." },
+      }), { status: 429 });
+    });
+    installExternalQuotaGuard();
+
+    const result = await runGeminiRightHandFreeJson("Return JSON.");
+
+    expect(result.status).toBe("unavailable");
+    expect(attempts).toEqual([GEMINI_RIGHT_HAND_MODEL]);
+    expect(result.error).toContain("daily quota exhaustion");
+  });
+
   it("falls back after bounded short-burst too_many_requests retries", async () => {
     process.env.GEMINI_RIGHT_HAND_API_KEY = "test-key-too-many";
     const attempts: string[] = [];
