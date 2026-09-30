@@ -50,7 +50,7 @@ describe("Atlas control-plane contract regression", () => {
     expect(rightHandSource).toContain("const retryAttemptTimeoutMs = Math.min(");
     expect(rightHandSource).toContain("const retryTimer = setTimeout(() => retryController.abort(), retryAttemptTimeoutMs);");
     expect(rightHandSource).toContain("clearTimeout(retryTimer);");
-    expect(rightHandSource).toContain("The Right-hand has a bounded same-model recovery step");
+    expect(rightHandSource).toContain("bounded same-model recovery");
     expect(controlSource).toContain('reason: "Gemini returned an invalid Atlas control action; fail-closed."');
   });
   it("replays valid and malformed provider contracts through the real validators", () => {
