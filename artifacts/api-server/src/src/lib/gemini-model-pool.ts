@@ -155,11 +155,8 @@ export function chooseAvailableGeminiControlModels(
 ): string[] {
   const ordered = chooseGeminiControlModels(role, catalogNames);
   const available = ordered.filter((model) => !isGeminiModelCoolingDown(model, Date.now(), scope));
-  // A cooldown should not turn a temporary provider condition into an
-  // artificial "no models" state. If every eligible model is cooling down,
-  // return the provider-compatible order and let the bounded request path
-  // make the authoritative decision.
-  return available.length > 0 ? available : ordered;
+  // If every eligible model is cooling down, do not silently re-enable a
+  // known-exhausted model. The caller must fail closed until a cooldown expires.
 }
 
 export const GEMINI_STABLE_CONTROL_MODELS: readonly GeminiControlModel[] =
