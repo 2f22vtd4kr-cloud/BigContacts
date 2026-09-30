@@ -35,6 +35,9 @@ type ProviderBodyShape = {
   errorCode: string | null;
   errorType: string | null;
   errorMessageChars: number;
+  errorStatus: string | null;
+  errorMessageDigest: string | null;
+  quotaSignals: string[];
 };
 
 function safeString(value: unknown): string | null {
@@ -65,6 +68,9 @@ export function summarizeProviderBody(body: string): ProviderBodyShape {
       errorCode: null,
       errorType: null,
       errorMessageChars: 0,
+      errorStatus: null,
+      errorMessageDigest: null,
+      quotaSignals: [],
     };
   }
 
@@ -78,6 +84,9 @@ export function summarizeProviderBody(body: string): ProviderBodyShape {
         errorCode: null,
         errorType: null,
         errorMessageChars: 0,
+        errorStatus: null,
+        errorMessageDigest: null,
+        quotaSignals: [],
       };
     }
     const record = parsed as Record<string, unknown>;
@@ -85,6 +94,25 @@ export function summarizeProviderBody(body: string): ProviderBodyShape {
       ? record.error as Record<string, unknown>
       : null;
     const message = safeString(error?.message) ?? safeString(record.message);
+    const status = safeString(error?.status) ?? safeString(record.status);
+    const details = Array.isArray(error?.details) ? error.details : [];
+    const quotaSignals = details
+      .filter((detail): detail is Record<string, unknown> => Boolean(detail) && typeof detail === "object" && !Array.isArray(detail))
+      .flatMap((detail) => {
+        const metadata = detail.metadata && typeof detail.metadata === "object" && !Array.isArray(detail.metadata)
+          ? detail.metadata as Record<string, unknown>
+          : {};
+        return [
+          safeString(detail.reason),
+          safeString(detail.domain),
+          safeString(metadata.quotaMetric),
+          safeString(metadata.quotaId),
+          safeString(metadata.quotaLimit),
+          safeString(metadata.quotaLimitValue),
+          safeString(metadata.limit),
+        ].filter((value): value is string => Boolean(value));
+      })
+      .slice(0, 12);
     return {
       bodyKind: "json",
       topLevelKeys: Object.keys(record).sort().slice(0, 20),
@@ -92,6 +120,9 @@ export function summarizeProviderBody(body: string): ProviderBodyShape {
       errorCode: safeString(error?.code) ?? safeString(record.code),
       errorType: safeString(error?.type) ?? safeString(record.type),
       errorMessageChars: message?.length ?? 0,
+      errorStatus: status,
+      errorMessageDigest: message ? digestDiagnosticText(message) : null,
+      quotaSignals,
     };
   } catch {
     return {
@@ -101,6 +132,9 @@ export function summarizeProviderBody(body: string): ProviderBodyShape {
       errorCode: null,
       errorType: null,
       errorMessageChars: 0,
+      errorStatus: null,
+      errorMessageDigest: null,
+      quotaSignals: [],
     };
   }
 }
