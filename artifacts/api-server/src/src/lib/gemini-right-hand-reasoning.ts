@@ -394,10 +394,10 @@ async function request(system: string, user: string, responseFormat?: Record<str
           const retryNumber = rateLimitRetry + 1;
           rateLimitRetry += 1;
           const retryDelayMs = rateLimitRetryDelayMs(response, Math.max(0, deadline - Date.now()), providerErrorCodeValue, retryNumber);
+          // The original request timer only bounds the original provider call.
+          // It must not abort the bounded recovery sleep or the subsequent retry.
+          clearTimeout(timer);
           if (retryDelayMs > 0) {
-            // The original request timer only bounds the original provider call.
-            // It must not abort the bounded recovery sleep or the subsequent retry.
-            clearTimeout(timer);
             logger.warn(
               { role: "gemini_right_hand", phase: "rate_limit_backoff", model, retryNumber: rateLimitRetry, maxRetries: MAX_RATE_LIMIT_RETRIES, retryDelayMs },
               "Gemini Right-hand rate limited; waiting before bounded same-model retry",
