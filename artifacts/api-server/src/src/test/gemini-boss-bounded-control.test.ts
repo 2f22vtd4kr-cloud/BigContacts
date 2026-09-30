@@ -7,6 +7,7 @@ describe("Gemini Boss bounded control-plane generation", () => {
     vi.unstubAllGlobals();
     globalThis.fetch = nativeFetch;
     delete process.env.GEMINI_API_KEY;
+    delete process.env.APEX_GEMINI_BOSS_429_RETRY_DELAY_MS;
     vi.resetModules();
     vi.restoreAllMocks();
   });
@@ -110,6 +111,7 @@ describe("Gemini Boss bounded control-plane generation", () => {
 
   it("retries the same model once on a retryable 429 without equivalent-model fan-out", async () => {
     process.env.GEMINI_API_KEY = "test-key";
+    process.env.APEX_GEMINI_BOSS_429_RETRY_DELAY_MS = "10";
 
     const providerFetch = vi.fn<typeof fetch>()
       .mockResolvedValueOnce(new Response(JSON.stringify({
