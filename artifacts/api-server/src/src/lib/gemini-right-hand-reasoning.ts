@@ -178,10 +178,7 @@ function rateLimitRetryDelayMs(response: Response, remainingMs: number, errorCod
     MAX_RATE_LIMIT_RETRY_DELAY_MS,
     configuredRateLimitRetryDelayMs() * (2 ** Math.max(0, retryNumber - 1)),
   );
-  const fallbackDelayMs = errorCode === "too_many_requests"
-    ? exponentialDelayMs
-    : exponentialDelayMs;
-  return Math.min(fallbackDelayMs, MAX_RATE_LIMIT_RETRY_DELAY_MS, Math.max(0, remainingMs));
+  return Math.min(exponentialDelayMs, MAX_RATE_LIMIT_RETRY_DELAY_MS, Math.max(0, remainingMs));
 }
 function shouldRetry429(errorCode: string | null): boolean {
   // Gemini Interactions distinguishes burst/rate exhaustion from daily quota
