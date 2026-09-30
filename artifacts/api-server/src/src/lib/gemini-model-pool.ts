@@ -103,9 +103,19 @@ export function markGeminiModelDailyQuotaExhausted(model: string, now = Date.now
         .filter((part) => part.type !== "literal")
         .map((part) => [part.type, Number(part.value)]),
     );
-    const utcMidnightGuess = Date.UTC(parts.year, parts.month - 1, parts.day + 1, 0, 0, 0);
-    const localOffsetApprox = now - utcMidnightGuess + ((parts.hour * 60 + parts.minute) * 60 + parts.second) * 1000;
-    const nextReset = utcMidnightGuess - localOffsetApprox;
+    const localNowMs = Date.UTC(
+      parts.year,
+      parts.month - 1,
+      parts.day,
+      parts.hour,
+      parts.minute,
+      parts.second,
+    );
+    const offsetMs = localNowMs - now;
+    const nextLocalMidnight = new Date(localNowMs);
+    nextLocalMidnight.setUTCDate(nextLocalMidnight.getUTCDate() + 1);
+    nextLocalMidnight.setUTCHours(0, 0, 0, 0);
+    const nextReset = nextLocalMidnight.getTime() - offsetMs;
     const cooldownMs = Math.max(60_000, nextReset - now + 60_000);
     markGeminiModelRateLimited(model, cooldownMs);
     return cooldownMs;
