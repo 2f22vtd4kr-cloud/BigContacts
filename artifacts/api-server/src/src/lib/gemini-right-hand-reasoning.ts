@@ -95,8 +95,8 @@ function chooseRightHandModels(entries: GeminiCatalogEntry[]): string[] {
     .filter((entry) => entry.name)
     .map((entry) => entry.name!.replace(/^models\//, ""))
     .filter((name) => /^gemini-/i.test(name))
-    .filter((name) => /flash-lite/i.test(name))
-    .filter((name) => /^gemini-\d+(?:\.\d+)?-flash(?:-lite)?(?:-[a-z0-9.]+)?$/i.test(name))
+    .filter((name) => /flash(?:-lite)?/i.test(name))
+    .filter((name) => /^gemini-\d+(?:\.\d+)?-flash(?:-lite)?$/i.test(name))
     .filter((name) => !/image|audio|embedding|tts|live|transcribe|deep-research|robotics|aqa|preview|experimental/i.test(name))
     .sort((a, b) => {
       const left = modelRank(a); const right = modelRank(b);
