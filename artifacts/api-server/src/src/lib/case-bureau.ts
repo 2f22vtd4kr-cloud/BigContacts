@@ -729,8 +729,7 @@ export async function generateGeminiBossText(
               },
               "Gemini Boss daily quota exhausted; failing closed without another provider request",
             );
-            lastError = `Gemini Boss daily quota exhaustion: ${model}`;
-            continue;
+            return { model, raw: null, error: `Gemini Boss daily quota exhaustion: ${model}` };
           }
 
           while (rateLimitRetry < MAX_GEMINI_BOSS_429_RETRIES_PER_MODEL && Date.now() < bossDeadline) {
