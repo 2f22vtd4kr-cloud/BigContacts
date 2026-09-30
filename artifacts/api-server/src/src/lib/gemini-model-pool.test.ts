@@ -3,6 +3,8 @@ import {
   chooseGeminiControlModels,
   getGeminiControlModel,
   getGeminiThinkingLevel,
+  chooseAvailableGeminiControlModels,
+  markGeminiModelRateLimited,
 } from "./gemini-model-pool";
 
 const CATALOG = [
@@ -54,5 +56,19 @@ describe("Gemini free-tier control model pool", () => {
       "gemini-3.1-flash-lite-preview",
     ])).toEqual([]);
     expect(getGeminiControlModel("gemini-3.8-live")).toBeNull();
+  });
+
+  it("keeps cooldown state isolated when Boss and Right-hand use different projects", () => {
+    markGeminiModelRateLimited("gemini-3.5-flash-lite", 60_000, "project-a");
+    expect(chooseAvailableGeminiControlModels(
+      "right_hand",
+      ["gemini-3.5-flash-lite", "gemini-3.1-flash-lite"],
+      "project-a",
+    )[0]).toBe("gemini-3.1-flash-lite");
+    expect(chooseAvailableGeminiControlModels(
+      "right_hand",
+      ["gemini-3.5-flash-lite", "gemini-3.1-flash-lite"],
+      "project-b",
+    )[0]).toBe("gemini-3.5-flash-lite");
   });
 });
