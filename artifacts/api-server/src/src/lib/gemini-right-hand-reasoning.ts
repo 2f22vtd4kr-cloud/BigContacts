@@ -480,6 +480,7 @@ async function request(system: string, user: string, responseFormat?: Record<str
               clearTimeout(retryTimer);
             }
 
+            if (response.ok) return parseGeminiRightHandResponse(responseBody, model);
             if (response.status !== 429) break;
           }
         }
