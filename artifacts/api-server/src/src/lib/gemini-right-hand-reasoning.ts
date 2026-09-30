@@ -392,14 +392,14 @@ async function request(system: string, user: string, responseFormat?: Record<str
         // a project/account quota condition.
         if (shouldRetry429(providerErrorCodeValue) && rateLimitRetry < MAX_RATE_LIMIT_RETRIES && Date.now() < deadline) {
           const retryNumber = rateLimitRetry + 1;
+          rateLimitRetry += 1;
           const retryDelayMs = rateLimitRetryDelayMs(response, Math.max(0, deadline - Date.now()), providerErrorCodeValue, retryNumber);
           if (retryDelayMs > 0) {
             // The original request timer only bounds the original provider call.
             // It must not abort the bounded recovery sleep or the subsequent retry.
             clearTimeout(timer);
-            rateLimitRetry += 1;
             logger.warn(
-              { role: "gemini_right_hand", phase: "rate_limit_backoff", model, retryNumber: transportRetry, maxRetries: MAX_RATE_LIMIT_RETRIES, retryDelayMs },
+              { role: "gemini_right_hand", phase: "rate_limit_backoff", model, retryNumber: rateLimitRetry, maxRetries: MAX_RATE_LIMIT_RETRIES, retryDelayMs },
               "Gemini Right-hand rate limited; waiting before bounded same-model retry",
             );
             await new Promise<void>((resolve) => setTimeout(resolve, retryDelayMs));
