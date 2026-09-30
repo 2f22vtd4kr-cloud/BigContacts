@@ -12,7 +12,7 @@ const checks = [
   ["Boss prefers Gemini 3.8 Flash but has multiple stable fallbacks", pool.includes('"gemini-3.8-flash"') && pool.includes('"gemini-3.7-flash"') && pool.includes('"gemini-3.5-flash-lite"')],
   ["Live/audio/preview models are excluded from the text control registry", !pool.includes('"gemini-3.8-live"') && !pool.includes("-preview") && !pool.includes("-image") && !pool.includes("-tts")],
   ["Boss uses the shared model-specific thinking contract", source.includes("getGeminiThinkingLevel(model)")],
-  ["Daily quota exhaustion rotates to another eligible model", source.includes("markGeminiModelDailyQuotaExhausted") && source.includes("phase: \"daily_quota_model_cooldown\"") && source.includes("continue;")],
+  ["Daily quota exhaustion fails closed without another provider request", source.includes("markGeminiModelDailyQuotaExhausted") && source.includes("phase: \"daily_quota_exhausted\"") && source.includes("return { model, raw: null") && !source.includes("phase: \"daily_quota_model_cooldown\"")],
   ["Persistent burst 429 advances to the next same-role model", source.includes('phase: "rate_limit_model_fallback"') && source.includes("advancing to the next bounded same-role Gemini text model")],
   ["Boss remains text-only and never substitutes an Investigator provider", source.includes("Gemini is a text-only Boss")],
 ];
