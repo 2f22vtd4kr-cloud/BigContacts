@@ -6,8 +6,8 @@ function run(path: string, method: string, authorization?: string) {
   const response = { statusCode: 200, jsonBody: undefined as unknown, status(code: number) { response.statusCode = code; return response; }, json(body: unknown) { response.jsonBody = body; return response; } };
   let nextCalled = false; const next = (() => { nextCalled = true; }) as NextFunction; apiAuth(req, response as unknown as Response, next); return { response, nextCalled };
 }
-beforeEach(() => { delete process.env.CI; delete process.env.APEX_API_AUTH_TOKEN; delete process.env.APEX_SESSION_SECRET; process.env.NODE_ENV = "test"; });
-afterEach(() => { delete process.env.APEX_API_AUTH_TOKEN; delete process.env.APEX_SESSION_SECRET; delete process.env.CI; delete process.env.NODE_ENV; });
+beforeEach(() => { delete process.env.CI; delete process.env.APEX_DEV_AUTH_BYPASS; delete process.env.APEX_API_AUTH_TOKEN; delete process.env.APEX_SESSION_SECRET; process.env.NODE_ENV = "test"; });
+afterEach(() => { delete process.env.APEX_API_AUTH_TOKEN; delete process.env.APEX_SESSION_SECRET; delete process.env.APEX_DEV_AUTH_BYPASS; delete process.env.CI; delete process.env.NODE_ENV; });
 describe("API authentication", () => {
   it("leaves health probes public", () => { expect(run("/api/healthz", "GET").nextCalled).toBe(true); });
   it("fails closed when no authentication boundary is configured", () => { const result = run("/api/entities", "GET"); expect(result.nextCalled).toBe(false); expect(result.response.statusCode).toBe(503); });
