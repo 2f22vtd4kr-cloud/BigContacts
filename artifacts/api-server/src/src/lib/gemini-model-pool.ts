@@ -75,5 +75,68 @@ export function getGeminiRolePreferences(role: GeminiControlRole): readonly stri
   return ROLE_PREFERENCES[role];
 }
 
+const cooldownUntilByModel = new Map<string, number>();
+
+export function markGeminiModelRateLimited(model: string, cooldownMs: number): void {
+  const bounded = Math.max(1_000, Math.min(15 * 60_000, Math.floor(cooldownMs)));
+  cooldownUntilByModel.set(model, Date.now() + bounded);
+}
+
+export function markGeminiModelDailyQuotaExhausted(model: string, now = Date.now()): number {
+  // Google documents RPD reset at midnight Pacific time. Use a conservative
+  // 24-hour cooldown if timezone conversion cannot be established; otherwise
+  // release the model shortly after the next Pacific midnight.
+  try {
+    const zone = "America/Los_Angeles";
+    const formatter = new Intl.DateTimeFormat("en-US", {
+      timeZone: zone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hourCycle: "h23",
+    });
+    const parts = Object.fromEntries(
+      formatter.formatToParts(new Date(now))
+        .filter((part) => part.type !== "literal")
+        .map((part) => [part.type, Number(part.value)]),
+    );
+    const utcMidnightGuess = Date.UTC(parts.year, parts.month - 1, parts.day + 1, 0, 0, 0);
+    const localOffsetApprox = now - utcMidnightGuess + ((parts.hour * 60 + parts.minute) * 60 + parts.second) * 1000;
+    const nextReset = utcMidnightGuess - localOffsetApprox;
+    const cooldownMs = Math.max(60_000, nextReset - now + 60_000);
+    markGeminiModelRateLimited(model, cooldownMs);
+    return cooldownMs;
+  } catch {
+    const cooldownMs = 24 * 60 * 60_000;
+    markGeminiModelRateLimited(model, cooldownMs);
+    return cooldownMs;
+  }
+}
+
+export function isGeminiModelCoolingDown(model: string, now = Date.now()): boolean {
+  const until = cooldownUntilByModel.get(model) ?? 0;
+  if (until <= now) {
+    cooldownUntilByModel.delete(model);
+    return false;
+  }
+  return true;
+}
+
+export function chooseAvailableGeminiControlModels(
+  role: GeminiControlRole,
+  catalogNames: readonly string[],
+): string[] {
+  const ordered = chooseGeminiControlModels(role, catalogNames);
+  const available = ordered.filter((model) => !isGeminiModelCoolingDown(model));
+  // A cooldown should not turn a temporary provider condition into an
+  // artificial "no models" state. If every eligible model is cooling down,
+  // return the provider-compatible order and let the bounded request path
+  // make the authoritative decision.
+  return available.length > 0 ? available : ordered;
+}
+
 export const GEMINI_STABLE_CONTROL_MODELS: readonly GeminiControlModel[] =
   Object.values(MODELS);
