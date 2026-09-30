@@ -288,14 +288,6 @@ export type DiscoveryCaseFile = {
  * availability and pricing vary by key/project and change over time.
  */
 export const GEMINI_BOSS_MODEL_PENDING = "auto-low-cost-pending";
-const GEMINI_BOSS_PREFERRED_MODEL = "gemini-3.8-flash";
-const GEMINI_BOSS_FALLBACK_MODELS: readonly string[] = [
-  "gemini-3.7-flash",
-  "gemini-3.6-flash",
-  "gemini-3.5-flash",
-  "gemini-3.5-flash-lite",
-  "gemini-3.1-flash-lite",
-];
 const GEMINI_MODELS_API = "https://generativelanguage.googleapis.com/v1beta/models";
 const GEMINI_INTERACTIONS_API = "https://generativelanguage.googleapis.com/v1beta/interactions";
 const GEMINI_KEY_NAMES = [
