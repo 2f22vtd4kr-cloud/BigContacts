@@ -11,7 +11,7 @@ const checks = [
   ["recovery uses the existing canonical lock path", continuation.includes('claimCanonicalJob("atlas-run",jobId)')],
   ["recovery uses the durable cancellation fence", continuation.includes("cancellationFenceSql(caseId)")],
   ["recovery starts from durable shared context", continuation.includes("contextOf(file)")],
-  ["recovery never substitutes a non-Gemini oversight provider", !continuation.includes("investigatorLlm: "groq"") && !continuation.includes("investigatorLlm: "mistral"")],
+  ["recovery never substitutes a non-Gemini oversight provider", !continuation.includes('investigatorLlm: "groq"') && !continuation.includes('investigatorLlm: "mistral"')],
   ["desk exposes the recovery helper", client.includes("export async function recoverAtlasControl(caseId: number)")],
   ["desk recovery targets only the canonical recovery endpoint", client.includes("/recover-control")],
 ];
