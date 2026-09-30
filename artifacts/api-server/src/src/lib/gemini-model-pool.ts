@@ -61,6 +61,7 @@ export function getGeminiThinkingLevel(model: string): "minimal" | "low" {
 export function chooseGeminiControlModels(
   role: GeminiControlRole,
   catalogNames: readonly string[],
+  scope = "global",
 ): string[] {
   const available = new Set(
     catalogNames
@@ -77,16 +78,20 @@ export function getGeminiRolePreferences(role: GeminiControlRole): readonly stri
 
 const cooldownUntilByModel = new Map<string, number>();
 
-function setGeminiModelCooldown(model: string, cooldownMs: number, maxCooldownMs: number): void {
+function cooldownKey(model: string, scope: string): string {
+  return `${scope}:${model}`;
+}
+
+function setGeminiModelCooldown(model: string, cooldownMs: number, maxCooldownMs: number, scope = "global"): void {
   const bounded = Math.max(1_000, Math.min(maxCooldownMs, Math.floor(cooldownMs)));
-  cooldownUntilByModel.set(model, Date.now() + bounded);
+  cooldownUntilByModel.set(cooldownKey(model, scope), Date.now() + bounded);
 }
 
-export function markGeminiModelRateLimited(model: string, cooldownMs: number): void {
-  setGeminiModelCooldown(model, cooldownMs, 15 * 60_000);
+export function markGeminiModelRateLimited(model: string, cooldownMs: number, scope = "global"): void {
+  setGeminiModelCooldown(model, cooldownMs, 15 * 60_000, scope);
 }
 
-export function markGeminiModelDailyQuotaExhausted(model: string, now = Date.now()): number {
+export function markGeminiModelDailyQuotaExhausted(model: string, now = Date.now(), scope = "global"): number {
   // Google documents RPD reset at midnight Pacific time. Use a conservative
   // 24-hour cooldown if timezone conversion cannot be established; otherwise
   // release the model shortly after the next Pacific midnight.
@@ -121,19 +126,20 @@ export function markGeminiModelDailyQuotaExhausted(model: string, now = Date.now
     nextLocalMidnight.setUTCHours(0, 0, 0, 0);
     const nextReset = nextLocalMidnight.getTime() - offsetMs;
     const cooldownMs = Math.max(60_000, nextReset - now + 60_000);
-    setGeminiModelCooldown(model, cooldownMs, 26 * 60 * 60_000);
+    setGeminiModelCooldown(model, cooldownMs, 26 * 60 * 60_000, scope);
     return cooldownMs;
   } catch {
     const cooldownMs = 24 * 60 * 60_000;
-    setGeminiModelCooldown(model, cooldownMs, 26 * 60 * 60_000);
+    setGeminiModelCooldown(model, cooldownMs, 26 * 60 * 60_000, scope);
     return cooldownMs;
   }
 }
 
-export function isGeminiModelCoolingDown(model: string, now = Date.now()): boolean {
-  const until = cooldownUntilByModel.get(model) ?? 0;
+export function isGeminiModelCoolingDown(model: string, now = Date.now(), scope = "global"): boolean {
+  const key = cooldownKey(model, scope);
+  const until = cooldownUntilByModel.get(key) ?? 0;
   if (until <= now) {
-    cooldownUntilByModel.delete(model);
+    cooldownUntilByModel.delete(key);
     return false;
   }
   return true;
@@ -144,7 +150,7 @@ export function chooseAvailableGeminiControlModels(
   catalogNames: readonly string[],
 ): string[] {
   const ordered = chooseGeminiControlModels(role, catalogNames);
-  const available = ordered.filter((model) => !isGeminiModelCoolingDown(model));
+  const available = ordered.filter((model) => !isGeminiModelCoolingDown(model, Date.now(), scope));
   // A cooldown should not turn a temporary provider condition into an
   // artificial "no models" state. If every eligible model is cooling down,
   // return the provider-compatible order and let the bounded request path
