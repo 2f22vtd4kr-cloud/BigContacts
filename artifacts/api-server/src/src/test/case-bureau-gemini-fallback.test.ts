@@ -101,6 +101,23 @@ describe("Gemini Boss text-only model authority", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
+  it("fails closed on an explicit daily quota without model hopping", async () => {
+    process.env.GEMINI_API_KEY = "test-key-daily-quota-boss";
+    const fetchMock = vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(response(429, {
+        error: {
+          code: "quota_exceeded",
+          message: "daily quota exhausted",
+        },
+      }));
+
+    const result = await generateGeminiBossText(selection, "Return JSON.");
+
+    expect(result.model).toBe("gemini-3.8-flash");
+    expect(result.error).toContain("daily quota exhaustion");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   it("does not retry HTTP 503 more than once for the same model", async () => {
     process.env.GEMINI_API_KEY = "test-key";
     const fetchMock = vi.spyOn(globalThis, "fetch")
