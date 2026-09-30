@@ -1,0 +1,24 @@
+#!/usr/bin/env node
+import fs from "node:fs";
+
+const continuation = fs.readFileSync("artifacts/api-server/src/src/routes/research/canonical-case-continuation.ts", "utf8");
+const client = fs.readFileSync("artifacts/apex-finder/src/lib/launch-atlas.ts", "utf8");
+
+const checks = [
+  ["recovery route is mounted on the canonical continuation handler", continuation.includes('"/research/bureau/cases/:caseId/recover-control"')],
+  ["recovery is restricted to durable Gemini control failure states", continuation.includes('new Set(["gemini-right-hand-unavailable","canonical-control-unavailable"])')],
+  ["ordinary continuation remains available", continuation.includes('"/research/bureau/cases/:caseId/run-next-pass"')],
+  ["recovery uses the existing canonical lock path", continuation.includes('claimCanonicalJob("atlas-run",jobId)')],
+  ["recovery uses the durable cancellation fence", continuation.includes("cancellationFenceSql(caseId)")],
+  ["recovery starts from durable shared context", continuation.includes("contextOf(file)")],
+  ["recovery never substitutes a non-Gemini oversight provider", !continuation.includes("investigatorLlm: "groq"") && !continuation.includes("investigatorLlm: "mistral"")],
+  ["desk exposes the recovery helper", client.includes("export async function recoverAtlasControl(caseId: number)")],
+  ["desk recovery targets only the canonical recovery endpoint", client.includes("/recover-control")],
+];
+
+let failed = false;
+for (const [name, ok] of checks) {
+  console.log(`${ok ? "PASS" : "FAIL"} ${name}`);
+  if (!ok) failed = true;
+}
+if (failed) process.exit(1);

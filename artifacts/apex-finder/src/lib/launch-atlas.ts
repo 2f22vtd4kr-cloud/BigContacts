@@ -74,6 +74,28 @@ export async function launchAtlasPipeline(opts: LaunchAtlasOptions = {}): Promis
   }
 }
 
+export async function recoverAtlasControl(caseId: number): Promise<LaunchAtlasResult> {
+  if (isMockMode()) return { ok: true, mock: true, message: "Mock mode — no control recovery started." };
+  if (!Number.isInteger(caseId) || caseId <= 0) {
+    return { ok: false, message: "A valid Apex Atlas case ID is required for control recovery." };
+  }
+  try {
+    const res = await fetch(`${BASE}/api/research/bureau/cases/${caseId}/recover-control`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    const data = await readApiJson(res);
+    if (res.status === 409) {
+      return { ok: false, alreadyRunning: true, jobId: data?.jobId, message: data?.error ?? "This case cannot be recovered at its current control boundary." };
+    }
+    if (!res.ok) return { ok: false, message: data?.error ?? `Control recovery failed (HTTP ${res.status})` };
+    return { ok: true, jobId: data?.jobId, message: data?.message ?? "Apex Atlas control recovery started." };
+  } catch (e: any) {
+    return { ok: false, message: e?.message ?? "Could not reach api-server for Apex Atlas control recovery." };
+  }
+}
+
 export async function stopAtlasPipeline(jobId?: string): Promise<LaunchAtlasResult> {
   if (isMockMode()) return { ok: true, mock: true, message: "Mock mode — nothing to stop." };
   try {
