@@ -175,7 +175,7 @@ describe("Gemini Right-hand text-only control transport", () => {
 
     expect(result.status).toBe("completed");
     expect(attempts).toEqual([GEMINI_RIGHT_HAND_MODEL, GEMINI_RIGHT_HAND_MODEL, "gemini-3.1-flash-lite"]);
-    expect(result.model).toBe("gemini-3.8-flash");
+    expect(result.model).toBe("gemini-3.1-flash-lite");
   });
 
   it("uses the configured same-role fallback on HTTP 503", async () => {
