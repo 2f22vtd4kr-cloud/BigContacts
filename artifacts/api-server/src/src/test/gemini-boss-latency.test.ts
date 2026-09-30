@@ -25,6 +25,8 @@ describe("Gemini Boss latency controls", () => {
     expect(getGeminiBossLatencyConfig()).toEqual({
       requestTimeoutMs: 30_000,
       overallTimeoutMs: 240_000,
+      minimumOverallTimeoutMs: 240_000,
+      overallTimeoutClamped: false,
     });
   });
 
