@@ -245,7 +245,10 @@ async function request(system: string, user: string, responseFormat?: Record<str
     const body = JSON.stringify({
       model,
       input: `${systemPrompt}\\n\\nUSER REQUEST:\\n${user}`,
-      generation_config: { max_output_tokens: 512, thinking_level: "minimal" },
+      generation_config: {
+        max_output_tokens: 512,
+        thinking_level: model === "gemini-3.8-flash" ? "low" : "minimal",
+      },
       ...(responseFormat ? { response_format: responseFormat } : {}),
     });
     const requestPayloadBytes = Buffer.byteLength(body);
