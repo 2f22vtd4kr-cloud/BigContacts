@@ -107,20 +107,6 @@ export type GeminiRightHandDiscoveryAdviceResult = { status: "completed" | "unav
 const RIGHT_HAND_KEY_ENV = "GEMINI_RIGHT_HAND_API_KEY";
 function key(): string | null { return process.env[RIGHT_HAND_KEY_ENV]?.trim() || null; }
 
-function modelVersion(name: string): [number, number] {
-  const match = name.match(/gemini-(\d+)(?:\.(\d+))?/i);
-  return [Number(match?.[1] ?? 0), Number(match?.[2] ?? 0)];
-}
-
-function modelRank(name: string): [number, number, number, number, string] {
-  const normalized = name.toLowerCase();
-  const [major, minor] = modelVersion(normalized);
-  const family = normalized.includes("flash") && !normalized.includes("flash-lite") ? 0 : normalized.includes("flash-lite") ? 1 : 2;
-  const lifecycle = normalized.includes("preview") || normalized.includes("experimental") ? 1 : 0;
-  const specialized = /image|audio|embedding|tts|live|transcribe|deep-research|robotics|aqa/i.test(normalized) ? 1 : 0;
-  return [family, specialized, lifecycle, major * 100 + minor, normalized];
-}
-
 function chooseRightHandModels(entries: GeminiCatalogEntry[]): string[] {
   const catalogModels = entries
     .filter((entry) => entry.name)
@@ -134,7 +120,7 @@ async function resolveModelChain(): Promise<string[]> {
 
   const fingerprint = credentialFingerprint(apiKey);
   if (cachedModelChain && cachedModelChain.credentialFingerprint === fingerprint && cachedModelChain.expiresAt > Date.now()) {
-    return cachedModelChain.models.slice(0, MAX_MODEL_ATTEMPTS);
+    return chooseRightHandModels(cachedModelChain.models).slice(0, MAX_MODEL_ATTEMPTS);
   }
 
   try {
