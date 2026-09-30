@@ -84,7 +84,7 @@ export function getGeminiRightHandLatencyConfig(): GeminiRightHandLatencyConfig 
     requestTimeoutMs: requestMs,
     overallTimeoutMs: effectiveOverall,
     minimumOverallTimeoutMs: MIN_OVERALL_TIMEOUT_MS,
-    overallTimeoutClamped: Number.isFinite(rawOverall) && Math.floor(rawOverall) < effectiveOverall,
+    overallTimeoutClamped: Number.isFinite(rawOverall) && Math.floor(rawOverall) !== effectiveOverall,
   };
 }
 
