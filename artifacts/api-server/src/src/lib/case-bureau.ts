@@ -502,7 +502,7 @@ export function getGeminiBossLatencyConfig(): GeminiBossLatencyConfig {
     requestTimeoutMs,
     overallTimeoutMs,
     minimumOverallTimeoutMs: MIN_GEMINI_BOSS_OVERALL_TIMEOUT_MS,
-    overallTimeoutClamped: Number.isFinite(rawOverall) && Math.floor(rawOverall) < overallTimeoutMs,
+    overallTimeoutClamped: Number.isFinite(rawOverall) && Math.floor(rawOverall) !== overallTimeoutMs,
   };
 }
 
