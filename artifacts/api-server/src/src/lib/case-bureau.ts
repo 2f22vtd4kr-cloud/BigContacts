@@ -555,7 +555,10 @@ export async function generateGeminiBossText(
       const interactionBody = JSON.stringify({
         model,
         input: prompt,
-        generation_config: { max_output_tokens: options?.maxOutputTokens ?? 768, thinking_level: options?.thinkingLevel ?? "minimal" },
+        generation_config: {
+          max_output_tokens: options?.maxOutputTokens ?? 768,
+          thinking_level: options?.thinkingLevel ?? (model === "gemini-3.8-flash" ? "low" : "minimal"),
+        },
         ...(options?.responseFormat ? { response_format: options.responseFormat } : {}),
       });
       try {
