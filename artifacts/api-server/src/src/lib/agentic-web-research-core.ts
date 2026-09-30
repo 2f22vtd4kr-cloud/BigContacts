@@ -305,41 +305,69 @@ function isUsableMistralChatModel(card: MistralModelCard): card is MistralModelC
   return Boolean(id) && !archived && !fineTuned && card.capabilities?.completion_chat === true;
 }
 
+type MistralModelCatalogCacheEntry = { models: string[]; expiresAt: number };
+const mistralModelCatalogCache = new Map<string, MistralModelCatalogCacheEntry>();
+const mistralModelCatalogInFlight = new Map<string, Promise<string[]>>();
+const MISTRAL_MODEL_CATALOG_TTL_MS = boundedPositiveNumber(
+  process.env.APEX_MISTRAL_MODEL_CATALOG_TTL_MS,
+  15 * 60_000,
+  10_000,
+  24 * 60 * 60_000,
+);
+
 export async function resolveMistralChatModels(key: string, signal: AbortSignal): Promise<string[]> {
-  try {
-    const response = await runProviderCall(
-      { provider: "mistral", account: key, signal },
-      () => safeOutboundFetch("https://api.mistral.ai/v1/models", {
-        method: "GET",
-        headers: { Authorization: `Bearer ${key}`, Accept: "application/json" },
-        signal,
-      }),
-    );
-    const body = await readResponseTextCapped(response, signal);
-    if (!response.ok) {
-      logger.warn({ provider: "mistral", model: "catalog", httpStatus: response.status }, "Mistral model catalog unavailable");
+  const cacheKey = digestDiagnosticText(key);
+  const cached = mistralModelCatalogCache.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now()) return [...cached.models];
+
+  const existing = mistralModelCatalogInFlight.get(cacheKey);
+  if (existing) return [...(await existing)];
+
+  const task = (async (): Promise<string[]> => {
+    try {
+      const response = await runProviderCall(
+        { provider: "mistral", account: key, signal },
+        () => safeOutboundFetch("https://api.mistral.ai/v1/models", {
+          method: "GET",
+          headers: { Authorization: `Bearer ${key}`, Accept: "application/json" },
+          signal,
+        }),
+      );
+      const body = await readResponseTextCapped(response, signal);
+      if (!response.ok) {
+        logger.warn({ provider: "mistral", model: "catalog", httpStatus: response.status }, "Mistral model catalog unavailable");
+        return [];
+      }
+      const payload = JSON.parse(body) as { data?: unknown };
+      const cards = Array.isArray(payload.data) ? payload.data.filter((item): item is MistralModelCard => Boolean(item && typeof item === "object")) : [];
+      const compatible = cards.filter(isUsableMistralChatModel);
+      const configured = (process.env.MISTRAL_AGENTIC_MODEL || "").trim();
+      const byCreated = [...compatible].sort((a, b) => {
+        const createdA = typeof a.created === "number" ? a.created : Number(a.created);
+        const createdB = typeof b.created === "number" ? b.created : Number(b.created);
+        const safeA = Number.isFinite(createdA) ? createdA : 0;
+        const safeB = Number.isFinite(createdB) ? createdB : 0;
+        return safeB - safeA || String(a.id).localeCompare(String(b.id));
+      });
+      const ordered = [
+        ...(configured && compatible.some((card) => card.id === configured) ? [configured] : []),
+        ...byCreated.map((card) => card.id as string),
+      ];
+      const models = [...new Set(ordered)].slice(0, 4);
+      if (models.length) mistralModelCatalogCache.set(cacheKey, { models, expiresAt: Date.now() + MISTRAL_MODEL_CATALOG_TTL_MS });
+      return models;
+    } catch (error) {
+      if (signal.aborted) throw new Error("cancelled");
+      logger.warn({ provider: "mistral", model: "catalog", error: error instanceof Error ? error.message : String(error) }, "Mistral model catalog request failed");
       return [];
     }
-    const payload = JSON.parse(body) as { data?: unknown };
-    const cards = Array.isArray(payload.data) ? payload.data.filter((item): item is MistralModelCard => Boolean(item && typeof item === "object")) : [];
-    const compatible = cards.filter(isUsableMistralChatModel);
-    const configured = (process.env.MISTRAL_AGENTIC_MODEL || "").trim();
-    const byCreated = [...compatible].sort((a, b) => {
-      const createdA = typeof a.created === "number" ? a.created : Number(a.created);
-      const createdB = typeof b.created === "number" ? b.created : Number(b.created);
-      const safeA = Number.isFinite(createdA) ? createdA : 0;
-      const safeB = Number.isFinite(createdB) ? createdB : 0;
-      return safeB - safeA || String(a.id).localeCompare(String(b.id));
-    });
-    const ordered = [
-      ...(configured && compatible.some((card) => card.id === configured) ? [configured] : []),
-      ...byCreated.map((card) => card.id as string),
-    ];
-    return [...new Set(ordered)].slice(0, 4);
-  } catch (error) {
-    if (signal.aborted) throw new Error("cancelled");
-    logger.warn({ provider: "mistral", model: "catalog", error: error instanceof Error ? error.message : String(error) }, "Mistral model catalog request failed");
-    return [];
+  })();
+
+  mistralModelCatalogInFlight.set(cacheKey, task);
+  try {
+    return [...(await task)];
+  } finally {
+    if (mistralModelCatalogInFlight.get(cacheKey) === task) mistralModelCatalogInFlight.delete(cacheKey);
   }
 }
 
