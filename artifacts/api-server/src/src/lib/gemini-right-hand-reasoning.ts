@@ -27,7 +27,11 @@ const DEFAULT_REQUEST_TIMEOUT_MS = 20_000;
 const DEFAULT_OVERALL_TIMEOUT_MS = 300_000;
 const MIN_REQUEST_TIMEOUT_MS = 10_000;
 const MAX_REQUEST_TIMEOUT_MS = 60_000;
-const MIN_OVERALL_TIMEOUT_MS = 20_000;
+// The Right-hand has a 3-step rate-limit recovery ladder (30s/60s/120s)
+// plus bounded provider requests. Allowing a smaller environment override can
+// silently abort the ladder before the first real Investigator action. Keep the
+// floor at the default recovery budget while still honoring a higher override.
+const MIN_OVERALL_TIMEOUT_MS = DEFAULT_OVERALL_TIMEOUT_MS;
 const MAX_OVERALL_TIMEOUT_MS = 360_000;
 const MAX_MODEL_ATTEMPTS = 2;
 const MAX_TRANSIENT_TRANSPORT_RETRIES = 1;
@@ -65,8 +69,23 @@ function overallTimeoutMs(): number {
   return boundedTimeoutEnv("APEX_GEMINI_RIGHT_HAND_OVERALL_TIMEOUT_MS", DEFAULT_OVERALL_TIMEOUT_MS, Math.max(MIN_OVERALL_TIMEOUT_MS, requestMs), MAX_OVERALL_TIMEOUT_MS);
 }
 
-export function getGeminiRightHandLatencyConfig(): { requestTimeoutMs: number; overallTimeoutMs: number } {
-  return { requestTimeoutMs: requestTimeoutMs(), overallTimeoutMs: overallTimeoutMs() };
+export type GeminiRightHandLatencyConfig = {
+  requestTimeoutMs: number;
+  overallTimeoutMs: number;
+  minimumOverallTimeoutMs: number;
+  overallTimeoutClamped: boolean;
+};
+
+export function getGeminiRightHandLatencyConfig(): GeminiRightHandLatencyConfig {
+  const requestMs = requestTimeoutMs();
+  const rawOverall = Number(process.env.APEX_GEMINI_RIGHT_HAND_OVERALL_TIMEOUT_MS);
+  const effectiveOverall = overallTimeoutMs();
+  return {
+    requestTimeoutMs: requestMs,
+    overallTimeoutMs: effectiveOverall,
+    minimumOverallTimeoutMs: MIN_OVERALL_TIMEOUT_MS,
+    overallTimeoutClamped: Number.isFinite(rawOverall) && Math.floor(rawOverall) < effectiveOverall,
+  };
 }
 
 type GeminiRequestResult = { raw: string; error: string | null; model: string };
