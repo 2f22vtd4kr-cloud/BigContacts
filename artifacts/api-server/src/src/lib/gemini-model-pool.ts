@@ -134,6 +134,10 @@ export function markGeminiModelDailyQuotaExhausted(model: string, now = Date.now
   }
 }
 
+export function resetGeminiModelCooldownsForTests(): void {
+  cooldownUntilByModel.clear();
+}
+
 export function isGeminiModelCoolingDown(model: string, now = Date.now(), scope = "global"): boolean {
   const key = cooldownKey(model, scope);
   const until = cooldownUntilByModel.get(key) ?? 0;
