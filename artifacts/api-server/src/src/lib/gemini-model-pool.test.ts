@@ -58,6 +58,16 @@ describe("Gemini free-tier control model pool", () => {
     expect(getGeminiControlModel("gemini-3.8-live")).toBeNull();
   });
 
+  it("does not revive a model when every eligible model is cooling down", () => {
+    markGeminiModelRateLimited("gemini-3.5-flash-lite", 60_000, "project-c");
+    markGeminiModelRateLimited("gemini-3.1-flash-lite", 60_000, "project-c");
+    expect(chooseAvailableGeminiControlModels(
+      "right_hand",
+      ["gemini-3.5-flash-lite", "gemini-3.1-flash-lite"],
+      "project-c",
+    )).toEqual([]);
+  });
+
   it("keeps cooldown state isolated when Boss and Right-hand use different projects", () => {
     markGeminiModelRateLimited("gemini-3.5-flash-lite", 60_000, "project-a");
     expect(chooseAvailableGeminiControlModels(
