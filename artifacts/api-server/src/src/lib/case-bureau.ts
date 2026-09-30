@@ -410,6 +410,11 @@ const GEMINI_BOSS_503_RETRY_DELAY_MS = 750;
 const MAX_GEMINI_BOSS_429_RETRIES_PER_MODEL = 1;
 const GEMINI_BOSS_429_RETRY_DELAY_MS = 30_000;
 
+function configuredGeminiBoss429RetryDelayMs(): number {
+  const parsed = Number(process.env.APEX_GEMINI_BOSS_429_RETRY_DELAY_MS);
+  return Number.isFinite(parsed) ? Math.min(120_000, Math.max(10, Math.floor(parsed))) : GEMINI_BOSS_429_RETRY_DELAY_MS;
+}
+
 function retryAfterDelayMs(response: Response, fallbackMs: number): number {
   const value = response.headers.get("retry-after")?.trim();
   if (!value) return fallbackMs;
@@ -729,7 +734,7 @@ export async function generateGeminiBossText(
 
           while (rateLimitRetry < MAX_GEMINI_BOSS_429_RETRIES_PER_MODEL && Date.now() < bossDeadline) {
             const retryDelayMs = Math.min(
-              retryAfterDelayMs(response, GEMINI_BOSS_429_RETRY_DELAY_MS),
+              retryAfterDelayMs(response, configuredGeminiBoss429RetryDelayMs()),
               Math.max(0, bossDeadline - Date.now()),
             );
             rateLimitRetry += 1;
@@ -801,7 +806,7 @@ export async function generateGeminiBossText(
             continue;
           }
           if (response.status === 429) {
-            const cooldownMs = Math.max(GEMINI_BOSS_429_RETRY_DELAY_MS, 60_000);
+            const cooldownMs = Math.max(configuredGeminiBoss429RetryDelayMs(), 60_000);
             markGeminiModelRateLimited(model, cooldownMs, modelScope);
             lastError = `Gemini Boss ${model} rate limit persisted after ${rateLimitRetry} bounded same-model retries${providerErrorCodeValue ? ` (${providerErrorCodeValue})` : ""}.`;
             logger.warn(
