@@ -61,7 +61,6 @@ export function getGeminiThinkingLevel(model: string): "minimal" | "low" {
 export function chooseGeminiControlModels(
   role: GeminiControlRole,
   catalogNames: readonly string[],
-  scope = "global",
 ): string[] {
   const available = new Set(
     catalogNames
@@ -148,6 +147,7 @@ export function isGeminiModelCoolingDown(model: string, now = Date.now(), scope 
 export function chooseAvailableGeminiControlModels(
   role: GeminiControlRole,
   catalogNames: readonly string[],
+  scope = "global",
 ): string[] {
   const ordered = chooseGeminiControlModels(role, catalogNames);
   const available = ordered.filter((model) => !isGeminiModelCoolingDown(model, Date.now(), scope));
