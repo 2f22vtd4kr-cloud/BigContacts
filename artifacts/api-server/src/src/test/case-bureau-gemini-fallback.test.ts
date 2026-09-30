@@ -13,6 +13,7 @@ const selection = {
 afterEach(() => {
   vi.restoreAllMocks();
   delete process.env.GEMINI_API_KEY;
+  delete process.env.APEX_GEMINI_BOSS_429_RETRY_DELAY_MS;
 });
 
 function response(status: number, body: unknown): Response {
@@ -61,6 +62,7 @@ describe("Gemini Boss text-only model authority", () => {
 
   it("falls back to the next same-role model after bounded persistent 429s", async () => {
     process.env.GEMINI_API_KEY = "test-key";
+    process.env.APEX_GEMINI_BOSS_429_RETRY_DELAY_MS = "10";
     const fetchMock = vi.spyOn(globalThis, "fetch")
       .mockResolvedValueOnce(response(429, { error: "rate limited" }))
       .mockResolvedValueOnce(response(429, { error: "rate limited" }))
@@ -76,7 +78,7 @@ describe("Gemini Boss text-only model authority", () => {
     expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 
-  it("prefers a live Flash-Lite model for the Boss control plane", async () => {
+  it("prefers the strongest stable text model available to the Boss control plane", async () => {
     process.env.GEMINI_API_KEY = "test-key";
     const fetchMock = vi.spyOn(globalThis, "fetch")
       .mockResolvedValueOnce(response(200, {
@@ -91,8 +93,8 @@ describe("Gemini Boss text-only model authority", () => {
     const result = await resolveGeminiBossModel();
 
     expect(result.status).toBe("resolved");
-    expect(result.model).toBe("gemini-3.1-flash-lite");
-    expect(result.candidateModels?.[0]).toBe("gemini-3.1-flash-lite");
+    expect(result.model).toBe("gemini-3.8-flash");
+    expect(result.candidateModels?.[0]).toBe("gemini-3.8-flash");
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
@@ -139,7 +141,7 @@ describe("Gemini Boss text-only model authority", () => {
     expect(body).toEqual({
       model: "gemini-3.8-flash",
       input: "Use the persisted case context.",
-      generation_config: { max_output_tokens: 768, thinking_level: "minimal" },
+      generation_config: { max_output_tokens: 768, thinking_level: "low" },
     });
     expect(body).not.toHaveProperty("tools");
     expect(body).not.toHaveProperty("grounding");
