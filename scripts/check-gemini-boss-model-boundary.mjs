@@ -19,6 +19,6 @@ const checks = [
 let failed = false;
 for (const [name, ok] of checks) {
   console.log(`${ok ? "PASS" : "FAIL"} ${name}`);
-  if (failed = failed || !ok) {}
+  if (!ok) failed = true;
 }
 if (failed) process.exit(1);
