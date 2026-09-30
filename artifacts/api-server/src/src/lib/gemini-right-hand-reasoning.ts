@@ -382,6 +382,9 @@ async function request(system: string, user: string, responseFormat?: Record<str
         if (shouldRetry429(providerErrorCodeValue) && transportRetry < MAX_RATE_LIMIT_RETRIES && Date.now() < deadline) {
           const retryDelayMs = rateLimitRetryDelayMs(response, Math.max(0, deadline - Date.now()), providerErrorCodeValue);
           if (retryDelayMs > 0) {
+            // The original request timer only bounds the original provider call.
+            // It must not abort the bounded recovery sleep or the subsequent retry.
+            clearTimeout(timer);
             transportRetry += 1;
             logger.warn(
               { role: "gemini_right_hand", phase: "rate_limit_backoff", model, retryNumber: transportRetry, maxRetries: MAX_RATE_LIMIT_RETRIES, retryDelayMs },
@@ -389,7 +392,13 @@ async function request(system: string, user: string, responseFormat?: Record<str
             );
             await new Promise<void>((resolve) => setTimeout(resolve, retryDelayMs));
           }
-          if (Date.now() < deadline && !controller.signal.aborted) {
+          if (Date.now() < deadline) {
+            const retryController = new AbortController();
+            const retryAttemptTimeoutMs = Math.min(
+              configuredRequestTimeoutMs,
+              Math.max(1, deadline - Date.now()),
+            );
+            const retryTimer = setTimeout(() => retryController.abort(), retryAttemptTimeoutMs);
             try {
               response = await fetchGeminiInteractions(GEMINI_INTERACTIONS_API, {
                 method: "POST",
@@ -399,7 +408,7 @@ async function request(system: string, user: string, responseFormat?: Record<str
                   "x-goog-api-key": apiKey,
                 },
                 body,
-                signal: controller.signal,
+                signal: retryController.signal,
               });
               responseBody = await response.text();
               providerErrorCodeValue = response.ok ? null : providerErrorCode(responseBody);
@@ -422,6 +431,8 @@ async function request(system: string, user: string, responseFormat?: Record<str
                 error: `Gemini Right-hand rate-limit retry failed: ${model} ${retryFailureClass}.`,
                 model,
               };
+            } finally {
+              clearTimeout(retryTimer);
             }
           }
         }
