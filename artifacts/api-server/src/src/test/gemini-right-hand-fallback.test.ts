@@ -81,6 +81,33 @@ describe("Gemini Right-hand text-only control transport", () => {
     expect(attempts).toEqual([GEMINI_RIGHT_HAND_MODEL, GEMINI_RIGHT_HAND_MODEL]);
   });
 
+  it("returns a successful response when a same-model 429 retry recovers", async () => {
+    process.env.GEMINI_RIGHT_HAND_API_KEY = "test-key-429-recover";
+    process.env.APEX_GEMINI_RIGHT_HAND_RATE_LIMIT_RETRY_DELAY_MS = "10";
+    const attempts: string[] = [];
+    globalThis.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith("/v1beta/models")) return catalog();
+      const body = init?.body ? JSON.parse(String(init.body)) as { model?: string } : {};
+      if (!url.includes("/v1beta/interactions")) throw new Error("unexpected non-generation request");
+      attempts.push(body.model ?? "");
+      if (attempts.length === 1) {
+        return new Response(JSON.stringify({ error: { code: "too_many_requests", message: "burst" } }), {
+          status: 429,
+          headers: { "retry-after": "0" },
+        });
+      }
+      return ok('{"decision":"retry-recovered"}');
+    });
+    installExternalQuotaGuard();
+
+    const result = await runGeminiRightHandFreeJson("Return JSON.");
+
+    expect(result.status).toBe("completed");
+    expect(result.model).toBe(GEMINI_RIGHT_HAND_MODEL);
+    expect(attempts).toEqual([GEMINI_RIGHT_HAND_MODEL, GEMINI_RIGHT_HAND_MODEL]);
+  });
+
   it("keeps HTTP 429 on the same model and does not burn equivalent model requests", async () => {
     process.env.GEMINI_RIGHT_HAND_API_KEY = "test-key-429";
     process.env.APEX_GEMINI_RIGHT_HAND_RATE_LIMIT_RETRY_DELAY_MS = "10";
