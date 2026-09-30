@@ -454,11 +454,11 @@ function retryAfterDelayMs(response: Response, fallbackMs: number): number {
   if (!value) return fallbackMs;
   const seconds = Number(value);
   if (Number.isFinite(seconds) && seconds >= 0) {
-    return Math.min(5_000, Math.max(0, Math.round(seconds * 1_000)));
+    return Math.min(120_000, Math.max(0, Math.round(seconds * 1_000)));
   }
   const dateMs = Date.parse(value);
   if (Number.isFinite(dateMs)) {
-    return Math.min(5_000, Math.max(0, dateMs - Date.now()));
+    return Math.min(120_000, Math.max(0, dateMs - Date.now()));
   }
   return fallbackMs;
 }
