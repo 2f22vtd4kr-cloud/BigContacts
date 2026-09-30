@@ -503,7 +503,6 @@ export async function generateGeminiBossText(
   // request timeout, producing a misleading long "Boss timeout" before the
   // Investigator was ever selected. Keep model fallback bounded and size the
   // response budget to the actual control contract.
-  const models = chooseAvailableGeminiControlModels("boss", [selection.model, ...(selection.candidateModels ?? [])]).slice(0, 4);
   let lastError = `Gemini Boss ${selection.model} did not return text.`;
   // Boss is a small control-plane JSON decision, but live Gemini latency has
   // already been measured above 10s. Keep the boundary bounded while allowing a
@@ -513,6 +512,12 @@ export async function generateGeminiBossText(
   const bossDeadline = Date.now() + getGeminiBossOverallTimeoutMs();
 
   for (const entry of keyEntries) {
+    const modelScope = geminiCredentialFingerprint(entry.key);
+    const models = chooseAvailableGeminiControlModels(
+      "boss",
+      [selection.model, ...(selection.candidateModels ?? [])],
+      modelScope,
+    ).slice(0, 4);
     for (const model of models) {
       const remainingMs = bossDeadline - Date.now();
       if (remainingMs <= 0) return { model: selection.model, raw: null, error: "Gemini Boss generation deadline exceeded." };
@@ -707,7 +712,7 @@ export async function generateGeminiBossText(
         if (response.status === 429) {
           lastError = `Gemini Boss ${model} Interactions API ${failureClass ?? "rate_limited"} HTTP 429${providerErrorCodeValue ? ` ${providerErrorCodeValue}` : ""}.`;
           if (providerErrorCodeValue === "quota_exceeded") {
-            const cooldownMs = markGeminiModelDailyQuotaExhausted(model);
+            const cooldownMs = markGeminiModelDailyQuotaExhausted(model, Date.now(), modelScope);
             logger.warn(
               {
                 role: "gemini_boss",
@@ -797,7 +802,7 @@ export async function generateGeminiBossText(
           }
           if (response.status === 429) {
             const cooldownMs = Math.max(GEMINI_BOSS_429_RETRY_DELAY_MS, 60_000);
-            markGeminiModelRateLimited(model, cooldownMs);
+            markGeminiModelRateLimited(model, cooldownMs, modelScope);
             lastError = `Gemini Boss ${model} rate limit persisted after ${rateLimitRetry} bounded same-model retries${providerErrorCodeValue ? ` (${providerErrorCodeValue})` : ""}.`;
             logger.warn(
               {
