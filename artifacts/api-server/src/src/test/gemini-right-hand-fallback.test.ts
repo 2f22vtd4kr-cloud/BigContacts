@@ -161,7 +161,7 @@ describe("Gemini Right-hand text-only control transport", () => {
       const body = init?.body ? JSON.parse(String(init.body)) as { model?: string } : {};
       if (!url.includes("/v1beta/interactions")) throw new Error("unexpected non-generation request");
       attempts.push(body.model ?? "");
-      if (attempts.length < 5) {
+      if (attempts.length < 3) {
         return new Response(JSON.stringify({ error: { code: "too_many_requests", message: "burst" } }), {
           status: 429,
           headers: { "retry-after": "0" },
@@ -174,7 +174,7 @@ describe("Gemini Right-hand text-only control transport", () => {
     const result = await runGeminiRightHandFreeJson("Return JSON.");
 
     expect(result.status).toBe("completed");
-    expect(attempts).toEqual([GEMINI_RIGHT_HAND_MODEL, GEMINI_RIGHT_HAND_MODEL, GEMINI_RIGHT_HAND_MODEL, GEMINI_RIGHT_HAND_MODEL, "gemini-3.8-flash"]);
+    expect(attempts).toEqual([GEMINI_RIGHT_HAND_MODEL, GEMINI_RIGHT_HAND_MODEL, "gemini-3.1-flash-lite"]);
     expect(result.model).toBe("gemini-3.8-flash");
   });
 
@@ -195,8 +195,8 @@ describe("Gemini Right-hand text-only control transport", () => {
 
     expect(result.status).toBe("unavailable");
     expect(attempts).toEqual([
-      "gemini-3.1-flash-lite",
-      "gemini-3.8-flash",
+      "gemini-3.5-flash-lite",
+      "gemini-3.5-flash-lite",
     ]);
     expect(result.error).toContain("exhausted bounded same-role model attempts");
   });
