@@ -405,13 +405,13 @@ async function callMistralJson(prompt: string, signal: AbortSignal): Promise<{ m
         if (response.status === 401 || response.status === 403) break;
         if (response.status === 429) {
           const retries = retryBudgetByModel.get(model) ?? 0;
-          if (retries < 2) {
+          if (retries < 3) {
             retryBudgetByModel.set(model, retries + 1);
             const retryAfterHeader = response.headers.get("retry-after");
             const retryAfterSeconds = retryAfterHeader ? Number(retryAfterHeader) : NaN;
             const delayMs = Number.isFinite(retryAfterSeconds)
-              ? Math.min(8_000, Math.max(1_000, Math.round(retryAfterSeconds * 1_000)))
-              : Math.min(8_000, 1_000 * (2 ** retries));
+              ? Math.min(60_000, Math.max(1_000, Math.round(retryAfterSeconds * 1_000)))
+              : Math.min(60_000, 15_000 * (2 ** retries));
             recordAgenticLlmAttempt({
               provider: "mistral",
               model,
