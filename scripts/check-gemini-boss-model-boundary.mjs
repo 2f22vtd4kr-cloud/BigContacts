@@ -9,7 +9,7 @@ const pool = fs.readFileSync(path.join(repoRoot, "artifacts/api-server/src/src/l
 
 const checks = [
   ["Boss uses the shared stable Gemini text model pool", source.includes('chooseGeminiControlModels("boss"') && source.includes("chooseAvailableGeminiControlModels")],
-  ["Boss prefers Gemini 3.8 Flash but has multiple stable fallbacks", source.includes('"gemini-3.8-flash"') && source.includes('"gemini-3.7-flash"') && source.includes('"gemini-3.5-flash-lite"')],
+  ["Boss prefers Gemini 3.8 Flash but has multiple stable fallbacks", pool.includes('"gemini-3.8-flash"') && pool.includes('"gemini-3.7-flash"') && pool.includes('"gemini-3.5-flash-lite"')],
   ["Live/audio/preview models are excluded from the text control registry", !pool.includes('"gemini-3.8-live"') && !pool.includes("-preview") && !pool.includes("-image") && !pool.includes("-tts")],
   ["Boss uses the shared model-specific thinking contract", source.includes("getGeminiThinkingLevel(model)")],
   ["Daily quota exhaustion rotates to another eligible model", source.includes("markGeminiModelDailyQuotaExhausted") && source.includes("phase: \"daily_quota_model_cooldown\"") && source.includes("continue;")],
