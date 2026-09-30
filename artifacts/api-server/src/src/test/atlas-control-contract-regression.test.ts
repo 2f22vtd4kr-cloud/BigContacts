@@ -43,6 +43,12 @@ describe("Atlas control-plane contract regression", () => {
     expect(rightHandSource).toContain("Never browse or act as Investigator");
     expect(controlSource).toContain("INVESTIGATOR TEXT REPORT");
     expect(rightHandSource).toContain("MAX_RATE_LIMIT_RETRIES = 1");
+    expect(rightHandSource).toContain("clearTimeout(timer);");
+    expect(rightHandSource).toContain("const retryController = new AbortController();");
+    expect(rightHandSource).toContain("const retryAttemptTimeoutMs = Math.min(");
+    expect(rightHandSource).toContain("const retryTimer = setTimeout(() => retryController.abort(), retryAttemptTimeoutMs);");
+    expect(rightHandSource).toContain("clearTimeout(retryTimer);");
+    expect(rightHandSource).toContain("The original request timer only bounds the original provider call.");
     expect(controlSource).toContain('reason: "Gemini returned an invalid Atlas control action; fail-closed."');
   });
   it("replays valid and malformed provider contracts through the real validators", () => {
