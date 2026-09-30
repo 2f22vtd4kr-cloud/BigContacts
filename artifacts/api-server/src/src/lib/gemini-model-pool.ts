@@ -157,6 +157,7 @@ export function chooseAvailableGeminiControlModels(
   const available = ordered.filter((model) => !isGeminiModelCoolingDown(model, Date.now(), scope));
   // If every eligible model is cooling down, do not silently re-enable a
   // known-exhausted model. The caller must fail closed until a cooldown expires.
+  return available;
 }
 
 export const GEMINI_STABLE_CONTROL_MODELS: readonly GeminiControlModel[] =
