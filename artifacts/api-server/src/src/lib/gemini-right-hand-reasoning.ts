@@ -390,15 +390,23 @@ async function request(system: string, user: string, responseFormat?: Record<str
           logger.warn(
             {
               role: "gemini_right_hand",
-              phase: "daily_quota_model_cooldown",
+              phase: "daily_quota_exhausted",
               model,
               cooldownMs,
               providerErrorCode: providerErrorCodeValue,
             },
-            "Gemini Right-hand model daily quota exhausted; rotating to another eligible text model",
+            "Gemini Right-hand daily quota exhausted; failing closed without another provider request",
           );
           failures.push(`${model} daily quota exhausted`);
-          continue;
+          return {
+            status: "unavailable",
+            model,
+            actionId: null,
+            decision: null,
+            reason: null,
+            confidence: null,
+            error: `Gemini Right-hand daily quota exhaustion: ${model}`,
+          };
         }
 
         // A burst/rate-limit 429 gets bounded same-model recovery before any
