@@ -313,7 +313,7 @@ async function request(system: string, user: string, responseFormat?: Record<str
         const compatibilityBody = JSON.stringify({
           model,
           input: systemPrompt + "\n\nUSER REQUEST:\n" + user,
-          generation_config: { max_output_tokens: 512, thinking_level: "minimal" },
+          generation_config: { max_output_tokens: 512, thinking_level: model === "gemini-3.8-flash" ? "low" : "minimal" },
         });
         const compatibilityController = new AbortController();
         const compatibilityTimeout = Math.min(requestTimeoutMs(), Math.max(1_000, deadline - Date.now()));
