@@ -20,7 +20,7 @@ installGeminiTransientRetry();
  * the source of truth for what this credential can currently use.
  */
 export const GEMINI_RIGHT_HAND_MODEL = "gemini-3.1-flash-lite";
-export const GEMINI_RIGHT_HAND_FALLBACK_MODELS: readonly string[] = [];
+export const GEMINI_RIGHT_HAND_FALLBACK_MODELS: readonly string[] = ["gemini-3.8-flash"];
 const GEMINI_CHAT_API_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
 const GEMINI_INTERACTIONS_API = "https://generativelanguage.googleapis.com/v1beta/interactions";
 const DEFAULT_REQUEST_TIMEOUT_MS = 20_000;
@@ -103,12 +103,17 @@ function chooseRightHandModels(entries: GeminiCatalogEntry[]): string[] {
       return left[0] - right[0] || left[1] - right[1] || left[2] - right[2] || right[3] - left[3] || left[4].localeCompare(right[4]);
     }))];
 
-  // Flash-Lite is the preferred low-cost control model, not a scripted
-  // provider ladder. The live catalog remains authoritative for every
-  // candidate after capability filtering.
+  // Flash-Lite remains the preferred low-cost control model. A stable
+  // standard Flash model is allowed as a same-role Gemini fallback because
+  // Gemini quotas are model-specific; Live/audio models are intentionally
+  // excluded because Right-hand is a text/structured-output control role.
+  const preferred = [
+    GEMINI_RIGHT_HAND_MODEL,
+    ...GEMINI_RIGHT_HAND_FALLBACK_MODELS,
+  ];
   return [
-    ...(compatible.includes(GEMINI_RIGHT_HAND_MODEL) ? [GEMINI_RIGHT_HAND_MODEL] : []),
-    ...compatible.filter((model) => model !== GEMINI_RIGHT_HAND_MODEL),
+    ...preferred.filter((model) => compatible.includes(model)),
+    ...compatible.filter((model) => !preferred.includes(model)),
   ].slice(0, MAX_MODEL_ATTEMPTS);
 }
 
@@ -375,10 +380,11 @@ async function request(system: string, user: string, responseFormat?: Record<str
       if (response.ok) return parseGeminiRightHandResponse(responseBody, model);
 
       if (response.status === 429) {
-        // Never model-hop on 429: the provider may be enforcing a project-level
-        // limit. Burst/rate-limit 429s get one bounded same-model backoff; daily
-        // quota exhaustion fails closed immediately because this turn cannot
-        // restore the quota.
+        // A burst/rate-limit 429 gets one bounded same-model retry first.
+        // If that retry still fails, a different stable Gemini text model may
+        // serve the same Right-hand role when the live catalog offers one.
+        // Daily quota exhaustion never model-hops: another model cannot repair
+        // a project/account quota condition.
         if (shouldRetry429(providerErrorCodeValue) && transportRetry < MAX_RATE_LIMIT_RETRIES && Date.now() < deadline) {
           const retryDelayMs = rateLimitRetryDelayMs(response, Math.max(0, deadline - Date.now()), providerErrorCodeValue);
           if (retryDelayMs > 0) {
@@ -441,11 +447,15 @@ async function request(system: string, user: string, responseFormat?: Record<str
           const quotaNote = providerErrorCodeValue === "quota_exceeded"
             ? " Gemini reports daily quota exhaustion; model fallback would not repair a project quota."
             : "";
-          return {
-            raw: "",
-            error: `Gemini Right-hand rate limit persisted after bounded backoff: ${failures.join("; ")}.${quotaNote}`,
-            model,
-          };
+          if (providerErrorCodeValue === "quota_exceeded" || model !== chain[0]) {
+            return {
+              raw: "",
+              error: `Gemini Right-hand rate limit persisted after bounded backoff: ${failures.join("; ")}.${quotaNote}`,
+              model,
+            };
+          }
+          failures.push(`${model} rate_limited HTTP 429${providerErrorCodeValue ? ` ${providerErrorCodeValue}` : ""}`);
+          continue;
         }
       }
       failures.push(`${model} ${failureClass ?? "http_error"} HTTP ${response.status}`);
