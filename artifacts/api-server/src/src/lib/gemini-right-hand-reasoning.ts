@@ -120,7 +120,7 @@ async function resolveModelChain(): Promise<string[]> {
 
   const fingerprint = credentialFingerprint(apiKey);
   if (cachedModelChain && cachedModelChain.credentialFingerprint === fingerprint && cachedModelChain.expiresAt > Date.now()) {
-    return chooseRightHandModels(cachedModelChain.models).slice(0, MAX_MODEL_ATTEMPTS);
+    return chooseAvailableGeminiControlModels("right_hand", cachedModelChain.models).slice(0, MAX_MODEL_ATTEMPTS);
   }
 
   try {
