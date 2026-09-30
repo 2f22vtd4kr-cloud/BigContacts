@@ -1,7 +1,10 @@
 #!/usr/bin/env node
 import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-const source = fs.readFileSync("artifacts/api-server/src/src/lib/case-bureau.ts", "utf8");
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const source = fs.readFileSync(path.join(repoRoot, "artifacts/api-server/src/src/lib/case-bureau.ts"), "utf8");
 
 const checks = [
   ["Boss primary remains Gemini 3.1 Flash-Lite", source.includes('GEMINI_BOSS_PREFERRED_MODEL = "gemini-3.1-flash-lite"')],

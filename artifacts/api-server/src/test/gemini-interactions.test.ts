@@ -41,7 +41,7 @@ describe("Gemini Interactions API transport", () => {
     expect(JSON.parse(String(init?.body))).toEqual({
       model: "gemini-3.8-flash",
       input: "Return a JSON control decision.",
-      generation_config: { max_output_tokens: 768 },
+      generation_config: { max_output_tokens: 768, thinking_level: "minimal" },
     });
   });
 

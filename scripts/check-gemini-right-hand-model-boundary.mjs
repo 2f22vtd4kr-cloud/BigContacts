@@ -1,7 +1,10 @@
 #!/usr/bin/env node
 import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-const source = fs.readFileSync("artifacts/api-server/src/src/lib/gemini-right-hand-reasoning.ts", "utf8");
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const source = fs.readFileSync(path.join(repoRoot, "artifacts/api-server/src/src/lib/gemini-right-hand-reasoning.ts"), "utf8");
 
 const checks = [
   ["Gemini 3.8 Flash is an explicit same-role fallback", source.includes('["gemini-3.8-flash"]')],
