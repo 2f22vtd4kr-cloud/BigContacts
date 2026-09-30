@@ -399,13 +399,9 @@ async function request(system: string, user: string, responseFormat?: Record<str
           );
           failures.push(`${model} daily quota exhausted`);
           return {
-            status: "unavailable",
-            model,
-            actionId: null,
-            decision: null,
-            reason: null,
-            confidence: null,
+            raw: "",
             error: `Gemini Right-hand daily quota exhaustion: ${model}`,
+            model,
           };
         }
 
