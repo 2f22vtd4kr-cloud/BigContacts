@@ -437,28 +437,28 @@ type GeminiTextGenerationResult = {
   error: string | null;
 };
 const DEFAULT_GEMINI_BOSS_REQUEST_TIMEOUT_MS = 30_000;
-const DEFAULT_GEMINI_BOSS_OVERALL_TIMEOUT_MS = 75_000;
+const DEFAULT_GEMINI_BOSS_OVERALL_TIMEOUT_MS = 240_000;
 const MIN_GEMINI_BOSS_REQUEST_TIMEOUT_MS = 10_000;
 const MAX_GEMINI_BOSS_REQUEST_TIMEOUT_MS = 60_000;
 const MIN_GEMINI_BOSS_OVERALL_TIMEOUT_MS = 20_000;
-const MAX_GEMINI_BOSS_OVERALL_TIMEOUT_MS = 120_000;
+const MAX_GEMINI_BOSS_OVERALL_TIMEOUT_MS = 300_000;
 const MAX_GEMINI_BOSS_TRANSPORT_RETRIES = 1;
 const GEMINI_BOSS_TRANSPORT_RETRY_DELAY_MS = 600;
 const MAX_GEMINI_BOSS_503_RETRIES_PER_MODEL = 1;
 const GEMINI_BOSS_503_RETRY_DELAY_MS = 750;
-const MAX_GEMINI_BOSS_429_RETRIES_PER_MODEL = 1;
-const GEMINI_BOSS_429_RETRY_DELAY_MS = 1_000;
+const MAX_GEMINI_BOSS_429_RETRIES_PER_MODEL = 3;
+const GEMINI_BOSS_429_RETRY_DELAY_MS = 30_000;
 
 function retryAfterDelayMs(response: Response, fallbackMs: number): number {
   const value = response.headers.get("retry-after")?.trim();
   if (!value) return fallbackMs;
   const seconds = Number(value);
   if (Number.isFinite(seconds) && seconds >= 0) {
-    return Math.min(5_000, Math.max(0, Math.round(seconds * 1_000)));
+    return Math.min(120_000, Math.max(0, Math.round(seconds * 1_000)));
   }
   const dateMs = Date.parse(value);
   if (Number.isFinite(dateMs)) {
-    return Math.min(5_000, Math.max(0, dateMs - Date.now()));
+    return Math.min(120_000, Math.max(0, dateMs - Date.now()));
   }
   return fallbackMs;
 }
