@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("../lib/gemini-transient-retry", () => ({
   installGeminiTransientRetry: vi.fn(),
@@ -12,7 +12,7 @@ import { logger } from "../lib/logger";
 describe("Gemini Right-hand latency controls", () => {
   const nativeFetch = globalThis.fetch;
 
-  afterEach(() => {
+  beforeEach(() => {\n    delete process.env.APEX_GEMINI_RIGHT_HAND_REQUEST_TIMEOUT_MS;\n    delete process.env.APEX_GEMINI_RIGHT_HAND_OVERALL_TIMEOUT_MS;\n  });\n\n  afterEach(() => {
     globalThis.fetch = nativeFetch;
     vi.useRealTimers();
     delete process.env.GEMINI_RIGHT_HAND_API_KEY;
