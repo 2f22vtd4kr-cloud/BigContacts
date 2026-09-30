@@ -2,6 +2,12 @@ import { createHash } from "node:crypto";
 import type { BureauAction, DiscoveryCaseFile, ResearchCaseFile } from "./case-bureau";
 import { apexOrientationCompact } from "./apex-bureau-orientation";
 import { installGeminiTransientRetry } from "./gemini-transient-retry";
+import {
+  chooseAvailableGeminiControlModels,
+  getGeminiThinkingLevel,
+  markGeminiModelDailyQuotaExhausted,
+  markGeminiModelRateLimited,
+} from "./gemini-model-pool";
 import { logger } from "./logger";
 import { fetchGeminiInteractions } from "./gemini-interactions-transport";
 import {
@@ -19,8 +25,14 @@ installGeminiTransientRetry();
  * a chronological Gemini fallback ladder here: Google's live model catalog is
  * the source of truth for what this credential can currently use.
  */
-export const GEMINI_RIGHT_HAND_MODEL = "gemini-3.1-flash-lite";
-export const GEMINI_RIGHT_HAND_FALLBACK_MODELS: readonly string[] = ["gemini-3.8-flash"];
+export const GEMINI_RIGHT_HAND_MODEL = "gemini-3.5-flash-lite";
+export const GEMINI_RIGHT_HAND_FALLBACK_MODELS: readonly string[] = [
+  "gemini-3.1-flash-lite",
+  "gemini-3.6-flash",
+  "gemini-3.5-flash",
+  "gemini-3.7-flash",
+  "gemini-3.8-flash",
+];
 const GEMINI_CHAT_API_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
 const GEMINI_INTERACTIONS_API = "https://generativelanguage.googleapis.com/v1beta/interactions";
 const DEFAULT_REQUEST_TIMEOUT_MS = 20_000;
@@ -33,10 +45,10 @@ const MAX_REQUEST_TIMEOUT_MS = 60_000;
 // floor at the default recovery budget while still honoring a higher override.
 const MIN_OVERALL_TIMEOUT_MS = DEFAULT_OVERALL_TIMEOUT_MS;
 const MAX_OVERALL_TIMEOUT_MS = 360_000;
-const MAX_MODEL_ATTEMPTS = 2;
+const MAX_MODEL_ATTEMPTS = 4;
 const MAX_TRANSIENT_TRANSPORT_RETRIES = 1;
 const TRANSIENT_TRANSPORT_RETRY_DELAY_MS = 600;
-const MAX_RATE_LIMIT_RETRIES = 3;
+const MAX_RATE_LIMIT_RETRIES = 1;
 const DEFAULT_RATE_LIMIT_RETRY_DELAY_MS = 30_000;
 const MAX_RATE_LIMIT_RETRY_DELAY_MS = 120_000;
 const MIN_RATE_LIMIT_RETRY_DELAY_MS = 10;
@@ -110,30 +122,10 @@ function modelRank(name: string): [number, number, number, number, string] {
 }
 
 function chooseRightHandModels(entries: GeminiCatalogEntry[]): string[] {
-  const compatible = [...new Set(entries
+  const catalogModels = entries
     .filter((entry) => entry.name)
-    .map((entry) => entry.name!.replace(/^models\//, ""))
-    .filter((name) => /^gemini-/i.test(name))
-    .filter((name) => /flash(?:-lite)?/i.test(name))
-    .filter((name) => /^gemini-\d+(?:\.\d+)?-flash(?:-lite)?$/i.test(name))
-    .filter((name) => !/image|audio|embedding|tts|live|transcribe|deep-research|robotics|aqa|preview|experimental/i.test(name))
-    .sort((a, b) => {
-      const left = modelRank(a); const right = modelRank(b);
-      return left[0] - right[0] || left[1] - right[1] || left[2] - right[2] || right[3] - left[3] || left[4].localeCompare(right[4]);
-    }))];
-
-  // Flash-Lite remains the preferred low-cost control model. A stable
-  // standard Flash model is allowed as a same-role Gemini fallback because
-  // Gemini quotas are model-specific; Live/audio models are intentionally
-  // excluded because Right-hand is a text/structured-output control role.
-  const preferred = [
-    GEMINI_RIGHT_HAND_MODEL,
-    ...GEMINI_RIGHT_HAND_FALLBACK_MODELS,
-  ];
-  return [
-    ...preferred.filter((model) => compatible.includes(model)),
-    ...compatible.filter((model) => !preferred.includes(model)),
-  ].slice(0, MAX_MODEL_ATTEMPTS);
+    .map((entry) => entry.name!.replace(/^models\//, ""));
+  return chooseAvailableGeminiControlModels("right_hand", catalogModels);
 }
 
 async function resolveModelChain(): Promise<string[]> {
@@ -168,7 +160,7 @@ async function resolveModelChain(): Promise<string[]> {
     logger.warn({
       role: "gemini_right_hand",
       phase: "model_catalog_empty",
-    }, "Gemini Right-hand model catalog returned no usable stable Flash-Lite candidates");
+    }, "Gemini Right-hand model catalog returned no usable stable Gemini Flash candidates");
     return [];
   } catch (error) {
     logger.warn({
@@ -237,14 +229,14 @@ async function request(system: string, user: string, responseFormat?: Record<str
   // Right-hand is a text-only oversight role. One control turn must be one bounded
   // request to the configured model; model catalog probing and equivalent-model
   // fan-out consume free-tier request budget and are not research capabilities.
-  // Resolve the live Gemini catalog for this credential. The preferred model
-  // remains the low-cost Flash-Lite role; provider capacity/entitlement failures
-  // may advance only through stable Flash-Lite candidates from the live catalog.
+  // Resolve the live Gemini catalog for this credential. The preferred models
+  // are the current high-volume Flash-Lite models; provider capacity/entitlement
+  // failures may advance through the full stable Flash text pool.
   // No Groq/Mistral substitution is permitted here.
   const resolvedChain = await resolveModelChain();
   const chain = resolvedChain.slice(0, MAX_MODEL_ATTEMPTS);
   if (chain.length === 0) {
-    return { raw: "", error: "Gemini Right-hand has no compatible stable Flash-Lite model in the live catalog.", model: GEMINI_RIGHT_HAND_MODEL };
+    return { raw: "", error: "Gemini Right-hand has no compatible stable Gemini Flash model in the live catalog.", model: GEMINI_RIGHT_HAND_MODEL };
   }
   const failures: string[] = [];
   const configuredRequestTimeoutMs = requestTimeoutMs();
@@ -267,7 +259,7 @@ async function request(system: string, user: string, responseFormat?: Record<str
       input: `${systemPrompt}\\n\\nUSER REQUEST:\\n${user}`,
       generation_config: {
         max_output_tokens: 512,
-        thinking_level: model === "gemini-3.8-flash" ? "low" : "minimal",
+        thinking_level: getGeminiThinkingLevel(model),
       },
       ...(responseFormat ? { response_format: responseFormat } : {}),
     });
@@ -404,6 +396,25 @@ async function request(system: string, user: string, responseFormat?: Record<str
       if (response.ok) return parseGeminiRightHandResponse(responseBody, model);
 
       if (response.status === 429) {
+        // Daily quota is model-specific in the Gemini rate-limit contract. Do not
+        // burn another request on an exhausted model; rotate to another eligible
+        // stable text model.
+        if (providerErrorCodeValue === "quota_exceeded") {
+          const cooldownMs = markGeminiModelDailyQuotaExhausted(model);
+          logger.warn(
+            {
+              role: "gemini_right_hand",
+              phase: "daily_quota_model_cooldown",
+              model,
+              cooldownMs,
+              providerErrorCode: providerErrorCodeValue,
+            },
+            "Gemini Right-hand model daily quota exhausted; rotating to another eligible text model",
+          );
+          failures.push(`${model} daily quota exhausted`);
+          continue;
+        }
+
         // A burst/rate-limit 429 gets bounded same-model recovery before any
         // same-role model fallback. Daily quota exhaustion never model-hops.
         if (shouldRetry429(providerErrorCodeValue)) {
@@ -486,17 +497,20 @@ async function request(system: string, user: string, responseFormat?: Record<str
         }
 
         if (response.status === 429) {
+          const cooldownMs = Math.max(DEFAULT_RATE_LIMIT_RETRY_DELAY_MS, 60_000);
+          markGeminiModelRateLimited(model, cooldownMs);
           failures.push(`${model} rate_limited HTTP 429${providerErrorCodeValue ? ` ${providerErrorCodeValue}` : ""}`);
-          const quotaNote = providerErrorCodeValue === "quota_exceeded"
-            ? " Gemini reports daily quota exhaustion; model fallback would not repair a project quota."
-            : "";
-          if (providerErrorCodeValue === "quota_exceeded" || model !== chain[0]) {
-            return {
-              raw: "",
-              error: `Gemini Right-hand rate limit persisted after ${rateLimitRetry} bounded same-model retries: ${failures.join("; ")}.${quotaNote}`,
+          logger.warn(
+            {
+              role: "gemini_right_hand",
+              phase: "rate_limit_model_fallback",
               model,
-            };
-          }
+              providerErrorCode: providerErrorCodeValue,
+              retryCount: rateLimitRetry,
+              cooldownMs,
+            },
+            "Gemini Right-hand rate limit persisted; advancing to the next bounded same-role Gemini text model",
+          );
           continue;
         }
       }
