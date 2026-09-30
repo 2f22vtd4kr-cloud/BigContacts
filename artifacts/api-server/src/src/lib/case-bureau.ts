@@ -630,7 +630,7 @@ export async function generateGeminiBossText(
           const compatibilityBody = JSON.stringify({
             model,
             input: prompt,
-            generation_config: { max_output_tokens: options?.maxOutputTokens ?? 768, thinking_level: options?.thinkingLevel ?? "minimal" },
+            generation_config: { max_output_tokens: options?.maxOutputTokens ?? 768, thinking_level: options?.thinkingLevel ?? (model === "gemini-3.8-flash" ? "low" : "minimal") },
           });
           logger.warn(
             {
@@ -745,7 +745,8 @@ export async function generateGeminiBossText(
               error: `Gemini Boss ${model} reports daily quota exhaustion; no retry or equivalent-model fan-out will repair the project quota.`,
             };
           }
-          if (rateLimitRetry < MAX_GEMINI_BOSS_429_RETRIES_PER_MODEL && Date.now() < bossDeadline) {
+
+          while (rateLimitRetry < MAX_GEMINI_BOSS_429_RETRIES_PER_MODEL && Date.now() < bossDeadline) {
             const retryDelayMs = Math.min(
               retryAfterDelayMs(response, GEMINI_BOSS_429_RETRY_DELAY_MS),
               Math.max(0, bossDeadline - Date.now()),
@@ -762,9 +763,11 @@ export async function generateGeminiBossText(
                 maxRetries: MAX_GEMINI_BOSS_429_RETRIES_PER_MODEL,
                 retryDelayMs,
               },
-              "Gemini Boss rate limited; retrying the same model once before bounded same-role Flash model fallback",
+              "Gemini Boss rate limited; waiting before bounded same-model retry",
             );
             if (retryDelayMs > 0) await new Promise<void>((resolve) => setTimeout(resolve, retryDelayMs));
+            if (Date.now() >= bossDeadline) break;
+
             const rateLimitController = new AbortController();
             const rateLimitTimeout = Math.max(1_000, Math.min(bossRequestTimeoutMs, bossDeadline - Date.now()));
             const rateLimitTimer = setTimeout(() => rateLimitController.abort(), rateLimitTimeout);
@@ -781,10 +784,26 @@ export async function generateGeminiBossText(
               });
               responseText = await response.text();
               providerErrorCodeValue = response.ok ? null : providerErrorCode(responseText);
+              logger.info(
+                {
+                  role: "gemini_boss",
+                  phase: "rate_limit_retry_resolved",
+                  model,
+                  keyName: entry.name,
+                  retryNumber: rateLimitRetry,
+                  maxRetries: MAX_GEMINI_BOSS_429_RETRIES_PER_MODEL,
+                  httpStatus: response.status,
+                  providerErrorCode: providerErrorCodeValue,
+                },
+                "Gemini Boss same-model rate-limit retry resolved",
+              );
             } finally {
               clearTimeout(rateLimitTimer);
             }
+
+            if (response.status !== 429) break;
           }
+
           if (response.status === 429 && providerErrorCodeValue === "quota_exceeded") {
             return {
               model,
@@ -793,13 +812,9 @@ export async function generateGeminiBossText(
             };
           }
           if (response.status === 429) {
-            // A burst/rate-limit 429 can be model-specific, so after one
-            // bounded same-model retry, advance to the next stable Gemini
-            // text model. Daily/project quota exhaustion is handled above and
-            // never model-hops because another model cannot repair that quota.
-            lastError = `Gemini Boss ${model} rate limit persisted after bounded backoff${providerErrorCodeValue ? ` (${providerErrorCodeValue})` : ""}.`;
+            lastError = `Gemini Boss ${model} rate limit persisted after ${rateLimitRetry} bounded same-model retries${providerErrorCodeValue ? ` (${providerErrorCodeValue})` : ""}.`;
             logger.warn(
-              { role: "gemini_boss", phase: "rate_limit_model_fallback", model, keyName: entry.name, providerErrorCode: providerErrorCodeValue },
+              { role: "gemini_boss", phase: "rate_limit_model_fallback", model, keyName: entry.name, providerErrorCode: providerErrorCodeValue, retryCount: rateLimitRetry },
               "Gemini Boss rate limit persisted; advancing to the next bounded same-role Gemini text model",
             );
             continue;
