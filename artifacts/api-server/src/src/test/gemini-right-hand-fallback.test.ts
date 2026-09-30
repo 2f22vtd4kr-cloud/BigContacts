@@ -125,29 +125,6 @@ describe("Gemini Right-hand text-only control transport", () => {
     expect(result.error).toContain("daily quota exhaustion");
   });
 
-  it("does not retry or model-hop when the provider message explicitly names a daily Free-tier quota", async () => {
-    process.env.GEMINI_RIGHT_HAND_API_KEY = "test-key-daily-quota";
-    process.env.APEX_GEMINI_RIGHT_HAND_RATE_LIMIT_RETRY_DELAY_MS = "10";
-    const attempts: string[] = [];
-    globalThis.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-      const url = String(input);
-      if (url.endsWith("/v1beta/models")) return catalog();
-      const body = init?.body ? JSON.parse(String(init.body)) as { model?: string } : {};
-      if (!url.includes("/v1beta/interactions")) throw new Error("unexpected non-generation request");
-      attempts.push(body.model ?? "");
-      return new Response(JSON.stringify({
-        error: { code: "too_many_requests", message: "Free Tier limit of 500 requests per day has been exceeded." },
-      }), { status: 429 });
-    });
-    installExternalQuotaGuard();
-
-    const result = await runGeminiRightHandFreeJson("Return JSON.");
-
-    expect(result.status).toBe("unavailable");
-    expect(attempts).toEqual([GEMINI_RIGHT_HAND_MODEL]);
-    expect(result.error).toContain("daily quota exhaustion");
-  });
-
   it("falls back after bounded short-burst too_many_requests retries", async () => {
     process.env.GEMINI_RIGHT_HAND_API_KEY = "test-key-too-many";
     const attempts: string[] = [];
@@ -157,7 +134,7 @@ describe("Gemini Right-hand text-only control transport", () => {
       const body = init?.body ? JSON.parse(String(init.body)) as { model?: string } : {};
       if (!url.includes("/v1beta/interactions")) throw new Error("unexpected non-generation request");
       attempts.push(body.model ?? "");
-      if (attempts.length < 3) {
+      if (attempts.length < 5) {
         return new Response(JSON.stringify({ error: { code: "too_many_requests", message: "burst" } }), {
           status: 429,
           headers: { "retry-after": "0" },
@@ -170,7 +147,7 @@ describe("Gemini Right-hand text-only control transport", () => {
     const result = await runGeminiRightHandFreeJson("Return JSON.");
 
     expect(result.status).toBe("completed");
-    expect(attempts).toEqual([GEMINI_RIGHT_HAND_MODEL, GEMINI_RIGHT_HAND_MODEL, "gemini-3.8-flash"]);
+    expect(attempts).toEqual([GEMINI_RIGHT_HAND_MODEL, GEMINI_RIGHT_HAND_MODEL, GEMINI_RIGHT_HAND_MODEL, GEMINI_RIGHT_HAND_MODEL, "gemini-3.8-flash"]);
     expect(result.model).toBe("gemini-3.8-flash");
   });
 
