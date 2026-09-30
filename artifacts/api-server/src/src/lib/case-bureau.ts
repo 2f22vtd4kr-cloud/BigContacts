@@ -782,6 +782,13 @@ export async function generateGeminiBossText(
               clearTimeout(rateLimitTimer);
             }
           }
+          if (response.status === 429 && providerErrorCodeValue === "quota_exceeded") {
+            return {
+              model,
+              raw: null,
+              error: `Gemini Boss ${model} reports daily quota exhaustion after bounded backoff; no equivalent-model fallback will repair the project quota.`,
+            };
+          }
           if (response.status === 429) {
             // A burst/rate-limit 429 can be model-specific, so after one
             // bounded same-model retry, advance to the next stable Gemini
