@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { generateGeminiBossText, resolveGeminiBossModel } from "../lib/case-bureau";
+import { resetGeminiModelCooldownsForTests } from "../lib/gemini-model-pool";
 
 const selection = {
   model: "gemini-3.8-flash",
@@ -12,6 +13,7 @@ const selection = {
 
 afterEach(() => {
   vi.restoreAllMocks();
+  resetGeminiModelCooldownsForTests();
   delete process.env.GEMINI_API_KEY;
   delete process.env.APEX_GEMINI_BOSS_429_RETRY_DELAY_MS;
 });
