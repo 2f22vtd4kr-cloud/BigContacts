@@ -354,3 +354,12 @@ The recovery branch now enforces Gemini Interactions structured JSON for case-re
 Current verification status: PR #384 is the implementation vehicle. CI must be green before merge. After merge, the real Replit canonical launch remains mandatory evidence; a passing test suite alone does not establish live provider success.
 
 The Investigator architecture was also re-audited: Boss-selected Groq or Mistral owns one ReAct trajectory; deterministic capability execution supplies Serper/Tavily/Exa, public HTTP, browser escalation, domain/registry, harvesting, email and username footprint tools; observations remain distinct from promoted evidence; cancellation, SSRF, provider budgets, and lifecycle fences remain deterministic boundaries.
+
+
+## 2026-10-01 successor handoff
+
+Read the durable continuation volumes in docs/apex-atlas-handoff/: 00_INDEX.md, 01_SYSTEM_INTRODUCTION.md, 02_GEMINI_CONTROL_PLANE.md, 03_RUNTIME_AUDIT_HISTORY.md, 04_NEXT_WORK_PLAN.md, and 05_SUCCESSOR_PROMPT.md. These supplement this living context and the mandatory repository study protocol.
+
+Latest operator-conducted live run: job 391bbe22-0414-4ed4-965d-5714181af242. It used exactly one canonical UI-equivalent launch with targetCount=3, researchDepth=standard, targetTimeoutMs=420000. It failed closed at 2026-10-01T04:08:00.295Z during Gemini Right-hand control turn 4. Boss used gemini-3.6-flash; Right-hand opening used gemini-3.5-flash-lite; terminal error identified gemini-3.1-flash-lite as rate_limited. Discovery made 5 Serper searches and returned 38 URL entries, but produced 0 visits, 0 findings, 0 candidate entities/cards, and 0 evidence rows. Durable case 1 contained 12 events. The Redis trace endpoint reported 0 slots despite durable case activity. Groq Investigator attempts also showed request-size failures as model-facing context grew to about 214,957 characters, plus 429/cooldown behavior.
+
+This is NOT GREEN. Before another live run, investigate: (1) Gemini Right-hand model eligibility, cooldown scope, retry/rotation and quota classification; (2) Investigator context growth/compaction and request-size handling without losing durable research history; (3) Redis trace versus durable event consistency. The sequential three-target runtime proof remains unverified.
