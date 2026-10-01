@@ -85,3 +85,25 @@ The architecture batch remains CI-verified; live runtime remains a separate gate
 
 
 - `08_EPISTEMIC_OPTIMIZATION_VNEXT_IMPLEMENTED_2026-10-01.md` — implemented epistemic optimization vNext roadmap, deliberate non-implementations, and validation requirements.
+
+
+## CURRENT MAIN CORRECTION — 2026-10-01
+
+The older SHA references above are historical. The current verified main at the latest handoff preparation is:
+
+`21f2b22447698c7de2f4026f70e33693c901cf26`
+
+The authoritative extended successor package is now:
+
+- `docs/apex-atlas-handoff/09_MASTER_SUCCESSOR_HANDOFF_2026-10-01.md`
+
+Read that file after the mandatory repository study sequence. It reconciles the previous handoff volumes with the latest control-plane test hardening and the latest live-runtime boundary.
+
+The latest exact UI-equivalent live launch was accepted as job `c201a722-623d-45f0-b667-e20a4737c3f1`, but its terminal outcome was **not observed** because the environment exhausted its daily free quota while polling. This is neither success nor failure. The system therefore remains **NOT GREEN**.
+
+Recent main commits after the epistemic vNext merge:
+- `9f17d5b9c2a900bd2dcf43595987a76060b2d39f` — model-pool contract alignment;
+- `f4fd5feeaa9dd6bba74dd9ca88475cc1a3b7c0e0` — adaptive-thinking/cooldown test hardening;
+- `21f2b22447698c7de2f4026f70e33693c901cf26` — PR #450 merge.
+
+The latest relevant parent-commit CI evidence is green across API Build, Research Quality Contracts, Prompt Architecture Audit, Five Consecutive Full Code Audits, and Five Green Complete Codebase Audit.
