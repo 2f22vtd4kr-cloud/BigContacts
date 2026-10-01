@@ -13,6 +13,7 @@ describe("Mistral agentic 429 retry", () => {
     delete process.env.MISTRAL_AGENTIC_MODEL;
     delete process.env.APEX_PROVIDER_MAX_REQUESTS_MISTRAL;
     delete process.env.APEX_PROVIDER_MIN_INTERVAL_MS_MISTRAL;
+    delete process.env.APEX_MISTRAL_AGENTIC_RATE_LIMIT_RETRY_DELAY_MS;
     vi.useRealTimers();
     vi.restoreAllMocks();
     resetProviderGateForTests();
@@ -24,6 +25,7 @@ describe("Mistral agentic 429 retry", () => {
     process.env.MISTRAL_AGENTIC_MODEL = "mistral-small-2603";
     process.env.APEX_PROVIDER_MAX_REQUESTS_MISTRAL = "20";
     process.env.APEX_PROVIDER_MIN_INTERVAL_MS_MISTRAL = "0";
+    process.env.APEX_MISTRAL_AGENTIC_RATE_LIMIT_RETRY_DELAY_MS = "10";
 
     const calls: string[] = [];
     vi.stubGlobal("fetch", vi.fn(async (url: string) => {
@@ -47,7 +49,7 @@ describe("Mistral agentic 429 retry", () => {
       hardTimeoutMs: 30_000,
     });
 
-    await vi.advanceTimersByTimeAsync(5_000);
+    await vi.advanceTimersByTimeAsync(20_000);
     const result = await resultPromise;
 
     expect(result.status).toBe("completed");
