@@ -5,6 +5,7 @@ import { installGeminiTransientRetry } from "./gemini-transient-retry";
 import {
   chooseAvailableGeminiControlModels,
   getGeminiThinkingLevel,
+  chooseAdaptiveGeminiThinkingLevel,
   markGeminiModelDailyQuotaExhausted,
   markGeminiModelRateLimited,
 } from "./gemini-model-pool";
