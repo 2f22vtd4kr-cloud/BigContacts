@@ -296,7 +296,7 @@ export async function runAgenticWebResearch(input: RunInput): Promise<AgenticRun
            for (const finding of raw.findings) if (finding.personName) knownIdentityNames.add(finding.personName.toLowerCase());
 
            const checkpointResult = await applyOversight(normalizedRecord, actionTurn);
-           if (checkpointResult.unavailable) return { status: "unavailable", model, iterations: actionTurn, searches, visits, findings, modelFindings, stopReason: "LLM_UNAVAILABLE", trajectory, trajectoryRecords: records, error: oversight?.error ?? "Gemini oversight unavailable", executionId };
+           if (checkpointResult.unavailable) return { status: "unavailable", model, iterations: actionTurn, searches, visits, findings, modelFindings, stopReason: "LLM_UNAVAILABLE", trajectory, trajectoryRecords: records, error: error ?? "Gemini oversight unavailable", executionId };
            if (checkpointResult.stop) return { status: "completed", model, iterations: actionTurn, searches, visits, findings, modelFindings, stopReason: "MODEL_DECIDED_DONE", trajectory, trajectoryRecords: records, ...(error ? { error } : {}), executionId };
            continue;
          }
