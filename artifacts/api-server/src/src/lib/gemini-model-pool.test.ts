@@ -1,10 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import {
   chooseGeminiControlModels,
   getGeminiControlModel,
   getGeminiThinkingLevel,
   chooseAvailableGeminiControlModels,
   markGeminiModelRateLimited,
+  resetGeminiModelCooldownsForTests,
 } from "./gemini-model-pool";
 
 const CATALOG = [
@@ -19,6 +20,8 @@ const CATALOG = [
 ];
 
 describe("Gemini free-tier control model pool", () => {
+  afterEach(() => resetGeminiModelCooldownsForTests());
+
   it("keeps Right-hand on the high-volume Flash-Lite pool before standard Flash", () => {
     expect(chooseGeminiControlModels("right_hand", CATALOG)).toEqual([
       "gemini-3.5-flash-lite",
@@ -42,10 +45,10 @@ describe("Gemini free-tier control model pool", () => {
   });
 
   it("uses only thinking levels documented for each stable control model", () => {
-    expect(getGeminiThinkingLevel("gemini-3.8-flash")).toBe("low");
-    expect(getGeminiThinkingLevel("gemini-3.7-flash")).toBe("low");
-    expect(getGeminiThinkingLevel("gemini-3.6-flash")).toBe("minimal");
-    expect(getGeminiThinkingLevel("gemini-3.5-flash")).toBe("minimal");
+    expect(getGeminiThinkingLevel("gemini-3.8-flash")).toBe("medium");
+    expect(getGeminiThinkingLevel("gemini-3.7-flash")).toBe("medium");
+    expect(getGeminiThinkingLevel("gemini-3.6-flash")).toBe("low");
+    expect(getGeminiThinkingLevel("gemini-3.5-flash")).toBe("low");
     expect(getGeminiThinkingLevel("gemini-3.5-flash-lite")).toBe("minimal");
     expect(getGeminiThinkingLevel("gemini-3.1-flash-lite")).toBe("minimal");
   });
