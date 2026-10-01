@@ -500,7 +500,7 @@ export async function generateGeminiBossText(
     ...getGeminiKeyEntries().filter((e) => e.name !== primaryName),
   ];
   if (keyEntries.length === 0) {
-    return { model: selection.model, raw: null, error: "The resolved Gemini Boss key is unavailable." };
+    return { model: selection.model, raw: null, error: "The resolved Gemini Boss key is unavailable.", attempts: [] };
   }
 
   // A Boss control response is a small JSON decision, not a long-form generation.
@@ -525,7 +525,7 @@ export async function generateGeminiBossText(
     ).slice(0, 4);
     for (const model of models) {
       const remainingMs = bossDeadline - Date.now();
-      if (remainingMs <= 0) return { model: selection.model, raw: null, error: "Gemini Boss generation deadline exceeded." };
+      if (remainingMs <= 0) return { model: lastAttemptModel, raw: null, error: "Gemini Boss generation deadline exceeded.", attempts };
       const attemptStartedAt = Date.now();
       const attemptTimeoutMs = Math.min(bossRequestTimeoutMs, Math.max(1_000, remainingMs));
       let requestDeadlineFired = false;
@@ -729,7 +729,7 @@ export async function generateGeminiBossText(
               },
               "Gemini Boss daily quota exhausted; failing closed without another provider request",
             );
-            return { model, raw: null, error: `Gemini Boss daily quota exhaustion: ${model}` };
+            break;
           }
 
           while (rateLimitRetry < MAX_GEMINI_BOSS_429_RETRIES_PER_MODEL && Date.now() < bossDeadline) {
@@ -803,7 +803,7 @@ export async function generateGeminiBossText(
               },
               "Gemini Boss daily quota exhausted after retry; failing closed without another provider request",
             );
-            return { model, raw: null, error: `Gemini Boss daily quota exhaustion: ${model}` };
+            break;
           }
           if (response.status === 429) {
             const cooldownMs = Math.max(configuredGeminiBoss429RetryDelayMs(), 60_000);
@@ -888,7 +888,7 @@ export async function generateGeminiBossText(
           || stepText
           || payload.outputs?.filter((output) => output.type === "text" || typeof output.text === "string").map((output) => output.text ?? "").join("").trim()
           || (/"action"\\s*:/.test(responseText) ? responseText.trim() : "");
-        if (raw) return { model, raw, error: null };
+        if (raw) return { model, raw, error: null, attempts };
                 lastError = `Gemini Boss ${model} Interactions API returned no text.`;
       } catch (error) {
         const fetchElapsedMs = Date.now() - attemptStartedAt;
@@ -930,9 +930,10 @@ export async function generateGeminiBossText(
             : `Gemini Boss ${model} request failed.`;
         if (Date.now() >= bossDeadline) {
           return {
-            model: selection.model,
+            model: lastAttemptModel,
             raw: null,
             error: `Gemini Boss exhausted its bounded model attempts before receiving a usable response: ${lastError}`,
+            attempts,
           };
         }
       }
@@ -940,9 +941,10 @@ export async function generateGeminiBossText(
   }
 
   return {
-    model: selection.model,
+    model: lastAttemptModel,
     raw: null,
-    error: `Gemini Boss unavailable after bounded same-role model fallback. ${lastError}`,
+    error: `Gemini Boss unavailable after bounded same-role model fallback. ${lastError}. Attempts: ${attempts.map((attempt) => `${attempt.model}=HTTP ${attempt.httpStatus ?? "none"}${attempt.providerErrorCode ? ` (${attempt.providerErrorCode})` : ""}`).join(", ")}.`,
+    attempts,
   };
 }
 
