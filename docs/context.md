@@ -390,6 +390,6 @@ PR #440 (`apex-boss-fallback-hardening-2026-10-01`) implements three fixes on to
 
 Regression coverage was added in `artifacts/api-server/src/src/lib/gemini-boss-fallback.test.ts`, and `scripts/check-gemini-boss-model-boundary.mjs` was updated for project-scoped quota failover.
 
-Static source/boundary checks performed in-chat all passed. GitHub workflow reporting was not yet available for the PR, and the execution environment could not clone the repository because outbound DNS/network access was unavailable. Therefore PR #440 is NOT yet verified by full typecheck/build/test execution.
+Static source/boundary checks performed in-chat all passed. GitHub workflow reporting was not yet available for the PR, and the execution environment could not clone the repository because outbound DNS/network access was unavailable. The PR #440 API build/typecheck/static-contract/regression gates now pass on the latest head; broader audit suites had stale Right-hand test assertions that were corrected in a4fbb5f and are being re-run.
 
-Do not launch Atlas again yet. Next required gate is full repository verification of PR #440, followed by continued bug hunting around Investigator context bounding, Redis trace vs durable event consistency, and Gemini role/provider boundaries. Only then authorize a fresh canonical runtime.
+Do not launch Atlas again yet. The API build/typecheck/static-contract/regression gates pass on the latest head. Broader audit suites must finish their rerun after the Right-hand regression assertion repair. Continue bug hunting around Investigator context bounding, Redis trace vs durable event consistency, and Gemini role/provider boundaries. Do not authorize a fresh canonical runtime until those gates finish.
