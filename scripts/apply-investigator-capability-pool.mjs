@@ -14,9 +14,9 @@ let prompt = fs.readFileSync(promptFile, "utf8");
 let pass = fs.readFileSync(passFile, "utf8");
 let cases = fs.readFileSync(casesFile, "utf8");
 
-// TWO AI LAYERS ONLY: Gemini Boss + DeepSeek/NVIDIA Right-hand assign/oversee;
+// TWO OVERSIGHT ROLES + ONE INVESTIGATOR LANE: Gemini Boss + Gemini Right-hand advise/oversee;
 // the selected Investigator LLM conducts the investigation and chooses non-LLM tools.
-// Groq/Mistral are investigators themselves. DeepSeek/Gemini never enter the Investigator lane.
+// Groq/Mistral are investigators themselves. Gemini never enters the Investigator lane.
 
 if (!/\| \{ action: "web_search"; query: string; provider\?:/.test(s)) s = s.replace('| { action: "web_search"; query: string; thought?: string }', '| { action: "web_search"; query: string; provider?: "serper" | "tavily" | "exa"; thought?: string }');
 const searchReturn = 'return { action: "web_search", query: o.query.trim().slice(0, 300), thought: typeof o.thought === "string" ? o.thought : undefined };';
@@ -67,7 +67,7 @@ const applyInputPos = bureau.indexOf('    investigatorPrompt: string | null;\n  
 if (applyInputPos >= 0 && !bureau.slice(applyInputPos - 100, applyInputPos + 180).includes('investigatorLlm')) bureau = bureau.slice(0, applyInputPos) + bureau.slice(applyInputPos).replace('    investigatorPrompt: string | null;\n    restrictions: string[];', '    investigatorPrompt: string | null;\n    investigatorLlm?: "groq" | "mistral" | null;\n    restrictions: string[];', 1);
 if (bureau.includes('      investigatorPrompt: input.investigatorPrompt,\n      restrictions: input.restrictions,') && !bureau.includes('      investigatorLlm: input.investigatorLlm,')) bureau = bureau.replace('      investigatorPrompt: input.investigatorPrompt,\n      restrictions: input.restrictions,', '      investigatorPrompt: input.investigatorPrompt,\n      investigatorLlm: input.investigatorLlm ?? null,\n      restrictions: input.restrictions,');
 
-if (!prompt.includes('INVESTIGATOR LLM POOL (actual investigators)')) prompt = prompt.replace('You are a text-only planning model. You have no web access and must not use or request Google Search grounding.', 'You are a text-only planning model. You have no web access and must not use or request Google Search grounding.\n\nINVESTIGATOR LLM POOL (actual investigators): choose exactly one configured member for a proceed assignment: Groq or Mistral. They are the investigators themselves, not a decision layer. DeepSeek via NVIDIA NIM is Right-hand only; Gemini is the Boss. Non-LLM research tools are chosen by the selected Investigator based on evidence.');
+if (!prompt.includes('INVESTIGATOR LLM POOL (actual investigators)')) prompt = prompt.replace('You are a text-only planning model. You have no web access and must not use or request Google Search grounding.', 'You are a text-only planning model. You have no web access and must not use or request Google Search grounding.\n\nINVESTIGATOR LLM POOL (actual investigators): choose exactly one configured member for a proceed assignment: Groq or Mistral. They are the investigators themselves, not a decision layer. Gemini Right-hand is the advisory role; Gemini is the Boss. Non-LLM research tools are chosen by the selected Investigator based on evidence.');
 if (!prompt.includes('"investigatorLlm": "groq" | "mistral"')) prompt = prompt.replace('  "actionId": "one exact queued action id",\n  "rightHandDisposition":', '  "actionId": "one exact queued action id",\n  "investigatorLlm": "groq" | "mistral",\n  "rightHandDisposition":');
 
 const passInputNeedle = '  objective?: string;\n  caseId?: string | number;';
@@ -101,4 +101,4 @@ fs.writeFileSync(bureauFile, bureau);
 fs.writeFileSync(promptFile, prompt);
 fs.writeFileSync(passFile, pass);
 fs.writeFileSync(casesFile, cases);
-console.log("Applied two-layer runtime: Gemini Boss + DeepSeek/NVIDIA Right-hand -> selected Investigator LLM -> autonomous tools, with selected-model invocation and per-act run reporting.");
+console.log("Applied runtime: Gemini Boss + Gemini Right-hand -> selected Investigator LLM -> autonomous tools, with selected-model invocation and per-act run reporting.");

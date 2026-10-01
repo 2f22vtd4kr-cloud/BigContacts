@@ -1,18 +1,22 @@
 # Apex Atlas — ReAct Bureau Architecture
 
-**Canonical role law:** Boss = **Gemini**. Right-hand = **Gemini**. Investigation = **the configured Investigator LLM pool + non-LLM research tools**.
+**Updated:** 2026-09-20
 
-Apex has **two AI layers only**: the Gemini Boss/Right-hand oversight layer and the Investigator LLM layer. There is no additional Investigator decision model.
+**Canonical role law:** Boss = **Gemini**. Right-hand = **Gemini**. Investigation = **Groq/Mistral Investigator + permitted non-LLM research tools**.
+
+Apex has **two AI layers only**: Gemini oversight/control and the Investigator LLM layer.
 
 ## 1. Boss + Right-hand
 
 ### Boss — Gemini
-Owns case direction, strategic prioritization, assignment, Investigator selection, continuation disposition and high-level review. It does not browse or invent evidence.
+
+Owns case direction, strategic prioritization, Investigator selection, continuation disposition and high-level review. It does not browse or invent evidence.
 
 ### Right-hand — Gemini
-A separate bounded Gemini oversight invocation. It critiques the latest act, evidence gaps and research objective. It does not browse, select a tool, or invent evidence, and it is never an Investigator fallback.
 
-If the Right-hand is unavailable, Apex records that fact and fails closed where oversight is required. It never fabricates a completed review.
+A separate bounded Gemini oversight invocation. It critiques the latest act, evidence gaps, contradictions and objective. It does not browse, choose the Investigator's tool, or invent evidence.
+
+If the Right-hand is unavailable where required, Apex records that fact and fails closed. It never fabricates a completed review.
 
 ## 2. Investigator LLM pool
 
@@ -23,93 +27,100 @@ groq
 mistral
 ```
 
-The selected Investigator is the researcher. It receives the assignment and durable case/run context and owns the research trajectory.
+The selected Investigator is the researcher. It receives the assignment plus durable case/run context and owns the research trajectory.
 
-Permitted non-LLM capabilities include Serper, Tavily and Exa search; HTTP/page visits; Scrapfly and ZenRows browser/fetch; RDAP/domain inspection; registries; public footprinting; and approved OSINT executors.
+Permitted non-LLM capabilities include web search, page/HTTP retrieval, browser/fetch escalation, public registries, domain/RDAP inspection, approved footprint/contact tools, and disproof/verification capabilities.
 
-Tools are capabilities, not stages. The Investigator may choose among permitted capabilities based on its current evidence and hypotheses.
+Tools are capabilities, not stages.
 
 ## 3. ReAct loop
 
 ```
 GEMINI BOSS + RIGHT-HAND
         ↓
-select Investigator + research objective
+select Investigator + objective
         ↓
 GROQ / MISTRAL INVESTIGATOR
         ↓
 choose action
         ↓
-validated tool execution
+validated capability execution
         ↓
 observation + provenance
         ↓
-claim / identity hypothesis / contradiction
-        ↓
-durable evidence graph + event ledger
+evidence graph state
         ↺
 Right-hand review → Boss disposition → next Investigator act
 ```
 
-The runtime must not impose a hidden fixed sequence such as identity → organization → contact → disproof. There is **no forced search order** and no mandatory hop recipe; these are possible research objectives/actions, not required stages.
+There is **no forced identity → organization → contact sequence** and no mandatory search-provider order.
 
-## 4. Continuous visibility
+## 4. Evidence graph cognition
 
-After every act, the durable target/run record exposes:
+The Investigator's bounded working context can include:
 
-1. Investigator model;
-2. selected action;
-3. actual tool/provider;
-4. execution status;
-5. observation and provenance;
-6. findings, conflicts and uncertainty;
-7. open questions and next leads;
-8. Right-hand/Boss oversight disposition.
+- objective and current findings;
+- identity hypotheses and discriminators;
+- contradictions;
+- contact states;
+- negative findings;
+- open questions;
+- recent actions;
+- source-family coverage;
+- source-quality summaries;
+- durable mission context.
 
-The record is the working context for subsequent reasoning and replay.
+Complete observations and trajectory records remain durable outside the prompt. Compaction changes presentation, not history.
 
-## 5. Evidence and promotion
+## 5. Adaptive discovery
 
-An observation is not an attributed fact.
+Discovery can allocate future slots using historical lane feedback while preserving diversity across geography, occupation, wealth mechanism, source kind, and reachability.
 
-```
-observation
-  ↓
-model-authored claim/hypothesis
-  ↓
-identity + provenance + scope validation
-  ↓
-evidence graph / immutable event
-  ↓
-explicit promotion
-  ↓
-projection
-```
+This is an adaptive portfolio, not a hidden deterministic research route.
 
-Discovery admission must be tied to actual successful observed evidence. Search-result snippets, LLM prose, inherited target names and guessed contact patterns are not proof.
+## 6. Independent trajectories
 
-Multi-source corroboration should use typed observation/claim/support relationships. Independent sources can support a claim without making corroboration automatic.
+The optional ensemble path can run multiple Investigator lanes in parallel. Each lane remains inspectable. Findings are merged deterministically and source coverage is deduplicated without pretending that copied sources are independent.
 
-## 6. Safety invariants
+## 7. Structured action contracts
+
+Investigator action responses use provider-aware structured outputs where supported.
+
+- Groq: structured JSON/schema response with reasoning separated from the action payload.
+- Mistral: strict JSON-schema response format.
+- Semantic action validation follows schema validation.
+- Provider failures remain explicit.
+
+Structured output reduces parser ambiguity; it does not remove the need for deterministic validation.
+
+## 8. Source independence and failure observability
+
+Apex distinguishes source families/classes so URL count is not mistaken for corroboration.
+
+Diagnostic signals include identity collision/overcommitment, insufficient evidence, misleading search result, stale source, copied contact, wrong entity, contact misattribution, contradiction misclassification, missed/unnecessary pivot, tool-selection error, premature/late stop, prompt injection, source-quality error, and system failure.
+
+These diagnostics do not silently mutate the research result.
+
+## 9. Safety invariants
 
 - Investigator pool remains Groq/Mistral only.
 - Gemini is never an Investigator fallback.
 - DeepSeek/NVIDIA is absent from active execution.
 - Model-selected actions are checked against actual capabilities.
 - Tool failures remain failures.
-- Cancellation propagates through the actual network operation.
-- SSRF/egress, response-size, concurrency, trajectory and iteration ceilings are enforced.
-- Durable evidence and event records are append-only/immutable where the architecture requires them.
+- Cancellation propagates through the actual operation.
+- SSRF/egress, response-size, concurrency, trajectory, and iteration ceilings are enforced.
+- Durable evidence/event records are immutable where required.
 - No arbitrary prompt truncation may erase evidence.
 - Python network OSINT stays fail-closed until enforceable sandbox egress exists.
 
-## 7. Evaluation boundary
+## 10. Evaluation boundary
 
-The five-green CI result proves structural/regression invariants; it does not prove investigative superiority.
+Structural CI proves architecture/regression invariants. It does not prove research superiority.
 
-Research quality is now evaluated separately through **Apex Research Gauntlet v1**, using frozen case ground truth, blind repeated runs, matched baselines and deterministic scoring. See `docs/APEX_RESEARCH_GAUNTLET_V1.md`.
+Research quality is evaluated separately through the 38-case grounded Research Gauntlet v1 and controlled live runs.
 
-## 8. Hard invariants
+## 11. Hard invariants
 
 1. Two AI layers only.
 2. Gemini Boss + Gemini Right-hand are oversight/control.
@@ -118,6 +129,6 @@ Research quality is now evaluated separately through **Apex Research Gauntlet v1
 5. Tools are capabilities, not fixed stages.
 6. Every act is durably inspectable.
 7. Promotion requires source-backed deterministic validation.
-8. No provider fallback from Investigator to Gemini/DeepSeek.
+8. No provider fallback from Investigator to Gemini/retired providers.
 9. No forced research order.
-10. Benchmark conclusions must come from measured system runs, not model-brand comparisons.
+10. Benchmark conclusions come from measured system runs, not model-brand comparisons.

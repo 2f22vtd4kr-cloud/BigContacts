@@ -1,175 +1,115 @@
 # Apex Atlas Research & Reliability — Phase Plans v3
 
-This file is the executable plan behind docs/APEX_RESEARCH_ROADMAP_V3.md.
+**Updated:** 2026-09-20
 
-Each phase has an implementation contract, concrete work items, tests, and a release gate. Phase ordering is an engineering dependency order, not a mandated research sequence for the Investigator.
+This file is the executable plan behind `docs/APEX_RESEARCH_ROADMAP_V3.md). Phase order is an engineering dependency order, not a mandated research sequence.
 
 ## Phase 0 — Canonicalize the research surface
 
 Implementation:
-- Audit institutional prompt/tool surfaces for retired capabilities.
-- Remove WHOIS/WhoisJSON/Whoxy references from active Apex orientation and canonical architecture docs.
-- Keep only currently implemented domain/registry capabilities.
-- Add a static retired-provider audit to prevent regression.
+- keep the active 13-secret contract explicit;
+- keep Groq/Mistral as the only Investigator pool;
+- keep Gemini Boss/Right-hand role-separated;
+- prevent retired provider names from re-entering active prompts/tool surfaces.
 
-Tests:
-- Search active prompt/tool-surface source for retired-provider strings.
-- Verify active Investigator pool remains exactly Groq/Mistral.
-- Verify Gemini is never listed as an Investigator.
-
-Gate: no retired provider appears in active Apex capability declarations.
+Gate:
+- no active runtime contract requires DeepSeek/NVIDIA/WHOISJSON.
 
 ## Phase 1 — Context engineering / working memory
 
 Implementation:
-- Introduce bounded working-context assembly.
-- Default dynamic Investigator context budget: 18,000 characters.
-- Keep objective/findings/latest observation first.
-- Keep the newest two trajectory records with bounded observations.
-- Replace older raw records with an indexed representation containing turn, action, execution, URLs and findings.
-- Preserve complete records in the run result and durable case state.
-- Make budget knobs environment-configurable.
-- Continue using existing LLM telemetry for prompt size.
-- Add a tighter-budget retry path for provider request-size failures without changing Investigator provider or role. The current implementation retries once with an emergency bounded reducer and records request-size telemetry.
+- bounded Investigator context;
+- durable trajectory outside prompt;
+- evidence-bearing recent records plus compact archived history;
+- emergency tighter reducer after provider request-size rejection.
 
-Tests:
-- 30/100/500 synthetic records.
-- Very large observations.
-- Long URLs.
-- Duplicate and contradictory findings.
-- Ensure source URLs/findings remain represented in compact history.
-- Ensure context stays below the configured ceiling.
-
-Gate: trajectory growth no longer causes the prompt to grow linearly with all raw observation text.
+Gate:
+- long trajectories remain usable without deleting durable evidence.
 
 ## Phase 2 — Observation shaping
 
 Implementation:
-- Add bounded model-facing packets for search, visit, browser and specialist-tool results.
-- Retain raw provider output durably where the existing event model supports it.
-- Extract exact source URLs and evidence-bearing passages.
-- Deduplicate repeated copies.
-- Preserve negative/failed observations.
+- bounded model-facing observations;
+- source URLs, evidence-bearing passages, execution status, source class, and extraction method;
+- repeated-source awareness.
 
-Tests:
-- Large SERP response.
-- Large HTML page.
-- Duplicate aggregator pages.
-- Page with prompt injection.
-- Contact facts embedded in HTML.
-
-Gate: no single tool observation can consume the majority of the Investigator working context.
+Gate:
+- no single observation dominates the working context.
 
 ## Phase 3 — Long-horizon memory
 
 Implementation:
-- Promote hypotheses, missing discriminators and dead ends into durable state.
-- Add addressable observation/evidence references.
-- Rehydrate compacted state deterministically.
-- Add restart/replay checkpoint tests.
+- hypotheses/discriminators;
+- contradictions;
+- negative findings/dead ends;
+- contact state;
+- source-family coverage;
+- durable observation references.
 
-Tests:
-- Multi-compaction investigation.
-- Restart after turn 20 and turn 40.
-- Contradiction introduced after compaction.
-- New evidence invalidating the leading hypothesis.
-
-Gate: the Investigator can continue after multiple compaction boundaries without inventing prior state or forgetting the active objective.
+Gate:
+- compaction/restart preserves research state.
 
 ## Phase 4 — Research decision quality
 
 Implementation:
-- Expose information-gain and source-independence state.
-- Track repeated/low-yield actions.
-- Surface unresolved discriminators.
-- Preserve deliberate disproof as an available objective, never a mandatory step.
-- Keep stopping model-owned.
+- capability semantics;
+- information-gain assessment;
+- identity/contact/source-independence signals;
+- model-owned stopping and pivots.
 
-Tests:
-- Ambiguous identity.
-- Strong first hypothesis with later contradiction.
-- Low-yield search avenue.
-- Negative-finding case.
-- Case where stopping is correct.
-
-Gate: measured runs improve useful-pivot rate and/or evidence coverage without increasing unsupported claims.
+Gate:
+- live cases show useful-pivot/evidence improvements without unsupported-claim growth.
 
 ## Phase 5 — Identity and attribution
 
 Implementation:
-- Strengthen identity-hypothesis support edges.
-- Require source-backed promotion.
-- Distinguish organization/person scope.
-- Handle stale and temporal contact state.
-- Add independent-source corroboration semantics.
+- explicit promotion state;
+- source-backed identity hypotheses;
+- organization/person scope;
+- stale/temporal contact handling;
+- independent source-family corroboration.
 
-Tests:
-- Same-name collision.
-- Multiple executives at one organization.
-- Old vs current role.
-- Shared organization switchboard.
-- Same contact value across copied sources.
-
-Gate: false-person and false-contact admissions decrease on grounded cases.
+Gate:
+- false-person and false-contact admissions decrease on grounded cases.
 
 ## Phase 6 — Provider resilience
 
 Implementation:
-- Add explicit provider error taxonomy.
-- Treat 413 as request-size pressure.
-- Compact before retrying.
-- Never silently cross role/provider boundaries.
-- Preserve actual provider/model and failure status.
-- Add request-size telemetry.
+- structured provider responses;
+- explicit provider/model attribution;
+- request-size recovery;
+- failure taxonomy;
+- truthful timeout/cancellation behavior.
 
-Tests:
-- 413.
-- 429.
-- 500/502/503/504.
-- Timeout.
-- Cancellation.
-- Provider unavailable.
-
-Gate: all failure classes remain truthful and durable; no failure becomes fabricated success.
+Gate:
+- 413/429/5xx/timeout/cancellation drills preserve durable truth.
 
 ## Phase 7 — Empirical gauntlet
 
 Implementation:
-- Expand grounded registry.
-- Execute repeated matched trials.
-- Freeze artifacts.
-- Score separate quality dimensions.
-- Blind adjudication where practical.
-- Analyze failures before interventions.
+- current 38-case grounded registry;
+- repeated matched trials;
+- frozen run artifacts;
+- deterministic scoring;
+- blind adjudication where practical.
 
-Tests:
-- Duplicate trial identity.
-- Missing run.
-- Wrong configuration envelope.
-- Unsupported claim.
-- Missing observation linkage.
-- Ambiguous gold.
-
-Gate: research-quality claims are reproducible from frozen artifacts.
+Gate:
+- empirical release claims are reproducible and failure classes are understood.
 
 ## Phase 8 — Release hardening
 
 Implementation:
-- Long-run health telemetry.
-- Recovery checkpoints.
-- Fresh-environment launch verification.
-- UI/evidence projection checks.
-- Continuous retired-provider audit.
-- Real smoke investigation on release candidate.
+- fresh-environment boot;
+- schema initialization and post-init lockout;
+- durable recovery/checkpoint verification;
+- UI projection checks;
+- retired-provider CI audit;
+- real smoke research;
+- release artifact pinning.
 
-Gate: Apex survives long, interrupted, provider-constrained investigations while retaining truthful durable state.
+Gate:
+- a fresh environment can complete and recover a controlled investigation while retaining truthful evidence.
 
-## Current implementation checkpoint
+## Current checkpoint
 
-The first implementation slice in this repository is Phase 0 + Phase 1 plus provider request-size recovery:
-- retired WHOIS references are removed from active orientation/architecture declarations;
-- Investigator working context is bounded and selective;
-- complete trajectory records remain durable;
-- source URLs/findings remain represented in compact history;
-- regression tests cover long trajectories;
-- subsequent phases remain explicit and gated rather than falsely declared complete.
+The current reviewed branch has substantial implementation across Phases 0–6 and the benchmark infrastructure for Phase 7. The remaining work is primarily empirical/runtime proof, failure-drill coverage, and release hardening—not another architecture-only status document.

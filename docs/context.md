@@ -1,284 +1,342 @@
 # Apex Atlas / BigContacts — Living Context
 
-> **Updated:** 2026-09-18. The authoritative engineering state is the source on branch `audit/genuine-five-green-final`; this document is the living architecture and research-evaluation handoff.
+> **Updated:** 2026-09-20. This is the living engineering, architecture, deployment, and research-quality handoff for the current reviewed Apex Atlas state.
 
 **Repository:** `2f22vtd4kr-cloud/BigContacts`  
-**Authoritative branch:** `audit/genuine-five-green-final`  
-**Certification:** the authoritative branch is continuously re-certified by the five-consecutive workflow and independent prompt-architecture audit. Treat the exact SHA reported by the latest successful runs as authoritative; never copy an older SHA into this handoff.
+**Current reviewed branch:** `audit/apex-atlas-very-strong-v1`  
+**Production/certification branch:** `audit/genuine-five-green-final`  
+**Review status:** the current branch contains the Very Strong engineering batch and remains a review branch; it is **not** a production certification by itself.
 
-## 1. System constitution
+## 1. Executive state
 
-Apex is an AI-powered public-web research bureau, not a deterministic enrichment workflow.
+Apex Atlas is an AI-powered public-web research bureau, not a deterministic enrichment workflow.
+
+The current branch strengthens the canonical bureau with:
+
+- Gemini Boss + independent Gemini Right-hand oversight;
+- a Groq/Mistral Investigator pool where the selected Investigator owns the research trajectory;
+- capability-semantic action selection and information-gain assessment;
+- durable evidence-graph cognition exposed through bounded working context;
+- adaptive discovery portfolio allocation with diversity floors;
+- opt-in independent Investigator trajectories with deterministic evidence merging;
+- provider-native structured model-output contracts for Investigator decisions;
+- source-family / source-class intelligence and failure diagnostics;
+- bounded request-size recovery without changing the Investigator role/provider;
+- focused regression tests and a dedicated CI verification workflow.
+
+The key rule remains:
+
+> **The model owns research strategy; deterministic code owns safety, evidence integrity, authorization, persistence, and resource budgets.**
+
+A green architecture check does not mean the research quality is proven. Release requires a real, controlled research campaign plus a clean production boot.
+
+## 2. Canonical architecture
 
 ```
-USER / CASE OBJECTIVE
+CASE / OBJECTIVE
         ↓
 Gemini Boss + Gemini Right-hand
         ↓
-select Investigator LLM + clarify research objective
+select Investigator LLM + research objective
         ↓
 Groq OR Mistral Investigator
         ↓
 model chooses WHAT / WHERE / HOW
         ↓
-validated non-LLM tool execution
+validated non-LLM capability
         ↓
-raw observation + provenance
+immutable observation + provenance
         ↓
-claim / identity hypothesis / contradiction / contact state
+evidence graph: claims / hypotheses / contradictions / contacts / negatives
         ↓
-durable case state + evidence graph + event ledger
+bounded cognitive context
+        ↺ Right-hand review ↺ Boss oversight ↺ next Investigator act
         ↓
-next Investigator decision
-        ↺ Right-hand review ↺ Boss oversight
-        ↓
-explicit finding / promotion / stop
+explicit finding / abstention / promotion / stop
 ```
 
-The important boundary is **model-owned research trajectory, deterministic safety**. Deterministic code may reject an unsafe, unauthorized, malformed, over-budget or provenance-invalid action. It must not secretly replace the Investigator with a fixed research sequence.
+There is no hidden identity → organization → contact recipe. Search, browser/fetch, registry, domain, footprint, and other approved executors are capabilities. The Investigator may choose, revisit, pivot, disprove, narrow, broaden, or stop.
 
-## 2. AI role law
+## 3. AI role law
 
-There are exactly two AI layers:
+### Gemini Boss
 
-1. **Gemini Boss + Gemini Right-hand** — bounded oversight/control plane.
-2. **Investigator LLM pool** — actual investigation.
+Gemini Boss owns case direction, assignment, Investigator selection, continuation disposition, and high-level review. It does not browse and does not become the Investigator.
+
+### Gemini Right-hand
+
+Gemini Right-hand is a separate Gemini oversight invocation. It critiques the latest act, evidence gaps, contradictions, and research objective. It does not browse, choose the Investigator's tools, or invent evidence.
+
+### Investigator
 
 The active Investigator pool is exactly:
 
-```text
+```
 groq
 mistral
 ```
 
-Gemini is never an Investigator fallback. DeepSeek and NVIDIA NIM are not part of active Apex execution.
+The selected Investigator is the researcher. It receives durable case/run context and owns query formulation, tool choice, pivots, verification, disproof, and stopping.
 
-### Boss
-Owns case direction, assignment, continuation disposition and high-level review. It may supply a research objective or redirect, but it must not browse or prescribe a tool/provider/query/URL sequence.
+DeepSeek/NVIDIA is not an active Investigator or Right-hand path.
 
-### Right-hand
-Independent bounded Gemini oversight. It critiques the current act, evidence gaps and next objective. It does not browse, choose tools or invent evidence. If unavailable, the control plane fails closed rather than pretending the review happened.
+## 4. Tool and safety boundary
 
-### Investigator
-The selected Groq/Mistral model is the researcher. It receives the durable target/run context and owns the trajectory: discovery, search, page visits, pivots, revisits, verification, disproof and stopping are capabilities it may choose, not mandatory phases.
+Tools are capabilities, not phases.
 
-## 3. Tool and safety boundary
+Current hard controls include:
 
-Search, browser/page fetch, registry/domain and approved OSINT executors are capabilities, not stages.
+- bounded Investigator iteration budget (`MAX_ITER=64`);
+- bounded observation size and trajectory records;
+- bounded model-facing context with durable history outside the prompt;
+- outbound timeouts and response-size limits;
+- SSRF-safe transport and cancellation propagation;
+- actual-capability validation for model-selected actions;
+- provenance requirements for promoted evidence;
+- explicit contact scope and attribution states;
+- duplicate-source/source-family awareness;
+- tool failures remain failures;
+- Python-backed network OSINT remains fail-closed until enforceable sandbox egress exists.
 
-Current hard safety ceilings include:
+The application must never convert a missing tool, failed fetch, provider error, or model assertion into successful evidence.
 
-- `MAX_ITER = 64`
-- `MAX_OBS = 16_000`
-- `MAX_TRAJECTORY_RECORDS = 512`
-- bounded HTTP response size and outbound timeouts
-- run-scoped cancellation
-- SSRF-safe outbound transport
-- actual-capability validation for model-selected actions
-- tool failures remain failures
-- duplicate visits are not converted into successful observations
-
-Python-backed OSINT remains fail-closed until enforceable sandbox/container/VM egress isolation exists. Do not re-enable networked Python OSINT merely because a source mutator or guard can make it appear available.
-
-## 4. Durable research state
+## 5. Durable evidence state
 
 The dossier/card is a projection, not the source of truth.
 
-Canonical durable state must preserve, across turns and restarts:
+Durable research state preserves:
 
-- objective and case identity;
-- Investigator model and every selected action;
-- actual execution/provider and execution status;
+- case and objective;
+- selected Investigator model;
+- every selected action and actual execution/provider;
+- execution status and failures;
 - observations and source URLs;
 - retrieval timestamps and provenance;
-- model-authored claims and uncertainty;
-- competing identity hypotheses and disproof;
+- claims and uncertainty;
+- competing identity hypotheses and discriminators;
 - contradictions and their resolution state;
-- contact values and contact state;
-- open questions, negative findings and dead ends;
+- contacts and contact scope/state;
+- negative findings, dead ends, and open questions;
 - oversight decisions;
-- trajectory records and replay/correlation IDs.
+- trajectory and replay/correlation identifiers.
 
-Do not use arbitrary context truncation that destroys evidence or trajectory history. Compaction must be high-signal and reference durable event IDs/records.
-
-## 5. Evidence and identity law
-
-An observation is not automatically an attributed fact.
+Evidence promotion follows:
 
 ```
 raw observation
   → model-authored claim / hypothesis
-  → explicit attribution or promotion proposal
-  → deterministic identity / provenance / scope validation
+  → attribution / promotion proposal
+  → deterministic identity + provenance + scope validation
   → durable evidence graph + event
   → projection
 ```
 
-Discovery admission must never accept an LLM-emitted person merely because the model said the person exists. `materializeAtlasAdmissions()` must connect admission to actual successful observed/persisted evidence.
+An LLM statement, search snippet, copied directory entry, or guessed email pattern is not proof.
 
-Evidence provenance should retain, at minimum:
+## 6. Current cognition layer
 
-- original and normalized URL;
-- host;
-- retrieved / first-seen / last-seen timestamps;
-- source type and quality;
-- extraction/collection method;
-- supporting passage or observation;
-- claim linkage;
-- identity-resolution confidence;
-- contradiction links;
-- evidence confidence.
+The Very Strong batch now treats the evidence graph as cognitive state rather than only an output ledger.
 
-Contact states are explicit:
+The Investigator working context exposes bounded:
 
-```text
-DISCOVERED → OBSERVED → ATTRIBUTED → CORROBORATED → VERIFIED
-                              ↘ STALE
-                              ↘ CONTRADICTED
-                              ↘ REJECTED
-```
+- current objective and findings;
+- identity hypotheses and discriminators;
+- contradictions;
+- contacts and attribution state;
+- negative findings;
+- open questions;
+- recent actions;
+- source-family coverage;
+- source-quality summaries;
+- mission/role context.
 
-Multiple contact values are not automatically contradictions. The contradiction engine should distinguish legitimate multi-valued fields, temporal changes, scoped values and genuine conflicts, while preserving the claims and sources that caused the classification.
+When context is compacted, durable evidence remains outside the prompt. The compactor reduces presentation; it does not rewrite research history.
 
-The typed evidence-graph foundation includes observations, claims and support edges. The next quality step is to make multi-observation attribution a first-class admission path without weakening the existing source/identity gates.
+## 7. Adaptive discovery
 
-## 6. Canonical control loop
+Discovery now has two cooperating controls:
 
-The canonical target path is:
+1. deterministic safety/diversity constraints;
+2. feedback-driven portfolio allocation.
+
+The allocator can learn from prior lane yield, useful evidence, reachability, duplicate rate, geography, occupation, wealth mechanism, and source kind while retaining diversity floors.
+
+It must not become a hidden fixed route or a fame/wealth leaderboard. The objective is useful research coverage, not celebrity discovery.
+
+## 8. Independent trajectories
+
+Apex can run multiple materially independent Investigator lanes in parallel when the caller opts into the ensemble path.
+
+The lanes are designed to vary source families and research angles. Results are merged deterministically by normalized finding/vector identity and observed URL coverage. Independent runs remain individually inspectable.
+
+Parallelism is a research capability, not a requirement for every case.
+
+## 9. Structured model decisions
+
+Investigator action decisions use provider-aware structured-output contracts where supported.
+
+- Groq uses structured JSON/schema output on supported models, with reasoning kept out of the action payload.
+- Mistral uses strict JSON-schema response formatting.
+- Semantic validation still runs after schema validation.
+- The system must never treat brace extraction as the primary correctness boundary.
+
+Provider behavior can change; runtime validation remains authoritative.
+
+## 10. Source independence and failure observability
+
+Apex distinguishes source families/classes instead of counting copied or syndicated pages as independent corroboration.
+
+The failure observatory records diagnostic signals such as:
+
+- identity collision or overcommitment;
+- insufficient evidence;
+- misleading search result;
+- stale source;
+- copied contact;
+- wrong entity;
+- contact misattribution;
+- contradiction misclassification;
+- missed or unnecessary pivot;
+- tool-selection error;
+- premature/late stopping;
+- prompt injection exposure;
+- source-quality error;
+- system failure.
+
+These diagnostics are not allowed to silently mutate the research result.
+
+## 11. Canonical control loop
 
 ```
 Gemini opening oversight
-  → Gemini-selected Groq/Mistral Investigator
+  → Investigator selection
   → Investigator-selected act
-  → actual tool execution
-  → immutable tool observation
-  → target/run durable state
+  → actual capability execution
+  → immutable observation
+  → evidence/state update
   → Gemini Right-hand review
-  → Gemini Boss disposition / research objective / stop
+  → Gemini Boss disposition
   → next Investigator act
 ```
 
-Boss/Right-hand do not secretly determine the Investigator's query or hop sequence. The Investigator does.
+Every act must be inspectable: model, action, actual provider/tool, status, observation, provenance, findings, uncertainty, open questions, and oversight result.
 
-Every act must be inspectable: model, action, actual tool/provider, execution status, observation, provenance, findings, uncertainty, open questions and oversight result.
+## 12. Runtime/deployment truth
 
-## 7. Remaining engineering cleanup
+Canonical application boundary:
 
-The five-green certification is an architecture/regression milestone, not proof that investigative quality is solved.
+- API: port `8080`;
+- desk: `/`;
+- API: `/api/`;
+- canonical startup: `bash scripts/replit-boot.sh`.
 
-Known source-migration programs still requiring deliberate reachability analysis include:
+The repository now includes an operator-approved schema initialization helper:
 
-1. registry cancellation direct-source migration;
-2. target investigation event-ledger source migration;
-3. secondary-surface deterministic caller retirement;
-4. remaining duplicate-tree/legacy-writer cleanup;
-5. identity-review/manual writer audit;
-6. Python sandbox/egress architecture.
+```bash
+APEX_ALLOW_SCHEMA_PUSH=true bash scripts/initialize-apex-schema.sh
+```
 
-Never delete a mutator or compatibility tree merely because a guard passes. First migrate the invariant into source, trace callers/transitive callers/error paths/persistence/cancellation, inspect the diff, then remove the mutator.
+Schema mutation must be an explicit first-time operator action, not ordinary boot behavior.
 
-## 8. Research-quality phase: Apex Research Gauntlet v1
+The last known canonical runtime audit was blocked because the required Apex provenance/database schema was missing. Required durable tables included `research_case_events`, `research_cases`, `entities`, `research_sessions`, `research_run_events`, `research_evidence`, and `contact_evidence`.
 
-The next phase is **empirical research evaluation**, not another architecture score.
+**Therefore: do not claim production readiness until the schema is initialized, canonical boot succeeds, health is verified, and at least one controlled live research run completes with durable evidence.**
 
-The benchmark asks:
+## 13. Active secret contract
 
-> Given the same research problem, does Apex produce a more accurate, better-supported, less hallucinated investigation than strong baselines?
+Exactly 13 active provider/integration names:
 
-The benchmark must not use the existing single-number scoreboard as a proxy for research quality.
+```
+REDIS_URL_1
+GROQ_API_KEY
+GEMINI_API_KEY
+MISTRAL_API_KEY
+HF_TOKEN
+SERPER_API_KEY
+TAVILY_API_KEY
+SERPAPI_KEY
+EXA_API_KEY
+SCRAPFLY_API_KEY
+ZENROWS_API_KEY
+COMPANIES_HOUSE_API_KEY
+GEMINI_RIGHT_HAND_API_KEY
+```
 
-### Benchmark design
+Separate deployment/browser security controls:
 
-The grounded v1 registry now contains 38 independently cross-checked cases with two public-source records per case; expand toward 50 before using the benchmark as a release gate. Include:
+```
+APEX_API_AUTH_TOKEN
+APEX_OPERATOR_PASSWORD
+APEX_SESSION_SECRET
+```
 
-- ambiguous/common names;
-- sparse public footprints;
-- multiple people at one organization;
-- ownership/succession chains;
-- stale profiles;
-- conflicting contact values;
-- misleading search results and SEO copies;
-- copied/aggregated directories;
-- negative-finding cases where the correct outcome is uncertainty;
-- multi-pivot cases where the useful path is not obvious;
-- adversarial identity collisions;
-- prompt-injection-bearing public pages.
+Do not request or print GitHub credentials, `DATABASE_URL`, DeepSeek/NVIDIA credentials, WHOISJSON credentials, or other retired secrets as part of the active contract.
 
-Each case has a versioned ground-truth packet. Ground truth records the expected identity set, supported claims, disallowed/distractor identities, contact-state expectations, source-quality expectations and important contradictions. Ground truth must be established from primary/public evidence and reviewed independently of Apex's own output.
+## 14. Research Gauntlet v1
 
-### Blind runs
+The current grounded registry is **38 cases**, schema `research-gauntlet-v1`, version `1.1.1`, status `grounded-reviewed`, with ground truth frozen as of 2026-09-18.
 
-For each case, run multiple independent trials with the same objective and resource envelope. Preserve the full raw trajectory and evidence graph.
+The benchmark is a measurement instrument, not a single-number scoreboard.
 
-Compare against clearly specified baselines, such as:
+It measures separately:
 
-- a strong single-agent research workflow;
-- a strong multi-agent research workflow;
-- optional external systems only when comparable runs, tool access and evaluation rules are actually available.
-
-Do not compare model names abstractly. Compare **systems under matched tasks and budgets**.
-
-### Metrics
-
-Primary metrics:
-
-- identity precision / recall;
-- contact attribution precision / recall;
+- identity precision/recall;
+- contact attribution precision/recall;
 - claim support correctness;
 - unsupported-claim rate;
 - false-positive identity rate;
-- contradiction detection / resolution;
+- contradiction detection/resolution;
 - source-quality correctness;
-- negative-finding calibration.
-
-Operational metrics:
-
+- negative-finding calibration;
 - useful pivots;
-- unnecessary tool calls;
+- unnecessary calls;
 - successful observations;
 - trajectory length;
-- wall time;
-- token/model cost where measurable;
-- clean-stop / timeout / cancellation rate.
+- wall time and measurable model cost;
+- timeout/cancellation/system-failure rates.
 
-A run must be allowed to say **unknown / insufficient evidence**. Do not reward forced answers.
+Unknown/insufficient-evidence is a valid result.
 
-### Analysis
+Do not publish a global winner from the benchmark. Use matched tasks, budgets, repeated runs, frozen artifacts, and blind adjudication where practical.
 
-Do not collapse the benchmark into one overall winner score. Report metric distributions, confidence intervals where appropriate, case-class breakdowns and failure exemplars.
+## 15. Current engineering gates
 
-Investigate failures before changing architecture. Candidate interventions include query diversification, source-quality modeling, better entity resolution, parallel independent investigators, verification passes, provider/model changes and evidence-graph improvements.
+The current branch has focused static/unit coverage for:
 
-## 9. Benchmark implementation
+- free/model-owned research trajectory;
+- capability semantics;
+- deterministic information-gain assessment;
+- adaptive discovery diversity;
+- evidence-graph context compaction;
+- structured action contracts;
+- target/investigator autonomy;
+- source-family independence;
+- prompt-injection and stopping diagnostics;
+- agentic runtime/timeout invariants.
 
-The repository now treats the Gauntlet as a versioned, source-grounded evaluation artifact:
+The branch also has a dedicated CI workflow for the Very Strong batch.
 
-- `docs/APEX_RESEARCH_GAUNTLET_V1.md` — protocol and interpretation rules;
-- `benchmarks/research-gauntlet-v1.json` — case registry and ground-truth schema;
-- `scripts/evaluate-research-gauntlet.mjs` — deterministic scorer for recorded runs;
-- `scripts/validate-research-gauntlet.mjs` — fixture/run schema validation;
-- `artifacts/api-server/src/src/test/research-gauntlet.test.ts` — evaluator regression coverage.
+## 16. CEO / release gate
 
-The evaluator scores supplied ground truth against recorded claims and verifies that claim support resolves through the run's observation IDs to the frozen gold source URLs; it never invents ground truth, calls the web, or declares a model/system globally superior.
+Apex should be treated as **not yet publishable** until all of these are true:
 
-## 10. Acceptance rules for the Gauntlet
+1. authoritative branch contains the reviewed batch;
+2. fresh install with frozen lockfile succeeds;
+3. all required architecture/type/build checks are green;
+4. schema initialization succeeds and is then disabled for normal boot;
+5. canonical API boots on 8080 and health is verified;
+6. Gemini Boss and Right-hand both execute with their distinct credentials;
+7. a real Investigator run executes using Groq or Mistral;
+8. observations, provenance, evidence graph, contacts, failures, and oversight persist durably;
+9. controlled failure cases (provider error, timeout, cancellation, prompt injection, identity collision) remain truthful;
+10. repeated Gauntlet runs demonstrate acceptable evidence quality;
+11. UI is verified against canonical evidence state, not simulated/demo state;
+12. release documentation matches the exact deployed branch/SHA.
 
-A benchmark result is publishable only when:
+Architecture maturity is strong. Deployment/research maturity is still gated by empirical evidence.
 
-- case and ground-truth versions are pinned;
-- task prompts are identical across systems;
-- tool/resource budgets are documented;
-- runs are independently seeded where applicable;
-- outputs and trajectories are preserved;
-- scoring is deterministic from frozen input artifacts;
-- adjudication is blind to system identity where practical;
-- missing evidence is not silently treated as false;
-- system failures are distinguished from research failures;
-- no metric is reported from a different task population without labeling it.
+## 17. Operator rule
 
-**Working rule:** architecture green means the bureau is structurally credible. Research quality must now be earned by measured, reproducible outcomes.
+If a check fails, fix the root cause. Do not weaken the check, seed evidence, force a research route, or convert an unavailable capability into a fake success merely to obtain a green release report.
 
-
-## 11. Current research-reliability implementation
-
-The current canonical ReAct loop uses bounded Investigator working context from `investigation-context-compaction.ts`, with a one-time tighter emergency reducer after a provider request-size rejection. Durable trajectory/evidence is retained outside the prompt; the model-facing context prioritizes the objective, current findings, latest observation, recent acts, and an archived trajectory index. The implementation roadmap and per-phase engineering plan are `docs/APEX_RESEARCH_ROADMAP_V3.md` and `docs/APEX_RESEARCH_PHASE_PLANS_V3.md`.
+This file is the source-of-truth handoff for what Apex **is**, what it **is not**, and what remains necessary before publication.
