@@ -469,7 +469,7 @@ function formatFindingsBag(findings: AgenticFinding[]): string { if (!findings.l
 const AGENTIC_STRUCTURED_SCHEMA = {
   type: "object",
   properties: {
-    action: { type: "string", enum: ["web_search","visit","footprint_email","footprint_username_maigret","footprint_username_sherlock","domain_lookup","registry_search","harvest_domain","footprint_spiderfoot","browser_fetch","done"] },
+    action: { type: "string", enum: ["web_search","parallel_web_search","visit","footprint_email","footprint_username_maigret","footprint_username_sherlock","domain_lookup","registry_search","harvest_domain","footprint_spiderfoot","browser_fetch","done"] },
     query: { type: ["string","null"] },
     provider: { type: ["string","null"], enum: ["serper","tavily","exa",null] },
     url: { type: ["string","null"] },
@@ -481,6 +481,7 @@ const AGENTIC_STRUCTURED_SCHEMA = {
     hypothesis: { type: ["string","null"] },
     purpose: { type: ["string","null"] },
     expectedInformationGain: { type: ["number","null"], minimum: 0, maximum: 1 },
+    searches: { type: "array", items: { type: "object", properties: { query: { type: "string" }, provider: { type: "string", enum: ["serper","tavily","exa"] }, locale: { type: ["string","null"] }, market: { type: ["string","null"] }, purpose: { type: ["string","null"] } }, required: ["query","provider","locale","market","purpose"], additionalProperties: false } },
     findings: {
       type: "array",
       items: {
@@ -501,7 +502,7 @@ const AGENTIC_STRUCTURED_SCHEMA = {
       }
     }
   },
-  required: ["action","query","provider","url","email","username","domain","registry","thought","hypothesis","purpose","expectedInformationGain","findings"],
+  required: ["action","query","provider","url","email","username","domain","registry","thought","hypothesis","purpose","expectedInformationGain","searches","findings"],
   additionalProperties: false
 } as const;
 
