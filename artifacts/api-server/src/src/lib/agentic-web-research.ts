@@ -5,6 +5,9 @@ import { validateGeminiResearchObjective } from "./gemini-research-objective";
 import { reviewTargetInvestigationAct, loadTargetActOversightContext, type TargetActOversight } from "./target-act-oversight";
 import { getJob } from "./job-queue";
 import { ResearchIntelligenceEngine, renderIntelligenceContext } from "./research-intelligence-engine";
+import { shouldCheckpointResearchEpisode } from "./research-episode-policy";
+import { runGeminiEvidenceProbe } from "./gemini-evidence-probe";
+import { inferResearchCognitiveTask } from "./research-cognitive-routing";
 import type { AgenticFinding } from "./agentic-web-research-core";
 
 const nativeFetch = globalThis.fetch.bind(globalThis);
@@ -91,7 +94,7 @@ async function runDynamicDiscovery(core: CoreModule, input: RunInput, controller
     const remaining = deadline - Date.now();
     if (remaining <= 0) return { status: "timeout", model, iterations: actionTurn - 1, searches, visits, findings, modelFindings, stopReason: "HARD_TIMEOUT", trajectory, trajectoryRecords: records, error: `hard timeout ${requestedHardTimeout}ms`, executionId };
     const perActTimeout = Math.max(30_000, Math.min(55_000, remaining));
-    const actInput: RunInput = { ...input, objective: intelligenceObjective(input.objective || `Research the public web for the strongest attributable public contact path for ${input.targetName}.`, input.objective || "", intelligence, null, records), maxIterations: 1, hardTimeoutMs: perActTimeout, signal: controller.signal, shouldCancel: async () => { if (controller.signal.aborted || input.signal?.aborted) return true; if (!input.jobId) return false; const job = await getJob(input.jobId); return !job || job.status !== "running"; }, onLiveStep: (step) => input.onLiveStep?.(step) };
+    const actInput: RunInput = { ...input, cognitiveTask: inferResearchCognitiveTask({ nextMovePriority: intelligence.buildContext().frontier.nextMovePriority }), objective: intelligenceObjective(input.objective || `Research the public web for the strongest attributable public contact path for ${input.targetName}.`, input.objective || "", intelligence, null, records), maxIterations: 1, hardTimeoutMs: perActTimeout, signal: controller.signal, shouldCancel: async () => { if (controller.signal.aborted || input.signal?.aborted) return true; if (!input.jobId) return false; const job = await getJob(input.jobId); return !job || job.status !== "running"; }, onLiveStep: (step) => input.onLiveStep?.(step) };
     const actResult = await core.runAgenticWebResearch(actInput);
     model = actResult.model; searches += actResult.searches; visits += actResult.visits; lastStatus = actResult.status; error = actResult.error;
     const raw = actResult.trajectoryRecords[actResult.trajectoryRecords.length - 1];
@@ -158,69 +161,152 @@ export async function runAgenticWebResearch(input: RunInput): Promise<AgenticRun
       let error: string | undefined;
       let direction: string | null = initialDirection.valid ? initialDirection.direction : null;
       let oversight: TargetActOversight | null = null;
+       let actionsSinceCheckpoint = 0;
+       const knownIdentityNames = new Set<string>();
 
-      try {
-        const requestedMaxActionTurns = Number.isFinite(input.maxIterations) ? Math.floor(input.maxIterations!) : MAX_TARGET_ACTION_TURNS;
+       const applyOversight = async (act: CoreResult["trajectoryRecords"][number], controlTurn: number): Promise<{ stop: boolean; unavailable: boolean }> => {
+         const state = intelligence.buildContext();
+         const checkpoint = shouldCheckpointResearchEpisode({
+           actionsSinceCheckpoint,
+           contradictionCount: state.contradictions.length,
+           identityChanged: Boolean(act.findings.some((finding) => finding.personName && !knownIdentityNames.has(finding.personName.toLowerCase()))),
+           highValueContact: act.findings.some((finding) => ["email", "phone", "linkedin"].includes(finding.vectorType) && Boolean(finding.personName)),
+           actionExecution: act.execution,
+           terminalClaim: act.action === "done",
+           informationGain: state.recentActions.at(-1)?.informationGain,
+         });
+         if (!checkpoint.checkpoint) return { stop: false, unavailable: false };
+
+         if (checkpoint.reasons.includes("terminal_claim") || state.frontier.nextMovePriority === "verify" || state.frontier.nextMovePriority === "falsify") {
+           const probeClaim = state.contradictions[0]?.claim
+             ?? state.openQuestions[0]
+             ?? act.findings.find((finding) => finding.personName && finding.value)?.value
+             ?? `${input.targetName} identity and role`;
+           const probe = await runGeminiEvidenceProbe({
+             claim: probeClaim,
+             subject: input.targetName,
+             context: renderIntelligenceContext(state).slice(0, 4_500),
+             signal: overallController.signal,
+           }).catch((probeError) => ({
+             status: "unavailable" as const,
+             model: null,
+             claim: probeClaim,
+             answer: null,
+             citations: [],
+             searchedQueries: [],
+             error: probeError instanceof Error ? probeError.message : "Gemini evidence probe failed.",
+           }));
+           const probeRecord: CoreResult["trajectoryRecords"][number] = {
+             turn: controlTurn,
+             model: probe.model ? `gemini-evidence-probe:${probe.model}` : "gemini-evidence-probe",
+             action: "gemini_evidence_probe",
+             args: { claim: probeClaim, searchedQueries: probe.searchedQueries },
+             execution: probe.status === "completed" ? "success" : "error",
+             observation: probe.answer ?? probe.error ?? "Evidence probe unavailable.",
+             observedUrls: probe.citations.map((citation) => citation.url),
+             findings: [],
+             providerFallback: [],
+           };
+           recordResult(intelligence, probeRecord, records);
+           records = [...records, probeRecord];
+           trajectory.push(
+             `GEMINI_EVIDENCE_PROBE:status=${probe.status}:claim=${probeClaim.slice(0, 220)}:citations=${probe.citations.length}`,
+             `GEMINI_EVIDENCE_PROBE_QUERIES:${JSON.stringify(probe.searchedQueries)}`,
+           );
+         }
+
+         oversight = await reviewTargetInvestigationAct({
+           caseId: oversightContext.caseId,
+           controlTurn,
+           runId: executionId,
+           targetName: input.targetName,
+           targetType: oversightContext.targetType,
+           objective,
+           sharedContext: `${oversightContext.contextDocument}\\n\\n${renderIntelligenceContext(intelligence.buildContext())}`,
+           act,
+           recentActs: records,
+         });
+         if (oversight.direction) {
+           const checkedDirection = validateGeminiResearchObjective(oversight.direction);
+           if (!checkedDirection.valid) return { stop: true, unavailable: true };
+           direction = checkedDirection.direction;
+         } else {
+           direction = null;
+         }
+         actionsSinceCheckpoint = 0;
+         if (oversight.status !== "completed") return { stop: true, unavailable: true };
+         if (oversight.action === "stop") return { stop: true, unavailable: false };
+         if (oversight.action === "redirect" && direction) trajectory.push(`GEMINI_REDIRECT:${direction}`);
+         return { stop: false, unavailable: false };
+       };
+
+       try {
+       const requestedMaxActionTurns = Number.isFinite(input.maxIterations) ? Math.floor(input.maxIterations!) : MAX_TARGET_ACTION_TURNS;
        const maxActionTurns = Math.min(MAX_TARGET_ACTION_TURNS, Math.max(0, requestedMaxActionTurns));
        for (let actionTurn = 1; actionTurn <= maxActionTurns; actionTurn++) {
-          if (overallController.signal.aborted || input.signal?.aborted) return { status: "cancelled", model, iterations: actionTurn - 1, searches, visits, findings, modelFindings, stopReason: "CANCELLED", trajectory, trajectoryRecords: records, error: "cancelled by operator", executionId };
-          const remaining = deadline - Date.now();
-          if (remaining <= 0) return { status: "timeout", model, iterations: actionTurn - 1, searches, visits, findings, modelFindings, stopReason: "HARD_TIMEOUT", trajectory, trajectoryRecords: records, error: `hard timeout ${requestedHardTimeout}ms`, executionId };
+         if (overallController.signal.aborted || input.signal?.aborted) return { status: "cancelled", model, iterations: actionTurn - 1, searches, visits, findings, modelFindings, stopReason: "CANCELLED", trajectory, trajectoryRecords: records, error: "cancelled by operator", executionId };
+         const remaining = deadline - Date.now();
+         if (remaining <= 0) return { status: "timeout", model, iterations: actionTurn - 1, searches, visits, findings, modelFindings, stopReason: "HARD_TIMEOUT", trajectory, trajectoryRecords: records, error: `hard timeout ${requestedHardTimeout}ms`, executionId };
 
-           const perActTimeout = Math.max(30_000, Math.min(55_000, remaining));
-          const actInput: RunInput = { ...input, objective: intelligenceObjective(objective, oversightContext.contextDocument, intelligence, direction, records), maxIterations: 1, hardTimeoutMs: perActTimeout, signal: overallController.signal, onLiveStep: (step) => input.onLiveStep?.(step) };
-          const actResult = await core.runAgenticWebResearch(actInput);
-          model = actResult.model; searches += actResult.searches; visits += actResult.visits; lastStatus = actResult.status; error = actResult.error ?? error;
-          const raw = actResult.trajectoryRecords[actResult.trajectoryRecords.length - 1];
-          if (raw) {
-            const normalizedRecord = { ...raw, turn: actionTurn };
-            const groundedTerminalFindings = raw.action === "done"
-              ? groundedFindingsForTrajectory(raw.findings as AgenticFinding[], [...records, normalizedRecord])
-              : [];
-            if (raw.action === "done" && raw.findings.length > 0 && groundedTerminalFindings.length !== raw.findings.length) {
-              normalizedRecord.action = "verification_required";
-              normalizedRecord.execution = "blocked";
-              normalizedRecord.findings = [];
-              normalizedRecord.observation = "Terminal claim verification blocked the stop: at least one Investigator finding was not supported by successfully observed cited material. Continue research and verify each claim before stopping.";
-              recordResult(intelligence, normalizedRecord, records);
-              records = [...records, normalizedRecord];
-              trajectory = [...trajectory, ...actResult.trajectory.map((line) => renumberTrajectory(line, actionTurn)), `VERIFICATION_BLOCKED:turn=${actionTurn}:ungrounded_terminal_claim`, `INTELLIGENCE_STATE:${JSON.stringify(intelligence.buildContext())}`];
-              continue;
-            }
-            recordResult(intelligence, normalizedRecord, records);
-            records = [...records, normalizedRecord];
-            trajectory = [...trajectory, ...actResult.trajectory.map((line) => renumberTrajectory(line, actionTurn)), `INTELLIGENCE_STATE:${JSON.stringify(intelligence.buildContext())}`];
-            if (actResult.modelFindings.length) modelFindings = [...modelFindings, ...actResult.modelFindings];
-            if (raw.findings.length) {
-              findings = [...findings, ...(groundedTerminalFindings as CoreResult["findings"])];
-            }
-            if (raw.action === "done") {
-              oversight = await reviewTargetInvestigationAct({ caseId: oversightContext.caseId, controlTurn: actionTurn, runId: executionId, targetName: input.targetName, targetType: oversightContext.targetType, objective, sharedContext: `${oversightContext.contextDocument}\\n\\n${renderIntelligenceContext(intelligence.buildContext())}`, act: normalizedRecord, recentActs: records });
-              if (oversight.direction) {
-                const checkedDirection = validateGeminiResearchObjective(oversight.direction);
-                if (!checkedDirection.valid) return { status: "unavailable", model, iterations: actionTurn, searches, visits, findings, modelFindings, stopReason: "LLM_UNAVAILABLE", trajectory, trajectoryRecords: records, error: `Gemini produced an invalid research objective: ${checkedDirection.reason}`, executionId };
-                direction = checkedDirection.direction;
-              } else direction = null;
-              if (oversight.status !== "completed") return { status: "unavailable", model, iterations: actionTurn, searches, visits, findings, modelFindings, stopReason: "LLM_UNAVAILABLE", trajectory, trajectoryRecords: records, error: oversight.error ?? "Gemini oversight unavailable", executionId };
-              if (oversight.action === "stop") return { status: "completed", model, iterations: actionTurn, searches, visits, findings, modelFindings, stopReason: "MODEL_DECIDED_DONE", trajectory, trajectoryRecords: records, ...(error ? { error } : {}), executionId };
-              if (oversight.action === "redirect" && direction) trajectory.push(`GEMINI_REDIRECT:${direction}`);
-              continue;
-            }
+         const perActTimeout = Math.max(30_000, Math.min(55_000, remaining));
+         const actInput: RunInput = {
+           ...input,
+           cognitiveTask: inferResearchCognitiveTask({ nextMovePriority: intelligence.buildContext().frontier.nextMovePriority }),
+           objective: intelligenceObjective(objective, oversightContext.contextDocument, intelligence, direction, records),
+           maxIterations: 1,
+           hardTimeoutMs: perActTimeout,
+           signal: overallController.signal,
+           onLiveStep: (step) => input.onLiveStep?.(step),
+         };
+         const actResult = await core.runAgenticWebResearch(actInput);
+         model = actResult.model;
+         searches += actResult.searches;
+         visits += actResult.visits;
+         lastStatus = actResult.status;
+         error = actResult.error ?? error;
+         const raw = actResult.trajectoryRecords[actResult.trajectoryRecords.length - 1];
 
-            oversight = await reviewTargetInvestigationAct({ caseId: oversightContext.caseId, controlTurn: actionTurn, runId: executionId, targetName: input.targetName, targetType: oversightContext.targetType, objective, sharedContext: `${oversightContext.contextDocument}\n\n${renderIntelligenceContext(intelligence.buildContext())}`, act: normalizedRecord, recentActs: records });
-            if (oversight.direction) {
-              const checkedDirection = validateGeminiResearchObjective(oversight.direction);
-              if (!checkedDirection.valid) return { status: "unavailable", model, iterations: actionTurn, searches, visits, findings, modelFindings, stopReason: "LLM_UNAVAILABLE", trajectory, trajectoryRecords: records, error: `Gemini produced an invalid research objective: ${checkedDirection.reason}`, executionId };
-              direction = checkedDirection.direction;
-            } else direction = null;
-            if (oversight.action === "stop" || oversight.status !== "completed") return { status: actResult.status === "completed" ? "completed" : actResult.status, model, iterations: actionTurn, searches, visits, findings, modelFindings, stopReason: "MODEL_DECIDED_DONE", trajectory, trajectoryRecords: records, error: oversight.error ?? error, executionId };
-            if (oversight.action === "redirect" && direction) trajectory.push(`GEMINI_REDIRECT:${direction}`);
-            continue;
-          }
-          if (actResult.status !== "completed" || actResult.stopReason !== "ITERATION_BUDGET") return { ...actResult, searches, visits, findings, modelFindings, trajectory, trajectoryRecords: records, executionId };
-        }
-        return { status: lastStatus === "completed" ? "completed" : lastStatus, model, iterations: records.length, searches, visits, findings, modelFindings, stopReason: "ITERATION_BUDGET", trajectory, trajectoryRecords: records, ...(error ? { error } : {}), executionId };
-      } finally {
+         if (raw) {
+           const normalizedRecord = { ...raw, turn: actionTurn };
+           const groundedTerminalFindings = raw.action === "done"
+             ? groundedFindingsForTrajectory(raw.findings as AgenticFinding[], [...records, normalizedRecord])
+             : [];
+
+           if (raw.action === "done" && raw.findings.length > 0 && groundedTerminalFindings.length !== raw.findings.length) {
+             normalizedRecord.action = "verification_required";
+             normalizedRecord.execution = "blocked";
+             normalizedRecord.findings = [];
+             normalizedRecord.observation = "Terminal claim verification blocked the stop: at least one Investigator finding was not supported by successfully observed cited material. Continue research and verify each claim before stopping.";
+             recordResult(intelligence, normalizedRecord, records);
+             records = [...records, normalizedRecord];
+             actionsSinceCheckpoint += 1;
+             trajectory = [...trajectory, ...actResult.trajectory.map((line) => renumberTrajectory(line, actionTurn)), `VERIFICATION_BLOCKED:turn=${actionTurn}:ungrounded_terminal_claim`, `INTELLIGENCE_STATE:${JSON.stringify(intelligence.buildContext())}`];
+             const checkpointResult = await applyOversight(normalizedRecord, actionTurn);
+             if (checkpointResult.unavailable) return { status: "unavailable", model, iterations: actionTurn, searches, visits, findings, modelFindings, stopReason: "LLM_UNAVAILABLE", trajectory, trajectoryRecords: records, error: "Gemini oversight unavailable after terminal verification block.", executionId };
+             if (checkpointResult.stop) continue;
+             continue;
+           }
+
+           recordResult(intelligence, normalizedRecord, records);
+           records = [...records, normalizedRecord];
+           actionsSinceCheckpoint += 1;
+           trajectory = [...trajectory, ...actResult.trajectory.map((line) => renumberTrajectory(line, actionTurn)), `INTELLIGENCE_STATE:${JSON.stringify(intelligence.buildContext())}`];
+           if (actResult.modelFindings.length) modelFindings = [...modelFindings, ...actResult.modelFindings];
+           if (raw.findings.length) findings = [...findings, ...(groundedTerminalFindings as CoreResult["findings"])];
+           for (const finding of raw.findings) if (finding.personName) knownIdentityNames.add(finding.personName.toLowerCase());
+
+           const checkpointResult = await applyOversight(normalizedRecord, actionTurn);
+           if (checkpointResult.unavailable) return { status: "unavailable", model, iterations: actionTurn, searches, visits, findings, modelFindings, stopReason: "LLM_UNAVAILABLE", trajectory, trajectoryRecords: records, error: error ?? "Gemini oversight unavailable", executionId };
+           if (checkpointResult.stop) return { status: "completed", model, iterations: actionTurn, searches, visits, findings, modelFindings, stopReason: "MODEL_DECIDED_DONE", trajectory, trajectoryRecords: records, ...(error ? { error } : {}), executionId };
+           continue;
+         }
+
+         if (actResult.status !== "completed" || actResult.stopReason !== "ITERATION_BUDGET") {
+           return { ...actResult, searches, visits, findings, modelFindings, trajectory, trajectoryRecords: records, executionId };
+         }
+       }
+       return { status: lastStatus === "completed" ? "completed" : lastStatus, model, iterations: records.length, searches, visits, findings, modelFindings, stopReason: "ITERATION_BUDGET", trajectory, trajectoryRecords: records, ...(error ? { error } : {}), executionId };
+} finally {
         clearTimeout(deadlineTimer);
         input.signal?.removeEventListener("abort", abortExternal);
       }
