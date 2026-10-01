@@ -129,6 +129,7 @@ export interface IntelligenceContext {
   sourceLineage: Array<{ sourceId: string; canonicalUrl: string; host: string; originSourceId: string | null; citedSourceIds: string[] }>;
   independentSourceUnits: number;
   falsification: ReturnType<typeof assessFalsificationPlan>;
+  researchQuestions: Array<{ id: string; question: string; importance: number; uncertainty: number; discriminators: string[]; status: "open" | "answered" | "blocked" }>;
   stoppingAssessment: {
     evidenceCoverage: number;
     unresolvedQuestions: number;
@@ -367,7 +368,8 @@ export class ResearchIntelligenceEngine {
     const providerGroups = new Map<string, Map<string, Set<string>>>();
     for (const action of this.actions) {
       const provider = typeof action.args.provider === "string" ? action.args.provider : null;
-      const query = typeof action.args.query === "string" ? normalize(action.args.query) : null;
+      const rawQuestion = typeof action.args.purpose === "string" && action.args.purpose.trim() ? action.args.purpose : typeof action.args.hypothesis === "string" && action.args.hypothesis.trim() ? action.args.hypothesis : typeof action.args.query === "string" ? action.args.query : null;
+      const query = rawQuestion ? normalize(rawQuestion) : null;
       if (!provider || !query || action.action !== "web_search") continue;
       const group = providerGroups.get(query) ?? new Map<string, Set<string>>();
       const hosts = group.get(provider) ?? new Set<string>();
@@ -400,6 +402,7 @@ export class ResearchIntelligenceEngine {
         attribution: evidence.attribution ?? null,
       }));
     const actionYield = [...this.actionYield.entries()].map(([action, stat]) => summarizeActionYield(action, stat));
+    const researchQuestions = openQuestions.map((question, index) => ({ id: "rq_" + hash(question).slice(0, 16), question, importance: Math.max(0.5, 1 - index * 0.05), uncertainty: 1, discriminators: [question], status: "open" as const }));
     const frontier = assessResearchFrontier({ sourceFamilyDiversity, repeatedSourceFamilies: repeatedSourceFamilies.length, evidenceCount: this.evidence.size, unresolvedQuestions: openQuestions.length, contradictions: contradictions.length, contactCount: this.contacts.size });
     const leadingHypothesis = [...this.hypotheses.values()].sort((a, b) => b.score - a.score)[0] ?? null;
     const falsification = assessFalsificationPlan({ leadingHypothesisScore: leadingHypothesis?.score ?? null, contradictionPressure: frontier.contradictionPressure, unresolvedPressure: frontier.unresolvedPressure, missingDiscriminators: leadingHypothesis?.missingDiscriminators ?? openQuestions });
