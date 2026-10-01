@@ -82,3 +82,6 @@ The final completion record is 07_RESEARCH_ARCHITECTURE_VNEXT_COMPLETION_2026-10
 Current main is 64a4f20c25d8888112a4dc025f19e576d52fb774 after PR #447 merged the final successor-documentation state. No production code changed in PR #447.
 
 The architecture batch remains CI-verified; live runtime remains a separate gate because the available Replit workspace is stale and returns API startup 502 after a syntax failure. Do not call Apex production GREEN until Replit is synchronized and the canonical three-target run is audited.
+
+
+- `08_EPISTEMIC_OPTIMIZATION_VNEXT_IMPLEMENTED_2026-10-01.md` — implemented epistemic optimization vNext roadmap, deliberate non-implementations, and validation requirements.
