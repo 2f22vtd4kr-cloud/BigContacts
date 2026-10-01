@@ -569,10 +569,10 @@ async function request(system: string, user: string, responseFormat?: Record<str
   if (failures.some((failure) => /HTTP 404/.test(failure))) cachedModelChain = null;
   return {
     raw: "",
-    error: chain.length
+    error: candidateAttempts.length
       ? `Gemini Right-hand exhausted bounded same-role model attempts: ${failures.join("; ")}`
       : "Gemini Right-hand has no compatible live catalog model available.",
-    model: chain[chain.length - 1] ?? GEMINI_RIGHT_HAND_MODEL,
+    model: candidateAttempts[candidateAttempts.length - 1]?.model ?? GEMINI_RIGHT_HAND_MODEL,
   };
 }
 
