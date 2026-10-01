@@ -31,8 +31,8 @@ describe("Atlas control-plane contract regression", () => {
     expect(rightHandSource).toContain("rateLimitRetryDelayMs");
     expect(rightHandSource).toContain("phase: \"rate_limit_backoff\"");
     expect(rightHandSource).toContain("if (response.status === 429)");
-    expect(rightHandSource).toContain("const resolvedChain = await resolveModelChain(modelScope)");
-    expect(rightHandSource).toContain("const chain = resolvedChain.slice(0, MAX_MODEL_ATTEMPTS);");
+    expect(rightHandSource).toContain("const resolvedChain = await resolveModelChain(modelScope, entry.key);");
+    expect(rightHandSource).toContain("for (const model of resolvedChain.slice(0, MAX_MODEL_ATTEMPTS))");
     expect(rightHandSource).toContain("gemini-model-pool");
     expect(rightHandSource).toContain("gemini-3.5-flash-lite");
     expect(rightHandSource).toContain("gemini-3.8-flash");
