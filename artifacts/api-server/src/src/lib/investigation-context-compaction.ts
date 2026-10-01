@@ -162,6 +162,42 @@ export function buildInvestigatorContext(input: InvestigatorContextInput): strin
     sections.push(fitSection("LEGACY TRAJECTORY NOTES\n" + input.history.map((item) => trim(item, 420)).filter(Boolean).join("\n"), 2_000));
   }
 
+  const actionSummary = records.slice(-8).map((record) => ({
+    action: record.action,
+    execution: record.execution || "unknown",
+    urls: (record.observedUrls ?? []).length,
+    findings: (record.findings ?? []).length,
+  }));
+  const familyHints = new Map<string, number>();
+  for (const record of records) {
+    for (const url of record.observedUrls ?? []) {
+      try {
+        const host = new URL(url).hostname.toLowerCase().replace(/^www\./, "");
+        const family = /linkedin|x\.com|twitter|instagram/.test(host)
+          ? "social"
+          : /gov|registry|companieshouse|sec\.gov|gleif/.test(host)
+            ? "official/registry"
+            : /reuters|bloomberg|ft\.com|wsj/.test(host)
+              ? "reputable-press"
+              : host;
+        familyHints.set(family, (familyHints.get(family) ?? 0) + 1);
+      } catch {}
+    }
+  }
+  const repeatedFamilies = [...familyHints.entries()].filter(([, count]) => count >= 3).map(([family]) => family);
+  const unresolvedSignals = input.findings.length === 0
+    ? ["No promoted finding is present yet: prioritize identity anchors and independent source families."]
+    : repeatedFamilies.length
+      ? ["Source-family saturation is visible: prefer a new source family or a falsification move."]
+      : ["Use the next action to close the most discriminating unresolved question rather than merely adding another source."];
+  sections.push([
+    "RESEARCH FRONTIER (derived from durable trajectory; advisory, not a fixed route)",
+    "Recent action outcomes: " + JSON.stringify(actionSummary),
+    "Repeated source families: " + (repeatedFamilies.join(", ") || "none"),
+    ...unresolvedSignals.map((signal) => "Signal: " + signal),
+    "A good next move should maximize expected information gain, identity discrimination, source independence, or contact relevance relative to cost.",
+  ].join("\n"));
+
   sections.push("CONTEXT MANAGEMENT LAW\nThe complete trajectory and evidence remain durable outside this prompt. This working context is deliberately selective. Do not treat omitted raw detail as negative evidence. Prefer a new discriminating action when the archived index shows an unresolved gap. Do not repeat a failed avenue solely because its raw observation is not visible here.");
 
   let result = "";
