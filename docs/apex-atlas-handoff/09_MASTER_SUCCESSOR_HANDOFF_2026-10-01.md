@@ -1359,3 +1359,15 @@ Do not append contradictory states without marking historical/current boundaries
 
 If a later run supersedes an older one, preserve the old run as historical evidence and explicitly identify the newer run as the current runtime result.
 
+
+
+# 33. DOCUMENTATION-ONLY HEAD MOVEMENT AFTER SOURCE BASELINE
+
+The production/source baseline described above is `21f2b22447698c7de2f4026f70e33693c901cf26`. After that merge, the following documentation-only commits reconciled the handoff package with the current runtime boundary:
+
+- `85cf43fb35a2e5a1adb22145099c0734d4779fde` — created this master handoff;
+- `4fda5593bf46e74d05001b18fc243aa6f2e203c1` — reconciled `docs/context.md`;
+- `7668321587d9bfe57d999117714cc648da20ae1c` — reconciled the handoff index;
+- `0829ea90087c71a39cd3cd85ced28e74a1f99afc` — reconciled the successor prompt.
+
+These commits changed documentation only. When evaluating production behavior, treat `21f2b22447698c7de2f4026f70e33693c901cf26` as the latest verified application-code baseline unless a later source commit is found. The actual current main HEAD must still be checked at the start of the next session.
