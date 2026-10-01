@@ -31,7 +31,7 @@ describe("Gemini Right-hand latency controls", () => {
   it("does not use the old 8-second provider cutoff and keeps the overall text-only control window bounded", async () => {
     vi.resetModules();
     const { getGeminiRightHandLatencyConfig } = await import("../lib/gemini-right-hand-reasoning");
-    expect(getGeminiRightHandLatencyConfig()).toEqual({ requestTimeoutMs: 20_000, overallTimeoutMs: 120_000 });
+    expect(getGeminiRightHandLatencyConfig()).toEqual({ requestTimeoutMs: 20_000, overallTimeoutMs: 300_000, minimumOverallTimeoutMs: 300_000, overallTimeoutClamped: false });
   });
 
   it("allows Replit operators to tune latency without removing bounded fail-closed behavior", async () => {
@@ -39,7 +39,7 @@ describe("Gemini Right-hand latency controls", () => {
     process.env.APEX_GEMINI_RIGHT_HAND_OVERALL_TIMEOUT_MS = "55000";
     vi.resetModules();
     const { getGeminiRightHandLatencyConfig } = await import("../lib/gemini-right-hand-reasoning");
-    expect(getGeminiRightHandLatencyConfig()).toEqual({ requestTimeoutMs: 25_000, overallTimeoutMs: 55_000 });
+    expect(getGeminiRightHandLatencyConfig()).toEqual({ requestTimeoutMs: 25_000, overallTimeoutMs: 300_000, minimumOverallTimeoutMs: 300_000, overallTimeoutClamped: true });
   });
 
   it("uses bounded minimal-thinking Gemini 3 Flash-Lite control generation", async () => {
@@ -95,7 +95,7 @@ describe("Gemini Right-hand latency controls", () => {
     expect(telemetry).toMatchObject({
       role: "gemini_right_hand",
       phase: "request_resolved",
-      model: "gemini-3.1-flash-lite",
+      model: "gemini-3.5-flash-lite",
       httpStatus: 200,
       requestDeadlineFired: false,
       overallDeadlineFired: false,
