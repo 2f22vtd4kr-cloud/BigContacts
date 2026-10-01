@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+vi.mock("../lib/ssrf-safe-fetch", () => ({
+  safeOutboundFetch: (input: string | URL, init?: RequestInit) => globalThis.fetch(input, init),
+}));
+
 import { resolveMistralChatModels } from "../lib/agentic-web-research-core";
 
 describe("Mistral model catalog request budget", () => {

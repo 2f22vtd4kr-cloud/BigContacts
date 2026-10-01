@@ -108,7 +108,7 @@ describe("Gemini Right-hand text-only control transport", () => {
     expect(attempts).toEqual([GEMINI_RIGHT_HAND_MODEL, GEMINI_RIGHT_HAND_MODEL]);
   });
 
-  it("keeps HTTP 429 on the same model and does not burn equivalent model requests", async () => {
+  it("fails closed on explicit daily quota exhaustion without burning equivalent model requests", async () => {
     process.env.GEMINI_RIGHT_HAND_API_KEY = "test-key-429";
     process.env.APEX_GEMINI_RIGHT_HAND_RATE_LIMIT_RETRY_DELAY_MS = "10";
     const attempts: string[] = [];
@@ -126,7 +126,7 @@ describe("Gemini Right-hand text-only control transport", () => {
 
     expect(result.status).toBe("unavailable");
     expect(attempts).toEqual([GEMINI_RIGHT_HAND_MODEL]);
-    expect(result.error).toContain("rate limit persisted");
+    expect(result.error).toContain("daily quota exhaustion");
   });
 
   it("does not retry or model-hop when the provider message explicitly names a daily Free-tier quota", async () => {

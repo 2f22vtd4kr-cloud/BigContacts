@@ -791,7 +791,7 @@ export async function generateGeminiBossText(
           }
 
           if (response.status === 429 && providerErrorCodeValue === "quota_exceeded") {
-            const cooldownMs = markGeminiModelDailyQuotaExhausted(model);
+            const cooldownMs = markGeminiModelDailyQuotaExhausted(model, Date.now(), modelScope);
             logger.warn(
               {
                 role: "gemini_boss",
