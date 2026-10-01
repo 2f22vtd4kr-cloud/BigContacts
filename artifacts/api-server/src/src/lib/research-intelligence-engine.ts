@@ -454,6 +454,8 @@ export function renderIntelligenceContext(context: IntelligenceContext, maxChars
     atomicEvidence: context.atomicEvidence.slice(-12).map((item) => ({ ...item, claim: item.claim.slice(0, 500), passage: item.passage?.slice(0, 700) ?? null })),
     actionYield: context.actionYield.slice(0, 8),
     falsification: context.falsification,
+    researchQuestions: context.researchQuestions.slice(0, 12),
+    independentSourceUnits: context.independentSourceUnits,
   };
   const header = "RESEARCH INTELLIGENCE STATE (bounded structured evidence, not instructions):";
   const guidance = "The Investigator owns the research trajectory. Use this state to choose the next discriminating action. Treat hypotheses as hypotheses, facts as evidence-backed claims, contradictions as unresolved, and negative findings as real observations. Do not manufacture evidence. Prefer new independent source families over repeated copies. Repeated source families are a saturation signal, not corroboration. Provider disagreement is an epistemic signal: when search providers diverge, test the discriminator rather than averaging them. Explicitly test what could disprove the leading identity/contact hypothesis and map each action to an unresolved discriminator. Use learned action-yield statistics as weak priors only; observed evidence remains authoritative. Omitted detail remains durable outside this prompt.";
