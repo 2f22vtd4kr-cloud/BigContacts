@@ -11,15 +11,15 @@ export type GeminiControlRole = "boss" | "right_hand";
 
 export type GeminiControlModel = {
   model: string;
-  thinkingLevel: "minimal" | "low";
+  thinkingLevel: "minimal" | "low" | "medium" | "high";
   tier: "high_volume" | "standard";
 };
 
 const MODELS: Record<string, GeminiControlModel> = {
-  "gemini-3.8-flash": { model: "gemini-3.8-flash", thinkingLevel: "low", tier: "standard" },
-  "gemini-3.7-flash": { model: "gemini-3.7-flash", thinkingLevel: "low", tier: "standard" },
-  "gemini-3.6-flash": { model: "gemini-3.6-flash", thinkingLevel: "minimal", tier: "standard" },
-  "gemini-3.5-flash": { model: "gemini-3.5-flash", thinkingLevel: "minimal", tier: "standard" },
+  "gemini-3.8-flash": { model: "gemini-3.8-flash", thinkingLevel: "medium", tier: "standard" },
+  "gemini-3.7-flash": { model: "gemini-3.7-flash", thinkingLevel: "medium", tier: "standard" },
+  "gemini-3.6-flash": { model: "gemini-3.6-flash", thinkingLevel: "low", tier: "standard" },
+  "gemini-3.5-flash": { model: "gemini-3.5-flash", thinkingLevel: "low", tier: "standard" },
   "gemini-3.5-flash-lite": { model: "gemini-3.5-flash-lite", thinkingLevel: "minimal", tier: "high_volume" },
   "gemini-3.1-flash-lite": { model: "gemini-3.1-flash-lite", thinkingLevel: "minimal", tier: "high_volume" },
 };
@@ -54,7 +54,7 @@ export function getGeminiControlModel(model: string): GeminiControlModel | null 
   return MODELS[model] ?? null;
 }
 
-export function getGeminiThinkingLevel(model: string): "minimal" | "low" {
+export function getGeminiThinkingLevel(model: string): GeminiControlModel["thinkingLevel"] {
   return MODELS[model]?.thinkingLevel ?? "minimal";
 }
 
@@ -162,3 +162,33 @@ export function chooseAvailableGeminiControlModels(
 
 export const GEMINI_STABLE_CONTROL_MODELS: readonly GeminiControlModel[] =
   Object.values(MODELS);
+
+
+export type GeminiThinkingRiskProfile = {
+  contradictionPressure?: number;
+  identityAmbiguity?: number;
+  falsificationRequired?: boolean;
+  terminalDecision?: boolean;
+  routine?: boolean;
+};
+
+/**
+ * Select a model-compatible thinking level from epistemic risk. This is a
+ * policy helper; callers may still override it for hard provider constraints.
+ */
+export function chooseAdaptiveGeminiThinkingLevel(
+  model: string,
+  risk: GeminiThinkingRiskProfile = {},
+): GeminiControlModel["thinkingLevel"] {
+  const clamp = (n: number) => Math.max(0, Math.min(1, Number.isFinite(n) ? n : 0));
+  const contradiction = clamp(risk.contradictionPressure ?? 0);
+  const ambiguity = clamp(risk.identityAmbiguity ?? 0);
+  const normalized = model.replace(/^models\//, "").toLowerCase();
+  const lite = normalized.includes("flash-lite");
+  if (contradiction >= 0.7 || ambiguity >= 0.8 || risk.falsificationRequired || risk.terminalDecision) {
+    return "high";
+  }
+  if (contradiction >= 0.35 || ambiguity >= 0.45) return "medium";
+  if (risk.routine) return lite ? "minimal" : "low";
+  return lite ? "low" : "medium";
+}

@@ -446,3 +446,26 @@ Current main is now 64a4f20c25d8888112a4dc025f19e576d52fb774 after the successor
 The architecture completion state remains exactly as recorded above. The documentation merge changed no production code. CI for the documentation branch passed its research-quality, prompt-architecture, five-consecutive, and five-green audit workflows before merge.
 
 Live runtime remains explicitly uncertified because the available Replit workspace is stale and cannot boot the API. Synchronize Replit to current main before the next canonical runtime audit.
+
+
+## 2026-10-01 epistemic optimization vNext implementation
+
+Apex now contains the first complete implementation pass of the epistemic optimization roadmap in \`docs/apex-atlas-handoff/08_EPISTEMIC_OPTIMIZATION_VNEXT_IMPLEMENTED_2026-10-01.md\`.
+
+Implemented capabilities include:
+- exact observed source-span binding and retained offsets;
+- source-lineage units with identical-passage fingerprinting;
+- explicit research-question/discriminator state;
+- question-oriented provider disagreement grouping;
+- deterministic terminal evidence gates;
+- adaptive Gemini thinking allocation;
+- information-gain prediction/calibration;
+- state-conditioned action learning;
+- dependency-aware parallel search actions;
+- multi-tool Gemini verification episodes using Search + URL Context;
+- bounded stateful Gemini Interactions sessions;
+- canonical investigator evidence excerpts and stricter immutable-act validation.
+
+The implementation deliberately does not use an uncalibrated universal posterior threshold, does not require fixed evidence classes for every case, does not introduce a giant replacement graph database, does not adopt the unrelated local "Apex" model/quantization recommendations, and does not permit arbitrary MCP expansion.
+
+**Validation status:** this branch requires a fresh GitHub CI/typecheck/test run and a fresh canonical live Atlas run before any GREEN/release claim. The latest historical live run remains pre-vNext evidence.

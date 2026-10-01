@@ -11,6 +11,7 @@ import {
   markGeminiModelRateLimited,
 } from "./gemini-model-pool";
 import { buildApexAtlasBossPlanPrompt } from "./case-bureau-prompt";
+import { selectGeminiThinkingLevel } from "./gemini-thinking-policy";
 import { extractWalletSeedsFromText, buildWalletSeedPlan, formatWalletSeedPlanForPrompt, objectiveLooksWalletFirst } from "./wallet-seed";
 import {
   classifyProviderHttpStatus,
@@ -555,7 +556,7 @@ export async function generateGeminiBossText(
         input: prompt,
         generation_config: {
           max_output_tokens: options?.maxOutputTokens ?? 768,
-          thinking_level: options?.thinkingLevel ?? getGeminiThinkingLevel(model),
+          thinking_level: options?.thinkingLevel ?? selectGeminiThinkingLevel(model, { contradictionPressure: /contradict|conflict|collision|disput/i.test(prompt) ? 0.65 : 0, identityAmbiguity: /identity|ambiguous|uncertain|collision/i.test(prompt) ? 0.55 : 0, falsificationRequired: /falsif|disprove|counter.?evidence/i.test(prompt), terminalDecision: /\bstop\b|terminal|final/i.test(prompt) }),
         },
         ...(options?.responseFormat ? { response_format: options.responseFormat } : {}),
       });

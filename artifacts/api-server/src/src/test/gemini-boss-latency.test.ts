@@ -102,7 +102,7 @@ describe("Gemini Boss latency controls", () => {
     const body = JSON.parse(String(fetchMock.mock.calls[1]?.[1]?.body));
     expect(body.generation_config.max_output_tokens).toBe(768);
     expect(body.generation_config.responseMimeType).toBeUndefined();
-    expect(body.generation_config.thinking_level).toBe("low");
+    expect(body.generation_config.thinking_level).toBe("medium");
     expect(body.generation_config.temperature).toBeUndefined();
   });
 

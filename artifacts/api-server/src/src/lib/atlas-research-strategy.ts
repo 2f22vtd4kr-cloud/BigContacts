@@ -6,6 +6,7 @@
  */
 
 import { scoreResearchAction } from "./research-policy";
+import { scoreActionUtility } from "./research-epistemic-vnext";
 
 export type TargetPortfolioDimensions = {
   geography: string;
@@ -47,7 +48,7 @@ export function assessResearchMove(input: {
   const success = clamp(input.successProbability ?? 0.6);
   const cost = clamp(input.cost ?? 0.3);
   const contradictionBonus = input.testsContradiction ? 0.1 : 0;
-  const score = scoreResearchAction({
+  const score = scoreActionUtility({ id: "move", action: "research", questionId: "frontier", expectedInformationGain: information, identityDiscrimination: identity, evidenceQuality: independence, falsificationValue: contradictionBonus, successProbability: success, estimatedLatencyMs: cost * 60_000, estimatedTokenCost: cost * 20_000, estimatedProviderCost: cost, sourceDiversityGain: independence }) * 0.7 + scoreResearchAction({
     expectedInformationGain: information,
     identityDiscrimination: identity,
     contactRelevance: contact,
@@ -55,7 +56,7 @@ export function assessResearchMove(input: {
     successProbability: success,
     contradictionValue: contradictionBonus,
     cost,
-  });
+  }) * 0.3;
   const rationale = [
     independence < 0.4 ? "Prefer a new source family instead of another copy." : "Source family adds independent evidence.",
     identity >= 0.7 ? "Strong identity-discrimination value." : "Identity value is moderate; avoid treating the result as proof alone.",
