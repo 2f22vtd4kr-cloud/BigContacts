@@ -131,7 +131,7 @@ Added regression coverage for deterministic, sanitized Boss attempt attribution 
 Implementation branch: apex-boss-fallback-hardening-2026-10-01
 Pull request: #440
 Base SHA: 15eca3ac70d03ce6c77c6f112cd273fe28f29d3c
-Latest branch SHA at this update: 96b2fc2af9ed1062919dfbb1fbf62446c799e79f
+Latest branch SHA at this update: a4fbb5fb5db2d8329af6efcc0cd3b4107a6ca322
 
 No live Atlas launch, provider probe, or runtime retry was performed during this hardening pass.
 
