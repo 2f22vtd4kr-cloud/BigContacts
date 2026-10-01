@@ -28,7 +28,7 @@ export function bindExactSourceSpan(observation: string, value: string, subject?
   const exact = spanText.toLowerCase().includes(needle.toLowerCase());
   return { text: spanText, start, end: boundedEnd, subjectMatched: subjectIndex >= 0 || localSubjectIndex >= 0, valueMatched: exact, exact: exact && (!subjectNeedle || subjectIndex >= 0 || localSubjectIndex >= 0) };
 }
-export function sourceLineageId(url: string, contentFingerprint?: string | null): string { return digest((canonicalHost(url) ?? url) + "|" + (contentFingerprint ?? "")).slice(0, 24); }
+export function sourceLineageId(url: string, contentFingerprint?: string | null): string { return contentFingerprint ? "content:" + digest(contentFingerprint).slice(0, 24) : "source:" + digest(canonicalHost(url) ?? url).slice(0, 24); }
 
 export class SourceLineageGraph {
   private readonly nodes = new Map<string, SourceLineageNode>();
