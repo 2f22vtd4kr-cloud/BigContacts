@@ -18,7 +18,7 @@ Do not rely on a prior chat as your source of truth.
 
 ## Current state
 
-Known main SHA: 7f4623f247e3779257de1edcc9f9a3eae751e20c.
+Known main SHA: 8274f85c51417baec01567ce082a6d2f4673e813.
 
 Latest authorized live job:
 391bbe22-0414-4ed4-965d-5714181af242
