@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { assessResearchFrontier, scoreSourceIndependence } from "./research-policy";
 import { updateHypothesisPosterior, chooseBestDiscriminator, assessFalsificationPlan } from "./research-hypothesis-policy";
 import { summarizeActionYield, type ActionYieldStat, updateActionYield } from "./research-action-learning";
+import { bindExactSourceSpan, SourceLineageGraph, sourceLineageId } from "./research-epistemic-vnext";
 
 export type IntelligenceSourceTier = "A" | "B" | "C" | "D" | "unknown";
 export type IntelligenceEvidenceKind = "observation" | "finding" | "negative" | "contradiction" | "claim";
@@ -31,6 +32,10 @@ export interface IntelligenceEvidence {
   claimId?: string;
   sourceFamily?: string;
   attribution?: string | null;
+  spanStart?: number | null;
+  spanEnd?: number | null;
+  spanBound?: boolean;
+  sourceLineageId?: string;
   fingerprint: string;
 }
 
@@ -121,6 +126,8 @@ export interface IntelligenceContext {
   providerDisagreements: Array<{ query: string; providers: string[]; sourceHosts: string[] }>;
   atomicEvidence: Array<{ evidenceId: string; claimId?: string; claim: string; sourceUrl: string | null; sourceHost: string | null; sourceClass: IntelligenceSourceClass; passage: string | null; attribution: string | null }>;
   actionYield: ReturnType<typeof summarizeActionYield>[];
+  sourceLineage: Array<{ sourceId: string; canonicalUrl: string; host: string; originSourceId: string | null; citedSourceIds: string[] }>;
+  independentSourceUnits: number;
   falsification: ReturnType<typeof assessFalsificationPlan>;
   stoppingAssessment: {
     evidenceCoverage: number;
@@ -184,10 +191,11 @@ export class ResearchIntelligenceEngine {
   private readonly hypotheses = new Map<string, IdentityHypothesis>();
   private readonly feedback: ResearchFeedback[] = [];
   private readonly actionYield = new Map<string, ActionYieldStat>();
+  private readonly sourceLineage = new SourceLineageGraph();
   private chain = "GENESIS";
   constructor(private readonly input: { caseId?: number | null; executionId: string; target: string; objective: string }) {}
 
-  recordAction(input: { turn: number; action: string; args?: Record<string, unknown>; execution: string; observation?: string; urls?: string[]; findings?: Array<{ vectorType?: string; value?: string; personName?: string | null; role?: string | null; sourceUrls?: string[]; note?: string }> }): void {
+  recordAction(input: { turn: number; action: string; args?: Record<string, unknown>; execution: string; observation?: string; urls?: string[]; findings?: Array<{ vectorType?: string; value?: string; personName?: string | null; role?: string | null; sourceUrls?: string[]; note?: string }>, predictedInformationGain?: number }): void {
     const urls = [...new Set((input.urls ?? []).map(canonicalUrl).filter((value): value is string => Boolean(value)))];
     const newHostCount = this.countNewHosts(urls);
     // Only a positively completed tool execution can contribute positive findings. An errored/failed tool result may be recorded as a negative finding, but it can never become a finding/contact merely because a caller supplied model output alongside the failure.
@@ -199,7 +207,9 @@ export class ResearchIntelligenceEngine {
       useful = true;
       const vector = String(finding.vectorType ?? "other");
       const findingUrls = [...new Set([...(finding.sourceUrls ?? []), ...urls].map(canonicalUrl).filter((v): v is string => Boolean(v)))];
-      this.recordEvidence({ kind: "finding", claim: `${finding.personName ?? this.input.target} ${vector} ${value}`, value, sourceUrl: findingUrls[0] ?? null, sourceTier: tierForHost(hostOf(findingUrls[0] ?? null)), turn: input.turn, action: input.action, execution: input.execution, passage: finding.note ?? null, supports: finding.personName ? [normalize(finding.personName)] : [], contradicts: [] });
+      const sourceUrl = findingUrls[0] ?? null;
+      const span = sourceUrl ? bindExactSourceSpan(input.observation ?? "", value, finding.personName ?? this.input.target) : null;
+      this.recordEvidence({ kind: "finding", claim: finding.personName ? finding.personName + " " + vector + " " + value : this.input.target + " " + vector + " " + value, value, sourceUrl, sourceTier: tierForHost(hostOf(sourceUrl)), turn: input.turn, action: input.action, execution: input.execution, passage: span?.exact ? span.text : null, supports: finding.personName ? [normalize(finding.personName)] : [], contradicts: [] });
       if (["email", "phone", "linkedin", "website", "social"].includes(vector)) this.recordContact(vector, value, findingUrls, finding.personName ?? null);
     }
     if (!useful && input.execution !== "success") {
@@ -211,8 +221,9 @@ export class ResearchIntelligenceEngine {
       for (const url of urls) this.recordEvidence({ kind: "observation", claim: `Observed source ${url}`, value: url, sourceUrl: url, sourceTier: tierForHost(hostOf(url)), turn: input.turn, action: input.action, execution: input.execution, passage: input.observation?.slice(0, 1200) ?? null, supports: [], contradicts: [] });
     }
     const informationGain = clamp((useful ? 0.45 : 0.05) + Math.min(0.35, urls.length * 0.07) + Math.min(0.2, newHostCount * 0.1));
+    const predictedInformationGain = clamp(input.predictedInformationGain ?? informationGain);
     this.actions.push({ turn: input.turn, action: input.action, args: input.args ?? {}, execution: input.execution, observation: input.observation ?? "", urls, findingCount: findings.length, useful, informationGain });
-    this.actionYield.set(input.action, updateActionYield(this.actionYield.get(input.action), { useful, execution: input.execution, informationGain, turn: input.turn }));
+    this.actionYield.set(input.action, updateActionYield(this.actionYield.get(input.action), { useful, execution: input.execution, informationGain, predictedInformationGain, realizedInformationGain: informationGain, turn: input.turn }));
     this.chain = hash(`${this.chain}|${input.turn}|${input.action}|${input.execution}|${JSON.stringify(urls)}|${findings.map((f) => `${f.vectorType}:${f.value}`).join("|")}`);
     this.reconcileContradictions();
   }
@@ -239,6 +250,7 @@ export class ResearchIntelligenceEngine {
     const retrievedAt = new Date().toISOString();
     const sourceHost = hostOf(input.sourceUrl);
     const sourceClass = sourceClassForHost(sourceHost);
+    const lineage = input.sourceUrl ? this.sourceLineage.register({ canonicalUrl: input.sourceUrl, host: sourceHost ?? input.sourceUrl, originSourceId: null, publisher: null, citedSourceIds: [], contentFingerprint: null }) : null;
     const extractionMethod = extractionMethodForAction(input.action);
     const fingerprint = hash(`${input.kind}|${normalize(input.claim)}|${normalize(input.value)}|${input.sourceUrl ?? ""}`);
     const existing = this.evidence.get(fingerprint);
@@ -259,6 +271,10 @@ export class ResearchIntelligenceEngine {
       claimId,
       sourceFamily: sourceFamily(sourceHost),
       attribution: input.supports.length ? input.supports.join(", ") : null,
+      spanStart: input.passage ? 0 : null,
+      spanEnd: input.passage ? input.passage.length : null,
+      spanBound: Boolean(input.passage),
+      sourceLineageId: lineage?.sourceId,
       fingerprint,
     };
     this.evidence.set(fingerprint, evidenceRecord);
@@ -347,6 +363,7 @@ export class ResearchIntelligenceEngine {
     for (const evidence of this.evidence.values()) sourceQualityCounts.set(evidence.sourceClass, (sourceQualityCounts.get(evidence.sourceClass) ?? 0) + 1);
     const sourceQualitySummary = [...sourceQualityCounts.entries()].map(([sourceClass, count]) => ({ sourceClass, count })).sort((a, b) => b.count - a.count);
     const sourceIndependence = scoreSourceIndependence({ sourceHosts, sourceClasses: [...sourceQualityCounts.keys()], repeatedFamilyCount: repeatedSourceFamilies.length });
+    const independentSourceUnits = this.sourceLineage.independentUnitCount([...this.evidence.values()].map((e) => e.sourceLineageId).filter((id): id is string => Boolean(id)));
     const providerGroups = new Map<string, Map<string, Set<string>>>();
     for (const action of this.actions) {
       const provider = typeof action.args.provider === "string" ? action.args.provider : null;
