@@ -69,6 +69,7 @@ export function assessResearchFrontier(input: {
 
 export function scoreResearchAction(input: {
   expectedInformationGain: number;
+  identityDiscrimination?: number;
   successProbability?: number;
   sourceIndependence?: number;
   contradictionValue?: number;
@@ -76,16 +77,18 @@ export function scoreResearchAction(input: {
   cost?: number;
 }): number {
   const information = clamp(input.expectedInformationGain);
+  const identity = clamp(input.identityDiscrimination ?? information);
   const success = clamp(input.successProbability ?? 0.6);
   const independence = clamp(input.sourceIndependence ?? 0.5);
   const contradiction = clamp(input.contradictionValue ?? 0);
   const contact = clamp(input.contactRelevance ?? 0.5);
   const cost = clamp(input.cost ?? 0.3);
   const gross =
-    information * 0.30 +
+    information * 0.25 +
+    identity * 0.15 +
     success * 0.15 +
     independence * 0.20 +
-    contradiction * 0.20 +
-    contact * 0.15;
+    contradiction * 0.15 +
+    contact * 0.10;
   return clamp(gross * (1 - cost * 0.40));
 }
