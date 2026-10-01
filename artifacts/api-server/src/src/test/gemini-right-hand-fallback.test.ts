@@ -15,6 +15,10 @@ describe("Gemini Right-hand text-only control transport", () => {
     resetProviderGateForTests();
     globalThis.fetch = originalFetch;
     delete process.env.GEMINI_RIGHT_HAND_API_KEY;
+    delete process.env.GEMINI_RIGHT_HAND_API_KEY_2;
+    delete process.env.GEMINI_RIGHT_HAND_API_KEY_3;
+    delete process.env.GEMINI_RIGHT_HAND_API_KEY_4;
+    delete process.env.GEMINI_RIGHT_HAND_API_KEY_5;
     delete process.env.GEMINI_RIGHT_HAND_MODEL_CHAIN;
     delete process.env.APEX_GEMINI_RIGHT_HAND_RATE_LIMIT_RETRY_DELAY_MS;
     vi.restoreAllMocks();
@@ -59,6 +63,36 @@ describe("Gemini Right-hand text-only control transport", () => {
     expect(calls.every((call) => call.url.includes("/v1beta/interactions"))).toBe(true);
     expect(generationCalls).toHaveLength(1);
     expect(generationCalls[0]?.model).toBe(GEMINI_RIGHT_HAND_MODEL);
+  });
+
+  it("uses a second configured Gemini project credential after the first credential exhausts its model pool", async () => {
+    process.env.GEMINI_RIGHT_HAND_API_KEY = "test-key-project-one";
+    process.env.GEMINI_RIGHT_HAND_API_KEY_2 = "test-key-project-two";
+    process.env.APEX_GEMINI_RIGHT_HAND_RATE_LIMIT_RETRY_DELAY_MS = "10";
+    const attempts: Array<{ key: string; model: string }> = [];
+    globalThis.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      const apiKey = String((init?.headers as Record<string, string> | undefined)?.["x-goog-api-key"] ?? "");
+      if (url.endsWith("/v1beta/models")) return catalog();
+      const body = init?.body ? JSON.parse(String(init.body)) as { model?: string } : {};
+      if (!url.includes("/v1beta/interactions")) throw new Error("unexpected non-generation request");
+      attempts.push({ key: apiKey, model: body.model ?? "" });
+      if (apiKey === "test-key-project-one") {
+        return new Response(JSON.stringify({ error: { code: "too_many_requests", message: "burst" } }), {
+          status: 429,
+          headers: { "retry-after": "0" },
+        });
+      }
+      return ok('{"decision":"second-project-recovered"}');
+    });
+    installExternalQuotaGuard();
+
+    const result = await runGeminiRightHandFreeJson("Return JSON.");
+
+    expect(result.status).toBe("completed");
+    expect(result.model).toBe(GEMINI_RIGHT_HAND_MODEL);
+    expect(attempts.some((attempt) => attempt.key === "test-key-project-two")).toBe(true);
+    expect(attempts.at(-1)?.key).toBe("test-key-project-two");
   });
 
   it("retries the same model once on transient network failure", async () => {
