@@ -366,7 +366,7 @@ export class ResearchIntelligenceEngine {
     for (const evidence of this.evidence.values()) sourceQualityCounts.set(evidence.sourceClass, (sourceQualityCounts.get(evidence.sourceClass) ?? 0) + 1);
     const sourceQualitySummary = [...sourceQualityCounts.entries()].map(([sourceClass, count]) => ({ sourceClass, count })).sort((a, b) => b.count - a.count);
     const sourceIndependence = scoreSourceIndependence({ sourceHosts, sourceClasses: [...sourceQualityCounts.keys()], repeatedFamilyCount: repeatedSourceFamilies.length });
-    const independentSourceUnits = this.sourceLineage.independentUnitCount([...this.evidence.values()].map((e) => e.sourceLineageId).filter((id): id is string => Boolean(id)));
+    const independentSourceUnits = this.sourceLineage.independentUnitCount([...this.evidence.values()].filter((e) => e.kind === "finding" || e.kind === "claim").map((e) => e.sourceLineageId).filter((id): id is string => Boolean(id)));
     const providerGroups = new Map<string, Map<string, Set<string>>>();
     for (const action of this.actions) {
       const provider = typeof action.args.provider === "string" ? action.args.provider : null;
