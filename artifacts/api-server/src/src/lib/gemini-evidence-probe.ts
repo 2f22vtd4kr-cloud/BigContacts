@@ -9,7 +9,7 @@
 import { safeOutboundFetch } from "./ssrf-safe-fetch";
 import { runProviderCall } from "./provider-gate";
 import { providerErrorCode, classifyProviderHttpStatus } from "./provider-error-diagnostics";
-import { chooseGeminiControlModels, getGeminiThinkingLevel } from "./gemini-model-pool";
+import { chooseGeminiControlModels, getGeminiThinkingLevel, chooseAdaptiveGeminiThinkingLevel } from "./gemini-model-pool";
 import { selectGeminiThinkingLevel } from "./gemini-thinking-policy";
 
 const GEMINI_GENERATE_CONTENT = "https://generativelanguage.googleapis.com/v1beta/models";
@@ -108,7 +108,7 @@ export async function runGeminiEvidenceProbe(input: {
             body: JSON.stringify({
               contents: [{ role: "user", parts: [{ text: prompt }] }],
               tools: [{ google_search: {} }],
-              generationConfig: { maxOutputTokens: 900, thinkingConfig: { thinkingLevel: getGeminiThinkingLevel(model) } },
+              generationConfig: { maxOutputTokens: 900, thinkingConfig: { thinkingLevel: chooseAdaptiveGeminiThinkingLevel(model, { identityAmbiguity: /identity|attribution|collision/i.test(prompt) ? 0.75 : 0, contradictionPressure: /contradicted|contradiction|dispute/i.test(prompt) ? 0.65 : 0, falsificationRequired: /falsif|disprove|counter.?evidence/i.test(prompt) }) } },
             }),
             signal: controller.signal,
           }),
