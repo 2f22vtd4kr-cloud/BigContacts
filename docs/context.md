@@ -576,3 +576,26 @@ Official Gemini documentation rechecked during this continuation confirms that 4
 ### Required next action
 
 Synchronize the real Replit/runtime environment to the current main SHA, run the guarded static/readiness sequence, and only then perform the single authorized canonical three-target audit. Do not infer runtime certification from CI.
+
+## 2026-10-01 live Replit audit reconciliation
+
+Latest verified `main` is `14eff01d17ab3d95340139521405ca8ca9edccf1`.
+
+A fresh UI-equivalent canonical run was executed on Replit at commit `21f2b22447698c7de2f4026f70e33693c901cf26`:
+job `96a80589-f510-4703-b79f-cd8264e15715`.
+
+The run was stopped at the first genuine terminal failure. Gemini Boss attempted three catalog-eligible models and each returned HTTP 503 `service_unavailable`; the run never reached Right-hand, Investigator selection, discovery, or research. Durable baseline and post-run counts for cases, events, sessions, evidence, contact evidence, and entities remained zero. The active Atlas lane was released.
+
+No retry, continuation, standalone provider probe, manual evidence, or manual entity/card creation occurred.
+
+The provider failure is not evidence of a globally broken Gemini API or of invalid request syntax. Current official Gemini documentation confirms the Interactions API supports the relevant Flash models and the `generation_config.thinking_level` request shape; 503 is a provider-unavailable condition. The live run therefore remains an empirical provider-capacity failure at the Boss boundary, not a reason to replace Gemini Boss or bypass the control plane.
+
+Two deterministic repository issues exposed by the audit were corrected:
+- Gemini Interactions tests now model the catalog-first resolver and current adaptive thinking policy.
+- A regression test now covers one transient 503 retry on the same model before accepting a successful response.
+
+Those test changes were merged as `14eff01d17ab3d95340139521405ca8ca9edccf1`. GitHub currently reports no completed Actions/status checks for that merge commit, so static verification must still be performed by the next available repository/runtime harness before claiming CI-green.
+
+The dashboard `9 LIVE` chip is not an Atlas-job badge. It is the authenticated provider/API-key health chip and can legitimately show the number of currently active provider slots while Atlas is idle. The authoritative Atlas active-job endpoint remains the source for whether research is running.
+
+Release remains **NOT GREEN / NOT production-certified**.

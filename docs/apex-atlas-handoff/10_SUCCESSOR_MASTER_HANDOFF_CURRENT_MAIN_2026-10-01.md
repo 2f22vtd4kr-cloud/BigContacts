@@ -1501,3 +1501,41 @@ This fix does not prove:
 ### Next successor action
 
 Treat `3fa9559a3805a4d322228c85d2c6ef0a51aa48ab` as the latest verified code boundary, then verify the current `main` SHA again before any further implementation or runtime work. Synchronize the real runtime, complete readiness/static gates, and only then run the single authorized canonical three-target audit.
+
+## 2026-10-01 fresh Replit audit boundary
+
+### Current main
+`14eff01d17ab3d95340139521405ca8ca9edccf1`
+
+This is newer than the prior `fee96d…` boundary and contains the test reconciliation described below.
+
+### Fresh live run
+- Replit audit SHA: `21f2b22447698c7de2f4026f70e33693c901cf26`.
+- Job: `96a80589-f510-4703-b79f-cd8264e15715`.
+- Launch: canonical UI-equivalent `targetCount=3`, `researchDepth=standard`, `targetTimeoutMs=420000`.
+- Terminal boundary: Gemini Boss opening.
+- Three same-role Gemini models returned HTTP 503 `service_unavailable`.
+- No Right-hand, Investigator, discovery, source visits, evidence admission, entities, or cards.
+- Durable counts remained zero.
+- Active lane released.
+- No retry/continuation/standalone provider probe/manual write.
+
+### Interpretation
+The observed run establishes a real provider-unavailable failure for that configured Gemini runtime. It does not establish a global Gemini outage, a bad Interactions request, or a need to replace Gemini Boss.
+
+Current official Gemini documentation lists Gemini 3.8/3.7/3.6/3.5 Flash and Flash-Lite models for the Interactions API and documents `generation_config.thinking_level`; Gemini 3.8 supports `low`, `medium`, and `high`, with `minimal` unsupported.
+
+### Repository correction after the audit
+The audit exposed stale focused Gemini tests. They assumed generation happened before catalog resolution and expected `minimal` for a standard Flash request. Those assumptions no longer matched the executable implementation.
+
+The tests were corrected and a transient 503 retry regression was added. The resulting changes are merged in `14eff01d17ab3d95340139521405ca8ca9edccf1`.
+
+GitHub currently reports no completed Actions/status checks for that commit. This is a verification gap, not a test failure.
+
+### UI clarification
+The dashboard's `9 LIVE` chip comes from `ApiKeyHealth` and represents active configured provider slots. It is not the Atlas job-state indicator. Atlas job activity is authoritative from `/api/ingest/job/active/atlas-run`.
+
+### Release
+**NOT GREEN / NOT production-certified.**
+
+The next successor must not launch another canonical research run until the merged test suite is verified and the provider-side 503 condition is understood sufficiently to justify another scarce live audit.
