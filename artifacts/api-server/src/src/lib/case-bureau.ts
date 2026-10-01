@@ -397,6 +397,12 @@ export type GeminiBossAttemptDiagnostic = {
   failureClass: string | null;
 };
 
+export function formatGeminiBossAttemptSummary(attempts: GeminiBossAttemptDiagnostic[]): string {
+  return attempts
+    .map((attempt) => `${attempt.model}=HTTP ${attempt.httpStatus ?? "none"}${attempt.providerErrorCode ? ` (${attempt.providerErrorCode})` : ""}`)
+    .join(", ");
+}
+
 type GeminiTextGenerationResult = {
   model: string;
   raw: string | null;
@@ -959,7 +965,7 @@ export async function generateGeminiBossText(
   return {
     model: lastAttemptModel,
     raw: null,
-    error: `Gemini Boss unavailable after bounded same-role model fallback. ${lastError}. Attempts: ${attempts.map((attempt) => `${attempt.model}=HTTP ${attempt.httpStatus ?? "none"}${attempt.providerErrorCode ? ` (${attempt.providerErrorCode})` : ""}`).join(", ")}.`,
+    error: `Gemini Boss unavailable after bounded same-role model fallback. ${lastError}. Attempts: ${formatGeminiBossAttemptSummary(attempts)}.`,
     attempts,
   };
 }
