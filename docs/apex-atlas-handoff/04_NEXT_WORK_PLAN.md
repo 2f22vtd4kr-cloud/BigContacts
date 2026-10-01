@@ -141,3 +141,37 @@ No live Atlas launch, provider probe, or runtime retry was performed during this
 - If CI remains unavailable, perform equivalent repository checks through an environment with the locked dependencies; do not infer green from static source inspection.
 - Re-review the Investigator context, Redis trace/event discrepancy, and provider-role boundaries.
 - Only after these checks should a fresh canonical UI-equivalent runtime be authorized.
+
+## FINAL STATE — 2026-10-01
+
+This file's earlier Priority 0-5 list is historical and is superseded by the current-main plan below.
+
+Current main: 369887858c9d73f6eb6dd6aa37e668277b99eb28.
+
+Architecture vNext is complete. The next work is empirical runtime validation, not another broad rewrite.
+
+1. Synchronize the Replit workspace to current GitHub main.
+2. Verify the stale canonical-case-continuation.ts syntax defect is absent after synchronization.
+3. Boot the canonical API and verify health, system status, and idle active-job state.
+4. Establish durable baseline counts.
+5. Perform exactly one UI-equivalent launch with targetCount=3, researchDepth=standard, targetTimeoutMs=420000.
+6. Audit Boss, Right-hand, Investigator, tools, evidence, entities/cards, durable events, and sequential target progression.
+7. Stop at the first genuine failure; no retries or provider probes.
+
+Then measure:
+- useful evidence per search/visit;
+- information gain per action;
+- source-family diversity;
+- provider disagreement and resolution;
+- contradiction resolution;
+- identity discrimination;
+- Evidence Probe marginal value;
+- episode-checkpoint value;
+- contact attribution precision;
+- action yield by cognitive task/model/provider.
+
+Do not introduce RL prematurely. Use the existing empirical action-yield and durable trajectory data before considering cross-run policy learning.
+
+Deep Research remains disabled by default and must not become a paid dependency of the free-tier baseline.
+
+Never call partial live success GREEN.
