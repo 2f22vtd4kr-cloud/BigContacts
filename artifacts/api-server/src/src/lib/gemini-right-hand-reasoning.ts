@@ -261,7 +261,7 @@ async function request(system: string, user: string, responseFormat?: Record<str
       input: `${systemPrompt}\\n\\nUSER REQUEST:\\n${user}`,
       generation_config: {
         max_output_tokens: 512,
-        thinking_level: selectGeminiThinkingLevel(model, { contradictionPressure: /contradict|conflict|collision|disput/i.test(user), identityAmbiguity: /identity|ambiguous|collision/i.test(user), falsificationRequired: /falsif|disprove|counter.?evidence/i.test(user), terminalDecision: /final|terminal|stop/i.test(user) }),
+        thinking_level: selectGeminiThinkingLevel(model, { contradictionPressure: /contradict|conflict|collision|disput/i.test(user) ? 0.65 : 0, identityAmbiguity: /identity|ambiguous|collision/i.test(user) ? 0.65 : 0, falsificationRequired: /falsif|disprove|counter.?evidence/i.test(user), terminalDecision: /final|terminal|stop/i.test(user) }),
       },
       ...(responseFormat ? { response_format: responseFormat } : {}),
     });
