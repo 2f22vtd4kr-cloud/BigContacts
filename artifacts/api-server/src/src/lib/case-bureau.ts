@@ -709,6 +709,15 @@ export async function generateGeminiBossText(
         const responseShape = summarizeProviderBody(responseText);
         let providerErrorCodeValue = response.ok ? null : providerErrorCode(responseText);
         const failureClass = response.ok ? null : classifyProviderHttpStatus(response.status);
+        if (!response.ok) {
+          attempts.push({
+            model,
+            keyName: entry.name,
+            httpStatus: response.status,
+            providerErrorCode: providerErrorCodeValue,
+            failureClass,
+          });
+        }
         logger.info(
           {
             role: "gemini_boss",
@@ -846,7 +855,6 @@ export async function generateGeminiBossText(
         }
 
         if (response.status === 503) {
-          attempts.push({ model, keyName: entry.name, httpStatus: response.status, providerErrorCode: providerErrorCodeValue, failureClass });
           lastError = `Gemini Boss ${model} Interactions API ${failureClass ?? "provider_unavailable"} HTTP 503.`;
           logger.warn(
             { model, status: response.status, keyName: entry.name, failureClass, responseShape },
@@ -855,7 +863,6 @@ export async function generateGeminiBossText(
           continue;
         }
         if (!response.ok) {
-          attempts.push({ model, keyName: entry.name, httpStatus: response.status, providerErrorCode: providerErrorCodeValue, failureClass });
           lastError = `Gemini Boss ${model} Interactions API ${failureClass ?? "http_error"} HTTP ${response.status}.`;
           // 401 is a credential failure: abandon this key and try the next
           // configured credential. A 403 is different for Gemini API keys:
