@@ -57,7 +57,7 @@ describe("Mistral agentic 429 retry", () => {
 
   it("falls through to the next compatible model after a non-quota provider exception", async () => {
     vi.useFakeTimers();
-    process.env.MISTRAL_API_KEY = "test-mistral-key";
+    process.env.MISTRAL_API_KEY = "test-mistral-key-second";
     process.env.MISTRAL_AGENTIC_MODEL = "";
     process.env.APEX_PROVIDER_MAX_REQUESTS_MISTRAL = "20";
     process.env.APEX_PROVIDER_MIN_INTERVAL_MS_MISTRAL = "0";
