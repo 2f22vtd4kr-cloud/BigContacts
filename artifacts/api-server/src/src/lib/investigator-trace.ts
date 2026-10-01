@@ -85,9 +85,12 @@ export async function recordDiscoveryTrace(jobId: string, record: DiscoveryTrace
   try {
     const key = `${KEY_PREFIX}${jobId}`;
     const existing = await permGet<DiscoveryTrace>(key);
-    const slots = Array.isArray(existing?.slots) ? existing.slots.filter((s) => s?.slot !== record.slot) : [];
+    const existingSlots = Array.isArray(existing?.slots) ? existing.slots : [];
+    const nextSlot = record.slot >= 0 ? record.slot : (existingSlots.length ? Math.min(MAX_SLOTS - 1, Math.max(...existingSlots.map((s) => Number(s?.slot) || 0)) + 1) : 0);
+    const slots = existingSlots.filter((s) => s?.slot !== nextSlot);
     slots.push({
       ...record,
+      slot: nextSlot,
       modelFindings: Array.isArray(record.modelFindings) ? record.modelFindings.map(safeFinding) : [],
       parsedCandidates: Array.isArray(record.parsedCandidates) ? record.parsedCandidates.map(safeCandidate) : [],
       trajectory: safeTrajectory(record.trajectory),
