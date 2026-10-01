@@ -126,7 +126,7 @@ describe("Gemini Right-hand text-only control transport", () => {
 
     expect(result.status).toBe("unavailable");
     expect(attempts).toEqual([GEMINI_RIGHT_HAND_MODEL]);
-    expect(result.error).toContain("rate limit persisted");
+    expect(result.error).toContain("daily quota exhaustion");
   });
 
   it("does not retry or model-hop when the provider message explicitly names a daily Free-tier quota", async () => {
@@ -199,6 +199,8 @@ describe("Gemini Right-hand text-only control transport", () => {
       "gemini-3.1-flash-lite",
       "gemini-3.6-flash",
       "gemini-3.5-flash",
+      "gemini-3.7-flash",
+      "gemini-3.8-flash",
     ]);
     expect(result.error).toContain("exhausted bounded same-role model attempts");
   });
