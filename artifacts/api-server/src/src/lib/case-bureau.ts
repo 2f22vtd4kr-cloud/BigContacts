@@ -870,7 +870,7 @@ export async function generateGeminiBossText(
           }
           // 404 / retired model / other: try next candidate model instead of aborting Boss.
           if (response.status === 404) {
-            cachedBossModelSelection = null;
+            cachedBossModelSelections.delete(modelScope);
             logger.warn(
               { model, status: 404, keyName: entry.name },
               "Gemini Boss model retired or missing; trying next catalog candidate",
@@ -991,7 +991,7 @@ export async function resolveGeminiBossModel(preferredKeyName?: string): Promise
       candidateCount: 0,
     };
   }
-  const cachedCredential = cachedBossModelSelection?.selection.keyName ? entries.find((entry) => entry.name === cachedBossModelSelection?.selection.keyName) : null;
+  const cachedCredential = preferredKeyName ? entries.find((entry) => entry.name === preferredKeyName) : null;
   const cachedFingerprint = cachedCredential ? geminiCredentialFingerprint(cachedCredential.key) : null;
   if (!preferredKeyName && cachedBossModelSelections.size > 0) {
     const cached = keys
