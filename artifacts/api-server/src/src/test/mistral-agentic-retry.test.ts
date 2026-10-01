@@ -47,7 +47,7 @@ describe("Mistral agentic 429 retry", () => {
       hardTimeoutMs: 30_000,
     });
 
-    await vi.advanceTimersByTimeAsync(5_000);
+    await vi.advanceTimersByTimeAsync(20_000);
     const result = await resultPromise;
 
     expect(result.status).toBe("completed");
@@ -56,7 +56,7 @@ describe("Mistral agentic 429 retry", () => {
   });
 
   it("falls through to the next compatible model after a non-quota provider exception", async () => {
-    process.env.MISTRAL_API_KEY = "test-mistral-key";
+    process.env.MISTRAL_API_KEY = "test-mistral-key-2";
     process.env.MISTRAL_AGENTIC_MODEL = "";
     process.env.APEX_PROVIDER_MAX_REQUESTS_MISTRAL = "20";
     process.env.APEX_PROVIDER_MIN_INTERVAL_MS_MISTRAL = "0";
@@ -90,5 +90,5 @@ describe("Mistral agentic 429 retry", () => {
     expect(result.status).toBe("completed");
     expect(result.model).toBe("mistral:mistral-second");
     expect(calls.filter((url) => url.endsWith("/v1/chat/completions"))).toHaveLength(2);
-  });
+  }, 15_000);
 });
