@@ -1,131 +1,112 @@
-# Apex Atlas — Gemini Control Plane Engineering Volume
+# Apex Atlas — Gemini Control Plane Deep Handoff
 
-## Role law
+## Current implementation
 
-Gemini Boss and Gemini Right-hand are control/oversight. Groq/Mistral are the Investigator.
+Current main includes the free-tier Gemini text model pool from PR #434.
 
-The separation must survive provider failure.
+File:
+artifacts/api-server/src/src/lib/gemini-model-pool.ts
 
-## Major historical fixes
+Stable text-control registry currently contains:
+- gemini-3.8-flash -> low
+- gemini-3.7-flash -> low
+- gemini-3.6-flash -> minimal
+- gemini-3.5-flash -> minimal
+- gemini-3.5-flash-lite -> minimal
+- gemini-3.1-flash-lite -> minimal
 
-The recent engineering sequence included:
-- canonical control recovery;
-- Right-hand bounded fallback;
-- Boss bounded fallback;
-- retry/accounting cleanup;
-- model-specific thinking contracts;
-- Right-hand structured-output 400 compatibility retry;
-- Mistral model-catalog request caching;
-- daily-quota classification;
-- bounded 429 recovery;
-- retry-loop correction;
-- timeout configuration hardening;
-- shared Gemini stable text-model pool;
-- credential/project-scoped cooldowns;
-- correction of a real 429 -> 200 recovery bug.
+Role preference:
+Right-hand:
+3.5 Flash-Lite, 3.1 Flash-Lite, 3.6 Flash, 3.5 Flash, 3.7 Flash, 3.8 Flash.
 
-Historical merge commits include:
-89398c16a036488a82cd9bcc8a896f3e9b6a55be
-51e651321371778952f40d526c858c786a8d534c
-4cf04304663ef9dce9019ab955d7cb2c13fc2aad
-007cfc592509112c9e0010d40bbef17a2d5a1890
-f697fd1140a1159992221f3e4ff1b8f4fc03fabf
-cf32e7ac77688639420c3a7441096eb02be6b9d4
-e8b28f0eb188faa6eacda10d8a3be5d063d76ef3
-5d06898706412f43dc3c36d6d56432309a5dc2ff
-89a717f6798c4ab3c3a44d22640ca6809fd60e8b
-dec0f767d5f1ad660a5f069f5eb6523d30f5c25c
-f1fd98457899ec0cbe5689c50463a8cfd54e0282
-44efa532cb87349b81905d757743606d12ca6645
-86ea581df942d984418e396ca603ef1cc952f0c0
-7d4add9c3e3d51444bbc1dd606688b3fccaee7ae
-5c18475b9f1663790abba986d0ff0c9ed8febc7a
+Boss:
+3.8 Flash, 3.7 Flash, 3.6 Flash, 3.5 Flash, 3.5 Flash-Lite, 3.1 Flash-Lite.
 
-These are historical context. Re-verify ancestry and current main before touching them.
+The live /models catalog is the entitlement source. The registry is the Apex role/capability contract.
 
-## Gemini model pool
+Excluded as ordinary text-control models:
+Live, TTS, image, preview/experimental, robotics, embeddings, deep-research, and other specialized families.
 
-The two-model hard-coded ladder was expanded into a shared stable text-model pool with model-specific thinking contracts and per-model/project-scoped cooldowns.
+## Why this exists
 
-Current Google documentation lists stable Gemini text models including 3.8 Flash, 3.7 Flash, 3.6 Flash, 3.5 Flash, 3.5 Flash-Lite and 3.1 Flash-Lite. Google separately lists Live/audio/TTS/image/specialized models. Therefore Live models are not interchangeable text-control fallbacks. Verify the current source/catalog before changing the pool. Official model catalog: https://ai.google.dev/gemini-api/docs/models
+Earlier code effectively had a two-model ladder. Repeated 429s made that fragile. The model pool was introduced so legitimate stable text models exposed to the credential can participate in same-role recovery.
 
-## 429 semantics
+This does NOT mean model hopping defeats project quota.
 
-Google documents:
-- rate_limit_exceeded: per-minute/per-second request or token limit; wait/retry with exponential backoff;
-- too_many_requests: short-window request pressure; wait/retry;
-- quota_exceeded: daily quota; wait for reset or request quota increase.
+Google documents Gemini rate limits as per project, not per API key. RPM, TPM, and RPD are distinct dimensions. RPD resets at midnight Pacific time. A model-specific fallback may help when model capacity differs, but cannot magically create new project capacity.
 
-Google also documents RPM, TPM and RPD as distinct dimensions; limits are per project, not per API key; RPD resets at midnight Pacific time; model-specific limits can differ.
+## Error semantics
 
-Official references:
-https://ai.google.dev/gemini-api/docs/api-errors
-https://ai.google.dev/gemini-api/docs/rate-limits
-https://ai.google.dev/gemini-api/docs/troubleshooting
+Current provider logic must distinguish:
+- rate_limit_exceeded: per-minute/second request or token limit;
+- too_many_requests: short-period burst;
+- quota_exceeded: daily quota;
+- internal cooldown.
 
-## Free-tier constraint
+Transient 429s: bounded retry/backoff and, where appropriate, next eligible same-role model.
 
-The user wants a free solution during this work. Do not silently introduce paid Gemini billing.
+Daily quota: do not burn retries indefinitely; mark the model/scope and follow the intended fail-closed/rotation semantics.
 
-Google's current billing documentation states that the Google Cloud Free Trial does not apply to Gemini API usage beginning March 2026:
-https://ai.google.dev/gemini-api/docs/billing/
+Never classify every 429 as daily quota.
 
-Multiple projects/credentials can only be considered if consistent with Google's current terms. They are not a guaranteed bypass because Gemini limits are applied per project.
+## Important fixed bug
 
-## Thinking contracts
+Right-hand once had this subtle bug:
+429 -> retry -> 200 -> break retry loop -> generic failure path -> successful response discarded.
 
-Historical code established:
-- Gemini 3.1 Flash-Lite -> minimal
-- Gemini 3.8 Flash -> low
+The correct invariant is:
+if response.ok, return parsed response immediately.
 
-The broader pool extends this concept. Verify exact current mappings in source/tests.
+Keep a regression for 429->200.
 
-## Timeout hardening
+## Timeout work
 
-A Replit runtime previously showed an effective Right-hand timeout of 55 seconds despite a much larger source default. Code was hardened so stale low overall-timeout overrides cannot collapse the intended recovery budget. Boss received analogous protection, and system status exposes secret-free latency diagnostics.
+Previous Replit runtime showed an effective 55-second Right-hand timeout despite source defaults. The code was hardened so too-small environment overrides cannot collapse the overall control recovery budget below the intended default.
 
-Verify current main.
+Conceptual defaults:
+- Right-hand overall: 300s.
+- Boss overall: 240s.
 
-## Real 429 -> 200 bug
+System status exposes secret-free latency configuration diagnostics.
 
-A Right-hand retry loop once discarded a successful retry: after a retry returned HTTP 200, the code broke out of the 429 loop and fell through generic failure handling.
+## Latest live evidence
 
-The fix explicitly accepts successful responses before retry-loop exit.
+The latest run:
+- Boss: gemini-3.6-flash
+- Right-hand opening: gemini-3.5-flash-lite
+- terminal Right-hand: gemini-3.1-flash-lite rate_limited
+- control turn: 4
+- action: stop
+- status: unavailable
+- Atlas: fail-closed
 
-Verify this remains in current main and has regression coverage.
+This proves catalog-driven model selection is active. It does not prove every eligible fallback was usable.
 
-## Daily quota
+## Questions to answer next
 
-The classifier recognizes explicit daily-quota messages such as "Free Tier limit of 500 requests per day has been exceeded" as quota exhaustion rather than endlessly retrying a transient 429 path.
+1. What exact Right-hand candidate chain did the replacement credential expose?
+2. Which candidates were cooling down and why?
+3. Were cooldown scopes tied to credential/project correctly?
+4. Was the terminal 429 a provider response or an internal cooldown?
+5. Did transient 429s rotate after bounded retry?
+6. Did any daily quota classification occur?
+7. Was model-catalog caching stale?
+8. Could an eligible model be suppressed without durable explanation?
+9. Are multiple configured keys separate projects or merely keys in one project?
+10. Does every selected model support the exact Interactions request/response contract?
 
-The intended behavior is fail closed for the exhausted model/credential scope without futile same-scope retries.
+## Official provider research to re-check
 
-## Latest real failure
+Current official pages:
+- https://ai.google.dev/gemini-api/docs/models
+- https://ai.google.dev/gemini-api/docs/rate-limits
+- https://ai.google.dev/gemini-api/docs/api-errors
+- https://ai.google.dev/gemini-api/docs/troubleshooting
+- https://ai.google.dev/gemini-api/docs/thinking
+- https://ai.google.dev/gemini-api/docs/api-key
 
-Latest authorized job:
-391bbe22-0414-4ed4-965d-5714181af242
+These pages are time-sensitive. Re-read before altering model selection or retry behavior.
 
-Terminal:
-2026-10-01T04:08:00.295Z
+## Architectural rule
 
-Boss used gemini-3.6-flash.
-Right-hand opening used gemini-3.5-flash-lite.
-The terminal control error identified gemini-3.1-flash-lite as rate_limited.
-
-Discovery never reached target research.
-
-## Next Gemini investigation
-
-Answer from source/logs:
-1. Which models were eligible at control turn 4?
-2. Which were cooling down and why?
-3. Were cooldowns credential/project/model scoped correctly?
-4. Was the 429 transient or daily quota?
-5. Was retry budget consumed correctly?
-6. Did model rotation occur correctly?
-7. Did Retry-After/backoff affect the decision?
-8. Was the Boss replacement credential a distinct project scope from Right-hand?
-9. Are all selected stable text models actually supported for the current API contract?
-10. Did telemetry omit control events?
-
-Do not solve these by bypassing Gemini or moving control decisions into deterministic code.
+Gemini controls the bureau. Investigator performs OSINT. Do not move web research into Gemini just to make the control plane appear reliable.

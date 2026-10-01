@@ -1,101 +1,116 @@
-# Apex Atlas — Deep System Introduction
+# Apex Atlas — In-Depth System Introduction
 
-## Product
+## Mission
 
-Apex Atlas is the canonical public-web OSINT research bureau inside BigContacts/Apex Finder. It investigates people and organizations using public information and produces attributable, source-backed findings and contact paths.
+Apex Atlas is the canonical AI-powered public-web OSINT/research bureau inside BigContacts. It is not a deterministic enrichment script, search-result scraper, fixed identity-to-email recipe, or fake research dashboard.
 
-It is deliberately not a deterministic enrichment script.
+Core law:
 
-Governing principle:
+> The model owns research strategy; deterministic code owns safety, evidence integrity, authorization, persistence, and resource budgets.
 
-The model owns research strategy; deterministic software owns safety, authorization, validation, provenance, persistence, cancellation, and resource budgets.
+Canonical conceptual loop:
 
-## Architecture
+CASE/OBJECTIVE
+ -> Gemini Boss
+ -> Gemini Right-hand oversight
+ -> select Investigator provider
+ -> Groq OR Mistral Investigator
+ -> model-owned free-form ReAct research
+ -> validated capabilities
+ -> immutable observations + provenance
+ -> durable evidence graph/case ledger
+ -> Right-hand review
+ -> Boss disposition
+ -> next action / pivot / abstain / stop
+ -> validated entity/evidence/card projection
 
-CASE / OBJECTIVE
-  -> Gemini Boss + Gemini Right-hand
-  -> select Groq or Mistral Investigator
-  -> Investigator chooses next research act
-  -> validated real capability
-  -> observation + provenance
-  -> claims / identity hypotheses / contradictions / contacts / negatives
-  -> durable case/event/evidence state
-  -> Right-hand oversight
-  -> Boss disposition
-  -> next Investigator act
+## Roles
 
-There is no hidden identity -> company -> LinkedIn -> email recipe. Tools are capabilities. The Investigator chooses the route.
+### Gemini Boss
+Owns case direction, assignment, Investigator selection, continuation disposition, and high-level review. It does not browse as the Investigator and cannot manufacture evidence.
 
-## Gemini Boss
+### Gemini Right-hand
+Independent Gemini oversight. Reviews latest state, evidence gaps, contradictions, research objective, and whether the direction should continue/pivot/stop. It is not the Investigator and must not be silently replaced by Groq/Mistral.
 
-Boss is the control-plane decision maker. It interprets objectives, opens/directs cases, selects the Investigator, reviews progress, and decides continuation/pivot/stop.
+### Investigator
+Groq or Mistral owns the actual research trajectory: queries, source selection, visits, pivots, verification, disproof, hypotheses, and stopping.
 
-Boss must not become the Investigator or invent evidence.
+## Capabilities
 
-## Gemini Right-hand
+Search, browser/fetch, registry, domain, footprint, harvesting, email/username footprint, and related mechanisms are capabilities, not fixed phases. The Investigator chooses them. Deterministic code validates authorization, safety, availability, and execution.
 
-Right-hand is independent bounded oversight. It critiques research state, gaps, contradictions and objective alignment and advises control transitions.
+A missing tool is not success. A provider error is not evidence. A search snippet is not identity proof. An LLM assertion is not proof. A guessed email pattern is not contact evidence.
 
-Right-hand must not browse or invent evidence.
+## Evidence
 
-If required Right-hand oversight is unavailable, Atlas fails closed.
+The dossier/card is a projection. Durable state is authoritative.
 
-## Investigator
+Expected progression:
+raw observation
+ -> model-authored claim/hypothesis
+ -> promotion proposal
+ -> deterministic identity/provenance/scope validation
+ -> durable evidence/event
+ -> projection
 
-Groq/Mistral is the actual researcher. The Investigator owns query formulation, tool choice, source selection, revisits, pivots, verification/disproof and stopping.
-
-Gemini is not an Investigator fallback.
-
-## Evidence law
-
-Lead, observation, attribution, corroboration and verification are different states.
-
-Search results are leads. Snippets are not proof. LLM prose is not proof. Guessed emails are not discovered contacts.
-
-Durable evidence should preserve URL, provenance, retrieval time, source family/class, extraction/supporting observation, identity attribution and uncertainty.
-
-Organization-level contacts remain organization-scoped unless evidence attributes them to a person.
-
-Unknown or insufficient evidence is valid.
-
-## Safety law
-
-Never seed fake candidates, findings, URLs, contacts, cards or UI events.
-
-Never convert provider/tool failure into success.
-
-Never add scripted research to compensate for provider failure.
-
-Never use Gemini as Investigator fallback.
-
-Never parallelize a canonical sequential target proof.
-
-The Reactor/UI is a projection of canonical state.
-
-## Durable truth
-
-The card/dossier is a projection. Durable state includes case/objective, assignment, provider/model, selected actions, actual execution, observations, evidence/provenance, claims, identity hypotheses, contradictions, contacts, negative findings, oversight decisions and run/correlation IDs.
-
-The latest audit demonstrated an important observability distinction: durable case events existed while the Redis-backed trace endpoint returned zero slots. This discrepancy must be investigated, not hidden.
+Durable state must retain objective, actions, actual provider/tool, observations, URLs, provenance, claims, uncertainty, hypotheses, contradictions, contacts, negative findings, open questions, oversight decisions, and correlation/replay identifiers.
 
 ## Runtime
 
-Canonical API: port 8080.
-Desk: /.
-API: /api/.
-Normal boot: bash scripts/replit-boot.sh.
+Canonical UI-equivalent launch for the controlled audit:
+targetCount=3
+researchDepth=standard
+targetTimeoutMs=420000
 
-First-time schema initialization is explicit:
+The canonical test must prove sequential target execution from runtime evidence, not source inspection alone.
+
+The canonical application is the existing Apex Atlas UI/API. Do not create replacement applications or fake dashboards.
+
+## Schema
+
+First-time schema initialization is explicitly operator-authorized:
 APEX_ALLOW_SCHEMA_PUSH=true bash scripts/initialize-apex-schema.sh
 
-Normal boot must not mutate schema.
+Ordinary boot must not silently mutate schema.
 
-## Research quality
+## Context management
 
-Static checks are not empirical research proof. Keep separate system failure, insufficient evidence, wrong answer and correct abstention.
+Full Investigator history should remain durable outside the model prompt. Model-facing context must be bounded while preserving:
+- objective;
+- active hypotheses/discriminators;
+- contradictions;
+- negative findings;
+- open questions;
+- source-family coverage;
+- recent actions;
+- high-value evidence;
+- provenance pointers.
 
-Do not reduce Apex to a single smartness score or model ranking.
+The latest live run exposed request-size growth to about 214,957 characters and repeated Groq/Qwen HTTP 413s. Do not solve this by blindly deleting history.
 
-## Successor mindset
+## Required source study
 
-Establish exact main SHA, study the repository, reproduce the smallest defect, identify the true layer, make the smallest root-cause fix, test narrowly, test broadly, then run live verification. Never declare GREEN prematurely.
+Read:
+- artifacts/apex-finder/src/lib/launch-atlas.ts
+- artifacts/apex-finder/src/lib/use-atlas-run.ts
+- artifacts/api-server/src/src/routes/research/canonical-atlas-launch.ts
+- artifacts/api-server/src/src/routes/research/canonical-case-continuation.ts
+- artifacts/api-server/src/src/lib/canonical-atlas-discovery.ts
+- artifacts/api-server/src/src/lib/atlas-control-decision.ts
+- artifacts/api-server/src/src/lib/case-bureau.ts
+- artifacts/api-server/src/src/lib/gemini-right-hand-reasoning.ts
+- artifacts/api-server/src/src/lib/gemini-model-pool.ts
+- artifacts/api-server/src/src/lib/gemini-interactions-transport.ts
+- artifacts/api-server/src/src/lib/gemini-transient-retry.ts
+- artifacts/api-server/src/src/lib/provider-error-diagnostics.ts
+- artifacts/api-server/src/src/lib/agentic-execution-context.ts
+- artifacts/api-server/src/src/lib/agentic-web-research-core.ts
+- artifacts/api-server/src/src/lib/bureau-agentic-pass.ts
+- artifacts/api-server/src/src/lib/contact-validation.ts
+- lib/db/src/schema/research_cases.ts
+- research event/session/run/evidence/entity schemas
+- artifacts/api-server/src/src/routes/system-status.ts
+- trace routes and durable event readers
+- relevant Gemini, Investigator, context, retry, model-pool, and API tests
+
+Never infer current behavior from this volume without checking source.

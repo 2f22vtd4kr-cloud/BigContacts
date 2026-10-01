@@ -1,65 +1,43 @@
-# Apex Atlas — Successor Handoff Volume Index
+# Apex Atlas Successor Handoff — Index
 
-Purpose: durable continuation package for future ChatGPT/coding/research agents.
+Prepared: 2026-10-01
 Repository: 2f22vtd4kr-cloud/BigContacts
 Canonical branch: main
-Known main SHA at package creation: f11371d95337c1bd8a7c2b49d7c383903a08bfb5
-Package date: 2026-10-01
+Known main SHA at handoff: f11371d95337c1bd8a7c2b49d7c383903a08bfb5
+Status: NOT GREEN / not production-certified
 
-## Mandatory read order
-
+Mandatory reading:
 1. docs/context.md
 2. docs/AGENT_REPOSITORY_STUDY_PROTOCOL.md
-3. docs/CHATGPT_AGENT_HANDOFF_2026-09-21.md
-4. this index
-5. 01_SYSTEM_INTRODUCTION.md
-6. 02_GEMINI_CONTROL_PLANE.md
-7. 03_RUNTIME_AUDIT_HISTORY.md
-8. 04_NEXT_WORK_PLAN.md
-9. 05_SUCCESSOR_PROMPT.md
-10. then inspect the actual current source, tests, scripts, workflows, schema, and frontend.
+3. 01_SYSTEM_INTRODUCTION.md
+4. 02_GEMINI_CONTROL_PLANE.md
+5. 03_RUNTIME_AUDIT_HISTORY.md
+6. 04_NEXT_WORK_PLAN.md
+7. 05_SUCCESSOR_PROMPT.md
+8. Then inspect every source/test file named by those documents.
+9. Re-check current main SHA and current runtime; never assume this package is newer than source.
 
-This package is a memory aid, not a substitute for repository study. Documentation never outranks executable truth.
+Source-of-truth hierarchy:
+1. Current repository source at current SHA.
+2. Current durable runtime/database evidence.
+3. Current official provider documentation.
+4. Fresh audit artifacts/logs.
+5. These handoff volumes.
+6. Historical chat summaries.
 
-## Canonical source families
+Critical conclusion:
+The latest authorized live Atlas run was real but failed closed before target research. Job 391bbe22-0414-4ed4-965d-5714181af242 used exactly one UI-equivalent launch with targetCount=3, researchDepth=standard, targetTimeoutMs=420000. It ended 2026-10-01T04:08:00.295Z. Boss used gemini-3.6-flash; Right-hand opening used gemini-3.5-flash-lite; terminal Right-hand error identified gemini-3.1-flash-lite as rate_limited. Discovery made 5 Serper searches with 38 returned URL entries, 0 visits, 0 findings, 0 candidate entities/cards, and 0 evidence rows. Durable case 1 had 12 events. Redis trace returned 0 slots despite durable activity. Groq Investigator attempts also hit 413 request-size failures as context grew to about 214,957 characters, plus 429/cooldown behavior.
 
-Runtime/control:
-- artifacts/api-server/src/src/lib/case-bureau.ts
-- artifacts/api-server/src/src/lib/gemini-right-hand-reasoning.ts
-- artifacts/api-server/src/src/lib/gemini-model-pool.ts
-- artifacts/api-server/src/src/lib/agentic-execution-context.ts
-- artifacts/api-server/src/src/lib/agentic-web-research-core.ts
+Do not call this GREEN.
 
-Canonical Atlas:
-- artifacts/api-server/src/src/routes/research/canonical-atlas-discovery.ts
-- artifacts/api-server/src/src/routes/research/canonical-atlas-launch.ts
-- artifacts/api-server/src/src/routes/research/canonical-case-continuation.ts
-
-Safety/evidence:
-- artifacts/api-server/src/src/lib/contact-validation.ts
-- evidence/promotion/identity/SSRF modules and tests
-
-Persistence:
-- lib/db/src/schema/research_cases.ts
-- related research event/session/run/evidence/contact tables
-
-Frontend:
-- artifacts/apex-finder/src/lib/launch-atlas.ts
-- artifacts/apex-finder/src/lib/use-atlas-run.ts
-- Reactor/live-event consumers
-
-Provider diagnostics:
-- provider-error-diagnostics.ts
-- Gemini transport/retry modules
-- Mistral catalog resolution/cache
-
-Deployment:
-- scripts/replit-boot.sh
-- scripts/initialize-apex-schema.sh
-- scripts/replit-preflight.mjs
-- .replit
-- CI workflows
-
-## Current status
-
-Apex has a real model-owned OSINT architecture and substantial Gemini hardening. The latest authorized live run nevertheless failed closed at Gemini Right-hand control turn 4 before target research/evidence/card creation. The system is NOT GREEN.
+Non-negotiable:
+- Gemini Boss is control plane.
+- Gemini Right-hand is oversight.
+- Groq/Mistral is the actual Investigator.
+- Preserve model-owned OSINT research.
+- No scripted/fake/manual research.
+- No manual evidence/card seeding.
+- No Gemini-to-Investigator substitution.
+- No Live/TTS/image Gemini models as text-control fallbacks.
+- Do not parallelize the canonical three-target runtime proof.
+- Do not launch again merely to reproduce a known failure.

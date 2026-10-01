@@ -1,193 +1,119 @@
-# Apex Atlas — Next Engineering Work Plan
+# Apex Atlas — Next Work Plan
 
-## Goal
+## Priority 0
 
-Continue from the latest real failures without weakening Apex's OSINT architecture.
+Do not launch again until source analysis and focused tests address the three latest findings.
 
-Goal:
-Boss -> Right-hand -> Investigator -> evidence -> targets -> durable state -> UI projection.
+## A. Gemini Right-hand recovery
 
-## Phase 0 — Establish exact current truth
+Read:
+- gemini-model-pool.ts
+- gemini-right-hand-reasoning.ts
+- provider-error-diagnostics.ts
+- gemini-transient-retry.ts
+- Right-hand tests
+- model-boundary guard
 
-1. Fetch main and record exact HEAD.
-2. Inspect worktree.
-3. Read all canonical docs plus this package.
-4. Inventory the full repository.
-5. Compare docs against source.
-6. Verify current Gemini model-pool source/tests.
-7. Verify Investigator context construction/compaction.
-8. Verify trace/event persistence.
+Reconstruct the exact live candidate chain, cooldown state, provider error code, retry count, key/project scope, and terminal path.
 
-Never assume a historical SHA is current.
+Verify transient 429, too_many_requests, rate_limit_exceeded, and quota_exceeded separately.
 
-## Phase 1 — Gemini forensic analysis
+Verify 429->200 returns success.
 
-Trace one complete Right-hand request path.
+Verify model rotation is same-role only.
 
-Inspect:
-- model selection;
-- credential/project scope;
-- cooldown keys;
-- model eligibility;
-- transient 429 classifier;
-- daily quota classifier;
-- same-model retries;
-- model rotation;
-- timeout and role budget;
-- Retry-After handling;
-- terminal fail-closed event.
+Verify no project-quota bypass assumption.
 
-Concrete questions:
-- Why was gemini-3.1-flash-lite selected at control turn 4?
-- Which models were eligible?
-- Which were cooling down and why?
-- Were cooldowns scoped by credential/project/model?
-- Was the 429 transient or daily quota?
-- Was retry budget fully consumed?
-- Did rotation happen at the correct point?
+## B. Investigator context explosion
 
-Do not run separate Gemini preflight calls. Test Gemini in its canonical role.
+Trace:
+durable observations
+ -> trajectory history
+ -> working context
+ -> provider request
+ -> provider response
 
-## Phase 2 — Investigator request-size analysis
+Establish a deterministic bounded model-facing context while retaining complete durable history.
 
-The live run showed prompt growth to 214,957 characters and repeated Groq 413 errors.
+Preserve:
+objective, hypotheses/discriminators, contradictions, negative findings, open questions, source-family coverage, recent actions, high-value evidence, provenance.
 
-Trace exactly what enters the model prompt each turn.
+Add tests for huge history, duplicates, contradictions, long snippets/URLs, prompt injection, and bounded provider request size.
 
-Inspect:
-- durable history;
-- observation serialization;
-- tool output;
-- evidence graph context;
-- compaction;
-- token/character accounting;
-- provider request construction;
-- retry/fallback transformations.
+Do not hard-code the next research action.
 
-Determine whether growth comes from:
-- failed compaction;
-- duplicated observations;
-- repeated tool output;
-- event replay;
-- unbounded accumulator.
+## C. Trace vs case-event discrepancy
 
-Fix root cause.
+Trace:
+- write path
+- Redis key
+- job/run/case correlation
+- TTL
+- cleanup
+- read route
+- UI use
 
-Do not blindly truncate. Preserve objective, hypotheses, contradictions, source coverage, negative findings, recent actions and evidence references in bounded model-facing context while retaining complete durable history.
+Durable:
+- event append
+- replay
+- projection
+- state transitions
 
-## Phase 3 — Trace/event consistency
+Define durable case events as research-history authority unless source inspection proves another contract.
 
-Compare:
-- case events;
-- job log;
-- run events;
-- Redis trace;
-- Reactor source.
+Add an integration/regression check for trace/event correlation.
 
-Explain why durable events existed while trace returned zero slots.
+## D. Verification
 
-Do not manufacture trace events.
+Before runtime:
+- frozen install
+- typecheck
+- check:bureau
+- full build
+- Gemini focused tests
+- model-pool tests
+- Investigator/context tests
+- relevant API tests
+- static boundary guards
 
-## Phase 4 — Static verification
+Do not weaken a guard to get green.
 
-Run:
-- targeted Gemini tests;
-- model-pool tests;
-- retry/quota tests;
-- Investigator context/compaction tests;
-- trace/event tests;
-- canonical control regression tests;
-- typecheck;
-- build;
-- bureau/static guards;
-- relevant full API tests.
+## E. Provider research
 
-Classify each failure before fixing.
+Re-check current official Google docs:
+https://ai.google.dev/gemini-api/docs/models
+https://ai.google.dev/gemini-api/docs/rate-limits
+https://ai.google.dev/gemini-api/docs/api-errors
+https://ai.google.dev/gemini-api/docs/troubleshooting
+https://ai.google.dev/gemini-api/docs/thinking
+https://ai.google.dev/gemini-api/docs/api-key
 
-## Phase 5 — Live verification
+Record the verification date.
 
-Only after static gates are green:
-1. create a fresh timestamped audit;
-2. check secret presence only;
-3. initialize schema only if required/authorized;
-4. boot normally with schema mutation disabled;
-5. verify health/Redis/lock;
-6. use the real canonical UI-equivalent launch;
-7. audit every Gemini interaction;
-8. audit every Investigator action;
-9. audit every persistence transition.
+## F. Fresh runtime
 
-No separate Gemini smoke request.
+Only after A-E:
+1. current main SHA
+2. secret presence
+3. schema state
+4. canonical boot
+5. health 200
+6. active job false
+7. exactly one authorized UI-equivalent launch
+8. targetCount=3, standard, 420000
+9. audit all Boss/Right-hand/Investigator/tool/evidence/entity/card/durable events
+10. prove sequential targets
+11. preserve audit if failure
 
-## Phase 6 — Sequential three-target proof
+## Anti-regression
 
-Use:
-targetCount=3
-researchDepth=standard
-targetTimeoutMs=420000
-
-Verify runtime order from durable state/telemetry.
-
-A partial target run is not GREEN.
-
-## Phase 7 — Evidence/card proof
-
-Require actual visits/findings and source-backed durable evidence before candidate/entity/card admission.
-
-No manual seeding.
-
-## Phase 8 — Final deep dive
-
-After a successful run or genuine terminal failure, inspect:
-- Gemini retries/model pool/quota/timeouts;
-- request-size/context compaction;
-- provider budgets;
-- Mistral catalog caching;
-- target sequencing;
-- event ordering;
-- Redis trace;
-- evidence promotion;
-- card projection;
-- UI launch/stop;
-- cancellation;
-- locks/stale jobs;
-- audit persistence.
-
-## GREEN definition
-
-Only GREEN if:
-- exact current main verified;
-- frozen install/build/tests pass;
-- canonical app boots;
-- health/Redis pass;
-- real Boss executes;
-- real Right-hand executes;
-- real Groq/Mistral Investigator executes;
-- real tools execute;
-- evidence persists;
-- targets 1/2/3 execute sequentially;
-- cards/entities come from real evidence;
-- durable state and UI agree;
-- no mocks/fakes/bypass/substitution remain.
-
-## Provider reference facts
-
-Current Google documentation states:
-- 429 rate_limit_exceeded and too_many_requests are retryable transient limit errors;
-- quota_exceeded is daily quota;
-- RPM/TPM/RPD are distinct;
-- limits are per project, not per API key;
-- RPD resets at midnight Pacific time;
-- stable text models are distinct from Live/audio/TTS/image models.
-
-Verify current official docs before modifying provider logic.
-
-## Philosophy
-
-When a provider is unreliable, make Apex more truthful and resilient, not less rigorous.
-
-When context grows, compact model-facing state correctly while preserving durable history.
-
-When telemetry disagrees with durable state, investigate the discrepancy.
-
-When a run fails, preserve the exact failure and improve the next run.
+Never:
+- script research;
+- seed evidence/candidates/cards;
+- replace Gemini roles with another provider;
+- use Live/TTS/image Gemini models as text control;
+- parallelize canonical target execution;
+- disable fail-closed behavior;
+- delete durable history merely to fit provider context;
+- manufacture provider responses;
+- call partial success GREEN.
