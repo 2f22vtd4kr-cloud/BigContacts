@@ -41,3 +41,37 @@ Non-negotiable:
 - No Live/TTS/image Gemini models as text-control fallbacks.
 - Do not parallelize the canonical three-target runtime proof.
 - Do not launch again merely to reproduce a known failure.
+
+## FINAL STATE — 2026-10-01
+
+The earlier historical status above is superseded by this final state.
+
+Current main SHA: 369887858c9d73f6eb6dd6aa37e668277b99eb28.
+
+The research-architecture vNext control layer is merged and CI-verified. Read 07_RESEARCH_ARCHITECTURE_VNEXT_COMPLETION_2026-10-01.md for the complete implementation record.
+
+Implemented:
+- episode-level supervision;
+- bounded Gemini Evidence Probe;
+- atomic evidence bindings;
+- provider disagreement signal;
+- log-odds-style hypothesis scoring;
+- falsification planning;
+- empirical action-yield learning;
+- cognitive-task model routing;
+- optional disabled-by-default Deep Research escalation;
+- existing opt-in independent Investigator lanes.
+
+CI:
+- API Build 1992: success;
+- Research Quality Contracts 541: success;
+- Prompt Architecture Audit 711: success;
+- Five Consecutive Full Code Audits 1073: success, five of five;
+- Five Green Complete Codebase Audit 1218: success, five of five;
+- ordinary audit: success.
+
+The current live Replit workspace is stale at f697fd1140a1159992221f3e4ff1b8f4fc03fabf and cannot boot the API because of a syntax defect in canonical-case-continuation.ts:21. Health/system/active-job endpoints return 502. No post-merge Atlas run was launched.
+
+Therefore the architecture is CI-verified, but the live runtime is not yet re-certified. Synchronize Replit to current main before the next canonical three-target audit.
+
+The final completion record is 07_RESEARCH_ARCHITECTURE_VNEXT_COMPLETION_2026-10-01.md.
