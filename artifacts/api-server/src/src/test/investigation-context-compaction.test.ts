@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildInvestigatorContext, compactInvestigationContext, getInvestigatorContextBudget, tightenInvestigatorPrompt } from "../lib/investigation-context-compaction";
+import { boundInvestigatorPromptSection, buildInvestigatorContext, compactInvestigationContext, getInvestigatorContextBudget, tightenInvestigatorPrompt } from "../lib/investigation-context-compaction";
 
 describe("investigator context compaction", () => {
   it("bounds working context while retaining old source URLs in the archive index", () => {
@@ -56,6 +56,15 @@ describe("investigator context compaction", () => {
     expect(result).toContain("TRAJECTORY RECORDS");
     expect(result).toContain("TRAJECTORY NOTES");
     expect(result).toContain("trajectory.example/page");
+  });
+
+  it("bounds auxiliary intelligence state independently of trajectory compaction", () => {
+    const value = "HEAD STATE " + "X".repeat(40_000) + " LATEST STATE";
+    const bounded = boundInvestigatorPromptSection(value, 6_000);
+    expect(bounded.length).toBeLessThanOrEqual(6_000);
+    expect(bounded).toContain("HEAD STATE");
+    expect(bounded).toContain("LATEST STATE");
+    expect(bounded).toContain("AUXILIARY CONTEXT BOUND");
   });
 
   it("keeps the compatibility helper bounded", () => {

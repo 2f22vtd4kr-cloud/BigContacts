@@ -10,7 +10,7 @@ const required = [
   "const runController = new AbortController()",
   "const timeout = setTimeout(() => runController.abort(), hardTimeoutMs)",
   "await acquireProviderSlot(parentSignal)",
-  "fn(prompt, controller.signal)",
+  "fn(boundedPrompt, controller.signal)",
   "MAX_ITER = 64",
   "requestedIterations > 0 ? Math.min(requestedIterations, MAX_ITER) : MAX_ITER",
   "status: \"cancelled\"",

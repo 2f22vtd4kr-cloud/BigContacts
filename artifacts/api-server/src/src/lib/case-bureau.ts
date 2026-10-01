@@ -791,19 +791,19 @@ export async function generateGeminiBossText(
           }
 
           if (response.status === 429 && providerErrorCodeValue === "quota_exceeded") {
-            const cooldownMs = markGeminiModelDailyQuotaExhausted(model);
+            const cooldownMs = markGeminiModelDailyQuotaExhausted(model, Date.now(), modelScope);
             logger.warn(
               {
                 role: "gemini_boss",
-                phase: "daily_quota_model_cooldown",
+                phase: "daily_quota_exhausted",
                 model,
                 keyName: entry.name,
                 cooldownMs,
                 providerErrorCode: providerErrorCodeValue,
               },
-              "Gemini Boss model daily quota exhausted after retry; rotating to another eligible text model",
+              "Gemini Boss daily quota exhausted after retry; failing closed without another provider request",
             );
-            continue;
+            return { model, raw: null, error: `Gemini Boss daily quota exhaustion: ${model}` };
           }
           if (response.status === 429) {
             const cooldownMs = Math.max(configuredGeminiBoss429RetryDelayMs(), 60_000);

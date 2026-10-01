@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ResearchIntelligenceEngine } from "./research-intelligence-engine";
+import { ResearchIntelligenceEngine, renderIntelligenceContext } from "./research-intelligence-engine";
 describe("ResearchIntelligenceEngine", () => {
   it("deduplicates evidence, tracks source diversity, and preserves a hash-chain digest", () => {
     const engine = new ResearchIntelligenceEngine({ executionId: "exec-1", target: "Jane Example", objective: "Find an attributable public contact route" });
@@ -18,5 +18,15 @@ describe("ResearchIntelligenceEngine", () => {
     const engine = new ResearchIntelligenceEngine({ executionId: "exec-3", target: "No Contact", objective: "Find a public contact" });
     engine.recordAction({ turn: 1, action: "visit", execution: "http_error", urls: ["https://example.com/contact"], observation: "HTTP 404", findings: [] }); engine.recordFeedback({ outcome: "bounced", value: "old@example.com" });
     const state = engine.buildContext(); expect(state.negativeFindings.length).toBeGreaterThan(0); expect(state.stoppingAssessment.recommendation).toBe("continue");
+  });
+  it("bounds rendered intelligence state before it can become provider prompt input", () => {
+    const engine = new ResearchIntelligenceEngine({ executionId: "exec-bound", target: "Bounded Target", objective: "Find public evidence" });
+    for (let turn = 1; turn <= 80; turn++) {
+      engine.recordAction({ turn, action: "visit", execution: "success", urls: ["https://source" + turn + ".example/page"], observation: "O".repeat(1800), findings: [{ vectorType: "website", value: "https://source" + turn + ".example/page", sourceUrls: ["https://source" + turn + ".example/page"], note: "F".repeat(700) }] });
+    }
+    const rendered = renderIntelligenceContext(engine.buildContext(), 6_000);
+    expect(rendered.length).toBeLessThanOrEqual(6_000);
+    expect(rendered).toContain("RESEARCH INTELLIGENCE STATE");
+    expect(rendered).toContain("omitted middle detail remains durable");
   });
 });

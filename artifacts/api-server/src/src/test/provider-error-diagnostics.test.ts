@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   classifyProviderHttpStatus,
+  providerErrorCode,
   classifyThrownProviderError,
   describeThrownProviderError,
   summarizeProviderBody,
@@ -30,6 +31,14 @@ describe("provider error diagnostics", () => {
     expect(diagnostic.causeHostname).toBe("generativelanguage.googleapis.com");
     expect(diagnostic.messageDigest).toMatch(/^[a-f0-9]{16}$/);
     expect(JSON.stringify(diagnostic)).not.toContain("socket detail");
+  });
+
+  it("recognizes a daily-quota message even when the provider uses generic too_many_requests", () => {
+    expect(providerErrorCode(JSON.stringify({ error: { code: "too_many_requests", message: "Free Tier limit of 500 requests per day has been exceeded." } }))).toBe("quota_exceeded");
+  });
+
+  it("keeps ordinary burst too_many_requests transient", () => {
+    expect(providerErrorCode(JSON.stringify({ error: { code: "too_many_requests", message: "Too many requests in a short period." } }))).toBe("too_many_requests");
   });
 
   it("classifies provider HTTP status codes without exposing response bodies", () => {

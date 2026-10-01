@@ -7,7 +7,7 @@ const ok =
   !source.includes("providerDecisionTimeoutMs = 18_000") &&
   source.includes("AGENTIC_PROVIDER_DECISION_TIMEOUT_MS") &&
   source.includes("const controller = new AbortController()") &&
-  source.includes("fn(prompt, controller.signal)") &&
+  source.includes("fn(boundedPrompt, controller.signal)") &&
   source.includes("clearTimeout(timer)") &&
   source.includes("runController.abort()") &&
   source.includes("const MAX_ITER = 64") &&

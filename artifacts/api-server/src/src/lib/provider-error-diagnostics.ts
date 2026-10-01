@@ -54,11 +54,14 @@ export function providerErrorCode(body: string): string | null {
       ? record.error as Record<string, unknown>
       : null;
     const explicitCode = safeString(error?.code) ?? safeString(record.code);
-    if (explicitCode) return explicitCode;
     const message = safeString(error?.message) ?? safeString(record.message) ?? "";
+    // A provider may label a daily-quota response with the generic 429 code
+    // "too_many_requests". The human-readable message is more specific and must
+    // take precedence so we do not retry or model-hop an exhausted daily quota.
     if (/daily quota|quota.*(?:per day|daily)|(?:requests|request)\s+per\s+day|free\s+tier.*(?:quota|limit|request)/i.test(message)) {
       return "quota_exceeded";
     }
+    if (explicitCode) return explicitCode;
     return null;
   } catch {
     return null;
