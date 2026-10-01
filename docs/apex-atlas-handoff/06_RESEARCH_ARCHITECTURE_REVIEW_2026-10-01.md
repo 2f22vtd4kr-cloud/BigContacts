@@ -53,7 +53,7 @@ Adds deterministic, model-independent primitives:
 - assessResearchFrontier
 - scoreResearchAction
 
-The action utility combines expected information gain, success probability, source independence, contradiction value, contact relevance and cost.
+The action utility combines expected information gain, identity discrimination, success probability, source independence, contradiction value, contact relevance and cost. It is wired into the existing atlas-research-strategy move scorer, so the new primitive participates in actual deterministic move assessment.
 
 The scores are advisory signals. They do not override Investigator autonomy.
 
