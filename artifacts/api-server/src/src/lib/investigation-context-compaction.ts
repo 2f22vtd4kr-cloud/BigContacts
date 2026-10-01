@@ -47,9 +47,9 @@ export interface InvestigatorContextBudget {
   findingChars: number;
 }
 
-const DEFAULT_MAX_CHARS = 18_000;
+const DEFAULT_MAX_CHARS = 12_000;
 const MIN_MAX_CHARS = 8_000;
-const MAX_MAX_CHARS = 32_000;
+const MAX_MAX_CHARS = 24_000;
 
 function positiveBounded(raw: string | undefined, fallback: number, min: number, max: number): number {
   const value = Number(raw);
@@ -205,6 +205,18 @@ export function compactInvestigationContext(input: {
  * It preserves the beginning (institutional/task contract) and end (latest state/action
  * instructions) while shrinking the middle. Durable records are unaffected.
  */
+/** Bound an auxiliary model-state section without deleting the durable state behind it. */
+export function boundInvestigatorPromptSection(value: string, maxChars = 6_000): string {
+  const normalized = typeof value === "string" ? value.trim() : "";
+  const bounded = Math.max(1_000, Math.min(12_000, Math.floor(maxChars)));
+  if (normalized.length <= bounded) return normalized;
+  const marker = "[AUXILIARY CONTEXT BOUND: omitted middle detail remains durable outside this prompt]";
+  const available = Math.max(0, bounded - marker.length - 2);
+  const headChars = Math.floor(available * 0.55);
+  const tailChars = available - headChars;
+  return normalized.slice(0, headChars).trimEnd() + "\n" + marker + "\n" + normalized.slice(-tailChars).trimStart();
+}
+
 export function tightenInvestigatorPrompt(prompt: string, maxChars = 12_000): string {
   if (prompt.length <= maxChars) return prompt;
   const marker = "[EMERGENCY REQUEST-SIZE COMPACTION: middle working-context detail omitted; durable records retained]";
