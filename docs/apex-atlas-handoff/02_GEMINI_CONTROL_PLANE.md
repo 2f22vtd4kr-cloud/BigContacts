@@ -113,4 +113,4 @@ Gemini controls the bureau. Investigator performs OSINT. Do not move web researc
 
 ## Current-main update: PR #439
 
-Main now includes PR #439 (`7f4623f247e3779257de1edcc9f9a3eae751e20c`), which adds up to five configured Right-hand Gemini credentials, per-credential live catalog caching, and per-credential cooldown scopes. This is intended only for legitimate distinct project credentials. Multiple keys in one Google project do not multiply quota. A fresh runtime audit on this newer main is still required.
+Main now includes PR #439 (`8274f85c51417baec01567ce082a6d2f4673e813`), which adds up to five configured Right-hand Gemini credentials, per-credential live catalog caching, and per-credential cooldown scopes. This is intended only for legitimate distinct project credentials. Multiple keys in one Google project do not multiply quota. A fresh runtime audit on this newer main is still required.
