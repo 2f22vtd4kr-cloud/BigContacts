@@ -7,7 +7,7 @@ import { filterClaimUrls, filterPassagesForQuery } from "./passage-filter";
 import { sanitizePublicEmail, sanitizePublicPhone, isTrashContactValue } from "./contact-validation";
 import { safeOutboundFetch } from "./ssrf-safe-fetch";
 import { ProviderQuotaError, runProviderCall } from "./provider-gate";
-import { buildInvestigatorContext, tightenInvestigatorPrompt } from "./investigation-context-compaction";
+import { boundInvestigatorPromptSection, buildInvestigatorContext, tightenInvestigatorPrompt } from "./investigation-context-compaction";
 import { renderAtlasCapabilityGuidance } from "./atlas-capability-registry";
 import { classifyTrajectorySignals, type AtlasFailureSignal } from "./atlas-failure-observatory";
 import { ResearchIntelligenceEngine, renderIntelligenceContext } from "./research-intelligence-engine";
@@ -518,7 +518,7 @@ function buildStepPrompt(input: { targetName: string; companyName?: string | nul
     targetName: input.targetName, companyName: input.companyName, objective: input.objective, history: input.history,
     trajectoryRecords: input.trajectoryRecords, lastObservation: input.lastObservation, findings: input.findings, mode: input.mode,
   });
-  const cognitiveState = input.intelligenceContext || "RESEARCH INTELLIGENCE STATE: not yet populated.";
+  const cognitiveState = boundInvestigatorPromptSection(input.intelligenceContext || "RESEARCH INTELLIGENCE STATE: not yet populated.", 6_000);
   return apexOrientationCompact("dig_agent") + "\n\n"
     + "INSTITUTIONAL BOOTSTRAP IS ALREADY IN FORCE. The operator supplied case-specific direction; the institution supplies identity, evidence law, autonomy law, and role boundaries. You own the research trajectory.\n\n"
     + "Discovery, target research, revisits, pivots, and stopping are capabilities you may choose, not mandatory phases.\n\n"
