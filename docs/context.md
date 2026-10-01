@@ -437,3 +437,12 @@ A fresh post-merge Replit Atlas run has not been completed. The available Replit
 Do not call Apex production GREEN. Synchronize Replit to current GitHub main, boot the canonical API, verify readiness, then perform exactly one controlled UI-equivalent launch and audit durable evidence/card/entity admission deltas.
 
 The architecture batch is complete. Empirical live research quality remains a release gate.
+
+
+## FINAL DOCUMENTATION MERGE — 2026-10-01
+
+Current main is now 64a4f20c25d8888112a4dc025f19e576d52fb774 after the successor-documentation merge (PR #447).
+
+The architecture completion state remains exactly as recorded above. The documentation merge changed no production code. CI for the documentation branch passed its research-quality, prompt-architecture, five-consecutive, and five-green audit workflows before merge.
+
+Live runtime remains explicitly uncertified because the available Replit workspace is stale and cannot boot the API. Synchronize Replit to current main before the next canonical runtime audit.
