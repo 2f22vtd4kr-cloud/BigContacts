@@ -34,3 +34,18 @@ const duplicate = scoreResearchAction({
 assert(contact > duplicate);
 
 console.log("research-policy tests passed");
+
+
+const verify = assessResearchFrontier({
+  sourceFamilyDiversity: 3,
+  repeatedSourceFamilies: 0,
+  evidenceCount: 6,
+  unresolvedQuestions: 3,
+  contradictions: 0,
+  contactCount: 0,
+});
+assert.equal(verify.nextMovePriority, "verify");
+
+const lowCost = scoreResearchAction({ expectedInformationGain: 0.7, sourceIndependence: 0.8, cost: 0.1 });
+const highCost = scoreResearchAction({ expectedInformationGain: 0.7, sourceIndependence: 0.8, cost: 0.9 });
+assert(lowCost > highCost);
