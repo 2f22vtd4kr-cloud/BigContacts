@@ -108,7 +108,7 @@ export async function runGeminiEvidenceProbe(input: {
             body: JSON.stringify({
               contents: [{ role: "user", parts: [{ text: prompt }] }],
               tools: [{ google_search: {} }],
-              generationConfig: { maxOutputTokens: 900, thinkingConfig: { thinkingLevel: chooseAdaptiveGeminiThinkingLevel(model, { identityAmbiguity: /identity|attribution|collision/i.test(prompt) ? 0.75 : 0, contradictionPressure: /contradicted|contradiction|dispute/i.test(prompt) ? 0.65 : 0, falsificationRequired: /falsif|disprove|counter.?evidence/i.test(prompt) }) } },
+              generationConfig: { maxOutputTokens: 900, thinkingConfig: { thinkingLevel: selectGeminiThinkingLevel(model, { identityAmbiguity: /identity|attribution|collision/i.test(prompt) ? 0.75 : 0, contradictionPressure: /contradicted|contradiction|dispute/i.test(prompt) ? 0.65 : 0, falsificationRequired: /falsif|disprove|counter.?evidence/i.test(prompt) }) } },
             }),
             signal: controller.signal,
           }),
@@ -183,7 +183,7 @@ export async function runGeminiEvidenceVerificationEpisode(input: {
                 maxOutputTokens: 1400,
                 responseMimeType: "application/json",
                 responseSchema: { type: "OBJECT", properties: { claims: { type: "ARRAY", items: { type: "OBJECT", properties: { claim: { type: "STRING" }, status: { type: "STRING", enum: ["supported", "contradicted", "unresolved"] }, rationale: { type: "STRING" } }, required: ["claim", "status", "rationale"] } }, answer: { type: "STRING" } }, required: ["claims", "answer"] },
-                thinkingConfig: { thinkingLevel: selectGeminiThinkingLevel(model, { falsificationRequired: true, identityAmbiguity: /identity|attribution|collision/i.test(prompt) }) },
+                thinkingConfig: { thinkingLevel: selectGeminiThinkingLevel(model, { falsificationRequired: true, identityAmbiguity: /identity|attribution|collision/i.test(prompt) ? 0.75 : 0 }) },
               },
             }),
             signal: controller.signal,
