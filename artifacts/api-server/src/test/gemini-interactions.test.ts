@@ -11,9 +11,12 @@ describe("Gemini Interactions API transport", () => {
   });
 
   it("sends Boss text reasoning to the Interactions API and reads output_text", async () => {
-    process.env.GEMINI_API_KEY = "test-key";
-    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      new Response(JSON.stringify({ output_text: '{"action":"proceed"}' }), {
+    process.env.GEMINI_API_KEY = "test-key-1";
+    const fetchMock = vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        models: [{ name: "models/gemini-3.8-flash", supportedGenerationMethods: ["generateContent"] }],
+      }), { status: 200, headers: { "content-type": "application/json" } }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ output_text: '{"action":"proceed"}' }), {
         status: 200,
         headers: { "content-type": "application/json" },
       }),
@@ -41,7 +44,7 @@ describe("Gemini Interactions API transport", () => {
     expect(JSON.parse(String(init?.body))).toEqual({
       model: "gemini-3.8-flash",
       input: "Return a JSON control decision.",
-      generation_config: { max_output_tokens: 768, thinking_level: "minimal" },
+      generation_config: { max_output_tokens: 768, thinking_level: "medium" },
     });
   });
 
@@ -70,9 +73,12 @@ describe("Gemini Interactions API transport", () => {
   });
 
   it("reads current Interactions step-based model output", async () => {
-    process.env.GEMINI_API_KEY = "test-key";
-    vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      new Response(JSON.stringify({
+    process.env.GEMINI_API_KEY = "test-key-3";
+    vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        models: [{ name: "models/gemini-3.8-flash", supportedGenerationMethods: ["generateContent"] }],
+      }), { status: 200, headers: { "content-type": "application/json" } }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
         steps: [{
           type: "model_output",
           content: [{ type: "text", text: '{"action":"proceed"}' }],
@@ -97,8 +103,14 @@ describe("Gemini Interactions API transport", () => {
   });
 
   it("falls through to the next catalog model when the preferred model returns 403", async () => {
-    process.env.GEMINI_API_KEY = "test-key";
+    process.env.GEMINI_API_KEY = "test-key-4";
     const fetchMock = vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        models: [
+          { name: "models/gemini-3.8-flash", supportedGenerationMethods: ["generateContent"] },
+          { name: "models/gemini-3.5-flash-lite", supportedGenerationMethods: ["generateContent"] },
+        ],
+      }), { status: 200, headers: { "content-type": "application/json" } }))
       .mockResolvedValueOnce(new Response("", { status: 403 }))
       .mockResolvedValueOnce(
         new Response(JSON.stringify({ output_text: '{"action":"reframe"}' }), {
@@ -122,6 +134,38 @@ describe("Gemini Interactions API transport", () => {
     expect(result.error).toBeNull();
     expect(result.model).toBe("gemini-3.5-flash-lite");
     expect(result.raw).toBe('{"action":"reframe"}');
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  it("retries a transient 503 once on the same model before accepting its response", async () => {
+    process.env.GEMINI_API_KEY = "test-key-5";
+    const fetchMock = vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        models: [{ name: "models/gemini-3.8-flash", supportedGenerationMethods: ["generateContent"] }],
+      }), { status: 200, headers: { "content-type": "application/json" } }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        error: { code: 503, status: "UNAVAILABLE", message: "temporarily unavailable" },
+      }), { status: 503, headers: { "content-type": "application/json" } }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ output_text: '{"action":"proceed"}' }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }));
+
+    const result = await generateGeminiBossText(
+      {
+        model: "gemini-3.8-flash",
+        status: "resolved",
+        inspectedKeyCount: 1,
+        candidateCount: 1,
+        candidateModels: ["gemini-3.8-flash"],
+        keyName: "GEMINI_API_KEY",
+      },
+      "Return a JSON control decision.",
+    );
+
+    expect(result.error).toBeNull();
+    expect(result.model).toBe("gemini-3.8-flash");
+    expect(result.raw).toBe('{"action":"proceed"}');
+    expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 });
