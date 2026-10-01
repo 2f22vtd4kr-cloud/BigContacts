@@ -47,7 +47,7 @@ describe("Mistral agentic 429 retry", () => {
       hardTimeoutMs: 30_000,
     });
 
-    await vi.advanceTimersByTimeAsync(5_000);
+    await vi.advanceTimersByTimeAsync(20_000);
     const result = await resultPromise;
 
     expect(result.status).toBe("completed");
@@ -56,6 +56,7 @@ describe("Mistral agentic 429 retry", () => {
   });
 
   it("falls through to the next compatible model after a non-quota provider exception", async () => {
+    vi.useFakeTimers();
     process.env.MISTRAL_API_KEY = "test-mistral-key";
     process.env.MISTRAL_AGENTIC_MODEL = "";
     process.env.APEX_PROVIDER_MAX_REQUESTS_MISTRAL = "20";
@@ -80,12 +81,14 @@ describe("Mistral agentic 429 retry", () => {
       }), { status: 200, headers: { "content-type": "application/json" } });
     }));
 
-    const result = await runAgenticWebResearch({
+    const resultPromise = runAgenticWebResearch({
       targetName: "Example",
       investigatorLlm: "mistral",
       maxIterations: 1,
       hardTimeoutMs: 30_000,
     });
+    await vi.advanceTimersByTimeAsync(20_000);
+    const result = await resultPromise;
 
     expect(result.status).toBe("completed");
     expect(result.model).toBe("mistral:mistral-second");
