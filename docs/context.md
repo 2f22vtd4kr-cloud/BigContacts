@@ -469,3 +469,35 @@ Implemented capabilities include:
 The implementation deliberately does not use an uncalibrated universal posterior threshold, does not require fixed evidence classes for every case, does not introduce a giant replacement graph database, does not adopt the unrelated local "Apex" model/quantization recommendations, and does not permit arbitrary MCP expansion.
 
 **Validation status:** this branch requires a fresh GitHub CI/typecheck/test run and a fresh canonical live Atlas run before any GREEN/release claim. The latest historical live run remains pre-vNext evidence.
+
+
+## 2026-10-01 MASTER SUCCESSOR HANDOFF — CURRENT MAIN RECONCILIATION
+
+A newer main baseline supersedes the older SHA references in earlier sections of this living context. The verified current main at handoff preparation is:
+
+`21f2b22447698c7de2f4026f70e33693c901cf26`
+
+Recent control-plane hardening after `69d12ccaa13a38ba03cadbb33adf9a3d044c06a7` includes:
+- `9f17d5b9c2a900bd2dcf43595987a76060b2d39f`: aligned Gemini model-pool contract with the current thinking policy;
+- `f4fd5feeaa9dd6bba74dd9ca88475cc1a3b7c0e0`: locked adaptive Gemini thinking boundaries and reset model cooldown state between pool tests;
+- `21f2b22447698c7de2f4026f70e33693c901cf26`: merged PR #450, test/contract hardening only.
+
+The latest successful relevant GitHub Actions evidence is on the PR parent correction commit `f4fd5feeaa9dd6bba74dd9ca88475cc1a3b7c0e0`: API Build 2016, Research Quality Contracts 564, Prompt Architecture Audit 734, Five Consecutive Full Code Audits 1101, and Five Green Complete Codebase Audit 1241 all succeeded. Do not invent a workflow result for the merge commit itself when none is exposed.
+
+### Latest runtime boundary
+
+The most recent exact UI-equivalent launch was job `c201a722-623d-45f0-b667-e20a4737c3f1` with `targetCount=3`, `researchDepth=standard`, and `targetTimeoutMs=420000`. It was accepted with HTTP 202 after health/system/active-job readiness checks. Polling was then interrupted by the environment's daily free-quota message. **Its terminal outcome is unknown/unobserved.** Do not classify it as success or failure and do not launch another run merely to infer the outcome.
+
+The earlier real Boss failure job `77c7fb64-8c85-4d23-b1f2-0e048b9e8012` remains historical evidence of a Gemini Boss 503/provider-unavailable failure before Investigator execution. PR #440 hardened terminal attribution, per-credential catalog selection, and project/credential-scoped quota handling.
+
+The earlier full live job `391bbe22-0414-4ed4-965d-5714181af242` remains historical evidence of Right-hand rate limiting, 413 Investigator context growth, and Redis-trace/durable-event discrepancy. It must not be conflated with the later accepted-but-unobserved job.
+
+### Mandatory master handoff
+
+The most complete successor document is now:
+
+`docs/apex-atlas-handoff/09_MASTER_SUCCESSOR_HANDOFF_2026-10-01.md`
+
+A successor must read it **after** the repository study protocol and the other handoff volumes, then verify current main and actual source before making changes.
+
+**Current release state remains NOT GREEN / not production-certified.**
