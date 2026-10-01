@@ -54,11 +54,11 @@ export function providerErrorCode(body: string): string | null {
       ? record.error as Record<string, unknown>
       : null;
     const explicitCode = safeString(error?.code) ?? safeString(record.code);
-    if (explicitCode) return explicitCode;
     const message = safeString(error?.message) ?? safeString(record.message) ?? "";
     if (/daily quota|quota.*(?:per day|daily)|(?:requests|request)\s+per\s+day|free\s+tier.*(?:quota|limit|request)/i.test(message)) {
       return "quota_exceeded";
     }
+    if (explicitCode) return explicitCode;
     return null;
   } catch {
     return null;
