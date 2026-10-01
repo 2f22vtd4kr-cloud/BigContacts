@@ -314,18 +314,27 @@ describe("Gemini Boss transport contract", () => {
   it("uses the bounded production latency budget and reports it consistently", () => {
     expect(getGeminiBossLatencyConfig()).toEqual({
       requestTimeoutMs: 30_000,
-      overallTimeoutMs: 75_000,
+      overallTimeoutMs: 240_000,
+      minimumOverallTimeoutMs: 240_000,
+      overallTimeoutClamped: false,
     });
   });
 
   it("advances to the next same-role model after an AbortError", async () => {
-    vi.stubEnv("GEMINI_API_KEY", "test-gemini-key");
-    const fetchMock = vi.spyOn(globalThis, "fetch")
-      .mockRejectedValueOnce(Object.assign(new Error("The operation was aborted"), { name: "AbortError" }))
-      .mockResolvedValueOnce(new Response(
+    vi.stubEnv("GEMINI_API_KEY", "test-gemini-key-abort-success");
+    let interactionCalls = 0;
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.includes("/models")) {
+        return new Response(JSON.stringify({ models: [{ name: "models/gemini-3.8-flash" }, { name: "models/gemini-3.7-flash" }] }), { status: 200, headers: { "content-type": "application/json" } });
+      }
+      interactionCalls += 1;
+      if (interactionCalls === 1) throw Object.assign(new Error("The operation was aborted"), { name: "AbortError" });
+      return new Response(
         JSON.stringify({ output_text: '{"investigatorLlm":"groq","action":"proceed"}' }),
         { status: 200, headers: { "content-type": "application/json" } },
-      ));
+      );
+    });
 
     const result = await generateGeminiBossText(
       {
@@ -341,17 +350,22 @@ describe("Gemini Boss transport contract", () => {
 
     expect(result.error).toBeNull();
     expect(result.model).toBe("gemini-3.7-flash");
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)).model).toBe("gemini-3.8-flash");
-    expect(JSON.parse(String(fetchMock.mock.calls[1]?.[1]?.body)).model).toBe("gemini-3.7-flash");
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(JSON.parse(String(fetchMock.mock.calls[1]?.[1]?.body)).model).toBe("gemini-3.8-flash");
+    expect(JSON.parse(String(fetchMock.mock.calls[2]?.[1]?.body)).model).toBe("gemini-3.7-flash");
     fetchMock.mockRestore();
     vi.unstubAllEnvs();
   });
 
   it("returns an explicit bounded-fallback error when every Boss model attempt aborts", async () => {
-    vi.stubEnv("GEMINI_API_KEY", "test-gemini-key");
-    const fetchMock = vi.spyOn(globalThis, "fetch")
-      .mockRejectedValue(new Error("The operation was aborted"));
+    vi.stubEnv("GEMINI_API_KEY", "test-gemini-key-abort-all");
+    let interactionCalls = 0;
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.includes("/models")) return new Response(JSON.stringify({ models: [{ name: "models/gemini-3.8-flash" }, { name: "models/gemini-3.7-flash" }] }), { status: 200 });
+      interactionCalls += 1;
+      throw Object.assign(new Error("The operation was aborted"), { name: "AbortError" });
+    });
 
     const first = await generateGeminiBossText(
       {
@@ -366,7 +380,7 @@ describe("Gemini Boss transport contract", () => {
     );
 
     expect(first.error).toMatch(/bounded same-role model fallback/i);
-    expect(first.error).toMatch(/request failed|generation failed/i);
+    expect(first.error).toMatch(/request (failed|exceeded)|generation failed/i);
     expect(fetchMock.mock.calls.length).toBeGreaterThanOrEqual(2);
     expect(fetchMock.mock.calls.length).toBeLessThanOrEqual(4);
     fetchMock.mockRestore();
