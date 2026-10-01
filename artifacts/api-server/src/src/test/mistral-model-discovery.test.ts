@@ -33,7 +33,7 @@ describe("Mistral live model discovery", () => {
       { id: "mistral-large-3", created: 20, archived: false, capabilities: { completion_chat: true } },
     ]);
 
-    await expect(resolveMistralChatModels("test-key", new AbortController().signal))
+    await expect(resolveMistralChatModels("test-key-1", new AbortController().signal))
       .resolves.toEqual(["mistral-small-latest", "mistral-large-3"]);
   });
 
@@ -48,7 +48,7 @@ describe("Mistral live model discovery", () => {
       { id: "mistral-medium-3-5", created: 50, archived: false, capabilities: { completion_chat: true } },
     ]);
 
-    await expect(resolveMistralChatModels("test-key", new AbortController().signal))
+    await expect(resolveMistralChatModels("test-key-2", new AbortController().signal))
       .resolves.toEqual(["mistral-medium-3-5", "mistral-small-latest"]);
   });
 
@@ -61,7 +61,7 @@ describe("Mistral live model discovery", () => {
       { id: "mistral-small-latest", created: 20, archived: false, capabilities: { completion_chat: true } },
     ]);
 
-    await expect(resolveMistralChatModels("test-key", new AbortController().signal))
+    await expect(resolveMistralChatModels("test-key-3", new AbortController().signal))
       .resolves.toEqual(["mistral-small-latest"]);
   });
 
@@ -71,7 +71,7 @@ describe("Mistral live model discovery", () => {
     process.env.APEX_PROVIDER_MIN_INTERVAL_MS_MISTRAL = "0";
     globalThis.fetch = async () => new Response("unauthorized", { status: 401 });
 
-    await expect(resolveMistralChatModels("test-key", new AbortController().signal))
+    await expect(resolveMistralChatModels("test-key-4", new AbortController().signal))
       .resolves.toEqual([]);
   });
 
@@ -82,7 +82,7 @@ describe("Mistral live model discovery", () => {
       { id: "mistral-small-latest", created: 20, archived: false, capabilities: { completion_chat: true } },
     ]);
 
-    await expect(resolveMistralChatModels("test-key", new AbortController().signal))
+    await expect(resolveMistralChatModels("test-key-5", new AbortController().signal))
       .resolves.toEqual(["mistral-small-latest"]);
   });
 });
