@@ -146,4 +146,4 @@ Record exact SHA, secret presence only, every significant action, provider/model
 
 ## Current-main note
 
-The live job documented above ran on the pre-PR-439 baseline `f11371d95337c1bd8a7c2b49d7c383903a08bfb5`. Main subsequently advanced through PR #439 to `7f4623f247e3779257de1edcc9f9a3eae751e20c`. Do not treat the old runtime result as a direct test of the multi-project Right-hand resilience added by PR #439.
+The live job documented above ran on the pre-PR-439 baseline `f11371d95337c1bd8a7c2b49d7c383903a08bfb5`. Main subsequently advanced through PR #439 to `8274f85c51417baec01567ce082a6d2f4673e813`. Do not treat the old runtime result as a direct test of the multi-project Right-hand resilience added by PR #439.
