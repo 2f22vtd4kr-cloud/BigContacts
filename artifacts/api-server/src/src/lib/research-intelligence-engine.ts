@@ -124,7 +124,7 @@ export interface IntelligenceContext {
   frontier: ReturnType<typeof assessResearchFrontier>;
   sourceIndependence: number;
   providerDisagreements: Array<{ query: string; providers: string[]; sourceHosts: string[] }>;
-  atomicEvidence: Array<{ evidenceId: string; claimId?: string; claim: string; sourceUrl: string | null; sourceHost: string | null; sourceClass: IntelligenceSourceClass; passage: string | null; attribution: string | null }>;
+  atomicEvidence: Array<{ evidenceId: string; kind: IntelligenceEvidenceKind; claimId?: string; claim: string; sourceUrl: string | null; sourceHost: string | null; sourceClass: IntelligenceSourceClass; passage: string | null; attribution: string | null }>;
   actionYield: ReturnType<typeof summarizeActionYield>[];
   sourceLineage: Array<{ sourceId: string; canonicalUrl: string; host: string; originSourceId: string | null; citedSourceIds: string[] }>;
   independentSourceUnits: number;
@@ -395,6 +395,7 @@ export class ResearchIntelligenceEngine {
       .slice(-24)
       .map((evidence) => ({
         evidenceId: evidence.id,
+        kind: evidence.kind,
         claimId: evidence.claimId,
         claim: evidence.claim,
         sourceUrl: evidence.sourceUrl,
