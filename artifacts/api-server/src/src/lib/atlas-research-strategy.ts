@@ -5,6 +5,8 @@
  * outside the model while leaving the model free to choose the actual trajectory.
  */
 
+import { scoreResearchAction } from "./research-policy";
+
 export type TargetPortfolioDimensions = {
   geography: string;
   occupation: string;
@@ -45,14 +47,15 @@ export function assessResearchMove(input: {
   const success = clamp(input.successProbability ?? 0.6);
   const cost = clamp(input.cost ?? 0.3);
   const contradictionBonus = input.testsContradiction ? 0.1 : 0;
-  const score = clamp(
-    ((information * 0.30) +
-      (identity * 0.25) +
-      (contact * 0.15) +
-      (independence * 0.15) +
-      (success * 0.15) +
-      contradictionBonus) * (1 - cost * 0.35),
-  );
+  const score = scoreResearchAction({
+    expectedInformationGain: information,
+    identityDiscrimination: identity,
+    contactRelevance: contact,
+    sourceIndependence: independence,
+    successProbability: success,
+    contradictionValue: contradictionBonus,
+    cost,
+  });
   const rationale = [
     independence < 0.4 ? "Prefer a new source family instead of another copy." : "Source family adds independent evidence.",
     identity >= 0.7 ? "Strong identity-discrimination value." : "Identity value is moderate; avoid treating the result as proof alone.",

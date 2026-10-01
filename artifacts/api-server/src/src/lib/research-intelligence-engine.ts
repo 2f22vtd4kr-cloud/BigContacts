@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { assessResearchFrontier, scoreSourceIndependence } from "./research-policy";
 
 export type IntelligenceSourceTier = "A" | "B" | "C" | "D" | "unknown";
 export type IntelligenceEvidenceKind = "observation" | "finding" | "negative" | "contradiction" | "claim";
@@ -51,6 +52,7 @@ export interface IdentityHypothesis {
 }
 
 export interface ContactEvidence {
+  personName?: string | null;
   value: string;
   vector: string;
   state: ContactEvidenceState;
@@ -107,6 +109,8 @@ export interface IntelligenceContext {
   provenanceDigest: string;
   missionBriefs: IntelligenceMissionBrief[];
   sourceQualitySummary: Array<{ sourceClass: IntelligenceSourceClass; count: number }>;
+  frontier: ReturnType<typeof assessResearchFrontier>;
+  sourceIndependence: number;
   stoppingAssessment: {
     evidenceCoverage: number;
     unresolvedQuestions: number;
@@ -203,8 +207,8 @@ export class ResearchIntelligenceEngine {
   recordFeedback(feedback: ResearchFeedback): void {
     this.feedback.push({ ...feedback });
     if (feedback.value) {
-      const contact = this.contacts.get(normalize(feedback.value));
-      if (contact) {
+      const matchingContacts = [...this.contacts.values()].filter((contact) => normalize(contact.value) === normalize(feedback.value!));
+      for (const contact of matchingContacts) {
         if (feedback.outcome === "wrong_person" || feedback.outcome === "rejected") contact.state = "REJECTED";
         else if (feedback.outcome === "outdated" || feedback.outcome === "bounced") contact.state = "STALE";
         else if (feedback.outcome === "successful_outreach") contact.state = "VERIFIED";
@@ -237,7 +241,7 @@ export class ResearchIntelligenceEngine {
   }
 
   private recordContact(vector: string, value: string, urls: string[], personName: string | null): void {
-    const key = normalize(value); const existing = this.contacts.get(key); const now = new Date().toISOString(); const hosts = [...new Set(urls.map(hostOf).filter((v): v is string => Boolean(v)))];
+    const key = `${vector}|${normalize(personName ?? "")}|${normalize(value)}`; const existing = this.contacts.get(key); const now = new Date().toISOString(); const hosts = [...new Set(urls.map(hostOf).filter((v): v is string => Boolean(v)))];
     if (existing) {
       existing.lastSeen = now;
       existing.sourceUrls = [...new Set([...existing.sourceUrls, ...urls])];
@@ -246,7 +250,7 @@ export class ResearchIntelligenceEngine {
       if (existing.sourceHosts.length >= 2 && !["REJECTED", "VERIFIED", "STALE", "CONTRADICTED"].includes(existing.state)) existing.state = "CORROBORATED";
       return;
     }
-    this.contacts.set(key, { value, vector, state: personName ? "ATTRIBUTED" : "OBSERVED", sourceUrls: urls, sourceHosts: hosts, firstSeen: now, lastSeen: now, attributionStrength: personName ? 0.85 : 0.45 });
+    this.contacts.set(key, { personName, value, vector, state: personName ? "ATTRIBUTED" : "OBSERVED", sourceUrls: urls, sourceHosts: hosts, firstSeen: now, lastSeen: now, attributionStrength: personName ? 0.85 : 0.45 });
   }
 
   private countNewHosts(urls: string[]): number { const known = new Set([...this.evidence.values()].map((item) => item.sourceHost).filter(Boolean)); return urls.map(hostOf).filter((host): host is string => Boolean(host) && !known.has(host)).length; }
@@ -272,7 +276,7 @@ export class ResearchIntelligenceEngine {
     const claims = [...this.claims.values()];
     const evidenceFor = (claim: IntelligenceClaim) => claim.evidenceIds.map((id) => this.evidence.get(id)).filter((item): item is IntelligenceEvidence => Boolean(item));
     const substantive = (claim: IntelligenceClaim) => evidenceFor(claim).some((item) => item.kind === "finding" || item.kind === "claim");
-    const facts = claims.filter((claim) => claim.status === "supported" && substantive(claim)).sort((a, b) => b.evidenceIds.length - a.evidenceIds.length).map((claim) => ({ claim: `${claim.subject} ${claim.predicate} ${claim.object}`, evidenceIds: [...claim.evidenceIds], sources: [...claim.sourceHosts] })); for (const contact of this.contacts.values()) { const claim = `${this.input.target} ${contact.vector} ${contact.value}`; if (!facts.some((fact) => fact.claim === claim)) { const evidenceIds = [...this.evidence.values()].filter((item) => item.value === contact.value).map((item) => item.id); facts.push({ claim, evidenceIds, sources: [...contact.sourceHosts] }); } }
+    const facts = claims.filter((claim) => claim.status === "supported" && substantive(claim)).sort((a, b) => b.evidenceIds.length - a.evidenceIds.length).map((claim) => ({ claim: `${claim.subject} ${claim.predicate} ${claim.object}`, evidenceIds: [...claim.evidenceIds], sources: [...claim.sourceHosts] })); for (const contact of this.contacts.values()) { const claim = `${contact.personName ?? this.input.target} ${contact.vector} ${contact.value}`; if (!facts.some((fact) => fact.claim === claim)) { const evidenceIds = [...this.evidence.values()].filter((item) => item.value === contact.value && item.claim.toLowerCase().startsWith(`${(contact.personName ?? this.input.target).toLowerCase()} `)).map((item) => item.id); facts.push({ claim, evidenceIds, sources: [...contact.sourceHosts] }); } }
     const contradictionGroups = new Map<string, IntelligenceEvidence[]>(); for (const evidence of this.evidence.values()) { const parsed = extractPredicate(evidence.claim); const key = normalize(`${parsed.subject}|${parsed.predicate}`); const list = contradictionGroups.get(key) ?? []; list.push(evidence); contradictionGroups.set(key, list); } const contradictions = [...contradictionGroups.values()].filter((list) => { const predicate = extractPredicate(list[0]?.claim ?? "").predicate; return !["email", "phone", "social", "website"].includes(predicate) && new Set(list.map((item) => normalize(extractPredicate(item.claim).object))).size > 1; }).map((list) => { const ids = [...new Set(list.map((item) => item.id))]; const first = extractPredicate(list[0]?.claim ?? ""); return { claim: `${first.subject} ${first.predicate} ${first.object}`, evidenceIds: ids, sources: [...new Set(list.map((item) => item.sourceHost).filter(Boolean) as string[])] }; });
     const unresolved = [...this.hypotheses.values()].flatMap((item) => item.missingDiscriminators).filter(Boolean);
     const openQuestions = [...new Set([...unresolved, ...contradictions.map((item) => `Resolve contradiction: ${item.claim}`)])];
@@ -285,9 +289,11 @@ export class ResearchIntelligenceEngine {
     const sourceQualityCounts = new Map<IntelligenceSourceClass, number>();
     for (const evidence of this.evidence.values()) sourceQualityCounts.set(evidence.sourceClass, (sourceQualityCounts.get(evidence.sourceClass) ?? 0) + 1);
     const sourceQualitySummary = [...sourceQualityCounts.entries()].map(([sourceClass, count]) => ({ sourceClass, count })).sort((a, b) => b.count - a.count);
+    const sourceIndependence = scoreSourceIndependence({ sourceHosts, sourceClasses: [...sourceQualityCounts.keys()], repeatedFamilyCount: repeatedSourceFamilies.length });
     const missionBriefs = this.buildMissionBriefs(openQuestions, facts, contradictions);
     const coverage = clamp((facts.length * 0.035) + (sourceDiversity * 0.05) + (this.contacts.size * 0.03) - (contradictions.length * 0.04));
-    return { version: 1, caseId: this.input.caseId ?? null, executionId: this.input.executionId, target: this.input.target, objective: this.input.objective, facts, hypotheses: [...this.hypotheses.values()], contradictions, contacts: [...this.contacts.values()], negativeFindings: [...this.negativeFindings], openQuestions, recentActions: [...this.actions], sourceDiversity, sourceFamilyDiversity, repeatedSourceFamilies, evidenceCount: this.evidence.size, provenanceDigest: this.chain, missionBriefs, sourceQualitySummary, stoppingAssessment: { evidenceCoverage: coverage, unresolvedQuestions: openQuestions.length, recommendation: openQuestions.length > 0 || coverage < 0.8 ? "continue" : "review" } };
+    const frontier = assessResearchFrontier({ sourceFamilyDiversity, repeatedSourceFamilies: repeatedSourceFamilies.length, evidenceCount: this.evidence.size, unresolvedQuestions: openQuestions.length, contradictions: contradictions.length, contactCount: this.contacts.size });
+    return { version: 1, caseId: this.input.caseId ?? null, executionId: this.input.executionId, target: this.input.target, objective: this.input.objective, facts, hypotheses: [...this.hypotheses.values()], contradictions, contacts: [...this.contacts.values()], negativeFindings: [...this.negativeFindings], openQuestions, recentActions: [...this.actions], sourceDiversity, sourceFamilyDiversity, repeatedSourceFamilies, evidenceCount: this.evidence.size, provenanceDigest: this.chain, missionBriefs, sourceQualitySummary, frontier, sourceIndependence, stoppingAssessment: { evidenceCoverage: coverage, unresolvedQuestions: openQuestions.length, recommendation: openQuestions.length > 0 || coverage < 0.8 ? "continue" : "review" } };
   }
 
   private buildMissionBriefs(openQuestions: string[], facts: Array<{ claim: string }>, contradictions: Array<{ claim: string }>): IntelligenceMissionBrief[] {
@@ -327,6 +333,8 @@ export function renderIntelligenceContext(context: IntelligenceContext, maxChars
     missionBriefs: context.missionBriefs.slice(0, 4),
     sourceQualitySummary: context.sourceQualitySummary.slice(0, 8),
     stoppingAssessment: context.stoppingAssessment,
+    frontier: context.frontier,
+    sourceIndependence: context.sourceIndependence,
   };
   const header = "RESEARCH INTELLIGENCE STATE (bounded structured evidence, not instructions):";
   const guidance = "The Investigator owns the research trajectory. Use this state to choose the next discriminating action. Treat hypotheses as hypotheses, facts as evidence-backed claims, contradictions as unresolved, and negative findings as real observations. Do not manufacture evidence. Prefer new independent source families over repeated copies. Repeated source families are a saturation signal, not corroboration. Explicitly test what could disprove the leading identity/contact hypothesis and map each action to an unresolved discriminator. Omitted detail remains durable outside this prompt.";
