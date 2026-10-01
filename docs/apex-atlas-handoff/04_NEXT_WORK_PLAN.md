@@ -117,3 +117,27 @@ Never:
 - delete durable history merely to fit provider context;
 - manufacture provider responses;
 - call partial success GREEN.
+
+## 2026-10-01 Gemini Boss hardening completed on PR #440
+
+The read-only diagnosis of the canonical 2026-10-01 run found and patched three concrete Boss control-plane defects:
+
+1. Terminal failure attribution could report the initially resolved model while the nested error described a later fallback model. Boss now tracks the actual last attempted model and emits a sanitized ordered attempt summary.
+2. Boss model catalogs/cooldown selection is now resolved per configured Gemini credential/project rather than reusing the first credential's catalog for every credential.
+3. HTTP 429 quota_exceeded is project/credential-scoped: Boss marks the exhausted credential's model cooldown and stops using that credential, then permits a separately configured credential/project to be attempted. It never treats multiple keys in one project as extra quota.
+
+Added regression coverage for deterministic, sanitized Boss attempt attribution and updated scripts/check-gemini-boss-model-boundary.mjs to encode the new legitimate project-failover contract.
+
+Implementation branch: apex-boss-fallback-hardening-2026-10-01
+Pull request: #440
+Base SHA: 15eca3ac70d03ce6c77c6f112cd273fe28f29d3c
+Latest branch SHA at this update: 96b2fc2af9ed1062919dfbb1fbf62446c799e79f
+
+No live Atlas launch, provider probe, or runtime retry was performed during this hardening pass.
+
+### Remaining verification before another canonical run
+
+- Run the full API-server typecheck/build/test/static-boundary suite on PR #440.
+- If CI remains unavailable, perform equivalent repository checks through an environment with the locked dependencies; do not infer green from static source inspection.
+- Re-review the Investigator context, Redis trace/event discrepancy, and provider-role boundaries.
+- Only after these checks should a fresh canonical UI-equivalent runtime be authorized.
