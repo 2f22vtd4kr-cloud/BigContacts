@@ -393,3 +393,11 @@ Regression coverage was added in `artifacts/api-server/src/src/lib/gemini-boss-f
 Static source/boundary checks performed in-chat all passed. GitHub workflow reporting was not yet available for the PR, and the execution environment could not clone the repository because outbound DNS/network access was unavailable. The PR #440 API build/typecheck/static-contract/regression gates now pass on the latest head; broader audit suites had stale Right-hand test assertions that were corrected in a4fbb5f and are being re-run.
 
 Do not launch Atlas again yet. The API build/typecheck/static-contract/regression gates pass on the latest head. Broader audit suites must finish their rerun after the Right-hand regression assertion repair. Continue bug hunting around Investigator context bounding, Redis trace vs durable event consistency, and Gemini role/provider boundaries. Do not authorize a fresh canonical runtime until those gates finish.
+
+## 2026-10-01 research architecture expansion
+
+A broader architecture review was performed against current deep-research systems and recent research, deliberately independent of the Gemini provider incident work. See `docs/apex-atlas-handoff/06_RESEARCH_ARCHITECTURE_REVIEW_2026-10-01.md`.
+
+The implementation batch adds deterministic research-frontier scoring, source-independence scoring, advisory knowledge-gap guidance in bounded Investigator context, and person-scoped contact evidence keys. It does not alter the core role law: Gemini remains control/oversight, Groq/Mistral remains Investigator, and the deterministic evidence substrate remains authoritative.
+
+Do not call this architecture GREEN until the batch has passed typecheck/build/contract tests, repeated bug-hunt review, and the required controlled live evidence audit.
