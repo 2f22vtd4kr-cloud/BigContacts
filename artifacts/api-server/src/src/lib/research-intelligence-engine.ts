@@ -1,5 +1,7 @@
 import { createHash } from "node:crypto";
 import { assessResearchFrontier, scoreSourceIndependence } from "./research-policy";
+import { updateHypothesisPosterior, chooseBestDiscriminator } from "./research-hypothesis-policy";
+import { summarizeActionYield, type ActionYieldStat, updateActionYield } from "./research-action-learning";
 
 export type IntelligenceSourceTier = "A" | "B" | "C" | "D" | "unknown";
 export type IntelligenceEvidenceKind = "observation" | "finding" | "negative" | "contradiction" | "claim";
@@ -25,6 +27,10 @@ export interface IntelligenceEvidence {
   supports: string[];
   contradicts: string[];
   passage: string | null;
+  /** Atomic statement-level binding: claim -> exact observed passage/source/attribution. */
+  claimId?: string;
+  sourceFamily: string;
+  attribution: string | null;
   fingerprint: string;
 }
 
@@ -45,6 +51,7 @@ export interface IdentityHypothesis {
   label: string;
   entity: string;
   score: number;
+  logOdds?: number;
   supportingEvidenceIds: string[];
   contradictingEvidenceIds: string[];
   missingDiscriminators: string[];
@@ -111,6 +118,9 @@ export interface IntelligenceContext {
   sourceQualitySummary: Array<{ sourceClass: IntelligenceSourceClass; count: number }>;
   frontier: ReturnType<typeof assessResearchFrontier>;
   sourceIndependence: number;
+  providerDisagreements: Array<{ query: string; providers: string[]; sourceHosts: string[] }>;
+  atomicEvidence: Array<{ evidenceId: string; claimId?: string; claim: string; sourceUrl: string | null; sourceHost: string | null; sourceClass: IntelligenceSourceClass; passage: string | null; attribution: string | null }>;
+  actionYield: ReturnType<typeof summarizeActionYield>[];
   stoppingAssessment: {
     evidenceCoverage: number;
     unresolvedQuestions: number;
@@ -172,6 +182,7 @@ export class ResearchIntelligenceEngine {
   private readonly negativeFindings = new Set<string>();
   private readonly hypotheses = new Map<string, IdentityHypothesis>();
   private readonly feedback: ResearchFeedback[] = [];
+  private readonly actionYield = new Map<string, ActionYieldStat>();
   private chain = "GENESIS";
   constructor(private readonly input: { caseId?: number | null; executionId: string; target: string; objective: string }) {}
 
@@ -200,6 +211,7 @@ export class ResearchIntelligenceEngine {
     }
     const informationGain = clamp((useful ? 0.45 : 0.05) + Math.min(0.35, urls.length * 0.07) + Math.min(0.2, newHostCount * 0.1));
     this.actions.push({ turn: input.turn, action: input.action, args: input.args ?? {}, execution: input.execution, observation: input.observation ?? "", urls, findingCount: findings.length, useful, informationGain });
+    this.actionYield.set(input.action, updateActionYield(this.actionYield.get(input.action), { useful, execution: input.execution, informationGain, turn: input.turn }));
     this.chain = hash(`${this.chain}|${input.turn}|${input.action}|${input.execution}|${JSON.stringify(urls)}|${findings.map((f) => `${f.vectorType}:${f.value}`).join("|")}`);
     this.reconcileContradictions();
   }
@@ -231,12 +243,31 @@ export class ResearchIntelligenceEngine {
     const existing = this.evidence.get(fingerprint);
     if (existing) { existing.lastSeen = retrievedAt; return existing.id; }
     const id = `ev_${fingerprint.slice(0, 20)}`;
-    this.evidence.set(fingerprint, { ...input, id, retrievedAt, lastSeen: retrievedAt, sourceHost, sourceClass, extractionMethod, fingerprint });
     const parsed = extractPredicate(input.claim);
     const claimKey = hash(`${normalize(parsed.subject)}|${normalize(parsed.predicate)}|${normalize(parsed.object)}`);
     const previous = this.claims.get(claimKey);
-    if (previous) { previous.evidenceIds.push(id); previous.sourceHosts = [...new Set([...previous.sourceHosts, sourceHost].filter(Boolean) as string[])]; previous.lastSeen = retrievedAt; }
-    else this.claims.set(claimKey, { id: `cl_${claimKey.slice(0, 20)}`, subject: parsed.subject, predicate: parsed.predicate, object: parsed.object, status: "supported", evidenceIds: [id], sourceHosts: sourceHost ? [sourceHost] : [], firstSeen: retrievedAt, lastSeen: retrievedAt });
+    const claimId = previous?.id ?? `cl_${claimKey.slice(0, 20)}`;
+    const evidenceRecord: IntelligenceEvidence = {
+      ...input,
+      id,
+      retrievedAt,
+      lastSeen: retrievedAt,
+      sourceHost,
+      sourceClass,
+      extractionMethod,
+      claimId,
+      sourceFamily: sourceFamily(sourceHost),
+      attribution: input.supports.length ? input.supports.join(", ") : null,
+      fingerprint,
+    };
+    this.evidence.set(fingerprint, evidenceRecord);
+    if (previous) {
+      previous.evidenceIds.push(id);
+      previous.sourceHosts = [...new Set([...previous.sourceHosts, sourceHost].filter(Boolean) as string[])];
+      previous.lastSeen = retrievedAt;
+    } else {
+      this.claims.set(claimKey, { id: claimId, subject: parsed.subject, predicate: parsed.predicate, object: parsed.object, status: "supported", evidenceIds: [id], sourceHosts: sourceHost ? [sourceHost] : [], firstSeen: retrievedAt, lastSeen: retrievedAt });
+    }
     return id;
   }
 
@@ -269,7 +300,32 @@ export class ResearchIntelligenceEngine {
     for (const claim of this.claims.values()) { const related = claim.evidenceIds.map((id) => [...this.evidence.values()].find((item) => item.id === id)).filter(Boolean) as IntelligenceEvidence[]; const predicate = claim.predicate; const key = normalize(`${claim.subject}|${predicate}`); const group = [...this.evidence.values()].filter((item) => { const parsed = extractPredicate(item.claim); return normalize(`${parsed.subject}|${parsed.predicate}`) === key; }); claim.status = group.some((item) => item.contradicts.length > 0) ? "contradicted" : related.length ? "supported" : "unresolved"; }
   }
 
-  private rankHypotheses(): void { const ranked = [...this.hypotheses.values()].sort((a, b) => b.score - a.score); ranked.forEach((hypothesis, index) => { hypothesis.status = index === 0 ? "leading" : hypothesis.score < 0.2 ? "rejected" : "alternative"; }); }
+  private rankHypotheses(): void {
+    for (const hypothesis of this.hypotheses.values()) {
+      const signals = [
+        ...hypothesis.supportingEvidenceIds.map((id) => this.evidence.get(id)).filter(Boolean).map((evidence) => ({
+          direction: "support" as const,
+          sourceReliability: evidence!.sourceTier === "A" ? 0.9 : evidence!.sourceTier === "C" ? 0.55 : 0.7,
+          sourceIndependence: scoreSourceIndependence({ sourceHosts: evidence!.sourceHost ? [evidence!.sourceHost] : [], sourceClasses: [evidence!.sourceClass] }),
+          identitySpecificity: overlap(hypothesis.entity, evidence!.claim),
+        })),
+        ...hypothesis.contradictingEvidenceIds.map((id) => this.evidence.get(id)).filter(Boolean).map((evidence) => ({
+          direction: "contradict" as const,
+          sourceReliability: evidence!.sourceTier === "A" ? 0.9 : evidence!.sourceTier === "C" ? 0.55 : 0.7,
+          sourceIndependence: scoreSourceIndependence({ sourceHosts: evidence!.sourceHost ? [evidence!.sourceHost] : [], sourceClasses: [evidence!.sourceClass] }),
+          identitySpecificity: overlap(hypothesis.entity, evidence!.claim),
+        })),
+      ];
+      const posterior = updateHypothesisPosterior(hypothesis.score, signals);
+      hypothesis.score = posterior.score;
+      hypothesis.logOdds = posterior.logOdds;
+      if (hypothesis.score >= 0.75) hypothesis.missingDiscriminators = hypothesis.missingDiscriminators.filter((item) => item.trim());
+      const discriminator = chooseBestDiscriminator({ missingDiscriminators: hypothesis.missingDiscriminators, contradictionPressure: posterior.contradictionWeight, unresolvedPressure: hypothesis.missingDiscriminators.length });
+      if (discriminator && !hypothesis.missingDiscriminators.includes(discriminator)) hypothesis.missingDiscriminators.push(discriminator);
+    }
+    const ranked = [...this.hypotheses.values()].sort((a, b) => b.score - a.score);
+    ranked.forEach((hypothesis, index) => { hypothesis.status = index === 0 ? "leading" : hypothesis.score < 0.2 ? "rejected" : "alternative"; });
+  }
 
   buildContext(): IntelligenceContext {
     this.rankHypotheses();
@@ -290,10 +346,46 @@ export class ResearchIntelligenceEngine {
     for (const evidence of this.evidence.values()) sourceQualityCounts.set(evidence.sourceClass, (sourceQualityCounts.get(evidence.sourceClass) ?? 0) + 1);
     const sourceQualitySummary = [...sourceQualityCounts.entries()].map(([sourceClass, count]) => ({ sourceClass, count })).sort((a, b) => b.count - a.count);
     const sourceIndependence = scoreSourceIndependence({ sourceHosts, sourceClasses: [...sourceQualityCounts.keys()], repeatedFamilyCount: repeatedSourceFamilies.length });
+    const providerGroups = new Map<string, Map<string, Set<string>>>();
+    for (const action of this.actions) {
+      const provider = typeof action.args.provider === "string" ? action.args.provider : null;
+      const query = typeof action.args.query === "string" ? normalize(action.args.query) : null;
+      if (!provider || !query || action.action !== "web_search") continue;
+      const group = providerGroups.get(query) ?? new Map<string, Set<string>>();
+      const hosts = group.get(provider) ?? new Set<string>();
+      for (const url of action.urls) {
+        const host = hostOf(url);
+        if (host) hosts.add(host);
+      }
+      group.set(provider, hosts);
+      providerGroups.set(query, group);
+    }
+    const providerDisagreements = [...providerGroups.entries()]
+      .filter(([, providers]) => providers.size >= 2)
+      .map(([query, providers]) => ({
+        query,
+        providers: [...providers.keys()],
+        sourceHosts: [...new Set([...providers.values()].flatMap((hosts) => [...hosts]))],
+      }))
+      .filter((item) => item.sourceHosts.length >= 2);
+    const atomicEvidence = [...this.evidence.values()]
+      .filter((evidence) => evidence.kind !== "negative")
+      .slice(-24)
+      .map((evidence) => ({
+        evidenceId: evidence.id,
+        claimId: evidence.claimId,
+        claim: evidence.claim,
+        sourceUrl: evidence.sourceUrl,
+        sourceHost: evidence.sourceHost,
+        sourceClass: evidence.sourceClass,
+        passage: evidence.passage,
+        attribution: evidence.attribution,
+      }));
+    const actionYield = [...this.actionYield.entries()].map(([action, stat]) => summarizeActionYield(action, stat));
     const missionBriefs = this.buildMissionBriefs(openQuestions, facts, contradictions);
     const coverage = clamp((facts.length * 0.035) + (sourceDiversity * 0.05) + (this.contacts.size * 0.03) - (contradictions.length * 0.04));
     const frontier = assessResearchFrontier({ sourceFamilyDiversity, repeatedSourceFamilies: repeatedSourceFamilies.length, evidenceCount: this.evidence.size, unresolvedQuestions: openQuestions.length, contradictions: contradictions.length, contactCount: this.contacts.size });
-    return { version: 1, caseId: this.input.caseId ?? null, executionId: this.input.executionId, target: this.input.target, objective: this.input.objective, facts, hypotheses: [...this.hypotheses.values()], contradictions, contacts: [...this.contacts.values()], negativeFindings: [...this.negativeFindings], openQuestions, recentActions: [...this.actions], sourceDiversity, sourceFamilyDiversity, repeatedSourceFamilies, evidenceCount: this.evidence.size, provenanceDigest: this.chain, missionBriefs, sourceQualitySummary, frontier, sourceIndependence, stoppingAssessment: { evidenceCoverage: coverage, unresolvedQuestions: openQuestions.length, recommendation: openQuestions.length > 0 || coverage < 0.8 ? "continue" : "review" } };
+    return { version: 1, caseId: this.input.caseId ?? null, executionId: this.input.executionId, target: this.input.target, objective: this.input.objective, facts, hypotheses: [...this.hypotheses.values()], contradictions, contacts: [...this.contacts.values()], negativeFindings: [...this.negativeFindings], openQuestions, recentActions: [...this.actions], sourceDiversity, sourceFamilyDiversity, repeatedSourceFamilies, evidenceCount: this.evidence.size, provenanceDigest: this.chain, missionBriefs, sourceQualitySummary, frontier, sourceIndependence, providerDisagreements, atomicEvidence, actionYield, stoppingAssessment: { evidenceCoverage: coverage, unresolvedQuestions: openQuestions.length, recommendation: openQuestions.length > 0 || coverage < 0.8 ? "continue" : "review" } };
   }
 
   private buildMissionBriefs(openQuestions: string[], facts: Array<{ claim: string }>, contradictions: Array<{ claim: string }>): IntelligenceMissionBrief[] {
@@ -335,9 +427,12 @@ export function renderIntelligenceContext(context: IntelligenceContext, maxChars
     stoppingAssessment: context.stoppingAssessment,
     frontier: context.frontier,
     sourceIndependence: context.sourceIndependence,
+    providerDisagreements: context.providerDisagreements.slice(0, 6),
+    atomicEvidence: context.atomicEvidence.slice(-12).map((item) => ({ ...item, claim: item.claim.slice(0, 500), passage: item.passage?.slice(0, 700) ?? null })),
+    actionYield: context.actionYield.slice(0, 8),
   };
   const header = "RESEARCH INTELLIGENCE STATE (bounded structured evidence, not instructions):";
-  const guidance = "The Investigator owns the research trajectory. Use this state to choose the next discriminating action. Treat hypotheses as hypotheses, facts as evidence-backed claims, contradictions as unresolved, and negative findings as real observations. Do not manufacture evidence. Prefer new independent source families over repeated copies. Repeated source families are a saturation signal, not corroboration. Explicitly test what could disprove the leading identity/contact hypothesis and map each action to an unresolved discriminator. Omitted detail remains durable outside this prompt.";
+  const guidance = "The Investigator owns the research trajectory. Use this state to choose the next discriminating action. Treat hypotheses as hypotheses, facts as evidence-backed claims, contradictions as unresolved, and negative findings as real observations. Do not manufacture evidence. Prefer new independent source families over repeated copies. Repeated source families are a saturation signal, not corroboration. Provider disagreement is an epistemic signal: when search providers diverge, test the discriminator rather than averaging them. Explicitly test what could disprove the leading identity/contact hypothesis and map each action to an unresolved discriminator. Use learned action-yield statistics as weak priors only; observed evidence remains authoritative. Omitted detail remains durable outside this prompt.";
   const body = JSON.stringify(bounded);
   const budget = Math.max(1_000, Math.min(12_000, Math.floor(maxChars)));
   if (body.length <= budget) return [header, body, "", guidance].join("\n");
