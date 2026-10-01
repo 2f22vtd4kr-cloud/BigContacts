@@ -1458,3 +1458,46 @@ Its terminal outcome:
 Do not change that fact.
 
 Continue from verified repository truth.
+
+## 2026-10-01 successor continuation — post-PR #451
+
+The repository has now advanced beyond the documentation-only `4ff71d211830c9221b5a57150fc23a4f1f4d727e` boundary.
+
+### Current implementation boundary
+
+Merged PR #451 produced:
+
+`3fa9559a3805a4d322228c85d2c6ef0a51aa48ab`
+
+The change is intentionally narrow. `research-terminal-gate.ts` now uses the lineage-aware `IntelligenceContext.independentSourceUnits` value already produced by `ResearchIntelligenceEngine`, rather than recomputing independence from hostnames. This keeps deterministic terminal authority aligned with the evidence graph's source-lineage semantics.
+
+Regression test:
+
+`artifacts/api-server/src/src/test/research-terminal-gate.test.ts`
+
+### Verification
+
+Corrected PR-head verification passed:
+- Apex API Build;
+- workspace typecheck;
+- strict provenance/provider-cache regression tests;
+- Research Quality Contracts.
+
+A patch-local TypeScript error was encountered and corrected before merge; do not report the failed intermediate run as the final test state.
+
+### Current release state
+
+**NOT GREEN / NOT production-certified.**
+
+This fix does not prove:
+- Replit synchronization;
+- live provider execution;
+- Gemini Boss/Right-hand runtime success;
+- Groq/Mistral Investigator runtime success;
+- real tool observations;
+- durable live evidence;
+- sequential three-target completion.
+
+### Next successor action
+
+Treat `3fa9559a3805a4d322228c85d2c6ef0a51aa48ab` as the latest verified code boundary, then verify the current `main` SHA again before any further implementation or runtime work. Synchronize the real runtime, complete readiness/static gates, and only then run the single authorized canonical three-target audit.
