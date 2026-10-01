@@ -9,7 +9,7 @@
 import { safeOutboundFetch } from "./ssrf-safe-fetch";
 import { runProviderCall } from "./provider-gate";
 import { providerErrorCode, classifyProviderHttpStatus } from "./provider-error-diagnostics";
-import { chooseGeminiControlModels, getGeminiThinkingLevel, chooseAdaptiveGeminiThinkingLevel } from "./gemini-model-pool";
+import { chooseGeminiControlModels, getGeminiThinkingLevel } from "./gemini-model-pool";
 import { selectGeminiThinkingLevel } from "./gemini-thinking-policy";
 
 const GEMINI_GENERATE_CONTENT = "https://generativelanguage.googleapis.com/v1beta/models";
