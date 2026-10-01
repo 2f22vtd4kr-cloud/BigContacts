@@ -381,3 +381,15 @@ Official Gemini provider research checked during handoff preparation: Google doc
 The durable successor volumes were refreshed after PR #439 and are now part of current main. The current main SHA after documentation finalization is `94e58f94529d30ed9cfd8a4bbba241272b619869`. Always verify a newer SHA before work begins.
 
 The live runtime evidence remains the earlier pre-PR-439 job `391bbe22-0414-4ed4-965d-5714181af242`; PR #439 and subsequent documentation commits have not been validated by a new canonical three-target run. The correct next step is source/test verification followed by a fresh authorized runtime audit, not a claim of recovery.
+
+## 2026-10-01 Gemini Boss fallback hardening — PR #440
+
+Read-only diagnosis followed the canonical UI-equivalent run job 77c7fb64-8c85-4d23-b1f2-0e048b9e8012, which failed before Right-hand/Investigator because Gemini Boss exhausted bounded same-role fallback after an HTTP 503. The 503 is a provider-unavailable class, not proof of quota exhaustion.
+
+PR #440 (`apex-boss-fallback-hardening-2026-10-01`) implements three fixes on top of main SHA 15eca3ac70d03ce6c77c6f112cd273fe28f29d3c: (1) Boss terminal attribution now reports the actual last attempted model and a sanitized ordered attempt summary; (2) Boss resolves live model catalogs per Gemini credential/project and keeps cooldown state credential-scoped; (3) a 429 `quota_exceeded` stops the exhausted credential but permits a separately configured credential/project to be tried. This preserves the rule that multiple keys in one Google project do not create extra quota.
+
+Regression coverage was added in `artifacts/api-server/src/src/lib/gemini-boss-fallback.test.ts`, and `scripts/check-gemini-boss-model-boundary.mjs` was updated for project-scoped quota failover.
+
+Static source/boundary checks performed in-chat all passed. GitHub workflow reporting was not yet available for the PR, and the execution environment could not clone the repository because outbound DNS/network access was unavailable. Therefore PR #440 is NOT yet verified by full typecheck/build/test execution.
+
+Do not launch Atlas again yet. Next required gate is full repository verification of PR #440, followed by continued bug hunting around Investigator context bounding, Redis trace vs durable event consistency, and Gemini role/provider boundaries. Only then authorize a fresh canonical runtime.
