@@ -386,13 +386,22 @@ function chooseGeminiModelCandidates(entries: GeminiModelCatalogEntry[]): string
   return chooseGeminiControlModels("boss", catalogModels);
 }
 
-let cachedBossModelSelection: { expiresAt: number; selection: GeminiBossModelSelection; credentialFingerprint: string } | null = null;
+const cachedBossModelSelections = new Map<string, { expiresAt: number; selection: GeminiBossModelSelection }>();
 function geminiCredentialFingerprint(key: string): string { return createHash("sha256").update(key).digest("hex").slice(0, 16); }
+
+export type GeminiBossAttemptDiagnostic = {
+  model: string;
+  keyName: string;
+  httpStatus: number | null;
+  providerErrorCode: string | null;
+  failureClass: string | null;
+};
 
 type GeminiTextGenerationResult = {
   model: string;
   raw: string | null;
   error: string | null;
+  attempts: GeminiBossAttemptDiagnostic[];
 };
 const DEFAULT_GEMINI_BOSS_REQUEST_TIMEOUT_MS = 30_000;
 const DEFAULT_GEMINI_BOSS_OVERALL_TIMEOUT_MS = 240_000;
@@ -509,6 +518,8 @@ export async function generateGeminiBossText(
   // Investigator was ever selected. Keep model fallback bounded and size the
   // response budget to the actual control contract.
   let lastError = `Gemini Boss ${selection.model} did not return text.`;
+  let lastAttemptModel = selection.model;
+  const attempts: GeminiBossAttemptDiagnostic[] = [];
   // Boss is a small control-plane JSON decision, but live Gemini latency has
   // already been measured above 10s. Keep the boundary bounded while allowing a
   // normal provider response enough time to arrive and leaving a real fallback
@@ -518,15 +529,18 @@ export async function generateGeminiBossText(
 
   for (const entry of keyEntries) {
     const modelScope = geminiCredentialFingerprint(entry.key);
+    const credentialSelection = await resolveGeminiBossModel(entry.name);
+    if (credentialSelection.status !== "resolved") continue;
     const models = chooseAvailableGeminiControlModels(
       "boss",
-      [selection.model, ...(selection.candidateModels ?? [])],
+      [credentialSelection.model, ...(credentialSelection.candidateModels ?? [])],
       modelScope,
     ).slice(0, 4);
     for (const model of models) {
       const remainingMs = bossDeadline - Date.now();
       if (remainingMs <= 0) return { model: lastAttemptModel, raw: null, error: "Gemini Boss generation deadline exceeded.", attempts };
       const attemptStartedAt = Date.now();
+      lastAttemptModel = model;
       const attemptTimeoutMs = Math.min(bossRequestTimeoutMs, Math.max(1_000, remainingMs));
       let requestDeadlineFired = false;
       let overallDeadlineFired = false;
@@ -826,6 +840,7 @@ export async function generateGeminiBossText(
         }
 
         if (response.status === 503) {
+          attempts.push({ model, keyName: entry.name, httpStatus: response.status, providerErrorCode: providerErrorCodeValue, failureClass });
           lastError = `Gemini Boss ${model} Interactions API ${failureClass ?? "provider_unavailable"} HTTP 503.`;
           logger.warn(
             { model, status: response.status, keyName: entry.name, failureClass, responseShape },
@@ -834,6 +849,7 @@ export async function generateGeminiBossText(
           continue;
         }
         if (!response.ok) {
+          attempts.push({ model, keyName: entry.name, httpStatus: response.status, providerErrorCode: providerErrorCodeValue, failureClass });
           lastError = `Gemini Boss ${model} Interactions API ${failureClass ?? "http_error"} HTTP ${response.status}.`;
           // 401 is a credential failure: abandon this key and try the next
           // configured credential. A 403 is different for Gemini API keys:
@@ -977,8 +993,15 @@ export async function resolveGeminiBossModel(preferredKeyName?: string): Promise
   }
   const cachedCredential = cachedBossModelSelection?.selection.keyName ? entries.find((entry) => entry.name === cachedBossModelSelection?.selection.keyName) : null;
   const cachedFingerprint = cachedCredential ? geminiCredentialFingerprint(cachedCredential.key) : null;
-  if (!preferredKeyName && cachedBossModelSelection && cachedBossModelSelection.expiresAt > Date.now() && cachedFingerprint === cachedBossModelSelection.credentialFingerprint) {
-    return cachedBossModelSelection.selection;
+  if (!preferredKeyName && cachedBossModelSelections.size > 0) {
+    const cached = keys
+      .map((entry) => cachedBossModelSelections.get(geminiCredentialFingerprint(entry.key)))
+      .find((value) => value && value.expiresAt > Date.now());
+    if (cached) return cached.selection;
+  }
+  if (preferredKeyName && cachedFingerprint) {
+    const cached = cachedBossModelSelections.get(cachedFingerprint);
+    if (cached && cached.expiresAt > Date.now()) return cached.selection;
   }
 
   for (const entry of keys) {
@@ -1001,9 +1024,10 @@ export async function resolveGeminiBossModel(preferredKeyName?: string): Promise
         candidateModels: candidates,
         keyName: entry.name,
       };
-      if (!preferredKeyName) {
-        cachedBossModelSelection = { expiresAt: Date.now() + 10 * 60 * 1000, selection, credentialFingerprint: geminiCredentialFingerprint(entry.key) };
-      }
+      cachedBossModelSelections.set(geminiCredentialFingerprint(entry.key), {
+        expiresAt: Date.now() + 10 * 60 * 1000,
+        selection,
+      });
       return selection;
     } catch {
       // Try the next configured slot without exposing key or provider details.
