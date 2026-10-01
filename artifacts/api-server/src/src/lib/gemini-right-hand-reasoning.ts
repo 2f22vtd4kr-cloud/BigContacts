@@ -104,7 +104,16 @@ export type GeminiRightHandStatus = { configured: boolean; model: string; fallba
 export type GeminiRightHandCaseReasoningResult = { status: "completed" | "unavailable"; model: string; actionId: string | null; decision: string | null; reason: string | null; confidence: number | null; error: string | null };
 export type GeminiRightHandDiscoveryAdviceResult = { status: "completed" | "unavailable"; model: string; decision: string | null; reason: string | null; focusLanes: string[]; confidence: number | null; error: string | null };
 const RIGHT_HAND_KEY_ENV = "GEMINI_RIGHT_HAND_API_KEY";
-function key(): string | null { return process.env[RIGHT_HAND_KEY_ENV]?.trim() || null; }
+const RIGHT_HAND_KEY_NAMES = [
+  RIGHT_HAND_KEY_ENV,
+  ...Array.from({ length: 4 }, (_, index) => `${RIGHT_HAND_KEY_ENV}_${index + 2}`),
+];
+function rightHandKeyEntries(): Array<{ name: string; key: string }> {
+  return RIGHT_HAND_KEY_NAMES
+    .map((name) => ({ name, key: process.env[name]?.trim() || "" }))
+    .filter((entry) => Boolean(entry.key));
+}
+function key(): string | null { return rightHandKeyEntries()[0]?.key || null; }
 
 function chooseRightHandModels(entries: GeminiCatalogEntry[], scope = "global"): string[] {
   const catalogModels = entries
@@ -113,8 +122,8 @@ function chooseRightHandModels(entries: GeminiCatalogEntry[], scope = "global"):
   return chooseAvailableGeminiControlModels("right_hand", catalogModels, scope);
 }
 
-async function resolveModelChain(scope = "global"): Promise<string[]> {
-  const apiKey = key();
+async function resolveModelChain(scope = "global", apiKeyOverride?: string): Promise<string[]> {
+  const apiKey = apiKeyOverride?.trim() || key();
   if (!apiKey) return [];
 
   const fingerprint = credentialFingerprint(apiKey);
@@ -209,19 +218,22 @@ function parseGeminiRightHandResponse(responseBody: string, model: string): Gemi
 }
 
 async function request(system: string, user: string, responseFormat?: Record<string, unknown>): Promise<GeminiRequestResult> {
-  const apiKey = key();
-  if (!apiKey) return { raw: "", error: "GEMINI_RIGHT_HAND_API_KEY is not configured.", model: GEMINI_RIGHT_HAND_MODEL };
+  const keyEntries = rightHandKeyEntries();
+  if (!keyEntries.length) return { raw: "", error: "GEMINI_RIGHT_HAND_API_KEY is not configured.", model: GEMINI_RIGHT_HAND_MODEL };
   // Right-hand is a text-only oversight role. One control turn must be one bounded
-  // request to the configured model; model catalog probing and equivalent-model
-  // fan-out consume free-tier request budget and are not research capabilities.
-  // Resolve the live Gemini catalog for this credential. The preferred models
-  // are the current high-volume Flash-Lite models; provider capacity/entitlement
-  // failures may advance through the full stable Flash text pool.
-  // No Groq/Mistral substitution is permitted here.
-  const modelScope = credentialFingerprint(apiKey);
-  const resolvedChain = await resolveModelChain(modelScope);
-  const chain = resolvedChain.slice(0, MAX_MODEL_ATTEMPTS);
-  if (chain.length === 0) {
+  // request to a configured Gemini credential/project. Each credential gets its own
+  // live catalog and cooldown scope. This permits legitimate multi-project free-tier
+  // capacity without pretending that multiple keys in the same project create extra
+  // quota. No Groq/Mistral substitution is permitted here.
+  const candidateAttempts: Array<{ apiKey: string; keyName: string; model: string; modelScope: string }> = [];
+  for (const entry of keyEntries) {
+    const modelScope = credentialFingerprint(entry.key);
+    const resolvedChain = await resolveModelChain(modelScope, entry.key);
+    for (const model of resolvedChain.slice(0, MAX_MODEL_ATTEMPTS)) {
+      candidateAttempts.push({ apiKey: entry.key, keyName: entry.name, model, modelScope });
+    }
+  }
+  if (!candidateAttempts.length) {
     return { raw: "", error: "Gemini Right-hand has no compatible stable Gemini Flash model in the live catalog.", model: GEMINI_RIGHT_HAND_MODEL };
   }
   const failures: string[] = [];
@@ -230,13 +242,14 @@ async function request(system: string, user: string, responseFormat?: Record<str
   const deadline = Date.now() + configuredOverallTimeoutMs;
   const systemPrompt = `${apexOrientationCompact("right_hand")}\\n\\n${system}`;
 
-  for (const model of chain) {
+  for (const candidate of candidateAttempts) {
+    const { apiKey, keyName, model, modelScope } = candidate;
     const remainingMs = deadline - Date.now();
     if (remainingMs <= 0) {
       return {
         raw: "",
         error: `Gemini Right-hand deadline exceeded after ${configuredOverallTimeoutMs}ms.`,
-        model: chain[chain.length - 1] ?? GEMINI_RIGHT_HAND_MODEL,
+        model: candidateAttempts[candidateAttempts.length - 1]?.model ?? GEMINI_RIGHT_HAND_MODEL,
       };
     }
 
@@ -706,7 +719,7 @@ function compactDiscovery(file: DiscoveryCaseFile): string {
     })),
   }, null, 2);
 }
-export function getGeminiRightHandStatus(): GeminiRightHandStatus { return { configured: Boolean(key()), model: GEMINI_RIGHT_HAND_MODEL, fallbackModels: [...GEMINI_RIGHT_HAND_FALLBACK_MODELS], endpoint: GEMINI_INTERACTIONS_API, role: "right_hand_advisor", capability: "case_file_reasoning_only" }; }
+export function getGeminiRightHandStatus(): GeminiRightHandStatus { return { configured: rightHandKeyEntries().length > 0, model: GEMINI_RIGHT_HAND_MODEL, fallbackModels: [...GEMINI_RIGHT_HAND_FALLBACK_MODELS], endpoint: GEMINI_INTERACTIONS_API, role: "right_hand_advisor", capability: "case_file_reasoning_only" }; }
 export async function runGeminiRightHandCaseReasoning(input: { file: ResearchCaseFile; iteration: number }): Promise<GeminiRightHandCaseReasoningResult> { const queued = input.file.actionQueue.filter((action) => action.status === "queued"); const system = "You are Apex Atlas Right Hand. Reason only over the supplied case file. Never browse, use external research, or invent evidence, contacts, people, URLs, or facts. Recommend exactly one existing queued action. Return JSON only."; const user = `Iteration ${input.iteration}. Identify what is newly unresolved, which contact vectors are still pending, and the highest-leverage complementary queued action.\nCASE:\n${compactCase(input.file)}\n\nReturn {\"actionId\":\"exact queued action id\",\"decision\":\"short recommendation\",\"reason\":\"concrete case-file evidence-gap reason\",\"confidence\":0.0}.`; const result = await request(system, user, { type: "text", mime_type: "application/json", schema: { type: "object", properties: { actionId: { type: "string" }, decision: { type: "string" }, reason: { type: "string" }, confidence: { type: "number" } }, required: ["actionId", "decision", "reason", "confidence"] } }); if (result.error) return { status: "unavailable", model: result.model, actionId: null, decision: null, reason: null, confidence: null, error: result.error }; const parsed = extractJson(result.raw); const actionId = typeof parsed?.actionId === "string" ? parsed.actionId.trim() : ""; const action = queued.find((candidate) => candidate.id === actionId); const decision = typeof parsed?.decision === "string" ? parsed.decision.trim() : ""; const reason = typeof parsed?.reason === "string" ? parsed.reason.trim() : ""; const confidence = typeof parsed?.confidence === "number" && Number.isFinite(parsed.confidence) ? Math.max(0, Math.min(1, parsed.confidence)) : null; if (!action || !decision || !reason) return { status: "unavailable", model: result.model, actionId: null, decision: null, reason: null, confidence, error: `Gemini Right-hand ${result.model} returned an invalid or non-queued recommendation.` }; return { status: "completed", model: result.model, actionId: action.id, decision, reason, confidence, error: null }; }
 export async function runGeminiRightHandDiscoveryAdvice(input: { file: DiscoveryCaseFile; iteration: number }): Promise<GeminiRightHandDiscoveryAdviceResult> { const system = "You are Apex Atlas Right Hand for public-record discovery. Reason only over supplied discovery case evidence. Never browse, use external research, or invent people, contacts, relationships, or URLs. Return JSON only."; const user = `Iteration ${input.iteration}. Recommend the most useful next research direction from the existing discovery frontier.\nDISCOVERY CASE:\n${compactDiscovery(input.file)}\n\nReturn {\"decision\":\"...\",\"reason\":\"...\",\"focusLanes\":[\"...\"],\"confidence\":0.0}.`; const result = await request(system, user, { type: "text", mime_type: "application/json", schema: { type: "object", properties: { decision: { type: "string" }, reason: { type: "string" }, focusLanes: { type: "array", items: { type: "string" } }, confidence: { type: "number" } }, required: ["decision", "reason", "focusLanes", "confidence"] } }); if (result.error) return { status: "unavailable", model: result.model, decision: null, reason: null, focusLanes: [], confidence: null, error: result.error }; const parsed = extractJson(result.raw); if (!parsed) return { status: "unavailable", model: result.model, decision: null, reason: null, focusLanes: [], confidence: null, error: `Gemini Right-hand ${result.model} returned invalid discovery JSON.` }; return { status: "completed", model: result.model, decision: typeof parsed.decision === "string" ? parsed.decision : null, reason: typeof parsed.reason === "string" ? parsed.reason : null, focusLanes: Array.isArray(parsed.focusLanes) ? parsed.focusLanes.filter((v): v is string => typeof v === "string") : [], confidence: typeof parsed.confidence === "number" ? Math.max(0, Math.min(1, parsed.confidence)) : null, error: null }; }
 export async function runGeminiRightHandFreeJson(userPrompt: string, systemExtra = "Reply with ONE JSON object only. Never invent contacts, people, or URLs.", responseFormat?: Record<string, unknown>): Promise<{ status: "completed" | "unavailable"; model: string; raw: string | null; error: string | null }> { const result = await request("You are the Apex Atlas Right Hand. Advise the Boss only. Never browse or act as Investigator. Never invent evidence, contacts, people, relationships, or URLs. " + systemExtra, userPrompt, responseFormat ?? { type: "text", mime_type: "application/json", schema: { type: "object" } }); return result.raw ? { status: "completed", model: result.model, raw: result.raw, error: null } : { status: "unavailable", model: result.model, raw: null, error: result.error }; }
