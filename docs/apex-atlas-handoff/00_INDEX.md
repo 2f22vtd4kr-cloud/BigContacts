@@ -145,3 +145,16 @@ It is a deterministic evidence-accounting fix only: terminal evaluation now cons
 Static verification for the corrected PR head passed the Apex API build, workspace typecheck, strict provenance/provider-cache tests, and Research Quality Contracts. The initial typecheck failure during the patch was corrected before merge.
 
 **Release remains NOT GREEN.** The remaining proof obligation is empirical runtime validation on the synchronized deployment environment, followed by the authorized canonical three-target audit.
+
+## 2026-10-01 live-runtime reconciliation
+
+Fresh Replit audit job: `96a80589-f510-4703-b79f-cd8264e15715`, run on `21f2b22447698c7de2f4026f70e33693c901cf26`.
+
+Observed terminal boundary: Gemini Boss opening. Three eligible Gemini models returned HTTP 503 `service_unavailable`; no Right-hand, Investigator, discovery, evidence, or entity/card admission occurred. Durable counts stayed at zero and the active lane was released.
+
+The audit did not establish a global Gemini outage or invalid request shape. Current official Gemini documentation confirms the relevant Interactions API models/request format.
+
+Post-audit deterministic test reconciliation was merged into current main:
+`14eff01d17ab3d95340139521405ca8ca9edccf1`.
+
+Release remains **NOT GREEN**. No fresh live research run should be launched merely to compensate for this failure; the next runtime attempt requires a provider-capacity/readiness decision and must remain a single authorized audit.
