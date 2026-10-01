@@ -95,6 +95,31 @@ describe("Gemini Right-hand text-only control transport", () => {
     expect(attempts.at(-1)?.key).toBe("test-key-project-two");
   });
 
+  it("caches the live model catalog independently per credential", async () => {
+    process.env.GEMINI_RIGHT_HAND_API_KEY = "test-key-cache-one";
+    process.env.GEMINI_RIGHT_HAND_API_KEY_2 = "test-key-cache-two";
+    const catalogCalls = new Map<string, number>();
+    globalThis.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      const apiKey = String((init?.headers as Record<string, string> | undefined)?.["x-goog-api-key"] ?? "");
+      if (url.endsWith("/v1beta/models")) {
+        catalogCalls.set(apiKey, (catalogCalls.get(apiKey) ?? 0) + 1);
+        return catalog();
+      }
+      if (!url.includes("/v1beta/interactions")) throw new Error("unexpected non-generation request");
+      return ok();
+    });
+    installExternalQuotaGuard();
+
+    const first = await runGeminiRightHandFreeJson("Return JSON.");
+    const second = await runGeminiRightHandFreeJson("Return JSON.");
+
+    expect(first.status).toBe("completed");
+    expect(second.status).toBe("completed");
+    expect(catalogCalls.get("test-key-cache-one")).toBe(1);
+    expect(catalogCalls.get("test-key-cache-two")).toBe(1);
+  });
+
   it("retries the same model once on transient network failure", async () => {
     process.env.GEMINI_RIGHT_HAND_API_KEY = "test-key-network";
     const attempts: string[] = [];
