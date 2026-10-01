@@ -31,10 +31,12 @@ describe("Atlas control-plane contract regression", () => {
     expect(rightHandSource).toContain("rateLimitRetryDelayMs");
     expect(rightHandSource).toContain("phase: \"rate_limit_backoff\"");
     expect(rightHandSource).toContain("if (response.status === 429)");
-    expect(rightHandSource).toContain("const resolvedChain = await resolveModelChain()");
+    expect(rightHandSource).toContain("const resolvedChain = await resolveModelChain(modelScope)");
     expect(rightHandSource).toContain("const chain = resolvedChain.slice(0, MAX_MODEL_ATTEMPTS);");
-    expect(rightHandSource).toContain("flash-lite");
-    expect(rightHandSource).toContain("supportedGenerationMethods");
+    expect(rightHandSource).toContain("gemini-model-pool");
+    expect(rightHandSource).toContain("gemini-3.5-flash-lite");
+    expect(rightHandSource).toContain("gemini-3.8-flash");
+    expect(rightHandSource).toContain("chooseAvailableGeminiControlModels");
     expect(rightHandSource).toContain("GEMINI_CHAT_API_BASE");
     expect(rightHandSource).toContain("/v1beta/models");
     expect(rightHandSource).not.toContain("GEMINI_RIGHT_HAND_MODEL_CHAIN");
@@ -48,7 +50,7 @@ describe("Atlas control-plane contract regression", () => {
     expect(rightHandSource).toContain("const retryAttemptTimeoutMs = Math.min(");
     expect(rightHandSource).toContain("const retryTimer = setTimeout(() => retryController.abort(), retryAttemptTimeoutMs);");
     expect(rightHandSource).toContain("clearTimeout(retryTimer);");
-    expect(rightHandSource).toContain("The original request timer only bounds the original provider call.");
+    expect(rightHandSource).toContain("bounded same-model recovery");
     expect(controlSource).toContain('reason: "Gemini returned an invalid Atlas control action; fail-closed."');
   });
   it("replays valid and malformed provider contracts through the real validators", () => {

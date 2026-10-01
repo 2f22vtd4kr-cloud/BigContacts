@@ -24,7 +24,9 @@ describe("Gemini Boss latency controls", () => {
     const { getGeminiBossLatencyConfig } = await import("../lib/case-bureau");
     expect(getGeminiBossLatencyConfig()).toEqual({
       requestTimeoutMs: 30_000,
-      overallTimeoutMs: 75_000,
+      overallTimeoutMs: 240_000,
+      minimumOverallTimeoutMs: 240_000,
+      overallTimeoutClamped: false,
     });
   });
 
@@ -36,7 +38,9 @@ describe("Gemini Boss latency controls", () => {
     const { getGeminiBossLatencyConfig } = await import("../lib/case-bureau");
     expect(getGeminiBossLatencyConfig()).toEqual({
       requestTimeoutMs: 25_000,
-      overallTimeoutMs: 55_000,
+      overallTimeoutMs: 240_000,
+      minimumOverallTimeoutMs: 240_000,
+      overallTimeoutClamped: true,
     });
   });
 
@@ -48,11 +52,13 @@ describe("Gemini Boss latency controls", () => {
     const { getGeminiBossLatencyConfig } = await import("../lib/case-bureau");
     expect(getGeminiBossLatencyConfig()).toEqual({
       requestTimeoutMs: 60_000,
-      overallTimeoutMs: 60_000,
+      overallTimeoutMs: 240_000,
+      minimumOverallTimeoutMs: 240_000,
+      overallTimeoutClamped: true,
     });
   });
 
-  it("uses minimal Gemini 3.x thinking and a small control response budget", async () => {
+  it("uses the model-specific Gemini 3.x thinking contract and a small control response budget", async () => {
     process.env.GEMINI_API_KEY = "test-key";
     const fetchMock = vi.fn<typeof fetch>()
       .mockResolvedValueOnce(new Response(JSON.stringify({
@@ -82,7 +88,7 @@ describe("Gemini Boss latency controls", () => {
     const body = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body));
     expect(body.generation_config.max_output_tokens).toBe(768);
     expect(body.generation_config.responseMimeType).toBeUndefined();
-    expect(body.generation_config.thinking_level).toBe("minimal");
+    expect(body.generation_config.thinking_level).toBe("low");
     expect(body.generation_config.temperature).toBeUndefined();
   });
 
@@ -120,7 +126,7 @@ describe("Gemini Boss latency controls", () => {
       keyName: "GEMINI_API_KEY",
       httpStatus: 200,
       configuredRequestTimeoutMs: 30_000,
-      configuredOverallTimeoutMs: 75_000,
+      configuredOverallTimeoutMs: 240_000,
       requestDeadlineFired: false,
       overallDeadlineFired: false,
     });

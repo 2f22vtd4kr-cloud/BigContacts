@@ -81,6 +81,33 @@ describe("Gemini Right-hand text-only control transport", () => {
     expect(attempts).toEqual([GEMINI_RIGHT_HAND_MODEL, GEMINI_RIGHT_HAND_MODEL]);
   });
 
+  it("returns a successful response when a same-model 429 retry recovers", async () => {
+    process.env.GEMINI_RIGHT_HAND_API_KEY = "test-key-429-recover";
+    process.env.APEX_GEMINI_RIGHT_HAND_RATE_LIMIT_RETRY_DELAY_MS = "10";
+    const attempts: string[] = [];
+    globalThis.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.endsWith("/v1beta/models")) return catalog();
+      const body = init?.body ? JSON.parse(String(init.body)) as { model?: string } : {};
+      if (!url.includes("/v1beta/interactions")) throw new Error("unexpected non-generation request");
+      attempts.push(body.model ?? "");
+      if (attempts.length === 1) {
+        return new Response(JSON.stringify({ error: { code: "too_many_requests", message: "burst" } }), {
+          status: 429,
+          headers: { "retry-after": "0" },
+        });
+      }
+      return ok('{"decision":"retry-recovered"}');
+    });
+    installExternalQuotaGuard();
+
+    const result = await runGeminiRightHandFreeJson("Return JSON.");
+
+    expect(result.status).toBe("completed");
+    expect(result.model).toBe(GEMINI_RIGHT_HAND_MODEL);
+    expect(attempts).toEqual([GEMINI_RIGHT_HAND_MODEL, GEMINI_RIGHT_HAND_MODEL]);
+  });
+
   it("keeps HTTP 429 on the same model and does not burn equivalent model requests", async () => {
     process.env.GEMINI_RIGHT_HAND_API_KEY = "test-key-429";
     process.env.APEX_GEMINI_RIGHT_HAND_RATE_LIMIT_RETRY_DELAY_MS = "10";
@@ -134,7 +161,7 @@ describe("Gemini Right-hand text-only control transport", () => {
       const body = init?.body ? JSON.parse(String(init.body)) as { model?: string } : {};
       if (!url.includes("/v1beta/interactions")) throw new Error("unexpected non-generation request");
       attempts.push(body.model ?? "");
-      if (attempts.length < 5) {
+      if (attempts.length < 3) {
         return new Response(JSON.stringify({ error: { code: "too_many_requests", message: "burst" } }), {
           status: 429,
           headers: { "retry-after": "0" },
@@ -147,8 +174,8 @@ describe("Gemini Right-hand text-only control transport", () => {
     const result = await runGeminiRightHandFreeJson("Return JSON.");
 
     expect(result.status).toBe("completed");
-    expect(attempts).toEqual([GEMINI_RIGHT_HAND_MODEL, GEMINI_RIGHT_HAND_MODEL, GEMINI_RIGHT_HAND_MODEL, GEMINI_RIGHT_HAND_MODEL, "gemini-3.8-flash"]);
-    expect(result.model).toBe("gemini-3.8-flash");
+    expect(attempts).toEqual([GEMINI_RIGHT_HAND_MODEL, GEMINI_RIGHT_HAND_MODEL, "gemini-3.1-flash-lite"]);
+    expect(result.model).toBe("gemini-3.1-flash-lite");
   });
 
   it("uses the configured same-role fallback on HTTP 503", async () => {
@@ -168,8 +195,10 @@ describe("Gemini Right-hand text-only control transport", () => {
 
     expect(result.status).toBe("unavailable");
     expect(attempts).toEqual([
+      "gemini-3.5-flash-lite",
       "gemini-3.1-flash-lite",
-      "gemini-3.8-flash",
+      "gemini-3.6-flash",
+      "gemini-3.5-flash",
     ]);
     expect(result.error).toContain("exhausted bounded same-role model attempts");
   });

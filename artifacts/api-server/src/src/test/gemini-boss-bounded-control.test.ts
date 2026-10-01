@@ -7,6 +7,7 @@ describe("Gemini Boss bounded control-plane generation", () => {
     vi.unstubAllGlobals();
     globalThis.fetch = nativeFetch;
     delete process.env.GEMINI_API_KEY;
+    delete process.env.APEX_GEMINI_BOSS_429_RETRY_DELAY_MS;
     vi.resetModules();
     vi.restoreAllMocks();
   });
@@ -17,8 +18,8 @@ describe("Gemini Boss bounded control-plane generation", () => {
     const providerFetch = vi.fn<typeof fetch>(async (input, init) => {
       const url = String(input);
       const body = JSON.parse(String(init?.body ?? "{}")) as { model?: string };
-      if (body.model === "gemini-test-a") return new Response("retired", { status: 404 });
-      if (body.model === "gemini-test-b") {
+      if (body.model === "gemini-3.8-flash") return new Response("retired", { status: 404 });
+      if (body.model === "gemini-3.7-flash") {
         return new Response(
           JSON.stringify({ steps: [{ type: "model_output", content: [{ type: "text", text: '{"action":"stop"}' }] }] }),
           { status: 200 },
@@ -34,16 +35,16 @@ describe("Gemini Boss bounded control-plane generation", () => {
 
     const result = await generateGeminiBossText(
       {
-        model: "gemini-test-a",
+        model: "gemini-3.8-flash",
         status: "resolved",
         inspectedKeyCount: 1,
         candidateCount: 5,
         candidateModels: [
-          "gemini-test-a",
-          "gemini-test-b",
-          "gemini-test-c",
-          "gemini-test-d",
-          "gemini-test-e",
+          "gemini-3.8-flash",
+          "gemini-3.7-flash",
+          "gemini-3.6-flash",
+          "gemini-3.5-flash",
+          "gemini-3.5-flash-lite",
         ],
         keyName: "GEMINI_API_KEY",
       },
@@ -59,8 +60,8 @@ describe("Gemini Boss bounded control-plane generation", () => {
     expect(secondBody.generation_config.max_output_tokens).toBe(768);
     expect(String(providerFetch.mock.calls[0]?.[0])).toContain("/v1beta/interactions");
     expect(String(providerFetch.mock.calls[1]?.[0])).toContain("/v1beta/interactions");
-    expect(firstBody.model).toBe("gemini-test-a");
-    expect(secondBody.model).toBe("gemini-test-b");
+    expect(firstBody.model).toBe("gemini-3.8-flash");
+    expect(secondBody.model).toBe("gemini-3.7-flash");
   });
   it("retries the same Gemini model without structured output after a 400 invalid_request", async () => {
     process.env.GEMINI_API_KEY = "test-key";
@@ -110,6 +111,7 @@ describe("Gemini Boss bounded control-plane generation", () => {
 
   it("retries the same model once on a retryable 429 without equivalent-model fan-out", async () => {
     process.env.GEMINI_API_KEY = "test-key";
+    process.env.APEX_GEMINI_BOSS_429_RETRY_DELAY_MS = "10";
 
     const providerFetch = vi.fn<typeof fetch>()
       .mockResolvedValueOnce(new Response(JSON.stringify({
@@ -126,11 +128,11 @@ describe("Gemini Boss bounded control-plane generation", () => {
 
     const result = await generateGeminiBossText(
       {
-        model: "gemini-test-a",
+        model: "gemini-3.8-flash",
         status: "resolved",
         inspectedKeyCount: 1,
         candidateCount: 2,
-        candidateModels: ["gemini-test-a", "gemini-test-b"],
+        candidateModels: ["gemini-3.8-flash", "gemini-3.7-flash"],
         keyName: "GEMINI_API_KEY",
       },
       "Return one small JSON control decision.",
@@ -139,8 +141,8 @@ describe("Gemini Boss bounded control-plane generation", () => {
     expect(result.error).toBeNull();
     expect(result.raw).toContain('"action"');
     expect(providerFetch).toHaveBeenCalledTimes(2);
-    expect(JSON.parse(String(providerFetch.mock.calls[0]?.[1]?.body)).model).toBe("gemini-test-a");
-    expect(JSON.parse(String(providerFetch.mock.calls[1]?.[1]?.body)).model).toBe("gemini-test-a");
+    expect(JSON.parse(String(providerFetch.mock.calls[0]?.[1]?.body)).model).toBe("gemini-3.8-flash");
+    expect(JSON.parse(String(providerFetch.mock.calls[1]?.[1]?.body)).model).toBe("gemini-3.8-flash");
   });
 
 });
