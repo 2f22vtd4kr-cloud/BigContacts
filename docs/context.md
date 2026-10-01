@@ -401,3 +401,39 @@ A broader architecture review was performed against current deep-research system
 The implementation batch adds deterministic research-frontier scoring, source-independence scoring, advisory knowledge-gap guidance in bounded Investigator context, and person-scoped contact evidence keys. It does not alter the core role law: Gemini remains control/oversight, Groq/Mistral remains Investigator, and the deterministic evidence substrate remains authoritative.
 
 Do not call this architecture GREEN until the batch has passed typecheck/build/contract tests, repeated bug-hunt review, and the required controlled live evidence audit.
+
+
+## FINAL STATE — 2026-10-01
+
+Current main: 369887858c9d73f6eb6dd6aa37e668277b99eb28.
+
+The research-architecture vNext batch is merged and CI-verified. The authoritative completion record is docs/apex-atlas-handoff/07_RESEARCH_ARCHITECTURE_VNEXT_COMPLETION_2026-10-01.md.
+
+Completed controls:
+- bounded episode-level Gemini oversight;
+- bounded Gemini Evidence Probe using Gemini Google Search grounding;
+- atomic claim/source/passage/attribution evidence bindings;
+- provider disagreement as an epistemic signal;
+- log-odds-style hypothesis updating;
+- explicit falsification planning;
+- empirical action-yield statistics;
+- cognitive-task Investigator model routing;
+- optional asynchronous Deep Research escalation, disabled by default;
+- existing opt-in independent Investigator parallel lanes preserved.
+
+CI for final correction commit 093fdacf0465149372c55f6154dc2ba9ac234765 is green:
+- Apex API Build 1992;
+- Apex Research Quality Contracts 541;
+- Apex Prompt Architecture Audit 711;
+- Five Consecutive Full Code Audits 1073, all five passed;
+- Five Green Complete Codebase Audit 1218, all five passed;
+- ordinary audit passed.
+
+PR #446 merged the final correction batch. Merge commit: 369887858c9d73f6eb6dd6aa37e668277b99eb28.
+
+LIVE RUNTIME GATE:
+A fresh post-merge Replit Atlas run has not been completed. The available Replit workspace identifies as BigContacts/Apex Atlas but is stale at local revision f697fd1140a1159992221f3e4ff1b8f4fc03fabf. Its API workflow fails during startup with a TypeScript/esbuild syntax error at artifacts/api-server/src/src/routes/research/canonical-case-continuation.ts:21 caused by a literal backslash-n between TypeScript statements. Health, system-status, and active-job endpoints return 502. No Atlas research run was launched.
+
+Do not call Apex production GREEN. Synchronize Replit to current GitHub main, boot the canonical API, verify readiness, then perform exactly one controlled UI-equivalent launch and audit durable evidence/card/entity admission deltas.
+
+The architecture batch is complete. Empirical live research quality remains a release gate.
