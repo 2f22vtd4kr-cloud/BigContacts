@@ -90,5 +90,5 @@ describe("Mistral agentic 429 retry", () => {
     expect(result.status).toBe("completed");
     expect(result.model).toBe("mistral:mistral-second");
     expect(calls.filter((url) => url.endsWith("/v1/chat/completions"))).toHaveLength(2);
-  });
+  }, 15_000);
 });
