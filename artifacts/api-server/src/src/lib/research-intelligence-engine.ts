@@ -210,7 +210,7 @@ export class ResearchIntelligenceEngine {
       const findingUrls = [...new Set([...(finding.sourceUrls ?? []), ...urls].map(canonicalUrl).filter((v): v is string => Boolean(v)))];
       const sourceUrl = findingUrls[0] ?? null;
       const span = sourceUrl ? bindExactSourceSpan(input.observation ?? "", value, finding.personName ?? this.input.target) : null;
-      this.recordEvidence({ kind: "finding", claim: finding.personName ? finding.personName + " " + vector + " " + value : this.input.target + " " + vector + " " + value, value, sourceUrl, sourceTier: tierForHost(hostOf(sourceUrl)), turn: input.turn, action: input.action, execution: input.execution, passage: span?.exact ? span.text : null, supports: finding.personName ? [normalize(finding.personName)] : [], contradicts: [] });
+      this.recordEvidence({ kind: "finding", claim: finding.personName ? finding.personName + " " + vector + " " + value : this.input.target + " " + vector + " " + value, value, sourceUrl, sourceTier: tierForHost(hostOf(sourceUrl)), turn: input.turn, action: input.action, execution: input.execution, passage: span?.exact ? span.text : null, spanStart: span?.exact ? span.start : null, spanEnd: span?.exact ? span.end : null, supports: finding.personName ? [normalize(finding.personName)] : [], contradicts: [] });
       if (["email", "phone", "linkedin", "website", "social"].includes(vector)) this.recordContact(vector, value, findingUrls, finding.personName ?? null);
     }
     if (!useful && input.execution !== "success") {
@@ -274,9 +274,9 @@ export class ResearchIntelligenceEngine {
       claimId,
       sourceFamily: sourceFamily(sourceHost),
       attribution: input.supports.length ? input.supports.join(", ") : null,
-      spanStart: input.passage ? 0 : null,
-      spanEnd: input.passage ? input.passage.length : null,
-      spanBound: Boolean(input.passage),
+      spanStart: input.spanStart ?? null,
+      spanEnd: input.spanEnd ?? null,
+      spanBound: Boolean(input.passage && input.spanStart != null && input.spanEnd != null),
       sourceLineageId: lineage?.sourceId,
       fingerprint,
     };
