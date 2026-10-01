@@ -546,3 +546,33 @@ Static architecture/test maturity is not equivalent to live research certificati
 
 The repository itself is authoritative. Never let an older SHA in this living context override current Git history. Never let a handoff document override executable/runtime evidence.
 
+## 2026-10-01 continuation — lineage-aware terminal gate correction
+
+The latest verified production-code boundary is now:
+
+`3fa9559a3805a4d322228c85d2c6ef0a51aa48ab`
+
+PR #451 applied a narrow deterministic terminal-gate correction. The research intelligence engine already computes `independentSourceUnits` from `SourceLineageGraph`, but the terminal adapter had been recomputing source independence from raw hostnames. The terminal adapter now consumes `IntelligenceContext.independentSourceUnits` directly.
+
+Regression coverage was added in:
+
+`artifacts/api-server/src/src/test/research-terminal-gate.test.ts`
+
+The test covers both:
+- multiple independent lineage units sharing a hostname;
+- a single resolved lineage unit remaining below the terminal threshold.
+
+Verification on the PR head included:
+- Apex API build: PASS;
+- workspace typecheck: PASS;
+- strict provenance/provider-cache regression tests: PASS;
+- Research Quality Contracts: PASS, including research contract tests and typecheck;
+- the initial typecheck failure was caused by a patch fixture/return-property mistake, was corrected, and the corrected run passed.
+
+The current release remains **NOT GREEN / NOT production-certified**. This correction improves deterministic terminal evidence accounting; it does not constitute live research certification.
+
+Official Gemini documentation rechecked during this continuation confirms that 429 `rate_limit_exceeded` / `too_many_requests` are transient-rate-limit classes, `quota_exceeded` is daily quota, and 503 `service_unavailable` is a temporary service-capacity condition. Gemini rate limits are applied per project rather than per API key. See the official Gemini API error/rate-limit documentation before changing provider behavior.
+
+### Required next action
+
+Synchronize the real Replit/runtime environment to the current main SHA, run the guarded static/readiness sequence, and only then perform the single authorized canonical three-target audit. Do not infer runtime certification from CI.
