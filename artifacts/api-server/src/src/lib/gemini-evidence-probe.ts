@@ -181,6 +181,8 @@ export async function runGeminiEvidenceVerificationEpisode(input: {
               tools: [{ google_search: {} }, { url_context: {} }],
               generationConfig: {
                 maxOutputTokens: 1400,
+                responseMimeType: "application/json",
+                responseSchema: { type: "OBJECT", properties: { claims: { type: "ARRAY", items: { type: "OBJECT", properties: { claim: { type: "STRING" }, status: { type: "STRING", enum: ["supported", "contradicted", "unresolved"] }, rationale: { type: "STRING" } }, required: ["claim", "status", "rationale"] } }, answer: { type: "STRING" } }, required: ["claims", "answer"] },
                 thinkingConfig: { thinkingLevel: selectGeminiThinkingLevel(model, { falsificationRequired: true, identityAmbiguity: /identity|attribution|collision/i.test(prompt) }) },
               },
             }),
