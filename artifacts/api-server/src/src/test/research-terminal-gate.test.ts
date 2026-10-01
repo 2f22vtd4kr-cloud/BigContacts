@@ -44,8 +44,8 @@ function context(independentSourceUnits: number): IntelligenceContext {
     falsification: {
       required: true,
       priority: 0.2,
-      rationale: [],
-      recommendedDiscriminators: [],
+      discriminator: "test discriminator",
+      reason: "test",
     },
     researchQuestions: [],
     stoppingAssessment: { evidenceCoverage: 1, unresolvedQuestions: 0, recommendation: "review" },
