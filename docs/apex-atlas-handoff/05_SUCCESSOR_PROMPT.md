@@ -125,3 +125,15 @@ For a fresh run:
 GREEN only if the current main SHA passes source verification and a real three-target sequential Atlas run completes with real Gemini Boss, real Right-hand, real Investigator, real tools, actual evidence, expected entity/card projections, durable persistence, and successful terminal state.
 
 The goal is a genuinely working Apex Atlas without reducing its OSINT power.
+
+## CURRENT MAIN / RUNTIME CORRECTION — 2026-10-01
+
+Always verify current main before acting. The extended current-state handoff is `docs/apex-atlas-handoff/09_MASTER_SUCCESSOR_HANDOFF_2026-10-01.md`.
+
+At the latest verified boundary, main had advanced through PR #450 control-plane test hardening. The current Gemini model registry and adaptive thinking policy are authoritative; stale expectations must not be restored. Model-pool cooldown state is explicitly reset between tests.
+
+The latest canonical UI-equivalent launch was job `c201a722-623d-45f0-b667-e20a4737c3f1`, targetCount=3, standard depth, 420000ms. It was accepted with HTTP 202, but the environment exhausted its daily free quota while polling. **Terminal outcome: unknown/unobserved.** Do not classify it as success or failure and do not infer later stages.
+
+Historical runtime jobs remain separate evidence: `391bbe22-0414-4ed4-965d-5714181af242` (Right-hand rate limiting, Investigator context-size failures, trace/event discrepancy) and `77c7fb64-8c85-4d23-b1f2-0e048b9e8012` (Boss HTTP 503/provider-unavailable before Investigator; PR #440 hardened this path).
+
+Current release state remains NOT GREEN until a fresh synchronized runtime audit proves the complete canonical path.
