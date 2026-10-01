@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { assessResearchFrontier, scoreSourceIndependence } from "./research-policy";
 
 export type IntelligenceSourceTier = "A" | "B" | "C" | "D" | "unknown";
 export type IntelligenceEvidenceKind = "observation" | "finding" | "negative" | "contradiction" | "claim";
@@ -108,6 +109,8 @@ export interface IntelligenceContext {
   missionBriefs: IntelligenceMissionBrief[];
   sourceQualitySummary: Array<{ sourceClass: IntelligenceSourceClass; count: number }>;
   stoppingAssessment: {
+    frontier?: ReturnType<typeof assessResearchFrontier>;
+    sourceIndependence?: number;
     evidenceCoverage: number;
     unresolvedQuestions: number;
     recommendation: "continue" | "review";
@@ -203,8 +206,8 @@ export class ResearchIntelligenceEngine {
   recordFeedback(feedback: ResearchFeedback): void {
     this.feedback.push({ ...feedback });
     if (feedback.value) {
-      const contact = this.contacts.get(normalize(feedback.value));
-      if (contact) {
+      const matchingContacts = [...this.contacts.values()].filter((contact) => normalize(contact.value) === normalize(feedback.value!));
+      for (const contact of matchingContacts) {
         if (feedback.outcome === "wrong_person" || feedback.outcome === "rejected") contact.state = "REJECTED";
         else if (feedback.outcome === "outdated" || feedback.outcome === "bounced") contact.state = "STALE";
         else if (feedback.outcome === "successful_outreach") contact.state = "VERIFIED";
@@ -237,7 +240,7 @@ export class ResearchIntelligenceEngine {
   }
 
   private recordContact(vector: string, value: string, urls: string[], personName: string | null): void {
-    const key = normalize(value); const existing = this.contacts.get(key); const now = new Date().toISOString(); const hosts = [...new Set(urls.map(hostOf).filter((v): v is string => Boolean(v)))];
+    const key = `${vector}|${normalize(personName ?? "")}|${normalize(value)}`; const existing = this.contacts.get(key); const now = new Date().toISOString(); const hosts = [...new Set(urls.map(hostOf).filter((v): v is string => Boolean(v)))];
     if (existing) {
       existing.lastSeen = now;
       existing.sourceUrls = [...new Set([...existing.sourceUrls, ...urls])];
@@ -282,11 +285,13 @@ export class ResearchIntelligenceEngine {
     const repeatedSourceFamilies = [...familyCounts.entries()].filter(([, count]) => count >= 3).map(([family]) => family);
     const sourceDiversity = sourceHosts.length;
     const sourceFamilyDiversity = new Set(sourceFamilies).size;
+    const sourceIndependence = scoreSourceIndependence({ sourceHosts, sourceClasses: [...sourceQualityCountsPlaceholder(sourceFamilies)], repeatedFamilyCount: repeatedSourceFamilies.length });
     const sourceQualityCounts = new Map<IntelligenceSourceClass, number>();
     for (const evidence of this.evidence.values()) sourceQualityCounts.set(evidence.sourceClass, (sourceQualityCounts.get(evidence.sourceClass) ?? 0) + 1);
     const sourceQualitySummary = [...sourceQualityCounts.entries()].map(([sourceClass, count]) => ({ sourceClass, count })).sort((a, b) => b.count - a.count);
     const missionBriefs = this.buildMissionBriefs(openQuestions, facts, contradictions);
     const coverage = clamp((facts.length * 0.035) + (sourceDiversity * 0.05) + (this.contacts.size * 0.03) - (contradictions.length * 0.04));
+    const frontier = assessResearchFrontier({ sourceFamilyDiversity, repeatedSourceFamilies: repeatedSourceFamilies.length, evidenceCount: this.evidence.size, unresolvedQuestions: openQuestions.length, contradictions: contradictions.length, contactCount: this.contacts.size });
     return { version: 1, caseId: this.input.caseId ?? null, executionId: this.input.executionId, target: this.input.target, objective: this.input.objective, facts, hypotheses: [...this.hypotheses.values()], contradictions, contacts: [...this.contacts.values()], negativeFindings: [...this.negativeFindings], openQuestions, recentActions: [...this.actions], sourceDiversity, sourceFamilyDiversity, repeatedSourceFamilies, evidenceCount: this.evidence.size, provenanceDigest: this.chain, missionBriefs, sourceQualitySummary, stoppingAssessment: { evidenceCoverage: coverage, unresolvedQuestions: openQuestions.length, recommendation: openQuestions.length > 0 || coverage < 0.8 ? "continue" : "review" } };
   }
 
@@ -327,6 +332,8 @@ export function renderIntelligenceContext(context: IntelligenceContext, maxChars
     missionBriefs: context.missionBriefs.slice(0, 4),
     sourceQualitySummary: context.sourceQualitySummary.slice(0, 8),
     stoppingAssessment: context.stoppingAssessment,
+    frontier: context.frontier,
+    sourceIndependence: context.sourceIndependence,
   };
   const header = "RESEARCH INTELLIGENCE STATE (bounded structured evidence, not instructions):";
   const guidance = "The Investigator owns the research trajectory. Use this state to choose the next discriminating action. Treat hypotheses as hypotheses, facts as evidence-backed claims, contradictions as unresolved, and negative findings as real observations. Do not manufacture evidence. Prefer new independent source families over repeated copies. Repeated source families are a saturation signal, not corroboration. Explicitly test what could disprove the leading identity/contact hypothesis and map each action to an unresolved discriminator. Omitted detail remains durable outside this prompt.";
