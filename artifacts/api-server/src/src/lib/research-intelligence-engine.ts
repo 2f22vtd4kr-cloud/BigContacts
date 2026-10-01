@@ -380,7 +380,7 @@ export class ResearchIntelligenceEngine {
         sourceHost: evidence.sourceHost,
         sourceClass: evidence.sourceClass,
         passage: evidence.passage,
-        attribution: evidence.attribution,
+        attribution: evidence.attribution ?? null,
       }));
     const actionYield = [...this.actionYield.entries()].map(([action, stat]) => summarizeActionYield(action, stat));
     const frontier = assessResearchFrontier({ sourceFamilyDiversity, repeatedSourceFamilies: repeatedSourceFamilies.length, evidenceCount: this.evidence.size, unresolvedQuestions: openQuestions.length, contradictions: contradictions.length, contactCount: this.contacts.size });

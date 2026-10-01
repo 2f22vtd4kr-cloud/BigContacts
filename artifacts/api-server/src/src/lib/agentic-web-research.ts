@@ -228,7 +228,7 @@ export async function runAgenticWebResearch(input: RunInput): Promise<AgenticRun
          });
          if (oversight.direction) {
            const checkedDirection = validateGeminiResearchObjective(oversight.direction);
-           if (!checkedDirection.valid) return { stop: true, unavailable: true };
+           if (!checkedDirection.valid) { error = `Gemini produced an invalid research objective: ${checkedDirection.reason}`; return { stop: true, unavailable: true }; }
            direction = checkedDirection.direction;
          } else {
            direction = null;
