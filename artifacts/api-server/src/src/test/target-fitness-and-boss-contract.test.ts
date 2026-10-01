@@ -351,8 +351,8 @@ describe("Gemini Boss transport contract", () => {
     expect(result.error).toBeNull();
     expect(result.model).toBe("gemini-3.7-flash");
     expect(fetchMock).toHaveBeenCalledTimes(3);
-    expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)).model).toBe("gemini-3.8-flash");
-    expect(JSON.parse(String(fetchMock.mock.calls[1]?.[1]?.body)).model).toBe("gemini-3.7-flash");
+    expect(JSON.parse(String(fetchMock.mock.calls[1]?.[1]?.body)).model).toBe("gemini-3.8-flash");
+    expect(JSON.parse(String(fetchMock.mock.calls[2]?.[1]?.body)).model).toBe("gemini-3.7-flash");
     fetchMock.mockRestore();
     vi.unstubAllEnvs();
   });
