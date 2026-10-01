@@ -59,7 +59,7 @@ const MODEL_CATALOG_TIMEOUT_MS = 6_000;
 const MODEL_CATALOG_CACHE_MS = 5 * 60_000;
 
 type GeminiCatalogEntry = { name?: string; supportedGenerationMethods?: string[] };
-let cachedModelChain: { expiresAt: number; models: string[]; credentialFingerprint: string } | null = null;
+const cachedModelChains = new Map<string, { expiresAt: number; models: string[] }>();
 
 function credentialFingerprint(apiKey: string): string {
   return createHash("sha256").update(apiKey).digest("hex").slice(0, 16);
@@ -127,7 +127,8 @@ async function resolveModelChain(scope = "global", apiKeyOverride?: string): Pro
   if (!apiKey) return [];
 
   const fingerprint = credentialFingerprint(apiKey);
-  if (cachedModelChain && cachedModelChain.credentialFingerprint === fingerprint && cachedModelChain.expiresAt > Date.now()) {
+  const cachedModelChain = cachedModelChains.get(fingerprint);
+  if (cachedModelChain && cachedModelChain.expiresAt > Date.now()) {
     return chooseAvailableGeminiControlModels("right_hand", cachedModelChain.models, scope).slice(0, MAX_MODEL_ATTEMPTS);
   }
 
@@ -147,7 +148,7 @@ async function resolveModelChain(scope = "global", apiKeyOverride?: string): Pro
     const payload = await response.json() as { models?: GeminiCatalogEntry[] };
     const catalogModels = chooseRightHandModels(Array.isArray(payload.models) ? payload.models : [], scope);
     if (catalogModels.length) {
-      cachedModelChain = { expiresAt: Date.now() + MODEL_CATALOG_CACHE_MS, models: catalogModels, credentialFingerprint: fingerprint };
+      cachedModelChains.set(fingerprint, { expiresAt: Date.now() + MODEL_CATALOG_CACHE_MS, models: catalogModels });
       logger.info({ role: "gemini_right_hand", phase: "model_catalog_resolved", preferredModel: GEMINI_RIGHT_HAND_MODEL, candidateCount: catalogModels.length, models: catalogModels }, "Gemini Right-hand model catalog resolved");
       return catalogModels.slice(0, MAX_MODEL_ATTEMPTS);
     }
@@ -527,7 +528,7 @@ async function request(system: string, user: string, responseFormat?: Record<str
           "Gemini Right-hand model is not authorized for this key; trying the next live catalog candidate",
         );
       }
-      if (response.status === 404) cachedModelChain = null;
+      if (response.status === 404) cachedModelChains.delete(modelScope);
     } catch (error) {
       const fetchElapsedMs = Date.now() - attemptStartedAt;
       const isAbort = error instanceof Error && error.name === "AbortError";
@@ -566,7 +567,6 @@ async function request(system: string, user: string, responseFormat?: Record<str
     }
   }
 
-  if (failures.some((failure) => /HTTP 404/.test(failure))) cachedModelChain = null;
   return {
     raw: "",
     error: candidateAttempts.length
