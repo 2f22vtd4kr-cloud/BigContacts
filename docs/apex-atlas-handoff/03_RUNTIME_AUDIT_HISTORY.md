@@ -143,3 +143,7 @@ Every new runtime attempt gets a new:
 audits/apex-atlas-sequential-audit-<YYYY-MM-DD-HHMMSS>.md
 
 Record exact SHA, secret presence only, every significant action, provider/model, retry/fallback, durable IDs/state, and last-success/first-failure. Preserve the audit on failure.
+
+## Current-main note
+
+The live job documented above ran on the pre-PR-439 baseline `f11371d95337c1bd8a7c2b49d7c383903a08bfb5`. Main subsequently advanced through PR #439 to `7f4623f247e3779257de1edcc9f9a3eae751e20c`. Do not treat the old runtime result as a direct test of the multi-project Right-hand resilience added by PR #439.
