@@ -253,7 +253,7 @@ export class ResearchIntelligenceEngine {
     const retrievedAt = new Date().toISOString();
     const sourceHost = hostOf(input.sourceUrl);
     const sourceClass = sourceClassForHost(sourceHost);
-    const lineage = input.sourceUrl ? this.sourceLineage.register({ canonicalUrl: input.sourceUrl, host: sourceHost ?? input.sourceUrl, originSourceId: null, publisher: null, citedSourceIds: [], contentFingerprint: null }) : null;
+    const lineage = input.sourceUrl ? this.sourceLineage.register({ canonicalUrl: input.sourceUrl, host: sourceHost ?? input.sourceUrl, originSourceId: null, publisher: null, citedSourceIds: [], contentFingerprint: input.passage ? digest(normalize(input.passage)) : null }) : null;
     const extractionMethod = extractionMethodForAction(input.action);
     const fingerprint = hash(`${input.kind}|${normalize(input.claim)}|${normalize(input.value)}|${input.sourceUrl ?? ""}`);
     const existing = this.evidence.get(fingerprint);
