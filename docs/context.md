@@ -366,12 +366,18 @@ This is NOT GREEN. Before another live run, investigate: (1) Gemini Right-hand m
 
 ## 2026-10-01 current-main correction
 
-The repository advanced after the live audit. The current main commit is now `7f4623f247e3779257de1edcc9f9a3eae751e20c`, merged from PR #439, **Harden Gemini Right-hand across legitimate project credentials**. This is newer than the live audit's `f11371d95337c1bd8a7c2b49d7c383903a08bfb5`.
+The repository advanced after the live audit. The current main commit is now `94e58f94529d30ed9cfd8a4bbba241272b619869`, merged from PR #439, **Harden Gemini Right-hand across legitimate project credentials**. This is newer than the live audit's `f11371d95337c1bd8a7c2b49d7c383903a08bfb5`.
 
 PR #439 expands Right-hand support to multiple configured Gemini credentials (`GEMINI_RIGHT_HAND_API_KEY` through `_5`), resolves a live stable-text catalog independently for each credential, caches catalogs per credential, and gives each credential its own cooldown scope. It explicitly does **not** claim that multiple keys in the same Google project create additional quota, and it does not substitute Groq/Mistral for Gemini Right-hand. It adds regression coverage for recovery through a second configured credential/project and per-credential catalog caching.
 
-Therefore all future engineering must treat `7f4623f247e3779257de1edcc9f9a3eae751e20c` as the current main baseline unless a newer SHA is verified. The latest live runtime result remains historical evidence from the earlier `f11371d...` baseline; PR #439 itself still requires a fresh canonical runtime audit before its resilience is considered proven.
+Therefore all future engineering must treat `94e58f94529d30ed9cfd8a4bbba241272b619869` as the current main baseline unless a newer SHA is verified. The latest live runtime result remains historical evidence from the earlier `f11371d...` baseline; PR #439 itself still requires a fresh canonical runtime audit before its resilience is considered proven.
 
 The durable successor volumes are now committed under `docs/apex-atlas-handoff/`. Read them before continuing: `00_INDEX.md`, `01_SYSTEM_INTRODUCTION.md`, `02_GEMINI_CONTROL_PLANE.md`, `03_RUNTIME_AUDIT_HISTORY.md`, `04_NEXT_WORK_PLAN.md`, and `05_SUCCESSOR_PROMPT.md`.
 
 Official Gemini provider research checked during handoff preparation: Google documents RPM/TPM/RPD limits, project-level application of rate limits, RPD reset at midnight Pacific, distinct 429 error classes, exponential-backoff guidance, stable text model families versus Live/TTS/image/specialized models, and model-specific thinking levels. Re-check the current official documentation before changing provider behavior.
+
+## Handoff package finalization — 2026-10-01
+
+The durable successor volumes were refreshed after PR #439 and are now part of current main. The current main SHA after documentation finalization is `94e58f94529d30ed9cfd8a4bbba241272b619869`. Always verify a newer SHA before work begins.
+
+The live runtime evidence remains the earlier pre-PR-439 job `391bbe22-0414-4ed4-965d-5714181af242`; PR #439 and subsequent documentation commits have not been validated by a new canonical three-target run. The correct next step is source/test verification followed by a fresh authorized runtime audit, not a claim of recovery.
