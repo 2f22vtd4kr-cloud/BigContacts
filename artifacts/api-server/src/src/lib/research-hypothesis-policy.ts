@@ -80,3 +80,32 @@ export function chooseBestDiscriminator(input: {
   if (input.contradictionPressure >= input.unresolvedPressure) return candidates[0] ?? null;
   return candidates.find((value) => /identity|role|company|ownership|attribution|contact/i.test(value)) ?? candidates[0] ?? null;
 }
+
+export type FalsificationPlan = {
+  required: boolean;
+  priority: number;
+  discriminator: string | null;
+  reason: string;
+};
+
+export function assessFalsificationPlan(input: {
+  leadingHypothesisScore: number | null;
+  contradictionPressure: number;
+  unresolvedPressure: number;
+  missingDiscriminators: readonly string[];
+}): FalsificationPlan {
+  const discriminator = chooseBestDiscriminator(input);
+  const priority = Math.max(
+    clamp(input.contradictionPressure),
+    clamp(input.unresolvedPressure),
+    input.leadingHypothesisScore !== null ? clamp(input.leadingHypothesisScore) * 0.35 : 0,
+  );
+  return {
+    required: Boolean(discriminator) && (input.contradictionPressure >= 0.25 || input.unresolvedPressure >= 0.35 || (input.leadingHypothesisScore ?? 0) >= 0.8),
+    priority,
+    discriminator,
+    reason: discriminator
+      ? "A leading identity/contact hypothesis has a concrete discriminator that should be tested before terminal promotion."
+      : "No explicit falsifiable discriminator is currently recorded; create one before overconfidence.",
+  };
+}
