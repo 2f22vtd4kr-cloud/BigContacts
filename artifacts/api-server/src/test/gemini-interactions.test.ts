@@ -36,11 +36,11 @@ describe("Gemini Interactions API transport", () => {
 
     expect(result.error).toBeNull();
     expect(result.raw).toBe('{"action":"proceed"}');
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
 
     const [url, init] = fetchMock.mock.calls[0];
     expect(String(url)).toBe("https://generativelanguage.googleapis.com/v1beta/interactions");
-    expect((init?.headers as Record<string, string>)["x-goog-api-key"]).toBe("test-key");
+    expect((init?.headers as Record<string, string>)["x-goog-api-key"]).toBe("test-key-1");
     expect(JSON.parse(String(init?.body))).toEqual({
       model: "gemini-3.8-flash",
       input: "Return a JSON control decision.",
