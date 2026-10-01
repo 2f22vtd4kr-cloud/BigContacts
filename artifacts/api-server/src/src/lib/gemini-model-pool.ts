@@ -54,7 +54,7 @@ export function getGeminiControlModel(model: string): GeminiControlModel | null 
   return MODELS[model] ?? null;
 }
 
-export function getGeminiThinkingLevel(model: string): "minimal" | "low" {
+export function getGeminiThinkingLevel(model: string): GeminiControlModel["thinkingLevel"] {
   return MODELS[model]?.thinkingLevel ?? "minimal";
 }
 
