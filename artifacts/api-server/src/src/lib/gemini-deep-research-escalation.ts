@@ -14,7 +14,7 @@ const INTERACTIONS = "https://generativelanguage.googleapis.com/v1beta/interacti
 const AGENT = "deep-research-preview-04-2026";
 
 export type DeepResearchEscalationResult = {
-  status: "completed" | "unavailable";
+  status: "started" | "completed" | "unavailable";
   interactionId: string | null;
   report: string | null;
   error: string | null;
@@ -75,9 +75,38 @@ export async function runGeminiDeepResearchEscalation(input: {
     const payload = JSON.parse(body) as any;
     const interactionId = typeof payload.id === "string" ? payload.id : null;
     if (!interactionId) return { status: "unavailable", interactionId: null, report: null, error: "Deep Research did not return an interaction id." };
-    return { status: "completed", interactionId, report: outputText(payload), error: null };
+    const report = outputText(payload);\n    return { status: report ? "completed" : "started", interactionId, report, error: null };
   } catch (error) {
     if (input.signal?.aborted) throw new Error("cancelled");
     return { status: "unavailable", interactionId: null, report: null, error: error instanceof Error ? error.message : "Deep Research escalation failed." };
+  }
+}
+
+export async function pollGeminiDeepResearchEscalation(input: {
+  interactionId: string;
+  signal?: AbortSignal;
+}): Promise<DeepResearchEscalationResult> {
+  if (!enabled()) return { status: "unavailable", interactionId: input.interactionId, report: null, error: "Deep Research escalation is disabled." };
+  const apiKey = key();
+  if (!apiKey) return { status: "unavailable", interactionId: input.interactionId, report: null, error: "Gemini API key unavailable." };
+  try {
+    const response = await runProviderCall(
+      { provider: "gemini", account: apiKey, signal: input.signal },
+      () => safeOutboundFetch(`${INTERACTIONS}/${encodeURIComponent(input.interactionId)}`, {
+        headers: { "x-goog-api-key": apiKey, Accept: "application/json" },
+        signal: input.signal ?? AbortSignal.timeout(20_000),
+      }),
+    );
+    const body = await response.text();
+    if (!response.ok) return { status: "unavailable", interactionId: input.interactionId, report: null, error: `Deep Research poll HTTP ${response.status}.` };
+    const payload = JSON.parse(body) as any;
+    const report = outputText(payload);
+    const state = typeof payload.status === "string" ? payload.status.toLowerCase() : "";
+    if (report && state !== "failed") return { status: "completed", interactionId: input.interactionId, report, error: null };
+    if (state === "failed" || state === "cancelled") return { status: "unavailable", interactionId: input.interactionId, report: null, error: `Deep Research interaction state: ${state}.` };
+    return { status: "started", interactionId: input.interactionId, report: null, error: null };
+  } catch (error) {
+    if (input.signal?.aborted) throw new Error("cancelled");
+    return { status: "unavailable", interactionId: input.interactionId, report: null, error: error instanceof Error ? error.message : "Deep Research poll failed." };
   }
 }
