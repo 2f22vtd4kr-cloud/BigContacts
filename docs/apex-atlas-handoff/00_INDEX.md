@@ -133,3 +133,15 @@ It was accepted with HTTP 202 using:
 Polling was interrupted by the environment's daily free-quota exhaustion. Its terminal outcome is therefore **UNKNOWN / UNOBSERVED**. Do not classify it as success or failure.
 
 Current release state remains **NOT GREEN / not production-certified**.
+
+## 2026-10-01 continuation boundary
+
+Current verified `main` contains the merged PR #451 terminal-gate correction:
+
+`3fa9559a3805a4d322228c85d2c6ef0a51aa48ab`
+
+It is a deterministic evidence-accounting fix only: terminal evaluation now consumes the lineage-aware `IntelligenceContext.independentSourceUnits` value rather than recomputing independence from hostnames. Regression coverage exists in `artifacts/api-server/src/src/test/research-terminal-gate.test.ts`.
+
+Static verification for the corrected PR head passed the Apex API build, workspace typecheck, strict provenance/provider-cache tests, and Research Quality Contracts. The initial typecheck failure during the patch was corrected before merge.
+
+**Release remains NOT GREEN.** The remaining proof obligation is empirical runtime validation on the synchronized deployment environment, followed by the authorized canonical three-target audit.
