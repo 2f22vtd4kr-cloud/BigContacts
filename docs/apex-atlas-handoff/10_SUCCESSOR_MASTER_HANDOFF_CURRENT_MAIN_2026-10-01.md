@@ -3,7 +3,7 @@
 
 **Repository:** `2f22vtd4kr-cloud/BigContacts`  
 **Canonical branch:** `main`  
-**Current main verified from Git history immediately before this document:** `7a2f15107081043e16b3af26e25317519f5f5e60`  
+**Current main at final reconciliation:** `9f7faaaf1ce23ef8e9c33aaeb1019f305ce5ca3a`  
 **Current status:** **NOT GREEN / NOT production-certified**  
 **Purpose:** This is the continuation package for a new ChatGPT/coding/research agent. It is intentionally explicit. It tells the successor how to acquire the real knowledge of Apex Atlas from the repository, what the architecture means, what has been implemented, what has actually been tested, what live evidence exists, what remains unknown, and how to proceed without destroying the research architecture.
 
@@ -1437,9 +1437,11 @@ The most important continuity rule is:
 
 > **Read current main before trusting this handoff.**
 
-Current verified boundary when this document was written:
+Current verified boundary after handoff reconciliation:
 
-`main @ 7a2f15107081043e16b3af26e25317519f5f5e60`
+`main @ 9f7faaaf1ce23ef8e9c33aaeb1019f305ce5ca3a`
+
+The commits immediately preceding this final documentation boundary are handoff/index/context reconciliation commits; they do not represent a new production architecture change.
 
 Current release state:
 
