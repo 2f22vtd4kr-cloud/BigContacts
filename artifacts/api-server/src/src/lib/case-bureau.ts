@@ -747,7 +747,7 @@ export async function generateGeminiBossText(
                 cooldownMs,
                 providerErrorCode: providerErrorCodeValue,
               },
-              "Gemini Boss daily quota exhausted; failing closed without another provider request",
+              "Gemini Boss daily quota exhausted for this credential/project; advancing to the next separately configured credential/project",
             );
             break;
           }
