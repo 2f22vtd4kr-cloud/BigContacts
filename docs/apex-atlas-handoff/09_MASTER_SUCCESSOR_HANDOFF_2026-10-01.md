@@ -1371,3 +1371,39 @@ The production/source baseline described above is `21f2b22447698c7de2f4026f70e33
 - `0829ea90087c71a39cd3cd85ced28e74a1f99afc` — reconciled the successor prompt.
 
 These commits changed documentation only. When evaluating production behavior, treat `21f2b22447698c7de2f4026f70e33693c901cf26` as the latest verified application-code baseline unless a later source commit is found. The actual current main HEAD must still be checked at the start of the next session.
+
+## 2026-10-01 continuation report — PR #451
+
+Verified:
+- `main` was verified at `4ff71d211830c9221b5a57150fc23a4f1f4d727e` before implementation.
+- Current merged code boundary is `3fa9559a3805a4d322228c85d2c6ef0a51aa48ab`.
+- PR #451 changed only the deterministic terminal source-independence adapter plus one focused regression test.
+- The intelligence engine's authoritative lineage-aware source-unit count is preserved through terminal evaluation.
+- Official Gemini documentation was rechecked: project-scoped rate limits, distinct 429 error classes, and transient 503 handling remain as documented.
+
+Changed:
+- `artifacts/api-server/src/src/lib/research-terminal-gate.ts`
+- `artifacts/api-server/src/src/test/research-terminal-gate.test.ts`
+- PR #451 merged into `main` as `3fa9559a3805a4d322228c85d2c6ef0a51aa48ab`.
+
+Tested:
+- Apex API Build: PASS.
+- Workspace typecheck: PASS.
+- Strict provenance/provider-cache regression tests: PASS.
+- Research Quality Contracts: PASS after correcting one patch-local typecheck defect.
+- The broader complete-codebase audit workflows were still running at the time of this reconciliation; their results must be checked on the current main SHA rather than inferred.
+
+Runtime:
+- No new Replit runtime was performed in this continuation.
+- The latest documented live research result remains subject to the historical audit record; no new canonical three-target launch was authorized here.
+- Release remains NOT GREEN / NOT production-certified.
+
+Research:
+- No new live research evidence was generated.
+
+Blockers:
+- Runtime synchronization/live certification remains outstanding.
+- Replit app lookup through the connected Replit integration did not return an Apex Atlas/BigContacts app, so no runtime mutation or live audit was performed through that integration.
+
+Next action:
+- Verify the actual deployment workspace is synchronized to current `main`, then run the guarded readiness/static sequence and exactly one authorized canonical three-target audit.
