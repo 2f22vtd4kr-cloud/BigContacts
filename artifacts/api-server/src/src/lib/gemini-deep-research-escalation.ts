@@ -75,7 +75,8 @@ export async function runGeminiDeepResearchEscalation(input: {
     const payload = JSON.parse(body) as any;
     const interactionId = typeof payload.id === "string" ? payload.id : null;
     if (!interactionId) return { status: "unavailable", interactionId: null, report: null, error: "Deep Research did not return an interaction id." };
-    const report = outputText(payload);\n    return { status: report ? "completed" : "started", interactionId, report, error: null };
+    const report = outputText(payload);
+    return { status: report ? "completed" : "started", interactionId, report, error: null };
   } catch (error) {
     if (input.signal?.aborted) throw new Error("cancelled");
     return { status: "unavailable", interactionId: null, report: null, error: error instanceof Error ? error.message : "Deep Research escalation failed." };
