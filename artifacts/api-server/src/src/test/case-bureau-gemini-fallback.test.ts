@@ -26,10 +26,24 @@ function response(status: number, body: unknown): Response {
   });
 }
 
+function modelCatalogResponse(): Response {
+  return response(200, {
+    models: [
+      "gemini-3.8-flash",
+      "gemini-3.7-flash",
+      "gemini-3.6-flash",
+      "gemini-3.5-flash",
+      "gemini-3.5-flash-lite",
+      "gemini-3.1-flash-lite",
+    ].map((name) => ({ name: `models/${name}` })),
+  });
+}
+
 describe("Gemini Boss text-only model authority", () => {
   it("falls through a model-level 403 to a catalog model that the free-tier key can generate with", async () => {
-    process.env.GEMINI_API_KEY = "test-key";
+    process.env.GEMINI_API_KEY = "test-key-model-403";
     const fetchMock = vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(modelCatalogResponse())
       .mockResolvedValueOnce(response(403, { error: "model not available for this key tier" }))
       .mockResolvedValueOnce(response(200, {
         steps: [{ type: "model_output", content: [{ type: "text", text: '{"decision":"continue"}' }] }],
@@ -40,14 +54,15 @@ describe("Gemini Boss text-only model authority", () => {
     expect(result.model).toBe("gemini-3.7-flash");
     expect(result.raw).toBe('{"decision":"continue"}');
     expect(result.error).toBeNull();
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(String(fetchMock.mock.calls[0]?.[0])).toContain("v1beta/interactions");
+    expect(fetchMock).toHaveBeenCalledTimes(3);
     expect(String(fetchMock.mock.calls[1]?.[0])).toContain("v1beta/interactions");
+    expect(String(fetchMock.mock.calls[2]?.[0])).toContain("v1beta/interactions");
   });
 
   it("retries a transient HTTP 503 once on the same Gemini model before falling through", async () => {
-    process.env.GEMINI_API_KEY = "test-key";
+    process.env.GEMINI_API_KEY = "test-key-transient-503";
     const fetchMock = vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(modelCatalogResponse())
       .mockResolvedValueOnce(response(503, { error: "temporarily unavailable" }))
       .mockResolvedValueOnce(response(200, {
         steps: [{ type: "model_output", content: [{ type: "text", text: '{"decision":"continue"}' }] }],
@@ -58,15 +73,16 @@ describe("Gemini Boss text-only model authority", () => {
     expect(result.model).toBe("gemini-3.8-flash");
     expect(result.raw).toBe('{"decision":"continue"}');
     expect(result.error).toBeNull();
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(String(fetchMock.mock.calls[0]?.[0])).toContain("v1beta/interactions");
+    expect(fetchMock).toHaveBeenCalledTimes(3);
     expect(String(fetchMock.mock.calls[1]?.[0])).toContain("v1beta/interactions");
+    expect(String(fetchMock.mock.calls[2]?.[0])).toContain("v1beta/interactions");
   });
 
   it("falls back to the next same-role model after bounded persistent 429s", async () => {
-    process.env.GEMINI_API_KEY = "test-key";
+    process.env.GEMINI_API_KEY = "test-key-persistent-429";
     process.env.APEX_GEMINI_BOSS_429_RETRY_DELAY_MS = "10";
     const fetchMock = vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(modelCatalogResponse())
       .mockResolvedValueOnce(response(429, { error: "rate limited" }))
       .mockResolvedValueOnce(response(429, { error: "rate limited" }))
       .mockResolvedValueOnce(response(200, {
@@ -78,11 +94,11 @@ describe("Gemini Boss text-only model authority", () => {
     expect(result.model).toBe("gemini-3.7-flash");
     expect(result.raw).toBe('{"decision":"continue"}');
     expect(result.error).toBeNull();
-    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(fetchMock).toHaveBeenCalledTimes(4);
   });
 
   it("prefers the strongest stable text model available to the Boss control plane", async () => {
-    process.env.GEMINI_API_KEY = "test-key";
+    process.env.GEMINI_API_KEY = "test-key-resolve-catalog";
     const fetchMock = vi.spyOn(globalThis, "fetch")
       .mockResolvedValueOnce(response(200, {
         models: [
@@ -104,6 +120,7 @@ describe("Gemini Boss text-only model authority", () => {
   it("fails closed on an explicit daily quota without model hopping", async () => {
     process.env.GEMINI_API_KEY = "test-key-daily-quota-boss";
     const fetchMock = vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(modelCatalogResponse())
       .mockResolvedValueOnce(response(429, {
         error: {
           code: "quota_exceeded",
@@ -114,13 +131,15 @@ describe("Gemini Boss text-only model authority", () => {
     const result = await generateGeminiBossText(selection, "Return JSON.");
 
     expect(result.model).toBe("gemini-3.8-flash");
-    expect(result.error).toContain("daily quota exhaustion");
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(result.error).toContain("quota_exceeded");
+    expect(result.attempts).toHaveLength(1);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it("does not retry HTTP 503 more than once for the same model", async () => {
-    process.env.GEMINI_API_KEY = "test-key";
+    process.env.GEMINI_API_KEY = "test-key-repeated-503";
     const fetchMock = vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(modelCatalogResponse())
       .mockResolvedValueOnce(response(503, { error: "busy" }))
       .mockResolvedValueOnce(response(503, { error: "still busy" }))
       .mockResolvedValueOnce(response(200, {
@@ -132,31 +151,35 @@ describe("Gemini Boss text-only model authority", () => {
     expect(result.model).toBe("gemini-3.7-flash");
     expect(result.raw).toBe('{"decision":"continue"}');
     expect(result.error).toBeNull();
-    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(fetchMock).toHaveBeenCalledTimes(4);
   });
 
   it("stops after the first successful response", async () => {
-    process.env.GEMINI_API_KEY = "test-key";
-    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(response(200, {
-      steps: [{ type: "model_output", content: [{ type: "text", text: '{"decision":"continue"}' }] }],
-    }));
+    process.env.GEMINI_API_KEY = "test-key-first-success";
+    const fetchMock = vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(modelCatalogResponse())
+      .mockResolvedValueOnce(response(200, {
+        steps: [{ type: "model_output", content: [{ type: "text", text: '{"decision":"continue"}' }] }],
+      }));
 
     const result = await generateGeminiBossText(selection, "Review the case.");
 
     expect(result.model).toBe("gemini-3.8-flash");
     expect(result.raw).toBe('{"decision":"continue"}');
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it("sends only text-generation fields and never search grounding", async () => {
-    process.env.GEMINI_API_KEY = "test-key";
-    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(response(200, {
-      steps: [{ type: "model_output", content: [{ type: "text", text: '{"ok":true}' }] }],
-    }));
+    process.env.GEMINI_API_KEY = "test-key-text-only";
+    const fetchMock = vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(modelCatalogResponse())
+      .mockResolvedValueOnce(response(200, {
+        steps: [{ type: "model_output", content: [{ type: "text", text: '{"ok":true}' }] }],
+      }));
 
     await generateGeminiBossText(selection, "Use the persisted case context.");
 
-    const request = fetchMock.mock.calls[0]?.[1] as RequestInit;
+    const request = fetchMock.mock.calls[1]?.[1] as RequestInit;
     const body = JSON.parse(String(request.body)) as Record<string, unknown>;
     expect(body).toEqual({
       model: "gemini-3.8-flash",
@@ -169,17 +192,19 @@ describe("Gemini Boss text-only model authority", () => {
     expect(body).not.toHaveProperty("interactions");
   });
   it("supports bounded structured JSON for a Boss discovery control response", async () => {
-    process.env.GEMINI_API_KEY = "test-key";
-    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(response(200, {
-      status: "completed",
-      steps: [{
-        type: "model_output",
-        content: [{
-          type: "text",
-          text: '{"report":"bounded","investigatorLlm":"groq","candidates":[],"nextDirections":[],"uncertainties":[]}',
+    process.env.GEMINI_API_KEY = "test-key-structured";
+    const fetchMock = vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(modelCatalogResponse())
+      .mockResolvedValueOnce(response(200, {
+        status: "completed",
+        steps: [{
+          type: "model_output",
+          content: [{
+            type: "text",
+            text: '{"report":"bounded","investigatorLlm":"groq","candidates":[],"nextDirections":[],"uncertainties":[]}',
+          }],
         }],
-      }],
-    }));
+      }));
 
     const result = await generateGeminiBossText(selection, "Return JSON.", {
       responseFormat: {
@@ -198,7 +223,7 @@ describe("Gemini Boss text-only model authority", () => {
     });
 
     expect(result.raw).toContain('"investigatorLlm"');
-    const request = fetchMock.mock.calls[0]?.[1] as RequestInit;
+    const request = fetchMock.mock.calls[1]?.[1] as RequestInit;
     const body = JSON.parse(String(request.body)) as Record<string, any>;
     expect(body.generation_config).toEqual({ max_output_tokens: 2048, thinking_level: "low" });
     expect(body.response_format).toMatchObject({
@@ -209,8 +234,9 @@ describe("Gemini Boss text-only model authority", () => {
   });
 
   it("does not accept an incomplete Interactions response as a Boss decision", async () => {
-    process.env.GEMINI_API_KEY = "test-key";
+    process.env.GEMINI_API_KEY = "test-key-incomplete";
     const fetchMock = vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(modelCatalogResponse())
       .mockResolvedValueOnce(response(200, {
         status: "incomplete",
         steps: [{ type: "model_output", content: [{ type: "text", text: '{"investigatorLlm":"' }] }],
@@ -224,7 +250,7 @@ describe("Gemini Boss text-only model authority", () => {
 
     expect(result.model).toBe("gemini-3.7-flash");
     expect(result.raw).toBe('{"investigatorLlm":"groq"}');
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 
 });

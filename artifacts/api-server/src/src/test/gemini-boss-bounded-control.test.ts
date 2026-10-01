@@ -2,6 +2,16 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 describe("Gemini Boss bounded control-plane generation", () => {
   const nativeFetch = globalThis.fetch;
+  const catalogResponse = (names = [
+      "gemini-3.8-flash",
+      "gemini-3.7-flash",
+      "gemini-3.6-flash",
+      "gemini-3.5-flash",
+      "gemini-3.5-flash-lite",
+      "gemini-3.1-flash-lite",
+    ]) => new Response(JSON.stringify({
+    models: names.map((name) => ({ name: `models/${name}` })),
+  }), { status: 200, headers: { "content-type": "application/json" } });
 
   afterEach(() => {
     vi.unstubAllGlobals();
@@ -17,6 +27,7 @@ describe("Gemini Boss bounded control-plane generation", () => {
 
     const providerFetch = vi.fn<typeof fetch>(async (input, init) => {
       const url = String(input);
+      if (url.includes("/v1beta/models")) return catalogResponse();
       const body = JSON.parse(String(init?.body ?? "{}")) as { model?: string };
       if (body.model === "gemini-3.8-flash") return new Response("retired", { status: 404 });
       if (body.model === "gemini-3.7-flash") {
@@ -52,14 +63,14 @@ describe("Gemini Boss bounded control-plane generation", () => {
     );
 
     expect(result.error ?? result.raw ?? "").toContain('\"action\"');
-    expect(providerFetch).toHaveBeenCalledTimes(2);
+    expect(providerFetch).toHaveBeenCalledTimes(3);
 
-    const firstBody = JSON.parse(String(providerFetch.mock.calls[0]?.[1]?.body));
-    const secondBody = JSON.parse(String(providerFetch.mock.calls[1]?.[1]?.body));
+    const firstBody = JSON.parse(String(providerFetch.mock.calls[1]?.[1]?.body));
+    const secondBody = JSON.parse(String(providerFetch.mock.calls[2]?.[1]?.body));
     expect(firstBody.generation_config.max_output_tokens).toBe(768);
     expect(secondBody.generation_config.max_output_tokens).toBe(768);
-    expect(String(providerFetch.mock.calls[0]?.[0])).toContain("/v1beta/interactions");
     expect(String(providerFetch.mock.calls[1]?.[0])).toContain("/v1beta/interactions");
+    expect(String(providerFetch.mock.calls[2]?.[0])).toContain("/v1beta/interactions");
     expect(firstBody.model).toBe("gemini-3.8-flash");
     expect(secondBody.model).toBe("gemini-3.7-flash");
   });
@@ -67,6 +78,7 @@ describe("Gemini Boss bounded control-plane generation", () => {
     process.env.GEMINI_API_KEY = "test-key";
 
     const providerFetch = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(catalogResponse(["gemini-3.5-flash"]))
       .mockResolvedValueOnce(new Response(
         JSON.stringify({ error: { code: "invalid_request", message: "structured request rejected" } }),
         { status: 400 },
@@ -99,10 +111,10 @@ describe("Gemini Boss bounded control-plane generation", () => {
 
     expect(result.error).toBeNull();
     expect(result.raw).toContain('"action"');
-    expect(providerFetch).toHaveBeenCalledTimes(2);
+    expect(providerFetch).toHaveBeenCalledTimes(3);
 
-    const firstBody = JSON.parse(String(providerFetch.mock.calls[0]?.[1]?.body));
-    const secondBody = JSON.parse(String(providerFetch.mock.calls[1]?.[1]?.body));
+    const firstBody = JSON.parse(String(providerFetch.mock.calls[1]?.[1]?.body));
+    const secondBody = JSON.parse(String(providerFetch.mock.calls[2]?.[1]?.body));
     expect(firstBody.response_format).toBeDefined();
     expect(secondBody.response_format).toBeUndefined();
     expect(secondBody.model).toBe("gemini-3.5-flash");
@@ -114,6 +126,7 @@ describe("Gemini Boss bounded control-plane generation", () => {
     process.env.APEX_GEMINI_BOSS_429_RETRY_DELAY_MS = "10";
 
     const providerFetch = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(catalogResponse())
       .mockResolvedValueOnce(new Response(JSON.stringify({
         error: { code: "rate_limit_exceeded", status: "RESOURCE_EXHAUSTED", message: "capacity temporarily unavailable" },
       }), { status: 429 }))
@@ -140,9 +153,9 @@ describe("Gemini Boss bounded control-plane generation", () => {
 
     expect(result.error).toBeNull();
     expect(result.raw).toContain('"action"');
-    expect(providerFetch).toHaveBeenCalledTimes(2);
-    expect(JSON.parse(String(providerFetch.mock.calls[0]?.[1]?.body)).model).toBe("gemini-3.8-flash");
+    expect(providerFetch).toHaveBeenCalledTimes(3);
     expect(JSON.parse(String(providerFetch.mock.calls[1]?.[1]?.body)).model).toBe("gemini-3.8-flash");
+    expect(JSON.parse(String(providerFetch.mock.calls[2]?.[1]?.body)).model).toBe("gemini-3.8-flash");
   });
 
 });

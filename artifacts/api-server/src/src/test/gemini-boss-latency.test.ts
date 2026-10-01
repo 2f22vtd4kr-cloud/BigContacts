@@ -1,5 +1,18 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+function modelCatalogResponse(): Response {
+  return new Response(JSON.stringify({
+    models: [
+      "gemini-3.8-flash",
+      "gemini-3.7-flash",
+      "gemini-3.6-flash",
+      "gemini-3.5-flash",
+      "gemini-3.5-flash-lite",
+      "gemini-3.1-flash-lite",
+    ].map((name) => ({ name: `models/${name}` })),
+  }), { status: 200, headers: { "content-type": "application/json" } });
+}
+
 vi.mock("../lib/logger", () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
 }));
@@ -61,6 +74,7 @@ describe("Gemini Boss latency controls", () => {
   it("uses the model-specific Gemini 3.x thinking contract and a small control response budget", async () => {
     process.env.GEMINI_API_KEY = "test-key";
     const fetchMock = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(modelCatalogResponse())
       .mockResolvedValueOnce(new Response(JSON.stringify({
         steps: [{ type: "model_output", content: [{ type: "text", text: '{"outcome":"proceed","investigatorLlm":"groq"}' }] }],
       }), { status: 200 }));
@@ -83,9 +97,9 @@ describe("Gemini Boss latency controls", () => {
 
     expect(result.error).toBeNull();
     expect(result.raw).toContain('"outcome"');
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
 
-    const body = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body));
+    const body = JSON.parse(String(fetchMock.mock.calls[1]?.[1]?.body));
     expect(body.generation_config.max_output_tokens).toBe(768);
     expect(body.generation_config.responseMimeType).toBeUndefined();
     expect(body.generation_config.thinking_level).toBe("low");
@@ -95,6 +109,7 @@ describe("Gemini Boss latency controls", () => {
   it("records redacted request telemetry without logging the Boss prompt", async () => {
     process.env.GEMINI_API_KEY = "test-key";
     const fetchMock = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(modelCatalogResponse())
       .mockResolvedValueOnce(new Response(JSON.stringify({
         steps: [{ type: "model_output", content: [{ type: "text", text: '{"outcome":"proceed","investigatorLlm":"groq"}' }] }],
       }), { status: 200 }));
@@ -116,6 +131,7 @@ describe("Gemini Boss latency controls", () => {
     );
 
     expect(result.error).toBeNull();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
     const infoCall = vi.mocked(logger.info).mock.calls.find(([, message]) => message === "Gemini Boss request resolved");
     expect(infoCall).toBeDefined();
     const telemetry = infoCall?.[0] as Record<string, unknown>;
