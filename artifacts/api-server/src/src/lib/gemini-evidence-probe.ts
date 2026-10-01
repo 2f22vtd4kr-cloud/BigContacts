@@ -151,7 +151,7 @@ export async function runGeminiEvidenceVerificationEpisode(input: {
   signal?: AbortSignal;
 }): Promise<GeminiVerificationEpisodeResult> {
   const claims = input.claims.map((claim) => claim.trim().slice(0, 900)).filter(Boolean).slice(0, 8);
-  const urls = [...new Set((input.urls ?? []).map((url) => url.trim()).filter((url) => /^https?:\\/\\//i.test(url)))].slice(0, 20);
+  const urls = [...new Set((input.urls ?? []).map((url) => url.trim()).filter((url) => /^https?:\/\//i.test(url)))].slice(0, 20);
   if (!claims.length) return { status: "unavailable", model: null, claims: [], citations: [], searchedQueries: [], inspectedUrls: urls, answer: null, error: "Empty verification episode." };
   const entries = keys();
   for (const entry of entries) {
