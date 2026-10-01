@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   classifyProviderHttpStatus,
   classifyThrownProviderError,
+  providerErrorCode,
   describeThrownProviderError,
   summarizeProviderBody,
 } from "../lib/provider-error-diagnostics";
@@ -30,6 +31,15 @@ describe("provider error diagnostics", () => {
     expect(diagnostic.causeHostname).toBe("generativelanguage.googleapis.com");
     expect(diagnostic.messageDigest).toMatch(/^[a-f0-9]{16}$/);
     expect(JSON.stringify(diagnostic)).not.toContain("socket detail");
+  });
+
+  it("classifies an explicit daily-quota message even when the provider code is a generic 429", () => {
+    expect(providerErrorCode(JSON.stringify({
+      error: {
+        code: "too_many_requests",
+        message: "Free Tier limit of 500 requests per day has been exceeded.",
+      },
+    }))).toBe("quota_exceeded");
   });
 
   it("classifies provider HTTP status codes without exposing response bodies", () => {
