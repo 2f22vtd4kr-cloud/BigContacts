@@ -9,6 +9,7 @@ import {
   markGeminiModelRateLimited,
 } from "./gemini-model-pool";
 import { logger } from "./logger";
+import { selectGeminiThinkingLevel } from "./gemini-thinking-policy";
 import { fetchGeminiInteractions } from "./gemini-interactions-transport";
 import {
   classifyProviderHttpStatus,
@@ -259,7 +260,7 @@ async function request(system: string, user: string, responseFormat?: Record<str
       input: `${systemPrompt}\\n\\nUSER REQUEST:\\n${user}`,
       generation_config: {
         max_output_tokens: 512,
-        thinking_level: getGeminiThinkingLevel(model),
+        thinking_level: selectGeminiThinkingLevel(model, { contradictionPressure: /contradict|conflict|collision|disput/i.test(user), identityAmbiguity: /identity|ambiguous|collision/i.test(user), falsificationRequired: /falsif|disprove|counter.?evidence/i.test(user), terminalDecision: /final|terminal|stop/i.test(user) }),
       },
       ...(responseFormat ? { response_format: responseFormat } : {}),
     });
