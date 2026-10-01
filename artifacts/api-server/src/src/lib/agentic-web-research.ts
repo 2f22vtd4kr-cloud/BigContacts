@@ -240,6 +240,7 @@ export async function runAgenticWebResearch(input: RunInput): Promise<AgenticRun
          return { stop: false, unavailable: false };
        };
 
+       try {
        const requestedMaxActionTurns = Number.isFinite(input.maxIterations) ? Math.floor(input.maxIterations!) : MAX_TARGET_ACTION_TURNS;
        const maxActionTurns = Math.min(MAX_TARGET_ACTION_TURNS, Math.max(0, requestedMaxActionTurns));
        for (let actionTurn = 1; actionTurn <= maxActionTurns; actionTurn++) {
