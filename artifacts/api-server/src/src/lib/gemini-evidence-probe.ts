@@ -10,6 +10,7 @@ import { safeOutboundFetch } from "./ssrf-safe-fetch";
 import { runProviderCall } from "./provider-gate";
 import { providerErrorCode, classifyProviderHttpStatus } from "./provider-error-diagnostics";
 import { chooseGeminiControlModels, getGeminiThinkingLevel } from "./gemini-model-pool";
+import { selectGeminiThinkingLevel } from "./gemini-thinking-policy";
 
 const GEMINI_GENERATE_CONTENT = "https://generativelanguage.googleapis.com/v1beta/models";
 
@@ -123,4 +124,82 @@ export async function runGeminiEvidenceProbe(input: {
     }
   }
   return { status: "unavailable", model: null, claim, answer: null, citations: [], searchedQueries: [], error: "Gemini evidence probe exhausted bounded model/key attempts." };
+}
+
+
+export type GeminiVerificationEpisodeResult = {
+  status: "completed" | "unavailable";
+  model: string | null;
+  claims: Array<{ claim: string; status: "supported" | "contradicted" | "unresolved"; rationale: string }>;
+  citations: GeminiEvidenceProbeCitation[];
+  searchedQueries: string[];
+  inspectedUrls: string[];
+  answer: string | null;
+  error: string | null;
+};
+
+/**
+ * Multi-tool specialist verification. Search discovers missing corroboration;
+ * URL Context inspects investigator-selected URLs. The returned prose is advisory
+ * and is never itself admitted as evidence by Apex.
+ */
+export async function runGeminiEvidenceVerificationEpisode(input: {
+  claims: string[];
+  urls?: string[];
+  subject?: string | null;
+  context?: string | null;
+  signal?: AbortSignal;
+}): Promise<GeminiVerificationEpisodeResult> {
+  const claims = input.claims.map((claim) => claim.trim().slice(0, 900)).filter(Boolean).slice(0, 8);
+  const urls = [...new Set((input.urls ?? []).map((url) => url.trim()).filter((url) => /^https?:\\/\\//i.test(url)))].slice(0, 20);
+  if (!claims.length) return { status: "unavailable", model: null, claims: [], citations: [], searchedQueries: [], inspectedUrls: urls, answer: null, error: "Empty verification episode." };
+  const entries = keys();
+  for (const entry of entries) {
+    let models: string[] = [];
+    try { models = await resolveModels(entry.key); } catch { continue; }
+    for (const model of models) {
+      if (input.signal?.aborted) throw new Error("cancelled");
+      const prompt = [
+        "Apex Atlas verification episode. Verify the listed claims against public sources.",
+        "Use Google Search for missing corroboration and URL Context for the supplied URLs.",
+        "Do not infer identity from name similarity. For each claim classify only supported, contradicted, or unresolved.",
+        "Return JSON with claims:[{claim,status,rationale}], plus a concise answer. Cite the exact source URLs used.",
+        "SUBJECT: " + (input.subject ?? "").trim().slice(0, 300),
+        "CLAIMS: " + JSON.stringify(claims),
+        "SUPPLIED URLS: " + JSON.stringify(urls),
+        input.context ? "CASE CONTEXT: " + input.context.trim().slice(0, 3000) : "",
+      ].filter(Boolean).join("\\n");
+      const controller = new AbortController(); const timer = setTimeout(() => controller.abort(), 45_000);
+      try {
+        const response = await runProviderCall(
+          { provider: "gemini", account: entry.key, signal: input.signal },
+          () => safeOutboundFetch(GEMINI_GENERATE_CONTENT + "/" + encodeURIComponent(model) + ":generateContent", {
+            method: "POST",
+            headers: { "x-goog-api-key": entry.key, "Content-Type": "application/json", Accept: "application/json" },
+            body: JSON.stringify({
+              contents: [{ role: "user", parts: [{ text: prompt }] }],
+              tools: [{ google_search: {} }, { url_context: {} }],
+              generationConfig: {
+                maxOutputTokens: 1400,
+                thinkingConfig: { thinkingLevel: selectGeminiThinkingLevel(model, { falsificationRequired: true, identityAmbiguity: /identity|attribution|collision/i.test(prompt) }) },
+              },
+            }),
+            signal: controller.signal,
+          }),
+        );
+        const body = await response.text(); if (!response.ok) continue;
+        const payload = JSON.parse(body); const output = extractOutput(payload);
+        const raw = output.answer;
+        let parsed: any = null;
+        try { parsed = raw ? JSON.parse(raw) : null; } catch { parsed = null; }
+        const episodeClaims = Array.isArray(parsed?.claims)
+          ? parsed.claims.filter((item: any) => item && typeof item.claim === "string" && ["supported", "contradicted", "unresolved"].includes(item.status)).map((item: any) => ({ claim: item.claim, status: item.status, rationale: typeof item.rationale === "string" ? item.rationale : "" }))
+          : claims.map((claim) => ({ claim, status: "unresolved" as const, rationale: raw ?? "Gemini returned no machine-readable claim classification." }));
+        return { status: "completed", model, claims: episodeClaims, citations: output.citations, searchedQueries: output.queries, inspectedUrls: urls, answer: raw || null, error: null };
+      } catch (error) {
+        if (input.signal?.aborted) throw new Error("cancelled");
+      } finally { clearTimeout(timer); }
+    }
+  }
+  return { status: "unavailable", model: null, claims: claims.map((claim) => ({ claim, status: "unresolved" as const, rationale: "Verification provider unavailable." })), citations: [], searchedQueries: [], inspectedUrls: urls, answer: null, error: "Gemini verification episode exhausted bounded attempts." };
 }
