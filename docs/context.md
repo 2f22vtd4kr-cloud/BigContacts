@@ -501,3 +501,48 @@ The most complete successor document is now:
 A successor must read it **after** the repository study protocol and the other handoff volumes, then verify current main and actual source before making changes.
 
 **Current release state remains NOT GREEN / not production-certified.**
+
+## 2026-10-01 current-main successor handoff reconciliation
+
+The repository has advanced beyond the older SHA references preserved in this living document. The latest verified main at the time of this reconciliation is:
+
+`7a2f15107081043e16b3af26e25317519f5f5e60`
+
+The newest commits after PR #450 are primarily successor-documentation reconciliation. They do not constitute a new production architecture rewrite.
+
+The current comprehensive continuation document is:
+
+`docs/apex-atlas-handoff/10_SUCCESSOR_MASTER_HANDOFF_CURRENT_MAIN_2026-10-01.md`
+
+A successor must read the mandatory repository study protocol, current source, all relevant handoff volumes, and then verify the actual current `main` SHA again before acting.
+
+### Current runtime boundary
+
+The latest exact UI-equivalent Atlas launch remains job `c201a722-623d-45f0-b667-e20a4737c3f1`.
+
+Contract:
+
+```
+targetCount=3
+researchDepth=standard
+targetTimeoutMs=420000
+```
+
+The launch was accepted with HTTP 202 after readiness checks. Polling was interrupted when the environment reported daily free-quota exhaustion.
+
+Therefore the terminal outcome is:
+
+**UNKNOWN / UNOBSERVED.**
+
+It is neither a verified success nor a verified failure. Do not infer downstream Investigator, evidence, card, or terminal activity from the accepted 202 alone.
+
+### Current release state
+
+**NOT GREEN / NOT production-certified.**
+
+Static architecture/test maturity is not equivalent to live research certification.
+
+### Successor rule
+
+The repository itself is authoritative. Never let an older SHA in this living context override current Git history. Never let a handoff document override executable/runtime evidence.
+
