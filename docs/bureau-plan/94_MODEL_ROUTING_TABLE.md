@@ -4,7 +4,7 @@
 
 | Role | Canonical model/provider | Responsibility |
 |------|--------------------------|----------------|
-| Boss / Head Investigator | **Mistral** | Case direction, assignment, selection of an Investigator LLM, strategic orchestration, ongoing bureau oversight, final case-level judgment |
+| Boss / Head Investigator | **Groq** | Case direction, assignment, selection of an Investigator LLM, strategic orchestration, ongoing bureau oversight, final case-level judgment |
 | Right-hand | **Mistral** | Separate bounded oversight invocation; critiques the latest act, evidence gaps and research objective; never browses or invents evidence |
 | Investigator LLM pool | **All configured LLMs designated for investigation** | Actual target research: reasoning, queries, pivots, tool use, evidence evaluation, stopping, and promotion recommendations |
 | Non-LLM research tools | **Capability pool** | Serper, Tavily, Exa, HTTP/page visit, Scrapfly, ZenRows, registries, RDAP/WhoisJSON, Holehe, Maigret/Sherlock, theHarvester, etc. |
