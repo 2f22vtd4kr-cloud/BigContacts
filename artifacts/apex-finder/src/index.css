@@ -926,3 +926,109 @@ html.light [class*="text-foreground/"],
 html.light [class*="text-muted-foreground/"] {
   opacity: 1;
 }
+
+
+/* ─── Global button underflow interaction ─────────────────────────────
+   Every native button gets the same small physical lift + a living color
+   surface underneath on activation. The surface inherits the current
+   theme's flow palette, so Light uses burgundy/forest/sand and Dark keeps
+   the existing teal/lime family. Launch CTAs retain their richer variant.
+*/
+@keyframes atlas-button-lift {
+  0% { transform: translateY(0) scale(1); }
+  18% { transform: translateY(-3px) scale(1.012); }
+  58% { transform: translateY(-2px) scale(1.006); }
+  100% { transform: translateY(0) scale(1); }
+}
+
+@keyframes atlas-button-underflow {
+  0% {
+    opacity: 0;
+    background-position: 0% 50%;
+    transform: translateY(-1px) scaleX(.76);
+  }
+  16% {
+    opacity: .92;
+    transform: translateY(0) scaleX(1);
+  }
+  55% {
+    opacity: .78;
+    background-position: 100% 46%;
+    transform: translateY(2px) scaleX(1.04);
+  }
+  100% {
+    opacity: 0;
+    background-position: 0% 54%;
+    transform: translateY(5px) scaleX(.88);
+  }
+}
+
+/* The pseudo-element sits below the control rather than replacing its face. */
+button.atlas-button-flow:not(.atlas-launch-cta):not(.atlas-launch-glow) {
+  position: relative;
+  z-index: 1;
+  overflow: visible !important;
+  isolation: isolate;
+  animation: atlas-button-lift 1050ms var(--atlas-ease) both;
+}
+
+button.atlas-button-flow:not(.atlas-launch-cta):not(.atlas-launch-glow)::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  left: 5%;
+  right: 5%;
+  bottom: -7px;
+  height: 14px;
+  border-radius: 999px;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse at 12% 52%, var(--atlas-flow-1) 0%, transparent 58%),
+    radial-gradient(ellipse at 38% 44%, var(--atlas-flow-2) 0%, transparent 56%),
+    radial-gradient(ellipse at 68% 58%, var(--atlas-flow-3) 0%, transparent 58%),
+    radial-gradient(ellipse at 92% 42%, var(--atlas-flow-4) 0%, transparent 58%),
+    linear-gradient(100deg, var(--atlas-flow-1) 0%, var(--atlas-flow-2) 28%, var(--atlas-flow-3) 58%, var(--atlas-flow-4) 82%, var(--atlas-flow-1) 100%);
+  background-size: 220% 250%;
+  background-position: 0% 50%;
+  filter: blur(5px) saturate(1.12);
+  opacity: 0;
+  animation: atlas-button-underflow 1050ms ease-in-out both;
+}
+
+button.atlas-button-flow:not(.atlas-launch-cta):not(.atlas-launch-glow):focus-visible {
+  outline: none;
+}
+
+button.atlas-button-flow:not(.atlas-launch-cta):not(.atlas-launch-glow):focus-visible::after {
+  animation: atlas-button-underflow 1050ms ease-in-out both;
+}
+
+/* Icon-only controls should get the same interaction without changing their
+   footprint; the underflow is deliberately smaller than the control. */
+button.atlas-button-flow[aria-label]:not(.atlas-launch-cta):not(.atlas-launch-glow)::after {
+  left: 10%;
+  right: 10%;
+  bottom: -5px;
+  height: 10px;
+}
+
+/* Opt-out is available only for controls where a visible under-surface would
+   be semantically wrong (e.g. embedded/native-feeling utility affordances). */
+button[data-atlas-flow="off"] {
+  animation: none !important;
+}
+button[data-atlas-flow="off"]::after {
+  display: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  button.atlas-button-flow:not(.atlas-launch-cta):not(.atlas-launch-glow) {
+    animation: none !important;
+    transform: none !important;
+  }
+  button.atlas-button-flow:not(.atlas-launch-cta):not(.atlas-launch-glow)::after {
+    animation: none !important;
+    opacity: .22;
+    transform: translateY(1px) scaleX(.9);
+  }
+}
