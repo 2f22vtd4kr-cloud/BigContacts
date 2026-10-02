@@ -106,4 +106,4 @@ jobs:
       - name: Run strict provenance and provider-cache regression tests
         run: pnpm --dir artifacts/api-server exec vitest run src/src/test/bureau-contact-persist-strict.test.ts src/src/test/provider-gate-cache-bounds.test.ts
       - name: Run Gemini Interactions control-plane regression tests
-        run: pnpm --dir artifacts/api-server exec vitest run src/src/test/gemini-interactions.test.ts
+        run: pnpm --dir artifacts/api-server exec vitest run src/test/gemini-interactions.test.ts
