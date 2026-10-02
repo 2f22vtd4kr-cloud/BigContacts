@@ -109,10 +109,10 @@ async function request(system:string,user:string,format?:Record<string,unknown>)
     if(response.status===429&&retry429<MAX_429_RETRIES_PER_MODEL&&Date.now()<deadline){const delay=retryAfterMs(response,0);lastRetryAfterMs=delay;lastRetryAfterHeader=response.headers.get("retry-after");if(delay<=2500){retry429++;if(delay)await new Promise(r=>setTimeout(r,Math.min(delay,Math.max(0,deadline-Date.now()))));continue;}}
     if(!response.ok){const cls=classifyProviderHttpStatus(response.status);const code=providerErrorCode(responseBody);const diagnostic={keyName:candidate.entry.name,model:candidate.model,httpStatus:response.status,providerCode:code,retry429,retry503,retryAfterMs:lastRetryAfterMs,retryAfterHeader:lastRetryAfterHeader,body:summarizeProviderBody(responseBody),failureClass:cls};failures.push(diagnostic);if(response.status===401||response.status===403||response.status===404)break;if(response.status===429||response.status===500||response.status===502||response.status===503||response.status===504)break;return {raw:"",error:`Mistral Right-hand ${candidate.model} ${cls} HTTP ${response.status}: ${formatAttemptDiagnostic(diagnostic)}`,model:candidate.model};}
     const raw=extractText(JSON.parse(responseBody)); if(raw)return {raw,error:null,model:candidate.model};
-    failures.push({keyName:candidate.entry.name,model:candidate.model,httpStatus:response.status,providerCode:null,retry429,retry503,retryAfterMs:lastRetryAfterMs,body:null,failureClass:"invalid_response"});break;
+    failures.push({keyName:candidate.entry.name,model:candidate.model,httpStatus:response.status,providerCode:null,retry429,retry503,retryAfterMs:lastRetryAfterMs,retryAfterHeader:lastRetryAfterHeader,body:null,failureClass:"invalid_response"});break;
    }catch(error){
     const cls=classifyThrownProviderError(error,error instanceof Error&&error.name==="AbortError");
-    failures.push({keyName:candidate.entry.name,model:candidate.model,httpStatus:null,providerCode:null,retry429,retry503,retryAfterMs:lastRetryAfterMs,body:null,failureClass:cls});
+    failures.push({keyName:candidate.entry.name,model:candidate.model,httpStatus:null,providerCode:null,retry429,retry503,retryAfterMs:lastRetryAfterMs,retryAfterHeader:lastRetryAfterHeader,body:null,failureClass:cls});
     if(cls!=="network_error"&&cls!=="timeout")return {raw:"",error:`Mistral Right-hand ${candidate.model} ${cls}: ${describeThrownProviderError(error)}`,model:candidate.model};
     break;
    }finally{clearTimeout(timer);}
