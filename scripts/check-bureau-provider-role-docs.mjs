@@ -36,7 +36,7 @@ for (const file of files) {
   for (const phrase of forbidden) {
     if (source.includes(phrase)) failures.push(`${file}: stale provider/control-plane phrase: ${phrase}`);
   }
-  if (!/Boss.*Gemini/i.test(source)) failures.push(`${file}: missing Gemini Boss declaration`);
+  if (!/Boss.*Groq/i.test(source)) failures.push(`${file}: missing Groq Boss declaration`);
   if (!/Right-hand.*Gemini|Gemini.*Right-hand/i.test(source)) failures.push(`${file}: missing Gemini Right-hand declaration`);
   if (!/Investigator LLM pool/i.test(source)) failures.push(`${file}: missing Investigator LLM pool declaration`);
   if (!/two AI layers|two-layer/i.test(source)) failures.push(`${file}: missing two-layer architecture declaration`);
@@ -49,4 +49,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log(`provider-role documentation OK (${files.length} canonical docs)`);
+console.log(`provider-role documentation OK (${files.length} canonical docs): Groq Boss + Gemini Right-hand + Investigator LLM pool`);
