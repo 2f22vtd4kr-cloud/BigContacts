@@ -73,7 +73,7 @@ async function persistControlDecision(input: { caseId: number; controlTurn: numb
       const correlationKey = `atlas-control:case:${input.caseId}:turn:${input.controlTurn}`;
       const [existingEvent] = await tx.select({ payload: researchCaseEventsTable.payload }).from(researchCaseEventsTable).where(and(eq(researchCaseEventsTable.caseId, input.caseId), eq(researchCaseEventsTable.correlationKey, correlationKey))).limit(1);
       if (existingEvent && existingEvent.payload !== payloadJson) throw new Error(`Atlas control replay collision for case ${input.caseId}, turn ${input.controlTurn}.`);
-      if (!existingEvent) await tx.insert(researchCaseEventsTable).values({ caseId: input.caseId, iteration: input.controlTurn, actorRole: "groq_boss", eventType: "control_decision", summary: `Atlas control decision: ${input.decision.action}${input.decision.candidateName ? ` → ${input.decision.candidateName}` : ""}`, correlationKey, payload: payloadJson });
+      if (!existingEvent) await tx.insert(researchCaseEventsTable).values({ caseId: input.caseId, iteration: input.controlTurn, actorRole: "head_investigator", eventType: "control_decision", summary: `Atlas control decision: ${input.decision.action}${input.decision.candidateName ? ` → ${input.decision.candidateName}` : ""}`, correlationKey, payload: payloadJson });
       let caseFile: Record<string, unknown> = {};
       try { caseFile = caseRow.caseFile ? JSON.parse(caseRow.caseFile) as Record<string, unknown> : {}; } catch { throw new Error(`Atlas discovery case ${input.caseId} has unreadable durable state.`); }
       const history = Array.isArray(caseFile.atlasControlDecisions) ? caseFile.atlasControlDecisions : [];
