@@ -1,10 +1,10 @@
-// Gemini Right-hand migration invariant: oversight remains a separate case-file-only layer.
+// Mistral Right-hand migration invariant: oversight remains a separate case-file-only layer.
 // Final migration gate: investigators remain a distinct execution layer.
 import fs from "node:fs";
 import path from "node:path";
 
 const root = process.cwd();
-const rightHand = fs.readFileSync(path.join(root, "artifacts/api-server/src/src/lib/gemini-right-hand-reasoning.ts"), "utf8");
+const rightHand = fs.readFileSync(path.join(root, "artifacts/api-server/src/src/lib/mistral-right-hand-reasoning.ts"), "utf8");
 const boss = fs.readFileSync(path.join(root, "artifacts/api-server/src/src/lib/case-bureau-prompt.ts"), "utf8");
 
 const rightHandRequired = [
@@ -19,7 +19,7 @@ const rightHandRequired = [
   "decisionLog",
 ];
 for (const marker of rightHandRequired) {
-  if (!rightHand.includes(marker)) throw new Error(`bureau coordination guard failed in Gemini right-hand: missing ${marker}`);
+  if (!rightHand.includes(marker)) throw new Error(`bureau coordination guard failed in Mistral right-hand: missing ${marker}`);
 }
 
 const bossRequired = [
