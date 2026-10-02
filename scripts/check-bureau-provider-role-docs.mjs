@@ -37,7 +37,7 @@ for (const file of files) {
     if (source.includes(phrase)) failures.push(`${file}: stale provider/control-plane phrase: ${phrase}`);
   }
   if (!/Boss.*Groq/i.test(source)) failures.push(`${file}: missing Groq Boss declaration`);
-  if (!/Right-hand.*Gemini|Gemini.*Right-hand/i.test(source)) failures.push(`${file}: missing Gemini Right-hand declaration`);
+  if (!/Right-hand.*Mistral|Mistral.*Right-hand/i.test(source)) failures.push(`${file}: missing Mistral Right-hand declaration`);
   if (!/Investigator LLM pool/i.test(source)) failures.push(`${file}: missing Investigator LLM pool declaration`);
   if (!/two AI layers|two-layer/i.test(source)) failures.push(`${file}: missing two-layer architecture declaration`);
   if (!/Tavily.*Exa|Exa.*Tavily/i.test(source)) failures.push(`${file}: missing search capability surface`);
@@ -49,4 +49,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log(`provider-role documentation OK (${files.length} canonical docs): Groq Boss + Gemini Right-hand + Investigator LLM pool`);
+console.log(`provider-role documentation OK (${files.length} canonical docs): Groq Boss + Mistral Right-hand + Investigator LLM pool`);
