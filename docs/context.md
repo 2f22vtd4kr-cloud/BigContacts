@@ -8,6 +8,13 @@
 **Historical Very Strong review branch:** `audit/apex-atlas-very-strong-v1`  
 **Review status:** `main` contains the newer Very Strong implementation/documentation line. Neither branch history nor static gates alone constitutes production certification.
 
+
+> **AUTHORITATIVE CURRENT STATE — 2026-10-02:** Canonical control is Groq Boss + Mistral Right-hand + model-owned Groq/Mistral Investigator. Generic GROQ_API_KEY and MISTRAL_API_KEY are Investigator credentials. Boss uses GROQ_BOSS_API_KEY[_1.._10]; Right-hand uses MISTRAL_RIGHT_HAND_API_KEY[_2.._5]. Do not restore Gemini transport or reuse generic Investigator credentials for control roles.
+>
+> The latest canonical live audit failed closed at the opening Mistral Right-hand gate before Investigator execution. The provider was classified rate_limited. Remediation now preserves structured provider diagnostics including HTTP status, provider code, bounded retry counts/delay, raw Retry-After, and redacted body structure; readiness also evaluates subsequent role-scoped keys after a failed catalog attempt.
+>
+> New canonical runtime durable labels and system status use Groq/Mistral identities. Historical Gemini material remains historical only. Source/diff verification has passed; a synchronized workspace still needs the full build/typecheck/Vitest run before this remediation can be called green.
+
 ## 1. Executive state
 
 Apex Atlas is an AI-powered public-web research bureau, not a deterministic enrichment workflow.
