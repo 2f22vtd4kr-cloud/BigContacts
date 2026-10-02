@@ -191,3 +191,22 @@ New control-plane implementation is documented in [17-groq-boss-migration.md](./
 Boss now routes through Groq GPT-OSS 120B with bounded GPT-OSS 20B fallback. Gemini remains the independent Right-hand. Ordinary system status remains provider-call-free; Groq catalog readiness is an explicit diagnostic only. The canonical live Atlas run remains unverified until a fresh authorized audit reaches the real research/evidence terminal path.
 
 - [18 — Mistral Right-hand migration](./18-mistral-right-hand-migration.md)
+
+
+## CURRENT MASTER HANDOFF — 2026-10-02
+
+Current main HEAD: `44118b641747b034eccc00d0aca5f0209aea3259`.
+
+The authoritative continuation document is now:
+
+`docs/apex-atlas-handoff/19_MASTER_SUCCESSOR_HANDOFF_CURRENT_2026-10-02.md`
+
+It supersedes older master-handoff documents where they conflict. Read older volumes for history, but current source and runtime evidence win.
+
+**Critical current architecture:** Groq GPT-OSS 120B → 20B fallback is Boss; Mistral Small 4 → `mistral-small-latest` is independent Right-hand; Investigator remains model-owned Groq/Mistral.
+
+**Current CI boundary:** API Build, frontend five-condition gate, and discovery static check pass on HEAD. Five Consecutive Full Code Audits currently fails at the Atlas control contract regression because `artifacts/api-server/src/src/test/atlas-control-contract-regression.test.ts` still asserts old Gemini Right-hand implementation details. Fix the stale test against the Mistral implementation/compatibility shim; do not restore Gemini transport.
+
+**Latest canonical runtime job:** `6097cdeb-d176-4807-96cb-1c59e334a5e3`. It was accepted and observed running at 0/4 in the Groq Boss → Mistral Right-hand → Investigator opening stage; terminal outcome remains unknown/unobserved in the available record.
+
+Release remains **NOT GREEN / NOT production-certified**.
