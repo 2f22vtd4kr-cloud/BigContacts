@@ -637,3 +637,10 @@ New deterministic checks/tests:
 - `artifacts/api-server/src/test/groq-boss.test.ts`
 
 The canonical release state remains **NOT GREEN / NOT production-certified** until the implementation is verified in the actual runtime and a later authorized single canonical Atlas audit reaches the real Right-hand → Investigator → evidence → terminal path. No Groq key value is committed to the repository.
+## 2026-10-02 Mistral Right-hand control-plane migration
+
+The canonical Right-hand provider is now Mistral Small 4 (mistral-small-2603), with mistral-small-latest as a bounded catalog fallback. Groq remains the Boss; the Investigator remains the existing model-owned Groq/Mistral research layer. The Right-hand is oversight only and has no research-tool authority.
+
+The adapter is artifacts/api-server/src/src/lib/mistral-right-hand-reasoning.ts, uses MISTRAL_API_KEY (plus numbered slots), Mistral /v1/models for capability discovery, and /v1/chat/completions for bounded JSON control. Prompts are capped at 20,000 characters and oversized model-facing context fails closed rather than silently discarding durable evidence. Ordinary /api/system/status remains provider-call-free; POST /api/system/diagnostics/mistral-readiness is the explicit catalog-only diagnostic.
+
+gemini-right-hand-reasoning.ts is now only a compatibility shim and contains no Gemini transport. The canonical boundary gate is scripts/check-mistral-right-hand-model-boundary.mjs and the regression suite is mistral-right-hand.test.ts.
