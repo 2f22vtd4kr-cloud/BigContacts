@@ -4,6 +4,8 @@ import { cn } from "@/lib/utils";
 import {
   Activity,
   BookOpen,
+  Moon,
+  Sun,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -52,6 +54,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [toolsOpen, setToolsOpen] = useState(false);
+  const [theme, setTheme] = useState<"dark" | "light">("dark");
   /** Desktop: sidebar can collapse so Reactor graph has room */
   const [desktopNavOpen, setDesktopNavOpen] = useState(true);
   const [edgeHot, setEdgeHot] = useState(false);
@@ -69,8 +72,22 @@ export function Layout({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
-    document.documentElement.classList.add("dark");
+    const stored = window.localStorage.getItem("apex-atlas-theme");
+    const nextTheme = stored === "light" ? "light" : "dark";
+    setTheme(nextTheme);
+    document.documentElement.classList.toggle("light", nextTheme === "light");
+    document.documentElement.classList.toggle("dark", nextTheme === "dark");
   }, []);
+
+  const toggleTheme = () => {
+    setTheme((current) => {
+      const nextTheme = current === "dark" ? "light" : "dark";
+      document.documentElement.classList.toggle("light", nextTheme === "light");
+      document.documentElement.classList.toggle("dark", nextTheme === "dark");
+      window.localStorage.setItem("apex-atlas-theme", nextTheme);
+      return nextTheme;
+    });
+  };
 
   useEffect(() => {
     setSidebarOpen(false);
@@ -351,6 +368,18 @@ export function Layout({ children }: { children: React.ReactNode }) {
                 <LaunchAtlasButton variant="header" />
               </div>
             )}
+            <button
+              type="button"
+              onClick={toggleTheme}
+              aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+              aria-pressed={theme === "light"}
+              title={theme === "dark" ? "Light mode" : "Dark mode"}
+              data-testid="button-theme-toggle"
+              className="atlas-theme-toggle atlas-pressable shrink-0"
+            >
+              {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+              <span className="hidden sm:inline">{theme === "dark" ? "Light" : "Dark"}</span>
+            </button>
             <WorkspaceStatus />
             <ApiKeyHealth />
           </div>
