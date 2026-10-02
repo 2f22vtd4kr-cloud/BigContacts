@@ -39,7 +39,7 @@ assert(!/const\s+serper\s*=.*\n\s*if\s*\(serper.*\n\s*const\s+tavily\s*=.*\n\s*i
 assert(!/web_search routes Serper\s*[→>-]+\s*Tavily/i.test(source.orientation), "Investigator orientation still teaches a fixed search-provider route.");
 assert(!/Begin\. Choose an initial web_search query/i.test(source.research), "Investigator ReAct still contains a forced initial web_search instruction.");
 assert(!/web_search.*(?:fallback|default provider)/i.test(source.research), "web_search still contains an implicit provider fallback/default.");
-assert(!/generateGroqBossText|Groq text fallback for Boss/i.test(source.bureau), "Groq is still exposed as a Boss planning fallback.");
+assert(/generateGroqBossText/.test(source.bureau) && /groq-boss/.test(source.bureau), "Canonical Boss is not routed through the Groq control-plane adapter.");
 assert(legacyExtractionRetired || !/groq-final-review-fallback/i.test(source.finalReview), "Groq is still exposed as a final card review/decision layer in canonical source.");
 assert(legacyExtractionRetired || !/groq-final-review-fallback/i.test(source.legacyFinalReview), "Groq is still exposed as a final card review/decision layer in legacy source.");
 assert(/investigatorLlm/.test(source.bureau), "Boss plan does not expose investigatorLlm.");
@@ -50,7 +50,7 @@ assert(/investigatorLlm\s*:/.test(source.canonicalAtlas), "Canonical Atlas disco
 assert(/discoveryCaseId|caseId/.test(source.canonicalAtlas) && /runBureauAgenticWebPass\(/.test(source.canonicalAtlas), "Canonical Atlas discovery does not mount a durable discovery case context into the Investigator.");
 assert(/decideAtlasNextAction\s*\(/.test(source.canonicalAtlas), "Canonical Atlas discovery does not delegate the next research action to the AI control plane.");
 assert(/Allowed actions:[\s\S]*continue_discovery[\s\S]*research_candidate[\s\S]*revisit_candidate[\s\S]*pivot_discovery[\s\S]*stop/.test(source.atlasControl), "Atlas control decision does not expose the required model-owned transition actions.");
-assert(/resolveGeminiBossModel\s*\(/.test(source.atlasControl) && /runGeminiRightHandFreeJson\s*\(/.test(source.atlasControl) && /gemini-right-hand-reasoning/.test(source.atlasControl), "Atlas transition control does not use Gemini Boss plus Gemini Right-hand oversight.");
+assert(/resolveGeminiBossModel\s*\(/.test(source.atlasControl) && /runGeminiRightHandFreeJson\s*\(/.test(source.atlasControl) && /gemini-right-hand-reasoning/.test(source.atlasControl) && /groq-boss/.test(source.bureau), "Atlas transition control does not use Groq Boss plus Gemini Right-hand oversight.");
 assert(/candidateNames\.some\(/.test(source.atlasControl) && /fail-closed/.test(source.atlasControl), "Atlas control decision does not bind target selection to explicit admissions and fail closed.");
 assert(/runTargetContactAgent\(/.test(source.canonicalTarget) && /investigatorLlm\s*:/.test(source.canonicalTarget), "Canonical target runner does not bind the selected Investigator into the target Dig.");
 assert(/runTargetContactAgent\(/.test(source.canonicalTarget) && /contextDocument\s*:/.test(source.canonicalTarget), "Canonical target runner does not mount durable context into the Target Investigator.");
@@ -81,12 +81,12 @@ assert(/Startup recovery complete/.test(source.startupRecovery), "Lifecycle-only
 assert(!/runBroadDiscovery|bulk-run|deep-web-osint|social-discovery|messenger-discovery|in-house-enrich/.test(source.startupRecovery), "Lifecycle-only startup recovery contains a research/enrichment trigger.");
 assert(!/findingsFrom(?:PeopleSnippet|ProxyPage|IrAndRelatedBlocks|ContactFacts)[\s\S]{0,18000}personName:\s*targetName/.test(source.research), "ReAct observation extraction still injects target-derived personName into deterministic findings; #136 remains unresolved.");
 assert(!/findingsFrom(?:PeopleSnippet|ProxyPage|IrAndRelatedBlocks|ContactFacts)[\s\S]{0,18000}scope:\s*"candidate"/.test(source.research), "ReAct observation extraction still manufactures candidate scope before an Investigator promotion decision; #136 remains unresolved.");
-assert(/Gemini/.test(source.architecture) && /Right-hand\s*=\s*(?:\*\*)?Gemini/i.test(source.architecture) && /Investigator LLM pool/.test(source.architecture), "Canonical ReAct architecture document is missing the two-layer role law.");
+assert(/Groq GPT-OSS 120B|Boss.*Groq/i.test(source.architecture) && /Right-hand\s*=\s*(?:\*\*)?Gemini/i.test(source.architecture) && /Investigator LLM pool/.test(source.architecture), "Canonical ReAct architecture document is missing the Groq Boss + Gemini Right-hand role law.");
 assert(/no forced search order/i.test(source.architecture), "Canonical ReAct architecture document does not state the no-forced-search-order invariant.");
 
 if (failures.length) { console.error("UNIFIED INVESTIGATOR ARCHITECTURE: FAIL"); for (const failure of failures) console.error(`- ${failure}`); process.exit(1); }
 console.log("UNIFIED INVESTIGATOR ARCHITECTURE: PASS");
-console.log("- Gemini is Boss and Gemini Right-hand oversight");
+console.log("- Groq GPT-OSS 120B is Boss control and Gemini is independent Right-hand oversight");
 console.log("- DeepSeek/NVIDIA NIM is removed from active Apex execution");
 console.log("- Groq/Mistral remain Investigator LLMs, not a sequential chain or reviewer tier");
 console.log("- Investigator selection propagates into active ReAct paths");
