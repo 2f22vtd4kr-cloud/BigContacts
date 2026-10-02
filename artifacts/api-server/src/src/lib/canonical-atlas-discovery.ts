@@ -1,7 +1,7 @@
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { db, entitiesTable, researchCasesTable, researchCaseEventsTable, researchSessionsTable, researchEvidenceTable } from "@workspace/db";
 import { updateJob, clearActiveJobIfOwned, getJob } from "./job-queue";
-import { runGeminiBossDiscovery } from "./case-bureau";
+import { runGroqBossDiscovery } from "./case-bureau";
 import { runBureauAgenticWebPass } from "./bureau-agentic-pass";
 import { runCanonicalSingleTargetInvestigation } from "./canonical-single-target-runner";
 import { decideAtlasNextAction, type AtlasControlAction } from "./atlas-control-decision";
@@ -27,7 +27,7 @@ function normalizeSourceUrl(raw: string): string | null { try { const url = new 
 function candidateIdentityObserved(personName: string, observation: unknown): boolean { const text = typeof observation === "string" ? observation.toLowerCase() : ""; const tokens = personName.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter((token) => token.length >= 2); return tokens.length > 0 && tokens.every((token) => text.includes(token)); }
 
 async function createAtlasDiscoveryCase(input: { atlasJobId: string; objective: string; investigatorLlm: "groq" | "mistral" }): Promise<number> {
-  const [created] = await db.insert(researchCasesTable).values({ caseType: "discovery", status: "active", directorMode: "gemini_boss", directorProvider: "gemini", directorModel: "pending", objective: input.objective, motivation: "Durable memory for canonical Atlas Investigator discovery.", openingPrompt: "Investigator chooses every research action; this case is memory/state, not a deterministic research plan.", caseFile: JSON.stringify({ caseType: "discovery", contextDocument: ["CANONICAL ATLAS DISCOVERY CASE", `JOB: ${input.atlasJobId}`, `INVESTIGATOR: ${input.investigatorLlm}`, `OBJECTIVE: ${input.objective}`, "STATE: Initial discovery; Investigator owns the next action.", "TRAJECTORY: []"].join("\n"), investigatorTrajectory: [], investigatorTrajectoryRecords: [], investigationTimeline: [], jobId: input.atlasJobId }), currentAction: "canonical-investigator-discovery", iteration: 0 }).returning({ id: researchCasesTable.id });
+  const [created] = await db.insert(researchCasesTable).values({ caseType: "discovery", status: "active", directorMode: "groq_boss", directorProvider: "groq", directorModel: "pending", objective: input.objective, motivation: "Durable memory for canonical Atlas Investigator discovery.", openingPrompt: "Investigator chooses every research action; this case is memory/state, not a deterministic research plan.", caseFile: JSON.stringify({ caseType: "discovery", contextDocument: ["CANONICAL ATLAS DISCOVERY CASE", `JOB: ${input.atlasJobId}`, `INVESTIGATOR: ${input.investigatorLlm}`, `OBJECTIVE: ${input.objective}`, "STATE: Initial discovery; Investigator owns the next action.", "TRAJECTORY: []"].join("\n"), investigatorTrajectory: [], investigatorTrajectoryRecords: [], investigationTimeline: [], jobId: input.atlasJobId }), currentAction: "canonical-investigator-discovery", iteration: 0 }).returning({ id: researchCasesTable.id });
   const caseId = created?.id; if (!caseId) throw new Error("Failed to create durable Atlas discovery case.");
   return caseId;
 }
@@ -83,7 +83,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     // and selects the Investigator first. The independent Right-hand reviews that Boss
     // decision second. It must never become a prerequisite that can silently steer the
     // Boss's opening assignment.
-    const boss = await runGeminiBossDiscovery({
+    const boss = await runGroqBossDiscovery({
       objective: discoveryObjective,
       motivation: opts.discoveryMotivation || "Find real people for deep target-scoped investigation.",
       geography: opts.discoveryGeography || "Public web; geography selected by the research objective",
