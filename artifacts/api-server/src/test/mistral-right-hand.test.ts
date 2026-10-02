@@ -100,6 +100,7 @@ describe("Mistral Right-hand control-plane boundary", () => {
     expect(result.error).toContain('"httpStatus":429');
     expect(result.error).toContain('"providerCode":"quota_exceeded"');
     expect(result.error).toContain('"retryAfterMs":5000');
+    expect(result.error).toContain('"retryAfterHeader":"10"');
     expect(result.error).toContain('"retry429":0');
   });
 
