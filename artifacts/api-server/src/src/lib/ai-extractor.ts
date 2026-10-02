@@ -201,7 +201,7 @@ export async function runFinalTargetReview(
             return adjudicateFinalTargetReview(
               input,
               JSON.parse(json),
-              `gemini-boss-final-review:${out.model}`,
+              `groq-boss-final-review:${out.model}`,
             );
           } catch { /* fall through */ }
         }
@@ -211,10 +211,10 @@ export async function runFinalTargetReview(
     logger.debug({ err: err?.message }, "final-review Gemini Boss unavailable");
   }
 
-  // 2) Right-hand — Gemini Right-hand
+  // 2) Right-hand — Mistral Right-hand
   try {
-    const { runGeminiRightHandFinalReview } = await import("./gemini-right-hand-reasoning");
-    const rightHand = await runGeminiRightHandFinalReview(bossPrompt);
+    const { runMistralRightHandFinalReview } = await import("./mistral-right-hand-reasoning");
+    const rightHand = await runMistralRightHandFinalReview(bossPrompt);
     if (rightHand.status === "completed" && rightHand.raw) {
       const json = extractJsonObject(rightHand.raw);
       if (json) {
@@ -222,7 +222,7 @@ export async function runFinalTargetReview(
           return adjudicateFinalTargetReview(
             input,
             JSON.parse(json),
-            `gemini-right-hand-final-review:${rightHand.model}`,
+            `mistral-right-hand-final-review:${rightHand.model}`,
           );
         } catch { /* fall through */ }
       }
