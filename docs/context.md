@@ -599,3 +599,19 @@ Those test changes were merged as `14eff01d17ab3d95340139521405ca8ca9edccf1`. Gi
 The dashboard `9 LIVE` chip is not an Atlas-job badge. It is the authenticated provider/API-key health chip and can legitimately show the number of currently active provider slots while Atlas is idle. The authoritative Atlas active-job endpoint remains the source for whether research is running.
 
 Release remains **NOT GREEN / NOT production-certified**.
+
+
+## 2026-10-02 CI verification reconciliation
+
+Current main now includes PR #456 merge commit `3322a2df13e17c0a0deb335845d4104b04789eef`. PR #456 added the corrected Gemini Interactions control-plane regression suite to the canonical Apex API Build workflow.
+
+Final verification on PR head `054d60b859d66a36b14d302e6cd6498fab629843`:
+- Apex API Build: success.
+- Gemini Interactions regression suite: 5/5 tests passed.
+- Existing strict provenance/provider-cache tests: 12/12 passed.
+- Workspace/API typecheck passed before the test gate.
+- The Gemini suite includes a transient HTTP 503 same-model retry regression.
+
+The first CI attempt exposed a wrong test path in the new workflow step; the second exposed a stale call-order assertion. Both were corrected. No production Gemini fallback policy was weakened or bypassed.
+
+The live runtime remains NOT GREEN. The latest authorized canonical Replit run `96a80589-f510-4703-b79f-cd8264e15715` failed at Gemini Boss opening with three HTTP 503 `service_unavailable` responses and admitted no research/evidence/entities/cards. CI verification of the transport contract does not establish live provider capacity. Do not launch another canonical research run merely to compensate for the provider failure; synchronize the deployment environment and make a provider-readiness decision before the next authorized live audit.
