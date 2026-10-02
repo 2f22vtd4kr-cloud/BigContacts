@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { GROQ_BOSS_MODEL_PENDING, getGroqBossLatencyConfig, getGroqBossStatus, resolveGroqBossModel, generateGroqBossText } from "./groq-boss";
 import type { Entity } from "@workspace/db";
 import { logger } from "./logger";
 import { fetchGeminiInteractions } from "./gemini-interactions-transport";
@@ -126,7 +127,7 @@ export type ResearchCaseFile = {
     createdAt: string;
   }>;
   rightHandAdvice?: {
-    provider: "gemini";
+    provider: "groq";
     model: string;
     status: "completed" | "unavailable";
     actionId: string | null;
@@ -288,9 +289,7 @@ export type DiscoveryCaseFile = {
  * Gemini key. We intentionally do not hard-code a version because model
  * availability and pricing vary by key/project and change over time.
  */
-export const GEMINI_BOSS_MODEL_PENDING = "auto-low-cost-pending";
-const GEMINI_MODELS_API = "https://generativelanguage.googleapis.com/v1beta/models";
-const GEMINI_INTERACTIONS_API = "https://generativelanguage.googleapis.com/v1beta/interactions";
+export const GEMINI_BOSS_MODEL_PENDING = GROQ_BOSS_MODEL_PENDING;
 const GEMINI_KEY_NAMES = [
   "GEMINI_API_KEY",
   "GEMINI_KEY",
@@ -302,14 +301,7 @@ type GeminiModelCatalogEntry = {
   supportedGenerationMethods?: string[];
 };
 
-export type GeminiBossModelSelection = {
-  model: string;
-  status: "resolved" | "pending" | "unavailable";
-  inspectedKeyCount: number;
-  candidateCount: number;
-  candidateModels?: string[];
-  keyName?: string;
-};
+export type GeminiBossModelSelection = import("./groq-boss").GroqBossModelSelection;
 
 export type GeminiBossDiscoveryResult = {
   status: "completed" | "pending" | "unavailable";
@@ -366,6 +358,7 @@ export type GeminiBossStatus = {
   role: "head_investigator";
   capability: "text_generation_and_case_planning";
   webSearchGrounding: false;
+  provider?: "groq";
 };
 
 function getGeminiKeys(): string[] {
@@ -404,12 +397,7 @@ export function formatGeminiBossAttemptSummary(attempts: GeminiBossAttemptDiagno
     .join(", ");
 }
 
-type GeminiTextGenerationResult = {
-  model: string;
-  raw: string | null;
-  error: string | null;
-  attempts: GeminiBossAttemptDiagnostic[];
-};
+type GeminiTextGenerationResult = import("./groq-boss").GroqBossTextGenerationResult;
 const DEFAULT_GEMINI_BOSS_REQUEST_TIMEOUT_MS = 30_000;
 const DEFAULT_GEMINI_BOSS_OVERALL_TIMEOUT_MS = 240_000;
 const MIN_GEMINI_BOSS_REQUEST_TIMEOUT_MS = 10_000;
@@ -461,27 +449,12 @@ export type GeminiBossLatencyConfig = {
 };
 
 export function getGeminiBossLatencyConfig(): GeminiBossLatencyConfig {
-  const requestTimeoutMs = boundedPositiveEnvMs(
-    "APEX_GEMINI_BOSS_REQUEST_TIMEOUT_MS",
-    DEFAULT_GEMINI_BOSS_REQUEST_TIMEOUT_MS,
-    MIN_GEMINI_BOSS_REQUEST_TIMEOUT_MS,
-    MAX_GEMINI_BOSS_REQUEST_TIMEOUT_MS,
-  );
-  const rawOverall = Number(process.env.APEX_GEMINI_BOSS_OVERALL_TIMEOUT_MS);
-  const overallTimeoutMs = Math.max(
-    requestTimeoutMs,
-    boundedPositiveEnvMs(
-      "APEX_GEMINI_BOSS_OVERALL_TIMEOUT_MS",
-      DEFAULT_GEMINI_BOSS_OVERALL_TIMEOUT_MS,
-      MIN_GEMINI_BOSS_OVERALL_TIMEOUT_MS,
-      MAX_GEMINI_BOSS_OVERALL_TIMEOUT_MS,
-    ),
-  );
+  const config = getGroqBossLatencyConfig();
   return {
-    requestTimeoutMs,
-    overallTimeoutMs,
-    minimumOverallTimeoutMs: MIN_GEMINI_BOSS_OVERALL_TIMEOUT_MS,
-    overallTimeoutClamped: Number.isFinite(rawOverall) && Math.floor(rawOverall) !== overallTimeoutMs,
+    requestTimeoutMs: config.requestTimeoutMs,
+    overallTimeoutMs: config.overallTimeoutMs,
+    minimumOverallTimeoutMs: 30_000,
+    overallTimeoutClamped: false,
   };
 }
 
@@ -508,552 +481,25 @@ export async function generateGeminiBossText(
     thinkingLevel?: "minimal" | "low" | "medium" | "high";
   },
 ): Promise<GeminiTextGenerationResult> {
-  // Interactions API text generation only: no tools, no Google Search grounding, no web research.
-  // 429/503 here means text-generation capacity — not a web-search constraint.
-  const primaryName = selection.keyName;
-  const keyEntries = [
-    ...getGeminiKeyEntries().filter((e) => e.name === primaryName),
-    ...getGeminiKeyEntries().filter((e) => e.name !== primaryName),
-  ];
-  if (keyEntries.length === 0) {
-    return { model: selection.model, raw: null, error: "The resolved Gemini Boss key is unavailable.", attempts: [] };
-  }
-
-  // A Boss control response is a small JSON decision, not a long-form generation.
-  // The previous implementation allowed every catalog candidate to consume a full
-  // request timeout, producing a misleading long "Boss timeout" before the
-  // Investigator was ever selected. Keep model fallback bounded and size the
-  // response budget to the actual control contract.
-  let lastError = `Gemini Boss ${selection.model} did not return text.`;
-  let lastAttemptModel = selection.model;
-  const attempts: GeminiBossAttemptDiagnostic[] = [];
-  // Boss is a small control-plane JSON decision, but live Gemini latency has
-  // already been measured above 10s. Keep the boundary bounded while allowing a
-  // normal provider response enough time to arrive and leaving a real fallback
-  // window for the second compatible model.
-  const bossRequestTimeoutMs = getGeminiBossRequestTimeoutMs();
-  const bossDeadline = Date.now() + getGeminiBossOverallTimeoutMs();
-
-  for (const entry of keyEntries) {
-    const modelScope = geminiCredentialFingerprint(entry.key);
-    const credentialSelection = await resolveGeminiBossModel(entry.name);
-    if (credentialSelection.status !== "resolved") continue;
-    const models = chooseAvailableGeminiControlModels(
-      "boss",
-      [credentialSelection.model, ...(credentialSelection.candidateModels ?? [])],
-      modelScope,
-    ).slice(0, 4);
-    for (const model of models) {
-      const remainingMs = bossDeadline - Date.now();
-      if (remainingMs <= 0) return { model: lastAttemptModel, raw: null, error: "Gemini Boss generation deadline exceeded.", attempts };
-      const attemptStartedAt = Date.now();
-      lastAttemptModel = model;
-      const attemptTimeoutMs = Math.min(bossRequestTimeoutMs, Math.max(1_000, remainingMs));
-      let requestDeadlineFired = false;
-      let overallDeadlineFired = false;
-      const interactionBody = JSON.stringify({
-        model,
-        input: prompt,
-        generation_config: {
-          max_output_tokens: options?.maxOutputTokens ?? 768,
-          thinking_level: options?.thinkingLevel ?? selectGeminiThinkingLevel(model, { contradictionPressure: /contradict|conflict|collision|disput/i.test(prompt) ? 0.65 : 0, identityAmbiguity: /identity|ambiguous|uncertain|collision/i.test(prompt) ? 0.55 : 0, falsificationRequired: /falsif|disprove|counter.?evidence/i.test(prompt), terminalDecision: /\bstop\b|terminal|final/i.test(prompt) }),
-        },
-        ...(options?.responseFormat ? { response_format: options.responseFormat } : {}),
-      });
-      try {
-        let response: Response;
-        let responseText = "";
-        let transportRetry = 0;
-        let capacityRetry = 0;
-        let rateLimitRetry = 0;
-        while (true) {
-          try {
-            const perRequestController = new AbortController();
-            const perRequestRemainingMs = Math.max(1_000, Math.min(bossRequestTimeoutMs, bossDeadline - Date.now()));
-            const perRequestTimer = setTimeout(() => {
-              requestDeadlineFired = Date.now() < bossDeadline;
-              overallDeadlineFired = Date.now() >= bossDeadline;
-              perRequestController.abort();
-            }, perRequestRemainingMs);
-            try {
-              response = await fetchGeminiInteractions(GEMINI_INTERACTIONS_API, {
-                method: "POST",
-                headers: {
-                  Accept: "application/json",
-                  "Content-Type": "application/json",
-                  "x-goog-api-key": entry.key,
-                },
-                body: interactionBody,
-                signal: perRequestController.signal,
-              });
-            } finally {
-              clearTimeout(perRequestTimer);
-            }
-            responseText = await response.text();
-            break;
-          } catch (transportError) {
-            const isAbort = transportError instanceof Error && transportError.name === "AbortError";
-            const failureClass = classifyThrownProviderError(transportError, isAbort && !(requestDeadlineFired || overallDeadlineFired));
-            const retryable = failureClass === "network_error"
-              && transportRetry < MAX_GEMINI_BOSS_TRANSPORT_RETRIES
-              && Date.now() < bossDeadline
-              && !overallDeadlineFired;
-            if (!retryable) throw transportError;
-            transportRetry += 1;
-            logger.warn(
-              {
-                role: "gemini_boss",
-                phase: "transient_transport_retry",
-                model,
-                keyName: entry.name,
-                retryNumber: transportRetry,
-                maxRetries: MAX_GEMINI_BOSS_TRANSPORT_RETRIES,
-                failureClass,
-              },
-              "Gemini Boss retrying the same model after a transient transport failure",
-            );
-            await new Promise<void>((resolve) => setTimeout(resolve, Math.min(
-              GEMINI_BOSS_TRANSPORT_RETRY_DELAY_MS,
-              Math.max(0, bossDeadline - Date.now()),
-            )));
-            if (Date.now() >= bossDeadline) throw transportError;
-          }
-        }
-
-        // Google documents structured output on the Interactions API for Gemini
-        // 3.5+; however, a model/project can still reject a structured request
-        // with invalid_request. Because Boss JSON is also validated locally after
-        // generation, retry the same Gemini model once without response_format.
-        // This is a same-role compatibility retry, not a provider substitution.
-        if (response.status === 400 && options?.responseFormat && Date.now() < bossDeadline) {
-          const compatibilityBody = JSON.stringify({
-            model,
-            input: prompt,
-            generation_config: { max_output_tokens: options?.maxOutputTokens ?? 768, thinking_level: options?.thinkingLevel ?? (model === "gemini-3.8-flash" ? "low" : "minimal") },
-          });
-          logger.warn(
-            {
-              role: "gemini_boss",
-              phase: "structured_output_compatibility_retry",
-              model,
-              keyName: entry.name,
-              initialHttpStatus: response.status,
-              initialResponseShape: summarizeProviderBody(responseText),
-              initialRequestPayloadBytes: Buffer.byteLength(interactionBody),
-              compatibilityRequestPayloadBytes: Buffer.byteLength(compatibilityBody),
-            },
-            "Gemini Boss rejected structured output with HTTP 400; retrying the same model without response_format",
-          );
-          const compatibilityController = new AbortController();
-          const compatibilityTimeout = Math.max(1_000, Math.min(bossRequestTimeoutMs, bossDeadline - Date.now()));
-          const compatibilityTimer = setTimeout(() => compatibilityController.abort(), compatibilityTimeout);
-          try {
-            response = await fetchGeminiInteractions(GEMINI_INTERACTIONS_API, {
-              method: "POST",
-              headers: {
-                Accept: "application/json",
-                "Content-Type": "application/json",
-                "x-goog-api-key": entry.key,
-              },
-              body: compatibilityBody,
-              signal: compatibilityController.signal,
-            });
-            responseText = await response.text();
-          } finally {
-            clearTimeout(compatibilityTimer);
-          }
-        }
-
-        if (response.status === 503 && capacityRetry < MAX_GEMINI_BOSS_503_RETRIES_PER_MODEL && Date.now() < bossDeadline) {
-          const retryDelayMs = Math.min(
-            retryAfterDelayMs(response, GEMINI_BOSS_503_RETRY_DELAY_MS),
-            Math.max(0, bossDeadline - Date.now()),
-          );
-          await response.body?.cancel().catch(() => undefined);
-          capacityRetry += 1;
-          logger.warn(
-            {
-              role: "gemini_boss",
-              phase: "transient_capacity_retry",
-              model,
-              keyName: entry.name,
-              httpStatus: response.status,
-              retryNumber: capacityRetry,
-              maxRetries: MAX_GEMINI_BOSS_503_RETRIES_PER_MODEL,
-              retryDelayMs,
-            },
-            "Gemini Boss retrying the same model after HTTP 503 before bounded same-role model fallback",
-          );
-          if (retryDelayMs > 0) await new Promise<void>((resolve) => setTimeout(resolve, retryDelayMs));
-          const capacityController = new AbortController();
-          const capacityTimeout = Math.max(1_000, Math.min(bossRequestTimeoutMs, bossDeadline - Date.now()));
-          const capacityTimer = setTimeout(() => capacityController.abort(), capacityTimeout);
-          try {
-            response = await fetchGeminiInteractions(GEMINI_INTERACTIONS_API, {
-              method: "POST",
-              headers: {
-                Accept: "application/json",
-                "Content-Type": "application/json",
-                "x-goog-api-key": entry.key,
-              },
-              body: interactionBody,
-              signal: capacityController.signal,
-            });
-            responseText = await response.text();
-          } finally {
-            clearTimeout(capacityTimer);
-          }
-        }
-
-        const fetchElapsedMs = Date.now() - attemptStartedAt;
-        const totalElapsedMs = Date.now() - attemptStartedAt;
-        const responseShape = summarizeProviderBody(responseText);
-        let providerErrorCodeValue = response.ok ? null : providerErrorCode(responseText);
-        const failureClass = response.ok ? null : classifyProviderHttpStatus(response.status);
-        if (!response.ok) {
-          attempts.push({
-            model,
-            keyName: entry.name,
-            httpStatus: response.status,
-            providerErrorCode: providerErrorCodeValue,
-            failureClass,
-          });
-        }
-        logger.info(
-          {
-            role: "gemini_boss",
-            phase: "request_resolved",
-            model,
-            keyName: entry.name,
-            requestPayloadBytes: Buffer.byteLength(interactionBody),
-            promptBytes: Buffer.byteLength(prompt),
-            configuredRequestTimeoutMs: bossRequestTimeoutMs,
-            configuredOverallTimeoutMs: getGeminiBossOverallTimeoutMs(),
-            attemptTimeoutMs,
-            remainingMs,
-            fetchElapsedMs,
-            totalElapsedMs,
-            httpStatus: response.status,
-            responseBytes: Buffer.byteLength(responseText),
-            failureClass,
-            providerErrorCode: providerErrorCodeValue,
-            responseShape,
-            requestDeadlineFired,
-            overallDeadlineFired,
-          },
-          "Gemini Boss request resolved",
-        );
-
-        if (response.status === 429) {
-          lastError = `Gemini Boss ${model} Interactions API ${failureClass ?? "rate_limited"} HTTP 429${providerErrorCodeValue ? ` ${providerErrorCodeValue}` : ""}.`;
-          if (providerErrorCodeValue === "quota_exceeded") {
-            const cooldownMs = markGeminiModelDailyQuotaExhausted(model, Date.now(), modelScope);
-            logger.warn(
-              {
-                role: "gemini_boss",
-                phase: "daily_quota_exhausted",
-                model,
-                keyName: entry.name,
-                cooldownMs,
-                providerErrorCode: providerErrorCodeValue,
-              },
-              "Gemini Boss daily quota exhausted for this credential/project; advancing to the next separately configured credential/project",
-            );
-            break;
-          }
-
-          while (rateLimitRetry < MAX_GEMINI_BOSS_429_RETRIES_PER_MODEL && Date.now() < bossDeadline) {
-            const retryDelayMs = Math.min(
-              retryAfterDelayMs(response, configuredGeminiBoss429RetryDelayMs()),
-              Math.max(0, bossDeadline - Date.now()),
-            );
-            rateLimitRetry += 1;
-            logger.warn(
-              {
-                role: "gemini_boss",
-                phase: "rate_limit_backoff",
-                model,
-                keyName: entry.name,
-                httpStatus: response.status,
-                retryNumber: rateLimitRetry,
-                maxRetries: MAX_GEMINI_BOSS_429_RETRIES_PER_MODEL,
-                retryDelayMs,
-              },
-              "Gemini Boss rate limited; waiting before bounded same-model retry",
-            );
-            if (retryDelayMs > 0) await new Promise<void>((resolve) => setTimeout(resolve, retryDelayMs));
-            if (Date.now() >= bossDeadline) break;
-
-            const rateLimitController = new AbortController();
-            const rateLimitTimeout = Math.max(1_000, Math.min(bossRequestTimeoutMs, bossDeadline - Date.now()));
-            const rateLimitTimer = setTimeout(() => rateLimitController.abort(), rateLimitTimeout);
-            try {
-              response = await fetchGeminiInteractions(GEMINI_INTERACTIONS_API, {
-                method: "POST",
-                headers: {
-                  Accept: "application/json",
-                  "Content-Type": "application/json",
-                  "x-goog-api-key": entry.key,
-                },
-                body: interactionBody,
-                signal: rateLimitController.signal,
-              });
-              responseText = await response.text();
-              providerErrorCodeValue = response.ok ? null : providerErrorCode(responseText);
-              logger.info(
-                {
-                  role: "gemini_boss",
-                  phase: "rate_limit_retry_resolved",
-                  model,
-                  keyName: entry.name,
-                  retryNumber: rateLimitRetry,
-                  maxRetries: MAX_GEMINI_BOSS_429_RETRIES_PER_MODEL,
-                  httpStatus: response.status,
-                  providerErrorCode: providerErrorCodeValue,
-                },
-                "Gemini Boss same-model rate-limit retry resolved",
-              );
-            } finally {
-              clearTimeout(rateLimitTimer);
-            }
-
-            if (response.status !== 429) break;
-          }
-
-          if (response.status === 429 && providerErrorCodeValue === "quota_exceeded") {
-            const cooldownMs = markGeminiModelDailyQuotaExhausted(model, Date.now(), modelScope);
-            logger.warn(
-              {
-                role: "gemini_boss",
-                phase: "daily_quota_exhausted",
-                model,
-                keyName: entry.name,
-                cooldownMs,
-                providerErrorCode: providerErrorCodeValue,
-              },
-              "Gemini Boss daily quota exhausted after retry; failing closed without another provider request",
-            );
-            break;
-          }
-          if (response.status === 429) {
-            const cooldownMs = Math.max(configuredGeminiBoss429RetryDelayMs(), 60_000);
-            markGeminiModelRateLimited(model, cooldownMs, modelScope);
-            lastError = `Gemini Boss ${model} rate limit persisted after ${rateLimitRetry} bounded same-model retries${providerErrorCodeValue ? ` (${providerErrorCodeValue})` : ""}.`;
-            logger.warn(
-              {
-                role: "gemini_boss",
-                phase: "rate_limit_model_fallback",
-                model,
-                keyName: entry.name,
-                providerErrorCode: providerErrorCodeValue,
-                retryCount: rateLimitRetry,
-                cooldownMs,
-              },
-              "Gemini Boss rate limit persisted; advancing to the next bounded same-role Gemini text model",
-            );
-            continue;
-          }
-        }
-
-        if (response.status === 503) {
-          lastError = `Gemini Boss ${model} Interactions API ${failureClass ?? "provider_unavailable"} HTTP 503.`;
-          logger.warn(
-            { model, status: response.status, keyName: entry.name, failureClass, responseShape },
-            "Gemini Boss service unavailable; advancing through the bounded same-role Gemini catalog",
-          );
-          continue;
-        }
-        if (!response.ok) {
-          lastError = `Gemini Boss ${model} Interactions API ${failureClass ?? "http_error"} HTTP ${response.status}.`;
-          // 401 is a credential failure: abandon this key and try the next
-          // configured credential. A 403 is different for Gemini API keys:
-          // a model can be visible in ListModels yet still be unavailable to
-          // the key/project's entitled tier. Keep the same key and try the next
-          // catalog model before abandoning the credential. This is especially
-          // important for free-tier keys, where model availability is not
-          // equivalent to generateContent authorization.
-          if (response.status === 401) {
-            break;
-          }
-          if (response.status === 403) {
-            logger.warn(
-              { model, status: 403, keyName: entry.name },
-              "Gemini Boss model is not authorized for this key; trying the next catalog candidate",
-            );
-            continue;
-          }
-          // 404 / retired model / other: try next candidate model instead of aborting Boss.
-          if (response.status === 404) {
-            cachedBossModelSelections.delete(modelScope);
-            logger.warn(
-              { model, status: 404, keyName: entry.name },
-              "Gemini Boss model retired or missing; trying next catalog candidate",
-            );
-          }
-          continue;
-        }
-
-        const payload = JSON.parse(responseText) as {
-          status?: string;
-          output_text?: string;
-          outputs?: Array<{ type?: string; text?: string | null }>;
-          steps?: Array<{ type?: string; content?: Array<{ type?: string; text?: string | null }> }>;
-        };
-        if (payload.status === "incomplete") {
-          lastError = `Gemini Boss ${model} Interactions API returned an incomplete control response; trying the next bounded model attempt.`;
-          logger.warn(
-            { model, status: payload.status, keyName: entry.name },
-            "Gemini Boss control response was incomplete",
-          );
-          continue;
-        }
-        const stepText = payload.steps
-          ?.filter((step) => step.type === "model_output" || Array.isArray(step.content))
-          .flatMap((step) => step.content ?? [])
-          .filter((part) => part.type === "text" || typeof part.text === "string")
-          .map((part) => part.text ?? "")
-          .join(" ")
-          .trim();
-        const raw = payload.output_text?.trim()
-          || stepText
-          || payload.outputs?.filter((output) => output.type === "text" || typeof output.text === "string").map((output) => output.text ?? "").join("").trim()
-          || (/"action"\\s*:/.test(responseText) ? responseText.trim() : "");
-        if (raw) return { model, raw, error: null, attempts };
-                lastError = `Gemini Boss ${model} Interactions API returned no text.`;
-      } catch (error) {
-        const fetchElapsedMs = Date.now() - attemptStartedAt;
-        const isAbort = error instanceof Error && error.name === "AbortError";
-        const thrownFailureClass = classifyThrownProviderError(error, isAbort);
-        logger.warn(
-          {
-            role: "gemini_boss",
-            phase: "request_rejected",
-            model,
-            keyName: entry.name,
-            requestPayloadBytes: Buffer.byteLength(interactionBody),
-            promptBytes: Buffer.byteLength(prompt),
-            configuredRequestTimeoutMs: bossRequestTimeoutMs,
-            configuredOverallTimeoutMs: getGeminiBossOverallTimeoutMs(),
-            attemptTimeoutMs,
-            remainingMs,
-            fetchElapsedMs,
-            httpStatus: null,
-            responseBytes: 0,
-            requestDeadlineFired,
-            overallDeadlineFired,
-            abortReason: requestDeadlineFired ? "per_request_deadline" : overallDeadlineFired ? "overall_deadline" : null,
-            failureClass: thrownFailureClass,
-            errorName: error instanceof Error ? error.name : "unknown",
-          },
-          "Gemini Boss request rejected",
-        );
-        const elapsedMs = Date.now() - attemptStartedAt;
-        const timeoutKind = overallDeadlineFired
-          ? "overall deadline"
-          : requestDeadlineFired
-            ? "request deadline"
-            : null;
-        lastError = isAbort
-          ? `Gemini Boss ${model} ${timeoutKind ?? "request"} exceeded after ${elapsedMs}ms with no HTTP response.`
-          : error instanceof Error
-            ? `Gemini Boss ${model} request failed: ${error.message}`
-            : `Gemini Boss ${model} request failed.`;
-        if (Date.now() >= bossDeadline) {
-          return {
-            model: lastAttemptModel,
-            raw: null,
-            error: `Gemini Boss exhausted its bounded model attempts before receiving a usable response: ${lastError}`,
-            attempts,
-          };
-        }
-      }
-    }
-  }
-
-  return {
-    model: lastAttemptModel,
-    raw: null,
-    error: `Gemini Boss unavailable after bounded same-role model fallback. ${lastError}. Attempts: ${formatGeminiBossAttemptSummary(attempts)}.`,
-    attempts,
-  };
+  // Legacy call surface retained so the Bureau remains stable while the Boss
+  // transport is now exclusively Groq GPT-OSS.
+  return generateGroqBossText(selection, prompt, options);
 }
 
 export async function getGeminiBossStatus(): Promise<GeminiBossStatus> {
-  const selection = await resolveGeminiBossModel();
+  const status = getGroqBossStatus();
   return {
-    configured: getGeminiKeys().length > 0,
-    model: selection.model,
-    role: "head_investigator",
-    capability: "text_generation_and_case_planning",
+    configured: status.configured,
+    model: status.model,
+    role: status.role,
+    capability: status.capability,
     webSearchGrounding: false,
+    provider: "groq",
   };
 }
 
 export async function resolveGeminiBossModel(preferredKeyName?: string): Promise<GeminiBossModelSelection> {
-  const entries = getGeminiKeyEntries();
-  const keys = preferredKeyName
-    ? [
-        ...entries.filter((entry) => entry.name === preferredKeyName),
-        ...entries.filter((entry) => entry.name !== preferredKeyName),
-      ]
-    : entries;
-  if (keys.length === 0) {
-    return {
-      model: GEMINI_BOSS_MODEL_PENDING,
-      status: "pending",
-      inspectedKeyCount: 0,
-      candidateCount: 0,
-    };
-  }
-  const cachedCredential = preferredKeyName ? entries.find((entry) => entry.name === preferredKeyName) : null;
-  const cachedFingerprint = cachedCredential ? geminiCredentialFingerprint(cachedCredential.key) : null;
-  if (!preferredKeyName && cachedBossModelSelections.size > 0) {
-    const cached = keys
-      .map((entry) => cachedBossModelSelections.get(geminiCredentialFingerprint(entry.key)))
-      .find((value) => value && value.expiresAt > Date.now());
-    if (cached) return cached.selection;
-  }
-  if (preferredKeyName && cachedFingerprint) {
-    const cached = cachedBossModelSelections.get(cachedFingerprint);
-    if (cached && cached.expiresAt > Date.now()) return cached.selection;
-  }
-
-  for (const entry of keys) {
-    try {
-      const response = await fetch(GEMINI_MODELS_API, {
-        headers: { Accept: "application/json", "x-goog-api-key": entry.key },
-        // Model discovery must fail closed within the investigation budget.
-        signal: AbortSignal.timeout(6_000),
-      });
-      if (!response.ok) continue;
-      const payload = await response.json() as { models?: GeminiModelCatalogEntry[] };
-      const entries = Array.isArray(payload.models) ? payload.models : [];
-      const candidates = chooseGeminiModelCandidates(entries);
-      if (!candidates.length) continue;
-      const selection: GeminiBossModelSelection = {
-        model: candidates[0],
-        status: "resolved",
-        inspectedKeyCount: 1,
-        candidateCount: candidates.length,
-        candidateModels: candidates,
-        keyName: entry.name,
-      };
-      cachedBossModelSelections.set(geminiCredentialFingerprint(entry.key), {
-        expiresAt: Date.now() + 10 * 60 * 1000,
-        selection,
-      });
-      return selection;
-    } catch {
-      // Try the next configured slot without exposing key or provider details.
-    }
-  }
-
-  return {
-    model: GEMINI_BOSS_MODEL_PENDING,
-    status: "unavailable",
-    inspectedKeyCount: keys.length,
-    candidateCount: 0,
-  };
+  return resolveGroqBossModel(preferredKeyName);
 }
 
 function extractJsonObject(value: string): string | null {
@@ -1262,8 +708,8 @@ export async function runGeminiBossDiscovery(input: {
       nextDirections: [],
       uncertainties: [],
       error: selection.status === "pending"
-        ? "No Gemini model is available because no Gemini key is configured."
-        : "Configured Gemini keys did not expose a usable Boss model.",
+        ? "No Groq Boss model is available because GROQ_API_KEY is not configured."
+        : "Configured Groq credentials did not expose a usable Boss model.",
     };
   }
 
@@ -1326,7 +772,7 @@ Candidates are review-only. Never invent a name, wealth claim, relationship, con
         citations: [],
         nextDirections: [],
         uncertainties: [],
-        error: generated.error ?? "Gemini Boss text generation returned no text for the discovery brief.",
+        error: generated.error ?? "Groq Boss text generation returned no text for the discovery brief.",
       };
     }
     const parsed = parseBossDiscoveryResponse(generated.raw);
@@ -1364,7 +810,7 @@ Candidates are review-only. Never invent a name, wealth claim, relationship, con
       citations: [],
       nextDirections: [],
       uncertainties: [],
-      error: error instanceof Error ? error.message : "Gemini Boss discovery failed.",
+      error: error instanceof Error ? error.message : "Groq Boss discovery failed.",
     };
   }
 }
@@ -1531,7 +977,7 @@ export async function runGeminiBossPlan(input: {
 
     return unavailable(selection.status === "pending"
       ? "No Gemini Boss model is available because no Gemini key is configured."
-      : "Configured Gemini keys did not expose a usable Boss text model.");
+      : "Configured Groq credentials did not expose a usable Boss text model.");
   }
   const queuedActions = input.file.actionQueue.filter((action) => action.status === "queued");
   if (queuedActions.length === 0) return unavailable("The case file has no queued actions.");
