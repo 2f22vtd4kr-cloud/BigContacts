@@ -168,7 +168,7 @@ export type DiscoveryCaseFile = {
     id: "broad-web-discovery";
     title: string;
     purpose: string;
-    status: "ready" | "waiting_for_gemini" | "waiting_for_provider";
+    status: "ready" | "waiting_for_boss" | "waiting_for_gemini" | "waiting_for_provider";
   };
   initialResearch: {
     status: "not_started" | "recorded" | "reviewed";
@@ -179,7 +179,7 @@ export type DiscoveryCaseFile = {
   };
   investigatorReports: Array<{
     id: string;
-    lane: "gemini-boss" | "gemini-right-hand" | "mistral-web" | "broad-web" | "registry";
+    lane: "groq-boss" | "gemini-boss" | "gemini-right-hand" | "mistral-web" | "broad-web" | "registry";
     provider: string;
     status: "completed" | "unavailable" | "failed";
     iteration: number;
@@ -643,7 +643,7 @@ Candidates are review-only. Never invent a name, wealth claim, relationship, con
         citations: [],
         nextDirections: parsed.nextDirections,
         uncertainties: parsed.uncertainties,
-        error: "Gemini Boss selected an Investigator capability that is not currently configured; no deterministic substitution is permitted.",
+        error: "Groq Boss selected an Investigator capability that is not currently configured; no deterministic substitution is permitted.",
       };
     }
     return {
@@ -833,7 +833,7 @@ export async function runGeminiBossPlan(input: {
   if (selection.status !== "resolved") {
 
     return unavailable(selection.status === "pending"
-      ? "No Gemini Boss model is available because no Gemini key is configured."
+      ? "No Groq Boss model is available because GROQ_API_KEY is not configured."
       : "Configured Groq credentials did not expose a usable Boss text model.");
   }
   const queuedActions = input.file.actionQueue.filter((action) => action.status === "queued");
@@ -1476,7 +1476,7 @@ export function applyGeminiBossPlan(
           createdAt: now,
         },
       ],
-      lastUpdatedBy: "gemini-boss",
+      lastUpdatedBy: "groq-boss",
     };
   }
 
