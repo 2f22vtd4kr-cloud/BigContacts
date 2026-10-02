@@ -14,7 +14,7 @@ Owns case direction, strategic prioritization, Investigator selection, continuat
 
 ### Right-hand — Mistral Small 4
 
-A separate bounded Gemini oversight invocation. It critiques the latest act, evidence gaps, contradictions and objective. It does not browse, choose the Investigator's tool, or invent evidence.
+A separate bounded Mistral oversight invocation. It critiques the latest act, evidence gaps, contradictions and objective. It does not browse, choose the Investigator's tool, or invent evidence.
 
 If the Right-hand is unavailable where required, Apex records that fact and fails closed. It never fabricates a completed review.
 
@@ -106,7 +106,7 @@ These diagnostics do not silently mutate the research result.
 ## 9. Safety invariants
 
 - Investigator pool remains Groq/Mistral only.
-- Gemini is never an Investigator fallback.
+- Mistral is never an Investigator fallback.
 - DeepSeek/NVIDIA is absent from active execution.
 - Model-selected actions are checked against actual capabilities.
 - Tool failures remain failures.
@@ -131,6 +131,6 @@ Research quality is evaluated separately through the 38-case grounded Research G
 5. Tools are capabilities, not fixed stages.
 6. Every act is durably inspectable.
 7. Promotion requires source-backed deterministic validation.
-8. No provider fallback from Investigator to Gemini/retired providers.
+8. No provider fallback from Investigator to Mistral/retired providers.
 9. No forced research order.
 10. Benchmark conclusions come from measured system runs, not model-brand comparisons.
