@@ -191,13 +191,13 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       await db.update(researchCasesTable)
         .set({ status: "review", currentAction: "mistral-right-hand-unavailable", updatedAt: new Date() })
         .where(and(eq(researchCasesTable.id, discoveryCaseId), eq(researchCasesTable.status, "active")));
-      throw new Error(`Gemini Right-hand unavailable; failing closed: ${rightHandRaw.error ?? "unknown oversight failure"}`);
+      throw new Error(`Mistral Right-hand unavailable; failing closed: ${rightHandRaw.error ?? "unknown oversight failure"}`);
     }
     if (rightHand.error) {
       await db.update(researchCasesTable)
         .set({ status: "review", currentAction: "mistral-right-hand-invalid", updatedAt: new Date() })
         .where(and(eq(researchCasesTable.id, discoveryCaseId), eq(researchCasesTable.status, "active")));
-      throw new Error(`Gemini Right-hand returned invalid oversight: ${rightHand.error}`);
+      throw new Error(`Mistral Right-hand returned invalid oversight: ${rightHand.error}`);
     }
 
     await db.insert(researchCaseEventsTable).values({
@@ -206,7 +206,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       actorRole: "right_hand",
       eventType: "observation",
       status: "recorded",
-      summary: "Gemini Right-hand reviewed the Boss opening decision before Investigator execution.",
+      summary: "Mistral Right-hand reviewed the Boss opening decision before Investigator execution.",
       correlationKey: `${atlasJobId}:right-hand-opening`,
       payload: JSON.stringify({
         jobId: atlasJobId,
@@ -243,7 +243,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     let admission = await materializeAtlasAdmissions({ discoveryRunId: discovery.runId ?? "", findings: discovery.findings, atlasJobId, discoveryCaseId });
     let admitted = admission.names; let materialized = admission.materialized; let evidenceRows = admission.evidenceRows; let researched = 0; let contactsFound = 0; let controlTurns = 0; let discoveryRuns = 1; let priorAction: AtlasControlAction | null = null; let priorCandidate: string | null = null;
     const researchedNames = new Set<string>();
-    phaseSummary.assignment = `${boss.investigatorLlm} selected by Gemini; discovery completed=${discovery.status}; durableCase=${discoveryCaseId}.`; phaseSummary.discovery = `admitted=${admitted.length}; materialized=${materialized}; evidenceRows=${evidenceRows}; searches=${discovery.searches}; visits=${discovery.visits}; trajectory=${discovery.trajectory.length}; structuredTurns=${discovery.trajectoryRecords?.length ?? 0}`;
+    phaseSummary.assignment = `${boss.investigatorLlm} selected by Groq; discovery completed=${discovery.status}; durableCase=${discoveryCaseId}.`; phaseSummary.discovery = `admitted=${admitted.length}; materialized=${materialized}; evidenceRows=${evidenceRows}; searches=${discovery.searches}; visits=${discovery.visits}; trajectory=${discovery.trajectory.length}; structuredTurns=${discovery.trajectoryRecords?.length ?? 0}`;
     if (discoveryOnly) {
       await assertAtlasJobActive(atlasJobId);
       const [current] = await db.select({ caseFile: researchCasesTable.caseFile, iteration: researchCasesTable.iteration }).from(researchCasesTable).where(and(eq(researchCasesTable.id, discoveryCaseId),eq(researchCasesTable.status,"active"),sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${atlasJobId}`,sql`${researchCasesTable.currentAction} NOT IN ('canonical-atlas-cancelled','canonical-lease-lost')`)).limit(1);
