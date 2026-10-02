@@ -82,6 +82,9 @@ function extractText(payload:unknown):string{
 }
 function retryAfterMs(response:Response,fallback:number){const raw=response.headers.get("retry-after")?.trim();if(!raw)return fallback;const n=Number(raw);if(Number.isFinite(n)&&n>=0)return Math.min(5000,Math.floor(n*1000));return fallback;}
 
+type MistralAttemptDiagnostic = { keyName: string; model: string; httpStatus: number | null; providerCode: string | null; failureClass: string; retry429: number; retry503: number; retryAfterMs: number | null; body: ReturnType<typeof summarizeProviderBody> | null; };
+function formatAttemptDiagnostic(diagnostic: MistralAttemptDiagnostic): string { return JSON.stringify(diagnostic); }
+
 async function request(system:string,user:string,format?:Record<string,unknown>):Promise<{raw:string;error:string|null;model:string}>{
  const entries=keyEntries(); if(!entries.length)return {raw:"",error:"MISTRAL_RIGHT_HAND_API_KEY is not configured.",model:MISTRAL_RIGHT_HAND_MODEL};
  const configRequest=requestTimeoutMs(), configOverall=overallTimeoutMs(), deadline=Date.now()+configOverall;
@@ -94,26 +97,27 @@ async function request(system:string,user:string,format?:Record<string,unknown>)
  for(const candidate of attempts){
   if(Date.now()>=deadline)break;
   let retry503=0,retry429=0;
+  let lastRetryAfterMs: number | null = null;
   while(Date.now()<deadline){
    const body=JSON.stringify({model:candidate.model,messages:[{role:"system",content:systemPrompt},{role:"user",content:normalizedUser}],max_tokens:512,temperature:0.1,stream:false,response_format:responseFormat(format)});
    const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),Math.min(configRequest,Math.max(1000,deadline-Date.now())));
    try{
     const response=await fetch(MISTRAL_CHAT_API,{method:"POST",headers:{Accept:"application/json","Content-Type":"application/json",Authorization:`Bearer ${candidate.entry.key}`},body,signal:controller.signal});
     const responseBody=await response.text();
-    if(response.status===503&&retry503<MAX_503_RETRIES_PER_MODEL&&Date.now()<deadline){retry503++;await new Promise(r=>setTimeout(r,Math.min(retryAfterMs(response,750),Math.max(0,deadline-Date.now()))));continue;}
-    if(response.status===429&&retry429<MAX_429_RETRIES_PER_MODEL&&Date.now()<deadline){const delay=retryAfterMs(response,0);if(delay<=2500){retry429++;if(delay)await new Promise(r=>setTimeout(r,Math.min(delay,Math.max(0,deadline-Date.now()))));continue;}}
-    if(!response.ok){const cls=classifyProviderHttpStatus(response.status);const code=providerErrorCode(responseBody);failures.push(`${candidate.model} HTTP ${response.status}${code?` (${code})`:""}`);if(response.status===401||response.status===403||response.status===404)break;if(response.status===429||response.status===500||response.status===502||response.status===503||response.status===504)break;return {raw:"",error:`Mistral Right-hand ${candidate.model} ${cls} HTTP ${response.status}: ${summarizeProviderBody(responseBody)}`,model:candidate.model};}
+    if(response.status===503&&retry503<MAX_503_RETRIES_PER_MODEL&&Date.now()<deadline){const delay=retryAfterMs(response,750);lastRetryAfterMs=delay;retry503++;await new Promise(r=>setTimeout(r,Math.min(delay,Math.max(0,deadline-Date.now()))));continue;}
+    if(response.status===429&&retry429<MAX_429_RETRIES_PER_MODEL&&Date.now()<deadline){const delay=retryAfterMs(response,0);lastRetryAfterMs=delay;if(delay<=2500){retry429++;if(delay)await new Promise(r=>setTimeout(r,Math.min(delay,Math.max(0,deadline-Date.now()))));continue;}}
+    if(!response.ok){const cls=classifyProviderHttpStatus(response.status);const code=providerErrorCode(responseBody);const diagnostic={keyName:candidate.entry.name,model:candidate.model,httpStatus:response.status,providerCode:code,retry429,retry503,retryAfterMs:lastRetryAfterMs,body:summarizeProviderBody(responseBody),failureClass:cls};failures.push(diagnostic);if(response.status===401||response.status===403||response.status===404)break;if(response.status===429||response.status===500||response.status===502||response.status===503||response.status===504)break;return {raw:"",error:`Mistral Right-hand ${candidate.model} ${cls} HTTP ${response.status}: ${formatAttemptDiagnostic(diagnostic)}`,model:candidate.model};}
     const raw=extractText(JSON.parse(responseBody)); if(raw)return {raw,error:null,model:candidate.model};
-    failures.push(`${candidate.model} empty_response`);break;
+    failures.push({keyName:candidate.entry.name,model:candidate.model,httpStatus:response.status,providerCode:null,retry429,retry503,retryAfterMs:lastRetryAfterMs,body:null,failureClass:"invalid_response"});break;
    }catch(error){
     const cls=classifyThrownProviderError(error,error instanceof Error&&error.name==="AbortError");
-    failures.push(`${candidate.model} ${cls}`);
+    failures.push({keyName:candidate.entry.name,model:candidate.model,httpStatus:null,providerCode:null,retry429,retry503,retryAfterMs:lastRetryAfterMs,body:null,failureClass:cls});
     if(cls!=="network_error"&&cls!=="timeout")return {raw:"",error:`Mistral Right-hand ${candidate.model} ${cls}: ${describeThrownProviderError(error)}`,model:candidate.model};
     break;
    }finally{clearTimeout(timer);}
   }
  }
- return {raw:"",error:`Mistral Right-hand exhausted bounded attempts: ${failures.join("; ")}`,model:attempts.at(-1)?.model??MISTRAL_RIGHT_HAND_MODEL};
+ return {raw:"",error:`Mistral Right-hand exhausted bounded attempts: ${failures.map(formatAttemptDiagnostic).join(" | ")}`,model:attempts.at(-1)?.model??MISTRAL_RIGHT_HAND_MODEL};
 }
 
 function clip(value: string | null | undefined, maxChars = 360): string | null {
@@ -266,20 +270,25 @@ export async function runMistralRightHandReadiness(): Promise<{
 }> {
   const entries = keyEntries();
   if (!entries.length) return { provider: "mistral", configured: false, status: "pending", model: MISTRAL_RIGHT_HAND_MODEL, candidateModels: [], httpStatus: null, error: "MISTRAL_RIGHT_HAND_API_KEY is not configured." };
+  const failures: Array<{ keyName: string; httpStatus: number | null; providerCode: string | null; error: string }> = [];
   for (const entry of entries) {
     try {
       const response = await fetch(MISTRAL_MODELS_API, { headers: { Accept: "application/json", Authorization: `Bearer ${entry.key}` }, signal: AbortSignal.timeout(MODEL_CATALOG_TIMEOUT_MS) });
       const body = await response.text();
-      if (!response.ok) return { provider: "mistral", configured: true, status: "unavailable", model: MISTRAL_RIGHT_HAND_MODEL, candidateModels: [], httpStatus: response.status, error: `Mistral model catalog returned HTTP ${response.status}: ${summarizeProviderBody(body)}` };
-      const candidates = catalogCandidates(JSON.parse(body));
+      if (!response.ok) {
+        failures.push({ keyName: entry.name, httpStatus: response.status, providerCode: providerErrorCode(body), error: JSON.stringify(summarizeProviderBody(body)) });
+        continue;
+      }
+      let candidates: string[];
+      try { candidates = catalogCandidates(JSON.parse(body)); } catch { candidates = []; }
       if (candidates.length) return { provider: "mistral", configured: true, status: "ready", model: candidates[0]!, candidateModels: candidates, httpStatus: response.status, error: null };
-      return { provider: "mistral", configured: true, status: "unavailable", model: MISTRAL_RIGHT_HAND_MODEL, candidateModels: [], httpStatus: response.status, error: "Mistral catalog is reachable but no configured Right-hand model is available." };
+      failures.push({ keyName: entry.name, httpStatus: response.status, providerCode: null, error: "catalog_reachable_but_no_configured_model" });
     } catch (error) {
-      return { provider: "mistral", configured: true, status: "unavailable", model: MISTRAL_RIGHT_HAND_MODEL, candidateModels: [], httpStatus: null, error: error instanceof Error ? error.message : "Mistral model catalog request failed." };
+      failures.push({ keyName: entry.name, httpStatus: null, providerCode: null, error: error instanceof Error ? error.message : "Mistral model catalog request failed." });
     }
   }
-  return { provider: "mistral", configured: true, status: "unavailable", model: MISTRAL_RIGHT_HAND_MODEL, candidateModels: [], httpStatus: null, error: "No configured Mistral credential produced a usable model catalog." };
-}
+  const diagnostic = failures.map((failure) => JSON.stringify(failure)).join(" | ");
+  return { provider: "mistral", configured: true, status: "unavailable", model: MISTRAL_RIGHT_HAND_MODEL, candidateModels: [], httpStatus: failures.at(-1)?.httpStatus ?? null, error: `No configured Mistral credential produced a usable model catalog: ${diagnostic}` };
 
 export async function runMistralRightHandCaseReasoning(input: { file: ResearchCaseFile; iteration: number }): Promise<MistralRightHandCaseReasoningResult> { const queued = input.file.actionQueue.filter((action) => action.status === "queued"); const system = "You are Apex Atlas Right Hand. Reason only over the supplied case file. Never browse, use external research, or invent evidence, contacts, people, URLs, or facts. Recommend exactly one existing queued action. Return JSON only."; const user = `Iteration ${input.iteration}. Identify what is newly unresolved, which contact vectors are still pending, and the highest-leverage complementary queued action.\nCASE:\n${compactCase(input.file)}\n\nReturn {\"actionId\":\"exact queued action id\",\"decision\":\"short recommendation\",\"reason\":\"concrete case-file evidence-gap reason\",\"confidence\":0.0}.`; const result = await request(system, user, { type: "text", mime_type: "application/json", schema: { type: "object", properties: { actionId: { type: "string" }, decision: { type: "string" }, reason: { type: "string" }, confidence: { type: "number" } }, required: ["actionId", "decision", "reason", "confidence"] } }); if (result.error) return { status: "unavailable", model: result.model, actionId: null, decision: null, reason: null, confidence: null, error: result.error }; const parsed = extractJson(result.raw); const actionId = typeof parsed?.actionId === "string" ? parsed.actionId.trim() : ""; const action = queued.find((candidate) => candidate.id === actionId); const decision = typeof parsed?.decision === "string" ? parsed.decision.trim() : ""; const reason = typeof parsed?.reason === "string" ? parsed.reason.trim() : ""; const confidence = typeof parsed?.confidence === "number" && Number.isFinite(parsed.confidence) ? Math.max(0, Math.min(1, parsed.confidence)) : null; if (!action || !decision || !reason) return { status: "unavailable", model: result.model, actionId: null, decision: null, reason: null, confidence, error: `Mistral Right-hand ${result.model} returned an invalid or non-queued recommendation.` }; return { status: "completed", model: result.model, actionId: action.id, decision, reason, confidence, error: null }; }
 export async function runMistralRightHandDiscoveryAdvice(input: { file: DiscoveryCaseFile; iteration: number }): Promise<MistralRightHandDiscoveryAdviceResult> { const system = "You are Apex Atlas Right Hand for public-record discovery. Reason only over supplied discovery case evidence. Never browse, use external research, or invent people, contacts, relationships, or URLs. Return JSON only."; const user = `Iteration ${input.iteration}. Recommend the most useful next research direction from the existing discovery frontier.\nDISCOVERY CASE:\n${compactDiscovery(input.file)}\n\nReturn {\"decision\":\"...\",\"reason\":\"...\",\"focusLanes\":[\"...\"],\"confidence\":0.0}.`; const result = await request(system, user, { type: "text", mime_type: "application/json", schema: { type: "object", properties: { decision: { type: "string" }, reason: { type: "string" }, focusLanes: { type: "array", items: { type: "string" } }, confidence: { type: "number" } }, required: ["decision", "reason", "focusLanes", "confidence"] } }); if (result.error) return { status: "unavailable", model: result.model, decision: null, reason: null, focusLanes: [], confidence: null, error: result.error }; const parsed = extractJson(result.raw); if (!parsed) return { status: "unavailable", model: result.model, decision: null, reason: null, focusLanes: [], confidence: null, error: `Mistral Right-hand ${result.model} returned invalid discovery JSON.` }; return { status: "completed", model: result.model, decision: typeof parsed.decision === "string" ? parsed.decision : null, reason: typeof parsed.reason === "string" ? parsed.reason : null, focusLanes: Array.isArray(parsed.focusLanes) ? parsed.focusLanes.filter((v): v is string => typeof v === "string") : [], confidence: typeof parsed.confidence === "number" ? Math.max(0, Math.min(1, parsed.confidence)) : null, error: null }; }
