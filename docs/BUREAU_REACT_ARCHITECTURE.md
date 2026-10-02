@@ -12,7 +12,7 @@ Apex has **two AI layers only**: Groq Boss control + Mistral Right-hand oversigh
 
 Owns case direction, strategic prioritization, Investigator selection, continuation disposition and high-level review. It does not browse or invent evidence.
 
-### Right-hand — Gemini
+### Right-hand — Mistral Small 4
 
 A separate bounded Gemini oversight invocation. It critiques the latest act, evidence gaps, contradictions and objective. It does not browse, choose the Investigator's tool, or invent evidence.
 
