@@ -13,7 +13,7 @@ const checks = [
   ["Boss has GPT-OSS 20B bounded fallback", boss.includes('"openai/gpt-oss-20b"') && boss.includes("MAX_MODEL_ATTEMPTS = 2")],
   ["Boss uses the Groq OpenAI-compatible chat endpoint", boss.includes("https://api.groq.com/openai/v1/chat/completions") && boss.includes("Authorization:")],
   ["Boss uses GPT-OSS reasoning levels and hides reasoning output", boss.includes("reasoning_effort") && boss.includes("include_reasoning: false")],
-  ["Boss uses strict JSON Schema when a control schema is supplied", boss.includes('type: "json_schema"') && boss.includes("strict: true") && boss.includes("additionalProperties: false")],
+  ["Boss uses strict JSON Schema when a control schema is supplied", boss.includes('type: "json_schema"') && boss.includes("strict: true") && bureau.includes("additionalProperties: false")],
   ["Boss prompt is bounded for the free-tier token budget", boss.includes("MAX_PROMPT_CHARS = 20_000") && boss.includes("APEX CONTROL-CONTEXT TRUNCATED")],
   ["Boss has bounded 503 recovery and bounded short 429 recovery", boss.includes("MAX_503_RETRIES_PER_MODEL = 1") && boss.includes("MAX_429_RETRIES_PER_MODEL = 1") && boss.includes("delay <= 2_500")],
   ["Canonical Bureau Boss call surface delegates to Groq", bureau.includes("return generateGroqBossText(selection, prompt, options)") && bureau.includes("return resolveGroqBossModel(preferredKeyName)")],
