@@ -6,16 +6,16 @@ import {
 } from "../src/lib/groq-boss";
 
 describe("Groq Boss control-plane adapter", () => {
-  const originalKey = process.env.GROQ_API_KEY;
+  const originalKey = process.env.GROQ_BOSS_API_KEY;
 
   afterEach(() => {
     vi.restoreAllMocks();
-    if (originalKey === undefined) delete process.env.GROQ_API_KEY;
-    else process.env.GROQ_API_KEY = originalKey;
+    if (originalKey === undefined) delete process.env.GROQ_BOSS_API_KEY;
+    else process.env.GROQ_BOSS_API_KEY = originalKey;
   });
 
   it("resolves the canonical GPT-OSS 120B Boss model from the Groq catalog", async () => {
-    process.env.GROQ_API_KEY = "test-groq-key";
+    process.env.GROQ_BOSS_API_KEY = "test-groq-key";
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response(JSON.stringify({
         object: "list",
@@ -37,7 +37,7 @@ describe("Groq Boss control-plane adapter", () => {
   });
 
   it("sends strict JSON control output with GPT-OSS reasoning effort", async () => {
-    process.env.GROQ_API_KEY = "test-groq-key";
+    process.env.GROQ_BOSS_API_KEY = "test-groq-key";
     vi.spyOn(globalThis, "fetch")
       .mockResolvedValueOnce(new Response(JSON.stringify({
         choices: [{ message: { content: '{"actionId":"identity"}' } }],
@@ -49,7 +49,7 @@ describe("Groq Boss control-plane adapter", () => {
       inspectedKeyCount: 1,
       candidateCount: 1,
       candidateModels: [GROQ_BOSS_MODEL],
-      keyName: "GROQ_API_KEY",
+      keyName: "GROQ_BOSS_API_KEY",
     }, "Return a JSON control decision.", {
       responseFormat: {
         type: "text",
@@ -90,7 +90,7 @@ describe("Groq Boss control-plane adapter", () => {
   });
 
   it("retries one transient 503 on the same model before accepting the response", async () => {
-    process.env.GROQ_API_KEY = "test-groq-key";
+    process.env.GROQ_BOSS_API_KEY = "test-groq-key";
     const fetchMock = vi.spyOn(globalThis, "fetch")
       .mockResolvedValueOnce(new Response(JSON.stringify({
         error: { message: "temporarily unavailable", type: "server_error" },
@@ -105,7 +105,7 @@ describe("Groq Boss control-plane adapter", () => {
       inspectedKeyCount: 1,
       candidateCount: 1,
       candidateModels: [GROQ_BOSS_MODEL],
-      keyName: "GROQ_API_KEY",
+      keyName: "GROQ_BOSS_API_KEY",
     }, "Return JSON.", { maxOutputTokens: 128, thinkingLevel: "low" });
 
     expect(result.error).toBeNull();
@@ -115,7 +115,7 @@ describe("Groq Boss control-plane adapter", () => {
   });
 
   it("fails closed when upstream context compaction still exceeds the Boss prompt budget", async () => {
-    process.env.GROQ_API_KEY = "test-groq-key";
+    process.env.GROQ_BOSS_API_KEY = "test-groq-key";
     const fetchMock = vi.spyOn(globalThis, "fetch");
     const result = await generateGroqBossText({
       model: GROQ_BOSS_MODEL,
@@ -123,7 +123,7 @@ describe("Groq Boss control-plane adapter", () => {
       inspectedKeyCount: 1,
       candidateCount: 1,
       candidateModels: [GROQ_BOSS_MODEL],
-      keyName: "GROQ_API_KEY",
+      keyName: "GROQ_BOSS_API_KEY",
     }, "x".repeat(20_001), { maxOutputTokens: 128, thinkingLevel: "low" });
 
     expect(result.raw).toBeNull();
@@ -132,7 +132,7 @@ describe("Groq Boss control-plane adapter", () => {
   });
 
   it("does not spin on a long 429 retry window", async () => {
-    process.env.GROQ_API_KEY = "test-groq-key";
+    process.env.GROQ_BOSS_API_KEY = "test-groq-key";
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response(JSON.stringify({ error: { message: "rate limit" } }), {
         status: 429,
@@ -146,7 +146,7 @@ describe("Groq Boss control-plane adapter", () => {
       inspectedKeyCount: 1,
       candidateCount: 1,
       candidateModels: [GROQ_BOSS_MODEL],
-      keyName: "GROQ_API_KEY",
+      keyName: "GROQ_BOSS_API_KEY",
     }, "Return JSON.", { maxOutputTokens: 128, thinkingLevel: "low" });
 
     expect(result.raw).toBeNull();
