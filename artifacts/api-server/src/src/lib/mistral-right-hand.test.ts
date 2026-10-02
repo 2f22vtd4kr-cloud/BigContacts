@@ -6,7 +6,7 @@ import {
   runMistralRightHandCaseReasoning,
   runMistralRightHandFreeJson,
   runMistralRightHandReadiness,
-} from "../src/lib/mistral-right-hand-reasoning";
+} from "./mistral-right-hand-reasoning";
 
 describe("Mistral Right-hand control-plane boundary", () => {
   const originalKey = process.env.MISTRAL_API_KEY;
@@ -55,7 +55,7 @@ describe("Mistral Right-hand control-plane boundary", () => {
     const chatCall = fetchMock.mock.calls[1]!;
     expect(chatCall[0]).toContain("/v1/chat/completions");
     const init = chatCall[1] as RequestInit;
-    expect(String(init.headers)).toContain("Authorization");
+    expect(new Headers(init.headers).get("Authorization")).toBe("Bearer test-mistral-key");
     expect(String(init.body)).toContain('"type":"json_schema"');
   });
 
