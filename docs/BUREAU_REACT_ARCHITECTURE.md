@@ -2,9 +2,9 @@
 
 **Updated:** 2026-09-20
 
-**Canonical role law:** Boss = **Groq GPT-OSS 120B** (bounded GPT-OSS 20B fallback). Right-hand = **Gemini**. Investigation = **Groq/Mistral Investigator + permitted non-LLM research tools**.
+**Canonical role law:** Boss = **Groq GPT-OSS 120B** (bounded GPT-OSS 20B fallback). Right-hand = **Mistral Small 4**. Investigation = **Groq/Mistral Investigator + permitted non-LLM research tools**.
 
-Apex has **two AI layers only**: Groq Boss control + Gemini Right-hand oversight and the Investigator LLM layer.
+Apex has **two AI layers only**: Groq Boss control + Mistral Right-hand oversight and the Investigator LLM layer.
 
 ## 1. Boss + Right-hand
 
@@ -125,7 +125,7 @@ Research quality is evaluated separately through the 38-case grounded Research G
 ## 11. Hard invariants
 
 1. Two AI layers only.
-2. Groq Boss + Gemini Right-hand are oversight/control.
+2. Groq Boss + Mistral Right-hand are oversight/control.
 3. Groq/Mistral are investigators.
 4. Investigator owns the research trajectory.
 5. Tools are capabilities, not fixed stages.
