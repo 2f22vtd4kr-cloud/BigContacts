@@ -180,11 +180,9 @@ function retryAfterMs(response: Response, fallback: number): number {
   return Number.isFinite(date) ? Math.min(10_000, Math.max(0, date - Date.now())) : fallback;
 }
 
-function trimPrompt(prompt: string, maximum: number): string {
-  if (prompt.length <= maximum) return prompt;
-  const head = Math.floor(maximum * 0.62);
-  const tail = maximum - head;
-  return `${prompt.slice(0, head)}\n\n[APEX CONTROL-CONTEXT TRUNCATED TO FIT GROQ FREE-TIER BUDGET]\n\n${prompt.slice(-tail)}`;
+function boundedBossPrompt(prompt: string, maximum: number): string | null {
+  const normalized = prompt.trim();
+  return normalized.length <= maximum ? normalized : null;
 }
 
 export function formatGroqBossAttemptSummary(attempts: GroqBossAttemptDiagnostic[]): string {
@@ -210,7 +208,15 @@ export async function generateGroqBossText(
   const candidates = [selection.model, ...(selection.candidateModels ?? []), ...GROQ_BOSS_FALLBACK_MODELS]
     .filter((model, index, list) => model && list.indexOf(model) === index)
     .slice(0, MAX_MODEL_ATTEMPTS);
-  const boundedPrompt = trimPrompt(prompt, config.maximumPromptChars);
+  const boundedPrompt = boundedBossPrompt(prompt, config.maximumPromptChars);
+  if (!boundedPrompt) {
+    return {
+      model: selection.model,
+      raw: null,
+      error: `Groq Boss prompt exceeds the bounded control-plane budget of ${config.maximumPromptChars} characters; upstream case-context compaction is required.`,
+      attempts: [],
+    };
+  }
   const responseFormat = groqResponseFormat(options?.responseFormat);
   const attempts: GroqBossAttemptDiagnostic[] = [];
   let lastError = "Groq Boss returned no usable response.";
