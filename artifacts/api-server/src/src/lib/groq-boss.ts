@@ -276,7 +276,7 @@ export async function generateGroqBossText(
             const failureClass = classifyProviderHttpStatus(response.status);
             const code = providerErrorCode(responseBody);
             attempts.push({ model, keyName: entry.name, httpStatus: response.status, providerErrorCode: code, failureClass });
-            lastError = `Groq Boss ${model} returned HTTP ${response.status}${code ? ` (${code})` : ""}: ${summarizeProviderBody(responseBody)}`;
+            lastError = `Groq Boss ${model} returned HTTP ${response.status}${code ? ` (${code})` : ""}: ${JSON.stringify(summarizeProviderBody(responseBody))}`;
             break;
           }
 
