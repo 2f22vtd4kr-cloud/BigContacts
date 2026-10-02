@@ -211,10 +211,10 @@ export async function runFinalTargetReview(
     logger.debug({ err: err?.message }, "final-review Gemini Boss unavailable");
   }
 
-  // 2) Right-hand — Gemini Right-hand
+  // 2) Right-hand — Mistral Right-hand
   try {
-    const { runGeminiRightHandFinalReview } = await import("./gemini-right-hand-reasoning");
-    const nv = await runGeminiRightHandFinalReview(bossPrompt);
+    const { runMistralRightHandFinalReview } = await import("./mistral-right-hand-reasoning");
+    const nv = await runMistralRightHandFinalReview(bossPrompt);
     if (nv.status === "completed" && nv.raw) {
       const json = extractJsonObject(nv.raw);
       if (json) {
