@@ -615,3 +615,25 @@ Final verification on PR head `054d60b859d66a36b14d302e6cd6498fab629843`:
 The first CI attempt exposed a wrong test path in the new workflow step; the second exposed a stale call-order assertion. Both were corrected. No production Gemini fallback policy was weakened or bypassed.
 
 The live runtime remains NOT GREEN. The latest authorized canonical Replit run `96a80589-f510-4703-b79f-cd8264e15715` failed at Gemini Boss opening with three HTTP 503 `service_unavailable` responses and admitted no research/evidence/entities/cards. CI verification of the transport contract does not establish live provider capacity. Do not launch another canonical research run merely to compensate for the provider failure; synchronize the deployment environment and make a provider-readiness decision before the next authorized live audit.
+
+## 2026-10-02 Groq Boss control-plane migration
+
+The canonical Boss provider has been changed from Gemini to Groq after repeated empirical Gemini Boss 503 failures. The new adapter is:
+
+- `artifacts/api-server/src/src/lib/groq-boss.ts`
+- primary model: `openai/gpt-oss-120b`
+- bounded fallback: `openai/gpt-oss-20b`
+- credential: `GROQ_API_KEY` (with numbered Groq key slots supported)
+- transport: Groq OpenAI-compatible Chat Completions API
+
+Gemini remains the independent Right-hand oversight provider. The Investigator remains the existing model-owned Groq/Mistral research layer. The Boss does not gain web-search or Investigator authority merely because Groq supports browser tools; the canonical Boss request is text/control-only.
+
+The Groq adapter bounds Boss prompts to 20,000 characters by default because the current Groq Free Plan documents 8K TPM / 200K TPD for GPT-OSS 120B and 20B. It maps the old Gemini `minimal` setting to GPT-OSS `low`, suppresses reasoning output, uses strict JSON Schema for control responses, and has bounded same-model 503 recovery plus short-window 429 recovery.
+
+`GET /api/system/status` remains ordinary local/cached telemetry. It no longer needs a provider generation/readiness call. The explicit live provider diagnostic is `POST /api/system/diagnostics/groq-readiness`; it checks Groq model catalog availability only and is not a substitute for a canonical Atlas run.
+
+New deterministic checks/tests:
+- `scripts/check-groq-boss-model-boundary.mjs`
+- `artifacts/api-server/src/test/groq-boss.test.ts`
+
+The canonical release state remains **NOT GREEN / NOT production-certified** until the implementation is verified in the actual runtime and a later authorized single canonical Atlas audit reaches the real Right-hand → Investigator → evidence → terminal path. No Groq key value is committed to the repository.
