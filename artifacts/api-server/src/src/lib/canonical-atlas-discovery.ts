@@ -149,8 +149,8 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
 
     // Boss first, independent Right-hand second. The Right-hand reviews the
     // actual Boss decision; it does not pre-steer the Boss or choose the tools.
-    const rightHandRaw = await import("./gemini-right-hand-reasoning").then(({ runGeminiRightHandFreeJson }) =>
-      runGeminiRightHandFreeJson(
+    const rightHandRaw = await import("./mistral-right-hand-reasoning").then(({ runMistralRightHandFreeJson }) =>
+      runMistralRightHandFreeJson(
         `Review Gemini Boss's opening Atlas decision before the Investigator starts. Objective: ${discoveryObjective}. Boss selected Investigator: ${boss.investigatorLlm}. Boss report: ${boss.report ?? ""}. Next directions: ${JSON.stringify(boss.nextDirections)}. Uncertainties: ${JSON.stringify(boss.uncertainties)}. Return concise oversight/advisory observations only. Do not browse, do not choose tools, do not replace the Investigator, and do not invent people or evidence. Return JSON with decision, reason, focusLanes, confidence.`,
         "You are the Gemini Right-hand. Review the Boss opening decision only. Advise the Boss; do not act as Investigator, do not browse, do not choose tools, and do not replace the selected Groq/Mistral Investigator. Reply with ONE JSON object.",
       ),
