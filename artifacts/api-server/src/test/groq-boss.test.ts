@@ -14,6 +14,19 @@ describe("Groq Boss control-plane adapter", () => {
     else process.env.GROQ_BOSS_API_KEY = originalKey;
   });
 
+  it("does not consume the generic GROQ_API_KEY Investigator credential", async () => {
+    const bossKey = process.env.GROQ_BOSS_API_KEY;
+    const investigatorKey = process.env.GROQ_API_KEY;
+    delete process.env.GROQ_BOSS_API_KEY;
+    process.env.GROQ_API_KEY = "investigator-only-key";
+    const result = await resolveGroqBossModel();
+    expect(result.status).toBe("unavailable");
+    if (bossKey === undefined) delete process.env.GROQ_BOSS_API_KEY;
+    else process.env.GROQ_BOSS_API_KEY = bossKey;
+    if (investigatorKey === undefined) delete process.env.GROQ_API_KEY;
+    else process.env.GROQ_API_KEY = investigatorKey;
+  });
+
   it("resolves the canonical GPT-OSS 120B Boss model from the Groq catalog", async () => {
     process.env.GROQ_BOSS_API_KEY = "test-groq-key";
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
