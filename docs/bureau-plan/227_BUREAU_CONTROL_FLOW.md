@@ -85,7 +85,7 @@ No usable Investigator LLM
   → stop/fail closed
 ```
 
-Never replace a failed Investigator with Mistral. Never replace it with deterministic research.
+Never replace a failed Investigator with a control-plane model. Never replace it with deterministic research.
 
 ## Tool semantics
 
