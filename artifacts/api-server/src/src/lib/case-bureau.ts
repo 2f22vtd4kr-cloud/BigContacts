@@ -1,4 +1,4 @@
-import { GROQ_BOSS_MODEL_PENDING, getGroqBossLatencyConfig, getGroqBossStatus, resolveGroqBossModel, generateGroqBossText } from "./groq-boss";
+import { GROQ_BOSS_MODEL_PENDING, getGroqBossLatencyConfig, getGroqBossStatus, resolveGroqBossModel, generateGroqBossText, formatGroqBossAttemptSummary } from "./groq-boss";
 import type { Entity } from "@workspace/db";
 import { apexOrientationFor } from "./apex-bureau-orientation";
 import { buildApexAtlasBossPlanPrompt } from "./case-bureau-prompt";
@@ -274,6 +274,7 @@ export type DiscoveryCaseFile = {
 export const GEMINI_BOSS_MODEL_PENDING = GROQ_BOSS_MODEL_PENDING;
 export type GeminiBossModelSelection = import("./groq-boss").GroqBossModelSelection;
 export type GeminiBossAttemptDiagnostic = import("./groq-boss").GroqBossAttemptDiagnostic;
+export function formatGeminiBossAttemptSummary(attempts: GeminiBossAttemptDiagnostic[]): string { return formatGroqBossAttemptSummary(attempts); }
 export type GeminiBossDiscoveryResult = {
   status: "completed" | "pending" | "unavailable";
   model: string;
