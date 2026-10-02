@@ -77,6 +77,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
     setTheme(nextTheme);
     document.documentElement.classList.toggle("light", nextTheme === "light");
     document.documentElement.classList.toggle("dark", nextTheme === "dark");
+    document.documentElement.style.colorScheme = nextTheme;
+    document.querySelector('meta[name="theme-color"]')?.setAttribute(
+      "content",
+      nextTheme === "light" ? "#f7f7f7" : "#111827",
+    );
   }, []);
 
   const toggleTheme = () => {
@@ -84,6 +89,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
       const nextTheme = current === "dark" ? "light" : "dark";
       document.documentElement.classList.toggle("light", nextTheme === "light");
       document.documentElement.classList.toggle("dark", nextTheme === "dark");
+      document.documentElement.style.colorScheme = nextTheme;
+      document.querySelector('meta[name="theme-color"]')?.setAttribute(
+        "content",
+        nextTheme === "light" ? "#f7f7f7" : "#111827",
+      );
       window.localStorage.setItem("apex-atlas-theme", nextTheme);
       return nextTheme;
     });
