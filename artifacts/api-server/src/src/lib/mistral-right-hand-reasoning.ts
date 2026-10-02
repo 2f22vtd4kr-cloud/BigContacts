@@ -93,7 +93,7 @@ async function request(system:string,user:string,format?:Record<string,unknown>)
  const attempts:Array<{entry:{name:string;key:string};model:string}>=[];
  for(const entry of entries){for(const model of await resolveModelChain(entry.key))attempts.push({entry,model});}
  if(!attempts.length)return {raw:"",error:"Mistral Right-hand has no compatible configured model in the live catalog.",model:MISTRAL_RIGHT_HAND_MODEL};
- const failures:string[]=[];
+ const failures: MistralAttemptDiagnostic[] = [];
  for(const candidate of attempts){
   if(Date.now()>=deadline)break;
   let retry503=0,retry429=0;
