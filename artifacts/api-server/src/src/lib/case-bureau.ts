@@ -550,7 +550,7 @@ function parseDiscoveryContactEvidence(value: unknown): DiscoveryContactEvidence
  * from target-scoped extraction: the mission is the subject, while separate
  * search-capable investigators supply web context and all returned people remain review-only.
  */
-export async function runGeminiBossDiscovery(input: {
+export async function runGroqBossDiscovery(input: {
   file?: DiscoveryCaseFile;
   objective: string;
   motivation: string;
@@ -817,6 +817,9 @@ function buildGeminiBossPlanPrompt(input: {
   });
 }
 
+
+/** Compatibility export only; canonical runtime identity is Groq Boss. */
+export const runGeminiBossDiscovery = runGroqBossDiscovery;
 
 export async function runGeminiBossPlan(input: {
   file: ResearchCaseFile;
