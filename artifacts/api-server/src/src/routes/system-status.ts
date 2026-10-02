@@ -64,7 +64,7 @@ router.get("/system/status", async (_req,res) => {
     // Mistral web search is reported only through its canonical Bureau/provider
     // status; this payload must never advertise the retired endpoint as ready.
     const openResearch={state:"unavailable" as const,huggingFace:{configured:false},serper:{configured:false},adapter:{available:false,model:process.env.HF_DEEP_RESEARCH_MODEL||"Qwen/Qwen2.5-7B-Instruct"},mistral:getMistralWebSearchStatus()};
-    const payload={ai,pythonTools,openResearch,groqBoss,geminiBoss:groqBoss,geminiBossLatency,bureauReasoning,mistralRightHand:mistralRightHandStatus,mistralRightHandLatency,lanesHonesty,bureauIntegrity:lanesHonesty.bureauIntegrity,bureauIntegrityReasons:lanesHonesty.bureauIntegrityReasons,databases:{postgres:{status:pgStatus,latencyMs:pgLatencyMs},localRedis:{...localInfo,latencyMs:localLatencyMs},upstash},generatedAt:new Date().toISOString(),cached:false,cachedAgoMs:0};
+    const payload={ai,pythonTools,openResearch,groqBoss,geminiBoss:groqBoss,geminiBossLatency,bureauReasoning,mistralRightHand:bureauReasoning,mistralRightHandLatency,lanesHonesty,bureauIntegrity:lanesHonesty.bureauIntegrity,bureauIntegrityReasons:lanesHonesty.bureauIntegrityReasons,databases:{postgres:{status:pgStatus,latencyMs:pgLatencyMs},localRedis:{...localInfo,latencyMs:localLatencyMs},upstash},generatedAt:new Date().toISOString(),cached:false,cachedAgoMs:0};
     _cached=payload;_cachedAt=Date.now();return res.json(payload);
   }catch(err:any){return res.status(500).json({error:err?.message??"Unknown error"});}
 });router.post("/system/diagnostics/groq-readiness", async (_req,res) => {
