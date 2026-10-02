@@ -12,6 +12,7 @@ const checks = [
   ["Boss adapter uses Groq GPT-OSS 120B as primary", boss.includes('GROQ_BOSS_MODEL = "openai/gpt-oss-120b"')],
   ["Boss has GPT-OSS 20B bounded fallback", boss.includes('"openai/gpt-oss-20b"') && boss.includes("MAX_MODEL_ATTEMPTS = 2")],
   ["Boss uses the Groq OpenAI-compatible chat endpoint", boss.includes("https://api.groq.com/openai/v1/chat/completions") && boss.includes("Authorization:")],
+  ["Boss uses a role-scoped credential namespace", boss.includes('"GROQ_BOSS_API_KEY"') && boss.includes("GROQ_BOSS_API_KEY_${i + 1}") && !boss.includes('"GROQ_API_KEY"')],
   ["Boss uses GPT-OSS reasoning levels and hides reasoning output", boss.includes("reasoning_effort") && boss.includes("include_reasoning: false")],
   ["Boss uses strict JSON Schema when a control schema is supplied", boss.includes('type: "json_schema"') && boss.includes("strict: true") && bureau.includes("additionalProperties: false")],
   ["Boss prompt is bounded for the free-tier token budget", boss.includes("MAX_PROMPT_CHARS = 20_000") && boss.includes("upstream case-context compaction is required")],
