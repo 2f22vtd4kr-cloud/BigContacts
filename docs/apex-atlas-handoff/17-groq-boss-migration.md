@@ -22,7 +22,7 @@ Groq currently documents GPT-OSS 120B as supporting reasoning, JSON Object/JSON 
 Authentication is `Authorization: Bearer $GROQ_API_KEY`.
 
 The Boss:
-- bounds prompts to 20,000 characters by default;
+- accepts only already-compacted Boss prompts up to 20,000 characters by default; oversized prompts fail closed so durable evidence is never arbitrarily discarded;
 - maps the former Gemini `minimal` setting to GPT-OSS `low`;
 - uses `reasoning_effort` (`low|medium|high`);
 - sets `include_reasoning=false`;
