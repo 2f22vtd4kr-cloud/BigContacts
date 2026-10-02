@@ -19,7 +19,7 @@ Groq currently documents GPT-OSS 120B as supporting reasoning, JSON Object/JSON 
 
 `https://api.groq.com/openai/v1/chat/completions`
 
-Authentication is `Authorization: Bearer $GROQ_API_KEY`.
+Authentication is `Authorization: Bearer $GROQ_BOSS_API_KEY`; numbered Boss credential slots are `GROQ_BOSS_API_KEY_1` through `GROQ_BOSS_API_KEY_10`. The generic `GROQ_API_KEY` namespace remains reserved for Investigator use.
 
 The Boss:
 - accepts only already-compacted Boss prompts up to 20,000 characters by default; oversized prompts fail closed so durable evidence is never arbitrarily discarded;
