@@ -5,7 +5,7 @@
 There are only two AI layers:
 
 ```text
-BOSS (Gemini) + RIGHT-HAND (Gemini)
+BOSS (Groq GPT-OSS 120B) + RIGHT-HAND (Gemini)
         │
         │ consult + select Investigator LLM + suggest tools
         ↓
@@ -19,7 +19,7 @@ REPORT EVERY ACT → target/run living investigation document
                     ↺ continue / redirect / challenge / stop
 ```
 
-Groq or Mistral is an **investigator**, not an additional decision layer. Gemini is used for both bounded oversight roles and is never an Investigator.
+Groq or Mistral is an **investigator**, not an additional decision layer. Groq Boss and Gemini Right-hand are the two oversight/control roles; neither is an Investigator fallback.
 
 ## Mode 1 — Single-target re-cook
 
@@ -60,7 +60,7 @@ The selected Investigator LLM owns the investigation decision between the oversi
 
 ```text
 Case file
-  → Boss (Gemini) + Right-hand (Gemini)
+  → Boss (Groq GPT-OSS 120B) + Right-hand (Gemini)
        → choose Investigator LLM
        → set assignment / constraints
        → suggest useful tools
