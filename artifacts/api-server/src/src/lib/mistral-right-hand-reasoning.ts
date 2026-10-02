@@ -9,6 +9,7 @@ import {
   providerErrorCode,
 } from "./provider-error-diagnostics";
 
+// Canonical Right-hand model for the Mistral control-plane role.
 export const MISTRAL_RIGHT_HAND_MODEL = "mistral-small-2603";
 export const MISTRAL_RIGHT_HAND_FALLBACK_MODELS: readonly string[] = ["mistral-small-latest"];
 const MISTRAL_MODELS_API = "https://api.mistral.ai/v1/models";
