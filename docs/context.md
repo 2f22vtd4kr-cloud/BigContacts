@@ -644,3 +644,23 @@ The canonical Right-hand provider is now Mistral Small 4 (mistral-small-2603), w
 The adapter is artifacts/api-server/src/src/lib/mistral-right-hand-reasoning.ts, uses MISTRAL_API_KEY (plus numbered slots), Mistral /v1/models for capability discovery, and /v1/chat/completions for bounded JSON control. Prompts are capped at 20,000 characters and oversized model-facing context fails closed rather than silently discarding durable evidence. Ordinary /api/system/status remains provider-call-free; POST /api/system/diagnostics/mistral-readiness is the explicit catalog-only diagnostic.
 
 gemini-right-hand-reasoning.ts is now only a compatibility shim and contains no Gemini transport. The canonical boundary gate is scripts/check-mistral-right-hand-model-boundary.mjs and the regression suite is mistral-right-hand.test.ts.
+
+## 2026-10-02 CURRENT MASTER SUCCESSOR STATE
+
+Current canonical main HEAD is `44118b641747b034eccc00d0aca5f0209aea3259`.
+
+The current comprehensive successor handoff is:
+`docs/apex-atlas-handoff/19_MASTER_SUCCESSOR_HANDOFF_CURRENT_2026-10-02.md`
+
+Current control-plane roles are now:
+- Boss: Groq `openai/gpt-oss-120b`, bounded `openai/gpt-oss-20b` fallback.
+- Right-hand: Mistral `mistral-small-2603`, bounded `mistral-small-latest` catalog fallback.
+- Investigator: existing model-owned Groq/Mistral research layer.
+
+The Gemini Boss and Gemini Right-hand transports are no longer canonical. `gemini-right-hand-reasoning.ts` is a compatibility shim with no Gemini transport. The old Gemini Boss boundary gate was retired.
+
+Latest exact canonical Atlas job: `6097cdeb-d176-4807-96cb-1c59e334a5e3`, accepted with targetCount=3, standard depth, 420000ms target timeout. It was observed running at 0/4 during Groq Boss -> Mistral Right-hand -> Investigator opening. Its terminal outcome is currently UNKNOWN/UNOBSERVED; do not classify or relaunch solely for that reason.
+
+HEAD `44118b6` CI boundary: Apex API Build PASS; discovery static check PASS; frontend five-condition gate PASS; Five Consecutive Full Code Audits FAIL at the Atlas control contract regression because the old test still asserts Gemini Right-hand implementation details (`runGeminiRightHandFreeJson(` and `rateLimitRetryDelayMs`). This is a stale contract-test failure against the intentional Mistral compatibility shim, not evidence that Mistral generation is broken. Fix the test to assert the current Mistral implementation/boundary rather than restoring Gemini transport.
+
+Release remains **NOT GREEN / NOT production-certified**.
