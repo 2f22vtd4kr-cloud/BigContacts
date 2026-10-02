@@ -1151,14 +1151,64 @@ export function appendDiscoveryReport(
 }
 
 export function buildDiscoveryProgressSnapshot(file: DiscoveryCaseFile): string {
+  // Model-facing discovery context is bounded deliberately; the durable case file
+  // remains complete. This is compaction, not history deletion.
+  const clip = (value: unknown, max: number): string | null => {
+    if (typeof value !== "string") return value == null ? null : String(value);
+    const trimmed = value.trim();
+    return trimmed.length <= max ? trimmed : `${trimmed.slice(0, Math.max(0, max - 1))}…`;
+  };
+  const compactCandidates = (file.discoveredCandidates ?? []).slice(0, 12).map((candidate) => ({
+    name: clip(candidate.name, 140),
+    type: clip(candidate.type, 80),
+    sourceUrls: (candidate.sourceUrls ?? []).slice(0, 6),
+    contactEvidence: (candidate.contactEvidence ?? []).slice(0, 6).map((contact) => ({
+      vectorType: clip(contact.vectorType, 60),
+      value: clip(contact.value, 180),
+      scope: clip(contact.scope, 40),
+      personName: clip(contact.personName, 120),
+      role: clip(contact.role, 120),
+      sourceUrls: (contact.sourceUrls ?? []).slice(0, 4),
+      note: clip(contact.note, 220),
+    })),
+  }));
+  const compactReports = (file.investigatorReports ?? []).slice(-8).map((report) => ({
+    id: report.id,
+    lane: report.lane,
+    provider: report.provider,
+    status: report.status,
+    iteration: report.iteration,
+    summary: clip(report.summary, 900),
+    findings: (report.findings ?? []).slice(0, 6).map((finding) => clip(finding, 320)),
+    candidateNames: (report.candidateNames ?? []).slice(0, 8).map((name) => clip(name, 120)),
+    sourceUrls: (report.sourceUrls ?? []).slice(0, 8),
+    nextQuestions: (report.nextQuestions ?? []).slice(0, 8).map((question) => clip(question, 260)),
+    error: clip(report.error, 400),
+  }));
   return JSON.stringify({
-    mission: file.humanBrief,
-    premise: file.bossPremise,
-    rules: file.investigationRules,
-    candidates: file.discoveredCandidates,
-    progress: file.currentProgress,
-    investigatorReports: file.investigatorReports,
-    decisions: file.decisionLog,
+    mission: {
+      objective: clip(file.humanBrief.objective, 900),
+      motivation: clip(file.humanBrief.motivation, 500),
+      geography: clip(file.humanBrief.geography, 240),
+      exclusions: (file.humanBrief.exclusions ?? []).slice(0, 12).map((value) => clip(value, 180)),
+    },
+    premise: clip(file.bossPremise, 900),
+    rules: (file.investigationRules ?? []).slice(0, 16).map((rule) => clip(rule, 260)),
+    candidates: compactCandidates,
+    progress: {
+      reportCount: file.currentProgress.reportCount,
+      completedLanes: (file.currentProgress.completedLanes ?? []).slice(0, 12),
+      openQuestions: (file.currentProgress.openQuestions ?? []).slice(0, 20).map((question) => clip(question, 280)),
+      lastReviewedBy: clip(file.currentProgress.lastReviewedBy, 120),
+      refreshedAt: file.currentProgress.refreshedAt,
+    },
+    investigatorReports: compactReports,
+    decisions: (file.decisionLog ?? []).slice(-10).map((decision) => ({
+      iteration: decision.iteration,
+      decision: clip(decision.decision, 320),
+      reason: clip(decision.reason, 420),
+      createdAt: decision.createdAt,
+    })),
   }, null, 2);
 }
 
