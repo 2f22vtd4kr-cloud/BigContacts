@@ -259,7 +259,7 @@ function compactDiscovery(file: DiscoveryCaseFile): string {
     })),
   }, null, 2);
 }
-export function getMistralRightHandStatus(): MistralRightHandStatus { return { configured: keyEntries().length > 0, model: MISTRAL_RIGHT_HAND_MODEL, fallbackModels: [...MISTRAL_RIGHT_HAND_FALLBACK_MODELS], endpoint: MISTRAL_CHAT_API, role: "right_hand_advisor", capability: "case_file_reasoning_only" }; }
+export function getMistralRightHandStatus(): MistralRightHandStatus { return { configured: keyEntries().length > 0, model: MISTRAL_RIGHT_HAND_MODEL, fallbackModels: [...MISTRAL_RIGHT_HAND_FALLBACK_MODELS], endpoint: MISTRAL_CHAT_API, role: "right_hand_advisor", capability: "case_file_reasoning_only", provider: "mistral" }; }
 export async function runMistralRightHandReadiness(): Promise<{
   provider: "mistral"; configured: boolean; status: "ready" | "pending" | "unavailable";
   model: string; candidateModels: string[]; httpStatus: number | null; error: string | null;
