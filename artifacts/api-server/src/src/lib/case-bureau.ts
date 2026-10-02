@@ -9,18 +9,31 @@ export {
 } from "./mistral-web-search";
 export type { MistralWebSearchResult } from "./mistral-web-search";
 export {
-  getGeminiRightHandStatus,
-  runGeminiRightHandCaseReasoning,
-  runGeminiRightHandDiscoveryAdvice,
-  runGeminiRightHandFreeJson,
-  runGeminiRightHandFinalReview,
-  GEMINI_RIGHT_HAND_MODEL,
-} from "./gemini-right-hand-reasoning";
+  getMistralRightHandStatus,
+  runMistralRightHandCaseReasoning,
+  runMistralRightHandDiscoveryAdvice,
+  runMistralRightHandFreeJson,
+  runMistralRightHandFinalReview,
+  MISTRAL_RIGHT_HAND_MODEL,
+} from "./mistral-right-hand-reasoning";
+export {
+  getMistralRightHandStatus as getGeminiRightHandStatus,
+  runMistralRightHandCaseReasoning as runGeminiRightHandCaseReasoning,
+  runMistralRightHandDiscoveryAdvice as runGeminiRightHandDiscoveryAdvice,
+  runMistralRightHandFreeJson as runGeminiRightHandFreeJson,
+  runMistralRightHandFinalReview as runGeminiRightHandFinalReview,
+  MISTRAL_RIGHT_HAND_MODEL as GEMINI_RIGHT_HAND_MODEL,
+} from "./mistral-right-hand-reasoning";
 export type {
-  GeminiRightHandCaseReasoningResult,
-  GeminiRightHandStatus,
-  GeminiRightHandDiscoveryAdviceResult,
-} from "./gemini-right-hand-reasoning";
+  MistralRightHandCaseReasoningResult,
+  MistralRightHandStatus,
+  MistralRightHandDiscoveryAdviceResult,
+} from "./mistral-right-hand-reasoning";
+export type {
+  MistralRightHandCaseReasoningResult as GeminiRightHandCaseReasoningResult,
+  MistralRightHandStatus as GeminiRightHandStatus,
+  MistralRightHandDiscoveryAdviceResult as GeminiRightHandDiscoveryAdviceResult,
+} from "./mistral-right-hand-reasoning";
 
 /** Boss may proceed with an allowlisted action, reject the target, or reframe scope. */
 export type BossPlanOutcome = "proceed" | "reject_target" | "reframe";
@@ -110,7 +123,7 @@ export type ResearchCaseFile = {
     createdAt: string;
   }>;
   rightHandAdvice?: {
-    provider: "gemini";
+    provider: "mistral";
     model: string;
     status: "completed" | "unavailable";
     actionId: string | null;
@@ -179,7 +192,7 @@ export type DiscoveryCaseFile = {
   };
   investigatorReports: Array<{
     id: string;
-    lane: "groq-boss" | "gemini-boss" | "gemini-right-hand" | "mistral-web" | "broad-web" | "registry";
+    lane: "groq-boss" | "gemini-boss" | "mistral-right-hand" | "mistral-web" | "broad-web" | "registry";
     provider: string;
     status: "completed" | "unavailable" | "failed";
     iteration: number;
