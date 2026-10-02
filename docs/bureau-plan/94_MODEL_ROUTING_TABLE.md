@@ -13,7 +13,7 @@
 ## The only two AI layers
 
 ```text
-BOSS (Gemini) + RIGHT-HAND (Gemini)
+BOSS (Groq GPT-OSS 120B) + RIGHT-HAND (Gemini)
         │
         │ consult, choose Investigator LLM, suggest capabilities
         ↓
@@ -30,7 +30,7 @@ There is **no additional Investigator decision model** between the Boss/Right-ha
 
 ## Hard role boundaries
 
-- **Gemini = Boss only.** Never an Investigator fallback.
+- **Groq = Boss only in the control-plane role.** Never an Investigator fallback.
 - **Gemini Right-hand = oversight only.** DeepSeek/NVIDIA is not an active Apex execution path.
 - **Groq/Mistral/etc. = Investigator models only when configured/designated for the Investigator pool.** They are the investigators themselves, not a separate control layer.
 - **Tavily/Exa/Serper/Scrapfly/ZenRows/etc. = tools.** They are not LLMs and never decide research.
