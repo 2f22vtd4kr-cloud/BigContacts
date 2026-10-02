@@ -76,10 +76,10 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
   const startedAt = Date.now(); const depth = resolveResearchDepth({ explicit: opts.researchDepth }); const configuredControlTurnCeiling = Number(process.env.APEX_ATLAS_MAX_CONTROL_TURNS ?? 16); const maxControlTurns = Math.min(64, Math.max(1, Number.isFinite(configuredControlTurnCeiling) ? Math.floor(configuredControlTurnCeiling) : 16)); const discoveryOnly = opts.discoveryOnly === true; const lockKey = opts.lockKey ?? "atlas-run"; const phaseSummary: Record<string, string> = {}; const targetLimit = Math.max(1, Math.min(25, Number(opts.targetCount ?? 3) || 3)); const configuredAtlasTimeout = Number(process.env.APEX_ATLAS_RUN_TIMEOUT_MS ?? 15 * 60 * 1000); const atlasTimeoutMs = Math.min(30 * 60 * 1000, Math.max(2 * 60 * 1000, Number.isFinite(configuredAtlasTimeout) ? configuredAtlasTimeout : 15 * 60 * 1000)); const atlasDeadline = startedAt + atlasTimeoutMs; const remainingBudget = () => atlasDeadline - Date.now(); const assertAtlasDeadline = () => { const remaining = remainingBudget(); if (remaining <= 30_000) throw new Error("Canonical Atlas global deadline reached; refusing another research/control turn."); return remaining; };
   const discoveryObjective = opts.discoveryObjective?.trim() || "Discover real named people for subsequent target-scoped public-contact research. Choose every search, page visit, registry/domain/OSINT action and stopping point yourself. Emit a person only when you can attribute the observed source to that person; use promotionDecision=promote only for an exact named-person admission candidate. Never invent a person, contact, or URL.";
   await assertAtlasJobActive(atlasJobId);
-  await updateJob(atlasJobId, { status: "running", progress: 0, total: discoveryOnly ? 1 : 4, atlasPhase: 0, atlasPhaseTotal: discoveryOnly ? 1 : 4, message: "Gemini Boss opening → Gemini Right-hand review → model-owned Investigator discovery…" });
+  await updateJob(atlasJobId, { status: "running", progress: 0, total: discoveryOnly ? 1 : 4, atlasPhase: 0, atlasPhaseTotal: discoveryOnly ? 1 : 4, message: "Groq Boss opening → Mistral Right-hand review → model-owned Investigator discovery…" });
   try {
     await assertAtlasJobActive(atlasJobId);
-    // Canonical opening order is intentional: Gemini Boss establishes the case direction
+    // Canonical opening order is intentional: Groq Boss establishes the case direction
     // and selects the Investigator first. The independent Right-hand reviews that Boss
     // decision second. It must never become a prerequisite that can silently steer the
     // Boss's opening assignment.
@@ -98,8 +98,8 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     await assertAtlasJobActive(atlasJobId);
 
     if (!boss.investigatorLlm) {
-      phaseSummary.assignment = "No usable Gemini-selected Investigator; fail closed.";
-      const bossFailureMessage = "Gemini Boss was unavailable after bounded same-role model fallback; no Groq/Mistral Investigator fallback is permitted.";
+      phaseSummary.assignment = "No usable Groq-selected Investigator; fail closed.";
+      const bossFailureMessage = "Groq Boss was unavailable after bounded same-role model fallback; no Groq/Mistral Investigator fallback is permitted.";
       await updateJob(atlasJobId, {
         status: "failed",
         progress: 1,
@@ -111,7 +111,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       });
       if (opts.discoveryCaseId) {
         await db.update(researchCasesTable)
-          .set({ status: "review", currentAction: "gemini-boss-unavailable", updatedAt: new Date() })
+          .set({ status: "review", currentAction: "groq-boss-unavailable", updatedAt: new Date() })
           .where(eq(researchCasesTable.id, opts.discoveryCaseId));
       }
       await clearActiveJobIfOwned(lockKey, atlasJobId);
@@ -130,10 +130,10 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     await db.insert(researchCaseEventsTable).values({
       caseId: discoveryCaseId,
       iteration: 0,
-      actorRole: "gemini_boss",
+      actorRole: "groq_boss",
       eventType: "assignment",
       status: "recorded",
-      summary: "Gemini Boss opened the canonical Atlas discovery case and selected the Investigator.",
+      summary: "Groq Boss opened the canonical Atlas discovery case and selected the Investigator.",
       correlationKey: `${atlasJobId}:boss-opening`,
       payload: JSON.stringify({
         jobId: atlasJobId,
@@ -151,8 +151,8 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     // actual Boss decision; it does not pre-steer the Boss or choose the tools.
     const rightHandRaw = await import("./mistral-right-hand-reasoning").then(({ runMistralRightHandFreeJson }) =>
       runMistralRightHandFreeJson(
-        `Review Gemini Boss's opening Atlas decision before the Investigator starts. Objective: ${discoveryObjective}. Boss selected Investigator: ${boss.investigatorLlm}. Boss report: ${boss.report ?? ""}. Next directions: ${JSON.stringify(boss.nextDirections)}. Uncertainties: ${JSON.stringify(boss.uncertainties)}. Return concise oversight/advisory observations only. Do not browse, do not choose tools, do not replace the Investigator, and do not invent people or evidence. Return JSON with decision, reason, focusLanes, confidence.`,
-        "You are the Gemini Right-hand. Review the Boss opening decision only. Advise the Boss; do not act as Investigator, do not browse, do not choose tools, and do not replace the selected Groq/Mistral Investigator. Reply with ONE JSON object.",
+        `Review Groq Boss's opening Atlas decision before the Investigator starts. Objective: ${discoveryObjective}. Boss selected Investigator: ${boss.investigatorLlm}. Boss report: ${boss.report ?? ""}. Next directions: ${JSON.stringify(boss.nextDirections)}. Uncertainties: ${JSON.stringify(boss.uncertainties)}. Return concise oversight/advisory observations only. Do not browse, do not choose tools, do not replace the Investigator, and do not invent people or evidence. Return JSON with decision, reason, focusLanes, confidence.`,
+        "You are the Mistral Right-hand. Review the Boss opening decision only. Advise the Boss; do not act as Investigator, do not browse, do not choose tools, and do not replace the selected Groq/Mistral Investigator. Reply with ONE JSON object.",
       ),
     ).catch((error) => ({
       status: "unavailable" as const,
@@ -189,13 +189,13 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     await assertAtlasJobActive(atlasJobId);
     if (rightHandRaw.status !== "completed") {
       await db.update(researchCasesTable)
-        .set({ status: "review", currentAction: "gemini-right-hand-unavailable", updatedAt: new Date() })
+        .set({ status: "review", currentAction: "mistral-right-hand-unavailable", updatedAt: new Date() })
         .where(and(eq(researchCasesTable.id, discoveryCaseId), eq(researchCasesTable.status, "active")));
       throw new Error(`Gemini Right-hand unavailable; failing closed: ${rightHandRaw.error ?? "unknown oversight failure"}`);
     }
     if (rightHand.error) {
       await db.update(researchCasesTable)
-        .set({ status: "review", currentAction: "gemini-right-hand-invalid", updatedAt: new Date() })
+        .set({ status: "review", currentAction: "mistral-right-hand-invalid", updatedAt: new Date() })
         .where(and(eq(researchCasesTable.id, discoveryCaseId), eq(researchCasesTable.status, "active")));
       throw new Error(`Gemini Right-hand returned invalid oversight: ${rightHand.error}`);
     }
@@ -250,7 +250,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       let caseFile: Record<string, any> = {}; try { const parsed = current?.caseFile ? JSON.parse(current.caseFile) : {}; if (parsed && typeof parsed === "object") caseFile = parsed; } catch { caseFile = {}; }
       const candidates = admitted.map((name) => { const finding = (discovery.findings ?? []).find((item) => item.personName?.trim().toLowerCase() === name.toLowerCase() && item.promotionDecision === "promote" && item.scope === "candidate"); return { name, type: "review_candidate", relevance: "Explicit Investigator discovery admission candidate", reachability: "Requires target-scoped Investigator research", sourceUrls: finding?.sourceUrls ?? [], contactEvidence: [], state: "review_only", admittedEntityId: null }; });
       await assertAtlasJobActive(atlasJobId);
-      await db.update(researchCasesTable).set({ caseFile: JSON.stringify({ ...caseFile, discoveredCandidates: [...(Array.isArray(caseFile.discoveredCandidates) ? caseFile.discoveredCandidates : []), ...candidates], currentProgress: { ...(caseFile.currentProgress ?? {}), lastDiscoveryAt: new Date().toISOString(), lastReviewedBy: "gemini-boss" } }), currentAction: admitted.length ? "target-scoped-investigator-research" : "review", iteration: Number(current?.iteration ?? 0) + 1, updatedAt: new Date() }).where(and(eq(researchCasesTable.id, discoveryCaseId),eq(researchCasesTable.status,"active"),sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${atlasJobId}`,sql`${researchCasesTable.currentAction} NOT IN ('canonical-atlas-cancelled','canonical-lease-lost')`));
+      await db.update(researchCasesTable).set({ caseFile: JSON.stringify({ ...caseFile, discoveredCandidates: [...(Array.isArray(caseFile.discoveredCandidates) ? caseFile.discoveredCandidates : []), ...candidates], currentProgress: { ...(caseFile.currentProgress ?? {}), lastDiscoveryAt: new Date().toISOString(), lastReviewedBy: "groq-boss" } }), currentAction: admitted.length ? "target-scoped-investigator-research" : "review", iteration: Number(current?.iteration ?? 0) + 1, updatedAt: new Date() }).where(and(eq(researchCasesTable.id, discoveryCaseId),eq(researchCasesTable.status,"active"),sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${atlasJobId}`,sql`${researchCasesTable.currentAction} NOT IN ('canonical-atlas-cancelled','canonical-lease-lost')`));
       await db.insert(researchCaseEventsTable).values({ caseId: discoveryCaseId, iteration: Number(current?.iteration ?? 0) + 1, actorRole: "specialist", eventType: "observation", status: "recorded", summary: `Canonical discovery admission: ${admitted.length} review candidate(s).`, correlationKey: `${atlasJobId}:discovery-admission:${Number(current?.iteration ?? 0) + 1}`, payload: JSON.stringify({ jobId: atlasJobId, investigatorLlm: boss.investigatorLlm, admitted, sourceUrls: (discovery.findings ?? []).flatMap((finding) => finding.sourceUrls) }) });
       const durableStatus = discovery.status === "completed" ? "complete" : "review";
       const terminal = deriveCanonicalTerminalDecision({ durableCaseStatus: durableStatus, locallyCancelled: discovery.status === "cancelled" });
