@@ -1,8 +1,6 @@
 /**
  * Compatibility shim.
  * The canonical Apex Atlas Right-hand provider is Mistral.
- * Keep these legacy names only for unchanged Bureau/test imports; no Gemini
- * Right-hand transport remains here.
  */
 export {
   getMistralRightHandStatus as getGeminiRightHandStatus,
