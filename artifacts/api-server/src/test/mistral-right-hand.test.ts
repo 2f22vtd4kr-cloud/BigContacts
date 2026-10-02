@@ -9,16 +9,16 @@ import {
 } from "../src/lib/mistral-right-hand-reasoning";
 
 describe("Mistral Right-hand control-plane boundary", () => {
-  const originalKey = process.env.MISTRAL_API_KEY;
+  const originalKey = process.env.MISTRAL_RIGHT_HAND_API_KEY;
 
   beforeEach(() => {
-    process.env.MISTRAL_API_KEY = "test-mistral-key";
+    process.env.MISTRAL_RIGHT_HAND_API_KEY = "test-mistral-key";
     vi.restoreAllMocks();
   });
 
   afterEach(() => {
-    if (originalKey === undefined) delete process.env.MISTRAL_API_KEY;
-    else process.env.MISTRAL_API_KEY = originalKey;
+    if (originalKey === undefined) delete process.env.MISTRAL_RIGHT_HAND_API_KEY;
+    else process.env.MISTRAL_RIGHT_HAND_API_KEY = originalKey;
   });
 
   it("reports Mistral as the independent Right-hand provider", () => {
