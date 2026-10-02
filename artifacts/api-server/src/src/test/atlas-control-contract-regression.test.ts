@@ -4,55 +4,41 @@ import { describe, expect, it } from "vitest";
 import { validateAtlasBossControl, validateAtlasRightHandControl } from "../lib/atlas-control-decision";
 
 const controlSource = readFileSync(resolve(process.cwd(), "src/src/lib/atlas-control-decision.ts"), "utf8");
-const bossSource = readFileSync(resolve(process.cwd(), "src/src/lib/case-bureau.ts"), "utf8");
-const rightHandSource = readFileSync(resolve(process.cwd(), "src/src/lib/gemini-right-hand-reasoning.ts"), "utf8");
+const bossSource = readFileSync(resolve(process.cwd(), "src/src/lib/groq-boss.ts"), "utf8");
+const rightHandSource = readFileSync(resolve(process.cwd(), "src/src/lib/mistral-right-hand-reasoning.ts"), "utf8");
 
 describe("Atlas control-plane contract regression", () => {
-  it("requires strict structured schemas at both Gemini control boundaries", () => {
+  it("requires strict structured schemas at both canonical control boundaries", () => {
     expect(controlSource).toContain("ATLAS_RIGHT_HAND_CONTROL_RESPONSE_FORMAT");
-    expect(bossSource).toContain("GEMINI_BOSS_PLAN_RESPONSE_FORMAT");
-    expect(bossSource).toContain("generateGeminiBossText(selection, planPrompt, { responseFormat: GEMINI_BOSS_PLAN_RESPONSE_FORMAT");
     expect(controlSource).toContain("ATLAS_BOSS_CONTROL_RESPONSE_FORMAT");
+    expect(controlSource).toContain("runMistralRightHandFreeJson(");
+    expect(controlSource).toContain("generateGroqBossText(selection, prompt, { responseFormat: ATLAS_BOSS_CONTROL_RESPONSE_FORMAT");
     expect(controlSource).toContain('required: ["decision", "reason", "direction", "confidence"]');
     expect(controlSource).toContain('required: ["action", "candidateName", "direction", "reason", "confidence"]');
     expect(controlSource).toContain("additionalProperties: false");
-    expect(bossSource).toContain(`required: ["outcome", "actionId", "decision", "reason", "investigatorPrompt", "investigatorLlm", "restrictions", "tools", "evidenceRequirements", "confidence", "progressAssessment", "reprioritize", "suggestedScope", "rightHandDisposition", "rightHandNote"]`);
-    expect(bossSource).toContain("additionalProperties: false");
-    expect(controlSource).toContain("runGeminiRightHandFreeJson(");
-    expect(controlSource).toContain("ATLAS_RIGHT_HAND_CONTROL_RESPONSE_FORMAT).catch");
-    expect(controlSource).toContain("generateGeminiBossText(selection, prompt, { responseFormat: ATLAS_BOSS_CONTROL_RESPONSE_FORMAT");
+    expect(rightHandSource).toContain("response_format:responseFormat(format)");
+    expect(rightHandSource).toContain('type:"json_schema"');
+    expect(rightHandSource).toContain("strict:true");
+    expect(bossSource).toContain("responseFormat");
   });
 
-  it("keeps local validation after provider structured-output compatibility fallback", () => {
+  it("keeps local validation after provider structured-output compatibility handling", () => {
     expect(controlSource).toContain("const rightHandContractValid =");
     expect(controlSource).toContain("const bossContractValid =");
     expect(controlSource).toContain("validateAtlasRightHandControl(rightParsed)");
     expect(controlSource).toContain("validateAtlasBossControl(parsed)");
-    expect(rightHandSource).toContain("rateLimitRetryDelayMs");
-    expect(rightHandSource).toContain("phase: \"rate_limit_backoff\"");
-    expect(rightHandSource).toContain("if (response.status === 429)");
-    expect(rightHandSource).toContain("const resolvedChain = await resolveModelChain(modelScope, entry.key);");
-    expect(rightHandSource).toContain("for (const model of resolvedChain.slice(0, MAX_MODEL_ATTEMPTS))");
-    expect(rightHandSource).toContain("gemini-model-pool");
-    expect(rightHandSource).toContain("gemini-3.5-flash-lite");
-    expect(rightHandSource).toContain("gemini-3.8-flash");
-    expect(rightHandSource).toContain("chooseAvailableGeminiControlModels");
-    expect(rightHandSource).toContain("GEMINI_CHAT_API_BASE");
-    expect(rightHandSource).toContain("/v1beta/models");
-    expect(rightHandSource).not.toContain("GEMINI_RIGHT_HAND_MODEL_CHAIN");
-    expect(rightHandSource).not.toMatch(/GEMINI_RIGHT_HAND_FALLBACK_MODELS\s*=\s*\[\s*["']gemini-/i);
-    expect(rightHandSource).toContain("No Groq/Mistral substitution is permitted here.");
-    expect(rightHandSource).toContain("Never browse or act as Investigator");
-    expect(controlSource).toContain("INVESTIGATOR TEXT REPORT");
-    expect(rightHandSource).toContain("MAX_RATE_LIMIT_RETRIES = 1");
+    expect(controlSource).toContain("Mistral Right-hand");
+    expect(controlSource).toContain("Groq Boss");
+    expect(rightHandSource).toContain("MAX_429_RETRIES_PER_MODEL");
+    expect(rightHandSource).toContain("MAX_503_RETRIES_PER_MODEL");
     expect(rightHandSource).toContain("clearTimeout(timer);");
-    expect(rightHandSource).toContain("const retryController = new AbortController();");
-    expect(rightHandSource).toContain("const retryAttemptTimeoutMs = Math.min(");
-    expect(rightHandSource).toContain("const retryTimer = setTimeout(() => retryController.abort(), retryAttemptTimeoutMs);");
-    expect(rightHandSource).toContain("clearTimeout(retryTimer);");
-    expect(rightHandSource).toContain("bounded same-model recovery");
-    expect(controlSource).toContain('reason: "Gemini returned an invalid Atlas control action; fail-closed."');
+    expect(rightHandSource).toContain("bounded control-plane budget");
+    expect(rightHandSource).toContain("MISTRAL_RIGHT_HAND_API_KEY");
+    expect(rightHandSource).not.toContain("GEMINI_CHAT_API_BASE");
+    expect(rightHandSource).not.toContain("generativelanguage.googleapis.com");
+    expect(controlSource).not.toContain("Gemini control decision");
   });
+
   it("replays valid and malformed provider contracts through the real validators", () => {
     expect(validateAtlasRightHandControl({
       decision: "continue_discovery",
@@ -100,5 +86,4 @@ describe("Atlas control-plane contract regression", () => {
       confidence: 0.9,
     })).toBe(false);
   });
-
 });
