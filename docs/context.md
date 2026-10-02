@@ -628,7 +628,7 @@ The canonical Boss provider has been changed from Gemini to Groq after repeated 
 
 Gemini remains the independent Right-hand oversight provider. The Investigator remains the existing model-owned Groq/Mistral research layer. The Boss does not gain web-search or Investigator authority merely because Groq supports browser tools; the canonical Boss request is text/control-only.
 
-The Groq adapter bounds Boss prompts to 20,000 characters by default because the current Groq Free Plan documents 8K TPM / 200K TPD for GPT-OSS 120B and 20B. It maps the old Gemini `minimal` setting to GPT-OSS `low`, suppresses reasoning output, uses strict JSON Schema for control responses, and has bounded same-model 503 recovery plus short-window 429 recovery.
+The Groq adapter accepts only already-compacted Boss prompts up to 20,000 characters by default; oversized prompts fail closed so durable evidence is never arbitrarily discarded. Discovery context is compacted explicitly before the model-facing prompt while the durable case remains complete. The current Groq Free Plan documents 8K TPM / 200K TPD for GPT-OSS 120B and 20B. The adapter maps the old Gemini `minimal` setting to GPT-OSS `low`, suppresses reasoning output, uses strict JSON Schema for control responses, and has bounded same-model 503 recovery plus short-window 429 recovery.
 
 `GET /api/system/status` remains ordinary local/cached telemetry. It no longer needs a provider generation/readiness call. The explicit live provider diagnostic is `POST /api/system/diagnostics/groq-readiness`; it checks Groq model catalog availability only and is not a substitute for a canonical Atlas run.
 
