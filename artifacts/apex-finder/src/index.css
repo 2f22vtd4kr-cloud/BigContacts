@@ -630,3 +630,227 @@ html.light .atlas-focus-ring:focus-visible,
 html.light .reactor-focus-ring:focus-visible {
   outline-color: #111111;
 }
+
+/* ─── Light-mode contrast + editorial accent bridge ─────────────────
+   Light mode is intentionally 90% monochrome. The supplied editorial
+   palette is reserved for primary actions, semantic states, and small
+   navigation accents:
+   #3E181B burgundy · #7C111A deep red · #083322 forest · #BA9C7B sand.
+   Never use the source neon-lime palette in Light mode.
+*/
+html.light {
+  --color-background: #f7f7f7;
+  --color-foreground: #111111;
+  --color-card: #ffffff;
+  --color-border: #d0d0d0;
+  --color-muted: #e8e8e8;
+  --color-muted-foreground: #525252;
+  --color-primary: #3e181b;
+  --color-primary-foreground: #ffffff;
+  --color-secondary: #083322;
+  --color-accent: #3e181b;
+  --color-destructive: #7c111a;
+  --color-sidebar: #ffffff;
+  --color-sidebar-foreground: #111111;
+  --color-sidebar-border: #d9d9d9;
+  --color-sidebar-accent: #f3f3f3;
+  --color-sidebar-accent-foreground: #3e181b;
+  --atlas-teal: #083322;
+  --atlas-lime: #3e181b;
+  --atlas-navy: #ffffff;
+  --atlas-white: #111111;
+  --atlas-coral: #7c111a;
+  --atlas-surface-0: #f7f7f7;
+  --atlas-surface-1: #ffffff;
+  --atlas-surface-2: #f0f0f0;
+  --atlas-border: rgba(0,0,0,.14);
+  --atlas-border-strong: rgba(62,24,27,.34);
+  --atlas-text-soft: #525252;
+  --atlas-text-dim: #737373;
+  --atlas-focus: #7c111a;
+  --atlas-warning: #ba9c7b;
+  --atlas-danger: #7c111a;
+}
+
+/* Hard overrides for literal Tailwind colors left in older pages/components. */
+html.light [class*="text-[#9CFF1A]"],
+html.light [class*="text-[#d4ff8a]"],
+html.light [class*="text-[#fafaf9]"],
+html.light [class*="text-[#fef3c7]"],
+html.light [class*="text-lime-"],
+html.light [class*="text-emerald-"],
+html.light [class*="text-green-"] {
+  color: #3e181b !important;
+}
+html.light [class*="text-sky-"],
+html.light [class*="text-cyan-"],
+html.light [class*="text-teal-"] {
+  color: #083322 !important;
+}
+html.light [class*="text-amber-"],
+html.light [class*="text-yellow-"] {
+  color: #6f5740 !important;
+}
+html.light [class*="text-rose-"],
+html.light [class*="text-red-"] {
+  color: #7c111a !important;
+}
+html.light [class*="text-white"],
+html.light [class*="text-[#f8fafc]"],
+html.light [class*="text-[#ffffff]"] {
+  color: #111111 !important;
+}
+html.light [class*="text-black"] {
+  color: #111111 !important;
+}
+
+html.light [class*="bg-[#9CFF1A]"],
+html.light [class*="bg-[#d4ff8a]"],
+html.light [class*="bg-lime-"],
+html.light [class*="bg-emerald-"],
+html.light [class*="bg-green-"] {
+  background-color: rgba(62,24,27,.08) !important;
+}
+html.light [class*="bg-sky-"],
+html.light [class*="bg-cyan-"],
+html.light [class*="bg-teal-"] {
+  background-color: rgba(8,51,34,.08) !important;
+}
+html.light [class*="bg-amber-"],
+html.light [class*="bg-yellow-"] {
+  background-color: rgba(186,156,123,.16) !important;
+}
+html.light [class*="bg-rose-"],
+html.light [class*="bg-red-"] {
+  background-color: rgba(124,17,26,.08) !important;
+}
+html.light [class*="bg-white"] {
+  background-color: #ffffff !important;
+}
+html.light [class*="bg-black"] {
+  background-color: #111111 !important;
+}
+
+html.light [class*="border-[#9CFF1A]"],
+html.light [class*="border-lime-"],
+html.light [class*="border-emerald-"],
+html.light [class*="border-green-"] {
+  border-color: rgba(62,24,27,.30) !important;
+}
+html.light [class*="border-sky-"],
+html.light [class*="border-cyan-"],
+html.light [class*="border-teal-"] {
+  border-color: rgba(8,51,34,.28) !important;
+}
+html.light [class*="border-amber-"],
+html.light [class*="border-yellow-"] {
+  border-color: rgba(186,156,123,.62) !important;
+}
+html.light [class*="border-rose-"],
+html.light [class*="border-red-"] {
+  border-color: rgba(124,17,26,.30) !important;
+}
+html.light [class*="border-white"] {
+  border-color: rgba(0,0,0,.12) !important;
+}
+html.light [class*="border-black"] {
+  border-color: rgba(0,0,0,.22) !important;
+}
+
+/* Hover/focus states must use the same readable palette, never neon lime. */
+html.light [class*="hover:text-[#9CFF1A]"]:hover,
+html.light [class*="hover:text-lime-"]:hover,
+html.light [class*="hover:text-emerald-"]:hover,
+html.light [class*="hover:text-green-"]:hover {
+  color: #7c111a !important;
+}
+html.light [class*="hover:bg-[#9CFF1A]"]:hover,
+html.light [class*="hover:bg-lime-"]:hover,
+html.light [class*="hover:bg-emerald-"]:hover,
+html.light [class*="hover:bg-green-"]:hover {
+  background-color: rgba(62,24,27,.12) !important;
+}
+html.light [class*="hover:border-[#9CFF1A]"]:hover,
+html.light [class*="hover:border-lime-"]:hover,
+html.light [class*="hover:border-emerald-"]:hover,
+html.light [class*="hover:border-green-"]:hover {
+  border-color: #7c111a !important;
+}
+html.light [class*="focus-visible:ring-[#9CFF1A]"]:focus-visible,
+html.light [class*="focus-visible:ring-lime-"]:focus-visible {
+  --tw-ring-color: rgba(124,17,26,.45) !important;
+}
+
+/* The main research CTA is the hero use of the new palette. */
+html.light .atlas-launch-cta,
+html.light .atlas-launch-glow {
+  color: #ffffff !important;
+  background: #3e181b !important;
+  border-color: #3e181b !important;
+  box-shadow: 0 5px 18px rgba(62,24,27,.18), inset 0 1px 0 rgba(255,255,255,.14);
+}
+html.light .atlas-launch-cta:hover,
+html.light .atlas-launch-glow:hover {
+  color: #ffffff !important;
+  background: #7c111a !important;
+  border-color: #7c111a !important;
+  box-shadow: 0 7px 22px rgba(124,17,26,.20);
+}
+
+html.light .atlas-live-dot {
+  background: #083322 !important;
+  box-shadow: none !important;
+}
+html.light .atlas-btn-success {
+  border-color: rgba(8,51,34,.35) !important;
+  background: rgba(8,51,34,.07) !important;
+  color: #083322 !important;
+}
+html.light .atlas-chip-yellow {
+  border-color: rgba(186,156,123,.62) !important;
+  background: rgba(186,156,123,.14) !important;
+  color: #5b4633 !important;
+}
+html.light .atlas-btn-danger {
+  border-color: rgba(124,17,26,.32) !important;
+  background: rgba(124,17,26,.06) !important;
+  color: #7c111a !important;
+}
+
+/* Stronger light-shell chrome: readable header/sidebar/status/scoreboard. */
+html.light header {
+  background: rgba(255,255,255,.96) !important;
+  border-color: rgba(0,0,0,.10) !important;
+}
+html.light aside {
+  background: #ffffff !important;
+  color: #111111 !important;
+}
+html.light .atlas-theme-toggle {
+  border-color: #bdbdbd !important;
+  background: #ffffff !important;
+  color: #111111 !important;
+}
+html.light [data-testid="scoreboard-strip"] {
+  background: #f0f0f0 !important;
+  border-color: #a8a8a8 !important;
+  color: #111111 !important;
+  opacity: 1 !important;
+}
+html.light [data-testid="scoreboard-strip"] [class*="text-slate-"] {
+  color: #525252 !important;
+}
+html.light [data-testid="scoreboard-strip"] [class*="text-emerald-"],
+html.light [data-testid="scoreboard-strip"] [class*="text-sky-"],
+html.light [data-testid="scoreboard-strip"] [class*="text-rose-"] {
+  color: #3e181b !important;
+}
+html.light .atlas-soft-edge {
+  background: linear-gradient(180deg, transparent 0%, rgba(247,247,247,.15) 35%, rgba(247,247,247,.75) 72%, rgba(247,247,247,.99) 100%) !important;
+}
+
+/* Prevent low-opacity light-mode copy from becoming ghost text. */
+html.light [class*="text-foreground/"],
+html.light [class*="text-muted-foreground/"] {
+  opacity: 1;
+}
