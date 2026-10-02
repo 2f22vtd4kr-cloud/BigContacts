@@ -189,3 +189,5 @@ Do not launch another canonical live research run merely to obtain a green resul
 New control-plane implementation is documented in [17-groq-boss-migration.md](./17-groq-boss-migration.md).
 
 Boss now routes through Groq GPT-OSS 120B with bounded GPT-OSS 20B fallback. Gemini remains the independent Right-hand. Ordinary system status remains provider-call-free; Groq catalog readiness is an explicit diagnostic only. The canonical live Atlas run remains unverified until a fresh authorized audit reaches the real research/evidence terminal path.
+
+- [18 — Mistral Right-hand migration](./18-mistral-right-hand-migration.md)
