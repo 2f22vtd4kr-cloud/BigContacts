@@ -1,25 +1,9 @@
-import { createHash } from "node:crypto";
 import { GROQ_BOSS_MODEL_PENDING, getGroqBossLatencyConfig, getGroqBossStatus, resolveGroqBossModel, generateGroqBossText } from "./groq-boss";
 import type { Entity } from "@workspace/db";
-import { logger } from "./logger";
 import { fetchGeminiInteractions } from "./gemini-interactions-transport";
 import { apexOrientationFor } from "./apex-bureau-orientation";
-import {
-  chooseAvailableGeminiControlModels,
-  chooseGeminiControlModels,
-  getGeminiThinkingLevel,
-  markGeminiModelDailyQuotaExhausted,
-  markGeminiModelRateLimited,
-} from "./gemini-model-pool";
 import { buildApexAtlasBossPlanPrompt } from "./case-bureau-prompt";
-import { selectGeminiThinkingLevel } from "./gemini-thinking-policy";
 import { extractWalletSeedsFromText, buildWalletSeedPlan, formatWalletSeedPlanForPrompt, objectiveLooksWalletFirst } from "./wallet-seed";
-import {
-  classifyProviderHttpStatus,
-  classifyThrownProviderError,
-  summarizeProviderBody,
-  providerErrorCode,
-} from "./provider-error-diagnostics";
 export {
   getMistralWebSearchStatus,
   runMistralWebSearch,
@@ -285,24 +269,12 @@ export type DiscoveryCaseFile = {
 };
 
 /**
- * The Boss model is selected from the catalog exposed by the configured
- * Gemini key. We intentionally do not hard-code a version because model
- * availability and pricing vary by key/project and change over time.
+ * Boss compatibility surface. The canonical Boss transport is Groq GPT-OSS;
+ * these legacy names are retained only so the established Bureau call graph stays stable.
  */
 export const GEMINI_BOSS_MODEL_PENDING = GROQ_BOSS_MODEL_PENDING;
-const GEMINI_KEY_NAMES = [
-  "GEMINI_API_KEY",
-  "GEMINI_KEY",
-  ...Array.from({ length: 13 }, (_, index) => `GEMINI_API_KEY_${index + 1}`),
-];
-
-type GeminiModelCatalogEntry = {
-  name?: string;
-  supportedGenerationMethods?: string[];
-};
-
 export type GeminiBossModelSelection = import("./groq-boss").GroqBossModelSelection;
-
+export type GeminiBossAttemptDiagnostic = import("./groq-boss").GroqBossAttemptDiagnostic;
 export type GeminiBossDiscoveryResult = {
   status: "completed" | "pending" | "unavailable";
   model: string;
@@ -321,9 +293,7 @@ export type GeminiBossDiscoveryResult = {
   uncertainties: string[];
   error: string | null;
 };
-
 export type DiscoveryInvestigatorReport = DiscoveryCaseFile["investigatorReports"][number];
-
 export type GeminiBossPlanResult = {
   status: "completed" | "unavailable";
   model: string;
@@ -338,20 +308,12 @@ export type GeminiBossPlanResult = {
   evidenceRequirements: string[];
   confidence: number | null;
   suggestedScope: string | null;
-  /** Mandatory progress judgment returned by Boss on every decision. */
   progressAssessment: string | null;
-  /**
-   * Optional reorder of remaining queued allowlisted action ids (highest first).
-   * Only ids that already exist in the case file queue are applied; no tool invention.
-   */
   reprioritize: string[];
-  /** Explicit coordination with Gemini 3.1 Flash-Lite right-hand: accept or override advisory. */
   rightHandDisposition: "accept" | "override" | "unknown";
-  /** One-line note: why accept, or which right-hand action was overridden and why. */
   rightHandNote: string | null;
   error: string | null;
 };
-
 export type GeminiBossStatus = {
   configured: boolean;
   model: string;
@@ -360,87 +322,6 @@ export type GeminiBossStatus = {
   webSearchGrounding: false;
   provider?: "groq";
 };
-
-function getGeminiKeys(): string[] {
-  return GEMINI_KEY_NAMES
-    .map((name) => process.env[name] ?? "")
-    .filter(Boolean);
-}
-
-function getGeminiKeyEntries(): Array<{ name: string; key: string }> {
-  return GEMINI_KEY_NAMES
-    .map((name) => ({ name, key: process.env[name] ?? "" }))
-    .filter((entry) => Boolean(entry.key));
-}
-
-function chooseGeminiModelCandidates(entries: GeminiModelCatalogEntry[]): string[] {
-  const catalogModels = entries
-    .filter((entry) => entry.name)
-    .map((entry) => entry.name!.replace(/^models\//, ""));
-  return chooseGeminiControlModels("boss", catalogModels);
-}
-
-const cachedBossModelSelections = new Map<string, { expiresAt: number; selection: GeminiBossModelSelection }>();
-function geminiCredentialFingerprint(key: string): string { return createHash("sha256").update(key).digest("hex").slice(0, 16); }
-
-export type GeminiBossAttemptDiagnostic = {
-  model: string;
-  keyName: string;
-  httpStatus: number | null;
-  providerErrorCode: string | null;
-  failureClass: string | null;
-};
-
-export function formatGeminiBossAttemptSummary(attempts: GeminiBossAttemptDiagnostic[]): string {
-  return attempts
-    .map((attempt) => `${attempt.model}=HTTP ${attempt.httpStatus ?? "none"}${attempt.providerErrorCode ? ` (${attempt.providerErrorCode})` : ""}`)
-    .join(", ");
-}
-
-type GeminiTextGenerationResult = import("./groq-boss").GroqBossTextGenerationResult;
-const DEFAULT_GEMINI_BOSS_REQUEST_TIMEOUT_MS = 30_000;
-const DEFAULT_GEMINI_BOSS_OVERALL_TIMEOUT_MS = 240_000;
-const MIN_GEMINI_BOSS_REQUEST_TIMEOUT_MS = 10_000;
-const MAX_GEMINI_BOSS_REQUEST_TIMEOUT_MS = 60_000;
-// Boss has a bounded same-model recovery step plus a wider free-tier model pool.
-// A very small environment override can otherwise expire the control-plane budget
-// before recovery can complete, causing Atlas to fail before selecting the Investigator.
-const MIN_GEMINI_BOSS_OVERALL_TIMEOUT_MS = DEFAULT_GEMINI_BOSS_OVERALL_TIMEOUT_MS;
-const MAX_GEMINI_BOSS_OVERALL_TIMEOUT_MS = 300_000;
-const MAX_GEMINI_BOSS_TRANSPORT_RETRIES = 1;
-const GEMINI_BOSS_TRANSPORT_RETRY_DELAY_MS = 600;
-const MAX_GEMINI_BOSS_503_RETRIES_PER_MODEL = 1;
-const GEMINI_BOSS_503_RETRY_DELAY_MS = 750;
-const MAX_GEMINI_BOSS_429_RETRIES_PER_MODEL = 1;
-const GEMINI_BOSS_429_RETRY_DELAY_MS = 30_000;
-
-function configuredGeminiBoss429RetryDelayMs(): number {
-  const parsed = Number(process.env.APEX_GEMINI_BOSS_429_RETRY_DELAY_MS);
-  return Number.isFinite(parsed) ? Math.min(120_000, Math.max(10, Math.floor(parsed))) : GEMINI_BOSS_429_RETRY_DELAY_MS;
-}
-
-function retryAfterDelayMs(response: Response, fallbackMs: number): number {
-  const value = response.headers.get("retry-after")?.trim();
-  if (!value) return fallbackMs;
-  const seconds = Number(value);
-  if (Number.isFinite(seconds) && seconds >= 0) {
-    return Math.min(120_000, Math.max(0, Math.round(seconds * 1_000)));
-  }
-  const dateMs = Date.parse(value);
-  if (Number.isFinite(dateMs)) {
-    return Math.min(120_000, Math.max(0, dateMs - Date.now()));
-  }
-  return fallbackMs;
-}
-
-function boundedPositiveEnvMs(name: string, fallback: number, minimum: number, maximum: number): number {
-  const raw = process.env[name];
-  if (!raw) return fallback;
-  const value = Number(raw);
-  if (!Number.isFinite(value)) return fallback;
-  return Math.min(maximum, Math.max(minimum, Math.round(value)));
-}
-
 export type GeminiBossLatencyConfig = {
   requestTimeoutMs: number;
   overallTimeoutMs: number;
@@ -458,20 +339,6 @@ export function getGeminiBossLatencyConfig(): GeminiBossLatencyConfig {
   };
 }
 
-function getGeminiBossRequestTimeoutMs(): number {
-  return getGeminiBossLatencyConfig().requestTimeoutMs;
-}
-
-function getGeminiBossOverallTimeoutMs(): number {
-  return getGeminiBossLatencyConfig().overallTimeoutMs;
-}
-
-
-/**
- * Gemini is a text-only Boss. If the selected model is temporarily rate-limited,
- * retry it once, then try the next compatible stable Gemini text model from
- * the same catalog. Live/audio models are never eligible for this role.
- */
 export async function generateGeminiBossText(
   selection: GeminiBossModelSelection,
   prompt: string,
@@ -480,22 +347,13 @@ export async function generateGeminiBossText(
     maxOutputTokens?: number;
     thinkingLevel?: "minimal" | "low" | "medium" | "high";
   },
-): Promise<GeminiTextGenerationResult> {
-  // Legacy call surface retained so the Bureau remains stable while the Boss
-  // transport is now exclusively Groq GPT-OSS.
+): Promise<import("./groq-boss").GroqBossTextGenerationResult> {
   return generateGroqBossText(selection, prompt, options);
 }
 
 export async function getGeminiBossStatus(): Promise<GeminiBossStatus> {
   const status = getGroqBossStatus();
-  return {
-    configured: status.configured,
-    model: status.model,
-    role: status.role,
-    capability: status.capability,
-    webSearchGrounding: false,
-    provider: "groq",
-  };
+  return { ...status };
 }
 
 export async function resolveGeminiBossModel(preferredKeyName?: string): Promise<GeminiBossModelSelection> {
