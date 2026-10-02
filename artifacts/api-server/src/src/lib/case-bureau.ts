@@ -233,7 +233,7 @@ export type DiscoveryCaseFile = {
     } | null;
   };
   rightHandAdvice?: {
-    provider: "gemini";
+    provider: "mistral";
     model: string;
     status: "completed" | "unavailable";
     decision: string | null;
@@ -1482,7 +1482,7 @@ export function recordRightHandAdvice(
   return {
     ...file,
     rightHandAdvice: {
-    provider: "gemini",
+    provider: "mistral",
       model: input.model,
       status: input.status,
       actionId: input.actionId,
