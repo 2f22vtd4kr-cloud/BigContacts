@@ -2,10 +2,13 @@
 
 **Repository:** `2f22vtd4kr-cloud/BigContacts`  
 **Canonical branch:** `main`  
-**Current HEAD:** `44118b641747b034eccc00d0aca5f0209aea3259`  
+**Current HEAD:** `b392713b6ff1ce969b4a5f57adf3fd7b32610bb6`  
 **Release state:** **NOT GREEN / NOT production-certified**
 
 This document is the current continuation point for a new agent/new chat. The repository source and current runtime evidence outrank this document and all older chat summaries. Verify HEAD before acting.
+
+
+> **CURRENT REMEDIATION — 2026-10-02:** Groq Boss + Mistral Right-hand is canonical. The latest authorized live job failed closed at the opening Mistral Right-hand gate before Investigator execution; the provider was classified `rate_limited`. Current code preserves structured provider diagnostics and continues readiness across role-scoped keys. Canonical runtime labels now use Groq/Mistral identities; Gemini remains historical/compatibility-only. Do not launch another live run yet. Run the synchronized build, typecheck, Vitest, and static-contract gates first.
 
 ## 1. Mandatory reading order
 
