@@ -8,7 +8,7 @@ Apex Atlas has **two AI layers**:
 
 ### 1. Boss + Right-hand — Bureau oversight
 
-- **Boss = Gemini.**
+- **Boss = Groq GPT-OSS 120B, with GPT-OSS 20B as a bounded fallback.**
 - **Right-hand = Gemini.**
 - Boss and Right-hand consult on the case and choose which Investigator LLM should perform the current research assignment.
 - They may recommend useful non-LLM research capabilities.
@@ -90,7 +90,7 @@ The following are architecture violations:
 The canonical shorthand is:
 
 ```text
-BOSS (Gemini) + RIGHT-HAND (Gemini)
+BOSS (Groq GPT-OSS 120B) + RIGHT-HAND (Gemini)
                  ↓
       choose Investigator LLM
                  ↓
