@@ -73,8 +73,8 @@ export function getGroqBossLatencyConfig(): GroqBossLatencyConfig {
 
 function keys(): Array<{ name: string; key: string }> {
   return [
-    "GROQ_API_KEY",
-    ...Array.from({ length: 10 }, (_, i) => `GROQ_API_KEY_${i + 1}`),
+    "GROQ_BOSS_API_KEY",
+    ...Array.from({ length: 10 }, (_, i) => `GROQ_BOSS_API_KEY_${i + 1}`),
   ].map((name) => ({ name, key: process.env[name]?.trim() ?? "" })).filter((entry) => entry.key.length > 0);
 }
 
@@ -201,7 +201,7 @@ export async function generateGroqBossText(
   const configured = keys();
   const primary = configured.find((entry) => entry.name === selection.keyName);
   const ordered = primary ? [primary, ...configured.filter((entry) => entry.name !== primary.name)] : configured;
-  if (ordered.length === 0) return { model: selection.model, raw: null, error: "GROQ_API_KEY is not configured.", attempts: [] };
+  if (ordered.length === 0) return { model: selection.model, raw: null, error: "GROQ_BOSS_API_KEY is not configured.", attempts: [] };
 
   const config = getGroqBossLatencyConfig();
   const deadline = Date.now() + config.overallTimeoutMs;
@@ -331,7 +331,7 @@ export async function runGroqBossReadiness(): Promise<{
 }> {
   const configured = keys();
   if (configured.length === 0) {
-    return { provider: "groq", configured: false, status: "pending", model: GROQ_BOSS_MODEL_PENDING, candidateModels: [], httpStatus: null, error: "GROQ_API_KEY is not configured." };
+    return { provider: "groq", configured: false, status: "pending", model: GROQ_BOSS_MODEL_PENDING, candidateModels: [], httpStatus: null, error: "GROQ_BOSS_API_KEY is not configured." };
   }
   for (const entry of configured) {
     try {
