@@ -8,7 +8,7 @@ const rightHand = fs.readFileSync(path.join(root, "artifacts/api-server/src/src/
 const boss = fs.readFileSync(path.join(root, "artifacts/api-server/src/src/lib/case-bureau-prompt.ts"), "utf8");
 
 const rightHandRequired = [
-  "GEMINI_RIGHT_HAND_MODEL",
+  "MISTRAL_RIGHT_HAND_MODEL",
   "case_file_reasoning_only",
   "max_output_tokens: 512",
   "You are Apex Atlas Right Hand. Reason only over the supplied case file.",
