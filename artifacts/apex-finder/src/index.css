@@ -452,3 +452,181 @@ body {
     padding-bottom: max(12px, env(safe-area-inset-bottom));
   }
 }
+
+/* ─── Apex Atlas Light theme ─────────────────────────────────────
+   Explicitly opt-in via html.light. Dark remains the default.
+   Light mode is intentionally monochrome: white, black, and neutral greys.
+*/
+html.light {
+  color-scheme: light;
+  --color-background: #f7f7f7;
+  --color-foreground: #111111;
+  --color-card: #ffffff;
+  --color-border: #d4d4d4;
+  --color-muted: #737373;
+  --color-muted-foreground: #525252;
+  --color-primary: #111111;
+  --color-primary-foreground: #ffffff;
+  --color-secondary: #404040;
+  --color-accent: #262626;
+  --color-destructive: #404040;
+  --color-sidebar: #ffffff;
+  --color-sidebar-foreground: #111111;
+  --color-sidebar-border: #e5e5e5;
+  --color-sidebar-accent: #f0f0f0;
+  --color-sidebar-accent-foreground: #111111;
+
+  --atlas-teal: #404040;
+  --atlas-lime: #111111;
+  --atlas-navy: #ffffff;
+  --atlas-white: #111111;
+  --atlas-coral: #404040;
+  --atlas-surface-0: #f7f7f7;
+  --atlas-surface-1: #ffffff;
+  --atlas-surface-2: #f0f0f0;
+  --atlas-border: rgba(0,0,0,.12);
+  --atlas-border-strong: rgba(0,0,0,.28);
+  --atlas-text-soft: #525252;
+  --atlas-text-dim: #737373;
+  --atlas-focus: #111111;
+  --atlas-warning: #404040;
+  --atlas-danger: #404040;
+}
+
+html.light body {
+  background: #f7f7f7;
+  color: #111111;
+  scrollbar-color: #a3a3a3 #f7f7f7;
+}
+
+/* Shared shell surfaces that previously used literal dark palette values. */
+html.light .atlas-noise,
+html.light main {
+  background-color: #f7f7f7;
+  color: #111111;
+}
+html.light .atlas-noise::before { opacity: 0.08; mix-blend-mode: multiply; }
+html.light .atlas-card,
+html.light .atlas-panel,
+html.light .reactor-surface {
+  background: #ffffff;
+  border-color: #d4d4d4;
+  box-shadow: 0 8px 28px rgba(0,0,0,.07);
+}
+html.light .atlas-card:hover,
+html.light .atlas-panel-glow:hover {
+  border-color: #8a8a8a;
+  box-shadow: 0 10px 30px rgba(0,0,0,.10);
+}
+html.light .atlas-scroll {
+  scrollbar-color: #a3a3a3 #f5f5f5;
+}
+
+/* Literal utility classes used by the existing shell/components. */
+html.light [class*="bg-[#111827]"] { background-color: #ffffff !important; }
+html.light [class*="bg-[#0c1220]"] { background-color: #ffffff !important; }
+html.light [class*="bg-[#0d1219]"] { background-color: #ffffff !important; }
+html.light [class*="bg-[#141414]"] { background-color: #f0f0f0 !important; }
+html.light [class*="bg-[#161f2e]"] { background-color: #ffffff !important; }
+html.light [class*="text-stone-100"],
+html.light [class*="text-stone-200"] { color: #171717 !important; }
+html.light [class*="text-stone-300"],
+html.light [class*="text-stone-400"],
+html.light [class*="text-stone-500"] { color: #525252 !important; }
+html.light [class*="text-stone-600"] { color: #737373 !important; }
+html.light [class*="border-white/"] { border-color: rgba(0,0,0,.10) !important; }
+html.light [class*="hover:bg-white/"]:hover { background-color: #f0f0f0 !important; }
+html.light [class*="hover:text-stone-100"]:hover,
+html.light [class*="hover:text-stone-200"]:hover { color: #111111 !important; }
+
+/* Apex identity mark: black contour/surface with a white aim icon. */
+html.light [data-testid="link-sidebar-apex-atlas-mark"] {
+  background: #111111 !important;
+  color: #ffffff !important;
+  box-shadow: none !important;
+}
+
+/* Theme switch stays discoverable and readable in both themes. */
+.atlas-theme-toggle {
+  display: inline-flex;
+  min-height: 40px;
+  min-width: 40px;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  border: 1px solid rgba(255,255,255,.10);
+  border-radius: 999px;
+  padding: 0 0.7rem;
+  color: #d4d4d4;
+  background: rgba(255,255,255,.04);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .02em;
+}
+.atlas-theme-toggle:hover { background: rgba(255,255,255,.08); color: #ffffff; }
+html.light .atlas-theme-toggle {
+  border-color: #d4d4d4;
+  background: #ffffff;
+  color: #262626;
+}
+html.light .atlas-theme-toggle:hover { background: #f0f0f0; color: #111111; }
+
+/* Monochrome Light-mode treatment for the existing CTA/state accents. */
+html.light .atlas-launch-cta,
+html.light .atlas-launch-glow {
+  color: #ffffff !important;
+  background: #111111 !important;
+  border-color: #111111;
+  background-size: auto;
+  animation: none;
+  text-shadow: none;
+  box-shadow: 0 4px 16px rgba(0,0,0,.16), inset 0 1px 0 rgba(255,255,255,.12);
+}
+html.light .atlas-launch-cta:hover,
+html.light .atlas-launch-glow:hover {
+  background: #262626 !important;
+  border-color: #262626;
+  filter: none;
+}
+html.light .atlas-btn-secondary,
+html.light .atlas-outline-btn {
+  border-color: #a3a3a3;
+  background: #ffffff;
+  color: #262626;
+}
+html.light .atlas-btn-secondary:hover,
+html.light .atlas-outline-btn:hover {
+  border-color: #525252;
+  background: #f0f0f0;
+  color: #111111;
+}
+html.light .atlas-btn-danger {
+  border-color: #737373;
+  background: #f5f5f5;
+  color: #262626;
+}
+html.light .atlas-btn-success,
+html.light .atlas-chip-yellow {
+  border-color: #a3a3a3;
+  background: #f0f0f0;
+  color: #262626;
+}
+html.light .atlas-live-dot {
+  background: #111111;
+  box-shadow: none;
+}
+html.light .atlas-divider {
+  background: #d4d4d4;
+}
+html.light .atlas-soft-edge {
+  background: linear-gradient(180deg, transparent 0%, rgba(247,247,247,.25) 35%, rgba(247,247,247,.70) 70%, rgba(247,247,247,.98) 100%);
+}
+html.light .atlas-shimmer-sweep::after,
+html.light .atlas-skeleton::after {
+  background: linear-gradient(90deg, transparent, rgba(0,0,0,.08), transparent);
+}
+html.light .atlas-skeleton { background: #e5e5e5; }
+html.light .atlas-focus-ring:focus-visible,
+html.light .reactor-focus-ring:focus-visible {
+  outline-color: #111111;
+}
