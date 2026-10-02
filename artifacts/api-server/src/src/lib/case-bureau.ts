@@ -121,7 +121,7 @@ export type ResearchCaseFile = {
     createdAt: string;
   };
   bossPlan?: {
-    provider: "groq",
+    provider: "groq";
     model: string;
     status: "completed" | "unavailable";
     outcome?: BossPlanOutcome;
