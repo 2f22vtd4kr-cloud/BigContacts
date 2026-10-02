@@ -220,7 +220,7 @@ export type DiscoveryCaseFile = {
     } | null;
   };
   rightHandAdvice?: {
-      provider: "groq",
+    provider: "gemini";
     model: string;
     status: "completed" | "unavailable";
     decision: string | null;
