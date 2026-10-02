@@ -107,3 +107,5 @@ jobs:
         run: pnpm --dir artifacts/api-server exec vitest run src/src/test/bureau-contact-persist-strict.test.ts src/src/test/provider-gate-cache-bounds.test.ts
       - name: Run Groq Boss control-plane regression tests
         run: pnpm --dir artifacts/api-server exec vitest run src/test/groq-boss.test.ts
+      - name: Run Mistral Right-hand control-plane regression tests
+        run: pnpm --dir artifacts/api-server exec vitest run src/test/mistral-right-hand.test.ts
