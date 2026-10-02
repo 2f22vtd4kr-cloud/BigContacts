@@ -66,15 +66,19 @@ async function resolveModelChain(apiKeyOverride?:string):Promise<string[]> {
 }
 function extractJson(raw:string):Record<string,unknown>|null{const fenced=raw.match(/\`\`\`(?:json)?\\s*([\\s\\S]*?)\`\`\`/i)?.[1]?.trim();const source=fenced||raw.trim();const start=source.indexOf("{"),end=source.lastIndexOf("}");if(start<0||end<=start)return null;try{const v=JSON.parse(source.slice(start,end+1));return v&&typeof v==="object"?v as Record<string,unknown>:null;}catch{return null;}}
 function responseFormat(input?:Record<string,unknown>):Record<string,unknown>|undefined{
- if(!input)return undefined;
+ if(!input)return {type:"json_object"};
  const schema=input.schema;
  if(!schema||typeof schema!=="object")return {type:"json_object"};
+ const schemaRecord=schema as Record<string,unknown>;
+ if(!schemaRecord.properties || typeof schemaRecord.properties!=="object") return {type:"json_object"};
  return {type:"json_schema",json_schema:{name:"apex_atlas_right_hand",strict:true,schema}};
 }
 function extractText(payload:unknown):string{
  if(!payload||typeof payload!=="object")return "";
  const c=(payload as any).choices?.[0]?.message?.content;
- return typeof c==="string"?c.trim():"";
+ if(typeof c==="string") return c.trim();
+ if(Array.isArray(c)) return c.map((part:any)=>typeof part?.text==="string"?part.text:"").join("").trim();
+ return "";
 }
 function retryAfterMs(response:Response,fallback:number){const raw=response.headers.get("retry-after")?.trim();if(!raw)return fallback;const n=Number(raw);if(Number.isFinite(n)&&n>=0)return Math.min(5000,Math.floor(n*1000));return fallback;}
 
