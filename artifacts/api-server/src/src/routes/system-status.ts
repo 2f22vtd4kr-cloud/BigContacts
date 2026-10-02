@@ -85,5 +85,13 @@ router.get("/system/status", async (_req,res) => {
   }
 });
 
+router.post("/system/diagnostics/mistral-readiness", async (_req,res) => {
+  try {
+    const result = await runMistralRightHandReadiness();
+    return res.status(result.status === "ready" ? 200 : 503).json({ ...result, generatedAt: new Date().toISOString() });
+  } catch (error) {
+    return res.status(500).json({ provider: "mistral", configured: Boolean(process.env.MISTRAL_API_KEY?.trim()), status: "unavailable", model: "mistral-small-2603", candidateModels: [], httpStatus: null, error: error instanceof Error ? error.message : "Mistral readiness diagnostic failed.", generatedAt: new Date().toISOString() });
+  }
+});
 
 export default router;
