@@ -84,6 +84,44 @@ export function Layout({ children }: { children: React.ReactNode }) {
     );
   }, []);
 
+  // One delegated interaction layer keeps the tactile underflow treatment consistent
+  // across every native button, including buttons rendered by page-level components.
+  // LaunchAtlasButton already owns its richer launch animation, so it is excluded here.
+  useEffect(() => {
+    const timers = new WeakMap<HTMLButtonElement, number>();
+    const triggerButtonFlow = (button: HTMLButtonElement) => {
+      if (button.disabled || button.dataset.atlasFlow === "off" || button.classList.contains("atlas-launch-cta") || button.classList.contains("atlas-launch-glow")) return;
+      button.classList.remove("atlas-button-flow");
+      requestAnimationFrame(() => {
+        button.classList.add("atlas-button-flow");
+        const existing = timers.get(button);
+        if (existing) window.clearTimeout(existing);
+        timers.set(button, window.setTimeout(() => {
+          button.classList.remove("atlas-button-flow");
+          timers.delete(button);
+        }, 1050));
+      });
+    };
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target;
+      if (target instanceof Element) {
+        const button = target.closest("button");
+        if (button) triggerButtonFlow(button);
+      }
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      const target = event.target;
+      if (target instanceof HTMLButtonElement) triggerButtonFlow(target);
+    };
+    document.addEventListener("pointerdown", onPointerDown, true);
+    document.addEventListener("keydown", onKeyDown, true);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown, true);
+      document.removeEventListener("keydown", onKeyDown, true);
+    };
+  }, []);
+
   const toggleTheme = () => {
     setTheme((current) => {
       const nextTheme = current === "dark" ? "light" : "dark";
