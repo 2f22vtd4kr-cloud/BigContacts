@@ -11,7 +11,7 @@ const checks = [
   ["case discovery route is HTTP/lifecycle-only", !/runGeminiBossDiscovery|runDeepSeekFreeJson|runBureauAgenticWebPass|persistSourceBackedBureauContactsForEntity/.test(route)],
   ["case discovery route passes an existing durable case", route.includes('discoveryCaseId: caseId')],
   ["case discovery route requests discovery-only execution", route.includes('discoveryOnly: true')],
-  ["canonical Atlas control plane owns Gemini assignment", control.includes('runGeminiBossDiscovery')],
+  ["canonical Atlas control plane owns Mistral Right-hand assignment", control.includes('runGeminiBossDiscovery')],
   ["canonical Atlas control plane owns Investigator execution", control.includes('runBureauAgenticWebPass')],
   ["canonical Atlas control plane supports an existing discovery case", control.includes('discoveryCaseId?: number')],
   ["canonical Atlas control plane has a discovery-only mode", control.includes('discoveryOnly?: boolean')],
