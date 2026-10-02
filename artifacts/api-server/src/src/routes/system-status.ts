@@ -11,7 +11,7 @@ import { getLocalRedisStatus, getPermanentClientStatuses, pingRedis } from "../l
 import { getMistralWebSearchStatus } from "../lib/mistral-web-search";
 import { getGeminiBossLatencyConfig } from "../lib/case-bureau";
 import { getGroqBossStatus, runGroqBossReadiness } from "../lib/groq-boss";
-import { getGeminiRightHandStatus, getGeminiRightHandLatencyConfig } from "../lib/gemini-right-hand-reasoning";
+import { getMistralRightHandStatus, getMistralRightHandLatencyConfig, runMistralRightHandReadiness } from "../lib/mistral-right-hand-reasoning";
 import { buildLanesHonestySnapshot } from "../lib/lanes-honesty";
 const router: IRouter = Router();
 const CACHE_TTL_MS = 15_000;
@@ -52,8 +52,8 @@ router.get("/system/status", async (_req,res) => {
     if (_cached && Date.now()-_cachedAt<CACHE_TTL_MS) return res.json({ ...(typeof _cached === "object" ? _cached : {}), cached:true, cachedAgoMs:Date.now()-_cachedAt });
     const ai=getAIKeyStatus();
     const pythonTools=await checkPythonToolsAvailability();
-    const bureauReasoning=getGeminiRightHandStatus();
-    const geminiRightHandLatency=getGeminiRightHandLatencyConfig();
+    const bureauReasoning=getMistralRightHandStatus();
+    const mistralRightHandLatency=getMistralRightHandLatencyConfig();
     const groqBoss=getGroqBossStatus();
     const geminiBossLatency=getGeminiBossLatencyConfig();
     let pgStatus:"ok"|"error"="ok"; let pgLatencyMs:number|null=null;
@@ -64,7 +64,7 @@ router.get("/system/status", async (_req,res) => {
     // Mistral web search is reported only through its canonical Bureau/provider
     // status; this payload must never advertise the retired endpoint as ready.
     const openResearch={state:"unavailable" as const,huggingFace:{configured:false},serper:{configured:false},adapter:{available:false,model:process.env.HF_DEEP_RESEARCH_MODEL||"Qwen/Qwen2.5-7B-Instruct"},mistral:getMistralWebSearchStatus()};
-    const payload={ai,pythonTools,openResearch,groqBoss,geminiBoss:groqBoss,geminiBossLatency,bureauReasoning,geminiRightHandLatency,lanesHonesty,bureauIntegrity:lanesHonesty.bureauIntegrity,bureauIntegrityReasons:lanesHonesty.bureauIntegrityReasons,databases:{postgres:{status:pgStatus,latencyMs:pgLatencyMs},localRedis:{...localInfo,latencyMs:localLatencyMs},upstash},generatedAt:new Date().toISOString(),cached:false,cachedAgoMs:0};
+    const payload={ai,pythonTools,openResearch,groqBoss,geminiBoss:groqBoss,geminiBossLatency,bureauReasoning,mistralRightHand:mistralRightHandStatus,mistralRightHandLatency,lanesHonesty,bureauIntegrity:lanesHonesty.bureauIntegrity,bureauIntegrityReasons:lanesHonesty.bureauIntegrityReasons,databases:{postgres:{status:pgStatus,latencyMs:pgLatencyMs},localRedis:{...localInfo,latencyMs:localLatencyMs},upstash},generatedAt:new Date().toISOString(),cached:false,cachedAgoMs:0};
     _cached=payload;_cachedAt=Date.now();return res.json(payload);
   }catch(err:any){return res.status(500).json({error:err?.message??"Unknown error"});}
 });router.post("/system/diagnostics/groq-readiness", async (_req,res) => {
