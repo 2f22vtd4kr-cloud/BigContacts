@@ -81,7 +81,7 @@ assert(/Startup recovery complete/.test(source.startupRecovery), "Lifecycle-only
 assert(!/runBroadDiscovery|bulk-run|deep-web-osint|social-discovery|messenger-discovery|in-house-enrich/.test(source.startupRecovery), "Lifecycle-only startup recovery contains a research/enrichment trigger.");
 assert(!/findingsFrom(?:PeopleSnippet|ProxyPage|IrAndRelatedBlocks|ContactFacts)[\s\S]{0,18000}personName:\s*targetName/.test(source.research), "ReAct observation extraction still injects target-derived personName into deterministic findings; #136 remains unresolved.");
 assert(!/findingsFrom(?:PeopleSnippet|ProxyPage|IrAndRelatedBlocks|ContactFacts)[\s\S]{0,18000}scope:\s*"candidate"/.test(source.research), "ReAct observation extraction still manufactures candidate scope before an Investigator promotion decision; #136 remains unresolved.");
-assert(/Groq GPT-OSS 120B|Boss.*Groq/i.test(source.architecture) && /Right-hand\s*=\s*(?:\*\*)?Gemini/i.test(source.architecture) && /Investigator LLM pool/.test(source.architecture), "Canonical ReAct architecture document is missing the Groq Boss + Mistral Right-hand role law.");
+assert(/Groq GPT-OSS 120B|Boss.*Groq/i.test(source.architecture) && /Right-hand\s*=\s*(?:\*\*)?Mistral/i.test(source.architecture) && /Investigator LLM pool/.test(source.architecture), "Canonical ReAct architecture document is missing the Groq Boss + Mistral Right-hand role law.");
 assert(/no forced search order/i.test(source.architecture), "Canonical ReAct architecture document does not state the no-forced-search-order invariant.");
 
 if (failures.length) { console.error("UNIFIED INVESTIGATOR ARCHITECTURE: FAIL"); for (const failure of failures) console.error(`- ${failure}`); process.exit(1); }
