@@ -1,6 +1,5 @@
 import { GROQ_BOSS_MODEL_PENDING, getGroqBossLatencyConfig, getGroqBossStatus, resolveGroqBossModel, generateGroqBossText } from "./groq-boss";
 import type { Entity } from "@workspace/db";
-import { fetchGeminiInteractions } from "./gemini-interactions-transport";
 import { apexOrientationFor } from "./apex-bureau-orientation";
 import { buildApexAtlasBossPlanPrompt } from "./case-bureau-prompt";
 import { extractWalletSeedsFromText, buildWalletSeedPlan, formatWalletSeedPlanForPrompt, objectiveLooksWalletFirst } from "./wallet-seed";
