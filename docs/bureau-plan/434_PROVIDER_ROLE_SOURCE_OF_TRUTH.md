@@ -9,13 +9,13 @@ Apex Atlas has **two AI layers**:
 ### 1. Boss + Right-hand — Bureau oversight
 
 - **Boss = Groq GPT-OSS 120B, with GPT-OSS 20B as a bounded fallback.**
-- **Right-hand = Gemini.**
+- **Right-hand = Mistral.**
 - Boss and Right-hand consult on the case and choose which Investigator LLM should perform the current research assignment.
 - They may recommend useful non-LLM research capabilities.
 - They see the investigation as it happens: every investigation act produces a report that is added to the specific target's living research document and made available to Boss + Right-hand.
 - They analyse progress, evidence quality, gaps and contamination risk and can redirect, challenge or stop the work.
 
-The Right-hand is a separate bounded Gemini invocation. It never performs the investigation and never appears as an Investigator fallback. DeepSeek/NVIDIA is not an active Apex execution path.
+The Right-hand is a separate bounded Mistral invocation. It never performs the investigation and never appears as an Investigator fallback. DeepSeek/NVIDIA is not an active Apex execution path.
 
 ### 2. Investigator LLM pool + non-LLM tools — Actual investigation
 
@@ -81,8 +81,8 @@ The following are architecture violations:
 
 - describing `Groq → Mistral` as the Bureau's Investigator architecture;
 - introducing a separate "Investigator LLM decision" layer between Boss/Right-hand and investigators;
-- using Gemini as Right-hand only;
-- using Gemini as Boss only;
+- using Mistral as Right-hand only;
+- using Mistral as Boss only;
 - treating Tavily, Exa, Serper, Scrapfly or ZenRows as LLMs;
 - hiding investigation acts from the target's living research document;
 - giving Boss/Right-hand only the final result instead of the ongoing reports.
@@ -90,7 +90,7 @@ The following are architecture violations:
 The canonical shorthand is:
 
 ```text
-BOSS (Groq GPT-OSS 120B) + RIGHT-HAND (Gemini)
+BOSS (Groq GPT-OSS 120B) + RIGHT-HAND (Mistral)
                  ↓
       choose Investigator LLM
                  ↓
