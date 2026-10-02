@@ -110,7 +110,7 @@ export type ResearchCaseFile = {
     createdAt: string;
   }>;
   rightHandAdvice?: {
-    provider: "groq";
+    provider: "gemini";
     model: string;
     status: "completed" | "unavailable";
     actionId: string | null;
@@ -121,7 +121,7 @@ export type ResearchCaseFile = {
     createdAt: string;
   };
   bossPlan?: {
-    provider: "gemini",
+    provider: "groq",
     model: string;
     status: "completed" | "unavailable";
     outcome?: BossPlanOutcome;
