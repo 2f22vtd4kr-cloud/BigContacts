@@ -333,6 +333,7 @@ export async function runGroqBossReadiness(): Promise<{
   if (configured.length === 0) {
     return { provider: "groq", configured: false, status: "pending", model: GROQ_BOSS_MODEL_PENDING, candidateModels: [], httpStatus: null, error: "GROQ_BOSS_API_KEY is not configured." };
   }
+  const failures: Array<{ keyName: string; httpStatus: number | null; providerCode: string | null; error: string }> = [];
   for (const entry of configured) {
     try {
       const response = await fetch(GROQ_BOSS_MODELS_API, {
@@ -341,15 +342,15 @@ export async function runGroqBossReadiness(): Promise<{
       });
       const body = await response.text();
       if (!response.ok) {
-        return { provider: "groq", configured: true, status: "unavailable", model: GROQ_BOSS_MODEL_PENDING, candidateModels: [], httpStatus: response.status, error: `Groq model catalog returned HTTP ${response.status}: ${summarizeProviderBody(body)}` };
+        failures.push({ keyName: entry.name, httpStatus: response.status, providerCode: providerErrorCode(body), error: JSON.stringify(summarizeProviderBody(body)) });
+        continue;
       }
-      const candidates = candidateModelsFromCatalog(JSON.parse(body));
-      if (candidates.length > 0) {
-        return { provider: "groq", configured: true, status: "ready", model: candidates[0]!, candidateModels: candidates, httpStatus: response.status, error: null };
-      }
-      return { provider: "groq", configured: true, status: "unavailable", model: GROQ_BOSS_MODEL_PENDING, candidateModels: [], httpStatus: response.status, error: "Groq catalog is reachable but neither the configured primary nor fallback Boss model is available." };
+      let candidates: string[];
+      try { candidates = candidateModelsFromCatalog(JSON.parse(body)); } catch { candidates = []; }
+      if (candidates.length > 0) return { provider: "groq", configured: true, status: "ready", model: candidates[0]!, candidateModels: candidates, httpStatus: response.status, error: null };
+      failures.push({ keyName: entry.name, httpStatus: response.status, providerCode: null, error: "catalog_reachable_but_no_configured_model" });
     } catch (error) {
-      return { provider: "groq", configured: true, status: "unavailable", model: GROQ_BOSS_MODEL_PENDING, candidateModels: [], httpStatus: null, error: error instanceof Error ? error.message : "Groq model catalog request failed." };
+      failures.push({ keyName: entry.name, httpStatus: null, providerCode: null, error: error instanceof Error ? error.message : "Groq model catalog request failed." });
     }
   }
   return { provider: "groq", configured: true, status: "unavailable", model: GROQ_BOSS_MODEL_PENDING, candidateModels: [], httpStatus: null, error: "No configured Groq credential produced a usable model catalog." };
