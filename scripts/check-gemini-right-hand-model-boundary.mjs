@@ -4,17 +4,17 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const source = fs.readFileSync(path.join(repoRoot, "artifacts/api-server/src/src/lib/gemini-right-hand-reasoning.ts"), "utf8");
-const pool = fs.readFileSync(path.join(repoRoot, "artifacts/api-server/src/src/lib/gemini-model-pool.ts"), "utf8");
+const source = fs.readFileSync(path.join(repoRoot, "artifacts/api-server/src/src/lib/mistral-right-hand-reasoning.ts"), "utf8");
 
 const checks = [
-  ["Right-hand primary uses the high-volume Gemini 3.5 Flash-Lite model", source.includes('GEMINI_RIGHT_HAND_MODEL = "gemini-3.5-flash-lite"')],
-  ["Right-hand has the full stable Gemini text fallback pool", source.includes('"gemini-3.1-flash-lite"') && source.includes('"gemini-3.8-flash"') && source.includes("chooseAvailableGeminiControlModels")],
-  ["Live/audio/preview models are excluded from the text control registry", !pool.includes('"gemini-3.8-live"') && !pool.includes("-preview") && !pool.includes("-image") && !pool.includes("-tts")],
-  ["Right-hand uses the shared model-specific thinking contract", source.includes("getGeminiThinkingLevel(model)")],
-  ["Daily quota exhaustion fails closed without another provider request", source.includes("markGeminiModelDailyQuotaExhausted") && source.includes("phase: \"daily_quota_exhausted\"") && source.includes("daily quota exhaustion") && !source.includes("phase: \"daily_quota_model_cooldown\"")],
-  ["Transient 429 recovery is bounded and then advances the model pool", source.includes("MAX_RATE_LIMIT_RETRIES = 1") && source.includes('phase: "rate_limit_model_fallback"') && source.includes("markGeminiModelRateLimited")],
-  ["Successful 429 retry responses are returned immediately", source.includes("if (response.ok) return parseGeminiRightHandResponse(responseBody, model);")],
+  ["Right-hand primary uses Mistral Small 4", source.includes('MISTRAL_RIGHT_HAND_MODEL = "mistral-small-2603"')],
+  ["Right-hand uses the Mistral Chat Completions boundary", source.includes("https://api.mistral.ai/v1/chat/completions") && source.includes("Authorization")],
+  ["Right-hand uses a live Mistral model catalog", source.includes("https://api.mistral.ai/v1/models") && source.includes("catalogCandidates")],
+  ["Right-hand is explicitly provider-scoped to Mistral", source.includes('provider:"mistral"') || source.includes('provider: "mistral"')],
+  ["Right-hand never acts as Investigator", source.includes("Never browse or act as Investigator")],
+  ["Provider retries are bounded", source.includes("MAX_503_RETRIES_PER_MODEL = 1") && source.includes("MAX_429_RETRIES_PER_MODEL = 1")],
+  ["Oversized model-facing context fails closed", source.includes("upstream case-context compaction is required") && source.includes("MAX_PROMPT_CHARS = 20_000")],
+  ["Explicit readiness is separate from ordinary status", source.includes("runMistralRightHandReadiness")],
 ];
 
 let failed = false;
