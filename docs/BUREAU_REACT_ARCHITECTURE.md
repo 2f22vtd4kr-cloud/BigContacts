@@ -106,7 +106,7 @@ These diagnostics do not silently mutate the research result.
 ## 9. Safety invariants
 
 - Investigator pool remains Groq/Mistral only.
-- Mistral is never an Investigator fallback.
+- The Mistral Right-hand control role is never used as an Investigator fallback.
 - DeepSeek/NVIDIA is absent from active execution.
 - Model-selected actions are checked against actual capabilities.
 - Tool failures remain failures.
@@ -131,6 +131,6 @@ Research quality is evaluated separately through the 38-case grounded Research G
 5. Tools are capabilities, not fixed stages.
 6. Every act is durably inspectable.
 7. Promotion requires source-backed deterministic validation.
-8. No provider fallback from Investigator to Mistral/retired providers.
+8. No provider fallback from Investigator to retired providers or control-plane roles.
 9. No forced research order.
 10. Benchmark conclusions come from measured system runs, not model-brand comparisons.
