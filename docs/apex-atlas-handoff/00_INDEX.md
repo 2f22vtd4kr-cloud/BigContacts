@@ -158,3 +158,27 @@ Post-audit deterministic test reconciliation was merged into current main:
 `14eff01d17ab3d95340139521405ca8ca9edccf1`.
 
 Release remains **NOT GREEN**. No fresh live research run should be launched merely to compensate for this failure; the next runtime attempt requires a provider-capacity/readiness decision and must remain a single authorized audit.
+
+
+## 2026-10-02 CI verification reconciliation
+
+Current main advanced through PR #456. The merged CI commit is:
+
+`3322a2df13e17c0a0deb335845d4104b04789eef`
+
+PR #456 added the corrected Gemini Interactions control-plane regression suite to the canonical `Apex API Build` workflow. The workflow now executes:
+
+`pnpm --dir artifacts/api-server exec vitest run src/test/gemini-interactions.test.ts`
+
+Verification on PR head `054d60b859d66a36b14d302e6cd6498fab629843`:
+- Apex API Build: **success**.
+- Gemini Interactions suite: **5/5 tests passed**.
+- Existing strict provenance/provider-cache tests: **12/12 passed**.
+- Workspace/API typecheck completed successfully before the test gate.
+- The Gemini suite includes regression coverage for a transient HTTP 503 retry on the same model.
+
+A first CI attempt failed because the newly added workflow step used the wrong repository path; that was corrected and the second CI run failed only on a stale call-order assertion. The assertion was corrected to inspect the generation request after catalog discovery. The final CI run then passed.
+
+The live-runtime blocker is unchanged: the 2026-10-01 canonical Replit run `96a80589-f510-4703-b79f-cd8264e15715` failed at Gemini Boss opening with three HTTP 503 `service_unavailable` responses and produced no admitted research/evidence/entities/cards. The repository now has stronger regression verification, but this does **not** certify live Gemini availability or production readiness.
+
+Do not launch another canonical live research run merely to obtain a green result. Before the next authorized live audit, verify provider readiness/capacity and synchronize the deployment environment to current main. Release remains **NOT GREEN / not production-certified**.
