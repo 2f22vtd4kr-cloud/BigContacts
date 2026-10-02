@@ -579,7 +579,7 @@ export async function runGeminiBossDiscovery(input: {
       nextDirections: [],
       uncertainties: [],
       error: selection.status === "pending"
-        ? "No Groq Boss model is available because GROQ_API_KEY is not configured."
+        ? "No Groq Boss model is available because GROQ_BOSS_API_KEY is not configured."
         : "Configured Groq credentials did not expose a usable Boss model.",
     };
   }
@@ -847,7 +847,7 @@ export async function runGeminiBossPlan(input: {
   if (selection.status !== "resolved") {
 
     return unavailable(selection.status === "pending"
-      ? "No Groq Boss model is available because GROQ_API_KEY is not configured."
+      ? "No Groq Boss model is available because GROQ_BOSS_API_KEY is not configured."
       : "Configured Groq credentials did not expose a usable Boss text model.");
   }
   const queuedActions = input.file.actionQueue.filter((action) => action.status === "queued");
