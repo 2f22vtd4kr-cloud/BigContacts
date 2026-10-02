@@ -14,7 +14,7 @@ const checks = [
   ["Boss uses the Groq OpenAI-compatible chat endpoint", boss.includes("https://api.groq.com/openai/v1/chat/completions") && boss.includes("Authorization:")],
   ["Boss uses GPT-OSS reasoning levels and hides reasoning output", boss.includes("reasoning_effort") && boss.includes("include_reasoning: false")],
   ["Boss uses strict JSON Schema when a control schema is supplied", boss.includes('type: "json_schema"') && boss.includes("strict: true") && bureau.includes("additionalProperties: false")],
-  ["Boss prompt is bounded for the free-tier token budget", boss.includes("MAX_PROMPT_CHARS = 20_000") && boss.includes("APEX CONTROL-CONTEXT TRUNCATED")],
+  ["Boss prompt is bounded for the free-tier token budget", boss.includes("MAX_PROMPT_CHARS = 20_000") && boss.includes("upstream case-context compaction is required")],
   ["Boss has bounded 503 recovery and bounded short 429 recovery", boss.includes("MAX_503_RETRIES_PER_MODEL = 1") && boss.includes("MAX_429_RETRIES_PER_MODEL = 1") && boss.includes("delay <= 2_500")],
   ["Canonical Bureau Boss call surface delegates to Groq", bureau.includes("return generateGroqBossText(selection, prompt, options)") && bureau.includes("return resolveGroqBossModel(preferredKeyName)")],
   ["Ordinary system status is Groq-local and does not perform provider readiness I/O", status.includes("const groqBoss=getGroqBossStatus()") && status.includes('router.post("/system/diagnostics/groq-readiness"') && !status.includes("await getGroqBossStatus()")],
