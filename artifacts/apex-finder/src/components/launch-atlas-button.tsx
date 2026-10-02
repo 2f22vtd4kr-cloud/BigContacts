@@ -57,6 +57,8 @@ export function LaunchAtlasButton({
       if (navigateToReactor) setLocation("/reactor");
       return;
     }
+    setFlash(true);
+    window.setTimeout(() => setFlash(false), 2800);
     try {
       const hr = await fetch(`${import.meta.env.BASE_URL.replace(/\/$/, "")}/api/healthz`, { credentials: "same-origin" });
       if (hr.ok) {
@@ -70,8 +72,6 @@ export function LaunchAtlasButton({
     } catch {
       // Health is advisory; canonical launch remains the authoritative gate.
     }
-    setFlash(true);
-    window.setTimeout(() => setFlash(false), 480);
     setBusy(true);
     const result = await launchAtlasPipeline({ ...opts, researchDepth: opts?.researchDepth ?? launchDepth });
     setBusy(false);

@@ -12,6 +12,7 @@ const files = {
   mark: "artifacts/apex-finder/src/components/reactor-mark.tsx",
   workspaceStatus: "artifacts/apex-finder/src/components/workspace-status.tsx",
   errorNotice: "artifacts/apex-finder/src/components/apex-error-notice.tsx",
+  launchButton: "artifacts/apex-finder/src/components/launch-atlas-button.tsx",
 };
 for (const [name, file] of Object.entries(files)) {
   if (!fs.existsSync(path.join(root, file))) throw new Error(`Missing frontend polish source: ${name}`);
@@ -24,6 +25,7 @@ const replay = read(files.replay);
 const mark = read(files.mark);
 const workspaceStatus = read(files.workspaceStatus);
 const errorNotice = read(files.errorNotice);
+const launchButton = read(files.launchButton);
 const reactorTouchSource = read("artifacts/apex-finder/src/components/mobile-reactor-flow.tsx");
 
 const layout = read("artifacts/apex-finder/src/components/layout.tsx");
@@ -52,6 +54,9 @@ const checks = [
   ["dashboard hero copy is explicitly start-aligned", /atlas-dashboard-hero-copy/.test(dashboard) && /margin-inline-start:\s*0/.test(css)],
   ["home CTA has exact matching desktop rail width", /--atlas-command-width:\s*14\.75rem/.test(css) && /width:\s*calc\(var\(--atlas-depth-width\) \+ var\(--atlas-hero-gap\) \+ var\(--atlas-command-width\)\)/.test(css) && /width:\s*var\(--atlas-command-width\)/.test(css)],
   ["home depth selector remains subordinate", /--atlas-depth-width:\s*7\.625rem/.test(css) && /grid-template-columns:\s*var\(--atlas-depth-width\) var\(--atlas-command-width\)/.test(css)],
+  ["launch click lifts and reveals the flowing surface", /@keyframes atlas-underflow/.test(css) && /\.atlas-launch-cta\.atlas-click-flash::before/.test(css) && /\.atlas-launch-cta\.atlas-click-flash,[\s\S]*?\.atlas-launch-glow\.atlas-click-flash\s*\{\s*z-index:\s*20;\s*\}/.test(css) && /translateY\(-3px\) scale\(1\.015\)/.test(css) && /setFlash\(true\);\s*window\.setTimeout\(\(\) => setFlash\(false\), 2800\);/.test(launchButton)],
+  ["launch surface uses the supplied light and existing dark palettes", /--atlas-flow-1: #0a3d40/.test(css) && /--atlas-flow-4: #9cff1a/.test(css) && /--atlas-flow-1: #3e181b/.test(css) && /--atlas-flow-2: #7c111a/.test(css) && /--atlas-flow-3: #083322/.test(css) && /--atlas-flow-4: #ba9c7b/.test(css)],
+  ["launch interaction respects reduced-motion preferences", /atlas-launch-cta::before,[\s\S]*?atlas-launch-glow::before \{ animation: none !important; transition: none !important; \}/.test(css) && /atlas-launch-cta:active,[\s\S]*?atlas-launch-glow:active \{ transform: none !important; \}/.test(css)],
   ["Reactor uses product-specific mark", /ReactorMark/.test(dashboard) && /ReactorMark/.test(reactor) && /ReactorMark/.test(mark)],
   ["generic nuclear Reactor glyph is gone", !/☢|nuclear icon/i.test(reactor)],
   ["replay is evidence-grounded", /Recorded sources/.test(replay) && /sourceUrls|links/.test(replay) && /sourceUrlsFor/.test(replay)],

@@ -109,9 +109,9 @@ body {
 
 /* Brief gold flash after click (add class via JS or :active + animation) */
 @keyframes atlas-click-flash {
-  0% { box-shadow: 0 0 0 0 rgba(156, 255, 26, 0.45); }
-  40% { box-shadow: 0 0 0 6px rgba(156, 255, 26, 0.18); }
-  100% { box-shadow: 0 0 0 0 rgba(156, 255, 26, 0); }
+  0% { box-shadow: 0 0 0 0 var(--atlas-flash-strong); }
+  40% { box-shadow: 0 0 0 6px var(--atlas-flash-soft); }
+  100% { box-shadow: 0 0 0 0 var(--atlas-flash-clear); }
 }
 .atlas-click-flash {
   animation: atlas-click-flash 420ms cubic-bezier(0.2, 1, 0.32, 1);
@@ -160,6 +160,14 @@ body {
   --atlas-focus: #b8ff4d;
   --atlas-warning: #fbbf24;
   --atlas-danger: #fb7185;
+  --atlas-flow-1: #0a3d40;
+  --atlas-flow-2: #00b3b8;
+  --atlas-flow-3: #6fd914;
+  --atlas-flow-4: #9cff1a;
+  --atlas-press-shadow: rgba(0, 179, 184, 0.28);
+  --atlas-flash-strong: rgba(156, 255, 26, 0.45);
+  --atlas-flash-soft: rgba(156, 255, 26, 0.18);
+  --atlas-flash-clear: rgba(156, 255, 26, 0);
   --atlas-touch: 44px;
   --atlas-ease: cubic-bezier(.2,1,.32,1);
 }
@@ -171,11 +179,17 @@ body {
   100% { background-position: 0% 50%; }
 }
 
+@keyframes atlas-underflow {
+  0% { background-position: 0% 50%; transform: translateY(1px) scaleX(.78); }
+  48% { background-position: 100% 48%; transform: translateY(0) scaleX(1); }
+  100% { background-position: 0% 50%; transform: translateY(1px) scaleX(.86); }
+}
+
 .atlas-launch-cta,
 .atlas-launch-glow {
   position: relative;
   isolation: isolate;
-  overflow: hidden;
+  overflow: visible;
   color: var(--atlas-white) !important;
   font-weight: 800;
   letter-spacing: 0.03em;
@@ -192,6 +206,37 @@ body {
     inset 0 1px 0 rgba(248, 250, 252, 0.22);
   transition: transform 160ms cubic-bezier(0.2, 1, 0.32, 1), box-shadow 200ms ease, border-color 160ms ease, filter 160ms ease;
 }
+.atlas-launch-cta::before,
+.atlas-launch-glow::before {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  left: 4%;
+  right: 4%;
+  bottom: -10px;
+  height: 18px;
+  border-radius: 50%;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse at 12% 58%, var(--atlas-flow-1) 0%, transparent 58%),
+    radial-gradient(ellipse at 38% 40%, var(--atlas-flow-2) 0%, transparent 56%),
+    radial-gradient(ellipse at 68% 62%, var(--atlas-flow-3) 0%, transparent 58%),
+    radial-gradient(ellipse at 92% 40%, var(--atlas-flow-4) 0%, transparent 58%),
+    linear-gradient(100deg, var(--atlas-flow-1) 0%, var(--atlas-flow-2) 28%, var(--atlas-flow-3) 58%, var(--atlas-flow-4) 82%, var(--atlas-flow-1) 100%);
+  background-size: 220% 240%;
+  background-position: 0% 50%;
+  filter: blur(6px) saturate(1.24);
+  opacity: 0;
+  transform: translateY(-2px) scaleX(.78);
+  transition: opacity 260ms ease, transform 340ms var(--atlas-ease);
+}
+.atlas-launch-cta.atlas-click-flash::before,
+.atlas-launch-glow.atlas-click-flash::before {
+  opacity: .96;
+  animation: atlas-underflow 3.2s ease-in-out 1;
+}
+.atlas-launch-cta.atlas-click-flash,
+.atlas-launch-glow.atlas-click-flash { z-index: 20; }
 .atlas-launch-cta:hover,
 .atlas-launch-glow:hover {
   border-color: rgba(156, 255, 26, 0.85);
@@ -203,7 +248,14 @@ body {
     inset 0 1px 0 rgba(248, 250, 252, 0.28);
 }
 .atlas-launch-cta:active,
-.atlas-launch-glow:active { transform: scale(0.98); filter: brightness(0.96); }
+.atlas-launch-glow:active { transform: translateY(-3px) scale(1.015); filter: brightness(1.04); }
+.atlas-launch-cta.atlas-pressable:active:not(:disabled),
+.atlas-launch-glow.atlas-pressable:active:not(:disabled) {
+  transform: translateY(-3px) scale(1.015);
+  opacity: 1;
+  filter: brightness(1.04);
+  box-shadow: 0 8px 24px var(--atlas-press-shadow), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
 .atlas-launch-cta:focus-visible,
 .atlas-launch-glow:focus-visible {
   outline: none;
@@ -255,6 +307,10 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .atlas-launch-cta,
   .atlas-launch-glow { animation: none !important; background-size: 100% 100%; background-position: 50% 50%; }
+  .atlas-launch-cta::before,
+  .atlas-launch-glow::before { animation: none !important; transition: none !important; }
+  .atlas-launch-cta:active,
+  .atlas-launch-glow:active { transform: none !important; }
 }
 
 /* Shimmer loading */
@@ -670,6 +726,14 @@ html.light {
   --atlas-focus: #7c111a;
   --atlas-warning: #ba9c7b;
   --atlas-danger: #7c111a;
+  --atlas-flow-1: #3e181b;
+  --atlas-flow-2: #7c111a;
+  --atlas-flow-3: #083322;
+  --atlas-flow-4: #ba9c7b;
+  --atlas-press-shadow: rgba(62, 24, 27, 0.22);
+  --atlas-flash-strong: rgba(124, 17, 26, 0.34);
+  --atlas-flash-soft: rgba(186, 156, 123, 0.28);
+  --atlas-flash-clear: rgba(124, 17, 26, 0);
 }
 
 /* Hard overrides for literal Tailwind colors left in older pages/components. */
@@ -795,6 +859,14 @@ html.light .atlas-launch-glow:hover {
   background: #7c111a !important;
   border-color: #7c111a !important;
   box-shadow: 0 7px 22px rgba(124,17,26,.20);
+}
+html.light .atlas-launch-cta:active:not(:disabled),
+html.light .atlas-launch-glow:active:not(:disabled) {
+  box-shadow: 0 8px 24px var(--atlas-press-shadow), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+html.light .atlas-launch-cta.atlas-click-flash,
+html.light .atlas-launch-glow.atlas-click-flash {
+  animation: atlas-click-flash 480ms cubic-bezier(0.2, 1, 0.32, 1);
 }
 
 html.light .atlas-live-dot {
