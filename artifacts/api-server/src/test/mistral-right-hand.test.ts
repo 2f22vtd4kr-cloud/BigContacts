@@ -21,6 +21,18 @@ describe("Mistral Right-hand control-plane boundary", () => {
     else process.env.MISTRAL_RIGHT_HAND_API_KEY = originalKey;
   });
 
+  it("does not consume the Investigator MISTRAL_API_KEY credential", () => {
+    const rightHandKey = process.env.MISTRAL_RIGHT_HAND_API_KEY;
+    const investigatorKey = process.env.MISTRAL_API_KEY;
+    delete process.env.MISTRAL_RIGHT_HAND_API_KEY;
+    process.env.MISTRAL_API_KEY = "investigator-only-key";
+    expect(getMistralRightHandStatus().configured).toBe(false);
+    if (rightHandKey === undefined) delete process.env.MISTRAL_RIGHT_HAND_API_KEY;
+    else process.env.MISTRAL_RIGHT_HAND_API_KEY = rightHandKey;
+    if (investigatorKey === undefined) delete process.env.MISTRAL_API_KEY;
+    else process.env.MISTRAL_API_KEY = investigatorKey;
+  });
+
   it("reports Mistral as the independent Right-hand provider", () => {
     const status = getMistralRightHandStatus();
     expect(status.provider).toBe("mistral");
