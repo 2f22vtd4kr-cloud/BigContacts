@@ -38,7 +38,7 @@ describe("Mistral Right-hand control-plane boundary", () => {
       }), { status: 200 }));
 
     const result = await runMistralRightHandFreeJson(
-      "Return {"ok":true}.",
+      'Return {"ok":true}.',
       "Return exactly one JSON object.",
       { type: "json_schema", schema: {
         type: "object",
