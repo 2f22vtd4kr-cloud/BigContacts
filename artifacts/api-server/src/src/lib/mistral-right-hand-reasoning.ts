@@ -14,7 +14,7 @@ export const MISTRAL_RIGHT_HAND_MODEL = "mistral-small-2603";
 export const MISTRAL_RIGHT_HAND_FALLBACK_MODELS: readonly string[] = ["mistral-small-latest"];
 const MISTRAL_MODELS_API = "https://api.mistral.ai/v1/models";
 const MISTRAL_CHAT_API = "https://api.mistral.ai/v1/chat/completions";
-const MISTRAL_KEY_ENV = "MISTRAL_API_KEY";
+const MISTRAL_KEY_ENV = "MISTRAL_RIGHT_HAND_API_KEY";
 const MISTRAL_KEY_NAMES = [MISTRAL_KEY_ENV, ...Array.from({ length: 4 }, (_, i) => `${MISTRAL_KEY_ENV}_${i + 2}`)];
 const DEFAULT_REQUEST_TIMEOUT_MS = 20_000;
 const DEFAULT_OVERALL_TIMEOUT_MS = 120_000;
@@ -83,7 +83,7 @@ function extractText(payload:unknown):string{
 function retryAfterMs(response:Response,fallback:number){const raw=response.headers.get("retry-after")?.trim();if(!raw)return fallback;const n=Number(raw);if(Number.isFinite(n)&&n>=0)return Math.min(5000,Math.floor(n*1000));return fallback;}
 
 async function request(system:string,user:string,format?:Record<string,unknown>):Promise<{raw:string;error:string|null;model:string}>{
- const entries=keyEntries(); if(!entries.length)return {raw:"",error:"MISTRAL_API_KEY is not configured.",model:MISTRAL_RIGHT_HAND_MODEL};
+ const entries=keyEntries(); if(!entries.length)return {raw:"",error:"MISTRAL_RIGHT_HAND_API_KEY is not configured.",model:MISTRAL_RIGHT_HAND_MODEL};
  const configRequest=requestTimeoutMs(), configOverall=overallTimeoutMs(), deadline=Date.now()+configOverall;
  const normalizedUser=user.trim(); if(normalizedUser.length>MAX_PROMPT_CHARS)return {raw:"",error:`Mistral Right-hand prompt exceeds the bounded control-plane budget of ${MAX_PROMPT_CHARS} characters; upstream case-context compaction is required.`,model:MISTRAL_RIGHT_HAND_MODEL};
  const systemPrompt=`${apexOrientationCompact("right_hand")}\\n\\n${system}`;
@@ -265,7 +265,7 @@ export async function runMistralRightHandReadiness(): Promise<{
   model: string; candidateModels: string[]; httpStatus: number | null; error: string | null;
 }> {
   const entries = keyEntries();
-  if (!entries.length) return { provider: "mistral", configured: false, status: "pending", model: MISTRAL_RIGHT_HAND_MODEL, candidateModels: [], httpStatus: null, error: "MISTRAL_API_KEY is not configured." };
+  if (!entries.length) return { provider: "mistral", configured: false, status: "pending", model: MISTRAL_RIGHT_HAND_MODEL, candidateModels: [], httpStatus: null, error: "MISTRAL_RIGHT_HAND_API_KEY is not configured." };
   for (const entry of entries) {
     try {
       const response = await fetch(MISTRAL_MODELS_API, { headers: { Accept: "application/json", Authorization: `Bearer ${entry.key}` }, signal: AbortSignal.timeout(MODEL_CATALOG_TIMEOUT_MS) });
