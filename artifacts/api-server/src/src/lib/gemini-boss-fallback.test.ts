@@ -4,26 +4,26 @@ import {
   type GeminiBossAttemptDiagnostic,
 } from "./case-bureau";
 
-describe("Gemini Boss fallback diagnostics", () => {
+describe("Boss fallback diagnostics", () => {
   it("preserves model/status/provider-code attribution in attempt order", () => {
     const attempts: GeminiBossAttemptDiagnostic[] = [
       {
-        model: "gemini-3.8-flash",
-        keyName: "GEMINI_API_KEY",
+        model: "openai/gpt-oss-120b",
+        keyName: "GROQ_API_KEY",
         httpStatus: 503,
         providerErrorCode: null,
         failureClass: "provider_unavailable",
       },
       {
-        model: "gemini-3.5-flash",
-        keyName: "GEMINI_API_KEY",
+        model: "openai/gpt-oss-20b",
+        keyName: "GROQ_API_KEY",
         httpStatus: 429,
         providerErrorCode: "rate_limit_exceeded",
         failureClass: "rate_limited",
       },
       {
-        model: "gemini-3.8-flash",
-        keyName: "GEMINI_API_KEY_1",
+        model: "openai/gpt-oss-120b",
+        keyName: "GROQ_API_KEY_1",
         httpStatus: 503,
         providerErrorCode: null,
         failureClass: "provider_unavailable",
@@ -31,21 +31,21 @@ describe("Gemini Boss fallback diagnostics", () => {
     ];
 
     expect(formatGeminiBossAttemptSummary(attempts)).toBe(
-      "gemini-3.8-flash=HTTP 503, gemini-3.5-flash=HTTP 429 (rate_limit_exceeded), gemini-3.8-flash=HTTP 503",
+      "openai/gpt-oss-120b=HTTP 503, openai/gpt-oss-20b=HTTP 429 (rate_limit_exceeded), openai/gpt-oss-120b=HTTP 503",
     );
   });
 
   it("does not expose credential names in the formatted runtime summary", () => {
     const attempts: GeminiBossAttemptDiagnostic[] = [{
-      model: "gemini-3.5-flash",
-      keyName: "GEMINI_API_KEY_12",
+      model: "openai/gpt-oss-20b",
+      keyName: "GROQ_API_KEY_12",
       httpStatus: 503,
       providerErrorCode: null,
       failureClass: "provider_unavailable",
     }];
 
     const summary = formatGeminiBossAttemptSummary(attempts);
-    expect(summary).toBe("gemini-3.5-flash=HTTP 503");
-    expect(summary).not.toContain("GEMINI_API_KEY_12");
+    expect(summary).toBe("openai/gpt-oss-20b=HTTP 503");
+    expect(summary).not.toContain("GROQ_API_KEY_12");
   });
 });
