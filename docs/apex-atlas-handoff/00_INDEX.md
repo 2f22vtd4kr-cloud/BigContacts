@@ -182,3 +182,10 @@ A first CI attempt failed because the newly added workflow step used the wrong r
 The live-runtime blocker is unchanged: the 2026-10-01 canonical Replit run `96a80589-f510-4703-b79f-cd8264e15715` failed at Gemini Boss opening with three HTTP 503 `service_unavailable` responses and produced no admitted research/evidence/entities/cards. The repository now has stronger regression verification, but this does **not** certify live Gemini availability or production readiness.
 
 Do not launch another canonical live research run merely to obtain a green result. Before the next authorized live audit, verify provider readiness/capacity and synchronize the deployment environment to current main. Release remains **NOT GREEN / not production-certified**.
+
+
+## 2026-10-02 Groq Boss migration
+
+New control-plane implementation is documented in [17-groq-boss-migration.md](./17-groq-boss-migration.md).
+
+Boss now routes through Groq GPT-OSS 120B with bounded GPT-OSS 20B fallback. Gemini remains the independent Right-hand. Ordinary system status remains provider-call-free; Groq catalog readiness is an explicit diagnostic only. The canonical live Atlas run remains unverified until a fresh authorized audit reaches the real research/evidence terminal path.
