@@ -101,8 +101,9 @@ Models:
 - bounded fallback `openai/gpt-oss-20b`
 
 Credential:
-- `GROQ_API_KEY`
-- numbered key slots supported.
+- `GROQ_BOSS_API_KEY`
+- numbered Boss slots `GROQ_BOSS_API_KEY_1` through `_10`.
+- Generic `GROQ_API_KEY` remains reserved for Investigator use.
 
 Transport:
 `https://api.groq.com/openai/v1/chat/completions`
@@ -519,8 +520,9 @@ Never rerun just to obtain a green outcome.
 ## 18. Secret rule
 
 Never commit or expose:
-- `GROQ_API_KEY`
-- `MISTRAL_API_KEY`
+- `GROQ_BOSS_API_KEY*`
+- `MISTRAL_RIGHT_HAND_API_KEY*`
+- generic `GROQ_API_KEY` / `MISTRAL_API_KEY` for Investigator only
 - Gemini keys
 - Serper keys
 - DB credentials.
