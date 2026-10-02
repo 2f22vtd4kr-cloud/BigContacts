@@ -16,7 +16,7 @@ There are **two AI layers**, not three:
    - It may independently choose any available search, browser, registry, or OSINT capability.
    - It decides what to investigate next, what evidence matters, when to pivot, and what findings are worthy of promotion.
 
-**DeepSeek/NVIDIA is never an Investigator. Mistral is never an Investigator.**
+**DeepSeek/NVIDIA is never an Investigator. The Mistral Right-hand control role is never an Investigator fallback.**
 
 ## ReAct lifecycle
 
@@ -61,7 +61,7 @@ The living investigation document belongs to the **specific research run for the
 
 The pool means **all configured LLMs that are designated as investigators**. Provider names must never be mistaken for the role itself. Groq and Mistral are current investigator implementations; they are investigators, full stop. They are not an extra decision layer.
 
-Groq owns the Boss control role; Mistral owns the independent Right-hand oversight role. Mistral is never inserted into the Investigator pool by fallback. DeepSeek/NVIDIA is not an active Apex execution path.
+Groq owns the Boss control role; Mistral owns the independent Right-hand oversight role. The Right-hand control invocation is never inserted into the Investigator pool by fallback. DeepSeek/NVIDIA is not an active Apex execution path.
 
 ## Tool surface
 
@@ -99,8 +99,8 @@ Boss + Right-hand are the oversight layer that watches the accumulating work and
 
 1. No fixed search checklist or forced research hop.
 2. No the selected Investigator LLM owns the investigation decision between Boss/Right-hand and the Investigator pool.
-3. No Mistral-as-Investigator fallback and no DeepSeek/NVIDIA execution path.
-4. No Mistral Investigator fallback.
+3. No Right-hand-as-Investigator fallback and no DeepSeek/NVIDIA execution path.
+4. No Right-hand control-model Investigator fallback.
 5. Every tool action is selected by an Investigator LLM, unless Boss/Right-hand explicitly reassign the investigation.
 6. Every action produces a report visible to Boss + Right-hand and appended to the target/run document.
 7. Search/browser vendors are tools, not LLMs.
