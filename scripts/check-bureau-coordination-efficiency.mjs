@@ -10,7 +10,7 @@ const boss = fs.readFileSync(path.join(root, "artifacts/api-server/src/src/lib/c
 const rightHandRequired = [
   "MISTRAL_RIGHT_HAND_MODEL",
   "case_file_reasoning_only",
-  "max_output_tokens: 512",
+  "max_tokens:512",
   "You are Apex Atlas Right Hand. Reason only over the supplied case file.",
   "Never browse, use external research, or invent evidence",
   "compactCase(file: ResearchCaseFile)",
@@ -24,8 +24,8 @@ for (const marker of rightHandRequired) {
 
 const bossRequired = [
   "=== BUREAU CHAIN OF COMMAND / SHARED MIND ===",
-  "RIGHT-HAND (Gemini) = diagnostic strategist",
-  "BOSS (Gemini) = head investigator and integrator",
+  "RIGHT-HAND (Mistral) = diagnostic strategist",
+  "BOSS (Groq GPT-OSS 120B) = head investigator and integrator",
   "INVESTIGATOR (Groq/Mistral) = execution intelligence",
   "=== MOUNTING CASE STATE / COORDINATION LEDGER ===",
   "What is newly known since the previous iteration?",
