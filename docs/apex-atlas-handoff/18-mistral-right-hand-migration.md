@@ -11,7 +11,7 @@ The Right-hand remains an independent oversight role. It does not browse, select
 
 ## Transport and credentials
 The adapter is artifacts/api-server/src/src/lib/mistral-right-hand-reasoning.ts.
-- credential: MISTRAL_API_KEY (plus numbered slots)
+- credential: MISTRAL_RIGHT_HAND_API_KEY (plus `MISTRAL_RIGHT_HAND_API_KEY_2` through `_5`); the generic `MISTRAL_API_KEY` remains reserved for the Mistral Investigator
 - catalog: Mistral /v1/models
 - generation: Mistral /v1/chat/completions
 - structured output: JSON Schema
