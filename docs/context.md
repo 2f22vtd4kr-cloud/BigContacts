@@ -247,13 +247,14 @@ The last known canonical runtime audit was blocked because the required Apex pro
 
 ## 13. Active secret contract
 
-Exactly 13 active provider/integration names:
+Active provider/integration names include role-scoped control-plane credentials plus generic Investigator credentials:
 
 ```
 REDIS_URL_1
 GROQ_API_KEY
-GEMINI_API_KEY
+GROQ_BOSS_API_KEY
 MISTRAL_API_KEY
+MISTRAL_RIGHT_HAND_API_KEY
 HF_TOKEN
 SERPER_API_KEY
 TAVILY_API_KEY
@@ -262,7 +263,7 @@ EXA_API_KEY
 SCRAPFLY_API_KEY
 ZENROWS_API_KEY
 COMPANIES_HOUSE_API_KEY
-GEMINI_RIGHT_HAND_API_KEY
+
 ```
 
 Separate deployment/browser security controls:
@@ -623,7 +624,7 @@ The canonical Boss provider has been changed from Gemini to Groq after repeated 
 - `artifacts/api-server/src/src/lib/groq-boss.ts`
 - primary model: `openai/gpt-oss-120b`
 - bounded fallback: `openai/gpt-oss-20b`
-- credential: `GROQ_API_KEY` (with numbered Groq key slots supported)
+- Boss credential: `GROQ_BOSS_API_KEY` (plus `_1` through `_10`); generic `GROQ_API_KEY` remains reserved for Investigator use.
 - transport: Groq OpenAI-compatible Chat Completions API
 
 Gemini remains the independent Right-hand oversight provider. The Investigator remains the existing model-owned Groq/Mistral research layer. The Boss does not gain web-search or Investigator authority merely because Groq supports browser tools; the canonical Boss request is text/control-only.
@@ -641,7 +642,7 @@ The canonical release state remains **NOT GREEN / NOT production-certified** unt
 
 The canonical Right-hand provider is now Mistral Small 4 (mistral-small-2603), with mistral-small-latest as a bounded catalog fallback. Groq remains the Boss; the Investigator remains the existing model-owned Groq/Mistral research layer. The Right-hand is oversight only and has no research-tool authority.
 
-The adapter is artifacts/api-server/src/src/lib/mistral-right-hand-reasoning.ts, uses MISTRAL_API_KEY (plus numbered slots), Mistral /v1/models for capability discovery, and /v1/chat/completions for bounded JSON control. Prompts are capped at 20,000 characters and oversized model-facing context fails closed rather than silently discarding durable evidence. Ordinary /api/system/status remains provider-call-free; POST /api/system/diagnostics/mistral-readiness is the explicit catalog-only diagnostic.
+The adapter is artifacts/api-server/src/src/lib/mistral-right-hand-reasoning.ts, uses MISTRAL_RIGHT_HAND_API_KEY (plus `_2` through `_5`), while the generic MISTRAL_API_KEY remains reserved for the Investigator, Mistral /v1/models for capability discovery, and /v1/chat/completions for bounded JSON control. Prompts are capped at 20,000 characters and oversized model-facing context fails closed rather than silently discarding durable evidence. Ordinary /api/system/status remains provider-call-free; POST /api/system/diagnostics/mistral-readiness is the explicit catalog-only diagnostic.
 
 gemini-right-hand-reasoning.ts is now only a compatibility shim and contains no Gemini transport. The canonical boundary gate is scripts/check-mistral-right-hand-model-boundary.mjs and the regression suite is mistral-right-hand.test.ts.
 
