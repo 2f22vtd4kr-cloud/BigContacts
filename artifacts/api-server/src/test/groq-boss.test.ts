@@ -114,6 +114,23 @@ describe("Groq Boss control-plane adapter", () => {
     expect(result.attempts).toHaveLength(0);
   });
 
+  it("fails closed when upstream context compaction still exceeds the Boss prompt budget", async () => {
+    process.env.GROQ_API_KEY = "test-groq-key";
+    const fetchMock = vi.spyOn(globalThis, "fetch");
+    const result = await generateGroqBossText({
+      model: GROQ_BOSS_MODEL,
+      status: "resolved",
+      inspectedKeyCount: 1,
+      candidateCount: 1,
+      candidateModels: [GROQ_BOSS_MODEL],
+      keyName: "GROQ_API_KEY",
+    }, "x".repeat(20_001), { maxOutputTokens: 128, thinkingLevel: "low" });
+
+    expect(result.raw).toBeNull();
+    expect(result.error).toContain("upstream case-context compaction is required");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it("does not spin on a long 429 retry window", async () => {
     process.env.GROQ_API_KEY = "test-groq-key";
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
