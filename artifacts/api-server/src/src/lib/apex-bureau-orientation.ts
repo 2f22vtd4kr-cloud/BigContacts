@@ -84,6 +84,6 @@ export function apexOrientationCompact(role: ApexOrientationRole): string {
 }
 
 // PROMOTION LAW
-// Investigator (Groq→Groq) decides who/what is worth promoting via structured findings.
+// Investigator (Groq) decides who/what is worth promoting via structured findings.
 // Deterministic code validates identity/provenance/scope and persists that decision.
-// Boss/Groq and Groq right-hand never promote. Search providers never promote.
+// Boss and Groq Right-hand never promote. Search providers never promote.
