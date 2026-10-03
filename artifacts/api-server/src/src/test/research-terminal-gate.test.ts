@@ -15,7 +15,7 @@ function context(independentSourceUnits: number): IntelligenceContext {
     contacts: [],
     negativeFindings: [],
     openQuestions: [],
-    recentActions: [],
+    recentActions: [{ turn: 1, action: "visit", args: { url: "https://same.example/a" }, execution: "success", observation: "Observed source page", urls: ["https://same.example/a"], findingCount: 1, useful: true, informationGain: 0.8 }],
     sourceDiversity: 2,
     sourceFamilyDiversity: 1,
     repeatedSourceFamilies: [],
@@ -56,7 +56,7 @@ describe("research terminal gate", () => {
   it("uses lineage-aware independent source units rather than raw host count", () => {
     const result = evaluateResearchTerminal(context(2), "target");
     expect(result.allowed).toBe(true);
-    expect(result.metrics.independentSourceUnits).toBe(2);
+    expect(result.metrics.independentSourceUnits).toBe(2);\n    expect(result.metrics.directSourceActions).toBe(1);
   });
 
   it("still blocks terminal admission when lineage resolves to one source unit", () => {
