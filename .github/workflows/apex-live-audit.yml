@@ -93,14 +93,14 @@ jobs:
           JOB_ID="$(node -p 'require("/tmp/launch.json").jobId')"
           for i in $(seq 1 120); do
             sleep 5
-            curl -sS -m 10 -H "Authorization: Bearer $APEX_API_AUTH_TOKEN" "http://127.0.0.1:8080/api/ingest/job/$JOB_ID" > /tmp/job.json
+            curl -sS -m 10 "http://127.0.0.1:8080/api/ingest/job/$JOB_ID" > /tmp/job.json
             STATUS="$(node -p 'require("/tmp/job.json").status || ""')"
             if [ "$STATUS" = "done" ]; then break; fi
             if [ "$STATUS" = "failed" ] || [ "$STATUS" = "cancelled" ]; then cat /tmp/job.json; exit 2; fi
           done
           node -e 'const x=require("/tmp/job.json");if(x.status!=="done"){console.error(x);process.exit(1)}'
-          curl -sS -m 20 -H "Authorization: Bearer $APEX_API_AUTH_TOKEN" "http://127.0.0.1:8080/api/entities?type=HNWI&limit=100" > /tmp/entities.json
-          curl -sS -m 20 -H "Authorization: Bearer $APEX_API_AUTH_TOKEN" "http://127.0.0.1:8080/api/ingest/atlas-trace/$JOB_ID" > /tmp/atlas-trace.json
+          curl -sS -m 20 "http://127.0.0.1:8080/api/entities?type=HNWI&limit=100" > /tmp/entities.json
+          curl -sS -m 20 "http://127.0.0.1:8080/api/ingest/atlas-trace/$JOB_ID" > /tmp/atlas-trace.json
       - name: Audit live Bureau
         if: always()
         run: node scripts/audit-live-bureau.mjs
