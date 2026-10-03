@@ -100,3 +100,16 @@ After setup, the API build guards passed, the app served `/`, `/api/healthz` and
 ## Run outcome
 
 **Stopped at the first live failure boundary.** The one default UI-equivalent launch was accepted, persisted a Groq Boss opening assignment, then failed closed when the Mistral Right-hand returned a `rate_limited` classification. Discovery, research, evidence, and card creation were not reached. The final ledger contains one discovery case and one opening event, but no entities or evidence. No card was available to star, and no retry was made.
+## 014 — Post-run source reconciliation and committed remediation
+
+- **UTC timestamp:** 2026-10-03T11:45Z onward.
+- **Action:** Reconciled the live-audit diagnosis against the actual GitHub `main` source rather than relying on the imported Replit workspace state.
+- **Confirmed source defect:** the canonical Groq Right-hand adapter on `main` still sent the unsupported GPT-OSS request field `reasoning_format:"hidden"`. The earlier claimed fix was not present on `main`.
+- **Confirmed source defect:** the canonical discovery compactor clipped individual fields but did not enforce a total serialized discovery-context budget. The Right-hand's existing 20,000-character guard could therefore fail closed before reaching Groq.
+- **Implementation committed and merged:** PR #460, merge commit `cdf7a08e9b1d8ff56f1e9331ef31763769d58a9b`.
+  - Right-hand now sends `reasoning_effort:"medium"` with `include_reasoning:false`, never `reasoning_format`.
+  - Discovery context now uses progressively smaller deterministic profiles, bounds source URLs and organization-footprint notes, preserves the newest investigator report, and enforces a hard 20,000-character user-prompt budget with a 1,024-character reserve.
+  - Offline regression coverage was added for both the request shape and oversized discovery context.
+- **Additional committed reconciliation:** the health route no longer reports a fake Gemini Right-hand lane; README and living context now describe the canonical Groq-only control plane and retired operator authentication.
+- **Verification:** the PR's Netlify deploy-preview status for commit `8428cf1a27ed8ffba79e3c47589df3a6e3599ae0` reached `success`. No live provider request was made as part of the source remediation.
+- **Live-run status limitation:** the audit's last recorded job remains `78d032e0-6878-4276-aeb5-5ac5371b11e9` at the accepted-launch boundary. The GitHub repository does not contain the Replit runtime job state, and the Replit App connector did not expose the imported application by searchable app ID in this session, so no terminal state is invented and no second launch is issued.
