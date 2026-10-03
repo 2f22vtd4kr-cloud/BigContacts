@@ -8,8 +8,8 @@ export type ResearchQuestion = { id: string; question: string; importance: numbe
 export type ResearchActionCandidate = { id: string; action: string; questionId: string; expectedInformationGain: number; identityDiscrimination: number; evidenceQuality: number; falsificationValue: number; successProbability: number; estimatedLatencyMs: number; estimatedTokenCost: number; estimatedProviderCost: number; sourceDiversityGain: number };
 export type ActionUtility = ResearchActionCandidate & { utility: number };
 export type ActionCalibration = { attempts: number; predictedInformationGain: number; realizedInformationGain: number; absoluteError: number; meanAbsoluteError: number };
-export type EvidenceSufficiencyContract = { minEvidence: number; minIndependentSourceUnits: number; requireExactSpanForFindings: boolean; requireFalsification: boolean; allowOpenQuestions: number; allowHighSeverityContradictions: number };
-export type TerminalGateResult = { allowed: boolean; reasons: string[]; metrics: { evidenceCount: number; independentSourceUnits: number; exactSpanBindings: number; openQuestions: number; highSeverityContradictions: number; falsificationSatisfied: boolean } };
+export type EvidenceSufficiencyContract = { minEvidence: number; minIndependentSourceUnits: number; minDirectSourceActions?: number; requireExactSpanForFindings: boolean; requireFalsification: boolean; allowOpenQuestions: number; allowHighSeverityContradictions: number };
+export type TerminalGateResult = { allowed: boolean; reasons: string[]; metrics: { evidenceCount: number; independentSourceUnits: number; directSourceActions: number; exactSpanBindings: number; openQuestions: number; highSeverityContradictions: number; falsificationSatisfied: boolean } };
 const clamp = (n: number) => Math.max(0, Math.min(1, Number.isFinite(n) ? n : 0));
 export function digest(value: string): string { return createHash("sha256").update(value).digest("hex"); }
 export function canonicalHost(url: string): string | null { try { return new URL(url).hostname.toLowerCase().replace(/^www\\./, ""); } catch { return null; } }
@@ -67,7 +67,7 @@ export function buildResearchQuestion(question: string, importance = 0.7, uncert
 export function evaluateTerminalGate(context: TerminalGateResult["metrics"], contract: EvidenceSufficiencyContract): TerminalGateResult {
   const reasons: string[] = [];
   if (context.evidenceCount < contract.minEvidence) reasons.push("evidence_count_below_" + contract.minEvidence);
-  if (context.independentSourceUnits < contract.minIndependentSourceUnits) reasons.push("independent_source_units_below_" + contract.minIndependentSourceUnits);
+  if (context.independentSourceUnits < contract.minIndependentSourceUnits) reasons.push("independent_source_units_below_" + contract.minIndependentSourceUnits);\n  if (context.directSourceActions < (contract.minDirectSourceActions ?? 0)) reasons.push("direct_source_actions_below_" + (contract.minDirectSourceActions ?? 0));
   if (contract.requireExactSpanForFindings && context.exactSpanBindings < contract.minEvidence) reasons.push("exact_source_span_binding_incomplete");
   if (context.openQuestions > contract.allowOpenQuestions) reasons.push("high_value_research_questions_remain_open");
   if (context.highSeverityContradictions > contract.allowHighSeverityContradictions) reasons.push("high_severity_contradictions_remain");
