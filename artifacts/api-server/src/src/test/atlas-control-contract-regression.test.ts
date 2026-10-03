@@ -5,13 +5,13 @@ import { validateAtlasBossControl, validateAtlasRightHandControl } from "../lib/
 
 const controlSource = readFileSync(resolve(process.cwd(), "src/src/lib/atlas-control-decision.ts"), "utf8");
 const bossSource = readFileSync(resolve(process.cwd(), "src/src/lib/groq-boss.ts"), "utf8");
-const rightHandSource = readFileSync(resolve(process.cwd(), "src/src/lib/mistral-right-hand-reasoning.ts"), "utf8");
+const rightHandSource = readFileSync(resolve(process.cwd(), "src/src/lib/groq-right-hand-reasoning.ts"), "utf8");
 
 describe("Atlas control-plane contract regression", () => {
   it("requires strict structured schemas at both canonical control boundaries", () => {
     expect(controlSource).toContain("ATLAS_RIGHT_HAND_CONTROL_RESPONSE_FORMAT");
     expect(controlSource).toContain("ATLAS_BOSS_CONTROL_RESPONSE_FORMAT");
-    expect(controlSource).toContain("runMistralRightHandFreeJson(");
+    expect(controlSource).toContain("runGroqRightHandFreeJson(");
     expect(controlSource).toContain("generateGroqBossText(selection, prompt, { responseFormat: ATLAS_BOSS_CONTROL_RESPONSE_FORMAT");
     expect(controlSource).toContain('required: ["decision", "reason", "direction", "confidence"]');
     expect(controlSource).toContain('required: ["action", "candidateName", "direction", "reason", "confidence"]');
@@ -27,15 +27,15 @@ describe("Atlas control-plane contract regression", () => {
     expect(controlSource).toContain("const bossContractValid =");
     expect(controlSource).toContain("validateAtlasRightHandControl(rightParsed)");
     expect(controlSource).toContain("validateAtlasBossControl(parsed)");
-    expect(controlSource).toContain("Mistral Right-hand");
+    expect(controlSource).not.toContain("Mistral Right-hand");
     expect(controlSource).toContain("Groq Boss");
     expect(controlSource).toContain("Groq Boss owns Atlas control decisions");
-    expect(controlSource).toContain("Mistral Right-hand provides independent oversight");
+    expect(controlSource).toContain("Groq Right-hand provides independent oversight");
     expect(rightHandSource).toContain("MAX_429_RETRIES_PER_MODEL");
     expect(rightHandSource).toContain("MAX_503_RETRIES_PER_MODEL");
     expect(rightHandSource).toContain("clearTimeout(timer);");
     expect(rightHandSource).toContain("bounded control-plane budget");
-    expect(rightHandSource).toContain("MISTRAL_RIGHT_HAND_API_KEY");
+    expect(rightHandSource).toContain("GROQ_RIGHT_HAND_API_KEY");
     expect(rightHandSource).not.toContain("GEMINI_CHAT_API_BASE");
     expect(rightHandSource).not.toContain("generativelanguage.googleapis.com");
     expect(controlSource).not.toContain("Gemini control decision");
