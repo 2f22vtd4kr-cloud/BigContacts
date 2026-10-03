@@ -547,3 +547,14 @@ Only after current code/CI/runtime boundaries are reconciled should the next aut
 ### One-sentence successor brief
 
 **Apex Atlas is currently Groq GPT-OSS 120B Boss + Mistral Small 4 independent Right-hand + model-owned Groq/Mistral Investigator; both provider migrations are implemented on main, HEAD 44118b6 has API/frontend/discovery gates passing but a stale Gemini-expectation contract test failing, the latest canonical job 6097cdeb-d176-4807-96cb-1c59e334a5e3 has an unobserved terminal state, and release remains NOT GREEN until the stale test, current runtime, and a real evidence-producing terminal audit are verified.**
+
+
+## 2026-10-03 Mistral rate-limit investigation
+
+The latest canonical UI-equivalent run failed at the opening Mistral Right-hand review with a 429/rate-limited classification. The provider detail in that live process was still serialized as `[object Object]`, so that specific run cannot identify the exhausted quota dimension and must not be treated as evidence that the new Right-hand key itself was invalid or exhausted independently.
+
+Current Mistral documentation says API rate limits are organization-level and cover requests/sec, tokens/minute, and tokens/month; API keys are workspace-scoped and inherit workspace/org quota and rate limits. Therefore a newly created Right-hand key can receive a first-request 429 when the shared organization/model/workspace limit is already exhausted. 
+
+The model `mistral-small-2603` is current Mistral Small 4 and supports Chat Completions and structured outputs. The adapter's new diagnostics preserve the model, HTTP status, provider code, non-secret credential fingerprint, Retry-After, rate-limit headers when supplied, retry counts, and redacted provider-body signals. The readiness function's missing closing brace was also repaired.
+
+Current main after this remediation: `29723a8d557518bc00def7ccac5f241eb284a3b3`. No new live Atlas launch was made after the failed 2026-10-03 run. A synchronized preview/workspace must be verified against current main before another authorized run.
