@@ -1,3 +1,20 @@
+# CURRENT OVERRIDE — 2026-10-03
+
+> This section supersedes conflicting provider/control-plane statements later in this historical living-context document. Repository source at the current main HEAD is authoritative.
+>
+> **Current main HEAD:** `c7167daf4c01e537f8628ed8d673df29f77310bd`
+>
+> **Canonical control plane:** Groq Boss (`openai/gpt-oss-120b`, bounded 20B fallback) → Mistral Right-hand (`mistral-small-2603`, then genuinely different Ministral 14B/8B/3B candidates) → model-owned Groq/Mistral Investigator. Gemini is historical/compatibility-only; it is not canonical control transport.
+>
+> **Right-hand credential namespace:** `MISTRAL_RIGHT_HAND_API_KEY[_2.._5]`. Generic `MISTRAL_API_KEY` is Investigator-only. Boss uses `GROQ_BOSS_API_KEY[_1.._10]`; generic `GROQ_API_KEY` is Investigator-only.
+>
+> **Latest provider evidence:** one authorized direct `mistral-small-2603` probe returned HTTP 429 with captured `x-ratelimit-limit-req-minute=0` and `x-ratelimit-remaining-req-minute=0`. This does **not** establish literal permanent zero entitlement. No repeat Small probe or Atlas launch is authorized.
+>
+> **Current implementation:** the Right-hand adapter now rejects a zero-limit 429 for same-model retry, records redacted top-level Mistral error message/type/param/code plus rate-limit headers, and advances through live-catalog candidates from genuinely different Ministral families. Historical `mistral-small-latest` is no longer a production fallback.
+>
+> **Verification status:** source reconciliation and mocked regression coverage are present at the current HEAD. GitHub Actions status for this exact main push is not independently observable through the available workflow connector, so do not call this commit CI-green until a current CI result is actually observed.
+>
+> **Operational rule:** do not launch Apex Atlas or make another live Mistral call without explicit authorization. Provider-level mocked tests must precede any future live experiment.
 # Apex Atlas / BigContacts — Living Context
 
 > **Updated:** 2026-09-20. This is the living engineering, architecture, deployment, and research-quality handoff for the current reviewed Apex Atlas state.
