@@ -5,7 +5,7 @@
 | Role | Canonical model/provider | Responsibility |
 |------|--------------------------|----------------|
 | Boss / Head Investigator | **Groq** | Case direction, assignment, selection of an Investigator LLM, strategic orchestration, ongoing bureau oversight, final case-level judgment |
-| Right-hand | **Mistral** | Separate bounded oversight invocation; critiques the latest act, evidence gaps and research objective; never browses or invents evidence |
+| Right-hand | **Groq** | Separate bounded oversight invocation; critiques the latest act, evidence gaps and research objective; never browses or invents evidence |
 | Investigator LLM pool | **All configured LLMs designated for investigation** | Actual target research: reasoning, queries, pivots, tool use, evidence evaluation, stopping, and promotion recommendations |
 | Non-LLM research tools | **Capability pool** | Serper, Tavily, Exa, HTTP/page visit, Scrapfly, ZenRows, registries, RDAP/WhoisJSON, Holehe, Maigret/Sherlock, theHarvester, etc. |
 | Promotion / integrity | Deterministic TypeScript | Enforces provenance, identity, scope, lifecycle, schema and persistence; never invents research |
@@ -13,7 +13,7 @@
 ## The only two AI layers
 
 ```text
-BOSS (Groq GPT-OSS 120B) + RIGHT-HAND (Mistral)
+BOSS (Groq GPT-OSS 120B) + RIGHT-HAND (Groq)
         │
         │ consult, choose Investigator LLM, suggest capabilities
         ↓
@@ -31,8 +31,8 @@ There is **no additional Investigator decision model** between the Boss/Right-ha
 ## Hard role boundaries
 
 - **Groq = Boss only in the control-plane role.** Never an Investigator fallback.
-- **Mistral Right-hand = oversight only.** DeepSeek/NVIDIA is not an active Apex execution path.
-- **Groq/Mistral/etc. = Investigator models only when configured/designated for the Investigator pool.** They are the investigators themselves, not a separate control layer.
+- **Groq Right-hand = oversight only.** DeepSeek/NVIDIA is not an active Apex execution path.
+- **Groq/Groq/etc. = Investigator models only when configured/designated for the Investigator pool.** They are the investigators themselves, not a separate control layer.
 - **Tavily/Exa/Serper/Scrapfly/ZenRows/etc. = tools.** They are not LLMs and never decide research.
 
 ## Selection and continuous oversight
