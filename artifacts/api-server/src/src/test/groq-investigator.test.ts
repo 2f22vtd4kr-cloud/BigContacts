@@ -65,7 +65,7 @@ describe("Groq Investigator provider boundary", () => {
     expect(calls.map((call) => call.model)).toEqual(["openai/gpt-oss-120b", "openai/gpt-oss-120b"]);
     expect(calls[0]?.body).toMatchObject({ reasoning_effort: "medium", include_reasoning: false });
     expect(calls[0]?.body).not.toHaveProperty("reasoning_format");
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it("accepts an Investigator backup key without requiring the base key", async () => {
