@@ -57,10 +57,9 @@ router.get("/healthz/details", async (_req, res) => {
     const status = getAIKeyStatus();
     const active = (slots: Array<{ state: string }>) => slots.filter((s) => s.state === "active").length;
     const groqRightHand = getGroqRightHandStatus();
-    const rightHand = groqRightHand;
     providers = {
       groq: active(status.groq), gemini: active(status.gemini), perplexity: active(status.perplexity), tavily: active(status.tavily), exa: active(status.exa),
-      groqRightHand: groqRightHand.configured ? 1 : 0, geminiRightHand: rightHand.configured ? 1 : 0,
+      groqRightHand: groqRightHand.configured ? 1 : 0,
       companiesHouse: process.env.COMPANIES_HOUSE_API_KEY ? 1 : 0,
       serper: [process.env.SERPER_API_KEY, process.env.SERPER_API_KEY_2, process.env.SERPER_API_KEY_3, process.env.SERPER_KEY].some((k) => Boolean(k?.trim())) ? 1 : 0,
       scrapfly: process.env.SCRAPFLY_API_KEY ? 1 : 0, zenrows: process.env.ZENROWS_API_KEY ? 1 : 0,
