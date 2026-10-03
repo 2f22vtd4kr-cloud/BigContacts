@@ -102,6 +102,8 @@ describe("Mistral Right-hand control-plane boundary", () => {
     expect(result.error).toContain('"retryAfterMs":5000');
     expect(result.error).toContain('"retryAfterHeader":"10"');
     expect(result.error).toContain('"retry429":0');
+    expect(result.error).toContain('"keyFingerprint":"');
+    expect(result.error).toContain('"rateLimitHeaders":{}');
   });
 
   it("continues readiness across a failed primary credential when a secondary role-scoped key is usable", async () => {
