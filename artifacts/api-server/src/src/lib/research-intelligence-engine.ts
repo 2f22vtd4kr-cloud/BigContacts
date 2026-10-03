@@ -464,9 +464,14 @@ export function renderIntelligenceContext(context: IntelligenceContext, maxChars
   const guidance = "The Investigator owns the research trajectory. Use this state to choose the next discriminating action. Treat hypotheses as hypotheses, facts as evidence-backed claims, contradictions as unresolved, and negative findings as real observations. Do not manufacture evidence. Prefer new independent source families over repeated copies. Repeated source families are a saturation signal, not corroboration. Provider disagreement is an epistemic signal: when search providers diverge, test the discriminator rather than averaging them. Explicitly test what could disprove the leading identity/contact hypothesis and map each action to an unresolved discriminator. Use learned action-yield statistics as weak priors only; observed evidence remains authoritative. Omitted detail remains durable outside this prompt.";
   const body = JSON.stringify(bounded);
   const budget = Math.max(1_000, Math.min(12_000, Math.floor(maxChars)));
-  if (body.length <= budget) return [header, body, "", guidance].join("\n");
-  const available = Math.max(0, budget - header.length - guidance.length - 24);
-  const head = Math.floor(available * 0.62);
+  if (body.length <= budget) {
+    const full = [header, body, "", guidance].join("\n");
+    return full.length <= budget ? full : [header, body.slice(0, Math.max(0, budget - header.length - guidance.length - 2)), guidance].join("\n").slice(0, budget);
+  }
+  const marker = "[INTELLIGENCE CONTEXT BOUND: omitted middle detail remains durable outside this prompt]";
+  const fixedLength = header.length + marker.length + guidance.length + 5;
+  const available = Math.max(0, budget - fixedLength);
+  const head = Math.ceil(available / 2);
   const tail = available - head;
-  return [header, body.slice(0, head), "[INTELLIGENCE CONTEXT BOUND: omitted middle detail remains durable outside this prompt]", body.slice(-tail), "", guidance].join("\n");
+  return [header, body.slice(0, head), marker, body.slice(-tail), "", guidance].join("\n");
 }
