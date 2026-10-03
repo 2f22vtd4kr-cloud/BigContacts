@@ -400,7 +400,7 @@ export async function runGroqRightHandReadiness(): Promise<{
         rateLimitHeaders: {},
         candidateModels: [],
         body: null,
-        thrownError: JSON.stringify(describeThrownProviderError(error)),
+        thrownError: describeThrownProviderError(error),
         error: "model_catalog_request_failed",
       });
     }
