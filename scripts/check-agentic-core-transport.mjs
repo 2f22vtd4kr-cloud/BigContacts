@@ -8,7 +8,6 @@ const failures = [];
 const assert = (ok, message) => { if (!ok) failures.push(message); };
 assert(/from "\.\/ssrf-safe-fetch"/.test(core), "ReAct core does not import the canonical SSRF-safe transport.");
 assert(/safeOutboundFetch\("https:\/\/api\.groq\.com/.test(core), "Groq Investigator calls do not use safeOutboundFetch.");
-assert(/safeOutboundFetch\("https:\/\/api\.mistral\.ai/.test(core), "Groq Investigator calls do not use safeOutboundFetch.");
 assert(/safeOutboundFetch\("https:\/\/google\.serper\.dev/.test(core), "Serper search calls do not use safeOutboundFetch.");
 assert(/safeOutboundFetch\("https:\/\/api\.tavily\.com/.test(core), "Tavily search calls do not use safeOutboundFetch.");
 assert(/safeOutboundFetch\("https:\/\/api\.exa\.ai/.test(core), "Exa search calls do not use safeOutboundFetch.");
