@@ -62,7 +62,7 @@ describe("Groq Investigator provider boundary", () => {
     });
 
     expect(result.status).toBe("completed");
-    expect(calls.map((call) => call.model)).toEqual(["openai/gpt-oss-120b"]);
+    expect(calls.map((call) => call.model)).toEqual(["openai/gpt-oss-120b", "openai/gpt-oss-120b"]);
     expect(calls[0]?.body).toMatchObject({ reasoning_effort: "medium", include_reasoning: false });
     expect(calls[0]?.body).not.toHaveProperty("reasoning_format");
     expect(fetchMock).toHaveBeenCalledTimes(2);
