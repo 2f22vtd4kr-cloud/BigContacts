@@ -13,11 +13,9 @@ import {
 export const GROQ_RIGHT_HAND_MODEL = "openai/gpt-oss-120b";
 export const GROQ_RIGHT_HAND_FALLBACK_MODELS: readonly string[] = [
   "openai/gpt-oss-20b",
-  "openai/gpt-oss-20b",
-  "openai/gpt-oss-20b",
 ];
-const MISTRAL_MODELS_API = "https://api.groq.com/openai/v1/models";
-const MISTRAL_CHAT_API = "https://api.groq.com/openai/v1/chat/completions";
+const GROQ_RIGHT_HAND_MODELS_API = "https://api.groq.com/openai/v1/models";
+const GROQ_RIGHT_HAND_CHAT_API = "https://api.groq.com/openai/v1/chat/completions";
 const GROQ_RIGHT_HAND_KEY_ENV = "GROQ_RIGHT_HAND_API_KEY";
 const GROQ_RIGHT_HAND_KEY_NAMES = [GROQ_RIGHT_HAND_KEY_ENV, ...Array.from({ length: 4 }, (_, i) => `${GROQ_RIGHT_HAND_KEY_ENV}_${i + 2}`)];
 const DEFAULT_REQUEST_TIMEOUT_MS = 20_000;
@@ -69,7 +67,7 @@ async function resolveModelChain(apiKeyOverride?:string):Promise<string[]> {
  const fp=fingerprint(apiKey); const cached=catalogCache.get(fp);
  if(cached&&cached.expiresAt>Date.now())return cached.models.slice(0,MAX_MODEL_ATTEMPTS);
  try {
-  const response=await fetch(MISTRAL_MODELS_API,{headers:{Accept:"application/json",Authorization:`Bearer ${apiKey}`},signal:AbortSignal.timeout(MODEL_CATALOG_TIMEOUT_MS)});
+  const response=await fetch(GROQ_RIGHT_HAND_MODELS_API,{headers:{Accept:"application/json",Authorization:`Bearer ${apiKey}`},signal:AbortSignal.timeout(MODEL_CATALOG_TIMEOUT_MS)});
   if(!response.ok){logger.warn({role:"mistral_right_hand",phase:"model_catalog_failed",httpStatus:response.status},"Groq Right-hand model catalog unavailable");return [];}
   const candidates=catalogCandidates(await response.json());
   if(!candidates.length)return [];
@@ -124,7 +122,7 @@ async function request(system:string,user:string,format?:Record<string,unknown>)
    const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),Math.min(configRequest,Math.max(1000,deadline-Date.now())));
    try{
     await waitForGroqRightHandRequestSlot();
-    const response=await fetch(MISTRAL_CHAT_API,{method:"POST",headers:{Accept:"application/json","Content-Type":"application/json",Authorization:`Bearer ${candidate.entry.key}`},body,signal:controller.signal});
+    const response=await fetch(GROQ_RIGHT_HAND_CHAT_API,{method:"POST",headers:{Accept:"application/json","Content-Type":"application/json",Authorization:`Bearer ${candidate.entry.key}`},body,signal:controller.signal});
     const responseBody=await response.text();
     if(response.status===503&&retry503<MAX_503_RETRIES_PER_MODEL&&Date.now()<deadline){const delay=retryAfterMs(response,750);lastRetryAfterMs=delay;lastRetryAfterHeader=response.headers.get("retry-after");retry503++;await new Promise(r=>setTimeout(r,Math.min(delay,Math.max(0,deadline-Date.now()))));continue;}
     if(response.status===429&&hardRateLimit(response)){const cls=classifyProviderHttpStatus(response.status);const code=providerErrorCode(responseBody);const diagnostic={keyName:candidate.entry.name,model:candidate.model,httpStatus:response.status,providerCode:code,retry429,retry503,retryAfterMs:null,retryAfterHeader:response.headers.get("retry-after"),body:summarizeProviderBody(responseBody),rateLimitHeaders:Object.fromEntries(Array.from(response.headers.entries()).filter(([name])=>name.toLowerCase().startsWith("x-ratelimit-"))),failureClass:cls,keyFingerprint:fingerprint(candidate.entry.key)};failures.push(diagnostic);break;}
@@ -286,7 +284,7 @@ function compactDiscovery(file: DiscoveryCaseFile): string {
     })),
   }, null, 2);
 }
-export function getGroqRightHandStatus(): GroqRightHandStatus { return { configured: keyEntries().length > 0, model: GROQ_RIGHT_HAND_MODEL, fallbackModels: [...GROQ_RIGHT_HAND_FALLBACK_MODELS], endpoint: MISTRAL_CHAT_API, role: "right_hand_advisor", capability: "case_file_reasoning_only", provider: "groq" }; }
+export function getGroqRightHandStatus(): GroqRightHandStatus { return { configured: keyEntries().length > 0, model: GROQ_RIGHT_HAND_MODEL, fallbackModels: [...GROQ_RIGHT_HAND_FALLBACK_MODELS], endpoint: GROQ_RIGHT_HAND_CHAT_API, role: "right_hand_advisor", capability: "case_file_reasoning_only", provider: "groq" }; }
 type GroqReadinessAttemptDiagnostic = {
   keyName: string;
   keyFingerprint: string;
@@ -329,7 +327,7 @@ export async function runGroqRightHandReadiness(): Promise<{
   const attempts: GroqReadinessAttemptDiagnostic[] = [];
   for (const entry of entries) {
     try {
-      const response = await fetch(MISTRAL_MODELS_API, {
+      const response = await fetch(GROQ_RIGHT_HAND_MODELS_API, {
         headers: { Accept: "application/json", Authorization: `Bearer ${entry.key}` },
         signal: AbortSignal.timeout(MODEL_CATALOG_TIMEOUT_MS),
       });
