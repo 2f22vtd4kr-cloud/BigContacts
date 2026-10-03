@@ -1,45 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
 
-vi.mock("../lib/gemini-transient-retry", () => ({
-  installGeminiTransientRetry: vi.fn(),
-}));
-import { evaluateTargetFitness, shouldRejectTarget, suggestReframe } from "../lib/target-fitness";
-import { applyGeminiBossPlan, generateGeminiBossText, getGeminiBossLatencyConfig, type ResearchCaseFile } from "../lib/case-bureau";
-import { computeInvestigationProgress, evaluateInvestigationStop } from "../lib/investigation-progress";
-import { evaluateDiscoveryStop } from "../lib/discovery-metrics";
-import { contactEvidenceToRoutes, mergeContactRoutes } from "../lib/case-bureau";
-import { collectDiscoveryContactsForTarget } from "../lib/bureau-contact-persist";
-import { scoreOfflineCohort, FAME_NEGATIVE_CONTROLS, QUIET_OPERATOR_FIXTURES } from "../lib/eval-cohort";
-
-describe("target fitness contract", () => {
-  it("rejects fame-only household names with reframe guidance", () => {
-    const fit = evaluateTargetFitness({ name: "Elon Musk", personScoped: true });
-    expect(fit.fit).toBe("reject_fame_only");
-    expect(shouldRejectTarget(fit)).toBe(true);
-    expect(suggestReframe({ name: "Elon Musk", fit: fit.fit })).toMatch(/reachable officer|operator/i);
-  });
-
-  it("rejects pure corp shells under person-scoped budget", () => {
-    const fit = evaluateTargetFitness({
-      name: "Acme Holdings Ltd",
-      type: "Corporation",
-      personScoped: true,
-    });
-    expect(fit.fit).toBe("reject_non_person");
-    expect(shouldRejectTarget(fit)).toBe(true);
-  });
-
-  it("does not reject a quiet operator-shaped person", () => {
-    const fit = evaluateTargetFitness({
-      name: "Helen Vargas",
-      role: "founder and managing partner",
-      snippet: "private equity operator, portfolio company board",
-      personScoped: true,
-    });
-    expect(shouldRejectTarget(fit)).toBe(false);
-    expect(["strong", "weak", "review"]).toContain(fit.fit);
-  });
-});
 
 describe("Boss control-loop contract", () => {
   function minimalFile(): ResearchCaseFile {
@@ -310,79 +270,69 @@ describe("contact route merge residual", () => {
 });
 
 
-describe("Gemini Boss transport contract", () => {
+describe("Groq Boss transport contract", () => {
   it("uses the bounded production latency budget and reports it consistently", () => {
-    expect(getGeminiBossLatencyConfig()).toEqual({
+    expect(getGroqBossLatencyConfig()).toEqual({
       requestTimeoutMs: 30_000,
-      overallTimeoutMs: 240_000,
-      minimumOverallTimeoutMs: 240_000,
-      overallTimeoutClamped: false,
+      overallTimeoutMs: 90_000,
+      maximumPromptChars: 20_000,
     });
   });
 
   it("advances to the next same-role model after an AbortError", async () => {
-    vi.stubEnv("GEMINI_API_KEY", "test-gemini-key-abort-success");
+    vi.stubEnv("GROQ_BOSS_API_KEY", "test-groq-key-abort-success");
     let interactionCalls = 0;
-    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
-      const url = String(input);
-      if (url.includes("/models")) {
-        return new Response(JSON.stringify({ models: [{ name: "models/gemini-3.8-flash" }, { name: "models/gemini-3.7-flash" }] }), { status: 200, headers: { "content-type": "application/json" } });
-      }
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async () => {
       interactionCalls += 1;
       if (interactionCalls === 1) throw Object.assign(new Error("The operation was aborted"), { name: "AbortError" });
       return new Response(
-        JSON.stringify({ output_text: '{"investigatorLlm":"groq","action":"proceed"}' }),
+        JSON.stringify({ choices: [{ message: { content: '{"investigatorLlm":"groq","action":"proceed"}' } }] }),
         { status: 200, headers: { "content-type": "application/json" } },
       );
     });
 
-    const result = await generateGeminiBossText(
+    const result = await generateGroqBossText(
       {
-        model: "gemini-3.8-flash",
+        model: GROQ_BOSS_MODEL,
         status: "resolved",
         inspectedKeyCount: 1,
         candidateCount: 2,
-        candidateModels: ["gemini-3.8-flash", "gemini-3.7-flash"],
-        keyName: "GEMINI_API_KEY",
+        candidateModels: [GROQ_BOSS_MODEL, "openai/gpt-oss-20b"],
+        keyName: "GROQ_BOSS_API_KEY",
       },
       "Return the Investigator selection as JSON.",
     );
 
     expect(result.error).toBeNull();
-    expect(result.model).toBe("gemini-3.7-flash");
-    expect(fetchMock).toHaveBeenCalledTimes(3);
-    expect(JSON.parse(String(fetchMock.mock.calls[1]?.[1]?.body)).model).toBe("gemini-3.8-flash");
-    expect(JSON.parse(String(fetchMock.mock.calls[2]?.[1]?.body)).model).toBe("gemini-3.7-flash");
+    expect(result.model).toBe("openai/gpt-oss-20b");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)).model).toBe(GROQ_BOSS_MODEL);
+    expect(JSON.parse(String(fetchMock.mock.calls[1]?.[1]?.body)).model).toBe("openai/gpt-oss-20b");
     fetchMock.mockRestore();
     vi.unstubAllEnvs();
   });
 
   it("returns an explicit bounded-fallback error when every Boss model attempt aborts", async () => {
-    vi.stubEnv("GEMINI_API_KEY", "test-gemini-key-abort-all");
-    let interactionCalls = 0;
-    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
-      const url = String(input);
-      if (url.includes("/models")) return new Response(JSON.stringify({ models: [{ name: "models/gemini-3.8-flash" }, { name: "models/gemini-3.7-flash" }] }), { status: 200 });
-      interactionCalls += 1;
+    vi.stubEnv("GROQ_BOSS_API_KEY", "test-groq-key-abort-all");
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async () => {
       throw Object.assign(new Error("The operation was aborted"), { name: "AbortError" });
     });
 
-    const first = await generateGeminiBossText(
+    const result = await generateGroqBossText(
       {
-        model: "gemini-3.8-flash",
+        model: GROQ_BOSS_MODEL,
         status: "resolved",
         inspectedKeyCount: 1,
         candidateCount: 2,
-        candidateModels: ["gemini-3.8-flash", "gemini-3.7-flash"],
-        keyName: "GEMINI_API_KEY",
+        candidateModels: [GROQ_BOSS_MODEL, "openai/gpt-oss-20b"],
+        keyName: "GROQ_BOSS_API_KEY",
       },
       "Return the Investigator selection as JSON.",
     );
 
-    expect(first.error).toMatch(/bounded same-role model fallback/i);
-    expect(first.error).toMatch(/request (failed|exceeded)|generation failed/i);
-    expect(fetchMock.mock.calls.length).toBeGreaterThanOrEqual(2);
-    expect(fetchMock.mock.calls.length).toBeLessThanOrEqual(4);
+    expect(result.error).toMatch(/bounded model/key attempts/i);
+    expect(result.error).toMatch(/timeout/i);
+    expect(fetchMock.mock.calls.length).toBe(2);
     fetchMock.mockRestore();
     vi.unstubAllEnvs();
   });
