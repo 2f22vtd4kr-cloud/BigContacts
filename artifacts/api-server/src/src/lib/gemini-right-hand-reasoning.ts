@@ -1,21 +1,2 @@
-/**
- * Compatibility shim.
- * The canonical Apex Atlas Right-hand provider is Mistral.
- */
-export {
-  getMistralRightHandStatus as getGeminiRightHandStatus,
-  runMistralRightHandCaseReasoning as runGeminiRightHandCaseReasoning,
-  runMistralRightHandDiscoveryAdvice as runGeminiRightHandDiscoveryAdvice,
-  runMistralRightHandFreeJson as runGeminiRightHandFreeJson,
-  runMistralRightHandFinalReview as runGeminiRightHandFinalReview,
-  runMistralRightHandReadiness as runGeminiRightHandReadiness,
-  MISTRAL_RIGHT_HAND_MODEL as GEMINI_RIGHT_HAND_MODEL,
-  MISTRAL_RIGHT_HAND_FALLBACK_MODELS as GEMINI_RIGHT_HAND_FALLBACK_MODELS,
-} from "./mistral-right-hand-reasoning";
-export type {
-  MistralRightHandCaseReasoningResult as GeminiRightHandCaseReasoningResult,
-  MistralRightHandStatus as GeminiRightHandStatus,
-  MistralRightHandDiscoveryAdviceResult as GeminiRightHandDiscoveryAdviceResult,
-  MistralRightHandLatencyConfig as GeminiRightHandLatencyConfig,
-} from "./mistral-right-hand-reasoning";
-export { getMistralRightHandLatencyConfig as getGeminiRightHandLatencyConfig } from "./mistral-right-hand-reasoning";
+/** Compatibility-only export. Canonical Right-hand transport is Groq; this file contains no Gemini transport. */
+export * from "./groq-right-hand-reasoning";
