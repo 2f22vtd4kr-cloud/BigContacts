@@ -2,7 +2,7 @@
 
 > This section supersedes all conflicting historical provider/auth statements later in this living-context document. Repository source at the current `main` HEAD is authoritative.
 >
-> **Current main HEAD:** `9980d451367bd0cf67e5311b0b2d88e050665812`
+> **Current main HEAD:** `936a3802fcc69b44113b1f78df740f050b252db4`
 >
 > **Canonical control plane:** Groq Boss (`openai/gpt-oss-120b`, bounded 20B fallback) → Groq Right-hand (`openai/gpt-oss-120b`, bounded 20B fallback) → Groq Investigator (`qwen/qwen3.8-27b`, bounded GPT-OSS fallbacks).
 >
@@ -11,6 +11,8 @@
 > **Operator authentication is retired from the Apex desk/API.** The browser has no operator sign-in wall, the API does not mount operator-auth middleware, and `APEX_API_AUTH_TOKEN`, `APEX_OPERATOR_PASSWORD`, `APEX_SESSION_SECRET`, and `APEX_DEV_AUTH_BYPASS` are not active runtime requirements.
 >
 > **Groq GPT-OSS request contract:** Right-hand requests use `reasoning_effort` plus `include_reasoning:false`; they do not send the unsupported `reasoning_format` field. Discovery context is progressively compacted under a hard 20,000-character user-prompt boundary with a 1,024-character safety reserve.
+>
+> **Groq retry/control contract:** Right-hand and Investigator transient 429 retry ownership is explicit at the caller boundary; authoritative request-quota 429s are not converted into same-role key rotation. The canonical target-research path contains no hidden Gemini evidence probe or Gemini fetch retry shim, and research redirects are provider/tool-neutral.
 >
 > **Verification rule:** provider capacity is never inferred from configured-key status. No live provider request or Atlas launch is part of the source changes recorded after the 2026-10-03 live-run failures unless explicitly documented in the sequential audit.
 >
