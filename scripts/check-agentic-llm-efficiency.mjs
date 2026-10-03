@@ -8,9 +8,9 @@ const source = fs.readFileSync(target, "utf8");
 const required = [
   'from "./agentic-llm-telemetry"',
   "recordAgenticLlmAttempt({",
-  "export async function resolveMistralChatModels",
+  "export async function callGroqJson",
   "card.capabilities?.completion_chat === true",
-  "const models = await resolveMistralChatModels(key, signal)",
+  "const models = await callGroqJson(key, signal)",
   "for (const model of models)",
   "if (response.status === 401 || response.status === 403) break;",
   "if (response.status === 429) {",
