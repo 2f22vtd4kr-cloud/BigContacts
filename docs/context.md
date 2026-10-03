@@ -1,20 +1,15 @@
 # CURRENT OVERRIDE — 2026-10-03
 
-> This section supersedes conflicting provider/control-plane statements later in this historical living-context document. Repository source at the current main HEAD is authoritative.
+> This section supersedes conflicting provider/control-plane statements later in this historical living-context document. Repository source at the current branch is authoritative.
 >
-> **Current main HEAD:** `9818705da6dc20c2950fb9287e8f1894f7a0e572`
+> **Current implementation branch:** `remove-operator-auth-replit` (based on `main` `c31b684eacad9affd6cb46aea1dbc19ef617b059`).
 >
-> **Canonical control plane:** Groq Boss (`openai/gpt-oss-120b`, bounded 20B fallback) → Mistral Right-hand (`mistral-small-2603`, then genuinely different Ministral 14B/8B/3B candidates) → model-owned Groq/Mistral Investigator. Gemini is historical/compatibility-only; it is not canonical control transport.
+> **Canonical control plane:** Groq Boss (`openai/gpt-oss-120b`, bounded 20B fallback) → Groq Right-hand (`openai/gpt-oss-120b`, bounded 20B fallback) → model-owned Groq Investigator.
 >
-> **Right-hand credential namespace:** `MISTRAL_RIGHT_HAND_API_KEY[_2.._5]`. Generic `MISTRAL_API_KEY` is Investigator-only. Boss uses `GROQ_BOSS_API_KEY[_1.._10]`; generic `GROQ_API_KEY` is Investigator-only.
+> **Operator authentication is intentionally removed from the Apex desk/API.** The browser no longer has an operator sign-in wall, the API no longer mounts an operator-auth middleware, and the retired operator password/session/API-auth secrets are not part of the active runtime contract. External provider credentials remain required for their respective provider integrations; removing operator authentication does not remove provider/API-key authentication to Groq or other external services.
 >
-> **Latest provider evidence:** one authorized direct `mistral-small-2603` probe returned HTTP 429 with captured `x-ratelimit-limit-req-minute=0` and `x-ratelimit-remaining-req-minute=0`. This does **not** establish literal permanent zero entitlement. No repeat Small probe or Atlas launch is authorized.
+> **Replit boot is authentication-free at the application boundary.** Do not restore `APEX_DEV_AUTH_BYPASS`, `APEX_API_AUTH_TOKEN`, `APEX_OPERATOR_PASSWORD`, or `APEX_SESSION_SECRET` merely to make the desk run.
 >
-> **Current implementation:** the Right-hand adapter now rejects a zero-limit 429 for same-model retry, records redacted top-level Mistral error message/type/param/code plus rate-limit headers, and advances through live-catalog candidates from genuinely different Ministral families. Historical `mistral-small-latest` is no longer a production fallback.
->
-> **Verification status:** source reconciliation and mocked regression coverage are present at the current HEAD. GitHub Actions status for this exact main push is not independently observable through the available workflow connector, so do not call this commit CI-green until a current CI result is actually observed.
->
-> **Operational rule:** do not launch Apex Atlas or make another live Mistral call without explicit authorization. Provider-level mocked tests must precede any future live experiment.
 # Apex Atlas / BigContacts — Living Context
 
 > **Updated:** 2026-09-20. This is the living engineering, architecture, deployment, and research-quality handoff for the current reviewed Apex Atlas state.
@@ -290,13 +285,7 @@ COMPANIES_HOUSE_API_KEY
 
 ```
 
-Separate deployment/browser security controls:
-
-```
-APEX_API_AUTH_TOKEN
-APEX_OPERATOR_PASSWORD
-APEX_SESSION_SECRET
-```
+Former operator authentication controls `APEX_API_AUTH_TOKEN`, `APEX_OPERATOR_PASSWORD`, and `APEX_SESSION_SECRET` are retired and must not be restored as a Replit workaround.
 
 Do not request or print GitHub credentials, `DATABASE_URL`, DeepSeek/NVIDIA credentials, WHOISJSON credentials, or other retired secrets as part of the active contract.
 
