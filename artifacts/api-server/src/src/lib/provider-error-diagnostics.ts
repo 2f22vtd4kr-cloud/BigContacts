@@ -34,7 +34,6 @@ type ProviderBodyShape = {
   errorKeys: string[];
   errorCode: string | null;
   errorType: string | null;
-  errorMessage: string | null;
   errorMessageChars: number;
   errorParam: string | null;
   errorStatus: string | null;
@@ -44,15 +43,6 @@ type ProviderBodyShape = {
 
 function safeString(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value.trim().slice(0, 80) : null;
-}
-
-function safeDiagnosticMessage(value: unknown): string | null {
-  if (typeof value !== "string" || !value.trim()) return null;
-  return value
-    .trim()
-    .replace(/Bearer\s+[^\s,;]+/gi, "Bearer [REDACTED]")
-    .replace(/((?:api[_-]?key|token|secret)\s*[:=]\s*)[^\s,;]+/gi, "$1[REDACTED]")
-    .slice(0, 240);
 }
 
 export function providerErrorCode(body: string): string | null {
@@ -87,7 +77,6 @@ export function summarizeProviderBody(body: string): ProviderBodyShape {
       errorKeys: [],
       errorCode: null,
       errorType: null,
-      errorMessage: null,
       errorMessageChars: 0,
       errorParam: null,
       errorStatus: null,
@@ -144,7 +133,6 @@ export function summarizeProviderBody(body: string): ProviderBodyShape {
       errorKeys: error ? Object.keys(error).sort().slice(0, 20) : [],
       errorCode: safeString(error?.code) ?? safeString(record.code),
       errorType: safeString(error?.type) ?? safeString(record.type),
-      errorMessage: safeDiagnosticMessage(error?.message) ?? safeDiagnosticMessage(record.message),
       errorMessageChars: message?.length ?? 0,
       errorParam: param,
       errorStatus: status,
