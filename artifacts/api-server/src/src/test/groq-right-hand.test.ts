@@ -18,7 +18,7 @@ describe("Groq Right-hand model policy", () => {
     vi.restoreAllMocks();
   });
 
-  it("uses the canonical Small 4 model with genuine cross-family Ministral fallbacks", () => {
+  it("uses canonical GPT-OSS 120B with bounded GPT-OSS 20B fallback", () => {
     expect(GROQ_RIGHT_HAND_MODEL).toBe("openai/gpt-oss-120b");
     expect(GROQ_RIGHT_HAND_FALLBACK_MODELS).toEqual(["openai/gpt-oss-20b"]);
     expect(GROQ_RIGHT_HAND_FALLBACK_MODELS).not.toContain("mistral-small-latest");
