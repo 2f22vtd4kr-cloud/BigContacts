@@ -112,7 +112,7 @@ describe("Groq Investigator provider boundary", () => {
 
   it("uses the Qwen 3.8 primary routing model without provider fallback", async () => {
     process.env.GROQ_INVESTIGATOR_API_KEY = "test-groq-investigator-key";
-    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (_input, init) => {
+    const fetchMock = mocks.safeOutboundFetch.mockImplementation(async (_input: RequestInfo | URL, init?: RequestInit) => {
       const body = JSON.parse(String(init?.body ?? "{}")) as { model?: string };
       expect(body.model).toBe("qwen/qwen3.8-27b");
       return new Response(JSON.stringify({
