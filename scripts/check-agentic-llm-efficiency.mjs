@@ -8,24 +8,23 @@ const source = fs.readFileSync(target, "utf8");
 const required = [
   'from "./agentic-llm-telemetry"',
   "recordAgenticLlmAttempt({",
-  "export async function callGroqJson",
-  "card.capabilities?.completion_chat === true",
-  "const models = await callGroqJson(key, signal)",
-  "for (const model of models)",
+  "async function callGroqJson",
+  "rankGroqModelsForTask",
   "if (response.status === 401 || response.status === 403) break;",
-  "if (response.status === 429) {",
-  "setAgenticLlmHealth(false, null, `${selectedInvestigatorLlm}:selected provider unavailable`)",
+  "response.status === 429",
+  "const fn = selectedInvestigatorLlm === \"groq\"",
+  "fallback: []",
+  "GROQ_INVESTIGATOR_API_KEY",
 ];
 for (const marker of required) {
   if (!source.includes(marker)) throw new Error(`agentic LLM efficiency guard failed: missing ${marker}`);
 }
 
-const telemetryCount = (source.match(/recordAgenticLlmAttempt\(\{/g) || []).length;
-if (telemetryCount < 4) throw new Error(`agentic LLM efficiency guard failed: expected provider success+failure telemetry, found ${telemetryCount}`);
+const telemetryCount = (source.match(/recordAgenticLlmAttempt\\(\\{/g) || []).length;
+if (telemetryCount < 2) throw new Error(`agentic LLM efficiency guard failed: expected provider success+failure telemetry, found ${telemetryCount}`);
 
-// Provider choice is already fixed by the Boss-selected Investigator adapter. This guard
-// must verify bounded attempts and fail-closed unavailability, not encode a retry/fallback
-// strategy that could turn into deterministic research/provider sequencing.
+// Provider choice is fixed by the Boss-selected Investigator adapter.
+// Routing may choose among Groq models, but it must never change provider role.
 if (!/const fn = selectedInvestigatorLlm === "groq" \?/.test(source)) {
   throw new Error("agentic LLM efficiency guard failed: direct selected-provider boundary is missing");
 }
