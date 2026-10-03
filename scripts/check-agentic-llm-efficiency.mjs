@@ -25,7 +25,7 @@ if (telemetryCount < 2) throw new Error(`agentic LLM efficiency guard failed: ex
 
 // Provider choice is fixed by the Boss-selected Investigator adapter.
 // Routing may choose among Groq models, but it must never change provider role.
-if (!/const fn = selectedInvestigatorLlm === "groq" \?/.test(source)) {
+if (!/const fn = selectedInvestigatorLlm === "groq"/.test(source)) {
   throw new Error("agentic LLM efficiency guard failed: direct selected-provider boundary is missing");
 }
 if (!/return \{ \.\.\.result, fallback: \[\] \}/.test(source)) {
