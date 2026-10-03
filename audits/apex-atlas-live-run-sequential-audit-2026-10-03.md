@@ -233,3 +233,15 @@ This preserves model agency while making expensive control calls episodic rather
 Current Groq documentation confirms Qwen 3.8 supports reasoning, JSON Schema, and tool use, while GPT-OSS 20B/120B require `include_reasoning` instead of `reasoning_format`; strict JSON Schema is supported by Qwen 3.8 and GPT-OSS 20B/120B.
 
 No live provider request, Replit secret access, Atlas launch, or recovery was performed for these source remediations. Backend typecheck/Vitest remain unverified until an actual backend execution surface exposes those results. The next live Atlas launch still requires separate explicit authorization.
+## 028 — Institutional prompt/orientation boundary cleanup
+
+A further canonical-source scan found stale provider identity in `apex-bureau-orientation.ts` and `case-bureau-prompt.ts`. The transport was already Groq, but the model-facing institutional contract still described Gemini as the Boss/Right-hand and retained a dormant Gemini HTTP retry monkey-patch. This was a local architecture defect because the control models could receive contradictory role/provider identity.
+
+Remediation:
+- removed the dormant Gemini fetch retry wrapper from the canonical orientation module;
+- changed Boss/Right-hand role descriptions and compact orientation to Groq/Groq Right-hand;
+- removed stale Gemini/Mistral/Perplexity references from the canonical Boss prompt;
+- corrected the Investigator capability roster wording;
+- strengthened `scripts/check-agentic-source-parity.mjs` so canonical orientation, Boss prompt, wrapper, and Investigator core fail the static audit if retired provider names reappear.
+
+This does not remove historical compatibility modules from the repository. It guarantees the canonical agentic path no longer teaches or invokes those retired providers.
