@@ -1,66 +1,59 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { getGeminiBossLatencyConfig } from "./case-bureau";
-import { getGeminiRightHandLatencyConfig } from "./gemini-right-hand-reasoning";
+import { getGroqBossLatencyConfig } from "./groq-boss";
+import { getMistralRightHandLatencyConfig } from "./mistral-right-hand-reasoning";
 
 const ENV_NAMES = [
-  "APEX_GEMINI_BOSS_REQUEST_TIMEOUT_MS",
-  "APEX_GEMINI_BOSS_OVERALL_TIMEOUT_MS",
-  "APEX_GEMINI_RIGHT_HAND_REQUEST_TIMEOUT_MS",
-  "APEX_GEMINI_RIGHT_HAND_OVERALL_TIMEOUT_MS",
+  "APEX_GROQ_BOSS_REQUEST_TIMEOUT_MS",
+  "APEX_GROQ_BOSS_OVERALL_TIMEOUT_MS",
+  "APEX_MISTRAL_RIGHT_HAND_REQUEST_TIMEOUT_MS",
+  "APEX_MISTRAL_RIGHT_HAND_OVERALL_TIMEOUT_MS",
 ] as const;
 
 afterEach(() => {
   for (const name of ENV_NAMES) delete process.env[name];
 });
 
-describe("Gemini latency configuration", () => {
-  it("does not allow a stale Right-hand overall timeout to defeat the retry recovery budget", () => {
-    process.env.APEX_GEMINI_RIGHT_HAND_OVERALL_TIMEOUT_MS = "55000";
-    const config = getGeminiRightHandLatencyConfig();
-
-    expect(config.overallTimeoutMs).toBe(300_000);
-    expect(config.minimumOverallTimeoutMs).toBe(300_000);
-    expect(config.overallTimeoutClamped).toBe(true);
-  });
-
-  it("does not allow a stale Boss overall timeout to defeat the retry recovery budget", () => {
-    process.env.APEX_GEMINI_BOSS_OVERALL_TIMEOUT_MS = "55000";
-    const config = getGeminiBossLatencyConfig();
-
-    expect(config.overallTimeoutMs).toBe(240_000);
-    expect(config.minimumOverallTimeoutMs).toBe(240_000);
-    expect(config.overallTimeoutClamped).toBe(true);
-  });
-
-  it("preserves higher operator-configured recovery budgets", () => {
-    process.env.APEX_GEMINI_RIGHT_HAND_OVERALL_TIMEOUT_MS = "330000";
-    process.env.APEX_GEMINI_BOSS_OVERALL_TIMEOUT_MS = "280000";
-
-    expect(getGeminiRightHandLatencyConfig()).toMatchObject({
-      overallTimeoutMs: 330_000,
-      overallTimeoutClamped: false,
-    });
-    expect(getGeminiBossLatencyConfig()).toMatchObject({
-      overallTimeoutMs: 280_000,
+describe("Apex control-plane latency configuration", () => {
+  it("keeps Mistral Right-hand overall timeout bounded and above request timeout", () => {
+    process.env.APEX_MISTRAL_RIGHT_HAND_REQUEST_TIMEOUT_MS = "10000";
+    process.env.APEX_MISTRAL_RIGHT_HAND_OVERALL_TIMEOUT_MS = "55000";
+    expect(getMistralRightHandLatencyConfig()).toEqual({
+      requestTimeoutMs: 10000,
+      overallTimeoutMs: 55000,
+      minimumOverallTimeoutMs: 10000,
       overallTimeoutClamped: false,
     });
   });
 
-  it("keeps request timeout bounds independent from the recovery floor", () => {
-    process.env.APEX_GEMINI_RIGHT_HAND_REQUEST_TIMEOUT_MS = "5000";
-    process.env.APEX_GEMINI_RIGHT_HAND_OVERALL_TIMEOUT_MS = "55000";
-    process.env.APEX_GEMINI_BOSS_REQUEST_TIMEOUT_MS = "5000";
-    process.env.APEX_GEMINI_BOSS_OVERALL_TIMEOUT_MS = "55000";
+  it("keeps Groq Boss overall timeout bounded and above request timeout", () => {
+    process.env.APEX_GROQ_BOSS_REQUEST_TIMEOUT_MS = "10000";
+    process.env.APEX_GROQ_BOSS_OVERALL_TIMEOUT_MS = "55000";
+    expect(getGroqBossLatencyConfig()).toMatchObject({
+      requestTimeoutMs: 10000,
+      overallTimeoutMs: 55000,
+      maximumPromptChars: 20000,
+    });
+  });
 
-    expect(getGeminiRightHandLatencyConfig()).toMatchObject({
-      requestTimeoutMs: 10_000,
-      overallTimeoutMs: 300_000,
-      overallTimeoutClamped: true,
-    });
-    expect(getGeminiBossLatencyConfig()).toMatchObject({
-      requestTimeoutMs: 10_000,
-      overallTimeoutMs: 240_000,
-      overallTimeoutClamped: true,
-    });
+  it("preserves higher operator-configured recovery budgets within provider bounds", () => {
+    process.env.APEX_MISTRAL_RIGHT_HAND_OVERALL_TIMEOUT_MS = "150000";
+    process.env.APEX_GROQ_BOSS_OVERALL_TIMEOUT_MS = "150000";
+    expect(getMistralRightHandLatencyConfig().overallTimeoutMs).toBe(150000);
+    expect(getGroqBossLatencyConfig().overallTimeoutMs).toBe(150000);
+  });
+
+  it("clamps request and overall timeouts to their implementation bounds", () => {
+    process.env.APEX_MISTRAL_RIGHT_HAND_REQUEST_TIMEOUT_MS = "1000";
+    process.env.APEX_MISTRAL_RIGHT_HAND_OVERALL_TIMEOUT_MS = "1000";
+    process.env.APEX_GROQ_BOSS_REQUEST_TIMEOUT_MS = "1000";
+    process.env.APEX_GROQ_BOSS_OVERALL_TIMEOUT_MS = "1000";
+
+    const mistral = getMistralRightHandLatencyConfig();
+    const groq = getGroqBossLatencyConfig();
+    expect(mistral.requestTimeoutMs).toBe(5000);
+    expect(mistral.overallTimeoutMs).toBe(5000);
+    expect(mistral.overallTimeoutClamped).toBe(true);
+    expect(groq.requestTimeoutMs).toBe(5000);
+    expect(groq.overallTimeoutMs).toBe(5000);
   });
 });
