@@ -161,7 +161,7 @@ function groqResponseFormat(input?: Record<string, unknown>): Record<string, unk
 
 function normalizeReasoningEffort(value?: string): "low" | "medium" | "high" {
   if (value === "high" || value === "medium" || value === "low") return value;
-  // Gemini's former "minimal" control setting has no GPT-OSS equivalent.
+  // The former "minimal" control setting has no GPT-OSS equivalent.
   return "low";
 }
 
