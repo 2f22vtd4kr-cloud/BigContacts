@@ -2,7 +2,7 @@
 
 > This section supersedes all conflicting historical provider/auth statements later in this living-context document. Repository source at the current `main` HEAD is authoritative.
 >
-> **Current main HEAD:** `8b4d314596b7c095dcfcc397034e96d25b03716b`
+> **Current main HEAD:** `ebfacc264969f1e7802f4da277de39aa85b6e628` (documentation-only commit; canonical runtime source parent is `8b4d314596b7c095dcfcc397034e96d25b03716b`)
 >
 > **Canonical control plane:** Groq Boss (`openai/gpt-oss-120b`, bounded 20B fallback) → Groq Right-hand (`openai/gpt-oss-120b`, bounded 20B fallback) → Groq Investigator (`qwen/qwen3.8-27b`, bounded GPT-OSS fallbacks).
 >

@@ -270,3 +270,11 @@ This is the correct optimization target for Apex: deterministic evidence law aro
 - **No live activity:** no provider request, provider readiness probe, Atlas launch, continuation, recovery, or secret access was performed.
 - **Documentation reconciliation:** `docs/context.md` and `README.md` had stale canonical-provider/current-HEAD text. They were updated on this branch to reflect the current Groq-only control plane and current main SHA, while retaining historical sections as historical record.
 - **Next gate:** do not launch Apex from this documentation pass. Backend execution verification must be obtained through an actual repository/runtime test surface, then a fresh synchronized Replit runtime can be considered for a separately authorized single live Atlas run.
+
+
+## 031 — Documentation merge HEAD finalization
+
+- PR #470 merged the current-main reconciliation as `ebfacc264969f1e7802f4da277de39aa85b6e628`.
+- This merge is documentation-only; the runtime source state it documents is unchanged from its parent `8b4d314596b7c095dcfcc397034e96d25b03716b`.
+- No provider request, readiness probe, Atlas launch, continuation, recovery, or secret access occurred.
+- Backend typecheck/Vitest remain unverified through the connected execution surfaces.
