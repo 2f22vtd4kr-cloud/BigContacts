@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { getGroqBossLatencyConfig } from "./groq-boss";
-import { getGroqRightHandLatencyConfig } from "./mistral-right-hand-reasoning";
+import { getGroqRightHandLatencyConfig } from "./groq-right-hand-reasoning";
 
 const ENV_NAMES = [
   "APEX_GROQ_BOSS_REQUEST_TIMEOUT_MS",
