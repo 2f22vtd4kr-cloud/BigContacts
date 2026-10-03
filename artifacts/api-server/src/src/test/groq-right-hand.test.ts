@@ -59,6 +59,11 @@ describe("Groq Right-hand model policy", () => {
 
       const body = JSON.parse(String(init?.body));
       if (body.model === "openai/gpt-oss-120b") {
+        expect(body.reasoning_effort).toBe("medium");
+        expect(body.include_reasoning).toBe(false);
+        expect(body).not.toHaveProperty("reasoning_format");
+      }
+      if (body.model === "openai/gpt-oss-120b") {
         return new Response(JSON.stringify({
           object: "error",
           message: "rate limit exceeded",
