@@ -16,6 +16,7 @@ import { evaluateResearchTerminal } from "./research-terminal-gate";
 import {
   classifyProviderHttpStatus,
   classifyThrownProviderError,
+  describeThrownProviderError,
   digestDiagnosticText,
   summarizeProviderBody,
   type ProviderFailureClass,
@@ -120,7 +121,7 @@ export async function webSearchSerper(query: string, locale?: string, market?: s
     try {
       data = JSON.parse(responseBody) as typeof data;
     } catch {
-      logger.warn({ provider: "serper", query, locale: locale || null, market: market || null, outcome: "INVALID_JSON", httpStatus: response.status, responseBytes: Buffer.byteLength(responseBody), elapsedMs }, "agentic provider search returned invalid JSON");
+      logger.warn({ provider: "serper", queryChars: query.length, queryDigest: digestDiagnosticText(query), localeProvided: Boolean(locale?.trim()), marketProvided: Boolean(market?.trim()), outcome: "INVALID_JSON", httpStatus: response.status, responseBytes: Buffer.byteLength(responseBody), elapsedMs }, "agentic provider search returned invalid JSON");
       return { text: "serper returned no usable result: INVALID_JSON.", urls: [] };
     }
     const organic = Array.isArray(data.organic) ? data.organic : [];
@@ -168,7 +169,7 @@ export async function webSearchSerper(query: string, locale?: string, market?: s
 async function webSearchTavily(query: string, signal?: AbortSignal): Promise<ProviderSearchResult> {
   const key = [process.env.TAVILY_API_KEY, ...Array.from({ length: 8 }, (_, i) => process.env[`TAVILY_API_KEY_${i + 1}`])].map((x) => (x || "").trim()).find(Boolean);
   if (!key) {
-    logger.warn({ provider: "tavily", query, outcome: "MISSING_API_KEY" }, "agentic provider search unavailable");
+    logger.warn({ provider: "tavily", queryChars: query.length, queryDigest: digestDiagnosticText(query), outcome: "MISSING_API_KEY" }, "agentic provider search unavailable");
     return { text: "tavily returned no usable result: missing API key.", urls: [] };
   }
   try {
@@ -178,24 +179,24 @@ async function webSearchTavily(query: string, signal?: AbortSignal): Promise<Pro
     const elapsedMs = Date.now() - startedAt;
     if (!response.ok) {
       const outcome = `HTTP_${response.status}`;
-      logger.warn({ provider: "tavily", query, outcome, httpStatus: response.status, responseBytes: Buffer.byteLength(responseBody), elapsedMs }, "agentic provider search rejected");
+      logger.warn({ provider: "tavily", queryChars: query.length, queryDigest: digestDiagnosticText(query), outcome, httpStatus: response.status, responseBytes: Buffer.byteLength(responseBody), elapsedMs }, "agentic provider search rejected");
       return { text: `tavily returned no usable result: ${outcome}.`, urls: [] };
     }
     let data: { answer?: string; results?: Array<{ title?: string; url?: string; content?: string }> };
     try { data = JSON.parse(responseBody) as typeof data; } catch {
-      logger.warn({ provider: "tavily", query, outcome: "INVALID_JSON", httpStatus: response.status, responseBytes: Buffer.byteLength(responseBody), elapsedMs }, "agentic provider search returned invalid JSON");
+      logger.warn({ provider: "tavily", queryChars: query.length, queryDigest: digestDiagnosticText(query), outcome: "INVALID_JSON", httpStatus: response.status, responseBytes: Buffer.byteLength(responseBody), elapsedMs }, "agentic provider search returned invalid JSON");
       return { text: "tavily returned no usable result: INVALID_JSON.", urls: [] };
     }
     const results = Array.isArray(data.results) ? data.results : [];
     const urls = results.map((item) => normalizedUrl(item.url || "")).filter((u): u is string => Boolean(u));
     const text = [data.answer || "", ...results.map((item) => `${item.title || ""}\nURL: ${item.url || ""}\n${item.content || ""}`)].join("\n").trim();
     const outcome = results.length === 0 ? "EMPTY_RESULTS" : urls.length === 0 ? "INVALID_RESULTS" : "SUCCESS";
-    logger.info({ provider: "tavily", query, outcome, httpStatus: response.status, responseBytes: Buffer.byteLength(responseBody), resultCount: results.length, validUrlCount: urls.length, elapsedMs }, "agentic provider search completed");
+    logger.info({ provider: "tavily", queryChars: query.length, queryDigest: digestDiagnosticText(query), outcome, httpStatus: response.status, responseBytes: Buffer.byteLength(responseBody), resultCount: results.length, validUrlCount: urls.length, elapsedMs }, "agentic provider search completed");
     return { text: text || `tavily returned no usable result: ${outcome}.`, urls };
   } catch (error) {
     if (signal?.aborted) throw new Error("cancelled");
     const outcome = providerErrorClass(error);
-    logger.warn({ provider: "tavily", query, outcome, errorName: error instanceof Error ? error.name : "unknown", errorMessage: error instanceof Error ? error.message : String(error) }, "agentic provider search failed");
+    const diagnostic = describeThrownProviderError(error); logger.warn({ provider: "tavily", queryChars: query.length, queryDigest: digestDiagnosticText(query), outcome, errorName: diagnostic.errorName, errorCode: diagnostic.errorCode, causeCode: diagnostic.causeCode, messageChars: diagnostic.messageChars, messageDigest: diagnostic.messageDigest }, "agentic provider search failed");
     return { text: `tavily returned no usable result: ${outcome}.`, urls: [] };
   }
 }
@@ -203,7 +204,7 @@ async function webSearchTavily(query: string, signal?: AbortSignal): Promise<Pro
 async function webSearchExa(query: string, signal?: AbortSignal): Promise<ProviderSearchResult> {
   const key = [process.env.EXA_API_KEY, process.env.EXA_1, process.env.EXA_2, ...Array.from({ length: 8 }, (_, i) => process.env[`EXA_API_KEY_${i + 1}`])].map((x) => (x || "").trim()).find(Boolean);
   if (!key) {
-    logger.warn({ provider: "exa", query, outcome: "MISSING_API_KEY" }, "agentic provider search unavailable");
+    logger.warn({ provider: "exa", queryChars: query.length, queryDigest: digestDiagnosticText(query), outcome: "MISSING_API_KEY" }, "agentic provider search unavailable");
     return { text: "exa returned no usable result: missing API key.", urls: [] };
   }
   try {
@@ -213,24 +214,24 @@ async function webSearchExa(query: string, signal?: AbortSignal): Promise<Provid
     const elapsedMs = Date.now() - startedAt;
     if (!response.ok) {
       const outcome = `HTTP_${response.status}`;
-      logger.warn({ provider: "exa", query, outcome, httpStatus: response.status, responseBytes: Buffer.byteLength(responseBody), elapsedMs }, "agentic provider search rejected");
+      logger.warn({ provider: "exa", queryChars: query.length, queryDigest: digestDiagnosticText(query), outcome, httpStatus: response.status, responseBytes: Buffer.byteLength(responseBody), elapsedMs }, "agentic provider search rejected");
       return { text: `exa returned no usable result: ${outcome}.`, urls: [] };
     }
     let data: { results?: Array<{ title?: string; url?: string; text?: string }> };
     try { data = JSON.parse(responseBody) as typeof data; } catch {
-      logger.warn({ provider: "exa", query, outcome: "INVALID_JSON", httpStatus: response.status, responseBytes: Buffer.byteLength(responseBody), elapsedMs }, "agentic provider search returned invalid JSON");
+      logger.warn({ provider: "exa", queryChars: query.length, queryDigest: digestDiagnosticText(query), outcome: "INVALID_JSON", httpStatus: response.status, responseBytes: Buffer.byteLength(responseBody), elapsedMs }, "agentic provider search returned invalid JSON");
       return { text: "exa returned no usable result: INVALID_JSON.", urls: [] };
     }
     const results = Array.isArray(data.results) ? data.results : [];
     const urls = results.map((item) => normalizedUrl(item.url || "")).filter((u): u is string => Boolean(u));
     const text = results.map((item) => `${item.title || ""}\nURL: ${item.url || ""}\n${item.text || ""}`).join("\n");
     const outcome = results.length === 0 ? "EMPTY_RESULTS" : urls.length === 0 ? "INVALID_RESULTS" : "SUCCESS";
-    logger.info({ provider: "exa", query, outcome, httpStatus: response.status, responseBytes: Buffer.byteLength(responseBody), resultCount: results.length, validUrlCount: urls.length, elapsedMs }, "agentic provider search completed");
+    logger.info({ provider: "exa", queryChars: query.length, queryDigest: digestDiagnosticText(query), outcome, httpStatus: response.status, responseBytes: Buffer.byteLength(responseBody), resultCount: results.length, validUrlCount: urls.length, elapsedMs }, "agentic provider search completed");
     return { text: text || `exa returned no usable result: ${outcome}.`, urls };
   } catch (error) {
     if (signal?.aborted) throw new Error("cancelled");
     const outcome = providerErrorClass(error);
-    logger.warn({ provider: "exa", query, outcome, errorName: error instanceof Error ? error.name : "unknown", errorMessage: error instanceof Error ? error.message : String(error) }, "agentic provider search failed");
+    const diagnostic = describeThrownProviderError(error); logger.warn({ provider: "exa", queryChars: query.length, queryDigest: digestDiagnosticText(query), outcome, errorName: diagnostic.errorName, errorCode: diagnostic.errorCode, causeCode: diagnostic.causeCode, messageChars: diagnostic.messageChars, messageDigest: diagnostic.messageDigest }, "agentic provider search failed");
     return { text: `exa returned no usable result: ${outcome}.`, urls: [] };
   }
 }
@@ -240,7 +241,7 @@ async function toolWebSearch(query: string, provider: "serper" | "tavily" | "exa
   return result ? { ...result, provider } : { text: `${provider} returned no usable result.`, urls: [], provider };
 }
 
-async function toolVisit(url: string, signal?: AbortSignal): Promise<{ observation: string; status: "success" | "http_error" | "timeout" | "error" | "cancelled"; observedUrl: string | null }> { try { const response = await safeOutboundFetch(url, { signal: signal ?? AbortSignal.timeout(15_000), headers: { "User-Agent": "Apex-Atlas/1.0", Accept: "text/html,application/xhtml+xml,application/pdf;q=0.9,*/*;q=0.8" }, redirect: "manual" }); const location = response.headers.get("location"); if (!response.ok) return { observation: `HTTP ${response.status} from ${url}${location ? `\nREDIRECT_LOCATION: ${location}` : ""}`, status: "http_error", observedUrl: null }; const raw = await readResponseTextCapped(response, signal); const facts = extractContactFactsFromHtml(raw); const body = stripHtml(raw); const boundedBody = body.slice(0, MAX_OBS); return { observation: `${facts.length ? `CONTACT FACTS (observed, not attributed):\n${facts.join("\n")}\n\n` : ""}PAGE ${url}\n${boundedBody}${body.length > MAX_OBS ? "\n[PAGE OBSERVATION TRUNCATED; SOURCE URL RETAINED FOR REVISIT]" : ""}`, status: "success", observedUrl: normalizedUrl(url) }; } catch (error: any) { if (signal?.aborted) return { observation: `visit cancelled for ${url}`, status: "cancelled", observedUrl: null }; const timed = error?.name === "TimeoutError" || /timeout/i.test(String(error?.message || "")); return { observation: `visit failed for ${url}: ${error?.message || "error"}`, status: timed ? "timeout" : "error", observedUrl: null }; } }
+async function toolVisit(url: string, signal?: AbortSignal): Promise<{ observation: string; status: "success" | "http_error" | "timeout" | "error" | "cancelled"; observedUrl: string | null }> { try { const response = await safeOutboundFetch(url, { signal: signal ?? AbortSignal.timeout(15_000), headers: { "User-Agent": "Apex-Atlas/1.0", Accept: "text/html,application/xhtml+xml,application/pdf;q=0.9,*/*;q=0.8" }, redirect: "manual" }); const location = response.headers.get("location"); if (!response.ok) return { observation: `HTTP ${response.status} from ${url}${location ? `\nREDIRECT_LOCATION: ${location}` : ""}`, status: "http_error", observedUrl: null }; const raw = await readResponseTextCapped(response, signal); const facts = extractContactFactsFromHtml(raw); const body = stripHtml(raw); const boundedBody = body.slice(0, MAX_OBS); return { observation: `${facts.length ? `CONTACT FACTS (observed, not attributed):\n${facts.join("\n")}\n\n` : ""}PAGE ${url}\n${boundedBody}${body.length > MAX_OBS ? "\n[PAGE OBSERVATION TRUNCATED; SOURCE URL RETAINED FOR REVISIT]" : ""}`, status: "success", observedUrl: normalizedUrl(url) }; } catch (error) { if (signal?.aborted) return { observation: `visit cancelled for ${url}`, status: "cancelled", observedUrl: null }; const diagnostic = describeThrownProviderError(error); const timed = classifyThrownProviderError(error) === "timeout"; return { observation: `visit failed for ${url}: ${timed ? "timeout" : "request error"} (error=${diagnostic.errorName}; code=${diagnostic.errorCode ?? "none"}; digest=${diagnostic.messageDigest ?? "none"})`, status: timed ? "timeout" : "error", observedUrl: null }; } }
 function extractJsonObject(raw: string): string | null { const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)```/i)?.[1]?.trim(); const source = fenced || raw.trim(); const start = source.indexOf("{"), end = source.lastIndexOf("}"); return start >= 0 && end > start ? source.slice(start, end + 1) : null; }
 function parseAction(raw: string): AgentAction | null { const json = extractJsonObject(raw); if (!json) return null; try { const value = JSON.parse(json) as Record<string, unknown>; const action = cleanText(value.action, 40).toLowerCase(); const meta = { hypothesis: cleanText(value.hypothesis, 500) || undefined, purpose: cleanText(value.purpose, 500) || undefined, expectedInformationGain: typeof value.expectedInformationGain === "number" && Number.isFinite(value.expectedInformationGain) ? Math.max(0, Math.min(1, value.expectedInformationGain)) : undefined }; if (action === "parallel_web_search" && Array.isArray(value.searches)) { const searches = value.searches.map((item) => item && typeof item === "object" ? item as Record<string, unknown> : null).filter(Boolean).map((item) => ({ query: cleanText(item!.query, 300), provider: cleanText(item!.provider, 20), locale: cleanText(item!.locale, 16) || undefined, market: cleanText(item!.market, 16) || undefined, purpose: cleanText(item!.purpose, 500) || undefined })).filter((item) => item.query && ["serper","tavily","exa"].includes(item.provider)).slice(0, 4) as Array<{ query: string; provider: "serper" | "tavily" | "exa"; locale?: string; market?: string; purpose?: string }>; if (searches.length >= 2) return { action: "parallel_web_search", searches, thought: cleanText(value.thought, 500) || undefined, ...meta }; } if (action === "web_search" && cleanText(value.query, 300) && ["serper", "tavily", "exa"].includes(cleanText(value.provider, 20))) return { action: "web_search", query: cleanText(value.query, 300), provider: cleanText(value.provider, 20) as "serper" | "tavily" | "exa", locale: cleanText(value.locale, 16) || undefined, market: cleanText(value.market, 16) || undefined, thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "visit" && isSafeHttpUrl(cleanText(value.url, 500))) return { action: "visit", url: cleanText(value.url, 500), thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "footprint_email" && cleanText(value.email, 120).includes("@")) return { action: "footprint_email", email: cleanText(value.email, 120), thought: cleanText(value.thought, 500) || undefined, ...meta }; const username = cleanText(value.username, 80).replace(/^@/, ""); if (action === "footprint_username_maigret" && username.length >= 2) return { action: "footprint_username_maigret", username, thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "footprint_username_sherlock" && username.length >= 2) return { action: "footprint_username_sherlock", username, thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "domain_lookup" && cleanText(value.domain, 120).includes(".")) return { action: "domain_lookup", domain: cleanText(value.domain, 120).replace(/^https?:\/\//i, "").split("/")[0]!, thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "registry_search" && cleanText(value.query, 200).length >= 2 && cleanText(value.registry, 60)) return { action: "registry_search", query: cleanText(value.query, 200), registry: cleanText(value.registry, 60).toLowerCase(), thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "harvest_domain" && cleanText(value.domain, 120).includes(".")) return { action: "harvest_domain", domain: cleanText(value.domain, 120).replace(/^https?:\/\//i, "").split("/")[0]!, thought: cleanText(value.thought, 500) || undefined, ...meta }; const spiderTarget = cleanText(value.target, 300); const spiderTargetType = cleanText(value.targetType, 20).toLowerCase(); const spiderProfile = cleanText(value.profile, 40).toLowerCase(); if (action === "footprint_spiderfoot" && spiderTarget.length >= 2 && ["domain","hostname","ip","email","username","person","asn"].includes(spiderTargetType) && ["identity-expansion","domain-infrastructure","organization-footprint","contact-adjacent","broad-osint"].includes(spiderProfile)) return { action: "footprint_spiderfoot", target: spiderTarget, targetType: spiderTargetType as SpiderFootTargetType, profile: spiderProfile as SpiderFootProfile, thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "browser_fetch" && isSafeHttpUrl(cleanText(value.url, 500))) return { action: "browser_fetch", url: cleanText(value.url, 500), thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "done") { const findings: AgenticFinding[] = []; for (const rawFinding of Array.isArray(value.findings) ? value.findings : []) { if (!rawFinding || typeof rawFinding !== "object") continue; const f = rawFinding as Record<string, unknown>; const vector = cleanText(f.vectorType, 30).toLowerCase(); const valueText = cleanText(f.value, 500); const sourceUrls = filterClaimUrls(Array.isArray(f.sourceUrls) ? f.sourceUrls.filter((u): u is string => typeof u === "string") : []).map(normalizedUrl).filter((u): u is string => Boolean(u)); if (!valueText || !["email", "phone", "linkedin", "website", "social", "other"].includes(vector) || (vector !== "other" && sourceUrls.length === 0)) continue; let finalValue = valueText; if (vector === "email") { const e = sanitizePublicEmail(valueText); if (!e || isTrashContactValue("email", e)) continue; finalValue = e; } if (vector === "phone") { const p = sanitizePublicPhone(valueText); if (!p || isTrashContactValue("phone", p)) continue; finalValue = p; } if (vector === "website" && !isSafeHttpUrl(finalValue)) continue; findings.push({ vectorType: vector as AgenticFinding["vectorType"], value: finalValue, personName: typeof f.personName === "string" ? f.personName.trim().slice(0, 120) : null, role: typeof f.role === "string" ? f.role.trim().slice(0, 120) : null, scope: f.scope === "candidate" || f.scope === "organization" ? f.scope : "unknown", sourceUrls, note: cleanText(f.note, 400) || "Investigator-authored finding", promotionDecision: f.promotionDecision === "promote" || f.promotionDecision === "reject" ? f.promotionDecision : undefined, promotionReason: cleanText(f.promotionReason, 500) || undefined }); } return { action: "done", findings, thought: cleanText(value.thought, 500) || undefined, ...meta }; } } catch { return null; } return null; }
 function groqInvestigatorReasoningEffort(model: string, task: ResearchCognitiveTask): "low" | "medium" | "high" {
@@ -354,7 +355,7 @@ async function callGroqJson(prompt: string, signal: AbortSignal, cognitiveTask: 
         break;
       } catch (error: any) {
         if (signal.aborted) throw new Error("cancelled");
-        recordAgenticLlmAttempt({ provider: "groq", model, promptChars: workingPrompt.length, status: "error", success: false, latencyMs: Date.now() - started, retryIndex: attempt, reason: error?.message || "exception" });
+        recordAgenticLlmAttempt({ provider: "groq", model, promptChars: workingPrompt.length, status: "error", success: false, latencyMs: Date.now() - started, retryIndex: attempt, reason: `${classifyThrownProviderError(error)}${error instanceof Error ? `:${digestDiagnosticText(error.message)}` : ""}` });
         break;
       }
     }
