@@ -23,12 +23,10 @@ import { entityVisibilityGuard } from "../lib/entity-visibility-guard";
 import { legacyAtlasLaunchQuarantine } from "../lib/legacy-atlas-launch-quarantine";
 import { normalizeAtlasLaunchBody } from "../middlewares/normalize-atlas-launch-body";
 import { canonicalCaseContinuationGuard } from "../middlewares/canonical-case-continuation-guard";
-import { atlasApiAuth } from "../lib/api-auth";
 
 const router: IRouter = Router();
 
 router.use(healthRouter);
-router.use(atlasApiAuth);
 router.use(normalizeAtlasLaunchBody);
 router.use(entityVisibilityGuard);
 router.use(legacyApexMutationGuard);
