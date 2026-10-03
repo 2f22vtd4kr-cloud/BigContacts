@@ -89,10 +89,10 @@ const _quotaExhaustedTavilyKeys       = new Map<string, number>(); // provider/a
 const _exhaustedTavilyKeys            = new Map<string, number>(); // for Tavily search API
 const _exhaustedExaKeys               = new Map<string, number>(); // for Exa neural search API
 
-/** Returns all Groq API keys (GROQ_API_KEY, GROQ_API_KEY_1 … _10). */
+/** Returns all Groq API keys (GROQ_INVESTIGATOR_API_KEY, GROQ_INVESTIGATOR_API_KEY_1 … _10). */
 function getGroqKeys(): string[] {
-  const names = ["GROQ_API_KEY"];
-  for (let i = 1; i <= 10; i++) names.push(`GROQ_API_KEY_${i}`);
+  const names = ["GROQ_INVESTIGATOR_API_KEY"];
+  for (let i = 1; i <= 10; i++) names.push(`GROQ_INVESTIGATOR_API_KEY_${i}`);
   return names.map(k => process.env[k] ?? "").filter(k => k.length > 0);
 }
 
@@ -211,10 +211,10 @@ export async function runFinalTargetReview(
     logger.debug({ err: err?.message }, "final-review Gemini Boss unavailable");
   }
 
-  // 2) Right-hand — Mistral Right-hand
+  // 2) Right-hand — Groq Right-hand
   try {
-    const { runMistralRightHandFinalReview } = await import("./mistral-right-hand-reasoning");
-    const rightHand = await runMistralRightHandFinalReview(bossPrompt);
+    const { runGroqRightHandFinalReview } = await import("./groq-right-hand-reasoning");
+    const rightHand = await runGroqRightHandFinalReview(bossPrompt);
     if (rightHand.status === "completed" && rightHand.raw) {
       const json = extractJsonObject(rightHand.raw);
       if (json) {
@@ -222,7 +222,7 @@ export async function runFinalTargetReview(
           return adjudicateFinalTargetReview(
             input,
             JSON.parse(json),
-            `mistral-right-hand-final-review:${rightHand.model}`,
+            `groq-right-hand-final-review:${rightHand.model}`,
           );
         } catch { /* fall through */ }
       }
@@ -1548,7 +1548,7 @@ export async function researchWithExa(
  * Main extraction entry point.
  *
  * Strategy (in order):
- *   1. Each Groq key (GROQ_API_KEY, _2, _3) — GROQ_DEFAULT_MODEL then GROQ_MODEL_FAST (gpt-oss-20b)
+ *   1. Each Groq key (GROQ_INVESTIGATOR_API_KEY, _2, _3) — GROQ_DEFAULT_MODEL then GROQ_MODEL_FAST (gpt-oss-20b)
  *   2. Each OpenRouter key (OPENROUTER_API_KEY, _2) — gpt-oss-120b
  *
  * A key that returns 429 is marked exhausted for 5 minutes, then auto-recovers.
@@ -1617,7 +1617,7 @@ export interface AIKeyStatus {
   tavily:     AIKeySlot[];
   exa:        AIKeySlot[];
   serper:     AIKeySlot[];
-  mistral:    AIKeySlot[];
+  groqInvestigator: AIKeySlot[];
   nvidia:     AIKeySlot[];
 }
 
@@ -1647,13 +1647,13 @@ export function getAIKeyStatus(): AIKeyStatus {
     return { index, state: "active", expiresAt: null };
   }
 
-  const groqNames = ["GROQ_API_KEY", ...Array.from({ length: 10 }, (_, i) => `GROQ_API_KEY_${i + 1}`)];
+  const groqNames = ["GROQ_INVESTIGATOR_API_KEY", ...Array.from({ length: 10 }, (_, i) => `GROQ_INVESTIGATOR_API_KEY_${i + 1}`)];
   const pplxNames = ["PERPLEXITY_API_KEY", ...Array.from({ length: 8 }, (_, i) => `PERPLEXITY_API_KEY_${i + 1}`)];
   const gemNames  = ["GEMINI_API_KEY", "GEMINI_KEY", ...Array.from({ length: 10 }, (_, i) => `GEMINI_API_KEY_${i + 1}`)];
   const tavNames  = ["TAVILY_API_KEY",     ...Array.from({ length: 8 }, (_, i) => `TAVILY_API_KEY_${i + 1}`)];
   const exaNames  = ["EXA_API_KEY", "EXA_1", "EXA_2", ...Array.from({ length: 8 }, (_, i) => `EXA_API_KEY_${i + 1}`)];
   const serperNames = ["SERPER_API_KEY", "SERPER_KEY", "SERPER_API_KEY_2", "SERPER_API_KEY_3"];
-  const mistralNames = ["MISTRAL_API_KEY", "MISTRAL_KEY"];
+  const investigatorNames = ["GROQ_INVESTIGATOR_API_KEY", ...Array.from({ length: 5 }, (_, i) => `GROQ_INVESTIGATOR_API_KEY_${i + 1}`)];
   const nvidiaNames = ["GEMINI_API_KEY", "GEMINI_API_KEY", "GEMINI_API_KEY"];
 
   return {
@@ -1663,7 +1663,7 @@ export function getAIKeyStatus(): AIKeyStatus {
     tavily:     tavNames .map((n, i) => slotState(n, _exhaustedTavilyKeys,           i, _quotaExhaustedTavilyKeys)),
     exa:        exaNames .map((n, i) => slotState(n, _exhaustedExaKeys,              i)),
     serper:     serperNames.map((n, i) => slotState(n, new Map(), i)),
-    mistral:    mistralNames.map((n, i) => slotState(n, new Map(), i)),
+    groqInvestigator: investigatorNames.map((n, i) => slotState(n, new Map(), i)),
     nvidia:     nvidiaNames.map((n, i) => slotState(n, new Map(), i)),
   };
 }
