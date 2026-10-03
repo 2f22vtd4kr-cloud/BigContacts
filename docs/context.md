@@ -1,14 +1,18 @@
 # CURRENT OVERRIDE — 2026-10-03
 
-> This section supersedes conflicting provider/control-plane statements later in this historical living-context document. Repository source at the current branch is authoritative.
+> This section supersedes all conflicting historical provider/auth statements later in this living-context document. Repository source at the current `main` HEAD is authoritative.
 >
-> **Current implementation branch:** `remove-operator-auth-replit` (based on `main` `c31b684eacad9affd6cb46aea1dbc19ef617b059`).
+> **Current main HEAD:** `cdf7a08e9b1d8ff56f1e9331ef31763769d58a9b`
 >
-> **Canonical control plane:** Groq Boss (`openai/gpt-oss-120b`, bounded 20B fallback) → Groq Right-hand (`openai/gpt-oss-120b`, bounded 20B fallback) → model-owned Groq Investigator.
+> **Canonical control plane:** Groq Boss (`openai/gpt-oss-120b`, bounded 20B fallback) → Groq Right-hand (`openai/gpt-oss-120b`, bounded 20B fallback) → Groq Investigator (`qwen/qwen3.8-27b`, bounded GPT-OSS fallbacks).
 >
-> **Operator authentication is intentionally removed from the Apex desk/API.** The browser no longer has an operator sign-in wall, the API no longer mounts an operator-auth middleware, and the retired operator password/session/API-auth secrets are not part of the active runtime contract. External provider credentials remain required for their respective provider integrations; removing operator authentication does not remove provider/API-key authentication to Groq or other external services.
+> **Role-scoped credentials:** Boss uses `GROQ_BOSS_API_KEY`, `_1` … `_10`; Right-hand uses `GROQ_RIGHT_HAND_API_KEY`, `_2` … `_5`; Investigator uses `GROQ_INVESTIGATOR_API_KEY`, `_1` … `_5`. Do not restore Mistral/Gemini control credentials.
 >
-> **Replit boot is authentication-free at the application boundary.** Do not restore `APEX_DEV_AUTH_BYPASS`, `APEX_API_AUTH_TOKEN`, `APEX_OPERATOR_PASSWORD`, or `APEX_SESSION_SECRET` merely to make the desk run.
+> **Operator authentication is retired from the Apex desk/API.** The browser has no operator sign-in wall, the API does not mount operator-auth middleware, and `APEX_API_AUTH_TOKEN`, `APEX_OPERATOR_PASSWORD`, `APEX_SESSION_SECRET`, and `APEX_DEV_AUTH_BYPASS` are not active runtime requirements.
+>
+> **Groq GPT-OSS request contract:** Right-hand requests use `reasoning_effort` plus `include_reasoning:false`; they do not send the unsupported `reasoning_format` field. Discovery context is progressively compacted under a hard 20,000-character user-prompt boundary with a 1,024-character safety reserve.
+>
+> **Verification rule:** provider capacity is never inferred from configured-key status. No live provider request or Atlas launch is part of the source changes recorded after the 2026-10-03 live-run failures unless explicitly documented in the sequential audit.
 >
 # Apex Atlas / BigContacts — Living Context
 
