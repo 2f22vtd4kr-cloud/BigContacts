@@ -330,7 +330,7 @@ describe("Groq Boss transport contract", () => {
       "Return the Investigator selection as JSON.",
     );
 
-    expect(result.error).toMatch(/bounded model/key attempts/i);
+    expect(result.error).toMatch(/bounded model\/key attempts/i);
     expect(result.error).toMatch(/timeout/i);
     expect(fetchMock.mock.calls.length).toBe(2);
     fetchMock.mockRestore();
