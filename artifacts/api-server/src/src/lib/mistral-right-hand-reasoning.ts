@@ -23,6 +23,23 @@ const MAX_MODEL_ATTEMPTS = 2;
 const MAX_503_RETRIES_PER_MODEL = 1;
 const MAX_429_RETRIES_PER_MODEL = 1;
 const MAX_PROMPT_CHARS = 20_000;
+// Mistral's displayed completion limit is 1 request/sec at the organization level.
+// Keys do not create independent rate-limit buckets, so all Right-hand traffic must
+// share one process-wide gate. Keep a small safety margin below the provider limit.
+const MISTRAL_MIN_REQUEST_INTERVAL_MS = 1_100;
+let nextMistralRequestAt = 0;
+let mistralRequestGate: Promise<void> = Promise.resolve();
+
+async function waitForMistralRequestSlot(): Promise<void> {
+  const previous = mistralRequestGate;
+  let release!: () => void;
+  mistralRequestGate = new Promise<void>((resolve) => { release = resolve; });
+  await previous;
+  const waitMs = Math.max(0, nextMistralRequestAt - Date.now());
+  if (waitMs > 0) await new Promise<void>((resolve) => setTimeout(resolve, waitMs));
+  nextMistralRequestAt = Date.now() + MISTRAL_MIN_REQUEST_INTERVAL_MS;
+  release();
+}
 
 function keyEntries(): Array<{name:string;key:string}> {
   return MISTRAL_KEY_NAMES.map(name=>({name,key:process.env[name]?.trim()||""})).filter(x=>x.key);
@@ -103,10 +120,11 @@ async function request(system:string,user:string,format?:Record<string,unknown>)
    const body=JSON.stringify({model:candidate.model,messages:[{role:"system",content:systemPrompt},{role:"user",content:normalizedUser}],max_tokens:512,temperature:0.1,stream:false,response_format:responseFormat(format)});
    const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),Math.min(configRequest,Math.max(1000,deadline-Date.now())));
    try{
+    await waitForMistralRequestSlot();
     const response=await fetch(MISTRAL_CHAT_API,{method:"POST",headers:{Accept:"application/json","Content-Type":"application/json",Authorization:`Bearer ${candidate.entry.key}`},body,signal:controller.signal});
     const responseBody=await response.text();
     if(response.status===503&&retry503<MAX_503_RETRIES_PER_MODEL&&Date.now()<deadline){const delay=retryAfterMs(response,750);lastRetryAfterMs=delay;lastRetryAfterHeader=response.headers.get("retry-after");retry503++;await new Promise(r=>setTimeout(r,Math.min(delay,Math.max(0,deadline-Date.now()))));continue;}
-    if(response.status===429&&retry429<MAX_429_RETRIES_PER_MODEL&&Date.now()<deadline){const delay=retryAfterMs(response,0);lastRetryAfterMs=delay;lastRetryAfterHeader=response.headers.get("retry-after");if(delay<=2500){retry429++;if(delay)await new Promise(r=>setTimeout(r,Math.min(delay,Math.max(0,deadline-Date.now()))));continue;}}
+    if(response.status===429&&retry429<MAX_429_RETRIES_PER_MODEL&&Date.now()<deadline){const providerDelay=retryAfterMs(response,MISTRAL_MIN_REQUEST_INTERVAL_MS);const delay=Math.max(providerDelay,MISTRAL_MIN_REQUEST_INTERVAL_MS);lastRetryAfterMs=delay;lastRetryAfterHeader=response.headers.get("retry-after");if(delay<=5000){retry429++;await new Promise(r=>setTimeout(r,Math.min(delay,Math.max(0,deadline-Date.now()))));continue;}}
     if(!response.ok){const cls=classifyProviderHttpStatus(response.status);const code=providerErrorCode(responseBody);const diagnostic={keyName:candidate.entry.name,model:candidate.model,httpStatus:response.status,providerCode:code,retry429,retry503,retryAfterMs:lastRetryAfterMs,retryAfterHeader:lastRetryAfterHeader,body:summarizeProviderBody(responseBody),rateLimitHeaders:Object.fromEntries(Array.from(response.headers.entries()).filter(([name])=>name.toLowerCase().startsWith("x-ratelimit-"))),failureClass:cls,keyFingerprint:fingerprint(candidate.entry.key)};failures.push(diagnostic);if(response.status===401||response.status===403||response.status===404)break;if(response.status===429||response.status===500||response.status===502||response.status===503||response.status===504)break;return {raw:"",error:`Mistral Right-hand ${candidate.model} ${cls} HTTP ${response.status}: ${formatAttemptDiagnostic(diagnostic)}`,model:candidate.model};}
     const raw=extractText(JSON.parse(responseBody)); if(raw)return {raw,error:null,model:candidate.model};
     failures.push({keyName:candidate.entry.name,model:candidate.model,httpStatus:response.status,providerCode:null,retry429,retry503,retryAfterMs:lastRetryAfterMs,retryAfterHeader:lastRetryAfterHeader,body:null,rateLimitHeaders:{},failureClass:"invalid_response",keyFingerprint:fingerprint(candidate.entry.key)});break;
