@@ -50,8 +50,8 @@ function safeDiagnosticMessage(value: unknown): string | null {
   if (typeof value !== "string" || !value.trim()) return null;
   return value
     .trim()
-    .replace(/Bearer\\s+[^\\s,;]+/gi, "Bearer [REDACTED]")
-    .replace(/((?:api[_-]?key|token|secret)\\s*[:=]\\s*)[^\\s,;]+/gi, "$1[REDACTED]")
+    .replace(/Bearer\s+[^\s,;]+/gi, "Bearer [REDACTED]")
+    .replace(/((?:api[_-]?key|token|secret)\s*[:=]\s*)[^\s,;]+/gi, "$1[REDACTED]")
     .slice(0, 240);
 }
 
