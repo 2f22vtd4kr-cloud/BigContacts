@@ -20,7 +20,7 @@ assert(/runMaigret\(action\.username, \{ signal: runController\.signal \}\)/.tes
 assert(/runSherlock\(action\.username, \{ signal: runController\.signal \}\)/.test(source), "Sherlock is cancellation-aware");
 assert(!/callGeminiJson|callNvidiaJson|GEMINI_API_KEY_|async function callGeminiJson\b|async function callNvidiaJson\b/.test(source), "Boss and Right-hand providers are absent from the Investigator runtime");
 assert(!/DIG_INVESTIGATOR_FAILOVER_CHAIN:[^\n]*Groq -> Groq/.test(source), "closed Groq-to-Mistral fallback marker is absent");
-assert(/investigatorLlm\?: "groq" \| "mistral"/.test(source), "selected Investigator is explicit in the ReAct input");
+assert(/investigatorLlm\?: "groq"/.test(source), "selected Groq Investigator is explicit in the ReAct input");
 assert(/selectedInvestigatorLlm/.test(source), "selected Investigator reaches the direct provider invocation boundary");
 assert(/Compatibility shim only/.test(shim) && /export \* from "\.\.\/\.\.\/api-server\/src\/src\/lib\/agentic-web-research\.ts"/.test(shim), "apex-runtime is only a compatibility shim");
 assert(/authorizePythonSandboxRequest/.test(python), "Python network capability requires the sandbox authorization contract");
