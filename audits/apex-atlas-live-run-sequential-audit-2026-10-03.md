@@ -145,15 +145,15 @@ The live failure was reviewed against the current provider gate, Groq Right-hand
 - The live Right-hand failure was classified as `ProviderQuotaError` with `errorCode=cooldown`. This is Apex's **local provider-gate state**, not proof that Groq's upstream account quota was exhausted.
 - The shared gate applies a five-second default cooldown after a Groq HTTP 429/402 unless the calling role explicitly owns transient retry handling. It keys the cooldown by a credential fingerprint and does not log the raw credential.
 - The Groq Right-hand adapter has its own bounded 429 retry and 120B→20B same-role model fallback. Before this remediation, the shared gate could turn the first upstream 429 into a local cooldown; the adapter's next retry could then be rejected locally before reaching Groq.
-- The current Groq API documents 429 as the rate-limit response and exposes `retry-after`, `x-ratelimit-remaining-requests`, `x-ratelimit-reset-requests`, and related token/request headers. The current adapter now uses those documented request headers when distinguishing a hard request quota from a transient 429. urlGroq rate limits documentationhttps://console.groq.com/docs/rate-limits
-- Groq documents the GPT-OSS 120B and 20B models as active models and publishes their rate limits separately. urlGroq supported modelshttps://console.groq.com/docs/models
+- The current Groq API documents 429 as the rate-limit response and exposes `retry-after`, `x-ratelimit-remaining-requests`, `x-ratelimit-reset-requests`, and related token/request headers. The current adapter now uses those documented request headers when distinguishing a hard request quota from a transient 429. [Groq rate limits documentation](https://console.groq.com/docs/rate-limits)
+- Groq documents the GPT-OSS 120B and 20B models as active models and publishes their rate limits separately. [Groq supported models](https://console.groq.com/docs/models)
 - The audit's workspace secret-name inventory showed a `GROQ_RIGHT_HAND_API_KEY_1` name, while the canonical adapter intentionally enumerates the base name plus `_2` through `_5`. No secret values were read or changed. This naming mismatch must remain a configuration check, not a reason to guess or test credentials.
 
 ### Not proven by the original run
 
 - The original run did not persist the upstream Groq HTTP status, rate-limit headers, retry-after value, or provider response body for the failing Right-hand attempt.
 - Consequently the original run cannot distinguish a transient rate window, upstream quota, a previously established local cooldown, or another provider-side condition.
-- Switching from 120B to 20B is a model fallback, not proof of independent account capacity; Groq rate limits are applied within the provider's organization/project limits. urlGroq projects and rate limitshttps://console.groq.com/docs/projects
+- Switching from 120B to 20B is a model fallback, not proof of independent account capacity; Groq rate limits are applied within the provider's organization/project limits. [Groq projects and rate limits](https://console.groq.com/docs/projects)
 
 ### Safe engineering response
 
