@@ -1,0 +1,272 @@
+Resume the work from the repository’s current state and prepare the EXISTING Preview for the next authorized runtime verification.
+
+Current canonical repository state
+
+The latest repository commit is:
+
+35aeaa65259e5fa7f07ac49b3a942a0cdf228db9
+
+The prior live audit and all fixes are documented in the repository. Before doing anything else, read:
+
+1. docs/context.md
+2. audits/CURRENT.md
+3. the audit file referenced by audits/CURRENT.md
+4. APEX_RUN_AUDIT.md if present
+5. the latest Apex handoff / successor documentation in the repo
+6. the provider-role source-of-truth documentation, especially:
+    * docs/bureau-plan/434_PROVIDER_ROLE_SOURCE_OF_TRUTH.md
+    * docs/BUREAU_REACT_ARCHITECTURE.md
+    * docs/bureau-plan/20_DIG_LOOP_STATE_MACHINE.md
+    * docs/bureau-plan/94_MODEL_ROUTING_TABLE.md
+    * docs/bureau-plan/227_BUREAU_CONTROL_FLOW.md
+
+Then inspect the actual implementation before changing anything.
+
+Critical architecture — do not violate this
+
+Apex Atlas is an OSINT research operating system.
+
+The governing rule is:
+
+Models own research strategy. Deterministic Apex owns safety, evidence, provenance, identity/scope boundaries, persistence, budgets, authorization, admission, and terminal authority.
+
+Current control-plane providers:
+
+Groq Boss
+
+* model: openai/gpt-oss-120b
+* fallback: openai/gpt-oss-20b
+* role-specific credentials:
+    * GROQ_BOSS_API_KEY
+    * GROQ_BOSS_API_KEY_1 … _10
+* generic GROQ_API_KEY is NOT the Boss credential; it remains an Investigator credential.
+
+Mistral Right-hand
+
+* canonical adapter:
+    artifacts/api-server/src/src/lib/mistral-right-hand-reasoning.ts
+* model: mistral-small-2603
+* fallback: mistral-small-latest
+* role-specific credentials:
+    * MISTRAL_RIGHT_HAND_API_KEY
+    * MISTRAL_RIGHT_HAND_API_KEY_2 … _5
+* generic MISTRAL_API_KEY is NOT the Right-hand credential; it remains an Investigator credential.
+
+Investigator
+
+Investigator remains model-owned and may use the generic provider credentials:
+
+* GROQ_API_KEY
+* MISTRAL_API_KEY
+
+Do NOT collapse these namespaces.
+Do NOT make the Right-hand silently fall back to the Investigator credential.
+Do NOT make the Investigator silently substitute for the Right-hand.
+Do NOT reintroduce Gemini as a runtime provider.
+
+gemini-right-hand-reasoning.ts is only a compatibility re-export shim. It must not perform Gemini transport.
+
+Legacy Gemini symbol names may still exist strictly for compatibility. Do not interpret those names as evidence that Gemini is currently used.
+
+What was already fixed
+
+The latest repo-side work already fixed:
+
+* Mistral Right-hand structured provider-error preservation.
+* No more [object Object] loss for provider failures.
+* HTTP status, provider code, retry counts, Retry-After, raw Retry-After header, redacted provider body, failure class, key fingerprint/name, model, and x-ratelimit-* headers are preserved.
+* Mistral readiness continues through later role-scoped keys after a failed catalog call.
+* Groq Boss readiness similarly preserves structured failures.
+* Canonical discovery directly uses Groq Boss.
+* Canonical continuation directly uses Groq Boss + Mistral Right-hand.
+* Durable canonical labels were corrected from Gemini to Groq/Mistral.
+* Current canonical-control-plane guard was corrected to recognize runGroqBossDiscovery and Mistral Right-hand.
+* stale Gemini workflow credentials/configuration were removed.
+* live-audit workflows were changed to manual-only so ordinary pushes do not automatically launch live Atlas runs.
+* provider-role documentation was corrected.
+* docs/context.md was updated.
+
+Do not undo any of those changes.
+
+Previous live failure — important context
+
+The last canonical UI-equivalent launch failed at the opening Right-hand gate before any Investigator work.
+
+The exact useful failure was:
+
+Mistral Right-hand unavailable; failing closed: Mistral Right-hand mistral-small-2603 rate_limited: [object Object]
+
+That [object Object] was a diagnostic-loss bug in the previous implementation. It has now been repaired.
+
+Do NOT immediately launch another Atlas run.
+
+The purpose now is to get the EXISTING Preview synchronized and verified first.
+
+Your immediate job
+
+1. Identify the actual existing BigContacts project
+
+Confirm that this Preview is the existing BigContacts / Apex Atlas application.
+
+Do NOT create another app.
+
+Do NOT substitute another Replit project.
+
+Do NOT reset the project to a template.
+
+2. Synchronize it with the canonical repository
+
+Bring the existing Preview/workspace to:
+
+35aeaa65259e5fa7f07ac49b3a942a0cdf228db9
+
+If the workspace is already at that commit, say so and do not unnecessarily rewrite it.
+
+If it is behind, synchronize it carefully.
+
+Preserve all current repository work unless a change is demonstrably necessary.
+
+3. Verify the actual runtime SHA
+
+Do not merely inspect GitHub.
+
+Verify what the running Preview actually loaded.
+
+Report:
+
+* Git SHA in workspace
+* Git SHA actually running in the Preview
+* whether they match
+* API/server process identity if available
+* whether the current mistral-right-hand-reasoning.ts implementation is the one actually loaded
+* whether the current groq-boss.ts implementation is loaded
+
+If the Preview cannot expose its runtime SHA, explicitly report that rather than pretending it matches.
+
+4. Run the repository’s real verification
+
+Run the appropriate existing checks from the repo.
+
+At minimum inspect and run the relevant:
+
+* TypeScript/typecheck
+* API build
+* provider-role guards
+* canonical discovery/control-plane guards
+* Mistral Right-hand regression tests
+* Groq Boss regression tests
+* other existing Apex contract/regression checks relevant to this change
+
+Use the repository’s actual package scripts rather than inventing replacement commands.
+
+Do NOT claim a check passed unless it actually ran and passed.
+
+If something fails, diagnose it and fix it if the failure is caused by the current implementation.
+
+5. Verify the environment WITHOUT exposing secrets
+
+Inspect only configuration presence/names, never values.
+
+Confirm whether the Preview has the expected role-scoped variables:
+
+* GROQ_BOSS_API_KEY and numbered Boss keys as configured
+* MISTRAL_RIGHT_HAND_API_KEY and numbered Right-hand keys as configured
+* generic GROQ_API_KEY / MISTRAL_API_KEY for Investigator
+
+Never print secret values.
+Never echo complete keys.
+Never put credentials in logs, commits, screenshots, or chat output.
+
+6. Specifically inspect Mistral Right-hand readiness
+
+Before any Atlas launch, use the existing readiness/diagnostic path:
+
+POST /api/system/diagnostics/mistral-readiness
+
+or the repository’s current equivalent if the endpoint has been wrapped.
+
+The objective is to determine whether the newly configured Right-hand credential can actually reach:
+
+mistral-small-2603
+
+and whether the provider returns:
+
+* HTTP status
+* provider error/code
+* Retry-After
+* x-ratelimit-* headers
+* model/catalog response
+* structured failure class
+
+Do not expose secrets.
+
+Do not run an arbitrary standalone “provider generation probe” merely to generate traffic. Use the repository’s existing readiness mechanism.
+
+If Mistral returns 429 again, preserve and report the actual structured diagnostic details. Do NOT reduce it to [object Object].
+
+7. Do NOT launch another Apex research run yet
+
+This is extremely important.
+
+Do not perform another UI-equivalent Atlas launch until:
+
+* existing Preview identity is confirmed,
+* runtime SHA is verified,
+* build/typecheck/guards/tests relevant to this work have been checked,
+* role-scoped credentials are confirmed present without exposing values,
+* Mistral Right-hand readiness has been inspected.
+
+If Mistral readiness fails, stop there and report the exact structured provider diagnostics.
+
+Do not bypass the Right-hand gate.
+Do not disable fail-closed behavior.
+Do not substitute Gemini.
+Do not substitute Investigator credentials.
+Do not manually continue the case.
+
+If you find an implementation defect
+
+Fix it in the existing repository.
+
+Then rerun the affected checks.
+
+Do not paper over failures with mocks, seeded evidence, hardcoded success, skipped tests, or environment-specific hacks.
+
+Do not modify the architecture merely to make the audit pass.
+
+If everything is clean
+
+Do NOT autonomously launch a new live Atlas audit yet.
+
+Instead report a concise verification result containing:
+
+1. existing BigContacts Preview confirmed: yes/no
+2. workspace SHA
+3. runtime SHA
+4. SHA match: yes/no
+5. build/typecheck result
+6. relevant guard/test results
+7. role-scoped credential presence: yes/no, names only
+8. Mistral Right-hand readiness result
+9. exact structured failure details if any
+10. whether the Preview is now ready for one authorized canonical UI-equivalent Atlas launch
+
+The next Atlas launch will be separately authorized. There must be exactly one canonical launch at a time, with polling only of the returned job, and we stop at the first genuine failure.
+
+Absolute prohibitions
+
+* Do not create a replacement app.
+* Do not create a new BigContacts project.
+* Do not switch to another Replit workspace.
+* Do not fabricate a runtime SHA.
+* Do not claim tests/builds passed without running them.
+* Do not expose credentials.
+* Do not use generic Mistral credentials for the Right-hand.
+* Do not use generic Groq credentials for Boss.
+* Do not reintroduce Gemini transport.
+* Do not seed evidence.
+* Do not manually continue a failed Atlas case.
+* Do not disable fail-closed behavior.
+* Do not launch another live Atlas run yet.
+
+Work directly on the existing BigContacts / Apex Atlas Preview and return only after the above verification is complete.
