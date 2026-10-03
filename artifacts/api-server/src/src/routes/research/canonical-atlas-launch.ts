@@ -7,6 +7,7 @@ import { enablePermanentRedis } from "../../lib/redis";
 import { runCanonicalAtlasPipeline } from "../../lib/canonical-atlas-discovery";
 import { runCanonicalSingleTargetInvestigation } from "../../lib/canonical-single-target-runner";
 import { checkAtlasSchemaReadiness } from "../../lib/schema-readiness";
+import { describeThrownProviderError } from "../../lib/provider-error-diagnostics";
 
 const router = Router();
 
@@ -83,7 +84,8 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
         await runCanonicalAtlasPipeline(atlasJobId, { targetCount, researchDepth, targetTimeoutMs });
       }
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Canonical Atlas pipeline failed";
+      const diagnostic = describeThrownProviderError(error);
+      const message = `Canonical Atlas pipeline failed (class=${diagnostic.errorName}; code=${diagnostic.errorCode ?? "none"}; digest=${diagnostic.messageDigest ?? "none"})`;
       try {
         await db.update(researchCasesTable)
           .set({ status: "review", currentAction: "canonical-atlas-failed", updatedAt: new Date() })
@@ -112,7 +114,8 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
     options: { targetCount, singleTargetId: singleTargetId ?? null, researchDepth: researchDepth ?? "configured", targetTimeoutMs },
   });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Canonical Atlas launch infrastructure is unavailable.";
+    const diagnostic = describeThrownProviderError(error);
+    const message = `Canonical Atlas launch infrastructure unavailable (class=${diagnostic.errorName}; code=${diagnostic.errorCode ?? "none"}; digest=${diagnostic.messageDigest ?? "none"})`;
     if (atlasJobId) {
       await updateJob(atlasJobId, { status: "failed", outcome: "incomplete", message, finishedAt: new Date().toISOString() }).catch(() => undefined);
     }
@@ -150,7 +153,7 @@ router.post("/ingest/atlas-stop", async (req: Request, res: Response): Promise<v
         sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${activeJobId}`,
       )));
   } catch (error) {
-    res.status(503).json({ ok: false, message: "Atlas stop could not establish the durable database cancellation fence; job remains active.", error: error instanceof Error ? error.message : String(error) });
+    res.status(503).json({ ok: false, message: "Atlas stop could not establish the durable database cancellation fence; job remains active.", error: `database cancellation failure (digest=${describeThrownProviderError(error).messageDigest ?? "none"})` });
     return;
   }
 
