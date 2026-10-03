@@ -3,37 +3,6 @@ import type { Entity } from "@workspace/db";
 import { apexOrientationFor } from "./apex-bureau-orientation";
 import { buildApexAtlasBossPlanPrompt } from "./case-bureau-prompt";
 import { extractWalletSeedsFromText, buildWalletSeedPlan, formatWalletSeedPlanForPrompt, objectiveLooksWalletFirst } from "./wallet-seed";
-export {
-  getMistralWebSearchStatus,
-  runMistralWebSearch,
-} from "./mistral-web-search";
-export type { MistralWebSearchResult } from "./mistral-web-search";
-export {
-  getMistralRightHandStatus,
-  runMistralRightHandCaseReasoning,
-  runMistralRightHandDiscoveryAdvice,
-  runMistralRightHandFreeJson,
-  runMistralRightHandFinalReview,
-  MISTRAL_RIGHT_HAND_MODEL,
-} from "./mistral-right-hand-reasoning";
-export {
-  getMistralRightHandStatus as getGeminiRightHandStatus,
-  runMistralRightHandCaseReasoning as runGeminiRightHandCaseReasoning,
-  runMistralRightHandDiscoveryAdvice as runGeminiRightHandDiscoveryAdvice,
-  runMistralRightHandFreeJson as runGeminiRightHandFreeJson,
-  runMistralRightHandFinalReview as runGeminiRightHandFinalReview,
-  MISTRAL_RIGHT_HAND_MODEL as GEMINI_RIGHT_HAND_MODEL,
-} from "./mistral-right-hand-reasoning";
-export type {
-  MistralRightHandCaseReasoningResult,
-  MistralRightHandStatus,
-  MistralRightHandDiscoveryAdviceResult,
-} from "./mistral-right-hand-reasoning";
-export type {
-  MistralRightHandCaseReasoningResult as GeminiRightHandCaseReasoningResult,
-  MistralRightHandStatus as GeminiRightHandStatus,
-  MistralRightHandDiscoveryAdviceResult as GeminiRightHandDiscoveryAdviceResult,
-} from "./mistral-right-hand-reasoning";
 
 /** Boss may proceed with an allowlisted action, reject the target, or reframe scope. */
 export type BossPlanOutcome = "proceed" | "reject_target" | "reframe";
@@ -142,7 +111,7 @@ export type ResearchCaseFile = {
     decision: string | null;
     reason: string | null;
     investigatorPrompt: string | null;
-    investigatorLlm?: "groq" | "mistral" | null;
+    investigatorLlm?: "groq" | null;
     restrictions: string[];
     tools: string[];
     evidenceRequirements: string[];
@@ -291,7 +260,7 @@ export function formatGeminiBossAttemptSummary(attempts: GeminiBossAttemptDiagno
 export type GeminiBossDiscoveryResult = {
   status: "completed" | "pending" | "unavailable";
   model: string;
-  investigatorLlm: "groq" | "mistral" | null;
+  investigatorLlm: "groq" | null;
   report: string | null;
   candidates: Array<{
     name: string;
@@ -315,7 +284,7 @@ export type GeminiBossPlanResult = {
   decision: string | null;
   reason: string | null;
   investigatorPrompt: string | null;
-  investigatorLlm: "groq" | "mistral" | null;
+  investigatorLlm: "groq" | null;
   restrictions: string[];
   tools: string[];
   evidenceRequirements: string[];
@@ -420,7 +389,7 @@ const GEMINI_BOSS_DISCOVERY_RESPONSE_FORMAT: Record<string, unknown> = {
     type: "object",
     properties: {
       report: { type: "string" },
-      investigatorLlm: { type: "string", enum: ["groq", "mistral"] },
+      investigatorLlm: { type: "string", enum: ["groq"] },
       candidates: {
         type: "array",
         maxItems: 6,
@@ -466,7 +435,7 @@ const GEMINI_BOSS_DISCOVERY_RESPONSE_FORMAT: Record<string, unknown> = {
 function parseBossDiscoveryResponse(raw: string): {
   report: string;
   candidates: GeminiBossDiscoveryResult["candidates"];
-  investigatorLlm: "groq" | "mistral" | null;
+  investigatorLlm: "groq" | null;
   nextDirections: string[];
   uncertainties: string[];
 } {
@@ -477,7 +446,7 @@ function parseBossDiscoveryResponse(raw: string): {
     const rawInvestigatorLlm = typeof parsed.investigatorLlm === "string"
       ? parsed.investigatorLlm.trim().toLowerCase()
       : "";
-    const investigatorLlm: "groq" | "mistral" | null =
+    const investigatorLlm: "groq" | null =
       rawInvestigatorLlm === "groq" || rawInvestigatorLlm === "mistral"
         ? rawInvestigatorLlm
         : null;
@@ -584,7 +553,7 @@ export async function runGroqBossDiscovery(input: {
     };
   }
 
-  const availableInvestigators = [process.env.GROQ_API_KEY?.trim() ? "groq" : null, process.env.MISTRAL_API_KEY?.trim() ? "mistral" : null].filter((value): value is "groq" | "mistral" => Boolean(value));
+  const availableInvestigators = [process.env.GROQ_INVESTIGATOR_API_KEY?.trim() ? "groq" : null, process.env.GROQ_INVESTIGATOR_API_KEY?.trim() ? "mistral" : null].filter((value): value is "groq" => Boolean(value));
   const prompt = `${buildBossOpeningPrompt(input)}
 
 This is a shared case-context review. Read the current investigation progress and investigator reports below
@@ -751,7 +720,7 @@ function parseBossPlanResponse(raw: string, queuedActions: BureauAction[]): Omit
     const action = queuedActions.find((candidate) => candidate.id === actionId);
     if (!action) return null;
     const rawInvestigatorLlm = typeof parsed.investigatorLlm === "string" ? parsed.investigatorLlm.trim().toLowerCase() : "";
-    const investigatorLlm: "groq" | "mistral" | null =
+    const investigatorLlm: "groq" | null =
       rawInvestigatorLlm === "groq" || rawInvestigatorLlm === "mistral" ? rawInvestigatorLlm : null;
     const investigatorPrompt = typeof parsed.investigatorPrompt === "string" ? parsed.investigatorPrompt.trim() : "";
     if (!decision || !reason || investigatorPrompt.length < 20 || !investigatorLlm) return null;
@@ -1503,7 +1472,7 @@ export function applyGeminiBossPlan(
   input: {
     outcome?: BossPlanOutcome;
     actionId: string | null;
-    investigatorLlm?: "groq" | "mistral" | null;
+    investigatorLlm?: "groq" | null;
     decision: string;
     reason: string;
     iteration: number;
