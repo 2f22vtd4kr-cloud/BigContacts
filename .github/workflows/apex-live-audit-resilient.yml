@@ -1,20 +1,6 @@
-name: Apex Live Bureau Audit — Resilient Groq 3.8
+name: Apex Live Bureau Audit — Resilient
 
-# Provider-resilient real-run lane. Runtime verification marker: 2026-09-25. This is deliberately separate from the
-# historical audit workflow so an experimental provider change cannot cancel
-# or rewrite an already-running audit.
-on:
-  workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - "scripts/resilient-live-batch-trigger.md"
-      - ".github/workflows/apex-live-audit-resilient.yml"
-      - "scripts/audit-live-bureau.mjs"
-      - "scripts/apply-discovery-admission-v2.mjs"
-      - "artifacts/api-server/src/src/lib/discovery-agent.ts"
-      - "artifacts/api-server/src/src/test/discovery-agent-parse.test.ts"
-
+# Provider-resilient real-run lane.
 concurrency:
   group: apex-live-bureau-resilient-${{ github.ref }}
   cancel-in-progress: false
@@ -33,23 +19,6 @@ jobs:
       ENABLE_AUTO_PIPELINE: "false"
       NODE_ENV: development
       APEX_API_AUTH_TOKEN: ${{ secrets.APEX_API_AUTH_TOKEN }}
-      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-      GEMINI_API_KEY_1: ${{ secrets.GEMINI_API_KEY_1 }}
-      GEMINI_API_KEY_2: ${{ secrets.GEMINI_API_KEY_2 }}
-      GEMINI_API_KEY_3: ${{ secrets.GEMINI_API_KEY_3 }}
-      GEMINI_API_KEY_4: ${{ secrets.GEMINI_API_KEY_4 }}
-      GEMINI_API_KEY_5: ${{ secrets.GEMINI_API_KEY_5 }}
-      GEMINI_API_KEY_6: ${{ secrets.GEMINI_API_KEY_6 }}
-      GEMINI_API_KEY_7: ${{ secrets.GEMINI_API_KEY_7 }}
-      GEMINI_API_KEY_8: ${{ secrets.GEMINI_API_KEY_8 }}
-      GEMINI_API_KEY_9: ${{ secrets.GEMINI_API_KEY_9 }}
-      GEMINI_API_KEY_10: ${{ secrets.GEMINI_API_KEY_10 }}
-      GEMINI_API_KEY_11: ${{ secrets.GEMINI_API_KEY_11 }}
-      GEMINI_API_KEY_12: ${{ secrets.GEMINI_API_KEY_12 }}
-      GEMINI_API_KEY_13: ${{ secrets.GEMINI_API_KEY_13 }}
-      GEMINI_AGENTIC_MODEL: gemini-3.7-flash
-      GEMINI_RIGHT_HAND_API_KEY: ${{ secrets.GEMINI_RIGHT_HAND_API_KEY }}
-      GEMINI_RIGHT_HAND_MODEL: gemini-3.8-flash
       GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
       GROQ_BOSS_API_KEY: ${{ secrets.GROQ_BOSS_API_KEY }}
       GROQ_BOSS_API_KEY_1: ${{ secrets.GROQ_BOSS_API_KEY_1 }}
@@ -62,7 +31,7 @@ jobs:
       GROQ_BOSS_API_KEY_8: ${{ secrets.GROQ_BOSS_API_KEY_8 }}
       GROQ_BOSS_API_KEY_9: ${{ secrets.GROQ_BOSS_API_KEY_9 }}
       GROQ_BOSS_API_KEY_10: ${{ secrets.GROQ_BOSS_API_KEY_10 }}
-      GROQ_AGENTIC_MODEL: qwen/qwen3.8-27b
+      GROQ_AGENTIC_MODEL: qwen/qwen3-32b
       MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
       MISTRAL_RIGHT_HAND_API_KEY: ${{ secrets.MISTRAL_RIGHT_HAND_API_KEY }}
       MISTRAL_RIGHT_HAND_API_KEY_2: ${{ secrets.MISTRAL_RIGHT_HAND_API_KEY_2 }}
@@ -135,40 +104,6 @@ jobs:
           node scripts/check-workflow-action-pins.mjs
           pnpm run check:retired-api-contract-callers
           pnpm --dir artifacts/api-server exec vitest run src/src/test/discovery-agent-parse.test.ts src/src/test/discovery-runtime-correctness.test.ts src/src/test/agentic-scope-boundary.test.ts src/src/test/agentic-source-provenance.test.ts src/src/test/bureau-contact-persist-strict.test.ts
-      - name: Provider catalog and generation preflight
-        shell: bash
-        run: |
-          set -euo pipefail
-          node --input-type=module <<'NODE'
-          const results = [];
-          let digReady = false;
-          async function probe(url,key,model,provider) {
-            if (!key) { results.push({provider,state:'not_configured'}); return false; }
-            try {
-              const r = await fetch(url,{method:'POST',headers:{Authorization:`Bearer ${key}`,'content-type':'application/json'},body:JSON.stringify({model,messages:[{role:'user',content:'Reply READY only.'}],max_tokens:32}),signal:AbortSignal.timeout(15000)});
-              await r.text();
-              const remaining = Number(r.headers.get('x-ratelimit-remaining-tokens') || 'NaN');
-              const limit = Number(r.headers.get('x-ratelimit-limit-tokens') || 'NaN');
-              results.push({provider,model,status:r.status,retryAfter:r.headers.get('retry-after'),remainingTokens:r.headers.get('x-ratelimit-remaining-tokens'),limitTokens:r.headers.get('x-ratelimit-limit-tokens'),resetTokens:r.headers.get('x-ratelimit-reset-tokens')});
-              if (!r.ok) return false;
-              if (provider === 'groq-dig' && Number.isFinite(remaining) && Number.isFinite(limit) && remaining < Math.min(6500, limit * 0.8)) { results.push({provider,state:'insufficient_tpm_headroom',remainingTokens:remaining}); return false; }
-              return true;
-            } catch(e) { results.push({provider,model,state:'transport_error',error:String(e?.message||e)}); return false; }
-          }
-          const groq = await probe('https://api.groq.com/openai/v1/chat/completions',process.env.GROQ_API_KEY,process.env.GROQ_AGENTIC_MODEL,'groq-dig');
-          const mistral = await probe('https://api.mistral.ai/v1/chat/completions',process.env.MISTRAL_API_KEY,process.env.MISTRAL_AGENTIC_MODEL || 'mistral-small-latest','mistral-dig');
-          digReady = groq || mistral;
-          const keys=[process.env.GEMINI_API_KEY,...Array.from({length:13},(_,i)=>process.env[`GEMINI_API_KEY_${i+1}`])].filter(Boolean);
-          let bossReady=false;
-          for (const [i,key] of keys.entries()) {
-            try {
-              const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(process.env.GEMINI_AGENTIC_MODEL || 'gemini-3.7-flash')}:generateContent`,{method:'POST',headers:{'x-goog-api-key':key,'content-type':'application/json'},body:JSON.stringify({contents:[{parts:[{text:'Reply READY only.'}]}],generationConfig:{maxOutputTokens:8}}),signal:AbortSignal.timeout(15000)});
-              await r.text(); results.push({provider:'gemini-boss',key:`${i+1}`,status:r.status}); if(r.ok){bossReady=true;break;}
-            } catch(e){results.push({provider:'gemini-boss',key:`${i+1}`,state:'transport_error',error:String(e?.message||e)});}
-          }
-          console.log(JSON.stringify({digReady,bossReady,results},null,2));
-          if(!digReady){console.error('No configured Dig provider passed generation preflight.');process.exit(2);}
-          NODE
       - name: Configure isolated CI API authentication
         shell: bash
         run: echo "APEX_API_AUTH_TOKEN=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
