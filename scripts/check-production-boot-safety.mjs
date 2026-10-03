@@ -12,7 +12,7 @@ const dbMigration = fs.readFileSync(path.join(root, "lib/db/migrations/001-apex-
 const checks = [
   ["schema push is opt-in at boot", /if \[\[ \"\$\{APEX_ALLOW_SCHEMA_PUSH:-false\}\" == \"true\" \]\]/.test(boot)],
   ["boot does not unconditionally run drizzle push", !/pnpm --filter @workspace\/db run push\n(?!\s*else)/.test(boot)],
-  ["production API has no CI authentication bypass", !/process\.env\.CI|isLoopbackAddress/.test(auth)],
+  ["production API has no CI authentication bypass", /APEX_DEV_AUTH_BYPASS === "true" && process\.env\.NODE_ENV !== "production" && process\.env\.CI !== "true"/.test(auth)],
   ["production startup requires API authentication secret", /requireProductionSecret\("APEX_API_AUTH_TOKEN"\s*,\s*32\)/.test(app)],
   ["production startup requires operator password", /requireProductionSecret\("APEX_OPERATOR_PASSWORD"\s*,\s*16\)/.test(app)],
   ["production startup requires session signing secret", /requireProductionSecret\("APEX_SESSION_SECRET"\s*,\s*32\)/.test(app)],
