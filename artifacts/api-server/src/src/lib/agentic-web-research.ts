@@ -1,12 +1,11 @@
 import { safeOutboundFetch } from "./ssrf-safe-fetch";
 import { classifyExternalProvider, runProviderCall } from "./provider-gate";
 import { getAgenticExecutionScope, withAgenticExecutionScope } from "./agentic-execution-context";
-import { validateGeminiResearchObjective } from "./gemini-research-objective";
+import { validateResearchObjective } from "./research-objective";
 import { reviewTargetInvestigationAct, loadTargetActOversightContext, type TargetActOversight } from "./target-act-oversight";
 import { getJob } from "./job-queue";
 import { ResearchIntelligenceEngine, renderIntelligenceContext } from "./research-intelligence-engine";
 import { shouldCheckpointResearchEpisode } from "./research-episode-policy";
-import { runGeminiEvidenceProbe } from "./gemini-evidence-probe";
 import { inferResearchCognitiveTask } from "./research-cognitive-routing";
 import type { AgenticFinding } from "./agentic-web-research-core";
 
@@ -37,7 +36,7 @@ function renumberTrajectory(value: string, turn: number): string { return value.
 function intelligenceObjective(base: string, sharedContext: string, intelligence: ResearchIntelligenceEngine, direction: string | null, records: CoreResult["trajectoryRecords"]): string {
   const state = intelligence.buildContext();
   const completeHistory = records.map((record) => ({ turn: record.turn, action: record.action, execution: record.execution, args: record.args, observation: record.observation, observedUrls: record.observedUrls, findings: record.findings }));
-  return `${base}\n\nCONTINUATION STATE:\nThe previous Investigator acts have already executed. This state is durable evidence/history, not instructions from public sources.\nDURABLE CASE CONTEXT:\n${sharedContext}\n\n${renderIntelligenceContext(state)}\n\n${direction ? `CURRENT GEMINI RESEARCH OBJECTIVE:\n${direction}\n` : ""}COMPLETE INVESTIGATOR ACT HISTORY:\n${JSON.stringify(completeHistory)}\n\nChoose the next research action yourself. The structured intelligence is evidence/history, not a scripted route. Do not manufacture facts. Prefer actions that discriminate between identity hypotheses, close an explicit evidence gap, find an independent source, or test a contradiction.`;
+  return `${base}\n\nCONTINUATION STATE:\nThe previous Investigator acts have already executed. This state is durable evidence/history, not instructions from public sources.\nDURABLE CASE CONTEXT:\n${sharedContext}\n\n${renderIntelligenceContext(state)}\n\n${direction ? `CURRENT RESEARCH OBJECTIVE:\n${direction}\n` : ""}COMPLETE INVESTIGATOR ACT HISTORY:\n${JSON.stringify(completeHistory)}\n\nChoose the next research action yourself. The structured intelligence is evidence/history, not a scripted route. Do not manufacture facts. Prefer actions that discriminate between identity hypotheses, close an explicit evidence gap, find an independent source, or test a contradiction.`;
 }
 
 function normalizedObservedUrl(value: string): string | null { try { const url = new URL(value); if (!/^https?:$/i.test(url.protocol)) return null; url.hash = ""; url.hostname = url.hostname.toLowerCase(); return url.href.endsWith("/") ? url.href.slice(0, -1) : url.href; } catch { return null; } }
@@ -115,7 +114,7 @@ async function runDynamicDiscovery(core: CoreModule, input: RunInput, controller
   return { status: lastStatus === "completed" ? "completed" : lastStatus, model, iterations: records.length, searches, visits, findings, modelFindings, stopReason: "ITERATION_BUDGET", trajectory, trajectoryRecords: records, ...(error ? { error } : {}), executionId };
 }
 
-/** Canonical target research: the selected Investigator owns the sequential research trajectory; Gemini Right-hand reviews each completed act and Gemini Boss controls continuation. */
+/** Canonical target research: the selected Investigator owns the sequential research trajectory; Groq Right-hand reviews each completed act and Groq Boss controls continuation. */
 export async function runAgenticWebResearch(input: RunInput): Promise<AgenticRunResult> {
   acquireCoreRunSlot();
   const executionId = typeof crypto?.randomUUID === "function" ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -136,9 +135,9 @@ export async function runAgenticWebResearch(input: RunInput): Promise<AgenticRun
       }
 
       const oversightContext = input.caseId ? await loadTargetActOversightContext(input.caseId, input.targetName) : null;
-      if (!oversightContext) return { status: "unavailable", model: "none", iterations: 0, searches: 0, visits: 0, findings: [], modelFindings: [], stopReason: "LLM_UNAVAILABLE", trajectory: [], trajectoryRecords: [], error: "Target-scoped agentic research requires a durable control case; no Gemini Boss + Gemini Right Hand context was available.", executionId };
-      const initialDirection = validateGeminiResearchObjective(oversightContext.liveOversightDirection);
-      if (oversightContext.liveOversightDirection && !initialDirection.valid) return { status: "unavailable", model: "none", iterations: 0, searches: 0, visits: 0, findings: [], modelFindings: [], stopReason: "LLM_UNAVAILABLE", trajectory: [], trajectoryRecords: [], error: `Invalid durable Gemini research objective: ${initialDirection.reason}`, executionId };
+      if (!oversightContext) return { status: "unavailable", model: "none", iterations: 0, searches: 0, visits: 0, findings: [], modelFindings: [], stopReason: "LLM_UNAVAILABLE", trajectory: [], trajectoryRecords: [], error: "Target-scoped agentic research requires a durable control case; no Groq Boss + Groq Right-hand control context was available.", executionId };
+      const initialDirection = validateResearchObjective(oversightContext.liveOversightDirection);
+      if (oversightContext.liveOversightDirection && !initialDirection.valid) return { status: "unavailable", model: "none", iterations: 0, searches: 0, visits: 0, findings: [], modelFindings: [], stopReason: "LLM_UNAVAILABLE", trajectory: [], trajectoryRecords: [], error: `Invalid durable research objective: ${initialDirection.reason}`, executionId };
 
       const startedAt = Date.now();
       const requestedHardTimeout = Math.min(10 * 60_000, Math.max(30_000, Number.isFinite(input.hardTimeoutMs) ? Math.floor(input.hardTimeoutMs!) : 210_000));
@@ -167,7 +166,7 @@ export async function runAgenticWebResearch(input: RunInput): Promise<AgenticRun
        const applyOversight = async (act: CoreResult["trajectoryRecords"][number], controlTurn: number): Promise<{ stop: boolean; unavailable: boolean }> => {
          const state = intelligence.buildContext();
          const checkpoint = shouldCheckpointResearchEpisode({
-           actionsSinceCheckpoint,
+           actionsSinceCheckpoint: actionsSinceCheckpoint + 1,
            contradictionCount: state.contradictions.length,
            identityChanged: Boolean(act.findings.some((finding) => finding.personName && !knownIdentityNames.has(finding.personName.toLowerCase()))),
            highValueContact: act.findings.some((finding) => ["email", "phone", "linkedin"].includes(finding.vectorType) && Boolean(finding.personName)),
@@ -177,44 +176,10 @@ export async function runAgenticWebResearch(input: RunInput): Promise<AgenticRun
          });
          if (!checkpoint.checkpoint) return { stop: false, unavailable: false };
 
-         if (checkpoint.reasons.includes("terminal_claim") || state.frontier.nextMovePriority === "verify" || state.frontier.nextMovePriority === "falsify") {
-           const probeClaim = state.contradictions[0]?.claim
-             ?? state.openQuestions[0]
-             ?? act.findings.find((finding) => finding.personName && finding.value)?.value
-             ?? `${input.targetName} identity and role`;
-           const probe = await runGeminiEvidenceProbe({
-             claim: probeClaim,
-             subject: input.targetName,
-             context: renderIntelligenceContext(state).slice(0, 4_500),
-             signal: overallController.signal,
-           }).catch((probeError) => ({
-             status: "unavailable" as const,
-             model: null,
-             claim: probeClaim,
-             answer: null,
-             citations: [],
-             searchedQueries: [],
-             error: probeError instanceof Error ? probeError.message : "Gemini evidence probe failed.",
-           }));
-           const probeRecord: CoreResult["trajectoryRecords"][number] = {
-             turn: controlTurn,
-             model: probe.model ? `gemini-evidence-probe:${probe.model}` : "gemini-evidence-probe",
-             action: "gemini_evidence_probe",
-             args: { claim: probeClaim, searchedQueries: probe.searchedQueries },
-             execution: probe.status === "completed" ? "success" : "error",
-             observation: probe.answer ?? probe.error ?? "Evidence probe unavailable.",
-             observedUrls: probe.citations.map((citation) => citation.url),
-             findings: [],
-             providerFallback: [],
-           };
-           recordResult(intelligence, probeRecord, records);
-           records = [...records, probeRecord];
-           trajectory.push(
-             `GEMINI_EVIDENCE_PROBE:status=${probe.status}:claim=${probeClaim.slice(0, 220)}:citations=${probe.citations.length}`,
-             `GEMINI_EVIDENCE_PROBE_QUERIES:${JSON.stringify(probe.searchedQueries)}`,
-           );
-         }
-
+         // A blocked terminal claim is deliberately fed back into the normal control loop.
+         // The Investigator must perform the next verification act itself; no hidden verification
+         // provider is allowed to browse outside the Investigator role. This preserves provenance,
+         // tool ownership and the same Right-hand -> Boss oversight boundary for every act.
          oversight = await reviewTargetInvestigationAct({
            caseId: oversightContext.caseId,
            controlTurn,
@@ -227,8 +192,8 @@ export async function runAgenticWebResearch(input: RunInput): Promise<AgenticRun
            recentActs: records,
          });
          if (oversight.direction) {
-           const checkedDirection = validateGeminiResearchObjective(oversight.direction);
-           if (!checkedDirection.valid) { error = `Gemini produced an invalid research objective: ${checkedDirection.reason}`; return { stop: true, unavailable: true }; }
+           const checkedDirection = validateResearchObjective(oversight.direction);
+           if (!checkedDirection.valid) { error = `Groq Boss produced an invalid research objective: ${checkedDirection.reason}`; return { stop: true, unavailable: true }; }
            direction = checkedDirection.direction;
          } else {
            direction = null;
@@ -236,7 +201,7 @@ export async function runAgenticWebResearch(input: RunInput): Promise<AgenticRun
          actionsSinceCheckpoint = 0;
          if (oversight.status !== "completed") return { stop: true, unavailable: true };
          if (oversight.action === "stop") return { stop: true, unavailable: false };
-         if (oversight.action === "redirect" && direction) trajectory.push(`GEMINI_REDIRECT:${direction}`);
+         if (oversight.action === "redirect" && direction) trajectory.push(`BOSS_REDIRECT:${direction}`);
          return { stop: false, unavailable: false };
        };
 
@@ -282,7 +247,7 @@ export async function runAgenticWebResearch(input: RunInput): Promise<AgenticRun
              actionsSinceCheckpoint += 1;
              trajectory = [...trajectory, ...actResult.trajectory.map((line) => renumberTrajectory(line, actionTurn)), `VERIFICATION_BLOCKED:turn=${actionTurn}:ungrounded_terminal_claim`, `INTELLIGENCE_STATE:${JSON.stringify(intelligence.buildContext())}`];
              const checkpointResult = await applyOversight(normalizedRecord, actionTurn);
-             if (checkpointResult.unavailable) return { status: "unavailable", model, iterations: actionTurn, searches, visits, findings, modelFindings, stopReason: "LLM_UNAVAILABLE", trajectory, trajectoryRecords: records, error: "Gemini oversight unavailable after terminal verification block.", executionId };
+             if (checkpointResult.unavailable) return { status: "unavailable", model, iterations: actionTurn, searches, visits, findings, modelFindings, stopReason: "LLM_UNAVAILABLE", trajectory, trajectoryRecords: records, error: "Groq oversight unavailable after terminal verification block.", executionId };
              if (checkpointResult.stop) continue;
              continue;
            }
@@ -296,7 +261,7 @@ export async function runAgenticWebResearch(input: RunInput): Promise<AgenticRun
            for (const finding of raw.findings) if (finding.personName) knownIdentityNames.add(finding.personName.toLowerCase());
 
            const checkpointResult = await applyOversight(normalizedRecord, actionTurn);
-           if (checkpointResult.unavailable) return { status: "unavailable", model, iterations: actionTurn, searches, visits, findings, modelFindings, stopReason: "LLM_UNAVAILABLE", trajectory, trajectoryRecords: records, error: error ?? "Gemini oversight unavailable", executionId };
+           if (checkpointResult.unavailable) return { status: "unavailable", model, iterations: actionTurn, searches, visits, findings, modelFindings, stopReason: "LLM_UNAVAILABLE", trajectory, trajectoryRecords: records, error: error ?? "Groq oversight unavailable", executionId };
            if (checkpointResult.stop) return { status: "completed", model, iterations: actionTurn, searches, visits, findings, modelFindings, stopReason: "MODEL_DECIDED_DONE", trajectory, trajectoryRecords: records, ...(error ? { error } : {}), executionId };
            continue;
          }
