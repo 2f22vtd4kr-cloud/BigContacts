@@ -1,4 +1,7 @@
 name: Apex Live Bureau Audit — Resilient
+on:
+  workflow_dispatch:
+
 
 # Provider-resilient real-run lane.
 concurrency:
