@@ -7,8 +7,8 @@ describe("Research intelligence attribution architecture", () => {
       executionId: "test-contact-scope",
       target: "Target Person",
       objective: "Find attributable public contact routes",
-    })
-    
+    });
+
     engine.recordAction({
       turn: 1,
       action: "visit",
@@ -23,7 +23,7 @@ describe("Research intelligence attribution architecture", () => {
         sourceUrls: ["https://example.org/alice"],
         note: "Published on Alice's profile",
       }],
-    })
+    });
     engine.recordAction({
       turn: 2,
       action: "visit",
@@ -38,17 +38,15 @@ describe("Research intelligence attribution architecture", () => {
         sourceUrls: ["https://other.example/bob"],
         note: "Published on Bob's profile",
       }],
-    })
-    
-    const context = engine.buildContext()
-    const routes = context.contacts.filter((contact) => contact.value === "shared@example.org")
-    assert.equal(routes.length, 2)
-    assert.deepEqual(new Set(routes.map((contact) => contact.personName)), new Set(["Alice Person", "Bob Person"]))
-    expect(context.facts.some((fact) => fact.claim.startsWith("Alice Person email shared@example.org")))
-    expect(context.facts.some((fact) => fact.claim.startsWith("Bob Person email shared@example.org")))
-    assert.equal(typeof context.sourceIndependence, "number")
-    expect(["explore","verify","falsify","contact"].includes(context.frontier.nextMovePriority))
-    
-    console.log("research intelligence attribution tests passed")
+    });
+
+    const context = engine.buildContext();
+    const routes = context.contacts.filter((contact) => contact.value === "shared@example.org");
+    expect(routes).toHaveLength(2);
+    expect(new Set(routes.map((contact) => contact.personName))).toEqual(new Set(["Alice Person", "Bob Person"]));
+    expect(context.facts.some((fact) => fact.claim.startsWith("Alice Person email shared@example.org"))).toBe(true);
+    expect(context.facts.some((fact) => fact.claim.startsWith("Bob Person email shared@example.org"))).toBe(true);
+    expect(typeof context.sourceIndependence).toBe("number");
+    expect(["explore", "verify", "falsify", "contact"]).toContain(context.frontier.nextMovePriority);
   });
 });
