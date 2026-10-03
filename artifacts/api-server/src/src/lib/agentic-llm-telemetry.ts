@@ -5,6 +5,8 @@
  * process-local counters for cheap post-run inspection.
  */
 
+import { createHash } from "node:crypto";
+
 type Attempt = {
   provider: "groq" | "mistral" | string;
   model: string;
@@ -29,6 +31,17 @@ let completionTokens = 0;
 let totalTokens = 0;
 let latencyMs = 0;
 
+const SAFE_REASONS = new Set([
+  "upstream_quota_exhausted", "upstream_rate_limited", "request_size", "provider_rejected",
+  "empty_response", "exception", "timeout", "cancelled", "network_error", "rate_limited",
+]);
+
+function safeTelemetryReason(reason: string | undefined): string | null {
+  if (!reason) return null;
+  if (SAFE_REASONS.has(reason)) return reason;
+  return `opaque:${createHash("sha256").update(reason).digest("hex").slice(0, 16)}`;
+}
+
 export function recordAgenticLlmAttempt(event: Attempt): void {
   attempts += 1;
   if (event.success) successes += 1;
@@ -52,7 +65,7 @@ export function recordAgenticLlmAttempt(event: Attempt): void {
     totalTokens: event.totalTokens ?? null,
     latencyMs: event.latencyMs ?? null,
     retryIndex: event.retryIndex,
-    reason: event.reason ?? null,
+    reason: safeTelemetryReason(event.reason),
   }));
 }
 
