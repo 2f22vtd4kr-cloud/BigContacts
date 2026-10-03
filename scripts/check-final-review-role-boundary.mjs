@@ -11,8 +11,8 @@ for (const targetPath of paths) {
   if (/Groq capacity fallback|groq-final-review-fallback|DeepSeek|deepseek|NVIDIA NIM|NVIDIA Integrate/.test(source)) {
     failures.push(`${targetPath}: retired provider or Groq final-review fallback remains`);
   }
-  if (!/runMistralRightHandFinalReview/.test(source)) {
-    failures.push(`${targetPath}: Mistral Right-hand final-review path is missing`);
+  if (!/runGroqRightHandFinalReview/.test(source)) {
+    failures.push(`${targetPath}: Groq Right-hand final-review path is missing`);
   }
   if (!/unavailable-final-review/.test(source)) {
     failures.push(`${targetPath}: deterministic fail-closed final-review path is missing`);
@@ -25,6 +25,6 @@ if (failures.length) {
 }
 console.log("FINAL REVIEW ROLE BOUNDARY: PASS");
 console.log("- Groq Boss is primary");
-console.log("- Mistral Right-hand owns final-review oversight");
-console.log("- Groq/Mistral Investigator lane cannot become final reviewer");
+console.log("- Groq Right-hand owns final-review oversight");
+console.log("- Groq Investigator lane cannot become final reviewer");
 console.log("- Unavailable oversight fails closed through deterministic adjudication");

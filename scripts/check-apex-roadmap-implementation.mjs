@@ -21,7 +21,7 @@ const required=[
 ];
 for(const f of required) if(!fs.existsSync(path.join(root,f))) throw new Error("Missing roadmap artifact: "+f);
 const core=fs.readFileSync(path.join(root,"artifacts/api-server/src/src/lib/agentic-web-research-core.ts"),"utf8");
-if(!core.includes('INVESTIGATOR_LLM_CAPABILITY_POOL = ["groq", "mistral"]')) throw new Error("Investigator pool contract drifted.");
+if(!core.includes('INVESTIGATOR_LLM_CAPABILITY_POOL = ["groq"]')) throw new Error("Investigator pool contract drifted.");
 for(const marker of ["MAX_ITER = 64","MAX_OBS = 16_000","MAX_TRAJECTORY_RECORDS = 512"]) if(!core.includes(marker)) throw new Error("Safety ceiling missing: "+marker);
 const obs=fs.readFileSync(path.join(root,"artifacts/api-server/src/src/lib/target-act-oversight.ts"),"utf8");
 for(const marker of ["tool_observation","control_decision","fail-closed"]) if(!obs.toLowerCase().includes(marker.toLowerCase())) throw new Error("Oversight durability marker missing: "+marker);

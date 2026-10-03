@@ -33,7 +33,7 @@ const failures = [];
 const assert = (ok, message) => { if (!ok) failures.push(message); };
 assert(!/DEEPSEEK_INVESTIGATOR_MODEL|\["deepseek",\s*callDeepSeekJson\]|\bname === "deepseek"/.test(source.research), "Removed DeepSeek is present in the Investigator adapter pool.");
 assert(!/Gemini.*Investigator fallback|investigator.*Gemini.*fallback/i.test(source.prompt + source.bureau), "Gemini appears to be an Investigator fallback.");
-assert(!/Groq\s*[→>-]+\s*Mistral|Mistral\s*[→>-]+\s*Groq/.test(source.research + source.bureau + source.prompt), "Active runtime still contains a Groq→Mistral Investigator chain.");
+assert(!/Groq\s*[→>-]+\s*Groq|Groq\s*[→>-]+\s*Groq/.test(source.research + source.bureau + source.prompt), "Active runtime still contains a Groq→Groq Investigator chain.");
 assert(!/Prefer\s+Serper.*Tavily.*Exa/i.test(source.research), "Active research runtime contains a ranked Serper→Tavily→Exa preference list.");
 assert(!/const\s+serper\s*=.*\n\s*if\s*\(serper.*\n\s*const\s+tavily\s*=.*\n\s*if\s*\(tavily.*\n\s*const\s+exa\s*=/s.test(source.research), "Active research runtime contains deterministic sequential search-provider selection.");
 assert(!/web_search routes Serper\s*[→>-]+\s*Tavily/i.test(source.orientation), "Investigator orientation still teaches a fixed search-provider route.");
@@ -50,7 +50,7 @@ assert(/investigatorLlm\s*:/.test(source.canonicalAtlas), "Canonical Atlas disco
 assert(/discoveryCaseId|caseId/.test(source.canonicalAtlas) && /runBureauAgenticWebPass\(/.test(source.canonicalAtlas), "Canonical Atlas discovery does not mount a durable discovery case context into the Investigator.");
 assert(/decideAtlasNextAction\s*\(/.test(source.canonicalAtlas), "Canonical Atlas discovery does not delegate the next research action to the AI control plane.");
 assert(/Allowed actions:[\s\S]*continue_discovery[\s\S]*research_candidate[\s\S]*revisit_candidate[\s\S]*pivot_discovery[\s\S]*stop/.test(source.atlasControl), "Atlas control decision does not expose the required model-owned transition actions.");
-assert(/resolveGroqBossModel\s*\(/.test(source.atlasControl) && /runMistralRightHandFreeJson\s*\(/.test(source.atlasControl) && /mistral-right-hand-reasoning/.test(source.atlasControl) && /groq-boss/.test(source.atlasControl), "Atlas transition control does not use Groq Boss plus Mistral Right-hand oversight.");
+assert(/resolveGroqBossModel\s*\(/.test(source.atlasControl) && /runGroqRightHandFreeJson\s*\(/.test(source.atlasControl) && /groq-right-hand-reasoning/.test(source.atlasControl) && /groq-boss/.test(source.atlasControl), "Atlas transition control does not use Groq Boss plus Groq Right-hand oversight.");
 assert(/candidateNames\.some\(/.test(source.atlasControl) && /fail-closed/.test(source.atlasControl), "Atlas control decision does not bind target selection to explicit admissions and fail closed.");
 assert(/runTargetContactAgent\(/.test(source.canonicalTarget) && /investigatorLlm\s*:/.test(source.canonicalTarget), "Canonical target runner does not bind the selected Investigator into the target Dig.");
 assert(/runTargetContactAgent\(/.test(source.canonicalTarget) && /contextDocument\s*:/.test(source.canonicalTarget), "Canonical target runner does not mount durable context into the Target Investigator.");
@@ -66,7 +66,7 @@ assert(!/from "\.\/research\/cases"/.test(source.researchRoutes), "Legacy mixed 
 assert(!/router\.use\(casesRouter\)/.test(source.researchRoutes), "Legacy mixed research/cases router is still mounted by the live canonical research router.");
 assert(/status\(410\)/.test(source.caseRetirement), "Legacy case execution retirement router does not return explicit HTTP 410 responses.");
 assert(/initial-research/.test(source.caseRetirement) && /admit-candidate/.test(source.caseRetirement) && /promote-target/.test(source.caseRetirement) && /run-boss-review/.test(source.caseRetirement), "Legacy case execution retirement router does not cover every retired manual execution endpoint.");
-assert(!/runBureauAgenticWebPass|runBroadDiscovery|runMistralWebSearch|searchRegistry|expandSecondaryPublicSurface/.test(source.caseData), "Case data router contains research execution logic; persistence/read surfaces must remain non-research.");
+assert(!/runBureauAgenticWebPass|runBroadDiscovery|runGroqWebSearch|searchRegistry|expandSecondaryPublicSurface/.test(source.caseData), "Case data router contains research execution logic; persistence/read surfaces must remain non-research.");
 assert(/canonical-atlas-discovery/.test(source.launchRoute), "Atlas launch route is not wired to canonical model-owned discovery.");
 assert(!/atlas-orchestrator/.test(source.launchRoute), "Atlas launch route still imports the legacy deterministic orchestrator.");
 assert(!/\brunPhaseJBatch\s*\(|\bexpandSecondaryPublicSurface\s*\(|\brunBroadDiscovery\s*|\brunMcts\s*\(|\brunTargetResearch\s*\(/.test(source.canonicalAtlas), "Canonical Atlas runner contains a retired deterministic research path.");
@@ -81,18 +81,18 @@ assert(/Startup recovery complete/.test(source.startupRecovery), "Lifecycle-only
 assert(!/runBroadDiscovery|bulk-run|deep-web-osint|social-discovery|messenger-discovery|in-house-enrich/.test(source.startupRecovery), "Lifecycle-only startup recovery contains a research/enrichment trigger.");
 assert(!/findingsFrom(?:PeopleSnippet|ProxyPage|IrAndRelatedBlocks|ContactFacts)[\s\S]{0,18000}personName:\s*targetName/.test(source.research), "ReAct observation extraction still injects target-derived personName into deterministic findings; #136 remains unresolved.");
 assert(!/findingsFrom(?:PeopleSnippet|ProxyPage|IrAndRelatedBlocks|ContactFacts)[\s\S]{0,18000}scope:\s*"candidate"/.test(source.research), "ReAct observation extraction still manufactures candidate scope before an Investigator promotion decision; #136 remains unresolved.");
-assert(/Groq GPT-OSS 120B|Boss.*Groq/i.test(source.architecture) && /Right-hand\s*=\s*(?:\*\*)?Mistral/i.test(source.architecture) && /Investigator LLM pool/.test(source.architecture), "Canonical ReAct architecture document is missing the Groq Boss + Mistral Right-hand role law.");
+assert(/Groq GPT-OSS 120B|Boss.*Groq/i.test(source.architecture) && /Right-hand\s*=\s*(?:\*\*)?Groq/i.test(source.architecture) && /Investigator LLM pool/.test(source.architecture), "Canonical ReAct architecture document is missing the Groq Boss + Groq Right-hand role law.");
 assert(/no forced search order/i.test(source.architecture), "Canonical ReAct architecture document does not state the no-forced-search-order invariant.");
 
 if (failures.length) { console.error("UNIFIED INVESTIGATOR ARCHITECTURE: FAIL"); for (const failure of failures) console.error(`- ${failure}`); process.exit(1); }
 console.log("UNIFIED INVESTIGATOR ARCHITECTURE: PASS");
-console.log("- Groq GPT-OSS 120B is Boss control and Mistral is independent Right-hand oversight");
+console.log("- Groq GPT-OSS 120B is Boss control and Groq is independent Right-hand oversight");
 console.log("- DeepSeek/NVIDIA NIM is removed from active Apex execution");
-console.log("- Groq/Mistral remain Investigator LLMs, not a sequential chain or reviewer tier");
+console.log("- Groq remains the Investigator LLM, not a sequential chain or reviewer tier");
 console.log("- Investigator selection propagates into active ReAct paths");
 console.log("- Search/browser/registry/OSINT remain model-selected capabilities");
 console.log("- Discovery and Target Investigator paths mount durable case context");
 console.log("- Discovery cannot deterministically force the next target-research phase");
-console.log("- Atlas transition is selected by Mistral after Mistral Right-hand advice and bounded by deterministic safety validation");
+console.log("- Atlas transition is selected by Groq after Groq Right-hand advice and bounded by deterministic safety validation");
 console.log("- Startup recovery is lifecycle-only; mass research cannot begin at boot");
 console.log("- Legacy deterministic research is not publicly mounted");

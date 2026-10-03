@@ -6,7 +6,7 @@ import { GROQ_CHAT_MODELS } from "./groq-models";
 import { filterClaimUrls, filterPassagesForQuery } from "./passage-filter";
 import { sanitizePublicEmail, sanitizePublicPhone, isTrashContactValue } from "./contact-validation";
 import { safeOutboundFetch } from "./ssrf-safe-fetch";
-import { ProviderQuotaError, runProviderCall } from "./provider-gate";
+import { runProviderCall } from "./provider-gate";
 import { boundInvestigatorPromptSection, buildInvestigatorContext, tightenInvestigatorPrompt } from "./investigation-context-compaction";
 import { renderAtlasCapabilityGuidance } from "./atlas-capability-registry";
 import { classifyTrajectorySignals, type AtlasFailureSignal } from "./atlas-failure-observatory";
@@ -21,7 +21,7 @@ import {
   type ProviderFailureClass,
 } from "./provider-error-diagnostics";
 export { getAgenticLlmHealth };
-export const INVESTIGATOR_LLM_CAPABILITY_POOL = ["groq", "mistral"] as const;
+export const INVESTIGATOR_LLM_CAPABILITY_POOL = ["groq"] as const;
 export type AgenticFinding = { vectorType: "email" | "phone" | "linkedin" | "website" | "other" | "social"; value: string; personName: string | null; role: string | null; scope: "organization" | "candidate" | "unknown"; sourceUrls: string[]; note: string; promotionDecision?: "promote" | "reject"; promotionReason?: string };
 export type AgenticTrajectoryRecord = { turn: number; model: string; action: string; args: Record<string, unknown>; thought?: string; execution: "selected" | "success" | "http_error" | "blocked" | "timeout" | "error" | "cancelled"; observation?: string; observedUrls: string[]; findings: AgenticFinding[]; providerFallback?: string[]; stopReason?: AgenticWebResearchResult["stopReason"] };
 export type AgenticWebResearchResult = { status: "completed" | "unavailable" | "error" | "timeout" | "cancelled"; model: string; iterations: number; searches: number; visits: number; findings: AgenticFinding[]; modelFindings: AgenticFinding[]; stopReason: "MODEL_DECIDED_DONE" | "ITERATION_BUDGET" | "HARD_TIMEOUT" | "CANCELLED" | "LLM_UNAVAILABLE" | "PARSE_FAILURE"; trajectory: string[]; trajectoryRecords: AgenticTrajectoryRecord[]; failureSignals?: AtlasFailureSignal[]; error?: string };
@@ -244,7 +244,7 @@ async function toolVisit(url: string, signal?: AbortSignal): Promise<{ observati
 function extractJsonObject(raw: string): string | null { const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)```/i)?.[1]?.trim(); const source = fenced || raw.trim(); const start = source.indexOf("{"), end = source.lastIndexOf("}"); return start >= 0 && end > start ? source.slice(start, end + 1) : null; }
 function parseAction(raw: string): AgentAction | null { const json = extractJsonObject(raw); if (!json) return null; try { const value = JSON.parse(json) as Record<string, unknown>; const action = cleanText(value.action, 40).toLowerCase(); const meta = { hypothesis: cleanText(value.hypothesis, 500) || undefined, purpose: cleanText(value.purpose, 500) || undefined, expectedInformationGain: typeof value.expectedInformationGain === "number" && Number.isFinite(value.expectedInformationGain) ? Math.max(0, Math.min(1, value.expectedInformationGain)) : undefined }; if (action === "parallel_web_search" && Array.isArray(value.searches)) { const searches = value.searches.map((item) => item && typeof item === "object" ? item as Record<string, unknown> : null).filter(Boolean).map((item) => ({ query: cleanText(item!.query, 300), provider: cleanText(item!.provider, 20), locale: cleanText(item!.locale, 16) || undefined, market: cleanText(item!.market, 16) || undefined, purpose: cleanText(item!.purpose, 500) || undefined })).filter((item) => item.query && ["serper","tavily","exa"].includes(item.provider)).slice(0, 4) as Array<{ query: string; provider: "serper" | "tavily" | "exa"; locale?: string; market?: string; purpose?: string }>; if (searches.length >= 2) return { action: "parallel_web_search", searches, thought: cleanText(value.thought, 500) || undefined, ...meta }; } if (action === "web_search" && cleanText(value.query, 300) && ["serper", "tavily", "exa"].includes(cleanText(value.provider, 20))) return { action: "web_search", query: cleanText(value.query, 300), provider: cleanText(value.provider, 20) as "serper" | "tavily" | "exa", locale: cleanText(value.locale, 16) || undefined, market: cleanText(value.market, 16) || undefined, thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "visit" && isSafeHttpUrl(cleanText(value.url, 500))) return { action: "visit", url: cleanText(value.url, 500), thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "footprint_email" && cleanText(value.email, 120).includes("@")) return { action: "footprint_email", email: cleanText(value.email, 120), thought: cleanText(value.thought, 500) || undefined, ...meta }; const username = cleanText(value.username, 80).replace(/^@/, ""); if (action === "footprint_username_maigret" && username.length >= 2) return { action: "footprint_username_maigret", username, thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "footprint_username_sherlock" && username.length >= 2) return { action: "footprint_username_sherlock", username, thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "domain_lookup" && cleanText(value.domain, 120).includes(".")) return { action: "domain_lookup", domain: cleanText(value.domain, 120).replace(/^https?:\/\//i, "").split("/")[0]!, thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "registry_search" && cleanText(value.query, 200).length >= 2 && cleanText(value.registry, 60)) return { action: "registry_search", query: cleanText(value.query, 200), registry: cleanText(value.registry, 60).toLowerCase(), thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "harvest_domain" && cleanText(value.domain, 120).includes(".")) return { action: "harvest_domain", domain: cleanText(value.domain, 120).replace(/^https?:\/\//i, "").split("/")[0]!, thought: cleanText(value.thought, 500) || undefined, ...meta }; const spiderTarget = cleanText(value.target, 300); const spiderTargetType = cleanText(value.targetType, 20).toLowerCase(); const spiderProfile = cleanText(value.profile, 40).toLowerCase(); if (action === "footprint_spiderfoot" && spiderTarget.length >= 2 && ["domain","hostname","ip","email","username","person","asn"].includes(spiderTargetType) && ["identity-expansion","domain-infrastructure","organization-footprint","contact-adjacent","broad-osint"].includes(spiderProfile)) return { action: "footprint_spiderfoot", target: spiderTarget, targetType: spiderTargetType as SpiderFootTargetType, profile: spiderProfile as SpiderFootProfile, thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "browser_fetch" && isSafeHttpUrl(cleanText(value.url, 500))) return { action: "browser_fetch", url: cleanText(value.url, 500), thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "done") { const findings: AgenticFinding[] = []; for (const rawFinding of Array.isArray(value.findings) ? value.findings : []) { if (!rawFinding || typeof rawFinding !== "object") continue; const f = rawFinding as Record<string, unknown>; const vector = cleanText(f.vectorType, 30).toLowerCase(); const valueText = cleanText(f.value, 500); const sourceUrls = filterClaimUrls(Array.isArray(f.sourceUrls) ? f.sourceUrls.filter((u): u is string => typeof u === "string") : []).map(normalizedUrl).filter((u): u is string => Boolean(u)); if (!valueText || !["email", "phone", "linkedin", "website", "social", "other"].includes(vector) || (vector !== "other" && sourceUrls.length === 0)) continue; let finalValue = valueText; if (vector === "email") { const e = sanitizePublicEmail(valueText); if (!e || isTrashContactValue("email", e)) continue; finalValue = e; } if (vector === "phone") { const p = sanitizePublicPhone(valueText); if (!p || isTrashContactValue("phone", p)) continue; finalValue = p; } if (vector === "website" && !isSafeHttpUrl(finalValue)) continue; findings.push({ vectorType: vector as AgenticFinding["vectorType"], value: finalValue, personName: typeof f.personName === "string" ? f.personName.trim().slice(0, 120) : null, role: typeof f.role === "string" ? f.role.trim().slice(0, 120) : null, scope: f.scope === "candidate" || f.scope === "organization" ? f.scope : "unknown", sourceUrls, note: cleanText(f.note, 400) || "Investigator-authored finding", promotionDecision: f.promotionDecision === "promote" || f.promotionDecision === "reject" ? f.promotionDecision : undefined, promotionReason: cleanText(f.promotionReason, 500) || undefined }); } return { action: "done", findings, thought: cleanText(value.thought, 500) || undefined, ...meta }; } } catch { return null; } return null; }
 async function callGroqJson(prompt: string, signal: AbortSignal, cognitiveTask: ResearchCognitiveTask = "identity_resolution"): Promise<{ model: string; raw: string } | null> {
-  const keys = ["GROQ_API_KEY", ...Array.from({ length: 5 }, (_, i) => `GROQ_API_KEY_${i + 1}`)].map((n) => (process.env[n] || "").trim()).filter(Boolean);
+  const keys = ["GROQ_INVESTIGATOR_API_KEY", ...Array.from({ length: 5 }, (_, i) => `GROQ_INVESTIGATOR_API_KEY_${i + 1}`)].map((n) => (process.env[n] || "").trim()).filter(Boolean);
   if (!keys.length) return null;
   let attempt = 0;
   let workingPrompt = prompt;
@@ -291,180 +291,26 @@ async function callGroqJson(prompt: string, signal: AbortSignal, cognitiveTask: 
   }
   return null;
 }
-type MistralModelCard = {
-  id?: unknown;
-  created?: unknown;
-  archived?: unknown;
-  object?: unknown;
-  TYPE?: unknown;
-  type?: unknown;
-  capabilities?: { completion_chat?: unknown };
-};
-
-function isUsableMistralChatModel(card: MistralModelCard): card is MistralModelCard & { id: string } {
-  const id = typeof card.id === "string" ? card.id.trim() : "";
-  const archived = card.archived === true || String(card.archived).toLowerCase() === "true";
-  const fineTuned = String(card.TYPE ?? card.type ?? "").toLowerCase() === "fine-tuned" || id.startsWith("ft:");
-  return Boolean(id) && !archived && !fineTuned && card.capabilities?.completion_chat === true;
-}
-
-type MistralModelCatalogCacheEntry = { models: string[]; expiresAt: number };
-const mistralModelCatalogCache = new Map<string, MistralModelCatalogCacheEntry>();
-const mistralModelCatalogInFlight = new Map<string, Promise<string[]>>();
-const MISTRAL_MODEL_CATALOG_TTL_MS = boundedPositiveNumber(
-  process.env.APEX_MISTRAL_MODEL_CATALOG_TTL_MS,
-  15 * 60_000,
-  10_000,
-  24 * 60 * 60_000,
-);
-
-export async function resolveMistralChatModels(key: string, signal: AbortSignal): Promise<string[]> {
-  const cacheKey = digestDiagnosticText(key);
-  const cached = mistralModelCatalogCache.get(cacheKey);
-  if (cached && cached.expiresAt > Date.now()) return [...cached.models];
-
-  const existing = mistralModelCatalogInFlight.get(cacheKey);
-  if (existing) return [...(await existing)];
-
-  const task = (async (): Promise<string[]> => {
-    try {
-      const response = await runProviderCall(
-        { provider: "mistral", account: key, signal },
-        () => safeOutboundFetch("https://api.mistral.ai/v1/models", {
-          method: "GET",
-          headers: { Authorization: `Bearer ${key}`, Accept: "application/json" },
-          signal,
-        }),
-      );
-      const body = await readResponseTextCapped(response, signal);
-      if (!response.ok) {
-        logger.warn({ provider: "mistral", model: "catalog", httpStatus: response.status }, "Mistral model catalog unavailable");
-        return [];
-      }
-      const payload = JSON.parse(body) as { data?: unknown };
-      const cards = Array.isArray(payload.data) ? payload.data.filter((item): item is MistralModelCard => Boolean(item && typeof item === "object")) : [];
-      const compatible = cards.filter(isUsableMistralChatModel);
-      const configured = (process.env.MISTRAL_AGENTIC_MODEL || "").trim();
-      const byCreated = [...compatible].sort((a, b) => {
-        const createdA = typeof a.created === "number" ? a.created : Number(a.created);
-        const createdB = typeof b.created === "number" ? b.created : Number(b.created);
-        const safeA = Number.isFinite(createdA) ? createdA : 0;
-        const safeB = Number.isFinite(createdB) ? createdB : 0;
-        return safeB - safeA || String(a.id).localeCompare(String(b.id));
-      });
-      const ordered = [
-        ...(configured && compatible.some((card) => card.id === configured) ? [configured] : []),
-        ...byCreated.map((card) => card.id as string),
-      ];
-      const models = [...new Set(ordered)].slice(0, 4);
-      if (models.length) mistralModelCatalogCache.set(cacheKey, { models, expiresAt: Date.now() + MISTRAL_MODEL_CATALOG_TTL_MS });
-      return models;
-    } catch (error) {
-      if (signal.aborted) throw new Error("cancelled");
-      logger.warn({ provider: "mistral", model: "catalog", error: error instanceof Error ? error.message : String(error) }, "Mistral model catalog request failed");
-      return [];
-    }
-  })();
-
-  mistralModelCatalogInFlight.set(cacheKey, task);
+async function llmStep(prompt: string, selectedInvestigatorLlm: "groq" | undefined, parentSignal: AbortSignal, cognitiveTask: ResearchCognitiveTask = "identity_resolution"): Promise<{ model: string; raw: string; fallback: string[] } | null> {
+  await acquireProviderSlot(parentSignal);
   try {
-    return [...(await task)];
-  } finally {
-    if (mistralModelCatalogInFlight.get(cacheKey) === task) mistralModelCatalogInFlight.delete(cacheKey);
-  }
-}
-
-async function callMistralJson(prompt: string, signal: AbortSignal): Promise<{ model: string; raw: string } | null> {
-  const key = (process.env.MISTRAL_API_KEY || "").trim();
-  if (!key) return null;
-  const models = await resolveMistralChatModels(key, signal);
-  if (models.length === 0) {
-    setAgenticLlmHealth(false, null, "Mistral model catalog returned no usable chat-capable model");
-    return null;
-  }
-  let attempt = 0;
-  let workingPrompt = prompt;
-  let sizeReductionApplied = false;
-  const retryBudgetByModel = new Map<string, number>();
-  for (const model of models) {
-    for (;;) {
-      if (signal.aborted) throw new Error("cancelled");
-      attempt += 1;
-      const started = Date.now();
+    const boundedPrompt = boundInvestigatorPromptSection(prompt, MAX_PROVIDER_PROMPT_CHARS);
+    if (!selectedInvestigatorLlm) { setAgenticLlmHealth(false, null, "No Boss-selected Investigator LLM was propagated into ReAct"); return null; }
+    const fn = selectedInvestigatorLlm === "groq" && process.env.GROQ_INVESTIGATOR_API_KEY ? ((promptValue: string, signalValue: AbortSignal) => callGroqJson(promptValue, signalValue, cognitiveTask)) : null;
+    if (!fn) { setAgenticLlmHealth(false, null, "groq:selected provider unavailable"); return null; }
+    if (parentSignal.aborted) throw new Error("cancelled");
+    const controller = new AbortController();
+    const abortParent = () => controller.abort();
+    parentSignal.addEventListener("abort", abortParent, { once: true });
+    const timer = setTimeout(() => controller.abort(), PROVIDER_DECISION_TIMEOUT_MS);
     try {
-      const response = await runProviderCall({ provider: "mistral", account: key, signal }, () => safeOutboundFetch("https://api.mistral.ai/v1/chat/completions", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ model, max_tokens: 768, response_format: { type: "json_object" }, messages: [{ role: "system", content: apexOrientationCompact("dig_agent") + "\nReturn one JSON action object only." }, { role: "user", content: workingPrompt }] }),
-        signal,
-      }));
-      if (!response.ok) {
-        recordAgenticLlmAttempt({ provider: "mistral", model, promptChars: workingPrompt.length, status: response.status, success: false, latencyMs: Date.now() - started, retryIndex: attempt, reason: response.status === 413 ? "request_size" : response.status === 429 ? "rate_limited" : "provider_rejected" });
-        if (response.status === 413 && !sizeReductionApplied) {
-          workingPrompt = tightenInvestigatorPrompt(workingPrompt);
-          sizeReductionApplied = true;
-          continue;
-        }
-        if (response.status === 401 || response.status === 403) break;
-        if (response.status === 429) {
-          const retries = retryBudgetByModel.get(model) ?? 0;
-          if (retries < 3) {
-            retryBudgetByModel.set(model, retries + 1);
-            const retryAfterHeader = response.headers.get("retry-after");
-            const retryAfterSeconds = retryAfterHeader ? Number(retryAfterHeader) : NaN;
-            const delayMs = Number.isFinite(retryAfterSeconds)
-              ? Math.min(60_000, Math.max(1_000, Math.round(retryAfterSeconds * 1_000)))
-              : Math.min(60_000, 15_000 * (2 ** retries));
-            recordAgenticLlmAttempt({
-              provider: "mistral",
-              model,
-              promptChars: workingPrompt.length,
-              status: response.status,
-              success: false,
-              latencyMs: Date.now() - started,
-              retryIndex: attempt,
-              reason: "rate_limited_retry_" + delayMs + "ms",
-            });
-            await new Promise<void>((resolve, reject) => {
-              const timer = setTimeout(resolve, delayMs);
-              const abort = () => {
-                clearTimeout(timer);
-                reject(new Error("cancelled"));
-              };
-              signal.addEventListener("abort", abort, { once: true });
-            });
-            continue;
-          }
-          break;
-        }
-        break;
-      }
-      const data = await readJsonCapped<{ choices?: Array<{ message?: { content?: string } }> }>(response, signal);
-      const raw = data.choices?.[0]?.message?.content?.trim() || "";
-      recordAgenticLlmAttempt({ provider: "mistral", model, promptChars: workingPrompt.length, status: response.status, success: Boolean(raw), latencyMs: Date.now() - started, retryIndex: attempt, reason: raw ? undefined : "empty_response" });
-      if (raw) return { model: `mistral:${model}`, raw };
-    } catch (error: any) {
-      if (signal.aborted) throw new Error("cancelled");
-      if (error instanceof ProviderQuotaError && error.provider === "mistral" && error.code === "cooldown") {
-        const retries = retryBudgetByModel.get(model) ?? 0;
-        if (retries > 0) {
-          recordAgenticLlmAttempt({ provider: "mistral", model, promptChars: workingPrompt.length, status: "error", success: false, latencyMs: Date.now() - started, retryIndex: attempt, reason: "provider_gate_cooldown_" + error.retryAfterMs + "ms" });
-          await new Promise<void>((resolve, reject) => {
-            const timer = setTimeout(resolve, error.retryAfterMs);
-            const abort = () => { clearTimeout(timer); reject(new Error("cancelled")); };
-            signal.addEventListener("abort", abort, { once: true });
-          });
-          continue;
-        }
-      }
-      recordAgenticLlmAttempt({ provider: "mistral", model, promptChars: workingPrompt.length, status: "error", success: false, latencyMs: Date.now() - started, retryIndex: attempt, reason: error?.message || "exception" });
-      break;
-      }
-    }
-  }
-  return null;
+      const result = await fn(boundedPrompt, controller.signal);
+      if (!result?.raw) throw new Error("groq:empty");
+      setAgenticLlmHealth(true, result.model, null);
+      return { ...result, fallback: [] };
+    } finally { clearTimeout(timer); parentSignal.removeEventListener("abort", abortParent); }
+  } finally { releaseProviderSlot(); }
 }
-async function llmStep(prompt: string, selectedInvestigatorLlm: "groq" | "mistral" | undefined, parentSignal: AbortSignal, cognitiveTask: ResearchCognitiveTask = "identity_resolution"): Promise<{ model: string; raw: string; fallback: string[] } | null> { await acquireProviderSlot(parentSignal); try { const boundedPrompt = boundInvestigatorPromptSection(prompt, MAX_PROVIDER_PROMPT_CHARS); if (!selectedInvestigatorLlm) { setAgenticLlmHealth(false, null, "No Boss-selected Investigator LLM was propagated into ReAct"); return null; } const fn = selectedInvestigatorLlm === "groq" ? (process.env.GROQ_API_KEY ? ((promptValue: string, signalValue: AbortSignal) => callGroqJson(promptValue, signalValue, cognitiveTask)) : null) : (process.env.MISTRAL_API_KEY ? callMistralJson : null); if (!fn) { setAgenticLlmHealth(false, null, `${selectedInvestigatorLlm}:selected provider unavailable`); return null; } if (parentSignal.aborted) throw new Error("cancelled"); const controller = new AbortController(); const abortParent = () => controller.abort(); parentSignal.addEventListener("abort", abortParent, { once: true }); const timer = setTimeout(() => controller.abort(), PROVIDER_DECISION_TIMEOUT_MS); try { const result = await fn(boundedPrompt, controller.signal); if (!result?.raw) throw new Error(`${selectedInvestigatorLlm}:empty`); setAgenticLlmHealth(true, result.model, null); return { ...result, fallback: [] }; } finally { clearTimeout(timer); parentSignal.removeEventListener("abort", abortParent); } } finally { releaseProviderSlot(); } }
 function formatFindingsBag(findings: AgenticFinding[]): string { if (!findings.length) return "(none yet)"; return findings.map((f) => `- ${f.vectorType}: ${f.value} (${f.scope})${f.personName ? ` person=${f.personName}` : ""}${f.role ? ` role=${f.role}` : ""}${f.sourceUrls[0] ? ` src=${f.sourceUrls[0]}` : ""}`).join("\n"); }
 const AGENTIC_STRUCTURED_SCHEMA = {
   type: "object",
@@ -592,7 +438,7 @@ export function discoveryTerminalGate(records: readonly AgenticTrajectoryRecord[
   return { allowed: true, reason: null };
 }
 
-export async function runAgenticWebResearch(input: { targetName: string; companyName?: string | null; objective?: string; investigatorLlm?: "groq" | "mistral"; cognitiveTask?: ResearchCognitiveTask; maxIterations?: number; hardTimeoutMs?: number; shouldCancel?: () => boolean | Promise<boolean>; signal?: AbortSignal; jobId?: string | null; mode?: "target" | "discovery"; onLiveStep?: (step: { action: string; query?: string; url?: string; provider?: string; summary?: string; targetName: string; companyName?: string | null }) => void }): Promise<AgenticWebResearchResult> { const name = input.targetName.trim(); if (name.length < 2 && input.mode !== "discovery") return { status: "unavailable", model: "none", iterations: 0, searches: 0, visits: 0, findings: [], modelFindings: [], stopReason: "LLM_UNAVAILABLE", trajectory: [], trajectoryRecords: [], error: "empty target" }; const requestedIterations = Number.isFinite(input.maxIterations) ? Math.floor(input.maxIterations!) : MAX_ITER; const maxIter = requestedIterations > 0 ? Math.min(requestedIterations, MAX_ITER) : MAX_ITER; const hardTimeoutMs = Math.min(10 * 60_000, Math.max(30_000, Number.isFinite(input.hardTimeoutMs) ? Math.floor(input.hardTimeoutMs!) : 210_000)); const startedAt = Date.now(); const runController = new AbortController(); const abortExternal = () => runController.abort(); input.signal?.addEventListener("abort", abortExternal, { once: true }); const timeout = setTimeout(() => runController.abort(), hardTimeoutMs); const cancellationPoll = input.shouldCancel ? setInterval(() => { Promise.resolve(input.shouldCancel!()).then((cancelled) => { if (cancelled) runController.abort(); }).catch(() => undefined); }, 500) : undefined; const objective = input.objective || (input.mode === "discovery" ? "Discover promising public entities and evidence-backed research leads from the case objective. Choose the research path yourself." : `Research the public web for the strongest attributable public contact path for ${name}${input.companyName ? ` in the context of ${input.companyName}` : ""}. Use your judgment; verify evidence; stop when the evidence is sufficient or reasonable public avenues are exhausted.`); const history: string[] = []; let lastObservation = "CASE CONTEXT LOADED\nDurable case context and operator objective are available. No research action has been selected yet; choose any permitted action based on the case context."; let modelUsed = "none", searches = 0, visits = 0; let findings: AgenticFinding[] = []; const records: AgenticTrajectoryRecord[] = []; const visited = new Set<string>(); const emit = (action: string, extra: Record<string, string> = {}) => { try { input.onLiveStep?.({ action, ...extra, targetName: name || "discovery", companyName: input.companyName ?? null }); } catch {} }; const intelligence = new ResearchIntelligenceEngine({ caseId: null, executionId: input.jobId || `agentic-${startedAt}`, target: name || "discovery", objective });
+export async function runAgenticWebResearch(input: { targetName: string; companyName?: string | null; objective?: string; investigatorLlm?: "groq"; cognitiveTask?: ResearchCognitiveTask; maxIterations?: number; hardTimeoutMs?: number; shouldCancel?: () => boolean | Promise<boolean>; signal?: AbortSignal; jobId?: string | null; mode?: "target" | "discovery"; onLiveStep?: (step: { action: string; query?: string; url?: string; provider?: string; summary?: string; targetName: string; companyName?: string | null }) => void }): Promise<AgenticWebResearchResult> { const name = input.targetName.trim(); if (name.length < 2 && input.mode !== "discovery") return { status: "unavailable", model: "none", iterations: 0, searches: 0, visits: 0, findings: [], modelFindings: [], stopReason: "LLM_UNAVAILABLE", trajectory: [], trajectoryRecords: [], error: "empty target" }; const requestedIterations = Number.isFinite(input.maxIterations) ? Math.floor(input.maxIterations!) : MAX_ITER; const maxIter = requestedIterations > 0 ? Math.min(requestedIterations, MAX_ITER) : MAX_ITER; const hardTimeoutMs = Math.min(10 * 60_000, Math.max(30_000, Number.isFinite(input.hardTimeoutMs) ? Math.floor(input.hardTimeoutMs!) : 210_000)); const startedAt = Date.now(); const runController = new AbortController(); const abortExternal = () => runController.abort(); input.signal?.addEventListener("abort", abortExternal, { once: true }); const timeout = setTimeout(() => runController.abort(), hardTimeoutMs); const cancellationPoll = input.shouldCancel ? setInterval(() => { Promise.resolve(input.shouldCancel!()).then((cancelled) => { if (cancelled) runController.abort(); }).catch(() => undefined); }, 500) : undefined; const objective = input.objective || (input.mode === "discovery" ? "Discover promising public entities and evidence-backed research leads from the case objective. Choose the research path yourself." : `Research the public web for the strongest attributable public contact path for ${name}${input.companyName ? ` in the context of ${input.companyName}` : ""}. Use your judgment; verify evidence; stop when the evidence is sufficient or reasonable public avenues are exhausted.`); const history: string[] = []; let lastObservation = "CASE CONTEXT LOADED\nDurable case context and operator objective are available. No research action has been selected yet; choose any permitted action based on the case context."; let modelUsed = "none", searches = 0, visits = 0; let findings: AgenticFinding[] = []; const records: AgenticTrajectoryRecord[] = []; const visited = new Set<string>(); const emit = (action: string, extra: Record<string, string> = {}) => { try { input.onLiveStep?.({ action, ...extra, targetName: name || "discovery", companyName: input.companyName ?? null }); } catch {} }; const intelligence = new ResearchIntelligenceEngine({ caseId: null, executionId: input.jobId || `agentic-${startedAt}`, target: name || "discovery", objective });
   let intelligenceRecordedTurn = 0;
   const syncIntelligence = () => { const latest = records[records.length - 1]; if (!latest || latest.turn <= intelligenceRecordedTurn) return; intelligence.recordAction({ turn: latest.turn, action: latest.action, args: latest.args, execution: latest.execution, observation: latest.observation, urls: latest.observedUrls, findings: latest.findings, predictedInformationGain: typeof latest.args.expectedInformationGain === "number" ? latest.args.expectedInformationGain : undefined }); intelligenceRecordedTurn = latest.turn; };
   const resultBase = (status: AgenticWebResearchResult["status"], iterations: number, stopReason: AgenticWebResearchResult["stopReason"], error?: string): AgenticWebResearchResult => { syncIntelligence(); const intelligenceState = intelligence.buildContext(); const failureSignals = classifyTrajectorySignals({ records, evidenceCount: intelligenceState.evidenceCount, sourceFamilyDiversity: intelligenceState.sourceFamilyDiversity, unresolvedQuestions: intelligenceState.openQuestions.length, stopReason }); return ({ status, model: modelUsed, iterations, searches, visits, findings, modelFindings: [], stopReason, trajectory: history, trajectoryRecords: records, failureSignals, ...(error ? { error } : {}) }); }; try { for (let i = 0; i < maxIter; i++) { if (runController.signal.aborted) return resultBase(input.signal?.aborted ? "cancelled" : "timeout", i, input.signal?.aborted ? "CANCELLED" : "HARD_TIMEOUT", input.signal?.aborted ? "cancelled" : `hard timeout ${hardTimeoutMs}ms`); if (Date.now() - startedAt >= hardTimeoutMs) return resultBase("timeout", i, "HARD_TIMEOUT", `hard timeout ${hardTimeoutMs}ms`); if (input.shouldCancel && await input.shouldCancel()) return resultBase("cancelled", i, "CANCELLED", "cancelled by operator"); syncIntelligence(); const prompt = buildStepPrompt({ targetName: name || "", companyName: input.companyName, objective, history, trajectoryRecords: records, lastObservation, findings, intelligenceContext: renderIntelligenceContext(intelligence.buildContext()), mode: input.mode }); emit("llm_wait", { provider: input.investigatorLlm ?? "unassigned", summary: "waiting for Boss-selected Investigator decision" }); const llm = await llmStep(prompt, input.investigatorLlm, runController.signal, input.cognitiveTask); if (!llm) return resultBase("unavailable", i + 1, "LLM_UNAVAILABLE", "No Boss-selected Investigator adapter available"); modelUsed = llm.model; const action = parseAction(llm.raw); if (!action) { history.push(`step${i + 1}: parse_failure execution=error`); lastObservation = "The previous model response was not valid action JSON. Choose one allowed action and return exactly one JSON object."; records.push({ turn: i + 1, model: modelUsed, action: "parse_failure", args: {}, execution: "error", observation: lastObservation, observedUrls: [], findings: [], providerFallback: [] }); continue; } const selectedArgs = { ...action } as Record<string, unknown>; delete selectedArgs.thought; const record: AgenticTrajectoryRecord = { turn: i + 1, model: modelUsed, action: action.action, args: selectedArgs, thought: action.thought, execution: "selected", observedUrls: [], findings: [], providerFallback: [] }; if (records.length >= MAX_TRAJECTORY_RECORDS) return resultBase("error", i, "ITERATION_BUDGET", "trajectory safety ceiling reached"); records.push(record); if (action.action === "done") { const intelligenceState = intelligence.buildContext();
@@ -614,7 +460,7 @@ export async function runAgenticWebResearchEnsemble(input: {
   targetName: string;
   companyName?: string | null;
   objective?: string;
-  investigatorLlms: Array<"groq" | "mistral">;
+  investigatorLlms: Array<"groq">;
   laneObjectives?: string[];
   maxIterations?: number;
   hardTimeoutMs?: number;
@@ -628,7 +474,7 @@ export async function runAgenticWebResearchEnsemble(input: {
   findings: AgenticFinding[];
   observedUrls: string[];
 }> {
-  const llms: Array<"groq" | "mistral"> = input.investigatorLlms.length ? input.investigatorLlms : ["groq"];
+  const llms: Array<"groq"> = input.investigatorLlms.length ? input.investigatorLlms : ["groq"];
   const lanes = input.laneObjectives?.length ? input.laneObjectives : [
     "Prioritize authoritative registries, governance records, ownership/officer relationships, and identity discrimination.",
     "Prioritize independent reputable web/press/company sources and actively seek disconfirming evidence.",

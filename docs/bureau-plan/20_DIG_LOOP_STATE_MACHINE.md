@@ -9,14 +9,14 @@ There are **two AI layers**, not three:
 
 1. **Bureau oversight: Boss + Right-hand**
    - Boss = Groq GPT-OSS 120B, with GPT-OSS 20B as a bounded fallback.
-   - Right-hand = Mistral.
+   - Right-hand = Groq.
    - Together they decide the research assignment, choose an Investigator LLM from the Investigator LLM pool, suggest useful non-LLM tools/capabilities, and continuously review the work.
 2. **Investigation: Investigator LLM pool + non-LLM tools**
    - The selected Investigator LLM conducts the actual research.
    - It may independently choose any available search, browser, registry, or OSINT capability.
    - It decides what to investigate next, what evidence matters, when to pivot, and what findings are worthy of promotion.
 
-**DeepSeek/NVIDIA is never an Investigator. The Mistral Right-hand control role is never an Investigator fallback.**
+**DeepSeek/NVIDIA is never an Investigator. The Groq Right-hand control role is never an Investigator fallback.**
 
 ## ReAct lifecycle
 
@@ -59,9 +59,9 @@ The living investigation document belongs to the **specific research run for the
 
 ## Investigator LLM pool
 
-The pool means **all configured LLMs that are designated as investigators**. Provider names must never be mistaken for the role itself. Groq and Mistral are current investigator implementations; they are investigators, full stop. They are not an extra decision layer.
+The pool means **all configured LLMs that are designated as investigators**. Provider names must never be mistaken for the role itself. Groq and Groq are current investigator implementations; they are investigators, full stop. They are not an extra decision layer.
 
-Groq owns the Boss control role; Mistral owns the independent Right-hand oversight role. The Right-hand control invocation is never inserted into the Investigator pool by fallback. DeepSeek/NVIDIA is not an active Apex execution path.
+Groq owns the Boss control role; Groq owns the independent Right-hand oversight role. The Right-hand control invocation is never inserted into the Investigator pool by fallback. DeepSeek/NVIDIA is not an active Apex execution path.
 
 ## Tool surface
 

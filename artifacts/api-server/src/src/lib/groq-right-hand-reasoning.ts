@@ -9,17 +9,15 @@ import {
   providerErrorCode,
 } from "./provider-error-diagnostics";
 
-// Canonical Right-hand model for the Mistral control-plane role.
-export const MISTRAL_RIGHT_HAND_MODEL = "mistral-small-2603";
-export const MISTRAL_RIGHT_HAND_FALLBACK_MODELS: readonly string[] = [
-  "ministral-14b-2512",
-  "ministral-8b-2512",
-  "ministral-3b-2512",
+// Canonical Right-hand model for the Groq control-plane role.
+export const GROQ_RIGHT_HAND_MODEL = "openai/gpt-oss-120b";
+export const GROQ_RIGHT_HAND_FALLBACK_MODELS: readonly string[] = [
+  "openai/gpt-oss-20b",
 ];
-const MISTRAL_MODELS_API = "https://api.mistral.ai/v1/models";
-const MISTRAL_CHAT_API = "https://api.mistral.ai/v1/chat/completions";
-const MISTRAL_KEY_ENV = "MISTRAL_RIGHT_HAND_API_KEY";
-const MISTRAL_KEY_NAMES = [MISTRAL_KEY_ENV, ...Array.from({ length: 4 }, (_, i) => `${MISTRAL_KEY_ENV}_${i + 2}`)];
+const GROQ_RIGHT_HAND_MODELS_API = "https://api.groq.com/openai/v1/models";
+const GROQ_RIGHT_HAND_CHAT_API = "https://api.groq.com/openai/v1/chat/completions";
+const GROQ_RIGHT_HAND_KEY_ENV = "GROQ_RIGHT_HAND_API_KEY";
+const GROQ_RIGHT_HAND_KEY_NAMES = [GROQ_RIGHT_HAND_KEY_ENV, ...Array.from({ length: 4 }, (_, i) => `${GROQ_RIGHT_HAND_KEY_ENV}_${i + 2}`)];
 const DEFAULT_REQUEST_TIMEOUT_MS = 20_000;
 const DEFAULT_OVERALL_TIMEOUT_MS = 120_000;
 const MODEL_CATALOG_TIMEOUT_MS = 5_000;
@@ -27,48 +25,40 @@ const MAX_MODEL_ATTEMPTS = 4;
 const MAX_503_RETRIES_PER_MODEL = 1;
 const MAX_429_RETRIES_PER_MODEL = 1;
 const MAX_PROMPT_CHARS = 20_000;
-// Mistral's displayed completion limit is 1 request/sec at the organization level.
-// Keys do not create independent rate-limit buckets, so all Right-hand traffic must
-// share one process-wide gate. Keep a small safety margin below the provider limit.
-const MISTRAL_MIN_REQUEST_INTERVAL_MS = 1_100;
-let nextMistralRequestAt = 0;
-let mistralRequestGate: Promise<void> = Promise.resolve();
-
-async function waitForMistralRequestSlot(): Promise<void> {
-  const previous = mistralRequestGate;
-  let release!: () => void;
-  mistralRequestGate = new Promise<void>((resolve) => { release = resolve; });
-  await previous;
-  const waitMs = Math.max(0, nextMistralRequestAt - Date.now());
-  if (waitMs > 0) await new Promise<void>((resolve) => setTimeout(resolve, waitMs));
-  nextMistralRequestAt = Date.now() + MISTRAL_MIN_REQUEST_INTERVAL_MS;
-  release();
+const GROQ_RIGHT_HAND_MIN_REQUEST_INTERVAL_MS = 250;
+let nextGroqRightHandRequestAt = 0;
+let groqRightHandRequestGate: Promise<void> = Promise.resolve();
+async function waitForGroqRightHandRequestSlot(): Promise<void> {
+ const previous = groqRightHandRequestGate; let release!: () => void;
+ groqRightHandRequestGate = new Promise<void>((resolve) => { release = resolve; }); await previous;
+ const waitMs = Math.max(0, nextGroqRightHandRequestAt - Date.now());
+ if (waitMs > 0) await new Promise<void>((resolve) => setTimeout(resolve, waitMs));
+ nextGroqRightHandRequestAt = Date.now() + GROQ_RIGHT_HAND_MIN_REQUEST_INTERVAL_MS; release();
 }
-
 function keyEntries(): Array<{name:string;key:string}> {
-  return MISTRAL_KEY_NAMES.map(name=>({name,key:process.env[name]?.trim()||""})).filter(x=>x.key);
+  return GROQ_RIGHT_HAND_KEY_NAMES.map(name=>({name,key:process.env[name]?.trim()||""})).filter(x=>x.key);
 }
 function key(){ return keyEntries()[0]?.key || null; }
 function boundedEnv(name:string,fallback:number,min:number,max:number):number {
   const n=Number(process.env[name]); return Number.isFinite(n)?Math.min(max,Math.max(min,Math.floor(n))):fallback;
 }
-function requestTimeoutMs(){ return boundedEnv("APEX_MISTRAL_RIGHT_HAND_REQUEST_TIMEOUT_MS",DEFAULT_REQUEST_TIMEOUT_MS,5_000,60_000); }
-function overallTimeoutMs(){ return boundedEnv("APEX_MISTRAL_RIGHT_HAND_OVERALL_TIMEOUT_MS",DEFAULT_OVERALL_TIMEOUT_MS,requestTimeoutMs(),180_000); }
+function requestTimeoutMs(){ return boundedEnv("APEX_GROQ_RIGHT_HAND_REQUEST_TIMEOUT_MS",DEFAULT_REQUEST_TIMEOUT_MS,5_000,60_000); }
+function overallTimeoutMs(){ return boundedEnv("APEX_GROQ_RIGHT_HAND_OVERALL_TIMEOUT_MS",DEFAULT_OVERALL_TIMEOUT_MS,requestTimeoutMs(),180_000); }
 
-export type MistralRightHandLatencyConfig={requestTimeoutMs:number;overallTimeoutMs:number;minimumOverallTimeoutMs:number;overallTimeoutClamped:boolean};
-export function getMistralRightHandLatencyConfig():MistralRightHandLatencyConfig {
- const requestMs=requestTimeoutMs(); const raw=Number(process.env.APEX_MISTRAL_RIGHT_HAND_OVERALL_TIMEOUT_MS); const overall=overallTimeoutMs();
+export type GroqRightHandLatencyConfig={requestTimeoutMs:number;overallTimeoutMs:number;minimumOverallTimeoutMs:number;overallTimeoutClamped:boolean};
+export function getGroqRightHandLatencyConfig():GroqRightHandLatencyConfig {
+ const requestMs=requestTimeoutMs(); const raw=Number(process.env.APEX_GROQ_RIGHT_HAND_OVERALL_TIMEOUT_MS); const overall=overallTimeoutMs();
  return {requestTimeoutMs:requestMs,overallTimeoutMs:overall,minimumOverallTimeoutMs:requestMs,overallTimeoutClamped:Number.isFinite(raw)&&Math.floor(raw)!==overall};
 }
-export type MistralRightHandStatus={configured:boolean;model:string;fallbackModels:string[];endpoint:string;role:"right_hand_advisor";capability:"case_file_reasoning_only";provider:"mistral"};
-export type MistralRightHandCaseReasoningResult={status:"completed"|"unavailable";model:string;actionId:string|null;decision:string|null;reason:string|null;confidence:number|null;error:string|null};
-export type MistralRightHandDiscoveryAdviceResult={status:"completed"|"unavailable";model:string;decision:string|null;reason:string|null;focusLanes:string[];confidence:number|null;error:string|null};
+export type GroqRightHandStatus={configured:boolean;model:string;fallbackModels:string[];endpoint:string;role:"right_hand_advisor";capability:"case_file_reasoning_only";provider:"groq"};
+export type GroqRightHandCaseReasoningResult={status:"completed"|"unavailable";model:string;actionId:string|null;decision:string|null;reason:string|null;confidence:number|null;error:string|null};
+export type GroqRightHandDiscoveryAdviceResult={status:"completed"|"unavailable";model:string;decision:string|null;reason:string|null;focusLanes:string[];confidence:number|null;error:string|null};
 
 type CatalogEntry={id?:string;object?:string};
 function catalogCandidates(payload:unknown):string[] {
  const models=payload&&typeof payload==="object"&&Array.isArray((payload as any).data)?(payload as any).data as CatalogEntry[]:[];
  const available=models.map(x=>typeof x.id==="string"?x.id:"").filter(Boolean);
- return [MISTRAL_RIGHT_HAND_MODEL,...MISTRAL_RIGHT_HAND_FALLBACK_MODELS].filter((m,i,a)=>available.includes(m)&&a.indexOf(m)===i);
+ return [GROQ_RIGHT_HAND_MODEL,...GROQ_RIGHT_HAND_FALLBACK_MODELS].filter((m,i,a)=>available.includes(m)&&a.indexOf(m)===i);
 }
 const catalogCache=new Map<string,{expiresAt:number;models:string[]}>();
 function fingerprint(key:string){let h=0;for(let i=0;i<key.length;i++)h=((h<<5)-h+key.charCodeAt(i))|0;return String(h>>>0);}
@@ -77,22 +67,34 @@ async function resolveModelChain(apiKeyOverride?:string):Promise<string[]> {
  const fp=fingerprint(apiKey); const cached=catalogCache.get(fp);
  if(cached&&cached.expiresAt>Date.now())return cached.models.slice(0,MAX_MODEL_ATTEMPTS);
  try {
-  const response=await fetch(MISTRAL_MODELS_API,{headers:{Accept:"application/json",Authorization:`Bearer ${apiKey}`},signal:AbortSignal.timeout(MODEL_CATALOG_TIMEOUT_MS)});
-  if(!response.ok){logger.warn({role:"mistral_right_hand",phase:"model_catalog_failed",httpStatus:response.status},"Mistral Right-hand model catalog unavailable");return [];}
+  const response=await fetch(GROQ_RIGHT_HAND_MODELS_API,{headers:{Accept:"application/json",Authorization:`Bearer ${apiKey}`},signal:AbortSignal.timeout(MODEL_CATALOG_TIMEOUT_MS)});
+  if(!response.ok){logger.warn({role:"groq_right_hand",phase:"model_catalog_failed",httpStatus:response.status},"Groq Right-hand model catalog unavailable");return [];}
   const candidates=catalogCandidates(await response.json());
   if(!candidates.length)return [];
   catalogCache.set(fp,{expiresAt:Date.now()+5*60_000,models:candidates});
   return candidates.slice(0,MAX_MODEL_ATTEMPTS);
- }catch(error){logger.warn({role:"mistral_right_hand",phase:"model_catalog_rejected",errorName:error instanceof Error?error.name:"unknown"},"Mistral Right-hand model catalog request failed");return [];}
+ }catch(error){logger.warn({role:"groq_right_hand",phase:"model_catalog_rejected",errorName:error instanceof Error?error.name:"unknown"},"Groq Right-hand model catalog request failed");return [];}
 }
 function extractJson(raw:string):Record<string,unknown>|null{const fenced=raw.match(/\`\`\`(?:json)?\\s*([\\s\\S]*?)\`\`\`/i)?.[1]?.trim();const source=fenced||raw.trim();const start=source.indexOf("{"),end=source.lastIndexOf("}");if(start<0||end<=start)return null;try{const v=JSON.parse(source.slice(start,end+1));return v&&typeof v==="object"?v as Record<string,unknown>:null;}catch{return null;}}
+function normalizeStrictSchema(value: unknown): Record<string, unknown> {
+ if (!value || typeof value !== "object" || Array.isArray(value)) return { type: "object", properties: {}, required: [], additionalProperties: false };
+ const node = { ...(value as Record<string, unknown>) };
+ if (node.type === "object" && node.properties && typeof node.properties === "object" && !Array.isArray(node.properties)) {
+   const properties = Object.fromEntries(Object.entries(node.properties as Record<string, unknown>).map(([key, child]) => [key, normalizeStrictSchema(child)]));
+   node.properties = properties;
+   node.required = Object.keys(properties);
+   node.additionalProperties = false;
+ }
+ if (node.type === "array" && node.items) node.items = normalizeStrictSchema(node.items);
+ return node;
+}
 function responseFormat(input?:Record<string,unknown>):Record<string,unknown>|undefined{
  if(!input)return {type:"json_object"};
  const schema=input.schema;
  if(!schema||typeof schema!=="object")return {type:"json_object"};
  const schemaRecord=schema as Record<string,unknown>;
  if(!schemaRecord.properties || typeof schemaRecord.properties!=="object") return {type:"json_object"};
- return {type:"json_schema",json_schema:{name:"apex_atlas_right_hand",strict:true,schema}};
+ return {type:"json_schema",json_schema:{name:"apex_atlas_right_hand",strict:true,schema:normalizeStrictSchema(schema)}};
 }
 function extractText(payload:unknown):string{
  if(!payload||typeof payload!=="object")return "";
@@ -110,45 +112,45 @@ function hardRateLimit(response: Response): boolean {
  return response.status === 429 && ((Number.isFinite(limit) && limit === 0) || (Number.isFinite(remaining) && remaining === 0 && Number.isFinite(limit) && limit !== null && limit <= 0));
 }
 
-type MistralAttemptDiagnostic = { keyName: string; keyFingerprint: string; model: string; httpStatus: number | null; providerCode: string | null; failureClass: string; retry429: number; retry503: number; retryAfterMs: number | null; retryAfterHeader: string | null; rateLimitHeaders: Record<string, string>; body: ReturnType<typeof summarizeProviderBody> | null; };
-function formatAttemptDiagnostic(diagnostic: MistralAttemptDiagnostic): string { return JSON.stringify(diagnostic); }
+type GroqAttemptDiagnostic = { keyName: string; keyFingerprint: string; model: string; httpStatus: number | null; providerCode: string | null; failureClass: string; retry429: number; retry503: number; retryAfterMs: number | null; retryAfterHeader: string | null; rateLimitHeaders: Record<string, string>; body: ReturnType<typeof summarizeProviderBody> | null; };
+function formatAttemptDiagnostic(diagnostic: GroqAttemptDiagnostic): string { return JSON.stringify(diagnostic); }
 
 async function request(system:string,user:string,format?:Record<string,unknown>):Promise<{raw:string;error:string|null;model:string}>{
- const entries=keyEntries(); if(!entries.length)return {raw:"",error:"MISTRAL_RIGHT_HAND_API_KEY is not configured.",model:MISTRAL_RIGHT_HAND_MODEL};
+ const entries=keyEntries(); if(!entries.length)return {raw:"",error:"GROQ_RIGHT_HAND_API_KEY is not configured.",model:GROQ_RIGHT_HAND_MODEL};
  const configRequest=requestTimeoutMs(), configOverall=overallTimeoutMs(), deadline=Date.now()+configOverall;
- const normalizedUser=user.trim(); if(normalizedUser.length>MAX_PROMPT_CHARS)return {raw:"",error:`Mistral Right-hand prompt exceeds the bounded control-plane budget of ${MAX_PROMPT_CHARS} characters; upstream case-context compaction is required.`,model:MISTRAL_RIGHT_HAND_MODEL};
+ const normalizedUser=user.trim(); if(normalizedUser.length>MAX_PROMPT_CHARS)return {raw:"",error:`Groq Right-hand prompt exceeds the bounded control-plane budget of ${MAX_PROMPT_CHARS} characters; upstream case-context compaction is required.`,model:GROQ_RIGHT_HAND_MODEL};
  const systemPrompt=`${apexOrientationCompact("right_hand")}\\n\\n${system}`;
  const attempts:Array<{entry:{name:string;key:string};model:string}>=[];
  for(const entry of entries){for(const model of await resolveModelChain(entry.key))attempts.push({entry,model});}
- if(!attempts.length)return {raw:"",error:"Mistral Right-hand has no compatible configured model in the live catalog.",model:MISTRAL_RIGHT_HAND_MODEL};
- const failures: MistralAttemptDiagnostic[] = [];
+ if(!attempts.length)return {raw:"",error:"Groq Right-hand has no compatible configured model in the live catalog.",model:GROQ_RIGHT_HAND_MODEL};
+ const failures: GroqAttemptDiagnostic[] = [];
  for(const candidate of attempts){
   if(Date.now()>=deadline)break;
   let retry503=0,retry429=0;
   let lastRetryAfterMs: number | null = null;
   let lastRetryAfterHeader: string | null = null;
   while(Date.now()<deadline){
-   const body=JSON.stringify({model:candidate.model,messages:[{role:"system",content:systemPrompt},{role:"user",content:normalizedUser}],max_tokens:512,temperature:0.1,stream:false,response_format:responseFormat(format)});
+   const body=JSON.stringify({model:candidate.model,messages:[{role:"system",content:systemPrompt},{role:"user",content:normalizedUser}],max_completion_tokens:768,temperature:0.1,stream:false,response_format:responseFormat(format), reasoning_effort:"medium", reasoning_format:"hidden"});
    const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),Math.min(configRequest,Math.max(1000,deadline-Date.now())));
    try{
-    await waitForMistralRequestSlot();
-    const response=await fetch(MISTRAL_CHAT_API,{method:"POST",headers:{Accept:"application/json","Content-Type":"application/json",Authorization:`Bearer ${candidate.entry.key}`},body,signal:controller.signal});
+    await waitForGroqRightHandRequestSlot();
+    const response=await fetch(GROQ_RIGHT_HAND_CHAT_API,{method:"POST",headers:{Accept:"application/json","Content-Type":"application/json",Authorization:`Bearer ${candidate.entry.key}`},body,signal:controller.signal});
     const responseBody=await response.text();
     if(response.status===503&&retry503<MAX_503_RETRIES_PER_MODEL&&Date.now()<deadline){const delay=retryAfterMs(response,750);lastRetryAfterMs=delay;lastRetryAfterHeader=response.headers.get("retry-after");retry503++;await new Promise(r=>setTimeout(r,Math.min(delay,Math.max(0,deadline-Date.now()))));continue;}
     if(response.status===429&&hardRateLimit(response)){const cls=classifyProviderHttpStatus(response.status);const code=providerErrorCode(responseBody);const diagnostic={keyName:candidate.entry.name,model:candidate.model,httpStatus:response.status,providerCode:code,retry429,retry503,retryAfterMs:null,retryAfterHeader:response.headers.get("retry-after"),body:summarizeProviderBody(responseBody),rateLimitHeaders:Object.fromEntries(Array.from(response.headers.entries()).filter(([name])=>name.toLowerCase().startsWith("x-ratelimit-"))),failureClass:cls,keyFingerprint:fingerprint(candidate.entry.key)};failures.push(diagnostic);break;}
-    if(response.status===429&&retry429<MAX_429_RETRIES_PER_MODEL&&Date.now()<deadline){const retryHeader=response.headers.get("retry-after");const delay=retryHeader?retryAfterMs(response,MISTRAL_MIN_REQUEST_INTERVAL_MS):MISTRAL_MIN_REQUEST_INTERVAL_MS;lastRetryAfterMs=delay;lastRetryAfterHeader=retryHeader;if(delay<=2500){retry429++;await new Promise(r=>setTimeout(r,Math.min(delay,Math.max(0,deadline-Date.now()))));continue;}}
-    if(!response.ok){const cls=classifyProviderHttpStatus(response.status);const code=providerErrorCode(responseBody);const diagnostic={keyName:candidate.entry.name,model:candidate.model,httpStatus:response.status,providerCode:code,retry429,retry503,retryAfterMs:lastRetryAfterMs,retryAfterHeader:lastRetryAfterHeader,body:summarizeProviderBody(responseBody),rateLimitHeaders:Object.fromEntries(Array.from(response.headers.entries()).filter(([name])=>name.toLowerCase().startsWith("x-ratelimit-"))),failureClass:cls,keyFingerprint:fingerprint(candidate.entry.key)};failures.push(diagnostic);if(response.status===401||response.status===403||response.status===404)break;if(response.status===429||response.status===500||response.status===502||response.status===503||response.status===504)break;return {raw:"",error:`Mistral Right-hand ${candidate.model} ${cls} HTTP ${response.status}: ${formatAttemptDiagnostic(diagnostic)}`,model:candidate.model};}
+    if(response.status===429&&retry429<MAX_429_RETRIES_PER_MODEL&&Date.now()<deadline){const retryHeader=response.headers.get("retry-after");const delay=retryHeader?retryAfterMs(response,GROQ_RIGHT_HAND_MIN_REQUEST_INTERVAL_MS):GROQ_RIGHT_HAND_MIN_REQUEST_INTERVAL_MS;lastRetryAfterMs=delay;lastRetryAfterHeader=retryHeader;if(delay<=2500){retry429++;await new Promise(r=>setTimeout(r,Math.min(delay,Math.max(0,deadline-Date.now()))));continue;}}
+    if(!response.ok){const cls=classifyProviderHttpStatus(response.status);const code=providerErrorCode(responseBody);const diagnostic={keyName:candidate.entry.name,model:candidate.model,httpStatus:response.status,providerCode:code,retry429,retry503,retryAfterMs:lastRetryAfterMs,retryAfterHeader:lastRetryAfterHeader,body:summarizeProviderBody(responseBody),rateLimitHeaders:Object.fromEntries(Array.from(response.headers.entries()).filter(([name])=>name.toLowerCase().startsWith("x-ratelimit-"))),failureClass:cls,keyFingerprint:fingerprint(candidate.entry.key)};failures.push(diagnostic);if(response.status===401||response.status===403||response.status===404)break;if(response.status===429||response.status===500||response.status===502||response.status===503||response.status===504)break;return {raw:"",error:`Groq Right-hand ${candidate.model} ${cls} HTTP ${response.status}: ${formatAttemptDiagnostic(diagnostic)}`,model:candidate.model};}
     const raw=extractText(JSON.parse(responseBody)); if(raw)return {raw,error:null,model:candidate.model};
     failures.push({keyName:candidate.entry.name,model:candidate.model,httpStatus:response.status,providerCode:null,retry429,retry503,retryAfterMs:lastRetryAfterMs,retryAfterHeader:lastRetryAfterHeader,body:null,rateLimitHeaders:{},failureClass:"invalid_response",keyFingerprint:fingerprint(candidate.entry.key)});break;
    }catch(error){
     const cls=classifyThrownProviderError(error,error instanceof Error&&error.name==="AbortError");
     failures.push({keyName:candidate.entry.name,model:candidate.model,httpStatus:null,providerCode:null,retry429,retry503,retryAfterMs:lastRetryAfterMs,retryAfterHeader:lastRetryAfterHeader,body:null,rateLimitHeaders:{},failureClass:cls,keyFingerprint:fingerprint(candidate.entry.key)});
-    if(cls!=="network_error"&&cls!=="timeout")return {raw:"",error:`Mistral Right-hand ${candidate.model} ${cls}: ${describeThrownProviderError(error)}`,model:candidate.model};
+    if(cls!=="network_error"&&cls!=="timeout")return {raw:"",error:`Groq Right-hand ${candidate.model} ${cls}: ${JSON.stringify(describeThrownProviderError(error))}`,model:candidate.model};
     break;
    }finally{clearTimeout(timer);}
   }
  }
- return {raw:"",error:`Mistral Right-hand exhausted bounded attempts: ${failures.map(formatAttemptDiagnostic).join(" | ")}`,model:attempts.at(-1)?.model??MISTRAL_RIGHT_HAND_MODEL};
+ return {raw:"",error:`Groq Right-hand exhausted bounded attempts: ${failures.map(formatAttemptDiagnostic).join(" | ")}`,model:attempts.at(-1)?.model??GROQ_RIGHT_HAND_MODEL};
 }
 
 function clip(value: string | null | undefined, maxChars = 360): string | null {
@@ -294,8 +296,8 @@ function compactDiscovery(file: DiscoveryCaseFile): string {
     })),
   }, null, 2);
 }
-export function getMistralRightHandStatus(): MistralRightHandStatus { return { configured: keyEntries().length > 0, model: MISTRAL_RIGHT_HAND_MODEL, fallbackModels: [...MISTRAL_RIGHT_HAND_FALLBACK_MODELS], endpoint: MISTRAL_CHAT_API, role: "right_hand_advisor", capability: "case_file_reasoning_only", provider: "mistral" }; }
-type MistralReadinessAttemptDiagnostic = {
+export function getGroqRightHandStatus(): GroqRightHandStatus { return { configured: keyEntries().length > 0, model: GROQ_RIGHT_HAND_MODEL, fallbackModels: [...GROQ_RIGHT_HAND_FALLBACK_MODELS], endpoint: GROQ_RIGHT_HAND_CHAT_API, role: "right_hand_advisor", capability: "case_file_reasoning_only", provider: "groq" }; }
+type GroqReadinessAttemptDiagnostic = {
   keyName: string;
   keyFingerprint: string;
   httpStatus: number | null;
@@ -310,34 +312,34 @@ type MistralReadinessAttemptDiagnostic = {
   error: string | null;
 };
 
-export async function runMistralRightHandReadiness(): Promise<{
-  provider: "mistral";
+export async function runGroqRightHandReadiness(): Promise<{
+  provider: "groq";
   configured: boolean;
   status: "ready" | "pending" | "unavailable";
   model: string;
   candidateModels: string[];
   httpStatus: number | null;
-  attempts: MistralReadinessAttemptDiagnostic[];
+  attempts: GroqReadinessAttemptDiagnostic[];
   error: string | null;
 }> {
   const entries = keyEntries();
   if (!entries.length) {
     return {
-      provider: "mistral",
+      provider: "groq",
       configured: false,
       status: "pending",
-      model: MISTRAL_RIGHT_HAND_MODEL,
+      model: GROQ_RIGHT_HAND_MODEL,
       candidateModels: [],
       httpStatus: null,
       attempts: [],
-      error: "MISTRAL_RIGHT_HAND_API_KEY is not configured.",
+      error: "GROQ_RIGHT_HAND_API_KEY is not configured.",
     };
   }
 
-  const attempts: MistralReadinessAttemptDiagnostic[] = [];
+  const attempts: GroqReadinessAttemptDiagnostic[] = [];
   for (const entry of entries) {
     try {
-      const response = await fetch(MISTRAL_MODELS_API, {
+      const response = await fetch(GROQ_RIGHT_HAND_MODELS_API, {
         headers: { Accept: "application/json", Authorization: `Bearer ${entry.key}` },
         signal: AbortSignal.timeout(MODEL_CATALOG_TIMEOUT_MS),
       });
@@ -382,7 +384,7 @@ export async function runMistralRightHandReadiness(): Promise<{
           error: null,
         });
         return {
-          provider: "mistral",
+          provider: "groq",
           configured: true,
           status: "ready",
           model: candidates[0]!,
@@ -417,19 +419,19 @@ export async function runMistralRightHandReadiness(): Promise<{
   }
 
   return {
-    provider: "mistral",
+    provider: "groq",
     configured: true,
     status: "unavailable",
-    model: MISTRAL_RIGHT_HAND_MODEL,
+    model: GROQ_RIGHT_HAND_MODEL,
     candidateModels: [],
     httpStatus: attempts.at(-1)?.httpStatus ?? null,
     attempts,
-    error: `No configured Mistral credential produced a usable model catalog: ${JSON.stringify(attempts)}`,
+    error: `No configured Groq credential produced a usable model catalog: ${JSON.stringify(attempts)}`,
   };
 }
 
-export async function runMistralRightHandCaseReasoning(input: { file: ResearchCaseFile; iteration: number }): Promise<MistralRightHandCaseReasoningResult> { const queued = input.file.actionQueue.filter((action) => action.status === "queued"); const system = "You are Apex Atlas Right Hand. Reason only over the supplied case file. Never browse, use external research, or invent evidence, contacts, people, URLs, or facts. Recommend exactly one existing queued action. Return JSON only."; const user = `Iteration ${input.iteration}. Identify what is newly unresolved, which contact vectors are still pending, and the highest-leverage complementary queued action.\nCASE:\n${compactCase(input.file)}\n\nReturn {\"actionId\":\"exact queued action id\",\"decision\":\"short recommendation\",\"reason\":\"concrete case-file evidence-gap reason\",\"confidence\":0.0}.`; const result = await request(system, user, { type: "text", mime_type: "application/json", schema: { type: "object", properties: { actionId: { type: "string" }, decision: { type: "string" }, reason: { type: "string" }, confidence: { type: "number" } }, required: ["actionId", "decision", "reason", "confidence"] } }); if (result.error) return { status: "unavailable", model: result.model, actionId: null, decision: null, reason: null, confidence: null, error: result.error }; const parsed = extractJson(result.raw); const actionId = typeof parsed?.actionId === "string" ? parsed.actionId.trim() : ""; const action = queued.find((candidate) => candidate.id === actionId); const decision = typeof parsed?.decision === "string" ? parsed.decision.trim() : ""; const reason = typeof parsed?.reason === "string" ? parsed.reason.trim() : ""; const confidence = typeof parsed?.confidence === "number" && Number.isFinite(parsed.confidence) ? Math.max(0, Math.min(1, parsed.confidence)) : null; if (!action || !decision || !reason) return { status: "unavailable", model: result.model, actionId: null, decision: null, reason: null, confidence, error: `Mistral Right-hand ${result.model} returned an invalid or non-queued recommendation.` }; return { status: "completed", model: result.model, actionId: action.id, decision, reason, confidence, error: null }; }
-export async function runMistralRightHandDiscoveryAdvice(input: { file: DiscoveryCaseFile; iteration: number }): Promise<MistralRightHandDiscoveryAdviceResult> { const system = "You are Apex Atlas Right Hand for public-record discovery. Reason only over supplied discovery case evidence. Never browse, use external research, or invent people, contacts, relationships, or URLs. Return JSON only."; const user = `Iteration ${input.iteration}. Recommend the most useful next research direction from the existing discovery frontier.\nDISCOVERY CASE:\n${compactDiscovery(input.file)}\n\nReturn {\"decision\":\"...\",\"reason\":\"...\",\"focusLanes\":[\"...\"],\"confidence\":0.0}.`; const result = await request(system, user, { type: "text", mime_type: "application/json", schema: { type: "object", properties: { decision: { type: "string" }, reason: { type: "string" }, focusLanes: { type: "array", items: { type: "string" } }, confidence: { type: "number" } }, required: ["decision", "reason", "focusLanes", "confidence"] } }); if (result.error) return { status: "unavailable", model: result.model, decision: null, reason: null, focusLanes: [], confidence: null, error: result.error }; const parsed = extractJson(result.raw); if (!parsed) return { status: "unavailable", model: result.model, decision: null, reason: null, focusLanes: [], confidence: null, error: `Mistral Right-hand ${result.model} returned invalid discovery JSON.` }; return { status: "completed", model: result.model, decision: typeof parsed.decision === "string" ? parsed.decision : null, reason: typeof parsed.reason === "string" ? parsed.reason : null, focusLanes: Array.isArray(parsed.focusLanes) ? parsed.focusLanes.filter((v): v is string => typeof v === "string") : [], confidence: typeof parsed.confidence === "number" ? Math.max(0, Math.min(1, parsed.confidence)) : null, error: null }; }
-export async function runMistralRightHandFreeJson(userPrompt: string, systemExtra = "Reply with ONE JSON object only. Never invent contacts, people, or URLs.", responseFormat?: Record<string, unknown>): Promise<{ status: "completed" | "unavailable"; model: string; raw: string | null; error: string | null }> { const result = await request("You are the Apex Atlas Right Hand. Advise the Boss only. Never browse or act as Investigator. Never invent evidence, contacts, people, relationships, or URLs. " + systemExtra, userPrompt, responseFormat ?? { type: "text", mime_type: "application/json", schema: { type: "object" } }); return result.raw ? { status: "completed", model: result.model, raw: result.raw, error: null } : { status: "unavailable", model: result.model, raw: null, error: result.error }; }
-export async function runMistralRightHandFinalReview(prompt: string): Promise<{ status: "completed" | "unavailable"; model: string; raw: string | null; error: string | null }> { return runMistralRightHandFreeJson(prompt, "You are the Apex Atlas Right Hand reviewing final public-contact evidence. Return ONE JSON object only. Never invent contacts, people, or URLs."); }
+export async function runGroqRightHandCaseReasoning(input: { file: ResearchCaseFile; iteration: number }): Promise<GroqRightHandCaseReasoningResult> { const queued = input.file.actionQueue.filter((action) => action.status === "queued"); const system = "You are Apex Atlas Right Hand. Reason only over the supplied case file. Never browse, use external research, or invent evidence, contacts, people, URLs, or facts. Recommend exactly one existing queued action. Return JSON only."; const user = `Iteration ${input.iteration}. Identify what is newly unresolved, which contact vectors are still pending, and the highest-leverage complementary queued action.\nCASE:\n${compactCase(input.file)}\n\nReturn {\"actionId\":\"exact queued action id\",\"decision\":\"short recommendation\",\"reason\":\"concrete case-file evidence-gap reason\",\"confidence\":0.0}.`; const result = await request(system, user, { type: "text", mime_type: "application/json", schema: { type: "object", properties: { actionId: { type: "string" }, decision: { type: "string" }, reason: { type: "string" }, confidence: { type: "number" } }, required: ["actionId", "decision", "reason", "confidence"] } }); if (result.error) return { status: "unavailable", model: result.model, actionId: null, decision: null, reason: null, confidence: null, error: result.error }; const parsed = extractJson(result.raw); const actionId = typeof parsed?.actionId === "string" ? parsed.actionId.trim() : ""; const action = queued.find((candidate) => candidate.id === actionId); const decision = typeof parsed?.decision === "string" ? parsed.decision.trim() : ""; const reason = typeof parsed?.reason === "string" ? parsed.reason.trim() : ""; const confidence = typeof parsed?.confidence === "number" && Number.isFinite(parsed.confidence) ? Math.max(0, Math.min(1, parsed.confidence)) : null; if (!action || !decision || !reason) return { status: "unavailable", model: result.model, actionId: null, decision: null, reason: null, confidence, error: `Groq Right-hand ${result.model} returned an invalid or non-queued recommendation.` }; return { status: "completed", model: result.model, actionId: action.id, decision, reason, confidence, error: null }; }
+export async function runGroqRightHandDiscoveryAdvice(input: { file: DiscoveryCaseFile; iteration: number }): Promise<GroqRightHandDiscoveryAdviceResult> { const system = "You are Apex Atlas Right Hand for public-record discovery. Reason only over supplied discovery case evidence. Never browse, use external research, or invent people, contacts, relationships, or URLs. Return JSON only."; const user = `Iteration ${input.iteration}. Recommend the most useful next research direction from the existing discovery frontier.\nDISCOVERY CASE:\n${compactDiscovery(input.file)}\n\nReturn {\"decision\":\"...\",\"reason\":\"...\",\"focusLanes\":[\"...\"],\"confidence\":0.0}.`; const result = await request(system, user, { type: "text", mime_type: "application/json", schema: { type: "object", properties: { decision: { type: "string" }, reason: { type: "string" }, focusLanes: { type: "array", items: { type: "string" } }, confidence: { type: "number" } }, required: ["decision", "reason", "focusLanes", "confidence"] } }); if (result.error) return { status: "unavailable", model: result.model, decision: null, reason: null, focusLanes: [], confidence: null, error: result.error }; const parsed = extractJson(result.raw); if (!parsed) return { status: "unavailable", model: result.model, decision: null, reason: null, focusLanes: [], confidence: null, error: `Groq Right-hand ${result.model} returned invalid discovery JSON.` }; return { status: "completed", model: result.model, decision: typeof parsed.decision === "string" ? parsed.decision : null, reason: typeof parsed.reason === "string" ? parsed.reason : null, focusLanes: Array.isArray(parsed.focusLanes) ? parsed.focusLanes.filter((v): v is string => typeof v === "string") : [], confidence: typeof parsed.confidence === "number" ? Math.max(0, Math.min(1, parsed.confidence)) : null, error: null }; }
+export async function runGroqRightHandFreeJson(userPrompt: string, systemExtra = "Reply with ONE JSON object only. Never invent contacts, people, or URLs.", responseFormat?: Record<string, unknown>): Promise<{ status: "completed" | "unavailable"; model: string; raw: string | null; error: string | null }> { const result = await request("You are the Apex Atlas Right Hand. Advise the Boss only. Never browse or act as Investigator. Never invent evidence, contacts, people, relationships, or URLs. " + systemExtra, userPrompt, responseFormat ?? { type: "text", mime_type: "application/json", schema: { type: "object" } }); return result.raw ? { status: "completed", model: result.model, raw: result.raw, error: null } : { status: "unavailable", model: result.model, raw: null, error: result.error }; }
+export async function runGroqRightHandFinalReview(prompt: string): Promise<{ status: "completed" | "unavailable"; model: string; raw: string | null; error: string | null }> { return runGroqRightHandFreeJson(prompt, "You are the Apex Atlas Right Hand reviewing final public-contact evidence. Return ONE JSON object only. Never invent contacts, people, or URLs."); }
 export type GeminiRightHandResultAction = BureauAction;

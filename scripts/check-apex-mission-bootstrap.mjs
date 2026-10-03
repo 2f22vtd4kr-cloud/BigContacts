@@ -6,7 +6,7 @@ const required = {
   orientation: path.join(root, "artifacts/api-server/src/src/lib/apex-bureau-orientation.ts"),
   research: path.join(root, "artifacts/api-server/src/src/lib/agentic-web-research-core.ts"),
   bureau: path.join(root, "artifacts/api-server/src/src/lib/case-bureau.ts"),
-  rightHand: path.join(root, "artifacts/api-server/src/src/lib/mistral-right-hand-reasoning.ts"),
+  rightHand: path.join(root, "artifacts/api-server/src/src/lib/groq-right-hand-reasoning.ts"),
   pass: path.join(root, "artifacts/api-server/src/src/lib/bureau-agentic-pass.ts"),
   target: path.join(root, "artifacts/api-server/src/src/lib/target-contact-agent.ts"),
   architecture: path.join(root, "docs/APEX_AUTONOMOUS_MISSION_BOOTSTRAP.md"),
@@ -55,14 +55,14 @@ assert(!/WHOISJSON|Whoxy|WhoisJSON/i.test(source.research), "retired WHOIS provi
 assert(/buildInvestigatorContext/.test(source.research), "Investigator ReAct prompt does not consume bounded working context.");
 assert(/investigation-context-compaction/.test(source.research), "Investigator ReAct path does not import the context-management boundary.");
 
-// Right-hand is Mistral oversight, independent of Boss and never an Investigator fallback.
-assert(/MISTRAL_API_KEY/.test(source.rightHand), "Mistral Right-hand does not use the dedicated MISTRAL_API_KEY.");
-assert(!/process\.env\.GEMINI_API_KEY|GEMINI_RIGHT_HAND_API_KEY/.test(source.rightHand), "Mistral Right-hand still references the retired Gemini Right-hand credential.");
-assert(/MISTRAL_RIGHT_HAND_MODEL\s*=/.test(source.rightHand), "Mistral Right-hand does not declare a canonical preferred model.");
-assert(/resolveModelChain/.test(source.rightHand), "Mistral Right-hand does not expose runtime model selection.");
-assert(/MISTRAL_MODELS_API|catalogCandidates/.test(source.rightHand), "Mistral Right-hand does not resolve candidates from the live Mistral catalog.");
-assert(/MAX_MODEL_ATTEMPTS/.test(source.rightHand), "Mistral Right-hand fallback attempts are not visibly bounded.");
-assert(/catalogCandidates/.test(source.rightHand), "Mistral Right-hand does not expose catalog-derived compatible candidates.");
+// Right-hand is Groq oversight, independent of Boss and never an Investigator fallback.
+assert(/MISTRAL_API_KEY/.test(source.rightHand), "Groq Right-hand does not use the dedicated MISTRAL_API_KEY.");
+assert(!/process\.env\.GEMINI_API_KEY|GEMINI_RIGHT_HAND_API_KEY/.test(source.rightHand), "Groq Right-hand still references the retired Gemini Right-hand credential.");
+assert(/MISTRAL_RIGHT_HAND_MODEL\s*=/.test(source.rightHand), "Groq Right-hand does not declare a canonical preferred model.");
+assert(/resolveModelChain/.test(source.rightHand), "Groq Right-hand does not expose runtime model selection.");
+assert(/MISTRAL_MODELS_API|catalogCandidates/.test(source.rightHand), "Groq Right-hand does not resolve candidates from the live Groq catalog.");
+assert(/MAX_MODEL_ATTEMPTS/.test(source.rightHand), "Groq Right-hand fallback attempts are not visibly bounded.");
+assert(/catalogCandidates/.test(source.rightHand), "Groq Right-hand does not expose catalog-derived compatible candidates.");
 assert(!/DEEPSEEK|NVIDIA_NIM|nvidia/i.test(source.rightHand), "retired DeepSeek/NVIDIA provider remains in the Right-hand implementation.");
 assert(/case-file|case file/i.test(source.rightHand) && /brows/i.test(source.rightHand), "Right-hand is not explicitly case-file-only/no-browse.");
 assert(/actionId|decision|confidence/.test(source.rightHand), "Right-hand structured decision contract is missing.");

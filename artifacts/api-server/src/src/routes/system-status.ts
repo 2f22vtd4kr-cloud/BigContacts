@@ -8,9 +8,8 @@ import { db } from "@workspace/db";
 import { getAIKeyStatus } from "../lib/ai-extractor";
 import { checkPythonToolsAvailability } from "../lib/python-tools";
 import { getLocalRedisStatus, getPermanentClientStatuses, pingRedis } from "../lib/redis";
-import { getMistralWebSearchStatus } from "../lib/mistral-web-search";
 import { getGroqBossStatus, runGroqBossReadiness } from "../lib/groq-boss";
-import { getMistralRightHandStatus, getMistralRightHandLatencyConfig, runMistralRightHandReadiness } from "../lib/mistral-right-hand-reasoning";
+import { getGroqRightHandStatus, getGroqRightHandLatencyConfig, runGroqRightHandReadiness } from "../lib/groq-right-hand-reasoning";
 import { buildLanesHonestySnapshot } from "../lib/lanes-honesty";
 const router: IRouter = Router();
 const CACHE_TTL_MS = 15_000;
@@ -51,18 +50,15 @@ router.get("/system/status", async (_req,res) => {
     if (_cached && Date.now()-_cachedAt<CACHE_TTL_MS) return res.json({ ...(typeof _cached === "object" ? _cached : {}), cached:true, cachedAgoMs:Date.now()-_cachedAt });
     const ai=getAIKeyStatus();
     const pythonTools=await checkPythonToolsAvailability();
-    const bureauReasoning=getMistralRightHandStatus();
-    const mistralRightHandLatency=getMistralRightHandLatencyConfig();
+    const bureauReasoning=getGroqRightHandStatus();
+    const groqRightHandLatency=getGroqRightHandLatencyConfig();
     const groqBoss=getGroqBossStatus();
     let pgStatus:"ok"|"error"="ok"; let pgLatencyMs:number|null=null;
     try{const t0=Date.now();await db.execute(sql`SELECT 1`);pgLatencyMs=Date.now()-t0;}catch{pgStatus="error";}
     const localInfo=getLocalRedisStatus(); const localLatencyMs=localInfo.status==="ready"?await pingRedis():null;
     const upstash=getPermanentClientStatuses(); const lanesHonesty=buildLanesHonestySnapshot();
-    // The historical smolagents/HuggingFace/Serper Deep Research lane is retired.
-    // Mistral web search is reported only through its canonical Bureau/provider
-    // status; this payload must never advertise the retired endpoint as ready.
-    const openResearch={state:"unavailable" as const,huggingFace:{configured:false},serper:{configured:false},adapter:{available:false,model:process.env.HF_DEEP_RESEARCH_MODEL||"Qwen/Qwen2.5-7B-Instruct"},mistral:getMistralWebSearchStatus()};
-    const payload={ai,pythonTools,openResearch,groqBoss,mistralRightHand:bureauReasoning,mistralRightHandLatency,lanesHonesty,bureauIntegrity:lanesHonesty.bureauIntegrity,bureauIntegrityReasons:lanesHonesty.bureauIntegrityReasons,databases:{postgres:{status:pgStatus,latencyMs:pgLatencyMs},localRedis:{...localInfo,latencyMs:localLatencyMs},upstash},generatedAt:new Date().toISOString(),cached:false,cachedAgoMs:0};
+    const openResearch={state:"unavailable" as const,huggingFace:{configured:false},serper:{configured:false},adapter:{available:false,model:process.env.HF_DEEP_RESEARCH_MODEL||"Qwen/Qwen2.5-7B-Instruct"}};
+    const payload={ai,pythonTools,openResearch,groqBoss,groqRightHand:bureauReasoning,groqRightHandLatency,lanesHonesty,bureauIntegrity:lanesHonesty.bureauIntegrity,bureauIntegrityReasons:lanesHonesty.bureauIntegrityReasons,databases:{postgres:{status:pgStatus,latencyMs:pgLatencyMs},localRedis:{...localInfo,latencyMs:localLatencyMs},upstash},generatedAt:new Date().toISOString(),cached:false,cachedAgoMs:0};
     _cached=payload;_cachedAt=Date.now();return res.json(payload);
   }catch(err:any){return res.status(500).json({error:err?.message??"Unknown error"});}
 });router.post("/system/diagnostics/groq-readiness", async (_req,res) => {
@@ -83,12 +79,12 @@ router.get("/system/status", async (_req,res) => {
   }
 });
 
-router.post("/system/diagnostics/mistral-readiness", async (_req,res) => {
+router.post("/system/diagnostics/groq-right-hand-readiness", async (_req,res) => {
   try {
-    const result = await runMistralRightHandReadiness();
+    const result = await runGroqRightHandReadiness();
     return res.status(result.status === "ready" ? 200 : 503).json({ ...result, generatedAt: new Date().toISOString() });
   } catch (error) {
-    return res.status(500).json({ provider: "mistral", configured: Boolean(process.env.MISTRAL_RIGHT_HAND_API_KEY?.trim()), status: "unavailable", model: "mistral-small-2603", candidateModels: [], httpStatus: null, error: error instanceof Error ? error.message : "Mistral readiness diagnostic failed.", generatedAt: new Date().toISOString() });
+    return res.status(500).json({ provider: "groq", configured: Boolean(process.env.GROQ_RIGHT_HAND_API_KEY?.trim()), status: "unavailable", model: "openai/gpt-oss-120b", candidateModels: [], httpStatus: null, error: error instanceof Error ? error.message : "Groq Right-hand readiness diagnostic failed.", generatedAt: new Date().toISOString() });
   }
 });
 
