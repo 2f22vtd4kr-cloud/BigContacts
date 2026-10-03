@@ -5,7 +5,7 @@ import {
   GROQ_RIGHT_HAND_MODEL,
   getGroqRightHandStatus,
   runGroqRightHandFreeJson,
-} from "../lib/mistral-right-hand-reasoning";
+} from "../lib/groq-right-hand-reasoning";
 import { summarizeProviderBody } from "../lib/provider-error-diagnostics";
 
 describe("Groq Right-hand model policy", () => {
@@ -20,11 +20,7 @@ describe("Groq Right-hand model policy", () => {
 
   it("uses the canonical Small 4 model with genuine cross-family Ministral fallbacks", () => {
     expect(GROQ_RIGHT_HAND_MODEL).toBe("openai/gpt-oss-120b");
-    expect(GROQ_RIGHT_HAND_FALLBACK_MODELS).toEqual([
-      "openai/gpt-oss-20b",
-      "openai/gpt-oss-20b",
-      "openai/gpt-oss-20b",
-    ]);
+    expect(GROQ_RIGHT_HAND_FALLBACK_MODELS).toEqual(["openai/gpt-oss-20b"]);
     expect(GROQ_RIGHT_HAND_FALLBACK_MODELS).not.toContain("mistral-small-latest");
   });
 
@@ -101,11 +97,7 @@ describe("Groq Right-hand model policy", () => {
 
     expect(status.configured).toBe(true);
     expect(status.model).toBe("openai/gpt-oss-120b");
-    expect(status.fallbackModels).toEqual([
-      "openai/gpt-oss-20b",
-      "openai/gpt-oss-20b",
-      "openai/gpt-oss-20b",
-    ]);
+    expect(status.fallbackModels).toEqual(["openai/gpt-oss-20b"]);
     expect(JSON.stringify(status)).not.toContain("test-groq-right-hand-key");
   });
 });
