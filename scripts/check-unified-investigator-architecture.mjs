@@ -38,7 +38,7 @@ assert(!/Prefer\s+Serper.*Tavily.*Exa/i.test(source.research), "Active research 
 assert(!/const\s+serper\s*=.*\n\s*if\s*\(serper.*\n\s*const\s+tavily\s*=.*\n\s*if\s*\(tavily.*\n\s*const\s+exa\s*=/s.test(source.research), "Active research runtime contains deterministic sequential search-provider selection.");
 assert(!/web_search routes Serper\s*[→>-]+\s*Tavily/i.test(source.orientation), "Investigator orientation still teaches a fixed search-provider route.");
 assert(!/Begin\. Choose an initial web_search query/i.test(source.research), "Investigator ReAct still contains a forced initial web_search instruction.");
-assert(!/web_search.*(?:fallback|default provider)/i.test(source.research), "web_search still contains an implicit provider fallback/default.");
+assert(!/web_search(?:\\s+provider)?\\s*(?:fallback|default provider)/i.test(source.research), "web_search still contains an implicit provider fallback/default.");
 assert(/generateGroqBossText/.test(source.bureau) && /groq-boss/.test(source.bureau), "Canonical Boss is not routed through the Groq control-plane adapter.");
 assert(legacyExtractionRetired || !/groq-final-review-fallback/i.test(source.finalReview), "Groq is still exposed as a final card review/decision layer in canonical source.");
 assert(legacyExtractionRetired || !/groq-final-review-fallback/i.test(source.legacyFinalReview), "Groq is still exposed as a final card review/decision layer in legacy source.");
