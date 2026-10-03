@@ -2,20 +2,22 @@
 
 > This section supersedes all conflicting historical provider/auth statements later in this living-context document. Repository source at the current `main` HEAD is authoritative.
 >
-> **Current main HEAD:** `9805e014ebb1253b37094503c97d426b71c0741c`
+> **Current main HEAD:** `8b4d314596b7c095dcfcc397034e96d25b03716b`
 >
 > **Canonical control plane:** Groq Boss (`openai/gpt-oss-120b`, bounded 20B fallback) → Groq Right-hand (`openai/gpt-oss-120b`, bounded 20B fallback) → Groq Investigator (`qwen/qwen3.8-27b`, bounded GPT-OSS fallbacks).
 >
-> **Role-scoped credentials:** Boss uses `GROQ_BOSS_API_KEY`, `_1` … `_10`; Right-hand uses `GROQ_RIGHT_HAND_API_KEY`, `_2` … `_5`; Investigator uses `GROQ_INVESTIGATOR_API_KEY`, `_1` … `_5`. Do not restore Mistral/Gemini control credentials.
+> **Role-scoped credentials:** Boss uses `GROQ_BOSS_API_KEY`, `_1` … `_10`; Right-hand uses `GROQ_RIGHT_HAND_API_KEY`, `_2` … `_5`; Investigator uses `GROQ_INVESTIGATOR_API_KEY`, `_1` … `_5`. Do not restore Mistral/Gemini control credentials. The Right-hand `_1` naming discrepancy remains a configuration-only item: no secret value has been inspected.
 >
-> **Operator authentication is retired from the Apex desk/API.** The browser has no operator sign-in wall, the API does not mount operator-auth middleware, and `APEX_API_AUTH_TOKEN`, `APEX_OPERATOR_PASSWORD`, `APEX_SESSION_SECRET`, and `APEX_DEV_AUTH_BYPASS` are not active runtime requirements.
+> **Operator authentication is retired from the Apex desk/API.** Do not add an auth bypass or restore retired operator-auth variables as a testing workaround.
 >
-> **Groq GPT-OSS request contract:** Right-hand requests use `reasoning_effort` plus `include_reasoning:false`; they do not send the unsupported `reasoning_format` field. Discovery context is progressively compacted under a hard 20,000-character user-prompt boundary with a 1,024-character safety reserve.
+> **Groq GPT-OSS request contract:** Right-hand requests use `reasoning_effort` plus `include_reasoning:false`; they do not send the unsupported `reasoning_format` field. The final composed Right-hand control prompt is bounded to 18,976 characters, leaving a 1,024-character reserve below the adapter's 20,000-character hard ceiling.
 >
 > **Groq retry/control contract:** Right-hand and Investigator transient 429 retry ownership is explicit at the caller boundary; authoritative request-quota 429s are not converted into same-role key rotation. The canonical target-research path contains no hidden Gemini evidence probe or Gemini fetch retry shim, and research redirects are provider/tool-neutral.
 >
-> **Verification rule:** provider capacity is never inferred from configured-key status. No live provider request or Atlas launch is part of the source changes recorded after the 2026-10-03 live-run failures unless explicitly documented in the sequential audit.
+> **Current main chronology:** PR #465 merged the Right-hand retry-ownership boundary; PR #466 merged the Investigator GPT-OSS/cognitive-routing correction; PR #468 merged the combined control/Investigator retry and canonical-path remediation; PR #469 merged the Investigator credential-slot gate correction.
 >
+> **Verification rule:** provider capacity is never inferred from configured-key status. No live provider request or Atlas launch was performed by these source/documentation corrections. A new canonical Atlas launch requires separate explicit user authorization.
+
 # Apex Atlas / BigContacts — Living Context
 
 > **Updated:** 2026-09-20. This is the living engineering, architecture, deployment, and research-quality handoff for the current reviewed Apex Atlas state.
