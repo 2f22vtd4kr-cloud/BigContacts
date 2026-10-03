@@ -684,3 +684,22 @@ Release remains **NOT GREEN / NOT production-certified**.
 
 
 Current main verification checkpoint: `17708ce36d59aac74f2a999c8aba2870807a0ab9`. Live-audit workflows are manual-only; no new Atlas launch is authorized by repository pushes.
+
+
+## 2026-10-03 Mistral Free-tier Right-hand fallback decision
+
+A controlled single-call audit sent exactly one direct Right-hand request to `mistral-small-2603` using `MISTRAL_RIGHT_HAND_API_KEY`. It returned HTTP 429 after 308 ms; captured headers included `x-ratelimit-limit-req-minute=0` and `x-ratelimit-remaining-req-minute=0`. No retry, fallback, catalog call, or Atlas launch occurred. The provider error body was not retained by that one-off harness, so the precise quota/workspace/billing cause remains unresolved.
+
+Independent current Mistral documentation confirms Ministral 3 14B/8B/3B support Chat Completions and Structured Outputs. Recent community reports also describe Free-tier accounts receiving 429/zero effective allowance on Mistral Small while Ministral models remain callable. This is evidence for a genuine cross-family Right-hand fallback, but not proof that the user's specific Workspace has the same entitlement state. Do not represent the community observation as a guaranteed Free-tier allowance.
+
+Implementation at main now defines:
+- canonical Right-hand model: `mistral-small-2603`
+- genuine cross-family fallback chain: `ministral-14b-2512` → `ministral-8b-2512` → `ministral-3b-2512`
+- `mistral-small-latest` is deliberately no longer a fallback because it is not a meaningful cross-family escape from Small 4 entitlement/rate-limit behavior.
+- live catalog admission is still required; Apex does not invent a fallback model absent from the provider catalog.
+- on a hard 429 carrying the observed zero request-minute signals, Apex records the complete redacted diagnostic and advances to the next genuine model family without retrying the same model. Ordinary short-window 429s retain the bounded Retry-After/1.1s retry policy.
+- the process-wide Mistral request gate remains in force to respect the documented 1 RPS ceiling.
+
+Regression coverage was added in `artifacts/api-server/src/src/test/mistral-right-hand.test.ts` for the canonical model/fallback policy and credential non-disclosure. The canonical model-boundary script should also assert the cross-family fallback chain.
+
+No live Mistral call or Atlas launch was made to validate the new fallback. Validation must remain CI/static/test-only until the user explicitly authorizes another provider call. The current GitHub push triggered the Five Consecutive Full Code Audits workflow; its run was pending at the last check.
