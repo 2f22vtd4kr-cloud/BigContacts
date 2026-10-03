@@ -1,19 +1,22 @@
 name: Apex Empirical Research Campaign
 on:
   workflow_dispatch:
+  pull_request:
+    branches: [main, ci-base-338]
+    types: [synchronize]
   push:
     branches: [audit/genuine-five-green-final]
     paths: [benchmarks/research-campaign-trigger.txt]
 permissions:
   contents: read
 
-# Only the latest PR head may consume the finite empirical campaign budget.
-# Frontend commits must cancel stale runs rather than run 150 cases in parallel.
+# The empirical campaign is intentionally opt-in. This temporary synchronization run is a no-op so it can supersede any stale pre-change campaign without consuming provider budget.
 concurrency:
   group: apex-empirical-campaign
   cancel-in-progress: true
 jobs:
   campaign:
+    if: ${{ false }}
     runs-on: ubuntu-latest
     timeout-minutes: 330
     env:
