@@ -1,5 +1,16 @@
 import { describe, expect, it, vi } from "vitest";
-
+import { evaluateTargetFitness, shouldRejectTarget, suggestReframe } from "../lib/target-fitness";
+import {
+  applyGeminiBossPlan,
+  collectDiscoveryContactsForTarget,
+  contactEvidenceToRoutes,
+  mergeContactRoutes,
+  type ResearchCaseFile,
+} from "../lib/case-bureau";
+import { computeInvestigationProgress, evaluateInvestigationStop } from "../lib/investigation-progress";
+import { evaluateDiscoveryStop } from "../lib/discovery-metrics";
+import { scoreOfflineCohort, FAME_NEGATIVE_CONTROLS, QUIET_OPERATOR_FIXTURES } from "../lib/eval-cohort";
+import { GROQ_BOSS_MODEL, generateGroqBossText, getGroqBossLatencyConfig } from "../lib/groq-boss";
 
 describe("Boss control-loop contract", () => {
   function minimalFile(): ResearchCaseFile {
