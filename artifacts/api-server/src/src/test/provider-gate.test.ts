@@ -3,6 +3,7 @@ import {
   ProviderQuotaError,
   resetProviderGateForTests,
   runProviderCall,
+  withProviderRetryOwnership,
 } from "../lib/provider-gate";
 
 describe("provider quota gate", () => {
@@ -11,10 +12,8 @@ describe("provider quota gate", () => {
     delete process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GENERIC;
     delete process.env.APEX_PROVIDER_MAX_REQUESTS_GEMINI;
     delete process.env.APEX_PROVIDER_MAX_REQUESTS_GROQ;
-    delete process.env.APEX_PROVIDER_MAX_REQUESTS_MISTRAL;
     delete process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GEMINI;
     delete process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GROQ;
-    delete process.env.APEX_PROVIDER_MIN_INTERVAL_MS_MISTRAL;
     delete process.env.APEX_EXTERNAL_MAX_REQUESTS_PER_SCOPE;
     delete process.env.APEX_EXTERNAL_PROVIDER_CONCURRENCY_GEMINI;
     resetProviderGateForTests();
@@ -212,30 +211,100 @@ describe("provider quota gate", () => {
     expect(calls).toBe(2);
   });
 
-  it("does not convert Mistral 403 permission denial into a cooldown", async () => {
-    process.env.APEX_PROVIDER_MAX_REQUESTS_MISTRAL = "10";
-    process.env.APEX_PROVIDER_MIN_INTERVAL_MS_MISTRAL = "0";
+  it("lets a role boundary own transient Groq 429 retry without creating a gate cooldown", async () => {
+    process.env.APEX_PROVIDER_MAX_REQUESTS_GROQ = "10";
+    process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GROQ = "0";
     process.env.APEX_EXTERNAL_MAX_REQUESTS_PER_SCOPE = "100";
     let calls = 0;
 
-    const first = await runProviderCall(
-      { provider: "mistral", account: "permission-denied-test" },
-      async () => {
-        calls += 1;
-        return new Response(JSON.stringify({ object: "error", type: "permission_error" }), { status: 403 });
-      },
+    const first = await withProviderRetryOwnership("groq", "caller", () =>
+      runProviderCall(
+        { provider: "groq", account: "caller-owned-retry-test" },
+        async () => {
+          calls += 1;
+          return new Response(JSON.stringify({ error: { code: "rate_limit_exceeded" } }), { status: 429 });
+        },
+      ),
     );
     const second = await runProviderCall(
-      { provider: "mistral", account: "permission-denied-test" },
+      { provider: "groq", account: "caller-owned-retry-test" },
       async () => {
         calls += 1;
         return new Response("", { status: 200 });
       },
     );
 
-    expect(first.status).toBe(403);
+    expect(first.status).toBe(429);
     expect(second.status).toBe(200);
     expect(calls).toBe(2);
+  });
+
+  it("lets the Right-hand caller retry through the installed fetch guard after a transient Groq 429", async () => {
+    process.env.APEX_PROVIDER_MAX_REQUESTS_GROQ = "10";
+    process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GROQ = "0";
+    process.env.APEX_EXTERNAL_MAX_REQUESTS_PER_SCOPE = "100";
+
+    const nativeFetch = globalThis.fetch;
+    let upstreamCalls = 0;
+    globalThis.fetch = (async () => {
+      upstreamCalls += 1;
+      if (upstreamCalls === 1) {
+        return new Response(JSON.stringify({ error: { code: "rate_limit_exceeded" } }), {
+          status: 429,
+          headers: {
+            "retry-after": "0",
+            "x-ratelimit-limit-requests": "1000",
+            "x-ratelimit-remaining-requests": "999",
+          },
+        });
+      }
+      return new Response("", { status: 200 });
+    }) as typeof fetch;
+
+    const { installExternalQuotaGuard } = await import("../lib/provider-gate");
+    installExternalQuotaGuard();
+
+    try {
+      const first = await withProviderRetryOwnership("groq", "caller", () =>
+        globalThis.fetch("https://api.groq.com/openai/v1/chat/completions", {
+          method: "POST",
+          headers: { Authorization: "Bearer right-hand-test-key" },
+          body: "{}",
+        }),
+      );
+      const second = await globalThis.fetch(
+        "https://api.groq.com/openai/v1/chat/completions",
+        {
+          method: "POST",
+          headers: { Authorization: "Bearer right-hand-test-key" },
+          body: "{}",
+        },
+      );
+
+      expect(first.status).toBe(429);
+      expect(second.status).toBe(200);
+      expect(upstreamCalls).toBe(2);
+    } finally {
+      globalThis.fetch = nativeFetch;
+    }
+  });
+
+  it("keeps gate-owned Groq 429 cooldowns when no caller ownership is declared", async () => {
+    process.env.APEX_PROVIDER_MAX_REQUESTS_GROQ = "10";
+    process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GROQ = "0";
+    process.env.APEX_EXTERNAL_MAX_REQUESTS_PER_SCOPE = "100";
+
+    await runProviderCall(
+      { provider: "groq", account: "gate-owned-retry-test" },
+      async () => new Response("", { status: 429 }),
+    );
+
+    await expect(
+      runProviderCall(
+        { provider: "groq", account: "gate-owned-retry-test" },
+        async () => new Response("", { status: 200 }),
+      ),
+    ).rejects.toMatchObject({ code: "cooldown", provider: "groq" });
   });
 
 });

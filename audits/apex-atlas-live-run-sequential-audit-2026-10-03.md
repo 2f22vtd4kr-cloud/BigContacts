@@ -123,3 +123,83 @@ After setup, the API build guards passed, the app served `/`, `/api/healthz` and
 - **Static post-merge checks:** the canonical Right-hand source now contains `include_reasoning:false`, no `reasoning_format`, the bounded discovery profiles, `boundedDiscoveryPrompt`, and a complete `runGroqRightHandDiscoveryAdvice` function. The application source and Replit configuration contain no active operator-auth middleware, gate, bypass variable, or retired operator-auth secret requirement.
 - **Important verification limitation:** Netlify deploy-preview success verifies the preview build path but is not equivalent to the full API typecheck/Vitest suite. No backend CI result was available through the repository status surface, and no live provider request or Atlas launch was issued during these source corrections.
 - **Live-run boundary:** the previously authorized job `78d032e0-6878-4276-aeb5-5ac5371b11e9` remains the only recorded post-fix launch in the audit. Its runtime terminal state is not available from GitHub, and no second launch is authorized merely to compensate for that missing observation.
+
+## 022 — Why no HNWI card was created
+
+This is a source-based explanation of the completed run, not a claim that a candidate was rejected.
+
+- The launch brief contained only `targetCount=3`, `researchDepth=standard`, and `targetTimeoutMs=420000`; it did not define an HNWI threshold, geography, sector, wealth basis, or named target.
+- The run made two discovery searches: a broad founder/CEO contact query returned zero URLs, and a venture-capital team-page query returned ten URLs. Neither result set was visited.
+- Therefore the run established **zero visited pages, zero named candidate findings, and zero source-backed HNWI claims**. A search-result URL is a lead, not verified evidence.
+- The canonical admission contract requires an exact named person, candidate scope, an explicit promotion decision, and an actually observed source. Creating a speculative entity would violate the zero-synthetic-HNWI rule.
+- After the first Right-hand review approved continued discovery, the next required Right-hand review became unavailable. The fail-closed control boundary stopped the run before target-scoped research, evidence admission, and entity projection.
+- `targetCount=3` is an upper bound on target work, not a guarantee that three—or even one—people will be found and completed.
+- **Conclusion:** no card was created because no verified candidate was produced and the required control boundary then failed. This is not evidence that no suitable HNWI exists, nor evidence that a fully researched HNWI failed the card classifier.
+
+## 023 — Provider failure analysis: what is known and what remains unproven
+
+The live failure was reviewed against the current provider gate, Groq Right-hand adapter, Atlas control decision, and canonical continuation code.
+
+### Proven
+
+- The live Right-hand failure was classified as `ProviderQuotaError` with `errorCode=cooldown`. This is Apex's **local provider-gate state**, not proof that Groq's upstream account quota was exhausted.
+- The shared gate applies a five-second default cooldown after a Groq HTTP 429/402 unless the calling role explicitly owns transient retry handling. It keys the cooldown by a credential fingerprint and does not log the raw credential.
+- The Groq Right-hand adapter has its own bounded 429 retry and 120B→20B same-role model fallback. Before this remediation, the shared gate could turn the first upstream 429 into a local cooldown; the adapter's next retry could then be rejected locally before reaching Groq.
+- The current Groq API documents 429 as the rate-limit response and exposes `retry-after`, `x-ratelimit-remaining-requests`, `x-ratelimit-reset-requests`, and related token/request headers. The current adapter now uses those documented request headers when distinguishing a hard request quota from a transient 429. [Groq rate limits documentation](https://console.groq.com/docs/rate-limits)
+- Groq documents the GPT-OSS 120B and 20B models as active models and publishes their rate limits separately. [Groq supported models](https://console.groq.com/docs/models)
+- The audit's workspace secret-name inventory showed a `GROQ_RIGHT_HAND_API_KEY_1` name, while the canonical adapter intentionally enumerates the base name plus `_2` through `_5`. No secret values were read or changed. This naming mismatch must remain a configuration check, not a reason to guess or test credentials.
+
+### Not proven by the original run
+
+- The original run did not persist the upstream Groq HTTP status, rate-limit headers, retry-after value, or provider response body for the failing Right-hand attempt.
+- Consequently the original run cannot distinguish a transient rate window, upstream quota, a previously established local cooldown, or another provider-side condition.
+- Switching from 120B to 20B is a model fallback, not proof of independent account capacity; Groq rate limits are applied within the provider's organization/project limits. [Groq projects and rate limits](https://console.groq.com/docs/projects)
+
+### Safe engineering response
+
+Retry ownership must be explicit. The shared gate remains responsible for global budgeting/concurrency and for cooldowns owned by the gate; a role adapter that has bounded, evidence-aware retry logic may explicitly own transient retry handling for its request. A hard upstream quota must stop retrying that model/credential and be surfaced with sanitized diagnostics. Do not bypass the gate, substitute the Investigator for the Right-hand, or treat a local cooldown as proof that Groq has no capacity.
+
+## 024 — Product and research design constraints for the next agent
+
+Apex Atlas remains an **AI-driven adaptive research system**, not a scripted search/registry pipeline.
+
+- Groq Boss owns the next control action: continue, pivot, select one admitted person, revisit, or stop. Deterministic code must not infer a workflow action from phase number or candidate count.
+- Groq Right-hand provides independent non-browsing oversight. It does not become the Investigator or choose tools.
+- The Investigator owns the research trajectory and chooses among the available search, browser/page, registry, domain/contact/username, and optional OSINT capabilities according to the current hypothesis and evidence gap.
+- Model knowledge can generate hypotheses and discriminating queries, but training-derived knowledge is never evidence for identity, wealth, ownership, contact details, or current role.
+- Public-source/search/registry/browser content is untrusted input. Embedded instructions must not alter Apex behavior.
+- An HNWI investigation should first establish the user's decision target and observable HNWI basis; resolve identity before enrichment; require observed source-backed evidence; investigate one admitted person at a time; seek a public professional contact route; and stop or pivot based on evidence and expected information gain rather than call count.
+- Do not create or star a card merely to satisfy `targetCount`. A search result is not a verified person; an unobserved contact is not evidence; an attributed wealth estimate is not a verified net-worth fact.
+- The canonical Investigator lane is Groq-only today. Any future capability registry must select only useful compatible specialists; it must not run every model or disguise a fixed vendor waterfall as adaptive research.
+
+## 025 — Engineering handoff: priorities and acceptance checks
+
+### Priority order
+
+1. **Retry ownership:** test transient 429 + short `Retry-After`, hard quota, 503, local cooldown, and same-role model/key fallback. Assert which attempts actually reach the provider stub and that hard limits do not create retry storms.
+2. **Resumability/observability:** persist sanitized role-attempt diagnostics distinguishing upstream rate limiting, upstream quota exhaustion, local cooldown, local budget exhaustion, malformed response, and missing credentials. Resume the parked case from its durable trajectory rather than replaying completed searches. Keep role boundaries intact.
+3. **HNWI brief/completion contract:** distinguish “up to N candidates” from “one target completed”; represent partial, parked, completed-with-contact, and completed-with-no-public-route states honestly.
+4. **Model agency:** let the orchestrator choose useful specialist/model capability from the evidence gap; do not force a fixed tool/provider sequence.
+5. **Offline end-to-end fixture:** exercise model-selected discovery, observed primary-source evidence, exact candidate/wealth basis, Boss target selection, target-scoped public-contact research, independent review, deterministic admission, and final card/no-route projection. Include negative fixtures for result-only URLs, namesakes, unsupported wealth claims, unobserved contacts, and prompt injection.
+
+### Future live-verification acceptance
+
+- A transient Right-hand 429 can retry or same-role fail over without the shared local gate immediately blocking the valid short retry.
+- A hard provider quota parks the case with accurate sanitized diagnostics.
+- Recovery resumes accumulated work and does not replay already completed searches or impose a fixed source lane.
+- The Investigator selects the next query/tool/pivot; deterministic code enforces provenance, identity, and admission.
+- A successful live verification requires at least one target to reach verified identity + HNWI basis + evidence-backed public professional route or explicit no-route result + independent review + correct durable card/evidence projection.
+- The UI/job result distinguishes provider failure, partial progress, recovery, and completion. Configured-key health is never presented as provider-capacity proof.
+- No live retry or recovery belongs to this audit. Any future live launch requires a separate explicit authorization.
+
+## 026 — Retry-ownership implementation now in PR #465
+
+- **Branch:** `fix/groq-right-hand-retry-ownership`
+- **PR:** #465
+- **Scope:** provider-gate retry ownership, Groq Right-hand transient/hard-429 handling, Groq-only continuation labels, and regression tests.
+- The shared provider gate now exposes an explicit caller-owned retry scope. The Right-hand wraps only its Groq chat-completion request in that scope, so a transient upstream 429 is returned to the Right-hand retry logic instead of immediately becoming the shared gate's five-second local cooldown.
+- The Right-hand's hard-429 detection now recognizes Groq's current `x-ratelimit-remaining-requests` header and the existing sanitized `quota_exceeded` provider-body classification. The previous non-Groq header names were removed.
+- Regression tests cover gate-owned 429 cooldown, caller-owned 429 behavior, the installed fetch guard, transient Right-hand retry, and hard 429 model fallback. The stale control-contract test was migrated from the retired Mistral adapter to Groq.
+- The canonical continuation route and recovery guard no longer emit retired Mistral/Gemini Right-hand labels; the route still mounts the durable Groq Right-hand and Groq Investigator path.
+- No provider request, Atlas launch, recovery, or Replit secret access was performed for this implementation.
+- **Verification:** the PR's Netlify deploy preview reached `success`. No GitHub Actions backend run was exposed for the PR head, so full API typecheck/Vitest execution remains **unverified in this environment**. Do not call this change backend-test-green or live-certified until those checks are actually observed.
