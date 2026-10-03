@@ -1,3 +1,23 @@
+# CURRENT OVERRIDE — RECONCILED 2026-10-03
+
+> The historical body below is retained for lineage, but it is superseded wherever it conflicts with current source.
+
+- Current `main` HEAD: `3b0b6a68cd4b9078dc00bb9306f90dddf9e43fb6` at the time of this documentation update.
+- Canonical control: Groq Boss → Mistral Right-hand → model-owned Groq/Mistral Investigator.
+- Right-hand primary: `mistral-small-2603`.
+- Right-hand genuine cross-family candidates: `ministral-14b-2512`, `ministral-8b-2512`, `ministral-3b-2512`.
+- `mistral-small-latest` is not a production fallback.
+- Right-hand credentials: `MISTRAL_RIGHT_HAND_API_KEY[_2.._5]`; generic `MISTRAL_API_KEY` is Investigator-only.
+- Latest direct Small-4 probe already returned HTTP 429 with zero-looking request-minute headers. Do not repeat it or launch Atlas without explicit authorization.
+- Current source records redacted top-level Mistral error `message`, `type`, `param`, `code`, rate-limit headers, Retry-After, request metadata, and key fingerprint; it does not log credentials.
+- Current tests include a mocked hard-429 transition from Small 4 to Ministral 14B.
+- Current provider/model facts are supported by Mistral documentation: Small 4 and all three Ministral 3 models expose Chat Completions and Structured Outputs.
+- Community Free-tier reports are hypothesis-generating only; they do not prove this Workspace's entitlement.
+- CI for the exact current main push has not been independently observed through the available connector. Do not claim green.
+
+See `docs/context.md` current override and the latest Mistral Right-hand audit for the reconciled state.
+
+---
 # Apex Atlas — Master Successor Handoff — 2026-10-02
 
 **Repository:** `2f22vtd4kr-cloud/BigContacts`  
