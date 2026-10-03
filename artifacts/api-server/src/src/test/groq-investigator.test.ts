@@ -6,6 +6,11 @@ import { resetProviderGateForTests } from "../lib/provider-gate";
 describe("Groq Investigator provider boundary", () => {
   afterEach(() => {
     delete process.env.GROQ_INVESTIGATOR_API_KEY;
+    delete process.env.GROQ_INVESTIGATOR_API_KEY_1;
+    delete process.env.GROQ_INVESTIGATOR_API_KEY_2;
+    delete process.env.GROQ_INVESTIGATOR_API_KEY_3;
+    delete process.env.GROQ_INVESTIGATOR_API_KEY_4;
+    delete process.env.GROQ_INVESTIGATOR_API_KEY_5;
     delete process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GROQ;
     resetProviderGateForTests();
     vi.restoreAllMocks();
