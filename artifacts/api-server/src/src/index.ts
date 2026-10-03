@@ -57,7 +57,7 @@ const server = app.listen(port, (err) => {
         tavily: countActive(status.tavily),
         exa: countActive(status.exa),
         serper: lanes.serper,
-        mistral: lanes.mistral,
+        groqInvestigator: lanes.groqInvestigator,
         agenticLlmSlots: lanes.agenticLlmSlots,
         webSearchActive: lanes.webSearchActive,
         bureauIntegrity: lanes.bureauIntegrity,
