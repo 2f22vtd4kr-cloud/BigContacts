@@ -11,5 +11,6 @@ describe("research cognitive routing", () => {
     expect(inferResearchCognitiveTask({ nextMovePriority: "contact" })).toBe("contact_extraction");
     const ranked = rankGroqModelsForTask(["openai/gpt-oss-120b", "openai/gpt-oss-20b"], "contact_extraction");
     expect(ranked[0]).toBe("openai/gpt-oss-20b");
+    expect(ranked).toEqual(["openai/gpt-oss-20b", "openai/gpt-oss-120b"]);
   });
 });
