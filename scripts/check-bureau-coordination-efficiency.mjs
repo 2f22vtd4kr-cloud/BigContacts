@@ -10,7 +10,7 @@ const boss = fs.readFileSync(path.join(root, "artifacts/api-server/src/src/lib/c
 const rightHandRequired = [
   "GROQ_RIGHT_HAND_MODEL",
   "case_file_reasoning_only",
-  "max_tokens:512",
+  "max_completion_tokens:768",
   "You are Apex Atlas Right Hand. Reason only over the supplied case file.",
   "Never browse, use external research, or invent evidence",
   "compactCase(file: ResearchCaseFile)",
@@ -26,7 +26,7 @@ const bossRequired = [
   "=== BUREAU CHAIN OF COMMAND / SHARED MIND ===",
   "RIGHT-HAND (Groq) = diagnostic strategist",
   "BOSS (Groq GPT-OSS 120B) = head investigator and integrator",
-  "INVESTIGATOR (Groq/Groq) = execution intelligence",
+  "INVESTIGATOR (Groq) = execution intelligence",
   "=== MOUNTING CASE STATE / COORDINATION LEDGER ===",
   "What is newly known since the previous iteration?",
   "What remains genuinely unresolved?",
