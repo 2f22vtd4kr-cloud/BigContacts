@@ -24,13 +24,13 @@ describe("discovery runtime architecture", () => {
 
   it("keeps the canonical opening order Boss first, Right-hand second", () => {
     const canonicalSource = fs.readFileSync(path.join(libDir, "canonical-atlas-discovery.ts"), "utf8");
-    const bossIndex = canonicalSource.indexOf("const boss = await runGeminiBossDiscovery(");
-    const rightHandIndex = canonicalSource.indexOf("const rightHandRaw = await import(\"./gemini-right-hand-reasoning\")");
+    const bossIndex = canonicalSource.indexOf("const boss = await runGroqBossDiscovery(");
+    const rightHandIndex = canonicalSource.indexOf("const rightHandRaw = await import(\"./mistral-right-hand-reasoning\")");
     expect(bossIndex).toBeGreaterThan(-1);
     expect(rightHandIndex).toBeGreaterThan(-1);
     expect(bossIndex).toBeLessThan(rightHandIndex);
-    const bossCall = canonicalSource.indexOf("runGeminiBossDiscovery({");
-    const rightHandCall = canonicalSource.indexOf("runGeminiRightHandFreeJson(");
+    const bossCall = canonicalSource.indexOf("runGroqBossDiscovery({");
+    const rightHandCall = canonicalSource.indexOf("runMistralRightHandFreeJson(");
     expect(bossCall).toBeGreaterThan(-1);
     expect(rightHandCall).toBeGreaterThan(-1);
     expect(bossCall).toBeLessThan(rightHandCall);
@@ -53,13 +53,13 @@ describe("discovery runtime architecture", () => {
 
   it("keeps target opening Boss-first and requires Right-hand before act 1", () => {
     const runner = fs.readFileSync(path.join(libDir, "canonical-single-target-runner.ts"), "utf8");
-    const bossOpening = runner.indexOf("runGeminiBossDiscovery({");
-    const rightHandOpening = runner.indexOf("runGeminiRightHandFreeJson(");
+    const bossOpening = runner.indexOf("runGroqBossDiscovery({");
+    const rightHandOpening = runner.indexOf("runMistralRightHandFreeJson(");
     const firstAct = runner.indexOf("latestResult = await runTargetContactAgent({");
     expect(bossOpening).toBeGreaterThan(-1);
     expect(rightHandOpening).toBeGreaterThan(bossOpening);
     expect(firstAct).toBeGreaterThan(rightHandOpening);
-    expect(runner).toMatch(/actorRole: "gemini_boss"/);
+    expect(runner).toMatch(/actorRole: "groq_boss"/);
     expect(runner).toMatch(/actorRole: "right_hand"/);
     expect(runner).toMatch(/target-boss-opening/);
     expect(runner).toMatch(/target-right-hand-opening/);
