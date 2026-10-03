@@ -49,6 +49,7 @@ export type ResearchCaseReplay = {
 
 const ALLOWED_ACTOR_ROLES = new Set([
   "head_investigator",
+  "groq_boss",
   "gemini_boss",
   "right_hand",
   "specialist",
