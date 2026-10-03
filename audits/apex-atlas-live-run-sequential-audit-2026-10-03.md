@@ -203,3 +203,34 @@ Apex Atlas remains an **AI-driven adaptive research system**, not a scripted sea
 - The canonical continuation route and recovery guard no longer emit retired Mistral/Gemini Right-hand labels; the route still mounts the durable Groq Right-hand and Groq Investigator path.
 - No provider request, Atlas launch, recovery, or Replit secret access was performed for this implementation.
 - **Verification:** the PR's Netlify deploy preview reached `success`. No GitHub Actions backend run was exposed for the PR head, so full API typecheck/Vitest execution remains **unverified in this environment**. Do not call this change backend-test-green or live-certified until those checks are actually observed.
+
+
+## 027 — Post-#465 canonical Investigator runtime correction merged
+
+After PR #465 was merged, a fresh source audit found a remaining provider-contract defect in the canonical Groq Investigator path that had not been caught by the earlier Right-hand remediation:
+
+- agentic-web-research-core.ts was still sending reasoning_format: "hidden" to GPT-OSS models. Current Groq documentation states that GPT-OSS 20B/120B do not support reasoning_format; Groq documents include_reasoning:false as the compatible way to suppress reasoning output. The canonical Investigator now uses include_reasoning:false and never sends reasoning_format to GPT-OSS. [Groq reasoning documentation](https://console.groq.com/docs/reasoning)
+- The strict Investigator action schema previously omitted fields that the parser already supported (target, targetType, profile, locale, market). That made some declared autonomous capabilities, notably SpiderFoot targeting and locale/market-aware search, unrepresentable under strict structured output. Those fields are now explicit nullable required schema properties, preserving strict-output validity while restoring the model's full declared action surface. [Groq structured outputs](https://console.groq.com/docs/structured-outputs)
+- Investigator reasoning was previously effectively fixed to the default identity_resolution routing hint on every turn. The runtime now derives a cognitive task from the live Research Intelligence state: unresolved contradiction/disproof signals, contact gaps, verification gaps, or discovery context, while preserving explicit caller overrides. This changes model-routing budget, not research strategy: the Investigator still owns the actual next action.
+- Reasoning effort is now bounded and task-aware: medium for ordinary discovery/identity work, low for contact extraction, and high for contradiction/final-adjudication tasks unless the valid GROQ_AGENTIC_REASONING_EFFORT override is supplied. Completion budgets are likewise bounded per cognitive task.
+- Regression coverage was added for the GPT-OSS request contract, strict action-schema completeness, and cognitive-task routing. scripts/check-agentic-runtime.mjs now checks these invariants too.
+
+Merged: PR #466, squash merge e92135a1b8332a5f13e28e8f0cc576f78eaba8f9.
+
+Verification boundary: GitHub exposes no backend CI status for the merged head in this environment. Source-level review and PR diff review were completed; no live Groq request or new Atlas launch was made. The one-launch authorization from this audit remains consumed, and a fresh end-to-end run still requires separate explicit authorization.
+
+## 028 — Architecture review: how Apex should reason after mixed-source discovery
+
+The current architecture is materially closer to the intended cognitive bureau than a scripted OSINT pipeline because the model owns the research trajectory and deterministic code owns evidence/provenance/safety. The remaining state-of-the-art direction is therefore not to add more mandatory phases; it is to improve the information state presented to the model and let model capability selection follow that state.
+
+For mixed-source discovery, the intended loop is:
+
+1. Hypothesis frontier: maintain competing identity/organization/contact hypotheses rather than collapsing the first plausible search result into a person.
+2. Discriminator selection: ask what observation would most efficiently separate the leading hypotheses or falsify the current one.
+3. Source-family diversification: prefer genuinely independent source families when the current family is saturated; repeated syndication is not corroboration.
+4. Evidence observation: search results generate leads; concrete pages, registries, domains, or other capabilities generate observations. Findings remain unpromoted until deterministic provenance/attribution checks pass.
+5. Cognitive-mode routing: use the evidence state to allocate reasoning depth to discovery, identity resolution, contact extraction, contradiction resolution, or final adjudication. This is a compute/routing decision, not a hidden scripted research plan.
+6. Re-evaluation: feed the new observation into the intelligence state, update hypotheses/contradictions/source independence, and let the Investigator choose the next action again.
+7. Terminal adjudication: stop only when the epistemic terminal gate says the evidence is sufficient or the public avenues are exhausted; never stop merely because a fixed number of calls occurred.
+
+This is the correct optimization target for Apex: deterministic evidence law around a model-owned search policy, not deterministic search choreography. Groq's current models support strict structured outputs and tunable reasoning effort; GPT-OSS 120B is explicitly positioned for advanced research/agentic use, while Qwen 3.8 27B supports long-horizon tool use, reasoning, and structured outputs. Prompt caching also rewards keeping the stable institutional/schema prefix static and putting volatile case state at the end of the request. [Groq GPT-OSS 120B](https://console.groq.com/docs/model/openai/gpt-oss-120b) [Groq Qwen 3.8](https://console.groq.com/docs/model/qwen/qwen3.8-27b) [Groq prompt caching](https://console.groq.com/docs/prompt-caching)
