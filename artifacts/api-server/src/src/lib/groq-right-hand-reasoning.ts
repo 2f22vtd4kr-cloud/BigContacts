@@ -130,7 +130,7 @@ async function request(system:string,user:string,format?:Record<string,unknown>)
   let lastRetryAfterMs: number | null = null;
   let lastRetryAfterHeader: string | null = null;
   while(Date.now()<deadline){
-   const body=JSON.stringify({model:candidate.model,messages:[{role:"system",content:systemPrompt},{role:"user",content:normalizedUser}],max_completion_tokens:768,temperature:0.1,stream:false,response_format:responseFormat(format), reasoning_effort:"medium", reasoning_format:"hidden"});
+   const body=JSON.stringify({model:candidate.model,messages:[{role:"system",content:systemPrompt},{role:"user",content:normalizedUser}],max_completion_tokens:768,temperature:0.1,stream:false,response_format:responseFormat(format), reasoning_effort:"medium", include_reasoning:false});
    const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),Math.min(configRequest,Math.max(1000,deadline-Date.now())));
    try{
     await waitForGroqRightHandRequestSlot();
@@ -244,59 +244,7 @@ function compactCase(file: ResearchCaseFile): string {
     bossPlan,
   }, null, 2);
 }
-function compactDiscovery(file: DiscoveryCaseFile): string {
-  return JSON.stringify({
-    humanBrief: {
-      objective: clip(file.humanBrief.objective, 420),
-      motivation: clip(file.humanBrief.motivation, 280),
-      geography: clip(file.humanBrief.geography, 220),
-      exclusions: clipStrings(file.humanBrief.exclusions, 8, 180),
-    },
-    bossPremise: clip(file.bossPremise, 420),
-    investigationRules: clipStrings(file.investigationRules, 8, 240),
-    candidateLanes: clipStrings(file.candidateLanes, 10, 180),
-    initialResearch: {
-      status: file.initialResearch.status,
-      researchResponse: clip(file.initialResearch.researchResponse, 900),
-      bossCommentary: clip(file.initialResearch.bossCommentary, 500),
-      sourceUrls: file.initialResearch.sourceUrls.slice(0, 8),
-    },
-    investigatorReports: file.investigatorReports.slice(-6).map((report) => ({
-      id: report.id,
-      lane: report.lane,
-      provider: report.provider,
-      status: report.status,
-      iteration: report.iteration,
-      summary: clip(report.summary, 420),
-      findings: clipStrings(report.findings, 8, 240),
-      candidateNames: clipStrings(report.candidateNames, 8, 160),
-      sourceUrls: report.sourceUrls.slice(0, 6),
-      nextQuestions: clipStrings(report.nextQuestions, 6, 220),
-      error: clip(report.error, 240),
-    })),
-    currentProgress: {
-      reportCount: file.currentProgress.reportCount,
-      completedLanes: clipStrings(file.currentProgress.completedLanes, 10, 120),
-      openQuestions: clipStrings(file.currentProgress.openQuestions, 8, 240),
-      lastReviewedBy: file.currentProgress.lastReviewedBy,
-    },
-    discoveredCandidates: file.discoveredCandidates.slice(0, 12).map((candidate) => ({
-      name: candidate.name,
-      type: candidate.type,
-      relevance: clip(candidate.relevance, 280),
-      reachability: clip(candidate.reachability, 220),
-      sourceUrls: candidate.sourceUrls.slice(0, 3),
-      state: candidate.state,
-    })),
-    orgFootprint: file.orgFootprint,
-    decisionLog: file.decisionLog.slice(-6).map((entry) => ({
-      iteration: entry.iteration,
-      decision: clip(entry.decision, 260),
-      reason: clip(entry.reason, 320),
-    })),
-  }, null, 2);
-}
-export function getGroqRightHandStatus(): GroqRightHandStatus { return { configured: keyEntries().length > 0, model: GROQ_RIGHT_HAND_MODEL, fallbackModels: [...GROQ_RIGHT_HAND_FALLBACK_MODELS], endpoint: GROQ_RIGHT_HAND_CHAT_API, role: "right_hand_advisor", capability: "case_file_reasoning_only", provider: "groq" }; }
+  const user = boundedDiscoveryPrompt(input.file, input.iteration);
 type GroqReadinessAttemptDiagnostic = {
   keyName: string;
   keyFingerprint: string;
