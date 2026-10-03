@@ -261,7 +261,7 @@ async function callGroqJson(prompt: string, signal: AbortSignal, cognitiveTask: 
         body: JSON.stringify({
           model,
           max_completion_tokens: 768,
-          ...(/^(qwen\/qwen3\.8|openai\/gpt-oss-)/.test(model) ? { reasoning_effort: (process.env.GROQ_AGENTIC_REASONING_EFFORT || "medium"), reasoning_format: "hidden" } : {}),
+          ...agenticReasoningOptions(model, cognitiveTask),
           response_format: structuredActionResponseFormat(model),
           messages: [
             { role: "system", content: apexOrientationCompact("dig_agent") + "\nReturn one JSON action object only." },
@@ -291,12 +291,12 @@ async function callGroqJson(prompt: string, signal: AbortSignal, cognitiveTask: 
   }
   return null;
 }
-async function llmStep(prompt: string, selectedInvestigatorLlm: "groq" | undefined, parentSignal: AbortSignal, cognitiveTask: ResearchCognitiveTask = "identity_resolution"): Promise<{ model: string; raw: string; fallback: string[] } | null> {
+function investigatorKeyConfigured(): boolean {\n  return ["GROQ_INVESTIGATOR_API_KEY", ...Array.from({ length: 5 }, (_, i) => `GROQ_INVESTIGATOR_API_KEY_${i + 1}`)].some((name) => Boolean(process.env[name]?.trim()));\n}\n\nfunction agenticReasoningOptions(model: string, task: ResearchCognitiveTask): Record<string, string | boolean> {\n  const effort = task === "contradiction_resolution" || task === "final_adjudication" ? "high" : task === "identity_resolution" ? "medium" : "low";\n  if (model === "qwen/qwen3.8-27b") return { reasoning_effort: effort, reasoning_format: "hidden" };\n  if (/^openai\\/gpt-oss-(20b|120b)$/.test(model)) return { reasoning_effort: effort, include_reasoning: false };\n  return {};\n}\n\nasync function llmStep(prompt: string, selectedInvestigatorLlm: "groq" | undefined, parentSignal: AbortSignal, cognitiveTask: ResearchCognitiveTask = "identity_resolution"): Promise<{ model: string; raw: string; fallback: string[] } | null> {
   await acquireProviderSlot(parentSignal);
   try {
     const boundedPrompt = boundInvestigatorPromptSection(prompt, MAX_PROVIDER_PROMPT_CHARS);
     if (!selectedInvestigatorLlm) { setAgenticLlmHealth(false, null, "No Boss-selected Investigator LLM was propagated into ReAct"); return null; }
-    const fn = selectedInvestigatorLlm === "groq" && process.env.GROQ_INVESTIGATOR_API_KEY ? ((promptValue: string, signalValue: AbortSignal) => callGroqJson(promptValue, signalValue, cognitiveTask)) : null;
+    const fn = selectedInvestigatorLlm === "groq" && investigatorKeyConfigured() ? ((promptValue: string, signalValue: AbortSignal) => callGroqJson(promptValue, signalValue, cognitiveTask)) : null;
     if (!fn) { setAgenticLlmHealth(false, null, "groq:selected provider unavailable"); return null; }
     if (parentSignal.aborted) throw new Error("cancelled");
     const controller = new AbortController();
