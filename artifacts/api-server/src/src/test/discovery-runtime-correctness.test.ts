@@ -82,7 +82,8 @@ describe("discovery runtime architecture", () => {
     expect(researchCoreSource).not.toMatch(/errorMessage\s*:/);
     expect(researchCoreSource).not.toMatch(/errorMessage\s*[:=]/);
     expect(researchCoreSource).not.toMatch(/recordAgenticLlmAttempt\([\s\S]{0,500}reason:\s*error\?\.message/);
-    expect(telemetrySource).not.toContain('reason: event.reason ?? null');
+    expect(telemetrySource).toContain("reason: safeTelemetryReason(event.reason)");
+    expect(telemetrySource).toContain("opaque:");
   });
 
   it("does not allow a cold discovery run to terminate after a single unusable external search", async () => {
