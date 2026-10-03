@@ -2,7 +2,7 @@
 
 > This section supersedes conflicting provider/control-plane statements later in this historical living-context document. Repository source at the current main HEAD is authoritative.
 >
-> **Current main HEAD:** `c7167daf4c01e537f8628ed8d673df29f77310bd`
+> **Current main HEAD:** `9818705da6dc20c2950fb9287e8f1894f7a0e572`
 >
 > **Canonical control plane:** Groq Boss (`openai/gpt-oss-120b`, bounded 20B fallback) → Mistral Right-hand (`mistral-small-2603`, then genuinely different Ministral 14B/8B/3B candidates) → model-owned Groq/Mistral Investigator. Gemini is historical/compatibility-only; it is not canonical control transport.
 >
