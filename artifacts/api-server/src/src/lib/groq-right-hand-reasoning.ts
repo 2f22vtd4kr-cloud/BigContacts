@@ -76,13 +76,25 @@ async function resolveModelChain(apiKeyOverride?:string):Promise<string[]> {
  }catch(error){logger.warn({role:"groq_right_hand",phase:"model_catalog_rejected",errorName:error instanceof Error?error.name:"unknown"},"Groq Right-hand model catalog request failed");return [];}
 }
 function extractJson(raw:string):Record<string,unknown>|null{const fenced=raw.match(/\`\`\`(?:json)?\\s*([\\s\\S]*?)\`\`\`/i)?.[1]?.trim();const source=fenced||raw.trim();const start=source.indexOf("{"),end=source.lastIndexOf("}");if(start<0||end<=start)return null;try{const v=JSON.parse(source.slice(start,end+1));return v&&typeof v==="object"?v as Record<string,unknown>:null;}catch{return null;}}
+function normalizeStrictSchema(value: unknown): Record<string, unknown> {
+ if (!value || typeof value !== "object" || Array.isArray(value)) return { type: "object", properties: {}, required: [], additionalProperties: false };
+ const node = { ...(value as Record<string, unknown>) };
+ if (node.type === "object" && node.properties && typeof node.properties === "object" && !Array.isArray(node.properties)) {
+   const properties = Object.fromEntries(Object.entries(node.properties as Record<string, unknown>).map(([key, child]) => [key, normalizeStrictSchema(child)]));
+   node.properties = properties;
+   node.required = Object.keys(properties);
+   node.additionalProperties = false;
+ }
+ if (node.type === "array" && node.items) node.items = normalizeStrictSchema(node.items);
+ return node;
+}
 function responseFormat(input?:Record<string,unknown>):Record<string,unknown>|undefined{
  if(!input)return {type:"json_object"};
  const schema=input.schema;
  if(!schema||typeof schema!=="object")return {type:"json_object"};
  const schemaRecord=schema as Record<string,unknown>;
  if(!schemaRecord.properties || typeof schemaRecord.properties!=="object") return {type:"json_object"};
- return {type:"json_schema",json_schema:{name:"apex_atlas_right_hand",strict:true,schema}};
+ return {type:"json_schema",json_schema:{name:"apex_atlas_right_hand",strict:true,schema:normalizeStrictSchema(schema)}};
 }
 function extractText(payload:unknown):string{
  if(!payload||typeof payload!=="object")return "";
