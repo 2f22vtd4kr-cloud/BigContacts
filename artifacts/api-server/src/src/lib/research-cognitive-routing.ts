@@ -26,9 +26,24 @@ export function rankGroqModelsForTask(models: readonly string[], task: ResearchC
     const qwen = name === "qwen/qwen3.8-27b";
     const large = /120b|70b|large/.test(name);
     const small = /(^|[-_/])20b($|[-_/])/.test(name) || /(^|[-_/])8b($|[-_/])/.test(name) || /small|lite/.test(name);
-    if (qwen) return task === "contact_extraction" || task === "discovery" ? 3 : 4;
-    if (task === "identity_resolution" || task === "contradiction_resolution" || task === "final_adjudication") return large ? 2 : small ? 0 : 1;
-    if (task === "contact_extraction" || task === "discovery") return small ? 2 : large ? 1 : 0;
+    if (task === "contradiction_resolution" || task === "final_adjudication") {
+      if (large) return 4;
+      if (qwen) return 3;
+      if (small) return 1;
+      return 2;
+    }
+    if (task === "identity_resolution") {
+      if (large) return 4;
+      if (qwen) return 3;
+      if (small) return 1;
+      return 2;
+    }
+    if (task === "contact_extraction" || task === "discovery") {
+      if (qwen) return 4;
+      if (small) return 3;
+      if (large) return 2;
+      return 1;
+    }
     return 1;
   };
   return [...models].sort((a, b) => score(b) - score(a) || a.localeCompare(b));
