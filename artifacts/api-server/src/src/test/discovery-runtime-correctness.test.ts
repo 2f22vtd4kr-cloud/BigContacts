@@ -25,12 +25,12 @@ describe("discovery runtime architecture", () => {
   it("keeps the canonical opening order Boss first, Right-hand second", () => {
     const canonicalSource = fs.readFileSync(path.join(libDir, "canonical-atlas-discovery.ts"), "utf8");
     const bossIndex = canonicalSource.indexOf("const boss = await runGroqBossDiscovery(");
-    const rightHandIndex = canonicalSource.indexOf("const rightHandRaw = await import(\"./mistral-right-hand-reasoning\")");
+    const rightHandIndex = canonicalSource.indexOf("const rightHandRaw = await import(\"./groq-right-hand-reasoning\")");
     expect(bossIndex).toBeGreaterThan(-1);
     expect(rightHandIndex).toBeGreaterThan(-1);
     expect(bossIndex).toBeLessThan(rightHandIndex);
     const bossCall = canonicalSource.indexOf("runGroqBossDiscovery({");
-    const rightHandCall = canonicalSource.indexOf("runMistralRightHandFreeJson(");
+    const rightHandCall = canonicalSource.indexOf("runGroqRightHandFreeJson(");
     expect(bossCall).toBeGreaterThan(-1);
     expect(rightHandCall).toBeGreaterThan(-1);
     expect(bossCall).toBeLessThan(rightHandCall);
@@ -54,7 +54,7 @@ describe("discovery runtime architecture", () => {
   it("keeps target opening Boss-first and requires Right-hand before act 1", () => {
     const runner = fs.readFileSync(path.join(libDir, "canonical-single-target-runner.ts"), "utf8");
     const bossOpening = runner.indexOf("runGroqBossDiscovery({");
-    const rightHandOpening = runner.indexOf("runMistralRightHandFreeJson(");
+    const rightHandOpening = runner.indexOf("runGroqRightHandFreeJson(");
     const firstAct = runner.indexOf("latestResult = await runTargetContactAgent({");
     expect(bossOpening).toBeGreaterThan(-1);
     expect(rightHandOpening).toBeGreaterThan(bossOpening);
