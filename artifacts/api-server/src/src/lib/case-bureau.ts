@@ -1607,7 +1607,7 @@ export function applyGeminiBossPlan(
         createdAt: now,
       },
     ],
-    lastUpdatedBy: "gemini-boss",
+    lastUpdatedBy: "groq-boss",
   };
 }
 
