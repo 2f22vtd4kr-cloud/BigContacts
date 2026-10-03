@@ -11,7 +11,11 @@ import {
 
 // Canonical Right-hand model for the Mistral control-plane role.
 export const MISTRAL_RIGHT_HAND_MODEL = "mistral-small-2603";
-export const MISTRAL_RIGHT_HAND_FALLBACK_MODELS: readonly string[] = ["mistral-small-latest"];
+export const MISTRAL_RIGHT_HAND_FALLBACK_MODELS: readonly string[] = [
+  "ministral-14b-2512",
+  "ministral-8b-2512",
+  "ministral-3b-2512",
+];
 const MISTRAL_MODELS_API = "https://api.mistral.ai/v1/models";
 const MISTRAL_CHAT_API = "https://api.mistral.ai/v1/chat/completions";
 const MISTRAL_KEY_ENV = "MISTRAL_RIGHT_HAND_API_KEY";
@@ -19,7 +23,7 @@ const MISTRAL_KEY_NAMES = [MISTRAL_KEY_ENV, ...Array.from({ length: 4 }, (_, i) 
 const DEFAULT_REQUEST_TIMEOUT_MS = 20_000;
 const DEFAULT_OVERALL_TIMEOUT_MS = 120_000;
 const MODEL_CATALOG_TIMEOUT_MS = 5_000;
-const MAX_MODEL_ATTEMPTS = 2;
+const MAX_MODEL_ATTEMPTS = 4;
 const MAX_503_RETRIES_PER_MODEL = 1;
 const MAX_429_RETRIES_PER_MODEL = 1;
 const MAX_PROMPT_CHARS = 20_000;
@@ -131,7 +135,7 @@ async function request(system:string,user:string,format?:Record<string,unknown>)
     const response=await fetch(MISTRAL_CHAT_API,{method:"POST",headers:{Accept:"application/json","Content-Type":"application/json",Authorization:`Bearer ${candidate.entry.key}`},body,signal:controller.signal});
     const responseBody=await response.text();
     if(response.status===503&&retry503<MAX_503_RETRIES_PER_MODEL&&Date.now()<deadline){const delay=retryAfterMs(response,750);lastRetryAfterMs=delay;lastRetryAfterHeader=response.headers.get("retry-after");retry503++;await new Promise(r=>setTimeout(r,Math.min(delay,Math.max(0,deadline-Date.now()))));continue;}
-    if(response.status===429&&hardRateLimit(response)){const cls=classifyProviderHttpStatus(response.status);const code=providerErrorCode(responseBody);const diagnostic={keyName:candidate.entry.name,model:candidate.model,httpStatus:response.status,providerCode:code,retry429,retry503,retryAfterMs:null,retryAfterHeader:response.headers.get("retry-after"),body:summarizeProviderBody(responseBody),rateLimitHeaders:Object.fromEntries(Array.from(response.headers.entries()).filter(([name])=>name.toLowerCase().startsWith("x-ratelimit-"))),failureClass:cls,keyFingerprint:fingerprint(candidate.entry.key)};failures.push(diagnostic);return {raw:"",error:`Mistral Right-hand hard rate limit; failing closed: ${formatAttemptDiagnostic(diagnostic)}`,model:candidate.model};}
+    if(response.status===429&&hardRateLimit(response)){const cls=classifyProviderHttpStatus(response.status);const code=providerErrorCode(responseBody);const diagnostic={keyName:candidate.entry.name,model:candidate.model,httpStatus:response.status,providerCode:code,retry429,retry503,retryAfterMs:null,retryAfterHeader:response.headers.get("retry-after"),body:summarizeProviderBody(responseBody),rateLimitHeaders:Object.fromEntries(Array.from(response.headers.entries()).filter(([name])=>name.toLowerCase().startsWith("x-ratelimit-"))),failureClass:cls,keyFingerprint:fingerprint(candidate.entry.key)};failures.push(diagnostic);break;}
     if(response.status===429&&retry429<MAX_429_RETRIES_PER_MODEL&&Date.now()<deadline){const retryHeader=response.headers.get("retry-after");const delay=retryHeader?retryAfterMs(response,MISTRAL_MIN_REQUEST_INTERVAL_MS):MISTRAL_MIN_REQUEST_INTERVAL_MS;lastRetryAfterMs=delay;lastRetryAfterHeader=retryHeader;if(delay<=2500){retry429++;await new Promise(r=>setTimeout(r,Math.min(delay,Math.max(0,deadline-Date.now()))));continue;}}
     if(!response.ok){const cls=classifyProviderHttpStatus(response.status);const code=providerErrorCode(responseBody);const diagnostic={keyName:candidate.entry.name,model:candidate.model,httpStatus:response.status,providerCode:code,retry429,retry503,retryAfterMs:lastRetryAfterMs,retryAfterHeader:lastRetryAfterHeader,body:summarizeProviderBody(responseBody),rateLimitHeaders:Object.fromEntries(Array.from(response.headers.entries()).filter(([name])=>name.toLowerCase().startsWith("x-ratelimit-"))),failureClass:cls,keyFingerprint:fingerprint(candidate.entry.key)};failures.push(diagnostic);if(response.status===401||response.status===403||response.status===404)break;if(response.status===429||response.status===500||response.status===502||response.status===503||response.status===504)break;return {raw:"",error:`Mistral Right-hand ${candidate.model} ${cls} HTTP ${response.status}: ${formatAttemptDiagnostic(diagnostic)}`,model:candidate.model};}
     const raw=extractText(JSON.parse(responseBody)); if(raw)return {raw,error:null,model:candidate.model};
