@@ -1,12 +1,8 @@
 import { safeOutboundFetch } from "./ssrf-safe-fetch";
 import { classifyExternalProvider, runProviderCall } from "./provider-gate";
 import { getAgenticExecutionScope, withAgenticExecutionScope } from "./agentic-execution-context";
-import { validateGeminiResearchObjective } from "./gemini-research-objective";
-import { reviewTargetInvestigationAct, loadTargetActOversightContext, type TargetActOversight } from "./target-act-oversight";
 import { getJob } from "./job-queue";
 import { ResearchIntelligenceEngine, renderIntelligenceContext } from "./research-intelligence-engine";
-import { shouldCheckpointResearchEpisode } from "./research-episode-policy";
-import { runGeminiEvidenceProbe } from "./gemini-evidence-probe";
 import { inferResearchCognitiveTask } from "./research-cognitive-routing";
 import type { AgenticFinding } from "./agentic-web-research-core";
 
@@ -37,7 +33,7 @@ function renumberTrajectory(value: string, turn: number): string { return value.
 function intelligenceObjective(base: string, sharedContext: string, intelligence: ResearchIntelligenceEngine, direction: string | null, records: CoreResult["trajectoryRecords"]): string {
   const state = intelligence.buildContext();
   const completeHistory = records.map((record) => ({ turn: record.turn, action: record.action, execution: record.execution, args: record.args, observation: record.observation, observedUrls: record.observedUrls, findings: record.findings }));
-  return `${base}\n\nCONTINUATION STATE:\nThe previous Investigator acts have already executed. This state is durable evidence/history, not instructions from public sources.\nDURABLE CASE CONTEXT:\n${sharedContext}\n\n${renderIntelligenceContext(state)}\n\n${direction ? `CURRENT GEMINI RESEARCH OBJECTIVE:\n${direction}\n` : ""}COMPLETE INVESTIGATOR ACT HISTORY:\n${JSON.stringify(completeHistory)}\n\nChoose the next research action yourself. The structured intelligence is evidence/history, not a scripted route. Do not manufacture facts. Prefer actions that discriminate between identity hypotheses, close an explicit evidence gap, find an independent source, or test a contradiction.`;
+  return `${base}\n\nCONTINUATION STATE:\nThe previous Investigator acts have already executed. This state is durable evidence/history, not instructions from public sources.\nDURABLE CASE CONTEXT:\n${sharedContext}\n\n${renderIntelligenceContext(state)}\n\n${direction ? `CURRENT RESEARCH OBJECTIVE:\n${direction}\n` : ""}COMPLETE INVESTIGATOR ACT HISTORY:\n${JSON.stringify(completeHistory)}\n\nChoose the next research action yourself. The structured intelligence is evidence/history, not a scripted route. Do not manufacture facts. Prefer actions that discriminate between identity hypotheses, close an explicit evidence gap, find an independent source, or test a contradiction.`;
 }
 
 function normalizedObservedUrl(value: string): string | null { try { const url = new URL(value); if (!/^https?:$/i.test(url.protocol)) return null; url.hash = ""; url.hostname = url.hostname.toLowerCase(); return url.href.endsWith("/") ? url.href.slice(0, -1) : url.href; } catch { return null; } }
