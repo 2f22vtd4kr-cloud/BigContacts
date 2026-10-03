@@ -48,7 +48,7 @@ function sameOrigin(req: Request): boolean {
 
 /** Public API authentication. Development bypass is explicit and never active in production. */
 export function apiAuth(req: Request, res: Response, next: NextFunction): void {
-  const developmentBypass = process.env.APEX_DEV_AUTH_BYPASS === "true" && process.env.NODE_ENV !== "production";
+  const developmentBypass = process.env.APEX_DEV_AUTH_BYPASS === "true" && process.env.NODE_ENV !== "production" && process.env.CI !== "true";
   if (developmentBypass || PUBLIC_PATHS.has(req.path) || req.method === "OPTIONS") {
     next();
     return;
