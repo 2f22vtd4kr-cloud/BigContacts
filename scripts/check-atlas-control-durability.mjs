@@ -20,7 +20,7 @@ const checks = [
   ["persistence cannot silently skip a missing case ID", !/if\s*\(!input\.caseId\)\s*return/.test(control)],
   ["canonical Atlas passes durable discovery case ID", /caseId:\s*discoveryCaseId/.test(atlas)],
   ["canonical Atlas passes control turn", /controlTurn:\s*controlTurns/.test(atlas)],
-  ["canonical discovery opens Groq Boss before Mistral Right-hand review", /runGroqBossDiscovery\([\s\S]*?runMistralRightHandFreeJson/.test(atlas)],
+  ["canonical discovery opens Groq Boss before Groq Right-hand review", /runGroqBossDiscovery\([\s\S]*?runGroqRightHandFreeJson/.test(atlas)],
   ["canonical Atlas fails closed when Right-hand is unavailable", /rightHandRaw\.status\s*!==\s*["\']completed["\'][\s\S]{0,1200}(?:throw new Error|status:\s*["\']review["\'])/.test(atlas)],
   ["canonical Atlas fails closed on invalid Right-hand oversight JSON", /rightHandRaw\.status === ["\']completed["\'][\s\S]{0,800}JSON\.parse/.test(atlas)],
 ];
