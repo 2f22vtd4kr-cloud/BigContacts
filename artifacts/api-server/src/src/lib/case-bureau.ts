@@ -92,7 +92,7 @@ export type ResearchCaseFile = {
     createdAt: string;
   }>;
   rightHandAdvice?: {
-    provider: "mistral";
+    provider: "groq";
     model: string;
     status: "completed" | "unavailable";
     actionId: string | null;
@@ -161,7 +161,7 @@ export type DiscoveryCaseFile = {
   };
   investigatorReports: Array<{
     id: string;
-    lane: "groq-boss" | "gemini-boss" | "mistral-right-hand" | "mistral-web" | "broad-web" | "registry";
+    lane: "groq-boss" | "gemini-boss" | "groq-right-hand" | "groq-web" | "broad-web" | "registry";
     provider: string;
     status: "completed" | "unavailable" | "failed";
     iteration: number;
@@ -202,7 +202,7 @@ export type DiscoveryCaseFile = {
     } | null;
   };
   rightHandAdvice?: {
-    provider: "mistral";
+    provider: "groq";
     model: string;
     status: "completed" | "unavailable";
     decision: string | null;
@@ -447,7 +447,7 @@ function parseBossDiscoveryResponse(raw: string): {
       ? parsed.investigatorLlm.trim().toLowerCase()
       : "";
     const investigatorLlm: "groq" | null =
-      rawInvestigatorLlm === "groq" || rawInvestigatorLlm === "mistral"
+      rawInvestigatorLlm === "groq" || rawInvestigatorLlm === "groq"
         ? rawInvestigatorLlm
         : null;
     const rawCandidates = Array.isArray(parsed.candidates)
@@ -553,7 +553,7 @@ export async function runGroqBossDiscovery(input: {
     };
   }
 
-  const availableInvestigators = [process.env.GROQ_INVESTIGATOR_API_KEY?.trim() ? "groq" : null, process.env.GROQ_INVESTIGATOR_API_KEY?.trim() ? "mistral" : null].filter((value): value is "groq" => Boolean(value));
+  const availableInvestigators = [process.env.GROQ_INVESTIGATOR_API_KEY?.trim() ? "groq" : null].filter((value): value is "groq" => Boolean(value));
   const prompt = `${buildBossOpeningPrompt(input)}
 
 This is a shared case-context review. Read the current investigation progress and investigator reports below
@@ -571,7 +571,7 @@ ${input.file ? buildDiscoveryProgressSnapshot(input.file) : "No prior investigat
 Return ONLY JSON in this shape:
      {
   "report": "concise evidence-led opening assessment",
-  "investigatorLlm": "groq | mistral",
+  "investigatorLlm": "groq | groq",
   "candidates": [
     {
       "name": "candidate name",
@@ -721,7 +721,7 @@ function parseBossPlanResponse(raw: string, queuedActions: BureauAction[]): Omit
     if (!action) return null;
     const rawInvestigatorLlm = typeof parsed.investigatorLlm === "string" ? parsed.investigatorLlm.trim().toLowerCase() : "";
     const investigatorLlm: "groq" | null =
-      rawInvestigatorLlm === "groq" || rawInvestigatorLlm === "mistral" ? rawInvestigatorLlm : null;
+      rawInvestigatorLlm === "groq" || rawInvestigatorLlm === "groq" ? rawInvestigatorLlm : null;
     const investigatorPrompt = typeof parsed.investigatorPrompt === "string" ? parsed.investigatorPrompt.trim() : "";
     if (!decision || !reason || investigatorPrompt.length < 20 || !investigatorLlm) return null;
     // Soft-require progress judgment; if missing, synthesize from reason so control loop stays live.
@@ -1454,7 +1454,7 @@ export function recordRightHandAdvice(
   return {
     ...file,
     rightHandAdvice: {
-    provider: "mistral",
+    provider: "groq",
       model: input.model,
       status: input.status,
       actionId: input.actionId,
