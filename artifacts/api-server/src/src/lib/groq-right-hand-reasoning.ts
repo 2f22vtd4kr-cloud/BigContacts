@@ -130,7 +130,7 @@ async function request(system:string,user:string,format?:Record<string,unknown>)
   let lastRetryAfterMs: number | null = null;
   let lastRetryAfterHeader: string | null = null;
   while(Date.now()<deadline){
-   const body=JSON.stringify({model:candidate.model,messages:[{role:"system",content:systemPrompt},{role:"user",content:normalizedUser}],max_completion_tokens:768,temperature:0.1,stream:false,response_format:responseFormat(format), reasoning_effort:"medium", reasoning_format:"hidden"});
+   const body=JSON.stringify({model:candidate.model,messages:[{role:"system",content:systemPrompt},{role:"user",content:normalizedUser}],max_completion_tokens:768,temperature:0.1,stream:false,response_format:responseFormat(format), reasoning_effort:"medium", include_reasoning:false});
    const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),Math.min(configRequest,Math.max(1000,deadline-Date.now())));
    try{
     await waitForGroqRightHandRequestSlot();
