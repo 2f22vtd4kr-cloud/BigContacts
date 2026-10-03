@@ -1,12 +1,6 @@
 name: Apex Live Bureau Audit
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths: [scripts/live-batch-trigger.md]
-permissions:
-  contents: read
-
 jobs:
   live-bureau-audit:
     runs-on: ubuntu-latest
