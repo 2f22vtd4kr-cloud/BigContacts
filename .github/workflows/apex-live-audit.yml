@@ -89,7 +89,7 @@ jobs:
           node artifacts/api-server/dist/index.mjs > /tmp/apex-api.log 2>&1 &
           for i in $(seq 1 45); do sleep 1; test "$(curl -sS -m 2 -o /tmp/health.json -w '%{http_code}' http://127.0.0.1:8080/api/healthz || true)" = 200 && break; done
           test "$(curl -sS -m 5 -o /tmp/health.json -w '%{http_code}' http://127.0.0.1:8080/api/healthz)" = 200
-      - name: Launch bounded 3-target canonical discovery-first smoke
+      - name: Launch bounded 3-target discovery-first smoke
         run: |
           curl -sS -m 15 -X POST http://127.0.0.1:8080/api/ingest/atlas-run -H "Authorization: Bearer $APEX_API_AUTH_TOKEN" -H 'Content-Type: application/json' -d '{"discoveryFirst":true,"targetCount":3,"runResearch":true,"skipFaa":true,"targetTimeoutMs":420000,"researchDepth":"standard"}' | tee /tmp/launch.json
           node -e 'const x=require("/tmp/launch.json");if(!x.jobId)process.exit(1);console.log("job",x.jobId)'
