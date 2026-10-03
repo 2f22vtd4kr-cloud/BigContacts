@@ -53,7 +53,8 @@ function safeAgenticError(error: unknown, aborted = false): string {
 function safeToolError(value: unknown): string {
   const message = typeof value === "string" ? value : "";
   if (!message) return "NO_ERROR_DETAIL";
-  return `ERROR_DETAIL chars=${message.length} digest=${digestDiagnosticText(message)}`;
+  const classification = /sandbox is unavailable/i.test(message) ? "SANDBOX_UNAVAILABLE" : "ERROR_DETAIL";
+  return `${classification} chars=${message.length} digest=${digestDiagnosticText(message)}`;
 }
 
 function providerErrorClass(error: unknown): string {
