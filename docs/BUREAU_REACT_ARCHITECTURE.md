@@ -2,9 +2,9 @@
 
 **Updated:** 2026-09-20
 
-**Canonical role law:** Boss = **Groq GPT-OSS 120B** (bounded GPT-OSS 20B fallback). Right-hand = **Mistral Small 4**. Investigation = **Groq/Mistral Investigator + permitted non-LLM research tools**.
+**Canonical role law:** Boss = **Groq GPT-OSS 120B** (bounded GPT-OSS 20B fallback). Right-hand = **Groq Small 4**. Investigation = **Groq/Groq Investigator + permitted non-LLM research tools**.
 
-Apex has **two AI layers only**: Groq Boss control + Mistral Right-hand oversight and the Investigator LLM layer.
+Apex has **two AI layers only**: Groq Boss control + Groq Right-hand oversight and the Investigator LLM layer.
 
 ## 1. Boss + Right-hand
 
@@ -12,9 +12,9 @@ Apex has **two AI layers only**: Groq Boss control + Mistral Right-hand oversigh
 
 Owns case direction, strategic prioritization, Investigator selection, continuation disposition and high-level review. It does not browse or invent evidence.
 
-### Right-hand — Mistral Small 4
+### Right-hand — Groq Small 4
 
-A separate bounded Mistral oversight invocation. It critiques the latest act, evidence gaps, contradictions and objective. It does not browse, choose the Investigator's tool, or invent evidence.
+A separate bounded Groq oversight invocation. It critiques the latest act, evidence gaps, contradictions and objective. It does not browse, choose the Investigator's tool, or invent evidence.
 
 If the Right-hand is unavailable where required, Apex records that fact and fails closed. It never fabricates a completed review.
 
@@ -89,7 +89,7 @@ The optional ensemble path can run multiple Investigator lanes in parallel. Each
 Investigator action responses use provider-aware structured outputs where supported.
 
 - Groq: structured JSON/schema response with reasoning separated from the action payload.
-- Mistral: strict JSON-schema response format.
+- Groq: strict JSON-schema response format.
 - Semantic action validation follows schema validation.
 - Provider failures remain explicit.
 
@@ -105,8 +105,8 @@ These diagnostics do not silently mutate the research result.
 
 ## 9. Safety invariants
 
-- Investigator pool remains Groq/Mistral only.
-- The Mistral Right-hand control role is never used as an Investigator fallback.
+- Investigator pool remains Groq/Groq only.
+- The Groq Right-hand control role is never used as an Investigator fallback.
 - DeepSeek/NVIDIA is absent from active execution.
 - Model-selected actions are checked against actual capabilities.
 - Tool failures remain failures.
@@ -125,8 +125,8 @@ Research quality is evaluated separately through the 38-case grounded Research G
 ## 11. Hard invariants
 
 1. Two AI layers only.
-2. Groq Boss + Mistral Right-hand are oversight/control.
-3. Groq/Mistral are investigators.
+2. Groq Boss + Groq Right-hand are oversight/control.
+3. Groq/Groq are investigators.
 4. Investigator owns the research trajectory.
 5. Tools are capabilities, not fixed stages.
 6. Every act is durably inspectable.
