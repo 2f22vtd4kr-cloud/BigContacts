@@ -94,7 +94,6 @@ export function summarizeProviderBody(body: string): ProviderBodyShape {
         errorKeys: [],
         errorCode: null,
         errorType: null,
-        errorMessage: null,
         errorMessageChars: 0,
         errorParam: null,
         errorStatus: null,
