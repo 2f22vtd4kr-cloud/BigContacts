@@ -35,11 +35,11 @@ describe("Groq Right-hand model policy", () => {
       code: "rate_limit_exceeded",
     }));
 
-    expect(summary.errorMessage).toBe("Rate limit exceeded for model");
     expect(summary.errorType).toBe("rate_limit_error");
     expect(summary.errorParam).toBe("model");
     expect(summary.errorCode).toBe("rate_limit_exceeded");
-    expect(summary.errorMessageDigest).toBeTruthy();
+    expect(summary.errorMessageDigest).toMatch(/^[a-f0-9]{16}$/);
+    expect(summary).not.toHaveProperty("errorMessage");
   });
 
   it("uses the GPT-OSS reasoning contract without the retired reasoning_format field", async () => {
