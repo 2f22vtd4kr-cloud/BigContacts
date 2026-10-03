@@ -24,7 +24,7 @@ export function rankGroqModelsForTask(models: readonly string[], task: ResearchC
   const score = (model: string): number => {
     const name = model.toLowerCase();
     const large = /120b|27b|70b|large/.test(name);
-    const small = /20b|8b|small|lite/.test(name);
+    const small = /(^|[-_/])20b($|[-_/])/.test(name) || /(^|[-_/])8b($|[-_/])/.test(name) || /small|lite/.test(name);
     if (task === "identity_resolution" || task === "contradiction_resolution" || task === "final_adjudication") return large ? 2 : small ? 0 : 1;
     if (task === "contact_extraction" || task === "discovery") return small ? 2 : large ? 0 : 1;
     return 1;
