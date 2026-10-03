@@ -145,8 +145,8 @@ describe("Groq Right-hand model policy", () => {
           status: 429,
           headers: {
             "content-type": "application/json",
-            "x-ratelimit-limit-req-minute": "0",
-            "x-ratelimit-remaining-req-minute": "0",
+            "x-ratelimit-limit-requests": "1000",
+            "x-ratelimit-remaining-requests": "0",
           },
         });
       }
@@ -165,6 +165,43 @@ describe("Groq Right-hand model policy", () => {
       .map(([, init]) => JSON.parse(String(init?.body)).model);
     expect(chatModels).toEqual(["openai/gpt-oss-120b", "openai/gpt-oss-20b"]);
     expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  it("retries a transient 429 before falling back to another model", async () => {
+    vi.stubEnv("GROQ_RIGHT_HAND_API_KEY", "right-hand-transient-retry-test-key");
+
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      const url = String(input);
+      if (url === "https://api.groq.com/openai/v1/models") {
+        return new Response(JSON.stringify({
+          data: [{ id: "openai/gpt-oss-120b" }, { id: "openai/gpt-oss-20b" }],
+        }), { status: 200 });
+      }
+      const body = JSON.parse(String(init?.body));
+      expect(body.model).toBe("openai/gpt-oss-120b");
+      if (fetchMock.mock.calls.filter(([callInput]) => String(callInput) === "https://api.groq.com/openai/v1/chat/completions").length === 1) {
+        return new Response(JSON.stringify({
+          error: { code: "rate_limit_exceeded", message: "short burst limit" },
+        }), {
+          status: 429,
+          headers: {
+            "retry-after": "0",
+            "x-ratelimit-limit-requests": "1000",
+            "x-ratelimit-remaining-requests": "999",
+          },
+        });
+      }
+      return new Response(JSON.stringify({
+        choices: [{ message: { content: '{"decision":"proceed"}' } }],
+      }), { status: 200 });
+    });
+
+    const result = await runGroqRightHandFreeJson("Return a small JSON decision.");
+
+    expect(result.status).toBe("completed");
+    expect(result.model).toBe("openai/gpt-oss-120b");
+    const chatCalls = fetchMock.mock.calls.filter(([input]) => String(input) === "https://api.groq.com/openai/v1/chat/completions");
+    expect(chatCalls).toHaveLength(2);
   });
 
   it("reports the fallback chain without exposing credentials", () => {
