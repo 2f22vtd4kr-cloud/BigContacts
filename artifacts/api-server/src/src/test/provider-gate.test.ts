@@ -264,26 +264,29 @@ describe("provider quota gate", () => {
     const { installExternalQuotaGuard } = await import("../lib/provider-gate");
     installExternalQuotaGuard();
 
-    const first = await withProviderRetryOwnership("groq", "caller", () =>
-      globalThis.fetch("https://api.groq.com/openai/v1/chat/completions", {
-        method: "POST",
-        headers: { Authorization: "Bearer right-hand-test-key" },
-        body: "{}",
-      }),
-    );
-    const second = await globalThis.fetch(
-      "https://api.groq.com/openai/v1/chat/completions",
-      {
-        method: "POST",
-        headers: { Authorization: "Bearer right-hand-test-key" },
-        body: "{}",
-      },
-    );
+    try {
+      const first = await withProviderRetryOwnership("groq", "caller", () =>
+        globalThis.fetch("https://api.groq.com/openai/v1/chat/completions", {
+          method: "POST",
+          headers: { Authorization: "Bearer right-hand-test-key" },
+          body: "{}",
+        }),
+      );
+      const second = await globalThis.fetch(
+        "https://api.groq.com/openai/v1/chat/completions",
+        {
+          method: "POST",
+          headers: { Authorization: "Bearer right-hand-test-key" },
+          body: "{}",
+        },
+      );
 
-    expect(first.status).toBe(429);
-    expect(second.status).toBe(200);
-    expect(upstreamCalls).toBe(2);
-    globalThis.fetch = nativeFetch;
+      expect(first.status).toBe(429);
+      expect(second.status).toBe(200);
+      expect(upstreamCalls).toBe(2);
+    } finally {
+      globalThis.fetch = nativeFetch;
+    }
   });
 
   it("keeps gate-owned Groq 429 cooldowns when no caller ownership is declared", async () => {
