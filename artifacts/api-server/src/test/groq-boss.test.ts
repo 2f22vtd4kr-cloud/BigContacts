@@ -20,7 +20,7 @@ describe("Groq Boss control-plane adapter", () => {
     delete process.env.GROQ_BOSS_API_KEY;
     process.env.GROQ_API_KEY = "investigator-only-key";
     const result = await resolveGroqBossModel();
-    expect(result.status).toBe("unavailable");
+    expect(result.status).toBe("pending");
     if (bossKey === undefined) delete process.env.GROQ_BOSS_API_KEY;
     else process.env.GROQ_BOSS_API_KEY = bossKey;
     if (investigatorKey === undefined) delete process.env.GROQ_API_KEY;

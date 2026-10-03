@@ -265,33 +265,137 @@ function compactDiscovery(file: DiscoveryCaseFile): string {
   }, null, 2);
 }
 export function getMistralRightHandStatus(): MistralRightHandStatus { return { configured: keyEntries().length > 0, model: MISTRAL_RIGHT_HAND_MODEL, fallbackModels: [...MISTRAL_RIGHT_HAND_FALLBACK_MODELS], endpoint: MISTRAL_CHAT_API, role: "right_hand_advisor", capability: "case_file_reasoning_only", provider: "mistral" }; }
+type MistralReadinessAttemptDiagnostic = {
+  keyName: string;
+  keyFingerprint: string;
+  httpStatus: number | null;
+  providerCode: string | null;
+  failureClass: string | null;
+  retryAfterMs: number | null;
+  retryAfterHeader: string | null;
+  rateLimitHeaders: Record<string, string>;
+  candidateModels: string[];
+  body: ReturnType<typeof summarizeProviderBody> | null;
+  thrownError: ReturnType<typeof describeThrownProviderError> | null;
+  error: string | null;
+};
+
 export async function runMistralRightHandReadiness(): Promise<{
-  provider: "mistral"; configured: boolean; status: "ready" | "pending" | "unavailable";
-  model: string; candidateModels: string[]; httpStatus: number | null; error: string | null;
+  provider: "mistral";
+  configured: boolean;
+  status: "ready" | "pending" | "unavailable";
+  model: string;
+  candidateModels: string[];
+  httpStatus: number | null;
+  attempts: MistralReadinessAttemptDiagnostic[];
+  error: string | null;
 }> {
   const entries = keyEntries();
-  if (!entries.length) return { provider: "mistral", configured: false, status: "pending", model: MISTRAL_RIGHT_HAND_MODEL, candidateModels: [], httpStatus: null, error: "MISTRAL_RIGHT_HAND_API_KEY is not configured." };
-  const failures: Array<{ keyName: string; httpStatus: number | null; providerCode: string | null; error: string }> = [];
+  if (!entries.length) {
+    return {
+      provider: "mistral",
+      configured: false,
+      status: "pending",
+      model: MISTRAL_RIGHT_HAND_MODEL,
+      candidateModels: [],
+      httpStatus: null,
+      attempts: [],
+      error: "MISTRAL_RIGHT_HAND_API_KEY is not configured.",
+    };
+  }
+
+  const attempts: MistralReadinessAttemptDiagnostic[] = [];
   for (const entry of entries) {
     try {
-      const response = await fetch(MISTRAL_MODELS_API, { headers: { Accept: "application/json", Authorization: `Bearer ${entry.key}` }, signal: AbortSignal.timeout(MODEL_CATALOG_TIMEOUT_MS) });
+      const response = await fetch(MISTRAL_MODELS_API, {
+        headers: { Accept: "application/json", Authorization: `Bearer ${entry.key}` },
+        signal: AbortSignal.timeout(MODEL_CATALOG_TIMEOUT_MS),
+      });
       const body = await response.text();
+      const retryAfterHeader = response.headers.get("retry-after");
+      const rateLimitHeaders = Object.fromEntries(
+        Array.from(response.headers.entries()).filter(([name]) => name.toLowerCase().startsWith("x-ratelimit-")),
+      );
+      const shared = {
+        keyName: entry.name,
+        keyFingerprint: fingerprint(entry.key),
+        httpStatus: response.status,
+        providerCode: providerErrorCode(body),
+        retryAfterMs: retryAfterHeader ? retryAfterMs(response, 0) : null,
+        retryAfterHeader,
+        rateLimitHeaders,
+        body: summarizeProviderBody(body),
+        thrownError: null,
+      };
+
       if (!response.ok) {
-        failures.push({ keyName: entry.name, httpStatus: response.status, providerCode: providerErrorCode(body), error: JSON.stringify(summarizeProviderBody(body)) });
+        attempts.push({
+          ...shared,
+          failureClass: classifyProviderHttpStatus(response.status),
+          candidateModels: [],
+          error: "model_catalog_http_error",
+        });
         continue;
       }
+
       let candidates: string[];
-      try { candidates = catalogCandidates(JSON.parse(body)); } catch { candidates = []; }
-      if (candidates.length) return { provider: "mistral", configured: true, status: "ready", model: candidates[0]!, candidateModels: candidates, httpStatus: response.status, error: null };
-      failures.push({ keyName: entry.name, httpStatus: response.status, providerCode: null, error: "catalog_reachable_but_no_configured_model" });
+      try {
+        candidates = catalogCandidates(JSON.parse(body));
+      } catch {
+        candidates = [];
+      }
+      if (candidates.length) {
+        attempts.push({
+          ...shared,
+          failureClass: null,
+          candidateModels: candidates,
+          error: null,
+        });
+        return {
+          provider: "mistral",
+          configured: true,
+          status: "ready",
+          model: candidates[0]!,
+          candidateModels: candidates,
+          httpStatus: response.status,
+          attempts,
+          error: null,
+        };
+      }
+      attempts.push({
+        ...shared,
+        failureClass: "invalid_response",
+        candidateModels: [],
+        error: "catalog_reachable_but_no_configured_model",
+      });
     } catch (error) {
-      failures.push({ keyName: entry.name, httpStatus: null, providerCode: null, error: error instanceof Error ? error.message : "Mistral model catalog request failed." });
+      attempts.push({
+        keyName: entry.name,
+        keyFingerprint: fingerprint(entry.key),
+        httpStatus: null,
+        providerCode: null,
+        failureClass: classifyThrownProviderError(error, error instanceof Error && error.name === "AbortError"),
+        retryAfterMs: null,
+        retryAfterHeader: null,
+        rateLimitHeaders: {},
+        candidateModels: [],
+        body: null,
+        thrownError: describeThrownProviderError(error),
+        error: "model_catalog_request_failed",
+      });
     }
   }
-  const diagnostic = failures.map((failure) => JSON.stringify(failure)).join(" | ");
-  return { provider: "mistral", configured: true, status: "unavailable", model: MISTRAL_RIGHT_HAND_MODEL, candidateModels: [], httpStatus: failures.at(-1)?.httpStatus ?? null, error: `No configured Mistral credential produced a usable model catalog: ${diagnostic}` };
 
-
+  return {
+    provider: "mistral",
+    configured: true,
+    status: "unavailable",
+    model: MISTRAL_RIGHT_HAND_MODEL,
+    candidateModels: [],
+    httpStatus: attempts.at(-1)?.httpStatus ?? null,
+    attempts,
+    error: `No configured Mistral credential produced a usable model catalog: ${JSON.stringify(attempts)}`,
+  };
 }
 
 export async function runMistralRightHandCaseReasoning(input: { file: ResearchCaseFile; iteration: number }): Promise<MistralRightHandCaseReasoningResult> { const queued = input.file.actionQueue.filter((action) => action.status === "queued"); const system = "You are Apex Atlas Right Hand. Reason only over the supplied case file. Never browse, use external research, or invent evidence, contacts, people, URLs, or facts. Recommend exactly one existing queued action. Return JSON only."; const user = `Iteration ${input.iteration}. Identify what is newly unresolved, which contact vectors are still pending, and the highest-leverage complementary queued action.\nCASE:\n${compactCase(input.file)}\n\nReturn {\"actionId\":\"exact queued action id\",\"decision\":\"short recommendation\",\"reason\":\"concrete case-file evidence-gap reason\",\"confidence\":0.0}.`; const result = await request(system, user, { type: "text", mime_type: "application/json", schema: { type: "object", properties: { actionId: { type: "string" }, decision: { type: "string" }, reason: { type: "string" }, confidence: { type: "number" } }, required: ["actionId", "decision", "reason", "confidence"] } }); if (result.error) return { status: "unavailable", model: result.model, actionId: null, decision: null, reason: null, confidence: null, error: result.error }; const parsed = extractJson(result.raw); const actionId = typeof parsed?.actionId === "string" ? parsed.actionId.trim() : ""; const action = queued.find((candidate) => candidate.id === actionId); const decision = typeof parsed?.decision === "string" ? parsed.decision.trim() : ""; const reason = typeof parsed?.reason === "string" ? parsed.reason.trim() : ""; const confidence = typeof parsed?.confidence === "number" && Number.isFinite(parsed.confidence) ? Math.max(0, Math.min(1, parsed.confidence)) : null; if (!action || !decision || !reason) return { status: "unavailable", model: result.model, actionId: null, decision: null, reason: null, confidence, error: `Mistral Right-hand ${result.model} returned an invalid or non-queued recommendation.` }; return { status: "completed", model: result.model, actionId: action.id, decision, reason, confidence, error: null }; }

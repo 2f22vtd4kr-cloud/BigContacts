@@ -29,6 +29,8 @@ describe("Atlas control-plane contract regression", () => {
     expect(controlSource).toContain("validateAtlasBossControl(parsed)");
     expect(controlSource).toContain("Mistral Right-hand");
     expect(controlSource).toContain("Groq Boss");
+    expect(controlSource).toContain("Groq Boss owns Atlas control decisions");
+    expect(controlSource).toContain("Mistral Right-hand provides independent oversight");
     expect(rightHandSource).toContain("MAX_429_RETRIES_PER_MODEL");
     expect(rightHandSource).toContain("MAX_503_RETRIES_PER_MODEL");
     expect(rightHandSource).toContain("clearTimeout(timer);");
@@ -37,6 +39,7 @@ describe("Atlas control-plane contract regression", () => {
     expect(rightHandSource).not.toContain("GEMINI_CHAT_API_BASE");
     expect(rightHandSource).not.toContain("generativelanguage.googleapis.com");
     expect(controlSource).not.toContain("Gemini control decision");
+    expect(controlSource).not.toContain("Gemini is Boss");
   });
 
   it("replays valid and malformed provider contracts through the real validators", () => {

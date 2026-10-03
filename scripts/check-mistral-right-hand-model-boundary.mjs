@@ -8,7 +8,7 @@ const source = fs.readFileSync(path.join(repoRoot, "artifacts/api-server/src/src
 
 const checks = [
   ["Right-hand primary uses Mistral Small 4", source.includes('MISTRAL_RIGHT_HAND_MODEL = "mistral-small-2603"')],
-  ["Right-hand uses a role-scoped credential namespace", source.includes('const MISTRAL_KEY_ENV = "MISTRAL_RIGHT_HAND_API_KEY"') && source.includes("MISTRAL_RIGHT_HAND_API_KEY_${i + 2}") && !source.includes('"MISTRAL_API_KEY"')],
+  ["Right-hand uses a role-scoped credential namespace", source.includes('const MISTRAL_KEY_ENV = "MISTRAL_RIGHT_HAND_API_KEY"') && source.includes('`${MISTRAL_KEY_ENV}_${i + 2}`') && !source.includes('"MISTRAL_API_KEY"')],
   ["Right-hand uses the Mistral Chat Completions boundary", source.includes("https://api.mistral.ai/v1/chat/completions") && source.includes("Authorization")],
   ["Right-hand uses a live Mistral model catalog", source.includes("https://api.mistral.ai/v1/models") && source.includes("catalogCandidates")],
   ["Right-hand is explicitly provider-scoped to Mistral", source.includes('provider:"mistral"') || source.includes('provider: "mistral"')],

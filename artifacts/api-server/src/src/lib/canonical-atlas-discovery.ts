@@ -130,7 +130,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     await db.insert(researchCaseEventsTable).values({
       caseId: discoveryCaseId,
       iteration: 0,
-      actorRole: "groq_boss",
+      actorRole: "head_investigator",
       eventType: "assignment",
       status: "recorded",
       summary: "Groq Boss opened the canonical Atlas discovery case and selected the Investigator.",

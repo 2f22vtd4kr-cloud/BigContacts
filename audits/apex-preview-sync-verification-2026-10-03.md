@@ -96,3 +96,26 @@
 - **Preserved:** The previous live-run audit was restored byte-for-byte (matching SHA-256 `3ecbf6c95fe17565af7e69771457b0b961ba0e806beca554f12d9a6c34fa89c5`). The attachment and this verification audit remain present.
 - **Working tree:** No tracked changes; only the attachment and the two audit files are untracked.
 - **Next action:** Read the synchronized target's actual verification scripts, then run checks without modifying canonical source.
+
+### 009 — Synchronized target verification
+
+- **UTC timestamp:** `2026-10-03T03:20:12Z`
+- **TypeScript:** `pnpm run typecheck` passed.
+- **API build:** `pnpm --filter @workspace/api-server run build` failed at `scripts/check-research-case-event-schema.mjs`, after the earlier build guards passed. The exact failure is the `groq_boss` actor-role mismatch recorded in entry 006.
+- **Focused Vitest:** The Mistral Right-hand, Groq Boss, and Atlas control regression files ran: 17 tests total, 14 passed, 3 failed. Failures: the Groq test expects `unavailable` where the no-Boss-key result is `pending`; the Mistral 429 test reuses its cached test-key catalog so its first mocked response is consumed as the chat response; the Atlas regression test rejects a remaining legacy “Gemini control decision” fallback string.
+- **Focused guards:** Passed: Groq Boss model boundary, provider-role docs, single canonical discovery control plane, and canonical Atlas entrypoint. Failed: Mistral model-boundary guard (expects a literal key-name construction that the source builds from `MISTRAL_KEY_ENV`) and control-recovery guard (expects a Gemini-only recoverable state set while the route includes Mistral Right-hand failure).
+- **Runtime:** No listener on port 8080 and no API boot/server process. No workflow was started after the build gate failed. Therefore no runtime SHA, health response, loaded-runtime identity, or readiness response is available.
+- **Environment:** Development secret-name presence was verified in entry 002: role-scoped Boss/Right-hand keys and generic Investigator keys are present; no values were read or emitted.
+- **Assessment:** The source has real consistency/diagnostic gaps as well as stale guards/test fixtures. No source changes have been made since synchronization. Fix only the event writer, readiness diagnostics, inaccurate guards/legacy label, and deterministic test fixture/expectations; retain the fail-closed provider design and do not create provider traffic yet.
+- **Next action:** Apply the scoped fixes in the existing repository and rerun the affected checks before attempting the configured API workflow.
+
+### 010 — Scoped implementation corrections and first rerun
+
+- **UTC timestamp:** `2026-10-03T03:24:56Z`
+- **Changes made:** Aligned the canonical discovery event writer with the declared `head_investigator` role; corrected stale Gemini control labels in the active control prompt; expanded the existing Mistral readiness result with per-key structured catalog diagnostics while retaining redacted provider-body summaries; corrected the Mistral key-namespace and canonical recovery guards to match the implemented role boundary; updated the no-Boss-key assertion to the explicit `pending` state; and isolated the Mistral 429 unit-test catalog cache with a unique test credential.
+- **TypeScript:** Root `pnpm run typecheck` passed.
+- **API build:** `pnpm --filter @workspace/api-server run build` passed all configured architecture/provider guards and generated the API bundle.
+- **Focused Vitest rerun:** 17 of 18 tests passed. The only failure is a brittle generation-diagnostic assertion comparing the serialized order of `x-ratelimit-*` header object keys. The response contains all expected header names and values; the runtime `Headers` collection emits them in a different order than the test's fixed JSON substring.
+- **Secret isolation:** Provider key variables were unset only in the Vitest child process; the application environment was not changed and no provider request was made.
+- **Runtime:** The API workflow remains stopped; no readiness request or Atlas run has been issued.
+- **Next action:** Change the unit assertion to compare the parsed header object rather than its JSON key order, rerun the focused regressions, and then complete the full verification before starting the configured API workflow.

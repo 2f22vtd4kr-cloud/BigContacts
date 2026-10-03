@@ -89,6 +89,9 @@ describe("Mistral Right-hand control-plane boundary", () => {
   });
 
   it("preserves structured 429 diagnostics instead of coercing the provider body to [object Object]", async () => {
+    // Use a distinct credential fingerprint so an earlier test's catalog-cache
+    // entry cannot shift the mocked response sequence.
+    process.env.MISTRAL_RIGHT_HAND_API_KEY = "test-mistral-rate-limited-key";
     const fetchMock = vi.spyOn(globalThis, "fetch")
       .mockResolvedValueOnce(new Response(JSON.stringify({ data: [{ id: MISTRAL_RIGHT_HAND_MODEL }] }), { status: 200 }))
       .mockResolvedValueOnce(new Response(JSON.stringify({
@@ -103,7 +106,49 @@ describe("Mistral Right-hand control-plane boundary", () => {
     expect(result.error).toContain('"retryAfterHeader":"10"');
     expect(result.error).toContain('"retry429":0');
     expect(result.error).toContain('"keyFingerprint":"');
-    expect(result.error).toContain('"rateLimitHeaders":{"x-ratelimit-remaining":"0","x-ratelimit-limit":"1","x-ratelimit-reset":"60"}');
+    const diagnostic = JSON.parse((result.error ?? "").slice((result.error ?? "").indexOf("{"))) as {
+      rateLimitHeaders: Record<string, string>;
+    };
+    expect(diagnostic.rateLimitHeaders).toEqual({
+      "x-ratelimit-remaining": "0",
+      "x-ratelimit-limit": "1",
+      "x-ratelimit-reset": "60",
+    });
+  });
+
+  it("preserves structured model-catalog 429 diagnostics in readiness", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response(JSON.stringify({
+      error: { code: "too_many_requests", message: "daily quota exceeded for free tier" },
+    }), {
+      status: 429,
+      headers: {
+        "retry-after": "10",
+        "x-ratelimit-remaining": "0",
+        "x-ratelimit-limit": "1",
+        "x-ratelimit-reset": "60",
+      },
+    }));
+
+    const result = await runMistralRightHandReadiness();
+    expect(result.status).toBe("unavailable");
+    expect(result.httpStatus).toBe(429);
+    expect(result.attempts).toHaveLength(1);
+    expect(result.attempts[0]).toMatchObject({
+      keyName: "MISTRAL_RIGHT_HAND_API_KEY",
+      httpStatus: 429,
+      providerCode: "quota_exceeded",
+      failureClass: "rate_limited",
+      retryAfterMs: 5000,
+      retryAfterHeader: "10",
+      rateLimitHeaders: {
+        "x-ratelimit-remaining": "0",
+        "x-ratelimit-limit": "1",
+        "x-ratelimit-reset": "60",
+      },
+    });
+    expect(result.attempts[0]?.keyFingerprint).toBeTruthy();
+    expect(result.error).not.toContain("[object Object]");
+    expect(result.error).toContain('"failureClass":"rate_limited"');
   });
 
   it("continues readiness across a failed primary credential when a secondary role-scoped key is usable", async () => {
@@ -115,6 +160,9 @@ describe("Mistral Right-hand control-plane boundary", () => {
     const result = await runMistralRightHandReadiness();
     expect(result.status).toBe("ready");
     expect(result.model).toBe(MISTRAL_RIGHT_HAND_MODEL);
+    expect(result.attempts).toHaveLength(2);
+    expect(result.attempts[0]).toMatchObject({ keyName: "MISTRAL_RIGHT_HAND_API_KEY", failureClass: "rate_limited" });
+    expect(result.attempts[1]).toMatchObject({ keyName: "MISTRAL_RIGHT_HAND_API_KEY_2", failureClass: null });
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
