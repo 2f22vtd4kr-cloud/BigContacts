@@ -13,7 +13,6 @@ run = ["NODE_ENV=production bash scripts/replit-boot.sh"]
 [env]
 PORT = "8080"
 NODE_ENV = "development"
-APEX_DEV_AUTH_BYPASS = "true"
 ENABLE_AUTO_PIPELINE = "false"
 INSTALL_PYTHON_OSINT = "false"
 APEX_SKIP_SEMANTIC = "1"
