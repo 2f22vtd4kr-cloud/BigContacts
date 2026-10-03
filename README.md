@@ -26,7 +26,7 @@ For a full agent continuation contract, read:
 
 ## Current engineering state
 
-The current `main` line contains the Very Strong engineering batch, including:
+The current `main` line contains the Very Strong engineering batch and the later Groq control-plane remediation, including:
 
 - evidence-graph cognition in the Investigator context;
 - bounded, lossless context compaction;
@@ -36,31 +36,32 @@ The current `main` line contains the Very Strong engineering batch, including:
 - provider-native structured action outputs;
 - source-family/source-class intelligence;
 - failure observability for identity, attribution, source, stopping, injection, and system errors;
-- dedicated CI verification;
-- adaptive discovery pool-wide learning;
-- current-state operational and CEO/release documentation.
+- explicit caller-owned transient-429 retry boundaries for Groq control/research roles;
+- GPT-OSS request-contract hardening with `include_reasoning:false` and no `reasoning_format`;
+- complete final Right-hand prompt bounding below the adapter's 20,000-character ceiling;
+- Groq-only canonical control plane and retired Mistral/Gemini control transports;
+- all configured Groq Investigator credential slots honored by the canonical entry gate;
+- dedicated CI/static verification workflows.
 
-These are architecture/engineering capabilities. They are **not** proof of empirical research superiority or production readiness.
+These are architecture/engineering capabilities. They are **not** proof of empirical research superiority or live production readiness.
 
 ## Architecture in one view
 
 ```
 CASE / OBJECTIVE
     ↓
-Gemini Boss + Gemini Right-hand
+Groq Boss
     ↓
-select Groq OR Mistral Investigator
+model-owned Investigator research loop
     ↓
-Investigator chooses WHAT / WHERE / HOW
+immutable observations + provenance
     ↓
-validated tool execution
+Research Intelligence
+    ↺ Groq Right-hand oversight when justified ↺
     ↓
-observation + provenance
+Groq Boss next control action
     ↓
-evidence graph: claims / identity / contradictions / contacts / negatives
-    ↺ oversight and next Investigator act
-    ↓
-finding / abstention / promotion / stop
+deterministic terminal/admission gate
 ```
 
 **Tools are capabilities, not stages.** There is no mandatory identity → organization → contact hop recipe.
