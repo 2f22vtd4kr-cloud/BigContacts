@@ -1,9 +1,6 @@
 name: Apex Empirical Research Campaign
 on:
   workflow_dispatch:
-  push:
-    branches: [audit/genuine-five-green-final]
-    paths: [benchmarks/research-campaign-trigger.txt]
 permissions:
   contents: read
 

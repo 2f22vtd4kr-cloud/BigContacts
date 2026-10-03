@@ -41,7 +41,7 @@ assert(/RETIRED:/.test(hardener) && /must not mutate Apex source/.test(hardener)
 assert(!/push\(`PERSON:/.test(hardener), "retired hardener does not manufacture PERSON findings");
 assert(!/Provider generation preflight/.test(workflow), "live audit does not bypass the canonical provider path with a separate preflight");
 assert(/GROQ_INVESTIGATOR_API_KEY:/.test(workflow) && /GROQ_RIGHT_HAND_API_KEY:/.test(workflow) && !/MISTRAL_API_KEY|MISTRAL_RIGHT_HAND_API_KEY/.test(workflow), "live audit exposes the explicit Groq Investigator and Right-hand credential pools to the canonical runtime");
-assert(/Launch bounded 3-target discovery-first smoke/.test(workflow) && /"discoveryFirst":true/.test(workflow) && /"runResearch":true/.test(workflow), "live audit launches the real discovery-first research path");
+assert(/Launch bounded 3-target UI-equivalent smoke/.test(workflow) && /"targetCount":3/.test(workflow) && /"researchDepth":"standard"/.test(workflow) && /"targetTimeoutMs":420000/.test(workflow) && !/"discoveryFirst":true/.test(workflow), "live audit matches the authorized UI-equivalent Atlas launch contract");
 assert(/POST http:\/\/127\.0\.0\.1:8080\/api\/ingest\/atlas-run/.test(workflow), "live audit invokes the canonical Atlas launch route");
 assert(/node scripts\/audit-live-bureau\.mjs/.test(workflow), "live audit applies the research-quality/provenance verifier after execution");
 assert(/discoveryModel/.test(liveAudit) && /discoveryTools/.test(liveAudit) && /actual web tooling/.test(liveAudit), "live verifier requires model-selected discovery with actual web tooling");
