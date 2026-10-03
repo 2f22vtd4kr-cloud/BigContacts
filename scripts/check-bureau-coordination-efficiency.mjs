@@ -1,14 +1,14 @@
-// Mistral Right-hand migration invariant: oversight remains a separate case-file-only layer.
+// Groq Right-hand migration invariant: oversight remains a separate case-file-only layer.
 // Final migration gate: investigators remain a distinct execution layer.
 import fs from "node:fs";
 import path from "node:path";
 
 const root = process.cwd();
-const rightHand = fs.readFileSync(path.join(root, "artifacts/api-server/src/src/lib/mistral-right-hand-reasoning.ts"), "utf8");
+const rightHand = fs.readFileSync(path.join(root, "artifacts/api-server/src/src/lib/groq-right-hand-reasoning.ts"), "utf8");
 const boss = fs.readFileSync(path.join(root, "artifacts/api-server/src/src/lib/case-bureau-prompt.ts"), "utf8");
 
 const rightHandRequired = [
-  "MISTRAL_RIGHT_HAND_MODEL",
+  "GROQ_RIGHT_HAND_MODEL",
   "case_file_reasoning_only",
   "max_tokens:512",
   "You are Apex Atlas Right Hand. Reason only over the supplied case file.",
@@ -19,14 +19,14 @@ const rightHandRequired = [
   "decisionLog",
 ];
 for (const marker of rightHandRequired) {
-  if (!rightHand.includes(marker)) throw new Error(`bureau coordination guard failed in Mistral right-hand: missing ${marker}`);
+  if (!rightHand.includes(marker)) throw new Error(`bureau coordination guard failed in Groq Right-hand: missing ${marker}`);
 }
 
 const bossRequired = [
   "=== BUREAU CHAIN OF COMMAND / SHARED MIND ===",
-  "RIGHT-HAND (Mistral) = diagnostic strategist",
+  "RIGHT-HAND (Groq) = diagnostic strategist",
   "BOSS (Groq GPT-OSS 120B) = head investigator and integrator",
-  "INVESTIGATOR (Groq/Mistral) = execution intelligence",
+  "INVESTIGATOR (Groq/Groq) = execution intelligence",
   "=== MOUNTING CASE STATE / COORDINATION LEDGER ===",
   "What is newly known since the previous iteration?",
   "What remains genuinely unresolved?",
