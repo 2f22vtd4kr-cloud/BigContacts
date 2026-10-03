@@ -6,7 +6,7 @@ const client = fs.readFileSync("artifacts/apex-finder/src/lib/launch-atlas.ts", 
 
 const checks = [
   ["recovery route is mounted on the canonical continuation handler", continuation.includes('"/research/bureau/cases/:caseId/recover-control"')],
-  ["recovery is restricted to durable canonical control failure states", continuation.includes('new Set(["mistral-right-hand-unavailable","gemini-right-hand-unavailable","canonical-control-unavailable"])')],
+  ["recovery is restricted to durable canonical control failure states", continuation.includes('new Set(["groq-right-hand-unavailable","gemini-right-hand-unavailable","canonical-control-unavailable"])')],
   ["ordinary continuation remains available", continuation.includes('"/research/bureau/cases/:caseId/run-next-pass"')],
   ["recovery uses the existing canonical lock path", continuation.includes('claimCanonicalJob("atlas-run",jobId)')],
   ["recovery uses the durable cancellation fence", continuation.includes("cancellationFenceSql(caseId)")],
