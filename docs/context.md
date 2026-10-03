@@ -713,3 +713,47 @@ Implementation at main now defines:
 Regression coverage was added in `artifacts/api-server/src/src/test/mistral-right-hand.test.ts` for the canonical model/fallback policy and credential non-disclosure. The canonical model-boundary script should also assert the cross-family fallback chain.
 
 No live Mistral call or Atlas launch was made to validate the new fallback. Validation must remain CI/static/test-only until the user explicitly authorizes another provider call. The current GitHub push triggered the Five Consecutive Full Code Audits workflow; its run was pending at the last check.
+
+## 2026-10-03 CURRENT MASTER OVERRIDE — Groq control plane after PR #465 and follow-up source audit
+
+**This section supersedes earlier provider-state sections in this file. Earlier Mistral/Gemini statements are historical migration records, not the current architecture.**
+
+Current canonical control plane on main after PR #465:
+- Boss: Groq `openai/gpt-oss-120b`, fallback `openai/gpt-oss-20b`; keys `GROQ_BOSS_API_KEY` + `_1.._10`.
+- Right-hand: Groq `openai/gpt-oss-120b`, fallback `openai/gpt-oss-20b`; keys `GROQ_RIGHT_HAND_API_KEY` + `_2.._5`.
+- Investigator: Groq-only capability; keys `GROQ_INVESTIGATOR_API_KEY` + `_1.._5`.
+- No canonical Gemini or Mistral transport is permitted. Legacy Gemini-named compatibility modules may remain only where they are not imported by the canonical control path.
+
+### Current canonical research architecture
+
+The canonical target path is model-owned sequential research, not a scripted lane sequence:
+
+`Human objective → Groq Boss → Investigator act → deterministic observation/evidence update → episodic checkpoint → Groq Right-hand advisory → Groq Boss continue/redirect/stop → next Investigator act → deterministic terminal/admission gate`
+
+The Investigator chooses the next action from the capability registry based on information value and current uncertainty. Available capabilities include independent web search providers, page/browser retrieval, public registries, domain/RDAP, and bounded OSINT enrichment. Deterministic code owns provenance, source observation, identity binding, evidence graphs, budgets, cancellation, persistence, and promotion.
+
+Research Intelligence tracks evidence and exact source spans; source lineage and independent source units; identity hypotheses and contradictions; source-family diversity; open questions and falsification pressure; action yield and realized information gain; and bounded working context while the immutable event ledger remains complete.
+
+The target loop now checkpoints at the configured episode boundary including the just-completed act, rather than one act late. Urgent checkpoints remain available for contradictions, identity changes, high-value contacts, failed actions, terminal claims, and low-information-gain episodes.
+
+### Groq Investigator request contract
+
+Current Groq docs distinguish the reasoning interfaces: Qwen 3.8 uses `reasoning_effort` plus `reasoning_format:"hidden"`; GPT-OSS 20B/120B use `reasoning_effort` plus `include_reasoning:false`; the two reasoning-output controls are mutually exclusive; strict JSON Schema is supported for Qwen 3.8 and GPT-OSS 20B/120B.
+
+The canonical Investigator adapter now selects the request contract by model. Harder cognitive tasks route to GPT-OSS 120B first; discovery/contact tasks favor Qwen 3.8 for faster iterative exploration, with same-role fallback models/keys.
+
+### Canonical target verification rule
+
+The canonical target loop no longer invokes a hidden Gemini evidence-probe provider. If a terminal claim fails deterministic provenance/epistemic verification, the Investigator must perform the next verification act itself; the normal Groq Right-hand → Groq Boss oversight boundary then decides continuation. This keeps all research actions inside one auditable Investigator trajectory.
+
+### Verification status
+
+The source remediation is implemented on branch `fix/groq-investigator-control-plane`. It has not yet been live-certified. No provider request or Atlas launch was performed during this remediation. Netlify success alone is not backend test certification. Backend typecheck/Vitest results must be observed on an actual backend execution surface before declaring the branch green.
+
+The last consumed canonical live-run authorization remains job `78d032e0-6878-4276-aeb5-5ac5371b11e9`; do not launch another Atlas run unless the user explicitly authorizes a new live audit.
+
+### Design benchmark
+
+The architecture deliberately combines dynamic model-owned planning and tool choice; deterministic provenance and safety; episodic reflection rather than per-tool micromanagement; independent source-family corroboration and falsification; bounded memory/context; and cognitive-task model routing.
+
+This is consistent with current deep-research research emphasizing dynamic re-planning, traceability/provenance, source diversity, and information-gain-driven search while avoiding the common failure mode of turning the LLM into a fixed vendor/tool waterfall.
