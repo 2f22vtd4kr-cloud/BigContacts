@@ -15,8 +15,8 @@ const extractorSource = extractorStart >= 0 ? source.slice(extractorStart, extra
 const checks = [
   ["canonical investigator wrapper exists", wrapper.includes("agentic-web-research-core")],
   ["canonical investigator LLM capability marker exists", llmStart >= 0],
-  ["investigator lane defines provider adapters", llmStart >= 0 && llmEnd > llmStart && /callGroqJson|callMistralJson/.test(source.slice(llmStart, llmEnd))],
-  ["investigator lane is not a closed vendor contract", llmStart >= 0 && llmEnd > llmStart && !/FAILOVER_CHAIN:\s*Groq -> Mistral/.test(source.slice(llmStart, llmEnd))],
+  ["investigator lane defines provider adapters", llmStart >= 0 && llmEnd > llmStart && /callGroqJson/.test(source.slice(llmStart, llmEnd))],
+  ["investigator lane is not a closed vendor contract", llmStart >= 0 && llmEnd > llmStart && !/FAILOVER_CHAIN:\s*Groq -> Groq/.test(source.slice(llmStart, llmEnd))],
   ["investigator lane does not call Gemini", llmStart >= 0 && llmEnd > llmStart && !/callGeminiJson/.test(source.slice(llmStart, llmEnd))],
   ["investigator lane does not call NVIDIA", llmStart >= 0 && llmEnd > llmStart && !/callNvidiaJson/.test(source.slice(llmStart, llmEnd))],
   ["Dig lane uses compact orientation", /apexOrientationCompact\("dig_agent"\)/.test(source.slice(llmStart))],
