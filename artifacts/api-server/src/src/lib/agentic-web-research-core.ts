@@ -271,6 +271,27 @@ export function buildGroqInvestigatorRequestBody(input: { model: string; prompt:
   };
 }
 
+function groqRetryAfterMs(response: Response, fallbackMs = 250): number {
+  const raw = response.headers.get("retry-after")?.trim() ?? "";
+  if (!raw) return fallbackMs;
+  const seconds = Number(raw);
+  if (Number.isFinite(seconds) && seconds >= 0) return Math.min(2_500, Math.floor(seconds * 1_000));
+  const timestamp = Date.parse(raw);
+  return Number.isFinite(timestamp) ? Math.min(2_500, Math.max(0, timestamp - Date.now())) : fallbackMs;
+}
+
+function groqHardRequestQuota(response: Response, body: string): boolean {
+  if (response.status !== 429) return false;
+  const remainingRequests = Number(response.headers.get("x-ratelimit-remaining-requests")?.trim() ?? "NaN");
+  if (Number.isFinite(remainingRequests) && remainingRequests === 0) return true;
+  try {
+    const parsed = JSON.parse(body) as { error?: { code?: unknown } };
+    return parsed.error?.code === "quota_exceeded";
+  } catch {
+    return false;
+  }
+}
+
 async function callGroqJson(prompt: string, signal: AbortSignal, cognitiveTask: ResearchCognitiveTask = "identity_resolution"): Promise<{ model: string; raw: string } | null> {
   const keys = ["GROQ_INVESTIGATOR_API_KEY", ...Array.from({ length: 5 }, (_, i) => `GROQ_INVESTIGATOR_API_KEY_${i + 1}`)].map((n) => (process.env[n] || "").trim()).filter(Boolean);
   if (!keys.length) return null;
@@ -280,32 +301,62 @@ async function callGroqJson(prompt: string, signal: AbortSignal, cognitiveTask: 
   const routedModels = rankGroqModelsForTask(GROQ_CHAT_MODELS, cognitiveTask);
   for (const key of keys) for (const model of routedModels) {
     if (signal.aborted) throw new Error("cancelled");
-    attempt += 1;
-    const started = Date.now();
-    try {
-      const response = await runProviderCall({ provider: "groq", account: key, signal }, () => safeOutboundFetch("https://api.groq.com/openai/v1/chat/completions", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-        body: JSON.stringify(buildGroqInvestigatorRequestBody({ model, prompt: workingPrompt, cognitiveTask })),
-        signal,
-      }));
-      if (!response.ok) {
-        recordAgenticLlmAttempt({ provider: "groq", model, promptChars: workingPrompt.length, status: response.status, success: false, latencyMs: Date.now() - started, retryIndex: attempt, reason: response.status === 413 ? "request_size" : response.status === 429 ? "rate_limited" : "provider_rejected" });
-        if (response.status === 413 && !sizeReductionApplied) {
-          workingPrompt = tightenInvestigatorPrompt(workingPrompt);
-          sizeReductionApplied = true;
+    let retry429 = 0;
+    while (retry429 <= 1) {
+      attempt += 1;
+      const started = Date.now();
+      try {
+        const response = await withProviderRetryOwnership("groq", "caller", () =>
+          runProviderCall({ provider: "groq", account: key, signal }, () =>
+            safeOutboundFetch("https://api.groq.com/openai/v1/chat/completions", {
+              method: "POST",
+              headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+              body: JSON.stringify(buildGroqInvestigatorRequestBody({ model, prompt: workingPrompt, cognitiveTask })),
+              signal,
+            }),
+          ),
+        );
+        if (response.status === 429) {
+          const body = await response.text();
+          const hardQuota = groqHardRequestQuota(response, body);
+          recordAgenticLlmAttempt({
+            provider: "groq",
+            model,
+            promptChars: workingPrompt.length,
+            status: 429,
+            success: false,
+            latencyMs: Date.now() - started,
+            retryIndex: attempt,
+            reason: hardQuota ? "upstream_quota_exhausted" : "upstream_rate_limited",
+          });
+          if (hardQuota) return null;
+          if (retry429 >= 1) break;
+          const delay = groqRetryAfterMs(response);
+          if (delay > 2_500 || Date.now() + delay >= started + PROVIDER_DECISION_TIMEOUT_MS) break;
+          retry429 += 1;
+          await new Promise((resolve) => setTimeout(resolve, delay));
           continue;
         }
-        if (response.status === 401 || response.status === 403) break;
-        continue;
+        if (!response.ok) {
+          recordAgenticLlmAttempt({ provider: "groq", model, promptChars: workingPrompt.length, status: response.status, success: false, latencyMs: Date.now() - started, retryIndex: attempt, reason: response.status === 413 ? "request_size" : "provider_rejected" });
+          if (response.status === 413 && !sizeReductionApplied) {
+            workingPrompt = tightenInvestigatorPrompt(workingPrompt);
+            sizeReductionApplied = true;
+            break;
+          }
+          if (response.status === 401 || response.status === 403) break;
+          break;
+        }
+        const data = await readJsonCapped<{ choices?: Array<{ message?: { content?: string } }> }>(response, signal);
+        const raw = data.choices?.[0]?.message?.content?.trim() || "";
+        recordAgenticLlmAttempt({ provider: "groq", model, promptChars: workingPrompt.length, status: response.status, success: Boolean(raw), latencyMs: Date.now() - started, retryIndex: attempt, reason: raw ? undefined : "empty_response" });
+        if (raw) return { model, raw };
+        break;
+      } catch (error: any) {
+        if (signal.aborted) throw new Error("cancelled");
+        recordAgenticLlmAttempt({ provider: "groq", model, promptChars: workingPrompt.length, status: "error", success: false, latencyMs: Date.now() - started, retryIndex: attempt, reason: error?.message || "exception" });
+        break;
       }
-      const data = await readJsonCapped<{ choices?: Array<{ message?: { content?: string } }> }>(response, signal);
-      const raw = data.choices?.[0]?.message?.content?.trim() || "";
-      recordAgenticLlmAttempt({ provider: "groq", model, promptChars: workingPrompt.length, status: response.status, success: Boolean(raw), latencyMs: Date.now() - started, retryIndex: attempt, reason: raw ? undefined : "empty_response" });
-      if (raw) return { model, raw };
-    } catch (error: any) {
-      if (signal.aborted) throw new Error("cancelled");
-      recordAgenticLlmAttempt({ provider: "groq", model, promptChars: workingPrompt.length, status: "error", success: false, latencyMs: Date.now() - started, retryIndex: attempt, reason: error?.message || "exception" });
     }
   }
   return null;
