@@ -5,7 +5,6 @@ const routes = fs.readFileSync("artifacts/api-server/src/src/routes/index.ts", "
 const relationships = fs.readFileSync("artifacts/api-server/src/src/routes/relationships.ts", "utf8");
 const profile = fs.readFileSync("artifacts/apex-finder/src/pages/profile.tsx", "utf8");
 const router = fs.readFileSync("artifacts/apex-finder/src/router.tsx", "utf8");
-const authSource = fs.readFileSync("artifacts/api-server/src/src/lib/api-auth.ts", "utf8");
 const systemStatus = fs.readFileSync("artifacts/api-server/src/src/routes/system-status.ts", "utf8");
 const logger = fs.readFileSync("artifacts/api-server/src/src/lib/logger.ts", "utf8");
 
@@ -31,9 +30,8 @@ for (const route of retired) {
   assert(!profile.includes(route), `profile still calls retired endpoint: ${route}`);
 }
 
-assert(!/<OperatorAuthGate>/.test(router), "development desk must not render the operator login gate");
-assert(/APEX_DEV_AUTH_BYPASS/.test(authSource), "development auth bypass contract is missing");
-assert(/NODE_ENV !== "production"/.test(authSource), "development auth bypass is not production-gated");
+assert(!/<OperatorAuthGate>/.test(router), "desk must not render the retired operator login gate");
+assert(!/\/api\/auth\/(?:login|session|logout)/.test(router), "desk router must not reference retired operator auth endpoints");
 assert(/pythonTools/.test(systemStatus), "canonical system status does not expose Python tool health");
 assert(/isProduction \? \(process\.env\.LOG_LEVEL \?\? "info"\) : "silent"/.test(logger), "development logger is not silent");
 
