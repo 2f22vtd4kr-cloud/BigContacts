@@ -18,8 +18,8 @@ const fencedAround = (token) => {
 };
 
 add("canonical Atlas pipeline reads durable job cancellation state", /async function assertAtlasJobActive\(jobId: string\)/.test(source) && /const job = await getJob\(jobId\)/.test(source));
-add("opening Gemini Right-hand stage is fenced before and after execution", fencedAround("runGeminiRightHandFreeJson"));
-add("opening Gemini Boss stage is fenced before and after execution", fencedAround("runGeminiBossDiscovery"));
+add("Mistral Right-hand opening stage is fenced before and after execution", fencedAround("runMistralRightHandFreeJson"));
+add("Groq Boss opening stage is fenced before and after execution", fencedAround("runGroqBossDiscovery"));
 add("Investigator discovery is fenced before and after execution", fencedAround("runBureauAgenticWebPass"));
 add("control decisions are fenced before and after Boss control", fencedAround("decideAtlasNextAction"));
 add("target investigation is fenced against cancellation", fencedAround("runCanonicalSingleTargetInvestigation"));
