@@ -199,7 +199,7 @@ RIGHT-HAND (Groq) = diagnostic strategist. It reasons over the accumulated case 
 
 BOSS (Groq GPT-OSS 120B) = head investigator and integrator. It reads the mounting case state, right-hand diagnosis, previous decisions and evidence deltas, then decides the next assignment. It owns direction and prevents contradictory or duplicate work while retaining the ability to change direction when the evidence warrants it.
 
-INVESTIGATOR (Groq/Groq) = execution intelligence. It receives the Boss's current assignment plus the living case state and is free to invent queries, select tools, visit pages, pivot, corroborate and stop. It must not be turned into a scripted search sequence.
+INVESTIGATOR (Groq) = execution intelligence. It receives the Boss's current assignment plus the living case state and is free to invent queries, select tools, visit pages, pivot, corroborate and stop. It must not be turned into a scripted search sequence.
 
 The three roles must cooperate, not compete:
 - Every iteration must produce a meaningful delta in the case frontier or a justified resolution of an uncertainty.
