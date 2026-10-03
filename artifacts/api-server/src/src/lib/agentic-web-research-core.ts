@@ -6,7 +6,7 @@ import { GROQ_CHAT_MODELS } from "./groq-models";
 import { filterClaimUrls, filterPassagesForQuery } from "./passage-filter";
 import { sanitizePublicEmail, sanitizePublicPhone, isTrashContactValue } from "./contact-validation";
 import { safeOutboundFetch } from "./ssrf-safe-fetch";
-import { runProviderCall } from "./provider-gate";
+import { runProviderCall, withProviderRetryOwnership } from "./provider-gate";
 import { boundInvestigatorPromptSection, buildInvestigatorContext, tightenInvestigatorPrompt } from "./investigation-context-compaction";
 import { renderAtlasCapabilityGuidance } from "./atlas-capability-registry";
 import { classifyTrajectorySignals, type AtlasFailureSignal } from "./atlas-failure-observatory";
