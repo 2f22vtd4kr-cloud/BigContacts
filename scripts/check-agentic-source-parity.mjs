@@ -3,6 +3,8 @@ import fs from "node:fs";
 const wrapper = fs.readFileSync("artifacts/api-server/src/src/lib/agentic-web-research.ts", "utf8");
 const source = fs.readFileSync("artifacts/api-server/src/src/lib/agentic-web-research-core.ts", "utf8");
 const targetAgent = fs.readFileSync("artifacts/api-server/src/src/lib/target-contact-agent.ts", "utf8");
+const orientation = fs.readFileSync("artifacts/api-server/src/src/lib/apex-bureau-orientation.ts", "utf8");
+const bossPrompt = fs.readFileSync("artifacts/api-server/src/src/lib/case-bureau-prompt.ts", "utf8");
 
 const marker = "INVESTIGATOR_LLM_CAPABILITY_POOL";
 const llmStart = source.indexOf(marker);
@@ -24,6 +26,10 @@ const checks = [
   ["raw HTML extractor has no name promotion", extractorSource.length > 0 && !/\bNAME\s*:/.test(extractorSource)],
   ["search capability pool exposes multiple backends", /Serper|Tavily|Exa/.test(source)],
   ["canonical Investigator does not import deterministic orchestrator strategy", !/agent-orchestrator|expandQuery|planQuery|mcts-agent/.test(wrapper + targetAgent)],
+  ["canonical orientation is Groq-only", !/Gemini|Mistral|Perplexity/i.test(orientation)],
+  ["canonical Boss prompt is Groq-only", !/Gemini|Mistral|Perplexity/i.test(bossPrompt)],
+  ["canonical target wrapper is Groq-only", !/Gemini|Mistral|Perplexity/i.test(wrapper)],
+  ["canonical Investigator core is Groq-only", !/Gemini|Mistral|Perplexity/i.test(source)],
 ];
 
 let failed = false;

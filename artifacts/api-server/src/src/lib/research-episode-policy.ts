@@ -2,7 +2,7 @@
  * Episode-level oversight policy.
  *
  * The Investigator keeps ownership of the research trajectory. This module only
- * decides when the Gemini oversight boundary is worth paying for. It never
+ * decides when the Right-hand/Boss oversight boundary is worth paying for. It never
  * chooses a tool, query, target, or research route.
  */
 export type ResearchEpisodeCheckpointReason =
