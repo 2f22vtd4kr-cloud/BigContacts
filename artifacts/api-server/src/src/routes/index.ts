@@ -1,6 +1,5 @@
 import { Router, type IRouter } from "express";
 import healthRouter from "./health";
-import authRouter from "./auth";
 import entitiesRouter from "./entities";
 import safeEntityMergeRouter from "./entity-merge-safe";
 import assetsRouter from "./assets";
@@ -26,8 +25,8 @@ import { normalizeAtlasLaunchBody } from "../middlewares/normalize-atlas-launch-
 import { canonicalCaseContinuationGuard } from "../middlewares/canonical-case-continuation-guard";
 
 const router: IRouter = Router();
+
 router.use(healthRouter);
-router.use(authRouter);
 router.use(normalizeAtlasLaunchBody);
 router.use(entityVisibilityGuard);
 router.use(legacyApexMutationGuard);
@@ -51,4 +50,5 @@ router.use(atlasRouter);
 router.use(bureauStreamRouter);
 router.use(systemStatusRouter);
 router.use(investigatorTraceRouter);
+
 export default router;
