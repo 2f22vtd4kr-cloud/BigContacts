@@ -857,7 +857,7 @@ const SPECIALISTS: BureauSpecialist[] = [
     id: "web",
     title: "Open-Web Investigator",
     mission: "Search official sites, press, biographies, venues, memberships, and public activity for useful leads.",
-    tools: ["web-enricher", "Perplexity", "Tavily", "Exa"],
+    tools: ["web-search:serper", "web-search:tavily", "web-search:exa", "page-fetch", "registry-client"],
     status: "waiting_for_key",
   },
   {
