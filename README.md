@@ -6,9 +6,9 @@ Apex Atlas is an OSINT research desk built to identify decision-makers, owners, 
 
 It is a model-led research bureau, not a fixed enrichment script:
 
-- **Gemini Boss** directs the case and selects the Investigator.
-- **Gemini Right-hand** provides independent bounded oversight.
-- **Groq or Mistral Investigator** owns the actual research trajectory.
+- **Groq Boss** directs the case and selects the Investigator.
+- **Groq Right-hand** provides independent bounded oversight.
+- **Groq Investigator** owns the actual research trajectory.
 - Deterministic runtime code enforces safety, authorization, provenance, identity, persistence, cancellation, and resource limits.
 
 ## Canonical branch
