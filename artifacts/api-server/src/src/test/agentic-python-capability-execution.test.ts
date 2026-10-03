@@ -16,7 +16,7 @@ import { runAgenticWebResearch } from "../lib/agentic-web-research-core";
 
 describe("agentic Python capability execution state", () => {
   afterEach(() => {
-    delete process.env.GROQ_API_KEY;
+    delete process.env.GROQ_INVESTIGATOR_API_KEY;
     vi.restoreAllMocks();
   });
 
@@ -27,7 +27,7 @@ describe("agentic Python capability execution state", () => {
     ["harvest_domain", '{"action":"harvest_domain","domain":"example.com"}'],
     ["footprint_spiderfoot", '{"action":"footprint_spiderfoot","target":"example.com","targetType":"domain","profile":"domain-infrastructure"}'],
   ])("records %s as blocked when the Python capability is unavailable", async (_action, actionJson) => {
-    process.env.GROQ_API_KEY = "test-groq-key";
+    process.env.GROQ_INVESTIGATOR_API_KEY = "test-groq-investigator-key";
     const responses = [
       { choices: [{ message: { content: actionJson } }] },
       { choices: [{ message: { content: '{"action":"done","findings":[]}' } }] },
