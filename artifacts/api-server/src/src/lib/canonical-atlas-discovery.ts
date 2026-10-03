@@ -26,7 +26,7 @@ function isObservedHttpSource(value: unknown): value is string { return typeof v
 function normalizeSourceUrl(raw: string): string | null { try { const url = new URL(raw); if (!/^https?:$/i.test(url.protocol)) return null; url.hash = ""; url.hostname = url.hostname.toLowerCase(); return url.href.endsWith("/") ? url.href.slice(0, -1) : url.href; } catch { return null; } }
 function candidateIdentityObserved(personName: string, observation: unknown): boolean { const text = typeof observation === "string" ? observation.toLowerCase() : ""; const tokens = personName.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter((token) => token.length >= 2); return tokens.length > 0 && tokens.every((token) => text.includes(token)); }
 
-async function createAtlasDiscoveryCase(input: { atlasJobId: string; objective: string; investigatorLlm: "groq" | "mistral" }): Promise<number> {
+async function createAtlasDiscoveryCase(input: { atlasJobId: string; objective: string; investigatorLlm: "groq" }): Promise<number> {
   const [created] = await db.insert(researchCasesTable).values({ caseType: "discovery", status: "active", directorMode: "groq_boss", directorProvider: "groq", directorModel: "pending", objective: input.objective, motivation: "Durable memory for canonical Atlas Investigator discovery.", openingPrompt: "Investigator chooses every research action; this case is memory/state, not a deterministic research plan.", caseFile: JSON.stringify({ caseType: "discovery", contextDocument: ["CANONICAL ATLAS DISCOVERY CASE", `JOB: ${input.atlasJobId}`, `INVESTIGATOR: ${input.investigatorLlm}`, `OBJECTIVE: ${input.objective}`, "STATE: Initial discovery; Investigator owns the next action.", "TRAJECTORY: []"].join("\n"), investigatorTrajectory: [], investigatorTrajectoryRecords: [], investigationTimeline: [], jobId: input.atlasJobId }), currentAction: "canonical-investigator-discovery", iteration: 0 }).returning({ id: researchCasesTable.id });
   const caseId = created?.id; if (!caseId) throw new Error("Failed to create durable Atlas discovery case.");
   return caseId;
@@ -91,7 +91,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         "Do not browse as Boss.",
         "Do not prescribe a fixed tool or search sequence.",
         "Do not invent people, contacts, relationships, or URLs.",
-        "Select only groq or mistral as Investigator.",
+        "Select only groq as Investigator.",
       ],
       startingLane: "model-selected discovery",
     });
