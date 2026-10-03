@@ -98,6 +98,13 @@ function extractText(payload:unknown):string{
  return "";
 }
 function retryAfterMs(response:Response,fallback:number){const raw=response.headers.get("retry-after")?.trim();if(!raw)return fallback;const n=Number(raw);if(Number.isFinite(n)&&n>=0)return Math.min(5000,Math.floor(n*1000));return fallback;}
+function hardRateLimit(response: Response): boolean {
+ const rawLimit = response.headers.get("x-ratelimit-limit-req-minute")?.trim();
+ const rawRemaining = response.headers.get("x-ratelimit-remaining-req-minute")?.trim();
+ const limit = rawLimit === undefined || rawLimit === null || rawLimit === "" ? null : Number(rawLimit);
+ const remaining = rawRemaining === undefined || rawRemaining === null || rawRemaining === "" ? null : Number(rawRemaining);
+ return response.status === 429 && ((Number.isFinite(limit) && limit === 0) || (Number.isFinite(remaining) && remaining === 0 && Number.isFinite(limit) && limit !== null && limit <= 0));
+}
 
 type MistralAttemptDiagnostic = { keyName: string; keyFingerprint: string; model: string; httpStatus: number | null; providerCode: string | null; failureClass: string; retry429: number; retry503: number; retryAfterMs: number | null; retryAfterHeader: string | null; rateLimitHeaders: Record<string, string>; body: ReturnType<typeof summarizeProviderBody> | null; };
 function formatAttemptDiagnostic(diagnostic: MistralAttemptDiagnostic): string { return JSON.stringify(diagnostic); }
@@ -124,6 +131,7 @@ async function request(system:string,user:string,format?:Record<string,unknown>)
     const response=await fetch(MISTRAL_CHAT_API,{method:"POST",headers:{Accept:"application/json","Content-Type":"application/json",Authorization:`Bearer ${candidate.entry.key}`},body,signal:controller.signal});
     const responseBody=await response.text();
     if(response.status===503&&retry503<MAX_503_RETRIES_PER_MODEL&&Date.now()<deadline){const delay=retryAfterMs(response,750);lastRetryAfterMs=delay;lastRetryAfterHeader=response.headers.get("retry-after");retry503++;await new Promise(r=>setTimeout(r,Math.min(delay,Math.max(0,deadline-Date.now()))));continue;}
+    if(response.status===429&&hardRateLimit(response)){const cls=classifyProviderHttpStatus(response.status);const code=providerErrorCode(responseBody);const diagnostic={keyName:candidate.entry.name,model:candidate.model,httpStatus:response.status,providerCode:code,retry429,retry503,retryAfterMs:null,retryAfterHeader:response.headers.get("retry-after"),body:summarizeProviderBody(responseBody),rateLimitHeaders:Object.fromEntries(Array.from(response.headers.entries()).filter(([name])=>name.toLowerCase().startsWith("x-ratelimit-"))),failureClass:cls,keyFingerprint:fingerprint(candidate.entry.key)};failures.push(diagnostic);return {raw:"",error:`Mistral Right-hand hard rate limit; failing closed: ${formatAttemptDiagnostic(diagnostic)}`,model:candidate.model};}
     if(response.status===429&&retry429<MAX_429_RETRIES_PER_MODEL&&Date.now()<deadline){const retryHeader=response.headers.get("retry-after");const delay=retryHeader?retryAfterMs(response,MISTRAL_MIN_REQUEST_INTERVAL_MS):MISTRAL_MIN_REQUEST_INTERVAL_MS;lastRetryAfterMs=delay;lastRetryAfterHeader=retryHeader;if(delay<=2500){retry429++;await new Promise(r=>setTimeout(r,Math.min(delay,Math.max(0,deadline-Date.now()))));continue;}}
     if(!response.ok){const cls=classifyProviderHttpStatus(response.status);const code=providerErrorCode(responseBody);const diagnostic={keyName:candidate.entry.name,model:candidate.model,httpStatus:response.status,providerCode:code,retry429,retry503,retryAfterMs:lastRetryAfterMs,retryAfterHeader:lastRetryAfterHeader,body:summarizeProviderBody(responseBody),rateLimitHeaders:Object.fromEntries(Array.from(response.headers.entries()).filter(([name])=>name.toLowerCase().startsWith("x-ratelimit-"))),failureClass:cls,keyFingerprint:fingerprint(candidate.entry.key)};failures.push(diagnostic);if(response.status===401||response.status===403||response.status===404)break;if(response.status===429||response.status===500||response.status===502||response.status===503||response.status===504)break;return {raw:"",error:`Mistral Right-hand ${candidate.model} ${cls} HTTP ${response.status}: ${formatAttemptDiagnostic(diagnostic)}`,model:candidate.model};}
     const raw=extractText(JSON.parse(responseBody)); if(raw)return {raw,error:null,model:candidate.model};
