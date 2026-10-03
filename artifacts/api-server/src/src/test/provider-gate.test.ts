@@ -239,6 +239,53 @@ describe("provider quota gate", () => {
     expect(calls).toBe(2);
   });
 
+  it("lets the Right-hand caller retry through the installed fetch guard after a transient Groq 429", async () => {
+    process.env.APEX_PROVIDER_MAX_REQUESTS_GROQ = "10";
+    process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GROQ = "0";
+    process.env.APEX_EXTERNAL_MAX_REQUESTS_PER_SCOPE = "100";
+
+    const nativeFetch = globalThis.fetch;
+    let upstreamCalls = 0;
+    globalThis.fetch = (async () => {
+      upstreamCalls += 1;
+      if (upstreamCalls === 1) {
+        return new Response(JSON.stringify({ error: { code: "rate_limit_exceeded" } }), {
+          status: 429,
+          headers: {
+            "retry-after": "0",
+            "x-ratelimit-limit-requests": "1000",
+            "x-ratelimit-remaining-requests": "999",
+          },
+        });
+      }
+      return new Response("", { status: 200 });
+    }) as typeof fetch;
+
+    const { installExternalQuotaGuard } = await import("../lib/provider-gate");
+    installExternalQuotaGuard();
+
+    const first = await withProviderRetryOwnership("groq", "caller", () =>
+      globalThis.fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: { Authorization: "Bearer right-hand-test-key" },
+        body: "{}",
+      }),
+    );
+    const second = await globalThis.fetch(
+      "https://api.groq.com/openai/v1/chat/completions",
+      {
+        method: "POST",
+        headers: { Authorization: "Bearer right-hand-test-key" },
+        body: "{}",
+      },
+    );
+
+    expect(first.status).toBe(429);
+    expect(second.status).toBe(200);
+    expect(upstreamCalls).toBe(2);
+    globalThis.fetch = nativeFetch;
+  });
+
   it("keeps gate-owned Groq 429 cooldowns when no caller ownership is declared", async () => {
     process.env.APEX_PROVIDER_MAX_REQUESTS_GROQ = "10";
     process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GROQ = "0";
