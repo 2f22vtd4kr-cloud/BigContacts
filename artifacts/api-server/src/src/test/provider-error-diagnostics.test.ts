@@ -58,4 +58,11 @@ describe("provider error diagnostics", () => {
     expect(summary).not.toHaveProperty("errorMessage");
     expect(JSON.stringify(summary)).not.toContain("secret provider response must not be logged");
   });
+
+  it("keeps malformed provider bodies shape-only", () => {
+    const summary = summarizeProviderBody("upstream secret provider message");
+    expect(summary.bodyKind).toBe("text");
+    expect(summary).not.toHaveProperty("errorMessage");
+    expect(JSON.stringify(summary)).not.toContain("upstream secret provider message");
+  });
 });
