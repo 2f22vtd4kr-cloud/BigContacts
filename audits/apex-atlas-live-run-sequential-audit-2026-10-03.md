@@ -203,3 +203,33 @@ Apex Atlas remains an **AI-driven adaptive research system**, not a scripted sea
 - The canonical continuation route and recovery guard no longer emit retired Mistral/Gemini Right-hand labels; the route still mounts the durable Groq Right-hand and Groq Investigator path.
 - No provider request, Atlas launch, recovery, or Replit secret access was performed for this implementation.
 - **Verification:** the PR's Netlify deploy preview reached `success`. No GitHub Actions backend run was exposed for the PR head, so full API typecheck/Vitest execution remains **unverified in this environment**. Do not call this change backend-test-green or live-certified until those checks are actually observed.
+
+## 027 — Post-#465 source audit and remaining control-plane remediation
+
+After PR #465 was merged to main, a fresh source audit found two additional local defects in the canonical target-research path. These are code/configuration defects, not provider-capacity findings.
+
+### Defect A — Groq Investigator request contract was still wrong for GPT-OSS
+
+`artifacts/api-server/src/src/lib/agentic-web-research-core.ts` was sending `reasoning_format:"hidden"` to both Qwen 3.8 and GPT-OSS models. Current Groq documentation states that `reasoning_format` is supported for Qwen 3.8, while GPT-OSS 20B/120B do not support it; GPT-OSS must use `include_reasoning:false` instead. The API also makes `include_reasoning` and `reasoning_format` mutually exclusive.
+
+Remediation on branch `fix/groq-investigator-control-plane`: Qwen 3.8 uses `reasoning_effort` + `reasoning_format:"hidden"`; GPT-OSS 20B/120B use `reasoning_effort` + `include_reasoning:false`; hard cognitive tasks route to GPT-OSS 120B before smaller/fast models; discovery/contact favor Qwen 3.8; Investigator key availability recognizes the full role-scoped pool; regression tests assert both model-specific contracts and backup-key behavior.
+
+### Defect B — canonical target research still contained a hidden Gemini verification path
+
+`agentic-web-research.ts` was using `runGeminiEvidenceProbe` at terminal/verify/falsify checkpoints and carried stale Gemini control labels. That violated the canonical role boundary after the Groq migration: verification work must remain inside the model-owned Investigator trajectory, followed by the normal non-browsing Groq Right-hand → Groq Boss oversight boundary.
+
+Remediation: removed the hidden Gemini evidence-probe call; blocked terminal claims now return to the normal Investigator → Right-hand → Boss control loop; provider-neutral `research-objective.ts` now validates Boss redirects; canonical target-loop Gemini labels were removed; the Bureau specialist capability roster now names actual canonical tools instead of retired Perplexity labels.
+
+### Defect C — episode boundary was one act late
+
+The checkpoint policy maximum is 5 actions, but the target loop evaluated it using the count before adding the just-completed act. Remediation passes `actionsSinceCheckpoint + 1`, so a five-act episode is reviewed at five acts rather than six.
+
+### Architecture conclusion
+
+The target loop is now: human objective → Groq Boss control → Groq Investigator chooses each research act → deterministic tools/provenance/intelligence → episode checkpoint → Groq Right-hand advisory review → Groq Boss continue/redirect/stop → next Investigator act, with deterministic terminal/evidence gates.
+
+This preserves model agency while making expensive control calls episodic rather than per-search. Training-derived model knowledge remains in hypothesis/planning; it is never treated as evidence for identity, wealth, ownership, contact details, or current role. Research state is represented as evidence, hypotheses, contradictions, source lineage, action yield, information gain, and open questions rather than a fixed search script.
+
+Current Groq documentation confirms Qwen 3.8 supports reasoning, JSON Schema, and tool use, while GPT-OSS 20B/120B require `include_reasoning` instead of `reasoning_format`; strict JSON Schema is supported by Qwen 3.8 and GPT-OSS 20B/120B.
+
+No live provider request, Replit secret access, Atlas launch, or recovery was performed for these source remediations. Backend typecheck/Vitest remain unverified until an actual backend execution surface exposes those results. The next live Atlas launch still requires separate explicit authorization.
