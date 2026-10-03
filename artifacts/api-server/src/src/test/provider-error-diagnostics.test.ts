@@ -55,6 +55,7 @@ describe("provider error diagnostics", () => {
 
     expect(summary.errorCode).toBe("INVALID_ARGUMENT");
     expect(summary.errorMessageChars).toBe(43);
+    expect(summary).not.toHaveProperty("errorMessage");
     expect(JSON.stringify(summary)).not.toContain("secret provider response must not be logged");
   });
 });
