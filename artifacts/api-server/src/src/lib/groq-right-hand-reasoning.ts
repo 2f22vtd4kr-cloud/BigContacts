@@ -244,7 +244,77 @@ function compactCase(file: ResearchCaseFile): string {
     bossPlan,
   }, null, 2);
 }
-  const user = boundedDiscoveryPrompt(input.file, input.iteration);
+type DiscoveryCompactProfile = {
+  reportCount: number; candidateCount: number; candidateRelevanceChars: number;
+  reportSummaryChars: number; reportFindingCount: number; reportFindingChars: number;
+  reportCandidateCount: number; reportCandidateChars: number; reportSourceCount: number;
+  reportSourceChars: number; reportQuestionCount: number; reportQuestionChars: number;
+  openQuestionCount: number; openQuestionChars: number; decisionCount: number; decisionChars: number;
+};
+
+const DISCOVERY_COMPACT_PROFILES: readonly DiscoveryCompactProfile[] = [
+  { reportCount: 6, candidateCount: 12, candidateRelevanceChars: 280, reportSummaryChars: 420, reportFindingCount: 8, reportFindingChars: 240, reportCandidateCount: 8, reportCandidateChars: 160, reportSourceCount: 6, reportSourceChars: 320, reportQuestionCount: 6, reportQuestionChars: 220, openQuestionCount: 8, openQuestionChars: 240, decisionCount: 6, decisionChars: 320 },
+  { reportCount: 4, candidateCount: 8, candidateRelevanceChars: 220, reportSummaryChars: 300, reportFindingCount: 5, reportFindingChars: 180, reportCandidateCount: 5, reportCandidateChars: 140, reportSourceCount: 4, reportSourceChars: 260, reportQuestionCount: 4, reportQuestionChars: 180, openQuestionCount: 6, openQuestionChars: 180, decisionCount: 4, decisionChars: 240 },
+  { reportCount: 2, candidateCount: 5, candidateRelevanceChars: 160, reportSummaryChars: 220, reportFindingCount: 3, reportFindingChars: 140, reportCandidateCount: 4, reportCandidateChars: 120, reportSourceCount: 3, reportSourceChars: 220, reportQuestionCount: 3, reportQuestionChars: 160, openQuestionCount: 4, openQuestionChars: 160, decisionCount: 3, decisionChars: 200 },
+];
+
+function compactOrgFootprint(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const compacted: Record<string, unknown> = {};
+  for (const [key, raw] of Object.entries(value as Record<string, unknown>).slice(0, 12)) {
+    if (typeof raw === "boolean" || typeof raw === "number") compacted[key] = raw;
+    else if (typeof raw === "string") compacted[key] = clip(raw, 180);
+  }
+  return compacted;
+}
+
+function compactDiscovery(file: DiscoveryCaseFile, profile: DiscoveryCompactProfile = DISCOVERY_COMPACT_PROFILES[0]!): string {
+  const reports = file.investigatorReports.slice(-profile.reportCount).map((report) => ({
+    id: report.id, lane: report.lane, provider: report.provider, status: report.status, iteration: report.iteration,
+    summary: clip(report.summary, profile.reportSummaryChars),
+    findings: clipStrings(report.findings, profile.reportFindingCount, profile.reportFindingChars),
+    candidateNames: clipStrings(report.candidateNames, profile.reportCandidateCount, profile.reportCandidateChars),
+    sourceUrls: clipStrings(report.sourceUrls, profile.reportSourceCount, profile.reportSourceChars),
+    nextQuestions: clipStrings(report.nextQuestions, profile.reportQuestionCount, profile.reportQuestionChars),
+    error: clip(report.error, 180),
+  }));
+  return JSON.stringify({
+    humanBrief: { objective: clip(file.humanBrief.objective, 420), motivation: clip(file.humanBrief.motivation, 220), geography: clip(file.humanBrief.geography, 180), exclusions: clipStrings(file.humanBrief.exclusions, 6, 160) },
+    bossPremise: clip(file.bossPremise, 360),
+    investigationRules: clipStrings(file.investigationRules, 6, 200),
+    candidateLanes: clipStrings(file.candidateLanes, 8, 160),
+    initialResearch: { status: file.initialResearch.status, researchResponse: clip(file.initialResearch.researchResponse, 700), bossCommentary: clip(file.initialResearch.bossCommentary, 360), sourceUrls: clipStrings(file.initialResearch.sourceUrls, 6, 280) },
+    investigatorReports: reports,
+    currentProgress: { reportCount: file.currentProgress.reportCount, completedLanes: clipStrings(file.currentProgress.completedLanes, 8, 120), openQuestions: clipStrings(file.currentProgress.openQuestions, profile.openQuestionCount, profile.openQuestionChars), lastReviewedBy: file.currentProgress.lastReviewedBy },
+    discoveredCandidates: file.discoveredCandidates.slice(0, profile.candidateCount).map((candidate) => ({ name: clip(candidate.name, 140), type: candidate.type, relevance: clip(candidate.relevance, profile.candidateRelevanceChars), reachability: clip(candidate.reachability, 180), sourceUrls: clipStrings(candidate.sourceUrls, 3, 280), state: candidate.state })),
+    orgFootprint: compactOrgFootprint(file.orgFootprint),
+    decisionLog: file.decisionLog.slice(-profile.decisionCount).map((entry) => ({ iteration: entry.iteration, decision: clip(entry.decision, profile.decisionChars), reason: clip(entry.reason, profile.decisionChars) })),
+  }, null, 2);
+}
+
+function compactDiscoveryEmergency(file: DiscoveryCaseFile): string {
+  const newestReport = file.investigatorReports.at(-1);
+  return JSON.stringify({
+    humanBrief: { objective: clip(file.humanBrief.objective, 500), geography: clip(file.humanBrief.geography, 160) },
+    bossPremise: clip(file.bossPremise, 320),
+    currentProgress: { reportCount: file.currentProgress.reportCount, completedLanes: clipStrings(file.currentProgress.completedLanes, 6, 100), openQuestions: clipStrings(file.currentProgress.openQuestions, 4, 140), lastReviewedBy: file.currentProgress.lastReviewedBy },
+    latestInvestigatorReport: newestReport ? { id: newestReport.id, lane: newestReport.lane, iteration: newestReport.iteration, summary: clip(newestReport.summary, 260), findings: clipStrings(newestReport.findings, 4, 150), candidateNames: clipStrings(newestReport.candidateNames, 5, 120), sourceUrls: clipStrings(newestReport.sourceUrls, 3, 220), nextQuestions: clipStrings(newestReport.nextQuestions, 3, 140) } : null,
+    discoveredCandidates: file.discoveredCandidates.slice(0, 5).map((candidate) => ({ name: clip(candidate.name, 120), type: candidate.type, relevance: clip(candidate.relevance, 160), state: candidate.state })),
+  }, null, 2);
+}
+
+function boundedDiscoveryPrompt(file: DiscoveryCaseFile, iteration: number): string {
+  const prefix = `Iteration ${iteration}. Recommend the most useful next research direction from the existing discovery frontier.\nDISCOVERY CASE:\n`;
+  const suffix = `\n\nReturn {"decision":"...","reason":"...","focusLanes":["..."],"confidence":0.0}.`;
+  const budget = MAX_PROMPT_CHARS - 1024;
+  for (const profile of DISCOVERY_COMPACT_PROFILES) {
+    const prompt = prefix + compactDiscovery(file, profile) + suffix;
+    if (prompt.length <= budget) return prompt;
+  }
+  const emergency = prefix + compactDiscoveryEmergency(file) + suffix;
+  return emergency.length <= budget ? emergency : emergency.slice(0, budget);
+}
+export function getGroqRightHandStatus(): GroqRightHandStatus { return { configured: keyEntries().length > 0, model: GROQ_RIGHT_HAND_MODEL, fallbackModels: [...GROQ_RIGHT_HAND_FALLBACK_MODELS], endpoint: GROQ_RIGHT_HAND_CHAT_API, role: "right_hand_advisor", capability: "case_file_reasoning_only", provider: "groq" }; }
 type GroqReadinessAttemptDiagnostic = {
   keyName: string;
   keyFingerprint: string;
@@ -379,7 +449,7 @@ export async function runGroqRightHandReadiness(): Promise<{
 }
 
 export async function runGroqRightHandCaseReasoning(input: { file: ResearchCaseFile; iteration: number }): Promise<GroqRightHandCaseReasoningResult> { const queued = input.file.actionQueue.filter((action) => action.status === "queued"); const system = "You are Apex Atlas Right Hand. Reason only over the supplied case file. Never browse, use external research, or invent evidence, contacts, people, URLs, or facts. Recommend exactly one existing queued action. Return JSON only."; const user = `Iteration ${input.iteration}. Identify what is newly unresolved, which contact vectors are still pending, and the highest-leverage complementary queued action.\nCASE:\n${compactCase(input.file)}\n\nReturn {\"actionId\":\"exact queued action id\",\"decision\":\"short recommendation\",\"reason\":\"concrete case-file evidence-gap reason\",\"confidence\":0.0}.`; const result = await request(system, user, { type: "text", mime_type: "application/json", schema: { type: "object", properties: { actionId: { type: "string" }, decision: { type: "string" }, reason: { type: "string" }, confidence: { type: "number" } }, required: ["actionId", "decision", "reason", "confidence"] } }); if (result.error) return { status: "unavailable", model: result.model, actionId: null, decision: null, reason: null, confidence: null, error: result.error }; const parsed = extractJson(result.raw); const actionId = typeof parsed?.actionId === "string" ? parsed.actionId.trim() : ""; const action = queued.find((candidate) => candidate.id === actionId); const decision = typeof parsed?.decision === "string" ? parsed.decision.trim() : ""; const reason = typeof parsed?.reason === "string" ? parsed.reason.trim() : ""; const confidence = typeof parsed?.confidence === "number" && Number.isFinite(parsed.confidence) ? Math.max(0, Math.min(1, parsed.confidence)) : null; if (!action || !decision || !reason) return { status: "unavailable", model: result.model, actionId: null, decision: null, reason: null, confidence, error: `Groq Right-hand ${result.model} returned an invalid or non-queued recommendation.` }; return { status: "completed", model: result.model, actionId: action.id, decision, reason, confidence, error: null }; }
-export async function runGroqRightHandDiscoveryAdvice(input: { file: DiscoveryCaseFile; iteration: number }): Promise<GroqRightHandDiscoveryAdviceResult> { const system = "You are Apex Atlas Right Hand for public-record discovery. Reason only over supplied discovery case evidence. Never browse, use external research, or invent people, contacts, relationships, or URLs. Return JSON only."; const user = `Iteration ${input.iteration}. Recommend the most useful next research direction from the existing discovery frontier.\nDISCOVERY CASE:\n${compactDiscovery(input.file)}\n\nReturn {\"decision\":\"...\",\"reason\":\"...\",\"focusLanes\":[\"...\"],\"confidence\":0.0}.`; const result = await request(system, user, { type: "text", mime_type: "application/json", schema: { type: "object", properties: { decision: { type: "string" }, reason: { type: "string" }, focusLanes: { type: "array", items: { type: "string" } }, confidence: { type: "number" } }, required: ["decision", "reason", "focusLanes", "confidence"] } }); if (result.error) return { status: "unavailable", model: result.model, decision: null, reason: null, focusLanes: [], confidence: null, error: result.error }; const parsed = extractJson(result.raw); if (!parsed) return { status: "unavailable", model: result.model, decision: null, reason: null, focusLanes: [], confidence: null, error: `Groq Right-hand ${result.model} returned invalid discovery JSON.` }; return { status: "completed", model: result.model, decision: typeof parsed.decision === "string" ? parsed.decision : null, reason: typeof parsed.reason === "string" ? parsed.reason : null, focusLanes: Array.isArray(parsed.focusLanes) ? parsed.focusLanes.filter((v): v is string => typeof v === "string") : [], confidence: typeof parsed.confidence === "number" ? Math.max(0, Math.min(1, parsed.confidence)) : null, error: null }; }
+export async function runGroqRightHandDiscoveryAdvice(input: { file: DiscoveryCaseFile; iteration: number }): Promise<GroqRightHandDiscoveryAdviceResult> { const system = "You are Apex Atlas Right Hand for public-record discovery. Reason only over supplied discovery case evidence. Never browse, use external research, or invent people, contacts, relationships, or URLs. Return JSON only."; const user = boundedDiscoveryPrompt(input.file, input.iteration); const result = await request(system, user, { type: "text", mime_type: "application/json", schema: { type: "object", properties: { decision: { type: "string" }, reason: { type: "string" }, focusLanes: { type: "array", items: { type: "string" } }, confidence: { type: "number" } }, required: ["decision", "reason", "focusLanes", "confidence"] } }); if (result.error) return { status: "unavailable", model: result.model, decision: null, reason: null, focusLanes: [], confidence: null, error: result.error }; const parsed = extractJson(result.raw); if (!parsed) return { status: "unavailable", model: result.model, decision: null, reason: null, focusLanes: [], confidence: null, error: `Groq Right-hand ${result.model} returned invalid discovery JSON.` }; return { status: "completed", model: result.model, decision: typeof parsed.decision === "string" ? parsed.decision : null, reason: typeof parsed.reason === "string" ? parsed.reason : null, focusLanes: Array.isArray(parsed.focusLanes) ? parsed.focusLanes.filter((v): v is string => typeof v === "string") : [], confidence: typeof parsed.confidence === "number" ? Math.max(0, Math.min(1, parsed.confidence)) : null, error: null }; }
 export async function runGroqRightHandFreeJson(userPrompt: string, systemExtra = "Reply with ONE JSON object only. Never invent contacts, people, or URLs.", responseFormat?: Record<string, unknown>): Promise<{ status: "completed" | "unavailable"; model: string; raw: string | null; error: string | null }> { const result = await request("You are the Apex Atlas Right Hand. Advise the Boss only. Never browse or act as Investigator. Never invent evidence, contacts, people, relationships, or URLs. " + systemExtra, userPrompt, responseFormat ?? { type: "text", mime_type: "application/json", schema: { type: "object" } }); return result.raw ? { status: "completed", model: result.model, raw: result.raw, error: null } : { status: "unavailable", model: result.model, raw: null, error: result.error }; }
 export async function runGroqRightHandFinalReview(prompt: string): Promise<{ status: "completed" | "unavailable"; model: string; raw: string | null; error: string | null }> { return runGroqRightHandFreeJson(prompt, "You are the Apex Atlas Right Hand reviewing final public-contact evidence. Return ONE JSON object only. Never invent contacts, people, or URLs."); }
 export type GeminiRightHandResultAction = BureauAction;
