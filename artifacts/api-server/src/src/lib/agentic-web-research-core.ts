@@ -243,6 +243,34 @@ async function toolWebSearch(query: string, provider: "serper" | "tavily" | "exa
 async function toolVisit(url: string, signal?: AbortSignal): Promise<{ observation: string; status: "success" | "http_error" | "timeout" | "error" | "cancelled"; observedUrl: string | null }> { try { const response = await safeOutboundFetch(url, { signal: signal ?? AbortSignal.timeout(15_000), headers: { "User-Agent": "Apex-Atlas/1.0", Accept: "text/html,application/xhtml+xml,application/pdf;q=0.9,*/*;q=0.8" }, redirect: "manual" }); const location = response.headers.get("location"); if (!response.ok) return { observation: `HTTP ${response.status} from ${url}${location ? `\nREDIRECT_LOCATION: ${location}` : ""}`, status: "http_error", observedUrl: null }; const raw = await readResponseTextCapped(response, signal); const facts = extractContactFactsFromHtml(raw); const body = stripHtml(raw); const boundedBody = body.slice(0, MAX_OBS); return { observation: `${facts.length ? `CONTACT FACTS (observed, not attributed):\n${facts.join("\n")}\n\n` : ""}PAGE ${url}\n${boundedBody}${body.length > MAX_OBS ? "\n[PAGE OBSERVATION TRUNCATED; SOURCE URL RETAINED FOR REVISIT]" : ""}`, status: "success", observedUrl: normalizedUrl(url) }; } catch (error: any) { if (signal?.aborted) return { observation: `visit cancelled for ${url}`, status: "cancelled", observedUrl: null }; const timed = error?.name === "TimeoutError" || /timeout/i.test(String(error?.message || "")); return { observation: `visit failed for ${url}: ${error?.message || "error"}`, status: timed ? "timeout" : "error", observedUrl: null }; } }
 function extractJsonObject(raw: string): string | null { const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)```/i)?.[1]?.trim(); const source = fenced || raw.trim(); const start = source.indexOf("{"), end = source.lastIndexOf("}"); return start >= 0 && end > start ? source.slice(start, end + 1) : null; }
 function parseAction(raw: string): AgentAction | null { const json = extractJsonObject(raw); if (!json) return null; try { const value = JSON.parse(json) as Record<string, unknown>; const action = cleanText(value.action, 40).toLowerCase(); const meta = { hypothesis: cleanText(value.hypothesis, 500) || undefined, purpose: cleanText(value.purpose, 500) || undefined, expectedInformationGain: typeof value.expectedInformationGain === "number" && Number.isFinite(value.expectedInformationGain) ? Math.max(0, Math.min(1, value.expectedInformationGain)) : undefined }; if (action === "parallel_web_search" && Array.isArray(value.searches)) { const searches = value.searches.map((item) => item && typeof item === "object" ? item as Record<string, unknown> : null).filter(Boolean).map((item) => ({ query: cleanText(item!.query, 300), provider: cleanText(item!.provider, 20), locale: cleanText(item!.locale, 16) || undefined, market: cleanText(item!.market, 16) || undefined, purpose: cleanText(item!.purpose, 500) || undefined })).filter((item) => item.query && ["serper","tavily","exa"].includes(item.provider)).slice(0, 4) as Array<{ query: string; provider: "serper" | "tavily" | "exa"; locale?: string; market?: string; purpose?: string }>; if (searches.length >= 2) return { action: "parallel_web_search", searches, thought: cleanText(value.thought, 500) || undefined, ...meta }; } if (action === "web_search" && cleanText(value.query, 300) && ["serper", "tavily", "exa"].includes(cleanText(value.provider, 20))) return { action: "web_search", query: cleanText(value.query, 300), provider: cleanText(value.provider, 20) as "serper" | "tavily" | "exa", locale: cleanText(value.locale, 16) || undefined, market: cleanText(value.market, 16) || undefined, thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "visit" && isSafeHttpUrl(cleanText(value.url, 500))) return { action: "visit", url: cleanText(value.url, 500), thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "footprint_email" && cleanText(value.email, 120).includes("@")) return { action: "footprint_email", email: cleanText(value.email, 120), thought: cleanText(value.thought, 500) || undefined, ...meta }; const username = cleanText(value.username, 80).replace(/^@/, ""); if (action === "footprint_username_maigret" && username.length >= 2) return { action: "footprint_username_maigret", username, thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "footprint_username_sherlock" && username.length >= 2) return { action: "footprint_username_sherlock", username, thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "domain_lookup" && cleanText(value.domain, 120).includes(".")) return { action: "domain_lookup", domain: cleanText(value.domain, 120).replace(/^https?:\/\//i, "").split("/")[0]!, thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "registry_search" && cleanText(value.query, 200).length >= 2 && cleanText(value.registry, 60)) return { action: "registry_search", query: cleanText(value.query, 200), registry: cleanText(value.registry, 60).toLowerCase(), thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "harvest_domain" && cleanText(value.domain, 120).includes(".")) return { action: "harvest_domain", domain: cleanText(value.domain, 120).replace(/^https?:\/\//i, "").split("/")[0]!, thought: cleanText(value.thought, 500) || undefined, ...meta }; const spiderTarget = cleanText(value.target, 300); const spiderTargetType = cleanText(value.targetType, 20).toLowerCase(); const spiderProfile = cleanText(value.profile, 40).toLowerCase(); if (action === "footprint_spiderfoot" && spiderTarget.length >= 2 && ["domain","hostname","ip","email","username","person","asn"].includes(spiderTargetType) && ["identity-expansion","domain-infrastructure","organization-footprint","contact-adjacent","broad-osint"].includes(spiderProfile)) return { action: "footprint_spiderfoot", target: spiderTarget, targetType: spiderTargetType as SpiderFootTargetType, profile: spiderProfile as SpiderFootProfile, thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "browser_fetch" && isSafeHttpUrl(cleanText(value.url, 500))) return { action: "browser_fetch", url: cleanText(value.url, 500), thought: cleanText(value.thought, 500) || undefined, ...meta }; if (action === "done") { const findings: AgenticFinding[] = []; for (const rawFinding of Array.isArray(value.findings) ? value.findings : []) { if (!rawFinding || typeof rawFinding !== "object") continue; const f = rawFinding as Record<string, unknown>; const vector = cleanText(f.vectorType, 30).toLowerCase(); const valueText = cleanText(f.value, 500); const sourceUrls = filterClaimUrls(Array.isArray(f.sourceUrls) ? f.sourceUrls.filter((u): u is string => typeof u === "string") : []).map(normalizedUrl).filter((u): u is string => Boolean(u)); if (!valueText || !["email", "phone", "linkedin", "website", "social", "other"].includes(vector) || (vector !== "other" && sourceUrls.length === 0)) continue; let finalValue = valueText; if (vector === "email") { const e = sanitizePublicEmail(valueText); if (!e || isTrashContactValue("email", e)) continue; finalValue = e; } if (vector === "phone") { const p = sanitizePublicPhone(valueText); if (!p || isTrashContactValue("phone", p)) continue; finalValue = p; } if (vector === "website" && !isSafeHttpUrl(finalValue)) continue; findings.push({ vectorType: vector as AgenticFinding["vectorType"], value: finalValue, personName: typeof f.personName === "string" ? f.personName.trim().slice(0, 120) : null, role: typeof f.role === "string" ? f.role.trim().slice(0, 120) : null, scope: f.scope === "candidate" || f.scope === "organization" ? f.scope : "unknown", sourceUrls, note: cleanText(f.note, 400) || "Investigator-authored finding", promotionDecision: f.promotionDecision === "promote" || f.promotionDecision === "reject" ? f.promotionDecision : undefined, promotionReason: cleanText(f.promotionReason, 500) || undefined }); } return { action: "done", findings, thought: cleanText(value.thought, 500) || undefined, ...meta }; } } catch { return null; } return null; }
+function groqInvestigatorReasoningEffort(model: string, task: ResearchCognitiveTask): "low" | "medium" | "high" {
+  const configured = (process.env.GROQ_AGENTIC_REASONING_EFFORT || "").trim().toLowerCase();
+  const requested = configured === "low" || configured === "medium" || configured === "high" ? configured : "";
+  const defaultEffort = task === "contradiction_resolution" || task === "final_adjudication" ? "high" : task === "contact_extraction" ? "low" : "medium";
+  return (requested || defaultEffort) as "low" | "medium" | "high";
+}
+
+function groqInvestigatorCompletionBudget(task: ResearchCognitiveTask): number {
+  if (task === "contradiction_resolution" || task === "final_adjudication") return 1536;
+  if (task === "contact_extraction") return 768;
+  return 1024;
+}
+
+export function buildGroqInvestigatorRequestBody(input: { model: string; prompt: string; cognitiveTask: ResearchCognitiveTask }): Record<string, unknown> {
+  const { model, prompt, cognitiveTask } = input;
+  const reasoningSupported = /^(qwen\/qwen3\.8-27b|openai\/gpt-oss-(20b|120b))$/.test(model);
+  return {
+    model,
+    max_completion_tokens: groqInvestigatorCompletionBudget(cognitiveTask),
+    ...(reasoningSupported ? { reasoning_effort: groqInvestigatorReasoningEffort(model, cognitiveTask), include_reasoning: false } : {}),
+    response_format: structuredActionResponseFormat(model),
+    messages: [
+      { role: "system", content: apexOrientationCompact("dig_agent") + "\nReturn one JSON action object only." },
+      { role: "user", content: prompt },
+    ],
+  };
+}
+
 async function callGroqJson(prompt: string, signal: AbortSignal, cognitiveTask: ResearchCognitiveTask = "identity_resolution"): Promise<{ model: string; raw: string } | null> {
   const keys = ["GROQ_INVESTIGATOR_API_KEY", ...Array.from({ length: 5 }, (_, i) => `GROQ_INVESTIGATOR_API_KEY_${i + 1}`)].map((n) => (process.env[n] || "").trim()).filter(Boolean);
   if (!keys.length) return null;
@@ -258,16 +286,7 @@ async function callGroqJson(prompt: string, signal: AbortSignal, cognitiveTask: 
       const response = await runProviderCall({ provider: "groq", account: key, signal }, () => safeOutboundFetch("https://api.groq.com/openai/v1/chat/completions", {
         method: "POST",
         headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model,
-          max_completion_tokens: 768,
-          ...(/^(qwen\/qwen3\.8|openai\/gpt-oss-)/.test(model) ? { reasoning_effort: (process.env.GROQ_AGENTIC_REASONING_EFFORT || "medium"), reasoning_format: "hidden" } : {}),
-          response_format: structuredActionResponseFormat(model),
-          messages: [
-            { role: "system", content: apexOrientationCompact("dig_agent") + "\nReturn one JSON action object only." },
-            { role: "user", content: workingPrompt },
-          ],
-        }),
+        body: JSON.stringify(buildGroqInvestigatorRequestBody({ model, prompt: workingPrompt, cognitiveTask })),
         signal,
       }));
       if (!response.ok) {
@@ -327,6 +346,11 @@ const AGENTIC_STRUCTURED_SCHEMA = {
     hypothesis: { type: ["string","null"] },
     purpose: { type: ["string","null"] },
     expectedInformationGain: { type: ["number","null"], minimum: 0, maximum: 1 },
+    locale: { type: ["string","null"] },
+    market: { type: ["string","null"] },
+    target: { type: ["string","null"] },
+    targetType: { type: ["string","null"], enum: ["domain","hostname","ip","email","username","person","asn",null] },
+    profile: { type: ["string","null"], enum: ["identity-expansion","domain-infrastructure","organization-footprint","contact-adjacent","broad-osint",null] },
     searches: { type: "array", items: { type: "object", properties: { query: { type: "string" }, provider: { type: "string", enum: ["serper","tavily","exa"] }, locale: { type: ["string","null"] }, market: { type: ["string","null"] }, purpose: { type: ["string","null"] } }, required: ["query","provider","locale","market","purpose"], additionalProperties: false } },
     findings: {
       type: "array",
@@ -348,7 +372,7 @@ const AGENTIC_STRUCTURED_SCHEMA = {
       }
     }
   },
-  required: ["action","query","provider","url","email","username","domain","registry","thought","hypothesis","purpose","expectedInformationGain","searches","findings"],
+  required: ["action","query","provider","url","email","username","domain","registry","thought","hypothesis","purpose","expectedInformationGain","locale","market","target","targetType","profile","searches","findings"],
   additionalProperties: false
 } as const;
 
