@@ -80,6 +80,29 @@ describe("Groq Investigator provider boundary", () => {
     expect(calls).toBe(1);
   });
 
+  it("accepts an Investigator backup key when the base slot is absent", async () => {
+    process.env.GROQ_INVESTIGATOR_API_KEY_1 = "test-groq-investigator-backup-key";
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (_input, init) => {
+      const body = JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>;
+      expect(body.model).toBe("qwen/qwen3.8-27b");
+      expect(body.include_reasoning).toBe(false);
+      expect(body).not.toHaveProperty("reasoning_format");
+      return new Response(JSON.stringify({
+        choices: [{ message: { content: JSON.stringify({ action: "done", query: null, provider: null, url: null, email: null, username: null, domain: null, registry: null, thought: "done", hypothesis: null, purpose: null, expectedInformationGain: 0, searches: [], findings: [] }) } }],
+      }), { status: 200, headers: { "content-type": "application/json" } });
+    });
+
+    const result = await runAgenticWebResearch({
+      targetName: "Example",
+      investigatorLlm: "groq",
+      maxIterations: 1,
+      hardTimeoutMs: 30_000,
+    });
+
+    expect(result.status).toBe("completed");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   it("uses the Qwen 3.8 primary routing model without provider fallback", async () => {
     process.env.GROQ_INVESTIGATOR_API_KEY = "test-groq-investigator-key";
     const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (_input, init) => {
