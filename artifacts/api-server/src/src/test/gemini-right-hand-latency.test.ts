@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getMistralRightHandLatencyConfig } from "../lib/mistral-right-hand-reasoning";
+import { getMistralRightHandLatencyConfig } from "../lib/groq-right-hand-reasoning";
 
 describe("Mistral Right-hand latency controls", () => {
   it("keeps request and overall deadlines bounded", () => {
