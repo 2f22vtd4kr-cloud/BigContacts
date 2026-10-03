@@ -20,7 +20,7 @@ for (const marker of required) {
   if (!source.includes(marker)) throw new Error(`agentic LLM efficiency guard failed: missing ${marker}`);
 }
 
-const telemetryCount = (source.match(/recordAgenticLlmAttempt\\(\\{/g) || []).length;
+const telemetryCount = (source.match(/recordAgenticLlmAttempt\(\{/g) || []).length;
 if (telemetryCount < 2) throw new Error(`agentic LLM efficiency guard failed: expected provider success+failure telemetry, found ${telemetryCount}`);
 
 // Provider choice is fixed by the Boss-selected Investigator adapter.
