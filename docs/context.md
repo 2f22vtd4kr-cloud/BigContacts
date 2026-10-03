@@ -713,3 +713,44 @@ Implementation at main now defines:
 Regression coverage was added in `artifacts/api-server/src/src/test/mistral-right-hand.test.ts` for the canonical model/fallback policy and credential non-disclosure. The canonical model-boundary script should also assert the cross-family fallback chain.
 
 No live Mistral call or Atlas launch was made to validate the new fallback. Validation must remain CI/static/test-only until the user explicitly authorizes another provider call. The current GitHub push triggered the Five Consecutive Full Code Audits workflow; its run was pending at the last check.
+
+## 2026-10-03 CURRENT CANONICAL MASTER STATE — GROQ CONTROL PLANE
+
+Superseding all earlier provider-role sections above, current canonical main uses Groq for all three AI control/research roles:
+- Boss: Groq openai/gpt-oss-120b with openai/gpt-oss-20b fallback; credentials GROQ_BOSS_API_KEY and _1 through _10.
+- Right-hand: Groq openai/gpt-oss-120b with openai/gpt-oss-20b fallback; credentials GROQ_RIGHT_HAND_API_KEY plus _2 through _5.
+- Investigator: Groq-only; credentials GROQ_INVESTIGATOR_API_KEY plus _1 through _5.
+- Gemini and Mistral are retired from the canonical active control plane. Historical audit sections may mention them as prior failures/migrations only.
+
+Important merged commits:
+- PR #465 merged the explicit Groq Right-hand retry-ownership boundary.
+- PR #466 merged as e92135a1b8332a5f13e28e8f0cc576f78eaba8f corrected the remaining canonical Groq Investigator runtime contract and cognitive routing.
+- 2026-10-03 audit update commit: 3cf795028944dad30436cee55d1cb0a015767454.
+
+PR #466 source corrections:
+- GPT-OSS Investigator no longer sends reasoning_format. It uses include_reasoning:false, matching the current Groq GPT-OSS contract.
+- Strict Investigator structured output now exposes every action field already parsed by the runtime, including target/targetType/profile for SpiderFoot and locale/market for search.
+- Investigator reasoning budget is cognitive-task aware: ordinary discovery/identity medium, contact extraction low, contradiction/final adjudication high, with only validated low/medium/high environment overrides.
+- Cognitive routing is state-driven from the Research Intelligence frontier and does not choose the research action. The model still owns the next research action; deterministic code only selects an appropriate reasoning budget/model family and enforces evidence law.
+- Regression coverage and scripts/check-agentic-runtime.mjs now enforce the provider request/schema invariants.
+
+Architecture law:
+- Human objective → Groq Boss → model-owned Investigator research loop → immutable observations/provenance → Research Intelligence → Groq Right-hand oversight when the control loop requires it → Groq Boss → next model-owned episode → deterministic terminal gate.
+- Do not convert this into a fixed source/tool sequence. The state-of-the-art target is deterministic evidence law surrounding a model-owned research policy.
+- Search results are leads, not proof. A page must be observed before its content can support a finding. Identity, scope, source independence, contradictions, and contact attribution are deterministic admission concerns.
+- Training knowledge is useful for hypothesis/query generation but is never itself evidence for identity, wealth, ownership, role, or contact.
+- Prompt context should remain compact and structured while durable case state remains complete outside the model prompt.
+
+Live certification boundary:
+- The imported Replit project remains unavailable through the connected Replit app list in this environment.
+- No backend CI status is currently exposed for the latest merged source in the connected GitHub status surface.
+- No live Groq request was made for PR #466 and no new Atlas launch was made after job 78d032e0-6878-4276-aeb5-5ac5371b11e9.
+- The one-launch authorization from the 2026-10-03 sequential audit is consumed. A new canonical Atlas launch requires separate explicit user authorization.
+- Therefore current source architecture is corrected and reviewed, but Apex is not yet live-certified end-to-end.
+
+Current model/API references used for the correction:
+- https://console.groq.com/docs/reasoning
+- https://console.groq.com/docs/structured-outputs
+- https://console.groq.com/docs/model/openai/gpt-oss-120b
+- https://console.groq.com/docs/model/qwen/qwen3.8-27b
+- https://console.groq.com/docs/prompt-caching
