@@ -20,8 +20,10 @@ describe("Groq Investigator provider boundary", () => {
   it("uses the Qwen 3.8 primary routing model without provider fallback", async () => {
     process.env.GROQ_INVESTIGATOR_API_KEY = "test-groq-investigator-key";
     const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (_input, init) => {
-      const body = JSON.parse(String(init?.body ?? "{}")) as { model?: string };
+      const body = JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>;
       expect(body.model).toBe("qwen/qwen3.8-27b");
+      expect(body.reasoning_format).toBe("hidden");
+      expect(body).not.toHaveProperty("include_reasoning");
       return new Response(JSON.stringify({
         choices: [{ message: { content: JSON.stringify({ action: "done", query: null, provider: null, url: null, email: null, username: null, domain: null, registry: null, thought: "done", hypothesis: null, purpose: null, expectedInformationGain: 0, searches: [], findings: [] }) } }],
       }), { status: 200, headers: { "content-type": "application/json" } });
@@ -39,15 +41,12 @@ describe("Groq Investigator provider boundary", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
-  it("uses the provider-correct reasoning contract for Qwen and GPT-OSS", async () => {
+  it("uses the GPT-OSS reasoning contract for hard Investigator tasks", async () => {
     process.env.GROQ_INVESTIGATOR_API_KEY = "test-groq-investigator-key";
     const calls: Array<{ model: string; body: Record<string, unknown> }> = [];
     const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (_input, init) => {
       const body = JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>;
       calls.push({ model: String(body.model), body });
-      if (body.model === "qwen/qwen3.8-27b") {
-        return new Response(JSON.stringify({ error: { message: "force routing fallback" } }), { status: 400 });
-      }
       return new Response(JSON.stringify({
         choices: [{ message: { content: JSON.stringify({ action: "done", query: null, provider: null, url: null, email: null, username: null, domain: null, registry: null, thought: "done", hypothesis: null, purpose: null, expectedInformationGain: 0, searches: [], findings: [] }) } }],
       }), { status: 200, headers: { "content-type": "application/json" } });
@@ -62,7 +61,7 @@ describe("Groq Investigator provider boundary", () => {
     });
 
     expect(result.status).toBe("completed");
-    expect(calls.map((call) => call.model)).toEqual(["openai/gpt-oss-120b", "openai/gpt-oss-120b"]);
+    expect(calls.map((call) => call.model)).toEqual(["openai/gpt-oss-120b"]);
     expect(calls[0]?.body).toMatchObject({ reasoning_effort: "medium", include_reasoning: false });
     expect(calls[0]?.body).not.toHaveProperty("reasoning_format");
     expect(fetchMock).toHaveBeenCalledTimes(1);
