@@ -93,7 +93,7 @@ describe("Mistral Right-hand control-plane boundary", () => {
       .mockResolvedValueOnce(new Response(JSON.stringify({ data: [{ id: MISTRAL_RIGHT_HAND_MODEL }] }), { status: 200 }))
       .mockResolvedValueOnce(new Response(JSON.stringify({
         error: { code: "too_many_requests", message: "daily quota exceeded for free tier" },
-      }), { status: 429, headers: { "retry-after": "10" } }));
+      }), { status: 429, headers: { "retry-after": "10", "x-ratelimit-remaining": "0", "x-ratelimit-limit": "1", "x-ratelimit-reset": "60" } }));
     const result = await runMistralRightHandFreeJson("Return JSON.");
     expect(result.status).toBe("unavailable");
     expect(result.error).not.toContain("[object Object]");
@@ -103,7 +103,7 @@ describe("Mistral Right-hand control-plane boundary", () => {
     expect(result.error).toContain('"retryAfterHeader":"10"');
     expect(result.error).toContain('"retry429":0');
     expect(result.error).toContain('"keyFingerprint":"');
-    expect(result.error).toContain('"rateLimitHeaders":{}');
+    expect(result.error).toContain('"rateLimitHeaders":{"x-ratelimit-remaining":"0","x-ratelimit-limit":"1","x-ratelimit-reset":"60"}');
   });
 
   it("continues readiness across a failed primary credential when a secondary role-scoped key is usable", async () => {
