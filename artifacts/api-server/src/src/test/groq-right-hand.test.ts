@@ -5,6 +5,7 @@ import {
   GROQ_RIGHT_HAND_MODEL,
   getGroqRightHandStatus,
   runGroqRightHandFreeJson,
+  runGroqRightHandDiscoveryAdvice,
 } from "../lib/groq-right-hand-reasoning";
 import { summarizeProviderBody } from "../lib/provider-error-diagnostics";
 
@@ -39,6 +40,81 @@ describe("Groq Right-hand model policy", () => {
     expect(summary.errorParam).toBe("model");
     expect(summary.errorCode).toBe("rate_limit_exceeded");
     expect(summary.errorMessageDigest).toBeTruthy();
+  });
+
+  it("uses the GPT-OSS reasoning contract without the retired reasoning_format field", async () => {
+    vi.stubEnv("GROQ_RIGHT_HAND_API_KEY", "right-hand-request-shape-test-key");
+
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      const url = String(input);
+      if (url === "https://api.groq.com/openai/v1/models") {
+        return new Response(JSON.stringify({
+          data: [{ id: "openai/gpt-oss-120b" }, { id: "openai/gpt-oss-20b" }],
+        }), { status: 200 });
+      }
+      const body = JSON.parse(String(init?.body));
+      expect(body.reasoning_effort).toBe("medium");
+      expect(body.include_reasoning).toBe(false);
+      expect(body).not.toHaveProperty("reasoning_format");
+      return new Response(JSON.stringify({
+        choices: [{ message: { content: '{"decision":"proceed"}' } }],
+      }), { status: 200 });
+    });
+
+    const result = await runGroqRightHandFreeJson("Return a small JSON decision.");
+    expect(result.status).toBe("completed");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("compacts an oversized discovery context before the 20K control-plane boundary", async () => {
+    vi.stubEnv("GROQ_RIGHT_HAND_API_KEY", "right-hand-discovery-bounds-test-key");
+
+    const huge = "x".repeat(12_000);
+    const reports = Array.from({ length: 6 }, (_, index) => ({
+      id: `report-${index}`,
+      lane: `lane-${index}`,
+      provider: "groq",
+      status: "success",
+      iteration: index,
+      summary: huge,
+      findings: [huge, huge],
+      candidateNames: ["Candidate", huge],
+      sourceUrls: [`https://example.com/${huge}`],
+      nextQuestions: [huge],
+      error: null,
+    }));
+
+    const discoveryFile = {
+      humanBrief: { objective: "Find relevant public-record targets", motivation: huge, geography: huge, exclusions: [huge] },
+      bossPremise: huge,
+      investigationRules: [huge],
+      candidateLanes: [huge],
+      initialResearch: { status: "complete", researchResponse: huge, bossCommentary: huge, sourceUrls: [`https://example.com/${huge}`] },
+      investigatorReports: reports,
+      currentProgress: { reportCount: 6, completedLanes: ["lane-0"], openQuestions: [huge], lastReviewedBy: "groq_boss" },
+      discoveredCandidates: Array.from({ length: 12 }, (_, index) => ({ name: `Candidate ${index}`, type: "person", relevance: huge, reachability: huge, sourceUrls: [`https://example.com/${huge}`], state: "candidate" })),
+      orgFootprint: { description: huge, known: true, note: huge },
+      decisionLog: Array.from({ length: 8 }, (_, index) => ({ iteration: index, decision: huge, reason: huge })),
+    } as any;
+
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      const url = String(input);
+      if (url === "https://api.groq.com/openai/v1/models") {
+        return new Response(JSON.stringify({ data: [{ id: "openai/gpt-oss-120b" }] }), { status: 200 });
+      }
+      const body = JSON.parse(String(init?.body));
+      const userPrompt = body.messages.find((message: { role: string }) => message.role === "user")?.content ?? "";
+      expect(userPrompt.length).toBeLessThanOrEqual(20_000);
+      expect(userPrompt).toContain("report-5");
+      expect(body).not.toHaveProperty("reasoning_format");
+      return new Response(JSON.stringify({
+        choices: [{ message: { content: '{"decision":"continue","reason":"recent evidence","focusLanes":["lane-5"],"confidence":0.9}' } }],
+      }), { status: 200 });
+    });
+
+    const result = await runGroqRightHandDiscoveryAdvice({ file: discoveryFile, iteration: 6 });
+    expect(result.status).toBe("completed");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it("uses the primary model and advances to the bounded GPT-OSS fallback", async () => {
