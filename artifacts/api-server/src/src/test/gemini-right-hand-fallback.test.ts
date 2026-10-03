@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { GROQ_RIGHT_HAND_MODEL, getGroqRightHandStatus } from "../lib/mistral-right-hand-reasoning";
+import { GROQ_RIGHT_HAND_MODEL, getGroqRightHandStatus } from "../lib/groq-right-hand-reasoning";
 
 describe("Groq Right-hand control transport", () => {
   it("uses the canonical Mistral model and role", () => {
