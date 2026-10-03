@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { validateAtlasBossControl, validateAtlasRightHandControl } from "../lib/atlas-control-decision";
+import { buildAtlasRightHandControlPrompt, validateAtlasBossControl, validateAtlasRightHandControl } from "../lib/atlas-control-decision";
 
 const controlSource = readFileSync(resolve(process.cwd(), "src/src/lib/atlas-control-decision.ts"), "utf8");
 const bossSource = readFileSync(resolve(process.cwd(), "src/src/lib/groq-boss.ts"), "utf8");
@@ -40,6 +40,19 @@ describe("Atlas control-plane contract regression", () => {
     expect(rightHandSource).not.toContain("generativelanguage.googleapis.com");
     expect(controlSource).not.toContain("Gemini control decision");
     expect(controlSource).not.toContain("Gemini is Boss");
+  });
+
+  it("bounds the fully composed Right-hand control prompt after all framing is added", () => {
+    const prompt = buildAtlasRightHandControlPrompt({
+      investigatorReport: "LATEST REPORT " + "R".repeat(20_000) + " REPORT TAIL",
+      compactState: "CURRENT DURABLE STATE " + "S".repeat(30_000) + " STATE TAIL",
+    });
+
+    expect(prompt.length).toBeLessThanOrEqual(18_976);
+    expect(prompt).toContain("APEX ATLAS");
+    expect(prompt).toContain("LATEST REPORT");
+    expect(prompt).toContain("STATE TAIL");
+    expect(prompt).toContain("durable case state remains authoritative");
   });
 
   it("replays valid and malformed provider contracts through the real validators", () => {
