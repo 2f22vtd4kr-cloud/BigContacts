@@ -1,12 +1,12 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { getGroqBossLatencyConfig } from "./groq-boss";
-import { getMistralRightHandLatencyConfig } from "./mistral-right-hand-reasoning";
+import { getGroqRightHandLatencyConfig } from "./mistral-right-hand-reasoning";
 
 const ENV_NAMES = [
   "APEX_GROQ_BOSS_REQUEST_TIMEOUT_MS",
   "APEX_GROQ_BOSS_OVERALL_TIMEOUT_MS",
-  "APEX_MISTRAL_RIGHT_HAND_REQUEST_TIMEOUT_MS",
-  "APEX_MISTRAL_RIGHT_HAND_OVERALL_TIMEOUT_MS",
+  "APEX_GROQ_RIGHT_HAND_REQUEST_TIMEOUT_MS",
+  "APEX_GROQ_RIGHT_HAND_OVERALL_TIMEOUT_MS",
 ] as const;
 
 afterEach(() => {
@@ -14,10 +14,10 @@ afterEach(() => {
 });
 
 describe("Apex control-plane latency configuration", () => {
-  it("keeps Mistral Right-hand overall timeout bounded and above request timeout", () => {
-    process.env.APEX_MISTRAL_RIGHT_HAND_REQUEST_TIMEOUT_MS = "10000";
-    process.env.APEX_MISTRAL_RIGHT_HAND_OVERALL_TIMEOUT_MS = "55000";
-    expect(getMistralRightHandLatencyConfig()).toEqual({
+  it("keeps Groq Right-hand overall timeout bounded and above request timeout", () => {
+    process.env.APEX_GROQ_RIGHT_HAND_REQUEST_TIMEOUT_MS = "10000";
+    process.env.APEX_GROQ_RIGHT_HAND_OVERALL_TIMEOUT_MS = "55000";
+    expect(getGroqRightHandLatencyConfig()).toEqual({
       requestTimeoutMs: 10000,
       overallTimeoutMs: 55000,
       minimumOverallTimeoutMs: 10000,
@@ -36,23 +36,23 @@ describe("Apex control-plane latency configuration", () => {
   });
 
   it("preserves higher operator-configured recovery budgets within provider bounds", () => {
-    process.env.APEX_MISTRAL_RIGHT_HAND_OVERALL_TIMEOUT_MS = "150000";
+    process.env.APEX_GROQ_RIGHT_HAND_OVERALL_TIMEOUT_MS = "150000";
     process.env.APEX_GROQ_BOSS_OVERALL_TIMEOUT_MS = "150000";
-    expect(getMistralRightHandLatencyConfig().overallTimeoutMs).toBe(150000);
+    expect(getGroqRightHandLatencyConfig().overallTimeoutMs).toBe(150000);
     expect(getGroqBossLatencyConfig().overallTimeoutMs).toBe(150000);
   });
 
   it("clamps request and overall timeouts to their implementation bounds", () => {
-    process.env.APEX_MISTRAL_RIGHT_HAND_REQUEST_TIMEOUT_MS = "1000";
-    process.env.APEX_MISTRAL_RIGHT_HAND_OVERALL_TIMEOUT_MS = "1000";
+    process.env.APEX_GROQ_RIGHT_HAND_REQUEST_TIMEOUT_MS = "1000";
+    process.env.APEX_GROQ_RIGHT_HAND_OVERALL_TIMEOUT_MS = "1000";
     process.env.APEX_GROQ_BOSS_REQUEST_TIMEOUT_MS = "1000";
     process.env.APEX_GROQ_BOSS_OVERALL_TIMEOUT_MS = "1000";
 
-    const mistral = getMistralRightHandLatencyConfig();
+    const rightHand = getGroqRightHandLatencyConfig();
     const groq = getGroqBossLatencyConfig();
-    expect(mistral.requestTimeoutMs).toBe(5000);
-    expect(mistral.overallTimeoutMs).toBe(5000);
-    expect(mistral.overallTimeoutClamped).toBe(true);
+    expect(rightHand.requestTimeoutMs).toBe(5000);
+    expect(rightHand.overallTimeoutMs).toBe(5000);
+    expect(rightHand.overallTimeoutClamped).toBe(true);
     expect(groq.requestTimeoutMs).toBe(5000);
     expect(groq.overallTimeoutMs).toBe(5000);
   });
