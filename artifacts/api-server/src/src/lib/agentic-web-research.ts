@@ -166,7 +166,7 @@ export async function runAgenticWebResearch(input: RunInput): Promise<AgenticRun
        const applyOversight = async (act: CoreResult["trajectoryRecords"][number], controlTurn: number): Promise<{ stop: boolean; unavailable: boolean }> => {
          const state = intelligence.buildContext();
          const checkpoint = shouldCheckpointResearchEpisode({
-           actionsSinceCheckpoint,
+           actionsSinceCheckpoint: actionsSinceCheckpoint + 1,
            contradictionCount: state.contradictions.length,
            identityChanged: Boolean(act.findings.some((finding) => finding.personName && !knownIdentityNames.has(finding.personName.toLowerCase()))),
            highValueContact: act.findings.some((finding) => ["email", "phone", "linkedin"].includes(finding.vectorType) && Boolean(finding.personName)),
