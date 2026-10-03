@@ -76,7 +76,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
   const startedAt = Date.now(); const depth = resolveResearchDepth({ explicit: opts.researchDepth }); const configuredControlTurnCeiling = Number(process.env.APEX_ATLAS_MAX_CONTROL_TURNS ?? 16); const maxControlTurns = Math.min(64, Math.max(1, Number.isFinite(configuredControlTurnCeiling) ? Math.floor(configuredControlTurnCeiling) : 16)); const discoveryOnly = opts.discoveryOnly === true; const lockKey = opts.lockKey ?? "atlas-run"; const phaseSummary: Record<string, string> = {}; const targetLimit = Math.max(1, Math.min(25, Number(opts.targetCount ?? 3) || 3)); const configuredAtlasTimeout = Number(process.env.APEX_ATLAS_RUN_TIMEOUT_MS ?? 15 * 60 * 1000); const atlasTimeoutMs = Math.min(30 * 60 * 1000, Math.max(2 * 60 * 1000, Number.isFinite(configuredAtlasTimeout) ? configuredAtlasTimeout : 15 * 60 * 1000)); const atlasDeadline = startedAt + atlasTimeoutMs; const remainingBudget = () => atlasDeadline - Date.now(); const assertAtlasDeadline = () => { const remaining = remainingBudget(); if (remaining <= 30_000) throw new Error("Canonical Atlas global deadline reached; refusing another research/control turn."); return remaining; };
   const discoveryObjective = opts.discoveryObjective?.trim() || "Discover real named people for subsequent target-scoped public-contact research. Choose every search, page visit, registry/domain/OSINT action and stopping point yourself. Emit a person only when you can attribute the observed source to that person; use promotionDecision=promote only for an exact named-person admission candidate. Never invent a person, contact, or URL.";
   await assertAtlasJobActive(atlasJobId);
-  await updateJob(atlasJobId, { status: "running", progress: 0, total: discoveryOnly ? 1 : 4, atlasPhase: 0, atlasPhaseTotal: discoveryOnly ? 1 : 4, message: "Groq Boss opening → Mistral Right-hand review → model-owned Investigator discovery…" });
+  await updateJob(atlasJobId, { status: "running", progress: 0, total: discoveryOnly ? 1 : 4, atlasPhase: 0, atlasPhaseTotal: discoveryOnly ? 1 : 4, message: "Groq Boss opening → Groq Right-hand review → model-owned Investigator discovery…" });
   try {
     await assertAtlasJobActive(atlasJobId);
     // Canonical opening order is intentional: Groq Boss establishes the case direction
@@ -99,7 +99,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
 
     if (!boss.investigatorLlm) {
       phaseSummary.assignment = "No usable Groq-selected Investigator; fail closed.";
-      const bossFailureMessage = "Groq Boss was unavailable after bounded same-role model fallback; no Groq/Mistral Investigator fallback is permitted.";
+      const bossFailureMessage = "Groq Boss was unavailable after bounded same-role model fallback; no Groq/Groq Investigator fallback is permitted.";
       await updateJob(atlasJobId, {
         status: "failed",
         progress: 1,
@@ -149,10 +149,10 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
 
     // Boss first, independent Right-hand second. The Right-hand reviews the
     // actual Boss decision; it does not pre-steer the Boss or choose the tools.
-    const rightHandRaw = await import("./mistral-right-hand-reasoning").then(({ runMistralRightHandFreeJson }) =>
-      runMistralRightHandFreeJson(
+    const rightHandRaw = await import("./groq-right-hand-reasoning").then(({ runGroqRightHandFreeJson }) =>
+      runGroqRightHandFreeJson(
         `Review Groq Boss's opening Atlas decision before the Investigator starts. Objective: ${discoveryObjective}. Boss selected Investigator: ${boss.investigatorLlm}. Boss report: ${boss.report ?? ""}. Next directions: ${JSON.stringify(boss.nextDirections)}. Uncertainties: ${JSON.stringify(boss.uncertainties)}. Return concise oversight/advisory observations only. Do not browse, do not choose tools, do not replace the Investigator, and do not invent people or evidence. Return JSON with decision, reason, focusLanes, confidence.`,
-        "You are the Mistral Right-hand. Review the Boss opening decision only. Advise the Boss; do not act as Investigator, do not browse, do not choose tools, and do not replace the selected Groq/Mistral Investigator. Reply with ONE JSON object.",
+        "You are the Groq Right-hand. Review the Boss opening decision only. Advise the Boss; do not act as Investigator, do not browse, do not choose tools, and do not replace the selected Groq/Groq Investigator. Reply with ONE JSON object.",
       ),
     ).catch((error) => ({
       status: "unavailable" as const,
@@ -189,15 +189,15 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     await assertAtlasJobActive(atlasJobId);
     if (rightHandRaw.status !== "completed") {
       await db.update(researchCasesTable)
-        .set({ status: "review", currentAction: "mistral-right-hand-unavailable", updatedAt: new Date() })
+        .set({ status: "review", currentAction: "groq-right-hand-unavailable", updatedAt: new Date() })
         .where(and(eq(researchCasesTable.id, discoveryCaseId), eq(researchCasesTable.status, "active")));
-      throw new Error(`Mistral Right-hand unavailable; failing closed: ${rightHandRaw.error ?? "unknown oversight failure"}`);
+      throw new Error(`Groq Right-hand unavailable; failing closed: ${rightHandRaw.error ?? "unknown oversight failure"}`);
     }
     if (rightHand.error) {
       await db.update(researchCasesTable)
-        .set({ status: "review", currentAction: "mistral-right-hand-invalid", updatedAt: new Date() })
+        .set({ status: "review", currentAction: "groq-right-hand-invalid", updatedAt: new Date() })
         .where(and(eq(researchCasesTable.id, discoveryCaseId), eq(researchCasesTable.status, "active")));
-      throw new Error(`Mistral Right-hand returned invalid oversight: ${rightHand.error}`);
+      throw new Error(`Groq Right-hand returned invalid oversight: ${rightHand.error}`);
     }
 
     await db.insert(researchCaseEventsTable).values({
@@ -206,7 +206,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
       actorRole: "right_hand",
       eventType: "observation",
       status: "recorded",
-      summary: "Mistral Right-hand reviewed the Boss opening decision before Investigator execution.",
+      summary: "Groq Right-hand reviewed the Boss opening decision before Investigator execution.",
       correlationKey: `${atlasJobId}:right-hand-opening`,
       payload: JSON.stringify({
         jobId: atlasJobId,
