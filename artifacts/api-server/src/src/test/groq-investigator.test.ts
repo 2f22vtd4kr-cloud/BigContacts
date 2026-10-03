@@ -1,5 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+const mocks = vi.hoisted(() => ({
+  safeOutboundFetch: vi.fn(),
+}));
+
+vi.mock("../lib/ssrf-safe-fetch", () => ({ safeOutboundFetch: mocks.safeOutboundFetch }));
+
 import { runAgenticWebResearch, INVESTIGATOR_LLM_CAPABILITY_POOL } from "../lib/agentic-web-research-core";
 import { resetProviderGateForTests } from "../lib/provider-gate";
 
@@ -13,6 +19,7 @@ describe("Groq Investigator provider boundary", () => {
     delete process.env.GROQ_INVESTIGATOR_API_KEY_5;
     delete process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GROQ;
     resetProviderGateForTests();
+    mocks.safeOutboundFetch.mockReset();
     vi.restoreAllMocks();
   });
 
@@ -24,7 +31,7 @@ describe("Groq Investigator provider boundary", () => {
     process.env.GROQ_INVESTIGATOR_API_KEY = "test-groq-investigator-key";
     process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GROQ = "0";
     let calls = 0;
-    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (_input, init) => {
+    const fetchMock = mocks.safeOutboundFetch.mockImplementation(async (_input: RequestInfo | URL, init?: RequestInit) => {
       calls += 1;
       if (calls === 1) {
         return new Response(JSON.stringify({ error: { type: "rate_limit_exceeded" } }), {
@@ -58,7 +65,7 @@ describe("Groq Investigator provider boundary", () => {
     process.env.GROQ_INVESTIGATOR_API_KEY_1 = "test-groq-investigator-key-1";
     process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GROQ = "0";
     let calls = 0;
-    vi.spyOn(globalThis, "fetch").mockImplementation(async () => {
+    mocks.safeOutboundFetch.mockImplementation(async () => {
       calls += 1;
       return new Response(JSON.stringify({ error: { type: "rate_limit_exceeded" } }), {
         status: 429,
@@ -82,7 +89,7 @@ describe("Groq Investigator provider boundary", () => {
 
   it("accepts an Investigator backup key when the base slot is absent", async () => {
     process.env.GROQ_INVESTIGATOR_API_KEY_1 = "test-groq-investigator-backup-key";
-    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (_input, init) => {
+    const fetchMock = mocks.safeOutboundFetch.mockImplementation(async (_input: RequestInfo | URL, init?: RequestInit) => {
       const body = JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>;
       expect(body.model).toBe("qwen/qwen3.8-27b");
       expect(body.include_reasoning).toBe(false);
