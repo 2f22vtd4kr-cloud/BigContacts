@@ -1,8 +1,7 @@
 import { Router, type IRouter } from "express";
 import { pingRedis, getPermanentClient, getRedisHealthSnapshot } from "../lib/redis";
 import { getAIKeyStatus } from "../lib/ai-extractor";
-import { getMistralWebSearchStatus } from "../lib/mistral-web-search";
-import { getGeminiRightHandStatus } from "../lib/gemini-right-hand-reasoning";
+import { getGroqRightHandStatus } from "../lib/groq-right-hand-reasoning";
 import { buildLanesHonestySnapshot } from "../lib/lanes-honesty";
 
 const router: IRouter = Router();
@@ -26,10 +25,9 @@ router.get("/healthz", async (_req, res) => {
   let researchKeysConfigured = false;
   try {
     const providerKeys = [
-      process.env.GROQ_API_KEY,
+      process.env.GROQ_BOSS_API_KEY, process.env.GROQ_INVESTIGATOR_API_KEY, process.env.GROQ_RIGHT_HAND_API_KEY,
       process.env.GEMINI_API_KEY,
-      process.env.MISTRAL_API_KEY,
-      process.env.GEMINI_RIGHT_HAND_API_KEY,
+            process.env.GEMINI_RIGHT_HAND_API_KEY,
       process.env.HF_TOKEN,
       process.env.SERPER_API_KEY,
       process.env.TAVILY_API_KEY,
@@ -58,7 +56,7 @@ router.get("/healthz/details", async (_req, res) => {
   try {
     const status = getAIKeyStatus();
     const active = (slots: Array<{ state: string }>) => slots.filter((s) => s.state === "active").length;
-    const mistral = getMistralWebSearchStatus();
+    const mistral = getGroqRightHandStatus();
     const rightHand = getGeminiRightHandStatus();
     providers = {
       groq: active(status.groq), gemini: active(status.gemini), perplexity: active(status.perplexity), tavily: active(status.tavily), exa: active(status.exa),
