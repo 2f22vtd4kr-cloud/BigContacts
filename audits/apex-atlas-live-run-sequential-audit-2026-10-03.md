@@ -278,3 +278,16 @@ This is the correct optimization target for Apex: deterministic evidence law aro
 - This merge is documentation-only; the runtime source state it documents is unchanged from its parent `8b4d314596b7c095dcfcc397034e96d25b03716b`.
 - No provider request, readiness probe, Atlas launch, continuation, recovery, or secret access occurred.
 - Backend typecheck/Vitest remain unverified through the connected execution surfaces.
+
+
+## 037 — Offline preflight remediation: provider diagnostics and test egress isolation
+
+- **UTC timestamp:** 2026-10-03.
+- **Scope:** Remediated the blockers recorded in the operator's preflight sections 035–036 before any new Atlas launch. No provider request, readiness probe, Atlas launch, continuation, recovery, or secret access was performed.
+- **Provider diagnostic redaction:** `summarizeProviderBody(...)` no longer serializes provider error-message text. It retains only shape/classification metadata such as body kind, key names, error code/type, message length, message digest, and bounded quota signals. The Right-hand attempt diagnostics therefore cannot embed the provider's human-readable error message in their serialized body.
+- **Investigator test egress isolation:** `groq-investigator.test.ts` now mocks Apex's actual `safeOutboundFetch` transport boundary rather than `globalThis.fetch`. This is the correct seam because Apex's SSRF-safe transport uses Node HTTP(S) directly and therefore bypasses a global-fetch mock. All Investigator provider-boundary tests now remain offline and provider-credit-free.
+- **Canonical provider test cleanup:** the stale discovery-runtime assertions referencing the retired Mistral Right-hand were changed to assert the canonical Groq Right-hand opening path.
+- **Regression strengthening:** provider-diagnostic tests now explicitly assert that `errorMessage` is absent while the digest/length metadata remains available.
+- **Repository change:** PR #472, `fix: isolate Apex offline tests and redact provider diagnostics`, merged to `main` as `d6d8989ec442b62961ebcfbf03761650113f3ec9`.
+- **Verification boundary:** the connected GitHub repository exposes no backend workflow runs or commit statuses for this head, and the connected Replit search exposes no Apex application. Therefore no backend Vitest/build execution result is claimed from this session. Source/diff verification confirms the intended fixes are present on `main`.
+- **Live-run boundary:** the next Atlas launch remains separately authorized. This remediation does not authorize or perform it.
