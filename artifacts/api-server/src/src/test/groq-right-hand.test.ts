@@ -147,6 +147,7 @@ describe("Groq Right-hand model policy", () => {
 
     const result = await runGroqRightHandFreeJson("Return a small JSON decision.");
 
+    if (result.status !== "completed") console.log("TRANSIENT_RETRY_DIAGNOSTIC", JSON.stringify({ error: result.error, model: result.model, chatCalls, calls: fetchMock.mock.calls.map(([input]) => String(input)) }));
     expect(result.status).toBe("completed");
     expect(result.model).toBe("openai/gpt-oss-120b");
     const chatCalls = fetchMock.mock.calls
