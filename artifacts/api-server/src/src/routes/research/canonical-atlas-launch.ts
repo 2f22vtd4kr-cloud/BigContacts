@@ -8,6 +8,7 @@ import { runCanonicalAtlasPipeline } from "../../lib/canonical-atlas-discovery";
 import { runCanonicalSingleTargetInvestigation } from "../../lib/canonical-single-target-runner";
 import { checkAtlasSchemaReadiness } from "../../lib/schema-readiness";
 import { describeThrownProviderError } from "../../lib/provider-error-diagnostics";
+import { withProviderScope } from "../../lib/provider-gate";
 
 const router = Router();
 
@@ -78,11 +79,13 @@ router.post("/ingest/atlas-run", async (req: Request, res: Response): Promise<vo
 
   void (async () => {
     try {
-      if (singleTargetId) {
-        await runCanonicalSingleTargetInvestigation(atlasJobId, singleTargetId, { researchDepth, targetTimeoutMs });
-      } else {
-        await runCanonicalAtlasPipeline(atlasJobId, { targetCount, researchDepth, targetTimeoutMs });
-      }
+      await withProviderScope(`atlas-run:${atlasJobId}`, async () => {
+        if (singleTargetId) {
+          await runCanonicalSingleTargetInvestigation(atlasJobId!, singleTargetId, { researchDepth, targetTimeoutMs });
+        } else {
+          await runCanonicalAtlasPipeline(atlasJobId!, { targetCount, researchDepth, targetTimeoutMs });
+        }
+      });
     } catch (error) {
       const diagnostic = describeThrownProviderError(error);
       const message = `Canonical Atlas pipeline failed (class=${diagnostic.errorName}; code=${diagnostic.errorCode ?? "none"}; digest=${diagnostic.messageDigest ?? "none"})`;
