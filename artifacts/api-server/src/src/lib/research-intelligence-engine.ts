@@ -86,6 +86,8 @@ export interface IntelligenceAction {
   findingCount: number;
   useful: boolean;
   informationGain: number;
+  findingNames: string[];
+  findingRoles: string[];
 }
 
 export interface IntelligenceMissionBrief {
@@ -225,7 +227,7 @@ export class ResearchIntelligenceEngine {
     }
     const informationGain = clamp((useful ? 0.45 : 0.05) + Math.min(0.35, urls.length * 0.07) + Math.min(0.2, newHostCount * 0.1));
     const predictedInformationGain = clamp(input.predictedInformationGain ?? informationGain);
-    this.actions.push({ turn: input.turn, action: input.action, args: input.args ?? {}, execution: input.execution, observation: input.observation ?? "", urls, findingCount: findings.length, useful, informationGain });
+    this.actions.push({ turn: input.turn, action: input.action, args: input.args ?? {}, execution: input.execution, observation: input.observation ?? "", urls, findingCount: findings.length, useful, informationGain, findingNames: [...new Set(findings.map((finding) => String(finding.personName ?? "").trim()).filter(Boolean))].slice(0, 8), findingRoles: [...new Set(findings.map((finding) => String(finding.role ?? "").trim()).filter(Boolean))].slice(0, 8) });
     const learningQuestion = typeof input.args?.purpose === "string" ? normalize(input.args.purpose) : typeof input.args?.hypothesis === "string" ? normalize(input.args.hypothesis) : "";
     const actionLearningKey = learningQuestion ? input.action + "|" + learningQuestion.slice(0, 180) : input.action;
     this.actionYield.set(actionLearningKey, updateActionYield(this.actionYield.get(actionLearningKey), { useful, execution: input.execution, informationGain, predictedInformationGain, realizedInformationGain: informationGain, turn: input.turn }));
@@ -421,7 +423,7 @@ export class ResearchIntelligenceEngine {
         args: action.args,
         execution: action.execution,
         urls: action.urls,
-        findings: [],
+        findings: action.findingNames.map((personName, index) => ({ personName, role: action.findingRoles[index] ?? null, value: personName })),
       })),
       sourceFamilyDiversity,
       repeatedSourceFamilies,
@@ -460,7 +462,7 @@ export function renderIntelligenceContext(context: IntelligenceContext, maxChars
     contacts: context.contacts.slice(-10).map((contact) => ({ ...contact, value: contact.value.slice(0, 300), sourceUrls: contact.sourceUrls.slice(0, 6), sourceHosts: contact.sourceHosts.slice(0, 6) })),
     negativeFindings: context.negativeFindings.slice(-12).map((v) => v.slice(0, 400)),
     openQuestions: context.openQuestions.slice(0, 12).map((v) => v.slice(0, 400)),
-    recentActions: context.recentActions.slice(-4).map((action) => ({ ...action, args: Object.fromEntries(Object.entries(action.args ?? {}).slice(0, 12)), observation: action.observation.slice(0, 500), urls: action.urls.slice(0, 6) })),
+    recentActions: context.recentActions.slice(-4).map((action) => ({ ...action, findingNames: action.findingNames.slice(0, 8), findingRoles: action.findingRoles.slice(0, 8), args: Object.fromEntries(Object.entries(action.args ?? {}).slice(0, 12)), observation: action.observation.slice(0, 500), urls: action.urls.slice(0, 6) })),
     sourceDiversity: context.sourceDiversity,
     sourceFamilyDiversity: context.sourceFamilyDiversity,
     repeatedSourceFamilies: context.repeatedSourceFamilies.slice(0, 12),
