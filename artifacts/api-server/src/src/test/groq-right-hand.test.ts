@@ -117,6 +117,45 @@ describe("Groq Right-hand model policy", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
+  it("rotates to the next configured Right-hand key after a hard 429", async () => {
+    vi.stubEnv("GROQ_RIGHT_HAND_API_KEY", "right-hand-primary-key");
+    vi.stubEnv("GROQ_RIGHT_HAND_API_KEY_2", "right-hand-secondary-key");
+
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      const url = String(input);
+      const auth = new Headers(init?.headers).get("authorization") ?? "";
+      if (url === "https://api.groq.com/openai/v1/models") {
+        return new Response(JSON.stringify({
+          data: [{ id: "openai/gpt-oss-120b" }],
+        }), { status: 200 });
+      }
+      if (auth.endsWith("right-hand-primary-key")) {
+        return new Response(JSON.stringify({
+          error: { code: "rate_limit_exceeded", message: "daily request limit" },
+        }), {
+          status: 429,
+          headers: {
+            "x-ratelimit-limit-requests": "100",
+            "x-ratelimit-remaining-requests": "0",
+          },
+        });
+      }
+      return new Response(JSON.stringify({
+        choices: [{ message: { content: '{"decision":"proceed"}' } }],
+      }), { status: 200 });
+    });
+
+    const result = await runGroqRightHandFreeJson("Return a small JSON decision.");
+
+    expect(result.status).toBe("completed");
+    expect(result.model).toBe("openai/gpt-oss-120b");
+    const chatCalls = fetchMock.mock.calls
+      .filter(([input]) => String(input) === "https://api.groq.com/openai/v1/chat/completions");
+    expect(chatCalls).toHaveLength(2);
+    expect(new Headers(chatCalls[0]?.[1]?.headers).get("authorization")).toContain("right-hand-primary-key");
+    expect(new Headers(chatCalls[1]?.[1]?.headers).get("authorization")).toContain("right-hand-secondary-key");
+  });
+
   it("uses the primary model and advances to the bounded GPT-OSS fallback", async () => {
     vi.stubEnv("GROQ_RIGHT_HAND_API_KEY", "right-hand-fallback-test-key");
 
