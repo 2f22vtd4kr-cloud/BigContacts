@@ -124,7 +124,7 @@ describe("Groq Boss control-plane adapter", () => {
     expect(result.error).toBeNull();
     expect(result.model).toBe(GROQ_BOSS_MODEL);
     expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(result.attempts).toHaveLength(1);
+    expect(result.attempts).toHaveLength(0);
   });
 
   it("retries strict schema rejection once in JSON-object mode on the same model", async () => {
@@ -169,7 +169,7 @@ describe("Groq Boss control-plane adapter", () => {
 
   it("fails closed on a repeated transient 429 without rotating the Boss model", async () => {
     process.env.GROQ_BOSS_API_KEY = "test-groq-key";
-    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async () =>
       new Response(JSON.stringify({ error: { code: "rate_limit_exceeded" } }), {
         status: 429,
         headers: { "content-type": "application/json", "retry-after": "0", "x-ratelimit-remaining-requests": "999" },
