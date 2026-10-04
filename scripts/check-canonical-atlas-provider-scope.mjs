@@ -11,7 +11,7 @@ const boss = read("./artifacts/api-server/src/src/lib/groq-boss.ts");
 
 const checks = [
   [providerGate.includes('scope.startsWith("atlas-run:")'), "Atlas jobs must receive a distinct provider-gate scope."],
-  [providerGate.includes('APEX_ATLAS_PROVIDER_MAX_REQUESTS_PER_SCOPE",80,20,80'), "Atlas scope budget must remain bounded at 80 by default/max."],
+  [providerGate.includes('APEX_ATLAS_PROVIDER_MAX_REQUESTS_PER_SCOPE",80,1,80'), "Atlas scope budget must remain bounded at 80 by default/max."],
   [launch.includes("withProviderScope(`atlas-run:${atlasJobId}`"), "Canonical launch must bind all provider calls to the unique Atlas job scope."],
   [continuation.includes("withProviderScope(`atlas-run:${jobId}`"), "Canonical continuation/recovery must bind provider calls to the unique Atlas job scope."],
   [investigator.includes("isLocalProviderQuotaError(error)"), "Investigator must recognize local provider-gate quota failures."],
