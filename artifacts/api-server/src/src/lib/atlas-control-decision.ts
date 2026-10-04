@@ -8,7 +8,22 @@ import { logger } from "./logger";
 import { describeThrownProviderError } from "./provider-error-diagnostics";
 export type AtlasControlAction = "continue_discovery" | "research_candidate" | "revisit_candidate" | "pivot_discovery" | "stop";
 export type AtlasControlDecision = { status: "completed" | "unavailable"; action: AtlasControlAction; candidateName: string | null; direction: string | null; reason: string | null; confidence: number | null; rightHand: { status: "completed" | "unavailable"; decision: string | null; reason: string | null; direction: string | null; confidence: number | null; model: string; error: string | null }; bossModel: string | null; error: string | null };
-function parseObject(raw: string | null | undefined): Record<string, unknown> | null { if (!raw) return null; const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)```/i)?.[1]?.trim(); const source = fenced || raw.trim(); const start = source.indexOf("{"), end = source.lastIndexOf("}"); if (start < 0 || end <= start) return null; try { const parsed = JSON.parse(source.slice(start, end + 1)); return parsed && typeof parsed === "object" ? parsed as Record<string, unknown> : null; } catch { return null; } }
+function parseObject(raw: string | null | undefined): Record<string, unknown> | null {
+  if (!raw) return null;
+  const source = raw.trim();
+  if (!source.startsWith("{") || !source.endsWith("}")) return null;
+  try {
+    const parsed = JSON.parse(source);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed as Record<string, unknown> : null;
+  } catch {
+    return null;
+  }
+}
+function validateExactObjectFields(value: Record<string, unknown> | null, fields: readonly string[]): boolean {
+  if (!value) return false;
+  const allowed = new Set(fields);
+  return Object.keys(value).every((key) => allowed.has(key)) && fields.every((field) => Object.prototype.hasOwnProperty.call(value, field));
+}
 function safeControlError(error: unknown, fallback: string): string {
   const diagnostic = describeThrownProviderError(error);
   return `${fallback} (class=${diagnostic.errorName}; code=${diagnostic.errorCode ?? "none"}; digest=${diagnostic.messageDigest ?? "none"})`;
@@ -18,10 +33,11 @@ function clampConfidence(value: unknown): number | null { return typeof value ==
 const ALLOWED_ACTIONS = new Set<AtlasControlAction>(["continue_discovery", "research_candidate", "revisit_candidate", "pivot_discovery", "stop"]);
 
 export function validateAtlasRightHandControl(value: Record<string, unknown> | null): boolean {
-  if (!value) return false;
+  if (!validateExactObjectFields(value, ["decision", "reason", "direction", "confidence"])) return false;
   const decision = typeof value.decision === "string" ? value.decision.trim().toLowerCase() : "";
   return ALLOWED_ACTIONS.has(decision as AtlasControlAction)
     && typeof value.reason === "string"
+    && value.reason.trim().length > 0
     && (typeof value.direction === "string" || value.direction === null)
     && clampConfidence(value.confidence) !== null;
 }
@@ -31,7 +47,7 @@ function formatBossAttemptDiagnostics(attempts: Array<{ model: string; httpStatu
 }
 
 export function validateAtlasBossControl(value: Record<string, unknown> | null): boolean {
-  if (!value) return false;
+  if (!validateExactObjectFields(value, ["action", "candidateName", "direction", "reason", "confidence"])) return false;
   const action = typeof value.action === "string" ? value.action.trim().toLowerCase() : "";
   return ALLOWED_ACTIONS.has(action as AtlasControlAction)
     && (typeof value.candidateName === "string" || value.candidateName === null)
