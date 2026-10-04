@@ -157,12 +157,15 @@ describe("Groq Investigator provider boundary", () => {
       choices: [{ message: { content: JSON.stringify({ action: "done", query: null, provider: null, url: null, email: null, username: null, domain: null, registry: null, thought: "done", hypothesis: null, purpose: null, expectedInformationGain: 0, searches: [], findings: [] }) } }],
     });
     const response = new Response(payload, { status: 200, headers: { "content-type": "application/json" } });
-    const readerFactory = response.body?.getReader.bind(response.body);
-    if (!readerFactory || !response.body) throw new Error("response body reader unavailable");
-    response.body.getReader = () => {
-      bodyReads += 1;
-      return readerFactory();
-    };
+    if (!response.body) throw new Error("response body reader unavailable");
+    const originalGetReader = response.body.getReader.bind(response.body);
+    Object.defineProperty(response.body, "getReader", {
+      configurable: true,
+      value: () => {
+        bodyReads += 1;
+        return originalGetReader();
+      },
+    });
     mocks.safeOutboundFetch.mockResolvedValue(response);
 
     const result = await runAgenticWebResearch({
