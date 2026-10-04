@@ -123,8 +123,92 @@ describe("Groq Boss control-plane adapter", () => {
 
     expect(result.error).toBeNull();
     expect(result.model).toBe(GROQ_BOSS_MODEL);
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(result.attempts).toHaveLength(0);
+  });
+
+  it("retries strict schema rejection once in JSON-object mode on the same model", async () => {
+    process.env.GROQ_BOSS_API_KEY = "test-groq-key";
+    const fetchMock = vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response(JSON.stringify({ error: { code: "json_validate_failed" } }), { status: 400 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        choices: [{ message: { content: '{"actionId":"identity"}' } }],
+      }), { status: 200, headers: { "content-type": "application/json" } }));
+
+    const result = await generateGroqBossText({
+      model: GROQ_BOSS_MODEL,
+      status: "resolved",
+      inspectedKeyCount: 1,
+      candidateCount: 1,
+      candidateModels: [GROQ_BOSS_MODEL],
+      keyName: "GROQ_BOSS_API_KEY",
+    }, "Return JSON.", {
+      responseFormat: {
+        type: "text",
+        mime_type: "application/json",
+        schema: {
+          type: "object",
+          properties: { actionId: { type: "string" } },
+          required: ["actionId"],
+          additionalProperties: false,
+        },
+      },
+      maxOutputTokens: 128,
+      thinkingLevel: "low",
+    });
+
+    expect(result.error).toBeNull();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const firstBody = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body));
+    const secondBody = JSON.parse(String(fetchMock.mock.calls[1]?.[1]?.body));
+    expect(firstBody.response_format.type).toBe("json_schema");
+    expect(secondBody.response_format).toEqual({ type: "json_object" });
+    expect(firstBody.model).toBe(GROQ_BOSS_MODEL);
+    expect(secondBody.model).toBe(GROQ_BOSS_MODEL);
+  });
+
+  it("fails closed on a repeated transient 429 without rotating the Boss model", async () => {
+    process.env.GROQ_BOSS_API_KEY = "test-groq-key";
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ error: { code: "rate_limit_exceeded" } }), {
+        status: 429,
+        headers: { "content-type": "application/json", "retry-after": "0", "x-ratelimit-remaining-requests": "999" },
+      }),
+    );
+
+    const result = await generateGroqBossText({
+      model: GROQ_BOSS_MODEL,
+      status: "resolved",
+      inspectedKeyCount: 1,
+      candidateCount: 2,
+      candidateModels: [GROQ_BOSS_MODEL, "openai/gpt-oss-20b"],
+      keyName: "GROQ_BOSS_API_KEY",
+    }, "Return JSON.", { maxOutputTokens: 128, thinkingLevel: "low" });
+
+    expect(result.raw).toBeNull();
+    expect(result.attempts).toHaveLength(2);
+    expect(result.attempts.every((attempt) => attempt.model === GROQ_BOSS_MODEL)).toBe(true);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("fails closed on a request-level 400 without rotating models", async () => {
+    process.env.GROQ_BOSS_API_KEY = "test-groq-key";
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ error: { code: "invalid_request_error" } }), { status: 400 }),
+    );
+
+    const result = await generateGroqBossText({
+      model: GROQ_BOSS_MODEL,
+      status: "resolved",
+      inspectedKeyCount: 1,
+      candidateCount: 2,
+      candidateModels: [GROQ_BOSS_MODEL, "openai/gpt-oss-20b"],
+      keyName: "GROQ_BOSS_API_KEY",
+    }, "Return JSON.", { maxOutputTokens: 128, thinkingLevel: "low" });
+
+    expect(result.raw).toBeNull();
+    expect(result.attempts).toHaveLength(1);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it("fails closed when upstream context compaction still exceeds the Boss prompt budget", async () => {
