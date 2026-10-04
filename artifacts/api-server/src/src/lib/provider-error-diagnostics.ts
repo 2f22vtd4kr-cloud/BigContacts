@@ -193,6 +193,8 @@ export function describeThrownProviderError(error: unknown): ProviderThrownDiagn
   };
 }
 
+export function isLocalProviderQuotaError(error: unknown): boolean { return error instanceof Error && error.name === "ProviderQuotaError"; }
+
 export function classifyThrownProviderError(error: unknown, aborted = false): ProviderFailureClass {
   // The provider quota gate throws this locally before another HTTP request can
   // be attempted. Treat it as rate limiting, never as a transport failure that
