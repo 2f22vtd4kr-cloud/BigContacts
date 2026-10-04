@@ -320,21 +320,32 @@ async function callGroqJson(prompt: string, signal: AbortSignal, cognitiveTask: 
   for (const key of keys) for (const model of routedModels) {
     if (signal.aborted) throw new Error("cancelled");
     let retry429 = 0;
+    let jsonObjectFallbackUsed = false;
     while (retry429 <= 1) {
       attempt += 1;
       const started = Date.now();
       try {
+        const responseFormat = jsonObjectFallbackUsed ? { type: "json_object" } : structuredActionResponseFormat(model);
         const response = await withProviderRetryOwnership("groq", "caller", () =>
           runProviderCall({ provider: "groq", account: key, signal }, () =>
             safeOutboundFetch("https://api.groq.com/openai/v1/chat/completions", {
               method: "POST",
               headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-              body: JSON.stringify(buildGroqInvestigatorRequestBody({ model, prompt: workingPrompt, cognitiveTask })),
+              body: JSON.stringify({
+                ...buildGroqInvestigatorRequestBody({ model, prompt: workingPrompt, cognitiveTask }),
+                response_format: responseFormat,
+              }),
               signal,
             }),
           ),
         );
-        const body = await response.text();
+
+        // Consume every provider response body exactly once. Error responses need
+        // text for bounded diagnostics; successful responses are parsed from that
+        // same text rather than attempting a second read of an already-consumed
+        // Response stream.
+        const body = await readResponseTextCapped(response, signal);
+
         if (response.status === 429) {
           const hardQuota = groqHardRequestQuota(response, body);
           recordAgenticLlmAttempt({
@@ -355,21 +366,85 @@ async function callGroqJson(prompt: string, signal: AbortSignal, cognitiveTask: 
           await new Promise((resolve) => setTimeout(resolve, delay));
           continue;
         }
+
         if (!response.ok) {
-          const providerCode = (() => { try { const parsed = JSON.parse(body) as { error?: { code?: unknown } }; return typeof parsed.error?.code === "string" ? parsed.error.code : null; } catch { return null; } })();
+          const providerCode = (() => {
+            try {
+              const parsed = JSON.parse(body) as { error?: { code?: unknown } };
+              return typeof parsed.error?.code === "string" ? parsed.error.code : null;
+            } catch {
+              return null;
+            }
+          })();
           lastProviderError = providerCode ? `HTTP_${response.status}:${providerCode}` : `HTTP_${response.status}`;
-          recordAgenticLlmAttempt({ provider: "groq", model, promptChars: workingPrompt.length, status: response.status, success: false, latencyMs: Date.now() - started, retryIndex: attempt, reason: response.status === 413 ? "request_size" : "provider_rejected" });
+          recordAgenticLlmAttempt({
+            provider: "groq",
+            model,
+            promptChars: workingPrompt.length,
+            status: response.status,
+            success: false,
+            latencyMs: Date.now() - started,
+            retryIndex: attempt,
+            reason: response.status === 400 && providerCode === "json_validate_failed"
+              ? (jsonObjectFallbackUsed ? "json_object_compatibility_rejected" : "json_schema_rejected")
+              : response.status === 413
+                ? "request_size"
+                : "provider_rejected",
+          });
+
+          // Groq may reject a structurally valid strict schema even though the
+          // model can return the same contract under JSON-object mode. Retry once
+          // on the SAME model and keep the existing parseAction validation gate.
+          // This is a compatibility fallback, not a scripted action decision.
+          if (
+            response.status === 400 &&
+            providerCode === "json_validate_failed" &&
+            !jsonObjectFallbackUsed &&
+            structuredActionResponseFormat(model).type === "json_schema"
+          ) {
+            jsonObjectFallbackUsed = true;
+            continue;
+          }
+
           if (response.status === 413 && !sizeReductionApplied) {
             workingPrompt = tightenInvestigatorPrompt(workingPrompt);
             sizeReductionApplied = true;
+            jsonObjectFallbackUsed = false;
             break;
           }
           if (response.status === 401 || response.status === 403) break;
           break;
         }
-        const data = await readJsonCapped<{ choices?: Array<{ message?: { content?: string } }> }>(response, signal);
+
+        let data: { choices?: Array<{ message?: { content?: string } }> };
+        try {
+          data = JSON.parse(body) as typeof data;
+        } catch {
+          recordAgenticLlmAttempt({
+            provider: "groq",
+            model,
+            promptChars: workingPrompt.length,
+            status: response.status,
+            success: false,
+            latencyMs: Date.now() - started,
+            retryIndex: attempt,
+            reason: "invalid_json_response",
+          });
+          lastProviderError = "invalid_json_response";
+          break;
+        }
+
         const raw = data.choices?.[0]?.message?.content?.trim() || "";
-        recordAgenticLlmAttempt({ provider: "groq", model, promptChars: workingPrompt.length, status: response.status, success: Boolean(raw), latencyMs: Date.now() - started, retryIndex: attempt, reason: raw ? undefined : "empty_response" });
+        recordAgenticLlmAttempt({
+          provider: "groq",
+          model,
+          promptChars: workingPrompt.length,
+          status: response.status,
+          success: Boolean(raw),
+          latencyMs: Date.now() - started,
+          retryIndex: attempt,
+          reason: raw ? (jsonObjectFallbackUsed ? "json_object_compatibility_success" : undefined) : "empty_response",
+        });
         if (raw) return { model, raw };
         break;
       } catch (error: any) {
