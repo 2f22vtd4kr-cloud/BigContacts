@@ -1,5 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { safeOutboundFetch } from "../lib/ssrf-safe-fetch";
 import { runGeminiEvidenceProbe } from "../lib/gemini-evidence-probe";
+
+vi.mock("../lib/ssrf-safe-fetch", () => ({ safeOutboundFetch: vi.fn() }));
 
 describe("Gemini evidence probe quota boundaries", () => {
   afterEach(() => {
@@ -11,7 +14,8 @@ describe("Gemini evidence probe quota boundaries", () => {
     vi.stubEnv("GEMINI_API_KEY", "gemini-primary");
     vi.stubEnv("GEMINI_API_KEY_1", "gemini-secondary");
 
-    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+    const fetchMock = vi.mocked(safeOutboundFetch);
+    fetchMock.mockImplementation(async (input) => {
       const url = String(input);
       if (url === "https://generativelanguage.googleapis.com/v1beta/models") {
         return new Response(JSON.stringify({
