@@ -8,7 +8,7 @@ const replay = fs.readFileSync("artifacts/api-server/src/src/lib/research-case-r
 const targetControl = fs.readFileSync("artifacts/api-server/src/src/lib/target-control-decision.ts", "utf8");
 const bureauPass = fs.readFileSync("artifacts/api-server/src/src/lib/bureau-agentic-pass.ts", "utf8");
 
-const allowedEventTypes = new Set(["case_opened", "decision", "control_decision", "assignment", "observation", "tool_observation", "claim", "promotion", "validation", "projection", "directive", "status"]);
+const allowedEventTypes = new Set(["case_opened", "decision", "control_decision", "assignment", "observation", "tool_observation", "provider_error", "claim", "promotion", "validation", "projection", "directive", "status"]);
 const allowedActorRoles = new Set(["head_investigator", "groq_boss", "gemini_boss", "right_hand", "specialist", "human_operator", "system", "bureau"]);
 
 const writerFiles = [];
@@ -45,7 +45,7 @@ const checks = [
   ["replay accepts canonical control and trajectory events", replay.includes('"control_decision"') && replay.includes('"tool_observation"')],
   ["replay validates validation and projection causal edges", replay.includes("validationCount") && replay.includes("projectionCount") && replay.includes("validationEventId") && replay.includes("promotionEventId")],
   ["target control writes a declared event type", targetControl.includes('eventType: "control_decision"') && schema.includes('"control_decision"')],
-  ["bureau trajectory writes declared event types", bureauPass.includes('const eventType=record.action==="done"?"decision":"tool_observation"') && schema.includes('"tool_observation"')],
+  ["bureau trajectory writes declared event types", bureauPass.includes('const eventType=record.action==="done"?"decision":record.action==="investigator_provider_error"?"provider_error":"tool_observation"') && schema.includes('"tool_observation"')],
   ["bureau trajectory has claim/promotion graph hooks", bureauPass.includes('eventType:"claim"') && bureauPass.includes('eventType:"promotion"')],
   ["claim graph references observation event ids", bureauPass.includes("observationEventIds") && bureauPass.includes("claimEventId")],
   ["trajectory graph uses correlation keys", bureauPass.includes("correlationKey") && bureauPass.includes("jobId") && bureauPass.includes("record.turn")],
