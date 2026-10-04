@@ -4,7 +4,7 @@ import { buildDiscoveryIntelligence, renderDiscoveryIntelligence } from "../lib/
 describe("Apex discovery frontier", () => {
   it("derives multiple search dimensions without choosing a tool or route", () => {
     const state = buildDiscoveryIntelligence({
-      objective: "Find the beneficial owner of a Slovenian casino or gaming company",
+      objective: "Find the beneficial owner of a Slovenian casino or gaming company; registry and web_search source families",
       actions: [
         {
           action: "web_search",
