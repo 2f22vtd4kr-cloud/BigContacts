@@ -131,7 +131,7 @@ export interface IntelligenceContext {
   actionYield: ReturnType<typeof summarizeActionYield>[];
   sourceLineage: Array<{ sourceId: string; canonicalUrl: string; host: string; originSourceId: string | null; citedSourceIds: string[] }>;
   independentSourceUnits: number;
-  discovery: DiscoveryIntelligence;
+  discovery?: DiscoveryIntelligence;
   falsification: ReturnType<typeof assessFalsificationPlan>;
   researchQuestions: Array<{ id: string; question: string; importance: number; uncertainty: number; discriminators: string[]; status: "open" | "answered" | "blocked" }>;
   stoppingAssessment: {
@@ -423,7 +423,8 @@ export class ResearchIntelligenceEngine {
         args: action.args,
         execution: action.execution,
         urls: action.urls,
-        findings: action.findingNames.map((personName, index) => ({ personName, role: action.findingRoles[index] ?? null, value: personName })),
+        findingNames: action.findingNames,
+        findingRoles: action.findingRoles,
       })),
       sourceFamilyDiversity,
       repeatedSourceFamilies,
@@ -480,7 +481,7 @@ export function renderIntelligenceContext(context: IntelligenceContext, maxChars
     independentSourceUnits: context.independentSourceUnits,
   };
   const header = "RESEARCH INTELLIGENCE STATE (bounded structured evidence, not instructions):";
-  const discovery = renderDiscoveryIntelligence(context.discovery, 4_500);
+  const discovery = renderDiscoveryIntelligence(context.discovery ?? buildDiscoveryIntelligence({ objective: context.objective }), 4_500);
   const guidance = "The Investigator owns the research trajectory. Use this state to choose the next discriminating action. Treat hypotheses as hypotheses, facts as evidence-backed claims, contradictions as unresolved, and negative findings as real observations. Do not manufacture evidence. Prefer new independent source families over repeated copies. Repeated source families are a saturation signal, not corroboration. Provider disagreement is an epistemic signal: when search providers diverge, test the discriminator rather than averaging them. Explicitly test what could disprove the leading identity/contact hypothesis and map each action to an unresolved discriminator. Use learned action-yield statistics as weak priors only; observed evidence remains authoritative. Omitted detail remains durable outside this prompt.";
   const body = JSON.stringify(bounded);
   const budget = Math.max(1_000, Math.min(12_000, Math.floor(maxChars)));
