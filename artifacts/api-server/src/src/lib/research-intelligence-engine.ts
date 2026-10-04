@@ -414,7 +414,7 @@ export class ResearchIntelligenceEngine {
     const leadingHypothesis = [...this.hypotheses.values()].sort((a, b) => b.score - a.score)[0] ?? null;
     const falsification = assessFalsificationPlan({ leadingHypothesisScore: leadingHypothesis?.score ?? null, contradictionPressure: frontier.contradictionPressure, unresolvedPressure: frontier.unresolvedPressure, missingDiscriminators: leadingHypothesis?.missingDiscriminators ?? openQuestions });
     const discovery = buildDiscoveryIntelligence({
-      objective: this.input.objective,
+      objective: this.input.objective + String.fromCharCode(10) + "SOURCE_FAMILIES:" + this.actions.map((action) => action.action),
       facts,
       hypotheses: [...this.hypotheses.values()],
       negativeFindings: [...this.negativeFindings],
