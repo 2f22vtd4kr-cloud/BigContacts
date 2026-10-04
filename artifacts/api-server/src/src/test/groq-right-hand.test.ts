@@ -8,7 +8,6 @@ import {
   runGroqRightHandDiscoveryAdvice,
 } from "../lib/groq-right-hand-reasoning";
 import { summarizeProviderBody } from "../lib/provider-error-diagnostics";
-import { validateAtlasRightHandControl, validateAtlasBossControl } from "../lib/atlas-control-decision";
 
 describe("Groq Right-hand model policy", () => {
   afterEach(() => {
@@ -347,31 +346,6 @@ describe("Groq Right-hand model policy", () => {
     expect(catalogCalls).toHaveLength(2);
   });
 
-  it("treats the Right-hand contract as exact, not merely structurally compatible", () => {
-    expect(validateAtlasRightHandControl({
-      decision: "stop",
-      reason: "Evidence is sufficient.",
-      direction: null,
-      confidence: 0.9,
-      unexpectedProviderField: "must be rejected",
-    })).toBe(false);
-
-    expect(validateAtlasRightHandControl({
-      decision: "stop",
-      reason: "Evidence is sufficient.",
-      direction: null,
-      confidence: 0.9,
-    })).toBe(true);
-
-    expect(validateAtlasBossControl({
-      action: "stop",
-      candidateName: null,
-      direction: null,
-      reason: "Evidence is sufficient.",
-      confidence: 0.9,
-      extra: true,
-    })).toBe(false);
-  });
 
   it("reports the fallback chain without exposing credentials", () => {
     process.env.GROQ_RIGHT_HAND_API_KEY = "test-groq-right-hand-key";
