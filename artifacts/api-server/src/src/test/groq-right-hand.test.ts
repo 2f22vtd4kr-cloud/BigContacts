@@ -243,8 +243,8 @@ describe("Groq Right-hand model policy", () => {
   it("retries a transient 429 before falling back to another model", async () => {
     vi.stubEnv("GROQ_RIGHT_HAND_API_KEY", "right-hand-transient-retry-test-key");
 
+    let chatCalls = 0;
     const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
-      let chatCalls = 0;
       const url = String(input);
       if (url === "https://api.groq.com/openai/v1/models") {
         return new Response(JSON.stringify({
