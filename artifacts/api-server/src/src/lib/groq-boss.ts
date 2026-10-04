@@ -1,5 +1,5 @@
 import { logger } from "./logger";
-import { classifyProviderHttpStatus, classifyThrownProviderError, providerErrorCode, summarizeProviderBody } from "./provider-error-diagnostics";
+import { classifyProviderHttpStatus, classifyThrownProviderError, isLocalProviderQuotaError, providerErrorCode, summarizeProviderBody } from "./provider-error-diagnostics";
 
 export const GROQ_BOSS_MODEL = "openai/gpt-oss-120b";
 export const GROQ_BOSS_FALLBACK_MODELS = ["openai/gpt-oss-20b"] as const;
@@ -186,7 +186,7 @@ function boundedBossPrompt(prompt: string, maximum: number): string | null {
 }
 
 export function formatGroqBossAttemptSummary(attempts: GroqBossAttemptDiagnostic[]): string {
-  return attempts.map((attempt) => `${attempt.model}=HTTP ${attempt.httpStatus ?? "none"}${attempt.providerErrorCode ? ` (${attempt.providerErrorCode})` : ""}`).join(", ");
+  return attempts.map((attempt) => `${attempt.model}=HTTP ${attempt.httpStatus ?? "none"}${attempt.providerErrorCode ? ` (${attempt.providerErrorCode})` : ""}${attempt.failureClass ? ` [${attempt.failureClass}]` : ""}`).join(", ");
 }
 
 export async function generateGroqBossText(
@@ -287,11 +287,19 @@ export async function generateGroqBossText(
         } catch (error) {
           const isAbort = error instanceof Error && error.name === "AbortError";
           const failureClass = classifyThrownProviderError(error, false);
-          attempts.push({ model, keyName: entry.name, httpStatus: null, providerErrorCode: null, failureClass });
+          const localProviderCode = isLocalProviderQuotaError(error) && error instanceof Error && typeof (error as Error & { code?: unknown }).code === "string"
+            ? (error as Error & { code: string }).code
+            : null;
+          attempts.push({ model, keyName: entry.name, httpStatus: null, providerErrorCode: localProviderCode, failureClass });
           lastError = isAbort
             ? `Groq Boss ${model} request exceeded its bounded timeout.`
-            : error instanceof Error ? `Groq Boss ${model} request failed: ${error.message}` : "Groq Boss request failed.";
-          logger.warn({ role: "groq_boss", phase: "request_failed", model, keyName: entry.name, failureClass }, "Groq Boss request failed");
+            : localProviderCode
+              ? `Groq Boss ${model} was blocked by the local provider gate (${localProviderCode}).`
+              : error instanceof Error ? `Groq Boss ${model} request failed: ${error.message}` : "Groq Boss request failed.";
+          logger.warn({ role: "groq_boss", phase: "request_failed", model, keyName: entry.name, failureClass, providerErrorCode: localProviderCode }, "Groq Boss request failed");
+          if (isLocalProviderQuotaError(error)) {
+            return { model, raw: null, error: `Groq Boss local provider gate blocked further attempts (${localProviderCode ?? "unknown"}).`, attempts };
+          }
           break;
         } finally {
           clearTimeout(timer);
