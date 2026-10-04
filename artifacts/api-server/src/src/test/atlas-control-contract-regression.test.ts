@@ -182,6 +182,13 @@ describe("Atlas control-plane contract regression", () => {
       reason: "Missing confidence.",
       direction: null,
     })).toBe(false);
+    expect(validateAtlasRightHandControl({
+      decision: "stop",
+      reason: "extra field",
+      direction: null,
+      confidence: 0.9,
+      extra: true,
+    })).toBe(false);
 
     expect(validateAtlasBossControl({
       action: "research_candidate",
