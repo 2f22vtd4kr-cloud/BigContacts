@@ -27,7 +27,7 @@ describe("Atlas control-plane contract regression", () => {
     expect(controlSource).toContain('action: { type: "string", enum: ["continue_discovery", "research_candidate", "revisit_candidate", "pivot_discovery", "stop"] }');
     expect(controlSource).toContain('required: ["action", "candidateName", "direction", "reason", "confidence"]');
     expect(controlSource).toContain("additionalProperties: false");
-    expect(rightHandSource).toContain("response_format:responseFormat(format)");
+    expect(rightHandSource).toContain("response_format:useJsonObjectFallback?{type:"json_object"}:structuredResponseFormat");
     expect(rightHandSource).toContain('type:"json_schema"');
     expect(rightHandSource).toContain("strict:true");
     expect(bossSource).toContain("responseFormat");
