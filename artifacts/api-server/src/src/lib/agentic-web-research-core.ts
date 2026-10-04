@@ -359,9 +359,11 @@ async function callGroqJson(prompt: string, signal: AbortSignal, cognitiveTask: 
             reason: hardQuota ? "upstream_quota_exhausted" : "upstream_rate_limited",
           });
           if (hardQuota) return { model, raw: "", error: "upstream_quota_exhausted" };
-          if (retry429 >= 1) break;
+          if (retry429 >= 1) return { model, raw: "", error: "upstream_rate_limited" };
           const delay = groqRetryAfterMs(response);
-          if (delay > 2_500 || Date.now() + delay >= started + PROVIDER_DECISION_TIMEOUT_MS) break;
+          if (delay > 2_500 || Date.now() + delay >= started + PROVIDER_DECISION_TIMEOUT_MS) {
+            return { model, raw: "", error: "upstream_rate_limited" };
+          }
           retry429 += 1;
           await new Promise((resolve) => setTimeout(resolve, delay));
           continue;
@@ -413,6 +415,16 @@ async function callGroqJson(prompt: string, signal: AbortSignal, cognitiveTask: 
             break;
           }
           if (response.status === 401 || response.status === 403) break;
+
+          const modelSpecific400 = response.status === 400 && (
+            providerCode === "model_not_found" ||
+            providerCode === "model_not_supported" ||
+            providerCode === "model_deprecated" ||
+            providerCode === "invalid_model"
+          );
+          if (response.status === 400 && !modelSpecific400) {
+            return { model, raw: "", error: lastProviderError };
+          }
           break;
         }
 

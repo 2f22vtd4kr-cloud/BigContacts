@@ -1,5 +1,7 @@
+import { createHash } from "node:crypto";
 import { logger } from "./logger";
 import { classifyProviderHttpStatus, classifyThrownProviderError, isLocalProviderQuotaError, providerErrorCode, summarizeProviderBody } from "./provider-error-diagnostics";
+import { withProviderRetryOwnership } from "./provider-gate";
 
 export const GROQ_BOSS_MODEL = "openai/gpt-oss-120b";
 export const GROQ_BOSS_FALLBACK_MODELS = ["openai/gpt-oss-20b"] as const;
@@ -93,10 +95,8 @@ function candidateModelsFromCatalog(payload: unknown): string[] {
 const selectionCache = new Map<string, { expiresAt: number; selection: GroqBossModelSelection }>();
 
 function cacheKey(key: string): string {
-  // Do not persist or log credentials; this is only an in-process lookup key.
-  let hash = 0;
-  for (let i = 0; i < key.length; i += 1) hash = ((hash << 5) - hash + key.charCodeAt(i)) | 0;
-  return String(hash >>> 0);
+  // Do not persist or log credentials; use a collision-resistant in-process key.
+  return createHash("sha256").update(key, "utf8").digest("hex");
 }
 
 export async function resolveGroqBossModel(preferredKeyName?: string): Promise<GroqBossModelSelection> {
@@ -171,6 +171,15 @@ function extractText(payload: unknown): string {
   return typeof choice?.message?.content === "string" ? choice.message.content.trim() : "";
 }
 
+function groqHardRateLimit(response: Response, body: string): boolean {
+  if (response.status !== 429) return false;
+  const remainingRequests = Number(response.headers.get("x-ratelimit-remaining-requests")?.trim() ?? "NaN");
+  const remainingTokens = Number(response.headers.get("x-ratelimit-remaining-tokens")?.trim() ?? "NaN");
+  if ((Number.isFinite(remainingRequests) && remainingRequests === 0) || (Number.isFinite(remainingTokens) && remainingTokens === 0)) return true;
+  const code = providerErrorCode(body);
+  return code === "quota_exceeded" || code === "budget_exhausted";
+}
+
 function retryAfterMs(response: Response, fallback: number): number {
   const raw = response.headers.get("retry-after")?.trim();
   if (!raw) return fallback;
@@ -226,6 +235,7 @@ export async function generateGroqBossText(
       if (Date.now() >= deadline) break;
       let transient503Retries = 0;
       let rateLimitRetries = 0;
+      let jsonObjectFallbackUsed = false;
 
       while (Date.now() < deadline) {
         const controller = new AbortController();
@@ -239,11 +249,11 @@ export async function generateGroqBossText(
           include_reasoning: false,
           temperature: 0.1,
           stream: false,
-          ...(responseFormat ? { response_format: responseFormat } : {}),
+          ...(responseFormat ? { response_format: jsonObjectFallbackUsed ? { type: "json_object" } : responseFormat } : {}),
         });
 
         try {
-          const response = await fetch(GROQ_BOSS_CHAT_API, {
+          const response = await withProviderRetryOwnership("groq", "caller", () => fetch(GROQ_BOSS_CHAT_API, {
             method: "POST",
             headers: {
               Accept: "application/json",
@@ -252,7 +262,7 @@ export async function generateGroqBossText(
             },
             body,
             signal: controller.signal,
-          });
+          }));
           const responseBody = await response.text();
 
           if (response.status === 503 && transient503Retries < MAX_503_RETRIES_PER_MODEL && Date.now() < deadline) {
@@ -262,14 +272,19 @@ export async function generateGroqBossText(
             continue;
           }
 
-          if (response.status === 429 && rateLimitRetries < MAX_429_RETRIES_PER_MODEL && Date.now() < deadline) {
+          if (response.status === 429) {
+            const failureClass = classifyProviderHttpStatus(response.status);
+            const code = providerErrorCode(responseBody);
+            attempts.push({ model, keyName: entry.name, httpStatus: 429, providerErrorCode: code, failureClass });
+            lastError = `Groq Boss ${model} returned HTTP 429${code ? ` (${code})` : ""}: ${JSON.stringify(summarizeProviderBody(responseBody))}`;
             const delay = retryAfterMs(response, 0);
-            // Do not burn the Atlas control-plane budget waiting through a daily quota reset.
-            if (delay > 0 && delay <= 2_500) {
+            const hardQuota = groqHardRateLimit(response, responseBody);
+            if (!hardQuota && rateLimitRetries < MAX_429_RETRIES_PER_MODEL && delay <= 2_500 && Date.now() + delay < deadline) {
               rateLimitRetries += 1;
-              await new Promise((resolve) => setTimeout(resolve, Math.min(delay, Math.max(0, deadline - Date.now()))));
+              await new Promise((resolve) => setTimeout(resolve, delay));
               continue;
             }
+            return { model, raw: null, error: lastError, attempts };
           }
 
           if (!response.ok) {
@@ -277,6 +292,14 @@ export async function generateGroqBossText(
             const code = providerErrorCode(responseBody);
             attempts.push({ model, keyName: entry.name, httpStatus: response.status, providerErrorCode: code, failureClass });
             lastError = `Groq Boss ${model} returned HTTP ${response.status}${code ? ` (${code})` : ""}: ${JSON.stringify(summarizeProviderBody(responseBody))}`;
+
+            if (response.status === 400 && code === "json_validate_failed" && !jsonObjectFallbackUsed && responseFormat?.type === "json_schema") {
+              jsonObjectFallbackUsed = true;
+              continue;
+            }
+            if (response.status === 400 && !["model_not_found","model_not_supported","model_deprecated","invalid_model"].includes(code ?? "")) {
+              return { model, raw: null, error: lastError, attempts };
+            }
             break;
           }
 
