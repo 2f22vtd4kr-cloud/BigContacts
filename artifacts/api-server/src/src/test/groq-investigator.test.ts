@@ -43,7 +43,7 @@ describe("Groq Investigator provider boundary", () => {
         });
       }
       const body = JSON.parse(String(init?.body ?? "{}")) as { model?: string };
-      expect(body.model).toBe("qwen/qwen3.8-27b");
+      expect(body.model).toBe("openai/gpt-oss-120b");
       return new Response(JSON.stringify({
         choices: [{ message: { content: JSON.stringify({ action: "done", query: null, provider: null, url: null, email: null, username: null, domain: null, registry: null, thought: "done", hypothesis: null, purpose: null, expectedInformationGain: 0, searches: [], findings: [] }) } }],
       }), { status: 200, headers: { "content-type": "application/json" } });
@@ -88,11 +88,71 @@ describe("Groq Investigator provider boundary", () => {
     expect(result.trajectoryRecords).toHaveLength(0);
   });
 
+  it("retries the same model in JSON-object mode after Groq strict-schema rejection", async () => {
+    process.env.GROQ_INVESTIGATOR_API_KEY = "test-groq-investigator-key";
+    process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GROQ = "0";
+    const responseFormats: unknown[] = [];
+    let calls = 0;
+    mocks.safeOutboundFetch.mockImplementation(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      calls += 1;
+      const body = JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>;
+      responseFormats.push(body.response_format);
+      if (calls === 1) {
+        return new Response(JSON.stringify({ error: { code: "json_validate_failed" } }), {
+          status: 400,
+          headers: { "content-type": "application/json" },
+        });
+      }
+      expect(body.model).toBe("openai/gpt-oss-120b");
+      return new Response(JSON.stringify({
+        choices: [{ message: { content: JSON.stringify({ action: "done", query: null, provider: null, url: null, email: null, username: null, domain: null, registry: null, thought: "done", hypothesis: null, purpose: null, expectedInformationGain: 0, searches: [], findings: [] }) } }],
+      }), { status: 200, headers: { "content-type": "application/json" } });
+    });
+
+    const result = await runAgenticWebResearch({
+      targetName: "Example",
+      investigatorLlm: "groq",
+      maxIterations: 1,
+      hardTimeoutMs: 30_000,
+    });
+
+    expect(result.status).toBe("completed");
+    expect(calls).toBe(2);
+    expect(responseFormats[0]).toMatchObject({ type: "json_schema" });
+    expect(responseFormats[1]).toEqual({ type: "json_object" });
+  });
+
+  it("reads a successful Groq response body exactly once", async () => {
+    process.env.GROQ_INVESTIGATOR_API_KEY = "test-groq-investigator-key";
+    process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GROQ = "0";
+    let bodyReads = 0;
+    const payload = JSON.stringify({
+      choices: [{ message: { content: JSON.stringify({ action: "done", query: null, provider: null, url: null, email: null, username: null, domain: null, registry: null, thought: "done", hypothesis: null, purpose: null, expectedInformationGain: 0, searches: [], findings: [] }) } }],
+    });
+    const response = new Response(payload, { status: 200, headers: { "content-type": "application/json" } });
+    const originalText = response.text.bind(response);
+    response.text = async () => {
+      bodyReads += 1;
+      return originalText();
+    };
+    mocks.safeOutboundFetch.mockResolvedValue(response);
+
+    const result = await runAgenticWebResearch({
+      targetName: "Example",
+      investigatorLlm: "groq",
+      maxIterations: 1,
+      hardTimeoutMs: 30_000,
+    });
+
+    expect(result.status).toBe("completed");
+    expect(bodyReads).toBe(1);
+  });
+
   it("accepts an Investigator backup key when the base slot is absent", async () => {
     process.env.GROQ_INVESTIGATOR_API_KEY_1 = "test-groq-investigator-backup-key";
     const fetchMock = mocks.safeOutboundFetch.mockImplementation(async (_input: RequestInfo | URL, init?: RequestInit) => {
       const body = JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>;
-      expect(body.model).toBe("qwen/qwen3.8-27b");
+      expect(body.model).toBe("openai/gpt-oss-120b");
       expect(body.include_reasoning).toBe(false);
       expect(body).not.toHaveProperty("reasoning_format");
       return new Response(JSON.stringify({
@@ -115,7 +175,7 @@ describe("Groq Investigator provider boundary", () => {
     process.env.GROQ_INVESTIGATOR_API_KEY = "test-groq-investigator-key";
     const fetchMock = mocks.safeOutboundFetch.mockImplementation(async (_input: RequestInfo | URL, init?: RequestInit) => {
       const body = JSON.parse(String(init?.body ?? "{}")) as { model?: string };
-      expect(body.model).toBe("qwen/qwen3.8-27b");
+      expect(body.model).toBe("openai/gpt-oss-120b");
       return new Response(JSON.stringify({
         choices: [{ message: { content: JSON.stringify({ action: "done", query: null, provider: null, url: null, email: null, username: null, domain: null, registry: null, thought: "done", hypothesis: null, purpose: null, expectedInformationGain: 0, searches: [], findings: [] }) } }],
       }), { status: 200, headers: { "content-type": "application/json" } });
