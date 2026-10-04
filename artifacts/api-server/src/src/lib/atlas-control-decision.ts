@@ -33,7 +33,7 @@ function clampConfidence(value: unknown): number | null { return typeof value ==
 const ALLOWED_ACTIONS = new Set<AtlasControlAction>(["continue_discovery", "research_candidate", "revisit_candidate", "pivot_discovery", "stop"]);
 
 export function validateAtlasRightHandControl(value: Record<string, unknown> | null): boolean {
-  if (!validateExactObjectFields(value, ["decision", "reason", "direction", "confidence"])) return false;
+  if (!value || !validateExactObjectFields(value, ["decision", "reason", "direction", "confidence"])) return false;
   const decision = typeof value.decision === "string" ? value.decision.trim().toLowerCase() : "";
   return ALLOWED_ACTIONS.has(decision as AtlasControlAction)
     && typeof value.reason === "string"
@@ -47,7 +47,7 @@ function formatBossAttemptDiagnostics(attempts: Array<{ model: string; httpStatu
 }
 
 export function validateAtlasBossControl(value: Record<string, unknown> | null): boolean {
-  if (!validateExactObjectFields(value, ["action", "candidateName", "direction", "reason", "confidence"])) return false;
+  if (!value || !validateExactObjectFields(value, ["action", "candidateName", "direction", "reason", "confidence"])) return false;
   const action = typeof value.action === "string" ? value.action.trim().toLowerCase() : "";
   return ALLOWED_ACTIONS.has(action as AtlasControlAction)
     && (typeof value.candidateName === "string" || value.candidateName === null)
