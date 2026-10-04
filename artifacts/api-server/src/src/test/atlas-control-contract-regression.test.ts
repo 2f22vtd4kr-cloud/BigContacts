@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { buildAtlasRightHandControlPrompt, diagnoseAtlasBossControlContract, validateAtlasBossControl, validateAtlasRightHandControl } from "../lib/atlas-control-decision";
+import { ATLAS_BOSS_CONTROL_PROMPT_BUDGET, buildAtlasBossControlPrompt, buildAtlasControlEventPayload, buildAtlasRightHandControlPrompt, classifyAtlasBossContractFailure, classifyAtlasBossGenerationFailure, diagnoseAtlasBossControlContract, validateAtlasBossControl, validateAtlasRightHandControl } from "../lib/atlas-control-decision";
 
 const controlSource = readFileSync(resolve(process.cwd(), "src/src/lib/atlas-control-decision.ts"), "utf8");
 const bossSource = readFileSync(resolve(process.cwd(), "src/src/lib/groq-boss.ts"), "utf8");
@@ -56,6 +56,82 @@ describe("Atlas control-plane contract regression", () => {
     expect(prompt).toContain("durable case state remains authoritative");
   });
 
+
+  it("bounds the fully composed Boss control prompt after all framing is added", () => {
+    const prompt = buildAtlasBossControlPrompt({
+      investigatorReport: "LATEST REPORT " + "R".repeat(40_000) + " REPORT TAIL",
+      compactState: "CURRENT DURABLE STATE " + "S".repeat(80_000) + " STATE TAIL",
+      rightHand: {
+        status: "completed",
+        decision: "continue_discovery",
+        reason: "R".repeat(10_000),
+        direction: "D".repeat(10_000),
+        confidence: 0.7,
+        model: "openai/gpt-oss-120b",
+        error: null,
+      },
+    });
+
+    expect(prompt.length).toBeLessThanOrEqual(ATLAS_BOSS_CONTROL_PROMPT_BUDGET);
+    expect(prompt).toContain("APEX ATLAS");
+    expect(prompt).toContain("LATEST REPORT");
+    expect(prompt).toContain("STATE TAIL");
+    expect(prompt).toContain("RIGHT-HAND ADVICE");
+  });
+
+  it("classifies provider generation failures before any response parsing", () => {
+    expect(classifyAtlasBossGenerationFailure({
+      error: "Groq Boss prompt exceeds the bounded control-plane budget of 20000 characters; upstream case-context compaction is required.",
+      attempts: [],
+    })).toBe("CONTROL_PROMPT_TOO_LARGE");
+
+    expect(classifyAtlasBossGenerationFailure({
+      error: "Groq Boss unavailable after bounded model/key attempts.",
+      attempts: [{ httpStatus: 429 }],
+    })).toBe("CONTROL_PROVIDER_RATE_LIMIT");
+
+    expect(classifyAtlasBossGenerationFailure({
+      error: "Groq Boss unavailable after bounded model/key attempts.",
+      attempts: [{ httpStatus: 500 }],
+    })).toBe("CONTROL_PROVIDER_HTTP_ERROR");
+
+    expect(classifyAtlasBossGenerationFailure({
+      error: "Groq Boss returned an empty control response.",
+      attempts: [],
+    })).toBe("CONTROL_EMPTY_RESPONSE");
+  });
+
+  it("classifies malformed JSON and schema-invalid Boss responses separately", () => {
+    expect(classifyAtlasBossContractFailure("{not-json}", null)).toBe("CONTROL_INVALID_JSON");
+    expect(classifyAtlasBossContractFailure(JSON.stringify({ action: "bogus" }), { action: "bogus" })).toBe("CONTROL_SCHEMA_INVALID");
+  });
+
+  it("persists the same status in the immutable event payload and event row", () => {
+    const decision = {
+      status: "unavailable" as const,
+      action: "stop" as const,
+      candidateName: null,
+      direction: null,
+      reason: "Provider unavailable.",
+      confidence: null,
+      rightHand: {
+        status: "unavailable" as const,
+        decision: null,
+        reason: null,
+        direction: null,
+        confidence: null,
+        model: "none",
+        error: "CONTROL_PROMPT_TOO_LARGE",
+      },
+      bossModel: "openai/gpt-oss-120b",
+      error: "stage=groq_boss; category=CONTROL_PROMPT_TOO_LARGE",
+    };
+
+    const payload = buildAtlasControlEventPayload(decision, 4);
+    expect(payload.status).toBe(decision.status);
+    expect(JSON.parse(JSON.stringify(payload)).status).toBe("unavailable");
+    expect(controlSource).toContain("status: input.decision.status");
+  });
 
   it("diagnoses Boss contract failures without retaining raw provider content", () => {
     expect(diagnoseAtlasBossControlContract(null, null)).toEqual(expect.objectContaining({ parseStatus: "missing", contentChars: 0 }));
