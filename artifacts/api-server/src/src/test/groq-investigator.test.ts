@@ -112,7 +112,7 @@ describe("Groq Investigator provider boundary", () => {
 
     expect(["unavailable", "error"]).toContain(result.status);
     expect(calls).toBe(1);
-    expect(result.trajectoryRecords).toHaveLength(0);
+    expect(result.trajectoryRecords).toHaveLength(1);
   });
 
   it("retries the same model in JSON-object mode after Groq strict-schema rejection", async () => {
@@ -157,10 +157,11 @@ describe("Groq Investigator provider boundary", () => {
       choices: [{ message: { content: JSON.stringify({ action: "done", query: null, provider: null, url: null, email: null, username: null, domain: null, registry: null, thought: "done", hypothesis: null, purpose: null, expectedInformationGain: 0, searches: [], findings: [] }) } }],
     });
     const response = new Response(payload, { status: 200, headers: { "content-type": "application/json" } });
-    const originalText = response.text.bind(response);
-    response.text = async () => {
+    const readerFactory = response.body?.getReader.bind(response.body);
+    if (!readerFactory || !response.body) throw new Error("response body reader unavailable");
+    response.body.getReader = () => {
       bodyReads += 1;
-      return originalText();
+      return readerFactory();
     };
     mocks.safeOutboundFetch.mockResolvedValue(response);
 
@@ -216,7 +217,7 @@ describe("Groq Investigator provider boundary", () => {
     });
 
     expect(result.status).toBe("completed");
-    expect(result.model).toBe("qwen/qwen3.8-27b");
+    expect(result.model).toBe("openai/gpt-oss-120b");
     expect(fetchMock.mock.calls.length).toBeGreaterThanOrEqual(1);
   });
 });
