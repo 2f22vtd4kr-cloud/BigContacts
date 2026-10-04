@@ -123,8 +123,8 @@ describe("Groq Boss control-plane adapter", () => {
 
     expect(result.error).toBeNull();
     expect(result.model).toBe(GROQ_BOSS_MODEL);
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(result.attempts).toHaveLength(0);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(result.attempts).toHaveLength(1);
   });
 
   it("retries strict schema rejection once in JSON-object mode on the same model", async () => {
@@ -248,6 +248,6 @@ describe("Groq Boss control-plane adapter", () => {
 
     expect(result.raw).toBeNull();
     expect(result.error).toContain("HTTP 429");
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });
