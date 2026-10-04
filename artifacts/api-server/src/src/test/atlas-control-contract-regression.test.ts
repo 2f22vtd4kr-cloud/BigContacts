@@ -7,7 +7,16 @@ const controlSource = readFileSync(resolve(process.cwd(), "src/src/lib/atlas-con
 const bossSource = readFileSync(resolve(process.cwd(), "src/src/lib/groq-boss.ts"), "utf8");
 const rightHandSource = readFileSync(resolve(process.cwd(), "src/src/lib/groq-right-hand-reasoning.ts"), "utf8");
 
-describe("Atlas control-plane contract regression", () => {
+describe("Atlas control-plane contract regression", () => {\n  it("persists a durable Investigator provider-error turn before fail-closed termination", () => {
+    const investigatorSource = readFileSync(resolve(process.cwd(), "src/src/lib/agentic-web-research-core.ts"), "utf8");
+
+    expect(investigatorSource).toContain('action: "investigator_provider_error"');
+    expect(investigatorSource).toContain('eventType=record.action==="investigator_provider_error"?"provider_error"');
+    expect(investigatorSource).toContain("INVESTIGATOR_PROVIDER_ERROR");
+    expect(investigatorSource).toContain('return resultBase("unavailable", i + 1, "LLM_UNAVAILABLE", lastObservation)');
+  });
+
+
   it("requires strict structured schemas at both canonical control boundaries", () => {
     expect(controlSource).toContain("ATLAS_RIGHT_HAND_CONTROL_RESPONSE_FORMAT");
     expect(controlSource).toContain("ATLAS_BOSS_CONTROL_RESPONSE_FORMAT");
