@@ -191,3 +191,12 @@
 - Search-count correction: event arguments reconcile exactly to 19 underlying web queries: parallel batches of 3, 2, 3, 3, and 2, plus six single searches. The remaining tool event is one registry search.
 - Iteration-10 gap diagnosis: `llmStep` returned no Investigator response on local turn 10. The core returned `iterations=10` without appending a trajectory record for that turn; durable persistence advanced the case counter to 10, and the next run offset its first action to iteration 11. The earlier gap is explained by this failure path, not a missing tool call.
 - Recovery status: the source edits are not yet applied. Next edits will retry `json_validate_failed` once with JSON-object mode under the same role and keep local contract validation, persist a `provider_error` turn on unavailable Investigator responses, and teach event replay to recognize that event type.
+### E011 — Right-hand compatibility fix and Investigator failure durability applied
+
+- Recorded: 2026-10-04 14:42 UTC. No Atlas launch and no external research-provider call was made during this code fix.
+- The Right-hand compatibility path is now present in `groq-right-hand-reasoning.ts`: a Groq HTTP 400 `json_validate_failed` on a strict JSON-schema request is retried once in JSON-object mode under the same Right-hand role/model. The returned JSON remains subject to the existing local Atlas control-contract validator; provider output is never admitted directly.
+- Regression coverage in `groq-right-hand.test.ts` verifies the sequence `json_schema -> json_object` and requires successful local parsing of the fallback response.
+- The Investigator failure path was also hardened: an unavailable Groq Investigator turn now produces a trajectory record with `action=investigator_provider_error`, a sanitized `INVESTIGATOR_PROVIDER_ERROR ...` observation, and is persisted by `bureau-agentic-pass.ts` as `research_case_events.eventType=provider_error` before the fail-closed `LLM_UNAVAILABLE` terminal result. This removes the prior silent iteration gap.
+- `research-case-replay.ts` accepts `provider_error` as a valid event type and counts it as a failure/action, with regression coverage.
+- Changes were applied directly to `main` after the Replit Agent daily free quota was exhausted; no credential values were read or changed.
+- Next step remains verification only: CI/static/type/test checks. Do not launch another live Atlas run until separately authorized.
