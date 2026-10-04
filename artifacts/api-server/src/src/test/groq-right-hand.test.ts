@@ -244,6 +244,7 @@ describe("Groq Right-hand model policy", () => {
     vi.stubEnv("GROQ_RIGHT_HAND_API_KEY", "right-hand-transient-retry-test-key");
 
     const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      let chatCalls = 0;
       const url = String(input);
       if (url === "https://api.groq.com/openai/v1/models") {
         return new Response(JSON.stringify({
@@ -252,7 +253,8 @@ describe("Groq Right-hand model policy", () => {
       }
       const body = JSON.parse(String(init?.body));
       expect(body.model).toBe("openai/gpt-oss-120b");
-      if (fetchMock.mock.calls.filter(([callInput]) => String(callInput) === "https://api.groq.com/openai/v1/chat/completions").length === 1) {
+      chatCalls += 1;
+      if (chatCalls === 1) {
         return new Response(JSON.stringify({
           error: { code: "rate_limit_exceeded", message: "short burst limit" },
         }), {
