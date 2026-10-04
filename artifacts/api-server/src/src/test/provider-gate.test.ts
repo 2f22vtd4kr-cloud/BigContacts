@@ -4,6 +4,7 @@ import {
   resetProviderGateForTests,
   runProviderCall,
   withProviderRetryOwnership,
+  withProviderScope,
 } from "../lib/provider-gate";
 
 describe("provider quota gate", () => {
@@ -43,6 +44,29 @@ describe("provider quota gate", () => {
       code: "budget_exhausted",
       provider: "generic",
     });
+    expect(calls).toBe(2);
+  });
+
+  it("keeps independent role scopes from consuming the same local budget", async () => {
+    process.env.APEX_PROVIDER_MAX_REQUESTS_GENERIC = "10";
+    process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GENERIC = "0";
+    process.env.APEX_EXTERNAL_MAX_REQUESTS_PER_SCOPE = "1";
+    let calls = 0;
+
+    await withProviderScope("atlas-investigator", () =>
+      runProviderCall({ provider: "generic", account: "role-scope-test" }, async () => {
+        calls += 1;
+        return "investigator";
+      }),
+    );
+
+    await withProviderScope("atlas-right-hand", () =>
+      runProviderCall({ provider: "generic", account: "role-scope-test" }, async () => {
+        calls += 1;
+        return "right-hand";
+      }),
+    );
+
     expect(calls).toBe(2);
   });
 
