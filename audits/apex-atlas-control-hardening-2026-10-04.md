@@ -28,6 +28,7 @@ This is a local capacity-accounting defect, not a license to bypass Groq limits.
 5. **Failure classification.** Atlas Boss generation failure classification now recognizes local provider-gate rate limiting even when there is no HTTP status.
 6. **Regression coverage.** Added provider-gate scope tests, privacy-safe local-quota diagnostics tests, Atlas control classification tests, and a source guard that prevents removal of the per-job scope/fail-fast boundaries.
 7. **Deterministic test isolation.** The existing Right-hand transient-429 regression used its own mock-call history to decide whether to return the retry response. It now uses an explicit chat-call counter, removing test-runner timing/mock-order ambiguity while preserving the assertion that the retry stays on the same model.
+8. **429 classification correction.** The Right-hand retry classifier previously treated `rateLimitKind="unknown"` as a hard quota condition because `unknown` was non-null. That suppressed the bounded transient-429 retry path and could cause unnecessary model fallback. Unknown 429s now enter the bounded transient retry path; only confirmed request/token exhaustion is treated as a hard rate-limit condition.
 
 ## Why this is the correct architecture
 
