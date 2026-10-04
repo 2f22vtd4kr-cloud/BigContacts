@@ -62,7 +62,7 @@ describe("Atlas control-plane contract regression", () => {
     expect(diagnoseAtlasBossControlContract("{not-json}", null)).toEqual(expect.objectContaining({ parseStatus: "malformed_json", contentChars: 10 }));
     expect(diagnoseAtlasBossControlContract(JSON.stringify({ action: "bogus", candidateName: 7, direction: null, confidence: "high" }), {
       action: "bogus", candidateName: 7, direction: null, confidence: "high", extra: true,
-    })).toEqual(expect.objectContaining({ parseStatus: "object", unexpectedFields: ["extra"], invalidFields: ["action", "candidateName", "confidence"] }));
+    })).toEqual(expect.objectContaining({ parseStatus: "object", unexpectedFields: ["extra"], invalidFields: ["action", "candidateName", "confidence", "reason"] }));
   });
 
   it("replays valid and malformed provider contracts through the real validators", () => {
