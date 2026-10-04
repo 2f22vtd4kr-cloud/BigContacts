@@ -8,11 +8,11 @@ const bossSource = readFileSync(resolve(process.cwd(), "src/src/lib/groq-boss.ts
 const rightHandSource = readFileSync(resolve(process.cwd(), "src/src/lib/groq-right-hand-reasoning.ts"), "utf8");
 
 describe("Atlas control-plane contract regression", () => {
-  it("persists a durable Investigator provider-error turn before fail-closed termination", () => {
+  it("records an Investigator provider-error turn before fail-closed termination", () => {
     const investigatorSource = readFileSync(resolve(process.cwd(), "src/src/lib/agentic-web-research-core.ts"), "utf8");
 
     expect(investigatorSource).toContain('action: "investigator_provider_error"');
-    expect(investigatorSource).toContain('eventType=record.action==="investigator_provider_error"?"provider_error"');
+    expect(investigatorSource).toContain('records.push(providerErrorRecord);');
     expect(investigatorSource).toContain("INVESTIGATOR_PROVIDER_ERROR");
     expect(investigatorSource).toContain('return resultBase("unavailable", i + 1, "LLM_UNAVAILABLE", lastObservation)');
   });
