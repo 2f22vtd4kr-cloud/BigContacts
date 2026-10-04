@@ -230,7 +230,7 @@ describe("Groq Right-hand model policy", () => {
     const result = await runGroqRightHandFreeJson("Return a small JSON decision.");
 
     expect(result.status).toBe("unavailable");
-    expect(result.model).toBe("openai/gpt-oss-20b");
+    expect(result.model).toBe("openai/gpt-oss-120b");
     const chatModels = fetchMock.mock.calls
       .filter(([input]) => String(input) === "https://api.groq.com/openai/v1/chat/completions")
       .map(([, init]) => JSON.parse(String(init?.body)).model);
