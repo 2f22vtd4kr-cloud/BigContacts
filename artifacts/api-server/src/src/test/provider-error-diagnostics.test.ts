@@ -4,10 +4,18 @@ import {
   providerErrorCode,
   classifyThrownProviderError,
   describeThrownProviderError,
+  isLocalProviderQuotaError,
   summarizeProviderBody,
 } from "../lib/provider-error-diagnostics";
 
 describe("provider error diagnostics", () => {
+  it("identifies local provider-gate quota errors without exposing their messages", async () => {
+    const { ProviderQuotaError } = await import("../lib/provider-gate");
+    const error = new ProviderQuotaError("budget_exhausted", "groq", 30_000);
+    expect(isLocalProviderQuotaError(error)).toBe(true);
+    expect(classifyThrownProviderError(error)).toBe("rate_limited");
+  });
+
   it("classifies AbortError as a timeout unless the caller explicitly marks cancellation", () => {
     const timeout = new DOMException("The operation was aborted", "AbortError");
 
