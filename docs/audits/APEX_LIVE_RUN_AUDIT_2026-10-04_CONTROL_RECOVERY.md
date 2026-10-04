@@ -113,3 +113,52 @@ Right-hand unavailable/invalid
 → recoverable control boundary
 
 It does not bypass Right-hand oversight, admission, evidence provenance, or deterministic terminal gates.
+
+## Right-hand blocker diagnosis and follow-up fix — 2026-10-04
+
+The later starred live audit showed a stronger pattern than "the replacement key failed":
+
+- The replacement Right-hand credential successfully completed the opening oversight call.
+- The same run then performed nine successful Investigator search actions and failed on the first post-discovery Right-hand control call.
+- The persisted failure was rate/quota-like, but the old stored diagnostic did not expose enough information to distinguish request quota from token-window quota.
+- This timing is consistent with Groq rate limiting being reached after accumulated LLM work, not with a credential being invalid. Groq documents separate RPM/RPD/TPM/ITPM/OTPM limits and exposes remaining/reset request and token headers; those limits can be organization-level.
+- A replacement key therefore cannot be assumed to create new token capacity. Project request limits can differ by project, but organization ceilings still apply.
+
+### Code defects found
+
+Two local control-plane issues were also identified:
+
+1. Right-hand calls inherited the provider gate's default `process` scope. That meant Right-hand could consume the same local per-scope budget as Investigator/Boss traffic. A local `ProviderQuotaError(code=budget_exhausted)` could therefore present as a Right-hand provider failure even though Groq had not rejected the request.
+2. Right-hand treated a hard 429 primarily as request-quota exhaustion. A token-window 429 could instead fall through to the model fallback even though GPT-OSS 120B and 20B share the relevant organization token ceiling. The implementation did not use Groq's token reset header to make one bounded wait-and-retry decision.
+
+### Fixes applied
+
+File: `artifacts/api-server/src/src/lib/groq-right-hand-reasoning.ts`
+
+- Right-hand requests now run inside a dedicated `atlas-right-hand` provider-gate scope, separating its local request budget from the shared process scope while retaining the existing provider-level safety limits.
+- 429 diagnostics now classify the observed limit as `requests`, `tokens`, or `unknown` when the response headers/body allow that distinction.
+- When Groq reports zero remaining tokens and supplies a token reset interval, Right-hand waits once for that bounded reset (maximum 15 seconds) and retries the same model before giving up.
+- Request-quota exhaustion still rotates/falls through the configured key/model chain rather than waiting through a daily quota.
+- Local `ProviderQuotaError` diagnostics now retain the local error code and retry-after value in the Right-hand attempt record.
+- No credential values are logged or persisted.
+
+File: `artifacts/api-server/src/src/test/groq-right-hand.test.ts`
+
+- Added a regression proving that a token-window 429 with a short reset is retried and can complete without incorrectly abandoning the model.
+
+File: `artifacts/api-server/src/src/test/provider-gate.test.ts`
+
+- Added a regression proving independent provider scopes do not consume the same local per-scope budget.
+
+### Live-run status
+
+No provider probe and no third Apex run were performed while making this fix. The two starred runs remain failed/incomplete with zero admitted evidence and zero cards. The next live run must still be explicitly authorized after reviewing provider capacity.
+
+### Safety conclusion
+
+The fix does not bypass Right-hand oversight. It makes the existing fail-closed boundary more precise:
+
+- local Apex budget contention no longer masquerades as shared process exhaustion for Right-hand;
+- a short-lived Groq token-window 429 gets one bounded, header-informed recovery opportunity;
+- persistent/exhausted provider limits still stop Atlas before Boss/Investigator continuation;
+- no evidence or card can be admitted merely because a provider retry succeeds.
