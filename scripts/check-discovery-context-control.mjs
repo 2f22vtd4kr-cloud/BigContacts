@@ -22,7 +22,7 @@ const checks = [
 ["discovery durable projection is explicit", /DURABLE CASE MEMORY PROJECTION/.test(bureau)],
 ["discovery full trajectory remains in immutable ledger while caseFile projection is bounded", /complete observations remain in research_case_events/.test(bureau) && /records\.slice\(Math\.max\(0, records\.length - 64\)\)/.test(bureau)],
 ["discovery durable projection stores bounded structured Investigator records", /investigatorTrajectoryRecords:durableProjectionRecords/.test(bureau) && /compactDurableDiscoveryRecords/.test(bureau)],
-["discovery trajectory is also retained in the immutable event ledger", /eventType=record\.action==="done"\?"decision":"tool_observation"/.test(bureau) && /researchCaseEventsTable/.test(bureau)],
+["discovery trajectory is also retained in the immutable event ledger", /eventType=record\.action==="done"\?"decision":record\.action==="investigator_provider_error"\?"provider_error":"tool_observation"/.test(bureau) && /researchCaseEventsTable/.test(bureau)],
 ["discovery trajectory events have run-turn correlation", /\$\{input\.runId\}:turn:\$\{record\.turn\}:trajectory/.test(bureau)],
 ["discovery claims retain immutable observation-event anchors", /observationEventIds/.test(bureau)],
 ["discovery promotions reference the immutable claim event", /claimEventId:claimInserted\[0\]\?\.id/.test(bureau)],
