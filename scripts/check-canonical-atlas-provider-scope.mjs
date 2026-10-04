@@ -18,6 +18,7 @@ const checks = [
   [investigator.includes("if (isLocalProviderQuotaError(error)) return null;"), "Investigator must stop futile same-provider fallback after a local gate block."],
   [boss.includes("isLocalProviderQuotaError(error)"), "Boss must recognize local provider-gate quota failures."],
   [boss.includes("Groq Boss local provider gate blocked further attempts"), "Boss must fail fast and emit a privacy-safe local-gate diagnostic."],
+  [read("./artifacts/api-server/src/src/lib/groq-right-hand-reasoning.ts").includes('return kind === "requests" || kind === "tokens";'), "Unknown Right-hand 429s must remain eligible for bounded transient retry."],
 ];
 
 const failed = checks.filter(([ok]) => !ok);
