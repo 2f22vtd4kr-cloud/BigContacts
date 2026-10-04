@@ -3,6 +3,7 @@ import { assessResearchFrontier, scoreSourceIndependence } from "./research-poli
 import { updateHypothesisPosterior, chooseBestDiscriminator, assessFalsificationPlan } from "./research-hypothesis-policy";
 import { summarizeActionYield, type ActionYieldStat, updateActionYield } from "./research-action-learning";
 import { bindExactSourceSpan, SourceLineageGraph, sourceLineageId } from "./research-epistemic-vnext";
+// discovery-frontier integration follows in the next revision
 
 export type IntelligenceSourceTier = "A" | "B" | "C" | "D" | "unknown";
 export type IntelligenceEvidenceKind = "observation" | "finding" | "negative" | "contradiction" | "claim";
