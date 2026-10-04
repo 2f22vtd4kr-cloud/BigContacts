@@ -156,6 +156,40 @@ describe("Groq Right-hand model policy", () => {
     expect(new Headers(chatCalls[1]?.[1]?.headers).get("authorization")).toContain("right-hand-secondary-key");
   });
 
+  it("waits for a token-window reset on a hard 429 before giving up the model", async () => {
+    vi.stubEnv("GROQ_RIGHT_HAND_API_KEY", "right-hand-token-window-test-key");
+
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      const url = String(input);
+      if (url === "https://api.groq.com/openai/v1/models") {
+        return new Response(JSON.stringify({
+          data: [{ id: "openai/gpt-oss-120b" }],
+        }), { status: 200 });
+      }
+      const calls = fetchMock.mock.calls.filter(([callInput]) => String(callInput) === "https://api.groq.com/openai/v1/chat/completions").length;
+      if (calls === 1) {
+        return new Response(JSON.stringify({
+          error: { type: "rate_limit_error", code: "rate_limit_exceeded", message: "token rate limit" },
+        }), {
+          status: 429,
+          headers: {
+            "x-ratelimit-remaining-requests": "999",
+            "x-ratelimit-remaining-tokens": "0",
+            "x-ratelimit-reset-tokens": "0.001s",
+          },
+        });
+      }
+      return new Response(JSON.stringify({
+        choices: [{ message: { content: '{"decision":"proceed","reason":"token window reset","direction":null,"confidence":0.9}' } }],
+      }), { status: 200 });
+    });
+
+    const result = await runGroqRightHandFreeJson("Return a small JSON decision.", "Reply with ONE JSON object only.");
+    expect(result.status).toBe("completed");
+    const chatCalls = fetchMock.mock.calls.filter(([input]) => String(input) === "https://api.groq.com/openai/v1/chat/completions");
+    expect(chatCalls).toHaveLength(2);
+  });
+
   it("uses the primary model and advances to the bounded GPT-OSS fallback", async () => {
     vi.stubEnv("GROQ_RIGHT_HAND_API_KEY", "right-hand-fallback-test-key");
 
