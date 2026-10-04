@@ -4,6 +4,11 @@ vi.mock("../lib/ssrf-safe-fetch", () => ({
   safeOutboundFetch: (input: string | URL, init?: RequestInit) => globalThis.fetch(input, init),
 }));
 
+vi.mock("../lib/provider-gate", () => ({
+  runProviderCall: async (_options: unknown, fn: () => Promise<Response>) => fn(),
+  withProviderRetryOwnership: async (_provider: string, _owner: string, fn: () => Promise<Response>) => fn(),
+}));
+
 vi.mock("../lib/python-tools", () => ({
   runHolehe: vi.fn(async () => ({ email: "person@example.com", found: [], totalChecked: 0, totalFound: 0, available: false, error: "Python network sandbox is unavailable." })),
   runMaigret: vi.fn(async () => ({ username: "example", found: [], totalSitesChecked: 0, available: false, error: "Python network sandbox is unavailable." })),
