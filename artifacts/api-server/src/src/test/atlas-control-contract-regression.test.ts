@@ -64,7 +64,8 @@ describe("Atlas control-plane contract regression", () => {
       action: "bogus", candidateName: 7, direction: null, confidence: "high", extra: true,
     })).toEqual(expect.objectContaining({ parseStatus: "object", unexpectedFields: ["extra"], invalidFields: ["action", "candidateName", "confidence"] }));
   });
-\n  it("replays valid and malformed provider contracts through the real validators", () => {
+
+  it("replays valid and malformed provider contracts through the real validators", () => {
     expect(validateAtlasRightHandControl({
       decision: "continue_discovery",
       reason: "The current evidence is insufficient.",
