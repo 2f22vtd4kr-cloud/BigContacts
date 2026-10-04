@@ -96,6 +96,11 @@ describe("Atlas control-plane contract regression", () => {
     })).toBe("CONTROL_PROVIDER_HTTP_ERROR");
 
     expect(classifyAtlasBossGenerationFailure({
+      error: "Groq Boss local provider gate blocked further attempts (budget_exhausted).",
+      attempts: [{ httpStatus: null, providerErrorCode: "budget_exhausted", failureClass: "rate_limited" }],
+    })).toBe("CONTROL_PROVIDER_RATE_LIMIT");
+
+    expect(classifyAtlasBossGenerationFailure({
       error: "Groq Boss returned an empty control response.",
       attempts: [],
     })).toBe("CONTROL_EMPTY_RESPONSE");
@@ -131,6 +136,8 @@ describe("Atlas control-plane contract regression", () => {
     expect(payload.status).toBe(decision.status);
     expect(JSON.parse(JSON.stringify(payload)).status).toBe("unavailable");
     expect(controlSource).toContain("status: input.decision.status");
+    expect(controlSource).toContain("failureClass=${failureClass ?? \"none\"}");
+    expect(bossSource).toContain("isLocalProviderQuotaError(error)");
   });
 
   it("diagnoses Boss contract failures without retaining raw provider content", () => {
