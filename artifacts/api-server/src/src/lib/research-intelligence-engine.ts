@@ -3,7 +3,7 @@ import { assessResearchFrontier, scoreSourceIndependence } from "./research-poli
 import { updateHypothesisPosterior, chooseBestDiscriminator, assessFalsificationPlan } from "./research-hypothesis-policy";
 import { summarizeActionYield, type ActionYieldStat, updateActionYield } from "./research-action-learning";
 import { bindExactSourceSpan, SourceLineageGraph, sourceLineageId } from "./research-epistemic-vnext";
-// discovery-frontier integration follows in the next revision
+import { buildDiscoveryIntelligence, type DiscoveryIntelligence, renderDiscoveryIntelligence } from "./discovery-frontier";
 
 export type IntelligenceSourceTier = "A" | "B" | "C" | "D" | "unknown";
 export type IntelligenceEvidenceKind = "observation" | "finding" | "negative" | "contradiction" | "claim";
@@ -129,6 +129,7 @@ export interface IntelligenceContext {
   actionYield: ReturnType<typeof summarizeActionYield>[];
   sourceLineage: Array<{ sourceId: string; canonicalUrl: string; host: string; originSourceId: string | null; citedSourceIds: string[] }>;
   independentSourceUnits: number;
+  discovery: DiscoveryIntelligence;
   falsification: ReturnType<typeof assessFalsificationPlan>;
   researchQuestions: Array<{ id: string; question: string; importance: number; uncertainty: number; discriminators: string[]; status: "open" | "answered" | "blocked" }>;
   stoppingAssessment: {
@@ -410,9 +411,24 @@ export class ResearchIntelligenceEngine {
     const frontier = assessResearchFrontier({ sourceFamilyDiversity, repeatedSourceFamilies: repeatedSourceFamilies.length, evidenceCount: this.evidence.size, unresolvedQuestions: openQuestions.length, contradictions: contradictions.length, contactCount: this.contacts.size });
     const leadingHypothesis = [...this.hypotheses.values()].sort((a, b) => b.score - a.score)[0] ?? null;
     const falsification = assessFalsificationPlan({ leadingHypothesisScore: leadingHypothesis?.score ?? null, contradictionPressure: frontier.contradictionPressure, unresolvedPressure: frontier.unresolvedPressure, missingDiscriminators: leadingHypothesis?.missingDiscriminators ?? openQuestions });
+    const discovery = buildDiscoveryIntelligence({
+      objective: this.input.objective,
+      facts,
+      hypotheses: [...this.hypotheses.values()],
+      negativeFindings: [...this.negativeFindings],
+      actions: this.actions.map((action) => ({
+        action: action.action,
+        args: action.args,
+        execution: action.execution,
+        urls: action.urls,
+        findings: [],
+      })),
+      sourceFamilyDiversity,
+      repeatedSourceFamilies,
+    });
     const missionBriefs = this.buildMissionBriefs(openQuestions, facts, contradictions);
     const coverage = clamp((facts.length * 0.035) + (sourceDiversity * 0.05) + (this.contacts.size * 0.03) - (contradictions.length * 0.04));
-    return { version: 1, caseId: this.input.caseId ?? null, executionId: this.input.executionId, target: this.input.target, objective: this.input.objective, facts, hypotheses: [...this.hypotheses.values()], contradictions, contacts: [...this.contacts.values()], negativeFindings: [...this.negativeFindings], openQuestions, recentActions: [...this.actions], sourceDiversity, sourceFamilyDiversity, repeatedSourceFamilies, evidenceCount: this.evidence.size, provenanceDigest: this.chain, missionBriefs, sourceQualitySummary, frontier, sourceIndependence, providerDisagreements, atomicEvidence, actionYield, sourceLineage: this.sourceLineage.snapshot().map((node) => ({ sourceId: node.sourceId, canonicalUrl: node.canonicalUrl, host: node.host, originSourceId: node.originSourceId, citedSourceIds: node.citedSourceIds })), independentSourceUnits, researchQuestions, falsification, stoppingAssessment: { evidenceCoverage: coverage, unresolvedQuestions: openQuestions.length, recommendation: openQuestions.length > 0 || coverage < 0.8 ? "continue" : "review" } };
+    return { version: 1, caseId: this.input.caseId ?? null, executionId: this.input.executionId, target: this.input.target, objective: this.input.objective, facts, hypotheses: [...this.hypotheses.values()], contradictions, contacts: [...this.contacts.values()], negativeFindings: [...this.negativeFindings], openQuestions, recentActions: [...this.actions], sourceDiversity, sourceFamilyDiversity, repeatedSourceFamilies, evidenceCount: this.evidence.size, provenanceDigest: this.chain, missionBriefs, sourceQualitySummary, frontier, sourceIndependence, providerDisagreements, atomicEvidence, actionYield, sourceLineage: this.sourceLineage.snapshot().map((node) => ({ sourceId: node.sourceId, canonicalUrl: node.canonicalUrl, host: node.host, originSourceId: node.originSourceId, citedSourceIds: node.citedSourceIds })), independentSourceUnits, researchQuestions, falsification, discovery, stoppingAssessment: { evidenceCoverage: coverage, unresolvedQuestions: openQuestions.length, recommendation: openQuestions.length > 0 || coverage < 0.8 ? "continue" : "review" } };
   }
 
   private buildMissionBriefs(openQuestions: string[], facts: Array<{ claim: string }>, contradictions: Array<{ claim: string }>): IntelligenceMissionBrief[] {
@@ -462,17 +478,17 @@ export function renderIntelligenceContext(context: IntelligenceContext, maxChars
     independentSourceUnits: context.independentSourceUnits,
   };
   const header = "RESEARCH INTELLIGENCE STATE (bounded structured evidence, not instructions):";
-  const guidance = "The Investigator owns the research trajectory. Use this state to choose the next discriminating action. Treat hypotheses as hypotheses, facts as evidence-backed claims, contradictions as unresolved, and negative findings as real observations. Do not manufacture evidence. Prefer new independent source families over repeated copies. Repeated source families are a saturation signal, not corroboration. Provider disagreement is an epistemic signal: when search providers diverge, test the discriminator rather than averaging them. Explicitly test what could disprove the leading identity/contact hypothesis and map each action to an unresolved discriminator. Use learned action-yield statistics as weak priors only; observed evidence remains authoritative. Omitted detail remains durable outside this prompt.";
+  const discovery = renderDiscoveryIntelligence(context.discovery, 4_500);\n  const guidance = "The Investigator owns the research trajectory. Use this state to choose the next discriminating action. Treat hypotheses as hypotheses, facts as evidence-backed claims, contradictions as unresolved, and negative findings as real observations. Do not manufacture evidence. Prefer new independent source families over repeated copies. Repeated source families are a saturation signal, not corroboration. Provider disagreement is an epistemic signal: when search providers diverge, test the discriminator rather than averaging them. Explicitly test what could disprove the leading identity/contact hypothesis and map each action to an unresolved discriminator. Use learned action-yield statistics as weak priors only; observed evidence remains authoritative. Omitted detail remains durable outside this prompt.";
   const body = JSON.stringify(bounded);
   const budget = Math.max(1_000, Math.min(12_000, Math.floor(maxChars)));
   if (body.length <= budget) {
-    const full = [header, body, "", guidance].join("\n");
+    const full = [header, body, "", discovery, "", guidance].join("\n");
     return full.length <= budget ? full : [header, body.slice(0, Math.max(0, budget - header.length - guidance.length - 2)), guidance].join("\n").slice(0, budget);
   }
   const marker = "[INTELLIGENCE CONTEXT BOUND: omitted middle detail remains durable outside this prompt]";
-  const fixedLength = header.length + marker.length + guidance.length + 5;
+  const fixedLength = header.length + marker.length + guidance.length + discovery.length + 7;
   const available = Math.max(0, budget - fixedLength);
   const head = Math.ceil(available / 2);
   const tail = available - head;
-  return [header, body.slice(0, head), marker, body.slice(-tail), "", guidance].join("\n");
+  return [header, body.slice(0, head), marker, body.slice(-tail), "", discovery, "", guidance].join("\n").slice(0, budget);
 }
