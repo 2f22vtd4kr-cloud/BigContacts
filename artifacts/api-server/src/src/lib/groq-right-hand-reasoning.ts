@@ -124,7 +124,7 @@ function rateLimitKind(response:Response, body:string):RateLimitKind {
  if(Number.isFinite(remainingRequests)&&remainingRequests===0) return "requests";
  return "unknown";
 }
-function hardRateLimit(response: Response, body: string): boolean { return rateLimitKind(response,body) !== null; }
+function hardRateLimit(response: Response, body: string): boolean { const kind = rateLimitKind(response, body); return kind === "requests" || kind === "tokens"; }
 function tokenRateLimitWaitMs(response:Response):number|null {
  const reset=parseRateLimitResetMs(response.headers.get("x-ratelimit-reset-tokens"));
  if(reset!==null) return reset;
