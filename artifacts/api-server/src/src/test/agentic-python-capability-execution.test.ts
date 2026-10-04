@@ -33,10 +33,18 @@ describe("agentic Python capability execution state", () => {
       { choices: [{ message: { content: '{"action":"done","findings":[]}' } }] },
     ];
     let calls = 0;
-    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify(responses[calls++]), {
-      status: 200,
-      headers: { "content-type": "application/json" },
-    })));
+    vi.stubGlobal("fetch", vi.fn(async (input) => {
+      if (String(input) === "https://api.groq.com/openai/v1/models") {
+        return new Response(JSON.stringify({ data: [{ id: "openai/gpt-oss-120b" }] }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      }
+      return new Response(JSON.stringify(responses[calls++]), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    }));
 
     const result = await runAgenticWebResearch({
       targetName: "Example",
