@@ -127,7 +127,7 @@ describe("Atlas control-plane contract regression", () => {
       error: "stage=groq_boss; category=CONTROL_PROMPT_TOO_LARGE",
     };
 
-    const payload = buildAtlasControlEventPayload(decision, 4);
+    const payload = buildAtlasControlEventPayload({ decision, controlTurn: 4 });
     expect(payload.status).toBe(decision.status);
     expect(JSON.parse(JSON.stringify(payload)).status).toBe("unavailable");
     expect(controlSource).toContain("status: input.decision.status");
