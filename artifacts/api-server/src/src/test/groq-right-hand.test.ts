@@ -8,6 +8,7 @@ import {
   runGroqRightHandDiscoveryAdvice,
 } from "../lib/groq-right-hand-reasoning";
 import { summarizeProviderBody } from "../lib/provider-error-diagnostics";
+import { validateAtlasRightHandControl, validateAtlasBossControl } from "../lib/atlas-control-decision";
 
 describe("Groq Right-hand model policy", () => {
   afterEach(() => {
@@ -314,6 +315,62 @@ describe("Groq Right-hand model policy", () => {
     expect(result.status).toBe("completed");
     expect(formats).toEqual(["json_schema", "json_object"]);
     expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+
+
+  it("isolates model-catalog caches for credentials that collide under the legacy 32-bit fingerprint", async () => {
+    vi.stubEnv("GROQ_RIGHT_HAND_API_KEY", "Aa");
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      const url = String(input);
+      const auth = new Headers(init?.headers).get("authorization") ?? "";
+      if (url === "https://api.groq.com/openai/v1/models") {
+        return new Response(JSON.stringify({
+          data: auth.endsWith("Aa") ? [{ id: "openai/gpt-oss-120b" }] : [{ id: "openai/gpt-oss-20b" }],
+        }), { status: 200 });
+      }
+      return new Response(JSON.stringify({
+        choices: [{ message: { content: '{"decision":"proceed"}' } }],
+      }), { status: 200 });
+    });
+
+    const first = await runGroqRightHandFreeJson("Return a small JSON decision.");
+    expect(first.status).toBe("completed");
+    expect(first.model).toBe("openai/gpt-oss-120b");
+
+    vi.stubEnv("GROQ_RIGHT_HAND_API_KEY", "BB");
+    const second = await runGroqRightHandFreeJson("Return a small JSON decision.");
+    expect(second.status).toBe("completed");
+    expect(second.model).toBe("openai/gpt-oss-20b");
+
+    const catalogCalls = fetchMock.mock.calls.filter(([input]) => String(input) === "https://api.groq.com/openai/v1/models");
+    expect(catalogCalls).toHaveLength(2);
+  });
+
+  it("treats the Right-hand contract as exact, not merely structurally compatible", () => {
+    expect(validateAtlasRightHandControl({
+      decision: "stop",
+      reason: "Evidence is sufficient.",
+      direction: null,
+      confidence: 0.9,
+      unexpectedProviderField: "must be rejected",
+    })).toBe(false);
+
+    expect(validateAtlasRightHandControl({
+      decision: "stop",
+      reason: "Evidence is sufficient.",
+      direction: null,
+      confidence: 0.9,
+    })).toBe(true);
+
+    expect(validateAtlasBossControl({
+      action: "stop",
+      candidateName: null,
+      direction: null,
+      reason: "Evidence is sufficient.",
+      confidence: 0.9,
+      extra: true,
+    })).toBe(false);
   });
 
   it("reports the fallback chain without exposing credentials", () => {
