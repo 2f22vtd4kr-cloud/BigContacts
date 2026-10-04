@@ -7,6 +7,7 @@ import { filterClaimUrls, filterPassagesForQuery } from "./passage-filter";
 import { sanitizePublicEmail, sanitizePublicPhone, isTrashContactValue } from "./contact-validation";
 import { safeOutboundFetch } from "./ssrf-safe-fetch";
 import { runProviderCall, withProviderRetryOwnership } from "./provider-gate";
+import { isLocalProviderQuotaError } from "./provider-error-diagnostics";
 import { boundInvestigatorPromptSection, buildInvestigatorContext, tightenInvestigatorPrompt } from "./investigation-context-compaction";
 import { renderAtlasCapabilityGuidance } from "./atlas-capability-registry";
 import { classifyTrajectorySignals, type AtlasFailureSignal } from "./atlas-failure-observatory";
@@ -370,7 +371,12 @@ async function callGroqJson(prompt: string, signal: AbortSignal, cognitiveTask: 
         break;
       } catch (error: any) {
         if (signal.aborted) throw new Error("cancelled");
-        recordAgenticLlmAttempt({ provider: "groq", model, promptChars: workingPrompt.length, status: "error", success: false, latencyMs: Date.now() - started, retryIndex: attempt, reason: `${classifyThrownProviderError(error)}${error instanceof Error ? `:${digestDiagnosticText(error.message)}` : ""}` });
+        const failureClass = classifyThrownProviderError(error);
+        recordAgenticLlmAttempt({ provider: "groq", model, promptChars: workingPrompt.length, status: "error", success: false, latencyMs: Date.now() - started, retryIndex: attempt, reason: `${failureClass}${error instanceof Error ? `:${digestDiagnosticText(error.message)}` : ""}` });
+        // A local provider-gate quota/cooldown is already a provider-wide stop
+        // signal for this role. Do not waste the remaining key/model matrix on
+        // calls that the gate will reject before reaching Groq.
+        if (isLocalProviderQuotaError(error)) return null;
         break;
       }
     }
