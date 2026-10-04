@@ -16,6 +16,7 @@ describe("provider quota gate", () => {
     delete process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GEMINI;
     delete process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GROQ;
     delete process.env.APEX_EXTERNAL_MAX_REQUESTS_PER_SCOPE;
+    delete process.env.APEX_ATLAS_PROVIDER_MAX_REQUESTS_PER_SCOPE;
     delete process.env.APEX_EXTERNAL_PROVIDER_CONCURRENCY_GEMINI;
     resetProviderGateForTests();
   });
@@ -68,6 +69,32 @@ describe("provider quota gate", () => {
     );
 
     expect(calls).toBe(2);
+  });
+
+  it("gives each canonical Atlas job its own bounded provider scope budget", async () => {
+    process.env.APEX_PROVIDER_MAX_REQUESTS_GENERIC = "10";
+    process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GENERIC = "0";
+    process.env.APEX_EXTERNAL_MAX_REQUESTS_PER_SCOPE = "1";
+    process.env.APEX_ATLAS_PROVIDER_MAX_REQUESTS_PER_SCOPE = "2";
+
+    await withProviderScope("atlas-run:test-job", () =>
+      runProviderCall({ provider: "generic", account: "atlas-scope-budget" }, async () => "first"),
+    );
+    await withProviderScope("atlas-run:test-job", () =>
+      runProviderCall({ provider: "generic", account: "atlas-scope-budget" }, async () => "second"),
+    );
+
+    await expect(
+      withProviderScope("atlas-run:test-job", () =>
+        runProviderCall({ provider: "generic", account: "atlas-scope-budget" }, async () => "third"),
+      ),
+    ).rejects.toMatchObject({ code: "budget_exhausted", provider: "generic" });
+
+    await expect(
+      withProviderScope("atlas-right-hand", () =>
+        runProviderCall({ provider: "generic", account: "atlas-scope-budget" }, async () => "right-hand"),
+      ),
+    ).resolves.toBe("right-hand");
   });
 
   it("honors cooldowns without retrying the provider", async () => {
