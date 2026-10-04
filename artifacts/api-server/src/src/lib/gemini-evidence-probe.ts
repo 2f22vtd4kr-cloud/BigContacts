@@ -31,6 +31,23 @@ export type GeminiEvidenceProbeResult = {
 };
 
 type GeminiCatalogEntry = { name?: string; supportedGenerationMethods?: string[] };
+const GEMINI_MAX_SHORT_RETRY_MS = 2_500;
+
+function retryAfterMs(response: Response): number {
+  const raw = response.headers.get("retry-after")?.trim() ?? "";
+  if (!raw) return 0;
+  const seconds = Number(raw);
+  return Number.isFinite(seconds) && seconds >= 0 ? Math.min(60_000, Math.floor(seconds * 1_000)) : 0;
+}
+
+function shouldStopGeminiMatrix(status: number, body: string): boolean {
+  const code = providerErrorCode(body)?.toLowerCase() ?? null;
+  if (status === 402 || status === 403 || status === 429 || status === 500 || status === 502 || status === 503 || status === 504) return true;
+  if (status === 400) return true;
+  return status === 404 && !["model_not_found", "model_not_supported", "model_deprecated", "invalid_model"].includes(code ?? "");
+}
+
+
 
 function keys(): Array<{ name: string; key: string }> {
   return ["GEMINI_API_KEY", "GEMINI_KEY", ...Array.from({ length: 13 }, (_, i) => `GEMINI_API_KEY_${i + 1}`)]
@@ -48,7 +65,11 @@ async function resolveModels(apiKey: string): Promise<string[]> {
     signal: AbortSignal.timeout(12_000),
   });
   const body = await response.text();
-  if (!response.ok) throw new Error(`Gemini evidence-probe model catalog HTTP ${response.status} ${providerErrorCode(body) ?? classifyProviderHttpStatus(response.status)}`);
+  if (!response.ok) {
+    const code = providerErrorCode(body) ?? classifyProviderHttpStatus(response.status);
+    if (shouldStopGeminiMatrix(response.status, body)) throw new Error(`terminal:Gemini evidence-probe model catalog HTTP ${response.status} ${code}`);
+    throw new Error(`Gemini evidence-probe model catalog HTTP ${response.status} ${code}`);
+  }
   const payload = JSON.parse(body) as { models?: GeminiCatalogEntry[] };
   const catalog = (payload.models ?? [])
     .filter((entry) => entry.supportedGenerationMethods?.includes("generateContent"))
@@ -85,6 +106,7 @@ export async function runGeminiEvidenceProbe(input: {
     if (input.signal?.aborted) throw new Error("cancelled");
     let models: string[];
     try { models = await resolveModels(entry.key); } catch (error) {
+      if (error instanceof Error && error.message.startsWith("terminal:")) return { status: "unavailable", model: null, claim, answer: null, citations: [], searchedQueries: [], error: error.message.slice("terminal:".length) };
       continue;
     }
     for (const model of models) {
@@ -114,7 +136,29 @@ export async function runGeminiEvidenceProbe(input: {
           }),
         );
         const body = await response.text();
-        if (!response.ok) continue;
+        if (!response.ok) {
+          if (response.status === 429) {
+            const delay = retryAfterMs(response);
+            if (delay > 0 && delay <= GEMINI_MAX_SHORT_RETRY_MS) {
+              await new Promise((resolve) => setTimeout(resolve, delay));
+              const retryResponse = await runProviderCall(
+                { provider: "gemini", account: entry.key, signal: input.signal },
+                () => safeOutboundFetch(`${GEMINI_GENERATE_CONTENT}/${encodeURIComponent(model)}:generateContent`, {
+                  method: "POST", headers: { "x-goog-api-key": entry.key, "Content-Type": "application/json", Accept: "application/json" },
+                  body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: prompt }] }], tools: [{ google_search: {} }], generationConfig: { maxOutputTokens: 900, thinkingConfig: { thinkingLevel: selectGeminiThinkingLevel(model, { identityAmbiguity: /identity|attribution|collision/i.test(prompt) ? 0.75 : 0, contradictionPressure: /contradicted|contradiction|dispute/i.test(prompt) ? 0.65 : 0, falsificationRequired: /falsif|disprove|counter.?evidence/i.test(prompt) }) } } }), signal: controller.signal,
+                }),
+              );
+              const retryBody = await retryResponse.text();
+              if (retryResponse.ok) {
+                const payload = JSON.parse(retryBody); const output = extractOutput(payload);
+                return { status: "completed", model, claim, answer: output.answer || null, citations: output.citations, searchedQueries: output.queries, error: null };
+              }
+              return { status: "unavailable", model: null, claim, answer: null, citations: [], searchedQueries: [], error: `Gemini evidence probe rate-limited HTTP ${retryResponse.status} ${providerErrorCode(retryBody) ?? classifyProviderHttpStatus(retryResponse.status)}` };
+            }
+          }
+          if (shouldStopGeminiMatrix(response.status, body)) return { status: "unavailable", model: null, claim, answer: null, citations: [], searchedQueries: [], error: `Gemini evidence probe HTTP ${response.status} ${providerErrorCode(body) ?? classifyProviderHttpStatus(response.status)}` };
+          continue;
+        }
         const payload = JSON.parse(body);
         const output = extractOutput(payload);
         return { status: "completed", model, claim, answer: output.answer || null, citations: output.citations, searchedQueries: output.queries, error: null };
@@ -156,7 +200,10 @@ export async function runGeminiEvidenceVerificationEpisode(input: {
   const entries = keys();
   for (const entry of entries) {
     let models: string[] = [];
-    try { models = await resolveModels(entry.key); } catch { continue; }
+    try { models = await resolveModels(entry.key); } catch (error) {
+      if (error instanceof Error && error.message.startsWith("terminal:")) return { status: "unavailable", model: null, claims: claims.map((claim) => ({ claim, status: "unresolved" as const, rationale: "Verification provider unavailable." })), citations: [], searchedQueries: [], inspectedUrls: urls, answer: null, error: error.message.slice("terminal:".length) };
+      continue;
+    }
     for (const model of models) {
       if (input.signal?.aborted) throw new Error("cancelled");
       const prompt = [
@@ -189,7 +236,10 @@ export async function runGeminiEvidenceVerificationEpisode(input: {
             signal: controller.signal,
           }),
         );
-        const body = await response.text(); if (!response.ok) continue;
+        const body = await response.text(); if (!response.ok) {
+          if (shouldStopGeminiMatrix(response.status, body)) return { status: "unavailable", model: null, claims: claims.map((claim) => ({ claim, status: "unresolved" as const, rationale: "Verification provider unavailable." })), citations: [], searchedQueries: [], inspectedUrls: urls, answer: null, error: `Gemini verification HTTP ${response.status} ${providerErrorCode(body) ?? classifyProviderHttpStatus(response.status)}` };
+          continue;
+        }
         const payload = JSON.parse(body); const output = extractOutput(payload);
         const raw = output.answer;
         let parsed: any = null;
