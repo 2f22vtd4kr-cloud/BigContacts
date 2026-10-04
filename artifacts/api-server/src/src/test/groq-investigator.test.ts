@@ -60,6 +60,33 @@ describe("Groq Investigator provider boundary", () => {
     expect(fetchMock.mock.calls.length).toBeGreaterThanOrEqual(2);
   });
 
+  it("does not rotate Investigator models after a transient 429 retry is exhausted", async () => {
+    process.env.GROQ_INVESTIGATOR_API_KEY = "test-groq-investigator-key";
+    process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GROQ = "0";
+    let calls = 0;
+    const models: string[] = [];
+    mocks.safeOutboundFetch.mockImplementation(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      calls += 1;
+      const body = JSON.parse(String(init?.body ?? "{}")) as { model?: string };
+      models.push(String(body.model));
+      return new Response(JSON.stringify({ error: { type: "rate_limit_exceeded" } }), {
+        status: 429,
+        headers: { "retry-after": "0", "x-ratelimit-remaining-requests": "999" },
+      });
+    });
+
+    const result = await runAgenticWebResearch({
+      targetName: "Example",
+      investigatorLlm: "groq",
+      maxIterations: 1,
+      hardTimeoutMs: 30_000,
+    });
+
+    expect(["unavailable", "error"]).toContain(result.status);
+    expect(calls).toBe(2);
+    expect(new Set(models)).toEqual(new Set(["openai/gpt-oss-120b"]));
+  });
+
   it("does not rotate through the same role keys after an authoritative request-quota 429", async () => {
     process.env.GROQ_INVESTIGATOR_API_KEY = "test-groq-investigator-key";
     process.env.GROQ_INVESTIGATOR_API_KEY_1 = "test-groq-investigator-key-1";
