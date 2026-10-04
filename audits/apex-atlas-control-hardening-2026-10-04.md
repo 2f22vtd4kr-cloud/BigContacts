@@ -27,6 +27,7 @@ This is a local capacity-accounting defect, not a license to bypass Groq limits.
 4. **Boss fail-fast diagnostics.** Boss now stops on the same local gate condition and persists a privacy-safe provider code/failure class (`budget_exhausted`/`cooldown`, `rate_limited`) instead of an opaque `HTTP none` attempt summary.
 5. **Failure classification.** Atlas Boss generation failure classification now recognizes local provider-gate rate limiting even when there is no HTTP status.
 6. **Regression coverage.** Added provider-gate scope tests, privacy-safe local-quota diagnostics tests, Atlas control classification tests, and a source guard that prevents removal of the per-job scope/fail-fast boundaries.
+7. **Deterministic test isolation.** The existing Right-hand transient-429 regression used its own mock-call history to decide whether to return the retry response. It now uses an explicit chat-call counter, removing test-runner timing/mock-order ambiguity while preserving the assertion that the retry stays on the same model.
 
 ## Why this is the correct architecture
 
