@@ -7,7 +7,8 @@ const controlSource = readFileSync(resolve(process.cwd(), "src/src/lib/atlas-con
 const bossSource = readFileSync(resolve(process.cwd(), "src/src/lib/groq-boss.ts"), "utf8");
 const rightHandSource = readFileSync(resolve(process.cwd(), "src/src/lib/groq-right-hand-reasoning.ts"), "utf8");
 
-describe("Atlas control-plane contract regression", () => {\n  it("persists a durable Investigator provider-error turn before fail-closed termination", () => {
+describe("Atlas control-plane contract regression", () => {
+  it("persists a durable Investigator provider-error turn before fail-closed termination", () => {
     const investigatorSource = readFileSync(resolve(process.cwd(), "src/src/lib/agentic-web-research-core.ts"), "utf8");
 
     expect(investigatorSource).toContain('action: "investigator_provider_error"');
