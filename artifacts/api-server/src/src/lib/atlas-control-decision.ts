@@ -177,9 +177,9 @@ export type AtlasBossGenerationFailureCategory =
   | "CONTROL_SCHEMA_INVALID"
   | "CONTROL_PROVIDER_ERROR";
 
-export function classifyAtlasBossGenerationFailure(generated: { error: string | null; attempts: Array<{ httpStatus: number | null }> }): AtlasBossGenerationFailureCategory {
+export function classifyAtlasBossGenerationFailure(generated: { error: string | null; attempts: Array<{ httpStatus: number | null; providerErrorCode?: string | null; failureClass?: string | null }> }): AtlasBossGenerationFailureCategory {
   if (/prompt exceeds the bounded control-plane budget/i.test(generated.error ?? "")) return "CONTROL_PROMPT_TOO_LARGE";
-  if (generated.attempts.some((attempt) => attempt.httpStatus === 429)) return "CONTROL_PROVIDER_RATE_LIMIT";
+  if (generated.attempts.some((attempt) => attempt.httpStatus === 429 || attempt.failureClass === "rate_limited" || attempt.providerErrorCode === "budget_exhausted" || attempt.providerErrorCode === "cooldown")) return "CONTROL_PROVIDER_RATE_LIMIT";
   if (generated.attempts.some((attempt) => typeof attempt.httpStatus === "number")) return "CONTROL_PROVIDER_HTTP_ERROR";
   if (/empty control response/i.test(generated.error ?? "")) return "CONTROL_EMPTY_RESPONSE";
   return "CONTROL_PROVIDER_ERROR";
@@ -189,11 +189,12 @@ export function classifyAtlasBossContractFailure(raw: string | null | undefined,
   return parsed ? "CONTROL_SCHEMA_INVALID" : "CONTROL_INVALID_JSON";
 }
 
-export function formatAtlasBossGenerationFailure(generated: { model: string; error: string | null; attempts: Array<{ model: string; httpStatus: number | null; providerErrorCode: string | null }> }): string {
+export function formatAtlasBossGenerationFailure(generated: { model: string; error: string | null; attempts: Array<{ model: string; httpStatus: number | null; providerErrorCode: string | null; failureClass?: string | null }> }): string {
   const category = classifyAtlasBossGenerationFailure(generated);
   const httpStatus = [...generated.attempts].reverse().find((attempt) => attempt.httpStatus !== null)?.httpStatus ?? null;
   const providerCode = [...generated.attempts].reverse().find((attempt) => attempt.providerErrorCode)?.providerErrorCode ?? null;
-  return `stage=groq_boss; provider=groq; model=${generated.model}; category=${category}; httpStatus=${httpStatus ?? "none"}; providerCode=${providerCode ?? "none"}; diagnostic=${generated.error ?? "no provider error detail"}`;
+  const failureClass = [...generated.attempts].reverse().find((attempt) => attempt.failureClass)?.failureClass ?? null;
+  return `stage=groq_boss; provider=groq; model=${generated.model}; category=${category}; httpStatus=${httpStatus ?? "none"}; providerCode=${providerCode ?? "none"}; failureClass=${failureClass ?? "none"}; diagnostic=${generated.error ?? "no provider error detail"}`;
 }
 
 type TrajectoryRecordInput = { turn: number; model: string; action: string; args: Record<string, unknown>; thought?: string; execution: string; observation?: string; observedUrls: string[]; findings: CompactionFinding[]; providerFallback?: string[]; stopReason?: string };
