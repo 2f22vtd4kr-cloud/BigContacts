@@ -58,6 +58,7 @@ describe("agentic Python capability execution state", () => {
       hardTimeoutMs: 30_000,
     });
 
+    if (result.status !== "completed") throw new Error(`investigator test result: ${JSON.stringify(result)}`);
     expect(result.status).toBe("completed");
     expect(result.trajectoryRecords[0]?.execution).toBe("blocked");
     expect(result.trajectoryRecords[0]?.observation).toMatch(/sandbox is unavailable/i);
