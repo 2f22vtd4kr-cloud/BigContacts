@@ -197,7 +197,7 @@ export function formatAtlasBossGenerationFailure(generated: { model: string; err
 }
 
 type TrajectoryRecordInput = { turn: number; model: string; action: string; args: Record<string, unknown>; thought?: string; execution: string; observation?: string; observedUrls: string[]; findings: CompactionFinding[]; providerFallback?: string[]; stopReason?: string };
-export function buildAtlasControlEventPayload(decision: AtlasControlDecision, controlTurn: number): {
+export function buildAtlasControlEventPayload(input: { decision: AtlasControlDecision; controlTurn: number }): {
   action: AtlasControlAction;
   status: AtlasControlDecision["status"];
   candidateName: string | null;
@@ -210,16 +210,16 @@ export function buildAtlasControlEventPayload(decision: AtlasControlDecision, co
   controlTurn: number;
 } {
   return {
-    action: decision.action,
-    status: decision.status,
-    candidateName: decision.candidateName,
-    direction: decision.direction,
-    reason: decision.reason,
-    confidence: decision.confidence,
-    bossModel: decision.bossModel,
-    bossError: decision.error,
-    rightHand: decision.rightHand,
-    controlTurn,
+    action: input.decision.action,
+    status: input.decision.status,
+    candidateName: input.decision.candidateName,
+    direction: input.decision.direction,
+    reason: input.decision.reason,
+    confidence: input.decision.confidence,
+    bossModel: input.decision.bossModel,
+    bossError: input.decision.error,
+    rightHand: input.decision.rightHand,
+    controlTurn: input.controlTurn,
   };
 }
 
@@ -228,7 +228,7 @@ async function persistControlDecision(input: { caseId: number; controlTurn: numb
     await db.transaction(async (tx) => {
       const [caseRow] = await tx.select({ caseFile: researchCasesTable.caseFile }).from(researchCasesTable).where(eq(researchCasesTable.id, input.caseId)).for("update").limit(1);
       if (!caseRow) throw new Error(`Atlas discovery case ${input.caseId} does not exist.`);
-      const payload = buildAtlasControlEventPayload(input.decision, input.controlTurn);
+      const payload = buildAtlasControlEventPayload({ decision: input.decision, controlTurn: input.controlTurn });
       const payloadJson = JSON.stringify(payload);
       const correlationKey = `atlas-control:case:${input.caseId}:turn:${input.controlTurn}`;
       const [existingEvent] = await tx.select({ payload: researchCaseEventsTable.payload }).from(researchCaseEventsTable).where(and(eq(researchCaseEventsTable.caseId, input.caseId), eq(researchCaseEventsTable.correlationKey, correlationKey))).limit(1);
