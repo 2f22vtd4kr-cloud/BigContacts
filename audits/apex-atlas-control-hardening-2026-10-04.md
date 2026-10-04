@@ -17,7 +17,7 @@ The run's external-provider gate used the default `process` provider scope for c
 
 That meant the canonical Atlas Investigator's LLM attempts consumed the same local `process|groq` budget that the later Boss control decision needed. With roughly 39 Investigator attempts already recorded, the next Boss control call could be blocked by Apex's own gate before reaching Groq. This produces an HTTP-less `ProviderQuotaError` and is distinct from a Groq 429.
 
-This is a local capacity-accounting defect, not a license to bypass Groq limits. Groq documents rate limits at the organization level and exposes remaining/reset headers on real 429 responses; project limits can further restrict an organization's ceiling. citeturn3search0turn3search1
+This is a local capacity-accounting defect, not a license to bypass Groq limits. Groq documents rate limits at the organization level and exposes remaining/reset headers on real 429 responses; project limits can further restrict an organization's ceiling.
 
 ## Remediation
 
@@ -32,11 +32,11 @@ This is a local capacity-accounting defect, not a license to bypass Groq limits.
 
 The fix does not redesign Atlas into deterministic enrichment. Groq Boss still owns control decisions, Investigator still owns research actions, Right-hand remains independent oversight, provenance/admission remains fail-closed, and terminal transitions remain deterministic safety gates.
 
-The larger Atlas-local budget only prevents unrelated process-scope accounting from terminating a single canonical run prematurely. It does not override upstream provider limits. Groq's documented 429 handling remains authoritative; a real upstream 429 must still be respected rather than bypassed with more keys. citeturn3search0turn2search1
+The larger Atlas-local budget only prevents unrelated process-scope accounting from terminating a single canonical run prematurely. It does not override upstream provider limits. Groq's documented 429 handling remains authoritative; a real upstream 429 must still be respected rather than bypassed with more keys.
 
 ## Provider-capacity interpretation
 
-Groq's current documentation says rate limits are organization-level and may include RPM/RPD/TPM/TPD/ITPM/OTPM dimensions. Project-specific request limits can be configured, but organization limits remain the ceiling; spending limits are organization-wide across API keys. Therefore a new key is not, by itself, a reliable fix for an exhausted organization/project capacity condition. citeturn3search0turn3search1turn3search2
+Groq's current documentation says rate limits are organization-level and may include RPM/RPD/TPM/TPD/ITPM/OTPM dimensions. Project-specific request limits can be configured, but organization limits remain the ceiling; spending limits are organization-wide across API keys. Therefore a new key is not, by itself, a reliable fix for an exhausted organization/project capacity condition.
 
 ## Live-launch policy
 
@@ -52,6 +52,6 @@ Required before the next live launch: typecheck, build, provider-gate tests, pro
 
 ## External references
 
-- Groq rate-limit semantics and headers: urlGroq Rate Limitshttps://console.groq.com/docs/rate-limits
-- Groq project-level limits and organization ceiling: urlGroq Projectshttps://console.groq.com/docs/projects
-- Groq organization-wide spend limits: urlGroq Spend Limitshttps://console.groq.com/docs/spend-limits
+- Groq rate-limit semantics and headers: official Groq Rate Limits documentation.
+- Groq project-level limits and organization ceiling: official Groq Projects documentation.
+- Groq organization-wide spend limits: official Groq Spend Limits documentation.
