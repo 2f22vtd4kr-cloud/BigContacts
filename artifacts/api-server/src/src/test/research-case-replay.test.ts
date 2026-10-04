@@ -19,6 +19,17 @@ describe("research case replay", () => {
     expect(replay.lastEventId).toBe(3);
   });
 
+  it("recognizes a failed Investigator provider turn without counting it as a source observation", () => {
+    const replay = replayResearchCaseEvents([
+      { id: 1, caseId: 15, iteration: 1, actorRole: "head_investigator", eventType: "provider_error", status: "error", summary: "Investigator response unavailable", payload: JSON.stringify({ turn: 1, action: "investigator_provider_error", execution: "error" }), createdAt: "2026-10-04T14:00:00Z" },
+    ]);
+
+    expect(replay.valid).toBe(true);
+    expect(replay.actionCount).toBe(1);
+    expect(replay.observationCount).toBe(0);
+    expect(replay.failureCount).toBe(1);
+  });
+
   it("accepts canonical Gemini control decisions and deterministic bureau events", () => {
     const replay = replayResearchCaseEvents([
       { id: 1, caseId: 21, iteration: 0, actorRole: "bureau", eventType: "observation", status: "recorded", summary: "Shared target context persisted", payload: JSON.stringify({ context: "case-state" }), createdAt: "2026-09-11T00:00:00Z" },

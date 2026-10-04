@@ -98,11 +98,11 @@
 - Closed: 2026-10-04 14:30:00 UTC (17:30:00 Europe/Kyiv).
 - Run duration: 2m 14.812s (job start `14:24:37.310Z`; terminal `14:26:52.122Z`).
 - Terminal job: `failed`, outcome `incomplete`, progress 3/4. Discovery result: `status=error`, `caseId=1`, `searches=19`, `visits=0`, `findings=0`, `runs=2`.
-- Control path: opening Groq Boss assignment completed with `openai/gpt-oss-20b` and selected Groq Investigator; initial Right-hand review completed with `openai/gpt-oss-120b`. After 14 Investigator iterations, the second Boss control event returned `status=unavailable`, `action=stop`; the recorded Boss error class was rate-limited. The raw diagnostic text is intentionally omitted.
+- Control path: opening Groq Boss assignment completed with `openai/gpt-oss-20b` and selected Groq Investigator; initial Right-hand review completed with `openai/gpt-oss-120b`. At terminal case counter 14, the second control event returned `status=unavailable`, `action=stop`. This was a fail-closed wrapper result, not a Boss-generated stop: the mandatory Right-hand call returned HTTP 400 `json_validate_failed` on `openai/gpt-oss-20b` (`invalid_request`). Earlier 429 attempts occurred, but they were not the terminal diagnostic. Raw response details are omitted.
 - Final complete workflow log file: `/tmp/logs/artifactsapi-server_API_Server_20261004_142717_959_c4b32ebd.log`. It contains 36 Groq attempt records: 4 HTTP 200, 25 HTTP 429 `upstream_rate_limited`, 7 HTTP 400 `provider_rejected`; all logged prompts were 12000 characters. No HTTP 413 was observed.
 - Correction to E005: its 32-attempt/8-200/18-429/6-400 estimate came from overlapping partial log views. The complete log above is authoritative: 36 total, 4/25/7.
 - Final database state: discovery case 1 is in `review` with `current_action=canonical-control-unavailable`, iteration 14; 17 case events; `entities=0`, `research_sessions=0`, `research_evidence=0`, `contact_evidence=0`, `research_run_events=0`.
-- Reconciliation note: the job result reports 19 searches, while the durable case event trace has 12 successful tool-observation records (5 parallel web searches, 6 web searches, 1 registry search) containing 185 result URLs. These are different counters and were not reconciled during this run; neither indicates a direct source-page visit.
+- Search reconciliation: the job's 19 searches are underlying web queries: 13 queries across 5 `parallel_web_search` actions plus 6 single `web_search` actions. The 12 tool-observation events also include 1 registry search, which is an action but not a web query. The 185 result URLs are search-result URLs; no direct source-page visit occurred.
 - The active-job projection is now `active=false` with no job ID, confirming the lock was released. API workflow remains healthy. No retry, relaunch, manual stop, or data cleanup was performed.
 - **Final outcome:** the audit stopped at the first terminal control-plane break. Discovery searches ran, but no candidate met the direct-source admission boundary, so target research and card creation did not occur.
 
@@ -172,8 +172,22 @@
 | 14 | 11 | 14:26:48.357 | Head Investigator | tool observation / success | `registry_search` | 0 |
 | 15 | 12 | 14:26:48.357 | Head Investigator | tool observation / success | `parallel_web_search` | 20 |
 | 16 | 13 | 14:26:48.357 | Head Investigator | tool observation / success | `web_search` | 10 |
-| 17 | 2 | 14:26:51.815 | Groq Boss | control decision / unavailable | `stop`; error class `rate-limited` | 0 |
+| 17 | 2 | 14:26:51.815 | Groq Boss control wrapper | control decision / unavailable | fail-closed `stop` after Right-hand HTTP 400 `json_validate_failed` | 0 |
 
 - Case-event timestamps are batched: multiple tool observations share one `created_at`; their event IDs and investigator iteration numbers preserve the recorded order.
 - Trace coverage note: the persisted Investigator tool-observation sequence contains iterations 1–9 and 11–13; there is no corresponding event at iteration 10. The case's terminal counter is 14, but no Investigator tool observation at 14 is present. This is left as an observed trace gap, not filled by inference.
 - Correction to E007 wording: “after 14 Investigator iterations” refers to the terminal case iteration counter, not 14 persisted Investigator actions. The durable trace contains 12 successful tool-observation events.
+
+### E009 — Terminal diagnosis corrected; recovery opened
+
+- Recorded: 2026-10-04 14:34:25 UTC. No provider call or new Atlas job was made during diagnosis.
+- Correction to E007/E008: the prior `rate-limited` classification was incorrect; the classifier matched the text `rateLimitHeaders` inside a structured diagnostic. The actual terminal error is Right-hand HTTP 400 `json_validate_failed`, classified as `invalid_request`, on `openai/gpt-oss-20b`. The control wrapper recorded an unavailable fail-closed stop, so Groq Boss did not emit a decision on that turn.
+- The 429 responses remain part of the 36-attempt history, but the final control failure was the structured-output HTTP 400. The active-job lock remains released.
+- Recovery plan: add a bounded same-role compatibility fallback for this Right-hand structured-output rejection, keep local JSON/schema validation authoritative, and persist explicit Investigator provider-failure turns so a failed turn cannot disappear from the durable case-event sequence. Run regression checks before another launch.
+
+### E010 — Search and missing-turn reconciliation
+
+- Recorded: 2026-10-04 14:35 UTC. Read-only source and event checks only; no provider call or job launch.
+- Search-count correction: event arguments reconcile exactly to 19 underlying web queries: parallel batches of 3, 2, 3, 3, and 2, plus six single searches. The remaining tool event is one registry search.
+- Iteration-10 gap diagnosis: `llmStep` returned no Investigator response on local turn 10. The core returned `iterations=10` without appending a trajectory record for that turn; durable persistence advanced the case counter to 10, and the next run offset its first action to iteration 11. The earlier gap is explained by this failure path, not a missing tool call.
+- Recovery status: the source edits are not yet applied. Next edits will retry `json_validate_failed` once with JSON-object mode under the same role and keep local contract validation, persist a `provider_error` turn on unavailable Investigator responses, and teach event replay to recognize that event type.

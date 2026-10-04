@@ -64,6 +64,7 @@ const ALLOWED_EVENT_TYPES = new Set([
   "assignment",
   "observation",
   "tool_observation",
+  "provider_error",
   "claim",
   "promotion",
   "validation",
@@ -180,7 +181,7 @@ export function replayResearchCaseEvents(events: ResearchReplayEvent[]): Researc
     const payload = parsePayload(event.payload, event.id, violations);
     const type = event.eventType.toLowerCase();
     const status = event.status.toLowerCase();
-    if (["decision", "control_decision", "assignment", "observation", "tool_observation", "claim", "promotion", "validation", "projection", "directive"].includes(type)) actionCount++;
+    if (["decision", "control_decision", "assignment", "observation", "tool_observation", "provider_error", "claim", "promotion", "validation", "projection", "directive"].includes(type)) actionCount++;
     if (type === "decision" || type === "control_decision") { decisionCount++; latestDecision = payload; }
     if (type === "assignment") assignmentCount++;
     if (type === "observation" || type === "tool_observation") { observationCount++; latestObservation = payload; }

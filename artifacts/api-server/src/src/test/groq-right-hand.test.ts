@@ -279,6 +279,43 @@ describe("Groq Right-hand model policy", () => {
     expect(chatCalls).toHaveLength(2);
   });
 
+  it("retries a strict JSON schema rejection in JSON-object mode", async () => {
+    vi.stubEnv("GROQ_RIGHT_HAND_API_KEY", "right-hand-json-compatibility-test-key");
+    const formats: string[] = [];
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      if (String(input) === "https://api.groq.com/openai/v1/models") {
+        return new Response(JSON.stringify({ data: [{ id: "openai/gpt-oss-120b" }] }), { status: 200 });
+      }
+      const body = JSON.parse(String(init?.body));
+      formats.push(body.response_format?.type);
+      if (body.response_format?.type === "json_schema") {
+        return new Response(JSON.stringify({
+          error: { code: "json_validate_failed", message: "Structured output validation failed." },
+        }), { status: 400 });
+      }
+      return new Response(JSON.stringify({
+        choices: [{ message: { content: '{"decision":"proceed"}' } }],
+      }), { status: 200 });
+    });
+
+    const result = await runGroqRightHandFreeJson(
+      "Return a small JSON decision.",
+      "Return one JSON object.",
+      {
+        schema: {
+          type: "object",
+          properties: { decision: { type: "string" } },
+          required: ["decision"],
+          additionalProperties: false,
+        },
+      },
+    );
+
+    expect(result.status).toBe("completed");
+    expect(formats).toEqual(["json_schema", "json_object"]);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
   it("reports the fallback chain without exposing credentials", () => {
     process.env.GROQ_RIGHT_HAND_API_KEY = "test-groq-right-hand-key";
     const status = getGroqRightHandStatus();
