@@ -191,8 +191,8 @@ export function classifyAtlasBossContractFailure(raw: string | null | undefined,
 
 export function formatAtlasBossGenerationFailure(generated: { model: string; error: string | null; attempts: Array<{ model: string; httpStatus: number | null; providerErrorCode: string | null }> }): string {
   const category = classifyAtlasBossGenerationFailure(generated);
-  const httpStatus = generated.attempts.findLast((attempt) => attempt.httpStatus !== null)?.httpStatus ?? null;
-  const providerCode = generated.attempts.findLast((attempt) => attempt.providerErrorCode)?.providerErrorCode ?? null;
+  const httpStatus = [...generated.attempts].reverse().find((attempt) => attempt.httpStatus !== null)?.httpStatus ?? null;
+  const providerCode = [...generated.attempts].reverse().find((attempt) => attempt.providerErrorCode)?.providerErrorCode ?? null;
   return `stage=groq_boss; provider=groq; model=${generated.model}; category=${category}; httpStatus=${httpStatus ?? "none"}; providerCode=${providerCode ?? "none"}; diagnostic=${generated.error ?? "no provider error detail"}`;
 }
 
