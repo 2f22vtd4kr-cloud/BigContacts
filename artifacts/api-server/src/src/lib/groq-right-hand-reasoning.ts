@@ -1,7 +1,7 @@
 import type { DiscoveryCaseFile, ResearchCaseFile } from "./case-bureau";
 import { apexOrientationCompact } from "./apex-bureau-orientation";
 import { logger } from "./logger";
-import { withProviderRetryOwnership } from "./provider-gate";
+import { withProviderRetryOwnership, withProviderScope } from "./provider-gate";
 import {
   classifyProviderHttpStatus,
   classifyThrownProviderError,
@@ -25,6 +25,8 @@ const MODEL_CATALOG_TIMEOUT_MS = 5_000;
 const MAX_MODEL_ATTEMPTS = 4;
 const MAX_503_RETRIES_PER_MODEL = 1;
 const MAX_429_RETRIES_PER_MODEL = 1;
+const MAX_TOKEN_RATE_LIMIT_RETRIES_PER_MODEL = 1;
+const MAX_TOKEN_RATE_LIMIT_WAIT_MS = 15_000;
 const MAX_PROMPT_CHARS = 20_000;
 const GROQ_RIGHT_HAND_MIN_REQUEST_INTERVAL_MS = 250;
 let nextGroqRightHandRequestAt = 0;
@@ -105,18 +107,36 @@ function extractText(payload:unknown):string{
  return "";
 }
 function retryAfterMs(response:Response,fallback:number){const raw=response.headers.get("retry-after")?.trim();if(!raw)return fallback;const n=Number(raw);if(Number.isFinite(n)&&n>=0)return Math.min(5000,Math.floor(n*1000));return fallback;}
-function hardRateLimit(response: Response, body: string): boolean {
- if (response.status !== 429) return false;
- if (providerErrorCode(body) === "quota_exceeded") return true;
- const remainingRequests = Number(response.headers.get("x-ratelimit-remaining-requests")?.trim() ?? "NaN");
- return Number.isFinite(remainingRequests) && remainingRequests === 0;
+function parseRateLimitResetMs(raw:string|null):number|null {
+ const value=raw?.trim(); if(!value) return null;
+ const numeric=Number(value); if(Number.isFinite(numeric)&&numeric>=0) return Math.min(60_000,Math.floor(numeric*1000));
+ const match=value.match(/^(?:(\\d+(?:\\.\\d+)?)h)?(?:(\\d+(?:\\.\\d+)?)m)?(?:(\\d+(?:\\.\\d+)?)s)?$/i); if(!match) return null;
+ const hours=Number(match[1]??0), minutes=Number(match[2]??0), seconds=Number(match[3]??0);
+ return Math.min(60_000,Math.floor((hours*3600+minutes*60+seconds)*1000));
+}
+type RateLimitKind = "requests" | "tokens" | "unknown" | null;
+function rateLimitKind(response:Response, body:string):RateLimitKind {
+ if(response.status!==429) return null;
+ if(providerErrorCode(body)==="quota_exceeded") return "requests";
+ const remainingTokens=Number(response.headers.get("x-ratelimit-remaining-tokens")?.trim() ?? "NaN");
+ if(Number.isFinite(remainingTokens)&&remainingTokens===0) return "tokens";
+ const remainingRequests=Number(response.headers.get("x-ratelimit-remaining-requests")?.trim() ?? "NaN");
+ if(Number.isFinite(remainingRequests)&&remainingRequests===0) return "requests";
+ return "unknown";
+}
+function hardRateLimit(response: Response, body: string): boolean { return rateLimitKind(response,body) !== null; }
+function tokenRateLimitWaitMs(response:Response):number|null {
+ const reset=parseRateLimitResetMs(response.headers.get("x-ratelimit-reset-tokens"));
+ if(reset!==null) return reset;
+ const retry=retryAfterMs(response,0);
+ return retry>0?retry:null;
 }
 
-type GroqAttemptDiagnostic = { keyName: string; keyFingerprint: string; model: string; httpStatus: number | null; providerCode: string | null; failureClass: string; retry429: number; retry503: number; retryAfterMs: number | null; retryAfterHeader: string | null; rateLimitHeaders: Record<string, string>; body: ReturnType<typeof summarizeProviderBody> | null; };
+type GroqAttemptDiagnostic = { keyName: string; keyFingerprint: string; model: string; httpStatus: number | null; providerCode: string | null; failureClass: string; retry429: number; retry503: number; retryTokenRateLimit: number; retryAfterMs: number | null; retryAfterHeader: string | null; rateLimitKind: RateLimitKind; rateLimitHeaders: Record<string, string>; body: ReturnType<typeof summarizeProviderBody> | null; };
 function formatAttemptDiagnostic(diagnostic: GroqAttemptDiagnostic): string { return JSON.stringify(diagnostic); }
 
 async function request(system:string,user:string,format?:Record<string,unknown>):Promise<{raw:string;error:string|null;model:string}>{
- const entries=keyEntries(); if(!entries.length)return {raw:"",error:"GROQ_RIGHT_HAND_API_KEY is not configured.",model:GROQ_RIGHT_HAND_MODEL};
+ return withProviderScope("atlas-right-hand", async () => { const entries=keyEntries(); if(!entries.length)return {raw:"",error:"GROQ_RIGHT_HAND_API_KEY is not configured.",model:GROQ_RIGHT_HAND_MODEL};
  const configRequest=requestTimeoutMs(), configOverall=overallTimeoutMs(), deadline=Date.now()+configOverall;
  const normalizedUser=user.trim(); if(normalizedUser.length>MAX_PROMPT_CHARS)return {raw:"",error:`Groq Right-hand prompt exceeds the bounded control-plane budget of ${MAX_PROMPT_CHARS} characters; upstream case-context compaction is required.`,model:GROQ_RIGHT_HAND_MODEL};
  const systemPrompt=`${apexOrientationCompact("right_hand")}\\n\\n${system}`;
@@ -126,7 +146,7 @@ async function request(system:string,user:string,format?:Record<string,unknown>)
  const failures: GroqAttemptDiagnostic[] = [];
  for(const candidate of attempts){
   if(Date.now()>=deadline)break;
-  let retry503=0,retry429=0;
+  let retry503=0,retry429=0,retryTokenRateLimit=0;
   let lastRetryAfterMs: number | null = null;
   let lastRetryAfterHeader: string | null = null;
   while(Date.now()<deadline){
@@ -137,20 +157,21 @@ async function request(system:string,user:string,format?:Record<string,unknown>)
     const response=await withProviderRetryOwnership("groq","caller",()=>fetch(GROQ_RIGHT_HAND_CHAT_API,{method:"POST",headers:{Accept:"application/json","Content-Type":"application/json",Authorization:`Bearer ${candidate.entry.key}`},body,signal:controller.signal}));
     const responseBody=await response.text();
     if(response.status===503&&retry503<MAX_503_RETRIES_PER_MODEL&&Date.now()<deadline){const delay=retryAfterMs(response,750);lastRetryAfterMs=delay;lastRetryAfterHeader=response.headers.get("retry-after");retry503++;await new Promise(r=>setTimeout(r,Math.min(delay,Math.max(0,deadline-Date.now()))));continue;}
-    if(response.status===429&&hardRateLimit(response,responseBody)){const cls=classifyProviderHttpStatus(response.status);const code=providerErrorCode(responseBody);const diagnostic={keyName:candidate.entry.name,model:candidate.model,httpStatus:response.status,providerCode:code,retry429,retry503,retryAfterMs:null,retryAfterHeader:response.headers.get("retry-after"),body:summarizeProviderBody(responseBody),rateLimitHeaders:Object.fromEntries(Array.from(response.headers.entries()).filter(([name])=>name.toLowerCase().startsWith("x-ratelimit-"))),failureClass:cls,keyFingerprint:fingerprint(candidate.entry.key)};failures.push(diagnostic);break;}
+    if(response.status===429&&hardRateLimit(response,responseBody)){const cls=classifyProviderHttpStatus(response.status);const code=providerErrorCode(responseBody);const kind=rateLimitKind(response,responseBody);const waitMs=kind==="tokens"?tokenRateLimitWaitMs(response):null;if(kind==="tokens"&&waitMs!==null&&waitMs<=MAX_TOKEN_RATE_LIMIT_WAIT_MS&&retryTokenRateLimit<MAX_TOKEN_RATE_LIMIT_RETRIES_PER_MODEL&&Date.now()+waitMs<deadline){retryTokenRateLimit++;lastRetryAfterMs=waitMs;lastRetryAfterHeader=response.headers.get("retry-after");await new Promise(r=>setTimeout(r,Math.min(waitMs,Math.max(0,deadline-Date.now()))));continue;}const diagnostic={keyName:candidate.entry.name,model:candidate.model,httpStatus:response.status,providerCode:code,retry429,retry503,retryTokenRateLimit,retryAfterMs:waitMs??null,retryAfterHeader:response.headers.get("retry-after"),rateLimitKind:kind,body:summarizeProviderBody(responseBody),rateLimitHeaders:Object.fromEntries(Array.from(response.headers.entries()).filter(([name])=>name.toLowerCase().startsWith("x-ratelimit-"))),failureClass:cls,keyFingerprint:fingerprint(candidate.entry.key)};failures.push(diagnostic);break;}
     if(response.status===429&&retry429<MAX_429_RETRIES_PER_MODEL&&Date.now()<deadline){const retryHeader=response.headers.get("retry-after");const delay=retryHeader?retryAfterMs(response,GROQ_RIGHT_HAND_MIN_REQUEST_INTERVAL_MS):GROQ_RIGHT_HAND_MIN_REQUEST_INTERVAL_MS;lastRetryAfterMs=delay;lastRetryAfterHeader=retryHeader;if(delay<=2500){retry429++;await new Promise(r=>setTimeout(r,Math.min(delay,Math.max(0,deadline-Date.now()))));continue;}}
-    if(!response.ok){const cls=classifyProviderHttpStatus(response.status);const code=providerErrorCode(responseBody);const diagnostic={keyName:candidate.entry.name,model:candidate.model,httpStatus:response.status,providerCode:code,retry429,retry503,retryAfterMs:lastRetryAfterMs,retryAfterHeader:lastRetryAfterHeader,body:summarizeProviderBody(responseBody),rateLimitHeaders:Object.fromEntries(Array.from(response.headers.entries()).filter(([name])=>name.toLowerCase().startsWith("x-ratelimit-"))),failureClass:cls,keyFingerprint:fingerprint(candidate.entry.key)};failures.push(diagnostic);if(response.status===401||response.status===403||response.status===404)break;if(response.status===429||response.status===500||response.status===502||response.status===503||response.status===504)break;return {raw:"",error:`Groq Right-hand ${candidate.model} ${cls} HTTP ${response.status}: ${formatAttemptDiagnostic(diagnostic)}`,model:candidate.model};}
+    if(!response.ok){const cls=classifyProviderHttpStatus(response.status);const code=providerErrorCode(responseBody);const diagnostic={keyName:candidate.entry.name,model:candidate.model,httpStatus:response.status,providerCode:code,retry429,retry503,retryAfterMs:lastRetryAfterMs,retryAfterHeader:lastRetryAfterHeader,rateLimitKind:rateLimitKind(response,responseBody),body:summarizeProviderBody(responseBody),rateLimitHeaders:Object.fromEntries(Array.from(response.headers.entries()).filter(([name])=>name.toLowerCase().startsWith("x-ratelimit-"))),failureClass:cls,keyFingerprint:fingerprint(candidate.entry.key)};failures.push(diagnostic);if(response.status===401||response.status===403||response.status===404)break;if(response.status===429||response.status===500||response.status===502||response.status===503||response.status===504)break;return {raw:"",error:`Groq Right-hand ${candidate.model} ${cls} HTTP ${response.status}: ${formatAttemptDiagnostic(diagnostic)}`,model:candidate.model};}
     const raw=extractText(JSON.parse(responseBody)); if(raw)return {raw,error:null,model:candidate.model};
-    failures.push({keyName:candidate.entry.name,model:candidate.model,httpStatus:response.status,providerCode:null,retry429,retry503,retryAfterMs:lastRetryAfterMs,retryAfterHeader:lastRetryAfterHeader,body:null,rateLimitHeaders:{},failureClass:"invalid_response",keyFingerprint:fingerprint(candidate.entry.key)});break;
+    failures.push({keyName:candidate.entry.name,model:candidate.model,httpStatus:response.status,providerCode:null,retry429,retry503,retryTokenRateLimit,retryAfterMs:lastRetryAfterMs,retryAfterHeader:lastRetryAfterHeader,rateLimitKind:null,body:null,rateLimitHeaders:{},failureClass:"invalid_response",keyFingerprint:fingerprint(candidate.entry.key)});break;
    }catch(error){
     const cls=classifyThrownProviderError(error,error instanceof Error&&error.name==="AbortError");
-    failures.push({keyName:candidate.entry.name,model:candidate.model,httpStatus:null,providerCode:null,retry429,retry503,retryAfterMs:lastRetryAfterMs,retryAfterHeader:lastRetryAfterHeader,body:null,rateLimitHeaders:{},failureClass:cls,keyFingerprint:fingerprint(candidate.entry.key)});
+    failures.push({keyName:candidate.entry.name,model:candidate.model,httpStatus:null,providerCode:cls==="rate_limited"&&error instanceof Error&&error.name==="ProviderQuotaError"?(error as any).code:null,retry429,retry503,retryTokenRateLimit,retryAfterMs:cls==="rate_limited"&&error instanceof Error&&error.name==="ProviderQuotaError"&&typeof (error as any).retryAfterMs==="number"?(error as any).retryAfterMs:lastRetryAfterMs,retryAfterHeader:lastRetryAfterHeader,rateLimitKind:cls==="rate_limited"?"unknown":null,body:null,rateLimitHeaders:{},failureClass:cls,keyFingerprint:fingerprint(candidate.entry.key)});
     if(cls!=="network_error"&&cls!=="timeout")return {raw:"",error:`Groq Right-hand ${candidate.model} ${cls}: ${JSON.stringify(describeThrownProviderError(error))}`,model:candidate.model};
     break;
    }finally{clearTimeout(timer);}
   }
  }
  return {raw:"",error:`Groq Right-hand exhausted bounded attempts: ${failures.map(formatAttemptDiagnostic).join(" | ")}`,model:attempts.at(-1)?.model??GROQ_RIGHT_HAND_MODEL};
+ });
 }
 
 function clip(value: string | null | undefined, maxChars = 360): string | null {
