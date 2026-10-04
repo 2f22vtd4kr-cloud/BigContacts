@@ -334,8 +334,8 @@ async function callGroqJson(prompt: string, signal: AbortSignal, cognitiveTask: 
             }),
           ),
         );
+        const body = await response.text();
         if (response.status === 429) {
-          const body = await response.text();
           const hardQuota = groqHardRequestQuota(response, body);
           recordAgenticLlmAttempt({
             provider: "groq",
