@@ -8,6 +8,7 @@ const launch = read("./artifacts/api-server/src/src/routes/research/canonical-at
 const continuation = read("./artifacts/api-server/src/src/routes/research/canonical-case-continuation.ts");
 const investigator = read("./artifacts/api-server/src/src/lib/agentic-web-research-core.ts");
 const boss = read("./artifacts/api-server/src/src/lib/groq-boss.ts");
+const rightHand = read("./artifacts/api-server/src/src/lib/groq-right-hand-reasoning.ts");
 
 const checks = [
   [providerGate.includes('scope.startsWith("atlas-run:")'), "Atlas jobs must receive a distinct provider-gate scope."],
@@ -18,6 +19,9 @@ const checks = [
   [investigator.includes("if (isLocalProviderQuotaError(error)) return null;"), "Investigator must stop futile same-provider fallback after a local gate block."],
   [boss.includes("isLocalProviderQuotaError(error)"), "Boss must recognize local provider-gate quota failures."],
   [boss.includes("Groq Boss local provider gate blocked further attempts"), "Boss must fail fast and emit a privacy-safe local-gate diagnostic."],
+  [boss.includes('provider: "groq"'), "Canonical Boss provider must be Groq."],
+  [rightHand.includes('provider: "groq"'), "Canonical Right-hand provider must be Groq."],
+  [investigator.includes('selectedInvestigatorLlm === "groq"'), "Canonical Investigator provider selection must be Groq."],
   [read("./artifacts/api-server/src/src/lib/groq-right-hand-reasoning.ts").includes('return kind === "requests" || kind === "tokens";'), "Unknown Right-hand 429s must remain eligible for bounded transient retry."],
 ];
 
