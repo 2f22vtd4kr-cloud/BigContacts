@@ -30,6 +30,7 @@ let cachedPromptTokens = 0;
 let completionTokens = 0;
 let totalTokens = 0;
 let latencyMs = 0;
+const byModel = new Map<string, { attempts: number; successes: number; failed: number; promptTokens: number; cachedPromptTokens: number; completionTokens: number; totalTokens: number }>();
 
 const SAFE_REASONS = new Set([
   "upstream_quota_exhausted", "upstream_rate_limited", "request_size", "provider_rejected",
@@ -51,6 +52,14 @@ export function recordAgenticLlmAttempt(event: Attempt): void {
   completionTokens += event.completionTokens ?? 0;
   totalTokens += event.totalTokens ?? ((event.promptTokens ?? 0) + (event.completionTokens ?? 0));
   latencyMs += event.latencyMs ?? 0;
+  const modelStats = byModel.get(event.model) ?? { attempts: 0, successes: 0, failed: 0, promptTokens: 0, cachedPromptTokens: 0, completionTokens: 0, totalTokens: 0 };
+  modelStats.attempts += 1;
+  if (event.success) modelStats.successes += 1; else modelStats.failed += 1;
+  modelStats.promptTokens += event.promptTokens ?? 0;
+  modelStats.cachedPromptTokens += event.cachedPromptTokens ?? 0;
+  modelStats.completionTokens += event.completionTokens ?? 0;
+  modelStats.totalTokens += event.totalTokens ?? ((event.promptTokens ?? 0) + (event.completionTokens ?? 0));
+  byModel.set(event.model, modelStats);
 
   console.log(JSON.stringify({
     event: "apex_agentic_llm_attempt",
@@ -79,6 +88,7 @@ export function getAgenticLlmTelemetry() {
     completionTokens,
     totalTokens,
     latencyMs,
+    byModel: Object.fromEntries([...byModel.entries()].map(([model, stats]) => [model, { ...stats }])),
   };
 }
 
@@ -91,4 +101,5 @@ export function resetAgenticLlmTelemetry(): void {
   completionTokens = 0;
   totalTokens = 0;
   latencyMs = 0;
+  byModel.clear();
 }
