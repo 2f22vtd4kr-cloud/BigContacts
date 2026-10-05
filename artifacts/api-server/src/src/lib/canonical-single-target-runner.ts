@@ -38,7 +38,7 @@ function appendDurableActContext(contextDocument: string, actNumber: number, res
 }
 async function ensureTargetCase(target: { id: number; name: string; type: string }, companyName: string | null, atlasJobId: string, existingCaseId?: number): Promise<TargetCase> {
   const isResumableCase = (status: string, currentAction: unknown) => status === "active" || (status === "complete" || status === "review") && !["canonical-atlas-cancelled", "canonical-lease-lost", "canonical-continuation-cancelled", "cancelled"].includes(String(currentAction ?? ""));
-  const reopenCaseIfNeeded = async (row: { id: number; status: string; iteration: number | null; objective: string | null; caseFile: string | null; targetEntityId: number }) => {
+  const reopenCaseIfNeeded = async (row: { id: number; status: string; iteration: number | null; objective: string | null; caseFile: string | null; targetEntityId: number | null }) => {
     const state = parseCaseFile(row.caseFile);
     if (row.status === "active") return { ...row, status: row.status, iteration: Number(row.iteration ?? 0), objective: row.objective ?? `Investigate ${target.name} for realistic public contact routes.` };
     const currentAction = state.currentAction;
@@ -98,62 +98,3 @@ export async function runCanonicalSingleTargetInvestigation(atlasJobId: string, 
       try {
         const parsed = JSON.parse(rightHandRaw.raw) as Record<string, unknown>;
         rightHandOpening = { status: "completed", model: rightHandRaw.model, decision: typeof parsed.decision === "string" ? parsed.decision : null, reason: typeof parsed.reason === "string" ? parsed.reason : null, focusLanes: Array.isArray(parsed.focusLanes) ? parsed.focusLanes.filter((v): v is string => typeof v === "string") : [], confidence: typeof parsed.confidence === "number" ? Math.max(0, Math.min(1, parsed.confidence)) : null, error: null };
-      } catch {
-        await db.update(researchCasesTable).set({ status: "review", currentAction: "groq-right-hand-opening-invalid", updatedAt: new Date() }).where(and(eq(researchCasesTable.id, caseRow.id), eq(researchCasesTable.status, "active")));
-        await updateJob(atlasJobId, { status: "failed", progress: 1, outcome: "incomplete", message: "Groq Right-hand opening review was invalid for " + target.name + "; Investigator execution blocked.", result: JSON.stringify({ caseId: caseRow.id, opening, rightHand: rightHandRaw }), finishedAt: new Date().toISOString() });
-        return;
-      }
-      await db.insert(researchCaseEventsTable).values({
-        caseId: caseRow.id,
-        iteration: 0,
-        actorRole: "right_hand",
-        eventType: "observation",
-        status: "recorded",
-        summary: "Groq Right-hand reviewed the Boss opening assignment before Investigator execution.",
-        correlationKey: `${atlasJobId}:target-right-hand-opening:${caseRow.id}`,
-        payload: JSON.stringify({ jobId: atlasJobId, targetId: target.id, bossModel: opening.model, investigatorLlm, rightHandOpening }),
-      });
-      caseState.rightHandOpening = rightHandOpening;
-      caseState.currentAction = "investigator-act-1";
-      await db.update(researchCasesTable).set({ caseFile: JSON.stringify(caseState), directorMode: "groq_boss_active", directorModel: opening.model, currentAction: "investigator-act-1", updatedAt: new Date() }).where(and(eq(researchCasesTable.id, caseRow.id), eq(researchCasesTable.status, "active")));
-    }
-  }
-  for (let actNumber = 1; !deadlineExceeded; actNumber++) {
-    const job = await getJob(atlasJobId); if (!job || job.status === "cancelled") { cancelled = true; break; } if (job.status === "failed") break; const remainingMs = deadline - Date.now(); if (remainingMs < 30_000) { deadlineExceeded = true; break; }
-    const direction = lastOversight?.action === "redirect" ? lastOversight.direction : actNumber === 1 ? (options.initialDirection?.trim() || null) : null; const actContext = compactInvestigationContext({ raw: `${contextDocument}\n\n## Current control turn\n${caseRow.iteration + actNumber}${direction ? `\n\n## Investigator research objective\n${direction}` : ""}` }); await updateJob(atlasJobId, { progress: 0, atlasPhase: actNumber, atlasPhaseTotal: 0, message: `${investigatorLlm!.toUpperCase()} Investigator act ${actNumber} for ${target.name}; awaiting Boss control after completion…` });
-    latestResult = await runTargetContactAgent({ entityId: target.id, caseId: caseRow.id, targetName: target.name, companyName, jobId: atlasJobId, investigatorLlm: investigatorLlm!, maxIterations: 1, hardTimeoutMs: Math.min(55_000, remainingMs), contextDocument: actContext, shouldCancel: async () => { const current = await getJob(atlasJobId); return !current || current.status === "cancelled" || current.status === "failed" || Date.now() >= deadline; } });
-    completedActs = actNumber;
-    const currentAct = latestResult.trajectoryRecords[latestResult.trajectoryRecords.length - 1];
-    if (!currentAct || !latestResult.executionId) {
-      lastOversight = {
-        status: "unavailable",
-        action: "stop",
-        direction: null,
-        reason: "Completed Investigator act had no durable execution record; continuation is fail-closed.",
-        bossModel: null,
-        error: "Missing Investigator act record or executionId.",
-      };
-      break;
-    }
-    lastOversight = await reviewTargetInvestigationAct({
-      caseId: caseRow.id,
-      controlTurn: actNumber,
-      runId: latestResult.executionId,
-      targetName: target.name,
-      targetType: target.type,
-      objective: caseRow.objective,
-      sharedContext: contextDocument,
-      act: currentAct,
-      recentActs: recentActs.slice(-4),
-    });
-    recentActs.push(currentAct);
-    if (recentActs.length > 4) recentActs.splice(0, recentActs.length - 4);
-    const refreshed = await loadCase(caseRow.id); if (!refreshed) { lastOversight = null; break; } caseState = parseCaseFile(refreshed.caseFile ?? null); lastOversight = readOversight(caseState, latestResult.executionId ?? null, actNumber); contextDocument = appendDurableActContext(typeof caseState.contextDocument === "string" ? caseState.contextDocument : actContext, actNumber, latestResult, lastOversight); caseState.contextDocument = contextDocument; await db.update(researchCasesTable).set({ caseFile: JSON.stringify({ ...caseState, contextDocument, lastOversight }), currentAction: latestResult.status === "completed" ? `investigator-act-${actNumber + 1}` : "investigator-act-failed", updatedAt: new Date() }).where(and(eq(researchCasesTable.id, caseRow.id), eq(researchCasesTable.status, "active"), sql`${researchCasesTable.caseFile}::jsonb ->> 'atlasJobId' = ${atlasJobId}`, sql`${researchCasesTable.currentAction} NOT IN ('canonical-atlas-cancelled', 'canonical-lease-lost')`)); if (latestResult.status === "cancelled" || (await getJob(atlasJobId))?.status === "cancelled") { cancelled = true; break; } if (latestResult.status !== "completed") break; if (!lastOversight || lastOversight.status !== "completed") break; if (lastOversight.action === "stop") break;
-  }
-  if (!deadlineExceeded && Date.now() >= deadline) deadlineExceeded = true; const stopped = lastOversight?.action === "stop" && !cancelled; const resourceLimited = false; const incomplete = cancelled || !latestResult || latestResult.status !== "completed" || !stopped || deadlineExceeded;
-  const finalCase = await db.update(researchCasesTable).set({ status: incomplete ? "review" : "complete", currentAction: incomplete ? (cancelled ? "cancelled" : "investigator-incomplete-or-time-limited") : "awaiting-human-review", iteration: caseRow.iteration + completedActs, lastDecisionAt: new Date(), updatedAt: new Date(), caseFile: JSON.stringify({ ...caseState, contextDocument, lastOversight, completedActs, resourceLimited, deadlineExceeded, cancelled }) }).where(and(eq(researchCasesTable.id, caseRow.id), eq(researchCasesTable.status, "active"))).returning({ status: researchCasesTable.status });
-
-  const authoritativeCase = finalCase[0] ?? await loadCase(caseRow.id);
-  const terminal = deriveCanonicalTerminalDecision({ durableCaseStatus: authoritativeCase?.status ?? null, locallyCancelled: cancelled });
-  await updateJob(atlasJobId, { status: terminal.jobStatus, progress: terminal.outcome === "complete" ? 1 : 0, total: 1, atlasPhase: terminal.outcome === "complete" ? 1 : 0, atlasPhaseTotal: 1, outcome: terminal.outcome, message: stopped ? `Groq Boss explicitly stopped ${target.name} after ${completedActs} Investigator act(s).` : cancelled ? `Target investigation for ${target.name} was cancelled after ${completedActs} controlled act(s).` : deadlineExceeded ? `Target investigation for ${target.name} reached its global deadline after ${completedActs} controlled act(s).` : `Target investigation for ${target.name} preserved for review after ${completedActs} controlled act(s).`, result: JSON.stringify({ caseId: caseRow.id, investigator: latestResult ? { status: latestResult.status, model: latestResult.model, findings: latestResult.findings, searches: latestResult.searches, visits: latestResult.visits, trajectory: latestResult.trajectory, trajectoryRecords: latestResult.trajectoryRecords, evidenceGraphs: latestResult.evidenceGraphs, executionId: latestResult.executionId } : null, lastOversight, completedActs, resourceLimited, deadlineExceeded, cancelled, hardTimeoutMs, terminal, durableCaseStatus: authoritativeCase?.status ?? null }), finishedAt: new Date().toISOString() });
-}
