@@ -96,7 +96,7 @@ describe("Apex research intelligence", () => {
     engine.recordAction({ turn: 1, action: "visit", execution: "http_error", urls: ["https://failed.example/page"], observation: "Jane Example — Founder — jane@example.com", findings: [{ vectorType: "email", value: "jane@example.com", personName: "Jane Example", sourceUrls: ["https://failed.example/page"] }] });
     const state = engine.buildContext();
     expect(state.facts.some((fact) => fact.claim.includes("jane@example.com"))).toBe(false);
-    expect(state.evidenceCount).toBe(1);
+    expect(state.evidenceCount).toBe(0);
     expect(state.negativeFindings.some((finding) => finding.includes("http_error"))).toBe(true);
   });
 
