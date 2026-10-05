@@ -19,7 +19,7 @@ const oversight = fs.readFileSync(files.oversight, "utf8");
 const required = [
   ["engine restoreContext", engine.includes("restoreContext(context: IntelligenceContext)"),
    "ResearchIntelligenceEngine must expose deterministic durable-state restoration."],
-  ["model hypothesis ingestion", engine.includes("const modelHypothesis = typeof input.args?.hypothesis === "string""),
+  ["model hypothesis ingestion", engine.includes(`const modelHypothesis = typeof input.args?.hypothesis === "string"`),
    "model-authored hypotheses must enter epistemic state."],
   ["case state restore", wrapper.includes("intelligence.restoreContext(durableIntelligence)") && wrapper.includes("intelligence.restoreContext(oversightContext.intelligenceState)"),
    "both discovery and target execution paths must restore durable epistemic state."],
