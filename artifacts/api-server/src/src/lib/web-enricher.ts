@@ -3555,7 +3555,7 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
         addDiscoveryCandidates(ai.discoveryCandidates, label);
 
         // ── Integrate per-owner personal social handles ──────────────────
-        // This is the Google/Gemini parity gap: when the LLM sees "Christophe Caucino
+        // This is the search parity gap: when the LLM sees "Christophe Caucino
         // (@christoph_cau)" in the text, it returns that as an ownerContact with a personal
         // Instagram handle — NOT the venue's @baolicannes account.
         // These go to evidence as person_candidate ONLY, never to igHits/twHits/linkedinHits,
