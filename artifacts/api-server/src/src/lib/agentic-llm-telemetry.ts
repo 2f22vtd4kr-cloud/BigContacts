@@ -8,7 +8,7 @@
 import { createHash } from "node:crypto";
 
 type Attempt = {
-  provider: "groq" | string;
+  provider: "groq" | "mistral" | string;
   model: string;
   promptChars: number;
   status: number | "error" | "timeout";
