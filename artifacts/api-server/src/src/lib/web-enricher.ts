@@ -3592,7 +3592,7 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
   // Phase 0 queried the entity. By now (after DDG/scraping/AI) we know real
   // person names (founders, owners, directors) that weren't in Phase 0.
   // Fire targeted Perplexity sonar calls on those persons — this closes the
-  // Search-capable providers handle the follow-up; Gemini remains text-only.
+  // Search-capable providers handle the follow-up; the secondary LLM remains outside the canonical web search path.
   // Keep the discovery fan-out bounded, but do not discard the majority of
   // named operator/owner candidates before exact-page adjudication.
   {
