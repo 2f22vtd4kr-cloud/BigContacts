@@ -580,7 +580,7 @@ ${input.file ? buildDiscoveryProgressSnapshot(input.file) : "No prior investigat
 Return ONLY JSON in this shape:
      {
   "report": "concise evidence-led opening assessment",
-  "investigatorLlm": "groq | groq",
+  "investigatorLlm": "groq",
   "candidates": [
     {
       "name": "candidate name",
@@ -730,7 +730,7 @@ function parseBossPlanResponse(raw: string, queuedActions: BureauAction[]): Omit
     if (!action) return null;
     const rawInvestigatorLlm = typeof parsed.investigatorLlm === "string" ? parsed.investigatorLlm.trim().toLowerCase() : "";
     const investigatorLlm: "groq" | null =
-      rawInvestigatorLlm === "groq" || rawInvestigatorLlm === "groq" ? rawInvestigatorLlm : null;
+      rawInvestigatorLlm === "groq" ? rawInvestigatorLlm : null;
     const investigatorPrompt = typeof parsed.investigatorPrompt === "string" ? parsed.investigatorPrompt.trim() : "";
     if (!decision || !reason || investigatorPrompt.length < 20 || !investigatorLlm) return null;
     // Soft-require progress judgment; if missing, synthesize from reason so control loop stays live.
