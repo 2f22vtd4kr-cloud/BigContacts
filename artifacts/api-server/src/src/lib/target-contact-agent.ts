@@ -8,6 +8,7 @@ import { persistSourceBackedBureauContactsForEntity, type BureauContactLike, typ
 import { resolveResearchDepth } from "./research-depth";
 import { publishBureauEvent } from "./bureau-live-log";
 import { computeContactOutcome } from "./contact-confidence";
+import { getAvailableInvestigatorCapabilities, type InvestigatorCapability } from "./investigator-capability-registry";
 import { isValidPublicEmail } from "./contact-validation";
 import { publishDigSpan, spanFromLiveStep } from "./dig-span";
 import { buildClaimSupportGraph, graphHasIndependentCorroboration, observationsFromSourceUrls, validateClaimSupportGraph, type EvidenceGraph } from "./source-corroboration";
