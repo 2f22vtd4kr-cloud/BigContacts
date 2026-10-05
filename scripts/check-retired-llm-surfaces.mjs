@@ -37,8 +37,8 @@ const rightHand = fs.readFileSync(
 );
 
 if (!/selectedInvestigatorLlm === "groq"/.test(investigator)) failures.push("Investigator is not structurally bound to the canonical Groq adapter.");
-if (!/GROQ_BOSS_MODEL/.test(boss) || !/provider:s*"groq"/.test(boss)) failures.push("Boss canonical Groq provider surface is missing.");
-if (!/GROQ_RIGHT_HAND_MODEL/.test(rightHand) || !/provider:s*"groq"/.test(rightHand)) failures.push("Right-hand canonical Groq provider surface is missing.");
+if (!/GROQ_BOSS_MODEL/.test(boss) || !/provider:\s*"groq"/.test(boss)) failures.push("Boss canonical Groq provider surface is missing.");
+if (!/GROQ_RIGHT_HAND_MODEL/.test(rightHand) || !/provider:\s*"groq"/.test(rightHand)) failures.push("Right-hand canonical Groq provider surface is missing.");
 
 if (failures.length) {
   console.error("RETIRED LLM SURFACES: FAIL");
