@@ -249,7 +249,7 @@ export class ResearchIntelligenceEngine {
     this.chain = context.provenanceDigest || "GENESIS";
     const lineageByUrl = new Map(context.sourceLineage.map((node) => [canonicalUrl(node.canonicalUrl) ?? node.canonicalUrl, node]));
     for (const item of context.atomicEvidence) {
-      const parsed = extractPredicate(item.claim); const sourceUrl = canonicalUrl(item.sourceUrl);
+      const parsed = extractPredicate(item.claim); const sourceUrl = item.sourceUrl ? canonicalUrl(item.sourceUrl) : null;
       const sourceHost = item.sourceHost ?? hostOf(sourceUrl); const sourceLineage = sourceUrl ? lineageByUrl.get(sourceUrl) : undefined;
       const fingerprint = hash(item.kind + "|" + normalize(item.claim) + "|" + normalize(parsed.object) + "|" + (sourceUrl ?? ""));
       const evidenceId = item.evidenceId || ("ev_" + fingerprint.slice(0, 20));
@@ -272,7 +272,7 @@ export class ResearchIntelligenceEngine {
       this.contacts.set(key, { ...contact, sourceUrls: [...contact.sourceUrls], sourceHosts: [...contact.sourceHosts] }); }
     for (const negative of context.negativeFindings) this.negativeFindings.add(negative);
     for (const action of context.recentActions) this.actions.push({ ...action, args: { ...action.args }, urls: [...action.urls], findingNames: [...action.findingNames], findingRoles: [...action.findingRoles] });
-    for (const node of context.sourceLineage) this.sourceLineage.register({ canonicalUrl: node.canonicalUrl, host: node.host, originSourceId: node.originSourceId, publisher: node.publisher ?? null, citedSourceIds: [...node.citedSourceIds], contentFingerprint: null, sourceId: node.sourceId });
+    for (const node of context.sourceLineage) this.sourceLineage.register({ canonicalUrl: node.canonicalUrl, host: node.host, originSourceId: node.originSourceId, publisher: null, citedSourceIds: [...node.citedSourceIds], contentFingerprint: null, sourceId: node.sourceId });
     this.reconcileContradictions(); this.rankHypotheses();
   }
   recordFeedback(feedback: ResearchFeedback): void {
