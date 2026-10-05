@@ -243,13 +243,6 @@ function getGroqKeys(): string[] {
   return [...new Set(keys)];
 }
 
-function getGeminiKeys(): string[] {
-  const keys: string[] = [];
-  for (const k of [process.env.GEMINI_API_KEY, process.env.GOOGLE_API_KEY, process.env.GEMINI_API_KEY_2]) {
-    if (k?.trim()) keys.push(k.trim());
-  }
-  return [...new Set(keys)];
-}
 
 const MULTI_ENTITY_PROMPT = (text: string) => `You are an OSINT extraction assistant for Apex Atlas.
 Extract ONLY people, companies, trusts, and gatekeepers that are EXPLICITLY named in the source text below.
@@ -314,31 +307,6 @@ async function extractWithGroq(text: string): Promise<ImportDraftEntity[] | null
   return null;
 }
 
-async function extractWithGemini(text: string): Promise<ImportDraftEntity[] | null> {
-  const keys = getGeminiKeys();
-  for (const key of keys) {
-    try {
-      const model = process.env.GEMINI_MODEL || "gemini-2.0-flash";
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
-      const resp = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ role: "user", parts: [{ text: MULTI_ENTITY_PROMPT(text) }] }],
-          generationConfig: { temperature: 0, maxOutputTokens: 4000, responseMimeType: "application/json" },
-        }),
-        signal: AbortSignal.timeout(45_000),
-      });
-      if (!resp.ok) continue;
-      const data = await resp.json() as any;
-      const raw = String(data?.candidates?.[0]?.content?.parts?.[0]?.text ?? "");
-      return parseLlmEntityJson(raw, "gemini");
-    } catch (err) {
-      logger.debug({ err: err instanceof Error ? err.message : String(err) }, "manual-import Gemini failed");
-    }
-  }
-  return null;
-}
 
 function parseLlmEntityJson(raw: string, source: string): ImportDraftEntity[] {
   const jsonStr = extractJsonObject(raw) ?? raw;
@@ -412,7 +380,7 @@ function parseLlmEntityJson(raw: string, source: string): ImportDraftEntity[] {
 
 export type ExtractResult = {
   drafts: ImportDraftEntity[];
-  method: "csv" | "json" | "llm-groq" | "llm-gemini" | "heuristic";
+  method: "csv" | "json" | "llm-groq" | "heuristic";
   sourceBytes: number;
 };
 
@@ -441,8 +409,6 @@ export async function extractImportDrafts(input: {
   if (input.preferLlm !== false && text.length >= 40) {
     const groq = await extractWithGroq(text);
     if (groq && groq.length) return { drafts: groq, method: "llm-groq", sourceBytes: text.length };
-    const gemini = await extractWithGemini(text);
-    if (gemini && gemini.length) return { drafts: gemini, method: "llm-gemini", sourceBytes: text.length };
   }
 
   return { drafts: heuristicExtractDrafts(text), method: "heuristic", sourceBytes: text.length };
