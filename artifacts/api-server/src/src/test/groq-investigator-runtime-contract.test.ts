@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildGroqInvestigatorRequestBody } from "../lib/agentic-web-research-core";
-import { inferResearchCognitiveTask } from "../lib/research-cognitive-routing";
+import { inferResearchCognitiveTask, rankGroqModelsForTask } from "../lib/research-cognitive-routing";
 import { validateDiscoverySearchQuery } from "../lib/agentic-web-research-core";
 import { sourceBackedFindings } from "../lib/target-contact-agent";
 import { sourceBackedAgenticFindings } from "../lib/bureau-agentic-pass";
@@ -75,6 +75,23 @@ describe("Groq Investigator runtime contract", () => {
     expect(schema?.properties).toHaveProperty("locale");
     expect(schema?.properties).toHaveProperty("market");
     expect(schema?.required).toEqual(expect.arrayContaining(["target", "targetType", "profile", "locale", "market"]));
+  });
+
+  it("routes routine Investigator work to the low-cost model and reserves 120B for hard reasoning", () => {
+    const models = ["openai/gpt-oss-120b", "openai/gpt-oss-20b", "qwen/qwen3.8-27b"];
+    expect(rankGroqModelsForTask(models, "discovery")[0]).toBe("openai/gpt-oss-20b");
+    expect(rankGroqModelsForTask(models, "identity_resolution")[0]).toBe("openai/gpt-oss-20b");
+    expect(rankGroqModelsForTask(models, "contact_extraction")[0]).toBe("openai/gpt-oss-20b");
+    expect(rankGroqModelsForTask(models, "contradiction_resolution")[0]).toBe("openai/gpt-oss-120b");
+    expect(rankGroqModelsForTask(models, "final_adjudication")[0]).toBe("openai/gpt-oss-120b");
+  });
+
+  it("uses low reasoning effort for routine discovery and contact turns", () => {
+    for (const task of ["discovery", "contact_extraction"] as const) {
+      const body = buildGroqInvestigatorRequestBody({ model: "openai/gpt-oss-20b", prompt: "x", cognitiveTask: task });
+      expect(body.reasoning_effort).toBe("low");
+      expect(body.max_completion_tokens).toBe(task === "discovery" ? 768 : 640);
+    }
   });
 
   it("routes live research state into distinct cognitive modes", () => {
