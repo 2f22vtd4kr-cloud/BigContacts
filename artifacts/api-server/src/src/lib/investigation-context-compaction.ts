@@ -47,8 +47,8 @@ export interface InvestigatorContextBudget {
   findingChars: number;
 }
 
-const DEFAULT_MAX_CHARS = 12_000;
-const MIN_MAX_CHARS = 8_000;
+const DEFAULT_MAX_CHARS = 9_000;
+const MIN_MAX_CHARS = 6_000;
 const MAX_MAX_CHARS = 24_000;
 
 function positiveBounded(raw: string | undefined, fallback: number, min: number, max: number): number {
@@ -60,9 +60,9 @@ export function getInvestigatorContextBudget(): InvestigatorContextBudget {
   return {
     maxChars: positiveBounded(process.env.APEX_INVESTIGATOR_CONTEXT_MAX_CHARS, DEFAULT_MAX_CHARS, MIN_MAX_CHARS, MAX_MAX_CHARS),
     recentFullRecords: positiveBounded(process.env.APEX_INVESTIGATOR_CONTEXT_RECENT_RECORDS, 2, 1, 4),
-    recentObservationChars: positiveBounded(process.env.APEX_INVESTIGATOR_CONTEXT_RECENT_OBSERVATION_CHARS, 3_200, 800, 6_000),
+    recentObservationChars: positiveBounded(process.env.APEX_INVESTIGATOR_CONTEXT_RECENT_OBSERVATION_CHARS, 2_400, 700, 5_000),
     archiveRecordChars: positiveBounded(process.env.APEX_INVESTIGATOR_CONTEXT_ARCHIVE_RECORD_CHARS, 650, 240, 1_500),
-    findingChars: positiveBounded(process.env.APEX_INVESTIGATOR_CONTEXT_FINDING_CHARS, 4_000, 1_000, 8_000),
+    findingChars: positiveBounded(process.env.APEX_INVESTIGATOR_CONTEXT_FINDING_CHARS, 3_000, 900, 6_000),
   };
 }
 
