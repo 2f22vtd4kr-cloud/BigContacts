@@ -6,10 +6,76 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("../lib/ssrf-safe-fetch", () => ({ safeOutboundFetch: mocks.safeOutboundFetch }));
 
-import { runAgenticWebResearch, INVESTIGATOR_LLM_CAPABILITY_POOL } from "../lib/agentic-web-research-core";
+import { bindModelFindingsToObservedSources, runAgenticWebResearch, INVESTIGATOR_LLM_CAPABILITY_POOL } from "../lib/agentic-web-research-core";
 import { resetProviderGateForTests } from "../lib/provider-gate";
 
-describe("Groq Investigator provider boundary", () => {
+describe("Groq Investigator provider boundary", () => {\n  it("binds terminal findings only to exact passages from previously observed non-search sources", () => {
+    const finding = {
+      vectorType: "email" as const,
+      value: "jane@example.com",
+      personName: "Jane Doe",
+      role: "CEO",
+      scope: "candidate" as const,
+      sourceUrls: ["https://example.com/about", "https://search.example/results"],
+      note: "model finding",
+    };
+    const records = [
+      {
+        turn: 1,
+        model: "openai/gpt-oss-120b",
+        action: "web_search",
+        args: {},
+        execution: "success" as const,
+        observation: "https://example.com/about — Jane Doe — jane@example.com",
+        observedUrls: ["https://example.com/about"],
+        findings: [],
+      },
+      {
+        turn: 2,
+        model: "openai/gpt-oss-120b",
+        action: "visit",
+        args: { url: "https://example.com/about" },
+        execution: "success" as const,
+        observation: "About Jane Doe. Jane Doe is CEO. Contact: jane@example.com.",
+        observedUrls: ["https://example.com/about"],
+        findings: [],
+      },
+    ];
+
+    const bindings = bindModelFindingsToObservedSources([finding], records);
+
+    expect(bindings).toHaveLength(1);
+    expect(bindings[0]?.sourceUrl).toBe("https://example.com/about");
+    expect(bindings[0]?.passage.toLowerCase()).toContain("jane@example.com");
+  });
+
+  it("does not bind a terminal finding to a search-result URL or an unobserved source", () => {
+    const finding = {
+      vectorType: "email" as const,
+      value: "jane@example.com",
+      personName: "Jane Doe",
+      role: "CEO",
+      scope: "candidate" as const,
+      sourceUrls: ["https://search.example/results", "https://example.com/not-observed"],
+      note: "model finding",
+    };
+    const records = [
+      {
+        turn: 1,
+        model: "openai/gpt-oss-120b",
+        action: "web_search",
+        args: {},
+        execution: "success" as const,
+        observation: "Search result: Jane Doe jane@example.com https://example.com/not-observed",
+        observedUrls: ["https://search.example/results", "https://example.com/not-observed"],
+        findings: [],
+      },
+    ];
+
+    expect(bindModelFindingsToObservedSources([finding], records)).toEqual([]);
+  });
+
+
   afterEach(() => {
     delete process.env.GROQ_INVESTIGATOR_API_KEY;
     delete process.env.GROQ_INVESTIGATOR_API_KEY_1;
