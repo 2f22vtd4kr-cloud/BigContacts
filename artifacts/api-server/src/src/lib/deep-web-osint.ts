@@ -453,7 +453,7 @@ export async function deepWebOsintEnrich(entity: DeepWebOsintInput): Promise<Dee
   type AiOwner = { name: string; instagram: string | null; twitter: string | null; linkedin: string | null };
   const aiOwners: AiOwner[] = [];
   // ── Phase 0: independent search providers — live web research ────────────
-  // Gemini is intentionally absent: it is reserved for text-only Bureau
+  // The retired secondary LLM path is intentionally absent from canonical OSINT
   // planning and never receives search tools or search prompts.
   try {
     // Derive country hint from knownResidences (e.g. "Port Pierre Canto, Cannes, France" → "France")
