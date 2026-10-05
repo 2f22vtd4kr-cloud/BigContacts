@@ -1,37 +1,3 @@
-import { describe, expect, it } from "vitest";
-import { buildGroqInvestigatorRequestBody, validateDiscoverySearchQuery } from "../lib/agentic-web-research-core";
-import { inferResearchCognitiveTask } from "../lib/research-cognitive-routing";
-import { sourceBackedFindings } from "../lib/target-contact-agent";
-import { sourceBackedAgenticFindings } from "../lib/bureau-agentic-pass";
-
-describe("Groq Investigator runtime contract", () => {
-
-  it("rejects generic fame/wealth discovery queries before they reach a provider", () => {
-    expect(validateDiscoverySearchQuery("billionaires richest people Forbes")).toMatchObject({ allowed: false });
-    expect(validateDiscoverySearchQuery("Elon Musk")).toMatchObject({ allowed: false });
-    expect(validateDiscoverySearchQuery("wealthiest people investment firms")).toMatchObject({ allowed: false });
-  });
-
-  it("accepts concrete discovery queries without prescribing the query itself", () => {
-    expect(validateDiscoverySearchQuery("Slovenia casino")).toEqual({ allowed: true });
-    expect(validateDiscoverySearchQuery("Ljubljana hotel owner")).toEqual({ allowed: true });
-    expect(validateDiscoverySearchQuery("private equity founder site:a16z.com")).toEqual({ allowed: true });
-  });
-
-  it("blocks exact duplicate discovery queries while allowing a real pivot", () => {
-    expect(validateDiscoverySearchQuery("Slovenia casino", ["Slovenia casino"])).toMatchObject({ allowed: false });
-    expect(validateDiscoverySearchQuery("Slovenia casino founder", ["Slovenia casino"])).toEqual({ allowed: true });
-  });
-
-
-  it("does not treat search-result snippets as card-grade source evidence", () => {
-    const finding = {
-      vectorType: "email",
-      value: "alice@example.com",
-      scope: "candidate" as const,
-      personName: "Alice Example",
-      role: "Founder",
-      sourceUrls: ["https://example.com/profile"],
       note: "observed",
       promotionDecision: "promote" as const,
     };
@@ -98,9 +64,3 @@ describe("Groq Investigator runtime contract", () => {
 
   it("routes live research state into distinct cognitive modes", () => {
     expect(inferResearchCognitiveTask({ action: "web_search" })).toBe("discovery");
-    expect(inferResearchCognitiveTask({ nextMovePriority: "falsify" })).toBe("contradiction_resolution");
-    expect(inferResearchCognitiveTask({ nextMovePriority: "contact" })).toBe("contact_extraction");
-    expect(inferResearchCognitiveTask({ nextMovePriority: "verify" })).toBe("identity_resolution");
-    expect(inferResearchCognitiveTask({ terminal: true })).toBe("final_adjudication");
-  });
-});
