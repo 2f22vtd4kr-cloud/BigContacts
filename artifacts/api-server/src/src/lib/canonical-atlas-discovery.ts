@@ -6,6 +6,7 @@ import { runBureauAgenticWebPass } from "./bureau-agentic-pass";
 import { runCanonicalSingleTargetInvestigation } from "./canonical-single-target-runner";
 import { decideAtlasNextAction, type AtlasControlAction } from "./atlas-control-decision";
 import { resolveResearchDepth } from "./research-depth";
+import type { InvestigatorCapability } from "./investigator-capability-registry";
 import { deriveCanonicalTerminalDecision } from "./canonical-terminal-state";
 
 export type CanonicalAtlasOptions = {
@@ -32,7 +33,7 @@ function candidateIdentityObserved(personName: string, observation: unknown): bo
 }
 
 
-async function createAtlasDiscoveryCase(input: { atlasJobId: string; objective: string; investigatorLlm: "groq" }): Promise<number> {
+async function createAtlasDiscoveryCase(input: { atlasJobId: string; objective: string; investigatorLlm: InvestigatorCapability }): Promise<number> {
   const [created] = await db.insert(researchCasesTable).values({ caseType: "discovery", status: "active", directorMode: "groq_boss", directorProvider: "groq", directorModel: "pending", objective: input.objective, motivation: "Durable memory for canonical Atlas Investigator discovery.", openingPrompt: "Investigator chooses every research action; this case is memory/state, not a deterministic research plan.", caseFile: JSON.stringify({ caseType: "discovery", contextDocument: ["CANONICAL ATLAS DISCOVERY CASE", `JOB: ${input.atlasJobId}`, `INVESTIGATOR: ${input.investigatorLlm}`, `OBJECTIVE: ${input.objective}`, "STATE: Initial discovery; Investigator owns the next action.", "TRAJECTORY: []"].join("\n"), investigatorTrajectory: [], investigatorTrajectoryRecords: [], investigationTimeline: [], jobId: input.atlasJobId }), currentAction: "canonical-investigator-discovery", iteration: 0 }).returning({ id: researchCasesTable.id });
   const caseId = created?.id; if (!caseId) throw new Error("Failed to create durable Atlas discovery case.");
   return caseId;
@@ -97,15 +98,15 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         "Do not browse as Boss.",
         "Do not prescribe a fixed tool or search sequence.",
         "Do not invent people, contacts, relationships, or URLs.",
-        "Select only groq as Investigator.",
+        "Select one available Investigator capability exposed by the runtime registry; do not prescribe a research sequence.",
       ],
       startingLane: "model-selected discovery",
     });
     await assertAtlasJobActive(atlasJobId);
 
     if (!boss.investigatorLlm) {
-      phaseSummary.assignment = "No usable Groq-selected Investigator; fail closed.";
-      const bossFailureMessage = "Groq Boss was unavailable after bounded same-role model fallback; no Groq/Groq Investigator fallback is permitted.";
+      phaseSummary.assignment = "No usable Boss-selected Investigator capability; fail closed.";
+      const bossFailureMessage = "Groq Boss was unavailable after bounded same-role model fallback; no alternate Investigator capability was substituted.";
       await updateJob(atlasJobId, {
         status: "failed",
         progress: 1,
