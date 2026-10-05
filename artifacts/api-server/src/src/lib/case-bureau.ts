@@ -3,6 +3,7 @@ import type { Entity } from "@workspace/db";
 import { apexOrientationFor } from "./apex-bureau-orientation";
 import { buildApexAtlasBossPlanPrompt } from "./case-bureau-prompt";
 import { extractWalletSeedsFromText, buildWalletSeedPlan, formatWalletSeedPlanForPrompt, objectiveLooksWalletFirst } from "./wallet-seed";
+import { getAvailableInvestigatorCapabilities, type InvestigatorCapability } from "./investigator-capability-registry";
 
 /** Boss may proceed with an allowlisted action, reject the target, or reframe scope. */
 export type BossPlanOutcome = "proceed" | "reject_target" | "reframe";
@@ -260,7 +261,7 @@ export function formatGeminiBossAttemptSummary(attempts: GeminiBossAttemptDiagno
 export type GeminiBossDiscoveryResult = {
   status: "completed" | "pending" | "unavailable";
   model: string;
-  investigatorLlm: "groq" | null;
+  investigatorLlm: InvestigatorCapability | null;
   report: string | null;
   candidates: Array<{
     name: string;
@@ -284,7 +285,7 @@ export type GeminiBossPlanResult = {
   decision: string | null;
   reason: string | null;
   investigatorPrompt: string | null;
-  investigatorLlm: "groq" | null;
+  investigatorLlm: InvestigatorCapability | null;
   restrictions: string[];
   tools: string[];
   evidenceRequirements: string[];
@@ -389,7 +390,7 @@ const GEMINI_BOSS_DISCOVERY_RESPONSE_FORMAT: Record<string, unknown> = {
     type: "object",
     properties: {
       report: { type: "string" },
-      investigatorLlm: { type: "string", enum: ["groq"] },
+      investigatorLlm: { type: "string", enum: [...availableInvestigators] },
       candidates: {
         type: "array",
         maxItems: 6,
@@ -429,13 +430,13 @@ const GEMINI_BOSS_DISCOVERY_RESPONSE_FORMAT: Record<string, unknown> = {
     },
     required: ["report", "investigatorLlm", "candidates", "nextDirections", "uncertainties"],
     additionalProperties: false
-  }
-};
+  };
+}
 
 function parseBossDiscoveryResponse(raw: string): {
   report: string;
   candidates: GeminiBossDiscoveryResult["candidates"];
-  investigatorLlm: "groq" | null;
+  investigatorLlm: InvestigatorCapability | null;
   nextDirections: string[];
   uncertainties: string[];
 } {
@@ -453,7 +454,8 @@ function parseBossDiscoveryResponse(raw: string): {
       return { report: "", candidates: [], investigatorLlm: null, nextDirections: [], uncertainties: [] };
     }
     const report = typeof object.report === "string" ? object.report.trim() : "";
-    const investigatorLlm = object.investigatorLlm === "groq" ? "groq" as const : null;
+    const available = getAvailableInvestigatorCapabilities();
+    const investigatorLlm = typeof object.investigatorLlm === "string" && available.includes(object.investigatorLlm as InvestigatorCapability) ? object.investigatorLlm as InvestigatorCapability : null;
     const nextDirections = Array.isArray(object.nextDirections) && object.nextDirections.length <= 8 && object.nextDirections.every((value) => typeof value === "string" && value.trim())
       ? uniqueStrings(object.nextDirections, 8)
       : null;
@@ -562,7 +564,7 @@ export async function runGroqBossDiscovery(input: {
   }
 
   const investigatorKeyNames = ["GROQ_INVESTIGATOR_API_KEY", ...Array.from({ length: 5 }, (_, i) => `GROQ_INVESTIGATOR_API_KEY_${i + 1}`)];
-  const availableInvestigators = [investigatorKeyNames.some((name) => Boolean(process.env[name]?.trim())) ? "groq" : null].filter((value): value is "groq" => Boolean(value));
+  const availableInvestigators = getAvailableInvestigatorCapabilities();
   const prompt = `${buildBossOpeningPrompt(input)}
 
 This is a shared case-context review. Read the current investigation progress and investigator reports below
@@ -580,7 +582,7 @@ ${input.file ? buildDiscoveryProgressSnapshot(input.file) : "No prior investigat
 Return ONLY JSON in this shape:
      {
   "report": "concise evidence-led opening assessment",
-  "investigatorLlm": "groq",
+  "investigatorLlm": "${availableInvestigators[0] ?? "unavailable"}",
   "candidates": [
     {
       "name": "candidate name",
@@ -607,7 +609,7 @@ Return ONLY JSON in this shape:
 Candidates are review-only. Never invent a name, wealth claim, relationship, contact detail, or URL.`;
   try {
     const generated = await generateGeminiBossText(selection, prompt, {
-      responseFormat: GEMINI_BOSS_DISCOVERY_RESPONSE_FORMAT,
+      responseFormat: buildBossDiscoveryResponseFormat(availableInvestigators),
       maxOutputTokens: 2048,
       thinkingLevel: "low",
     });
@@ -835,7 +837,7 @@ export async function runGeminiBossPlan(input: {
   if (queuedActions.length === 0) return unavailable("The case file has no queued actions.");
   try {
     const planPrompt = buildGeminiBossPlanPrompt(input);
-    const generated = await generateGeminiBossText(selection, planPrompt, { responseFormat: GEMINI_BOSS_PLAN_RESPONSE_FORMAT, maxOutputTokens: 1536, thinkingLevel: "minimal" });
+    const generated = await generateGeminiBossText(selection, planPrompt, { responseFormat: buildBossPlanResponseFormat(getAvailableInvestigatorCapabilities()), maxOutputTokens: 1536, thinkingLevel: "minimal" });
     if (!generated.raw) return unavailable(generated.error ?? "Boss plan text generation returned no text.");
     const parsed = parseBossPlanResponse(generated.raw, queuedActions);
     return parsed
