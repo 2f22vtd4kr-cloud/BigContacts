@@ -193,6 +193,33 @@ function retryAfterMs(response: Response, fallback: number): number {
   return Number.isFinite(date) ? Math.min(10_000, Math.max(0, date - Date.now())) : fallback;
 }
 
+function tokenWindowWaitMs(response: Response, body: string): number | null {
+  if (response.status !== 429) return null;
+  try {
+    const parsed = JSON.parse(body) as { error?: { type?: unknown } };
+    if (parsed.error?.type !== "tokens") return null;
+  } catch {
+    return null;
+  }
+  const rawReset = response.headers.get("x-ratelimit-reset-tokens")?.trim() ?? "";
+  if (rawReset) {
+    const numeric = Number(rawReset);
+    if (Number.isFinite(numeric) && numeric >= 0) return Math.min(45_000, Math.floor(numeric * 1_000));
+    const match = rawReset.match(/^(?:(\d+(?:\.\d+)?)h)?(?:(\d+(?:\.\d+)?)m)?(?:(\d+(?:\.\d+)?)s)?$/i);
+    if (match) {
+      const hours = Number(match[1] ?? 0);
+      const minutes = Number(match[2] ?? 0);
+      const seconds = Number(match[3] ?? 0);
+      return Math.min(45_000, Math.floor((hours * 3600 + minutes * 60 + seconds) * 1_000));
+    }
+  }
+  const retryAfter = response.headers.get("retry-after")?.trim() ?? "";
+  const seconds = Number(retryAfter);
+  if (Number.isFinite(seconds) && seconds >= 0) return Math.min(45_000, Math.floor(seconds * 1_000));
+  const date = Date.parse(retryAfter);
+  return Number.isFinite(date) ? Math.min(45_000, Math.max(0, date - Date.now())) : null;
+}
+
 function boundedBossPrompt(prompt: string, maximum: number): string | null {
   const normalized = prompt.trim();
   return normalized.length <= maximum ? normalized : null;
@@ -283,6 +310,12 @@ export async function generateGroqBossText(
             lastError = `Groq Boss ${model} returned HTTP 429${code ? ` (${code})` : ""}: ${JSON.stringify(summarizeProviderBody(responseBody))}`;
             const delay = retryAfterMs(response, 0);
             const hardQuota = groqHardRateLimit(response, responseBody);
+            const tokenWindowDelay = tokenWindowWaitMs(response, responseBody);
+            if (hardQuota && tokenWindowDelay !== null && tokenWindowDelay <= 45_000 && rateLimitRetries < MAX_429_RETRIES_PER_MODEL && Date.now() + tokenWindowDelay < deadline) {
+              rateLimitRetries += 1;
+              await new Promise((resolve) => setTimeout(resolve, tokenWindowDelay));
+              continue;
+            }
             if (!hardQuota && rateLimitRetries < MAX_429_RETRIES_PER_MODEL && delay <= 2_500 && Date.now() + delay < deadline) {
               rateLimitRetries += 1;
               await new Promise((resolve) => setTimeout(resolve, delay));
