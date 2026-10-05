@@ -42,6 +42,7 @@ const checks=[
 ["target per-act Right-hand contract is exact-field validated",/validateRightHandAdvice\(rightParsed\)/.test(oversight)&&/validateExactFields\(value,\["decision","reason","focusLanes","confidence"\]\)/.test(oversight)],
 ["target per-act Boss contract is exact-field validated",/validateBossOversight\(parsed\)/.test(oversight)&&/validateExactFields\(value,\["action","direction","reason","confidence"\]\)/.test(oversight)],
 ["target oversight persistence requires an active locked case",/eq\(researchCasesTable\.status,"active"\)/.test(oversight)&&/\.for\("update"\)/.test(oversight)&&/no longer active; refusing stale oversight persistence/.test(oversight)],
+["target oversight refuses cancelled/fenced cases before provider calls",/status:researchCasesTable\.status/.test(oversight)&&/if\(row\.status!=="active"\)return null/.test(oversight)&&/findTargetCase\(input\.caseId,input\.targetName\)/.test(oversight)],
 ["Right Hand failure stops the next Investigator act",/Groq Right-hand oversight was unavailable/.test(oversight)],
 ["discovery is not accidentally target-gated",/input\.mode === "discovery"/.test(agentic)],
 ["selected Investigator executes only the Boss-selected provider",/const fn = selectedInvestigatorLlm === "groq"/.test(core)&&!/orderedProviders/.test(core)&&!/for\s*\(const \[name, fn\] of orderedProviders\)/.test(core)],
