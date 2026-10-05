@@ -1,4 +1,4 @@
-const FORBIDDEN_PROVIDER_OR_TOOL = /\b(?:groq|mistral|serper|tavily|exa|maigret|sherlock|web_search|browser_fetch|registry_search|domain_lookup|harvest_domain|footprint_email|footprint_username_maigret|footprint_username_sherlock)\b/i;
+const FORBIDDEN_PROVIDER_OR_TOOL = /\b(?:groq|serper|tavily|exa|maigret|sherlock|web_search|browser_fetch|registry_search|domain_lookup|harvest_domain|footprint_email|footprint_username_maigret|footprint_username_sherlock)\b/i;
 const EXPLICIT_URL = /https?:\/\/|www\.[^\s]+/i;
 const TOOL_DIRECTIVE = /\b(?:visit|open|fetch)\s+(?:https?:\/\/|www\.)/i;
 
