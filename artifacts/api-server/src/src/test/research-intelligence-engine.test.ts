@@ -26,6 +26,42 @@ describe("Apex research intelligence", () => {
     expect(state.recentActions[0]?.informationGain).toBeGreaterThan(0.5);
   });
 
+  it("records the Investigator's own hypothesis as epistemic state rather than a deterministic route", () => {
+    const engine = new ResearchIntelligenceEngine({ executionId: "model-hypothesis", target: "Jordan Example", objective: "resolve identity" });
+    engine.recordAction({
+      turn: 1,
+      action: "web_search",
+      execution: "success",
+      args: { hypothesis: "Jordan Example may be the director of Alpha", purpose: "Discriminate the Alpha affiliation from competing identities", expectedInformationGain: 0.8 },
+      urls: ["https://registry.example.gov/jordan"],
+      observation: "Jordan Example is director of Alpha",
+      findings: [{ vectorType: "other", value: "director of Alpha", personName: "Jordan Example", sourceUrls: ["https://registry.example.gov/jordan"] }],
+    });
+    const state = engine.buildContext();
+    expect(state.hypotheses.some((hypothesis) => hypothesis.label === "Jordan Example may be the director of Alpha")).toBe(true);
+    expect(state.recentActions[0]?.args.hypothesis).toBe("Jordan Example may be the director of Alpha");
+    expect(state.researchQuestions.some((question) => question.question.includes("Discriminate the Alpha affiliation"))).toBe(true);
+  });
+
+  it("restores durable epistemic state without selecting a new action", () => {
+    const original = new ResearchIntelligenceEngine({ executionId: "resume-original", target: "Jordan Example", objective: "resume investigation" });
+    original.recordAction({ turn: 1, action: "web_search", execution: "success", args: { hypothesis: "Jordan Example is tied to Alpha", purpose: "verify the affiliation" }, urls: ["https://registry.example.gov/jordan"], observation: "Jordan Example is director of Alpha", findings: [{ vectorType: "other", value: "director of Alpha", personName: "Jordan Example", sourceUrls: ["https://registry.example.gov/jordan"] }] });
+    original.recordAction({ turn: 2, action: "web_search", execution: "success", urls: ["https://news.example.com/jordan"], observation: "Jordan Example is director of Beta", findings: [{ vectorType: "other", value: "director of Beta", personName: "Jordan Example", sourceUrls: ["https://news.example.com/jordan"] }] });
+    const before = original.buildContext();
+
+    const restored = new ResearchIntelligenceEngine({ executionId: "resume-new-process", target: "Jordan Example", objective: "resume investigation" });
+    restored.restoreContext(before);
+    const after = restored.buildContext();
+
+    expect(after.evidenceCount).toBe(before.evidenceCount);
+    expect(after.sourceDiversity).toBe(before.sourceDiversity);
+    expect(after.independentSourceUnits).toBe(before.independentSourceUnits);
+    expect(after.hypotheses.map((item) => item.label)).toEqual(before.hypotheses.map((item) => item.label));
+    expect(after.contradictions.length).toBe(before.contradictions.length);
+    expect(after.contacts.length).toBe(before.contacts.length);
+    expect(after.atomicEvidence.map((item) => item.claim)).toEqual(before.atomicEvidence.map((item) => item.claim));
+  });
+
   it("keeps competing identity hypotheses explicit", () => {
     const engine = new ResearchIntelligenceEngine({ executionId: "hypotheses", target: "Jordan Example", objective: "resolve identity" });
     engine.addHypothesis({ label: "H1", entity: "Jordan Example A", score: 0.9 });
