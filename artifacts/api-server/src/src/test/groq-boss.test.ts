@@ -2,9 +2,13 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { generateGroqBossText } from "../lib/groq-boss";
 
 describe("Groq Boss token-window recovery", () => {
-  afterEach(() => vi.restoreAllMocks());
+  afterEach(() => {
+    delete process.env.GROQ_BOSS_API_KEY;
+    vi.restoreAllMocks();
+  });
 
   it("recovers a token-window 429 without rotating the Boss model", async () => {
+    process.env.GROQ_BOSS_API_KEY = "test-groq-boss-token-window-key";
     let calls = 0;
     const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async () => {
       calls += 1;
@@ -41,6 +45,7 @@ describe("Groq Boss token-window recovery", () => {
   });
 
   it("fails closed without retrying when the token reset exceeds the bounded recovery window", async () => {
+    process.env.GROQ_BOSS_API_KEY = "test-groq-boss-long-reset-key";
     let calls = 0;
     const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async () => {
       calls += 1;
