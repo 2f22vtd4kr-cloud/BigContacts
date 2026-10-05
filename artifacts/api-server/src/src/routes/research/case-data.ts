@@ -7,7 +7,7 @@ import {
   buildBossOpeningPrompt,
   DEFAULT_DISCOVERY_MOTIVATION,
   DEFAULT_DISCOVERY_OBJECTIVE,
-  resolveGeminiBossModel,
+  resolveBossModel,
 } from "../../lib/case-bureau";
 import { computeDiscoveryQualityMetrics } from "../../lib/discovery-metrics";
 
@@ -97,13 +97,13 @@ router.post("/research/bureau/cases", async (req, res): Promise<void> => {
     geography: parsed.data.geography,
     exclusions: parsed.data.exclusions,
   });
-  const bossModel = await resolveGeminiBossModel();
+  const bossModel = await resolveBossModel();
   const [created] = await db.insert(researchCasesTable).values({
     targetEntityId: null,
     caseType: "discovery",
     status: "ready",
-    directorMode: "gemini_boss_pending",
-    directorProvider: "gemini",
+    directorMode: "groq_boss_pending",
+    directorProvider: "groq",
     directorModel: bossModel.model,
     objective,
     motivation,
@@ -126,7 +126,7 @@ router.post("/research/bureau/cases", async (req, res): Promise<void> => {
     correlationKey: `case:${created.id}:opened`,
     payload: JSON.stringify({
       caseType: "discovery",
-      directorProvider: "gemini",
+      directorProvider: "groq",
       directorModel: bossModel.model,
       modelSelectionStatus: bossModel.status,
       modelCandidateCount: bossModel.candidateCount,
