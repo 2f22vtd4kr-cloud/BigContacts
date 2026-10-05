@@ -9,6 +9,7 @@ import { compactInvestigationContext } from "./investigation-context-compaction"
 import { deriveCanonicalTerminalDecision } from "./canonical-terminal-state";
 import { reviewTargetInvestigationAct } from "./target-act-oversight";
 import { runGroqRightHandFreeJson } from "./groq-right-hand-reasoning";
+import type { InvestigatorCapability } from "./investigator-capability-registry";
 export type CanonicalSingleTargetOptions = { researchDepth?: ResearchDepth; targetTimeoutMs?: number; existingCaseId?: number; initialDirection?: string };
 type StoredOversight = { action: "continue" | "redirect" | "stop"; direction?: string | null; reason?: string | null; status?: string; bossModel?: string | null; error?: string | null };
 type TargetCase = { id: number; targetEntityId: number; status: string; iteration: number; objective: string; caseFile: string | null };
