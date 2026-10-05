@@ -3,7 +3,7 @@
 - [Build hardening idempotence](build-hardening-idempotence.md) — managed API builds can repeat source-level guard comments; inspect the tree after each build.
 - [Bureau admission telemetry](bureau-admission-telemetry.md) — a discovery run can finish with contact facts yet zero new ledger admissions; trust the ledger delta for proof.
 - [Frontend dist rebuild](frontend-dist-rebuild.md) — the API boot script skips frontend builds when dist exists, so UI edits need an explicit client build before restart.
-- [Agentic provider quota](agentic-provider-quota.md) — configured provider keys can appear healthy while Groq/Mistral capacity is exhausted; wait for reset instead of retrying a smoke.
+- [Agentic provider quota](agentic-provider-quota.md) — configured keys and earlier successes do not guarantee capacity; distinguish token-window limits from request exhaustion before bounded retry.
 - [Agentic prompt size](agentic-prompt-size.md) — HTTP 413 after early successful Investigator turns means mounted context exceeded the provider request boundary.
 - [Gemini retry ownership](gemini-retry-ownership.md) — Gemini 429/503 retry and fallback must not be blocked by the outer provider cooldown gate.
 - [Blind review truth boundary](blind-review-truth-boundary.md) — deterministic approved values and scope must outrank a reviewer narrative or publish status when they disagree.
