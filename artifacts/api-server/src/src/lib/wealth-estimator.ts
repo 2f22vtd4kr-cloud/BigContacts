@@ -11,7 +11,7 @@ import { apexOrientationCompact } from "./apex-bureau-orientation";
  * Strategy:
  *   1. Build a rich context block from all entity fields + assets + notes
  *   2. Send to Groq (gpt-oss-120b) with a hard-mandate prompt
- *   3. Fallback to Gemini if Groq fails / rate-limited
+ *   3. Fall back to the deterministic asset formula if Groq is unavailable
  *   4. Parse a JSON { pointEstimate, low, high, confidence, reasoning } response
  *   5. Write estimatedNetWorth = pointEstimate to DB; skip if already set
  *
@@ -27,15 +27,6 @@ import { logger } from "./logger";
 
 // ── API key pools ──────────────────────────────────────────────────────────────
 const GROQ_KEY_NAMES = ["GROQ_API_KEY", ...Array.from({ length: 10 }, (_, i) => `GROQ_API_KEY_${i + 1}`)];
-const GEMINI_KEY_NAMES = ["GEMINI_API_KEY", ...Array.from({ length: 10 }, (_, i) => `GEMINI_API_KEY_${i + 1}`)];
-
-const GROQ_KEYS = GROQ_KEY_NAMES.map(k => process.env[k]).filter(Boolean) as string[];
-const GEMINI_KEYS = GEMINI_KEY_NAMES.map(k => process.env[k]).filter(Boolean) as string[];
-
-let groqKeyIdx = 0;
-let geminiKeyIdx = 0;
-function nextGroqKey(): string | null { return GROQ_KEYS.length ? GROQ_KEYS[groqKeyIdx++ % GROQ_KEYS.length]! : null; }
-function nextGeminiKey(): string | null { return GEMINI_KEYS.length ? GEMINI_KEYS[geminiKeyIdx++ % GEMINI_KEYS.length]! : null; }
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 export interface WealthEstimate {
@@ -44,7 +35,7 @@ export interface WealthEstimate {
   high: number;            // optimistic ceiling
   confidence: "high" | "medium" | "low";
   reasoning: string;       // one-paragraph chain of reasoning
-  method: "llm-groq" | "llm-gemini" | "asset-formula" | "fallback";
+  method: "llm-groq" | "asset-formula" | "fallback";
 }
 
 // ── Context builder ───────────────────────────────────────────────────────────
@@ -214,34 +205,6 @@ async function callGroq(prompt: string): Promise<WealthEstimate[]> {
   return parseWealthResponse(text, "llm-groq");
 }
 
-// ── LLM call: Gemini ──────────────────────────────────────────────────────────
-async function callGemini(prompt: string): Promise<WealthEstimate[]> {
-  const key = nextGeminiKey();
-  if (!key) throw new Error("No Gemini keys available");
-
-  const resp = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${key}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.1, maxOutputTokens: 4096 },
-      }),
-      signal: AbortSignal.timeout(45_000),
-    }
-  );
-
-  if (!resp.ok) {
-    const err = await resp.text().catch(() => "");
-    throw new Error(`Gemini ${resp.status}: ${err.slice(0, 200)}`);
-  }
-
-  const data = await resp.json() as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? "";
-  return parseWealthResponse(text, "llm-gemini");
-}
-
 // ── Response parser ───────────────────────────────────────────────────────────
 function parseWealthResponse(text: string, method: WealthEstimate["method"]): WealthEstimate[] {
   // Strip markdown code fences if present
@@ -301,13 +264,7 @@ export async function estimateWealthBatch(
     estimates = await callGroq(prompt);
     logger.info({ count: estimates.length }, "[WealthEstimator] Groq estimates received");
   } catch (groqErr: any) {
-    logger.warn({ err: groqErr.message }, "[WealthEstimator] Groq failed — trying Gemini");
-    try {
-      estimates = await callGemini(prompt);
-      logger.info({ count: estimates.length }, "[WealthEstimator] Gemini estimates received");
-    } catch (geminiErr: any) {
-      logger.warn({ err: geminiErr.message }, "[WealthEstimator] Gemini also failed — using asset formula");
-    }
+    logger.warn({ err: groqErr.message }, "[WealthEstimator] Groq unavailable — using asset formula");
   }
 
   // Map results back to entity IDs by position
