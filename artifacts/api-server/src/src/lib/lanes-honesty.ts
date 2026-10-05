@@ -9,8 +9,7 @@ export type BureauIntegrityLevel = "ok" | "degraded" | "critical";
 export type LanesHonestySnapshot = { perplexity:number;tavily:number;exa:number;groq:number;groqInvestigator:number;companiesHouse:number;serper:number;webSearchActive:number;registryShallowRisk:boolean;groqRightHand:number;groqAdmissionFallback:boolean;agenticLlmSlots:number;agenticLlmLastOk:boolean|null;agenticLlmLastModel:string|null;bureauIntegrity:BureauIntegrityLevel;bureauIntegrityReasons:string[];assessedAt:string };
 function activeCount(slots:Array<{state:string}>|undefined):number{return(slots??[]).filter((s)=>s.state==="active").length}
 export function buildLanesHonestySnapshot():LanesHonestySnapshot{const status=getAIKeyStatus(),perplexity=activeCount(status.perplexity),tavily=activeCount(status.tavily),exa=activeCount(status.exa),serper=[process.env.SERPER_API_KEY,process.env.SERPER_API_KEY_2,process.env.SERPER_API_KEY_3,process.env.SERPER_KEY].some((k)=>Boolean(k?.trim()))?1:0,webSearchActive=perplexity+tavily+exa+serper,groqKeys=[process.env.GROQ_INVESTIGATOR_API_KEY,...Array.from({length:5},(_,i)=>process.env[`GROQ_INVESTIGATOR_API_KEY_${i+1}`])].filter((k)=>typeof k==="string"&&k.trim().length>0),groq=groqKeys.length;
-  // Gemini is Boss/control-plane and Right-hand oversight; it is intentionally NOT an Investigator capacity slot.
-  const geminiRightHand= getGroqRightHandStatus().configured ? 1 : 0;
+  const groqRightHand = getGroqRightHandStatus().configured ? 1 : 0;
   const groqInvestigator=groq; const agenticLlmSlots=groqInvestigator>0?1:0;
   const agenticHealth=getAgenticLlmHealth(),agenticLlmLastOk=agenticHealth.ok,agenticLlmLastModel=agenticHealth.model,reasons:string[]=[];
   if(webSearchActive===0)reasons.push("No live web-search providers (Serper/Tavily/Exa/Perplexity) — registry-only research cannot beat general agents.");
