@@ -228,13 +228,53 @@ export class ResearchIntelligenceEngine {
     const informationGain = clamp((useful ? 0.45 : 0.05) + Math.min(0.35, urls.length * 0.07) + Math.min(0.2, newHostCount * 0.1));
     const predictedInformationGain = clamp(input.predictedInformationGain ?? informationGain);
     this.actions.push({ turn: input.turn, action: input.action, args: input.args ?? {}, execution: input.execution, observation: input.observation ?? "", urls, findingCount: findings.length, useful, informationGain, findingNames: [...new Set(findings.map((finding) => String(finding.personName ?? "").trim()).filter(Boolean))].slice(0, 8), findingRoles: [...new Set(findings.map((finding) => String(finding.role ?? "").trim()).filter(Boolean))].slice(0, 8) });
-    const learningQuestion = typeof input.args?.purpose === "string" ? normalize(input.args.purpose) : typeof input.args?.hypothesis === "string" ? normalize(input.args.hypothesis) : "";
+    const modelHypothesis = typeof input.args?.hypothesis === "string" ? input.args.hypothesis.trim() : "";
+    const modelPurpose = typeof input.args?.purpose === "string" ? input.args.purpose.trim() : "";
+    if (modelHypothesis) {
+      const supportingEvidenceIds = [...this.evidence.values()].filter((evidence) => evidence.turn === input.turn && evidence.action === input.action).map((evidence) => evidence.id);
+      this.addHypothesis({ label: modelHypothesis, entity: modelHypothesis, supportingEvidenceIds, missingDiscriminators: modelPurpose ? [modelPurpose] : [] });
+    }
+    const learningQuestion = modelPurpose ? normalize(modelPurpose) : modelHypothesis ? normalize(modelHypothesis) : "";
     const actionLearningKey = learningQuestion ? input.action + "|" + learningQuestion.slice(0, 180) : input.action;
     this.actionYield.set(actionLearningKey, updateActionYield(this.actionYield.get(actionLearningKey), { useful, execution: input.execution, informationGain, predictedInformationGain, realizedInformationGain: informationGain, turn: input.turn }));
     this.chain = hash(`${this.chain}|${input.turn}|${input.action}|${input.execution}|${JSON.stringify(urls)}|${findings.map((f) => `${f.vectorType}:${f.value}`).join("|")}`);
     this.reconcileContradictions();
   }
 
+  /** Restore durable epistemic state after a process restart. This is projection reconstruction only: it never selects research actions or providers. */
+  restoreContext(context: IntelligenceContext): void {
+    if (context.version !== 1) return;
+    this.evidence.clear(); this.claims.clear(); this.contacts.clear(); this.actions.length = 0;
+    this.negativeFindings.clear(); this.hypotheses.clear(); this.feedback.length = 0; this.actionYield.clear();
+    this.chain = context.provenanceDigest || "GENESIS";
+    const lineageByUrl = new Map(context.sourceLineage.map((node) => [canonicalUrl(node.canonicalUrl) ?? node.canonicalUrl, node]));
+    for (const item of context.atomicEvidence) {
+      const parsed = extractPredicate(item.claim); const sourceUrl = canonicalUrl(item.sourceUrl);
+      const sourceHost = item.sourceHost ?? hostOf(sourceUrl); const sourceLineage = sourceUrl ? lineageByUrl.get(sourceUrl) : undefined;
+      const fingerprint = hash(item.kind + "|" + normalize(item.claim) + "|" + normalize(parsed.object) + "|" + (sourceUrl ?? ""));
+      const evidenceId = item.evidenceId || ("ev_" + fingerprint.slice(0, 20));
+      this.evidence.set(fingerprint, { id: evidenceId, kind: item.kind, claim: item.claim, value: parsed.object, sourceUrl, sourceHost,
+        sourceTier: tierForHost(sourceHost), sourceClass: item.sourceClass, extractionMethod: "durable_replay",
+        retrievedAt: new Date(0).toISOString(), lastSeen: new Date(0).toISOString(), turn: 0, action: "durable_replay",
+        execution: "success", supports: item.attribution ? [item.attribution] : [], contradicts: [], passage: item.passage,
+        claimId: item.claimId, sourceFamily: sourceFamily(sourceHost), attribution: item.attribution,
+        spanStart: item.passage ? 0 : null, spanEnd: item.passage ? item.passage.length : null, spanBound: Boolean(item.passage),
+        sourceLineageId: sourceLineage?.sourceId, fingerprint });
+    }
+    for (const fact of context.facts) {
+      const parsed = extractPredicate(fact.claim); const id = "cl_" + hash(fact.claim).slice(0, 20);
+      this.claims.set(id, { id, subject: parsed.subject, predicate: parsed.predicate, object: parsed.object, status: "supported",
+        evidenceIds: [...new Set(fact.evidenceIds)], sourceHosts: [...new Set(fact.sources)],
+        firstSeen: new Date(0).toISOString(), lastSeen: new Date(0).toISOString() });
+    }
+    for (const hypothesis of context.hypotheses) this.hypotheses.set(hypothesis.id, { ...hypothesis, supportingEvidenceIds: [...hypothesis.supportingEvidenceIds], contradictingEvidenceIds: [...hypothesis.contradictingEvidenceIds], missingDiscriminators: [...hypothesis.missingDiscriminators] });
+    for (const contact of context.contacts) { const key = contact.vector + "|" + normalize(contact.personName ?? "") + "|" + normalize(contact.value);
+      this.contacts.set(key, { ...contact, sourceUrls: [...contact.sourceUrls], sourceHosts: [...contact.sourceHosts] }); }
+    for (const negative of context.negativeFindings) this.negativeFindings.add(negative);
+    for (const action of context.recentActions) this.actions.push({ ...action, args: { ...action.args }, urls: [...action.urls], findingNames: [...action.findingNames], findingRoles: [...action.findingRoles] });
+    for (const node of context.sourceLineage) this.sourceLineage.register({ canonicalUrl: node.canonicalUrl, host: node.host, originSourceId: node.originSourceId, publisher: node.publisher ?? null, citedSourceIds: [...node.citedSourceIds], contentFingerprint: null, sourceId: node.sourceId });
+    this.reconcileContradictions(); this.rankHypotheses();
+  }
   recordFeedback(feedback: ResearchFeedback): void {
     this.feedback.push({ ...feedback });
     if (feedback.value) {
