@@ -5,12 +5,12 @@ const read = (relative) => readFileSync(new URL(relative, root), "utf8");
 
 const providerGate = read("./artifacts/api-server/src/src/lib/provider-gate.ts");
 const caseBureau = read("./artifacts/api-server/src/src/lib/case-bureau.ts");
-const activeControlFiles = [boss, rightHand, investigator, caseBureau].join("\n");
 const launch = read("./artifacts/api-server/src/src/routes/research/canonical-atlas-launch.ts");
 const continuation = read("./artifacts/api-server/src/src/routes/research/canonical-case-continuation.ts");
 const investigator = read("./artifacts/api-server/src/src/lib/agentic-web-research-core.ts");
 const boss = read("./artifacts/api-server/src/src/lib/groq-boss.ts");
 const rightHand = read("./artifacts/api-server/src/src/lib/groq-right-hand-reasoning.ts");
+const activeControlFiles = [boss, rightHand, investigator, caseBureau].join("\n");
 
 const checks = [
   [providerGate.includes('scope.startsWith("atlas-run:")'), "Atlas jobs must receive a distinct provider-gate scope."],
