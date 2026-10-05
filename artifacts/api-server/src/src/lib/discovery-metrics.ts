@@ -86,7 +86,7 @@ export function evaluateDiscoveryStop(input: {
   candidates: readonly DiscoveryCandidateMetricInput[];
   iteration: number;
   maxPasses?: number;
-  /** True when Gemini Boss closure already completed successfully. */
+  /** True when Groq Boss closure already completed successfully. */
   bossReviewCompleted?: boolean;
   /** True when preliminary discovery already produced investigator reports. */
   hasInvestigatorReports?: boolean;
