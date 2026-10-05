@@ -28,7 +28,6 @@ import {
 import { formatReachabilityDirective, type ReachabilityDirective } from "./reachability-realism";
 import { canonicalizeUrl } from "./evidence-ledger";
 import { GROQ_DEFAULT_MODEL as GROQ_MODEL } from "./groq-models";
-import { resolveBossModel, generateBossText } from "./case-bureau";
 import {
   adjudicateFinalTargetReview,
   buildFinalTargetReviewPrompt,
@@ -177,24 +176,24 @@ export interface DiscoveryPersonCandidate {
   attributionStatus: "unverified" | "ambiguous" | "probable";
 }
 
-/** Final card publication review: Boss (Groq) primary → Groq right-hand.
+/** Final card publication review: Boss (Gemini) primary → Gemini right-hand.
  * Deterministic adjudicator always fail-closes on exact eligible values. */
 export async function runFinalTargetReview(
   input: FinalTargetReviewInput,
 ): Promise<FinalTargetReviewResult> {
   const prompt = buildFinalTargetReviewPrompt(input);
   const bossPrompt =
-    apexOrientationFor("boss") + "\n\n---\n\nYou are Groq Boss, Head Investigator for Apex Atlas final card publication.\n" +
-    "Your right-hand (Groq) may advise; you decide publish/review/reject using ONLY exact values supplied below.\n" +
+    apexOrientationFor("boss") + "\n\n---\n\nYou are Gemini Boss, Head Investigator for Apex Atlas final card publication.\n" +
+    "Your right-hand (Gemini) may advise; you decide publish/review/reject using ONLY exact values supplied below.\n" +
     "Never invent contacts, people, addresses, or URLs.\n\n" +
     prompt;
 
-  // 1) Boss — Groq
+  // 1) Boss — Gemini
   try {
-    const { resolveBossModel, generateBossText } = await import("./case-bureau");
-    const selection = await resolveBossModel();
+    const { resolveGeminiBossModel, generateGeminiBossText } = await import("./case-bureau");
+    const selection = await resolveGeminiBossModel();
     if (selection?.model) {
-      const out = await generateBossText(selection, bossPrompt);
+      const out = await generateGeminiBossText(selection, bossPrompt);
       if (out.raw) {
         const json = extractJsonObject(out.raw);
         if (json) {
@@ -209,7 +208,7 @@ export async function runFinalTargetReview(
       }
     }
   } catch (err: any) {
-    logger.debug({ err: err?.message }, "final-review Groq Boss unavailable");
+    logger.debug({ err: err?.message }, "final-review Gemini Boss unavailable");
   }
 
   // 2) Right-hand — Groq Right-hand
@@ -229,7 +228,7 @@ export async function runFinalTargetReview(
       }
     }
   } catch (err: any) {
-    logger.debug({ err: err?.message }, "final-review Groq right-hand unavailable");
+    logger.debug({ err: err?.message }, "final-review Gemini right-hand unavailable");
   }
 
   return adjudicateFinalTargetReview(input, {}, "unavailable-final-review");
@@ -1614,6 +1613,7 @@ export interface AIKeySlot {
 export interface AIKeyStatus {
   groq:       AIKeySlot[];
   perplexity: AIKeySlot[];
+  gemini:     AIKeySlot[];
   tavily:     AIKeySlot[];
   exa:        AIKeySlot[];
   serper:     AIKeySlot[];
@@ -1649,17 +1649,21 @@ export function getAIKeyStatus(): AIKeyStatus {
 
   const groqNames = ["GROQ_INVESTIGATOR_API_KEY", ...Array.from({ length: 10 }, (_, i) => `GROQ_INVESTIGATOR_API_KEY_${i + 1}`)];
   const pplxNames = ["PERPLEXITY_API_KEY", ...Array.from({ length: 8 }, (_, i) => `PERPLEXITY_API_KEY_${i + 1}`)];
+  const gemNames  = ["GEMINI_API_KEY", "GEMINI_KEY", ...Array.from({ length: 10 }, (_, i) => `GEMINI_API_KEY_${i + 1}`)];
   const tavNames  = ["TAVILY_API_KEY",     ...Array.from({ length: 8 }, (_, i) => `TAVILY_API_KEY_${i + 1}`)];
   const exaNames  = ["EXA_API_KEY", "EXA_1", "EXA_2", ...Array.from({ length: 8 }, (_, i) => `EXA_API_KEY_${i + 1}`)];
   const serperNames = ["SERPER_API_KEY", "SERPER_KEY", "SERPER_API_KEY_2", "SERPER_API_KEY_3"];
   const investigatorNames = ["GROQ_INVESTIGATOR_API_KEY", ...Array.from({ length: 5 }, (_, i) => `GROQ_INVESTIGATOR_API_KEY_${i + 1}`)];
+  const nvidiaNames = ["GEMINI_API_KEY", "GEMINI_API_KEY", "GEMINI_API_KEY"];
 
   return {
     groq:       groqNames.map((n, i) => slotState(n, _exhaustedGroqKeys,             i)),
     perplexity: pplxNames.map((n, i) => slotState(n, _exhaustedPerplexityDirectKeys, i)),
+    gemini:     gemNames .map((n, i) => slotState(n, new Map(),                            i)),
     tavily:     tavNames .map((n, i) => slotState(n, _exhaustedTavilyKeys,           i, _quotaExhaustedTavilyKeys)),
     exa:        exaNames .map((n, i) => slotState(n, _exhaustedExaKeys,              i)),
     serper:     serperNames.map((n, i) => slotState(n, new Map(), i)),
     groqInvestigator: investigatorNames.map((n, i) => slotState(n, new Map(), i)),
+    nvidia:     nvidiaNames.map((n, i) => slotState(n, new Map(), i)),
   };
 }
