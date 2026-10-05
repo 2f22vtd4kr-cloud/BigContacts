@@ -4,6 +4,7 @@ import { and, eq, sql } from "drizzle-orm";
 import { db, researchCasesTable, researchCaseEventsTable } from "@workspace/db";
 import { logger } from "./logger";
 import { runAgenticWebResearch, type AgenticFinding, type AgenticTrajectoryRecord } from "./agentic-web-research";
+import type { InvestigatorCapability } from "./investigator-capability-registry";
 import { resolveResearchDepth } from "./research-depth";
 import { persistSourceBackedBureauContactsForEntity } from "./bureau-contact-persist-strict";
 import { publishBureauEvent } from "./bureau-live-log";
