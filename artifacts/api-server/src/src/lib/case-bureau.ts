@@ -112,7 +112,7 @@ export type ResearchCaseFile = {
     decision: string | null;
     reason: string | null;
     investigatorPrompt: string | null;
-    investigatorLlm?: "groq" | null;
+    investigatorLlm?: InvestigatorCapability | null;
     restrictions: string[];
     tools: string[];
     evidenceRequirements: string[];
