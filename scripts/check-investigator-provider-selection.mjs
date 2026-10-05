@@ -11,6 +11,6 @@ if (!/const fn = selectedInvestigatorLlm === "groq"/.test(core)) failures.push("
 if (!/fallback:\s*\[\]/.test(core)) failures.push("ReAct result does not explicitly report an empty provider fallback set");
 if (!/investigator:\$\{selectedInvestigator\}/.test(wrapper)) failures.push("agentic execution scope does not carry the selected Investigator");
 if (!/getAgenticSelectedInvestigator/.test(context)) failures.push("execution context does not expose the selected Investigator");
-if (!/Cross-provider Investigator fallback blocked/.test(ssrf)) failures.push("SSRF/network boundary lacks a selected-provider fallback tripwire");
+if (!/Cross-provider Investigator fallback blocked/.test(ssrf) || !/isLlmEndpoint/.test(ssrf)) failures.push("SSRF/network boundary lacks a selected-provider LLM fallback tripwire");
 if (failures.length) { console.error("INVESTIGATOR PROVIDER SELECTION: FAIL"); for (const failure of failures) console.error(`- ${failure}`); process.exit(1); }
 console.log("INVESTIGATOR PROVIDER SELECTION: PASS — one explicit Investigator provider per act; cross-provider fallback structurally blocked");
