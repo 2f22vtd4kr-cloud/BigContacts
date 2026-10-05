@@ -6,6 +6,7 @@
  */
 
 import { safeOutboundFetch } from "./ssrf-safe-fetch";
+import { runProviderCall } from "./provider-gate";
 
 export type DomainSurfaceResult = {
   domain: string;
@@ -90,13 +91,20 @@ async function whoisjsonLookup(domain: string, signal?: AbortSignal): Promise<Do
   }
 }
 
-export async function lookupDomainSurface(rawDomain: string, options: { signal?: AbortSignal } = {}): Promise<DomainSurfaceResult> {
+export type DomainLookupProvider = "rdap" | "whoisjson";
+export async function lookupDomainSurface(rawDomain: string, options: { provider: DomainLookupProvider; signal?: AbortSignal } ): Promise<DomainSurfaceResult> {
   const domain = cleanDomain(rawDomain);
   if (!domain || !domain.includes(".")) {
     return { domain: domain || "", rdap: { ok: false, error: "invalid domain" }, whoisjson: { ok: false, error: "invalid domain" }, summary: "invalid domain" };
   }
   if (options.signal?.aborted) throw new Error("cancelled");
-  const [rdap, whoisjson] = await Promise.all([rdapLookup(domain, options.signal), whoisjsonLookup(domain, options.signal)]);
+  let rdap: DomainSurfaceResult["rdap"] = { ok: false, error: "not selected" };
+  let whoisjson: DomainSurfaceResult["whoisjson"] = { ok: false, error: "not selected" };
+  if (options.provider === "rdap") {
+    rdap = await runProviderCall({ provider: "rdap", account: domain, signal: options.signal }, () => rdapLookup(domain, options.signal));
+  } else {
+    whoisjson = await runProviderCall({ provider: "whoisjson", account: domain, signal: options.signal }, () => whoisjsonLookup(domain, options.signal));
+  }
   if (options.signal?.aborted) throw new Error("cancelled");
   const parts: string[] = [];
   if (rdap.ok) {
@@ -108,7 +116,7 @@ export async function lookupDomainSurface(rawDomain: string, options: { signal?:
     if (whoisjson.expires) parts.push(`expires ${String(whoisjson.expires).slice(0, 10)}`);
     if (whoisjson.registrarName) parts.push(`registrar ${whoisjson.registrarName}`);
   }
-  const summary = parts.length ? `Domain ${domain}: ${parts.join("; ")}` : `Domain ${domain}: lookup incomplete (privacy or error)`;
+  const summary = parts.length ? `Domain ${domain}: ${parts.join("; ")}` : `Domain ${domain}: selected provider ${options.provider} returned no usable surface`;
   return { domain, rdap, whoisjson, summary };
 }
 
