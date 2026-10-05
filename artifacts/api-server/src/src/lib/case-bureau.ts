@@ -1460,7 +1460,7 @@ export function applyGeminiBossPlan(
   input: {
     outcome?: BossPlanOutcome;
     actionId: string | null;
-    investigatorLlm?: "groq" | null;
+    investigatorLlm?: InvestigatorCapability | null;
     decision: string;
     reason: string;
     iteration: number;
