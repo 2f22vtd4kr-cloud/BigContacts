@@ -440,79 +440,87 @@ function parseBossDiscoveryResponse(raw: string): {
   uncertainties: string[];
 } {
   const json = extractJsonObject(raw);
-  if (!json) return { report: raw.trim(), candidates: [], investigatorLlm: null, nextDirections: [], uncertainties: [] };
+  if (!json) return { report: "", candidates: [], investigatorLlm: null, nextDirections: [], uncertainties: [] };
   try {
-    const parsed = JSON.parse(json) as Record<string, unknown>;
-    const rawInvestigatorLlm = typeof parsed.investigatorLlm === "string"
-      ? parsed.investigatorLlm.trim().toLowerCase()
-      : "";
-    const investigatorLlm: "groq" | null =
-      rawInvestigatorLlm === "groq" || rawInvestigatorLlm === "groq"
-        ? rawInvestigatorLlm
+    const parsed = JSON.parse(json) as unknown;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return { report: "", candidates: [], investigatorLlm: null, nextDirections: [], uncertainties: [] };
+    }
+    const object = parsed as Record<string, unknown>;
+    const allowed = new Set(["report", "investigatorLlm", "candidates", "nextDirections", "uncertainties"]);
+    const required = [...allowed];
+    if (Object.keys(object).some((key) => !allowed.has(key)) || required.some((key) => !Object.prototype.hasOwnProperty.call(object, key))) {
+      return { report: "", candidates: [], investigatorLlm: null, nextDirections: [], uncertainties: [] };
+    }
+    const report = typeof object.report === "string" ? object.report.trim() : "";
+    const investigatorLlm = object.investigatorLlm === "groq" ? "groq" as const : null;
+    const nextDirections = Array.isArray(object.nextDirections) && object.nextDirections.length <= 8 && object.nextDirections.every((value) => typeof value === "string" && value.trim())
+      ? uniqueStrings(object.nextDirections, 8)
+      : null;
+    const uncertainties = Array.isArray(object.uncertainties) && object.uncertainties.length <= 8 && object.uncertainties.every((value) => typeof value === "string" && value.trim())
+      ? uniqueStrings(object.uncertainties, 8)
+      : null;
+    if (!report || !investigatorLlm || !nextDirections || !uncertainties) {
+      return { report: "", candidates: [], investigatorLlm: null, nextDirections: [], uncertainties: [] };
+    }
+
+    if (!Array.isArray(object.candidates) || object.candidates.length > 6) {
+      return { report: "", candidates: [], investigatorLlm: null, nextDirections: [], uncertainties: [] };
+    }
+    const candidates = object.candidates.flatMap((candidateValue) => {
+      if (!candidateValue || typeof candidateValue !== "object" || Array.isArray(candidateValue)) return [];
+      const candidate = candidateValue as Record<string, unknown>;
+      const candidateKeys = ["name", "type", "relevance", "reachability", "sourceUrls", "contactEvidence"];
+      const candidateAllowed = new Set(candidateKeys);
+      if (Object.keys(candidate).some((key) => !candidateAllowed.has(key)) || candidateKeys.some((key) => !Object.prototype.hasOwnProperty.call(candidate, key))) return [];
+      const name = typeof candidate.name === "string" ? candidate.name.trim() : "";
+      const type = typeof candidate.type === "string" ? candidate.type.trim() : "";
+      const relevance = typeof candidate.relevance === "string" ? candidate.relevance.trim() : "";
+      const reachability = typeof candidate.reachability === "string" ? candidate.reachability.trim() : "";
+      const sourceUrls = Array.isArray(candidate.sourceUrls) && candidate.sourceUrls.length <= 8 && candidate.sourceUrls.every((url) => typeof url === "string" && /^https?:\/\//i.test(url))
+        ? candidate.sourceUrls as string[]
         : null;
-    const rawCandidates = Array.isArray(parsed.candidates)
-      ? parsed.candidates
-      : Array.isArray(parsed.discoveredCandidates)
-        ? parsed.discoveredCandidates
-        : [];
-    const candidates = rawCandidates
-      .filter((value): value is Record<string, unknown> => Boolean(value) && typeof value === "object")
-      .map((candidate) => ({
-        name: String(candidate.name ?? "").trim(),
-        type: typeof candidate.type === "string" ? candidate.type : undefined,
-        relevance: typeof candidate.relevance === "string" ? candidate.relevance : undefined,
-        reachability: typeof candidate.reachability === "string" ? candidate.reachability : undefined,
-        sourceUrls: Array.isArray(candidate.sourceUrls)
-          ? candidate.sourceUrls.filter((url): url is string => typeof url === "string" && /^https?:\/\//i.test(url))
-          : undefined,
-        contactEvidence: parseDiscoveryContactEvidence(candidate.contactEvidence),
-      }))
-      .filter((candidate) => candidate.name.length >= 3)
-      ;
-    const report = typeof parsed.report === "string"
-      ? parsed.report
-      : typeof parsed.summary === "string"
-        ? parsed.summary
-        : raw.trim();
-    const nextDirections = Array.isArray(parsed.nextDirections)
-      ? uniqueStrings(parsed.nextDirections, 12)
-      : [];
-    const uncertainties = Array.isArray(parsed.uncertainties)
-      ? uniqueStrings(parsed.uncertainties, 12)
-      : [];
+      const contactEvidence = parseDiscoveryContactEvidenceStrict(candidate.contactEvidence);
+      if (name.length < 3 || !type || !relevance || !reachability || !sourceUrls || !contactEvidence) return [];
+      return [{ name, type, relevance, reachability, sourceUrls, contactEvidence }];
+    });
+    if (candidates.length !== object.candidates.length) {
+      return { report: "", candidates: [], investigatorLlm: null, nextDirections: [], uncertainties: [] };
+    }
     return { report, candidates, investigatorLlm, nextDirections, uncertainties };
   } catch {
-    return { report: raw.trim(), candidates: [], investigatorLlm: null, nextDirections: [], uncertainties: [] };
+    return { report: "", candidates: [], investigatorLlm: null, nextDirections: [], uncertainties: [] };
   }
 }
 
-function parseDiscoveryContactEvidence(value: unknown): DiscoveryContactEvidence[] | undefined {
-  if (!Array.isArray(value)) return undefined;
+function parseDiscoveryContactEvidenceStrict(value: unknown): DiscoveryContactEvidence[] | null {
+  if (!Array.isArray(value) || value.length > 8) return null;
+  const allowed = new Set(["vectorType", "value", "scope", "personName", "role", "sourceUrls", "note"]);
   const validVectors = new Set<DiscoveryContactEvidence["vectorType"]>([
     "email", "phone", "linkedin", "twitter", "instagram", "telegram", "website", "organization_contact", "other",
   ]);
   const evidence = value.flatMap((item) => {
-    if (!item || typeof item !== "object") return [];
+    if (!item || typeof item !== "object" || Array.isArray(item)) return [];
     const record = item as Record<string, unknown>;
+    const required = ["vectorType", "value", "scope", "personName", "role", "sourceUrls", "note"];
+    if (Object.keys(record).some((key) => !allowed.has(key)) || required.some((key) => !Object.prototype.hasOwnProperty.call(record, key))) return [];
     const valueText = typeof record.value === "string" ? record.value.trim() : "";
     const vectorType = typeof record.vectorType === "string" && validVectors.has(record.vectorType as DiscoveryContactEvidence["vectorType"])
       ? record.vectorType as DiscoveryContactEvidence["vectorType"]
-      : "other";
-    if (!valueText) return [];
-    return [{
-      vectorType,
-      value: valueText.slice(0, 500),
-      scope: record.scope === "person" || record.scope === "organization" ? record.scope : "unknown",
-      personName: typeof record.personName === "string" && record.personName.trim() ? record.personName.trim().slice(0, 200) : null,
-      role: typeof record.role === "string" && record.role.trim() ? record.role.trim().slice(0, 200) : null,
-      sourceUrls: Array.isArray(record.sourceUrls)
-        ? record.sourceUrls.filter((url): url is string => typeof url === "string" && /^https?:\/\//i.test(url))
-        : [],
-      note: typeof record.note === "string" && record.note.trim() ? record.note.trim().slice(0, 500) : null,
-    } satisfies DiscoveryContactEvidence];
+      : null;
+    const scope = record.scope === "person" || record.scope === "organization" || record.scope === "unknown" ? record.scope : null;
+    const personName = record.personName === null ? null : typeof record.personName === "string" && record.personName.trim() ? record.personName.trim().slice(0, 200) : null;
+    const role = record.role === null ? null : typeof record.role === "string" && record.role.trim() ? record.role.trim().slice(0, 200) : null;
+    const sourceUrls = Array.isArray(record.sourceUrls) && record.sourceUrls.length <= 6 && record.sourceUrls.every((url) => typeof url === "string" && /^https?:\/\//i.test(url))
+      ? record.sourceUrls as string[]
+      : null;
+    const note = record.note === null ? null : typeof record.note === "string" && record.note.trim() ? record.note.trim().slice(0, 500) : null;
+    if (!valueText || !vectorType || !scope || !sourceUrls || note === undefined) return [];
+    return [{ vectorType, value: valueText.slice(0, 500), scope, personName, role, sourceUrls, note }];
   });
-  return evidence.length > 0 ? evidence : undefined;
+  return evidence.length === value.length ? evidence : null;
 }
+
 
 /**
  * Opening Boss request for a discovery case. This is deliberately separate
