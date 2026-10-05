@@ -38,15 +38,14 @@ function cleanText(value: unknown, max = 500): string { return typeof value === 
 function isSafeHttpUrl(value: string): boolean { return /^https?:\/\//i.test(value); }
 function normalizedUrl(value: string): string | null { try { const u = new URL(value); return /^https?:$/i.test(u.protocol) ? u.href : null; } catch { return null; } }
 
-const DISCOVERY_FAME_TERMS = /\\b(?:billionaire|billionaires|richest|wealthiest|celebrity|celebrities|famous|forbes|bloomberg|net[ -]?worth|top[ -]?richest)\\b/i;
-const DISCOVERY_GEOGRAPHY_TERMS = /\\b(?:slovenia|slovenian|croatia|croatian|austria|austrian|italy|italian|germany|german|france|french|switzerland|swiss|spain|spanish|portugal|portuguese|netherlands|dutch|belgium|belgian|luxembourg|uk|united kingdom|britain|british|ireland|irish|norway|norwegian|sweden|swedish|denmark|danish|finland|finnish|iceland|poland|polish|czech|slovakia|slovak|estonia|latvia|lithuania|united states|usa|canada|australia|new zealand|japan|japanese|south korea|singapore|uae|dubai)\\b/i;
-const DISCOVERY_ROLE_TERMS = /\\b(?:founder|co[ -]?founder|owner|operator|ceo|chief executive|director|managing director|chairman|chairwoman|chair|principal|partner|managing partner|general partner|president|shareholder|beneficial owner|officer|board)\\b/i;
-const DISCOVERY_SECTOR_TERMS = /\\b(?:casino|gaming|gambling|hotel|resort|hospitality|restaurant|construction|manufacturing|software|technology|saas|fintech|healthcare|pharma|biotech|logistics|shipping|aviation|real estate|property|energy|industrial|automotive|retail|food|beverage|media|telecom|investment|private equity|venture capital|family office|asset management|insurance|banking|agriculture|tourism|travel)\\b/i;
+const DISCOVERY_FAME_TERMS = /\b(?:billionaire|billionaires|richest|wealthiest|celebrity|celebrities|famous|forbes|bloomberg|net[ -]?worth|top[ -]?richest)\b/i;
+const DISCOVERY_GEOGRAPHY_TERMS = /\b(?:slovenia|slovenian|croatia|croatian|austria|austrian|italy|italian|germany|german|france|french|switzerland|swiss|spain|spanish|portugal|portuguese|netherlands|dutch|belgium|belgian|luxembourg|uk|united kingdom|britain|british|ireland|irish|norway|norwegian|sweden|swedish|denmark|danish|finland|finnish|iceland|poland|polish|czech|slovakia|slovak|estonia|latvia|lithuania|united states|usa|canada|australia|new zealand|japan|japanese|south korea|singapore|uae|dubai)\b/i;
+const DISCOVERY_ROLE_TERMS = /\b(?:founder|co[ -]?founder|owner|operator|ceo|chief executive|director|managing director|chairman|chairwoman|chair|principal|partner|managing partner|general partner|president|shareholder|beneficial owner|officer|board)\b/i;
+const DISCOVERY_SECTOR_TERMS = /\b(?:casino|gaming|gambling|hotel|resort|hospitality|restaurant|construction|manufacturing|software|technology|saas|fintech|healthcare|pharma|biotech|logistics|shipping|aviation|real estate|property|energy|industrial|automotive|retail|food|beverage|media|telecom|investment|private equity|venture capital|family office|asset management|insurance|banking|agriculture|tourism|travel)\b/i;
 const DISCOVERY_SOURCE_TERMS = /(?:\\b(?:site:|registry|registr(?:y|ies)|filing|filings|annual report|press release|trade publication|business journal|interview|company profile|team page|official)\\b|\\b[a-z0-9-]+\\.(?:com|org|net|co\\.[a-z]{2}|si|eu)\\b)/i;
-const DISCOVERY_GENERIC_TERMS = /\\b(?:people|person|persons|names|name|individuals|individual|public figures|public figure|billionaires|rich people|wealthy people|famous people|celebrities|celebrities|leaders|contacts|contact information|contact details|public bio|bio)\\b/i;
 
 export function normalizeDiscoverySearchQuery(query: string): string {
-  return query.trim().toLowerCase().replace(/[\\s\\u00a0]+/g, " ").replace(/[“”‘’]/g, '"');
+  return query.trim().toLowerCase().replace(/[\s\u00a0]+/g, " ").replace(/[“”‘’]/g, '"');
 }
 
 export function validateDiscoverySearchQuery(query: string, priorQueries: readonly string[] = []): { allowed: true } | { allowed: false; reason: string } {
