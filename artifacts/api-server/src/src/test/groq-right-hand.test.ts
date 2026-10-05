@@ -16,6 +16,7 @@ describe("Groq Right-hand model policy", () => {
     delete process.env.GROQ_RIGHT_HAND_API_KEY_3;
     delete process.env.GROQ_RIGHT_HAND_API_KEY_4;
     delete process.env.GROQ_RIGHT_HAND_API_KEY_5;
+    vi.useRealTimers();
     vi.restoreAllMocks();
   });
 
@@ -230,7 +231,243 @@ describe("Groq Right-hand model policy", () => {
     expect(chatCalls).toHaveLength(2);
   });
 
+  it("recovers from a 54.547-second token-window reset within the bounded wait and overall deadline", async () => {
+    vi.useFakeTimers();
+    vi.stubEnv("GROQ_RIGHT_HAND_API_KEY", "right-hand-token-54547ms-test-key");
+
+    let chatCalls = 0;
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const url = String(input);
+      if (url === "https://api.groq.com/openai/v1/models") {
+        return new Response(JSON.stringify({ data: [{ id: "openai/gpt-oss-120b" }] }), { status: 200 });
+      }
+      chatCalls += 1;
+      if (chatCalls === 1) {
+        return new Response(JSON.stringify({
+          error: { type: "tokens", code: "rate_limit_exceeded", message: "token rate limit" },
+        }), {
+          status: 429,
+          headers: {
+            "x-ratelimit-remaining-tokens": "727",
+            "x-ratelimit-reset-tokens": "54.547s",
+            "x-ratelimit-remaining-requests": "996",
+            "retry-after": "38",
+          },
+        });
+      }
+      return new Response(JSON.stringify({
+        choices: [{ message: { content: '{"decision":"proceed"}' } }],
+      }), { status: 200 });
+    });
+
+    const pending = runGroqRightHandFreeJson("Return a small JSON decision.");
+    for (let tick = 0; tick < 600 && chatCalls < 2; tick += 1) {
+      await vi.advanceTimersByTimeAsync(100);
+    }
+    const result = await pending;
+
+    expect(result.status).toBe("completed");
+    expect(chatCalls).toBe(2);
+    expect(fetchMock.mock.calls.filter(([input]) => String(input) === "https://api.groq.com/openai/v1/chat/completions")).toHaveLength(2);
+  });
+
   it("does not wait or rotate when a token-window reset exceeds the bounded recovery wait", async () => {
+    vi.stubEnv("GROQ_RIGHT_HAND_API_KEY", "right-hand-token-long-reset-test-key");
+
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const url = String(input);
+      if (url === "https://api.groq.com/openai/v1/models") {
+        return new Response(JSON.stringify({ data: [{ id: "openai/gpt-oss-120b" }] }), { status: 200 });
+      }
+      return new Response(JSON.stringify({
+        error: { type: "tokens", code: "rate_limit_exceeded", message: "token rate limit" },
+      }), {
+        status: 429,
+        headers: {
+          "x-ratelimit-remaining-tokens": "3108",
+          "x-ratelimit-reset-tokens": "61s",
+          "x-ratelimit-remaining-requests": "998",
+          "retry-after": "20",
+        },
+      });
+    });
+
+    const result = await runGroqRightHandFreeJson("Return a small JSON decision.");
+
+    expect(result.status).toBe("unavailable");
+    expect(result.error).toContain('"rateLimitKind":"tokens"');
+    const chatCalls = fetchMock.mock.calls.filter(([input]) => String(input) === "https://api.groq.com/openai/v1/chat/completions");
+    expect(chatCalls).toHaveLength(1);
+  });
+
+  it("fails closed on a hard model 429 instead of advancing to another model", async () => {
+    vi.stubEnv("GROQ_RIGHT_HAND_API_KEY", "right-hand-fallback-test-key");
+
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      const url = String(input);
+      if (url === "https://api.groq.com/openai/v1/models") {
+        return new Response(JSON.stringify({
+          data: [
+            { id: "openai/gpt-oss-120b" },
+            { id: "openai/gpt-oss-20b" },
+            { id: "openai/gpt-oss-20b" },
+            { id: "openai/gpt-oss-20b" },
+          ],
+        }), { status: 200, headers: { "content-type": "application/json" } });
+      }
+
+      const body = JSON.parse(String(init?.body));
+      if (body.model === "openai/gpt-oss-120b") {
+        return new Response(JSON.stringify({
+          object: "error",
+          message: "rate limit exceeded",
+          type: "rate_limit_error",
+          param: "model",
+          code: "rate_limit_exceeded",
+        }), {
+          status: 429,
+          headers: {
+            "content-type": "application/json",
+            "x-ratelimit-limit-requests": "1000",
+            "x-ratelimit-remaining-requests": "0",
+          },
+        });
+      }
+
+      return new Response(JSON.stringify({
+        choices: [{ message: { content: '{"decision":"proceed"}' } }],
+      }), { status: 200, headers: { "content-type": "application/json" } });
+    });
+
+    const result = await runGroqRightHandFreeJson("Return a small JSON decision.");
+
+    expect(result.status).toBe("unavailable");
+    expect(result.model).toBe("openai/gpt-oss-120b");
+    const chatModels = fetchMock.mock.calls
+      .filter(([input]) => String(input) === "https://api.groq.com/openai/v1/chat/completions")
+      .map(([, init]) => JSON.parse(String(init?.body)).model);
+    expect(chatModels).toEqual(["openai/gpt-oss-120b"]);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("retries a transient 429 before falling back to another model", async () => {
+    vi.stubEnv("GROQ_RIGHT_HAND_API_KEY", "right-hand-transient-retry-test-key");
+
+    let chatAttemptCount = 0;
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      const url = String(input);
+      if (url === "https://api.groq.com/openai/v1/models") {
+        return new Response(JSON.stringify({
+          data: [{ id: "openai/gpt-oss-120b" }, { id: "openai/gpt-oss-20b" }],
+        }), { status: 200 });
+      }
+      const body = JSON.parse(String(init?.body));
+      expect(body.model).toBe("openai/gpt-oss-120b");
+      chatAttemptCount += 1;
+      if (chatAttemptCount === 1) {
+        return new Response(JSON.stringify({
+          error: { code: "rate_limit_exceeded", message: "short burst limit" },
+        }), {
+          status: 429,
+          headers: {
+            "retry-after": "0",
+            "x-ratelimit-limit-requests": "1000",
+            "x-ratelimit-remaining-requests": "999",
+          },
+        });
+      }
+      return new Response(JSON.stringify({
+        choices: [{ message: { content: '{"decision":"proceed"}' } }],
+      }), { status: 200 });
+    });
+
+    const result = await runGroqRightHandFreeJson("Return a small JSON decision.");
+
+    const chatCalls = fetchMock.mock.calls.filter(([input]) => String(input) === "https://api.groq.com/openai/v1/chat/completions");
+    expect(result.status).toBe("completed");
+    expect(result.model).toBe("openai/gpt-oss-120b");
+    expect(chatCalls).toHaveLength(2);
+  });
+
+  it("retries a strict JSON schema rejection in JSON-object mode", async () => {
+    vi.stubEnv("GROQ_RIGHT_HAND_API_KEY", "right-hand-json-compatibility-test-key");
+    const formats: string[] = [];
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      if (String(input) === "https://api.groq.com/openai/v1/models") {
+        return new Response(JSON.stringify({ data: [{ id: "openai/gpt-oss-120b" }] }), { status: 200 });
+      }
+      const body = JSON.parse(String(init?.body));
+      formats.push(body.response_format?.type);
+      if (body.response_format?.type === "json_schema") {
+        return new Response(JSON.stringify({
+          error: { code: "json_validate_failed", message: "Structured output validation failed." },
+        }), { status: 400 });
+      }
+      return new Response(JSON.stringify({
+        choices: [{ message: { content: '{"decision":"proceed"}' } }],
+      }), { status: 200 });
+    });
+
+    const result = await runGroqRightHandFreeJson(
+      "Return a small JSON decision.",
+      "Return one JSON object.",
+      {
+        schema: {
+          type: "object",
+          properties: { decision: { type: "string" } },
+          required: ["decision"],
+          additionalProperties: false,
+        },
+      },
+    );
+
+    expect(result.status).toBe("completed");
+    expect(formats).toEqual(["json_schema", "json_object"]);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+
+
+  it("isolates model-catalog caches for credentials that collide under the legacy 32-bit fingerprint", async () => {
+    vi.stubEnv("GROQ_RIGHT_HAND_API_KEY", "Aa");
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      const url = String(input);
+      const auth = new Headers(init?.headers).get("authorization") ?? "";
+      if (url === "https://api.groq.com/openai/v1/models") {
+        return new Response(JSON.stringify({
+          data: auth.endsWith("Aa") ? [{ id: "openai/gpt-oss-120b" }] : [{ id: "openai/gpt-oss-20b" }],
+        }), { status: 200 });
+      }
+      return new Response(JSON.stringify({
+        choices: [{ message: { content: '{"decision":"proceed"}' } }],
+      }), { status: 200 });
+    });
+
+    const first = await runGroqRightHandFreeJson("Return a small JSON decision.");
+    expect(first.status).toBe("completed");
+    expect(first.model).toBe("openai/gpt-oss-120b");
+
+    vi.stubEnv("GROQ_RIGHT_HAND_API_KEY", "BB");
+    const second = await runGroqRightHandFreeJson("Return a small JSON decision.");
+    expect(second.status).toBe("completed");
+    expect(second.model).toBe("openai/gpt-oss-20b");
+
+    const catalogCalls = fetchMock.mock.calls.filter(([input]) => String(input) === "https://api.groq.com/openai/v1/models");
+    expect(catalogCalls).toHaveLength(2);
+  });
+
+
+  it("reports the fallback chain without exposing credentials", () => {
+    process.env.GROQ_RIGHT_HAND_API_KEY = "test-groq-right-hand-key";
+    const status = getGroqRightHandStatus();
+
+    expect(status.configured).toBe(true);
+    expect(status.model).toBe("openai/gpt-oss-120b");
+    expect(status.fallbackModels).toEqual(["openai/gpt-oss-20b"]);
+    expect(JSON.stringify(status)).not.toContain("test-groq-right-hand-key");
+  });
+});
+
     vi.stubEnv("GROQ_RIGHT_HAND_API_KEY", "right-hand-token-long-reset-test-key");
 
     const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
