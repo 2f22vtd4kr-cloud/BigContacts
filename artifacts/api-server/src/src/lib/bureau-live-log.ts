@@ -200,7 +200,7 @@ export function classifyJobLogLine(line: string): { publish: boolean; actor: Bur
   if (/\b(heartbeat|ping|noop)\b/.test(lower) && trimmed.length < 40) return { publish: false, actor: "system", title: trimmed };
   let actor: BureauActor = "system";
   if (/\b(right[- ]hand|advisor)\b/.test(lower)) actor = "right_hand";
-  else if (/\b(gemini|boss|case bureau decision|decision:)\b/.test(lower)) actor = "boss";
+  else if (/\b(boss|case bureau decision|decision:)\b/.test(lower)) actor = "boss";
   else if (/\b(tavily|perplexity|exa|web search|open-web|serper)\b/.test(lower)) actor = "web";
   else if (/\b(maigret|holehe|sherlock|python-tool|footprint)\b/.test(lower)) actor = "tool";
   else if (/\b(registry|edgar|companies house|brreg|bodacc|gleif)\b/.test(lower)) actor = "registry";
