@@ -12,7 +12,7 @@ assert(/const MAX_ITER = 64/.test(source) && /for \(let i = 0; i < maxIter; i\+\
 assert(/new AbortController\(\)/.test(source) && /input\.signal\?\.addEventListener\("abort", abortExternal/.test(source), "run-scoped cancellation is wired");
 assert(/setTimeout\(\(\) => runController\.abort\(\), hardTimeoutMs\)/.test(source), "hard timeout actively aborts the run");
 assert(/for \(let i = 0; i < maxIter; i\+\+\)/.test(source) && /runController\.signal\.aborted/.test(source) && /input\.shouldCancel && await input\.shouldCancel\(\)/.test(source), "turn boundary checks both abort state and cooperative cancellation");
-assert(/browserFetchHtml\(action\.url, \{ signal: runController\.signal \}\)/.test(source), "browser escalation is cancellation-aware");
+assert(/browserFetchHtml\(action\.url, \{ provider: action\.provider, scope: input\.jobId \?\? undefined, signal: runController\.signal \}\)/.test(source), "browser escalation is cancellation-aware");
 assert(/MAX_NETWORK_RESPONSE_BYTES/.test(source) && /readResponseTextCapped/.test(source), "provider responses are bounded");
 assert(/trajectoryRecords: AgenticTrajectoryRecord\[\]/.test(source), "structured trajectory is durable output");
 assert(/runHolehe\(action\.email, \{ signal: runController\.signal \}\)/.test(source), "email footprint is cancellation-aware");
