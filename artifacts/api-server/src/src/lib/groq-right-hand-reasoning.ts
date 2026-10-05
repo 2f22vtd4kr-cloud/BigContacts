@@ -27,7 +27,7 @@ const MAX_MODEL_ATTEMPTS = 4;
 const MAX_503_RETRIES_PER_MODEL = 1;
 const MAX_429_RETRIES_PER_MODEL = 1;
 const MAX_TOKEN_RATE_LIMIT_RETRIES_PER_MODEL = 1;
-const MAX_TOKEN_RATE_LIMIT_WAIT_MS = 45_000;
+const MAX_TOKEN_RATE_LIMIT_WAIT_MS = 60_000;
 const MAX_PROMPT_CHARS = 20_000;
 const GROQ_RIGHT_HAND_MIN_REQUEST_INTERVAL_MS = 250;
 let nextGroqRightHandRequestAt = 0;
@@ -110,10 +110,10 @@ function extractText(payload:unknown):string{
 function retryAfterMs(response:Response,fallback:number){const raw=response.headers.get("retry-after")?.trim();if(!raw)return fallback;const n=Number(raw);if(Number.isFinite(n)&&n>=0)return Math.min(5000,Math.floor(n*1000));return fallback;}
 function parseRateLimitResetMs(raw:string|null):number|null {
  const value=raw?.trim(); if(!value) return null;
- const numeric=Number(value); if(Number.isFinite(numeric)&&numeric>=0) return Math.min(60_000,Math.floor(numeric*1000));
+ const numeric=Number(value); if(Number.isFinite(numeric)&&numeric>=0) { const milliseconds = Math.floor(numeric*1000); return Number.isFinite(milliseconds) ? milliseconds : null; }
  const match=value.match(/^(?:(\d+(?:\.\d+)?)h)?(?:(\d+(?:\.\d+)?)m)?(?:(\d+(?:\.\d+)?)s)?$/i); if(!match) return null;
  const hours=Number(match[1]??0), minutes=Number(match[2]??0), seconds=Number(match[3]??0);
- return Math.min(60_000,Math.floor((hours*3600+minutes*60+seconds)*1000));
+ const milliseconds = Math.floor((hours*3600+minutes*60+seconds)*1000); return Number.isFinite(milliseconds) ? milliseconds : null;
 }
 type RateLimitKind = "requests" | "tokens" | "unknown" | null;
 function rateLimitKind(response:Response, body:string):RateLimitKind {
