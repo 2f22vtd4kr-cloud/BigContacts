@@ -150,7 +150,7 @@ export type DiscoveryCaseFile = {
     id: "broad-web-discovery";
     title: string;
     purpose: string;
-    status: "ready" | "waiting_for_boss" | "waiting_for_gemini" | "waiting_for_provider";
+    status: "ready" | "waiting_for_boss" | "waiting_for_boss" | "waiting_for_provider";
   };
   initialResearch: {
     status: "not_started" | "recorded" | "reviewed";
@@ -161,7 +161,7 @@ export type DiscoveryCaseFile = {
   };
   investigatorReports: Array<{
     id: string;
-    lane: "groq-boss" | "gemini-boss" | "groq-right-hand" | "groq-web" | "broad-web" | "registry";
+    lane: "groq-boss" | "groq-boss" | "groq-right-hand" | "groq-web" | "broad-web" | "registry";
     provider: string;
     status: "completed" | "unavailable" | "failed";
     iteration: number;
@@ -253,11 +253,10 @@ export type DiscoveryCaseFile = {
  * Boss compatibility surface. The canonical Boss transport is Groq GPT-OSS;
  * these legacy names are retained only so the established Bureau call graph stays stable.
  */
-export const GEMINI_BOSS_MODEL_PENDING = GROQ_BOSS_MODEL_PENDING;
-export type GeminiBossModelSelection = import("./groq-boss").GroqBossModelSelection;
-export type GeminiBossAttemptDiagnostic = import("./groq-boss").GroqBossAttemptDiagnostic;
-export function formatGeminiBossAttemptSummary(attempts: GeminiBossAttemptDiagnostic[]): string { return formatGroqBossAttemptSummary(attempts); }
-export type GeminiBossDiscoveryResult = {
+export type BossModelSelection = import("./groq-boss").GroqBossModelSelection;
+export type BossAttemptDiagnostic = import("./groq-boss").GroqBossAttemptDiagnostic;
+export function formatBossAttemptSummary(attempts: BossAttemptDiagnostic[]): string { return formatGroqBossAttemptSummary(attempts); }
+export type BossDiscoveryResult = {
   status: "completed" | "pending" | "unavailable";
   model: string;
   investigatorLlm: "groq" | null;
@@ -276,7 +275,7 @@ export type GeminiBossDiscoveryResult = {
   error: string | null;
 };
 export type DiscoveryInvestigatorReport = DiscoveryCaseFile["investigatorReports"][number];
-export type GeminiBossPlanResult = {
+export type BossPlanResult = {
   status: "completed" | "unavailable";
   model: string;
   outcome: BossPlanOutcome;
@@ -296,7 +295,7 @@ export type GeminiBossPlanResult = {
   rightHandNote: string | null;
   error: string | null;
 };
-export type GeminiBossStatus = {
+export type BossStatus = {
   configured: boolean;
   model: string;
   role: "head_investigator";
@@ -304,14 +303,14 @@ export type GeminiBossStatus = {
   webSearchGrounding: false;
   provider?: "groq";
 };
-export type GeminiBossLatencyConfig = {
+export type BossLatencyConfig = {
   requestTimeoutMs: number;
   overallTimeoutMs: number;
   minimumOverallTimeoutMs: number;
   overallTimeoutClamped: boolean;
 };
 
-export function getGeminiBossLatencyConfig(): GeminiBossLatencyConfig {
+export function getBossLatencyConfig(): BossLatencyConfig {
   const config = getGroqBossLatencyConfig();
   return {
     requestTimeoutMs: config.requestTimeoutMs,
@@ -321,8 +320,8 @@ export function getGeminiBossLatencyConfig(): GeminiBossLatencyConfig {
   };
 }
 
-export async function generateGeminiBossText(
-  selection: GeminiBossModelSelection,
+export async function generateBossText(
+  selection: BossModelSelection,
   prompt: string,
   options?: {
     responseFormat?: Record<string, unknown>;
@@ -333,12 +332,12 @@ export async function generateGeminiBossText(
   return generateGroqBossText(selection, prompt, options);
 }
 
-export async function getGeminiBossStatus(): Promise<GeminiBossStatus> {
+export async function getBossStatus(): Promise<BossStatus> {
   const status = getGroqBossStatus();
   return { ...status };
 }
 
-export async function resolveGeminiBossModel(preferredKeyName?: string): Promise<GeminiBossModelSelection> {
+export async function resolveBossModel(preferredKeyName?: string): Promise<BossModelSelection> {
   return resolveGroqBossModel(preferredKeyName);
 }
 
@@ -355,7 +354,7 @@ function extractJsonObject(value: string): string | null {
   return end > start ? source.slice(start, end + 1) : null;
 }
 
-const GEMINI_BOSS_PLAN_RESPONSE_FORMAT: Record<string, unknown> = {
+const BOSS_PLAN_RESPONSE_FORMAT: Record<string, unknown> = {
   type: "text",
   mime_type: "application/json",
   schema: {
@@ -382,7 +381,7 @@ const GEMINI_BOSS_PLAN_RESPONSE_FORMAT: Record<string, unknown> = {
   },
 };
 
-const GEMINI_BOSS_DISCOVERY_RESPONSE_FORMAT: Record<string, unknown> = {
+const BOSS_DISCOVERY_RESPONSE_FORMAT: Record<string, unknown> = {
   type: "text",
   mime_type: "application/json",
   schema: {
@@ -434,7 +433,7 @@ const GEMINI_BOSS_DISCOVERY_RESPONSE_FORMAT: Record<string, unknown> = {
 
 function parseBossDiscoveryResponse(raw: string): {
   report: string;
-  candidates: GeminiBossDiscoveryResult["candidates"];
+  candidates: BossDiscoveryResult["candidates"];
   investigatorLlm: "groq" | null;
   nextDirections: string[];
   uncertainties: string[];
@@ -535,8 +534,8 @@ export async function runGroqBossDiscovery(input: {
     error: string | null;
   };
   startingLane?: string;
-}): Promise<GeminiBossDiscoveryResult> {
-  const selection = await resolveGeminiBossModel();
+}): Promise<BossDiscoveryResult> {
+  const selection = await resolveBossModel();
   if (selection.status !== "resolved") {
     return {
       status: selection.status,
@@ -598,8 +597,8 @@ Return ONLY JSON in this shape:
 }
 Candidates are review-only. Never invent a name, wealth claim, relationship, contact detail, or URL.`;
   try {
-    const generated = await generateGeminiBossText(selection, prompt, {
-      responseFormat: GEMINI_BOSS_DISCOVERY_RESPONSE_FORMAT,
+    const generated = await generateBossText(selection, prompt, {
+      responseFormat: BOSS_DISCOVERY_RESPONSE_FORMAT,
       maxOutputTokens: 2048,
       thinkingLevel: "low",
     });
@@ -656,7 +655,7 @@ Candidates are review-only. Never invent a name, wealth claim, relationship, con
   }
 }
 
-function parseBossPlanResponse(raw: string, queuedActions: BureauAction[]): Omit<GeminiBossPlanResult, "status" | "model" | "error"> | null {
+function parseBossPlanResponse(raw: string, queuedActions: BureauAction[]): Omit<BossPlanResult, "status" | "model" | "error"> | null {
   const json = extractJsonObject(raw);
   if (!json) return null;
   try {
@@ -773,7 +772,7 @@ function parseBossPlanResponse(raw: string, queuedActions: BureauAction[]): Omit
 }
 
 
-function buildGeminiBossPlanPrompt(input: {
+function buildBossPlanPrompt(input: {
   file: ResearchCaseFile;
   rightHandAdvice: ResearchCaseFile["rightHandAdvice"];
   iteration: number;
@@ -789,15 +788,15 @@ function buildGeminiBossPlanPrompt(input: {
 
 
 /** Compatibility export only; canonical runtime identity is Groq Boss. */
-export const runGeminiBossDiscovery = runGroqBossDiscovery;
+export const runBossBossDiscovery = runGroqBossDiscovery;
 
-export async function runGeminiBossPlan(input: {
+export async function runBossPlan(input: {
   file: ResearchCaseFile;
   rightHandAdvice: ResearchCaseFile["rightHandAdvice"];
   iteration: number;
-}): Promise<GeminiBossPlanResult> {
-  const selection = await resolveGeminiBossModel();
-  const unavailable = (error: string): GeminiBossPlanResult => ({
+}): Promise<BossPlanResult> {
+  const selection = await resolveBossModel();
+  const unavailable = (error: string): BossPlanResult => ({
     status: "unavailable",
     model: selection.model,
     outcome: "proceed",
@@ -826,8 +825,8 @@ export async function runGeminiBossPlan(input: {
   const queuedActions = input.file.actionQueue.filter((action) => action.status === "queued");
   if (queuedActions.length === 0) return unavailable("The case file has no queued actions.");
   try {
-    const planPrompt = buildGeminiBossPlanPrompt(input);
-    const generated = await generateGeminiBossText(selection, planPrompt, { responseFormat: GEMINI_BOSS_PLAN_RESPONSE_FORMAT, maxOutputTokens: 1536, thinkingLevel: "minimal" });
+    const planPrompt = buildBossPlanPrompt(input);
+    const generated = await generateBossText(selection, planPrompt, { responseFormat: BOSS_PLAN_RESPONSE_FORMAT, maxOutputTokens: 1536, thinkingLevel: "minimal" });
     if (!generated.raw) return unavailable(generated.error ?? "Boss plan text generation returned no text.");
     const parsed = parseBossPlanResponse(generated.raw, queuedActions);
     return parsed
@@ -1468,7 +1467,7 @@ export function recordRightHandAdvice(
   };
 }
 
-export function applyGeminiBossPlan(
+export function applyBossPlan(
   file: ResearchCaseFile,
   input: {
     outcome?: BossPlanOutcome;
@@ -1676,9 +1675,9 @@ export function mergeContactRoutes(
     .map((route, index) => ({ ...route, rank: index + 1 }));
 }
 
-export function recordGeminiBossPlan(
+export function recordBossPlan(
   file: ResearchCaseFile,
-  input: GeminiBossPlanResult & { now?: string },
+  input: BossPlanResult & { now?: string },
 ): ResearchCaseFile {
   return {
     ...file,
