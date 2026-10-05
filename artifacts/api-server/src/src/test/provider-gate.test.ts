@@ -11,13 +11,10 @@ describe("provider quota gate", () => {
   afterEach(() => {
     delete process.env.APEX_PROVIDER_MAX_REQUESTS_GENERIC;
     delete process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GENERIC;
-    delete process.env.APEX_PROVIDER_MAX_REQUESTS_GEMINI;
     delete process.env.APEX_PROVIDER_MAX_REQUESTS_GROQ;
-    delete process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GEMINI;
     delete process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GROQ;
     delete process.env.APEX_EXTERNAL_MAX_REQUESTS_PER_SCOPE;
     delete process.env.APEX_ATLAS_PROVIDER_MAX_REQUESTS_PER_SCOPE;
-    delete process.env.APEX_EXTERNAL_PROVIDER_CONCURRENCY_GEMINI;
     resetProviderGateForTests();
   });
 
@@ -111,25 +108,6 @@ describe("provider quota gate", () => {
     ).rejects.toMatchObject({ code: "cooldown", provider: "generic" });
   });
 
-  it("keeps Gemini oversight from being serialized behind a single Gemini slot", async () => {
-    process.env.APEX_PROVIDER_MAX_REQUESTS_GEMINI = "10";
-    process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GEMINI = "0";
-    process.env.APEX_EXTERNAL_MAX_REQUESTS_PER_SCOPE = "100";
-    let active = 0;
-    let peak = 0;
-
-    const work = () =>
-      runProviderCall({ provider: "gemini", account: "right-hand-test" }, async () => {
-        active += 1;
-        peak = Math.max(peak, active);
-        await new Promise((resolve) => setTimeout(resolve, 10));
-        active -= 1;
-      });
-
-    await Promise.all([work(), work()]);
-    expect(peak).toBe(2);
-  });
-
   it("does not consume an attempt while waiting behind a concurrency slot", async () => {
     process.env.APEX_PROVIDER_MAX_REQUESTS_GENERIC = "10";
     process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GENERIC = "0";
@@ -146,94 +124,6 @@ describe("provider quota gate", () => {
       });
     await Promise.all([work(), work(), work()]);
     expect(peak).toBeLessThanOrEqual(1);
-  });
-
-  it("does not let one Gemini model cooldown block a bounded fallback model", async () => {
-    process.env.APEX_PROVIDER_MAX_REQUESTS_GEMINI = "10";
-    process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GEMINI = "0";
-    process.env.APEX_EXTERNAL_MAX_REQUESTS_PER_SCOPE = "10";
-
-    const nativeFetch = globalThis.fetch;
-    const fetchMock = async (input: RequestInfo | URL): Promise<Response> => {
-      const url = String(input);
-      if (url.includes("/gemini-3.8-flash:generateContent")) {
-        return new Response(JSON.stringify({ error: { code: 429 } }), { status: 429 });
-      }
-      return new Response(JSON.stringify({
-        candidates: [{ content: { parts: [{ text: '{"outcome":"proceed"}' }] } }],
-      }), { status: 200 });
-    };
-    globalThis.fetch = fetchMock;
-
-    const { installExternalQuotaGuard } = await import("../lib/provider-gate");
-    installExternalQuotaGuard();
-
-    const first = await globalThis.fetch(
-      "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent",
-      { method: "POST", headers: { "x-goog-api-key": "test-key" }, body: "{}" },
-    );
-    const second = await globalThis.fetch(
-      "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.7-flash:generateContent",
-      { method: "POST", headers: { "x-goog-api-key": "test-key" }, body: "{}" },
-    );
-
-    expect(first.status).toBe(429);
-    expect(second.status).toBe(200);
-    globalThis.fetch = nativeFetch;
-  });
-
-  it("does not convert Gemini 403 permission denial into a cooldown", async () => {
-    process.env.APEX_PROVIDER_MAX_REQUESTS_GEMINI = "10";
-    process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GEMINI = "0";
-    process.env.APEX_EXTERNAL_MAX_REQUESTS_PER_SCOPE = "100";
-    let calls = 0;
-
-    const first = await runProviderCall(
-      { provider: "gemini", account: "permission-denied-test" },
-      async () => {
-        calls += 1;
-        return new Response(JSON.stringify({
-          error: { code: 403, status: "PERMISSION_DENIED" },
-        }), { status: 403 });
-      },
-    );
-    const second = await runProviderCall(
-      { provider: "gemini", account: "permission-denied-test" },
-      async () => {
-        calls += 1;
-        return new Response("", { status: 200 });
-      },
-    );
-
-    expect(first.status).toBe(403);
-    expect(second.status).toBe(200);
-    expect(calls).toBe(2);
-  });
-
-  it("delegates Gemini 429/503 cooldown ownership to the role boundary", async () => {
-    process.env.APEX_PROVIDER_MAX_REQUESTS_GEMINI = "10";
-    process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GEMINI = "0";
-    process.env.APEX_EXTERNAL_MAX_REQUESTS_PER_SCOPE = "100";
-    let calls = 0;
-
-    const first = await runProviderCall(
-      { provider: "gemini", account: "transient-test" },
-      async () => {
-        calls += 1;
-        return new Response("", { status: 429 });
-      },
-    );
-    const second = await runProviderCall(
-      { provider: "gemini", account: "transient-test" },
-      async () => {
-        calls += 1;
-        return new Response("", { status: 200 });
-      },
-    );
-
-    expect(first.status).toBe(429);
-    expect(second.status).toBe(200);
-    expect(calls).toBe(2);
   });
 
   it("does not convert Groq 403 permission denial into a cooldown", async () => {
