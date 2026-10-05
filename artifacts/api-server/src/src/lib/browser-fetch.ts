@@ -4,12 +4,15 @@ import { browserFetchHtml as unsafeBrowserFetchHtml } from "./browser-fetch-core
 
 export { browserFetchConfigured, getBrowserFetchCount, resetBrowserFetchCount, isChallengeHtml };
 
-export type BrowserFetchOptions = { scope?: string; signal?: AbortSignal };
+export type BrowserFetchOptions = { scope?: string; signal?: AbortSignal; provider: BrowserProvider };
 
 /** Browser/proxy escalation is an Investigator-selected outbound operation. */
 export async function browserFetchHtml(url: string, options: BrowserFetchOptions = {}): Promise<{ html: string; provider: string }> {
   if (options.signal?.aborted) throw new Error("browser fetch cancelled");
   await assertSafeOutboundUrl(url);
   if (options.signal?.aborted) throw new Error("browser fetch cancelled");
+  if (options.provider === "playwright") {
+    return runProviderCall({ provider: "playwright", account: new URL(url).hostname, scope: options.scope, signal: options.signal }, () => unsafeBrowserFetchHtml(url, options));
+  }
   return unsafeBrowserFetchHtml(url, options);
 }
