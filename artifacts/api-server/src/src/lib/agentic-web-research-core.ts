@@ -763,18 +763,15 @@ export async function runAgenticWebResearchEnsemble(input: {
   findings: AgenticFinding[];
   observedUrls: string[];
 }> {
-  const llms: Array<InvestigatorCapability> = input.investigatorLlms.length ? input.investigatorLlms : ["groq"];
-  const lanes = input.laneObjectives?.length ? input.laneObjectives : [
-    "Prioritize authoritative registries, governance records, ownership/officer relationships, and identity discrimination.",
-    "Prioritize independent reputable web/press/company sources and actively seek disconfirming evidence.",
-    "Prioritize verified organizational domains and public contact routes, while never guessing personal contact data.",
-  ];
+  const llms: Array<InvestigatorCapability> = input.investigatorLlms.length ? input.investigatorLlms : getAvailableInvestigatorCapabilities();
+  if (!llms.length) return { status: "failed", runs: [], findings: [], observedUrls: [] };
+  const lanes = input.laneObjectives?.filter((value) => typeof value === "string" && value.trim()).map((value) => value.trim()) ?? [];
   const runs = await Promise.all(llms.map((llm, index) => runAgenticWebResearch({
     ...input,
     investigatorLlm: llm,
     objective: [
       input.objective || "Conduct evidence-backed public-source research.",
-      "INDEPENDENT RESEARCH LANE " + (index + 1) + ": " + lanes[index % lanes.length],
+      lanes.length ? "MODEL-SUPPLIED RESEARCH HYPOTHESIS " + (index + 1) + ": " + lanes[index % lanes.length] : "Choose an independent research hypothesis from the shared objective; do not follow a fixed lane sequence.",
       "Do not assume another lane's conclusions. Build and test your own hypotheses and prefer source families different from the obvious first route.",
     ].join("\n"),
     jobId: input.jobId ? `${input.jobId}:lane:${index + 1}` : null,
