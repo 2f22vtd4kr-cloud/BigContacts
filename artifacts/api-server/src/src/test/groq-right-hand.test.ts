@@ -117,7 +117,7 @@ describe("Groq Right-hand model policy", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
-  it("fails closed on a hard 429 instead of rotating credentials", async () => {
+  it("rotates to the next configured Right-hand key after a hard 429", async () => {
     vi.stubEnv("GROQ_RIGHT_HAND_API_KEY", "right-hand-primary-key");
     vi.stubEnv("GROQ_RIGHT_HAND_API_KEY_2", "right-hand-secondary-key");
 
@@ -147,11 +147,13 @@ describe("Groq Right-hand model policy", () => {
 
     const result = await runGroqRightHandFreeJson("Return a small JSON decision.");
 
-    expect(result.status).toBe("unavailable");
+    expect(result.status).toBe("completed");
+    expect(result.model).toBe("openai/gpt-oss-120b");
     const chatCalls = fetchMock.mock.calls
       .filter(([input]) => String(input) === "https://api.groq.com/openai/v1/chat/completions");
-    expect(chatCalls).toHaveLength(1);
+    expect(chatCalls).toHaveLength(2);
     expect(new Headers(chatCalls[0]?.[1]?.headers).get("authorization")).toContain("right-hand-primary-key");
+    expect(new Headers(chatCalls[1]?.[1]?.headers).get("authorization")).toContain("right-hand-secondary-key");
   });
 
   it("waits for a token-window reset on a hard 429 before giving up the model", async () => {
@@ -188,7 +190,7 @@ describe("Groq Right-hand model policy", () => {
     expect(chatCalls).toHaveLength(2);
   });
 
-  it("fails closed on a hard model 429 instead of advancing to another model", async () => {
+  it("uses the primary model and advances to the bounded GPT-OSS fallback", async () => {
     vi.stubEnv("GROQ_RIGHT_HAND_API_KEY", "right-hand-fallback-test-key");
 
     const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
@@ -229,13 +231,13 @@ describe("Groq Right-hand model policy", () => {
 
     const result = await runGroqRightHandFreeJson("Return a small JSON decision.");
 
-    expect(result.status).toBe("unavailable");
-    expect(result.model).toBe("openai/gpt-oss-120b");
+    expect(result.status).toBe("completed");
+    expect(result.model).toBe("openai/gpt-oss-20b");
     const chatModels = fetchMock.mock.calls
       .filter(([input]) => String(input) === "https://api.groq.com/openai/v1/chat/completions")
       .map(([, init]) => JSON.parse(String(init?.body)).model);
-    expect(chatModels).toEqual(["openai/gpt-oss-120b"]);
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(chatModels).toEqual(["openai/gpt-oss-120b", "openai/gpt-oss-20b"]);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 
   it("retries a transient 429 before falling back to another model", async () => {
