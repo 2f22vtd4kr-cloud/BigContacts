@@ -538,6 +538,7 @@ export async function runGroqBossDiscovery(input: {
   }
 
   const availableInvestigators = getAvailableInvestigatorCapabilities();
+  if (!availableInvestigators.length) return { status: "unavailable", model: selection.model, investigatorLlm: null, report: null, candidates: [], citations: [], nextDirections: [], uncertainties: [], error: "No Investigator capability is currently available; refusing an unselected or deterministic substitute." };
   const prompt = `${buildBossOpeningPrompt(input)}
 
 This is a shared case-context review. Read the current investigation progress and investigator reports below
