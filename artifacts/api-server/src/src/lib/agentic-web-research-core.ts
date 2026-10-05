@@ -540,7 +540,15 @@ async function callGroqJson(prompt: string, signal: AbortSignal, cognitiveTask: 
           break;
         }
 
-        let data: { choices?: Array<{ message?: { content?: string } }> };
+        let data: {
+          choices?: Array<{ message?: { content?: string } }>;
+          usage?: {
+            prompt_tokens?: number;
+            completion_tokens?: number;
+            total_tokens?: number;
+            prompt_tokens_details?: { cached_tokens?: number };
+          };
+        };
         try {
           data = JSON.parse(body) as typeof data;
         } catch {
