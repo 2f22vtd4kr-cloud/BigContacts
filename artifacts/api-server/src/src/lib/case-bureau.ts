@@ -537,7 +537,6 @@ export async function runGroqBossDiscovery(input: {
     };
   }
 
-  const investigatorKeyNames = ["GROQ_INVESTIGATOR_API_KEY", ...Array.from({ length: 5 }, (_, i) => `GROQ_INVESTIGATOR_API_KEY_${i + 1}`)];
   const availableInvestigators = getAvailableInvestigatorCapabilities();
   const prompt = `${buildBossOpeningPrompt(input)}
 
