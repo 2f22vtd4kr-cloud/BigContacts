@@ -316,20 +316,20 @@ function groqTokenWindowWaitMs(response: Response, body: string): number | null 
   const rawReset = response.headers.get("x-ratelimit-reset-tokens")?.trim() ?? "";
   if (rawReset) {
     const numeric = Number(rawReset);
-    if (Number.isFinite(numeric) && numeric >= 0) return Math.min(45_000, Math.floor(numeric * 1_000));
+    if (Number.isFinite(numeric) && numeric >= 0) return Math.floor(numeric * 1_000);
     const match = rawReset.match(/^(?:(\d+(?:\.\d+)?)h)?(?:(\d+(?:\.\d+)?)m)?(?:(\d+(?:\.\d+)?)s)?$/i);
     if (match) {
       const hours = Number(match[1] ?? 0);
       const minutes = Number(match[2] ?? 0);
       const seconds = Number(match[3] ?? 0);
-      return Math.min(45_000, Math.floor((hours * 3600 + minutes * 60 + seconds) * 1_000));
+      return Math.floor((hours * 3600 + minutes * 60 + seconds) * 1_000);
     }
   }
   const retryAfter = response.headers.get("retry-after")?.trim() ?? "";
   const seconds = Number(retryAfter);
-  if (Number.isFinite(seconds) && seconds >= 0) return Math.min(45_000, Math.floor(seconds * 1_000));
+  if (Number.isFinite(seconds) && seconds >= 0) return Math.floor(seconds * 1_000);
   const timestamp = Date.parse(retryAfter);
-  return Number.isFinite(timestamp) ? Math.min(45_000, Math.max(0, timestamp - Date.now())) : null;
+  return Number.isFinite(timestamp) ? Math.max(0, timestamp - Date.now()) : null;
 }
 
 function groqHardRequestQuota(response: Response, body: string): boolean {

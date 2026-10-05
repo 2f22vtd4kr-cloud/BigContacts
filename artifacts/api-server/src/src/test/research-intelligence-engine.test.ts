@@ -2,6 +2,26 @@ import { describe, expect, it } from "vitest";
 import { ResearchIntelligenceEngine } from "../lib/research-intelligence-engine";
 
 describe("Apex research intelligence", () => {
+  it("keeps search-result leads out of evidence and source-coverage metrics", () => {
+    const engine = new ResearchIntelligenceEngine({ executionId: "search-leads", target: "Example Target", objective: "discover attributable people" });
+    engine.recordAction({
+      turn: 1,
+      action: "web_search",
+      execution: "success",
+      urls: ["https://linkedin.com/in/example", "https://example.org/profile"],
+      observation: "Example Person - Founder at Example Org",
+      findings: [],
+    });
+    const state = engine.buildContext();
+    expect(state.evidenceCount).toBe(0);
+    expect(state.sourceDiversity).toBe(0);
+    expect(state.sourceFamilyDiversity).toBe(0);
+    expect(state.facts).toHaveLength(0);
+    expect(state.recentActions[0]?.useful).toBe(false);
+    expect(state.recentActions[0]?.informationGain).toBeLessThanOrEqual(0.15);
+  });
+
+
   it("keeps evidence, contradictions, negative findings, contacts, and provenance together", () => {
     const engine = new ResearchIntelligenceEngine({ executionId: "audit", target: "Alex Example", objective: "resolve identity and contact" });
     engine.recordAction({ turn: 1, action: "registry_search", execution: "success", urls: ["https://registry.example.gov/a"], observation: "Alex is director of Alpha", findings: [{ vectorType: "is", value: "director of Alpha", personName: "Alex Example", sourceUrls: ["https://registry.example.gov/a"] }] });
@@ -76,7 +96,7 @@ describe("Apex research intelligence", () => {
     engine.recordAction({ turn: 1, action: "visit", execution: "http_error", urls: ["https://failed.example/page"], observation: "Jane Example — Founder — jane@example.com", findings: [{ vectorType: "email", value: "jane@example.com", personName: "Jane Example", sourceUrls: ["https://failed.example/page"] }] });
     const state = engine.buildContext();
     expect(state.facts.some((fact) => fact.claim.includes("jane@example.com"))).toBe(false);
-    expect(state.evidenceCount).toBe(1);
+    expect(state.evidenceCount).toBe(0);
     expect(state.negativeFindings.some((finding) => finding.includes("http_error"))).toBe(true);
   });
 

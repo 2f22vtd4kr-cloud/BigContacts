@@ -225,7 +225,18 @@ export class ResearchIntelligenceEngine {
     if (input.execution === "success") {
       for (const url of urls) this.recordEvidence({ kind: "observation", claim: `Observed source ${url}`, value: url, sourceUrl: url, sourceTier: tierForHost(hostOf(url)), turn: input.turn, action: input.action, execution: input.execution, passage: input.observation?.slice(0, 1200) ?? null, supports: [], contradicts: [] });
     }
-    const informationGain = clamp((useful ? 0.45 : 0.05) + Math.min(0.35, urls.length * 0.07) + Math.min(0.2, newHostCount * 0.1));
+    // Search results are leads, not source-backed evidence. A successful search
+    // with many URLs must not look like a high-yield research step merely because
+    // the provider returned a large result set. Visited/validated observations
+    // may contribute modest information even without an attributed finding.
+    const searchLeadOnly = input.execution === "success"
+      && (input.action === "web_search" || input.action === "parallel_web_search")
+      && findings.length === 0;
+    const informationGain = searchLeadOnly
+      ? clamp(0.05 + Math.min(0.10, newHostCount * 0.02))
+      : clamp((useful ? 0.45 : input.execution === "success" ? 0.15 : 0.05)
+        + Math.min(0.35, urls.length * 0.07)
+        + Math.min(0.2, newHostCount * 0.1));
     const predictedInformationGain = clamp(input.predictedInformationGain ?? informationGain);
     this.actions.push({ turn: input.turn, action: input.action, args: input.args ?? {}, execution: input.execution, observation: input.observation ?? "", urls, findingCount: findings.length, useful, informationGain, findingNames: [...new Set(findings.map((finding) => String(finding.personName ?? "").trim()).filter(Boolean))].slice(0, 8), findingRoles: [...new Set(findings.map((finding) => String(finding.role ?? "").trim()).filter(Boolean))].slice(0, 8) });
     const modelHypothesis = typeof input.args?.hypothesis === "string" ? input.args.hypothesis.trim() : "";
@@ -400,14 +411,24 @@ export class ResearchIntelligenceEngine {
     const contradictionGroups = new Map<string, IntelligenceEvidence[]>(); for (const evidence of this.evidence.values()) { const parsed = extractPredicate(evidence.claim); const key = normalize(`${parsed.subject}|${parsed.predicate}`); const list = contradictionGroups.get(key) ?? []; list.push(evidence); contradictionGroups.set(key, list); } const contradictions = [...contradictionGroups.values()].filter((list) => { const predicate = extractPredicate(list[0]?.claim ?? "").predicate; return !["email", "phone", "social", "website"].includes(predicate) && new Set(list.map((item) => normalize(extractPredicate(item.claim).object))).size > 1; }).map((list) => { const ids = [...new Set(list.map((item) => item.id))]; const first = extractPredicate(list[0]?.claim ?? ""); return { claim: `${first.subject} ${first.predicate} ${first.object}`, evidenceIds: ids, sources: [...new Set(list.map((item) => item.sourceHost).filter(Boolean) as string[])] }; });
     const unresolved = [...this.hypotheses.values()].flatMap((item) => item.missingDiscriminators).filter(Boolean);
     const openQuestions = [...new Set([...unresolved, ...contradictions.map((item) => `Resolve contradiction: ${item.claim}`)])];
-    const sourceHosts = [...new Set([...this.evidence.values()].map((item) => item.sourceHost).filter(Boolean) as string[])];
+    // Search-result URLs are discovery leads. They are retained in atomic
+    // observations for the Investigator, but they do not count as corroborated
+    // source coverage until a non-search capability observes the source or a
+    // model-authored finding binds to it.
+    const evidenceBearing = [...this.evidence.values()].filter((item) =>
+      item.kind === "finding"
+      || item.kind === "claim"
+      || (item.kind === "observation" && !["web_search", "parallel_web_search"].includes(item.action)),
+    );
+    const evidenceCount = [...this.evidence.values()].filter((item) => item.kind === "finding" || item.kind === "claim").length;
+    const sourceHosts = [...new Set(evidenceBearing.map((item) => item.sourceHost).filter(Boolean) as string[])];
     const sourceFamilies = sourceHosts.map(sourceFamily);
     const familyCounts = new Map<string, number>(); for (const family of sourceFamilies) familyCounts.set(family, (familyCounts.get(family) ?? 0) + 1);
     const repeatedSourceFamilies = [...familyCounts.entries()].filter(([, count]) => count >= 3).map(([family]) => family);
     const sourceDiversity = sourceHosts.length;
     const sourceFamilyDiversity = new Set(sourceFamilies).size;
     const sourceQualityCounts = new Map<IntelligenceSourceClass, number>();
-    for (const evidence of this.evidence.values()) sourceQualityCounts.set(evidence.sourceClass, (sourceQualityCounts.get(evidence.sourceClass) ?? 0) + 1);
+    for (const evidence of evidenceBearing) sourceQualityCounts.set(evidence.sourceClass, (sourceQualityCounts.get(evidence.sourceClass) ?? 0) + 1);
     const sourceQualitySummary = [...sourceQualityCounts.entries()].map(([sourceClass, count]) => ({ sourceClass, count })).sort((a, b) => b.count - a.count);
     const sourceIndependence = scoreSourceIndependence({ sourceHosts, sourceClasses: [...sourceQualityCounts.keys()], repeatedFamilyCount: repeatedSourceFamilies.length });
     const independentSourceUnits = this.sourceLineage.independentUnitCount([...this.evidence.values()].filter((e) => e.kind === "finding" || e.kind === "claim").map((e) => e.sourceLineageId).filter((id): id is string => Boolean(id)));
@@ -450,7 +471,7 @@ export class ResearchIntelligenceEngine {
       }));
     const actionYield = [...this.actionYield.entries()].map(([action, stat]) => summarizeActionYield(action, stat));
     const researchQuestions = openQuestions.map((question, index) => ({ id: "rq_" + hash(question).slice(0, 16), question, importance: Math.max(0.5, 1 - index * 0.05), uncertainty: 1, discriminators: [question], status: "open" as const }));
-    const frontier = assessResearchFrontier({ sourceFamilyDiversity, repeatedSourceFamilies: repeatedSourceFamilies.length, evidenceCount: this.evidence.size, unresolvedQuestions: openQuestions.length, contradictions: contradictions.length, contactCount: this.contacts.size });
+    const frontier = assessResearchFrontier({ sourceFamilyDiversity, repeatedSourceFamilies: repeatedSourceFamilies.length, evidenceCount, unresolvedQuestions: openQuestions.length, contradictions: contradictions.length, contactCount: this.contacts.size });
     const leadingHypothesis = [...this.hypotheses.values()].sort((a, b) => b.score - a.score)[0] ?? null;
     const falsification = assessFalsificationPlan({ leadingHypothesisScore: leadingHypothesis?.score ?? null, contradictionPressure: frontier.contradictionPressure, unresolvedPressure: frontier.unresolvedPressure, missingDiscriminators: leadingHypothesis?.missingDiscriminators ?? openQuestions });
     const discovery = buildDiscoveryIntelligence({
@@ -471,7 +492,7 @@ export class ResearchIntelligenceEngine {
     });
     const missionBriefs = this.buildMissionBriefs(openQuestions, facts, contradictions);
     const coverage = clamp((facts.length * 0.035) + (sourceDiversity * 0.05) + (this.contacts.size * 0.03) - (contradictions.length * 0.04));
-    return { version: 1, caseId: this.input.caseId ?? null, executionId: this.input.executionId, target: this.input.target, objective: this.input.objective, facts, hypotheses: [...this.hypotheses.values()], contradictions, contacts: [...this.contacts.values()], negativeFindings: [...this.negativeFindings], openQuestions, recentActions: [...this.actions], sourceDiversity, sourceFamilyDiversity, repeatedSourceFamilies, evidenceCount: this.evidence.size, provenanceDigest: this.chain, missionBriefs, sourceQualitySummary, frontier, sourceIndependence, providerDisagreements, atomicEvidence, actionYield, sourceLineage: this.sourceLineage.snapshot().map((node) => ({ sourceId: node.sourceId, canonicalUrl: node.canonicalUrl, host: node.host, originSourceId: node.originSourceId, citedSourceIds: node.citedSourceIds })), independentSourceUnits, researchQuestions, falsification, discovery, stoppingAssessment: { evidenceCoverage: coverage, unresolvedQuestions: openQuestions.length, recommendation: openQuestions.length > 0 || coverage < 0.8 ? "continue" : "review" } };
+    return { version: 1, caseId: this.input.caseId ?? null, executionId: this.input.executionId, target: this.input.target, objective: this.input.objective, facts, hypotheses: [...this.hypotheses.values()], contradictions, contacts: [...this.contacts.values()], negativeFindings: [...this.negativeFindings], openQuestions, recentActions: [...this.actions], sourceDiversity, sourceFamilyDiversity, repeatedSourceFamilies, evidenceCount, provenanceDigest: this.chain, missionBriefs, sourceQualitySummary, frontier, sourceIndependence, providerDisagreements, atomicEvidence, actionYield, sourceLineage: this.sourceLineage.snapshot().map((node) => ({ sourceId: node.sourceId, canonicalUrl: node.canonicalUrl, host: node.host, originSourceId: node.originSourceId, citedSourceIds: node.citedSourceIds })), independentSourceUnits, researchQuestions, falsification, discovery, stoppingAssessment: { evidenceCoverage: coverage, unresolvedQuestions: openQuestions.length, recommendation: openQuestions.length > 0 || coverage < 0.8 ? "continue" : "review" } };
   }
 
   private buildMissionBriefs(openQuestions: string[], facts: Array<{ claim: string }>, contradictions: Array<{ claim: string }>): IntelligenceMissionBrief[] {

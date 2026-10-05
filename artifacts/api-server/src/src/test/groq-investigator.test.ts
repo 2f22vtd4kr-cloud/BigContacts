@@ -95,6 +95,35 @@ describe("Groq Investigator provider boundary", () => {
     expect(calls).toBe(2);
   });
 
+  it("fails closed when the token-window reset exceeds the 45-second recovery ceiling", async () => {
+    process.env.GROQ_INVESTIGATOR_API_KEY = "test-groq-investigator-long-reset-key";
+    process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GROQ = "0";
+    let calls = 0;
+    mocks.safeOutboundFetch.mockImplementation(async () => {
+      calls += 1;
+      return new Response(JSON.stringify({ error: { type: "tokens", code: "rate_limit_exceeded" } }), {
+        status: 429,
+        headers: {
+          "retry-after": "20",
+          "x-ratelimit-remaining-tokens": "3108",
+          "x-ratelimit-reset-tokens": "46s",
+          "x-ratelimit-remaining-requests": "998",
+        },
+      });
+    });
+
+    const result = await runAgenticWebResearch({
+      targetName: "Example",
+      investigatorLlm: "groq",
+      maxIterations: 1,
+      hardTimeoutMs: 30_000,
+    });
+
+    expect(["unavailable", "error"]).toContain(result.status);
+    expect(calls).toBe(1);
+    expect(result.trajectoryRecords[0]?.action).toBe("investigator_provider_error");
+  });
+
   it("does not rotate Investigator models after a transient 429 retry is exhausted", async () => {
     process.env.GROQ_INVESTIGATOR_API_KEY = "test-groq-investigator-key";
     process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GROQ = "0";
