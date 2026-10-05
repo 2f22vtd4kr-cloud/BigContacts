@@ -4,15 +4,15 @@
 
 Apex Atlas is a model-led research bureau. Deterministic code enforces safety, provenance, identity, persistence, cancellation, lifecycle, and resource limits; models own research judgment within those boundaries.
 
-Operator/UI -> canonical Atlas job -> Gemini Boss -> Gemini Right-hand oversight -> Boss-selected Groq or Mistral Investigator -> model-owned ReAct trajectory -> validated capabilities -> observations and source URLs -> evidence graph and attribution -> deterministic promotion -> Right-hand review -> Boss continuation/redirect/stop -> durable terminal state -> UI projection.
+Operator/UI -> canonical Atlas job -> Groq Boss -> Groq Right-hand oversight -> Boss-selected Investigator capability from the runtime registry -> model-owned multi-step ReAct episode -> validated capabilities -> observations and source URLs -> evidence graph and attribution -> deterministic promotion -> Right-hand review -> Boss continuation/redirect/stop -> durable terminal state -> UI projection.
 
 ## Model roles
 
 - Gemini Boss: case framing, discovery/target control, Investigator selection, continuation.
 - Gemini Right-hand: bounded independent oversight of supplied case state; never researches or invents evidence.
-- Groq or Mistral Investigator: owns the actual research trajectory and chooses permitted tools.
+- Investigator capability: owns the actual research trajectory and chooses permitted tools. The runtime registry currently exposes only the live Groq adapter; retired providers are not silently substituted.
 
-Investigator selection is Boss-owned. The runtime never silently substitutes the other Investigator provider.
+Investigator selection is Boss-owned. Deterministic code exposes only currently available capability adapters and validates the Boss selection; it never silently substitutes another provider. Resource budgets may bound an episode, but they do not choose its research strategy.
 
 ## Current Investigator providers
 
