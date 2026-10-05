@@ -24,6 +24,8 @@ const checks = [
   [boss.includes('provider: "groq"'), "Canonical Boss provider must be Groq."],
   [rightHand.includes('provider: "groq"'), "Canonical Right-hand provider must be Groq."],
   [investigator.includes('selectedInvestigatorLlm === "groq"'), "Canonical Investigator provider selection must be Groq."],
+  [investigator.includes("classifyExternalProvider") && investigator.includes("gatedSafeOutboundFetch") && investigator.includes("runProviderCall({ provider, account, signal: init.signal }"), "Canonical Investigator web/search egress must pass through the provider gate."],
+  [investigator.includes("gatedSafeOutboundFetch(url") && !investigator.includes("safeOutboundFetch(url, { signal"), "Canonical page visits must not bypass the provider gate."],
   [caseBureau.includes("generateGroqBossText(selection, prompt, options)"), "Legacy Gemini Boss compatibility wrapper must delegate to Groq."],
   [caseBureau.includes("export const runGeminiBossDiscovery = runGroqBossDiscovery"), "Legacy Gemini discovery name must alias the canonical Groq implementation."],
   [caseBureau.includes('investigatorLlm: "groq" | null'), "Compatibility control contracts must expose only the active Groq Investigator capability."],
