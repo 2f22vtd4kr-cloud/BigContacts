@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { buildGroqInvestigatorRequestBody, validateDiscoverySearchQuery } from "../lib/agentic-web-research-core";
 import { inferResearchCognitiveTask } from "../lib/research-cognitive-routing";
+import { sourceBackedFindings } from "../lib/target-contact-agent";
+import { sourceBackedAgenticFindings } from "../lib/bureau-agentic-pass";
 
 describe("Groq Investigator runtime contract", () => {
 
@@ -19,6 +21,42 @@ describe("Groq Investigator runtime contract", () => {
   it("blocks exact duplicate discovery queries while allowing a real pivot", () => {
     expect(validateDiscoverySearchQuery("Slovenia casino", ["Slovenia casino"])).toMatchObject({ allowed: false });
     expect(validateDiscoverySearchQuery("Slovenia casino founder", ["Slovenia casino"])).toEqual({ allowed: true });
+  });
+
+
+  it("does not treat search-result snippets as card-grade source evidence", () => {
+    const finding = {
+      vectorType: "email",
+      value: "alice@example.com",
+      scope: "candidate" as const,
+      personName: "Alice Example",
+      role: "Founder",
+      sourceUrls: ["https://example.com/profile"],
+      note: "observed",
+      promotionDecision: "promote" as const,
+    };
+    const searchRecord = {
+      turn: 1,
+      model: "qwen/qwen3.8-27b",
+      action: "web_search",
+      args: { query: "Alice Example founder email" },
+      execution: "success",
+      observation: "Alice Example — alice@example.com — https://example.com/profile",
+      observedUrls: ["https://example.com/profile"],
+      findings: [finding],
+      providerFallback: [],
+    };
+    const visitRecord = {
+      ...searchRecord,
+      turn: 2,
+      action: "visit",
+      args: { url: "https://example.com/profile" },
+      observation: "Alice Example, Founder. Public email: alice@example.com.",
+    };
+    expect(sourceBackedFindings([finding], [], [searchRecord])).toEqual([]);
+    expect(sourceBackedFindings([finding], [], [searchRecord, visitRecord])).toHaveLength(1);
+    expect(sourceBackedAgenticFindings([finding], [], [searchRecord])).toEqual([]);
+    expect(sourceBackedAgenticFindings([finding], [], [searchRecord, visitRecord])).toHaveLength(1);
   });
 
   it("uses the GPT-OSS-compatible reasoning contract", () => {
