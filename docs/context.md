@@ -4,7 +4,7 @@
 >
 > **Latest verified runtime source parent:** `8b4d314596b7c095dcfcc397034e96d25b03716b`. Subsequent main commits in this pass are documentation-only.
 >
-> **Canonical control plane:** Groq Boss (`openai/gpt-oss-120b`, bounded 20B fallback) → Groq Right-hand (`openai/gpt-oss-120b`, bounded 20B fallback) → Groq Investigator (`qwen/qwen3.8-27b`, bounded GPT-OSS fallbacks).
+> **Canonical control plane:** Groq Boss → Groq Right-hand → Boss-selected Investigator capability from the runtime registry (currently Groq) → model-owned multi-step ReAct episode → deterministic evidence/promotion/lifecycle rails.
 >
 > **Role-scoped credentials:** Boss uses `GROQ_BOSS_API_KEY`, `_1` … `_10`; Right-hand uses `GROQ_RIGHT_HAND_API_KEY`, `_2` … `_5`; Investigator uses `GROQ_INVESTIGATOR_API_KEY`, `_1` … `_5`. Do not restore Mistral/Gemini control credentials. The Right-hand `_1` naming discrepancy remains a configuration-only item: no secret value has been inspected.
 >
@@ -730,12 +730,14 @@ Important merged commits:
 - PR #465 merged the explicit Groq Right-hand retry-ownership boundary.
 - PR #466 merged as e92135a1b8332a5f13e28e8f0cc576f78eaba8f corrected the remaining canonical Groq Investigator runtime contract and cognitive routing.
 - 2026-10-03 audit update commit: 3cf795028944dad30436cee55d1cb0a015767454.
+- Current Investigator resource policy: routine discovery/identity/contact turns prefer the fastest low-cost compatible Groq model; larger models are reserved for contradiction/final adjudication. This is a resource policy, not research strategy.
+- Target-scoped Investigator execution now runs bounded multi-step ReAct episodes before Right-hand/Boss oversight. The 64-iteration ceiling remains absolute; depth defaults are lower resource budgets, and the Investigator still owns every action and stop decision inside the episode.
 
 PR #466 source corrections:
 - GPT-OSS Investigator no longer sends reasoning_format. It uses include_reasoning:false, matching the current Groq GPT-OSS contract.
 - Strict Investigator structured output now exposes every action field already parsed by the runtime, including target/targetType/profile for SpiderFoot and locale/market for search.
 - Investigator reasoning budget is cognitive-task aware: ordinary discovery/identity medium, contact extraction low, contradiction/final adjudication high, with only validated low/medium/high environment overrides.
-- Cognitive routing is state-driven from the Research Intelligence frontier and does not choose the research action. The model still owns the next research action; deterministic code only selects an appropriate reasoning budget/model family and enforces evidence law.
+- Cognitive routing is state-driven from the Research Intelligence frontier and does not choose the research action. The model still owns the next research action; deterministic code only selects an appropriate reasoning budget/model family and enforces evidence law. The runtime capability registry also supplies the set of available Investigator adapters to Boss selection; it does not choose among them.
 - Regression coverage and scripts/check-agentic-runtime.mjs now enforce the provider request/schema invariants.
 
 Architecture law:
