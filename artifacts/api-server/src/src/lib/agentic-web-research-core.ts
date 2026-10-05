@@ -307,6 +307,10 @@ function groqRetryAfterMs(response: Response, fallbackMs = 250): number {
 
 function groqHardRequestQuota(response: Response, body: string): boolean {
   if (response.status !== 429) return false;
+  try {
+    const parsed = JSON.parse(body) as { error?: { type?: unknown } };
+    if (parsed.error?.type === "tokens") return true;
+  } catch {}
   const remainingRequests = Number(response.headers.get("x-ratelimit-remaining-requests")?.trim() ?? "NaN");
   if (Number.isFinite(remainingRequests) && remainingRequests === 0) return true;
   try {
