@@ -12,6 +12,6 @@ export function getAgenticExecutionScope(): string {
 
 /** Extract the Boss-selected Investigator provider from the execution scope. */
 export function getAgenticSelectedInvestigator(): "groq" | "mistral" | null {
-  const match = /^agentic:[^:]+:investigator:(groq|mistral)$/.exec(getAgenticExecutionScope());
+  const match = /^agentic:(?:[^:]+|case:[^:]+):investigator:(groq|mistral)$/.exec(getAgenticExecutionScope());
   return match?.[1] === "groq" || match?.[1] === "mistral" ? match[1] : null;
 }

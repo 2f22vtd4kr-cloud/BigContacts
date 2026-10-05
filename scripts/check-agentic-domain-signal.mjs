@@ -1,7 +1,7 @@
 import fs from "node:fs";
 
 const source = fs.readFileSync("artifacts/api-server/src/src/lib/agentic-web-research-core.ts", "utf8");
-const canonical = 'lookupDomainSurface(action.domain, { signal: runController.signal })';
+const canonical = 'lookupDomainSurface(action.domain, { provider: action.provider, signal: runController.signal })';
 const stale = 'lookupDomainSurface(action.domain)';
 
 if (!source.includes(canonical)) {
