@@ -14,6 +14,7 @@ import { classifyTrajectorySignals, type AtlasFailureSignal } from "./atlas-fail
 import { ResearchIntelligenceEngine, renderIntelligenceContext } from "./research-intelligence-engine";
 import { bindExactSourceSpan } from "./research-epistemic-vnext";
 import { inferResearchCognitiveTask, rankGroqModelsForTask, type ResearchCognitiveTask } from "./research-cognitive-routing";
+import { getAvailableInvestigatorCapabilities, type InvestigatorCapability } from "./investigator-capability-registry";
 import { evaluateResearchTerminal } from "./research-terminal-gate";
 import {
   classifyProviderHttpStatus,
