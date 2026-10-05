@@ -1,4 +1,6 @@
 import { safeOutboundFetch } from "./ssrf-safe-fetch";
+import { db, researchCasesTable } from "@workspace/db";
+import { eq } from "drizzle-orm";
 import { classifyExternalProvider, runProviderCall } from "./provider-gate";
 import { getAgenticExecutionScope, withAgenticExecutionScope } from "./agentic-execution-context";
 import { validateResearchObjective } from "./research-objective";
@@ -31,6 +33,7 @@ type RunInput = Parameters<CoreModule["runAgenticWebResearch"]>[0] & { caseId?: 
 type CoreResult = Awaited<ReturnType<CoreModule["runAgenticWebResearch"]>>;
 type AgenticRunResult = CoreResult & { executionId: string; runId?: string };
 
+async function loadDurableIntelligenceState(caseId: number | undefined): Promise<Parameters<ResearchIntelligenceEngine["restoreContext"]>[0] | null> { if (caseId == null) return null; const [row] = await db.select({ caseFile: researchCasesTable.caseFile }).from(researchCasesTable).where(eq(researchCasesTable.id, caseId)).limit(1); if (!row?.caseFile) return null; try { const parsed = JSON.parse(row.caseFile) as Record<string, unknown>; const state = parsed.evidenceState; return state && typeof state === "object" && !Array.isArray(state) ? state as Parameters<ResearchIntelligenceEngine["restoreContext"]>[0] : null; } catch { return null; } }
 function renumberTrajectory(value: string, turn: number): string { return value.replace(/^step\d+:/, `step${turn}:`); }
 
 function intelligenceObjective(base: string, sharedContext: string, intelligence: ResearchIntelligenceEngine, direction: string | null, records: CoreResult["trajectoryRecords"]): string {
@@ -88,6 +91,8 @@ async function runDynamicDiscovery(core: CoreModule, input: RunInput, controller
   let lastStatus: CoreResult["status"] = "completed";
   let error: string | undefined;
   const intelligence = new ResearchIntelligenceEngine({ executionId, target: input.targetName, objective: input.objective || `Research ${input.targetName}` });
+  const durableIntelligence = await loadDurableIntelligenceState(input.caseId);
+  if (durableIntelligence) intelligence.restoreContext(durableIntelligence);
   for (let actionTurn = 1; actionTurn <= (input.maxIterations ?? 64); actionTurn++) {
     if (controller.signal.aborted || input.signal?.aborted) return { status: "cancelled", model, iterations: actionTurn - 1, searches, visits, findings, modelFindings, stopReason: "CANCELLED", trajectory, trajectoryRecords: records, error: "cancelled by operator", executionId };
     const remaining = deadline - Date.now();
@@ -148,6 +153,7 @@ export async function runAgenticWebResearch(input: RunInput): Promise<AgenticRun
       const deadlineTimer = setTimeout(() => overallController.abort(), requestedHardTimeout);
       const objective = input.objective || `Research the public web for the strongest attributable public contact path for ${input.targetName}.`;
       const intelligence = new ResearchIntelligenceEngine({ caseId: oversightContext.caseId, executionId, target: input.targetName, objective });
+      if (oversightContext.intelligenceState) intelligence.restoreContext(oversightContext.intelligenceState);
        const MAX_TARGET_ACTION_TURNS = 64;
       let records: CoreResult["trajectoryRecords"] = [];
       let trajectory: string[] = [];
@@ -190,6 +196,7 @@ export async function runAgenticWebResearch(input: RunInput): Promise<AgenticRun
            sharedContext: `${oversightContext.contextDocument}\\n\\n${renderIntelligenceContext(intelligence.buildContext())}`,
            act,
            recentActs: records,
+           intelligenceState: state,
          });
          if (oversight.direction) {
            const checkedDirection = validateResearchObjective(oversight.direction);
