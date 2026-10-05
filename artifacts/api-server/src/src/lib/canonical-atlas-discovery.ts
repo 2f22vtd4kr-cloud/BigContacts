@@ -304,7 +304,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
           updatedAt: new Date(),
         }).where(and(
           eq(researchCasesTable.id, discoveryCaseId),
-          inArray(researchCasesTable.status, ["active", "review"]),
+          eq(researchCasesTable.status, "active"),
           sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${atlasJobId}`,
           sql`${researchCasesTable.currentAction} NOT IN ('canonical-atlas-cancelled','canonical-lease-lost')`,
         ));
