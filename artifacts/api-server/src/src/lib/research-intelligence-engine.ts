@@ -420,9 +420,7 @@ export class ResearchIntelligenceEngine {
       || item.kind === "claim"
       || (item.kind === "observation" && !["web_search", "parallel_web_search"].includes(item.action)),
     );
-    const evidenceCount = this.evidence.values()
-      ? [...this.evidence.values()].filter((item) => item.kind === "finding" || item.kind === "claim").length
-      : 0;
+    const evidenceCount = [...this.evidence.values()].filter((item) => item.kind === "finding" || item.kind === "claim").length;
     const sourceHosts = [...new Set(evidenceBearing.map((item) => item.sourceHost).filter(Boolean) as string[])];
     const sourceFamilies = sourceHosts.map(sourceFamily);
     const familyCounts = new Map<string, number>(); for (const family of sourceFamilies) familyCounts.set(family, (familyCounts.get(family) ?? 0) + 1);
