@@ -232,8 +232,11 @@ describe("Groq Right-hand model policy", () => {
   });
 
   it("recovers from a 54.547-second token-window reset within the bounded wait and overall deadline", async () => {
-    vi.useFakeTimers();
     vi.stubEnv("GROQ_RIGHT_HAND_API_KEY", "right-hand-token-54547ms-test-key");
+    const timeoutSpy = vi.spyOn(globalThis, "setTimeout").mockImplementation(((handler: (...args: any[]) => void) => {
+      handler();
+      return {} as ReturnType<typeof setTimeout>;
+    }) as typeof setTimeout);
 
     let chatCalls = 0;
     const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
@@ -260,14 +263,11 @@ describe("Groq Right-hand model policy", () => {
       }), { status: 200 });
     });
 
-    const pending = runGroqRightHandFreeJson("Return a small JSON decision.");
-    for (let tick = 0; tick < 600 && chatCalls < 2; tick += 1) {
-      await vi.advanceTimersByTimeAsync(100);
-    }
-    const result = await pending;
+    const result = await runGroqRightHandFreeJson("Return a small JSON decision.");
 
     expect(result.status).toBe("completed");
     expect(chatCalls).toBe(2);
+    expect(timeoutSpy.mock.calls.some(([, delay]) => delay === 54_547)).toBe(true);
     expect(fetchMock.mock.calls.filter(([input]) => String(input) === "https://api.groq.com/openai/v1/chat/completions")).toHaveLength(2);
   });
 
