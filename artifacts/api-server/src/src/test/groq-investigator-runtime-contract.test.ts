@@ -30,10 +30,10 @@ describe("Groq Investigator runtime contract", () => {
       promotionDecision: "promote" as const,
     };
     const searchRecord = {
-      turn: 1, model: "qwen/qwen3.8-27b", action: "web_search", args: { query: "Alice Example founder email" }, execution: "success",
+      turn: 1, model: "qwen/qwen3.8-27b", action: "web_search" as const, args: { query: "Alice Example founder email" }, execution: "success" as const,
       observation: "Alice Example — alice@example.com — https://example.com/profile", observedUrls: ["https://example.com/profile"], findings: [finding], providerFallback: [],
     };
-    const visitRecord = { ...searchRecord, turn: 2, action: "visit", args: { url: "https://example.com/profile" }, observation: "Alice Example, Founder. Public email: alice@example.com." };
+    const visitRecord = { ...searchRecord, turn: 2, action: "visit" as const, args: { url: "https://example.com/profile" }, observation: "Alice Example, Founder. Public email: alice@example.com." };
     expect(sourceBackedFindings([finding], [], [searchRecord])).toEqual([]);
     expect(sourceBackedFindings([finding], [], [searchRecord, visitRecord])).toHaveLength(1);
     expect(sourceBackedAgenticFindings([finding], [], [searchRecord])).toEqual([]);
