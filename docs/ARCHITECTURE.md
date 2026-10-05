@@ -16,7 +16,7 @@ Investigator selection is Boss-owned. Deterministic code exposes only currently 
 
 ## Current Investigator providers
 
-Groq uses Chat Completions with the current agentic model pool qwen/qwen3.8-27b, openai/gpt-oss-120b, and openai/gpt-oss-20b. Mistral uses Chat Completions and resolves live /v1/models capability data, admitting non-archived, non-fine-tuned chat-capable models. Both use bounded same-role model attempts and JSON action contracts.
+Groq is the current active Investigator adapter. Its model router prefers the fastest low-cost compatible model for routine trajectory turns and reserves larger reasoning capacity for contradiction/final adjudication. The runtime capability registry is the Boss-selection boundary; retired Mistral/Gemini adapters are not silently substituted.
 
 ## Capabilities
 
