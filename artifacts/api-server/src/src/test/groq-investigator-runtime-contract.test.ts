@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildGroqInvestigatorRequestBody } from "../lib/agentic-web-research-core";
-import { inferResearchCognitiveTask } from "../lib/research-cognitive-routing";
+import { inferResearchCognitiveTask, rankGroqModelsForTask } from "../lib/research-cognitive-routing";
 import { getAvailableInvestigatorCapabilities } from "../lib/investigator-capability-registry";
 import { resolveResearchDepth } from "../lib/research-depth";
 
@@ -40,6 +40,15 @@ describe("Groq Investigator runtime contract", () => {
     expect(schema?.properties).toHaveProperty("locale");
     expect(schema?.properties).toHaveProperty("market");
     expect(schema?.required).toEqual(expect.arrayContaining(["target", "targetType", "profile", "locale", "market"]));
+  });
+
+  it("routes routine Investigator work to the low-cost model and reserves larger models for hard reasoning", () => {
+    const models = ["openai/gpt-oss-120b", "openai/gpt-oss-20b", "qwen/qwen3.8-27b"];
+    expect(rankGroqModelsForTask(models, "discovery")[0]).toBe("openai/gpt-oss-20b");
+    expect(rankGroqModelsForTask(models, "identity_resolution")[0]).toBe("openai/gpt-oss-20b");
+    expect(rankGroqModelsForTask(models, "contact_extraction")[0]).toBe("openai/gpt-oss-20b");
+    expect(rankGroqModelsForTask(models, "contradiction_resolution")[0]).toBe("openai/gpt-oss-120b");
+    expect(rankGroqModelsForTask(models, "final_adjudication")[0]).toBe("openai/gpt-oss-120b");
   });
 
   it("exposes Investigator capability availability without embedding a selection strategy", () => {
