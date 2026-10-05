@@ -2,8 +2,9 @@
  * Cognitive-task routing hints for Investigator model selection.
  *
  * Routing never changes the Investigator role or introduces another provider.
- * It only expresses which cognitive mode deserves more reasoning budget when the
- * selected provider exposes more than one compatible model.
+ * It routes routine turns to the cheapest capable same-role model and reserves
+ * the largest model for genuinely difficult contradiction/adjudication work. This
+ * changes model selection within Groq; it never changes the Investigator provider.
  */
 export type ResearchCognitiveTask = "discovery" | "identity_resolution" | "contact_extraction" | "contradiction_resolution" | "final_adjudication";
 
@@ -33,14 +34,19 @@ export function rankGroqModelsForTask(models: readonly string[], task: ResearchC
       return 2;
     }
     if (task === "identity_resolution") {
-      if (large) return 4;
+      // Identity work is frequent and usually benefits more from fresh evidence than
+      // from maximum reasoning depth. Keep GPT-OSS 20B first so repeated target turns
+      // do not consume the 120B budget.
+      if (small) return 4;
       if (qwen) return 3;
-      if (small) return 1;
-      return 2;
+      if (large) return 2;
+      return 1;
     }
     if (task === "contact_extraction" || task === "discovery") {
-      if (qwen) return 4;
-      if (small) return 3;
+      // These turns are high-frequency tool-selection decisions. GPT-OSS 20B is
+      // faster, cheaper, and supports prompt caching; Qwen remains the next choice.
+      if (small) return 4;
+      if (qwen) return 3;
       if (large) return 2;
       return 1;
     }
