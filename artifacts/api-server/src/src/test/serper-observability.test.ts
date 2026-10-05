@@ -9,11 +9,13 @@ vi.mock("../lib/ssrf-safe-fetch", () => ({ safeOutboundFetch: mocks.safeOutbound
 vi.mock("../lib/logger", () => ({ logger: mocks.logger }));
 
 import { webSearchSerper } from "../lib/agentic-web-research-core";
+import { resetProviderGateForTests } from "../lib/provider-gate";
 
 describe("Serper provider observability", () => {
   afterEach(() => {
     mocks.safeOutboundFetch.mockReset();
     vi.clearAllMocks();
+    resetProviderGateForTests();
     delete process.env.SERPER_API_KEY;
   });
 
