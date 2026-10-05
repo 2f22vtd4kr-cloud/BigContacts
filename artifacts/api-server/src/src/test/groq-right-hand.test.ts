@@ -188,8 +188,9 @@ describe("Groq Right-hand model policy", () => {
     expect(chatCalls).toHaveLength(2);
   });
 
-  it("classifies Groq token-window 429s from the error body even when remaining tokens are nonzero", async () => {
+  it("recovers from a token-window 429 identified by the error body even when remaining tokens are nonzero", async () => {
     vi.stubEnv("GROQ_RIGHT_HAND_API_KEY", "right-hand-token-body-type-test-key");
+    vi.useFakeTimers();
 
     const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
       const url = String(input);
@@ -198,31 +199,39 @@ describe("Groq Right-hand model policy", () => {
           data: [{ id: "openai/gpt-oss-120b" }],
         }), { status: 200 });
       }
+      const chatCalls = fetchMock.mock.calls
+        .filter(([callInput]) => String(callInput) === "https://api.groq.com/openai/v1/chat/completions").length;
+      if (chatCalls === 1) {
+        return new Response(JSON.stringify({
+          error: {
+            type: "tokens",
+            code: "rate_limit_exceeded",
+            message: "token rate limit",
+          },
+        }), {
+          status: 429,
+          headers: {
+            "x-ratelimit-limit-tokens": "8000",
+            "x-ratelimit-remaining-tokens": "3108",
+            "x-ratelimit-reset-tokens": "36.69s",
+            "x-ratelimit-remaining-requests": "998",
+            "retry-after": "20",
+          },
+        });
+      }
       return new Response(JSON.stringify({
-        error: {
-          type: "tokens",
-          code: "rate_limit_exceeded",
-          message: "token rate limit",
-        },
-      }), {
-        status: 429,
-        headers: {
-          "x-ratelimit-limit-tokens": "8000",
-          "x-ratelimit-remaining-tokens": "3108",
-          "x-ratelimit-reset-tokens": "36.69s",
-          "x-ratelimit-remaining-requests": "998",
-          "retry-after": "20",
-        },
-      });
+        choices: [{ message: { content: '{"decision":"proceed"}' } }],
+      }), { status: 200 });
     });
 
-    const result = await runGroqRightHandFreeJson("Return a small JSON decision.");
+    const resultPromise = runGroqRightHandFreeJson("Return a small JSON decision.");
+    await vi.runOnlyPendingTimersAsync();
+    const result = await resultPromise;
 
-    expect(result.status).toBe("unavailable");
-    expect(result.error).toContain('"rateLimitKind":"tokens"');
+    expect(result.status).toBe("completed");
     const chatCalls = fetchMock.mock.calls
       .filter(([input]) => String(input) === "https://api.groq.com/openai/v1/chat/completions");
-    expect(chatCalls).toHaveLength(1);
+    expect(chatCalls).toHaveLength(2);
   });
 
   it("fails closed on a hard model 429 instead of advancing to another model", async () => {
