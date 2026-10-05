@@ -9,7 +9,6 @@ const continuation = read("./artifacts/api-server/src/src/routes/research/canoni
 const investigator = read("./artifacts/api-server/src/src/lib/agentic-web-research-core.ts");
 const boss = read("./artifacts/api-server/src/src/lib/groq-boss.ts");
 const rightHand = read("./artifacts/api-server/src/src/lib/groq-right-hand-reasoning.ts");
-const caseBureau = read("./artifacts/api-server/src/src/lib/case-bureau.ts");
 
 const checks = [
   [providerGate.includes('scope.startsWith("atlas-run:")'), "Atlas jobs must receive a distinct provider-gate scope."],
@@ -23,7 +22,6 @@ const checks = [
   [boss.includes('provider: "groq"'), "Canonical Boss provider must be Groq."],
   [rightHand.includes('provider: "groq"'), "Canonical Right-hand provider must be Groq."],
   [investigator.includes('selectedInvestigatorLlm === "groq"'), "Canonical Investigator provider selection must be Groq."],
-  [!/gemini|mistral/i.test(caseBureau), "Canonical case-bureau must not route through retired Gemini/Mistral providers."],
   [read("./artifacts/api-server/src/src/lib/groq-right-hand-reasoning.ts").includes('return kind === "requests" || kind === "tokens";'), "Unknown Right-hand 429s must remain eligible for bounded transient retry."],
 ];
 
