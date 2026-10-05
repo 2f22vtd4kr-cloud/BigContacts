@@ -4,6 +4,8 @@ const root = new URL("..", import.meta.url);
 const read = (relative) => readFileSync(new URL(relative, root), "utf8");
 
 const providerGate = read("./artifacts/api-server/src/src/lib/provider-gate.ts");
+const caseBureau = read("./artifacts/api-server/src/src/lib/case-bureau.ts");
+const activeControlFiles = [boss, rightHand, investigator, caseBureau].join("\n");
 const launch = read("./artifacts/api-server/src/src/routes/research/canonical-atlas-launch.ts");
 const continuation = read("./artifacts/api-server/src/src/routes/research/canonical-case-continuation.ts");
 const investigator = read("./artifacts/api-server/src/src/lib/agentic-web-research-core.ts");
@@ -22,6 +24,12 @@ const checks = [
   [boss.includes('provider: "groq"'), "Canonical Boss provider must be Groq."],
   [rightHand.includes('provider: "groq"'), "Canonical Right-hand provider must be Groq."],
   [investigator.includes('selectedInvestigatorLlm === "groq"'), "Canonical Investigator provider selection must be Groq."],
+  [caseBureau.includes("generateGroqBossText(selection, prompt, options)"), "Legacy Gemini Boss compatibility wrapper must delegate to Groq."],
+  [caseBureau.includes("export const runGeminiBossDiscovery = runGroqBossDiscovery"), "Legacy Gemini discovery name must alias the canonical Groq implementation."],
+  [caseBureau.includes('investigatorLlm: "groq" | null'), "Compatibility control contracts must expose only the active Groq Investigator capability."],
+  [!/generativelanguage\\.googleapis\\.com|GEMINI_API_KEY|GOOGLE_API_KEY/i.test(activeControlFiles), "Canonical Atlas control files must not contain an active Gemini endpoint or credential."],
+  [!/mistral\\.ai|MISTRAL_API_KEY/i.test(activeControlFiles), "Canonical Atlas control files must not contain an active Mistral endpoint or credential."],
+  [providerGate.includes('"mistral"') && providerGate.includes('"gemini"'), "Dormant provider-gate classifications for Gemini/Mistral must remain preserved."],
   [read("./artifacts/api-server/src/src/lib/groq-right-hand-reasoning.ts").includes('return kind === "requests" || kind === "tokens";'), "Unknown Right-hand 429s must remain eligible for bounded transient retry."],
 ];
 
