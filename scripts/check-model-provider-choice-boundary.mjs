@@ -12,5 +12,9 @@ check(/provider: \{ type: \[\"string\",\"null\"\], enum: \[\"serper\",\"tavily\"
 check(/options\.provider \? attempts\.filter/.test(browser) && !/for \(const \[provider, fn\] of attempts\) \{/.test(browser),"browser retrieval must execute only the selected provider.");
 check(/provider: DomainLookupProvider/.test(domain) && /if \(options\.provider === "rdap"\)/.test(domain) && !/Promise\.all\(\[rdap, whoisjson\]/.test(domain),"domain lookup must execute only the selected provider.");
 check(/playwright:"scrape"/.test(gate) && /rdap:"registry"/.test(gate),"explicit browser/RDAP providers must have scoped provider budgets.");
+const executionContext=read("artifacts/api-server/src/src/lib/agentic-web-research.ts");
+const scopeContext=read("artifacts/api-server/src/src/lib/agentic-execution-context.ts");
+check(/input\.caseId != null/.test(executionContext) && /agentic:case:/.test(executionContext),"canonical case runs must share one agentic execution scope across Investigator acts.");
+check(/case:\[\^:\]\+\):investigator/.test(scopeContext),"selected Investigator parsing must accept case-scoped execution contexts.");
 if(failures.length){console.error("MODEL PROVIDER CHOICE BOUNDARY: FAIL");for(const f of failures)console.error("- "+f);process.exit(1);}
 console.log("MODEL PROVIDER CHOICE BOUNDARY: PASS");
