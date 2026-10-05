@@ -8,14 +8,14 @@ import { sourceBackedAgenticFindings } from "../lib/bureau-agentic-pass";
 describe("Groq Investigator runtime contract", () => {
 
   it("rejects generic fame/wealth discovery queries but allows concrete anchors", () => {
-    expect(validateDiscoverySearchQuery("billionaires richest people Forbes", [])).toBeNull();
-    expect(validateDiscoverySearchQuery("Elon Musk", [])).toBeNull();
-    expect(validateDiscoverySearchQuery("wealthiest people investment firms", [])).toBeNull();
-    expect(validateDiscoverySearchQuery("Slovenia casino", [])).toBe("Slovenia casino");
-    expect(validateDiscoverySearchQuery("Ljubljana hotel owner", [])).toBe("Ljubljana hotel owner");
-    expect(validateDiscoverySearchQuery("private equity founder site:a16z.com", [])).toBe("private equity founder site:a16z.com");
-    expect(validateDiscoverySearchQuery("Slovenia casino", ["Slovenia casino"])).toBeNull();
-    expect(validateDiscoverySearchQuery("Slovenia casino owners", ["Slovenia casino"])).toBe("Slovenia casino owners");
+    expect(validateDiscoverySearchQuery("billionaires richest people Forbes", [])).toMatchObject({ allowed: false });
+    expect(validateDiscoverySearchQuery("Elon Musk", [])).toMatchObject({ allowed: false });
+    expect(validateDiscoverySearchQuery("wealthiest people investment firms", [])).toMatchObject({ allowed: false });
+    expect(validateDiscoverySearchQuery("Slovenia casino", [])).toEqual({ allowed: true });
+    expect(validateDiscoverySearchQuery("Ljubljana hotel owner", [])).toEqual({ allowed: true });
+    expect(validateDiscoverySearchQuery("private equity founder site:a16z.com", [])).toEqual({ allowed: true });
+    expect(validateDiscoverySearchQuery("Slovenia casino", ["Slovenia casino"])).toMatchObject({ allowed: false });
+    expect(validateDiscoverySearchQuery("Slovenia casino owners", ["Slovenia casino"])).toEqual({ allowed: true });
   });
 
   it("does not treat search-result snippets as card-grade source evidence", () => {
