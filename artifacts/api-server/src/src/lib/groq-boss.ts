@@ -173,6 +173,10 @@ function extractText(payload: unknown): string {
 
 function groqHardRateLimit(response: Response, body: string): boolean {
   if (response.status !== 429) return false;
+  try {
+    const parsed = JSON.parse(body) as { error?: { type?: unknown } };
+    if (parsed.error?.type === "tokens") return true;
+  } catch {}
   const remainingRequests = Number(response.headers.get("x-ratelimit-remaining-requests")?.trim() ?? "NaN");
   const remainingTokens = Number(response.headers.get("x-ratelimit-remaining-tokens")?.trim() ?? "NaN");
   if ((Number.isFinite(remainingRequests) && remainingRequests === 0) || (Number.isFinite(remainingTokens) && remainingTokens === 0)) return true;

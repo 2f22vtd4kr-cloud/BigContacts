@@ -119,6 +119,10 @@ type RateLimitKind = "requests" | "tokens" | "unknown" | null;
 function rateLimitKind(response:Response, body:string):RateLimitKind {
  if(response.status!==429) return null;
  if(providerErrorCode(body)==="quota_exceeded") return "requests";
+ try {
+  const parsed = JSON.parse(body) as { error?: { type?: unknown } };
+  if (parsed.error?.type === "tokens") return "tokens";
+ } catch {}
  const remainingTokens=Number(response.headers.get("x-ratelimit-remaining-tokens")?.trim() ?? "NaN");
  if(Number.isFinite(remainingTokens)&&remainingTokens===0) return "tokens";
  const remainingRequests=Number(response.headers.get("x-ratelimit-remaining-requests")?.trim() ?? "NaN");
