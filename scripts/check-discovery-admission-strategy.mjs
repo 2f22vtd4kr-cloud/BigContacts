@@ -19,6 +19,10 @@ if (!/function candidateIdentityObserved\([\s\S]*?normalizedText\.includes\(norm
   throw new Error("Canonical discovery admission must require the normalized candidate name to be present in the observed source material.");
 }
 
+if (!/db\.transaction\(async \(tx\) => \{[\s\S]*tx\.update\(researchCasesTable\)[\s\S]*tx\.insert\(researchCaseEventsTable\)/.test(source)) {
+  throw new Error("Canonical discovery projection and immutable admission event must be persisted atomically.");
+}
+
 if (!source.includes("function materializeAtlasAdmissions")) {
   throw new Error("Canonical Atlas admission function is missing; discovery admission boundary cannot be verified.");
 }
