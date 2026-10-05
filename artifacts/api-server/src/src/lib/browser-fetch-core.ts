@@ -4,7 +4,7 @@ import { getAgenticExecutionScope } from "./agentic-execution-context";
 import { logger } from "./logger";
 
 export type BrowserProvider = "scrapfly" | "zenrows" | "browserless" | "playwright";
-export type BrowserFetchOptions = { scope?: string; signal?: AbortSignal; provider?: BrowserProvider };
+export type BrowserFetchOptions = { scope?: string; signal?: AbortSignal; provider: BrowserProvider };
 const MAX_BROWSER_RESPONSE_BYTES = 2_000_000;
 const MAX_BROWSER_FETCH_SCOPES = 256;
 export function isChallengeHtml(html: string): boolean { if (!html || html.length < 40) return false; const head = html.slice(0, 8_000).toLowerCase(); return (/just a moment/.test(head) && /cloudflare/.test(head)) || /cf-browser-verification|cf-challenge|attention required!\s*\|\s*cloudflare/.test(head) || (/enable javascript and cookies to continue/.test(head) && html.length < 30_000) || /^HTTP 403/.test(html) || /^HTTP 503/.test(html); }
