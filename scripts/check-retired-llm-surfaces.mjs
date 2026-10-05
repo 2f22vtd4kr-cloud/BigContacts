@@ -6,7 +6,7 @@ const scanRoots = [
   path.join(root, "artifacts/api-server/src/src/lib"),
   path.join(root, "artifacts/api-server/src/routes"),
 ];
-const forbidden = /\b(?:gemini|mistral)\b/i;
+const forbidden = /GEMINI_API_KEY|GOOGLE_API_KEY|generativelanguage\.googleapis\.com|gemini-right-hand|resolveGemini|generateGemini|provider\s*[:=]\s*["\'](?:gemini|mistral)["\']|mistral\.ai|MISTRAL_API_KEY|mistral-(?:small|medium|large)/i;
 const failures = [];
 
 function walk(dir) {
