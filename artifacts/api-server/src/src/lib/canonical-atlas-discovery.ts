@@ -390,6 +390,19 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     phaseSummary.research = `researched=${researched}; explicitCardPromotions=${contactsFound}; controlTurns=${controlTurns}; finalAction=${priorAction ?? "none"}`;
     await assertAtlasJobActive(atlasJobId);
     const finalIncomplete = investigatorResourceLimited && priorAction !== "stop";
+    const finalCaseStatus = finalIncomplete ? "review" : "complete";
+    const finalCaseAction = finalIncomplete ? "canonical-investigator-resource-ceiling" : "canonical-atlas-complete";
+    await db.update(researchCasesTable).set({
+      status: finalCaseStatus,
+      currentAction: finalCaseAction,
+      lastDecisionAt: new Date(),
+      updatedAt: new Date(),
+    }).where(and(
+      eq(researchCasesTable.id, discoveryCaseId),
+      eq(researchCasesTable.status, "active"),
+      sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${atlasJobId}`,
+      sql`${researchCasesTable.currentAction} NOT IN ('canonical-atlas-cancelled','canonical-lease-lost')`,
+    ));
     await updateJob(atlasJobId, { status: finalIncomplete ? "failed" : "done", progress: finalIncomplete ? 3 : 4, total: 4, atlasPhase: finalIncomplete ? 3 : 4, atlasPhaseTotal: 4, outcome: finalIncomplete ? "incomplete" : "complete", message: finalIncomplete ? `Canonical Investigator iteration ceiling reached after ${investigatorIterationsUsed} Investigator iteration(s); case preserved for review.` : `Canonical Investigator control loop complete: ${researched} target investigation(s); AI chose the transition trajectory.`, result: JSON.stringify({ rightHand, boss: { status: boss.status, model: boss.model, investigatorLlm: boss.investigatorLlm }, discovery: { status: discovery.status, findings: discovery.findings.length, searches: discovery.searches, visits: discovery.visits, caseId: discoveryCaseId, trajectoryEntries: discovery.trajectory.length, trajectoryRecords: discovery.trajectoryRecords ?? [], runs: discoveryRuns }, control: { turns: controlTurns, finalAction: priorAction, finalCandidate: priorCandidate, investigatorIterationsUsed, investigatorIterationCeiling: depth.agenticMaxIterations, investigatorResourceLimited }, phaseSummary }), finishedAt: new Date().toISOString() });
     await clearActiveJobIfOwned(lockKey, atlasJobId); return { phase: 4, ingested: 0, enriched: materialized, contactsFound, hotLeads: admitted.length, durationMs: Date.now() - startedAt, phaseSummary };
   } catch (error) {
