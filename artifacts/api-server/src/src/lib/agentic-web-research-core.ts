@@ -305,6 +305,33 @@ function groqRetryAfterMs(response: Response, fallbackMs = 250): number {
   return Number.isFinite(timestamp) ? Math.min(2_500, Math.max(0, timestamp - Date.now())) : fallbackMs;
 }
 
+function groqTokenWindowWaitMs(response: Response, body: string): number | null {
+  if (response.status !== 429) return null;
+  let tokenLimited = false;
+  try {
+    const parsed = JSON.parse(body) as { error?: { type?: unknown } };
+    tokenLimited = parsed.error?.type === "tokens";
+  } catch {}
+  if (!tokenLimited) return null;
+  const rawReset = response.headers.get("x-ratelimit-reset-tokens")?.trim() ?? "";
+  if (rawReset) {
+    const numeric = Number(rawReset);
+    if (Number.isFinite(numeric) && numeric >= 0) return Math.min(45_000, Math.floor(numeric * 1_000));
+    const match = rawReset.match(/^(?:(\d+(?:\.\d+)?)h)?(?:(\d+(?:\.\d+)?)m)?(?:(\d+(?:\.\d+)?)s)?$/i);
+    if (match) {
+      const hours = Number(match[1] ?? 0);
+      const minutes = Number(match[2] ?? 0);
+      const seconds = Number(match[3] ?? 0);
+      return Math.min(45_000, Math.floor((hours * 3600 + minutes * 60 + seconds) * 1_000));
+    }
+  }
+  const retryAfter = response.headers.get("retry-after")?.trim() ?? "";
+  const seconds = Number(retryAfter);
+  if (Number.isFinite(seconds) && seconds >= 0) return Math.min(45_000, Math.floor(seconds * 1_000));
+  const timestamp = Date.parse(retryAfter);
+  return Number.isFinite(timestamp) ? Math.min(45_000, Math.max(0, timestamp - Date.now())) : null;
+}
+
 function groqHardRequestQuota(response: Response, body: string): boolean {
   if (response.status !== 429) return false;
   try {
@@ -370,7 +397,15 @@ async function callGroqJson(prompt: string, signal: AbortSignal, cognitiveTask: 
             retryIndex: attempt,
             reason: hardQuota ? "upstream_quota_exhausted" : "upstream_rate_limited",
           });
-          if (hardQuota) return { model, raw: "", error: "upstream_quota_exhausted" };
+          if (hardQuota) {
+            const tokenWaitMs = groqTokenWindowWaitMs(response, body);
+            if (tokenWaitMs !== null && tokenWaitMs <= 45_000 && retry429 < 1 && Date.now() + tokenWaitMs < started + PROVIDER_DECISION_TIMEOUT_MS) {
+              retry429 += 1;
+              await new Promise((resolve) => setTimeout(resolve, tokenWaitMs));
+              continue;
+            }
+            return { model, raw: "", error: "upstream_quota_exhausted" };
+          }
           if (retry429 >= 1) return { model, raw: "", error: "upstream_rate_limited" };
           const delay = groqRetryAfterMs(response);
           if (delay > 2_500 || Date.now() + delay >= started + PROVIDER_DECISION_TIMEOUT_MS) {

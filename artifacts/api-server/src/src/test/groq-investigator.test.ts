@@ -60,6 +60,41 @@ describe("Groq Investigator provider boundary", () => {
     expect(fetchMock.mock.calls.length).toBeGreaterThanOrEqual(2);
   });
 
+  it("recovers a Groq token-window 429 without rotating the Investigator model", async () => {
+    process.env.GROQ_INVESTIGATOR_API_KEY = "test-groq-investigator-token-window-key";
+    process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GROQ = "0";
+    let calls = 0;
+    mocks.safeOutboundFetch.mockImplementation(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      calls += 1;
+      if (calls === 1) {
+        return new Response(JSON.stringify({ error: { type: "tokens", code: "rate_limit_exceeded" } }), {
+          status: 429,
+          headers: {
+            "retry-after": "20",
+            "x-ratelimit-remaining-tokens": "3108",
+            "x-ratelimit-reset-tokens": "0.001s",
+            "x-ratelimit-remaining-requests": "998",
+          },
+        });
+      }
+      const body = JSON.parse(String(init?.body ?? "{}")) as { model?: string };
+      expect(body.model).toBe("openai/gpt-oss-120b");
+      return new Response(JSON.stringify({
+        choices: [{ message: { content: JSON.stringify({ action: "done", query: null, provider: null, url: null, email: null, username: null, domain: null, registry: null, thought: "done", hypothesis: null, purpose: null, expectedInformationGain: 0, searches: [], findings: [] }) } }],
+      }), { status: 200, headers: { "content-type": "application/json" } });
+    });
+
+    const result = await runAgenticWebResearch({
+      targetName: "Example",
+      investigatorLlm: "groq",
+      maxIterations: 1,
+      hardTimeoutMs: 30_000,
+    });
+
+    expect(result.status).toBe("completed");
+    expect(calls).toBe(2);
+  });
+
   it("does not rotate Investigator models after a transient 429 retry is exhausted", async () => {
     process.env.GROQ_INVESTIGATOR_API_KEY = "test-groq-investigator-key";
     process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GROQ = "0";
