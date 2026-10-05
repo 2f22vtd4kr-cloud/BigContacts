@@ -15,6 +15,10 @@ if (violations.length) {
   );
 }
 
+if (!/function candidateIdentityObserved\([\s\S]*?normalizedText\.includes\(normalizedName\)/.test(source)) {
+  throw new Error("Canonical discovery admission must require the normalized candidate name to be present in the observed source material.");
+}
+
 if (!source.includes("function materializeAtlasAdmissions")) {
   throw new Error("Canonical Atlas admission function is missing; discovery admission boundary cannot be verified.");
 }
