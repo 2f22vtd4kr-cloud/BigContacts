@@ -356,80 +356,54 @@ function extractJsonObject(value: string): string | null {
   return end > start ? source.slice(start, end + 1) : null;
 }
 
-const GEMINI_BOSS_PLAN_RESPONSE_FORMAT: Record<string, unknown> = {
-  type: "text",
-  mime_type: "application/json",
-  schema: {
-    type: "object",
-    properties: {
-      outcome: { type: "string", enum: ["proceed", "reject_target", "reframe"] },
-      actionId: { type: ["string", "null"] },
-      decision: { type: "string" },
-      reason: { type: "string" },
-      investigatorPrompt: { type: ["string", "null"] },
-      investigatorLlm: { type: ["string", "null"] },
-      restrictions: { type: "array", items: { type: "string" } },
-      tools: { type: "array", items: { type: "string" } },
-      evidenceRequirements: { type: "array", items: { type: "string" } },
-      confidence: { type: ["number", "null"] },
-      progressAssessment: { type: ["string", "null"] },
-      reprioritize: { type: "array", items: { type: "string" } },
-      suggestedScope: { type: ["string", "null"] },
-      rightHandDisposition: { type: ["string", "null"] },
-      rightHandNote: { type: ["string", "null"] },
-    },
-    required: ["outcome", "actionId", "decision", "reason", "investigatorPrompt", "investigatorLlm", "restrictions", "tools", "evidenceRequirements", "confidence", "progressAssessment", "reprioritize", "suggestedScope", "rightHandDisposition", "rightHandNote"],
-    additionalProperties: false,
-  },
-};
-
-const GEMINI_BOSS_DISCOVERY_RESPONSE_FORMAT: Record<string, unknown> = {
-  type: "text",
-  mime_type: "application/json",
-  schema: {
-    type: "object",
-    properties: {
-      report: { type: "string" },
-      investigatorLlm: { type: "string", enum: [...availableInvestigators] },
-      candidates: {
-        type: "array",
-        maxItems: 6,
-        items: {
-          type: "object",
-          properties: {
-            name: { type: "string" },
-            type: { type: "string" },
-            relevance: { type: "string" },
-            reachability: { type: "string" },
-            sourceUrls: { type: "array", items: { type: "string" }, maxItems: 8 },
-            contactEvidence: {
-              type: "array",
-              maxItems: 8,
-              items: {
-                type: "object",
-                properties: {
-                  vectorType: { type: "string" },
-                  value: { type: "string" },
-                  scope: { type: "string", enum: ["person", "organization", "unknown"] },
-                  personName: { type: ["string", "null"] },
-                  role: { type: ["string", "null"] },
-                  sourceUrls: { type: "array", items: { type: "string" }, maxItems: 6 },
-                  note: { type: ["string", "null"] }
-                },
-                required: ["vectorType", "value", "scope", "personName", "role", "sourceUrls", "note"],
-                additionalProperties: false
-              }
-            }
-          },
-          required: ["name", "type", "relevance", "reachability", "sourceUrls", "contactEvidence"],
-          additionalProperties: false
-        }
+function buildBossPlanResponseFormat(availableInvestigators: readonly InvestigatorCapability[]): Record<string, unknown> {
+  return {
+    type: "text", mime_type: "application/json",
+    schema: {
+      type: "object",
+      properties: {
+        outcome: { type: "string", enum: ["proceed", "reject_target", "reframe"] },
+        actionId: { type: ["string", "null"] }, decision: { type: "string" }, reason: { type: "string" },
+        investigatorPrompt: { type: ["string", "null"] }, investigatorLlm: { type: ["string", "null"], enum: [null, ...availableInvestigators] },
+        restrictions: { type: "array", items: { type: "string" } }, tools: { type: "array", items: { type: "string" } },
+        evidenceRequirements: { type: "array", items: { type: "string" } }, confidence: { type: ["number", "null"] },
+        progressAssessment: { type: ["string", "null"] }, reprioritize: { type: "array", items: { type: "string" } },
+        suggestedScope: { type: ["string", "null"] }, rightHandDisposition: { type: ["string", "null"] }, rightHandNote: { type: ["string", "null"] },
       },
-      nextDirections: { type: "array", items: { type: "string" }, maxItems: 8 },
-      uncertainties: { type: "array", items: { type: "string" }, maxItems: 8 }
+      required: ["outcome","actionId","decision","reason","investigatorPrompt","investigatorLlm","restrictions","tools","evidenceRequirements","confidence","progressAssessment","reprioritize","suggestedScope","rightHandDisposition","rightHandNote"],
+      additionalProperties: false,
     },
-    required: ["report", "investigatorLlm", "candidates", "nextDirections", "uncertainties"],
-    additionalProperties: false
+  };
+}
+
+function buildBossDiscoveryResponseFormat(availableInvestigators: readonly InvestigatorCapability[]): Record<string, unknown> {
+  return {
+    type: "text", mime_type: "application/json",
+    schema: {
+      type: "object",
+      properties: {
+        report: { type: "string" },
+        investigatorLlm: { type: "string", enum: [...availableInvestigators] },
+        candidates: {
+          type: "array", maxItems: 6,
+          items: {
+            type: "object",
+            properties: {
+              name: { type: "string" }, type: { type: "string" }, relevance: { type: "string" }, reachability: { type: "string" },
+              sourceUrls: { type: "array", items: { type: "string" }, maxItems: 8 },
+              contactEvidence: { type: "array", maxItems: 8, items: {
+                type: "object",
+                properties: { vectorType: { type: "string" }, value: { type: "string" }, scope: { type: "string", enum: ["person","organization","unknown"] }, personName: { type: ["string","null"] }, role: { type: ["string","null"] }, sourceUrls: { type: "array", items: { type: "string" }, maxItems: 6 }, note: { type: ["string","null"] } },
+                required: ["vectorType","value","scope","personName","role","sourceUrls","note"], additionalProperties: false,
+              } },
+            },
+            required: ["name","type","relevance","reachability","sourceUrls","contactEvidence"], additionalProperties: false,
+          },
+        },
+        nextDirections: { type: "array", items: { type: "string" }, maxItems: 8 }, uncertainties: { type: "array", items: { type: "string" }, maxItems: 8 },
+      },
+      required: ["report","investigatorLlm","candidates","nextDirections","uncertainties"], additionalProperties: false,
+    },
   };
 }
 
