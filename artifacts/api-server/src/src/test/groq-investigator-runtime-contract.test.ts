@@ -39,7 +39,8 @@ describe("Groq Investigator runtime contract", () => {
     expect(sourceBackedAgenticFindings([finding], [], [searchRecord])).toEqual([]);
     expect(sourceBackedAgenticFindings([finding], [], [searchRecord, visitRecord])).toHaveLength(1);
   });
-\n  it("uses the GPT-OSS-compatible reasoning contract", () => {
+
+  it("uses the GPT-OSS-compatible reasoning contract", () => {
     const body = buildGroqInvestigatorRequestBody({
       model: "openai/gpt-oss-120b",
       prompt: "choose the next research action",
