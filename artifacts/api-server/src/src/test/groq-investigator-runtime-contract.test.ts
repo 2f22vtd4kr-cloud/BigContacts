@@ -1,8 +1,26 @@
 import { describe, expect, it } from "vitest";
-import { buildGroqInvestigatorRequestBody } from "../lib/agentic-web-research-core";
+import { buildGroqInvestigatorRequestBody, validateDiscoverySearchQuery } from "../lib/agentic-web-research-core";
 import { inferResearchCognitiveTask } from "../lib/research-cognitive-routing";
 
 describe("Groq Investigator runtime contract", () => {
+
+  it("rejects generic fame/wealth discovery queries before they reach a provider", () => {
+    expect(validateDiscoverySearchQuery("billionaires richest people Forbes")).toMatchObject({ allowed: false });
+    expect(validateDiscoverySearchQuery("Elon Musk")).toMatchObject({ allowed: false });
+    expect(validateDiscoverySearchQuery("wealthiest people investment firms")).toMatchObject({ allowed: false });
+  });
+
+  it("accepts concrete discovery queries without prescribing the query itself", () => {
+    expect(validateDiscoverySearchQuery("Slovenia casino")).toEqual({ allowed: true });
+    expect(validateDiscoverySearchQuery("Ljubljana hotel owner")).toEqual({ allowed: true });
+    expect(validateDiscoverySearchQuery("private equity founder site:a16z.com")).toEqual({ allowed: true });
+  });
+
+  it("blocks exact duplicate discovery queries while allowing a real pivot", () => {
+    expect(validateDiscoverySearchQuery("Slovenia casino", ["Slovenia casino"])).toMatchObject({ allowed: false });
+    expect(validateDiscoverySearchQuery("Slovenia casino founder", ["Slovenia casino"])).toEqual({ allowed: true });
+  });
+
   it("uses the GPT-OSS-compatible reasoning contract", () => {
     const body = buildGroqInvestigatorRequestBody({
       model: "openai/gpt-oss-120b",
