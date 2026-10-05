@@ -36,7 +36,7 @@ vi.mock("../lib/case-bureau", async () => {
   const actual = await vi.importActual<typeof import("../lib/case-bureau")>("../lib/case-bureau");
   return {
     ...actual,
-    runGeminiBossDiscovery: vi.fn(async () => ({
+    runGroqBossDiscovery: vi.fn(async () => ({
       status: "completed" as const,
       model: "development-test-boss",
       investigatorLlm: (process.env.MISTRAL_API_KEY ? "mistral" : "groq") as "groq" | "mistral",
@@ -44,10 +44,10 @@ vi.mock("../lib/case-bureau", async () => {
       candidates: [],
       citations: [],
       nextDirections: ["Start model-owned discovery with the selected Investigator."],
-      uncertainties: ["Gemini Boss opening reasoning was substituted for this development test."],
+      uncertainties: ["Groq Boss opening reasoning was substituted for this development test."],
       error: null,
     })),
-    resolveGeminiBossModel: vi.fn(async () => ({
+    resolveGroqBossModel: vi.fn(async () => ({
       model: "development-test-boss",
       status: "resolved" as const,
       inspectedKeyCount: 0,
@@ -55,8 +55,8 @@ vi.mock("../lib/case-bureau", async () => {
       candidateModels: ["development-test-boss"],
       keyName: "development-test",
     })),
-    generateGeminiBossText: vi.fn(async (_selection: unknown, prompt: string) => {
-      if (prompt.includes("You are Gemini Boss supervising ONE Investigator act")) {
+    generateGroqBossText: vi.fn(async (_selection: unknown, prompt: string) => {
+      if (prompt.includes("You are Groq Boss supervising ONE Investigator act")) {
         return {
           model: "development-test-boss",
           raw: JSON.stringify({
@@ -69,7 +69,7 @@ vi.mock("../lib/case-bureau", async () => {
         };
       }
 
-      if (prompt.includes("You are Gemini Boss controlling the Apex Atlas research bureau")) {
+      if (prompt.includes("You are Groq Boss controlling the Apex Atlas research bureau")) {
         const candidates = extractAdmittedCandidates(prompt);
         return {
           model: "development-test-boss",
@@ -119,11 +119,11 @@ vi.mock("../lib/case-bureau", async () => {
   };
 });
 
-vi.mock("../lib/gemini-right-hand-reasoning", async () => {
-  const actual = await vi.importActual<typeof import("../lib/gemini-right-hand-reasoning")>("../lib/gemini-right-hand-reasoning");
+vi.mock("../lib/groq-right-hand-reasoning", async () => {
+  const actual = await vi.importActual<typeof import("../lib/groq-right-hand-reasoning")>("../lib/groq-right-hand-reasoning");
   return {
     ...actual,
-    runGeminiRightHandFreeJson: vi.fn(async () => ({
+    runGroqRightHandFreeJson: vi.fn(async () => ({
       status: "completed" as const,
       model: "development-test-right-hand",
       raw: JSON.stringify({
@@ -142,7 +142,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-it("runs the real canonical downstream pipeline with only Gemini Boss and Right-hand substituted", async () => {
+it("runs the real canonical downstream pipeline with only Groq Boss and Right-hand substituted", async () => {
   const { db, entitiesTable, researchCasesTable, researchCaseEventsTable } = await import("@workspace/db");
   const { clearActiveJobIfOwned, createJob, getJob, setActiveJob, updateJob } = await import("../lib/job-queue");
   const { enablePermanentRedis, disconnectRedis } = await import("../lib/redis");
@@ -160,7 +160,7 @@ it("runs the real canonical downstream pipeline with only Gemini Boss and Right-
     atlasPhaseTotal: 4,
     message: "Development-only control-plane substitution test started.",
   });
-  await appendAudit("created and claimed the canonical Atlas job", `createJob("atlas-run") + setActiveJob("atlas-run", ${jobId})`, { jobId }, "The real canonical job queue owns the run; only Gemini Boss/Right-hand model calls are substituted.", "Run the canonical Atlas pipeline with a bounded, high-signal discovery objective.");
+  await appendAudit("created and claimed the canonical Atlas job", `createJob("atlas-run") + setActiveJob("atlas-run", ${jobId})`, { jobId }, "The real canonical job queue owns the run; only Groq Boss/Right-hand model calls are substituted.", "Run the canonical Atlas pipeline with a bounded, high-signal discovery objective.");
 
   try {
     const result = await runCanonicalAtlasPipeline(jobId, {
@@ -171,7 +171,7 @@ it("runs the real canonical downstream pipeline with only Gemini Boss and Right-
       discoveryGeography: "Public web; global; prefer authoritative public company or professional sources",
     });
     const finalJob = await getJob(jobId);
-    await appendAudit("completed the canonical downstream pipeline invocation", `runCanonicalAtlasPipeline(${jobId}, targetCount=1, researchDepth=standard, targetTimeoutMs=420000, bounded discovery objective)`, { pipelineResult: result, finalJob }, "The canonical downstream path ran with real Investigator/tools/persistence while Gemini Boss and Right-hand were the only substituted roles.", "Inspect target-scoped durable cases/events and entity/card projection for this exact job.");
+    await appendAudit("completed the canonical downstream pipeline invocation", `runCanonicalAtlasPipeline(${jobId}, targetCount=1, researchDepth=standard, targetTimeoutMs=420000, bounded discovery objective)`, { pipelineResult: result, finalJob }, "The canonical downstream path ran with real Investigator/tools/persistence while Groq Boss and Right-hand were the only substituted roles.", "Inspect target-scoped durable cases/events and entity/card projection for this exact job.");
 
     const targetCases = await db
       .select({
@@ -214,7 +214,7 @@ it("runs the real canonical downstream pipeline with only Gemini Boss and Right-
       targetCases: targetCases.filter((row) => targetCaseIds.includes(row.id)),
       investigatorObservationCount: investigatorObservations.length,
       entitiesForJob,
-      substitutedRoles: ["gemini_boss", "gemini_right_hand"],
+      substitutedRoles: ["groq_boss", "groq_right_hand"],
       canonicalRolesKeptReal: [
         "groq_or_mistral_investigator",
         "web_tools",
