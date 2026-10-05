@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { evaluateTargetFitness, shouldRejectTarget, suggestReframe } from "../lib/target-fitness";
 import {
-  applyGeminiBossPlan,
+  applyBossPlan,
   contactEvidenceToRoutes,
   mergeContactRoutes,
   type ResearchCaseFile,
@@ -83,7 +83,7 @@ describe("Boss control-loop contract", () => {
 
   it("applies allowlist reprioritize without inventing action ids", () => {
     const file = minimalFile();
-    const next = applyGeminiBossPlan(file, {
+    const next = applyBossPlan(file, {
       outcome: "proceed",
       actionId: "expand-contact-routes",
       decision: "expand routes first",
@@ -104,7 +104,7 @@ describe("Boss control-loop contract", () => {
 
   it("records reject_target without activating an action and parks the queue", () => {
     const file = minimalFile();
-    const next = applyGeminiBossPlan(file, {
+    const next = applyBossPlan(file, {
       outcome: "reject_target",
       actionId: null,
       decision: "reject fame trophy",
@@ -121,7 +121,7 @@ describe("Boss control-loop contract", () => {
   it("leaves remaining priorities untouched when reprioritize is empty", () => {
     const file = minimalFile();
     const before = file.actionQueue.filter((a) => a.id !== "expand-contact-routes").map((a) => ({ id: a.id, priority: a.priority }));
-    const next = applyGeminiBossPlan(file, {
+    const next = applyBossPlan(file, {
       outcome: "proceed",
       actionId: "expand-contact-routes",
       decision: "expand routes",
