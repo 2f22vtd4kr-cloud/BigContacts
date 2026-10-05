@@ -37,17 +37,27 @@ function appendDurableActContext(contextDocument: string, actNumber: number, res
   return compactInvestigationContext({ raw: `${contextDocument}\n\n## Durable Investigator act ${actNumber}\n${serialized}` });
 }
 async function ensureTargetCase(target: { id: number; name: string; type: string }, companyName: string | null, atlasJobId: string, existingCaseId?: number): Promise<TargetCase> {
+  const isResumableCase = (status: string, currentAction: unknown) => status === "active" || (status === "complete" || status === "review") && !["canonical-atlas-cancelled", "canonical-lease-lost", "canonical-continuation-cancelled", "cancelled"].includes(String(currentAction ?? ""));
+  const reopenCaseIfNeeded = async (row: { id: number; status: string; iteration: number | null; objective: string | null; caseFile: string | null; targetEntityId: number }) => {
+    const state = parseCaseFile(row.caseFile);
+    if (row.status === "active") return { ...row, status: row.status, iteration: Number(row.iteration ?? 0), objective: row.objective ?? `Investigate ${target.name} for realistic public contact routes.` };
+    const currentAction = state.currentAction;
+    if (!isResumableCase(row.status, currentAction)) throw new Error(`Target case ${row.id} is terminal/cancelled and cannot be reopened in Atlas job ${atlasJobId}.`);
+    const nextAction = typeof state.investigatorLlm === "string" && state.investigatorLlm === "groq" ? "investigator-act-1" : "groq-boss-opening-assignment";
+    await db.update(researchCasesTable).set({ status: "active", currentAction: nextAction, updatedAt: new Date() }).where(and(eq(researchCasesTable.id, row.id), eq(researchCasesTable.caseType, "target"), eq(researchCasesTable.targetEntityId, target.id)));
+    return { ...row, status: "active", currentAction: nextAction, iteration: Number(row.iteration ?? 0), objective: row.objective ?? `Investigate ${target.name} for realistic public contact routes.` };
+  };
   if (existingCaseId) {
     const [existing] = await db.select({ id: researchCasesTable.id, targetEntityId: researchCasesTable.targetEntityId, status: researchCasesTable.status, iteration: researchCasesTable.iteration, objective: researchCasesTable.objective, caseFile: researchCasesTable.caseFile }).from(researchCasesTable).where(and(eq(researchCasesTable.id, existingCaseId), eq(researchCasesTable.caseType, "target"))).limit(1);
     if (!existing?.targetEntityId || existing.targetEntityId !== target.id) throw new Error(`Explicit target case ${existingCaseId} does not belong to target ${target.id}.`);
     const existingCaseFile = parseCaseFile(existing.caseFile); if (existingCaseFile.atlasJobId !== atlasJobId) throw new Error(`Explicit target case ${existingCaseId} is not bound to Atlas job ${atlasJobId}.`);
-    return { ...existing, targetEntityId: existing.targetEntityId, iteration: Number(existing.iteration ?? 0), objective: existing.objective ?? `Investigate ${target.name} for realistic public contact routes.` };
+    return reopenCaseIfNeeded(existing);
   }
   const candidates = await db.select({ id: researchCasesTable.id, targetEntityId: researchCasesTable.targetEntityId, status: researchCasesTable.status, iteration: researchCasesTable.iteration, objective: researchCasesTable.objective, caseFile: researchCasesTable.caseFile }).from(researchCasesTable).where(and(eq(researchCasesTable.targetEntityId, target.id), eq(researchCasesTable.caseType, "target")));
-  const existing = candidates.find((candidate) => { const state = parseCaseFile(candidate.caseFile); return state.atlasJobId === atlasJobId; });
+  const existing = candidates.find((candidate) => { const state = parseCaseFile(candidate.caseFile); return state.atlasJobId === atlasJobId && isResumableCase(candidate.status, state.currentAction); });
   if (existing?.targetEntityId) {
     const existingCaseFile = parseCaseFile(existing.caseFile); const expectedTarget = { id: target.id, name: target.name, type: target.type }; if (JSON.stringify(existingCaseFile.target) !== JSON.stringify(expectedTarget)) { existingCaseFile.target = expectedTarget; await db.update(researchCasesTable).set({ caseFile: JSON.stringify(existingCaseFile), updatedAt: new Date() }).where(eq(researchCasesTable.id, existing.id)); }
-    return { ...existing, targetEntityId: existing.targetEntityId, iteration: Number(existing.iteration ?? 0), objective: existing.objective ?? `Investigate ${target.name} for realistic public contact routes.` };
+    return reopenCaseIfNeeded(existing);
   }
   const objective = `Investigate the exact named target ${target.name}${companyName ? ` at ${companyName}` : ""} for realistic public contact routes.`;
   const [created] = await db.insert(researchCasesTable).values({ targetEntityId: target.id, caseType: "target", status: "active", directorMode: "groq_boss_pending", directorProvider: "groq", directorModel: "auto-low-cost-pending", objective, motivation: "Target-scoped Apex Atlas investigation with continuous Groq Boss + Groq Right-hand oversight.", openingPrompt: objective, caseFile: JSON.stringify({ version: 2, target: { id: target.id, name: target.name, type: target.type }, atlasJobId, investigatorActOversight: [] }), currentAction: "right-hand-preflight", iteration: 0 }).returning({ id: researchCasesTable.id, targetEntityId: researchCasesTable.targetEntityId, status: researchCasesTable.status, iteration: researchCasesTable.iteration, objective: researchCasesTable.objective, caseFile: researchCasesTable.caseFile });
