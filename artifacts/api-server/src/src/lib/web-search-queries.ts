@@ -1,5 +1,5 @@
 /**
- * Shared web search sub-query helper for non-agentic lanes (deep-web, Mistral).
+ * Shared web search sub-query helper for non-agentic search lanes.
  * Keep this thin: trained models invent the real dig in agentic ReAct.
  * These are only seed angles — not a research playbook.
  */
