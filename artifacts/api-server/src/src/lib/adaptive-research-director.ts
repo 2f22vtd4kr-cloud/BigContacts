@@ -445,7 +445,7 @@ function parseFreeBossStep(
 async function selectNextAdaptiveActionWithBoss(
   state: AdaptiveResearchState,
   maxActions: number,
-): Promise<{ action: AdaptiveAction; assignedBy: "groq-boss" | "groq-right-hand" | "groq" | "rules" }> {
+): Promise<{ action: AdaptiveAction; assignedBy: "gemini-boss" | "gemini-right-hand" | "groq" | "rules" }> {
   if (state.completedActions.length >= maxActions || state.noProgressPasses >= state.depth.noProgressLimit) {
     return {
       action: selectNextAdaptiveAction(state, maxActions),
@@ -482,17 +482,17 @@ Return ONLY JSON:
   "stop": false
 }`;
 
-  // 1) Boss — free reasoning for the opening move only. Groq is the
+  // 1) Boss — free reasoning for the opening move only. Gemini is the
   // case-level planner, not a per-search-loop web-research controller.
   if (state.completedActions.length === 0) {
     try {
-      const { resolveGroqBossModel, generateGroqBossText } = await import("./case-bureau");
-      const selection = await resolveGroqBossModel();
+      const { resolveGeminiBossModel, generateGeminiBossText } = await import("./case-bureau");
+      const selection = await resolveGeminiBossModel();
       if (selection?.model) {
-        const out = await generateGroqBossText(selection, prompt);
+        const out = await generateGeminiBossText(selection, prompt);
         if (out.raw) {
           const choice = parseFreeBossStep(out.raw, state);
-          if (choice) return { action: choice, assignedBy: "groq-boss" };
+          if (choice) return { action: choice, assignedBy: "gemini-boss" };
         }
       }
     } catch {
@@ -502,14 +502,14 @@ Return ONLY JSON:
 
   // 2) Right-hand — free assign (not final-card review)
   try {
-    const { runGroqRightHandFreeJson } = await import("./groq-right-hand-reasoning");
-    const nv = await runGroqRightHandFreeJson(
+    const { runGeminiRightHandFreeJson } = await import("./gemini-right-hand-reasoning");
+    const nv = await runGeminiRightHandFreeJson(
       prompt,
       "Assign the next research move. Reason freely. Reply with ONE JSON object: thought, tool, query, stop.",
     );
     if (nv.status === "completed" && nv.raw) {
       const choice = parseFreeBossStep(nv.raw, state);
-      if (choice) return { action: choice, assignedBy: "groq-right-hand" };
+      if (choice) return { action: choice, assignedBy: "gemini-right-hand" };
     }
   } catch {
     /* fall through */
