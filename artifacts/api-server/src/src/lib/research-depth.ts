@@ -1,7 +1,8 @@
 /**
  * Research depth is a coordination hint, not a scripted research playbook.
  * The Investigator chooses trajectory and stopping; the hard timeout remains
- * the operational safety boundary.
+ * the operational safety boundary. The depth-specific iteration defaults are
+ * resource budgets, not a scripted trajectory; the Investigator still chooses every action and may stop earlier.
  */
 
 export type ResearchDepth = "fast" | "standard" | "deep";
@@ -22,6 +23,9 @@ const MAX_RESEARCH_ACTIONS = 64;
 const MAX_NO_PROGRESS = 64;
 const MAX_FOLLOW_UPS = 64;
 const MAX_AGENTIC_ITERATIONS = 64;
+const DEFAULT_AGENTIC_ITERATIONS_FAST = 10;
+const DEFAULT_AGENTIC_ITERATIONS_STANDARD = 16;
+const DEFAULT_AGENTIC_ITERATIONS_DEEP = 24;
 
 const CONFIGS: Record<ResearchDepth, ResearchDepthConfig> = {
   fast: {
@@ -31,7 +35,7 @@ const CONFIGS: Record<ResearchDepth, ResearchDepthConfig> = {
     maxPersonFollowUps: MAX_FOLLOW_UPS,
     maxDomainFollowUps: MAX_FOLLOW_UPS,
     forcePendingVectorBias: false,
-    agenticMaxIterations: MAX_AGENTIC_ITERATIONS,
+    agenticMaxIterations: DEFAULT_AGENTIC_ITERATIONS_FAST,
     agenticHardTimeoutMs: 120_000,
     challengePass: false,
   },
@@ -42,7 +46,7 @@ const CONFIGS: Record<ResearchDepth, ResearchDepthConfig> = {
     maxPersonFollowUps: MAX_FOLLOW_UPS,
     maxDomainFollowUps: MAX_FOLLOW_UPS,
     forcePendingVectorBias: false,
-    agenticMaxIterations: MAX_AGENTIC_ITERATIONS,
+    agenticMaxIterations: DEFAULT_AGENTIC_ITERATIONS_STANDARD,
     agenticHardTimeoutMs: 210_000,
     challengePass: true,
   },
@@ -53,7 +57,7 @@ const CONFIGS: Record<ResearchDepth, ResearchDepthConfig> = {
     maxPersonFollowUps: MAX_FOLLOW_UPS,
     maxDomainFollowUps: MAX_FOLLOW_UPS,
     forcePendingVectorBias: false,
-    agenticMaxIterations: MAX_AGENTIC_ITERATIONS,
+    agenticMaxIterations: DEFAULT_AGENTIC_ITERATIONS_DEEP,
     agenticHardTimeoutMs: 360_000,
     challengePass: true,
   },
