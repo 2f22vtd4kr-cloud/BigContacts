@@ -110,7 +110,7 @@ describe("Groq Investigator provider boundary", () => {
         });
       }
       const body = JSON.parse(String(init?.body ?? "{}")) as { model?: string };
-      expect(body.model).toBe("openai/gpt-oss-120b");
+      expect(body.model).toBe("openai/gpt-oss-20b");
       return new Response(JSON.stringify({
         choices: [{ message: { content: JSON.stringify({ action: "done", query: null, provider: null, url: null, email: null, username: null, domain: null, registry: null, thought: "done", hypothesis: null, purpose: null, expectedInformationGain: 0, searches: [], findings: [] }) } }],
       }), { status: 200, headers: { "content-type": "application/json" } });
@@ -119,6 +119,7 @@ describe("Groq Investigator provider boundary", () => {
     const result = await runAgenticWebResearch({
       targetName: "Example",
       investigatorLlm: "groq",
+      cognitiveTask: "identity_resolution",
       maxIterations: 1,
       hardTimeoutMs: 30_000,
     });
@@ -145,7 +146,7 @@ describe("Groq Investigator provider boundary", () => {
         });
       }
       const body = JSON.parse(String(init?.body ?? "{}")) as { model?: string };
-      expect(body.model).toBe("openai/gpt-oss-120b");
+      expect(body.model).toBe("openai/gpt-oss-20b");
       return new Response(JSON.stringify({
         choices: [{ message: { content: JSON.stringify({ action: "done", query: null, provider: null, url: null, email: null, username: null, domain: null, registry: null, thought: "done", hypothesis: null, purpose: null, expectedInformationGain: 0, searches: [], findings: [] }) } }],
       }), { status: 200, headers: { "content-type": "application/json" } });
@@ -261,7 +262,7 @@ describe("Groq Investigator provider boundary", () => {
           headers: { "content-type": "application/json" },
         });
       }
-      expect(body.model).toBe("openai/gpt-oss-120b");
+      expect(body.model).toBe("openai/gpt-oss-20b");
       return new Response(JSON.stringify({
         choices: [{ message: { content: JSON.stringify({ action: "done", query: null, provider: null, url: null, email: null, username: null, domain: null, registry: null, thought: "done", hypothesis: null, purpose: null, expectedInformationGain: 0, searches: [], findings: [] }) } }],
       }), { status: 200, headers: { "content-type": "application/json" } });
@@ -314,7 +315,7 @@ describe("Groq Investigator provider boundary", () => {
     process.env.GROQ_INVESTIGATOR_API_KEY_1 = "test-groq-investigator-backup-key";
     const fetchMock = mocks.safeOutboundFetch.mockImplementation(async (_input: RequestInfo | URL, init?: RequestInit) => {
       const body = JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>;
-      expect(body.model).toBe("openai/gpt-oss-120b");
+      expect(body.model).toBe("openai/gpt-oss-20b");
       expect(body.include_reasoning).toBe(false);
       expect(body).not.toHaveProperty("reasoning_format");
       return new Response(JSON.stringify({
@@ -333,11 +334,11 @@ describe("Groq Investigator provider boundary", () => {
     expect(fetchMock.mock.calls.length).toBeGreaterThanOrEqual(1);
   });
 
-  it("uses the Qwen 3.8 primary routing model without provider fallback", async () => {
+  it("uses the low-cost GPT-OSS 20B primary routing model for routine Investigator work", async () => {
     process.env.GROQ_INVESTIGATOR_API_KEY = "test-groq-investigator-key";
     const fetchMock = mocks.safeOutboundFetch.mockImplementation(async (_input: RequestInfo | URL, init?: RequestInit) => {
       const body = JSON.parse(String(init?.body ?? "{}")) as { model?: string };
-      expect(body.model).toBe("openai/gpt-oss-120b");
+      expect(body.model).toBe("openai/gpt-oss-20b");
       return new Response(JSON.stringify({
         choices: [{ message: { content: JSON.stringify({ action: "done", query: null, provider: null, url: null, email: null, username: null, domain: null, registry: null, thought: "done", hypothesis: null, purpose: null, expectedInformationGain: 0, searches: [], findings: [] }) } }],
       }), { status: 200, headers: { "content-type": "application/json" } });
@@ -351,7 +352,7 @@ describe("Groq Investigator provider boundary", () => {
     });
 
     expect(result.status).toBe("completed");
-    expect(result.model).toBe("openai/gpt-oss-120b");
+    expect(result.model).toBe("openai/gpt-oss-20b");
     expect(fetchMock.mock.calls.length).toBeGreaterThanOrEqual(1);
   });
 });
