@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { buildGroqInvestigatorRequestBody } from "../lib/agentic-web-research-core";
 import { inferResearchCognitiveTask } from "../lib/research-cognitive-routing";
+import { getAvailableInvestigatorCapabilities } from "../lib/investigator-capability-registry";
+import { resolveResearchDepth } from "../lib/research-depth";
 
 describe("Groq Investigator runtime contract", () => {
   it("uses the GPT-OSS-compatible reasoning contract", () => {
@@ -38,6 +40,23 @@ describe("Groq Investigator runtime contract", () => {
     expect(schema?.properties).toHaveProperty("locale");
     expect(schema?.properties).toHaveProperty("market");
     expect(schema?.required).toEqual(expect.arrayContaining(["target", "targetType", "profile", "locale", "market"]));
+  });
+
+  it("exposes Investigator capability availability without embedding a selection strategy", () => {
+    expect(getAvailableInvestigatorCapabilities({ GROQ_INVESTIGATOR_API_KEY: "configured" })).toEqual(["groq"]);
+    expect(getAvailableInvestigatorCapabilities({})).toEqual([]);
+  });
+
+  it("uses bounded multi-step Investigator episodes while retaining the absolute 64-turn ceiling", () => {
+    const fast = resolveResearchDepth({ explicit: "fast" });
+    const standard = resolveResearchDepth({ explicit: "standard" });
+    const deep = resolveResearchDepth({ explicit: "deep" });
+    expect(fast.agenticMaxIterations).toBeLessThanOrEqual(64);
+    expect(standard.agenticMaxIterations).toBeLessThanOrEqual(64);
+    expect(deep.agenticMaxIterations).toBeLessThanOrEqual(64);
+    expect(fast.investigatorIterationsPerAct).toBeGreaterThan(1);
+    expect(standard.investigatorIterationsPerAct).toBeGreaterThan(fast.investigatorIterationsPerAct);
+    expect(deep.investigatorIterationsPerAct).toBeGreaterThan(standard.investigatorIterationsPerAct);
   });
 
   it("routes live research state into distinct cognitive modes", () => {
