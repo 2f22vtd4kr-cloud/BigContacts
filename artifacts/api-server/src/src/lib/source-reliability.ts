@@ -53,7 +53,7 @@ const SOURCE_PROFILES: Array<{
     profile: { reliability: 0.58, identity: 0.6, ownership: 0.35, contact: 0.18, freshness: 0.5, rationale: "Useful discovery and corroboration lead; not sufficient alone for attribution." },
   },
   {
-    match: /ai|groq|gemini|perplexity|tavily|exa|mcts|hybrid retrieval/i,
+    match: /ai|groq|perplexity|tavily|exa|mcts|hybrid retrieval/i,
     profile: { reliability: 0.4, identity: 0.42, ownership: 0.28, contact: 0.22, freshness: 0.55, rationale: "Derived or discovery output; must remain bound to cited public sources." },
   },
 ];
