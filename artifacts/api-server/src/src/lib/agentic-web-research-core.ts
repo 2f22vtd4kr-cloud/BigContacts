@@ -578,6 +578,7 @@ function buildStepPrompt(input: { targetName: string; companyName?: string | nul
     + assignment + "\n\n"
     + "AVAILABLE ACTIONS (choose freely; there is no required first tool and no required hop order):\n" + JSON.stringify(AGENTIC_ACTION_SCHEMA) + "\n\n"
     + "CAPABILITY REGISTRY — choose by purpose, information value, prerequisites, complementary source families, and limitations; do not use a capability merely because it exists:\n" + renderAtlasCapabilityGuidance() + "\n\n"
+    + "ACTION CONTRACT NOTE: when choosing domain_lookup, explicitly choose provider=rdap or provider=whoisjson; only that provider will execute and the harness will not substitute the other. When choosing browser_fetch, explicitly choose provider=scrapfly, zenrows, browserless, or playwright; only that provider will execute and the harness will not substitute another.\n\n"
     + "ACTION CONTRACT NOTE: when choosing footprint_spiderfoot, provide target, targetType (domain|hostname|ip|email|username|person|asn), and profile (identity-expansion|domain-infrastructure|organization-footprint|contact-adjacent|broad-osint). The harness will record the capability as blocked if the attested network-capable Python sandbox is unavailable; do not invent observations.\n\n"
     
     + "EVIDENCE LAW:\n"
