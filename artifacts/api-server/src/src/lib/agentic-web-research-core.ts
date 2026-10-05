@@ -257,7 +257,7 @@ async function gatedSafeOutboundFetch(input: RequestInfo | URL, init: RequestIni
   const provider = classifyExternalProvider(rawUrl);
   let account = "operation";
   try { account = new URL(rawUrl).hostname.toLowerCase(); } catch {}
-  return runProviderCall({ provider, account, signal: init.signal }, () => safeOutboundFetch(input, init));
+  return runProviderCall({ provider, account, signal: init.signal ?? undefined }, () => safeOutboundFetch(input, init));
 }
 
 async function toolWebSearch(query: string, provider: "serper" | "tavily" | "exa", locale?: string, market?: string, signal?: AbortSignal): Promise<{ text: string; urls: string[]; provider: string }> {
