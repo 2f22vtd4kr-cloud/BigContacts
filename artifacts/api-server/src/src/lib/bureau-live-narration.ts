@@ -57,7 +57,7 @@ export function scheduleBureauLiveNarration(event: BureauLiveEvent): void {
   const now = Date.now();
   if (now - lastNarrationAt < MIN_GAP_MS) return;
   if (inFlight >= MAX_IN_FLIGHT) return;
-  if (!process.env.GEMINI_API_KEY?.trim() && !process.env.GEMINI_API_KEY?.trim() && !process.env.GEMINI_API_KEY?.trim()) {
+  if (!process.env.GROQ_RIGHT_HAND_API_KEY?.trim()) {
     return;
   }
 
