@@ -104,7 +104,7 @@ groq
 mistral
 ```
 
-The selected Investigator is the researcher. It receives durable case/run context and owns query formulation, tool choice, pivots, verification, disproof, and stopping.
+The selected Investigator is the researcher. It receives durable case/run context and owns query formulation, tool choice, pivots, verification, disproof, and stopping. The target runtime gives it bounded multi-step ReAct episodes; Right-hand/Boss review the complete episode rather than forcing a provider call after every single tool action.
 
 DeepSeek/NVIDIA is not an active Investigator or Right-hand path.
 
@@ -723,7 +723,7 @@ No live Mistral call or Atlas launch was made to validate the new fallback. Vali
 Superseding all earlier provider-role sections above, current canonical main uses Groq for all three AI control/research roles:
 - Boss: Groq openai/gpt-oss-120b with openai/gpt-oss-20b fallback; credentials GROQ_BOSS_API_KEY and _1 through _10.
 - Right-hand: Groq openai/gpt-oss-120b with openai/gpt-oss-20b fallback; credentials GROQ_RIGHT_HAND_API_KEY plus _2 through _5.
-- Investigator: Groq-only; credentials GROQ_INVESTIGATOR_API_KEY plus _1 through _5.
+- Investigator: Boss-selected capability from the runtime registry; currently the only active adapter is Groq, using GROQ_INVESTIGATOR_API_KEY plus _1 through _5.
 - Gemini and Mistral are retired from the canonical active control plane. Historical audit sections may mention them as prior failures/migrations only.
 
 Important merged commits:
