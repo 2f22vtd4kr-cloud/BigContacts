@@ -46,7 +46,7 @@ const checks=[
 ["discovery is not accidentally target-gated",/input\.mode === "discovery"/.test(agentic)],
 ["selected Investigator executes only the Boss-selected provider",/const fn = selectedInvestigatorLlm === "groq"/.test(core)&&!/orderedProviders/.test(core)&&!/for\s*\(const \[name, fn\] of orderedProviders\)/.test(core)],
 ["selected Investigator records no cross-provider fallback",/fallback: \[\]/.test(core)],
-["canonical ReAct domain lookup receives cancellation",/lookupDomainSurface\(action\.domain, \{ signal: runController\.signal \}\)/.test(core)],
+["canonical ReAct domain lookup receives cancellation",/lookupDomainSurface\(action\.domain, \{ provider: action\.provider, signal: runController\.signal \}\)/.test(core)],
 ["canonical ReAct registry lookup receives cancellation",/searchRegistry\(\{ query: action\.query, registry: action\.registry as any, limit: 8, signal: runController\.signal \}\)/.test(core)],
 ["direct Apex entity contact PATCH is guarded",/isDirectEntityCardPatch\(req\.path\)/.test(mutationGuard)],
 ["Apex contact fields are explicitly enumerated at the card boundary",/DIRECT_CONTACT_FIELDS/.test(mutationGuard)&&/contactOutcome/.test(mutationGuard)&&/metadata/.test(mutationGuard)],
