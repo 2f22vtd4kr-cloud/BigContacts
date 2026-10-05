@@ -9,7 +9,8 @@ vi.mock("../lib/ssrf-safe-fetch", () => ({ safeOutboundFetch: mocks.safeOutbound
 import { bindModelFindingsToObservedSources, runAgenticWebResearch, INVESTIGATOR_LLM_CAPABILITY_POOL } from "../lib/agentic-web-research-core";
 import { resetProviderGateForTests } from "../lib/provider-gate";
 
-describe("Groq Investigator provider boundary", () => {\n  it("binds terminal findings only to exact passages from previously observed non-search sources", () => {
+describe("Groq Investigator provider boundary", () => {
+  it("binds terminal findings only to exact passages from previously observed non-search sources", () => {
     const finding = {
       vectorType: "email" as const,
       value: "jane@example.com",
