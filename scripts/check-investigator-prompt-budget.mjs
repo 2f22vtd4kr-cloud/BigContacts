@@ -10,7 +10,7 @@ const assert = (ok, message) => { if (!ok) failures.push(message); };
 
 assert(/MAX_PROVIDER_PROMPT_CHARS = 9_000/.test(core), "final Investigator provider prompt ceiling must be 9,000 characters");
 assert(/maxChars: 4_200/.test(core), "working Investigator context must use the reduced 4,200-character budget");
-assert(/boundInvestigatorPromptSection\(input\.intelligenceContext[^,]*, 1_500\)/.test(core), "intelligence state must be bounded to 1,500 characters");
+assert(/const cognitiveState = boundInvestigatorPromptSection\([\s\S]*?1_500\)/.test(core), "intelligence state must be bounded to 1,500 characters");
 assert(/const capabilityGuidance = boundInvestigatorPromptSection\(renderAtlasCapabilityGuidanceCompact\(\), 1_600\)/.test(core), "capability guidance must be explicitly bounded");
 assert(/function buildStepPrompt/.test(core), "Investigator prompt builder is present");
 const stepStart = core.indexOf("export function buildStepPrompt");
