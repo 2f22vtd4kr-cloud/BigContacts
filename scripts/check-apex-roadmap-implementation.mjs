@@ -23,7 +23,7 @@ for(const f of required) if(!fs.existsSync(path.join(root,f))) throw new Error("
 const core=fs.readFileSync(path.join(root,"artifacts/api-server/src/src/lib/agentic-web-research-core.ts"),"utf8");
 const investigatorRegistry=fs.readFileSync(path.join(root,"artifacts/api-server/src/src/lib/investigator-capability-registry.ts"),"utf8");
 const bureauPrompt=fs.readFileSync(path.join(root,"artifacts/api-server/src/src/lib/case-bureau-prompt.ts"),"utf8");
-for(const marker of ["GROQ_INVESTIGATOR_KEY_NAMES","investigatorCapabilityKeyName","GROQ_INVESTIGATOR_API_KEY_1"]) if(!investigatorRegistry.includes(marker)) throw new Error("Investigator capability registry contract drifted: "+marker);
+for(const marker of ["GROQ_INVESTIGATOR_KEY_NAMES","investigatorCapabilityKeyName","GROQ_INVESTIGATOR_API_KEY"]) if(!investigatorRegistry.includes(marker)) throw new Error("Investigator capability registry contract drifted: "+marker);\nif(!/Array\.from\(\{?\s*length:\s*5/.test(investigatorRegistry) || !/`GROQ_INVESTIGATOR_API_KEY_\$\{i \+ 1\}`/.test(investigatorRegistry)) throw new Error("Investigator capability registry does not expose the five suffixed credential bindings.");
 if(!investigatorRegistry.includes("capability.match(/^groq-investigator-(\\d+)$/)")) throw new Error("Investigator capability registry numeric binding contract drifted.");
 if(!/getAvailableInvestigatorCapabilities\(/.test(core)) throw new Error("Agentic core does not expose runtime Investigator capability availability.");
 if(/choose exactly one configured Investigator capability:\s*Groq/i.test(bureauPrompt)) throw new Error("Boss prompt still hardcodes Groq as the only Investigator capability.");
