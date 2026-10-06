@@ -14,45 +14,45 @@ Read `docs/context.md` before modifying, installing or running anything.
 
 ## Architecture that must remain intact
 
-Apex has two AI layers only:
+Apex has two oversight roles plus one Investigator lane:
 
-- Gemini Boss + Gemini Right-hand for bounded oversight.
-- A selected Groq or Mistral Investigator for actual research.
+- Groq Boss for case direction and Investigator capability selection.
+- Groq Right-hand for bounded independent oversight.
+- A selected Groq Investigator capability for actual model-owned research.
 
 The Investigator owns its research trajectory. Tools are capabilities, not fixed phases. Deterministic code enforces safety, authorization, provenance, identity, persistence and resource limits; it must not secretly substitute a scripted research sequence.
 
-DeepSeek/NVIDIA is not an active Apex provider path and must not be requested as an Investigator or Right-hand secret.
+Gemini, Mistral, and DeepSeek/NVIDIA are not active canonical control-plane or Investigator adapters and must not be requested as active Apex capabilities.
 
-## Fresh-account secret contract
+## Active provider secret contract
 
-The startup contract is **exactly these 16 names, in this order**. Ask for/configure every one in Replit Secrets. Do not turn setup into conditional provider discovery.
+The repository preflight currently checks these 13 provider/integration names:
 
-```text
-1. REDIS_URL_1
-2. GROQ_API_KEY
-3. GEMINI_API_KEY
-4. MISTRAL_API_KEY
-5. HF_TOKEN
-6. SERPER_API_KEY
-7. TAVILY_API_KEY
-8. SERPAPI_KEY
-9. EXA_API_KEY
-10. SCRAPFLY_API_KEY
-11. ZENROWS_API_KEY
-12. COMPANIES_HOUSE_API_KEY
-13. GEMINI_RIGHT_HAND_API_KEY
-14. APEX_API_AUTH_TOKEN
-15. APEX_OPERATOR_PASSWORD
-16. APEX_SESSION_SECRET
 ```
+COMPANIES_HOUSE_API_KEY
+EXA_API_KEY
+GROQ_BOSS_API_KEY
+GROQ_RIGHT_HAND_API_KEY
+GROQ_INVESTIGATOR_API_KEY
+HF_TOKEN
+GROQ_INVESTIGATOR_API_KEY_1
+REDIS_URL_1
+SCRAPFLY_API_KEY
+SERPAPI_KEY
+SERPER_API_KEY
+TAVILY_API_KEY
+ZENROWS_API_KEY
+```
+
+Additional numbered Groq Boss, Right-hand, and Investigator credential slots are optional runtime capabilities. Investigator slots are independently selectable; for example `groq-investigator-1` maps to `GROQ_INVESTIGATOR_API_KEY`, `groq-investigator-2` maps to `GROQ_INVESTIGATOR_API_KEY_1`, through `groq-investigator-6` mapping to `GROQ_INVESTIGATOR_API_KEY_5`.
+
+Never silently rotate an explicitly selected Investigator capability to another credential.
 
 Check presence only. Never display, echo, log, commit, or paste secret values into chat.
 
-`DATABASE_URL` is supplied by Replit/Postgres and must not be requested from the operator.
+`DATABASE_URL` is supplied by Postgres/platform infrastructure and must not be requested from the operator.
 
-Do not request GitHub credentials, retired DeepSeek/NVIDIA credentials, `WHOISJSON_API_KEY`, `WHOXY_*`, or `REDIS_URL_2`–`REDIS_URL_5`.
-
-Older `docs/bureau-plan/*` secret lists are historical and are not authoritative for fresh-account setup. This file and `docs/APEX_REPLIT_INITIALIZATION_BLUEPRINT.md` are the current contract.
+Do not request GitHub credentials, retired Gemini/Mistral/DeepSeek/NVIDIA control-plane credentials, WHOIS/WHOXY credentials, or other retired secrets.
 
 ## Install and run
 
@@ -103,12 +103,3 @@ Report:
 - exact blockers.
 
 A successful setup is not evidence that Apex is better than another research system. Research comparisons require matched benchmark runs and the frozen Gauntlet scoring protocol.
-
-## Gemini role-separated credentials
-
-The canonical bureau uses separate Gemini credentials:
-
-- `GEMINI_API_KEY` — Gemini Boss.
-- `GEMINI_RIGHT_HAND_API_KEY` — Gemini Right-hand.
-
-There is no fallback from Right-hand to Boss credentials. Never print or expose either secret.

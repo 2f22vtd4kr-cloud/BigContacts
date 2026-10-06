@@ -25,8 +25,7 @@
 3. Use the platform-managed Postgres and canonical Redis configuration.
 4. Run one API workflow on `PORT=8080`; desk at `/`, API at `/api/`.
 5. Keep `ENABLE_AUTO_PIPELINE=false` unless the documented deployment explicitly requires otherwise.
-6. Request only the 13 active provider/integration secrets documented in `docs/REPLIT_NEW_ACCOUNT_SETUP.md`.
-7. Provision the three API/browser authentication controls separately when protected access is enabled.
+6. Use the active role-scoped provider secret contract in `docs/context.md`; optional numbered Groq capability slots are separate selectable credentials.
 8. Run preflight, architecture checks, typecheck, builds, and focused tests before claiming readiness.
 
 ## 2. First-time schema initialization
@@ -48,15 +47,15 @@ Do **not** leave `APEX_ALLOW_SCHEMA_PUSH=true` enabled for ordinary runtime boot
 A canonical run is:
 
 ```
-Gemini Boss
-  → Investigator selection
-  → Groq/Mistral Investigator
+Groq Boss
+  → Investigator capability selection
+  → selected Groq Investigator capability
   → model-selected action
   → validated tool execution
   → observation + provenance
   → evidence graph / contact / contradiction state
-  → Gemini Right-hand review
-  → Boss disposition
+  → Groq Right-hand review
+  → Groq Boss disposition
   ↺ next Investigator act
 ```
 
@@ -127,7 +126,7 @@ Do not publish Apex until a fresh environment can:
 1. initialize the required schema explicitly;
 2. boot canonically with schema mutation disabled;
 3. authenticate safely;
-4. execute a real Groq/Mistral Investigator run;
+4. execute a real Groq Investigator run;
 5. persist observations, provenance, evidence, contacts, and oversight;
 6. survive controlled provider/tool/cancellation failures truthfully;
 7. render the same durable truth in the UI;
