@@ -1,0 +1,44 @@
+name: Atlas CI
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: atlas-ci-main
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  api-server:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck API
+        run: pnpm --filter @workspace/api-server typecheck
+
+      - name: API regression suite
+        run: pnpm --filter @workspace/api-server test
+
+      - name: API build
+        run: pnpm --filter @workspace/api-server build
