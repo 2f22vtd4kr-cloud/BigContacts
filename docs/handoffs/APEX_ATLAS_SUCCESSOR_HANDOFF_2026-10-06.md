@@ -384,3 +384,25 @@ The successor must **verify them against current main**, find anything this agen
 
 If the live run fails, append the evidence to the sequential audit and continue architecture-preserving recovery rather than masking the failure.
 
+
+
+## Successor verification addendum — 2026-10-06
+
+A subsequent source-level review found one additional prompt-budget defect that the earlier implementation/guard did not catch:
+
+- MAX_PROVIDER_PROMPT_CHARS = 9,000 had been applied to the dynamic/user prompt without reserving the stable Investigator system message.
+- buildGroqInvestigatorRequestBody() was also an exported boundary that could construct an oversized message envelope if called directly.
+- Telemetry exposed prompt economics but did not separately identify system, user, and total prompt characters.
+
+These are now repaired on main:
+
+- the final user-message budget reserves the actual stable Investigator system prompt;
+- buildStepPrompt() bounds the composed dynamic prompt against the complete message envelope;
+- buildGroqInvestigatorRequestBody() independently enforces the same envelope;
+- telemetry records systemPromptChars, userPromptChars, and totalPromptChars;
+- prompt-budget regression coverage now exercises the provider request-body boundary;
+- discovery-query regression coverage explicitly rejects the previously observed generic VC/PE/biotech/software queries.
+
+This was a genuine cross-layer budget defect, not merely a stale assertion.
+
+The full API suite, typecheck, complete build, and canonical live run remain execution gates. This environment has not executed those commands and has no observable CI run for the current main commits; therefore no green/readiness claim is authorized from static inspection alone.
