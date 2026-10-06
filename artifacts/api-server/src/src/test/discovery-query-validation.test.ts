@@ -11,6 +11,12 @@ describe("discovery query quality rail", () => {
     expect(validateDiscoverySearchQuery("Elon Musk Tesla").allowed).toBe(true);
   });
 
+  it("blocks generic sector/role/source vocabulary without a concrete anchor", () => {
+    expect(validateDiscoverySearchQuery("2023 venture capital investment biotech company CEO").allowed).toBe(false);
+    expect(validateDiscoverySearchQuery("2023 private equity acquisition tech startup executive").allowed).toBe(false);
+    expect(validateDiscoverySearchQuery("2023 funding round software company founder interview").allowed).toBe(false);
+  });
+
   it("still allows concrete role and sector pivots", () => {
     expect(validateDiscoverySearchQuery("Slovenia casino owners").allowed).toBe(true);
     expect(validateDiscoverySearchQuery("Example Corp founder").allowed).toBe(true);
