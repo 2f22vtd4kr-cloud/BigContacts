@@ -34,7 +34,7 @@ The current repository at the verified `main` SHA outranks every handoff documen
 
 ## Historical volumes
 
-The older numbered handoff volumes remain valuable for incident chronology and migration history. They are not current provider contracts. In particular, `02_GEMINI_CONTROL_PLANE.md`, `19_MASTER_SUCCESSOR_HANDOFF_CURRENT_2026-10-02.md`, and other pre-2026-10-06 volumes must be treated as historical wherever they conflict with `docs/context.md) or executable source.
+The older numbered handoff volumes remain valuable for incident chronology and migration history. They are not current provider contracts. In particular, `02_GEMINI_CONTROL_PLANE.md`, `19_MASTER_SUCCESSOR_HANDOFF_CURRENT_2026-10-02.md`, and other pre-2026-10-06 volumes must be treated as historical wherever they conflict with `docs/context.md` or executable source.
 
 ---
 
