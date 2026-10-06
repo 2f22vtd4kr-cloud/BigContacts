@@ -212,9 +212,14 @@ export class ResearchIntelligenceEngine {
       useful = true;
       const vector = String(finding.vectorType ?? "other");
       const findingUrls = [...new Set([...(finding.sourceUrls ?? []), ...urls].map(canonicalUrl).filter((v): v is string => Boolean(v)))];
-      const sourceUrl = findingUrls[0] ?? null;
-      const span = sourceUrl ? bindExactSourceSpan(input.observation ?? "", value, finding.personName ?? this.input.target) : null;
-      this.recordEvidence({ kind: "finding", claim: finding.personName ? finding.personName + " " + vector + " " + value : this.input.target + " " + vector + " " + value, value, sourceUrl, sourceTier: tierForHost(hostOf(sourceUrl)), turn: input.turn, action: input.action, execution: input.execution, passage: span?.exact ? span.text : null, spanStart: span?.exact ? span.start : null, spanEnd: span?.exact ? span.end : null, supports: finding.personName ? [normalize(finding.personName)] : [], contradicts: [] });
+      const claim = finding.personName ? finding.personName + " " + vector + " " + value : this.input.target + " " + vector + " " + value;
+      // Preserve every observed source supporting a multi-source finding. The
+      // intelligence projection is compacted later, but collapsing the claim
+      // to sourceUrls[0] here destroys independent-corroboration state.
+      for (const sourceUrl of findingUrls) {
+        const span = bindExactSourceSpan(input.observation ?? "", value, finding.personName ?? this.input.target);
+        this.recordEvidence({ kind: "finding", claim, value, sourceUrl, sourceTier: tierForHost(hostOf(sourceUrl)), turn: input.turn, action: input.action, execution: input.execution, passage: span?.exact ? span.text : null, spanStart: span?.exact ? span.start : null, spanEnd: span?.exact ? span.end : null, supports: finding.personName ? [normalize(finding.personName)] : [], contradicts: [] });
+      }
       if (["email", "phone", "linkedin", "website", "social"].includes(vector)) this.recordContact(vector, value, findingUrls, finding.personName ?? null);
     }
     if (!useful && input.execution !== "success") {
@@ -539,11 +544,11 @@ export function renderIntelligenceContext(context: IntelligenceContext, maxChars
     executionId: context.executionId,
     target: context.target,
     objective: context.objective.slice(0, 1_500),
-    facts: context.facts.slice(-12).map((fact) => ({ claim: fact.claim.slice(0, 500), evidenceIds: fact.evidenceIds.slice(0, 8), sources: fact.sources.slice(0, 6) })),
+    facts: headTailItems(context.facts, 12).map((fact) => ({ claim: fact.claim.slice(0, 500), evidenceIds: headTailItems(fact.evidenceIds, 8), sources: headTailItems(fact.sources, 6) })),
     hypotheses: [...context.hypotheses].sort((a, b) => b.score - a.score).slice(0, 8).map((hypothesis) => ({ ...hypothesis, label: hypothesis.label.slice(0, 300), entity: hypothesis.entity.slice(0, 240), supportingEvidenceIds: headTailItems(hypothesis.supportingEvidenceIds, 8), contradictingEvidenceIds: headTailItems(hypothesis.contradictingEvidenceIds, 8), missingDiscriminators: headTailItems(hypothesis.missingDiscriminators, 8).map((v) => v.slice(0, 300)) })),
-    contradictions: context.contradictions.slice(-8).map((item) => ({ claim: item.claim.slice(0, 500), evidenceIds: item.evidenceIds.slice(0, 8), sources: item.sources.slice(0, 6) })),
-    contacts: context.contacts.slice(-10).map((contact) => ({ ...contact, value: contact.value.slice(0, 300), sourceUrls: contact.sourceUrls.slice(0, 6), sourceHosts: contact.sourceHosts.slice(0, 6) })),
-    negativeFindings: context.negativeFindings.slice(-12).map((v) => v.slice(0, 400)),
+    contradictions: headTailItems(context.contradictions, 8).map((item) => ({ claim: item.claim.slice(0, 500), evidenceIds: headTailItems(item.evidenceIds, 8), sources: headTailItems(item.sources, 6) })),
+    contacts: headTailItems(context.contacts, 10).map((contact) => ({ ...contact, value: contact.value.slice(0, 300), sourceUrls: headTailItems(contact.sourceUrls, 6), sourceHosts: headTailItems(contact.sourceHosts, 6) })),
+    negativeFindings: headTailItems(context.negativeFindings, 12).map((v) => v.slice(0, 400)),
     openQuestions: headTailItems(context.openQuestions, 12).map((v) => v.slice(0, 400)),
     recentActions: context.recentActions.slice(-4).map((action) => ({ ...action, findingNames: action.findingNames.slice(0, 8), findingRoles: action.findingRoles.slice(0, 8), args: compactActionArgs(action.args ?? {}, 12), observation: action.observation.slice(0, 500), urls: action.urls.slice(0, 6) })),
     sourceDiversity: context.sourceDiversity,
@@ -556,7 +561,7 @@ export function renderIntelligenceContext(context: IntelligenceContext, maxChars
     frontier: context.frontier,
     sourceIndependence: context.sourceIndependence,
     providerDisagreements: context.providerDisagreements.slice(0, 6),
-    atomicEvidence: context.atomicEvidence.slice(-12).map((item) => ({ ...item, claim: item.claim.slice(0, 500), passage: item.passage?.slice(0, 700) ?? null })),
+    atomicEvidence: headTailItems(context.atomicEvidence, 12).map((item) => ({ ...item, claim: item.claim.slice(0, 500), passage: item.passage?.slice(0, 700) ?? null })),
     actionYield: context.actionYield.slice(0, 8),
     falsification: context.falsification,
     researchQuestions: headTailItems(context.researchQuestions, 12),
