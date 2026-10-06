@@ -221,7 +221,9 @@ export function compactInvestigationContext(input: {
   evidenceGraphSummaries?: readonly string[];
   rawSectionShare?: number;
 }): string {
-  const maxChars = Math.min(MAX_MAX_CHARS, Math.max(MIN_MAX_CHARS, input.maxChars ?? DEFAULT_MAX_CHARS));
+  const requestedMaxChars = input.maxChars;
+  const minimum = requestedMaxChars !== undefined ? 1_000 : MIN_MAX_CHARS;
+  const maxChars = Math.min(MAX_MAX_CHARS, Math.max(minimum, requestedMaxChars ?? DEFAULT_MAX_CHARS));
   const rawSectionShare = Number.isFinite(input.rawSectionShare)
     ? Math.min(0.65, Math.max(0.2, input.rawSectionShare!))
     : 0.35;
