@@ -55,7 +55,11 @@ export function validateDiscoverySearchQuery(query: string, priorQueries: readon
   const nonFameTokenCount = tokens.filter((token) => !DISCOVERY_FAME_TERMS.test(token)).length;
   const hasConcreteAnchor = source || organization || (sector && nonFameTokenCount >= 3);
   if (fame && !hasConcreteAnchor) return { allowed: false, reason: "Discovery search is too fame/wealth-list oriented. Add a concrete named organization, business context, geography, registry, or source anchor before searching." };
-  if (concreteSignals < 1 || tokenCount < 2) return { allowed: false, reason: "Discovery search is underspecified. Add a concrete business/sector/role plus a named context, geography, organization, source type, or registry before spending a search call." };
+  // Keep the rail structural rather than prescriptive: a model-selected named
+  // identity/company pivot can be concrete even when it does not contain one of
+  // our finite role/sector/source vocabularies. Two-word context-free names stay
+  // blocked; adding another contextual token is enough to authorize the hypothesis.
+  if (tokenCount < 2 || (concreteSignals < 1 && tokenCount < 3)) return { allowed: false, reason: "Discovery search is underspecified. Add contextual information before spending a search call." };
   return { allowed: true };
 }
 export type BoundModelFinding = { finding: AgenticFinding; sourceUrl: string; sourceRecord: AgenticTrajectoryRecord; passage: string };
