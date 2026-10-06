@@ -10,7 +10,10 @@ import { createHash } from "node:crypto";
 type Attempt = {
   provider: "groq" | "mistral" | string;
   model: string;
-  promptChars: number;\n  systemPromptChars?: number;\n  userPromptChars?: number;\n  totalPromptChars?: number;
+  promptChars: number;
+  systemPromptChars?: number;
+  userPromptChars?: number;
+  totalPromptChars?: number;
   status: number | "error" | "timeout";
   success: boolean;
   promptTokens?: number;
@@ -62,7 +65,10 @@ export function recordAgenticLlmAttempt(event: Attempt): void {
     event: "apex_agentic_llm_attempt",
     provider: event.provider,
     model: event.model,
-    promptChars: event.promptChars,\n    systemPromptChars: event.systemPromptChars ?? null,\n    userPromptChars: event.userPromptChars ?? event.promptChars,\n    totalPromptChars: event.totalPromptChars ?? ((event.systemPromptChars ?? 0) + (event.userPromptChars ?? event.promptChars)),
+    promptChars: event.promptChars,
+    systemPromptChars: event.systemPromptChars ?? null,
+    userPromptChars: event.userPromptChars ?? event.promptChars,
+    totalPromptChars: event.totalPromptChars ?? ((event.systemPromptChars ?? 0) + (event.userPromptChars ?? event.promptChars)),
     status: event.status,
     success: event.success,
     promptTokens: event.promptTokens ?? null,
