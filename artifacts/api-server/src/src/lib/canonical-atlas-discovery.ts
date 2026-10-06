@@ -6,7 +6,7 @@ import { runBureauAgenticWebPass } from "./bureau-agentic-pass";
 import { runCanonicalSingleTargetInvestigation } from "./canonical-single-target-runner";
 import { decideAtlasNextAction, type AtlasControlAction } from "./atlas-control-decision";
 import { resolveResearchDepth } from "./research-depth";
-import type { InvestigatorCapability } from "./investigator-capability-registry";
+import { getAvailableInvestigatorCapabilities, type InvestigatorCapability } from "./investigator-capability-registry";
 import { deriveCanonicalTerminalDecision } from "./canonical-terminal-state";
 import { deriveLatestEvidenceBackedTerminal, type LatestEvidenceBackedTerminal } from "./canonical-terminal-authority";
 
