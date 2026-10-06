@@ -121,6 +121,12 @@ describe("Atlas control-plane contract regression", () => {
     expect(classifyAtlasBossContractFailure(JSON.stringify({ action: "bogus" }), { action: "bogus" })).toBe("CONTROL_SCHEMA_INVALID");
   });
 
+  it("refuses control persistence after the discovery case leaves active state", () => {
+    expect(controlSource).toContain('status: researchCasesTable.status');
+    expect(controlSource).toContain('if (caseRow.status !== "active") throw new Error');
+    expect(controlSource).toContain("refusing stale control persistence");
+  });
+
   it("persists the same status in the immutable event payload and event row", () => {
     const decision = {
       status: "unavailable" as const,

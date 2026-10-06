@@ -243,8 +243,9 @@ export function buildAtlasControlEventPayload(input: { decision: AtlasControlDec
 async function persistControlDecision(input: { caseId: number; controlTurn: number; decision: AtlasControlDecision }): Promise<boolean> {
   try {
     await db.transaction(async (tx) => {
-      const [caseRow] = await tx.select({ caseFile: researchCasesTable.caseFile }).from(researchCasesTable).where(eq(researchCasesTable.id, input.caseId)).for("update").limit(1);
+      const [caseRow] = await tx.select({ caseFile: researchCasesTable.caseFile, status: researchCasesTable.status }).from(researchCasesTable).where(eq(researchCasesTable.id, input.caseId)).for("update").limit(1);
       if (!caseRow) throw new Error(`Atlas discovery case ${input.caseId} does not exist.`);
+      if (caseRow.status !== "active") throw new Error(`Atlas discovery case ${input.caseId} is no longer active; refusing stale control persistence.`);
       const payload = buildAtlasControlEventPayload({ decision: input.decision, controlTurn: input.controlTurn });
       const payloadJson = JSON.stringify(payload);
       const correlationKey = `atlas-control:case:${input.caseId}:turn:${input.controlTurn}`;
