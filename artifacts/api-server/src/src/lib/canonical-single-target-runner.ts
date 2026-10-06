@@ -162,6 +162,7 @@ export async function runCanonicalSingleTargetInvestigation(atlasJobId: string, 
       findings: episodeRecords.flatMap((record) => record.findings ?? []),
       providerFallback: [...new Set(episodeRecords.flatMap((record) => record.providerFallback ?? []))],
       stopReason: latestResult.stopReason,
+      sourceRecords: episodeRecords.map((record) => ({ turn: record.turn, action: record.action, execution: record.execution, observation: record.observation, observedUrls: record.observedUrls ?? [], findings: record.findings ?? [] })),
     } : null;
     if (!currentAct || !latestResult.executionId) {
       lastOversight = {
