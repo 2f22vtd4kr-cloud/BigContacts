@@ -13,20 +13,46 @@ export type EvidenceSufficiencyContract = { minEvidence: number; minIndependentS
 export type TerminalGateResult = { allowed: boolean; reasons: string[]; metrics: { evidenceCount: number; independentSourceUnits: number; exactSpanBindings: number; openQuestions: number; highSeverityContradictions: number; falsificationSatisfied: boolean } };
 const clamp = (n: number) => Math.max(0, Math.min(1, Number.isFinite(n) ? n : 0));
 export function digest(value: string): string { return createHash("sha256").update(value).digest("hex"); }
-export function canonicalHost(url: string): string | null { try { return new URL(url).hostname.toLowerCase().replace(/^www\\./, ""); } catch { return null; } }
+export function canonicalHost(url: string): string | null { try { return new URL(url).hostname.toLowerCase().replace(/^www\./, ""); } catch { return null; } }
+
+function hasExactTokenBoundary(text: string, index: number, value: string): boolean {
+  const before = text[index - 1] ?? "";
+  const afterIndex = index + value.length;
+  const after = text[afterIndex] ?? "";
+  const continuesToken = (character: string) => Boolean(character) && /[\p{L}\p{N}_@+-]/u.test(character);
+  if (continuesToken(before) || continuesToken(after)) return false;
+  // Dots are valid punctuation after a complete value, but not when they extend
+  // an email/domain/name token (for example jane@example.com.extra or Jane.Doe).
+  if (after === "." && /[\p{L}\p{N}]/u.test(text[afterIndex + 1] ?? "")) return false;
+  if ((value.includes("@") || value.includes("://")) && before === ".") return false;
+  // A URL prefix is not the exact URL when the observation continues its path,
+  // query, fragment, or port without whitespace.
+  if (value.includes("://") && /[\/:?#]/.test(after) && after && !/\s/.test(text[afterIndex + 1] ?? "")) return false;
+  return true;
+}
+
+function findExactTokenIndex(text: string, value: string, fromIndex = 0): number {
+  const needle = value.toLowerCase();
+  let index = text.indexOf(needle, Math.max(0, fromIndex));
+  while (index >= 0) {
+    if (hasExactTokenBoundary(text, index, value)) return index;
+    index = text.indexOf(needle, index + 1);
+  }
+  return -1;
+}
 
 export function bindExactSourceSpan(observation: string, value: string, subject?: string | null, maxChars = 900): SourceSpan | null {
   const text = observation.trim(); const needle = value.trim(); if (!text || !needle) return null;
-  const lower = text.toLowerCase(); const valueIndex = lower.indexOf(needle.toLowerCase()); if (valueIndex < 0) return null;
+  const lower = text.toLowerCase(); const valueIndex = findExactTokenIndex(lower, needle); if (valueIndex < 0) return null;
   const subjectNeedle = subject?.trim().toLowerCase() || "";
-  const subjectIndex = subjectNeedle ? lower.indexOf(subjectNeedle, Math.max(0, valueIndex - 900)) : -1;
-  const starts = [text.lastIndexOf("\\n", valueIndex), text.lastIndexOf(".", valueIndex), text.lastIndexOf("!", valueIndex), text.lastIndexOf("?", valueIndex)];
+  const subjectIndex = subjectNeedle ? findExactTokenIndex(lower, subjectNeedle, Math.max(0, valueIndex - 900)) : -1;
+  const starts = [text.lastIndexOf("\n", valueIndex), text.lastIndexOf(".", valueIndex), text.lastIndexOf("!", valueIndex), text.lastIndexOf("?", valueIndex)];
   const start = Math.max(0, Math.max(...starts) + 1);
-  const ends = [text.indexOf("\\n", valueIndex + needle.length), text.indexOf(".", valueIndex + needle.length), text.indexOf("!", valueIndex + needle.length), text.indexOf("?", valueIndex + needle.length)].filter((n) => n >= 0);
+  const ends = [text.indexOf("\n", valueIndex + needle.length), text.indexOf(".", valueIndex + needle.length), text.indexOf("!", valueIndex + needle.length), text.indexOf("?", valueIndex + needle.length)].filter((n) => n >= 0);
   const end = Math.min(text.length, ends.length ? Math.min(...ends) + 1 : valueIndex + needle.length + maxChars);
   const boundedEnd = Math.min(end, start + maxChars); const spanText = text.slice(start, boundedEnd).trim();
-  const localSubjectIndex = subjectNeedle ? spanText.toLowerCase().indexOf(subjectNeedle) : -1;
-  const exact = spanText.toLowerCase().includes(needle.toLowerCase());
+  const localSubjectIndex = subjectNeedle ? findExactTokenIndex(spanText.toLowerCase(), subjectNeedle) : -1;
+  const exact = findExactTokenIndex(spanText.toLowerCase(), needle) >= 0;
   return { text: spanText, start, end: boundedEnd, subjectMatched: subjectIndex >= 0 || localSubjectIndex >= 0, valueMatched: exact, exact: exact && (!subjectNeedle || subjectIndex >= 0 || localSubjectIndex >= 0) };
 }
 export function sourceLineageId(url: string, contentFingerprint?: string | null): string { return contentFingerprint ? "content:" + digest(contentFingerprint).slice(0, 24) : "source:" + digest(canonicalHost(url) ?? url).slice(0, 24); }

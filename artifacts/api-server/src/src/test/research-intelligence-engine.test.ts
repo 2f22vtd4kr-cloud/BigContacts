@@ -24,8 +24,8 @@ describe("Apex research intelligence", () => {
 
   it("keeps evidence, contradictions, negative findings, contacts, and provenance together", () => {
     const engine = new ResearchIntelligenceEngine({ executionId: "audit", target: "Alex Example", objective: "resolve identity and contact" });
-    engine.recordAction({ turn: 1, action: "registry_search", execution: "success", urls: ["https://registry.example.gov/a"], observation: "Alex is director of Alpha", findings: [{ vectorType: "is", value: "director of Alpha", personName: "Alex Example", sourceUrls: ["https://registry.example.gov/a"] }] });
-    engine.recordAction({ turn: 2, action: "web_search", execution: "success", urls: ["https://news.example.com/b"], observation: "Alex is director of Beta", findings: [{ vectorType: "is", value: "director of Beta", personName: "Alex Example", sourceUrls: ["https://news.example.com/b"] }] });
+    engine.recordAction({ turn: 1, action: "registry_search", execution: "success", urls: ["https://registry.example.gov/a"], observation: "Alex Example is director of Alpha", findings: [{ vectorType: "is", value: "director of Alpha", personName: "Alex Example", sourceUrls: ["https://registry.example.gov/a"] }] });
+    engine.recordAction({ turn: 2, action: "visit", execution: "success", urls: ["https://news.example.com/b"], observation: "Alex Example is director of Beta", findings: [{ vectorType: "is", value: "director of Beta", personName: "Alex Example", sourceUrls: ["https://news.example.com/b"] }] });
     engine.recordAction({ turn: 3, action: "visit", execution: "http_error", urls: ["https://example.com/contact"], observation: "HTTP 404", findings: [] });
     const state = engine.buildContext();
     expect(state.evidenceCount).toBeGreaterThan(0);
@@ -38,8 +38,8 @@ describe("Apex research intelligence", () => {
 
   it("does not treat multiple attributable emails as contradictory and refreshes evidence timestamps", () => {
     const engine = new ResearchIntelligenceEngine({ executionId: "multi-contact", target: "Example Target", objective: "find public contacts" });
-    engine.recordAction({ turn: 1, action: "web_search", execution: "success", urls: ["https://example.com/a"], findings: [{ vectorType: "email", value: "one@example.com", personName: "Example Target", sourceUrls: ["https://example.com/a"] }] });
-    engine.recordAction({ turn: 2, action: "web_search", execution: "success", urls: ["https://example.org/b"], findings: [{ vectorType: "email", value: "two@example.com", personName: "Example Target", sourceUrls: ["https://example.org/b"] }] });
+    engine.recordAction({ turn: 1, action: "visit", execution: "success", urls: ["https://example.com/a"], observation: "Example Target email one@example.com", findings: [{ vectorType: "email", value: "one@example.com", personName: "Example Target", sourceUrls: ["https://example.com/a"] }] });
+    engine.recordAction({ turn: 2, action: "visit", execution: "success", urls: ["https://example.org/b"], observation: "Example Target email two@example.com", findings: [{ vectorType: "email", value: "two@example.com", personName: "Example Target", sourceUrls: ["https://example.org/b"] }] });
     const state = engine.buildContext();
     expect(state.contradictions).toHaveLength(0);
     expect(state.facts.some((fact) => fact.claim.includes("email one@example.com"))).toBe(true);

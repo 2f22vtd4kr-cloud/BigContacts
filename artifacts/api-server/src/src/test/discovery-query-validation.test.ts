@@ -22,6 +22,7 @@ describe("discovery query quality rail", () => {
 
   it("keeps fame-list searches anchored to concrete context", () => {
     expect(validateDiscoverySearchQuery("billionaires richest people Forbes").allowed).toBe(false);
+    expect(validateDiscoverySearchQuery("billionaires richest people Forbes casino").allowed).toBe(false);
     expect(validateDiscoverySearchQuery("Forbes billionaires Slovenia casino").allowed).toBe(true);
   });
 });

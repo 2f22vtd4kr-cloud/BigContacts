@@ -52,8 +52,11 @@ export function validateDiscoverySearchQuery(query: string, priorQueries: readon
   const concreteSignals = Number(role) + Number(sector) + Number(source) + Number(organization);
   const tokens = normalized.split(/\s+/).filter(Boolean);
   const tokenCount = tokens.length;
-  const nonFameTokenCount = tokens.filter((token) => !DISCOVERY_FAME_TERMS.test(token)).length;
-  const hasConcreteAnchor = source || organization || (sector && nonFameTokenCount >= 3);
+  const genericContextTerms = new Set(["people", "person", "list", "lists", "ranking", "rankings", "world", "global", "everyone"]);
+  const nonFameTokens = tokens.filter((token) => !DISCOVERY_FAME_TERMS.test(token) && !genericContextTerms.has(token));
+  const nonFameTokenCount = nonFameTokens.length;
+  const hasDistinctContextToken = nonFameTokens.some((token) => { const singular = token.endsWith("s") ? token.slice(0, -1) : token; return !DISCOVERY_SECTOR_TERMS.test(token) && !DISCOVERY_ROLE_TERMS.test(token) && !DISCOVERY_ROLE_TERMS.test(singular) && !DISCOVERY_ORG_TERMS.test(token) && !DISCOVERY_SOURCE_TERMS.test(token); });
+  const hasConcreteAnchor = source || organization || (sector && nonFameTokenCount >= 2 && hasDistinctContextToken);
   if (fame && !hasConcreteAnchor) return { allowed: false, reason: "Discovery search is too fame/wealth-list oriented. Add a concrete named organization, business context, geography, registry, or source anchor before searching." };
   // Keep the rail structural rather than prescriptive: a model-selected named
   // identity/company pivot can be concrete even when it does not contain one of

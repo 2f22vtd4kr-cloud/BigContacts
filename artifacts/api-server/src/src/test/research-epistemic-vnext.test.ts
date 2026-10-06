@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   bindExactSourceSpan,
+  canonicalHost,
   SourceLineageGraph,
   dependencyAwareBatches,
   evaluateTerminalGate,
@@ -9,6 +10,10 @@ import {
 } from "../lib/research-epistemic-vnext";
 
 describe("research epistemic vNext", () => {
+  it("canonicalizes www hosts without retaining the www prefix", () => {
+    expect(canonicalHost("https://www.example.com/profile")).toBe("example.com");
+  });
+
   it("binds a finding to an exact observed span and subject", () => {
     const span = bindExactSourceSpan(
       "Jane Doe — Director at Example Ltd. Public email: jane@example.org.",
@@ -18,6 +23,13 @@ describe("research epistemic vNext", () => {
     expect(span?.exact).toBe(true);
     expect(span?.subjectMatched).toBe(true);
     expect(span?.valueMatched).toBe(true);
+  });
+
+  it("rejects values and identities that only match a longer token", () => {
+    expect(bindExactSourceSpan("Jane Example — jane@example.com.extra", "jane@example.com", "Jane Example")).toBeNull();
+    expect(bindExactSourceSpan("Janet Example — Director", "Jane", "Jane")).toBeNull();
+    expect(bindExactSourceSpan("Jane Example — https://example.com/profile", "https://example.com", "Jane Example")).toBeNull();
+    expect(bindExactSourceSpan("Jane Example — jane@example.com.", "jane@example.com", "Jane Example")?.exact).toBe(true);
   });
 
   it("does not manufacture a span when the value is absent", () => {
