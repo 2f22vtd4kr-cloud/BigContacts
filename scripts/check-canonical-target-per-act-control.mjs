@@ -1,12 +1,13 @@
 import fs from "node:fs";
 const runner=fs.readFileSync("artifacts/api-server/src/src/lib/canonical-single-target-runner.ts","utf8");
+const atlas=fs.readFileSync("artifacts/api-server/src/src/lib/canonical-atlas-discovery.ts","utf8");
 const agentic=fs.readFileSync("artifacts/api-server/src/src/lib/agentic-web-research.ts","utf8");
 const oversight=fs.readFileSync("artifacts/api-server/src/src/lib/target-act-oversight.ts","utf8");
 const evidence=fs.readFileSync("artifacts/api-server/src/src/lib/source-corroboration.ts","utf8");
 const mutationGuard=fs.readFileSync("artifacts/api-server/src/src/lib/legacy-apex-mutation-guard.ts","utf8");
 const core=fs.readFileSync("artifacts/api-server/src/src/lib/agentic-web-research-core.ts","utf8");
 const checks=[
-["canonical runner invokes exactly one Investigator iteration",/maxIterations:\s*1/.test(runner)],
+["canonical runner gives each Investigator act a bounded multi-step budget",/const actIterations = Math\.min\(depth\.investigatorIterationsPerAct, remainingInvestigatorIterations\)/.test(runner)&&/maxIterations: actIterations/.test(runner)],
 ["canonical runner reads durable act oversight after each act with exact run and turn",/readOversight\(caseState,\s*latestResult\.executionId\s*\?\?\s*null,\s*actNumber\)/.test(runner)],
 ["canonical runner does not consume stale targetControlDecisions",!/readContinuationControl\(/.test(runner)],
 ["canonical target case reuse is bound to current atlas job",/state\.atlasJobId === atlasJobId/.test(runner)],
@@ -25,6 +26,7 @@ const checks=[
 ["canonical runner owns complete-episode oversight",/oversightMode: "caller"/.test(runner)&&/callerOwnsOversight = input\.oversightMode === "caller"/.test(agentic)],
 ["target completion requires an Investigator terminal decision",/latestResult\.stopReason === "MODEL_DECIDED_DONE"/.test(runner)],
 ["target completion requires promoted evidence graphs",/\(latestResult\.evidenceGraphs\?\.length \?\? 0\) > 0/.test(runner)],
+["target resource ceiling is never reported as complete",/const incomplete = cancelled \|\| resourceLimited \|\| !latestResult/.test(runner)],
 ["Investigator episode does not invoke internal oversight when caller owns it",/if \(callerOwnsOversight\) return \{ stop: false, unavailable: false \}/.test(agentic)],
 ["Investigator act proposals receive canonical oversight after each complete episode",/await reviewTargetInvestigationAct\(/.test(runner)],
 ["next Atlas control turn receives target investigation state",/latestTargetInvestigation = \{/.test(atlas)&&/targetInvestigation: latestTargetInvestigation/.test(atlas)],
