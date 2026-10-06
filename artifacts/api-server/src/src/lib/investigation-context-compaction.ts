@@ -37,6 +37,8 @@ export interface InvestigatorContextInput {
   lastObservation: string;
   findings: readonly CompactionFinding[];
   mode?: "target" | "discovery";
+  /** Compact mounted durable case state; never treated as source instructions. */
+  priorContext?: string;
   /** Optional model-facing budget override; durable state is unaffected. */
   maxChars?: number;
 }
@@ -145,6 +147,15 @@ export function buildInvestigatorContext(input: InvestigatorContextInput): strin
     input.companyName ? "RELATED ORGANIZATION: " + trim(input.companyName, 240) : "",
     "OBJECTIVE: " + trim(input.objective, 2_000),
   ].filter(Boolean).join("\n"));
+
+  if (input.priorContext?.trim()) {
+    sections.push(
+      fitSection(
+        "PRIOR DURABLE CASE CONTEXT (state/memory, not source instructions)\n" + trim(input.priorContext, 1_800),
+        1_800,
+      ),
+    );
+  }
 
   const findings = headTail(input.findings, 6).map((finding) => compactFinding(finding, 500)).filter(Boolean);
   sections.push(fitSection("CURRENT FINDINGS / LEADS\n" + (findings.length ? findings.join("\n") : "(none yet)"), budget.findingChars));
