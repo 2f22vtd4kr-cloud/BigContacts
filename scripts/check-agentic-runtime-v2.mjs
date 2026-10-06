@@ -6,7 +6,7 @@ const sandbox = fs.readFileSync("artifacts/api-server/src/src/lib/python-sandbox
 const shim = fs.readFileSync("artifacts/apex-runtime/lib/agentic-web-research.ts", "utf8");
 const failures = [];
 const assert = (ok, name) => { if (!ok) failures.push(name); };
-assert(/INVESTIGATOR_LLM_CAPABILITY_POOL/.test(source), "Investigator provider pool is explicit");
+assert(/getAvailableInvestigatorCapabilities/.test(source) && /investigatorCapabilityKeyName/.test(source), "Investigator capability registry is explicit");
 assert(/const AGENTIC_ACTION_SCHEMA\s*=/.test(source) && /function parseAction/.test(source), "action schema and fail-closed parser exist");
 assert(/const MAX_ITER = 64/.test(source) && /for \(let i = 0; i < maxIter; i\+\+/.test(source), "Investigator iterations are bounded by the runtime action ceiling");
 assert(/new AbortController\(\)/.test(source) && /input\.signal\?\.addEventListener\("abort", abortExternal/.test(source), "run-scoped cancellation is wired");
@@ -20,7 +20,7 @@ assert(/runMaigret\(action\.username, \{ signal: runController\.signal \}\)/.tes
 assert(/runSherlock\(action\.username, \{ signal: runController\.signal \}\)/.test(source), "Sherlock is cancellation-aware");
 assert(!/callGeminiJson|callNvidiaJson|GEMINI_API_KEY_|async function callGeminiJson\b|async function callNvidiaJson\b/.test(source), "Boss and Right-hand providers are absent from the Investigator runtime");
 assert(!/DIG_INVESTIGATOR_FAILOVER_CHAIN:[^\n]*Groq -> Groq/.test(source), "closed Groq-to-Mistral fallback marker is absent");
-assert(/investigatorLlm\?: "groq"/.test(source), "selected Groq Investigator is explicit in the ReAct input");
+assert(/investigatorLlm\?: InvestigatorCapability/.test(source), "selected Investigator capability is explicit in the ReAct input");
 assert(/selectedInvestigatorLlm/.test(source), "selected Investigator reaches the direct provider invocation boundary");
 assert(/Compatibility shim only/.test(shim) && /export \* from "\.\.\/\.\.\/api-server\/src\/src\/lib\/agentic-web-research\.ts"/.test(shim), "apex-runtime is only a compatibility shim");
 assert(/authorizePythonSandboxRequest/.test(python), "Python network capability requires the sandbox authorization contract");
