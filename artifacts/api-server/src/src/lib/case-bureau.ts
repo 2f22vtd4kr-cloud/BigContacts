@@ -1131,31 +1131,36 @@ export function buildDiscoveryProgressSnapshot(file: DiscoveryCaseFile): string 
     const trimmed = value.trim();
     return trimmed.length <= max ? trimmed : `${trimmed.slice(0, Math.max(0, max - 1))}…`;
   };
-  const compactCandidates = (file.discoveredCandidates ?? []).slice(0, 12).map((candidate) => ({
+  const headTail = <T,>(values: readonly T[], limit: number): T[] => {
+    if (values.length <= limit) return [...values];
+    const head = Math.ceil(limit / 2);
+    return [...values.slice(0, head), ...values.slice(-(limit - head))];
+  };
+  const compactCandidates = headTail(file.discoveredCandidates ?? [], 12).map((candidate) => ({
     name: clip(candidate.name, 140),
     type: clip(candidate.type, 80),
-    sourceUrls: (candidate.sourceUrls ?? []).slice(0, 6),
-    contactEvidence: (candidate.contactEvidence ?? []).slice(0, 6).map((contact) => ({
+    sourceUrls: headTail(candidate.sourceUrls ?? [], 6),
+    contactEvidence: headTail(candidate.contactEvidence ?? [], 6).map((contact) => ({
       vectorType: clip(contact.vectorType, 60),
       value: clip(contact.value, 180),
       scope: clip(contact.scope, 40),
       personName: clip(contact.personName, 120),
       role: clip(contact.role, 120),
-      sourceUrls: (contact.sourceUrls ?? []).slice(0, 4),
+      sourceUrls: headTail(contact.sourceUrls ?? [], 4),
       note: clip(contact.note, 220),
     })),
   }));
-  const compactReports = (file.investigatorReports ?? []).slice(-8).map((report) => ({
+  const compactReports = headTail(file.investigatorReports ?? [], 8).map((report) => ({
     id: report.id,
     lane: report.lane,
     provider: report.provider,
     status: report.status,
     iteration: report.iteration,
     summary: clip(report.summary, 900),
-    findings: (report.findings ?? []).slice(0, 6).map((finding) => clip(finding, 320)),
-    candidateNames: (report.candidateNames ?? []).slice(0, 8).map((name) => clip(name, 120)),
-    sourceUrls: (report.sourceUrls ?? []).slice(0, 8),
-    nextQuestions: (report.nextQuestions ?? []).slice(0, 8).map((question) => clip(question, 260)),
+    findings: headTail(report.findings ?? [], 6).map((finding) => clip(finding, 320)),
+    candidateNames: headTail(report.candidateNames ?? [], 8).map((name) => clip(name, 120)),
+    sourceUrls: headTail(report.sourceUrls ?? [], 8),
+    nextQuestions: headTail(report.nextQuestions ?? [], 8).map((question) => clip(question, 260)),
     error: clip(report.error, 400),
   }));
   return JSON.stringify({
