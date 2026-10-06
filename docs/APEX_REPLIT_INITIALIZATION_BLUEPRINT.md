@@ -306,34 +306,27 @@ Do not say “complete” unless the requested layer has actually been verified.
 
 # 1. OPERATOR KEY CHECKLIST
 
-For a fresh Replit account, configure the complete canonical 16-name startup contract in Replit Secrets, in this exact order:
+For a fresh Replit account, configure the active provider names checked by the current preflight:
 
 ```
-1. REDIS_URL_1
-2. GROQ_API_KEY
-3. GEMINI_API_KEY
-4. MISTRAL_API_KEY
-5. HF_TOKEN
-6. SERPER_API_KEY
-7. TAVILY_API_KEY
-8. SERPAPI_KEY
-9. EXA_API_KEY
-10. SCRAPFLY_API_KEY
-11. ZENROWS_API_KEY
-12. COMPANIES_HOUSE_API_KEY
-13. GEMINI_RIGHT_HAND_API_KEY
-14. APEX_API_AUTH_TOKEN
-15. APEX_OPERATOR_PASSWORD
-16. APEX_SESSION_SECRET
+COMPANIES_HOUSE_API_KEY
+EXA_API_KEY
+GROQ_BOSS_API_KEY
+GROQ_RIGHT_HAND_API_KEY
+GROQ_INVESTIGATOR_API_KEY
+HF_TOKEN
+GROQ_INVESTIGATOR_API_KEY_1
+REDIS_URL_1
+SCRAPFLY_API_KEY
+SERPAPI_KEY
+SERPER_API_KEY
+TAVILY_API_KEY
+ZENROWS_API_KEY
 ```
 
-The startup contract is intentionally explicit: do not turn key setup into conditional provider discovery. Presence checks are enough; never print values.
+Optional numbered Groq role credentials may be added as separate runtime slots. Investigator slots map one-to-one to `groq-investigator-1` through `groq-investigator-6`. Never silently rotate an explicitly selected Investigator capability.
 
-`DATABASE_URL` is supplied by Replit/Postgres and is not part of the operator-entered list.
-
-Historical provider keys such as DeepSeek/NVIDIA/WhoisJSON/Whoxy are retired and must not be requested.
-
----
+`DATABASE_URL` is platform-managed. Never request secret values in chat. Retired Gemini/Mistral/DeepSeek/NVIDIA credentials are not part of the active setup.
 
 # 2. SAFE INITIALIZATION ORDER
 
