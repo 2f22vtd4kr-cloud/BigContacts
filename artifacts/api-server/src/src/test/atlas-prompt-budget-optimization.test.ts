@@ -7,10 +7,16 @@ import {
   ATLAS_RIGHT_HAND_PROMPT_BUDGET,
 } from "../lib/atlas-control-decision";
 import { renderAtlasCapabilityGuidanceCompact, renderAtlasCapabilityGuidance } from "../lib/atlas-capability-registry";
-import { buildInvestigatorContext, getInvestigatorContextBudget } from "../lib/investigation-context-compaction";
+import { boundInvestigatorPromptSection, buildInvestigatorContext, getInvestigatorContextBudget } from "../lib/investigation-context-compaction";
 import { renderIntelligenceContextCompact } from "../lib/research-intelligence-engine";
 
 describe("Apex Atlas prompt budget optimization", () => {
+  it("does not silently re-cap the assembled Investigator prompt below the provider ceiling", () => {
+    const prompt = boundInvestigatorPromptSection("P".repeat(18_000), 20_000);
+    expect(prompt.length).toBe(18_000);
+    expect(prompt).not.toContain("EMERGENCY REQUEST-SIZE COMPACTION");
+  });
+
   it("keeps the per-turn capability contract materially smaller than the full registry", () => {
     const full = renderAtlasCapabilityGuidance();
     const compact = renderAtlasCapabilityGuidanceCompact();
