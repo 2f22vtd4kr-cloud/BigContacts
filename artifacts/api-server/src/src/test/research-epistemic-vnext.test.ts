@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   bindExactSourceSpan,
+  canonicalHost,
   SourceLineageGraph,
   dependencyAwareBatches,
   evaluateTerminalGate,
@@ -9,6 +10,10 @@ import {
 } from "../lib/research-epistemic-vnext";
 
 describe("research epistemic vNext", () => {
+  it("canonicalizes www hosts without retaining the www prefix", () => {
+    expect(canonicalHost("https://www.example.com/profile")).toBe("example.com");
+  });
+
   it("binds a finding to an exact observed span and subject", () => {
     const span = bindExactSourceSpan(
       "Jane Doe — Director at Example Ltd. Public email: jane@example.org.",
