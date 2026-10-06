@@ -1,6 +1,6 @@
 import { GROQ_BOSS_MODEL_PENDING, getGroqBossLatencyConfig, getGroqBossStatus, resolveGroqBossModel, generateGroqBossText, formatGroqBossAttemptSummary } from "./groq-boss";
 import type { Entity } from "@workspace/db";
-import { apexOrientationFor } from "./apex-bureau-orientation";
+import { apexOrientationCompact } from "./apex-bureau-orientation";
 import { buildApexAtlasBossPlanPrompt } from "./case-bureau-prompt";
 import { extractWalletSeedsFromText, buildWalletSeedPlan, formatWalletSeedPlanForPrompt, objectiveLooksWalletFirst } from "./wallet-seed";
 import { getAvailableInvestigatorCapabilities, type InvestigatorCapability } from "./investigator-capability-registry";
@@ -903,7 +903,7 @@ export function buildBossOpeningPrompt(input: {
     /\b(Andrew|John|Mark|David|Michael|Robert|James|William|Thomas|Richard|Katherine|Catherine|Elizabeth|Sarah|Jennifer|Mary|Susan|Patricia|Linda|Barbara|Margaret|Jessica)\s+[A-Z]\.?\s*[A-Z][a-z]+\b/.test(objective);
 
   if (namedTarget) {
-    return `${apexOrientationFor("boss")}
+    return `${apexOrientationCompact("boss")}
 
 ---
 
@@ -936,7 +936,7 @@ Return a structured research report with:
 Do not invent contacts. Do not dilute the named target with unrelated discovery noise.`;
   }
 
-  return `${apexOrientationFor("boss")}
+  return `${apexOrientationCompact("boss")}
 
 ---
 
