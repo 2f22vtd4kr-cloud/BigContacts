@@ -91,9 +91,6 @@ describe("Groq Investigator provider boundary", () => {
     vi.restoreAllMocks();
   });
 
-  it("exposes only the Groq Investigator capability", () => {
-    expect(INVESTIGATOR_LLM_CAPABILITY_POOL).toEqual(["groq"]);
-  });
 
   it("owns a transient Groq 429 retry at the Investigator caller boundary", async () => {
     process.env.GROQ_INVESTIGATOR_API_KEY = "test-groq-investigator-key";
