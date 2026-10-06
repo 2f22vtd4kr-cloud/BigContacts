@@ -25,7 +25,7 @@ const checks=[
 ["canonical target wrapper has a finite action-turn ceiling",!/Number\.POSITIVE_INFINITY/.test(agentic)&&/const MAX_TARGET_ACTION_TURNS = 64/.test(agentic)],
 ["canonical target wrapper does not auto-fan-out fixed mission briefs",!/runParallelMissionPass\(/.test(agentic)],
 ["canonical runner owns complete-episode oversight",/oversightMode: "caller"/.test(runner)&&/callerOwnsOversight = input\.oversightMode === "caller"/.test(agentic)],
-["target completion requires an Investigator terminal decision",/latestResult\.stopReason === "MODEL_DECIDED_DONE"/.test(runner)],
+["target completion requires an Investigator terminal decision",/latestResult\?\.stopReason === "MODEL_DECIDED_DONE"/.test(runner)],
 ["target completion requires promoted evidence graphs",/\(latestResult\.evidenceGraphs\?\.length \?\? 0\) > 0/.test(runner)],
 ["target resource ceiling is never reported as complete",/const incomplete = cancelled \|\| resourceLimited \|\| !latestResult/.test(runner)],
 ["Investigator episode does not invoke internal oversight when caller owns it",/if \(callerOwnsOversight\) return \{ stop: false, unavailable: false \}/.test(agentic)],
