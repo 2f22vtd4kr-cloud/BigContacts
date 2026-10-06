@@ -46,6 +46,13 @@ describe("agentic source provenance", () => {
     expect(groundedFindingsForTrajectory([finding()], [observation({ observation: "Jane Example — Founder" })])).toHaveLength(0);
     expect(groundedFindingsForTrajectory([finding()], [observation({ observedUrls: ["https://other.example/source"] })])).toHaveLength(0);
   });
+  it("requires exact spans rather than substring matches for intelligence grounding", async () => {
+    const { groundedFindingsForTrajectory } = await import("../lib/agentic-web-research");
+    const nearMatch = observation({ observation: "Jane Example — Founder — jane@example.com.extra" });
+    expect(groundedFindingsForTrajectory([finding()], [nearMatch])).toHaveLength(0);
+    expect(groundedFindingsForTrajectory([finding()], [observation()])).toHaveLength(1);
+  });
+
   it("does not treat search-result snippets as intelligence evidence", async () => {
     const { groundedFindingsForTrajectory } = await import("../lib/agentic-web-research");
     const search = observation({
