@@ -130,7 +130,7 @@ export function buildInvestigatorContext(input: InvestigatorContextInput): strin
     "OBJECTIVE: " + trim(input.objective, 2_000),
   ].filter(Boolean).join("\n"));
 
-  const findings = headTail(input.findings, 10).map((finding) => compactFinding(finding, 700)).filter(Boolean);
+  const findings = headTail(input.findings, 6).map((finding) => compactFinding(finding, 500)).filter(Boolean);
   sections.push(fitSection("CURRENT FINDINGS / LEADS\n" + (findings.length ? findings.join("\n") : "(none yet)"), budget.findingChars));
 
   const actionSummary = records.slice(-8).map((record) => ({
