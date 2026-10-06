@@ -23,6 +23,8 @@ for(const f of required) if(!fs.existsSync(path.join(root,f))) throw new Error("
 const core=fs.readFileSync(path.join(root,"artifacts/api-server/src/src/lib/agentic-web-research-core.ts"),"utf8");
 const investigatorRegistry=fs.readFileSync(path.join(root,"artifacts/api-server/src/src/lib/investigator-capability-registry.ts"),"utf8");
 for(const marker of ["GROQ_INVESTIGATOR_KEY_NAMES","investigatorCapabilityKeyName","GROQ_INVESTIGATOR_API_KEY_1"]) if(!investigatorRegistry.includes(marker)) throw new Error("Investigator capability registry contract drifted: "+marker);
+if(!/capability\.match\(\/\^groq-investigator-\\\\d\+\$\/\)/.test(investigatorRegistry)) throw new Error("Investigator capability registry numeric binding contract drifted.");
+if(!/getAvailableInvestigatorCapabilities\(/.test(core)) throw new Error("Agentic core does not expose runtime Investigator capability availability.");
 if(!core.includes("getAvailableInvestigatorCapabilities")) throw new Error("Agentic core is not registry-driven.");
 for(const marker of ["MAX_ITER = 64","MAX_OBS = 16_000","MAX_TRAJECTORY_RECORDS = 512"]) if(!core.includes(marker)) throw new Error("Safety ceiling missing: "+marker);
 const obs=fs.readFileSync(path.join(root,"artifacts/api-server/src/src/lib/target-act-oversight.ts"),"utf8");
