@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   bindExactSourceSpan,
+  SourceLineageGraph,
   dependencyAwareBatches,
   evaluateTerminalGate,
   rankActionCandidates,
@@ -44,6 +45,36 @@ describe("research epistemic vNext", () => {
       { id: "c", dependencies: ["a"], action: async () => 3 },
     ]);
     expect(batches.map((batch) => batch.map((item) => item.id))).toEqual([["a", "b"], ["c"]]);
+  });
+
+  it("does not count multiple pages from one publisher as independent sources", () => {
+    const graph = new SourceLineageGraph();
+    const first = graph.register({
+      canonicalUrl: "https://example.com/team/jane",
+      host: "example.com",
+      originSourceId: null,
+      publisher: null,
+      citedSourceIds: [],
+      contentFingerprint: "page-one",
+    });
+    const second = graph.register({
+      canonicalUrl: "https://example.com/contact",
+      host: "example.com",
+      originSourceId: null,
+      publisher: null,
+      citedSourceIds: [],
+      contentFingerprint: "page-two",
+    });
+    const other = graph.register({
+      canonicalUrl: "https://other.example/news/jane",
+      host: "other.example",
+      originSourceId: null,
+      publisher: null,
+      citedSourceIds: [],
+      contentFingerprint: "page-three",
+    });
+    expect(graph.independentUnitCount([first.sourceId, second.sourceId])).toBe(1);
+    expect(graph.independentUnitCount([first.sourceId, second.sourceId, other.sourceId])).toBe(2);
   });
 
   it("rejects terminal completion when evidence requirements are not met", () => {
