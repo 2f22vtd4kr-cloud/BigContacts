@@ -1123,7 +1123,7 @@ export function appendDiscoveryReport(
   };
 }
 
-export function buildDiscoveryProgressSnapshot(file: DiscoveryCaseFile): string {
+export function buildDiscoveryProgressSnapshot(file: DiscoveryCaseFile, maxChars = 12_000): string {
   // Model-facing discovery context is bounded deliberately; the durable case file
   // remains complete. This is compaction, not history deletion.
   const clip = (value: unknown, max: number): string | null => {
@@ -1136,34 +1136,34 @@ export function buildDiscoveryProgressSnapshot(file: DiscoveryCaseFile): string 
     const head = Math.ceil(limit / 2);
     return [...values.slice(0, head), ...values.slice(-(limit - head))];
   };
-  const compactCandidates = headTail(file.discoveredCandidates ?? [], 12).map((candidate) => ({
+  const compactCandidates = headTail(file.discoveredCandidates ?? [], 6).map((candidate) => ({
     name: clip(candidate.name, 140),
     type: clip(candidate.type, 80),
-    sourceUrls: headTail(candidate.sourceUrls ?? [], 6),
-    contactEvidence: headTail(candidate.contactEvidence ?? [], 6).map((contact) => ({
+    sourceUrls: headTail(candidate.sourceUrls ?? [], 4),
+    contactEvidence: headTail(candidate.contactEvidence ?? [], 2).map((contact) => ({
       vectorType: clip(contact.vectorType, 60),
       value: clip(contact.value, 180),
       scope: clip(contact.scope, 40),
       personName: clip(contact.personName, 120),
       role: clip(contact.role, 120),
-      sourceUrls: headTail(contact.sourceUrls ?? [], 4),
-      note: clip(contact.note, 220),
+      sourceUrls: headTail(contact.sourceUrls ?? [], 2),
+      note: clip(contact.note, 160),
     })),
   }));
-  const compactReports = headTail(file.investigatorReports ?? [], 8).map((report) => ({
+  const compactReports = headTail(file.investigatorReports ?? [], 4).map((report) => ({
     id: report.id,
     lane: report.lane,
     provider: report.provider,
     status: report.status,
     iteration: report.iteration,
     summary: clip(report.summary, 900),
-    findings: headTail(report.findings ?? [], 6).map((finding) => clip(finding, 320)),
-    candidateNames: headTail(report.candidateNames ?? [], 8).map((name) => clip(name, 120)),
-    sourceUrls: headTail(report.sourceUrls ?? [], 8),
-    nextQuestions: headTail(report.nextQuestions ?? [], 8).map((question) => clip(question, 260)),
+    findings: headTail(report.findings ?? [], 4).map((finding) => clip(finding, 320)),
+    candidateNames: headTail(report.candidateNames ?? [], 6).map((name) => clip(name, 120)),
+    sourceUrls: headTail(report.sourceUrls ?? [], 5),
+    nextQuestions: headTail(report.nextQuestions ?? [], 6).map((question) => clip(question, 260)),
     error: clip(report.error, 400),
   }));
-  return JSON.stringify({
+  const snapshot = {
     mission: {
       objective: clip(file.humanBrief.objective, 900),
       motivation: clip(file.humanBrief.motivation, 500),
@@ -1175,20 +1175,40 @@ export function buildDiscoveryProgressSnapshot(file: DiscoveryCaseFile): string 
     candidates: compactCandidates,
     progress: {
       reportCount: file.currentProgress.reportCount,
-      completedLanes: (file.currentProgress.completedLanes ?? []).slice(0, 12),
-      openQuestions: (file.currentProgress.openQuestions ?? []).slice(0, 20).map((question) => clip(question, 280)),
+      completedLanes: headTail(file.currentProgress.completedLanes ?? [], 12),
+      openQuestions: headTail(file.currentProgress.openQuestions ?? [], 20).map((question) => clip(question, 280)),
       lastReviewedBy: clip(file.currentProgress.lastReviewedBy, 120),
       refreshedAt: file.currentProgress.refreshedAt,
     },
     investigatorReports: compactReports,
-    decisions: (file.decisionLog ?? []).slice(-10).map((decision) => ({
+    decisions: headTail(file.decisionLog ?? [], 10).map((decision) => ({
       iteration: decision.iteration,
       decision: clip(decision.decision, 320),
       reason: clip(decision.reason, 420),
       createdAt: decision.createdAt,
     })),
-  }, null, 2);
-}
+  };
+  const serialized = JSON.stringify(snapshot, null, 2);
+  if (serialized.length <= maxChars) return serialized;
+  // Preserve valid JSON if the first bounded projection is still too large.
+  const reduced = {
+    ...snapshot,
+    candidates: headTail(compactCandidates, 4).map((candidate) => ({
+      ...candidate,
+      contactEvidence: headTail(candidate.contactEvidence, 1),
+      sourceUrls: headTail(candidate.sourceUrls, 3),
+    })),
+    investigatorReports: headTail(compactReports, 3).map((report) => ({
+      ...report,
+      findings: headTail(report.findings, 3),
+      candidateNames: headTail(report.candidateNames, 4),
+      sourceUrls: headTail(report.sourceUrls, 4),
+      nextQuestions: headTail(report.nextQuestions, 4),
+    })),
+    decisions: headTail(snapshot.decisions, 6),
+  };
+  const reducedSerialized = JSON.stringify(reduced, null, 2);
+  return reducedSerialized.length <= maxChars ? reducedSerialized : reducedSerialized.slice(0, Math.max(0, maxChars - 80)) + "\n  \"_contextBound\": true\n}";
 
 function parseJson<T>(value: string | null | undefined, fallback: T): T {
   if (!value) return fallback;
