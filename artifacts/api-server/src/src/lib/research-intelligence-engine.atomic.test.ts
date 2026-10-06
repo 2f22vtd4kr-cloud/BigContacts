@@ -38,6 +38,22 @@ describe("research intelligence atomic evidence", () => {
     expect(context.facts).toHaveLength(0);
   });
 
+  it("does not admit positive findings from a failed source visit", () => {
+    const engine = new ResearchIntelligenceEngine({ executionId: "failed-visit", target: "Ada Example", objective: "Resolve identity" });
+    engine.recordAction({
+      turn: 1,
+      action: "visit",
+      args: { url: "https://example.com/profile" },
+      execution: "failed",
+      observation: "Ada Example email jane@example.com",
+      urls: ["https://example.com/profile"],
+      findings: [{ vectorType: "email", value: "jane@example.com", personName: "Ada Example", sourceUrls: ["https://example.com/profile"] }],
+    });
+    const context = engine.buildContext();
+    expect(context.contacts).toHaveLength(0);
+    expect(context.atomicEvidence.filter((item) => item.kind === "finding")).toHaveLength(0);
+  });
+
   it("keeps pure search-result observations out of atomic evidence context", () => {
     const engine = new ResearchIntelligenceEngine({ executionId: "search-only", target: "Ada Example", objective: "Resolve identity" });
     engine.recordAction({
