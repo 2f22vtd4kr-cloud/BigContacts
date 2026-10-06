@@ -554,7 +554,8 @@ async function callGroqJson(
             provider: "groq",
             model,
             promptChars: workingPrompt.length,
-            systemPromptChars: INVESTIGATOR_SYSTEM_PROMPT().length,\n            userPromptChars: workingPrompt.length,\n            totalPromptChars: workingPrompt.length + INVESTIGATOR_SYSTEM_PROMPT().length,
+            systemPromptChars: INVESTIGATOR_SYSTEM_PROMPT().length,
+            userPromptChars: workingPrompt.length,\n            totalPromptChars: workingPrompt.length + INVESTIGATOR_SYSTEM_PROMPT().length,
             status: 429,
             success: false,
             latencyMs: Date.now() - started,
@@ -606,7 +607,8 @@ async function callGroqJson(
             provider: "groq",
             model,
             promptChars: workingPrompt.length,
-            systemPromptChars: INVESTIGATOR_SYSTEM_PROMPT().length,\n            userPromptChars: workingPrompt.length,\n            totalPromptChars: workingPrompt.length + INVESTIGATOR_SYSTEM_PROMPT().length,
+            systemPromptChars: INVESTIGATOR_SYSTEM_PROMPT().length,
+            userPromptChars: workingPrompt.length,\n            totalPromptChars: workingPrompt.length + INVESTIGATOR_SYSTEM_PROMPT().length,
             status: response.status,
             success: false,
             latencyMs: Date.now() - started,
@@ -665,7 +667,8 @@ async function callGroqJson(
             provider: "groq",
             model,
             promptChars: workingPrompt.length,
-            systemPromptChars: INVESTIGATOR_SYSTEM_PROMPT().length,\n            userPromptChars: workingPrompt.length,\n            totalPromptChars: workingPrompt.length + INVESTIGATOR_SYSTEM_PROMPT().length,
+            systemPromptChars: INVESTIGATOR_SYSTEM_PROMPT().length,
+            userPromptChars: workingPrompt.length,\n            totalPromptChars: workingPrompt.length + INVESTIGATOR_SYSTEM_PROMPT().length,
             status: response.status,
             success: false,
             latencyMs: Date.now() - started,
@@ -682,7 +685,8 @@ async function callGroqJson(
           provider: "groq",
           model,
           promptChars: workingPrompt.length,
-            systemPromptChars: INVESTIGATOR_SYSTEM_PROMPT().length,\n            userPromptChars: workingPrompt.length,\n            totalPromptChars: workingPrompt.length + INVESTIGATOR_SYSTEM_PROMPT().length,
+            systemPromptChars: INVESTIGATOR_SYSTEM_PROMPT().length,
+            userPromptChars: workingPrompt.length,\n            totalPromptChars: workingPrompt.length + INVESTIGATOR_SYSTEM_PROMPT().length,
           status: response.status,
           success: Boolean(raw),
           promptTokens: data.usage?.prompt_tokens,
@@ -704,7 +708,8 @@ async function callGroqJson(
         const failureClass = classifyThrownProviderError(error);
         lastProviderError = failureClass;
         recordAgenticLlmAttempt({ provider: "groq", model, promptChars: workingPrompt.length,
-            systemPromptChars: INVESTIGATOR_SYSTEM_PROMPT().length,\n            userPromptChars: workingPrompt.length,\n            totalPromptChars: workingPrompt.length + INVESTIGATOR_SYSTEM_PROMPT().length, status: "error", success: false, latencyMs: Date.now() - started, retryIndex: attempt, reason: `${failureClass}${error instanceof Error ? `:${digestDiagnosticText(error.message)}` : ""}` });
+            systemPromptChars: INVESTIGATOR_SYSTEM_PROMPT().length,
+            userPromptChars: workingPrompt.length,\n            totalPromptChars: workingPrompt.length + INVESTIGATOR_SYSTEM_PROMPT().length, status: "error", success: false, latencyMs: Date.now() - started, retryIndex: attempt, reason: `${failureClass}${error instanceof Error ? `:${digestDiagnosticText(error.message)}` : ""}` });
         // A local provider-gate quota/cooldown is already a provider-wide stop
         // signal for this role. Do not waste the remaining key/model matrix on
         // calls that the gate will reject before reaching Groq.
