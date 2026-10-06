@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildAtlasBossControlPrompt,
   buildAtlasRightHandControlPrompt,
+  buildAtlasControlState,
   ATLAS_BOSS_CONTROL_PROMPT_BUDGET,
   ATLAS_RIGHT_HAND_PROMPT_BUDGET,
 } from "../lib/atlas-control-decision";
@@ -66,6 +67,33 @@ describe("Apex Atlas prompt budget optimization", () => {
     expect(compact).toContain("OPEN QUESTIONS:");
     expect(compact).toContain("UNRESOLVED_DISCRIMINATOR");
     expect(compact).toContain("PROVIDER DISAGREEMENTS:");
+  });
+
+  it("keeps admitted candidates and bounded finding state visible to the control plane", () => {
+    const compact = buildAtlasControlState({
+      objective: "Resolve candidates and identify the strongest attributable person.",
+      discoveryStatus: "active",
+      admittedCandidates: Array.from({ length: 25 }, (_, i) => ({
+        name: "Candidate " + (i + 1),
+        role: "operator",
+        sourceUrls: ["https://source.example/" + (i + 1)],
+      })),
+      discoveryTrajectory: [],
+      discoveryFindings: Array.from({ length: 8 }, (_, i) => ({
+        personName: "Candidate " + (i + 1),
+        role: "operator",
+        scope: "candidate",
+        promotionDecision: i === 7 ? "reject" : "promote",
+        sourceUrls: ["https://source.example/" + (i + 1)],
+        note: i === 7 ? "LATE_NEGATIVE_FINDING" : "supported finding",
+      })),
+      priorAction: "continue_discovery",
+      priorCandidate: null,
+    });
+    expect(compact.length).toBeLessThanOrEqual(10_000);
+    expect(compact).toContain("Candidate 25");
+    expect(compact).toContain("LATE_NEGATIVE_FINDING");
+    expect(compact).toContain('"promotionDecision":"reject"');
   });
 
   it("does not duplicate a giant Investigator report into the control prompt budget", () => {
