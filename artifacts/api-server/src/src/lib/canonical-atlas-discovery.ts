@@ -248,7 +248,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     let discovery = await runBureauAgenticWebPass({ mode: "discovery", targetName: "", objective: discoveryObjective, investigatorLlm: boss.investigatorLlm, caseId: discoveryCaseId, jobId: atlasJobId, maxIterations: depth.agenticMaxIterations, hardTimeoutMs: openingDiscoveryBudget });
     await assertAtlasJobActive(atlasJobId);
     let admission = await materializeAtlasAdmissions({ discoveryRunId: discovery.runId ?? "", findings: discovery.findings, atlasJobId, discoveryCaseId });
-    let admitted = admission.names; let materialized = admission.materialized; let evidenceRows = admission.evidenceRows; let researched = 0; let contactsFound = 0; let controlTurns = 0; let discoveryRuns = 1; let investigatorIterationsUsed = discovery.iterations; let investigatorResourceLimited = investigatorIterationsUsed >= depth.agenticMaxIterations; let priorAction: AtlasControlAction | null = null; let priorCandidate: string | null = null;
+    let admitted = admission.names; let materialized = admission.materialized; let evidenceRows = admission.evidenceRows; let researched = 0; let contactsFound = 0; let controlTurns = 0; let discoveryRuns = 1; let latestTargetInvestigation: Record<string, unknown> | null = null; let investigatorIterationsUsed = discovery.iterations; let investigatorResourceLimited = investigatorIterationsUsed >= depth.agenticMaxIterations; let priorAction: AtlasControlAction | null = null; let priorCandidate: string | null = null;
     const researchedNames = new Set<string>();
     phaseSummary.assignment = `${boss.investigatorLlm} selected by Groq; discovery completed=${discovery.status}; durableCase=${discoveryCaseId}.`; phaseSummary.discovery = `admitted=${admitted.length}; materialized=${materialized}; evidenceRows=${evidenceRows}; searches=${discovery.searches}; visits=${discovery.visits}; trajectory=${discovery.trajectory.length}; structuredTurns=${discovery.trajectoryRecords?.length ?? 0}`;
     if (discoveryOnly) {
@@ -330,6 +330,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         visits: discovery.visits,
         findings: discovery.findings,
         modelFindings: discovery.modelFindings,
+        targetInvestigation: latestTargetInvestigation,
         openQuestions: discovery.trajectoryRecords?.map((record) => ({
           turn: record.turn,
           action: record.action,
@@ -365,6 +366,21 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
         const targetBudget = Math.min(opts.targetTimeoutMs ?? depth.agenticHardTimeoutMs, assertAtlasDeadline() - 5_000); if (targetBudget < 30_000) throw new Error("Insufficient remaining Atlas budget for target investigation.");
         await runCanonicalSingleTargetInvestigation(atlasJobId, entity.id, { researchDepth: opts.researchDepth, targetTimeoutMs: targetBudget });
         await assertAtlasJobActive(atlasJobId);
+        const [targetCase] = await db.select({ id: researchCasesTable.id, status: researchCasesTable.status, iteration: researchCasesTable.iteration, caseFile: researchCasesTable.caseFile }).from(researchCasesTable).where(and(eq(researchCasesTable.targetEntityId, entity.id), eq(researchCasesTable.caseType, "target"), sql`${researchCasesTable.caseFile}::jsonb ->> 'atlasJobId' = ${atlasJobId}`)).orderBy(sql`${researchCasesTable.updatedAt} DESC`).limit(1);
+        let targetState: Record<string, unknown> = {};
+        try { targetState = targetCase?.caseFile ? JSON.parse(targetCase.caseFile) as Record<string, unknown> : {}; } catch { targetState = {}; }
+        latestTargetInvestigation = {
+          targetName: name,
+          caseId: targetCase?.id ?? null,
+          status: targetCase?.status ?? "unknown",
+          iteration: Number(targetCase?.iteration ?? 0),
+          completedActs: Number(targetState.completedActs ?? 0),
+          resourceLimited: Boolean(targetState.resourceLimited),
+          deadlineExceeded: Boolean(targetState.deadlineExceeded),
+          cancelled: Boolean(targetState.cancelled),
+          lastOversight: targetState.lastOversight ?? null,
+          contextDocument: typeof targetState.contextDocument === "string" ? targetState.contextDocument.slice(-12000) : null,
+        };
         researched += 1; researchedNames.add(name.toLowerCase());
         const after = await db.select({ email: entitiesTable.email, phone: entitiesTable.phone, linkedinUrl: entitiesTable.linkedinUrl, twitterHandle: entitiesTable.twitterHandle, instagramHandle: entitiesTable.instagramHandle, telegramHandle: entitiesTable.telegramHandle, personalWebsite: entitiesTable.personalWebsite }).from(entitiesTable).where(eq(entitiesTable.id, entity.id)).limit(1); const afterCard = after[0] ?? null;
         if (beforeCard && afterCard) { const cardFields: Array<keyof typeof beforeCard> = ["email", "phone", "linkedinUrl", "twitterHandle", "instagramHandle", "telegramHandle", "personalWebsite"]; contactsFound += cardFields.filter((field) => beforeCard[field] !== afterCard[field] && afterCard[field]).length; }
