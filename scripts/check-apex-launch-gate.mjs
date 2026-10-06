@@ -32,7 +32,7 @@ const canonicalSources = [wrapper, agentic, strict, batch, discovery, orchestrat
 pass("launch gate inspects source without executing repository code", !canonicalSources.some((source) => /execFileSync\(|spawnSync\(|child_process/.test(source)));
 pass("Investigator wrapper mounts canonical core", wrapper.includes("agentic-web-research-core"));
 pass("Investigator adapter pool contains Groq", /callGroqJson/.test(agentic));
-pass("Boss-selected Groq Investigator reaches llmStep", /investigatorLlm\?: "groq"/.test(agentic) && /selectedInvestigatorLlm/.test(agentic) && /llmStep/.test(agentic));
+pass("Boss-selected Investigator capability reaches llmStep", /investigatorLlm\?: InvestigatorCapability/.test(agentic) && /investigatorCapabilityKeyName/.test(agentic) && /selectedInvestigatorLlm/.test(agentic) && /llmStep/.test(agentic));
 pass("selected Investigator is first-class, not a fixed research stage", /selectedInvestigatorLlm/.test(agentic) && !/const orderedProviders\s*=/.test(agentic) && !/selectedInvestigatorLlm\s*,\s*\.\.\./.test(agentic));
 pass("no forced search-provider order", !/Prefer Serper.*Tavily.*Exa/i.test(agentic) && !/Serper\s*[→>-]+\s*Tavily\s*[→>-]+\s*Exa/i.test(agentic));
 pass("canonical Dig lane has no Gemini implementation", !/callGeminiJson/.test(agentic));
@@ -73,7 +73,7 @@ const legacyMount = routesIndex.indexOf("router.use(atlasRouter)");
 pass("historical Atlas router is not the canonical launch boundary", canonicalMount >= 0 && quarantineMount > canonicalMount && legacyMount > quarantineMount);
 pass("legacy Atlas launch cannot be reached through the quarantine boundary", /(?:router|atlasRouter)\.post\(\"\/ingest\/atlas-run\"/.test(legacyAtlas) && /status\(410\)/.test(legacyAtlas));
 pass("username migration hardener is no longer in API scripts", !packageJson.includes("apply-agentic-username-capability-split.mjs"));
-pass("canonical target runner steps one Investigator act", /maxIterations:\s*1/.test(canonicalRunner));
+pass("canonical target runner steps bounded multi-turn Investigator acts", /maxIterations:\s*actIterations/.test(canonicalRunner) && /investigatorIterationsUsed/.test(canonicalRunner));
 pass("canonical target runner requires durable oversight", /!lastOversight \|\| lastOversight\.status !== "completed"/.test(canonicalRunner));
 pass("canonical target runner uses one global deadline", /const deadline = Date\.now\(\) \+ hardTimeoutMs/.test(canonicalRunner));
 pass("canonical target runner does not release the outer Atlas lock", !canonicalRunner.includes("releaseCanonicalJob") && !/clearActiveJobIf(?:Owned|Matches)\(/.test(canonicalRunner));
