@@ -105,6 +105,24 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     });
     await assertAtlasJobActive(atlasJobId);
 
+    if (opts.discoveryCaseId) {
+      const [existingDiscoveryCase] = await db.select({ caseFile: researchCasesTable.caseFile, status: researchCasesTable.status }).from(researchCasesTable).where(eq(researchCasesTable.id, opts.discoveryCaseId)).limit(1);
+      let storedInvestigator: InvestigatorCapability | null = null;
+      try {
+        const stored = existingDiscoveryCase?.caseFile ? JSON.parse(existingDiscoveryCase.caseFile) as Record<string, unknown> : {};
+        storedInvestigator = typeof stored.investigatorLlm === "string" ? stored.investigatorLlm as InvestigatorCapability : null;
+      } catch {
+        throw new Error("Canonical discovery case has unreadable durable Investigator selection.");
+      }
+      if (storedInvestigator) {
+        if (!getAvailableInvestigatorCapabilities().includes(storedInvestigator)) {
+          throw new Error(`Previously selected discovery Investigator capability ${storedInvestigator} is unavailable; refusing silent capability rotation.`);
+        }
+        if (boss.investigatorLlm !== storedInvestigator) {
+          throw new Error(`Groq Boss attempted to change the durable discovery Investigator from ${storedInvestigator} to ${boss.investigatorLlm ?? "none"}; refusing silent capability rotation.`);
+        }
+      }
+    }
     if (!boss.investigatorLlm) {
       phaseSummary.assignment = "No usable Boss-selected Investigator capability; fail closed.";
       const bossFailureMessage = "Groq Boss was unavailable after bounded same-role model fallback; no alternate Investigator capability was substituted.";
