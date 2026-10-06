@@ -11,6 +11,7 @@ const checks=[
 ["canonical runner reads durable act oversight after each act with exact run and turn",/readOversight\(caseState,\s*latestResult\.executionId\s*\?\?\s*null,\s*actNumber\)/.test(runner)],
 ["canonical runner does not consume stale targetControlDecisions",!/readContinuationControl\(/.test(runner)],
 ["canonical target case reuse is bound to current atlas job",/state\.atlasJobId === atlasJobId/.test(runner)],
+["canonical target runner fails closed before acts when case is not active",/const caseRow = await ensureTargetCase\([\s\S]{0,500}?\);[\s\S]{0,220}caseRow\.status !== "active"/.test(runner)],
 ["canonical runner passes exact case identity into Investigator",/caseId: caseRow\.id/.test(runner)],
 ["canonical target context is rebuilt from durable Investigator observations",/loadDurableTargetTrajectory\(caseRow\.id\)/.test(runner)&&/buildInvestigatorContext\(\{ targetName: target\.name/.test(runner)],
 ["canonical target control iteration is durably monotonic",/iteration: caseRow\.iteration \+ completedActs/.test(runner)],
