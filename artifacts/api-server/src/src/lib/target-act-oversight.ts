@@ -9,7 +9,7 @@ import { runGroqRightHandFreeJson } from "./groq-right-hand-reasoning";
 import { buildClaimSupportGraph, observationsFromSourceUrls, validateClaimSupportGraph, type EvidenceGraph } from "./source-corroboration";
 type ActSourceRecord={turn:number;action:string;execution:string;observation?:string;observedUrls:string[];findings:unknown[]};type ActRecord={turn:number;model:string;action:string;args:Record<string,unknown>;thought?:string;execution:string;observation?:string;observedUrls:string[];findings:unknown[];providerFallback?:string[];stopReason?:string;sourceRecords?:ActSourceRecord[]};
 export type TargetActOversight={status:"completed"|"unavailable";action:"continue"|"redirect"|"stop";direction:string|null;reason:string|null;confidence:number|null;rightHand:{status:"completed"|"unavailable";decision:string|null;reason:string|null;focusLanes:string[];confidence:number|null;model:string;error:string|null};bossModel:string|null;error:string|null};
-function compactOversightAct(record:ActRecord):Record<string,unknown>{
+export function compactOversightAct(record:ActRecord):Record<string,unknown>{
   return {
     turn: record.turn,
     model: record.model,
@@ -22,7 +22,7 @@ function compactOversightAct(record:ActRecord):Record<string,unknown>{
     stopReason: record.stopReason ?? null,
   };
 }
-function compactOversightContext(value:string):string{
+export function compactOversightContext(value:string):string{
   const normalized=value.trim();
   const max=6_000;
   if(normalized.length<=max)return normalized;
