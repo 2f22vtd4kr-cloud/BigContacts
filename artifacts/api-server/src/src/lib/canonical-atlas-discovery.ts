@@ -384,7 +384,7 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
           deadlineExceeded: Boolean(targetState.deadlineExceeded),
           cancelled: Boolean(targetState.cancelled),
           lastOversight: targetState.lastOversight ?? null,
-          contextDocument: typeof targetState.contextDocument === "string" ? targetState.contextDocument.slice(-12000) : null,
+          contextDocument: typeof targetState.contextDocument === "string" ? targetState.contextDocument : null,
         };
         researched += 1; researchedNames.add(name.toLowerCase());
         const after = await db.select({ email: entitiesTable.email, phone: entitiesTable.phone, linkedinUrl: entitiesTable.linkedinUrl, twitterHandle: entitiesTable.twitterHandle, instagramHandle: entitiesTable.instagramHandle, telegramHandle: entitiesTable.telegramHandle, personalWebsite: entitiesTable.personalWebsite }).from(entitiesTable).where(eq(entitiesTable.id, entity.id)).limit(1); const afterCard = after[0] ?? null;
