@@ -221,7 +221,6 @@ export function buildInvestigatorContext(input: InvestigatorContextInput): strin
 
   return result.slice(0, budget.maxChars);
 }
-}
 
 /** Backward-compatible bounded helper for non-ReAct callers. */
 export function compactInvestigationContext(input: {
