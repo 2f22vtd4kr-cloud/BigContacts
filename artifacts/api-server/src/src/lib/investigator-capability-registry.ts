@@ -20,7 +20,7 @@ export const INVESTIGATOR_CAPABILITIES = GROQ_INVESTIGATOR_KEY_NAMES.map(
 );
 
 function keyIndex(capability: InvestigatorCapability): number | null {
-  const match = capability.match(/^groq-investigator-(\\d+)$/);
+  const match = capability.match(/^groq-investigator-(\d+)$/);
   if (!match) return null;
   const index = Number(match[1]);
   return Number.isInteger(index) && index >= 1 && index <= GROQ_INVESTIGATOR_KEY_NAMES.length ? index : null;
