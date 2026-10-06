@@ -1,7 +1,47 @@
 import { describe, expect, it } from "vitest";
 import { ResearchIntelligenceEngine } from "./research-intelligence-engine";
 
-describe("research intelligence atomic evidence", () => {\n  it("rejects model findings attached directly to search actions", () => {
+describe("research intelligence atomic evidence", () => {\n  it("does not replay legacy search-derived observations, contacts, or hypothesis support", () => {
+    const engine = new ResearchIntelligenceEngine({ executionId: "restore-search", target: "Ada Example", objective: "Resolve identity" });
+    engine.restoreContext({
+      version: 1,
+      caseId: null,
+      executionId: "old",
+      target: "Ada Example",
+      objective: "Resolve identity",
+      facts: [{ claim: "Ada Example email jane@example.com", evidenceIds: ["search-evidence"], sources: ["serper.dev"], firstSeen: "", lastSeen: "" }],
+      hypotheses: [{ id: "h1", label: "Ada Example is founder", entity: "Ada Example", score: 0.9, supportingEvidenceIds: ["search-evidence"], contradictingEvidenceIds: [], missingDiscriminators: [], status: "alternative" }],
+      contradictions: [],
+      contacts: [{ personName: "Ada Example", value: "jane@example.com", vector: "email", state: "ATTRIBUTED", sourceUrls: ["https://serper.dev/search"], sourceHosts: ["serper.dev"], firstSeen: "", lastSeen: "", attributionStrength: 0.9 }],
+      negativeFindings: [],
+      openQuestions: [],
+      recentActions: [],
+      sourceDiversity: 0,
+      sourceFamilyDiversity: 0,
+      repeatedSourceFamilies: [],
+      evidenceCount: 1,
+      provenanceDigest: "old",
+      missionBriefs: [],
+      sourceQualitySummary: [{ sourceClass: "SEARCH_RESULT", count: 1 }],
+      stoppingAssessment: { evidenceCoverage: 1, unresolvedQuestions: 0, recommendation: "review" },
+      frontier: { nextMovePriority: 0, contradictionPressure: 0, unresolvedPressure: 0 },
+      sourceIndependence: 0,
+      providerDisagreements: [],
+      atomicEvidence: [{ evidenceId: "search-evidence", kind: "observation", claim: "Observed source https://serper.dev/search", sourceUrl: "https://serper.dev/search", sourceHost: "serper.dev", sourceClass: "SEARCH_RESULT", passage: "Ada Example — founder — jane@example.com", attribution: null, claimId: null }],
+      actionYield: [],
+      falsification: { required: true, priority: 1 },
+      researchQuestions: [],
+      independentSourceUnits: 0,
+      discovery: { objective: "Resolve identity", facts: [], hypotheses: [], negativeFindings: [], actions: [], sourceFamilyDiversity: 0, repeatedSourceFamilies: [] },
+    });
+    const context = engine.buildContext();
+    expect(context.atomicEvidence).toHaveLength(0);
+    expect(context.facts[0]?.evidenceIds).toHaveLength(0);
+    expect(context.hypotheses[0]?.supportingEvidenceIds).toHaveLength(0);
+    expect(context.contacts).toHaveLength(0);
+  });
+
+  it("rejects model findings attached directly to search actions", () => {
     const engine = new ResearchIntelligenceEngine({ executionId: "search-finding", target: "Ada Example", objective: "Resolve identity" });
     engine.recordAction({
       turn: 1,
