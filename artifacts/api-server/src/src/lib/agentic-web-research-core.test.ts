@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildGroqInvestigatorRequestBody, buildStepPrompt } from "./agentic-web-research-core";
+import { buildGroqInvestigatorRequestBody, buildStepPrompt, validateDiscoverySearchQuery } from "./agentic-web-research-core";
 
 describe("Investigator prompt architecture", () => {
   it("keeps the composed model prompt materially below the old 12k-character live request", () => {
@@ -34,6 +34,15 @@ describe("Investigator prompt architecture", () => {
     expect(prompt.length).toBeLessThanOrEqual(8_500);
     expect(prompt).not.toContain('"action":{"type":"string","enum"');
     expect(prompt).not.toContain("APEX MISSION CONTRACT v");
+  });
+
+  it("blocks generic discovery searches until the model supplies a concrete anchor", () => {
+    expect(validateDiscoverySearchQuery("2023 venture capital investment biotech company CEO", [])).toEqual({
+      allowed: false,
+      reason: expect.stringContaining("concrete anchor"),
+    });
+    expect(validateDiscoverySearchQuery("Acme Holdings CEO official", [])).toEqual({ allowed: true });
+    expect(validateDiscoverySearchQuery("Companies House director Kenya", [])).toEqual({ allowed: true });
   });
 
   it("keeps the structured response contract at the provider boundary", () => {
