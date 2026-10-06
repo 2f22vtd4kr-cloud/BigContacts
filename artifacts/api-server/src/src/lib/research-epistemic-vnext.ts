@@ -46,7 +46,13 @@ export class SourceLineageGraph {
   independentUnitCount(sourceIds: readonly string[]): number {
     const roots = new Set<string>();
     for (const id of sourceIds) { let current = this.nodes.get(id); const seen = new Set<string>(); while (current?.originSourceId && !seen.has(current.sourceId)) { seen.add(current.sourceId); current = this.nodes.get(current.originSourceId); } roots.add(current?.sourceId ?? id); }
-    return roots.size;
+    const independentPublishers = new Set<string>();
+    for (const rootId of roots) {
+      const root = this.nodes.get(rootId);
+      if (!root) continue;
+      independentPublishers.add(root.publisher?.trim().toLowerCase() || root.host.trim().toLowerCase());
+    }
+    return independentPublishers.size;
   }
   snapshot(): SourceLineageNode[] { return [...this.nodes.values()].map((node) => ({ ...node, citedSourceIds: [...node.citedSourceIds] })); }
 }
