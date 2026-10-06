@@ -588,11 +588,19 @@ export function renderIntelligenceContextCompact(context: IntelligenceContext, m
 
   const sections: Array<[string, string, number]> = [
     ["OBJECTIVE", clip(context.objective, 300), 0.10],
-    ["FACTS", lines(context.facts.slice(-6).map((fact) => fact.claim), 320).map((value) => "- " + value).join("\n"), 0.12],
-    ["CONTRADICTIONS", lines(context.contradictions.slice(-6).map((item) => item.claim), 320).map((value) => "- " + value).join("\n"), 0.10],
+    ["IDENTITY HYPOTHESES", context.hypotheses.slice(0, 5).map((hypothesis) => JSON.stringify({
+      entity: clip(hypothesis.entity, 180),
+      score: Number(hypothesis.score.toFixed(3)),
+      status: hypothesis.status,
+      supportingEvidenceIds: hypothesis.supportingEvidenceIds.slice(0, 4),
+      contradictingEvidenceIds: hypothesis.contradictingEvidenceIds.slice(0, 4),
+      missingDiscriminators: hypothesis.missingDiscriminators.slice(0, 4).map((value) => clip(value, 180)),
+    })).join("\n"), 0.13],
+    ["FACTS", lines(context.facts.slice(-6).map((fact) => fact.claim), 320).map((value) => "- " + value).join("\n"), 0.11],
+    ["CONTRADICTIONS", lines(context.contradictions.slice(-6).map((item) => item.claim), 320).map((value) => "- " + value).join("\n"), 0.09],
     ["NEGATIVE FINDINGS", lines(context.negativeFindings.slice(-8), 300).map((value) => "- " + value).join("\n"), 0.12],
     ["OPEN QUESTIONS", lines(context.openQuestions.slice(0, 8), 320).map((value) => "- " + value).join("\n"), 0.14],
-    ["CONTACTS", context.contacts.slice(-5).map((contact) => JSON.stringify({
+    ["CONTACTS / ATTRIBUTION", context.contacts.slice(-5).map((contact) => JSON.stringify({
       value: clip(contact.value, 180),
       sourceUrls: contact.sourceUrls.slice(0, 3),
     })).join("\n"), 0.08],
