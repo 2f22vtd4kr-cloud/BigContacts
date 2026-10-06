@@ -219,10 +219,14 @@ export function compactInvestigationContext(input: {
   trajectory?: readonly string[];
   trajectoryRecords?: readonly CompactionTrajectoryRecord[];
   evidenceGraphSummaries?: readonly string[];
+  rawSectionShare?: number;
 }): string {
   const maxChars = Math.min(MAX_MAX_CHARS, Math.max(MIN_MAX_CHARS, input.maxChars ?? DEFAULT_MAX_CHARS));
+  const rawSectionShare = Number.isFinite(input.rawSectionShare)
+    ? Math.min(0.65, Math.max(0.2, input.rawSectionShare!))
+    : 0.35;
   const sections = [
-    "CURRENT STATE\n" + trim(input.raw, Math.floor(maxChars * 0.35)),
+    "CURRENT STATE\n" + trim(input.raw, Math.floor(maxChars * rawSectionShare)),
     "EVIDENCE GRAPH SUMMARY\n" + (input.evidenceGraphSummaries ?? []).map((value) => trim(value, 900)).filter(Boolean).join("\n"),
     "TRAJECTORY RECORDS\n" + (input.trajectoryRecords ?? []).map((record) => archiveRecord(record, 650)).filter(Boolean).join("\n"),
     "TRAJECTORY NOTES\n" + (input.trajectory ?? []).map((value) => trim(value, 420)).filter(Boolean).join("\n"),
