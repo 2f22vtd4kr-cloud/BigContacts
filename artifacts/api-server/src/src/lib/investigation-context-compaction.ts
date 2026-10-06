@@ -133,35 +133,6 @@ export function buildInvestigatorContext(input: InvestigatorContextInput): strin
   const findings = input.findings.map((finding) => compactFinding(finding, 700)).filter(Boolean);
   sections.push(fitSection("CURRENT FINDINGS / LEADS\n" + (findings.length ? findings.join("\n") : "(none yet)"), budget.findingChars));
 
-  sections.push("LATEST OBSERVATION\n" + (trim(input.lastObservation, budget.recentObservationChars) || "(none)"));
-
-  if (recent.length) {
-    sections.push(
-      [
-        "RECENT TRAJECTORY (full bounded observations)",
-        ...recent.map((record) =>
-          compactRecord(
-            record,
-            budget.recentObservationChars,
-            Math.max(1_200, Math.floor(budget.maxChars / Math.max(2, recent.length + 1))),
-          ),
-        ),
-      ].join("\n---\n"),
-    );
-  }
-
-  if (older.length) {
-    sections.push([
-      "ARCHIVED TRAJECTORY INDEX (older raw observations remain durable and addressable by turn)",
-      ...older.map((record) => archiveRecord(record, budget.archiveRecordChars)),
-      "Use this index to avoid repeating dead ends. Durable run/evidence records retain complete observations; do not infer missing detail from this index.",
-    ].join("\n"));
-  }
-
-  if (!records.length && input.history?.length) {
-    sections.push(fitSection("LEGACY TRAJECTORY NOTES\n" + input.history.map((item) => trim(item, 420)).filter(Boolean).join("\n"), 2_000));
-  }
-
   const actionSummary = records.slice(-8).map((record) => ({
     action: record.action,
     execution: record.execution || "unknown",
@@ -197,6 +168,35 @@ export function buildInvestigatorContext(input: InvestigatorContextInput): strin
     ...unresolvedSignals.map((signal) => "Signal: " + signal),
     "A good next move should maximize expected information gain, identity discrimination, source independence, or contact relevance relative to cost.",
   ].join("\n"));
+
+  sections.push("LATEST OBSERVATION\n" + (trim(input.lastObservation, budget.recentObservationChars) || "(none)"));
+
+  if (recent.length) {
+    sections.push(
+      [
+        "RECENT TRAJECTORY (full bounded observations)",
+        ...recent.map((record) =>
+          compactRecord(
+            record,
+            budget.recentObservationChars,
+            Math.max(1_200, Math.floor(budget.maxChars / Math.max(2, recent.length + 1))),
+          ),
+        ),
+      ].join("\n---\n"),
+    );
+  }
+
+  if (older.length) {
+    sections.push([
+      "ARCHIVED TRAJECTORY INDEX (older raw observations remain durable and addressable by turn)",
+      ...older.map((record) => archiveRecord(record, budget.archiveRecordChars)),
+      "Use this index to avoid repeating dead ends. Durable run/evidence records retain complete observations; do not infer missing detail from this index.",
+    ].join("\n"));
+  }
+
+  if (!records.length && input.history?.length) {
+    sections.push(fitSection("LEGACY TRAJECTORY NOTES\n" + input.history.map((item) => trim(item, 420)).filter(Boolean).join("\n"), 2_000));
+  }
 
   sections.push("CONTEXT MANAGEMENT LAW\nThe complete trajectory and evidence remain durable outside this prompt. This working context is deliberately selective. Do not treat omitted raw detail as negative evidence. Prefer a new discriminating action when the archived index shows an unresolved gap. Do not repeat a failed avenue solely because its raw observation is not visible here.");
 
