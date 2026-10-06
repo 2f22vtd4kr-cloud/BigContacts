@@ -103,6 +103,24 @@ describe("agentic source provenance", () => {
     expect(sourceBackedAgenticFindings(raw, successfulTrajectory, [failed])).toHaveLength(0);
   });
 
+  it("does not treat search-result snippets as claim-grade source evidence", () => {
+    const raw = [finding()];
+    const searchRecord = observation({
+      action: "web_search",
+      args: { query: "Jane Example founder email" },
+      observation: "Jane Example — Founder — jane@example.com — https://example.com/team/jane",
+      observedUrls: ["https://example.com/team/jane"],
+    });
+    expect(sourceBackedFindings(raw, [], [searchRecord])).toHaveLength(0);
+    expect(sourceBackedAgenticFindings(raw, [], [searchRecord])).toHaveLength(0);
+    const visitedWithoutClaim = observation({ turn: 2, observation: "Jane Example — Founder", observedUrls: ["https://example.com/team/jane"] });
+    expect(sourceBackedFindings(raw, [], [searchRecord, visitedWithoutClaim])).toHaveLength(0);
+    expect(sourceBackedAgenticFindings(raw, [], [searchRecord, visitedWithoutClaim])).toHaveLength(0);
+    const verifiedVisit = observation({ turn: 2, observation: "Jane Example — Founder — jane@example.com", observedUrls: ["https://example.com/team/jane"] });
+    expect(sourceBackedFindings(raw, [], [searchRecord, verifiedVisit])).toHaveLength(1);
+    expect(sourceBackedAgenticFindings(raw, [], [searchRecord, verifiedVisit])).toHaveLength(1);
+  });
+
   it("does not turn a missing source into a synthetic search URL", () => {
     const contacts = findingsToContacts([
       {
