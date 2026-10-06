@@ -178,7 +178,7 @@ export async function webSearchSerper(query: string, locale?: string, market?: s
           keys: Object.keys(body).sort(),
           queryChars: query.length,
           queryDigest: digestDiagnosticText(query),
-          num: 10,
+          num: 6,
           localeChars: typeof body.hl === "string" ? body.hl.length : 0,
           marketChars: typeof body.gl === "string" ? body.gl.length : 0,
         },
