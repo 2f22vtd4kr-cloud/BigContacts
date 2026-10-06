@@ -5,6 +5,8 @@
  * Free, no API key required. Rate limit: ~60 req/min.
  */
 
+import { safeOutboundFetch } from "./ssrf-safe-fetch";
+import { runProviderCall } from "./provider-gate";
 export interface GleifResult {
   name: string;
   type: "Corporation";
@@ -29,13 +31,13 @@ export async function searchGleif(
   const url = `https://api.gleif.org/api/v1/lei-records?${params}`;
   const requestSignal = signal ? AbortSignal.any([signal, AbortSignal.timeout(12_000)]) : AbortSignal.timeout(12_000);
 
-  const resp = await fetch(url, {
+  const resp = await runProviderCall({ provider: "registry", account: "gleif", signal }, () => safeOutboundFetch(url, {
     headers: {
       Accept: "application/vnd.api+json",
       "User-Agent": "ApexFinder/1.0 OSINT-Intelligence research@apexfinder.private",
     },
     signal: requestSignal,
-  });
+  }));
 
   if (!resp.ok) {
     const body = await resp.text().catch(() => "");
