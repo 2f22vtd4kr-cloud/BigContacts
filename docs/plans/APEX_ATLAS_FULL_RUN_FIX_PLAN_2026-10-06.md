@@ -219,3 +219,32 @@ DURABLE EVIDENCE LEDGER
 → COMPACT MODEL CONTEXT
 → LOCAL RECENT WINDOW
 → CURRENT ACTION / OBSERVATION
+
+
+## Implementation status — 2026-10-06
+
+Implemented on `main` after the investigation:
+
+- Final Investigator prompt composition reduced:
+  - working durable context: 4,200 characters;
+  - intelligence state: 1,500 characters;
+  - capability guidance: 1,600 characters;
+  - final application prompt ceiling: 9,000 characters.
+- Removed the duplicate institutional orientation and duplicated action-schema serialization from the dynamic Investigator prompt.
+- Kept the full structured output schema at the provider `response_format` boundary.
+- Tightened discovery search admission so generic role/sector/date/source vocabulary cannot by itself authorize a search.
+- Added safe Groq rate-limit/error metadata to physical-attempt telemetry.
+- Added known-token-window awareness so the Investigator can wait for a bounded reset instead of knowingly issuing a request that cannot fit the reported token allowance.
+- Preserved same-model/same-capability structured-output compatibility fallback.
+- Persisted the actual Boss model on newly created durable discovery cases.
+- Added Vitest coverage for prompt size/duplication, structured response contract, and discovery anchor gating.
+- Added a repository prompt-budget guard to the API build/test checks.
+
+Verification performed through the repository connector:
+
+- Current `main` contains all intended files and guards.
+- The prompt-budget guard conditions were re-evaluated against the current source and pass.
+- The current `main` has no observable GitHub Actions workflow run for the latest commit, so CI/build/typecheck are **not claimed green** here.
+- Replit was not used for implementation or verification; the next live proof remains the user's Replit run.
+
+The next live run is the acceptance test described above. No implementation change can manufacture upstream Groq capacity; the runtime now uses the provider's reported token-window state to avoid predictable waste and exposes the exact safe quota telemetry needed if the provider still refuses capacity.
