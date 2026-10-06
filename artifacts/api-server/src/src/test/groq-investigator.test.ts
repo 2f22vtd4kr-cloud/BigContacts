@@ -11,6 +11,18 @@ import { getAvailableInvestigatorCapabilities } from "../lib/investigator-capabi
 import { resetProviderGateForTests } from "../lib/provider-gate";
 
 describe("Groq Investigator provider boundary", () => {
+  it("advertises exactly the configured key-bound capabilities", () => {
+    const env = {
+      GROQ_INVESTIGATOR_API_KEY: "key-1",
+      GROQ_INVESTIGATOR_API_KEY_1: "key-2",
+      GROQ_INVESTIGATOR_API_KEY_3: "key-4",
+    } as NodeJS.ProcessEnv;
+    expect(getAvailableInvestigatorCapabilities(env)).toEqual([
+      "groq-investigator-1",
+      "groq-investigator-2",
+      "groq-investigator-4",
+    ]);
+  });
   it("binds terminal findings only to exact passages from previously observed non-search sources", () => {
     const finding = {
       vectorType: "email" as const,
