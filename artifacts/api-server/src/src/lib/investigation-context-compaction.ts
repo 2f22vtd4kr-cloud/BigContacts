@@ -108,7 +108,7 @@ function archiveRecord(record: CompactionTrajectoryRecord, max: number): string 
   ].filter(Boolean).join(" | "), max);
 }
 
-function fitSection(section: string, remaining: number): string {
+function headTail<T>(values: readonly T[], maxItems: number): T[] {\n  if (values.length <= maxItems) return [...values];\n  if (maxItems <= 1) return values.slice(-1);\n  const head = Math.ceil(maxItems / 2);\n  return [...values.slice(0, head), ...values.slice(-(maxItems - head))];\n}\n\nfunction fitSection(section: string, remaining: number): string {
   if (remaining <= 0) return "";
   if (section.length <= remaining) return section;
   if (remaining < 80) return "";
@@ -130,7 +130,7 @@ export function buildInvestigatorContext(input: InvestigatorContextInput): strin
     "OBJECTIVE: " + trim(input.objective, 2_000),
   ].filter(Boolean).join("\n"));
 
-  const findings = input.findings.map((finding) => compactFinding(finding, 700)).filter(Boolean);
+  const findings = headTail(input.findings, 10).map((finding) => compactFinding(finding, 700)).filter(Boolean);
   sections.push(fitSection("CURRENT FINDINGS / LEADS\n" + (findings.length ? findings.join("\n") : "(none yet)"), budget.findingChars));
 
   const actionSummary = records.slice(-8).map((record) => ({
