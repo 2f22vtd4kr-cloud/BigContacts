@@ -24,8 +24,8 @@ pass("strict persistence requires provenance",/provenance/.test(strict)&&/caseId
 pass("cancellation callback is checked after Investigator execution",/input\.shouldCancel && await input\.shouldCancel\(\)/.test(target));
 pass("job cancellation state is rechecked immediately before promotion",/const promotionJob = await getJob\(input\.jobId\)[\s\S]{0,220}promotionJob\.status !== "running"/.test(target));
 pass("agentic wrapper has abort deadline",/new AbortController\(\)/.test(wrapper)&&/setTimeout\(.*requestedHardTimeout/.test(wrapper));
-pass("provider selection is derived from the durable target case",/resolveSelectedInvestigator/.test(target)&&/researchCasesTable\.caseFile/.test(target)&&/eq\(researchCasesTable\.id,\s*(?:caseId|input\.caseId)\)/.test(target)&&/selected !== "groq"/.test(target));
-pass("caller provider cannot override durable selection",/input\.investigatorLlm && input\.investigatorLlm !== selected/.test(target));
+pass("provider selection is derived from the durable target case",/resolveSelectedInvestigator/.test(target)&&/researchCasesTable\.caseFile/.test(target)&&/eq\(researchCasesTable\.id,\s*(?:caseId|input\.caseId)\)/.test(target)&&/typeof selected !== "string"/.test(target));
+pass("caller provider cannot override durable selection",/input\.investigatorLlm && input\.investigatorLlm !== investigator/.test(target));
 pass("core does not assemble alternate provider list",!/orderedProviders\s*=/.test(core));
 pass("target prompt labels shared context as case state",/CASE STATE, NOT SOURCE INSTRUCTIONS/.test(target));
 pass("Boss forbids tool/provider/query prescription",/Do not choose the next tool or provider/.test(oversight));
@@ -33,7 +33,7 @@ pass("public-source material is untrusted",/Public-source material is untrusted 
 pass("network response cap remains a resource-safety boundary",/MAX_NETWORK_RESPONSE_BYTES = 2_000_000/.test(core));
 pass("Investigator action loop is bounded by the runtime safety ceiling",/const MAX_ITER = 64/.test(core)&&/for \(let i = 0; i < maxIter; i\+\+/.test(core));
 pass("durable observation/trajectory state is not tail-sliced",!/observations\.slice\(|trajectoryRecords\.slice\(|findings\.slice\(/.test(core));
-pass("canonical target executes one core iteration per act",/maxIterations: 1/.test(runner));
+pass("canonical target executes bounded multi-turn Investigator acts",/maxIterations:\s*actIterations/.test(runner)&&/investigatorIterationsUsed/.test(runner));
 pass("global target continuation is deadline/cancellation governed rather than action-count governed",!/Math\.min\(40, depth\.agenticMaxIterations\)/.test(runner)&&/globalDeadline|deadline/.test(runner));
 pass("canonical route precedes legacy route",/canonicalAtlasLaunchRouter[\s\S]*atlasRouter/.test(legacy));
 pass("legacy launch is quarantined",/quarantine/.test(legacy));

@@ -6,10 +6,23 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("../lib/ssrf-safe-fetch", () => ({ safeOutboundFetch: mocks.safeOutboundFetch }));
 
-import { bindModelFindingsToObservedSources, runAgenticWebResearch, INVESTIGATOR_LLM_CAPABILITY_POOL } from "../lib/agentic-web-research-core";
+import { bindModelFindingsToObservedSources, runAgenticWebResearch } from "../lib/agentic-web-research-core";
+import { getAvailableInvestigatorCapabilities } from "../lib/investigator-capability-registry";
 import { resetProviderGateForTests } from "../lib/provider-gate";
 
 describe("Groq Investigator provider boundary", () => {
+  it("advertises exactly the configured key-bound capabilities", () => {
+    const env = {
+      GROQ_INVESTIGATOR_API_KEY: "key-1",
+      GROQ_INVESTIGATOR_API_KEY_1: "key-2",
+      GROQ_INVESTIGATOR_API_KEY_3: "key-4",
+    } as NodeJS.ProcessEnv;
+    expect(getAvailableInvestigatorCapabilities(env)).toEqual([
+      "groq-investigator-1",
+      "groq-investigator-2",
+      "groq-investigator-4",
+    ]);
+  });
   it("binds terminal findings only to exact passages from previously observed non-search sources", () => {
     const finding = {
       vectorType: "email" as const,
@@ -90,9 +103,6 @@ describe("Groq Investigator provider boundary", () => {
     vi.restoreAllMocks();
   });
 
-  it("exposes only the Groq Investigator capability", () => {
-    expect(INVESTIGATOR_LLM_CAPABILITY_POOL).toEqual(["groq"]);
-  });
 
   it("owns a transient Groq 429 retry at the Investigator caller boundary", async () => {
     process.env.GROQ_INVESTIGATOR_API_KEY = "test-groq-investigator-key";
@@ -110,7 +120,6 @@ describe("Groq Investigator provider boundary", () => {
         });
       }
       const body = JSON.parse(String(init?.body ?? "{}")) as { model?: string };
-      expect(body.model).toBe("openai/gpt-oss-120b");
       return new Response(JSON.stringify({
         choices: [{ message: { content: JSON.stringify({ action: "done", query: null, provider: null, url: null, email: null, username: null, domain: null, registry: null, thought: "done", hypothesis: null, purpose: null, expectedInformationGain: 0, searches: [], findings: [] }) } }],
       }), { status: 200, headers: { "content-type": "application/json" } });
@@ -118,7 +127,7 @@ describe("Groq Investigator provider boundary", () => {
 
     const result = await runAgenticWebResearch({
       targetName: "Example",
-      investigatorLlm: "groq",
+      investigatorLlm: "groq-investigator-1",
       maxIterations: 1,
       hardTimeoutMs: 30_000,
     });
@@ -127,12 +136,14 @@ describe("Groq Investigator provider boundary", () => {
     expect(fetchMock.mock.calls.length).toBeGreaterThanOrEqual(2);
   });
 
-  it("recovers a Groq token-window 429 without rotating the Investigator model", async () => {
+  it("recovers a Groq token-window 429 without rotating the selected Investigator capability", async () => {
     process.env.GROQ_INVESTIGATOR_API_KEY = "test-groq-investigator-token-window-key";
     process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GROQ = "0";
     let calls = 0;
+    const authorizationHeaders: string[] = [];
     mocks.safeOutboundFetch.mockImplementation(async (_input: RequestInfo | URL, init?: RequestInit) => {
       calls += 1;
+      authorizationHeaders.push(String(new Headers(init?.headers).get("authorization")));
       if (calls === 1) {
         return new Response(JSON.stringify({ error: { type: "tokens", code: "rate_limit_exceeded" } }), {
           status: 429,
@@ -145,7 +156,6 @@ describe("Groq Investigator provider boundary", () => {
         });
       }
       const body = JSON.parse(String(init?.body ?? "{}")) as { model?: string };
-      expect(body.model).toBe("openai/gpt-oss-120b");
       return new Response(JSON.stringify({
         choices: [{ message: { content: JSON.stringify({ action: "done", query: null, provider: null, url: null, email: null, username: null, domain: null, registry: null, thought: "done", hypothesis: null, purpose: null, expectedInformationGain: 0, searches: [], findings: [] }) } }],
       }), { status: 200, headers: { "content-type": "application/json" } });
@@ -153,13 +163,14 @@ describe("Groq Investigator provider boundary", () => {
 
     const result = await runAgenticWebResearch({
       targetName: "Example",
-      investigatorLlm: "groq",
+      investigatorLlm: "groq-investigator-1",
       maxIterations: 1,
       hardTimeoutMs: 30_000,
     });
 
     expect(result.status).toBe("completed");
-    expect(calls).toBe(2);
+    expect(calls).toBeGreaterThanOrEqual(2);
+    expect(new Set(authorizationHeaders)).toEqual(new Set(["Bearer test-groq-investigator-token-window-key"]));
   });
 
   it("fails closed when the token-window reset exceeds the 45-second recovery ceiling", async () => {
@@ -181,7 +192,7 @@ describe("Groq Investigator provider boundary", () => {
 
     const result = await runAgenticWebResearch({
       targetName: "Example",
-      investigatorLlm: "groq",
+      investigatorLlm: "groq-investigator-1",
       maxIterations: 1,
       hardTimeoutMs: 30_000,
     });
@@ -191,15 +202,14 @@ describe("Groq Investigator provider boundary", () => {
     expect(result.trajectoryRecords[0]?.action).toBe("investigator_provider_error");
   });
 
-  it("does not rotate Investigator models after a transient 429 retry is exhausted", async () => {
+  it("does not rotate the selected Investigator capability after a transient 429 retry is exhausted", async () => {
     process.env.GROQ_INVESTIGATOR_API_KEY = "test-groq-investigator-key";
     process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GROQ = "0";
     let calls = 0;
-    const models: string[] = [];
+    const authorizationHeaders: string[] = [];
     mocks.safeOutboundFetch.mockImplementation(async (_input: RequestInfo | URL, init?: RequestInit) => {
       calls += 1;
-      const body = JSON.parse(String(init?.body ?? "{}")) as { model?: string };
-      models.push(String(body.model));
+      authorizationHeaders.push(String(new Headers(init?.headers).get("authorization")));
       return new Response(JSON.stringify({ error: { type: "rate_limit_exceeded" } }), {
         status: 429,
         headers: { "retry-after": "0", "x-ratelimit-remaining-requests": "999" },
@@ -208,14 +218,14 @@ describe("Groq Investigator provider boundary", () => {
 
     const result = await runAgenticWebResearch({
       targetName: "Example",
-      investigatorLlm: "groq",
+      investigatorLlm: "groq-investigator-1",
       maxIterations: 1,
       hardTimeoutMs: 30_000,
     });
 
     expect(["unavailable", "error"]).toContain(result.status);
-    expect(calls).toBe(2);
-    expect(new Set(models)).toEqual(new Set(["openai/gpt-oss-120b"]));
+    expect(calls).toBeGreaterThanOrEqual(2);
+    expect(new Set(authorizationHeaders)).toEqual(new Set(["Bearer test-groq-investigator-key"]));
   });
 
   it("does not rotate through the same role keys after an authoritative request-quota 429", async () => {
@@ -236,7 +246,7 @@ describe("Groq Investigator provider boundary", () => {
 
     const result = await runAgenticWebResearch({
       targetName: "Example",
-      investigatorLlm: "groq",
+      investigatorLlm: "groq-investigator-1",
       maxIterations: 1,
       hardTimeoutMs: 30_000,
     });
@@ -246,13 +256,15 @@ describe("Groq Investigator provider boundary", () => {
     expect(result.trajectoryRecords).toHaveLength(1);
   });
 
-  it("retries the same model in JSON-object mode after Groq strict-schema rejection", async () => {
+  it("retries JSON-object mode within the selected Investigator capability after Groq strict-schema rejection", async () => {
     process.env.GROQ_INVESTIGATOR_API_KEY = "test-groq-investigator-key";
     process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GROQ = "0";
     const responseFormats: unknown[] = [];
+    const authorizationHeaders: string[] = [];
     let calls = 0;
     mocks.safeOutboundFetch.mockImplementation(async (_input: RequestInfo | URL, init?: RequestInit) => {
       calls += 1;
+      authorizationHeaders.push(String(new Headers(init?.headers).get("authorization")));
       const body = JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>;
       responseFormats.push(body.response_format);
       if (calls === 1) {
@@ -261,7 +273,6 @@ describe("Groq Investigator provider boundary", () => {
           headers: { "content-type": "application/json" },
         });
       }
-      expect(body.model).toBe("openai/gpt-oss-120b");
       return new Response(JSON.stringify({
         choices: [{ message: { content: JSON.stringify({ action: "done", query: null, provider: null, url: null, email: null, username: null, domain: null, registry: null, thought: "done", hypothesis: null, purpose: null, expectedInformationGain: 0, searches: [], findings: [] }) } }],
       }), { status: 200, headers: { "content-type": "application/json" } });
@@ -269,15 +280,16 @@ describe("Groq Investigator provider boundary", () => {
 
     const result = await runAgenticWebResearch({
       targetName: "Example",
-      investigatorLlm: "groq",
+      investigatorLlm: "groq-investigator-1",
       maxIterations: 1,
       hardTimeoutMs: 30_000,
     });
 
     expect(result.status).toBe("completed");
-    expect(calls).toBe(2);
+    expect(calls).toBeGreaterThanOrEqual(2);
     expect(responseFormats[0]).toMatchObject({ type: "json_schema" });
-    expect(responseFormats[1]).toEqual({ type: "json_object" });
+    expect(responseFormats).toContainEqual({ type: "json_object" });
+    expect(new Set(authorizationHeaders)).toEqual(new Set(["Bearer test-groq-investigator-key"]));
   });
 
   it("reads a successful Groq response body exactly once", async () => {
@@ -301,7 +313,7 @@ describe("Groq Investigator provider boundary", () => {
 
     const result = await runAgenticWebResearch({
       targetName: "Example",
-      investigatorLlm: "groq",
+      investigatorLlm: "groq-investigator-1",
       maxIterations: 1,
       hardTimeoutMs: 30_000,
     });
@@ -310,7 +322,7 @@ describe("Groq Investigator provider boundary", () => {
     expect(bodyReads).toBe(1);
   });
 
-  it("accepts an Investigator backup key when the base slot is absent", async () => {
+  it("accepts Investigator capability 2 when its dedicated key is configured", async () => {
     process.env.GROQ_INVESTIGATOR_API_KEY_1 = "test-groq-investigator-backup-key";
     const fetchMock = mocks.safeOutboundFetch.mockImplementation(async (_input: RequestInfo | URL, init?: RequestInit) => {
       const body = JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>;
@@ -324,13 +336,37 @@ describe("Groq Investigator provider boundary", () => {
 
     const result = await runAgenticWebResearch({
       targetName: "Example",
-      investigatorLlm: "groq",
+      investigatorLlm: "groq-investigator-2",
       maxIterations: 1,
       hardTimeoutMs: 30_000,
     });
 
     expect(result.status).toBe("completed");
     expect(fetchMock.mock.calls.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("binds execution to the selected capability key and never rotates to another configured key", async () => {
+    process.env.GROQ_INVESTIGATOR_API_KEY = "selected-key-1";
+    process.env.GROQ_INVESTIGATOR_API_KEY_1 = "selected-key-2";
+    process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GROQ = "0";
+    const authorizationHeaders: string[] = [];
+    mocks.safeOutboundFetch.mockImplementation(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      authorizationHeaders.push(String(new Headers(init?.headers).get("authorization")));
+      return new Response(JSON.stringify({
+        choices: [{ message: { content: JSON.stringify({ action: "done", query: null, provider: null, url: null, email: null, username: null, domain: null, registry: null, thought: "done", hypothesis: null, purpose: null, expectedInformationGain: 0, searches: [], findings: [] }) } }],
+      }), { status: 200, headers: { "content-type": "application/json" } });
+    });
+
+    const result = await runAgenticWebResearch({
+      targetName: "Example",
+      investigatorLlm: "groq-investigator-2",
+      maxIterations: 1,
+      hardTimeoutMs: 30_000,
+    });
+
+    expect(result.status).toBe("completed");
+    expect(authorizationHeaders.length).toBeGreaterThanOrEqual(1);
+    expect(new Set(authorizationHeaders)).toEqual(new Set(["Bearer selected-key-2"]));
   });
 
   it("uses the Qwen 3.8 primary routing model without provider fallback", async () => {
@@ -345,7 +381,7 @@ describe("Groq Investigator provider boundary", () => {
 
     const result = await runAgenticWebResearch({
       targetName: "Example",
-      investigatorLlm: "groq",
+      investigatorLlm: "groq-investigator-1",
       maxIterations: 1,
       hardTimeoutMs: 30_000,
     });

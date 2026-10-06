@@ -32,17 +32,14 @@ export function rankGroqModelsForTask(models: readonly string[], task: ResearchC
       if (small) return 1;
       return 2;
     }
-    if (task === "identity_resolution") {
-      if (large) return 4;
-      if (qwen) return 3;
-      if (small) return 1;
-      return 2;
-    }
-    if (task === "contact_extraction" || task === "discovery") {
-      if (qwen) return 4;
-      if (small) return 3;
-      if (large) return 2;
-      return 1;
+    if (task === "identity_resolution" || task === "contact_extraction" || task === "discovery") {
+      // These are high-frequency trajectory decisions. Prefer the fastest, least
+      // expensive compatible model; reserve larger reasoning capacity for genuine
+      // contradiction/adjudication work. This is resource routing, not research strategy.
+      if (small) return 4;
+      if (qwen) return 2;
+      if (large) return 1;
+      return 3;
     }
     return 1;
   };

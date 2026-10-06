@@ -12,7 +12,7 @@ const required = [
   "await acquireProviderSlot(parentSignal)",
   "fn(boundedPrompt, controller.signal)",
   "MAX_ITER = 64",
-  "requestedIterations > 0 ? Math.min(requestedIterations, MAX_ITER) : MAX_ITER",
+  "Math.min(Math.max(0, requestedIterations), MAX_ITER)",
   "status: \"cancelled\"",
 ];
 for (const marker of required) {

@@ -76,7 +76,7 @@ Right-hand is the complementary reasoning/advisory layer. It may challenge hypot
 
 The investigator is the model that conducts the research. It owns query formulation, result selection, page visits, browser escalation, registry/OSINT tool choice, hypothesis formation, pivots, identity investigation, contact-route investigation, evidence depth and stopping.
 
-The investigator provider pool is **provider-neutral**. It is not defined by a two-vendor chain. Groq and Mistral are supported investigator LLM adapters in the current implementation; additional investigator LLM adapters may be added without changing the role contract.
+The investigator provider pool is **provider-neutral**. It is not defined by a two-vendor chain. In the current canonical implementation, the active Investigator adapter is Groq, exposed as independently selectable key-bound capabilities; Mistral/Gemini Investigator transports described elsewhere in this document are historical/retired and are not selectable until a real adapter, credential contract, and runtime tests exist. Additional Investigator adapters may be added without changing the role contract.
 
 The research/search/fetch pool is separate from the investigator LLM pool. Providers such as **Tavily, Exa, Serper, Scrapfly, ZenRows**, registry APIs and OSINT tools are capabilities the investigator can select. They are not substitutes for the investigator model itself.
 

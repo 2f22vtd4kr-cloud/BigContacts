@@ -14,6 +14,7 @@ export type ResearchDepthConfig = {
   maxDomainFollowUps: number;
   forcePendingVectorBias: boolean;
   agenticMaxIterations: number;
+  investigatorIterationsPerAct: number;
   agenticHardTimeoutMs: number;
   challengePass: boolean;
 };
@@ -31,7 +32,8 @@ const CONFIGS: Record<ResearchDepth, ResearchDepthConfig> = {
     maxPersonFollowUps: MAX_FOLLOW_UPS,
     maxDomainFollowUps: MAX_FOLLOW_UPS,
     forcePendingVectorBias: false,
-    agenticMaxIterations: MAX_AGENTIC_ITERATIONS,
+    agenticMaxIterations: 12,
+    investigatorIterationsPerAct: 4,
     agenticHardTimeoutMs: 120_000,
     challengePass: false,
   },
@@ -42,7 +44,8 @@ const CONFIGS: Record<ResearchDepth, ResearchDepthConfig> = {
     maxPersonFollowUps: MAX_FOLLOW_UPS,
     maxDomainFollowUps: MAX_FOLLOW_UPS,
     forcePendingVectorBias: false,
-    agenticMaxIterations: MAX_AGENTIC_ITERATIONS,
+    agenticMaxIterations: 20,
+    investigatorIterationsPerAct: 6,
     agenticHardTimeoutMs: 210_000,
     challengePass: true,
   },
@@ -53,7 +56,8 @@ const CONFIGS: Record<ResearchDepth, ResearchDepthConfig> = {
     maxPersonFollowUps: MAX_FOLLOW_UPS,
     maxDomainFollowUps: MAX_FOLLOW_UPS,
     forcePendingVectorBias: false,
-    agenticMaxIterations: MAX_AGENTIC_ITERATIONS,
+    agenticMaxIterations: 32,
+    investigatorIterationsPerAct: 8,
     agenticHardTimeoutMs: 360_000,
     challengePass: true,
   },
@@ -86,6 +90,7 @@ export function describeResearchDepth(config: ResearchDepthConfig): string {
     `personFollowUps=${Number.isFinite(config.maxPersonFollowUps) ? config.maxPersonFollowUps : "model-decided"}`,
     `domainFollowUps=${Number.isFinite(config.maxDomainFollowUps) ? config.maxDomainFollowUps : "model-decided"}`,
     `agenticMaxIterations=${Number.isFinite(config.agenticMaxIterations) ? config.agenticMaxIterations : "model-decided"}`,
+    `investigatorIterationsPerAct=${Number.isFinite(config.investigatorIterationsPerAct) ? config.investigatorIterationsPerAct : "model-decided"}`,
     `challengePass=${config.challengePass ? "on" : "off"}`,
   ].join(" · ");
 }

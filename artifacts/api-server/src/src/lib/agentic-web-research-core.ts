@@ -14,6 +14,7 @@ import { classifyTrajectorySignals, type AtlasFailureSignal } from "./atlas-fail
 import { ResearchIntelligenceEngine, renderIntelligenceContext } from "./research-intelligence-engine";
 import { bindExactSourceSpan } from "./research-epistemic-vnext";
 import { inferResearchCognitiveTask, rankGroqModelsForTask, type ResearchCognitiveTask } from "./research-cognitive-routing";
+import { getAvailableInvestigatorCapabilities, investigatorCapabilityKeyName, type InvestigatorCapability } from "./investigator-capability-registry";
 import { evaluateResearchTerminal } from "./research-terminal-gate";
 import {
   classifyProviderHttpStatus,
@@ -24,7 +25,6 @@ import {
   type ProviderFailureClass,
 } from "./provider-error-diagnostics";
 export { getAgenticLlmHealth };
-export const INVESTIGATOR_LLM_CAPABILITY_POOL = ["groq"] as const;
 export type AgenticFinding = { vectorType: "email" | "phone" | "linkedin" | "website" | "other" | "social"; value: string; personName: string | null; role: string | null; scope: "organization" | "candidate" | "unknown"; sourceUrls: string[]; note: string; promotionDecision?: "promote" | "reject"; promotionReason?: string };
 export type AgenticTrajectoryRecord = { turn: number; model: string; action: string; args: Record<string, unknown>; thought?: string; execution: "selected" | "success" | "http_error" | "blocked" | "timeout" | "error" | "cancelled"; observation?: string; observedUrls: string[]; findings: AgenticFinding[]; providerFallback?: string[]; stopReason?: AgenticWebResearchResult["stopReason"] };
 export type AgenticWebResearchResult = { status: "completed" | "unavailable" | "error" | "timeout" | "cancelled"; model: string; iterations: number; searches: number; visits: number; findings: AgenticFinding[]; modelFindings: AgenticFinding[]; stopReason: "MODEL_DECIDED_DONE" | "ITERATION_BUDGET" | "HARD_TIMEOUT" | "CANCELLED" | "LLM_UNAVAILABLE" | "PARSE_FAILURE"; trajectory: string[]; trajectoryRecords: AgenticTrajectoryRecord[]; failureSignals?: AtlasFailureSignal[]; error?: string };
@@ -380,15 +380,21 @@ function groqHardRequestQuota(response: Response, body: string): boolean {
   }
 }
 
-async function callGroqJson(prompt: string, signal: AbortSignal, cognitiveTask: ResearchCognitiveTask = "identity_resolution"): Promise<{ model: string; raw: string; error?: string } | null> {
-  const keys = ["GROQ_INVESTIGATOR_API_KEY", ...Array.from({ length: 5 }, (_, i) => `GROQ_INVESTIGATOR_API_KEY_${i + 1}`)].map((n) => (process.env[n] || "").trim()).filter(Boolean);
-  if (!keys.length) return null;
+async function callGroqJson(
+  prompt: string,
+  signal: AbortSignal,
+  cognitiveTask: ResearchCognitiveTask = "identity_resolution",
+  investigatorCapability?: InvestigatorCapability,
+): Promise<{ model: string; raw: string; error?: string } | null> {
+  const keyName = investigatorCapability ? investigatorCapabilityKeyName(investigatorCapability) : null;
+  const key = keyName ? (process.env[keyName] || "").trim() : "";
+  if (!key) return null;
   let attempt = 0;
   let workingPrompt = prompt;
   let sizeReductionApplied = false;
   let lastProviderError: string | null = null;
   const routedModels = rankGroqModelsForTask(GROQ_CHAT_MODELS, cognitiveTask);
-  for (const key of keys) for (const model of routedModels) {
+  for (const model of routedModels) {
     if (signal.aborted) throw new Error("cancelled");
     let retry429 = 0;
     let jsonObjectFallbackUsed = false;
@@ -398,7 +404,7 @@ async function callGroqJson(prompt: string, signal: AbortSignal, cognitiveTask: 
       try {
         const responseFormat = jsonObjectFallbackUsed ? { type: "json_object" } : structuredActionResponseFormat(model);
         const response = await withProviderRetryOwnership("groq", "caller", () =>
-          runProviderCall({ provider: "groq", account: key, signal }, () =>
+          runProviderCall({ provider: "groq", account: keyName ?? "unknown", signal }, () =>
             safeOutboundFetch("https://api.groq.com/openai/v1/chat/completions", {
               method: "POST",
               headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
@@ -507,7 +513,7 @@ async function callGroqJson(prompt: string, signal: AbortSignal, cognitiveTask: 
           break;
         }
 
-        let data: { choices?: Array<{ message?: { content?: string } }> };
+        let data: { choices?: Array<{ message?: { content?: string } }>; usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number; prompt_tokens_details?: { cached_tokens?: number } } };
         try {
           data = JSON.parse(body) as typeof data;
         } catch {
@@ -553,17 +559,18 @@ async function callGroqJson(prompt: string, signal: AbortSignal, cognitiveTask: 
   }
   return { model: routedModels.at(-1) ?? GROQ_CHAT_MODELS[0] ?? "groq", raw: "", error: lastProviderError ?? "provider_unavailable" };
 }
-function investigatorKeyConfigured(): boolean {
-  return ["GROQ_INVESTIGATOR_API_KEY", ...Array.from({ length: 5 }, (_, i) => `GROQ_INVESTIGATOR_API_KEY_${i + 1}`)].some((name) => Boolean(process.env[name]?.trim()));
+function investigatorKeyConfiguredForCapability(capability: InvestigatorCapability): boolean {
+  const keyName = investigatorCapabilityKeyName(capability);
+  return Boolean(keyName && process.env[keyName]?.trim());
 }
 
-async function llmStep(prompt: string, selectedInvestigatorLlm: "groq" | undefined, parentSignal: AbortSignal, cognitiveTask: ResearchCognitiveTask = "identity_resolution"): Promise<{ model: string; raw: string; fallback: string[]; providerError?: string } | null> {
+async function llmStep(prompt: string, selectedInvestigatorLlm: InvestigatorCapability | undefined, parentSignal: AbortSignal, cognitiveTask: ResearchCognitiveTask = "identity_resolution"): Promise<{ model: string; raw: string; fallback: string[]; providerError?: string } | null> {
   await acquireProviderSlot(parentSignal);
   try {
     const boundedPrompt = boundInvestigatorPromptSection(prompt, MAX_PROVIDER_PROMPT_CHARS);
     if (!selectedInvestigatorLlm) { setAgenticLlmHealth(false, null, "No Boss-selected Investigator LLM was propagated into ReAct"); return null; }
-    const fn = selectedInvestigatorLlm === "groq" && investigatorKeyConfigured() ? ((promptValue: string, signalValue: AbortSignal) => callGroqJson(promptValue, signalValue, cognitiveTask)) : null;
-    if (!fn) { setAgenticLlmHealth(false, null, "groq:selected provider unavailable"); return null; }
+    const fn = selectedInvestigatorLlm && investigatorCapabilityKeyName(selectedInvestigatorLlm) && investigatorKeyConfiguredForCapability(selectedInvestigatorLlm) ? ((promptValue: string, signalValue: AbortSignal) => callGroqJson(promptValue, signalValue, cognitiveTask, selectedInvestigatorLlm)) : null;
+    if (!fn) { setAgenticLlmHealth(false, null, `${selectedInvestigatorLlm}: selected Investigator capability unavailable`); return null; }
     if (parentSignal.aborted) throw new Error("cancelled");
     const controller = new AbortController();
     const abortParent = () => controller.abort();
@@ -713,7 +720,7 @@ export function discoveryTerminalGate(records: readonly AgenticTrajectoryRecord[
   return { allowed: true, reason: null };
 }
 
-export async function runAgenticWebResearch(input: { targetName: string; companyName?: string | null; objective?: string; investigatorLlm?: "groq"; cognitiveTask?: ResearchCognitiveTask; maxIterations?: number; hardTimeoutMs?: number; shouldCancel?: () => boolean | Promise<boolean>; signal?: AbortSignal; jobId?: string | null; mode?: "target" | "discovery"; onLiveStep?: (step: { action: string; query?: string; url?: string; provider?: string; summary?: string; targetName: string; companyName?: string | null }) => void }): Promise<AgenticWebResearchResult> { const name = input.targetName.trim(); if (name.length < 2 && input.mode !== "discovery") return { status: "unavailable", model: "none", iterations: 0, searches: 0, visits: 0, findings: [], modelFindings: [], stopReason: "LLM_UNAVAILABLE", trajectory: [], trajectoryRecords: [], error: "empty target" }; const requestedIterations = Number.isFinite(input.maxIterations) ? Math.floor(input.maxIterations!) : MAX_ITER; const maxIter = requestedIterations > 0 ? Math.min(requestedIterations, MAX_ITER) : MAX_ITER; const hardTimeoutMs = Math.min(10 * 60_000, Math.max(30_000, Number.isFinite(input.hardTimeoutMs) ? Math.floor(input.hardTimeoutMs!) : 210_000)); const startedAt = Date.now(); const runController = new AbortController(); const abortExternal = () => runController.abort(); input.signal?.addEventListener("abort", abortExternal, { once: true }); const timeout = setTimeout(() => runController.abort(), hardTimeoutMs); const cancellationPoll = input.shouldCancel ? setInterval(() => { Promise.resolve(input.shouldCancel!()).then((cancelled) => { if (cancelled) runController.abort(); }).catch(() => undefined); }, 500) : undefined; const objective = input.objective || (input.mode === "discovery" ? "Discover promising public entities and evidence-backed research leads from the case objective. Choose the research path yourself." : `Research the public web for the strongest attributable public contact path for ${name}${input.companyName ? ` in the context of ${input.companyName}` : ""}. Use your judgment; verify evidence; stop when the evidence is sufficient or reasonable public avenues are exhausted.`); const history: string[] = []; let lastObservation = "CASE CONTEXT LOADED\nDurable case context and operator objective are available. No research action has been selected yet; choose any permitted action based on the case context."; let modelUsed = "none", searches = 0, visits = 0; let findings: AgenticFinding[] = []; const records: AgenticTrajectoryRecord[] = []; const visited = new Set<string>(); const emit = (action: string, extra: Record<string, string> = {}) => { try { input.onLiveStep?.({ action, ...extra, targetName: name || "discovery", companyName: input.companyName ?? null }); } catch {} }; const intelligence = new ResearchIntelligenceEngine({ caseId: null, executionId: input.jobId || `agentic-${startedAt}`, target: name || "discovery", objective });
+export async function runAgenticWebResearch(input: { targetName: string; companyName?: string | null; objective?: string; investigatorLlm?: InvestigatorCapability; cognitiveTask?: ResearchCognitiveTask; maxIterations?: number; hardTimeoutMs?: number; shouldCancel?: () => boolean | Promise<boolean>; signal?: AbortSignal; jobId?: string | null; mode?: "target" | "discovery"; onLiveStep?: (step: { action: string; query?: string; url?: string; provider?: string; summary?: string; targetName: string; companyName?: string | null }) => void }): Promise<AgenticWebResearchResult> { const name = input.targetName.trim(); if (name.length < 2 && input.mode !== "discovery") return { status: "unavailable", model: "none", iterations: 0, searches: 0, visits: 0, findings: [], modelFindings: [], stopReason: "LLM_UNAVAILABLE", trajectory: [], trajectoryRecords: [], error: "empty target" }; const requestedIterations = Number.isFinite(input.maxIterations) ? Math.floor(input.maxIterations!) : MAX_ITER; const maxIter = Math.min(Math.max(0, requestedIterations), MAX_ITER); const hardTimeoutMs = Math.min(10 * 60_000, Math.max(30_000, Number.isFinite(input.hardTimeoutMs) ? Math.floor(input.hardTimeoutMs!) : 210_000)); const startedAt = Date.now(); const runController = new AbortController(); const abortExternal = () => runController.abort(); input.signal?.addEventListener("abort", abortExternal, { once: true }); const timeout = setTimeout(() => runController.abort(), hardTimeoutMs); const cancellationPoll = input.shouldCancel ? setInterval(() => { Promise.resolve(input.shouldCancel!()).then((cancelled) => { if (cancelled) runController.abort(); }).catch(() => undefined); }, 500) : undefined; const objective = input.objective || (input.mode === "discovery" ? "Discover promising public entities and evidence-backed research leads from the case objective. Choose the research path yourself." : `Research the public web for the strongest attributable public contact path for ${name}${input.companyName ? ` in the context of ${input.companyName}` : ""}. Use your judgment; verify evidence; stop when the evidence is sufficient or reasonable public avenues are exhausted.`); const history: string[] = []; let lastObservation = "CASE CONTEXT LOADED\nDurable case context and operator objective are available. No research action has been selected yet; choose any permitted action based on the case context."; let modelUsed = "none", searches = 0, visits = 0; let findings: AgenticFinding[] = []; const records: AgenticTrajectoryRecord[] = []; const visited = new Set<string>(); const emit = (action: string, extra: Record<string, string> = {}) => { try { input.onLiveStep?.({ action, ...extra, targetName: name || "discovery", companyName: input.companyName ?? null }); } catch {} }; const intelligence = new ResearchIntelligenceEngine({ caseId: null, executionId: input.jobId || `agentic-${startedAt}`, target: name || "discovery", objective });
   let intelligenceRecordedTurn = 0;
   const syncIntelligence = () => { const latest = records[records.length - 1]; if (!latest || latest.turn <= intelligenceRecordedTurn) return; intelligence.recordAction({ turn: latest.turn, action: latest.action, args: latest.args, execution: latest.execution, observation: latest.observation, urls: latest.observedUrls, findings: latest.findings, predictedInformationGain: typeof latest.args.expectedInformationGain === "number" ? latest.args.expectedInformationGain : undefined }); intelligenceRecordedTurn = latest.turn; };
   const resultBase = (status: AgenticWebResearchResult["status"], iterations: number, stopReason: AgenticWebResearchResult["stopReason"], error?: string): AgenticWebResearchResult => { syncIntelligence(); const intelligenceState = intelligence.buildContext(); const failureSignals = classifyTrajectorySignals({ records, evidenceCount: intelligenceState.evidenceCount, sourceFamilyDiversity: intelligenceState.sourceFamilyDiversity, unresolvedQuestions: intelligenceState.openQuestions.length, stopReason }); return ({ status, model: modelUsed, iterations, searches, visits, findings, modelFindings: [], stopReason, trajectory: history, trajectoryRecords: records, failureSignals, ...(error ? { error } : {}) }); }; try { for (let i = 0; i < maxIter; i++) { if (runController.signal.aborted) return resultBase(input.signal?.aborted ? "cancelled" : "timeout", i, input.signal?.aborted ? "CANCELLED" : "HARD_TIMEOUT", input.signal?.aborted ? "cancelled" : `hard timeout ${hardTimeoutMs}ms`); if (Date.now() - startedAt >= hardTimeoutMs) return resultBase("timeout", i, "HARD_TIMEOUT", `hard timeout ${hardTimeoutMs}ms`); if (input.shouldCancel && await input.shouldCancel()) return resultBase("cancelled", i, "CANCELLED", "cancelled by operator"); syncIntelligence(); const intelligenceState = intelligence.buildContext(); const lastAction = records.at(-1)?.action; const nextMovePriority = intelligenceState.openQuestions.some((question) => /resolve contradiction|disproof|falsif/i.test(question)) || (intelligenceState.providerDisagreements.length > 0 && intelligenceState.openQuestions.length > 0) ? "falsify" : intelligenceState.openQuestions.some((question) => /contact|email|phone|linkedin|website/i.test(question)) ? "contact" : intelligenceState.openQuestions.length > 0 ? "verify" : undefined; const cognitiveTask = input.cognitiveTask ?? inferResearchCognitiveTask({ nextMovePriority, action: input.mode === "discovery" ? "web_search" : lastAction, terminal: false }); const prompt = buildStepPrompt({ targetName: name || "", companyName: input.companyName, objective, history, trajectoryRecords: records, lastObservation, findings, intelligenceContext: renderIntelligenceContext(intelligenceState), mode: input.mode }); emit("llm_wait", { provider: input.investigatorLlm ?? "unassigned", summary: `waiting for Boss-selected Investigator decision (${cognitiveTask})` }); const llm = await llmStep(prompt, input.investigatorLlm, runController.signal, cognitiveTask); if (!llm) return resultBase("unavailable", i + 1, "LLM_UNAVAILABLE", "No Boss-selected Investigator adapter available"); modelUsed = llm.model; if (llm.providerError) { const providerErrorRecord: AgenticTrajectoryRecord = { turn: i + 1, model: modelUsed, action: "investigator_provider_error", args: { provider: input.investigatorLlm ?? "unassigned", cognitiveTask }, execution: "error", observation: `INVESTIGATOR_PROVIDER_ERROR ${llm.providerError}`, observedUrls: [], findings: [], providerFallback: [] }; records.push(providerErrorRecord); history.push(`step${i + 1}: investigator_provider_error execution=error`); lastObservation = providerErrorRecord.observation ?? "Investigator provider unavailable."; emit("provider_error", { summary: lastObservation }); return resultBase("unavailable", i + 1, "LLM_UNAVAILABLE", lastObservation); } const action = parseAction(llm.raw); if (!action) { history.push(`step${i + 1}: parse_failure execution=error`); lastObservation = "The previous model response was not valid action JSON. Choose one allowed action and return exactly one JSON object."; records.push({ turn: i + 1, model: modelUsed, action: "parse_failure", args: {}, execution: "error", observation: lastObservation, observedUrls: [], findings: [], providerFallback: [] }); continue; } const selectedArgs = { ...action } as Record<string, unknown>; delete selectedArgs.thought; const record: AgenticTrajectoryRecord = { turn: i + 1, model: modelUsed, action: action.action, args: selectedArgs, thought: action.thought, execution: "selected", observedUrls: [], findings: [], providerFallback: [] }; if (records.length >= MAX_TRAJECTORY_RECORDS) return resultBase("error", i, "ITERATION_BUDGET", "trajectory safety ceiling reached"); records.push(record); if (action.action === "done") {
@@ -748,7 +755,7 @@ export async function runAgenticWebResearchEnsemble(input: {
   targetName: string;
   companyName?: string | null;
   objective?: string;
-  investigatorLlms: Array<"groq">;
+  investigatorLlms: Array<InvestigatorCapability>;
   laneObjectives?: string[];
   maxIterations?: number;
   hardTimeoutMs?: number;
@@ -762,18 +769,15 @@ export async function runAgenticWebResearchEnsemble(input: {
   findings: AgenticFinding[];
   observedUrls: string[];
 }> {
-  const llms: Array<"groq"> = input.investigatorLlms.length ? input.investigatorLlms : ["groq"];
-  const lanes = input.laneObjectives?.length ? input.laneObjectives : [
-    "Prioritize authoritative registries, governance records, ownership/officer relationships, and identity discrimination.",
-    "Prioritize independent reputable web/press/company sources and actively seek disconfirming evidence.",
-    "Prioritize verified organizational domains and public contact routes, while never guessing personal contact data.",
-  ];
+  const llms: Array<InvestigatorCapability> = input.investigatorLlms.length ? input.investigatorLlms : getAvailableInvestigatorCapabilities();
+  if (!llms.length) return { status: "failed", runs: [], findings: [], observedUrls: [] };
+  const lanes = input.laneObjectives?.filter((value) => typeof value === "string" && value.trim()).map((value) => value.trim()) ?? [];
   const runs = await Promise.all(llms.map((llm, index) => runAgenticWebResearch({
     ...input,
     investigatorLlm: llm,
     objective: [
       input.objective || "Conduct evidence-backed public-source research.",
-      "INDEPENDENT RESEARCH LANE " + (index + 1) + ": " + lanes[index % lanes.length],
+      lanes.length ? "MODEL-SUPPLIED RESEARCH HYPOTHESIS " + (index + 1) + ": " + lanes[index % lanes.length] : "Choose an independent research hypothesis from the shared objective; do not follow a fixed lane sequence.",
       "Do not assume another lane's conclusions. Build and test your own hypotheses and prefer source families different from the obvious first route.",
     ].join("\n"),
     jobId: input.jobId ? `${input.jobId}:lane:${index + 1}` : null,

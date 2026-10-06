@@ -1,16 +1,18 @@
 import fs from "node:fs";
 const runner=fs.readFileSync("artifacts/api-server/src/src/lib/canonical-single-target-runner.ts","utf8");
+const atlas=fs.readFileSync("artifacts/api-server/src/src/lib/canonical-atlas-discovery.ts","utf8");
 const agentic=fs.readFileSync("artifacts/api-server/src/src/lib/agentic-web-research.ts","utf8");
 const oversight=fs.readFileSync("artifacts/api-server/src/src/lib/target-act-oversight.ts","utf8");
 const evidence=fs.readFileSync("artifacts/api-server/src/src/lib/source-corroboration.ts","utf8");
 const mutationGuard=fs.readFileSync("artifacts/api-server/src/src/lib/legacy-apex-mutation-guard.ts","utf8");
 const core=fs.readFileSync("artifacts/api-server/src/src/lib/agentic-web-research-core.ts","utf8");
 const checks=[
-["canonical runner invokes exactly one Investigator iteration",/maxIterations:\s*1/.test(runner)],
+["canonical runner gives each Investigator act a bounded multi-step budget",/const actIterations = Math\.min\(depth\.investigatorIterationsPerAct, remainingInvestigatorIterations\)/.test(runner)&&/maxIterations: actIterations/.test(runner)],
 ["canonical runner reads durable act oversight after each act with exact run and turn",/readOversight\(caseState,\s*latestResult\.executionId\s*\?\?\s*null,\s*actNumber\)/.test(runner)],
 ["canonical runner does not consume stale targetControlDecisions",!/readContinuationControl\(/.test(runner)],
 ["canonical target case reuse is bound to current atlas job",/state\.atlasJobId === atlasJobId/.test(runner)],
 ["canonical runner passes exact case identity into Investigator",/caseId: caseRow\.id/.test(runner)],
+["canonical target context is rebuilt from durable Investigator observations",/loadDurableTargetTrajectory\(caseRow\.id\)/.test(runner)&&/buildInvestigatorContext\(\{ targetName: target\.name/.test(runner)],
 ["canonical target control iteration is durably monotonic",/iteration: caseRow\.iteration \+ completedActs/.test(runner)],
 ["canonical runner blocks on stop",/if \(lastOversight\.action === "stop"\) break/.test(runner)],
 ["canonical runner fails closed when oversight is unavailable",/!lastOversight \|\| lastOversight\.status !== "completed"/.test(runner)],
@@ -22,7 +24,14 @@ const checks=[
 ["canonical agentic target wrapper clears its deadline timer",/clearTimeout\(deadlineTimer\)/.test(agentic)],
 ["canonical target wrapper has a finite action-turn ceiling",!/Number\.POSITIVE_INFINITY/.test(agentic)&&/const MAX_TARGET_ACTION_TURNS = 64/.test(agentic)],
 ["canonical target wrapper does not auto-fan-out fixed mission briefs",!/runParallelMissionPass\(/.test(agentic)],
-["Investigator act proposals receive canonical oversight after each act",/const checkpointResult = await applyOversight\(normalizedRecord, actionTurn\)/.test(agentic)],
+["canonical runner owns complete-episode oversight",/oversightMode: "caller"/.test(runner)&&/callerOwnsOversight = input\.oversightMode === "caller"/.test(agentic)],
+["target completion requires an Investigator terminal decision",/latestResult\?\.stopReason === "MODEL_DECIDED_DONE"/.test(runner)],
+["target completion requires promoted evidence graphs",/\(latestResult\.evidenceGraphs\?\.length \?\? 0\) > 0/.test(runner)],
+["target resource ceiling is never reported as complete",/const incomplete = cancelled \|\| resourceLimited \|\| !latestResult/.test(runner)],
+["Investigator episode does not invoke internal oversight when caller owns it",/if \(callerOwnsOversight\) return \{ stop: false, unavailable: false \}/.test(agentic)],
+["Investigator act proposals receive canonical oversight after each complete episode",/await reviewTargetInvestigationAct\(/.test(runner)],
+["next Atlas control turn receives target investigation state",/latestTargetInvestigation = \{/.test(atlas)&&/targetInvestigation: latestTargetInvestigation/.test(atlas)],
+["target control context includes durable target case status",/status: targetCase\?\.status/.test(atlas)&&/caseId: targetCase\?\.id/.test(atlas)],
 ["target control context is mandatory",/if \(!oversightContext\)/.test(agentic)],
 ["missing target control context fails closed",/(?:CONTROL_CONTEXT_UNAVAILABLE|stopReason:\s*"LLM_UNAVAILABLE")[\s\S]*?Target-scoped agentic research requires a durable control case/.test(agentic)],
 ["research redirects are validated as objective-only text",/validateResearchObjective/.test(agentic)],
@@ -45,7 +54,7 @@ const checks=[
 ["target oversight refuses cancelled/fenced cases before provider calls",/status:researchCasesTable\.status/.test(oversight)&&/if\(row\.status!=="active"\)return null/.test(oversight)&&/findTargetCase\(input\.caseId,input\.targetName\)/.test(oversight)],
 ["Right Hand failure stops the next Investigator act",/Groq Right-hand oversight was unavailable/.test(oversight)],
 ["discovery is not accidentally target-gated",/input\.mode === "discovery"/.test(agentic)],
-["selected Investigator executes only the Boss-selected provider",/const fn = selectedInvestigatorLlm === "groq"/.test(core)&&!/orderedProviders/.test(core)&&!/for\s*\(const \[name, fn\] of orderedProviders\)/.test(core)],
+["selected Investigator executes only the Boss-selected capability",/const fn = selectedInvestigatorLlm && investigatorCapabilityKeyName\(selectedInvestigatorLlm\)/.test(core)&&/callGroqJson\(promptValue, signalValue, cognitiveTask, selectedInvestigatorLlm\)/.test(core)&&!/orderedProviders/.test(core)&&!/for\s*\(const \[name, fn\] of orderedProviders\)/.test(core)],
 ["selected Investigator records no cross-provider fallback",/fallback: \[\]/.test(core)],
 ["canonical ReAct domain lookup receives cancellation",/lookupDomainSurface\(action\.domain, \{ provider: action\.provider, signal: runController\.signal \}\)/.test(core)],
 ["canonical ReAct registry lookup receives cancellation",/searchRegistry\(\{ query: action\.query, registry: action\.registry as any, limit: 8, signal: runController\.signal \}\)/.test(core)],
@@ -54,4 +63,6 @@ const checks=[
 ["legacy enrichment routes remain retired",/RETIRED_MUTATING_ENRICHMENT_PATHS/.test(mutationGuard)&&/status\(410\)/.test(mutationGuard)],
 ];
 checks.push(["structured intelligence only receives grounded Investigator findings",/groundedFindingsForTrajectory/.test(agentic)&&/recordResult\(intelligence, normalizedRecord, records\)/.test(agentic)]);
+checks.push(["canonical target unexpected failures close the durable case",/catch \(error\)/.test(runner)&&/investigator-execution-failed/.test(runner)&&/status: "review"/.test(runner)]);
+checks.push(["child target runner does not terminalize parent Atlas job",/manageJobLifecycle\?: boolean/.test(runner)&&/const manageJobLifecycle = options\.manageJobLifecycle !== false/.test(runner)&&/if \(manageJobLifecycle\) await updateJob/.test(runner)&&/manageJobLifecycle: false/.test(atlas)]);
 let failed=false;for(const[name,ok]of checks){console.log(`${ok?"PASS":"FAIL"} ${name}`);if(!ok)failed=true;}if(failed)process.exit(1);

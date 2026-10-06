@@ -3,6 +3,7 @@ import type { Entity } from "@workspace/db";
 import { apexOrientationFor } from "./apex-bureau-orientation";
 import { buildApexAtlasBossPlanPrompt } from "./case-bureau-prompt";
 import { extractWalletSeedsFromText, buildWalletSeedPlan, formatWalletSeedPlanForPrompt, objectiveLooksWalletFirst } from "./wallet-seed";
+import { getAvailableInvestigatorCapabilities, type InvestigatorCapability } from "./investigator-capability-registry";
 
 /** Boss may proceed with an allowlisted action, reject the target, or reframe scope. */
 export type BossPlanOutcome = "proceed" | "reject_target" | "reframe";
@@ -111,7 +112,7 @@ export type ResearchCaseFile = {
     decision: string | null;
     reason: string | null;
     investigatorPrompt: string | null;
-    investigatorLlm?: "groq" | null;
+    investigatorLlm?: InvestigatorCapability | null;
     restrictions: string[];
     tools: string[];
     evidenceRequirements: string[];
@@ -260,7 +261,7 @@ export function formatGeminiBossAttemptSummary(attempts: GeminiBossAttemptDiagno
 export type GeminiBossDiscoveryResult = {
   status: "completed" | "pending" | "unavailable";
   model: string;
-  investigatorLlm: "groq" | null;
+  investigatorLlm: InvestigatorCapability | null;
   report: string | null;
   candidates: Array<{
     name: string;
@@ -284,7 +285,7 @@ export type GeminiBossPlanResult = {
   decision: string | null;
   reason: string | null;
   investigatorPrompt: string | null;
-  investigatorLlm: "groq" | null;
+  investigatorLlm: InvestigatorCapability | null;
   restrictions: string[];
   tools: string[];
   evidenceRequirements: string[];
@@ -355,87 +356,61 @@ function extractJsonObject(value: string): string | null {
   return end > start ? source.slice(start, end + 1) : null;
 }
 
-const GEMINI_BOSS_PLAN_RESPONSE_FORMAT: Record<string, unknown> = {
-  type: "text",
-  mime_type: "application/json",
-  schema: {
-    type: "object",
-    properties: {
-      outcome: { type: "string", enum: ["proceed", "reject_target", "reframe"] },
-      actionId: { type: ["string", "null"] },
-      decision: { type: "string" },
-      reason: { type: "string" },
-      investigatorPrompt: { type: ["string", "null"] },
-      investigatorLlm: { type: ["string", "null"] },
-      restrictions: { type: "array", items: { type: "string" } },
-      tools: { type: "array", items: { type: "string" } },
-      evidenceRequirements: { type: "array", items: { type: "string" } },
-      confidence: { type: ["number", "null"] },
-      progressAssessment: { type: ["string", "null"] },
-      reprioritize: { type: "array", items: { type: "string" } },
-      suggestedScope: { type: ["string", "null"] },
-      rightHandDisposition: { type: ["string", "null"] },
-      rightHandNote: { type: ["string", "null"] },
-    },
-    required: ["outcome", "actionId", "decision", "reason", "investigatorPrompt", "investigatorLlm", "restrictions", "tools", "evidenceRequirements", "confidence", "progressAssessment", "reprioritize", "suggestedScope", "rightHandDisposition", "rightHandNote"],
-    additionalProperties: false,
-  },
-};
-
-const GEMINI_BOSS_DISCOVERY_RESPONSE_FORMAT: Record<string, unknown> = {
-  type: "text",
-  mime_type: "application/json",
-  schema: {
-    type: "object",
-    properties: {
-      report: { type: "string" },
-      investigatorLlm: { type: "string", enum: ["groq"] },
-      candidates: {
-        type: "array",
-        maxItems: 6,
-        items: {
-          type: "object",
-          properties: {
-            name: { type: "string" },
-            type: { type: "string" },
-            relevance: { type: "string" },
-            reachability: { type: "string" },
-            sourceUrls: { type: "array", items: { type: "string" }, maxItems: 8 },
-            contactEvidence: {
-              type: "array",
-              maxItems: 8,
-              items: {
-                type: "object",
-                properties: {
-                  vectorType: { type: "string" },
-                  value: { type: "string" },
-                  scope: { type: "string", enum: ["person", "organization", "unknown"] },
-                  personName: { type: ["string", "null"] },
-                  role: { type: ["string", "null"] },
-                  sourceUrls: { type: "array", items: { type: "string" }, maxItems: 6 },
-                  note: { type: ["string", "null"] }
-                },
-                required: ["vectorType", "value", "scope", "personName", "role", "sourceUrls", "note"],
-                additionalProperties: false
-              }
-            }
-          },
-          required: ["name", "type", "relevance", "reachability", "sourceUrls", "contactEvidence"],
-          additionalProperties: false
-        }
+function buildBossPlanResponseFormat(availableInvestigators: readonly InvestigatorCapability[]): Record<string, unknown> {
+  return {
+    type: "text", mime_type: "application/json",
+    schema: {
+      type: "object",
+      properties: {
+        outcome: { type: "string", enum: ["proceed", "reject_target", "reframe"] },
+        actionId: { type: ["string", "null"] }, decision: { type: "string" }, reason: { type: "string" },
+        investigatorPrompt: { type: ["string", "null"] }, investigatorLlm: { type: ["string", "null"], enum: [null, ...availableInvestigators] },
+        restrictions: { type: "array", items: { type: "string" } }, tools: { type: "array", items: { type: "string" } },
+        evidenceRequirements: { type: "array", items: { type: "string" } }, confidence: { type: ["number", "null"] },
+        progressAssessment: { type: ["string", "null"] }, reprioritize: { type: "array", items: { type: "string" } },
+        suggestedScope: { type: ["string", "null"] }, rightHandDisposition: { type: ["string", "null"] }, rightHandNote: { type: ["string", "null"] },
       },
-      nextDirections: { type: "array", items: { type: "string" }, maxItems: 8 },
-      uncertainties: { type: "array", items: { type: "string" }, maxItems: 8 }
+      required: ["outcome","actionId","decision","reason","investigatorPrompt","investigatorLlm","restrictions","tools","evidenceRequirements","confidence","progressAssessment","reprioritize","suggestedScope","rightHandDisposition","rightHandNote"],
+      additionalProperties: false,
     },
-    required: ["report", "investigatorLlm", "candidates", "nextDirections", "uncertainties"],
-    additionalProperties: false
-  }
-};
+  };
+}
+
+function buildBossDiscoveryResponseFormat(availableInvestigators: readonly InvestigatorCapability[]): Record<string, unknown> {
+  return {
+    type: "text", mime_type: "application/json",
+    schema: {
+      type: "object",
+      properties: {
+        report: { type: "string" },
+        investigatorLlm: { type: "string", enum: [...availableInvestigators] },
+        candidates: {
+          type: "array", maxItems: 6,
+          items: {
+            type: "object",
+            properties: {
+              name: { type: "string" }, type: { type: "string" }, relevance: { type: "string" }, reachability: { type: "string" },
+              sourceUrls: { type: "array", items: { type: "string" }, maxItems: 8 },
+              contactEvidence: { type: "array", maxItems: 8, items: {
+                type: "object",
+                properties: { vectorType: { type: "string" }, value: { type: "string" }, scope: { type: "string", enum: ["person","organization","unknown"] }, personName: { type: ["string","null"] }, role: { type: ["string","null"] }, sourceUrls: { type: "array", items: { type: "string" }, maxItems: 6 }, note: { type: ["string","null"] } },
+                required: ["vectorType","value","scope","personName","role","sourceUrls","note"], additionalProperties: false,
+              } },
+            },
+            required: ["name","type","relevance","reachability","sourceUrls","contactEvidence"], additionalProperties: false,
+          },
+        },
+        nextDirections: { type: "array", items: { type: "string" }, maxItems: 8 }, uncertainties: { type: "array", items: { type: "string" }, maxItems: 8 },
+      },
+      required: ["report","investigatorLlm","candidates","nextDirections","uncertainties"], additionalProperties: false,
+    },
+  };
+}
 
 function parseBossDiscoveryResponse(raw: string): {
   report: string;
   candidates: GeminiBossDiscoveryResult["candidates"];
-  investigatorLlm: "groq" | null;
+  investigatorLlm: InvestigatorCapability | null;
   nextDirections: string[];
   uncertainties: string[];
 } {
@@ -453,7 +428,8 @@ function parseBossDiscoveryResponse(raw: string): {
       return { report: "", candidates: [], investigatorLlm: null, nextDirections: [], uncertainties: [] };
     }
     const report = typeof object.report === "string" ? object.report.trim() : "";
-    const investigatorLlm = object.investigatorLlm === "groq" ? "groq" as const : null;
+    const available = getAvailableInvestigatorCapabilities();
+    const investigatorLlm = typeof object.investigatorLlm === "string" && available.includes(object.investigatorLlm as InvestigatorCapability) ? object.investigatorLlm as InvestigatorCapability : null;
     const nextDirections = Array.isArray(object.nextDirections) && object.nextDirections.length <= 8 && object.nextDirections.every((value) => typeof value === "string" && value.trim())
       ? uniqueStrings(object.nextDirections, 8)
       : null;
@@ -561,8 +537,8 @@ export async function runGroqBossDiscovery(input: {
     };
   }
 
-  const investigatorKeyNames = ["GROQ_INVESTIGATOR_API_KEY", ...Array.from({ length: 5 }, (_, i) => `GROQ_INVESTIGATOR_API_KEY_${i + 1}`)];
-  const availableInvestigators = [investigatorKeyNames.some((name) => Boolean(process.env[name]?.trim())) ? "groq" : null].filter((value): value is "groq" => Boolean(value));
+  const availableInvestigators = getAvailableInvestigatorCapabilities();
+  if (!availableInvestigators.length) return { status: "unavailable", model: selection.model, investigatorLlm: null, report: null, candidates: [], citations: [], nextDirections: [], uncertainties: [], error: "No Investigator capability is currently available; refusing an unselected or deterministic substitute." };
   const prompt = `${buildBossOpeningPrompt(input)}
 
 This is a shared case-context review. Read the current investigation progress and investigator reports below
@@ -580,7 +556,7 @@ ${input.file ? buildDiscoveryProgressSnapshot(input.file) : "No prior investigat
 Return ONLY JSON in this shape:
      {
   "report": "concise evidence-led opening assessment",
-  "investigatorLlm": "groq",
+  "investigatorLlm": "one capability from the available runtime Investigator registry",
   "candidates": [
     {
       "name": "candidate name",
@@ -607,7 +583,7 @@ Return ONLY JSON in this shape:
 Candidates are review-only. Never invent a name, wealth claim, relationship, contact detail, or URL.`;
   try {
     const generated = await generateGeminiBossText(selection, prompt, {
-      responseFormat: GEMINI_BOSS_DISCOVERY_RESPONSE_FORMAT,
+      responseFormat: buildBossDiscoveryResponseFormat(availableInvestigators),
       maxOutputTokens: 2048,
       thinkingLevel: "low",
     });
@@ -729,8 +705,11 @@ function parseBossPlanResponse(raw: string, queuedActions: BureauAction[]): Omit
     const action = queuedActions.find((candidate) => candidate.id === actionId);
     if (!action) return null;
     const rawInvestigatorLlm = typeof parsed.investigatorLlm === "string" ? parsed.investigatorLlm.trim().toLowerCase() : "";
-    const investigatorLlm: "groq" | null =
-      rawInvestigatorLlm === "groq" ? rawInvestigatorLlm : null;
+    const availableInvestigators = getAvailableInvestigatorCapabilities();
+    const investigatorLlm: InvestigatorCapability | null =
+      availableInvestigators.includes(rawInvestigatorLlm as InvestigatorCapability)
+        ? rawInvestigatorLlm as InvestigatorCapability
+        : null;
     const investigatorPrompt = typeof parsed.investigatorPrompt === "string" ? parsed.investigatorPrompt.trim() : "";
     if (!decision || !reason || investigatorPrompt.length < 20 || !investigatorLlm) return null;
     // Soft-require progress judgment; if missing, synthesize from reason so control loop stays live.
@@ -835,7 +814,7 @@ export async function runGeminiBossPlan(input: {
   if (queuedActions.length === 0) return unavailable("The case file has no queued actions.");
   try {
     const planPrompt = buildGeminiBossPlanPrompt(input);
-    const generated = await generateGeminiBossText(selection, planPrompt, { responseFormat: GEMINI_BOSS_PLAN_RESPONSE_FORMAT, maxOutputTokens: 1536, thinkingLevel: "minimal" });
+    const generated = await generateGeminiBossText(selection, planPrompt, { responseFormat: buildBossPlanResponseFormat(getAvailableInvestigatorCapabilities()), maxOutputTokens: 1536, thinkingLevel: "minimal" });
     if (!generated.raw) return unavailable(generated.error ?? "Boss plan text generation returned no text.");
     const parsed = parseBossPlanResponse(generated.raw, queuedActions);
     return parsed
@@ -1481,7 +1460,7 @@ export function applyGeminiBossPlan(
   input: {
     outcome?: BossPlanOutcome;
     actionId: string | null;
-    investigatorLlm?: "groq" | null;
+    investigatorLlm?: InvestigatorCapability | null;
     decision: string;
     reason: string;
     iteration: number;

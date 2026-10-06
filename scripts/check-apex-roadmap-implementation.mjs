@@ -21,7 +21,15 @@ const required=[
 ];
 for(const f of required) if(!fs.existsSync(path.join(root,f))) throw new Error("Missing roadmap artifact: "+f);
 const core=fs.readFileSync(path.join(root,"artifacts/api-server/src/src/lib/agentic-web-research-core.ts"),"utf8");
-if(!core.includes('INVESTIGATOR_LLM_CAPABILITY_POOL = ["groq"]')) throw new Error("Investigator pool contract drifted.");
+const investigatorRegistry=fs.readFileSync(path.join(root,"artifacts/api-server/src/src/lib/investigator-capability-registry.ts"),"utf8");
+const bureauPrompt=fs.readFileSync(path.join(root,"artifacts/api-server/src/src/lib/case-bureau-prompt.ts"),"utf8");
+for(const marker of ["GROQ_INVESTIGATOR_KEY_NAMES","investigatorCapabilityKeyName","GROQ_INVESTIGATOR_API_KEY"]) if(!investigatorRegistry.includes(marker)) throw new Error("Investigator capability registry contract drifted: "+marker);
+if(!/Array\.from\(\{?\s*length:\s*5/.test(investigatorRegistry) || !/`GROQ_INVESTIGATOR_API_KEY_\$\{i \+ 1\}`/.test(investigatorRegistry)) throw new Error("Investigator capability registry does not expose the five suffixed credential bindings.");
+if(!investigatorRegistry.includes("capability.match(/^groq-investigator-(\\d+)$/)")) throw new Error("Investigator capability registry numeric binding contract drifted.");
+if(!/getAvailableInvestigatorCapabilities\(/.test(core)) throw new Error("Agentic core does not expose runtime Investigator capability availability.");
+if(/choose exactly one configured Investigator capability:\s*Groq/i.test(bureauPrompt)) throw new Error("Boss prompt still hardcodes Groq as the only Investigator capability.");
+if(/"investigatorLlm": "groq \| groq"/.test(bureauPrompt)) throw new Error("Boss prompt still exposes the retired single-provider Investigator contract.");
+if(!core.includes("getAvailableInvestigatorCapabilities")) throw new Error("Agentic core is not registry-driven.");
 for(const marker of ["MAX_ITER = 64","MAX_OBS = 16_000","MAX_TRAJECTORY_RECORDS = 512"]) if(!core.includes(marker)) throw new Error("Safety ceiling missing: "+marker);
 const obs=fs.readFileSync(path.join(root,"artifacts/api-server/src/src/lib/target-act-oversight.ts"),"utf8");
 for(const marker of ["tool_observation","control_decision","fail-closed"]) if(!obs.toLowerCase().includes(marker.toLowerCase())) throw new Error("Oversight durability marker missing: "+marker);

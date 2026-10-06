@@ -23,7 +23,13 @@ const checks = [
   ["canonical discovery opens Groq Boss before Groq Right-hand review", /runGroqBossDiscovery\([\s\S]*?runGroqRightHandFreeJson/.test(atlas)],
   ["canonical Atlas fails closed when Right-hand is unavailable", /rightHandRaw\.status\s*!==\s*["\']completed["\'][\s\S]{0,1200}(?:throw new Error|status:\s*["\']review["\'])/.test(atlas)],
   ["canonical Atlas fails closed on invalid Right-hand oversight JSON", /rightHandRaw\.status === ["\']completed["\'][\s\S]{0,800}JSON\.parse/.test(atlas)],
+  ["discovery-only completion requires Investigator terminal done", /discovery\.status === "completed" && discovery\.stopReason === "MODEL_DECIDED_DONE"/.test(atlas)],
+  ["resource-limited discovery remains reviewable", /durableStatus = discovery\.status === "completed" && discovery\.stopReason === "MODEL_DECIDED_DONE" && !investigatorResourceLimited \? "complete" : "review"/.test(atlas)],
+  ["full Atlas completion requires evidence-backed Investigator terminal state", /const evidenceBackedTerminal =/.test(atlas)&&/const finalIncomplete = investigatorResourceLimited \|\| finalControlAction !== "stop" \|\| !evidenceBackedTerminal/.test(atlas)],
 ];
+checks.push(["canonical Atlas unexpected failures close the durable discovery case",/canonical-atlas-failed/.test(atlas)&&/status: "review"/.test(atlas)&&/researchCasesTable\.caseFile/.test(atlas)]);
+checks.push(["terminal Boss decision is captured before stop breaks control loop",/finalControlAction = decision\.action;\s*if \(decision\.action === "stop"\) break/.test(atlas)]);
+checks.push(["target Investigator iterations are charged to the Atlas global ceiling",/remainingTargetIterations = Math\.max\(0, depth\.agenticMaxIterations - investigatorIterationsUsed\)/.test(atlas)&&/maxInvestigatorIterations: remainingTargetIterations/.test(atlas)&&/investigatorIterationsUsed \+= Math\.max\(0, targetResult\.investigatorIterationsUsed\)/.test(atlas)]);
 let failed = false; for (const [label, ok] of checks) { console.log(`${ok ? "PASS" : "FAIL"} ${label}`); if (!ok) failed = true; }
 if (failed) { console.error("Atlas control durability guard failed."); process.exit(1); }
 console.log("Atlas control durability guard passed.");

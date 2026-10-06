@@ -1,23 +1,18 @@
-# CURRENT OVERRIDE — 2026-10-03
+# CURRENT OVERRIDE — 2026-10-06
 
-> This section supersedes all conflicting historical provider/auth statements later in this living-context document. Repository source at the current `main` HEAD is authoritative.
+> This section supersedes conflicting historical provider/auth statements later in this living-context document. **The working PR #500 head is the code under active architectural review; it is not merged to `main` yet.** Historical incident notes below remain historical evidence and must not be treated as the active provider topology.
 >
-> **Latest verified runtime source parent:** `8b4d314596b7c095dcfcc397034e96d25b03716b`. Subsequent main commits in this pass are documentation-only.
+> **Current reviewed control plane:** Groq Boss → Groq Right-hand → Boss-selected Investigator capability → model-owned multi-step ReAct episode → deterministic evidence/provenance/identity/promotion/lifecycle rails.
 >
-> **Canonical control plane:** Groq Boss (`openai/gpt-oss-120b`, bounded 20B fallback) → Groq Right-hand (`openai/gpt-oss-120b`, bounded 20B fallback) → Groq Investigator (`qwen/qwen3.8-27b`, bounded GPT-OSS fallbacks).
+> **Investigator capability boundary:** every configured Groq Investigator credential is a separate selectable capability. The registry exposes `groq-investigator-1`, `groq-investigator-2`, etc.; each maps one-to-one to `GROQ_INVESTIGATOR_API_KEY`, `GROQ_INVESTIGATOR_API_KEY_1`, etc. Selecting one capability never authorizes the executor to rotate to another Investigator credential.
 >
-> **Role-scoped credentials:** Boss uses `GROQ_BOSS_API_KEY`, `_1` … `_10`; Right-hand uses `GROQ_RIGHT_HAND_API_KEY`, `_2` … `_5`; Investigator uses `GROQ_INVESTIGATOR_API_KEY`, `_1` … `_5`. Do not restore Mistral/Gemini control credentials. The Right-hand `_1` naming discrepancy remains a configuration-only item: no secret value has been inspected.
+> **Active Investigator models inside each Groq capability:** Qwen 3.8 27B, GPT-OSS 20B, and GPT-OSS 120B are the current repository model set. Cognitive-task routing is a resource policy: routine discovery/identity/contact turns prefer GPT-OSS 20B; contradiction/final adjudication prefer GPT-OSS 120B. The model router is downstream of Boss capability selection and does not choose the research strategy.
 >
-> **Operator authentication is retired from the Apex desk/API.** Do not add an auth bypass or restore retired operator-auth variables as a testing workaround.
+> **Provider topology:** Groq is the active Investigator adapter. Mistral/Gemini Investigator transports are not active adapters in this reviewed canonical path and must not be reintroduced as fake fallbacks. Other providers may only become selectable after a real adapter, availability contract, tests, and canonical integration exist.
 >
-> **Groq GPT-OSS request contract:** Right-hand requests use `reasoning_effort` plus `include_reasoning:false`; they do not send the unsupported `reasoning_format` field. The final composed Right-hand control prompt is bounded to 18,976 characters, leaving a 1,024-character reserve below the adapter's 20,000-character hard ceiling.
+> **Retry/key law:** an authoritative Investigator quota failure is not repaired by silently rotating to another key or provider. Separate configured Investigator keys exist as separate capabilities so Boss can explicitly select a different capability before execution; the selected capability then stays on its bound key.
 >
-> **Groq retry/control contract:** Right-hand and Investigator transient 429 retry ownership is explicit at the caller boundary; authoritative request-quota 429s are not converted into same-role key rotation. The canonical target-research path contains no hidden Gemini evidence probe or Gemini fetch retry shim, and research redirects are provider/tool-neutral.
->
-> **Current main chronology:** PR #465 merged the Right-hand retry-ownership boundary; PR #466 merged the Investigator GPT-OSS/cognitive-routing correction; PR #468 merged the combined control/Investigator retry and canonical-path remediation; PR #469 merged the Investigator credential-slot gate correction.
->
-> **Verification rule:** provider capacity is never inferred from configured-key status. No live provider request or Atlas launch was performed by these source/documentation corrections. A new canonical Atlas launch requires separate explicit user authorization.
-
+> **Verification state:** GitHub audit gates are running on the updated PR head. No Replit/Apex live run has been performed. Do not infer provider capacity, runtime success, or production readiness from configured secrets or passing static tests.
 # Apex Atlas / BigContacts — Living Context
 
 > **Updated:** 2026-09-20. This is the living engineering, architecture, deployment, and research-quality handoff for the current reviewed Apex Atlas state.
@@ -104,7 +99,7 @@ groq
 mistral
 ```
 
-The selected Investigator is the researcher. It receives durable case/run context and owns query formulation, tool choice, pivots, verification, disproof, and stopping.
+The selected Investigator is the researcher. It receives durable case/run context and owns query formulation, tool choice, pivots, verification, disproof, and stopping. The target runtime gives it bounded multi-step ReAct episodes; Right-hand/Boss review the complete episode rather than forcing a provider call after every single tool action.
 
 DeepSeek/NVIDIA is not an active Investigator or Right-hand path.
 
@@ -723,19 +718,21 @@ No live Mistral call or Atlas launch was made to validate the new fallback. Vali
 Superseding all earlier provider-role sections above, current canonical main uses Groq for all three AI control/research roles:
 - Boss: Groq openai/gpt-oss-120b with openai/gpt-oss-20b fallback; credentials GROQ_BOSS_API_KEY and _1 through _10.
 - Right-hand: Groq openai/gpt-oss-120b with openai/gpt-oss-20b fallback; credentials GROQ_RIGHT_HAND_API_KEY plus _2 through _5.
-- Investigator: Groq-only; credentials GROQ_INVESTIGATOR_API_KEY plus _1 through _5.
+- Investigator: Boss-selected capability from the runtime registry; currently the only active adapter is Groq, using GROQ_INVESTIGATOR_API_KEY plus _1 through _5.
 - Gemini and Mistral are retired from the canonical active control plane. Historical audit sections may mention them as prior failures/migrations only.
 
 Important merged commits:
 - PR #465 merged the explicit Groq Right-hand retry-ownership boundary.
 - PR #466 merged as e92135a1b8332a5f13e28e8f0cc576f78eaba8f corrected the remaining canonical Groq Investigator runtime contract and cognitive routing.
 - 2026-10-03 audit update commit: 3cf795028944dad30436cee55d1cb0a015767454.
+- Current Investigator resource policy: routine discovery/identity/contact turns prefer the fastest low-cost compatible Groq model; larger models are reserved for contradiction/final adjudication. This is a resource policy, not research strategy.
+- Target-scoped Investigator execution now runs bounded multi-step ReAct episodes before Right-hand/Boss oversight. The 64-iteration ceiling remains absolute; depth defaults are lower resource budgets, and the Investigator still owns every action and stop decision inside the episode.
 
 PR #466 source corrections:
 - GPT-OSS Investigator no longer sends reasoning_format. It uses include_reasoning:false, matching the current Groq GPT-OSS contract.
 - Strict Investigator structured output now exposes every action field already parsed by the runtime, including target/targetType/profile for SpiderFoot and locale/market for search.
 - Investigator reasoning budget is cognitive-task aware: ordinary discovery/identity medium, contact extraction low, contradiction/final adjudication high, with only validated low/medium/high environment overrides.
-- Cognitive routing is state-driven from the Research Intelligence frontier and does not choose the research action. The model still owns the next research action; deterministic code only selects an appropriate reasoning budget/model family and enforces evidence law.
+- Cognitive routing is state-driven from the Research Intelligence frontier and does not choose the research action. The model still owns the next research action; deterministic code only selects an appropriate reasoning budget/model family and enforces evidence law. The runtime capability registry also supplies the set of available Investigator adapters to Boss selection; it does not choose among them.
 - Regression coverage and scripts/check-agentic-runtime.mjs now enforce the provider request/schema invariants.
 
 Architecture law:
