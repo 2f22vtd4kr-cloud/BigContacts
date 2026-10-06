@@ -58,6 +58,23 @@ describe("agentic source provenance", () => {
     expect(groundedFindingsForTrajectory([finding()], [search, observation()])).toHaveLength(1);
   });
 
+  it("does not let search observations support cognitive hypotheses", async () => {
+    const { ResearchIntelligenceEngine } = await import("../lib/research-intelligence-engine");
+    const engine = new ResearchIntelligenceEngine({ executionId: "test-search-hypothesis", target: "Jane Example", objective: "identity" });
+    engine.recordAction({
+      turn: 1,
+      action: "web_search",
+      args: { hypothesis: "Jane Example is the founder of Example Corp" },
+      execution: "success",
+      observation: "Jane Example — Example Corp founder",
+      urls: ["https://example.com/team/jane"],
+      findings: [],
+    });
+    const context = engine.buildContext();
+    expect(context.hypotheses).toHaveLength(1);
+    expect(context.hypotheses[0]?.supportingEvidenceIds).toHaveLength(0);
+  });
+
   it("drops contact findings without a successful observed source", () => {
     const raw = [finding({ sourceUrls: [] }), finding({ sourceUrls: ["google-search://jane@example.com"] })];
     expect(sourceBackedFindings(raw)).toHaveLength(0);
