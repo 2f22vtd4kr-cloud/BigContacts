@@ -186,8 +186,15 @@ function clip(value: string | null | undefined, maxChars = 360): string | null {
   const trimmed = value.trim();
   return trimmed.length <= maxChars ? trimmed : `${trimmed.slice(0, Math.max(0, maxChars - 1))}…`;
 }
+function headTail<T>(values: readonly T[] | null | undefined, maxItems: number): T[] {
+  const source = values ?? [];
+  if (source.length <= maxItems) return [...source];
+  if (maxItems <= 1) return source.slice(-1);
+  const head = Math.ceil(maxItems / 2);
+  return [...source.slice(0, head), ...source.slice(-(maxItems - head))];
+}
 function clipStrings(values: readonly string[] | null | undefined, maxItems = 8, maxChars = 360): string[] {
-  return (values ?? []).slice(0, maxItems).map((value) => clip(value, maxChars) ?? "");
+  return headTail(values, maxItems).map((value) => clip(value, maxChars) ?? "");
 }
 function compactCase(file: ResearchCaseFile): string {
   const queued = file.actionQueue
@@ -200,7 +207,7 @@ function compactCase(file: ResearchCaseFile): string {
       priority: action.priority,
       rationale: clip(action.rationale, 280),
     }));
-  const routes = file.contactRoutes.slice(0, 12).map((route) => ({
+  const routes = headTail(file.contactRoutes, 12).map((route) => ({
     rank: route.rank,
     vectorType: route.vectorType,
     value: clip(route.value, 180),
@@ -215,7 +222,7 @@ function compactCase(file: ResearchCaseFile): string {
         foundPersonalCount: file.investigationProgress.foundPersonalCount,
         foundAnyCount: file.investigationProgress.foundAnyCount,
         coverageRatio: file.investigationProgress.coverageRatio,
-        vectors: file.investigationProgress.vectors.map((vector) => ({
+        vectors: headTail(file.investigationProgress.vectors, 12).map((vector) => ({
           id: vector.id,
           status: vector.status,
           values: vector.values.slice(0, 2).map((value) => clip(value, 140)),
@@ -314,7 +321,7 @@ function compactDiscovery(file: DiscoveryCaseFile, profile: DiscoveryCompactProf
     initialResearch: { status: file.initialResearch.status, researchResponse: clip(file.initialResearch.researchResponse, 700), bossCommentary: clip(file.initialResearch.bossCommentary, 360), sourceUrls: clipStrings(file.initialResearch.sourceUrls, 6, 280) },
     investigatorReports: reports,
     currentProgress: { reportCount: file.currentProgress.reportCount, completedLanes: clipStrings(file.currentProgress.completedLanes, 8, 120), openQuestions: clipStrings(file.currentProgress.openQuestions, profile.openQuestionCount, profile.openQuestionChars), lastReviewedBy: file.currentProgress.lastReviewedBy },
-    discoveredCandidates: file.discoveredCandidates.slice(0, profile.candidateCount).map((candidate) => ({ name: clip(candidate.name, 140), type: candidate.type, relevance: clip(candidate.relevance, profile.candidateRelevanceChars), reachability: clip(candidate.reachability, 180), sourceUrls: clipStrings(candidate.sourceUrls, 3, 280), state: candidate.state })),
+    discoveredCandidates: headTail(file.discoveredCandidates, profile.candidateCount).map((candidate) => ({ name: clip(candidate.name, 140), type: candidate.type, relevance: clip(candidate.relevance, profile.candidateRelevanceChars), reachability: clip(candidate.reachability, 180), sourceUrls: clipStrings(candidate.sourceUrls, 3, 280), state: candidate.state })),
     orgFootprint: compactOrgFootprint(file.orgFootprint),
     decisionLog: file.decisionLog.slice(-profile.decisionCount).map((entry) => ({ iteration: entry.iteration, decision: clip(entry.decision, profile.decisionChars), reason: clip(entry.reason, profile.decisionChars) })),
   }, null, 2);
@@ -340,7 +347,29 @@ function boundedDiscoveryPrompt(file: DiscoveryCaseFile, iteration: number): str
     if (prompt.length <= budget) return prompt;
   }
   const emergency = prefix + compactDiscoveryEmergency(file) + suffix;
-  return emergency.length <= budget ? emergency : emergency.slice(0, budget);
+  if (emergency.length <= budget) return emergency;
+
+  // Never truncate serialized JSON: choose the smallest valid discovery control
+  // document instead. The durable case remains complete outside this prompt.
+  const minimal = prefix + JSON.stringify({
+    humanBrief: {
+      objective: clip(file.humanBrief.objective, 320),
+      geography: clip(file.humanBrief.geography, 120),
+    },
+    currentProgress: {
+      reportCount: file.currentProgress.reportCount,
+      completedLanes: clipStrings(file.currentProgress.completedLanes, 2, 80),
+      openQuestions: clipStrings(file.currentProgress.openQuestions, 2, 100),
+    },
+    latestInvestigatorReport: file.investigatorReports.at(-1)
+      ? {
+          id: file.investigatorReports.at(-1)!.id,
+          summary: clip(file.investigatorReports.at(-1)!.summary, 180),
+          findings: clipStrings(file.investigatorReports.at(-1)!.findings, 2, 100),
+        }
+      : null,
+  }) + suffix;
+  return minimal; 
 }
 export function getGroqRightHandStatus(): GroqRightHandStatus { return { configured: keyEntries().length > 0, model: GROQ_RIGHT_HAND_MODEL, fallbackModels: [...GROQ_RIGHT_HAND_FALLBACK_MODELS], endpoint: GROQ_RIGHT_HAND_CHAT_API, role: "right_hand_advisor", capability: "case_file_reasoning_only", provider: "groq" }; }
 type GroqReadinessAttemptDiagnostic = {
