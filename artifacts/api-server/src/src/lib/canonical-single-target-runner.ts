@@ -56,7 +56,7 @@ async function ensureTargetCase(target: { id: number; name: string; type: string
   return { ...created, targetEntityId: created.targetEntityId, iteration: Number(created.iteration ?? 0), objective: created.objective ?? objective };
 }
 async function loadDurableTargetTrajectory(caseId: number): Promise<{ records: CompactionTrajectoryRecord[]; findings: CompactionFinding[] }> {
-  const events = await db.select({ iteration: researchCaseEventsTable.iteration, eventType: researchCaseEventsTable.eventType, payload: researchCaseEventsTable.payload })
+  const events = await db.select({ iteration: researchCaseEventsTable.iteration, eventType: researchCaseEventsTable.eventType, status: researchCaseEventsTable.status, payload: researchCaseEventsTable.payload })
     .from(researchCaseEventsTable)
     .where(and(eq(researchCaseEventsTable.caseId, caseId), eq(researchCaseEventsTable.eventType, "tool_observation")));
   const records: CompactionTrajectoryRecord[] = [];
@@ -74,7 +74,7 @@ async function loadDurableTargetTrajectory(caseId: number): Promise<{ records: C
         model: typeof payload.model === "string" ? payload.model : undefined,
         action: typeof payload.action === "string" ? payload.action : "react_episode",
         args: payload.args && typeof payload.args === "object" ? payload.args as Record<string, unknown> : undefined,
-        execution: typeof payload.status === "string" ? payload.status : typeof payload.execution === "string" ? payload.execution : "unknown",
+        execution: typeof payload.execution === "string" ? payload.execution : typeof event.status === "string" ? event.status : "unknown",
         observation: typeof payload.observation === "string" ? payload.observation : undefined,
         observedUrls: Array.isArray(payload.observedUrls) ? payload.observedUrls.filter((value): value is string => typeof value === "string") : [],
         findings: normalizedFindings,
