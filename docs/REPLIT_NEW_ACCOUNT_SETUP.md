@@ -103,12 +103,3 @@ Report:
 - exact blockers.
 
 A successful setup is not evidence that Apex is better than another research system. Research comparisons require matched benchmark runs and the frozen Gauntlet scoring protocol.
-
-## Gemini role-separated credentials
-
-The canonical bureau uses separate Gemini credentials:
-
-- `GEMINI_API_KEY` — Gemini Boss.
-- `GEMINI_RIGHT_HAND_API_KEY` — Gemini Right-hand.
-
-There is no fallback from Right-hand to Boss credentials. Never print or expose either secret.
