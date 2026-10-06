@@ -12,6 +12,7 @@ const checks=[
 ["canonical runner does not consume stale targetControlDecisions",!/readContinuationControl\(/.test(runner)],
 ["canonical target case reuse is bound to current atlas job",/state\.atlasJobId === atlasJobId/.test(runner)],
 ["canonical runner passes exact case identity into Investigator",/caseId: caseRow\.id/.test(runner)],
+["canonical target context is rebuilt from durable Investigator observations",/loadDurableTargetTrajectory\(caseRow\.id\)/.test(runner)&&/buildInvestigatorContext\(\{ targetName: target\.name/.test(runner)],
 ["canonical target control iteration is durably monotonic",/iteration: caseRow\.iteration \+ completedActs/.test(runner)],
 ["canonical runner blocks on stop",/if \(lastOversight\.action === "stop"\) break/.test(runner)],
 ["canonical runner fails closed when oversight is unavailable",/!lastOversight \|\| lastOversight\.status !== "completed"/.test(runner)],
