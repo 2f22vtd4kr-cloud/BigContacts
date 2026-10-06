@@ -50,9 +50,11 @@ export function validateDiscoverySearchQuery(query: string, priorQueries: readon
   if (priorQueries.some((prior) => normalizeDiscoverySearchQuery(prior) === normalized)) return { allowed: false, reason: "Duplicate discovery search query blocked; pivot using new evidence or a different hypothesis." };
   const role = DISCOVERY_ROLE_TERMS.test(normalized), sector = DISCOVERY_SECTOR_TERMS.test(normalized), source = DISCOVERY_SOURCE_TERMS.test(normalized), organization = DISCOVERY_ORG_TERMS.test(normalized), fame = DISCOVERY_FAME_TERMS.test(normalized);
   const concreteSignals = Number(role) + Number(sector) + Number(source) + Number(organization);
-  const tokenCount = normalized.split(/\s+/).filter(Boolean).length;
-  const hasConcreteAnchor = source || organization;
-  if (fame && !hasConcreteAnchor) return { allowed: false, reason: "Discovery search is too fame/wealth-list oriented. Add a concrete named organization, geography, business context, registry, or source anchor before searching." };
+  const tokens = normalized.split(/\s+/).filter(Boolean);
+  const tokenCount = tokens.length;
+  const nonFameTokenCount = tokens.filter((token) => !DISCOVERY_FAME_TERMS.test(token)).length;
+  const hasConcreteAnchor = source || organization || (sector && nonFameTokenCount >= 3);
+  if (fame && !hasConcreteAnchor) return { allowed: false, reason: "Discovery search is too fame/wealth-list oriented. Add a concrete named organization, business context, geography, registry, or source anchor before searching." };
   if (concreteSignals < 1 || tokenCount < 2) return { allowed: false, reason: "Discovery search is underspecified. Add a concrete business/sector/role plus a named context, geography, organization, source type, or registry before spending a search call." };
   return { allowed: true };
 }
