@@ -831,7 +831,8 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     "",
     "ACTION CONTRACT: domain_lookup requires provider=rdap or whoisjson; browser_fetch requires provider=scrapfly, zenrows, browserless, or playwright; footprint_spiderfoot requires target, targetType, and profile. The harness will fail closed when a capability is unavailable.",
     "For parallel_web_search, provide 2–4 independent search objects. For other actions, searches must be empty. Return ONE JSON action object matching the structured response contract.",
-  ].join("\n");\n  const maxUserPromptChars = Math.max(1_000, MAX_PROVIDER_PROMPT_CHARS - INVESTIGATOR_SYSTEM_PROMPT().length);\n  return boundInvestigatorPromptSection(composedPrompt, maxUserPromptChars);\n
+  ].join("\n");
+  const maxUserPromptChars = Math.max(1_000, MAX_PROVIDER_PROMPT_CHARS - INVESTIGATOR_SYSTEM_PROMPT().length);\n  return boundInvestigatorPromptSection(composedPrompt, maxUserPromptChars);\n
 }
 
 export function discoveryTerminalGate(records: readonly AgenticTrajectoryRecord[]): { allowed: boolean; reason: string | null } {
