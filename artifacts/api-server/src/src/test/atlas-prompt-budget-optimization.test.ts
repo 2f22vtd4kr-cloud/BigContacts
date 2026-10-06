@@ -6,7 +6,7 @@ import {
   ATLAS_RIGHT_HAND_PROMPT_BUDGET,
 } from "../lib/atlas-control-decision";
 import { renderAtlasCapabilityGuidanceCompact, renderAtlasCapabilityGuidance } from "../lib/atlas-capability-registry";
-import { buildInvestigatorContext, getInvestigatorContextBudget } from "../lib/investigation-context-compaction";
+import { buildInvestigatorContext, getInvestigatorContextBudget } from "../lib/investigation-context-compaction";\nimport { buildStepPrompt } from "../lib/agentic-web-research-core";
 
 describe("Apex Atlas prompt budget optimization", () => {
   it("keeps the per-turn capability contract materially smaller than the full registry", () => {
@@ -35,9 +35,28 @@ describe("Apex Atlas prompt budget optimization", () => {
       findings: records.at(-1)!.findings,
     });
     expect(context.length).toBeLessThanOrEqual(getInvestigatorContextBudget().maxChars);
-    expect(getInvestigatorContextBudget().maxChars).toBe(10_000);
+    expect(getInvestigatorContextBudget().maxChars).toBe(4_200);
     expect(context).toContain("Named Person");
     expect(context).toContain("RESEARCH FRONTIER");
+  });
+
+  it("bounds the complete Investigator message envelope, including the stable system prompt", () => {
+    const prompt = buildStepPrompt({
+      targetName: "Named Person",
+      objective: "Resolve identity and public contact routes.",
+      history: Array.from({ length: 50 }, (_, i) => "history " + i + " ".repeat(400)),
+      trajectoryRecords: Array.from({ length: 40 }, (_, i) => ({
+        turn: i + 1, action: "visit", execution: "success",
+        observedUrls: ["https://source-" + i + ".example/page"], observation: "observation ".repeat(800), findings: [],
+      })),
+      lastObservation: "latest ".repeat(2_000),
+      findings: [],
+      intelligenceContext: "intelligence ".repeat(2_000),
+      mode: "target",
+    });
+    const systemInstruction = "Return one JSON action object only.";
+    expect(prompt.length + systemInstruction.length).toBeLessThanOrEqual(9_000 + 200);
+    expect(prompt.length).toBeLessThanOrEqual(9_000);
   });
 
   it("does not duplicate a giant Investigator report into the control prompt budget", () => {
