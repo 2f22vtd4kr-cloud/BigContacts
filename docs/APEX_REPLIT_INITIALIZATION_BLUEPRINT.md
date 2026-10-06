@@ -84,50 +84,42 @@ IMPORTANT:
 
 ENVIRONMENT / KEYS
 
-The startup credential gate is NOT conditional.
+The startup credential gate checks the active provider names used by the current main runtime. Verify presence only; never display or echo values.
 
-The canonical fresh-account setup contract is the complete 16-name list below. Ask the operator for these exact names in this order and verify presence only; never display or echo values.
+1. COMPANIES_HOUSE_API_KEY
+2. EXA_API_KEY
+3. GROQ_BOSS_API_KEY
+4. GROQ_RIGHT_HAND_API_KEY
+5. GROQ_INVESTIGATOR_API_KEY
+6. HF_TOKEN
+7. GROQ_INVESTIGATOR_API_KEY_1
+8. REDIS_URL_1
+9. SCRAPFLY_API_KEY
+10. SERPAPI_KEY
+11. SERPER_API_KEY
+12. TAVILY_API_KEY
+13. ZENROWS_API_KEY
 
-1. REDIS_URL_1
-2. GROQ_API_KEY
-3. GEMINI_API_KEY
-4. MISTRAL_API_KEY
-5. HF_TOKEN
-6. SERPER_API_KEY
-7. TAVILY_API_KEY
-8. SERPAPI_KEY
-9. EXA_API_KEY
-10. SCRAPFLY_API_KEY
-11. ZENROWS_API_KEY
-12. COMPANIES_HOUSE_API_KEY
-13. GEMINI_RIGHT_HAND_API_KEY
-14. APEX_API_AUTH_TOKEN
-15. APEX_OPERATOR_PASSWORD
-16. APEX_SESSION_SECRET
+Additional numbered Groq Boss, Right-hand, and Investigator credentials are optional runtime slots. Investigator slots are separate selectable capabilities:
+- groq-investigator-1 → GROQ_INVESTIGATOR_API_KEY
+- groq-investigator-2 → GROQ_INVESTIGATOR_API_KEY_1
+- groq-investigator-3 → GROQ_INVESTIGATOR_API_KEY_2
+- groq-investigator-4 → GROQ_INVESTIGATOR_API_KEY_3
+- groq-investigator-5 → GROQ_INVESTIGATOR_API_KEY_4
+- groq-investigator-6 → GROQ_INVESTIGATOR_API_KEY_5
 
-`DATABASE_URL` is supplied by the Replit/Postgres environment and must not be requested from the operator.
+Selecting one Investigator capability never silently rotates to another credential.
 
-This is an explicit configuration checklist, not a provider-discovery exercise. Do not omit a name because a first smoke test does not use that capability. Do not request historical/retired provider credentials.
+DATABASE_URL is supplied by Postgres/platform infrastructure and must not be requested from the operator.
 
-IMPORTANT: older `docs/bureau-plan/*` files contain historical secret/provider contracts. They are not authoritative for fresh-account setup. This section and `docs/REPLIT_NEW_ACCOUNT_SETUP.md` are the current key contract.
+Never request or restore retired Gemini/Mistral/DeepSeek/NVIDIA control-plane credentials, WHOIS/WHOXY credentials, or secret values.
 
 Rules:
 - Never ask the operator to paste secret values into chat.
-- Tell the operator to enter each value directly into Replit Secrets.
-- Never print, echo, log, commit, or place secret values in source files.
-- Verify only that each required variable is present/non-empty.
+- Verify presence only.
 - Do not manufacture placeholder production keys.
 - Do not silently substitute another provider.
-- Do not omit a listed key because the first smoke test happens not to use that provider.
-- Retired credentials that must NOT be requested or restored:
-  - DEEPSEEK_API_KEY
-  - NVIDIA_API_KEY
-  - WHOISJSON_API_KEY
-  - WHOXY_API_KEY
-
-Role law:
-- Gemini is Boss / Right-hand oversight.
-- Groq are Investigator providers.
+- Retired providers remain historical documentation only.
 
 AUTH
 Verify the current repository's authentication contract before changing anything.
