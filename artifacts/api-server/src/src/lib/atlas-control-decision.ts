@@ -279,6 +279,7 @@ export function buildAtlasControlState(input: {
     sourceUrls: candidate.sourceUrls.slice(0, 4),
   })).join("\n");
   const compactState = compactInvestigationContext({
+    maxChars: 6_500,
     raw: [
       "# Apex Atlas — Investigation Context",
       "## Bureau operating law",
