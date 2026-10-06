@@ -10,6 +10,7 @@ const checks = [
   ["older trajectory keeps source URLs", /ARCHIVED TRAJECTORY INDEX/.test(source) && /observedUrls/.test(source)],
   ["context management law forbids treating omission as negative evidence", /Do not treat omitted raw detail as negative evidence/.test(source)],
   ["emergency provider-size reducer exists", /export function tightenInvestigatorPrompt/.test(source) && /EMERGENCY REQUEST-SIZE COMPACTION/.test(source)],
+  ["mounted durable context has its own bounded section", /priorContext\?: string/.test(source) && /PRIOR DURABLE CASE CONTEXT/.test(source) && /trim\(input\.priorContext, 1_800\)/.test(source)],
   ["explicit model-facing context budget override exists", /maxChars\?: number/.test(source) && /input\.maxChars/.test(source)],
   ["canonical Investigator prompt requests a bounded working-context layer", /maxChars: 6_500/.test(core)],
   ["canonical Investigator prompt reserves a bounded intelligence-state layer", /boundInvestigatorPromptSection\(input\.intelligenceContext[^;]*2_500/.test(core)],
