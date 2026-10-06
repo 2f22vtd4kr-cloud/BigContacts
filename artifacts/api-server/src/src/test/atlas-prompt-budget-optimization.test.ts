@@ -68,9 +68,9 @@ describe("Apex Atlas prompt budget optimization", () => {
       intelligenceContext: "intelligence ".repeat(2_000),
       mode: "target",
     });
-    const systemInstruction = "Return one JSON action object only.";
-    expect(prompt.length + systemInstruction.length).toBeLessThanOrEqual(9_000 + 200);
-    expect(prompt.length).toBeLessThanOrEqual(9_000);
+    const systemInstruction = apexOrientationCompact("dig_agent") + "\nReturn one JSON action object only.";
+    expect(prompt.length + systemInstruction.length).toBeLessThanOrEqual(9_000);
+    expect(prompt.length).toBeLessThanOrEqual(9_000 - systemInstruction.length);
   });
 
   it("does not duplicate a giant Investigator report into the control prompt budget", () => {
