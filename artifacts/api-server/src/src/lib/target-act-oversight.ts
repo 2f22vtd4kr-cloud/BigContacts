@@ -9,16 +9,28 @@ import { runGroqRightHandFreeJson } from "./groq-right-hand-reasoning";
 import { buildClaimSupportGraph, observationsFromSourceUrls, validateClaimSupportGraph, type EvidenceGraph } from "./source-corroboration";
 type ActSourceRecord={turn:number;action:string;execution:string;observation?:string;observedUrls:string[];findings:unknown[]};type ActRecord={turn:number;model:string;action:string;args:Record<string,unknown>;thought?:string;execution:string;observation?:string;observedUrls:string[];findings:unknown[];providerFallback?:string[];stopReason?:string;sourceRecords?:ActSourceRecord[]};
 export type TargetActOversight={status:"completed"|"unavailable";action:"continue"|"redirect"|"stop";direction:string|null;reason:string|null;confidence:number|null;rightHand:{status:"completed"|"unavailable";decision:string|null;reason:string|null;focusLanes:string[];confidence:number|null;model:string;error:string|null};bossModel:string|null;error:string|null};
+function compactOversightArgs(args: Record<string, unknown>): Record<string, unknown> {
+  const priority = /query|url|target|name|company|domain|email|phone|role|purpose|question|objective/i;
+  const entries = Object.entries(args ?? {});
+  const ranked = [...entries].sort(([a], [b]) => Number(priority.test(b)) - Number(priority.test(a)));
+  return Object.fromEntries(ranked.slice(0, 6));
+}
+
+function compactOversightFindings(findings: unknown[]): unknown[] {
+  if (findings.length <= 6) return findings;
+  return [...findings.slice(0, 3), "[MIDDLE FINDINGS OMITTED; DURABLE ACT RETAINS THEM]", ...findings.slice(-2)];
+}
+
 export function compactOversightAct(record:ActRecord):Record<string,unknown>{
   return {
     turn: record.turn,
     model: record.model,
     action: record.action,
-    args: Object.fromEntries(Object.entries(record.args ?? {}).slice(0, 8)),
+    args: compactOversightArgs(record.args ?? {}),
     execution: record.execution,
     observation: typeof record.observation === "string" ? record.observation.slice(0, 2_200) : null,
     observedUrls: record.observedUrls.slice(0, 6),
-    findings: record.findings.slice(0, 8),
+    findings: compactOversightFindings(record.findings),
     stopReason: record.stopReason ?? null,
   };
 }
