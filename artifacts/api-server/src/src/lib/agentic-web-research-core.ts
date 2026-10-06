@@ -52,8 +52,9 @@ export function validateDiscoverySearchQuery(query: string, priorQueries: readon
   const concreteSignals = Number(role) + Number(sector) + Number(source) + Number(organization);
   const tokens = normalized.split(/\s+/).filter(Boolean);
   const tokenCount = tokens.length;
-  const nonFameTokenCount = tokens.filter((token) => !DISCOVERY_FAME_TERMS.test(token)).length;
-  const hasConcreteAnchor = source || organization || (sector && nonFameTokenCount >= 3);
+  const genericContextTerms = new Set(["people", "person", "list", "lists", "ranking", "rankings", "world", "global", "everyone"]);
+  const nonFameTokenCount = tokens.filter((token) => !DISCOVERY_FAME_TERMS.test(token) && !genericContextTerms.has(token)).length;
+  const hasConcreteAnchor = source || organization || (sector && nonFameTokenCount >= 2);
   if (fame && !hasConcreteAnchor) return { allowed: false, reason: "Discovery search is too fame/wealth-list oriented. Add a concrete named organization, business context, geography, registry, or source anchor before searching." };
   // Keep the rail structural rather than prescriptive: a model-selected named
   // identity/company pivot can be concrete even when it does not contain one of
