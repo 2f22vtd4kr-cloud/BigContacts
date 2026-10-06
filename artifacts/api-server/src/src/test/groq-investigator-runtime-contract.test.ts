@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildGroqInvestigatorRequestBody } from "../lib/agentic-web-research-core";
+import { buildGroqInvestigatorRequestBody, runAgenticWebResearch } from "../lib/agentic-web-research-core";
 import { inferResearchCognitiveTask, rankGroqModelsForTask } from "../lib/research-cognitive-routing";
 import { getAvailableInvestigatorCapabilities, investigatorCapabilityKeyName } from "../lib/investigator-capability-registry";
 import { resolveResearchDepth } from "../lib/research-depth";
@@ -79,7 +79,7 @@ describe("Groq Investigator runtime contract", () => {
     expect(deep.investigatorIterationsPerAct).toBeGreaterThan(standard.investigatorIterationsPerAct);
   });
 
-  it("routes live research state into distinct cognitive modes", () => {
+  it("honors an explicit zero Investigator iteration budget instead of expanding it to the default ceiling", async () => {\n    const result = await runAgenticWebResearch({ targetName: "Example", investigatorLlm: "groq-investigator-1", maxIterations: 0 });\n    expect(result.iterations).toBe(0);\n    expect(result.stopReason).toBe("ITERATION_BUDGET");\n    expect(result.trajectoryRecords).toHaveLength(0);\n  });\n\n  it("routes live research state into distinct cognitive modes", () => {
     expect(inferResearchCognitiveTask({ action: "web_search" })).toBe("discovery");
     expect(inferResearchCognitiveTask({ nextMovePriority: "falsify" })).toBe("contradiction_resolution");
     expect(inferResearchCognitiveTask({ nextMovePriority: "contact" })).toBe("contact_extraction");
