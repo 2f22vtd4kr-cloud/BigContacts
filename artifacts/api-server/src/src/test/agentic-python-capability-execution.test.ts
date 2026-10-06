@@ -40,7 +40,7 @@ describe("agentic Python capability execution state", () => {
 
     const result = await runAgenticWebResearch({
       targetName: "Example",
-      investigatorLlm: "groq",
+      investigatorLlm: "groq-investigator-1",
       maxIterations: 2,
       hardTimeoutMs: 30_000,
     });
