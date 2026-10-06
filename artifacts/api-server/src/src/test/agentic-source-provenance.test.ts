@@ -46,6 +46,18 @@ describe("agentic source provenance", () => {
     expect(groundedFindingsForTrajectory([finding()], [observation({ observation: "Jane Example — Founder" })])).toHaveLength(0);
     expect(groundedFindingsForTrajectory([finding()], [observation({ observedUrls: ["https://other.example/source"] })])).toHaveLength(0);
   });
+  it("does not treat search-result snippets as intelligence evidence", async () => {
+    const { groundedFindingsForTrajectory } = await import("../lib/agentic-web-research");
+    const search = observation({
+      action: "web_search",
+      args: { query: "Jane Example founder jane@example.com" },
+      observation: "Jane Example — Founder — jane@example.com",
+      observedUrls: ["https://example.com/team/jane"],
+    });
+    expect(groundedFindingsForTrajectory([finding()], [search])).toHaveLength(0);
+    expect(groundedFindingsForTrajectory([finding()], [search, observation()])).toHaveLength(1);
+  });
+
   it("drops contact findings without a successful observed source", () => {
     const raw = [finding({ sourceUrls: [] }), finding({ sourceUrls: ["google-search://jane@example.com"] })];
     expect(sourceBackedFindings(raw)).toHaveLength(0);
