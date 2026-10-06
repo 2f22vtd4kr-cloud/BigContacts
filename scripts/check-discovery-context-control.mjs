@@ -4,7 +4,8 @@ const compactor = fs.readFileSync("artifacts/api-server/src/src/lib/investigatio
 const bureau = fs.readFileSync("artifacts/api-server/src/src/lib/bureau-agentic-pass.ts", "utf8");
 const targetAgent = fs.readFileSync("artifacts/api-server/src/src/lib/target-contact-agent.ts", "utf8");
 const atlas = fs.readFileSync("artifacts/api-server/src/src/lib/canonical-atlas-discovery.ts", "utf8");
-const persist = fs.readFileSync("artifacts/api-server/src/src/lib/bureau-contact-persist-strict.ts", "utf8");\nconst intelligence = fs.readFileSync("artifacts/api-server/src/src/lib/research-intelligence-engine.ts", "utf8");
+const persist = fs.readFileSync("artifacts/api-server/src/src/lib/bureau-contact-persist-strict.ts", "utf8");
+const intelligence = fs.readFileSync("artifacts/api-server/src/src/lib/research-intelligence-engine.ts", "utf8");
 const checks = [
 ["canonical discovery has a global run deadline", /atlasDeadline/.test(atlas) && /APEX_ATLAS_RUN_TIMEOUT_MS/.test(atlas)],
 ["canonical discovery honors targetLimit as an operational ceiling", /const targetLimit/.test(atlas) && /researched >= targetLimit/.test(atlas)],
@@ -42,6 +43,7 @@ const checks = [
 ["canonical discovery materialization remains evidence-only and review-only", /contactOutcome: "evidence_only"/.test(atlas) && /reviewOnly: true/.test(atlas) && /target-scoped Investigator research required before contact promotion/.test(atlas)],
 ["promotion metadata records immutable claim and observation event IDs", /claimEventId:support\.claimEventId/.test(persist) && /observationEventIds:support\.observationEventIds/.test(persist)],
 ["durable discovery projection does not recursively copy the prior context document", !/memoryProjection\s*=\s*\{[^}]*contextDocument/s.test(bureau)],
+["intelligence renderer preserves ranked hypotheses and recent unresolved state", /sort\(\(a, b\) => b\.score - a\.score\)/.test(intelligence) && /headTailItems\(context\.openQuestions, 12\)/.test(intelligence) && /headTailItems\(context\.researchQuestions, 12\)/.test(intelligence)],
 ["failed Investigator executions cannot become positive intelligence findings", /input\.execution === "success" && !\["web_search", "parallel_web_search"\]\.includes\(input\.action\) \? \(input\.findings \?\? \[\]\) : \[\]/.test(fs.readFileSync("artifacts/api-server/src/src/lib/research-intelligence-engine.ts", "utf8"))],
 ["failed tool URLs are not recorded as observed evidence", /if \(input\.execution === "success"\)\s*\{\s*for \(const url of urls\) this\.recordEvidence/.test(fs.readFileSync("artifacts/api-server/src/src/lib/research-intelligence-engine.ts", "utf8"))],
 ["later corroboration does not downgrade VERIFIED, STALE, or CONTRADICTED contact state", /!\["REJECTED", "VERIFIED", "STALE", "CONTRADICTED"\]\.includes\(existing\.state\)/.test(fs.readFileSync("artifacts/api-server/src/src/lib/research-intelligence-engine.ts", "utf8"))],
