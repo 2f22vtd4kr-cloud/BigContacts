@@ -22,6 +22,8 @@ for (const marker of rightHandRequired) {
   if (!rightHand.includes(marker)) throw new Error(`bureau coordination guard failed in Groq Right-hand: missing ${marker}`);
 }
 
+if (!boss.includes("includeInstitutionalOrientation: false")) throw new Error("bureau coordination guard failed: Boss prompt must not duplicate full Investigator institutional orientation");
+
 const bossRequired = [
   "=== BUREAU CHAIN OF COMMAND / SHARED MIND ===",
   "RIGHT-HAND (Groq) = diagnostic strategist",
