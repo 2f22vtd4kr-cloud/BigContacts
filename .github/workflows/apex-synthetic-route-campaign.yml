@@ -1,0 +1,79 @@
+name: Apex Synthetic Route Campaign
+
+on:
+  pull_request:
+    paths:
+      - "artifacts/api-server/**"
+      - "scripts/apex-synthetic-route-campaign.mjs"
+      - ".github/workflows/apex-synthetic-route-campaign.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  synthetic:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: apex
+          POSTGRES_PASSWORD: apex_local_dev
+          POSTGRES_DB: apex
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd="pg_isready -U apex -d apex"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=5s
+          --health-timeout=3s
+          --health-retries=20
+    env:
+      DATABASE_URL: postgresql://apex:apex_local_dev@127.0.0.1:5432/apex
+      REDIS_URL: redis://127.0.0.1:6379
+      PORT: 8080
+      NODE_ENV: test
+      APEX_API_AUTH_TOKEN: synthetic-only-token
+      APEX_ALLOW_SCHEMA_PUSH: "true"
+      APEX_SKIP_SEMANTIC: "1"
+      APEX_AGENTIC_CONCURRENCY: "1"
+      APEX_AGENTIC_PROVIDER_CONCURRENCY: "1"
+      NODE_OPTIONS: --max-old-space-size=1536
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with: { ref: ${{ github.sha }} }
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with: { node-version: 22 }
+      - run: npm install -g pnpm@9.15.9
+      - run: pnpm install --frozen-lockfile --ignore-scripts --registry=https://registry.npmjs.org/
+      - name: Initialize isolated schema
+        run: bash scripts/initialize-apex-schema.sh
+      - name: Build canonical application
+        run: pnpm run build
+      - name: Start API
+        run: |
+          unset APEX_ALLOW_SCHEMA_PUSH
+          node artifacts/api-server/dist/index.mjs > /tmp/apex-api.log 2>&1 &
+          for i in $(seq 1 45); do
+            sleep 1
+            code=$(curl -sS -m 2 -o /tmp/health.json -w '%{http_code}' http://127.0.0.1:8080/api/healthz || true)
+            test "$code" = 200 && break
+          done
+          test "$(curl -sS -m 5 -o /tmp/health.json -w '%{http_code}' http://127.0.0.1:8080/api/healthz)" = 200
+      - name: Block external network after startup
+        run: |
+          sudo iptables -A OUTPUT -d 127.0.0.1 -j ACCEPT
+          sudo iptables -A OUTPUT -d 0.0.0.0/0 -j REJECT
+      - name: Exercise every registered HTTP route with synthetic adversarial input
+        run: node scripts/apex-synthetic-route-campaign.mjs
+      - name: Collect API log on failure
+        if: failure()
+        run: tail -n 300 /tmp/apex-api.log
