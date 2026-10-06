@@ -7,6 +7,7 @@ import { logger } from "./logger";
 import { publishDigSpan, completeDigSpan, spanFromLiveStep } from "./dig-span";
 import { runAgenticWebResearch } from "./agentic-web-research";
 import { recordDiscoveryTrace } from "./investigator-trace";
+import type { InvestigatorCapability } from "./investigator-capability-registry";
 
 export type DiscoveryCandidate = { name: string; role?: string; company?: string; basis: string; sourceUrls: string[]; lane?: string; confidence?: number; promotionDecision: "promote"; promotionReason?: string };
 export type DiscoveryAgentResult = { candidates: DiscoveryCandidate[]; model?: string; searches: number; visits: number; degraded: boolean; message: string };
@@ -94,7 +95,7 @@ export function parsePersonFindings(findings: DiscoveryFinding[], trajectory: st
   return out.slice(0, 30);
 }
 
-export async function runDiscoveryAgent(input: { jobId?: string; targetCount?: number; depth?: "fast" | "standard" | "deep"; laneHint?: string; investigatorLlm?: "groq"; hardTimeoutMs?: number; onLiveStep?: (step: { action: string; tool?: string; query?: string; url?: string; status: "ok" | "error" | "active"; detail?: string }) => void; onCandidate?: (candidate: DiscoveryCandidate, meta: { slot: number; batch: number }) => void | Promise<void>; onSlotProgress?: (meta: { slot: number; batch: number; phase: "start" | "end"; candidatesInSlot: number }) => void | Promise<void>; }): Promise<DiscoveryAgentResult> {
+export async function runDiscoveryAgent(input: { jobId?: string; targetCount?: number; depth?: "fast" | "standard" | "deep"; laneHint?: string; investigatorLlm?: InvestigatorCapability; hardTimeoutMs?: number; onLiveStep?: (step: { action: string; tool?: string; query?: string; url?: string; status: "ok" | "error" | "active"; detail?: string }) => void; onCandidate?: (candidate: DiscoveryCandidate, meta: { slot: number; batch: number }) => void | Promise<void>; onSlotProgress?: (meta: { slot: number; batch: number; phase: "start" | "end"; candidatesInSlot: number }) => void | Promise<void>; }): Promise<DiscoveryAgentResult> {
   const jobId = input.jobId ?? `discovery_${Date.now()}`; const depth = input.depth ?? "standard";
   const requestedBatch = Math.max(1, Math.min(10, Number.isFinite(Number(input.targetCount)) && Number(input.targetCount) > 0 ? Number(input.targetCount) : Number(process.env.APEX_DISCOVERY_BATCH_SIZE || process.env.APEX_DISCOVERY_DEFAULT_BATCH || "3")));
   const maxIterationsPerSlot = depth === "fast" ? 7 : depth === "deep" ? 18 : 14;
