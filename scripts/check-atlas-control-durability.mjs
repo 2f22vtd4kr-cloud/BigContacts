@@ -28,6 +28,7 @@ const checks = [
   ["full Atlas completion requires evidence-backed Investigator terminal state", /const evidenceBackedTerminal =/.test(atlas)&&/const finalIncomplete = investigatorResourceLimited \|\| finalControlAction !== "stop" \|\| !evidenceBackedTerminal/.test(atlas)],
 ];
 checks.push(["canonical Atlas unexpected failures close the durable discovery case",/canonical-atlas-failed/.test(atlas)&&/status: "review"/.test(atlas)&&/researchCasesTable\.caseFile/.test(atlas)]);
+checks.push(["terminal Boss decision is captured before stop breaks control loop",/finalControlAction = decision\.action;\s*if \(decision\.action === "stop"\) break/.test(atlas)]);
 let failed = false; for (const [label, ok] of checks) { console.log(`${ok ? "PASS" : "FAIL"} ${label}`); if (!ok) failed = true; }
 if (failed) { console.error("Atlas control durability guard failed."); process.exit(1); }
 console.log("Atlas control durability guard passed.");
