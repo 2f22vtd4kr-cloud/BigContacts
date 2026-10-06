@@ -220,7 +220,9 @@ export function compactInvestigationContext(input: {
   trajectoryRecords?: readonly CompactionTrajectoryRecord[];
   evidenceGraphSummaries?: readonly string[];
 }): string {
-  const maxChars = Math.min(MAX_MAX_CHARS, Math.max(MIN_MAX_CHARS, input.maxChars ?? DEFAULT_MAX_CHARS));
+  const maxChars = input.maxChars === undefined
+    ? DEFAULT_MAX_CHARS
+    : Math.min(MAX_MAX_CHARS, Math.max(1_000, input.maxChars));
   const sections = [
     "CURRENT STATE\n" + trim(input.raw, Math.floor(maxChars * 0.35)),
     "EVIDENCE GRAPH SUMMARY\n" + (input.evidenceGraphSummaries ?? []).map((value) => trim(value, 900)).filter(Boolean).join("\n"),
