@@ -31,7 +31,7 @@ export type AgenticWebResearchResult = { status: "completed" | "unavailable" | "
 type SpiderFootTargetType = "domain" | "hostname" | "ip" | "email" | "username" | "person" | "asn"; type SpiderFootProfile = "identity-expansion" | "domain-infrastructure" | "organization-footprint" | "contact-adjacent" | "broad-osint";
 type AgentAction = { action: "web_search"; query: string; provider: "serper" | "tavily" | "exa"; locale?: string; market?: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "visit"; url: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "footprint_email"; email: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "footprint_username_maigret"; username: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "footprint_username_sherlock"; username: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "domain_lookup"; domain: string; provider: "rdap" | "whoisjson"; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "registry_search"; query: string; registry: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "harvest_domain"; domain: string; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "footprint_spiderfoot"; target: string; targetType: SpiderFootTargetType; profile: SpiderFootProfile; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "browser_fetch"; url: string; provider: "scrapfly" | "zenrows" | "browserless" | "playwright"; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "done"; findings: AgenticFinding[]; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number } | { action: "parallel_web_search"; searches: Array<{ query: string; provider: "serper" | "tavily" | "exa"; locale?: string; market?: string; purpose?: string }>; thought?: string; hypothesis?: string; purpose?: string; expectedInformationGain?: number };
 function boundedPositiveNumber(raw: string | undefined, fallback: number, minimum: number, maximum: number): number { const parsed = Number(raw); return Number.isFinite(parsed) ? Math.min(maximum, Math.max(minimum, parsed)) : fallback; }
-const MAX_ITER = 64; const MIN_PARALLEL_SEARCHES_PER_BATCH = 2; const MAX_PARALLEL_SEARCHES_PER_BATCH = 4; const MAX_OBS = 16_000; const MAX_PROVIDER_PROMPT_CHARS = 9_000; const MAX_NETWORK_RESPONSE_BYTES = 2_000_000; const MAX_TRAJECTORY_RECORDS = 512; const MAX_CONCURRENT_AGENTIC_PROVIDER_DECISIONS = boundedPositiveNumber(process.env.APEX_AGENTIC_PROVIDER_CONCURRENCY, 1, 1, 32); const PROVIDER_DECISION_TIMEOUT_MS = boundedPositiveNumber(process.env.AGENTIC_PROVIDER_DECISION_TIMEOUT_MS, 55_000, 55_000, 10 * 60_000); let activeAgenticProviderDecisions = 0; const providerWaiters: Array<{ resolve: () => void; reject: (error: Error) => void; cleanup?: () => void }> = [];
+const MAX_ITER = 64; const MIN_PARALLEL_SEARCHES_PER_BATCH = 2; const MAX_PARALLEL_SEARCHES_PER_BATCH = 4; const MAX_OBS = 16_000; const MAX_PROVIDER_PROMPT_CHARS = 9_000; const INVESTIGATOR_SYSTEM_PROMPT = () => apexOrientationCompact("dig_agent") + "\nReturn one JSON action object only."; const MAX_NETWORK_RESPONSE_BYTES = 2_000_000; const MAX_TRAJECTORY_RECORDS = 512; const MAX_CONCURRENT_AGENTIC_PROVIDER_DECISIONS = boundedPositiveNumber(process.env.APEX_AGENTIC_PROVIDER_CONCURRENCY, 1, 1, 32); const PROVIDER_DECISION_TIMEOUT_MS = boundedPositiveNumber(process.env.AGENTIC_PROVIDER_DECISION_TIMEOUT_MS, 55_000, 55_000, 10 * 60_000); let activeAgenticProviderDecisions = 0; const providerWaiters: Array<{ resolve: () => void; reject: (error: Error) => void; cleanup?: () => void }> = [];
 async function acquireProviderSlot(signal?: AbortSignal): Promise<void> { if (signal?.aborted) throw new Error("cancelled"); if (activeAgenticProviderDecisions < MAX_CONCURRENT_AGENTIC_PROVIDER_DECISIONS) { activeAgenticProviderDecisions += 1; return; } await new Promise<void>((resolve, reject) => { const waiter = { resolve, reject, cleanup: undefined as (() => void) | undefined }; providerWaiters.push(waiter); const abort = () => { const index = providerWaiters.indexOf(waiter); if (index >= 0) providerWaiters.splice(index, 1); reject(new Error("cancelled")); }; signal?.addEventListener("abort", abort, { once: true }); waiter.cleanup = () => signal?.removeEventListener("abort", abort); }); if (signal?.aborted) throw new Error("cancelled"); activeAgenticProviderDecisions += 1; }
 function releaseProviderSlot(): void { activeAgenticProviderDecisions = Math.max(0, activeAgenticProviderDecisions - 1); while (providerWaiters.length) { const waiter = providerWaiters.shift()!; if (activeAgenticProviderDecisions < MAX_CONCURRENT_AGENTIC_PROVIDER_DECISIONS) { waiter.cleanup?.(); waiter.resolve(); return; } } }
 function cleanText(value: unknown, max = 500): string { return typeof value === "string" ? value.trim() : ""; }
@@ -370,7 +370,7 @@ export function buildGroqInvestigatorRequestBody(input: { model: string; prompt:
     ...(reasoningSupported ? { reasoning_effort: groqInvestigatorReasoningEffort(model, cognitiveTask), include_reasoning: false } : {}),
     response_format: structuredActionResponseFormat(model),
     messages: [
-      { role: "system", content: apexOrientationCompact("dig_agent") + "\nReturn one JSON action object only." },
+      { role: "system", content: INVESTIGATOR_SYSTEM_PROMPT() },
       { role: "user", content: prompt },
     ],
   };
@@ -550,7 +550,7 @@ async function callGroqJson(
           recordAgenticLlmAttempt({
             provider: "groq",
             model,
-            promptChars: workingPrompt.length,
+            promptChars: workingPrompt.length,\n            systemPromptChars: INVESTIGATOR_SYSTEM_PROMPT().length,\n            userPromptChars: workingPrompt.length,\n            totalPromptChars: workingPrompt.length + INVESTIGATOR_SYSTEM_PROMPT().length,
             status: 429,
             success: false,
             latencyMs: Date.now() - started,
@@ -601,7 +601,7 @@ async function callGroqJson(
           recordAgenticLlmAttempt({
             provider: "groq",
             model,
-            promptChars: workingPrompt.length,
+            promptChars: workingPrompt.length,\n            systemPromptChars: INVESTIGATOR_SYSTEM_PROMPT().length,\n            userPromptChars: workingPrompt.length,\n            totalPromptChars: workingPrompt.length + INVESTIGATOR_SYSTEM_PROMPT().length,
             status: response.status,
             success: false,
             latencyMs: Date.now() - started,
@@ -659,7 +659,7 @@ async function callGroqJson(
           recordAgenticLlmAttempt({
             provider: "groq",
             model,
-            promptChars: workingPrompt.length,
+            promptChars: workingPrompt.length,\n            systemPromptChars: INVESTIGATOR_SYSTEM_PROMPT().length,\n            userPromptChars: workingPrompt.length,\n            totalPromptChars: workingPrompt.length + INVESTIGATOR_SYSTEM_PROMPT().length,
             status: response.status,
             success: false,
             latencyMs: Date.now() - started,
@@ -675,7 +675,7 @@ async function callGroqJson(
         recordAgenticLlmAttempt({
           provider: "groq",
           model,
-          promptChars: workingPrompt.length,
+          promptChars: workingPrompt.length,\n            systemPromptChars: INVESTIGATOR_SYSTEM_PROMPT().length,\n            userPromptChars: workingPrompt.length,\n            totalPromptChars: workingPrompt.length + INVESTIGATOR_SYSTEM_PROMPT().length,
           status: response.status,
           success: Boolean(raw),
           promptTokens: data.usage?.prompt_tokens,
@@ -696,7 +696,7 @@ async function callGroqJson(
         if (signal.aborted) throw new Error("cancelled");
         const failureClass = classifyThrownProviderError(error);
         lastProviderError = failureClass;
-        recordAgenticLlmAttempt({ provider: "groq", model, promptChars: workingPrompt.length, status: "error", success: false, latencyMs: Date.now() - started, retryIndex: attempt, reason: `${failureClass}${error instanceof Error ? `:${digestDiagnosticText(error.message)}` : ""}` });
+        recordAgenticLlmAttempt({ provider: "groq", model, promptChars: workingPrompt.length,\n            systemPromptChars: INVESTIGATOR_SYSTEM_PROMPT().length,\n            userPromptChars: workingPrompt.length,\n            totalPromptChars: workingPrompt.length + INVESTIGATOR_SYSTEM_PROMPT().length, status: "error", success: false, latencyMs: Date.now() - started, retryIndex: attempt, reason: `${failureClass}${error instanceof Error ? `:${digestDiagnosticText(error.message)}` : ""}` });
         // A local provider-gate quota/cooldown is already a provider-wide stop
         // signal for this role. Do not waste the remaining key/model matrix on
         // calls that the gate will reject before reaching Groq.
@@ -715,7 +715,7 @@ function investigatorKeyConfiguredForCapability(capability: InvestigatorCapabili
 async function llmStep(prompt: string, selectedInvestigatorLlm: InvestigatorCapability | undefined, parentSignal: AbortSignal, cognitiveTask: ResearchCognitiveTask = "identity_resolution"): Promise<{ model: string; raw: string; fallback: string[]; providerError?: string } | null> {
   await acquireProviderSlot(parentSignal);
   try {
-    const boundedPrompt = boundInvestigatorPromptSection(prompt, MAX_PROVIDER_PROMPT_CHARS);
+    const systemPromptChars = INVESTIGATOR_SYSTEM_PROMPT().length;\n    const maxUserPromptChars = Math.max(1_000, MAX_PROVIDER_PROMPT_CHARS - systemPromptChars);\n    const boundedPrompt = boundInvestigatorPromptSection(prompt, maxUserPromptChars);
     if (!selectedInvestigatorLlm) { setAgenticLlmHealth(false, null, "No Boss-selected Investigator LLM was propagated into ReAct"); return null; }
     const fn = selectedInvestigatorLlm && investigatorCapabilityKeyName(selectedInvestigatorLlm) && investigatorKeyConfiguredForCapability(selectedInvestigatorLlm) ? ((promptValue: string, signalValue: AbortSignal) => callGroqJson(promptValue, signalValue, cognitiveTask, selectedInvestigatorLlm)) : null;
     if (!fn) { setAgenticLlmHealth(false, null, `${selectedInvestigatorLlm}: selected Investigator capability unavailable`); return null; }
@@ -811,7 +811,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
   );
   const capabilityGuidance = boundInvestigatorPromptSection(renderAtlasCapabilityGuidanceCompact(), 1_200);
 
-  return [
+  const composedPrompt = [
     assignment,
     "",
     "RESEARCH CONTRACT: You own the research trajectory. There is no required first tool, hop order, or fixed search sequence. Choose the next action from the available capabilities using evidence, expected information gain, identity discrimination, source independence, and cost.",
@@ -831,7 +831,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     "",
     "ACTION CONTRACT: domain_lookup requires provider=rdap or whoisjson; browser_fetch requires provider=scrapfly, zenrows, browserless, or playwright; footprint_spiderfoot requires target, targetType, and profile. The harness will fail closed when a capability is unavailable.",
     "For parallel_web_search, provide 2–4 independent search objects. For other actions, searches must be empty. Return ONE JSON action object matching the structured response contract.",
-  ].join("\n");
+  ].join("\n");\n  const maxUserPromptChars = Math.max(1_000, MAX_PROVIDER_PROMPT_CHARS - INVESTIGATOR_SYSTEM_PROMPT().length);\n  return boundInvestigatorPromptSection(composedPrompt, maxUserPromptChars);\n
 }
 
 export function discoveryTerminalGate(records: readonly AgenticTrajectoryRecord[]): { allowed: boolean; reason: string | null } {
