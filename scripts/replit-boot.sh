@@ -35,5 +35,17 @@ if [[ ! -f artifacts/apex-finder/dist/public/index.html ]]; then
   pnpm --dir artifacts/apex-finder run build
 fi
 test -f artifacts/apex-finder/dist/public/index.html
-pnpm --dir artifacts/api-server run build
+API_DIST="artifacts/api-server/dist/index.mjs"
+API_STAMP="artifacts/api-server/dist/.atlas-build-stamp.json"
+API_BUILD_REUSABLE=false
+if [[ -f "$API_DIST" && -f "$API_STAMP" ]]; then
+  if node -e 'const fs=require("fs"); const stamp=JSON.parse(fs.readFileSync(process.argv[1],"utf8")); const {execFileSync}=require("child_process"); const root=process.cwd(); const head=execFileSync("git",["rev-parse","HEAD"],{encoding:"utf8"}).trim(); const dirty=execFileSync("git",["status","--porcelain"],{encoding:"utf8"}).trim(); process.exit(stamp.revision===head && !stamp.dirty && !dirty ? 0 : 1)' "$API_STAMP"; then
+    API_BUILD_REUSABLE=true
+  fi
+fi
+if [[ "$API_BUILD_REUSABLE" == "true" ]]; then
+  echo "[replit-boot] reusing API build for current clean git revision"
+else
+  pnpm --dir artifacts/api-server run build
+fi
 exec pnpm --filter @workspace/api-server run start
