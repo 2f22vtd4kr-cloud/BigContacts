@@ -12,9 +12,9 @@ const required = [
   "rankGroqModelsForTask",
   "if (response.status === 401 || response.status === 403) break;",
   "response.status === 429",
-  "const fn = selectedInvestigatorLlm === \"groq\"",
+  "investigatorCapabilityKeyName(selectedInvestigatorLlm)",
   "fallback: []",
-  "GROQ_INVESTIGATOR_API_KEY",
+  "investigatorCapabilityKeyName(investigatorCapability)",
 ];
 for (const marker of required) {
   if (!source.includes(marker)) throw new Error(`agentic LLM efficiency guard failed: missing ${marker}`);
@@ -25,7 +25,7 @@ if (telemetryCount < 2) throw new Error(`agentic LLM efficiency guard failed: ex
 
 // Provider choice is fixed by the Boss-selected Investigator adapter.
 // Routing may choose among Groq models, but it must never change provider role.
-if (!/const fn = selectedInvestigatorLlm === "groq"/.test(source)) {
+if (!/const fn = selectedInvestigatorLlm && investigatorCapabilityKeyName\(selectedInvestigatorLlm\)/.test(source)) {
   throw new Error("agentic LLM efficiency guard failed: direct selected-provider boundary is missing");
 }
 if (!/return \{ \.\.\.result, fallback: \[\] \}/.test(source)) {
