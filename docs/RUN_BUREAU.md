@@ -58,6 +58,7 @@ Groq Boss
   → Groq Right-hand review
   → Groq Boss disposition
   ↺ next Investigator act
+```
 
 The Investigator can choose search, page retrieval, browser escalation, registries, domain inspection, footprint tools, disproof, revisits, or stopping. The runtime does not impose a fixed order.
 
@@ -126,7 +127,7 @@ Do not publish Apex until a fresh environment can:
 1. initialize the required schema explicitly;
 2. boot canonically with schema mutation disabled;
 3. authenticate safely;
-4. execute a real Groq/Mistral Investigator run;
+4. execute a real Groq Investigator run;
 5. persist observations, provenance, evidence, contacts, and oversight;
 6. survive controlled provider/tool/cancellation failures truthfully;
 7. render the same durable truth in the UI;
