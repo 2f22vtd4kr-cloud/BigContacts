@@ -108,7 +108,14 @@ function archiveRecord(record: CompactionTrajectoryRecord, max: number): string 
   ].filter(Boolean).join(" | "), max);
 }
 
-function headTail<T>(values: readonly T[], maxItems: number): T[] {\n  if (values.length <= maxItems) return [...values];\n  if (maxItems <= 1) return values.slice(-1);\n  const head = Math.ceil(maxItems / 2);\n  return [...values.slice(0, head), ...values.slice(-(maxItems - head))];\n}\n\nfunction fitSection(section: string, remaining: number): string {
+function headTail<T>(values: readonly T[], maxItems: number): T[] {
+  if (values.length <= maxItems) return [...values];
+  if (maxItems <= 1) return values.slice(-1);
+  const head = Math.ceil(maxItems / 2);
+  return [...values.slice(0, head), ...values.slice(-(maxItems - head))];
+}
+
+function fitSection(section: string, remaining: number): string {
   if (remaining <= 0) return "";
   if (section.length <= remaining) return section;
   if (remaining < 80) return "";
