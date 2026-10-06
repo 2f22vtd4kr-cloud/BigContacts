@@ -6,7 +6,9 @@ import {
   ATLAS_RIGHT_HAND_PROMPT_BUDGET,
 } from "../lib/atlas-control-decision";
 import { renderAtlasCapabilityGuidanceCompact, renderAtlasCapabilityGuidance } from "../lib/atlas-capability-registry";
-import { buildInvestigatorContext, getInvestigatorContextBudget } from "../lib/investigation-context-compaction";\nimport { buildStepPrompt } from "../lib/agentic-web-research-core";\nimport { apexOrientationCompact } from "../lib/apex-bureau-orientation";
+import { buildInvestigatorContext, getInvestigatorContextBudget } from "../lib/investigation-context-compaction";
+import { buildStepPrompt } from "../lib/agentic-web-research-core";
+import { apexOrientationCompact } from "../lib/apex-bureau-orientation";
 
 describe("Apex Atlas prompt budget optimization", () => {
   it("keeps the per-turn capability contract materially smaller than the full registry", () => {
