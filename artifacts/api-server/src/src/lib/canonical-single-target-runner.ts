@@ -92,7 +92,8 @@ function openingContext(target: { name: string; type: string }, companyName: str
 export async function runCanonicalSingleTargetInvestigation(atlasJobId: string, targetId: number, options: CanonicalSingleTargetOptions = {}): Promise<void> {
   const [target] = await db.select({ id: entitiesTable.id, name: entitiesTable.name, type: entitiesTable.type, metadata: entitiesTable.metadata }).from(entitiesTable).where(eq(entitiesTable.id, targetId)).limit(1); if (!target) throw new Error(`Atlas target entity ${targetId} was not found.`);
   const companyName = (() => { try { const metadata = target.metadata ? JSON.parse(target.metadata) as Record<string, unknown> : {}; return typeof metadata.companyName === "string" ? metadata.companyName : null; } catch { return null; } })();
-  const caseRow = await ensureTargetCase(target, companyName, atlasJobId, options.existingCaseId); const depth = resolveResearchDepth({ explicit: options.researchDepth }); const hardTimeoutMs = Math.min(600_000, Math.max(30_000, Number.isFinite(options.targetTimeoutMs) ? Math.trunc(options.targetTimeoutMs!) : depth.agenticHardTimeoutMs)); const deadline = Date.now() + hardTimeoutMs; let caseState = parseCaseFile(caseRow.caseFile); let contextDocument = typeof caseState.contextDocument === "string" ? caseState.contextDocument : openingContext(target, companyName, caseRow.id, caseRow.objective, ""); const durableTrajectory = await loadDurableTargetTrajectory(caseRow.id); if (durableTrajectory.records.length) contextDocument = buildInvestigatorContext({ targetName: target.name, companyName, objective: caseRow.objective, mode: "target", trajectoryRecords: durableTrajectory.records, lastObservation: durableTrajectory.records[durableTrajectory.records.length - 1]?.observation ?? "", findings: durableTrajectory.findings }); let investigatorLlm: InvestigatorCapability | null = typeof caseState.investigatorLlm === "string" && getAvailableInvestigatorCapabilities().includes(caseState.investigatorLlm as InvestigatorCapability) ? caseState.investigatorLlm as InvestigatorCapability : null; let latestResult: Awaited<ReturnType<typeof runTargetContactAgent>> | null = null; let lastOversight: StoredOversight | null = null; let completedActs = 0; let investigatorIterationsUsed = 0; let resourceLimited = false; let deadlineExceeded = false; let cancelled = false; const recentActs: Parameters<typeof reviewTargetInvestigationAct>[0]["recentActs"] = [];
+  const caseRow = await ensureTargetCase(target, companyName, atlasJobId, options.existingCaseId);
+  try { const depth = resolveResearchDepth({ explicit: options.researchDepth }); const hardTimeoutMs = Math.min(600_000, Math.max(30_000, Number.isFinite(options.targetTimeoutMs) ? Math.trunc(options.targetTimeoutMs!) : depth.agenticHardTimeoutMs)); const deadline = Date.now() + hardTimeoutMs; let caseState = parseCaseFile(caseRow.caseFile); let contextDocument = typeof caseState.contextDocument === "string" ? caseState.contextDocument : openingContext(target, companyName, caseRow.id, caseRow.objective, ""); const durableTrajectory = await loadDurableTargetTrajectory(caseRow.id); if (durableTrajectory.records.length) contextDocument = buildInvestigatorContext({ targetName: target.name, companyName, objective: caseRow.objective, mode: "target", trajectoryRecords: durableTrajectory.records, lastObservation: durableTrajectory.records[durableTrajectory.records.length - 1]?.observation ?? "", findings: durableTrajectory.findings }); let investigatorLlm: InvestigatorCapability | null = typeof caseState.investigatorLlm === "string" && getAvailableInvestigatorCapabilities().includes(caseState.investigatorLlm as InvestigatorCapability) ? caseState.investigatorLlm as InvestigatorCapability : null; let latestResult: Awaited<ReturnType<typeof runTargetContactAgent>> | null = null; let lastOversight: StoredOversight | null = null; let completedActs = 0; let investigatorIterationsUsed = 0; let resourceLimited = false; let deadlineExceeded = false; let cancelled = false; const recentActs: Parameters<typeof reviewTargetInvestigationAct>[0]["recentActs"] = [];
   await db.update(researchCasesTable).set({ status: "active", currentAction: "groq-boss-opening-assignment", updatedAt: new Date() }).where(and(eq(researchCasesTable.id, caseRow.id), eq(researchCasesTable.status, "active"), sql`${researchCasesTable.caseFile}::jsonb ->> 'atlasJobId' = ${atlasJobId}`, sql`${researchCasesTable.currentAction} NOT IN ('canonical-atlas-cancelled', 'canonical-lease-lost')`)); await updateJob(atlasJobId, { status: "running", progress: 0, total: 1, atlasPhase: 0, atlasPhaseTotal: 1, message: `Groq Boss opening assignment for ${target.name}…` });
   if (!investigatorLlm) {
     if (Date.now() >= deadline) deadlineExceeded = true; else {
@@ -192,4 +193,29 @@ export async function runCanonicalSingleTargetInvestigation(atlasJobId: string, 
   const authoritativeCase = finalCase[0] ?? await loadCase(caseRow.id);
   const terminal = deriveCanonicalTerminalDecision({ durableCaseStatus: authoritativeCase?.status ?? null, locallyCancelled: cancelled });
   await updateJob(atlasJobId, { status: terminal.jobStatus, progress: terminal.outcome === "complete" ? 1 : 0, total: 1, atlasPhase: terminal.outcome === "complete" ? 1 : 0, atlasPhaseTotal: 1, outcome: terminal.outcome, message: stopped ? `Groq Boss explicitly stopped ${target.name} after ${completedActs} Investigator act(s).` : cancelled ? `Target investigation for ${target.name} was cancelled after ${completedActs} controlled act(s).` : deadlineExceeded ? `Target investigation for ${target.name} reached its global deadline after ${completedActs} controlled act(s).` : `Target investigation for ${target.name} preserved for review after ${completedActs} controlled act(s).`, result: JSON.stringify({ caseId: caseRow.id, investigator: latestResult ? { status: latestResult.status, model: latestResult.model, findings: latestResult.findings, searches: latestResult.searches, visits: latestResult.visits, iterations: latestResult.iterations, trajectory: latestResult.trajectory, trajectoryRecords: latestResult.trajectoryRecords, evidenceGraphs: latestResult.evidenceGraphs, executionId: latestResult.executionId } : null, lastOversight, completedActs, investigatorIterationsUsed, resourceLimited, deadlineExceeded, cancelled, hardTimeoutMs, terminal, durableCaseStatus: authoritativeCase?.status ?? null }), finishedAt: new Date().toISOString() });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : `Target investigation for ${target.name} failed unexpectedly.`;
+    const currentJob = await getJob(atlasJobId);
+    const cancelledByJob = currentJob?.status === "cancelled" || message.includes("cancelled");
+    await db.update(researchCasesTable).set({
+      status: "review",
+      currentAction: cancelledByJob ? "cancelled" : "investigator-execution-failed",
+      updatedAt: new Date(),
+    }).where(and(
+      eq(researchCasesTable.id, caseRow.id),
+      eq(researchCasesTable.status, "active"),
+      sql`${researchCasesTable.caseFile}::jsonb ->> 'atlasJobId' = ${atlasJobId}`,
+      sql`${researchCasesTable.currentAction} NOT IN ('canonical-atlas-cancelled','canonical-lease-lost')`,
+    ));
+    if (currentJob?.status === "running") {
+      await updateJob(atlasJobId, {
+        status: cancelledByJob ? "cancelled" : "failed",
+        outcome: "incomplete",
+        message,
+        finishedAt: new Date().toISOString(),
+      });
+    }
+    throw error;
+  }
+
 }
