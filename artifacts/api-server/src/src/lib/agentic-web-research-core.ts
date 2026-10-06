@@ -63,7 +63,7 @@ export function validateDiscoverySearchQuery(query: string, priorQueries: readon
   const nonFameTokens = tokens.filter((token) => !DISCOVERY_FAME_TERMS.test(token) && !genericContextTerms.has(token));
   const nonFameTokenCount = nonFameTokens.length;
   const hasNamedOrConcreteToken = nonFameTokens.some((token) => {
-    if (/^\\d{4}$/.test(token)) return false;
+    if (/^\d{4}$/.test(token)) return false;
     const singular = token.endsWith("s") ? token.slice(0, -1) : token;
     return !DISCOVERY_SECTOR_TERMS.test(token)
       && !DISCOVERY_ROLE_TERMS.test(token)
@@ -72,14 +72,15 @@ export function validateDiscoverySearchQuery(query: string, priorQueries: readon
       && !DISCOVERY_SOURCE_TERMS.test(token);
   });
   const hasConcreteAnchor = source
-    || /\\b(?:registry|filing|edgar|companies\\s*house|sec)\\b/i.test(normalized)
+    || /\b(?:registry|filing|edgar|companies\s*house|sec)\b/i.test(normalized)
     || hasNamedOrConcreteToken;
   if (fame && !hasConcreteAnchor) return { allowed: false, reason: "Discovery search is too fame/wealth-list oriented. Add a concrete named organization, business context, geography, registry, or source anchor before searching." };
   // Keep the rail structural rather than prescriptive: a model-selected named
   // identity/company pivot can be concrete even when it does not contain one of
   // our finite role/sector/source vocabularies. Two-word context-free names stay
   // blocked; adding another contextual token is enough to authorize the hypothesis.
-  if (tokenCount < 2 || (concreteSignals < 1 && tokenCount < 3)) return { allowed: false, reason: "Discovery search is underspecified. Add contextual information before spending a search call." };\n  if (!hasConcreteAnchor) return { allowed: false, reason: "Discovery search lacks a concrete anchor. Add a named organization/person/domain, registry/filing/source anchor, or other non-generic contextual identifier before spending a search call." };
+  if (tokenCount < 2 || (concreteSignals < 1 && tokenCount < 3)) return { allowed: false, reason: "Discovery search is underspecified. Add contextual information before spending a search call." };
+  if (!hasConcreteAnchor) return { allowed: false, reason: "Discovery search lacks a concrete anchor. Add a named organization/person/domain, registry/filing/source anchor, or other non-generic contextual identifier before spending a search call." };
   return { allowed: true };
 }
 export type BoundModelFinding = { finding: AgenticFinding; sourceUrl: string; sourceRecord: AgenticTrajectoryRecord; passage: string };
