@@ -92,10 +92,11 @@ async function runDynamicDiscovery(core: CoreModule, input: RunInput, controller
   let lastStatus: CoreResult["status"] = "completed";
   let error: string | undefined;
   const searchQueriesUsed = [...new Set((input.priorSearchQueries ?? []).map((query) => String(query).trim()).filter(Boolean))];
+  const maxDynamicActs = Math.min(64, Math.max(0, Number.isFinite(input.maxIterations) ? Math.floor(input.maxIterations ?? 64) : 64));
   const intelligence = new ResearchIntelligenceEngine({ executionId, target: input.targetName, objective: input.objective || `Research ${input.targetName}` });
   const durableIntelligence = await loadDurableIntelligenceState(input.caseId);
   if (durableIntelligence) intelligence.restoreContext(durableIntelligence);
-  for (let actionTurn = 1; actionTurn <= (input.maxIterations ?? 64); actionTurn++) {
+  for (let actionTurn = 1; actionTurn <= maxDynamicActs; actionTurn++) {
     if (controller.signal.aborted || input.signal?.aborted) return { status: "cancelled", model, iterations: actionTurn - 1, searches, visits, findings, modelFindings, stopReason: "CANCELLED", trajectory, trajectoryRecords: records, error: "cancelled by operator", executionId };
     const remaining = deadline - Date.now();
     if (remaining <= 0) return { status: "timeout", model, iterations: actionTurn - 1, searches, visits, findings, modelFindings, stopReason: "HARD_TIMEOUT", trajectory, trajectoryRecords: records, error: `hard timeout ${requestedHardTimeout}ms`, executionId };
