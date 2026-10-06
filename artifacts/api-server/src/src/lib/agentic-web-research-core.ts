@@ -801,13 +801,13 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     findings: input.findings,
     priorContext: input.priorContext,
     mode: input.mode,
-    maxChars: 4_200,
+    maxChars: 3_900,
   });
   const cognitiveState = boundInvestigatorPromptSection(
     input.intelligenceContext || "RESEARCH INTELLIGENCE STATE: not yet populated.",
-    1_500,
+    1_200,
   );
-  const capabilityGuidance = boundInvestigatorPromptSection(renderAtlasCapabilityGuidanceCompact(), 1_600);
+  const capabilityGuidance = boundInvestigatorPromptSection(renderAtlasCapabilityGuidanceCompact(), 1_200);
 
   return [
     assignment,
