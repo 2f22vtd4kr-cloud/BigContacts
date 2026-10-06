@@ -9,9 +9,9 @@ const failures = [];
 const assert = (ok, message) => { if (!ok) failures.push(message); };
 
 assert(/MAX_PROVIDER_PROMPT_CHARS = 9_000/.test(core), "final Investigator provider prompt ceiling must be 9,000 characters");
-assert(/maxChars: 4_200/.test(core), "working Investigator context must use the reduced 4,200-character budget");
+assert(/maxChars: 3_900/.test(core), "working Investigator context must use the reduced 4,200-character budget");
 assert(/const cognitiveState = boundInvestigatorPromptSection\(/.test(core) && /input\.intelligenceContext \|\| "RESEARCH INTELLIGENCE STATE: not yet populated\."/s.test(core) && /1_500,\n  \);/.test(core), "intelligence state must be bounded to 1,500 characters");
-assert(/const capabilityGuidance = boundInvestigatorPromptSection\(renderAtlasCapabilityGuidanceCompact\(\), 1_600\)/.test(core), "capability guidance must be explicitly bounded");
+assert(/const capabilityGuidance = boundInvestigatorPromptSection\(renderAtlasCapabilityGuidanceCompact\(\), 1_200\)/.test(core), "capability guidance must be explicitly bounded");
 assert(/function buildStepPrompt/.test(core), "Investigator prompt builder is present");
 const stepStart = core.indexOf("export function buildStepPrompt");
 const stepEnd = core.indexOf("export function discoveryTerminalGate", stepStart);
