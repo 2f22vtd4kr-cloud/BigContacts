@@ -26,7 +26,6 @@
 4. Run one API workflow on `PORT=8080`; desk at `/`, API at `/api/`.
 5. Keep `ENABLE_AUTO_PIPELINE=false` unless the documented deployment explicitly requires otherwise.
 6. Use the active role-scoped provider secret contract in `docs/context.md`; optional numbered Groq capability slots are separate selectable credentials.
-7. Provision the three API/browser authentication controls separately when protected access is enabled.
 8. Run preflight, architecture checks, typecheck, builds, and focused tests before claiming readiness.
 
 ## 2. First-time schema initialization
