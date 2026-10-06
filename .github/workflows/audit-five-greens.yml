@@ -79,6 +79,13 @@ jobs:
             echo "===== FULL AUDIT TEST: ${test_file} ====="
             pnpm exec vitest run --maxWorkers=1 "${test_file}"
           done
+      - name: Synthetic all-route HTTP campaign with external network blocked
+        run: |
+          set -euo pipefail
+          trap 'sudo iptables -D OUTPUT -d 0.0.0.0/0 -j REJECT || true' EXIT
+          sudo iptables -A OUTPUT -d 127.0.0.1 -j ACCEPT
+          sudo iptables -A OUTPUT -d 0.0.0.0/0 -j REJECT
+          node scripts/apex-synthetic-route-campaign.mjs
       - name: Restore build-time safety-only source sanitization
         if: always()
         run: git checkout -- artifacts/apex-finder/src/pages/data-sources.tsx
