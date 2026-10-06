@@ -518,7 +518,21 @@ export class ResearchIntelligenceEngine {
   }
 }
 
-function headTailItems<T>(values: readonly T[], maxItems: number): T[] {\n  if (values.length <= maxItems) return [...values];\n  if (maxItems <= 1) return values.slice(-1);\n  const head = Math.ceil(maxItems / 2);\n  return [...values.slice(0, head), ...values.slice(-(maxItems - head))];\n}\n\nfunction compactActionArgs(args: Record<string, unknown>, maxKeys: number): Record<string, unknown> {\n  const priority = /^(?:query|url|target|name|company|domain|email|phone|role|purpose|question|objective|hypothesis|provider|registry)$/i;\n  const entries = Object.entries(args);\n  const ranked = [...entries].sort(([a], [b]) => Number(priority.test(b)) - Number(priority.test(a)));\n  return Object.fromEntries(ranked.slice(0, maxKeys));\n}\n\nexport function renderIntelligenceContext(context: IntelligenceContext, maxChars = 6_000): string {
+function headTailItems<T>(values: readonly T[], maxItems: number): T[] {
+  if (values.length <= maxItems) return [...values];
+  if (maxItems <= 1) return values.slice(-1);
+  const head = Math.ceil(maxItems / 2);
+  return [...values.slice(0, head), ...values.slice(-(maxItems - head))];
+}
+
+function compactActionArgs(args: Record<string, unknown>, maxKeys: number): Record<string, unknown> {
+  const priority = /^(?:query|url|target|name|company|domain|email|phone|role|purpose|question|objective|hypothesis|provider|registry)$/i;
+  const entries = Object.entries(args);
+  const ranked = [...entries].sort(([a], [b]) => Number(priority.test(b)) - Number(priority.test(a)));
+  return Object.fromEntries(ranked.slice(0, maxKeys));
+}
+
+export function renderIntelligenceContext(context: IntelligenceContext, maxChars = 6_000): string {
   const bounded = {
     version: context.version,
     caseId: context.caseId,
