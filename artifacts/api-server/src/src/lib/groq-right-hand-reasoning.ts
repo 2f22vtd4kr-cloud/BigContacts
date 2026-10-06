@@ -334,7 +334,7 @@ function compactDiscoveryEmergency(file: DiscoveryCaseFile): string {
     bossPremise: clip(file.bossPremise, 320),
     currentProgress: { reportCount: file.currentProgress.reportCount, completedLanes: clipStrings(file.currentProgress.completedLanes, 6, 100), openQuestions: clipStrings(file.currentProgress.openQuestions, 4, 140), lastReviewedBy: file.currentProgress.lastReviewedBy },
     latestInvestigatorReport: newestReport ? { id: newestReport.id, lane: newestReport.lane, iteration: newestReport.iteration, summary: clip(newestReport.summary, 260), findings: clipStrings(newestReport.findings, 4, 150), candidateNames: clipStrings(newestReport.candidateNames, 5, 120), sourceUrls: clipStrings(newestReport.sourceUrls, 3, 220), nextQuestions: clipStrings(newestReport.nextQuestions, 3, 140) } : null,
-    discoveredCandidates: file.discoveredCandidates.slice(0, 5).map((candidate) => ({ name: clip(candidate.name, 120), type: candidate.type, relevance: clip(candidate.relevance, 160), state: candidate.state })),
+    discoveredCandidates: headTail(file.discoveredCandidates, 5).map((candidate) => ({ name: clip(candidate.name, 120), type: candidate.type, relevance: clip(candidate.relevance, 160), state: candidate.state })),
   }, null, 2);
 }
 
