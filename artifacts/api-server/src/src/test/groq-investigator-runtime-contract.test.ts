@@ -10,6 +10,8 @@ describe("Groq Investigator runtime contract", () => {
     expect(validateDiscoverySearchQuery("billionaires richest people Forbes", [])).toMatchObject({ allowed: false });
     expect(validateDiscoverySearchQuery("Elon Musk", [])).toMatchObject({ allowed: false });
     expect(validateDiscoverySearchQuery("Slovenia casino", [])).toEqual({ allowed: true });
+    expect(validateDiscoverySearchQuery("Brazil mining", [])).toEqual({ allowed: true });
+    expect(validateDiscoverySearchQuery("famous casino owners", [])).toMatchObject({ allowed: false });
     expect(validateDiscoverySearchQuery("Slovenia casino", ["Slovenia casino"])).toMatchObject({ allowed: false });
     expect(validateDiscoverySearchQuery("Slovenia casino owners", ["Slovenia casino"])).toEqual({ allowed: true });
     expect(validateDiscoverySearchQuery("Example Corp founder", [])).toEqual({ allowed: true });
