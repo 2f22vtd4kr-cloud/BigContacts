@@ -564,3 +564,69 @@ export function renderIntelligenceContext(context: IntelligenceContext, maxChars
   const tail = available - head;
   return [header, body.slice(0, head), marker, body.slice(-tail), "", discovery, "", guidance].join("\n").slice(0, budget);
 }
+
+
+/**
+ * Compact Investigator-facing intelligence projection.
+ *
+ * Unlike the legacy emergency reducer, this projection allocates space by
+ * decision-critical category so contradictions, negative findings, and open
+ * questions cannot disappear merely because the JSON body grew in the middle.
+ * Durable IntelligenceContext remains unchanged.
+ */
+export function renderIntelligenceContextCompact(context: IntelligenceContext, maxChars = 4_000): string {
+  const budget = Math.max(2_000, Math.min(8_000, Math.floor(maxChars)));
+  const clip = (value: unknown, max: number): string => typeof value === "string" ? value.trim().slice(0, max) : "";
+  const lines = (values: readonly string[], maxItem: number): string[] =>
+    values.map((value) => clip(value, maxItem)).filter(Boolean);
+  const header = "RESEARCH INTELLIGENCE STATE (compact decision projection; durable state remains authoritative):";
+  const guidance = "Use this state to choose the next discriminating action. Facts are evidence-backed claims; hypotheses remain hypotheses; contradictions and negative findings are real observations. Provider disagreement is a signal to test, not average. Omitted detail remains durable outside this prompt.";
+  const discovery = clip(renderDiscoveryIntelligence(
+    context.discovery ?? buildDiscoveryIntelligence({ objective: context.objective }),
+    Math.min(700, Math.floor(budget * 0.18)),
+  ), Math.min(700, Math.floor(budget * 0.18)));
+
+  const sections: Array<[string, string, number]> = [
+    ["OBJECTIVE", clip(context.objective, 300), 0.10],
+    ["FACTS", lines(context.facts.slice(-6).map((fact) => fact.claim), 320).map((value) => "- " + value).join("\n"), 0.12],
+    ["CONTRADICTIONS", lines(context.contradictions.slice(-6).map((item) => item.claim), 320).map((value) => "- " + value).join("\n"), 0.10],
+    ["NEGATIVE FINDINGS", lines(context.negativeFindings.slice(-8), 300).map((value) => "- " + value).join("\n"), 0.12],
+    ["OPEN QUESTIONS", lines(context.openQuestions.slice(0, 8), 320).map((value) => "- " + value).join("\n"), 0.14],
+    ["CONTACTS", context.contacts.slice(-5).map((contact) => JSON.stringify({
+      value: clip(contact.value, 180),
+      sourceUrls: contact.sourceUrls.slice(0, 3),
+    })).join("\n"), 0.08],
+    ["RECENT ACTIONS", context.recentActions.slice(-3).map((action) => JSON.stringify({
+      action: action.action,
+      execution: action.execution,
+      findingNames: action.findingNames.slice(0, 5),
+      urls: action.urls.slice(0, 4),
+      observation: clip(action.observation, 260),
+    })).join("\n"), 0.12],
+    ["PROVIDER DISAGREEMENTS", context.providerDisagreements.slice(0, 4).map((item) => JSON.stringify({
+      query: clip(item.query, 180),
+      providers: item.providers,
+      sourceHosts: item.sourceHosts.slice(0, 4),
+    })).join("\n"), 0.08],
+    ["FRONTIER / FALSIFICATION", JSON.stringify({
+      frontier: context.frontier,
+      falsification: context.falsification,
+      stoppingAssessment: context.stoppingAssessment,
+      sourceIndependence: context.sourceIndependence,
+      repeatedSourceFamilies: context.repeatedSourceFamilies.slice(0, 6),
+      independentSourceUnits: context.independentSourceUnits,
+    }), 0.14],
+  ];
+
+  const fixed = header.length + 2 + guidance.length + 2 + discovery.length + 2;
+  const sectionBudget = Math.max(0, budget - fixed);
+  let result = header + "\n\n";
+  for (const [title, body, share] of sections) {
+    const cap = Math.max(80, Math.floor(sectionBudget * share));
+    const prefix = title + ":\n";
+    const available = Math.max(0, cap - prefix.length);
+    result += prefix + (body ? body.slice(0, available) : "(none)") + "\n\n";
+  }
+  result += "DISCOVERY FRONTIER:\n" + discovery + "\n\n" + guidance;
+  return result.slice(0, budget);
+}
