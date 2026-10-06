@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { ResearchIntelligenceEngine } from "./research-intelligence-engine";
 
-describe("research intelligence atomic evidence", () => {\n  it("does not replay legacy search-derived observations, contacts, or hypothesis support", () => {
+describe("research intelligence atomic evidence", () => {
+  it("does not replay legacy search-derived observations, contacts, or hypothesis support", () => {
     const engine = new ResearchIntelligenceEngine({ executionId: "restore-search", target: "Ada Example", objective: "Resolve identity" });
     engine.restoreContext({
       version: 1,
