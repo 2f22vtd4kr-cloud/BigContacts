@@ -106,7 +106,7 @@ describe("Investigator prompt architecture", () => {
     expect(context.length).toBeLessThanOrEqual(3900);
     expect(context).toContain("LATEST_OBSERVATION_SENTINEL");
     expect(context.match(/LATEST TRAJECTORY RECORD/g)?.length).toBe(1);
-    expect(context.match(/https://example.com/anchor/g)?.length).toBe(1);
+    expect(context.match(/https:\/\/example\.com\/anchor/g)?.length).toBe(1);
   });
 
 });
