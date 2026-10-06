@@ -426,6 +426,15 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
   } catch (error) {
     const message = error instanceof Error ? error.message : "Canonical Atlas discovery failed.";
     const cancelled = message.includes("Canonical Atlas job cancelled;");
+    await db.update(researchCasesTable).set({
+      status: "review",
+      currentAction: cancelled ? "canonical-atlas-cancelled" : "canonical-atlas-failed",
+      updatedAt: new Date(),
+    }).where(and(
+      sql`${researchCasesTable.caseFile}::jsonb ->> 'jobId' = ${atlasJobId}`,
+      inArray(researchCasesTable.status, ["active", "review"]),
+      sql`${researchCasesTable.currentAction} NOT IN ('canonical-atlas-complete','canonical-atlas-cancelled','canonical-lease-lost')`,
+    ));
     await updateJob(atlasJobId, { status: cancelled ? "cancelled" : "failed", outcome: "incomplete", message, finishedAt: new Date().toISOString() });
     await clearActiveJobIfOwned(lockKey, atlasJobId);
     throw error;
