@@ -1,7 +1,22 @@
 import { describe, expect, it } from "vitest";
 import { ResearchIntelligenceEngine } from "./research-intelligence-engine";
 
-describe("research intelligence atomic evidence", () => {
+describe("research intelligence atomic evidence", () => {\n  it("keeps pure search-result observations out of atomic evidence context", () => {
+    const engine = new ResearchIntelligenceEngine({ executionId: "search-only", target: "Ada Example", objective: "Resolve identity" });
+    engine.recordAction({
+      turn: 1,
+      action: "web_search",
+      args: { provider: "serper", query: "Ada Example" },
+      execution: "success",
+      observation: "Ada Example — founder — possible result snippet",
+      urls: ["https://example.com/search-result"],
+      findings: [],
+    });
+    const context = engine.buildContext();
+    expect(context.atomicEvidence).toHaveLength(0);
+  });
+
+
   it("binds observed source passages to claim-level evidence and exposes provider disagreement", () => {
     const engine = new ResearchIntelligenceEngine({ executionId: "test", target: "Ada Example", objective: "Resolve identity" });
     engine.recordAction({
