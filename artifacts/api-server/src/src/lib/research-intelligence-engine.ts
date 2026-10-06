@@ -553,14 +553,27 @@ export function renderIntelligenceContext(context: IntelligenceContext, maxChars
   const guidance = "The Investigator owns the research trajectory. Use this state to choose the next discriminating action. Treat hypotheses as hypotheses, facts as evidence-backed claims, contradictions as unresolved, and negative findings as real observations. Do not manufacture evidence. Prefer new independent source families over repeated copies. Repeated source families are a saturation signal, not corroboration. Provider disagreement is an epistemic signal: when search providers diverge, test the discriminator rather than averaging them. Explicitly test what could disprove the leading identity/contact hypothesis and map each action to an unresolved discriminator. Use learned action-yield statistics as weak priors only; observed evidence remains authoritative. Omitted detail remains durable outside this prompt.";
   const body = JSON.stringify(bounded);
   const budget = Math.max(1_000, Math.min(12_000, Math.floor(maxChars)));
-  if (body.length <= budget) {
-    const full = [header, body, "", discovery, "", guidance].join("\n");
-    if (full.length <= budget) return full;
-  }
+  const full = [header, body, "", discovery, "", guidance].join("\n");
+  if (full.length <= budget) return full;
+
   const marker = "[INTELLIGENCE CONTEXT BOUND: omitted middle detail remains durable outside this prompt]";
-  const fixedLength = header.length + marker.length + guidance.length + discovery.length + 9;
+  // Decision guidance is never expendable. Reserve it first, then discovery
+  // intelligence, then give the remaining budget to evidence state.
+  const separatorLength = 6;
+  const guidanceBlock = [guidance].join("");
+  const discoveryBudget = Math.min(
+    discovery.length,
+    Math.max(900, Math.floor((budget - header.length - guidanceBlock.length - marker.length - 80) * 0.32)),
+  );
+  const compactDiscovery = discovery.length <= discoveryBudget
+    ? discovery
+    : discovery.slice(0, discoveryBudget);
+  const fixedLength = header.length + marker.length + compactDiscovery.length + guidanceBlock.length + separatorLength;
   const available = Math.max(0, budget - fixedLength);
+  if (available <= 0) {
+    return [header, marker, compactDiscovery, guidance].join("\n");
+  }
   const head = Math.ceil(available / 2);
   const tail = available - head;
-  return [header, body.slice(0, head), marker, body.slice(-tail), "", discovery, "", guidance].join("\n").slice(0, budget);
+  return [header, body.slice(0, head), marker, body.slice(-tail), "", compactDiscovery, "", guidance].join("\n");
 }
