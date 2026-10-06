@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { buildGroqInvestigatorRequestBody } from "../lib/agentic-web-research-core";
 import { inferResearchCognitiveTask, rankGroqModelsForTask } from "../lib/research-cognitive-routing";
-import { getAvailableInvestigatorCapabilities } from "../lib/investigator-capability-registry";
+import { getAvailableInvestigatorCapabilities, investigatorCapabilityKeyName } from "../lib/investigator-capability-registry";
 import { resolveResearchDepth } from "../lib/research-depth";
 
 describe("Groq Investigator runtime contract", () => {
@@ -54,6 +54,8 @@ describe("Groq Investigator runtime contract", () => {
   it("exposes Investigator capability availability without embedding a selection strategy", () => {
     expect(getAvailableInvestigatorCapabilities({ GROQ_INVESTIGATOR_API_KEY: "configured", GROQ_INVESTIGATOR_API_KEY_1: "configured-2" })).toEqual(["groq-investigator-1", "groq-investigator-2"]);
     expect(getAvailableInvestigatorCapabilities({})).toEqual([]);
+    expect(investigatorCapabilityKeyName("groq-investigator-1")).toBe("GROQ_INVESTIGATOR_API_KEY");
+    expect(investigatorCapabilityKeyName("groq-investigator-2")).toBe("GROQ_INVESTIGATOR_API_KEY_1");
   });
 
   it("uses bounded multi-step Investigator episodes while retaining the absolute 64-turn ceiling", () => {
