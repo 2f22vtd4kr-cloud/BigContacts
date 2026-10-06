@@ -29,7 +29,7 @@ export type { AgenticFinding, AgenticWebResearchResult, AgenticTrajectoryRecord 
 export { getAgenticLlmHealth } from "./agentic-web-research-core";
 
 type CoreModule = typeof import("./agentic-web-research-core");
-type RunInput = Parameters<CoreModule["runAgenticWebResearch"]>[0] & { caseId?: number };
+type RunInput = Parameters<CoreModule["runAgenticWebResearch"]>[0] & { caseId?: number; oversightMode?: "internal" | "caller" };
 type CoreResult = Awaited<ReturnType<CoreModule["runAgenticWebResearch"]>>;
 type AgenticRunResult = CoreResult & { executionId: string; runId?: string };
 
@@ -168,8 +168,10 @@ export async function runAgenticWebResearch(input: RunInput): Promise<AgenticRun
       let oversight: TargetActOversight | null = null;
        let actionsSinceCheckpoint = 0;
        const knownIdentityNames = new Set<string>();
+       const callerOwnsOversight = input.oversightMode === "caller";
 
        const applyOversight = async (act: CoreResult["trajectoryRecords"][number], controlTurn: number): Promise<{ stop: boolean; unavailable: boolean }> => {
+         if (callerOwnsOversight) return { stop: false, unavailable: false };
          const state = intelligence.buildContext();
          const checkpoint = shouldCheckpointResearchEpisode({
            actionsSinceCheckpoint: actionsSinceCheckpoint + 1,
@@ -269,7 +271,7 @@ export async function runAgenticWebResearch(input: RunInput): Promise<AgenticRun
 
            const checkpointResult = await applyOversight(normalizedRecord, actionTurn);
            if (checkpointResult.unavailable) return { status: "unavailable", model, iterations: actionTurn, searches, visits, findings, modelFindings, stopReason: "LLM_UNAVAILABLE", trajectory, trajectoryRecords: records, error: error ?? "Groq oversight unavailable", executionId };
-           if (checkpointResult.stop) return { status: "completed", model, iterations: actionTurn, searches, visits, findings, modelFindings, stopReason: "MODEL_DECIDED_DONE", trajectory, trajectoryRecords: records, ...(error ? { error } : {}), executionId };
+           if (checkpointResult.stop || (callerOwnsOversight && raw.action === "done")) return { status: "completed", model, iterations: actionTurn, searches, visits, findings, modelFindings, stopReason: "MODEL_DECIDED_DONE", trajectory, trajectoryRecords: records, ...(error ? { error } : {}), executionId };
            continue;
          }
 
