@@ -5,6 +5,16 @@ import { getAvailableInvestigatorCapabilities, investigatorCapabilityKeyName } f
 import { resolveResearchDepth } from "../lib/research-depth";
 
 describe("Groq Investigator runtime contract", () => {
+  it("enforces concrete, non-duplicate discovery search quality before provider calls", async () => {
+    const { validateDiscoverySearchQuery } = await import("../lib/agentic-web-research-core");
+    expect(validateDiscoverySearchQuery("billionaires richest people Forbes", [])).toMatchObject({ allowed: false });
+    expect(validateDiscoverySearchQuery("Elon Musk", [])).toMatchObject({ allowed: false });
+    expect(validateDiscoverySearchQuery("Slovenia casino", [])).toEqual({ allowed: true });
+    expect(validateDiscoverySearchQuery("Slovenia casino", ["Slovenia casino"])).toMatchObject({ allowed: false });
+    expect(validateDiscoverySearchQuery("Slovenia casino owners", ["Slovenia casino"])).toEqual({ allowed: true });
+    expect(validateDiscoverySearchQuery("Example Corp founder", [])).toEqual({ allowed: true });
+  });
+
   it("uses the GPT-OSS-compatible reasoning contract", () => {
     const body = buildGroqInvestigatorRequestBody({
       model: "openai/gpt-oss-120b",
