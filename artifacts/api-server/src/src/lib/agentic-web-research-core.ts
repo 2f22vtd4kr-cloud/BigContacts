@@ -715,7 +715,8 @@ function investigatorKeyConfiguredForCapability(capability: InvestigatorCapabili
 async function llmStep(prompt: string, selectedInvestigatorLlm: InvestigatorCapability | undefined, parentSignal: AbortSignal, cognitiveTask: ResearchCognitiveTask = "identity_resolution"): Promise<{ model: string; raw: string; fallback: string[]; providerError?: string } | null> {
   await acquireProviderSlot(parentSignal);
   try {
-    const systemPromptChars = INVESTIGATOR_SYSTEM_PROMPT().length;\n    const maxUserPromptChars = Math.max(1_000, MAX_PROVIDER_PROMPT_CHARS - systemPromptChars);\n    const boundedPrompt = boundInvestigatorPromptSection(prompt, maxUserPromptChars);
+    const systemPromptChars = INVESTIGATOR_SYSTEM_PROMPT().length;
+    const maxUserPromptChars = Math.max(1_000, MAX_PROVIDER_PROMPT_CHARS - systemPromptChars);\n    const boundedPrompt = boundInvestigatorPromptSection(prompt, maxUserPromptChars);
     if (!selectedInvestigatorLlm) { setAgenticLlmHealth(false, null, "No Boss-selected Investigator LLM was propagated into ReAct"); return null; }
     const fn = selectedInvestigatorLlm && investigatorCapabilityKeyName(selectedInvestigatorLlm) && investigatorKeyConfiguredForCapability(selectedInvestigatorLlm) ? ((promptValue: string, signalValue: AbortSignal) => callGroqJson(promptValue, signalValue, cognitiveTask, selectedInvestigatorLlm)) : null;
     if (!fn) { setAgenticLlmHealth(false, null, `${selectedInvestigatorLlm}: selected Investigator capability unavailable`); return null; }
@@ -832,7 +833,8 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     "ACTION CONTRACT: domain_lookup requires provider=rdap or whoisjson; browser_fetch requires provider=scrapfly, zenrows, browserless, or playwright; footprint_spiderfoot requires target, targetType, and profile. The harness will fail closed when a capability is unavailable.",
     "For parallel_web_search, provide 2–4 independent search objects. For other actions, searches must be empty. Return ONE JSON action object matching the structured response contract.",
   ].join("\n");
-  const maxUserPromptChars = Math.max(1_000, MAX_PROVIDER_PROMPT_CHARS - INVESTIGATOR_SYSTEM_PROMPT().length);\n  return boundInvestigatorPromptSection(composedPrompt, maxUserPromptChars);\n
+  const maxUserPromptChars = Math.max(1_000, MAX_PROVIDER_PROMPT_CHARS - INVESTIGATOR_SYSTEM_PROMPT().length);
+  return boundInvestigatorPromptSection(composedPrompt, maxUserPromptChars);\n
 }
 
 export function discoveryTerminalGate(records: readonly AgenticTrajectoryRecord[]): { allowed: boolean; reason: string | null } {
