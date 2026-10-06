@@ -6,7 +6,7 @@ Continue the Apex Atlas / BigContacts engineering and live-run audit from the pr
 
 The user explicitly required: **do not answer until everything is actually verified, fixed, improved, adjusted, and ready for another canonical live Atlas run and sequential audit.**
 
-The previous agent failed this standard by stopping mid-work and by repeatedly getting ahead of its evidence. Do not repeat that. Tool activity and verification first; claims second.
+The previous agent failed this standard by stopping mid-work and by repeatedly getting ahead of its evidence. The user specifically complained that the agent stopped thinking/tool execution instead of finishing. Do not repeat that. Tool activity and verification first; claims second.
 
 ## Repository rules
 
@@ -19,6 +19,9 @@ The previous agent failed this standard by stopping mid-work and by repeatedly g
 - Never fabricate a live result.
 
 ## Current main state
+
+Verified latest visible main commit at handoff creation: `f9e5d1a2c81b173cdb4270fd1d327ae36d26434b` (`docs(atlas): add successor handoff for live-run readiness audit`). This handoff itself is committed on main. Re-fetch HEAD again in the successor chat before making changes.
+
 
 The previous agent's stale checkpoint was around `8732ed71a57b7afd5d2020ced5c7451f57b62f2e`.
 
