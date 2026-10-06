@@ -3,7 +3,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { build as esbuild } from "esbuild";
 import esbuildPluginPino from "esbuild-plugin-pino";
-import { rm } from "node:fs/promises";
+import { rm, writeFile } from "node:fs/promises";
+import { execFileSync } from "node:child_process";
 
 // Plugins (e.g. 'esbuild-plugin-pino') may use `require` to resolve dependencies
 globalThis.require = createRequire(import.meta.url);
@@ -124,6 +125,15 @@ globalThis.__dirname = __bannerPath.dirname(globalThis.__filename);
     `,
     },
   });
+
+  let revision = "unknown";
+  let dirty = false;
+  try {
+    const rootDir = path.resolve(artifactDir, "../..");
+    revision = execFileSync("git", ["rev-parse", "HEAD"], { cwd: rootDir, encoding: "utf8" }).trim();
+    dirty = Boolean(execFileSync("git", ["status", "--porcelain"], { cwd: rootDir, encoding: "utf8" }).trim());
+  } catch {}
+  await writeFile(path.join(distDir, ".atlas-build-stamp.json"), JSON.stringify({ revision, dirty, builtAt: new Date().toISOString() }) + "\n");
 }
 
 buildAll().catch((err) => {
