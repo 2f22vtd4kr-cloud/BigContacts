@@ -105,8 +105,10 @@ async function runDynamicDiscovery(core: CoreModule, input: RunInput, controller
     model = actResult.model; searches += actResult.searches; visits += actResult.visits; lastStatus = actResult.status; error = actResult.error;
     const raw = actResult.trajectoryRecords[actResult.trajectoryRecords.length - 1];
     if (raw) {
-      if (raw.action === "web_search" && typeof raw.args?.query === "string") searchQueriesUsed.push(raw.args.query);
-      if (raw.action === "parallel_web_search" && Array.isArray(raw.args?.searches)) for (const search of raw.args.searches) if (search && typeof search === "object" && typeof (search as Record<string, unknown>).query === "string") searchQueriesUsed.push((search as Record<string, unknown>).query as string);
+      if (raw.execution === "success" || raw.execution === "error") {
+        if (raw.action === "web_search" && typeof raw.args?.query === "string") searchQueriesUsed.push(raw.args.query);
+        if (raw.action === "parallel_web_search" && Array.isArray(raw.args?.searches)) for (const search of raw.args.searches) if (search && typeof search === "object" && typeof (search as Record<string, unknown>).query === "string") searchQueriesUsed.push((search as Record<string, unknown>).query as string);
+      }
       const normalizedRecord = { ...raw, turn: actionTurn, findings: groundedFindingsForTrajectory(raw.findings as AgenticFinding[], [...records, { ...raw, turn: actionTurn }]) };
       recordResult(intelligence, normalizedRecord, records);
       records = [...records, normalizedRecord];
