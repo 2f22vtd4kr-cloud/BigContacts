@@ -67,12 +67,13 @@ async function loadDurableTargetTrajectory(caseId: number): Promise<{ records: C
       const payload = JSON.parse(event.payload) as Record<string, unknown>;
       const turn = Number(payload.turn ?? event.iteration ?? 0);
       if (!Number.isFinite(turn) || turn <= 0) continue;
-      const rawFindings = Array.isArray(payload.findings) ? payload.findings : [];
+      const action = typeof payload.action === "string" ? payload.action : "react_episode";
+      const rawFindings = Array.isArray(payload.findings) && !["web_search", "parallel_web_search"].includes(action) ? payload.findings : [];
       const normalizedFindings = rawFindings.filter((value): value is CompactionFinding => Boolean(value && typeof value === "object"));
       records.push({
         turn,
         model: typeof payload.model === "string" ? payload.model : undefined,
-        action: typeof payload.action === "string" ? payload.action : "react_episode",
+        action,
         args: payload.args && typeof payload.args === "object" ? payload.args as Record<string, unknown> : undefined,
         execution: typeof payload.execution === "string" ? payload.execution : typeof event.status === "string" ? event.status : "unknown",
         observation: typeof payload.observation === "string" ? payload.observation : undefined,
