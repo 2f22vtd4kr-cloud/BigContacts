@@ -37,6 +37,8 @@ export interface InvestigatorContextInput {
   lastObservation: string;
   findings: readonly CompactionFinding[];
   mode?: "target" | "discovery";
+  /** Optional model-facing budget override; durable state is unaffected. */
+  maxChars?: number;
 }
 
 export interface InvestigatorContextBudget {
@@ -124,6 +126,9 @@ function fitSection(section: string, remaining: number): string {
 
 export function buildInvestigatorContext(input: InvestigatorContextInput): string {
   const budget = getInvestigatorContextBudget();
+  if (input.maxChars !== undefined) {
+    budget.maxChars = Math.min(MAX_MAX_CHARS, Math.max(1_000, Math.floor(input.maxChars)));
+  }
   const records = [...input.trajectoryRecords].sort((a, b) => a.turn - b.turn);
   const recent = records.slice(Math.max(0, records.length - budget.recentFullRecords));
   const older = records.slice(0, Math.max(0, records.length - budget.recentFullRecords));
