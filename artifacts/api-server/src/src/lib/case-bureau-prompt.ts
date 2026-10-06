@@ -170,6 +170,7 @@ export function buildApexAtlasBossPlanPrompt(input: PlanInput): string {
     candidateDomains: input.file.target?.knownDomains ?? [],
     relatedOrganizations: input.file.evidenceSummary?.relatedOrganizations ?? [],
     depth: depth.depth,
+    includeInstitutionalOrientation: false,
   });
   // Keep one authoritative decision-context serialization. The previous prompt
   // serialized substantially overlapping case state twice, inflating the real
