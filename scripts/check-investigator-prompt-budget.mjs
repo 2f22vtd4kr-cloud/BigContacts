@@ -12,14 +12,16 @@ assert(/MAX_PROVIDER_PROMPT_CHARS = 9_000/.test(core), "final Investigator provi
 assert(/maxChars: 3_900/.test(core), "working Investigator context must use the tighter 3,900-character budget");
 assert(/const cognitiveState = boundInvestigatorPromptSection\(/.test(core) && /input\.intelligenceContext \|\| "RESEARCH INTELLIGENCE STATE: not yet populated\."/s.test(core) && /1_200,\n  \);/.test(core), "intelligence state must be bounded to 1,200 characters");
 assert(/const capabilityGuidance = boundInvestigatorPromptSection\(renderAtlasCapabilityGuidanceCompact\(\), 1_200\)/.test(core), "capability guidance must be explicitly bounded");
-assert(/function buildStepPrompt/.test(core), "Investigator prompt builder is present");\nassert(/INVESTIGATOR_SYSTEM_PROMPT/.test(core) && /MAX_PROVIDER_PROMPT_CHARS - INVESTIGATOR_SYSTEM_PROMPT\(\)\.length/.test(core), "final prompt ceiling must reserve space for the stable system message");
+assert(/function buildStepPrompt/.test(core), "Investigator prompt builder is present");
+assert(/INVESTIGATOR_SYSTEM_PROMPT/.test(core) && /MAX_PROVIDER_PROMPT_CHARS - INVESTIGATOR_SYSTEM_PROMPT\(\)\.length/.test(core), "final prompt ceiling must reserve space for the stable system message");
 const stepStart = core.indexOf("export function buildStepPrompt");
 const stepEnd = core.indexOf("export function discoveryTerminalGate", stepStart);
 const stepPrompt = stepStart >= 0 && stepEnd > stepStart ? core.slice(stepStart, stepEnd) : "";
 assert(!/apexOrientationCompact\("dig_agent"\)/.test(stepPrompt), "institutional orientation must not be duplicated inside the dynamic user prompt");
 assert(!/JSON\.stringify\(AGENTIC_ACTION_SCHEMA\)/.test(stepPrompt), "full action schema must not be duplicated inside the dynamic user prompt");
 assert(/DISCOVERY QUALITY GATE:/.test(stepPrompt), "discovery anchor quality gate must remain explicit");
-assert(/rateLimitRemainingTokens/.test(telemetry) && /rateLimitResetTokensMs/.test(telemetry), "safe token rate-limit telemetry must be emitted");\nassert(/systemPromptChars/.test(telemetry) && /userPromptChars/.test(telemetry) && /totalPromptChars/.test(telemetry), "prompt telemetry must distinguish system, user, and total message characters");
+assert(/rateLimitRemainingTokens/.test(telemetry) && /rateLimitResetTokensMs/.test(telemetry), "safe token rate-limit telemetry must be emitted");
+assert(/systemPromptChars/.test(telemetry) && /userPromptChars/.test(telemetry) && /totalPromptChars/.test(telemetry), "prompt telemetry must distinguish system, user, and total message characters");
 assert(/waitForKnownGroqTokenWindow/.test(core) && /quota_unavailable/.test(core), "known token-window exhaustion must be handled before another provider request");
 assert(/const DEFAULT_MAX_CHARS = 4_200/.test(compaction), "context compaction default must remain reduced");
 assert(/LATEST TRAJECTORY RECORD \(must remain visible to the next Investigator\)/.test(compaction), "latest trajectory record must have an explicit prompt-preservation section");
