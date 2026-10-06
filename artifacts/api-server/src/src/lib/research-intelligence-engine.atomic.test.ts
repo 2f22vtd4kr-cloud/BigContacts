@@ -27,6 +27,7 @@ describe("research intelligence atomic evidence", () => {\n  it("does not replay
       frontier: { nextMovePriority: 0, contradictionPressure: 0, unresolvedPressure: 0 },
       sourceIndependence: 0,
       providerDisagreements: [],
+      sourceLineage: [],
       atomicEvidence: [{ evidenceId: "search-evidence", kind: "observation", claim: "Observed source https://serper.dev/search", sourceUrl: "https://serper.dev/search", sourceHost: "serper.dev", sourceClass: "SEARCH_RESULT", passage: "Ada Example — founder — jane@example.com", attribution: null, claimId: null }],
       actionYield: [],
       falsification: { required: true, priority: 1 },
