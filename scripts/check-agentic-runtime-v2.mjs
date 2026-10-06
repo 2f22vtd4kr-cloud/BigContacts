@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import fs from "node:fs";
 const source = fs.readFileSync("artifacts/api-server/src/src/lib/agentic-web-research-core.ts", "utf8");
+const wrapper = fs.readFileSync("artifacts/api-server/src/src/lib/agentic-web-research.ts", "utf8");
 const python = fs.readFileSync("artifacts/api-server/src/src/lib/python-tools.ts", "utf8");
 const sandbox = fs.readFileSync("artifacts/api-server/src/src/lib/python-sandbox-contract.ts", "utf8");
 const shim = fs.readFileSync("artifacts/apex-runtime/lib/agentic-web-research.ts", "utf8");
@@ -15,6 +16,7 @@ assert(/for \(let i = 0; i < maxIter; i\+\+\)/.test(source) && /runController\.s
 assert(/browserFetchHtml\(action\.url, \{ provider: action\.provider, signal: runController\.signal \}\)/.test(source), "browser escalation is cancellation-aware");
 assert(/MAX_NETWORK_RESPONSE_BYTES/.test(source) && /readResponseTextCapped/.test(source), "provider responses are bounded");
 assert(/trajectoryRecords: AgenticTrajectoryRecord\[\]/.test(source), "structured trajectory is durable output");
+assert(/const normalizedRecord = \{ \.\.\.raw, turn: actionTurn, findings: groundedFindingsForTrajectory\(raw\.findings/.test(wrapper), "trajectory continuation context uses grounded findings only");
 assert(/runHolehe\(action\.email, \{ signal: runController\.signal \}\)/.test(source), "email footprint is cancellation-aware");
 assert(/runMaigret\(action\.username, \{ signal: runController\.signal \}\)/.test(source), "Maigret is cancellation-aware");
 assert(/runSherlock\(action\.username, \{ signal: runController\.signal \}\)/.test(source), "Sherlock is cancellation-aware");
