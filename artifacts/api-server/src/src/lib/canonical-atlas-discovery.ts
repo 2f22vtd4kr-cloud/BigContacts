@@ -8,6 +8,7 @@ import { decideAtlasNextAction, type AtlasControlAction } from "./atlas-control-
 import { resolveResearchDepth } from "./research-depth";
 import type { InvestigatorCapability } from "./investigator-capability-registry";
 import { deriveCanonicalTerminalDecision } from "./canonical-terminal-state";
+import { deriveLatestEvidenceBackedTerminal, type LatestEvidenceBackedTerminal } from "./canonical-terminal-authority";
 
 export type CanonicalAtlasOptions = {
   targetCount?: number;
@@ -22,11 +23,6 @@ export type CanonicalAtlasOptions = {
   lockKey?: "atlas-run" | "case-bureau-discovery";
 };
 export type CanonicalAtlasResult = { phase: number; ingested: number; enriched: number; contactsFound: number; hotLeads: number; durationMs: number; phaseSummary: Record<string, string> };
-export type LatestEvidenceBackedTerminal = "discovery" | "target" | null;
-export function deriveLatestEvidenceBackedTerminal(kind: "discovery" | "target", status: string, stopReason?: string, resourceLimited = false): LatestEvidenceBackedTerminal {
-  if (kind === "target") return status === "complete" ? "target" : null;
-  return status === "completed" && stopReason === "MODEL_DECIDED_DONE" && !resourceLimited ? "discovery" : null;
-}
 function uniqueNames(values: string[]): string[] { return [...new Set(values.map((value) => value.trim()).filter((value) => value.length >= 3))]; }
 function isObservedHttpSource(value: unknown): value is string { return typeof value === "string" && /^https?:\/\/\S+$/i.test(value); }
 function normalizeSourceUrl(raw: string): string | null { try { const url = new URL(raw); if (!/^https?:$/i.test(url.protocol)) return null; url.hash = ""; url.hostname = url.hostname.toLowerCase(); return url.href.endsWith("/") ? url.href.slice(0, -1) : url.href; } catch { return null; } }
