@@ -79,7 +79,14 @@ describe("Groq Investigator runtime contract", () => {
     expect(deep.investigatorIterationsPerAct).toBeGreaterThan(standard.investigatorIterationsPerAct);
   });
 
-  it("honors an explicit zero Investigator iteration budget instead of expanding it to the default ceiling", async () => {\n    const result = await runAgenticWebResearch({ targetName: "Example", investigatorLlm: "groq-investigator-1", maxIterations: 0 });\n    expect(result.iterations).toBe(0);\n    expect(result.stopReason).toBe("ITERATION_BUDGET");\n    expect(result.trajectoryRecords).toHaveLength(0);\n  });\n\n  it("routes live research state into distinct cognitive modes", () => {
+  it("honors an explicit zero Investigator iteration budget instead of expanding it to the default ceiling", async () => {
+    const result = await runAgenticWebResearch({ targetName: "Example", investigatorLlm: "groq-investigator-1", maxIterations: 0 });
+    expect(result.iterations).toBe(0);
+    expect(result.stopReason).toBe("ITERATION_BUDGET");
+    expect(result.trajectoryRecords).toHaveLength(0);
+  });
+
+  it("routes live research state into distinct cognitive modes", () => {
     expect(inferResearchCognitiveTask({ action: "web_search" })).toBe("discovery");
     expect(inferResearchCognitiveTask({ nextMovePriority: "falsify" })).toBe("contradiction_resolution");
     expect(inferResearchCognitiveTask({ nextMovePriority: "contact" })).toBe("contact_extraction");
