@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { deriveLatestEvidenceBackedTerminal } from "../lib/canonical-atlas-discovery";
+import { deriveLatestEvidenceBackedTerminal } from "../lib/canonical-terminal-authority";
 
 describe("canonical Atlas terminal authority", () => {
   it("allows a completed target episode to become the current terminal", () => {
