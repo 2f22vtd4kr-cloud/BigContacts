@@ -24,7 +24,7 @@ const checks=[
 ["canonical target wrapper does not auto-fan-out fixed mission briefs",!/runParallelMissionPass\(/.test(agentic)],
 ["canonical runner owns complete-episode oversight",/oversightMode: "caller"/.test(runner)&&/callerOwnsOversight = input\.oversightMode === "caller"/.test(agentic)],
 ["target completion requires an Investigator terminal decision",/latestResult\.stopReason === "MODEL_DECIDED_DONE"/.test(runner)],
-["target completion requires promoted evidence graphs",/latestResult\.evidenceGraphs\?\.length \?\? 0\) > 0/.test(runner)],
+["target completion requires promoted evidence graphs",/\(latestResult\.evidenceGraphs\?\.length \?\? 0\) > 0/.test(runner)],
 ["Investigator episode does not invoke internal oversight when caller owns it",/if \(callerOwnsOversight\) return \{ stop: false, unavailable: false \}/.test(agentic)],
 ["Investigator act proposals receive canonical oversight after each complete episode",/await reviewTargetInvestigationAct\(/.test(runner)],
 ["target control context is mandatory",/if \(!oversightContext\)/.test(agentic)],
