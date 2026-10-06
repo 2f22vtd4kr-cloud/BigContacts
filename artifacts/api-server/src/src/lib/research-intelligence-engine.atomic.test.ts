@@ -1,7 +1,23 @@
 import { describe, expect, it } from "vitest";
 import { ResearchIntelligenceEngine } from "./research-intelligence-engine";
 
-describe("research intelligence atomic evidence", () => {\n  it("keeps pure search-result observations out of atomic evidence context", () => {
+describe("research intelligence atomic evidence", () => {\n  it("rejects model findings attached directly to search actions", () => {
+    const engine = new ResearchIntelligenceEngine({ executionId: "search-finding", target: "Ada Example", objective: "Resolve identity" });
+    engine.recordAction({
+      turn: 1,
+      action: "web_search",
+      args: { provider: "serper", query: "Ada Example founder" },
+      execution: "success",
+      observation: "Ada Example — founder — jane@example.com",
+      urls: ["https://example.com/search"],
+      findings: [{ vectorType: "email", value: "jane@example.com", personName: "Ada Example", sourceUrls: ["https://example.com/search"] }],
+    });
+    const context = engine.buildContext();
+    expect(context.evidenceCount).toBe(0);
+    expect(context.facts).toHaveLength(0);
+  });
+
+  it("keeps pure search-result observations out of atomic evidence context", () => {
     const engine = new ResearchIntelligenceEngine({ executionId: "search-only", target: "Ada Example", objective: "Resolve identity" });
     engine.recordAction({
       turn: 1,
