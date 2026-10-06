@@ -419,3 +419,17 @@ During this pass, five accidental literal \\n fragments in Investigator telemetr
 Current `main` head after these repairs is `f631db8bbce9ed9d02cc0b91049bbc3745f2411f`.
 
 This remains a source-level verification result only. Full API Vitest, typecheck, complete build, and the canonical live run are still execution gates and have not been run in this environment. No `READY FOR LIVE RUN` claim is authorized solely from this review.
+
+
+## Successor pass — 2026-10-06 (additional source defects found)
+
+A source-level successor review found and repaired two additional issues on `main`:
+
+1. **Latest trajectory duplication during compaction.** `buildInvestigatorContext` rendered the latest trajectory inside the normal section list, then separately reserved and appended the latest section again. This duplicated critical recent state and consumed prompt budget. The duplicate section insertion was removed so the latest record is reserved and emitted exactly once.
+2. **Discovery anchor false-positive.** `validateDiscoverySearchQuery` treated arbitrary non-vocabulary tokens as concrete anchors. This allowed a query such as `2026 acquisition of AI startup by large corporation CEO statement` to pass despite having no named organization/person/domain/registry/source anchor. AI was classified as generic sector vocabulary and common connector words were added to the generic-context set; a regression assertion now requires that query to be rejected.
+
+A regression test was added to verify the latest trajectory survives compaction and appears exactly once, alongside the discovery-gate regression.
+
+Current `main` after these repairs: `9e42a94dc319d4035e6ceabc4e211332e4eb50af`.
+
+This is **source-level evidence only**. No typecheck, full API suite, build, or GitHub Actions run exists for this new HEAD in the available environment. Therefore live readiness remains blocked.
