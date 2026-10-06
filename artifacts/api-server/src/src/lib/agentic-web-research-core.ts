@@ -52,17 +52,33 @@ export function validateDiscoverySearchQuery(query: string, priorQueries: readon
   const concreteSignals = Number(role) + Number(sector) + Number(source) + Number(organization);
   const tokens = normalized.split(/\s+/).filter(Boolean);
   const tokenCount = tokens.length;
-  const genericContextTerms = new Set(["people", "person", "list", "lists", "ranking", "rankings", "world", "global", "everyone"]);
+  const genericContextTerms = new Set([
+    "people", "person", "list", "lists", "ranking", "rankings", "world", "global", "everyone",
+    "year", "recent", "latest", "announcement", "announcements", "deal", "deals", "transaction", "transactions",
+    "funding", "round", "rounds", "investment", "investments", "acquisition", "acquisitions", "startup", "startups",
+    "executive", "executives", "business", "businesses", "company", "companies", "industry", "industries", "market", "markets",
+    "news", "report", "reports", "article", "articles", "interview", "interviews", "statement", "statements", "profile", "profiles",
+  ]);
   const nonFameTokens = tokens.filter((token) => !DISCOVERY_FAME_TERMS.test(token) && !genericContextTerms.has(token));
   const nonFameTokenCount = nonFameTokens.length;
-  const hasDistinctContextToken = nonFameTokens.some((token) => { const singular = token.endsWith("s") ? token.slice(0, -1) : token; return !DISCOVERY_SECTOR_TERMS.test(token) && !DISCOVERY_ROLE_TERMS.test(token) && !DISCOVERY_ROLE_TERMS.test(singular) && !DISCOVERY_ORG_TERMS.test(token) && !DISCOVERY_SOURCE_TERMS.test(token); });
-  const hasConcreteAnchor = source || organization || (sector && nonFameTokenCount >= 2 && hasDistinctContextToken);
+  const hasNamedOrConcreteToken = nonFameTokens.some((token) => {
+    if (/^\\d{4}$/.test(token)) return false;
+    const singular = token.endsWith("s") ? token.slice(0, -1) : token;
+    return !DISCOVERY_SECTOR_TERMS.test(token)
+      && !DISCOVERY_ROLE_TERMS.test(token)
+      && !DISCOVERY_ROLE_TERMS.test(singular)
+      && !DISCOVERY_ORG_TERMS.test(token)
+      && !DISCOVERY_SOURCE_TERMS.test(token);
+  });
+  const hasConcreteAnchor = source
+    || /\\b(?:registry|filing|edgar|companies\\s*house|sec)\\b/i.test(normalized)
+    || hasNamedOrConcreteToken;
   if (fame && !hasConcreteAnchor) return { allowed: false, reason: "Discovery search is too fame/wealth-list oriented. Add a concrete named organization, business context, geography, registry, or source anchor before searching." };
   // Keep the rail structural rather than prescriptive: a model-selected named
   // identity/company pivot can be concrete even when it does not contain one of
   // our finite role/sector/source vocabularies. Two-word context-free names stay
   // blocked; adding another contextual token is enough to authorize the hypothesis.
-  if (tokenCount < 2 || (concreteSignals < 1 && tokenCount < 3)) return { allowed: false, reason: "Discovery search is underspecified. Add contextual information before spending a search call." };
+  if (tokenCount < 2 || (concreteSignals < 1 && tokenCount < 3)) return { allowed: false, reason: "Discovery search is underspecified. Add contextual information before spending a search call." };\n  if (!hasConcreteAnchor) return { allowed: false, reason: "Discovery search lacks a concrete anchor. Add a named organization/person/domain, registry/filing/source anchor, or other non-generic contextual identifier before spending a search call." };
   return { allowed: true };
 }
 export type BoundModelFinding = { finding: AgenticFinding; sourceUrl: string; sourceRecord: AgenticTrajectoryRecord; passage: string };
@@ -673,7 +689,7 @@ function structuredActionResponseFormat(model: string): Record<string, unknown> 
 }
 
 const AGENTIC_ACTION_SCHEMA = { type: "object", properties: { action: { type: "string", enum: ["web_search", "parallel_web_search", "visit", "footprint_email", "footprint_username_maigret", "footprint_username_sherlock", "domain_lookup", "registry_search", "harvest_domain", "browser_fetch", "done"] }, query: { type: "string" }, provider: { type: "string", enum: ["serper", "tavily", "exa", "rdap", "whoisjson", "scrapfly", "zenrows", "browserless", "playwright"] }, url: { type: "string" }, email: { type: "string" }, username: { type: "string" }, domain: { type: "string" }, registry: { type: "string" }, target: { type: "string" }, targetType: { type: "string", enum: ["domain","hostname","ip","email","username","person","asn"] }, profile: { type: "string", enum: ["identity-expansion","domain-infrastructure","organization-footprint","contact-adjacent","broad-osint"] }, searches: { type: "array", minItems: 2, maxItems: 4 }, thought: { type: "string" }, hypothesis: { type: "string" }, purpose: { type: "string" }, expectedInformationGain: { type: "number", minimum: 0, maximum: 1 }, findings: { type: "array" } }, required: ["action"], additionalProperties: false };
-function buildStepPrompt(input: { targetName: string; companyName?: string | null; objective: string; history: string[]; trajectoryRecords: AgenticTrajectoryRecord[]; lastObservation: string; findings: AgenticFinding[]; priorContext?: string; intelligenceContext?: string; mode?: "target" | "discovery" }): string {
+export function buildStepPrompt(input: { targetName: string; companyName?: string | null; objective: string; history: string[]; trajectoryRecords: AgenticTrajectoryRecord[]; lastObservation: string; findings: AgenticFinding[]; priorContext?: string; intelligenceContext?: string; mode?: "target" | "discovery" }): string {
   const assignment = input.mode === "discovery"
     ? "DISCOVERY MODE: no person or entity target is implied. You are researching the case objective and may discover candidate people."
     : "ASSIGNMENT TARGET: " + input.targetName;
