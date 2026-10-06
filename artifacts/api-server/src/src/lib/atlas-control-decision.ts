@@ -286,9 +286,8 @@ export async function decideAtlasNextAction(input: { objective: string; admitted
     investigatorReport = rawInvestigatorReport.slice(0, 2400);
   }
   const admittedCandidateIndex = input.admittedCandidates.map((candidate) => JSON.stringify({ name: candidate.name, role: candidate.role, sourceUrls: candidate.sourceUrls.slice(0, 4) })).join("\n");
-  const findingIndex = input.discoveryFindings.map((finding) => JSON.stringify({ personName: finding.personName, role: finding.role, scope: finding.scope, promotionDecision: finding.promotionDecision ?? null, note: finding.note.slice(0, 320), sourceUrls: finding.sourceUrls.slice(0, 4) })).join("\n");
   const compactState = compactInvestigationContext({
-    raw: ["# Apex Atlas — Investigation Context", "## Bureau operating law", "Groq Boss owns Atlas control decisions. Groq Right-hand provides independent oversight. The Investigator owns research actions; deterministic code is the safety/integrity harness.", "## Objective", input.objective, "## Discovery status", input.discoveryStatus, "## Admitted candidates", admittedCandidateIndex || "(none)", "## Complete finding state", findingIndex || "(none)", "## Groq Boss previous control", JSON.stringify({ action: input.priorAction ?? null, candidateName: input.priorCandidate ?? null })].join("\n\n"),
+    raw: ["# Apex Atlas — Investigation Context", "## Bureau operating law", "Groq Boss owns Atlas control decisions. Groq Right-hand provides independent oversight. The Investigator owns research actions; deterministic code is the safety/integrity harness.", "## Objective", input.objective, "## Discovery status", input.discoveryStatus, "## Admitted candidates", admittedCandidateIndex || "(none)", "## Groq Boss previous control", JSON.stringify({ action: input.priorAction ?? null, candidateName: input.priorCandidate ?? null })].join("\n\n"),
     trajectory: input.discoveryTrajectory,
     trajectoryRecords: structuredTrajectory,
     evidenceGraphSummaries: input.discoveryFindings.flatMap((finding) => [
