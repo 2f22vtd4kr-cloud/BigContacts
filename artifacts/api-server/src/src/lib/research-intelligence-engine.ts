@@ -242,7 +242,7 @@ export class ResearchIntelligenceEngine {
     const modelHypothesis = typeof input.args?.hypothesis === "string" ? input.args.hypothesis.trim() : "";
     const modelPurpose = typeof input.args?.purpose === "string" ? input.args.purpose.trim() : "";
     if (modelHypothesis) {
-      const supportingEvidenceIds = [...this.evidence.values()].filter((evidence) => evidence.turn === input.turn && evidence.action === input.action).map((evidence) => evidence.id);
+      const supportingEvidenceIds = [...this.evidence.values()].filter((evidence) => evidence.turn === input.turn && evidence.action === input.action && (evidence.kind === "finding" || evidence.kind === "claim")).map((evidence) => evidence.id);
       this.addHypothesis({ label: modelHypothesis, entity: modelHypothesis, supportingEvidenceIds, missingDiscriminators: modelPurpose ? [modelPurpose] : [] });
     }
     const learningQuestion = modelPurpose ? normalize(modelPurpose) : modelHypothesis ? normalize(modelHypothesis) : "";
