@@ -1131,7 +1131,7 @@ export function buildDiscoveryProgressSnapshot(file: DiscoveryCaseFile): string 
   const clip = (value: unknown, max: number): string | null => {
     if (typeof value !== "string") return value == null ? null : String(value);
     const trimmed = value.trim();
-    return trimmed.length <= max ? trimmed : ${JSON.stringify("x")}.slice(0,0) + trimmed.slice(0, Math.max(0, max - 1)) + "…";
+    return trimmed.length <= max ? trimmed : trimmed.slice(0, Math.max(0, max - 1)) + "…";
   };
   const headTail = <T>(values: readonly T[], head: number, tail: number): T[] => {
     if (values.length <= head + tail) return [...values];
