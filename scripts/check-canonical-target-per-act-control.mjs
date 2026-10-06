@@ -27,6 +27,8 @@ const checks=[
 ["target completion requires promoted evidence graphs",/\(latestResult\.evidenceGraphs\?\.length \?\? 0\) > 0/.test(runner)],
 ["Investigator episode does not invoke internal oversight when caller owns it",/if \(callerOwnsOversight\) return \{ stop: false, unavailable: false \}/.test(agentic)],
 ["Investigator act proposals receive canonical oversight after each complete episode",/await reviewTargetInvestigationAct\(/.test(runner)],
+["next Atlas control turn receives target investigation state",/latestTargetInvestigation = \{/.test(atlas)&&/targetInvestigation: latestTargetInvestigation/.test(atlas)],
+["target control context includes durable target case status",/status: targetCase\?\.status/.test(atlas)&&/caseId: targetCase\?\.id/.test(atlas)],
 ["target control context is mandatory",/if \(!oversightContext\)/.test(agentic)],
 ["missing target control context fails closed",/(?:CONTROL_CONTEXT_UNAVAILABLE|stopReason:\s*"LLM_UNAVAILABLE")[\s\S]*?Target-scoped agentic research requires a durable control case/.test(agentic)],
 ["research redirects are validated as objective-only text",/validateResearchObjective/.test(agentic)],
