@@ -1208,7 +1208,20 @@ export function buildDiscoveryProgressSnapshot(file: DiscoveryCaseFile, maxChars
     decisions: headTail(snapshot.decisions, 6),
   };
   const reducedSerialized = JSON.stringify(reduced, null, 2);
-  return reducedSerialized.length <= maxChars ? reducedSerialized : reducedSerialized.slice(0, Math.max(0, maxChars - 80)) + "\n  \"_contextBound\": true\n}";
+  if (reducedSerialized.length <= maxChars) return reducedSerialized;
+  const minimal = {
+    mission: snapshot.mission,
+    progress: {
+      reportCount: snapshot.progress.reportCount,
+      completedLanes: snapshot.progress.completedLanes,
+      openQuestions: snapshot.progress.openQuestions,
+    },
+    candidates: headTail(reduced.candidates, 2),
+    investigatorReports: headTail(reduced.investigatorReports, 2),
+    decisions: headTail(reduced.decisions, 3),
+    _contextBound: true,
+  };
+  return JSON.stringify(minimal, null, 2).slice(0, maxChars);
 
 function parseJson<T>(value: string | null | undefined, fallback: T): T {
   if (!value) return fallback;
