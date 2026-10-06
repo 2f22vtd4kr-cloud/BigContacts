@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildGroqInvestigatorRequestBody, buildStepPrompt, validateDiscoverySearchQuery } from "./agentic-web-research-core";
+import { buildGroqInvestigatorRequestBody, buildStepPrompt, buildInvestigatorContext, validateDiscoverySearchQuery } from "./agentic-web-research-core";
 
 describe("Investigator prompt architecture", () => {
   it("keeps the composed model prompt materially below the old 12k-character live request", () => {
@@ -51,6 +51,10 @@ describe("Investigator prompt architecture", () => {
     expect(validateDiscoverySearchQuery("Acme Holdings CEO official", [])).toEqual({ allowed: true });
     expect(validateDiscoverySearchQuery("Companies House director Kenya", [])).toEqual({ allowed: true });
     expect(validateDiscoverySearchQuery("casino owners site:example.com", [])).toEqual({ allowed: true });
+    expect(validateDiscoverySearchQuery("2026 acquisition of AI startup by large corporation CEO statement", [])).toEqual({
+      allowed: false,
+      reason: expect.stringContaining("concrete anchor"),
+    });
   });
 
   it("keeps the structured response contract at the provider boundary", () => {
@@ -63,4 +67,45 @@ describe("Investigator prompt architecture", () => {
     expect(body.messages).toHaveLength(2);
     expect((body.messages as Array<{ role: string; content: string }>)[0]?.role).toBe("system");
   });
+
+  it("reserves the latest trajectory exactly once during context compaction", () => {
+    const latest = {
+      turn: 2,
+      model: "openai/gpt-oss-20b",
+      action: "visit",
+      execution: "success" as const,
+      args: { url: "https://example.com/anchor" },
+      observation: "LATEST_OBSERVATION_SENTINEL",
+      observedUrls: ["https://example.com/anchor"],
+      findings: [],
+    };
+    const context = buildInvestigatorContext({
+      targetName: "",
+      objective: "Preserve the latest observation while compacting older state.",
+      trajectoryRecords: [
+        {
+          turn: 1,
+          model: "openai/gpt-oss-20b",
+          action: "web_search",
+          execution: "success",
+          args: { query: "older context" },
+          observation: "O".repeat(2500),
+          observedUrls: ["https://example.com/old"],
+          findings: [],
+        },
+        latest,
+      ],
+      lastObservation: "",
+      findings: [],
+      mode: "discovery",
+      priorContext: "P".repeat(2500),
+      maxChars: 3900,
+    });
+
+    expect(context.length).toBeLessThanOrEqual(3900);
+    expect(context).toContain("LATEST_OBSERVATION_SENTINEL");
+    expect(context.match(/LATEST TRAJECTORY RECORD/g)?.length).toBe(1);
+    expect(context.match(/https://example.com/anchor/g)?.length).toBe(1);
+  });
+
 });
