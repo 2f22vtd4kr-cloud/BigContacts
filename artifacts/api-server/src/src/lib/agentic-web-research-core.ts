@@ -72,7 +72,7 @@ export function validateDiscoverySearchQuery(query: string, priorQueries: readon
       && !DISCOVERY_SOURCE_TERMS.test(token);
   });
   const hasExplicitSourceAnchor = /(?:\bsite:[^\s]+|\b(?:edgar|companies\s*house|sec)\b|\b[a-z0-9-]+\.(?:com|org|net|co\.[a-z]{2}|si|eu)\b)/i.test(normalized);
-  const hasRegistryOrFilingAnchor = /\b(?:registry|filing|filings|edgar|companies\s*house|sec)\b/i.test(normalized);
+  const hasRegistryOrFilingAnchor = /\b(?:registry|edgar|companies\s*house|sec)\b/i.test(normalized);
   const hasConcreteAnchor = hasExplicitSourceAnchor
     || hasRegistryOrFilingAnchor
     || hasNamedOrConcreteToken;
