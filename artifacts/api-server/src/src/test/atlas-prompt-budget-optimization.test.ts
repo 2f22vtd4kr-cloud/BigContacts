@@ -96,7 +96,7 @@ describe("Apex Atlas prompt budget optimization", () => {
       priorAction: "continue_discovery",
       priorCandidate: null,
     });
-    expect(compact.length).toBeLessThanOrEqual(10_000);
+    expect(compact.length).toBeLessThanOrEqual(6_500);
     expect(compact).toContain("Candidate 25");
     expect(compact).toContain("LATE_NEGATIVE_FINDING");
     expect(compact).toContain('"promotionDecision":"reject"');
