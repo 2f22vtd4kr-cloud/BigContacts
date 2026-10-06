@@ -20,6 +20,12 @@ type Attempt = {
   latencyMs?: number;
   retryIndex: number;
   reason?: string;
+  providerErrorCode?: string | null;
+  providerErrorType?: string | null;
+  rateLimitRemainingTokens?: number | null;
+  rateLimitResetTokensMs?: number | null;
+  rateLimitRemainingRequests?: number | null;
+  rateLimitResetRequestsMs?: number | null;
 };
 
 let attempts = 0;
@@ -66,6 +72,12 @@ export function recordAgenticLlmAttempt(event: Attempt): void {
     latencyMs: event.latencyMs ?? null,
     retryIndex: event.retryIndex,
     reason: safeTelemetryReason(event.reason),
+    providerErrorCode: event.providerErrorCode ?? null,
+    providerErrorType: event.providerErrorType ?? null,
+    rateLimitRemainingTokens: event.rateLimitRemainingTokens ?? null,
+    rateLimitResetTokensMs: event.rateLimitResetTokensMs ?? null,
+    rateLimitRemainingRequests: event.rateLimitRemainingRequests ?? null,
+    rateLimitResetRequestsMs: event.rateLimitResetRequestsMs ?? null,
   }));
 }
 
