@@ -30,7 +30,6 @@ export function buildCreativeInvestigatorAngles(input: {
   candidateDomains?: string[];
   relatedOrganizations?: string[];
   depth?: ResearchDepth;
-  depth?: ResearchDepth;
   includeInstitutionalOrientation?: boolean;
 }): string {
   const progress = input.pendingVectors?.length
