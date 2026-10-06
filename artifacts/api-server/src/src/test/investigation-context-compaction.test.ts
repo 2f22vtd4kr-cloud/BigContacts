@@ -24,6 +24,24 @@ describe("investigator context compaction", () => {
     expect(context).toContain("source-a.example/profile");
   });
 
+  it("reserves the latest trajectory record even when earlier state is oversized", () => {
+    const context = buildInvestigatorContext({
+      targetName: "Named Person",
+      objective: "O".repeat(20_000),
+      priorContext: "P".repeat(10_000),
+      trajectoryRecords: [
+        { turn: 1, action: "visit", execution: "success", observedUrls: ["https://old.example/page"], observation: "old evidence" },
+        { turn: 2, action: "visit", execution: "success", observedUrls: ["https://latest.example/page"], observation: "LATEST UNIQUE OBSERVATION MUST SURVIVE COMPACTION" },
+      ],
+      lastObservation: "fallback latest observation",
+      findings: [],
+    });
+    expect(context.length).toBeLessThanOrEqual(getInvestigatorContextBudget().maxChars);
+    expect(context).toContain("LATEST TRAJECTORY RECORD");
+    expect(context).toContain("https://latest.example/page");
+    expect(context).toContain("LATEST UNIQUE OBSERVATION MUST SURVIVE COMPACTION");
+  });
+
   it("keeps exact observed URLs in archived history", () => {
     const context = buildInvestigatorContext({ targetName: "Example", objective: "Verify the target.", trajectoryRecords: [
       { turn: 1, action: "visit", execution: "success", observedUrls: ["https://example.com/a#fragment", "https://example.com/b"], observation: "content" },
