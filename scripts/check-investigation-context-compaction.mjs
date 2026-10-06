@@ -13,7 +13,7 @@ const checks = [
   ["explicit model-facing context budget override exists", /maxChars\?: number/.test(source) && /input\.maxChars/.test(source)],
   ["canonical Investigator prompt requests a bounded working-context layer", /maxChars: 6_500/.test(core)],
   ["canonical Investigator prompt reserves a bounded intelligence-state layer", /boundInvestigatorPromptSection\(input\.intelligenceContext[^;]*2_500/.test(core)],
-  ["current findings retain both early and recent entries", /headTail\(input\.findings, 10\)/.test(source)],
+  ["current findings retain both early and recent entries", /headTail\(input\.findings, 6\)/.test(source)],
   ["archived trajectory retains both early and recent entries", /headTail\(input\.trajectoryRecords \?\? \[\], 10\)/.test(source)],
   ["emergency reducer enforces its maximum", /\.slice\(0, maxChars\)/.test(source)],
   ["unbounded whole-trajectory prompt assembly is absent", !/trajectoryRecords\.map\(.*observation.*join\(/s.test(source)],
