@@ -44,7 +44,7 @@ function claimAppearsInObservedMaterial(finding: AgenticFinding, records: Agenti
   let supportingObservationCount = 0;
   const supportingUrls = new Set<string>();
   for (const record of records) {
-    if (record.execution !== "success" || typeof record.observation !== "string") continue;
+    if (record.execution !== "success" || typeof record.observation !== "string" || record.action === "web_search" || record.action === "parallel_web_search" || record.action === "done") continue;
     const matchedSources = record.observedUrls.map(normalizeObservedUrl).filter((url): url is string => Boolean(url)).filter((url) => sourceSet.has(url));
     if (!matchedSources.length) continue;
     const observation = record.observation.toLowerCase();
