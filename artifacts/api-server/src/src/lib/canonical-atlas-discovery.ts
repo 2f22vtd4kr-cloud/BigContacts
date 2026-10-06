@@ -405,7 +405,8 @@ export async function runCanonicalAtlasPipeline(atlasJobId: string, opts: Canoni
     phaseSummary.discovery = `runs=${discoveryRuns}; admitted=${admitted.length}; materialized=${materialized}; evidenceRows=${evidenceRows}; searches=${discovery.searches}; visits=${discovery.visits}; trajectory=${discovery.trajectory.length}; structuredTurns=${discovery.trajectoryRecords?.length ?? 0}`;
     phaseSummary.research = `researched=${researched}; explicitCardPromotions=${contactsFound}; controlTurns=${controlTurns}; finalAction=${priorAction ?? "none"}`;
     await assertAtlasJobActive(atlasJobId);
-    const finalIncomplete = investigatorResourceLimited && priorAction !== "stop";
+    const evidenceBackedTerminal = (discovery.status === "completed" && discovery.stopReason === "MODEL_DECIDED_DONE") || latestTargetInvestigation?.status === "complete";
+    const finalIncomplete = investigatorResourceLimited || priorAction !== "stop" || !evidenceBackedTerminal;
     const finalCaseStatus = finalIncomplete ? "review" : "complete";
     const finalCaseAction = finalIncomplete ? "canonical-investigator-resource-ceiling" : "canonical-atlas-complete";
     await db.update(researchCasesTable).set({
