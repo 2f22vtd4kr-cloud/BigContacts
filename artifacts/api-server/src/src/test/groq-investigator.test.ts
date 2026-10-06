@@ -6,7 +6,8 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("../lib/ssrf-safe-fetch", () => ({ safeOutboundFetch: mocks.safeOutboundFetch }));
 
-import { bindModelFindingsToObservedSources, runAgenticWebResearch, INVESTIGATOR_LLM_CAPABILITY_POOL } from "../lib/agentic-web-research-core";
+import { bindModelFindingsToObservedSources, runAgenticWebResearch } from "../lib/agentic-web-research-core";
+import { getAvailableInvestigatorCapabilities } from "../lib/investigator-capability-registry";
 import { resetProviderGateForTests } from "../lib/provider-gate";
 
 describe("Groq Investigator provider boundary", () => {
@@ -118,7 +119,7 @@ describe("Groq Investigator provider boundary", () => {
 
     const result = await runAgenticWebResearch({
       targetName: "Example",
-      investigatorLlm: "groq",
+      investigatorLlm: "groq-investigator-1",
       maxIterations: 1,
       hardTimeoutMs: 30_000,
     });
@@ -153,7 +154,7 @@ describe("Groq Investigator provider boundary", () => {
 
     const result = await runAgenticWebResearch({
       targetName: "Example",
-      investigatorLlm: "groq",
+      investigatorLlm: "groq-investigator-1",
       maxIterations: 1,
       hardTimeoutMs: 30_000,
     });
@@ -181,7 +182,7 @@ describe("Groq Investigator provider boundary", () => {
 
     const result = await runAgenticWebResearch({
       targetName: "Example",
-      investigatorLlm: "groq",
+      investigatorLlm: "groq-investigator-1",
       maxIterations: 1,
       hardTimeoutMs: 30_000,
     });
@@ -208,7 +209,7 @@ describe("Groq Investigator provider boundary", () => {
 
     const result = await runAgenticWebResearch({
       targetName: "Example",
-      investigatorLlm: "groq",
+      investigatorLlm: "groq-investigator-1",
       maxIterations: 1,
       hardTimeoutMs: 30_000,
     });
@@ -236,7 +237,7 @@ describe("Groq Investigator provider boundary", () => {
 
     const result = await runAgenticWebResearch({
       targetName: "Example",
-      investigatorLlm: "groq",
+      investigatorLlm: "groq-investigator-1",
       maxIterations: 1,
       hardTimeoutMs: 30_000,
     });
@@ -269,7 +270,7 @@ describe("Groq Investigator provider boundary", () => {
 
     const result = await runAgenticWebResearch({
       targetName: "Example",
-      investigatorLlm: "groq",
+      investigatorLlm: "groq-investigator-1",
       maxIterations: 1,
       hardTimeoutMs: 30_000,
     });
@@ -301,7 +302,7 @@ describe("Groq Investigator provider boundary", () => {
 
     const result = await runAgenticWebResearch({
       targetName: "Example",
-      investigatorLlm: "groq",
+      investigatorLlm: "groq-investigator-1",
       maxIterations: 1,
       hardTimeoutMs: 30_000,
     });
@@ -324,13 +325,37 @@ describe("Groq Investigator provider boundary", () => {
 
     const result = await runAgenticWebResearch({
       targetName: "Example",
-      investigatorLlm: "groq",
+      investigatorLlm: "groq-investigator-1",
       maxIterations: 1,
       hardTimeoutMs: 30_000,
     });
 
     expect(result.status).toBe("completed");
     expect(fetchMock.mock.calls.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("binds execution to the selected capability key and never rotates to another configured key", async () => {
+    process.env.GROQ_INVESTIGATOR_API_KEY = "selected-key-1";
+    process.env.GROQ_INVESTIGATOR_API_KEY_1 = "selected-key-2";
+    process.env.APEX_PROVIDER_MIN_INTERVAL_MS_GROQ = "0";
+    const authorizationHeaders: string[] = [];
+    mocks.safeOutboundFetch.mockImplementation(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      authorizationHeaders.push(String(new Headers(init?.headers).get("authorization")));
+      return new Response(JSON.stringify({
+        choices: [{ message: { content: JSON.stringify({ action: "done", query: null, provider: null, url: null, email: null, username: null, domain: null, registry: null, thought: "done", hypothesis: null, purpose: null, expectedInformationGain: 0, searches: [], findings: [] }) } }],
+      }), { status: 200, headers: { "content-type": "application/json" } });
+    });
+
+    const result = await runAgenticWebResearch({
+      targetName: "Example",
+      investigatorLlm: "groq-investigator-2",
+      maxIterations: 1,
+      hardTimeoutMs: 30_000,
+    });
+
+    expect(result.status).toBe("completed");
+    expect(authorizationHeaders.length).toBeGreaterThanOrEqual(1);
+    expect(new Set(authorizationHeaders)).toEqual(new Set(["Bearer selected-key-2"]));
   });
 
   it("uses the Qwen 3.8 primary routing model without provider fallback", async () => {
@@ -345,7 +370,7 @@ describe("Groq Investigator provider boundary", () => {
 
     const result = await runAgenticWebResearch({
       targetName: "Example",
-      investigatorLlm: "groq",
+      investigatorLlm: "groq-investigator-1",
       maxIterations: 1,
       hardTimeoutMs: 30_000,
     });
