@@ -835,7 +835,7 @@ export function buildStepPrompt(input: { targetName: string; companyName?: strin
     "For parallel_web_search, provide 2–4 independent search objects. For other actions, searches must be empty. Return ONE JSON action object matching the structured response contract.",
   ].join("\n");
   const maxUserPromptChars = Math.max(1_000, MAX_PROVIDER_PROMPT_CHARS - INVESTIGATOR_SYSTEM_PROMPT().length);
-  return boundInvestigatorPromptSection(composedPrompt, maxUserPromptChars);\n
+  return boundInvestigatorPromptSection(composedPrompt, maxUserPromptChars);
 }
 
 export function discoveryTerminalGate(records: readonly AgenticTrajectoryRecord[]): { allowed: boolean; reason: string | null } {
