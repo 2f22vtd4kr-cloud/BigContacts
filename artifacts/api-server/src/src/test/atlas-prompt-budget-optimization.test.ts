@@ -6,6 +6,7 @@ import {
   ATLAS_BOSS_CONTROL_PROMPT_BUDGET,
   ATLAS_RIGHT_HAND_PROMPT_BUDGET,
 } from "../lib/atlas-control-decision";
+import { buildDiscoveryProgressSnapshot } from "../lib/case-bureau";
 import { renderAtlasCapabilityGuidanceCompact, renderAtlasCapabilityGuidance } from "../lib/atlas-capability-registry";
 import { boundInvestigatorPromptSection, buildInvestigatorContext, getInvestigatorContextBudget } from "../lib/investigation-context-compaction";
 import { renderIntelligenceContextCompact } from "../lib/research-intelligence-engine";
@@ -126,6 +127,40 @@ describe("Apex Atlas prompt budget optimization", () => {
     expect(context).toContain("RESEARCH FRONTIER");
     expect(context).toContain("LATEST_DECISION_SIGNAL");
     expect(context).toContain("CURRENT_FINDING");
+  });
+
+  it("enforces an aggregate Bureau snapshot budget while retaining newest findings", () => {
+    const file = {
+      humanBrief: { objective: "OBJECTIVE", motivation: "MOTIVATION", geography: "GLOBAL", exclusions: [] },
+      bossPremise: "PREMISE",
+      investigationRules: [],
+      discoveredCandidates: Array.from({ length: 30 }, (_, i) => ({
+        name: "Candidate " + (i + 1),
+        type: "person",
+        sourceUrls: Array.from({ length: 8 }, (_, n) => "https://source.example/" + i + "/" + n),
+        contactEvidence: Array.from({ length: 8 }, (_, n) => ({
+          vectorType: "other", value: "CONTACT_" + i + "_" + n, scope: "candidate",
+          personName: "Candidate " + (i + 1), role: "role",
+          sourceUrls: ["https://source.example/contact/" + i + "/" + n], note: "N".repeat(300),
+        })),
+      })),
+      currentProgress: { reportCount: 30, completedLanes: [], openQuestions: ["OPEN"], lastReviewedBy: null, refreshedAt: null },
+      investigatorReports: Array.from({ length: 20 }, (_, i) => ({
+        id: String(i), lane: "groq-web", provider: "groq", status: "completed", iteration: i,
+        summary: "SUMMARY_" + i + " ".repeat(900),
+        findings: Array.from({ length: 10 }, (_, n) => "FINDING_" + i + "_" + n + " ".repeat(300)),
+        candidateNames: ["Candidate " + (i + 1)],
+        sourceUrls: Array.from({ length: 10 }, (_, n) => "https://report.example/" + i + "/" + n),
+        nextQuestions: Array.from({ length: 10 }, (_, n) => "QUESTION_" + i + "_" + n + " ".repeat(200)),
+        error: null, createdAt: new Date().toISOString(),
+      })),
+      decisionLog: [],
+    } as any;
+    const snapshot = buildDiscoveryProgressSnapshot(file);
+    expect(snapshot.length).toBeLessThanOrEqual(12_000);
+    expect(snapshot).toContain("Candidate 30");
+    expect(snapshot).toContain("FINDING_19_9");
+    expect(() => JSON.parse(snapshot)).not.toThrow();
   });
 
   it("does not duplicate a giant Investigator report into the control prompt budget", () => {
