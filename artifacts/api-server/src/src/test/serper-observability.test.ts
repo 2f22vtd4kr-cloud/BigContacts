@@ -57,7 +57,7 @@ describe("Serper provider observability", () => {
         method: "POST",
         contentType: "application/json",
         keys: ["gl", "hl", "num", "q"],
-        num: 10,
+        num: 6,
         queryChars: 13,
         localeChars: 2,
         marketChars: 2,
