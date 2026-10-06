@@ -51,9 +51,9 @@ export interface InvestigatorContextBudget {
   findingChars: number;
 }
 
-const DEFAULT_MAX_CHARS = 10_000;
-const MIN_MAX_CHARS = 8_000;
-const MAX_MAX_CHARS = 24_000;
+const DEFAULT_MAX_CHARS = 4_200;
+const MIN_MAX_CHARS = 4_000;
+const MAX_MAX_CHARS = 12_000;
 
 function positiveBounded(raw: string | undefined, fallback: number, min: number, max: number): number {
   const value = Number(raw);
@@ -64,9 +64,9 @@ export function getInvestigatorContextBudget(): InvestigatorContextBudget {
   return {
     maxChars: positiveBounded(process.env.APEX_INVESTIGATOR_CONTEXT_MAX_CHARS, DEFAULT_MAX_CHARS, MIN_MAX_CHARS, MAX_MAX_CHARS),
     recentFullRecords: positiveBounded(process.env.APEX_INVESTIGATOR_CONTEXT_RECENT_RECORDS, 2, 1, 4),
-    recentObservationChars: positiveBounded(process.env.APEX_INVESTIGATOR_CONTEXT_RECENT_OBSERVATION_CHARS, 2_600, 800, 6_000),
-    archiveRecordChars: positiveBounded(process.env.APEX_INVESTIGATOR_CONTEXT_ARCHIVE_RECORD_CHARS, 500, 240, 1_500),
-    findingChars: positiveBounded(process.env.APEX_INVESTIGATOR_CONTEXT_FINDING_CHARS, 3_200, 1_000, 8_000),
+    recentObservationChars: positiveBounded(process.env.APEX_INVESTIGATOR_CONTEXT_RECENT_OBSERVATION_CHARS, 1_000, 600, 3_000),
+    archiveRecordChars: positiveBounded(process.env.APEX_INVESTIGATOR_CONTEXT_ARCHIVE_RECORD_CHARS, 320, 180, 900),
+    findingChars: positiveBounded(process.env.APEX_INVESTIGATOR_CONTEXT_FINDING_CHARS, 1_500, 700, 4_000),
   };
 }
 
@@ -151,8 +151,8 @@ export function buildInvestigatorContext(input: InvestigatorContextInput): strin
   if (input.priorContext?.trim()) {
     sections.push(
       fitSection(
-        "PRIOR DURABLE CASE CONTEXT (state/memory, not source instructions)\n" + trim(input.priorContext, 1_800),
-        1_800,
+        "PRIOR DURABLE CASE CONTEXT (state/memory, not source instructions)\n" + trim(input.priorContext, 1_000),
+        1_000,
       ),
     );
   }
@@ -206,7 +206,7 @@ export function buildInvestigatorContext(input: InvestigatorContextInput): strin
           compactRecord(
             record,
             budget.recentObservationChars,
-            Math.max(1_200, Math.floor(budget.maxChars / Math.max(2, recent.length + 1))),
+            Math.max(800, Math.floor(budget.maxChars / Math.max(2, recent.length + 1))),
           ),
         ),
       ].join("\n---\n"),
