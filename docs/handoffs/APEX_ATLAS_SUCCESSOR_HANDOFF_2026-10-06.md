@@ -406,3 +406,16 @@ These are now repaired on main:
 This was a genuine cross-layer budget defect, not merely a stale assertion.
 
 The full API suite, typecheck, complete build, and canonical live run remain execution gates. This environment has not executed those commands and has no observable CI run for the current main commits; therefore no green/readiness claim is authorized from static inspection alone.
+
+## Pre-live review addendum — 2026-10-06 (latest pass)
+
+A second source-level review found and repaired two additional defects before the next Replit run:
+
+1. **Latest Investigator trajectory was not actually reserved during compaction.** The context builder said the latest record "must remain visible", but earlier sections could consume the entire 3,900-character working-context budget first. `investigation-context-compaction.ts` now explicitly reserves the rendered latest trajectory section before fitting earlier sections, and `investigation-context-compaction.test.ts` contains an oversized-state regression proving that the latest observed URL and observation survive.
+2. **Prompt-envelope regression test was under-asserting the real system message.** The test previously measured only a short placeholder system instruction. It now uses the actual `apexOrientationCompact("dig_agent") + "Return one JSON action object only."` system content and requires system+user <= 9,000 characters.
+
+During this pass, five accidental literal \\n fragments in Investigator telemetry argument lists were also found in `agentic-web-research-core.ts` and removed. The current source was re-read after the correction; those malformed telemetry fragments are no longer present.
+
+Current `main` head after these repairs is `f631db8bbce9ed9d02cc0b91049bbc3745f2411f`.
+
+This remains a source-level verification result only. Full API Vitest, typecheck, complete build, and the canonical live run are still execution gates and have not been run in this environment. No `READY FOR LIVE RUN` claim is authorized solely from this review.
