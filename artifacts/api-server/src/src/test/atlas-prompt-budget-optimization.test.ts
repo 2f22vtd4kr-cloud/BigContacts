@@ -7,7 +7,7 @@ import {
 } from "../lib/atlas-control-decision";
 import { renderAtlasCapabilityGuidanceCompact, renderAtlasCapabilityGuidance } from "../lib/atlas-capability-registry";
 import { buildInvestigatorContext, getInvestigatorContextBudget } from "../lib/investigation-context-compaction";
-import { buildStepPrompt } from "../lib/agentic-web-research-core";
+import { buildGroqInvestigatorRequestBody, buildStepPrompt } from "../lib/agentic-web-research-core";
 import { apexOrientationCompact } from "../lib/apex-bureau-orientation";
 
 describe("Apex Atlas prompt budget optimization", () => {
@@ -40,6 +40,18 @@ describe("Apex Atlas prompt budget optimization", () => {
     expect(getInvestigatorContextBudget().maxChars).toBe(4_200);
     expect(context).toContain("Named Person");
     expect(context).toContain("RESEARCH FRONTIER");
+  });
+
+  it("enforces the message envelope again at the provider request-body boundary", () => {
+    const body = buildGroqInvestigatorRequestBody({
+      model: "openai/gpt-oss-20b",
+      prompt: "OVERSIZED DYNAMIC STATE ".repeat(2_000),
+      cognitiveTask: "identity_resolution",
+    });
+    const messages = body.messages as Array<{ role: string; content: string }>;
+    const total = messages.reduce((sum, message) => sum + message.content.length, 0);
+    expect(total).toBeLessThanOrEqual(9_000);
+    expect(messages.find((message) => message.role === "user")?.content.length).toBeLessThan(9_000);
   });
 
   it("bounds the complete Investigator message envelope, including the stable system prompt", () => {
