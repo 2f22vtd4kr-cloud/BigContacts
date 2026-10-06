@@ -59,3 +59,14 @@ export function renderAtlasCapabilityGuidance(capabilities: readonly AtlasCapabi
 export function capabilityForAction(action: string): AtlasCapability[] {
   return ATLAS_CAPABILITIES.filter((c) => c.action === action);
 }
+
+/**
+ * Compact per-turn rendering for Investigator prompts. The full registry remains
+ * available to deterministic code and audits; the model only needs the decision-
+ * relevant capability contract on every ReAct turn.
+ */
+export function renderAtlasCapabilityGuidanceCompact(capabilities: readonly AtlasCapability[] = ATLAS_CAPABILITIES): string {
+  return capabilities.map((c) =>
+    `- ${c.id}: ${c.action}; purpose=${c.purpose}; when=${c.usefulWhen.slice(0, 2).join(" | ")}; prerequisites=${c.prerequisites.join(" | ") || "none"}; cost=${c.typicalCost}; limits=${c.limitations.slice(0, 2).join(" | ")}`,
+  ).join("\n");
+}
