@@ -372,6 +372,62 @@ export function buildGroqInvestigatorRequestBody(input: { model: string; prompt:
   };
 }
 
+type GroqRateLimitSnapshot = {
+  remainingTokens: number | null;
+  resetTokensMs: number | null;
+  remainingRequests: number | null;
+  resetRequestsMs: number | null;
+  observedAt: number;
+};
+
+const groqRateLimitSnapshots = new Map<string, GroqRateLimitSnapshot>();
+
+function parseGroqDurationMs(raw: string | null): number | null {
+  const value = raw?.trim() ?? "";
+  if (!value) return null;
+  const seconds = Number(value);
+  if (Number.isFinite(seconds) && seconds >= 0) return Math.floor(seconds * 1_000);
+  const timestamp = Date.parse(value);
+  if (Number.isFinite(timestamp)) return Math.max(0, timestamp - Date.now());
+  const match = value.match(/^(?:(\d+(?:\.\d+)?)h)?(?:(\d+(?:\.\d+)?)m)?(?:(\d+(?:\.\d+)?)s)?$/i);
+  if (!match) return null;
+  return Math.floor((Number(match[1] ?? 0) * 3600 + Number(match[2] ?? 0) * 60 + Number(match[3] ?? 0)) * 1_000);
+}
+
+function captureGroqRateLimitSnapshot(keyName: string, response: Response): GroqRateLimitSnapshot {
+  const remainingTokensValue = Number(response.headers.get("x-ratelimit-remaining-tokens"));
+  const remainingRequestsValue = Number(response.headers.get("x-ratelimit-remaining-requests"));
+  const snapshot: GroqRateLimitSnapshot = {
+    remainingTokens: Number.isFinite(remainingTokensValue) ? remainingTokensValue : null,
+    resetTokensMs: parseGroqDurationMs(response.headers.get("x-ratelimit-reset-tokens")),
+    remainingRequests: Number.isFinite(remainingRequestsValue) ? remainingRequestsValue : null,
+    resetRequestsMs: parseGroqDurationMs(response.headers.get("x-ratelimit-reset-requests")),
+    observedAt: Date.now(),
+  };
+  groqRateLimitSnapshots.set(keyName, snapshot);
+  return snapshot;
+}
+
+function groqPromptTokenEstimate(promptChars: number): number {
+  return Math.ceil(Math.max(0, promptChars) / 4);
+}
+
+async function waitForKnownGroqTokenWindow(keyName: string, promptChars: number, completionBudget: number, signal: AbortSignal): Promise<"ready" | "quota_unavailable"> {
+  const snapshot = groqRateLimitSnapshots.get(keyName);
+  if (!snapshot || snapshot.remainingTokens == null || snapshot.resetTokensMs == null) return "ready";
+  const estimated = groqPromptTokenEstimate(promptChars) + completionBudget;
+  if (snapshot.remainingTokens >= estimated) return "ready";
+  const resetMs = Math.max(0, snapshot.resetTokensMs - (Date.now() - snapshot.observedAt));
+  if (resetMs > 45_000) return "quota_unavailable";
+  if (resetMs <= 0) return "ready";
+  await new Promise<void>((resolve, reject) => {
+    const timer = setTimeout(resolve, resetMs);
+    const abort = () => { clearTimeout(timer); reject(new Error("cancelled")); };
+    signal.addEventListener("abort", abort, { once: true });
+  });
+  return "ready";
+}
+
 function groqRetryAfterMs(response: Response, fallbackMs = 250): number {
   const raw = response.headers.get("retry-after")?.trim() ?? "";
   if (!raw) return fallbackMs;
@@ -446,6 +502,16 @@ async function callGroqJson(
       attempt += 1;
       const started = Date.now();
       try {
+        const quotaReadiness = await waitForKnownGroqTokenWindow(
+          keyName ?? "unknown",
+          workingPrompt.length,
+          groqInvestigatorCompletionBudget(cognitiveTask),
+          signal,
+        );
+        if (quotaReadiness === "quota_unavailable") {
+          lastProviderError = "upstream_quota_exhausted";
+          return { model, raw: "", error: lastProviderError };
+        }
         const responseFormat = jsonObjectFallbackUsed ? { type: "json_object" } : structuredActionResponseFormat(model);
         const response = await withProviderRetryOwnership("groq", "caller", () =>
           runProviderCall({ provider: "groq", account: keyName ?? "unknown", signal }, () =>
