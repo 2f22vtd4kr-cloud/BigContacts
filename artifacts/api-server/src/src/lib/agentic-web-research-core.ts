@@ -716,7 +716,8 @@ async function llmStep(prompt: string, selectedInvestigatorLlm: InvestigatorCapa
   await acquireProviderSlot(parentSignal);
   try {
     const systemPromptChars = INVESTIGATOR_SYSTEM_PROMPT().length;
-    const maxUserPromptChars = Math.max(1_000, MAX_PROVIDER_PROMPT_CHARS - systemPromptChars);\n    const boundedPrompt = boundInvestigatorPromptSection(prompt, maxUserPromptChars);
+    const maxUserPromptChars = Math.max(1_000, MAX_PROVIDER_PROMPT_CHARS - systemPromptChars);
+    const boundedPrompt = boundInvestigatorPromptSection(prompt, maxUserPromptChars);
     if (!selectedInvestigatorLlm) { setAgenticLlmHealth(false, null, "No Boss-selected Investigator LLM was propagated into ReAct"); return null; }
     const fn = selectedInvestigatorLlm && investigatorCapabilityKeyName(selectedInvestigatorLlm) && investigatorKeyConfiguredForCapability(selectedInvestigatorLlm) ? ((promptValue: string, signalValue: AbortSignal) => callGroqJson(promptValue, signalValue, cognitiveTask, selectedInvestigatorLlm)) : null;
     if (!fn) { setAgenticLlmHealth(false, null, `${selectedInvestigatorLlm}: selected Investigator capability unavailable`); return null; }
