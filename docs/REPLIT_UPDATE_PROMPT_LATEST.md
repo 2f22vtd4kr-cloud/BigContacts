@@ -25,10 +25,10 @@ Groq Investigator
 
 Boss and Right-hand are oversight only. They do not browse, execute tools, invent evidence, or choose fixed Investigator search sequences.
 
-The active Investigator pool is ONLY Groq and Mistral.
+The active Investigator adapter is Groq. Each configured Groq Investigator credential is a separate selectable capability.
 DeepSeek and NVIDIA NIM are retired from the active architecture.
 Do not restore them, migrate to them, request their credentials, or use them as fallbacks.
-Gemini is not an Investigator fallback.
+Gemini is not an active canonical Investigator transport.
 Boss/Right-hand unavailable => fail closed.
 
 Canonical credentials:
