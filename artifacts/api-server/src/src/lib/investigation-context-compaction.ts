@@ -52,7 +52,7 @@ export interface InvestigatorContextBudget {
 }
 
 const DEFAULT_MAX_CHARS = 4_200;
-const MIN_MAX_CHARS = 4_000;
+const MIN_MAX_CHARS = 3_900;
 const MAX_MAX_CHARS = 12_000;
 
 function positiveBounded(raw: string | undefined, fallback: number, min: number, max: number): number {
