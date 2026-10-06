@@ -40,7 +40,7 @@ function normalizedUrl(value: string): string | null { try { const u = new URL(v
 
 const DISCOVERY_FAME_TERMS = /\b(?:billionaire|billionaires|richest|wealthiest|celebrity|celebrities|famous|forbes|bloomberg|net[ -]?worth|top[ -]?richest)\b/i;
 const DISCOVERY_ROLE_TERMS = /\b(?:founder|co[ -]?founder|owner|operator|ceo|chief executive|director|managing director|chairman|chairwoman|chair|principal|partner|managing partner|general partner|president|shareholder|beneficial owner|officer|board)\b/i;
-const DISCOVERY_SECTOR_TERMS = /\b(?:casino|gaming|gambling|hotel|resort|hospitality|restaurant|construction|manufacturing|software|technology|saas|fintech|healthcare|pharma|biotech|logistics|shipping|aviation|real estate|property|energy|industrial|automotive|retail|food|beverage|media|telecom|mining|metals|resources|legal|law|education|consulting|investment|private equity|venture capital|family office|asset management|insurance|banking|agriculture|tourism|travel)\b/i;
+const DISCOVERY_SECTOR_TERMS = /\b(?:casino|gaming|gambling|hotel|resort|hospitality|restaurant|construction|manufacturing|software|technology|saas|ai|artificial intelligence|fintech|healthcare|pharma|biotech|logistics|shipping|aviation|real estate|property|energy|industrial|automotive|retail|food|beverage|media|telecom|mining|metals|resources|legal|law|education|consulting|investment|private equity|venture capital|family office|asset management|insurance|banking|agriculture|tourism|travel)\b/i;
 const DISCOVERY_SOURCE_TERMS = /(?:\b(?:site:|registry|registr(?:y|ies)|filing|filings|annual report|press release|trade publication|business journal|interview|company profile|team page|official)\b|\b[a-z0-9-]+\.(?:com|org|net|co\.[a-z]{2}|si|eu)\b)/i;
 const DISCOVERY_ORG_TERMS = /\b(?:company|corp(?:oration)?|ltd|limited|llc|inc|group|holdings|partners|capital|ventures|bank|university|hospital|club|association)\b/i;
 export function normalizeDiscoverySearchQuery(query: string): string { return query.trim().toLowerCase().replace(/[\s\u00a0]+/g, " ").replace(/[“”‘’]/g, '"'); }
@@ -58,7 +58,7 @@ export function validateDiscoverySearchQuery(query: string, priorQueries: readon
     "funding", "round", "rounds", "investment", "investments", "acquisition", "acquisitions", "startup", "startups",
     "executive", "executives", "business", "businesses", "company", "companies", "industry", "industries", "market", "markets",
     "news", "report", "reports", "article", "articles", "interview", "interviews", "statement", "statements", "profile", "profiles",
-    "large", "small", "major", "leading", "top", "best", "big",
+    "large", "small", "major", "leading", "top", "best", "big", "by", "for", "from", "with", "without", "into", "over", "under", "after", "before", "about", "against", "among", "between", "through", "during", "using", "via",
   ]);
   const nonFameTokens = tokens.filter((token) => !DISCOVERY_FAME_TERMS.test(token) && !genericContextTerms.has(token));
   const nonFameTokenCount = nonFameTokens.length;
