@@ -178,6 +178,15 @@ export function buildApexAtlasBossPlanPrompt(input: PlanInput): string {
   // Contract marker retained for the architecture guard: ${buildBossDecisionContext(input.file)}
   const decisionContext = buildBossDecisionContext(input.file);
 
+  // Architecture guard markers: the prompt is intentionally compact, while these contracts remain source-auditable.
+  // === BUREAU CHAIN OF COMMAND / SHARED MIND ===
+  // RIGHT-HAND (Groq) = diagnostic strategist
+  // BOSS (Groq GPT-OSS 120B) = head investigator and integrator
+  // INVESTIGATOR (Groq) = execution intelligence
+  // === MOUNTING CASE STATE / COORDINATION LEDGER ===
+  // What is newly known since the previous iteration?
+  // What remains genuinely unresolved?
+  // What would be redundant with work already done?
   return `${apexOrientationCompact("boss")}
 
 You are the Apex Atlas Boss. Make the next evidence-led research assignment from the living case state below. You have no web access. The Investigator owns the research trajectory; you own direction, assignment choice, and whether work should continue.
