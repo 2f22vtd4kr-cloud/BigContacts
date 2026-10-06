@@ -8,15 +8,15 @@ Operator/UI -> canonical Atlas job -> Groq Boss -> Groq Right-hand oversight -> 
 
 ## Model roles
 
-- Gemini Boss: case framing, discovery/target control, Investigator selection, continuation.
-- Gemini Right-hand: bounded independent oversight of supplied case state; never researches or invents evidence.
-- Investigator capability: owns the actual research trajectory and chooses permitted tools. The runtime registry currently exposes only the live Groq adapter; retired providers are not silently substituted.
+- Groq Boss: case framing, discovery/target control, Investigator selection, continuation.
+- Groq Right-hand: bounded independent oversight of supplied case state; never researches or invents evidence.
+- Investigator capability: owns the actual research trajectory and chooses permitted tools. The runtime registry exposes each configured Groq Investigator credential as a separate selectable capability; retired providers are not silently substituted.
 
 Investigator selection is Boss-owned. Deterministic code exposes only currently available capability adapters and validates the Boss selection; it never silently substitutes another provider. Resource budgets may bound an episode, but they do not choose its research strategy.
 
 ## Current Investigator providers
 
-Groq is the current active Investigator adapter. Its model router prefers the fastest low-cost compatible model for routine trajectory turns and reserves larger reasoning capacity for contradiction/final adjudication. The runtime capability registry is the Boss-selection boundary; retired Mistral/Gemini adapters are not silently substituted.
+Groq is the current active Investigator adapter. Each configured Investigator key is a separate runtime capability (`groq-investigator-1`, `groq-investigator-2`, etc.), so Boss selection cannot silently rotate credentials. Within the selected capability, the model router applies the same active Groq model set—currently Qwen 3.8 27B, GPT-OSS 20B, and GPT-OSS 120B—using cognitive-task resource routing; routine turns prefer the fast/low-cost model and contradiction/final adjudication reserve larger reasoning capacity. Retired Mistral/Gemini adapters are not silently substituted.
 
 ## Capabilities
 
