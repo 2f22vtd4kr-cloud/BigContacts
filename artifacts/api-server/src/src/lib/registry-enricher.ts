@@ -18,6 +18,10 @@ import { eq, isNull, or, sql } from "drizzle-orm";
 import { updateJob, appendJobLog } from "./job-queue";
 import { computeContactConfidence } from "./contact-confidence";
 import { logger } from "./logger";
+import { safeOutboundFetch } from "./ssrf-safe-fetch";
+import { runProviderCall } from "./provider-gate";
+
+async function registryEnricherFetch(provider: "companies-house" | "registry", url: string, init: RequestInit, signal?: AbortSignal): Promise<Response> { return runProviderCall({ provider, account: new URL(url).hostname, signal }, () => safeOutboundFetch(url, { ...init, signal: init.signal ?? signal })); }
 
 const CH_BASE = "https://api.companieshouse.gov.uk";
 
@@ -66,7 +70,7 @@ function nameSim(a: string, b: string): number {
 async function fetchChOfficer(name: string, auth: string): Promise<ChOfficer | null> {
   const url = `${CH_BASE}/search/officers?q=${encodeURIComponent(name)}&items_per_page=5`;
   try {
-    const resp = await fetch(url, {
+    const resp = await registryEnricherFetch("companies-house", url, {
       headers: { Authorization: auth, Accept: "application/json" },
       signal: AbortSignal.timeout(10_000),
     });
@@ -98,7 +102,7 @@ interface ChCompanyOfficer {
 async function fetchChCompanyOfficers(companyName: string, auth: string): Promise<ChCompanyOfficer[]> {
   try {
     const searchUrl = `${CH_BASE}/search/companies?q=${encodeURIComponent(companyName)}&items_per_page=5`;
-    const searchResp = await fetch(searchUrl, {
+    const searchResp = await registryEnricherFetch("companies-house", searchUrl, {
       headers: { Authorization: auth, Accept: "application/json" },
       signal: AbortSignal.timeout(10_000),
     });
@@ -118,7 +122,7 @@ async function fetchChCompanyOfficers(companyName: string, auth: string): Promis
     if (!bestNum || bestScore < 0.4) return [];
 
     const officersUrl = `${CH_BASE}/company/${bestNum}/officers?items_per_page=20`;
-    const officersResp = await fetch(officersUrl, {
+    const officersResp = await registryEnricherFetch("companies-house", officersUrl, {
       headers: { Authorization: auth, Accept: "application/json" },
       signal: AbortSignal.timeout(10_000),
     });
@@ -337,7 +341,7 @@ async function searchAleph(name: string): Promise<AlephEntity[]> {
   url.searchParams.set("filter:schema", "Thing");
   url.searchParams.set("limit", "5");
 
-  const res = await fetch(url.toString(), {
+  const res = await registryEnricherFetch("registry", url.toString(), {
     headers: { Accept: "application/json" },
     signal: AbortSignal.timeout(12_000),
   });
@@ -364,7 +368,7 @@ function decodeXml(value: string): string {
 }
 
 async function loadOfacSdn(): Promise<OfacEntry[]> {
-  const response = await fetch(OFAC_SDN_URL, {
+  const response = await registryEnricherFetch("registry", OFAC_SDN_URL, {
     headers: {
       Accept: "application/xml,text/xml",
       "User-Agent": "ApexAtlas/1.0 (public OSINT research)",
