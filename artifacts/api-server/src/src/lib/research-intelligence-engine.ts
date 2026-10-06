@@ -260,6 +260,7 @@ export class ResearchIntelligenceEngine {
     this.chain = context.provenanceDigest || "GENESIS";
     const lineageByUrl = new Map(context.sourceLineage.map((node) => [canonicalUrl(node.canonicalUrl) ?? node.canonicalUrl, node]));
     for (const item of context.atomicEvidence) {
+      if (item.kind === "observation" && item.sourceClass === "SEARCH_RESULT") continue;
       const parsed = extractPredicate(item.claim); const sourceUrl = item.sourceUrl ? canonicalUrl(item.sourceUrl) : null;
       const sourceHost = item.sourceHost ?? hostOf(sourceUrl); const sourceLineage = sourceUrl ? lineageByUrl.get(sourceUrl) : undefined;
       const fingerprint = hash(item.kind + "|" + normalize(item.claim) + "|" + normalize(parsed.object) + "|" + (sourceUrl ?? ""));
@@ -275,12 +276,18 @@ export class ResearchIntelligenceEngine {
     for (const fact of context.facts) {
       const parsed = extractPredicate(fact.claim); const id = "cl_" + hash(fact.claim).slice(0, 20);
       this.claims.set(id, { id, subject: parsed.subject, predicate: parsed.predicate, object: parsed.object, status: "supported",
-        evidenceIds: [...new Set(fact.evidenceIds)], sourceHosts: [...new Set(fact.sources)],
+        evidenceIds: [...new Set(fact.evidenceIds)].filter((evidenceId) => [...this.evidence.values()].some((evidence) => evidence.id === evidenceId)), sourceHosts: [...new Set(fact.sources)],
         firstSeen: new Date(0).toISOString(), lastSeen: new Date(0).toISOString() });
     }
-    for (const hypothesis of context.hypotheses) this.hypotheses.set(hypothesis.id, { ...hypothesis, supportingEvidenceIds: [...hypothesis.supportingEvidenceIds], contradictingEvidenceIds: [...hypothesis.contradictingEvidenceIds], missingDiscriminators: [...hypothesis.missingDiscriminators] });
-    for (const contact of context.contacts) { const key = contact.vector + "|" + normalize(contact.personName ?? "") + "|" + normalize(contact.value);
-      this.contacts.set(key, { ...contact, sourceUrls: [...contact.sourceUrls], sourceHosts: [...contact.sourceHosts] }); }
+    const knownEvidenceIds = new Set([...this.evidence.values()].map((evidence) => evidence.id));
+    for (const hypothesis of context.hypotheses) this.hypotheses.set(hypothesis.id, { ...hypothesis, supportingEvidenceIds: [...hypothesis.supportingEvidenceIds].filter((id) => knownEvidenceIds.has(id)), contradictingEvidenceIds: [...hypothesis.contradictingEvidenceIds].filter((id) => knownEvidenceIds.has(id)), missingDiscriminators: [...hypothesis.missingDiscriminators] });
+    for (const contact of context.contacts) {
+      const sourceUrls = [...new Set(contact.sourceUrls)].filter((url) => sourceClassForHost(hostOf(url)) !== "SEARCH_RESULT");
+      if (!sourceUrls.length) continue;
+      const sourceHosts = [...new Set(sourceUrls.map(hostOf).filter((host): host is string => Boolean(host)))];
+      const key = contact.vector + "|" + normalize(contact.personName ?? "") + "|" + normalize(contact.value);
+      this.contacts.set(key, { ...contact, sourceUrls, sourceHosts });
+    }
     for (const negative of context.negativeFindings) this.negativeFindings.add(negative);
     for (const action of context.recentActions) this.actions.push({ ...action, args: { ...action.args }, urls: [...action.urls], findingNames: [...action.findingNames], findingRoles: [...action.findingRoles] });
     for (const node of context.sourceLineage) this.sourceLineage.register({ canonicalUrl: node.canonicalUrl, host: node.host, originSourceId: node.originSourceId, publisher: null, citedSourceIds: [...node.citedSourceIds], contentFingerprint: null, sourceId: node.sourceId });
