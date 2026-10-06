@@ -10,7 +10,7 @@ import { buildClaimSupportGraph, observationsFromSourceUrls, validateClaimSuppor
 type ActSourceRecord={turn:number;action:string;execution:string;observation?:string;observedUrls:string[];findings:unknown[]};type ActRecord={turn:number;model:string;action:string;args:Record<string,unknown>;thought?:string;execution:string;observation?:string;observedUrls:string[];findings:unknown[];providerFallback?:string[];stopReason?:string;sourceRecords?:ActSourceRecord[]};
 export type TargetActOversight={status:"completed"|"unavailable";action:"continue"|"redirect"|"stop";direction:string|null;reason:string|null;confidence:number|null;rightHand:{status:"completed"|"unavailable";decision:string|null;reason:string|null;focusLanes:string[];confidence:number|null;model:string;error:string|null};bossModel:string|null;error:string|null};
 const OVERSIGHT_SHARED_CONTEXT_MAX_CHARS = 5_000;
-const OVERSIGHT_ACT_OBSERVATION_MAX_CHARS = 1_800;
+const OVERSIGHT_ACT_OBSERVATION_MAX_CHARS = 1_600;
 const OVERSIGHT_RECENT_ACTS = 2;
 
 function boundOversightText(value: unknown, max: number): string {
@@ -23,7 +23,7 @@ function boundOversightText(value: unknown, max: number): string {
   return normalized.slice(0, head).trimEnd() + marker + normalized.slice(-(available - head)).trimStart();
 }
 
-function compactOversightValue(value: unknown, max = 320): unknown {
+function compactOversightValue(value: unknown, max = 220): unknown {
   if (typeof value === "string") return boundOversightText(value, max);
   if (value === null || typeof value === "number" || typeof value === "boolean") return value;
   try { return boundOversightText(JSON.stringify(value), max); } catch { return "[unserializable]"; }
@@ -34,12 +34,12 @@ function compactOversightFinding(value: unknown): Record<string, unknown> {
   const finding = value as Record<string, unknown>;
   return {
     vectorType: compactOversightValue(finding.vectorType, 80),
-    value: compactOversightValue(finding.value, 300),
+    value: compactOversightValue(finding.value, 240),
     personName: compactOversightValue(finding.personName, 140),
     role: compactOversightValue(finding.role, 120),
     scope: compactOversightValue(finding.scope, 60),
     sourceUrls: Array.isArray(finding.sourceUrls) ? finding.sourceUrls.filter((url): url is string => typeof url === "string").slice(0, 4) : [],
-    note: compactOversightValue(finding.note, 220),
+    note: compactOversightValue(finding.note, 160),
     promotionDecision: compactOversightValue(finding.promotionDecision, 80),
   };
 }
@@ -49,11 +49,11 @@ export function compactOversightAct(record:ActRecord):Record<string,unknown>{
     turn: record.turn,
     model: record.model,
     action: record.action,
-    args: Object.fromEntries(Object.entries(record.args ?? {}).slice(0, 6).map(([key, value]) => [key.slice(0, 80), compactOversightValue(value)])),
+    args: Object.fromEntries(Object.entries(record.args ?? {}).slice(0, 4).map(([key, value]) => [key.slice(0, 80), compactOversightValue(value)])),
     execution: record.execution,
     observation: boundOversightText(record.observation, OVERSIGHT_ACT_OBSERVATION_MAX_CHARS) || null,
     observedUrls: record.observedUrls.slice(0, 6),
-    findings: record.findings.slice(0, 6).map(compactOversightFinding),
+    findings: record.findings.slice(0, 4).map(compactOversightFinding),
     stopReason: compactOversightValue(record.stopReason, 180) || null,
   };
 }
