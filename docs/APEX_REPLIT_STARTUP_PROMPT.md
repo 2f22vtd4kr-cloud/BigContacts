@@ -44,78 +44,71 @@ Also inspect the actual current source, schemas/migrations, scripts, tests, work
 2. CURRENT APEX PROVIDER ARCHITECTURE — DO NOT ALTER
 ============================================================
 
-The active research architecture is:
+The active architecture is:
 
-Gemini Boss
+Groq Boss
     ↓
-Gemini Right-hand
+runtime Investigator capability selection
     ↓
-Groq OR Mistral Investigator
+selected Groq Investigator capability
     ↓
 Investigator-owned free-ReAct web research
     ↓
 real tool execution → observations/provenance → evidence graph
     ↓
-Gemini oversight → continue / redirect / stop
+Groq Right-hand oversight
+    ↓
+Groq Boss continue / redirect / stop
     ↓
 finding, promotion, contradiction handling, or honest abstention
 
 Provider roles are strict:
 
-- Gemini Boss: oversight/control plane only. No browsing. No evidence invention.
-- Gemini Right-hand: oversight/advisory only. No browsing. No tool selection/execution. No evidence invention.
-- Investigator pool: ONLY Groq and Mistral.
-- DeepSeek is RETIRED from the active architecture.
-- NVIDIA NIM is RETIRED from the active architecture.
-- Gemini is NOT an Investigator fallback.
-- Boss/Right-hand unavailability is fail-closed.
+- Groq Boss: case direction/control only. No browsing. No evidence invention.
+- Groq Right-hand: bounded oversight/advisory only. No browsing, tool selection, or evidence invention.
+- Investigator pool: separate Groq credential capabilities exposed by the runtime registry.
+- Gemini, Mistral, DeepSeek, and NVIDIA NIM are not active canonical transports.
+- Boss/Right-hand/Investigator unavailability remains fail-closed where the relevant control boundary requires it.
+- Do NOT introduce a new provider merely to bypass a failure.
+- Do NOT put fixed search/provider/query/URL sequences into the Investigator.
 
-Do NOT restore or request any retired DeepSeek/NVIDIA credential.
-Do NOT run any DeepSeek migration.
-Do NOT introduce a new provider merely to bypass a failure.
-Do NOT put fixed search/provider/query/URL sequences into the Investigator.
+Investigator capability mapping:
+- groq-investigator-1 → GROQ_INVESTIGATOR_API_KEY
+- groq-investigator-2 → GROQ_INVESTIGATOR_API_KEY_1
+- groq-investigator-3 → GROQ_INVESTIGATOR_API_KEY_2
+- groq-investigator-4 → GROQ_INVESTIGATOR_API_KEY_3
+- groq-investigator-5 → GROQ_INVESTIGATOR_API_KEY_4
+- groq-investigator-6 → GROQ_INVESTIGATOR_API_KEY_5
 
-Current Right-hand credential:
-GEMINI_RIGHT_HAND_API_KEY
+Selecting one Investigator capability never silently rotates to another credential.
 
-Current Boss credential:
-GEMINI_API_KEY
-
-The Right-hand has a bounded Gemini model fallback chain implemented by the application. Do not replace it with a second provider.
+Current Investigator model routes inside Groq are Qwen 3.8 27B, GPT-OSS 20B, and GPT-OSS 120B. Model routing is downstream of capability selection.
 
 ============================================================
 3. CANONICAL OPERATOR SECRETS
 ============================================================
 
-For a fresh Replit setup, verify presence of the current required names only:
+The current preflight checks these active names:
 
-1. REDIS_URL_1
-2. GROQ_API_KEY
-3. GEMINI_API_KEY
-4. MISTRAL_API_KEY
-5. HF_TOKEN
-6. SERPER_API_KEY
-7. TAVILY_API_KEY
-8. SERPAPI_KEY
-9. EXA_API_KEY
-10. SCRAPFLY_API_KEY
-11. ZENROWS_API_KEY
-12. COMPANIES_HOUSE_API_KEY
-13. GEMINI_RIGHT_HAND_API_KEY
-14. APEX_API_AUTH_TOKEN
-15. APEX_OPERATOR_PASSWORD
-16. APEX_SESSION_SECRET
+1. COMPANIES_HOUSE_API_KEY
+2. EXA_API_KEY
+3. GROQ_BOSS_API_KEY
+4. GROQ_RIGHT_HAND_API_KEY
+5. GROQ_INVESTIGATOR_API_KEY
+6. HF_TOKEN
+7. GROQ_INVESTIGATOR_API_KEY_1
+8. REDIS_URL_1
+9. SCRAPFLY_API_KEY
+10. SERPAPI_KEY
+11. SERPER_API_KEY
+12. TAVILY_API_KEY
+13. ZENROWS_API_KEY
 
-DATABASE_URL is platform-managed by Replit/Postgres. Never ask the operator to invent or paste it when the platform provides it.
+Additional numbered Groq role credentials are optional runtime slots. Investigator slots are independently selectable capabilities; do not silently substitute another key.
 
-Never request, restore, print, echo, commit or log:
-- DEEPSEEK_API_KEY
-- NVIDIA_NIM_API_KEY / NVIDIA_API_KEY
-- WHOISJSON_API_KEY
-- WHOXY credentials
-- REDIS_URL_2 through REDIS_URL_5
+DATABASE_URL is platform-managed by Postgres. Never ask the operator to invent or paste it.
 
-Never expose secret values.
+Never request, restore, print, echo, commit or log retired Gemini/Mistral/DeepSeek/NVIDIA control-plane credentials, WHOIS/WHOXY credentials, or secret values.
 
 ============================================================
 4. RUNTIME CONTRACT

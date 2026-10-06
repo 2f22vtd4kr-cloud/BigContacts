@@ -84,50 +84,42 @@ IMPORTANT:
 
 ENVIRONMENT / KEYS
 
-The startup credential gate is NOT conditional.
+The startup credential gate checks the active provider names used by the current main runtime. Verify presence only; never display or echo values.
 
-The canonical fresh-account setup contract is the complete 16-name list below. Ask the operator for these exact names in this order and verify presence only; never display or echo values.
+1. COMPANIES_HOUSE_API_KEY
+2. EXA_API_KEY
+3. GROQ_BOSS_API_KEY
+4. GROQ_RIGHT_HAND_API_KEY
+5. GROQ_INVESTIGATOR_API_KEY
+6. HF_TOKEN
+7. GROQ_INVESTIGATOR_API_KEY_1
+8. REDIS_URL_1
+9. SCRAPFLY_API_KEY
+10. SERPAPI_KEY
+11. SERPER_API_KEY
+12. TAVILY_API_KEY
+13. ZENROWS_API_KEY
 
-1. REDIS_URL_1
-2. GROQ_API_KEY
-3. GEMINI_API_KEY
-4. MISTRAL_API_KEY
-5. HF_TOKEN
-6. SERPER_API_KEY
-7. TAVILY_API_KEY
-8. SERPAPI_KEY
-9. EXA_API_KEY
-10. SCRAPFLY_API_KEY
-11. ZENROWS_API_KEY
-12. COMPANIES_HOUSE_API_KEY
-13. GEMINI_RIGHT_HAND_API_KEY
-14. APEX_API_AUTH_TOKEN
-15. APEX_OPERATOR_PASSWORD
-16. APEX_SESSION_SECRET
+Additional numbered Groq Boss, Right-hand, and Investigator credentials are optional runtime slots. Investigator slots are separate selectable capabilities:
+- groq-investigator-1 → GROQ_INVESTIGATOR_API_KEY
+- groq-investigator-2 → GROQ_INVESTIGATOR_API_KEY_1
+- groq-investigator-3 → GROQ_INVESTIGATOR_API_KEY_2
+- groq-investigator-4 → GROQ_INVESTIGATOR_API_KEY_3
+- groq-investigator-5 → GROQ_INVESTIGATOR_API_KEY_4
+- groq-investigator-6 → GROQ_INVESTIGATOR_API_KEY_5
 
-`DATABASE_URL` is supplied by the Replit/Postgres environment and must not be requested from the operator.
+Selecting one Investigator capability never silently rotates to another credential.
 
-This is an explicit configuration checklist, not a provider-discovery exercise. Do not omit a name because a first smoke test does not use that capability. Do not request historical/retired provider credentials.
+DATABASE_URL is supplied by Postgres/platform infrastructure and must not be requested from the operator.
 
-IMPORTANT: older `docs/bureau-plan/*` files contain historical secret/provider contracts. They are not authoritative for fresh-account setup. This section and `docs/REPLIT_NEW_ACCOUNT_SETUP.md` are the current key contract.
+Never request or restore retired Gemini/Mistral/DeepSeek/NVIDIA control-plane credentials, WHOIS/WHOXY credentials, or secret values.
 
 Rules:
 - Never ask the operator to paste secret values into chat.
-- Tell the operator to enter each value directly into Replit Secrets.
-- Never print, echo, log, commit, or place secret values in source files.
-- Verify only that each required variable is present/non-empty.
+- Verify presence only.
 - Do not manufacture placeholder production keys.
 - Do not silently substitute another provider.
-- Do not omit a listed key because the first smoke test happens not to use that provider.
-- Retired credentials that must NOT be requested or restored:
-  - DEEPSEEK_API_KEY
-  - NVIDIA_API_KEY
-  - WHOISJSON_API_KEY
-  - WHOXY_API_KEY
-
-Role law:
-- Gemini is Boss / Right-hand oversight.
-- Groq/Mistral are Investigator providers.
+- Retired providers remain historical documentation only.
 
 AUTH
 Verify the current repository's authentication contract before changing anything.
@@ -171,7 +163,7 @@ Do not call a healthy build a healthy runtime. Do not spend live-provider quota 
 APEX RESEARCH ARCHITECTURE — DO NOT VIOLATE
 The system is:
 Case objective
-→ Gemini Boss + Gemini Right-hand
+→ Groq Boss + Groq Right-hand
 → Groq or Mistral Investigator
 → Investigator-owned free ReAct research trajectory
 → validated real capability execution
@@ -214,8 +206,8 @@ Create/run a genuine discovery case through the repository's canonical discovery
 The expected sequence is:
 
 high-level discovery objective
-→ Gemini Right-hand advisory
-→ Gemini Boss oversight/Investigator selection
+→ Groq Right-hand advisory
+→ Groq Boss oversight/Investigator selection
 → Groq or Mistral Investigator
 → Investigator-owned autonomous discovery
 → real web observations
@@ -226,8 +218,8 @@ high-level discovery objective
 A UI prompt asking the operator to name a specific investigation/target is NOT a substitute for this smoke test. If the UI displays such a prompt during initialization, use the canonical backend discovery route instead of asking the operator for a target.
 
 Verify:
-- actual Gemini Boss invocation;
-- actual Groq/Mistral Investigator;
+- actual Groq Boss invocation;
+- actual Groq Investigator;
 - real web/tool execution;
 - durable observations;
 - provenance;
@@ -244,7 +236,7 @@ Unknown is a valid outcome.
 
 PROVIDER CONCURRENCY
 
-Gemini Right-hand and Gemini Boss are distinct oversight roles but share the external-provider budget. The current provider gate gives Gemini a bounded concurrency lane of two by default so oversight calls do not unnecessarily serialize behind one Gemini slot.
+Groq Right-hand and Groq Boss are distinct oversight roles but share the external-provider budget. The current provider gate gives Gemini a bounded concurrency lane of two by default so oversight calls do not unnecessarily serialize behind one Gemini slot.
 
 This is a capacity safeguard, not a research strategy. Do not remove it by starting duplicate workflows or by creating unbounded retries.
 
@@ -314,34 +306,27 @@ Do not say “complete” unless the requested layer has actually been verified.
 
 # 1. OPERATOR KEY CHECKLIST
 
-For a fresh Replit account, configure the complete canonical 16-name startup contract in Replit Secrets, in this exact order:
+For a fresh Replit account, configure the active provider names checked by the current preflight:
 
 ```
-1. REDIS_URL_1
-2. GROQ_API_KEY
-3. GEMINI_API_KEY
-4. MISTRAL_API_KEY
-5. HF_TOKEN
-6. SERPER_API_KEY
-7. TAVILY_API_KEY
-8. SERPAPI_KEY
-9. EXA_API_KEY
-10. SCRAPFLY_API_KEY
-11. ZENROWS_API_KEY
-12. COMPANIES_HOUSE_API_KEY
-13. GEMINI_RIGHT_HAND_API_KEY
-14. APEX_API_AUTH_TOKEN
-15. APEX_OPERATOR_PASSWORD
-16. APEX_SESSION_SECRET
+COMPANIES_HOUSE_API_KEY
+EXA_API_KEY
+GROQ_BOSS_API_KEY
+GROQ_RIGHT_HAND_API_KEY
+GROQ_INVESTIGATOR_API_KEY
+HF_TOKEN
+GROQ_INVESTIGATOR_API_KEY_1
+REDIS_URL_1
+SCRAPFLY_API_KEY
+SERPAPI_KEY
+SERPER_API_KEY
+TAVILY_API_KEY
+ZENROWS_API_KEY
 ```
 
-The startup contract is intentionally explicit: do not turn key setup into conditional provider discovery. Presence checks are enough; never print values.
+Optional numbered Groq role credentials may be added as separate runtime slots. Investigator slots map one-to-one to `groq-investigator-1` through `groq-investigator-6`. Never silently rotate an explicitly selected Investigator capability.
 
-`DATABASE_URL` is supplied by Replit/Postgres and is not part of the operator-entered list.
-
-Historical provider keys such as DeepSeek/NVIDIA/WhoisJSON/Whoxy are retired and must not be requested.
-
----
+`DATABASE_URL` is platform-managed. Never request secret values in chat. Retired Gemini/Mistral/DeepSeek/NVIDIA credentials are not part of the active setup.
 
 # 2. SAFE INITIALIZATION ORDER
 
@@ -650,7 +635,7 @@ The following two runtime protections are now committed to `main`:
 
 These are safety rails, not a replacement for the one-workflow rule.
 
-The previous captured run also established that Gemini Boss may need bounded same-role model fallback when a configured Gemini model is capacity-limited. A new agent must preserve that same-role fallback and its bounded control-plane deadline if those changes are already present on the checked-out `main`.
+The previous captured run also established that Groq Boss may need bounded same-role model fallback when a configured Gemini model is capacity-limited. A new agent must preserve that same-role fallback and its bounded control-plane deadline if those changes are already present on the checked-out `main`.
 
 # 13. FINAL NEW-ACCOUNT PROMPT RULE
 

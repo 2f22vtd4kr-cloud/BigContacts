@@ -17,42 +17,39 @@ Before changing anything, read:
 
 CURRENT PROVIDER ARCHITECTURE — DO NOT CHANGE
 
-Gemini Boss
+Groq Boss
   ↓
-Gemini Right-hand
+Groq Right-hand
   ↓
-Groq OR Mistral Investigator
+Groq Investigator
 
 Boss and Right-hand are oversight only. They do not browse, execute tools, invent evidence, or choose fixed Investigator search sequences.
 
-The active Investigator pool is ONLY Groq and Mistral.
+The active Investigator adapter is Groq. Each configured Groq Investigator credential is a separate selectable capability.
 DeepSeek and NVIDIA NIM are retired from the active architecture.
 Do not restore them, migrate to them, request their credentials, or use them as fallbacks.
-Gemini is not an Investigator fallback.
+Gemini is not an active canonical Investigator transport.
 Boss/Right-hand unavailable => fail closed.
 
 Canonical credentials:
-- GEMINI_API_KEY — Gemini Boss
-- GEMINI_RIGHT_HAND_API_KEY — Gemini Right-hand
+- GROQ_BOSS_API_KEY — Groq Boss
+- GROQ_RIGHT_HAND_API_KEY — Groq Right-hand
 
 CURRENT FRESH-ACCOUNT SECRET CHECKLIST
 
-1. REDIS_URL_1
-2. GROQ_API_KEY
-3. GEMINI_API_KEY
-4. MISTRAL_API_KEY
-5. HF_TOKEN
-6. SERPER_API_KEY
-7. TAVILY_API_KEY
-8. SERPAPI_KEY
-9. EXA_API_KEY
-10. SCRAPFLY_API_KEY
-11. ZENROWS_API_KEY
-12. COMPANIES_HOUSE_API_KEY
-13. GEMINI_RIGHT_HAND_API_KEY
-14. APEX_API_AUTH_TOKEN
-15. APEX_OPERATOR_PASSWORD
-16. APEX_SESSION_SECRET
+1. COMPANIES_HOUSE_API_KEY
+2. EXA_API_KEY
+3. GROQ_BOSS_API_KEY
+4. GROQ_RIGHT_HAND_API_KEY
+5. GROQ_INVESTIGATOR_API_KEY
+6. HF_TOKEN
+7. GROQ_INVESTIGATOR_API_KEY_1
+8. REDIS_URL_1
+9. SCRAPFLY_API_KEY
+10. SERPAPI_KEY
+11. SERPER_API_KEY
+12. TAVILY_API_KEY
+13. ZENROWS_API_KEY
 
 DATABASE_URL is supplied by the Replit/Postgres environment. Do not ask the operator to invent or paste it.
 
