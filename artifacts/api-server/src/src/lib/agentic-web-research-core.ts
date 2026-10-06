@@ -363,6 +363,9 @@ function groqInvestigatorCompletionBudget(task: ResearchCognitiveTask): number {
 
 export function buildGroqInvestigatorRequestBody(input: { model: string; prompt: string; cognitiveTask: ResearchCognitiveTask }): Record<string, unknown> {
   const { model, prompt, cognitiveTask } = input;
+  const systemPrompt = INVESTIGATOR_SYSTEM_PROMPT();
+  const maxUserPromptChars = Math.max(1_000, MAX_PROVIDER_PROMPT_CHARS - systemPrompt.length);
+  const boundedPrompt = boundInvestigatorPromptSection(prompt, maxUserPromptChars);
   const reasoningSupported = /^(qwen\/qwen3\.8-27b|openai\/gpt-oss-(20b|120b))$/.test(model);
   return {
     model,
@@ -370,8 +373,8 @@ export function buildGroqInvestigatorRequestBody(input: { model: string; prompt:
     ...(reasoningSupported ? { reasoning_effort: groqInvestigatorReasoningEffort(model, cognitiveTask), include_reasoning: false } : {}),
     response_format: structuredActionResponseFormat(model),
     messages: [
-      { role: "system", content: INVESTIGATOR_SYSTEM_PROMPT() },
-      { role: "user", content: prompt },
+      { role: "system", content: systemPrompt },
+      { role: "user", content: boundedPrompt },
     ],
   };
 }
