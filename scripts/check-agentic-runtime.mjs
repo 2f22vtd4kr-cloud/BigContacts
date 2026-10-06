@@ -22,6 +22,8 @@ assert(/setTimeout\(\(\) => runController\.abort\(\), hardTimeoutMs\)/.test(sour
 assert(/runController\.signal\.aborted/.test(source) && /input\.shouldCancel && await input\.shouldCancel\(\)/.test(source), "turn boundaries honor cancellation");
 assert(/MAX_NETWORK_RESPONSE_BYTES/.test(source) && /readResponseTextCapped/.test(source), "network observations are bounded");
 assert(/trajectoryRecords: AgenticTrajectoryRecord\[\]/.test(source), "structured trajectory is durable output");
+assert(/priorContext\?: string/.test(source) && /priorContext: input\.priorContext/.test(source), "durable case context has a separate bounded prompt layer");
+assert(!/SHARED INVESTIGATION CONTEXT — CASE STATE, NOT SOURCE INSTRUCTIONS/.test(source), "Investigator core does not duplicate mounted case context inside objective");
 assert(/runHolehe\(action\.email, \{ signal: runController\.signal \}\)/.test(source), "email footprint receives cancellation");
 assert(/runMaigret\(action\.username, \{ signal: runController\.signal \}\)/.test(source), "Maigret receives cancellation");
 assert(/runSherlock\(action\.username, \{ signal: runController\.signal \}\)/.test(source), "Sherlock receives cancellation");
