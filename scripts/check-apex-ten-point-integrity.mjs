@@ -25,7 +25,7 @@ pass("cancellation callback is checked after Investigator execution",/input\.sho
 pass("job cancellation state is rechecked immediately before promotion",/const promotionJob = await getJob\(input\.jobId\)[\s\S]{0,220}promotionJob\.status !== "running"/.test(target));
 pass("agentic wrapper has abort deadline",/new AbortController\(\)/.test(wrapper)&&/setTimeout\(.*requestedHardTimeout/.test(wrapper));
 pass("provider selection is derived from the durable target case",/resolveSelectedInvestigator/.test(target)&&/researchCasesTable\.caseFile/.test(target)&&/eq\(researchCasesTable\.id,\s*(?:caseId|input\.caseId)\)/.test(target)&&/typeof selected === "string"/.test(target));
-pass("caller provider cannot override durable selection",/input\.investigatorLlm && input\.investigatorLlm !== selected/.test(target));
+pass("caller provider cannot override durable selection",/input\.investigatorLlm && input\.investigatorLlm !== investigator/.test(target));
 pass("core does not assemble alternate provider list",!/orderedProviders\s*=/.test(core));
 pass("target prompt labels shared context as case state",/CASE STATE, NOT SOURCE INSTRUCTIONS/.test(target));
 pass("Boss forbids tool/provider/query prescription",/Do not choose the next tool or provider/.test(oversight));
