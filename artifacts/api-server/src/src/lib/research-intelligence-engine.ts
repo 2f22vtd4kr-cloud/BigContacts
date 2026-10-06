@@ -518,7 +518,7 @@ export class ResearchIntelligenceEngine {
   }
 }
 
-export function renderIntelligenceContext(context: IntelligenceContext, maxChars = 6_000): string {
+function compactActionArgs(args: Record<string, unknown>, maxKeys: number): Record<string, unknown> {\n  const priority = /^(?:query|url|target|name|company|domain|email|phone|role|purpose|question|objective|hypothesis|provider|registry)$/i;\n  const entries = Object.entries(args);\n  const ranked = [...entries].sort(([a], [b]) => Number(priority.test(b)) - Number(priority.test(a)));\n  return Object.fromEntries(ranked.slice(0, maxKeys));\n}\n\nexport function renderIntelligenceContext(context: IntelligenceContext, maxChars = 6_000): string {
   const bounded = {
     version: context.version,
     caseId: context.caseId,
@@ -526,12 +526,12 @@ export function renderIntelligenceContext(context: IntelligenceContext, maxChars
     target: context.target,
     objective: context.objective.slice(0, 1_500),
     facts: context.facts.slice(-12).map((fact) => ({ claim: fact.claim.slice(0, 500), evidenceIds: fact.evidenceIds.slice(0, 8), sources: fact.sources.slice(0, 6) })),
-    hypotheses: context.hypotheses.slice(0, 8).map((hypothesis) => ({ ...hypothesis, label: hypothesis.label.slice(0, 300), entity: hypothesis.entity.slice(0, 240), supportingEvidenceIds: hypothesis.supportingEvidenceIds.slice(0, 8), contradictingEvidenceIds: hypothesis.contradictingEvidenceIds.slice(0, 8), missingDiscriminators: hypothesis.missingDiscriminators.slice(0, 8).map((v) => v.slice(0, 300)) })),
+    hypotheses: [...context.hypotheses].sort((a, b) => b.score - a.score).slice(0, 8).map((hypothesis) => ({ ...hypothesis, label: hypothesis.label.slice(0, 300), entity: hypothesis.entity.slice(0, 240), supportingEvidenceIds: hypothesis.supportingEvidenceIds.slice(0, 8), contradictingEvidenceIds: hypothesis.contradictingEvidenceIds.slice(0, 8), missingDiscriminators: hypothesis.missingDiscriminators.slice(0, 8).map((v) => v.slice(0, 300)) })),
     contradictions: context.contradictions.slice(-8).map((item) => ({ claim: item.claim.slice(0, 500), evidenceIds: item.evidenceIds.slice(0, 8), sources: item.sources.slice(0, 6) })),
     contacts: context.contacts.slice(-10).map((contact) => ({ ...contact, value: contact.value.slice(0, 300), sourceUrls: contact.sourceUrls.slice(0, 6), sourceHosts: contact.sourceHosts.slice(0, 6) })),
     negativeFindings: context.negativeFindings.slice(-12).map((v) => v.slice(0, 400)),
     openQuestions: context.openQuestions.slice(0, 12).map((v) => v.slice(0, 400)),
-    recentActions: context.recentActions.slice(-4).map((action) => ({ ...action, findingNames: action.findingNames.slice(0, 8), findingRoles: action.findingRoles.slice(0, 8), args: Object.fromEntries(Object.entries(action.args ?? {}).slice(0, 12)), observation: action.observation.slice(0, 500), urls: action.urls.slice(0, 6) })),
+    recentActions: context.recentActions.slice(-4).map((action) => ({ ...action, findingNames: action.findingNames.slice(0, 8), findingRoles: action.findingRoles.slice(0, 8), args: compactActionArgs(action.args ?? {}, 12), observation: action.observation.slice(0, 500), urls: action.urls.slice(0, 6) })),
     sourceDiversity: context.sourceDiversity,
     sourceFamilyDiversity: context.sourceFamilyDiversity,
     repeatedSourceFamilies: context.repeatedSourceFamilies.slice(0, 12),
@@ -559,21 +559,22 @@ export function renderIntelligenceContext(context: IntelligenceContext, maxChars
   const marker = "[INTELLIGENCE CONTEXT BOUND: omitted middle detail remains durable outside this prompt]";
   // Decision guidance is never expendable. Reserve it first, then discovery
   // intelligence, then give the remaining budget to evidence state.
-  const separatorLength = 6;
-  const guidanceBlock = [guidance].join("");
-  const discoveryBudget = Math.min(
-    discovery.length,
-    Math.max(900, Math.floor((budget - header.length - guidanceBlock.length - marker.length - 80) * 0.32)),
+  const guidanceBlock = guidance;
+  const separatorCount = 7;
+  const discoveryCapacity = Math.max(
+    0,
+    budget - header.length - guidanceBlock.length - marker.length - separatorCount,
   );
-  const compactDiscovery = discovery.length <= discoveryBudget
-    ? discovery
-    : discovery.slice(0, discoveryBudget);
-  const fixedLength = header.length + marker.length + compactDiscovery.length + guidanceBlock.length + separatorLength;
+  const discoveryBudget = Math.min(discovery.length, Math.floor(discoveryCapacity * 0.32));
+  const compactDiscovery = discovery.slice(0, discoveryBudget);
+  const fixedLength = header.length + marker.length + compactDiscovery.length + guidanceBlock.length + separatorCount;
   const available = Math.max(0, budget - fixedLength);
   if (available <= 0) {
-    return [header, marker, compactDiscovery, guidance].join("\n");
+    return [header, marker, guidance].join("\n");
   }
   const head = Math.ceil(available / 2);
   const tail = available - head;
-  return [header, body.slice(0, head), marker, body.slice(-tail), "", compactDiscovery, "", guidance].join("\n");
+  const bodyHead = body.slice(0, head);
+  const bodyTail = tail > 0 ? body.slice(-tail) : "";
+  return [header, bodyHead, marker, bodyTail, "", compactDiscovery, "", guidance].join("\n");
 }
