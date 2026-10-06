@@ -235,15 +235,29 @@ export function buildInvestigatorContext(input: InvestigatorContextInput): strin
 
   sections.push("CONTEXT MANAGEMENT LAW\nThe complete trajectory and evidence remain durable outside this prompt. This working context is deliberately selective. Do not treat omitted raw detail as negative evidence. Prefer a new discriminating action when the archived index shows an unresolved gap. Do not repeat a failed avenue solely because its raw observation is not visible here.");
 
+  const latestSection = records.length
+    ? "LATEST TRAJECTORY RECORD (must remain visible to the next Investigator)\n" +
+      compactRecord(records[records.length - 1]!, budget.recentObservationChars, Math.min(900, Math.max(700, Math.floor(budget.maxChars * 0.18))))
+    : "LATEST OBSERVATION\n" + (trim(input.lastObservation, budget.recentObservationChars) || "(none)");
+  const latestReserve = Math.min(budget.maxChars, latestSection.length);
+
   let result = "";
   for (const section of sections) {
     if (!section) continue;
     const separator = result ? "\n\n" : "";
-    const remaining = budget.maxChars - result.length - separator.length;
-    const fitted = fitSection(section, remaining);
+    const remaining = budget.maxChars - result.length - separator.length - latestReserve - (result ? 2 : 0);
+    const fitted = fitSection(section, Math.max(0, remaining));
     if (!fitted) continue;
     result += separator + fitted;
   }
+
+  if (latestSection) {
+    const separator = result ? "\n\n" : "";
+    const remaining = budget.maxChars - result.length - separator.length;
+    const fittedLatest = fitSection(latestSection, remaining);
+    if (fittedLatest) result += separator + fittedLatest;
+  }
+
   return result.slice(0, budget.maxChars);
 }
 
