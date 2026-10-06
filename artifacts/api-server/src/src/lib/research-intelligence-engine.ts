@@ -456,7 +456,7 @@ export class ResearchIntelligenceEngine {
       }))
       .filter((item) => item.sourceHosts.length >= 2);
     const atomicEvidence = [...this.evidence.values()]
-      .filter((evidence) => evidence.kind !== "negative")
+      .filter((evidence) => evidence.kind !== "negative" && !(evidence.kind === "observation" && ["web_search", "parallel_web_search"].includes(evidence.action)))
       .slice(-24)
       .map((evidence) => ({
         evidenceId: evidence.id,
