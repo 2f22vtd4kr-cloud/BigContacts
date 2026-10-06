@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { buildGroqInvestigatorRequestBody, buildStepPrompt, buildInvestigatorContext, validateDiscoverySearchQuery } from "./agentic-web-research-core";
+import { buildGroqInvestigatorRequestBody, buildStepPrompt, validateDiscoverySearchQuery } from "./agentic-web-research-core";
+import { buildInvestigatorContext } from "./investigation-context-compaction";
 
 describe("Investigator prompt architecture", () => {
   it("keeps the composed model prompt materially below the old 12k-character live request", () => {
