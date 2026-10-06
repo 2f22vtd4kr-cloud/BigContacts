@@ -9,7 +9,7 @@ const hardener = fs.readFileSync("scripts/apply-agentic-concurrency-hardening.mj
 const liveAudit = fs.readFileSync("scripts/audit-live-bureau.mjs", "utf8");
 const failures = [];
 const assert = (ok, name) => { if (!ok) failures.push(name); };
-assert(/INVESTIGATOR_LLM_CAPABILITY_POOL/.test(source), "Investigator capability pool is explicit");
+assert(/getAvailableInvestigatorCapabilities/.test(source) && /investigatorCapabilityKeyName/.test(source), "Investigator capability registry is explicit");
 assert(/const AGENTIC_ACTION_SCHEMA\s*=/.test(source) && /function parseAction/.test(source), "action schema/parser are fail-closed");
 assert(/include_reasoning:\s*false/.test(source) && !/reasoning_format:\s*"hidden"/.test(source), "GPT-OSS Investigator uses include_reasoning instead of unsupported reasoning_format");
 assert(/targetType:\s*\{/.test(source) && /profile:\s*\{/.test(source) && /locale:\s*\{/.test(source) && /market:\s*\{/.test(source), "strict Investigator action schema exposes all parsed action fields");
@@ -27,8 +27,8 @@ assert(/runMaigret\(action\.username, \{ signal: runController\.signal \}\)/.tes
 assert(/runSherlock\(action\.username, \{ signal: runController\.signal \}\)/.test(source), "Sherlock receives cancellation");
 assert(!/callGeminiJson|callNvidiaJson|GEMINI_API_KEY_|async function callGeminiJson\b|async function callNvidiaJson\b/.test(source), "Boss/Right-Hand providers are absent from Investigator runtime");
 assert(!/orderedProviders\s*=/.test(source), "Investigator has no alternate-provider fallback list");
-assert(/const fn = selectedInvestigatorLlm === "groq"/.test(source), "selected Investigator reaches direct provider boundary");
-assert(/investigatorLlm\?: "groq"/.test(source), "selected Investigator is explicit in ReAct input");
+assert(/const fn = selectedInvestigatorLlm && investigatorCapabilityKeyName\(selectedInvestigatorLlm\)/.test(source) && /callGroqJson\(promptValue, signalValue, cognitiveTask, selectedInvestigatorLlm\)/.test(source), "selected Investigator capability reaches direct provider boundary");
+assert(/investigatorLlm\?: InvestigatorCapability/.test(source), "selected Investigator capability is explicit in ReAct input");
 assert(/authorizePythonSandboxRequest/.test(python) && /const authorization = authorizePythonSandboxRequest/.test(python), "Python capability uses sandbox authorization");
 assert(/capability: "network_osint"/.test(python) && /destinationPolicy: "approved-public-web-only"/.test(python), "Python OSINT egress policy is constrained");
 assert(/state === "attested"/.test(python) && /allowedCapabilities\.includes\("network_osint"\)/.test(python), "Python availability requires attested capability");
