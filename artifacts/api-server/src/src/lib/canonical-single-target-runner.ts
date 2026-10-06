@@ -118,7 +118,7 @@ export async function runCanonicalSingleTargetInvestigation(atlasJobId: string, 
       if (rightHandRaw.status !== "completed" || !rightHandRaw.raw) {
         await db.update(researchCasesTable).set({ caseFile: JSON.stringify({ ...caseState, rightHandOpening: { status: "unavailable", model: rightHandRaw.model, error: rightHandRaw.error ?? "Right-hand unavailable" } }), status: "review", currentAction: "groq-right-hand-opening-failed", updatedAt: new Date() }).where(and(eq(researchCasesTable.id, caseRow.id), eq(researchCasesTable.status, "active")));
         await publishJob( { status: "failed", progress: 1, outcome: "incomplete", message: "Groq Right-hand opening review failed for " + target.name + "; Investigator execution blocked.", result: JSON.stringify({ caseId: caseRow.id, opening, rightHand: rightHandRaw }), finishedAt: new Date().toISOString() });
-        return;
+        return { investigatorIterationsUsed: 0, resourceLimited: false, status: "review" };
       }
       let rightHandOpening: Record<string, unknown>;
       try {
@@ -127,7 +127,7 @@ export async function runCanonicalSingleTargetInvestigation(atlasJobId: string, 
       } catch {
         await db.update(researchCasesTable).set({ status: "review", currentAction: "groq-right-hand-opening-invalid", updatedAt: new Date() }).where(and(eq(researchCasesTable.id, caseRow.id), eq(researchCasesTable.status, "active")));
         await publishJob( { status: "failed", progress: 1, outcome: "incomplete", message: "Groq Right-hand opening review was invalid for " + target.name + "; Investigator execution blocked.", result: JSON.stringify({ caseId: caseRow.id, opening, rightHand: rightHandRaw }), finishedAt: new Date().toISOString() });
-        return;
+        return { investigatorIterationsUsed: 0, resourceLimited: false, status: "review" };
       }
       await db.insert(researchCaseEventsTable).values({
         caseId: caseRow.id,
