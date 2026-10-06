@@ -71,8 +71,10 @@ export function validateDiscoverySearchQuery(query: string, priorQueries: readon
       && !DISCOVERY_ORG_TERMS.test(token)
       && !DISCOVERY_SOURCE_TERMS.test(token);
   });
-  const hasConcreteAnchor = source
-    || /\b(?:registry|filing|edgar|companies\s*house|sec)\b/i.test(normalized)
+  const hasExplicitSourceAnchor = /(?:\bsite:[^\s]+|\b(?:edgar|companies\s*house|sec)\b|\b[a-z0-9-]+\.(?:com|org|net|co\.[a-z]{2}|si|eu)\b)/i.test(normalized);
+  const hasRegistryOrFilingAnchor = /\b(?:registry|filing|filings|edgar|companies\s*house|sec)\b/i.test(normalized);
+  const hasConcreteAnchor = hasExplicitSourceAnchor
+    || hasRegistryOrFilingAnchor
     || hasNamedOrConcreteToken;
   if (fame && !hasConcreteAnchor) return { allowed: false, reason: "Discovery search is too fame/wealth-list oriented. Add a concrete named organization, business context, geography, registry, or source anchor before searching." };
   // Keep the rail structural rather than prescriptive: a model-selected named
