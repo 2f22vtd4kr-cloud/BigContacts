@@ -7,6 +7,7 @@ import {
 } from "../lib/atlas-control-decision";
 import { renderAtlasCapabilityGuidanceCompact, renderAtlasCapabilityGuidance } from "../lib/atlas-capability-registry";
 import { buildInvestigatorContext, getInvestigatorContextBudget } from "../lib/investigation-context-compaction";
+import { renderIntelligenceContextCompact } from "../lib/research-intelligence-engine";
 
 describe("Apex Atlas prompt budget optimization", () => {
   it("keeps the per-turn capability contract materially smaller than the full registry", () => {
@@ -38,6 +39,33 @@ describe("Apex Atlas prompt budget optimization", () => {
     expect(getInvestigatorContextBudget().maxChars).toBe(10_000);
     expect(context).toContain("Named Person");
     expect(context).toContain("RESEARCH FRONTIER");
+  });
+
+  it("preserves decision-critical intelligence categories inside the compact projection", () => {
+    const compact = renderIntelligenceContextCompact({
+      objective: "Resolve the target identity and public contact route.",
+      facts: [{ claim: "POSITIVE_IDENTITY_ANCHOR" }],
+      contradictions: [{ claim: "CONTRADICTORY_IDENTITY_SIGNAL" }],
+      negativeFindings: ["NEGATIVE_SOURCE_RESULT"],
+      openQuestions: ["UNRESOLVED_DISCRIMINATOR"],
+      contacts: [],
+      recentActions: [],
+      providerDisagreements: [{ query: "identity query", providers: ["serper", "tavily"], sourceHosts: ["a.example", "b.example"] }],
+      frontier: { unresolvedPressure: 0.8 },
+      falsification: { missingDiscriminators: ["identity discriminator"] },
+      stoppingAssessment: { recommendation: "continue" },
+      sourceIndependence: { score: 0.5 },
+      repeatedSourceFamilies: [],
+      independentSourceUnits: 2,
+    } as any, 4_000);
+    expect(compact.length).toBeLessThanOrEqual(4_000);
+    expect(compact).toContain("CONTRADICTIONS:");
+    expect(compact).toContain("CONTRADICTORY_IDENTITY_SIGNAL");
+    expect(compact).toContain("NEGATIVE FINDINGS:");
+    expect(compact).toContain("NEGATIVE_SOURCE_RESULT");
+    expect(compact).toContain("OPEN QUESTIONS:");
+    expect(compact).toContain("UNRESOLVED_DISCRIMINATOR");
+    expect(compact).toContain("PROVIDER DISAGREEMENTS:");
   });
 
   it("does not duplicate a giant Investigator report into the control prompt budget", () => {
