@@ -16,6 +16,13 @@ function compactOversightArgs(args: Record<string, unknown>): Record<string, unk
   return Object.fromEntries(ranked.slice(0, 6));
 }
 
+function headTail<T>(values: readonly T[], maxItems: number): T[] {
+  if (values.length <= maxItems) return [...values];
+  if (maxItems <= 1) return values.slice(-1);
+  const head = Math.ceil(maxItems / 2);
+  return [...values.slice(0, head), ...values.slice(-(maxItems - head))];
+}
+
 function compactOversightText(value: string | undefined, max: number): string | null {
   if (typeof value !== "string") return null;
   const normalized = value.trim();
