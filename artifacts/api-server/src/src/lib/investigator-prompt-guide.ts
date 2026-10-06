@@ -30,6 +30,8 @@ export function buildCreativeInvestigatorAngles(input: {
   candidateDomains?: string[];
   relatedOrganizations?: string[];
   depth?: ResearchDepth;
+  depth?: ResearchDepth;
+  includeInstitutionalOrientation?: boolean;
 }): string {
   const progress = input.pendingVectors?.length
     ? input.pendingVectors.join(", ")
@@ -37,12 +39,8 @@ export function buildCreativeInvestigatorAngles(input: {
   const country = input.country?.trim() || "unknown jurisdiction";
   const depth = input.depth ?? DEFAULT_RESEARCH_DEPTH;
 
-  return `${apexOrientationFor("investigator")}
-
----
-
-${GOLDEN_STANDARD_REFERENCE}
-
+  const orientation = input.includeInstitutionalOrientation === false ? "" : `${apexOrientationFor("investigator")}\n\n`;
+  return `${orientation}---\n\n${GOLDEN_STANDARD_REFERENCE}\n\n
 CURRENT RESEARCH STATE (observational, not a checklist):
 Target: ${input.targetName} (${input.targetType ?? "unknown type"})
 Jurisdiction/context: ${country}
