@@ -25,7 +25,7 @@ const checks = [
 ["discovery trajectory is also retained in the immutable event ledger", /eventType=record\.action==="done"\?"decision":record\.action==="investigator_provider_error"\?"provider_error":"tool_observation"/.test(bureau) && /researchCaseEventsTable/.test(bureau)],
 ["discovery trajectory events have run-turn correlation", /\$\{input\.runId\}:turn:\$\{record\.turn\}:trajectory/.test(bureau)],
 ["discovery claims retain immutable observation-event anchors", /observationEventIds/.test(bureau)],
-["discovery promotions reference the immutable claim event", /claimEventId:claimInserted\[0\]\?\.id/.test(bureau)],
+["discovery promotions reference the immutable resolved claim event", /let claimEventId=claimInserted\[0\]\?\.id \?\? null/.test(bureau) && /claimEventId=existingClaim\.id/.test(bureau) && /promotionPayload=JSON\.stringify\(\{[^}]*claimEventId/.test(bureau)],
 ["agentic persistence requires immutable promotion provenance", /InvestigatorPromotionProvenance/.test(persist) && /resolveImmutablePromotionSupport/.test(persist) && /if\(!support\)continue/.test(persist)],
 ["agentic card mutation revalidates immutable promotion support", /const support=await resolveImmutablePromotionSupport/.test(persist) && /if\(!support\)return false/.test(persist)],
 ["strict agentic provenance uses the same normalized URL identity for observations and findings", /function normalizeSourceUrl\(/.test(persist) && /map\(\(url\)=>normalizeSourceUrl\(url\)\)/.test(persist)],
