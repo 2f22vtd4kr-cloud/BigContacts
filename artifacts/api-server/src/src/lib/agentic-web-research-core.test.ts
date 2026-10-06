@@ -42,8 +42,13 @@ describe("Investigator prompt architecture", () => {
       allowed: false,
       reason: expect.stringContaining("concrete anchor"),
     });
+    expect(validateDiscoverySearchQuery("famous casino owners interview", [])).toEqual({
+      allowed: false,
+      reason: expect.stringContaining("concrete anchor"),
+    });
     expect(validateDiscoverySearchQuery("Acme Holdings CEO official", [])).toEqual({ allowed: true });
     expect(validateDiscoverySearchQuery("Companies House director Kenya", [])).toEqual({ allowed: true });
+    expect(validateDiscoverySearchQuery("casino owners site:example.com", [])).toEqual({ allowed: true });
   });
 
   it("keeps the structured response contract at the provider boundary", () => {
