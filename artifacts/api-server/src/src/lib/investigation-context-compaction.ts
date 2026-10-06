@@ -120,47 +120,18 @@ export function buildInvestigatorContext(input: InvestigatorContextInput): strin
   const records = [...input.trajectoryRecords].sort((a, b) => a.turn - b.turn);
   const recent = records.slice(Math.max(0, records.length - budget.recentFullRecords));
   const older = records.slice(0, Math.max(0, records.length - budget.recentFullRecords));
-  const sections: string[] = [];
 
-  sections.push([
+  const caseState = [
     "CASE STATE",
     "MODE: " + (input.mode || "target"),
     "TARGET: " + trim(input.targetName, 240),
     input.companyName ? "RELATED ORGANIZATION: " + trim(input.companyName, 240) : "",
-    "OBJECTIVE: " + trim(input.objective, 2_000),
-  ].filter(Boolean).join("\n"));
+    "OBJECTIVE: " + trim(input.objective, 1_200),
+  ].filter(Boolean).join("\n");
 
   const findings = input.findings.map((finding) => compactFinding(finding, 700)).filter(Boolean);
-  sections.push(fitSection("CURRENT FINDINGS / LEADS\n" + (findings.length ? findings.join("\n") : "(none yet)"), budget.findingChars));
-
-  sections.push("LATEST OBSERVATION\n" + (trim(input.lastObservation, budget.recentObservationChars) || "(none)"));
-
-  if (recent.length) {
-    sections.push(
-      [
-        "RECENT TRAJECTORY (full bounded observations)",
-        ...recent.map((record) =>
-          compactRecord(
-            record,
-            budget.recentObservationChars,
-            Math.max(1_200, Math.floor(budget.maxChars / Math.max(2, recent.length + 1))),
-          ),
-        ),
-      ].join("\n---\n"),
-    );
-  }
-
-  if (older.length) {
-    sections.push([
-      "ARCHIVED TRAJECTORY INDEX (older raw observations remain durable and addressable by turn)",
-      ...older.map((record) => archiveRecord(record, budget.archiveRecordChars)),
-      "Use this index to avoid repeating dead ends. Durable run/evidence records retain complete observations; do not infer missing detail from this index.",
-    ].join("\n"));
-  }
-
-  if (!records.length && input.history?.length) {
-    sections.push(fitSection("LEGACY TRAJECTORY NOTES\n" + input.history.map((item) => trim(item, 420)).filter(Boolean).join("\n"), 2_000));
-  }
+  const findingsSection = "CURRENT FINDINGS / LEADS\n" + (findings.length ? findings.join("\n") : "(none yet)");
+  const latestSection = "LATEST OBSERVATION\n" + (trim(input.lastObservation, budget.recentObservationChars) || "(none)");
 
   const actionSummary = records.slice(-8).map((record) => ({
     action: record.action,
@@ -190,26 +161,66 @@ export function buildInvestigatorContext(input: InvestigatorContextInput): strin
     : repeatedFamilies.length
       ? ["Source-family saturation is visible: prefer a new source family or a falsification move."]
       : ["Use the next action to close the most discriminating unresolved question rather than merely adding another source."];
-  sections.push([
+  const frontierSection = [
     "RESEARCH FRONTIER (derived from durable trajectory; advisory, not a fixed route)",
     "Recent action outcomes: " + JSON.stringify(actionSummary),
     "Repeated source families: " + (repeatedFamilies.join(", ") || "none"),
     ...unresolvedSignals.map((signal) => "Signal: " + signal),
     "A good next move should maximize expected information gain, identity discrimination, source independence, or contact relevance relative to cost.",
-  ].join("\n"));
+  ].join("\n");
 
-  sections.push("CONTEXT MANAGEMENT LAW\nThe complete trajectory and evidence remain durable outside this prompt. This working context is deliberately selective. Do not treat omitted raw detail as negative evidence. Prefer a new discriminating action when the archived index shows an unresolved gap. Do not repeat a failed avenue solely because its raw observation is not visible here.");
+  const recentSection = recent.length
+    ? [
+        "RECENT TRAJECTORY (full bounded observations)",
+        ...recent.map((record) =>
+          compactRecord(
+            record,
+            Math.min(budget.recentObservationChars, 1_800),
+            1_800,
+          ),
+        ),
+      ].join("\n---\n")
+    : "";
+
+  const archiveSection = older.length
+    ? [
+        "ARCHIVED TRAJECTORY INDEX (older raw observations remain durable and addressable by turn)",
+        ...older.map((record) => archiveRecord(record, Math.min(budget.archiveRecordChars, 600))),
+        "Use this index to avoid repeating dead ends. Durable run/evidence records retain complete observations; do not infer missing detail from this index.",
+      ].join("\n")
+    : "";
+
+  const lawSection = "CONTEXT MANAGEMENT LAW\nThe complete trajectory and evidence remain durable outside this prompt. This working context is deliberately selective. Do not treat omitted raw detail as negative evidence. Prefer a new discriminating action when the archived index shows an unresolved gap. Do not repeat a failed avenue solely because its raw observation is not visible here.";
+
+  const sections: Array<[string, number]> = [
+    [caseState, 650],
+    [findingsSection, Math.min(budget.findingChars, 2_600)],
+    [frontierSection, 1_250],
+    [latestSection, Math.min(budget.recentObservationChars, 1_800)],
+    [recentSection, recentSection ? Math.min(3_600, recent.length * 1_800 + 40) : 0],
+    [archiveSection, archiveSection ? Math.min(700, Math.max(0, budget.maxChars - 8_000)) : 0],
+    [lawSection, 320],
+  ];
 
   let result = "";
-  for (const section of sections) {
-    if (!section) continue;
+  for (const [section, requested] of sections) {
+    if (!section || requested <= 0) continue;
     const separator = result ? "\n\n" : "";
-    const remaining = budget.maxChars - result.length - separator.length;
+    const remaining = Math.min(requested, budget.maxChars - result.length - separator.length);
     const fitted = fitSection(section, remaining);
     if (!fitted) continue;
     result += separator + fitted;
   }
+
+  if (!records.length && input.history?.length) {
+    const separator = result ? "\n\n" : "";
+    const remaining = budget.maxChars - result.length - separator.length;
+    const legacy = fitSection("LEGACY TRAJECTORY NOTES\n" + input.history.map((item) => trim(item, 420)).filter(Boolean).join("\n"), Math.min(1_000, remaining));
+    if (legacy) result += separator + legacy;
+  }
+
   return result.slice(0, budget.maxChars);
+}
 }
 
 /** Backward-compatible bounded helper for non-ReAct callers. */
