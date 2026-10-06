@@ -120,8 +120,12 @@ function headTail<T>(values: readonly T[], maxItems: number): T[] {
 function fitSection(section: string, remaining: number): string {
   if (remaining <= 0) return "";
   if (section.length <= remaining) return section;
-  if (remaining < 80) return "";
-  return section.slice(0, remaining - 40).trimEnd() + "\n[CONTEXT BUDGET: OLDER DETAIL OMITTED; DURABLE RECORDS RETAINED]";
+  const marker = "\n[CONTEXT BUDGET: MIDDLE DETAIL OMITTED; DURABLE RECORDS RETAINED]\n";
+  if (remaining <= marker.length + 2) return "";
+  const available = remaining - marker.length;
+  const head = Math.ceil(available * 0.55);
+  const tail = Math.max(0, available - head);
+  return section.slice(0, head).trimEnd() + marker + (tail > 0 ? section.slice(-tail).trimStart() : "");
 }
 
 export function buildInvestigatorContext(input: InvestigatorContextInput): string {
@@ -238,8 +242,8 @@ export function compactInvestigationContext(input: {
   const sections = [
     "CURRENT STATE\n" + trim(input.raw, Math.floor(maxChars * 0.35)),
     "EVIDENCE GRAPH SUMMARY\n" + (input.evidenceGraphSummaries ?? []).map((value) => trim(value, 900)).filter(Boolean).join("\n"),
-    "TRAJECTORY RECORDS\n" + (input.trajectoryRecords ?? []).map((record) => archiveRecord(record, 650)).filter(Boolean).join("\n"),
-    "TRAJECTORY NOTES\n" + (input.trajectory ?? []).map((value) => trim(value, 420)).filter(Boolean).join("\n"),
+    "TRAJECTORY RECORDS\n" + headTail(input.trajectoryRecords ?? [], 10).map((record) => archiveRecord(record, 650)).filter(Boolean).join("\n"),
+    "TRAJECTORY NOTES\n" + headTail(input.trajectory ?? [], 10).map((value) => trim(value, 420)).filter(Boolean).join("\n"),
   ].filter((section) => section.split("\n").slice(1).join("\n").trim().length > 0);
   let result = "";
   for (const section of sections) {
