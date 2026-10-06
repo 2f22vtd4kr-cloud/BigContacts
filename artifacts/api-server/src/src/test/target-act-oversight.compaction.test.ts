@@ -7,7 +7,7 @@ describe("target-act oversight prompt compaction", () => {
       turn: 7,
       model: "groq-investigator-1",
       action: "visit",
-      args: { url: "https://example.com", purpose: "verify identity", extra: "ignored", giant: "A".repeat(5_000) },
+      args: { noise1: "ignored", noise2: "ignored", noise3: "ignored", query: "DECISION_CRITICAL_QUERY", url: "https://example.com", purpose: "verify identity", giant: "A".repeat(5_000) },
       execution: "success",
       observation: "DECISIVE_HEAD " + "X".repeat(5_000) + " DECISIVE_TAIL",
       observedUrls: ["https://example.com/page", "https://example.com/other"],
@@ -17,6 +17,7 @@ describe("target-act oversight prompt compaction", () => {
     });
     expect(JSON.stringify(compact).length).toBeLessThan(6_000);
     expect(compact.action).toBe("visit");
+    expect(JSON.stringify(compact.args)).toContain("DECISION_CRITICAL_QUERY");
     expect(compact.observedUrls).toContain("https://example.com/page");
     expect(String(compact.observation)).toContain("DECISIVE_HEAD");
     expect(String(compact.observation)).toContain("DECISIVE_TAIL");
