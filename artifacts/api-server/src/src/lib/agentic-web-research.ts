@@ -9,6 +9,7 @@ import { getJob } from "./job-queue";
 import { ResearchIntelligenceEngine, renderIntelligenceContext } from "./research-intelligence-engine";
 import { shouldCheckpointResearchEpisode } from "./research-episode-policy";
 import { inferResearchCognitiveTask } from "./research-cognitive-routing";
+import { bindExactSourceSpan } from "./research-epistemic-vnext";
 import type { AgenticFinding } from "./agentic-web-research-core";
 
 const nativeFetch = globalThis.fetch.bind(globalThis);
@@ -47,18 +48,18 @@ function groundedFinding(finding: AgenticFinding, records: readonly CoreResult["
   if (!Array.isArray(finding.sourceUrls) || !finding.sourceUrls.length) return false;
   const cited = new Set(finding.sourceUrls.map(normalizedObservedUrl).filter((url): url is string => Boolean(url)));
   if (!cited.size) return false;
-  const value = finding.value.trim().toLowerCase();
-  const identityTokens = finding.scope === "candidate" && finding.personName ? finding.personName.toLowerCase().split(/[^a-z0-9]+/).filter((token) => token.length >= 2) : [];
+  const value = finding.value.trim();
+  const identity = finding.scope === "candidate" && finding.personName ? finding.personName.trim() : "";
   let valueObserved = false;
-  let identityObserved = identityTokens.length === 0;
+  let identityObserved = !identity;
   let support = 0;
   for (const record of records) {
     if (record.execution !== "success" || typeof record.observation !== "string" || ["web_search", "parallel_web_search", "done"].includes(record.action)) continue;
     const urls = record.observedUrls.map(normalizedObservedUrl).filter((url): url is string => Boolean(url)).filter((url) => cited.has(url));
     if (!urls.length) continue;
-    const observation = record.observation.toLowerCase();
-    const hasValue = value.length > 0 && observation.includes(value);
-    const hasIdentity = !identityTokens.length || identityTokens.every((token) => observation.includes(token));
+    const observation = record.observation;
+    const hasValue = value.length > 0 && Boolean(bindExactSourceSpan(observation, value)?.exact);
+    const hasIdentity = !identity || Boolean(bindExactSourceSpan(observation, identity)?.exact);
     if (hasValue) valueObserved = true;
     if (hasIdentity) identityObserved = true;
     if (hasValue || hasIdentity) support += 1;
