@@ -535,6 +535,14 @@ async function callGroqJson(
 
         if (response.status === 429) {
           const hardQuota = groqHardRequestQuota(response, body);
+          const rateLimits = captureGroqRateLimitSnapshot(keyName ?? "unknown", response);
+          let providerErrorCode: string | null = null;
+          let providerErrorType: string | null = null;
+          try {
+            const parsed = JSON.parse(body) as { error?: { code?: unknown; type?: unknown } };
+            providerErrorCode = typeof parsed.error?.code === "string" ? parsed.error.code : null;
+            providerErrorType = typeof parsed.error?.type === "string" ? parsed.error.type : null;
+          } catch {}
           recordAgenticLlmAttempt({
             provider: "groq",
             model,
@@ -544,6 +552,12 @@ async function callGroqJson(
             latencyMs: Date.now() - started,
             retryIndex: attempt,
             reason: hardQuota ? "upstream_quota_exhausted" : "upstream_rate_limited",
+            providerErrorCode,
+            providerErrorType,
+            rateLimitRemainingTokens: rateLimits.remainingTokens,
+            rateLimitResetTokensMs: rateLimits.resetTokensMs,
+            rateLimitRemainingRequests: rateLimits.remainingRequests,
+            rateLimitResetRequestsMs: rateLimits.resetRequestsMs,
           });
           if (hardQuota) {
             const tokenWaitMs = groqTokenWindowWaitMs(response, body);
@@ -574,6 +588,12 @@ async function callGroqJson(
             }
           })();
           lastProviderError = providerCode ? `HTTP_${response.status}:${providerCode}` : `HTTP_${response.status}`;
+          const rateLimits = captureGroqRateLimitSnapshot(keyName ?? "unknown", response);
+          let providerErrorType: string | null = null;
+          try {
+            const parsed = JSON.parse(body) as { error?: { type?: unknown } };
+            providerErrorType = typeof parsed.error?.type === "string" ? parsed.error.type : null;
+          } catch {}
           recordAgenticLlmAttempt({
             provider: "groq",
             model,
@@ -587,8 +607,13 @@ async function callGroqJson(
               : response.status === 413
                 ? "request_size"
                 : "provider_rejected",
+            providerErrorCode: providerCode,
+            providerErrorType,
+            rateLimitRemainingTokens: rateLimits.remainingTokens,
+            rateLimitResetTokensMs: rateLimits.resetTokensMs,
+            rateLimitRemainingRequests: rateLimits.remainingRequests,
+            rateLimitResetRequestsMs: rateLimits.resetRequestsMs,
           });
-
           // Groq may reject a structurally valid strict schema even though the
           // model can return the same contract under JSON-object mode. Retry once
           // on the SAME model and keep the existing parseAction validation gate.
@@ -642,6 +667,7 @@ async function callGroqJson(
         }
 
         const raw = data.choices?.[0]?.message?.content?.trim() || "";
+        const rateLimits = captureGroqRateLimitSnapshot(keyName ?? "unknown", response);
         recordAgenticLlmAttempt({
           provider: "groq",
           model,
@@ -655,6 +681,10 @@ async function callGroqJson(
           latencyMs: Date.now() - started,
           retryIndex: attempt,
           reason: raw ? (jsonObjectFallbackUsed ? "json_object_compatibility_success" : undefined) : "empty_response",
+          rateLimitRemainingTokens: rateLimits.remainingTokens,
+          rateLimitResetTokensMs: rateLimits.resetTokensMs,
+          rateLimitRemainingRequests: rateLimits.remainingRequests,
+          rateLimitResetRequestsMs: rateLimits.resetRequestsMs,
         });
         if (raw) return { model, raw };
         break;
