@@ -105,6 +105,29 @@ describe("Apex Atlas prompt budget optimization", () => {
     expect(compact).toContain('"promotionDecision":"reject"');
   });
 
+  it("reserves Investigator context for the frontier instead of exhausting it on recent history", () => {
+    const context = buildInvestigatorContext({
+      targetName: "Decision Target",
+      objective: "Resolve identity",
+      trajectoryRecords: Array.from({ length: 20 }, (_, i) => ({
+        turn: i + 1,
+        model: "groq",
+        action: "visit",
+        execution: "success",
+        observation: "LONG_OBSERVATION_" + (i + 1) + " ".repeat(1_700),
+        observedUrls: ["https://source.example/" + (i + 1)],
+        findings: [],
+      })),
+      lastObservation: "LATEST_DECISION_SIGNAL",
+      findings: [{ value: "CURRENT_FINDING", sourceUrls: ["https://source.example/finding"], vectorType: "other" }],
+      mode: "target",
+    });
+    expect(context.length).toBeLessThanOrEqual(getInvestigatorContextBudget().maxChars);
+    expect(context).toContain("RESEARCH FRONTIER");
+    expect(context).toContain("LATEST_DECISION_SIGNAL");
+    expect(context).toContain("CURRENT_FINDING");
+  });
+
   it("does not duplicate a giant Investigator report into the control prompt budget", () => {
     const report = JSON.stringify({
       provider: "groq-investigator-1",
