@@ -679,9 +679,11 @@ function buildStepPrompt(input: { targetName: string; companyName?: string | nul
     : "ASSIGNMENT TARGET: " + input.targetName;
   const workingContext = buildInvestigatorContext({
     targetName: input.targetName, companyName: input.companyName, objective: input.objective, history: input.history,
-    trajectoryRecords: input.trajectoryRecords, lastObservation: input.lastObservation, findings: input.findings, mode: input.mode,
+    trajectoryRecords: input.trajectoryRecords, lastObservation: input.lastObservation, findings: input.findings, mode: input.mode, maxChars: 6_500,
   });
-  const cognitiveState = boundInvestigatorPromptSection(input.intelligenceContext || "RESEARCH INTELLIGENCE STATE: not yet populated.", 4_000);
+  // Reserve explicit room for both durable intelligence state and the working trajectory.
+  // The provider cap is a last-resort safety rail, not the normal prompt architecture.
+  const cognitiveState = boundInvestigatorPromptSection(input.intelligenceContext || "RESEARCH INTELLIGENCE STATE: not yet populated.", 2_500);
   return apexOrientationCompact("dig_agent") + "\n\n"
     + "INSTITUTIONAL BOOTSTRAP IS ALREADY IN FORCE. The operator supplied case-specific direction; the institution supplies identity, evidence law, autonomy law, and role boundaries. You own the research trajectory.\n\n"
     + "Discovery, target research, revisits, pivots, and stopping are capabilities you may choose, not mandatory phases.\n\n"
