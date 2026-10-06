@@ -14,7 +14,7 @@ import { classifyTrajectorySignals, type AtlasFailureSignal } from "./atlas-fail
 import { ResearchIntelligenceEngine, renderIntelligenceContext } from "./research-intelligence-engine";
 import { bindExactSourceSpan } from "./research-epistemic-vnext";
 import { inferResearchCognitiveTask, rankGroqModelsForTask, type ResearchCognitiveTask } from "./research-cognitive-routing";
-import { getAvailableInvestigatorCapabilities, type InvestigatorCapability } from "./investigator-capability-registry";
+import { getAvailableInvestigatorCapabilities, investigatorCapabilityKeyName, type InvestigatorCapability } from "./investigator-capability-registry";
 import { evaluateResearchTerminal } from "./research-terminal-gate";
 import {
   classifyProviderHttpStatus,
@@ -381,15 +381,21 @@ function groqHardRequestQuota(response: Response, body: string): boolean {
   }
 }
 
-async function callGroqJson(prompt: string, signal: AbortSignal, cognitiveTask: ResearchCognitiveTask = "identity_resolution"): Promise<{ model: string; raw: string; error?: string } | null> {
-  const keys = ["GROQ_INVESTIGATOR_API_KEY", ...Array.from({ length: 5 }, (_, i) => `GROQ_INVESTIGATOR_API_KEY_${i + 1}`)].map((n) => (process.env[n] || "").trim()).filter(Boolean);
-  if (!keys.length) return null;
+async function callGroqJson(
+  prompt: string,
+  signal: AbortSignal,
+  cognitiveTask: ResearchCognitiveTask = "identity_resolution",
+  investigatorCapability?: InvestigatorCapability,
+): Promise<{ model: string; raw: string; error?: string } | null> {
+  const keyName = investigatorCapability ? investigatorCapabilityKeyName(investigatorCapability) : null;
+  const key = keyName ? (process.env[keyName] || "").trim() : "";
+  if (!key) return null;
   let attempt = 0;
   let workingPrompt = prompt;
   let sizeReductionApplied = false;
   let lastProviderError: string | null = null;
   const routedModels = rankGroqModelsForTask(GROQ_CHAT_MODELS, cognitiveTask);
-  for (const key of keys) for (const model of routedModels) {
+  for (const model of routedModels) {
     if (signal.aborted) throw new Error("cancelled");
     let retry429 = 0;
     let jsonObjectFallbackUsed = false;
@@ -399,7 +405,7 @@ async function callGroqJson(prompt: string, signal: AbortSignal, cognitiveTask: 
       try {
         const responseFormat = jsonObjectFallbackUsed ? { type: "json_object" } : structuredActionResponseFormat(model);
         const response = await withProviderRetryOwnership("groq", "caller", () =>
-          runProviderCall({ provider: "groq", account: key, signal }, () =>
+          runProviderCall({ provider: "groq", account: keyName ?? "unknown", signal }, () =>
             safeOutboundFetch("https://api.groq.com/openai/v1/chat/completions", {
               method: "POST",
               headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
@@ -554,8 +560,9 @@ async function callGroqJson(prompt: string, signal: AbortSignal, cognitiveTask: 
   }
   return { model: routedModels.at(-1) ?? GROQ_CHAT_MODELS[0] ?? "groq", raw: "", error: lastProviderError ?? "provider_unavailable" };
 }
-function investigatorKeyConfigured(): boolean {
-  return ["GROQ_INVESTIGATOR_API_KEY", ...Array.from({ length: 5 }, (_, i) => `GROQ_INVESTIGATOR_API_KEY_${i + 1}`)].some((name) => Boolean(process.env[name]?.trim()));
+function investigatorKeyConfiguredForCapability(capability: InvestigatorCapability): boolean {
+  const keyName = investigatorCapabilityKeyName(capability);
+  return Boolean(keyName && process.env[keyName]?.trim());
 }
 
 async function llmStep(prompt: string, selectedInvestigatorLlm: InvestigatorCapability | undefined, parentSignal: AbortSignal, cognitiveTask: ResearchCognitiveTask = "identity_resolution"): Promise<{ model: string; raw: string; fallback: string[]; providerError?: string } | null> {
@@ -563,8 +570,8 @@ async function llmStep(prompt: string, selectedInvestigatorLlm: InvestigatorCapa
   try {
     const boundedPrompt = boundInvestigatorPromptSection(prompt, MAX_PROVIDER_PROMPT_CHARS);
     if (!selectedInvestigatorLlm) { setAgenticLlmHealth(false, null, "No Boss-selected Investigator LLM was propagated into ReAct"); return null; }
-    const fn = selectedInvestigatorLlm === "groq" && investigatorKeyConfigured() ? ((promptValue: string, signalValue: AbortSignal) => callGroqJson(promptValue, signalValue, cognitiveTask)) : null;
-    if (!fn) { setAgenticLlmHealth(false, null, "groq:selected provider unavailable"); return null; }
+    const fn = selectedInvestigatorLlm && investigatorCapabilityKeyName(selectedInvestigatorLlm) && investigatorKeyConfiguredForCapability(selectedInvestigatorLlm) ? ((promptValue: string, signalValue: AbortSignal) => callGroqJson(promptValue, signalValue, cognitiveTask, selectedInvestigatorLlm)) : null;
+    if (!fn) { setAgenticLlmHealth(false, null, `${selectedInvestigatorLlm}: selected Investigator capability unavailable`); return null; }
     if (parentSignal.aborted) throw new Error("cancelled");
     const controller = new AbortController();
     const abortParent = () => controller.abort();
