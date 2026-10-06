@@ -52,6 +52,7 @@ describe("Apex Atlas prompt budget optimization", () => {
     const compact = renderIntelligenceContextCompact({
       objective: "Resolve the target identity and public contact route.",
       facts: [{ claim: "POSITIVE_IDENTITY_ANCHOR" }],
+      hypotheses: [{ entity: "LEADING_PERSON_IDENTITY", score: 0.82, status: "leading", supportingEvidenceIds: ["ev-1"], contradictingEvidenceIds: [], missingDiscriminators: ["confirm official role"] }],
       contradictions: [{ claim: "CONTRADICTORY_IDENTITY_SIGNAL" }],
       negativeFindings: ["NEGATIVE_SOURCE_RESULT"],
       openQuestions: ["UNRESOLVED_DISCRIMINATOR"],
@@ -66,6 +67,8 @@ describe("Apex Atlas prompt budget optimization", () => {
       independentSourceUnits: 2,
     } as any, 4_000);
     expect(compact.length).toBeLessThanOrEqual(4_000);
+    expect(compact).toContain("IDENTITY HYPOTHESES:");
+    expect(compact).toContain("LEADING_PERSON_IDENTITY");
     expect(compact).toContain("CONTRADICTIONS:");
     expect(compact).toContain("CONTRADICTORY_IDENTITY_SIGNAL");
     expect(compact).toContain("NEGATIVE FINDINGS:");
