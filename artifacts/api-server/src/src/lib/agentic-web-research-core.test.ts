@@ -9,6 +9,7 @@ describe("Investigator prompt architecture", () => {
       history: [],
       trajectoryRecords: Array.from({ length: 24 }, (_, index) => ({
         turn: index + 1,
+        model: "openai/gpt-oss-20b",
         action: "parallel_web_search",
         execution: "success",
         args: { query: "generic research " + index },
