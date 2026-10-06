@@ -20,6 +20,13 @@ describe("research epistemic vNext", () => {
     expect(span?.valueMatched).toBe(true);
   });
 
+  it("rejects values and identities that only match a longer token", () => {
+    expect(bindExactSourceSpan("Jane Example — jane@example.com.extra", "jane@example.com", "Jane Example")).toBeNull();
+    expect(bindExactSourceSpan("Janet Example — Director", "Jane", "Jane")).toBeNull();
+    expect(bindExactSourceSpan("Jane Example — https://example.com/profile", "https://example.com", "Jane Example")).toBeNull();
+    expect(bindExactSourceSpan("Jane Example — jane@example.com.", "jane@example.com", "Jane Example")?.exact).toBe(true);
+  });
+
   it("does not manufacture a span when the value is absent", () => {
     expect(bindExactSourceSpan("Jane Doe works at Example Ltd.", "john@example.org", "Jane Doe")).toBeNull();
   });
