@@ -53,7 +53,7 @@ function groundedFinding(finding: AgenticFinding, records: readonly CoreResult["
   let identityObserved = identityTokens.length === 0;
   let support = 0;
   for (const record of records) {
-    if (record.execution !== "success" || typeof record.observation !== "string") continue;
+    if (record.execution !== "success" || typeof record.observation !== "string" || ["web_search", "parallel_web_search", "done"].includes(record.action)) continue;
     const urls = record.observedUrls.map(normalizedObservedUrl).filter((url): url is string => Boolean(url)).filter((url) => cited.has(url));
     if (!urls.length) continue;
     const observation = record.observation.toLowerCase();
